@@ -170,7 +170,7 @@ const CreateGamePage = React.memo((props: CreateGamePageProps) => {
     [createDoc]
   );
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT !== "development") {
+  if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
     return null;
   }
 

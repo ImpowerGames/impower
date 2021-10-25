@@ -300,6 +300,10 @@ const StudioPageContent = React.memo((props: StudioPageContentProps) => {
     );
   }, [router, studioId, tabs, validConsoleIndex]);
 
+  if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
+    return null;
+  }
+
   if (deletionState === "deleting") {
     return (
       <StyledStudioPageContent>

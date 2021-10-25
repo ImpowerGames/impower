@@ -70,6 +70,10 @@ const ResourcePage = React.memo((props: ResourcePageProps) => {
     return null;
   }
 
+  if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
+    return null;
+  }
+
   return (
     <ResourceContextProvider>
       <StyledProjectPage>

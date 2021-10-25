@@ -66,7 +66,7 @@ const GamePage = React.memo((props: GamePageProps) => {
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT !== "development") {
+  if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
     return null;
   }
 

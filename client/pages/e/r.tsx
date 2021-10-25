@@ -172,7 +172,7 @@ const CreateResourcePage = React.memo((props: CreateResourcePageProps) => {
     [createDoc]
   );
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT !== "development") {
+  if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
     return null;
   }
 

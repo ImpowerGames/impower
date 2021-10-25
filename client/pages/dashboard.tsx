@@ -91,6 +91,10 @@ const DashboardPage = React.memo(() => {
     loaded,
   ]);
 
+  if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
+    return null;
+  }
+
   if (underConstruction) {
     return (
       <PageUnderConstruction

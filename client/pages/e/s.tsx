@@ -150,7 +150,7 @@ const CreateStudioPage = React.memo((props: CreateStudioPageProps) => {
     [createDoc]
   );
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT !== "development") {
+  if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
     return null;
   }
 
