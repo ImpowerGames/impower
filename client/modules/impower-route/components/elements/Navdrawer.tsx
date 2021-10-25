@@ -33,12 +33,11 @@ import AccountMenu from "../menus/AccountMenu";
 import Title from "./Title";
 
 export const unauthenticatedAccountPages: string[] = ["/signup", "/login"];
-export const navbarPages: string[] = [
-  "/pitch",
-  "/library",
-  "/dashboard",
-  "#donate",
-];
+export const navbarPages: string[] = process.env.NEXT_PUBLIC_ORIGIN?.includes(
+  "localhost"
+)
+  ? ["/pitch", "/library", "/dashboard", "#donate"]
+  : ["/pitch", "#donate"];
 export const install = "Install";
 
 const pageIcons: { [baseRoute: string]: React.ReactNode } = {

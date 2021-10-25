@@ -13,12 +13,11 @@ import { pageNames } from "../../types/info/pageNames";
 import FadeAnimation from "../animations/FadeAnimation";
 import SlideAnimation from "../animations/SlideAnimation";
 
-export const navbarPages: string[] = [
-  "/pitch",
-  "/library",
-  "/dashboard",
-  "#donate",
-];
+export const navbarPages: string[] = process.env.NEXT_PUBLIC_ORIGIN?.includes(
+  "localhost"
+)
+  ? ["/pitch", "/library", "/dashboard", "#donate"]
+  : ["/pitch", "#donate"];
 export const unauthenticatedAccountPages: string[] = ["/signup", "/login"];
 export const install = "Install";
 
@@ -142,10 +141,6 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
 
   const stagger = 0.05;
   const slideInitial = -24;
-
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
-    return null;
-  }
 
   return (
     <>

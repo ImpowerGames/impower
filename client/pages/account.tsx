@@ -76,9 +76,6 @@ const AccountPage = React.memo((props: AccountPageProps) => {
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
-    return null;
-  }
   if (userDoc === null) {
     return <PageNotFound />;
   }

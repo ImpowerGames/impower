@@ -11,7 +11,7 @@ import SectionTitle from "../elements/SectionTitle";
 const StyledContainer = styled.div``;
 
 const StyledSubtitle = styled(Typography)`
-  margin-top: ${(props): string => props.theme.spacing(2)};
+  margin: ${(props): string => props.theme.spacing(2)};
 `;
 
 const StyledButton = styled(Button)`

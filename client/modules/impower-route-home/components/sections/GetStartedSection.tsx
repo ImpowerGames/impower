@@ -78,14 +78,7 @@ const GetStartedSection = (): JSX.Element => {
                   whileHover={hoverVariant}
                   whileTap={tapVariant}
                 >
-                  <NextLink
-                    href={
-                      process.env.NEXT_PUBLIC_ENVIRONMENT === "production"
-                        ? "/invite"
-                        : button.link
-                    }
-                    passHref
-                  >
+                  <NextLink href={button.link} passHref>
                     <StyledButton
                       className={StyledButton.displayName}
                       size="large"

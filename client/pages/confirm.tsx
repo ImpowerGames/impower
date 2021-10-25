@@ -57,10 +57,6 @@ const ConfirmPage = React.memo(() => {
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
-    return null;
-  }
-
   return (
     <>
       <NavigationBarSpacer />

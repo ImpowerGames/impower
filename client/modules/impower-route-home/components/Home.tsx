@@ -7,7 +7,6 @@ import dynamic from "next/dynamic";
 import NextLink from "next/link";
 import React, { useEffect, useState } from "react";
 import AnglesDownRegularIcon from "../../../resources/icons/regular/angles-down.svg";
-import EnvelopeRegularIcon from "../../../resources/icons/regular/envelope.svg";
 import GamepadRegularIcon from "../../../resources/icons/regular/gamepad.svg";
 import LazyHydrate from "../../impower-hydration/LazyHydrate";
 import { FontIcon } from "../../impower-icon";
@@ -28,7 +27,6 @@ import RoadmapSection from "./sections/RoadmapSection";
 
 const title = `Game Dev Made Easy.`;
 const body = `Impower is a free community-powered indie development platform that gives creative people the tools they need to bring their ideas to life.`;
-const inviteButton = { label: `Request Invite`, link: `/invite` };
 const tryButton = { label: `Make a game, it's free!`, link: `/pitch?e=game` };
 const scrollInstruction = `SCROLL TO LEARN MORE`;
 
@@ -173,17 +171,8 @@ const StyledButtonIconArea = styled.div`
 `;
 
 const CallToActionButton = React.memo(() => {
-  const button =
-    process.env.NEXT_PUBLIC_ENVIRONMENT === "production"
-      ? inviteButton
-      : tryButton;
-
-  const icon =
-    process.env.NEXT_PUBLIC_ENVIRONMENT === "production" ? (
-      <EnvelopeRegularIcon />
-    ) : (
-      <GamepadRegularIcon />
-    );
+  const button = tryButton;
+  const icon = <GamepadRegularIcon />;
 
   return (
     <StyledMotionButtonArea>

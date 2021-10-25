@@ -62,10 +62,6 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
   const { doc } = props;
   const [userState] = useContext(UserContext);
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
-    return null;
-  }
-
   if (doc === null || doc === undefined) {
     const usernameQuery =
       typeof window !== "undefined"

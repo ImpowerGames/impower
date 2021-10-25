@@ -94,14 +94,7 @@ const AudienceSection = (): JSX.Element => {
                     whileTap={tapVariant}
                     stretch
                   >
-                    <NextLink
-                      href={
-                        process.env.NEXT_PUBLIC_ENVIRONMENT === "production"
-                          ? "/invite"
-                          : button.link
-                      }
-                      passHref
-                    >
+                    <NextLink href={"/signup"} passHref>
                       <StyledButton className={StyledButton.displayName}>
                         <StyledButtonLabel
                           className={StyledButtonLabel.displayName}

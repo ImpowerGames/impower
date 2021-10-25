@@ -83,14 +83,7 @@ const ProductSection = (): JSX.Element => {
                     whileTap={tapVariant}
                     stretch
                   >
-                    <NextLink
-                      href={
-                        process.env.NEXT_PUBLIC_ENVIRONMENT === "production"
-                          ? "/invite"
-                          : step.link
-                      }
-                      passHref
-                    >
+                    <NextLink href={"/signup"} passHref>
                       <StyledButton>
                         <StyledButtonLabel>
                           <StyledListItemIcon>

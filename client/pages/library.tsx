@@ -54,10 +54,6 @@ const LibraryPage = React.memo((props: LibraryPageProps) => {
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
-    return null;
-  }
-
   return (
     <>
       <NavigationBarSpacer />
