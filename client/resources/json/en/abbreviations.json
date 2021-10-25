@@ -1,0 +1,15 @@
+{
+  "count": {
+    "k": "{count}k",
+    "m": "{count}m",
+    "b": "{count}b",
+    "t": "{count}t"
+  },
+  "age": {
+    "m": "{age}m",
+    "h": "{age}h",
+    "d": "{age}d",
+    "mo": "{age}mo",
+    "y": "{age}y"
+  }
+}

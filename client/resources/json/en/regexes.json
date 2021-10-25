@@ -1,0 +1,10 @@
+{
+  "A": {
+    "^[aeiouAEIOU]": "An",
+    "": "A"
+  },
+  "a": {
+    "^[aeiouAEIOU]": "an",
+    "": "a"
+  }
+}

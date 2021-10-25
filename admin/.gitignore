@@ -1,0 +1,40 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+firebase-debug.log*
+firebase-debug.*.log*
+
+# dotenv environment variables file
+.env
+
+# Compiled JavaScript files
+**/*.js
+**/*.js.map
+
+# Except the ESLint config file
+!.eslintrc.js
+
+# TypeScript v1 declaration files
+typings/
+
+# Node.js dependency directory
+node_modules/
+
+# local env files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Secret Firebase Credentials & Parameters
+*.credentials.json
+*.auth.json
+*.accounts.json
+
+# Lib directory
+lib/
+
+scripts/refactor

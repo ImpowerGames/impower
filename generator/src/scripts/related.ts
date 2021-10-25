@@ -1,0 +1,24 @@
+import fs from "fs";
+import tagTerms from "../input/tagTerms.json";
+import { keywords } from "../generated/keywords";
+import { termVectors } from "../generated/termVectors";
+import { getRelatedTerms } from "../utils/getRelatedTerms";
+
+getRelatedTerms(
+  tagTerms,
+  termVectors,
+  Object.keys(keywords),
+  0.4,
+  4,
+  ...process.argv.slice(2)
+).then((result) => {
+  const path = "./src/tmp/relatedTerms.json";
+
+  fs.writeFile(path, JSON.stringify(result), (err) => {
+    if (err) {
+      console.log("FAILED!", err);
+    } else {
+      console.log("EXPORTED TO: ", path);
+    }
+  });
+});

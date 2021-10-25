@@ -1,0 +1,6 @@
+{
+  "pitched_games_preamble": "{tag:regex:A} {tag} game where you",
+  "pitched_games_author_preamble": "{tag:regex:A} {tag} game pitched by",
+  "pitched_resources_preamble": "{tag:regex:A} {tag} resource for",
+  "contribute_type_label": "Contribute {type:regex:a} {type}"
+}

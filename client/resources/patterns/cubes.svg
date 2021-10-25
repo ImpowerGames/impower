@@ -1,0 +1,8 @@
+<svg width="10" height="16" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g id="cube">
+    <path class="left-shade" d="M0 0l5 3v5l-5 -3z" />
+    <path class="right-shade" d="M10 0l-5 3v5l5 -3" />
+  </g>
+  <use x="5" y="8" xlink:href="#cube" />
+  <use x="-5" y="8" xlink:href="#cube" />
+</svg>

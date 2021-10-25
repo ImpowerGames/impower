@@ -1,0 +1,74 @@
+{
+  "env": {
+    "es6": true,
+    "browser": true,
+    "jest": true,
+    "node": true
+  },
+  "settings": {
+    "react": {
+      "version": "detect"
+    },
+    "import/resolver": {
+      "typescript": {}
+    }
+  },
+  "parser": "@typescript-eslint/parser",
+  "plugins": [
+    "@typescript-eslint",
+    "import",
+    "react",
+    "react-hooks",
+    "jsx-a11y",
+    "prettier"
+  ],
+  "extends": [
+    "airbnb-base",
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:@typescript-eslint/recommended",
+    "prettier",
+    "plugin:jsx-a11y/recommended",
+    "plugin:prettier/recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended"
+  ],
+  "rules": {
+    "react/prop-types": ["off"],
+    "camelcase": "off",
+    "no-console": ["error", { "allow": ["warn", "error"] }],
+    "no-param-reassign": "off",
+    "react/react-in-jsx-scope": "off",
+    "no-undef": "off",
+    "no-use-before-define": "off",
+    "@typescript-eslint/no-use-before-define": "error",
+    "react/display-name": "off",
+    "no-underscore-dangle": "off",
+    "no-nested-ternary": "off",
+    "no-shadow": "off",
+    "class-methods-use-this": "off",
+    "import/prefer-default-export": "off",
+    "import/extensions": [
+      "error",
+      "ignorePackages",
+      { "ts": "never", "tsx": "never", "js": "never" }
+    ],
+    "import/no-extraneous-dependencies": "off",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      { "argsIgnorePattern": "^_" }
+    ],
+    "@typescript-eslint/no-explicit-any": [
+      "warn",
+      {
+        "fixToUnknown": true,
+        "ignoreRestArgs": true
+      }
+    ],
+    "@typescript-eslint/explicit-function-return-type": ["error"],
+    "prettier/prettier": ["error", { "endOfLine": "auto" }],
+    "jsx-a11y/no-autofocus": "off"
+  }
+}

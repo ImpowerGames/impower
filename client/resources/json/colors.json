@@ -1,0 +1,23 @@
+{
+  "red": "#E6194BFF",
+  "green": "#00B817FF",
+  "yellow": "#E0C300FF",
+  "blue": "#4363D8FF",
+  "orange": "#EE6200FF",
+  "purple": "#911EB4FF",
+  "cyan": "#30D6D6FF",
+  "magenta": "#EA00DDFF",
+  "lime": "#98CA00FF",
+  "pink": "#FF8181FF",
+  "teal": "#008080FF",
+  "lavender": "#D086FFFF",
+  "brown": "#9A6324FF",
+  "beige": "#D2A966FF",
+  "maroon": "#800000FF",
+  "mint": "#6CD68BFF",
+  "olive": "#767600FF",
+  "apricot": "#FFBC79FF",
+  "navy": "#000075FF",
+  "grey": "#EC0000FF",
+  "black": "#000000FF"
+}

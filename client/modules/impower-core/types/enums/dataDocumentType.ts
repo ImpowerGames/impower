@@ -1,0 +1,16 @@
+export type DataDocumentType =
+  | "PathDocument"
+  | "UserDocument"
+  | "StudioDocument"
+  | "ResourceDocument"
+  | "GameDocument"
+  | "CommentDocument"
+  | "ContributionDocument"
+  | "ClaimsDocument"
+  | "SettingsDocument"
+  | "SlugDocument"
+  | "TagDocument"
+  | "ReportDocument"
+  | "PhraseDocument"
+  | "SuggestionDocument"
+  | "CustomizationDocument";

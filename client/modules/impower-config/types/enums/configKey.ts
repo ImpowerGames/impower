@@ -1,0 +1,16 @@
+export type ConfigKey =
+  | "abbreviations"
+  | "capitalizations"
+  | "colors"
+  | "gameTags"
+  | "messages"
+  | "moods"
+  | "phrases"
+  | "regexes"
+  | "resourceTags"
+  | "roleTags"
+  | "tagColorNames"
+  | "tagDisambiguations"
+  | "tagIconNames"
+  | "tagPatterns"
+  | "terms";

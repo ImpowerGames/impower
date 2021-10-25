@@ -1,0 +1,5 @@
+<svg width="20" height="10">
+  <g fill="#000" fill-rule="evenodd">
+    <path d="M16,6 L6,6 L6,10 L4,10 L4,6 L2,6 L2,4 L4,4 L4,0 L6,0 L6,4 L16,4 L16,0 L18,0 L18,4 L20,4 L20,6 L18,6 L18,10 L16,10 L16,6 Z"></path>
+  </g>
+</svg>

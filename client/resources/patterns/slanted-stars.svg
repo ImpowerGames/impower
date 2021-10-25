@@ -1,0 +1,5 @@
+<svg width="30" height="30">
+  <g fill="#000" fill-rule="evenodd">
+    <path d="M0,15 L15,30 L0,30 L0,15 L0,15 Z M15,0 L30,15 L30,0 L15,0 L15,0 Z"></path>
+  </g>
+</svg>
