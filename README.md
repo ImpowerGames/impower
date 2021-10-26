@@ -155,7 +155,7 @@ All branches are deployed automatically on every push to the impower repo.
 Every bitbucket pull request gets a Preview Deployment URL that stays updated with each push to the branch.
 Every push gets its own URL also.
 
-The master branch is automatically deployed to [master](http://dev.impower.app) on each push.
+The main branch is automatically deployed to [main](http://dev.impower.app) on each push.
 
 The following branches are tied to special domains and should only be pushed to during official version updates and releases:
 
