@@ -41,15 +41,11 @@ The Impower Engine can export:
 - Games as PWAs that the user can post on the website's "Play" page or host on their own website.
 - Games as APK packages that the user can upload to the [Google Play Store](https://play.google.com/store).
 
----
-
 ## Getting Started
 
 1. Install Package Manager: [NodeJS](https://nodejs.org)
 2. Install IDE: [VSCode](https://code.visualstudio.com)
 3. Install Source Control GUI: [SourceTree](https://www.sourcetreeapp.com)
-
----
 
 ## The Client:
 
@@ -70,8 +66,6 @@ The Impower Engine can export:
 
 1. You can start editing the app by modifying the files in `pages`. The app auto-updates as you edit the files.
 2. Before pushing up your code, do `npm run check` to lint and type-check your files.
-
----
 
 ## The Server:
 
@@ -96,8 +90,6 @@ The Impower Engine can export:
 4. To edit Storage Security Rules, edit: `storage.rules`
 5. To edit Firebase Cloud Functions, edit: `src/index.ts`
 
----
-
 ## Reccomended IDE & Extensions
 
 IDE: [Visual Studio Code](https://code.visualstudio.com/)
@@ -112,8 +104,6 @@ Extensions:
      - On Windows: Shift + Alt + F
      - On Mac: Shift + Option + F
      - On Linux: Ctrl + Shift + I
-
----
 
 ## API Usage
 
@@ -150,16 +140,12 @@ export const LogoutButton = React.memo(() => {
 });
 ```
 
----
-
 ## API Changes
 
 You can make changes to the backend database structure by editing the document files in `modules/impower-data-store`
 
 1. To make a new document type, create a new file in `modules/impower-data-store/types/documents` and declare an interface that extends the interface `DataDocument` from `modules/impower-core`
 2. To include your document in a collection, add it to `modules/impower-api/types/collectionDataPath.ts`
-
----
 
 ## Vercel Deployment
 
