@@ -40,8 +40,8 @@ const MyApp = React.memo((props: MyAppProps): JSX.Element => {
       if (HistoryState.instance.opening || HistoryState.instance.closing) {
         return;
       }
-      const currState = e.state.query;
-      const prevState = HistoryState.instance.query || currState;
+      const currState = { ...(e.state.query || {}) };
+      const prevState = { ...(HistoryState.instance.query || currState) };
       HistoryState.instance.browserListeners.forEach((listener) =>
         listener?.(currState, prevState)
       );

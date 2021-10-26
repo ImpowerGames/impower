@@ -8,6 +8,7 @@ import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import React, { PropsWithChildren, useCallback, useState } from "react";
 import BarsRegularIcon from "../../../../resources/icons/regular/bars.svg";
+import { useDialogNavigation } from "../../../impower-dialog";
 import { FontIcon } from "../../../impower-icon";
 import { useRouter } from "../../../impower-router";
 import Tabs from "../layouts/Tabs";
@@ -123,19 +124,35 @@ const EngineNavigationBar = React.memo(
   (props: PropsWithChildren<EngineNavigationBarProps>): JSX.Element | null => {
     const { links, children } = props;
 
-    const [navdrawerOpenKey, setNavdrawerOpenKey] = useState<"navdrawer">();
-
-    const navdrawerOpen = navdrawerOpenKey === "navdrawer";
+    const [navdrawerOpenState, setNavdrawerOpenState] = useState<boolean>();
 
     const router = useRouter();
 
+    const handleBrowserNavigation = useCallback(
+      (
+        currState: Record<string, string>,
+        prevState?: Record<string, string>
+      ) => {
+        if (currState?.n !== prevState?.n) {
+          setNavdrawerOpenState(currState?.n === "navdrawer");
+        }
+      },
+      []
+    );
+    const [openNavDialog, closeNavDialog] = useDialogNavigation(
+      "n",
+      handleBrowserNavigation
+    );
+
     const handleOpenNavdrawer = useCallback((): void => {
-      setNavdrawerOpenKey("navdrawer");
-    }, []);
+      setNavdrawerOpenState(true);
+      openNavDialog("navdrawer");
+    }, [openNavDialog]);
 
     const handleCloseNavdrawer = useCallback((): void => {
-      setNavdrawerOpenKey(null);
-    }, []);
+      setNavdrawerOpenState(false);
+      closeNavDialog();
+    }, [closeNavDialog]);
 
     const theme = useTheme();
 
@@ -263,9 +280,9 @@ const EngineNavigationBar = React.memo(
                 </StyledTabs>
               </StyledTabsContent>
             </StyledTabsArea>
-            {navdrawerOpenKey !== undefined && (
+            {navdrawerOpenState !== undefined && (
               <Navdrawer
-                open={navdrawerOpen}
+                open={navdrawerOpenState}
                 useAccountDialog
                 onClose={handleCloseNavdrawer}
               />

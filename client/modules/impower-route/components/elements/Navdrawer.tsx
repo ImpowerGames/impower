@@ -9,7 +9,6 @@ import List from "@material-ui/core/List";
 import ListItemIcon from "@material-ui/core/ListItemIcon";
 import ListItemText from "@material-ui/core/ListItemText";
 import Typography from "@material-ui/core/Typography";
-import NextLink from "next/link";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import PatreonBrandsIcon from "../../../../resources/icons/brands/patreon.svg";
 import ArrowLeftRegularIcon from "../../../../resources/icons/regular/arrow-left.svg";
@@ -157,29 +156,16 @@ interface ListItemProps {
   href?: string;
   selected: boolean;
   icon?: React.ReactNode;
-  onClick: (type: string) => void;
+  onClick: (e: React.MouseEvent, href: string) => void;
 }
 
 const ListItem = React.memo((props: ListItemProps): JSX.Element => {
   const { label, icon, href, selected, onClick } = props;
-  if (href) {
-    return (
-      <NextLink href={href} passHref>
-        <StyledListItemButton
-          selected={selected}
-          href={href}
-          onClick={(): void => onClick(href)}
-        >
-          <ListItemContent selected={selected} label={label} icon={icon} />
-        </StyledListItemButton>
-      </NextLink>
-    );
-  }
   return (
     <StyledListItemButton
       selected={selected}
       href={href}
-      onClick={(): void => onClick(href)}
+      onClick={(e): void => onClick(e, href)}
     >
       <ListItemContent selected={selected} label={label} icon={icon} />
     </StyledListItemButton>
@@ -217,7 +203,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
   const baseRoute = getBaseRoute(router.route);
 
   const handleClose = useCallback(
-    (e): void => {
+    (e: React.MouseEvent): void => {
       if (onClose) {
         onClose(e);
       }
@@ -239,6 +225,24 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
   const handleOpenLoginDialog = useCallback((): void => {
     openAccountDialog("login");
   }, [openAccountDialog]);
+
+  const handleClick = useCallback(
+    async (e: React.MouseEvent, href?: string): Promise<void> => {
+      if (href === "/install") {
+        if (onInstall) {
+          onInstall();
+        }
+      } else {
+        handleClose(e);
+        if (href) {
+          // wait a bit for dialog to close
+          await new Promise((resolve) => window.setTimeout(resolve, 10));
+          router.push(href);
+        }
+      }
+    },
+    [handleClose, onInstall, router]
+  );
 
   const isAuthenticated = isSignedIn && !isAnonymous;
 
@@ -269,15 +273,16 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
               link === "#donate" ? `https://www.patreon.com/impowergames` : link
             }
             selected={link === baseRoute}
-            onClick={handleClose}
+            onClick={handleClick}
           />
         ))}
         {canInstall && !isInstalled && !isAppInstalled() && (
           <ListItem
             label={install}
+            href={"/install"}
             icon={<SquareArrowDownSolidIcon />}
             selected={false}
-            onClick={onInstall}
+            onClick={handleClick}
           />
         )}
       </List>
@@ -304,14 +309,13 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
                 <StyledTypography>{pageNames[link]}</StyledTypography>
               </StyledButton>
             ) : (
-              <NextLink key={link} href={link} passHref>
-                <StyledButton
-                  variant="outlined"
-                  color={link === "/login" ? "secondary" : undefined}
-                >
-                  <StyledTypography>{pageNames[link]}</StyledTypography>
-                </StyledButton>
-              </NextLink>
+              <StyledButton
+                variant="outlined"
+                color={link === "/login" ? "secondary" : undefined}
+                onClick={handleClick}
+              >
+                <StyledTypography>{pageNames[link]}</StyledTypography>
+              </StyledButton>
             )
           )}
         {isAuthenticated && (

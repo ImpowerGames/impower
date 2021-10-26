@@ -3,6 +3,7 @@ import styled from "@emotion/styled";
 import dynamic from "next/dynamic";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { hexToHsla, hslaToHex } from "../../../impower-core";
+import { useDialogNavigation } from "../../../impower-dialog";
 import { useBodyPaddingCallback } from "../../hooks/useBodyPaddingCallback";
 import { MenuInfo } from "../../types/info/menus";
 import PageNavigationBarContent from "./PageNavigationBarContent";
@@ -96,10 +97,31 @@ const PageNavigationBar = (props: PageNavigationBarProps): JSX.Element => {
     style,
   } = props;
 
-  const [navdrawerOpenKey, setNavdrawerOpenKey] = useState<"navdrawer">();
   const [headerBackground, setHeaderBackground] = useState<HTMLDivElement>();
+  const [navdrawerOpenState, setNavdrawerOpenState] = useState<boolean>();
 
-  const navdrawerOpen = navdrawerOpenKey === "navdrawer";
+  const handleBrowserNavigation = useCallback(
+    (currState: Record<string, string>, prevState?: Record<string, string>) => {
+      if (currState?.n !== prevState?.n) {
+        setNavdrawerOpenState(currState?.n === "navdrawer");
+      }
+    },
+    []
+  );
+  const [openNavDialog, closeNavDialog] = useDialogNavigation(
+    "n",
+    handleBrowserNavigation
+  );
+
+  const handleOpenNavdrawer = useCallback((): void => {
+    setNavdrawerOpenState(true);
+    openNavDialog("navdrawer");
+  }, [openNavDialog]);
+
+  const handleCloseNavdrawer = useCallback((): void => {
+    setNavdrawerOpenState(false);
+    closeNavDialog();
+  }, [closeNavDialog]);
 
   const adjustedBackgroundColor =
     backgroundColor === "transparent"
@@ -122,14 +144,6 @@ const PageNavigationBar = (props: PageNavigationBarProps): JSX.Element => {
     },
     []
   );
-
-  const handleOpenNavdrawer = useCallback((): void => {
-    setNavdrawerOpenKey("navdrawer");
-  }, []);
-
-  const handleCloseNavdrawer = useCallback((): void => {
-    setNavdrawerOpenKey(null);
-  }, []);
 
   useBodyPaddingCallback("paddingRight", 0, headerBackground);
 
@@ -176,9 +190,9 @@ const PageNavigationBar = (props: PageNavigationBarProps): JSX.Element => {
           </StyledToolbarArea>
         </StyledHeaderBackgroundArea>
       </StyledAppBar>
-      {navdrawerOpenKey !== undefined && (
+      {navdrawerOpenState !== undefined && (
         <Navdrawer
-          open={navdrawerOpen}
+          open={navdrawerOpenState}
           useAccountDialog={useAccountDialog}
           onClose={handleCloseNavdrawer}
         />
