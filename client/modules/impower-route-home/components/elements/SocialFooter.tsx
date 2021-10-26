@@ -1,33 +1,35 @@
 import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
-import { useContext, useEffect, useState } from "react";
-import getIconSvgData from "../../../../lib/getIconSvgData";
-import {
-  DynamicIcon,
-  FontIcon,
-  IconLibraryContext,
-  iconLibraryRegister,
-} from "../../../impower-icon";
-import FadeAnimation from "../../../impower-route/components/animations/FadeAnimation";
+import FacebookBrandsIcon from "../../../../resources/icons/brands/facebook.svg";
+import InstagramBrandsIcon from "../../../../resources/icons/brands/instagram.svg";
+import TiktokBrandsIcon from "../../../../resources/icons/brands/tiktok.svg";
+import TwitterBrandsIcon from "../../../../resources/icons/brands/twitter.svg";
+import { FontIcon } from "../../../impower-icon";
 
 const socialButtons = [
   {
     tooltip: "Follow us on Twitter",
     label: "twitter",
-    icon: "twitter",
+    icon: <TwitterBrandsIcon />,
     link: "https://twitter.com/impowergames",
   },
   {
     tooltip: "Follow us on Facebook",
     label: "facebook",
-    icon: "facebook",
+    icon: <FacebookBrandsIcon />,
     link: "https://facebook.com/impowergames",
   },
   {
     tooltip: "Follow us on Instagram",
     label: "instagram",
-    icon: "instagram",
+    icon: <InstagramBrandsIcon />,
     link: "https://instagram.com/impowergames",
+  },
+  {
+    tooltip: "Follow us on TikTok",
+    label: "tiktok",
+    icon: <TiktokBrandsIcon />,
+    link: "https://www.tiktok.com/@impowergames",
   },
 ];
 
@@ -55,28 +57,6 @@ const StyledSocialArea = styled.div`
 const StyledGrid = styled.div``;
 
 const SocialFooter = (): JSX.Element => {
-  const [loadedIcons, setLoadedIcons] = useState(false);
-  const [, iconLibraryDispatch] = useContext(IconLibraryContext);
-  useEffect(() => {
-    const loadIcons = async (): Promise<void> => {
-      const brandIconNames = socialButtons.map((b) => b.icon);
-      const iconData = await Promise.all(
-        brandIconNames.map(async (name) => {
-          const component = (
-            await import(`../../../../resources/icons/brands/${name}.svg`)
-          ).default;
-          return getIconSvgData(component);
-        })
-      );
-      const icons = {};
-      iconData.forEach((data, index) => {
-        icons[brandIconNames[index]] = data;
-      });
-      iconLibraryDispatch(iconLibraryRegister("brands", icons));
-      setLoadedIcons(true);
-    };
-    loadIcons();
-  }, [iconLibraryDispatch]);
   return (
     <StyledSocialGrid>
       {socialButtons.map((button) => {
@@ -85,20 +65,12 @@ const SocialFooter = (): JSX.Element => {
             <StyledSocialArea>
               <StyledSocialButton
                 size="small"
-                color="inherit"
+                color="primary"
                 href={button.link}
               >
-                <FadeAnimation
-                  initial={loadedIcons ? 1 : 0}
-                  animate={loadedIcons ? 1 : 0}
-                >
-                  <FontIcon
-                    aria-label={button.tooltip || button.label}
-                    size={24}
-                  >
-                    <DynamicIcon icon={button.icon} />
-                  </FontIcon>
-                </FadeAnimation>
+                <FontIcon aria-label={button.tooltip || button.label} size={24}>
+                  {button.icon}
+                </FontIcon>
               </StyledSocialButton>
             </StyledSocialArea>
           </StyledGrid>
