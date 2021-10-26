@@ -160,7 +160,7 @@ const GamePage = React.memo((props: GamePageProps) => {
 
   const theme = useTheme();
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT !== "development") {
+  if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
     return null;
   }
 
