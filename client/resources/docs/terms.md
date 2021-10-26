@@ -16,7 +16,7 @@ This Terms of Service Agreement ("**Agreement**") is a legal document that outli
 | ----------------------------------------------------------------------------------------------------- |
 | This agreement concerns Impower Games Corp. You agree to these Terms of Service by using the service. |
 
-impower.games is a website, desktop application, mobile application, and digital software and media distribution platform owned and operated by Impower Games Corp. ("**impower.games**" or "**Service**"). By registering an account and using the Service, you agree to be bound by the terms of this Agreement.
+Impower Games is a website, desktop application, mobile application, and digital software and media distribution platform owned and operated by Impower Games Corp. ("**Impower Games**" or "**Service**"). By registering an account and using the Service, you agree to be bound by the terms of this Agreement.
 
 ---
 
@@ -26,9 +26,9 @@ impower.games is a website, desktop application, mobile application, and digital
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | If you download projects, you’re a User. If you upload projects, you’re a Publisher. Users must be 13 or older. Publishers must be at least 18 or have the legal right to enter into this agreement. |
 
-1. **Users.** If you register an account to purchase, download, pitch, or play games or other content from impower.games, you agree to be bound to the terms of this Agreement as a platform user ("**User**"). Users affirm that they are over the age of 13, as the Service is not intended for children under 13.
+1. **Users.** If you register an account to purchase, download, pitch, or play games or other content from Impower Games, you agree to be bound to the terms of this Agreement as a platform user ("**User**"). Users affirm that they are over the age of 13, as the Service is not intended for children under 13.
 
-2. **Publishers.** If you register an account to sell, distribute, or publish games or other content on impower.games, you agree to be bound to the terms of this Agreement as a platform publisher ("**Publisher**"). Publishers affirm that they are either more than 18 years of age, or possess legal parental or guardian consent, and are fully able and competent to enter into the terms, conditions, obligations, affirmations, representations and warranties set forth in this Agreement.
+2. **Publishers.** If you register an account to sell, distribute, or publish games or other content on Impower Games, you agree to be bound to the terms of this Agreement as a platform publisher ("**Publisher**"). Publishers affirm that they are either more than 18 years of age, or possess legal parental or guardian consent, and are fully able and competent to enter into the terms, conditions, obligations, affirmations, representations and warranties set forth in this Agreement.
 
 ---
 
@@ -38,7 +38,7 @@ impower.games is a website, desktop application, mobile application, and digital
 | ---------------------------------------------------------------------- |
 | Be kind to each other! If you misbehave we may terminate your account. |
 
-impower.games aims to create a safe environment for users of the site and service. This requires a community that is built on goodwill and responsible behavior by its members. The posting of content or other actions that, in the Company’s sole discretion, degrades the experience of others may result in account termination without prior notice. Prohibited actions include but are not limited to:
+Impower Games aims to create a safe environment for users of the site and service. This requires a community that is built on goodwill and responsible behavior by its members. The posting of content or other actions that, in the Company’s sole discretion, degrades the experience of others may result in account termination without prior notice. Prohibited actions include but are not limited to:
 
 - Uploading viruses or malicious code or acting in any manner to restrict or inhibit any other user from using and enjoying the Service;
 
@@ -54,7 +54,7 @@ impower.games aims to create a safe environment for users of the site and servic
 
 - Violating copyright, trademark or other intellectual property or other legal rights of others by posting content without permission to distribute such content;
 
-- Hacking, maliciously manipulating, or misrepresenting impower.games’s interface in any way;
+- Hacking, maliciously manipulating, or misrepresenting Impower Games’s interface in any way;
 
 - Creating a false identity for the purpose or effect of misleading others; or
 
@@ -66,9 +66,9 @@ impower.games aims to create a safe environment for users of the site and servic
 
 | Summary                                                                                                                                                                                                                                                                                                            |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| You allow us to promote your game with screenshots, cover-images, videos, and other promotional material you have provided. You affirm that you have the right to upload and sell your content, and that impower.games and its users can use and/or purchase your content without violating anybody else’s rights. |
+| You allow us to promote your game with screenshots, cover-images, videos, and other promotional material you have provided. You affirm that you have the right to upload and sell your content, and that Impower Games and its users can use and/or purchase your content without violating anybody else’s rights. |
 
-Publishers are solely responsible for the content they upload and distribute on impower.games. Publishers affirm, represent, and warrant that they own or have the rights, licenses, permissions and consents necessary to publish, duplicate, and distribute the submitted content. By submitting content to the Service for distribution, Publishers also grant a license to the Company for all patent, trademark, trade secret, copyright or other proprietary rights in and to the Content for publication on the Service, pursuant to this Agreement. The Company does not endorse copyright infringing activities or other intellectual property infringing activities and violations of may result in the removal of content if the Company is notified of such violations. Removal and termination of accounts may occur without prior notice.
+Publishers are solely responsible for the content they upload and distribute on Impower Games. Publishers affirm, represent, and warrant that they own or have the rights, licenses, permissions and consents necessary to publish, duplicate, and distribute the submitted content. By submitting content to the Service for distribution, Publishers also grant a license to the Company for all patent, trademark, trade secret, copyright or other proprietary rights in and to the Content for publication on the Service, pursuant to this Agreement. The Company does not endorse copyright infringing activities or other intellectual property infringing activities and violations of may result in the removal of content if the Company is notified of such violations. Removal and termination of accounts may occur without prior notice.
 
 Publishers retain all ownership rights to the submitted content, and by submitting content to the Service, Publishers hereby grant the following:
 
@@ -84,7 +84,7 @@ Publishers retain all ownership rights to the submitted content, and by submitti
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | You agree to let us display content you have uploaded to your profile, written in a comment, left in a review, etc. If you terminate your account you can request to have your content deleted. |
 
-impower.games provides interfaces and tools for Users to generate content and make it available to other users, including ratings, reviews, profile images, banners, and others ("**User Generated Content**" or "**UGC**"). By uploading or creating such UGC, you grant to Company the worldwide, non-exclusive, perpetual, royalty free license to use, reproduce, create derivative works, display, perform and distribute for the UGC.
+Impower Games provides interfaces and tools for Users to generate content and make it available to other users, including ratings, reviews, profile images, banners, and others ("**User Generated Content**" or "**UGC**"). By uploading or creating such UGC, you grant to Company the worldwide, non-exclusive, perpetual, royalty free license to use, reproduce, create derivative works, display, perform and distribute for the UGC.
 
 ---
 
@@ -146,7 +146,7 @@ When you provide payment information to the Company or one of its payment provid
 
 | Summary                                                                                                                                                                                                                                                 |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Publishers can set their own prices for their games (or even make them free). If you do sell your game, impower.games will be entitled to a share (that you set) and may be required to withhold an amount of the sales for tax, VAT and other charges. |
+| Publishers can set their own prices for their games (or even make them free). If you do sell your game, Impower Games will be entitled to a share (that you set) and may be required to withhold an amount of the sales for tax, VAT and other charges. |
 
 Publishers may set the prices, at their own discretion, for their content and products to be sold through the Service (each sale, a "**Transaction**"). The Company shall be entitled to a share of the revenue Publishers receive from Transactions which shall be calculated on the gross revenue from the Transactions, not including any Transactions for which Publisher or Company provides a refund in accordance with the transaction configuration on Publisher’s account (the "**Revenue Share**"). Publishers may also configure transactions to provide for a portion of revenue to be directed towards a selected charity under the Publisher’s transaction configuration. For Transactions, Company will collect the purchase price and any applicable fees and taxes through its payment providers, and will pay to Publisher the proceeds net of the applicable Revenue Share, payment provider fees, and applicable taxes, VAT, duties, charges or levies. The Company may withhold any taxes, duties, charges or levies on payments by Company to Publisher pursuant to this Agreement, as may be required by applicable law, rule or regulation, and submit such withheld taxes, duties, charges or levies to the appropriate tax authority. Use of IP proxies or other methods to disguise your place of residence, whether to circumvent geographic restrictions on content, to purchase at a price not applicable to your geography, or for any other purpose, is a violation of this Agreement.
 
@@ -166,7 +166,7 @@ Users may request, and Company may process, refund requests if the purchased con
 
 | Summary                                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| If you don’t withdraw earnings from your account older than a year, we may charge a maintenance fee proportional to any unclaimed money older than a year left in your account. impower.games is not a bank, so you need to claim your earnings in a timely manner. If you need impower.games to withhold unclaimed payments longer than 12 months [contact support](/support). |
+| If you don’t withdraw earnings from your account older than a year, we may charge a maintenance fee proportional to any unclaimed money older than a year left in your account. Impower Games is not a bank, so you need to claim your earnings in a timely manner. If you need Impower Games to withhold unclaimed payments longer than 12 months [contact support](/support). |
 
 Publisher accounts receiving Payouts from the Company are subject to a maintenance fee for unclaimed transactions. Payouts from the Company are issued when the Company is the Merchant of Record.
 
@@ -189,7 +189,7 @@ YOU AGREE THAT USE OF THE SERVICE SHALL BE AT YOUR OWN RISK. THE COMPANY, ITS OF
 
 ## 12. Limitation of Liability
 
-TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, NEITHER COMPANY OR ITS AFFILIATES SHALL BE LIABLE IN ANY WAY FOR YOUR LOSS OR DAMAGE OF ANY KIND RESULTING FROM THE USE OR INABILITY TO USE THE SERVICE, YOUR ACCOUNT, OR YOUR PURCHASED/SUBMITTED CONTENT, INCLUDING BUT NOT LIMITED TO, LOSS OF GOODWILL, WORK STOPPAGE, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND ALL OTHER COMMERCIAL DAMAGES OR LOSSES. IN NO EVENT WILL THE COMPANY OR ITS AFFILIATES BE LIABLE FOR ANY INDIRECT, INCIDENTAL, CONSEQUENTIAL, SPECIAL, PUNITIVE OR EXEMPLARY DAMAGES, OR OTHER DAMAGES ARISING OUT OF OR IN ANY WAY CONNECTED WITH IMPOWER.GAMES, THE SERVICES, OR THE CONTENT, EVEN IN THE EVENT OF THE COMPANY’S OR ITS AFFILIATES’ FAULT, TORT (EXCLUDING NEGLIGENCE), STRICT LIABILITY, OR BREACH OF COMPANY’S WARRANTY AND EVEN IF IT HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS AND LIABILITY EXCLUSIONS APPLY EVEN IF ANY REMEDY FAILS TO PROVIDE ADEQUATE RECOMPENSE. AS SOME STATES OR JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR THE LIMITATION OF LIABILITY FOR CONSEQUENTIAL OR INCIDENTAL DAMAGES, IN SUCH STATES OR JURISDICTIONS, EACH OF THE COMPANY AND ITS AFFILIATES’ LIABILITY SHALL BE LIMITED TO THE FULL EXTENT PERMITTED BY LAW.
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, NEITHER COMPANY OR ITS AFFILIATES SHALL BE LIABLE IN ANY WAY FOR YOUR LOSS OR DAMAGE OF ANY KIND RESULTING FROM THE USE OR INABILITY TO USE THE SERVICE, YOUR ACCOUNT, OR YOUR PURCHASED/SUBMITTED CONTENT, INCLUDING BUT NOT LIMITED TO, LOSS OF GOODWILL, WORK STOPPAGE, COMPUTER FAILURE OR MALFUNCTION, OR ANY AND ALL OTHER COMMERCIAL DAMAGES OR LOSSES. IN NO EVENT WILL THE COMPANY OR ITS AFFILIATES BE LIABLE FOR ANY INDIRECT, INCIDENTAL, CONSEQUENTIAL, SPECIAL, PUNITIVE OR EXEMPLARY DAMAGES, OR OTHER DAMAGES ARISING OUT OF OR IN ANY WAY CONNECTED WITH IMPOWER GAMES, THE SERVICES, OR THE CONTENT, EVEN IN THE EVENT OF THE COMPANY’S OR ITS AFFILIATES’ FAULT, TORT (EXCLUDING NEGLIGENCE), STRICT LIABILITY, OR BREACH OF COMPANY’S WARRANTY AND EVEN IF IT HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. THESE LIMITATIONS AND LIABILITY EXCLUSIONS APPLY EVEN IF ANY REMEDY FAILS TO PROVIDE ADEQUATE RECOMPENSE. AS SOME STATES OR JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR THE LIMITATION OF LIABILITY FOR CONSEQUENTIAL OR INCIDENTAL DAMAGES, IN SUCH STATES OR JURISDICTIONS, EACH OF THE COMPANY AND ITS AFFILIATES’ LIABILITY SHALL BE LIMITED TO THE FULL EXTENT PERMITTED BY LAW.
 
 ---
 
@@ -197,7 +197,7 @@ TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, NEITHER COMPANY OR ITS AFFILI
 
 | Summary                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Users can terminate their account at any time, but are not entitled to a refund because of such termination. Publishers can terminate at any time as well, and impower.games will comply with removing submitted content and winding up outstanding payments. Certain sections of the Terms of Service relating to how the agreement is interpreted and administered will still apply, even if you terminate your account. |
+| Users can terminate their account at any time, but are not entitled to a refund because of such termination. Publishers can terminate at any time as well, and Impower Games will comply with removing submitted content and winding up outstanding payments. Certain sections of the Terms of Service relating to how the agreement is interpreted and administered will still apply, even if you terminate your account. |
 
 - Term. The term of this Agreement commences on the date you first register an account and will continue in effect unless otherwise terminated in accordance with this Agreement.
 
@@ -237,7 +237,7 @@ If the agreement in this Section not to bring or participate in a class, collect
 
 | Summary                                                                                                               |
 | --------------------------------------------------------------------------------------------------------------------- |
-| You agree to pay for any of impower.games’s damages and costs if your game or actions causes damage to a third party. |
+| You agree to pay for any of Impower Games’s damages and costs if your game or actions causes damage to a third party. |
 
 To the extent permitted by applicable law, you agree to defend, indemnify and hold harmless Company and its Affiliates, from and against all claims, damages, obligations, losses, liabilities, costs, debt, or expenses (including but not limited to attorneys’ fees) arising from: (a) your use and access of the service; (b) your violation of any term of this Agreement; © your violation of any third party right, including without limitation any copyright, trademark, property or privacy right; (d) any claim that your submitted content caused damage to a third party.
 
@@ -247,7 +247,7 @@ To the extent permitted by applicable law, you agree to defend, indemnify and ho
 
 | Summary                                                                                    |
 | ------------------------------------------------------------------------------------------ |
-| You are not allowed to assign this agreement, but impower.games can assign this agreement. |
+| You are not allowed to assign this agreement, but Impower Games can assign this agreement. |
 
 This Agreement, and any rights and licenses granted hereunder, may not be transferred or assigned by you, but may be assigned by Company without restriction.
 

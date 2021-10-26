@@ -101,6 +101,9 @@ export const getPageDocPath = async (
     .replace("https://", "")
     .replace("http://", "")
     .replace("www.", "")
+    .replace("dev.impower.app", "")
+    .replace("test.impower.app", "")
+    .replace("impower.app", "")
     .replace("impower.games", "");
   const subPageIndex = relativeRoute.substring(1).indexOf("/");
   const slug =

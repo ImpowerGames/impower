@@ -4,8 +4,8 @@ import React from "react";
 export const ShareWebsiteHead = React.memo((): JSX.Element => {
   const title = "Impower Games";
   const description = "Create games together.";
-  const image = `${process.env.NEXT_PUBLIC_ORIGIN || ""}/og.png`;
-  const url = `www.impower.games`;
+  const url = process.env.NEXT_PUBLIC_ORIGIN || "www.impower.app";
+  const image = `${url}/og.png`;
   const twitterCreator = `@impowergames`;
   const twitterSite = `@impowergames`;
   const twitterCardType = "summary_large_image";

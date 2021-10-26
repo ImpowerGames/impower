@@ -6,7 +6,7 @@ _This Privacy Policy was last modified on June 14, 2021._
 
 # Introduction
 
-We at Impower Games Corp. ("**Company**", "**We**", or "**impower.games**") respect your privacy and are committed to protecting it through our compliance with this policy. This policy describes the types of information we may collect or that you may provide when you purchase, download, install, register with, access, or use the impower.games application (the "**App**") or website (the "**Website**" and collectively with the App, the "**Service**"). The policy also describes our practices for collecting, using, maintaining, protecting, and disclosing that information.
+We at Impower Games Corp. ("**Company**", "**We**", or "**impower.games**") respect your privacy and are committed to protecting it through our compliance with this policy. This policy describes the types of information we may collect or that you may provide when you purchase, download, install, register with, access, or use the Impower Games application (the "**App**") or website (the "**Website**" and collectively with the App, the "**Service**"). The policy also describes our practices for collecting, using, maintaining, protecting, and disclosing that information.
 
 We utilize payment processors who have their own privacy policies, which we encourage you to read their privacy policies before providing information on or through them.
 
@@ -36,7 +36,7 @@ When you download, register with, or use this Service, we may ask you provide in
 
 1. By which you may be personally identified, such as your name, postal address, email address, telephone number, payment service provider account information, and any other identifier by which you may be contacted online or offline ("**Personal Information**").
 
-2. Information that you provide by filling in forms in the Service. This includes information provided at the time of registering to use the Service, posting material, comments or content, and if you request further services from impower.games. We may also ask you for information when you enter a contest or promotion sponsored by us, and when you report a problem with the Service.
+2. Information that you provide by filling in forms in the Service. This includes information provided at the time of registering to use the Service, posting material, comments or content, and if you request further services from Impower Games. We may also ask you for information when you enter a contest or promotion sponsored by us, and when you report a problem with the Service.
 
 3. Records and copies of your correspondence (including email addresses and/or phone numbers), if you contact us.
 
@@ -64,7 +64,7 @@ The technologies we use for automatic information collection may include:
 
 1. **Cookies.** A cookie is a small file placed on your device. It may be possible to refuse to accept cookies by activating the appropriate setting on your device. However, if you select this setting you may be unable to access certain parts of our Service. We utilize hCaptcha to detect abusive traffic on our website without user interaction.
 
-2. **Web Beacons.** Pages of the Service and our emails may contain small electronic files known as web beacons (also referred to as clear gifs, pixel tags, and single-pixel gifs) that permit impower.games, for example, to count users who have visited those pages or opened an email and for other related Service statistics (for example, recording the popularity of certain app content and verifying system and server integrity).
+2. **Web Beacons.** Pages of the Service and our emails may contain small electronic files known as web beacons (also referred to as clear gifs, pixel tags, and single-pixel gifs) that permit Impower Games, for example, to count users who have visited those pages or opened an email and for other related Service statistics (for example, recording the popularity of certain app content and verifying system and server integrity).
 
 ---
 
@@ -72,7 +72,7 @@ The technologies we use for automatic information collection may include:
 
 When you use the Service or its content, certain third parties may use automatic information collection technologies to collect information about you. These third parties may include:
 
-1. Social media services like Twitter, Twitch games, or Facebook, when you link your accounts to impower.games.
+1. Social media services like Twitter, Twitch games, or Facebook, when you link your accounts to Impower Games.
 
 2. Analytics companies like Google Analytics.
 
@@ -120,7 +120,7 @@ We do not intend to sell or market your Personal Information, however, through p
 
 1. To contractors, service providers, and other third parties we use to support our business, and who are bound by contractual obligations to keep Personal Information confidential and use it only for the purposes for which we disclose it to them.
 
-2. To a buyer or other successor in the event of a merger, divestiture, restructuring, reorganization, dissolution, or other sale or transfer of some or all of impower.games’s assets, whether as a going concern or as part of bankruptcy, liquidation, or similar proceeding, in which Personal Information held by impower.games about our Service users is among the assets transferred.
+2. To a buyer or other successor in the event of a merger, divestiture, restructuring, reorganization, dissolution, or other sale or transfer of some or all of Impower Games’s assets, whether as a going concern or as part of bankruptcy, liquidation, or similar proceeding, in which Personal Information held by Impower Games about our Service users is among the assets transferred.
 
 3. To fulfill the purpose for which you provide it (For example, if you give us a social media account handle to use social sharing features of our Service, we will transmit the contents of that request to the recipients.).
 
@@ -130,9 +130,9 @@ We do not intend to sell or market your Personal Information, however, through p
 
 6. To comply with any court order, law, or legal process, including to respond to any government or regulatory request;
 
-7. To enforce our rights arising from any contracts entered into between you and us, including the impower.games Terms of Service, and for billing and collection.
+7. To enforce our rights arising from any contracts entered into between you and us, including the Impower Games Terms of Service, and for billing and collection.
 
-8. If we believe disclosure is necessary or appropriate to protect the rights, property, or safety of impower.games, our customers or others. This includes exchanging information with other companies and organizations for the purposes of fraud protection and credit risk reduction.
+8. If we believe disclosure is necessary or appropriate to protect the rights, property, or safety of Impower Games, our customers or others. This includes exchanging information with other companies and organizations for the purposes of fraud protection and credit risk reduction.
 
 ---
 
@@ -150,7 +150,7 @@ We aim to provide you with choices regarding the Personal Information you provid
 
 You send us an email at [support@impower.games](/support) to request access to, correct, or delete any Personal Information that you have provided to us. We cannot delete all of your Personal Information except by also deleting your user account. We may not accommodate a request to change information if we believe the change would violate any law or legal requirement or cause the information to be incorrect.
 
-If you delete your User Contributions from the Service, copies of your User Contributions may remain viewable in cached and archived pages, or might have been copied or stored by other Service users. Proper access and use of information provided on the Service, including User Contributions, is governed by our terms of use, available at https://impower.games/docs/legal/terms.
+If you delete your User Contributions from the Service, copies of your User Contributions may remain viewable in cached and archived pages, or might have been copied or stored by other Service users. Proper access and use of information provided on the Service, including User Contributions, is governed by our terms of use, available at https://impower.app/docs/legal/terms.
 
 ---
 
@@ -162,7 +162,7 @@ California Civil Code Section 1798.83 permits users of our Service that are Cali
 
 # EU Users
 
-If you are using the Service from the European Union ("**EU**") or other regions with laws governing data collection and use that may differ from EU or United States law, please note that you may be transferring your Personal Information to impower.games in the United States for the purposes described under this Privacy Policy. The legal basis we rely on to use your Personal Information is as follows:
+If you are using the Service from the European Union ("**EU**") or other regions with laws governing data collection and use that may differ from EU or United States law, please note that you may be transferring your Personal Information to Impower Games in the United States for the purposes described under this Privacy Policy. The legal basis we rely on to use your Personal Information is as follows:
 
 - Performance of a contract. Your Personal Information is necessary to perform the terms and conditions or other policies under which we provide our Services.
 

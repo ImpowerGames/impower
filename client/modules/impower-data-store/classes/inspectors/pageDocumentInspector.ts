@@ -253,7 +253,7 @@ export class PageDocumentInspector<T extends PageDocument>
       It is used in the url for your public {doc} page.`,
           { doc }
         ),
-        caption: format("impower.games/{s}/{slug}", {
+        caption: format("impower.app/{s}/{slug}", {
           s,
           slug,
         }),

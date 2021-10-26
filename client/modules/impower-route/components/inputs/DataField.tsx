@@ -60,9 +60,9 @@ Dashes for lists:
 - Third item
   - Nested item
 
-[A Link](https://impower.games)
+[A Link](https://impower.app)
     
-![An Image](https://impower.games/logo.png)
+![An Image](https://impower.app/logo.png)
   
 Blank line followed by dashes for a line separator:
 

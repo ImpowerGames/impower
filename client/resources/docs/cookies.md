@@ -36,12 +36,12 @@ Generally, all data we collect from you is via form submission. Some data, thoug
 @impower/UNIQUE_DEVICE_ID
 
 - A random unique identifier used to identify your unique device. This is necessary so that your changes to a project can be differentiated from changes originating from a different device (e.g. When you are simultaneously collaborating with another user in the game engine or simultaneously editing your game on multiple devices).
-- https://impower.games/docs/legal/privacy
+- https://impower.app/docs/legal/privacy
 
 @impower/TEST_WARNING_SEEN
 
 - A flag so that we don't keep showing you the test site warning popup if you've already seen it on this device during this session
-- https://impower.games/docs/legal/privacy
+- https://impower.app/docs/legal/privacy
 
 session, \_\_cflb
 
