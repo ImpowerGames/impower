@@ -64,6 +64,11 @@ const MyApp = React.memo((props: MyAppProps): JSX.Element => {
         div#__next > div {
           height: 100%;
         }
+        .font-icon svg {
+          fill: currentColor;
+          width: 1em;
+          height: 1em;
+        }
       `}</style>
       <CacheProvider value={emotionCache}>
         <ConfigContext.Provider value={configContext}>
