@@ -2,7 +2,7 @@ import fs from "fs";
 import tagIconNames from "../../../client/resources/json/tagIconNames.json";
 
 const data = {};
-Object.values(tagIconNames).forEach((name) => {
+[...Object.values(tagIconNames), "hashtag"].forEach((name) => {
   if (!data[name]) {
     const file = fs.readFileSync(
       `../client/resources/icons/solid/${name}.svg`,

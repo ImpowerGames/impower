@@ -37,7 +37,7 @@ export const PageTagField = (props: PageTagFieldProps): JSX.Element | null => {
 
   const getValueIcon = useCallback(
     (option: string) => {
-      return tagIconNames?.[option || ""];
+      return tagIconNames?.[option || ""] || "hashtag";
     },
     [tagIconNames]
   );
@@ -45,7 +45,7 @@ export const PageTagField = (props: PageTagFieldProps): JSX.Element | null => {
   const renderTagChips = useCallback(
     (tagValue: string[], getTagProps: AutocompleteGetTagProps) => {
       return tagValue.map((option, index) => {
-        const tagIconName = tagIconNames?.[option || ""] || "";
+        const tagIconName = tagIconNames?.[option || ""] || "hashtag";
         const locked = lockedTags?.includes(option);
         return (
           <FadeAnimation

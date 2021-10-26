@@ -171,7 +171,7 @@ const VirtualizedTagItem = React.memo((props: VirtualizedTagItemProps) => {
 
   const tagIconNames =
     configState?.tagIconNames || ConfigCache.instance.params?.tagIconNames;
-  const tagIconName = tagIconNames?.[tag] || "";
+  const tagIconName = tagIconNames?.[tag] || "hashtag";
 
   const linkStyle: React.CSSProperties = useMemo(
     () => ({

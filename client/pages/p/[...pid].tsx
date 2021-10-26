@@ -516,7 +516,7 @@ export const getStaticProps: GetStaticProps = async (context) => {
 
   if (pitchDoc) {
     const mainTag = pitchDoc?.tags?.[0] || "";
-    const iconName = config?.tagIconNames?.[mainTag];
+    const iconName = config?.tagIconNames?.[mainTag] || "hashtag";
     if (iconName) {
       const component = (
         await import(`../../resources/icons/solid/${iconName}.svg`)

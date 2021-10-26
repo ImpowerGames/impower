@@ -348,7 +348,7 @@ const SortableTagsArea = React.memo((props: SortableTagsAreaProps) => {
     >
       {({ id }): JSX.Element => {
         const mainTag = id || "";
-        const tagIconName = tagIconNames?.[mainTag] || "";
+        const tagIconName = tagIconNames?.[mainTag] || "hashtag";
         return (
           <DraggableTag
             tag={id}

@@ -18,20 +18,22 @@ const PageAvatar = (props: PageAvatarProps): JSX.Element => {
 
   const imageSrc = doc?.icon?.fileUrl;
 
-  const mainColor = doc?.hex;
-
   const name = doc?.name;
   const mainTag = doc?.tags?.[0] || "";
   const tagIconNames =
     configState?.tagIconNames || ConfigCache.instance.params?.tagIconNames;
   const tagIconName = tagIconNames?.[mainTag] || "";
 
+  const tagColor = tagIconName ? doc?.hex : "#052d57";
+
   return (
     <Avatar
-      backgroundColor={mainColor}
+      backgroundColor={tagColor}
       backgroundImageSrc={imageSrc}
       name={name}
-      icon={mainTag ? <DynamicIcon icon={tagIconName} /> : undefined}
+      icon={
+        mainTag ? <DynamicIcon icon={tagIconName || "hashtag"} /> : undefined
+      }
       fontSize={fontSize}
       onClick={onClick}
       style={{

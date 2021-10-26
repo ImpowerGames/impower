@@ -145,7 +145,9 @@ export class PageDocumentInspector<T extends PageDocument>
   getPropertyValueIcon(propertyPath: string, _data: T, value: unknown): string {
     if (propertyPath === "tags") {
       const tagIconNames = ConfigCache.instance.params?.tagIconNames;
-      return tagIconNames?.[((value as string) || "")?.toLowerCase()];
+      return (
+        tagIconNames?.[((value as string) || "")?.toLowerCase()] || "hashtag"
+      );
     }
     return undefined;
   }

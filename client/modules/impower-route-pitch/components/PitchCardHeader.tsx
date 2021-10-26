@@ -342,11 +342,16 @@ const PitchCardHeader = React.memo(
       [pitchedAt, preview]
     );
 
-    const tagIconName = currentConfig?.tagIconNames?.[mainTag] || "";
+    const tagIconName = currentConfig?.tagIconNames?.[mainTag];
+
+    const validTagIconName = tagIconName || "hashtag";
+    const validTagColor = tagIconName ? tagColor : "#052d57";
 
     const avatarIcon = useMemo(
-      () => <DynamicIcon icon={icons?.[tagIconName] || tagIconName} />,
-      [icons, tagIconName]
+      () => (
+        <DynamicIcon icon={icons?.[validTagIconName] || validTagIconName} />
+      ),
+      [icons, validTagIconName]
     );
 
     const avatarStyle: React.CSSProperties = useMemo(
@@ -358,7 +363,7 @@ const PitchCardHeader = React.memo(
       () => (
         <Avatar
           name={mainTagLabel}
-          backgroundColor={tagColor}
+          backgroundColor={validTagColor}
           fontSize={24}
           icon={avatarIcon}
           aria-label={authorName}
@@ -377,7 +382,7 @@ const PitchCardHeader = React.memo(
         handleBlockRipplePropogation,
         mainTag,
         mainTagLabel,
-        tagColor,
+        validTagColor,
       ]
     );
 
