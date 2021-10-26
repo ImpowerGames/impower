@@ -5,7 +5,6 @@ import Divider from "@material-ui/core/Divider";
 import IconButton from "@material-ui/core/IconButton";
 import { OutlinedInputProps } from "@material-ui/core/OutlinedInput";
 import {
-  AutocompleteCloseReason,
   AutocompleteGroupedOption,
   AutocompleteInputChangeReason,
 } from "@material-ui/core/useAutocomplete";
@@ -489,27 +488,22 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
     }
   }, [dialog, openFieldDialog]);
 
-  const handleClose = useCallback(
-    async (
-      e: React.SyntheticEvent<Element, Event>,
-      reason?: AutocompleteCloseReason
-    ) => {
-      if (reason === undefined) {
-        window.requestAnimationFrame(() => {
-          if (inputRef.current) {
-            inputRef.current.blur();
-          }
-        });
-        closingRef.current = true;
-        setOpenState(false);
-        closeFieldDialog();
+  const handleClose = useCallback(async () => {
+    window.requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.blur();
       }
-    },
-    [closeFieldDialog]
-  );
+    });
+    closingRef.current = true;
+    setOpenState(false);
+    closeFieldDialog();
+  }, [closeFieldDialog]);
 
   const handleSearchChange = useCallback(
     async (event: React.ChangeEvent, value: string) => {
+      if (!value) {
+        return;
+      }
       window.requestAnimationFrame(() => {
         if (inputRef.current) {
           inputRef.current.blur();
@@ -519,26 +513,28 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
       setOpenState(false);
       closeFieldDialog();
       const newSearch = value || "";
-      if (newSearch) {
-        navigationDispatch(
-          navigationSetSearchbar({ value: newSearch, searching: true })
-        );
-      }
+      navigationDispatch(
+        navigationSetSearchbar({ value: newSearch, searching: true })
+      );
       // wait a bit for dialog to close
       await new Promise((resolve) => window.setTimeout(resolve, 100));
-      if (newSearch || newSearch === "") {
-        stateRef.current = newSearch;
-        inputValueRef.current = stateRef.current;
-        setState(stateRef.current);
-        setInputValue(inputValueRef.current);
-      }
-      if (newSearch) {
-        const baseRoute = getBaseRoute(router.route);
-        router.push(`${baseRoute}/search/${escapeURI(newSearch)}`);
-      }
+      stateRef.current = newSearch;
+      inputValueRef.current = stateRef.current;
+      setState(stateRef.current);
+      setInputValue(inputValueRef.current);
+      const baseRoute = getBaseRoute(router.route);
+      router.push(`${baseRoute}/search/${escapeURI(newSearch)}`);
       closingRef.current = false;
     },
     [closeFieldDialog, navigationDispatch, router]
+  );
+
+  const allOptions = useMemo(
+    () =>
+      inputValue
+        ? [inputValue, ...options.filter((o) => o !== inputValue)]
+        : options,
+    [inputValue, options]
   );
 
   const {
@@ -550,7 +546,7 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
   } = useAutocomplete({
     value: state || "",
     inputValue: inputValue || "",
-    options,
+    options: allOptions,
     selectOnFocus: true,
     blurOnSelect: true,
     freeSolo: true,
@@ -558,7 +554,6 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
     openOnFocus: true,
     open: openState,
     onOpen: handleOpen,
-    onClose: handleClose,
     groupBy: handleGroupBy,
     isOptionEqualToValue: handleIsOptionEqualToValue,
     onInputChange: handleInputChange,
