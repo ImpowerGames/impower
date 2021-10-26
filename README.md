@@ -1,4 +1,4 @@
-# Impower Client
+# Impower App
 
 This is a React [Next.js](https://nextjs.org/) app bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
