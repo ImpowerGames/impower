@@ -240,13 +240,13 @@ export const userReducer = (
             [`data/${uid}`]: data,
           });
         } catch (e) {
-          if (onFinished) {
-            onFinished();
-          }
           const logWarn = (await import("../../impower-logger/utils/logWarn"))
             .default;
           logWarn("DataState", e);
           errorHandler?.(e.code);
+        }
+        if (onFinished) {
+          onFinished();
         }
       };
       setData();
@@ -305,13 +305,13 @@ export const userReducer = (
             [`data/${uid}`]: null,
           });
         } catch (e) {
-          if (onFinished) {
-            onFinished();
-          }
           const logWarn = (await import("../../impower-logger/utils/logWarn"))
             .default;
           logWarn("DataState", e);
           errorHandler?.(e.code);
+        }
+        if (onFinished) {
+          onFinished();
         }
       };
       setData();
@@ -357,13 +357,13 @@ export const userReducer = (
           const memberRef = new DataStateWrite(...path);
           await memberRef.update(data);
         } catch (e) {
-          if (onFinished) {
-            onFinished();
-          }
           const logWarn = (await import("../../impower-logger/utils/logWarn"))
             .default;
           logWarn("DataState", e);
           errorHandler?.(e.code);
+        }
+        if (onFinished) {
+          onFinished();
         }
       };
       setData();
@@ -432,13 +432,13 @@ export const userReducer = (
         try {
           await batch.commit();
         } catch (e) {
-          if (onFinished) {
-            onFinished();
-          }
           const logWarn = (await import("../../impower-logger/utils/logWarn"))
             .default;
           logWarn("DataState", e);
           errorHandler?.(e.code);
+        }
+        if (onFinished) {
+          onFinished();
         }
       };
       setData();
@@ -628,13 +628,13 @@ export const userReducer = (
         try {
           await new DataStoreWrite(...path).update(doc);
         } catch (e) {
-          if (onFinished) {
-            onFinished();
-          }
           const logWarn = (await import("../../impower-logger/utils/logWarn"))
             .default;
           logWarn("DataState", e);
           errorHandler?.(e.code);
+        }
+        if (onFinished) {
+          onFinished();
         }
       };
       setData();
@@ -955,13 +955,13 @@ export const userReducer = (
         try {
           await new DataStoreWrite(...path).delete();
         } catch (e) {
-          if (onFinished) {
-            onFinished();
-          }
           const logWarn = (await import("../../impower-logger/utils/logWarn"))
             .default;
           logWarn("DataState", e);
           errorHandler?.(e.code);
+        }
+        if (onFinished) {
+          onFinished();
         }
       };
       setData();
