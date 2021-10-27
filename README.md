@@ -11,7 +11,7 @@ It has been configured with:
 - UI built with [Material UI](https://mui.com)
 - Styling with [Emotion](https://emotion.sh)
 - "Progressive Web App (PWA)" functionality using [next-pwa](https://github.com/shadowwalker/next-pwa) and [Google Workbox](https://developers.google.com/web/tools/workbox)
-- Backend API is built and managed by [Firebase](https://firebase.google.com)
+- Backend API is built and managed with [Firebase](https://firebase.google.com)
 - Deployment with [Vercel](https://vercel.com)
 
 ## Application Architecture
@@ -97,7 +97,7 @@ IDE: [Visual Studio Code](https://code.visualstudio.com/)
 Extensions:
 
 1. [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
-   - Change "eslint.workingDirectories" to [ "./client", "./server" ] in File > Preferences > Settings > Eslint: Working Directories
+   - Change "eslint.workingDirectories" to [ "./client", "./functions" ] in File > Preferences > Settings > Eslint: Working Directories
 2. [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
    - Turn on File > Preferences > Settings > Format On Save
    - Open any .ts or .tsx file and run the vscode format shortcut. Then make sure to select Prettier as your default formatter
