@@ -121,8 +121,15 @@ const ContributionCard = React.memo(
 
     const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
     const [userState, userDispatch] = useContext(UserContext);
-    const { uid, my_likes, my_dislikes, connects, my_connects, my_follows } =
-      userState;
+    const {
+      uid,
+      my_likes,
+      my_dislikes,
+      connects,
+      my_connects,
+      my_follows,
+      isSignedIn,
+    } = userState;
     const isCreator = createdBy === uid;
     const liked =
       my_likes !== undefined
@@ -311,23 +318,33 @@ const ContributionCard = React.memo(
       [closeMenuDialog]
     );
 
+    const [openAccountDialog] = useDialogNavigation("a");
+
     const handleFollowUser = useCallback(
       async (e: React.MouseEvent, followed: boolean): Promise<void> => {
+        if (!isSignedIn) {
+          openAccountDialog("signup");
+          return;
+        }
         if (followed) {
           userDispatch(userDoFollow("users", createdBy));
         } else {
           userDispatch(userUndoFollow("users", createdBy));
         }
       },
-      [createdBy, userDispatch]
+      [createdBy, isSignedIn, openAccountDialog, userDispatch]
     );
 
     const handleReport = useCallback(async (): Promise<void> => {
+      if (!isSignedIn) {
+        openAccountDialog("signup");
+        return;
+      }
       const router = (await import("next/router")).default;
       // wait a bit for post dialog to close
       await new Promise((resolve) => window.setTimeout(resolve, 1));
       router.push(`/report?url=${escapeURI(url)}`);
-    }, [url]);
+    }, [isSignedIn, openAccountDialog, url]);
 
     const handlePostMenuOption = useCallback(
       async (e: React.MouseEvent, option: string): Promise<void> => {

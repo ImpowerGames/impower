@@ -35,7 +35,7 @@ const KudoCardAction = React.memo((props: KudoCardActionProps): JSX.Element => {
   const { targetId, id, createdBy } = props;
 
   const [userState, userDispatch] = useContext(UserContext);
-  const { uid, my_follows } = userState;
+  const { uid, my_follows, isSignedIn } = userState;
   const followedUser =
     my_follows !== undefined
       ? Boolean(my_follows?.[getDataStoreKey("users", createdBy)])
@@ -87,35 +87,49 @@ const KudoCardAction = React.memo((props: KudoCardActionProps): JSX.Element => {
     [closeMenuDialog]
   );
 
+  const [openAccountDialog] = useDialogNavigation("a");
+
   const handleFollowUser = useCallback(
     async (e: React.MouseEvent, followed: boolean): Promise<void> => {
+      if (!isSignedIn) {
+        openAccountDialog("signup");
+        return;
+      }
       if (followed) {
         userDispatch(userDoFollow("users", createdBy));
       } else {
         userDispatch(userUndoFollow("users", createdBy));
       }
     },
-    [createdBy, userDispatch]
+    [createdBy, isSignedIn, openAccountDialog, userDispatch]
   );
 
   const handleReport = useCallback(async (): Promise<void> => {
+    if (!isSignedIn) {
+      openAccountDialog("signup");
+      return;
+    }
     const router = (await import("next/router")).default;
     // wait a bit for post dialog to close
     await new Promise((resolve) => window.setTimeout(resolve, 1));
     router.push(`/report?url=${escapeURI(url)}`);
-  }, [url]);
+  }, [isSignedIn, openAccountDialog, url]);
 
   const handlePostMenuOption = useCallback(
     async (e: React.MouseEvent, option: string): Promise<void> => {
       e.preventDefault();
       e.stopPropagation();
+      handleClosePostMenu(e);
+      await new Promise((resolve) => {
+        // Wait for option dialog to close
+        window.setTimeout(resolve, 1);
+      });
       if (option === "FollowUser") {
         handleFollowUser(e, !followedUser);
       }
       if (option === "Report") {
         handleReport();
       }
-      handleClosePostMenu(e);
     },
     [followedUser, handleClosePostMenu, handleFollowUser, handleReport]
   );
