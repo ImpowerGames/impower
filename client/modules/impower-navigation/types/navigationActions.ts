@@ -1,4 +1,3 @@
-import { NavigationDismissBetaWarningAction } from "./actions/navigationDismissBetaWarningAction";
 import { NavigationHideBannerAction } from "./actions/navigationHideBannerAction";
 import { NavigationSetBackgroundColorAction } from "./actions/navigationSetBackgroundColorAction";
 import { NavigationSetElevationAction } from "./actions/navigationSetElevationAction";
@@ -9,7 +8,6 @@ import { NavigationSetTypeAction } from "./actions/navigationSetTypeAction";
 import { NavigationShowBannerAction } from "./actions/navigationShowBannerAction";
 
 export type NavigationAction =
-  | NavigationDismissBetaWarningAction
   | NavigationSetTextAction
   | NavigationSetLinksAction
   | NavigationSetSearchbarAction

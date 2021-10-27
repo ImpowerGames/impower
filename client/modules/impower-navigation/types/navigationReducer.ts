@@ -1,4 +1,3 @@
-import { NAVIGATION_DISMISS_BETA_WARNING } from "./actions/navigationDismissBetaWarningAction";
 import { NAVIGATION_HIDE_BANNER } from "./actions/navigationHideBannerAction";
 import { NAVIGATION_SET_BACKGROUND_COLOR } from "./actions/navigationSetBackgroundColorAction";
 import { NAVIGATION_SET_ELEVATION } from "./actions/navigationSetElevationAction";
@@ -15,12 +14,6 @@ export const navigationReducer = (
   action: NavigationAction
 ): NavigationState => {
   switch (action.type) {
-    case NAVIGATION_DISMISS_BETA_WARNING: {
-      return {
-        ...state,
-        betaWarningDismissed: true,
-      };
-    }
     case NAVIGATION_SET_TEXT: {
       const { title, secondaryTitle, subtitle } = action.payload;
       return {

@@ -2,11 +2,9 @@ import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
 import IconButton from "@material-ui/core/IconButton";
 import Typography from "@material-ui/core/Typography";
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useState } from "react";
 import XmarkRegularIcon from "../../../../resources/icons/regular/xmark.svg";
 import { FontIcon } from "../../../impower-icon";
-import { NavigationContext } from "../../../impower-navigation";
-import navigationDismissBetaWarning from "../../../impower-navigation/utils/navigationDismissBetaWarning";
 
 const StyledBetaWarningButton = styled(Button)`
   background-color: ${(props): string => props.theme.palette.secondary.main};
@@ -50,20 +48,22 @@ const StyledIconButton = styled(IconButton)`
   padding: ${(props): string => props.theme.spacing(1.5)};
 `;
 
-const BetaBanner = React.memo((): JSX.Element => {
-  const [navigationState, navigationDispatch] = useContext(NavigationContext);
-  const { betaWarningDismissed } = navigationState;
+const DISMISSED_KEY = "@impower/DISMISSED_BETA_WARNING";
 
-  const handleDismiss = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      navigationDispatch(navigationDismissBetaWarning());
-    },
-    [navigationDispatch]
+const BetaBanner = React.memo((): JSX.Element => {
+  const [dismissed, setDismissed] = useState(
+    typeof window !== "undefined" &&
+      Boolean(window.sessionStorage.getItem(DISMISSED_KEY))
   );
 
-  if (betaWarningDismissed) {
+  const handleDismiss = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.sessionStorage.setItem(DISMISSED_KEY, "true");
+    setDismissed(true);
+  }, []);
+
+  if (dismissed) {
     return null;
   }
 
