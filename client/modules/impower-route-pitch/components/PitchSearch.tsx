@@ -316,8 +316,12 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
       const currentDocs = pitchDocsRef.current || {};
       const terms = getSearchedTerms(options?.search);
       const matchingRecentPitchDocs: { [id: string]: ProjectDocument } = {};
+      const { goal } = options;
       Object.entries(recentPitchDocsRef.current || {}).forEach(([id, doc]) => {
-        if (terms.every((t) => doc?.tags?.includes(t))) {
+        if (
+          (!goal || goal === doc?.pitchGoal) &&
+          terms.every((t) => doc?.tags?.includes(t))
+        ) {
           matchingRecentPitchDocs[id] = doc;
         }
       });

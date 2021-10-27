@@ -336,19 +336,32 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       try {
         if (activeTab === "Trending") {
           const limit = LOAD_MORE_LIMIT;
+          const options: {
+            sort: "rank" | "rating" | "new";
+            goal: PitchGoal;
+            nsfw: boolean;
+          } = {
+            sort: trendingFilter === "New" ? "new" : "rank",
+            goal: goalFilter !== "All" ? goalFilter : undefined,
+            nsfw: nsfwVisible,
+          };
           const loadedCount = await handleLoadMore(
-            {
-              sort: trendingFilter === "New" ? "new" : "rank",
-              goal: goalFilter !== "All" ? goalFilter : undefined,
-              nsfw: nsfwVisible,
-            },
+            options,
             currentLoadingKey,
             limit
           );
           if (loadedCount === undefined) {
             return;
           }
-          const matchingRecentPitchDocs = recentPitchDocsRef.current || {};
+          const matchingRecentPitchDocs: { [id: string]: ProjectDocument } = {};
+          const { goal } = options;
+          Object.entries(recentPitchDocsRef.current || {}).forEach(
+            ([id, doc]) => {
+              if (!goal || goal === doc?.pitchGoal) {
+                matchingRecentPitchDocs[id] = doc;
+              }
+            }
+          );
           const newPitchDocs = {
             ...matchingRecentPitchDocs,
             ...pitchDocsByTagRef.current[""],
@@ -369,20 +382,37 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
           setNoMore(noMoreRef.current);
         } else if (activeTab === "Top") {
           const limit = LOAD_MORE_LIMIT;
+          const options: {
+            sort: "rank" | "rating" | "new";
+            goal: PitchGoal;
+            age: DateAge;
+            nsfw: boolean;
+          } = {
+            sort: "rating",
+            goal: goalFilter !== "All" ? goalFilter : undefined,
+            age: rangeFilter !== "All" ? rangeFilter : undefined,
+            nsfw: nsfwVisible,
+          };
           const loadedCount = await handleLoadMore(
-            {
               sort: "rating",
-              goal: goalFilter !== "All" ? goalFilter : undefined,
               age: rangeFilter !== "All" ? rangeFilter : undefined,
-              nsfw: nsfwVisible,
             },
+            options,
             currentLoadingKey,
             limit
           );
           if (loadedCount === undefined) {
             return;
           }
-          const matchingRecentPitchDocs = recentPitchDocsRef.current || {};
+          const matchingRecentPitchDocs: { [id: string]: ProjectDocument } = {};
+          const { goal } = options;
+          Object.entries(recentPitchDocsRef.current || {}).forEach(
+            ([id, doc]) => {
+              if (!goal || goal === doc?.pitchGoal) {
+                matchingRecentPitchDocs[id] = doc;
+              }
+            }
+          );
           const newPitchDocs = {
             ...matchingRecentPitchDocs,
             ...pitchDocsByTagRef.current[""],
@@ -412,15 +442,19 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
             const shuffledTags = shuffle(followedTags);
             // Shuffle the tags and load more pitches by searching for 10 tags at a time.
             const chunks = chunk(shuffledTags, 10);
+            const options: {
+              sort: "rank" | "rating" | "new";
+              goal: PitchGoal;
+              nsfw: boolean;
+            } = {
+              sort: trendingFilter === "New" ? "new" : "rank",
+              goal: goalFilter !== "All" ? goalFilter : undefined,
+              nsfw: nsfwVisible,
+            };
             await Promise.all(
               chunks.map((chunk) =>
                 handleLoadMore(
-                  {
-                    sort: trendingFilter === "New" ? "new" : "rank",
-                    goal: goalFilter !== "All" ? goalFilter : undefined,
-                    nsfw: nsfwVisible,
-                    tags: chunk,
-                  },
+                  { ...options, tags: chunk },
                   currentLoadingKey,
                   limit
                 )
@@ -441,9 +475,13 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
             const matchingRecentPitchDocs: { [id: string]: ProjectDocument } =
               {};
+            const { goal } = options;
             Object.entries(recentPitchDocsRef.current || {}).forEach(
               ([id, doc]) => {
-                if (followedTags.some((t) => doc?.tags?.includes(t))) {
+                if (
+                  (!goal || goal === doc?.pitchGoal) &&
+                  followedTags.some((t) => doc?.tags?.includes(t))
+                ) {
                   matchingRecentPitchDocs[id] = doc;
                 }
               }
