@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import Typography from "@material-ui/core/Typography";
-import ReactMarkdown from "markdown-to-jsx";
+import ReactMarkdown, { MarkdownToJSX } from "markdown-to-jsx";
 import React from "react";
 import LazyHydrate from "../../../impower-hydration/LazyHydrate";
 
@@ -164,10 +164,11 @@ interface MarkdownProps {
   defaultStyle?: boolean;
   style?: React.CSSProperties;
   children?: React.ReactText;
+  overrides?: MarkdownToJSX.Overrides;
 }
 
 const Markdown = (props: MarkdownProps): JSX.Element => {
-  const { darkmode, defaultStyle, style, children } = props;
+  const { darkmode, defaultStyle, style, overrides = {}, children } = props;
   if (defaultStyle) {
     return (
       <LazyHydrate ssrOnly>
@@ -182,6 +183,7 @@ const Markdown = (props: MarkdownProps): JSX.Element => {
                     target: "_blank",
                   },
                 },
+                ...overrides,
               },
             }}
           >
@@ -207,6 +209,7 @@ const Markdown = (props: MarkdownProps): JSX.Element => {
               span: {
                 component: CustomP,
               },
+              ...overrides,
             },
           }}
         >

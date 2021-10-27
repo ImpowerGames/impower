@@ -98,6 +98,16 @@ const ContributionCollapsedContent = React.memo(
       () => getPreviewInnerStyle(aspectRatio, square, crop),
       [aspectRatio, crop, square]
     );
+    // Don't allow displaying images with markdown because they can't be moderated.
+    const overrides = useMemo(
+      () => ({
+        img: {
+          component: "div" as React.ElementType,
+          props: {},
+        },
+      }),
+      []
+    );
 
     return (
       <>
@@ -126,7 +136,7 @@ const ContributionCollapsedContent = React.memo(
         {content && (
           <StyledTextContent>
             {contributionType === "story" ? (
-              <Markdown>{content}</Markdown>
+              <Markdown overrides={overrides}>{content}</Markdown>
             ) : contributionType === "pitch" ? (
               <>
                 <StyledTypography>
