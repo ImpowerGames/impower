@@ -11,7 +11,7 @@ It has been configured with:
 - UI built with [Material UI](https://mui.com)
 - Styling with [Emotion](https://emotion.sh)
 - "Progressive Web App (PWA)" functionality using [next-pwa](https://github.com/shadowwalker/next-pwa) and [Google Workbox](https://developers.google.com/web/tools/workbox)
-- Backend API is built and managed by [Firebase](https://firebase.google.com)
+- Backend API is built and managed with [Firebase](https://firebase.google.com)
 - Deployment with [Vercel](https://vercel.com)
 
 ## Application Architecture
