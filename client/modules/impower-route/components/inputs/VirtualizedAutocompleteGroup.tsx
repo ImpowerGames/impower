@@ -66,7 +66,12 @@ export const VirtualizedAutocompleteGroup = React.memo(
           const itemWithKey = item as { key: string };
           const itemKey = itemWithKey.key;
           return (
-            <VirtualizedItem key={itemKey} index={index} minHeight={minHeight}>
+            <VirtualizedItem
+              key={itemKey}
+              index={index}
+              minHeight={minHeight}
+              minValidHeight={minHeight}
+            >
               {items[index]}
             </VirtualizedItem>
           );
