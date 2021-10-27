@@ -29,6 +29,7 @@ export interface NavigationState {
     onClickButton?: () => void;
   };
   type?: "page" | "studio" | "none";
+  betaWarningDismissed?: boolean;
 }
 
 export const createNavigationState = (): NavigationState => ({});

@@ -35,7 +35,7 @@ export const authenticatedAccountMenuItems: MenuInfo[] = [
 interface AccountMenuProps {
   anchorEl: HTMLElement | null;
   onClose: (e: React.MouseEvent) => void;
-  onClick?: (e: React.MouseEvent) => void;
+  onClick?: (e: React.MouseEvent, menuItem: MenuInfo) => Promise<void>;
 }
 
 const AccountMenu = React.memo((props: AccountMenuProps) => {
@@ -48,7 +48,9 @@ const AccountMenu = React.memo((props: AccountMenuProps) => {
       if (onClose) {
         onClose(e);
       }
-      onClick(e);
+      // wait a bit for dialog to close
+      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      await onClick(e, menuItem);
       const router = (await import("next/router")).default;
       if (menuItem.type === MenuType.Logout) {
         userDispatch(userSetTempEmail(""));
@@ -60,7 +62,7 @@ const AccountMenu = React.memo((props: AccountMenuProps) => {
         router.replace(menuItem.link);
       }
     },
-    [onClose, onClick, userDispatch]
+    [onClick, onClose, userDispatch]
   );
 
   return (

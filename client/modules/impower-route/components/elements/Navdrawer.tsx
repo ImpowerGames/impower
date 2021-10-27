@@ -219,12 +219,24 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
 
   const [openAccountDialog] = useDialogNavigation("a");
 
-  const handleOpenSignupDialog = useCallback((): void => {
-    openAccountDialog("signup");
-  }, [openAccountDialog]);
-  const handleOpenLoginDialog = useCallback((): void => {
-    openAccountDialog("login");
-  }, [openAccountDialog]);
+  const handleOpenSignupDialog = useCallback(
+    async (e: React.MouseEvent): Promise<void> => {
+      handleClose(e);
+      // wait a bit for dialog to close
+      await new Promise((resolve) => window.setTimeout(resolve, 10));
+      openAccountDialog("signup");
+    },
+    [handleClose, openAccountDialog]
+  );
+  const handleOpenLoginDialog = useCallback(
+    async (e: React.MouseEvent): Promise<void> => {
+      handleClose(e);
+      // wait a bit for dialog to close
+      await new Promise((resolve) => window.setTimeout(resolve, 10));
+      openAccountDialog("login");
+    },
+    [handleClose, openAccountDialog]
+  );
 
   const handleClick = useCallback(
     async (e: React.MouseEvent, href?: string): Promise<void> => {
@@ -242,6 +254,15 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
       }
     },
     [handleClose, onInstall, router]
+  );
+
+  const handleClickAccountMenuOption = useCallback(
+    async (e: React.MouseEvent): Promise<void> => {
+      handleClose(e);
+      // wait a bit for dialog to close
+      await new Promise((resolve) => window.setTimeout(resolve, 10));
+    },
+    [handleClose]
   );
 
   const isAuthenticated = isSignedIn && !isAnonymous;
@@ -343,7 +364,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
             <AccountMenu
               anchorEl={accountMenuAnchor}
               onClose={handleCloseAccountMenu}
-              onClick={handleClose}
+              onClick={handleClickAccountMenuOption}
             />
           </>
         )}
