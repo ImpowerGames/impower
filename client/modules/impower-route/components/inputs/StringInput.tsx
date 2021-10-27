@@ -711,7 +711,7 @@ const StringInput = React.memo(
           backgroundColor,
           ...(SharedInputProps.style || {}),
         },
-        endAdornment: (
+        startAdornment: (
           <>
             {showFullscreen && (
               <StyledDialogButton
@@ -719,6 +719,11 @@ const StringInput = React.memo(
                 onClick={handleBlockClick}
               />
             )}
+            {InputProps?.startAdornment}
+          </>
+        ),
+        endAdornment: (
+          <>
             <StringEndAdornment
               id={id}
               showFullscreen={showFullscreen}
@@ -741,6 +746,7 @@ const StringInput = React.memo(
       }),
       [
         InputProps?.endAdornment,
+        InputProps?.startAdornment,
         SharedInputProps,
         backgroundColor,
         disableAutoKeyboard,
