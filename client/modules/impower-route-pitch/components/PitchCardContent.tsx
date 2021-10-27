@@ -9,6 +9,10 @@ import { ConfigContext, ConfigParameters } from "../../impower-config";
 import ConfigCache from "../../impower-config/classes/configCache";
 import format from "../../impower-config/utils/format";
 import { escapeURI } from "../../impower-data-store";
+import {
+  NavigationContext,
+  navigationSetSearchbar,
+} from "../../impower-navigation";
 
 const Skeleton = dynamic(() => import("@material-ui/core/Skeleton"), {
   ssr: false,
@@ -70,12 +74,21 @@ const PitchCardContent = React.memo(
     const { config, name, summary, tags, delisted, archived, titleRef } = props;
 
     const [configState] = useContext(ConfigContext);
+    const [, navigationDispatch] = useContext(NavigationContext);
 
     const handleBlockRipplePropogation = useCallback(
       (e: React.MouseEvent | React.TouchEvent): void => {
         e.stopPropagation();
       },
       []
+    );
+
+    const handleClickTag = useCallback(
+      (e: React.MouseEvent): void => {
+        e.stopPropagation();
+        navigationDispatch(navigationSetSearchbar({ searching: true }));
+      },
+      [navigationDispatch]
     );
 
     const mainTag = tags?.[0] || "";
@@ -118,7 +131,7 @@ const PitchCardContent = React.memo(
                     >
                       <StyledTagButton
                         size="small"
-                        onClick={handleBlockRipplePropogation}
+                        onClick={(e): void => handleClickTag(e)}
                         onMouseDown={handleBlockRipplePropogation}
                         onTouchStart={handleBlockRipplePropogation}
                       >

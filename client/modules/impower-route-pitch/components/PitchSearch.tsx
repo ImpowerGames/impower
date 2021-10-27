@@ -603,14 +603,7 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
         <StyledListArea>
           <StyledContainer>
             {searching ? (
-              <EmptyPitchList
-                loading
-                loadedImage={emptyImage}
-                filterLabel={filterLabel}
-                searchLabel={searchLabel}
-                emptyLabelStyle={emptyLabelStyle}
-                searchLabelStyle={searchLabelStyle}
-              />
+              <EmptyPitchList loading loadingMessage={`Searching...`} />
             ) : (
               <>
                 <FilterHeader id="pitch-filter-header">

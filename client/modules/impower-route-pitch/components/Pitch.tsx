@@ -23,6 +23,7 @@ import {
 } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
 import { SvgData } from "../../impower-icon";
+import { NavigationContext } from "../../impower-navigation";
 import { BetaBanner } from "../../impower-route";
 import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
@@ -57,6 +58,10 @@ const TagIconLoader = dynamic(
   () => import("../../impower-route/components/elements/TagIconLoader"),
   { ssr: false }
 );
+
+const EmptyPitchList = dynamic(() => import("./EmptyPitchList"), {
+  ssr: false,
+});
 
 const StyledPitch = styled.div`
   height: 100vh;
@@ -148,6 +153,8 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const { config, icons, pitchDocs, style } = props;
 
+  const [navigationState] = useContext(NavigationContext);
+  const searching = navigationState?.search?.searching;
   const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
   const [userState] = useContext(UserContext);
   const { settings, my_follows, my_recent_pitched_projects } = userState;
@@ -703,71 +710,77 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
         <BetaBanner />
         <StyledListArea>
           <StyledContainer>
-            {activeTab === "Following" && !shouldDisplayFollowingPitches ? (
-              <PitchFollowTags onReload={handleReloadFollowing} />
+            {searching ? (
+              <EmptyPitchList loading loadingMessage={`Searching...`} />
             ) : (
               <>
-                <FilterHeader id="pitch-filter-header">
-                  <GoalFilterButton
-                    target="pitch"
-                    activeFilterValue={goalFilter}
-                    onOption={handleChangeGoalFilter}
-                  />
-                  <StyledSpacer />
-                  <StyledCenterArea>
-                    {activeTab === "Following" && (
-                      <StyledButton
-                        color="primary"
-                        onClick={handleFollowMore}
-                      >{`More`}</StyledButton>
-                    )}
-                  </StyledCenterArea>
-                  {activeTab === "Top" ? (
-                    <RangeFilterButton
-                      target="pitch"
-                      activeFilterValue={rangeFilter}
-                      onOption={handleChangeRangeFilter}
+                {activeTab === "Following" && !shouldDisplayFollowingPitches ? (
+                  <PitchFollowTags onReload={handleReloadFollowing} />
+                ) : (
+                  <>
+                    <FilterHeader id="pitch-filter-header">
+                      <GoalFilterButton
+                        target="pitch"
+                        activeFilterValue={goalFilter}
+                        onOption={handleChangeGoalFilter}
+                      />
+                      <StyledSpacer />
+                      <StyledCenterArea>
+                        {activeTab === "Following" && (
+                          <StyledButton
+                            color="primary"
+                            onClick={handleFollowMore}
+                          >{`More`}</StyledButton>
+                        )}
+                      </StyledCenterArea>
+                      {activeTab === "Top" ? (
+                        <RangeFilterButton
+                          target="pitch"
+                          activeFilterValue={rangeFilter}
+                          onOption={handleChangeRangeFilter}
+                        />
+                      ) : (
+                        <TrendingFilterButton
+                          target="pitch"
+                          activeFilterValue={trendingFilter}
+                          onOption={handleChangeTrendingFilter}
+                        />
+                      )}
+                    </FilterHeader>
+                    <PitchList
+                      config={config}
+                      icons={icons}
+                      pitchDocs={pitchDocsState}
+                      chunkMap={chunkMap}
+                      lastLoadedChunk={lastLoadedChunk}
+                      emptyImage={emptyImage}
+                      filterLabel={filterLabel}
+                      searchLabel={`now.`}
+                      hideAddButton={
+                        activeTab === "Following" &&
+                        (!followedTags || followedTags.length === 0)
+                      }
+                      onKudo={handleKudo}
+                      onChangeScore={handleChangeScore}
+                      onDelete={handleDeletePitch}
+                      onCreateContribution={handleCreateContribution}
+                      onDeleteContribution={handleDeleteContribution}
                     />
-                  ) : (
-                    <TrendingFilterButton
-                      target="pitch"
-                      activeFilterValue={trendingFilter}
-                      onOption={handleChangeTrendingFilter}
+                    <PitchLoadingProgress
+                      loadingMore={pitchDocsState && loadingMore}
+                      noMore={
+                        pitchDocsState &&
+                        Object.keys(pitchDocsState)?.length > 0 &&
+                        noMore
+                      }
+                      noMoreLabel={`That's all for now!`}
+                      refreshLabel={`Refresh?`}
+                      onScrolledToEnd={handleScrolledToEnd}
+                      onRefresh={handleRefresh}
                     />
-                  )}
-                </FilterHeader>
-                <PitchList
-                  config={config}
-                  icons={icons}
-                  pitchDocs={pitchDocsState}
-                  chunkMap={chunkMap}
-                  lastLoadedChunk={lastLoadedChunk}
-                  emptyImage={emptyImage}
-                  filterLabel={filterLabel}
-                  searchLabel={`now.`}
-                  hideAddButton={
-                    activeTab === "Following" &&
-                    (!followedTags || followedTags.length === 0)
-                  }
-                  onKudo={handleKudo}
-                  onChangeScore={handleChangeScore}
-                  onDelete={handleDeletePitch}
-                  onCreateContribution={handleCreateContribution}
-                  onDeleteContribution={handleDeleteContribution}
-                />
-                <PitchLoadingProgress
-                  loadingMore={pitchDocsState && loadingMore}
-                  noMore={
-                    pitchDocsState &&
-                    Object.keys(pitchDocsState)?.length > 0 &&
-                    noMore
-                  }
-                  noMoreLabel={`That's all for now!`}
-                  refreshLabel={`Refresh?`}
-                  onScrolledToEnd={handleScrolledToEnd}
-                  onRefresh={handleRefresh}
-                />
-                {loadIcons && <TagIconLoader />}
+                    {loadIcons && <TagIconLoader />}
+                  </>
+                )}
               </>
             )}
           </StyledContainer>

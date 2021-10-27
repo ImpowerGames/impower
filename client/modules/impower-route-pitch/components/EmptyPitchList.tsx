@@ -74,6 +74,7 @@ interface EmptyPitchListProps {
   searchLabelStyle?: React.CSSProperties;
   loading?: boolean;
   loadedImage?: React.ReactNode;
+  loadingMessage?: string;
 }
 
 const EmptyPitchList = React.memo((props: EmptyPitchListProps): JSX.Element => {
@@ -84,12 +85,14 @@ const EmptyPitchList = React.memo((props: EmptyPitchListProps): JSX.Element => {
     searchLabelStyle,
     loading,
     loadedImage,
+    loadingMessage,
   } = props;
 
   return (
     <AnimatedLoadingMascotIllustration
       loading={loading}
       loadedImage={loadedImage}
+      loadingMessage={loadingMessage}
       loadedMessage={
         <EmptyPitchListText
           filterLabel={filterLabel}
