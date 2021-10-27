@@ -394,9 +394,6 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
             nsfw: nsfwVisible,
           };
           const loadedCount = await handleLoadMore(
-              sort: "rating",
-              age: rangeFilter !== "All" ? rangeFilter : undefined,
-            },
             options,
             currentLoadingKey,
             limit
