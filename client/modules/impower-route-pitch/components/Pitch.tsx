@@ -628,6 +628,11 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const handleChangeTab = useCallback(
     (tab: PitchToolbarTab): void => {
       lastLoadedChunkRef.current = -1;
+      cursorsByTagRef.current = {};
+      pitchDocsByTagRef.current = {};
+      pitchDocsRef.current = {};
+      chunkMapRef.current = {};
+      DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
       setLoadIcons(true);
       setAllowReload(true);
       setActiveTab(tab);
