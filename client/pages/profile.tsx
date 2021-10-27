@@ -15,6 +15,7 @@ import {
   navigationSetText,
   navigationSetType,
 } from "../modules/impower-navigation";
+import { BetaBanner } from "../modules/impower-route";
 import Footer from "../modules/impower-route-home/components/elements/Footer";
 import Illustration from "../modules/impower-route-home/components/elements/Illustration";
 import CreateUserForm from "../modules/impower-route/components/forms/CreateUserForm";
@@ -24,6 +25,7 @@ import { UserContext } from "../modules/impower-user";
 import IllustrationImage from "../resources/illustrations/clip-busy-day-at-the-office.svg";
 
 const StyledProfile = styled.div`
+  padding-top: ${(props): string => props.theme.minHeight.navigationBar};
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -96,6 +98,7 @@ const ProfilePage = React.memo(() => {
 
   return (
     <StyledProfile>
+      <BetaBanner />
       <StyledBackgroundArea>
         <Illustration
           imageStyle={{

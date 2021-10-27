@@ -1,20 +1,34 @@
+import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import Container from "@material-ui/core/Container";
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
 import { GetStaticPaths, GetStaticProps } from "next";
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import { initAdminApp } from "../../lib/initAdminApp";
 import {
   getSerializableDocument,
   UserDocument,
 } from "../../modules/impower-data-store";
+import {
+  NavigationContext,
+  navigationSetBackgroundColor,
+  navigationSetElevation,
+  navigationSetLinks,
+  navigationSetSearchbar,
+  navigationSetText,
+  navigationSetType,
+} from "../../modules/impower-navigation";
+import { BetaBanner } from "../../modules/impower-route";
 import Footer from "../../modules/impower-route-home/components/elements/Footer";
 import UserProfile from "../../modules/impower-route-user-profile/UserProfile";
+import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
+import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import { UserContext } from "../../modules/impower-user";
 
 const StyledUserProfilePage = styled.div`
+  padding-top: ${(props): string => props.theme.minHeight.navigationBar};
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -62,6 +76,21 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
   const { doc } = props;
   const [userState] = useContext(UserContext);
 
+  const [, navigationDispatch] = useContext(NavigationContext);
+  const theme = useTheme();
+
+  useBodyBackgroundColor(theme.colors.lightForeground);
+  useHTMLBackgroundColor(theme.colors.lightForeground);
+
+  useEffect(() => {
+    navigationDispatch(navigationSetType("page"));
+    navigationDispatch(navigationSetText());
+    navigationDispatch(navigationSetLinks());
+    navigationDispatch(navigationSetSearchbar());
+    navigationDispatch(navigationSetElevation());
+    navigationDispatch(navigationSetBackgroundColor());
+  }, [navigationDispatch]);
+
   if (doc === null || doc === undefined) {
     const usernameQuery =
       typeof window !== "undefined"
@@ -70,6 +99,7 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
     // If the doc is not ready, display a spinner
     return (
       <StyledUserProfilePage>
+        <BetaBanner />
         <StyledContent>
           <StyledPaper>
             <CircularProgress />
@@ -86,6 +116,7 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
   const canEdit = username === userState?.userDoc?.username;
   return (
     <StyledUserProfilePage>
+      <BetaBanner />
       <StyledContent>
         <Container component="main" maxWidth="sm" style={{ padding: 0 }}>
           <UserProfile

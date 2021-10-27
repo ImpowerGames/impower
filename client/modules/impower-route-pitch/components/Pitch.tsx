@@ -23,6 +23,7 @@ import {
 } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
 import { SvgData } from "../../impower-icon";
+import { BetaBanner } from "../../impower-route";
 import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
 import { GoalFilter } from "../types/goalFilter";
@@ -699,6 +700,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     <StyledPitch style={style}>
       <StyledApp>
         <PitchTabsToolbar value={activeTab} onChange={handleChangeTab} />
+        <BetaBanner />
         <StyledListArea>
           <StyledContainer>
             {activeTab === "Following" && !shouldDisplayFollowingPitches ? (

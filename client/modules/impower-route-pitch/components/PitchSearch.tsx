@@ -27,6 +27,7 @@ import {
   NavigationContext,
   navigationSetSearchbar,
 } from "../../impower-navigation";
+import { BetaBanner } from "../../impower-route";
 import { useRouter } from "../../impower-router";
 import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
@@ -598,6 +599,7 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
           following={searching ? undefined : isFollowingAllTags}
           onFollow={searching ? undefined : handleChangeFollowing}
         />
+        <BetaBanner />
         <StyledListArea>
           <StyledContainer>
             {searching ? (
