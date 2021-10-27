@@ -428,6 +428,7 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
     const [docSnapshot, querySnapshot] = await Promise.all(promises);
 
     const results = new Set<string>();
+    results.add(value);
     if (docSnapshot.exists()) {
       results.add(docSnapshot.id);
     }
@@ -478,13 +479,14 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
   );
 
   const handleOpen = useCallback((): void => {
-    if (!closingRef.current) {
-      closingRef.current = false;
-      setOptions([stateRef.current || ""]);
-      setOpenState(true);
-      if (dialog) {
-        openFieldDialog("search");
-      }
+    if (dialog && closingRef.current) {
+      return;
+    }
+    closingRef.current = false;
+    setOptions([stateRef.current || ""]);
+    setOpenState(true);
+    if (dialog) {
+      openFieldDialog("search");
     }
   }, [dialog, openFieldDialog]);
 
@@ -496,8 +498,10 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
     });
     closingRef.current = true;
     setOpenState(false);
-    closeFieldDialog();
-  }, [closeFieldDialog]);
+    if (dialog) {
+      closeFieldDialog();
+    }
+  }, [closeFieldDialog, dialog]);
 
   const handleSearchChange = useCallback(
     async (event: React.ChangeEvent, value: string) => {
@@ -511,7 +515,9 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
       });
       closingRef.current = true;
       setOpenState(false);
-      closeFieldDialog();
+      if (dialog) {
+        closeFieldDialog();
+      }
       const newSearch = value || "";
       navigationDispatch(
         navigationSetSearchbar({ value: newSearch, searching: true })
@@ -526,15 +532,7 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
       router.push(`${baseRoute}/search/${escapeURI(newSearch)}`);
       closingRef.current = false;
     },
-    [closeFieldDialog, navigationDispatch, router]
-  );
-
-  const allOptions = useMemo(
-    () =>
-      inputValue
-        ? [inputValue, ...options.filter((o) => o !== inputValue)]
-        : options,
-    [inputValue, options]
+    [closeFieldDialog, dialog, navigationDispatch, router]
   );
 
   const {
@@ -546,7 +544,7 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
   } = useAutocomplete({
     value: state || "",
     inputValue: inputValue || "",
-    options: allOptions,
+    options,
     selectOnFocus: true,
     blurOnSelect: true,
     freeSolo: true,
@@ -554,6 +552,7 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
     openOnFocus: true,
     open: openState,
     onOpen: handleOpen,
+    onClose: dialog ? undefined : handleClose,
     groupBy: handleGroupBy,
     isOptionEqualToValue: handleIsOptionEqualToValue,
     onInputChange: handleInputChange,
