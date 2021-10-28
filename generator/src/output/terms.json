@@ -26815,6 +26815,20 @@
     "text adventure",
     "visual novel"
   ],
+  "trap": [
+    "action",
+    "capture",
+    "cryptid",
+    "detective",
+    "escape",
+    "hunting",
+    "investigation",
+    "monster tamer",
+    "noir",
+    "police",
+    "thriller",
+    "tracking"
+  ],
   "thrust": [
     "action",
     "extraterrestrial",
@@ -30838,24 +30852,6 @@
     "strategy",
     "superhero",
     "war"
-  ],
-  "trap": [
-    "action",
-    "caper",
-    "capture",
-    "cryptid",
-    "detective",
-    "escape",
-    "heist",
-    "hunting",
-    "investigation",
-    "monster tamer",
-    "noir",
-    "phantom thief",
-    "police",
-    "steal",
-    "thriller",
-    "tracking"
   ],
   "swoop": [
     "action",
