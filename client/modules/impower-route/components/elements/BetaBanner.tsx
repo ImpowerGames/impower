@@ -6,7 +6,7 @@ import React, { useCallback, useState } from "react";
 import XmarkRegularIcon from "../../../../resources/icons/regular/xmark.svg";
 import { FontIcon } from "../../../impower-icon";
 
-const StyledBetaWarningButton = styled(Button)`
+const StyledBetaWarningButton = styled(Button)<{ hoverable?: boolean }>`
   background-color: ${(props): string => props.theme.palette.secondary.main};
   color: white;
   padding: ${(props): string => props.theme.spacing(1.5, 0)};
@@ -14,7 +14,10 @@ const StyledBetaWarningButton = styled(Button)`
   text-transform: none;
 
   &.MuiButton-root:hover {
-    background-color: ${(props): string => props.theme.palette.secondary.dark};
+    background-color: ${(props): string =>
+      props.hoverable
+        ? props.theme.palette.secondary.dark
+        : props.theme.palette.secondary.main};
   }
 
   &.MuiButton-root.Mui-disabled {
@@ -46,6 +49,10 @@ const StyledIconButton = styled(IconButton)`
   color: white;
   opacity: 0.6;
   padding: ${(props): string => props.theme.spacing(1.5)};
+
+  &.MuiIconButton-root:hover {
+    background-color: ${(props): string => props.theme.palette.secondary.dark};
+  }
 `;
 
 const DISMISSED_KEY = "@impower/DISMISSED_BETA_WARNING";
@@ -55,12 +62,21 @@ const BetaBanner = React.memo((): JSX.Element => {
     typeof window !== "undefined" &&
       Boolean(window.sessionStorage.getItem(DISMISSED_KEY))
   );
+  const [hoveringDismissButton, setHoveringDismissButton] = useState(false);
 
   const handleDismiss = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     window.sessionStorage.setItem(DISMISSED_KEY, "true");
     setDismissed(true);
+  }, []);
+
+  const handlePointerEnterDismissButton = useCallback((): void => {
+    setHoveringDismissButton(true);
+  }, []);
+
+  const handlePointerLeaveDismissButton = useCallback((): void => {
+    setHoveringDismissButton(false);
   }, []);
 
   if (dismissed) {
@@ -70,9 +86,14 @@ const BetaBanner = React.memo((): JSX.Element => {
   return (
     <StyledBetaWarningButton
       fullWidth
+      hoverable={!hoveringDismissButton}
       href={`https://github.com/ImpowerGames/impower/issues`}
     >
-      <StyledIconButton onClick={handleDismiss}>
+      <StyledIconButton
+        onClick={handleDismiss}
+        onPointerEnter={handlePointerEnterDismissButton}
+        onPointerLeave={handlePointerLeaveDismissButton}
+      >
         <FontIcon aria-label="Dismiss" size={20}>
           <XmarkRegularIcon />
         </FontIcon>
