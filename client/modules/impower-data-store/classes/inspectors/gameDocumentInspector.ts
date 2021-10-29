@@ -243,7 +243,7 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
       return `Tap a tag to lock it in while randomizing.`;
     }
     if (propertyPath === "name" && !data?._createdAt) {
-      return `Good titles work on multiple levels.`;
+      return `Click the lightbulb for more suggestions!`;
     }
     if (propertyPath === "summary" && !data?._createdAt) {
       return `Good pitches have a strong sense of irony.`;
