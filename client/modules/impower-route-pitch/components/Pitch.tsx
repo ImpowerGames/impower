@@ -625,16 +625,20 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     trendingFilter,
   ]);
 
+  const handleAllowReload = useCallback(() => {
+    lastLoadedChunkRef.current = -1;
+    cursorsByTagRef.current = {};
+    pitchDocsByTagRef.current = {};
+    pitchDocsRef.current = {};
+    chunkMapRef.current = {};
+    DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
+    setAllowReload(true);
+  }, []);
+
   const handleChangeTab = useCallback(
     (tab: PitchToolbarTab): void => {
-      lastLoadedChunkRef.current = -1;
-      cursorsByTagRef.current = {};
-      pitchDocsByTagRef.current = {};
-      pitchDocsRef.current = {};
-      chunkMapRef.current = {};
-      DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
+      handleAllowReload();
       setLoadIcons(true);
-      setAllowReload(true);
       setActiveTab(tab);
       if (followedTags === null) {
         setShouldDisplayFollowingPitches(false);
@@ -643,7 +647,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
         setShouldDisplayFollowingPitches(true);
       }
     },
-    [followedTags]
+    [followedTags, handleAllowReload]
   );
 
   const handleReloadFollowing = useCallback(async (): Promise<void> => {
@@ -657,26 +661,26 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const handleChangeGoalFilter = useCallback(
     async (e: React.MouseEvent, value: GoalFilter): Promise<void> => {
-      setAllowReload(true);
+      handleAllowReload();
       setGoalFilter(value);
     },
-    []
+    [handleAllowReload]
   );
 
   const handleChangeTrendingFilter = useCallback(
     async (e: React.MouseEvent, value: TrendingFilter): Promise<void> => {
-      setAllowReload(true);
+      handleAllowReload();
       setTrendingFilter(value);
     },
-    []
+    [handleAllowReload]
   );
 
   const handleChangeRangeFilter = useCallback(
     (e: React.MouseEvent, value: DateRangeFilter): void => {
-      setAllowReload(true);
+      handleAllowReload();
       setRangeFilter(value);
     },
-    []
+    [handleAllowReload]
   );
 
   const handleChangeScore = useCallback(
