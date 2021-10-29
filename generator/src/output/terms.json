@@ -1856,6 +1856,7 @@
   "font": ["text", "text adventure", "visual novel"],
   "encyclopaedia": ["text", "text adventure", "visual novel"],
   "dictionary": ["text", "text adventure", "visual novel"],
+  "shifting": ["shapeshifting", "teleportation", "time travel"],
   "phases": ["science", "teleportation", "time travel"],
   "fully booked": ["schedule", "time management", "time travel"],
   "evening": ["schedule", "time management", "time travel"],
@@ -4534,13 +4535,6 @@
   "taxes": ["business", "greed", "political", "shop", "wealth"],
   "tax": ["business", "greed", "political", "shop", "wealth"],
   "sum": ["business", "greed", "science", "shop", "wealth"],
-  "shifting": [
-    "business",
-    "office",
-    "shapeshifting",
-    "teleportation",
-    "time travel"
-  ],
   "richer": ["business", "decopunk", "greed", "shop", "wealth"],
   "rich": ["business", "decopunk", "greed", "shop", "wealth"],
   "recent": ["business", "greed", "modern", "shop", "wealth"],
@@ -16646,6 +16640,26 @@
     "sabotage",
     "war"
   ],
+  "machines": [
+    "action",
+    "arcade",
+    "artificial intelligence",
+    "cyberpunk",
+    "hacking",
+    "robot",
+    "steampunk",
+    "technology"
+  ],
+  "machine": [
+    "action",
+    "arcade",
+    "artificial intelligence",
+    "cyberpunk",
+    "hacking",
+    "robot",
+    "steampunk",
+    "technology"
+  ],
   "knife": [
     "action",
     "assassination",
@@ -22675,6 +22689,18 @@
     "rivals",
     "suspense"
   ],
+  "machinery": [
+    "action",
+    "arcade",
+    "artificial intelligence",
+    "automation",
+    "cyberpunk",
+    "hacking",
+    "repair",
+    "robot",
+    "steampunk",
+    "technology"
+  ],
   "jaws": [
     "action",
     "animals",
@@ -23149,19 +23175,6 @@
     "strategy",
     "tactical",
     "war"
-  ],
-  "landings": [
-    "exploration",
-    "flight",
-    "gardening",
-    "mecha",
-    "nature",
-    "open world",
-    "plants",
-    "platformer",
-    "scavenging",
-    "side scroller",
-    "walking simulator"
   ],
   "england": [
     "exploration",
@@ -29875,40 +29888,6 @@
     "sabotage",
     "tabletop"
   ],
-  "machines": [
-    "action",
-    "arcade",
-    "art",
-    "artificial intelligence",
-    "artist",
-    "building",
-    "crafting",
-    "creative",
-    "cyberpunk",
-    "drawing",
-    "hacking",
-    "invention",
-    "robot",
-    "steampunk",
-    "technology"
-  ],
-  "machine": [
-    "action",
-    "arcade",
-    "art",
-    "artificial intelligence",
-    "artist",
-    "building",
-    "crafting",
-    "creative",
-    "cyberpunk",
-    "drawing",
-    "hacking",
-    "invention",
-    "robot",
-    "steampunk",
-    "technology"
-  ],
   "deaths": [
     "action",
     "apocalyptic",
@@ -31485,25 +31464,6 @@
     "strategy",
     "tactical",
     "war"
-  ],
-  "machinery": [
-    "action",
-    "arcade",
-    "art",
-    "artificial intelligence",
-    "artist",
-    "automation",
-    "building",
-    "crafting",
-    "creative",
-    "cyberpunk",
-    "drawing",
-    "hacking",
-    "invention",
-    "repair",
-    "robot",
-    "steampunk",
-    "technology"
   ],
   "encounter": [
     "action",
