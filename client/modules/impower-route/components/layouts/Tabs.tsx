@@ -94,6 +94,7 @@ const StyledTabArea = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
+  min-width: fit-content;
 `;
 
 export interface TabsProps {

@@ -297,10 +297,11 @@ const StyledChipIconArea = styled.div`
 
 const StyledLabelContent = styled.div`
   display: flex;
-  min-width: 0;
 `;
 
-const StyledTypography = styled(Typography)<{ component?: string }>``;
+const StyledTypography = styled(Typography)<{ component?: string }>`
+  white-space: pre-wrap;
+`;
 
 const StyledSubmitButtonArea = styled.div`
   bottom: 0;
@@ -597,7 +598,6 @@ const TagDialog = React.memo((props: TagDialogProps): JSX.Element => {
 
   const handleBlur = useCallback(
     (e: React.FocusEvent): void => {
-      return;
       if (!closingRef.current) {
         if (!e.relatedTarget) {
           closingRef.current = true;
