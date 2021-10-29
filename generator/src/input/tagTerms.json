@@ -3120,7 +3120,7 @@
     "aide",
     "defend",
     "defense",
-    "garde",
+    "garde_",
     "guard",
     "protect",
     "shield",
@@ -5611,14 +5611,7 @@
     "wield"
   ],
   "hacking": [">glitch", ">infiltration", ">technology"],
-  "heist": [
-    ">steal",
-    ">stealth",
-    "gatecrashing",
-    "glove",
-    "midnight",
-    "mysterious"
-  ],
+  "heist": [">steal", "gatecrashing", "glove", "midnight", "mysterious"],
   "hidden object": [
     ">search",
     "eye",
@@ -5630,8 +5623,9 @@
     "sight"
   ],
   "historical": [
+    "_age",
+    "_my day_",
     "_used to_",
-    "age",
     "ago",
     "ancient",
     "archaeology",
@@ -5647,7 +5641,6 @@
     "cleopatra",
     "culture",
     "date",
-    "day",
     "egypt",
     "emperor",
     "empire",
@@ -6913,7 +6906,7 @@
     "fever",
     "fingers",
     "fingertips",
-    "fit",
+    "fit_",
     "flesh",
     "flu",
     "fracture",
@@ -10981,7 +10974,6 @@
     "_break~ and enter",
     "_break~ in_",
     "_get~ away_",
-    "_get~ in_",
     "_get~ into_",
     "_get~ that_",
     "_get~ this_",
@@ -12252,7 +12244,7 @@
     "fort",
     "foxhole",
     "front",
-    "garde",
+    "garde_",
     "garrison",
     "general",
     "glory",
@@ -12753,7 +12745,7 @@
   "you": ["_you're_", "_you_", "_your_", "_yourself_"],
   "young": [
     ">child",
-    "age",
+    "_age",
     "fifteen",
     "fifteenth",
     "junior",

@@ -2535,6 +2535,7 @@
   "worst": ["alternate history", "rivals", "time travel"],
   "used to": ["alternate history", "historical", "time travel"],
   "pharaohs": ["alternate history", "historical", "time travel"],
+  "my day": ["alternate history", "historical", "time travel"],
   "moses": ["alternate history", "historical", "time travel"],
   "millennium": ["alternate history", "historical", "time travel"],
   "cleopatra": ["alternate history", "historical", "time travel"],
@@ -2668,6 +2669,8 @@
   "level": ["jrpg", "metroidvania", "role playing", "rpg"],
   "healthy": ["jrpg", "medical", "role playing", "rpg"],
   "health": ["jrpg", "medical", "role playing", "rpg"],
+  "tiptoe": ["invisibility", "ninja", "sneaking", "stealth"],
+  "silent": ["invisibility", "ninja", "silence", "stealth"],
   "state": ["investigation", "legal", "political", "social deduction"],
   "scale": ["investigation", "legal", "science", "social deduction"],
   "jeopardy": ["investigation", "legal", "roguelike", "social deduction"],
@@ -2785,6 +2788,9 @@
   "driven": ["driving", "racing", "roadtrip", "vehicle"],
   "drive": ["driving", "racing", "roadtrip", "vehicle"],
   "wear": ["dress-up", "fashion", "supernatural", "werewolf"],
+  "fitting": ["dress-up", "fashion", "impersonation", "shapeshifting"],
+  "fittest": ["dress-up", "fashion", "impersonation", "shapeshifting"],
+  "fits": ["dress-up", "fashion", "impersonation", "shapeshifting"],
   "rest": ["dreams", "immortality", "resurrection", "zombie"],
   "drama": ["drama", "fame", "interactive film", "suspense"],
   "unprepared": [
@@ -2844,8 +2850,11 @@
   "tonight": ["day", "dreams", "time management", "time travel"],
   "mornings": ["day", "real-time", "time management", "time travel"],
   "morning": ["day", "real-time", "time management", "time travel"],
+  "days": ["day", "real-time", "time management", "time travel"],
   "daylights": ["day", "real-time", "time management", "time travel"],
   "daylight": ["day", "real-time", "time management", "time travel"],
+  "day's": ["day", "real-time", "time management", "time travel"],
+  "day": ["day", "real-time", "time management", "time travel"],
   "tease": ["dating", "love", "rivals", "romance"],
   "romance": ["dating", "love", "myth", "romance"],
   "pleasures": ["dating", "greed", "love", "romance"],
@@ -2955,6 +2964,8 @@
   "afraid": ["creepy", "horror", "paranormal", "suspense"],
   "seams": ["crafting", "dress-up", "fashion", "repair"],
   "grind": ["crafting", "jrpg", "role playing", "rpg"],
+  "incognito": ["covert", "espionage", "invisibility", "stealth"],
+  "clandestine": ["covert", "espionage", "invisibility", "stealth"],
   "wheat": ["cooking", "crop", "farming", "nature"],
   "waiter": ["cooking", "regency", "steampunk", "victorian"],
   "veg": ["cooking", "crop", "farming", "nature"],
@@ -2988,6 +2999,9 @@
   "frontal": ["conspiracy", "mecha", "military", "war"],
   "front": ["conspiracy", "mecha", "military", "war"],
   "fringe": ["conspiracy", "cryptid", "occult", "supernatural"],
+  "covering": ["concealment", "invisibility", "ninja", "stealth"],
+  "covered": ["concealment", "invisibility", "ninja", "stealth"],
+  "conceals": ["concealment", "invisibility", "ninja", "stealth"],
   "written": ["communication", "text", "text adventure", "visual novel"],
   "whatever": ["communication", "conversation", "disillusionment", "rivals"],
   "voice": ["communication", "conversation", "musical", "rhythm"],
@@ -3087,12 +3101,9 @@
   "held up": ["caper", "heist", "phantom thief", "steal"],
   "got away": ["caper", "heist", "phantom thief", "steal"],
   "getting this": ["caper", "heist", "phantom thief", "steal"],
-  "getting in": ["caper", "heist", "phantom thief", "steal"],
   "getting away": ["caper", "heist", "phantom thief", "steal"],
-  "gets in": ["caper", "heist", "phantom thief", "steal"],
   "get this": ["caper", "heist", "phantom thief", "steal"],
   "get into": ["caper", "heist", "phantom thief", "steal"],
-  "get in": ["caper", "heist", "phantom thief", "steal"],
   "gem": ["caper", "heist", "phantom thief", "steal"],
   "ganging": ["caper", "crime", "noir", "party"],
   "gang's": ["caper", "crime", "noir", "party"],
@@ -3285,6 +3296,8 @@
   "museum": ["art", "artist", "creative", "drawing"],
   "marks": ["art", "artist", "creative", "drawing"],
   "marker": ["art", "artist", "creative", "drawing"],
+  "imagery": ["art", "artist", "creative", "drawing"],
+  "image": ["art", "artist", "creative", "drawing"],
   "illegible": ["art", "artist", "creative", "drawing"],
   "gallery": ["art", "artist", "creative", "decopunk"],
   "drew": ["art", "artist", "creative", "drawing"],
@@ -4030,21 +4043,6 @@
   ],
   "frock": ["dress-up", "fashion", "regency", "steampunk", "victorian"],
   "formalities": ["dress-up", "fashion", "regency", "steampunk", "victorian"],
-  "fitting": [
-    "dress-up",
-    "fashion",
-    "impersonation",
-    "medical",
-    "shapeshifting"
-  ],
-  "fittest": [
-    "dress-up",
-    "fashion",
-    "impersonation",
-    "medical",
-    "shapeshifting"
-  ],
-  "fits": ["dress-up", "fashion", "impersonation", "medical", "shapeshifting"],
   "fit": ["dress-up", "fashion", "impersonation", "medical", "shapeshifting"],
   "dressed": ["dress-up", "fashion", "regency", "steampunk", "victorian"],
   "dress": ["dress-up", "fashion", "regency", "steampunk", "victorian"],
@@ -4278,6 +4276,7 @@
   "shiver": ["creepy", "horror", "paranormal", "suspense", "weather"],
   "reap": ["creepy", "demon", "horror", "resurrection", "suspense"],
   "psycho": ["creepy", "horror", "psychic", "psychological", "suspense"],
+  "hush": ["creepy", "horror", "invisibility", "stealth", "suspense"],
   "horrors": ["creepy", "demon", "eldritch", "horror", "suspense"],
   "grudging": ["creepy", "disillusionment", "horror", "rivals", "suspense"],
   "grudges": ["creepy", "disillusionment", "horror", "rivals", "suspense"],
@@ -4293,6 +4292,7 @@
   "stitches": ["crafting", "dress-up", "fashion", "medical", "repair"],
   "stitch": ["crafting", "dress-up", "fashion", "medical", "repair"],
   "airy": ["cozy", "flight", "mecha", "nature", "weather"],
+  "intruder": ["covert", "dystopian", "espionage", "invisibility", "stealth"],
   "truffle": ["cooking", "crop", "cute", "farming", "nature"],
   "teeth": ["cooking", "cryptid", "medical", "monster", "monster tamer"],
   "mixture": ["cooking", "futuristic", "psychedelic", "sci-fi", "science"],
@@ -4313,6 +4313,14 @@
     "invisibility",
     "surveillance"
   ],
+  "hidden": [
+    "concealment",
+    "hidden object",
+    "invisibility",
+    "ninja",
+    "stealth"
+  ],
+  "cover": ["concealment", "espionage", "invisibility", "ninja", "stealth"],
   "whoopsy": ["communication", "conversation", "glitch", "hacking", "repair"],
   "unspoken": ["communication", "conversation", "dating", "love", "romance"],
   "uh oh": ["communication", "conversation", "glitch", "hacking", "repair"],
@@ -5607,20 +5615,20 @@
   "party's": ["jrpg", "party", "political", "rebellion", "role playing", "rpg"],
   "party": ["jrpg", "party", "political", "rebellion", "role playing", "rpg"],
   "parties": ["jrpg", "party", "political", "rebellion", "role playing", "rpg"],
-  "tiptoe": [
-    "heist",
+  "hiding": [
+    "hidden object",
+    "horror",
     "invisibility",
     "ninja",
-    "phantom thief",
     "sneaking",
     "stealth"
   ],
-  "silent": [
-    "heist",
+  "hide": [
+    "hidden object",
+    "horror",
     "invisibility",
     "ninja",
-    "phantom thief",
-    "silence",
+    "sneaking",
     "stealth"
   ],
   "vibrations": [
@@ -5946,6 +5954,14 @@
     "space",
     "walking simulator"
   ],
+  "stealth": [
+    "espionage",
+    "invisibility",
+    "mecha",
+    "ninja",
+    "sneaking",
+    "stealth"
+  ],
   "scouting": [
     "escort mission",
     "mecha",
@@ -5969,6 +5985,14 @@
     "life",
     "memories",
     "simulator"
+  ],
+  "silence": [
+    "emotional",
+    "invisibility",
+    "ninja",
+    "silence",
+    "stealth",
+    "tragedy"
   ],
   "spheres": [
     "eldritch",
@@ -6310,6 +6334,8 @@
     "romance"
   ],
   "cupid": ["dating", "fairy tale", "fantasy", "love", "myth", "romance"],
+  "masked": ["dark", "gothic", "invisibility", "ninja", "noir", "stealth"],
+  "mask": ["dark", "gothic", "invisibility", "ninja", "noir", "stealth"],
   "personality": [
     "customization",
     "fame",
@@ -6515,22 +6541,7 @@
     "steampunk",
     "victorian"
   ],
-  "incognito": [
-    "covert",
-    "espionage",
-    "heist",
-    "invisibility",
-    "phantom thief",
-    "stealth"
-  ],
-  "clandestine": [
-    "covert",
-    "espionage",
-    "heist",
-    "invisibility",
-    "phantom thief",
-    "stealth"
-  ],
+  "quiet": ["cozy", "invisibility", "ninja", "relaxing", "silence", "stealth"],
   "tenderness": ["cooking", "cozy", "dating", "love", "medical", "romance"],
   "tender": ["cooking", "cozy", "dating", "love", "medical", "romance"],
   "feast": [
@@ -6612,30 +6623,6 @@
     "legal",
     "rivals",
     "social deduction"
-  ],
-  "covering": [
-    "concealment",
-    "heist",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "stealth"
-  ],
-  "covered": [
-    "concealment",
-    "heist",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "stealth"
-  ],
-  "conceals": [
-    "concealment",
-    "heist",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "stealth"
   ],
   "i've": [
     "communication",
@@ -7325,6 +7312,30 @@
     "management",
     "office",
     "simulator"
+  ],
+  "dodger": [
+    "bullet hell",
+    "escape",
+    "invisibility",
+    "ninja",
+    "stealth",
+    "thriller"
+  ],
+  "dodged": [
+    "bullet hell",
+    "escape",
+    "invisibility",
+    "ninja",
+    "stealth",
+    "thriller"
+  ],
+  "dodge": [
+    "bullet hell",
+    "escape",
+    "invisibility",
+    "ninja",
+    "stealth",
+    "thriller"
   ],
   "wooden": [
     "building",
@@ -8447,30 +8458,6 @@
     "retro",
     "time travel",
     "vaporwave"
-  ],
-  "days": [
-    "alternate history",
-    "day",
-    "historical",
-    "real-time",
-    "time management",
-    "time travel"
-  ],
-  "day's": [
-    "alternate history",
-    "day",
-    "historical",
-    "real-time",
-    "time management",
-    "time travel"
-  ],
-  "day": [
-    "alternate history",
-    "day",
-    "historical",
-    "real-time",
-    "time management",
-    "time travel"
   ],
   "dating": [
     "alternate history",
@@ -9829,15 +9816,6 @@
     "monster tamer",
     "suspense"
   ],
-  "hush": [
-    "creepy",
-    "heist",
-    "horror",
-    "invisibility",
-    "phantom thief",
-    "stealth",
-    "suspense"
-  ],
   "frightful": [
     "creepy",
     "demon",
@@ -9883,14 +9861,14 @@
     "suspense",
     "tragedy"
   ],
-  "intruder": [
+  "foxhole": [
     "covert",
-    "dystopian",
     "espionage",
-    "heist",
     "invisibility",
-    "phantom thief",
-    "stealth"
+    "mecha",
+    "military",
+    "stealth",
+    "war"
   ],
   "walnuts": [
     "cooking",
@@ -10216,24 +10194,6 @@
     "noir",
     "social deduction"
   ],
-  "hidden": [
-    "concealment",
-    "heist",
-    "hidden object",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "stealth"
-  ],
-  "cover": [
-    "concealment",
-    "espionage",
-    "heist",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "stealth"
-  ],
   "whoops": [
     "communication",
     "conversation",
@@ -10242,6 +10202,15 @@
     "hacking",
     "repair",
     "rivals"
+  ],
+  "whisperer": [
+    "communication",
+    "conversation",
+    "creepy",
+    "horror",
+    "invisibility",
+    "stealth",
+    "suspense"
   ],
   "untold": [
     "communication",
@@ -10944,6 +10913,15 @@
     "office",
     "political",
     "simulator"
+  ],
+  "avoid": [
+    "bullet hell",
+    "escape",
+    "invisibility",
+    "ninja",
+    "sneaking",
+    "stealth",
+    "thriller"
   ],
   "woods": [
     "building",
@@ -12885,26 +12863,6 @@
     "tactical",
     "war"
   ],
-  "hiding": [
-    "heist",
-    "hidden object",
-    "horror",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "sneaking",
-    "stealth"
-  ],
-  "hide": [
-    "heist",
-    "hidden object",
-    "horror",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "sneaking",
-    "stealth"
-  ],
   "wicked": [
     "fairy tale",
     "fantasy",
@@ -13085,25 +13043,15 @@
     "scavenging",
     "walking simulator"
   ],
-  "stealth": [
+  "sneak": [
     "espionage",
-    "heist",
     "invisibility",
-    "mecha",
+    "jrpg",
     "ninja",
-    "phantom thief",
+    "role playing",
+    "rpg",
     "sneaking",
     "stealth"
-  ],
-  "silence": [
-    "emotional",
-    "heist",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "silence",
-    "stealth",
-    "tragedy"
   ],
   "warp": [
     "eldritch",
@@ -13695,26 +13643,6 @@
     "romance",
     "sword & sorcery"
   ],
-  "masked": [
-    "dark",
-    "gothic",
-    "heist",
-    "invisibility",
-    "ninja",
-    "noir",
-    "phantom thief",
-    "stealth"
-  ],
-  "mask": [
-    "dark",
-    "gothic",
-    "heist",
-    "invisibility",
-    "ninja",
-    "noir",
-    "phantom thief",
-    "stealth"
-  ],
   "vision": [
     "cryptid",
     "destiny",
@@ -13805,14 +13733,14 @@
     "suspense",
     "tragedy"
   ],
-  "quiet": [
-    "cozy",
-    "heist",
+  "undercover": [
+    "covert",
+    "detective",
+    "dreams",
+    "espionage",
+    "investigation",
     "invisibility",
-    "ninja",
-    "phantom thief",
-    "relaxing",
-    "silence",
+    "noir",
     "stealth"
   ],
   "raspberry": [
@@ -13934,6 +13862,16 @@
     "surveillance",
     "survival",
     "weather"
+  ],
+  "whisper": [
+    "communication",
+    "conversation",
+    "creepy",
+    "espionage",
+    "horror",
+    "invisibility",
+    "stealth",
+    "suspense"
   ],
   "opinion": [
     "communication",
@@ -14534,36 +14472,6 @@
     "greed",
     "noir",
     "political"
-  ],
-  "dodger": [
-    "bullet hell",
-    "escape",
-    "heist",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "stealth",
-    "thriller"
-  ],
-  "dodged": [
-    "bullet hell",
-    "escape",
-    "heist",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "stealth",
-    "thriller"
-  ],
-  "dodge": [
-    "bullet hell",
-    "escape",
-    "heist",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "stealth",
-    "thriller"
   ],
   "walls": [
     "building",
@@ -15176,6 +15084,16 @@
     "scavenging"
   ],
   "gardening": [
+    "art nouveau",
+    "gardening",
+    "nature",
+    "plants",
+    "regency",
+    "scavenging",
+    "steampunk",
+    "victorian"
+  ],
+  "garden": [
     "art nouveau",
     "gardening",
     "nature",
@@ -17421,6 +17339,17 @@
     "sandbox",
     "social deduction"
   ],
+  "unannounced": [
+    "dystopian",
+    "extraterrestrial",
+    "invasion",
+    "invisibility",
+    "ninja",
+    "quick-time events",
+    "reunion",
+    "silence",
+    "stealth"
+  ],
   "gloves": [
     "dress-up",
     "fashion",
@@ -17707,17 +17636,6 @@
     "suspense",
     "tragedy"
   ],
-  "foxhole": [
-    "covert",
-    "espionage",
-    "heist",
-    "invisibility",
-    "mecha",
-    "military",
-    "phantom thief",
-    "stealth",
-    "war"
-  ],
   "suspiciously": [
     "conspiracy",
     "deception",
@@ -17883,16 +17801,38 @@
     "political",
     "romance"
   ],
-  "whisperer": [
-    "communication",
-    "conversation",
-    "creepy",
-    "heist",
-    "horror",
+  "nights": [
+    "concealment",
+    "day",
+    "dreams",
     "invisibility",
-    "phantom thief",
+    "ninja",
+    "real-time",
     "stealth",
-    "suspense"
+    "time management",
+    "time travel"
+  ],
+  "nighter": [
+    "concealment",
+    "day",
+    "dreams",
+    "invisibility",
+    "ninja",
+    "real-time",
+    "stealth",
+    "time management",
+    "time travel"
+  ],
+  "night": [
+    "concealment",
+    "day",
+    "dreams",
+    "invisibility",
+    "ninja",
+    "real-time",
+    "stealth",
+    "time management",
+    "time travel"
   ],
   "remark": [
     "communication",
@@ -18839,17 +18779,6 @@
     "shop",
     "simulator",
     "wealth"
-  ],
-  "avoid": [
-    "bullet hell",
-    "escape",
-    "heist",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "sneaking",
-    "stealth",
-    "thriller"
   ],
   "crow": [
     "bird",
@@ -19852,28 +19781,6 @@
     "sword & sorcery",
     "time travel"
   ],
-  "imagery": [
-    "alternate history",
-    "art",
-    "artist",
-    "coming-of-age",
-    "creative",
-    "drawing",
-    "historical",
-    "time travel",
-    "young"
-  ],
-  "image": [
-    "alternate history",
-    "art",
-    "artist",
-    "coming-of-age",
-    "creative",
-    "drawing",
-    "historical",
-    "time travel",
-    "young"
-  ],
   "happened": [
     "alternate history",
     "branching narrative",
@@ -20711,18 +20618,6 @@
     "time travel",
     "walking simulator"
   ],
-  "sneak": [
-    "espionage",
-    "heist",
-    "invisibility",
-    "jrpg",
-    "ninja",
-    "phantom thief",
-    "role playing",
-    "rpg",
-    "sneaking",
-    "stealth"
-  ],
   "temporary": [
     "endless",
     "immortality",
@@ -20758,6 +20653,18 @@
     "nature",
     "rhythm",
     "war"
+  ],
+  "sneakers": [
+    "dress-up",
+    "espionage",
+    "fashion",
+    "invisibility",
+    "jrpg",
+    "ninja",
+    "role playing",
+    "rpg",
+    "sneaking",
+    "stealth"
   ],
   "fleece": [
     "dress-up",
@@ -21083,18 +20990,6 @@
     "supernatural",
     "suspense"
   ],
-  "undercover": [
-    "covert",
-    "detective",
-    "dreams",
-    "espionage",
-    "heist",
-    "investigation",
-    "invisibility",
-    "noir",
-    "phantom thief",
-    "stealth"
-  ],
   "pumpkin": [
     "cooking",
     "crop",
@@ -21334,18 +21229,6 @@
     "mystery",
     "noir",
     "social deduction"
-  ],
-  "whisper": [
-    "communication",
-    "conversation",
-    "creepy",
-    "espionage",
-    "heist",
-    "horror",
-    "invisibility",
-    "phantom thief",
-    "stealth",
-    "suspense"
   ],
   "hint": [
     "communication",
@@ -23313,19 +23196,6 @@
     "visual novel",
     "walking simulator"
   ],
-  "unannounced": [
-    "dystopian",
-    "extraterrestrial",
-    "heist",
-    "invasion",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "quick-time events",
-    "reunion",
-    "silence",
-    "stealth"
-  ],
   "disenchanted": [
     "disillusionment",
     "fairy tale",
@@ -23690,44 +23560,18 @@
     "role playing",
     "rpg"
   ],
-  "nights": [
+  "shadow": [
     "concealment",
-    "day",
-    "dreams",
-    "heist",
+    "dark",
+    "demon",
+    "eldritch",
+    "gothic",
     "invisibility",
     "ninja",
-    "phantom thief",
-    "real-time",
+    "noir",
+    "occult",
     "stealth",
-    "time management",
-    "time travel"
-  ],
-  "nighter": [
-    "concealment",
-    "day",
-    "dreams",
-    "heist",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "real-time",
-    "stealth",
-    "time management",
-    "time travel"
-  ],
-  "night": [
-    "concealment",
-    "day",
-    "dreams",
-    "heist",
-    "invisibility",
-    "ninja",
-    "phantom thief",
-    "real-time",
-    "stealth",
-    "time management",
-    "time travel"
+    "supernatural"
   ],
   "emotions": [
     "communication",
@@ -25359,20 +25203,6 @@
     "sword & sorcery",
     "war"
   ],
-  "sneakers": [
-    "dress-up",
-    "espionage",
-    "fashion",
-    "heist",
-    "invisibility",
-    "jrpg",
-    "ninja",
-    "phantom thief",
-    "role playing",
-    "rpg",
-    "sneaking",
-    "stealth"
-  ],
   "wrong": [
     "detective",
     "disillusionment",
@@ -25638,6 +25468,62 @@
     "noir",
     "puzzle",
     "social deduction"
+  ],
+  "secrets": [
+    "conspiracy",
+    "covert",
+    "deception",
+    "detective",
+    "espionage",
+    "illusion",
+    "investigation",
+    "invisibility",
+    "mystery",
+    "noir",
+    "social deduction",
+    "stealth"
+  ],
+  "secret": [
+    "conspiracy",
+    "covert",
+    "deception",
+    "detective",
+    "espionage",
+    "illusion",
+    "investigation",
+    "invisibility",
+    "mystery",
+    "noir",
+    "social deduction",
+    "stealth"
+  ],
+  "deceiving": [
+    "conspiracy",
+    "deception",
+    "detective",
+    "illusion",
+    "impersonation",
+    "investigation",
+    "invisibility",
+    "mystery",
+    "noir",
+    "shapeshifting",
+    "social deduction",
+    "stealth"
+  ],
+  "deceive": [
+    "conspiracy",
+    "deception",
+    "detective",
+    "illusion",
+    "impersonation",
+    "investigation",
+    "invisibility",
+    "mystery",
+    "noir",
+    "shapeshifting",
+    "social deduction",
+    "stealth"
   ],
   "blame": [
     "conspiracy",
@@ -27404,6 +27290,21 @@
     "puzzle",
     "supernatural"
   ],
+  "disguise": [
+    "conspiracy",
+    "deception",
+    "detective",
+    "illusion",
+    "impersonation",
+    "investigation",
+    "invisibility",
+    "mystery",
+    "ninja",
+    "noir",
+    "shapeshifting",
+    "social deduction",
+    "stealth"
+  ],
   "cunning": [
     "conspiracy",
     "deception",
@@ -27419,20 +27320,20 @@
     "rivals",
     "social deduction"
   ],
-  "shadow": [
+  "moonlight": [
     "concealment",
-    "dark",
-    "demon",
-    "eldritch",
-    "gothic",
-    "heist",
+    "dreams",
+    "extraterrestrial",
+    "fairy tale",
+    "fantasy",
     "invisibility",
+    "nature",
     "ninja",
-    "noir",
-    "occult",
-    "phantom thief",
+    "space",
     "stealth",
-    "supernatural"
+    "supernatural",
+    "weather",
+    "werewolf"
   ],
   "explanation": [
     "communication",
@@ -27808,6 +27709,21 @@
     "invisibility",
     "liquor",
     "surveillance"
+  ],
+  "distraction": [
+    "art",
+    "artist",
+    "creative",
+    "detective",
+    "disillusionment",
+    "drawing",
+    "forensic",
+    "illusion",
+    "investigation",
+    "invisibility",
+    "noir",
+    "rivals",
+    "stealth"
   ],
   "construction": [
     "art",
@@ -28338,38 +28254,6 @@
     "suspense",
     "weird"
   ],
-  "secrets": [
-    "conspiracy",
-    "covert",
-    "deception",
-    "detective",
-    "espionage",
-    "heist",
-    "illusion",
-    "investigation",
-    "invisibility",
-    "mystery",
-    "noir",
-    "phantom thief",
-    "social deduction",
-    "stealth"
-  ],
-  "secret": [
-    "conspiracy",
-    "covert",
-    "deception",
-    "detective",
-    "espionage",
-    "heist",
-    "illusion",
-    "investigation",
-    "invisibility",
-    "mystery",
-    "noir",
-    "phantom thief",
-    "social deduction",
-    "stealth"
-  ],
   "illusion": [
     "conspiracy",
     "deception",
@@ -28386,37 +28270,21 @@
     "shapeshifting",
     "social deduction"
   ],
-  "deceiving": [
-    "conspiracy",
-    "deception",
-    "detective",
-    "heist",
-    "illusion",
-    "impersonation",
-    "investigation",
+  "darkness": [
+    "concealment",
+    "creepy",
+    "dark",
+    "demon",
+    "eldritch",
+    "gothic",
+    "horror",
     "invisibility",
-    "mystery",
+    "ninja",
     "noir",
-    "phantom thief",
-    "shapeshifting",
-    "social deduction",
-    "stealth"
-  ],
-  "deceive": [
-    "conspiracy",
-    "deception",
-    "detective",
-    "heist",
-    "illusion",
-    "impersonation",
-    "investigation",
-    "invisibility",
-    "mystery",
-    "noir",
-    "phantom thief",
-    "shapeshifting",
-    "social deduction",
-    "stealth"
+    "occult",
+    "stealth",
+    "supernatural",
+    "suspense"
   ],
   "questions": [
     "communication",
@@ -28545,6 +28413,22 @@
     "steal",
     "stealth",
     "superhero"
+  ],
+  "moonlighting": [
+    "caper",
+    "concealment",
+    "dreams",
+    "extraterrestrial",
+    "fairy tale",
+    "fantasy",
+    "invisibility",
+    "nature",
+    "ninja",
+    "space",
+    "stealth",
+    "supernatural",
+    "weather",
+    "werewolf"
   ],
   "personnel": [
     "bureaucracy",
@@ -29318,23 +29202,6 @@
     "wizard",
     "wizardry"
   ],
-  "disguise": [
-    "conspiracy",
-    "deception",
-    "detective",
-    "heist",
-    "illusion",
-    "impersonation",
-    "investigation",
-    "invisibility",
-    "mystery",
-    "ninja",
-    "noir",
-    "phantom thief",
-    "shapeshifting",
-    "social deduction",
-    "stealth"
-  ],
   "delusions": [
     "conspiracy",
     "creepy",
@@ -29352,22 +29219,39 @@
     "social deduction",
     "suspense"
   ],
-  "moonlight": [
+  "shrouded": [
     "concealment",
-    "dreams",
-    "extraterrestrial",
-    "fairy tale",
-    "fantasy",
-    "heist",
+    "conspiracy",
+    "cryptid",
+    "dark",
+    "dress-up",
+    "dungeon crawler",
+    "fashion",
+    "gothic",
     "invisibility",
-    "nature",
     "ninja",
-    "phantom thief",
-    "space",
+    "noir",
+    "occult",
+    "role playing",
     "stealth",
-    "supernatural",
-    "weather",
-    "werewolf"
+    "supernatural"
+  ],
+  "shroud": [
+    "concealment",
+    "conspiracy",
+    "cryptid",
+    "dark",
+    "dress-up",
+    "dungeon crawler",
+    "fashion",
+    "gothic",
+    "invisibility",
+    "ninja",
+    "noir",
+    "occult",
+    "role playing",
+    "stealth",
+    "supernatural"
   ],
   "defense": [
     "comics",
@@ -29691,23 +29575,6 @@
     "mystery",
     "noir",
     "puzzle"
-  ],
-  "distraction": [
-    "art",
-    "artist",
-    "creative",
-    "detective",
-    "disillusionment",
-    "drawing",
-    "forensic",
-    "heist",
-    "illusion",
-    "investigation",
-    "invisibility",
-    "noir",
-    "phantom thief",
-    "rivals",
-    "stealth"
   ],
   "crafts": [
     "art",
@@ -30223,24 +30090,6 @@
     "roguelike",
     "social deduction"
   ],
-  "darkness": [
-    "concealment",
-    "creepy",
-    "dark",
-    "demon",
-    "eldritch",
-    "gothic",
-    "heist",
-    "horror",
-    "invisibility",
-    "ninja",
-    "noir",
-    "occult",
-    "phantom thief",
-    "stealth",
-    "supernatural",
-    "suspense"
-  ],
   "nonsense": [
     "comedy",
     "cryptid",
@@ -30348,24 +30197,6 @@
     "search",
     "simulator",
     "tracking"
-  ],
-  "moonlighting": [
-    "caper",
-    "concealment",
-    "dreams",
-    "extraterrestrial",
-    "fairy tale",
-    "fantasy",
-    "heist",
-    "invisibility",
-    "nature",
-    "ninja",
-    "phantom thief",
-    "space",
-    "stealth",
-    "supernatural",
-    "weather",
-    "werewolf"
   ],
   "mischief": [
     "caper",
@@ -31054,43 +30885,24 @@
     "social deduction",
     "tragedy"
   ],
-  "shrouded": [
+  "shadows": [
     "concealment",
-    "conspiracy",
+    "creepy",
     "cryptid",
     "dark",
-    "dress-up",
-    "dungeon crawler",
-    "fashion",
+    "demon",
+    "dystopian",
+    "eldritch",
     "gothic",
-    "heist",
+    "horror",
     "invisibility",
     "ninja",
     "noir",
     "occult",
-    "phantom thief",
-    "role playing",
     "stealth",
-    "supernatural"
-  ],
-  "shroud": [
-    "concealment",
-    "conspiracy",
-    "cryptid",
-    "dark",
-    "dress-up",
-    "dungeon crawler",
-    "fashion",
-    "gothic",
-    "heist",
-    "invisibility",
-    "ninja",
-    "noir",
-    "occult",
-    "phantom thief",
-    "role playing",
-    "stealth",
-    "supernatural"
+    "supernatural",
+    "surveillance",
+    "suspense"
   ],
   "questionable": [
     "communication",
@@ -31434,6 +31246,25 @@
     "steal",
     "tracking"
   ],
+  "alarm": [
+    "caper",
+    "crime",
+    "detection",
+    "extraterrestrial",
+    "hacking",
+    "infiltration",
+    "invasion",
+    "invisibility",
+    "noir",
+    "quick-time events",
+    "real-time",
+    "stealth",
+    "time",
+    "time limit",
+    "time management",
+    "time manipulation",
+    "time travel"
+  ],
   "wrongs": [
     "betrayal",
     "detective",
@@ -31546,25 +31377,6 @@
     "puzzle",
     "strategy",
     "tactical",
-    "war"
-  ],
-  "garden": [
-    "art nouveau",
-    "comics",
-    "defense",
-    "escort mission",
-    "gardening",
-    "mecha",
-    "military",
-    "nature",
-    "plants",
-    "quest",
-    "regency",
-    "scavenging",
-    "steampunk",
-    "superhero",
-    "tower defense",
-    "victorian",
     "war"
   ],
   "impressions": [
@@ -31794,6 +31606,26 @@
     "racing",
     "sabotage",
     "vehicle"
+  ],
+  "covert": [
+    "conspiracy",
+    "covert",
+    "cryptid",
+    "deception",
+    "detective",
+    "dystopian",
+    "espionage",
+    "extraterrestrial",
+    "hacking",
+    "infiltration",
+    "invasion",
+    "investigation",
+    "invisibility",
+    "mystery",
+    "noir",
+    "social deduction",
+    "stealth",
+    "surveillance"
   ],
   "research": [
     "collecting",
@@ -32095,48 +31927,6 @@
     "sabotage",
     "vehicle"
   ],
-  "shadows": [
-    "concealment",
-    "creepy",
-    "cryptid",
-    "dark",
-    "demon",
-    "dystopian",
-    "eldritch",
-    "gothic",
-    "heist",
-    "horror",
-    "invisibility",
-    "ninja",
-    "noir",
-    "occult",
-    "phantom thief",
-    "stealth",
-    "supernatural",
-    "surveillance",
-    "suspense"
-  ],
-  "alarm": [
-    "caper",
-    "crime",
-    "detection",
-    "extraterrestrial",
-    "hacking",
-    "heist",
-    "infiltration",
-    "invasion",
-    "invisibility",
-    "noir",
-    "phantom thief",
-    "quick-time events",
-    "real-time",
-    "stealth",
-    "time",
-    "time limit",
-    "time management",
-    "time manipulation",
-    "time travel"
-  ],
   "misfortune": [
     "business",
     "creepy",
@@ -32346,28 +32136,6 @@
     "time management",
     "time manipulation",
     "time travel"
-  ],
-  "covert": [
-    "conspiracy",
-    "covert",
-    "cryptid",
-    "deception",
-    "detective",
-    "dystopian",
-    "espionage",
-    "extraterrestrial",
-    "hacking",
-    "heist",
-    "infiltration",
-    "invasion",
-    "investigation",
-    "invisibility",
-    "mystery",
-    "noir",
-    "phantom thief",
-    "social deduction",
-    "stealth",
-    "surveillance"
   ],
   "finders": [
     "collecting",
@@ -32690,7 +32458,6 @@
     "dystopian",
     "eldritch",
     "extraterrestrial",
-    "heist",
     "hidden object",
     "horror",
     "hunting",
@@ -32700,7 +32467,6 @@
     "ninja",
     "noir",
     "occult",
-    "phantom thief",
     "police",
     "quest",
     "scavenging",
