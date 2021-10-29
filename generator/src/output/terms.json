@@ -1143,6 +1143,7 @@
   "january": ["month", "time management"],
   "december": ["month", "time management"],
   "taming": ["monster tamer", "raising"],
+  "doorstep": ["monster tamer", "raising"],
   "cradle": ["monster tamer", "raising"],
   "times'": ["modern", "time management"],
   "sized": ["minigames", "shapeshifting"],
@@ -7023,14 +7024,6 @@
   ],
   "laundering": ["caper", "crime", "dress-up", "espionage", "fashion", "noir"],
   "fingers": ["caper", "greed", "heist", "medical", "phantom thief", "steal"],
-  "doorstep": [
-    "caper",
-    "heist",
-    "monster tamer",
-    "phantom thief",
-    "raising",
-    "steal"
-  ],
   "crooked": ["caper", "crime", "heist", "noir", "phantom thief", "steal"],
   "crook": ["caper", "crime", "heist", "noir", "phantom thief", "steal"],
   "caped": [
