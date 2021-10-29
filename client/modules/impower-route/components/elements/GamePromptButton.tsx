@@ -15,6 +15,9 @@ const PhrasePromptDialog = dynamic(() => import("./PhrasePromptDialog"), {
 const StyledSuggestionsButton = styled(DynamicLoadingButton)`
   min-width: 0;
   pointer-events: auto;
+  min-width: 56px;
+  min-height: 56px;
+  margin-right: -6px;
 `;
 
 interface GamePromptButtonProps {
