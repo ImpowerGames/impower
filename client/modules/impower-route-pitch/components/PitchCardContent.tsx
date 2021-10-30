@@ -131,9 +131,9 @@ const PitchCardContent = React.memo(
                     >
                       <StyledTagButton
                         size="small"
-                        onClick={(e): void => handleClickTag(e)}
                         onMouseDown={handleBlockRipplePropogation}
                         onTouchStart={handleBlockRipplePropogation}
+                        onClick={handleClickTag}
                       >
                         #{tag}
                       </StyledTagButton>

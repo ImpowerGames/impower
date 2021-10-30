@@ -21,6 +21,10 @@ import {
 import ConfigCache from "../../impower-config/classes/configCache";
 import { escapeURI, PitchGoal } from "../../impower-data-store";
 import { DynamicIcon, FontIcon, SvgData } from "../../impower-icon";
+import {
+  NavigationContext,
+  navigationSetSearchbar,
+} from "../../impower-navigation";
 import Avatar from "../../impower-route/components/elements/Avatar";
 import { UserContext } from "../../impower-user";
 
@@ -153,13 +157,21 @@ interface PitchCardHeaderTitleProps {
 
 const PitchCardHeaderTitle = React.memo((props: PitchCardHeaderTitleProps) => {
   const { mainTag, mainTagLabel, onBlockRipplePropogation } = props;
+  const [, navigationDispatch] = useContext(NavigationContext);
+  const handleClickTag = useCallback(
+    (e: React.MouseEvent): void => {
+      e.stopPropagation();
+      navigationDispatch(navigationSetSearchbar({ searching: true }));
+    },
+    [navigationDispatch]
+  );
   return (
     <NextLink href={getTagLink(mainTag)} passHref prefetch={false}>
       <StyledTitleButton
         color="primary"
-        onClick={onBlockRipplePropogation}
         onMouseDown={onBlockRipplePropogation}
         onTouchStart={onBlockRipplePropogation}
+        onClick={handleClickTag}
       >
         <StyledSemiBoldTypography variant="body2">
           {mainTagLabel || <Skeleton width={120} />}
