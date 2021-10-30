@@ -11,6 +11,10 @@ import ConfigCache from "../../impower-config/classes/configCache";
 import { escapeURI, getDataStoreKey } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { DynamicIcon, FontIcon } from "../../impower-icon";
+import {
+  NavigationContext,
+  navigationSetSearchbar,
+} from "../../impower-navigation";
 import { VirtualizedItem } from "../../impower-react-virtualization";
 import FadeAnimation from "../../impower-route/components/animations/FadeAnimation";
 import TagIconLoader from "../../impower-route/components/elements/TagIconLoader";
@@ -144,6 +148,7 @@ const VirtualizedTagItem = React.memo((props: VirtualizedTagItemProps) => {
   const [configState] = useContext(ConfigContext);
   const [userState, userDispatch] = useContext(UserContext);
   const { isSignedIn, my_follows } = userState;
+  const [, navigationDispatch] = useContext(NavigationContext);
 
   const followedTag =
     my_follows !== undefined
@@ -192,11 +197,23 @@ const VirtualizedTagItem = React.memo((props: VirtualizedTagItemProps) => {
     [followedTag]
   );
 
+  const handleClickTag = useCallback(
+    (e: React.MouseEvent): void => {
+      e.stopPropagation();
+      navigationDispatch(navigationSetSearchbar({ searching: true }));
+    },
+    [navigationDispatch]
+  );
+
   return (
     <StyledOptionArea style={style}>
       <StyledOption>
         <NextLink href={getTagLink(tag)} passHref prefetch={false}>
-          <StyledTagLink color="inherit" style={linkStyle}>
+          <StyledTagLink
+            color="inherit"
+            style={linkStyle}
+            onClick={handleClickTag}
+          >
             <StyledOptionIconArea>
               <FontIcon
                 aria-label={tag}
