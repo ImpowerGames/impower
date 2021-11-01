@@ -1194,7 +1194,6 @@
   "allow": ["management", "simulator"],
   "active": ["management", "simulator"],
   "lives": ["life", "simulator"],
-  "lively": ["life", "simulator"],
   "portion": ["inventory management", "resource management"],
   "exceed": ["inventory management", "resource management"],
   "worms": ["insects", "nature"],
@@ -2111,7 +2110,6 @@
   "truckload": ["delivery", "dieselpunk", "inventory management"],
   "poster": ["delivery", "fame", "political"],
   "packing": ["delivery", "inventory management", "resource management"],
-  "packer": ["delivery", "inventory management", "resource management"],
   "packed": ["delivery", "inventory management", "resource management"],
   "baby's": ["delivery", "monster tamer", "raising"],
   "baby": ["delivery", "monster tamer", "raising"],
@@ -2399,7 +2397,6 @@
   "iron": ["building", "crafting", "prehistoric"],
   "home's": ["building", "cozy", "reunion"],
   "home": ["building", "cozy", "reunion"],
-  "grate": ["building", "cooking", "dieselpunk"],
   "fences": ["building", "on-rails", "tower defense"],
   "fence": ["building", "on-rails", "tower defense"],
   "elevator": ["building", "platformer", "side scroller"],
@@ -2914,7 +2911,6 @@
   "own business": ["cryptid", "dystopian", "invisibility", "surveillance"],
   "own beeswax": ["cryptid", "dystopian", "invisibility", "surveillance"],
   "notice": ["cryptid", "dystopian", "invisibility", "surveillance"],
-  "looksee": ["cryptid", "dystopian", "invisibility", "surveillance"],
   "it was right here": ["cryptid", "dystopian", "invisibility", "surveillance"],
   "goggles": ["cryptid", "dystopian", "invisibility", "surveillance"],
   "goggle": ["cryptid", "dystopian", "invisibility", "surveillance"],
@@ -13000,16 +12996,6 @@
     "sword & sorcery",
     "walking simulator"
   ],
-  "faraway": [
-    "exploration",
-    "extraterrestrial",
-    "fairy tale",
-    "fantasy",
-    "open world",
-    "roadtrip",
-    "space",
-    "walking simulator"
-  ],
   "denmark": [
     "exploration",
     "fairy tale",
@@ -13079,6 +13065,16 @@
     "supernatural",
     "vampire",
     "zombie"
+  ],
+  "hideous": [
+    "dress-up",
+    "fashion",
+    "hidden object",
+    "horror",
+    "invisibility",
+    "ninja",
+    "sneaking",
+    "stealth"
   ],
   "buckle": [
     "dress-up",
@@ -15519,16 +15515,6 @@
     "merfolk",
     "nautical",
     "swashbuckling"
-  ],
-  "ram": [
-    "animals",
-    "artificial intelligence",
-    "cyberpunk",
-    "hacking",
-    "mammal",
-    "robot",
-    "technology",
-    "tower defense"
   ],
   "puppy": [
     "animals",
@@ -30529,24 +30515,6 @@
     "social deduction",
     "suspense",
     "sword & sorcery"
-  ],
-  "unanticipated": [
-    "alternate history",
-    "branching narrative",
-    "disillusionment",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "procedurally generated",
-    "quick-time events",
-    "roguelike",
-    "suspense",
-    "time travel",
-    "visual novel",
-    "weird"
   ],
   "options": [
     "alternate history",
