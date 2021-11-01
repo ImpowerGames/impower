@@ -12,18 +12,11 @@ import {
   Paper,
   Typography,
 } from "@material-ui/core";
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import LogoFlatColor from "../../resources/logos/logo-flat-color.svg";
 import { AggData } from "../impower-data-state/types/interfaces/aggData";
 import { VirtualizedItem } from "../impower-react-virtualization";
 import { useRouter } from "../impower-router";
-import { UserContext } from "../impower-user/contexts/userContext";
 
 const StyledPaper = styled(Paper)`
   position: relative;
@@ -184,16 +177,16 @@ function LinkedUserDataDialog(props: LinkedUserDataDialogProps): JSX.Element {
 }
 
 interface ProfileProps {
+  uid: string;
   username: string;
   bio: string;
   icon: string;
   hex: string;
-  canEdit?: boolean;
+  isCurrentUser?: boolean;
 }
 
 const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
-  const { username, bio, icon, hex, canEdit } = props;
-  const [userState] = useContext(UserContext);
+  const { uid, username, bio, icon, hex, isCurrentUser } = props;
   const timeLoaded = useMemo(() => new Date().getTime(), []);
   const [popupDisplayed, setPopupDisplayed] = useState<boolean>(false);
   const [followers, setFollowers] = useState<LinkedUserData[]>();
@@ -207,10 +200,6 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
   const k_myConnectionsLabel = "My Connections";
 
   const handleFollowers = useCallback(async (): Promise<void> => {
-    const { uid } = userState;
-    if (!uid) {
-      return;
-    }
     const DataStateRead = (
       await import("../impower-data-state/classes/dataStateRead")
     ).default;
@@ -237,13 +226,9 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
       }
     });
     setFollowers(followerData);
-  }, [userState]);
+  }, [uid]);
 
   const handleFollowing = useCallback(async (): Promise<void> => {
-    const { uid } = userState;
-    if (!uid) {
-      return;
-    }
     const DataStateRead = (
       await import("../impower-data-state/classes/dataStateRead")
     ).default;
@@ -270,13 +255,9 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
       }
     });
     setFollowing(followingData);
-  }, [userState]);
+  }, [uid]);
 
   const handleConnections = useCallback(async (): Promise<void> => {
-    const { uid } = userState;
-    if (!uid) {
-      return;
-    }
     const DataStateRead = (
       await import("../impower-data-state/classes/dataStateRead")
     ).default;
@@ -303,20 +284,21 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
       }
     });
     setConnections(connectionData);
-  }, [userState]);
+  }, [uid]);
 
   useEffect(() => {
-    if (canEdit && timeLoaded) {
+    if (isCurrentUser && uid && timeLoaded) {
       handleFollowers();
       handleFollowing();
       handleConnections();
     }
   }, [
     timeLoaded,
-    canEdit,
     handleFollowers,
     handleFollowing,
     handleConnections,
+    isCurrentUser,
+    uid,
   ]);
 
   const displayPopup = (data: LinkedUserData[], header: string): void => {
@@ -377,7 +359,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
         <StyledTitleTypography variant="h5">{username}</StyledTitleTypography>
         <StyledTitleTypography variant="body2">{bio}</StyledTitleTypography>
       </StyledContainer>
-      {RenderMyFollowData()}
+      {isCurrentUser && RenderMyFollowData()}
       <LinkedUserDataDialog
         data={popupData}
         header={popupHeader}

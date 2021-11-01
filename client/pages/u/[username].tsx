@@ -78,7 +78,8 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
   const [userState] = useContext(UserContext);
   const { uid, userDoc } = userState;
 
-  const latestDoc = id === uid ? userDoc : doc;
+  const isCurrentUser = id === uid;
+  const latestDoc = isCurrentUser ? userDoc : doc;
 
   const [, navigationDispatch] = useContext(NavigationContext);
   const theme = useTheme();
@@ -117,18 +118,18 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
   }
 
   const { username, icon, hex, bio } = latestDoc;
-  const canEdit = username === userState?.userDoc?.username;
   return (
     <StyledUserProfilePage>
       <BetaBanner />
       <StyledContent>
         <Container component="main" maxWidth="sm" style={{ padding: 0 }}>
           <Profile
+            uid={id}
             username={username}
             bio={bio}
             icon={icon?.fileUrl}
             hex={hex}
-            canEdit={canEdit}
+            isCurrentUser={isCurrentUser}
           />
         </Container>
       </StyledContent>
