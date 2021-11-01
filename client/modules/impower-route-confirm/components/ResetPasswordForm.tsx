@@ -4,7 +4,6 @@ import Button from "@material-ui/core/Button";
 import IconButton from "@material-ui/core/IconButton";
 import OutlinedInput from "@material-ui/core/OutlinedInput";
 import Typography from "@material-ui/core/Typography";
-import dynamic from "next/dynamic";
 import React, {
   useCallback,
   useContext,
@@ -19,7 +18,6 @@ import { ActionCodeQuery } from "../../impower-auth";
 import { debounce } from "../../impower-core";
 import { FontIcon } from "../../impower-icon";
 import { DynamicLoadingButton, TextField } from "../../impower-route";
-import { CaptchaActions } from "../../impower-route/components/elements/Captcha";
 import { useRouter } from "../../impower-router";
 import { ToastContext, toastTop } from "../../impower-toast";
 import { UserContext, userSetTempEmail } from "../../impower-user";
@@ -33,11 +31,6 @@ const resetPasswordButton = "Change Password";
 const confirmationCodeSentAlert = "A confirmation code was sent to your email!";
 const resetPasswordSuccess = "Your password was changed. Logging you in...";
 const resendCodeQuestion = "Lost your code? Resend Code";
-
-const Captcha = dynamic(
-  () => import("../../impower-route/components/elements/Captcha"),
-  { ssr: false }
-);
 
 const StyledPaper = styled.div`
   display: flex;
@@ -109,7 +102,6 @@ const ResetPasswordForm = (): JSX.Element => {
   const emailInput = useRef<HTMLInputElement | null>(null);
   const codeInput = useRef<HTMLInputElement | null>(null);
   const passwordInput = useRef<HTMLInputElement | null>(null);
-  const captchaActionsRef = useRef<CaptchaActions>();
 
   useEffect(() => {
     if (tempEmail) {
@@ -121,60 +113,57 @@ const ResetPasswordForm = (): JSX.Element => {
     setReveal(!reveal);
   }, [reveal]);
 
-  const handleResetPassword = useCallback(
-    async (captcha: string) => {
-      const email = emailInput.current?.value?.trim();
-      const password = passwordInput.current?.value;
-      const code = codeInput.current?.value;
-      setProgress(true);
-      setEmailError(undefined);
-      setCodeError(undefined);
-      setPasswordError(undefined);
-      if (!email) {
-        setEmailError(emailInvalid);
+  const handleResetPassword = useCallback(async () => {
+    const email = emailInput.current?.value?.trim();
+    const password = passwordInput.current?.value;
+    const code = codeInput.current?.value;
+    setProgress(true);
+    setEmailError(undefined);
+    setCodeError(undefined);
+    setPasswordError(undefined);
+    if (!email) {
+      setEmailError(emailInvalid);
+    }
+    if (!code) {
+      setCodeError(codeInvalid);
+    }
+    if (!password) {
+      setPasswordError(passwordInvalid);
+    }
+    if (!email || !code || !password) {
+      setProgress(false);
+      return;
+    }
+    const API = (await import("../../impower-api/classes/api")).default;
+    const resetPassword = (
+      await import("../../impower-auth/utils/resetPassword")
+    ).default;
+    try {
+      await resetPassword(code, password);
+      toastDispatch(toastTop(resetPasswordSuccess, "success"));
+      await API.instance.login({ email, password });
+      setProgress(false);
+      router.replace("/login");
+    } catch (error) {
+      const logError = (await import("../../impower-logger/utils/logError"))
+        .default;
+      setProgress(false);
+      switch (error.code) {
+        case "auth/invalid-email":
+          setEmailError(emailInvalid);
+          break;
+        case "auth/user-not-found":
+          setEmailError(emailIncorrect);
+          break;
+        case "auth/invalid-password":
+          setPasswordError(passwordInvalid);
+          break;
+        default:
+          toastDispatch(toastTop(error.message, "error"));
+          logError("Auth", error);
       }
-      if (!code) {
-        setCodeError(codeInvalid);
-      }
-      if (!password) {
-        setPasswordError(passwordInvalid);
-      }
-      if (!email || !code || !password) {
-        setProgress(false);
-        return;
-      }
-      const API = (await import("../../impower-api/classes/api")).default;
-      const resetPassword = (
-        await import("../../impower-auth/utils/resetPassword")
-      ).default;
-      try {
-        await resetPassword(code, password);
-        toastDispatch(toastTop(resetPasswordSuccess, "success"));
-        await API.instance.login({ email, password, captcha });
-        setProgress(false);
-        router.replace("/login");
-      } catch (error) {
-        const logError = (await import("../../impower-logger/utils/logError"))
-          .default;
-        setProgress(false);
-        switch (error.code) {
-          case "auth/invalid-email":
-            setEmailError(emailInvalid);
-            break;
-          case "auth/user-not-found":
-            setEmailError(emailIncorrect);
-            break;
-          case "auth/invalid-password":
-            setPasswordError(passwordInvalid);
-            break;
-          default:
-            toastDispatch(toastTop(error.message, "error"));
-            logError("Auth", error);
-        }
-      }
-    },
-    [router, toastDispatch]
-  );
+    }
+  }, [router, toastDispatch]);
 
   const handleResendCode = useCallback(async () => {
     setProgress(true);
@@ -258,32 +247,16 @@ const ResetPasswordForm = (): JSX.Element => {
     setCodeValue(e.target.value);
   }, []);
 
-  const handleVerifiedSubmit = useCallback(
-    async (captcha: string) => {
-      handleResetPassword(captcha);
-    },
-    [handleResetPassword]
-  );
-
-  const handleCaptchaChange = useCallback(
-    async (captcha) => {
-      if (!captcha) {
-        // Captcha expired
-        return;
-      }
-      handleVerifiedSubmit(captcha);
-    },
-    [handleVerifiedSubmit]
-  );
+  const handleVerifiedSubmit = useCallback(async () => {
+    handleResetPassword();
+  }, [handleResetPassword]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent | React.MouseEvent) => {
       e.preventDefault();
-      if (captchaActionsRef.current) {
-        captchaActionsRef.current.execute();
-      }
+      handleVerifiedSubmit();
     },
-    []
+    [handleVerifiedSubmit]
   );
 
   return (
@@ -371,11 +344,6 @@ const ResetPasswordForm = (): JSX.Element => {
               />
             </StyledItem>
           </StyledGrid>
-          <Captcha
-            actionsRef={captchaActionsRef}
-            disableNotice
-            onVerify={handleCaptchaChange}
-          />
           <StyledSubmitButton
             loading={progress}
             type="submit"

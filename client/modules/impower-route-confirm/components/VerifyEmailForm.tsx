@@ -14,7 +14,6 @@ import { ActionCodeMode, ActionCodeQuery } from "../../impower-auth";
 import { debounce } from "../../impower-core";
 import { FontIcon } from "../../impower-icon";
 import { DynamicLoadingButton, TextField } from "../../impower-route";
-import { CaptchaActions } from "../../impower-route/components/elements/Captcha";
 import { useRouter } from "../../impower-router";
 import { ToastContext, toastTop } from "../../impower-toast";
 import { UserContext, userSetTempEmail } from "../../impower-user";
@@ -83,7 +82,6 @@ const VerifyEmailForm = (): JSX.Element => {
 
   const emailInput = useRef<HTMLInputElement | null>(null);
   const codeInput = useRef<HTMLInputElement | null>(null);
-  const captchaActionsRef = useRef<CaptchaActions>();
 
   useEffect(() => {
     if (tempEmail) {
@@ -206,11 +204,9 @@ const VerifyEmailForm = (): JSX.Element => {
   const handleSubmit = useCallback(
     async (e: React.FormEvent | React.MouseEvent) => {
       e.preventDefault();
-      if (captchaActionsRef.current) {
-        captchaActionsRef.current.execute();
-      }
+      handleVerifyEmail(codeValue);
     },
-    []
+    [codeValue, handleVerifyEmail]
   );
 
   return (

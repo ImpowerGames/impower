@@ -106,14 +106,11 @@ class API {
   async login(info: {
     email: string;
     password: string;
-    captcha: string;
   }): Promise<UserCredential> {
-    const { email, password, captcha } = info;
+    const { email, password } = info;
     try {
       const login = (await import("../../impower-auth/utils/login")).default;
-      const credential = await login(email, password, () =>
-        this.verifyCaptchaClaim(captcha)
-      );
+      const credential = await login(email, password);
       const logInfo = (await import("../../impower-logger/utils/logInfo"))
         .default;
       logInfo("API", "LOGGED IN", credential);

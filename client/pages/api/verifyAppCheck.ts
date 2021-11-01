@@ -28,12 +28,9 @@ export const verifyAppCheck = async (
       uid = decodedToken?.uid;
 
       const userRecord = await adminApp.auth().getUser(uid);
-      const auth_time =
-        new Date(userRecord.metadata.lastSignInTime).getTime() / 1000;
       const customClaims = userRecord?.customClaims;
       const captcha_time = customClaims?.captcha_time;
-      const isCaptchaStillValid =
-        auth_time && captcha_time && auth_time <= captcha_time;
+      const isCaptchaStillValid = captcha_time > 0;
 
       if (!isCaptchaStillValid) {
         const message = "captcha no longer valid";

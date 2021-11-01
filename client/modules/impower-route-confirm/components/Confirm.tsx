@@ -77,7 +77,6 @@ const Confirm = (): JSX.Element => {
       </StyledSubmitButton>
       <StyledItem>
         <LegalNotice
-          captcha
           style={{
             marginTop: theme.spacing(6),
           }}

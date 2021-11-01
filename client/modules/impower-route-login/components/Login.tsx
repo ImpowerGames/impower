@@ -24,9 +24,6 @@ import {
   LegalNotice,
   TextField,
 } from "../../impower-route";
-import Captcha, {
-  CaptchaActions,
-} from "../../impower-route/components/elements/Captcha";
 import { ToastContext, toastTop } from "../../impower-toast";
 import { UserContext, userSetTempEmail } from "../../impower-user";
 import ForgotPasswordForm from "./ForgotPasswordForm";
@@ -142,7 +139,6 @@ const LoginForm = React.memo((props: LoginFormProps): JSX.Element | null => {
 
   const emailInput = useRef<HTMLInputElement | null>(null);
   const passwordInput = useRef<HTMLInputElement | null>(null);
-  const captchaActionsRef = useRef<CaptchaActions>();
 
   useEffect(() => {
     if (tempEmail) {
@@ -178,77 +174,63 @@ const LoginForm = React.memo((props: LoginFormProps): JSX.Element | null => {
 
   const [, closeAccountDialog] = useDialogNavigation("a");
 
-  const handleVerifiedSubmit = useCallback(
-    async (captcha: string) => {
-      const email = emailInput.current?.value?.trim();
-      const password = passwordInput.current?.value;
-      let emailError;
-      let passwordError;
-      if (!email) {
-        emailError = emailInvalid;
+  const handleVerifiedSubmit = useCallback(async () => {
+    const email = emailInput.current?.value?.trim();
+    const password = passwordInput.current?.value;
+    let emailError;
+    let passwordError;
+    if (!email) {
+      emailError = emailInvalid;
+    }
+    if (!password) {
+      passwordError = passwordInvalid;
+    }
+    setProgress(false);
+    setEmailError(emailError);
+    setPasswordError(passwordError);
+    if (emailError || passwordError) {
+      return;
+    }
+    setProgress(true);
+    try {
+      const API = (await import("../../impower-api/classes/api")).default;
+      await API.instance.login({ email, password });
+      if (onOpenSignUp) {
+        // Login was accessed from account dialog popup
+        closeAccountDialog();
+      } else {
+        const router = (await import("next/router")).default;
+        router.push("/pitch");
       }
-      if (!password) {
-        passwordError = passwordInvalid;
-      }
+    } catch (error) {
+      const logError = (await import("../../impower-logger/utils/logError"))
+        .default;
       setProgress(false);
-      setEmailError(emailError);
-      setPasswordError(passwordError);
-      if (emailError || passwordError) {
-        return;
+      switch (error.code) {
+        case "auth/invalid-email":
+          setEmailError(emailInvalid);
+          break;
+        case "auth/invalid-password":
+          setPasswordError(passwordInvalid);
+          break;
+        case "auth/user-not-found":
+          setEmailError(emailIncorrect);
+          break;
+        case "auth/wrong-password":
+          setPasswordError(loginPasswordIncorrect);
+          break;
+        case "auth/too-many-requests":
+          setPasswordError(tooManyLoginAttempts);
+          break;
+        default:
+          toastDispatch(toastTop(error.message, "error"));
+          logError("Auth", error);
       }
-      setProgress(true);
-      try {
-        const API = (await import("../../impower-api/classes/api")).default;
-        await API.instance.login({ email, password, captcha });
-        if (onOpenSignUp) {
-          // Login was accessed from account dialog popup
-          closeAccountDialog();
-        } else {
-          const router = (await import("next/router")).default;
-          router.push("/pitch");
-        }
-      } catch (error) {
-        const logError = (await import("../../impower-logger/utils/logError"))
-          .default;
-        setProgress(false);
-        switch (error.code) {
-          case "auth/invalid-email":
-            setEmailError(emailInvalid);
-            break;
-          case "auth/invalid-password":
-            setPasswordError(passwordInvalid);
-            break;
-          case "auth/user-not-found":
-            setEmailError(emailIncorrect);
-            break;
-          case "auth/wrong-password":
-            setPasswordError(loginPasswordIncorrect);
-            break;
-          case "auth/too-many-requests":
-            setPasswordError(tooManyLoginAttempts);
-            break;
-          default:
-            toastDispatch(toastTop(error.message, "error"));
-            logError("Auth", error);
-        }
-      }
-      if (onProcessing) {
-        onProcessing(false);
-      }
-    },
-    [onProcessing, onOpenSignUp, closeAccountDialog, toastDispatch]
-  );
-
-  const handleCaptchaChange = useCallback(
-    async (captcha) => {
-      if (!captcha) {
-        // Captcha expired
-        return;
-      }
-      handleVerifiedSubmit(captcha);
-    },
-    [handleVerifiedSubmit]
-  );
+    }
+    if (onProcessing) {
+      onProcessing(false);
+    }
+  }, [onProcessing, onOpenSignUp, closeAccountDialog, toastDispatch]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent | React.MouseEvent) => {
@@ -256,11 +238,9 @@ const LoginForm = React.memo((props: LoginFormProps): JSX.Element | null => {
       if (onProcessing) {
         onProcessing(true);
       }
-      if (captchaActionsRef.current) {
-        captchaActionsRef.current.execute();
-      }
+      handleVerifiedSubmit();
     },
-    [onProcessing]
+    [handleVerifiedSubmit, onProcessing]
   );
 
   return (
@@ -318,11 +298,6 @@ const LoginForm = React.memo((props: LoginFormProps): JSX.Element | null => {
               />
             </StyledItem>
           </StyledGrid>
-          <Captcha
-            actionsRef={captchaActionsRef}
-            disableNotice
-            onVerify={handleCaptchaChange}
-          />
           <StyledSubmitButton
             loading={progress}
             type="submit"
@@ -390,7 +365,6 @@ const Login = React.memo((props: LoginProps): JSX.Element | null => {
       )}
       <StyledItem>
         <LegalNotice
-          captcha
           style={{
             marginTop: theme.spacing(6),
           }}
