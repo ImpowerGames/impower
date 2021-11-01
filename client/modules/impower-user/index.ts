@@ -32,6 +32,8 @@ export { default as userLoadUserDoc } from "./utils/userLoadUserDoc";
 export { default as userOnChangeMember } from "./utils/userOnChangeMember";
 export { default as userOnCreateSubmission } from "./utils/userOnCreateSubmission";
 export { default as userOnDeleteSubmission } from "./utils/userOnDeleteSubmission";
+export { default as userOnSetCustomization } from "./utils/userOnSetCustomization";
+export { default as userOnSetSetting } from "./utils/userOnSetSetting";
 export { default as userOnUpdateSubmission } from "./utils/userOnUpdateSubmission";
 export { default as userSetCustomization } from "./utils/userSetCustomization";
 export { default as userSetSetting } from "./utils/userSetSetting";

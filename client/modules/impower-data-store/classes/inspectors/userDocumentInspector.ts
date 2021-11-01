@@ -18,19 +18,6 @@ export class UserDocumentInspector implements Inspector<UserDocument> {
     return createUserDocument(data);
   }
 
-  getPropertyLabel(propertyPath: string, _data: UserDocument): string {
-    if (propertyPath === "username") {
-      return "Your username";
-    }
-    if (propertyPath === "bio") {
-      return "Your bio";
-    }
-    if (propertyPath === "icon") {
-      return "Your profile image";
-    }
-    return undefined;
-  }
-
   getPropertyCharacterCountLimit(
     propertyPath: string,
     _data: UserDocument

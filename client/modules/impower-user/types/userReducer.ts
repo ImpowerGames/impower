@@ -1072,7 +1072,7 @@ export const userReducer = (
       };
     }
     case USER_SET_CUSTOMIZATION: {
-      const { customizationType, phraseTags } = action.payload;
+      const { customizationType, phraseTags, onFinished } = action.payload;
       const existingCustomization = state?.customizations?.[customizationType];
       const newCustomizationDoc = existingCustomization
         ? getLocalUpdateAnnotatedDocument<CustomizationDocument>({
@@ -1111,6 +1111,9 @@ export const userReducer = (
           logWarn("DataState", e);
           errorHandler?.(e.code);
         }
+        if (onFinished) {
+          onFinished();
+        }
       };
       setData();
       return {
@@ -1122,7 +1125,7 @@ export const userReducer = (
       };
     }
     case USER_SET_SETTING: {
-      const { settingsType, doc } = action.payload;
+      const { settingsType, doc, onFinished } = action.payload;
       const existingSettings = state?.settings?.[settingsType];
       const newSettingsDoc = existingSettings
         ? getLocalUpdateAnnotatedDocument({
@@ -1160,6 +1163,9 @@ export const userReducer = (
             .default;
           logWarn("DataState", e);
           errorHandler?.(e.code);
+        }
+        if (onFinished) {
+          onFinished();
         }
       };
       setData();

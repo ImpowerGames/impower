@@ -441,13 +441,14 @@ const StringInput = React.memo(
     );
 
     const handleDialogChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>): void => {
+      async (e: React.ChangeEvent<HTMLInputElement>): Promise<boolean> => {
         const newValue = e.target.value;
         const transformedValue = handleGetTransformedValue(newValue);
         if (onSubmit) {
           onSubmit(e, transformedValue);
         }
         handleInputChange(e);
+        return true;
       },
       [handleInputChange, handleGetTransformedValue, onSubmit]
     );

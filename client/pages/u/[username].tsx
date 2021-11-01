@@ -21,8 +21,8 @@ import {
   navigationSetType,
 } from "../../modules/impower-navigation";
 import { BetaBanner } from "../../modules/impower-route";
+import Profile from "../../modules/impower-route-account/Profile";
 import Footer from "../../modules/impower-route-home/components/elements/Footer";
-import UserProfile from "../../modules/impower-route-user-profile/UserProfile";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import { UserContext } from "../../modules/impower-user";
@@ -119,7 +119,7 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
       <BetaBanner />
       <StyledContent>
         <Container component="main" maxWidth="sm" style={{ padding: 0 }}>
-          <UserProfile
+          <Profile
             username={username}
             bio={bio}
             icon={icon?.fileUrl}

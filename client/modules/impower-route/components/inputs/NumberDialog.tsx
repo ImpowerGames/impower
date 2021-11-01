@@ -17,7 +17,7 @@ interface NumberDialogProps extends StringDialogProps {
   min?: number;
   step?: number | null;
   marks?: boolean | Mark[];
-  onChange?: (event: React.ChangeEvent) => void;
+  onChange?: (event: React.ChangeEvent) => Promise<boolean>;
   renderHelperText?: (props: {
     errorText?: string;
     helperText?: React.ReactNode;

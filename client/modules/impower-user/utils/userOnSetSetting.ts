@@ -6,7 +6,8 @@ import {
   USER_SET_SETTING,
 } from "../types/actions/userSetSettingAction";
 
-const userSetSetting = (
+const userOnSetSetting = (
+  onFinished: () => void,
   doc: RecursivePartial<SettingsDocument>,
   settingsType: SettingsType
 ): UserSetSettingAction => {
@@ -16,4 +17,4 @@ const userSetSetting = (
   };
 };
 
-export default userSetSetting;
+export default userOnSetSetting;

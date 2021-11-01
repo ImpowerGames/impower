@@ -171,6 +171,7 @@ const InspectorForm = React.memo(
       onClickMenuItem,
       onExpandProperty,
       onPropertyChange,
+      onPropertyBlur,
       onDebouncedPropertyChange,
       onValidatePropertyChange,
       onChange,
@@ -207,11 +208,13 @@ const InspectorForm = React.memo(
         const assignValues = (
           await import("../../../impower-core/utils/assignValues")
         ).default;
-        const inspectedData = data.map((d) =>
-          assignValues(inspector?.createData?.() || {}, d)
-        );
-        stateRef.current = inspectedData;
-        setState(inspectedData);
+        if (inspector) {
+          const inspectedData = data.map((d) =>
+            assignValues(inspector?.createData?.() || {}, d)
+          );
+          stateRef.current = inspectedData;
+          setState(inspectedData);
+        }
       };
       setup();
     }, [data, inspector]);
@@ -337,7 +340,7 @@ const InspectorForm = React.memo(
         const newData = currentData.map((d) =>
           inspector?.validate
             ? inspector?.validate?.(setValue(d, propertyPath, value))
-            : d
+            : setValue(d, propertyPath, value)
         );
         if (onPropertyChange) {
           onPropertyChange(propertyPath, getValue(newData[0], propertyPath));
@@ -490,6 +493,7 @@ const InspectorForm = React.memo(
                     onExpandProperty={onExpandProperty}
                     renderProperty={renderProperty}
                     onPropertyChange={handlePropertyChange}
+                    onPropertyBlur={onPropertyBlur}
                     onDebouncedPropertyChange={handleDebouncedPropertyChange}
                     onPropertyErrorFound={handlePropertyErrorFound}
                     onPropertyErrorFixed={handlePropertyErrorFixed}
@@ -528,6 +532,7 @@ const InspectorForm = React.memo(
                       getFormattedSummary={getFormattedSummary}
                       getDocIds={getPropertyDocIds}
                       onPropertyChange={handlePropertyChange}
+                      onPropertyBlur={onPropertyBlur}
                       onDebouncedPropertyChange={handleDebouncedPropertyChange}
                       onPropertyKeyDown={handlePropertyKeyDown}
                       onPropertyErrorFound={handlePropertyErrorFound}

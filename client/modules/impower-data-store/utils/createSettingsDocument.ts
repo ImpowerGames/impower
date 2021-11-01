@@ -4,8 +4,11 @@ const createSettingsDocument = (
   doc?: Partial<SettingsDocument>
 ): SettingsDocument => ({
   _documentType: "SettingsDocument",
-  emailMarketing: false,
   nsfwVisible: false,
+  nsfwBlurred: false,
+  emailMarketing: false,
+  emailNotifications: false,
+  appNotifications: false,
   ...doc,
 });
 

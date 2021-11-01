@@ -357,7 +357,7 @@ const DataTypeInput = React.memo(
     );
 
     const handleChange = useCallback(
-      (_event, newValue, _reason, _details) => {
+      async (_event, newValue, _reason, _details): Promise<boolean> => {
         const safeValue = getMatchingOption(newValue);
         if (safeValue !== undefined && typeof safeValue === "string") {
           selectedValue.current = safeValue;
@@ -366,6 +366,7 @@ const DataTypeInput = React.memo(
           }
           setState(safeValue);
         }
+        return true;
       },
       [onChange, getMatchingOption]
     );

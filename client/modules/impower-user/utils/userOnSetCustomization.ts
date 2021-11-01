@@ -4,14 +4,15 @@ import {
   USER_SET_CUSTOMIZATION,
 } from "../types/actions/userSetCustomizationAction";
 
-const userSetCustomization = (
+const userOnSetCustomization = (
+  onFinished: () => void,
   phraseTags: { [phrase: string]: string[] },
   customizationType: CustomizationType
 ): UserSetCustomizationAction => {
   return {
     type: USER_SET_CUSTOMIZATION,
-    payload: { customizationType, phraseTags },
+    payload: { onFinished, customizationType, phraseTags },
   };
 };
 
-export default userSetCustomization;
+export default userOnSetCustomization;

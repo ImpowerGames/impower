@@ -1,5 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
+import { useMediaQuery } from "@material-ui/core";
 import Button from "@material-ui/core/Button";
 import Dialog, { DialogProps } from "@material-ui/core/Dialog";
 import FilledInput from "@material-ui/core/FilledInput";
@@ -48,16 +49,11 @@ const StyledStringDialog = styled(Dialog)`
     left: 0;
     right: 0;
     will-change: transform;
-  }
-
-  & .MuiFormHelperText-root {
-    display: flex;
-    justify-content: flex-end;
-    margin: 0;
-    padding-top: 3px;
-    padding-bottom: 3px;
-    padding-left: 12px;
-    padding-right: 12px;
+    max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
+    margin: auto;
+    ${(props): string => props.theme.breakpoints.down("md")} {
+      max-width: none;
+    }
   }
 
   * {
@@ -222,6 +218,9 @@ const StyledFormHelperText = styled(FormHelperText)<{ component?: string }>`
   &.Mui-error {
     color: ${(props): string => props.theme.palette.error.main};
   }
+  &.error {
+    color: ${(props): string => props.theme.palette.error.main};
+  }
   
   &.error .LeftHelperTextTypography {
     animation: shake 0.4s 1 linear;
@@ -279,7 +278,17 @@ const Transition = React.forwardRef(
   (
     props: TransitionProps & { children?: React.ReactElement },
     ref: React.Ref<unknown>
-  ) => <Slide direction="left" ref={ref} {...props} />
+  ) => {
+    const theme = useTheme();
+    const belowSmBreakpoint = useMediaQuery(theme.breakpoints.down("md"));
+    return (
+      <Slide
+        direction={belowSmBreakpoint ? "left" : "up"}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
 );
 
 export interface StringDialogProps
@@ -321,10 +330,14 @@ export interface StringDialogProps
   autoSave?: boolean;
   autoSaveEvent?: React.ChangeEvent;
   saveLabel?: React.ReactNode;
+  disableEnforceKeyboardFocus?: boolean;
+  disableSave?: boolean;
+  topChildren?: React.ReactNode;
+  bottomChildren?: React.ReactNode;
   getTransformedValue?: (newValue: React.ReactText) => string;
   getInputError?: (value: unknown) => Promise<string | null>;
   onClick?: (e: React.MouseEvent) => void;
-  onChange?: (e: React.ChangeEvent) => void;
+  onChange?: (e: React.ChangeEvent) => Promise<boolean>;
   onClose?: (
     e:
       | React.MouseEvent
@@ -361,6 +374,10 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
     characterCountLimit,
     showCharacterCounter,
     saveLabel,
+    disableSave,
+    disableEnforceKeyboardFocus,
+    topChildren,
+    bottomChildren,
     renderHelperText,
     getTransformedValue,
     getInputError,
@@ -369,6 +386,7 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
     onClose,
     onBlur,
     TransitionProps = {},
+    children,
   } = props;
   const { onEnter, onEntering, onEntered, onExit, onExiting, onExited } =
     TransitionProps;
@@ -433,37 +451,43 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
     e.stopPropagation();
   }, []);
 
-  const handleOutsideClick = useCallback((e: React.MouseEvent): void => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!closingRef.current) {
-      window.requestAnimationFrame(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      });
-    }
-  }, []);
+  const handleOutsideClick = useCallback(
+    (e: React.MouseEvent): void => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!closingRef.current && !disableEnforceKeyboardFocus) {
+        window.requestAnimationFrame(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        });
+      }
+    },
+    [disableEnforceKeyboardFocus]
+  );
 
   const handleSubmit = useCallback(
-    (e: React.MouseEvent | React.KeyboardEvent | React.FormEvent): void => {
+    async (
+      e: React.MouseEvent | React.KeyboardEvent | React.FormEvent
+    ): Promise<void> => {
       const changeEvent = e as unknown as React.ChangeEvent<HTMLInputElement>;
       changeEvent.target.value = state?.toString() || "";
       const saveEvent = autoSave ? changeEvent || autoSaveEvent : changeEvent;
       closingRef.current = true;
+      if (onChange && saveEvent && hasUnsavedChanges) {
+        const shouldClose = await onChange(saveEvent);
+        if (shouldClose === false) {
+          return;
+        }
+      }
       if (inputRef.current) {
         inputRef.current.blur();
       }
       // Wait for keyboard to collapse
       requestTimeout(() => {
-        if (onChange && saveEvent && hasUnsavedChanges) {
-          onChange(saveEvent);
+        if (onClose) {
+          onClose(e);
         }
-        requestTimeout(() => {
-          if (onClose) {
-            onClose(e);
-          }
-        }, 200);
       }, 200);
     },
     [autoSave, autoSaveEvent, hasUnsavedChanges, onChange, onClose, state]
@@ -604,7 +628,7 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
         </StyledEndAdornmentArea>
       ) : undefined,
       style: {
-        ...InputProps.style,
+        ...InputProps?.style,
         backgroundColor: "transparent",
       },
     }),
@@ -735,6 +759,7 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
       PaperComponent={CustomDialogPaper}
       TransitionComponent={Transition}
       onClick={handleOutsideClick}
+      onClose={handleBack}
       TransitionProps={{
         onEnter: handleEnter,
         onEntering: handleEntering,
@@ -771,7 +796,7 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
             }}
           >
             <StyledSubmitButton
-              disabled={!hasUnsavedChanges || hasError}
+              disabled={!hasUnsavedChanges || hasError || disableSave}
               variant="contained"
               color="secondary"
               onClick={handleSubmit}
@@ -781,6 +806,7 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
           </StyledSubmitButtonArea>
         </StyledToolbar>
         <StyledForm method="post" noValidate onSubmit={handleSubmit}>
+          {topChildren}
           <StyledInputArea
             style={{
               flex: fullHeight ? 1 : 0,
@@ -822,13 +848,19 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
             <StyledFormHelperText
               component="div"
               className={
-                inputError ? "error" : limitAnimation ? "limit" : undefined
+                inputError || errorText
+                  ? "error"
+                  : limitAnimation
+                  ? "limit"
+                  : undefined
               }
             >
               {dialogHelperText}
             </StyledFormHelperText>
           )}
           <div style={keyboardSpacerStyle} />
+          {bottomChildren}
+          {children}
         </StyledForm>
       </StyledViewportArea>
     </StyledStringDialog>

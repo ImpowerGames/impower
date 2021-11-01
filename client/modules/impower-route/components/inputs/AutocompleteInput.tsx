@@ -509,7 +509,7 @@ const AutocompleteInput = React.memo(
         newValue?: unknown,
         reason?: AutocompleteChangeReason,
         details?: AutocompleteChangeDetails
-      ) => {
+      ): Promise<boolean> => {
         if (reason === "selectOption") {
           if (handleInputChange) {
             handleInputChange(e, handleGetOptionLabel(newValue));
@@ -552,6 +552,7 @@ const AutocompleteInput = React.memo(
             onDebouncedChange(safeValue);
           }
         }
+        return true;
       },
       [
         handleInputChange,

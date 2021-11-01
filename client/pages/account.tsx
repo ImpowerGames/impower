@@ -14,12 +14,11 @@ import {
   navigationSetText,
   navigationSetType,
 } from "../modules/impower-navigation";
-import { BetaBanner, PageNotFound } from "../modules/impower-route";
+import { BetaBanner } from "../modules/impower-route";
+import Account from "../modules/impower-route-account/Account";
 import Footer from "../modules/impower-route-home/components/elements/Footer";
-import UserProfile from "../modules/impower-route-user-profile/UserProfile";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
-import { UserContext } from "../modules/impower-user/contexts/userContext";
 
 const StyledUserProfilePage = styled.div`
   padding-top: ${(props): string => props.theme.minHeight.navigationBar};
@@ -56,8 +55,6 @@ const AccountPage = React.memo((props: AccountPageProps) => {
   const { config } = props;
 
   const [, navigationDispatch] = useContext(NavigationContext);
-  const [userState] = useContext(UserContext);
-  const { userDoc } = userState;
 
   ConfigCache.instance.set(config);
 
@@ -77,28 +74,13 @@ const AccountPage = React.memo((props: AccountPageProps) => {
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
 
-  if (userDoc === null) {
-    return (
-      <StyledUserProfilePage>
-        <BetaBanner />
-        <PageNotFound />
-      </StyledUserProfilePage>
-    );
-  }
-
   return (
     <>
       <StyledUserProfilePage>
         <BetaBanner />
         <StyledContent>
           <StyledContainer>
-            <UserProfile
-              username={userDoc?.username}
-              bio={userDoc?.bio}
-              icon={userDoc?.icon?.fileUrl}
-              hex={userDoc?.hex}
-              canEdit
-            />
+            <Account />
           </StyledContainer>
         </StyledContent>
         <Footer />

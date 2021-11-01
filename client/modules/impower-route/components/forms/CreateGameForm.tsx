@@ -308,7 +308,7 @@ const CreateGameForm = React.memo((props: CreateGameFormProps): JSX.Element => {
       const deletionTags = [];
       if (needsDelete) {
         newDeletions[phrase] = deletionTags;
-        userDispatch(userSetCustomization("phrase_deletions", newDeletions));
+        userDispatch(userSetCustomization(newDeletions, "phrase_deletions"));
       }
 
       const newAdditions = { ...phraseAdditions };
@@ -316,7 +316,7 @@ const CreateGameForm = React.memo((props: CreateGameFormProps): JSX.Element => {
       const validTags = tags || [];
       const additionTags = [...addedTags, ...validTags];
       newAdditions[phrase] = additionTags;
-      userDispatch(userSetCustomization("phrase_additions", newAdditions));
+      userDispatch(userSetCustomization(newAdditions, "phrase_additions"));
 
       const personalizedPhraseTagsMap = getPersonalizedPhraseTagsMap(
         phraseTagsMap,
@@ -337,7 +337,7 @@ const CreateGameForm = React.memo((props: CreateGameFormProps): JSX.Element => {
         ? Array.from(new Set([...deletedTags, ...validTags]))
         : validTags;
       newDeletions[phrase] = deletionTags;
-      userDispatch(userSetCustomization("phrase_deletions", newDeletions));
+      userDispatch(userSetCustomization(newDeletions, "phrase_deletions"));
 
       const personalizedPhraseTagsMap = getPersonalizedPhraseTagsMap(
         phraseTagsMap,
@@ -354,13 +354,13 @@ const CreateGameForm = React.memo((props: CreateGameFormProps): JSX.Element => {
       const newDeletions = { ...phraseDeletions };
       const deletionTags = [];
       newDeletions[original] = deletionTags;
-      userDispatch(userSetCustomization("phrase_deletions", newDeletions));
+      userDispatch(userSetCustomization(newDeletions, "phrase_deletions"));
 
       const newAdditions = { ...phraseAdditions };
       const additionTags =
         phraseAdditions?.[original] || phraseTagsMap?.[original];
       newAdditions[phrase] = additionTags;
-      userDispatch(userSetCustomization("phrase_additions", newAdditions));
+      userDispatch(userSetCustomization(newAdditions, "phrase_additions"));
 
       const personalizedPhraseTagsMap = getPersonalizedPhraseTagsMap(
         phraseTagsMap,

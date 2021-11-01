@@ -344,7 +344,7 @@ export interface AutocompleteDialogProps
     value?: unknown,
     reason?: AutocompleteChangeReason,
     details?: AutocompleteChangeDetails<unknown>
-  ) => void;
+  ) => Promise<boolean>;
   groupBy?: (option: unknown) => string;
   renderOption?: (
     props: React.HTMLAttributes<HTMLLIElement>,
@@ -467,7 +467,7 @@ const AutocompleteDialog = React.memo(
     );
 
     const handleChange = useCallback(
-      (
+      async (
         e: React.ChangeEvent,
         value: unknown,
         reason: AutocompleteChangeReason,
@@ -488,7 +488,10 @@ const AutocompleteDialog = React.memo(
             onInputChange(e, "", "clear");
           }
         } else if (onChange) {
-          onChange(e, value, reason, details);
+          const shouldClose = await onChange(e, value, reason, details);
+          if (shouldClose === false) {
+            return;
+          }
         }
         if (
           reason === "createOption" ||

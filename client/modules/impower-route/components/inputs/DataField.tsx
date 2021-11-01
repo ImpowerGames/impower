@@ -321,7 +321,7 @@ const DataFieldArea = React.memo(
     );
 
     const handleBlur = useCallback(
-      (value: unknown) => {
+      (e: React.FocusEvent, value: unknown) => {
         if (onPropertyBlur) {
           onPropertyBlur(propertyPath, value);
         }
@@ -627,7 +627,7 @@ const DataField = React.memo((props: DataFieldProps): JSX.Element | null => {
   const theme = useTheme();
   const { propertyPath, data, getInspector, getDocIds } = props;
   const inspectedData = data[0];
-  const inspector = getInspector(inspectedData);
+  const inspector = getInspector?.(inspectedData);
   const propertyDocIds = getDocIds
     ? getDocIds(propertyPath, inspectedData)
     : [];
@@ -759,7 +759,7 @@ const DataField = React.memo((props: DataFieldProps): JSX.Element | null => {
   const [menuOpen, setMenuOpen] = React.useState<boolean>();
 
   const propertyIndent =
-    indent + inspector?.getPropertyIndent?.(propertyPath, inspectedData);
+    indent + (inspector?.getPropertyIndent?.(propertyPath, inspectedData) || 0);
   const propertyMoreInfoPopup = useMemo((): {
     icon?: string;
     title?: string;
@@ -979,7 +979,9 @@ const DataField = React.memo((props: DataFieldProps): JSX.Element | null => {
   const isFieldVisible =
     propertyVisible !== undefined
       ? propertyVisible
-      : isPropertyVisible(propertyPath, inspectedData);
+      : isPropertyVisible
+      ? isPropertyVisible(propertyPath, inspectedData)
+      : true;
 
   if (!isFieldVisible) {
     return null;

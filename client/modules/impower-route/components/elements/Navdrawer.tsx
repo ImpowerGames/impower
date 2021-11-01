@@ -182,9 +182,9 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
   const { open, useAccountDialog, onClose } = props;
   const [openState, setOpenState] = useState(false);
   const [userState] = useContext(UserContext);
-  const { isSignedIn, isAnonymous, claims } = userState;
-  const username = claims?.username;
-  const icon = claims?.icon;
+  const { isSignedIn, isAnonymous, userDoc } = userState;
+  const username = userDoc?.username;
+  const icon = userDoc?.icon?.fileUrl;
 
   useEffect(() => {
     setOpenState(open);

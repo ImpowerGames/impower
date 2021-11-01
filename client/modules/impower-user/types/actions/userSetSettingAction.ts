@@ -6,6 +6,7 @@ export const USER_SET_SETTING = "@impower/user/SET_SETTING";
 export interface UserSetSettingAction {
   type: typeof USER_SET_SETTING;
   payload: {
+    onFinished?: () => void;
     settingsType: SettingsType;
     doc: RecursivePartial<SettingsDocument>;
   };
