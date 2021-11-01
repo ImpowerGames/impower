@@ -69,12 +69,16 @@ const StyledTitleTypography = styled(Typography)`
 `;
 
 interface UserProfilePageProps {
+  id: string;
   doc: UserDocument;
 }
 
 const UserProfilePage = React.memo((props: UserProfilePageProps) => {
-  const { doc } = props;
+  const { id, doc } = props;
   const [userState] = useContext(UserContext);
+  const { uid, userDoc } = userState;
+
+  const latestDoc = id === uid ? userDoc : doc;
 
   const [, navigationDispatch] = useContext(NavigationContext);
   const theme = useTheme();
@@ -91,7 +95,7 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
 
-  if (doc === null || doc === undefined) {
+  if (latestDoc === null || latestDoc === undefined) {
     const usernameQuery =
       typeof window !== "undefined"
         ? decodeURI(window.location.pathname.split("/").pop())
@@ -112,7 +116,7 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
     );
   }
 
-  const { username, icon, hex, bio } = doc;
+  const { username, icon, hex, bio } = latestDoc;
   const canEdit = username === userState?.userDoc?.username;
   return (
     <StyledUserProfilePage>
@@ -150,11 +154,13 @@ export const getStaticProps: GetStaticProps = async (context) => {
     .where("username", "==", docUsername)
     .limit(1)
     .get();
-  const postDoc = postsSnapshot.docs[0]?.data();
-  const serializableData = getSerializableDocument<UserDocument>(postDoc);
+  const postDoc = postsSnapshot.docs[0];
+  const postData = postDoc?.data();
+  const serializableData = getSerializableDocument<UserDocument>(postData);
 
   return {
     props: {
+      id: postDoc.id,
       doc: serializableData != null ? serializableData : null,
     },
     // Regenerate the page:
