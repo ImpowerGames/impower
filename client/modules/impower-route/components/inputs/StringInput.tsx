@@ -518,11 +518,18 @@ const StringInput = React.memo(
       handleBrowserNavigation
     );
 
+    const handleOpenSoftKeyboard = useCallback((e?: React.MouseEvent): void => {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      if (keyboardTriggerRef.current) {
+        keyboardTriggerRef.current.focus();
+      }
+    }, []);
+
     const handleOpenDialog = useCallback(
       (e?: React.MouseEvent): void => {
-        if (keyboardTriggerRef.current) {
-          keyboardTriggerRef.current.focus();
-        }
         if (e) {
           e.stopPropagation();
           e.preventDefault();
@@ -716,8 +723,8 @@ const StringInput = React.memo(
           <>
             {showFullscreen && (
               <StyledDialogButton
-                onPointerDown={handleOpenDialog}
-                onClick={handleBlockClick}
+                onPointerDown={handleOpenSoftKeyboard}
+                onClick={handleOpenDialog}
               />
             )}
             {InputProps?.startAdornment}
@@ -753,6 +760,7 @@ const StringInput = React.memo(
         disableAutoKeyboard,
         handleBlockClick,
         handleOpenDialog,
+        handleOpenSoftKeyboard,
         id,
         inset,
         loading,
