@@ -234,7 +234,7 @@ const AddPitchToolbar = React.memo(
 
     useEffect(() => {
       if (router.isReady) {
-        if (router.query.e === "game") {
+        if (window.location.search === "?e=game") {
           openedWithQueryRef.current = true;
           if (!createDocExists) {
             handleStartCreation();
