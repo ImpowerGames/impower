@@ -6,7 +6,7 @@ import getSubphrases from "./getSubphrases";
  *
  * @returns The term relevancy score
  */
-const getTermRelevancyScore = (
+export const getTermRelevancyScore = (
   phrase: string,
   tagsSortedBySpecificity: string[],
   termTagsMap: {
@@ -17,9 +17,11 @@ const getTermRelevancyScore = (
   const words = getCleanedWords(phrase);
   const subphrases = getSubphrases(words);
   let relevantTermWeight = 0;
+  let termCount = 0;
   subphrases.forEach((subphrase) => {
     const termTags = termTagsMap[subphrase];
-    if (termTags) {
+    if (termTags && termTags.length > 0) {
+      termCount += 1;
       const tagMatchIndex = tagsSortedBySpecificity.findIndex(
         (tag) => termTags.includes(tag) && !matchedTags.has(tag)
       );
@@ -34,7 +36,7 @@ const getTermRelevancyScore = (
   // Phrase must have at least 2 unique relevant terms to benefit from this bonus
   // (This is because we need at least 2 relevant ideas for a double-entendre)
   if (matchedTags.size > 1) {
-    return relevantTermWeight / words.length;
+    return relevantTermWeight / termCount;
   }
   return 0;
 };

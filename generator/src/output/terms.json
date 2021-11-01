@@ -2050,7 +2050,6 @@
   "premiere": ["episodic", "fame", "interactive film"],
   "pilot": ["episodic", "flight", "mecha"],
   "movie": ["episodic", "fame", "interactive film"],
-  "feature": ["episodic", "fame", "interactive film"],
   "length": ["endless", "immortality", "shapeshifting"],
   "continued": ["endless", "immortality", "multiple endings"],
   "constant": ["endless", "immortality", "science"],
@@ -3035,6 +3034,7 @@
   "grin": ["comedy", "creepy", "horror", "suspense"],
   "technicolor": ["colorful", "fame", "interactive film", "stylish"],
   "limited": ["collecting", "quest", "quick-time events", "time limit"],
+  "pish": ["cockney", "regency", "steampunk", "victorian"],
   "keen": ["cockney", "regency", "steampunk", "victorian"],
   "jove": ["cockney", "regency", "steampunk", "victorian"],
   "great scott": ["cockney", "regency", "steampunk", "victorian"],
@@ -5210,6 +5210,7 @@
   "dredge": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "depth": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "dam": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
+  "cruisin'": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "cruise": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "creek": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "cockles": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
@@ -8100,14 +8101,6 @@
     "nautical",
     "swashbuckling",
     "weather"
-  ],
-  "cruising": [
-    "aquatic",
-    "driving",
-    "fishing",
-    "merfolk",
-    "nautical",
-    "swashbuckling"
   ],
   "bubble": [
     "aquatic",
@@ -14926,6 +14919,16 @@
     "science",
     "technology"
   ],
+  "feature": [
+    "artificial intelligence",
+    "cyberpunk",
+    "episodic",
+    "fame",
+    "hacking",
+    "interactive film",
+    "robot",
+    "technology"
+  ],
   "electric": [
     "artificial intelligence",
     "cyberpunk",
@@ -16876,7 +16879,7 @@
     "post apocalyptic",
     "sabotage"
   ],
-  "bruising": [
+  "bruisin'": [
     "action",
     "beat 'em up",
     "detective",
@@ -26483,20 +26486,6 @@
     "superhero",
     "technology"
   ],
-  "pish": [
-    "angel",
-    "cockney",
-    "demon",
-    "fairy tale",
-    "fantasy",
-    "medieval",
-    "oldtimey",
-    "regency",
-    "role playing",
-    "steampunk",
-    "sword & sorcery",
-    "victorian"
-  ],
   "overlords": [
     "angel",
     "demon",
@@ -31589,26 +31578,6 @@
     "social deduction"
   ],
   "tracks": [
-    "capture",
-    "cryptid",
-    "detective",
-    "dystopian",
-    "hunting",
-    "investigation",
-    "invisibility",
-    "monster tamer",
-    "musical",
-    "noir",
-    "on-rails",
-    "police",
-    "racing",
-    "rhythm",
-    "roadtrip",
-    "surveillance",
-    "tracking",
-    "train"
-  ],
-  "tracking": [
     "capture",
     "cryptid",
     "detective",
