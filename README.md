@@ -54,7 +54,12 @@ The Impower Engine can export:
 1. Open the impower/client folder in the vscode terminal
 2. Install dependencies: `npm install`
 3. Create a copy of the `.env.local.example` file and name it `.env.development.local`
-4. Login to our vercel project with your impower.games email and copy the "Development" environment keys into `.env.development.local`: `https://vercel.com/impowergames/impower/settings/environment-variables` OR copy the development environment keys provided to you by a project administrator.
+4. Using the google account that was added to our impowergames-dev project, login to the [impowergames-dev firebase console](https://console.firebase.google.com/u/1/project/impowergames-dev).
+5. In the sidebar, click the `Gear icon` > `Project Settings`.
+6. Click `Service accounts`.
+7. Click `Generate new private key`.
+8. Open the generated file and copy the entire json object.
+9. Paste the entire json object into your `.env.development.local` file after `FIREBASE_SERVICE_ACCOUNT_KEY=`. (Format the json object so that it is all on a single line.)
 
 ### How To Run (impower/client):
 
@@ -71,10 +76,11 @@ The Impower Engine can export:
 
 ### First-Time Setup (server/functions):
 
-1. Open the server/functions folder in the vscode terminal
-2. Install firebase tools globally: `npm install -g firebase-tools`
-3. Login to our development firebase project `impowergames-dev`: `firebase login --project=impowergames-dev`
-4. Install dependencies: `npm install`
+1. Make sure you have been added as a developer on our private server repo. Then clone the server repo.
+2. Open the server/functions folder in the vscode terminal
+3. Install firebase tools globally: `npm install -g firebase-tools`
+4. Login to our development firebase project `impowergames-dev`: `firebase login --project=impowergames-dev`
+5. Install dependencies: `npm install`
 
 ### How To Run (server/functions):
 
@@ -146,18 +152,3 @@ You can make changes to the backend database structure by editing the document f
 
 1. To make a new document type, create a new file in `modules/impower-data-store/types/documents` and declare an interface that extends the interface `DataDocument` from `modules/impower-core`
 2. To include your document in a collection, add it to `modules/impower-api/types/collectionDataPath.ts`
-
-## Vercel Deployment
-
-1. All official team members should have recieved an vercel invite email to your @impower.games email address. Accept the invite and create a vercel account using your bitbucket account. (The email address you use for bitbucket, vercel, and the git commit "author" field should all match so that you can trigger automatic vercel deployments with every push.)
-
-All branches are deployed automatically on every push to the impower repo.
-Every bitbucket pull request gets a Preview Deployment URL that stays updated with each push to the branch.
-Every push gets its own URL also.
-
-The main branch is automatically deployed to [dev.impower.app](http://dev.impower.app) on each push.
-
-The following branches are tied to special domains and should only be pushed to during official version updates and releases:
-
-- [deploy/test](http://test.impower.app)
-- [deploy/prod](http://impower.app)
