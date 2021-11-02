@@ -385,8 +385,10 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
     onChange,
     onClose,
     onBlur,
+    onFocus,
     TransitionProps = {},
     children,
+    ...DialogProps
   } = props;
   const { onEnter, onEntering, onEntered, onExit, onExiting, onExited } =
     TransitionProps;
@@ -651,7 +653,6 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
         if (inputRef.current) {
           inputRef.current.focus();
         }
-        window.scrollTo({ top: 0 });
       });
     }, 500);
   }, []);
@@ -768,6 +769,7 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
         onExiting: handleExiting,
         onExited: handleExited,
       }}
+      {...DialogProps}
     >
       <StyledViewportArea ref={handleViewportAreaRef}>
         <StyledToolbar>
@@ -796,7 +798,7 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
             }}
           >
             <StyledSubmitButton
-              disabled={!hasUnsavedChanges || hasError || disableSave}
+              disabled={!hasUnsavedChanges || disableSave}
               variant="contained"
               color="secondary"
               onClick={handleSubmit}
@@ -835,6 +837,7 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
                 fullWidth
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
+                onFocus={onFocus}
                 onBlur={handleBlur}
                 onClick={onClick}
                 {...DialogTextFieldProps}

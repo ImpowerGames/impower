@@ -18,3 +18,4 @@ export { default as getUpdatedFields } from "./utils/getUpdatedFields";
 export { default as isMemberData } from "./utils/isMemberData";
 export { default as isMessageData } from "./utils/isMessageData";
 export { default as reverseDataSortDirection } from "./utils/reverseDataSortDirection";
+export { default as timestampServerValue } from "./utils/timestampServerValue";

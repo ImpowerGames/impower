@@ -1,11 +1,15 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { FilledInput, IconButton } from "@material-ui/core";
+import Accordion from "@material-ui/core/Accordion";
+import AccordionDetails from "@material-ui/core/AccordionDetails";
+import AccordionSummary from "@material-ui/core/AccordionSummary";
 import Button from "@material-ui/core/Button";
 import Divider from "@material-ui/core/Divider";
 import OutlinedInput from "@material-ui/core/OutlinedInput";
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
+import NextLink from "next/link";
 import React, {
   useCallback,
   useContext,
@@ -14,6 +18,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import AngleDownRegularIcon from "../../resources/icons/regular/angle-down.svg";
 import EyeSlashSolidIcon from "../../resources/icons/solid/eye-slash.svg";
 import EyeSolidIcon from "../../resources/icons/solid/eye.svg";
 import {
@@ -21,6 +26,7 @@ import {
   confirmDialogNavOpen,
 } from "../impower-confirm-dialog";
 import { Inspector } from "../impower-core";
+import { timestampServerValue, useDataValue } from "../impower-data-state";
 import {
   createUserDocument,
   UserDocument,
@@ -37,6 +43,7 @@ import FileInput from "../impower-route/components/inputs/FileInput";
 import InputHelperText from "../impower-route/components/inputs/InputHelperText";
 import StringDialog from "../impower-route/components/inputs/StringDialog";
 import StringInput from "../impower-route/components/inputs/StringInput";
+import { useRouter } from "../impower-router";
 import { ToastContext, toastTop } from "../impower-toast";
 import { userOnSetSetting, userOnUpdateSubmission } from "../impower-user";
 import { UserContext } from "../impower-user/contexts/userContext";
@@ -45,6 +52,7 @@ const changePasswordSuccess = "Password changed!";
 const changeEmailSuccess = "Email changed!";
 const passwordInvalid = "Please enter a valid password.";
 const passwordWrong = "The password you entered was incorrect.";
+const usernameWrong = "The username you entered was incorrect.";
 const forgotPasswordQuestion = "Forgot password?";
 const passwordResetEmailSent =
   "You should receive an email that explains how to reset your password.";
@@ -75,8 +83,20 @@ const StyledPaper = styled(Paper)`
   }
 `;
 
+const StyledWarningInfoArea = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: ${(props): string => props.theme.spacing(2)};
+`;
+
 const StyledHeaderTypography = styled(Typography)`
   margin: ${(props): string => props.theme.spacing(2, 0)};
+`;
+
+const StyledWarningTypography = styled(Typography)`
+  color: ${(props): string => props.theme.palette.error.main};
+  text-align: center;
 `;
 
 const StyledDivider = styled(Divider)`
@@ -128,9 +148,16 @@ const StyledAccountButton = styled(Button)`
   white-space: nowrap;
 `;
 
+const StyledAdvancedButton = styled(Button)`
+  margin: ${(props): string => props.theme.spacing(1, 0)};
+`;
+
 const StyledDialogTextField = styled(TextField)`
   & .MuiInputBase-root {
     border-radius: 0;
+  }
+  & .MuiInputBase-root.MuiFilledInput-root {
+    padding-right: 6px;
   }
 `;
 
@@ -156,12 +183,34 @@ const StyledKeyboardTrigger = styled.input`
 
 const StyledIconButton = styled(IconButton)``;
 
+const StyledAccordion = styled(Accordion)`
+  box-shadow: none;
+
+  &.MuiPaper-root.MuiAccordion-root.Mui-expanded {
+    margin: 0;
+  }
+`;
+
+const StyledAccordionDetails = styled(AccordionDetails)`
+  display: flex;
+  flex-direction: column;
+`;
+
+const StyledAccordionSummary = styled(AccordionSummary)`
+  padding: 0;
+  & .MuiAccordionSummary-content.Mui-expanded {
+    margin: 12px 0;
+  }
+`;
+
 const profilePropertyPaths = ["icon", "bio"];
 const settingsPropertyPaths = ["nsfwVisible"];
 const labels = {
   username: "Change Username",
   email: "Change Email",
   password: "Change Password",
+  delete: "Delete Account",
+  data: "Request Data",
 };
 
 const Profile = React.memo((): JSX.Element | null => {
@@ -173,6 +222,13 @@ const Profile = React.memo((): JSX.Element | null => {
   const email = userState?.email;
   const userDoc = userState?.userDoc;
   const settingsDoc = userState?.settings?.account;
+
+  const dataRequest = useDataValue<{
+    status: "requested" | "sent";
+    t: number;
+  }>("exports", uid);
+
+  const dataRequestStatus = dataRequest?.status;
 
   const [newUserDoc, setNewUserDoc] = useState(userDoc);
   const [newSettingsDoc, setNewSettingsDoc] = useState(settingsDoc);
@@ -186,10 +242,19 @@ const Profile = React.memo((): JSX.Element | null => {
   const [savingBio, setSavingBio] = useState<boolean>();
   const [currentPasswordReveal, setCurrentPasswordReveal] = useState(false);
   const [newPasswordReveal, setNewPasswordReveal] = useState(false);
+  const [requestedData, setRequestedData] = useState(
+    dataRequestStatus === "requested"
+  );
 
   const username = newUserDoc?.username;
 
   const keyboardTriggerRef = useRef<HTMLInputElement>();
+
+  const router = useRouter();
+
+  useEffect(() => {
+    setRequestedData(dataRequestStatus === "requested");
+  }, [dataRequestStatus]);
 
   useEffect(() => {
     if (email) {
@@ -219,8 +284,14 @@ const Profile = React.memo((): JSX.Element | null => {
   );
 
   const values = useMemo(
-    () => ({ username, email: newEmail, password: currentPassword }),
-    [newEmail, currentPassword, username]
+    () => ({
+      username,
+      email: newEmail,
+      password: currentPassword,
+      delete: "",
+      data: "",
+    }),
+    [username, newEmail, currentPassword]
   );
 
   const getProfileInspector = useCallback(() => {
@@ -339,6 +410,31 @@ const Profile = React.memo((): JSX.Element | null => {
     },
     []
   );
+  const handleClickDeleteAccount = useCallback(async () => {
+    if (keyboardTriggerRef.current) {
+      keyboardTriggerRef.current.focus();
+    }
+    setDialogError(undefined);
+    setCurrentPasswordError(undefined);
+    setCurrentPassword("");
+    setNewPassword("");
+    setDialogProperty("delete");
+    openFieldDialog("delete");
+    setDialogOpen(true);
+  }, [openFieldDialog]);
+  const handleClickRequestData = useCallback(async () => {
+    if (keyboardTriggerRef.current) {
+      keyboardTriggerRef.current.focus();
+    }
+    setDialogError(undefined);
+    setCurrentPasswordError(undefined);
+    setCurrentPassword("");
+    setNewPassword("");
+    setDialogProperty("data");
+    openFieldDialog("data");
+    setDialogOpen(true);
+  }, [openFieldDialog]);
+
   const handleSubmit = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value;
@@ -413,6 +509,56 @@ const Profile = React.memo((): JSX.Element | null => {
           }
         }
       }
+      if (dialogProperty === "delete") {
+        if (newValue !== username) {
+          setDialogError(usernameWrong);
+          return false;
+        }
+        const deleteCurrentUser = (
+          await import("../impower-auth/utils/deleteCurrentUser")
+        ).default;
+        try {
+          await deleteCurrentUser(currentPassword);
+          router.push("/signup");
+        } catch (error) {
+          const logError = (await import("../impower-logger/utils/logError"))
+            .default;
+          switch (error.code) {
+            case "auth/invalid-password":
+              setCurrentPasswordError(passwordInvalid);
+              return false;
+            case "auth/wrong-password":
+            case "auth/internal-error":
+              setCurrentPasswordError(passwordWrong);
+              return false;
+            default:
+              toastDispatch(toastTop(error.message, "error"));
+              logError("Auth", error);
+              return false;
+          }
+        }
+      }
+      if (dialogProperty === "data") {
+        if (newValue !== username) {
+          setDialogError(usernameWrong);
+          return false;
+        }
+        const DataStateWrite = (
+          await import("../impower-data-state/classes/dataStateWrite")
+        ).default;
+        try {
+          await new DataStateWrite("exports", uid).update({
+            t: timestampServerValue() as number,
+            status: "requested",
+          });
+          setRequestedData(true);
+        } catch (error) {
+          const logError = (await import("../impower-logger/utils/logError"))
+            .default;
+          toastDispatch(toastTop(error.message, "error"));
+          logError("Auth", error);
+        }
+      }
       return true;
     },
     [
@@ -424,6 +570,8 @@ const Profile = React.memo((): JSX.Element | null => {
       newEmail,
       toastDispatch,
       newPassword,
+      username,
+      router,
     ]
   );
   const handleProfilePropertyBlur = useCallback(
@@ -467,11 +615,16 @@ const Profile = React.memo((): JSX.Element | null => {
     setNewPasswordReveal(!newPasswordReveal);
   }, [newPasswordReveal]);
 
-  const requiresRecentAuth =
-    dialogProperty === "password" || dialogProperty === "email";
-
   const theme = useTheme();
 
+  const UsernameDialogTextFieldInputProps = useMemo(
+    () => ({
+      style: {
+        backgroundColor: "transparent",
+      },
+    }),
+    []
+  );
   const CurrentPasswordDialogTextFieldInputProps = useMemo(
     () => ({
       style: {
@@ -578,6 +731,12 @@ const Profile = React.memo((): JSX.Element | null => {
             getInspector={getProfileInspector}
             onPropertyBlur={handleProfilePropertyBlur}
           />
+          <NextLink href={`/u/${username}`} passHref prefetch={false}>
+            <StyledAdvancedButton
+              variant="outlined"
+              fullWidth
+            >{`View Public Profile`}</StyledAdvancedButton>
+          </NextLink>
           <StyledDivider />
           <StyledHeaderTypography variant="h6">{`Your Settings`}</StyledHeaderTypography>
           <InspectorForm
@@ -592,6 +751,38 @@ const Profile = React.memo((): JSX.Element | null => {
             onPropertyChange={handleSettingsPropertyChange}
           />
           <StyledDivider />
+          <StyledAccordion>
+            <StyledAccordionSummary
+              expandIcon={
+                <FontIcon
+                  aria-label={`Expand`}
+                  color={theme.palette.grey[600]}
+                  size={24}
+                >
+                  <AngleDownRegularIcon />
+                </FontIcon>
+              }
+              aria-controls="panel1a-content"
+              id="panel1a-header"
+            >
+              <StyledHeaderTypography variant="h6">{`Advanced`}</StyledHeaderTypography>
+            </StyledAccordionSummary>
+            <StyledAccordionDetails>
+              <StyledAdvancedButton
+                variant="outlined"
+                color="error"
+                onClick={handleClickDeleteAccount}
+              >{`Delete Account`}</StyledAdvancedButton>
+              <StyledAdvancedButton
+                variant="outlined"
+                color="warning"
+                disabled={requestedData}
+                onClick={handleClickRequestData}
+              >
+                {requestedData ? `Requested Data` : `Request Data`}
+              </StyledAdvancedButton>
+            </StyledAccordionDetails>
+          </StyledAccordion>
         </StyledPaper>
       </StyledContainer>
       {dialogOpen !== undefined && (
@@ -604,9 +795,22 @@ const Profile = React.memo((): JSX.Element | null => {
           errorText={dialogError}
           onClose={handleCloseDialog}
           onChange={handleSubmit}
-          disableEnforceKeyboardFocus={requiresRecentAuth}
+          disableEnforceKeyboardFocus={
+            dialogProperty === "password" ||
+            dialogProperty === "email" ||
+            dialogProperty === "delete"
+          }
+          disableSave={
+            (dialogProperty === "password" && !newPassword) ||
+            (dialogProperty === "email" && !currentPassword) ||
+            (dialogProperty === "delete" && !currentPassword)
+          }
           DialogTextFieldComponent={
-            dialogProperty === "password" ? StyledDialogTextField : undefined
+            dialogProperty === "password" ||
+            dialogProperty === "delete" ||
+            dialogProperty === "data"
+              ? StyledDialogTextField
+              : undefined
           }
           DialogTextFieldProps={
             dialogProperty === "password"
@@ -614,20 +818,29 @@ const Profile = React.memo((): JSX.Element | null => {
                   label: `Current Password`,
                   type: currentPasswordReveal ? "text" : "password",
                 }
+              : dialogProperty === "delete" || dialogProperty === "data"
+              ? {
+                  label: `Username`,
+                }
               : undefined
           }
           InputProps={
             dialogProperty === "password"
               ? CurrentPasswordDialogTextFieldInputProps
+              : dialogProperty === "delete" || dialogProperty === "data"
+              ? UsernameDialogTextFieldInputProps
               : undefined
           }
-          disableSave={
-            (dialogProperty === "password" && !newPassword) ||
-            (dialogProperty === "email" && !currentPassword)
+          saveLabel={
+            dialogProperty === "delete"
+              ? `Delete`
+              : dialogProperty === "data"
+              ? `Request`
+              : undefined
           }
           renderHelperText={renderHelperText}
         >
-          {dialogProperty === "email" && (
+          {(dialogProperty === "email" || dialogProperty === "delete") && (
             <>
               <StyledDialogTextField
                 variant="filled"
@@ -639,6 +852,7 @@ const Profile = React.memo((): JSX.Element | null => {
                 onChange={handleChangeCurrentPassword}
                 error={Boolean(currentPasswordError)}
                 helperText={currentPasswordError}
+                autoComplete="new-password"
               />
               <StyledForgotPasswordArea>
                 <StyledForgotPasswordLink
@@ -649,6 +863,17 @@ const Profile = React.memo((): JSX.Element | null => {
                 </StyledForgotPasswordLink>
               </StyledForgotPasswordArea>
             </>
+          )}
+          {dialogProperty === "delete" && (
+            <StyledWarningInfoArea>
+              <StyledWarningTypography>{`You will no longer have access to any of your games and resources.`}</StyledWarningTypography>
+              <StyledWarningTypography>{`This action cannot be undone.`}</StyledWarningTypography>
+            </StyledWarningInfoArea>
+          )}
+          {dialogProperty === "data" && (
+            <StyledWarningInfoArea>
+              <StyledWarningTypography>{`It can take up to 30 days to process your request and package your data. If you post any more data while we are processing your request, that new data may not be included in the generated archive. You can only make one data request at a time.`}</StyledWarningTypography>
+            </StyledWarningInfoArea>
           )}
           {dialogProperty === "password" && (
             <>

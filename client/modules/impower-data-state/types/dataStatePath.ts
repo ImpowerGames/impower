@@ -17,6 +17,9 @@ export type InfoReadPath = [".info", "connected"];
 
 export type MessageWritePath = ["messages", string];
 
+export type ExportReadPath = ["exports", string];
+export type ExportWritePath = ["exports", string];
+
 export type PhraseAggReadPath =
   | [...PhraseDocumentPath, "agg", "suggestions", "count"]
   | [...PhraseDocumentPath, "agg", "score"]
@@ -226,6 +229,7 @@ export type InteractiveAggWritePath =
   | [...InteractiveDocumentPath, "agg", ActivityType];
 
 export type AggWritePath =
+  | ExportWritePath
   | TagAggWritePath
   | PageAggWritePath
   | UserAggWritePath
@@ -235,6 +239,7 @@ export type AggWritePath =
   | InteractiveAggWritePath;
 
 export type DataStateReadPath =
+  | ExportReadPath
   | UserDeletedSubmissionsReadPath
   | InfoReadPath
   | UserAggReadPath
@@ -258,6 +263,7 @@ export type DataStateReadPath =
 
 export type DataStateWritePath =
   | MessageWritePath
+  | ExportWritePath
   | TagAggWritePath
   | PageAggWritePath
   | UserAggWritePath
