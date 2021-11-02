@@ -5,7 +5,7 @@ const getContributionPostOptionLabels = (props: {
 }): {
   [option: string]: string;
 } => {
-  const { delisted, isCreator, followedUser } = props;
+  const { delisted, isCreator } = props;
 
   const postCreatorOptions = delisted
     ? {}
@@ -22,7 +22,6 @@ const getContributionPostOptionLabels = (props: {
       };
 
   const postNotCreatorOptions = {
-    FollowUser: followedUser ? "Following User" : "Follow User",
     Report: "Report",
   };
 

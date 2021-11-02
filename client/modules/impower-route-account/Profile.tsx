@@ -38,7 +38,7 @@ const StyledTitleTypography = styled(Typography)`
   margin-bottom: ${(props): string => props.theme.spacing(1)};
 `;
 
-const StyledFollowerDataTitleTypography = styled(Typography)`
+const StyledSocialTitleTypography = styled(Typography)`
   text-align: left;
   font-weight: ${(props): number => props.theme.fontWeight.semiBold};
 `;
@@ -49,11 +49,11 @@ const StyledFollowerDataLink = styled(Link)`
   cursor: pointer;
 `;
 
-const StyledFollowerDataContainer = styled(Container)`
+const StyledSocialContainer = styled(Container)`
   padding-top: ${(props): string => props.theme.spacing(4)};
 `;
 
-const StyledFollowerDataEntryContainer = styled(Container)`
+const StyledSocialEntryContainer = styled(Container)`
   display: flex;
 `;
 
@@ -79,7 +79,7 @@ interface FollowerDataLinkProps {
   onClick: () => void;
 }
 
-const FollowerDataLink = React.memo(
+const SocialLink = React.memo(
   (props: FollowerDataLinkProps): JSX.Element | null => {
     const { data, onClick } = props;
     const maxNamesToDisplay = 3;
@@ -189,73 +189,9 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
   const { uid, username, bio, icon, hex, isCurrentUser } = props;
   const timeLoaded = useMemo(() => new Date().getTime(), []);
   const [popupDisplayed, setPopupDisplayed] = useState<boolean>(false);
-  const [followers, setFollowers] = useState<LinkedUserData[]>();
-  const [following, setFollowing] = useState<LinkedUserData[]>();
   const [connections, setConnections] = useState<LinkedUserData[]>();
   const [popupHeader, setPopupHeader] = useState<string>();
   const [popupData, setPopupData] = useState<LinkedUserData[]>();
-
-  const k_myFollowersLabel = "My Followers";
-  const k_myFollowingLabel = "I'm Following";
-  const k_myConnectionsLabel = "My Connections";
-
-  const handleFollowers = useCallback(async (): Promise<void> => {
-    const DataStateRead = (
-      await import("../impower-data-state/classes/dataStateRead")
-    ).default;
-    const snapshot = await new DataStateRead(
-      "users",
-      uid,
-      "agg",
-      "follows",
-      "data"
-    ).get();
-    const data: { [id: string]: AggData } = snapshot.val();
-    if (!data) {
-      return;
-    }
-    const followerData = [];
-    Object.values(data)?.forEach((element) => {
-      if (element.a) {
-        const elementData: LinkedUserData = {
-          username: element.a.u,
-          icon: element.a.i,
-          hex: element.a.h,
-        };
-        followerData.push(elementData);
-      }
-    });
-    setFollowers(followerData);
-  }, [uid]);
-
-  const handleFollowing = useCallback(async (): Promise<void> => {
-    const DataStateRead = (
-      await import("../impower-data-state/classes/dataStateRead")
-    ).default;
-    const snapshot = await new DataStateRead(
-      "users",
-      uid,
-      "agg",
-      "my_follows",
-      "data"
-    ).get();
-    const data: { [id: string]: AggData } = snapshot.val();
-    if (!data) {
-      return;
-    }
-    const followingData = [];
-    Object.values(data)?.forEach((element) => {
-      if (element.a) {
-        const elementData: LinkedUserData = {
-          username: element.a.u,
-          icon: element.a.i,
-          hex: element.a.h,
-        };
-        followingData.push(elementData);
-      }
-    });
-    setFollowing(followingData);
-  }, [uid]);
 
   const handleConnections = useCallback(async (): Promise<void> => {
     const DataStateRead = (
@@ -288,18 +224,9 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
 
   useEffect(() => {
     if (isCurrentUser && uid && timeLoaded) {
-      handleFollowers();
-      handleFollowing();
       handleConnections();
     }
-  }, [
-    timeLoaded,
-    handleFollowers,
-    handleFollowing,
-    handleConnections,
-    isCurrentUser,
-    uid,
-  ]);
+  }, [timeLoaded, handleConnections, isCurrentUser, uid]);
 
   const displayPopup = (data: LinkedUserData[], header: string): void => {
     setPopupDisplayed(true);
@@ -307,45 +234,12 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
     setPopupHeader(header);
   };
 
-  const handleFollowerClick = (): void => {
-    displayPopup(followers, k_myFollowersLabel);
-  };
-
-  const handleFollowingClick = (): void => {
-    displayPopup(following, k_myFollowingLabel);
-  };
-
   const handleConnectedClick = (): void => {
-    displayPopup(connections, k_myConnectionsLabel);
+    displayPopup(connections, `My Connections`);
   };
 
   const handleClose = (): void => {
     setPopupDisplayed(false);
-  };
-
-  const RenderMyFollowData = (): JSX.Element => {
-    return (
-      <StyledFollowerDataContainer maxWidth="sm">
-        <StyledFollowerDataEntryContainer>
-          <StyledFollowerDataTitleTypography variant="body2">
-            {k_myFollowersLabel}:
-          </StyledFollowerDataTitleTypography>
-          <FollowerDataLink data={followers} onClick={handleFollowerClick} />
-        </StyledFollowerDataEntryContainer>
-        <StyledFollowerDataEntryContainer>
-          <StyledFollowerDataTitleTypography variant="body2">
-            {k_myFollowingLabel}:
-          </StyledFollowerDataTitleTypography>
-          <FollowerDataLink data={following} onClick={handleFollowingClick} />
-        </StyledFollowerDataEntryContainer>
-        <StyledFollowerDataEntryContainer>
-          <StyledFollowerDataTitleTypography variant="body2">
-            {k_myConnectionsLabel}:
-          </StyledFollowerDataTitleTypography>
-          <FollowerDataLink data={connections} onClick={handleConnectedClick} />
-        </StyledFollowerDataEntryContainer>
-      </StyledFollowerDataContainer>
-    );
   };
 
   return (
@@ -356,10 +250,23 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
         </Avatar>
       </IconButton>
       <StyledContainer maxWidth="sm">
-        <StyledTitleTypography variant="h5">{username}</StyledTitleTypography>
-        <StyledTitleTypography variant="body2">{bio}</StyledTitleTypography>
+        {username && (
+          <StyledTitleTypography variant="h5">{username}</StyledTitleTypography>
+        )}
+        {bio && (
+          <StyledTitleTypography variant="body2">{bio}</StyledTitleTypography>
+        )}
       </StyledContainer>
-      {isCurrentUser && RenderMyFollowData()}
+      {isCurrentUser && (
+        <StyledSocialContainer maxWidth="sm">
+          <StyledSocialEntryContainer>
+            <StyledSocialTitleTypography variant="body2">
+              {`My Connections`}:
+            </StyledSocialTitleTypography>
+            <SocialLink data={connections} onClick={handleConnectedClick} />
+          </StyledSocialEntryContainer>
+        </StyledSocialContainer>
+      )}
       <LinkedUserDataDialog
         data={popupData}
         header={popupHeader}

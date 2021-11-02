@@ -1,7 +1,5 @@
-import BellRegularIcon from "../../../resources/icons/regular/bell.svg";
 import FlagRegularIcon from "../../../resources/icons/regular/flag.svg";
 import TrashCanRegularIcon from "../../../resources/icons/regular/trash-can.svg";
-import BellSolidIcon from "../../../resources/icons/solid/bell.svg";
 import getPitchShareOptions from "./getPitchShareOptions";
 
 const getPitchPostOptions = (props: {
@@ -14,7 +12,7 @@ const getPitchPostOptions = (props: {
     icon: React.ComponentType;
   };
 } => {
-  const { delisted, isCreator, followedUser } = props;
+  const { delisted, isCreator } = props;
 
   const postCreatorOptions = delisted
     ? {}
@@ -28,10 +26,6 @@ const getPitchPostOptions = (props: {
   const postNotCreatorOptions = delisted
     ? {}
     : {
-        FollowUser: {
-          label: followedUser ? "Following User" : "Follow User",
-          icon: followedUser ? BellSolidIcon : BellRegularIcon,
-        },
         Report: {
           label: "Report",
           icon: FlagRegularIcon,
