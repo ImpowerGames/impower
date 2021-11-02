@@ -1,11 +1,12 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
+import Divider from "@material-ui/core/Divider";
 import FilledInput from "@material-ui/core/FilledInput";
 import FormHelperText from "@material-ui/core/FormHelperText";
 import IconButton from "@material-ui/core/IconButton";
+import Tab from "@material-ui/core/Tab";
 import Typography from "@material-ui/core/Typography";
-import dynamic from "next/dynamic";
 import React, {
   useCallback,
   useContext,
@@ -36,8 +37,10 @@ import {
 } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { FontIcon } from "../../impower-icon";
-import { DynamicLoadingButton, TextField } from "../../impower-route";
+import { DynamicLoadingButton, Tabs, TextField } from "../../impower-route";
 import HelpButton from "../../impower-route/components/elements/HelpButton";
+import Markdown from "../../impower-route/components/elements/Markdown";
+import MarkdownHelp from "../../impower-route/components/elements/MarkdownHelp";
 import AspectRatioBox from "../../impower-route/components/inputs/AspectRatioBox";
 import AudioPreview from "../../impower-route/components/inputs/AudioPreview";
 import CropDialog from "../../impower-route/components/inputs/CropDialog";
@@ -57,10 +60,54 @@ import { getPreviewAspectRatio } from "../utils/getPreviewAspectRatio";
 import { getPreviewInnerStyle } from "../utils/getPreviewInnerStyle";
 import { getTruncatedContent } from "../utils/getTruncatedContent";
 
-const InfoHelp = dynamic(
-  () => import("../../impower-route/components/elements/InfoHelp"),
-  { ssr: false }
-);
+const truncationLimit = 300;
+
+const readMoreHelpDescription = `A 'Read More' break will be placed at the first blank line or last space before ${truncationLimit} characters (indicated by the ⋮ symbol). Make sure to include an interesting excerpt or summary above this break!`;
+
+const markdownHelpButtonLabel = `Format your text with markdown`;
+const markdownHelpTitle = `Formatting`;
+const markdownHelpCaption = `First Level Header
+==================
+
+Second Level Header
+-------------------
+    
+One asterisk for *italic* text.
+
+Two asterisks for **bold** text.
+
+Three asterisks for ***italic and bold*** text.
+
+Two tildas for ~~strikethrough~~ text.
+
+> Angle brackets for block quotes
+
+Dashes for lists:
+
+- First item
+- Second item
+- Third item
+  - Nested item
+
+\`\`\` 
+Backticks for code blocks 
+\`\`\`
+
+Dashes and pipes for tables:
+
+First Header  | Second Header
+------------- | -------------
+Content Cell  | Content Cell
+Content Cell  | Content Cell
+
+Blank line followed by dashes for a line separator:
+
+------------------------------
+
+[A Link](https://impower.app)
+    
+![An Image](https://impower.app/logo.png)
+`;
 
 const discardInfo = {
   title: "Discard unsaved changes?",
@@ -187,9 +234,24 @@ const StyledIconArea = styled.label`
   padding-right: ${(props): string => props.theme.spacing(1)};
 `;
 
-const StyledTextInputArea = styled.div`
+const StyledTextWriteArea = styled.div`
   position: relative;
   min-height: ${(props): string => props.theme.spacing(7)};
+`;
+
+const StyledTextPreviewArea = styled.div`
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+`;
+
+const StyledTextPreviewContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: ${(props): string => props.theme.spacing(0, 3, 3, 3)};
 `;
 
 const StyledTextInputContent = styled.div`
@@ -389,6 +451,27 @@ const StyledMark = styled.mark`
   padding-left: 1px;
 `;
 
+const StyledReadMoreDivider = styled(Divider)`
+  margin: ${(props): string => props.theme.spacing(2, 0)};
+`;
+
+const StyledHelpDivider = styled(Divider)`
+  width: 100%;
+  background-color: white;
+  opacity: 0.3;
+  margin: ${(props): string => props.theme.spacing(2, 0)};
+`;
+
+const StyledReadMoreDescriptionTypography = styled(Typography)`
+  opacity: 0.7;
+  font-weight: 400;
+  margin: ${(props): string => props.theme.spacing(2, 0)};
+`;
+
+const StyledTabs = styled(Tabs)``;
+
+const StyledTab = styled(Tab)``;
+
 const requestTimeout = (call: () => unknown, delay: number): number => {
   const start = new Date().getTime();
   const loop = (): void => {
@@ -451,6 +534,10 @@ const CreateContributionForm = React.memo(
     const submittingRef = useRef(false);
     const [submitting, setSubmitting] = useState(submittingRef.current);
     const [cropDialogOpen, setCropDialogOpen] = useState(false);
+    const [tabIndex, setTabIndex] = useState(0);
+    const handleChange = useCallback((e: React.ChangeEvent, value: number) => {
+      setTabIndex(value);
+    }, []);
 
     const type = doc?.contributionType || "story";
     const newContributionId = `${uid}-${type?.toLowerCase()}`;
@@ -518,29 +605,31 @@ const CreateContributionForm = React.memo(
     );
 
     const characterCountLimit = type === "story" ? 10000 : 300;
-    const truncationLimit = 300;
     const truncatedContent = getTruncatedContent(contentState, truncationLimit);
     const showTruncationPreview =
       type === "story" && contentState.length > truncationLimit;
 
     const helperText = useMemo(
-      () =>
-        showTruncationPreview ? (
-          <HelpButton
-            id={`create-contribution-dialog`}
-            fontSize={theme.typography.caption.fontSize}
-            label={`'Read More' break will be placed at ⋮`}
-            style={{ pointerEvents: "auto" }}
+      () => (
+        <HelpButton
+          id={`create-contribution-dialog`}
+          fontSize={theme.typography.caption.fontSize}
+          label={markdownHelpButtonLabel}
+          style={{ pointerEvents: "auto" }}
+        >
+          <MarkdownHelp
+            title={markdownHelpTitle}
+            caption={markdownHelpCaption}
+            alignment="center"
           >
-            <InfoHelp
-              title={`The 'Read More' break`}
-              description={`The 'Read More' break is where your story will be truncated when viewing it from a pitch's contribution list. It is automatically placed at the first blank line or last space before ${truncationLimit} characters.`}
-              caption={`Make sure to include an interesting excerpt or summary above this break!`}
-              alignment="center"
-            />
-          </HelpButton>
-        ) : undefined,
-      [showTruncationPreview, theme.typography.caption.fontSize]
+            <StyledReadMoreDescriptionTypography variant="subtitle2">
+              {readMoreHelpDescription}
+            </StyledReadMoreDescriptionTypography>
+            <StyledHelpDivider />
+          </MarkdownHelp>
+        </HelpButton>
+      ),
+      [theme.typography.caption.fontSize]
     );
 
     const counterText = `${
@@ -949,6 +1038,7 @@ const CreateContributionForm = React.memo(
 
     const inputTopPadding = 19;
     const headerHeight = 56;
+    const tabsHeight = type === "story" ? 48 : 0;
     const fileInputButtonHeight = type === "image" || type === "audio" ? 48 : 0;
     const footerHeight = fileInputButtonHeight;
 
@@ -967,9 +1057,9 @@ const CreateContributionForm = React.memo(
 
     const forceOverflowStyle = useMemo(
       () => ({
-        minHeight: `calc(100vh - ${inputTopPadding}px - ${headerHeight}px - ${footerHeight}px + 1px)`,
+        minHeight: `calc(100vh - ${inputTopPadding}px - ${headerHeight}px - ${tabsHeight}px - ${footerHeight}px + 1px)`,
       }),
-      [footerHeight]
+      [footerHeight, tabsHeight]
     );
 
     const storyStyle: React.CSSProperties = useMemo(
@@ -1209,34 +1299,62 @@ const CreateContributionForm = React.memo(
                 </StyledHeaderContainer>
               </StyledHeaderContent>
             </StyledHeader>
-            <StyledFormArea>
-              <StyledTextInputArea
-                onClick={handleOutsideClick}
-                style={textInputAreaStyle}
+            {type === "story" && (
+              <StyledTabs
+                value={tabIndex}
+                onChange={handleChange}
+                variant="fullWidth"
               >
-                <StyledTextInputContent style={textInputContentStyle}>
-                  {doc === undefined ? (
-                    <Fallback />
-                  ) : (
-                    <StyledTextField
-                      inputRef={handleInputRef}
-                      className={variant}
-                      variant={variant}
-                      InputComponent={InputComponent}
-                      value={contentState}
-                      size={size}
-                      color="secondary"
-                      placeholder={placeholder}
-                      multiline
-                      fullWidth
-                      InputProps={InputProps}
-                      inputProps={inputProps}
-                      onChange={handleInputChange}
-                      onKeyDown={handleKeyDown}
-                    />
-                  )}
-                </StyledTextInputContent>
-              </StyledTextInputArea>
+                <StyledTab value={0} label={`WRITE`} />
+                <StyledTab value={1} label={`PREVIEW`} />
+              </StyledTabs>
+            )}
+            <StyledFormArea>
+              {type === "story" && tabIndex === 1 ? (
+                <StyledTextPreviewArea>
+                  <StyledTextPreviewContent>
+                    {showTruncationPreview ? (
+                      <>
+                        <Markdown>{truncatedContent}</Markdown>
+                        <StyledReadMoreDivider>{`READ MORE`}</StyledReadMoreDivider>
+                        <Markdown>
+                          {contentState.substring(truncatedContent.length + 1)}
+                        </Markdown>
+                      </>
+                    ) : (
+                      <Markdown>{contentState}</Markdown>
+                    )}
+                  </StyledTextPreviewContent>
+                </StyledTextPreviewArea>
+              ) : (
+                <StyledTextWriteArea
+                  onClick={handleOutsideClick}
+                  style={textInputAreaStyle}
+                >
+                  <StyledTextInputContent style={textInputContentStyle}>
+                    {doc === undefined ? (
+                      <Fallback />
+                    ) : (
+                      <StyledTextField
+                        inputRef={handleInputRef}
+                        className={variant}
+                        variant={variant}
+                        InputComponent={InputComponent}
+                        value={contentState}
+                        size={size}
+                        color="secondary"
+                        placeholder={placeholder}
+                        multiline
+                        fullWidth
+                        InputProps={InputProps}
+                        inputProps={inputProps}
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyDown}
+                      />
+                    )}
+                  </StyledTextInputContent>
+                </StyledTextWriteArea>
+              )}
               {(type === "pitch" || type === "story") && (
                 <StyledFormHelperText
                   component="div"

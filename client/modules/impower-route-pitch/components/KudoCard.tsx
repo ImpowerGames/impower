@@ -28,7 +28,9 @@ const StyledCard = styled(Card)`
   transition: opacity 0.3s ease;
 `;
 
-const StyledCardActionAreaContent = styled.div``;
+const StyledCardActionAreaContent = styled.div`
+  max-width: 100%;
+`;
 
 const StyledCardHeader = styled(CardHeader)`
   padding: ${(props): string => props.theme.spacing(2, 3)};

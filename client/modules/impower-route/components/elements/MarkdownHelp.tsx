@@ -1,6 +1,7 @@
 import styled from "@emotion/styled";
-import { Typography } from "@material-ui/core";
-import React from "react";
+import { Tab, Typography } from "@material-ui/core";
+import React, { PropsWithChildren, useCallback, useState } from "react";
+import Tabs from "../layouts/Tabs";
 import Markdown from "./Markdown";
 
 const StyledMarkdownHelp = styled.div`
@@ -8,39 +9,50 @@ const StyledMarkdownHelp = styled.div`
   flex-direction: column;
   text-transform: none;
   border-radius: inherit;
-  max-width: 800px;
+  max-width: 100%;
+  width: 480px;
   color: white;
   align-items: center;
+  margin: auto;
 `;
 
-const StyledDescriptionTypography = styled(Typography)``;
+const StyledTitleTypography = styled(Typography)`
+  text-align: center;
+`;
+
+const StyledDescriptionTypography = styled(Typography)`
+  margin-bottom: ${(props): string => props.theme.spacing(2)};
+  text-align: center;
+`;
 
 const StyledComparisonArea = styled.div`
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
-  justify-content: center;
   line-height: 1.25;
   font-size: 14px;
   font-weight: normal;
-  margin-top: ${(props): string => props.theme.spacing(2.5)};
+  margin-top: ${(props): string => props.theme.spacing(2)};
+  width: 100%;
 `;
 
 const StyledInputArea = styled.div`
   padding: 22px 8px;
   font-family: ${(props): string => props.theme.fontFamily.monospace};
-  box-shadow: 0 0 0 1px ${(props): string => props.theme.colors.white10};
 `;
 
 const StyledOutputArea = styled.div`
   flex: 1;
   padding: ${(props): string => props.theme.spacing(1)};
-  box-shadow: 0 0 0 1px ${(props): string => props.theme.colors.white10};
   min-width: 300px;
   ${(props): string => props.theme.breakpoints.down("md")} {
     min-width: 200px;
   }
 `;
+
+const StyledTabs = styled(Tabs)``;
+
+const StyledTab = styled(Tab)``;
 
 interface MarkdownHelpProps {
   title?: string;
@@ -49,34 +61,58 @@ interface MarkdownHelpProps {
   alignment?: "flex-start" | "center" | "flex-end";
 }
 
-const MarkdownHelp = (props: MarkdownHelpProps): JSX.Element => {
-  const { description, caption, alignment } = props;
+const MarkdownHelp = (
+  props: PropsWithChildren<MarkdownHelpProps>
+): JSX.Element => {
+  const { title, description, caption, alignment, children } = props;
+  const [tabIndex, setTabIndex] = useState(0);
+  const handleChange = useCallback((e: React.ChangeEvent, value: number) => {
+    setTabIndex(value);
+  }, []);
   return (
     <StyledMarkdownHelp style={{ alignItems: alignment }}>
-      <StyledDescriptionTypography variant="body1">
-        {description}
-      </StyledDescriptionTypography>
+      {title && (
+        <StyledTitleTypography variant="h6">{title}</StyledTitleTypography>
+      )}
+      {children}
+      {description && (
+        <StyledDescriptionTypography variant="body1">
+          {description}
+        </StyledDescriptionTypography>
+      )}
+      <StyledTabs
+        value={tabIndex}
+        onChange={handleChange}
+        variant="fullWidth"
+        indicatorColor="white"
+      >
+        <StyledTab value={0} label={`WRITE`} />
+        <StyledTab value={1} label={`PREVIEW`} />
+      </StyledTabs>
       <StyledComparisonArea>
-        <StyledInputArea>
-          {caption.split("\n").map((line, index) =>
-            line.trim().length > 0 ? (
-              <div
-                key={index}
-                style={{
-                  margin: 0,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
-                {line}
-              </div>
-            ) : (
-              <br key={index} />
-            )
-          )}
-        </StyledInputArea>
-        <StyledOutputArea>
-          <Markdown darkmode>{caption}</Markdown>
-        </StyledOutputArea>
+        {tabIndex === 0 ? (
+          <StyledInputArea>
+            {caption.split("\n").map((line, index) =>
+              line.trim().length > 0 ? (
+                <div
+                  key={index}
+                  style={{
+                    margin: 0,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {line}
+                </div>
+              ) : (
+                <br key={index} />
+              )
+            )}
+          </StyledInputArea>
+        ) : (
+          <StyledOutputArea>
+            <Markdown darkmode>{caption}</Markdown>
+          </StyledOutputArea>
+        )}
       </StyledComparisonArea>
     </StyledMarkdownHelp>
   );

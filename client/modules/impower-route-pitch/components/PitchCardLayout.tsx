@@ -61,6 +61,7 @@ const StyledCardActionArea = styled(CardActionArea)<{
 const StyledCardActionAreaContent = styled.div`
   pointer-events: auto;
   flex: 1;
+  max-width: 100%;
 `;
 
 const StyledScrollbarSpacer = styled.div`

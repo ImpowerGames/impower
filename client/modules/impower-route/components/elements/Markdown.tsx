@@ -61,6 +61,8 @@ const StyledMarkdown = styled.div<{ darkmode?: string }>`
           : props.theme.colors.black10};
     padding: 8px 16px;
     overflow: auto;
+    touch-action: auto !important;
+    overscroll-behavior: auto !important;
   }
 
   blockquote {

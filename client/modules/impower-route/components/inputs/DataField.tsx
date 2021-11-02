@@ -68,6 +68,10 @@ Blank line followed by dashes for a line separator:
 
 ------------------------------
 
+\`\`\` 
+Backticks for code blocks 
+\`\`\`
+
 Dashes and pipes for tables:
 
 First Header  | Second Header

@@ -16,6 +16,7 @@ const StyledPostLayout = styled.div`
   background-color: white;
   ${(props): string => props.theme.breakpoints.down("sm")} {
     border-radius: 0;
+    max-width: 100%;
   }
 
   &.hide-scrollbar::-webkit-scrollbar-track {
@@ -35,6 +36,7 @@ const StyledPostContent = styled.div`
   flex-direction: column;
   height: fit-content;
   min-height: 100%;
+  max-width: 100%;
 `;
 
 const StyledForceOverflow = styled.div`
