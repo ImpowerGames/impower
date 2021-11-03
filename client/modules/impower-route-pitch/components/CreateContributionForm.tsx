@@ -100,7 +100,7 @@ First Header  | Second Header
 Content Cell  | Content Cell
 Content Cell  | Content Cell
 
-Blank line followed by dashes for a line separator:
+Blank line followed by dashes or underscores for a line separator:
 
 ------------------------------
 
