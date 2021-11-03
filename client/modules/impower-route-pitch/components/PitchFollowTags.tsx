@@ -23,6 +23,15 @@ import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
 
 const getTagLink = (tag: string): string => `/pitch/search/${escapeURI(tag)}`;
 
+const StyledContainer = styled.div`
+  width: 100%;
+  margin: auto;
+  max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+`;
+
 const StyledTypography = styled(Typography)`
   font-weight: 600;
 `;
@@ -315,40 +324,52 @@ const PitchFollowTags = React.memo(
       configState?.gameTags || ConfigCache.instance.params?.gameTags;
 
     if (my_follows === undefined) {
-      return <Fallback disableShrink />;
+      return (
+        <StyledContainer>
+          <Fallback disableShrink />
+        </StyledContainer>
+      );
     }
 
     return (
-      <StyledPitchFollowTags initial={0} animate={1} duration={0.1}>
-        <StyledPaper>
-          <StyledInfoArea>
-            <StyledTitleTypography variant="h6">
-              {`Any specific genres or subjects you enjoy?`}
-            </StyledTitleTypography>
-            <StyledDescriptionTypography variant="body2" color="textSecondary">
-              {`When you follow a tag, related pitches will appear in your Following Feed`}
-            </StyledDescriptionTypography>
-          </StyledInfoArea>
-          <Divider />
-          {Object.keys(gameTags).map((category) => (
-            <PitchFollowTagsList key={category} category={category} />
-          ))}
-        </StyledPaper>
-        {Object.entries(my_follows || {}).filter(([, v]) => v.g === "tags")
-          ?.length > 0 && (
-          <StyledReloadArea>
-            <StyledDescriptionTypography variant="body2" color="textSecondary">
-              {`Done following?`}
-            </StyledDescriptionTypography>
-            <StyledButton
-              variant="contained"
-              color="primary"
-              onClick={handleReload}
-            >{`Show me some pitches!`}</StyledButton>
-          </StyledReloadArea>
-        )}
-        <TagIconLoader />
-      </StyledPitchFollowTags>
+      <StyledContainer>
+        <StyledPitchFollowTags initial={0} animate={1} duration={0.1}>
+          <StyledPaper>
+            <StyledInfoArea>
+              <StyledTitleTypography variant="h6">
+                {`Any specific genres or subjects you enjoy?`}
+              </StyledTitleTypography>
+              <StyledDescriptionTypography
+                variant="body2"
+                color="textSecondary"
+              >
+                {`When you follow a tag, related pitches will appear in your Following Feed`}
+              </StyledDescriptionTypography>
+            </StyledInfoArea>
+            <Divider />
+            {Object.keys(gameTags).map((category) => (
+              <PitchFollowTagsList key={category} category={category} />
+            ))}
+          </StyledPaper>
+          {Object.entries(my_follows || {}).filter(([, v]) => v.g === "tags")
+            ?.length > 0 && (
+            <StyledReloadArea>
+              <StyledDescriptionTypography
+                variant="body2"
+                color="textSecondary"
+              >
+                {`Done following?`}
+              </StyledDescriptionTypography>
+              <StyledButton
+                variant="contained"
+                color="primary"
+                onClick={handleReload}
+              >{`Show me some pitches!`}</StyledButton>
+            </StyledReloadArea>
+          )}
+          <TagIconLoader />
+        </StyledPitchFollowTags>
+      </StyledContainer>
     );
   }
 );

@@ -1,5 +1,6 @@
 import {
   collection as _collection,
+  collectionGroup as _collectionGroup,
   endAt as _endAt,
   endBefore as _endBefore,
   getDocs as _getDocs,
@@ -88,9 +89,10 @@ class DataStoreQuery<T extends CollectionPath = CollectionPath> {
         }
       }
       logInfo("DataStore", `GET (${this.path})`, contraintsSummary);
-      const snapshot = await _getDocs(
-        _query(_collection(internal, this.path), ...this._constraints)
-      );
+      const ref = this._path[0]
+        ? _collection(internal, this.path)
+        : _collectionGroup(internal, this._path[this._path.length - 1]);
+      const snapshot = await _getDocs(_query(ref, ...this._constraints));
       DataStoreCache.instance.save(cacheKey, snapshot);
       const result = snapshot as QuerySnapshot<D>;
       logInfoEnd("DataStore", `GET (${this.path})`, contraintsSummary);
@@ -106,7 +108,9 @@ class DataStoreQuery<T extends CollectionPath = CollectionPath> {
       }
     }
     logInfo("DataStore", `GET (${this.path})`, contraintsSummary);
-    const ref = _collection(internal, this.path);
+    const ref = this._path[0]
+      ? _collection(internal, this.path)
+      : _collectionGroup(internal, this._path[this._path.length - 1]);
     const snapshot = await _getDocs(ref);
     DataStoreCache.instance.save(cacheKey, snapshot);
     const result = snapshot as QuerySnapshot<D>;

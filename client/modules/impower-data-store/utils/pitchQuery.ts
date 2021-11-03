@@ -8,10 +8,11 @@ const pitchQuery = async (
     goal?: PitchGoal;
     nsfw?: boolean;
     termsQuery?: string[];
+    creator?: string;
   },
   ...path: PitchedProjectCollectionPath
 ) => {
-  const { sort, goal, nsfw, termsQuery } = options;
+  const { sort, goal, nsfw, termsQuery, creator } = options;
 
   const DataStoreQuery = await (
     await import("../classes/dataStoreQuery")
@@ -27,6 +28,10 @@ const pitchQuery = async (
 
   if (!nsfw) {
     query = query.where("nsfw", "==", false);
+  }
+
+  if (creator) {
+    query = query.where("_createdBy", "==", creator);
   }
 
   if (sort === "rank") {

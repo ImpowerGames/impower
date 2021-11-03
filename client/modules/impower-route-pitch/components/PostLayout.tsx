@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
 import React, { PropsWithChildren } from "react";
 
-const StyledPostLayout = styled.div`
+const StyledPostLayout = styled.div<{ compact?: boolean }>`
   pointer-events: auto;
   flex: 1;
   width: 100%;
@@ -12,7 +12,8 @@ const StyledPostLayout = styled.div`
   max-height: 100%;
   position: relative;
   backface-visibility: hidden;
-  border-radius: ${(props): string => props.theme.spacing(1)};
+  border-radius: ${(props): string =>
+    props.compact ? "0" : props.theme.spacing(1)};
   background-color: white;
   ${(props): string => props.theme.breakpoints.down("sm")} {
     border-radius: 0;
@@ -72,6 +73,7 @@ interface PostLayoutProps {
   children?: React.ReactNode;
   style?: React.CSSProperties;
   scrollbarSpacerStyle?: React.CSSProperties;
+  compact?: boolean;
 }
 
 const PostLayout = React.forwardRef(
@@ -79,10 +81,16 @@ const PostLayout = React.forwardRef(
     props: PropsWithChildren<PostLayoutProps>,
     ref: React.ForwardedRef<HTMLDivElement>
   ): JSX.Element => {
-    const { children, scrollbarSpacerRef, scrollbarSpacerStyle, style } = props;
+    const {
+      children,
+      scrollbarSpacerRef,
+      scrollbarSpacerStyle,
+      style,
+      compact,
+    } = props;
 
     return (
-      <StyledPostLayout ref={ref} style={style}>
+      <StyledPostLayout ref={ref} style={style} compact={compact}>
         <StyledForceOverflow />
         <StyledPostContent>{children}</StyledPostContent>
         <StyledScrollbarSpacer

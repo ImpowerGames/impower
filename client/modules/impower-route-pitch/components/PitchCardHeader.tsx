@@ -343,19 +343,17 @@ const PitchCardHeader = React.memo(
     const participationCount =
       pitchGoal === PitchGoal.Collaboration ? connectionCount : undefined;
 
-    const mainTag = tags?.[0] || "";
-    const currentConfig = configState || config || ConfigCache.instance.params;
-    const tagColorName = currentConfig?.tagColorNames?.[mainTag] || "";
-    const mainTagLabel = capitalize(mainTag);
-    const tagColor = currentConfig?.colors?.[tagColorName];
-
     const age = useMemo(
       () => abbreviateAge(preview ? new Date() : new Date(pitchedAt)),
       [pitchedAt, preview]
     );
 
+    const mainTag = tags?.[0] || "";
+    const currentConfig = configState || config || ConfigCache.instance.params;
+    const tagColorName = currentConfig?.tagColorNames?.[mainTag] || "";
+    const mainTagLabel = capitalize(mainTag);
+    const tagColor = currentConfig?.colors?.[tagColorName];
     const tagIconName = currentConfig?.tagIconNames?.[mainTag];
-
     const validTagIconName = tagIconName || "hashtag";
     const validTagColor = tagIconName ? tagColor : "#052d57";
 

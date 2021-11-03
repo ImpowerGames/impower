@@ -44,10 +44,7 @@ const StyledFixedPortalContent = styled.div`
 
 const StyledCardArea = styled.div``;
 
-const StyledFadeArea = styled(FadeAnimation)`
-  padding-top: ${(props): string => props.theme.spacing(1)};
-  padding-bottom: ${(props): string => props.theme.spacing(1)};
-`;
+const StyledFadeArea = styled(FadeAnimation)``;
 
 const StyledPopulatedPitchList = styled.div`
   flex: 1;
@@ -71,6 +68,7 @@ interface VirtualizedPitchCardProps {
   doc?: ProjectDocument;
   chunkIndex?: number;
   itemIndex?: number;
+  compact?: boolean;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
   onKudo?: (
@@ -111,6 +109,7 @@ const VirtualizedPitchCard = React.memo((props: VirtualizedPitchCardProps) => {
     doc,
     chunkIndex,
     itemIndex,
+    compact,
     onDelete,
     onChangeScore,
     onKudo,
@@ -444,17 +443,28 @@ const VirtualizedPitchCard = React.memo((props: VirtualizedPitchCardProps) => {
     [id, onDelete]
   );
 
-  const postLayoutStyle = useMemo(
+  const postLayoutStyle: React.CSSProperties = useMemo(
     () => ({
-      boxShadow: theme.shadows[1],
+      boxShadow: compact ? undefined : theme.shadows[1],
+      borderBottom: compact ? "1px solid rgba(0, 0, 0, 0.12)" : undefined,
       overflow: "hidden",
     }),
-    [theme.shadows]
+    [compact, theme.shadows]
+  );
+
+  const fadeAreaStyle = useMemo(
+    () => (compact ? {} : { padding: theme.spacing(1, 0) }),
+    [compact, theme]
   );
 
   return (
     <StyledCardArea>
-      <StyledFadeArea initial={0} animate={1} duration={0.15}>
+      <StyledFadeArea
+        initial={0}
+        animate={1}
+        duration={0.15}
+        style={fadeAreaStyle}
+      >
         <StyledCardModal
           ref={modalRef}
           open={opened}
@@ -480,7 +490,11 @@ const VirtualizedPitchCard = React.memo((props: VirtualizedPitchCardProps) => {
             onExited={handleExited}
             onClickBackdrop={handleClose}
           >
-            <PostLayout ref={handlePostLayoutRef} style={postLayoutStyle}>
+            <PostLayout
+              ref={handlePostLayoutRef}
+              style={postLayoutStyle}
+              compact={compact}
+            >
               <PostHeader
                 initiallyHidden
                 titleHeight={titleHeight}
@@ -538,6 +552,7 @@ interface VirtualizedPitchChunkProps {
   chunkIndex?: number;
   chunkEntries?: [string, ProjectDocument][];
   chunkNodes?: HtmlPortalNode<React.Component>[];
+  compact?: boolean;
   onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onKudo?: (
@@ -579,6 +594,7 @@ const VirtualizedPitchChunk = React.memo(
       chunkIndex,
       chunkEntries,
       chunkNodes,
+      compact,
       onChangeScore,
       onDelete,
       onKudo,
@@ -673,6 +689,7 @@ const VirtualizedPitchChunk = React.memo(
                   icons={icons}
                   id={id}
                   doc={doc}
+                  compact={compact}
                   onChangeScore={onChangeScore}
                   onDelete={onDelete}
                   onKudo={onKudo}
@@ -720,6 +737,7 @@ const VirtualizedPitchChunk = React.memo(
                   doc={doc}
                   chunkIndex={chunkIndex}
                   itemIndex={itemIndex}
+                  compact={compact}
                   onChangeScore={onChangeScore}
                   onDelete={onDelete}
                   onKudo={onKudo}
@@ -755,6 +773,7 @@ interface PopulatedPitchListProps {
   pitchDocs?: { [id: string]: ProjectDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
+  compact?: boolean;
   onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onKudo?: (
@@ -791,6 +810,7 @@ const PopulatedPitchList = React.memo(
       pitchDocs,
       chunkMap,
       lastLoadedChunk,
+      compact,
       onChangeScore,
       onDelete,
       onKudo,
@@ -925,6 +945,7 @@ const PopulatedPitchList = React.memo(
                   chunkIndex={chunkIndex}
                   chunkEntries={chunkEntries}
                   chunkNodes={nodes.current[chunkIndex]}
+                  compact={compact}
                   onChangeScore={onChangeScore}
                   onDelete={onDelete}
                   onKudo={onKudo}

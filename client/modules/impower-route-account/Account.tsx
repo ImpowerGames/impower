@@ -16,21 +16,21 @@ import React, {
   useEffect,
   useMemo,
   useRef,
-  useState,
+  useState
 } from "react";
 import AngleDownRegularIcon from "../../resources/icons/regular/angle-down.svg";
 import EyeSlashSolidIcon from "../../resources/icons/solid/eye-slash.svg";
 import EyeSolidIcon from "../../resources/icons/solid/eye.svg";
 import {
   ConfirmDialogContext,
-  confirmDialogNavOpen,
+  confirmDialogNavOpen
 } from "../impower-confirm-dialog";
 import { Inspector } from "../impower-core";
 import { timestampServerValue, useDataValue } from "../impower-data-state";
 import {
   createUserDocument,
   UserDocument,
-  UserDocumentInspector,
+  UserDocumentInspector
 } from "../impower-data-store";
 import { SettingsDocumentInspector } from "../impower-data-store/classes/inspectors/settingsDocumentInspector";
 import createSettingsDocument from "../impower-data-store/utils/createSettingsDocument";
@@ -76,6 +76,7 @@ const StyledPaper = styled(Paper)`
   padding: ${(props): string => props.theme.spacing(2, 4, 0, 4)};
   width: 100%;
   max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
+  border-radius: 0;
 
   ${(props): string => props.theme.breakpoints.down("sm")} {
     padding: ${(props): string => props.theme.spacing(1, 2, 0, 2)};
@@ -686,7 +687,10 @@ const Profile = React.memo((): JSX.Element | null => {
       <StyledKeyboardTrigger aria-hidden="true" ref={keyboardTriggerRef} />
       <StyledContainer>
         <StyledPaper>
-          <StyledHeaderTypography variant="h6">{`Your Account`}</StyledHeaderTypography>
+          <StyledHeaderTypography
+            id="account"
+            variant="h6"
+          >{`Your Account`}</StyledHeaderTypography>
           <StyledAccountButtonArea>
             <StyledAccountButton
               color="inherit"
@@ -720,7 +724,10 @@ const Profile = React.memo((): JSX.Element | null => {
             </StyledAccountButton>
           </StyledAccountButtonArea>
           <StyledDivider />
-          <StyledHeaderTypography variant="h6">{`Your Profile`}</StyledHeaderTypography>
+          <StyledHeaderTypography
+            id="profile"
+            variant="h6"
+          >{`Your Profile`}</StyledHeaderTypography>
           <InspectorForm
             key={`profile-${Boolean(newUserDoc).toString()}`}
             StringInputComponent={StringInput}
@@ -738,7 +745,10 @@ const Profile = React.memo((): JSX.Element | null => {
             >{`View Public Profile`}</StyledAdvancedButton>
           </NextLink>
           <StyledDivider />
-          <StyledHeaderTypography variant="h6">{`Your Settings`}</StyledHeaderTypography>
+          <StyledHeaderTypography
+            id="settings"
+            variant="h6"
+          >{`Your Settings`}</StyledHeaderTypography>
           <InspectorForm
             key={`settings-${Boolean(newSettingsDoc).toString()}`}
             StringInputComponent={StringInput}
@@ -765,7 +775,10 @@ const Profile = React.memo((): JSX.Element | null => {
               aria-controls="panel1a-content"
               id="panel1a-header"
             >
-              <StyledHeaderTypography variant="h6">{`Advanced`}</StyledHeaderTypography>
+              <StyledHeaderTypography
+                id="advanced"
+                variant="h6"
+              >{`Advanced`}</StyledHeaderTypography>
             </StyledAccordionSummary>
             <StyledAccordionDetails>
               <StyledAdvancedButton

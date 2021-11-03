@@ -5,9 +5,9 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useDialogNavigation } from "../../impower-dialog";
 import { FontIcon } from "../../impower-icon";
 
-const FilterMenu = dynamic(() => import("./FilterMenu"), { ssr: false });
+const QueryMenu = dynamic(() => import("./QueryMenu"), { ssr: false });
 
-const StyledFilterButton = styled(Button)`
+const StyledButton = styled(Button)`
   color: inherit;
   padding: 0;
   text-transform: none;
@@ -17,7 +17,7 @@ const StyledFilterButton = styled(Button)`
   font-size: 0.938rem;
 `;
 
-const StyledFilterButtonIconArea = styled.div`
+const StyledButtonIconArea = styled.div`
   display: flex;
   justify-content: center;
   opacity: 0.5;
@@ -33,30 +33,32 @@ const StyledSpacer = styled.div`
   width: ${(props): string => props.theme.spacing(2)};
 `;
 
-interface FilterButtonProps {
+interface QueryButtonProps {
   target?: "pitch" | "contribution";
   menuType?: string;
-  filterLabel?: string;
-  filterIcon?: React.ReactNode;
-  activeFilterValue?: string;
+  label?: string;
+  icon?: React.ReactNode;
+  value?: string;
   flexDirection?: "row" | "row-reverse";
+  options?: string[];
   getOptionLabels?: () => {
     [option: string]: string;
   };
-  getOptionIcons?: (activeFilterValue: string) => Promise<{
+  getOptionIcons?: (value: string) => Promise<{
     [option: string]: React.ComponentType;
   }>;
   onOption?: (e: React.MouseEvent, option: string) => void;
 }
 
-const FilterButton = React.memo((props: FilterButtonProps): JSX.Element => {
+const QueryButton = React.memo((props: QueryButtonProps): JSX.Element => {
   const {
     target,
     menuType,
-    activeFilterValue,
-    filterLabel,
-    filterIcon,
+    value,
+    label,
+    icon,
     flexDirection,
+    options,
     getOptionLabels,
     getOptionIcons,
     onOption,
@@ -66,7 +68,7 @@ const FilterButton = React.memo((props: FilterButtonProps): JSX.Element => {
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement>();
   const [menuOpen, setMenuOpen] = useState<boolean>();
-  const [options, setOptions] = useState<
+  const [optionEntries, setOptionEntries] = useState<
     [
       string,
       {
@@ -95,23 +97,18 @@ const FilterButton = React.memo((props: FilterButtonProps): JSX.Element => {
       e.stopPropagation();
       setMenuAnchor(e.currentTarget as HTMLElement);
       const optionLabels = getOptionLabels();
-      const optionIcons = await getOptionIcons(activeFilterValue);
-      setOptions(
-        Object.entries(optionLabels).map(([option, label]) => {
+      const optionIcons = await getOptionIcons(value);
+      setOptionEntries(
+        (options || Object.keys(optionLabels)).map((option) => {
           const Icon = optionIcons[option];
+          const label = optionLabels[option];
           return [option, { label, icon: <Icon /> }];
         })
       );
       setMenuOpen(true);
       openMenuDialog(queryKey);
     },
-    [
-      getOptionLabels,
-      getOptionIcons,
-      activeFilterValue,
-      queryKey,
-      openMenuDialog,
-    ]
+    [options, getOptionLabels, getOptionIcons, value, openMenuDialog, queryKey]
   );
 
   const handleCloseMenu = useCallback(
@@ -137,36 +134,34 @@ const FilterButton = React.memo((props: FilterButtonProps): JSX.Element => {
   );
 
   const activeOptionLabel = useMemo(() => {
-    const optionLabel = activeFilterValue
-      ? getOptionLabels?.()?.[activeFilterValue]
-      : undefined;
+    const optionLabel = value ? getOptionLabels?.()?.[value] : undefined;
     return optionLabel;
-  }, [activeFilterValue, getOptionLabels]);
+  }, [value, getOptionLabels]);
 
   const filterButtonStyle = useMemo(() => ({ flexDirection }), [flexDirection]);
 
   return (
     <>
-      <StyledFilterButton
+      <StyledButton
         variant="text"
         onClick={handleOpenMenu}
         style={filterButtonStyle}
       >
-        <StyledFilterButtonIconArea>
-          <FontIcon aria-label={filterLabel} size={16}>
-            {filterIcon}
+        <StyledButtonIconArea>
+          <FontIcon aria-label={label} size={16}>
+            {icon}
           </FontIcon>
-        </StyledFilterButtonIconArea>
+        </StyledButtonIconArea>
         <StyledSpacer />
         <StyledButtonTextArea>{activeOptionLabel}</StyledButtonTextArea>
-      </StyledFilterButton>
+      </StyledButton>
       {menuOpen !== undefined && (
-        <FilterMenu
-          filterLabel={filterLabel}
-          activeFilterValue={activeFilterValue}
+        <QueryMenu
+          label={label}
+          value={value}
           anchorEl={menuAnchor}
           open={menuOpen}
-          options={options}
+          options={optionEntries}
           onClose={handleCloseMenu}
           onOption={handleClickMenuItem}
         />
@@ -175,4 +170,4 @@ const FilterButton = React.memo((props: FilterButtonProps): JSX.Element => {
   );
 });
 
-export default FilterButton;
+export default QueryButton;

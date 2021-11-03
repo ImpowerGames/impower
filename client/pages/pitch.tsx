@@ -40,7 +40,7 @@ interface PitchPageProps {
 }
 
 const PitchPageContent = React.memo((props: PitchPageProps) => {
-  const { config, pitchDocs, icons } = props;
+  const { config, icons, pitchDocs } = props;
 
   const [, navigationDispatch] = useContext(NavigationContext);
   const [, iconLibraryDispatch] = useContext(IconLibraryContext);

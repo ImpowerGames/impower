@@ -26,7 +26,7 @@ const StyledFooter = styled.footer`
   position: relative;
 
   max-width: ${(props): number => props.theme.breakpoints.values.lg}px;
-  margin: auto;
+  margin: 0 auto;
 `;
 
 const StyledLink = styled(Button)`

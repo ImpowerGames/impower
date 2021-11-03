@@ -9,7 +9,7 @@ import {
   ProjectDocument,
 } from "../../impower-data-store";
 import { Fallback, Tabs } from "../../impower-route";
-import ContributionList from "./ContributionList";
+import PitchContributionList from "./PitchContributionList";
 import PitchPostTab from "./PitchPostTab";
 
 const StyledLoadingArea = styled.div`
@@ -248,7 +248,7 @@ const PostFooter = React.memo((props: PostFooterProps): JSX.Element => {
           tabIndex >= 0 &&
           tabs.indexOf("contribute") === tabIndex &&
           isProjectDocument(doc) && (
-            <ContributionList
+            <PitchContributionList
               scrollParent={scrollParent}
               pitchId={pitchId}
               pitchDoc={doc}

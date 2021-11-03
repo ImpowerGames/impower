@@ -11,17 +11,18 @@ const pitchFilterQuery = (
     age?: DateAge;
     nsfw?: boolean;
     tags?: string[];
+    creator?: string;
   },
   collection: "pitched_resources" | "pitched_games"
 ) => {
-  const { sort, goal, age, nsfw, tags } = options;
+  const { sort, goal, age, nsfw, tags, creator } = options;
 
   const termsQuery = getFilterQuery({
     tags,
     age,
   });
 
-  return pitchQuery({ sort, goal, nsfw, termsQuery }, collection);
+  return pitchQuery({ sort, goal, nsfw, termsQuery, creator }, collection);
 };
 
 export default pitchFilterQuery;

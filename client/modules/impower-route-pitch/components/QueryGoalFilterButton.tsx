@@ -4,47 +4,47 @@ import HandshakeSimpleRegularIcon from "../../../resources/icons/regular/handsha
 import LightbulbOnRegularIcon from "../../../resources/icons/regular/lightbulb-on.svg";
 import { PitchGoalFilter } from "../types/pitchGoalFilter";
 import getPitchGoalFilterOptionLabels from "../utils/getPitchGoalFilterOptionLabels";
-import FilterButton from "./FilterButton";
+import QueryButton from "./QueryButton";
 
-interface PitchGoalFilterButtonProps {
-  activeFilterValue?: PitchGoalFilter;
+interface QueryGoalFilterButtonProps {
+  value?: PitchGoalFilter;
   onOption?: (e: React.MouseEvent, option: string) => void;
 }
 
-const PitchGoalFilterButton = React.memo(
-  (props: PitchGoalFilterButtonProps): JSX.Element => {
-    const { activeFilterValue, onOption } = props;
+const QueryGoalFilterButton = React.memo(
+  (props: QueryGoalFilterButtonProps): JSX.Element => {
+    const { value, onOption } = props;
     const handleGetOptionIcons = useCallback(
       async (
-        activeFilterValue: PitchGoalFilter
+        value: PitchGoalFilter
       ): Promise<{
         [option: string]: React.ComponentType;
       }> => {
         const getGoalFilterOptionIcons = (
           await import("../utils/getPitchGoalFilterOptionIcons")
         ).default;
-        return getGoalFilterOptionIcons(activeFilterValue);
+        return getGoalFilterOptionIcons(value);
       },
       []
     );
     const filterIcon = useMemo(
       () =>
-        activeFilterValue === "collaboration" ? (
+        value === "collaboration" ? (
           <HandshakeSimpleRegularIcon />
-        ) : activeFilterValue === "inspiration" ? (
+        ) : value === "inspiration" ? (
           <LightbulbOnRegularIcon />
         ) : (
           <BinocularsRegularIcon />
         ),
-      [activeFilterValue]
+      [value]
     );
     return (
-      <FilterButton
+      <QueryButton
         target="pitch"
-        menuType="goal"
-        filterLabel={`Looking For`}
-        filterIcon={filterIcon}
-        activeFilterValue={activeFilterValue}
+        menuType="filter"
+        label={`Looking For`}
+        icon={filterIcon}
+        value={value}
         getOptionLabels={getPitchGoalFilterOptionLabels}
         getOptionIcons={handleGetOptionIcons}
         onOption={onOption}
@@ -53,4 +53,4 @@ const PitchGoalFilterButton = React.memo(
   }
 );
 
-export default PitchGoalFilterButton;
+export default QueryGoalFilterButton;

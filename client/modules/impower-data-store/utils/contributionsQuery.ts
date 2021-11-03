@@ -1,16 +1,18 @@
 import { ContributionType } from "..";
 import { PitchedProjectDocumentPath } from "../../impower-api";
+import { QuerySort } from "../types/enums/querySort";
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const contributionsQuery = async (
   options: {
     filter?: ContributionType;
-    sort: "rating" | "new";
+    sort: QuerySort;
     nsfw?: boolean;
+    creator?: string;
   },
-  ...path: PitchedProjectDocumentPath
+  ...path: PitchedProjectDocumentPath | [undefined]
 ) => {
-  const { filter, sort, nsfw } = options;
+  const { filter, sort, nsfw, creator } = options;
 
   const DataStoreQuery = await (
     await import("../classes/dataStoreQuery")
@@ -25,6 +27,10 @@ const contributionsQuery = async (
 
   if (filter) {
     query = query.where("contributionType", "==", filter);
+  }
+
+  if (creator) {
+    query = query.where("_createdBy", "==", creator);
   }
 
   if (sort === "new") {

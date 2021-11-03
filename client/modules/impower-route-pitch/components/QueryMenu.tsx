@@ -13,7 +13,7 @@ import { FontIcon } from "../../impower-icon";
 import { DrawerMenu } from "../../impower-route";
 import { DrawerMenuProps } from "../../impower-route/components/popups/DrawerMenu";
 
-const StyledFilterTypography = styled(Typography)`
+const StyledTypography = styled(Typography)`
   padding: ${(props): string => props.theme.spacing(1, 3, 2, 3)};
   font-weight: ${(props): number => props.theme.fontWeight.semiBold};
 `;
@@ -26,16 +26,16 @@ const StyledFontIconArea = styled.div`
   min-height: ${(props): string => props.theme.spacing(4)};
 `;
 
-interface FilterMenuItemProps extends DrawerMenuProps {
+interface QueryMenuItemProps extends DrawerMenuProps {
   option: string;
   label: string;
   icon?: React.ReactNode;
-  activeFilterValue?: string;
+  value?: string;
   onOption?: (e: React.MouseEvent, option: string) => void;
 }
 
-const FilterMenuItem = React.memo((props: FilterMenuItemProps): JSX.Element => {
-  const { option, label, icon, activeFilterValue, onOption } = props;
+const QueryMenuItem = React.memo((props: QueryMenuItemProps): JSX.Element => {
+  const { option, label, icon, value, onOption } = props;
 
   const theme = useTheme();
 
@@ -50,25 +50,24 @@ const FilterMenuItem = React.memo((props: FilterMenuItemProps): JSX.Element => {
 
   const menuItemStyle: React.CSSProperties = useMemo(
     () => ({
-      backgroundColor: activeFilterValue === option ? "#edf3f8" : undefined,
-      color:
-        activeFilterValue === option ? theme.palette.primary.main : undefined,
+      backgroundColor: value === option ? "#edf3f8" : undefined,
+      color: value === option ? theme.palette.primary.main : undefined,
     }),
-    [activeFilterValue, option, theme.palette.primary.main]
+    [value, option, theme.palette.primary.main]
   );
 
   const iconStyle: React.CSSProperties = useMemo(
     () => ({
-      opacity: activeFilterValue === option ? undefined : 0.6,
+      opacity: value === option ? undefined : 0.6,
     }),
-    [activeFilterValue, option]
+    [value, option]
   );
 
   return (
     <MenuItem
       key={option}
       onClick={handleClick}
-      selected={activeFilterValue === option}
+      selected={value === option}
       style={menuItemStyle}
     >
       <StyledFontIconArea>
@@ -85,9 +84,9 @@ const FilterMenuItem = React.memo((props: FilterMenuItemProps): JSX.Element => {
   );
 });
 
-interface FilterMenuProps extends DrawerMenuProps {
-  filterLabel?: string;
-  activeFilterValue?: string;
+interface QueryMenuProps extends DrawerMenuProps {
+  label?: string;
+  value?: string;
   options?: [
     string,
     {
@@ -98,17 +97,9 @@ interface FilterMenuProps extends DrawerMenuProps {
   onOption?: (e: React.MouseEvent, option: string) => void;
 }
 
-const FilterMenu = React.memo(
-  (props: PropsWithChildren<FilterMenuProps>): JSX.Element => {
-    const {
-      filterLabel,
-      activeFilterValue,
-      anchorEl,
-      open,
-      options,
-      onClose,
-      onOption,
-    } = props;
+const QueryMenu = React.memo(
+  (props: PropsWithChildren<QueryMenuProps>): JSX.Element => {
+    const { label, value, anchorEl, open, options, onClose, onOption } = props;
 
     const [openState, setOpenState] = useState(false);
 
@@ -118,14 +109,14 @@ const FilterMenu = React.memo(
 
     return (
       <DrawerMenu anchorEl={anchorEl} open={openState} onClose={onClose}>
-        <StyledFilterTypography>{filterLabel}</StyledFilterTypography>
+        <StyledTypography>{label}</StyledTypography>
         {options.map(([option, { label, icon }]) => (
-          <FilterMenuItem
+          <QueryMenuItem
             key={option}
             option={option}
             label={label}
             icon={icon}
-            activeFilterValue={activeFilterValue}
+            value={value}
             onOption={onOption}
           />
         ))}
@@ -134,4 +125,4 @@ const FilterMenu = React.memo(
   }
 );
 
-export default FilterMenu;
+export default QueryMenu;

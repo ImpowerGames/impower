@@ -1,3 +1,4 @@
+import styled from "@emotion/styled";
 import dynamic from "next/dynamic";
 import React, { useMemo } from "react";
 import { ConfigParameters } from "../../impower-config";
@@ -7,12 +8,22 @@ import {
   ProjectDocument,
 } from "../../impower-data-store";
 import { SvgData } from "../../impower-icon";
-import { FadeAnimation } from "../../impower-route";
+import { FadeAnimation, Fallback } from "../../impower-route";
 import PopulatedPitchList from "./PopulatedPitchList";
 
 const EmptyPitchList = dynamic(() => import("./EmptyPitchList"), {
   ssr: false,
 });
+
+const StyledLoadingArea = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 200px;
+  position: relative;
+  z-index: 1;
+`;
 
 interface PitchListContentProps {
   config: ConfigParameters;
@@ -23,8 +34,11 @@ interface PitchListContentProps {
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
   emptyImage?: React.ReactNode;
+  emptySubtitle1?: string;
+  emptySubtitle2?: string;
   emptyLabelStyle?: React.CSSProperties;
   searchLabelStyle?: React.CSSProperties;
+  compact?: boolean;
   onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onKudo?: (
@@ -64,8 +78,11 @@ const PitchListContent = React.memo(
       chunkMap,
       lastLoadedChunk,
       emptyImage,
+      emptySubtitle1,
+      emptySubtitle2,
       emptyLabelStyle,
       searchLabelStyle,
+      compact,
       onChangeScore,
       onDelete,
       onKudo,
@@ -79,14 +96,24 @@ const PitchListContent = React.memo(
       []
     );
 
-    if (!pitchDocs || Object.keys(pitchDocs).length === 0) {
+    if (!pitchDocs) {
       return (
-        <FadeAnimation initial={0} animate={1} delay={0.1} style={fadeStyle}>
+        <StyledLoadingArea>
+          <Fallback disableShrink />
+        </StyledLoadingArea>
+      );
+    }
+
+    if (Object.keys(pitchDocs).length === 0) {
+      return (
+        <FadeAnimation initial={0} animate={1} style={fadeStyle}>
           <EmptyPitchList
             loading={pitchDocs === undefined}
             loadedImage={emptyImage}
             filterLabel={filterLabel}
             searchLabel={searchLabel}
+            emptySubtitle1={emptySubtitle1}
+            emptySubtitle2={emptySubtitle2}
             emptyLabelStyle={emptyLabelStyle}
             searchLabelStyle={searchLabelStyle}
           />
@@ -102,6 +129,7 @@ const PitchListContent = React.memo(
           pitchDocs={pitchDocs}
           chunkMap={chunkMap}
           lastLoadedChunk={lastLoadedChunk}
+          compact={compact}
           onChangeScore={onChangeScore}
           onDelete={onDelete}
           onKudo={onKudo}

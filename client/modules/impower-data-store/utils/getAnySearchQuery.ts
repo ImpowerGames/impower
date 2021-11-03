@@ -11,7 +11,7 @@ const getAnySearchQuery = (options: {
     | "summary"
   )[];
 }): string[] => {
-  const { search, searchTargets } = options;
+  const { search, searchTargets = ["tags"] } = options;
   return searchTargets.flatMap((searchTarget) =>
     getSearchQuery({ search, searchTarget })
   );

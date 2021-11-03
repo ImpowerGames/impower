@@ -20,7 +20,7 @@ import Footer from "../modules/impower-route-home/components/elements/Footer";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
 
-const StyledUserProfilePage = styled.div`
+const StyledAccountPage = styled.div`
   padding-top: ${(props): string => props.theme.minHeight.navigationBar};
   flex: 1;
   display: flex;
@@ -30,21 +30,6 @@ const StyledUserProfilePage = styled.div`
   ${(props): string => props.theme.breakpoints.down("sm")} {
     background-color: white;
   }
-`;
-
-const StyledContent = styled.div`
-  position: relative;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: ${(props): string => props.theme.minHeight.navigationBar};
-`;
-
-const StyledContainer = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
 `;
 
 interface AccountPageProps {
@@ -76,15 +61,11 @@ const AccountPage = React.memo((props: AccountPageProps) => {
 
   return (
     <>
-      <StyledUserProfilePage>
+      <StyledAccountPage>
         <BetaBanner />
-        <StyledContent>
-          <StyledContainer>
-            <Account />
-          </StyledContainer>
-        </StyledContent>
+        <Account />
         <Footer />
-      </StyledUserProfilePage>
+      </StyledAccountPage>
     </>
   );
 });

@@ -5,22 +5,23 @@ import pitchQuery from "./pitchQuery";
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const pitchSearchQuery = (
   options: {
-    sort: "rank" | "new";
+    sort: "rank" | "new" | "rating";
     goal?: PitchGoal;
     nsfw?: boolean;
     search?: string;
     searchTargets?: ("tags" | "name" | "summary")[];
+    creator?: string;
   },
   collection: "pitched_resources" | "pitched_games"
 ) => {
-  const { sort, goal, nsfw, search, searchTargets } = options;
+  const { sort, goal, nsfw, search, searchTargets, creator } = options;
 
   const termsQuery = getAnySearchQuery({
     search,
     searchTargets,
   });
 
-  return pitchQuery({ sort, goal, nsfw, termsQuery }, collection);
+  return pitchQuery({ sort, goal, nsfw, termsQuery, creator }, collection);
 };
 
 export default pitchSearchQuery;

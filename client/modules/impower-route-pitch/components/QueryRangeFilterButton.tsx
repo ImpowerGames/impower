@@ -2,39 +2,39 @@ import React, { useCallback, useMemo } from "react";
 import ArrowDownWideShortRegularIcon from "../../../resources/icons/regular/arrow-down-wide-short.svg";
 import { DateRangeFilter } from "../types/dateRangeFilter";
 import getRangeFilterOptionLabels from "../utils/getRangeFilterOptionLabels";
-import FilterButton from "./FilterButton";
+import QueryButton from "./QueryButton";
 
-interface FilterButtonProps {
+interface QueryRangeFilterButtonProps {
   target?: "pitch" | "contribution";
-  activeFilterValue?: DateRangeFilter;
+  value?: DateRangeFilter;
   onOption?: (e: React.MouseEvent, option: string) => void;
 }
 
-const RangeFilterButton = React.memo(
-  (props: FilterButtonProps): JSX.Element => {
-    const { target, activeFilterValue, onOption } = props;
+const QueryRangeFilterButton = React.memo(
+  (props: QueryRangeFilterButtonProps): JSX.Element => {
+    const { target, value, onOption } = props;
     const handleGetOptionIcons = useCallback(
       async (
-        activeFilterValue: DateRangeFilter
+        value: DateRangeFilter
       ): Promise<{
         [option: string]: React.ComponentType;
       }> => {
         const getRangeFilterOptionIcons = (
           await import("../utils/getRangeFilterOptionIcons")
         ).default;
-        return getRangeFilterOptionIcons(activeFilterValue);
+        return getRangeFilterOptionIcons(value);
       },
       []
     );
     const filterIcon = useMemo(() => <ArrowDownWideShortRegularIcon />, []);
     return (
-      <FilterButton
+      <QueryButton
         target={target}
-        menuType="range"
-        filterLabel={`Top Posts From`}
-        filterIcon={filterIcon}
+        menuType="filter"
+        label={`Top Posts From`}
+        icon={filterIcon}
         flexDirection="row-reverse"
-        activeFilterValue={activeFilterValue}
+        value={value}
         getOptionLabels={getRangeFilterOptionLabels}
         getOptionIcons={handleGetOptionIcons}
         onOption={onOption}
@@ -43,4 +43,4 @@ const RangeFilterButton = React.memo(
   }
 );
 
-export default RangeFilterButton;
+export default QueryRangeFilterButton;

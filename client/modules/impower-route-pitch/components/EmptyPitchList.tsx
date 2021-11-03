@@ -33,14 +33,22 @@ const StyledCaptionArea = styled.div`
 interface EmptyPitchListTextProps {
   filterLabel?: string;
   searchLabel?: string;
+  emptySubtitle1?: string;
+  emptySubtitle2?: string;
   emptyLabelStyle?: React.CSSProperties;
   searchLabelStyle?: React.CSSProperties;
 }
 
 const EmptyPitchListText = React.memo(
   (props: EmptyPitchListTextProps): JSX.Element => {
-    const { filterLabel, searchLabel, emptyLabelStyle, searchLabelStyle } =
-      props;
+    const {
+      filterLabel,
+      searchLabel,
+      emptySubtitle1,
+      emptySubtitle2,
+      emptyLabelStyle,
+      searchLabelStyle,
+    } = props;
 
     return (
       <>
@@ -52,16 +60,20 @@ const EmptyPitchListText = React.memo(
           {`That's all the ${filterLabel} for `}
           <StyledMark style={searchLabelStyle}>{searchLabel}</StyledMark>
         </StyledLabelTypography>
-        <StyledCaptionArea>
-          <StyledCaptionTypography
-            variant="body1"
-            color="textSecondary"
-          >{`Got an idea?`}</StyledCaptionTypography>
-          <StyledCaptionTypography
-            variant="body1"
-            color="textSecondary"
-          >{`Why not pitch it?`}</StyledCaptionTypography>
-        </StyledCaptionArea>
+        {(emptySubtitle1 || emptySubtitle2) && (
+          <StyledCaptionArea>
+            {emptySubtitle1 && (
+              <StyledCaptionTypography variant="body1" color="textSecondary">
+                {emptySubtitle1}
+              </StyledCaptionTypography>
+            )}
+            {emptySubtitle2 && (
+              <StyledCaptionTypography variant="body1" color="textSecondary">
+                {emptySubtitle2}
+              </StyledCaptionTypography>
+            )}
+          </StyledCaptionArea>
+        )}
       </>
     );
   }
@@ -70,6 +82,8 @@ const EmptyPitchListText = React.memo(
 interface EmptyPitchListProps {
   filterLabel?: string;
   searchLabel?: string;
+  emptySubtitle1?: string;
+  emptySubtitle2?: string;
   emptyLabelStyle?: React.CSSProperties;
   searchLabelStyle?: React.CSSProperties;
   loading?: boolean;
@@ -81,6 +95,8 @@ const EmptyPitchList = React.memo((props: EmptyPitchListProps): JSX.Element => {
   const {
     filterLabel,
     searchLabel,
+    emptySubtitle1,
+    emptySubtitle2,
     emptyLabelStyle,
     searchLabelStyle,
     loading,
@@ -97,6 +113,8 @@ const EmptyPitchList = React.memo((props: EmptyPitchListProps): JSX.Element => {
         <EmptyPitchListText
           filterLabel={filterLabel}
           searchLabel={searchLabel}
+          emptySubtitle1={emptySubtitle1}
+          emptySubtitle2={emptySubtitle2}
           emptyLabelStyle={emptyLabelStyle}
           searchLabelStyle={searchLabelStyle}
         />

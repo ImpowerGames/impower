@@ -6,51 +6,51 @@ import LightbulbOnRegularIcon from "../../../resources/icons/regular/lightbulb-o
 import VolumeHighRegularIcon from "../../../resources/icons/regular/volume-high.svg";
 import { ContributionTypeFilter } from "../types/contributionTypeFilter";
 import getContributionTypeFilterOptionLabels from "../utils/getContributionTypeFilterOptionLabels";
-import FilterButton from "./FilterButton";
+import QueryButton from "./QueryButton";
 
 interface ContributionTypeFilterButtonProps {
-  activeFilterValue?: ContributionTypeFilter;
+  value?: ContributionTypeFilter;
   onOption?: (e: React.MouseEvent, option: string) => void;
 }
 
 const ContributionTypeFilterButton = React.memo(
   (props: ContributionTypeFilterButtonProps): JSX.Element => {
-    const { activeFilterValue, onOption } = props;
+    const { value, onOption } = props;
     const handleGetOptionIcons = useCallback(
       async (
-        activeFilterValue: ContributionTypeFilter
+        value: ContributionTypeFilter
       ): Promise<{
         [option: string]: React.ComponentType;
       }> => {
         const getContributionTypeFilterOptionIcons = (
           await import("../utils/getContributionTypeFilterOptionIcons")
         ).default;
-        return getContributionTypeFilterOptionIcons(activeFilterValue);
+        return getContributionTypeFilterOptionIcons(value);
       },
       []
     );
-    const filterIcon = useMemo(
+    const icon = useMemo(
       () =>
-        activeFilterValue === "pitch" ? (
+        value === "pitch" ? (
           <LightbulbOnRegularIcon />
-        ) : activeFilterValue === "story" ? (
+        ) : value === "story" ? (
           <BookOpenRegularIcon />
-        ) : activeFilterValue === "image" ? (
+        ) : value === "image" ? (
           <ImageRegularIcon />
-        ) : activeFilterValue === "audio" ? (
+        ) : value === "audio" ? (
           <VolumeHighRegularIcon />
         ) : (
           <FilterRegularIcon />
         ),
-      [activeFilterValue]
+      [value]
     );
     return (
-      <FilterButton
+      <QueryButton
         target="contribution"
         menuType="type"
-        filterLabel={`Type`}
-        filterIcon={filterIcon}
-        activeFilterValue={activeFilterValue}
+        label={`Type`}
+        icon={icon}
+        value={value}
         getOptionLabels={getContributionTypeFilterOptionLabels}
         getOptionIcons={handleGetOptionIcons}
         onOption={onOption}

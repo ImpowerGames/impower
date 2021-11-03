@@ -67,7 +67,11 @@ interface VirtualizedContributionCardProps {
   pitchDoc: ProjectDocument | ContributionDocument;
   id: string;
   doc: ContributionDocument;
-  onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
+  onChangeScore?: (
+    e: React.MouseEvent,
+    score: number,
+    contributionId: string
+  ) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
     kudoed: boolean,
@@ -75,8 +79,16 @@ interface VirtualizedContributionCardProps {
     contributionId: string,
     data: AggData
   ) => void;
-  onEdit?: (e: React.MouseEvent, id: string) => void;
-  onDelete?: (e: React.MouseEvent, id: string) => void;
+  onEdit?: (
+    e: React.MouseEvent,
+    pitchId: string,
+    contributionId: string
+  ) => void;
+  onDelete?: (
+    e: React.MouseEvent,
+    pitchId: string,
+    contributionId: string
+  ) => void;
   onEnter?: (id?: string, chunkIndex?: number, itemIndex?: number) => void;
   onEntered?: (id?: string, chunkIndex?: number, itemIndex?: number) => void;
   onExit?: (id?: string, chunkIndex?: number, itemIndex?: number) => void;
@@ -371,19 +383,19 @@ const VirtualizedContributionCard = React.memo(
     const handleEdit = useCallback(
       (e: React.MouseEvent): void => {
         if (onEdit) {
-          onEdit(e, id);
+          onEdit(e, pitchId, id);
         }
       },
-      [id, onEdit]
+      [id, onEdit, pitchId]
     );
 
     const handleDelete = useCallback(
       (e: React.MouseEvent): void => {
         if (onDelete) {
-          onDelete(e, id);
+          onDelete(e, pitchId, id);
         }
       },
-      [id, onDelete]
+      [id, onDelete, pitchId]
     );
 
     const previewAspectRatio = getPreviewAspectRatio(
@@ -482,12 +494,16 @@ const VirtualizedContributionCard = React.memo(
 
 interface VirtualizedContributionChunkProps {
   scrollParent?: HTMLElement;
-  pitchId: string;
-  pitchDoc: ProjectDocument;
+  pitchIds?: { [contributionId: string]: string };
+  pitchDocs?: { [pitchId: string]: ProjectDocument };
   chunkIndex?: number;
   chunkEntries?: [string, ContributionDocument][];
   chunkNodes?: HtmlPortalNode<React.Component>[];
-  onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
+  onChangeScore?: (
+    e: React.MouseEvent,
+    score: number,
+    contributionId: string
+  ) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
     kudoed: boolean,
@@ -495,8 +511,16 @@ interface VirtualizedContributionChunkProps {
     contributionId: string,
     data: AggData
   ) => void;
-  onEdit?: (e: React.MouseEvent, id: string) => void;
-  onDelete?: (e: React.MouseEvent, id: string) => void;
+  onEdit?: (
+    e: React.MouseEvent,
+    pitchId: string,
+    contributionId: string
+  ) => void;
+  onDelete?: (
+    e: React.MouseEvent,
+    pitchId: string,
+    contributionId: string
+  ) => void;
   onEnter?: (id?: string, chunkIndex?: number, itemIndex?: number) => void;
   onEntered?: (id?: string, chunkIndex?: number, itemIndex?: number) => void;
   onExit?: (id?: string, chunkIndex?: number, itemIndex?: number) => void;
@@ -507,8 +531,8 @@ const VirtualizedContributionChunk = React.memo(
   (props: VirtualizedContributionChunkProps): JSX.Element => {
     const {
       scrollParent,
-      pitchId,
-      pitchDoc,
+      pitchIds,
+      pitchDocs,
       chunkIndex,
       chunkEntries,
       chunkNodes,
@@ -589,6 +613,8 @@ const VirtualizedContributionChunk = React.memo(
               itemContentRefs.current[id] = { current: null };
             }
             const opened = openedItemIndex === itemIndex;
+            const pitchId = pitchIds?.[id];
+            const pitchDoc = pitchDocs?.[pitchId];
             return (
               <VirtualizedItem
                 key={id}
@@ -646,8 +672,8 @@ const VirtualizedContributionChunk = React.memo(
                   scrollParent={scrollParent}
                   chunkIndex={chunkIndex}
                   itemIndex={itemIndex}
-                  pitchId={pitchId}
-                  pitchDoc={pitchDoc}
+                  pitchId={pitchIds?.[id]}
+                  pitchDoc={pitchDocs?.[id]}
                   id={id}
                   doc={doc}
                   onChangeScore={onChangeScore}
@@ -679,12 +705,16 @@ const VirtualizedContributionChunk = React.memo(
 
 interface PopulatedContributionListProps {
   scrollParent?: HTMLElement;
-  pitchId: string;
-  pitchDoc: ProjectDocument;
+  pitchIds?: { [contributionId: string]: string };
+  pitchDocs?: { [pitchId: string]: ProjectDocument };
   contributionDocs?: { [id: string]: ContributionDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
-  onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
+  onChangeScore?: (
+    e: React.MouseEvent,
+    score: number,
+    contributionId: string
+  ) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
     kudoed: boolean,
@@ -692,16 +722,24 @@ interface PopulatedContributionListProps {
     contributionId: string,
     data: AggData
   ) => void;
-  onEdit?: (e: React.MouseEvent, id: string) => void;
-  onDelete?: (e: React.MouseEvent, id: string) => void;
+  onEdit?: (
+    e: React.MouseEvent,
+    pitchId: string,
+    contributionId: string
+  ) => void;
+  onDelete?: (
+    e: React.MouseEvent,
+    pitchId: string,
+    contributionId: string
+  ) => void;
 }
 
 const PopulatedContributionList = React.memo(
   (props: PopulatedContributionListProps): JSX.Element => {
     const {
       scrollParent,
-      pitchId,
-      pitchDoc,
+      pitchIds,
+      pitchDocs,
       contributionDocs,
       chunkMap,
       lastLoadedChunk,
@@ -832,8 +870,8 @@ const PopulatedContributionList = React.memo(
             >
               <VirtualizedContributionChunk
                 scrollParent={scrollParent}
-                pitchId={pitchId}
-                pitchDoc={pitchDoc}
+                pitchIds={pitchIds}
+                pitchDocs={pitchDocs}
                 chunkIndex={chunkIndex}
                 chunkEntries={chunkEntries}
                 chunkNodes={nodes.current[chunkIndex]}

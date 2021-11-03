@@ -51,6 +51,10 @@ export type PitchedProjectContributionCollectionPath = [
   string,
   "contributions"
 ];
+export type PitchedProjectContributionCollectionGroupPath = [
+  undefined,
+  "contributions"
+];
 export type PitchedProjectReportCollectionPath = [
   "pitched_resources" | "pitched_games",
   string,
@@ -79,4 +83,5 @@ export type CollectionPath =
   | PublishedPageReportCollectionPath
   | PitchedProjectCollectionPath
   | PitchedProjectContributionCollectionPath
-  | PitchedProjectReportCollectionPath;
+  | PitchedProjectReportCollectionPath
+  | PitchedProjectContributionCollectionGroupPath;

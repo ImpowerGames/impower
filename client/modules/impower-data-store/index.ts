@@ -37,6 +37,7 @@ export * from "./types/enums/developerStatus";
 export * from "./types/enums/developmentStatus";
 export * from "./types/enums/dislikeReason";
 export * from "./types/enums/pitchGoal";
+export * from "./types/enums/querySort";
 export * from "./types/enums/reportReason";
 export { default as contributionsQuery } from "./utils/contributionsQuery";
 export { default as createUserDocument } from "./utils/createUserDocument";

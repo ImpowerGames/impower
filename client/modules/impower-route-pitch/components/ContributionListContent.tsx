@@ -20,12 +20,16 @@ const StyledLoadingArea = styled.div`
 
 interface ContributionListContentProps {
   scrollParent?: HTMLElement;
-  pitchId: string;
-  pitchDoc: ProjectDocument;
+  pitchIds?: { [contributionId: string]: string };
+  pitchDocs?: { [pitchId: string]: ProjectDocument };
   contributionDocs?: { [id: string]: ContributionDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
-  onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
+  onChangeScore?: (
+    e: React.MouseEvent,
+    score: number,
+    contributionId: string
+  ) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
     kudoed: boolean,
@@ -33,16 +37,24 @@ interface ContributionListContentProps {
     contributionId: string,
     data: AggData
   ) => void;
-  onEdit?: (e: React.MouseEvent, id: string) => void;
-  onDelete?: (e: React.MouseEvent, id: string) => void;
+  onEdit?: (
+    e: React.MouseEvent,
+    pitchId: string,
+    contributionId: string
+  ) => void;
+  onDelete?: (
+    e: React.MouseEvent,
+    pitchId: string,
+    contributionId: string
+  ) => void;
 }
 
 const ContributionListContent = React.memo(
   (props: ContributionListContentProps): JSX.Element => {
     const {
       scrollParent,
-      pitchId,
-      pitchDoc,
+      pitchIds,
+      pitchDocs,
       contributionDocs,
       chunkMap,
       lastLoadedChunk,
@@ -73,8 +85,8 @@ const ContributionListContent = React.memo(
       <>
         <PopulatedContributionList
           scrollParent={scrollParent}
-          pitchId={pitchId}
-          pitchDoc={pitchDoc}
+          pitchIds={pitchIds}
+          pitchDocs={pitchDocs}
           contributionDocs={contributionDocs}
           chunkMap={chunkMap}
           lastLoadedChunk={lastLoadedChunk}
