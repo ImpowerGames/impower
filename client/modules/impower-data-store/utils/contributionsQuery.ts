@@ -1,14 +1,16 @@
+import { ContributionType } from "..";
 import { PitchedProjectDocumentPath } from "../../impower-api";
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const contributionsQuery = async (
   options: {
+    filter?: ContributionType;
     sort: "rating" | "new";
     nsfw?: boolean;
   },
   ...path: PitchedProjectDocumentPath
 ) => {
-  const { sort, nsfw } = options;
+  const { filter, sort, nsfw } = options;
 
   const DataStoreQuery = await (
     await import("../classes/dataStoreQuery")
@@ -19,6 +21,10 @@ const contributionsQuery = async (
 
   if (!nsfw) {
     query = query.where("nsfw", "==", false);
+  }
+
+  if (filter) {
+    query = query.where("contributionType", "==", filter);
   }
 
   if (sort === "new") {

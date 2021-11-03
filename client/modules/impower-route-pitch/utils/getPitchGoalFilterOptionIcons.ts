@@ -4,12 +4,12 @@ import LightbulbOnRegularIcon from "../../../resources/icons/regular/lightbulb-o
 import BinocularsSolidIcon from "../../../resources/icons/solid/binoculars.svg";
 import HandshakeSimpleSolidIcon from "../../../resources/icons/solid/handshake-simple.svg";
 import LightbulbOnSolidIcon from "../../../resources/icons/solid/lightbulb-on.svg";
-import { GoalFilter } from "../types/goalFilter";
+import { PitchGoalFilter } from "../types/pitchGoalFilter";
 
-const getGoalFilterOptionIcons = (
-  filter: GoalFilter
+const getPitchGoalFilterOptionIcons = (
+  filter: PitchGoalFilter
 ): {
-  [filter in GoalFilter]: React.ComponentType;
+  [filter in PitchGoalFilter]: React.ComponentType;
 } => ({
   All: filter === "All" ? BinocularsSolidIcon : BinocularsRegularIcon,
   collaboration:
@@ -20,4 +20,4 @@ const getGoalFilterOptionIcons = (
     filter === "inspiration" ? LightbulbOnSolidIcon : LightbulbOnRegularIcon,
 });
 
-export default getGoalFilterOptionIcons;
+export default getPitchGoalFilterOptionIcons;

@@ -1,3 +1,3 @@
 import { PitchGoal } from "../../impower-data-store";
 
-export type GoalFilter = PitchGoal | "All";
+export type PitchGoalFilter = PitchGoal | "All";

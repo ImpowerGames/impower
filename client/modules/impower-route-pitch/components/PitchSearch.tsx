@@ -31,10 +31,10 @@ import { BetaBanner } from "../../impower-route";
 import { useRouter } from "../../impower-router";
 import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
-import { GoalFilter } from "../types/goalFilter";
+import { PitchGoalFilter } from "../types/pitchGoalFilter";
 import { TrendingFilter } from "../types/trendingFilter";
 import FilterHeader from "./FilterHeader";
-import GoalFilterButton from "./GoalFilterButton";
+import PitchGoalFilterButton from "./PitchGoalFilterButton";
 import PitchList from "./PitchList";
 import PitchLoadingProgress from "./PitchLoadingProgress";
 import PitchSearchToolbar from "./PitchSearchToolbar";
@@ -117,7 +117,7 @@ const StyledSpacer = styled.div`
 const getLoadingKey = (options: {
   search: string;
   trendingFilter: TrendingFilter;
-  goalFilter?: GoalFilter;
+  goalFilter?: PitchGoalFilter;
   nsfwVisible?: boolean;
 }): string =>
   Object.keys(options)
@@ -177,7 +177,7 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
   const [loadIcons, setLoadIcons] = useState(false);
   const noMoreRef = useRef<boolean>(initialPitchIds.length === 0);
   const [noMore, setNoMore] = useState<boolean>(noMoreRef.current);
-  const [goalFilter, setGoalFilter] = useState<GoalFilter>("All");
+  const [goalFilter, setGoalFilter] = useState<PitchGoalFilter>("All");
   const [trendingFilter, setTrendingFilter] = useState<TrendingFilter>("Hot");
 
   const lastLoadedChunkRef = useRef(0);
@@ -349,7 +349,7 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
   const handleLoadSearch = useCallback(
     async (options: {
       trendingFilter: TrendingFilter;
-      goalFilter?: GoalFilter;
+      goalFilter?: PitchGoalFilter;
       rangeFilter?: DateRangeFilter;
       nsfwVisible?: boolean;
       search: string;
@@ -454,7 +454,7 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
   }, [confirmDialogDispatch]);
 
   const handleChangeGoalFilter = useCallback(
-    (e: React.MouseEvent, value: GoalFilter): void => {
+    (e: React.MouseEvent, value: PitchGoalFilter): void => {
       setAllowReload(true);
       setGoalFilter(value);
     },
@@ -611,8 +611,7 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
             ) : (
               <>
                 <FilterHeader id="pitch-filter-header">
-                  <GoalFilterButton
-                    target="pitch"
+                  <PitchGoalFilterButton
                     activeFilterValue={goalFilter}
                     onOption={handleChangeGoalFilter}
                   />

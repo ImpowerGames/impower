@@ -17,9 +17,11 @@ import {
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
 import { useDialogNavigation } from "../../impower-dialog";
 import { UserContext } from "../../impower-user";
+import { ContributionTypeFilter } from "../types/contributionTypeFilter";
 import { RatingFilter } from "../types/ratingFilter";
 import AddContributionToolbar from "./AddContributionToolbar";
 import ContributionListContent from "./ContributionListContent";
+import ContributionListFilterHeader from "./ContributionListFilterHeader";
 import PitchLoadingProgress from "./PitchLoadingProgress";
 
 const LOAD_MORE_LIMIT = 10;
@@ -95,7 +97,8 @@ const ContributionList = React.memo(
     const [createFile, setCreateFile] = useState<globalThis.File>();
     const allowReload = useRef(false);
 
-    const [ratingFilter, setRatingFilter] = useState<RatingFilter>("Best");
+    const [typeFilter, setTypeFilter] = useState<ContributionTypeFilter>("All");
+    const [ratingSort, setRatingSort] = useState<RatingFilter>("Best");
 
     const initialChunkMap = useMemo(() => {
       const chunkMap = {};
@@ -130,12 +133,17 @@ const ContributionList = React.memo(
     const recentContributionDocs = my_recent_contributions?.[pitchId];
     const recentContributionDocsRef = useRef(recentContributionDocs);
 
-    const queryOptions: { sort: "rating" | "new"; nsfw?: boolean } = useMemo(
+    const queryOptions: {
+      filter: ContributionType;
+      sort: "rating" | "new";
+      nsfw?: boolean;
+    } = useMemo(
       () => ({
-        sort: ratingFilter === "Best" ? "rating" : "new",
+        filter: typeFilter === "All" ? undefined : typeFilter,
+        sort: ratingSort === "Best" ? "rating" : "new",
         nsfw: nsfwVisible,
       }),
-      [nsfwVisible, ratingFilter]
+      [nsfwVisible, ratingSort, typeFilter]
     );
 
     const hasUnsavedChangesRef = useRef(false);
@@ -156,10 +164,18 @@ const ContributionList = React.memo(
       handleBrowserNavigation
     );
 
+    const handleFilter = useCallback(
+      (e: React.MouseEvent, sort: ContributionTypeFilter) => {
+        allowReload.current = true;
+        setTypeFilter(sort);
+      },
+      []
+    );
+
     const handleSort = useCallback(
       (e: React.MouseEvent, sort: RatingFilter) => {
         allowReload.current = true;
-        setRatingFilter(sort);
+        setRatingSort(sort);
       },
       []
     );
@@ -168,6 +184,7 @@ const ContributionList = React.memo(
       async (
         id: string,
         options: {
+          filter?: ContributionType;
           sort: "rating" | "new";
           nsfw?: boolean;
         },
@@ -216,6 +233,7 @@ const ContributionList = React.memo(
       async (
         id: string,
         options: {
+          filter?: ContributionType;
           sort: "rating" | "new";
           nsfw?: boolean;
         }
@@ -436,6 +454,12 @@ const ContributionList = React.memo(
     return (
       <>
         <StyledContributionList>
+          <ContributionListFilterHeader
+            filter={typeFilter}
+            sort={ratingSort}
+            onFilter={handleFilter}
+            onSort={handleSort}
+          />
           <ContributionListContent
             scrollParent={scrollParent}
             pitchId={pitchId}
@@ -443,10 +467,8 @@ const ContributionList = React.memo(
             contributionDocs={contributionDocsState}
             chunkMap={chunkMap}
             lastLoadedChunk={lastLoadedChunk}
-            sort={ratingFilter}
             onChangeScore={handleChangeScore}
             onKudo={handleKudo}
-            onSort={handleSort}
             onEdit={handleEditContribution}
             onDelete={handleDeleteContribution}
           />

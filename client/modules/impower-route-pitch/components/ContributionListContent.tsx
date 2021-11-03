@@ -6,7 +6,6 @@ import {
   ProjectDocument,
 } from "../../impower-data-store";
 import Fallback from "../../impower-route/components/layouts/Fallback";
-import { RatingFilter } from "../types/ratingFilter";
 import PopulatedContributionList from "./PopulatedContributionList";
 
 const StyledLoadingArea = styled.div`
@@ -26,8 +25,6 @@ interface ContributionListContentProps {
   contributionDocs?: { [id: string]: ContributionDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
-  sort?: RatingFilter;
-  onSort?: (e: React.MouseEvent, sort: RatingFilter) => void;
   onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -49,8 +46,6 @@ const ContributionListContent = React.memo(
       contributionDocs,
       chunkMap,
       lastLoadedChunk,
-      sort,
-      onSort,
       onChangeScore,
       onKudo,
       onEdit,
@@ -83,8 +78,6 @@ const ContributionListContent = React.memo(
           contributionDocs={contributionDocs}
           chunkMap={chunkMap}
           lastLoadedChunk={lastLoadedChunk}
-          sort={sort}
-          onSort={onSort}
           onChangeScore={onChangeScore}
           onKudo={onKudo}
           onEdit={onEdit}

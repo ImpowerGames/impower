@@ -22,12 +22,10 @@ import {
 import { useDialogNavigation } from "../../impower-dialog";
 import { VirtualizedItem } from "../../impower-react-virtualization";
 import { FadeAnimation, layout, Portal } from "../../impower-route";
-import { RatingFilter } from "../types/ratingFilter";
 import { getPreviewAspectRatio } from "../utils/getPreviewAspectRatio";
 import CardModal from "./CardModal";
 import CardTransition from "./CardTransition";
 import ContributionCard from "./ContributionCard";
-import ContributionListFilterHeader from "./ContributionListFilterHeader";
 import PostFooter from "./PostFooter";
 import PostLayout from "./PostLayout";
 
@@ -686,8 +684,6 @@ interface PopulatedContributionListProps {
   contributionDocs?: { [id: string]: ContributionDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
-  sort?: RatingFilter;
-  onSort?: (e: React.MouseEvent, sort: RatingFilter) => void;
   onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -709,8 +705,6 @@ const PopulatedContributionList = React.memo(
       contributionDocs,
       chunkMap,
       lastLoadedChunk,
-      sort,
-      onSort,
       onChangeScore,
       onKudo,
       onEdit,
@@ -814,7 +808,6 @@ const PopulatedContributionList = React.memo(
 
     return (
       <StyledPopulatedContributionList>
-        <ContributionListFilterHeader sort={sort} onSort={onSort} />
         {contributionChunks.map((chunkEntries, chunkIndex) => {
           if (!nodes.current[chunkIndex] && typeof document !== "undefined") {
             nodes.current[chunkIndex] = chunkEntries.map(() =>
