@@ -5,12 +5,12 @@ import TrophyStarRegularIcon from "../../../resources/icons/regular/trophy-star.
 import FireSolidIcon from "../../../resources/icons/solid/fire.svg";
 import SeedlingSolidIcon from "../../../resources/icons/solid/seedling.svg";
 import TrophyStarSolidIcon from "../../../resources/icons/solid/trophy-star.svg";
-import { Sort } from "../types/sort";
+import { QuerySort } from "../../impower-data-store";
 
 export const getSortOptionIcons = (
-  filter: Sort
+  filter: QuerySort
 ): {
-  [filter in Sort]: React.ComponentType;
+  [filter in QuerySort]: React.ComponentType;
 } => ({
   new: filter === "new" ? SeedlingSolidIcon : SeedlingRegularIcon,
   rating: filter === "rating" ? TrophyStarSolidIcon : TrophyStarRegularIcon,

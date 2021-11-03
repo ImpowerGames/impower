@@ -16,21 +16,21 @@ import React, {
   useEffect,
   useMemo,
   useRef,
-  useState
+  useState,
 } from "react";
 import AngleDownRegularIcon from "../../resources/icons/regular/angle-down.svg";
 import EyeSlashSolidIcon from "../../resources/icons/solid/eye-slash.svg";
 import EyeSolidIcon from "../../resources/icons/solid/eye.svg";
 import {
   ConfirmDialogContext,
-  confirmDialogNavOpen
+  confirmDialogNavOpen,
 } from "../impower-confirm-dialog";
 import { Inspector } from "../impower-core";
 import { timestampServerValue, useDataValue } from "../impower-data-state";
 import {
   createUserDocument,
   UserDocument,
-  UserDocumentInspector
+  UserDocumentInspector,
 } from "../impower-data-store";
 import { SettingsDocumentInspector } from "../impower-data-store/classes/inspectors/settingsDocumentInspector";
 import createSettingsDocument from "../impower-data-store/utils/createSettingsDocument";

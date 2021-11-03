@@ -1,7 +1,7 @@
-import { Sort } from "../types/sort";
+import { QuerySort } from "../../impower-data-store";
 
 export const getSortOptionLabels = (): {
-  [filter in Sort]: string;
+  [filter in QuerySort]: string;
 } => ({
   new: "New",
   rating: "Best",
