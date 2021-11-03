@@ -409,12 +409,33 @@ export const userReducer = (
         await new DataStoreWrite(...path).create(doc, batch);
         const existingSubmissionDoc = state?.submissions?.[submissionType];
         if (existingSubmissionDoc) {
-          await new DataStoreWrite(
-            "users",
-            uid,
-            "submissions",
-            submissionType
-          ).update({ path: path.join("/") }, batch);
+          try {
+            await new DataStoreWrite(
+              "users",
+              uid,
+              "submissions",
+              submissionType
+            ).update(
+              {
+                _documentType: "PathDocument",
+                path: path.join("/"),
+              },
+              batch
+            );
+          } catch {
+            await new DataStoreWrite(
+              "users",
+              uid,
+              "submissions",
+              submissionType
+            ).create(
+              {
+                _documentType: "PathDocument",
+                path: path.join("/"),
+              },
+              batch
+            );
+          }
         } else {
           await new DataStoreWrite(
             "users",
