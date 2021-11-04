@@ -185,6 +185,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
   const { isSignedIn, isAnonymous, userDoc } = userState;
   const username = userDoc?.username;
   const icon = userDoc?.icon?.fileUrl;
+  const hex = userDoc?.hex;
 
   useEffect(() => {
     setOpenState(open);
@@ -349,17 +350,17 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
                 borderRadius: theme.spacing(1),
               }}
             >
-              <StyledAvatarArea className={StyledAvatarArea.displayName}>
-                {icon && <Avatar alt={accountLabel} src={icon} />}
+              <StyledAvatarArea>
+                {icon && (
+                  <Avatar alt={accountLabel} src={icon} sx={{ bgcolor: hex }} />
+                )}
                 {!icon && (
                   <FontIcon aria-label={accountLabel} size={24}>
                     <CircleUserSolidIcon />
                   </FontIcon>
                 )}
               </StyledAvatarArea>
-              <StyledTypography className={StyledTypography.displayName}>
-                {accountLabel}
-              </StyledTypography>
+              <StyledTypography>{accountLabel}</StyledTypography>
             </StyledIconButton>
             <AccountMenu
               anchorEl={accountMenuAnchor}

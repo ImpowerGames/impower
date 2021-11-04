@@ -1,7 +1,10 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
+import Avatar from "@material-ui/core/Avatar";
 import Button from "@material-ui/core/Button";
+import Divider from "@material-ui/core/Divider";
 import IconButton from "@material-ui/core/IconButton";
+import Typography from "@material-ui/core/Typography";
 import dynamic from "next/dynamic";
 import React, { useCallback, useContext } from "react";
 import CircleUserSolidIcon from "../../../../resources/icons/solid/circle-user.svg";
@@ -100,6 +103,22 @@ const StyledIconButton = styled(IconButton)`
   padding: ${(props): string => props.theme.spacing(1)};
 `;
 
+const StyledAccountInfoArea = styled.div`
+  display: flex;
+  padding: ${(props): string => props.theme.spacing(1, 2)};
+  color: rgba(0, 0, 0, 0.54);
+`;
+
+const StyledAvatarArea = styled.div`
+  padding-right: ${(props): string => props.theme.spacing(2)};
+`;
+
+const StyledTypography = styled(Typography)``;
+
+const StyledDivider = styled(Divider)`
+  margin: ${(props): string => props.theme.spacing(1, 0)};
+`;
+
 interface NavigationLinksProps {
   initial: string;
   useAccountDialog?: boolean;
@@ -118,6 +137,7 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
   const { isSignedIn, isAnonymous, userDoc } = userState;
   const username = userDoc?.username;
   const icon = userDoc?.icon?.fileUrl;
+  const hex = userDoc?.hex;
 
   const handleOpenAccountMenu = useCallback((e: React.MouseEvent): void => {
     setAccountMenuAnchor(e.target as HTMLElement);
@@ -303,7 +323,26 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
                     <AccountMenu
                       anchorEl={accountMenuAnchor}
                       onClose={handleCloseAccountMenu}
-                    />
+                    >
+                      <StyledAccountInfoArea>
+                        <StyledAvatarArea>
+                          {icon && (
+                            <Avatar
+                              alt={accountLabel}
+                              src={icon}
+                              sx={{ bgcolor: hex }}
+                            />
+                          )}
+                          {!icon && (
+                            <FontIcon aria-label={accountLabel} size={24}>
+                              <CircleUserSolidIcon />
+                            </FontIcon>
+                          )}
+                        </StyledAvatarArea>
+                        <StyledTypography>{accountLabel}</StyledTypography>
+                      </StyledAccountInfoArea>
+                      <StyledDivider />
+                    </AccountMenu>
                   </HoverTapTransition>
                 )}
               </StyledAccountArea>

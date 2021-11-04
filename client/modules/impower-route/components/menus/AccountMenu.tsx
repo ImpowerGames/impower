@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import MenuItem from "@material-ui/core/MenuItem";
-import React, { useCallback, useContext } from "react";
+import React, { PropsWithChildren, useCallback, useContext } from "react";
 import ArrowRightFromBracketRegularIcon from "../../../../resources/icons/regular/arrow-right-from-bracket.svg";
 import GearRegularIcon from "../../../../resources/icons/regular/gear.svg";
 import UserRegularIcon from "../../../../resources/icons/regular/user.svg";
@@ -14,20 +14,24 @@ import { MenuInfo, MenuType } from "../../types/info/menus";
 import DrawerMenu from "../popups/DrawerMenu";
 
 const StyledIconArea = styled.div`
-  padding-right: ${(props): string => props.theme.spacing(1.5)};
+  margin-right: ${(props): string => props.theme.spacing(2)};
+  width: 24px;
   opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 export const authenticatedAccountMenuItems: MenuInfo[] = [
   {
     type: MenuType.Profile,
-    label: "Your Profile",
+    label: "Profile",
     link: "/profile",
     icon: <UserRegularIcon />,
   },
   {
     type: MenuType.Account,
-    label: "Your Account",
+    label: "Account",
     link: "/account",
     icon: <GearRegularIcon />,
   },
@@ -45,8 +49,8 @@ interface AccountMenuProps {
   onClick?: (e: React.MouseEvent, menuItem: MenuInfo) => Promise<void>;
 }
 
-const AccountMenu = React.memo((props: AccountMenuProps) => {
-  const { anchorEl, onClose, onClick = (): void => null } = props;
+const AccountMenu = React.memo((props: PropsWithChildren<AccountMenuProps>) => {
+  const { anchorEl, onClose, onClick, children } = props;
 
   const [userState, userDispatch] = useContext(UserContext);
   const { userDoc } = userState;
@@ -59,7 +63,9 @@ const AccountMenu = React.memo((props: AccountMenuProps) => {
       }
       // wait a bit for dialog to close
       await new Promise((resolve) => window.setTimeout(resolve, 1));
-      await onClick(e, menuItem);
+      if (onClick) {
+        await onClick(e, menuItem);
+      }
       const router = (await import("next/router")).default;
       if (menuItem.type === MenuType.Profile) {
         await router.replace(`/u/${username}`);
@@ -78,6 +84,7 @@ const AccountMenu = React.memo((props: AccountMenuProps) => {
 
   return (
     <DrawerMenu open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={onClose}>
+      {children}
       {authenticatedAccountMenuItems &&
         authenticatedAccountMenuItems.map((menuItem) => (
           <MenuItem
