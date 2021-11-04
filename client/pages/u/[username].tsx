@@ -140,7 +140,7 @@ export const getStaticProps: GetStaticProps = async (context) => {
   const pitchedCollection = "pitched_games";
   const pitchesSnapshot = await adminApp
     .firestore()
-    .collectionGroup(`${pitchedCollection}`)
+    .collection(`${pitchedCollection}`)
     .where("_createdBy", "==", userId)
     .where("nsfw", "==", false)
     .where("delisted", "==", false)
