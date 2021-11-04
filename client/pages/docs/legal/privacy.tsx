@@ -19,7 +19,6 @@ import Markdown from "../../../modules/impower-route/components/elements/Markdow
 import NavigationBarSpacer from "../../../modules/impower-route/components/elements/NavigationBarSpacer";
 import useBodyBackgroundColor from "../../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../modules/impower-route/hooks/useHTMLBackgroundColor";
-import content from "../../../resources/docs/privacy.md";
 
 const StyledPrivacyPage = styled.div`
   padding: ${(props): string => props.theme.spacing(4, 2)};
@@ -69,6 +68,7 @@ const PrivacyPage = React.memo((props: PrivacyPageProps) => {
 });
 
 export const getStaticProps: GetStaticProps = async () => {
+  const content = await import(`../../../resources/docs/privacy.md`);
   return {
     props: {
       content,
