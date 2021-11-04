@@ -152,7 +152,13 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                 {username}
               </StyledUsernameTypography>
             )}
-            {isCurrentUser === undefined ? (
+            {id === null ? (
+              <StyledButton
+                variant="outlined"
+                size="large"
+                disabled
+              >{`User Doesn't Exist`}</StyledButton>
+            ) : isCurrentUser === undefined ? (
               <StyledButton
                 variant="outlined"
                 size="large"
@@ -183,7 +189,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
               <StyledBioTypography variant="body2">{bio}</StyledBioTypography>
             )}
           </StyledDetailsArea>
-          {isCurrentUser !== undefined && (
+          {id !== null && isCurrentUser !== undefined && (
             <>
               <StyledTabs
                 value={tabIndex}
