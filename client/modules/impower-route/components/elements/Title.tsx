@@ -118,13 +118,7 @@ const Title = (props: PropsWithChildren<TitleProps>): JSX.Element => {
       setNavmenuOpenKey("navmenu");
     } else {
       const router = (await import("next/router")).default;
-      const { route } = router;
-      const subPageIndex = route.startsWith("/e/s")
-        ? -1
-        : route.substring(1).indexOf("/");
-      const target =
-        subPageIndex >= 0 ? route.substring(0, subPageIndex + 1) : "/";
-      router.push(target);
+      router.push("/");
     }
   }, [titleLinks.length]);
   const handleCloseMenu = useCallback((): void => {

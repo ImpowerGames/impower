@@ -1,11 +1,14 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { hexToHsla, hslaToHex } from "../../../impower-core";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { useBodyPaddingCallback } from "../../hooks/useBodyPaddingCallback";
 import { MenuInfo } from "../../types/info/menus";
+import { pageNames } from "../../types/info/pageNames";
+import { getBaseRoute } from "../../utils/getBaseRoute";
 import PageNavigationBarContent from "./PageNavigationBarContent";
 
 const Navdrawer = dynamic(() => import("./Navdrawer"), { ssr: false });
@@ -82,9 +85,12 @@ interface PageNavigationBarProps {
 
 const PageNavigationBar = (props: PageNavigationBarProps): JSX.Element => {
   const theme = useTheme();
+  const router = useRouter();
+  const baseRoute = getBaseRoute(router.route);
+
   const {
     title,
-    secondaryTitle,
+    secondaryTitle = pageNames[baseRoute],
     subtitle,
     searchLabel,
     searchPlaceholder,

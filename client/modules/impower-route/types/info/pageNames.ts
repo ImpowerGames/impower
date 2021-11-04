@@ -15,5 +15,5 @@ export const pageNames: { [baseRoute: string]: string } = {
   "/g": "Game",
   "/r": "Resource",
   "/s": "Studio",
-  "/u": "User",
+  "/u": "Profile",
 };
