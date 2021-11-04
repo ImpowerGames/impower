@@ -137,45 +137,53 @@ export const getStaticProps: GetStaticProps = async (context) => {
     ...getLocalizationConfigParameters(),
     ...getTagConfigParameters(),
   };
-  const pitchedCollection = "pitched_games";
-  const pitchesSnapshot = await adminApp
-    .firestore()
-    .collection(`${pitchedCollection}`)
-    .where("_createdBy", "==", userId)
-    .where("nsfw", "==", false)
-    .where("delisted", "==", false)
-    .orderBy("_createdAt", "desc")
-    .limit(LOAD_INITIAL_LIMIT)
-    .get();
   const pitchDocs: { [id: string]: ProjectDocument } = {};
-  const iconNamesSet = new Set<string>();
-  pitchesSnapshot.docs.forEach((s) => {
-    const serializableData = getSerializableDocument<ProjectDocument>(s.data());
-    pitchDocs[s.id] = serializableData;
-    const mainTag = serializableData?.tags?.[0] || "";
-    const tagIconName = config.tagIconNames[mainTag];
-    if (tagIconName) {
-      iconNamesSet.add(tagIconName);
-    }
-  });
-  const iconNames = Array.from(iconNamesSet);
-  const iconData = await Promise.all(
-    iconNames.map(async (name) => {
-      if (name) {
-        const component = (
-          await import(`../../resources/icons/solid/${name}.svg`)
-        ).default;
-        return getIconSvgData(component);
-      }
-      return null;
-    })
-  );
   const icons = {};
-  iconData.forEach((data, index) => {
-    if (data) {
-      icons[iconNames[index]] = data;
+  try {
+    const iconNamesSet = new Set<string>();
+    if (userId) {
+      const pitchedCollection = "pitched_games";
+      const pitchesSnapshot = await adminApp
+        .firestore()
+        .collection(`${pitchedCollection}`)
+        .where("_createdBy", "==", userId)
+        .where("nsfw", "==", false)
+        .where("delisted", "==", false)
+        .orderBy("_createdAt", "desc")
+        .limit(LOAD_INITIAL_LIMIT)
+        .get();
+      pitchesSnapshot.docs.forEach((s) => {
+        const serializableData = getSerializableDocument<ProjectDocument>(
+          s.data()
+        );
+        pitchDocs[s.id] = serializableData;
+        const mainTag = serializableData?.tags?.[0] || "";
+        const tagIconName = config.tagIconNames[mainTag];
+        if (tagIconName) {
+          iconNamesSet.add(tagIconName);
+        }
+      });
     }
-  });
+    const iconNames = Array.from(iconNamesSet);
+    const iconData = await Promise.all(
+      iconNames.map(async (name) => {
+        if (name) {
+          const component = (
+            await import(`../../resources/icons/solid/${name}.svg`)
+          ).default;
+          return getIconSvgData(component);
+        }
+        return null;
+      })
+    );
+    iconData.forEach((data, index) => {
+      if (data) {
+        icons[iconNames[index]] = data;
+      }
+    });
+  } catch (e) {
+    console.warn(e);
+  }
 
   return {
     props: {
