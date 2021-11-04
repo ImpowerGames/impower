@@ -33,7 +33,7 @@ const HomePage = React.memo(() => {
 
   useEffect(() => {
     navigationDispatch(navigationSetType("page"));
-    navigationDispatch(navigationSetText(undefined, undefined));
+    navigationDispatch(navigationSetText(undefined, ""));
     navigationDispatch(navigationSetLinks());
     navigationDispatch(navigationSetSearchbar());
     navigationDispatch(navigationSetElevation(0));
