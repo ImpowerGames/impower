@@ -17,7 +17,6 @@ import { chunk } from "../../impower-core";
 import {
   DateAge,
   DocumentSnapshot,
-  getSearchedTerms,
   PitchGoal,
   ProjectDocument,
   QuerySort,
@@ -71,16 +70,15 @@ interface PitchListProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
   pitchDocs?: { [id: string]: ProjectDocument };
-  emptyImage?: React.ReactNode;
   search?: string;
   creator?: string;
   tab?: "Trending" | "Top" | "Following";
-  style?: React.CSSProperties;
   compact?: boolean;
   sortOptions?: QuerySort[];
-  emptySubtitle1?: string;
-  emptySubtitle2?: string;
   searchingPlaceholder?: React.ReactNode;
+  emptyPlaceholder?: React.ReactNode;
+  emptyLabel?: string;
+  emptySubtitle?: string;
   onFollowMore?: (open: boolean) => void;
 }
 
@@ -92,14 +90,14 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     icons,
     search,
     creator,
-    emptyImage,
     pitchDocs,
     tab,
     compact,
     sortOptions,
-    emptySubtitle1,
-    emptySubtitle2,
     searchingPlaceholder,
+    emptyPlaceholder,
+    emptyLabel,
+    emptySubtitle,
     onFollowMore,
   } = props;
 
@@ -196,33 +194,6 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
       setChunkMap(chunkMapRef.current);
     }
   }, [creator, recentPitchDocs]);
-
-  const filterLabel =
-    !goalFilter || goalFilter === "All"
-      ? `pitches`
-      : `${goalFilter.toLowerCase()} pitches`;
-  const searchLabel = useMemo(
-    () =>
-      search
-        ? getSearchedTerms(search)
-            .map((t) => `#${t}`)
-            .join(" ")
-        : undefined,
-    [search]
-  );
-  const emptyLabelStyle: React.CSSProperties = useMemo(
-    () => ({
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexDirection: "column",
-    }),
-    []
-  );
-  const searchLabelStyle: React.CSSProperties = useMemo(
-    () => ({ fontWeight: 700 }),
-    []
-  );
 
   const handleLoadMore = useCallback(
     async (
@@ -728,6 +699,11 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
 
   const isOnline = useDataStoreConnectionStatus();
 
+  const pitchCount = useMemo(
+    () => Object.keys(pitchDocsState)?.length,
+    [pitchDocsState]
+  );
+
   if (pitchDocsState === undefined && isOnline === false) {
     return (
       <AnimatedWarningMascotIllustration
@@ -755,17 +731,11 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
           <PitchListContent
             config={config}
             icons={icons}
-            filterLabel={filterLabel}
-            searchLabel={searchLabel}
-            emptyImage={emptyImage}
             pitchDocs={pitchDocsState}
             chunkMap={chunkMap}
             lastLoadedChunk={lastLoadedChunk}
-            emptySubtitle1={emptySubtitle1}
-            emptySubtitle2={emptySubtitle2}
-            emptyLabelStyle={emptyLabelStyle}
-            searchLabelStyle={searchLabelStyle}
             compact={compact}
+            emptyPlaceholder={emptyPlaceholder}
             onChangeScore={handleChangeScore}
             onDelete={handleDeletePitch}
             onKudo={handleKudo}
@@ -773,14 +743,23 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
             onDeleteContribution={handleDeleteContribution}
           />
           <PitchLoadingProgress
-            loadingMore={pitchDocsState && loadingMore}
+            loadingMore={Boolean(pitchDocsState) && Boolean(loadingMore)}
             noMore={
-              pitchDocsState &&
-              Object.keys(pitchDocsState)?.length > 0 &&
-              noMore
+              emptyPlaceholder
+                ? pitchDocsState && pitchCount > 0 && noMore
+                : noMore || pitchCount === 0
             }
-            noMoreLabel={`That's all for now!`}
-            refreshLabel={`Refresh?`}
+            noMoreLabel={
+              !emptyPlaceholder && pitchCount === 0
+                ? emptyLabel
+                : `That's all for now!`
+            }
+            noMoreSubtitle={
+              !emptyPlaceholder && pitchCount === 0 ? emptySubtitle : undefined
+            }
+            refreshLabel={
+              !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
+            }
             onScrolledToEnd={handleScrolledToEnd}
             onRefresh={handleRefresh}
           />

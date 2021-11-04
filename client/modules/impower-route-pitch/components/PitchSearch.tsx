@@ -119,9 +119,32 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
   );
 
   const emptyImage = useMemo(() => <AnimatedDefaultMascot />, []);
-
   const emptySubtitle1 = `Got an idea?`;
   const emptySubtitle2 = `Why not pitch it?`;
+
+  const filterLabel = `pitches`;
+  const searchLabel = useMemo(
+    () =>
+      activeSearch
+        ? getSearchedTerms(activeSearch)
+            .map((t) => `#${t}`)
+            .join(" ")
+        : undefined,
+    [activeSearch]
+  );
+  const emptyLabelStyle: React.CSSProperties = useMemo(
+    () => ({
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "column",
+    }),
+    []
+  );
+  const searchLabelStyle: React.CSSProperties = useMemo(
+    () => ({ fontWeight: 700 }),
+    []
+  );
 
   return (
     <StyledPitchSearch style={style}>
@@ -138,16 +161,25 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
             icons={icons}
             pitchDocs={pitchDocs}
             search={activeSearch}
-            emptyImage={emptyImage}
             sortOptions={SORT_OPTIONS}
-            emptySubtitle1={emptySubtitle1}
-            emptySubtitle2={emptySubtitle2}
             searchingPlaceholder={
               <EmptyPitchList
                 loading
                 loadingMessage={`Searching...`}
                 emptySubtitle1={emptySubtitle1}
                 emptySubtitle2={emptySubtitle2}
+              />
+            }
+            emptyPlaceholder={
+              <EmptyPitchList
+                loading={pitchDocs === undefined}
+                loadedImage={emptyImage}
+                filterLabel={filterLabel}
+                searchLabel={searchLabel}
+                emptySubtitle1={emptySubtitle1}
+                emptySubtitle2={emptySubtitle2}
+                emptyLabelStyle={emptyLabelStyle}
+                searchLabelStyle={searchLabelStyle}
               />
             }
           />

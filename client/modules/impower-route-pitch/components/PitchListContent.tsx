@@ -1,5 +1,4 @@
 import styled from "@emotion/styled";
-import dynamic from "next/dynamic";
 import React, { useMemo } from "react";
 import { ConfigParameters } from "../../impower-config";
 import { AggData } from "../../impower-data-state";
@@ -10,10 +9,6 @@ import {
 import { SvgData } from "../../impower-icon";
 import { FadeAnimation, Fallback } from "../../impower-route";
 import PopulatedPitchList from "./PopulatedPitchList";
-
-const EmptyPitchList = dynamic(() => import("./EmptyPitchList"), {
-  ssr: false,
-});
 
 const StyledLoadingArea = styled.div`
   display: flex;
@@ -28,16 +23,10 @@ const StyledLoadingArea = styled.div`
 interface PitchListContentProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
-  filterLabel?: string;
-  searchLabel?: string;
   pitchDocs?: { [id: string]: ProjectDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
-  emptyImage?: React.ReactNode;
-  emptySubtitle1?: string;
-  emptySubtitle2?: string;
-  emptyLabelStyle?: React.CSSProperties;
-  searchLabelStyle?: React.CSSProperties;
+  emptyPlaceholder?: React.ReactNode;
   compact?: boolean;
   onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
   onDelete?: (e: React.MouseEvent, id: string) => void;
@@ -72,16 +61,10 @@ const PitchListContent = React.memo(
     const {
       config,
       icons,
-      filterLabel,
-      searchLabel,
       pitchDocs,
       chunkMap,
       lastLoadedChunk,
-      emptyImage,
-      emptySubtitle1,
-      emptySubtitle2,
-      emptyLabelStyle,
-      searchLabelStyle,
+      emptyPlaceholder,
       compact,
       onChangeScore,
       onDelete,
@@ -106,18 +89,13 @@ const PitchListContent = React.memo(
 
     if (Object.keys(pitchDocs).length === 0) {
       return (
-        <FadeAnimation initial={0} animate={1} style={fadeStyle}>
-          <EmptyPitchList
-            loading={pitchDocs === undefined}
-            loadedImage={emptyImage}
-            filterLabel={filterLabel}
-            searchLabel={searchLabel}
-            emptySubtitle1={emptySubtitle1}
-            emptySubtitle2={emptySubtitle2}
-            emptyLabelStyle={emptyLabelStyle}
-            searchLabelStyle={searchLabelStyle}
-          />
-        </FadeAnimation>
+        <>
+          {emptyPlaceholder && (
+            <FadeAnimation initial={0} animate={1} style={fadeStyle}>
+              {emptyPlaceholder}
+            </FadeAnimation>
+          )}
+        </>
       );
     }
 

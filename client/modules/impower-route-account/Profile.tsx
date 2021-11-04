@@ -201,6 +201,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                   creator={id}
                   sortOptions={SORT_OPTIONS}
                   compact
+                  emptyLabel={`No Pitches`}
                   searchingPlaceholder={
                     <StyledLoadingArea>
                       <Fallback disableShrink />
