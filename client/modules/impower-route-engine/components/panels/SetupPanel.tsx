@@ -505,7 +505,7 @@ const SetupPanel = React.memo((): JSX.Element => {
 
   const stateRef = useRef<GameDocument | ResourceDocument>(doc);
 
-  const { section } = state.present.dataPanel?.panels?.Setup?.Item;
+  const section = state?.present?.dataPanel?.panels?.Setup?.Item?.section;
   const { submitting, errors } = state.present.dataPanel.panels.Setup.Detail;
   const { access } = state.present.project;
 

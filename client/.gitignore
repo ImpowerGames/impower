@@ -38,3 +38,6 @@ public/worker-*.js
 
 # Vercel
 .vercel
+
+# Typescript
+*.tsbuildinfo
