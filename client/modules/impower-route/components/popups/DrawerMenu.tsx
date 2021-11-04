@@ -143,6 +143,7 @@ const DrawerMenu = React.memo(
                   horizontal: "center",
                 }
           }
+          disableScrollLock
         >
           <StyledContent
             onMouseDown={(e): void => {
