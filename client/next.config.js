@@ -23,13 +23,6 @@ module.exports = withBundleAnalyzer(
         });
         config.module.rules.push({
           test: /\.md$/,
-          loader: "emit-file-loader",
-          options: {
-            name: "dist/[path][name].[ext]",
-          },
-        });
-        config.module.rules.push({
-          test: /\.md$/,
           loader: "raw-loader",
         });
         if (!isServer && config.optimization.splitChunks.cacheGroups) {
