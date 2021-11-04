@@ -5,7 +5,8 @@ import LegalNotice from "./LegalNotice";
 
 export interface CaptchaActions extends HCaptcha {
   resetCaptcha(): void;
-  execute(): void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  execute(): Promise<any>;
 }
 
 const StyledCaptchaArea = styled.div`
