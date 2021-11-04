@@ -20,6 +20,10 @@ module.exports = withBundleAnalyzer(
           test: /\.(svg)$/,
           use: ["@svgr/webpack"],
         });
+        config.module.rules.push({
+          test: /\.md$/,
+          loader: "raw-loader",
+        });
         if (!isServer && config.optimization.splitChunks.cacheGroups) {
           config.optimization.splitChunks.cacheGroups.commons.minChunks = 60;
         }

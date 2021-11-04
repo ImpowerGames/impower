@@ -68,7 +68,7 @@ const TermsPage = React.memo((props: TermsPageProps) => {
 });
 
 export const getStaticProps: GetStaticProps = async () => {
-  const content = await import(`../../../resources/docs/terms.md`);
+  const content = (await import(`../../../resources/docs/terms.md`)).default;
   return {
     props: {
       content,

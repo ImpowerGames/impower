@@ -68,7 +68,7 @@ const CookiesPage = React.memo((props: CookiesPageProps) => {
 });
 
 export const getStaticProps: GetStaticProps = async () => {
-  const content = await import(`../../../resources/docs/cookies.md`);
+  const content = (await import(`../../../resources/docs/cookies.md`)).default;
   return {
     props: {
       content,

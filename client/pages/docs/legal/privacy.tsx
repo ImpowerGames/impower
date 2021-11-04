@@ -68,7 +68,7 @@ const PrivacyPage = React.memo((props: PrivacyPageProps) => {
 });
 
 export const getStaticProps: GetStaticProps = async () => {
-  const content = await import(`../../../resources/docs/privacy.md`);
+  const content = (await import(`../../../resources/docs/privacy.md`)).default;
   return {
     props: {
       content,
