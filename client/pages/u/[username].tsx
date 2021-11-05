@@ -122,24 +122,25 @@ export const getStaticProps: GetStaticProps = async (context) => {
   const { username } = context.params;
   const docUsername = Array.isArray(username) ? username[0] : username;
   const adminApp = await initAdminApp();
-  const querySnapshot = await adminApp
-    .firestore()
-    .collection(`users`)
-    .where("username", "==", docUsername)
-    .limit(1)
-    .get();
-  const userSnap = querySnapshot.docs[0];
-  const userId = userSnap?.id;
-  const userData = userSnap?.data();
-  const serializableData = getSerializableDocument<UserDocument>(userData);
-
   const config = {
     ...getLocalizationConfigParameters(),
     ...getTagConfigParameters(),
   };
   const pitchDocs: { [id: string]: ProjectDocument } = {};
   const icons = {};
+  let userId = null;
+  let serializableData = null;
   try {
+    const querySnapshot = await adminApp
+      .firestore()
+      .collection(`users`)
+      .where("username", "==", docUsername)
+      .limit(1)
+      .get();
+    const userSnap = querySnapshot.docs[0];
+    userId = userSnap?.id;
+    const userData = userSnap?.data();
+    serializableData = getSerializableDocument<UserDocument>(userData);
     const iconNamesSet = new Set<string>();
     if (userId) {
       const pitchedCollection = "pitched_games";
