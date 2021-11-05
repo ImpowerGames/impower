@@ -26,6 +26,14 @@ const AnimatedDefaultMascot = dynamic(
   { ssr: false }
 );
 
+const AnimatedWarningMascotIllustration = dynamic(
+  () =>
+    import(
+      "../../impower-route/components/illustrations/AnimatedWarningMascotIllustration"
+    ),
+  { ssr: false }
+);
+
 const StyledPitchSearch = styled.div`
   height: 100vh;
   flex: 1;
@@ -180,6 +188,11 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
                 emptySubtitle2={emptySubtitle2}
                 emptyLabelStyle={emptyLabelStyle}
                 searchLabelStyle={searchLabelStyle}
+              />
+            }
+            offlinePlaceholder={
+              <AnimatedWarningMascotIllustration
+                message={`Looks like you're offline`}
               />
             }
           />

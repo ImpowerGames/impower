@@ -44,14 +44,6 @@ const getLoadingKey = (options: Record<string, unknown>): string =>
     .map((key) => options[key])
     .join(",");
 
-const AnimatedWarningMascotIllustration = dynamic(
-  () =>
-    import(
-      "../../impower-route/components/illustrations/AnimatedWarningMascotIllustration"
-    ),
-  { ssr: false }
-);
-
 const TagIconLoader = dynamic(
   () => import("../../impower-route/components/elements/TagIconLoader"),
   { ssr: false }
@@ -77,6 +69,7 @@ interface PitchListProps {
   sortOptions?: QuerySort[];
   searchingPlaceholder?: React.ReactNode;
   emptyPlaceholder?: React.ReactNode;
+  offlinePlaceholder?: React.ReactNode;
   emptyLabel?: string;
   emptySubtitle?: string;
   onFollowMore?: (open: boolean) => void;
@@ -96,6 +89,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     sortOptions,
     searchingPlaceholder,
     emptyPlaceholder,
+    offlinePlaceholder,
     emptyLabel,
     emptySubtitle,
     onFollowMore,
@@ -705,11 +699,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
   );
 
   if (pitchDocsState === undefined && isOnline === false) {
-    return (
-      <AnimatedWarningMascotIllustration
-        message={`Looks like you're offline`}
-      />
-    );
+    return <>{offlinePlaceholder}</>;
   }
 
   return (
@@ -747,15 +737,17 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
             noMore={
               emptyPlaceholder
                 ? pitchDocsState && pitchCount > 0 && noMore
-                : noMore || pitchCount === 0
+                : pitchDocsState && (noMore || pitchCount === 0)
             }
             noMoreLabel={
-              !emptyPlaceholder && pitchCount === 0
+              pitchDocsState && !emptyPlaceholder && pitchCount === 0
                 ? emptyLabel
                 : `That's all for now!`
             }
             noMoreSubtitle={
-              !emptyPlaceholder && pitchCount === 0 ? emptySubtitle : undefined
+              pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                ? emptySubtitle
+                : undefined
             }
             refreshLabel={
               !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`

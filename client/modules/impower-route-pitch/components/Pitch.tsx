@@ -30,6 +30,14 @@ const AnimatedHappyMascot = dynamic(
   }
 );
 
+const AnimatedWarningMascotIllustration = dynamic(
+  () =>
+    import(
+      "../../impower-route/components/illustrations/AnimatedWarningMascotIllustration"
+    ),
+  { ssr: false }
+);
+
 const PitchFollowTags = dynamic(() => import("./PitchFollowTags"), {
   ssr: false,
 });
@@ -177,6 +185,11 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                     emptySubtitle2={emptySubtitle2}
                     emptyLabelStyle={emptyLabelStyle}
                     searchLabelStyle={searchLabelStyle}
+                  />
+                }
+                offlinePlaceholder={
+                  <AnimatedWarningMascotIllustration
+                    message={`Looks like you're offline`}
                   />
                 }
               />

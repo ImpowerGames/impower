@@ -81,6 +81,22 @@ const StyledLoadingArea = styled.div`
   z-index: 1;
 `;
 
+const StyledOfflineArea = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  overflow: hidden;
+  min-height: 200px;
+  position: relative;
+  z-index: 1;
+`;
+
+const StyledOfflineTypography = styled(Typography)`
+  opacity: 0.6;
+`;
+
 interface ProfileProps {
   config?: ConfigParameters;
   icons?: { [name: string]: SvgData };
@@ -212,6 +228,11 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                     <StyledLoadingArea>
                       <Fallback disableShrink />
                     </StyledLoadingArea>
+                  }
+                  offlinePlaceholder={
+                    <StyledOfflineArea>
+                      <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
+                    </StyledOfflineArea>
                   }
                 />
               ) : (
