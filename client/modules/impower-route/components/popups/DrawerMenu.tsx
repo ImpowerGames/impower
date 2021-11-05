@@ -102,7 +102,11 @@ const DrawerMenu = React.memo(
 
     if (belowXsBreakpoint) {
       return (
-        <StyledDrawer anchor="bottom" open={state} onClose={handleClose}>
+        <StyledDrawer
+          anchor="bottom"
+          open={state || false}
+          onClose={handleClose}
+        >
           <StyledContent
             onMouseDown={(e): void => {
               e.stopPropagation();
@@ -126,7 +130,7 @@ const DrawerMenu = React.memo(
     if (anchorEl) {
       return (
         <StyledPopover
-          open={state}
+          open={state || false}
           anchorReference={anchorReference}
           anchorEl={anchorEl}
           anchorPosition={anchorPosition}
@@ -165,7 +169,7 @@ const DrawerMenu = React.memo(
       );
     }
     return (
-      <StyledDrawerDialog open={state} onClose={handleClose}>
+      <StyledDrawerDialog open={state || false} onClose={handleClose}>
         <StyledContent
           onMouseDown={(e): void => {
             e.stopPropagation();
