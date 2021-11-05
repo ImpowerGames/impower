@@ -645,11 +645,11 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
   );
 
   const handleChangeScore = useCallback(
-    (e: React.MouseEvent, score: number, id: string): void => {
-      const currentDoc = pitchDocsRef.current[id];
+    (e: React.MouseEvent, score: number, pitchId: string): void => {
+      const currentDoc = pitchDocsRef.current[pitchId];
       const newDoc = { ...currentDoc, score };
-      pitchDocsRef.current[id] = newDoc;
-      DataStoreCache.instance.override(id, { score });
+      pitchDocsRef.current[pitchId] = newDoc;
+      DataStoreCache.instance.override(pitchId, { score });
       setPitchDocsState({ ...pitchDocsRef.current });
     },
     []

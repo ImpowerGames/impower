@@ -70,7 +70,8 @@ interface VirtualizedContributionCardProps {
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
-    contributionId: string
+    pitchId: string,
+    contributionId?: string
   ) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -87,7 +88,7 @@ interface VirtualizedContributionCardProps {
   onDelete?: (
     e: React.MouseEvent,
     pitchId: string,
-    contributionId: string
+    contributionId?: string
   ) => void;
   onEnter?: (id?: string, chunkIndex?: number, itemIndex?: number) => void;
   onEntered?: (id?: string, chunkIndex?: number, itemIndex?: number) => void;
@@ -376,10 +377,10 @@ const VirtualizedContributionCard = React.memo(
     const handleChangeScore = useCallback(
       (e: React.MouseEvent<Element, MouseEvent>, score: number): void => {
         if (onChangeScore) {
-          onChangeScore(e, score, contributionId);
+          onChangeScore(e, score, pitchId, contributionId);
         }
       },
-      [contributionId, onChangeScore]
+      [contributionId, onChangeScore, pitchId]
     );
 
     const handleEdit = useCallback(
@@ -503,7 +504,8 @@ interface VirtualizedContributionChunkProps {
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
-    contributionId: string
+    pitchId: string,
+    contributionId?: string
   ) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -520,7 +522,7 @@ interface VirtualizedContributionChunkProps {
   onDelete?: (
     e: React.MouseEvent,
     pitchId: string,
-    contributionId: string
+    contributionId?: string
   ) => void;
   onEnter?: (id?: string, chunkIndex?: number, itemIndex?: number) => void;
   onEntered?: (id?: string, chunkIndex?: number, itemIndex?: number) => void;
@@ -716,7 +718,8 @@ interface PopulatedContributionListProps {
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
-    contributionId: string
+    pitchId: string,
+    contributionId?: string
   ) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -733,7 +736,7 @@ interface PopulatedContributionListProps {
   onDelete?: (
     e: React.MouseEvent,
     pitchId: string,
-    contributionId: string
+    contributionId?: string
   ) => void;
 }
 

@@ -70,7 +70,12 @@ interface VirtualizedPitchCardProps {
   itemIndex?: number;
   compact?: boolean;
   onDelete?: (e: React.MouseEvent, id: string) => void;
-  onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
+  onChangeScore?: (
+    e: React.MouseEvent,
+    score: number,
+    pitchId: string,
+    contributionId?: string
+  ) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
     kudoed: boolean,
@@ -553,7 +558,12 @@ interface VirtualizedPitchChunkProps {
   chunkEntries?: [string, ProjectDocument][];
   chunkNodes?: HtmlPortalNode<React.Component>[];
   compact?: boolean;
-  onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
+  onChangeScore?: (
+    e: React.MouseEvent,
+    score: number,
+    pitchId: string,
+    contributionId?: string
+  ) => void;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -774,7 +784,12 @@ interface PopulatedPitchListProps {
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
   compact?: boolean;
-  onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
+  onChangeScore?: (
+    e: React.MouseEvent,
+    score: number,
+    pitchId: string,
+    contributionId?: string
+  ) => void;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,

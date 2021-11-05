@@ -28,7 +28,12 @@ interface PitchListContentProps {
   lastLoadedChunk?: number;
   emptyPlaceholder?: React.ReactNode;
   compact?: boolean;
-  onChangeScore?: (e: React.MouseEvent, score: number, id: string) => void;
+  onChangeScore?: (
+    e: React.MouseEvent,
+    score: number,
+    pitchId: string,
+    contributionId?: string
+  ) => void;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,

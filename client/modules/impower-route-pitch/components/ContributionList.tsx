@@ -341,12 +341,13 @@ const ContributionList = React.memo(
         pitchId: string,
         contributionId: string
       ): Promise<void> => {
+        const key = `${pitchId}/${contributionId}`;
         if (onEditContribution) {
           onEditContribution(
             e,
             pitchId,
             contributionId,
-            contributionDocsRef.current[contributionId]
+            contributionDocsRef.current[key]
           );
         }
       },
@@ -359,9 +360,10 @@ const ContributionList = React.memo(
         pitchId: string,
         contributionId: string
       ): Promise<void> => {
-        if (contributionDocsRef.current[contributionId]) {
+        const key = `${pitchId}/${contributionId}`;
+        if (contributionDocsRef.current[key]) {
           const newDoc = {
-            ...contributionDocsRef.current[contributionId],
+            ...contributionDocsRef.current[key],
             contributed: false,
             delisted: true,
             content: "[deleted]",
@@ -384,12 +386,14 @@ const ContributionList = React.memo(
       (
         e: React.MouseEvent<Element, MouseEvent>,
         score: number,
-        id: string
+        pitchId: string,
+        contributionId: string
       ): void => {
-        const currentDoc = contributionDocsRef.current[id];
+        const key = `${pitchId}/${contributionId}`;
+        const currentDoc = contributionDocsRef.current[key];
         const newDoc = { ...currentDoc, score };
-        contributionDocsRef.current[id] = newDoc;
-        DataStoreCache.instance.override(id, { score });
+        contributionDocsRef.current[key] = newDoc;
+        DataStoreCache.instance.override(contributionId, { score });
         setContributionDocsState({ ...contributionDocsRef.current });
       },
       []
@@ -402,13 +406,14 @@ const ContributionList = React.memo(
         pitchId: string,
         contributionId: string
       ): void => {
+        const key = `${pitchId}/${contributionId}`;
         if (contributionId) {
           const kudos = kudoed
-            ? (contributionDocsRef.current[contributionId].kudos || 0) + 1
-            : (contributionDocsRef.current[contributionId].kudos || 0) - 1;
-          const currentDoc = contributionDocsRef.current[contributionId];
+            ? (contributionDocsRef.current[key].kudos || 0) + 1
+            : (contributionDocsRef.current[key].kudos || 0) - 1;
+          const currentDoc = contributionDocsRef.current[key];
           const newDoc = { ...currentDoc, kudos };
-          contributionDocsRef.current[contributionId] = newDoc;
+          contributionDocsRef.current[key] = newDoc;
           DataStoreCache.instance.override(contributionId, { kudos });
           setContributionDocsState({ ...contributionDocsRef.current });
         }

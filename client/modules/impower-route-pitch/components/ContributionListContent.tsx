@@ -27,7 +27,8 @@ interface ContributionListContentProps {
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
-    contributionId: string
+    pitchId: string,
+    contributionId?: string
   ) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
