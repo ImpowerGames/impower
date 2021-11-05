@@ -186,7 +186,9 @@ const DateAutocomplete = React.memo((props: DateAutocompleteProps) => {
       const validatedState = {
         ...state,
         inputValue:
-          inputValue.length === 1 && !inputValue.startsWith("0")
+          !Number.isNaN(Number(inputValue)) &&
+          inputValue.length === 1 &&
+          !inputValue.startsWith("0")
             ? `0${inputValue}`
             : inputValue,
       };
