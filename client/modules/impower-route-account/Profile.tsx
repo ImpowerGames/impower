@@ -42,6 +42,9 @@ const StyledPaper = styled(Paper)`
   ${(props): string => props.theme.breakpoints.down("sm")} {
     box-shadow: none;
   }
+
+  display: flex;
+  flex-direction: column;
 `;
 
 const StyledDetailsArea = styled.div`
