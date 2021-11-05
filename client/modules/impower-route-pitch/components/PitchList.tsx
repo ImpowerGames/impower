@@ -732,29 +732,31 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
             onCreateContribution={handleCreateContribution}
             onDeleteContribution={handleDeleteContribution}
           />
-          <PitchLoadingProgress
-            loadingMore={Boolean(pitchDocsState) && Boolean(loadingMore)}
-            noMore={
-              emptyPlaceholder
-                ? pitchDocsState && pitchCount > 0 && noMore
-                : pitchDocsState && (noMore || pitchCount === 0)
-            }
-            noMoreLabel={
-              pitchDocsState && !emptyPlaceholder && pitchCount === 0
-                ? emptyLabel
-                : `That's all for now!`
-            }
-            noMoreSubtitle={
-              pitchDocsState && !emptyPlaceholder && pitchCount === 0
-                ? emptySubtitle
-                : undefined
-            }
-            refreshLabel={
-              !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
-            }
-            onScrolledToEnd={handleScrolledToEnd}
-            onRefresh={handleRefresh}
-          />
+          {(emptyPlaceholder || pitchDocsState) && (
+            <PitchLoadingProgress
+              loadingMore={Boolean(pitchDocsState) && Boolean(loadingMore)}
+              noMore={
+                emptyPlaceholder
+                  ? pitchDocsState && pitchCount > 0 && noMore
+                  : pitchDocsState && (noMore || pitchCount === 0)
+              }
+              noMoreLabel={
+                pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                  ? emptyLabel
+                  : `That's all for now!`
+              }
+              noMoreSubtitle={
+                pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                  ? emptySubtitle
+                  : undefined
+              }
+              refreshLabel={
+                !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
+              }
+              onScrolledToEnd={handleScrolledToEnd}
+              onRefresh={handleRefresh}
+            />
+          )}
         </>
       )}
       {loadIcons && <TagIconLoader />}
