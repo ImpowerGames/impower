@@ -502,9 +502,10 @@ export const getStaticProps: GetStaticProps = async (context) => {
     .get();
   const contributionDocs: { [id: string]: ContributionDocument } = {};
   contributionsSnapshot.docs.forEach((s) => {
-    contributionDocs[s.id] = getSerializableDocument<ContributionDocument>(
-      s.data()
-    );
+    const pitchId = s.ref.parent.parent.id;
+    const contributionId = s.id;
+    contributionDocs[`${pitchId}/${contributionId}`] =
+      getSerializableDocument<ContributionDocument>(s.data());
   });
   const config = {
     ...getLocalizationConfigParameters(),

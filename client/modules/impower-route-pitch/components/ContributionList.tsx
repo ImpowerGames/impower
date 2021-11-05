@@ -35,7 +35,7 @@ interface ContributionListProps {
   pitchId?: string;
   pitchDoc?: ProjectDocument;
   creator?: string;
-  contributionDocs?: { [id: string]: ContributionDocument };
+  contributionDocs?: { [key: string]: ContributionDocument };
   sortOptions?: QuerySort[];
   emptyLabel?: string;
   emptySubtitle?: string;
@@ -215,12 +215,12 @@ const ContributionList = React.memo(
           const contributionId = d.id;
           newContributionDocs[`${pitchId}/${contributionId}`] = d.data();
         });
-        Object.entries(newContributionDocs).forEach(([id, doc]) => {
+        Object.entries(newContributionDocs).forEach(([key, doc]) => {
           if (doc.delisted) {
-            delete newContributionDocs[id];
+            delete newContributionDocs[key];
           }
-          if (chunkMapRef.current[id] === undefined) {
-            chunkMapRef.current[id] = lastLoadedChunkRef.current;
+          if (chunkMapRef.current[key] === undefined) {
+            chunkMapRef.current[key] = lastLoadedChunkRef.current;
           }
         });
         contributionDocsRef.current = newContributionDocs;

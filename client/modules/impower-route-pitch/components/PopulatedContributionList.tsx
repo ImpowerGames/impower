@@ -65,7 +65,7 @@ interface VirtualizedContributionCardProps {
   itemIndex?: number;
   pitchId: string;
   pitchDoc: ProjectDocument | ContributionDocument;
-  id: string;
+  contributionId: string;
   doc: ContributionDocument;
   onChangeScore?: (
     e: React.MouseEvent,
@@ -102,7 +102,7 @@ const VirtualizedContributionCard = React.memo(
       itemIndex,
       pitchId,
       pitchDoc,
-      id,
+      contributionId,
       doc,
       onChangeScore,
       onKudo,
@@ -139,6 +139,8 @@ const VirtualizedContributionCard = React.memo(
     const [truncationContentEl, setTruncationContentEl] =
       useState<HTMLDivElement>();
     const [kudosMounted, setKudosMounted] = useState(false);
+
+    const id = `${pitchId}/${contributionId}`;
 
     const handleBrowserNavigation = useCallback(
       (
@@ -374,28 +376,28 @@ const VirtualizedContributionCard = React.memo(
     const handleChangeScore = useCallback(
       (e: React.MouseEvent<Element, MouseEvent>, score: number): void => {
         if (onChangeScore) {
-          onChangeScore(e, score, id);
+          onChangeScore(e, score, contributionId);
         }
       },
-      [id, onChangeScore]
+      [contributionId, onChangeScore]
     );
 
     const handleEdit = useCallback(
       (e: React.MouseEvent): void => {
         if (onEdit) {
-          onEdit(e, pitchId, id);
+          onEdit(e, pitchId, contributionId);
         }
       },
-      [id, onEdit, pitchId]
+      [contributionId, onEdit, pitchId]
     );
 
     const handleDelete = useCallback(
       (e: React.MouseEvent): void => {
         if (onDelete) {
-          onDelete(e, pitchId, id);
+          onDelete(e, pitchId, contributionId);
         }
       },
-      [id, onDelete, pitchId]
+      [contributionId, onDelete, pitchId]
     );
 
     const previewAspectRatio = getPreviewAspectRatio(
@@ -463,7 +465,7 @@ const VirtualizedContributionCard = React.memo(
                   truncationContentRef={handleTruncationContentRef}
                   pitchId={pitchId}
                   pitchDoc={pitchDoc}
-                  id={id}
+                  id={contributionId}
                   doc={doc}
                   onChangeScore={handleChangeScore}
                   onOpen={handleOpen}
@@ -476,7 +478,7 @@ const VirtualizedContributionCard = React.memo(
                   footerRef={footerRef}
                   kudoToolbarRef={kudoToolbarRef}
                   pitchId={pitchId}
-                  contributionId={id}
+                  contributionId={contributionId}
                   doc={doc}
                   kudoCount={doc?.kudos}
                   mountList={kudosMounted}
@@ -613,10 +615,11 @@ const VirtualizedContributionChunk = React.memo(
             const opened = openedItemIndex === itemIndex;
             const [pitchId, contributionId] = id.split("/");
             const pitchDoc = pitchDocs?.[pitchId];
+            const itemRef = itemContentRefs.current[id];
             return (
               <VirtualizedItem
                 key={id}
-                contentRef={itemContentRefs.current[id]}
+                contentRef={itemRef}
                 visibleOffset={0}
                 index={itemIndex}
                 mounted
@@ -628,7 +631,7 @@ const VirtualizedContributionChunk = React.memo(
                   itemIndex={itemIndex}
                   pitchId={pitchId}
                   pitchDoc={pitchDoc}
-                  id={contributionId}
+                  contributionId={contributionId}
                   doc={doc}
                   onChangeScore={onChangeScore}
                   onKudo={onKudo}
@@ -658,10 +661,11 @@ const VirtualizedContributionChunk = React.memo(
           const OutWrapper = chunkNode ? OutPortal : React.Fragment;
           const [pitchId, contributionId] = id.split("/");
           const pitchDoc = pitchDocs?.[pitchId];
+          const itemRef = itemContentRefs.current[id];
           return (
             <VirtualizedItem
               key={id}
-              contentRef={itemContentRefs.current[id]}
+              contentRef={itemRef}
               visibleOffset={0}
               index={itemIndex}
               mounted
@@ -674,7 +678,7 @@ const VirtualizedContributionChunk = React.memo(
                   itemIndex={itemIndex}
                   pitchId={pitchId}
                   pitchDoc={pitchDoc}
-                  id={contributionId}
+                  contributionId={contributionId}
                   doc={doc}
                   onChangeScore={onChangeScore}
                   onKudo={onKudo}
