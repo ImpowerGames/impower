@@ -82,15 +82,15 @@ const StyledLoadingArea = styled.div`
 `;
 
 interface ProfileProps {
-  config: ConfigParameters;
-  icons: { [name: string]: SvgData };
+  config?: ConfigParameters;
+  icons?: { [name: string]: SvgData };
   id: string;
   username: string;
   bio: string;
   icon: string;
   hex: string;
   isCurrentUser?: boolean;
-  pitchDocs: { [id: string]: ProjectDocument };
+  pitchDocs?: { [id: string]: ProjectDocument };
 }
 
 const Profile = React.memo((props: ProfileProps): JSX.Element | null => {

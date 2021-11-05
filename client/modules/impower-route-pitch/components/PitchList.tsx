@@ -700,7 +700,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
   const isOnline = useDataStoreConnectionStatus();
 
   const pitchCount = useMemo(
-    () => Object.keys(pitchDocsState)?.length,
+    () => Object.keys(pitchDocsState || {})?.length,
     [pitchDocsState]
   );
 

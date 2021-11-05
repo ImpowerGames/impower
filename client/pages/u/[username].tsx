@@ -2,22 +2,14 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { GetStaticPaths, GetStaticProps } from "next";
 import React, { useContext, useEffect } from "react";
-import getIconSvgData from "../../lib/getIconSvgData";
 import getLocalizationConfigParameters from "../../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../../lib/getTagConfigParameters";
 import { initAdminApp } from "../../lib/initAdminApp";
 import { ConfigParameters } from "../../modules/impower-config";
-import ConfigCache from "../../modules/impower-config/classes/configCache";
 import {
   getSerializableDocument,
-  ProjectDocument,
   UserDocument,
 } from "../../modules/impower-data-store";
-import {
-  IconLibraryContext,
-  iconLibraryRegister,
-  SvgData,
-} from "../../modules/impower-icon";
 import {
   NavigationContext,
   navigationSetBackgroundColor,
@@ -33,8 +25,6 @@ import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBac
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import { UserContext } from "../../modules/impower-user";
 
-const LOAD_INITIAL_LIMIT = 10;
-
 const StyledProfilePage = styled.div`
   padding-top: ${(props): string => props.theme.minHeight.navigationBar};
   flex: 1;
@@ -49,14 +39,12 @@ const StyledProfilePage = styled.div`
 
 interface UserProfilePageProps {
   config: ConfigParameters;
-  icons: { [name: string]: SvgData };
   id: string;
   doc: UserDocument;
-  pitchDocs: { [id: string]: ProjectDocument };
 }
 
 const UserProfilePage = React.memo((props: UserProfilePageProps) => {
-  const { config, icons, id, doc, pitchDocs } = props;
+  const { config, id, doc } = props;
   const [userState] = useContext(UserContext);
   const { uid, userDoc } = userState;
 
@@ -65,10 +53,6 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
   const latestDoc = isCurrentUser && userDoc ? userDoc : doc;
 
   const [, navigationDispatch] = useContext(NavigationContext);
-  const [, iconLibraryDispatch] = useContext(IconLibraryContext);
-
-  ConfigCache.instance.set(config);
-  iconLibraryDispatch(iconLibraryRegister("solid", icons));
 
   const theme = useTheme();
 
@@ -98,14 +82,12 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
       <BetaBanner />
       <Profile
         config={config}
-        icons={icons}
         id={id}
         username={username}
         bio={bio}
         icon={icon}
         hex={hex}
         isCurrentUser={isCurrentUser}
-        pitchDocs={pitchDocs}
       />
     </StyledProfilePage>
   );
@@ -120,17 +102,15 @@ export const getStaticPaths: GetStaticPaths = async () => {
 
 export const getStaticProps: GetStaticProps = async (context) => {
   const { username } = context.params;
-  const docUsername = Array.isArray(username) ? username[0] : username;
-  const adminApp = await initAdminApp();
   const config = {
     ...getLocalizationConfigParameters(),
     ...getTagConfigParameters(),
   };
-  const pitchDocs: { [id: string]: ProjectDocument } = {};
-  const icons = {};
   let userId = null;
   let serializableData = null;
   try {
+    const docUsername = Array.isArray(username) ? username[0] : username;
+    const adminApp = await initAdminApp();
     const querySnapshot = await adminApp
       .firestore()
       .collection(`users`)
@@ -141,47 +121,6 @@ export const getStaticProps: GetStaticProps = async (context) => {
     userId = userSnap?.id;
     const userData = userSnap?.data();
     serializableData = getSerializableDocument<UserDocument>(userData);
-    const iconNamesSet = new Set<string>();
-    if (userId) {
-      const pitchedCollection = "pitched_games";
-      const pitchesSnapshot = await adminApp
-        .firestore()
-        .collection(`${pitchedCollection}`)
-        .where("_createdBy", "==", userId)
-        .where("nsfw", "==", false)
-        .where("delisted", "==", false)
-        .orderBy("_createdAt", "desc")
-        .limit(LOAD_INITIAL_LIMIT)
-        .get();
-      pitchesSnapshot.docs.forEach((s) => {
-        const serializableData = getSerializableDocument<ProjectDocument>(
-          s.data()
-        );
-        pitchDocs[s.id] = serializableData;
-        const mainTag = serializableData?.tags?.[0] || "";
-        const tagIconName = config.tagIconNames[mainTag];
-        if (tagIconName) {
-          iconNamesSet.add(tagIconName);
-        }
-      });
-    }
-    const iconNames = Array.from(iconNamesSet);
-    const iconData = await Promise.all(
-      iconNames.map(async (name) => {
-        if (name) {
-          const component = (
-            await import(`../../resources/icons/solid/${name}.svg`)
-          ).default;
-          return getIconSvgData(component);
-        }
-        return null;
-      })
-    );
-    iconData.forEach((data, index) => {
-      if (data) {
-        icons[iconNames[index]] = data;
-      }
-    });
   } catch (e) {
     console.warn(e);
   }
@@ -189,10 +128,8 @@ export const getStaticProps: GetStaticProps = async (context) => {
   return {
     props: {
       config,
-      icons,
       id: userId || null,
       doc: serializableData || null,
-      pitchDocs,
     },
     // Regenerate the page:
     // - When a request comes in
