@@ -53,13 +53,14 @@ The Impower Engine can export:
 
 1. Open the impower/client folder in the vscode terminal
 2. Install dependencies: `npm install`
-3. Create a copy of the `.env.local.example` file and name it `.env.development.local`
-4. Using the google account that was added to our impowergames-dev project, login to the [impowergames-dev firebase console](https://console.firebase.google.com/u/1/project/impowergames-dev).
-5. In the sidebar, click the `Gear icon` > `Project Settings`.
-6. Click `Service accounts`.
-7. Click `Generate new private key`.
-8. Open the generated file and copy the entire json object.
-9. Paste the entire json object into your `.env.development.local` file after `FIREBASE_SERVICE_ACCOUNT_KEY=`. (Format the json object so that it is all on a single line.)
+3. Install preact aliases: `npm i --save react@npm:@preact/compat react-dom@npm:@preact/compat`
+4. Create a copy of the `.env.local.example` file and name it `.env.development.local`
+5. Using the google account that was added to our impowergames-dev project, login to the [impowergames-dev firebase console](https://console.firebase.google.com/u/1/project/impowergames-dev).
+6. In the sidebar, click the `Gear icon` > `Project Settings`.
+7. Click `Service accounts`.
+8. Click `Generate new private key`.
+9. Open the generated file and copy the entire json object.
+10. Paste the entire json object into your `.env.development.local` file after `FIREBASE_SERVICE_ACCOUNT_KEY=`. (Format the json object so that it is all on a single line.)
 
 ### How To Run (impower/client):
 
