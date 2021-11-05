@@ -217,8 +217,8 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                 onChange={handleChange}
                 variant="fullWidth"
               >
-                <StyledTab value={0} label={`Pitches`} />
-                <StyledTab value={1} label={`Contributions`} />
+                <StyledTab value={0} label={`PITCHES`} />
+                <StyledTab value={1} label={`CONTRIBUTIONS`} />
               </StyledTabs>
               {tabIndex === 0 ? (
                 <PitchList
