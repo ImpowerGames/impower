@@ -846,14 +846,10 @@ const PopulatedPitchList = React.memo(
 
     useEffect(() => {
       if (lastLoadedChunk) {
-        if (!mountedChunksRef.current.includes(lastLoadedChunk)) {
-          mountedChunksRef.current = [lastLoadedChunk];
-          chunkVisiblityRef.current[lastLoadedChunk] = true;
-          if (chunkVisiblityRef.current[lastLoadedChunk - 1]) {
-            mountedChunksRef.current.push(lastLoadedChunk - 1);
-          }
-          setMountedChunks(mountedChunksRef.current);
-        }
+        mountedChunksRef.current = [lastLoadedChunk];
+        chunkVisiblityRef.current[lastLoadedChunk] = true;
+        mountedChunksRef.current.push(lastLoadedChunk - 1);
+        setMountedChunks(mountedChunksRef.current);
       }
     }, [lastLoadedChunk]);
 

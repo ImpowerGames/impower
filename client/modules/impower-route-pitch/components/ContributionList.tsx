@@ -81,7 +81,7 @@ const ContributionList = React.memo(
     const [loadingMore, setLoadingMore] = useState<boolean>();
     const noMoreRef = useRef<boolean>();
     const [noMore, setNoMore] = useState<boolean>();
-    const allowReload = useRef(false);
+    const [allowReload, setAllowReload] = useState(false);
 
     const [typeFilter, setTypeFilter] = useState<ContributionTypeFilter>("All");
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rating");
@@ -113,14 +113,7 @@ const ContributionList = React.memo(
       [id: string]: ContributionDocument;
     }>(contributionDocsRef.current);
 
-    const pitchIdsRef = useRef<{
-      [id: string]: string;
-    }>({});
-    const [pitchIdsState, setPitchIdsState] = useState<{
-      [id: string]: string;
-    }>(pitchIdsRef.current);
-
-    const cursorsRef = useRef<DocumentSnapshot<ContributionDocument>>();
+    const cursorRef = useRef<DocumentSnapshot<ContributionDocument>>();
     const cacheKeys = useRef<Set<string>>(new Set());
 
     const recentContributionDocs = useMemo(() => {
@@ -133,8 +126,7 @@ const ContributionList = React.memo(
                 (!pitchId || pitchId === targetPitchId) &&
                 (!creator || contributionDoc._createdBy === creator)
               ) {
-                result[contributionId] = contributionDoc;
-                pitchIdsRef.current[contributionId] = targetPitchId;
+                result[`${targetPitchId}/${contributionId}`] = contributionDoc;
               }
             }
           );
@@ -159,18 +151,30 @@ const ContributionList = React.memo(
       [creator, nsfwVisible, sort, typeFilter]
     );
 
+    const handleAllowReload = useCallback(() => {
+      lastLoadedChunkRef.current = 0;
+      cursorRef.current = null;
+      contributionDocsRef.current = {};
+      chunkMapRef.current = {};
+      DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
+      setAllowReload(true);
+    }, []);
+
     const handleFilter = useCallback(
       (e: React.MouseEvent, sort: ContributionTypeFilter) => {
-        allowReload.current = true;
+        handleAllowReload();
         setTypeFilter(sort);
       },
-      []
+      [handleAllowReload]
     );
 
-    const handleSort = useCallback((e: React.MouseEvent, sort: QuerySort) => {
-      allowReload.current = true;
-      setSort(sort);
-    }, []);
+    const handleSort = useCallback(
+      (e: React.MouseEvent, sort: QuerySort) => {
+        handleAllowReload();
+        setSort(sort);
+      },
+      [handleAllowReload]
+    );
 
     const handleLoad = useCallback(
       async (
@@ -188,7 +192,7 @@ const ContributionList = React.memo(
         const query = pitchId
           ? await contributionsQuery(options, pitchedCollection, pitchId)
           : await contributionsQuery(options, undefined);
-        const cursor = cursorsRef.current;
+        const cursor = cursorRef.current;
         const cursorQuery = cursor
           ? query.startAfter(cursor).limit(limit)
           : query.limit(limit);
@@ -197,7 +201,7 @@ const ContributionList = React.memo(
         const { docs } = snapshot;
         const cursorIndex = docs.length - 1;
         const lastSnapshot = docs[cursorIndex] || null;
-        cursorsRef.current = lastSnapshot;
+        cursorRef.current = lastSnapshot;
         const currentDocs = contributionDocsRef.current || {};
         const matchingRecentContributionDocs =
           recentContributionDocsRef.current || {};
@@ -207,8 +211,9 @@ const ContributionList = React.memo(
           ...matchingRecentContributionDocs,
         };
         docs.forEach((d) => {
-          pitchIdsRef.current[d.id] = d.ref.parent.parent.id;
-          newContributionDocs[d.id] = d.data();
+          const pitchId = d.ref.parent.parent.id;
+          const contributionId = d.id;
+          newContributionDocs[`${pitchId}/${contributionId}`] = d.data();
         });
         Object.entries(newContributionDocs).forEach(([id, doc]) => {
           if (doc.delisted) {
@@ -233,20 +238,15 @@ const ContributionList = React.memo(
           nsfw?: boolean;
         }
       ) => {
-        loadingMoreRef.current = true;
-        setLoadingMore(loadingMoreRef.current);
         const limit = LOAD_MORE_LIMIT;
         const loadedCount = await handleLoad(pitchId, options, limit);
         setContributionDocsState(contributionDocsRef.current);
-        setPitchIdsState(pitchIdsRef.current);
         setChunkMap(chunkMapRef.current);
         noMoreRef.current =
           Object.keys(contributionDocsRef.current).length === 0
             ? undefined
             : loadedCount < limit;
         setNoMore(noMoreRef.current);
-        loadingMoreRef.current = false;
-        setLoadingMore(loadingMoreRef.current);
       },
       [handleLoad]
     );
@@ -257,9 +257,13 @@ const ContributionList = React.memo(
         !noMoreRef.current &&
         !loadingMoreRef.current
       ) {
+        loadingMoreRef.current = true;
+        setLoadingMore(loadingMoreRef.current);
         lastLoadedChunkRef.current += 1;
         setLastLoadedChunk(lastLoadedChunkRef.current);
         await handleLoadMoreItems(pitchId, queryOptions);
+        loadingMoreRef.current = false;
+        setLoadingMore(loadingMoreRef.current);
       }
     }, [handleLoadMoreItems, pitchId, queryOptions]);
 
@@ -267,9 +271,8 @@ const ContributionList = React.memo(
       if (scrollParent) {
         scrollParent.scrollTo({ top: 0 });
       }
-      cursorsRef.current = undefined;
+      cursorRef.current = undefined;
       contributionDocsRef.current = {};
-      pitchIdsRef.current = {};
       chunkMapRef.current = {};
       const DataStoreCache = (
         await import("../../impower-data-store/classes/dataStoreCache")
@@ -288,8 +291,8 @@ const ContributionList = React.memo(
                 (!pitchId || pitchId === targetPitchId) &&
                 (!creator || contributionDoc._createdBy === creator)
               ) {
-                recentContributionDocs[contributionId] = contributionDoc;
-                pitchIdsRef.current[contributionId] = targetPitchId;
+                recentContributionDocs[`${targetPitchId}/${contributionId}`] =
+                  contributionDoc;
               }
             }
           );
@@ -303,28 +306,26 @@ const ContributionList = React.memo(
           ...contributionDocsRef.current,
           ...matchingRecentContributionDocs,
         };
-        Object.entries(newContributionDocs).forEach(([id, doc]) => {
+        Object.entries(newContributionDocs).forEach(([key, doc]) => {
           if (doc.delisted) {
-            delete newContributionDocs[id];
+            delete newContributionDocs[key];
           }
-          if (chunkMapRef.current[id] === undefined) {
-            chunkMapRef.current[id] = lastLoadedChunkRef.current;
+          if (chunkMapRef.current[key] === undefined) {
+            chunkMapRef.current[key] = lastLoadedChunkRef.current;
           }
         });
         contributionDocsRef.current = newContributionDocs;
         setContributionDocsState(contributionDocsRef.current);
-        setPitchIdsState(pitchIdsRef.current);
         setChunkMap(chunkMapRef.current);
       }
     }, [creator, my_recent_contributions, pitchId]);
 
     useEffect(() => {
-      if (contributionDocsRef.current && !allowReload.current) {
+      if (contributionDocsRef.current && !allowReload) {
         return;
       }
-      cursorsRef.current = undefined;
+      cursorRef.current = undefined;
       contributionDocsRef.current = {};
-      pitchIdsRef.current = {};
       chunkMapRef.current = {};
       loadingMoreRef.current = false;
       noMoreRef.current = false;
@@ -332,7 +333,7 @@ const ContributionList = React.memo(
       setChunkMap(undefined);
       setNoMore(noMoreRef.current);
       handleLoadMoreItems(pitchId, queryOptions);
-    }, [handleLoadMoreItems, queryOptions, pitchId]);
+    }, [handleLoadMoreItems, queryOptions, pitchId, allowReload]);
 
     const handleEditContribution = useCallback(
       async (
@@ -441,7 +442,6 @@ const ContributionList = React.memo(
           <ContributionListContent
             scrollParent={scrollParent}
             pitchDocs={pitchDocs}
-            pitchIds={pitchIdsState}
             contributionDocs={contributionDocsState}
             chunkMap={chunkMap}
             lastLoadedChunk={lastLoadedChunk}

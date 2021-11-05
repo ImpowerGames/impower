@@ -555,6 +555,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     pitchDocsRef.current = {};
     chunkMapRef.current = {};
     noMoreRef.current = false;
+    setLoadIcons(true);
     setPitchDocsState(undefined);
     setChunkMap(undefined);
     setNoMore(noMoreRef.current);

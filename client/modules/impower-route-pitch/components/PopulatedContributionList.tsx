@@ -494,7 +494,6 @@ const VirtualizedContributionCard = React.memo(
 
 interface VirtualizedContributionChunkProps {
   scrollParent?: HTMLElement;
-  pitchIds?: { [contributionId: string]: string };
   pitchDocs?: { [pitchId: string]: ProjectDocument };
   chunkIndex?: number;
   chunkEntries?: [string, ContributionDocument][];
@@ -531,7 +530,6 @@ const VirtualizedContributionChunk = React.memo(
   (props: VirtualizedContributionChunkProps): JSX.Element => {
     const {
       scrollParent,
-      pitchIds,
       pitchDocs,
       chunkIndex,
       chunkEntries,
@@ -613,7 +611,7 @@ const VirtualizedContributionChunk = React.memo(
               itemContentRefs.current[id] = { current: null };
             }
             const opened = openedItemIndex === itemIndex;
-            const pitchId = pitchIds?.[id];
+            const [pitchId, contributionId] = id.split("/");
             const pitchDoc = pitchDocs?.[pitchId];
             return (
               <VirtualizedItem
@@ -630,7 +628,7 @@ const VirtualizedContributionChunk = React.memo(
                   itemIndex={itemIndex}
                   pitchId={pitchId}
                   pitchDoc={pitchDoc}
-                  id={id}
+                  id={contributionId}
                   doc={doc}
                   onChangeScore={onChangeScore}
                   onKudo={onKudo}
@@ -658,6 +656,8 @@ const VirtualizedContributionChunk = React.memo(
           const isolated = isolatedItemIndex === itemIndex;
           const InWrapper = chunkNode ? InPortal : React.Fragment;
           const OutWrapper = chunkNode ? OutPortal : React.Fragment;
+          const [pitchId, contributionId] = id.split("/");
+          const pitchDoc = pitchDocs?.[pitchId];
           return (
             <VirtualizedItem
               key={id}
@@ -672,9 +672,9 @@ const VirtualizedContributionChunk = React.memo(
                   scrollParent={scrollParent}
                   chunkIndex={chunkIndex}
                   itemIndex={itemIndex}
-                  pitchId={pitchIds?.[id]}
-                  pitchDoc={pitchDocs?.[id]}
-                  id={id}
+                  pitchId={pitchId}
+                  pitchDoc={pitchDoc}
+                  id={contributionId}
                   doc={doc}
                   onChangeScore={onChangeScore}
                   onKudo={onKudo}
@@ -705,7 +705,6 @@ const VirtualizedContributionChunk = React.memo(
 
 interface PopulatedContributionListProps {
   scrollParent?: HTMLElement;
-  pitchIds?: { [contributionId: string]: string };
   pitchDocs?: { [pitchId: string]: ProjectDocument };
   contributionDocs?: { [id: string]: ContributionDocument };
   chunkMap?: { [id: string]: number };
@@ -738,7 +737,6 @@ const PopulatedContributionList = React.memo(
   (props: PopulatedContributionListProps): JSX.Element => {
     const {
       scrollParent,
-      pitchIds,
       pitchDocs,
       contributionDocs,
       chunkMap,
@@ -776,14 +774,10 @@ const PopulatedContributionList = React.memo(
 
     useEffect(() => {
       if (lastLoadedChunk) {
-        if (!mountedChunksRef.current.includes(lastLoadedChunk)) {
-          mountedChunksRef.current = [lastLoadedChunk];
-          chunkVisiblityRef.current[lastLoadedChunk] = true;
-          if (chunkVisiblityRef.current[lastLoadedChunk - 1]) {
-            mountedChunksRef.current.push(lastLoadedChunk - 1);
-          }
-          setMountedChunks(mountedChunksRef.current);
-        }
+        mountedChunksRef.current = [lastLoadedChunk];
+        chunkVisiblityRef.current[lastLoadedChunk] = true;
+        mountedChunksRef.current.push(lastLoadedChunk - 1);
+        setMountedChunks(mountedChunksRef.current);
       }
     }, [lastLoadedChunk]);
 
@@ -870,7 +864,6 @@ const PopulatedContributionList = React.memo(
             >
               <VirtualizedContributionChunk
                 scrollParent={scrollParent}
-                pitchIds={pitchIds}
                 pitchDocs={pitchDocs}
                 chunkIndex={chunkIndex}
                 chunkEntries={chunkEntries}

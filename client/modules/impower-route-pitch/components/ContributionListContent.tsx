@@ -20,9 +20,8 @@ const StyledLoadingArea = styled.div`
 
 interface ContributionListContentProps {
   scrollParent?: HTMLElement;
-  pitchIds?: { [contributionId: string]: string };
   pitchDocs?: { [pitchId: string]: ProjectDocument };
-  contributionDocs?: { [id: string]: ContributionDocument };
+  contributionDocs?: { [key: string]: ContributionDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
   onChangeScore?: (
@@ -53,7 +52,6 @@ const ContributionListContent = React.memo(
   (props: ContributionListContentProps): JSX.Element => {
     const {
       scrollParent,
-      pitchIds,
       pitchDocs,
       contributionDocs,
       chunkMap,
@@ -85,7 +83,6 @@ const ContributionListContent = React.memo(
       <>
         <PopulatedContributionList
           scrollParent={scrollParent}
-          pitchIds={pitchIds}
           pitchDocs={pitchDocs}
           contributionDocs={contributionDocs}
           chunkMap={chunkMap}
