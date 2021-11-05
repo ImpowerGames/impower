@@ -716,7 +716,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
             sortOptions={sortOptions}
             onGoalFilter={handleChangeGoalFilter}
             onRangeFilter={tab === "Top" ? handleChangeRangeFilter : undefined}
-            onSort={handleChangeSortFilter}
+            onSort={tab === "Top" ? undefined : handleChangeSortFilter}
             onFollowMore={tab === "Following" ? handleFollowMore : undefined}
           />
           <PitchListContent
