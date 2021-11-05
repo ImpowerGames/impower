@@ -99,6 +99,8 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     [my_follows]
   );
 
+  const loadedFollowedTags = followedTags !== undefined;
+
   useEffect(() => {
     if (followedTags === undefined) {
       return;
@@ -109,7 +111,8 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     if (followedTags?.length > 0) {
       setShouldDisplayFollowingPitches(true);
     }
-  }, [followedTags]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadedFollowedTags]);
 
   const handleChangeTab = useCallback(
     (tab: PitchToolbarTab): void => {
