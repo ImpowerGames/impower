@@ -418,6 +418,7 @@ export const userReducer = (
             ).update(
               {
                 _documentType: "PathDocument",
+                _createdBy: uid,
                 path: path.join("/"),
               },
               batch
@@ -431,6 +432,7 @@ export const userReducer = (
             ).create(
               {
                 _documentType: "PathDocument",
+                _createdBy: uid,
                 path: path.join("/"),
               },
               batch
@@ -445,6 +447,7 @@ export const userReducer = (
           ).create(
             {
               _documentType: "PathDocument",
+              _createdBy: uid,
               path: path.join("/"),
             },
             batch

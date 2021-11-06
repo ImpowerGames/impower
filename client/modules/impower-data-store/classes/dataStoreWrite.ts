@@ -155,9 +155,6 @@ class DataStoreWrite<T extends DocumentPath = DocumentPath> {
     if (newDoc._createdAt) {
       delete newDoc._createdAt;
     }
-    if (newDoc._createdBy) {
-      delete newDoc._createdBy;
-    }
     if (newDoc._updates) {
       // delete _updates if not incrementing using dot notation
       // i.e. _updates: {18824: 1} instead of _updates.18824: increment(1)
