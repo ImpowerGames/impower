@@ -75,7 +75,8 @@ const ContributionList = React.memo(
     const [userState] = useContext(UserContext);
     const { settings, my_recent_contributions } = userState;
     const account = settings?.account;
-    const nsfwVisible = account === null ? null : account?.nsfwVisible;
+    const nsfwVisible =
+      account === undefined ? undefined : account?.nsfwVisible || false;
 
     const [typeFilter, setTypeFilter] = useState<ContributionTypeFilter>("All");
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rating");
@@ -323,6 +324,9 @@ const ContributionList = React.memo(
     }, [creator, my_recent_contributions, pitchId]);
 
     useEffect(() => {
+      if ([nsfwVisible].some((x) => x === undefined)) {
+        return;
+      }
       if (!allowReload) {
         return;
       }
