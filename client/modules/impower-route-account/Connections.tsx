@@ -85,6 +85,8 @@ const StyledList = styled(List)`
   min-height: 100%;
 `;
 
+const StyledListItem = styled(ListItem)``;
+
 const StyledListItemButton = styled(ListItemButton)`
   max-width: 100%;
   ${(props): string => props.theme.breakpoints.down("sm")} {
@@ -174,6 +176,7 @@ const StyledEmptyTypography = styled(Typography)`
 const StyledButton = styled(Button)`
   margin: ${(props): string => props.theme.spacing(0, 0.5)};
   flex-shrink: 0;
+  min-width: 0;
 `;
 
 const StyledIconButton = styled(IconButton)`
@@ -192,6 +195,13 @@ const StyledContactArea = styled.div`
 const StyledContactIconArea = styled.div`
   padding-right: ${(props): string => props.theme.spacing(1)};
   opacity: 0.8;
+`;
+
+const StyledContactLabelArea = styled.div`
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const Connections = React.memo((): JSX.Element | null => {
@@ -417,50 +427,69 @@ const Connections = React.memo((): JSX.Element | null => {
             {tabIndex === 0 && connections ? (
               connections.length > 0 ? (
                 <StyledList sx={{ width: "100%" }}>
-                  {filteredConnections.map(([id, data]) => (
-                    <ListItem key={id} alignItems="flex-start" disablePadding>
-                      <StyledListItemButton
-                        onClick={(e): void => {
-                          handleClick(e, id, data);
-                        }}
+                  {filteredConnections.map(([id, data]) => {
+                    return (
+                      <StyledListItem
+                        key={id}
+                        alignItems="flex-start"
+                        disablePadding
                       >
-                        <ListItemAvatar>
-                          <Avatar
-                            alt={data?.a?.u}
-                            src={data?.a?.i}
-                            backgroundColor={data?.a?.h}
+                        <StyledListItemButton
+                          onClick={(e): void => {
+                            handleClick(e, id, data);
+                          }}
+                        >
+                          <ListItemAvatar>
+                            <Avatar
+                              alt={data?.a?.u}
+                              src={data?.a?.i}
+                              backgroundColor={data?.a?.h}
+                            />
+                          </ListItemAvatar>
+                          <StyledListItemText
+                            primary={data?.a?.u}
+                            secondary={
+                              data?.c ? (
+                                <StyledContactArea>
+                                  <StyledContactIconArea>
+                                    <FontIcon
+                                      aria-label={
+                                        data?.c?.includes("@")
+                                          ? "email"
+                                          : "discord"
+                                      }
+                                      size={14}
+                                    >
+                                      {data?.c?.includes("@") ? (
+                                        <EnvelopeRegularIcon />
+                                      ) : (
+                                        <DiscordBrandsIcon />
+                                      )}
+                                    </FontIcon>
+                                  </StyledContactIconArea>
+                                  <StyledContactLabelArea>
+                                    {data?.c}
+                                  </StyledContactLabelArea>
+                                </StyledContactArea>
+                              ) : undefined
+                            }
                           />
-                        </ListItemAvatar>
-                        <StyledListItemText
-                          primary={data?.a?.u}
-                          secondary={
-                            data?.c ? (
-                              <StyledContactArea>
-                                <StyledContactIconArea>
-                                  <FontIcon
-                                    aria-label={
-                                      data?.c?.includes("@")
-                                        ? "email"
-                                        : "discord"
-                                    }
-                                    size={14}
-                                  >
-                                    {data?.c?.includes("@") ? (
-                                      <EnvelopeRegularIcon />
-                                    ) : (
-                                      <DiscordBrandsIcon />
-                                    )}
-                                  </FontIcon>
-                                </StyledContactIconArea>
-                                {data?.c}
-                              </StyledContactArea>
-                            ) : undefined
-                          }
-                        />
-                      </StyledListItemButton>
-                      <StyledItemDivider variant="inset" absolute />
-                    </ListItem>
-                  ))}
+                          {data?.c && data?.c?.includes("@") && (
+                            <StyledButton
+                              variant="outlined"
+                              href={`mailto:${data?.c}`}
+                              onMouseDown={handleBlockRipplePropogation}
+                              onTouchStart={handleBlockRipplePropogation}
+                              onClick={handleBlockRipplePropogation}
+                            >
+                              {`Contact`}
+                            </StyledButton>
+                          )}
+                        </StyledListItemButton>
+                        <StyledItemDivider variant="inset" absolute />
+                      </StyledListItem>
+                    );
+                  })}
                 </StyledList>
               ) : (
                 <>
@@ -471,7 +500,11 @@ const Connections = React.memo((): JSX.Element | null => {
               requests.length > 0 ? (
                 <StyledList sx={{ width: "100%" }}>
                   {filteredRequests.map(([id, data]) => (
-                    <ListItem key={id} alignItems="flex-start" disablePadding>
+                    <StyledListItem
+                      key={id}
+                      alignItems="flex-start"
+                      disablePadding
+                    >
                       <StyledListItemButton
                         onClick={(e): void => {
                           handleClick(e, id, data);
@@ -507,7 +540,7 @@ const Connections = React.memo((): JSX.Element | null => {
                         >{`Connect`}</StyledButton>
                       </StyledListItemButton>
                       <StyledItemDivider variant="inset" absolute />
-                    </ListItem>
+                    </StyledListItem>
                   ))}
                 </StyledList>
               ) : (
