@@ -157,7 +157,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
   }>({});
   const loadingKey = useRef<string>();
   const cacheKeys = useRef<Set<string>>(new Set());
-  const [allowReload, setAllowReload] = useState(false);
+  const [allowReload, setAllowReload] = useState(!pitchDocsRef.current);
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const searching = navigationState?.search?.searching;
@@ -546,8 +546,8 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     if ([nsfwVisible, followedTags].some((x) => x === undefined)) {
       return;
     }
-    if (pitchDocsRef.current && !allowReload) {
-      navigationDispatch(navigationSetSearchbar({ searching: false }));
+    navigationDispatch(navigationSetSearchbar({ searching: false }));
+    if (!allowReload) {
       return;
     }
     cursorsByTagRef.current = {};

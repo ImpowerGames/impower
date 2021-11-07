@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import NextLink from "next/link";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { ConfigParameters } from "../impower-config";
-import { getDataStoreKey, ProjectDocument } from "../impower-data-store";
+import { getDataStoreKey } from "../impower-data-store";
 import { SvgData } from "../impower-icon";
 import { Fallback, Tabs } from "../impower-route";
 import PitchList from "../impower-route-pitch/components/PitchList";
@@ -107,21 +107,10 @@ interface ProfileProps {
   icon: string;
   hex: string;
   isCurrentUser?: boolean;
-  pitchDocs?: { [id: string]: ProjectDocument };
 }
 
 const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
-  const {
-    config,
-    icons,
-    id,
-    username,
-    bio,
-    icon,
-    hex,
-    isCurrentUser,
-    pitchDocs,
-  } = props;
+  const { config, icons, id, username, bio, icon, hex, isCurrentUser } = props;
 
   const [userState, userDispatch] = useContext(UserContext);
   const { connects, my_connects } = userState;
@@ -221,7 +210,6 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                 <PitchList
                   config={config}
                   icons={icons}
-                  pitchDocs={pitchDocs}
                   creator={id}
                   sortOptions={SORT_OPTIONS}
                   compact
