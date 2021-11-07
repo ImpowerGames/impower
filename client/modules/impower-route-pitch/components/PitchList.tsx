@@ -99,7 +99,8 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
   const [userState] = useContext(UserContext);
   const { settings, my_recent_pitched_projects, my_follows } = userState;
   const account = settings?.account;
-  const nsfwVisible = account === null ? null : account?.nsfwVisible;
+  const nsfwVisible =
+    account === undefined ? undefined : account?.nsfwVisible || false;
 
   const followedTags = useMemo(
     () =>

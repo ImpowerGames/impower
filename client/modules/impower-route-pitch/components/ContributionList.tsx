@@ -77,12 +77,6 @@ const ContributionList = React.memo(
     const account = settings?.account;
     const nsfwVisible = account === null ? null : account?.nsfwVisible;
 
-    const loadingMoreRef = useRef<boolean>();
-    const [loadingMore, setLoadingMore] = useState<boolean>();
-    const noMoreRef = useRef<boolean>();
-    const [noMore, setNoMore] = useState<boolean>();
-    const [allowReload, setAllowReload] = useState(false);
-
     const [typeFilter, setTypeFilter] = useState<ContributionTypeFilter>("All");
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rating");
 
@@ -115,6 +109,14 @@ const ContributionList = React.memo(
 
     const cursorRef = useRef<DocumentSnapshot<ContributionDocument>>();
     const cacheKeys = useRef<Set<string>>(new Set());
+
+    const loadingMoreRef = useRef<boolean>();
+    const [loadingMore, setLoadingMore] = useState<boolean>();
+    const noMoreRef = useRef<boolean>();
+    const [noMore, setNoMore] = useState<boolean>();
+    const [allowReload, setAllowReload] = useState(
+      !contributionDocsRef.current
+    );
 
     const recentContributionDocs = useMemo(() => {
       const result: { [id: string]: ContributionDocument } = {};
@@ -321,7 +323,7 @@ const ContributionList = React.memo(
     }, [creator, my_recent_contributions, pitchId]);
 
     useEffect(() => {
-      if (contributionDocsRef.current && !allowReload) {
+      if (!allowReload) {
         return;
       }
       cursorRef.current = undefined;
