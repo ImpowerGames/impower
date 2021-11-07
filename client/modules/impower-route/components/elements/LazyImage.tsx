@@ -69,6 +69,7 @@ interface LazyImageProps {
   "loadingColor"?: string;
   "transitionDuration"?: number;
   "objectFit"?: "contain" | "cover" | "fill" | "none" | "scale-down";
+  "placeholderObjectFit"?: "contain" | "cover" | "fill" | "none" | "scale-down";
   "aria-label"?: string;
   "alt"?: string;
   "pinchAndZoom"?: boolean;
@@ -83,6 +84,7 @@ export const LazyImage = (props: LazyImageProps): JSX.Element => {
     placeholder,
     loadingColor,
     objectFit = "contain",
+    placeholderObjectFit = "cover",
     "aria-label": ariaLabel,
     alt,
     pinchAndZoom,
@@ -115,10 +117,10 @@ export const LazyImage = (props: LazyImageProps): JSX.Element => {
 
   const currentPlaceholderStyle = useMemo(
     () => ({
-      objectFit,
+      objectFit: placeholderObjectFit,
       opacity: placeholderVisible && !imageVisible ? 1 : undefined,
     }),
-    [imageVisible, objectFit, placeholderVisible]
+    [imageVisible, placeholderObjectFit, placeholderVisible]
   );
 
   const currentImageStyle = useMemo(
