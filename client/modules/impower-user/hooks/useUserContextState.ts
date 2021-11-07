@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import {
   CustomizationType,
   SettingsType,
@@ -36,6 +29,7 @@ import {
 import { useDocumentLoad } from "../../impower-data-store/hooks/useDocumentLoad";
 import getToday from "../../impower-data-store/utils/getToday";
 import { logInfo } from "../../impower-logger";
+import { useRouter } from "../../impower-router";
 import { ToastContextState, toastTop } from "../../impower-toast";
 import { USER_CREATE_SUBMISSION } from "../types/actions/userCreateSubmissionAction";
 import { UserAction } from "../types/userActions";
@@ -53,6 +47,7 @@ import userLoadMyKudos from "../utils/userLoadMyKudos";
 import userLoadMyLikes from "../utils/userLoadMyLikes";
 import userLoadMyMemberships from "../utils/userLoadMyMemberships";
 import userLoadMySubmissions from "../utils/userLoadMySubmissions";
+import userLoadNotifications from "../utils/userLoadNotifications";
 import userLoadSettings from "../utils/userLoadSettings";
 import userLoadStudios from "../utils/userLoadStudios";
 import userLoadSubmissions from "../utils/userLoadSubmissions";
@@ -71,10 +66,6 @@ export const useUserContextState = (
   });
 
   const [, toastDispatch] = toastContext;
-
-  const myConnectsRef = useRef<{
-    [docId: string]: AggData;
-  }>();
 
   const uid = attributes?.uid;
 
@@ -116,7 +107,11 @@ export const useUserContextState = (
   }, []);
   useDocumentLoad<UserDocument>(handleLoadUserDocument, "users", uid);
 
-  const { my_studio_memberships } = state;
+  const { my_studio_memberships, my_connects } = state;
+
+  const [unreadNotifications, setUnreadNotifications] = useState<{
+    [id: string]: AggData;
+  }>({});
 
   const studioIds = useMemo(
     () =>
@@ -169,61 +164,10 @@ export const useUserContextState = (
   useUserSettingsCollectionLoad(handleLoadSettings, uid);
 
   const handleLoadFollows = useCallback(
-    async (
-      data: {
-        [uid: string]: AggData;
-      },
-      added: string[]
-    ) => {
+    async (data: { [uid: string]: AggData }) => {
       dispatch(userLoadFollows(data || {}));
-      if (!data) {
-        return;
-      }
-      if (!added) {
-        return;
-      }
-      const newFollows: {
-        [uid: string]: AggData;
-      } = {};
-      added.forEach((otherUid) => {
-        if (otherUid) {
-          const aggData = data?.[otherUid];
-          if (!aggData?.r) {
-            newFollows[otherUid] = aggData;
-          }
-        }
-      });
-      const newFollowEntries = Object.entries(newFollows);
-      const addedUsers = newFollowEntries.map(([, d]) => d?.a?.u);
-      if (addedUsers.length > 1) {
-        toastDispatch(
-          toastTop(
-            `${addedUsers[0]} +${
-              addedUsers.length - 1
-            }others started following you!`
-          )
-        );
-      } else if (addedUsers.length === 1) {
-        toastDispatch(toastTop(`${addedUsers[0]} started following you!`));
-      }
-      const DataStateWrite = (
-        await import("../../impower-data-state/classes/dataStateWrite")
-      ).default;
-      await Promise.all([
-        ...newFollowEntries.map(([id]) =>
-          new DataStateWrite(
-            "users",
-            uid,
-            "agg",
-            "follows",
-            "data",
-            id,
-            "r"
-          ).set(true)
-        ),
-      ]);
     },
-    [toastDispatch, uid]
+    []
   );
   useObservedCollectionDataLoad(
     handleLoadFollows,
@@ -236,101 +180,10 @@ export const useUserContextState = (
   );
 
   const handleLoadConnects = useCallback(
-    async (data: { [uid: string]: AggData }, added: string[]) => {
+    async (data: { [uid: string]: AggData }) => {
       dispatch(userLoadConnects(data));
-      if (!added) {
-        return;
-      }
-      const myConnects = myConnectsRef.current || {};
-      const requitedUsers: {
-        [uid: string]: AggData;
-      } = {};
-      const requestedUsers: {
-        [uid: string]: AggData;
-      } = {};
-      if (myConnects) {
-        Object.keys(myConnects).forEach((docId) => {
-          if (docId) {
-            if (added.includes(docId)) {
-              const aggData = data?.[docId];
-              if (!aggData?.r) {
-                requitedUsers[docId] = aggData;
-              }
-            }
-          }
-        });
-        added.forEach((otherUid) => {
-          if (otherUid) {
-            if (!myConnects?.[otherUid]) {
-              const aggData = data?.[otherUid];
-              if (!aggData?.r) {
-                requestedUsers[otherUid] = aggData;
-              }
-            }
-          }
-        });
-      }
-      const requitedUserEntries = Object.entries(requitedUsers || {});
-      const requitedUserValues = requitedUserEntries.map(([, v]) => v);
-      const firstRequitedUser = requitedUserValues?.[0]?.a?.u;
-      if (firstRequitedUser) {
-        if (requitedUserValues.length > 1) {
-          toastDispatch(
-            toastTop(
-              `${firstRequitedUser} +${
-                requitedUserValues.length - 1
-              }others want to connect`
-            )
-          );
-        } else {
-          toastDispatch(toastTop(`${firstRequitedUser} wants to connect`));
-        }
-      }
-      const requestedUserEntries = Object.entries(requestedUsers || {});
-      const requestedUserValues = requestedUserEntries.map(([, v]) => v);
-      const firstRequestedUser = requestedUserValues?.[0]?.a?.u;
-      if (firstRequestedUser) {
-        if (requestedUserValues.length > 1) {
-          toastDispatch(
-            toastTop(
-              `${firstRequestedUser} +${
-                requestedUserValues.length - 1
-              }others want to connect`
-            )
-          );
-        } else {
-          toastDispatch(toastTop(`${firstRequestedUser} wants to connect`));
-        }
-      }
-      const DataStateWrite = (
-        await import("../../impower-data-state/classes/dataStateWrite")
-      ).default;
-      await Promise.all([
-        ...requitedUserEntries.map(([id]) =>
-          new DataStateWrite(
-            "users",
-            uid,
-            "agg",
-            "connects",
-            "data",
-            id,
-            "r"
-          ).set(true)
-        ),
-        ...requestedUserEntries.map(([id]) =>
-          new DataStateWrite(
-            "users",
-            uid,
-            "agg",
-            "connects",
-            "data",
-            id,
-            "r"
-          ).set(true)
-        ),
-      ]);
     },
-    [toastDispatch, uid]
+    []
   );
   useObservedCollectionDataLoad(
     handleLoadConnects,
@@ -341,6 +194,146 @@ export const useUserContextState = (
     "connects",
     "data"
   );
+
+  const router = useRouter();
+
+  const handleLoadNotifications = useCallback(
+    async (data: { [uid: string]: AggData }) => {
+      const unread = {};
+      Object.entries(data || {}).forEach(([id, d]) => {
+        if (!d.r) {
+          unread[id] = d;
+        }
+      });
+      setUnreadNotifications(unread);
+      dispatch(userLoadNotifications(unread));
+    },
+    []
+  );
+  useObservedCollectionDataLoad(
+    handleLoadNotifications,
+    { orderByChild: "t" },
+    "users",
+    uid,
+    "notifications",
+    "data"
+  );
+
+  useEffect(() => {
+    if (!uid) {
+      return;
+    }
+    if (unreadNotifications === undefined) {
+      return;
+    }
+    if (my_connects === undefined) {
+      return;
+    }
+    const notify = async (): Promise<void> => {
+      if (!unreadNotifications) {
+        return;
+      }
+      const myConnects = my_connects || {};
+      const requitedUsers: {
+        [uid: string]: AggData;
+      } = {};
+      const requestedUsers: {
+        [uid: string]: AggData;
+      } = {};
+      if (myConnects) {
+        Object.values(unreadNotifications || {}).forEach((data) => {
+          if (!data?.r) {
+            const otherUid = data.uid;
+            if (myConnects[`users%${data.uid}`]) {
+              requitedUsers[otherUid] = data;
+            } else {
+              requestedUsers[otherUid] = data;
+            }
+          }
+        });
+      }
+      const requitedUserValues = Object.values(requitedUsers || {});
+      const lastRequitedUser =
+        requitedUserValues?.[requitedUserValues.length - 1]?.a?.u;
+      if (lastRequitedUser) {
+        if (requitedUserValues.length > 1) {
+          toastDispatch(
+            toastTop(
+              `${lastRequitedUser} +${
+                requitedUserValues.length - 1
+              } others connected with you!`,
+              undefined,
+              undefined,
+              "VIEW",
+              (): void => {
+                router.push("/connections?t=connected");
+              }
+            )
+          );
+        } else {
+          toastDispatch(
+            toastTop(
+              `${lastRequitedUser} connected with you!`,
+              undefined,
+              undefined,
+              "VIEW",
+              (): void => {
+                router.push("/connections?t=connected");
+              }
+            )
+          );
+        }
+      }
+      const requestedUserValues = Object.values(requestedUsers || {});
+      const lastRequestedUser =
+        requestedUserValues?.[requestedUserValues.length - 1]?.a?.u;
+      if (lastRequestedUser) {
+        if (requestedUserValues.length > 1) {
+          toastDispatch(
+            toastTop(
+              `${lastRequestedUser} +${
+                requestedUserValues.length - 1
+              } others want to connect`,
+              undefined,
+              undefined,
+              "VIEW",
+              (): void => {
+                router.push("/connections?t=requested");
+              }
+            )
+          );
+        } else {
+          toastDispatch(
+            toastTop(
+              `${lastRequestedUser} wants to connect`,
+              undefined,
+              undefined,
+              "VIEW",
+              (): void => {
+                router.push("/connections?t=requested");
+              }
+            )
+          );
+        }
+      }
+      const DataStateWrite = (
+        await import("../../impower-data-state/classes/dataStateWrite")
+      ).default;
+      await Promise.all([
+        ...Object.entries(unreadNotifications).map(([id]) =>
+          new DataStateWrite(
+            "users",
+            uid,
+            "notifications",
+            "data",
+            id,
+            "r"
+          ).set(true)
+        ),
+      ]);
+    };
+    notify();
+  }, [my_connects, unreadNotifications, router, toastDispatch, uid]);
 
   const handleLoadMySubmissions = useCallback(
     (all: { [docId: string]: AggData }) => {
@@ -366,7 +359,7 @@ export const useUserContextState = (
   );
   useCollectionDataLoad(
     handleLoadMyMemberships,
-    { orderByChild: "t" },
+    { orderByChild: "t", limitToLast: 1000 },
     "users",
     uid,
     "agg",
@@ -393,7 +386,6 @@ export const useUserContextState = (
   const handleLoadMyConnects = useCallback(
     (all: { [docId: string]: AggData }) => {
       dispatch(userLoadMyConnects(all));
-      myConnectsRef.current = all;
     },
     []
   );

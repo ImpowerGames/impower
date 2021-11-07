@@ -6,12 +6,13 @@ export const useCollectionDataLoad = <T>(
   options?: {
     source?: "cache" | "server";
     orderByChild?: string;
+    equalTo?: number | string | boolean | null;
     limitToFirst?: number;
     limitToLast?: number;
   },
   ...path: DataStateQueryPath
 ): { [id: string]: T } => {
-  const { source, orderByChild, limitToFirst, limitToLast } = options;
+  const { source, orderByChild, equalTo, limitToFirst, limitToLast } = options;
 
   const [collection, setCollection] = useState<{ [id: string]: T }>();
 
@@ -41,6 +42,9 @@ export const useCollectionDataLoad = <T>(
       if (orderByChild) {
         query = query.orderByChild(orderByChild);
       }
+      if (equalTo) {
+        query = query.equalTo(equalTo);
+      }
       if (limitToFirst) {
         query = query.limitToFirst(limitToFirst);
       }
@@ -48,14 +52,25 @@ export const useCollectionDataLoad = <T>(
         query = query.limitToLast(limitToLast);
       }
       const snapshot = await query.get(source === "cache");
-      const data = snapshot.val();
-      setCollection(data);
+      const newData = {};
+      snapshot.forEach((s) => {
+        newData[s.key] = s.val();
+      });
+      setCollection(newData);
       if (onLoad) {
-        onLoad(data);
+        onLoad(newData);
       }
     };
     getData();
-  }, [onLoad, orderByChild, memoizedPath, limitToFirst, limitToLast, source]);
+  }, [
+    onLoad,
+    orderByChild,
+    memoizedPath,
+    limitToFirst,
+    limitToLast,
+    source,
+    equalTo,
+  ]);
 
   return collection;
 };

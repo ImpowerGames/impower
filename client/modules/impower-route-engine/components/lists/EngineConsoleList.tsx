@@ -1263,8 +1263,8 @@ const EngineConsoleItemCardContent = React.memo(
                                 <TransparencyPattern />
                                 <Avatar
                                   backgroundColor={rowColor}
-                                  backgroundImageSrc={rowImage}
-                                  name={rowName}
+                                  src={rowImage}
+                                  alt={rowName}
                                   icon={rowIcon}
                                   iconColor={iconColor}
                                   style={{

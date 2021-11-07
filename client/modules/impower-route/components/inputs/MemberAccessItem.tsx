@@ -71,8 +71,8 @@ const MemberAccessItem = React.memo(
           <StyledAvatarArea>
             <Avatar
               backgroundColor={backgroundColor}
-              name={name}
-              backgroundImageSrc={backgroundImageSrc}
+              alt={name}
+              src={backgroundImageSrc}
               icon={icon}
               fontSize={theme.fontSize.smallerIcon}
               getPlaceholderUrl={getPlaceholderUrl}

@@ -2,7 +2,7 @@ import styled from "@emotion/styled";
 import {
   Alert,
   AlertColor,
-  IconButton,
+  Button,
   Slide,
   Snackbar,
   SnackbarOrigin,
@@ -18,6 +18,11 @@ const StyledSnackbar = styled(Snackbar)`
   & .MuiSnackbarContent-action {
     margin-right: 0;
   }
+`;
+
+const StyledButton = styled(Button)`
+  pointer-events: auto;
+  min-width: 0;
 `;
 
 interface ToastProps {
@@ -67,7 +72,8 @@ const Toast = React.memo((props: ToastProps): JSX.Element => {
       }
       onClose={onClose}
       action={
-        <IconButton
+        <StyledButton
+          color={severity ? "secondary" : "inherit"}
           style={{ padding: 0 }}
           onClick={(): void => {
             if (onAction) {
@@ -85,7 +91,7 @@ const Toast = React.memo((props: ToastProps): JSX.Element => {
               <XmarkSolidIcon />
             </FontIcon>
           )}
-        </IconButton>
+        </StyledButton>
       }
       message={severity === undefined ? message : undefined}
     >

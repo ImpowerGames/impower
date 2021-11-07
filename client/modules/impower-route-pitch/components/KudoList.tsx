@@ -163,10 +163,10 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
         ? query.endBefore(timeLoaded, cursor).limitToLast(limit)
         : query.endAt(timeLoaded).limitToLast(limit);
       const snapshot = await cursorQuery.get();
-      const data: { [id: string]: AggData } = snapshot.val();
-      if (!data) {
-        return 0;
-      }
+      const data: { [id: string]: AggData } = {};
+      snapshot.forEach((s) => {
+        data[s.key] = s.val();
+      });
       cursorRef.current = Object.keys(data)?.[0];
       const currentKudos = kudosRef.current || {};
       const newKudos = { ...currentKudos };

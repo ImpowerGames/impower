@@ -214,7 +214,7 @@ const labels = {
   data: "Request Data",
 };
 
-const Profile = React.memo((): JSX.Element | null => {
+const Account = React.memo((): JSX.Element | null => {
   const [userState, userDispatch] = useContext(UserContext);
   const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
   const [, toastDispatch] = useContext(ToastContext);
@@ -916,4 +916,4 @@ const Profile = React.memo((): JSX.Element | null => {
   );
 });
 
-export default Profile;
+export default Account;

@@ -186,9 +186,9 @@ const ContributionCardHeader = React.memo(
           <StyledAvatarArea>
             <StyledAvatarUserContent ref={avatarUserRef}>
               <Avatar
-                name={avatarName}
+                alt={avatarName}
                 backgroundColor={avatarColor}
-                backgroundImageSrc={avatarIcon}
+                src={avatarIcon}
                 href={avatarLink}
                 size={24}
                 fontSize={12}

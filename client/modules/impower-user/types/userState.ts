@@ -92,4 +92,7 @@ export interface UserState extends UserAttributes {
   my_recent_reports?: {
     [key: string]: ReportDocument;
   };
+  notifications?: {
+    [key: string]: AggData;
+  };
 }

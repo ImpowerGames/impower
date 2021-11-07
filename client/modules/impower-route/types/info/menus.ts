@@ -1,6 +1,7 @@
 export enum MenuType {
-  Account = "Account",
+  Connections = "Connections",
   Profile = "Profile",
+  Account = "Account",
   Logout = "Logout",
 }
 

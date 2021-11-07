@@ -176,8 +176,8 @@ const AccessDocInput = React.memo((props: AccessDocInputProps): JSX.Element => {
         <StyledAvatarArea>
           <Avatar
             backgroundColor={accessBackgroundColor}
-            backgroundImageSrc={accessBackgroundImageSrc}
-            name={name as string}
+            src={accessBackgroundImageSrc}
+            alt={name as string}
             icon={icon}
             fontSize={theme.fontSize.smallerIcon}
             style={{

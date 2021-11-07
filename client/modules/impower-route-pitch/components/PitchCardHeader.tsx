@@ -372,12 +372,11 @@ const PitchCardHeader = React.memo(
     const avatar = useMemo(
       () => (
         <Avatar
-          name={mainTagLabel}
+          alt={authorName}
           backgroundColor={validTagColor}
           fontSize={24}
           icon={avatarIcon}
           aria-label={authorName}
-          alt={authorName}
           href={getTagLink(mainTag)}
           onClick={handleBlockRipplePropogation}
           onMouseDown={handleBlockRipplePropogation}
@@ -391,7 +390,6 @@ const PitchCardHeader = React.memo(
         avatarStyle,
         handleBlockRipplePropogation,
         mainTag,
-        mainTagLabel,
         validTagColor,
       ]
     );

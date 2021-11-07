@@ -1,12 +1,5 @@
 import styled from "@emotion/styled";
-import {
-  Avatar,
-  Button,
-  IconButton,
-  Paper,
-  Tab,
-  Typography,
-} from "@material-ui/core";
+import { Button, IconButton, Paper, Tab, Typography } from "@material-ui/core";
 import dynamic from "next/dynamic";
 import NextLink from "next/link";
 import React, { useCallback, useContext, useEffect, useState } from "react";
@@ -15,6 +8,7 @@ import { getDataStoreKey, ProjectDocument } from "../impower-data-store";
 import { SvgData } from "../impower-icon";
 import { Fallback, Tabs } from "../impower-route";
 import PitchList from "../impower-route-pitch/components/PitchList";
+import Avatar from "../impower-route/components/elements/Avatar";
 import { UserContext, userDoConnect, userUndoConnect } from "../impower-user";
 
 const SORT_OPTIONS: ["new", "rating", "rank"] = ["new", "rating", "rank"];
@@ -102,6 +96,8 @@ const StyledOfflineTypography = styled(Typography)`
   opacity: 0.6;
 `;
 
+const StyledConnectArea = styled.div``;
+
 interface ProfileProps {
   config?: ConfigParameters;
   icons?: { [name: string]: SvgData };
@@ -164,9 +160,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
         <StyledPaper>
           <StyledDetailsArea>
             <IconButton>
-              <Avatar src={icon} alt={username} sx={{ bgcolor: hex }}>
-                {username?.[0]?.toUpperCase()}
-              </Avatar>
+              <Avatar src={icon} alt={username} backgroundColor={hex} />
             </IconButton>
             {username && (
               <StyledUsernameTypography variant="h5">
@@ -193,18 +187,21 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                 >{`Edit Profile`}</StyledButton>
               </NextLink>
             ) : (
-              <StyledButton
-                variant="outlined"
-                size="large"
-                color={connectedToState ? "inherit" : undefined}
-                onClick={handleConnect}
-              >
-                {connectedToState && connectedFrom
-                  ? `Connected!`
-                  : connectedToState
-                  ? `Requested`
-                  : "Connect"}
-              </StyledButton>
+              <StyledConnectArea>
+                <StyledButton
+                  size="large"
+                  color="secondary"
+                  variant={connectedToState ? "outlined" : "contained"}
+                  onClick={handleConnect}
+                  disableElevation
+                >
+                  {connectedToState && connectedFrom
+                    ? `Connected!`
+                    : connectedToState
+                    ? `Requested`
+                    : "Connect"}
+                </StyledButton>
+              </StyledConnectArea>
             )}
             {bio && (
               <StyledBioTypography variant="body2">{bio}</StyledBioTypography>

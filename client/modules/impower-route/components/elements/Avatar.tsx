@@ -83,8 +83,7 @@ const StyledInitialsTypography = styled(Typography)`
 
 interface AvatarProps {
   "backgroundColor"?: string;
-  "backgroundImageSrc"?: string;
-  "name": string;
+  "src"?: string;
   "icon"?: React.ReactNode;
   "iconColor"?: string;
   "size"?: string | number;
@@ -105,8 +104,7 @@ const Avatar = React.memo(
   (props: PropsWithChildren<AvatarProps>): JSX.Element => {
     const {
       backgroundColor,
-      backgroundImageSrc,
-      name,
+      src,
       icon,
       iconColor,
       size,
@@ -132,7 +130,7 @@ const Avatar = React.memo(
       setImageError(true);
     }, []);
 
-    const backgroundImageExists = backgroundImageSrc && !imageError;
+    const backgroundImageExists = src && !imageError;
 
     const avatarStyle: React.CSSProperties = useMemo(
       () => ({
@@ -162,13 +160,11 @@ const Avatar = React.memo(
     return (
       <StyledAvatar className={animationClass} style={avatarStyle}>
         <StyledDarkOverlay className={StyledDarkOverlay.displayName}>
-          {backgroundImageSrc && (
+          {src && (
             <LazyImage
-              src={backgroundImageSrc}
+              src={src}
               placeholder={
-                getPlaceholderUrl
-                  ? getPlaceholderUrl(backgroundImageSrc)
-                  : undefined
+                getPlaceholderUrl ? getPlaceholderUrl(src) : undefined
               }
               aria-label={ariaLabel}
               alt={alt}
@@ -178,13 +174,13 @@ const Avatar = React.memo(
             />
           )}
           <StyledButtonContent style={contentButtonStyle}>
-            {name === "[deleted]" ? null : icon ? (
-              <FontIcon aria-label={name} color={iconColor} size={fontSize}>
+            {alt === "[deleted]" ? null : icon ? (
+              <FontIcon aria-label={alt} color={iconColor} size={fontSize}>
                 {icon}
               </FontIcon>
             ) : (
               <StyledInitialsTypography style={initialsStyle}>
-                {getInitials(name)}
+                {getInitials(alt)}
               </StyledInitialsTypography>
             )}
             {!children && (onClick || onPointerDown || href) && (

@@ -252,8 +252,8 @@ const EngineNavigationBar = React.memo(
                             >
                               <Avatar
                                 backgroundColor={backgroundColor}
-                                backgroundImageSrc={image}
-                                name={label}
+                                src={image}
+                                alt={label}
                                 icon={icon}
                                 fontSize={theme.fontSize.smallerIcon}
                                 style={{

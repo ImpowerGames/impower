@@ -31,10 +31,12 @@ import { USER_LOAD_MY_KUDOS } from "./actions/userLoadMyKudosAction";
 import { USER_LOAD_MY_LIKES } from "./actions/userLoadMyLikesAction";
 import { USER_LOAD_MY_MEMBERSHIPS } from "./actions/userLoadMyMembershipsAction";
 import { USER_LOAD_MY_SUBMISSIONS } from "./actions/userLoadMySubmissionsAction";
+import { USER_LOAD_NOTIFICATIONS } from "./actions/userLoadNotificationsAction";
 import { USER_LOAD_SETTINGS } from "./actions/userLoadSettingsAction";
 import { USER_LOAD_STUDIOS } from "./actions/userLoadStudiosAction";
 import { USER_LOAD_SUBMISSIONS } from "./actions/userLoadSubmissionsAction";
 import { USER_LOAD_USER_DOC } from "./actions/userLoadUserDocAction";
+import { USER_REJECT_CONNECT } from "./actions/userRejectConnectAction";
 import { USER_SET_CUSTOMIZATION } from "./actions/userSetCustomizationAction";
 import { USER_SET_SETTING } from "./actions/userSetSettingAction";
 import { USER_SET_TEMP_EMAIL } from "./actions/userSetTempEmailAction";
@@ -129,6 +131,13 @@ export const userReducer = (
       return {
         ...state,
         connects,
+      };
+    }
+    case USER_LOAD_NOTIFICATIONS: {
+      const { notifications } = action.payload;
+      return {
+        ...state,
+        notifications,
       };
     }
     case USER_LOAD_MY_MEMBERSHIPS: {
@@ -345,6 +354,48 @@ export const userReducer = (
         ...state,
         [myActivitiesName]: myActivities,
         my_recent_pitched_projects,
+      };
+    }
+    case USER_REJECT_CONNECT: {
+      const { path, onFinished } = action.payload;
+      const id = path?.[path.length - 1];
+      const setData = async (): Promise<void> => {
+        const Auth = (await import("../../impower-auth/classes/auth")).default;
+        const DataStateWrite = (
+          await import("../../impower-data-state/classes/dataStateWrite")
+        ).default;
+        const { uid } = Auth.instance;
+        const rejectRef = new DataStateWrite(
+          "users",
+          uid,
+          "agg",
+          "connects",
+          "data",
+          id,
+          "r"
+        );
+        try {
+          await rejectRef.set(true);
+        } catch (e) {
+          const logWarn = (await import("../../impower-logger/utils/logWarn"))
+            .default;
+          logWarn("DataState", e);
+          errorHandler?.(e.code);
+        }
+        if (onFinished) {
+          onFinished();
+        }
+      };
+      setData();
+      return {
+        ...state,
+        connects: {
+          ...(state?.connects || {}),
+          [id]: {
+            ...(state?.connects?.[id] || {}),
+            r: true,
+          },
+        },
       };
     }
     case USER_CHANGE_MEMBER: {

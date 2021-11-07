@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { difference } from "../../impower-core";
 import { DataSnapshot, Unsubscribe } from "../types/aliases";
 import { DataStateQueryPath } from "../types/dataStatePath";
 
 export const useObservedCollectionDataLoad = <T>(
-  onLoad: (data: { [id: string]: T }, added?: string[]) => void,
+  onLoad: (data: { [id: string]: T }) => void,
   options: {
     orderByChild?: string;
+    equalTo?: number | string | boolean | null;
     limitToFirst?: number;
     limitToLast?: number;
   },
   ...path: DataStateQueryPath
 ): { [id: string]: T } => {
-  const { orderByChild, limitToFirst, limitToLast } = options;
+  const { orderByChild, equalTo, limitToFirst, limitToLast } = options;
 
   const [data, setData] = useState<{ [id: string]: T }>();
   const dataRef = useRef<{ [id: string]: T }>({});
@@ -41,19 +41,20 @@ export const useObservedCollectionDataLoad = <T>(
       const DataStateQuery = (await import("../classes/dataStateQuery"))
         .default;
       const onSnapshot = (snapshot: DataSnapshot): void => {
-        const newData = snapshot.val();
-        const added = newData
-          ? difference(Object.keys(newData), Object.keys(dataRef.current || {}))
-          : [];
-        setData(newData);
+        snapshot.forEach((s) => {
+          dataRef.current[s.key] = s.val();
+        });
+        setData(dataRef.current);
         if (onLoad) {
-          onLoad(newData, added);
+          onLoad(dataRef.current);
         }
-        dataRef.current = newData;
       };
       let query = new DataStateQuery(...memoizedPath);
       if (orderByChild) {
         query = query.orderByChild(orderByChild);
+      }
+      if (equalTo) {
+        query = query.equalTo(equalTo);
       }
       if (limitToFirst) {
         query = query.limitToFirst(limitToFirst);
@@ -70,7 +71,7 @@ export const useObservedCollectionDataLoad = <T>(
         unsubscribe();
       }
     };
-  }, [onLoad, orderByChild, memoizedPath, limitToFirst, limitToLast]);
+  }, [onLoad, orderByChild, memoizedPath, limitToFirst, limitToLast, equalTo]);
 
   return data;
 };

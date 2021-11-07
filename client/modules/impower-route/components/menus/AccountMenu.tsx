@@ -3,6 +3,7 @@ import MenuItem from "@material-ui/core/MenuItem";
 import React, { PropsWithChildren, useCallback, useContext } from "react";
 import ArrowRightFromBracketRegularIcon from "../../../../resources/icons/regular/arrow-right-from-bracket.svg";
 import GearRegularIcon from "../../../../resources/icons/regular/gear.svg";
+import HandshakeSimplRegularIcon from "../../../../resources/icons/regular/handshake-simple.svg";
 import UserRegularIcon from "../../../../resources/icons/regular/user.svg";
 import { FontIcon } from "../../../impower-icon";
 import {
@@ -28,6 +29,12 @@ export const authenticatedAccountMenuItems: MenuInfo[] = [
     label: "Profile",
     link: "/profile",
     icon: <UserRegularIcon />,
+  },
+  {
+    type: MenuType.Connections,
+    label: "Connections",
+    link: "/connections",
+    icon: <HandshakeSimplRegularIcon />,
   },
   {
     type: MenuType.Account,

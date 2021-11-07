@@ -98,6 +98,15 @@ export type UserAggQueryPath =
   | [...UserDocumentPath, "agg", "connects", "data"]
   | [...UserDocumentPath, "agg", "follows", "data"];
 
+export type UserNotificationsReadPath =
+  | [...UserDocumentPath, "notifications", "count"]
+  | [...UserDocumentPath, "notifications", "data"]
+  | [...UserDocumentPath, "notifications", "data", string];
+export type UserNotificationsWritePath =
+  | [...UserDocumentPath, "notifications", "data", string, "r"];
+export type UserNotificationsQueryPath =
+  | [...UserDocumentPath, "notifications", "data"];
+
 export type UserChatReadPath =
   | [...UserDocumentPath, "chats", string]
   | [...UserDocumentPath, "chats", string, "a"]
@@ -243,10 +252,10 @@ export type DataStateReadPath =
   | UserDeletedSubmissionsReadPath
   | InfoReadPath
   | UserAggReadPath
+  | UserNotificationsReadPath
   | TagAggReadPath
   | PageAggReadPath
   | PageDocReadPath
-  | UserAggReadPath
   | UserChatReadPath
   | PhraseAggReadPath
   | PageMembersReadPath
@@ -267,6 +276,7 @@ export type DataStateWritePath =
   | TagAggWritePath
   | PageAggWritePath
   | UserAggWritePath
+  | UserNotificationsWritePath
   | UserChatWritePath
   | PhraseAggWritePath
   | PageMemberWritePath
@@ -283,6 +293,7 @@ export type DataStateQueryPath =
   | TagAggQueryPath
   | PageAggQueryPath
   | UserAggQueryPath
+  | UserNotificationsQueryPath
   | UserChatQueryPath
   | PageMemberQueryPath
   | PublishedPageAggQueryPath

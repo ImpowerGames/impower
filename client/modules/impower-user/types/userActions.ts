@@ -12,10 +12,12 @@ import { UserLoadMyKudosAction } from "./actions/userLoadMyKudosAction";
 import { UserLoadMyLikesAction } from "./actions/userLoadMyLikesAction";
 import { UserLoadMyMembershipsAction } from "./actions/userLoadMyMembershipsAction";
 import { UserLoadMySubmissionsAction } from "./actions/userLoadMySubmissionsAction";
+import { UserLoadNotificationsAction } from "./actions/userLoadNotificationsAction";
 import { UserLoadSettingsAction } from "./actions/userLoadSettingsAction";
 import { UserLoadStudiosAction } from "./actions/userLoadStudiosAction";
 import { UserLoadSubmissionsAction } from "./actions/userLoadSubmissionsAction";
 import { UserLoadUserDocAction } from "./actions/userLoadUserDocAction";
+import { UserRejectConnectAction } from "./actions/userRejectConnectAction";
 import { UserSetCustomizationAction } from "./actions/userSetCustomizationAction";
 import { UserSetSettingAction } from "./actions/userSetSettingAction";
 import { UserSetTempEmailAction } from "./actions/userSetTempEmailAction";
@@ -38,8 +40,10 @@ export type UserAction =
   | UserLoadMyLikesAction
   | UserLoadMyDislikesAction
   | UserLoadMyKudosAction
+  | UserLoadNotificationsAction
   | UserDoActivityAction
   | UserUndoActivityAction
+  | UserRejectConnectAction
   | UserChangeMemberAction
   | UserCreateSubmissionAction
   | UserUpdateSubmissionAction

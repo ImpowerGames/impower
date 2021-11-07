@@ -29,8 +29,8 @@ const PageAvatar = (props: PageAvatarProps): JSX.Element => {
   return (
     <Avatar
       backgroundColor={tagColor}
-      backgroundImageSrc={imageSrc}
-      name={name}
+      src={imageSrc}
+      alt={name}
       icon={
         mainTag ? <DynamicIcon icon={tagIconName || "hashtag"} /> : undefined
       }
