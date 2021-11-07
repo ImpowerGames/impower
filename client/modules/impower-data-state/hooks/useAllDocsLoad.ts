@@ -9,7 +9,7 @@ export const useAllDocsLoad = <T extends PageDocument>(
   const [collection, setCollection] = useState<{ [id: string]: T }>();
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoizedIds = useMemo(() => ids, ids);
+  const memoizedIds = useMemo(() => ids, ids || []);
 
   useEffect(() => {
     if (

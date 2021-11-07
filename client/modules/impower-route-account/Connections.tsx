@@ -22,6 +22,8 @@ import {
   useAutocomplete,
 } from "@material-ui/unstyled/AutocompleteUnstyled";
 import React, { useCallback, useContext, useMemo, useState } from "react";
+import DiscordBrandsIcon from "../../resources/icons/brands/discord.svg";
+import EnvelopeRegularIcon from "../../resources/icons/regular/envelope.svg";
 import MagnifyingGlassRegularIcon from "../../resources/icons/regular/magnifying-glass.svg";
 import XmarkRegularIcon from "../../resources/icons/regular/xmark.svg";
 import { abbreviateAge, abbreviateCount } from "../impower-config";
@@ -179,6 +181,16 @@ const StyledIconButton = styled(IconButton)`
   .Mui-focused & {
     display: inline-flex;
   }
+`;
+
+const StyledContactArea = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
+const StyledContactIconArea = styled.div`
+  padding-right: ${(props): string => props.theme.spacing(1)};
+  opacity: 0.8;
 `;
 
 const Connections = React.memo((): JSX.Element | null => {
@@ -417,9 +429,25 @@ const Connections = React.memo((): JSX.Element | null => {
                         </ListItemAvatar>
                         <StyledListItemText
                           primary={data?.a?.u}
-                          secondary={`${
-                            belowSmBreakpoint ? "" : "connected with you — "
-                          }${abbreviateAge(new Date(data?.t))}`}
+                          secondary={
+                            data?.c ? (
+                              <StyledContactArea>
+                                <StyledContactIconArea>
+                                  <FontIcon
+                                    aria-label={`Search Usernames`}
+                                    size={16}
+                                  >
+                                    {data?.c?.includes("@") ? (
+                                      <EnvelopeRegularIcon />
+                                    ) : (
+                                      <DiscordBrandsIcon />
+                                    )}
+                                  </FontIcon>
+                                </StyledContactIconArea>
+                                {data?.c}
+                              </StyledContactArea>
+                            ) : undefined
+                          }
                         />
                       </StyledListItemButton>
                       <StyledItemDivider variant="inset" absolute />

@@ -281,6 +281,8 @@ const StyledSubmitButton = styled(Button)`
   font-weight: bold;
 `;
 
+const StyledDivider = styled(Divider)``;
+
 const requestTimeout = (call: () => unknown, delay: number): number => {
   const start = new Date().getTime();
   const loop = (): void => {
@@ -738,6 +740,7 @@ const AutocompleteDialog = React.memo(
                 className={ios ? "scrollable" : undefined}
                 style={{ position: "absolute" }}
               >
+                {!searchable && <StyledDivider />}
                 <StyledAutocomplete
                   ref={autocompleteRef}
                   className={variant}

@@ -243,6 +243,9 @@ export const userReducer = (
         if (c) {
           data.c = c;
         }
+        if (type === "connects") {
+          data.c = state?.settings?.account?.contact;
+        }
         try {
           await aggRef.update({
             count: incrementServerValue(1),

@@ -9,6 +9,8 @@ const createSettingsDocument = (
   emailMarketing: false,
   emailNotifications: false,
   appNotifications: false,
+  contactMethod: "email",
+  contact: "",
   ...doc,
 });
 

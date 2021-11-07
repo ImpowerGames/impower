@@ -7,4 +7,6 @@ export interface SettingsDocument extends DataDocument<"SettingsDocument"> {
   appNotifications: boolean;
   nsfwVisible: boolean;
   nsfwBlurred: boolean;
+  contactMethod: string;
+  contact: string;
 }

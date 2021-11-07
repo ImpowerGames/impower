@@ -38,6 +38,7 @@ import { useDialogNavigation } from "../impower-dialog";
 import { FontIcon } from "../impower-icon";
 import { TextField } from "../impower-route";
 import InspectorForm from "../impower-route/components/forms/InspectorForm";
+import AutocompleteInput from "../impower-route/components/inputs/AutocompleteInput";
 import BooleanInput from "../impower-route/components/inputs/BooleanInput";
 import FileInput from "../impower-route/components/inputs/FileInput";
 import InputHelperText from "../impower-route/components/inputs/InputHelperText";
@@ -205,7 +206,7 @@ const StyledAccordionSummary = styled(AccordionSummary)`
 `;
 
 const profilePropertyPaths = ["icon", "bio"];
-const settingsPropertyPaths = ["nsfwVisible"];
+const settingsPropertyPaths = ["contactMethod", "contact", "nsfwVisible"];
 const labels = {
   username: "Change Username",
   email: "Change Email",
@@ -279,10 +280,10 @@ const Account = React.memo((): JSX.Element | null => {
     () => [newUserDoc || createUserDocument()],
     [newUserDoc]
   );
-  const settingsData = useMemo(
-    () => [newSettingsDoc || createSettingsDocument()],
-    [newSettingsDoc]
-  );
+  const settingsData = useMemo(() => {
+    const data = newSettingsDoc || createSettingsDocument();
+    return [data];
+  }, [newSettingsDoc]);
 
   const values = useMemo(
     () => ({
@@ -597,6 +598,29 @@ const Account = React.memo((): JSX.Element | null => {
   );
   const handleSettingsPropertyChange = useCallback(
     async (propertyPath: string, value: unknown) => {
+      if (propertyPath === "contact") {
+        return;
+      }
+      if (JSON.stringify(newUserDoc[propertyPath]) === JSON.stringify(value)) {
+        return;
+      }
+      const updates = { [propertyPath]: value };
+      const updatedDoc = { ...newSettingsDoc, ...updates };
+      if (propertyPath === "contactMethod") {
+        updatedDoc.contact = value === "account" ? newEmail : "";
+      }
+      setNewSettingsDoc(updatedDoc);
+      await new Promise<void>((resolve) =>
+        userDispatch(userOnSetSetting(resolve, updatedDoc, "account"))
+      );
+    },
+    [newEmail, newSettingsDoc, newUserDoc, userDispatch]
+  );
+  const handleSettingsPropertyBlur = useCallback(
+    async (propertyPath: string, value: string) => {
+      if (propertyPath !== "contact") {
+        return;
+      }
       if (JSON.stringify(newUserDoc[propertyPath]) === JSON.stringify(value)) {
         return;
       }
@@ -750,15 +774,19 @@ const Account = React.memo((): JSX.Element | null => {
             variant="h6"
           >{`Your Settings`}</StyledHeaderTypography>
           <InspectorForm
-            key={`settings-${Boolean(newSettingsDoc).toString()}`}
+            key={`settings-${Boolean(newSettingsDoc).toString()}-${
+              newSettingsDoc?.contactMethod
+            }`}
             StringInputComponent={StringInput}
             FileInputComponent={FileInput}
             BooleanInputComponent={BooleanInput}
             InputComponent={OutlinedInput}
+            AutocompleteInputComponent={AutocompleteInput}
             data={settingsData}
             propertyPaths={settingsPropertyPaths}
             getInspector={getSettingsInspector}
             onPropertyChange={handleSettingsPropertyChange}
+            onPropertyBlur={handleSettingsPropertyBlur}
           />
           <StyledDivider />
           <StyledAccordion>
