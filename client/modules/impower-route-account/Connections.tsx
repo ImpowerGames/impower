@@ -434,8 +434,12 @@ const Connections = React.memo((): JSX.Element | null => {
                               <StyledContactArea>
                                 <StyledContactIconArea>
                                   <FontIcon
-                                    aria-label={`Search Usernames`}
-                                    size={16}
+                                    aria-label={
+                                      data?.c?.includes("@")
+                                        ? "email"
+                                        : "discord"
+                                    }
+                                    size={14}
                                   >
                                     {data?.c?.includes("@") ? (
                                       <EnvelopeRegularIcon />
