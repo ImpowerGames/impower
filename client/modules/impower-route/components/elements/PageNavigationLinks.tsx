@@ -1,6 +1,5 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Avatar from "@material-ui/core/Avatar";
 import Button from "@material-ui/core/Button";
 import Divider from "@material-ui/core/Divider";
 import IconButton from "@material-ui/core/IconButton";
@@ -15,6 +14,7 @@ import { UserContext } from "../../../impower-user";
 import { pageNames } from "../../types/info/pageNames";
 import FadeAnimation from "../animations/FadeAnimation";
 import SlideAnimation from "../animations/SlideAnimation";
+import Avatar from "./Avatar";
 
 export const navbarPages: string[] = process.env.NEXT_PUBLIC_ORIGIN?.includes(
   "localhost"
@@ -330,7 +330,7 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
                             <Avatar
                               alt={accountLabel}
                               src={icon}
-                              sx={{ bgcolor: hex }}
+                              backgroundColor={hex}
                             />
                           )}
                           {!icon && (

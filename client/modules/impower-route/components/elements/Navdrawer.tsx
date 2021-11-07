@@ -1,6 +1,5 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Avatar from "@material-ui/core/Avatar";
 import Button from "@material-ui/core/Button";
 import Divider from "@material-ui/core/Divider";
 import Drawer from "@material-ui/core/Drawer";
@@ -29,6 +28,7 @@ import { getBaseRoute } from "../../utils/getBaseRoute";
 import FadeAnimation from "../animations/FadeAnimation";
 import AppToolbar from "../layouts/AppToolbar";
 import AccountMenu from "../menus/AccountMenu";
+import Avatar from "./Avatar";
 import Title from "./Title";
 
 export const unauthenticatedAccountPages: string[] = ["/signup", "/login"];
@@ -352,7 +352,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
             >
               <StyledAvatarArea>
                 {icon && (
-                  <Avatar alt={accountLabel} src={icon} sx={{ bgcolor: hex }} />
+                  <Avatar alt={accountLabel} src={icon} backgroundColor={hex} />
                 )}
                 {!icon && (
                   <FontIcon aria-label={accountLabel} size={24}>
