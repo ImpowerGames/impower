@@ -15,9 +15,12 @@ const changeEmail = async (
   try {
     await updateEmail(user, newEmail);
   } catch {
-    const credential = EmailAuthProvider.credential(user.email, password);
-    await reauthenticateWithCredential(user, credential);
-    await updateEmail(user, newEmail);
+    const emailCredential = EmailAuthProvider.credential(user.email, password);
+    const userCredential = await reauthenticateWithCredential(
+      user,
+      emailCredential
+    );
+    await updateEmail(userCredential.user, newEmail);
   }
 };
 

@@ -339,6 +339,7 @@ const Account = React.memo((): JSX.Element | null => {
     }
     setDialogError(undefined);
     setCurrentPasswordError(undefined);
+    setCurrentPasswordReveal(false);
     setDialogProperty("username");
     openFieldDialog("username");
     setDialogOpen(true);
@@ -350,6 +351,7 @@ const Account = React.memo((): JSX.Element | null => {
     setDialogError(undefined);
     setCurrentPasswordError(undefined);
     setCurrentPassword("");
+    setCurrentPasswordReveal(false);
     setDialogProperty("email");
     openFieldDialog("email");
     setDialogOpen(true);
@@ -362,6 +364,7 @@ const Account = React.memo((): JSX.Element | null => {
     setCurrentPasswordError(undefined);
     setCurrentPassword("");
     setNewPassword("");
+    setCurrentPasswordReveal(false);
     setDialogProperty("password");
     openFieldDialog("password");
     setDialogOpen(true);
@@ -420,6 +423,7 @@ const Account = React.memo((): JSX.Element | null => {
     setCurrentPasswordError(undefined);
     setCurrentPassword("");
     setNewPassword("");
+    setCurrentPasswordReveal(false);
     setDialogProperty("delete");
     openFieldDialog("delete");
     setDialogOpen(true);
@@ -432,6 +436,7 @@ const Account = React.memo((): JSX.Element | null => {
     setCurrentPasswordError(undefined);
     setCurrentPassword("");
     setNewPassword("");
+    setCurrentPasswordReveal(false);
     setDialogProperty("data");
     openFieldDialog("data");
     setDialogOpen(true);
@@ -465,8 +470,19 @@ const Account = React.memo((): JSX.Element | null => {
         setNewEmail(newValue);
         const changeEmail = (await import("../impower-auth/utils/changeEmail"))
           .default;
+        const getClaims = (await import("../impower-auth/utils/getClaims"))
+          .default;
         try {
           await changeEmail(currentPassword, newEmail);
+          await getClaims(true);
+          if (newSettingsDoc?.contactMethod === "account") {
+            const updates = { contact: newValue };
+            const updatedDoc = { ...newSettingsDoc, ...updates };
+            setNewSettingsDoc(updatedDoc);
+            await new Promise<void>((resolve) =>
+              userDispatch(userOnSetSetting(resolve, updatedDoc, "account"))
+            );
+          }
           toastDispatch(toastTop(changeEmailSuccess, "success"));
         } catch (error) {
           const logError = (await import("../impower-logger/utils/logError"))
@@ -570,6 +586,7 @@ const Account = React.memo((): JSX.Element | null => {
       uid,
       currentPassword,
       newEmail,
+      newSettingsDoc,
       toastDispatch,
       newPassword,
       username,
@@ -776,7 +793,7 @@ const Account = React.memo((): JSX.Element | null => {
           <InspectorForm
             key={`settings-${Boolean(newSettingsDoc).toString()}-${
               newSettingsDoc?.contactMethod
-            }`}
+            }-${newSettingsDoc?.contact}`}
             StringInputComponent={StringInput}
             FileInputComponent={FileInput}
             BooleanInputComponent={BooleanInput}

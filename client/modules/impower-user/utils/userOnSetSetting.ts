@@ -13,7 +13,7 @@ const userOnSetSetting = (
 ): UserSetSettingAction => {
   return {
     type: USER_SET_SETTING,
-    payload: { settingsType, doc },
+    payload: { onFinished, settingsType, doc },
   };
 };
 
