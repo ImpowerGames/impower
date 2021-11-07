@@ -520,7 +520,9 @@ const PostCardActions = React.memo(
     const [openAccountDialog] = useDialogNavigation("a");
 
     const [userState] = useContext(UserContext);
-    const { uid } = userState;
+    const { uid, settings } = userState;
+    const account = settings?.account;
+    const contact = account === undefined ? undefined : account?.contact || "";
     const authenticated = uid !== undefined ? Boolean(uid) : undefined;
     const scoreRef = useRef(score);
     const likedRef = useRef(liked);
@@ -652,11 +654,24 @@ const PostCardActions = React.memo(
         }
         if (onConnect) {
           const newConnectedTo = !connectedToState;
+          if (newConnectedTo) {
+            if (!contact) {
+              openAccountDialog(`contact_${createdBy}`);
+              return;
+            }
+          }
           setConnectedToState(newConnectedTo);
           onConnect(e, newConnectedTo);
         }
       },
-      [authenticated, connectedToState, onConnect, openAccountDialog]
+      [
+        authenticated,
+        connectedToState,
+        contact,
+        createdBy,
+        onConnect,
+        openAccountDialog,
+      ]
     );
 
     const isCreator = createdBy === uid;

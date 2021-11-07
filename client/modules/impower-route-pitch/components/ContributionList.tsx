@@ -339,7 +339,7 @@ const ContributionList = React.memo(
       setChunkMap(undefined);
       setNoMore(noMoreRef.current);
       handleLoadMoreItems(pitchId, queryOptions);
-    }, [handleLoadMoreItems, queryOptions, pitchId, allowReload]);
+    }, [handleLoadMoreItems, queryOptions, pitchId, allowReload, nsfwVisible]);
 
     const handleEditContribution = useCallback(
       async (

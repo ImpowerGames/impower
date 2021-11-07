@@ -22,18 +22,19 @@ import {
   useAutocomplete,
 } from "@material-ui/unstyled/AutocompleteUnstyled";
 import React, { useCallback, useContext, useMemo, useState } from "react";
-import DiscordBrandsIcon from "../../resources/icons/brands/discord.svg";
-import EnvelopeRegularIcon from "../../resources/icons/regular/envelope.svg";
-import MagnifyingGlassRegularIcon from "../../resources/icons/regular/magnifying-glass.svg";
-import XmarkRegularIcon from "../../resources/icons/regular/xmark.svg";
-import { abbreviateAge, abbreviateCount } from "../impower-config";
-import { AggData } from "../impower-data-state";
-import { FontIcon } from "../impower-icon";
-import { Tabs } from "../impower-route";
-import Avatar from "../impower-route/components/elements/Avatar";
-import { useRouter } from "../impower-router";
-import { UserContext, userDoConnect } from "../impower-user";
-import userRejectConnect from "../impower-user/utils/userRejectConnect";
+import DiscordBrandsIcon from "../../../resources/icons/brands/discord.svg";
+import EnvelopeRegularIcon from "../../../resources/icons/regular/envelope.svg";
+import MagnifyingGlassRegularIcon from "../../../resources/icons/regular/magnifying-glass.svg";
+import XmarkRegularIcon from "../../../resources/icons/regular/xmark.svg";
+import { abbreviateAge, abbreviateCount } from "../../impower-config";
+import { AggData } from "../../impower-data-state";
+import { useDialogNavigation } from "../../impower-dialog";
+import { FontIcon } from "../../impower-icon";
+import { Tabs } from "../../impower-route";
+import Avatar from "../../impower-route/components/elements/Avatar";
+import { useRouter } from "../../impower-router";
+import { UserContext, userDoConnect } from "../../impower-user";
+import userRejectConnect from "../../impower-user/utils/userRejectConnect";
 
 const StyledContainer = styled.div`
   flex: 1;
@@ -216,7 +217,9 @@ const Connections = React.memo((): JSX.Element | null => {
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { connects, my_connects } = userState;
+  const { connects, my_connects, settings } = userState;
+  const account = settings?.account;
+  const contact = account === undefined ? undefined : account?.contact || "";
 
   const router = useRouter();
 
@@ -260,6 +263,8 @@ const Connections = React.memo((): JSX.Element | null => {
     ? `${abbreviateCount(requests.length)} `
     : "";
 
+  const [openAccountDialog] = useDialogNavigation("a");
+
   const handleClick = useCallback(
     async (e: React.MouseEvent, id: string, data: AggData) => {
       setLoading(true);
@@ -289,9 +294,13 @@ const Connections = React.memo((): JSX.Element | null => {
     (e: React.MouseEvent, id: string) => {
       e.preventDefault();
       e.stopPropagation();
+      if (!contact) {
+        openAccountDialog(`contact_${id}`);
+        return;
+      }
       userDispatch(userDoConnect("users", id));
     },
-    [userDispatch]
+    [contact, openAccountDialog, userDispatch]
   );
 
   const handleInputChange = useCallback(

@@ -18,36 +18,36 @@ import React, {
   useRef,
   useState,
 } from "react";
-import AngleDownRegularIcon from "../../resources/icons/regular/angle-down.svg";
-import EyeSlashSolidIcon from "../../resources/icons/solid/eye-slash.svg";
-import EyeSolidIcon from "../../resources/icons/solid/eye.svg";
+import AngleDownRegularIcon from "../../../resources/icons/regular/angle-down.svg";
+import EyeSlashSolidIcon from "../../../resources/icons/solid/eye-slash.svg";
+import EyeSolidIcon from "../../../resources/icons/solid/eye.svg";
 import {
   ConfirmDialogContext,
   confirmDialogNavOpen,
-} from "../impower-confirm-dialog";
-import { Inspector } from "../impower-core";
-import { timestampServerValue, useDataValue } from "../impower-data-state";
+} from "../../impower-confirm-dialog";
+import { Inspector } from "../../impower-core";
+import { timestampServerValue, useDataValue } from "../../impower-data-state";
 import {
   createUserDocument,
   UserDocument,
   UserDocumentInspector,
-} from "../impower-data-store";
-import { SettingsDocumentInspector } from "../impower-data-store/classes/inspectors/settingsDocumentInspector";
-import createSettingsDocument from "../impower-data-store/utils/createSettingsDocument";
-import { useDialogNavigation } from "../impower-dialog";
-import { FontIcon } from "../impower-icon";
-import { TextField } from "../impower-route";
-import InspectorForm from "../impower-route/components/forms/InspectorForm";
-import AutocompleteInput from "../impower-route/components/inputs/AutocompleteInput";
-import BooleanInput from "../impower-route/components/inputs/BooleanInput";
-import FileInput from "../impower-route/components/inputs/FileInput";
-import InputHelperText from "../impower-route/components/inputs/InputHelperText";
-import StringDialog from "../impower-route/components/inputs/StringDialog";
-import StringInput from "../impower-route/components/inputs/StringInput";
-import { useRouter } from "../impower-router";
-import { ToastContext, toastTop } from "../impower-toast";
-import { userOnSetSetting, userOnUpdateSubmission } from "../impower-user";
-import { UserContext } from "../impower-user/contexts/userContext";
+} from "../../impower-data-store";
+import { SettingsDocumentInspector } from "../../impower-data-store/classes/inspectors/settingsDocumentInspector";
+import createSettingsDocument from "../../impower-data-store/utils/createSettingsDocument";
+import { useDialogNavigation } from "../../impower-dialog";
+import { FontIcon } from "../../impower-icon";
+import { TextField } from "../../impower-route";
+import InspectorForm from "../../impower-route/components/forms/InspectorForm";
+import AutocompleteInput from "../../impower-route/components/inputs/AutocompleteInput";
+import BooleanInput from "../../impower-route/components/inputs/BooleanInput";
+import FileInput from "../../impower-route/components/inputs/FileInput";
+import InputHelperText from "../../impower-route/components/inputs/InputHelperText";
+import StringDialog from "../../impower-route/components/inputs/StringDialog";
+import StringInput from "../../impower-route/components/inputs/StringInput";
+import { useRouter } from "../../impower-router";
+import { ToastContext, toastTop } from "../../impower-toast";
+import { userOnSetSetting, userOnUpdateSubmission } from "../../impower-user";
+import { UserContext } from "../../impower-user/contexts/userContext";
 
 const changePasswordSuccess = "Password changed!";
 const changeEmailSuccess = "Email changed!";
@@ -376,13 +376,13 @@ const Account = React.memo((): JSX.Element | null => {
   const handleClickForgotPassword = useCallback(async () => {
     const onYes = async (): Promise<void> => {
       const forgotPassword = (
-        await import("../impower-auth/utils/forgotPassword")
+        await import("../../impower-auth/utils/forgotPassword")
       ).default;
       try {
         await forgotPassword(email);
         toastDispatch(toastTop(passwordResetEmailSent, "info"));
       } catch (error) {
-        const logError = (await import("../impower-logger/utils/logError"))
+        const logError = (await import("../../impower-logger/utils/logError"))
           .default;
         switch (error.code) {
           default:
@@ -449,7 +449,7 @@ const Account = React.memo((): JSX.Element | null => {
         const updates = { [dialogProperty]: newValue };
         const updatedDoc = { ...newUserDoc, ...updates };
         const DataStoreRead = (
-          await import("../impower-data-store/classes/dataStoreRead")
+          await import("../../impower-data-store/classes/dataStoreRead")
         ).default;
         const snapshot = await new DataStoreRead(
           "handles",
@@ -468,9 +468,10 @@ const Account = React.memo((): JSX.Element | null => {
       }
       if (dialogProperty === "email") {
         setNewEmail(newValue);
-        const changeEmail = (await import("../impower-auth/utils/changeEmail"))
-          .default;
-        const getClaims = (await import("../impower-auth/utils/getClaims"))
+        const changeEmail = (
+          await import("../../impower-auth/utils/changeEmail")
+        ).default;
+        const getClaims = (await import("../../impower-auth/utils/getClaims"))
           .default;
         try {
           await changeEmail(currentPassword, newEmail);
@@ -485,7 +486,7 @@ const Account = React.memo((): JSX.Element | null => {
           }
           toastDispatch(toastTop(changeEmailSuccess, "success"));
         } catch (error) {
-          const logError = (await import("../impower-logger/utils/logError"))
+          const logError = (await import("../../impower-logger/utils/logError"))
             .default;
           switch (error.code) {
             case "auth/invalid-password":
@@ -504,13 +505,13 @@ const Account = React.memo((): JSX.Element | null => {
       }
       if (dialogProperty === "password") {
         const changePassword = (
-          await import("../impower-auth/utils/changePassword")
+          await import("../../impower-auth/utils/changePassword")
         ).default;
         try {
           await changePassword(currentPassword, newPassword);
           toastDispatch(toastTop(changePasswordSuccess, "success"));
         } catch (error) {
-          const logError = (await import("../impower-logger/utils/logError"))
+          const logError = (await import("../../impower-logger/utils/logError"))
             .default;
           switch (error.code) {
             case "auth/invalid-password":
@@ -533,13 +534,13 @@ const Account = React.memo((): JSX.Element | null => {
           return false;
         }
         const deleteCurrentUser = (
-          await import("../impower-auth/utils/deleteCurrentUser")
+          await import("../../impower-auth/utils/deleteCurrentUser")
         ).default;
         try {
           await deleteCurrentUser(currentPassword);
           router.push("/signup");
         } catch (error) {
-          const logError = (await import("../impower-logger/utils/logError"))
+          const logError = (await import("../../impower-logger/utils/logError"))
             .default;
           switch (error.code) {
             case "auth/invalid-password":
@@ -562,7 +563,7 @@ const Account = React.memo((): JSX.Element | null => {
           return false;
         }
         const DataStateWrite = (
-          await import("../impower-data-state/classes/dataStateWrite")
+          await import("../../impower-data-state/classes/dataStateWrite")
         ).default;
         try {
           await new DataStateWrite("exports", uid).update({
@@ -571,7 +572,7 @@ const Account = React.memo((): JSX.Element | null => {
           });
           setRequestedData(true);
         } catch (error) {
-          const logError = (await import("../impower-logger/utils/logError"))
+          const logError = (await import("../../impower-logger/utils/logError"))
             .default;
           toastDispatch(toastTop(error.message, "error"));
           logError("Auth", error);
@@ -618,7 +619,9 @@ const Account = React.memo((): JSX.Element | null => {
       if (propertyPath === "contact") {
         return;
       }
-      if (JSON.stringify(newUserDoc[propertyPath]) === JSON.stringify(value)) {
+      if (
+        JSON.stringify(newSettingsDoc[propertyPath]) === JSON.stringify(value)
+      ) {
         return;
       }
       const updates = { [propertyPath]: value };
@@ -631,14 +634,16 @@ const Account = React.memo((): JSX.Element | null => {
         userDispatch(userOnSetSetting(resolve, updatedDoc, "account"))
       );
     },
-    [newEmail, newSettingsDoc, newUserDoc, userDispatch]
+    [newEmail, newSettingsDoc, userDispatch]
   );
   const handleSettingsPropertyBlur = useCallback(
     async (propertyPath: string, value: string) => {
       if (propertyPath !== "contact") {
         return;
       }
-      if (JSON.stringify(newUserDoc[propertyPath]) === JSON.stringify(value)) {
+      if (
+        JSON.stringify(newSettingsDoc[propertyPath]) === JSON.stringify(value)
+      ) {
         return;
       }
       const updates = { [propertyPath]: value };
@@ -648,7 +653,7 @@ const Account = React.memo((): JSX.Element | null => {
         userDispatch(userOnSetSetting(resolve, updatedDoc, "account"))
       );
     },
-    [newSettingsDoc, newUserDoc, userDispatch]
+    [newSettingsDoc, userDispatch]
   );
   const handleRevealCurrentPassword = useCallback((): void => {
     setCurrentPasswordReveal(!currentPasswordReveal);

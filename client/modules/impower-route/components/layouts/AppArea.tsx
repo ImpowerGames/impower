@@ -84,12 +84,9 @@ interface AppAreaProps {
 const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
   const { children } = props;
 
-  const [accountDialogOpenKey, setAccountDialogOpenKey] = useState<
-    "signup" | "login"
-  >();
+  const [accountDialogOpenKey, setAccountDialogOpenKey] = useState<string>();
 
-  const accountDialogOpen =
-    accountDialogOpenKey === "signup" || accountDialogOpenKey === "login";
+  const accountDialogOpen = Boolean(accountDialogOpenKey);
 
   const screenState = useContext(ScreenContext);
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
@@ -108,13 +105,13 @@ const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
   }, [navigationDispatch]);
 
   const handleQueryChange = useCallback((currState: Record<string, string>) => {
-    setAccountDialogOpenKey((currState.a as "signup" | "login") || null);
+    setAccountDialogOpenKey(currState.a || null);
   }, []);
 
   const handleBrowserNavigation = useCallback(
     (currState: Record<string, string>, prevState?: Record<string, string>) => {
       if (currState?.a !== prevState?.a) {
-        setAccountDialogOpenKey((currState?.a as "signup" | "login") || null);
+        setAccountDialogOpenKey(currState?.a || null);
       }
     },
     []

@@ -95,6 +95,7 @@ export interface AutocompleteInputProps
   listCountLimit?: number;
   responsive?: boolean;
   initialOpen?: boolean;
+  searchableThreshold?: number;
   style?: React.CSSProperties;
   renderInput?: (params: AutocompleteRenderInputParams) => React.ReactNode;
   getOptionHeight?: (group: string) => number;
@@ -158,6 +159,7 @@ const AutocompleteInput = React.memo(
       value,
       variant,
       initialOpen,
+      searchableThreshold = 5,
       open = false,
       filterOptions,
       getInputError,
@@ -281,16 +283,26 @@ const AutocompleteInput = React.memo(
       displayErrors();
     }, [getInputError, onErrorFixed, onErrorFound, showError, state]);
 
+    const noDefaultOptions = useMemo(
+      () => freeSolo && (!options || options.length === 0),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      []
+    );
+
+    const searchable =
+      noDefaultOptions || options?.length > searchableThreshold;
+
     const handleOpen = useCallback(
       async (e: React.ChangeEvent | React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         // Don't open autocomplete until user starts typing something
-        if (e.type !== "mousedown" && e.type !== "focus") {
+        // Unless user can't search
+        if (!searchable || (e.type !== "mousedown" && e.type !== "focus")) {
           setOpenState(true);
         }
       },
-      []
+      [searchable]
     );
 
     const handleClose = useCallback(async () => {
@@ -682,6 +694,7 @@ const AutocompleteInput = React.memo(
         inputValue: inputValueState,
         placeholder: dialogPlaceholder,
         label: dialogLabel,
+        searchableThreshold,
         fixedOptions,
         onInputChange: handleInputChange,
         isOptionEqualToValue: handleIsOptionEqualToValue,
@@ -709,6 +722,7 @@ const AutocompleteInput = React.memo(
         inputValueState,
         dialogPlaceholder,
         dialogLabel,
+        searchableThreshold,
         fixedOptions,
         handleInputChange,
         handleIsOptionEqualToValue,
@@ -848,12 +862,15 @@ const AutocompleteInput = React.memo(
             PopperComponent !== undefined ? PopperComponent : CustomPopper
           }
           selectOnFocus={
-            selectOnFocus !== undefined ? selectOnFocus : !showFullscreen
+            selectOnFocus !== undefined
+              ? selectOnFocus
+              : searchable && !showFullscreen
           }
           disableClearable={showFullscreen ? true : disableClearable}
           open={showFullscreen ? false : currentOpen}
           onOpen={showFullscreen ? undefined : handleOpen}
           onClose={showFullscreen ? undefined : handleClose}
+          openOnFocus={!searchable}
           isOptionEqualToValue={handleIsOptionEqualToValue}
           getOptionLabel={handleGetOptionLabel}
           renderOption={handleRenderOption}

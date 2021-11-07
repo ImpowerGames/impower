@@ -15,7 +15,7 @@ import {
   navigationSetType,
 } from "../modules/impower-navigation";
 import { BetaBanner } from "../modules/impower-route";
-import Connections from "../modules/impower-route-account/Connections";
+import Connections from "../modules/impower-route-account/components/Connections";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
 

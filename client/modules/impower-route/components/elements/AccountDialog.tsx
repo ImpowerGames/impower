@@ -8,6 +8,7 @@ import useMediaQuery from "@material-ui/core/useMediaQuery";
 import React, { useCallback, useMemo, useRef } from "react";
 import XmarkSolidIcon from "../../../../resources/icons/solid/xmark.svg";
 import { FontIcon } from "../../../impower-icon";
+import Contact from "../../../impower-route-account/components/Contact";
 import Login from "../../../impower-route-login/components/Login";
 import SignUp from "../../../impower-route-signup/components/SignUp";
 import { setBodyBackgroundColor } from "../../utils/setBodyBackgroundColor";
@@ -73,10 +74,10 @@ const GrowTransition = React.forwardRef(function Transition(
 
 interface AccountDialogProps {
   open: boolean;
-  type: "signup" | "login";
+  type: string;
   onClose: () => void;
   onProcessing?: (processing: boolean) => void;
-  onChangeType?: (type: "signup" | "login") => void;
+  onChangeType?: (type: string) => void;
 }
 
 const AccountDialog = React.memo((props: AccountDialogProps): JSX.Element => {
@@ -139,6 +140,7 @@ const AccountDialog = React.memo((props: AccountDialogProps): JSX.Element => {
       {type === "login" && (
         <Login onOpenSignUp={handleOpenSignUp} onProcessing={onProcessing} />
       )}
+      {type?.startsWith("contact") && <Contact id={type.split("_")[1]} />}
       <StyledHeader>
         {onClose && (
           <StyledIconButton onClick={onClose}>

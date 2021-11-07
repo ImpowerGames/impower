@@ -3,18 +3,23 @@ import { Button, IconButton, Paper, Tab, Typography } from "@material-ui/core";
 import dynamic from "next/dynamic";
 import NextLink from "next/link";
 import React, { useCallback, useContext, useEffect, useState } from "react";
-import { ConfigParameters } from "../impower-config";
-import { getDataStoreKey } from "../impower-data-store";
-import { SvgData } from "../impower-icon";
-import { Fallback, Tabs } from "../impower-route";
-import PitchList from "../impower-route-pitch/components/PitchList";
-import Avatar from "../impower-route/components/elements/Avatar";
-import { UserContext, userDoConnect, userUndoConnect } from "../impower-user";
+import { ConfigParameters } from "../../impower-config";
+import { getDataStoreKey } from "../../impower-data-store";
+import { useDialogNavigation } from "../../impower-dialog";
+import { SvgData } from "../../impower-icon";
+import { Fallback, Tabs } from "../../impower-route";
+import PitchList from "../../impower-route-pitch/components/PitchList";
+import Avatar from "../../impower-route/components/elements/Avatar";
+import {
+  UserContext,
+  userDoConnect,
+  userUndoConnect,
+} from "../../impower-user";
 
 const SORT_OPTIONS: ["new", "rating", "rank"] = ["new", "rating", "rank"];
 
 const ContributionList = dynamic(
-  () => import("../impower-route-pitch/components/ContributionList"),
+  () => import("../../impower-route-pitch/components/ContributionList"),
   { ssr: false }
 );
 
@@ -113,7 +118,9 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
   const { config, icons, id, username, bio, icon, hex, isCurrentUser } = props;
 
   const [userState, userDispatch] = useContext(UserContext);
-  const { connects, my_connects } = userState;
+  const { connects, my_connects, settings, isSignedIn } = userState;
+  const account = settings?.account;
+  const contact = account === undefined ? undefined : account?.contact || "";
 
   const connectedFrom =
     connects !== undefined && id ? Boolean(connects?.[id]) : undefined;
@@ -125,19 +132,37 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
   const [connectedToState, setConnectedToState] = useState(connectedTo);
   const [tabIndex, setTabIndex] = useState(0);
 
+  const [openAccountDialog] = useDialogNavigation("a");
+
   useEffect(() => {
     setConnectedToState(connectedTo);
   }, [connectedTo]);
 
   const handleConnect = useCallback(() => {
+    if (!isSignedIn) {
+      openAccountDialog("signup");
+      return;
+    }
     const newConnectedTo = !connectedToState;
-    setConnectedToState(newConnectedTo);
     if (newConnectedTo) {
+      if (!contact) {
+        openAccountDialog(`contact_${id}`);
+        return;
+      }
+      setConnectedToState(newConnectedTo);
       userDispatch(userDoConnect("users", id));
     } else {
+      setConnectedToState(newConnectedTo);
       userDispatch(userUndoConnect("users", id));
     }
-  }, [connectedToState, id, userDispatch]);
+  }, [
+    connectedToState,
+    contact,
+    id,
+    isSignedIn,
+    openAccountDialog,
+    userDispatch,
+  ]);
 
   const handleChange = useCallback((e: React.ChangeEvent, value: number) => {
     setTabIndex(value);

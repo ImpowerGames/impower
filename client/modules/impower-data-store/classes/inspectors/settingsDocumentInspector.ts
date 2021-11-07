@@ -31,7 +31,7 @@ export class SettingsDocumentInspector implements Inspector<SettingsDocument> {
       return "Show NSFW content (I'm over 18)";
     }
     if (propertyPath === "contactMethod") {
-      return "Preferred Contact";
+      return "Preferred Contact Method";
     }
     if (propertyPath === "contact") {
       if (data.contactMethod === "account") {
@@ -81,9 +81,6 @@ export class SettingsDocumentInspector implements Inspector<SettingsDocument> {
   }
 
   getPropertyHelperText(propertyPath: string, _data: SettingsDocument): string {
-    if (propertyPath === "contactMethod") {
-      return "How should your connections contact you?";
-    }
     if (propertyPath === "contact") {
       return "Only visible to your connections";
     }

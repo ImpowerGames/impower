@@ -69,6 +69,9 @@ const MyApp = React.memo((props: MyAppProps): JSX.Element => {
           width: 1em;
           height: 1em;
         }
+        .MuiAutocomplete-popper {
+          z-index: 3000;
+        }
       `}</style>
       <CacheProvider value={emotionCache}>
         <ConfigContext.Provider value={configContext}>

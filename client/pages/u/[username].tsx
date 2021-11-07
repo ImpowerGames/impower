@@ -20,7 +20,7 @@ import {
   navigationSetType,
 } from "../../modules/impower-navigation";
 import { BetaBanner } from "../../modules/impower-route";
-import Profile from "../../modules/impower-route-account/Profile";
+import Profile from "../../modules/impower-route-account/components/Profile";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import { UserContext } from "../../modules/impower-user";
