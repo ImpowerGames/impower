@@ -105,7 +105,8 @@ const StyledTabs = styled(Tabs)``;
 const StyledTab = styled(Tab)``;
 
 const StyledIconArea = styled.div`
-  padding: ${(props): string => props.theme.spacing(0, 1)};
+  padding-left: ${(props): string => props.theme.spacing(1)};
+  padding-right: ${(props): string => props.theme.spacing(2)};
 `;
 
 const StyledItemDivider = styled(Divider)`
@@ -385,30 +386,33 @@ const Connections = React.memo((): JSX.Element | null => {
             <StyledTab value={0} label={`${acceptedCountLabel}CONNECTED`} />
             <StyledTab value={1} label={`${requestedAccountLabel}REQUESTED`} />
           </StyledTabs>
-          <StyledSearchRoot {...rootProps}>
-            <StyledOutlinedInput
-              placeholder="Search Usernames"
-              startAdornment={
-                <StyledIconArea>
-                  <FontIcon aria-label={`Search Usernames`} size={16}>
-                    <MagnifyingGlassRegularIcon />
-                  </FontIcon>
-                </StyledIconArea>
-              }
-              endAdornment={
-                <StyledIconButton onClick={handleClear}>
-                  <FontIcon
-                    aria-label={`Clear`}
-                    size={16}
-                    color={theme.palette.secondary.main}
-                  >
-                    <XmarkRegularIcon />
-                  </FontIcon>
-                </StyledIconButton>
-              }
-              inputProps={{ ...inputProps, type: "search" }}
-            />
-          </StyledSearchRoot>
+          {((tabIndex === 0 && connections?.length > 0) ||
+            (tabIndex === 1 && requests?.length > 0)) && (
+            <StyledSearchRoot {...rootProps}>
+              <StyledOutlinedInput
+                placeholder="Search Usernames"
+                startAdornment={
+                  <StyledIconArea>
+                    <FontIcon aria-label={`Search Usernames`} size={16}>
+                      <MagnifyingGlassRegularIcon />
+                    </FontIcon>
+                  </StyledIconArea>
+                }
+                endAdornment={
+                  <StyledIconButton onClick={handleClear}>
+                    <FontIcon
+                      aria-label={`Clear`}
+                      size={16}
+                      color={theme.palette.secondary.main}
+                    >
+                      <XmarkRegularIcon />
+                    </FontIcon>
+                  </StyledIconButton>
+                }
+                inputProps={{ ...inputProps, type: "search" }}
+              />
+            </StyledSearchRoot>
+          )}
           <StyledListArea>
             {tabIndex === 0 && connections ? (
               connections.length > 0 ? (
