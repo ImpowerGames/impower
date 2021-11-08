@@ -865,9 +865,7 @@ const AutocompleteInput = React.memo(
             PopperComponent !== undefined ? PopperComponent : CustomPopper
           }
           selectOnFocus={
-            selectOnFocus !== undefined
-              ? selectOnFocus
-              : searchable && !showFullscreen
+            selectOnFocus !== undefined ? selectOnFocus : !showFullscreen
           }
           disableClearable={showFullscreen ? true : disableClearable}
           open={showFullscreen ? false : currentOpen}
