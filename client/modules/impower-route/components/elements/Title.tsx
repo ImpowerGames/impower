@@ -94,6 +94,7 @@ interface TitleProps {
   changeLabel?: string;
   separator?: string;
   titleLinks?: MenuInfo[];
+  onClick?: (e: React.MouseEvent) => void;
 }
 
 const Title = (props: PropsWithChildren<TitleProps>): JSX.Element => {
@@ -105,6 +106,7 @@ const Title = (props: PropsWithChildren<TitleProps>): JSX.Element => {
     separator,
     titleLinks = [],
     children,
+    onClick,
   } = props;
   const secondaryTitleRef = React.useRef<HTMLElement>(null);
   const [navmenuOpenKey, setNavmenuOpenKey] = useState<"navmenu">();
@@ -112,15 +114,20 @@ const Title = (props: PropsWithChildren<TitleProps>): JSX.Element => {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const theme = useTheme();
 
-  const handleClickTitle = useCallback(async (): Promise<void> => {
-    if (titleLinks.length > 0) {
-      setMenuAnchor(secondaryTitleRef.current);
-      setNavmenuOpenKey("navmenu");
-    } else {
-      const router = (await import("next/router")).default;
-      router.push("/");
-    }
-  }, [titleLinks.length]);
+  const handleClickTitle = useCallback(
+    async (e: React.MouseEvent): Promise<void> => {
+      if (onClick) {
+        onClick(e);
+      } else if (titleLinks.length > 0) {
+        setMenuAnchor(secondaryTitleRef.current);
+        setNavmenuOpenKey("navmenu");
+      } else {
+        const router = (await import("next/router")).default;
+        router.push("/");
+      }
+    },
+    [onClick, titleLinks.length]
+  );
   const handleCloseMenu = useCallback((): void => {
     setMenuAnchor(null);
     setNavmenuOpenKey(null);

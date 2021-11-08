@@ -256,6 +256,15 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
     },
     [handleClose, onInstall, router]
   );
+  const handleClickTitle = useCallback(
+    async (e: React.MouseEvent): Promise<void> => {
+      handleClose(e);
+      // wait a bit for dialog to close
+      await new Promise((resolve) => window.setTimeout(resolve, 10));
+      router.push("/");
+    },
+    [handleClose, router]
+  );
 
   const handleClickAccountMenuOption = useCallback(
     async (e: React.MouseEvent): Promise<void> => {
@@ -282,6 +291,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
           secondaryTitle={pageNames[baseRoute]}
           subtitle={slogan}
           separator="|"
+          onClick={handleClickTitle}
         />
       </AppToolbar>
       <Divider />
