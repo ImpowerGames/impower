@@ -95,6 +95,7 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
 
   const [navigationState] = useContext(NavigationContext);
   const searching = navigationState?.search?.searching;
+  const transitioning = navigationState?.transitioning;
 
   const searchedTerms = useMemo(
     () => getSearchedTerms(activeSearch),
@@ -158,9 +159,13 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
     <StyledPitchSearch style={style}>
       <StyledApp>
         <PitchSearchToolbar
-          search={searching ? undefined : activeSearch}
-          following={searching ? undefined : isFollowingAllTags}
-          onFollow={searching ? undefined : handleChangeFollowing}
+          search={searching || transitioning ? undefined : activeSearch}
+          following={
+            searching || transitioning ? undefined : isFollowingAllTags
+          }
+          onFollow={
+            searching || transitioning ? undefined : handleChangeFollowing
+          }
         />
         <BetaBanner />
         <StyledListArea>
@@ -170,10 +175,10 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
             pitchDocs={pitchDocs}
             search={activeSearch}
             sortOptions={SORT_OPTIONS}
-            searchingPlaceholder={
+            loadingPlaceholder={
               <EmptyPitchList
                 loading
-                loadingMessage={`Searching...`}
+                loadingMessage={`Loading...`}
                 emptySubtitle1={emptySubtitle1}
                 emptySubtitle2={emptySubtitle2}
               />

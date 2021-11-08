@@ -116,28 +116,8 @@ const StyledItemDivider = styled(Divider)`
   width: calc(100% - 72px);
 `;
 
-const StyledLoadingOverlay = styled.div`
-  position: fixed;
-  top: ${(props): string => props.theme.minHeight.navigationBar};
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
-
-const StyledLoadingPaper = styled(Paper)`
+const StyledLoadingArea = styled.div`
   flex: 1;
-  padding: ${(props): string => props.theme.spacing(2, 4, 0, 4)};
-  width: 100%;
-  max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
-  border-radius: 0;
-
-  ${(props): string => props.theme.breakpoints.down("sm")} {
-    padding: ${(props): string => props.theme.spacing(1, 0, 0, 0)};
-    box-shadow: none;
-  }
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -159,6 +139,7 @@ const StyledCircularProgress = styled(CircularProgress)`
   min-width: ${(props): string => props.theme.spacing(4)};
   min-height: ${(props): string => props.theme.spacing(4)};
 `;
+
 const StyledListArea = styled.div(
   () => `
   flex: 1;
@@ -212,9 +193,9 @@ const Connections = React.memo((): JSX.Element | null => {
       ? 1
       : 0
   );
-  const [searchValue, setSearchValue] = useState<string>("");
-  const [searchInputValue, setSearchInputValue] = useState<string>("");
-  const [searching, setSearching] = useState(false);
+  const [filterValue, setFilterValue] = useState<string>("");
+  const [filterInputValue, setFilterInputValue] = useState<string>("");
+  const [filtering, setFiltering] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { connects, my_connects, settings } = userState;
@@ -310,9 +291,9 @@ const Connections = React.memo((): JSX.Element | null => {
       reason: AutocompleteInputChangeReason
     ): void => {
       if (reason === "input") {
-        setSearchInputValue(value || "");
+        setFilterInputValue(value || "");
       } else if (reason === "clear") {
-        setSearchInputValue(value || "");
+        setFilterInputValue(value || "");
       }
     },
     []
@@ -332,13 +313,13 @@ const Connections = React.memo((): JSX.Element | null => {
 
   const handleSearchChange = useCallback(
     async (event: React.ChangeEvent, value: string) => {
-      setSearchValue(value);
+      setFilterValue(value);
     },
     []
   );
 
   const handleSearchOpen = useCallback(async () => {
-    setSearching(true);
+    setFiltering(true);
   }, []);
 
   const handleSearchClose = useCallback(
@@ -347,7 +328,7 @@ const Connections = React.memo((): JSX.Element | null => {
       reason: AutocompleteCloseReason
     ) => {
       if (reason !== "blur") {
-        setSearching(false);
+        setFiltering(false);
       }
     },
     []
@@ -359,14 +340,14 @@ const Connections = React.memo((): JSX.Element | null => {
   );
 
   const { getRootProps, getInputProps, groupedOptions } = useAutocomplete({
-    value: searchValue || "",
-    inputValue: searchInputValue || "",
+    value: filterValue || "",
+    inputValue: filterInputValue || "",
     options,
     selectOnFocus: true,
     blurOnSelect: true,
     freeSolo: true,
     clearOnBlur: true,
-    open: searching,
+    open: filtering,
     onOpen: handleSearchOpen,
     onClose: handleSearchClose,
     onInputChange: handleInputChange,
@@ -378,12 +359,12 @@ const Connections = React.memo((): JSX.Element | null => {
   const inputProps = getInputProps();
 
   const filteredConnections = useMemo(
-    () => (searching ? (groupedOptions as [string, AggData][]) : connections),
-    [connections, groupedOptions, searching]
+    () => (filtering ? (groupedOptions as [string, AggData][]) : connections),
+    [connections, groupedOptions, filtering]
   );
   const filteredRequests = useMemo(
-    () => (searching ? (groupedOptions as [string, AggData][]) : requests),
-    [requests, groupedOptions, searching]
+    () => (filtering ? (groupedOptions as [string, AggData][]) : requests),
+    [requests, groupedOptions, filtering]
   );
 
   const theme = useTheme();
@@ -393,185 +374,189 @@ const Connections = React.memo((): JSX.Element | null => {
     <>
       <StyledContainer>
         <StyledPaper>
-          <StyledHeaderTypography
-            id="account"
-            variant="h6"
-          >{`Your Connections`}</StyledHeaderTypography>
-          <StyledTabs
-            value={tabIndex}
-            onChange={handleChange}
-            variant="fullWidth"
-          >
-            <StyledTab value={0} label={`${acceptedCountLabel}CONNECTED`} />
-            <StyledTab value={1} label={`${requestedAccountLabel}REQUESTED`} />
-          </StyledTabs>
-          {((tabIndex === 0 && connections?.length > 0) ||
-            (tabIndex === 1 && requests?.length > 0)) && (
-            <StyledSearchRoot {...rootProps}>
-              <StyledOutlinedInput
-                placeholder="Search Usernames"
-                startAdornment={
-                  <StyledIconArea>
-                    <FontIcon aria-label={`Search Usernames`} size={16}>
-                      <MagnifyingGlassRegularIcon />
-                    </FontIcon>
-                  </StyledIconArea>
-                }
-                endAdornment={
-                  <StyledIconButton onClick={handleClear}>
-                    <FontIcon
-                      aria-label={`Clear`}
-                      size={16}
-                      color={theme.palette.secondary.main}
-                    >
-                      <XmarkRegularIcon />
-                    </FontIcon>
-                  </StyledIconButton>
-                }
-                inputProps={{ ...inputProps, type: "search" }}
-              />
-            </StyledSearchRoot>
-          )}
-          <StyledListArea>
-            {tabIndex === 0 && connections ? (
-              connections.length > 0 ? (
-                <StyledList sx={{ width: "100%" }}>
-                  {filteredConnections.map(([id, data]) => {
-                    return (
-                      <StyledListItem
-                        key={id}
-                        alignItems="flex-start"
-                        disablePadding
-                      >
-                        <StyledListItemButton
-                          onClick={(e): void => {
-                            handleClick(e, id, data);
-                          }}
+          {loading ? (
+            <StyledLoadingArea>
+              <StyledCircularProgress color="secondary" size={32} />
+            </StyledLoadingArea>
+          ) : (
+            <>
+              <StyledHeaderTypography
+                id="account"
+                variant="h6"
+              >{`Your Connections`}</StyledHeaderTypography>
+              <StyledTabs
+                value={tabIndex}
+                onChange={handleChange}
+                variant="fullWidth"
+              >
+                <StyledTab value={0} label={`${acceptedCountLabel}CONNECTED`} />
+                <StyledTab
+                  value={1}
+                  label={`${requestedAccountLabel}REQUESTED`}
+                />
+              </StyledTabs>
+              {((tabIndex === 0 && connections?.length > 0) ||
+                (tabIndex === 1 && requests?.length > 0)) && (
+                <StyledSearchRoot {...rootProps}>
+                  <StyledOutlinedInput
+                    placeholder="Search Usernames"
+                    startAdornment={
+                      <StyledIconArea>
+                        <FontIcon aria-label={`Search Usernames`} size={16}>
+                          <MagnifyingGlassRegularIcon />
+                        </FontIcon>
+                      </StyledIconArea>
+                    }
+                    endAdornment={
+                      <StyledIconButton onClick={handleClear}>
+                        <FontIcon
+                          aria-label={`Clear`}
+                          size={16}
+                          color={theme.palette.secondary.main}
                         >
-                          <ListItemAvatar>
-                            <Avatar
-                              alt={data?.a?.u}
-                              src={data?.a?.i}
-                              backgroundColor={data?.a?.h}
+                          <XmarkRegularIcon />
+                        </FontIcon>
+                      </StyledIconButton>
+                    }
+                    inputProps={{ ...inputProps, type: "search" }}
+                  />
+                </StyledSearchRoot>
+              )}
+              <StyledListArea>
+                {tabIndex === 0 && connections ? (
+                  connections.length > 0 ? (
+                    <StyledList sx={{ width: "100%" }}>
+                      {filteredConnections.map(([id, data]) => {
+                        return (
+                          <StyledListItem
+                            key={id}
+                            alignItems="flex-start"
+                            disablePadding
+                          >
+                            <StyledListItemButton
+                              onClick={(e): void => {
+                                handleClick(e, id, data);
+                              }}
+                            >
+                              <ListItemAvatar>
+                                <Avatar
+                                  alt={data?.a?.u}
+                                  src={data?.a?.i}
+                                  backgroundColor={data?.a?.h}
+                                />
+                              </ListItemAvatar>
+                              <StyledListItemText
+                                primary={data?.a?.u}
+                                secondary={
+                                  data?.c ? (
+                                    <StyledContactArea>
+                                      <StyledContactIconArea>
+                                        <FontIcon
+                                          aria-label={
+                                            data?.c?.includes("@")
+                                              ? "email"
+                                              : "discord"
+                                          }
+                                          size={14}
+                                        >
+                                          {data?.c?.includes("@") ? (
+                                            <EnvelopeRegularIcon />
+                                          ) : (
+                                            <DiscordBrandsIcon />
+                                          )}
+                                        </FontIcon>
+                                      </StyledContactIconArea>
+                                      <StyledContactLabelArea>
+                                        {data?.c}
+                                      </StyledContactLabelArea>
+                                    </StyledContactArea>
+                                  ) : undefined
+                                }
+                              />
+                              {data?.c && data?.c?.includes("@") && (
+                                <StyledButton
+                                  variant="outlined"
+                                  href={`mailto:${data?.c}`}
+                                  onMouseDown={handleBlockRipplePropogation}
+                                  onTouchStart={handleBlockRipplePropogation}
+                                  onClick={handleBlockRipplePropogation}
+                                >
+                                  {`Contact`}
+                                </StyledButton>
+                              )}
+                            </StyledListItemButton>
+                            <StyledItemDivider variant="inset" absolute />
+                          </StyledListItem>
+                        );
+                      })}
+                    </StyledList>
+                  ) : (
+                    <>
+                      <StyledEmptyTypography variant="subtitle1">{`No connections`}</StyledEmptyTypography>
+                    </>
+                  )
+                ) : tabIndex === 1 && requests ? (
+                  requests.length > 0 ? (
+                    <StyledList sx={{ width: "100%" }}>
+                      {filteredRequests.map(([id, data]) => (
+                        <StyledListItem
+                          key={id}
+                          alignItems="flex-start"
+                          disablePadding
+                        >
+                          <StyledListItemButton
+                            onClick={(e): void => {
+                              handleClick(e, id, data);
+                            }}
+                          >
+                            <ListItemAvatar>
+                              <Avatar
+                                alt={data?.a?.u}
+                                src={data?.a?.i}
+                                backgroundColor={data?.a?.h}
+                              />
+                            </ListItemAvatar>
+                            <StyledListItemText
+                              primary={data?.a?.u}
+                              secondary={`${
+                                belowSmBreakpoint ? "" : "wants to connect — "
+                              }${abbreviateAge(new Date(data?.t))}`}
                             />
-                          </ListItemAvatar>
-                          <StyledListItemText
-                            primary={data?.a?.u}
-                            secondary={
-                              data?.c ? (
-                                <StyledContactArea>
-                                  <StyledContactIconArea>
-                                    <FontIcon
-                                      aria-label={
-                                        data?.c?.includes("@")
-                                          ? "email"
-                                          : "discord"
-                                      }
-                                      size={14}
-                                    >
-                                      {data?.c?.includes("@") ? (
-                                        <EnvelopeRegularIcon />
-                                      ) : (
-                                        <DiscordBrandsIcon />
-                                      )}
-                                    </FontIcon>
-                                  </StyledContactIconArea>
-                                  <StyledContactLabelArea>
-                                    {data?.c}
-                                  </StyledContactLabelArea>
-                                </StyledContactArea>
-                              ) : undefined
-                            }
-                          />
-                          {data?.c && data?.c?.includes("@") && (
                             <StyledButton
-                              variant="outlined"
-                              href={`mailto:${data?.c}`}
                               onMouseDown={handleBlockRipplePropogation}
                               onTouchStart={handleBlockRipplePropogation}
-                              onClick={handleBlockRipplePropogation}
-                            >
-                              {`Contact`}
-                            </StyledButton>
-                          )}
-                        </StyledListItemButton>
-                        <StyledItemDivider variant="inset" absolute />
-                      </StyledListItem>
-                    );
-                  })}
-                </StyledList>
-              ) : (
-                <>
-                  <StyledEmptyTypography variant="subtitle1">{`No connections`}</StyledEmptyTypography>
-                </>
-              )
-            ) : tabIndex === 1 && requests ? (
-              requests.length > 0 ? (
-                <StyledList sx={{ width: "100%" }}>
-                  {filteredRequests.map(([id, data]) => (
-                    <StyledListItem
-                      key={id}
-                      alignItems="flex-start"
-                      disablePadding
-                    >
-                      <StyledListItemButton
-                        onClick={(e): void => {
-                          handleClick(e, id, data);
-                        }}
-                      >
-                        <ListItemAvatar>
-                          <Avatar
-                            alt={data?.a?.u}
-                            src={data?.a?.i}
-                            backgroundColor={data?.a?.h}
-                          />
-                        </ListItemAvatar>
-                        <StyledListItemText
-                          primary={data?.a?.u}
-                          secondary={`${
-                            belowSmBreakpoint ? "" : "wants to connect — "
-                          }${abbreviateAge(new Date(data?.t))}`}
-                        />
-                        <StyledButton
-                          onMouseDown={handleBlockRipplePropogation}
-                          onTouchStart={handleBlockRipplePropogation}
-                          onClick={(e): void => {
-                            handleIgnore(e, id);
-                          }}
-                        >{`Ignore`}</StyledButton>
-                        <StyledButton
-                          variant="outlined"
-                          onMouseDown={handleBlockRipplePropogation}
-                          onTouchStart={handleBlockRipplePropogation}
-                          onClick={(e): void => {
-                            handleConnect(e, id);
-                          }}
-                        >{`Connect`}</StyledButton>
-                      </StyledListItemButton>
-                      <StyledItemDivider variant="inset" absolute />
-                    </StyledListItem>
-                  ))}
-                </StyledList>
-              ) : (
-                <>
-                  <StyledEmptyTypography variant="subtitle1">{`No requests`}</StyledEmptyTypography>
-                </>
-              )
-            ) : (
-              <StyledCircularProgressArea>
-                <StyledCircularProgress color="secondary" size={32} />
-              </StyledCircularProgressArea>
-            )}
-          </StyledListArea>
+                              onClick={(e): void => {
+                                handleIgnore(e, id);
+                              }}
+                            >{`Ignore`}</StyledButton>
+                            <StyledButton
+                              variant="outlined"
+                              onMouseDown={handleBlockRipplePropogation}
+                              onTouchStart={handleBlockRipplePropogation}
+                              onClick={(e): void => {
+                                handleConnect(e, id);
+                              }}
+                            >{`Connect`}</StyledButton>
+                          </StyledListItemButton>
+                          <StyledItemDivider variant="inset" absolute />
+                        </StyledListItem>
+                      ))}
+                    </StyledList>
+                  ) : (
+                    <>
+                      <StyledEmptyTypography variant="subtitle1">{`No requests`}</StyledEmptyTypography>
+                    </>
+                  )
+                ) : (
+                  <StyledCircularProgressArea>
+                    <StyledCircularProgress color="secondary" size={32} />
+                  </StyledCircularProgressArea>
+                )}
+              </StyledListArea>
+            </>
+          )}
         </StyledPaper>
       </StyledContainer>
-      {loading && (
-        <StyledLoadingOverlay>
-          <StyledLoadingPaper>
-            <StyledCircularProgress color="secondary" size={32} />
-          </StyledLoadingPaper>
-        </StyledLoadingOverlay>
-      )}
     </>
   );
 });

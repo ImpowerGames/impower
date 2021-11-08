@@ -4,6 +4,7 @@ import { NAVIGATION_SET_ELEVATION } from "./actions/navigationSetElevationAction
 import { NAVIGATION_SET_LINKS } from "./actions/navigationSetLinksAction";
 import { NAVIGATION_SET_SEARCHBAR } from "./actions/navigationSetSearchbarAction";
 import { NAVIGATION_SET_TEXT } from "./actions/navigationSetTextAction";
+import { NAVIGATION_SET_TRANSITIONING } from "./actions/navigationSetTransitioningAction";
 import { NAVIGATION_SET_TYPE } from "./actions/navigationSetTypeAction";
 import { NAVIGATION_SHOW_BANNER } from "./actions/navigationShowBannerAction";
 import { NavigationAction } from "./navigationActions";
@@ -14,6 +15,13 @@ export const navigationReducer = (
   action: NavigationAction
 ): NavigationState => {
   switch (action.type) {
+    case NAVIGATION_SET_TRANSITIONING: {
+      const { transitioning } = action.payload;
+      return {
+        ...state,
+        transitioning,
+      };
+    }
     case NAVIGATION_SET_TEXT: {
       const { title, secondaryTitle, subtitle } = action.payload;
       return {

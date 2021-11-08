@@ -33,6 +33,7 @@ import {
   NavigationContext,
   navigationSetSearchbar,
 } from "../../../impower-navigation";
+import navigationSetTransitioning from "../../../impower-navigation/utils/navigationSetTransitioning";
 import { useRouter } from "../../../impower-router";
 import useIOS from "../../hooks/useIOS";
 import useVisualViewport from "../../hooks/useVisualViewport";
@@ -519,18 +520,23 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
         closeFieldDialog();
       }
       const newSearch = value || "";
-      navigationDispatch(
-        navigationSetSearchbar({ value: newSearch, searching: true })
-      );
-      // wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 100));
       stateRef.current = newSearch;
       inputValueRef.current = stateRef.current;
       setState(stateRef.current);
       setInputValue(inputValueRef.current);
-      const baseRoute = getBaseRoute(router.route);
-      router.push(`${baseRoute}/search/${escapeURI(newSearch)}`);
+      // wait a bit for dialog to close
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
       closingRef.current = false;
+      const baseRoute = getBaseRoute(router.route);
+      const link = `${baseRoute}/search/${escapeURI(newSearch)}`;
+      if (window.location.pathname.endsWith(link)) {
+        return;
+      }
+      navigationDispatch(navigationSetTransitioning(true));
+      navigationDispatch(
+        navigationSetSearchbar({ value: newSearch, searching: true })
+      );
+      await router.push(link);
     },
     [closeFieldDialog, dialog, navigationDispatch, router]
   );

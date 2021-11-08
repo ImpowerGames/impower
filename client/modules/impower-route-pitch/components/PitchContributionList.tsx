@@ -6,6 +6,7 @@ import {
   ProjectDocument,
 } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
+import { Fallback } from "../../impower-route";
 import AddContributionToolbar from "./AddContributionToolbar";
 import ContributionList from "./ContributionList";
 
@@ -163,6 +164,7 @@ const PitchContributionList = React.memo(
           emptyLabel={`Feeling Inspired?`}
           emptySubtitle={`Contribute Something!`}
           noMoreLabel={`That's all for now!`}
+          loadingPlaceholder={<Fallback />}
           onEditContribution={handleEditContribution}
           onDeleteContribution={onDeleteContribution}
         >

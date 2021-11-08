@@ -4,10 +4,12 @@ import { NavigationSetElevationAction } from "./actions/navigationSetElevationAc
 import { NavigationSetLinksAction } from "./actions/navigationSetLinksAction";
 import { NavigationSetSearchbarAction } from "./actions/navigationSetSearchbarAction";
 import { NavigationSetTextAction } from "./actions/navigationSetTextAction";
+import { NavigationSetTransitioningAction } from "./actions/navigationSetTransitioningAction";
 import { NavigationSetTypeAction } from "./actions/navigationSetTypeAction";
 import { NavigationShowBannerAction } from "./actions/navigationShowBannerAction";
 
 export type NavigationAction =
+  | NavigationSetTransitioningAction
   | NavigationSetTextAction
   | NavigationSetLinksAction
   | NavigationSetSearchbarAction

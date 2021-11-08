@@ -26,10 +26,12 @@ import {
   navigationSetText,
   navigationSetType,
 } from "../modules/impower-navigation";
+import navigationSetTransitioning from "../modules/impower-navigation/utils/navigationSetTransitioning";
 import { PageHead } from "../modules/impower-route";
 import Pitch from "../modules/impower-route-pitch/components/Pitch";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import { useRouter } from "../modules/impower-router";
 
 const LOAD_INITIAL_LIMIT = 5;
 
@@ -50,6 +52,9 @@ const PitchPageContent = React.memo((props: PitchPageProps) => {
 
   const theme = useTheme();
 
+  const router = useRouter();
+  const routerIsReady = router.isReady;
+
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
 
@@ -66,11 +71,18 @@ const PitchPageContent = React.memo((props: PitchPageProps) => {
         label: "Search Pitches",
         placeholder: "Try searching for mechanics, genres, or subjects",
         value: "",
+        searching: false,
       })
     );
     navigationDispatch(navigationSetElevation(0));
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
+
+  useEffect(() => {
+    if (routerIsReady) {
+      navigationDispatch(navigationSetTransitioning(false));
+    }
+  }, [navigationDispatch, routerIsReady]);
 
   return <Pitch config={config} icons={icons} pitchDocs={pitchDocs} />;
 });

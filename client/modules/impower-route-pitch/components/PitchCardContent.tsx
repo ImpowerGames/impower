@@ -3,7 +3,6 @@ import Button from "@material-ui/core/Button";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
 import dynamic from "next/dynamic";
-import NextLink from "next/link";
 import React, { useCallback, useContext } from "react";
 import { ConfigContext, ConfigParameters } from "../../impower-config";
 import ConfigCache from "../../impower-config/classes/configCache";
@@ -13,6 +12,7 @@ import {
   NavigationContext,
   navigationSetSearchbar,
 } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 
 const Skeleton = dynamic(() => import("@material-ui/core/Skeleton"), {
   ssr: false,
@@ -84,9 +84,16 @@ const PitchCardContent = React.memo(
     );
 
     const handleClickTag = useCallback(
-      (e: React.MouseEvent): void => {
+      async (e: React.MouseEvent, tag: string): Promise<void> => {
         e.stopPropagation();
+        const link = getTagLink(tag);
+        if (window.location.pathname.endsWith(link)) {
+          return;
+        }
+        navigationDispatch(navigationSetTransitioning(true));
         navigationDispatch(navigationSetSearchbar({ searching: true }));
+        const router = (await import("next/router")).default;
+        await router.push(link);
       },
       [navigationDispatch]
     );
@@ -123,21 +130,17 @@ const PitchCardContent = React.memo(
             <StyledTagsArea>
               {tags
                 ? tags.map((tag) => (
-                    <NextLink
+                    <StyledTagButton
                       key={tag}
-                      href={getTagLink(tag)}
-                      passHref
-                      prefetch={false}
+                      size="small"
+                      onMouseDown={handleBlockRipplePropogation}
+                      onTouchStart={handleBlockRipplePropogation}
+                      onClick={(e): void => {
+                        handleClickTag(e, tag);
+                      }}
                     >
-                      <StyledTagButton
-                        size="small"
-                        onMouseDown={handleBlockRipplePropogation}
-                        onTouchStart={handleBlockRipplePropogation}
-                        onClick={handleClickTag}
-                      >
-                        #{tag}
-                      </StyledTagButton>
-                    </NextLink>
+                      #{tag}
+                    </StyledTagButton>
                   ))
                 : Array(5)
                     .fill(0)

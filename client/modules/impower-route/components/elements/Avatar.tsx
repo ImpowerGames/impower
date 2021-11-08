@@ -1,7 +1,6 @@
 import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
 import Typography from "@material-ui/core/Typography";
-import NextLink from "next/link";
 import React, {
   PropsWithChildren,
   useCallback,
@@ -184,19 +183,17 @@ const Avatar = React.memo(
               </StyledInitialsTypography>
             )}
             {!children && (onClick || onPointerDown || href) && (
-              <NextLink href={href} passHref prefetch={false}>
-                <StyledIconButton
-                  variant="contained"
-                  color="primary"
-                  disableElevation
-                  aria-label={ariaLabel}
-                  onPointerDown={onPointerDown}
-                  onMouseDown={onMouseDown}
-                  onTouchStart={onTouchStart}
-                  onClick={onClick}
-                  href={href}
-                />
-              </NextLink>
+              <StyledIconButton
+                variant="contained"
+                color="primary"
+                disableElevation
+                aria-label={ariaLabel}
+                onPointerDown={onPointerDown}
+                onMouseDown={onMouseDown}
+                onTouchStart={onTouchStart}
+                onClick={onClick}
+                href={href}
+              />
             )}
           </StyledButtonContent>
           {children}

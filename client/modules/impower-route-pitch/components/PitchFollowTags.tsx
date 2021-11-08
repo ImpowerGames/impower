@@ -15,6 +15,7 @@ import {
   NavigationContext,
   navigationSetSearchbar,
 } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { VirtualizedItem } from "../../impower-react-virtualization";
 import FadeAnimation from "../../impower-route/components/animations/FadeAnimation";
 import TagIconLoader from "../../impower-route/components/elements/TagIconLoader";
@@ -209,6 +210,7 @@ const VirtualizedTagItem = React.memo((props: VirtualizedTagItemProps) => {
   const handleClickTag = useCallback(
     (e: React.MouseEvent): void => {
       e.stopPropagation();
+      navigationDispatch(navigationSetTransitioning(true));
       navigationDispatch(navigationSetSearchbar({ searching: true }));
     },
     [navigationDispatch]

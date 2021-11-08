@@ -19,10 +19,12 @@ import {
   navigationSetText,
   navigationSetType,
 } from "../../modules/impower-navigation";
+import navigationSetTransitioning from "../../modules/impower-navigation/utils/navigationSetTransitioning";
 import { BetaBanner } from "../../modules/impower-route";
 import Profile from "../../modules/impower-route-account/components/Profile";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import { useRouter } from "../../modules/impower-router";
 import { UserContext } from "../../modules/impower-user";
 
 const StyledProfilePage = styled.div`
@@ -56,6 +58,9 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
 
   const theme = useTheme();
 
+  const router = useRouter();
+  const routerIsReady = router.isReady;
+
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
 
@@ -63,10 +68,16 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText());
     navigationDispatch(navigationSetLinks());
-    navigationDispatch(navigationSetSearchbar());
     navigationDispatch(navigationSetElevation());
     navigationDispatch(navigationSetBackgroundColor());
+    navigationDispatch(navigationSetSearchbar());
   }, [navigationDispatch]);
+
+  useEffect(() => {
+    if (routerIsReady) {
+      navigationDispatch(navigationSetTransitioning(false));
+    }
+  }, [navigationDispatch, routerIsReady]);
 
   const searchValue =
     typeof window !== "undefined"

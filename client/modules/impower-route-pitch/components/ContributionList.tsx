@@ -16,6 +16,8 @@ import {
   QuerySort,
 } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
+import { NavigationContext } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { UserContext } from "../../impower-user";
 import { ContributionTypeFilter } from "../types/contributionTypeFilter";
 import ContributionListContent from "./ContributionListContent";
@@ -40,6 +42,7 @@ interface ContributionListProps {
   emptyLabel?: string;
   emptySubtitle?: string;
   noMoreLabel?: string;
+  loadingPlaceholder?: React.ReactNode;
   onEditContribution?: (
     e: React.MouseEvent,
     pitchId: string,
@@ -67,6 +70,7 @@ const ContributionList = React.memo(
       emptyLabel,
       emptySubtitle,
       noMoreLabel,
+      loadingPlaceholder,
       onEditContribution,
       onDeleteContribution,
       children,
@@ -80,6 +84,9 @@ const ContributionList = React.memo(
 
     const [typeFilter, setTypeFilter] = useState<ContributionTypeFilter>("All");
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rating");
+
+    const [navigationState, navigationDispatch] = useContext(NavigationContext);
+    const transitioning = navigationState?.transitioning;
 
     const initialChunkMap = useMemo(() => {
       const chunkMap = {};
@@ -324,6 +331,7 @@ const ContributionList = React.memo(
     }, [creator, my_recent_contributions, pitchId]);
 
     useEffect(() => {
+      navigationDispatch(navigationSetTransitioning(false));
       if ([nsfwVisible].some((x) => x === undefined)) {
         return;
       }
@@ -339,7 +347,14 @@ const ContributionList = React.memo(
       setChunkMap(undefined);
       setNoMore(noMoreRef.current);
       handleLoadMoreItems(pitchId, queryOptions);
-    }, [handleLoadMoreItems, queryOptions, pitchId, allowReload, nsfwVisible]);
+    }, [
+      handleLoadMoreItems,
+      queryOptions,
+      pitchId,
+      allowReload,
+      nsfwVisible,
+      navigationDispatch,
+    ]);
 
     const handleEditContribution = useCallback(
       async (
@@ -441,46 +456,50 @@ const ContributionList = React.memo(
     );
 
     return (
-      <>
-        <StyledContributionList>
-          <ContributionListQueryHeader
-            filter={typeFilter}
-            sort={sort}
-            sortOptions={sortOptions}
-            onFilter={handleFilter}
-            onSort={handleSort}
-          />
-          <ContributionListContent
-            scrollParent={scrollParent}
-            pitchDocs={pitchDocs}
-            contributionDocs={contributionDocsState}
-            chunkMap={chunkMap}
-            lastLoadedChunk={lastLoadedChunk}
-            onChangeScore={handleChangeScore}
-            onKudo={handleKudo}
-            onEdit={handleEditContribution}
-            onDelete={handleDeleteContribution}
-          />
-          {contributionDocsState && (
-            <PitchLoadingProgress
-              loadingMore={loadingMore}
-              noMore={noMore || contributionEntries?.length === 0}
-              noMoreLabel={
-                contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
-              }
-              noMoreSubtitle={
-                contributionEntries?.length === 0 ? emptySubtitle : undefined
-              }
-              refreshLabel={
-                contributionEntries?.length === 0 ? undefined : `Refresh?`
-              }
-              onScrolledToEnd={handleScrolledToEnd}
-              onRefresh={handleRefresh}
+      <StyledContributionList>
+        {transitioning ? (
+          loadingPlaceholder
+        ) : (
+          <>
+            <ContributionListQueryHeader
+              filter={typeFilter}
+              sort={sort}
+              sortOptions={sortOptions}
+              onFilter={handleFilter}
+              onSort={handleSort}
             />
-          )}
-          {children}
-        </StyledContributionList>
-      </>
+            <ContributionListContent
+              scrollParent={scrollParent}
+              pitchDocs={pitchDocs}
+              contributionDocs={contributionDocsState}
+              chunkMap={chunkMap}
+              lastLoadedChunk={lastLoadedChunk}
+              onChangeScore={handleChangeScore}
+              onKudo={handleKudo}
+              onEdit={handleEditContribution}
+              onDelete={handleDeleteContribution}
+            />
+            {contributionDocsState && (
+              <PitchLoadingProgress
+                loadingMore={loadingMore}
+                noMore={noMore || contributionEntries?.length === 0}
+                noMoreLabel={
+                  contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
+                }
+                noMoreSubtitle={
+                  contributionEntries?.length === 0 ? emptySubtitle : undefined
+                }
+                refreshLabel={
+                  contributionEntries?.length === 0 ? undefined : `Refresh?`
+                }
+                onScrolledToEnd={handleScrolledToEnd}
+                onRefresh={handleRefresh}
+              />
+            )}
+            {children}
+          </>
+        )}
+      </StyledContributionList>
     );
   }
 );
