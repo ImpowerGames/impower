@@ -1433,7 +1433,6 @@
   "posted": ["delivery", "political"],
   "postal": ["delivery", "political"],
   "laden": ["delivery", "inventory management"],
-  "held": ["delivery", "rivals"],
   "heavy": ["delivery", "inventory management"],
   "heavier": ["delivery", "inventory management"],
   "burden": ["delivery", "disillusionment"],
@@ -2979,6 +2978,7 @@
   "nuts": ["cooking", "crop", "farming", "nature"],
   "nut": ["cooking", "crop", "farming", "nature"],
   "lemon": ["cooking", "crop", "farming", "nature"],
+  "hungry": ["cooking", "creepy", "horror", "suspense"],
   "honey": ["cooking", "farming", "insects", "nature"],
   "grain": ["cooking", "crop", "farming", "nature"],
   "dinner": ["cooking", "regency", "steampunk", "victorian"],
@@ -4485,6 +4485,9 @@
   "rotten": ["cleaning", "cooking", "creepy", "horror", "suspense"],
   "resting": ["cleaning", "dreams", "immortality", "resurrection", "zombie"],
   "mud": ["cleaning", "gardening", "nature", "plants", "scavenging"],
+  "messing": ["cleaning", "creepy", "horror", "repair", "suspense"],
+  "messes": ["cleaning", "creepy", "horror", "repair", "suspense"],
+  "mess": ["cleaning", "creepy", "horror", "repair", "suspense"],
   "gritty": ["cleaning", "dark", "dieselpunk", "gothic", "noir"],
   "traffic": ["city", "driving", "modern", "roadtrip", "urban"],
   "parker": ["city", "driving", "modern", "sports", "urban"],
@@ -5436,6 +5439,9 @@
   "magnum": ["action", "bullet hell", "hunting", "shooter", "thriller"],
   "hurry": ["action", "racing", "real-time", "superspeed", "thriller"],
   "hung": ["action", "parkour", "physics", "platformer", "side scroller"],
+  "holds": ["action", "parkour", "platformer", "rivals", "side scroller"],
+  "holding": ["action", "parkour", "platformer", "rivals", "side scroller"],
+  "hold": ["action", "parkour", "platformer", "rivals", "side scroller"],
   "hangs": ["action", "parkour", "physics", "platformer", "side scroller"],
   "hanging": ["action", "parkour", "physics", "platformer", "side scroller"],
   "hangin'": ["action", "parkour", "physics", "platformer", "side scroller"],
@@ -7541,14 +7547,6 @@
     "sports"
   ],
   "stations": ["automation", "city", "modern", "roadtrip", "train", "urban"],
-  "repeats": [
-    "automation",
-    "metroidvania",
-    "nonlinear",
-    "replayable",
-    "roguelike",
-    "time travel"
-  ],
   "repeating": [
     "automation",
     "metroidvania",
@@ -8742,30 +8740,6 @@
     "nautical",
     "post apocalyptic",
     "weather"
-  ],
-  "holds": [
-    "action",
-    "delivery",
-    "parkour",
-    "platformer",
-    "rivals",
-    "side scroller"
-  ],
-  "holding": [
-    "action",
-    "delivery",
-    "parkour",
-    "platformer",
-    "rivals",
-    "side scroller"
-  ],
-  "hold": [
-    "action",
-    "delivery",
-    "parkour",
-    "platformer",
-    "rivals",
-    "side scroller"
   ],
   "hatchet": [
     "action",
@@ -10367,33 +10341,6 @@
     "time management",
     "time manipulation",
     "time travel"
-  ],
-  "messing": [
-    "cleaning",
-    "creepy",
-    "glitch",
-    "hacking",
-    "horror",
-    "repair",
-    "suspense"
-  ],
-  "messes": [
-    "cleaning",
-    "creepy",
-    "glitch",
-    "hacking",
-    "horror",
-    "repair",
-    "suspense"
-  ],
-  "mess": [
-    "cleaning",
-    "creepy",
-    "glitch",
-    "hacking",
-    "horror",
-    "repair",
-    "suspense"
   ],
   "town": [
     "city",
@@ -15289,6 +15236,16 @@
     "on-rails",
     "train"
   ],
+  "imagine": [
+    "art",
+    "artist",
+    "building",
+    "crafting",
+    "creative",
+    "drawing",
+    "invention",
+    "utopian"
+  ],
   "chips": [
     "arcade",
     "artificial intelligence",
@@ -19974,17 +19931,6 @@
     "sci-fi",
     "science",
     "shooter"
-  ],
-  "hungry": [
-    "action",
-    "cooking",
-    "creepy",
-    "horror",
-    "parkour",
-    "physics",
-    "platformer",
-    "side scroller",
-    "suspense"
   ],
   "hasten": [
     "action",
