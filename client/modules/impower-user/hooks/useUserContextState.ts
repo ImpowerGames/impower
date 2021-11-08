@@ -332,7 +332,8 @@ export const useUserContextState = (
       ]);
     };
     notify();
-  }, [my_connects, unreadNotifications, router, toastDispatch, uid]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unreadNotifications, uid]);
 
   const handleLoadMySubmissions = useCallback(
     (all: { [docId: string]: AggData }) => {
