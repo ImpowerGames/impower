@@ -84,9 +84,12 @@ interface AppAreaProps {
 const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
   const { children } = props;
 
-  const [accountDialogOpenKey, setAccountDialogOpenKey] = useState<string>();
+  const [appDialogOpenKey, setAppDialogOpenKey] = useState<string>();
 
-  const accountDialogOpen = Boolean(accountDialogOpenKey);
+  const accountDialogOpen =
+    appDialogOpenKey === "signup" ||
+    appDialogOpenKey === "login" ||
+    appDialogOpenKey?.startsWith("contact_");
 
   const screenState = useContext(ScreenContext);
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
@@ -105,13 +108,13 @@ const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
   }, [navigationDispatch]);
 
   const handleQueryChange = useCallback((currState: Record<string, string>) => {
-    setAccountDialogOpenKey(currState.a || null);
+    setAppDialogOpenKey(currState.a || null);
   }, []);
 
   const handleBrowserNavigation = useCallback(
     (currState: Record<string, string>, prevState?: Record<string, string>) => {
       if (currState?.a !== prevState?.a) {
-        setAccountDialogOpenKey(currState?.a || null);
+        setAppDialogOpenKey(currState?.a || null);
       }
     },
     []
@@ -131,7 +134,7 @@ const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
 
   const handleNavCloseAccountDialog = useCallback(() => {
     if (!processingRef.current) {
-      setAccountDialogOpenKey(null);
+      setAppDialogOpenKey(null);
       closeAppDialog();
     }
   }, [closeAppDialog]);
@@ -208,13 +211,13 @@ const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
           onClose={handleNavCloseConfirmDialog}
         />
       )}
-      {accountDialogOpenKey !== undefined && (
+      {appDialogOpenKey !== undefined && (
         <AccountDialog
           open={accountDialogOpen}
-          type={accountDialogOpenKey}
+          type={appDialogOpenKey}
           onClose={handleNavCloseAccountDialog}
           onProcessing={handleProcessing}
-          onChangeType={setAccountDialogOpenKey}
+          onChangeType={setAppDialogOpenKey}
         />
       )}
     </StyledAreaBox>
