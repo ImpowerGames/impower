@@ -115,6 +115,8 @@ const StyledDivider = styled(Divider)`
   margin-top: ${(props): string => props.theme.spacing(2)};
 `;
 
+const StyledBottomDivider = styled(Divider)``;
+
 const StyledLabel = styled.div`
   display: flex;
   justify-content: flex-start;
@@ -856,6 +858,7 @@ const Account = React.memo((): JSX.Element | null => {
               </StyledAdvancedButton>
             </StyledAccordionDetails>
           </StyledAccordion>
+          <StyledBottomDivider />
         </StyledPaper>
       </StyledContainer>
       {dialogOpen !== undefined && (
