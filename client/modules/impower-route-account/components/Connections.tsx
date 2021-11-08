@@ -268,7 +268,7 @@ const Connections = React.memo((): JSX.Element | null => {
   const handleClick = useCallback(
     async (e: React.MouseEvent, id: string, data: AggData) => {
       setLoading(true);
-      await router.push(`/u/${data?.a?.u}`);
+      await router.push(`/u/${data?.a?.u}?t=contributions`);
       setLoading(false);
     },
     [router]
