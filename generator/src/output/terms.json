@@ -1052,7 +1052,6 @@
   "folding": ["physics", "shapeshifting"],
   "fold": ["physics", "shapeshifting"],
   "untouched": ["open world", "sandbox"],
-  "license": ["open world", "sandbox"],
   "boxes": ["open world", "sandbox"],
   "box": ["open world", "sandbox"],
   "vessel": ["nautical", "swashbuckling"],
@@ -6027,6 +6026,22 @@
   "wagons": ["driving", "on-rails", "racing", "train", "vehicle", "western"],
   "wagon": ["driving", "on-rails", "racing", "train", "vehicle", "western"],
   "ride": ["driving", "on-rails", "racing", "roadtrip", "vehicle", "western"],
+  "license": [
+    "driving",
+    "medical",
+    "open world",
+    "racing",
+    "sandbox",
+    "vehicle"
+  ],
+  "licence": [
+    "driving",
+    "medical",
+    "open world",
+    "racing",
+    "sandbox",
+    "vehicle"
+  ],
   "carriage": [
     "driving",
     "fairy tale",
