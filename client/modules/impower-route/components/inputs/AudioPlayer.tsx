@@ -1,7 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { IconButton, LinearProgress, Typography } from "@material-ui/core";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import RotateLeftIcon from "../../../../resources/icons/solid/arrow-left-to-line.svg";
 import BackwardSolidIcon from "../../../../resources/icons/solid/backward.svg";
 import CirclePauseSolidIcon from "../../../../resources/icons/solid/circle-pause.svg";
@@ -11,7 +11,7 @@ import ForwardSolidIcon from "../../../../resources/icons/solid/forward.svg";
 import RepeatSolidIcon from "../../../../resources/icons/solid/repeat.svg";
 import { FontIcon } from "../../../impower-icon";
 
-export const StyledAudioPlayer = styled.div`
+const StyledAudioPlayer = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -19,13 +19,13 @@ export const StyledAudioPlayer = styled.div`
   background-color: inherit;
 `;
 
-export const StyledWaveArea = styled.div`
+const StyledWaveArea = styled.div`
   position: relative;
   flex: 1;
   background-color: inherit;
 `;
 
-export const StyledWave = styled.div`
+const StyledWave = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
@@ -34,28 +34,14 @@ export const StyledWave = styled.div`
   transition: opacity 0.3s ease;
 `;
 
-export const StyledLoopOverlayArea = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  display: flex;
-  pointer-events: none;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: space-between;
-  background-color: inherit;
-  border-radius: 50%;
-`;
-
-export const StyledButtonArea = styled.div`
+const StyledButtonArea = styled.div`
   display: flex;
   align-items: center;
   padding: ${(props): string => props.theme.spacing(1)};
 `;
 
 const StyledIconButton = styled(IconButton)`
+  padding: 0;
   margin: ${(props): string => props.theme.spacing(0, 1)};
   position: relative;
 `;
@@ -365,57 +351,43 @@ const AudioPlayer = React.memo((props: AudioPlayerProps): JSX.Element => {
     e.preventDefault();
   }, []);
 
+  const waveAreaStyle = useMemo(
+    () => ({
+      minHeight: height,
+    }),
+    [height]
+  );
+  const progressStyle = useMemo(
+    () => ({ opacity: visible ? 0 : 1 }),
+    [visible]
+  );
+  const waveStyle = useMemo(() => ({ opacity: visible ? 1 : 0 }), [visible]);
+  const typographyStyle = useMemo(() => ({ color: textColor }), [textColor]);
+
   return (
-    <StyledAudioPlayer className={StyledAudioPlayer.displayName} style={style}>
-      <StyledWaveArea
-        className={StyledWaveArea.displayName}
-        style={{
-          minHeight: height,
-        }}
-        onClick={handleBlockPropogation}
-      >
-        <StyledLinearProgressArea style={{ opacity: visible ? 0 : 1 }}>
+    <StyledAudioPlayer style={style}>
+      <StyledWaveArea style={waveAreaStyle} onClick={handleBlockPropogation}>
+        <StyledLinearProgressArea style={progressStyle}>
           <StyledLinearProgress color="secondary" />
         </StyledLinearProgressArea>
-        <StyledWave ref={handleRef} style={{ opacity: visible ? 1 : 0 }} />
+        <StyledWave ref={handleRef} style={waveStyle} />
       </StyledWaveArea>
       <StyledButtonArea>
-        <StyledTypography
-          variant="caption"
-          style={{
-            color: textColor,
-            padding: theme.spacing(0, 0.5),
-          }}
-        >
+        <StyledTypography variant="caption" style={typographyStyle}>
           {getDisplayTime(currentTime)}
         </StyledTypography>
         <StyledSpacer />
-        <StyledIconButton
-          onClick={handleRestart}
-          style={{
-            padding: 0,
-          }}
-        >
+        <StyledIconButton onClick={handleRestart}>
           <FontIcon aria-label={`Restart`} color={cursorColor} size={16}>
             <RotateLeftIcon />
           </FontIcon>
         </StyledIconButton>
-        <StyledIconButton
-          onClick={handleSkipBackward}
-          style={{
-            padding: 0,
-          }}
-        >
+        <StyledIconButton onClick={handleSkipBackward}>
           <FontIcon aria-label={`Rewind`} color={cursorColor} size={24}>
             <BackwardSolidIcon />
           </FontIcon>
         </StyledIconButton>
-        <StyledIconButton
-          onClick={handlePlay}
-          style={{
-            padding: 0,
-          }}
-        >
+        <StyledIconButton onClick={handlePlay}>
           <FontIcon
             aria-label={playing ? "Pause" : "Play"}
             color={cursorColor}
@@ -424,22 +396,12 @@ const AudioPlayer = React.memo((props: AudioPlayerProps): JSX.Element => {
             {playing ? <CirclePauseSolidIcon /> : <CirclePlaySolidIcon />}
           </FontIcon>
         </StyledIconButton>
-        <StyledIconButton
-          onClick={handleSkipForward}
-          style={{
-            padding: 0,
-          }}
-        >
+        <StyledIconButton onClick={handleSkipForward}>
           <FontIcon aria-label={`Forward`} color={cursorColor} size={24}>
             <ForwardSolidIcon />
           </FontIcon>
         </StyledIconButton>
-        <StyledIconButton
-          onClick={handleLoop}
-          style={{
-            padding: 0,
-          }}
-        >
+        <StyledIconButton onClick={handleLoop}>
           <FontIcon aria-label={`Loop`} color={cursorColor} size={16}>
             <RepeatSolidIcon />
           </FontIcon>
@@ -452,13 +414,7 @@ const AudioPlayer = React.memo((props: AudioPlayerProps): JSX.Element => {
           )}
         </StyledIconButton>
         <StyledSpacer />
-        <StyledTypography
-          variant="caption"
-          style={{
-            color: textColor,
-            padding: theme.spacing(0, 0.5),
-          }}
-        >
+        <StyledTypography variant="caption" style={typographyStyle}>
           {getDisplayTime(duration)}
         </StyledTypography>
       </StyledButtonArea>
