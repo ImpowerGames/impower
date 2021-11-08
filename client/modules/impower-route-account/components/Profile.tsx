@@ -10,7 +10,6 @@ import { SvgData } from "../../impower-icon";
 import { Fallback, Tabs } from "../../impower-route";
 import PitchList from "../../impower-route-pitch/components/PitchList";
 import Avatar from "../../impower-route/components/elements/Avatar";
-import { useRouter } from "../../impower-router";
 import {
   UserContext,
   userDoConnect,
@@ -138,8 +137,6 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
       : 0
   );
 
-  const router = useRouter();
-
   const [openAccountDialog] = useDialogNavigation("a");
 
   useEffect(() => {
@@ -174,11 +171,6 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
 
   const handleChange = useCallback((e: React.ChangeEvent, value: number) => {
     setTabIndex(value);
-    if (value === 0) {
-      router.replace(`?t=pitches`);
-    } else {
-      router.replace(`?t=contributions`);
-    }
   }, []);
 
   return (
