@@ -65,29 +65,35 @@ const StyledDocumentForm = styled(Paper)`
   }
 `;
 
-const StyledContainer = styled.div`
+const StyledContainer = styled.div<{ bgcolor?: string }>`
   flex: 1;
   display: flex;
   flex-direction: column;
 
   padding-bottom: ${(props): string => props.theme.spacing(4)};
 
-  padding-top: ${(props): string => props.theme.spacing(0.5)};
+  padding-top: ${(props): string => props.theme.spacing(9)};
   padding-left: ${(props): string => props.theme.spacing(4)};
   padding-right: ${(props): string => props.theme.spacing(4)};
 
   ${(props): string => props.theme.breakpoints.down("md")} {
-    padding-top: 0;
+    padding-top: ${(props): string => props.theme.spacing(8)};
     padding-left: ${(props): string => props.theme.spacing(2)};
     padding-right: ${(props): string => props.theme.spacing(2)};
   }
   width: 100%;
   max-width: 100%;
   width: 448px;
+  position: relative;
+
+  background-color: ${(props): string => props.bgcolor};
 `;
 
 const StyledHeader = styled.div`
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   width: 100%;
   display: flex;
   pointer-events: none;
@@ -406,9 +412,6 @@ const CreateDocumentForm = React.memo(
       displayFinishedSummary && !successful
         ? unsuccessfulDescription
         : currentStep?.description;
-    const backgroundColor = currentStep?.preview
-      ? theme.palette.grey[200]
-      : "white";
     const buttonAreaStyle = useMemo(
       () => ({
         marginTop: step === 0 ? theme.spacing(5) : theme.spacing(3),
@@ -422,54 +425,19 @@ const CreateDocumentForm = React.memo(
 
     return (
       <>
-        <StyledDocumentForm
-          ref={contentRef}
-          style={{
-            backgroundColor,
-          }}
-        >
+        <StyledDocumentForm ref={contentRef}>
           <StyledForegroundArea>
-            <StyledHeader>
-              {onClose && (!displayFinishedSummary || !successful) && (
-                <StyledIconButton
-                  disabled={creating}
-                  onClick={(e): void => {
-                    if (onClose) {
-                      onClose(e, "closeButtonClick");
-                    }
-                  }}
-                >
-                  <FontIcon
-                    aria-label="Back"
-                    color={theme.palette.primary.light}
-                    size={24}
-                  >
-                    <XmarkSolidIcon />
-                  </FontIcon>
-                </StyledIconButton>
-              )}
-              <StyledMiddleArea>
-                {steps?.length > 1 ? (
-                  <StyledMobileStepper
-                    variant="dots"
-                    steps={steps?.length}
-                    position="static"
-                    activeStep={step}
-                    backButton={null}
-                    nextButton={null}
-                  />
-                ) : (
-                  <StyledLogo />
-                )}
-              </StyledMiddleArea>
-            </StyledHeader>
             <StyledContentArea style={{ overflow: "hidden" }}>
               <PeerTransition
                 currentIndex={step}
                 previousIndex={previousStepIndex}
                 style={{ width: "100%", maxWidth: "100%" }}
               >
-                <StyledContainer style={{ backgroundColor }}>
+                <StyledContainer
+                  bgcolor={
+                    steps?.[step]?.preview ? theme.palette.grey[200] : "white"
+                  }
+                >
                   {!displayFinishedSummary && (
                     <StyledFormArea>
                       <InspectorForm
@@ -555,6 +523,40 @@ const CreateDocumentForm = React.memo(
                 </StyledContainer>
               </PeerTransition>
             </StyledContentArea>
+            <StyledHeader>
+              {onClose && (!displayFinishedSummary || !successful) && (
+                <StyledIconButton
+                  disabled={creating}
+                  onClick={(e): void => {
+                    if (onClose) {
+                      onClose(e, "closeButtonClick");
+                    }
+                  }}
+                >
+                  <FontIcon
+                    aria-label="Back"
+                    color={theme.palette.primary.light}
+                    size={24}
+                  >
+                    <XmarkSolidIcon />
+                  </FontIcon>
+                </StyledIconButton>
+              )}
+              <StyledMiddleArea>
+                {steps?.length > 1 ? (
+                  <StyledMobileStepper
+                    variant="dots"
+                    steps={steps?.length}
+                    position="static"
+                    activeStep={step}
+                    backButton={null}
+                    nextButton={null}
+                  />
+                ) : (
+                  <StyledLogo />
+                )}
+              </StyledMiddleArea>
+            </StyledHeader>
           </StyledForegroundArea>
         </StyledDocumentForm>
       </>
