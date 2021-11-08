@@ -108,7 +108,7 @@ const Contact = React.memo((props: ContactProps): JSX.Element => {
   const handleSettingsPropertySave = useCallback(
     async (propertyPath: string, value: unknown) => {
       if (
-        JSON.stringify(newSettingsDoc[propertyPath]) === JSON.stringify(value)
+        JSON.stringify(newSettingsDoc?.[propertyPath]) === JSON.stringify(value)
       ) {
         return;
       }

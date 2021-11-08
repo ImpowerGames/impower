@@ -620,7 +620,7 @@ const Account = React.memo((): JSX.Element | null => {
         return;
       }
       if (
-        JSON.stringify(newSettingsDoc[propertyPath]) === JSON.stringify(value)
+        JSON.stringify(newSettingsDoc?.[propertyPath]) === JSON.stringify(value)
       ) {
         return;
       }
@@ -642,7 +642,7 @@ const Account = React.memo((): JSX.Element | null => {
         return;
       }
       if (
-        JSON.stringify(newSettingsDoc[propertyPath]) === JSON.stringify(value)
+        JSON.stringify(newSettingsDoc?.[propertyPath]) === JSON.stringify(value)
       ) {
         return;
       }
