@@ -81,7 +81,8 @@ const AccountMenu = React.memo((props: PropsWithChildren<AccountMenuProps>) => {
         userDispatch(userSetTempUsername(""));
         const logout = (await import("../../../impower-auth/utils/logout"))
           .default;
-        await router.replace(menuItem.link).then(() => logout());
+        await router.replace(menuItem.link);
+        await logout();
       } else {
         await router.replace(menuItem.link);
       }

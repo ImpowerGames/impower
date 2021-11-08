@@ -14,7 +14,6 @@ import {
   MemberData,
   useAllDocsLoad,
   useCollectionDataLoad,
-  useObservedCollectionDataLoad,
 } from "../../impower-data-state";
 import {
   CustomizationDocument,
@@ -169,7 +168,7 @@ export const useUserContextState = (
     },
     []
   );
-  useObservedCollectionDataLoad(
+  useCollectionDataLoad(
     handleLoadFollows,
     { orderByChild: "t" },
     "users",
@@ -185,7 +184,7 @@ export const useUserContextState = (
     },
     []
   );
-  useObservedCollectionDataLoad(
+  useCollectionDataLoad(
     handleLoadConnects,
     { orderByChild: "t" },
     "users",
@@ -210,7 +209,7 @@ export const useUserContextState = (
     },
     []
   );
-  useObservedCollectionDataLoad(
+  useCollectionDataLoad(
     handleLoadNotifications,
     { orderByChild: "t" },
     "users",
