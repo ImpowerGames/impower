@@ -49,24 +49,10 @@ export const StyledLoopOverlayArea = styled.div`
   border-radius: 50%;
 `;
 
-export const StyledTimeOverlayArea = styled.div`
-  position: absolute;
-  bottom: -${(props): string => props.theme.spacing(1)};
-  left: 0;
-  right: 0;
-  z-index: 10;
-  display: flex;
-  pointer-events: none;
-  flex-direction: row;
-  align-items: flex-end;
-  justify-content: space-between;
-  background-color: inherit;
-`;
-
 export const StyledButtonArea = styled.div`
   display: flex;
   align-items: center;
-  justify-content: center;
+  padding: ${(props): string => props.theme.spacing(1)};
 `;
 
 const StyledIconButton = styled(IconButton)`
@@ -103,6 +89,10 @@ const StyledOverlay = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+`;
+
+const StyledSpacer = styled.div`
+  flex: 1;
 `;
 
 const getDisplayTime = (seconds: number): string => {
@@ -388,28 +378,18 @@ const AudioPlayer = React.memo((props: AudioPlayerProps): JSX.Element => {
           <StyledLinearProgress color="secondary" />
         </StyledLinearProgressArea>
         <StyledWave ref={handleRef} style={{ opacity: visible ? 1 : 0 }} />
-        <StyledTimeOverlayArea>
-          <StyledTypography
-            variant="caption"
-            style={{
-              color: textColor,
-              padding: theme.spacing(0, 0.5),
-            }}
-          >
-            {getDisplayTime(currentTime)}
-          </StyledTypography>
-          <StyledTypography
-            variant="caption"
-            style={{
-              color: textColor,
-              padding: theme.spacing(0, 0.5),
-            }}
-          >
-            {getDisplayTime(duration)}
-          </StyledTypography>
-        </StyledTimeOverlayArea>
       </StyledWaveArea>
       <StyledButtonArea>
+        <StyledTypography
+          variant="caption"
+          style={{
+            color: textColor,
+            padding: theme.spacing(0, 0.5),
+          }}
+        >
+          {getDisplayTime(currentTime)}
+        </StyledTypography>
+        <StyledSpacer />
         <StyledIconButton
           onClick={handleRestart}
           style={{
@@ -471,6 +451,16 @@ const AudioPlayer = React.memo((props: AudioPlayerProps): JSX.Element => {
             </StyledOverlay>
           )}
         </StyledIconButton>
+        <StyledSpacer />
+        <StyledTypography
+          variant="caption"
+          style={{
+            color: textColor,
+            padding: theme.spacing(0, 0.5),
+          }}
+        >
+          {getDisplayTime(duration)}
+        </StyledTypography>
       </StyledButtonArea>
     </StyledAudioPlayer>
   );
