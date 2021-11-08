@@ -59,12 +59,15 @@ const StyledInfoArea = styled.div`
   margin-bottom: ${(props): string => props.theme.spacing(2)};
 `;
 
-const StyledReloadArea = styled.div`
+const StyledReloadArea = styled(FadeAnimation)`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: ${(props): string => props.theme.spacing(2, 2, 4, 2)};
+
+  bottom: 0;
+  position: sticky;
+  z-index: 1;
 `;
 
 const StyledTitleTypography = styled(Typography)`
@@ -140,6 +143,12 @@ const StyledOptionIconArea = styled.div`
 
 const StyledButton = styled(Button)`
   padding: ${(props): string => props.theme.spacing(1, 2)};
+`;
+
+const StyledBottomButton = styled(Button)`
+  padding: ${(props): string => props.theme.spacing(1.5, 2)};
+  border-radius: 0;
+  box-shadow: ${(props): string => props.theme.shadows[6]};
 `;
 
 const StyledDivider = styled(Divider)`
@@ -325,6 +334,10 @@ const PitchFollowTags = React.memo(
     const gameTags =
       configState?.gameTags || ConfigCache.instance.params?.gameTags;
 
+    const showReloadArea =
+      Object.entries(my_follows || {}).filter(([, v]) => v.g === "tags")
+        ?.length > 0;
+
     if (my_follows === undefined) {
       return (
         <StyledContainer>
@@ -353,22 +366,18 @@ const PitchFollowTags = React.memo(
               <PitchFollowTagsList key={category} category={category} />
             ))}
           </StyledPaper>
-          {Object.entries(my_follows || {}).filter(([, v]) => v.g === "tags")
-            ?.length > 0 && (
-            <StyledReloadArea>
-              <StyledDescriptionTypography
-                variant="body2"
-                color="textSecondary"
-              >
-                {`Done following?`}
-              </StyledDescriptionTypography>
-              <StyledButton
-                variant="contained"
-                color="primary"
-                onClick={handleReload}
-              >{`Show me some pitches!`}</StyledButton>
-            </StyledReloadArea>
-          )}
+          <StyledReloadArea
+            initial={showReloadArea ? 1 : 0}
+            animate={showReloadArea ? 1 : 0}
+            duration={0.15}
+          >
+            <StyledBottomButton
+              variant="contained"
+              color="primary"
+              onClick={handleReload}
+              fullWidth
+            >{`Show me some pitches!`}</StyledBottomButton>
+          </StyledReloadArea>
           <TagIconLoader />
         </StyledPitchFollowTags>
       </StyledContainer>
