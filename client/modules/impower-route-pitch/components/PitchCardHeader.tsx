@@ -5,7 +5,6 @@ import CardHeader from "@material-ui/core/CardHeader";
 import IconButton from "@material-ui/core/IconButton";
 import Typography from "@material-ui/core/Typography";
 import dynamic from "next/dynamic";
-import NextLink from "next/link";
 import React, { useCallback, useContext, useMemo } from "react";
 import EllipsisVerticalRegularIcon from "../../../resources/icons/regular/ellipsis-vertical.svg";
 import HandshakeSimpleRegularIcon from "../../../resources/icons/regular/handshake-simple.svg";
@@ -25,6 +24,7 @@ import {
   NavigationContext,
   navigationSetSearchbar,
 } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import Avatar from "../../impower-route/components/elements/Avatar";
 import { UserContext } from "../../impower-user";
 
@@ -158,26 +158,31 @@ interface PitchCardHeaderTitleProps {
 const PitchCardHeaderTitle = React.memo((props: PitchCardHeaderTitleProps) => {
   const { mainTag, mainTagLabel, onBlockRipplePropogation } = props;
   const [, navigationDispatch] = useContext(NavigationContext);
-  const handleClickTag = useCallback(
-    (e: React.MouseEvent): void => {
+  const handleClickMainTag = useCallback(
+    async (e: React.MouseEvent): Promise<void> => {
       e.stopPropagation();
+      const link = getTagLink(mainTag);
+      if (window.location.pathname.endsWith(link)) {
+        return;
+      }
+      navigationDispatch(navigationSetTransitioning(true));
       navigationDispatch(navigationSetSearchbar({ searching: true }));
+      const router = (await import("next/router")).default;
+      await router.push(link);
     },
-    [navigationDispatch]
+    [mainTag, navigationDispatch]
   );
   return (
-    <NextLink href={getTagLink(mainTag)} passHref prefetch={false}>
-      <StyledTitleButton
-        color="primary"
-        onMouseDown={onBlockRipplePropogation}
-        onTouchStart={onBlockRipplePropogation}
-        onClick={handleClickTag}
-      >
-        <StyledSemiBoldTypography variant="body2">
-          {mainTagLabel || <Skeleton width={120} />}
-        </StyledSemiBoldTypography>
-      </StyledTitleButton>
-    </NextLink>
+    <StyledTitleButton
+      color="primary"
+      onMouseDown={onBlockRipplePropogation}
+      onTouchStart={onBlockRipplePropogation}
+      onClick={handleClickMainTag}
+    >
+      <StyledSemiBoldTypography variant="body2">
+        {mainTagLabel || <Skeleton width={120} />}
+      </StyledSemiBoldTypography>
+    </StyledTitleButton>
   );
 });
 
@@ -208,7 +213,10 @@ const PitchCardHeaderSubheader = React.memo(
       tempUsername,
       onBlockRipplePropogation,
     } = props;
+
     const theme = useTheme();
+    const [, navigationDispatch] = useContext(NavigationContext);
+
     const hiddenStyle: React.CSSProperties = useMemo(
       () => ({ visibility: "hidden" }),
       []
@@ -217,6 +225,21 @@ const PitchCardHeaderSubheader = React.memo(
       () => ({ opacity: 0.7 }),
       []
     );
+
+    const handleClickUser = useCallback(
+      async (e: React.MouseEvent): Promise<void> => {
+        e.stopPropagation();
+        const link = getUserLink(authorName);
+        if (window.location.pathname.endsWith(link)) {
+          return;
+        }
+        navigationDispatch(navigationSetTransitioning(true));
+        const router = (await import("next/router")).default;
+        await router.push(link);
+      },
+      [authorName, navigationDispatch]
+    );
+
     return (
       <StyledSubheaderArea>
         <StyledSingleLineEllipsisTypography
@@ -228,31 +251,25 @@ const PitchCardHeaderSubheader = React.memo(
         </StyledSingleLineEllipsisTypography>
         <StyledSubheaderContent>
           {archived || !delisted ? (
-            <NextLink
-              href={authorName ? getUserLink(authorName) : ""}
-              passHref
-              prefetch={false}
+            <StyledPitchUsernameButton
+              disabled={!authorName}
+              onClick={handleClickUser}
+              onMouseDown={onBlockRipplePropogation}
+              onTouchStart={onBlockRipplePropogation}
             >
-              <StyledPitchUsernameButton
-                disabled={!authorName}
-                onClick={onBlockRipplePropogation}
-                onMouseDown={onBlockRipplePropogation}
-                onTouchStart={onBlockRipplePropogation}
+              <StyledSingleLineEllipsisTypography
+                variant="body2"
+                color={authorName ? "primary" : "inherit"}
               >
-                <StyledSingleLineEllipsisTypography
-                  variant="body2"
-                  color={authorName ? "primary" : "inherit"}
-                >
-                  {authorName ? (
-                    `@${authorName}`
-                  ) : preview ? (
-                    `@${tempUsername || "Anonymous"}`
-                  ) : (
-                    <Skeleton width={80} />
-                  )}
-                </StyledSingleLineEllipsisTypography>
-              </StyledPitchUsernameButton>
-            </NextLink>
+                {authorName ? (
+                  `@${authorName}`
+                ) : preview ? (
+                  `@${tempUsername || "Anonymous"}`
+                ) : (
+                  <Skeleton width={80} />
+                )}
+              </StyledSingleLineEllipsisTypography>
+            </StyledPitchUsernameButton>
           ) : (
             `[deleted]`
           )}
@@ -318,6 +335,7 @@ const PitchCardHeader = React.memo(
     const [configState] = useContext(ConfigContext);
     const [userState] = useContext(UserContext);
     const { tempUsername } = userState;
+    const [, navigationDispatch] = useContext(NavigationContext);
 
     const handleBlockRipplePropogation = useCallback(
       (e: React.MouseEvent | React.TouchEvent): void => {
@@ -357,6 +375,21 @@ const PitchCardHeader = React.memo(
     const validTagIconName = tagIconName || "hashtag";
     const validTagColor = tagIconName ? tagColor : "#052d57";
 
+    const handleClickMainTag = useCallback(
+      async (e: React.MouseEvent): Promise<void> => {
+        e.stopPropagation();
+        const link = getTagLink(mainTag);
+        if (window.location.pathname.endsWith(link)) {
+          return;
+        }
+        navigationDispatch(navigationSetTransitioning(true));
+        navigationDispatch(navigationSetSearchbar({ searching: true }));
+        const router = (await import("next/router")).default;
+        await router.push(link);
+      },
+      [mainTag, navigationDispatch]
+    );
+
     const avatarIcon = useMemo(
       () => (
         <DynamicIcon icon={icons?.[validTagIconName] || validTagIconName} />
@@ -372,25 +405,24 @@ const PitchCardHeader = React.memo(
     const avatar = useMemo(
       () => (
         <Avatar
-          alt={authorName}
+          alt={mainTag}
           backgroundColor={validTagColor}
           fontSize={24}
           icon={avatarIcon}
-          aria-label={authorName}
-          href={getTagLink(mainTag)}
-          onClick={handleBlockRipplePropogation}
+          aria-label={mainTag}
+          onClick={handleClickMainTag}
           onMouseDown={handleBlockRipplePropogation}
           onTouchStart={handleBlockRipplePropogation}
           style={avatarStyle}
         />
       ),
       [
-        authorName,
-        avatarIcon,
-        avatarStyle,
-        handleBlockRipplePropogation,
         mainTag,
         validTagColor,
+        avatarIcon,
+        handleClickMainTag,
+        handleBlockRipplePropogation,
+        avatarStyle,
       ]
     );
 

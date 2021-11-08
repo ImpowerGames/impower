@@ -1,5 +1,12 @@
 import styled from "@emotion/styled";
-import { Button, IconButton, Paper, Tab, Typography } from "@material-ui/core";
+import {
+  Button,
+  CircularProgress,
+  IconButton,
+  Paper,
+  Tab,
+  Typography,
+} from "@material-ui/core";
 import dynamic from "next/dynamic";
 import NextLink from "next/link";
 import React, { useCallback, useContext, useEffect, useState } from "react";
@@ -7,6 +14,7 @@ import { ConfigParameters } from "../../impower-config";
 import { getDataStoreKey } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { SvgData } from "../../impower-icon";
+import { NavigationContext } from "../../impower-navigation";
 import { Fallback, Tabs } from "../../impower-route";
 import PitchList from "../../impower-route-pitch/components/PitchList";
 import Avatar from "../../impower-route/components/elements/Avatar";
@@ -103,6 +111,11 @@ const StyledOfflineTypography = styled(Typography)`
 
 const StyledConnectArea = styled.div``;
 
+const StyledCircularProgress = styled(CircularProgress)`
+  min-width: ${(props): string => props.theme.spacing(4)};
+  min-height: ${(props): string => props.theme.spacing(4)};
+`;
+
 interface ProfileProps {
   config?: ConfigParameters;
   icons?: { [name: string]: SvgData };
@@ -121,6 +134,9 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
   const { connects, my_connects, settings, isSignedIn } = userState;
   const account = settings?.account;
   const contact = account === undefined ? undefined : account?.contact || "";
+
+  const [navigationState] = useContext(NavigationContext);
+  const transitioning = navigationState?.transitioning;
 
   const connectedFrom =
     connects !== undefined && id ? Boolean(connects?.[id]) : undefined;
@@ -193,91 +209,101 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
     <>
       <StyledContainer>
         <StyledPaper>
-          <StyledDetailsArea>
-            <IconButton>
-              <Avatar src={icon} alt={username} backgroundColor={hex} />
-            </IconButton>
-            {username && (
-              <StyledUsernameTypography variant="h5">
-                {username}
-              </StyledUsernameTypography>
-            )}
-            {id === null ? (
-              <StyledButton
-                variant="outlined"
-                size="large"
-                disabled
-              >{`User Doesn't Exist`}</StyledButton>
-            ) : isCurrentUser === undefined ? (
-              <StyledButton
-                variant="outlined"
-                size="large"
-                disabled
-              >{`Loading`}</StyledButton>
-            ) : isCurrentUser ? (
-              <NextLink href={`/account#profile`} passHref prefetch={false}>
-                <StyledButton
-                  variant="outlined"
-                  size="large"
-                >{`Edit Profile`}</StyledButton>
-              </NextLink>
-            ) : (
-              <StyledConnectArea>
-                <StyledButton
-                  size="large"
-                  color="secondary"
-                  variant={connectedToState ? "outlined" : "contained"}
-                  onClick={handleConnect}
-                  disableElevation
-                >
-                  {connectedToState && connectedFrom
-                    ? `Connected!`
-                    : connectedToState
-                    ? `Requested`
-                    : "Connect"}
-                </StyledButton>
-              </StyledConnectArea>
-            )}
-            {bio && (
-              <StyledBioTypography variant="body2">{bio}</StyledBioTypography>
-            )}
-          </StyledDetailsArea>
-          {id !== null && isCurrentUser !== undefined && (
+          {transitioning ? (
+            <StyledLoadingArea>
+              <StyledCircularProgress color="secondary" size={32} />
+            </StyledLoadingArea>
+          ) : (
             <>
-              <StyledTabs
-                value={tabIndex}
-                onChange={handleChange}
-                variant="fullWidth"
-              >
-                <StyledTab value={0} label={`PITCHES`} />
-                <StyledTab value={1} label={`CONTRIBUTIONS`} />
-              </StyledTabs>
-              {tabIndex === 0 ? (
-                <PitchList
-                  config={config}
-                  icons={icons}
-                  creator={id}
-                  sortOptions={SORT_OPTIONS}
-                  compact
-                  emptyLabel={`No Pitches`}
-                  searchingPlaceholder={
-                    <StyledLoadingArea>
-                      <Fallback disableShrink />
-                    </StyledLoadingArea>
-                  }
-                  offlinePlaceholder={
-                    <StyledOfflineArea>
-                      <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
-                    </StyledOfflineArea>
-                  }
-                />
-              ) : (
-                <ContributionList
-                  creator={id}
-                  sortOptions={SORT_OPTIONS}
-                  emptyLabel={`No Contributions`}
-                  noMoreLabel={`That's all for now!`}
-                />
+              <StyledDetailsArea>
+                <IconButton>
+                  <Avatar src={icon} alt={username} backgroundColor={hex} />
+                </IconButton>
+                {username && (
+                  <StyledUsernameTypography variant="h5">
+                    {username}
+                  </StyledUsernameTypography>
+                )}
+                {id === null ? (
+                  <StyledButton
+                    variant="outlined"
+                    size="large"
+                    disabled
+                  >{`User Doesn't Exist`}</StyledButton>
+                ) : isCurrentUser === undefined ? (
+                  <StyledButton
+                    variant="outlined"
+                    size="large"
+                    disabled
+                  >{`Loading`}</StyledButton>
+                ) : isCurrentUser ? (
+                  <NextLink href={`/account#profile`} passHref prefetch={false}>
+                    <StyledButton
+                      variant="outlined"
+                      size="large"
+                    >{`Edit Profile`}</StyledButton>
+                  </NextLink>
+                ) : (
+                  <StyledConnectArea>
+                    <StyledButton
+                      size="large"
+                      color="secondary"
+                      variant={connectedToState ? "outlined" : "contained"}
+                      onClick={handleConnect}
+                      disableElevation
+                    >
+                      {connectedToState && connectedFrom
+                        ? `Connected!`
+                        : connectedToState
+                        ? `Requested`
+                        : "Connect"}
+                    </StyledButton>
+                  </StyledConnectArea>
+                )}
+                {bio && (
+                  <StyledBioTypography variant="body2">
+                    {bio}
+                  </StyledBioTypography>
+                )}
+              </StyledDetailsArea>
+              {id !== null && isCurrentUser !== undefined && (
+                <>
+                  <StyledTabs
+                    value={tabIndex}
+                    onChange={handleChange}
+                    variant="fullWidth"
+                  >
+                    <StyledTab value={0} label={`PITCHES`} />
+                    <StyledTab value={1} label={`CONTRIBUTIONS`} />
+                  </StyledTabs>
+                  {tabIndex === 0 ? (
+                    <PitchList
+                      config={config}
+                      icons={icons}
+                      creator={id}
+                      sortOptions={SORT_OPTIONS}
+                      compact
+                      emptyLabel={`No Pitches`}
+                      loadingPlaceholder={
+                        <StyledLoadingArea>
+                          <Fallback disableShrink />
+                        </StyledLoadingArea>
+                      }
+                      offlinePlaceholder={
+                        <StyledOfflineArea>
+                          <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
+                        </StyledOfflineArea>
+                      }
+                    />
+                  ) : (
+                    <ContributionList
+                      creator={id}
+                      sortOptions={SORT_OPTIONS}
+                      emptyLabel={`No Contributions`}
+                      noMoreLabel={`That's all for now!`}
+                    />
+                  )}
+                </>
               )}
             </>
           )}

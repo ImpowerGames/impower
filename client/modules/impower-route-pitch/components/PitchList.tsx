@@ -24,10 +24,8 @@ import {
 } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
 import { SvgData } from "../../impower-icon";
-import {
-  NavigationContext,
-  navigationSetSearchbar,
-} from "../../impower-navigation";
+import { NavigationContext } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
 import { PitchGoalFilter } from "../types/pitchGoalFilter";
@@ -67,7 +65,7 @@ interface PitchListProps {
   tab?: "Trending" | "Top" | "Following";
   compact?: boolean;
   sortOptions?: QuerySort[];
-  searchingPlaceholder?: React.ReactNode;
+  loadingPlaceholder?: React.ReactNode;
   emptyPlaceholder?: React.ReactNode;
   offlinePlaceholder?: React.ReactNode;
   emptyLabel?: string;
@@ -87,7 +85,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     tab,
     compact,
     sortOptions,
-    searchingPlaceholder,
+    loadingPlaceholder,
     emptyPlaceholder,
     offlinePlaceholder,
     emptyLabel,
@@ -161,7 +159,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
   const [allowReload, setAllowReload] = useState(!pitchDocsRef.current);
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
-  const searching = navigationState?.search?.searching;
+  const transitioning = navigationState?.transitioning;
 
   const recentPitchDocs = my_recent_pitched_projects;
   const recentPitchDocsRef = useRef(recentPitchDocs);
@@ -544,10 +542,10 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
   ]);
 
   useEffect(() => {
+    navigationDispatch(navigationSetTransitioning(false));
     if ([nsfwVisible, followedTags].some((x) => x === undefined)) {
       return;
     }
-    navigationDispatch(navigationSetSearchbar({ searching: false }));
     if (!allowReload) {
       return;
     }
@@ -579,9 +577,9 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     nsfwVisible,
     rangeFilter,
     sort,
-    navigationDispatch,
     search,
     creator,
+    navigationDispatch,
   ]);
 
   const handleAllowReload = useCallback(() => {
@@ -706,8 +704,8 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
 
   return (
     <StyledContainer>
-      {searching ? (
-        searchingPlaceholder
+      {transitioning ? (
+        loadingPlaceholder
       ) : (
         <>
           <PitchListQueryHeader

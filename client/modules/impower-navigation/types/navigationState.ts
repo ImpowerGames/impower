@@ -7,6 +7,7 @@ export interface NavigationState {
   subtitle?: string;
   elevation?: number;
   backgroundColor?: string;
+  transitioning?: boolean;
   links?: {
     label: string;
     link: string;

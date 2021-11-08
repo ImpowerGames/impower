@@ -171,10 +171,10 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                 tab={activeTab}
                 sortOptions={SORT_OPTIONS}
                 onFollowMore={handleFollowMore}
-                searchingPlaceholder={
+                loadingPlaceholder={
                   <EmptyPitchList
                     loading
-                    loadingMessage={`Searching...`}
+                    loadingMessage={`Loading...`}
                     emptySubtitle1={emptySubtitle1}
                     emptySubtitle2={emptySubtitle2}
                   />
