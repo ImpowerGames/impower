@@ -180,7 +180,7 @@ const Avatar = React.memo(
               </FontIcon>
             ) : (
               <StyledInitialsTypography style={initialsStyle}>
-                {getInitials(alt)}
+                {getInitials(alt).toUpperCase()}
               </StyledInitialsTypography>
             )}
             {!children && (onClick || onPointerDown || href) && (
