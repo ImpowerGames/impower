@@ -96,6 +96,16 @@ const StyledHeaderTypography = styled(Typography)`
   margin: ${(props): string => props.theme.spacing(2, 0)};
 `;
 
+const StyledHeaderSentinelArea = styled.div`
+  position: relative;
+  visibility: hidden;
+`;
+
+const StyledHeaderSentinel = styled.div`
+  position: absolute;
+  top: -${(props): string => props.theme.minHeight.navigationBar};
+`;
+
 const StyledWarningTypography = styled(Typography)`
   color: ${(props): string => props.theme.palette.error.main};
   text-align: center;
@@ -733,10 +743,10 @@ const Account = React.memo((): JSX.Element | null => {
       <StyledKeyboardTrigger aria-hidden="true" ref={keyboardTriggerRef} />
       <StyledContainer>
         <StyledPaper>
-          <StyledHeaderTypography
-            id="account"
-            variant="h6"
-          >{`Your Account`}</StyledHeaderTypography>
+          <StyledHeaderSentinelArea>
+            <StyledHeaderSentinel id="account" />
+          </StyledHeaderSentinelArea>
+          <StyledHeaderTypography variant="h6">{`Your Account`}</StyledHeaderTypography>
           <StyledAccountButtonArea>
             <StyledAccountButton
               color="inherit"
@@ -770,10 +780,10 @@ const Account = React.memo((): JSX.Element | null => {
             </StyledAccountButton>
           </StyledAccountButtonArea>
           <StyledDivider />
-          <StyledHeaderTypography
-            id="profile"
-            variant="h6"
-          >{`Your Profile`}</StyledHeaderTypography>
+          <StyledHeaderSentinelArea>
+            <StyledHeaderSentinel id="profile" />
+          </StyledHeaderSentinelArea>
+          <StyledHeaderTypography variant="h6">{`Your Profile`}</StyledHeaderTypography>
           <InspectorForm
             key={`profile-${Boolean(newUserDoc).toString()}`}
             StringInputComponent={StringInput}
@@ -791,10 +801,10 @@ const Account = React.memo((): JSX.Element | null => {
             >{`View Public Profile`}</StyledAdvancedButton>
           </NextLink>
           <StyledDivider />
-          <StyledHeaderTypography
-            id="settings"
-            variant="h6"
-          >{`Your Settings`}</StyledHeaderTypography>
+          <StyledHeaderSentinelArea>
+            <StyledHeaderSentinel id="settings" />
+          </StyledHeaderSentinelArea>
+          <StyledHeaderTypography variant="h6">{`Your Settings`}</StyledHeaderTypography>
           <InspectorForm
             key={`settings-${Boolean(newSettingsDoc).toString()}-${
               newSettingsDoc?.contactMethod
@@ -825,10 +835,10 @@ const Account = React.memo((): JSX.Element | null => {
               aria-controls="panel1a-content"
               id="panel1a-header"
             >
-              <StyledHeaderTypography
-                id="advanced"
-                variant="h6"
-              >{`Advanced`}</StyledHeaderTypography>
+              <StyledHeaderSentinelArea>
+                <StyledHeaderSentinel id="advanced" />
+              </StyledHeaderSentinelArea>
+              <StyledHeaderTypography variant="h6">{`Advanced`}</StyledHeaderTypography>
             </StyledAccordionSummary>
             <StyledAccordionDetails>
               <StyledAdvancedButton
