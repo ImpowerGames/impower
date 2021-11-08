@@ -184,6 +184,7 @@ const InspectorForm = React.memo(
       renderProperty,
       renderPropertyProps,
       children,
+      ...other
     } = props;
 
     const inspector = useMemo(
@@ -498,6 +499,7 @@ const InspectorForm = React.memo(
                     onPropertyErrorFound={handlePropertyErrorFound}
                     onPropertyErrorFixed={handlePropertyErrorFixed}
                     renderPropertyProps={renderPropertyProps}
+                    {...other}
                   />
                 );
               }
@@ -542,6 +544,7 @@ const InspectorForm = React.memo(
                       setValueId={setValueId}
                       renderProperty={renderProperty}
                       renderPropertyProps={renderPropertyProps}
+                      {...other}
                     />
                   ))}
                 </StyledFieldArea>

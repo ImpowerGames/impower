@@ -96,6 +96,7 @@ export interface InheritedProps {
   disabled?: boolean;
   expandedProperties?: string[];
   spacing?: number;
+  DialogProps?: Partial<StringDialogProps>;
   InputComponent?: React.ComponentType<InputProps>;
   AutocompleteInputComponent?: React.ComponentType<AutocompleteInputProps>;
   ColorInputComponent?: React.ComponentType<ColorInputProps>;
@@ -162,7 +163,6 @@ export interface RenderPropertyProps extends InheritedProps {
   characterCountLimit?: number;
   showCharacterCounter?: boolean;
   debounceInterval?: number;
-  DialogProps?: Partial<StringDialogProps>;
   DialogTextFieldProps?: Partial<TextFieldProps>;
   DialogInputProps?: Partial<InputBaseProps>;
   InputLabelProps?: InputLabelProps;

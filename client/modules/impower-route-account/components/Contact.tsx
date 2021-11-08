@@ -164,6 +164,8 @@ const Contact = React.memo((props: ContactProps): JSX.Element => {
     [closeAccountDialog, id, newSettingsDoc, onProcessing, userDispatch]
   );
 
+  const DialogProps = useMemo(() => ({ style: { zIndex: 3000 } }), []);
+
   return (
     <StyledPaper>
       <StyledContainer>
@@ -184,6 +186,7 @@ const Contact = React.memo((props: ContactProps): JSX.Element => {
               getInspector={getSettingsInspector}
               onPropertyChange={handleSettingsPropertyChange}
               onPropertyBlur={handleSettingsPropertyBlur}
+              DialogProps={DialogProps}
             />
           </StyledGrid>
           <StyledSubmitButton

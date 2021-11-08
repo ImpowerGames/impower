@@ -161,6 +161,7 @@ const AutocompleteInput = React.memo(
       initialOpen,
       searchableThreshold = 5,
       open = false,
+      DialogProps,
       filterOptions,
       getInputError,
       getOptionDescription,
@@ -679,7 +680,7 @@ const AutocompleteInput = React.memo(
       ]
     );
 
-    const DialogProps = useMemo(
+    const AutocompleteDialogProps = useMemo(
       () => ({
         options: optionsAndActions,
         value: currentValue as string | number,
@@ -707,6 +708,7 @@ const AutocompleteInput = React.memo(
         groupBy: handleGroupBy,
         filterOptions: handleFilterOptions,
         onChange: handleChange,
+        ...(DialogProps || {}),
       }),
       [
         optionsAndActions,
@@ -735,6 +737,7 @@ const AutocompleteInput = React.memo(
         handleGroupBy,
         handleFilterOptions,
         handleChange,
+        DialogProps,
       ]
     );
 
@@ -808,7 +811,7 @@ const AutocompleteInput = React.memo(
             onCloseDialog={handleCloseDialog}
             {...params}
             DialogComponent={multiple ? TagDialog : AutocompleteDialog}
-            DialogProps={DialogProps}
+            DialogProps={AutocompleteDialogProps}
             InputProps={AutocompleteInputProps}
             InputLabelProps={AutocompleteInputLabelProps}
             InputComponent={InputComponent}
@@ -844,7 +847,7 @@ const AutocompleteInput = React.memo(
         onDebouncedInputChange,
         handleCloseDialog,
         multiple,
-        DialogProps,
+        AutocompleteDialogProps,
         InputComponent,
       ]
     );
