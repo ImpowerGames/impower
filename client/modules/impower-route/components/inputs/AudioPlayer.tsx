@@ -2,14 +2,18 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { IconButton, LinearProgress, Typography } from "@material-ui/core";
 import React, { useCallback, useRef, useState } from "react";
+import RotateLeftIcon from "../../../../resources/icons/solid/arrow-left-to-line.svg";
+import BackwardSolidIcon from "../../../../resources/icons/solid/backward.svg";
 import CirclePauseSolidIcon from "../../../../resources/icons/solid/circle-pause.svg";
 import CirclePlaySolidIcon from "../../../../resources/icons/solid/circle-play.svg";
-import RotateSolidIcon from "../../../../resources/icons/solid/rotate.svg";
+import CircleSolidIcon from "../../../../resources/icons/solid/circle.svg";
+import ForwardSolidIcon from "../../../../resources/icons/solid/forward.svg";
+import RepeatSolidIcon from "../../../../resources/icons/solid/repeat.svg";
 import { FontIcon } from "../../../impower-icon";
 
 export const StyledAudioPlayer = styled.div`
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   justify-content: center;
   flex: 1;
   background-color: inherit;
@@ -33,6 +37,7 @@ export const StyledWave = styled.div`
 export const StyledLoopOverlayArea = styled.div`
   position: absolute;
   top: 0;
+  left: 0;
   right: 0;
   z-index: 10;
   display: flex;
@@ -46,7 +51,8 @@ export const StyledLoopOverlayArea = styled.div`
 
 export const StyledTimeOverlayArea = styled.div`
   position: absolute;
-  bottom: 0;
+  bottom: -${(props): string => props.theme.spacing(1)};
+  left: 0;
   right: 0;
   z-index: 10;
   display: flex;
@@ -59,12 +65,17 @@ export const StyledTimeOverlayArea = styled.div`
 
 export const StyledButtonArea = styled.div`
   display: flex;
-  margin-right: ${(props): string => props.theme.spacing(1)};
+  align-items: center;
+  justify-content: center;
+`;
+
+const StyledIconButton = styled(IconButton)`
+  margin: ${(props): string => props.theme.spacing(0, 1)};
+  position: relative;
 `;
 
 const StyledTypography = styled(Typography)`
   position: relative;
-  margin-right: ${(props): string => props.theme.spacing(0.5)};
 `;
 
 const StyledLinearProgressArea = styled.div`
@@ -83,15 +94,22 @@ const StyledLinearProgress = styled(LinearProgress)`
   height: 2px;
 `;
 
+const StyledOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 const getDisplayTime = (seconds: number): string => {
   if (!seconds) {
     return new Date(0).toISOString().slice(14, 19);
   }
   return new Date(1000 * seconds).toISOString().slice(14, 19);
-};
-
-const getTimeSummary = (current: number, duration: number): string => {
-  return `${getDisplayTime(current)} / ${getDisplayTime(duration)}`;
 };
 
 interface AudioPlayerProps {
@@ -135,7 +153,8 @@ const AudioPlayer = React.memo((props: AudioPlayerProps): JSX.Element => {
   const [visible, setVisible] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [looping, setLooping] = useState(false);
-  const [timeSummary, setTimeSummary] = useState(getTimeSummary(0, 0));
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   const inRegion = useRef(false);
   const playingRegion = useRef(false);
@@ -191,12 +210,15 @@ const AudioPlayer = React.memo((props: AudioPlayerProps): JSX.Element => {
       } else {
         wavesurfer.current.load(src);
       }
-      const onReady = (): void => {
+      const handleWaveformReady = (): void => {
         setVisible(true);
         if (onWaveformReady) {
           const waveform: number[] = wavesurfer.current.backend.mergedPeaks;
           onWaveformReady(waveform.map((x) => x || 0));
         }
+      };
+      const handleReady = (): void => {
+        setDuration(wavesurfer.current?.getDuration());
       };
       const onPlay = (): void => {
         setPlaying(true);
@@ -205,12 +227,7 @@ const AudioPlayer = React.memo((props: AudioPlayerProps): JSX.Element => {
         setPlaying(false);
       };
       const onAudioProcess = (): void => {
-        setTimeSummary(
-          getTimeSummary(
-            wavesurfer.current?.getCurrentTime(),
-            wavesurfer.current?.getDuration()
-          )
-        );
+        setCurrentTime(wavesurfer.current?.getCurrentTime());
       };
       const onFinish = (): void => {
         if (loopingRef.current) {
@@ -281,7 +298,8 @@ const AudioPlayer = React.memo((props: AudioPlayerProps): JSX.Element => {
           inRegion.current = false;
         }
       };
-      wavesurfer.current.on("waveform-ready", onReady);
+      wavesurfer.current.on("waveform-ready", handleWaveformReady);
+      wavesurfer.current.on("ready", handleReady);
       wavesurfer.current.on("play", onPlay);
       wavesurfer.current.on("pause", onPause);
       wavesurfer.current.on("audioprocess", onAudioProcess);
@@ -334,10 +352,85 @@ const AudioPlayer = React.memo((props: AudioPlayerProps): JSX.Element => {
     [playing]
   );
 
+  const handleRestart = useCallback((e: React.MouseEvent): void => {
+    e.stopPropagation();
+    e.preventDefault();
+    wavesurfer.current.seekTo(0);
+  }, []);
+
+  const handleSkipBackward = useCallback((e: React.MouseEvent): void => {
+    e.stopPropagation();
+    e.preventDefault();
+    wavesurfer.current.skipBackward();
+  }, []);
+
+  const handleSkipForward = useCallback((e: React.MouseEvent): void => {
+    e.stopPropagation();
+    e.preventDefault();
+    wavesurfer.current.skipForward();
+  }, []);
+
+  const handleBlockPropogation = useCallback((e: React.MouseEvent): void => {
+    e.stopPropagation();
+    e.preventDefault();
+  }, []);
+
   return (
     <StyledAudioPlayer className={StyledAudioPlayer.displayName} style={style}>
-      <StyledButtonArea className={StyledButtonArea.displayName}>
-        <IconButton
+      <StyledWaveArea
+        className={StyledWaveArea.displayName}
+        style={{
+          minHeight: height,
+        }}
+        onClick={handleBlockPropogation}
+      >
+        <StyledLinearProgressArea style={{ opacity: visible ? 0 : 1 }}>
+          <StyledLinearProgress color="secondary" />
+        </StyledLinearProgressArea>
+        <StyledWave ref={handleRef} style={{ opacity: visible ? 1 : 0 }} />
+        <StyledTimeOverlayArea>
+          <StyledTypography
+            variant="caption"
+            style={{
+              color: textColor,
+              padding: theme.spacing(0, 0.5),
+            }}
+          >
+            {getDisplayTime(currentTime)}
+          </StyledTypography>
+          <StyledTypography
+            variant="caption"
+            style={{
+              color: textColor,
+              padding: theme.spacing(0, 0.5),
+            }}
+          >
+            {getDisplayTime(duration)}
+          </StyledTypography>
+        </StyledTimeOverlayArea>
+      </StyledWaveArea>
+      <StyledButtonArea>
+        <StyledIconButton
+          onClick={handleRestart}
+          style={{
+            padding: 0,
+          }}
+        >
+          <FontIcon aria-label={`Restart`} color={cursorColor} size={16}>
+            <RotateLeftIcon />
+          </FontIcon>
+        </StyledIconButton>
+        <StyledIconButton
+          onClick={handleSkipBackward}
+          style={{
+            padding: 0,
+          }}
+        >
+          <FontIcon aria-label={`Rewind`} color={cursorColor} size={24}>
+            <BackwardSolidIcon />
+          </FontIcon>
+        </StyledIconButton>
+        <StyledIconButton
           onClick={handlePlay}
           style={{
             padding: 0,
@@ -346,70 +439,39 @@ const AudioPlayer = React.memo((props: AudioPlayerProps): JSX.Element => {
           <FontIcon
             aria-label={playing ? "Pause" : "Play"}
             color={cursorColor}
-            size={height - 24}
+            size={40}
           >
             {playing ? <CirclePauseSolidIcon /> : <CirclePlaySolidIcon />}
           </FontIcon>
-        </IconButton>
-      </StyledButtonArea>
-      <StyledWaveArea
-        className={StyledWaveArea.displayName}
-        style={{
-          minHeight: height,
-        }}
-      >
-        <StyledLinearProgressArea style={{ opacity: visible ? 0 : 1 }}>
-          <StyledLinearProgress color="secondary" />
-        </StyledLinearProgressArea>
-        <StyledWave ref={handleRef} style={{ opacity: visible ? 1 : 0 }} />
-        <StyledTimeOverlayArea style={{ opacity: 0.5 }}>
-          <StyledTypography
-            className={StyledTypography.displayName}
-            variant="caption"
-            style={{
-              color: textColor,
-              padding: theme.spacing(0, 0.5),
-            }}
-          >
-            {timeSummary}
-          </StyledTypography>
-          <IconButton
-            onClick={handleLoop}
-            style={{
-              padding: theme.spacing(0.75),
-              margin: theme.spacing(-0.75),
-              backgroundColor: looping ? theme.colors.black90 : undefined,
-            }}
-          >
-            <FontIcon
-              aria-label="Loop"
-              color={looping ? theme.colors.white90 : cursorColor}
-              size={theme.fontSize.regular}
-            >
-              <RotateSolidIcon />
-            </FontIcon>
-          </IconButton>
-        </StyledTimeOverlayArea>
-        <StyledTimeOverlayArea style={{ backgroundColor: "transparent" }}>
-          <StyledTypography
-            className={StyledTypography.displayName}
-            variant="caption"
-            style={{
-              color: textColor,
-              padding: theme.spacing(0, 0.5),
-            }}
-          >
-            {timeSummary}
-          </StyledTypography>
-          <FontIcon
-            aria-label="Loop"
-            color={looping ? theme.colors.white90 : cursorColor}
-            size={theme.fontSize.regular}
-          >
-            <RotateSolidIcon />
+        </StyledIconButton>
+        <StyledIconButton
+          onClick={handleSkipForward}
+          style={{
+            padding: 0,
+          }}
+        >
+          <FontIcon aria-label={`Forward`} color={cursorColor} size={24}>
+            <ForwardSolidIcon />
           </FontIcon>
-        </StyledTimeOverlayArea>
-      </StyledWaveArea>
+        </StyledIconButton>
+        <StyledIconButton
+          onClick={handleLoop}
+          style={{
+            padding: 0,
+          }}
+        >
+          <FontIcon aria-label={`Loop`} color={cursorColor} size={16}>
+            <RepeatSolidIcon />
+          </FontIcon>
+          {looping && (
+            <StyledOverlay>
+              <FontIcon aria-label={`Looping`} color={cursorColor} size={4}>
+                <CircleSolidIcon />
+              </FontIcon>
+            </StyledOverlay>
+          )}
+        </StyledIconButton>
+      </StyledButtonArea>
     </StyledAudioPlayer>
   );
 });
