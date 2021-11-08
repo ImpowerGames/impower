@@ -393,6 +393,9 @@ const AutocompleteDialog = React.memo(
       countText,
       helperText,
       style,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      autoSave,
+      onFocus,
       renderHelperText,
       filterOptions,
       getOptionLabel,
@@ -405,6 +408,7 @@ const AutocompleteDialog = React.memo(
       onInputChange,
       onClose,
       onClick,
+      ...DialogProps
     } = props;
 
     const [focused, setFocused] = useState(false);
@@ -440,9 +444,15 @@ const AutocompleteDialog = React.memo(
       []
     );
 
-    const handleFocus = useCallback(() => {
-      setFocused(true);
-    }, []);
+    const handleFocus = useCallback(
+      (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setFocused(true);
+        if (onFocus) {
+          onFocus(e);
+        }
+      },
+      [onFocus]
+    );
 
     const handleBack = useCallback(
       (e: React.MouseEvent | React.ChangeEvent): void => {
@@ -707,6 +717,7 @@ const AutocompleteDialog = React.memo(
           onEntered: handleEntered,
           onExit: handleExit,
         }}
+        {...DialogProps}
       >
         <StyledViewportArea ref={handleViewportAreaRef}>
           <StyledToolbar>

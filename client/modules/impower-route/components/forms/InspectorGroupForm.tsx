@@ -45,6 +45,7 @@ const InspectorGroupForm = React.memo(
       onPropertyErrorFound,
       onPropertyErrorFixed,
       renderPropertyProps,
+      ...other
     } = props;
 
     const erroredProperty = propertyPaths.find((p) => errors[p]);
@@ -97,6 +98,7 @@ const InspectorGroupForm = React.memo(
               setValueId={setValueId}
               renderProperty={renderProperty}
               renderPropertyProps={renderPropertyProps}
+              {...other}
             />
           );
         })}
