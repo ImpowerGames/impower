@@ -213,7 +213,7 @@ const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
       )}
       {appDialogOpenKey !== undefined && (
         <AccountDialog
-          open={accountDialogOpen}
+          open={accountDialogOpen || false}
           type={appDialogOpenKey}
           onClose={handleNavCloseAccountDialog}
           onProcessing={handleProcessing}
