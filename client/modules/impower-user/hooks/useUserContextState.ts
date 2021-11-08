@@ -27,6 +27,7 @@ import {
 } from "../../impower-data-store";
 import { useDocumentLoad } from "../../impower-data-store/hooks/useDocumentLoad";
 import getToday from "../../impower-data-store/utils/getToday";
+import { useDialogNavigation } from "../../impower-dialog";
 import { logInfo } from "../../impower-logger";
 import { useRouter } from "../../impower-router";
 import { ToastContextState, toastTop } from "../../impower-toast";
@@ -218,6 +219,7 @@ export const useUserContextState = (
     "data"
   );
 
+  const [, closeNavDialog] = useDialogNavigation("n");
   useEffect(() => {
     if (!uid) {
       return;
@@ -265,7 +267,11 @@ export const useUserContextState = (
               undefined,
               "VIEW",
               (): void => {
-                router.push("/connections?t=connected");
+                closeNavDialog();
+                // wait a bit for dialog to close
+                window.setTimeout(() => {
+                  router.push("/connections?t=connected");
+                }, 10);
               }
             )
           );
@@ -277,7 +283,11 @@ export const useUserContextState = (
               undefined,
               "VIEW",
               (): void => {
-                router.push("/connections?t=connected");
+                closeNavDialog();
+                // wait a bit for dialog to close
+                window.setTimeout(() => {
+                  router.push("/connections?t=connected");
+                }, 10);
               }
             )
           );
@@ -297,7 +307,11 @@ export const useUserContextState = (
               undefined,
               "VIEW",
               (): void => {
-                router.push("/connections?t=requested");
+                closeNavDialog();
+                // wait a bit for dialog to close
+                window.setTimeout(() => {
+                  router.push("/connections?t=requested");
+                }, 10);
               }
             )
           );
@@ -309,7 +323,11 @@ export const useUserContextState = (
               undefined,
               "VIEW",
               (): void => {
-                router.push("/connections?t=requested");
+                closeNavDialog();
+                // wait a bit for dialog to close
+                window.setTimeout(() => {
+                  router.push("/connections?t=requested");
+                }, 10);
               }
             )
           );
