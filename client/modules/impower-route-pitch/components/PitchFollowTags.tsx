@@ -318,6 +318,8 @@ const PitchFollowTags = React.memo(
   (props: PitchFollowTagsProps): JSX.Element => {
     const { onReload } = props;
 
+    const [navigationState] = useContext(NavigationContext);
+    const transitioning = navigationState?.transitioning;
     const [configState] = useContext(ConfigContext);
     const [userState] = useContext(UserContext);
     const { my_follows } = userState;
@@ -338,10 +340,10 @@ const PitchFollowTags = React.memo(
       Object.entries(my_follows || {}).filter(([, v]) => v.g === "tags")
         ?.length > 0;
 
-    if (my_follows === undefined) {
+    if (my_follows === undefined || transitioning) {
       return (
         <StyledContainer>
-          <Fallback disableShrink />
+          <Fallback />
         </StyledContainer>
       );
     }
