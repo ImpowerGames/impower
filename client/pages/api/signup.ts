@@ -99,6 +99,19 @@ export const signup = async (
         .firestore()
         .doc(`handles/${username.toLowerCase()}`);
       const userRef = adminApp.firestore().doc(`users/${userRecord.uid}`);
+      const submissionTypes = [
+        "studios",
+        "resources",
+        "games",
+        "contributions",
+        "comments",
+        "reports",
+        "phrases",
+        "suggestions",
+      ];
+      const submissionsRefs = submissionTypes.map((type) =>
+        adminApp.firestore().doc(`users/${userRecord.uid}/submissions/${type}`)
+      );
       const batch = adminApp.firestore().batch();
       try {
         batch.create(usernameRef, {
@@ -122,6 +135,14 @@ export const signup = async (
           },
           { merge: true }
         );
+        submissionsRefs.forEach((ref) => {
+          batch.set(ref, {
+            _documentType: "PathDocument",
+            _updates: {
+              [`${today}`]: 0,
+            },
+          });
+        });
         await batch.commit();
       } catch {
         return res.status(403).json({
