@@ -169,9 +169,25 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
     userDispatch,
   ]);
 
-  const handleChange = useCallback((e: React.ChangeEvent, value: number) => {
-    setTabIndex(value);
-  }, []);
+  const handleChange = useCallback(
+    (e: React.ChangeEvent, value: number) => {
+      setTabIndex(value);
+      if (value === 0) {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `/u/${username}?t=pitches`
+        );
+      } else {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `/u/${username}?t=contributions`
+        );
+      }
+    },
+    [username]
+  );
 
   return (
     <>
