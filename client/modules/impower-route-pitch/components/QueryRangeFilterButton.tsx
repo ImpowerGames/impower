@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from "react";
-import ArrowDownWideShortRegularIcon from "../../../resources/icons/regular/arrow-down-wide-short.svg";
+import CalendarRegularIcon from "../../../resources/icons/regular/calendar.svg";
+import CalendarRangeSolidIcon from "../../../resources/icons/solid/calendar-range.svg";
 import { DateRangeFilter } from "../types/dateRangeFilter";
 import getRangeFilterOptionLabels from "../utils/getRangeFilterOptionLabels";
 import QueryButton from "./QueryButton";
@@ -26,7 +27,14 @@ const QueryRangeFilterButton = React.memo(
       },
       []
     );
-    const filterIcon = useMemo(() => <ArrowDownWideShortRegularIcon />, []);
+    const filterIcon = useMemo(() => {
+      return value === "All" ? (
+        <CalendarRegularIcon />
+      ) : (
+        <CalendarRangeSolidIcon />
+      );
+    }, [value]);
+
     return (
       <QueryButton
         target={target}

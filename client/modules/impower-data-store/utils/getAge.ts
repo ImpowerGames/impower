@@ -12,7 +12,7 @@ const SERVER_EPOCH = new Date(2021, 1, 1);
  */
 const getAge = (
   date: Date,
-  unit?: "s" | "m" | "h" | "d" | "w" | "mo",
+  unit: "ms" | "s" | "m" | "h" | "d" | "w" | "mo" | "yr" = "ms",
   round?: boolean,
   epoch = SERVER_EPOCH
 ): number => {
@@ -25,21 +25,25 @@ const getAge = (
   if (unit === "m") {
     return round ? Math.trunc(m) : m;
   }
-  const H = m / 60; // 1H = 60m
+  const h = m / 60; // 1H = 60m
   if (unit === "h") {
-    return round ? Math.trunc(H) : H;
+    return round ? Math.trunc(h) : h;
   }
-  const D = H / 24; // 1D = 24H
+  const d = h / 24; // 1D = 24H
   if (unit === "d") {
-    return round ? Math.trunc(D) : D;
+    return round ? Math.trunc(d) : d;
   }
-  const W = D / 7; // 1W = 7D
+  const w = d / 7; // 1W = 7D
   if (unit === "w") {
-    return round ? Math.trunc(W) : W;
+    return round ? Math.trunc(w) : w;
   }
-  const M = W / 5; // 1M = ~5W (rounded up)
+  const mo = w / 5; // 1M = ~5W (rounded up)
   if (unit === "mo") {
-    return round ? Math.trunc(M) : M;
+    return round ? Math.trunc(mo) : mo;
+  }
+  const yr = mo / 12; // 1yr = ~12M
+  if (unit === "yr") {
+    return round ? Math.trunc(yr) : yr;
   }
   return round ? Math.trunc(ms) : ms;
 };

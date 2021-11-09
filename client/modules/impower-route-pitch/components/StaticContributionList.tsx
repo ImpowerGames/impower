@@ -8,15 +8,26 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { ContributionDocument } from "../../impower-data-store";
+import CalendarRegularIcon from "../../../resources/icons/regular/calendar.svg";
+import CalendarRangeSolidIcon from "../../../resources/icons/solid/calendar-range.svg";
+import { AggData } from "../../impower-data-state";
+import { ContributionDocument, getAge } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
 import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { UserContext } from "../../impower-user";
+import { DateRangeFilter } from "../types/dateRangeFilter";
+import getRangeFilterOptionLabels from "../utils/getRangeFilterOptionLabels";
+import getStaticSortOptionIcons from "../utils/getStaticSortOptionIcons";
+import getStaticSortOptionLabels from "../utils/getStaticSortOptionLabels";
 import ContributionListContent from "./ContributionListContent";
 import PitchLoadingProgress from "./PitchLoadingProgress";
+import QueryButton from "./QueryButton";
+import QueryHeader from "./QueryHeader";
 
 const LOAD_MORE_LIMIT = 10;
+
+const SORT_OPTIONS: ["new", "old"] = ["new", "old"];
 
 const StyledContributionList = styled.div`
   flex: 1;
@@ -24,9 +35,16 @@ const StyledContributionList = styled.div`
   flex-direction: column;
 `;
 
+const StyledSpacer = styled.div`
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 interface StaticContributionListProps {
   scrollParent?: HTMLElement;
-  contributionKeys?: string[];
+  contributionDataEntries?: [string, AggData][];
   emptyLabel?: string;
   emptySubtitle?: string;
   noMoreLabel?: string;
@@ -50,7 +68,7 @@ const StaticContributionList = React.memo(
 
     const {
       scrollParent,
-      contributionKeys,
+      contributionDataEntries,
       emptyLabel,
       emptySubtitle,
       noMoreLabel,
@@ -94,6 +112,8 @@ const StaticContributionList = React.memo(
     const [loadingMore, setLoadingMore] = useState<boolean>();
     const noMoreRef = useRef<boolean>();
     const [noMore, setNoMore] = useState<boolean>();
+    const [sort, setSort] = useState<"new" | "old">(SORT_OPTIONS?.[0] || "new");
+    const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("All");
 
     const recentContributionDocs = useMemo(() => {
       const result: { [id: string]: ContributionDocument } = {};
@@ -119,6 +139,14 @@ const StaticContributionList = React.memo(
       [nsfwVisible]
     );
 
+    const orderedContributionDataEntries = useMemo(
+      () =>
+        sort === "new"
+          ? [...contributionDataEntries].reverse()
+          : contributionDataEntries,
+      [contributionDataEntries, sort]
+    );
+
     const handleLoad = useCallback(
       async (
         options: {
@@ -128,16 +156,34 @@ const StaticContributionList = React.memo(
       ): Promise<number> => {
         const { nsfw } = options;
 
+        const start = cursorIndexRef.current;
+        const end = Math.min(
+          start + limit,
+          orderedContributionDataEntries.length
+        );
+
+        if (start === end) {
+          return 0;
+        }
+
+        const nowAge =
+          rangeFilter === "All" ? -1 : getAge(new Date(), rangeFilter, true);
+
+        const loadingKeys: string[] = [];
+        for (let i = start; i < end; i += 1) {
+          const [key, data] = orderedContributionDataEntries[i];
+          const kudoedAge =
+            rangeFilter === "All"
+              ? -1
+              : getAge(new Date(data.t), rangeFilter, true);
+          if (nowAge === kudoedAge) {
+            loadingKeys.push(key);
+          }
+        }
+
         const DataStoreRead = await (
           await import("../../impower-data-store/classes/dataStoreRead")
         ).default;
-
-        const start = cursorIndexRef.current;
-        const end = Math.min(start + limit, contributionKeys.length);
-        const loadingKeys: string[] = [];
-        for (let i = start; i < end; i += 1) {
-          loadingKeys.push(contributionKeys[i]);
-        }
         const snapshots = await Promise.all(
           loadingKeys.map((key) => {
             const [pitchId, contributionId] = key.split("%");
@@ -177,7 +223,7 @@ const StaticContributionList = React.memo(
 
         return snapshots.length;
       },
-      [contributionKeys]
+      [orderedContributionDataEntries, rangeFilter]
     );
 
     const handleLoadMoreItems = useCallback(
@@ -365,12 +411,97 @@ const StaticContributionList = React.memo(
       [contributionDocsState]
     );
 
+    const handleAllowReload = useCallback(() => {
+      lastLoadedChunkRef.current = 0;
+      cursorIndexRef.current = 0;
+      contributionDocsRef.current = {};
+      chunkMapRef.current = {};
+    }, []);
+
+    const handleChangeSort = useCallback(
+      async (e: React.MouseEvent, value: "new" | "old"): Promise<void> => {
+        handleAllowReload();
+        setSort(value);
+      },
+      [handleAllowReload]
+    );
+
+    const handleChangeFilter = useCallback(
+      (e: React.MouseEvent, value: DateRangeFilter): void => {
+        handleAllowReload();
+        setRangeFilter(value);
+      },
+      [handleAllowReload]
+    );
+
+    const handleGetSortOptionIcons = useCallback(async (): Promise<{
+      [option: string]: React.ComponentType;
+    }> => {
+      const getStaticSortOptionIcons = (
+        await import("../utils/getStaticSortOptionIcons")
+      ).default;
+      return getStaticSortOptionIcons();
+    }, []);
+
+    const handleGetFilterOptionIcons = useCallback(
+      async (
+        value: DateRangeFilter
+      ): Promise<{
+        [option: string]: React.ComponentType;
+      }> => {
+        const getRangeFilterOptionIcons = (
+          await import("../utils/getRangeFilterOptionIcons")
+        ).default;
+        return getRangeFilterOptionIcons(value);
+      },
+      []
+    );
+
+    const sortIcon = useMemo(() => {
+      const icons = getStaticSortOptionIcons();
+      const Icon = icons[sort];
+      return <Icon />;
+    }, [sort]);
+
+    const filterIcon = useMemo(() => {
+      return rangeFilter === "All" ? (
+        <CalendarRegularIcon />
+      ) : (
+        <CalendarRangeSolidIcon />
+      );
+    }, [rangeFilter]);
+
     return (
       <StyledContributionList>
         {transitioning ? (
           loadingPlaceholder
         ) : (
           <>
+            <QueryHeader id="pitch-filter-header">
+              <QueryButton
+                target="pitch"
+                menuType="sort"
+                label={`Sort By`}
+                icon={sortIcon}
+                value={sort}
+                options={SORT_OPTIONS}
+                getOptionLabels={getStaticSortOptionLabels}
+                getOptionIcons={handleGetSortOptionIcons}
+                onOption={handleChangeSort}
+              />
+              <StyledSpacer />
+              <QueryButton
+                target="pitch"
+                menuType="filter"
+                label={`Kudoed`}
+                flexDirection="row-reverse"
+                icon={filterIcon}
+                value={rangeFilter}
+                getOptionLabels={getRangeFilterOptionLabels}
+                getOptionIcons={handleGetFilterOptionIcons}
+                onOption={handleChangeFilter}
+              />
+            </QueryHeader>
             <ContributionListContent
               scrollParent={scrollParent}
               contributionDocs={contributionDocsState}

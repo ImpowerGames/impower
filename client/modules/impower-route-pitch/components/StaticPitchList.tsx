@@ -8,21 +8,32 @@ import React, {
   useRef,
   useState,
 } from "react";
+import CalendarRegularIcon from "../../../resources/icons/regular/calendar.svg";
+import CalendarRangeSolidIcon from "../../../resources/icons/solid/calendar-range.svg";
 import { ConfigParameters } from "../../impower-config";
 import {
   confirmDialogClose,
   ConfirmDialogContext,
 } from "../../impower-confirm-dialog";
-import { ProjectDocument } from "../../impower-data-store";
+import { AggData } from "../../impower-data-state";
+import { getAge, ProjectDocument } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
 import { SvgData } from "../../impower-icon";
 import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { UserContext } from "../../impower-user";
+import { DateRangeFilter } from "../types/dateRangeFilter";
+import getRangeFilterOptionLabels from "../utils/getRangeFilterOptionLabels";
+import getStaticSortOptionIcons from "../utils/getStaticSortOptionIcons";
+import getStaticSortOptionLabels from "../utils/getStaticSortOptionLabels";
 import PitchListContent from "./PitchListContent";
 import PitchLoadingProgress from "./PitchLoadingProgress";
+import QueryButton from "./QueryButton";
+import QueryHeader from "./QueryHeader";
 
 const LOAD_MORE_LIMIT = 10;
+
+const SORT_OPTIONS: ["new", "old"] = ["new", "old"];
 
 const TagIconLoader = dynamic(
   () => import("../../impower-route/components/elements/TagIconLoader"),
@@ -38,10 +49,17 @@ const StyledContainer = styled.div`
   flex-direction: column;
 `;
 
+const StyledSpacer = styled.div`
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 interface StaticPitchListProps {
   config?: ConfigParameters;
   icons?: { [name: string]: SvgData };
-  pitchKeys?: string[];
+  pitchDataEntries?: [string, AggData][];
   compact?: boolean;
   loadingPlaceholder?: React.ReactNode;
   emptyPlaceholder?: React.ReactNode;
@@ -57,7 +75,7 @@ const StaticPitchList = React.memo(
     const {
       config,
       icons,
-      pitchKeys,
+      pitchDataEntries,
       compact,
       loadingPlaceholder,
       emptyPlaceholder,
@@ -90,6 +108,8 @@ const StaticPitchList = React.memo(
     const [loadIcons, setLoadIcons] = useState(false);
     const noMoreRef = useRef<boolean>(false);
     const [noMore, setNoMore] = useState<boolean>(noMoreRef.current);
+    const [sort, setSort] = useState<"new" | "old">(SORT_OPTIONS?.[0] || "new");
+    const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("All");
 
     const pitchDocsRef = useRef<{ [id: string]: ProjectDocument }>();
     const [pitchDocsState, setPitchDocsState] = useState<{
@@ -103,6 +123,12 @@ const StaticPitchList = React.memo(
 
     const recentPitchDocs = my_recent_pitched_projects;
     const recentPitchDocsRef = useRef(recentPitchDocs);
+
+    const orderedPitchDataEntries = useMemo(
+      () =>
+        sort === "new" ? [...pitchDataEntries].reverse() : pitchDataEntries,
+      [pitchDataEntries, sort]
+    );
 
     useEffect(() => {
       recentPitchDocsRef.current = recentPitchDocs || {};
@@ -134,16 +160,31 @@ const StaticPitchList = React.memo(
       ): Promise<number> => {
         const { nsfw } = options;
 
+        const start = cursorIndexRef.current;
+        const end = Math.min(start + limit, orderedPitchDataEntries.length);
+
+        if (start === end) {
+          return 0;
+        }
+
+        const nowAge =
+          rangeFilter === "All" ? -1 : getAge(new Date(), rangeFilter, true);
+
+        const loadingKeys: string[] = [];
+        for (let i = start; i < end; i += 1) {
+          const [key, data] = orderedPitchDataEntries[i];
+          const kudoedAge =
+            rangeFilter === "All"
+              ? -1
+              : getAge(new Date(data.t), rangeFilter, true);
+          if (nowAge === kudoedAge) {
+            loadingKeys.push(key);
+          }
+        }
+
         const DataStoreRead = await (
           await import("../../impower-data-store/classes/dataStoreRead")
         ).default;
-
-        const start = cursorIndexRef.current;
-        const end = Math.min(start + limit, pitchKeys.length);
-        const loadingKeys: string[] = [];
-        for (let i = start; i < end; i += 1) {
-          loadingKeys.push(pitchKeys[i]);
-        }
         const snapshots = await Promise.all(
           loadingKeys.map((id) =>
             new DataStoreRead(pitchedCollection, id).get<ProjectDocument>()
@@ -174,17 +215,21 @@ const StaticPitchList = React.memo(
 
         return snapshots.length;
       },
-      [pitchKeys]
+      [orderedPitchDataEntries, rangeFilter]
     );
 
     const handleLoadTab = useCallback(
-      async (options: { nsfwVisible?: boolean }) => {
-        const { nsfwVisible } = options;
+      async (options: { nsfw?: boolean }) => {
+        const { nsfw } = options;
 
         try {
           const limit = LOAD_MORE_LIMIT;
-          const options: { nsfw: boolean } = { nsfw: nsfwVisible };
-          const loadedCount = await handleLoadMore(options, limit);
+          const loadedCount = await handleLoadMore(
+            {
+              nsfw,
+            },
+            limit
+          );
           if (loadedCount === undefined) {
             return;
           }
@@ -212,7 +257,7 @@ const StaticPitchList = React.memo(
         setLoadIcons(true);
         lastLoadedChunkRef.current += 1;
         setLastLoadedChunk(lastLoadedChunkRef.current);
-        await handleLoadTab({ nsfwVisible });
+        await handleLoadTab({ nsfw: nsfwVisible });
         loadingMoreRef.current = false;
         setLoadingMore(loadingMoreRef.current);
       }
@@ -223,7 +268,7 @@ const StaticPitchList = React.memo(
       cursorIndexRef.current = 0;
       pitchDocsRef.current = {};
       chunkMapRef.current = {};
-      await handleLoadTab({ nsfwVisible });
+      await handleLoadTab({ nsfw: nsfwVisible });
     }, [handleLoadTab, nsfwVisible]);
 
     useEffect(() => {
@@ -239,7 +284,7 @@ const StaticPitchList = React.memo(
       setPitchDocsState(undefined);
       setChunkMap(undefined);
       setNoMore(noMoreRef.current);
-      handleLoadTab({ nsfwVisible });
+      handleLoadTab({ nsfw: nsfwVisible });
     }, [handleLoadTab, nsfwVisible, navigationDispatch]);
 
     const handleKudo = useCallback(
@@ -316,12 +361,97 @@ const StaticPitchList = React.memo(
       [pitchDocsState]
     );
 
+    const handleAllowReload = useCallback(() => {
+      lastLoadedChunkRef.current = 0;
+      cursorIndexRef.current = 0;
+      pitchDocsRef.current = {};
+      chunkMapRef.current = {};
+    }, []);
+
+    const handleChangeSort = useCallback(
+      async (e: React.MouseEvent, value: "new" | "old"): Promise<void> => {
+        handleAllowReload();
+        setSort(value);
+      },
+      [handleAllowReload]
+    );
+
+    const handleChangeFilter = useCallback(
+      (e: React.MouseEvent, value: DateRangeFilter): void => {
+        handleAllowReload();
+        setRangeFilter(value);
+      },
+      [handleAllowReload]
+    );
+
+    const handleGetSortOptionIcons = useCallback(async (): Promise<{
+      [option: string]: React.ComponentType;
+    }> => {
+      const getStaticSortOptionIcons = (
+        await import("../utils/getStaticSortOptionIcons")
+      ).default;
+      return getStaticSortOptionIcons();
+    }, []);
+
+    const handleGetFilterOptionIcons = useCallback(
+      async (
+        value: DateRangeFilter
+      ): Promise<{
+        [option: string]: React.ComponentType;
+      }> => {
+        const getRangeFilterOptionIcons = (
+          await import("../utils/getRangeFilterOptionIcons")
+        ).default;
+        return getRangeFilterOptionIcons(value);
+      },
+      []
+    );
+
+    const sortIcon = useMemo(() => {
+      const icons = getStaticSortOptionIcons();
+      const Icon = icons[sort];
+      return <Icon />;
+    }, [sort]);
+
+    const filterIcon = useMemo(() => {
+      return rangeFilter === "All" ? (
+        <CalendarRegularIcon />
+      ) : (
+        <CalendarRangeSolidIcon />
+      );
+    }, [rangeFilter]);
+
     return (
       <StyledContainer>
         {transitioning ? (
           loadingPlaceholder
         ) : (
           <>
+            <QueryHeader id="pitch-filter-header">
+              <QueryButton
+                target="pitch"
+                menuType="sort"
+                label={`Sort By`}
+                icon={sortIcon}
+                value={sort}
+                options={SORT_OPTIONS}
+                getOptionLabels={getStaticSortOptionLabels}
+                getOptionIcons={handleGetSortOptionIcons}
+                onOption={handleChangeSort}
+              />
+              <StyledSpacer />
+              <QueryButton
+                target="pitch"
+                menuType="filter"
+                label={`Kudoed`}
+                flexDirection="row-reverse"
+                icon={filterIcon}
+                value={rangeFilter}
+                getOptionLabels={getRangeFilterOptionLabels}
+                getOptionIcons={handleGetFilterOptionIcons}
+                onOption={handleChangeFilter}
+              />
+            </QueryHeader>
             <PitchListContent
               config={config}
               icons={icons}
