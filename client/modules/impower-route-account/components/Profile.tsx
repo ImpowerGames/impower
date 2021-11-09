@@ -2,6 +2,7 @@ import styled from "@emotion/styled";
 import {
   Button,
   CircularProgress,
+  Divider,
   IconButton,
   Paper,
   Tab,
@@ -77,6 +78,13 @@ const StyledButton = styled(Button)`
   border-radius: 100px;
 `;
 
+const StyledTabsArea = styled.div`
+  position: sticky;
+  top: ${(props): string => props.theme.minHeight.navigationBar};
+  background-color: white;
+  z-index: 1;
+`;
+
 const StyledTabs = styled(Tabs)``;
 
 const StyledTab = styled(Tab)``;
@@ -115,6 +123,8 @@ const StyledCircularProgress = styled(CircularProgress)`
   min-width: ${(props): string => props.theme.spacing(4)};
   min-height: ${(props): string => props.theme.spacing(4)};
 `;
+
+const StyledDivider = styled(Divider)``;
 
 interface ProfileProps {
   config?: ConfigParameters;
@@ -268,14 +278,17 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
               </StyledDetailsArea>
               {id !== null && isCurrentUser !== undefined && (
                 <>
-                  <StyledTabs
-                    value={tabIndex}
-                    onChange={handleChange}
-                    variant="fullWidth"
-                  >
-                    <StyledTab value={0} label={`PITCHES`} />
-                    <StyledTab value={1} label={`CONTRIBUTIONS`} />
-                  </StyledTabs>
+                  <StyledTabsArea>
+                    <StyledTabs
+                      value={tabIndex}
+                      onChange={handleChange}
+                      variant="fullWidth"
+                    >
+                      <StyledTab value={0} label={`PITCHES`} />
+                      <StyledTab value={1} label={`CONTRIBUTIONS`} />
+                    </StyledTabs>
+                    <StyledDivider />
+                  </StyledTabsArea>
                   {tabIndex === 0 ? (
                     <PitchList
                       config={config}

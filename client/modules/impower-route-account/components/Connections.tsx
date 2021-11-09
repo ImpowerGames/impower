@@ -103,6 +103,13 @@ const StyledListItemText = styled(ListItemText)`
   }
 `;
 
+const StyledTabsArea = styled.div`
+  position: sticky;
+  top: ${(props): string => props.theme.minHeight.navigationBar};
+  background-color: white;
+  z-index: 1;
+`;
+
 const StyledTabs = styled(Tabs)``;
 
 const StyledTab = styled(Tab)``;
@@ -185,6 +192,8 @@ const StyledContactLabelArea = styled.div`
   overflow: hidden;
   text-overflow: ellipsis;
 `;
+
+const StyledDivider = styled(Divider)``;
 
 const Connections = React.memo((): JSX.Element | null => {
   const [userState, userDispatch] = useContext(UserContext);
@@ -384,17 +393,23 @@ const Connections = React.memo((): JSX.Element | null => {
                 id="account"
                 variant="h6"
               >{`Your Connections`}</StyledHeaderTypography>
-              <StyledTabs
-                value={tabIndex}
-                onChange={handleChange}
-                variant="fullWidth"
-              >
-                <StyledTab value={0} label={`${acceptedCountLabel}CONNECTED`} />
-                <StyledTab
-                  value={1}
-                  label={`${requestedAccountLabel}REQUESTED`}
-                />
-              </StyledTabs>
+              <StyledTabsArea>
+                <StyledTabs
+                  value={tabIndex}
+                  onChange={handleChange}
+                  variant="fullWidth"
+                >
+                  <StyledTab
+                    value={0}
+                    label={`${acceptedCountLabel}CONNECTED`}
+                  />
+                  <StyledTab
+                    value={1}
+                    label={`${requestedAccountLabel}REQUESTED`}
+                  />
+                </StyledTabs>
+                <StyledDivider />
+              </StyledTabsArea>
               {((tabIndex === 0 && connections?.length > 0) ||
                 (tabIndex === 1 && requests?.length > 0)) && (
                 <StyledSearchRoot {...rootProps}>
