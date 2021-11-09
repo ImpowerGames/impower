@@ -3,6 +3,7 @@ import { CircularProgress, Divider, Typography } from "@material-ui/core";
 import Paper from "@material-ui/core/Paper";
 import Tab from "@material-ui/core/Tab";
 import React, { useCallback, useContext, useEffect, useState } from "react";
+import { AggData } from "../../impower-data-state";
 import { NavigationContext } from "../../impower-navigation";
 import { Tabs } from "../../impower-route";
 import StaticContributionList from "../../impower-route-pitch/components/StaticContributionList";
@@ -103,8 +104,10 @@ const Kudos = React.memo((): JSX.Element | null => {
       ? 1
       : 0
   );
-  const [pitchKeys, setPitchKeys] = useState<string[]>();
-  const [contributionKeys, setContributionKeys] = useState<string[]>();
+  const [pitchDataEntries, setPitchDataEntries] =
+    useState<[string, AggData][]>();
+  const [contributionDataEntries, setContributionDataEntries] =
+    useState<[string, AggData][]>();
 
   const { my_kudos } = userState;
 
@@ -126,28 +129,27 @@ const Kudos = React.memo((): JSX.Element | null => {
     if (my_kudos === undefined) {
       return;
     }
-    if (pitchKeys || contributionKeys) {
+    if (pitchDataEntries || contributionDataEntries) {
       return;
     }
-    const newPitchKeys = [];
-    const newContributionKeys = [];
-    Object.keys(my_kudos || {})
-      .reverse()
-      .forEach((key) => {
-        const path = key.split("%");
-        const targetCollection = path[path.length - 2];
-        const targetId = path[path.length - 1];
-        if (targetCollection?.startsWith("pitched_")) {
-          newPitchKeys.push(targetId);
-        }
-        if (targetCollection === "contributions") {
-          const pitchId = path[path.length - 3];
-          newContributionKeys.push(`${pitchId}%${targetId}`);
-        }
-      });
-    setPitchKeys(newPitchKeys);
-    setContributionKeys(newContributionKeys);
-  }, [contributionKeys, my_kudos, pitchKeys]);
+    const newPitchDataEntries: [string, AggData][] = [];
+    const newContributionDataEntries: [string, AggData][] = [];
+    Object.entries(my_kudos || {}).forEach(([key, data]) => {
+      const path = key.split("%");
+      const targetCollection = path[path.length - 2];
+      const targetId = path[path.length - 1];
+      if (targetCollection?.startsWith("pitched_")) {
+        newPitchDataEntries.push([targetId, data]);
+      }
+      if (targetCollection === "contributions") {
+        const pitchId = path[path.length - 3];
+        const contributionKey = `${pitchId}%${targetId}`;
+        newContributionDataEntries.push([contributionKey, data]);
+      }
+    });
+    setPitchDataEntries(newPitchDataEntries);
+    setContributionDataEntries(newContributionDataEntries);
+  }, [contributionDataEntries, my_kudos, pitchDataEntries]);
 
   return (
     <>
@@ -171,10 +173,10 @@ const Kudos = React.memo((): JSX.Element | null => {
                 </StyledTabs>
               </StyledTabsArea>
               <StyledListArea>
-                {tabIndex === 0 && pitchKeys ? (
+                {tabIndex === 0 && pitchDataEntries ? (
                   <StaticPitchList
                     compact
-                    pitchKeys={pitchKeys}
+                    pitchDataEntries={pitchDataEntries}
                     emptyLabel={`No Kudoed Pitches`}
                     loadingPlaceholder={
                       <StyledLoadingArea>
@@ -187,9 +189,9 @@ const Kudos = React.memo((): JSX.Element | null => {
                       </StyledOfflineArea>
                     }
                   />
-                ) : tabIndex === 1 && contributionKeys ? (
+                ) : tabIndex === 1 && contributionDataEntries ? (
                   <StaticContributionList
-                    contributionKeys={contributionKeys}
+                    contributionDataEntries={contributionDataEntries}
                     emptyLabel={`No Kudoed Contributions`}
                     noMoreLabel={`That's all for now!`}
                   />
