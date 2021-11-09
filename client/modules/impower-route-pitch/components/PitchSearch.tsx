@@ -1,10 +1,11 @@
 import styled from "@emotion/styled";
 import dynamic from "next/dynamic";
-import React, { useCallback, useContext, useMemo } from "react";
+import React, { useCallback, useContext, useEffect, useMemo } from "react";
 import { ConfigParameters } from "../../impower-config";
 import { getSearchedTerms, ProjectDocument } from "../../impower-data-store";
 import { SvgData } from "../../impower-icon";
 import { NavigationContext } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { BetaBanner } from "../../impower-route";
 import { useRouter } from "../../impower-router";
 import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
@@ -76,6 +77,9 @@ interface PitchSearchPageProps {
 const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
   const { config, icons, search, pitchDocs, style } = props;
 
+  const [navigationState, navigationDispatch] = useContext(NavigationContext);
+  const searching = navigationState?.search?.searching;
+  const transitioning = navigationState?.transitioning;
   const [userState, userDispatch] = useContext(UserContext);
   const { my_follows } = userState;
   const followedTags = useMemo(
@@ -93,10 +97,6 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
 
   const activeSearch = typeof querySearch === "string" ? querySearch : search;
 
-  const [navigationState] = useContext(NavigationContext);
-  const searching = navigationState?.search?.searching;
-  const transitioning = navigationState?.transitioning;
-
   const searchedTerms = useMemo(
     () => getSearchedTerms(activeSearch),
     [activeSearch]
@@ -108,6 +108,10 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
         : undefined,
     [followedTags, searchedTerms]
   );
+
+  useEffect(() => {
+    navigationDispatch(navigationSetTransitioning(false));
+  }, [navigationDispatch]);
 
   const handleChangeFollowing = useCallback(
     async (e: React.MouseEvent, followed: boolean): Promise<void> => {
@@ -155,6 +159,18 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
     []
   );
 
+  const loadingPlaceholder = useMemo(
+    () => (
+      <EmptyPitchList
+        loading
+        loadingMessage={`Loading...`}
+        emptySubtitle1={emptySubtitle1}
+        emptySubtitle2={emptySubtitle2}
+      />
+    ),
+    [emptySubtitle1, emptySubtitle2]
+  );
+
   return (
     <StyledPitchSearch style={style}>
       <StyledApp>
@@ -169,39 +185,38 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
         />
         <BetaBanner />
         <StyledListArea>
-          <PitchList
-            config={config}
-            icons={icons}
-            pitchDocs={pitchDocs}
-            search={activeSearch}
-            sortOptions={SORT_OPTIONS}
-            loadingPlaceholder={
-              <EmptyPitchList
-                loading
-                loadingMessage={`Loading...`}
-                emptySubtitle1={emptySubtitle1}
-                emptySubtitle2={emptySubtitle2}
+          {transitioning ? (
+            loadingPlaceholder
+          ) : (
+            <>
+              <PitchList
+                config={config}
+                icons={icons}
+                pitchDocs={pitchDocs}
+                search={activeSearch}
+                sortOptions={SORT_OPTIONS}
+                loadingPlaceholder={loadingPlaceholder}
+                emptyPlaceholder={
+                  <EmptyPitchList
+                    loading={pitchDocs === undefined}
+                    loadedImage={emptyImage}
+                    filterLabel={filterLabel}
+                    searchLabel={searchLabel}
+                    emptySubtitle1={emptySubtitle1}
+                    emptySubtitle2={emptySubtitle2}
+                    emptyLabelStyle={emptyLabelStyle}
+                    searchLabelStyle={searchLabelStyle}
+                  />
+                }
+                offlinePlaceholder={
+                  <AnimatedWarningMascotIllustration
+                    message={`Looks like you're offline`}
+                  />
+                }
               />
-            }
-            emptyPlaceholder={
-              <EmptyPitchList
-                loading={pitchDocs === undefined}
-                loadedImage={emptyImage}
-                filterLabel={filterLabel}
-                searchLabel={searchLabel}
-                emptySubtitle1={emptySubtitle1}
-                emptySubtitle2={emptySubtitle2}
-                emptyLabelStyle={emptyLabelStyle}
-                searchLabelStyle={searchLabelStyle}
-              />
-            }
-            offlinePlaceholder={
-              <AnimatedWarningMascotIllustration
-                message={`Looks like you're offline`}
-              />
-            }
-          />
-          <AddPitchToolbar config={config} icons={icons} />
+              <AddPitchToolbar config={config} icons={icons} />
+            </>
+          )}
         </StyledListArea>
       </StyledApp>
     </StyledPitchSearch>

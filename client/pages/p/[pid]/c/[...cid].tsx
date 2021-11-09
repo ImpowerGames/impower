@@ -35,6 +35,7 @@ import {
   navigationSetText,
   navigationSetType,
 } from "../../../../modules/impower-navigation";
+import navigationSetTransitioning from "../../../../modules/impower-navigation/utils/navigationSetTransitioning";
 import { PageHead, ShareArticleHead } from "../../../../modules/impower-route";
 import ContributionCard from "../../../../modules/impower-route-pitch/components/ContributionCard";
 import ContributionCardLayout from "../../../../modules/impower-route-pitch/components/ContributionCardLayout";
@@ -44,6 +45,7 @@ import PageNotFound from "../../../../modules/impower-route/components/layouts/P
 import useBodyBackgroundColor from "../../../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import useThemeColor from "../../../../modules/impower-route/hooks/useThemeColor";
+import { useRouter } from "../../../../modules/impower-router";
 import { UserContext } from "../../../../modules/impower-user";
 
 const DelistedContributionBanner = dynamic(
@@ -60,6 +62,14 @@ const CreateContributionDialog = dynamic(
       "../../../../modules/impower-route-pitch/components/CreateContributionDialog"
     ),
   { ssr: false }
+);
+
+const EmptyPitchList = dynamic(
+  () =>
+    import("../../../../modules/impower-route-pitch/components/EmptyPitchList"),
+  {
+    ssr: false,
+  }
 );
 
 const StyledPage = styled.div`
@@ -99,7 +109,8 @@ const ContributionPostPageContent = React.memo(
 
     const { pid, cid, pitchDoc, contributionDoc, config, ogImage } = props;
 
-    const [, navigationDispatch] = useContext(NavigationContext);
+    const [navigationState, navigationDispatch] = useContext(NavigationContext);
+    const transitioning = navigationState?.transitioning;
     const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
     const [userState] = useContext(UserContext);
     const { my_recent_contributions } = userState;
@@ -123,6 +134,9 @@ const ContributionPostPageContent = React.memo(
         : _createdAt?.toDate()?.toJSON();
 
     const theme = useTheme();
+
+    const router = useRouter();
+    const routerIsReady = router.isReady;
 
     ConfigCache.instance.set(config);
 
@@ -182,6 +196,12 @@ const ContributionPostPageContent = React.memo(
       navigationDispatch(navigationSetElevation());
       navigationDispatch(navigationSetBackgroundColor());
     }, [navigationDispatch]);
+
+    useEffect(() => {
+      if (routerIsReady) {
+        navigationDispatch(navigationSetTransitioning(false));
+      }
+    }, [navigationDispatch, routerIsReady]);
 
     const url = useMemo(() => `/p/${pid}/c/${cid}`, [cid, pid]);
 
@@ -312,6 +332,10 @@ const ContributionPostPageContent = React.memo(
     );
 
     const delisted = contributionDocState?.delisted;
+
+    if (transitioning) {
+      return <EmptyPitchList loading loadingMessage={`Loading...`} />;
+    }
 
     if (contributionDocState === undefined) {
       return (

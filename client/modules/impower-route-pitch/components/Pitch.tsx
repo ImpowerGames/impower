@@ -10,6 +10,8 @@ import React, {
 import { ConfigParameters } from "../../impower-config";
 import { ProjectDocument } from "../../impower-data-store";
 import { SvgData } from "../../impower-icon";
+import { NavigationContext } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { BetaBanner } from "../../impower-route";
 import { UserContext } from "../../impower-user";
 import AddPitchToolbar from "./AddPitchToolbar";
@@ -87,6 +89,8 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     useState<boolean>();
   const [activeTab, setActiveTab] = useState<PitchToolbarTab>("Trending");
 
+  const [navigationState, navigationDispatch] = useContext(NavigationContext);
+  const transitioning = navigationState?.transitioning;
   const [userState] = useContext(UserContext);
   const { my_follows } = userState;
   const followedTags = useMemo(
@@ -100,6 +104,10 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   );
 
   const loadedFollowedTags = followedTags !== undefined;
+
+  useEffect(() => {
+    navigationDispatch(navigationSetTransitioning(false));
+  }, [navigationDispatch]);
 
   useEffect(() => {
     if (followedTags === undefined) {
@@ -154,13 +162,27 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     []
   );
 
+  const loadingPlaceholder = useMemo(
+    () => (
+      <EmptyPitchList
+        loading
+        loadingMessage={`Loading...`}
+        emptySubtitle1={emptySubtitle1}
+        emptySubtitle2={emptySubtitle2}
+      />
+    ),
+    [emptySubtitle1, emptySubtitle2]
+  );
+
   return (
     <StyledPitch style={style}>
       <StyledApp>
         <PitchTabsToolbar value={activeTab} onChange={handleChangeTab} />
         <BetaBanner />
         <StyledListArea key={activeTab}>
-          {activeTab === "Following" && !shouldDisplayFollowingPitches ? (
+          {transitioning ? (
+            loadingPlaceholder
+          ) : activeTab === "Following" && !shouldDisplayFollowingPitches ? (
             <PitchFollowTags onReload={handleReloadFollowing} />
           ) : (
             <>
@@ -171,14 +193,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                 tab={activeTab}
                 sortOptions={SORT_OPTIONS}
                 onFollowMore={handleFollowMore}
-                loadingPlaceholder={
-                  <EmptyPitchList
-                    loading
-                    loadingMessage={`Loading...`}
-                    emptySubtitle1={emptySubtitle1}
-                    emptySubtitle2={emptySubtitle2}
-                  />
-                }
+                loadingPlaceholder={loadingPlaceholder}
                 emptyPlaceholder={
                   <EmptyPitchList
                     loading={pitchDocs === undefined}

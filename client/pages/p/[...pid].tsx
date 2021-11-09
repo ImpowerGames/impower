@@ -42,6 +42,7 @@ import {
   navigationSetText,
   navigationSetType,
 } from "../../modules/impower-navigation";
+import navigationSetTransitioning from "../../modules/impower-navigation/utils/navigationSetTransitioning";
 import { PageHead, ShareArticleHead } from "../../modules/impower-route";
 import PitchCard from "../../modules/impower-route-pitch/components/PitchCard";
 import PitchCardLayout from "../../modules/impower-route-pitch/components/PitchCardLayout";
@@ -52,6 +53,7 @@ import PageNotFound from "../../modules/impower-route/components/layouts/PageNot
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import useThemeColor from "../../modules/impower-route/hooks/useThemeColor";
+import { useRouter } from "../../modules/impower-router";
 import { UserContext } from "../../modules/impower-user";
 
 const LOAD_INITIAL_LIMIT = 5;
@@ -60,6 +62,13 @@ const DelistedPitchBanner = dynamic(
   () =>
     import("../../modules/impower-route-pitch/components/DelistedPitchBanner"),
   { ssr: false }
+);
+
+const EmptyPitchList = dynamic(
+  () => import("../../modules/impower-route-pitch/components/EmptyPitchList"),
+  {
+    ssr: false,
+  }
 );
 
 const StyledPage = styled.div`
@@ -105,7 +114,8 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
 
   const { pid, doc, contributionDocs, config, icons, ogImage } = props;
 
-  const [, navigationDispatch] = useContext(NavigationContext);
+  const [navigationState, navigationDispatch] = useContext(NavigationContext);
+  const transitioning = navigationState?.transitioning;
   const [configState] = useContext(ConfigContext);
   const [, iconLibraryDispatch] = useContext(IconLibraryContext);
   const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
@@ -134,6 +144,9 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
     typeof pitchedAt === "string" ? pitchedAt : pitchedAt?.toDate()?.toJSON();
 
   const theme = useTheme();
+
+  const router = useRouter();
+  const routerIsReady = router.isReady;
 
   ConfigCache.instance.set(config);
   iconLibraryDispatch(iconLibraryRegister("solid", icons));
@@ -194,6 +207,12 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
     navigationDispatch(navigationSetElevation());
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
+
+  useEffect(() => {
+    if (routerIsReady) {
+      navigationDispatch(navigationSetTransitioning(false));
+    }
+  }, [navigationDispatch, routerIsReady]);
 
   const url = useMemo(() => `/p/${pid}`, [pid]);
 
@@ -368,6 +387,10 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
       resizeObserver.disconnect();
     };
   }, [titleEl]);
+
+  if (transitioning) {
+    return <EmptyPitchList loading loadingMessage={`Loading...`} />;
+  }
 
   if (pitchDoc === undefined) {
     return (
