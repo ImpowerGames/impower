@@ -33,7 +33,11 @@ import { FontIcon } from "../../impower-icon";
 import { Tabs } from "../../impower-route";
 import Avatar from "../../impower-route/components/elements/Avatar";
 import { useRouter } from "../../impower-router";
-import { UserContext, userDoConnect } from "../../impower-user";
+import {
+  UserContext,
+  userDoConnect,
+  userUndoConnect,
+} from "../../impower-user";
 import userRejectConnect from "../../impower-user/utils/userRejectConnect";
 
 const StyledContainer = styled.div`
@@ -57,11 +61,6 @@ const StyledPaper = styled(Paper)`
   }
   display: flex;
   flex-direction: column;
-`;
-
-const StyledHeaderTypography = styled(Typography)`
-  margin: ${(props): string => props.theme.spacing(2, 0, 1, 0)};
-  text-align: center;
 `;
 
 const StyledSearchRoot = styled.div`
@@ -147,16 +146,14 @@ const StyledCircularProgress = styled(CircularProgress)`
   min-height: ${(props): string => props.theme.spacing(4)};
 `;
 
-const StyledListArea = styled.div(
-  () => `
+const StyledListArea = styled.div`
   flex: 1;
   position: relative;
   min-height: 100px;
   display: flex;
   align-items: center;
   justify-content: center;
-   `
-);
+`;
 
 const StyledEmptyTypography = styled(Typography)`
   opacity: 0.6;
@@ -198,7 +195,10 @@ const StyledDivider = styled(Divider)``;
 const Connections = React.memo((): JSX.Element | null => {
   const [userState, userDispatch] = useContext(UserContext);
   const [tabIndex, setTabIndex] = useState(
-    typeof window !== "undefined" && window.location.search === "?t=requested"
+    typeof window !== "undefined" && window.location.search === "?t=outgoing"
+      ? 2
+      : typeof window !== "undefined" &&
+        window.location.search === "?t=incoming"
       ? 1
       : 0
   );
@@ -218,8 +218,10 @@ const Connections = React.memo((): JSX.Element | null => {
       setTabIndex(value);
       if (value === 0) {
         router.replace(`?t=connected`);
+      } else if (value === 1) {
+        router.replace(`?t=incoming`);
       } else {
-        router.replace(`?t=requested`);
+        router.replace(`?t=outgoing`);
       }
     },
     [router]
@@ -235,7 +237,7 @@ const Connections = React.memo((): JSX.Element | null => {
     [connects, my_connects]
   );
 
-  const requests = useMemo(
+  const incomingRequests = useMemo(
     () =>
       connects !== undefined && my_connects !== undefined
         ? Object.entries(connects || {}).filter(
@@ -245,12 +247,26 @@ const Connections = React.memo((): JSX.Element | null => {
     [connects, my_connects]
   );
 
+  const outgoingRequests = useMemo(
+    () =>
+      connects !== undefined && my_connects !== undefined
+        ? Object.entries(my_connects || {}).filter(
+            ([key, data]) => !connects?.[key.split("%")[1]] && !data.r
+          )
+        : undefined,
+    [connects, my_connects]
+  );
+
   const acceptedCountLabel = connections
     ? `${abbreviateCount(connections.length)} `
     : "";
 
-  const requestedAccountLabel = requests
-    ? `${abbreviateCount(requests.length)} `
+  const incomingRequestsCountLabel = incomingRequests
+    ? `${abbreviateCount(incomingRequests.length)} `
+    : "";
+
+  const outgoingRequestsCountLabel = outgoingRequests
+    ? `${abbreviateCount(outgoingRequests.length)} `
     : "";
 
   const [openAccountDialog] = useDialogNavigation("a");
@@ -280,7 +296,7 @@ const Connections = React.memo((): JSX.Element | null => {
     [userDispatch]
   );
 
-  const handleConnect = useCallback(
+  const handleDoConnect = useCallback(
     (e: React.MouseEvent, id: string) => {
       e.preventDefault();
       e.stopPropagation();
@@ -291,6 +307,15 @@ const Connections = React.memo((): JSX.Element | null => {
       userDispatch(userDoConnect("users", id));
     },
     [contact, openAccountDialog, userDispatch]
+  );
+
+  const handleUndoConnect = useCallback(
+    (e: React.MouseEvent, id: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      userDispatch(userUndoConnect("users", id));
+    },
+    [userDispatch]
   );
 
   const handleInputChange = useCallback(
@@ -344,8 +369,13 @@ const Connections = React.memo((): JSX.Element | null => {
   );
 
   const options = useMemo(
-    () => (tabIndex === 0 ? connections || [] : requests || []),
-    [tabIndex, connections, requests]
+    () =>
+      tabIndex === 0
+        ? connections || []
+        : tabIndex === 1
+        ? incomingRequests || []
+        : outgoingRequests || [],
+    [tabIndex, connections, incomingRequests, outgoingRequests]
   );
 
   const { getRootProps, getInputProps, groupedOptions } = useAutocomplete({
@@ -371,13 +401,24 @@ const Connections = React.memo((): JSX.Element | null => {
     () => (filtering ? (groupedOptions as [string, AggData][]) : connections),
     [connections, groupedOptions, filtering]
   );
-  const filteredRequests = useMemo(
-    () => (filtering ? (groupedOptions as [string, AggData][]) : requests),
-    [requests, groupedOptions, filtering]
+  const filteredIncomingRequests = useMemo(
+    () =>
+      filtering ? (groupedOptions as [string, AggData][]) : incomingRequests,
+    [incomingRequests, groupedOptions, filtering]
+  );
+  const filteredOutgoingRequests = useMemo(
+    () =>
+      filtering ? (groupedOptions as [string, AggData][]) : outgoingRequests,
+    [outgoingRequests, groupedOptions, filtering]
   );
 
   const theme = useTheme();
   const belowSmBreakpoint = useMediaQuery(theme.breakpoints.down("sm"));
+
+  const showSearchbar =
+    (tabIndex === 0 && connections?.length > 0) ||
+    (tabIndex === 1 && incomingRequests?.length > 0) ||
+    (tabIndex === 2 && outgoingRequests?.length > 0);
 
   return (
     <>
@@ -389,10 +430,6 @@ const Connections = React.memo((): JSX.Element | null => {
             </StyledLoadingArea>
           ) : (
             <>
-              <StyledHeaderTypography
-                id="account"
-                variant="h6"
-              >{`Your Connections`}</StyledHeaderTypography>
               <StyledTabsArea>
                 <StyledDivider absolute />
                 <StyledTabs
@@ -406,12 +443,15 @@ const Connections = React.memo((): JSX.Element | null => {
                   />
                   <StyledTab
                     value={1}
-                    label={`${requestedAccountLabel}REQUESTED`}
+                    label={`${incomingRequestsCountLabel}INCOMING`}
+                  />
+                  <StyledTab
+                    value={2}
+                    label={`${outgoingRequestsCountLabel}OUTGOING`}
                   />
                 </StyledTabs>
               </StyledTabsArea>
-              {((tabIndex === 0 && connections?.length > 0) ||
-                (tabIndex === 1 && requests?.length > 0)) && (
+              {showSearchbar && (
                 <StyledSearchRoot {...rootProps}>
                   <StyledOutlinedInput
                     placeholder="Search Usernames"
@@ -510,10 +550,10 @@ const Connections = React.memo((): JSX.Element | null => {
                       <StyledEmptyTypography variant="subtitle1">{`No connections`}</StyledEmptyTypography>
                     </>
                   )
-                ) : tabIndex === 1 && requests ? (
-                  requests.length > 0 ? (
+                ) : tabIndex === 1 && incomingRequests ? (
+                  incomingRequests.length > 0 ? (
                     <StyledList sx={{ width: "100%" }}>
-                      {filteredRequests.map(([id, data]) => (
+                      {filteredIncomingRequests.map(([id, data]) => (
                         <StyledListItem
                           key={id}
                           alignItems="flex-start"
@@ -549,9 +589,54 @@ const Connections = React.memo((): JSX.Element | null => {
                               onMouseDown={handleBlockRipplePropogation}
                               onTouchStart={handleBlockRipplePropogation}
                               onClick={(e): void => {
-                                handleConnect(e, id);
+                                handleDoConnect(e, id);
                               }}
                             >{`Connect`}</StyledButton>
+                          </StyledListItemButton>
+                          <StyledItemDivider variant="inset" absolute />
+                        </StyledListItem>
+                      ))}
+                    </StyledList>
+                  ) : (
+                    <>
+                      <StyledEmptyTypography variant="subtitle1">{`No requests`}</StyledEmptyTypography>
+                    </>
+                  )
+                ) : tabIndex === 2 && outgoingRequests ? (
+                  outgoingRequests.length > 0 ? (
+                    <StyledList sx={{ width: "100%" }}>
+                      {filteredOutgoingRequests.map(([id, data]) => (
+                        <StyledListItem
+                          key={id}
+                          alignItems="flex-start"
+                          disablePadding
+                        >
+                          <StyledListItemButton
+                            onClick={(e): void => {
+                              handleClick(e, id, data);
+                            }}
+                          >
+                            <ListItemAvatar>
+                              <Avatar
+                                alt={data?.a?.u}
+                                src={data?.a?.i}
+                                backgroundColor={data?.a?.h}
+                              />
+                            </ListItemAvatar>
+                            <StyledListItemText
+                              primary={data?.a?.u}
+                              secondary={`${
+                                belowSmBreakpoint ? "" : "was sent a request — "
+                              }${abbreviateAge(new Date(data?.t))}`}
+                            />
+                            <StyledButton
+                              variant="outlined"
+                              onMouseDown={handleBlockRipplePropogation}
+                              onTouchStart={handleBlockRipplePropogation}
+                              onClick={(e): void => {
+                                handleUndoConnect(e, id);
+                              }}
+                            >{`Cancel`}</StyledButton>
                           </StyledListItemButton>
                           <StyledItemDivider variant="inset" absolute />
                         </StyledListItem>

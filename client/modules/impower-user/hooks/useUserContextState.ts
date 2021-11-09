@@ -310,7 +310,7 @@ export const useUserContextState = (
                 closeNavDialog();
                 // wait a bit for dialog to close
                 window.setTimeout(() => {
-                  router.push("/connections?t=requested");
+                  router.push("/connections?t=incoming");
                 }, 10);
               }
             )
@@ -326,7 +326,7 @@ export const useUserContextState = (
                 closeNavDialog();
                 // wait a bit for dialog to close
                 window.setTimeout(() => {
-                  router.push("/connections?t=requested");
+                  router.push("/connections?t=incoming");
                 }, 10);
               }
             )
