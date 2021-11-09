@@ -10,13 +10,19 @@ import {
 } from "@material-ui/core";
 import dynamic from "next/dynamic";
 import NextLink from "next/link";
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { ConfigParameters } from "../../impower-config";
 import { getDataStoreKey } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { SvgData } from "../../impower-icon";
 import { NavigationContext } from "../../impower-navigation";
-import { Fallback, Tabs } from "../../impower-route";
+import { Tabs } from "../../impower-route";
 import PitchList from "../../impower-route-pitch/components/PitchList";
 import Avatar from "../../impower-route/components/elements/Avatar";
 import {
@@ -215,14 +221,21 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
     [username]
   );
 
+  const loadingPlaceholder = useMemo(
+    () => (
+      <StyledLoadingArea>
+        <StyledCircularProgress color="secondary" size={32} />
+      </StyledLoadingArea>
+    ),
+    []
+  );
+
   return (
     <>
       <StyledContainer>
         <StyledPaper>
           {transitioning ? (
-            <StyledLoadingArea>
-              <StyledCircularProgress color="secondary" size={32} />
-            </StyledLoadingArea>
+            loadingPlaceholder
           ) : (
             <>
               <StyledDetailsArea>
@@ -279,6 +292,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
               {id !== null && isCurrentUser !== undefined && (
                 <>
                   <StyledTabsArea>
+                    <StyledDivider absolute />
                     <StyledTabs
                       value={tabIndex}
                       onChange={handleChange}
@@ -287,7 +301,6 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                       <StyledTab value={0} label={`PITCHES`} />
                       <StyledTab value={1} label={`CONTRIBUTIONS`} />
                     </StyledTabs>
-                    <StyledDivider />
                   </StyledTabsArea>
                   {tabIndex === 0 ? (
                     <PitchList
@@ -297,11 +310,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                       sortOptions={SORT_OPTIONS}
                       compact
                       emptyLabel={`No Pitches`}
-                      loadingPlaceholder={
-                        <StyledLoadingArea>
-                          <Fallback disableShrink />
-                        </StyledLoadingArea>
-                      }
+                      loadingPlaceholder={loadingPlaceholder}
                       offlinePlaceholder={
                         <StyledOfflineArea>
                           <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
@@ -314,6 +323,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                       sortOptions={SORT_OPTIONS}
                       emptyLabel={`No Contributions`}
                       noMoreLabel={`That's all for now!`}
+                      loadingPlaceholder={loadingPlaceholder}
                     />
                   )}
                 </>

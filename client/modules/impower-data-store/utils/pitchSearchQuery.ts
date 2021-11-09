@@ -5,7 +5,7 @@ import pitchQuery from "./pitchQuery";
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const pitchSearchQuery = (
   options: {
-    sort: "rank" | "new" | "rating";
+    sort?: "rank" | "new" | "rating";
     goal?: PitchGoal;
     nsfw?: boolean;
     search?: string;

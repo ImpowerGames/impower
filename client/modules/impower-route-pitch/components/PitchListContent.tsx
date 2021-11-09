@@ -1,32 +1,24 @@
-import styled from "@emotion/styled";
 import React, { useMemo } from "react";
 import { ConfigParameters } from "../../impower-config";
 import { AggData } from "../../impower-data-state";
 import {
   ContributionDocument,
   ProjectDocument,
+  useDataStoreConnectionStatus,
 } from "../../impower-data-store";
 import { SvgData } from "../../impower-icon";
-import { FadeAnimation, Fallback } from "../../impower-route";
+import { FadeAnimation } from "../../impower-route";
 import PopulatedPitchList from "./PopulatedPitchList";
 
-const StyledLoadingArea = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-  min-height: 200px;
-  position: relative;
-  z-index: 1;
-`;
-
 interface PitchListContentProps {
-  config: ConfigParameters;
-  icons: { [name: string]: SvgData };
+  config?: ConfigParameters;
+  icons?: { [name: string]: SvgData };
   pitchDocs?: { [id: string]: ProjectDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
+  loadingPlaceholder?: React.ReactNode;
   emptyPlaceholder?: React.ReactNode;
+  offlinePlaceholder?: React.ReactNode;
   compact?: boolean;
   onChangeScore?: (
     e: React.MouseEvent,
@@ -69,7 +61,9 @@ const PitchListContent = React.memo(
       pitchDocs,
       chunkMap,
       lastLoadedChunk,
+      loadingPlaceholder,
       emptyPlaceholder,
+      offlinePlaceholder,
       compact,
       onChangeScore,
       onDelete,
@@ -84,12 +78,14 @@ const PitchListContent = React.memo(
       []
     );
 
+    const isOnline = useDataStoreConnectionStatus();
+
+    if (pitchDocs === undefined && isOnline === false) {
+      return <>{offlinePlaceholder}</>;
+    }
+
     if (!pitchDocs) {
-      return (
-        <StyledLoadingArea>
-          <Fallback disableShrink />
-        </StyledLoadingArea>
-      );
+      return <>{loadingPlaceholder}</>;
     }
 
     if (Object.keys(pitchDocs).length === 0) {

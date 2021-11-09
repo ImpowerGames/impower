@@ -8,20 +8,12 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  ContributionDocument,
-  ContributionType,
-  DocumentSnapshot,
-  ProjectDocument,
-  QuerySort,
-} from "../../impower-data-store";
+import { ContributionDocument } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
 import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { UserContext } from "../../impower-user";
-import { ContributionTypeFilter } from "../types/contributionTypeFilter";
 import ContributionListContent from "./ContributionListContent";
-import ContributionListQueryHeader from "./ContributionListQueryHeader";
 import PitchLoadingProgress from "./PitchLoadingProgress";
 
 const LOAD_MORE_LIMIT = 10;
@@ -32,13 +24,9 @@ const StyledContributionList = styled.div`
   flex-direction: column;
 `;
 
-interface ContributionListProps {
+interface StaticContributionListProps {
   scrollParent?: HTMLElement;
-  pitchId?: string;
-  pitchDoc?: ProjectDocument;
-  creator?: string;
-  contributionDocs?: { [key: string]: ContributionDocument };
-  sortOptions?: QuerySort[];
+  contributionKeys?: string[];
   emptyLabel?: string;
   emptySubtitle?: string;
   noMoreLabel?: string;
@@ -56,17 +44,13 @@ interface ContributionListProps {
   ) => void;
 }
 
-const ContributionList = React.memo(
-  (props: PropsWithChildren<ContributionListProps>): JSX.Element => {
+const StaticContributionList = React.memo(
+  (props: PropsWithChildren<StaticContributionListProps>): JSX.Element => {
     const pitchedCollection = "pitched_games";
 
     const {
       scrollParent,
-      pitchId,
-      pitchDoc,
-      creator,
-      contributionDocs,
-      sortOptions,
+      contributionKeys,
       emptyLabel,
       emptySubtitle,
       noMoreLabel,
@@ -82,23 +66,12 @@ const ContributionList = React.memo(
     const nsfwVisible =
       account === undefined ? undefined : account?.nsfwVisible || false;
 
-    const [typeFilter, setTypeFilter] = useState<ContributionTypeFilter>("All");
-    const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rating");
-
     const [navigationState, navigationDispatch] = useContext(NavigationContext);
     const transitioning = navigationState?.transitioning;
 
-    const initialChunkMap = useMemo(() => {
-      const chunkMap = {};
-      Object.keys(contributionDocs || {}).forEach((id) => {
-        chunkMap[id] = 0;
-      });
-      return chunkMap;
-    }, [contributionDocs]);
-
     const chunkMapRef = useRef<{
       [id: string]: number;
-    }>(initialChunkMap);
+    }>({});
     const [chunkMap, setChunkMap] = useState<{
       [id: string]: number;
     }>(chunkMapRef.current);
@@ -110,21 +83,17 @@ const ContributionList = React.memo(
 
     const contributionDocsRef = useRef<{
       [id: string]: ContributionDocument;
-    }>(contributionDocs);
+    }>();
     const [contributionDocsState, setContributionDocsState] = useState<{
       [id: string]: ContributionDocument;
     }>(contributionDocsRef.current);
 
-    const cursorRef = useRef<DocumentSnapshot<ContributionDocument>>();
-    const cacheKeys = useRef<Set<string>>(new Set());
+    const cursorIndexRef = useRef<number>(0);
 
     const loadingMoreRef = useRef<boolean>();
     const [loadingMore, setLoadingMore] = useState<boolean>();
     const noMoreRef = useRef<boolean>();
     const [noMore, setNoMore] = useState<boolean>();
-    const [allowReload, setAllowReload] = useState(
-      !contributionDocsRef.current
-    );
 
     const recentContributionDocs = useMemo(() => {
       const result: { [id: string]: ContributionDocument } = {};
@@ -132,124 +101,89 @@ const ContributionList = React.memo(
         ([targetPitchId, contributions]) => {
           Object.entries(contributions).forEach(
             ([contributionId, contributionDoc]) => {
-              if (
-                (!pitchId || pitchId === targetPitchId) &&
-                (!creator || contributionDoc._createdBy === creator)
-              ) {
-                result[`${targetPitchId}/${contributionId}`] = contributionDoc;
-              }
+              result[`${targetPitchId}/${contributionId}`] = contributionDoc;
             }
           );
         }
       );
       return result;
-    }, [creator, my_recent_contributions, pitchId]);
+    }, [my_recent_contributions]);
     const recentContributionDocsRef = useRef(recentContributionDocs);
 
     const queryOptions: {
-      filter: ContributionType;
-      sort: QuerySort;
       nsfw?: boolean;
-      creator?: string;
     } = useMemo(
       () => ({
-        filter: typeFilter === "All" ? undefined : typeFilter,
-        sort,
         nsfw: nsfwVisible,
-        creator,
       }),
-      [creator, nsfwVisible, sort, typeFilter]
-    );
-
-    const handleAllowReload = useCallback(() => {
-      lastLoadedChunkRef.current = 0;
-      cursorRef.current = null;
-      contributionDocsRef.current = {};
-      chunkMapRef.current = {};
-      DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
-      setAllowReload(true);
-    }, []);
-
-    const handleFilter = useCallback(
-      (e: React.MouseEvent, sort: ContributionTypeFilter) => {
-        handleAllowReload();
-        setTypeFilter(sort);
-      },
-      [handleAllowReload]
-    );
-
-    const handleSort = useCallback(
-      (e: React.MouseEvent, sort: QuerySort) => {
-        handleAllowReload();
-        setSort(sort);
-      },
-      [handleAllowReload]
+      [nsfwVisible]
     );
 
     const handleLoad = useCallback(
       async (
-        pitchId: string,
         options: {
-          filter?: ContributionType;
-          sort: QuerySort;
           nsfw?: boolean;
         },
         limit: number
       ): Promise<number> => {
-        const contributionsQuery = (
-          await import("../../impower-data-store/utils/contributionsQuery")
+        const { nsfw } = options;
+
+        const DataStoreRead = await (
+          await import("../../impower-data-store/classes/dataStoreRead")
         ).default;
-        const query = pitchId
-          ? await contributionsQuery(options, pitchedCollection, pitchId)
-          : await contributionsQuery(options, undefined);
-        const cursor = cursorRef.current;
-        const cursorQuery = cursor
-          ? query.startAfter(cursor).limit(limit)
-          : query.limit(limit);
-        cacheKeys.current.add(cursorQuery.key);
-        const snapshot = await cursorQuery.get<ContributionDocument>();
-        const { docs } = snapshot;
-        const cursorIndex = docs.length - 1;
-        const lastSnapshot = docs[cursorIndex] || null;
-        cursorRef.current = lastSnapshot;
+
+        const start = cursorIndexRef.current;
+        const end = Math.min(start + limit, contributionKeys.length);
+        const loadingKeys: string[] = [];
+        for (let i = start; i < end; i += 1) {
+          loadingKeys.push(contributionKeys[i]);
+        }
+        const snapshots = await Promise.all(
+          loadingKeys.map((key) => {
+            const [pitchId, contributionId] = key.split("%");
+            return new DataStoreRead(
+              pitchedCollection,
+              pitchId,
+              "contributions",
+              contributionId
+            ).get<ContributionDocument>();
+          })
+        );
+        cursorIndexRef.current = end;
         const currentDocs = contributionDocsRef.current || {};
         const matchingRecentContributionDocs =
           recentContributionDocsRef.current || {};
-        const newContributionDocs = {
+        const newDocs = {
           ...matchingRecentContributionDocs,
           ...currentDocs,
           ...matchingRecentContributionDocs,
         };
-        docs.forEach((d) => {
-          const pitchId = d.ref.parent.parent.id;
-          const contributionId = d.id;
-          newContributionDocs[`${pitchId}/${contributionId}`] = d.data();
-        });
-        Object.entries(newContributionDocs).forEach(([key, doc]) => {
-          if (doc.delisted) {
-            delete newContributionDocs[key];
+        snapshots.forEach((d) => {
+          const data = d.data();
+          if (data) {
+            if ((nsfw || !data.nsfw) && !data.delisted) {
+              const pitchId = d.ref.parent.parent.id;
+              const contributionId = d.id;
+              const key = `${pitchId}/${contributionId}`;
+              newDocs[key] = d.data();
+              if (chunkMapRef.current[key] === undefined) {
+                chunkMapRef.current[key] = lastLoadedChunkRef.current;
+              }
+            }
           }
-          if (chunkMapRef.current[key] === undefined) {
-            chunkMapRef.current[key] = lastLoadedChunkRef.current;
-          }
         });
-        contributionDocsRef.current = newContributionDocs;
-        return docs.length;
+
+        contributionDocsRef.current = newDocs;
+
+        return snapshots.length;
       },
-      []
+      [contributionKeys]
     );
 
     const handleLoadMoreItems = useCallback(
-      async (
-        pitchId: string,
-        options: {
-          filter?: ContributionType;
-          sort: QuerySort;
-          nsfw?: boolean;
-        }
-      ) => {
+      async (options: { nsfw?: boolean }) => {
         const limit = LOAD_MORE_LIMIT;
-        const loadedCount = await handleLoad(pitchId, options, limit);
+        const loadedCount = await handleLoad(options, limit);
         setContributionDocsState(contributionDocsRef.current);
         setChunkMap(chunkMapRef.current);
         noMoreRef.current =
@@ -271,25 +205,21 @@ const ContributionList = React.memo(
         setLoadingMore(loadingMoreRef.current);
         lastLoadedChunkRef.current += 1;
         setLastLoadedChunk(lastLoadedChunkRef.current);
-        await handleLoadMoreItems(pitchId, queryOptions);
+        await handleLoadMoreItems(queryOptions);
         loadingMoreRef.current = false;
         setLoadingMore(loadingMoreRef.current);
       }
-    }, [handleLoadMoreItems, pitchId, queryOptions]);
+    }, [handleLoadMoreItems, queryOptions]);
 
     const handleRefresh = useCallback(async (): Promise<void> => {
       if (scrollParent) {
         scrollParent.scrollTo({ top: 0 });
       }
-      cursorRef.current = undefined;
+      cursorIndexRef.current = 0;
       contributionDocsRef.current = {};
       chunkMapRef.current = {};
-      const DataStoreCache = (
-        await import("../../impower-data-store/classes/dataStoreCache")
-      ).default;
-      DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
-      await handleLoadMoreItems(pitchId, queryOptions);
-    }, [scrollParent, handleLoadMoreItems, pitchId, queryOptions]);
+      await handleLoadMoreItems(queryOptions);
+    }, [scrollParent, handleLoadMoreItems, queryOptions]);
 
     useEffect(() => {
       const recentContributionDocs: { [id: string]: ContributionDocument } = {};
@@ -297,13 +227,8 @@ const ContributionList = React.memo(
         ([targetPitchId, contributions]) => {
           Object.entries(contributions).forEach(
             ([contributionId, contributionDoc]) => {
-              if (
-                (!pitchId || pitchId === targetPitchId) &&
-                (!creator || contributionDoc._createdBy === creator)
-              ) {
-                recentContributionDocs[`${targetPitchId}/${contributionId}`] =
-                  contributionDoc;
-              }
+              recentContributionDocs[`${targetPitchId}/${contributionId}`] =
+                contributionDoc;
             }
           );
         }
@@ -328,17 +253,14 @@ const ContributionList = React.memo(
         setContributionDocsState(contributionDocsRef.current);
         setChunkMap(chunkMapRef.current);
       }
-    }, [creator, my_recent_contributions, pitchId]);
+    }, [my_recent_contributions]);
 
     useEffect(() => {
       navigationDispatch(navigationSetTransitioning(false));
       if ([nsfwVisible].some((x) => x === undefined)) {
         return;
       }
-      if (!allowReload) {
-        return;
-      }
-      cursorRef.current = undefined;
+      cursorIndexRef.current = 0;
       contributionDocsRef.current = {};
       chunkMapRef.current = {};
       loadingMoreRef.current = false;
@@ -346,15 +268,8 @@ const ContributionList = React.memo(
       setContributionDocsState(undefined);
       setChunkMap(undefined);
       setNoMore(noMoreRef.current);
-      handleLoadMoreItems(pitchId, queryOptions);
-    }, [
-      handleLoadMoreItems,
-      queryOptions,
-      pitchId,
-      allowReload,
-      nsfwVisible,
-      navigationDispatch,
-    ]);
+      handleLoadMoreItems(queryOptions);
+    }, [handleLoadMoreItems, queryOptions, nsfwVisible, navigationDispatch]);
 
     const handleEditContribution = useCallback(
       async (
@@ -450,27 +365,14 @@ const ContributionList = React.memo(
       [contributionDocsState]
     );
 
-    const pitchDocs = useMemo(
-      () => (pitchId && pitchDoc ? { [pitchId]: pitchDoc } : undefined),
-      [pitchId, pitchDoc]
-    );
-
     return (
       <StyledContributionList>
         {transitioning ? (
           loadingPlaceholder
         ) : (
           <>
-            <ContributionListQueryHeader
-              filter={typeFilter}
-              sort={sort}
-              sortOptions={sortOptions}
-              onFilter={handleFilter}
-              onSort={handleSort}
-            />
             <ContributionListContent
               scrollParent={scrollParent}
-              pitchDocs={pitchDocs}
               contributionDocs={contributionDocsState}
               chunkMap={chunkMap}
               lastLoadedChunk={lastLoadedChunk}
@@ -505,4 +407,4 @@ const ContributionList = React.memo(
   }
 );
 
-export default ContributionList;
+export default StaticContributionList;

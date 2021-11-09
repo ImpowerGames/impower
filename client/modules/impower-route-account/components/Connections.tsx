@@ -394,6 +394,7 @@ const Connections = React.memo((): JSX.Element | null => {
                 variant="h6"
               >{`Your Connections`}</StyledHeaderTypography>
               <StyledTabsArea>
+                <StyledDivider absolute />
                 <StyledTabs
                   value={tabIndex}
                   onChange={handleChange}
@@ -408,7 +409,6 @@ const Connections = React.memo((): JSX.Element | null => {
                     label={`${requestedAccountLabel}REQUESTED`}
                   />
                 </StyledTabs>
-                <StyledDivider />
               </StyledTabsArea>
               {((tabIndex === 0 && connections?.length > 0) ||
                 (tabIndex === 1 && requests?.length > 0)) && (
