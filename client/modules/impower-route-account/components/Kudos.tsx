@@ -175,7 +175,7 @@ const Kudos = React.memo((): JSX.Element | null => {
                   <StaticPitchList
                     compact
                     pitchKeys={pitchKeys}
-                    emptyLabel={`No Pitches`}
+                    emptyLabel={`No Kudoed Pitches`}
                     loadingPlaceholder={
                       <StyledLoadingArea>
                         <StyledCircularProgress color="secondary" size={32} />
@@ -190,7 +190,7 @@ const Kudos = React.memo((): JSX.Element | null => {
                 ) : tabIndex === 1 && contributionKeys ? (
                   <StaticContributionList
                     contributionKeys={contributionKeys}
-                    emptyLabel={`No Contributions`}
+                    emptyLabel={`No Kudoed Contributions`}
                     noMoreLabel={`That's all for now!`}
                   />
                 ) : (
