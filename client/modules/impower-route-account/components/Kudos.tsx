@@ -100,7 +100,8 @@ const Kudos = React.memo((): JSX.Element | null => {
   const transitioning = navigationState?.transitioning;
   const [userState] = useContext(UserContext);
   const [tabIndex, setTabIndex] = useState(
-    typeof window !== "undefined" && window.location.search === "?t=requested"
+    typeof window !== "undefined" &&
+      window.location.search === "?t=contributions"
       ? 1
       : 0
   );
