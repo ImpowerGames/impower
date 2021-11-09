@@ -1,22 +1,10 @@
-import styled from "@emotion/styled";
 import React, { useMemo } from "react";
 import { AggData } from "../../impower-data-state";
 import {
   ContributionDocument,
   ProjectDocument,
 } from "../../impower-data-store";
-import Fallback from "../../impower-route/components/layouts/Fallback";
 import PopulatedContributionList from "./PopulatedContributionList";
-
-const StyledLoadingArea = styled.div`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-  min-height: 200px;
-  position: relative;
-  z-index: 1;
-`;
 
 interface ContributionListContentProps {
   scrollParent?: HTMLElement;
@@ -24,6 +12,7 @@ interface ContributionListContentProps {
   contributionDocs?: { [key: string]: ContributionDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
+  loadingPlaceholder?: React.ReactNode;
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
@@ -57,6 +46,7 @@ const ContributionListContent = React.memo(
       contributionDocs,
       chunkMap,
       lastLoadedChunk,
+      loadingPlaceholder,
       onChangeScore,
       onKudo,
       onEdit,
@@ -69,11 +59,7 @@ const ContributionListContent = React.memo(
     );
 
     if (!contributionEntries) {
-      return (
-        <StyledLoadingArea>
-          <Fallback disableShrink />
-        </StyledLoadingArea>
-      );
+      return <>{loadingPlaceholder}</>;
     }
 
     if (contributionEntries?.length === 0) {

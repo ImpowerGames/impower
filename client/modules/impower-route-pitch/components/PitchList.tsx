@@ -20,7 +20,6 @@ import {
   PitchGoal,
   ProjectDocument,
   QuerySort,
-  useDataStoreConnectionStatus,
 } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
 import { SvgData } from "../../impower-icon";
@@ -129,6 +128,11 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     [id: string]: number;
   }>(chunkMapRef.current);
 
+  const lastLoadedChunkRef = useRef(0);
+  const [lastLoadedChunk, setLastLoadedChunk] = useState(
+    lastLoadedChunkRef.current
+  );
+
   const loadingMoreRef = useRef<boolean>();
   const [loadingMore, setLoadingMore] = useState<boolean>();
   const [loadIcons, setLoadIcons] = useState(false);
@@ -137,11 +141,6 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
   const [goalFilter, setGoalFilter] = useState<PitchGoalFilter>("All");
   const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rank");
   const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
-
-  const lastLoadedChunkRef = useRef(0);
-  const [lastLoadedChunk, setLastLoadedChunk] = useState(
-    lastLoadedChunkRef.current
-  );
 
   const pitchDocsRef = useRef<{ [id: string]: ProjectDocument }>(pitchDocs);
   const [pitchDocsState, setPitchDocsState] = useState<{
@@ -691,16 +690,10 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     [confirmDialogDispatch]
   );
 
-  const isOnline = useDataStoreConnectionStatus();
-
   const pitchCount = useMemo(
     () => Object.keys(pitchDocsState || {})?.length,
     [pitchDocsState]
   );
-
-  if (pitchDocsState === undefined && isOnline === false) {
-    return <>{offlinePlaceholder}</>;
-  }
 
   return (
     <StyledContainer>
@@ -726,6 +719,8 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
             lastLoadedChunk={lastLoadedChunk}
             compact={compact}
             emptyPlaceholder={emptyPlaceholder}
+            offlinePlaceholder={offlinePlaceholder}
+            loadingPlaceholder={loadingPlaceholder}
             onChangeScore={handleChangeScore}
             onDelete={handleDeletePitch}
             onKudo={handleKudo}
