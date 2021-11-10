@@ -171,6 +171,38 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
     [emptySubtitle1, emptySubtitle2]
   );
 
+  const emptyPlaceholder = useMemo(
+    () => (
+      <EmptyPitchList
+        loadedImage={emptyImage}
+        filterLabel={filterLabel}
+        emptySubtitle1={emptySubtitle1}
+        emptySubtitle2={emptySubtitle2}
+        searchLabel={searchLabel}
+        emptyLabelStyle={emptyLabelStyle}
+        searchLabelStyle={searchLabelStyle}
+      />
+    ),
+    [
+      emptyImage,
+      emptyLabelStyle,
+      emptySubtitle1,
+      emptySubtitle2,
+      filterLabel,
+      searchLabel,
+      searchLabelStyle,
+    ]
+  );
+
+  const offlinePlaceholder = useMemo(
+    () => (
+      <AnimatedWarningMascotIllustration
+        message={`Looks like you're offline`}
+      />
+    ),
+    []
+  );
+
   return (
     <StyledPitchSearch style={style}>
       <StyledApp>
@@ -196,23 +228,8 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
                 search={activeSearch}
                 sortOptions={SORT_OPTIONS}
                 loadingPlaceholder={loadingPlaceholder}
-                emptyPlaceholder={
-                  <EmptyPitchList
-                    loading={pitchDocs === undefined}
-                    loadedImage={emptyImage}
-                    filterLabel={filterLabel}
-                    searchLabel={searchLabel}
-                    emptySubtitle1={emptySubtitle1}
-                    emptySubtitle2={emptySubtitle2}
-                    emptyLabelStyle={emptyLabelStyle}
-                    searchLabelStyle={searchLabelStyle}
-                  />
-                }
-                offlinePlaceholder={
-                  <AnimatedWarningMascotIllustration
-                    message={`Looks like you're offline`}
-                  />
-                }
+                emptyPlaceholder={emptyPlaceholder}
+                offlinePlaceholder={offlinePlaceholder}
               />
               <AddPitchToolbar config={config} icons={icons} />
             </>
