@@ -1,5 +1,6 @@
 import React from "react";
 import FlagRegularIcon from "../../../resources/icons/regular/flag.svg";
+import LightbulbOnRegularIcon from "../../../resources/icons/regular/lightbulb-on.svg";
 import LinkRegularIcon from "../../../resources/icons/regular/link.svg";
 import PenToSquareRegularIcon from "../../../resources/icons/regular/pen-to-square.svg";
 import ShareRegularIcon from "../../../resources/icons/regular/share.svg";
@@ -24,6 +25,7 @@ const getContributionPostOptionIcons = (props: {
   const postDefaultOptions = delisted
     ? {}
     : {
+        OpenPitch: LightbulbOnRegularIcon,
         Link: LinkRegularIcon,
         Via: ShareRegularIcon,
       };

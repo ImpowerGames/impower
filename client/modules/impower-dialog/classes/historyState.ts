@@ -8,6 +8,8 @@ class HistoryState {
     return this._instance;
   }
 
+  prev: string;
+
   opening: boolean;
 
   closing: boolean;

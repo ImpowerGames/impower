@@ -164,7 +164,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
   const [connectedToState, setConnectedToState] = useState(connectedTo);
   const [tabIndex, setTabIndex] = useState(
     typeof window !== "undefined" &&
-      window.location.search === "?t=contributions"
+      window.location.search?.toLowerCase() === "?t=contributions"
       ? 1
       : 0
   );

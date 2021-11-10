@@ -195,10 +195,11 @@ const StyledDivider = styled(Divider)``;
 const Connections = React.memo((): JSX.Element | null => {
   const [userState, userDispatch] = useContext(UserContext);
   const [tabIndex, setTabIndex] = useState(
-    typeof window !== "undefined" && window.location.search === "?t=outgoing"
+    typeof window !== "undefined" &&
+      window.location.search?.toLowerCase() === "?t=outgoing"
       ? 2
       : typeof window !== "undefined" &&
-        window.location.search === "?t=incoming"
+        window.location.search?.toLowerCase() === "?t=incoming"
       ? 1
       : 0
   );

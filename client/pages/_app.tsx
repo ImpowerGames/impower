@@ -22,6 +22,7 @@ import ScreenContextProvider from "../modules/impower-route/components/providers
 import ServiceWorkerContextProvider from "../modules/impower-route/components/providers/ServiceWorkerContextProvider";
 import ToastContextProvider from "../modules/impower-route/components/providers/ToastContextProvider";
 import UserContextProvider from "../modules/impower-route/components/providers/UserContextProvider";
+import { useRouter } from "../modules/impower-router";
 
 // Client-side cache, shared for the whole session of the user in the browser.
 const clientSideEmotionCache = createEmotionCache();
@@ -53,6 +54,18 @@ const MyApp = React.memo((props: MyAppProps): JSX.Element => {
       window.removeEventListener("popstate", onPopstate);
     };
   }, []);
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const onRouteChangeComplete = (): void => {
+      HistoryState.instance.prev = router.asPath;
+    };
+    router.events.on("routeChangeComplete", onRouteChangeComplete);
+    return (): void => {
+      router.events.off("routeChangeComplete", onRouteChangeComplete);
+    };
+  }, [router]);
 
   return (
     <>

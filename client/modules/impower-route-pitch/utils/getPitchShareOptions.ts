@@ -10,7 +10,7 @@ const getPitchShareOptions = (): {
 } => {
   const postShareOptions = {
     ...(typeof navigator !== "undefined" && navigator.clipboard
-      ? { Link: { label: "Copy Link", icon: LinkRegularIcon } }
+      ? { Link: { label: "Copy Pitch Link", icon: LinkRegularIcon } }
       : {}),
 
     ...(typeof navigator !== "undefined" && navigator.share
