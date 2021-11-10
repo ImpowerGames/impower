@@ -161,6 +161,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const emptyImage = useMemo(() => <AnimatedHappyMascot />, []);
   const emptySubtitle1 = `Got an idea?`;
   const emptySubtitle2 = `Why not pitch it?`;
+  const searchLabel = `now.`;
 
   const filterLabel = `pitches`;
   const emptyLabelStyle: React.CSSProperties = useMemo(
@@ -216,6 +217,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                     filterLabel={filterLabel}
                     emptySubtitle1={emptySubtitle1}
                     emptySubtitle2={emptySubtitle2}
+                    searchLabel={searchLabel}
                     emptyLabelStyle={emptyLabelStyle}
                     searchLabelStyle={searchLabelStyle}
                   />
