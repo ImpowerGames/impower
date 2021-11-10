@@ -138,6 +138,7 @@ export const signup = async (
         submissionsRefs.forEach((ref) => {
           batch.set(ref, {
             _documentType: "PathDocument",
+            _createdBy: userRecord.uid,
             _updates: {
               [`${today}`]: 0,
             },
