@@ -96,11 +96,11 @@ const BetaBanner = React.memo((): JSX.Element => {
   }, []);
 
   const handleGetPaddedPaddingRight = useCallback((bodyPadding: string) => {
-    return `calc(8px + ${bodyPadding})`;
+    return `${bodyPadding}`;
   }, []);
 
   const handleGetUnpaddedPaddingRight = useCallback(() => {
-    return `8px`;
+    return `0`;
   }, []);
 
   useBodyPaddingCallback(
