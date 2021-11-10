@@ -201,6 +201,38 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     [emptySubtitle1, emptySubtitle2]
   );
 
+  const emptyPlaceholder = useMemo(
+    () => (
+      <EmptyPitchList
+        loadedImage={emptyImage}
+        filterLabel={filterLabel}
+        emptySubtitle1={emptySubtitle1}
+        emptySubtitle2={emptySubtitle2}
+        searchLabel={searchLabel}
+        emptyLabelStyle={emptyLabelStyle}
+        searchLabelStyle={searchLabelStyle}
+      />
+    ),
+    [
+      emptyImage,
+      emptyLabelStyle,
+      emptySubtitle1,
+      emptySubtitle2,
+      filterLabel,
+      searchLabel,
+      searchLabelStyle,
+    ]
+  );
+
+  const offlinePlaceholder = useMemo(
+    () => (
+      <AnimatedWarningMascotIllustration
+        message={`Looks like you're offline`}
+      />
+    ),
+    []
+  );
+
   const handleRangeFilter = useCallback(
     (e: React.MouseEvent, value: DateRangeFilter) => {
       setRangeFilter(value);
@@ -231,23 +263,8 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                 sortOptions={SORT_OPTIONS}
                 allowReload={allowReload}
                 loadingPlaceholder={loadingPlaceholder}
-                emptyPlaceholder={
-                  <EmptyPitchList
-                    loading={validPitchDocs === undefined}
-                    loadedImage={emptyImage}
-                    filterLabel={filterLabel}
-                    emptySubtitle1={emptySubtitle1}
-                    emptySubtitle2={emptySubtitle2}
-                    searchLabel={searchLabel}
-                    emptyLabelStyle={emptyLabelStyle}
-                    searchLabelStyle={searchLabelStyle}
-                  />
-                }
-                offlinePlaceholder={
-                  <AnimatedWarningMascotIllustration
-                    message={`Looks like you're offline`}
-                  />
-                }
+                emptyPlaceholder={emptyPlaceholder}
+                offlinePlaceholder={offlinePlaceholder}
                 onFollowMore={handleFollowMore}
                 onRangeFilter={handleRangeFilter}
               />
