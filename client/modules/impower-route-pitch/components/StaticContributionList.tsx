@@ -60,6 +60,7 @@ interface StaticContributionListProps {
     pitchId: string,
     contributionId: string
   ) => void;
+  onRefresh?: () => void;
 }
 
 const StaticContributionList = React.memo(
@@ -75,6 +76,7 @@ const StaticContributionList = React.memo(
       loadingPlaceholder,
       onEditContribution,
       onDeleteContribution,
+      onRefresh,
       children,
     } = props;
 
@@ -258,6 +260,9 @@ const StaticContributionList = React.memo(
     }, [handleLoadMoreItems, queryOptions]);
 
     const handleRefresh = useCallback(async (): Promise<void> => {
+      if (onRefresh) {
+        onRefresh();
+      }
       if (scrollParent) {
         scrollParent.scrollTo({ top: 0 });
       }
@@ -265,7 +270,7 @@ const StaticContributionList = React.memo(
       contributionDocsRef.current = {};
       chunkMapRef.current = {};
       await handleLoadMoreItems(queryOptions);
-    }, [scrollParent, handleLoadMoreItems, queryOptions]);
+    }, [onRefresh, scrollParent, handleLoadMoreItems, queryOptions]);
 
     useEffect(() => {
       const recentContributionDocs: { [id: string]: ContributionDocument } = {};
