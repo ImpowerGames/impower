@@ -5,14 +5,13 @@ import Typography from "@material-ui/core/Typography";
 import React, { useCallback, useState } from "react";
 import XmarkRegularIcon from "../../../../resources/icons/regular/xmark.svg";
 import { FontIcon } from "../../../impower-icon";
+import { useBodyPaddingCallback } from "../../hooks/useBodyPaddingCallback";
 
 const StyledBetaWarningButton = styled(Button)<{ hoverable?: boolean }>`
   background-color: ${(props): string => props.theme.palette.secondary.main};
   color: white;
   padding-top: ${(props): string => props.theme.spacing(1.5)};
   padding-bottom: ${(props): string => props.theme.spacing(1.5)};
-  padding-right: ${(props): string => props.theme.spacing(2)};
-  width: calc(100% + ${(props): string => props.theme.spacing(1)});
   border-radius: 0;
   text-transform: none;
 
@@ -66,6 +65,7 @@ const BetaBanner = React.memo((): JSX.Element => {
       Boolean(window.sessionStorage.getItem(DISMISSED_KEY))
   );
   const [hoveringDismissButton, setHoveringDismissButton] = useState(false);
+  const [el, setEl] = useState<HTMLElement>();
 
   const handleDismiss = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -82,6 +82,42 @@ const BetaBanner = React.memo((): JSX.Element => {
     setHoveringDismissButton(false);
   }, []);
 
+  const handleRef = useCallback((instance: HTMLElement): void => {
+    if (instance) {
+      setEl(instance);
+    }
+  }, []);
+
+  const handleGetPaddedWidth = useCallback((bodyPadding: string) => {
+    return `calc(100% + ${bodyPadding})`;
+  }, []);
+
+  const handleGetUnpaddedWidth = useCallback(() => {
+    return `100%`;
+  }, []);
+
+  const handleGetPaddedPaddingRight = useCallback((bodyPadding: string) => {
+    return `calc(8px + ${bodyPadding})`;
+  }, []);
+
+  const handleGetUnpaddedPaddingRight = useCallback(() => {
+    return `8px`;
+  }, []);
+
+  useBodyPaddingCallback(
+    "width",
+    handleGetPaddedWidth,
+    handleGetUnpaddedWidth,
+    el
+  );
+
+  useBodyPaddingCallback(
+    "paddingRight",
+    handleGetPaddedPaddingRight,
+    handleGetUnpaddedPaddingRight,
+    el
+  );
+
   if (dismissed) {
     return null;
   }
@@ -89,6 +125,7 @@ const BetaBanner = React.memo((): JSX.Element => {
   return (
     <StyledBetaWarningButton
       fullWidth
+      ref={handleRef}
       hoverable={!hoveringDismissButton}
       href={`https://github.com/ImpowerGames/impower/issues`}
     >

@@ -645,7 +645,24 @@ const CornerFab = React.memo((props: CornerFabProps): JSX.Element => {
   const [fabForgroundEl, setFabForegroundEl] = useState<HTMLDivElement>();
   const [fabBackgroundEl, setFabBackgroundEl] = useState<HTMLDivElement>();
 
-  useBodyPaddingCallback("right", style.right, fabForgroundEl, fabBackgroundEl);
+  const handleGetPaddedValue = useCallback(
+    (bodyPadding: string) => {
+      return `calc(${style.right} + ${bodyPadding})`;
+    },
+    [style.right]
+  );
+
+  const handleGetUnpaddedValue = useCallback(() => {
+    return `${style.right}`;
+  }, [style.right]);
+
+  useBodyPaddingCallback(
+    "right",
+    handleGetPaddedValue,
+    handleGetUnpaddedValue,
+    fabForgroundEl,
+    fabBackgroundEl
+  );
 
   const handleForegroundRef = useCallback(
     (instance) => {
