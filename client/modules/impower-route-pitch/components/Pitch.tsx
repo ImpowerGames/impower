@@ -14,6 +14,8 @@ import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { BetaBanner } from "../../impower-route";
 import { UserContext } from "../../impower-user";
+import { DateRangeFilter } from "../types/dateRangeFilter";
+import getRangeFilterLabel from "../utils/getRangeFilterLabel";
 import AddPitchToolbar from "./AddPitchToolbar";
 import PitchList from "./PitchList";
 import PitchTabsToolbar, { PitchToolbarTab } from "./PitchTabsToolbar";
@@ -101,6 +103,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const validPitchDocs = activeTab === "Trending" ? pitchDocs : undefined;
 
   const [allowReload, setAllowReload] = useState(!validPitchDocs);
+  const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
@@ -165,7 +168,11 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const emptyImage = useMemo(() => <AnimatedHappyMascot />, []);
   const emptySubtitle1 = `Got an idea?`;
   const emptySubtitle2 = `Why not pitch it?`;
-  const searchLabel = `now.`;
+  const searchLabel = `${
+    activeTab === "Following" || activeTab === "Trending"
+      ? "today"
+      : getRangeFilterLabel(rangeFilter)?.toLowerCase()
+  }.`;
 
   const filterLabel = `pitches`;
   const emptyLabelStyle: React.CSSProperties = useMemo(
@@ -192,6 +199,13 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       />
     ),
     [emptySubtitle1, emptySubtitle2]
+  );
+
+  const handleRangeFilter = useCallback(
+    (e: React.MouseEvent, value: DateRangeFilter) => {
+      setRangeFilter(value);
+    },
+    []
   );
 
   return (
@@ -235,6 +249,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                   />
                 }
                 onFollowMore={handleFollowMore}
+                onRangeFilter={handleRangeFilter}
               />
               <AddPitchToolbar
                 config={config}

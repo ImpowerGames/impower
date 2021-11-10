@@ -71,6 +71,7 @@ interface PitchListProps {
   emptySubtitle?: string;
   allowReload?: boolean;
   onFollowMore?: (open: boolean) => void;
+  onRangeFilter?: (e: React.MouseEvent, rangeFilter: DateRangeFilter) => void;
 }
 
 const PitchList = React.memo((props: PitchListProps): JSX.Element => {
@@ -92,6 +93,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     emptySubtitle,
     allowReload,
     onFollowMore,
+    onRangeFilter,
   } = props;
 
   const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
@@ -625,8 +627,11 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     (e: React.MouseEvent, value: DateRangeFilter): void => {
       handleAllowReload();
       setRangeFilter(value);
+      if (onRangeFilter) {
+        onRangeFilter(e, value);
+      }
     },
-    [handleAllowReload]
+    [handleAllowReload, onRangeFilter]
   );
 
   const handleFollowMore = useCallback((): void => {
