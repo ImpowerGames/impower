@@ -582,7 +582,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
   ]);
 
   const handleAllowReload = useCallback(() => {
-    lastLoadedChunkRef.current = -1;
+    lastLoadedChunkRef.current = 0;
     cursorsByTagRef.current = {};
     pitchDocsByTagRef.current = {};
     pitchDocsRef.current = {};
