@@ -19,7 +19,6 @@ import navigationSetTransitioning from "../../impower-navigation/utils/navigatio
 import { VirtualizedItem } from "../../impower-react-virtualization";
 import FadeAnimation from "../../impower-route/components/animations/FadeAnimation";
 import TagIconLoader from "../../impower-route/components/elements/TagIconLoader";
-import Fallback from "../../impower-route/components/layouts/Fallback";
 import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
 
 const getTagLink = (tag: string): string => `/pitch/search/${escapeURI(tag)}`;
@@ -311,12 +310,13 @@ const PitchFollowTagsList = React.memo(
 );
 
 interface PitchFollowTagsProps {
+  loadingPlaceholder?: React.ReactNode;
   onReload?: (e: React.MouseEvent) => void;
 }
 
 const PitchFollowTags = React.memo(
   (props: PitchFollowTagsProps): JSX.Element => {
-    const { onReload } = props;
+    const { loadingPlaceholder, onReload } = props;
 
     const [navigationState] = useContext(NavigationContext);
     const transitioning = navigationState?.transitioning;
@@ -341,11 +341,7 @@ const PitchFollowTags = React.memo(
         ?.length > 0;
 
     if (my_follows === undefined || transitioning) {
-      return (
-        <StyledContainer>
-          <Fallback />
-        </StyledContainer>
-      );
+      return <StyledContainer>{loadingPlaceholder}</StyledContainer>;
     }
 
     return (

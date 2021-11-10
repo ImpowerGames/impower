@@ -199,7 +199,10 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
           {transitioning ? (
             loadingPlaceholder
           ) : activeTab === "Following" && !shouldDisplayFollowingPitches ? (
-            <PitchFollowTags onReload={handleReloadFollowing} />
+            <PitchFollowTags
+              loadingPlaceholder={loadingPlaceholder}
+              onReload={handleReloadFollowing}
+            />
           ) : (
             <>
               <PitchList
