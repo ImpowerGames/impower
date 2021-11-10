@@ -1,8 +1,13 @@
 import styled from "@emotion/styled";
 import Typography from "@material-ui/core/Typography";
-import React, { useMemo } from "react";
-import { FadeAnimation } from "../../impower-route";
+import React from "react";
 import AnimatedLoadingMascotIllustration from "../../impower-route/components/illustrations/AnimatedLoadingMascotIllustration";
+
+const StyledEmptyPitchList = styled.div`
+  flex: 1000;
+  display: flex;
+  flex-direction: column;
+`;
 
 const StyledMark = styled.mark`
   background-color: transparent;
@@ -105,13 +110,8 @@ const EmptyPitchList = React.memo((props: EmptyPitchListProps): JSX.Element => {
     loadingMessage,
   } = props;
 
-  const fadeStyle: React.CSSProperties = useMemo(
-    () => ({ flex: 1000, display: "flex", flexDirection: "column" }),
-    []
-  );
-
   return (
-    <FadeAnimation initial={0} animate={1} style={fadeStyle}>
+    <StyledEmptyPitchList>
       <AnimatedLoadingMascotIllustration
         loading={loading}
         loadedImage={loadedImage}
@@ -127,7 +127,7 @@ const EmptyPitchList = React.memo((props: EmptyPitchListProps): JSX.Element => {
           />
         }
       />
-    </FadeAnimation>
+    </StyledEmptyPitchList>
   );
 });
 
