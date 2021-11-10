@@ -14,11 +14,13 @@ import {
   navigationSetText,
   navigationSetType,
 } from "../modules/impower-navigation";
+import navigationSetTransitioning from "../modules/impower-navigation/utils/navigationSetTransitioning";
 import { BetaBanner } from "../modules/impower-route";
 import Account from "../modules/impower-route-account/components/Account";
 import Footer from "../modules/impower-route-home/components/elements/Footer";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import { useRouter } from "../modules/impower-router";
 
 const StyledAccountPage = styled.div`
   padding-top: ${(props): string => props.theme.minHeight.navigationBar};
@@ -39,7 +41,11 @@ interface AccountPageProps {
 const AccountPage = React.memo((props: AccountPageProps) => {
   const { config } = props;
 
-  const [, navigationDispatch] = useContext(NavigationContext);
+  const [navigationState, navigationDispatch] = useContext(NavigationContext);
+  const transitioning = navigationState?.transitioning;
+
+  const router = useRouter();
+  const routerIsReady = router.isReady;
 
   ConfigCache.instance.set(config);
 
@@ -59,12 +65,18 @@ const AccountPage = React.memo((props: AccountPageProps) => {
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
 
+  useEffect(() => {
+    if (routerIsReady) {
+      navigationDispatch(navigationSetTransitioning(false));
+    }
+  }, [navigationDispatch, routerIsReady]);
+
   return (
     <>
       <StyledAccountPage>
         <BetaBanner />
         <Account />
-        <Footer />
+        {!transitioning && <Footer />}
       </StyledAccountPage>
     </>
   );

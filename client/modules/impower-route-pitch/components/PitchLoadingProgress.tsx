@@ -96,7 +96,7 @@ const PitchLoadingProgress = React.memo(
     return (
       <StyledCircularProgressArea ref={handleRef}>
         {loadingMore ? (
-          <StyledCircularProgress disableShrink color="inherit" size={48} />
+          <StyledCircularProgress color="secondary" />
         ) : loadingMore !== undefined &&
           noMore &&
           (noMoreLabel || refreshLabel) ? (

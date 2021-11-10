@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { FilledInput, IconButton } from "@material-ui/core";
+import { CircularProgress, FilledInput, IconButton } from "@material-ui/core";
 import Accordion from "@material-ui/core/Accordion";
 import AccordionDetails from "@material-ui/core/AccordionDetails";
 import AccordionSummary from "@material-ui/core/AccordionSummary";
@@ -9,7 +9,6 @@ import Divider from "@material-ui/core/Divider";
 import OutlinedInput from "@material-ui/core/OutlinedInput";
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
-import NextLink from "next/link";
 import React, {
   useCallback,
   useContext,
@@ -36,6 +35,8 @@ import { SettingsDocumentInspector } from "../../impower-data-store/classes/insp
 import createSettingsDocument from "../../impower-data-store/utils/createSettingsDocument";
 import { useDialogNavigation } from "../../impower-dialog";
 import { FontIcon } from "../../impower-icon";
+import { NavigationContext } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { TextField } from "../../impower-route";
 import InspectorForm from "../../impower-route/components/forms/InspectorForm";
 import AutocompleteInput from "../../impower-route/components/inputs/AutocompleteInput";
@@ -44,7 +45,6 @@ import FileInput from "../../impower-route/components/inputs/FileInput";
 import InputHelperText from "../../impower-route/components/inputs/InputHelperText";
 import StringDialog from "../../impower-route/components/inputs/StringDialog";
 import StringInput from "../../impower-route/components/inputs/StringInput";
-import { useRouter } from "../../impower-router";
 import { ToastContext, toastTop } from "../../impower-toast";
 import { userOnSetSetting, userOnUpdateSubmission } from "../../impower-user";
 import { UserContext } from "../../impower-user/contexts/userContext";
@@ -67,6 +67,7 @@ const forgotPasswordConfirmationInfo = {
 };
 
 const StyledContainer = styled.div`
+  flex: 1;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -74,6 +75,7 @@ const StyledContainer = styled.div`
 `;
 
 const StyledPaper = styled(Paper)`
+  flex: 1;
   padding: ${(props): string => props.theme.spacing(2, 4, 0, 4)};
   width: 100%;
   max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
@@ -83,6 +85,8 @@ const StyledPaper = styled(Paper)`
     padding: ${(props): string => props.theme.spacing(1, 2, 0, 2)};
     box-shadow: none;
   }
+  display: flex;
+  flex-direction: column;
 `;
 
 const StyledWarningInfoArea = styled.div`
@@ -217,6 +221,19 @@ const StyledAccordionSummary = styled(AccordionSummary)`
   }
 `;
 
+const StyledLoadingArea = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+`;
+
+const StyledCircularProgress = styled(CircularProgress)`
+  min-width: ${(props): string => props.theme.spacing(4)};
+  min-height: ${(props): string => props.theme.spacing(4)};
+`;
+
 const profilePropertyPaths = ["icon", "bio"];
 const settingsPropertyPaths = ["contactMethod", "contact", "nsfwVisible"];
 const labels = {
@@ -228,10 +245,12 @@ const labels = {
 };
 
 const Account = React.memo((): JSX.Element | null => {
+  const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const [userState, userDispatch] = useContext(UserContext);
   const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
   const [, toastDispatch] = useContext(ToastContext);
 
+  const transitioning = navigationState?.transitioning;
   const uid = userState?.uid;
   const email = userState?.email;
   const userDoc = userState?.userDoc;
@@ -263,8 +282,6 @@ const Account = React.memo((): JSX.Element | null => {
   const username = newUserDoc?.username;
 
   const keyboardTriggerRef = useRef<HTMLInputElement>();
-
-  const router = useRouter();
 
   useEffect(() => {
     setRequestedData(dataRequestStatus === "requested");
@@ -552,6 +569,8 @@ const Account = React.memo((): JSX.Element | null => {
         ).default;
         try {
           await deleteCurrentUser(currentPassword);
+          navigationDispatch(navigationSetTransitioning(true));
+          const router = (await import("next/router")).default;
           router.push("/signup");
         } catch (error) {
           const logError = (await import("../../impower-logger/utils/logError"))
@@ -605,7 +624,7 @@ const Account = React.memo((): JSX.Element | null => {
       toastDispatch,
       newPassword,
       username,
-      router,
+      navigationDispatch,
     ]
   );
   const handleProfilePropertyBlur = useCallback(
@@ -746,125 +765,139 @@ const Account = React.memo((): JSX.Element | null => {
       />
     );
   };
+
+  const handleClickViewProfile = useCallback(async () => {
+    navigationDispatch(navigationSetTransitioning(true));
+    const router = (await import("next/router")).default;
+    await router.push(`/u/${username}`);
+  }, [navigationDispatch, username]);
+
   return (
     <>
       <StyledKeyboardTrigger aria-hidden="true" ref={keyboardTriggerRef} />
       <StyledContainer>
         <StyledPaper>
-          <StyledHeaderSentinelArea>
-            <StyledHeaderSentinel id="account" />
-          </StyledHeaderSentinelArea>
-          <StyledHeaderTypography variant="h6">{`Your Account`}</StyledHeaderTypography>
-          <StyledAccountButtonArea>
-            <StyledAccountButton
-              color="inherit"
-              variant="outlined"
-              onClick={handleClickChangeUsername}
-            >
-              <StyledLabel>{labels.username}</StyledLabel>
-              <StyledValueArea>
-                <StyledValue>{username || "---"}</StyledValue>
-              </StyledValueArea>
-            </StyledAccountButton>
-            <StyledAccountButton
-              color="inherit"
-              variant="outlined"
-              onClick={handleClickChangeEmail}
-            >
-              <StyledLabel>{labels.email}</StyledLabel>
-              <StyledValueArea>
-                <StyledValue>{newEmail || "---"}</StyledValue>
-              </StyledValueArea>
-            </StyledAccountButton>
-            <StyledAccountButton
-              color="inherit"
-              variant="outlined"
-              onClick={handleClickChangePassword}
-            >
-              <StyledLabel>{labels.password}</StyledLabel>
-              <StyledValueArea>
-                <StyledValue>{`********`}</StyledValue>
-              </StyledValueArea>
-            </StyledAccountButton>
-          </StyledAccountButtonArea>
-          <StyledDivider />
-          <StyledHeaderSentinelArea>
-            <StyledHeaderSentinel id="profile" />
-          </StyledHeaderSentinelArea>
-          <StyledHeaderTypography variant="h6">{`Your Profile`}</StyledHeaderTypography>
-          <InspectorForm
-            key={`profile-${Boolean(newUserDoc).toString()}`}
-            StringInputComponent={StringInput}
-            FileInputComponent={FileInput}
-            InputComponent={OutlinedInput}
-            data={profileData}
-            propertyPaths={profilePropertyPaths}
-            getInspector={getProfileInspector}
-            onPropertyBlur={handleProfilePropertyBlur}
-          />
-          <NextLink href={`/u/${username}`} passHref prefetch={false}>
-            <StyledAdvancedButton
-              variant="outlined"
-              fullWidth
-            >{`View Public Profile`}</StyledAdvancedButton>
-          </NextLink>
-          <StyledDivider />
-          <StyledHeaderSentinelArea>
-            <StyledHeaderSentinel id="settings" />
-          </StyledHeaderSentinelArea>
-          <StyledHeaderTypography variant="h6">{`Your Settings`}</StyledHeaderTypography>
-          <InspectorForm
-            key={`settings-${Boolean(newSettingsDoc).toString()}-${
-              newSettingsDoc?.contactMethod
-            }-${newSettingsDoc?.contact}`}
-            StringInputComponent={StringInput}
-            FileInputComponent={FileInput}
-            BooleanInputComponent={BooleanInput}
-            InputComponent={OutlinedInput}
-            AutocompleteInputComponent={AutocompleteInput}
-            data={settingsData}
-            propertyPaths={settingsPropertyPaths}
-            getInspector={getSettingsInspector}
-            onPropertyChange={handleSettingsPropertyChange}
-            onPropertyBlur={handleSettingsPropertyBlur}
-          />
-          <StyledDivider />
-          <StyledAccordion>
-            <StyledAccordionSummary
-              expandIcon={
-                <FontIcon
-                  aria-label={`Expand`}
-                  color={theme.palette.grey[600]}
-                  size={24}
-                >
-                  <AngleDownRegularIcon />
-                </FontIcon>
-              }
-              aria-controls="panel1a-content"
-              id="panel1a-header"
-            >
+          {transitioning ? (
+            <StyledLoadingArea>
+              <StyledCircularProgress color="secondary" />
+            </StyledLoadingArea>
+          ) : (
+            <>
               <StyledHeaderSentinelArea>
-                <StyledHeaderSentinel id="advanced" />
+                <StyledHeaderSentinel id="account" />
               </StyledHeaderSentinelArea>
-              <StyledHeaderTypography variant="h6">{`Advanced`}</StyledHeaderTypography>
-            </StyledAccordionSummary>
-            <StyledAccordionDetails>
+              <StyledHeaderTypography variant="h6">{`Your Account`}</StyledHeaderTypography>
+              <StyledAccountButtonArea>
+                <StyledAccountButton
+                  color="inherit"
+                  variant="outlined"
+                  onClick={handleClickChangeUsername}
+                >
+                  <StyledLabel>{labels.username}</StyledLabel>
+                  <StyledValueArea>
+                    <StyledValue>{username || "---"}</StyledValue>
+                  </StyledValueArea>
+                </StyledAccountButton>
+                <StyledAccountButton
+                  color="inherit"
+                  variant="outlined"
+                  onClick={handleClickChangeEmail}
+                >
+                  <StyledLabel>{labels.email}</StyledLabel>
+                  <StyledValueArea>
+                    <StyledValue>{newEmail || "---"}</StyledValue>
+                  </StyledValueArea>
+                </StyledAccountButton>
+                <StyledAccountButton
+                  color="inherit"
+                  variant="outlined"
+                  onClick={handleClickChangePassword}
+                >
+                  <StyledLabel>{labels.password}</StyledLabel>
+                  <StyledValueArea>
+                    <StyledValue>{`********`}</StyledValue>
+                  </StyledValueArea>
+                </StyledAccountButton>
+              </StyledAccountButtonArea>
+              <StyledDivider />
+              <StyledHeaderSentinelArea>
+                <StyledHeaderSentinel id="profile" />
+              </StyledHeaderSentinelArea>
+              <StyledHeaderTypography variant="h6">{`Your Profile`}</StyledHeaderTypography>
+              <InspectorForm
+                key={`profile-${Boolean(newUserDoc).toString()}`}
+                StringInputComponent={StringInput}
+                FileInputComponent={FileInput}
+                InputComponent={OutlinedInput}
+                data={profileData}
+                propertyPaths={profilePropertyPaths}
+                getInspector={getProfileInspector}
+                onPropertyBlur={handleProfilePropertyBlur}
+              />
               <StyledAdvancedButton
                 variant="outlined"
-                color="error"
-                onClick={handleClickDeleteAccount}
-              >{`Delete Account`}</StyledAdvancedButton>
-              <StyledAdvancedButton
-                variant="outlined"
-                color="warning"
-                disabled={requestedData}
-                onClick={handleClickRequestData}
-              >
-                {requestedData ? `Requested Data` : `Request Data`}
-              </StyledAdvancedButton>
-            </StyledAccordionDetails>
-          </StyledAccordion>
-          <StyledBottomDivider />
+                fullWidth
+                onClick={handleClickViewProfile}
+              >{`View Public Profile`}</StyledAdvancedButton>
+              <StyledDivider />
+              <StyledHeaderSentinelArea>
+                <StyledHeaderSentinel id="settings" />
+              </StyledHeaderSentinelArea>
+              <StyledHeaderTypography variant="h6">{`Your Settings`}</StyledHeaderTypography>
+              <InspectorForm
+                key={`settings-${Boolean(newSettingsDoc).toString()}-${
+                  newSettingsDoc?.contactMethod
+                }-${newSettingsDoc?.contact}`}
+                StringInputComponent={StringInput}
+                FileInputComponent={FileInput}
+                BooleanInputComponent={BooleanInput}
+                InputComponent={OutlinedInput}
+                AutocompleteInputComponent={AutocompleteInput}
+                data={settingsData}
+                propertyPaths={settingsPropertyPaths}
+                getInspector={getSettingsInspector}
+                onPropertyChange={handleSettingsPropertyChange}
+                onPropertyBlur={handleSettingsPropertyBlur}
+              />
+              <StyledDivider />
+              <StyledAccordion>
+                <StyledAccordionSummary
+                  expandIcon={
+                    <FontIcon
+                      aria-label={`Expand`}
+                      color={theme.palette.grey[600]}
+                      size={24}
+                    >
+                      <AngleDownRegularIcon />
+                    </FontIcon>
+                  }
+                  aria-controls="panel1a-content"
+                  id="panel1a-header"
+                >
+                  <StyledHeaderSentinelArea>
+                    <StyledHeaderSentinel id="advanced" />
+                  </StyledHeaderSentinelArea>
+                  <StyledHeaderTypography variant="h6">{`Advanced`}</StyledHeaderTypography>
+                </StyledAccordionSummary>
+                <StyledAccordionDetails>
+                  <StyledAdvancedButton
+                    variant="outlined"
+                    color="error"
+                    onClick={handleClickDeleteAccount}
+                  >{`Delete Account`}</StyledAdvancedButton>
+                  <StyledAdvancedButton
+                    variant="outlined"
+                    color="warning"
+                    disabled={requestedData}
+                    onClick={handleClickRequestData}
+                  >
+                    {requestedData ? `Requested Data` : `Request Data`}
+                  </StyledAdvancedButton>
+                </StyledAccordionDetails>
+              </StyledAccordion>
+              <StyledBottomDivider />
+            </>
+          )}
         </StyledPaper>
       </StyledContainer>
       {dialogOpen !== undefined && (

@@ -170,7 +170,7 @@ const PitchContributionList = React.memo(
     const loadingPlaceholder = useMemo(
       () => (
         <StyledLoadingArea>
-          <StyledCircularProgress disableShrink color="inherit" size={48} />
+          <StyledCircularProgress color="secondary" />
         </StyledLoadingArea>
       ),
       []

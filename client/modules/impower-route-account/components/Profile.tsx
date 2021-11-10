@@ -9,7 +9,6 @@ import {
   Typography,
 } from "@material-ui/core";
 import dynamic from "next/dynamic";
-import NextLink from "next/link";
 import React, {
   useCallback,
   useContext,
@@ -22,6 +21,7 @@ import { getDataStoreKey } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { SvgData } from "../../impower-icon";
 import { NavigationContext } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { Tabs } from "../../impower-route";
 import PitchList from "../../impower-route-pitch/components/PitchList";
 import Avatar from "../../impower-route/components/elements/Avatar";
@@ -151,7 +151,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
   const account = settings?.account;
   const contact = account === undefined ? undefined : account?.contact || "";
 
-  const [navigationState] = useContext(NavigationContext);
+  const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
 
   const connectedFrom =
@@ -224,11 +224,17 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
   const loadingPlaceholder = useMemo(
     () => (
       <StyledLoadingArea>
-        <StyledCircularProgress disableShrink color="inherit" size={48} />
+        <StyledCircularProgress color="secondary" />
       </StyledLoadingArea>
     ),
     []
   );
+
+  const handleClickEditProfile = useCallback(async () => {
+    navigationDispatch(navigationSetTransitioning(true));
+    const router = (await import("next/router")).default;
+    await router.push(`/account#profile`);
+  }, [navigationDispatch]);
 
   return (
     <>
@@ -260,12 +266,11 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                     disabled
                   >{`Loading`}</StyledButton>
                 ) : isCurrentUser ? (
-                  <NextLink href={`/account#profile`} passHref prefetch={false}>
-                    <StyledButton
-                      variant="outlined"
-                      size="large"
-                    >{`Edit Profile`}</StyledButton>
-                  </NextLink>
+                  <StyledButton
+                    variant="outlined"
+                    size="large"
+                    onClick={handleClickEditProfile}
+                  >{`Edit Profile`}</StyledButton>
                 ) : (
                   <StyledConnectArea>
                     <StyledButton

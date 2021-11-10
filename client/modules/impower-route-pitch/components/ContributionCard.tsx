@@ -351,9 +351,9 @@ const ContributionCard = React.memo(
     }, [isSignedIn, navigationDispatch, openAccountDialog, url]);
 
     const handleOpenPitchPage = useCallback(async (): Promise<void> => {
-      const router = (await import("next/router")).default;
       // wait a bit for post dialog to close
       await new Promise((resolve) => window.setTimeout(resolve, 1));
+      const router = (await import("next/router")).default;
       navigationDispatch(navigationSetTransitioning(true));
       await router.push(`/p/${pitchId}`);
     }, [navigationDispatch, pitchId]);

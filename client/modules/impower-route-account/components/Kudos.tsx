@@ -159,7 +159,7 @@ const Kudos = React.memo((): JSX.Element | null => {
   const loadingPlaceholder = useMemo(
     () => (
       <StyledLoadingArea>
-        <StyledCircularProgress disableShrink color="inherit" size={48} />
+        <StyledCircularProgress color="secondary" />
       </StyledLoadingArea>
     ),
     []

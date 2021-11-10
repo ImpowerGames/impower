@@ -41,7 +41,7 @@ const KudoList = dynamic(() => import("./KudoList"), {
   ssr: false,
   loading: () => (
     <StyledLoadingArea>
-      <StyledCircularProgress disableShrink color="inherit" size={48} />
+      <StyledCircularProgress color="secondary" />
     </StyledLoadingArea>
   ),
 });
