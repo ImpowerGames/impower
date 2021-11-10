@@ -9,7 +9,10 @@ import { FontIcon } from "../../../impower-icon";
 const StyledBetaWarningButton = styled(Button)<{ hoverable?: boolean }>`
   background-color: ${(props): string => props.theme.palette.secondary.main};
   color: white;
-  padding: ${(props): string => props.theme.spacing(1.5, 0)};
+  padding-top: ${(props): string => props.theme.spacing(1.5)};
+  padding-bottom: ${(props): string => props.theme.spacing(1.5)};
+  padding-right: ${(props): string => props.theme.spacing(2)};
+  width: calc(100% + ${(props): string => props.theme.spacing(1)});
   border-radius: 0;
   text-transform: none;
 
