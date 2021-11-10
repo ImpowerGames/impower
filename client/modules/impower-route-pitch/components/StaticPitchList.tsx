@@ -66,6 +66,7 @@ interface StaticPitchListProps {
   offlinePlaceholder?: React.ReactNode;
   emptyLabel?: string;
   emptySubtitle?: string;
+  onRefresh?: () => void;
 }
 
 const StaticPitchList = React.memo(
@@ -82,6 +83,7 @@ const StaticPitchList = React.memo(
       offlinePlaceholder,
       emptyLabel,
       emptySubtitle,
+      onRefresh,
     } = props;
 
     const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
@@ -264,12 +266,15 @@ const StaticPitchList = React.memo(
     }, [handleLoadTab, nsfwVisible]);
 
     const handleRefresh = useCallback(async (): Promise<void> => {
+      if (onRefresh) {
+        onRefresh();
+      }
       window.scrollTo({ top: 0 });
       cursorIndexRef.current = 0;
       pitchDocsRef.current = {};
       chunkMapRef.current = {};
       await handleLoadTab({ nsfw: nsfwVisible });
-    }, [handleLoadTab, nsfwVisible]);
+    }, [handleLoadTab, nsfwVisible, onRefresh]);
 
     useEffect(() => {
       navigationDispatch(navigationSetTransitioning(false));

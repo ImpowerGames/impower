@@ -9,6 +9,8 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { abbreviateCount } from "../../impower-config";
+import format from "../../impower-config/utils/format";
 import { AggData } from "../../impower-data-state";
 import { NavigationContext } from "../../impower-navigation";
 import { Tabs } from "../../impower-route";
@@ -90,6 +92,11 @@ const StyledOfflineTypography = styled(Typography)`
   opacity: 0.6;
 `;
 
+const tabLabels = [
+  "{count:PITCH|PITCHES}",
+  "{count:CONTRIBUTION|CONTRIBUTIONS}",
+];
+
 const Kudos = React.memo((): JSX.Element | null => {
   const [navigationState] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
@@ -121,13 +128,7 @@ const Kudos = React.memo((): JSX.Element | null => {
     [router]
   );
 
-  useEffect(() => {
-    if (my_kudos === undefined) {
-      return;
-    }
-    if (pitchDataEntries || contributionDataEntries) {
-      return;
-    }
+  const handleRefresh = useCallback(() => {
     const newPitchDataEntries: [string, AggData][] = [];
     const newContributionDataEntries: [string, AggData][] = [];
     Object.entries(my_kudos || {}).forEach(([key, data]) => {
@@ -145,7 +146,17 @@ const Kudos = React.memo((): JSX.Element | null => {
     });
     setPitchDataEntries(newPitchDataEntries);
     setContributionDataEntries(newContributionDataEntries);
-  }, [contributionDataEntries, my_kudos, pitchDataEntries]);
+  }, [my_kudos]);
+
+  useEffect(() => {
+    if (my_kudos === undefined) {
+      return;
+    }
+    if (pitchDataEntries || contributionDataEntries) {
+      return;
+    }
+    handleRefresh();
+  }, [contributionDataEntries, handleRefresh, my_kudos, pitchDataEntries]);
 
   const loadingPlaceholder = useMemo(
     () => (
@@ -155,6 +166,14 @@ const Kudos = React.memo((): JSX.Element | null => {
     ),
     []
   );
+
+  const pitchCount = pitchDataEntries?.length;
+  const pitchCountLabel = pitchCount ? `${abbreviateCount(pitchCount)} ` : "";
+
+  const contributionCount = contributionDataEntries?.length;
+  const contributionCountLabel = contributionCount
+    ? `${abbreviateCount(contributionCount)} `
+    : "";
 
   return (
     <>
@@ -171,8 +190,18 @@ const Kudos = React.memo((): JSX.Element | null => {
                   onChange={handleChange}
                   variant="fullWidth"
                 >
-                  <StyledTab value={0} label={`PITCHES`} />
-                  <StyledTab value={1} label={`CONTRIBUTIONS`} />
+                  <StyledTab
+                    value={0}
+                    label={`${pitchCountLabel}${format(tabLabels[0], {
+                      count: pitchCount || 0,
+                    })}`}
+                  />
+                  <StyledTab
+                    value={1}
+                    label={`${contributionCountLabel}${format(tabLabels[1], {
+                      count: contributionCount || 0,
+                    })}`}
+                  />
                 </StyledTabs>
               </StyledTabsArea>
               <StyledListArea>
@@ -187,6 +216,7 @@ const Kudos = React.memo((): JSX.Element | null => {
                         <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
                       </StyledOfflineArea>
                     }
+                    onRefresh={handleRefresh}
                   />
                 ) : tabIndex === 1 && contributionDataEntries ? (
                   <StaticContributionList
@@ -194,6 +224,7 @@ const Kudos = React.memo((): JSX.Element | null => {
                     emptyLabel={`No Kudoed Contributions`}
                     noMoreLabel={`That's all for now!`}
                     loadingPlaceholder={loadingPlaceholder}
+                    onRefresh={handleRefresh}
                   />
                 ) : (
                   loadingPlaceholder
