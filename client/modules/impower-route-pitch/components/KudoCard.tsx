@@ -17,6 +17,7 @@ import {
   ProjectDocument,
 } from "../../impower-data-store";
 import { FontIcon } from "../../impower-icon";
+import Markdown from "../../impower-route/components/elements/Markdown";
 import KudoCardAction from "./KudoCardAction";
 
 const StyledCard = styled(Card)`
@@ -73,11 +74,8 @@ const StyledSubheaderContent = styled.div`
   align-items: center;
 `;
 
-const StyledSummaryArea = styled.div``;
-
-const StyledTypography = styled(Typography)<{ component?: string }>`
-  overflow-wrap: break-word;
-  word-wrap: break-word;
+const StyledSummaryArea = styled.div`
+  margin: ${(props): string => props.theme.spacing(-2, 0)};
 `;
 
 const StyledKudoUsernameButton = styled(Button)`
@@ -199,9 +197,7 @@ const KudoCardContent = React.memo(
             {content && (
               <StyledCardContent>
                 <StyledSummaryArea>
-                  <StyledTypography variant="body1" component="p">
-                    {content}
-                  </StyledTypography>
+                  <Markdown>{content}</Markdown>
                 </StyledSummaryArea>
               </StyledCardContent>
             )}
