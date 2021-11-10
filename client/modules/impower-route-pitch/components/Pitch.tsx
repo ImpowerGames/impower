@@ -96,6 +96,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       ? "Top"
       : "Trending"
   );
+  const [allowReload, setAllowReload] = useState(!pitchDocs);
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
@@ -132,6 +133,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const handleChangeTab = useCallback(
     (tab: PitchToolbarTab): void => {
+      setAllowReload(true);
       setActiveTab(tab);
       if (followedTags === null) {
         setShouldDisplayFollowingPitches(false);
@@ -192,7 +194,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       <StyledApp>
         <PitchTabsToolbar value={activeTab} onChange={handleChangeTab} />
         <BetaBanner />
-        <StyledListArea key={activeTab}>
+        <StyledListArea>
           {transitioning ? (
             loadingPlaceholder
           ) : activeTab === "Following" && !shouldDisplayFollowingPitches ? (
@@ -205,7 +207,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                 pitchDocs={pitchDocs}
                 tab={activeTab}
                 sortOptions={SORT_OPTIONS}
-                onFollowMore={handleFollowMore}
+                allowReload={allowReload}
                 loadingPlaceholder={loadingPlaceholder}
                 emptyPlaceholder={
                   <EmptyPitchList
@@ -223,6 +225,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                     message={`Looks like you're offline`}
                   />
                 }
+                onFollowMore={handleFollowMore}
               />
               <AddPitchToolbar
                 config={config}
