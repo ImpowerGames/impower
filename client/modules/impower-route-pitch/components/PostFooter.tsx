@@ -21,6 +21,8 @@ const StyledLoadingArea = styled.div`
   min-height: 200px;
   position: relative;
   z-index: 1;
+  justify-content: center;
+  align-items: center;
 `;
 
 const StyledCircularProgress = styled(CircularProgress)`
