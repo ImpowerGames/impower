@@ -19,6 +19,7 @@ interface PitchListContentProps {
   emptyPlaceholder?: React.ReactNode;
   offlinePlaceholder?: React.ReactNode;
   compact?: boolean;
+  dontFade?: boolean;
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
@@ -64,6 +65,7 @@ const PitchListContent = React.memo(
       emptyPlaceholder,
       offlinePlaceholder,
       compact,
+      dontFade,
       onChangeScore,
       onDelete,
       onKudo,
@@ -95,6 +97,7 @@ const PitchListContent = React.memo(
           chunkMap={chunkMap}
           lastLoadedChunk={lastLoadedChunk}
           compact={compact}
+          dontFade={dontFade}
           onChangeScore={onChangeScore}
           onDelete={onDelete}
           onKudo={onKudo}

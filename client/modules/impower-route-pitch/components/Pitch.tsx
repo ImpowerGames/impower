@@ -87,6 +87,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const [shouldDisplayFollowingPitches, setShouldDisplayFollowingPitches] =
     useState<boolean>();
+
   const [activeTab, setActiveTab] = useState<PitchToolbarTab>(
     typeof window !== "undefined" &&
       window.location.search?.toLowerCase() === "?t=following"
@@ -96,7 +97,10 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       ? "Top"
       : "Trending"
   );
-  const [allowReload, setAllowReload] = useState(!pitchDocs);
+
+  const validPitchDocs = activeTab === "Trending" ? pitchDocs : undefined;
+
+  const [allowReload, setAllowReload] = useState(!validPitchDocs);
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
@@ -208,14 +212,14 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
               <PitchList
                 config={config}
                 icons={icons}
-                pitchDocs={pitchDocs}
+                pitchDocs={validPitchDocs}
                 tab={activeTab}
                 sortOptions={SORT_OPTIONS}
                 allowReload={allowReload}
                 loadingPlaceholder={loadingPlaceholder}
                 emptyPlaceholder={
                   <EmptyPitchList
-                    loading={pitchDocs === undefined}
+                    loading={validPitchDocs === undefined}
                     loadedImage={emptyImage}
                     filterLabel={filterLabel}
                     emptySubtitle1={emptySubtitle1}

@@ -111,38 +111,10 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     [my_follows]
   );
 
-  const initialPitchIds = useMemo(() => {
-    return Object.keys(pitchDocs || {});
-  }, [pitchDocs]);
-
-  const initialChunkMap = useMemo(() => {
-    const chunkMap = {};
-    initialPitchIds.forEach((id) => {
-      chunkMap[id] = 0;
-    });
-    return chunkMap;
-  }, [initialPitchIds]);
-
-  const chunkMapRef = useRef<{
-    [id: string]: number;
-  }>(initialChunkMap);
-  const [chunkMap, setChunkMap] = useState<{
-    [id: string]: number;
-  }>(chunkMapRef.current);
-
   const lastLoadedChunkRef = useRef(0);
   const [lastLoadedChunk, setLastLoadedChunk] = useState(
     lastLoadedChunkRef.current
   );
-
-  const loadingMoreRef = useRef<boolean>();
-  const [loadingMore, setLoadingMore] = useState<boolean>();
-  const [loadIcons, setLoadIcons] = useState(false);
-  const noMoreRef = useRef<boolean>(initialPitchIds.length === 0);
-  const [noMore, setNoMore] = useState<boolean>(noMoreRef.current);
-  const [goalFilter, setGoalFilter] = useState<PitchGoalFilter>("All");
-  const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rank");
-  const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
 
   const pitchDocsRef = useRef<{ [id: string]: ProjectDocument }>(pitchDocs);
   const [pitchDocsState, setPitchDocsState] = useState<{
@@ -160,6 +132,37 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
   const [allowReloadState, setAllowReloadState] = useState(
     allowReload !== undefined ? allowReload : !pitchDocsRef.current
   );
+  const [initialLoadComplete, setInitialLoadComplete] = useState(
+    !pitchDocsRef.current
+  );
+
+  const initialPitchIds = useMemo(() => {
+    return Object.keys(pitchDocsRef.current || {});
+  }, []);
+
+  const initialChunkMap = useMemo(() => {
+    const chunkMap = {};
+    initialPitchIds.forEach((id) => {
+      chunkMap[id] = 0;
+    });
+    return chunkMap;
+  }, [initialPitchIds]);
+
+  const chunkMapRef = useRef<{
+    [id: string]: number;
+  }>(initialChunkMap);
+  const [chunkMap, setChunkMap] = useState<{
+    [id: string]: number;
+  }>(chunkMapRef.current);
+
+  const loadingMoreRef = useRef<boolean>();
+  const [loadingMore, setLoadingMore] = useState<boolean>();
+  const [loadIcons, setLoadIcons] = useState(false);
+  const noMoreRef = useRef<boolean>(initialPitchIds.length === 0);
+  const [noMore, setNoMore] = useState<boolean>(noMoreRef.current);
+  const [goalFilter, setGoalFilter] = useState<PitchGoalFilter>("All");
+  const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rank");
+  const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
@@ -495,6 +498,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
           .default;
         logInfo("Route", e.message);
       }
+      setInitialLoadComplete(true);
     },
     [handleLoadMore]
   );
@@ -731,6 +735,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
             emptyPlaceholder={emptyPlaceholder}
             offlinePlaceholder={offlinePlaceholder}
             loadingPlaceholder={loadingPlaceholder}
+            dontFade={!initialLoadComplete}
             onChangeScore={handleChangeScore}
             onDelete={handleDeletePitch}
             onKudo={handleKudo}
