@@ -2,7 +2,13 @@ import styled from "@emotion/styled";
 import { CircularProgress, Divider, Typography } from "@material-ui/core";
 import Paper from "@material-ui/core/Paper";
 import Tab from "@material-ui/core/Tab";
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { AggData } from "../../impower-data-state";
 import { NavigationContext } from "../../impower-navigation";
 import { Tabs } from "../../impower-route";
@@ -48,17 +54,6 @@ const StyledLoadingArea = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-`;
-
-const StyledCircularProgressArea = styled.div`
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
   align-items: center;
   justify-content: center;
 `;
@@ -152,14 +147,21 @@ const Kudos = React.memo((): JSX.Element | null => {
     setContributionDataEntries(newContributionDataEntries);
   }, [contributionDataEntries, my_kudos, pitchDataEntries]);
 
+  const loadingPlaceholder = useMemo(
+    () => (
+      <StyledLoadingArea>
+        <StyledCircularProgress disableShrink color="inherit" size={48} />
+      </StyledLoadingArea>
+    ),
+    []
+  );
+
   return (
     <>
       <StyledContainer>
         <StyledPaper>
           {transitioning ? (
-            <StyledLoadingArea>
-              <StyledCircularProgress color="secondary" size={32} />
-            </StyledLoadingArea>
+            loadingPlaceholder
           ) : (
             <>
               <StyledTabsArea>
@@ -179,11 +181,7 @@ const Kudos = React.memo((): JSX.Element | null => {
                     compact
                     pitchDataEntries={pitchDataEntries}
                     emptyLabel={`No Kudoed Pitches`}
-                    loadingPlaceholder={
-                      <StyledLoadingArea>
-                        <StyledCircularProgress color="secondary" size={32} />
-                      </StyledLoadingArea>
-                    }
+                    loadingPlaceholder={loadingPlaceholder}
                     offlinePlaceholder={
                       <StyledOfflineArea>
                         <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
@@ -195,11 +193,10 @@ const Kudos = React.memo((): JSX.Element | null => {
                     contributionDataEntries={contributionDataEntries}
                     emptyLabel={`No Kudoed Contributions`}
                     noMoreLabel={`That's all for now!`}
+                    loadingPlaceholder={loadingPlaceholder}
                   />
                 ) : (
-                  <StyledCircularProgressArea>
-                    <StyledCircularProgress color="secondary" size={32} />
-                  </StyledCircularProgressArea>
+                  loadingPlaceholder
                 )}
               </StyledListArea>
             </>

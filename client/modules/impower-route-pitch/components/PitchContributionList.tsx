@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import dynamic from "next/dynamic";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -7,7 +8,6 @@ import {
   ProjectDocument,
 } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
-import { Fallback } from "../../impower-route";
 import AddContributionToolbar from "./AddContributionToolbar";
 import ContributionList from "./ContributionList";
 
@@ -24,6 +24,11 @@ const StyledLoadingArea = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+`;
+
+const StyledCircularProgress = styled(CircularProgress)`
+  min-width: ${(props): string => props.theme.spacing(4)};
+  min-height: ${(props): string => props.theme.spacing(4)};
 `;
 
 interface PitchContributionListProps {
@@ -162,6 +167,15 @@ const PitchContributionList = React.memo(
       [pitchDoc?.summary]
     );
 
+    const loadingPlaceholder = useMemo(
+      () => (
+        <StyledLoadingArea>
+          <StyledCircularProgress disableShrink color="inherit" size={48} />
+        </StyledLoadingArea>
+      ),
+      []
+    );
+
     return (
       <>
         <ContributionList
@@ -173,11 +187,7 @@ const PitchContributionList = React.memo(
           emptyLabel={`Feeling Inspired?`}
           emptySubtitle={`Contribute Something!`}
           noMoreLabel={`That's all for now!`}
-          loadingPlaceholder={
-            <StyledLoadingArea>
-              <Fallback />
-            </StyledLoadingArea>
-          }
+          loadingPlaceholder={loadingPlaceholder}
           onEditContribution={handleEditContribution}
           onDeleteContribution={onDeleteContribution}
         >
