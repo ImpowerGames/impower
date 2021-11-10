@@ -1,8 +1,11 @@
 import { useCallback, useEffect } from "react";
 
 export const useBodyPaddingCallback = (
-  attr: "paddingRight" | "right" = "paddingRight",
-  offset: number | string = 0,
+  attr: "paddingRight" | "right" | "marginRight" | "width" = "paddingRight",
+  getPaddedValue: (bodyPadding: string) => string = (
+    bodyPadding: string
+  ): string => bodyPadding,
+  getUnpaddedValue: () => string = (): string => `0`,
   ...elements: HTMLElement[]
 ): void => {
   const documentBody =
@@ -10,42 +13,30 @@ export const useBodyPaddingCallback = (
 
   const handleMutateHtml = useCallback(() => {
     if (elements && documentBody) {
-      const bodyPadding = documentBody.style.paddingRight;
+      const bodyPadding = documentBody.style.paddingRight || "0";
       const isBodyPadded =
         bodyPadding !== undefined &&
         bodyPadding !== null &&
         bodyPadding !== "" &&
         bodyPadding !== "0" &&
         bodyPadding !== "0px";
-      const offsetAttrValue =
-        typeof offset === "number" ? `${offset}px` : offset;
       if (isBodyPadded) {
         if (elements) {
           elements.forEach((el) => {
             if (el) {
-              if (attr === "paddingRight") {
-                el.style.paddingRight = `calc(${offsetAttrValue} + ${bodyPadding})`;
-              }
-              if (attr === "right") {
-                el.style.right = `calc(${offsetAttrValue} + ${bodyPadding})`;
-              }
+              el.style[attr] = getPaddedValue(bodyPadding);
             }
           });
         }
       } else {
         elements.forEach((el) => {
           if (el) {
-            if (attr === "paddingRight") {
-              el.style.paddingRight = offsetAttrValue;
-            }
-            if (attr === "right") {
-              el.style.right = offsetAttrValue;
-            }
+            el.style[attr] = `${getUnpaddedValue()}`;
           }
         });
       }
     }
-  }, [attr, documentBody, elements, offset]);
+  }, [attr, documentBody, elements, getPaddedValue, getUnpaddedValue]);
 
   useEffect(() => {
     if (!documentBody) {

@@ -151,7 +151,12 @@ const PageNavigationBar = (props: PageNavigationBarProps): JSX.Element => {
     []
   );
 
-  useBodyPaddingCallback("paddingRight", 0, headerBackground);
+  useBodyPaddingCallback(
+    "paddingRight",
+    undefined,
+    undefined,
+    headerBackground
+  );
 
   const useAccountDialog = useMemo(() => {
     return !["/signup", "/login", "/confirm"].some((x) =>
