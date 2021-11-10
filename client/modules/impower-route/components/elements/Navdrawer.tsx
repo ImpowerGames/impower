@@ -224,7 +224,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
     async (e: React.MouseEvent): Promise<void> => {
       handleClose(e);
       // wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 50));
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
       openAccountDialog("signup");
     },
     [handleClose, openAccountDialog]
@@ -233,7 +233,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
     async (e: React.MouseEvent): Promise<void> => {
       handleClose(e);
       // wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 50));
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
       openAccountDialog("login");
     },
     [handleClose, openAccountDialog]
@@ -249,7 +249,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
         handleClose(e);
         if (href) {
           // wait a bit for dialog to close
-          await new Promise((resolve) => window.setTimeout(resolve, 50));
+          await new Promise((resolve) => window.setTimeout(resolve, 100));
           router.push(href);
         }
       }
@@ -260,7 +260,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
     async (e: React.MouseEvent): Promise<void> => {
       handleClose(e);
       // wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 50));
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
       router.push("/");
     },
     [handleClose, router]
@@ -270,7 +270,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
     async (e: React.MouseEvent): Promise<void> => {
       handleClose(e);
       // wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 50));
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
     },
     [handleClose]
   );
