@@ -1,3 +1,4 @@
+import styled from "@emotion/styled";
 import dynamic from "next/dynamic";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -16,6 +17,14 @@ const CreateContributionDialog = dynamic(
   () => import("./CreateContributionDialog"),
   { ssr: false }
 );
+
+const StyledLoadingArea = styled.div`
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
 
 interface PitchContributionListProps {
   scrollParent?: HTMLElement;
@@ -164,7 +173,11 @@ const PitchContributionList = React.memo(
           emptyLabel={`Feeling Inspired?`}
           emptySubtitle={`Contribute Something!`}
           noMoreLabel={`That's all for now!`}
-          loadingPlaceholder={<Fallback />}
+          loadingPlaceholder={
+            <StyledLoadingArea>
+              <Fallback />
+            </StyledLoadingArea>
+          }
           onEditContribution={handleEditContribution}
           onDeleteContribution={onDeleteContribution}
         >
