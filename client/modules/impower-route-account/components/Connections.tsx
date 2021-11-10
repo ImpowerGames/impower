@@ -250,9 +250,9 @@ const Connections = React.memo((): JSX.Element | null => {
   const outgoingRequests = useMemo(
     () =>
       connects !== undefined && my_connects !== undefined
-        ? Object.entries(my_connects || {}).filter(
-            ([key, data]) => !connects?.[key.split("%")[1]] && !data.r
-          )
+        ? Object.entries(my_connects || {})
+            .map(([key, data]): [string, AggData] => [key.split("%")[1], data])
+            .filter(([id, data]) => !connects?.[id] && !data.r)
         : undefined,
     [connects, my_connects]
   );
