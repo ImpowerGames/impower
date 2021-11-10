@@ -28,6 +28,7 @@ import {
 } from "../../modules/impower-data-store";
 import DataStoreCache from "../../modules/impower-data-store/classes/dataStoreCache";
 import { useDialogNavigation } from "../../modules/impower-dialog";
+import HistoryState from "../../modules/impower-dialog/classes/historyState";
 import {
   IconLibraryContext,
   iconLibraryRegister,
@@ -298,7 +299,11 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
 
   const handleBack = useCallback(async () => {
     const router = (await import("next/router")).default;
-    router.push("/pitch");
+    if (HistoryState.instance.prev) {
+      router.back();
+    } else {
+      router.replace("/pitch");
+    }
   }, []);
 
   const handleViewArchived = useCallback(async (value: ProjectDocument) => {

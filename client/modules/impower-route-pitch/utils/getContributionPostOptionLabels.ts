@@ -17,7 +17,8 @@ const getContributionPostOptionLabels = (props: {
   const postDefaultOptions = delisted
     ? {}
     : {
-        Link: "Copy Link",
+        OpenPitch: "Open Pitch Page",
+        Link: "Copy Contribution Link",
         Via: "Share via...",
       };
 

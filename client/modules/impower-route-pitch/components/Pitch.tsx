@@ -87,7 +87,15 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const [shouldDisplayFollowingPitches, setShouldDisplayFollowingPitches] =
     useState<boolean>();
-  const [activeTab, setActiveTab] = useState<PitchToolbarTab>("Trending");
+  const [activeTab, setActiveTab] = useState<PitchToolbarTab>(
+    typeof window !== "undefined" &&
+      window.location.search?.toLowerCase() === "?t=following"
+      ? "Following"
+      : typeof window !== "undefined" &&
+        window.location.search?.toLowerCase() === "?t=top"
+      ? "Top"
+      : "Trending"
+  );
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
@@ -131,6 +139,11 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       if (followedTags?.length > 0) {
         setShouldDisplayFollowingPitches(true);
       }
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `/pitch?t=${tab.toLowerCase()}`
+      );
     },
     [followedTags]
   );

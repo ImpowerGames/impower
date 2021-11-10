@@ -16,7 +16,6 @@ import { NavigationContext } from "../../impower-navigation";
 import { Tabs } from "../../impower-route";
 import StaticContributionList from "../../impower-route-pitch/components/StaticContributionList";
 import StaticPitchList from "../../impower-route-pitch/components/StaticPitchList";
-import { useRouter } from "../../impower-router";
 import { UserContext } from "../../impower-user";
 
 const StyledContainer = styled.div`
@@ -103,7 +102,7 @@ const Kudos = React.memo((): JSX.Element | null => {
   const [userState] = useContext(UserContext);
   const [tabIndex, setTabIndex] = useState(
     typeof window !== "undefined" &&
-      window.location.search === "?t=contributions"
+      window.location.search?.toLowerCase() === "?t=contributions"
       ? 1
       : 0
   );
@@ -114,19 +113,18 @@ const Kudos = React.memo((): JSX.Element | null => {
 
   const { my_kudos } = userState;
 
-  const router = useRouter();
-
-  const handleChange = useCallback(
-    (e: React.ChangeEvent, value: number) => {
-      setTabIndex(value);
-      if (value === 0) {
-        router.replace(`?t=pitches`);
-      } else {
-        router.replace(`?t=contributions`);
-      }
-    },
-    [router]
-  );
+  const handleChange = useCallback((e: React.ChangeEvent, value: number) => {
+    setTabIndex(value);
+    if (value === 0) {
+      window.history.replaceState(window.history.state, "", `/kudos?t=pitches`);
+    } else {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `/kudos?t=contributions`
+      );
+    }
+  }, []);
 
   const handleRefresh = useCallback(() => {
     const newPitchDataEntries: [string, AggData][] = [];

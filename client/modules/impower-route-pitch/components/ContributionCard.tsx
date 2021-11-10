@@ -11,6 +11,8 @@ import {
   ProjectDocument,
 } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
+import { NavigationContext } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import {
   UserContext,
   userDoConnect,
@@ -119,6 +121,7 @@ const ContributionCard = React.memo(
     const createdBy = doc?._createdBy;
     const delisted = doc?.delisted;
 
+    const [, navigationDispatch] = useContext(NavigationContext);
     const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
     const [userState, userDispatch] = useContext(UserContext);
     const {
@@ -340,11 +343,20 @@ const ContributionCard = React.memo(
         openAccountDialog("signup");
         return;
       }
+      // wait a bit for post dialog to close
+      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      navigationDispatch(navigationSetTransitioning(true));
+      const router = (await import("next/router")).default;
+      router.push(`/report?url=${escapeURI(url)}`);
+    }, [isSignedIn, navigationDispatch, openAccountDialog, url]);
+
+    const handleOpenPitchPage = useCallback(async (): Promise<void> => {
       const router = (await import("next/router")).default;
       // wait a bit for post dialog to close
       await new Promise((resolve) => window.setTimeout(resolve, 1));
-      router.push(`/report?url=${escapeURI(url)}`);
-    }, [isSignedIn, openAccountDialog, url]);
+      navigationDispatch(navigationSetTransitioning(true));
+      await router.push(`/p/${pitchId}`);
+    }, [navigationDispatch, pitchId]);
 
     const handlePostMenuOption = useCallback(
       async (e: React.MouseEvent, option: string): Promise<void> => {
@@ -387,12 +399,16 @@ const ContributionCard = React.memo(
         if (option === "Report") {
           handleReport();
         }
+        if (option === "OpenPitch") {
+          handleOpenPitchPage();
+        }
       },
       [
         followedUser,
         handleClosePostMenu,
         handleDelete,
         handleFollowUser,
+        handleOpenPitchPage,
         handleReport,
         onEdit,
         url,
