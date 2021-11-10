@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { ConfigParameters } from "../../impower-config";
 import { AggData } from "../../impower-data-state";
 import {
@@ -7,7 +7,6 @@ import {
   useDataStoreConnectionStatus,
 } from "../../impower-data-store";
 import { SvgData } from "../../impower-icon";
-import { FadeAnimation } from "../../impower-route";
 import PopulatedPitchList from "./PopulatedPitchList";
 
 interface PitchListContentProps {
@@ -73,11 +72,6 @@ const PitchListContent = React.memo(
       onDeleteContribution,
     } = props;
 
-    const fadeStyle: React.CSSProperties = useMemo(
-      () => ({ flex: 1000, display: "flex", flexDirection: "column" }),
-      []
-    );
-
     const isOnline = useDataStoreConnectionStatus();
 
     if (pitchDocs === undefined && isOnline === false) {
@@ -89,15 +83,7 @@ const PitchListContent = React.memo(
     }
 
     if (Object.keys(pitchDocs).length === 0) {
-      return (
-        <>
-          {emptyPlaceholder && (
-            <FadeAnimation initial={0} animate={1} style={fadeStyle}>
-              {emptyPlaceholder}
-            </FadeAnimation>
-          )}
-        </>
-      );
+      return <>{emptyPlaceholder}</>;
     }
 
     return (

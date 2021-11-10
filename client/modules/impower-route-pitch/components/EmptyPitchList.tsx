@@ -1,6 +1,7 @@
 import styled from "@emotion/styled";
 import Typography from "@material-ui/core/Typography";
-import React from "react";
+import React, { useMemo } from "react";
+import { FadeAnimation } from "../../impower-route";
 import AnimatedLoadingMascotIllustration from "../../impower-route/components/illustrations/AnimatedLoadingMascotIllustration";
 
 const StyledMark = styled.mark`
@@ -104,22 +105,29 @@ const EmptyPitchList = React.memo((props: EmptyPitchListProps): JSX.Element => {
     loadingMessage,
   } = props;
 
+  const fadeStyle: React.CSSProperties = useMemo(
+    () => ({ flex: 1000, display: "flex", flexDirection: "column" }),
+    []
+  );
+
   return (
-    <AnimatedLoadingMascotIllustration
-      loading={loading}
-      loadedImage={loadedImage}
-      loadingMessage={loadingMessage}
-      loadedMessage={
-        <EmptyPitchListText
-          filterLabel={filterLabel}
-          searchLabel={searchLabel}
-          emptySubtitle1={emptySubtitle1}
-          emptySubtitle2={emptySubtitle2}
-          emptyLabelStyle={emptyLabelStyle}
-          searchLabelStyle={searchLabelStyle}
-        />
-      }
-    />
+    <FadeAnimation initial={0} animate={1} style={fadeStyle}>
+      <AnimatedLoadingMascotIllustration
+        loading={loading}
+        loadedImage={loadedImage}
+        loadingMessage={loadingMessage}
+        loadedMessage={
+          <EmptyPitchListText
+            filterLabel={filterLabel}
+            searchLabel={searchLabel}
+            emptySubtitle1={emptySubtitle1}
+            emptySubtitle2={emptySubtitle2}
+            emptyLabelStyle={emptyLabelStyle}
+            searchLabelStyle={searchLabelStyle}
+          />
+        }
+      />
+    </FadeAnimation>
   );
 });
 

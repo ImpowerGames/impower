@@ -69,6 +69,7 @@ interface PitchListProps {
   offlinePlaceholder?: React.ReactNode;
   emptyLabel?: string;
   emptySubtitle?: string;
+  allowReload?: boolean;
   onFollowMore?: (open: boolean) => void;
 }
 
@@ -89,6 +90,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     offlinePlaceholder,
     emptyLabel,
     emptySubtitle,
+    allowReload,
     onFollowMore,
   } = props;
 
@@ -155,13 +157,31 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
   }>({});
   const loadingKey = useRef<string>();
   const cacheKeys = useRef<Set<string>>(new Set());
-  const [allowReload, setAllowReload] = useState(!pitchDocsRef.current);
+  const [allowReloadState, setAllowReloadState] = useState(
+    allowReload !== undefined ? allowReload : !pitchDocsRef.current
+  );
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
 
   const recentPitchDocs = my_recent_pitched_projects;
   const recentPitchDocsRef = useRef(recentPitchDocs);
+
+  const handleAllowReload = useCallback(() => {
+    lastLoadedChunkRef.current = 0;
+    cursorsByTagRef.current = {};
+    pitchDocsByTagRef.current = {};
+    pitchDocsRef.current = {};
+    chunkMapRef.current = {};
+    DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
+    setAllowReloadState(true);
+  }, []);
+
+  useEffect(() => {
+    if (allowReload) {
+      handleAllowReload();
+    }
+  }, [allowReload, handleAllowReload]);
 
   useEffect(() => {
     recentPitchDocsRef.current = recentPitchDocs || {};
@@ -545,7 +565,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     if ([nsfwVisible, followedTags].some((x) => x === undefined)) {
       return;
     }
-    if (!allowReload) {
+    if (!allowReloadState) {
       return;
     }
     cursorsByTagRef.current = {};
@@ -569,7 +589,7 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     });
   }, [
     tab,
-    allowReload,
+    allowReloadState,
     followedTags,
     goalFilter,
     handleLoadTab,
@@ -580,16 +600,6 @@ const PitchList = React.memo((props: PitchListProps): JSX.Element => {
     creator,
     navigationDispatch,
   ]);
-
-  const handleAllowReload = useCallback(() => {
-    lastLoadedChunkRef.current = 0;
-    cursorsByTagRef.current = {};
-    pitchDocsByTagRef.current = {};
-    pitchDocsRef.current = {};
-    chunkMapRef.current = {};
-    DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
-    setAllowReload(true);
-  }, []);
 
   const handleChangeGoalFilter = useCallback(
     async (e: React.MouseEvent, value: PitchGoalFilter): Promise<void> => {
