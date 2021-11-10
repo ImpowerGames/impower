@@ -224,7 +224,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
   const loadingPlaceholder = useMemo(
     () => (
       <StyledLoadingArea>
-        <StyledCircularProgress color="secondary" size={32} />
+        <StyledCircularProgress disableShrink color="inherit" size={48} />
       </StyledLoadingArea>
     ),
     []

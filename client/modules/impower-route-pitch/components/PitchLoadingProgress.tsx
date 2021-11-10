@@ -20,6 +20,8 @@ const StyledCircularProgressArea = styled.div`
 
 const StyledCircularProgress = styled(CircularProgress)`
   pointer-events: none;
+  min-width: ${(props): string => props.theme.spacing(4)};
+  min-height: ${(props): string => props.theme.spacing(4)};
 `;
 
 const StyledNoMoreArea = styled.div`

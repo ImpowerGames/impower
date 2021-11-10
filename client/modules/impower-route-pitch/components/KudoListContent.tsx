@@ -1,11 +1,25 @@
+import styled from "@emotion/styled";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import React, { useMemo } from "react";
 import { AggData } from "../../impower-data-state";
 import {
   ContributionDocument,
   ProjectDocument,
 } from "../../impower-data-store";
-import Fallback from "../../impower-route/components/layouts/Fallback";
 import PopulatedKudoList from "./PopulatedKudoList";
+
+const StyledLoadingArea = styled.div`
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const StyledCircularProgress = styled(CircularProgress)`
+  min-width: ${(props): string => props.theme.spacing(4)};
+  min-height: ${(props): string => props.theme.spacing(4)};
+`;
 
 interface KudoListContentProps {
   targetId: string;
@@ -24,8 +38,17 @@ const KudoListContent = React.memo(
       [kudos]
     );
 
+    const loadingPlaceholder = useMemo(
+      () => (
+        <StyledLoadingArea>
+          <StyledCircularProgress disableShrink color="inherit" size={48} />
+        </StyledLoadingArea>
+      ),
+      []
+    );
+
     if (!kudoEntries) {
-      return <Fallback disableShrink />;
+      return loadingPlaceholder;
     }
 
     if (kudoEntries?.length === 0) {

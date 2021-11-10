@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import CircularProgress from "@material-ui/core/CircularProgress";
 import Divider from "@material-ui/core/Divider";
 import dynamic from "next/dynamic";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -8,7 +9,7 @@ import {
   isProjectDocument,
   ProjectDocument,
 } from "../../impower-data-store";
-import { Fallback, Tabs } from "../../impower-route";
+import { Tabs } from "../../impower-route";
 import PitchContributionList from "./PitchContributionList";
 import PitchPostTab from "./PitchPostTab";
 
@@ -22,6 +23,11 @@ const StyledLoadingArea = styled.div`
   z-index: 1;
 `;
 
+const StyledCircularProgress = styled(CircularProgress)`
+  min-width: ${(props): string => props.theme.spacing(4)};
+  min-height: ${(props): string => props.theme.spacing(4)};
+`;
+
 type Mode = "kudo" | "contribute";
 
 const tabLabels: { [type in Mode]: string } = {
@@ -33,7 +39,7 @@ const KudoList = dynamic(() => import("./KudoList"), {
   ssr: false,
   loading: () => (
     <StyledLoadingArea>
-      <Fallback disableShrink />
+      <StyledCircularProgress disableShrink color="inherit" size={48} />
     </StyledLoadingArea>
   ),
 });
