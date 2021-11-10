@@ -10,8 +10,7 @@ import { useBodyPaddingCallback } from "../../hooks/useBodyPaddingCallback";
 const StyledBetaWarningButton = styled(Button)<{ hoverable?: boolean }>`
   background-color: ${(props): string => props.theme.palette.secondary.main};
   color: white;
-  padding-top: ${(props): string => props.theme.spacing(1.5)};
-  padding-bottom: ${(props): string => props.theme.spacing(1.5)};
+  padding: ${(props): string => props.theme.spacing(1.5, 0)};
   border-radius: 0;
   text-transform: none;
 
