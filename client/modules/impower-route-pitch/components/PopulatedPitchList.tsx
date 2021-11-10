@@ -69,6 +69,7 @@ interface VirtualizedPitchCardProps {
   chunkIndex?: number;
   itemIndex?: number;
   compact?: boolean;
+  dontFade?: boolean;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onChangeScore?: (
     e: React.MouseEvent,
@@ -115,6 +116,7 @@ const VirtualizedPitchCard = React.memo((props: VirtualizedPitchCardProps) => {
     chunkIndex,
     itemIndex,
     compact,
+    dontFade,
     onDelete,
     onChangeScore,
     onKudo,
@@ -465,7 +467,7 @@ const VirtualizedPitchCard = React.memo((props: VirtualizedPitchCardProps) => {
   return (
     <StyledCardArea>
       <StyledFadeArea
-        initial={0}
+        initial={dontFade ? 1 : 0}
         animate={1}
         duration={0.15}
         style={fadeAreaStyle}
@@ -558,6 +560,7 @@ interface VirtualizedPitchChunkProps {
   chunkEntries?: [string, ProjectDocument][];
   chunkNodes?: HtmlPortalNode<React.Component>[];
   compact?: boolean;
+  dontFade?: boolean;
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
@@ -605,6 +608,7 @@ const VirtualizedPitchChunk = React.memo(
       chunkEntries,
       chunkNodes,
       compact,
+      dontFade,
       onChangeScore,
       onDelete,
       onKudo,
@@ -700,6 +704,7 @@ const VirtualizedPitchChunk = React.memo(
                   id={id}
                   doc={doc}
                   compact={compact}
+                  dontFade={dontFade}
                   onChangeScore={onChangeScore}
                   onDelete={onDelete}
                   onKudo={onKudo}
@@ -748,6 +753,7 @@ const VirtualizedPitchChunk = React.memo(
                   chunkIndex={chunkIndex}
                   itemIndex={itemIndex}
                   compact={compact}
+                  dontFade={dontFade}
                   onChangeScore={onChangeScore}
                   onDelete={onDelete}
                   onKudo={onKudo}
@@ -784,6 +790,7 @@ interface PopulatedPitchListProps {
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
   compact?: boolean;
+  dontFade?: boolean;
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
@@ -826,6 +833,7 @@ const PopulatedPitchList = React.memo(
       chunkMap,
       lastLoadedChunk,
       compact,
+      dontFade,
       onChangeScore,
       onDelete,
       onKudo,
@@ -957,6 +965,7 @@ const PopulatedPitchList = React.memo(
                   chunkEntries={chunkEntries}
                   chunkNodes={nodes.current[chunkIndex]}
                   compact={compact}
+                  dontFade={dontFade}
                   onChangeScore={onChangeScore}
                   onDelete={onDelete}
                   onKudo={onKudo}
