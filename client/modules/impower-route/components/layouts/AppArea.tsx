@@ -98,6 +98,7 @@ const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
     useContext(ConfirmDialogContext);
 
   const processingRef = useRef(false);
+  const [processing, setProcessing] = useState(false);
 
   const handleToastClose = useCallback(() => {
     toastDispatch(toastClose());
@@ -141,6 +142,7 @@ const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
 
   const handleProcessing = useCallback((processing: boolean) => {
     processingRef.current = processing;
+    setProcessing(processing);
   }, []);
 
   return (
@@ -215,6 +217,7 @@ const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
         <AccountDialog
           open={accountDialogOpen || false}
           type={appDialogOpenKey}
+          closeDisabled={processing}
           onClose={handleNavCloseAccountDialog}
           onProcessing={handleProcessing}
           onChangeType={setAppDialogOpenKey}

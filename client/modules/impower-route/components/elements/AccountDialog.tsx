@@ -75,13 +75,15 @@ const GrowTransition = React.forwardRef(function Transition(
 interface AccountDialogProps {
   open: boolean;
   type: string;
+  closeDisabled?: boolean;
   onClose: () => void;
   onProcessing?: (processing: boolean) => void;
   onChangeType?: (type: string) => void;
 }
 
 const AccountDialog = React.memo((props: AccountDialogProps): JSX.Element => {
-  const { open, type, onClose, onProcessing, onChangeType } = props;
+  const { open, type, closeDisabled, onClose, onProcessing, onChangeType } =
+    props;
 
   const bodyColor = useRef<string>();
 
@@ -143,7 +145,7 @@ const AccountDialog = React.memo((props: AccountDialogProps): JSX.Element => {
       {type?.startsWith("contact") && <Contact id={type.split("_")[1]} />}
       <StyledHeader>
         {onClose && (
-          <StyledIconButton onClick={onClose}>
+          <StyledIconButton disabled={closeDisabled} onClick={onClose}>
             <FontIcon
               aria-label="Back"
               color={theme.palette.primary.light}

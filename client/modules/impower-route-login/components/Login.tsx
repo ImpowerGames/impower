@@ -189,6 +189,9 @@ const LoginForm = React.memo((props: LoginFormProps): JSX.Element | null => {
     setEmailError(emailError);
     setPasswordError(passwordError);
     if (emailError || passwordError) {
+      if (onProcessing) {
+        onProcessing(false);
+      }
       return;
     }
     setProgress(true);

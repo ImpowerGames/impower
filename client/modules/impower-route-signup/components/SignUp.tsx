@@ -451,6 +451,9 @@ const SignUp = React.memo((props: SignUpProps): JSX.Element => {
     async (captcha?: string) => {
       const error = await hasErrors();
       if (error) {
+        if (onProcessing) {
+          onProcessing(false);
+        }
         return;
       }
       const username = usernameInputRef.current?.value?.trim();
