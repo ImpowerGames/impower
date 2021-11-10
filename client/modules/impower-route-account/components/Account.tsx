@@ -57,7 +57,7 @@ const usernameWrong = "The username you entered was incorrect.";
 const forgotPasswordQuestion = "Forgot password?";
 const passwordResetEmailSent =
   "You should receive an email that explains how to reset your password.";
-const signupUsernameAlreadyExists = "Username is already taken.";
+const usernameAlreadyExists = "Username is already taken.";
 
 const forgotPasswordConfirmationInfo = {
   title: "Reset Your Password?",
@@ -463,12 +463,13 @@ const Account = React.memo((): JSX.Element | null => {
         const DataStoreRead = (
           await import("../../impower-data-store/classes/dataStoreRead")
         ).default;
+        const API = (await import("../../impower-api/classes/api")).default;
         const snapshot = await new DataStoreRead(
           "handles",
           newValue.toLowerCase()
         ).get();
         if (snapshot.exists()) {
-          setDialogError(signupUsernameAlreadyExists);
+          setDialogError(usernameAlreadyExists);
           return false;
         }
         setNewUserDoc(updatedDoc);
@@ -477,6 +478,7 @@ const Account = React.memo((): JSX.Element | null => {
             userOnUpdateSubmission(resolve, updatedDoc, "users", uid)
           )
         );
+        await API.instance.updateProfileClaims();
       }
       if (dialogProperty === "email") {
         setNewEmail(newValue);
@@ -622,6 +624,10 @@ const Account = React.memo((): JSX.Element | null => {
       );
       if (propertyPath === "bio") {
         setSavingBio(false);
+      }
+      if (propertyPath === "icon") {
+        const API = (await import("../../impower-api/classes/api")).default;
+        await API.instance.updateProfileClaims();
       }
     },
     [newUserDoc, uid, userDispatch]

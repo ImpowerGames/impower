@@ -103,6 +103,37 @@ class API {
     }
   }
 
+  async updateProfileClaims(): Promise<UserClaims> {
+    try {
+      const Auth = (await import("../../impower-auth/classes/auth")).default;
+      const token = await Auth.instance.currentUser.getIdToken(true);
+      const response = await fetch("/api/updateProfileClaims", {
+        method: "POST",
+        body: JSON.stringify({ token }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = (await response.json()) as {
+        message?: string;
+      };
+      if (!response.ok) {
+        throw new Error(result.message);
+      }
+      const getClaims = (await import("../../impower-auth/utils/getClaims"))
+        .default;
+      const claims = await getClaims(true);
+      const logInfo = (await import("../../impower-logger/utils/logInfo"))
+        .default;
+      logInfo("API", "UPDATED PROFILE CLAIMS", claims);
+      Auth.instance.claims = claims;
+      return claims;
+    } catch (error) {
+      const logError = (await import("../../impower-logger/utils/logError"))
+        .default;
+      logError("API", error);
+      throw error;
+    }
+  }
+
   async login(info: {
     email: string;
     password: string;
