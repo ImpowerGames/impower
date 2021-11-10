@@ -86,4 +86,37 @@ export class SettingsDocumentInspector implements Inspector<SettingsDocument> {
     }
     return undefined;
   }
+
+  isPropertyRequired(propertyPath: string, _data: SettingsDocument): boolean {
+    if (propertyPath === "contact") {
+      return true;
+    }
+    return undefined;
+  }
+
+  async getPropertyError(
+    propertyPath: string,
+    data: SettingsDocument,
+    value: string,
+    _docIds: string[]
+  ): Promise<string | null> {
+    if (this?.isPropertyRequired?.(propertyPath, data)) {
+      if (!value) {
+        return `${this?.getPropertyLabel(propertyPath, data)} is required`;
+      }
+    }
+    if (propertyPath === "contact") {
+      if (data.contactMethod === "email") {
+        if (!value?.includes("@")) {
+          return "Please enter a valid email.";
+        }
+      }
+      if (data.contactMethod === "discord") {
+        if (!value?.match(/^.{3,32}#[0-9]{4}$/)) {
+          return "Please enter a valid discord username including # and your 4 digit tag.";
+        }
+      }
+    }
+    return undefined;
+  }
 }

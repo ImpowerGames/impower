@@ -288,6 +288,13 @@ const Connections = React.memo((): JSX.Element | null => {
     []
   );
 
+  const handleCopy = useCallback((e: React.MouseEvent, value: string) => {
+    e.stopPropagation();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(value);
+    }
+  }, []);
+
   const handleIgnore = useCallback(
     async (e: React.MouseEvent, id: string) => {
       e.preventDefault();
@@ -529,7 +536,7 @@ const Connections = React.memo((): JSX.Element | null => {
                                   ) : undefined
                                 }
                               />
-                              {data?.c && data?.c?.includes("@") && (
+                              {data?.c && data?.c?.includes("@") ? (
                                 <StyledButton
                                   variant="outlined"
                                   href={`mailto:${data?.c}`}
@@ -539,7 +546,18 @@ const Connections = React.memo((): JSX.Element | null => {
                                 >
                                   {`Contact`}
                                 </StyledButton>
-                              )}
+                              ) : data?.c ? (
+                                <StyledButton
+                                  variant="outlined"
+                                  onMouseDown={handleBlockRipplePropogation}
+                                  onTouchStart={handleBlockRipplePropogation}
+                                  onClick={(e: React.MouseEvent): void => {
+                                    handleCopy(e, data?.c);
+                                  }}
+                                >
+                                  {`Copy`}
+                                </StyledButton>
+                              ) : null}
                             </StyledListItemButton>
                             <StyledItemDivider variant="inset" absolute />
                           </StyledListItem>

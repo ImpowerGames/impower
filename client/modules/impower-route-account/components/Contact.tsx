@@ -1,5 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
+import { ButtonProps } from "@material-ui/core/Button";
 import OutlinedInput from "@material-ui/core/OutlinedInput";
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
@@ -13,7 +14,6 @@ import React, {
 import { SettingsDocumentInspector } from "../../impower-data-store/classes/inspectors/settingsDocumentInspector";
 import createSettingsDocument from "../../impower-data-store/utils/createSettingsDocument";
 import { useDialogNavigation } from "../../impower-dialog";
-import { DynamicLoadingButton } from "../../impower-route";
 import InspectorForm from "../../impower-route/components/forms/InspectorForm";
 import AutocompleteInput from "../../impower-route/components/inputs/AutocompleteInput";
 import BooleanInput from "../../impower-route/components/inputs/BooleanInput";
@@ -22,7 +22,6 @@ import StringInput from "../../impower-route/components/inputs/StringInput";
 import { UserContext, userOnSetSetting } from "../../impower-user";
 import { userOnDoConnect } from "../../impower-user/types/actions/userOnDoConnectAction";
 
-const submit = "Save";
 const title = "How should connections contact you?";
 
 const settingsPropertyPaths = ["contactMethod", "contact"];
@@ -45,15 +44,6 @@ const StyledTitleTypography = styled(Typography)`
   padding: ${(props): string => props.theme.spacing(1)};
   font-weight: ${(props): number => props.theme.fontWeight.bold};
   margin-bottom: ${(props): string => props.theme.spacing(1)};
-`;
-
-const StyledForm = styled.form`
-  width: 100%;
-  margin-top: ${(props): string => props.theme.spacing(1)};
-`;
-
-const StyledSubmitButton = styled(DynamicLoadingButton)`
-  margin: ${(props): string => props.theme.spacing(1.5, 0, 2)};
 `;
 
 const StyledContainer = styled.div`
@@ -84,7 +74,6 @@ const Contact = React.memo((props: ContactProps): JSX.Element => {
   const settingsDoc = settings?.account;
 
   const [newSettingsDoc, setNewSettingsDoc] = useState(settingsDoc);
-  const [progress, setProgress] = useState(false);
 
   const theme = useTheme();
 
@@ -143,11 +132,9 @@ const Contact = React.memo((props: ContactProps): JSX.Element => {
   const handleSubmit = useCallback(
     async (e: React.FormEvent | React.MouseEvent) => {
       e.preventDefault();
-      setProgress(true);
       if (onProcessing) {
         onProcessing(true);
       }
-      setProgress(true);
       await new Promise<void>((resolve) =>
         userDispatch(userOnSetSetting(resolve, newSettingsDoc, "account"))
       );
@@ -166,42 +153,41 @@ const Contact = React.memo((props: ContactProps): JSX.Element => {
 
   const DialogProps = useMemo(() => ({ style: { zIndex: 3000 } }), []);
 
+  const submitButtonProps: ButtonProps = useMemo(
+    () => ({
+      fullWidth: true,
+      variant: "contained",
+      color: "primary",
+      size: "large",
+    }),
+    []
+  );
+
   return (
     <StyledPaper>
       <StyledContainer>
         <StyledTitleTypography variant="h5">{title}</StyledTitleTypography>
-        <StyledForm method="post" noValidate onSubmit={handleSubmit}>
-          <StyledGrid style={{ marginBottom: theme.spacing(1.5) }}>
-            <InspectorForm
-              key={`settings-${Boolean(newSettingsDoc).toString()}-${
-                newSettingsDoc?.contactMethod
-              }-${newSettingsDoc?.contact}`}
-              StringInputComponent={StringInput}
-              FileInputComponent={FileInput}
-              BooleanInputComponent={BooleanInput}
-              InputComponent={OutlinedInput}
-              AutocompleteInputComponent={AutocompleteInput}
-              data={settingsData}
-              propertyPaths={settingsPropertyPaths}
-              getInspector={getSettingsInspector}
-              onPropertyChange={handleSettingsPropertyChange}
-              onPropertyBlur={handleSettingsPropertyBlur}
-              DialogProps={DialogProps}
-            />
-          </StyledGrid>
-          <StyledSubmitButton
-            loading={progress}
-            type="submit"
-            fullWidth
-            variant="contained"
-            color="primary"
-            size="large"
-            disabled={!newSettingsDoc?.contact}
-            onClick={handleSubmit}
-          >
-            {submit}
-          </StyledSubmitButton>
-        </StyledForm>
+        <StyledGrid style={{ marginBottom: theme.spacing(1.5) }}>
+          <InspectorForm
+            key={`settings-${Boolean(newSettingsDoc).toString()}-${
+              newSettingsDoc?.contactMethod
+            }-${newSettingsDoc?.contact}`}
+            StringInputComponent={StringInput}
+            FileInputComponent={FileInput}
+            BooleanInputComponent={BooleanInput}
+            InputComponent={OutlinedInput}
+            AutocompleteInputComponent={AutocompleteInput}
+            data={settingsData}
+            propertyPaths={settingsPropertyPaths}
+            getInspector={getSettingsInspector}
+            onPropertyChange={handleSettingsPropertyChange}
+            onPropertyBlur={handleSettingsPropertyBlur}
+            DialogProps={DialogProps}
+            submitButtonLabel={`Save`}
+            submitButtonProps={submitButtonProps}
+            onSubmit={handleSubmit}
+          />
+        </StyledGrid>
       </StyledContainer>
     </StyledPaper>
   );
