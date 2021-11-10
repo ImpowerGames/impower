@@ -427,7 +427,7 @@ const Connections = React.memo((): JSX.Element | null => {
         <StyledPaper>
           {loading ? (
             <StyledLoadingArea>
-              <StyledCircularProgress color="secondary" size={32} />
+              <StyledCircularProgress color="secondary" />
             </StyledLoadingArea>
           ) : (
             <>
@@ -650,7 +650,7 @@ const Connections = React.memo((): JSX.Element | null => {
                   )
                 ) : (
                   <StyledCircularProgressArea>
-                    <StyledCircularProgress color="secondary" size={32} />
+                    <StyledCircularProgress color="secondary" />
                   </StyledCircularProgressArea>
                 )}
               </StyledListArea>
