@@ -599,7 +599,7 @@ const Connections = React.memo((): JSX.Element | null => {
                     </StyledList>
                   ) : (
                     <>
-                      <StyledEmptyTypography variant="subtitle1">{`No requests`}</StyledEmptyTypography>
+                      <StyledEmptyTypography variant="subtitle1">{`No incoming requests`}</StyledEmptyTypography>
                     </>
                   )
                 ) : tabIndex === 2 && outgoingRequests ? (
@@ -644,7 +644,7 @@ const Connections = React.memo((): JSX.Element | null => {
                     </StyledList>
                   ) : (
                     <>
-                      <StyledEmptyTypography variant="subtitle1">{`No requests`}</StyledEmptyTypography>
+                      <StyledEmptyTypography variant="subtitle1">{`No outgoing requests`}</StyledEmptyTypography>
                     </>
                   )
                 ) : (
