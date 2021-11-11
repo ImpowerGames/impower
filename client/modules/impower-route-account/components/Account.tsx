@@ -263,8 +263,12 @@ const Account = React.memo((): JSX.Element | null => {
 
   const dataRequestStatus = dataRequest?.status;
 
-  const [newUserDoc, setNewUserDoc] = useState(userDoc);
-  const [newSettingsDoc, setNewSettingsDoc] = useState(settingsDoc);
+  const newUserDocRef = useRef(userDoc);
+  const [newUserDoc, setNewUserDoc] = useState(newUserDocRef.current);
+  const newSettingsDocRef = useRef(settingsDoc);
+  const [newSettingsDoc, setNewSettingsDoc] = useState(
+    newSettingsDocRef.current
+  );
   const [dialogOpen, setDialogOpen] = useState<boolean>();
   const [dialogProperty, setDialogProperty] = useState<string>();
   const [currentPassword, setCurrentPassword] = useState<string>("");
@@ -295,12 +299,14 @@ const Account = React.memo((): JSX.Element | null => {
 
   useEffect(() => {
     if (userDoc) {
+      newUserDocRef.current = { ...userDoc };
       setNewUserDoc(userDoc);
     }
   }, [userDoc]);
 
   useEffect(() => {
     if (settingsDoc) {
+      newSettingsDocRef.current = { ...settingsDoc };
       setNewSettingsDoc(settingsDoc);
     }
   }, [settingsDoc]);
@@ -476,7 +482,7 @@ const Account = React.memo((): JSX.Element | null => {
       const newValue = e.target.value;
       if (dialogProperty === "username") {
         const updates = { [dialogProperty]: newValue };
-        const updatedDoc = { ...newUserDoc, ...updates };
+        const updatedDoc = { ...newUserDocRef.current, ...updates };
         const DataStoreRead = (
           await import("../../impower-data-store/classes/dataStoreRead")
         ).default;
@@ -488,6 +494,7 @@ const Account = React.memo((): JSX.Element | null => {
           setDialogError(usernameAlreadyExists);
           return false;
         }
+        newUserDocRef.current = { ...updatedDoc };
         setNewUserDoc(updatedDoc);
         const API = (await import("../../impower-api/classes/api")).default;
         await API.instance.updateProfileClaims();
@@ -508,9 +515,10 @@ const Account = React.memo((): JSX.Element | null => {
         try {
           await changeEmail(currentPassword, newEmail);
           await getClaims(true);
-          if (newSettingsDoc?.contactMethod === "account") {
+          if (newSettingsDocRef.current?.contactMethod === "account") {
             const updates = { contact: newValue };
-            const updatedDoc = { ...newSettingsDoc, ...updates };
+            const updatedDoc = { ...newSettingsDocRef.current, ...updates };
+            newSettingsDocRef.current = { ...updatedDoc };
             setNewSettingsDoc(updatedDoc);
             const API = (await import("../../impower-api/classes/api")).default;
             await API.instance.updateProfileClaims();
@@ -618,12 +626,10 @@ const Account = React.memo((): JSX.Element | null => {
     },
     [
       dialogProperty,
-      newUserDoc,
       userDispatch,
       uid,
       currentPassword,
       newEmail,
-      newSettingsDoc,
       toastDispatch,
       newPassword,
       username,
@@ -632,11 +638,15 @@ const Account = React.memo((): JSX.Element | null => {
   );
   const handleProfilePropertyBlur = useCallback(
     async (propertyPath: string, value: unknown) => {
-      if (JSON.stringify(newUserDoc[propertyPath]) === JSON.stringify(value)) {
+      if (
+        JSON.stringify(newUserDocRef.current[propertyPath]) ===
+        JSON.stringify(value)
+      ) {
         return;
       }
       const updates = { [propertyPath]: value };
-      const updatedDoc = { ...newUserDoc, ...updates };
+      const updatedDoc = { ...newUserDocRef.current, ...updates };
+      newUserDocRef.current = { ...updatedDoc };
       setNewUserDoc(updatedDoc);
       if (propertyPath === "bio") {
         setSavingBio(true);
@@ -650,7 +660,7 @@ const Account = React.memo((): JSX.Element | null => {
         setSavingBio(false);
       }
     },
-    [newUserDoc, uid, userDispatch]
+    [uid, userDispatch]
   );
   const handleSettingsPropertyChange = useCallback(
     async (propertyPath: string, value: unknown) => {
@@ -658,15 +668,17 @@ const Account = React.memo((): JSX.Element | null => {
         return;
       }
       if (
-        JSON.stringify(newSettingsDoc?.[propertyPath]) === JSON.stringify(value)
+        JSON.stringify(newSettingsDocRef.current?.[propertyPath]) ===
+        JSON.stringify(value)
       ) {
         return;
       }
       const updates = { [propertyPath]: value };
-      const updatedDoc = { ...newSettingsDoc, ...updates };
+      const updatedDoc = { ...newSettingsDocRef.current, ...updates };
       if (propertyPath === "contactMethod") {
         updatedDoc.contact = value === "account" ? newEmail : "";
       }
+      newSettingsDocRef.current = { ...updatedDoc };
       setNewSettingsDoc(updatedDoc);
       const API = (await import("../../impower-api/classes/api")).default;
       await API.instance.updateProfileClaims();
@@ -674,7 +686,7 @@ const Account = React.memo((): JSX.Element | null => {
         userDispatch(userOnSetSetting(resolve, updatedDoc, "account"))
       );
     },
-    [newEmail, newSettingsDoc, userDispatch]
+    [newEmail, userDispatch]
   );
   const handleSettingsPropertyBlur = useCallback(
     async (propertyPath: string, value: string) => {
@@ -682,12 +694,14 @@ const Account = React.memo((): JSX.Element | null => {
         return;
       }
       if (
-        JSON.stringify(newSettingsDoc?.[propertyPath]) === JSON.stringify(value)
+        JSON.stringify(newSettingsDocRef.current?.[propertyPath]) ===
+        JSON.stringify(value)
       ) {
         return;
       }
       const updates = { [propertyPath]: value };
-      const updatedDoc = { ...newSettingsDoc, ...updates };
+      const updatedDoc = { ...newSettingsDocRef.current, ...updates };
+      newSettingsDocRef.current = { ...updatedDoc };
       setNewSettingsDoc(updatedDoc);
       const API = (await import("../../impower-api/classes/api")).default;
       await API.instance.updateProfileClaims();
@@ -695,7 +709,7 @@ const Account = React.memo((): JSX.Element | null => {
         userDispatch(userOnSetSetting(resolve, updatedDoc, "account"))
       );
     },
-    [newSettingsDoc, userDispatch]
+    [userDispatch]
   );
   const handleRevealCurrentPassword = useCallback((): void => {
     setCurrentPasswordReveal(!currentPasswordReveal);
@@ -796,6 +810,7 @@ const Account = React.memo((): JSX.Element | null => {
                 <StyledAccountButton
                   color="inherit"
                   variant="outlined"
+                  disabled={!username}
                   onClick={handleClickChangeUsername}
                 >
                   <StyledLabel>{labels.username}</StyledLabel>
@@ -806,6 +821,7 @@ const Account = React.memo((): JSX.Element | null => {
                 <StyledAccountButton
                   color="inherit"
                   variant="outlined"
+                  disabled={!newEmail}
                   onClick={handleClickChangeEmail}
                 >
                   <StyledLabel>{labels.email}</StyledLabel>
@@ -816,6 +832,7 @@ const Account = React.memo((): JSX.Element | null => {
                 <StyledAccountButton
                   color="inherit"
                   variant="outlined"
+                  disabled={!newEmail}
                   onClick={handleClickChangePassword}
                 >
                   <StyledLabel>{labels.password}</StyledLabel>
