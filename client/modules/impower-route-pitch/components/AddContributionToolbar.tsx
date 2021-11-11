@@ -430,10 +430,13 @@ const AddContributionToolbar = React.memo(
 
     const handleLoadUserContributions = useCallback(
       (docs: { [id: string]: ContributionDocument }) => {
-        userContributionDocsRef.current = docs;
+        userContributionDocsRef.current = {
+          ...(recentContributionDocs || {}),
+          ...docs,
+        };
         setUserContributionDocsState({ ...userContributionDocsRef.current });
       },
-      []
+      [recentContributionDocs]
     );
 
     usePitchUserContributionDocuments(
