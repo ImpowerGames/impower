@@ -480,7 +480,6 @@ const Account = React.memo((): JSX.Element | null => {
         const DataStoreRead = (
           await import("../../impower-data-store/classes/dataStoreRead")
         ).default;
-        const API = (await import("../../impower-api/classes/api")).default;
         const snapshot = await new DataStoreRead(
           "handles",
           newValue.toLowerCase()
@@ -490,6 +489,8 @@ const Account = React.memo((): JSX.Element | null => {
           return false;
         }
         setNewUserDoc(updatedDoc);
+        const API = (await import("../../impower-api/classes/api")).default;
+        await API.instance.updateProfileClaims();
         await new Promise<void>((resolve) =>
           userDispatch(
             userOnUpdateSubmission(resolve, updatedDoc, "users", uid)
@@ -511,6 +512,8 @@ const Account = React.memo((): JSX.Element | null => {
             const updates = { contact: newValue };
             const updatedDoc = { ...newSettingsDoc, ...updates };
             setNewSettingsDoc(updatedDoc);
+            const API = (await import("../../impower-api/classes/api")).default;
+            await API.instance.updateProfileClaims();
             await new Promise<void>((resolve) =>
               userDispatch(userOnSetSetting(resolve, updatedDoc, "account"))
             );
@@ -638,15 +641,13 @@ const Account = React.memo((): JSX.Element | null => {
       if (propertyPath === "bio") {
         setSavingBio(true);
       }
+      const API = (await import("../../impower-api/classes/api")).default;
+      await API.instance.updateProfileClaims();
       await new Promise<void>((resolve) =>
         userDispatch(userOnUpdateSubmission(resolve, updatedDoc, "users", uid))
       );
       if (propertyPath === "bio") {
         setSavingBio(false);
-      }
-      if (propertyPath === "icon") {
-        const API = (await import("../../impower-api/classes/api")).default;
-        await API.instance.updateProfileClaims();
       }
     },
     [newUserDoc, uid, userDispatch]
@@ -667,6 +668,8 @@ const Account = React.memo((): JSX.Element | null => {
         updatedDoc.contact = value === "account" ? newEmail : "";
       }
       setNewSettingsDoc(updatedDoc);
+      const API = (await import("../../impower-api/classes/api")).default;
+      await API.instance.updateProfileClaims();
       await new Promise<void>((resolve) =>
         userDispatch(userOnSetSetting(resolve, updatedDoc, "account"))
       );
@@ -686,6 +689,8 @@ const Account = React.memo((): JSX.Element | null => {
       const updates = { [propertyPath]: value };
       const updatedDoc = { ...newSettingsDoc, ...updates };
       setNewSettingsDoc(updatedDoc);
+      const API = (await import("../../impower-api/classes/api")).default;
+      await API.instance.updateProfileClaims();
       await new Promise<void>((resolve) =>
         userDispatch(userOnSetSetting(resolve, updatedDoc, "account"))
       );
