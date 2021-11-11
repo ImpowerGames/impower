@@ -437,6 +437,7 @@ const VirtualizedContributionCard = React.memo(
                   ? doc?.crop
                   : undefined
               }
+              intrinsicContentAspectRatio={doc?.aspectRatio}
               headerHeight={layout.size.minHeight.titleBar}
               footerHeight={layout.size.minHeight.titleBar}
               onEnter={handleEnter}

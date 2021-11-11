@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { StorageFile } from "../../impower-core";
 import { ContributionType } from "../../impower-data-store";
 import LazyImage from "../../impower-route/components/elements/LazyImage";
@@ -182,43 +182,10 @@ const ContributionCardContent = React.memo(
       preview,
     } = props;
 
-    const [wasInitiallyPreview] = useState(preview);
-
-    const previewAspectRatio = getPreviewAspectRatio(aspectRatio, square);
-    const positionHorizontally = aspectRatio > previewAspectRatio;
-
-    const contentStyle: React.CSSProperties = useMemo(
-      () =>
-        wasInitiallyPreview &&
-        !preview &&
-        file?.fileUrl &&
-        file?.fileType === "image/*" &&
-        !positionHorizontally
-          ? { transition: "none", transform: `translate3d(0, 50%, 0)` }
-          : {},
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [preview]
-    );
-    const offsetStyle: React.CSSProperties = useMemo(
-      () =>
-        wasInitiallyPreview &&
-        !preview &&
-        file?.fileUrl &&
-        file?.fileType === "image/*" &&
-        !positionHorizontally
-          ? {
-              transition: "none",
-              transform: `translate3d(0, -${crop * 100}%, 0)`,
-            }
-          : {},
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [preview]
-    );
-
     return (
       <StyledContributionCardContent>
-        <StyledContent ref={contentRef} style={contentStyle}>
-          <StyledOffset style={offsetStyle}>
+        <StyledContent ref={contentRef}>
+          <StyledOffset>
             <ContributionCollapsedContent
               contributionType={contributionType}
               prefix={prefix}

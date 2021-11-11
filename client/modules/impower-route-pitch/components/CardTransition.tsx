@@ -28,6 +28,13 @@ const getBottom = (el: HTMLElement, expandedHeight: number): number => {
   return 0;
 };
 
+const getWidth = (el: HTMLElement): number => {
+  if (el) {
+    return el.offsetWidth;
+  }
+  return window.innerWidth;
+};
+
 const getHeight = (el: HTMLElement): number => {
   if (el) {
     return el.offsetHeight;
@@ -148,19 +155,26 @@ const getShadowTransform = (
 };
 
 const getCroppedContentTransform = (
-  type: "enter" | "exit" | "exiting",
+  type: "enter" | "entering" | "exit" | "exiting",
+  collapsedWidth: number,
   collapsedHeight: number,
   headerHeight: number,
   footerHeight: number,
   crop: number,
+  intrinsicContentAspectRatio: number,
   scrollTop = 0
 ): string => {
   if (type === "exit") {
     return `translate3d(0, ${-scrollTop}px, 0)`;
   }
-  return `translate3d(0, calc(-${crop * 100}% + ${
-    (collapsedHeight - headerHeight - footerHeight) * 0.5
-  }px), 0)`;
+  const renderedHeight = collapsedHeight - headerHeight - footerHeight;
+  const fullHeight = collapsedWidth / intrinsicContentAspectRatio;
+  const distance = fullHeight - renderedHeight;
+  const offset = distance * crop;
+  if (type === "enter") {
+    return `translate3d(0, -${offset}px, 0)`;
+  }
+  return `translate3d(0, -${offset}px, 0)`;
 };
 
 const getScrolledContentTransform = (
@@ -191,6 +205,7 @@ interface CardTransitionProps {
   scrollEl?: HTMLElement;
   contentEl?: HTMLElement;
   crop?: number;
+  intrinsicContentAspectRatio?: number;
   offsetHeaderHeight?: number;
   maxWidth?: number;
   zIndex?: number;
@@ -237,6 +252,7 @@ const CardTransition = React.forwardRef<HTMLDivElement, CardTransitionProps>(
       scrollEl,
       contentEl,
       crop,
+      intrinsicContentAspectRatio,
       headerHeight = 0,
       footerHeight = 0,
       offsetHeaderHeight = 0,
@@ -272,6 +288,7 @@ const CardTransition = React.forwardRef<HTMLDivElement, CardTransitionProps>(
     const bottomOverflowRef = useRef<HTMLDivElement>();
     const topOverflowRef = useRef<HTMLDivElement>();
     const bottomRef = useRef<HTMLDivElement>();
+    const collapsedWidthRef = useRef<number>();
     const collapsedHeightRef = useRef<number>();
     const collapsedOffsetTopRef = useRef<number>();
     const collapsedOffsetBottomRef = useRef<number>();
@@ -306,6 +323,7 @@ const CardTransition = React.forwardRef<HTMLDivElement, CardTransitionProps>(
     useEffect(() => {
       window.requestAnimationFrame(() => {
         if (cardEl) {
+          collapsedWidthRef.current = getWidth(cardEl);
           collapsedHeightRef.current = getHeight(cardEl);
         }
       });
@@ -325,9 +343,10 @@ const CardTransition = React.forwardRef<HTMLDivElement, CardTransitionProps>(
       }
       const onResize = (entry: ResizeObserverEntry): void => {
         if (entry && !dontMeasureRef.current) {
-          const size = entry.contentRect.height;
-          if (size > 0) {
-            collapsedHeightRef.current = size;
+          const { width, height } = entry.contentRect;
+          if (height > 0) {
+            collapsedWidthRef.current = width;
+            collapsedHeightRef.current = height;
           }
         }
       };
@@ -502,8 +521,25 @@ const CardTransition = React.forwardRef<HTMLDivElement, CardTransitionProps>(
         contentRef.current.style.height = `${
           collapsedHeightRef.current - footerHeight * 2
         }px`;
+        contentRef.current.style.transform = getCroppedContentTransform(
+          "enter",
+          collapsedWidthRef.current,
+          collapsedHeightRef.current,
+          headerHeight,
+          footerHeight,
+          crop,
+          intrinsicContentAspectRatio
+        );
       }
-    }, [footerHeight, handleRemoveTransitions, handleSetupHints, onEnter]);
+    }, [
+      crop,
+      footerHeight,
+      handleRemoveTransitions,
+      handleSetupHints,
+      headerHeight,
+      intrinsicContentAspectRatio,
+      onEnter,
+    ]);
 
     const handleEntering = useCallback(() => {
       if (!enterTimeoutHandle.current) {
@@ -564,16 +600,14 @@ const CardTransition = React.forwardRef<HTMLDivElement, CardTransitionProps>(
       if (contentRef.current) {
         contentRef.current.style.height = null;
         contentRef.current.style.transform = getCroppedContentTransform(
-          "enter",
+          "entering",
+          collapsedWidthRef.current,
           collapsedHeightRef.current,
           headerHeight,
           footerHeight,
-          crop
+          crop,
+          intrinsicContentAspectRatio
         );
-        const child = contentRef.current.firstElementChild as HTMLElement;
-        if (child) {
-          child.style.transform = null;
-        }
       }
 
       if (onEntering) {
@@ -792,6 +826,7 @@ const CardTransition = React.forwardRef<HTMLDivElement, CardTransitionProps>(
       footerHeight,
       getRoot,
       headerHeight,
+      intrinsicContentAspectRatio,
       offsetHeaderHeight,
       onEntering,
       style,
@@ -875,10 +910,12 @@ const CardTransition = React.forwardRef<HTMLDivElement, CardTransitionProps>(
         if (crop !== undefined) {
           contentRef.current.style.transform = getCroppedContentTransform(
             "exit",
+            collapsedWidthRef.current,
             collapsedHeightRef.current,
             headerHeight,
             footerHeight,
             crop,
+            intrinsicContentAspectRatio,
             scrollTopRef.current
           );
         } else {
@@ -888,7 +925,14 @@ const CardTransition = React.forwardRef<HTMLDivElement, CardTransitionProps>(
           );
         }
       }
-    }, [crop, footerHeight, headerHeight, offsetHeaderHeight, onExit]);
+    }, [
+      crop,
+      footerHeight,
+      headerHeight,
+      intrinsicContentAspectRatio,
+      offsetHeaderHeight,
+      onExit,
+    ]);
 
     const handleExiting = useCallback(() => {
       if (!exitTimeoutHandle.current) {
@@ -974,10 +1018,12 @@ const CardTransition = React.forwardRef<HTMLDivElement, CardTransitionProps>(
           if (crop !== undefined) {
             contentRef.current.style.transform = getCroppedContentTransform(
               "exiting",
+              collapsedWidthRef.current,
               collapsedHeightRef.current,
               headerHeight,
               footerHeight,
               crop,
+              intrinsicContentAspectRatio,
               scrollTopRef.current
             );
           } else {
@@ -1083,6 +1129,7 @@ const CardTransition = React.forwardRef<HTMLDivElement, CardTransitionProps>(
       easing,
       footerHeight,
       headerHeight,
+      intrinsicContentAspectRatio,
       offsetHeaderHeight,
       onExiting,
       style,
