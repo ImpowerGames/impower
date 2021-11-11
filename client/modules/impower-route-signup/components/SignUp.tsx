@@ -181,18 +181,17 @@ const DateAutocomplete = React.memo((props: DateAutocompleteProps) => {
   );
 
   const handleFilterOptions = useCallback(
-    (options: unknown[], state: FilterOptionsState<unknown>): unknown[] => {
+    (options: number[], state: FilterOptionsState<number>): number[] => {
       const { inputValue } = state;
-      const validatedState = {
-        ...state,
-        inputValue:
-          !Number.isNaN(Number(inputValue)) &&
-          inputValue.length === 1 &&
-          !inputValue.startsWith("0")
-            ? `0${inputValue}`
-            : inputValue,
-      };
-      return defaultFilterOptions(options, validatedState);
+      const numberInputValue = Number(inputValue);
+      if (!Number.isNaN(numberInputValue)) {
+        return options.filter(
+          (option) =>
+            option === numberInputValue ||
+            String(option).padStart(2, "0").startsWith(inputValue)
+        );
+      }
+      return defaultFilterOptions(options, state) as number[];
     },
     [defaultFilterOptions]
   );
