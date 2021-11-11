@@ -20,6 +20,15 @@ const getReadOnlyFields = (): string[] => {
     "delisted",
     "_serverUpdatedAt",
     "_aggregatedAt",
+    "connects",
+    "follows",
+    "reports",
+    "my_connects",
+    "my_dislikes",
+    "my_follows",
+    "my_kudos",
+    "my_likes",
+    "my_submissions",
   ];
 };
 
