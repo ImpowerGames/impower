@@ -368,7 +368,8 @@ const ContributionList = React.memo(
             e,
             pitchId,
             contributionId,
-            contributionDocsRef.current[key]
+            recentContributionDocsRef.current[key] ||
+              contributionDocsRef.current[key]
           );
         }
       },
