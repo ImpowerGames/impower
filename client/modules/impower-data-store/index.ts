@@ -1,6 +1,5 @@
 export * from "./classes/inspectors/gameDocumentInspector";
 export * from "./classes/inspectors/pageDocumentInspector";
-export * from "./classes/inspectors/reportDocumentInspector";
 export * from "./classes/inspectors/resourceDocumentInspector";
 export * from "./classes/inspectors/studioDocumentInspector";
 export * from "./classes/inspectors/userDocumentInspector";
@@ -21,7 +20,6 @@ export * from "./types/documents/pageDocument";
 export * from "./types/documents/pathDocument";
 export * from "./types/documents/phraseDocument";
 export * from "./types/documents/projectDocument";
-export * from "./types/documents/reportDocument";
 export * from "./types/documents/resourceDocument";
 export * from "./types/documents/settingsDocument";
 export * from "./types/documents/slugDocument";

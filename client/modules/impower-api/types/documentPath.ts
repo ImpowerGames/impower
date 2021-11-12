@@ -77,8 +77,7 @@ export type SubmissionDocumentPath =
   | PitchedProjectDocumentPath
   | PitchedProjectContributionDocumentPath
   | PhraseDocumentPath
-  | PhraseSuggestionDocumentPath
-  | [...ReportableDocumentPath, "reports", string];
+  | PhraseSuggestionDocumentPath;
 
 export type InteractiveDocumentPath =
   | UserDocumentPath
@@ -108,5 +107,4 @@ export type DocumentPath =
   | PublishedPageDocumentPath
   | PublishedPageCommentDocumentPath
   | PitchedProjectDocumentPath
-  | PitchedProjectContributionDocumentPath
-  | [...ReportableDocumentPath, "reports", string];
+  | PitchedProjectContributionDocumentPath;

@@ -7,6 +7,6 @@ export enum ReportReason {
   PrivacyViolation = "privacy_violation", // It violates someone's privacy
   IllegalTransaction = "illegal_transaction", // It is a transaction for prohibited goods or services
   SelfHarm = "self_harm", // Someone is considering suicide or self-harm
-  UntaggedMatureContent = "untagged_mature_content", // It contains mature or explicit content but is not tagged appropriately
+  UntaggedNSFWContent = "untagged_nsfw_content", // It contains mature or explicit content but is not tagged appropriately
   InvoluntaryPornography = "involuntary_pornography", // It's involuntary pornography
 }

@@ -8,7 +8,6 @@ export type PhraseCollectionPath = ["phrases"];
 export type PhraseSuggestionCollectionPath = ["phrases", string, "suggestions"];
 
 export type TagCollectionPath = ["tags"];
-export type TagReportCollectionPath = ["tags", string, "reports"];
 
 export type UserCollectionPath = ["users"];
 export type UserSubmissionCollectionPath = ["users", string, "submissions"];
@@ -19,7 +18,6 @@ export type UserCustomizationCollectionPath = [
 ];
 export type UserSettingCollectionPath = ["users", string, "settings"];
 export type UserClaimCollectionPath = ["users", string, "claims"];
-export type UserReportCollectionPath = ["users", string, "reports"];
 export type UserDeletedSubmissionCollectionPath = [
   "users",
   string,
@@ -37,11 +35,6 @@ export type PublishedPageCommentCollectionPath = [
   string,
   "comments"
 ];
-export type PublishedPageReportCollectionPath = [
-  "pitched_resources" | "pitched_games",
-  string,
-  "reports"
-];
 
 export type PitchedProjectCollectionPath = [
   "pitched_resources" | "pitched_games"
@@ -55,11 +48,6 @@ export type PitchedProjectContributionCollectionGroupPath = [
   undefined,
   "contributions"
 ];
-export type PitchedProjectReportCollectionPath = [
-  "pitched_resources" | "pitched_games",
-  string,
-  "reports"
-];
 
 export type CollectionPath =
   | InfoCollectionPath
@@ -68,20 +56,16 @@ export type CollectionPath =
   | PhraseSuggestionCollectionPath
   | SlugCollectionPath
   | TagCollectionPath
-  | TagReportCollectionPath
   | UserCollectionPath
   | UserSubmissionCollectionPath
   | UserCustomizationCollectionPath
   | UserSettingCollectionPath
   | UserClaimCollectionPath
-  | UserReportCollectionPath
   | UserDeletedSubmissionCollectionPath
   | PageCollectionPath
   | ProjectCollectionPath
   | PublishedPageCollectionPath
   | PublishedPageCommentCollectionPath
-  | PublishedPageReportCollectionPath
   | PitchedProjectCollectionPath
   | PitchedProjectContributionCollectionPath
-  | PitchedProjectReportCollectionPath
   | PitchedProjectContributionCollectionGroupPath;
