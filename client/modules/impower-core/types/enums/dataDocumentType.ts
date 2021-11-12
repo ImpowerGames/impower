@@ -10,7 +10,6 @@ export type DataDocumentType =
   | "SettingsDocument"
   | "SlugDocument"
   | "TagDocument"
-  | "ReportDocument"
   | "PhraseDocument"
   | "SuggestionDocument"
   | "CustomizationDocument";

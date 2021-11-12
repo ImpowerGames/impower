@@ -3,7 +3,7 @@ import {
   Autocomplete,
   AutocompleteProps,
   OutlinedInput,
-  Typography
+  Typography,
 } from "@material-ui/core";
 import { LoadingButton } from "@material-ui/lab";
 import React, {
@@ -11,7 +11,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState
+  useState,
 } from "react";
 import { InteractiveDocumentPath } from "../../impower-api";
 import { getLabel } from "../../impower-config";
@@ -19,7 +19,7 @@ import {
   getPageType,
   getRootCollection,
   ReportReason,
-  SlugDocument
+  SlugDocument,
 } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import HistoryState from "../../impower-dialog/classes/historyState";
