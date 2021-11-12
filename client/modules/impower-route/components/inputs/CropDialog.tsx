@@ -590,6 +590,7 @@ const CropDialog = React.memo((props: CropDialogProps): JSX.Element => {
   const handleMouseDown = useCallback(
     (event: React.MouseEvent): void => {
       if (scrollEl) {
+        event.preventDefault();
         setMouseDragging(true);
         mouseDraggingRef.current = true;
         if (positionHorizontally) {
@@ -608,7 +609,7 @@ const CropDialog = React.memo((props: CropDialogProps): JSX.Element => {
     (event: MouseEvent): void => {
       if (scrollEl && mouseDraggingRef.current) {
         if (positionHorizontally) {
-          scrollEl.scrollTop =
+          scrollEl.scrollLeft =
             startScrollX.current + startClientX.current - event.clientX;
         } else {
           scrollEl.scrollTop =
