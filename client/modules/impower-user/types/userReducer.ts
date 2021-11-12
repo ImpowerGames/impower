@@ -16,7 +16,6 @@ import {
   ProjectDocument,
   SettingsDocument,
 } from "../../impower-data-store";
-import isReportDocument from "../../impower-data-store/utils/isReportDocument";
 import { USER_CHANGE_MEMBER } from "./actions/userChangeMemberAction";
 import { USER_CREATE_SUBMISSION } from "./actions/userCreateSubmissionAction";
 import { USER_DELETE_SUBMISSION } from "./actions/userDeleteSubmissionAction";
@@ -30,6 +29,7 @@ import { USER_LOAD_MY_FOLLOWS } from "./actions/userLoadMyFollowsAction";
 import { USER_LOAD_MY_KUDOS } from "./actions/userLoadMyKudosAction";
 import { USER_LOAD_MY_LIKES } from "./actions/userLoadMyLikesAction";
 import { USER_LOAD_MY_MEMBERSHIPS } from "./actions/userLoadMyMembershipsAction";
+import { USER_LOAD_MY_REPORTS } from "./actions/userLoadMyReportsAction";
 import { USER_LOAD_MY_SUBMISSIONS } from "./actions/userLoadMySubmissionsAction";
 import { USER_LOAD_NOTIFICATIONS } from "./actions/userLoadNotificationsAction";
 import { USER_LOAD_SETTINGS } from "./actions/userLoadSettingsAction";
@@ -213,6 +213,13 @@ export const userReducer = (
         my_kudos,
       };
     }
+    case USER_LOAD_MY_REPORTS: {
+      const { my_reports } = action.payload;
+      return {
+        ...state,
+        my_reports,
+      };
+    }
     case USER_LOAD_MY_SUBMISSIONS: {
       const { my_submissions } = action.payload;
       return {
@@ -221,7 +228,7 @@ export const userReducer = (
       };
     }
     case USER_DO_ACTIVITY: {
-      const { path, type, c, onFinished } = action.payload;
+      const { path, type, aggData, onFinished } = action.payload;
       const setData = async (): Promise<void> => {
         const Auth = (await import("../../impower-auth/classes/auth")).default;
         const DataStateWrite = (
@@ -237,12 +244,10 @@ export const userReducer = (
         const aggRef = new DataStateWrite(...path, "agg", type);
         const a = author;
         const data: AggData = {
+          ...(aggData || {}),
           t: timestampServerValue() as number,
           a,
         };
-        if (c) {
-          data.c = c;
-        }
         if (type === "connects") {
           data.c = state?.settings?.account?.contact;
         }
@@ -270,9 +275,9 @@ export const userReducer = (
       const target = path.join("%");
       const t = Date.now();
       myActivities[target] = {
+        ...(aggData || {}),
         g,
         t,
-        c,
       };
       const parentColId = path[0];
       const parentDocId = path[1];
@@ -532,7 +537,6 @@ export const userReducer = (
       let my_recent_pitched_projects = state?.my_recent_pitched_projects;
       let my_recent_comments = state?.my_recent_comments;
       let my_recent_contributions = state?.my_recent_contributions;
-      let my_recent_reports = state?.my_recent_reports;
       const key = path.join("%");
       const id = path[path.length - 1];
       const parentDocId = path[path.length - 3];
@@ -629,12 +633,6 @@ export const userReducer = (
           },
         };
       }
-      if (isReportDocument(newDoc)) {
-        my_recent_reports = {
-          ...(my_recent_reports || {}),
-          [key]: newDoc,
-        };
-      }
       if (submissionType === "studios" && isStudioDocument(newDoc)) {
         studios = { ...(studios || {}), [id]: newDoc };
         my_studio_memberships = {
@@ -689,7 +687,6 @@ export const userReducer = (
         my_recent_pitched_projects,
         my_recent_comments,
         my_recent_contributions,
-        my_recent_reports,
         submissions: {
           ...state.submissions,
           [submissionType]: newSubmissionDoc,
@@ -1052,8 +1049,6 @@ export const userReducer = (
       let my_recent_pitched_projects = state?.my_recent_pitched_projects;
       let my_recent_comments = state?.my_recent_comments;
       let my_recent_contributions = state?.my_recent_contributions;
-      let my_recent_reports = state?.my_recent_reports;
-      const key = path.join("%");
       const id = path[path.length - 1];
       const parentDocId = path[path.length - 3];
       if (my_recent_pitched_projects[id]) {
@@ -1078,10 +1073,6 @@ export const userReducer = (
       if (my_recent_contributions[parentDocId]) {
         my_recent_contributions = { ...my_recent_contributions };
         my_recent_contributions[parentDocId][id] = null;
-      }
-      if (my_recent_reports[parentDocId]) {
-        my_recent_reports = { ...my_recent_reports };
-        my_recent_reports[key] = null;
       }
       if (submissionType === "studios") {
         studios = { ...(studios || {}), [id]: null };

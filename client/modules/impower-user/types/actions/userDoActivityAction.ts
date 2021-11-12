@@ -1,11 +1,12 @@
-import { InteractiveDocumentPath, ActivityType } from "../../../impower-api";
+import { ActivityType, InteractiveDocumentPath } from "../../../impower-api";
+import { AggData } from "../../../impower-data-state";
 
 export const USER_DO_ACTIVITY = "@impower/user/DO_ACTIVITY";
 export interface UserDoActivityAction {
   type: typeof USER_DO_ACTIVITY;
   payload: {
     onFinished?: () => void;
-    c?: string;
+    aggData?: AggData;
     path: InteractiveDocumentPath;
     type: ActivityType;
   };

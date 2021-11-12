@@ -5,14 +5,14 @@ import {
   USER_DO_ACTIVITY,
 } from "../types/actions/userDoActivityAction";
 
-const userDoKudo = (
+const userDoReport = (
   aggData: AggData,
   ...path: InteractiveDocumentPath
 ): UserDoActivityAction => {
   return {
     type: USER_DO_ACTIVITY,
-    payload: { aggData, path, type: "kudos" },
+    payload: { aggData, path, type: "reports" },
   };
 };
 
-export default userDoKudo;
+export default userDoReport;

@@ -3,4 +3,5 @@ export type ActivityType =
   | "connects"
   | "kudos"
   | "likes"
-  | "dislikes";
+  | "dislikes"
+  | "reports";

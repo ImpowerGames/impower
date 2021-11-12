@@ -11,6 +11,7 @@ import { UserLoadMyFollowsAction } from "./actions/userLoadMyFollowsAction";
 import { UserLoadMyKudosAction } from "./actions/userLoadMyKudosAction";
 import { UserLoadMyLikesAction } from "./actions/userLoadMyLikesAction";
 import { UserLoadMyMembershipsAction } from "./actions/userLoadMyMembershipsAction";
+import { UserLoadMyReportsAction } from "./actions/userLoadMyReportsAction";
 import { UserLoadMySubmissionsAction } from "./actions/userLoadMySubmissionsAction";
 import { UserLoadNotificationsAction } from "./actions/userLoadNotificationsAction";
 import { UserLoadSettingsAction } from "./actions/userLoadSettingsAction";
@@ -40,6 +41,7 @@ export type UserAction =
   | UserLoadMyLikesAction
   | UserLoadMyDislikesAction
   | UserLoadMyKudosAction
+  | UserLoadMyReportsAction
   | UserLoadNotificationsAction
   | UserDoActivityAction
   | UserUndoActivityAction

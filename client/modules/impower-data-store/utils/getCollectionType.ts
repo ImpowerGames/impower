@@ -14,7 +14,6 @@ const getCollectionType = (
     | "tags"
     | "comments"
     | "contributions"
-    | "reports"
     | "phrases"
     | "suggestions"
     | "phrase_additions"
@@ -44,8 +43,6 @@ const getCollectionType = (
       return "CommentDocument";
     case "contributions":
       return "ContributionDocument";
-    case "reports":
-      return "ReportDocument";
     case "phrases":
       return "PhraseDocument";
     case "suggestions":

@@ -28,10 +28,13 @@ export type PhraseAggReadPath =
   | [...PhraseDocumentPath, "agg", "likes", "count"]
   | [...PhraseDocumentPath, "agg", "likes", "data", string]
   | [...PhraseDocumentPath, "agg", "dislikes", "count"]
-  | [...PhraseDocumentPath, "agg", "dislikes", "data", string];
+  | [...PhraseDocumentPath, "agg", "dislikes", "data", string]
+  | [...PhraseDocumentPath, "agg", "reports", "count"]
+  | [...PhraseDocumentPath, "agg", "reports", "data", string];
 export type PhraseAggWritePath =
   | [...PhraseDocumentPath, "agg", "likes"]
-  | [...PhraseDocumentPath, "agg", "dislikes"];
+  | [...PhraseDocumentPath, "agg", "dislikes"]
+  | [...PhraseDocumentPath, "agg", "reports"];
 
 export type TagAggReadPath =
   | [...TagDocumentPath, "agg", "users"]
@@ -43,9 +46,15 @@ export type TagAggReadPath =
   | [...TagDocumentPath, "agg", "games"]
   | [...TagDocumentPath, "agg", "games", "count"]
   | [...TagDocumentPath, "agg", "follows", "count"]
-  | [...TagDocumentPath, "agg", "follows", "data", string];
-export type TagAggWritePath = [...TagDocumentPath, "agg", "follows"];
-export type TagAggQueryPath = [...TagDocumentPath, "agg", "follows", "data"];
+  | [...TagDocumentPath, "agg", "follows", "data", string]
+  | [...TagDocumentPath, "agg", "reports", "count"]
+  | [...TagDocumentPath, "agg", "reports", "data", string];
+export type TagAggWritePath =
+  | [...TagDocumentPath, "agg", "follows"]
+  | [...TagDocumentPath, "agg", "reports"];
+export type TagAggQueryPath =
+  | [...TagDocumentPath, "agg", "follows", "data"]
+  | [...TagDocumentPath, "agg", "reports", "data"];
 
 export type UserDeletedSubmissionsReadPath =
   | [...UserDocumentPath, "deleted_submissions", string];
@@ -76,15 +85,22 @@ export type UserAggReadPath =
   | [...UserDocumentPath, "agg", "my_dislikes", "count"]
   | [...UserDocumentPath, "agg", "my_dislikes", "data"]
   | [...UserDocumentPath, "agg", "my_dislikes", "data", string]
+  | [...UserDocumentPath, "agg", "my_reports", "count"]
+  | [...UserDocumentPath, "agg", "my_reports", "data"]
+  | [...UserDocumentPath, "agg", "my_reports", "data", string]
   | [...UserDocumentPath, "agg", "connects", "count"]
   | [...UserDocumentPath, "agg", "connects", "data"]
   | [...UserDocumentPath, "agg", "connects", "data", string]
   | [...UserDocumentPath, "agg", "follows", "count"]
   | [...UserDocumentPath, "agg", "follows", "data"]
-  | [...UserDocumentPath, "agg", "follows", "data", string];
+  | [...UserDocumentPath, "agg", "follows", "data", string]
+  | [...UserDocumentPath, "agg", "reports", "count"]
+  | [...UserDocumentPath, "agg", "reports", "data"]
+  | [...UserDocumentPath, "agg", "reports", "data", string];
 export type UserAggWritePath =
   | [...UserDocumentPath, "agg", "connects"]
   | [...UserDocumentPath, "agg", "follows"]
+  | [...UserDocumentPath, "agg", "reports"]
   | [...UserDocumentPath, "agg", "connects", "data", string, "r"]
   | [...UserDocumentPath, "agg", "follows", "data", string, "r"];
 export type UserAggQueryPath =
@@ -95,8 +111,10 @@ export type UserAggQueryPath =
   | [...UserDocumentPath, "agg", "my_submissions", "data"]
   | [...UserDocumentPath, "agg", "my_likes", "data"]
   | [...UserDocumentPath, "agg", "my_dislikes", "data"]
+  | [...UserDocumentPath, "agg", "my_reports", "data"]
   | [...UserDocumentPath, "agg", "connects", "data"]
-  | [...UserDocumentPath, "agg", "follows", "data"];
+  | [...UserDocumentPath, "agg", "follows", "data"]
+  | [...UserDocumentPath, "agg", "reports", "data"];
 
 export type UserNotificationsReadPath =
   | [...UserDocumentPath, "notifications", "count"]
@@ -125,15 +143,19 @@ export type PublishedPageAggReadPath =
   | [...PublishedPageDocumentPath, "agg", "dislikes", "count"]
   | [...PublishedPageDocumentPath, "agg", "dislikes", "data", string]
   | [...PublishedPageDocumentPath, "agg", "kudos", "count"]
-  | [...PublishedPageDocumentPath, "agg", "kudos", "data", string];
+  | [...PublishedPageDocumentPath, "agg", "kudos", "data", string]
+  | [...PublishedPageDocumentPath, "agg", "reports", "count"]
+  | [...PublishedPageDocumentPath, "agg", "reports", "data", string];
 export type PublishedPageAggWritePath =
   | [...PublishedPageDocumentPath, "agg", "likes"]
   | [...PublishedPageDocumentPath, "agg", "dislikes"]
-  | [...PublishedPageDocumentPath, "agg", "kudos"];
+  | [...PublishedPageDocumentPath, "agg", "kudos"]
+  | [...PublishedPageDocumentPath, "agg", "reports"];
 export type PublishedPageAggQueryPath =
   | [...PublishedPageDocumentPath, "agg", "likes", "data"]
   | [...PublishedPageDocumentPath, "agg", "dislikes", "data"]
-  | [...PublishedPageDocumentPath, "agg", "kudos", "data"];
+  | [...PublishedPageDocumentPath, "agg", "kudos", "data"]
+  | [...PublishedPageDocumentPath, "agg", "reports", "data"];
 
 export type PublishedPageCommentAggReadPath =
   | [...PublishedPageCommentDocumentPath, "agg", "score"]
@@ -142,13 +164,17 @@ export type PublishedPageCommentAggReadPath =
   | [...PublishedPageCommentDocumentPath, "agg", "likes", "count"]
   | [...PublishedPageCommentDocumentPath, "agg", "likes", "data", string]
   | [...PublishedPageCommentDocumentPath, "agg", "dislikes", "count"]
-  | [...PublishedPageCommentDocumentPath, "agg", "dislikes", "data", string];
+  | [...PublishedPageCommentDocumentPath, "agg", "dislikes", "data", string]
+  | [...PublishedPageCommentDocumentPath, "agg", "reports", "count"]
+  | [...PublishedPageCommentDocumentPath, "agg", "reports", "data", string];
 export type PublishedPageCommentAggWritePath =
   | [...PublishedPageCommentDocumentPath, "agg", "likes"]
-  | [...PublishedPageCommentDocumentPath, "agg", "dislikes"];
+  | [...PublishedPageCommentDocumentPath, "agg", "dislikes"]
+  | [...PublishedPageCommentDocumentPath, "agg", "reports"];
 export type PublishedPageCommentAggQueryPath =
   | [...PublishedPageCommentDocumentPath, "agg", "likes", "data"]
-  | [...PublishedPageCommentDocumentPath, "agg", "dislikes", "data"];
+  | [...PublishedPageCommentDocumentPath, "agg", "dislikes", "data"]
+  | [...PublishedPageCommentDocumentPath, "agg", "reports", "data"];
 
 export type PitchedProjectAggReadPath =
   | [...PitchedProjectDocumentPath, "agg", "score"]
@@ -159,15 +185,19 @@ export type PitchedProjectAggReadPath =
   | [...PitchedProjectDocumentPath, "agg", "dislikes", "count"]
   | [...PitchedProjectDocumentPath, "agg", "dislikes", "data", string]
   | [...PitchedProjectDocumentPath, "agg", "kudos", "count"]
-  | [...PitchedProjectDocumentPath, "agg", "kudos", "data", string];
+  | [...PitchedProjectDocumentPath, "agg", "kudos", "data", string]
+  | [...PitchedProjectDocumentPath, "agg", "reports", "count"]
+  | [...PitchedProjectDocumentPath, "agg", "reports", "data", string];
 export type PitchedProjectAggWritePath =
   | [...PitchedProjectDocumentPath, "agg", "likes"]
   | [...PitchedProjectDocumentPath, "agg", "dislikes"]
-  | [...PitchedProjectDocumentPath, "agg", "kudos"];
+  | [...PitchedProjectDocumentPath, "agg", "kudos"]
+  | [...PitchedProjectDocumentPath, "agg", "reports"];
 export type PitchedProjectAggQueryPath =
   | [...PitchedProjectDocumentPath, "agg", "likes", "data"]
   | [...PitchedProjectDocumentPath, "agg", "dislikes", "data"]
-  | [...PitchedProjectDocumentPath, "agg", "kudos", "data"];
+  | [...PitchedProjectDocumentPath, "agg", "kudos", "data"]
+  | [...PitchedProjectDocumentPath, "agg", "reports", "data"];
 
 export type PitchedProjectContributionAggReadPath =
   | [...PitchedProjectContributionDocumentPath, "agg", "score"]
@@ -182,22 +212,35 @@ export type PitchedProjectContributionAggReadPath =
       "dislikes",
       "data",
       string
-    ];
+    ]
+  | [...PitchedProjectDocumentPath, "agg", "kudos", "count"]
+  | [...PitchedProjectDocumentPath, "agg", "kudos", "data", string]
+  | [...PitchedProjectDocumentPath, "agg", "reports", "count"]
+  | [...PitchedProjectDocumentPath, "agg", "reports", "data", string];
 export type PitchedProjectContributionAggWritePath =
   | [...PitchedProjectContributionDocumentPath, "agg", "likes"]
-  | [...PitchedProjectContributionDocumentPath, "agg", "dislikes"];
+  | [...PitchedProjectContributionDocumentPath, "agg", "dislikes"]
+  | [...PitchedProjectContributionDocumentPath, "agg", "kudos"]
+  | [...PitchedProjectContributionDocumentPath, "agg", "reports"];
 export type PitchedProjectContributionAggQueryPath =
   | [...PitchedProjectContributionDocumentPath, "agg", "likes", "data"]
   | [...PitchedProjectContributionDocumentPath, "agg", "dislikes", "data"]
-  | [...PitchedProjectContributionDocumentPath, "agg", "kudos", "data"];
+  | [...PitchedProjectContributionDocumentPath, "agg", "kudos", "data"]
+  | [...PitchedProjectContributionDocumentPath, "agg", "reports", "data"];
 
 export type PageDocReadPath = [...PageDocumentPath, "doc"];
 
 export type PageAggReadPath =
   | [...PageDocumentPath, "agg", "follows", "count"]
-  | [...PageDocumentPath, "agg", "follows", "data", string];
-export type PageAggWritePath = [...PageDocumentPath, "agg", "follows"];
-export type PageAggQueryPath = [...PageDocumentPath, "agg", "follows", "data"];
+  | [...PageDocumentPath, "agg", "follows", "data", string]
+  | [...PageDocumentPath, "agg", "reports", "count"]
+  | [...PageDocumentPath, "agg", "reports", "data", string];
+export type PageAggWritePath =
+  | [...PageDocumentPath, "agg", "follows"]
+  | [...PageDocumentPath, "agg", "reports"];
+export type PageAggQueryPath =
+  | [...PageDocumentPath, "agg", "follows", "data"]
+  | [...PageDocumentPath, "agg", "reports", "data"];
 
 export type PageMembersReadPath = [...PageDocumentPath, "members"];
 export type PageMemberReadPath = [

@@ -46,6 +46,7 @@ import userLoadMyFollows from "../utils/userLoadMyFollows";
 import userLoadMyKudos from "../utils/userLoadMyKudos";
 import userLoadMyLikes from "../utils/userLoadMyLikes";
 import userLoadMyMemberships from "../utils/userLoadMyMemberships";
+import userLoadMyReports from "../utils/userLoadMyReports";
 import userLoadMySubmissions from "../utils/userLoadMySubmissions";
 import userLoadNotifications from "../utils/userLoadNotifications";
 import userLoadSettings from "../utils/userLoadSettings";
@@ -427,6 +428,22 @@ export const useUserContextState = (
     uid,
     "agg",
     "my_kudos",
+    "data"
+  );
+
+  const handleLoadMyReports = useCallback(
+    (all: { [docId: string]: AggData }) => {
+      dispatch(userLoadMyReports(all));
+    },
+    []
+  );
+  useCollectionDataLoad(
+    handleLoadMyReports,
+    { orderByChild: "t" },
+    "users",
+    uid,
+    "agg",
+    "my_reports",
     "data"
   );
 

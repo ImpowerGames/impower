@@ -194,7 +194,7 @@ const AddKudoToolbar = React.memo((props: AddKudoToolbarProps): JSX.Element => {
           }
         : null;
       if (newKudoed) {
-        userDispatch(userDoKudo(content, ...path));
+        userDispatch(userDoKudo({ c: content }, ...path));
         if (!liked && !disliked) {
           userDispatch(userDoLike(...path));
         }

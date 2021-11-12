@@ -12,7 +12,6 @@ import {
   CustomizationDocument,
   PageDocument,
   ProjectDocument,
-  ReportDocument,
   SettingsDocument,
   StudioDocument,
   UserDocument,
@@ -61,6 +60,9 @@ export interface UserState extends UserAttributes {
   my_kudos?: {
     [key: string]: AggData;
   };
+  my_reports?: {
+    [key: string]: AggData;
+  };
   my_studio_memberships?: {
     [docId: string]: MemberData;
   };
@@ -88,9 +90,6 @@ export interface UserState extends UserAttributes {
     [parentDocId: string]: {
       [docId: string]: ContributionDocument;
     };
-  };
-  my_recent_reports?: {
-    [key: string]: ReportDocument;
   };
   notifications?: {
     [key: string]: AggData;
