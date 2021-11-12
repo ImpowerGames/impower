@@ -1167,6 +1167,8 @@ const CreateContributionForm = React.memo(
 
     const handleUploadFile = useCallback(
       async (e: React.ChangeEvent<HTMLInputElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
         const { files } = e.target;
         const file = files[0];
         if (file) {
@@ -1175,9 +1177,7 @@ const CreateContributionForm = React.memo(
             toastDispatch(toastTop(error, "error"));
             return;
           }
-          const fileUrl = URL.createObjectURL(file);
           setFileState(file);
-          setFileUrlState(fileUrl);
         }
       },
       [toastDispatch]
@@ -1367,12 +1367,12 @@ const CreateContributionForm = React.memo(
                 <StyledAttachmentArea>
                   <StyledFileInputButton fullWidth style={fileInputButtonStyle}>
                     <StyledFileInput
-                      id={type}
+                      id={`dialog-${type}`}
                       type="file"
                       accept={getFileType(type)}
                       onChange={handleUploadFile}
                     />
-                    <StyledFileInputLabel htmlFor={type}>
+                    <StyledFileInputLabel htmlFor={`dialog-${type}`}>
                       <StyledIconArea>
                         <FontIcon aria-label={`Upload`} size={16}>
                           {type === "image" ? (

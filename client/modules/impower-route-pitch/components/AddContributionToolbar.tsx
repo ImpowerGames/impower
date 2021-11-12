@@ -164,12 +164,12 @@ const TabLabel = React.memo((props: TabLabelProps) => {
       {(tab === "image" || tab === "audio") && onUpload && (
         <>
           <StyledFileInput
-            id={tab}
+            id={`toolbar-${tab}`}
             type="file"
             accept={getFileType(tab)}
             onChange={(e): Promise<void> => onUpload(e)}
           />
-          <StyledFileInputLabel htmlFor={tab} />
+          <StyledFileInputLabel htmlFor={`toolbar-${tab}`} />
         </>
       )}
     </>
