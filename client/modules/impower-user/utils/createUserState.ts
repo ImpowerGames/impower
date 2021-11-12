@@ -15,7 +15,6 @@ const createUserState = (): UserState => ({
     phrases: undefined,
     contributions: undefined,
     comments: undefined,
-    reports: undefined,
     suggestions: undefined,
   },
   customizations: {
@@ -30,7 +29,6 @@ const createUserState = (): UserState => ({
   my_recent_pitched_projects: {},
   my_recent_comments: {},
   my_recent_contributions: {},
-  my_recent_reports: {},
 });
 
 export default createUserState;
