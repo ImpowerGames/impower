@@ -117,6 +117,19 @@ const BetaBanner = React.memo((): JSX.Element => {
     el
   );
 
+  const title =
+    process.env.NEXT_PUBLIC_ENVIRONMENT === "development"
+      ? `This is a DEV only version of Impower.`
+      : process.env.NEXT_PUBLIC_ENVIRONMENT === "test"
+      ? `This is a TEST only version of Impower.`
+      : `Impower is in open beta.`;
+  const caption =
+    process.env.NEXT_PUBLIC_ENVIRONMENT === "development"
+      ? `All data on this endpoint is wiped periodically. Click here to report bugs. Thanks for helping develop the site!`
+      : process.env.NEXT_PUBLIC_ENVIRONMENT === "test"
+      ? `All data on this endpoint is wiped periodically. Click here to report bugs. Thanks for helping test the site!`
+      : `If you encounter bugs, please report them here. Thanks!`;
+
   if (dismissed) {
     return null;
   }
@@ -138,11 +151,9 @@ const BetaBanner = React.memo((): JSX.Element => {
         </FontIcon>
       </StyledIconButton>
       <StyledTextArea>
-        <StyledBoldWarningTypography>
-          {`Impower is in open beta.`}
-        </StyledBoldWarningTypography>
+        <StyledBoldWarningTypography>{title}</StyledBoldWarningTypography>
         <StyledWarningTypography variant="caption">
-          {`If you encounter bugs, please report them here. Thanks!`}
+          {caption}
         </StyledWarningTypography>
       </StyledTextArea>
     </StyledBetaWarningButton>
