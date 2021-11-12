@@ -125,9 +125,9 @@ const BetaBanner = React.memo((): JSX.Element => {
       : `Impower is in open beta.`;
   const caption =
     process.env.NEXT_PUBLIC_ENVIRONMENT === "development"
-      ? `All data on this endpoint is wiped periodically. Click here to report bugs. Thanks for helping develop the site!`
+      ? `All data on this endpoint is wiped periodically. Click here to report bugs. Thanks!`
       : process.env.NEXT_PUBLIC_ENVIRONMENT === "test"
-      ? `All data on this endpoint is wiped periodically. Click here to report bugs. Thanks for helping test the site!`
+      ? `All data on this endpoint is wiped periodically. Click here to report bugs. Thanks!`
       : `If you encounter bugs, please report them here. Thanks!`;
 
   if (dismissed) {
