@@ -45,6 +45,11 @@ const StyledScrollSentinel = styled.div`
   height: 1px;
 `;
 
+const StyledSpacer = styled.div`
+  pointer-events: none;
+  height: ${(props): string => props.theme.spacing(11)};
+`;
+
 const CreatePitchDialog = dynamic(() => import("./CreatePitchDialog"), {
   ssr: false,
 });
@@ -280,6 +285,7 @@ const AddPitchToolbar = React.memo(
     return (
       <>
         <StyledScrollSentinel ref={handleScrollSentinelRef} />
+        <StyledSpacer />
         <StyledAddPitchToolbarArea id="add-pitch-toolbar" ref={toolbarRef}>
           <CornerFab
             icon={icon}
