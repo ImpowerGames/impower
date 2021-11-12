@@ -24,11 +24,15 @@ const getReadOnlyFields = (): string[] => {
     "follows",
     "reports",
     "my_connects",
-    "my_dislikes",
     "my_follows",
-    "my_kudos",
     "my_likes",
+    "my_dislikes",
+    "my_kudos",
     "my_submissions",
+    "total_likes",
+    "total_dislikes",
+    "total_kudos",
+    "total_reports",
   ];
 };
 
