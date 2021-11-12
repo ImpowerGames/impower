@@ -17,7 +17,6 @@ const createUnauthenticatedUserState = (): UserState => ({
     phrases: null,
     contributions: null,
     comments: null,
-    reports: null,
     suggestions: null,
   },
   customizations: {
