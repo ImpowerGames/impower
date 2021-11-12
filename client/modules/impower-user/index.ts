@@ -3,8 +3,6 @@ export * from "./hooks/useUserContextState";
 export * from "./types/userActions";
 export * from "./types/userContextState";
 export * from "./types/userState";
-export { default as createUnauthenticatedContextState } from "./utils/createUnauthenticatedContextState";
-export { default as createUnauthenticatedUserState } from "./utils/createUnauthenticatedUserState";
 export { default as createUserContextState } from "./utils/createUserContextState";
 export { default as createUserState } from "./utils/createUserState";
 export { default as userChangeMember } from "./utils/userChangeMember";
