@@ -117,20 +117,26 @@ const BetaBanner = React.memo((): JSX.Element => {
     el
   );
 
-  const title =
-    process.env.NEXT_PUBLIC_ENVIRONMENT === "development"
-      ? `This is a DEV only version of Impower.`
-      : process.env.NEXT_PUBLIC_ENVIRONMENT === "test"
-      ? `This is a TEST only version of Impower.`
-      : `Impower is in open beta.`;
-  const caption =
-    process.env.NEXT_PUBLIC_ENVIRONMENT === "development"
-      ? `All data on this endpoint is wiped periodically. Click here to report bugs. Thanks!`
-      : process.env.NEXT_PUBLIC_ENVIRONMENT === "test"
-      ? `All data on this endpoint is wiped periodically. Click here to report bugs. Thanks!`
-      : `If you encounter bugs, please report them here. Thanks!`;
+  const title = process.env.NEXT_PUBLIC_ORIGIN.includes("localhost")
+    ? `This is a LOCAL only version of Impower.`
+    : process.env.NEXT_PUBLIC_ENVIRONMENT === "development"
+    ? `This is a DEV only version of Impower.`
+    : process.env.NEXT_PUBLIC_ENVIRONMENT === "test"
+    ? `This is a TEST only version of Impower.`
+    : `Impower is in open beta.`;
+  const caption = process.env.NEXT_PUBLIC_ORIGIN.includes("localhost")
+    ? `Make sure that the server emulator is running.`
+    : process.env.NEXT_PUBLIC_ENVIRONMENT === "development"
+    ? `All data on this endpoint is wiped periodically. Click here to report bugs. Thanks!`
+    : process.env.NEXT_PUBLIC_ENVIRONMENT === "test"
+    ? `All data on this endpoint is wiped periodically. Click here to report bugs. Thanks!`
+    : `If you encounter bugs, please report them here. Thanks!`;
 
   if (dismissed) {
+    return null;
+  }
+
+  if (!title && !caption) {
     return null;
   }
 
@@ -151,10 +157,14 @@ const BetaBanner = React.memo((): JSX.Element => {
         </FontIcon>
       </StyledIconButton>
       <StyledTextArea>
-        <StyledBoldWarningTypography>{title}</StyledBoldWarningTypography>
-        <StyledWarningTypography variant="caption">
-          {caption}
-        </StyledWarningTypography>
+        {title && (
+          <StyledBoldWarningTypography>{title}</StyledBoldWarningTypography>
+        )}
+        {caption && (
+          <StyledWarningTypography variant="caption">
+            {caption}
+          </StyledWarningTypography>
+        )}
       </StyledTextArea>
     </StyledBetaWarningButton>
   );
