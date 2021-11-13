@@ -207,7 +207,8 @@ const PostFooter = React.memo((props: PostFooterProps): JSX.Element => {
   useEffect(() => {
     const newTabIndex = tabs.indexOf(mode);
     setTabIndex(newTabIndex >= 0 ? newTabIndex : tabs.length - 1);
-  }, [mode, tabs]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   const handleTabChange = useCallback((e: React.ChangeEvent, value: number) => {
     setTabIndex(value);
