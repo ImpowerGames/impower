@@ -123,6 +123,7 @@ const StaticContributionList = React.memo(
     const [noMore, setNoMore] = useState<boolean>();
     const [sort, setSort] = useState<"new" | "old">(SORT_OPTIONS?.[0] || "new");
     const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("All");
+    const [reloading, setReloading] = useState(false);
 
     const recentContributionDocs = useMemo(() => {
       const result: { [id: string]: ContributionDocument } = {};
@@ -246,6 +247,7 @@ const StaticContributionList = React.memo(
             ? undefined
             : loadedCount < limit;
         setNoMore(noMoreRef.current);
+        setReloading(false);
       },
       [handleLoad]
     );
@@ -313,21 +315,26 @@ const StaticContributionList = React.memo(
       }
     }, [my_recent_contributions]);
 
-    useEffect(() => {
-      navigationDispatch(navigationSetTransitioning(false));
-      if ([nsfwVisible].some((x) => x === undefined)) {
-        return;
+    const handleReload = useCallback(async () => {
+      if (contributionDocsRef.current) {
+        setReloading(true);
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
       }
       cursorIndexRef.current = 0;
       contributionDocsRef.current = {};
       chunkMapRef.current = {};
       loadingMoreRef.current = false;
       noMoreRef.current = false;
-      setContributionDocsState(undefined);
-      setChunkMap(undefined);
-      setNoMore(noMoreRef.current);
       handleLoadMoreItems(queryOptions);
-    }, [handleLoadMoreItems, queryOptions, nsfwVisible, navigationDispatch]);
+    }, [handleLoadMoreItems, queryOptions]);
+
+    useEffect(() => {
+      navigationDispatch(navigationSetTransitioning(false));
+      if ([nsfwVisible].some((x) => x === undefined)) {
+        return;
+      }
+      handleReload();
+    }, [handleReload, navigationDispatch, nsfwVisible]);
 
     const handleEditContribution = useCallback(
       async (
@@ -483,7 +490,7 @@ const StaticContributionList = React.memo(
       );
     }, [rangeFilter]);
 
-    const loading = transitioning;
+    const loading = transitioning || !contributionDocsState || reloading;
 
     const listHeaderStyle: React.CSSProperties = useMemo(
       () => ({

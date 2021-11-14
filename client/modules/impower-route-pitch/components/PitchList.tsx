@@ -754,7 +754,7 @@ const PitchList = React.memo(
       [pitchDocsState]
     );
 
-    const loading = transitioning || reloading || !pitchDocsState;
+    const loading = transitioning || !pitchDocsState || reloading;
 
     const listHeaderStyle: React.CSSProperties = useMemo(
       () => ({

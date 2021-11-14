@@ -441,7 +441,7 @@ const StaticPitchList = React.memo(
       );
     }, [rangeFilter]);
 
-    const loading = transitioning || reloading || !pitchDocsState;
+    const loading = transitioning || !pitchDocsState || reloading;
 
     const listProgressStyle: React.CSSProperties = useMemo(
       () => ({

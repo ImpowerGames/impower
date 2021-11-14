@@ -91,6 +91,7 @@ const ContributionList = React.memo(
 
     const [typeFilter, setTypeFilter] = useState<ContributionTypeFilter>("All");
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rating");
+    const [reloading, setReloading] = useState(false);
 
     const [navigationState, navigationDispatch] = useContext(NavigationContext);
     const transitioning = navigationState?.transitioning;
@@ -175,6 +176,7 @@ const ContributionList = React.memo(
       chunkMapRef.current = {};
       DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
       setAllowReload(true);
+      setReloading(true);
     }, []);
 
     const handleFilter = useCallback(
@@ -265,6 +267,7 @@ const ContributionList = React.memo(
             ? undefined
             : loadedCount < limit;
         setNoMore(noMoreRef.current);
+        setReloading(false);
       },
       [handleLoad]
     );
@@ -338,6 +341,19 @@ const ContributionList = React.memo(
       }
     }, [creator, my_recent_contributions, pitchId]);
 
+    const handleReload = useCallback(async () => {
+      if (contributionDocsRef.current) {
+        setReloading(true);
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+      }
+      cursorRef.current = undefined;
+      contributionDocsRef.current = {};
+      chunkMapRef.current = {};
+      loadingMoreRef.current = false;
+      noMoreRef.current = false;
+      handleLoadMoreItems(pitchId, queryOptions);
+    }, [handleLoadMoreItems, pitchId, queryOptions]);
+
     useEffect(() => {
       navigationDispatch(navigationSetTransitioning(false));
       if ([nsfwVisible].some((x) => x === undefined)) {
@@ -346,23 +362,8 @@ const ContributionList = React.memo(
       if (!allowReload) {
         return;
       }
-      cursorRef.current = undefined;
-      contributionDocsRef.current = {};
-      chunkMapRef.current = {};
-      loadingMoreRef.current = false;
-      noMoreRef.current = false;
-      setContributionDocsState(undefined);
-      setChunkMap(undefined);
-      setNoMore(noMoreRef.current);
-      handleLoadMoreItems(pitchId, queryOptions);
-    }, [
-      handleLoadMoreItems,
-      queryOptions,
-      pitchId,
-      allowReload,
-      nsfwVisible,
-      navigationDispatch,
-    ]);
+      handleReload();
+    }, [allowReload, handleReload, navigationDispatch, nsfwVisible]);
 
     const handleEditContribution = useCallback(
       async (
@@ -464,7 +465,7 @@ const ContributionList = React.memo(
       [pitchId, pitchDoc]
     );
 
-    const loading = transitioning;
+    const loading = transitioning || !contributionDocsState || reloading;
 
     const listHeaderStyle: React.CSSProperties = useMemo(
       () => ({
