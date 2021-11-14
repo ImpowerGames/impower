@@ -20,6 +20,7 @@ interface VirtualizedItemProps {
   mounted?: boolean;
   displayed?: boolean;
   dontMeasure?: boolean;
+  dontUnmount?: boolean;
   initiallyMountedCount?: number;
   children: React.ReactNode;
   style?: React.CSSProperties;
@@ -46,6 +47,7 @@ const VirtualizedItem = React.forwardRef(
       visibleOffset = 1000,
       root = null,
       dontMeasure,
+      dontUnmount,
       style,
       placeholderStyle,
       contentStyle,
@@ -114,7 +116,8 @@ const VirtualizedItem = React.forwardRef(
                 ? "mount"
                 : mounted === undefined &&
                   mountedRef.current &&
-                  !visibleRef.current
+                  !visibleRef.current &&
+                  !dontUnmount
                 ? "unmount"
                 : "none";
             if (action === "mount") {
@@ -149,6 +152,7 @@ const VirtualizedItem = React.forwardRef(
       contentEl,
       mounted,
       onVisibilityChange,
+      dontUnmount,
     ]);
 
     const handleWrapperRef = useCallback(

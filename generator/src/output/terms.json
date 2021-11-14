@@ -5403,6 +5403,13 @@
   "tumbling": ["action", "parkour", "physics", "platformer", "side scroller"],
   "tumble": ["action", "parkour", "physics", "platformer", "side scroller"],
   "thrills": ["action", "creepy", "horror", "suspense", "thriller"],
+  "tear": [
+    "action",
+    "apocalyptic",
+    "destruction",
+    "post apocalyptic",
+    "sabotage"
+  ],
   "swiftly": ["action", "racing", "runner", "side scroller", "superspeed"],
   "swift": ["action", "racing", "runner", "side scroller", "superspeed"],
   "suspended": ["action", "parkour", "physics", "platformer", "side scroller"],
@@ -12037,6 +12044,15 @@
     "nature",
     "post apocalyptic",
     "weather"
+  ],
+  "tears": [
+    "action",
+    "apocalyptic",
+    "destruction",
+    "emotional",
+    "post apocalyptic",
+    "sabotage",
+    "tragedy"
   ],
   "swords": [
     "action",
@@ -19874,17 +19890,6 @@
     "survival",
     "swashbuckling"
   ],
-  "tear": [
-    "action",
-    "apocalyptic",
-    "destruction",
-    "detective",
-    "forensic",
-    "investigation",
-    "noir",
-    "post apocalyptic",
-    "sabotage"
-  ],
   "screws": [
     "action",
     "artificial intelligence",
@@ -24652,19 +24657,6 @@
     "redemption",
     "superhero",
     "war"
-  ],
-  "tears": [
-    "action",
-    "apocalyptic",
-    "destruction",
-    "detective",
-    "emotional",
-    "forensic",
-    "investigation",
-    "noir",
-    "post apocalyptic",
-    "sabotage",
-    "tragedy"
   ],
   "spills": [
     "action",
