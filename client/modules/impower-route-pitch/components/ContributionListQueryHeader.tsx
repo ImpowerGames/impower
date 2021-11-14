@@ -26,16 +26,12 @@ const ContributionListQueryHeader = React.memo(
   (props: ContributionListQueryHeaderProps): JSX.Element => {
     const { filter, sort, sortOptions, style, onFilter, onSort } = props;
     const filterHeaderStyle: React.CSSProperties = useMemo(
-      () => ({ margin: 0 }),
-      []
+      () => ({ margin: 0, ...style }),
+      [style]
     );
 
     return (
-      <QueryHeader
-        style={filterHeaderStyle}
-        id="contribution-filter-header"
-        style={style}
-      >
+      <QueryHeader style={filterHeaderStyle} id="contribution-filter-header">
         <ContributionTypeFilterButton value={filter} onOption={onFilter} />
         <StyledSpacer />
         <QuerySortButton
