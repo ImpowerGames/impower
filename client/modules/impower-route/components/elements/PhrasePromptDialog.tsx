@@ -585,6 +585,7 @@ const PhraseButton = React.memo((props: PhraseButtonProps) => {
 interface PhraseListProps {
   scrollParent?: HTMLElement;
   relevantTitles?: string[];
+  selectedTitle?: string;
   onClickPhrase?: (e: React.MouseEvent, phrase: string) => void;
   onUnlike?: (e: React.MouseEvent, phrase: string) => Promise<void>;
   onUndislike?: (e: React.MouseEvent, phrase: string) => Promise<void>;
@@ -595,6 +596,7 @@ const PhraseList = React.memo((props: PhraseListProps) => {
   const {
     scrollParent,
     relevantTitles,
+    selectedTitle,
     onClickPhrase,
     onUnlike,
     onUndislike,
@@ -623,7 +625,7 @@ const PhraseList = React.memo((props: PhraseListProps) => {
               onUnlike={onUnlike}
               onUndislike={onUndislike}
               onOption={onOption}
-              selected={index === 0}
+              selected={title === selectedTitle}
             />
           );
         }
@@ -658,6 +660,7 @@ interface PhrasePromptDialogProps extends Omit<DialogProps, "title"> {
 const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
   const {
     open,
+    chosenTitle,
     sortedTags,
     relevancyFilteredTags,
     relevantTitles,
@@ -1155,6 +1158,7 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
             <PhraseList
               scrollParent={scrollParent}
               relevantTitles={relevantTitles}
+              selectedTitle={chosenTitle}
               onClickPhrase={handleClickPhrase}
               onUnlike={handleUnlikePhrase}
               onUndislike={handleUndislikePhrase}
