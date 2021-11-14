@@ -1977,7 +1977,6 @@
   "matter": ["futuristic", "sci-fi", "science"],
   "magnet": ["futuristic", "sci-fi", "science"],
   "incandescent": ["futuristic", "sci-fi", "science"],
-  "carbon": ["futuristic", "sci-fi", "science"],
   "cadmium": ["futuristic", "sci-fi", "science"],
   "flutter": ["flight", "mecha", "physics"],
   "gaff": ["fishing", "nautical", "swashbuckling"],
@@ -2042,6 +2041,7 @@
   "anywhere": ["exploration", "open world", "walking simulator"],
   "abroad": ["exploration", "open world", "walking simulator"],
   "ops": ["espionage", "role playing", "tabletop"],
+  "volunteer's": ["escort mission", "quest", "rescue"],
   "prepared": ["escort mission", "management", "simulator"],
   "prepare": ["escort mission", "management", "simulator"],
   "exit": ["escape", "roadtrip", "thriller"],
@@ -2633,6 +2633,7 @@
   "last time": ["metroidvania", "nonlinear", "replayable", "roguelike"],
   "extra": ["metroidvania", "nonlinear", "replayable", "roguelike"],
   "another": ["metroidvania", "nonlinear", "replayable", "roguelike"],
+  "relief": ["medical", "quest", "rehabilitation", "rescue"],
   "mended": ["medical", "redemption", "rehabilitation", "repair"],
   "mend": ["medical", "redemption", "rehabilitation", "repair"],
   "cells": ["medical", "police", "punishment", "science"],
@@ -2771,7 +2772,6 @@
   "spanner": ["endless", "immortality", "teleportation", "time travel"],
   "span": ["endless", "immortality", "teleportation", "time travel"],
   "lasting": ["endless", "immortality", "multiplayer", "multiple endings"],
-  "whizz": ["educational", "genius", "party", "wizard"],
   "skills": ["educational", "genius", "quest", "simulator"],
   "east": ["eastern", "exploration", "open world", "walking simulator"],
   "crawlies": ["dungeon crawler", "insects", "nature", "role playing"],
@@ -3093,7 +3093,6 @@
   "mistook": ["caper", "heist", "phantom thief", "steal"],
   "i'm in": ["caper", "heist", "phantom thief", "steal"],
   "hold up": ["caper", "heist", "phantom thief", "steal"],
-  "heroin": ["caper", "crime", "noir", "psychedelic"],
   "held up": ["caper", "heist", "phantom thief", "steal"],
   "got away": ["caper", "heist", "phantom thief", "steal"],
   "getting this": ["caper", "heist", "phantom thief", "steal"],
@@ -3131,6 +3130,7 @@
   "poorer": ["business", "greed", "shop", "wealth"],
   "poor": ["business", "greed", "shop", "wealth"],
   "percent": ["business", "greed", "shop", "wealth"],
+  "penny": ["business", "greed", "shop", "wealth"],
   "pays": ["business", "greed", "shop", "wealth"],
   "paying": ["business", "greed", "shop", "wealth"],
   "paid": ["business", "greed", "shop", "wealth"],
@@ -3282,6 +3282,12 @@
     "futuristic",
     "sci-fi"
   ],
+  "greasepaint": [
+    "artificial intelligence",
+    "automation",
+    "robot",
+    "steampunk"
+  ],
   "consciousness": [
     "artificial intelligence",
     "medical",
@@ -3387,6 +3393,7 @@
   "crossed": ["angel", "resurrection", "supernatural", "vampire"],
   "cross": ["angel", "resurrection", "supernatural", "vampire"],
   "church": ["angel", "gothic", "marriage", "romance"],
+  "charity": ["angel", "quest", "redemption", "rescue"],
   "blissful": ["angel", "emotional", "relaxing", "utopian"],
   "altar": ["angel", "dungeon crawler", "resurrection", "role playing"],
   "alpha and omega": [
@@ -3525,6 +3532,7 @@
     "zombie"
   ],
   "coffin": ["occult", "resurrection", "supernatural", "vampire", "zombie"],
+  "lifeboats": ["nautical", "quest", "rescue", "survival", "swashbuckling"],
   "waltzing": ["musical", "regency", "rhythm", "steampunk", "victorian"],
   "housemaid's": [
     "monster tamer",
@@ -4378,7 +4386,6 @@
     "raising"
   ],
   "boys": ["coming-of-age", "party", "regency", "steampunk", "victorian"],
-  "volunteer's": ["comics", "escort mission", "quest", "rescue", "superhero"],
   "syndrome": ["comics", "medical", "mutant", "psychic", "psychological"],
   "soldiers": ["comics", "mecha", "military", "superhero", "war"],
   "soldiering": ["comics", "mecha", "military", "superhero", "war"],
@@ -4491,6 +4498,7 @@
   "parker": ["city", "driving", "modern", "sports", "urban"],
   "park": ["city", "driving", "modern", "sports", "urban"],
   "low cal": ["city", "cooking", "local", "modern", "urban"],
+  "fireman": ["city", "modern", "quest", "rescue", "urban"],
   "congestion": ["city", "driving", "medical", "modern", "urban"],
   "uneasy": ["casual", "creepy", "disillusionment", "horror", "suspense"],
   "tables": ["card", "cooking", "crafting", "role playing", "tabletop"],
@@ -4991,13 +4999,6 @@
     "robot",
     "technology"
   ],
-  "greasepaint": [
-    "artificial intelligence",
-    "automation",
-    "cyberpunk",
-    "robot",
-    "steampunk"
-  ],
   "gasket": [
     "artificial intelligence",
     "automation",
@@ -5096,6 +5097,13 @@
     "robot",
     "technology"
   ],
+  "carbon": [
+    "artificial intelligence",
+    "cyberpunk",
+    "futuristic",
+    "sci-fi",
+    "science"
+  ],
   "bits": [
     "artificial intelligence",
     "cyberpunk",
@@ -5153,8 +5161,8 @@
     "arcade",
     "artificial intelligence",
     "automation",
-    "cyberpunk",
-    "robot"
+    "robot",
+    "steampunk"
   ],
   "waterloo": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "watering": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
@@ -5583,6 +5591,14 @@
     "time manipulation",
     "time travel"
   ],
+  "asylum": [
+    "police",
+    "psychic",
+    "psychological",
+    "punishment",
+    "quest",
+    "rescue"
+  ],
   "again": [
     "metroidvania",
     "nonlinear",
@@ -5607,6 +5623,7 @@
     "survival",
     "tabletop"
   ],
+  "refugee": ["mecha", "military", "quest", "rebellion", "rescue", "war"],
   "barrack": ["mecha", "military", "regency", "steampunk", "victorian", "war"],
   "party's": ["jrpg", "party", "political", "rebellion", "role playing", "rpg"],
   "party": ["jrpg", "party", "political", "rebellion", "role playing", "rpg"],
@@ -5635,6 +5652,7 @@
     "sci-fi",
     "science"
   ],
+  "helicopter": ["flight", "mecha", "military", "quest", "rescue", "war"],
   "april": [
     "farming",
     "gardening",
@@ -6759,14 +6777,6 @@
     "superhero",
     "tower defense"
   ],
-  "relief": [
-    "comics",
-    "medical",
-    "quest",
-    "rehabilitation",
-    "rescue",
-    "superhero"
-  ],
   "protected": [
     "comics",
     "defense",
@@ -6987,6 +6997,7 @@
     "urban",
     "walking simulator"
   ],
+  "ambulance": ["city", "medical", "modern", "quest", "rescue", "urban"],
   "trouble": ["caper", "crime", "heist", "noir", "phantom thief", "steal"],
   "thieves": ["caper", "crime", "heist", "noir", "phantom thief", "steal"],
   "thief": ["caper", "crime", "heist", "noir", "phantom thief", "steal"],
@@ -7769,6 +7780,14 @@
     "technology",
     "tower defense"
   ],
+  "factory": [
+    "artificial intelligence",
+    "automation",
+    "crafting",
+    "robot",
+    "science",
+    "steampunk"
+  ],
   "development": [
     "artificial intelligence",
     "building",
@@ -8382,7 +8401,6 @@
     "role playing",
     "sword & sorcery"
   ],
-  "charity": ["angel", "comics", "quest", "redemption", "rescue", "superhero"],
   "wars": [
     "alternate history",
     "historical",
@@ -10202,6 +10220,15 @@
     "parent",
     "raising"
   ],
+  "orphan": [
+    "coming-of-age",
+    "fairy tale",
+    "fantasy",
+    "monster tamer",
+    "quest",
+    "raising",
+    "rescue"
+  ],
   "mother": [
     "coming-of-age",
     "family",
@@ -10255,15 +10282,6 @@
     "rescue",
     "superhero",
     "survival"
-  ],
-  "lifeboats": [
-    "comics",
-    "nautical",
-    "quest",
-    "rescue",
-    "superhero",
-    "survival",
-    "swashbuckling"
   ],
   "genetic": [
     "comics",
@@ -10408,15 +10426,6 @@
     "roadtrip",
     "urban",
     "vehicle"
-  ],
-  "fireman": [
-    "city",
-    "comics",
-    "modern",
-    "quest",
-    "rescue",
-    "superhero",
-    "urban"
   ],
   "daughters": [
     "child",
@@ -10589,6 +10598,15 @@
     "tactical",
     "war"
   ],
+  "pennies": [
+    "business",
+    "greed",
+    "regency",
+    "shop",
+    "steampunk",
+    "victorian",
+    "wealth"
+  ],
   "parlor": [
     "business",
     "card",
@@ -10750,6 +10768,15 @@
     "quest",
     "redemption",
     "shop"
+  ],
+  "intervention": [
+    "bureaucracy",
+    "business",
+    "management",
+    "quest",
+    "redemption",
+    "rescue",
+    "simulator"
   ],
   "industry": [
     "bureaucracy",
@@ -11255,13 +11282,31 @@
     "royalty",
     "shapeshifting"
   ],
-  "factory": [
+  "greasing": [
     "artificial intelligence",
     "automation",
-    "crafting",
-    "cyberpunk",
+    "cleaning",
+    "cooking",
+    "dieselpunk",
     "robot",
-    "science",
+    "steampunk"
+  ],
+  "greased": [
+    "artificial intelligence",
+    "automation",
+    "cleaning",
+    "cooking",
+    "dieselpunk",
+    "robot",
+    "steampunk"
+  ],
+  "grease": [
+    "artificial intelligence",
+    "automation",
+    "cleaning",
+    "cooking",
+    "dieselpunk",
+    "robot",
     "steampunk"
   ],
   "efficient": [
@@ -11977,11 +12022,11 @@
   ],
   "throttle": [
     "action",
-    "cyberpunk",
     "dieselpunk",
     "mecha",
     "online",
     "racing",
+    "steampunk",
     "superspeed"
   ],
   "tempest": [
@@ -13678,6 +13723,16 @@
     "suspense",
     "tragedy"
   ],
+  "comfort": [
+    "cozy",
+    "medical",
+    "quest",
+    "redemption",
+    "rehabilitation",
+    "relaxing",
+    "rescue",
+    "utopian"
+  ],
   "undercover": [
     "covert",
     "detective",
@@ -13868,16 +13923,6 @@
     "noir",
     "rehabilitation"
   ],
-  "refugee": [
-    "comics",
-    "mecha",
-    "military",
-    "quest",
-    "rebellion",
-    "rescue",
-    "superhero",
-    "war"
-  ],
   "liberty": [
     "comics",
     "open world",
@@ -13888,16 +13933,6 @@
     "superhero",
     "utopian"
   ],
-  "helicopter": [
-    "comics",
-    "flight",
-    "mecha",
-    "military",
-    "quest",
-    "rescue",
-    "superhero",
-    "war"
-  ],
   "dna": [
     "comics",
     "detective",
@@ -13907,16 +13942,6 @@
     "noir",
     "science",
     "shapeshifting"
-  ],
-  "asylum": [
-    "comics",
-    "police",
-    "psychic",
-    "psychological",
-    "punishment",
-    "quest",
-    "rescue",
-    "superhero"
   ],
   "hearties": [
     "comedy",
@@ -14037,16 +14062,6 @@
     "roadtrip",
     "urban",
     "walking simulator"
-  ],
-  "ambulance": [
-    "city",
-    "comics",
-    "medical",
-    "modern",
-    "quest",
-    "rescue",
-    "superhero",
-    "urban"
   ],
   "kidding": [
     "child",
@@ -14827,36 +14842,6 @@
     "resource management",
     "robot",
     "technology"
-  ],
-  "greasing": [
-    "artificial intelligence",
-    "automation",
-    "cleaning",
-    "cooking",
-    "cyberpunk",
-    "dieselpunk",
-    "robot",
-    "steampunk"
-  ],
-  "greased": [
-    "artificial intelligence",
-    "automation",
-    "cleaning",
-    "cooking",
-    "cyberpunk",
-    "dieselpunk",
-    "robot",
-    "steampunk"
-  ],
-  "grease": [
-    "artificial intelligence",
-    "automation",
-    "cleaning",
-    "cooking",
-    "cyberpunk",
-    "dieselpunk",
-    "robot",
-    "steampunk"
   ],
   "functions": [
     "artificial intelligence",
@@ -16688,6 +16673,26 @@
     "nautical",
     "swashbuckling"
   ],
+  "escapes": [
+    "action",
+    "caper",
+    "crime",
+    "escape",
+    "noir",
+    "quest",
+    "rescue",
+    "thriller"
+  ],
+  "escape": [
+    "action",
+    "caper",
+    "crime",
+    "escape",
+    "noir",
+    "quest",
+    "rescue",
+    "thriller"
+  ],
   "enemy": [
     "action",
     "beat 'em up",
@@ -17878,17 +17883,6 @@
     "superhero",
     "walking simulator"
   ],
-  "orphan": [
-    "comics",
-    "coming-of-age",
-    "fairy tale",
-    "fantasy",
-    "monster tamer",
-    "quest",
-    "raising",
-    "rescue",
-    "superhero"
-  ],
   "guards": [
     "comics",
     "defense",
@@ -18472,6 +18466,28 @@
     "steal",
     "wealth"
   ],
+  "freely": [
+    "business",
+    "greed",
+    "open world",
+    "quest",
+    "rebellion",
+    "rescue",
+    "sandbox",
+    "shop",
+    "wealth"
+  ],
+  "free": [
+    "business",
+    "greed",
+    "open world",
+    "quest",
+    "rebellion",
+    "rescue",
+    "sandbox",
+    "shop",
+    "wealth"
+  ],
   "diamond": [
     "business",
     "caper",
@@ -18680,17 +18696,6 @@
     "medical",
     "noir",
     "social deduction"
-  ],
-  "intervention": [
-    "bureaucracy",
-    "business",
-    "comics",
-    "management",
-    "quest",
-    "redemption",
-    "rescue",
-    "simulator",
-    "superhero"
   ],
   "illegal": [
     "bureaucracy",
@@ -19022,6 +19027,17 @@
     "robot",
     "technology"
   ],
+  "mechanics": [
+    "artificial intelligence",
+    "automation",
+    "futuristic",
+    "mecha",
+    "repair",
+    "robot",
+    "sci-fi",
+    "science",
+    "steampunk"
+  ],
   "logical": [
     "artificial intelligence",
     "detective",
@@ -19296,17 +19312,6 @@
     "interactive film",
     "invisibility",
     "surveillance"
-  ],
-  "penny": [
-    "art",
-    "artist",
-    "business",
-    "communication",
-    "creative",
-    "drawing",
-    "greed",
-    "shop",
-    "wealth"
   ],
   "paste": [
     "art",
@@ -19956,6 +19961,17 @@
     "superspeed",
     "time limit",
     "time manipulation"
+  ],
+  "gears": [
+    "action",
+    "artificial intelligence",
+    "automation",
+    "driving",
+    "mecha",
+    "racing",
+    "robot",
+    "steampunk",
+    "vehicle"
   ],
   "gauntlet": [
     "action",
@@ -20935,6 +20951,18 @@
     "supernatural",
     "suspense"
   ],
+  "comforts": [
+    "cozy",
+    "medical",
+    "monster tamer",
+    "quest",
+    "raising",
+    "redemption",
+    "rehabilitation",
+    "relaxing",
+    "rescue",
+    "utopian"
+  ],
   "pumpkin": [
     "cooking",
     "crop",
@@ -21259,18 +21287,6 @@
     "superhero",
     "war"
   ],
-  "comfort": [
-    "comics",
-    "cozy",
-    "medical",
-    "quest",
-    "redemption",
-    "rehabilitation",
-    "relaxing",
-    "rescue",
-    "superhero",
-    "utopian"
-  ],
   "merrier": [
     "comedy",
     "fairy tale",
@@ -21354,6 +21370,18 @@
     "suspense",
     "vehicle",
     "western"
+  ],
+  "comfortable": [
+    "casual",
+    "cozy",
+    "medical",
+    "quest",
+    "redemption",
+    "rehabilitation",
+    "relaxing",
+    "rescue",
+    "slice-of-life",
+    "utopian"
   ],
   "caught": [
     "capture",
@@ -21606,18 +21634,6 @@
     "robot",
     "simulator",
     "technology"
-  ],
-  "mechanics": [
-    "artificial intelligence",
-    "automation",
-    "cyberpunk",
-    "futuristic",
-    "mecha",
-    "repair",
-    "robot",
-    "sci-fi",
-    "science",
-    "steampunk"
   ],
   "matrix": [
     "artificial intelligence",
@@ -22675,11 +22691,11 @@
     "steal",
     "thriller"
   ],
-  "gears": [
+  "gear": [
     "action",
     "artificial intelligence",
     "automation",
-    "cyberpunk",
+    "dieselpunk",
     "driving",
     "mecha",
     "racing",
@@ -22747,30 +22763,6 @@
     "rivals",
     "superhero"
   ],
-  "escapes": [
-    "action",
-    "caper",
-    "comics",
-    "crime",
-    "escape",
-    "noir",
-    "quest",
-    "rescue",
-    "superhero",
-    "thriller"
-  ],
-  "escape": [
-    "action",
-    "caper",
-    "comics",
-    "crime",
-    "escape",
-    "noir",
-    "quest",
-    "rescue",
-    "superhero",
-    "thriller"
-  ],
   "drifting": [
     "action",
     "aquatic",
@@ -22782,6 +22774,18 @@
     "racing",
     "swashbuckling",
     "vehicle"
+  ],
+  "disaster": [
+    "action",
+    "apocalyptic",
+    "destruction",
+    "disaster",
+    "emotional",
+    "post apocalyptic",
+    "quest",
+    "rescue",
+    "sabotage",
+    "tragedy"
   ],
   "deeply": [
     "action",
@@ -23817,32 +23821,6 @@
     "steal",
     "wealth"
   ],
-  "freely": [
-    "business",
-    "comics",
-    "greed",
-    "open world",
-    "quest",
-    "rebellion",
-    "rescue",
-    "sandbox",
-    "shop",
-    "superhero",
-    "wealth"
-  ],
-  "free": [
-    "business",
-    "comics",
-    "greed",
-    "open world",
-    "quest",
-    "rebellion",
-    "rescue",
-    "sandbox",
-    "shop",
-    "superhero",
-    "wealth"
-  ],
   "collectable": [
     "business",
     "collecting",
@@ -24792,19 +24770,6 @@
     "sabotage",
     "supernatural"
   ],
-  "gear": [
-    "action",
-    "artificial intelligence",
-    "automation",
-    "cyberpunk",
-    "dieselpunk",
-    "driving",
-    "mecha",
-    "racing",
-    "robot",
-    "steampunk",
-    "vehicle"
-  ],
   "gales": [
     "action",
     "apocalyptic",
@@ -25597,20 +25562,6 @@
     "sci-fi",
     "science"
   ],
-  "comforts": [
-    "comics",
-    "cozy",
-    "medical",
-    "monster tamer",
-    "quest",
-    "raising",
-    "redemption",
-    "rehabilitation",
-    "relaxing",
-    "rescue",
-    "superhero",
-    "utopian"
-  ],
   "stupidest": [
     "comedy",
     "cute",
@@ -25653,20 +25604,6 @@
     "superhero",
     "tower defense"
   ],
-  "comfortable": [
-    "casual",
-    "comics",
-    "cozy",
-    "medical",
-    "quest",
-    "redemption",
-    "rehabilitation",
-    "relaxing",
-    "rescue",
-    "slice-of-life",
-    "superhero",
-    "utopian"
-  ],
   "patrol": [
     "capture",
     "cryptid",
@@ -25694,6 +25631,20 @@
     "noir",
     "police",
     "social deduction"
+  ],
+  "recovery": [
+    "caper",
+    "concealment",
+    "heist",
+    "invisibility",
+    "medical",
+    "ninja",
+    "phantom thief",
+    "quest",
+    "rehabilitation",
+    "rescue",
+    "steal",
+    "stealth"
   ],
   "open and shut": [
     "caper",
@@ -26269,20 +26220,6 @@
     "robot",
     "suspense"
   ],
-  "pennies": [
-    "art",
-    "artist",
-    "business",
-    "communication",
-    "creative",
-    "drawing",
-    "greed",
-    "regency",
-    "shop",
-    "steampunk",
-    "victorian",
-    "wealth"
-  ],
   "imagination": [
     "art",
     "artist",
@@ -26814,20 +26751,6 @@
     "role playing",
     "superhero",
     "tabletop"
-  ],
-  "disaster": [
-    "action",
-    "apocalyptic",
-    "comics",
-    "destruction",
-    "disaster",
-    "emotional",
-    "post apocalyptic",
-    "quest",
-    "rescue",
-    "sabotage",
-    "superhero",
-    "tragedy"
   ],
   "deadly": [
     "action",
@@ -28093,6 +28016,21 @@
     "supernatural",
     "werewolf"
   ],
+  "alert": [
+    "action",
+    "apocalyptic",
+    "cryptid",
+    "disaster",
+    "dystopian",
+    "escort mission",
+    "invisibility",
+    "mecha",
+    "police",
+    "post apocalyptic",
+    "quest",
+    "rescue",
+    "surveillance"
+  ],
   "elementary": [
     "academia",
     "educational",
@@ -28314,22 +28252,6 @@
     "noir",
     "police",
     "social deduction"
-  ],
-  "recovery": [
-    "caper",
-    "comics",
-    "concealment",
-    "heist",
-    "invisibility",
-    "medical",
-    "ninja",
-    "phantom thief",
-    "quest",
-    "rehabilitation",
-    "rescue",
-    "steal",
-    "stealth",
-    "superhero"
   ],
   "moonlighting": [
     "caper",
@@ -29932,23 +29854,6 @@
     "supernatural",
     "suspense",
     "werewolf"
-  ],
-  "alert": [
-    "action",
-    "apocalyptic",
-    "comics",
-    "cryptid",
-    "disaster",
-    "dystopian",
-    "escort mission",
-    "invisibility",
-    "mecha",
-    "police",
-    "post apocalyptic",
-    "quest",
-    "rescue",
-    "superhero",
-    "surveillance"
   ],
   "smart": [
     "academia",
