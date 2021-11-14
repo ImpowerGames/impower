@@ -213,27 +213,28 @@ const ContributionList = React.memo(
         const lastSnapshot = docs[cursorIndex] || null;
         cursorRef.current = lastSnapshot;
         const currentDocs = contributionDocsRef.current || {};
-        const matchingRecentContributionDocs =
-          recentContributionDocsRef.current || {};
-        const newContributionDocs = {
-          ...matchingRecentContributionDocs,
+        const matchingRecentDocs = recentContributionDocsRef.current || {};
+        const newDocs = {
+          ...matchingRecentDocs,
           ...currentDocs,
-          ...matchingRecentContributionDocs,
         };
         docs.forEach((d) => {
           const pitchId = d.ref.parent.parent.id;
           const contributionId = d.id;
-          newContributionDocs[`${pitchId}/${contributionId}`] = d.data();
+          newDocs[`${pitchId}/${contributionId}`] = d.data();
         });
-        Object.entries(newContributionDocs).forEach(([key, doc]) => {
+        Object.entries(matchingRecentDocs).forEach(([key, doc]) => {
+          newDocs[key] = doc;
+        });
+        Object.entries(newDocs).forEach(([key, doc]) => {
           if (doc.delisted) {
-            delete newContributionDocs[key];
+            delete newDocs[key];
           }
           if (chunkMapRef.current[key] === undefined) {
             chunkMapRef.current[key] = lastLoadedChunkRef.current;
           }
         });
-        contributionDocsRef.current = newContributionDocs;
+        contributionDocsRef.current = newDocs;
         return docs.length;
       },
       []

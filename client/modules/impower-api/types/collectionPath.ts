@@ -44,10 +44,22 @@ export type PitchedProjectContributionCollectionPath = [
   string,
   "contributions"
 ];
-export type PitchedProjectContributionCollectionGroupPath = [
-  undefined,
-  "contributions"
+export type PitchedProjectContributionNoteCollectionPath = [
+  "pitched_resources" | "pitched_games",
+  string,
+  "contributions",
+  string,
+  "notes"
 ];
+export type PitchedProjectNoteCollectionPath = [
+  "pitched_resources" | "pitched_games",
+  string,
+  "notes"
+];
+export type PitchedProjectNoteCollectionGroupPath = [undefined, "notes"];
+
+export type ContributionCollectionGroupPath = [undefined, "contributions"];
+export type NoteCollectionGroupPath = [undefined, "notes"];
 
 export type CollectionPath =
   | InfoCollectionPath
@@ -68,4 +80,7 @@ export type CollectionPath =
   | PublishedPageCommentCollectionPath
   | PitchedProjectCollectionPath
   | PitchedProjectContributionCollectionPath
-  | PitchedProjectContributionCollectionGroupPath;
+  | PitchedProjectNoteCollectionPath
+  | PitchedProjectContributionNoteCollectionPath
+  | ContributionCollectionGroupPath
+  | NoteCollectionGroupPath;

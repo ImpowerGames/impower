@@ -247,6 +247,7 @@ const PostFooter = React.memo((props: PostFooterProps): JSX.Element => {
             pitchId={pitchId}
             contributionId={contributionId}
             targetDoc={doc}
+            kudoCount={kudoCount}
             toolbarRef={kudoToolbarRef}
             toolbarAreaStyle={toolbarAreaStyle}
             toolbarStyle={toolbarStyle}

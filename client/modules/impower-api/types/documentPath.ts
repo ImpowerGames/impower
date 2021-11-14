@@ -59,6 +59,12 @@ export type PitchedProjectContributionDocumentPath = [
   "contributions",
   string
 ];
+export type PitchedProjectNoteDocumentPath = [
+  "pitched_resources" | "pitched_games",
+  string,
+  "notes",
+  string
+];
 
 export type ReportableDocumentPath =
   | UserDocumentPath
@@ -67,7 +73,8 @@ export type ReportableDocumentPath =
   | PublishedPageDocumentPath
   | PublishedPageCommentDocumentPath
   | PitchedProjectDocumentPath
-  | PitchedProjectContributionDocumentPath;
+  | PitchedProjectContributionDocumentPath
+  | PitchedProjectNoteDocumentPath;
 
 export type SubmissionDocumentPath =
   | UserDocumentPath
@@ -76,6 +83,7 @@ export type SubmissionDocumentPath =
   | PublishedPageCommentDocumentPath
   | PitchedProjectDocumentPath
   | PitchedProjectContributionDocumentPath
+  | PitchedProjectNoteDocumentPath
   | PhraseDocumentPath
   | PhraseSuggestionDocumentPath;
 
@@ -87,7 +95,8 @@ export type InteractiveDocumentPath =
   | PitchedProjectDocumentPath
   | ProjectDocumentPath
   | PublishedPageCommentDocumentPath
-  | PitchedProjectContributionDocumentPath;
+  | PitchedProjectContributionDocumentPath
+  | PitchedProjectNoteDocumentPath;
 
 export type DocumentPath =
   | InfoDocumentPath
@@ -107,4 +116,5 @@ export type DocumentPath =
   | PublishedPageDocumentPath
   | PublishedPageCommentDocumentPath
   | PitchedProjectDocumentPath
-  | PitchedProjectContributionDocumentPath;
+  | PitchedProjectContributionDocumentPath
+  | PitchedProjectNoteDocumentPath;

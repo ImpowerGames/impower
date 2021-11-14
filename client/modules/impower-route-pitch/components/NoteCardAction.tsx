@@ -23,14 +23,14 @@ const StyledIconButton = styled(IconButton)`
   }
 `;
 
-interface KudoCardActionProps {
+interface NoteCardActionProps {
   pitchId: string;
   contributionId: string;
   id: string;
   content?: string;
 }
 
-const KudoCardAction = React.memo((props: KudoCardActionProps): JSX.Element => {
+const NoteCardAction = React.memo((props: NoteCardActionProps): JSX.Element => {
   const { pitchId, contributionId, id, content } = props;
 
   const [userState, userDispatch] = useContext(UserContext);
@@ -197,4 +197,4 @@ const KudoCardAction = React.memo((props: KudoCardActionProps): JSX.Element => {
   );
 });
 
-export default KudoCardAction;
+export default NoteCardAction;

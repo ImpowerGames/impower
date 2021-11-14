@@ -5,4 +5,5 @@ export type SubmissionType =
   | "phrases"
   | "contributions"
   | "comments"
+  | "notes"
   | "suggestions";

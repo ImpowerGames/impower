@@ -144,8 +144,8 @@ export const getPageDocPath = async (
       if (v === "c") {
         locationArray[i] = "contributions";
       }
-      if (v === "k") {
-        locationArray[i] = "kudos";
+      if (v === "n") {
+        locationArray[i] = "notes";
       }
     });
     return ["pitched_games", ...locationArray] as InteractiveDocumentPath;
