@@ -151,6 +151,18 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
       ? getDataStoreKey(...targetPath)
       : getDataStoreKey(...targetPath);
   const existingKudo = my_kudos?.[kudoKey];
+  const existingKudoRef = useRef<AggData>(
+    existingKudo
+      ? {
+          ...existingKudo,
+          a: {
+            u: userDoc?.username,
+            i: userDoc?.icon?.fileUrl,
+            h: userDoc?.hex,
+          },
+        }
+      : existingKudo
+  );
   const recentNote: NoteDocument = useMemo(
     () =>
       existingKudo === undefined || uid === undefined
@@ -188,10 +200,15 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
         .forEach(([id, aggData]) => {
           result[id] = aggData?.a;
         });
+      if (existingKudoRef.current) {
+        result[uid] = existingKudoRef.current?.a;
+      } else {
+        delete result[uid];
+      }
       authorsRef.current = result;
       setAuthors(authorsRef.current);
     },
-    []
+    [uid]
   );
 
   useCollectionDataLoad(
@@ -217,18 +234,23 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
       delete newRecentNotes[uid];
       delete newNotes[uid];
     }
+    const author = {
+      u: userDoc?.username,
+      i: userDoc?.icon?.fileUrl,
+      h: userDoc?.hex,
+    };
     if (existingKudo) {
-      newAuthors[uid] = {
-        u: userDoc?.username,
-        i: userDoc?.icon?.fileUrl,
-        h: userDoc?.hex,
-      };
+      newAuthors[uid] = author;
     } else {
       delete newAuthors[uid];
     }
     notesRef.current = newNotes;
     authorsRef.current = newAuthors;
     recentNotesRef.current = newRecentNotes;
+    existingKudoRef.current = {
+      ...existingKudo,
+      a: author,
+    };
     setNotesState(notesRef.current);
     setAuthors(authorsRef.current);
   }, [
@@ -430,7 +452,7 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
     <>
       <StyledKudoList>
         <StyledListContent>
-          {kudoCount > 0 && authors && (
+          {kudoCount > 0 && authors && Object.keys(authors).length > 0 && (
             <StyledCardArea initial={0} animate={1} duration={0.15}>
               <NoteCardLayout
                 pitchId={pitchId}
