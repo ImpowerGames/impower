@@ -57,7 +57,8 @@ const getRelevantPhrases = (
   },
   termTagsMap: {
     [term: string]: string[];
-  }
+  },
+  limit = 100
 ): string[] => {
   const phraseTagRelevancyScoreMap: { [phrase: string]: number } = {};
 
@@ -115,10 +116,9 @@ const getRelevantPhrases = (
     }
   );
 
-  // Suggest at most 200 possible related phrases.
   // The more tags we have as input, the more confident we can be in our generator's output.
   // So if the user provides less tags, suggest less phrases.
-  return sortedPhrases.slice(0, 200 / tagsSortedBySpecificity.length);
+  return sortedPhrases.slice(0, limit * (tagsSortedBySpecificity.length / 10));
 };
 
 export default getRelevantPhrases;
