@@ -530,6 +530,7 @@ const PhraseButton = React.memo((props: PhraseButtonProps) => {
       root={scrollParent}
       index={index}
       minHeight={48}
+      dontUnmount
       style={mountIfVisibleStyle}
     >
       <LazyHydrate whenVisible>
