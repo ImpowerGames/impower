@@ -466,52 +466,19 @@ export const userReducer = (
         const { uid } = Auth.instance;
         const batch = await new DataStoreBatch().start();
         await new DataStoreWrite(...path).create(doc, batch);
-        const existingSubmissionDoc = state?.submissions?.[submissionType];
-        if (existingSubmissionDoc) {
-          try {
-            await new DataStoreWrite(
-              "users",
-              uid,
-              "submissions",
-              submissionType
-            ).update(
-              {
-                _documentType: "PathDocument",
-                _createdBy: uid,
-                path: path.join("/"),
-              },
-              batch
-            );
-          } catch {
-            await new DataStoreWrite(
-              "users",
-              uid,
-              "submissions",
-              submissionType
-            ).create(
-              {
-                _documentType: "PathDocument",
-                _createdBy: uid,
-                path: path.join("/"),
-              },
-              batch
-            );
-          }
-        } else {
-          await new DataStoreWrite(
-            "users",
-            uid,
-            "submissions",
-            submissionType
-          ).create(
-            {
-              _documentType: "PathDocument",
-              _createdBy: uid,
-              path: path.join("/"),
-            },
-            batch
-          );
-        }
+        await new DataStoreWrite(
+          "users",
+          uid,
+          "submissions",
+          submissionType
+        ).update(
+          {
+            _documentType: "PathDocument",
+            _createdBy: uid,
+            path: path.join("/"),
+          },
+          batch
+        );
         try {
           await batch.commit();
         } catch (e) {
@@ -671,9 +638,9 @@ export const userReducer = (
         };
       }
       const existingSubmissionDoc = state?.submissions?.[submissionType];
-      const newSubmissionDoc = existingSubmissionDoc
-        ? getLocalUpdateAnnotatedDocument(existingSubmissionDoc)
-        : getLocalCreateAnnotatedDocument(existingSubmissionDoc);
+      const newSubmissionDoc = getLocalUpdateAnnotatedDocument(
+        existingSubmissionDoc
+      );
       return {
         ...state,
         studios,
@@ -999,9 +966,9 @@ export const userReducer = (
         studios = { ...(studios || {}), [id]: newDoc };
       }
       const existingSubmissionDoc = state?.submissions?.[submissionType];
-      const newSubmissionDoc = existingSubmissionDoc
-        ? getLocalUpdateAnnotatedDocument(existingSubmissionDoc)
-        : getLocalCreateAnnotatedDocument(existingSubmissionDoc);
+      const newSubmissionDoc = getLocalUpdateAnnotatedDocument(
+        existingSubmissionDoc
+      );
       return {
         ...state,
         studios,
