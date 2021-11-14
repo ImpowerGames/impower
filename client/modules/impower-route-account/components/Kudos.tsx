@@ -73,7 +73,7 @@ const StyledLoadingContainer = styled.div`
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: calc(100vh - ${(props): string => props.theme.spacing(40)});
+  min-height: calc(100vh - ${(props): string => props.theme.spacing(50)});
 `;
 
 const StyledCircularProgress = styled(CircularProgress)`
