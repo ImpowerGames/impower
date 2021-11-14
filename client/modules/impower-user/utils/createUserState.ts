@@ -16,6 +16,7 @@ const createUserState = (): UserState => ({
     contributions: undefined,
     comments: undefined,
     suggestions: undefined,
+    notes: undefined,
   },
   customizations: {
     phrase_additions: undefined,

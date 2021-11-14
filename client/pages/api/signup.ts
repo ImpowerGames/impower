@@ -105,6 +105,7 @@ export const signup = async (
         "games",
         "contributions",
         "comments",
+        "notes",
         "phrases",
         "suggestions",
       ];

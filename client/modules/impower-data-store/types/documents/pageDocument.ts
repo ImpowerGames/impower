@@ -29,6 +29,7 @@ export interface PageDocument<T extends string = string>
   follows?: number;
   kudos?: number;
   comments?: number;
+  notes?: number;
   reports?: number;
 
   readonly rank?: number;

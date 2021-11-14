@@ -78,6 +78,7 @@ const StyledButtonContent = styled.div`
 
 const StyledInitialsTypography = styled(Typography)`
   font-weight: ${(props): number => props.theme.fontWeight.bold};
+  line-height: 1;
 `;
 
 interface AvatarProps {

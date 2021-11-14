@@ -5,6 +5,7 @@ export type DataDocumentType =
   | "ResourceDocument"
   | "GameDocument"
   | "CommentDocument"
+  | "NoteDocument"
   | "ContributionDocument"
   | "ClaimsDocument"
   | "SettingsDocument"

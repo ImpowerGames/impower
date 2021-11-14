@@ -6,19 +6,19 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AggData } from "../../impower-data-state";
 import {
   ContributionDocument,
   ProjectDocument,
 } from "../../impower-data-store";
+import { NoteDocument } from "../../impower-data-store/types/documents/noteDocument";
 import { LazyHydrate } from "../../impower-hydration";
 import { VirtualizedItem } from "../../impower-react-virtualization";
 import { FadeAnimation } from "../../impower-route";
-import KudoCard from "./KudoCard";
+import NoteCard from "./NoteCard";
 
 const StyledCardArea = styled(FadeAnimation)``;
 
-const StyledKudoList = styled.div`
+const StyledNoteList = styled.div`
   flex: 1;
   position: relative;
   display: flex;
@@ -26,50 +26,50 @@ const StyledKudoList = styled.div`
   justify-content: flex-start;
 `;
 
-interface VirtualizedKudoCardProps {
+interface VirtualizedNoteCardProps {
   pitchId: string;
   contributionId: string;
   targetDoc: ProjectDocument | ContributionDocument;
   id: string;
-  data: AggData;
+  doc: NoteDocument;
 }
-const VirtualizedKudoCard = React.memo((props: VirtualizedKudoCardProps) => {
-  const { pitchId, contributionId, targetDoc, id, data } = props;
+const VirtualizedNoteCard = React.memo((props: VirtualizedNoteCardProps) => {
+  const { pitchId, contributionId, targetDoc, id, doc } = props;
 
   return (
-    <KudoCard
+    <NoteCard
       pitchId={pitchId}
       contributionId={contributionId}
       targetDoc={targetDoc}
       id={id}
-      data={data}
+      doc={doc}
     />
   );
 });
 
-interface PopulatedKudoListProps {
+interface PopulatedNoteListProps {
   pitchId: string;
   contributionId: string;
   targetDoc: ProjectDocument | ContributionDocument;
-  kudoEntries?: [string, AggData][];
+  noteEntries?: [string, NoteDocument][];
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
 }
 
-const PopulatedKudoList = React.memo(
-  (props: PopulatedKudoListProps): JSX.Element => {
+const PopulatedNoteList = React.memo(
+  (props: PopulatedNoteListProps): JSX.Element => {
     const {
       pitchId,
       contributionId,
       targetDoc,
-      kudoEntries,
+      noteEntries,
       chunkMap,
       lastLoadedChunk,
     } = props;
 
     const noteChunks = useMemo(() => {
-      const chunks: [string, AggData][][] = [];
-      kudoEntries.forEach(([id, doc]) => {
+      const chunks: [string, NoteDocument][][] = [];
+      noteEntries.forEach(([id, doc]) => {
         const chunkIndex = chunkMap?.[id] || 0;
         if (!chunks[chunkIndex]) {
           chunks[chunkIndex] = [];
@@ -77,7 +77,7 @@ const PopulatedKudoList = React.memo(
         chunks[chunkIndex].push([id, doc]);
       });
       return chunks;
-    }, [chunkMap, kudoEntries]);
+    }, [chunkMap, noteEntries]);
 
     const mountedChunksRef = useRef<number[]>([lastLoadedChunk]);
     const [mountedChunks, setMountedChunks] = useState<number[]>(
@@ -110,7 +110,7 @@ const PopulatedKudoList = React.memo(
     );
 
     return (
-      <StyledKudoList>
+      <StyledNoteList>
         {noteChunks.map((chunk, chunkIndex) => {
           return (
             <VirtualizedItem
@@ -119,7 +119,7 @@ const PopulatedKudoList = React.memo(
               mounted={mountedChunks.includes(chunkIndex)}
               onVisibilityChange={handleVisibilityChange}
             >
-              {chunk.map(([id, data], itemIndex) => {
+              {chunk.map(([id, doc], itemIndex) => {
                 return (
                   <VirtualizedItem
                     key={id}
@@ -129,12 +129,12 @@ const PopulatedKudoList = React.memo(
                   >
                     <LazyHydrate whenVisible>
                       <StyledCardArea initial={0} animate={1} duration={0.15}>
-                        <VirtualizedKudoCard
+                        <VirtualizedNoteCard
                           pitchId={pitchId}
                           contributionId={contributionId}
                           targetDoc={targetDoc}
                           id={id}
-                          data={data}
+                          doc={doc}
                         />
                       </StyledCardArea>
                     </LazyHydrate>
@@ -144,9 +144,9 @@ const PopulatedKudoList = React.memo(
             </VirtualizedItem>
           );
         })}
-      </StyledKudoList>
+      </StyledNoteList>
     );
   }
 );
 
-export default PopulatedKudoList;
+export default PopulatedNoteList;

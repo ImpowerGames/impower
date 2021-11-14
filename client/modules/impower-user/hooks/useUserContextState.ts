@@ -79,7 +79,7 @@ export const useUserContextState = (
           const { path } = action.payload;
           const type = getSubmissionType(path);
           const today = getToday().toString();
-          const limit = type === "comments" ? 300 : 100;
+          const limit = type === "comments" || type === "notes" ? 300 : 100;
           if (state?.submissions?.[type]?._updates?.[today] >= limit) {
             toastDispatch(
               toastTop(

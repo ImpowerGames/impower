@@ -14,6 +14,7 @@ export const useUserSubmissionsCollectionLoad = (
       phrases: null,
       contributions: null,
       comments: null,
+      notes: null,
       suggestions: null,
       members: null,
     },

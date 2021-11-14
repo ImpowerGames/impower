@@ -1,12 +1,12 @@
 import styled from "@emotion/styled";
 import CircularProgress from "@material-ui/core/CircularProgress";
 import React, { useMemo } from "react";
-import { AggData } from "../../impower-data-state";
 import {
   ContributionDocument,
   ProjectDocument,
 } from "../../impower-data-store";
-import PopulatedKudoList from "./PopulatedKudoList";
+import { NoteDocument } from "../../impower-data-store/types/documents/noteDocument";
+import PopulatedNoteList from "./PopulatedNoteList";
 
 const StyledLoadingArea = styled.div`
   flex: 1;
@@ -21,29 +21,29 @@ const StyledCircularProgress = styled(CircularProgress)`
   min-height: ${(props): string => props.theme.spacing(4)};
 `;
 
-interface KudoListContentProps {
+interface NoteListContentProps {
   pitchId: string;
   contributionId: string;
   targetDoc: ProjectDocument | ContributionDocument;
-  kudos?: { [id: string]: AggData };
+  notes?: { [id: string]: NoteDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
 }
 
-const KudoListContent = React.memo(
-  (props: KudoListContentProps): JSX.Element => {
+const NoteListContent = React.memo(
+  (props: NoteListContentProps): JSX.Element => {
     const {
       pitchId,
       contributionId,
       targetDoc,
-      kudos,
+      notes,
       chunkMap,
       lastLoadedChunk,
     } = props;
 
-    const kudoEntries = useMemo(
-      () => (kudos ? Object.entries(kudos) : undefined),
-      [kudos]
+    const noteEntries = useMemo(
+      () => (notes ? Object.entries(notes) : undefined),
+      [notes]
     );
 
     const loadingPlaceholder = useMemo(
@@ -55,21 +55,21 @@ const KudoListContent = React.memo(
       []
     );
 
-    if (!kudoEntries) {
+    if (!noteEntries) {
       return loadingPlaceholder;
     }
 
-    if (kudoEntries?.length === 0) {
+    if (noteEntries?.length === 0) {
       return null;
     }
 
     return (
       <>
-        <PopulatedKudoList
+        <PopulatedNoteList
           pitchId={pitchId}
           contributionId={contributionId}
           targetDoc={targetDoc}
-          kudoEntries={kudoEntries}
+          noteEntries={noteEntries}
           chunkMap={chunkMap}
           lastLoadedChunk={lastLoadedChunk}
         />
@@ -78,4 +78,4 @@ const KudoListContent = React.memo(
   }
 );
 
-export default KudoListContent;
+export default NoteListContent;

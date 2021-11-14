@@ -64,12 +64,12 @@ export const useCollectionDataLoad = <T>(
     getData();
   }, [
     onLoad,
-    orderByChild,
-    memoizedPath,
+    equalTo,
     limitToFirst,
     limitToLast,
+    memoizedPath,
+    orderByChild,
     source,
-    equalTo,
   ]);
 
   return collection;

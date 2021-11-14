@@ -8,6 +8,7 @@ const getReadOnlyFields = (): string[] => {
     "kudos",
     "contributions",
     "comments",
+    "notes",
     "removed",
     "daysWhenWeekOld",
     "hoursWhenDayOld",

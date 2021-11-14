@@ -13,6 +13,7 @@ const getCollectionType = (
     | "pitched_games"
     | "tags"
     | "comments"
+    | "notes"
     | "contributions"
     | "phrases"
     | "suggestions"
@@ -41,6 +42,8 @@ const getCollectionType = (
       return "TagDocument";
     case "comments":
       return "CommentDocument";
+    case "notes":
+      return "NoteDocument";
     case "contributions":
       return "ContributionDocument";
     case "phrases":

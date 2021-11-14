@@ -313,7 +313,7 @@ const ConnectButton = React.memo((props: ConnectButtonProps) => {
             ? `Connected!`
             : connectedTo
             ? `Requested`
-            : "Connect"}
+            : `Connect`}
         </StyledSecondaryButtonTypography>
       )}
     </StyledActionButton>
