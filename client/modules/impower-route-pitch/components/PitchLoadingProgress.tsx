@@ -44,6 +44,7 @@ interface PitchLoadingProgressProps {
   noMoreSubtitle?: string;
   refreshLabel?: string;
   noMore?: boolean;
+  style?: React.CSSProperties;
   onScrolledToEnd?: () => void;
   onRefresh?: () => void;
 }
@@ -56,6 +57,7 @@ const PitchLoadingProgress = React.memo(
       noMoreSubtitle,
       refreshLabel,
       loadingMore,
+      style,
       onScrolledToEnd,
       onRefresh,
     } = props;
@@ -94,7 +96,7 @@ const PitchLoadingProgress = React.memo(
     }, [onScrolledToEnd, scrollSentinel]);
 
     return (
-      <StyledCircularProgressArea ref={handleRef}>
+      <StyledCircularProgressArea ref={handleRef} style={style}>
         {loadingMore ? (
           <StyledCircularProgress color="secondary" />
         ) : loadingMore !== undefined &&

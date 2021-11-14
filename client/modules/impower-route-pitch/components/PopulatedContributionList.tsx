@@ -51,6 +51,7 @@ const StyledPopulatedContributionList = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  transition: opacity 0.15s ease;
 `;
 
 const StyledCardModal = styled(CardModal)`
@@ -716,6 +717,7 @@ interface PopulatedContributionListProps {
   contributionDocs?: { [id: string]: ContributionDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
+  style?: React.CSSProperties;
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
@@ -749,6 +751,7 @@ const PopulatedContributionList = React.memo(
       contributionDocs,
       chunkMap,
       lastLoadedChunk,
+      style,
       onChangeScore,
       onKudo,
       onEdit,
@@ -847,7 +850,7 @@ const PopulatedContributionList = React.memo(
     }
 
     return (
-      <StyledPopulatedContributionList>
+      <StyledPopulatedContributionList style={style}>
         {contributionChunks.map((chunkEntries, chunkIndex) => {
           if (!nodes.current[chunkIndex] && typeof document !== "undefined") {
             nodes.current[chunkIndex] = chunkEntries.map(() =>

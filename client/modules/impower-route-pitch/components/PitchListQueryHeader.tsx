@@ -44,6 +44,7 @@ interface PitchListQueryHeaderProps {
   rangeFilter?: DateRangeFilter;
   sort?: QuerySort;
   sortOptions?: QuerySort[];
+  style?: React.CSSProperties;
   onGoalFilter?: (e: React.MouseEvent, filter: PitchGoalFilter) => void;
   onRangeFilter?: (e: React.MouseEvent, filter: DateRangeFilter) => void;
   onSort?: (e: React.MouseEvent, sort: QuerySort) => void;
@@ -57,6 +58,7 @@ const PitchListQueryHeader = React.memo(
       rangeFilter,
       sort,
       sortOptions,
+      style,
       onGoalFilter,
       onRangeFilter,
       onSort,
@@ -64,7 +66,7 @@ const PitchListQueryHeader = React.memo(
     } = props;
 
     return (
-      <QueryHeader id="pitch-filter-header">
+      <QueryHeader id="pitch-filter-header" style={style}>
         <QueryGoalFilterButton value={goalFilter} onOption={onGoalFilter} />
         <StyledSpacer />
         <StyledCenterArea>

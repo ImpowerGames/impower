@@ -42,6 +42,13 @@ const StyledSpacer = styled.div`
   justify-content: center;
 `;
 
+const StyledContent = styled.div`
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+`;
+
 interface StaticContributionListProps {
   scrollParent?: HTMLElement;
   contributionDataEntries?: [string, AggData][];
@@ -476,68 +483,91 @@ const StaticContributionList = React.memo(
       );
     }, [rangeFilter]);
 
+    const loading = transitioning;
+
+    const listHeaderStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? "hidden" : undefined,
+      }),
+      [loading]
+    );
+
+    const listProgressStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? "hidden" : undefined,
+      }),
+      [loading]
+    );
+
+    const listContentStyle: React.CSSProperties = useMemo(
+      () => ({
+        opacity: loading ? 0 : undefined,
+        pointerEvents: loading ? "none" : undefined,
+      }),
+      [loading]
+    );
+
     return (
       <StyledContributionList>
-        {transitioning ? (
-          loadingPlaceholder
-        ) : (
-          <>
-            <QueryHeader id="pitch-filter-header">
-              <QueryButton
-                target="pitch"
-                menuType="sort"
-                label={`Sort By`}
-                icon={sortIcon}
-                value={sort}
-                options={SORT_OPTIONS}
-                getOptionLabels={getStaticSortOptionLabels}
-                getOptionIcons={handleGetSortOptionIcons}
-                onOption={handleChangeSort}
-              />
-              <StyledSpacer />
-              <QueryButton
-                target="pitch"
-                menuType="filter"
-                label={`Kudoed`}
-                flexDirection="row-reverse"
-                icon={filterIcon}
-                value={rangeFilter}
-                getOptionLabels={getRangeFilterOptionLabels}
-                getOptionIcons={handleGetFilterOptionIcons}
-                onOption={handleChangeFilter}
-              />
-            </QueryHeader>
-            <ContributionListContent
-              scrollParent={scrollParent}
-              contributionDocs={contributionDocsState}
-              chunkMap={chunkMap}
-              lastLoadedChunk={lastLoadedChunk}
-              loadingPlaceholder={loadingPlaceholder}
-              onChangeScore={handleChangeScore}
-              onKudo={handleKudo}
-              onEdit={handleEditContribution}
-              onDelete={handleDeleteContribution}
+        <QueryHeader id="pitch-filter-header" style={listHeaderStyle}>
+          <QueryButton
+            target="pitch"
+            menuType="sort"
+            label={`Sort By`}
+            icon={sortIcon}
+            value={sort}
+            options={SORT_OPTIONS}
+            getOptionLabels={getStaticSortOptionLabels}
+            getOptionIcons={handleGetSortOptionIcons}
+            onOption={handleChangeSort}
+          />
+          <StyledSpacer />
+          <QueryButton
+            target="pitch"
+            menuType="filter"
+            label={`Kudoed`}
+            flexDirection="row-reverse"
+            icon={filterIcon}
+            value={rangeFilter}
+            getOptionLabels={getRangeFilterOptionLabels}
+            getOptionIcons={handleGetFilterOptionIcons}
+            onOption={handleChangeFilter}
+          />
+        </QueryHeader>
+        <StyledContent>
+          <ContributionListContent
+            scrollParent={scrollParent}
+            contributionDocs={contributionDocsState}
+            chunkMap={chunkMap}
+            lastLoadedChunk={lastLoadedChunk}
+            loadingPlaceholder={loadingPlaceholder}
+            style={listContentStyle}
+            onChangeScore={handleChangeScore}
+            onKudo={handleKudo}
+            onEdit={handleEditContribution}
+            onDelete={handleDeleteContribution}
+          />
+          {contributionDocsState && (
+            <PitchLoadingProgress
+              loadingMore={loadingMore}
+              noMore={noMore || contributionEntries?.length === 0}
+              noMoreLabel={
+                contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
+              }
+              noMoreSubtitle={
+                contributionEntries?.length === 0 ? emptySubtitle : undefined
+              }
+              refreshLabel={
+                contributionEntries?.length === 0 ? undefined : `Refresh?`
+              }
+              style={listProgressStyle}
+              onScrolledToEnd={handleScrolledToEnd}
+              onRefresh={handleRefresh}
             />
-            {contributionDocsState && (
-              <PitchLoadingProgress
-                loadingMore={loadingMore}
-                noMore={noMore || contributionEntries?.length === 0}
-                noMoreLabel={
-                  contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
-                }
-                noMoreSubtitle={
-                  contributionEntries?.length === 0 ? emptySubtitle : undefined
-                }
-                refreshLabel={
-                  contributionEntries?.length === 0 ? undefined : `Refresh?`
-                }
-                onScrolledToEnd={handleScrolledToEnd}
-                onRefresh={handleRefresh}
-              />
-            )}
-            {children}
-          </>
-        )}
+          )}
+          {children}
+          {loading && loadingPlaceholder}
+        </StyledContent>
       </StyledContributionList>
     );
   }

@@ -66,6 +66,32 @@ const StyledListArea = styled.div`
   flex-direction: column;
 `;
 
+const StyledLoadingOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1;
+  z-index: 1;
+  background-color: ${(props): string => props.theme.colors.lightForeground};
+`;
+
+const StyledLoadingContainer = styled.div`
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: calc(100vh - ${(props): string => props.theme.spacing(40)});
+`;
+
 interface PitchSearchPageProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
@@ -161,12 +187,16 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
 
   const loadingPlaceholder = useMemo(
     () => (
-      <EmptyPitchList
-        loading
-        loadingMessage={`Loading...`}
-        emptySubtitle1={emptySubtitle1}
-        emptySubtitle2={emptySubtitle2}
-      />
+      <StyledLoadingOverlay>
+        <StyledLoadingContainer>
+          <EmptyPitchList
+            loading
+            loadingMessage={`Loading...`}
+            emptySubtitle1={emptySubtitle1}
+            emptySubtitle2={emptySubtitle2}
+          />
+        </StyledLoadingContainer>
+      </StyledLoadingOverlay>
     ),
     [emptySubtitle1, emptySubtitle2]
   );
@@ -230,8 +260,9 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
                 loadingPlaceholder={loadingPlaceholder}
                 emptyPlaceholder={emptyPlaceholder}
                 offlinePlaceholder={offlinePlaceholder}
-              />
-              <AddPitchToolbar config={config} icons={icons} />
+              >
+                <AddPitchToolbar config={config} icons={icons} />
+              </PitchList>
             </>
           )}
         </StyledListArea>

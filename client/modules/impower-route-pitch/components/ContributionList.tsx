@@ -32,6 +32,13 @@ const StyledContributionList = styled.div`
   flex-direction: column;
 `;
 
+const StyledContent = styled.div`
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+`;
+
 interface ContributionListProps {
   scrollParent?: HTMLElement;
   pitchId?: string;
@@ -457,51 +464,75 @@ const ContributionList = React.memo(
       [pitchId, pitchDoc]
     );
 
+    const loading = transitioning;
+
+    const listHeaderStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? "hidden" : undefined,
+      }),
+      [loading]
+    );
+
+    const listProgressStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? "hidden" : undefined,
+      }),
+      [loading]
+    );
+
+    const listContentStyle: React.CSSProperties = useMemo(
+      () => ({
+        opacity: loading ? 0 : undefined,
+        pointerEvents: loading ? "none" : undefined,
+      }),
+      [loading]
+    );
+
     return (
       <StyledContributionList>
-        {transitioning ? (
-          loadingPlaceholder
-        ) : (
-          <>
-            <ContributionListQueryHeader
-              filter={typeFilter}
-              sort={sort}
-              sortOptions={sortOptions}
-              onFilter={handleFilter}
-              onSort={handleSort}
+        <ContributionListQueryHeader
+          filter={typeFilter}
+          sort={sort}
+          sortOptions={sortOptions}
+          style={listHeaderStyle}
+          onFilter={handleFilter}
+          onSort={handleSort}
+        />
+        <StyledContent>
+          <ContributionListContent
+            scrollParent={scrollParent}
+            pitchDocs={pitchDocs}
+            contributionDocs={contributionDocsState}
+            chunkMap={chunkMap}
+            lastLoadedChunk={lastLoadedChunk}
+            loadingPlaceholder={loadingPlaceholder}
+            style={listContentStyle}
+            onChangeScore={handleChangeScore}
+            onKudo={handleKudo}
+            onEdit={handleEditContribution}
+            onDelete={handleDeleteContribution}
+          />
+          {contributionDocsState && (
+            <PitchLoadingProgress
+              loadingMore={loadingMore}
+              noMore={noMore || contributionEntries?.length === 0}
+              noMoreLabel={
+                contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
+              }
+              noMoreSubtitle={
+                contributionEntries?.length === 0 ? emptySubtitle : undefined
+              }
+              refreshLabel={
+                contributionEntries?.length === 0 ? undefined : `Refresh?`
+              }
+              style={listProgressStyle}
+              onScrolledToEnd={handleScrolledToEnd}
+              onRefresh={handleRefresh}
             />
-            <ContributionListContent
-              scrollParent={scrollParent}
-              pitchDocs={pitchDocs}
-              contributionDocs={contributionDocsState}
-              chunkMap={chunkMap}
-              lastLoadedChunk={lastLoadedChunk}
-              loadingPlaceholder={loadingPlaceholder}
-              onChangeScore={handleChangeScore}
-              onKudo={handleKudo}
-              onEdit={handleEditContribution}
-              onDelete={handleDeleteContribution}
-            />
-            {contributionDocsState && (
-              <PitchLoadingProgress
-                loadingMore={loadingMore}
-                noMore={noMore || contributionEntries?.length === 0}
-                noMoreLabel={
-                  contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
-                }
-                noMoreSubtitle={
-                  contributionEntries?.length === 0 ? emptySubtitle : undefined
-                }
-                refreshLabel={
-                  contributionEntries?.length === 0 ? undefined : `Refresh?`
-                }
-                onScrolledToEnd={handleScrolledToEnd}
-                onRefresh={handleRefresh}
-              />
-            )}
-            {children}
-          </>
-        )}
+          )}
+          {children}
+          {loading && loadingPlaceholder}
+        </StyledContent>
       </StyledContributionList>
     );
   }

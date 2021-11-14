@@ -51,12 +51,29 @@ const StyledTabs = styled(Tabs)``;
 
 const StyledTab = styled(Tab)``;
 
-const StyledLoadingArea = styled.div`
+const StyledLoadingOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
   flex: 1;
+  z-index: 1;
+`;
+
+const StyledLoadingContainer = styled.div`
+  position: sticky;
+  top: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  min-height: calc(100vh - ${(props): string => props.theme.spacing(40)});
 `;
 
 const StyledCircularProgress = styled(CircularProgress)`
@@ -158,9 +175,11 @@ const Kudos = React.memo((): JSX.Element | null => {
 
   const loadingPlaceholder = useMemo(
     () => (
-      <StyledLoadingArea>
-        <StyledCircularProgress color="secondary" />
-      </StyledLoadingArea>
+      <StyledLoadingOverlay>
+        <StyledLoadingContainer>
+          <StyledCircularProgress color="secondary" />
+        </StyledLoadingContainer>
+      </StyledLoadingOverlay>
     ),
     []
   );

@@ -75,6 +75,33 @@ const StyledListArea = styled.div`
   align-items: center;
   display: flex;
   flex-direction: column;
+  position: relative;
+`;
+
+const StyledLoadingOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1;
+  z-index: 1;
+  background-color: ${(props): string => props.theme.colors.lightForeground};
+`;
+
+const StyledLoadingContainer = styled.div`
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: calc(100vh - ${(props): string => props.theme.spacing(40)});
 `;
 
 interface PitchProps {
@@ -191,12 +218,16 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const loadingPlaceholder = useMemo(
     () => (
-      <EmptyPitchList
-        loading
-        loadingMessage={`Loading...`}
-        emptySubtitle1={emptySubtitle1}
-        emptySubtitle2={emptySubtitle2}
-      />
+      <StyledLoadingOverlay>
+        <StyledLoadingContainer>
+          <EmptyPitchList
+            loading
+            loadingMessage={`Loading...`}
+            emptySubtitle1={emptySubtitle1}
+            emptySubtitle2={emptySubtitle2}
+          />
+        </StyledLoadingContainer>
+      </StyledLoadingOverlay>
     ),
     [emptySubtitle1, emptySubtitle2]
   );
@@ -246,13 +277,12 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
         <PitchTabsToolbar value={activeTab} onChange={handleChangeTab} />
         <BetaBanner />
         <StyledListArea>
-          {transitioning ? (
+          {transitioning || my_follows === undefined ? (
             loadingPlaceholder
-          ) : activeTab === "Following" && !shouldDisplayFollowingPitches ? (
-            <PitchFollowTags
-              loadingPlaceholder={loadingPlaceholder}
-              onReload={handleReloadFollowing}
-            />
+          ) : activeTab === "Following" &&
+            (Object.keys(my_follows || {}).length === 0 ||
+              !shouldDisplayFollowingPitches) ? (
+            <PitchFollowTags onReload={handleReloadFollowing} />
           ) : (
             <>
               <PitchList
@@ -267,15 +297,16 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                 offlinePlaceholder={offlinePlaceholder}
                 onFollowMore={handleFollowMore}
                 onRangeFilter={handleRangeFilter}
-              />
-              <AddPitchToolbar
-                config={config}
-                icons={icons}
-                hidden={
-                  activeTab === "Following" &&
-                  (!followedTags || followedTags.length === 0)
-                }
-              />
+              >
+                <AddPitchToolbar
+                  config={config}
+                  icons={icons}
+                  hidden={
+                    activeTab === "Following" &&
+                    (!followedTags || followedTags.length === 0)
+                  }
+                />
+              </PitchList>
             </>
           )}
         </StyledListArea>
