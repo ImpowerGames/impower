@@ -86,18 +86,15 @@ const StyledListContent = styled.div`
   flex-direction: column;
 `;
 
-const StyledLoadingOverlay = styled.div`
+const StyledForceOverflow = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
-  background-color: ${(props): string => props.theme.colors.lightForeground};
+  width: 100%;
+  min-height: calc(100% + 72px);
+  pointer-events: none;
 `;
 
 interface PitchProps {
@@ -169,12 +166,10 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
     if (listElRef.current) {
       listElRef.current.style.visibility = "hidden";
-      listElRef.current.style.opacity = "0";
       listElRef.current.style.pointerEvents = "none";
     }
     if (loadingElRef.current) {
       loadingElRef.current.style.visibility = null;
-      loadingElRef.current.style.opacity = null;
       loadingElRef.current.style.pointerEvents = null;
     }
     window.scrollTo({ top: 0 });
@@ -236,14 +231,12 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const loadingPlaceholder = useMemo(
     () => (
-      <StyledLoadingOverlay>
-        <EmptyPitchList
-          loading
-          loadingMessage={`Loading...`}
-          emptySubtitle1={emptySubtitle1}
-          emptySubtitle2={emptySubtitle2}
-        />
-      </StyledLoadingOverlay>
+      <EmptyPitchList
+        loading
+        loadingMessage={`Loading...`}
+        emptySubtitle1={emptySubtitle1}
+        emptySubtitle2={emptySubtitle2}
+      />
     ),
     [emptySubtitle1, emptySubtitle2]
   );
@@ -294,6 +287,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       <StyledApp>
         <PitchTabsToolbar value={activeTab} onChange={handleChangeTab} />
         <BetaBanner />
+        <StyledForceOverflow />
         <StyledListArea>
           <StyledListContent>
             {loading ? (

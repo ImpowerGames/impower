@@ -15,8 +15,6 @@ interface PitchListContentProps {
   pitchDocs?: { [id: string]: ProjectDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
-  loadingPlaceholder?: React.ReactNode;
-  emptyPlaceholder?: React.ReactNode;
   offlinePlaceholder?: React.ReactNode;
   compact?: boolean;
   dontFade?: boolean;
@@ -62,8 +60,6 @@ const PitchListContent = React.memo(
       pitchDocs,
       chunkMap,
       lastLoadedChunk,
-      loadingPlaceholder,
-      emptyPlaceholder,
       offlinePlaceholder,
       compact,
       dontFade,
@@ -83,11 +79,7 @@ const PitchListContent = React.memo(
     }
 
     if (!pitchDocs) {
-      return <>{loadingPlaceholder}</>;
-    }
-
-    if (Object.keys(pitchDocs).length === 0) {
-      return <>{emptyPlaceholder}</>;
+      return null;
     }
 
     return (

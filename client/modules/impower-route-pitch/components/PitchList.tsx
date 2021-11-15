@@ -56,12 +56,35 @@ const StyledPitchList = styled.div`
   flex-direction: column;
 `;
 
+const StyledOverlayArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+`;
+
 const StyledLoadingArea = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
+const StyledEmptyArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
 `;
 
 interface PitchListProps {
@@ -793,7 +816,10 @@ const PitchList = React.memo(
     );
 
     const pitchCount = useMemo(
-      () => Object.keys(pitchDocsState || {})?.length,
+      () =>
+        pitchDocsState
+          ? Object.keys(pitchDocsState)?.length
+          : (pitchDocsState as null | undefined),
       [pitchDocsState]
     );
 
@@ -802,7 +828,6 @@ const PitchList = React.memo(
     const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
-        opacity: loading ? 0 : undefined,
         pointerEvents: loading ? "none" : undefined,
       }),
       [loading]
@@ -810,7 +835,6 @@ const PitchList = React.memo(
     const loadingStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? undefined : "hidden",
-        opacity: loading ? undefined : 0,
         pointerEvents: loading ? undefined : "none",
       }),
       [loading]
@@ -840,9 +864,7 @@ const PitchList = React.memo(
             chunkMap={chunkMap}
             lastLoadedChunk={lastLoadedChunk}
             compact={compact}
-            emptyPlaceholder={emptyPlaceholder}
             offlinePlaceholder={offlinePlaceholder}
-            loadingPlaceholder={loadingPlaceholder}
             dontFade={!initialLoadComplete}
             onChangeScore={handleChangeScore}
             onDelete={handleDeletePitch}
@@ -850,7 +872,8 @@ const PitchList = React.memo(
             onCreateContribution={handleCreateContribution}
             onDeleteContribution={handleDeleteContribution}
           />
-          {(emptyPlaceholder || pitchDocsState) && (
+          {((emptyPlaceholder && pitchCount > 0) ||
+            (!emptyPlaceholder && pitchDocsState)) && (
             <PitchLoadingProgress
               loadingMore={Boolean(pitchDocsState) && Boolean(loadingMore)}
               noMore={
@@ -878,9 +901,14 @@ const PitchList = React.memo(
           {children}
           {loadIcons && <TagIconLoader />}
         </StyledPitchList>
-        <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
-          {loadingPlaceholder}
-        </StyledLoadingArea>
+        <StyledOverlayArea>
+          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+            {loadingPlaceholder}
+          </StyledLoadingArea>
+          {pitchCount === 0 && (
+            <StyledEmptyArea>{emptyPlaceholder}</StyledEmptyArea>
+          )}
+        </StyledOverlayArea>
       </>
     );
   }

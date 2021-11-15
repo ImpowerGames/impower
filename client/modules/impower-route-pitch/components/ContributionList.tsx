@@ -32,12 +32,25 @@ const StyledContributionList = styled.div`
   flex-direction: column;
 `;
 
+const StyledOverlayArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+`;
+
 const StyledLoadingArea = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
+  display: flex;
+  flex-direction: column;
 `;
 
 interface ContributionListProps {
@@ -493,7 +506,6 @@ const ContributionList = React.memo(
     const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
-        opacity: loading ? 0 : undefined,
         pointerEvents: loading ? "none" : undefined,
       }),
       [loading]
@@ -501,7 +513,6 @@ const ContributionList = React.memo(
     const loadingStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? undefined : "hidden",
-        opacity: loading ? undefined : 0,
         pointerEvents: loading ? undefined : "none",
       }),
       [loading]
@@ -523,7 +534,6 @@ const ContributionList = React.memo(
             contributionDocs={contributionDocsState}
             chunkMap={chunkMap}
             lastLoadedChunk={lastLoadedChunk}
-            loadingPlaceholder={loadingPlaceholder}
             onChangeScore={handleChangeScore}
             onKudo={handleKudo}
             onEdit={handleEditContribution}
@@ -548,9 +558,11 @@ const ContributionList = React.memo(
           )}
           {children}
         </StyledContributionList>
-        <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
-          {loadingPlaceholder}
-        </StyledLoadingArea>
+        <StyledOverlayArea>
+          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+            {loadingPlaceholder}
+          </StyledLoadingArea>
+        </StyledOverlayArea>
       </>
     );
   }

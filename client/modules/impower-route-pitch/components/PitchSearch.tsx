@@ -74,20 +74,6 @@ const StyledListContent = styled.div`
   flex-direction: column;
 `;
 
-const StyledLoadingOverlay = styled.div`
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
-  background-color: ${(props): string => props.theme.colors.lightForeground};
-`;
-
 interface PitchSearchPageProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
@@ -183,14 +169,12 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
 
   const loadingPlaceholder = useMemo(
     () => (
-      <StyledLoadingOverlay>
-        <EmptyPitchList
-          loading
-          loadingMessage={`Loading...`}
-          emptySubtitle1={emptySubtitle1}
-          emptySubtitle2={emptySubtitle2}
-        />
-      </StyledLoadingOverlay>
+      <EmptyPitchList
+        loading
+        loadingMessage={`Loading...`}
+        emptySubtitle1={emptySubtitle1}
+        emptySubtitle2={emptySubtitle2}
+      />
     ),
     [emptySubtitle1, emptySubtitle2]
   );
