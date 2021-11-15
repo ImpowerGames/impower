@@ -81,6 +81,8 @@ interface PitchListProps {
   emptySubtitle?: string;
   allowReload?: boolean;
   reloading?: boolean;
+  listElRef?: React.MutableRefObject<HTMLDivElement>;
+  loadingElRef?: React.MutableRefObject<HTMLDivElement>;
   onReloading?: (reloading: boolean) => void;
   onFollowMore?: (open: boolean) => void;
   onRangeFilter?: (e: React.MouseEvent, rangeFilter: DateRangeFilter) => void;
@@ -89,6 +91,9 @@ interface PitchListProps {
 const PitchList = React.memo(
   (props: PropsWithChildren<PitchListProps>): JSX.Element => {
     const pitchedCollection = "pitched_games";
+
+    const defaultListElRef = useRef<HTMLDivElement>();
+    const defaultLoadingElRef = useRef<HTMLDivElement>();
 
     const {
       config,
@@ -107,6 +112,8 @@ const PitchList = React.memo(
       allowReload,
       reloading,
       children,
+      listElRef = defaultListElRef,
+      loadingElRef = defaultLoadingElRef,
       onReloading,
       onFollowMore,
       onRangeFilter,
@@ -190,9 +197,6 @@ const PitchList = React.memo(
     const recentPitchDocs = my_recent_pitched_projects;
     const recentPitchDocsRef = useRef(recentPitchDocs);
 
-    const listElRef = useRef<HTMLDivElement>();
-    const loadingElRef = useRef<HTMLDivElement>();
-
     const handleShowLoadingPlaceholder = useCallback(async () => {
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       listElRef.current.style.visibility = "hidden";
@@ -204,7 +208,7 @@ const PitchList = React.memo(
       window.scrollTo({ top: 0 });
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloadingState(true);
-    }, []);
+    }, [listElRef, loadingElRef]);
 
     const handleHideLoadingPlaceholder = useCallback(async () => {
       setReloadingState(false);

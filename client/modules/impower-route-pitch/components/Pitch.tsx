@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { ConfigParameters } from "../../impower-config";
@@ -109,6 +110,9 @@ interface PitchProps {
 const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const { config, icons, pitchDocs, style } = props;
 
+  const listElRef = useRef<HTMLDivElement>();
+  const loadingElRef = useRef<HTMLDivElement>();
+
   const [shouldDisplayFollowingPitches, setShouldDisplayFollowingPitches] =
     useState<boolean>();
 
@@ -161,10 +165,27 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedFollowedTags]);
 
+  const handleShowLoadingPlaceholder = useCallback(async () => {
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    if (listElRef.current) {
+      listElRef.current.style.visibility = "hidden";
+      listElRef.current.style.opacity = "0";
+      listElRef.current.style.pointerEvents = "none";
+    }
+    if (loadingElRef.current) {
+      loadingElRef.current.style.visibility = null;
+      loadingElRef.current.style.opacity = null;
+      loadingElRef.current.style.pointerEvents = null;
+    }
+    window.scrollTo({ top: 0 });
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    setReloading(true);
+  }, []);
+
   const handleChangeTab = useCallback(
-    (tab: PitchToolbarTab): void => {
+    async (tab: PitchToolbarTab) => {
+      await handleShowLoadingPlaceholder();
       setAllowReload(true);
-      setReloading(true);
       setActiveTab(tab);
       if (followedTags === null) {
         setShouldDisplayFollowingPitches(false);
@@ -178,7 +199,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
         `/pitch?t=${tab.toLowerCase()}`
       );
     },
-    [followedTags]
+    [followedTags, handleShowLoadingPlaceholder]
   );
 
   const handleReloadFollowing = useCallback(async (): Promise<void> => {
@@ -294,6 +315,8 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                   loadingPlaceholder={loadingPlaceholder}
                   emptyPlaceholder={emptyPlaceholder}
                   offlinePlaceholder={offlinePlaceholder}
+                  listElRef={listElRef}
+                  loadingElRef={loadingElRef}
                   onFollowMore={handleFollowMore}
                   onRangeFilter={handleRangeFilter}
                   onReloading={setReloading}
