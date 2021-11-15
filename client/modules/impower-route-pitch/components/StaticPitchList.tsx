@@ -57,6 +57,14 @@ const StyledSpacer = styled.div`
   justify-content: center;
 `;
 
+const StyledLoadingArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+`;
+
 interface StaticPitchListProps {
   config?: ConfigParameters;
   icons?: { [name: string]: SvgData };
@@ -127,6 +135,9 @@ const StaticPitchList = React.memo(
 
     const recentPitchDocs = my_recent_pitched_projects;
     const recentPitchDocsRef = useRef(recentPitchDocs);
+
+    const listElRef = useRef<HTMLDivElement>();
+    const loadingElRef = useRef<HTMLDivElement>();
 
     const orderedPitchDataEntries = useMemo(
       () =>
@@ -246,6 +257,12 @@ const StaticPitchList = React.memo(
             .default;
           logInfo("Route", e.message);
         }
+        loadingElRef.current.style.visibility = "hidden";
+        loadingElRef.current.style.opacity = "0";
+        loadingElRef.current.style.pointerEvents = "none";
+        listElRef.current.style.visibility = null;
+        listElRef.current.style.opacity = null;
+        listElRef.current.style.pointerEvents = null;
         setReloading(false);
       },
       [handleLoadMore]
@@ -281,6 +298,12 @@ const StaticPitchList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (pitchDocsRef.current) {
+        listElRef.current.style.visibility = "hidden";
+        listElRef.current.style.opacity = "0";
+        listElRef.current.style.pointerEvents = "none";
+        loadingElRef.current.style.visibility = null;
+        loadingElRef.current.style.opacity = null;
+        loadingElRef.current.style.pointerEvents = null;
         window.scrollTo({ top: 0 });
         setReloading(true);
         await new Promise((resolve) => window.setTimeout(resolve, 500));
@@ -438,7 +461,7 @@ const StaticPitchList = React.memo(
 
     const loading = transitioning || !pitchDocsState || reloading;
 
-    const style: React.CSSProperties = useMemo(
+    const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
         opacity: loading ? 0 : undefined,
@@ -446,10 +469,18 @@ const StaticPitchList = React.memo(
       }),
       [loading]
     );
+    const loadingStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? undefined : "hidden",
+        opacity: loading ? undefined : 0,
+        pointerEvents: loading ? undefined : "none",
+      }),
+      [loading]
+    );
 
     return (
       <>
-        <StyledStaticPitchList style={style}>
+        <StyledStaticPitchList ref={listElRef} style={listStyle}>
           <QueryHeader id="pitch-filter-header">
             <QueryButton
               target="pitch"
@@ -518,7 +549,9 @@ const StaticPitchList = React.memo(
           )}
           {loadIcons && <TagIconLoader />}
         </StyledStaticPitchList>
-        {loading && loadingPlaceholder}
+        <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+          {loadingPlaceholder}
+        </StyledLoadingArea>
       </>
     );
   }

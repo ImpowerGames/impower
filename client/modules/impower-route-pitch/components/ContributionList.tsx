@@ -33,6 +33,14 @@ const StyledContributionList = styled.div`
   transition: opacity 0.15s ease;
 `;
 
+const StyledLoadingArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+`;
+
 interface ContributionListProps {
   scrollParent?: HTMLElement;
   pitchId?: string;
@@ -128,6 +136,9 @@ const ContributionList = React.memo(
       !contributionDocsRef.current
     );
 
+    const listElRef = useRef<HTMLDivElement>();
+    const loadingElRef = useRef<HTMLDivElement>();
+
     const recentContributionDocs = useMemo(() => {
       const result: { [id: string]: ContributionDocument } = {};
       Object.entries(my_recent_contributions).forEach(
@@ -169,8 +180,14 @@ const ContributionList = React.memo(
       contributionDocsRef.current = {};
       chunkMapRef.current = {};
       DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
-      setAllowReload(true);
+      listElRef.current.style.visibility = "hidden";
+      listElRef.current.style.opacity = "0";
+      listElRef.current.style.pointerEvents = "none";
+      loadingElRef.current.style.visibility = null;
+      loadingElRef.current.style.opacity = null;
+      loadingElRef.current.style.pointerEvents = null;
       window.scrollTo({ top: 0 });
+      setAllowReload(true);
       setReloading(true);
     }, []);
 
@@ -262,6 +279,12 @@ const ContributionList = React.memo(
             ? undefined
             : loadedCount < limit;
         setNoMore(noMoreRef.current);
+        loadingElRef.current.style.visibility = "hidden";
+        loadingElRef.current.style.opacity = "0";
+        loadingElRef.current.style.pointerEvents = "none";
+        listElRef.current.style.visibility = null;
+        listElRef.current.style.opacity = null;
+        listElRef.current.style.pointerEvents = null;
         setReloading(false);
       },
       [handleLoad]
@@ -338,6 +361,12 @@ const ContributionList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (contributionDocsRef.current) {
+        listElRef.current.style.visibility = "hidden";
+        listElRef.current.style.opacity = "0";
+        listElRef.current.style.pointerEvents = "none";
+        loadingElRef.current.style.visibility = null;
+        loadingElRef.current.style.opacity = null;
+        loadingElRef.current.style.pointerEvents = null;
         window.scrollTo({ top: 0 });
         setReloading(true);
         await new Promise((resolve) => window.setTimeout(resolve, 500));
@@ -463,7 +492,7 @@ const ContributionList = React.memo(
 
     const loading = transitioning || !contributionDocsState || reloading;
 
-    const style: React.CSSProperties = useMemo(
+    const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
         opacity: loading ? 0 : undefined,
@@ -471,10 +500,18 @@ const ContributionList = React.memo(
       }),
       [loading]
     );
+    const loadingStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? undefined : "hidden",
+        opacity: loading ? undefined : 0,
+        pointerEvents: loading ? undefined : "none",
+      }),
+      [loading]
+    );
 
     return (
       <>
-        <StyledContributionList style={style}>
+        <StyledContributionList ref={listElRef} style={listStyle}>
           <ContributionListQueryHeader
             filter={typeFilter}
             sort={sort}
@@ -513,7 +550,9 @@ const ContributionList = React.memo(
           )}
           {children}
         </StyledContributionList>
-        {loading && loadingPlaceholder}
+        <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+          {loadingPlaceholder}
+        </StyledLoadingArea>
       </>
     );
   }

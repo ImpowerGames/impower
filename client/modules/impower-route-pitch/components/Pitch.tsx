@@ -17,14 +17,11 @@ import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
 import getRangeFilterLabel from "../utils/getRangeFilterLabel";
 import AddPitchToolbar from "./AddPitchToolbar";
+import EmptyPitchList from "./EmptyPitchList";
 import PitchList from "./PitchList";
 import PitchTabsToolbar, { PitchToolbarTab } from "./PitchTabsToolbar";
 
 const SORT_OPTIONS: ["rank", "new"] = ["rank", "new"];
-
-const EmptyPitchList = dynamic(() => import("./EmptyPitchList"), {
-  ssr: false,
-});
 
 const AnimatedHappyMascot = dynamic(
   () =>

@@ -10,14 +10,11 @@ import { BetaBanner } from "../../impower-route";
 import { useRouter } from "../../impower-router";
 import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
 import AddPitchToolbar from "./AddPitchToolbar";
+import EmptyPitchList from "./EmptyPitchList";
 import PitchList from "./PitchList";
 import PitchSearchToolbar from "./PitchSearchToolbar";
 
 const SORT_OPTIONS: ["rank", "rating", "new"] = ["rank", "rating", "new"];
-
-const EmptyPitchList = dynamic(() => import("./EmptyPitchList"), {
-  ssr: false,
-});
 
 const AnimatedDefaultMascot = dynamic(
   () =>

@@ -43,6 +43,14 @@ const StyledSpacer = styled.div`
   justify-content: center;
 `;
 
+const StyledLoadingArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+`;
+
 interface StaticContributionListProps {
   scrollParent?: HTMLElement;
   contributionDataEntries?: [string, AggData][];
@@ -118,6 +126,9 @@ const StaticContributionList = React.memo(
     const [sort, setSort] = useState<"new" | "old">(SORT_OPTIONS?.[0] || "new");
     const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("All");
     const [reloading, setReloading] = useState(false);
+
+    const listElRef = useRef<HTMLDivElement>();
+    const loadingElRef = useRef<HTMLDivElement>();
 
     const recentContributionDocs = useMemo(() => {
       const result: { [id: string]: ContributionDocument } = {};
@@ -241,6 +252,12 @@ const StaticContributionList = React.memo(
             ? undefined
             : loadedCount < limit;
         setNoMore(noMoreRef.current);
+        loadingElRef.current.style.visibility = "hidden";
+        loadingElRef.current.style.opacity = "0";
+        loadingElRef.current.style.pointerEvents = "none";
+        listElRef.current.style.visibility = null;
+        listElRef.current.style.opacity = null;
+        listElRef.current.style.pointerEvents = null;
         setReloading(false);
       },
       [handleLoad]
@@ -311,6 +328,12 @@ const StaticContributionList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (contributionDocsRef.current) {
+        listElRef.current.style.visibility = "hidden";
+        listElRef.current.style.opacity = "0";
+        listElRef.current.style.pointerEvents = "none";
+        loadingElRef.current.style.visibility = null;
+        loadingElRef.current.style.opacity = null;
+        loadingElRef.current.style.pointerEvents = null;
         window.scrollTo({ top: 0 });
         setReloading(true);
         await new Promise((resolve) => window.setTimeout(resolve, 500));
@@ -487,21 +510,7 @@ const StaticContributionList = React.memo(
 
     const loading = transitioning || !contributionDocsState || reloading;
 
-    const listHeaderStyle: React.CSSProperties = useMemo(
-      () => ({
-        visibility: loading ? "hidden" : undefined,
-      }),
-      [loading]
-    );
-
-    const listProgressStyle: React.CSSProperties = useMemo(
-      () => ({
-        visibility: loading ? "hidden" : undefined,
-      }),
-      [loading]
-    );
-
-    const listContentStyle: React.CSSProperties = useMemo(
+    const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
         opacity: loading ? 0 : undefined,
@@ -509,11 +518,19 @@ const StaticContributionList = React.memo(
       }),
       [loading]
     );
+    const loadingStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? undefined : "hidden",
+        opacity: loading ? undefined : 0,
+        pointerEvents: loading ? undefined : "none",
+      }),
+      [loading]
+    );
 
     return (
       <>
-        <StyledStaticContributionList>
-          <QueryHeader id="pitch-filter-header" style={listHeaderStyle}>
+        <StyledStaticContributionList ref={listElRef} style={listStyle}>
+          <QueryHeader id="pitch-filter-header">
             <QueryButton
               target="pitch"
               menuType="sort"
@@ -544,7 +561,6 @@ const StaticContributionList = React.memo(
             chunkMap={chunkMap}
             lastLoadedChunk={lastLoadedChunk}
             loadingPlaceholder={loadingPlaceholder}
-            style={listContentStyle}
             onChangeScore={handleChangeScore}
             onKudo={handleKudo}
             onEdit={handleEditContribution}
@@ -563,14 +579,15 @@ const StaticContributionList = React.memo(
               refreshLabel={
                 contributionEntries?.length === 0 ? undefined : `Refresh?`
               }
-              style={listProgressStyle}
               onScrolledToEnd={handleScrolledToEnd}
               onRefresh={handleRefresh}
             />
           )}
           {children}
         </StyledStaticContributionList>
-        {loading && loadingPlaceholder}
+        <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+          {loadingPlaceholder}
+        </StyledLoadingArea>
       </>
     );
   }

@@ -57,6 +57,14 @@ const StyledPitchList = styled.div`
   transition: opacity 0.15s ease;
 `;
 
+const StyledLoadingArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+`;
+
 interface PitchListProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
@@ -182,6 +190,9 @@ const PitchList = React.memo(
     const recentPitchDocs = my_recent_pitched_projects;
     const recentPitchDocsRef = useRef(recentPitchDocs);
 
+    const listElRef = useRef<HTMLDivElement>();
+    const loadingElRef = useRef<HTMLDivElement>();
+
     const handleAllowReload = useCallback(() => {
       lastLoadedChunkRef.current = 0;
       cursorsByTagRef.current = {};
@@ -189,8 +200,14 @@ const PitchList = React.memo(
       pitchDocsRef.current = {};
       chunkMapRef.current = {};
       DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
-      setAllowReloadState(true);
+      listElRef.current.style.visibility = "hidden";
+      listElRef.current.style.opacity = "0";
+      listElRef.current.style.pointerEvents = "none";
+      loadingElRef.current.style.visibility = null;
+      loadingElRef.current.style.opacity = null;
+      loadingElRef.current.style.pointerEvents = null;
       window.scrollTo({ top: 0 });
+      setAllowReloadState(true);
       setReloadingState(true);
       if (onReloading) {
         onReloading(true);
@@ -206,6 +223,12 @@ const PitchList = React.memo(
     useEffect(() => {
       if (reloading !== undefined) {
         if (reloading) {
+          listElRef.current.style.visibility = "hidden";
+          listElRef.current.style.opacity = "0";
+          listElRef.current.style.pointerEvents = "none";
+          loadingElRef.current.style.visibility = null;
+          loadingElRef.current.style.opacity = null;
+          loadingElRef.current.style.pointerEvents = null;
           window.scrollTo({ top: 0 });
         }
         setReloadingState(reloading);
@@ -534,6 +557,12 @@ const PitchList = React.memo(
           logInfo("Route", e.message);
         }
         setInitialLoadComplete(true);
+        loadingElRef.current.style.visibility = "hidden";
+        loadingElRef.current.style.opacity = "0";
+        loadingElRef.current.style.pointerEvents = "none";
+        listElRef.current.style.visibility = null;
+        listElRef.current.style.opacity = null;
+        listElRef.current.style.pointerEvents = null;
         setReloadingState(false);
         if (onReloading) {
           onReloading(false);
@@ -609,6 +638,12 @@ const PitchList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (pitchDocsRef.current) {
+        listElRef.current.style.visibility = "hidden";
+        listElRef.current.style.opacity = "0";
+        listElRef.current.style.pointerEvents = "none";
+        loadingElRef.current.style.visibility = null;
+        loadingElRef.current.style.opacity = null;
+        loadingElRef.current.style.pointerEvents = null;
         window.scrollTo({ top: 0 });
         setReloadingState(true);
         if (onReloading) {
@@ -771,7 +806,7 @@ const PitchList = React.memo(
 
     const loading = transitioning || !pitchDocsState || reloadingState;
 
-    const style: React.CSSProperties = useMemo(
+    const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
         opacity: loading ? 0 : undefined,
@@ -779,10 +814,18 @@ const PitchList = React.memo(
       }),
       [loading]
     );
+    const loadingStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? undefined : "hidden",
+        opacity: loading ? undefined : 0,
+        pointerEvents: loading ? undefined : "none",
+      }),
+      [loading]
+    );
 
     return (
       <>
-        <StyledPitchList style={style}>
+        <StyledPitchList ref={listElRef} style={listStyle}>
           <PitchListQueryHeader
             goalFilter={goalFilter}
             rangeFilter={rangeFilter}
@@ -842,7 +885,9 @@ const PitchList = React.memo(
           {children}
           {loadIcons && <TagIconLoader />}
         </StyledPitchList>
-        {loading && loadingPlaceholder}
+        <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+          {loadingPlaceholder}
+        </StyledLoadingArea>
       </>
     );
   }
