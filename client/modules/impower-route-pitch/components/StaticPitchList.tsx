@@ -166,6 +166,30 @@ const StaticPitchList = React.memo(
       }
     }, [recentPitchDocs]);
 
+    const handleShowLoadingPlaceholder = useCallback(async () => {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      listElRef.current.style.visibility = "hidden";
+      listElRef.current.style.opacity = "0";
+      listElRef.current.style.pointerEvents = "none";
+      loadingElRef.current.style.visibility = null;
+      loadingElRef.current.style.opacity = null;
+      loadingElRef.current.style.pointerEvents = null;
+      window.scrollTo({ top: 0 });
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      setReloading(true);
+    }, []);
+
+    const handleHideLoadingPlaceholder = useCallback(async () => {
+      loadingElRef.current.style.visibility = "hidden";
+      loadingElRef.current.style.opacity = "0";
+      loadingElRef.current.style.pointerEvents = "none";
+      listElRef.current.style.visibility = null;
+      listElRef.current.style.opacity = null;
+      listElRef.current.style.pointerEvents = null;
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      setReloading(false);
+    }, []);
+
     const handleLoadMore = useCallback(
       async (
         options: {
@@ -257,15 +281,9 @@ const StaticPitchList = React.memo(
             .default;
           logInfo("Route", e.message);
         }
-        loadingElRef.current.style.visibility = "hidden";
-        loadingElRef.current.style.opacity = "0";
-        loadingElRef.current.style.pointerEvents = "none";
-        listElRef.current.style.visibility = null;
-        listElRef.current.style.opacity = null;
-        listElRef.current.style.pointerEvents = null;
-        setReloading(false);
+        await handleHideLoadingPlaceholder();
       },
-      [handleLoadMore]
+      [handleHideLoadingPlaceholder, handleLoadMore]
     );
 
     const handleScrolledToEnd = useCallback(async (): Promise<void> => {
@@ -298,15 +316,7 @@ const StaticPitchList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (pitchDocsRef.current) {
-        listElRef.current.style.visibility = "hidden";
-        listElRef.current.style.opacity = "0";
-        listElRef.current.style.pointerEvents = "none";
-        loadingElRef.current.style.visibility = null;
-        loadingElRef.current.style.opacity = null;
-        loadingElRef.current.style.pointerEvents = null;
-        window.scrollTo({ top: 0 });
-        setReloading(true);
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
+        await handleShowLoadingPlaceholder();
       }
       cursorIndexRef.current = 0;
       pitchDocsRef.current = {};
@@ -314,7 +324,7 @@ const StaticPitchList = React.memo(
       noMoreRef.current = false;
       setNoMore(noMoreRef.current);
       handleLoadTab({ nsfw: nsfwVisible });
-    }, [handleLoadTab, nsfwVisible]);
+    }, [handleLoadTab, handleShowLoadingPlaceholder, nsfwVisible]);
 
     useEffect(() => {
       navigationDispatch(navigationSetTransitioning(false));

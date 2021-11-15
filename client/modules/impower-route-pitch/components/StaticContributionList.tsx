@@ -162,6 +162,30 @@ const StaticContributionList = React.memo(
       [contributionDataEntries, sort]
     );
 
+    const handleShowLoadingPlaceholder = useCallback(async () => {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      listElRef.current.style.visibility = "hidden";
+      listElRef.current.style.opacity = "0";
+      listElRef.current.style.pointerEvents = "none";
+      loadingElRef.current.style.visibility = null;
+      loadingElRef.current.style.opacity = null;
+      loadingElRef.current.style.pointerEvents = null;
+      window.scrollTo({ top: 0 });
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      setReloading(true);
+    }, []);
+
+    const handleHideLoadingPlaceholder = useCallback(async () => {
+      loadingElRef.current.style.visibility = "hidden";
+      loadingElRef.current.style.opacity = "0";
+      loadingElRef.current.style.pointerEvents = "none";
+      listElRef.current.style.visibility = null;
+      listElRef.current.style.opacity = null;
+      listElRef.current.style.pointerEvents = null;
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      setReloading(false);
+    }, []);
+
     const handleLoad = useCallback(
       async (
         options: {
@@ -252,15 +276,9 @@ const StaticContributionList = React.memo(
             ? undefined
             : loadedCount < limit;
         setNoMore(noMoreRef.current);
-        loadingElRef.current.style.visibility = "hidden";
-        loadingElRef.current.style.opacity = "0";
-        loadingElRef.current.style.pointerEvents = "none";
-        listElRef.current.style.visibility = null;
-        listElRef.current.style.opacity = null;
-        listElRef.current.style.pointerEvents = null;
-        setReloading(false);
+        await handleHideLoadingPlaceholder();
       },
-      [handleLoad]
+      [handleHideLoadingPlaceholder, handleLoad]
     );
 
     const handleScrolledToEnd = useCallback(async (): Promise<void> => {
@@ -328,15 +346,7 @@ const StaticContributionList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (contributionDocsRef.current) {
-        listElRef.current.style.visibility = "hidden";
-        listElRef.current.style.opacity = "0";
-        listElRef.current.style.pointerEvents = "none";
-        loadingElRef.current.style.visibility = null;
-        loadingElRef.current.style.opacity = null;
-        loadingElRef.current.style.pointerEvents = null;
-        window.scrollTo({ top: 0 });
-        setReloading(true);
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
+        await handleShowLoadingPlaceholder();
       }
       cursorIndexRef.current = 0;
       contributionDocsRef.current = {};
@@ -344,7 +354,7 @@ const StaticContributionList = React.memo(
       loadingMoreRef.current = false;
       noMoreRef.current = false;
       handleLoadMoreItems(queryOptions);
-    }, [handleLoadMoreItems, queryOptions]);
+    }, [handleLoadMoreItems, handleShowLoadingPlaceholder, queryOptions]);
 
     useEffect(() => {
       navigationDispatch(navigationSetTransitioning(false));

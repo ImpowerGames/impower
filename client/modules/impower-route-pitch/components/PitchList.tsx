@@ -193,13 +193,8 @@ const PitchList = React.memo(
     const listElRef = useRef<HTMLDivElement>();
     const loadingElRef = useRef<HTMLDivElement>();
 
-    const handleAllowReload = useCallback(() => {
-      lastLoadedChunkRef.current = 0;
-      cursorsByTagRef.current = {};
-      pitchDocsByTagRef.current = {};
-      pitchDocsRef.current = {};
-      chunkMapRef.current = {};
-      DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
+    const handleShowLoadingPlaceholder = useCallback(async () => {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
       listElRef.current.style.visibility = "hidden";
       listElRef.current.style.opacity = "0";
       listElRef.current.style.pointerEvents = "none";
@@ -207,12 +202,34 @@ const PitchList = React.memo(
       loadingElRef.current.style.opacity = null;
       loadingElRef.current.style.pointerEvents = null;
       window.scrollTo({ top: 0 });
-      setAllowReloadState(true);
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloadingState(true);
+    }, []);
+
+    const handleHideLoadingPlaceholder = useCallback(async () => {
+      loadingElRef.current.style.visibility = "hidden";
+      loadingElRef.current.style.opacity = "0";
+      loadingElRef.current.style.pointerEvents = "none";
+      listElRef.current.style.visibility = null;
+      listElRef.current.style.opacity = null;
+      listElRef.current.style.pointerEvents = null;
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      setReloadingState(false);
+    }, []);
+
+    const handleAllowReload = useCallback(async () => {
+      await handleShowLoadingPlaceholder();
       if (onReloading) {
         onReloading(true);
       }
-    }, [onReloading]);
+      lastLoadedChunkRef.current = 0;
+      cursorsByTagRef.current = {};
+      pitchDocsByTagRef.current = {};
+      pitchDocsRef.current = {};
+      chunkMapRef.current = {};
+      DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
+      setAllowReloadState(true);
+    }, [handleShowLoadingPlaceholder, onReloading]);
 
     useEffect(() => {
       if (allowReload) {
@@ -223,17 +240,12 @@ const PitchList = React.memo(
     useEffect(() => {
       if (reloading !== undefined) {
         if (reloading) {
-          listElRef.current.style.visibility = "hidden";
-          listElRef.current.style.opacity = "0";
-          listElRef.current.style.pointerEvents = "none";
-          loadingElRef.current.style.visibility = null;
-          loadingElRef.current.style.opacity = null;
-          loadingElRef.current.style.pointerEvents = null;
-          window.scrollTo({ top: 0 });
+          handleShowLoadingPlaceholder();
+        } else {
+          handleHideLoadingPlaceholder();
         }
-        setReloadingState(reloading);
       }
-    }, [reloading]);
+    }, [handleHideLoadingPlaceholder, handleShowLoadingPlaceholder, reloading]);
 
     useEffect(() => {
       if (tab !== undefined) {
@@ -557,18 +569,12 @@ const PitchList = React.memo(
           logInfo("Route", e.message);
         }
         setInitialLoadComplete(true);
-        loadingElRef.current.style.visibility = "hidden";
-        loadingElRef.current.style.opacity = "0";
-        loadingElRef.current.style.pointerEvents = "none";
-        listElRef.current.style.visibility = null;
-        listElRef.current.style.opacity = null;
-        listElRef.current.style.pointerEvents = null;
-        setReloadingState(false);
+        await handleHideLoadingPlaceholder();
         if (onReloading) {
           onReloading(false);
         }
       },
-      [handleLoadMore, onReloading]
+      [handleHideLoadingPlaceholder, handleLoadMore, onReloading]
     );
 
     const handleScrolledToEnd = useCallback(async (): Promise<void> => {
@@ -638,18 +644,10 @@ const PitchList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (pitchDocsRef.current) {
-        listElRef.current.style.visibility = "hidden";
-        listElRef.current.style.opacity = "0";
-        listElRef.current.style.pointerEvents = "none";
-        loadingElRef.current.style.visibility = null;
-        loadingElRef.current.style.opacity = null;
-        loadingElRef.current.style.pointerEvents = null;
-        window.scrollTo({ top: 0 });
-        setReloadingState(true);
+        await handleShowLoadingPlaceholder();
         if (onReloading) {
           onReloading(true);
         }
-        await new Promise((resolve) => window.setTimeout(resolve, 500));
       }
       cursorsByTagRef.current = {};
       pitchDocsByTagRef.current = {};
@@ -671,6 +669,7 @@ const PitchList = React.memo(
       followedTags,
       goalFilter,
       handleLoadTab,
+      handleShowLoadingPlaceholder,
       nsfwVisible,
       onReloading,
       rangeFilter,
@@ -699,7 +698,7 @@ const PitchList = React.memo(
 
     const handleChangeGoalFilter = useCallback(
       async (e: React.MouseEvent, value: PitchGoalFilter): Promise<void> => {
-        handleAllowReload();
+        await handleAllowReload();
         setGoalFilter(value);
       },
       [handleAllowReload]
@@ -707,15 +706,15 @@ const PitchList = React.memo(
 
     const handleChangeSortFilter = useCallback(
       async (e: React.MouseEvent, value: QuerySort): Promise<void> => {
-        handleAllowReload();
+        await handleAllowReload();
         setSort(value);
       },
       [handleAllowReload]
     );
 
     const handleChangeRangeFilter = useCallback(
-      (e: React.MouseEvent, value: DateRangeFilter): void => {
-        handleAllowReload();
+      async (e: React.MouseEvent, value: DateRangeFilter) => {
+        await handleAllowReload();
         setRangeFilter(value);
         if (onRangeFilter) {
           onRangeFilter(e, value);
@@ -724,7 +723,7 @@ const PitchList = React.memo(
       [handleAllowReload, onRangeFilter]
     );
 
-    const handleFollowMore = useCallback((): void => {
+    const handleFollowMore = useCallback(() => {
       if (onFollowMore) {
         onFollowMore(true);
       }
