@@ -34,7 +34,6 @@ import {
   SuggestionDocument,
 } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
-import { LazyHydrate } from "../../../impower-hydration";
 import { DynamicIcon, FontIcon } from "../../../impower-icon";
 import { VirtualizedItem } from "../../../impower-react-virtualization";
 import { ToastContext, toastTop } from "../../../impower-toast";
@@ -81,6 +80,10 @@ const StyledTitleTypography = styled(Typography)`
 
 const StyledTagArea = styled.div`
   padding: ${(props): string => props.theme.spacing(1)};
+  will-change: opacity;
+  * {
+    will-change: opacity;
+  }
 `;
 
 const StyledTagChip = styled(Button)<{ off?: boolean }>`
@@ -102,6 +105,10 @@ const StyledPhraseArea = styled.div`
   position: relative;
   border-radius: ${(props): string => props.theme.spacing(1)};
   display: flex;
+  will-change: opacity;
+  * {
+    will-change: opacity;
+  }
 `;
 
 const StyledPhraseButton = styled(Button)`
@@ -133,6 +140,7 @@ const StyledSuggestButton = styled(Button)`
   padding: ${(props): string => props.theme.spacing(1.5, 1)};
   border-radius: ${(props): string => props.theme.spacing(10)};
   max-height: ${(props): string => props.theme.spacing(7)};
+  will-change: opacity;
 `;
 
 const StyledVoteHelpArea = styled.div`
@@ -533,52 +541,46 @@ const PhraseButton = React.memo((props: PhraseButtonProps) => {
       dontUnmount
       style={mountIfVisibleStyle}
     >
-      <LazyHydrate whenVisible>
-        <StyledPhraseArea style={phraseAreaStyle}>
-          <StyledVoteArea
-            initial={0}
-            animate={handleVote ? 1 : 0}
-            duration={0.1}
-          >
-            <StyledIconButton onClick={handleVote}>
-              <FontIcon
-                aria-label={voteLabel}
-                color={theme.colors.subtitle}
-                size={16}
-              >
-                {voteIconRef.current}
-              </FontIcon>
-            </StyledIconButton>
-          </StyledVoteArea>
-          <StyledPhraseButton
-            onClick={handleClick}
-            onContextMenu={handleContextOpen}
-            color="inherit"
-            fullWidth
-          >
-            <StyledPhraseTypography>{phrase}</StyledPhraseTypography>
-          </StyledPhraseButton>
-          <StyledOptionsIconButton onClick={handleContextOpen}>
+      <StyledPhraseArea style={phraseAreaStyle}>
+        <StyledVoteArea initial={0} animate={handleVote ? 1 : 0} duration={0.1}>
+          <StyledIconButton onClick={handleVote}>
             <FontIcon
-              aria-label={`Options`}
+              aria-label={voteLabel}
               color={theme.colors.subtitle}
               size={16}
             >
-              <EllipsisVerticalRegularIcon />
+              {voteIconRef.current}
             </FontIcon>
-          </StyledOptionsIconButton>
-          {contextMenuOpen !== undefined && (
-            <ContextMenu
-              anchorReference="anchorEl"
-              anchorEl={contextMenuAnchorEl}
-              open={contextMenuOpen}
-              options={options}
-              onOption={handleOption}
-              onClose={handleContextClose}
-            />
-          )}
-        </StyledPhraseArea>
-      </LazyHydrate>
+          </StyledIconButton>
+        </StyledVoteArea>
+        <StyledPhraseButton
+          onClick={handleClick}
+          onContextMenu={handleContextOpen}
+          color="inherit"
+          fullWidth
+        >
+          <StyledPhraseTypography>{phrase}</StyledPhraseTypography>
+        </StyledPhraseButton>
+        <StyledOptionsIconButton onClick={handleContextOpen}>
+          <FontIcon
+            aria-label={`Options`}
+            color={theme.colors.subtitle}
+            size={16}
+          >
+            <EllipsisVerticalRegularIcon />
+          </FontIcon>
+        </StyledOptionsIconButton>
+        {contextMenuOpen !== undefined && (
+          <ContextMenu
+            anchorReference="anchorEl"
+            anchorEl={contextMenuAnchorEl}
+            open={contextMenuOpen}
+            options={options}
+            onOption={handleOption}
+            onClose={handleContextClose}
+          />
+        )}
+      </StyledPhraseArea>
     </VirtualizedItem>
   );
 });
