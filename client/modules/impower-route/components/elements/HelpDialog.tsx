@@ -57,6 +57,8 @@ const StyledHelpDialog = styled(Dialog)`
   }
 
   & .MuiPaper-root {
+    will-change: transform;
+    transform: translateZ(0);
     background-color: ${(props): string => props.theme.palette.primary.main};
     color: white;
     overflow-x: hidden;
