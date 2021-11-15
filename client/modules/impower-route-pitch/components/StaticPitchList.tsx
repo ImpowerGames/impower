@@ -573,12 +573,12 @@ const StaticPitchList = React.memo(
           {loadIcons && <TagIconLoader />}
         </StyledStaticPitchList>
         <StyledOverlayArea>
-          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
-            {loadingPlaceholder}
-          </StyledLoadingArea>
           {pitchCount === 0 && (
             <StyledEmptyArea>{emptyPlaceholder}</StyledEmptyArea>
           )}
+          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+            {loadingPlaceholder}
+          </StyledLoadingArea>
         </StyledOverlayArea>
       </>
     );

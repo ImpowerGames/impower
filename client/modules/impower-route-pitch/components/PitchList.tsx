@@ -902,12 +902,12 @@ const PitchList = React.memo(
           {loadIcons && <TagIconLoader />}
         </StyledPitchList>
         <StyledOverlayArea>
-          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
-            {loadingPlaceholder}
-          </StyledLoadingArea>
           {pitchCount === 0 && (
             <StyledEmptyArea>{emptyPlaceholder}</StyledEmptyArea>
           )}
+          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+            {loadingPlaceholder}
+          </StyledLoadingArea>
         </StyledOverlayArea>
       </>
     );
