@@ -30,13 +30,7 @@ const StyledContributionList = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-`;
-
-const StyledContent = styled.div`
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+  transition: opacity 0.15s ease;
 `;
 
 interface ContributionListProps {
@@ -176,6 +170,7 @@ const ContributionList = React.memo(
       chunkMapRef.current = {};
       DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
       setAllowReload(true);
+      window.scrollTo({ top: 0 });
       setReloading(true);
     }, []);
 
@@ -343,6 +338,7 @@ const ContributionList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (contributionDocsRef.current) {
+        window.scrollTo({ top: 0 });
         setReloading(true);
         await new Promise((resolve) => window.setTimeout(resolve, 500));
       }
@@ -467,22 +463,9 @@ const ContributionList = React.memo(
 
     const loading = transitioning || !contributionDocsState || reloading;
 
-    const listHeaderStyle: React.CSSProperties = useMemo(
+    const style: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
-      }),
-      [loading]
-    );
-
-    const listProgressStyle: React.CSSProperties = useMemo(
-      () => ({
-        visibility: loading ? "hidden" : undefined,
-      }),
-      [loading]
-    );
-
-    const listContentStyle: React.CSSProperties = useMemo(
-      () => ({
         opacity: loading ? 0 : undefined,
         pointerEvents: loading ? "none" : undefined,
       }),
@@ -490,16 +473,15 @@ const ContributionList = React.memo(
     );
 
     return (
-      <StyledContributionList>
-        <ContributionListQueryHeader
-          filter={typeFilter}
-          sort={sort}
-          sortOptions={sortOptions}
-          style={listHeaderStyle}
-          onFilter={handleFilter}
-          onSort={handleSort}
-        />
-        <StyledContent>
+      <>
+        <StyledContributionList style={style}>
+          <ContributionListQueryHeader
+            filter={typeFilter}
+            sort={sort}
+            sortOptions={sortOptions}
+            onFilter={handleFilter}
+            onSort={handleSort}
+          />
           <ContributionListContent
             scrollParent={scrollParent}
             pitchDocs={pitchDocs}
@@ -507,7 +489,6 @@ const ContributionList = React.memo(
             chunkMap={chunkMap}
             lastLoadedChunk={lastLoadedChunk}
             loadingPlaceholder={loadingPlaceholder}
-            style={listContentStyle}
             onChangeScore={handleChangeScore}
             onKudo={handleKudo}
             onEdit={handleEditContribution}
@@ -526,15 +507,14 @@ const ContributionList = React.memo(
               refreshLabel={
                 contributionEntries?.length === 0 ? undefined : `Refresh?`
               }
-              style={listProgressStyle}
               onScrolledToEnd={handleScrolledToEnd}
               onRefresh={handleRefresh}
             />
           )}
           {children}
-          {loading && loadingPlaceholder}
-        </StyledContent>
-      </StyledContributionList>
+        </StyledContributionList>
+        {loading && loadingPlaceholder}
+      </>
     );
   }
 );

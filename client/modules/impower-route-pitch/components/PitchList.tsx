@@ -47,20 +47,14 @@ const TagIconLoader = dynamic(
   { ssr: false }
 );
 
-const StyledContainer = styled.div`
+const StyledPitchList = styled.div`
   width: 100%;
   margin: auto;
   max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
   flex: 1;
   display: flex;
   flex-direction: column;
-`;
-
-const StyledContent = styled.div`
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+  transition: opacity 0.15s ease;
 `;
 
 interface PitchListProps {
@@ -196,6 +190,7 @@ const PitchList = React.memo(
       chunkMapRef.current = {};
       DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
       setAllowReloadState(true);
+      window.scrollTo({ top: 0 });
       setReloadingState(true);
       if (onReloading) {
         onReloading(true);
@@ -210,6 +205,9 @@ const PitchList = React.memo(
 
     useEffect(() => {
       if (reloading !== undefined) {
+        if (reloading) {
+          window.scrollTo({ top: 0 });
+        }
         setReloadingState(reloading);
       }
     }, [reloading]);
@@ -611,6 +609,7 @@ const PitchList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (pitchDocsRef.current) {
+        window.scrollTo({ top: 0 });
         setReloadingState(true);
         if (onReloading) {
           onReloading(true);
@@ -772,22 +771,9 @@ const PitchList = React.memo(
 
     const loading = transitioning || !pitchDocsState || reloadingState;
 
-    const listHeaderStyle: React.CSSProperties = useMemo(
+    const style: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
-      }),
-      [loading]
-    );
-
-    const listProgressStyle: React.CSSProperties = useMemo(
-      () => ({
-        visibility: loading ? "hidden" : undefined,
-      }),
-      [loading]
-    );
-
-    const listContentStyle: React.CSSProperties = useMemo(
-      () => ({
         opacity: loading ? 0 : undefined,
         pointerEvents: loading ? "none" : undefined,
       }),
@@ -795,21 +781,22 @@ const PitchList = React.memo(
     );
 
     return (
-      <StyledContainer>
-        <PitchListQueryHeader
-          goalFilter={goalFilter}
-          rangeFilter={rangeFilter}
-          sort={sort}
-          sortOptions={sortOptions}
-          style={listHeaderStyle}
-          onGoalFilter={handleChangeGoalFilter}
-          onRangeFilter={
-            tabState === "Top" ? handleChangeRangeFilter : undefined
-          }
-          onSort={tabState === "Top" ? undefined : handleChangeSortFilter}
-          onFollowMore={tabState === "Following" ? handleFollowMore : undefined}
-        />
-        <StyledContent>
+      <>
+        <StyledPitchList style={style}>
+          <PitchListQueryHeader
+            goalFilter={goalFilter}
+            rangeFilter={rangeFilter}
+            sort={sort}
+            sortOptions={sortOptions}
+            onGoalFilter={handleChangeGoalFilter}
+            onRangeFilter={
+              tabState === "Top" ? handleChangeRangeFilter : undefined
+            }
+            onSort={tabState === "Top" ? undefined : handleChangeSortFilter}
+            onFollowMore={
+              tabState === "Following" ? handleFollowMore : undefined
+            }
+          />
           <PitchListContent
             config={config}
             icons={icons}
@@ -821,7 +808,6 @@ const PitchList = React.memo(
             offlinePlaceholder={offlinePlaceholder}
             loadingPlaceholder={loadingPlaceholder}
             dontFade={!initialLoadComplete}
-            style={listContentStyle}
             onChangeScore={handleChangeScore}
             onDelete={handleDeletePitch}
             onKudo={handleKudo}
@@ -849,16 +835,15 @@ const PitchList = React.memo(
               refreshLabel={
                 !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
               }
-              style={listProgressStyle}
               onScrolledToEnd={handleScrolledToEnd}
               onRefresh={handleRefresh}
             />
           )}
           {children}
-          {loading && loadingPlaceholder}
-        </StyledContent>
-        {loadIcons && <TagIconLoader />}
-      </StyledContainer>
+          {loadIcons && <TagIconLoader />}
+        </StyledPitchList>
+        {loading && loadingPlaceholder}
+      </>
     );
   }
 );

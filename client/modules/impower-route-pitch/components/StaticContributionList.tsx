@@ -29,10 +29,11 @@ const LOAD_MORE_LIMIT = 10;
 
 const SORT_OPTIONS: ["new", "old"] = ["new", "old"];
 
-const StyledContributionList = styled.div`
+const StyledStaticContributionList = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
+  transition: opacity 0.15s ease;
 `;
 
 const StyledSpacer = styled.div`
@@ -40,13 +41,6 @@ const StyledSpacer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-`;
-
-const StyledContent = styled.div`
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
 `;
 
 interface StaticContributionListProps {
@@ -317,6 +311,7 @@ const StaticContributionList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (contributionDocsRef.current) {
+        window.scrollTo({ top: 0 });
         setReloading(true);
         await new Promise((resolve) => window.setTimeout(resolve, 500));
       }
@@ -508,6 +503,7 @@ const StaticContributionList = React.memo(
 
     const listContentStyle: React.CSSProperties = useMemo(
       () => ({
+        visibility: loading ? "hidden" : undefined,
         opacity: loading ? 0 : undefined,
         pointerEvents: loading ? "none" : undefined,
       }),
@@ -515,33 +511,33 @@ const StaticContributionList = React.memo(
     );
 
     return (
-      <StyledContributionList>
-        <QueryHeader id="pitch-filter-header" style={listHeaderStyle}>
-          <QueryButton
-            target="pitch"
-            menuType="sort"
-            label={`Sort By`}
-            icon={sortIcon}
-            value={sort}
-            options={SORT_OPTIONS}
-            getOptionLabels={getStaticSortOptionLabels}
-            getOptionIcons={handleGetSortOptionIcons}
-            onOption={handleChangeSort}
-          />
-          <StyledSpacer />
-          <QueryButton
-            target="pitch"
-            menuType="filter"
-            label={`Kudoed`}
-            flexDirection="row-reverse"
-            icon={filterIcon}
-            value={rangeFilter}
-            getOptionLabels={getRangeFilterOptionLabels}
-            getOptionIcons={handleGetFilterOptionIcons}
-            onOption={handleChangeFilter}
-          />
-        </QueryHeader>
-        <StyledContent>
+      <>
+        <StyledStaticContributionList>
+          <QueryHeader id="pitch-filter-header" style={listHeaderStyle}>
+            <QueryButton
+              target="pitch"
+              menuType="sort"
+              label={`Sort By`}
+              icon={sortIcon}
+              value={sort}
+              options={SORT_OPTIONS}
+              getOptionLabels={getStaticSortOptionLabels}
+              getOptionIcons={handleGetSortOptionIcons}
+              onOption={handleChangeSort}
+            />
+            <StyledSpacer />
+            <QueryButton
+              target="pitch"
+              menuType="filter"
+              label={`Kudoed`}
+              flexDirection="row-reverse"
+              icon={filterIcon}
+              value={rangeFilter}
+              getOptionLabels={getRangeFilterOptionLabels}
+              getOptionIcons={handleGetFilterOptionIcons}
+              onOption={handleChangeFilter}
+            />
+          </QueryHeader>
           <ContributionListContent
             scrollParent={scrollParent}
             contributionDocs={contributionDocsState}
@@ -573,9 +569,9 @@ const StaticContributionList = React.memo(
             />
           )}
           {children}
-          {loading && loadingPlaceholder}
-        </StyledContent>
-      </StyledContributionList>
+        </StyledStaticContributionList>
+        {loading && loadingPlaceholder}
+      </>
     );
   }
 );

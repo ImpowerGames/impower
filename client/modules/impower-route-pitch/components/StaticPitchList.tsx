@@ -40,13 +40,14 @@ const TagIconLoader = dynamic(
   { ssr: false }
 );
 
-const StyledContainer = styled.div`
+const StyledStaticPitchList = styled.div`
   width: 100%;
   margin: auto;
   max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
   flex: 1;
   display: flex;
   flex-direction: column;
+  transition: opacity 0.15s ease;
 `;
 
 const StyledSpacer = styled.div`
@@ -54,13 +55,6 @@ const StyledSpacer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-`;
-
-const StyledContent = styled.div`
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
 `;
 
 interface StaticPitchListProps {
@@ -287,6 +281,7 @@ const StaticPitchList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (pitchDocsRef.current) {
+        window.scrollTo({ top: 0 });
         setReloading(true);
         await new Promise((resolve) => window.setTimeout(resolve, 500));
       }
@@ -443,15 +438,9 @@ const StaticPitchList = React.memo(
 
     const loading = transitioning || !pitchDocsState || reloading;
 
-    const listProgressStyle: React.CSSProperties = useMemo(
+    const style: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
-      }),
-      [loading]
-    );
-
-    const listContentStyle: React.CSSProperties = useMemo(
-      () => ({
         opacity: loading ? 0 : undefined,
         pointerEvents: loading ? "none" : undefined,
       }),
@@ -459,33 +448,33 @@ const StaticPitchList = React.memo(
     );
 
     return (
-      <StyledContainer>
-        <QueryHeader id="pitch-filter-header">
-          <QueryButton
-            target="pitch"
-            menuType="sort"
-            label={`Sort By`}
-            icon={sortIcon}
-            value={sort}
-            options={SORT_OPTIONS}
-            getOptionLabels={getStaticSortOptionLabels}
-            getOptionIcons={handleGetSortOptionIcons}
-            onOption={handleChangeSort}
-          />
-          <StyledSpacer />
-          <QueryButton
-            target="pitch"
-            menuType="filter"
-            label={`Kudoed`}
-            flexDirection="row-reverse"
-            icon={filterIcon}
-            value={rangeFilter}
-            getOptionLabels={getRangeFilterOptionLabels}
-            getOptionIcons={handleGetFilterOptionIcons}
-            onOption={handleChangeFilter}
-          />
-        </QueryHeader>
-        <StyledContent>
+      <>
+        <StyledStaticPitchList style={style}>
+          <QueryHeader id="pitch-filter-header">
+            <QueryButton
+              target="pitch"
+              menuType="sort"
+              label={`Sort By`}
+              icon={sortIcon}
+              value={sort}
+              options={SORT_OPTIONS}
+              getOptionLabels={getStaticSortOptionLabels}
+              getOptionIcons={handleGetSortOptionIcons}
+              onOption={handleChangeSort}
+            />
+            <StyledSpacer />
+            <QueryButton
+              target="pitch"
+              menuType="filter"
+              label={`Kudoed`}
+              flexDirection="row-reverse"
+              icon={filterIcon}
+              value={rangeFilter}
+              getOptionLabels={getRangeFilterOptionLabels}
+              getOptionIcons={handleGetFilterOptionIcons}
+              onOption={handleChangeFilter}
+            />
+          </QueryHeader>
           <PitchListContent
             config={config}
             icons={icons}
@@ -496,7 +485,6 @@ const StaticPitchList = React.memo(
             loadingPlaceholder={loadingPlaceholder}
             emptyPlaceholder={emptyPlaceholder}
             offlinePlaceholder={offlinePlaceholder}
-            style={listContentStyle}
             onChangeScore={handleChangeScore}
             onDelete={handleDeletePitch}
             onKudo={handleKudo}
@@ -524,15 +512,14 @@ const StaticPitchList = React.memo(
               refreshLabel={
                 !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
               }
-              style={listProgressStyle}
               onScrolledToEnd={handleScrolledToEnd}
               onRefresh={handleRefresh}
             />
           )}
-          {loading && loadingPlaceholder}
-        </StyledContent>
-        {loadIcons && <TagIconLoader />}
-      </StyledContainer>
+          {loadIcons && <TagIconLoader />}
+        </StyledStaticPitchList>
+        {loading && loadingPlaceholder}
+      </>
     );
   }
 );

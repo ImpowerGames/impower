@@ -78,6 +78,16 @@ const StyledListArea = styled.div`
   position: relative;
 `;
 
+const StyledListContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
 const StyledLoadingOverlay = styled.div`
   position: absolute;
   top: 0;
@@ -87,21 +97,9 @@ const StyledLoadingOverlay = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  flex: 1;
+  justify-content: center;
   z-index: 1;
   background-color: ${(props): string => props.theme.colors.lightForeground};
-`;
-
-const StyledLoadingContainer = styled.div`
-  position: sticky;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: calc(100vh - ${(props): string => props.theme.spacing(50)});
 `;
 
 interface PitchProps {
@@ -221,14 +219,12 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const loadingPlaceholder = useMemo(
     () => (
       <StyledLoadingOverlay>
-        <StyledLoadingContainer>
-          <EmptyPitchList
-            loading
-            loadingMessage={`Loading...`}
-            emptySubtitle1={emptySubtitle1}
-            emptySubtitle2={emptySubtitle2}
-          />
-        </StyledLoadingContainer>
+        <EmptyPitchList
+          loading
+          loadingMessage={`Loading...`}
+          emptySubtitle1={emptySubtitle1}
+          emptySubtitle2={emptySubtitle2}
+        />
       </StyledLoadingOverlay>
     ),
     [emptySubtitle1, emptySubtitle2]
@@ -273,9 +269,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     []
   );
 
-  const handleReloading = useCallback((reloading: boolean) => {
-    setReloading(reloading);
-  }, []);
+  const loading = transitioning || my_follows === undefined;
 
   return (
     <StyledPitch style={style}>
@@ -283,41 +277,42 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
         <PitchTabsToolbar value={activeTab} onChange={handleChangeTab} />
         <BetaBanner />
         <StyledListArea>
-          {transitioning || my_follows === undefined ? (
-            loadingPlaceholder
-          ) : activeTab === "Following" &&
-            (Object.keys(my_follows || {}).length === 0 ||
-              !shouldDisplayFollowingPitches) ? (
-            <PitchFollowTags onReload={handleReloadFollowing} />
-          ) : (
-            <>
-              <PitchList
-                config={config}
-                icons={icons}
-                pitchDocs={validPitchDocs}
-                tab={activeTab}
-                sortOptions={SORT_OPTIONS}
-                allowReload={allowReload}
-                reloading={reloading}
-                loadingPlaceholder={loadingPlaceholder}
-                emptyPlaceholder={emptyPlaceholder}
-                offlinePlaceholder={offlinePlaceholder}
-                onFollowMore={handleFollowMore}
-                onRangeFilter={handleRangeFilter}
-                onReloading={handleReloading}
-              >
-                <AddPitchToolbar
+          <StyledListContent>
+            {loading ? (
+              loadingPlaceholder
+            ) : activeTab === "Following" &&
+              (Object.keys(my_follows || {}).length === 0 ||
+                !shouldDisplayFollowingPitches) ? (
+              <PitchFollowTags onReload={handleReloadFollowing} />
+            ) : (
+              <>
+                <PitchList
                   config={config}
                   icons={icons}
-                  hidden={
-                    activeTab === "Following" &&
-                    (!followedTags || followedTags.length === 0)
-                  }
+                  pitchDocs={validPitchDocs}
+                  tab={activeTab}
+                  sortOptions={SORT_OPTIONS}
+                  allowReload={allowReload}
+                  reloading={reloading}
+                  loadingPlaceholder={loadingPlaceholder}
+                  emptyPlaceholder={emptyPlaceholder}
+                  offlinePlaceholder={offlinePlaceholder}
+                  onFollowMore={handleFollowMore}
+                  onRangeFilter={handleRangeFilter}
+                  onReloading={setReloading}
                 />
-              </PitchList>
-            </>
-          )}
+              </>
+            )}
+          </StyledListContent>
         </StyledListArea>
+        <AddPitchToolbar
+          config={config}
+          icons={icons}
+          hidden={
+            activeTab === "Following" &&
+            (!followedTags || followedTags.length === 0)
+          }
+        />
       </StyledApp>
     </StyledPitch>
   );

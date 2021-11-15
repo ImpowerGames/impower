@@ -4,7 +4,6 @@ import {
   CircularProgress,
   Divider,
   IconButton,
-  Paper,
   Tab,
   Typography,
 } from "@material-ui/core";
@@ -46,19 +45,13 @@ const StyledContainer = styled.div`
   align-items: center;
 `;
 
-const StyledPaper = styled(Paper)`
+const StyledPaper = styled.div`
   flex: 1;
-  padding: 0;
   width: 100%;
   max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
-  border-radius: 0;
-
-  ${(props): string => props.theme.breakpoints.down("sm")} {
-    box-shadow: none;
-  }
-
   display: flex;
   flex-direction: column;
+  background-color: white;
 `;
 
 const StyledDetailsArea = styled.div`
@@ -85,8 +78,7 @@ const StyledButton = styled(Button)`
 `;
 
 const StyledTabsArea = styled.div`
-  position: sticky;
-  top: ${(props): string => props.theme.minHeight.navigationBar};
+  position: relative;
   background-color: white;
   z-index: 1;
 `;
@@ -94,6 +86,25 @@ const StyledTabsArea = styled.div`
 const StyledTabs = styled(Tabs)``;
 
 const StyledTab = styled(Tab)``;
+
+const StyledListArea = styled.div`
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+`;
+
+const StyledListContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+`;
 
 const StyledLoadingOverlay = styled.div`
   position: absolute;
@@ -104,20 +115,8 @@ const StyledLoadingOverlay = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  flex: 1;
-  z-index: 1;
-`;
-
-const StyledLoadingContainer = styled.div`
-  position: sticky;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  width: 100%;
-  min-height: calc(100vh - ${(props): string => props.theme.spacing(50)});
+  z-index: 1;
 `;
 
 const StyledOfflineArea = styled.div`
@@ -237,9 +236,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
   const loadingPlaceholder = useMemo(
     () => (
       <StyledLoadingOverlay>
-        <StyledLoadingContainer>
-          <StyledCircularProgress color="secondary" />
-        </StyledLoadingContainer>
+        <StyledCircularProgress color="secondary" />
       </StyledLoadingOverlay>
     ),
     []
@@ -322,30 +319,34 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                       <StyledTab value={1} label={`CONTRIBUTIONS`} />
                     </StyledTabs>
                   </StyledTabsArea>
-                  {tabIndex === 0 ? (
-                    <PitchList
-                      config={config}
-                      icons={icons}
-                      creator={id}
-                      sortOptions={SORT_OPTIONS}
-                      compact
-                      emptyLabel={`No Pitches`}
-                      loadingPlaceholder={loadingPlaceholder}
-                      offlinePlaceholder={
-                        <StyledOfflineArea>
-                          <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
-                        </StyledOfflineArea>
-                      }
-                    />
-                  ) : (
-                    <ContributionList
-                      creator={id}
-                      sortOptions={SORT_OPTIONS}
-                      emptyLabel={`No Contributions`}
-                      noMoreLabel={`That's all for now!`}
-                      loadingPlaceholder={loadingPlaceholder}
-                    />
-                  )}
+                  <StyledListArea>
+                    <StyledListContent>
+                      {tabIndex === 0 ? (
+                        <PitchList
+                          config={config}
+                          icons={icons}
+                          creator={id}
+                          sortOptions={SORT_OPTIONS}
+                          compact
+                          emptyLabel={`No Pitches`}
+                          loadingPlaceholder={loadingPlaceholder}
+                          offlinePlaceholder={
+                            <StyledOfflineArea>
+                              <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
+                            </StyledOfflineArea>
+                          }
+                        />
+                      ) : (
+                        <ContributionList
+                          creator={id}
+                          sortOptions={SORT_OPTIONS}
+                          emptyLabel={`No Contributions`}
+                          noMoreLabel={`That's all for now!`}
+                          loadingPlaceholder={loadingPlaceholder}
+                        />
+                      )}
+                    </StyledListContent>
+                  </StyledListArea>
                 </>
               )}
             </>

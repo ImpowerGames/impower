@@ -64,6 +64,17 @@ const StyledListArea = styled.div`
   align-items: center;
   display: flex;
   flex-direction: column;
+  position: relative;
+`;
+
+const StyledListContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
 `;
 
 const StyledLoadingOverlay = styled.div`
@@ -75,21 +86,9 @@ const StyledLoadingOverlay = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  flex: 1;
+  justify-content: center;
   z-index: 1;
   background-color: ${(props): string => props.theme.colors.lightForeground};
-`;
-
-const StyledLoadingContainer = styled.div`
-  position: sticky;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: calc(100vh - ${(props): string => props.theme.spacing(50)});
 `;
 
 interface PitchSearchPageProps {
@@ -188,14 +187,12 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
   const loadingPlaceholder = useMemo(
     () => (
       <StyledLoadingOverlay>
-        <StyledLoadingContainer>
-          <EmptyPitchList
-            loading
-            loadingMessage={`Loading...`}
-            emptySubtitle1={emptySubtitle1}
-            emptySubtitle2={emptySubtitle2}
-          />
-        </StyledLoadingContainer>
+        <EmptyPitchList
+          loading
+          loadingMessage={`Loading...`}
+          emptySubtitle1={emptySubtitle1}
+          emptySubtitle2={emptySubtitle2}
+        />
       </StyledLoadingOverlay>
     ),
     [emptySubtitle1, emptySubtitle2]
@@ -247,19 +244,20 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
         />
         <BetaBanner />
         <StyledListArea>
-          <PitchList
-            config={config}
-            icons={icons}
-            pitchDocs={pitchDocs}
-            search={activeSearch}
-            sortOptions={SORT_OPTIONS}
-            loadingPlaceholder={loadingPlaceholder}
-            emptyPlaceholder={emptyPlaceholder}
-            offlinePlaceholder={offlinePlaceholder}
-          >
-            <AddPitchToolbar config={config} icons={icons} />
-          </PitchList>
+          <StyledListContent>
+            <PitchList
+              config={config}
+              icons={icons}
+              pitchDocs={pitchDocs}
+              search={activeSearch}
+              sortOptions={SORT_OPTIONS}
+              loadingPlaceholder={loadingPlaceholder}
+              emptyPlaceholder={emptyPlaceholder}
+              offlinePlaceholder={offlinePlaceholder}
+            />
+          </StyledListContent>
         </StyledListArea>
+        <AddPitchToolbar config={config} icons={icons} />
       </StyledApp>
     </StyledPitchSearch>
   );
