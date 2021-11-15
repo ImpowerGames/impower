@@ -247,24 +247,18 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
         />
         <BetaBanner />
         <StyledListArea>
-          {transitioning ? (
-            loadingPlaceholder
-          ) : (
-            <>
-              <PitchList
-                config={config}
-                icons={icons}
-                pitchDocs={pitchDocs}
-                search={activeSearch}
-                sortOptions={SORT_OPTIONS}
-                loadingPlaceholder={loadingPlaceholder}
-                emptyPlaceholder={emptyPlaceholder}
-                offlinePlaceholder={offlinePlaceholder}
-              >
-                <AddPitchToolbar config={config} icons={icons} />
-              </PitchList>
-            </>
-          )}
+          <PitchList
+            config={config}
+            icons={icons}
+            pitchDocs={pitchDocs}
+            search={activeSearch}
+            sortOptions={SORT_OPTIONS}
+            loadingPlaceholder={loadingPlaceholder}
+            emptyPlaceholder={emptyPlaceholder}
+            offlinePlaceholder={offlinePlaceholder}
+          >
+            <AddPitchToolbar config={config} icons={icons} />
+          </PitchList>
         </StyledListArea>
       </StyledApp>
     </StyledPitchSearch>

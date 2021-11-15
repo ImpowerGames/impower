@@ -131,6 +131,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const [allowReload, setAllowReload] = useState(!validPitchDocs);
   const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
+  const [reloading, setReloading] = useState(false);
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
@@ -168,6 +169,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const handleChangeTab = useCallback(
     (tab: PitchToolbarTab): void => {
       setAllowReload(true);
+      setReloading(true);
       setActiveTab(tab);
       if (followedTags === null) {
         setShouldDisplayFollowingPitches(false);
@@ -271,6 +273,10 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     []
   );
 
+  const handleReloading = useCallback((reloading: boolean) => {
+    setReloading(reloading);
+  }, []);
+
   return (
     <StyledPitch style={style}>
       <StyledApp>
@@ -292,11 +298,13 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                 tab={activeTab}
                 sortOptions={SORT_OPTIONS}
                 allowReload={allowReload}
+                reloading={reloading}
                 loadingPlaceholder={loadingPlaceholder}
                 emptyPlaceholder={emptyPlaceholder}
                 offlinePlaceholder={offlinePlaceholder}
                 onFollowMore={handleFollowMore}
                 onRangeFilter={handleRangeFilter}
+                onReloading={handleReloading}
               >
                 <AddPitchToolbar
                   config={config}

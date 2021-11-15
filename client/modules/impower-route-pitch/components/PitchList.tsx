@@ -78,6 +78,8 @@ interface PitchListProps {
   emptyLabel?: string;
   emptySubtitle?: string;
   allowReload?: boolean;
+  reloading?: boolean;
+  onReloading?: (reloading: boolean) => void;
   onFollowMore?: (open: boolean) => void;
   onRangeFilter?: (e: React.MouseEvent, rangeFilter: DateRangeFilter) => void;
 }
@@ -101,7 +103,9 @@ const PitchList = React.memo(
       emptyLabel,
       emptySubtitle,
       allowReload,
+      reloading,
       children,
+      onReloading,
       onFollowMore,
       onRangeFilter,
     } = props;
@@ -176,7 +180,7 @@ const PitchList = React.memo(
     const [goalFilter, setGoalFilter] = useState<PitchGoalFilter>("All");
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rank");
     const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
-    const [reloading, setReloading] = useState(false);
+    const [reloadingState, setReloadingState] = useState(reloading);
 
     const [navigationState, navigationDispatch] = useContext(NavigationContext);
     const transitioning = navigationState?.transitioning;
@@ -192,8 +196,11 @@ const PitchList = React.memo(
       chunkMapRef.current = {};
       DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
       setAllowReloadState(true);
-      setReloading(true);
-    }, []);
+      setReloadingState(true);
+      if (onReloading) {
+        onReloading(true);
+      }
+    }, [onReloading]);
 
     useEffect(() => {
       if (allowReload) {
@@ -202,13 +209,15 @@ const PitchList = React.memo(
     }, [allowReload, handleAllowReload]);
 
     useEffect(() => {
+      if (reloading !== undefined) {
+        setReloadingState(reloading);
+      }
+    }, [reloading]);
+
+    useEffect(() => {
       if (tab !== undefined) {
-        if (tab !== tabState) {
-          setReloading(true);
-        }
         setTabState(tab);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tab]);
 
     useEffect(() => {
@@ -527,9 +536,12 @@ const PitchList = React.memo(
           logInfo("Route", e.message);
         }
         setInitialLoadComplete(true);
-        setReloading(false);
+        setReloadingState(false);
+        if (onReloading) {
+          onReloading(false);
+        }
       },
-      [handleLoadMore]
+      [handleLoadMore, onReloading]
     );
 
     const handleScrolledToEnd = useCallback(async (): Promise<void> => {
@@ -599,7 +611,10 @@ const PitchList = React.memo(
 
     const handleReload = useCallback(async () => {
       if (pitchDocsRef.current) {
-        setReloading(true);
+        setReloadingState(true);
+        if (onReloading) {
+          onReloading(true);
+        }
         await new Promise((resolve) => window.setTimeout(resolve, 500));
       }
       cursorsByTagRef.current = {};
@@ -623,6 +638,7 @@ const PitchList = React.memo(
       goalFilter,
       handleLoadTab,
       nsfwVisible,
+      onReloading,
       rangeFilter,
       search,
       sort,
@@ -754,7 +770,7 @@ const PitchList = React.memo(
       [pitchDocsState]
     );
 
-    const loading = transitioning || !pitchDocsState || reloading;
+    const loading = transitioning || !pitchDocsState || reloadingState;
 
     const listHeaderStyle: React.CSSProperties = useMemo(
       () => ({
