@@ -51,7 +51,6 @@ const StyledPopulatedContributionList = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  transition: opacity 0.15s ease;
 `;
 
 const StyledCardModal = styled(CardModal)`
