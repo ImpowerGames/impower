@@ -80,10 +80,6 @@ const StyledTitleTypography = styled(Typography)`
 
 const StyledTagArea = styled.div`
   padding: ${(props): string => props.theme.spacing(1)};
-  will-change: opacity;
-  * {
-    will-change: opacity;
-  }
 `;
 
 const StyledTagChip = styled(Button)<{ off?: boolean }>`
@@ -105,10 +101,6 @@ const StyledPhraseArea = styled.div`
   position: relative;
   border-radius: ${(props): string => props.theme.spacing(1)};
   display: flex;
-  will-change: opacity;
-  * {
-    will-change: opacity;
-  }
 `;
 
 const StyledPhraseButton = styled(Button)`
