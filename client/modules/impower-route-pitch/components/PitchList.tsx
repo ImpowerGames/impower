@@ -54,7 +54,6 @@ const StyledPitchList = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  transition: opacity 0.15s ease;
 `;
 
 const StyledLoadingArea = styled.div`
@@ -200,10 +199,8 @@ const PitchList = React.memo(
     const handleShowLoadingPlaceholder = useCallback(async () => {
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       listElRef.current.style.visibility = "hidden";
-      listElRef.current.style.opacity = "0";
       listElRef.current.style.pointerEvents = "none";
       loadingElRef.current.style.visibility = null;
-      loadingElRef.current.style.opacity = null;
       loadingElRef.current.style.pointerEvents = null;
       window.scrollTo({ top: 0 });
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
