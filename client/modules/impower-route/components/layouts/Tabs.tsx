@@ -196,6 +196,13 @@ const Tabs = React.forwardRef(
         if (!tab) {
           return;
         }
+        for (let i = 0; i < container.children.length; i += 1) {
+          if (tabIndex === i) {
+            tab.firstElementChild.classList.add("Mui-selected");
+          } else {
+            container.children[i].classList.remove("Mui-selected");
+          }
+        }
         const tabRect = tab?.getBoundingClientRect();
         const tabX = tabRect.x;
         const tabY = tabRect.y;
@@ -353,7 +360,7 @@ const Tabs = React.forwardRef(
           {React.cloneElement(child, {
             fullWidth: variant === "fullWidth",
             indicator: selected && !mounted && indicator,
-            selected,
+            selected: selected && mounted,
             selectionFollowsFocus,
             onChange,
             textColor,
