@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { ConfigParameters } from "../../impower-config";
@@ -17,14 +18,11 @@ import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
 import getRangeFilterLabel from "../utils/getRangeFilterLabel";
 import AddPitchToolbar from "./AddPitchToolbar";
+import EmptyPitchList from "./EmptyPitchList";
 import PitchList from "./PitchList";
 import PitchTabsToolbar, { PitchToolbarTab } from "./PitchTabsToolbar";
 
 const SORT_OPTIONS: ["rank", "new"] = ["rank", "new"];
-
-const EmptyPitchList = dynamic(() => import("./EmptyPitchList"), {
-  ssr: false,
-});
 
 const AnimatedHappyMascot = dynamic(
   () =>
@@ -75,6 +73,28 @@ const StyledListArea = styled.div`
   align-items: center;
   display: flex;
   flex-direction: column;
+  position: relative;
+`;
+
+const StyledListContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
+const StyledForceOverflow = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-height: calc(100% + 72px);
+  pointer-events: none;
 `;
 
 interface PitchProps {
@@ -86,6 +106,9 @@ interface PitchProps {
 
 const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const { config, icons, pitchDocs, style } = props;
+
+  const listElRef = useRef<HTMLDivElement>();
+  const loadingElRef = useRef<HTMLDivElement>();
 
   const [shouldDisplayFollowingPitches, setShouldDisplayFollowingPitches] =
     useState<boolean>();
@@ -104,6 +127,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const [allowReload, setAllowReload] = useState(!validPitchDocs);
   const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
+  const [reloading, setReloading] = useState(false);
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
@@ -138,8 +162,25 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedFollowedTags]);
 
+  const handleShowLoadingPlaceholder = useCallback(async () => {
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    if (listElRef.current) {
+      listElRef.current.style.visibility = "hidden";
+      listElRef.current.style.pointerEvents = "none";
+    }
+    if (loadingElRef.current) {
+      loadingElRef.current.classList.add("animate");
+      loadingElRef.current.style.visibility = null;
+      loadingElRef.current.style.pointerEvents = null;
+    }
+    window.scrollTo({ top: 0 });
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    setReloading(true);
+  }, []);
+
   const handleChangeTab = useCallback(
-    (tab: PitchToolbarTab): void => {
+    async (tab: PitchToolbarTab) => {
+      await handleShowLoadingPlaceholder();
       setAllowReload(true);
       setActiveTab(tab);
       if (followedTags === null) {
@@ -154,7 +195,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
         `/pitch?t=${tab.toLowerCase()}`
       );
     },
-    [followedTags]
+    [followedTags, handleShowLoadingPlaceholder]
   );
 
   const handleReloadFollowing = useCallback(async (): Promise<void> => {
@@ -240,45 +281,53 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     []
   );
 
+  const loading = transitioning || my_follows === undefined;
+
   return (
     <StyledPitch style={style}>
       <StyledApp>
         <PitchTabsToolbar value={activeTab} onChange={handleChangeTab} />
         <BetaBanner />
+        <StyledForceOverflow />
         <StyledListArea>
-          {transitioning ? (
-            loadingPlaceholder
-          ) : activeTab === "Following" && !shouldDisplayFollowingPitches ? (
-            <PitchFollowTags
-              loadingPlaceholder={loadingPlaceholder}
-              onReload={handleReloadFollowing}
-            />
-          ) : (
-            <>
-              <PitchList
-                config={config}
-                icons={icons}
-                pitchDocs={validPitchDocs}
-                tab={activeTab}
-                sortOptions={SORT_OPTIONS}
-                allowReload={allowReload}
-                loadingPlaceholder={loadingPlaceholder}
-                emptyPlaceholder={emptyPlaceholder}
-                offlinePlaceholder={offlinePlaceholder}
-                onFollowMore={handleFollowMore}
-                onRangeFilter={handleRangeFilter}
-              />
-              <AddPitchToolbar
-                config={config}
-                icons={icons}
-                hidden={
-                  activeTab === "Following" &&
-                  (!followedTags || followedTags.length === 0)
-                }
-              />
-            </>
-          )}
+          <StyledListContent>
+            {loading ? (
+              loadingPlaceholder
+            ) : activeTab === "Following" &&
+              (Object.keys(my_follows || {}).length === 0 ||
+                !shouldDisplayFollowingPitches) ? (
+              <PitchFollowTags onReload={handleReloadFollowing} />
+            ) : (
+              <>
+                <PitchList
+                  config={config}
+                  icons={icons}
+                  pitchDocs={validPitchDocs}
+                  tab={activeTab}
+                  sortOptions={SORT_OPTIONS}
+                  allowReload={allowReload}
+                  reloading={reloading}
+                  loadingPlaceholder={loadingPlaceholder}
+                  emptyPlaceholder={emptyPlaceholder}
+                  offlinePlaceholder={offlinePlaceholder}
+                  listElRef={listElRef}
+                  loadingElRef={loadingElRef}
+                  onFollowMore={handleFollowMore}
+                  onRangeFilter={handleRangeFilter}
+                  onReloading={setReloading}
+                />
+              </>
+            )}
+          </StyledListContent>
         </StyledListArea>
+        <AddPitchToolbar
+          config={config}
+          icons={icons}
+          hidden={
+            activeTab === "Following" &&
+            (!followedTags || followedTags.length === 0)
+          }
+        />
       </StyledApp>
     </StyledPitch>
   );

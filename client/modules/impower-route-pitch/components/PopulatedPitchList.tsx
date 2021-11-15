@@ -791,6 +791,7 @@ interface PopulatedPitchListProps {
   lastLoadedChunk?: number;
   compact?: boolean;
   dontFade?: boolean;
+  style?: React.CSSProperties;
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
@@ -834,6 +835,7 @@ const PopulatedPitchList = React.memo(
       lastLoadedChunk,
       compact,
       dontFade,
+      style,
       onChangeScore,
       onDelete,
       onKudo,
@@ -935,7 +937,7 @@ const PopulatedPitchList = React.memo(
 
     return (
       <>
-        <StyledPopulatedPitchList>
+        <StyledPopulatedPitchList style={style}>
           {pitchChunks.map((chunkEntries, chunkIndex) => {
             if (!nodes.current[chunkIndex] && typeof document !== "undefined") {
               nodes.current[chunkIndex] = chunkEntries.map(() =>

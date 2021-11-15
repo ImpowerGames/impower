@@ -716,6 +716,7 @@ interface PopulatedContributionListProps {
   contributionDocs?: { [id: string]: ContributionDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
+  style?: React.CSSProperties;
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
@@ -749,6 +750,7 @@ const PopulatedContributionList = React.memo(
       contributionDocs,
       chunkMap,
       lastLoadedChunk,
+      style,
       onChangeScore,
       onKudo,
       onEdit,
@@ -847,7 +849,7 @@ const PopulatedContributionList = React.memo(
     }
 
     return (
-      <StyledPopulatedContributionList>
+      <StyledPopulatedContributionList style={style}>
         {contributionChunks.map((chunkEntries, chunkIndex) => {
           if (!nodes.current[chunkIndex] && typeof document !== "undefined") {
             nodes.current[chunkIndex] = chunkEntries.map(() =>

@@ -1,7 +1,13 @@
 import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
 import dynamic from "next/dynamic";
-import React, { useCallback, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useDialogNavigation } from "../../impower-dialog";
 import { FontIcon } from "../../impower-icon";
 
@@ -77,6 +83,11 @@ const QueryButton = React.memo((props: QueryButtonProps): JSX.Element => {
       }
     ][]
   >([]);
+  const stateRef = useRef(value);
+
+  useEffect(() => {
+    stateRef.current = value;
+  }, [value]);
 
   const handleBrowserNavigation = useCallback(
     (currState: Record<string, string>, prevState?: Record<string, string>) => {
@@ -125,9 +136,12 @@ const QueryButton = React.memo((props: QueryButtonProps): JSX.Element => {
     (e: React.MouseEvent, option: string) => {
       e.preventDefault();
       e.stopPropagation();
-      handleCloseMenu(e);
-      if (onOption) {
-        onOption(e, option);
+      if (option !== stateRef.current) {
+        stateRef.current = option;
+        handleCloseMenu(e);
+        if (onOption) {
+          onOption(e, option);
+        }
       }
     },
     [handleCloseMenu, onOption]

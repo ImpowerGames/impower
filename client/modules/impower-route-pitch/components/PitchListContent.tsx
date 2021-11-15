@@ -15,11 +15,10 @@ interface PitchListContentProps {
   pitchDocs?: { [id: string]: ProjectDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
-  loadingPlaceholder?: React.ReactNode;
-  emptyPlaceholder?: React.ReactNode;
   offlinePlaceholder?: React.ReactNode;
   compact?: boolean;
   dontFade?: boolean;
+  style?: React.CSSProperties;
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
@@ -61,11 +60,10 @@ const PitchListContent = React.memo(
       pitchDocs,
       chunkMap,
       lastLoadedChunk,
-      loadingPlaceholder,
-      emptyPlaceholder,
       offlinePlaceholder,
       compact,
       dontFade,
+      style,
       onChangeScore,
       onDelete,
       onKudo,
@@ -81,11 +79,7 @@ const PitchListContent = React.memo(
     }
 
     if (!pitchDocs) {
-      return <>{loadingPlaceholder}</>;
-    }
-
-    if (Object.keys(pitchDocs).length === 0) {
-      return <>{emptyPlaceholder}</>;
+      return null;
     }
 
     return (
@@ -98,6 +92,7 @@ const PitchListContent = React.memo(
           lastLoadedChunk={lastLoadedChunk}
           compact={compact}
           dontFade={dontFade}
+          style={style}
           onChangeScore={onChangeScore}
           onDelete={onDelete}
           onKudo={onKudo}

@@ -34,6 +34,7 @@ const StyledAddPitchToolbarArea = styled.div`
   width: 100%;
   height: 100%;
   pointer-events: none;
+  z-index: 2;
 `;
 
 const StyledScrollSentinel = styled.div`

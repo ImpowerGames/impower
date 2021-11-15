@@ -10,14 +10,11 @@ import { BetaBanner } from "../../impower-route";
 import { useRouter } from "../../impower-router";
 import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
 import AddPitchToolbar from "./AddPitchToolbar";
+import EmptyPitchList from "./EmptyPitchList";
 import PitchList from "./PitchList";
 import PitchSearchToolbar from "./PitchSearchToolbar";
 
 const SORT_OPTIONS: ["rank", "rating", "new"] = ["rank", "rating", "new"];
-
-const EmptyPitchList = dynamic(() => import("./EmptyPitchList"), {
-  ssr: false,
-});
 
 const AnimatedDefaultMascot = dynamic(
   () =>
@@ -62,6 +59,17 @@ const StyledListArea = styled.div`
   min-width: 0;
   background-color: ${(props): string => props.theme.colors.lightForeground};
   align-items: center;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+`;
+
+const StyledListContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
 `;
@@ -217,24 +225,20 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
         />
         <BetaBanner />
         <StyledListArea>
-          {transitioning ? (
-            loadingPlaceholder
-          ) : (
-            <>
-              <PitchList
-                config={config}
-                icons={icons}
-                pitchDocs={pitchDocs}
-                search={activeSearch}
-                sortOptions={SORT_OPTIONS}
-                loadingPlaceholder={loadingPlaceholder}
-                emptyPlaceholder={emptyPlaceholder}
-                offlinePlaceholder={offlinePlaceholder}
-              />
-              <AddPitchToolbar config={config} icons={icons} />
-            </>
-          )}
+          <StyledListContent>
+            <PitchList
+              config={config}
+              icons={icons}
+              pitchDocs={pitchDocs}
+              search={activeSearch}
+              sortOptions={SORT_OPTIONS}
+              loadingPlaceholder={loadingPlaceholder}
+              emptyPlaceholder={emptyPlaceholder}
+              offlinePlaceholder={offlinePlaceholder}
+            />
+          </StyledListContent>
         </StyledListArea>
+        <AddPitchToolbar config={config} icons={icons} />
       </StyledApp>
     </StyledPitchSearch>
   );

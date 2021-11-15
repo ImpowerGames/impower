@@ -11,7 +11,6 @@ const StyledMascotIllustration = styled.div`
   text-align: center;
   padding: ${(props): string => props.theme.spacing(0, 4)};
   min-width: 0;
-  margin-top: ${(props): string => props.theme.spacing(-2)};
 `;
 
 const StyledChildrenArea = styled.div`

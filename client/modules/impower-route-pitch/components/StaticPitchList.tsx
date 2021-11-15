@@ -40,7 +40,7 @@ const TagIconLoader = dynamic(
   { ssr: false }
 );
 
-const StyledContainer = styled.div`
+const StyledStaticPitchList = styled.div`
   width: 100%;
   margin: auto;
   max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
@@ -54,6 +54,37 @@ const StyledSpacer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+`;
+
+const StyledOverlayArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+`;
+
+const StyledLoadingArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
+const StyledEmptyArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
 `;
 
 interface StaticPitchListProps {
@@ -112,6 +143,7 @@ const StaticPitchList = React.memo(
     const [noMore, setNoMore] = useState<boolean>(noMoreRef.current);
     const [sort, setSort] = useState<"new" | "old">(SORT_OPTIONS?.[0] || "new");
     const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("All");
+    const [reloading, setReloading] = useState(false);
 
     const pitchDocsRef = useRef<{ [id: string]: ProjectDocument }>();
     const [pitchDocsState, setPitchDocsState] = useState<{
@@ -125,6 +157,9 @@ const StaticPitchList = React.memo(
 
     const recentPitchDocs = my_recent_pitched_projects;
     const recentPitchDocsRef = useRef(recentPitchDocs);
+
+    const listElRef = useRef<HTMLDivElement>();
+    const loadingElRef = useRef<HTMLDivElement>();
 
     const orderedPitchDataEntries = useMemo(
       () =>
@@ -152,6 +187,23 @@ const StaticPitchList = React.memo(
         setChunkMap(chunkMapRef.current);
       }
     }, [recentPitchDocs]);
+
+    const handleShowLoadingPlaceholder = useCallback(async () => {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      listElRef.current.style.visibility = "hidden";
+      listElRef.current.style.pointerEvents = "none";
+      loadingElRef.current.classList.add("animate");
+      loadingElRef.current.style.visibility = null;
+      loadingElRef.current.style.pointerEvents = null;
+      window.scrollTo({ top: 0 });
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      setReloading(true);
+    }, []);
+
+    const handleHideLoadingPlaceholder = useCallback(async () => {
+      loadingElRef.current.classList.remove("animate");
+      setReloading(false);
+    }, []);
 
     const handleLoadMore = useCallback(
       async (
@@ -244,8 +296,9 @@ const StaticPitchList = React.memo(
             .default;
           logInfo("Route", e.message);
         }
+        await handleHideLoadingPlaceholder();
       },
-      [handleLoadMore]
+      [handleHideLoadingPlaceholder, handleLoadMore]
     );
 
     const handleScrolledToEnd = useCallback(async (): Promise<void> => {
@@ -276,21 +329,26 @@ const StaticPitchList = React.memo(
       await handleLoadTab({ nsfw: nsfwVisible });
     }, [handleLoadTab, nsfwVisible, onRefresh]);
 
-    useEffect(() => {
-      navigationDispatch(navigationSetTransitioning(false));
-      if ([nsfwVisible].some((x) => x === undefined)) {
-        return;
+    const handleReload = useCallback(async () => {
+      if (pitchDocsRef.current) {
+        await handleShowLoadingPlaceholder();
       }
       cursorIndexRef.current = 0;
       pitchDocsRef.current = {};
       chunkMapRef.current = {};
       noMoreRef.current = false;
-      setLoadIcons(true);
-      setPitchDocsState(undefined);
-      setChunkMap(undefined);
       setNoMore(noMoreRef.current);
       handleLoadTab({ nsfw: nsfwVisible });
-    }, [handleLoadTab, nsfwVisible, navigationDispatch]);
+    }, [handleLoadTab, handleShowLoadingPlaceholder, nsfwVisible]);
+
+    useEffect(() => {
+      navigationDispatch(navigationSetTransitioning(false));
+      if ([nsfwVisible].some((x) => x === undefined)) {
+        return;
+      }
+      handleReload();
+      setLoadIcons(true);
+    }, [handleReload, navigationDispatch, nsfwVisible]);
 
     const handleKudo = useCallback(
       (
@@ -362,7 +420,10 @@ const StaticPitchList = React.memo(
     );
 
     const pitchCount = useMemo(
-      () => Object.keys(pitchDocsState || {})?.length,
+      () =>
+        pitchDocsState
+          ? Object.keys(pitchDocsState)?.length
+          : (pitchDocsState as null | undefined),
       [pitchDocsState]
     );
 
@@ -426,82 +487,102 @@ const StaticPitchList = React.memo(
       );
     }, [rangeFilter]);
 
+    const loading = transitioning || !pitchDocsState || reloading;
+
+    const listStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? "hidden" : undefined,
+        pointerEvents: loading ? "none" : undefined,
+      }),
+      [loading]
+    );
+    const loadingStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? undefined : "hidden",
+        pointerEvents: loading ? undefined : "none",
+      }),
+      [loading]
+    );
+
     return (
-      <StyledContainer>
-        {transitioning ? (
-          loadingPlaceholder
-        ) : (
-          <>
-            <QueryHeader id="pitch-filter-header">
-              <QueryButton
-                target="pitch"
-                menuType="sort"
-                label={`Sort By`}
-                icon={sortIcon}
-                value={sort}
-                options={SORT_OPTIONS}
-                getOptionLabels={getStaticSortOptionLabels}
-                getOptionIcons={handleGetSortOptionIcons}
-                onOption={handleChangeSort}
-              />
-              <StyledSpacer />
-              <QueryButton
-                target="pitch"
-                menuType="filter"
-                label={`Kudoed`}
-                flexDirection="row-reverse"
-                icon={filterIcon}
-                value={rangeFilter}
-                getOptionLabels={getRangeFilterOptionLabels}
-                getOptionIcons={handleGetFilterOptionIcons}
-                onOption={handleChangeFilter}
-              />
-            </QueryHeader>
-            <PitchListContent
-              config={config}
-              icons={icons}
-              pitchDocs={pitchDocsState}
-              chunkMap={chunkMap}
-              lastLoadedChunk={lastLoadedChunk}
-              compact={compact}
-              loadingPlaceholder={loadingPlaceholder}
-              emptyPlaceholder={emptyPlaceholder}
-              offlinePlaceholder={offlinePlaceholder}
-              onChangeScore={handleChangeScore}
-              onDelete={handleDeletePitch}
-              onKudo={handleKudo}
-              onCreateContribution={handleCreateContribution}
-              onDeleteContribution={handleDeleteContribution}
+      <>
+        <StyledStaticPitchList ref={listElRef} style={listStyle}>
+          <QueryHeader id="pitch-filter-header">
+            <QueryButton
+              target="pitch"
+              menuType="sort"
+              label={`Sort By`}
+              icon={sortIcon}
+              value={sort}
+              options={SORT_OPTIONS}
+              getOptionLabels={getStaticSortOptionLabels}
+              getOptionIcons={handleGetSortOptionIcons}
+              onOption={handleChangeSort}
             />
-            {(emptyPlaceholder || pitchDocsState) && (
-              <PitchLoadingProgress
-                loadingMore={Boolean(pitchDocsState) && Boolean(loadingMore)}
-                noMore={
-                  emptyPlaceholder
-                    ? pitchDocsState && pitchCount > 0 && noMore
-                    : pitchDocsState && (noMore || pitchCount === 0)
-                }
-                noMoreLabel={
-                  pitchDocsState && !emptyPlaceholder && pitchCount === 0
-                    ? emptyLabel
-                    : `That's all for now!`
-                }
-                noMoreSubtitle={
-                  pitchDocsState && !emptyPlaceholder && pitchCount === 0
-                    ? emptySubtitle
-                    : undefined
-                }
-                refreshLabel={
-                  !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
-                }
-                onScrolledToEnd={handleScrolledToEnd}
-                onRefresh={handleRefresh}
-              />
-            )}
-          </>
-        )}
-        {loadIcons && <TagIconLoader />}
-      </StyledContainer>
+            <StyledSpacer />
+            <QueryButton
+              target="pitch"
+              menuType="filter"
+              label={`Kudoed`}
+              flexDirection="row-reverse"
+              icon={filterIcon}
+              value={rangeFilter}
+              getOptionLabels={getRangeFilterOptionLabels}
+              getOptionIcons={handleGetFilterOptionIcons}
+              onOption={handleChangeFilter}
+            />
+          </QueryHeader>
+          <PitchListContent
+            config={config}
+            icons={icons}
+            pitchDocs={pitchDocsState}
+            chunkMap={chunkMap}
+            lastLoadedChunk={lastLoadedChunk}
+            compact={compact}
+            offlinePlaceholder={offlinePlaceholder}
+            onChangeScore={handleChangeScore}
+            onDelete={handleDeletePitch}
+            onKudo={handleKudo}
+            onCreateContribution={handleCreateContribution}
+            onDeleteContribution={handleDeleteContribution}
+          />
+          {((emptyPlaceholder && pitchCount > 0) ||
+            (!emptyPlaceholder && pitchDocsState)) && (
+            <PitchLoadingProgress
+              loadingMore={Boolean(pitchDocsState) && Boolean(loadingMore)}
+              noMore={
+                emptyPlaceholder
+                  ? pitchDocsState && pitchCount > 0 && noMore
+                  : pitchDocsState && (noMore || pitchCount === 0)
+              }
+              noMoreLabel={
+                pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                  ? emptyLabel
+                  : `That's all for now!`
+              }
+              noMoreSubtitle={
+                pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                  ? emptySubtitle
+                  : undefined
+              }
+              refreshLabel={
+                !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
+              }
+              onScrolledToEnd={handleScrolledToEnd}
+              onRefresh={handleRefresh}
+            />
+          )}
+          {loadIcons && <TagIconLoader />}
+        </StyledStaticPitchList>
+        <StyledOverlayArea>
+          {pitchCount === 0 && (
+            <StyledEmptyArea>{emptyPlaceholder}</StyledEmptyArea>
+          )}
+          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+            {loadingPlaceholder}
+          </StyledLoadingArea>
+        </StyledOverlayArea>
+      </>
     );
   }
 );

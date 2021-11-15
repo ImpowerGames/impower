@@ -18,25 +18,25 @@ const StyledAnimation = styled(MascotThinking00)`
       transform: rotate(0deg);
     }
     12.5% {
-      transform: rotate(-5deg);
+      transform: rotate(0deg);
     }
     25% {
       transform: rotate(0deg);
     }
     37.5% {
-      transform: rotate(-5deg);
+      transform: rotate(0deg);
     }
     50% {
       transform: rotate(0deg);
     }
     62.5% {
-      transform: rotate(0deg);
+      transform: rotate(-5deg);
     }
     75% {
       transform: rotate(0deg);
     }
     87.5% {
-      transform: rotate(0deg);
+      transform: rotate(-5deg);
     }
     100% {
       transform: rotate(0deg);
@@ -48,39 +48,41 @@ const StyledAnimation = styled(MascotThinking00)`
       transform: rotate(0deg);
     }
     12.5% {
-      transform: rotate(-5deg);
+      transform: rotate(0deg);
     }
     25% {
       transform: rotate(0deg);
     }
     37.5% {
-      transform: rotate(-5deg);
+      transform: rotate(0deg);
     }
     50% {
       transform: rotate(0deg);
     }
     62.5% {
-      transform: rotate(0deg);
+      transform: rotate(-5deg);
     }
     75% {
       transform: rotate(0deg);
     }
     87.5% {
-      transform: rotate(0deg);
+      transform: rotate(-5deg);
     }
     100% {
       transform: rotate(0deg);
     }
   }
 
-  & .professor-thinking-00_svg__arm {
+  .animate & .professor-thinking-00_svg__arm {
     animation: move-arm 1.5s infinite;
     transform-origin: 50% 60%;
+    will-change: transform;
   }
 
-  & .professor-thinking-00_svg__glasses {
+  .animate & .professor-thinking-00_svg__glasses {
     animation: move-glasses 1.5s infinite;
     transform-origin: 50% 50%;
+    will-change: transform;
   }
 `;
 

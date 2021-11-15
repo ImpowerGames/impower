@@ -32,6 +32,27 @@ const StyledContributionList = styled.div`
   flex-direction: column;
 `;
 
+const StyledOverlayArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+`;
+
+const StyledLoadingArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
 interface ContributionListProps {
   scrollParent?: HTMLElement;
   pitchId?: string;
@@ -84,6 +105,7 @@ const ContributionList = React.memo(
 
     const [typeFilter, setTypeFilter] = useState<ContributionTypeFilter>("All");
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rating");
+    const [reloading, setReloading] = useState(false);
 
     const [navigationState, navigationDispatch] = useContext(NavigationContext);
     const transitioning = navigationState?.transitioning;
@@ -126,6 +148,9 @@ const ContributionList = React.memo(
       !contributionDocsRef.current
     );
 
+    const listElRef = useRef<HTMLDivElement>();
+    const loadingElRef = useRef<HTMLDivElement>();
+
     const recentContributionDocs = useMemo(() => {
       const result: { [id: string]: ContributionDocument } = {};
       Object.entries(my_recent_contributions).forEach(
@@ -161,26 +186,44 @@ const ContributionList = React.memo(
       [creator, nsfwVisible, sort, typeFilter]
     );
 
-    const handleAllowReload = useCallback(() => {
+    const handleShowLoadingPlaceholder = useCallback(async () => {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      listElRef.current.style.visibility = "hidden";
+      listElRef.current.style.pointerEvents = "none";
+      loadingElRef.current.classList.add("animate");
+      loadingElRef.current.style.visibility = null;
+      loadingElRef.current.style.pointerEvents = null;
+      window.scrollTo({ top: 0 });
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      setReloading(true);
+    }, []);
+
+    const handleHideLoadingPlaceholder = useCallback(async () => {
+      loadingElRef.current.classList.remove("animate");
+      setReloading(false);
+    }, []);
+
+    const handleAllowReload = useCallback(async () => {
+      await handleShowLoadingPlaceholder();
       lastLoadedChunkRef.current = 0;
       cursorRef.current = null;
       contributionDocsRef.current = {};
       chunkMapRef.current = {};
       DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
       setAllowReload(true);
-    }, []);
+    }, [handleShowLoadingPlaceholder]);
 
     const handleFilter = useCallback(
-      (e: React.MouseEvent, sort: ContributionTypeFilter) => {
-        handleAllowReload();
+      async (e: React.MouseEvent, sort: ContributionTypeFilter) => {
+        await handleAllowReload();
         setTypeFilter(sort);
       },
       [handleAllowReload]
     );
 
     const handleSort = useCallback(
-      (e: React.MouseEvent, sort: QuerySort) => {
-        handleAllowReload();
+      async (e: React.MouseEvent, sort: QuerySort) => {
+        await handleAllowReload();
         setSort(sort);
       },
       [handleAllowReload]
@@ -258,8 +301,9 @@ const ContributionList = React.memo(
             ? undefined
             : loadedCount < limit;
         setNoMore(noMoreRef.current);
+        await handleHideLoadingPlaceholder();
       },
-      [handleLoad]
+      [handleHideLoadingPlaceholder, handleLoad]
     );
 
     const handleScrolledToEnd = useCallback(async (): Promise<void> => {
@@ -331,6 +375,23 @@ const ContributionList = React.memo(
       }
     }, [creator, my_recent_contributions, pitchId]);
 
+    const handleReload = useCallback(async () => {
+      if (contributionDocsRef.current) {
+        await handleShowLoadingPlaceholder();
+      }
+      cursorRef.current = undefined;
+      contributionDocsRef.current = {};
+      chunkMapRef.current = {};
+      loadingMoreRef.current = false;
+      noMoreRef.current = false;
+      handleLoadMoreItems(pitchId, queryOptions);
+    }, [
+      handleLoadMoreItems,
+      handleShowLoadingPlaceholder,
+      pitchId,
+      queryOptions,
+    ]);
+
     useEffect(() => {
       navigationDispatch(navigationSetTransitioning(false));
       if ([nsfwVisible].some((x) => x === undefined)) {
@@ -339,23 +400,8 @@ const ContributionList = React.memo(
       if (!allowReload) {
         return;
       }
-      cursorRef.current = undefined;
-      contributionDocsRef.current = {};
-      chunkMapRef.current = {};
-      loadingMoreRef.current = false;
-      noMoreRef.current = false;
-      setContributionDocsState(undefined);
-      setChunkMap(undefined);
-      setNoMore(noMoreRef.current);
-      handleLoadMoreItems(pitchId, queryOptions);
-    }, [
-      handleLoadMoreItems,
-      queryOptions,
-      pitchId,
-      allowReload,
-      nsfwVisible,
-      navigationDispatch,
-    ]);
+      handleReload();
+    }, [allowReload, handleReload, navigationDispatch, nsfwVisible]);
 
     const handleEditContribution = useCallback(
       async (
@@ -457,52 +503,69 @@ const ContributionList = React.memo(
       [pitchId, pitchDoc]
     );
 
+    const loading = transitioning || !contributionDocsState || reloading;
+
+    const listStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? "hidden" : undefined,
+        pointerEvents: loading ? "none" : undefined,
+      }),
+      [loading]
+    );
+    const loadingStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? undefined : "hidden",
+        pointerEvents: loading ? undefined : "none",
+      }),
+      [loading]
+    );
+
     return (
-      <StyledContributionList>
-        {transitioning ? (
-          loadingPlaceholder
-        ) : (
-          <>
-            <ContributionListQueryHeader
-              filter={typeFilter}
-              sort={sort}
-              sortOptions={sortOptions}
-              onFilter={handleFilter}
-              onSort={handleSort}
+      <>
+        <StyledContributionList ref={listElRef} style={listStyle}>
+          <ContributionListQueryHeader
+            filter={typeFilter}
+            sort={sort}
+            sortOptions={sortOptions}
+            onFilter={handleFilter}
+            onSort={handleSort}
+          />
+          <ContributionListContent
+            scrollParent={scrollParent}
+            pitchDocs={pitchDocs}
+            contributionDocs={contributionDocsState}
+            chunkMap={chunkMap}
+            lastLoadedChunk={lastLoadedChunk}
+            onChangeScore={handleChangeScore}
+            onKudo={handleKudo}
+            onEdit={handleEditContribution}
+            onDelete={handleDeleteContribution}
+          />
+          {contributionDocsState && (
+            <PitchLoadingProgress
+              loadingMore={loadingMore}
+              noMore={noMore || contributionEntries?.length === 0}
+              noMoreLabel={
+                contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
+              }
+              noMoreSubtitle={
+                contributionEntries?.length === 0 ? emptySubtitle : undefined
+              }
+              refreshLabel={
+                contributionEntries?.length === 0 ? undefined : `Refresh?`
+              }
+              onScrolledToEnd={handleScrolledToEnd}
+              onRefresh={handleRefresh}
             />
-            <ContributionListContent
-              scrollParent={scrollParent}
-              pitchDocs={pitchDocs}
-              contributionDocs={contributionDocsState}
-              chunkMap={chunkMap}
-              lastLoadedChunk={lastLoadedChunk}
-              loadingPlaceholder={loadingPlaceholder}
-              onChangeScore={handleChangeScore}
-              onKudo={handleKudo}
-              onEdit={handleEditContribution}
-              onDelete={handleDeleteContribution}
-            />
-            {contributionDocsState && (
-              <PitchLoadingProgress
-                loadingMore={loadingMore}
-                noMore={noMore || contributionEntries?.length === 0}
-                noMoreLabel={
-                  contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
-                }
-                noMoreSubtitle={
-                  contributionEntries?.length === 0 ? emptySubtitle : undefined
-                }
-                refreshLabel={
-                  contributionEntries?.length === 0 ? undefined : `Refresh?`
-                }
-                onScrolledToEnd={handleScrolledToEnd}
-                onRefresh={handleRefresh}
-              />
-            )}
-            {children}
-          </>
-        )}
-      </StyledContributionList>
+          )}
+          {children}
+        </StyledContributionList>
+        <StyledOverlayArea>
+          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+            {loadingPlaceholder}
+          </StyledLoadingArea>
+        </StyledOverlayArea>
+      </>
     );
   }
 );

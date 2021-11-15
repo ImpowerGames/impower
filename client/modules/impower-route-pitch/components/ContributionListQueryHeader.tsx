@@ -17,16 +17,17 @@ interface ContributionListQueryHeaderProps {
   filter?: ContributionTypeFilter;
   sort?: QuerySort;
   sortOptions?: QuerySort[];
+  style?: React.CSSProperties;
   onFilter?: (e: React.MouseEvent, type: ContributionTypeFilter) => void;
   onSort?: (e: React.MouseEvent, sort: QuerySort) => void;
 }
 
 const ContributionListQueryHeader = React.memo(
   (props: ContributionListQueryHeaderProps): JSX.Element => {
-    const { filter, sort, sortOptions, onFilter, onSort } = props;
+    const { filter, sort, sortOptions, style, onFilter, onSort } = props;
     const filterHeaderStyle: React.CSSProperties = useMemo(
-      () => ({ margin: 0 }),
-      []
+      () => ({ margin: 0, ...style }),
+      [style]
     );
 
     return (

@@ -29,7 +29,7 @@ const LOAD_MORE_LIMIT = 10;
 
 const SORT_OPTIONS: ["new", "old"] = ["new", "old"];
 
-const StyledContributionList = styled.div`
+const StyledStaticContributionList = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -40,6 +40,27 @@ const StyledSpacer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+`;
+
+const StyledOverlayArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+`;
+
+const StyledLoadingArea = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
 `;
 
 interface StaticContributionListProps {
@@ -116,6 +137,10 @@ const StaticContributionList = React.memo(
     const [noMore, setNoMore] = useState<boolean>();
     const [sort, setSort] = useState<"new" | "old">(SORT_OPTIONS?.[0] || "new");
     const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("All");
+    const [reloading, setReloading] = useState(false);
+
+    const listElRef = useRef<HTMLDivElement>();
+    const loadingElRef = useRef<HTMLDivElement>();
 
     const recentContributionDocs = useMemo(() => {
       const result: { [id: string]: ContributionDocument } = {};
@@ -148,6 +173,23 @@ const StaticContributionList = React.memo(
           : contributionDataEntries,
       [contributionDataEntries, sort]
     );
+
+    const handleShowLoadingPlaceholder = useCallback(async () => {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      listElRef.current.style.visibility = "hidden";
+      listElRef.current.style.pointerEvents = "none";
+      loadingElRef.current.classList.add("animate");
+      loadingElRef.current.style.visibility = null;
+      loadingElRef.current.style.pointerEvents = null;
+      window.scrollTo({ top: 0 });
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      setReloading(true);
+    }, []);
+
+    const handleHideLoadingPlaceholder = useCallback(async () => {
+      loadingElRef.current.classList.remove("animate");
+      setReloading(false);
+    }, []);
 
     const handleLoad = useCallback(
       async (
@@ -239,8 +281,9 @@ const StaticContributionList = React.memo(
             ? undefined
             : loadedCount < limit;
         setNoMore(noMoreRef.current);
+        await handleHideLoadingPlaceholder();
       },
-      [handleLoad]
+      [handleHideLoadingPlaceholder, handleLoad]
     );
 
     const handleScrolledToEnd = useCallback(async (): Promise<void> => {
@@ -306,21 +349,25 @@ const StaticContributionList = React.memo(
       }
     }, [my_recent_contributions]);
 
-    useEffect(() => {
-      navigationDispatch(navigationSetTransitioning(false));
-      if ([nsfwVisible].some((x) => x === undefined)) {
-        return;
+    const handleReload = useCallback(async () => {
+      if (contributionDocsRef.current) {
+        await handleShowLoadingPlaceholder();
       }
       cursorIndexRef.current = 0;
       contributionDocsRef.current = {};
       chunkMapRef.current = {};
       loadingMoreRef.current = false;
       noMoreRef.current = false;
-      setContributionDocsState(undefined);
-      setChunkMap(undefined);
-      setNoMore(noMoreRef.current);
       handleLoadMoreItems(queryOptions);
-    }, [handleLoadMoreItems, queryOptions, nsfwVisible, navigationDispatch]);
+    }, [handleLoadMoreItems, handleShowLoadingPlaceholder, queryOptions]);
+
+    useEffect(() => {
+      navigationDispatch(navigationSetTransitioning(false));
+      if ([nsfwVisible].some((x) => x === undefined)) {
+        return;
+      }
+      handleReload();
+    }, [handleReload, navigationDispatch, nsfwVisible]);
 
     const handleEditContribution = useCallback(
       async (
@@ -476,69 +523,86 @@ const StaticContributionList = React.memo(
       );
     }, [rangeFilter]);
 
+    const loading = transitioning || !contributionDocsState || reloading;
+
+    const listStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? "hidden" : undefined,
+        pointerEvents: loading ? "none" : undefined,
+      }),
+      [loading]
+    );
+    const loadingStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: loading ? undefined : "hidden",
+        pointerEvents: loading ? undefined : "none",
+      }),
+      [loading]
+    );
+
     return (
-      <StyledContributionList>
-        {transitioning ? (
-          loadingPlaceholder
-        ) : (
-          <>
-            <QueryHeader id="pitch-filter-header">
-              <QueryButton
-                target="pitch"
-                menuType="sort"
-                label={`Sort By`}
-                icon={sortIcon}
-                value={sort}
-                options={SORT_OPTIONS}
-                getOptionLabels={getStaticSortOptionLabels}
-                getOptionIcons={handleGetSortOptionIcons}
-                onOption={handleChangeSort}
-              />
-              <StyledSpacer />
-              <QueryButton
-                target="pitch"
-                menuType="filter"
-                label={`Kudoed`}
-                flexDirection="row-reverse"
-                icon={filterIcon}
-                value={rangeFilter}
-                getOptionLabels={getRangeFilterOptionLabels}
-                getOptionIcons={handleGetFilterOptionIcons}
-                onOption={handleChangeFilter}
-              />
-            </QueryHeader>
-            <ContributionListContent
-              scrollParent={scrollParent}
-              contributionDocs={contributionDocsState}
-              chunkMap={chunkMap}
-              lastLoadedChunk={lastLoadedChunk}
-              loadingPlaceholder={loadingPlaceholder}
-              onChangeScore={handleChangeScore}
-              onKudo={handleKudo}
-              onEdit={handleEditContribution}
-              onDelete={handleDeleteContribution}
+      <>
+        <StyledStaticContributionList ref={listElRef} style={listStyle}>
+          <QueryHeader id="pitch-filter-header">
+            <QueryButton
+              target="pitch"
+              menuType="sort"
+              label={`Sort By`}
+              icon={sortIcon}
+              value={sort}
+              options={SORT_OPTIONS}
+              getOptionLabels={getStaticSortOptionLabels}
+              getOptionIcons={handleGetSortOptionIcons}
+              onOption={handleChangeSort}
             />
-            {contributionDocsState && (
-              <PitchLoadingProgress
-                loadingMore={loadingMore}
-                noMore={noMore || contributionEntries?.length === 0}
-                noMoreLabel={
-                  contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
-                }
-                noMoreSubtitle={
-                  contributionEntries?.length === 0 ? emptySubtitle : undefined
-                }
-                refreshLabel={
-                  contributionEntries?.length === 0 ? undefined : `Refresh?`
-                }
-                onScrolledToEnd={handleScrolledToEnd}
-                onRefresh={handleRefresh}
-              />
-            )}
-            {children}
-          </>
-        )}
-      </StyledContributionList>
+            <StyledSpacer />
+            <QueryButton
+              target="pitch"
+              menuType="filter"
+              label={`Kudoed`}
+              flexDirection="row-reverse"
+              icon={filterIcon}
+              value={rangeFilter}
+              getOptionLabels={getRangeFilterOptionLabels}
+              getOptionIcons={handleGetFilterOptionIcons}
+              onOption={handleChangeFilter}
+            />
+          </QueryHeader>
+          <ContributionListContent
+            scrollParent={scrollParent}
+            contributionDocs={contributionDocsState}
+            chunkMap={chunkMap}
+            lastLoadedChunk={lastLoadedChunk}
+            onChangeScore={handleChangeScore}
+            onKudo={handleKudo}
+            onEdit={handleEditContribution}
+            onDelete={handleDeleteContribution}
+          />
+          {contributionDocsState && (
+            <PitchLoadingProgress
+              loadingMore={loadingMore}
+              noMore={noMore || contributionEntries?.length === 0}
+              noMoreLabel={
+                contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
+              }
+              noMoreSubtitle={
+                contributionEntries?.length === 0 ? emptySubtitle : undefined
+              }
+              refreshLabel={
+                contributionEntries?.length === 0 ? undefined : `Refresh?`
+              }
+              onScrolledToEnd={handleScrolledToEnd}
+              onRefresh={handleRefresh}
+            />
+          )}
+          {children}
+        </StyledStaticContributionList>
+        <StyledOverlayArea>
+          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+            {loadingPlaceholder}
+          </StyledLoadingArea>
+        </StyledOverlayArea>
+      </>
     );
   }
 );

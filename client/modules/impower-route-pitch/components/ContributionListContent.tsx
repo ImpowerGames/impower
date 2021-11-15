@@ -12,7 +12,7 @@ interface ContributionListContentProps {
   contributionDocs?: { [key: string]: ContributionDocument };
   chunkMap?: { [id: string]: number };
   lastLoadedChunk?: number;
-  loadingPlaceholder?: React.ReactNode;
+  style?: React.CSSProperties;
   onChangeScore?: (
     e: React.MouseEvent,
     score: number,
@@ -46,7 +46,7 @@ const ContributionListContent = React.memo(
       contributionDocs,
       chunkMap,
       lastLoadedChunk,
-      loadingPlaceholder,
+      style,
       onChangeScore,
       onKudo,
       onEdit,
@@ -59,7 +59,7 @@ const ContributionListContent = React.memo(
     );
 
     if (!contributionEntries) {
-      return <>{loadingPlaceholder}</>;
+      return null;
     }
 
     if (contributionEntries?.length === 0) {
@@ -74,6 +74,7 @@ const ContributionListContent = React.memo(
           contributionDocs={contributionDocs}
           chunkMap={chunkMap}
           lastLoadedChunk={lastLoadedChunk}
+          style={style}
           onChangeScore={onChangeScore}
           onKudo={onKudo}
           onEdit={onEdit}

@@ -7,6 +7,16 @@ const StyledEmptyPitchList = styled.div`
   flex: 1000;
   display: flex;
   flex-direction: column;
+  background-color: ${(props): string => props.theme.colors.lightForeground};
+  margin-top: ${(props): string => props.theme.spacing(5)};
+  padding-bottom: ${(props): string => props.theme.spacing(11)};
+`;
+
+const StyledContent = styled.div`
+  flex: 1000;
+  display: flex;
+  flex-direction: column;
+  margin-top: ${(props): string => props.theme.spacing(-2)};
 `;
 
 const StyledMark = styled.mark`
@@ -112,21 +122,23 @@ const EmptyPitchList = React.memo((props: EmptyPitchListProps): JSX.Element => {
 
   return (
     <StyledEmptyPitchList>
-      <AnimatedLoadingMascotIllustration
-        loading={loading}
-        loadedImage={loadedImage}
-        loadingMessage={loadingMessage}
-        loadedMessage={
-          <EmptyPitchListText
-            filterLabel={filterLabel}
-            searchLabel={searchLabel}
-            emptySubtitle1={emptySubtitle1}
-            emptySubtitle2={emptySubtitle2}
-            emptyLabelStyle={emptyLabelStyle}
-            searchLabelStyle={searchLabelStyle}
-          />
-        }
-      />
+      <StyledContent>
+        <AnimatedLoadingMascotIllustration
+          loading={loading}
+          loadedImage={loadedImage}
+          loadingMessage={loadingMessage}
+          loadedMessage={
+            <EmptyPitchListText
+              filterLabel={filterLabel}
+              searchLabel={searchLabel}
+              emptySubtitle1={emptySubtitle1}
+              emptySubtitle2={emptySubtitle2}
+              emptyLabelStyle={emptyLabelStyle}
+              searchLabelStyle={searchLabelStyle}
+            />
+          }
+        />
+      </StyledContent>
     </StyledEmptyPitchList>
   );
 });

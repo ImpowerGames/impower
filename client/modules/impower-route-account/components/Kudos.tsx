@@ -1,6 +1,5 @@
 import styled from "@emotion/styled";
 import { CircularProgress, Divider, Typography } from "@material-ui/core";
-import Paper from "@material-ui/core/Paper";
 import Tab from "@material-ui/core/Tab";
 import React, {
   useCallback,
@@ -26,23 +25,17 @@ const StyledContainer = styled.div`
   align-items: center;
 `;
 
-const StyledPaper = styled(Paper)`
+const StyledPaper = styled.div`
   flex: 1;
-  padding: 0;
   width: 100%;
   max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
-  border-radius: 0;
-
-  ${(props): string => props.theme.breakpoints.down("sm")} {
-    box-shadow: none;
-  }
   display: flex;
   flex-direction: column;
+  background-color: white;
 `;
 
 const StyledTabsArea = styled.div`
-  position: sticky;
-  top: ${(props): string => props.theme.minHeight.navigationBar};
+  position: relative;
   background-color: white;
   z-index: 1;
 `;
@@ -51,26 +44,41 @@ const StyledTabs = styled(Tabs)``;
 
 const StyledTab = styled(Tab)``;
 
-const StyledLoadingArea = styled.div`
+const StyledListArea = styled.div`
   flex: 1;
+  min-width: 0;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+`;
+
+const StyledListContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
+const StyledLoadingOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  z-index: 1;
 `;
 
 const StyledCircularProgress = styled(CircularProgress)`
   min-width: ${(props): string => props.theme.spacing(4)};
   min-height: ${(props): string => props.theme.spacing(4)};
-`;
-
-const StyledListArea = styled.div`
-  flex: 1;
-  position: relative;
-  min-height: 100px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
 `;
 
 const StyledDivider = styled(Divider)``;
@@ -158,9 +166,9 @@ const Kudos = React.memo((): JSX.Element | null => {
 
   const loadingPlaceholder = useMemo(
     () => (
-      <StyledLoadingArea>
+      <StyledLoadingOverlay>
         <StyledCircularProgress color="secondary" />
-      </StyledLoadingArea>
+      </StyledLoadingOverlay>
     ),
     []
   );
@@ -203,30 +211,32 @@ const Kudos = React.memo((): JSX.Element | null => {
                 </StyledTabs>
               </StyledTabsArea>
               <StyledListArea>
-                {tabIndex === 0 && pitchDataEntries ? (
-                  <StaticPitchList
-                    compact
-                    pitchDataEntries={pitchDataEntries}
-                    emptyLabel={`No Kudoed Pitches`}
-                    loadingPlaceholder={loadingPlaceholder}
-                    offlinePlaceholder={
-                      <StyledOfflineArea>
-                        <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
-                      </StyledOfflineArea>
-                    }
-                    onRefresh={handleRefresh}
-                  />
-                ) : tabIndex === 1 && contributionDataEntries ? (
-                  <StaticContributionList
-                    contributionDataEntries={contributionDataEntries}
-                    emptyLabel={`No Kudoed Contributions`}
-                    noMoreLabel={`That's all for now!`}
-                    loadingPlaceholder={loadingPlaceholder}
-                    onRefresh={handleRefresh}
-                  />
-                ) : (
-                  loadingPlaceholder
-                )}
+                <StyledListContent>
+                  {tabIndex === 0 && pitchDataEntries ? (
+                    <StaticPitchList
+                      compact
+                      pitchDataEntries={pitchDataEntries}
+                      emptyLabel={`No Kudoed Pitches`}
+                      loadingPlaceholder={loadingPlaceholder}
+                      offlinePlaceholder={
+                        <StyledOfflineArea>
+                          <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
+                        </StyledOfflineArea>
+                      }
+                      onRefresh={handleRefresh}
+                    />
+                  ) : tabIndex === 1 && contributionDataEntries ? (
+                    <StaticContributionList
+                      contributionDataEntries={contributionDataEntries}
+                      emptyLabel={`No Kudoed Contributions`}
+                      noMoreLabel={`That's all for now!`}
+                      loadingPlaceholder={loadingPlaceholder}
+                      onRefresh={handleRefresh}
+                    />
+                  ) : (
+                    loadingPlaceholder
+                  )}
+                </StyledListContent>
               </StyledListArea>
             </>
           )}
