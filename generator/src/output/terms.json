@@ -669,7 +669,6 @@
   "hors d'oeuvres": ["cooking"],
   "gum": ["cooking"],
   "grub": ["cooking"],
-  "groaning board": ["cooking"],
   "grist": ["cooking"],
   "gravy": ["cooking"],
   "gin": ["cooking"],
@@ -2185,7 +2184,6 @@
   "stepford": ["creepy", "horror", "suspense"],
   "screeching": ["creepy", "horror", "suspense"],
   "moaning": ["creepy", "horror", "suspense"],
-  "gutless": ["creepy", "horror", "suspense"],
   "fogey": ["creepy", "horror", "suspense"],
   "fearing": ["creepy", "horror", "suspense"],
   "fear": ["creepy", "horror", "suspense"],
@@ -3469,7 +3467,6 @@
   "flick": ["action", "interactive film", "racing", "superspeed"],
   "flame": ["action", "demon", "occult", "supernatural"],
   "famine": ["action", "apocalyptic", "disaster", "post apocalyptic"],
-  "deluge": ["action", "apocalyptic", "disaster", "post apocalyptic"],
   "climbing": ["action", "parkour", "platformer", "side scroller"],
   "climber": ["action", "parkour", "platformer", "side scroller"],
   "climb": ["action", "parkour", "platformer", "side scroller"],
@@ -20153,6 +20150,17 @@
     "mutant",
     "post apocalyptic",
     "sabotage"
+  ],
+  "deluge": [
+    "action",
+    "apocalyptic",
+    "aquatic",
+    "disaster",
+    "fishing",
+    "merfolk",
+    "nautical",
+    "post apocalyptic",
+    "swashbuckling"
   ],
   "defeating": [
     "action",
