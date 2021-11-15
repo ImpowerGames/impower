@@ -76,11 +76,13 @@ const StyledAnimation = styled(MascotThinking00)`
   & .professor-thinking-00_svg__arm {
     animation: move-arm 1.5s infinite;
     transform-origin: 50% 60%;
+    will-change: transform;
   }
 
   & .professor-thinking-00_svg__glasses {
     animation: move-glasses 1.5s infinite;
     transform-origin: 50% 50%;
+    will-change: transform;
   }
 `;
 
