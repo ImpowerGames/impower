@@ -223,6 +223,7 @@ const PitchList = React.memo(
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       listElRef.current.style.visibility = "hidden";
       listElRef.current.style.pointerEvents = "none";
+      loadingElRef.current.classList.add("animate");
       loadingElRef.current.style.visibility = null;
       loadingElRef.current.style.pointerEvents = null;
       window.scrollTo({ top: 0 });
@@ -231,8 +232,9 @@ const PitchList = React.memo(
     }, [listElRef, loadingElRef]);
 
     const handleHideLoadingPlaceholder = useCallback(async () => {
+      loadingElRef.current.classList.remove("animate");
       setReloadingState(false);
-    }, []);
+    }, [loadingElRef]);
 
     const handleAllowReload = useCallback(async () => {
       await handleShowLoadingPlaceholder();

@@ -178,6 +178,7 @@ const StaticContributionList = React.memo(
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       listElRef.current.style.visibility = "hidden";
       listElRef.current.style.pointerEvents = "none";
+      loadingElRef.current.classList.add("animate");
       loadingElRef.current.style.visibility = null;
       loadingElRef.current.style.pointerEvents = null;
       window.scrollTo({ top: 0 });
@@ -186,6 +187,7 @@ const StaticContributionList = React.memo(
     }, []);
 
     const handleHideLoadingPlaceholder = useCallback(async () => {
+      loadingElRef.current.classList.remove("animate");
       setReloading(false);
     }, []);
 

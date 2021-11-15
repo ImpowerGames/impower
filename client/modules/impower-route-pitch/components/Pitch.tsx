@@ -169,6 +169,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       listElRef.current.style.pointerEvents = "none";
     }
     if (loadingElRef.current) {
+      loadingElRef.current.classList.add("animate");
       loadingElRef.current.style.visibility = null;
       loadingElRef.current.style.pointerEvents = null;
     }
