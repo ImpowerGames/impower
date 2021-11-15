@@ -180,13 +180,6 @@ const StaticPitchList = React.memo(
     }, []);
 
     const handleHideLoadingPlaceholder = useCallback(async () => {
-      loadingElRef.current.style.visibility = "hidden";
-      loadingElRef.current.style.opacity = "0";
-      loadingElRef.current.style.pointerEvents = "none";
-      listElRef.current.style.visibility = null;
-      listElRef.current.style.opacity = null;
-      listElRef.current.style.pointerEvents = null;
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloading(false);
     }, []);
 
