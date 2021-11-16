@@ -86,17 +86,6 @@ const StyledListContent = styled.div`
   flex-direction: column;
 `;
 
-const StyledForceOverflow = styled.div`
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  width: 100%;
-  min-height: calc(100% + 72px);
-  pointer-events: none;
-`;
-
 interface PitchProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
@@ -107,6 +96,7 @@ interface PitchProps {
 const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const { config, icons, pitchDocs, style } = props;
 
+  const contentElRef = useRef<HTMLDivElement>();
   const listElRef = useRef<HTMLDivElement>();
   const loadingElRef = useRef<HTMLDivElement>();
 
@@ -164,6 +154,9 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const handleShowLoadingPlaceholder = useCallback(async () => {
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    if (contentElRef.current) {
+      contentElRef.current.style.overflow = "hidden";
+    }
     if (listElRef.current) {
       listElRef.current.style.visibility = "hidden";
       listElRef.current.style.pointerEvents = "none";
@@ -173,7 +166,6 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       loadingElRef.current.style.visibility = null;
       loadingElRef.current.style.pointerEvents = null;
     }
-    window.scrollTo({ top: 0 });
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
     setReloading(true);
   }, []);
@@ -288,7 +280,6 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       <StyledApp>
         <PitchTabsToolbar value={activeTab} onChange={handleChangeTab} />
         <BetaBanner />
-        <StyledForceOverflow />
         <StyledListArea>
           <StyledListContent>
             {loading ? (

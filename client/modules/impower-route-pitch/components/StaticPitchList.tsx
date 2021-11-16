@@ -41,12 +41,19 @@ const TagIconLoader = dynamic(
 );
 
 const StyledStaticPitchList = styled.div`
+  flex: 1;
+  position: relative;
+`;
+
+const StyledContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   width: 100%;
   margin: auto;
   max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
 `;
 
 const StyledSpacer = styled.div`
@@ -159,6 +166,7 @@ const StaticPitchList = React.memo(
     const recentPitchDocs = my_recent_pitched_projects;
     const recentPitchDocsRef = useRef(recentPitchDocs);
 
+    const contentElRef = useRef<HTMLDivElement>();
     const listElRef = useRef<HTMLDivElement>();
     const loadingElRef = useRef<HTMLDivElement>();
 
@@ -191,12 +199,12 @@ const StaticPitchList = React.memo(
 
     const handleShowLoadingPlaceholder = useCallback(async () => {
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      contentElRef.current.style.overflow = "hidden";
       listElRef.current.style.visibility = "hidden";
       listElRef.current.style.pointerEvents = "none";
       loadingElRef.current.classList.add("animate");
       loadingElRef.current.style.visibility = null;
       loadingElRef.current.style.pointerEvents = null;
-      window.scrollTo({ top: 0 });
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloading(true);
     }, []);
@@ -490,6 +498,12 @@ const StaticPitchList = React.memo(
 
     const loading = transitioning || !pitchDocsState || reloading;
 
+    const contentStyle: React.CSSProperties = useMemo(
+      () => ({
+        overflow: loading ? "hidden" : undefined,
+      }),
+      [loading]
+    );
     const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
@@ -508,72 +522,74 @@ const StaticPitchList = React.memo(
     return (
       <>
         <StyledStaticPitchList ref={listElRef} style={listStyle}>
-          <QueryHeader id="pitch-filter-header">
-            <QueryButton
-              target="pitch"
-              menuType="sort"
-              label={`Sort By`}
-              icon={sortIcon}
-              value={sort}
-              options={SORT_OPTIONS}
-              getOptionLabels={getStaticSortOptionLabels}
-              getOptionIcons={handleGetSortOptionIcons}
-              onOption={handleChangeSort}
+          <StyledContent ref={contentElRef} style={contentStyle}>
+            <QueryHeader id="pitch-filter-header">
+              <QueryButton
+                target="pitch"
+                menuType="sort"
+                label={`Sort By`}
+                icon={sortIcon}
+                value={sort}
+                options={SORT_OPTIONS}
+                getOptionLabels={getStaticSortOptionLabels}
+                getOptionIcons={handleGetSortOptionIcons}
+                onOption={handleChangeSort}
+              />
+              <StyledSpacer />
+              <QueryButton
+                target="pitch"
+                menuType="filter"
+                label={`Kudoed`}
+                flexDirection="row-reverse"
+                icon={filterIcon}
+                value={rangeFilter}
+                getOptionLabels={getRangeFilterOptionLabels}
+                getOptionIcons={handleGetFilterOptionIcons}
+                onOption={handleChangeFilter}
+              />
+            </QueryHeader>
+            <PitchListContent
+              config={config}
+              icons={icons}
+              pitchDocs={pitchDocsState}
+              chunkMap={chunkMap}
+              lastLoadedChunk={lastLoadedChunk}
+              compact={compact}
+              offlinePlaceholder={offlinePlaceholder}
+              onChangeScore={handleChangeScore}
+              onDelete={handleDeletePitch}
+              onKudo={handleKudo}
+              onCreateContribution={handleCreateContribution}
+              onDeleteContribution={handleDeleteContribution}
             />
-            <StyledSpacer />
-            <QueryButton
-              target="pitch"
-              menuType="filter"
-              label={`Kudoed`}
-              flexDirection="row-reverse"
-              icon={filterIcon}
-              value={rangeFilter}
-              getOptionLabels={getRangeFilterOptionLabels}
-              getOptionIcons={handleGetFilterOptionIcons}
-              onOption={handleChangeFilter}
-            />
-          </QueryHeader>
-          <PitchListContent
-            config={config}
-            icons={icons}
-            pitchDocs={pitchDocsState}
-            chunkMap={chunkMap}
-            lastLoadedChunk={lastLoadedChunk}
-            compact={compact}
-            offlinePlaceholder={offlinePlaceholder}
-            onChangeScore={handleChangeScore}
-            onDelete={handleDeletePitch}
-            onKudo={handleKudo}
-            onCreateContribution={handleCreateContribution}
-            onDeleteContribution={handleDeleteContribution}
-          />
-          {((emptyPlaceholder && pitchCount > 0) ||
-            (!emptyPlaceholder && pitchDocsState)) && (
-            <PitchLoadingProgress
-              loadingMore={Boolean(pitchDocsState) && Boolean(loadingMore)}
-              noMore={
-                emptyPlaceholder
-                  ? pitchDocsState && pitchCount > 0 && noMore
-                  : pitchDocsState && (noMore || pitchCount === 0)
-              }
-              noMoreLabel={
-                pitchDocsState && !emptyPlaceholder && pitchCount === 0
-                  ? emptyLabel
-                  : `That's all for now!`
-              }
-              noMoreSubtitle={
-                pitchDocsState && !emptyPlaceholder && pitchCount === 0
-                  ? emptySubtitle
-                  : undefined
-              }
-              refreshLabel={
-                !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
-              }
-              onScrolledToEnd={handleScrolledToEnd}
-              onRefresh={handleRefresh}
-            />
-          )}
-          {loadIcons && <TagIconLoader />}
+            {((emptyPlaceholder && pitchCount > 0) ||
+              (!emptyPlaceholder && pitchDocsState)) && (
+              <PitchLoadingProgress
+                loadingMore={Boolean(pitchDocsState) && Boolean(loadingMore)}
+                noMore={
+                  emptyPlaceholder
+                    ? pitchDocsState && pitchCount > 0 && noMore
+                    : pitchDocsState && (noMore || pitchCount === 0)
+                }
+                noMoreLabel={
+                  pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                    ? emptyLabel
+                    : `That's all for now!`
+                }
+                noMoreSubtitle={
+                  pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                    ? emptySubtitle
+                    : undefined
+                }
+                refreshLabel={
+                  !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
+                }
+                onScrolledToEnd={handleScrolledToEnd}
+                onRefresh={handleRefresh}
+              />
+            )}
+            {loadIcons && <TagIconLoader />}
+          </StyledContent>
         </StyledStaticPitchList>
         <StyledOverlayArea>
           {pitchCount === 0 && (

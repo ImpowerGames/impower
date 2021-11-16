@@ -48,12 +48,19 @@ const TagIconLoader = dynamic(
 );
 
 const StyledPitchList = styled.div`
+  flex: 1;
+  position: relative;
+`;
+
+const StyledContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
   width: 100%;
   margin: auto;
   max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
 `;
 
 const StyledOverlayArea = styled.div`
@@ -88,6 +95,17 @@ const StyledEmptyArea = styled.div`
   flex-direction: column;
 `;
 
+const StyledForceOverflow = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-height: calc(100% + 2px);
+  pointer-events: none;
+`;
+
 interface PitchListProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
@@ -104,6 +122,7 @@ interface PitchListProps {
   emptySubtitle?: string;
   allowReload?: boolean;
   reloading?: boolean;
+  contentElRef?: React.MutableRefObject<HTMLDivElement>;
   listElRef?: React.MutableRefObject<HTMLDivElement>;
   loadingElRef?: React.MutableRefObject<HTMLDivElement>;
   onReloading?: (reloading: boolean) => void;
@@ -115,6 +134,7 @@ const PitchList = React.memo(
   (props: PropsWithChildren<PitchListProps>): JSX.Element => {
     const pitchedCollection = "pitched_games";
 
+    const defaultContentElRef = useRef<HTMLDivElement>();
     const defaultListElRef = useRef<HTMLDivElement>();
     const defaultLoadingElRef = useRef<HTMLDivElement>();
 
@@ -135,6 +155,7 @@ const PitchList = React.memo(
       allowReload,
       reloading,
       children,
+      contentElRef = defaultContentElRef,
       listElRef = defaultListElRef,
       loadingElRef = defaultLoadingElRef,
       onReloading,
@@ -222,15 +243,15 @@ const PitchList = React.memo(
 
     const handleShowLoadingPlaceholder = useCallback(async () => {
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      contentElRef.current.style.overflow = "hidden";
       listElRef.current.style.visibility = "hidden";
       listElRef.current.style.pointerEvents = "none";
       loadingElRef.current.classList.add("animate");
       loadingElRef.current.style.visibility = null;
       loadingElRef.current.style.pointerEvents = null;
-      window.scrollTo({ top: 0 });
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloadingState(true);
-    }, [listElRef, loadingElRef]);
+    }, [contentElRef, listElRef, loadingElRef]);
 
     const handleHideLoadingPlaceholder = useCallback(async () => {
       loadingElRef.current.classList.remove("animate");
@@ -828,6 +849,12 @@ const PitchList = React.memo(
 
     const loading = transitioning || !pitchDocsState || reloadingState;
 
+    const contentStyle: React.CSSProperties = useMemo(
+      () => ({
+        overflow: loading ? "hidden" : undefined,
+      }),
+      [loading]
+    );
     const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
@@ -846,65 +873,68 @@ const PitchList = React.memo(
     return (
       <>
         <StyledPitchList ref={listElRef} style={listStyle}>
-          <PitchListQueryHeader
-            goalFilter={goalFilter}
-            rangeFilter={rangeFilter}
-            sort={sort}
-            sortOptions={sortOptions}
-            onGoalFilter={handleChangeGoalFilter}
-            onRangeFilter={
-              tabState === "Top" ? handleChangeRangeFilter : undefined
-            }
-            onSort={tabState === "Top" ? undefined : handleChangeSortFilter}
-            onFollowMore={
-              tabState === "Following" ? handleFollowMore : undefined
-            }
-          />
-          <PitchListContent
-            config={config}
-            icons={icons}
-            pitchDocs={pitchDocsState}
-            chunkMap={chunkMap}
-            lastLoadedChunk={lastLoadedChunk}
-            compact={compact}
-            offlinePlaceholder={offlinePlaceholder}
-            dontFade={!initialLoadComplete}
-            onChangeScore={handleChangeScore}
-            onDelete={handleDeletePitch}
-            onKudo={handleKudo}
-            onCreateContribution={handleCreateContribution}
-            onDeleteContribution={handleDeleteContribution}
-          />
-          {((emptyPlaceholder && pitchCount > 0) ||
-            (!emptyPlaceholder && pitchDocsState)) && (
-            <PitchLoadingProgress
-              loadingMore={Boolean(pitchDocsState) && Boolean(loadingMore)}
-              noMore={
-                emptyPlaceholder
-                  ? pitchDocsState && pitchCount > 0 && noMore
-                  : pitchDocsState && (noMore || pitchCount === 0)
+          <StyledContent ref={contentElRef} style={contentStyle}>
+            <PitchListQueryHeader
+              goalFilter={goalFilter}
+              rangeFilter={rangeFilter}
+              sort={sort}
+              sortOptions={sortOptions}
+              onGoalFilter={handleChangeGoalFilter}
+              onRangeFilter={
+                tabState === "Top" ? handleChangeRangeFilter : undefined
               }
-              noMoreLabel={
-                pitchDocsState && !emptyPlaceholder && pitchCount === 0
-                  ? emptyLabel
-                  : `That's all for now!`
+              onSort={tabState === "Top" ? undefined : handleChangeSortFilter}
+              onFollowMore={
+                tabState === "Following" ? handleFollowMore : undefined
               }
-              noMoreSubtitle={
-                pitchDocsState && !emptyPlaceholder && pitchCount === 0
-                  ? emptySubtitle
-                  : undefined
-              }
-              refreshLabel={
-                !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
-              }
-              onScrolledToEnd={handleScrolledToEnd}
-              onRefresh={handleRefresh}
             />
-          )}
-          {children}
-          {loadIcons && <TagIconLoader />}
+            <PitchListContent
+              config={config}
+              icons={icons}
+              pitchDocs={pitchDocsState}
+              chunkMap={chunkMap}
+              lastLoadedChunk={lastLoadedChunk}
+              compact={compact}
+              offlinePlaceholder={offlinePlaceholder}
+              dontFade={!initialLoadComplete}
+              onChangeScore={handleChangeScore}
+              onDelete={handleDeletePitch}
+              onKudo={handleKudo}
+              onCreateContribution={handleCreateContribution}
+              onDeleteContribution={handleDeleteContribution}
+            />
+            {((emptyPlaceholder && pitchCount > 0) ||
+              (!emptyPlaceholder && pitchDocsState)) && (
+              <PitchLoadingProgress
+                loadingMore={Boolean(pitchDocsState) && Boolean(loadingMore)}
+                noMore={
+                  emptyPlaceholder
+                    ? pitchDocsState && pitchCount > 0 && noMore
+                    : pitchDocsState && (noMore || pitchCount === 0)
+                }
+                noMoreLabel={
+                  pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                    ? emptyLabel
+                    : `That's all for now!`
+                }
+                noMoreSubtitle={
+                  pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                    ? emptySubtitle
+                    : undefined
+                }
+                refreshLabel={
+                  !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
+                }
+                onScrolledToEnd={handleScrolledToEnd}
+                onRefresh={handleRefresh}
+              />
+            )}
+            {children}
+            {loadIcons && <TagIconLoader />}
+          </StyledContent>
         </StyledPitchList>
         <StyledOverlayArea>
+          <StyledForceOverflow />
           {pitchCount === 0 && (
             <StyledEmptyArea>{emptyPlaceholder}</StyledEmptyArea>
           )}
