@@ -61,6 +61,7 @@ const StyledLoadingArea = styled.div`
   right: 0;
   display: flex;
   flex-direction: column;
+  visibility: hidden;
 `;
 
 interface StaticContributionListProps {

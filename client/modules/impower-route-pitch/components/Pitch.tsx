@@ -298,25 +298,23 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
                 !shouldDisplayFollowingPitches) ? (
               <PitchFollowTags onReload={handleReloadFollowing} />
             ) : (
-              <>
-                <PitchList
-                  config={config}
-                  icons={icons}
-                  pitchDocs={validPitchDocs}
-                  tab={activeTab}
-                  sortOptions={SORT_OPTIONS}
-                  allowReload={allowReload}
-                  reloading={reloading}
-                  loadingPlaceholder={loadingPlaceholder}
-                  emptyPlaceholder={emptyPlaceholder}
-                  offlinePlaceholder={offlinePlaceholder}
-                  listElRef={listElRef}
-                  loadingElRef={loadingElRef}
-                  onFollowMore={handleFollowMore}
-                  onRangeFilter={handleRangeFilter}
-                  onReloading={setReloading}
-                />
-              </>
+              <PitchList
+                config={config}
+                icons={icons}
+                pitchDocs={validPitchDocs}
+                tab={activeTab}
+                sortOptions={SORT_OPTIONS}
+                allowReload={allowReload}
+                reloading={reloading}
+                loadingPlaceholder={loadingPlaceholder}
+                emptyPlaceholder={emptyPlaceholder}
+                offlinePlaceholder={offlinePlaceholder}
+                listElRef={listElRef}
+                loadingElRef={loadingElRef}
+                onFollowMore={handleFollowMore}
+                onRangeFilter={handleRangeFilter}
+                onReloading={setReloading}
+              />
             )}
           </StyledListContent>
         </StyledListArea>
