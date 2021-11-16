@@ -201,18 +201,26 @@ const ContributionList = React.memo(
 
     const handleShowLoadingPlaceholder = useCallback(async () => {
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
-      contentElRef.current.style.overflow = "hidden";
-      listElRef.current.style.visibility = "hidden";
-      listElRef.current.style.pointerEvents = "none";
-      loadingElRef.current.classList.add("animate");
-      loadingElRef.current.style.visibility = null;
-      loadingElRef.current.style.pointerEvents = null;
+      if (contentElRef.current) {
+        contentElRef.current.style.overflow = "hidden";
+      }
+      if (listElRef.current) {
+        listElRef.current.style.visibility = "hidden";
+        listElRef.current.style.pointerEvents = "none";
+      }
+      if (loadingElRef.current) {
+        loadingElRef.current.classList.add("animate");
+        loadingElRef.current.style.visibility = null;
+        loadingElRef.current.style.pointerEvents = null;
+      }
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloading(true);
     }, []);
 
     const handleHideLoadingPlaceholder = useCallback(async () => {
-      loadingElRef.current.classList.remove("animate");
+      if (loadingElRef.current) {
+        loadingElRef.current.classList.remove("animate");
+      }
       setReloading(false);
     }, []);
 

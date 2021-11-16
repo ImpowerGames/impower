@@ -35,6 +35,7 @@ const StyledAddPitchToolbarArea = styled.div`
   height: 100%;
   pointer-events: none;
   z-index: 2;
+  transition: opacity 0.15s ease;
 `;
 
 const StyledScrollSentinel = styled.div`
