@@ -273,7 +273,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     []
   );
 
-  const loading = transitioning || my_follows === undefined;
+  const loading = transitioning;
 
   const showFollowTags =
     activeTab === "Following" &&
@@ -290,7 +290,10 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
             {loading ? (
               loadingPlaceholder
             ) : showFollowTags ? (
-              <PitchFollowTags onReload={handleReloadFollowing} />
+              <PitchFollowTags
+                loadingPlaceholder={loadingPlaceholder}
+                onReload={handleReloadFollowing}
+              />
             ) : (
               <PitchList
                 config={config}

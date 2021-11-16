@@ -310,12 +310,13 @@ const PitchFollowTagsList = React.memo(
 );
 
 interface PitchFollowTagsProps {
+  loadingPlaceholder?: React.ReactNode;
   onReload?: (e: React.MouseEvent) => void;
 }
 
 const PitchFollowTags = React.memo(
   (props: PitchFollowTagsProps): JSX.Element => {
-    const { onReload } = props;
+    const { loadingPlaceholder, onReload } = props;
 
     const [configState] = useContext(ConfigContext);
     const [userState] = useContext(UserContext);
@@ -336,6 +337,10 @@ const PitchFollowTags = React.memo(
     const showReloadArea =
       Object.entries(my_follows || {}).filter(([, v]) => v.g === "tags")
         ?.length > 0;
+
+    if (my_follows === undefined) {
+      return <>{loadingPlaceholder}</>;
+    }
 
     return (
       <StyledContainer>
