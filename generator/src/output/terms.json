@@ -17,7 +17,6 @@
   "howdy": ["western"],
   "cowboy": ["western"],
   "corral": ["western"],
-  "peculiar": ["weird"],
   "umbrella": ["weather"],
   "sun's": ["weather"],
   "snowing": ["weather"],
@@ -759,7 +758,6 @@
   "birthday": ["coming-of-age"],
   "distinguished competition": ["comics"],
   "hilarious": ["comedy"],
-  "haha": ["comedy"],
   "comedy": ["comedy"],
   "comedian": ["comedy"],
   "best form of medicine": ["comedy"],
@@ -850,7 +848,6 @@
   "nest": ["bird"],
   "mockingbird": ["bird"],
   "loon": ["bird"],
-  "jaybird": ["bird"],
   "hoots": ["bird"],
   "hoot": ["bird"],
   "honker": ["bird"],
@@ -1519,12 +1516,8 @@
   "breast": ["cooking", "medical"],
   "bottles": ["cooking", "liquor"],
   "bottle": ["cooking", "liquor"],
-  "bars": ["cooking", "liquor"],
-  "barren": ["cooking", "liquor"],
-  "barred": ["cooking", "liquor"],
   "bar": ["cooking", "liquor"],
   "appetite": ["cooking", "greed"],
-  "ale": ["cooking", "liquor"],
   "voting": ["contest", "political"],
   "voter": ["contest", "political"],
   "vote": ["contest", "political"],
@@ -3367,6 +3360,7 @@
   "birdie": ["animals", "bird", "flight", "mecha"],
   "bird's": ["animals", "bird", "flight", "mecha"],
   "bird": ["animals", "bird", "flight", "mecha"],
+  "barn": ["animals", "farming", "livestock", "minimalist"],
   "animals": ["animals", "farming", "livestock", "pet"],
   "animal": ["animals", "farming", "livestock", "pet"],
   "wings": ["angel", "bird", "flight", "mecha"],
@@ -4291,6 +4285,7 @@
     "shapeshifting",
     "suspense"
   ],
+  "alive": ["creepy", "horror", "immortality", "resurrection", "suspense"],
   "stitches": ["crafting", "dress-up", "fashion", "medical", "repair"],
   "stitch": ["crafting", "dress-up", "fashion", "medical", "repair"],
   "airy": ["cozy", "flight", "mecha", "nature", "weather"],
@@ -8271,14 +8266,6 @@
   ],
   "buck's": ["animals", "business", "greed", "mammal", "shop", "wealth"],
   "buck": ["animals", "business", "greed", "mammal", "shop", "wealth"],
-  "barn": [
-    "animals",
-    "cooking",
-    "farming",
-    "liquor",
-    "livestock",
-    "minimalist"
-  ],
   "tongues": [
     "angel",
     "communication",
@@ -9458,15 +9445,6 @@
     "noir",
     "social deduction"
   ],
-  "pathological": [
-    "detective",
-    "forensic",
-    "investigation",
-    "medical",
-    "noir",
-    "psychic",
-    "psychological"
-  ],
   "objections": [
     "detective",
     "interrogation",
@@ -10061,14 +10039,14 @@
     "plants",
     "scavenging"
   ],
-  "alive": [
+  "ale": [
     "cooking",
-    "creepy",
-    "horror",
-    "immortality",
+    "fairy tale",
+    "fantasy",
     "liquor",
-    "resurrection",
-    "suspense"
+    "medieval",
+    "role playing",
+    "sword & sorcery"
   ],
   "performance": [
     "contest",
@@ -10125,15 +10103,6 @@
     "social deduction"
   ],
   "lying": [
-    "conspiracy",
-    "deception",
-    "detective",
-    "investigation",
-    "mystery",
-    "noir",
-    "social deduction"
-  ],
-  "liar": [
     "conspiracy",
     "deception",
     "detective",
@@ -17580,6 +17549,17 @@
     "noir",
     "social deduction"
   ],
+  "liar": [
+    "conspiracy",
+    "deception",
+    "detective",
+    "interrogation",
+    "investigation",
+    "legal",
+    "mystery",
+    "noir",
+    "social deduction"
+  ],
   "intention": [
     "conspiracy",
     "deception",
@@ -20556,6 +20536,18 @@
     "sword & sorcery",
     "victorian"
   ],
+  "reality": [
+    "disillusionment",
+    "illusion",
+    "life",
+    "psychedelic",
+    "psychic",
+    "psychological",
+    "realistic",
+    "simulator",
+    "slice-of-life",
+    "surreal"
+  ],
   "surely": [
     "detective",
     "disillusionment",
@@ -23190,6 +23182,19 @@
     "puzzle",
     "social deduction"
   ],
+  "pathological": [
+    "detective",
+    "forensic",
+    "interrogation",
+    "investigation",
+    "legal",
+    "medical",
+    "mystery",
+    "noir",
+    "psychic",
+    "psychological",
+    "social deduction"
+  ],
   "explains": [
     "detective",
     "educational",
@@ -25224,20 +25229,6 @@
     "space",
     "supernatural",
     "suspense"
-  ],
-  "reality": [
-    "cooking",
-    "disillusionment",
-    "illusion",
-    "life",
-    "liquor",
-    "psychedelic",
-    "psychic",
-    "psychological",
-    "realistic",
-    "simulator",
-    "slice-of-life",
-    "surreal"
   ],
   "brewing": [
     "cooking",
