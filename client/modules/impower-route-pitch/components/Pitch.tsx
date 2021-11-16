@@ -96,12 +96,14 @@ interface PitchProps {
 const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const { config, icons, pitchDocs, style } = props;
 
+  const toolbarRef = useRef<HTMLDivElement>();
   const contentElRef = useRef<HTMLDivElement>();
   const listElRef = useRef<HTMLDivElement>();
   const loadingElRef = useRef<HTMLDivElement>();
 
+  const shouldDisplayFollowingPitchesRef = useRef<boolean>();
   const [shouldDisplayFollowingPitches, setShouldDisplayFollowingPitches] =
-    useState<boolean>();
+    useState<boolean>(shouldDisplayFollowingPitchesRef.current);
 
   const [activeTab, setActiveTab] = useState<PitchToolbarTab>(
     typeof window !== "undefined" &&
@@ -135,6 +137,10 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const loadedFollowedTags = followedTags !== undefined;
 
+  const showFollowTags =
+    Object.keys(my_follows || {}).length === 0 ||
+    !shouldDisplayFollowingPitches;
+
   useEffect(() => {
     navigationDispatch(navigationSetTransitioning(false));
   }, [navigationDispatch]);
@@ -144,10 +150,16 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       return;
     }
     if (followedTags === null) {
-      setShouldDisplayFollowingPitches(false);
+      shouldDisplayFollowingPitchesRef.current = false;
+      setShouldDisplayFollowingPitches(
+        shouldDisplayFollowingPitchesRef.current
+      );
     }
     if (followedTags?.length > 0) {
-      setShouldDisplayFollowingPitches(true);
+      shouldDisplayFollowingPitchesRef.current = true;
+      setShouldDisplayFollowingPitches(
+        shouldDisplayFollowingPitchesRef.current
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedFollowedTags]);
@@ -172,15 +184,24 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const handleChangeTab = useCallback(
     async (tab: PitchToolbarTab) => {
+      if (followedTags === null) {
+        shouldDisplayFollowingPitchesRef.current = false;
+      }
+      if (followedTags?.length > 0) {
+        shouldDisplayFollowingPitchesRef.current = true;
+      }
+      if (toolbarRef.current) {
+        toolbarRef.current.style.opacity =
+          tab === "Following" && !shouldDisplayFollowingPitchesRef.current
+            ? "0"
+            : null;
+      }
       await handleShowLoadingPlaceholder();
       setAllowReload(true);
       setActiveTab(tab);
-      if (followedTags === null) {
-        setShouldDisplayFollowingPitches(false);
-      }
-      if (followedTags?.length > 0) {
-        setShouldDisplayFollowingPitches(true);
-      }
+      setShouldDisplayFollowingPitches(
+        shouldDisplayFollowingPitchesRef.current
+      );
       window.history.replaceState(
         window.history.state,
         "",
@@ -191,12 +212,25 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   );
 
   const handleReloadFollowing = useCallback(async (): Promise<void> => {
-    setShouldDisplayFollowingPitches(true);
+    shouldDisplayFollowingPitchesRef.current = true;
+    setShouldDisplayFollowingPitches(shouldDisplayFollowingPitchesRef.current);
   }, []);
 
-  const handleFollowMore = useCallback((open: boolean): void => {
-    setShouldDisplayFollowingPitches(!open);
-  }, []);
+  const handleFollowMore = useCallback(
+    (open: boolean): void => {
+      shouldDisplayFollowingPitchesRef.current = !open;
+      if (toolbarRef.current) {
+        toolbarRef.current.style.opacity =
+          activeTab === "Following" && !shouldDisplayFollowingPitchesRef.current
+            ? "0"
+            : null;
+      }
+      setShouldDisplayFollowingPitches(
+        shouldDisplayFollowingPitchesRef.current
+      );
+    },
+    [activeTab]
+  );
 
   const emptyImage = useMemo(() => <AnimatedHappyMascot />, []);
   const emptySubtitle1 = `Got an idea?`;
@@ -275,11 +309,6 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const loading = transitioning;
 
-  const showFollowTags =
-    activeTab === "Following" &&
-    (Object.keys(my_follows || {}).length === 0 ||
-      !shouldDisplayFollowingPitches);
-
   return (
     <StyledPitch style={style}>
       <StyledApp>
@@ -289,7 +318,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
           <StyledListContent>
             {loading ? (
               loadingPlaceholder
-            ) : showFollowTags ? (
+            ) : activeTab === "Following" && showFollowTags ? (
               <PitchFollowTags
                 loadingPlaceholder={loadingPlaceholder}
                 onReload={handleReloadFollowing}
@@ -316,9 +345,9 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
           </StyledListContent>
         </StyledListArea>
         <AddPitchToolbar
+          toolbarRef={toolbarRef}
           config={config}
           icons={icons}
-          hidden={showFollowTags}
         />
       </StyledApp>
     </StyledPitch>
