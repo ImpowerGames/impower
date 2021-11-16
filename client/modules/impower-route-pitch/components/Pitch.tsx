@@ -203,8 +203,8 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const emptySubtitle2 = `Why not pitch it?`;
   const searchLabel = `${
     activeTab === "Following" || activeTab === "Trending"
-      ? "today"
-      : getRangeFilterLabel(rangeFilter)?.toLowerCase()
+      ? `for now`
+      : `for ${getRangeFilterLabel(rangeFilter)?.toLowerCase()}`
   }.`;
 
   const filterLabel = `pitches`;

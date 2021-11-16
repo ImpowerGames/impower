@@ -73,7 +73,13 @@ const EmptyPitchListText = React.memo(
           color="textSecondary"
           style={emptyLabelStyle}
         >
-          {`That's all the ${filterLabel} for `}
+          {`That's all the ${filterLabel}`}
+        </StyledLabelTypography>
+        <StyledLabelTypography
+          variant="h6"
+          color="textSecondary"
+          style={emptyLabelStyle}
+        >
           <StyledMark style={searchLabelStyle}>{searchLabel}</StyledMark>
         </StyledLabelTypography>
         {(emptySubtitle1 || emptySubtitle2) && (

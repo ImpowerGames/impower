@@ -147,9 +147,9 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
   const searchLabel = useMemo(
     () =>
       activeSearch
-        ? getSearchedTerms(activeSearch)
+        ? `for ${getSearchedTerms(activeSearch)
             .map((t) => `#${t}`)
-            .join(" ")
+            .join(" ")}`
         : undefined,
     [activeSearch]
   );
