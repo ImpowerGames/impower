@@ -644,6 +644,7 @@
   "peanut": ["cooking"],
   "pans": ["cooking"],
   "pancake": ["cooking"],
+  "pan": ["cooking"],
   "on ice": ["cooking"],
   "omelette": ["cooking"],
   "nuggets": ["cooking"],
@@ -1372,7 +1373,6 @@
   "kimono": ["dress-up", "fashion"],
   "heeled": ["dress-up", "fashion"],
   "hats": ["dress-up", "fashion"],
-  "hairy": ["dress-up", "fashion"],
   "hairs": ["dress-up", "fashion"],
   "haircut": ["dress-up", "fashion"],
   "hair": ["dress-up", "fashion"],
@@ -1865,7 +1865,6 @@
   "evening": ["schedule", "time management", "time travel"],
   "afternoon": ["schedule", "time management", "time travel"],
   "you'll pay": ["revenge", "sabotage", "social deduction"],
-  "payback": ["revenge", "sabotage", "social deduction"],
   "goes around comes around": ["revenge", "sabotage", "social deduction"],
   "get even": ["revenge", "sabotage", "social deduction"],
   "for blood": ["revenge", "sabotage", "social deduction"],
@@ -1891,6 +1890,7 @@
   "cheshire": ["regency", "steampunk", "victorian"],
   "butler": ["regency", "steampunk", "victorian"],
   "baker's": ["regency", "steampunk", "victorian"],
+  "any word": ["regency", "steampunk", "victorian"],
   "a woman": ["regency", "steampunk", "victorian"],
   "a man": ["regency", "steampunk", "victorian"],
   "kindness": ["redemption", "relaxing", "utopian"],
@@ -3130,6 +3130,8 @@
   "penny": ["business", "greed", "shop", "wealth"],
   "pays": ["business", "greed", "shop", "wealth"],
   "paying": ["business", "greed", "shop", "wealth"],
+  "paydirt": ["business", "greed", "shop", "wealth"],
+  "pay": ["business", "greed", "shop", "wealth"],
   "paid": ["business", "greed", "shop", "wealth"],
   "occupational": ["business", "extraterrestrial", "invasion", "office"],
   "marketing": ["business", "greed", "shop", "wealth"],
@@ -4361,7 +4363,6 @@
     "redemption",
     "tragedy"
   ],
-  "pas": ["coming-of-age", "family", "monster tamer", "parent", "raising"],
   "parents": ["coming-of-age", "family", "monster tamer", "parent", "raising"],
   "parentis": ["coming-of-age", "family", "monster tamer", "parent", "raising"],
   "parent": ["coming-of-age", "family", "monster tamer", "parent", "raising"],
@@ -6717,14 +6718,6 @@
     "raising",
     "resurrection"
   ],
-  "pan": [
-    "coming-of-age",
-    "cooking",
-    "family",
-    "monster tamer",
-    "parent",
-    "raising"
-  ],
   "lad": [
     "coming-of-age",
     "fairy tale",
@@ -7788,14 +7781,6 @@
     "steampunk"
   ],
   "development": [
-    "artificial intelligence",
-    "building",
-    "cyberpunk",
-    "hacking",
-    "robot",
-    "technology"
-  ],
-  "developer": [
     "artificial intelligence",
     "building",
     "cyberpunk",
@@ -10605,6 +10590,15 @@
     "shop",
     "steampunk",
     "victorian",
+    "wealth"
+  ],
+  "payback": [
+    "business",
+    "greed",
+    "revenge",
+    "sabotage",
+    "shop",
+    "social deduction",
     "wealth"
   ],
   "parlor": [
@@ -18354,17 +18348,6 @@
     "punishment",
     "shop",
     "war",
-    "wealth"
-  ],
-  "pay": [
-    "business",
-    "coming-of-age",
-    "family",
-    "greed",
-    "monster tamer",
-    "parent",
-    "raising",
-    "shop",
     "wealth"
   ],
   "luxury": [
