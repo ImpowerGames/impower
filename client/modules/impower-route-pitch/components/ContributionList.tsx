@@ -28,8 +28,18 @@ const LOAD_MORE_LIMIT = 10;
 
 const StyledContributionList = styled.div`
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  position: relative;
+`;
+
+const StyledContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  margin: auto;
+  max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
 `;
 
 const StyledOverlayArea = styled.div`
@@ -149,6 +159,7 @@ const ContributionList = React.memo(
       !contributionDocsRef.current
     );
 
+    const contentElRef = useRef<HTMLDivElement>();
     const listElRef = useRef<HTMLDivElement>();
     const loadingElRef = useRef<HTMLDivElement>();
 
@@ -189,12 +200,12 @@ const ContributionList = React.memo(
 
     const handleShowLoadingPlaceholder = useCallback(async () => {
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      contentElRef.current.style.overflow = "hidden";
       listElRef.current.style.visibility = "hidden";
       listElRef.current.style.pointerEvents = "none";
       loadingElRef.current.classList.add("animate");
       loadingElRef.current.style.visibility = null;
       loadingElRef.current.style.pointerEvents = null;
-      window.scrollTo({ top: 0 });
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloading(true);
     }, []);
@@ -506,6 +517,12 @@ const ContributionList = React.memo(
 
     const loading = transitioning || !contributionDocsState || reloading;
 
+    const contentStyle: React.CSSProperties = useMemo(
+      () => ({
+        overflow: loading ? "hidden" : undefined,
+      }),
+      [loading]
+    );
     const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
@@ -524,42 +541,44 @@ const ContributionList = React.memo(
     return (
       <>
         <StyledContributionList ref={listElRef} style={listStyle}>
-          <ContributionListQueryHeader
-            filter={typeFilter}
-            sort={sort}
-            sortOptions={sortOptions}
-            onFilter={handleFilter}
-            onSort={handleSort}
-          />
-          <ContributionListContent
-            scrollParent={scrollParent}
-            pitchDocs={pitchDocs}
-            contributionDocs={contributionDocsState}
-            chunkMap={chunkMap}
-            lastLoadedChunk={lastLoadedChunk}
-            onChangeScore={handleChangeScore}
-            onKudo={handleKudo}
-            onEdit={handleEditContribution}
-            onDelete={handleDeleteContribution}
-          />
-          {contributionDocsState && (
-            <PitchLoadingProgress
-              loadingMore={loadingMore}
-              noMore={noMore || contributionEntries?.length === 0}
-              noMoreLabel={
-                contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
-              }
-              noMoreSubtitle={
-                contributionEntries?.length === 0 ? emptySubtitle : undefined
-              }
-              refreshLabel={
-                contributionEntries?.length === 0 ? undefined : `Refresh?`
-              }
-              onScrolledToEnd={handleScrolledToEnd}
-              onRefresh={handleRefresh}
+          <StyledContent ref={contentElRef} style={contentStyle}>
+            <ContributionListQueryHeader
+              filter={typeFilter}
+              sort={sort}
+              sortOptions={sortOptions}
+              onFilter={handleFilter}
+              onSort={handleSort}
             />
-          )}
-          {children}
+            <ContributionListContent
+              scrollParent={scrollParent}
+              pitchDocs={pitchDocs}
+              contributionDocs={contributionDocsState}
+              chunkMap={chunkMap}
+              lastLoadedChunk={lastLoadedChunk}
+              onChangeScore={handleChangeScore}
+              onKudo={handleKudo}
+              onEdit={handleEditContribution}
+              onDelete={handleDeleteContribution}
+            />
+            {contributionDocsState && (
+              <PitchLoadingProgress
+                loadingMore={loadingMore}
+                noMore={noMore || contributionEntries?.length === 0}
+                noMoreLabel={
+                  contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
+                }
+                noMoreSubtitle={
+                  contributionEntries?.length === 0 ? emptySubtitle : undefined
+                }
+                refreshLabel={
+                  contributionEntries?.length === 0 ? undefined : `Refresh?`
+                }
+                onScrolledToEnd={handleScrolledToEnd}
+                onRefresh={handleRefresh}
+              />
+            )}
+            {children}
+          </StyledContent>
         </StyledContributionList>
         <StyledOverlayArea>
           <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
