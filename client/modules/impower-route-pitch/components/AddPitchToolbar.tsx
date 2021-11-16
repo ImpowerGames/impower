@@ -61,12 +61,11 @@ interface AddPitchToolbarProps {
   toolbarRef?: React.Ref<HTMLDivElement>;
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
-  hidden?: boolean;
 }
 
 const AddPitchToolbar = React.memo(
   (props: AddPitchToolbarProps): JSX.Element => {
-    const { toolbarRef, config, icons, hidden } = props;
+    const { toolbarRef, config, icons } = props;
 
     const [scrollSentinel, setScrollSentinel] = useState<HTMLElement>();
 
@@ -78,19 +77,12 @@ const AddPitchToolbar = React.memo(
     const [newDocId, setNewDocId] = useState<string>();
     const [createDoc, setCreateDoc] = useState<GameDocument>();
     const [createDialogOpenKey, setCreateDialogOpenKey] = useState<"game">();
-    const [hiddenState, setHiddenState] = useState(true);
 
     const openedWithQueryRef = useRef(false);
 
     const createDialogOpen = createDialogOpenKey === "game";
 
     const router = useRouter();
-
-    useEffect(() => {
-      window.requestAnimationFrame(() => {
-        setHiddenState(hidden);
-      });
-    }, [hidden]);
 
     const handleStartCreation = useCallback(async () => {
       setCanClose(true);
@@ -265,10 +257,8 @@ const AddPitchToolbar = React.memo(
         bottom: fabSpacing,
         maxWidth: fabMaxWidth,
         margin: "auto",
-        transition: "opacity 0.15s ease",
-        opacity: hiddenState ? 0 : 1,
       }),
-      [fabMaxWidth, fabSpacing, hiddenState]
+      [fabMaxWidth, fabSpacing]
     );
 
     const icon = useMemo(
