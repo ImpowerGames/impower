@@ -275,6 +275,11 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const loading = transitioning || my_follows === undefined;
 
+  const showFollowTags =
+    activeTab === "Following" &&
+    (Object.keys(my_follows || {}).length === 0 ||
+      !shouldDisplayFollowingPitches);
+
   return (
     <StyledPitch style={style}>
       <StyledApp>
@@ -284,9 +289,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
           <StyledListContent>
             {loading ? (
               loadingPlaceholder
-            ) : activeTab === "Following" &&
-              (Object.keys(my_follows || {}).length === 0 ||
-                !shouldDisplayFollowingPitches) ? (
+            ) : showFollowTags ? (
               <PitchFollowTags onReload={handleReloadFollowing} />
             ) : (
               <PitchList
@@ -312,10 +315,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
         <AddPitchToolbar
           config={config}
           icons={icons}
-          hidden={
-            activeTab === "Following" &&
-            (!followedTags || followedTags.length === 0)
-          }
+          hidden={showFollowTags}
         />
       </StyledApp>
     </StyledPitch>
