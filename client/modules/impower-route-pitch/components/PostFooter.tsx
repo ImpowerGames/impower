@@ -56,6 +56,7 @@ const StyledFooterContent = styled.div`
   flex: 1;
   flex-direction: column;
   display: flex;
+  position: relative;
 `;
 
 const StyledFooterTabsArea = styled.div`
