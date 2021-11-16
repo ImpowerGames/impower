@@ -7,6 +7,7 @@ const StyledQueryHeader = styled(FadeAnimation)`
   height: ${(props): string => props.theme.minHeight.filterToolbar};
   width: 100%;
   position: relative;
+  flex-shrink: 0;
 `;
 
 const StyledQueryHeaderContent = styled.div`

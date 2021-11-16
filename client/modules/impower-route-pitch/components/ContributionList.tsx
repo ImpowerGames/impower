@@ -40,6 +40,8 @@ const StyledContent = styled.div`
   width: 100%;
   margin: auto;
   max-width: ${(props): number => props.theme.breakpoints.values.sm}px;
+  display: flex;
+  flex-direction: column;
 `;
 
 const StyledOverlayArea = styled.div`
