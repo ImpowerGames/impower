@@ -90,20 +90,21 @@ const StyledPlaceholderContent = styled.div`
 `;
 
 export interface OptionProps extends React.HTMLAttributes<HTMLLIElement> {
-  option?: unknown;
-  selected?: boolean;
-  inputValue?: string;
-  placeholderLabel?: string;
-  style?: React.CSSProperties;
-  getOptionLabel?: (option: unknown) => string;
-  getOptionIcon?: (option: unknown) => string;
-  getOptionIconStyle?: (option: unknown) => {
+  "option"?: unknown;
+  "selected"?: boolean;
+  "inputValue"?: string;
+  "placeholderLabel"?: string;
+  "style"?: React.CSSProperties;
+  "getOptionLabel"?: (option: unknown) => string;
+  "getOptionIcon"?: (option: unknown) => string;
+  "getOptionIconStyle"?: (option: unknown) => {
     color?: string;
     fontSize?: string | number;
   };
-  getOptionDescription?: (option: unknown) => string;
-  renderOptionIcon?: (option: unknown, icon: string) => React.ReactNode;
-  getOptionHeight?: () => number;
+  "getOptionDescription"?: (option: unknown) => string;
+  "renderOptionIcon"?: (option: unknown, icon: string) => React.ReactNode;
+  "getOptionHeight"?: () => number;
+  "data-option-index"?: number;
 }
 
 const SelectOption = React.memo((props: OptionProps) => {
@@ -119,6 +120,7 @@ const SelectOption = React.memo((props: OptionProps) => {
     getOptionIconStyle,
     getOptionHeight,
     renderOptionIcon,
+    "data-option-index": index,
     ...listItemProps
   } = props;
 
@@ -167,8 +169,13 @@ const SelectOption = React.memo((props: OptionProps) => {
   if (option) {
     if (optionLabel) {
       return (
-        <StyledListItem ref={handleRef} {...listItemProps}>
+        <StyledListItem
+          ref={handleRef}
+          {...listItemProps}
+          data-option-index={index}
+        >
           <VirtualizedItem
+            index={index}
             minHeight={minHeight}
             minValidHeight={minHeight}
             root={root}
@@ -241,8 +248,13 @@ const SelectOption = React.memo((props: OptionProps) => {
     }
   }
   return (
-    <StyledListItem ref={handleRef} {...listItemProps}>
+    <StyledListItem
+      ref={handleRef}
+      {...listItemProps}
+      data-option-index={index}
+    >
       <VirtualizedItem
+        index={index}
         minHeight={minHeight}
         minValidHeight={minHeight}
         root={root}
