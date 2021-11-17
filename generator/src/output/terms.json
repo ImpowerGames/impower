@@ -44,6 +44,7 @@
   "ideal": ["utopian"],
   "equals": ["utopian"],
   "equal": ["utopian"],
+  "monumental": ["tycoon"],
   "underground": ["train"],
   "keepers": ["tower defense"],
   "flagpole": ["tower defense"],
@@ -478,6 +479,7 @@
   "ought": ["ethics"],
   "just": ["ethics"],
   "sniffer": ["espionage"],
+  "ops": ["espionage"],
   "with you": ["escort mission"],
   "with me": ["escort mission"],
   "with it": ["escort mission"],
@@ -588,6 +590,8 @@
   "rubber": ["crafting"],
   "polythene": ["crafting"],
   "plastic": ["crafting"],
+  "mining": ["crafting"],
+  "mines": ["crafting"],
   "mine's": ["crafting"],
   "mine": ["crafting"],
   "mill": ["crafting"],
@@ -986,12 +990,11 @@
   "further": ["runner", "side scroller"],
   "forward": ["runner", "side scroller"],
   "beeline": ["runner", "side scroller"],
-  "thrown": ["role playing", "tabletop"],
   "throw": ["role playing", "tabletop"],
   "session": ["role playing", "tabletop"],
   "penalty": ["role playing", "tabletop"],
-  "miny": ["role playing", "tabletop"],
   "grappling": ["role playing", "tabletop"],
+  "glass cannon": ["role playing", "tabletop"],
   "survive": ["roguelike", "survival"],
   "survival": ["roguelike", "survival"],
   "knocked down": ["roguelike", "soulslike"],
@@ -1712,6 +1715,9 @@
   "curtain": ["building", "fame"],
   "concrete": ["building", "tower defense"],
   "chimney": ["building", "tower defense"],
+  "builds": ["building", "tycoon"],
+  "building": ["building", "tycoon"],
+  "builder": ["building", "tycoon"],
   "bridges": ["building", "tower defense"],
   "bridge": ["building", "tower defense"],
   "swallowed": ["bird", "cooking"],
@@ -2041,7 +2047,6 @@
   "area": ["exploration", "open world", "walking simulator"],
   "anywhere": ["exploration", "open world", "walking simulator"],
   "abroad": ["exploration", "open world", "walking simulator"],
-  "ops": ["espionage", "role playing", "tabletop"],
   "volunteer's": ["escort mission", "quest", "rescue"],
   "prepared": ["escort mission", "management", "simulator"],
   "prepare": ["escort mission", "management", "simulator"],
@@ -2198,8 +2203,6 @@
   "yarn": ["crafting", "dress-up", "fashion"],
   "tiny": ["crafting", "cute", "minigames"],
   "strapping": ["crafting", "dress-up", "fashion"],
-  "mining": ["crafting", "role playing", "tabletop"],
-  "mines": ["crafting", "role playing", "tabletop"],
   "loom": ["crafting", "dress-up", "fashion"],
   "leather": ["crafting", "dress-up", "fashion"],
   "brass": ["crafting", "musical", "rhythm"],
@@ -2422,6 +2425,8 @@
   "oil": ["automation", "cooking", "dieselpunk"],
   "delivery": ["automation", "delivery", "medical"],
   "coil": ["automation", "futuristic", "sci-fi"],
+  "killing": ["assassination", "battle royale", "hunting"],
+  "killed": ["assassination", "battle royale", "hunting"],
   "disposes": ["assassination", "dress-up", "fashion"],
   "dispose": ["assassination", "dress-up", "fashion"],
   "died": ["assassination", "immortality", "zombie"],
@@ -2760,6 +2765,7 @@
   "prison": ["escape", "police", "punishment", "thriller"],
   "opening": ["escape", "open world", "sandbox", "thriller"],
   "opened": ["escape", "open world", "sandbox", "thriller"],
+  "open": ["escape", "open world", "sandbox", "thriller"],
   "inmates": ["escape", "police", "punishment", "thriller"],
   "away": ["escape", "reunion", "roadtrip", "thriller"],
   "character": ["episodic", "jrpg", "role playing", "rpg"],
@@ -3149,6 +3155,8 @@
   "dime": ["business", "greed", "shop", "wealth"],
   "deficit": ["business", "greed", "shop", "wealth"],
   "counting house": ["business", "greed", "shop", "wealth"],
+  "checks": ["business", "greed", "shop", "wealth"],
+  "checking": ["business", "greed", "shop", "wealth"],
   "checkbook": ["business", "greed", "shop", "wealth"],
   "cheaper": ["business", "greed", "shop", "wealth"],
   "cheap": ["business", "greed", "shop", "wealth"],
@@ -3208,10 +3216,6 @@
   "cottage": ["building", "regency", "steampunk", "victorian"],
   "copper": ["building", "crafting", "police", "punishment"],
   "buttress": ["building", "deconstruction", "parody", "tower defense"],
-  "builds": ["building", "jrpg", "role playing", "rpg"],
-  "building": ["building", "jrpg", "role playing", "rpg"],
-  "builder": ["building", "jrpg", "role playing", "rpg"],
-  "build": ["building", "jrpg", "role playing", "rpg"],
   "bricks": ["building", "platformer", "side scroller", "tower defense"],
   "brick": ["building", "platformer", "side scroller", "tower defense"],
   "beam": ["building", "science", "teleportation", "time travel"],
@@ -4257,6 +4261,13 @@
   ],
   "coverage": ["cryptid", "dystopian", "fame", "invisibility", "surveillance"],
   "attention": ["cryptid", "dystopian", "fame", "invisibility", "surveillance"],
+  "wearing the face": [
+    "creepy",
+    "disillusionment",
+    "horror",
+    "role playing",
+    "suspense"
+  ],
   "terrors": ["creepy", "demon", "gothic", "horror", "suspense"],
   "sucks": ["creepy", "horror", "supernatural", "suspense", "vampire"],
   "shiver": ["creepy", "horror", "paranormal", "suspense", "weather"],
@@ -4618,6 +4629,7 @@
   "doors": ["building", "escape", "metroidvania", "thriller", "tower defense"],
   "door's": ["building", "escape", "metroidvania", "thriller", "tower defense"],
   "door": ["building", "escape", "metroidvania", "thriller", "tower defense"],
+  "build": ["building", "jrpg", "role playing", "rpg", "tycoon"],
   "flight": ["bird", "extraterrestrial", "flight", "mecha", "space"],
   "flies": ["bird", "flight", "insects", "mecha", "nature"],
   "turns": ["betrayal", "physics", "revenge", "sabotage", "social deduction"],
@@ -4783,20 +4795,6 @@
   "kinetic": ["atompunk", "futuristic", "physics", "sci-fi", "science"],
   "chemical": ["atompunk", "automation", "comics", "mutant", "science"],
   "kills": [
-    "assassination",
-    "battle royale",
-    "hunting",
-    "role playing",
-    "tabletop"
-  ],
-  "killing": [
-    "assassination",
-    "battle royale",
-    "hunting",
-    "role playing",
-    "tabletop"
-  ],
-  "killed": [
     "assassination",
     "battle royale",
     "hunting",
@@ -5974,14 +5972,6 @@
     "tactical",
     "war"
   ],
-  "open": [
-    "escape",
-    "open world",
-    "role playing",
-    "sandbox",
-    "tabletop",
-    "thriller"
-  ],
   "documentary": [
     "episodic",
     "fame",
@@ -6452,14 +6442,6 @@
     "horror",
     "suspense",
     "tragedy"
-  ],
-  "wearing the face": [
-    "creepy",
-    "disillusionment",
-    "horror",
-    "role playing",
-    "suspense",
-    "tabletop"
   ],
   "sickness": [
     "creepy",
@@ -7094,23 +7076,6 @@
     "dieselpunk",
     "friendship",
     "office"
-  ],
-  "checks": ["business", "greed", "role playing", "shop", "tabletop", "wealth"],
-  "checking": [
-    "business",
-    "greed",
-    "role playing",
-    "shop",
-    "tabletop",
-    "wealth"
-  ],
-  "checker": [
-    "business",
-    "greed",
-    "role playing",
-    "shop",
-    "tabletop",
-    "wealth"
   ],
   "check": ["business", "greed", "role playing", "shop", "tabletop", "wealth"],
   "casino": ["business", "card", "greed", "shop", "tycoon", "wealth"],
@@ -8760,6 +8725,14 @@
     "platformer",
     "side scroller"
   ],
+  "crunching": [
+    "action",
+    "apocalyptic",
+    "cooking",
+    "destruction",
+    "post apocalyptic",
+    "sabotage"
+  ],
   "crossfire": [
     "action",
     "bullet hell",
@@ -9297,6 +9270,15 @@
     "regency",
     "steampunk",
     "victorian"
+  ],
+  "sneakers": [
+    "dress-up",
+    "espionage",
+    "fashion",
+    "invisibility",
+    "ninja",
+    "sneaking",
+    "stealth"
   ],
   "repressed": [
     "dress-up",
@@ -11043,6 +11025,15 @@
     "sci-fi",
     "science",
     "space"
+  ],
+  "killer": [
+    "assassination",
+    "battle royale",
+    "caper",
+    "crime",
+    "hunting",
+    "noir",
+    "thriller"
   ],
   "zip": [
     "artificial intelligence",
@@ -14871,6 +14862,16 @@
     "robot",
     "technology"
   ],
+  "buffer": [
+    "artificial intelligence",
+    "cyberpunk",
+    "futuristic",
+    "hacking",
+    "robot",
+    "sci-fi",
+    "science",
+    "technology"
+  ],
   "artificial": [
     "artificial intelligence",
     "cyberpunk",
@@ -16670,16 +16671,6 @@
     "survival",
     "suspense",
     "thriller"
-  ],
-  "crunching": [
-    "action",
-    "apocalyptic",
-    "cooking",
-    "destruction",
-    "post apocalyptic",
-    "role playing",
-    "sabotage",
-    "tabletop"
   ],
   "crunch": [
     "action",
@@ -18869,17 +18860,6 @@
     "social deduction",
     "thriller"
   ],
-  "killer": [
-    "assassination",
-    "battle royale",
-    "caper",
-    "crime",
-    "hunting",
-    "noir",
-    "role playing",
-    "tabletop",
-    "thriller"
-  ],
   "diary": [
     "assassination",
     "immortality",
@@ -20145,6 +20125,17 @@
     "werewolf",
     "wolf"
   ],
+  "cannon": [
+    "action",
+    "bullet hell",
+    "hunting",
+    "mecha",
+    "military",
+    "nautical",
+    "shooter",
+    "swashbuckling",
+    "war"
+  ],
   "bullet": [
     "action",
     "assassination",
@@ -20533,18 +20524,6 @@
     "nature",
     "rhythm",
     "war"
-  ],
-  "sneakers": [
-    "dress-up",
-    "espionage",
-    "fashion",
-    "invisibility",
-    "jrpg",
-    "ninja",
-    "role playing",
-    "rpg",
-    "sneaking",
-    "stealth"
   ],
   "fleece": [
     "dress-up",
@@ -21337,18 +21316,6 @@
     "phantom thief",
     "steal",
     "thriller"
-  ],
-  "estate": [
-    "business",
-    "fairy tale",
-    "fantasy",
-    "greed",
-    "regency",
-    "royalty",
-    "shop",
-    "steampunk",
-    "victorian",
-    "wealth"
   ],
   "bling": [
     "business",
@@ -23777,6 +23744,19 @@
     "steal",
     "wealth"
   ],
+  "estate": [
+    "business",
+    "fairy tale",
+    "fantasy",
+    "greed",
+    "regency",
+    "royalty",
+    "shop",
+    "steampunk",
+    "tycoon",
+    "victorian",
+    "wealth"
+  ],
   "collectable": [
     "business",
     "collecting",
@@ -24140,19 +24120,6 @@
     "robot",
     "science",
     "simulator"
-  ],
-  "buffer": [
-    "artificial intelligence",
-    "cyberpunk",
-    "futuristic",
-    "hacking",
-    "jrpg",
-    "robot",
-    "role playing",
-    "rpg",
-    "sci-fi",
-    "science",
-    "technology"
   ],
   "access": [
     "artificial intelligence",
@@ -24920,19 +24887,6 @@
     "police",
     "thriller",
     "tracking"
-  ],
-  "cannon": [
-    "action",
-    "bullet hell",
-    "hunting",
-    "mecha",
-    "military",
-    "nautical",
-    "role playing",
-    "shooter",
-    "swashbuckling",
-    "tabletop",
-    "war"
   ],
   "battles": [
     "action",
@@ -25809,6 +25763,20 @@
     "police",
     "simulator",
     "social deduction"
+  ],
+  "authority": [
+    "bureaucracy",
+    "business",
+    "communication",
+    "management",
+    "mecha",
+    "military",
+    "police",
+    "political",
+    "simulator",
+    "strategy",
+    "tactical",
+    "war"
   ],
   "irony": [
     "building",
@@ -27237,21 +27205,6 @@
     "noir",
     "police",
     "social deduction"
-  ],
-  "authority": [
-    "bureaucracy",
-    "business",
-    "communication",
-    "management",
-    "mecha",
-    "military",
-    "police",
-    "political",
-    "simulator",
-    "strategy",
-    "tactical",
-    "tycoon",
-    "war"
   ],
   "affairs": [
     "bureaucracy",
