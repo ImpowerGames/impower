@@ -23,7 +23,9 @@ export const getTermRelevancyScore = (
     if (termTags && termTags.length > 0) {
       termCount += 1;
       const tagMatchIndex = tagsSortedBySpecificity.findIndex(
-        (tag) => termTags.includes(tag) && !matchedTags.has(tag)
+        (tag) =>
+          (subphrase === tag?.toLowerCase() || termTags.includes(tag)) &&
+          !matchedTags.has(tag)
       );
       if (tagMatchIndex >= 0) {
         matchedTags.add(tagsSortedBySpecificity[tagMatchIndex]);
