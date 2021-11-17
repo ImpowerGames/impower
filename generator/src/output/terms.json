@@ -17,6 +17,7 @@
   "howdy": ["western"],
   "cowboy": ["western"],
   "corral": ["western"],
+  "silverware": ["werewolf"],
   "umbrella": ["weather"],
   "sun's": ["weather"],
   "snowing": ["weather"],
@@ -288,6 +289,7 @@
   "three's": ["multiplayer"],
   "three": ["multiplayer"],
   "thirty": ["multiplayer"],
+  "tenths": ["multiplayer"],
   "ten": ["multiplayer"],
   "six": ["multiplayer"],
   "seven": ["multiplayer"],
@@ -969,8 +971,6 @@
   "vampire": ["supernatural", "vampire"],
   "sucker": ["supernatural", "vampire"],
   "suck": ["supernatural", "vampire"],
-  "omega": ["supernatural", "werewolf"],
-  "alpha": ["supernatural", "werewolf"],
   "cooler": ["stylish", "weather"],
   "cool": ["stylish", "weather"],
   "telegraph": ["steampunk", "victorian"],
@@ -1365,6 +1365,7 @@
   "knit": ["dress-up", "fashion"],
   "kit": ["dress-up", "fashion"],
   "kimono": ["dress-up", "fashion"],
+  "hideous": ["dress-up", "fashion"],
   "heeled": ["dress-up", "fashion"],
   "hats": ["dress-up", "fashion"],
   "hairs": ["dress-up", "fashion"],
@@ -1442,6 +1443,7 @@
   "butt": ["deconstruction", "parody"],
   "woman's": ["dating", "romance"],
   "woman": ["dating", "romance"],
+  "split up": ["dating", "romance"],
   "prosthetic": ["cyberpunk", "medical"],
   "bionic": ["cyberpunk", "mecha"],
   "wiggle": ["cute", "physics"],
@@ -1852,6 +1854,8 @@
   "font": ["text", "text adventure", "visual novel"],
   "encyclopaedia": ["text", "text adventure", "visual novel"],
   "dictionary": ["text", "text adventure", "visual novel"],
+  "omega": ["supernatural", "werewolf", "wolf"],
+  "alpha": ["supernatural", "werewolf", "wolf"],
   "shifting": ["shapeshifting", "teleportation", "time travel"],
   "phases": ["science", "teleportation", "time travel"],
   "fully booked": ["schedule", "time management", "time travel"],
@@ -2074,6 +2078,7 @@
   "wraps": ["dress-up", "fashion", "repair"],
   "wrapped": ["dress-up", "fashion", "repair"],
   "wrap": ["dress-up", "fashion", "repair"],
+  "wear": ["dress-up", "fashion", "werewolf"],
   "vested": ["dress-up", "fashion", "phantom thief"],
   "vest": ["dress-up", "fashion", "phantom thief"],
   "handbags": ["dress-up", "fashion", "inventory management"],
@@ -2241,6 +2246,7 @@
   "express": ["communication", "conversation", "train"],
   "dialogue": ["communication", "conversation", "interactive film"],
   "chat": ["communication", "conversation", "online"],
+  "breaking up": ["communication", "dating", "romance"],
   "backhanded": ["communication", "conversation", "rivals"],
   "years'": ["coming-of-age", "immortality", "memories"],
   "thirteen": ["coming-of-age", "multiplayer", "young"],
@@ -2771,7 +2777,6 @@
   "driver": ["driving", "racing", "roadtrip", "vehicle"],
   "driven": ["driving", "racing", "roadtrip", "vehicle"],
   "drive": ["driving", "racing", "roadtrip", "vehicle"],
-  "wear": ["dress-up", "fashion", "supernatural", "werewolf"],
   "fitting": ["dress-up", "fashion", "impersonation", "shapeshifting"],
   "fittest": ["dress-up", "fashion", "impersonation", "shapeshifting"],
   "fits": ["dress-up", "fashion", "impersonation", "shapeshifting"],
@@ -3309,9 +3314,6 @@
   "armageddon": ["apocalyptic", "demon", "eldritch", "post apocalyptic"],
   "apocalypse": ["apocalyptic", "demon", "eldritch", "post apocalyptic"],
   "anarchy": ["apocalyptic", "demon", "post apocalyptic", "rebellion"],
-  "wolves": ["animals", "mammal", "supernatural", "werewolf"],
-  "wildest": ["animals", "nature", "supernatural", "werewolf"],
-  "wild": ["animals", "nature", "supernatural", "werewolf"],
   "whiskers": ["animals", "cute", "mammal", "pet"],
   "tailed": ["animals", "bird", "mammal", "merfolk"],
   "tail": ["animals", "mammal", "merfolk", "pet"],
@@ -3319,7 +3321,7 @@
   "roost": ["animals", "bird", "farming", "livestock"],
   "reins": ["animals", "farming", "livestock", "western"],
   "rein": ["animals", "farming", "livestock", "western"],
-  "pup": ["animals", "pet", "supernatural", "werewolf"],
+  "pup": ["animals", "pet", "werewolf", "wolf"],
   "poodle": ["animals", "cute", "mammal", "pet"],
   "pigeons": ["animals", "bird", "cooking", "meat"],
   "pigeon": ["animals", "bird", "cooking", "meat"],
@@ -3338,7 +3340,7 @@
   "fleas": ["animals", "insects", "nature", "pet"],
   "flea": ["animals", "insects", "nature", "pet"],
   "eggshells": ["animals", "cooking", "farming", "livestock"],
-  "doghouse": ["animals", "pet", "supernatural", "werewolf"],
+  "doghouse": ["animals", "pet", "werewolf", "wolf"],
   "doggie": ["animals", "cute", "mammal", "pet"],
   "cuddle": ["animals", "cozy", "cute", "pet"],
   "coop": ["animals", "bird", "farming", "livestock"],
@@ -3537,13 +3539,6 @@
     "victorian"
   ],
   "third": [
-    "metroidvania",
-    "multiplayer",
-    "nonlinear",
-    "replayable",
-    "roguelike"
-  ],
-  "tenths": [
     "metroidvania",
     "multiplayer",
     "nonlinear",
@@ -4304,13 +4299,6 @@
     "dystopian",
     "invisibility",
     "surveillance"
-  ],
-  "hidden": [
-    "concealment",
-    "hidden object",
-    "invisibility",
-    "ninja",
-    "stealth"
   ],
   "cover": ["concealment", "espionage", "invisibility", "ninja", "stealth"],
   "whoopsy": ["communication", "conversation", "glitch", "hacking", "repair"],
@@ -5260,10 +5248,12 @@
   ],
   "woolly": ["animals", "dress-up", "farming", "fashion", "livestock"],
   "wool": ["animals", "dress-up", "farming", "fashion", "livestock"],
+  "wolves": ["animals", "mammal", "supernatural", "werewolf", "wolf"],
+  "wildest": ["animals", "nature", "supernatural", "werewolf", "wolf"],
+  "wild": ["animals", "nature", "supernatural", "werewolf", "wolf"],
   "vipers": ["animals", "cryptid", "monster", "monster tamer", "reptile"],
   "pussycat": ["animals", "cute", "fairy tale", "fantasy", "pet"],
   "puss": ["animals", "cute", "fairy tale", "fantasy", "pet"],
-  "predatory": ["animals", "cryptid", "hunting", "monster", "monster tamer"],
   "pork": ["animals", "cooking", "farming", "livestock", "meat"],
   "poacher": ["animals", "caper", "crime", "hunting", "noir"],
   "pets": ["animals", "cute", "monster tamer", "pet", "raising"],
@@ -5279,10 +5269,10 @@
   "eggs": ["animals", "bird", "cooking", "farming", "livestock"],
   "egg": ["animals", "bird", "cooking", "farming", "livestock"],
   "domestic": ["animals", "monster tamer", "pet", "political", "raising"],
-  "dogs": ["animals", "mammal", "pet", "supernatural", "werewolf"],
-  "dogged": ["animals", "mammal", "pet", "supernatural", "werewolf"],
-  "dog's": ["animals", "mammal", "pet", "supernatural", "werewolf"],
-  "dog": ["animals", "mammal", "pet", "supernatural", "werewolf"],
+  "dogs": ["animals", "mammal", "pet", "werewolf", "wolf"],
+  "dogged": ["animals", "mammal", "pet", "werewolf", "wolf"],
+  "dog's": ["animals", "mammal", "pet", "werewolf", "wolf"],
+  "dog": ["animals", "mammal", "pet", "werewolf", "wolf"],
   "cowbell": ["animals", "farming", "livestock", "musical", "rhythm"],
   "birdy": ["animals", "bird", "cute", "flight", "mecha"],
   "bats": ["animals", "mammal", "sports", "supernatural", "vampire"],
@@ -5644,14 +5634,6 @@
   "party's": ["jrpg", "party", "political", "rebellion", "role playing", "rpg"],
   "party": ["jrpg", "party", "political", "rebellion", "role playing", "rpg"],
   "parties": ["jrpg", "party", "political", "rebellion", "role playing", "rpg"],
-  "hiding": [
-    "hidden object",
-    "horror",
-    "invisibility",
-    "ninja",
-    "sneaking",
-    "stealth"
-  ],
   "hide": [
     "hidden object",
     "horror",
@@ -8097,14 +8079,6 @@
     "rebellion",
     "rivals"
   ],
-  "wolf": [
-    "animals",
-    "fairy tale",
-    "fantasy",
-    "mammal",
-    "supernatural",
-    "werewolf"
-  ],
   "whales": [
     "animals",
     "aquatic",
@@ -8131,14 +8105,6 @@
   ],
   "turkeys": ["animals", "bird", "cooking", "farming", "livestock", "meat"],
   "turkey": ["animals", "bird", "cooking", "farming", "livestock", "meat"],
-  "stalk": [
-    "animals",
-    "art nouveau",
-    "gardening",
-    "nature",
-    "plants",
-    "scavenging"
-  ],
   "spots": [
     "animals",
     "cryptid",
@@ -8168,7 +8134,15 @@
   "rabbits": ["animals", "fairy tale", "fantasy", "hunting", "mammal", "pet"],
   "rabbit's": ["animals", "fairy tale", "fantasy", "hunting", "mammal", "pet"],
   "rabbit": ["animals", "fairy tale", "fantasy", "hunting", "mammal", "pet"],
-  "paws": ["animals", "cute", "mammal", "pet", "supernatural", "werewolf"],
+  "predatory": [
+    "animals",
+    "cryptid",
+    "hunting",
+    "monster",
+    "monster tamer",
+    "supernatural"
+  ],
+  "paws": ["animals", "cute", "mammal", "pet", "werewolf", "wolf"],
   "kitten": ["animals", "cute", "dress-up", "fashion", "mammal", "pet"],
   "instinct": [
     "animals",
@@ -8178,15 +8152,6 @@
     "psychic",
     "psychological"
   ],
-  "hounded": [
-    "animals",
-    "hunting",
-    "mammal",
-    "pet",
-    "supernatural",
-    "werewolf"
-  ],
-  "hound": ["animals", "hunting", "mammal", "pet", "supernatural", "werewolf"],
   "horsing": ["animals", "farming", "livestock", "mammal", "racing", "western"],
   "horses": ["animals", "farming", "livestock", "mammal", "racing", "western"],
   "horse's": ["animals", "farming", "livestock", "mammal", "racing", "western"],
@@ -8213,7 +8178,7 @@
     "nautical",
     "swashbuckling"
   ],
-  "doggy": ["animals", "cute", "mammal", "pet", "supernatural", "werewolf"],
+  "doggy": ["animals", "cute", "mammal", "pet", "werewolf", "wolf"],
   "dear": ["animals", "hunting", "mammal", "regency", "steampunk", "victorian"],
   "crikey": [
     "animals",
@@ -10116,6 +10081,15 @@
     "noir",
     "social deduction"
   ],
+  "hidden": [
+    "concealment",
+    "hidden object",
+    "horror",
+    "invisibility",
+    "ninja",
+    "sneaking",
+    "stealth"
+  ],
   "whoops": [
     "communication",
     "conversation",
@@ -11619,6 +11593,15 @@
     "rebellion",
     "rivals"
   ],
+  "wolf": [
+    "animals",
+    "fairy tale",
+    "fantasy",
+    "mammal",
+    "supernatural",
+    "werewolf",
+    "wolf"
+  ],
   "turtle": [
     "animals",
     "aquatic",
@@ -11628,14 +11611,14 @@
     "reptile",
     "swashbuckling"
   ],
-  "stalks": [
+  "stalk": [
     "animals",
     "art nouveau",
-    "cooking",
     "gardening",
     "nature",
     "plants",
-    "scavenging"
+    "scavenging",
+    "supernatural"
   ],
   "shelling": [
     "animals",
@@ -11727,14 +11710,23 @@
     "mammal",
     "pet"
   ],
-  "pack": [
+  "hounded": [
     "animals",
-    "delivery",
-    "inventory management",
+    "hunting",
     "mammal",
-    "resource management",
+    "pet",
     "supernatural",
-    "werewolf"
+    "werewolf",
+    "wolf"
+  ],
+  "hound": [
+    "animals",
+    "hunting",
+    "mammal",
+    "pet",
+    "supernatural",
+    "werewolf",
+    "wolf"
   ],
   "ducky": [
     "animals",
@@ -12969,16 +12961,6 @@
     "vampire",
     "zombie"
   ],
-  "hideous": [
-    "dress-up",
-    "fashion",
-    "hidden object",
-    "horror",
-    "invisibility",
-    "ninja",
-    "sneaking",
-    "stealth"
-  ],
   "buckle": [
     "dress-up",
     "driving",
@@ -13968,6 +13950,16 @@
     "noir",
     "police",
     "social deduction"
+  ],
+  "recovery": [
+    "caper",
+    "heist",
+    "medical",
+    "phantom thief",
+    "quest",
+    "rehabilitation",
+    "rescue",
+    "steal"
   ],
   "lock": [
     "caper",
@@ -15159,6 +15151,16 @@
     "invention",
     "utopian"
   ],
+  "paces": [
+    "arcade",
+    "exploration",
+    "inventory management",
+    "open world",
+    "resource management",
+    "runner",
+    "side scroller",
+    "walking simulator"
+  ],
   "chips": [
     "arcade",
     "artificial intelligence",
@@ -15349,6 +15351,16 @@
     "walking simulator",
     "western"
   ],
+  "stalks": [
+    "animals",
+    "art nouveau",
+    "cooking",
+    "gardening",
+    "nature",
+    "plants",
+    "scavenging",
+    "supernatural"
+  ],
   "sharks": [
     "animals",
     "aquatic",
@@ -15376,8 +15388,8 @@
     "monster tamer",
     "pet",
     "raising",
-    "supernatural",
-    "werewolf"
+    "werewolf",
+    "wolf"
   ],
   "puppies": [
     "animals",
@@ -15386,8 +15398,8 @@
     "monster tamer",
     "pet",
     "raising",
-    "supernatural",
-    "werewolf"
+    "werewolf",
+    "wolf"
   ],
   "pawn": [
     "animals",
@@ -15398,6 +15410,16 @@
     "strategy",
     "tactical",
     "war"
+  ],
+  "pack": [
+    "animals",
+    "delivery",
+    "inventory management",
+    "mammal",
+    "resource management",
+    "supernatural",
+    "werewolf",
+    "wolf"
   ],
   "octopus's": [
     "animals",
@@ -16679,16 +16701,6 @@
     "rebellion",
     "rivals"
   ],
-  "claw": [
-    "action",
-    "animals",
-    "cryptid",
-    "monster",
-    "monster tamer",
-    "pet",
-    "supernatural",
-    "werewolf"
-  ],
   "challenged": [
     "action",
     "battle royale",
@@ -17437,6 +17449,17 @@
     "magical",
     "reunion",
     "surveillance"
+  ],
+  "wearing": [
+    "creepy",
+    "disillusionment",
+    "dress-up",
+    "emotional",
+    "fashion",
+    "horror",
+    "suspense",
+    "tragedy",
+    "werewolf"
   ],
   "monster": [
     "creepy",
@@ -20111,6 +20134,17 @@
     "sabotage",
     "vehicle"
   ],
+  "claw": [
+    "action",
+    "animals",
+    "cryptid",
+    "monster",
+    "monster tamer",
+    "pet",
+    "supernatural",
+    "werewolf",
+    "wolf"
+  ],
   "bullet": [
     "action",
     "assassination",
@@ -20751,18 +20785,6 @@
     "resurrection",
     "supernatural",
     "zombie"
-  ],
-  "wearing": [
-    "creepy",
-    "disillusionment",
-    "dress-up",
-    "emotional",
-    "fashion",
-    "horror",
-    "supernatural",
-    "suspense",
-    "tragedy",
-    "werewolf"
   ],
   "slumber": [
     "creepy",
@@ -21735,18 +21757,6 @@
     "dress-up",
     "fashion",
     "invention"
-  ],
-  "paces": [
-    "arcade",
-    "exploration",
-    "inventory management",
-    "open world",
-    "resource management",
-    "runner",
-    "side scroller",
-    "supernatural",
-    "walking simulator",
-    "werewolf"
   ],
   "devices": [
     "arcade",
@@ -25576,20 +25586,6 @@
     "police",
     "social deduction"
   ],
-  "recovery": [
-    "caper",
-    "concealment",
-    "heist",
-    "invisibility",
-    "medical",
-    "ninja",
-    "phantom thief",
-    "quest",
-    "rehabilitation",
-    "rescue",
-    "steal",
-    "stealth"
-  ],
   "open and shut": [
     "caper",
     "detective",
@@ -26808,20 +26804,6 @@
     "sabotage",
     "swashbuckling"
   ],
-  "bite": [
-    "action",
-    "animals",
-    "cooking",
-    "cryptid",
-    "insects",
-    "medical",
-    "monster",
-    "monster tamer",
-    "nature",
-    "pet",
-    "supernatural",
-    "werewolf"
-  ],
   "ballistic": [
     "action",
     "bullet hell",
@@ -27931,7 +27913,7 @@
     "sabotage",
     "swashbuckling"
   ],
-  "biter": [
+  "bite": [
     "action",
     "animals",
     "cooking",
@@ -27942,9 +27924,9 @@
     "monster tamer",
     "nature",
     "pet",
-    "rivals",
     "supernatural",
-    "werewolf"
+    "werewolf",
+    "wolf"
   ],
   "alert": [
     "action",
@@ -28471,54 +28453,6 @@
     "tycoon",
     "urban"
   ],
-  "stalking": [
-    "animals",
-    "art nouveau",
-    "cryptid",
-    "detective",
-    "gardening",
-    "hunting",
-    "investigation",
-    "monster tamer",
-    "nature",
-    "noir",
-    "plants",
-    "police",
-    "scavenging",
-    "tracking"
-  ],
-  "hunting": [
-    "animals",
-    "collecting",
-    "cryptid",
-    "detective",
-    "hidden object",
-    "hunting",
-    "investigation",
-    "monster tamer",
-    "noir",
-    "quest",
-    "scavenging",
-    "search",
-    "thriller",
-    "tracking"
-  ],
-  "hunt": [
-    "animals",
-    "collecting",
-    "cryptid",
-    "detective",
-    "hidden object",
-    "hunting",
-    "investigation",
-    "monster tamer",
-    "noir",
-    "quest",
-    "scavenging",
-    "search",
-    "thriller",
-    "tracking"
-  ],
   "beasts": [
     "animals",
     "creepy",
@@ -28950,6 +28884,22 @@
     "role playing",
     "social deduction",
     "sword & sorcery"
+  ],
+  "biter": [
+    "action",
+    "animals",
+    "cooking",
+    "cryptid",
+    "insects",
+    "medical",
+    "monster",
+    "monster tamer",
+    "nature",
+    "pet",
+    "rivals",
+    "supernatural",
+    "werewolf",
+    "wolf"
   ],
   "cultural": [
     "academia",
@@ -29528,6 +29478,57 @@
     "roguelike",
     "sports"
   ],
+  "stalking": [
+    "animals",
+    "art nouveau",
+    "cryptid",
+    "detective",
+    "gardening",
+    "hunting",
+    "investigation",
+    "monster tamer",
+    "nature",
+    "noir",
+    "plants",
+    "police",
+    "scavenging",
+    "supernatural",
+    "tracking"
+  ],
+  "hunting": [
+    "animals",
+    "collecting",
+    "cryptid",
+    "detective",
+    "hidden object",
+    "hunting",
+    "investigation",
+    "monster tamer",
+    "noir",
+    "quest",
+    "scavenging",
+    "search",
+    "supernatural",
+    "thriller",
+    "tracking"
+  ],
+  "hunt": [
+    "animals",
+    "collecting",
+    "cryptid",
+    "detective",
+    "hidden object",
+    "hunting",
+    "investigation",
+    "monster tamer",
+    "noir",
+    "quest",
+    "scavenging",
+    "search",
+    "supernatural",
+    "thriller",
+    "tracking"
+  ],
   "worldly": [
     "angel",
     "comics",
@@ -29749,6 +29750,23 @@
     "repair",
     "sabotage"
   ],
+  "seconds": [
+    "action",
+    "battle royale",
+    "competitive",
+    "contest",
+    "multiplayer",
+    "quick-time events",
+    "racing",
+    "real-time",
+    "sports",
+    "superspeed",
+    "time",
+    "time limit",
+    "time management",
+    "time manipulation",
+    "time travel"
+  ],
   "pieces": [
     "action",
     "apocalyptic",
@@ -29799,23 +29817,6 @@
     "roguelike",
     "sports",
     "time travel"
-  ],
-  "bites": [
-    "action",
-    "animals",
-    "cooking",
-    "creepy",
-    "cryptid",
-    "horror",
-    "insects",
-    "medical",
-    "monster",
-    "monster tamer",
-    "nature",
-    "pet",
-    "supernatural",
-    "suspense",
-    "werewolf"
   ],
   "smart": [
     "academia",
@@ -30463,24 +30464,6 @@
     "shapeshifting",
     "social deduction"
   ],
-  "hunter": [
-    "animals",
-    "collecting",
-    "cryptid",
-    "detective",
-    "hidden object",
-    "hunting",
-    "investigation",
-    "monster tamer",
-    "noir",
-    "quest",
-    "scavenging",
-    "search",
-    "supernatural",
-    "thriller",
-    "tracking",
-    "werewolf"
-  ],
   "pity": [
     "angel",
     "creepy",
@@ -30768,6 +30751,24 @@
     "steal",
     "thriller",
     "tracking"
+  ],
+  "bites": [
+    "action",
+    "animals",
+    "cooking",
+    "creepy",
+    "cryptid",
+    "horror",
+    "insects",
+    "medical",
+    "monster",
+    "monster tamer",
+    "nature",
+    "pet",
+    "supernatural",
+    "suspense",
+    "werewolf",
+    "wolf"
   ],
   "arts": [
     "academia",
@@ -31204,6 +31205,25 @@
     "parody",
     "shapeshifting",
     "social deduction"
+  ],
+  "hunter": [
+    "animals",
+    "collecting",
+    "cryptid",
+    "detective",
+    "hidden object",
+    "hunting",
+    "investigation",
+    "monster tamer",
+    "noir",
+    "quest",
+    "scavenging",
+    "search",
+    "supernatural",
+    "thriller",
+    "tracking",
+    "werewolf",
+    "wolf"
   ],
   "route": [
     "alternate history",
@@ -31805,27 +31825,6 @@
     "technology",
     "time travel",
     "visual novel"
-  ],
-  "seconds": [
-    "action",
-    "battle royale",
-    "competitive",
-    "contest",
-    "metroidvania",
-    "multiplayer",
-    "nonlinear",
-    "quick-time events",
-    "racing",
-    "real-time",
-    "replayable",
-    "roguelike",
-    "sports",
-    "superspeed",
-    "time",
-    "time limit",
-    "time management",
-    "time manipulation",
-    "time travel"
   ],
   "charms": [
     "beautiful",
