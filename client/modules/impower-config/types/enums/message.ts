@@ -1,4 +1,6 @@
 export type Message =
+  | "pitched_games_preamble"
+  | "pitched_games_author_preamble"
   | "pitched_game_preamble"
   | "pitched_game_author_preamble"
   | "pitched_story_preamble"
