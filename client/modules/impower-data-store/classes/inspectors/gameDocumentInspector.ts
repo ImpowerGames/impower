@@ -233,7 +233,10 @@ export class GameDocumentInspector extends PageDocumentInspector<ProjectDocument
     }
     if (propertyPath === "summary") {
       const messages = ConfigCache.instance.params?.messages;
-      return messages[`pitched_${data?.projectType || "game"}_preamble`];
+      return (
+        messages[`pitched_${data?.projectType}_preamble`] ||
+        messages.pitched_games_preamble
+      );
     }
     return super.getPropertyPlaceholder(propertyPath, data);
   }

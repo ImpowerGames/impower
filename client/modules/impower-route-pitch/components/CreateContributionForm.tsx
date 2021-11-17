@@ -1081,8 +1081,9 @@ const CreateContributionForm = React.memo(
               <GameSummaryPreambleSelector
                 placeholder={
                   ConfigCache.instance.params?.messages[
-                    `pitched_${projectType || "game"}_preamble`
-                  ]
+                    `pitched_${projectType}_preamble`
+                  ] ||
+                  ConfigCache.instance.params?.messages.pitched_games_preamble
                 }
                 tags={tagsState}
                 onChangeTags={setTagsState}

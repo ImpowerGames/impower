@@ -110,7 +110,8 @@ const PitchCardContent = React.memo(
     const currentConfig = configState || config || ConfigCache.instance.params;
     const summaryPreamble = currentConfig?.messages
       ? `${format(
-          currentConfig?.messages[`pitched_${projectType || "game"}_preamble`],
+          currentConfig?.messages[`pitched_${projectType}_preamble`] ||
+            currentConfig?.messages.pitched_games_preamble,
           {
             tag: mainTag,
           }

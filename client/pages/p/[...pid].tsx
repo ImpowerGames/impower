@@ -426,8 +426,8 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
         title={name}
         description={`${format(
           (configState || config).messages[
-            `pitched_${projectType || "game"}_author_preamble`
-          ],
+            `pitched_${projectType}_author_preamble`
+          ] || (configState || config).messages.pitched_games_author_preamble,
           {
             tag: pitchDoc?.tags?.[0] || "",
           }

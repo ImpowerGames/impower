@@ -345,8 +345,8 @@ const ContributionCardLayout = React.memo(
 
     const preamble =
       ConfigCache.instance.params?.messages[
-        `pitched_${projectType || "game"}_preamble`
-      ];
+        `pitched_${projectType}_preamble`
+      ] || ConfigCache.instance.params?.messages.pitched_games_preamble;
     const truncationLimit = 300;
     const truncatedContent = getTruncatedContent(content, truncationLimit);
     const isTruncated =
