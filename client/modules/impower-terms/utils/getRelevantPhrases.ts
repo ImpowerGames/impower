@@ -53,7 +53,7 @@ export const getTermRelevancyScore = (
 const getRelevantPhrases = (
   tagsSortedBySpecificity: string[],
   tagPhrasesMap: {
-    [phrase: string]: string[];
+    [tag: string]: string[];
   },
   termTagsMap: {
     [term: string]: string[];

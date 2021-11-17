@@ -56,11 +56,12 @@ const PhraseExplanationDialog = React.memo(
               .flatMap((g) => g)
               .map((t) => t.toLowerCase());
             const uniqueAssociatedTags = Array.from(
-              new Set(
-                termTags.filter((t) =>
+              new Set([
+                ...termTags.filter((t) =>
                   officialGameTags.includes(t.toLowerCase())
-                )
-              )
+                ),
+                subphrase,
+              ])
             );
             const includesTags = uniqueAssociatedTags.filter((t) =>
               tags.includes(t)

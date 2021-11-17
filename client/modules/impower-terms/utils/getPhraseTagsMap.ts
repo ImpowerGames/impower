@@ -23,6 +23,9 @@ const getPhraseTagsMap = (
         if (!phraseTagsMap[phrase]) {
           phraseTagsMap[phrase] = [];
         }
+        if (!phraseTagsMap[phrase].includes(term)) {
+          phraseTagsMap[phrase].push(term);
+        }
         phraseTagsMap[phrase].push(
           ...termTags.filter((tag) => !phraseTagsMap[phrase].includes(tag))
         );
