@@ -411,6 +411,7 @@ const GamesConsole = (props: YourGamesConsoleProps): JSX.Element => {
       name: "",
       slug: "",
       owners: [uid],
+      projectType: "game",
     });
     setCreateDoc(newGame);
     setCreateDialogOpen(true);

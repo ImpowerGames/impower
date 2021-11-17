@@ -1,4 +1,8 @@
 {
+  "pitched_games_preamble": "{tag:regex:A} {tag} game where you",
+  "pitched_games_author_preamble": "{tag:regex:A} {tag} game pitched by",
+  "pitched_projects_preamble": "{tag:regex:A} {tag} game where you",
+  "pitched_projects_author_preamble": "{tag:regex:A} {tag} game pitched by",
   "pitched_game_preamble": "{tag:regex:A} {tag} game where you",
   "pitched_game_author_preamble": "{tag:regex:A} {tag} game pitched by",
   "pitched_story_preamble": "After {catalyst}, {trait} {hero} must {obstacle} and {goal} {stakes}.",

@@ -98,6 +98,7 @@ const AddPitchToolbar = React.memo(
         owners: [uid],
         pitched: true,
         pitchedAt: new Timestamp(),
+        projectType: "game",
       });
       setCreateDoc(newGame);
       setCreateDialogOpenKey("game");

@@ -139,6 +139,7 @@ const CreateGamePage = React.memo((props: CreateGamePageProps) => {
             name: "",
             slug: "",
             owners: [uid],
+            projectType: "game",
           })
         );
       };

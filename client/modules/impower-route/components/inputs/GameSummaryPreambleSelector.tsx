@@ -44,7 +44,7 @@ export interface GameSummaryPreambleSelectorProps {
 export const GameSummaryPreambleSelector = (
   props: GameSummaryPreambleSelectorProps
 ): JSX.Element | null => {
-  const { placeholder, tags, onChangeTags } = props;
+  const { placeholder = "", tags, onChangeTags } = props;
 
   const mainTag = tags?.[0] || "";
 
