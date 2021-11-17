@@ -16,7 +16,7 @@ import {
   confirmDialogNavOpen,
 } from "../../impower-confirm-dialog";
 import { Timestamp } from "../../impower-core";
-import { GameDocument } from "../../impower-data-store";
+import { ProjectDocument } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { FontIcon, SvgData } from "../../impower-icon";
 import CornerFab from "../../impower-route-engine/components/fabs/CornerFab";
@@ -75,7 +75,7 @@ const AddPitchToolbar = React.memo(
 
     const [canClose, setCanClose] = useState(true);
     const [newDocId, setNewDocId] = useState<string>();
-    const [createDoc, setCreateDoc] = useState<GameDocument>();
+    const [createDoc, setCreateDoc] = useState<ProjectDocument>();
     const [createDialogOpenKey, setCreateDialogOpenKey] = useState<"game">();
 
     const openedWithQueryRef = useRef(false);
@@ -98,6 +98,7 @@ const AddPitchToolbar = React.memo(
         owners: [uid],
         pitched: true,
         pitchedAt: new Timestamp(),
+        projectType: "game",
       });
       setCreateDoc(newGame);
       setCreateDialogOpenKey("game");
@@ -217,7 +218,7 @@ const AddPitchToolbar = React.memo(
     );
 
     const handleSubmitted = useCallback(
-      async (id: string, doc: GameDocument, successful: boolean) => {
+      async (id: string, doc: ProjectDocument, successful: boolean) => {
         if (successful) {
           await router.replace(`/p/${id}`);
         }

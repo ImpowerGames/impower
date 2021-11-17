@@ -200,6 +200,7 @@ interface ContributionCardLayoutProps {
   openedActionsRef?: React.Ref<HTMLDivElement>;
   contentRef?: React.Ref<HTMLDivElement>;
   pitchId?: string;
+  projectType?: string;
   liked?: boolean;
   disliked?: boolean;
   connectedTo?: boolean;
@@ -254,6 +255,7 @@ const ContributionCardLayout = React.memo(
       openedActionsRef,
       contentRef,
       pitchId,
+      projectType,
       author,
       targetCreatedBy,
       createdBy,
@@ -342,7 +344,9 @@ const ContributionCardLayout = React.memo(
     );
 
     const preamble =
-      ConfigCache.instance.params?.messages?.pitched_games_preamble;
+      ConfigCache.instance.params?.messages[
+        `pitched_${projectType || "game"}_preamble`
+      ];
     const truncationLimit = 300;
     const truncatedContent = getTruncatedContent(content, truncationLimit);
     const isTruncated =

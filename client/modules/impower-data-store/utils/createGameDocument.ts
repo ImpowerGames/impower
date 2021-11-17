@@ -1,10 +1,13 @@
-import { GameDocument } from "../types/documents/gameDocument";
+import { ProjectDocument } from "..";
 import createProjectDocument from "./createProjectDocument";
 
-const createGameDocument = (doc?: Partial<GameDocument>): GameDocument => {
+const createGameDocument = (
+  doc?: Partial<ProjectDocument>
+): ProjectDocument => {
   return {
     ...createProjectDocument(),
-    _documentType: "GameDocument",
+    _documentType: "ProjectDocument",
+    projectType: "game",
     ...doc,
   };
 };

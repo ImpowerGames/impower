@@ -1,15 +1,11 @@
-const getTypeName = (
-  docType: string
-): "User" | "Studio" | "Resource" | "Game" => {
+const getTypeName = (docType: string): "User" | "Studio" | "Project" => {
   switch (docType) {
     case "UserDocument":
       return "User";
     case "StudioDocument":
       return "Studio";
-    case "ResourceDocument":
-      return "Resource";
-    case "GameDocument":
-      return "Game";
+    case "ProjectDocument":
+      return "Project";
     default:
       return undefined;
   }

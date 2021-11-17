@@ -105,8 +105,6 @@ interface ContributionPostPageProps {
 
 const ContributionPostPageContent = React.memo(
   (props: ContributionPostPageProps) => {
-    const pitchedCollection = "pitched_games";
-
     const { pid, cid, pitchDoc, contributionDoc, config, ogImage } = props;
 
     const [navigationState, navigationDispatch] = useContext(NavigationContext);
@@ -125,7 +123,12 @@ const ContributionPostPageContent = React.memo(
     );
     const [viewingArchvied, setViewingArchived] = useState(false);
     const contributionDocRef = useRef(validContributionDoc || undefined);
-    const { _author: author, content, _createdAt } = contributionDocState;
+    const {
+      _author: author,
+      content,
+      _createdAt,
+      contributionType,
+    } = contributionDocState;
     const hasUnsavedChangesRef = useRef(false);
 
     const createdAtISO =
@@ -157,7 +160,7 @@ const ContributionPostPageContent = React.memo(
               )
             ).default;
             const snap = await new DataStoreRead(
-              pitchedCollection,
+              "pitched_projects",
               pid,
               "contributions",
               cid
@@ -357,7 +360,7 @@ const ContributionPostPageContent = React.memo(
           author={author?.u}
           publishedTime={createdAtISO}
           modifiedTime={createdAtISO}
-          section={`Game Contribution`}
+          section={`${contributionType} Contribution`}
           title={`Impower Games`}
           description={content}
           url={url}
@@ -435,21 +438,20 @@ export const getStaticPaths: GetStaticPaths = async () => {
 };
 
 export const getStaticProps: GetStaticProps = async (context) => {
-  const pitchedCollection = "pitched_games";
   const { pid, cid } = context.params;
   const pDocId = Array.isArray(pid) ? pid[0] : pid;
   const cDocId = Array.isArray(cid) ? cid[0] : cid;
   const adminApp = await initAdminApp();
   const pitchSnapshot = await adminApp
     .firestore()
-    .doc(`${pitchedCollection}/${pDocId}`)
+    .doc(`pitched_projects/${pDocId}`)
     .get();
   const pitchDoc = getSerializableDocument<ProjectDocument>(
     pitchSnapshot.data()
   );
   const contributionSnapshot = await adminApp
     .firestore()
-    .doc(`${pitchedCollection}/${pDocId}/contributions/${cDocId}`)
+    .doc(`pitched_projects/${pDocId}/contributions/${cDocId}`)
     .get();
   const contributionDoc = getSerializableDocument<ContributionDocument>(
     contributionSnapshot.data()

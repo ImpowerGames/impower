@@ -27,7 +27,7 @@ import {
   getFileContentType,
 } from "../../../impower-core";
 import getDataStatePath from "../../../impower-data-state/utils/getDataStatePath";
-import { GameDocument, ResourceDocument } from "../../../impower-data-store";
+import { ProjectDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
 import {
   createFileData,
@@ -66,7 +66,6 @@ const StyledButton = styled(Button)`
 interface FilesConsoleContentProps {
   studioId: string;
   scrollParent: HTMLElement;
-  projectCollection: "games" | "resources";
   projectId: string;
   cardDetails: { [key: string]: CardDetail };
   currentPath: string;
@@ -137,7 +136,6 @@ const FilesConsoleContent = (
 ): JSX.Element | null => {
   const {
     scrollParent,
-    projectCollection,
     projectId,
     cardDetails,
     currentPath,
@@ -336,7 +334,7 @@ const FilesConsoleContent = (
         try {
           onDelete(
             getDataStatePath(
-              projectCollection,
+              "projects",
               projectId,
               "instances",
               "folders",
@@ -353,14 +351,7 @@ const FilesConsoleContent = (
         }
       }
     },
-    [
-      docsByPath,
-      idsByPath,
-      onDelete,
-      projectCollection,
-      projectId,
-      toastDispatch,
-    ]
+    [docsByPath, idsByPath, onDelete, projectId, toastDispatch]
   );
 
   const handleDelete = useCallback(
@@ -694,8 +685,7 @@ const StyledConsoleContentArea = styled.div`
 
 interface FilesConsoleProps {
   scrollParent: HTMLElement;
-  projectDoc: GameDocument | ResourceDocument;
-  projectCollection: "games" | "resources";
+  projectDoc: ProjectDocument;
   projectId: string;
   fileDocs: { [id: string]: FileData };
   folderDocs: { [id: string]: FolderData };
@@ -726,7 +716,6 @@ interface FilesConsoleProps {
 const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
   const {
     scrollParent,
-    projectCollection,
     projectDoc,
     projectId,
     fileDocs,
@@ -983,7 +972,6 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
         <FilesConsoleContent
           studioId={studioId}
           scrollParent={scrollParent}
-          projectCollection={projectCollection}
           projectId={projectId}
           cardDetails={cardDetails}
           currentPath={currentPath}

@@ -21,12 +21,11 @@ import {
   confirmDialogNavOpen,
 } from "../../../impower-confirm-dialog";
 import {
-  GameDocument,
   GameDocumentInspector,
   isGameDocument,
   isResourceDocument,
   PageDocumentInspector,
-  ResourceDocument,
+  ProjectDocument,
   ResourceDocumentInspector,
 } from "../../../impower-data-store";
 import {
@@ -222,14 +221,14 @@ const ItemNavigator = React.memo((props: ItemNavigatorProps): JSX.Element => {
 interface SetupDetailsProps {
   disabled?: boolean;
   id: string;
-  doc: GameDocument | ResourceDocument;
+  doc: ProjectDocument;
   submitting: boolean;
   errors: { [propertyPath: string]: string };
   propertyPaths?: string[];
   expandedProperties: string[];
   onExpandProperty?: (propertyPath: string, expanded: boolean) => void;
-  onChange?: (doc: (GameDocument | ResourceDocument)[]) => void;
-  onDebouncedChange?: (doc: (GameDocument | ResourceDocument)[]) => void;
+  onChange?: (doc: ProjectDocument[]) => void;
+  onDebouncedChange?: (doc: ProjectDocument[]) => void;
   onPropertyErrorFound?: (propertyPath: string, error: string) => void;
   onPropertyErrorFixed?: (propertyPath: string) => void;
 }
@@ -255,7 +254,7 @@ const SetupDetails = React.memo((props: SetupDetailsProps) => {
       ? GameDocumentInspector.instance
       : isResourceDocument(doc)
       ? ResourceDocumentInspector.instance
-      : new PageDocumentInspector<GameDocument | ResourceDocument>();
+      : new PageDocumentInspector<ProjectDocument>();
   }, [doc]);
 
   const handleGetPropertyDocIds = useCallback(() => [id], [id]);
@@ -299,7 +298,7 @@ const SetupDetails = React.memo((props: SetupDetailsProps) => {
 
 interface SetupAdvancedProps {
   id: string;
-  doc: GameDocument | ResourceDocument;
+  doc: ProjectDocument;
 }
 
 const SetupAdvanced = React.memo((props: SetupAdvancedProps) => {
@@ -316,7 +315,7 @@ const SetupAdvanced = React.memo((props: SetupAdvancedProps) => {
         const studioId = doc?.studio;
         if (isGameDocument(doc)) {
           await new Promise<void>((resolve) =>
-            userDispatch(userOnDeleteSubmission(resolve, "games", id))
+            userDispatch(userOnDeleteSubmission(resolve, "projects", id))
           );
           if (studioId) {
             router.push(`/e/s/${studioId}?t=games`);
@@ -326,7 +325,7 @@ const SetupAdvanced = React.memo((props: SetupAdvancedProps) => {
         }
         if (isResourceDocument(doc)) {
           await new Promise<void>((resolve) =>
-            userDispatch(userOnDeleteSubmission(resolve, "resources", id))
+            userDispatch(userOnDeleteSubmission(resolve, "projects", id))
           );
           if (studioId) {
             router.push(`/e/s/${studioId}?t=resources`);
@@ -412,7 +411,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const { inspectedTargetId, inspectedProperties, submitting, errors } =
     state.present.dataPanel.panels[windowType].Detail;
 
-  const stateRef = useRef<GameDocument | ResourceDocument>(doc);
+  const stateRef = useRef<ProjectDocument>(doc);
 
   const inspectedContainers = useInspectedContainers(state.present, windowType);
   const inspectedTargetContainer =
@@ -600,20 +599,16 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     [windowType, dispatch, section]
   );
 
-  const handleChange = useCallback(
-    (docs: (GameDocument | ResourceDocument)[]) => {
-      const newDoc = docs[0];
-      stateRef.current = newDoc;
-    },
-    []
-  );
+  const handleChange = useCallback((docs: ProjectDocument[]) => {
+    const newDoc = docs[0];
+    stateRef.current = newDoc;
+  }, []);
 
   const handleDebouncedChange = useCallback(
-    (docs: (GameDocument | ResourceDocument)[]) => {
+    (docs: ProjectDocument[]) => {
       const newDoc = docs[0];
-      const collection = isGameDocument(newDoc) ? "games" : "resources";
       dispatch(
-        projectChangeDocument(collection, id, {
+        projectChangeDocument(id, {
           ...stateRef.current,
           ...newDoc,
         })

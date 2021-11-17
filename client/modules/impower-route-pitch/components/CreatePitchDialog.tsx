@@ -6,7 +6,7 @@ import React, { useMemo } from "react";
 import CreativeCommonsZeroBrandsIcon from "../../../resources/icons/brands/creative-commons-zero.svg";
 import CreativeCommonsBrandsIcon from "../../../resources/icons/brands/creative-commons.svg";
 import { ConfigParameters } from "../../impower-config";
-import { GameDocument, ProjectDocument } from "../../impower-data-store";
+import { ProjectDocument } from "../../impower-data-store";
 import { FontIcon, SvgData } from "../../impower-icon";
 import { CreationStep } from "../../impower-route/components/forms/CreateDocumentForm";
 import CreateGameForm from "../../impower-route/components/forms/CreateGameForm";
@@ -153,14 +153,14 @@ interface CreatePitchDialogProps
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
   id: string;
-  doc?: GameDocument;
-  onChange?: (doc: GameDocument) => void;
+  doc?: ProjectDocument;
+  onChange?: (doc: ProjectDocument) => void;
   onSubmit?: (
     e: React.FormEvent | React.MouseEvent,
     id: string,
-    doc: GameDocument
+    doc: ProjectDocument
   ) => Promise<void>;
-  onSubmitted?: (id: string, doc: GameDocument, successful: boolean) => void;
+  onSubmitted?: (id: string, doc: ProjectDocument, successful: boolean) => void;
   onClose?: (
     e: React.MouseEvent,
     reason: "backdropClick" | "escapeKeyDown" | "closeButtonClick" | "submitted"

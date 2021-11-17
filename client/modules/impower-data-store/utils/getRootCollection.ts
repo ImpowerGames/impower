@@ -1,15 +1,13 @@
 const getRootCollection = (
   docType: string
-): "users" | "studios" | "games" | "resources" => {
+): "users" | "studios" | "projects" => {
   switch (docType) {
     case "UserDocument":
       return "users";
     case "StudioDocument":
       return "studios";
-    case "GameDocument":
-      return "games";
-    case "ResourceDocument":
-      return "resources";
+    case "ProjectDocument":
+      return "projects";
     default:
       return undefined;
   }

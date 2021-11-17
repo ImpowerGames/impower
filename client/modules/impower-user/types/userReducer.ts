@@ -7,10 +7,8 @@ import {
   getLocalUpdateAnnotatedDocument,
   isCommentDocument,
   isContributionDocument,
-  isGameDocument,
   isPageDocument,
   isProjectDocument,
-  isResourceDocument,
   isStudioDocument,
   isUserDocument,
   ProjectDocument,
@@ -146,17 +144,13 @@ export const userReducer = (
         return {
           ...state,
           my_studio_memberships: null,
-          my_resource_memberships: null,
-          my_game_memberships: null,
+          my_project_memberships: null,
         };
       }
       const my_studio_memberships: {
         [id: string]: MemberData;
       } = {};
-      const my_resource_memberships: {
-        [id: string]: MemberData;
-      } = {};
-      const my_game_memberships: {
+      const my_project_memberships: {
         [id: string]: MemberData;
       } = {};
       Object.entries(my_memberships).forEach(([target, data]) => {
@@ -164,18 +158,14 @@ export const userReducer = (
         if (data.g === "studios") {
           my_studio_memberships[docId] = data;
         }
-        if (data.g === "resources") {
-          my_resource_memberships[docId] = data;
-        }
-        if (data.g === "games") {
-          my_game_memberships[docId] = data;
+        if (data.g === "projects") {
+          my_project_memberships[docId] = data;
         }
       });
       return {
         ...state,
         my_studio_memberships,
-        my_resource_memberships,
-        my_game_memberships,
+        my_project_memberships,
       };
     }
     case USER_LOAD_MY_FOLLOWS: {
@@ -284,8 +274,7 @@ export const userReducer = (
       const targetColId = path[2];
       let my_recent_pitched_projects = state?.my_recent_pitched_projects;
       if (
-        (parentColId === "pitched_games" ||
-          parentColId === "pitched_resources") &&
+        parentColId === "pitched_projects" &&
         type === "kudos" &&
         !targetColId &&
         state?.my_recent_pitched_projects[parentDocId]
@@ -344,8 +333,7 @@ export const userReducer = (
       const targetColId = path[2];
       let my_recent_pitched_projects = state?.my_recent_pitched_projects;
       if (
-        (parentColId === "pitched_games" ||
-          parentColId === "pitched_resources") &&
+        parentColId === "pitched_projects" &&
         type === "kudos" &&
         !targetColId &&
         state?.my_recent_pitched_projects[parentDocId]
@@ -427,8 +415,7 @@ export const userReducer = (
       };
       setData();
       let my_studio_memberships = state?.my_studio_memberships || {};
-      let my_resource_memberships = state?.my_resource_memberships || {};
-      let my_game_memberships = state?.my_game_memberships || {};
+      let my_project_memberships = state?.my_project_memberships || {};
       const id = path[path.length - 1];
       const parentDocId = path[path.length - 4];
       if (id === state?.uid) {
@@ -436,20 +423,15 @@ export const userReducer = (
           my_studio_memberships = { ...my_studio_memberships };
           my_studio_memberships[parentDocId] = data;
         }
-        if (data.g === "resources") {
-          my_resource_memberships = { ...my_resource_memberships };
-          my_resource_memberships[parentDocId] = data;
-        }
-        if (data.g === "games") {
-          my_game_memberships = { ...my_game_memberships };
-          my_game_memberships[parentDocId] = data;
+        if (data.g === "projects") {
+          my_project_memberships = { ...my_project_memberships };
+          my_project_memberships[parentDocId] = data;
         }
       }
       return {
         ...state,
         my_studio_memberships,
-        my_resource_memberships,
-        my_game_memberships,
+        my_project_memberships,
       };
     }
     case USER_CREATE_SUBMISSION: {
@@ -466,19 +448,35 @@ export const userReducer = (
         const { uid } = Auth.instance;
         const batch = await new DataStoreBatch().start();
         await new DataStoreWrite(...path).create(doc, batch);
-        await new DataStoreWrite(
-          "users",
-          uid,
-          "submissions",
-          submissionType
-        ).update(
-          {
-            _documentType: "PathDocument",
-            _createdBy: uid,
-            path: path.join("/"),
-          },
-          batch
-        );
+        try {
+          await new DataStoreWrite(
+            "users",
+            uid,
+            "submissions",
+            submissionType
+          ).update(
+            {
+              _documentType: "PathDocument",
+              _createdBy: uid,
+              path: path.join("/"),
+            },
+            batch
+          );
+        } catch {
+          await new DataStoreWrite(
+            "users",
+            uid,
+            "submissions",
+            submissionType
+          ).create(
+            {
+              _documentType: "PathDocument",
+              _createdBy: uid,
+              path: path.join("/"),
+            },
+            batch
+          );
+        }
         try {
           await batch.commit();
         } catch (e) {
@@ -496,8 +494,7 @@ export const userReducer = (
       let studios = state?.studios;
       let my_likes = state?.my_likes;
       let my_studio_memberships = state?.my_studio_memberships;
-      let my_resource_memberships = state?.my_resource_memberships;
-      let my_game_memberships = state?.my_game_memberships;
+      let my_project_memberships = state?.my_project_memberships;
       let my_submissions = state?.my_submissions;
       let my_recent_pages = state?.my_recent_pages;
       let my_recent_published_pages = state?.my_recent_published_pages;
@@ -613,27 +610,15 @@ export const userReducer = (
           },
         };
       }
-      if (submissionType === "resources" && isResourceDocument(newDoc)) {
-        my_resource_memberships = {
-          ...(my_resource_memberships || {}),
+      if (submissionType === "projects" && isProjectDocument(newDoc)) {
+        my_project_memberships = {
+          ...(my_project_memberships || {}),
           [id]: {
             access: MemberAccess.Owner,
             role: "",
             accessedAt: Date.now(),
             t: Date.now(),
-            g: "resources",
-          },
-        };
-      }
-      if (submissionType === "games" && isProjectDocument(newDoc)) {
-        my_game_memberships = {
-          ...(my_game_memberships || {}),
-          [id]: {
-            access: MemberAccess.Owner,
-            role: "",
-            accessedAt: Date.now(),
-            t: Date.now(),
-            g: "games",
+            g: "projects",
           },
         };
       }
@@ -646,8 +631,7 @@ export const userReducer = (
         studios,
         my_likes,
         my_studio_memberships,
-        my_resource_memberships,
-        my_game_memberships,
+        my_project_memberships,
         my_submissions,
         my_recent_pages,
         my_recent_published_pages,
@@ -684,8 +668,7 @@ export const userReducer = (
       const userDoc = isUserDocument(doc) ? doc : state?.userDoc;
       let studios = state?.studios;
       let my_studio_memberships = state?.my_studio_memberships;
-      let my_resource_memberships = state?.my_resource_memberships;
-      let my_game_memberships = state?.my_game_memberships;
+      let my_project_memberships = state?.my_project_memberships;
       let my_recent_pages = state?.my_recent_pages;
       let my_recent_published_pages = state?.my_recent_published_pages;
       let my_recent_pitched_projects = state?.my_recent_pitched_projects;
@@ -777,43 +760,22 @@ export const userReducer = (
           }
         }
       }
-      if (isResourceDocument(newDoc)) {
+      if (isProjectDocument(newDoc)) {
         if (newDoc?.owners) {
           if (!newDoc?.owners?.includes(state?.uid)) {
-            my_resource_memberships = {
-              ...(my_resource_memberships || {}),
+            my_project_memberships = {
+              ...(my_project_memberships || {}),
               [id]: {
                 access: MemberAccess.Owner,
                 role: "",
                 accessedAt: Date.now(),
                 t: Date.now(),
-                g: "resources",
+                g: "projects",
               },
             };
           } else {
-            my_resource_memberships = {
-              ...(my_resource_memberships || {}),
-              [id]: null,
-            };
-          }
-        }
-      }
-      if (isGameDocument(newDoc)) {
-        if (newDoc?.owners) {
-          if (!newDoc?.owners?.includes(state?.uid)) {
-            my_game_memberships = {
-              ...(my_game_memberships || {}),
-              [id]: {
-                access: MemberAccess.Owner,
-                role: "",
-                accessedAt: Date.now(),
-                t: Date.now(),
-                g: "games",
-              },
-            };
-          } else {
-            my_game_memberships = {
-              ...(my_game_memberships || {}),
+            my_project_memberships = {
+              ...(my_project_memberships || {}),
               [id]: null,
             };
           }
@@ -974,8 +936,7 @@ export const userReducer = (
         studios,
         userDoc,
         my_studio_memberships,
-        my_resource_memberships,
-        my_game_memberships,
+        my_project_memberships,
         my_recent_pages,
         my_recent_published_pages,
         my_recent_pitched_projects,
@@ -1009,8 +970,7 @@ export const userReducer = (
       setData();
       let studios = state?.studios;
       let my_studio_memberships = state?.my_studio_memberships;
-      let my_resource_memberships = state?.my_resource_memberships;
-      let my_game_memberships = state?.my_game_memberships;
+      let my_project_memberships = state?.my_project_memberships;
       let my_recent_pages = state?.my_recent_pages;
       let my_recent_published_pages = state?.my_recent_published_pages;
       let my_recent_pitched_projects = state?.my_recent_pitched_projects;
@@ -1048,33 +1008,9 @@ export const userReducer = (
           [id]: null,
         };
       }
-      if (submissionType === "resources") {
-        my_resource_memberships = {
-          ...(my_resource_memberships || {}),
-          [id]: null,
-        };
-      }
-      if (submissionType === "games") {
-        my_game_memberships = {
-          ...(my_game_memberships || {}),
-          [id]: null,
-        };
-      }
-      if (my_studio_memberships[id]) {
-        my_studio_memberships = {
-          ...(my_studio_memberships || {}),
-          [id]: null,
-        };
-      }
-      if (my_resource_memberships[id]) {
-        my_resource_memberships = {
-          ...(my_studio_memberships || {}),
-          [id]: null,
-        };
-      }
-      if (my_game_memberships[id]) {
-        my_game_memberships = {
-          ...(my_studio_memberships || {}),
+      if (submissionType === "projects") {
+        my_project_memberships = {
+          ...(my_project_memberships || {}),
           [id]: null,
         };
       }
@@ -1094,8 +1030,7 @@ export const userReducer = (
         ...state,
         studios,
         my_studio_memberships,
-        my_resource_memberships,
-        my_game_memberships,
+        my_project_memberships,
         my_recent_pages,
         my_recent_published_pages,
         my_recent_pitched_projects,

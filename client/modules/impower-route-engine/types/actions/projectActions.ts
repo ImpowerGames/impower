@@ -1,5 +1,5 @@
 import { MemberAccess } from "../../../impower-data-state";
-import { GameDocument, ResourceDocument } from "../../../impower-data-store";
+import { ProjectDocument } from "../../../impower-data-store";
 import {
   GameProjectData,
   InstanceData,
@@ -128,21 +128,19 @@ export const PROJECT_CHANGE_DOCUMENT = "PROJECT_CHANGE_DOCUMENT";
 export interface ProjectChangeDocumentAction {
   type: typeof PROJECT_CHANGE_DOCUMENT;
   payload: {
-    collection: "games" | "resources";
     id: string;
-    doc: GameDocument | ResourceDocument;
+    doc: ProjectDocument;
     skipSync: boolean;
   };
 }
 export const projectChangeDocument = (
-  collection: "games" | "resources",
   id: string,
-  doc: GameDocument | ResourceDocument,
+  doc: ProjectDocument,
   skipSync?: boolean
 ): ProjectChangeDocumentAction => {
   return {
     type: PROJECT_CHANGE_DOCUMENT,
-    payload: { collection, id, doc, skipSync },
+    payload: { id, doc, skipSync },
   };
 };
 
@@ -150,19 +148,17 @@ export const PROJECT_LOAD_DATA = "PROJECT_LOAD_DATA";
 export interface ProjectLoadDataAction {
   type: typeof PROJECT_LOAD_DATA;
   payload: {
-    collection: "games" | "resources";
     id: string;
     data: ResourceProjectData | GameProjectData;
   };
 }
 export const projectLoadData = (
-  collection: "games" | "resources",
   id: string,
   data: ResourceProjectData | GameProjectData
 ): ProjectLoadDataAction => {
   return {
     type: PROJECT_LOAD_DATA,
-    payload: { collection, id, data },
+    payload: { id, data },
   };
 };
 

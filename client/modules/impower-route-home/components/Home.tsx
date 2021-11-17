@@ -25,7 +25,7 @@ import GetStartedSection from "./sections/GetStartedSection";
 import ProductSection from "./sections/ProductSection";
 import RoadmapSection from "./sections/RoadmapSection";
 
-const title = `Game Dev Made Easy.`;
+const title = `Indie Dev Made Easy.`;
 const body = `Impower is a free community-powered indie development platform that gives creative people the tools they need to bring their ideas to life.`;
 const tryButton = { label: `Make a game, it's free!`, link: `/pitch?e=game` };
 const scrollInstruction = `SCROLL TO LEARN MORE`;

@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ContributionDocument } from "../types/documents/contributionDocument";
 
 export const usePitchUserContributionDocuments = (
-  pitchedCollection: "pitched_games" | "pitched_resources",
+  pitchedCollection: "pitched_projects",
   id: string,
   uid: string,
   onLoad?: (docs: { [id: string]: ContributionDocument }) => void

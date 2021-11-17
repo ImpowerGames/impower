@@ -100,6 +100,7 @@ interface PitchCardLayoutProps {
   contributionCount?: number;
   createdBy?: string;
   author?: AuthorAttributes;
+  projectType?: string;
   name?: string;
   summary?: string;
   tags?: string[];
@@ -135,6 +136,7 @@ const PitchCardLayout = React.memo(
       icons,
       createdBy,
       author,
+      projectType,
       name,
       summary,
       tags,
@@ -206,6 +208,7 @@ const PitchCardLayout = React.memo(
               <PitchCardContent
                 titleRef={titleRef}
                 config={config}
+                projectType={projectType}
                 name={name}
                 summary={summary}
                 tags={tags}

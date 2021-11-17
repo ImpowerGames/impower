@@ -23,7 +23,7 @@ export interface UserAccounts {
   }[];
 }
 
-export const promoteAuth = async (
+export const doPromote = async (
   fromAuth: HashParams,
   toCredentials: ServiceAccount,
   accounts: UserAccounts

@@ -1,13 +1,13 @@
 import { getLabel } from "../../../impower-config";
 import ConfigCache from "../../../impower-config/classes/configCache";
 import { getPropertyName, getValue, List } from "../../../impower-core";
-import { GameDocument } from "../../types/documents/gameDocument";
+import { ProjectDocument } from "../../types/documents/projectDocument";
 import { DevelopmentStatus } from "../../types/enums/developmentStatus";
 import { PitchGoal } from "../../types/enums/pitchGoal";
 import createGameDocument from "../../utils/createGameDocument";
 import { PageDocumentInspector } from "./pageDocumentInspector";
 
-export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
+export class GameDocumentInspector extends PageDocumentInspector<ProjectDocument> {
   private static _instance: GameDocumentInspector;
 
   public static get instance(): GameDocumentInspector {
@@ -17,13 +17,13 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
     return this._instance;
   }
 
-  createData(data?: Partial<GameDocument>): GameDocument {
+  createData(data?: Partial<ProjectDocument>): ProjectDocument {
     return createGameDocument(data);
   }
 
   async getPropertyError(
     propertyPath: string,
-    data: GameDocument,
+    data: ProjectDocument,
     value: unknown,
     docIds: string[]
   ): Promise<string | null> {
@@ -40,7 +40,7 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
 
   isPropertyDisplayValueInverted(
     propertyPath: string,
-    _data: GameDocument
+    _data: ProjectDocument
   ): boolean {
     if (propertyPath === "restricted") {
       return true;
@@ -48,14 +48,14 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
     return undefined;
   }
 
-  isPropertyCollapsible(propertyPath: string, _data: GameDocument): boolean {
+  isPropertyCollapsible(propertyPath: string, _data: ProjectDocument): boolean {
     if (propertyPath === "screenshots") {
       return false;
     }
     return undefined;
   }
 
-  getPropertyLabel(propertyPath: string, data: GameDocument): string {
+  getPropertyLabel(propertyPath: string, data: ProjectDocument): string {
     if (propertyPath === "name") {
       return "Title";
     }
@@ -81,7 +81,7 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
 
   getPropertyDisplayValue(
     propertyPath: string,
-    data: GameDocument,
+    data: ProjectDocument,
     value: unknown
   ): string {
     if (propertyPath === "status") {
@@ -99,7 +99,7 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
 
   getPropertyInputType(
     propertyPath: string,
-    data?: GameDocument
+    data?: ProjectDocument
   ):
     | "button"
     | "checkbox"
@@ -129,7 +129,7 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
     return super.getPropertyInputType(propertyPath, data);
   }
 
-  getPropertyOptions(propertyPath: string, data?: GameDocument): unknown[] {
+  getPropertyOptions(propertyPath: string, data?: ProjectDocument): unknown[] {
     if (propertyPath === "status") {
       return Object.values(DevelopmentStatus);
     }
@@ -147,7 +147,7 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
 
   getPropertyValueGroup(
     propertyPath: string,
-    _data: GameDocument,
+    _data: ProjectDocument,
     value: string
   ): string {
     if (propertyPath === "tags") {
@@ -186,7 +186,7 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
 
   getPropertyValueDescription(
     propertyPath: string,
-    _data: GameDocument,
+    _data: ProjectDocument,
     value: unknown
   ): string {
     if (propertyPath.endsWith("access")) {
@@ -213,7 +213,7 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
 
   getPropertyValueIcon(
     propertyPath: string,
-    data: GameDocument,
+    data: ProjectDocument,
     value: unknown
   ): string {
     if (propertyPath.endsWith("pitchGoal")) {
@@ -227,18 +227,18 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
     return super.getPropertyValueIcon(propertyPath, data, value);
   }
 
-  getPropertyPlaceholder(propertyPath: string, data: GameDocument): string {
+  getPropertyPlaceholder(propertyPath: string, data: ProjectDocument): string {
     if (propertyPath === "description") {
       return `Describe the game's story, features, controls, or anything else.`;
     }
     if (propertyPath === "summary") {
       const messages = ConfigCache.instance.params?.messages;
-      return messages.pitched_games_preamble;
+      return messages[`pitched_${data?.projectType || "game"}_preamble`];
     }
     return super.getPropertyPlaceholder(propertyPath, data);
   }
 
-  getPropertyHelperText(propertyPath: string, data: GameDocument): string {
+  getPropertyHelperText(propertyPath: string, data: ProjectDocument): string {
     if (propertyPath === "tags" && !data?._createdAt && data.tags.length > 0) {
       return `Tap a tag to lock it in while randomizing.`;
     }
@@ -253,7 +253,7 @@ export class GameDocumentInspector extends PageDocumentInspector<GameDocument> {
 
   getPropertyMoreInfoPopup(
     propertyPath: string,
-    data: GameDocument
+    data: ProjectDocument
   ): {
     icon?: string;
     title?: string;

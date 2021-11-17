@@ -395,8 +395,6 @@ interface AddContributionToolbarProps {
 
 const AddContributionToolbar = React.memo(
   (props: AddContributionToolbarProps): JSX.Element => {
-    const pitchedCollection = "pitched_games";
-
     const {
       types,
       toolbarRef,
@@ -440,7 +438,7 @@ const AddContributionToolbar = React.memo(
     );
 
     usePitchUserContributionDocuments(
-      pitchedCollection,
+      "pitched_projects",
       pitchId,
       uid,
       handleLoadUserContributions

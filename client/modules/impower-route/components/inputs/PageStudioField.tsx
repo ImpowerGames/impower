@@ -1,8 +1,5 @@
 import React, { useCallback, useMemo } from "react";
-import {
-  isGameDocument,
-  isResourceDocument,
-} from "../../../impower-data-store";
+import { isProjectDocument } from "../../../impower-data-store";
 import AccessDocInput from "./AccessDocInput";
 import { RenderPropertyProps } from "./DataField";
 
@@ -28,8 +25,7 @@ export const PageStudioField = (
   const doc = data[0];
 
   const studio = useMemo(
-    () =>
-      isGameDocument(doc) || isResourceDocument(doc) ? doc?.studio || "" : "",
+    () => (isProjectDocument(doc) ? doc?.studio || "" : ""),
     [doc]
   );
 

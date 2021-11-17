@@ -1,21 +1,20 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { GameProjectData, ResourceProjectData } from "../../impower-game/data";
 import { ProjectEngineSync } from "../types/classes/projectEngineSync";
 
 export const useProjectData = <T extends ResourceProjectData | GameProjectData>(
-  projectCollection: "resources" | "games",
   projectId: string,
   onLoad?: (doc: T) => void
 ): T => {
   const [data, setData] = useState<T>();
 
   useEffect(() => {
-    if (projectCollection === undefined || projectId === undefined) {
+    if (projectId === undefined) {
       setData(undefined);
       return;
     }
 
-    if (!projectCollection || !projectId) {
+    if (!projectId) {
       setData(null);
       if (onLoad) {
         onLoad(null);
@@ -26,14 +25,14 @@ export const useProjectData = <T extends ResourceProjectData | GameProjectData>(
     setData(undefined);
 
     ProjectEngineSync.instance
-      .loadData(projectCollection, projectId)
+      .loadData("projects", projectId)
       .then((loadedData: T) => {
         setData(loadedData);
         if (onLoad) {
           onLoad(loadedData);
         }
       });
-  }, [onLoad, projectCollection, projectId]);
+  }, [onLoad, projectId]);
 
   return data;
 };

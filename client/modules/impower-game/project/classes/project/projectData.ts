@@ -1,10 +1,10 @@
 import { Collection } from "../../../../impower-core";
 import { MemberData } from "../../../../impower-data-state";
-import { GameDocument, ResourceDocument } from "../../../../impower-data-store";
+import { ProjectDocument } from "../../../../impower-data-store";
 import { InstanceData } from "../instance/instanceData";
 
 export interface ProjectData {
-  doc?: GameDocument | ResourceDocument;
+  doc?: ProjectDocument;
   members?: Collection<MemberData>;
   instances?: {
     [id: string]: Collection<InstanceData>;

@@ -55,7 +55,7 @@ interface ContributionCardProps {
   openedActionsRef?: React.Ref<HTMLDivElement>;
   contentRef?: React.Ref<HTMLDivElement>;
   pitchId?: string;
-  pitchDoc?: ProjectDocument | ContributionDocument;
+  pitchDoc?: ProjectDocument;
   id?: string;
   doc?: ContributionDocument;
   showBackButton?: boolean;
@@ -77,8 +77,6 @@ interface ContributionCardProps {
 
 const ContributionCard = React.memo(
   (props: ContributionCardProps): JSX.Element => {
-    const pitchedCollection = "pitched_games";
-
     const {
       cardRef,
       avatarUserRef,
@@ -138,7 +136,7 @@ const ContributionCard = React.memo(
       my_likes !== undefined
         ? Boolean(
             my_likes?.[
-              getDataStoreKey(pitchedCollection, pitchId, "contributions", id)
+              getDataStoreKey("pitched_projects", pitchId, "contributions", id)
             ]
           )
         : undefined;
@@ -146,7 +144,7 @@ const ContributionCard = React.memo(
       my_dislikes !== undefined
         ? Boolean(
             my_dislikes?.[
-              getDataStoreKey(pitchedCollection, pitchId, "contributions", id)
+              getDataStoreKey("pitched_projects", pitchId, "contributions", id)
             ]
           )
         : undefined;
@@ -176,11 +174,11 @@ const ContributionCard = React.memo(
       async (e: React.MouseEvent, liked: boolean): Promise<void> => {
         if (liked) {
           userDispatch(
-            userDoLike(pitchedCollection, pitchId, "contributions", id)
+            userDoLike("pitched_projects", pitchId, "contributions", id)
           );
         } else {
           userDispatch(
-            userUndoLike(pitchedCollection, pitchId, "contributions", id)
+            userUndoLike("pitched_projects", pitchId, "contributions", id)
           );
         }
         if (onLike) {
@@ -194,11 +192,11 @@ const ContributionCard = React.memo(
       async (e: React.MouseEvent, disliked: boolean): Promise<void> => {
         if (disliked) {
           userDispatch(
-            userDoDislike(pitchedCollection, pitchId, "contributions", id)
+            userDoDislike("pitched_projects", pitchId, "contributions", id)
           );
         } else {
           userDispatch(
-            userUndoDislike(pitchedCollection, pitchId, "contributions", id)
+            userUndoDislike("pitched_projects", pitchId, "contributions", id)
           );
         }
         if (onDislike) {
@@ -234,7 +232,7 @@ const ContributionCard = React.memo(
                   contributed: false,
                   delisted: true,
                 },
-                pitchedCollection,
+                "pitched_projects",
                 pitchId,
                 "contributions",
                 id
@@ -438,6 +436,7 @@ const ContributionCard = React.memo(
           contentRef={contentRef}
           preview={preview}
           pitchId={pitchId}
+          projectType={pitchDoc?.projectType}
           author={doc?._author}
           createdBy={doc?._createdBy}
           targetCreatedBy={pitchDoc?._createdBy}

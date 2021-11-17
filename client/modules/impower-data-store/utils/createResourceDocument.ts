@@ -1,12 +1,12 @@
-import { ResourceDocument } from "../types/documents/resourceDocument";
+import { ProjectDocument } from "../types/documents/projectDocument";
 import createProjectDocument from "./createProjectDocument";
 
 const createResourceDocument = (
-  doc?: Partial<ResourceDocument>
-): ResourceDocument => {
+  doc?: Partial<ProjectDocument>
+): ProjectDocument => {
   return {
     ...createProjectDocument(),
-    _documentType: "ResourceDocument",
+    _documentType: "ProjectDocument",
     ...doc,
   };
 };

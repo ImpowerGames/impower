@@ -18,8 +18,8 @@ import { ConfigParameters } from "../../modules/impower-config";
 import ConfigCache from "../../modules/impower-config/classes/configCache";
 import { overlayColorHex } from "../../modules/impower-core";
 import {
-  GameDocument,
   getSerializableDocument,
+  ProjectDocument,
 } from "../../modules/impower-data-store";
 import DataStoreCache from "../../modules/impower-data-store/classes/dataStoreCache";
 import {
@@ -75,7 +75,7 @@ const StyledMotionOverlay = styled(FadeAnimation)`
 
 interface GamePageProps {
   id: string;
-  doc: GameDocument;
+  doc: ProjectDocument;
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
 }
@@ -91,12 +91,11 @@ const GamePage = React.memo((props: GamePageProps) => {
   // Use user's recent submission if it exists, otherwise use doc from server.
   // This allows us to display a user's submission instantly
   // (even before it is finished uploading to the server)
-  const submissionType = "games";
-  const recentSubmission = submissions?.[submissionType];
-  const submissionPath = `${submissionType}/${id}`;
+  const recentSubmission = submissions?.projects;
+  const submissionPath = `projects/${id}`;
   const validDoc =
     recentSubmission?.path === submissionPath
-      ? (recentSubmission as GameDocument)
+      ? (recentSubmission as ProjectDocument)
       : doc;
   const [pageDoc] = useState(validDoc);
   const {
@@ -108,6 +107,7 @@ const GamePage = React.memo((props: GamePageProps) => {
     publishedAt,
     republishedAt,
     preview,
+    projectType,
   } = pageDoc;
   const [breakpoint, setBreakpoint] = useState<Breakpoint>(Breakpoint.xs);
 
@@ -174,7 +174,7 @@ const GamePage = React.memo((props: GamePageProps) => {
         author={author?.u}
         publishedTime={publishedAtISO}
         modifiedTime={republishedAtISO}
-        section={"Game"}
+        section={projectType}
         tags={tags}
         title={name}
         description={summary}
@@ -241,7 +241,7 @@ export const getStaticProps: GetStaticProps = async (context) => {
     .limit(1)
     .get();
   const postDoc = postsSnapshot.docs[0]?.data();
-  const serializableData = getSerializableDocument<GameDocument>(postDoc);
+  const serializableData = getSerializableDocument<ProjectDocument>(postDoc);
   const config = {
     ...getLocalizationConfigParameters(),
     ...getTagConfigParameters(),

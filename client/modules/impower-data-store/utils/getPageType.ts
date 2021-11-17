@@ -7,9 +7,7 @@ const getPageType = (slugRoute: string): DataDocumentType => {
     case "s":
       return "StudioDocument";
     case "r":
-      return "ResourceDocument";
-    case "g":
-      return "GameDocument";
+      return "ProjectDocument";
     default:
       return undefined;
   }

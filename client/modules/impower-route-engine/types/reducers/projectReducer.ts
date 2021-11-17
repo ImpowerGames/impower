@@ -1,33 +1,33 @@
+import setValue from "../../../impower-core/utils/setValue";
+import { MemberAccess } from "../../../impower-data-state";
+import { ProjectDocument } from "../../../impower-data-store";
 import {
-  InstanceData,
   GameProjectData,
-  Reference,
+  InstanceData,
   isGameProjectData,
+  Reference,
   ResourceProjectData,
 } from "../../../impower-game/data";
 import {
-  ImpowerGameInspector,
   getData,
+  ImpowerGameInspector,
   insertGameProjectData,
   removeGameProjectData,
 } from "../../../impower-game/inspector";
+import { ProjectEngineSync } from "../../../impower-project-engine-sync";
 import {
   ProjectAction,
-  PROJECT_VALIDATE,
-  PROJECT_VALIDATE_DATA,
-  PROJECT_INSERT_DATA,
-  PROJECT_REMOVE_DATA,
-  PROJECT_UPDATE_DATA,
+  PROJECT_ACCESS,
   PROJECT_CHANGE_DOCUMENT,
   PROJECT_CHANGE_INSTANCE_DATA,
-  PROJECT_ACCESS,
+  PROJECT_INSERT_DATA,
   PROJECT_LOAD_DATA,
+  PROJECT_REMOVE_DATA,
+  PROJECT_UPDATE_DATA,
+  PROJECT_VALIDATE,
+  PROJECT_VALIDATE_DATA,
 } from "../actions/projectActions";
 import { createProjectState, ProjectState } from "../state/projectState";
-import { ProjectEngineSync } from "../../../impower-project-engine-sync";
-import { GameDocument, ResourceDocument } from "../../../impower-data-store";
-import { MemberAccess } from "../../../impower-data-state";
-import setValue from "../../../impower-core/utils/setValue";
 
 const doProjectAccess = (
   state: ProjectState,
@@ -171,7 +171,7 @@ const doProjectInsertData = (
       lastActionTargets = ProjectEngineSync.instance.syncData(
         newProject,
         state.data,
-        state.collection,
+        "projects",
         state.id
       );
     }
@@ -229,7 +229,7 @@ const doProjectRemoveData = (
       lastActionTargets = ProjectEngineSync.instance.syncData(
         newProject,
         state.data,
-        state.collection,
+        "projects",
         state.id
       );
     }
@@ -277,43 +277,26 @@ const doProjectUpdateData = (
 const doProjectChangeDocument = (
   state: ProjectState,
   payload: {
-    collection: "games" | "resources";
     id: string;
-    doc: GameDocument | ResourceDocument;
+    doc: ProjectDocument;
     skipSync: boolean;
   }
 ): ProjectState => {
-  const { collection, id, doc, skipSync } = payload;
+  const { id, doc, skipSync } = payload;
 
   if (!skipSync && id) {
-    ProjectEngineSync.instance.syncDoc(doc, collection, id);
+    ProjectEngineSync.instance.syncDoc(doc, "projects", id);
   }
-  if (collection === "games") {
-    return {
-      ...state,
-      collection,
-      id,
-      data: {
-        ...(state.data || {}),
-        doc,
-      },
-      lastActionDescription: "Updated Game Details",
-      lastActionTargets: [`${collection}/${id}`],
-    };
-  }
-  if (collection === "resources") {
-    return {
-      ...state,
-      collection,
-      id,
-      data: {
-        ...(state.data || {}),
-        doc,
-      },
-      lastActionDescription: "Updated Resource Details",
-      lastActionTargets: [`${collection}/${id}`],
-    };
-  }
+  return {
+    ...state,
+    id,
+    data: {
+      ...(state.data || {}),
+      doc,
+    },
+    lastActionDescription: "Updated Details",
+    lastActionTargets: [`${id}`],
+  };
   return state;
 };
 
@@ -376,15 +359,13 @@ const doProjectChangeInstanceData = (
 const doProjectLoadData = (
   state: ProjectState,
   payload: {
-    collection: "games" | "resources";
     id: string;
     data: ResourceProjectData | GameProjectData;
   }
 ): ProjectState => {
-  const { collection, id, data } = payload;
+  const { id, data } = payload;
   return {
     ...state,
-    collection,
     id,
     data,
   };

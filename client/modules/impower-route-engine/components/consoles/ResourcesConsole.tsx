@@ -15,7 +15,7 @@ import {
 } from "../../../impower-confirm-dialog";
 import { StorageFile } from "../../../impower-core";
 import { MemberAccess, MemberData } from "../../../impower-data-state";
-import { ResourceDocument } from "../../../impower-data-store";
+import { ProjectDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { DynamicIcon } from "../../../impower-icon";
 import Illustration from "../../../impower-route-home/components/elements/Illustration";
@@ -41,7 +41,7 @@ interface ResourcesConsoleContentProps {
   scrollParent?: HTMLElement;
   loading?: boolean;
   cardDetails: { [key: string]: CardDetail };
-  resourceDocs?: { [id: string]: ResourceDocument };
+  resourceDocs?: { [id: string]: ProjectDocument };
   resourceMemberDocs?: { [id: string]: MemberData };
   studioMemberDoc?: MemberData;
   createLabel: string;
@@ -327,7 +327,7 @@ const StyledConsoleContentArea = styled.div`
 interface YourResourcesConsoleProps {
   scrollParent?: HTMLElement;
   studioId?: string;
-  resourceDocs: { [id: string]: ResourceDocument };
+  resourceDocs: { [id: string]: ProjectDocument };
   emptyLabel?: React.ReactNode;
   fixedStyle?: React.CSSProperties;
   stickyStyle?: {
@@ -354,13 +354,13 @@ const ResourcesConsole = (props: YourResourcesConsoleProps): JSX.Element => {
   } = props;
 
   const [createDocId, setCreateDocId] = useState<string>();
-  const [createDoc, setCreateDoc] = useState<ResourceDocument>();
+  const [createDoc, setCreateDoc] = useState<ProjectDocument>();
   const [createDialogOpen, setCreateDialogOpen] = useState<boolean>();
   const [canClose, setCanClose] = useState(true);
   const [, toastDispatch] = useContext(ToastContext);
   const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
   const [userState] = useContext(UserContext);
-  const { uid, my_studio_memberships, my_resource_memberships } = userState;
+  const { uid, my_studio_memberships, my_project_memberships } = userState;
 
   const engineConsole = studioConsoles.find(
     (c) => c.type === EngineConsoleType.Resources
@@ -541,7 +541,7 @@ const ResourcesConsole = (props: YourResourcesConsoleProps): JSX.Element => {
           cardDetails={cardDetails}
           resourceDocs={resourceDocs}
           studioMemberDoc={studioMemberDoc}
-          resourceMemberDocs={my_resource_memberships}
+          resourceMemberDocs={my_project_memberships}
           createLabel={createLabel}
           addLabel={addLabel}
           selectedLabel={selectedLabel}

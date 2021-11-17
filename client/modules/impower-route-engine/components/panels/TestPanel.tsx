@@ -16,10 +16,9 @@ import OctagonXmarkSolidIcon from "../../../../resources/icons/solid/octagon-xma
 import TriangleExclamationSolidIcon from "../../../../resources/icons/solid/triangle-exclamation.svg";
 import { throttle } from "../../../impower-core";
 import {
-  GameDocument,
   isGameDocument,
   isResourceDocument,
-  ResourceDocument,
+  ProjectDocument,
 } from "../../../impower-data-store";
 import { Player } from "../../../impower-game-player";
 import {
@@ -332,7 +331,7 @@ const TestOverlay = React.memo((props: TestOverlayProps): JSX.Element => {
 });
 
 interface TestPlayerProps {
-  doc: GameDocument;
+  doc: ProjectDocument;
   project: GameProjectData;
   startTime: number;
   mode: Mode;
@@ -504,7 +503,7 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
 interface TestPanelContentProps {
   uid: string;
   docId: string;
-  doc: GameDocument | ResourceDocument;
+  doc: ProjectDocument;
   project: GameProjectData | ResourceProjectData;
   startTime: number;
   mode: Mode;

@@ -148,7 +148,7 @@ export const getPageDocPath = async (
         locationArray[i] = "notes";
       }
     });
-    return ["pitched_games", ...locationArray] as InteractiveDocumentPath;
+    return ["pitched_projects", ...locationArray] as InteractiveDocumentPath;
   }
   const baseRoute =
     subPageIndex >= 0

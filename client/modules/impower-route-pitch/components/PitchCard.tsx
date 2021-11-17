@@ -66,9 +66,6 @@ interface PitchCardProps {
 }
 
 const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
-  const pitchedCollection = "pitched_games";
-  const collection = "games";
-
   const {
     cardRef,
     buttonRef,
@@ -113,11 +110,11 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
   const authenticated = uid !== undefined ? Boolean(uid) : undefined;
   const isCreator = doc?._createdBy === uid;
   const contributed =
-    my_submissions !== undefined && pitchedCollection && id && uid
+    my_submissions !== undefined && id && uid
       ? Boolean(
           my_submissions?.[
             getDataStoreKey(
-              pitchedCollection,
+              "pitched_projects",
               id,
               "contributions",
               `${uid}-pitch`
@@ -127,7 +124,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         Boolean(
           my_submissions?.[
             getDataStoreKey(
-              pitchedCollection,
+              "pitched_projects",
               id,
               "contributions",
               `${uid}-story`
@@ -137,7 +134,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         Boolean(
           my_submissions?.[
             getDataStoreKey(
-              pitchedCollection,
+              "pitched_projects",
               id,
               "contributions",
               `${uid}-image`
@@ -147,7 +144,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         Boolean(
           my_submissions?.[
             getDataStoreKey(
-              pitchedCollection,
+              "pitched_projects",
               id,
               "contributions",
               `${uid}-audio`
@@ -160,16 +157,16 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         Boolean(my_recent_contributions?.[id]?.[`${uid}-audio`])
       : undefined;
   const liked =
-    my_likes !== undefined && pitchedCollection && id
-      ? Boolean(my_likes?.[getDataStoreKey(pitchedCollection, id)])
+    my_likes !== undefined && id
+      ? Boolean(my_likes?.[getDataStoreKey("pitched_projects", id)])
       : undefined;
   const disliked =
-    my_dislikes !== undefined && pitchedCollection && id
-      ? Boolean(my_dislikes?.[getDataStoreKey(pitchedCollection, id)])
+    my_dislikes !== undefined && id
+      ? Boolean(my_dislikes?.[getDataStoreKey("pitched_projects", id)])
       : undefined;
   const kudoed =
-    my_kudos !== undefined && pitchedCollection && id
-      ? Boolean(my_kudos?.[getDataStoreKey(pitchedCollection, id)])
+    my_kudos !== undefined && id
+      ? Boolean(my_kudos?.[getDataStoreKey("pitched_projects", id)])
       : undefined;
   const followedUser =
     my_follows !== undefined && doc?._createdBy
@@ -197,9 +194,9 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
   const handleLike = useCallback(
     (e: React.MouseEvent, liked: boolean): void => {
       if (liked) {
-        userDispatch(userDoLike(pitchedCollection, id));
+        userDispatch(userDoLike("pitched_projects", id));
       } else {
-        userDispatch(userUndoLike(pitchedCollection, id));
+        userDispatch(userUndoLike("pitched_projects", id));
       }
       if (onLike) {
         onLike(e, liked);
@@ -211,9 +208,9 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
   const handleDislike = useCallback(
     (e: React.MouseEvent, disliked: boolean): void => {
       if (disliked) {
-        userDispatch(userDoDislike(pitchedCollection, id));
+        userDispatch(userDoDislike("pitched_projects", id));
       } else {
-        userDispatch(userUndoDislike(pitchedCollection, id));
+        userDispatch(userUndoDislike("pitched_projects", id));
       }
       if (onDislike) {
         onDislike(e, disliked);
@@ -233,7 +230,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
                 ...doc,
                 pitched: false,
               },
-              collection,
+              "projects",
               id
             )
           )
@@ -445,6 +442,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         closedActionsRef={closedActionsRef}
         config={config}
         icons={icons}
+        projectType={doc?.projectType}
         name={doc?.name}
         summary={doc?.summary}
         tags={doc?.tags}

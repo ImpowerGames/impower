@@ -12,7 +12,7 @@ const pitchSearchQuery = (
     searchTargets?: ("tags" | "name" | "summary")[];
     creator?: string;
   },
-  collection: "pitched_resources" | "pitched_games"
+  collection: "pitched_projects"
 ) => {
   const { sort, goal, nsfw, search, searchTargets, creator } = options;
 

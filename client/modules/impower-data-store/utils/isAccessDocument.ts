@@ -6,9 +6,8 @@ const isAccessDocument = (obj: unknown): obj is AccessDocument => {
   }
   const doc = obj as AccessDocument;
   return (
-    doc._documentType === "GameDocument" ||
-    doc._documentType === "ResourceDocument" ||
-    doc._documentType === "StudioDocument"
+    doc._documentType === "StudioDocument" ||
+    doc._documentType === "ProjectDocument"
   );
 };
 

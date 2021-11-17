@@ -2,7 +2,7 @@ import React from "react";
 import BullhornRegularIcon from "../../../../resources/icons/regular/bullhorn.svg";
 import ScrewdriverWrenchRegularIcon from "../../../../resources/icons/regular/screwdriver-wrench.svg";
 import { StorageFile } from "../../../impower-core";
-import { ResourceDocument } from "../../../impower-data-store";
+import { ProjectDocument } from "../../../impower-data-store";
 import CreationFinishedSummary from "./CreationFinishedSummary";
 
 const successfulTitle = "All right! Your resource is ready to go!";
@@ -32,7 +32,7 @@ const actionButtons: {
 
 interface ResourceCreationFinishedSummaryProps {
   docId: string;
-  doc: ResourceDocument;
+  doc: ProjectDocument;
   onUploadIcon: (file: StorageFile) => void;
 }
 
@@ -41,7 +41,7 @@ const ResourceCreationFinishedSummary = React.memo(
     const { docId, doc, onUploadIcon } = props;
     return (
       <CreationFinishedSummary
-        collection="resources"
+        collection="projects"
         docId={docId}
         doc={doc}
         onUploadIcon={onUploadIcon}

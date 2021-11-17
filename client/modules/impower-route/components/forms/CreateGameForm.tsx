@@ -16,8 +16,8 @@ import {
 } from "../../../impower-config";
 import { difference } from "../../../impower-core";
 import {
-  GameDocument,
   GameDocumentInspector,
+  ProjectDocument,
 } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
 import {
@@ -156,7 +156,7 @@ export const GameField = (props: GameFieldProps): JSX.Element | null => {
 
 interface CreateGameFormProps {
   docId?: string;
-  doc: GameDocument;
+  doc: ProjectDocument;
   steps?: CreationStep[];
   submitLabel?: string;
   preview?: React.ReactNode;
@@ -165,13 +165,13 @@ interface CreateGameFormProps {
     e: React.MouseEvent,
     reason: "backdropClick" | "escapeKeyDown" | "closeButtonClick" | "submitted"
   ) => void;
-  onChange?: (doc: GameDocument) => void;
+  onChange?: (doc: ProjectDocument) => void;
   onSubmit?: (
     e: React.FormEvent | React.MouseEvent,
     id: string,
-    doc: GameDocument
+    doc: ProjectDocument
   ) => void;
-  onSubmitted?: (id: string, doc: GameDocument, successful: boolean) => void;
+  onSubmitted?: (id: string, doc: ProjectDocument, successful: boolean) => void;
 }
 
 const CreateGameForm = React.memo((props: CreateGameFormProps): JSX.Element => {
@@ -461,7 +461,7 @@ const CreateGameForm = React.memo((props: CreateGameFormProps): JSX.Element => {
     async (
       e: React.MouseEvent,
       newDocId: string,
-      newDoc: GameDocument
+      newDoc: ProjectDocument
     ): Promise<boolean> => {
       try {
         if (!isSignedIn) {
@@ -494,7 +494,7 @@ const CreateGameForm = React.memo((props: CreateGameFormProps): JSX.Element => {
         };
         await new Promise<void>((resolve) =>
           userDispatch(
-            userOnCreateSubmission(resolve, claimedDoc, "games", newDocId)
+            userOnCreateSubmission(resolve, claimedDoc, "projects", newDocId)
           )
         );
         if (onSubmitted) {

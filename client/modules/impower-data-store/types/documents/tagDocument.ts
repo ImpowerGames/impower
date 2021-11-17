@@ -10,8 +10,16 @@ export interface TagDocument extends DataDocument<"TagDocument"> {
   readonly weeksWhenMonthOld?: number[];
   readonly monthsWhenYearOld?: number[];
 
-  readonly games?: number;
-  readonly resources?: number;
   readonly studios?: number;
+  readonly projects?: number;
+  readonly game?: number;
+  readonly story?: number;
+  readonly character?: number;
+  readonly setting?: number;
+  readonly prop?: number;
+  readonly interface?: number;
+  readonly music?: number;
+  readonly sound?: number;
+  readonly voice?: number;
   readonly users?: number;
 }
