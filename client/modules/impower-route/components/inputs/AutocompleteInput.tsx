@@ -776,6 +776,7 @@ const AutocompleteInput = React.memo(
               {endAdornmentPosition === "after" && InputProps?.endAdornment}
             </StyledEndAdornmentArea>
           ),
+          autoComplete: "off",
         };
         const AutocompleteInputLabelProps = {
           ...params.InputLabelProps,
@@ -815,6 +816,7 @@ const AutocompleteInput = React.memo(
             InputProps={AutocompleteInputProps}
             InputLabelProps={AutocompleteInputLabelProps}
             InputComponent={InputComponent}
+            inputProps={{ ...params.inputProps, autocomplete: "off" }}
           />
         );
       },
