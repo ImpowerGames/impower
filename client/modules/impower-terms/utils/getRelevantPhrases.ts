@@ -13,7 +13,7 @@ export const getTermRelevancyScore = (
     [term: string]: string[];
   }
 ): number => {
-  const matchedTags = new Set<string>();
+  const matchedTags: string[] = [];
   const words = getCleanedWords(phrase);
   const subphrases = getSubphrases(words);
   let relevantTermWeight = 0;
@@ -25,10 +25,10 @@ export const getTermRelevancyScore = (
       const tagMatchIndex = tagsSortedBySpecificity.findIndex(
         (tag) =>
           (subphrase === tag?.toLowerCase() || termTags.includes(tag)) &&
-          !matchedTags.has(tag)
+          (!matchedTags.includes(tag) || tagsSortedBySpecificity.length === 1)
       );
       if (tagMatchIndex >= 0) {
-        matchedTags.add(tagsSortedBySpecificity[tagMatchIndex]);
+        matchedTags.push(tagsSortedBySpecificity[tagMatchIndex]);
         const max = tagsSortedBySpecificity.length;
         const weight = (max - tagMatchIndex) / max;
         relevantTermWeight += weight;
@@ -37,7 +37,7 @@ export const getTermRelevancyScore = (
   });
   // Phrase must have at least 2 unique relevant terms to benefit from this bonus
   // (This is because we need at least 2 relevant ideas for a double-entendre)
-  if (tagsSortedBySpecificity.length === 1 || matchedTags.size > 1) {
+  if (matchedTags.length > 1) {
     return relevantTermWeight / termCount;
   }
   return 0;
