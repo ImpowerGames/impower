@@ -4,7 +4,7 @@ import { getPropertyName, getValue, List } from "../../../impower-core";
 import { ProjectDocument } from "../../types/documents/projectDocument";
 import { DevelopmentStatus } from "../../types/enums/developmentStatus";
 import { PitchGoal } from "../../types/enums/pitchGoal";
-import createProjectDocument from "../../utils/createProjectDocument";
+import createGameDocument from "../../utils/createGameDocument";
 import { PageDocumentInspector } from "./pageDocumentInspector";
 
 export class GameDocumentInspector extends PageDocumentInspector<ProjectDocument> {
@@ -18,7 +18,7 @@ export class GameDocumentInspector extends PageDocumentInspector<ProjectDocument
   }
 
   createData(data?: Partial<ProjectDocument>): ProjectDocument {
-    return createProjectDocument(data);
+    return createGameDocument(data);
   }
 
   async getPropertyError(
