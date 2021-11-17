@@ -123,7 +123,6 @@
   "dare": ["roguelike"],
   "vacation": ["roadtrip"],
   "stretch": ["roadtrip"],
-  "recreational": ["roadtrip"],
   "picnic": ["roadtrip"],
   "holiday": ["roadtrip"],
   "yin": ["rivals"],
@@ -821,8 +820,6 @@
   "card": ["card"],
   "aces": ["card"],
   "ace": ["card"],
-  "added": ["business"],
-  "ad": ["business"],
   "timber": ["building"],
   "tiles": ["building"],
   "steel": ["building"],
@@ -885,7 +882,6 @@
   "sugar and spice and everything nice": ["artificial intelligence"],
   "sticks and snails and puppy dog tails": ["artificial intelligence"],
   "made of": ["artificial intelligence"],
-  "zoo": ["animals"],
   "species": ["animals"],
   "safari": ["animals"],
   "prey": ["animals"],
@@ -999,6 +995,7 @@
   "survive": ["roguelike", "survival"],
   "survival": ["roguelike", "survival"],
   "knocked down": ["roguelike", "soulslike"],
+  "recreational": ["roadtrip", "tycoon"],
   "campfire": ["roadtrip", "survival"],
   "passing on": ["resurrection", "zombie"],
   "no longer with us": ["resurrection", "zombie"],
@@ -1171,6 +1168,7 @@
   "heal": ["medical", "rehabilitation"],
   "cured": ["medical", "rehabilitation"],
   "cure": ["medical", "rehabilitation"],
+  "cells": ["medical", "science"],
   "breaths": ["medical", "merfolk"],
   "breathing": ["medical", "merfolk"],
   "breather": ["medical", "merfolk"],
@@ -1187,8 +1185,6 @@
   "death do us part": ["marriage", "romance"],
   "better or worse": ["marriage", "romance"],
   "permitting": ["management", "simulator"],
-  "manager": ["management", "simulator"],
-  "managed": ["management", "simulator"],
   "coordinated": ["management", "simulator"],
   "consult": ["management", "simulator"],
   "allowed": ["management", "simulator"],
@@ -1691,6 +1687,7 @@
   "benefits": ["business", "office"],
   "auction": ["business", "shop"],
   "always open": ["business", "office"],
+  "ad": ["business", "tycoon"],
   "sign on": ["bureaucracy", "business"],
   "sign off": ["bureaucracy", "business"],
   "reliant": ["bureaucracy", "business"],
@@ -1740,6 +1737,7 @@
   "pinball": ["arcade", "minigames"],
   "pad": ["arcade", "mecha"],
   "boop": ["arcade", "cute"],
+  "zoo": ["animals", "tycoon"],
   "zebra": ["animals", "mammal"],
   "weasel": ["animals", "mammal"],
   "tiger": ["animals", "mammal"],
@@ -1876,7 +1874,6 @@
   "margery daw": ["regency", "steampunk", "victorian"],
   "lodge": ["regency", "steampunk", "victorian"],
   "livingstone": ["regency", "steampunk", "victorian"],
-  "leisure": ["regency", "steampunk", "victorian"],
   "hostess": ["regency", "steampunk", "victorian"],
   "georgie": ["regency", "steampunk", "victorian"],
   "civvy": ["regency", "steampunk", "victorian"],
@@ -1950,6 +1947,8 @@
   "billet": ["mecha", "military", "war"],
   "battlefield": ["mecha", "military", "war"],
   "army": ["mecha", "military", "war"],
+  "manager": ["management", "simulator", "tycoon"],
+  "managed": ["management", "simulator", "tycoon"],
   "testify": ["investigation", "legal", "social deduction"],
   "sue": ["investigation", "legal", "social deduction"],
   "pleading": ["investigation", "legal", "social deduction"],
@@ -2163,7 +2162,6 @@
   "billet doux": ["dating", "love", "romance"],
   "beloved": ["dating", "love", "romance"],
   "batting for the other": ["dating", "love", "romance"],
-  "attraction": ["dating", "love", "romance"],
   "arouse": ["dating", "love", "romance"],
   "a drink": ["dating", "love", "romance"],
   "can't say no": ["dating", "love", "romance"],
@@ -2309,12 +2307,10 @@
   "suburb": ["city", "modern", "urban"],
   "squaring": ["city", "modern", "urban"],
   "square": ["city", "modern", "urban"],
-  "resort": ["city", "modern", "urban"],
   "residence": ["city", "modern", "urban"],
   "neighborhood": ["city", "modern", "urban"],
   "modern": ["city", "modern", "urban"],
   "mayor's": ["city", "modern", "urban"],
-  "hotel": ["city", "modern", "urban"],
   "district": ["city", "modern", "urban"],
   "unusual": ["casual", "slice-of-life", "weird"],
   "softly": ["casual", "cozy", "cute"],
@@ -2354,7 +2350,6 @@
   "coffee": ["business", "cooking", "shop"],
   "canteen": ["business", "cooking", "shop"],
   "cafe": ["business", "cooking", "shop"],
-  "business": ["business", "office", "shop"],
   "a living": ["business", "office", "simulator"],
   "trades": ["bureaucracy", "business", "shop"],
   "sector": ["bureaucracy", "business", "office"],
@@ -2368,7 +2363,6 @@
   "exports": ["bureaucracy", "business", "shop"],
   "exchange": ["bureaucracy", "business", "shop"],
   "diplomacy": ["bureaucracy", "business", "political"],
-  "corporate": ["bureaucracy", "business", "office"],
   "agent": ["bureaucracy", "business", "espionage"],
   "abide": ["bureaucracy", "business", "rebellion"],
   "moving": ["bullet hell", "runner", "side scroller"],
@@ -2521,6 +2515,7 @@
   "damnation": ["angel", "demon", "political"],
   "choir": ["angel", "musical", "rhythm"],
   "bliss": ["angel", "relaxing", "utopian"],
+  "adder": ["angel", "animals", "reptile"],
   "worst": ["alternate history", "rivals", "time travel"],
   "used to": ["alternate history", "historical", "time travel"],
   "pharaohs": ["alternate history", "historical", "time travel"],
@@ -2608,6 +2603,7 @@
   "cold": ["revenge", "sabotage", "social deduction", "weather"],
   "wicket": ["regency", "sports", "steampunk", "victorian"],
   "miss": ["regency", "reunion", "steampunk", "victorian"],
+  "leisure": ["regency", "steampunk", "tycoon", "victorian"],
   "billiards": ["regency", "sports", "steampunk", "victorian"],
   "society": ["political", "regency", "steampunk", "victorian"],
   "articles": ["political", "text", "text adventure", "visual novel"],
@@ -2628,7 +2624,6 @@
   "relief": ["medical", "quest", "rehabilitation", "rescue"],
   "mended": ["medical", "redemption", "rehabilitation", "repair"],
   "mend": ["medical", "redemption", "rehabilitation", "repair"],
-  "cells": ["medical", "police", "punishment", "science"],
   "cell": ["medical", "police", "punishment", "science"],
   "trooper": ["mecha", "military", "police", "war"],
   "taliban": ["mecha", "military", "rebellion", "war"],
@@ -2862,6 +2857,7 @@
   "entanglement": ["dating", "love", "rivals", "romance"],
   "bride": ["dating", "love", "marriage", "romance"],
   "bedfellows": ["dating", "dreams", "love", "romance"],
+  "attraction": ["dating", "love", "romance", "tycoon"],
   "stark": ["dark", "dystopian", "gothic", "noir"],
   "dull": ["dark", "gothic", "noir", "slice-of-life"],
   "rainbows": ["cute", "fairy tale", "fantasy", "weather"],
@@ -3055,6 +3051,8 @@
   "filthy": ["cleaning", "creepy", "horror", "suspense"],
   "dusty": ["cleaning", "cozy", "farming", "gothic"],
   "dumpty": ["cleaning", "fairy tale", "fantasy", "inventory management"],
+  "resort": ["city", "modern", "tycoon", "urban"],
+  "hotel": ["city", "modern", "tycoon", "urban"],
   "boulevard": ["city", "modern", "roadtrip", "urban"],
   "beltway": ["city", "modern", "roadtrip", "urban"],
   "son": ["child", "coming-of-age", "family", "young"],
@@ -3112,7 +3110,6 @@
   "rent": ["business", "greed", "shop", "wealth"],
   "recall": ["business", "communication", "memories", "shop"],
   "purchase": ["business", "greed", "shop", "wealth"],
-  "profit": ["business", "greed", "shop", "wealth"],
   "professional": ["business", "office", "simulator", "sports"],
   "productivity": ["business", "management", "office", "simulator"],
   "prices": ["business", "greed", "shop", "wealth"],
@@ -3127,21 +3124,16 @@
   "pay": ["business", "greed", "shop", "wealth"],
   "paid": ["business", "greed", "shop", "wealth"],
   "occupational": ["business", "extraterrestrial", "invasion", "office"],
-  "marketing": ["business", "greed", "shop", "wealth"],
   "market": ["business", "greed", "shop", "wealth"],
-  "mall": ["business", "greed", "shop", "wealth"],
   "loan": ["business", "greed", "shop", "wealth"],
   "jobs": ["business", "office", "shop", "simulator"],
   "job's": ["business", "office", "shop", "simulator"],
   "job": ["business", "office", "shop", "simulator"],
-  "investor": ["business", "dress-up", "fashion", "phantom thief"],
-  "investing": ["business", "dress-up", "fashion", "phantom thief"],
   "interest": ["business", "greed", "shop", "wealth"],
   "growth": ["business", "greed", "shop", "wealth"],
   "goldmine": ["business", "greed", "shop", "wealth"],
   "gains": ["business", "greed", "shop", "wealth"],
   "entrepreneur": ["business", "fame", "office", "shop"],
-  "enterprise": ["business", "management", "office", "simulator"],
   "earned": ["business", "greed", "shop", "wealth"],
   "earn": ["business", "greed", "shop", "wealth"],
   "down the drain": ["business", "greed", "shop", "wealth"],
@@ -3162,12 +3154,14 @@
   "buying": ["business", "greed", "shop", "wealth"],
   "buyer": ["business", "greed", "shop", "wealth"],
   "buy": ["business", "greed", "shop", "wealth"],
+  "business": ["business", "office", "shop", "tycoon"],
   "bought": ["business", "greed", "shop", "wealth"],
   "bid": ["business", "greed", "shop", "wealth"],
   "basket": ["business", "cooking", "inventory management", "shop"],
   "bargained": ["business", "greed", "shop", "wealth"],
   "bargain": ["business", "greed", "shop", "wealth"],
   "bankrupt": ["business", "greed", "shop", "wealth"],
+  "ballpark figure": ["business", "greed", "shop", "wealth"],
   "baggage": ["business", "delivery", "inventory management", "shop"],
   "arm and a leg": ["business", "greed", "shop", "wealth"],
   "aisles": ["business", "marriage", "romance", "shop"],
@@ -3190,6 +3184,7 @@
   "organization": ["bureaucracy", "business", "cleaning", "office"],
   "matters": ["bureaucracy", "business", "management", "simulator"],
   "difficulties": ["bureaucracy", "business", "disillusionment", "soulslike"],
+  "corporate": ["bureaucracy", "business", "office", "tycoon"],
   "controversy": ["bureaucracy", "business", "conspiracy", "fame"],
   "company": ["bureaucracy", "business", "office", "shop"],
   "clerks": ["bureaucracy", "business", "office", "shop"],
@@ -3394,7 +3389,6 @@
     "multiple endings",
     "post apocalyptic"
   ],
-  "adder": ["angel", "animals", "business", "reptile"],
   "rome": ["alternate history", "historical", "myth", "time travel"],
   "period": ["alternate history", "historical", "real-time", "time travel"],
   "meant to": ["alternate history", "repair", "rivals", "time travel"],
@@ -4349,6 +4343,41 @@
     "redemption",
     "rivals"
   ],
+  "ready": [
+    "communication",
+    "conversation",
+    "text",
+    "text adventure",
+    "visual novel"
+  ],
+  "readings": [
+    "communication",
+    "conversation",
+    "text",
+    "text adventure",
+    "visual novel"
+  ],
+  "reading": [
+    "communication",
+    "conversation",
+    "text",
+    "text adventure",
+    "visual novel"
+  ],
+  "reader": [
+    "communication",
+    "conversation",
+    "text",
+    "text adventure",
+    "visual novel"
+  ],
+  "read": [
+    "communication",
+    "conversation",
+    "text",
+    "text adventure",
+    "visual novel"
+  ],
   "oops": ["communication", "conversation", "glitch", "hacking", "repair"],
   "mute": ["communication", "conversation", "creepy", "horror", "suspense"],
   "condolences": [
@@ -4487,8 +4516,6 @@
   "mess": ["cleaning", "creepy", "horror", "repair", "suspense"],
   "gritty": ["cleaning", "dark", "dieselpunk", "gothic", "noir"],
   "traffic": ["city", "driving", "modern", "roadtrip", "urban"],
-  "parker": ["city", "driving", "modern", "sports", "urban"],
-  "park": ["city", "driving", "modern", "sports", "urban"],
   "low cal": ["city", "cooking", "local", "modern", "urban"],
   "fireman": ["city", "modern", "quest", "rescue", "urban"],
   "congestion": ["city", "driving", "medical", "modern", "urban"],
@@ -4536,20 +4563,22 @@
   "rich": ["business", "decopunk", "greed", "shop", "wealth"],
   "recent": ["business", "greed", "modern", "shop", "wealth"],
   "pros": ["business", "disillusionment", "office", "rivals", "sports"],
+  "profit": ["business", "greed", "shop", "tycoon", "wealth"],
   "pro": ["business", "disillusionment", "office", "rivals", "sports"],
   "owe": ["business", "disillusionment", "greed", "shop", "wealth"],
   "nickel": ["business", "crafting", "greed", "shop", "wealth"],
   "merchant": ["business", "regency", "shop", "steampunk", "victorian"],
+  "marketing": ["business", "greed", "shop", "tycoon", "wealth"],
+  "mall": ["business", "greed", "shop", "tycoon", "wealth"],
+  "investor": ["business", "dress-up", "fashion", "phantom thief", "tycoon"],
+  "investing": ["business", "dress-up", "fashion", "phantom thief", "tycoon"],
   "interesting": ["business", "greed", "shop", "wealth", "weird"],
-  "economy": ["business", "greed", "political", "shop", "wealth"],
-  "economical": ["business", "greed", "political", "shop", "wealth"],
-  "economic": ["business", "greed", "political", "shop", "wealth"],
+  "enterprise": ["business", "management", "office", "simulator", "tycoon"],
   "eco": ["business", "greed", "nature", "shop", "wealth"],
   "due": ["business", "disillusionment", "greed", "shop", "wealth"],
   "dual": ["business", "disillusionment", "greed", "shop", "wealth"],
   "coin": ["business", "card", "greed", "shop", "wealth"],
   "co": ["business", "co-op", "friendship", "office", "rivals"],
-  "casino": ["business", "card", "greed", "shop", "wealth"],
   "capitalist": ["business", "greed", "political", "shop", "wealth"],
   "billy": ["business", "greed", "political", "shop", "wealth"],
   "bill": ["business", "greed", "political", "shop", "wealth"],
@@ -4563,15 +4592,7 @@
   ],
   "supreme": ["bureaucracy", "business", "fairy tale", "fantasy", "royalty"],
   "recognition": ["bureaucracy", "business", "contest", "fame", "redemption"],
-  "profits": ["bureaucracy", "business", "greed", "shop", "wealth"],
   "plans": ["bureaucracy", "business", "management", "simulator", "strategy"],
-  "planning": [
-    "bureaucracy",
-    "business",
-    "management",
-    "simulator",
-    "strategy"
-  ],
   "planned": ["bureaucracy", "business", "management", "simulator", "strategy"],
   "plan": ["bureaucracy", "business", "management", "simulator", "strategy"],
   "pact": ["bureaucracy", "business", "co-op", "friendship", "rebellion"],
@@ -4594,7 +4615,6 @@
   "deal": ["bureaucracy", "business", "greed", "shop", "wealth"],
   "credit's": ["bureaucracy", "business", "greed", "shop", "wealth"],
   "credit": ["bureaucracy", "business", "greed", "shop", "wealth"],
-  "approval": ["bureaucracy", "business", "contest", "management", "simulator"],
   "agreement": ["bureaucracy", "business", "co-op", "friendship", "rivals"],
   "tower": [
     "building",
@@ -5851,14 +5871,6 @@
     "space",
     "sword & sorcery"
   ],
-  "tourism": [
-    "exploration",
-    "fame",
-    "journey",
-    "open world",
-    "roadtrip",
-    "walking simulator"
-  ],
   "tour": [
     "exploration",
     "fame",
@@ -6968,6 +6980,8 @@
     "urban",
     "walking simulator"
   ],
+  "parker": ["city", "driving", "modern", "sports", "tycoon", "urban"],
+  "park": ["city", "driving", "modern", "sports", "tycoon", "urban"],
   "city": [
     "city",
     "exploration",
@@ -7062,46 +7076,6 @@
     "wealth"
   ],
   "stake": ["business", "greed", "shop", "supernatural", "vampire", "wealth"],
-  "ready": [
-    "business",
-    "communication",
-    "conversation",
-    "text",
-    "text adventure",
-    "visual novel"
-  ],
-  "readings": [
-    "business",
-    "communication",
-    "conversation",
-    "text",
-    "text adventure",
-    "visual novel"
-  ],
-  "reading": [
-    "business",
-    "communication",
-    "conversation",
-    "text",
-    "text adventure",
-    "visual novel"
-  ],
-  "reader": [
-    "business",
-    "communication",
-    "conversation",
-    "text",
-    "text adventure",
-    "visual novel"
-  ],
-  "read": [
-    "business",
-    "communication",
-    "conversation",
-    "text",
-    "text adventure",
-    "visual novel"
-  ],
   "item": [
     "business",
     "inventory management",
@@ -7111,8 +7085,9 @@
     "shop"
   ],
   "imbalance": ["business", "greed", "physics", "science", "shop", "wealth"],
-  "costs": ["business", "greed", "management", "shop", "simulator", "wealth"],
-  "cost": ["business", "greed", "management", "shop", "simulator", "wealth"],
+  "economy": ["business", "greed", "political", "shop", "tycoon", "wealth"],
+  "economical": ["business", "greed", "political", "shop", "tycoon", "wealth"],
+  "economic": ["business", "greed", "political", "shop", "tycoon", "wealth"],
   "cobbler": [
     "business",
     "cooking",
@@ -7155,6 +7130,7 @@
     "wealth"
   ],
   "check": ["business", "greed", "role playing", "shop", "tabletop", "wealth"],
+  "casino": ["business", "card", "greed", "shop", "tycoon", "wealth"],
   "bond": ["business", "co-op", "friendship", "greed", "shop", "wealth"],
   "balancing": ["business", "greed", "physics", "science", "shop", "wealth"],
   "balanced": ["business", "greed", "physics", "science", "shop", "wealth"],
@@ -7167,7 +7143,7 @@
     "roguelike",
     "simulator"
   ],
-  "revenue": ["bureaucracy", "business", "greed", "office", "shop", "wealth"],
+  "profits": ["bureaucracy", "business", "greed", "shop", "tycoon", "wealth"],
   "policy": [
     "bureaucracy",
     "business",
@@ -7176,6 +7152,14 @@
     "political",
     "simulator"
   ],
+  "planning": [
+    "bureaucracy",
+    "business",
+    "management",
+    "simulator",
+    "strategy",
+    "tycoon"
+  ],
   "partnership": [
     "bureaucracy",
     "business",
@@ -7183,14 +7167,6 @@
     "friendship",
     "office",
     "shop"
-  ],
-  "management": [
-    "bureaucracy",
-    "business",
-    "management",
-    "office",
-    "simulator",
-    "strategy"
   ],
   "letters": [
     "bureaucracy",
@@ -7241,14 +7217,6 @@
     "rebellion",
     "rivals"
   ],
-  "disapproval": [
-    "bureaucracy",
-    "business",
-    "contest",
-    "disillusionment",
-    "management",
-    "simulator"
-  ],
   "decree": [
     "bureaucracy",
     "business",
@@ -7283,6 +7251,14 @@
     "simulator"
   ],
   "broker": ["bureaucracy", "business", "greed", "repair", "shop", "wealth"],
+  "approval": [
+    "bureaucracy",
+    "business",
+    "contest",
+    "management",
+    "simulator",
+    "tycoon"
+  ],
   "appointment": [
     "bureaucracy",
     "business",
@@ -7774,14 +7750,6 @@
     "robot",
     "science",
     "steampunk"
-  ],
-  "development": [
-    "artificial intelligence",
-    "building",
-    "cyberpunk",
-    "hacking",
-    "robot",
-    "technology"
   ],
   "current": [
     "artificial intelligence",
@@ -9211,6 +9179,15 @@
     "scavenging",
     "walking simulator"
   ],
+  "tourism": [
+    "exploration",
+    "fame",
+    "journey",
+    "open world",
+    "roadtrip",
+    "tycoon",
+    "walking simulator"
+  ],
   "lands": [
     "exploration",
     "gardening",
@@ -10624,6 +10601,24 @@
     "victorian",
     "wealth"
   ],
+  "costs": [
+    "business",
+    "greed",
+    "management",
+    "shop",
+    "simulator",
+    "tycoon",
+    "wealth"
+  ],
+  "cost": [
+    "business",
+    "greed",
+    "management",
+    "shop",
+    "simulator",
+    "tycoon",
+    "wealth"
+  ],
   "cart": [
     "business",
     "driving",
@@ -10678,6 +10673,15 @@
     "sci-fi",
     "science"
   ],
+  "revenue": [
+    "bureaucracy",
+    "business",
+    "greed",
+    "office",
+    "shop",
+    "tycoon",
+    "wealth"
+  ],
   "responsible": [
     "bureaucracy",
     "business",
@@ -10723,6 +10727,15 @@
     "political",
     "urban"
   ],
+  "management": [
+    "bureaucracy",
+    "business",
+    "management",
+    "office",
+    "simulator",
+    "strategy",
+    "tycoon"
+  ],
   "labor": [
     "bureaucracy",
     "business",
@@ -10741,50 +10754,14 @@
     "rescue",
     "simulator"
   ],
-  "industry": [
+  "disapproval": [
     "bureaucracy",
     "business",
-    "cleaning",
-    "fame",
-    "farming",
-    "gothic",
-    "office"
-  ],
-  "industrial": [
-    "bureaucracy",
-    "business",
-    "city",
-    "fame",
-    "modern",
-    "office",
-    "urban"
-  ],
-  "funding": [
-    "bureaucracy",
-    "business",
-    "greed",
+    "contest",
+    "disillusionment",
     "management",
-    "shop",
     "simulator",
-    "wealth"
-  ],
-  "fund": [
-    "bureaucracy",
-    "business",
-    "greed",
-    "management",
-    "shop",
-    "simulator",
-    "wealth"
-  ],
-  "director's": [
-    "bureaucracy",
-    "business",
-    "fame",
-    "interactive film",
-    "management",
-    "office",
-    "simulator"
+    "tycoon"
   ],
   "counsel": [
     "bureaucracy",
@@ -10839,15 +10816,6 @@
     "legal",
     "redemption",
     "social deduction"
-  ],
-  "agenda": [
-    "bureaucracy",
-    "business",
-    "conspiracy",
-    "management",
-    "office",
-    "political",
-    "simulator"
   ],
   "avoid": [
     "bullet hell",
@@ -11289,6 +11257,15 @@
     "mutant",
     "psychic",
     "psychological"
+  ],
+  "development": [
+    "artificial intelligence",
+    "building",
+    "cyberpunk",
+    "hacking",
+    "robot",
+    "technology",
+    "tycoon"
   ],
   "cord": [
     "artificial intelligence",
@@ -13970,16 +13947,6 @@
     "scavenging",
     "western"
   ],
-  "tourist": [
-    "city",
-    "exploration",
-    "journey",
-    "modern",
-    "open world",
-    "roadtrip",
-    "urban",
-    "walking simulator"
-  ],
   "kidding": [
     "child",
     "coming-of-age",
@@ -14260,16 +14227,6 @@
     "steal",
     "wealth"
   ],
-  "capitalism": [
-    "business",
-    "fairy tale",
-    "fantasy",
-    "greed",
-    "political",
-    "royalty",
-    "shop",
-    "wealth"
-  ],
   "banks": [
     "business",
     "caper",
@@ -14320,6 +14277,26 @@
     "redemption",
     "shop"
   ],
+  "industry": [
+    "bureaucracy",
+    "business",
+    "cleaning",
+    "fame",
+    "farming",
+    "gothic",
+    "office",
+    "tycoon"
+  ],
+  "industrial": [
+    "bureaucracy",
+    "business",
+    "city",
+    "fame",
+    "modern",
+    "office",
+    "tycoon",
+    "urban"
+  ],
   "incoming": [
     "bureaucracy",
     "business",
@@ -14330,15 +14307,35 @@
     "shop",
     "wealth"
   ],
-  "funds": [
+  "funding": [
     "bureaucracy",
     "business",
     "greed",
     "management",
-    "political",
     "shop",
     "simulator",
+    "tycoon",
     "wealth"
+  ],
+  "fund": [
+    "bureaucracy",
+    "business",
+    "greed",
+    "management",
+    "shop",
+    "simulator",
+    "tycoon",
+    "wealth"
+  ],
+  "director's": [
+    "bureaucracy",
+    "business",
+    "fame",
+    "interactive film",
+    "management",
+    "office",
+    "simulator",
+    "tycoon"
   ],
   "corruption": [
     "bureaucracy",
@@ -14349,6 +14346,16 @@
     "greed",
     "noir",
     "political"
+  ],
+  "agenda": [
+    "bureaucracy",
+    "business",
+    "conspiracy",
+    "management",
+    "office",
+    "political",
+    "simulator",
+    "tycoon"
   ],
   "walls": [
     "building",
@@ -18154,6 +18161,17 @@
     "noir",
     "science"
   ],
+  "tourist": [
+    "city",
+    "exploration",
+    "journey",
+    "modern",
+    "open world",
+    "roadtrip",
+    "tycoon",
+    "urban",
+    "walking simulator"
+  ],
   "table": [
     "card",
     "cooking",
@@ -18418,6 +18436,17 @@
     "slice-of-life",
     "wealth"
   ],
+  "capitalism": [
+    "business",
+    "fairy tale",
+    "fantasy",
+    "greed",
+    "political",
+    "royalty",
+    "shop",
+    "tycoon",
+    "wealth"
+  ],
   "beggars": [
     "business",
     "fairy tale",
@@ -18461,28 +18490,6 @@
     "shop",
     "steampunk",
     "victorian"
-  ],
-  "assets": [
-    "business",
-    "greed",
-    "inventory management",
-    "management",
-    "office",
-    "resource management",
-    "shop",
-    "simulator",
-    "wealth"
-  ],
-  "asset": [
-    "business",
-    "greed",
-    "inventory management",
-    "management",
-    "office",
-    "resource management",
-    "shop",
-    "simulator",
-    "wealth"
   ],
   "wages": [
     "bureaucracy",
@@ -18539,17 +18546,6 @@
     "infiltration",
     "invasion"
   ],
-  "resources": [
-    "bureaucracy",
-    "business",
-    "communication",
-    "conversation",
-    "inventory management",
-    "management",
-    "quest",
-    "resource management",
-    "simulator"
-  ],
   "partners": [
     "bureaucracy",
     "business",
@@ -18605,6 +18601,17 @@
     "noir",
     "social deduction"
   ],
+  "funds": [
+    "bureaucracy",
+    "business",
+    "greed",
+    "management",
+    "political",
+    "shop",
+    "simulator",
+    "tycoon",
+    "wealth"
+  ],
   "contingency": [
     "bureaucracy",
     "business",
@@ -18615,17 +18622,6 @@
     "strategy",
     "tactical",
     "war"
-  ],
-  "budget": [
-    "bureaucracy",
-    "business",
-    "greed",
-    "management",
-    "office",
-    "political",
-    "shop",
-    "simulator",
-    "wealth"
   ],
   "allowances": [
     "bureaucracy",
@@ -21352,6 +21348,30 @@
     "steal",
     "wealth"
   ],
+  "assets": [
+    "business",
+    "greed",
+    "inventory management",
+    "management",
+    "office",
+    "resource management",
+    "shop",
+    "simulator",
+    "tycoon",
+    "wealth"
+  ],
+  "asset": [
+    "business",
+    "greed",
+    "inventory management",
+    "management",
+    "office",
+    "resource management",
+    "shop",
+    "simulator",
+    "tycoon",
+    "wealth"
+  ],
   "strategy": [
     "bureaucracy",
     "business",
@@ -21376,6 +21396,18 @@
     "scavenging",
     "survival"
   ],
+  "resources": [
+    "bureaucracy",
+    "business",
+    "communication",
+    "conversation",
+    "inventory management",
+    "management",
+    "quest",
+    "resource management",
+    "simulator",
+    "tycoon"
+  ],
   "legally": [
     "bureaucracy",
     "business",
@@ -21388,18 +21420,6 @@
     "noir",
     "social deduction"
   ],
-  "investment": [
-    "bureaucracy",
-    "business",
-    "dress-up",
-    "fashion",
-    "greed",
-    "management",
-    "phantom thief",
-    "shop",
-    "simulator",
-    "wealth"
-  ],
   "inquiries": [
     "bureaucracy",
     "business",
@@ -21411,6 +21431,18 @@
     "noir",
     "police",
     "social deduction"
+  ],
+  "budget": [
+    "bureaucracy",
+    "business",
+    "greed",
+    "management",
+    "office",
+    "political",
+    "shop",
+    "simulator",
+    "tycoon",
+    "wealth"
   ],
   "aide": [
     "bureaucracy",
@@ -21435,18 +21467,6 @@
     "strategy",
     "tactical",
     "war"
-  ],
-  "property": [
-    "building",
-    "bureaucracy",
-    "business",
-    "caper",
-    "greed",
-    "heist",
-    "phantom thief",
-    "shop",
-    "steal",
-    "wealth"
   ],
   "treason": [
     "betrayal",
@@ -21542,18 +21562,6 @@
     "phantom thief",
     "robot",
     "steal",
-    "technology"
-  ],
-  "resource": [
-    "artificial intelligence",
-    "cyberpunk",
-    "hacking",
-    "inventory management",
-    "management",
-    "quest",
-    "resource management",
-    "robot",
-    "simulator",
     "technology"
   ],
   "matrix": [
@@ -23780,19 +23788,6 @@
     "scavenging",
     "shop"
   ],
-  "capital": [
-    "business",
-    "city",
-    "fairy tale",
-    "fantasy",
-    "greed",
-    "modern",
-    "political",
-    "royalty",
-    "shop",
-    "urban",
-    "wealth"
-  ],
   "overruled": [
     "bureaucracy",
     "business",
@@ -23805,6 +23800,19 @@
     "royalty",
     "social deduction",
     "sports"
+  ],
+  "investment": [
+    "bureaucracy",
+    "business",
+    "dress-up",
+    "fashion",
+    "greed",
+    "management",
+    "phantom thief",
+    "shop",
+    "simulator",
+    "tycoon",
+    "wealth"
   ],
   "conduct": [
     "bureaucracy",
@@ -23870,6 +23878,19 @@
     "steal",
     "stealth",
     "tower defense"
+  ],
+  "property": [
+    "building",
+    "bureaucracy",
+    "business",
+    "caper",
+    "greed",
+    "heist",
+    "phantom thief",
+    "shop",
+    "steal",
+    "tycoon",
+    "wealth"
   ],
   "selfish": [
     "betrayal",
@@ -24027,6 +24048,19 @@
     "psychological",
     "puzzle"
   ],
+  "resource": [
+    "artificial intelligence",
+    "cyberpunk",
+    "hacking",
+    "inventory management",
+    "management",
+    "quest",
+    "resource management",
+    "robot",
+    "simulator",
+    "technology",
+    "tycoon"
+  ],
   "rational": [
     "artificial intelligence",
     "detective",
@@ -24074,6 +24108,19 @@
     "psychic",
     "rebellion",
     "robot",
+    "technology",
+    "text",
+    "text adventure",
+    "visual novel"
+  ],
+  "copy": [
+    "artificial intelligence",
+    "communication",
+    "cyberpunk",
+    "hacking",
+    "impersonation",
+    "robot",
+    "shapeshifting",
     "technology",
     "text",
     "text adventure",
@@ -25608,6 +25655,20 @@
     "victorian",
     "wealth"
   ],
+  "capital": [
+    "business",
+    "city",
+    "fairy tale",
+    "fantasy",
+    "greed",
+    "modern",
+    "political",
+    "royalty",
+    "shop",
+    "tycoon",
+    "urban",
+    "wealth"
+  ],
   "accounting": [
     "business",
     "detective",
@@ -25747,20 +25808,6 @@
     "police",
     "simulator",
     "social deduction"
-  ],
-  "authority": [
-    "bureaucracy",
-    "business",
-    "communication",
-    "management",
-    "mecha",
-    "military",
-    "police",
-    "political",
-    "simulator",
-    "strategy",
-    "tactical",
-    "war"
   ],
   "irony": [
     "building",
@@ -25985,20 +26032,6 @@
     "steampunk",
     "tabletop",
     "victorian"
-  ],
-  "efficiency": [
-    "artificial intelligence",
-    "bureaucracy",
-    "business",
-    "cyberpunk",
-    "futuristic",
-    "hacking",
-    "management",
-    "robot",
-    "sci-fi",
-    "science",
-    "simulator",
-    "technology"
   ],
   "counter": [
     "artificial intelligence",
@@ -27218,6 +27251,21 @@
     "police",
     "social deduction"
   ],
+  "authority": [
+    "bureaucracy",
+    "business",
+    "communication",
+    "management",
+    "mecha",
+    "military",
+    "police",
+    "political",
+    "simulator",
+    "strategy",
+    "tactical",
+    "tycoon",
+    "war"
+  ],
   "affairs": [
     "bureaucracy",
     "business",
@@ -27398,20 +27446,20 @@
     "simulator",
     "technology"
   ],
-  "copy": [
+  "efficiency": [
     "artificial intelligence",
-    "communication",
+    "bureaucracy",
+    "business",
     "cyberpunk",
+    "futuristic",
     "hacking",
-    "impersonation",
-    "police",
-    "punishment",
+    "management",
     "robot",
-    "shapeshifting",
+    "sci-fi",
+    "science",
+    "simulator",
     "technology",
-    "text",
-    "text adventure",
-    "visual novel"
+    "tycoon"
   ],
   "bloomer": [
     "art nouveau",
@@ -27472,21 +27520,6 @@
     "noir",
     "rivals",
     "stealth"
-  ],
-  "construction": [
-    "art",
-    "artificial intelligence",
-    "artist",
-    "building",
-    "city",
-    "crafting",
-    "creative",
-    "drawing",
-    "invention",
-    "modern",
-    "repair",
-    "robot",
-    "urban"
   ],
   "screen": [
     "arcade",
@@ -28417,6 +28450,22 @@
     "sci-fi",
     "science"
   ],
+  "construction": [
+    "art",
+    "artificial intelligence",
+    "artist",
+    "building",
+    "city",
+    "crafting",
+    "creative",
+    "drawing",
+    "invention",
+    "modern",
+    "repair",
+    "robot",
+    "tycoon",
+    "urban"
+  ],
   "stalking": [
     "animals",
     "art nouveau",
@@ -28592,6 +28641,22 @@
     "simulator",
     "time travel",
     "visual novel"
+  ],
+  "paths": [
+    "alternate history",
+    "branching narrative",
+    "escort mission",
+    "exploration",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "on-rails",
+    "open world",
+    "roadtrip",
+    "time travel",
+    "visual novel",
+    "walking simulator"
   ],
   "path": [
     "alternate history",
@@ -29305,6 +29370,23 @@
     "sabotage",
     "social deduction"
   ],
+  "webs": [
+    "artificial intelligence",
+    "conspiracy",
+    "cyberpunk",
+    "deception",
+    "detective",
+    "hacking",
+    "insects",
+    "investigation",
+    "mystery",
+    "nature",
+    "noir",
+    "online",
+    "robot",
+    "social deduction",
+    "technology"
+  ],
   "web": [
     "artificial intelligence",
     "conspiracy",
@@ -29355,23 +29437,6 @@
     "shop",
     "technology",
     "wealth"
-  ],
-  "scenery": [
-    "art",
-    "artist",
-    "beautiful",
-    "colorful",
-    "creative",
-    "drawing",
-    "episodic",
-    "fame",
-    "gardening",
-    "interactive film",
-    "nature",
-    "plants",
-    "realistic",
-    "scavenging",
-    "slice-of-life"
   ],
   "ideas": [
     "art",
@@ -30338,6 +30403,24 @@
     "social deduction",
     "technology",
     "wealth"
+  ],
+  "scenery": [
+    "art",
+    "artist",
+    "beautiful",
+    "colorful",
+    "creative",
+    "drawing",
+    "episodic",
+    "fame",
+    "gardening",
+    "interactive film",
+    "nature",
+    "plants",
+    "realistic",
+    "scavenging",
+    "slice-of-life",
+    "tycoon"
   ],
   "madness": [
     "art",
