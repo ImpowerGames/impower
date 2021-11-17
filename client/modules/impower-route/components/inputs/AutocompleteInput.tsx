@@ -191,6 +191,7 @@ const AutocompleteInput = React.memo(
     const placeholderLabel = "(None)";
 
     const stateRef = useRef(value);
+    const highlightedOptionRef = useRef<unknown>();
 
     const [state, setState] = useState(value);
     const [inputValueState, setInputValueState] = useState(
@@ -292,6 +293,13 @@ const AutocompleteInput = React.memo(
 
     const searchable =
       noDefaultOptions || options?.length > searchableThreshold;
+
+    const handleHighlightChange = useCallback(
+      (e: React.SyntheticEvent, option: unknown): string => {
+        highlightedOptionRef.current = option;
+      },
+      []
+    );
 
     const handleOpen = useCallback(
       async (e: React.ChangeEvent | React.MouseEvent) => {
@@ -523,14 +531,24 @@ const AutocompleteInput = React.memo(
         reason?: AutocompleteChangeReason,
         details?: AutocompleteChangeDetails
       ): Promise<boolean> => {
-        if (reason === "selectOption") {
+        const validReason =
+          reason === "createOption" && highlightedOptionRef.current !== null
+            ? "selectOption"
+            : reason;
+        const validValue =
+          reason === "createOption" && highlightedOptionRef.current !== null
+            ? multiple
+              ? [highlightedOptionRef.current]
+              : highlightedOptionRef.current
+            : newValue;
+        if (validReason === "selectOption") {
           if (handleInputChange) {
-            handleInputChange(e, handleGetOptionLabel(newValue));
+            handleInputChange(e, handleGetOptionLabel(validValue));
           }
         }
         let safeValue = freeSolo
-          ? handleGetValidValue(newValue)
-          : getMatchingOption(newValue);
+          ? handleGetValidValue(validValue)
+          : getMatchingOption(validValue);
         if (Array.isArray(safeValue) && fixedOptions) {
           safeValue = [...fixedOptions, ...safeValue];
         }
@@ -541,7 +559,7 @@ const AutocompleteInput = React.memo(
           stateRef.current = safeValue;
           setState(safeValue);
           if (onChange) {
-            onChange(e, safeValue, reason, details);
+            onChange(e, safeValue, validReason, details);
           }
           if (getInputError) {
             const inputError = await getInputError(safeValue);
@@ -885,6 +903,7 @@ const AutocompleteInput = React.memo(
           filterOptions={handleFilterOptions}
           onChange={handleChange}
           onBlur={handleBlur}
+          onHighlightChange={handleHighlightChange}
         />
       </StyledAutocompleteInput>
     );
