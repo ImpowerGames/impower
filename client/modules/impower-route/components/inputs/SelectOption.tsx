@@ -3,8 +3,9 @@ import styled from "@emotion/styled";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemButton from "@material-ui/core/ListItemButton";
 import Typography from "@material-ui/core/Typography";
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { DynamicIcon, FontIcon } from "../../../impower-icon";
+import { VirtualizedItem } from "../../../impower-react-virtualization";
 
 export const getOptionHeight = (props: {
   options: unknown[];
@@ -102,6 +103,7 @@ export interface OptionProps extends React.HTMLAttributes<HTMLLIElement> {
   };
   getOptionDescription?: (option: unknown) => string;
   renderOptionIcon?: (option: unknown, icon: string) => React.ReactNode;
+  getOptionHeight?: () => number;
 }
 
 const SelectOption = React.memo((props: OptionProps) => {
@@ -115,9 +117,17 @@ const SelectOption = React.memo((props: OptionProps) => {
     getOptionDescription,
     getOptionIcon,
     getOptionIconStyle,
+    getOptionHeight,
     renderOptionIcon,
     ...listItemProps
   } = props;
+
+  const [root, setRoot] = useState<HTMLElement>();
+  const handleRef = useCallback((instance: HTMLElement) => {
+    if (instance.parentElement?.parentElement) {
+      setRoot(instance.parentElement?.parentElement);
+    }
+  }, []);
 
   const handleGetOptionLabel = useCallback(
     (option: unknown): string => {
@@ -141,6 +151,7 @@ const SelectOption = React.memo((props: OptionProps) => {
     : "";
   const optionIcon = getOptionIcon ? getOptionIcon(option) : "";
   const optionIconStyle = getOptionIconStyle ? getOptionIconStyle(option) : {};
+  const minHeight = getOptionHeight ? getOptionHeight() : 48;
 
   const theme = useTheme();
 
@@ -156,78 +167,90 @@ const SelectOption = React.memo((props: OptionProps) => {
   if (option) {
     if (optionLabel) {
       return (
-        <StyledListItem {...listItemProps}>
-          <StyledListItemButton style={style}>
-            <StyledOption
-              style={{
-                fontSize,
-              }}
-            >
-              {renderOptionIcon && renderOptionIcon(option, optionIcon) ? (
-                <StyledOptionIconArea>
-                  {renderOptionIcon(option, optionIcon)}
-                </StyledOptionIconArea>
-              ) : (
-                optionIcon && (
+        <StyledListItem ref={handleRef} {...listItemProps}>
+          <VirtualizedItem
+            minHeight={minHeight}
+            minValidHeight={minHeight}
+            root={root}
+          >
+            <StyledListItemButton style={style}>
+              <StyledOption
+                style={{
+                  fontSize,
+                }}
+              >
+                {renderOptionIcon && renderOptionIcon(option, optionIcon) ? (
                   <StyledOptionIconArea>
-                    <FontIcon
-                      aria-label={optionIcon}
-                      color={
-                        optionIconStyle?.color || selected
-                          ? theme.colors.black60
-                          : theme.colors.black40
-                      }
-                      size={optionIconStyle?.fontSize}
-                    >
-                      <DynamicIcon icon={optionIcon} />
-                    </FontIcon>
+                    {renderOptionIcon(option, optionIcon)}
                   </StyledOptionIconArea>
-                )
-              )}
-              <StyledOptionText>
-                <StyledOptionTextContent>
-                  <StyledLabelContent>
-                    {parts.map((part, index) => (
-                      <StyledTypography
-                        key={index} // eslint-disable-line react/no-array-index-key
-                        style={{
-                          fontSize,
-                          fontWeight:
-                            selected ||
-                            (part.highlight &&
-                              optionLabel
-                                ?.toLowerCase()
-                                .startsWith(inputValue?.toLowerCase()))
-                              ? 700
-                              : optionDescription
-                              ? 600
-                              : 400,
-                        }}
+                ) : (
+                  optionIcon && (
+                    <StyledOptionIconArea>
+                      <FontIcon
+                        aria-label={optionIcon}
+                        color={
+                          optionIconStyle?.color || selected
+                            ? theme.colors.black60
+                            : theme.colors.black40
+                        }
+                        size={optionIconStyle?.fontSize}
                       >
-                        {part.text}
-                      </StyledTypography>
-                    ))}
-                  </StyledLabelContent>
-                  {optionDescription && (
+                        <DynamicIcon icon={optionIcon} />
+                      </FontIcon>
+                    </StyledOptionIconArea>
+                  )
+                )}
+                <StyledOptionText>
+                  <StyledOptionTextContent>
                     <StyledLabelContent>
-                      <StyledTypography variant="caption" component="p">
-                        {optionDescription}
-                      </StyledTypography>
+                      {parts.map((part, index) => (
+                        <StyledTypography
+                          key={index} // eslint-disable-line react/no-array-index-key
+                          style={{
+                            fontSize,
+                            fontWeight:
+                              selected ||
+                              (part.highlight &&
+                                optionLabel
+                                  ?.toLowerCase()
+                                  .startsWith(inputValue?.toLowerCase()))
+                                ? 700
+                                : optionDescription
+                                ? 600
+                                : 400,
+                          }}
+                        >
+                          {part.text}
+                        </StyledTypography>
+                      ))}
                     </StyledLabelContent>
-                  )}
-                </StyledOptionTextContent>
-              </StyledOptionText>
-            </StyledOption>
-          </StyledListItemButton>
+                    {optionDescription && (
+                      <StyledLabelContent>
+                        <StyledTypography variant="caption" component="p">
+                          {optionDescription}
+                        </StyledTypography>
+                      </StyledLabelContent>
+                    )}
+                  </StyledOptionTextContent>
+                </StyledOptionText>
+              </StyledOption>
+            </StyledListItemButton>
+          </VirtualizedItem>
         </StyledListItem>
       );
     }
   }
   return (
-    <StyledListItem {...listItemProps}>
-      <StyledPlaceholderContent style={{ opacity: 0.5, ...style }}>
-        <StyledOption>{placeholderLabel}</StyledOption>
-      </StyledPlaceholderContent>
+    <StyledListItem ref={handleRef} {...listItemProps}>
+      <VirtualizedItem
+        minHeight={minHeight}
+        minValidHeight={minHeight}
+        root={root}
+      >
+        <StyledPlaceholderContent style={{ opacity: 0.5, ...style }}>
+          <StyledOption>{placeholderLabel}</StyledOption>
+        </StyledPlaceholderContent>
+      </VirtualizedItem>
     </StyledListItem>
   );
 });

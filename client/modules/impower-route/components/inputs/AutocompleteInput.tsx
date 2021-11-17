@@ -98,7 +98,7 @@ export interface AutocompleteInputProps
   searchableThreshold?: number;
   style?: React.CSSProperties;
   renderInput?: (params: AutocompleteRenderInputParams) => React.ReactNode;
-  getOptionHeight?: (group: string) => number;
+  getOptionHeight?: () => number;
   getOptionIcon?: (option: unknown) => string;
   getOptionIconStyle?: (option: unknown) => {
     color?: string;
@@ -393,6 +393,20 @@ const AutocompleteInput = React.memo(
       [getOptionIconStyle]
     );
 
+    const handleGetOptionHeight = useCallback(() => {
+      if (getOptionHeight) {
+        return getOptionHeight();
+      }
+      const hasDescription = options && handleGetOptionDescription(options[0]);
+      const hasIcon = options && handleGetOptionIcon(options[0]);
+      return hasIcon && hasDescription ? 60 : hasDescription ? 56 : 48;
+    }, [
+      handleGetOptionDescription,
+      handleGetOptionIcon,
+      getOptionHeight,
+      options,
+    ]);
+
     const handleRenderOption = useCallback(
       (
         props: React.HTMLAttributes<HTMLLIElement>,
@@ -413,6 +427,7 @@ const AutocompleteInput = React.memo(
             getOptionDescription={getOptionDescription}
             getOptionIcon={getOptionIcon}
             getOptionIconStyle={getOptionIconStyle}
+            getOptionHeight={handleGetOptionHeight}
             renderOptionIcon={renderOptionIcon}
             {...props}
           />
@@ -423,26 +438,9 @@ const AutocompleteInput = React.memo(
         getOptionIcon,
         getOptionIconStyle,
         getOptionLabel,
+        handleGetOptionHeight,
         renderOption,
         renderOptionIcon,
-      ]
-    );
-
-    const handleGetOptionHeight = useCallback(
-      (group: string) => {
-        if (getOptionHeight) {
-          return getOptionHeight(group);
-        }
-        const hasDescription =
-          options && handleGetOptionDescription(options[0]);
-        const hasIcon = options && handleGetOptionIcon(options[0]);
-        return hasIcon && hasDescription ? 60 : hasDescription ? 56 : 48;
-      },
-      [
-        handleGetOptionDescription,
-        handleGetOptionIcon,
-        getOptionHeight,
-        options,
       ]
     );
 

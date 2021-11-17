@@ -1,9 +1,12 @@
 import styled from "@emotion/styled";
-import { Divider, Typography } from "@material-ui/core";
+import {
+  AutocompleteRenderGroupParams,
+  Divider,
+  Typography,
+} from "@material-ui/core";
 import React from "react";
-import { VirtualizedItem } from "../../../impower-react-virtualization";
 
-const StyledGroup = styled.div``;
+const StyledGroup = styled.li``;
 
 const StyledGroupName = styled.div`
   padding: ${(props): string => props.theme.spacing(1, 2)};
@@ -25,16 +28,19 @@ const StyledTypography = styled(Typography)<{ component?: string }>`
 
 const StyledDivider = styled(Divider)``;
 
+interface VirtualizedAutocompleteGroupParams
+  extends Omit<AutocompleteRenderGroupParams, "key"> {
+  key: number;
+  group: string;
+  getOptionHeight?: () => number;
+}
+
 export const VirtualizedAutocompleteGroup = React.memo(
-  (props: {
-    group: string;
-    children: React.ReactNode;
-    getOptionHeight?: (group: string) => number;
-  }): JSX.Element => {
+  (props: VirtualizedAutocompleteGroupParams): JSX.Element => {
     const { group, children, getOptionHeight } = props;
     const items = React.Children.toArray(children);
     const isDividerGroup = group?.startsWith("---");
-    const minHeight = getOptionHeight ? getOptionHeight(group) : 48;
+    const minHeight = getOptionHeight ? getOptionHeight() : 48;
     return (
       <StyledGroup>
         {group && (
@@ -59,23 +65,7 @@ export const VirtualizedAutocompleteGroup = React.memo(
             )}
           </StyledGroupName>
         )}
-        {items.map((item, index) => {
-          if (!item) {
-            return null;
-          }
-          const itemWithKey = item as { key: string };
-          const itemKey = itemWithKey.key;
-          return (
-            <VirtualizedItem
-              key={itemKey}
-              index={index}
-              minHeight={minHeight}
-              minValidHeight={minHeight}
-            >
-              {items[index]}
-            </VirtualizedItem>
-          );
-        })}
+        {items}
       </StyledGroup>
     );
   }
