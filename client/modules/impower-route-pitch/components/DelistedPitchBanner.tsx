@@ -55,8 +55,6 @@ interface DelistedPitchBannerProps {
 
 const DelistedPitchBanner = React.memo(
   (props: DelistedPitchBannerProps): JSX.Element => {
-    const pitchedCollection = "pitched_games";
-
     const { archived, id, removed, onChange } = props;
 
     const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
@@ -73,7 +71,7 @@ const DelistedPitchBanner = React.memo(
           const DataStateRead = (
             await import("../../impower-data-state/classes/dataStateRead")
           ).default;
-          const submissionKey = [pitchedCollection, id].join("%");
+          const submissionKey = ["pitched_projects", id].join("%");
           const ref = new DataStateRead(
             "users",
             uid,
@@ -91,7 +89,7 @@ const DelistedPitchBanner = React.memo(
 
     const handleOpenArchivedConfirmDialog = useCallback((): void => {
       const onYes = async (): Promise<void> => {
-        const submissionKey = getDataStoreKey(pitchedCollection, id);
+        const submissionKey = getDataStoreKey("pitched_projects", id);
         const DataStoreRead = (
           await import("../../impower-data-store/classes/dataStoreRead")
         ).default;

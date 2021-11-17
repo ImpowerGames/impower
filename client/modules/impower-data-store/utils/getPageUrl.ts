@@ -1,7 +1,6 @@
+import { isProjectDocument } from "..";
 import { DataDocument } from "../../impower-core";
 import getSlugRoute from "./getSlugRoute";
-import isGameDocument from "./isGameDocument";
-import isResourceDocument from "./isResourceDocument";
 import isStudioDocument from "./isStudioDocument";
 import isUserDocument from "./isUserDocument";
 
@@ -14,10 +13,7 @@ const getPageUrl = (doc: DataDocument): string => {
   if (isStudioDocument(doc)) {
     return url.replace("{slug}", doc.handle);
   }
-  if (isGameDocument(doc)) {
-    return url.replace("{slug}", doc.slug);
-  }
-  if (isResourceDocument(doc)) {
+  if (isProjectDocument(doc)) {
     return url.replace("{slug}", doc.slug);
   }
   return "";

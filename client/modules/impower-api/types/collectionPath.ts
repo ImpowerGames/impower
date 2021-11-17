@@ -24,35 +24,33 @@ export type UserDeletedSubmissionCollectionPath = [
   "deleted_submissions"
 ];
 
-export type PageCollectionPath = ["studios" | "resources" | "games"];
-export type ProjectCollectionPath = ["resources" | "games"];
+export type PageCollectionPath = ["studios" | "projects"];
+export type ProjectCollectionPath = ["projects"];
 
 export type PublishedPageCollectionPath = [
-  "published_studios" | "published_resources" | "published_games"
+  "published_studios" | "published_projects"
 ];
 export type PublishedPageCommentCollectionPath = [
-  "pitched_resources" | "pitched_games",
+  "pitched_projects",
   string,
   "comments"
 ];
 
-export type PitchedProjectCollectionPath = [
-  "pitched_resources" | "pitched_games"
-];
+export type PitchedProjectCollectionPath = ["pitched_projects"];
 export type PitchedProjectContributionCollectionPath = [
-  "pitched_resources" | "pitched_games",
+  "pitched_projects",
   string,
   "contributions"
 ];
 export type PitchedProjectContributionNoteCollectionPath = [
-  "pitched_resources" | "pitched_games",
+  "pitched_projects",
   string,
   "contributions",
   string,
   "notes"
 ];
 export type PitchedProjectNoteCollectionPath = [
-  "pitched_resources" | "pitched_games",
+  "pitched_projects",
   string,
   "notes"
 ];

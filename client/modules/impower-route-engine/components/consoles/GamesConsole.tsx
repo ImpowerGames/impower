@@ -15,7 +15,7 @@ import {
 } from "../../../impower-confirm-dialog";
 import { StorageFile } from "../../../impower-core";
 import { MemberAccess, MemberData } from "../../../impower-data-state";
-import { GameDocument } from "../../../impower-data-store";
+import { ProjectDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { DynamicIcon } from "../../../impower-icon";
 import Illustration from "../../../impower-route-home/components/elements/Illustration";
@@ -41,7 +41,7 @@ interface GamesConsoleContentProps {
   scrollParent?: HTMLElement;
   loading?: boolean;
   cardDetails: { [key: string]: CardDetail };
-  gameDocs?: { [id: string]: GameDocument };
+  gameDocs?: { [id: string]: ProjectDocument };
   gameMemberDocs?: { [id: string]: MemberData };
   studioMemberDoc?: MemberData;
   createLabel: string;
@@ -321,7 +321,7 @@ const StyledConsoleContentArea = styled.div`
 interface YourGamesConsoleProps {
   scrollParent?: HTMLElement;
   studioId?: string;
-  gameDocs: { [id: string]: GameDocument };
+  gameDocs: { [id: string]: ProjectDocument };
   emptyLabel?: React.ReactNode;
   fixedStyle?: React.CSSProperties;
   stickyStyle?: {
@@ -368,10 +368,10 @@ const GamesConsole = (props: YourGamesConsoleProps): JSX.Element => {
   const [, toastDispatch] = useContext(ToastContext);
   const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
   const [userState] = useContext(UserContext);
-  const { uid, my_studio_memberships, my_game_memberships } = userState;
+  const { uid, my_studio_memberships, my_project_memberships } = userState;
 
   const [createDocId, setCreateDocId] = useState<string>();
-  const [createDoc, setCreateDoc] = useState<GameDocument>();
+  const [createDoc, setCreateDoc] = useState<ProjectDocument>();
   const [createDialogOpen, setCreateDialogOpen] = useState<boolean>();
   const [canClose, setCanClose] = useState(true);
 
@@ -537,7 +537,7 @@ const GamesConsole = (props: YourGamesConsoleProps): JSX.Element => {
           cardDetails={cardDetails}
           gameDocs={gameDocs}
           studioMemberDoc={studioMemberDoc}
-          gameMemberDocs={my_game_memberships}
+          gameMemberDocs={my_project_memberships}
           createLabel={createLabel}
           addLabel={addLabel}
           selectedLabel={selectedLabel}

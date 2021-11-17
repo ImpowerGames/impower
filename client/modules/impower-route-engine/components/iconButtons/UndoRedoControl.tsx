@@ -39,21 +39,19 @@ const syncProjectHistoryChange = (
   newProjectState: ProjectState,
   currentProjectState: ProjectState
 ): void => {
-  const collection =
-    newProjectState.collection || currentProjectState.collection;
   const id = newProjectState.id || currentProjectState.id;
-  const projectPath = `${collection}/${id}`;
+  const projectPath = `${id}`;
   if (lastActionTargets.length === 1 && lastActionTargets[0] === projectPath) {
     ProjectEngineSync.instance.syncDoc(
       newProjectState?.data?.doc,
-      collection,
+      "projects",
       id
     );
   } else {
     ProjectEngineSync.instance.syncData(
       newProjectState.data,
       currentProjectState.data,
-      collection,
+      "projects",
       id
     );
   }

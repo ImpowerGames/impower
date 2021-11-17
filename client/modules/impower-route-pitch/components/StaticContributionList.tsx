@@ -98,8 +98,6 @@ interface StaticContributionListProps {
 
 const StaticContributionList = React.memo(
   (props: PropsWithChildren<StaticContributionListProps>): JSX.Element => {
-    const pitchedCollection = "pitched_games";
-
     const {
       scrollParent,
       contributionDataEntries,
@@ -253,7 +251,7 @@ const StaticContributionList = React.memo(
           loadingKeys.map((key) => {
             const [pitchId, contributionId] = key.split("%");
             return new DataStoreRead(
-              pitchedCollection,
+              "pitched_projects",
               pitchId,
               "contributions",
               contributionId

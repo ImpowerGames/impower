@@ -141,13 +141,15 @@ const Kudos = React.memo((): JSX.Element | null => {
       const path = key.split("%");
       const targetCollection = path[path.length - 2];
       const targetId = path[path.length - 1];
-      if (targetCollection?.startsWith("pitched_")) {
-        newPitchDataEntries.push([targetId, data]);
-      }
-      if (targetCollection === "contributions") {
-        const pitchId = path[path.length - 3];
-        const contributionKey = `${pitchId}%${targetId}`;
-        newContributionDataEntries.push([contributionKey, data]);
+      if (key?.startsWith("pitched_projects")) {
+        if (targetCollection?.startsWith("pitched_projects")) {
+          newPitchDataEntries.push([targetId, data]);
+        }
+        if (targetCollection === "contributions") {
+          const pitchId = path[path.length - 3];
+          const contributionKey = `${pitchId}%${targetId}`;
+          newContributionDataEntries.push([contributionKey, data]);
+        }
       }
     });
     setPitchDataEntries(newPitchDataEntries);

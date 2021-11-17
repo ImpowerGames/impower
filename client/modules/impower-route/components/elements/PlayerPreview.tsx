@@ -4,7 +4,7 @@ import Button from "@material-ui/core/Button";
 import { motion } from "framer-motion";
 import React from "react";
 import GamepadSolidIcon from "../../../../resources/icons/solid/gamepad.svg";
-import { GameDocument } from "../../../impower-data-store";
+import { ProjectDocument } from "../../../impower-data-store";
 import { FontIcon } from "../../../impower-icon";
 import FadeAnimation from "../animations/FadeAnimation";
 
@@ -64,7 +64,7 @@ const StyledButton = styled(Button)`
 `;
 
 interface PlayerPreviewProps {
-  doc?: GameDocument;
+  doc?: ProjectDocument;
   backgroundPosition?: "left top" | "center" | "center top" | "left center";
   backgroundSize?:
     | "auto"

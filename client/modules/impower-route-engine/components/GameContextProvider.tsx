@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { debounce } from "../../impower-core";
 import { useAllDocs } from "../../impower-data-state";
-import { GameDocument } from "../../impower-data-store";
+import { ProjectDocument } from "../../impower-data-store";
 import { GameProjectData, ItemType } from "../../impower-game/data";
 import { ImpowerGame } from "../../impower-game/game";
 import { ImpowerGameInspector } from "../../impower-game/inspector";
@@ -76,7 +76,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const { gid } = router.query;
   const [, navigationDispatch] = useContext(NavigationContext);
   const [userState] = useContext(UserContext);
-  const { my_studio_memberships, my_game_memberships } = userState;
+  const { my_studio_memberships, my_project_memberships } = userState;
 
   const theme = useTheme();
 
@@ -100,14 +100,14 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     projectEngineState?.present?.project?.data?.doc?.studio;
 
   const memberDoc = useMemo(() => {
-    if (my_game_memberships === undefined) {
+    if (my_project_memberships === undefined) {
       return undefined;
     }
-    if (my_game_memberships === null) {
+    if (my_project_memberships === null) {
       return null;
     }
-    return my_game_memberships[loadedGameId];
-  }, [loadedGameId, my_game_memberships]);
+    return my_project_memberships[loadedGameId];
+  }, [loadedGameId, my_project_memberships]);
 
   const studioMemberDoc = useMemo(() => {
     if (my_studio_memberships === undefined) {
@@ -121,25 +121,25 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
 
   const recentlyAccessedGameIds = useMemo(
     () =>
-      my_game_memberships === undefined
+      my_project_memberships === undefined
         ? undefined
-        : my_game_memberships === null
+        : my_project_memberships === null
         ? null
-        : Object.keys(my_game_memberships),
-    [my_game_memberships]
+        : Object.keys(my_project_memberships),
+    [my_project_memberships]
   );
-  const recentGameDocs = useAllDocs<GameDocument>(
-    "games",
+  const recentGameDocs = useAllDocs<ProjectDocument>(
+    "projects",
     recentlyAccessedGameIds
   );
 
   const handleLoadProjectData = useCallback(
     (data: GameProjectData) => {
-      projectEngineDispatch(projectLoadData("games", loadedGameId, data));
+      projectEngineDispatch(projectLoadData(loadedGameId, data));
     },
     [projectEngineDispatch, loadedGameId]
   );
-  useProjectData("games", loadedGameId, handleLoadProjectData);
+  useProjectData(loadedGameId, handleLoadProjectData);
 
   useEffect(() => {
     navigationDispatch(

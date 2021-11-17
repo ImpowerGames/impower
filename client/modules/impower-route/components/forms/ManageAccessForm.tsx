@@ -22,8 +22,7 @@ import { Inspector, removeDuplicates } from "../../../impower-core";
 import { MemberAccess, MemberData } from "../../../impower-data-state";
 import {
   AccessDocument,
-  isGameDocument,
-  isResourceDocument,
+  isProjectDocument,
   PageDocument,
 } from "../../../impower-data-store";
 import { FontIcon } from "../../../impower-icon";
@@ -151,7 +150,7 @@ export const AccessField = (
 };
 
 interface ManageAccessFormProps {
-  claimableCollection: "studios" | "games" | "resources";
+  claimableCollection: "studios" | "projects";
   claimableIds: string[];
   claimableDocs: PageDocument[];
   memberDocs: {
@@ -396,8 +395,7 @@ const ManageAccessForm = React.memo(
 
     const restricted = useMemo(
       () =>
-        isGameDocument(firstClaimableDoc) ||
-        isResourceDocument(firstClaimableDoc)
+        isProjectDocument(firstClaimableDoc)
           ? (doc?.restricted as boolean) || false
           : undefined,
       [firstClaimableDoc, doc]

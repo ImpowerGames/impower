@@ -1,6 +1,5 @@
 import {
   ActivityType,
-  GameDocumentPath,
   InteractiveDocumentPath,
   PageDocumentPath,
   PhraseDocumentPath,
@@ -41,10 +40,24 @@ export type TagAggReadPath =
   | [...TagDocumentPath, "agg", "users", "count"]
   | [...TagDocumentPath, "agg", "studios"]
   | [...TagDocumentPath, "agg", "studios", "count"]
-  | [...TagDocumentPath, "agg", "resources"]
-  | [...TagDocumentPath, "agg", "resources", "count"]
-  | [...TagDocumentPath, "agg", "games"]
-  | [...TagDocumentPath, "agg", "games", "count"]
+  | [...TagDocumentPath, "agg", "game"]
+  | [...TagDocumentPath, "agg", "game", "count"]
+  | [...TagDocumentPath, "agg", "story"]
+  | [...TagDocumentPath, "agg", "story", "count"]
+  | [...TagDocumentPath, "agg", "character"]
+  | [...TagDocumentPath, "agg", "character", "count"]
+  | [...TagDocumentPath, "agg", "setting"]
+  | [...TagDocumentPath, "agg", "setting", "count"]
+  | [...TagDocumentPath, "agg", "prop"]
+  | [...TagDocumentPath, "agg", "prop", "count"]
+  | [...TagDocumentPath, "agg", "interface"]
+  | [...TagDocumentPath, "agg", "interface", "count"]
+  | [...TagDocumentPath, "agg", "music"]
+  | [...TagDocumentPath, "agg", "music", "count"]
+  | [...TagDocumentPath, "agg", "sound"]
+  | [...TagDocumentPath, "agg", "sound", "count"]
+  | [...TagDocumentPath, "agg", "voice"]
+  | [...TagDocumentPath, "agg", "voice", "count"]
   | [...TagDocumentPath, "agg", "follows", "count"]
   | [...TagDocumentPath, "agg", "follows", "data", string]
   | [...TagDocumentPath, "agg", "reports", "count"]
@@ -254,28 +267,23 @@ export type PageMemberQueryPath = [...PageDocumentPath, "members", "data"];
 
 export type ProjectInstancesReadPath =
   | [...ProjectDocumentPath, "instances", "files"]
-  | [...ProjectDocumentPath, "instances", "folders"];
+  | [...ProjectDocumentPath, "instances", "folders"]
+  | [...ProjectDocumentPath, "instances", "configs"]
+  | [...ProjectDocumentPath, "instances", "constructs"]
+  | [...ProjectDocumentPath, "instances", "blocks"];
 export type ProjectInstanceReadPath =
   | [...ProjectDocumentPath, "instances", "files", "data", string]
-  | [...ProjectDocumentPath, "instances", "folders", "data", string];
+  | [...ProjectDocumentPath, "instances", "folders", "data", string]
+  | [...ProjectDocumentPath, "instances", "configs", "data", string]
+  | [...ProjectDocumentPath, "instances", "constructs", "data", string]
+  | [...ProjectDocumentPath, "instances", "blocks", "data", string];
 export type ProjectInstanceWritePath = ProjectInstanceReadPath;
 export type ProjectInstanceQueryPath =
   | [...ProjectDocumentPath, "instances", "files", "data"]
-  | [...ProjectDocumentPath, "instances", "folders", "data"];
-
-export type GameInstancesReadPath =
-  | [...GameDocumentPath, "instances", "configs"]
-  | [...GameDocumentPath, "instances", "constructs"]
-  | [...GameDocumentPath, "instances", "blocks"];
-export type GameInstanceReadPath =
-  | [...GameDocumentPath, "instances", "configs", "data", string]
-  | [...GameDocumentPath, "instances", "constructs", "data", string]
-  | [...GameDocumentPath, "instances", "blocks", "data", string];
-export type GameInstanceWritePath = GameInstanceReadPath;
-export type GameInstanceQueryReadPath =
-  | [...GameDocumentPath, "instances", "configs", "data"]
-  | [...GameDocumentPath, "instances", "constructs", "data"]
-  | [...GameDocumentPath, "instances", "blocks", "data"];
+  | [...ProjectDocumentPath, "instances", "folders", "data"]
+  | [...ProjectDocumentPath, "instances", "configs", "data"]
+  | [...ProjectDocumentPath, "instances", "constructs", "data"]
+  | [...ProjectDocumentPath, "instances", "blocks", "data"];
 
 export type InteractiveAggWritePath =
   | [...InteractiveDocumentPath, "agg", ActivityType];
@@ -305,10 +313,8 @@ export type DataStateReadPath =
   | PageMemberReadPath
   | ProjectInstancesReadPath
   | ProjectInstanceReadPath
-  | GameInstancesReadPath
-  | GameInstanceReadPath
   | PublishedPageAggReadPath
-  | GameInstanceQueryReadPath
+  | ProjectInstanceQueryPath
   | PitchedProjectAggReadPath
   | PublishedPageCommentAggReadPath
   | PitchedProjectContributionAggReadPath;
@@ -324,7 +330,6 @@ export type DataStateWritePath =
   | PhraseAggWritePath
   | PageMemberWritePath
   | ProjectInstanceWritePath
-  | GameInstanceWritePath
   | PublishedPageAggWritePath
   | PitchedProjectAggWritePath
   | PublishedPageCommentAggWritePath
@@ -342,7 +347,7 @@ export type DataStateQueryPath =
   | PublishedPageAggQueryPath
   | PitchedProjectAggQueryPath
   | ProjectInstanceQueryPath
-  | GameInstanceQueryReadPath
+  | ProjectInstanceQueryPath
   | PublishedPageCommentAggQueryPath
   | PitchedProjectContributionAggQueryPath;
 

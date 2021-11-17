@@ -49,7 +49,7 @@ const StyledButtonIconArea = styled.div`
 `;
 
 export interface CreationFinishedSummaryProps {
-  collection: "users" | "games" | "resources" | "studios";
+  collection: "users" | "studios" | "projects";
   docId: string;
   doc: PageDocument;
   successfulTitle: string;

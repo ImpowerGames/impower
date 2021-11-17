@@ -10,8 +10,7 @@ const createUserState = (): UserState => ({
   },
   submissions: {
     studios: undefined,
-    games: undefined,
-    resources: undefined,
+    projects: undefined,
     phrases: undefined,
     contributions: undefined,
     comments: undefined,

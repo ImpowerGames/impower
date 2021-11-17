@@ -3,7 +3,7 @@ import { PageDocument } from "../../impower-data-store";
 
 export const useAllDocsLoad = <T extends PageDocument>(
   onLoad: (values: { [id: string]: T }) => void,
-  parent: "games" | "resources" | "studios",
+  parent: "studios" | "projects",
   ids: string[]
 ): { [id: string]: T } => {
   const [collection, setCollection] = useState<{ [id: string]: T }>();

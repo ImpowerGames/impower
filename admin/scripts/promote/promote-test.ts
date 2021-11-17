@@ -1,5 +1,5 @@
 import { ServiceAccount } from "firebase-admin";
-import { HashParams, promoteAuth, UserAccounts } from "./promoteAuth";
+import { doPromote, HashParams, UserAccounts } from "./doPromote";
 
 const fromAuthPath = "../../dev.auth.json";
 const toCredentialsPath = "../../test.credentials.json";
@@ -10,7 +10,7 @@ const promote = async () => {
   const toCredentials = await import(toCredentialsPath);
   const accounts = await import(accountsPath);
   try {
-    await promoteAuth(
+    await doPromote(
       fromAuth as HashParams,
       toCredentials as ServiceAccount,
       accounts as UserAccounts

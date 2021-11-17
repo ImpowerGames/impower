@@ -1,12 +1,12 @@
+import { ProjectDocumentPath } from "../../../impower-api";
 import { Event, RecursivePartial } from "../../../impower-core";
-import { GameDocument, ResourceDocument } from "../../../impower-data-store";
+import { getUpdatedFields } from "../../../impower-data-state";
+import { ProjectDocument } from "../../../impower-data-store";
 import {
-  ResourceProjectData,
   GameProjectData,
   ProjectData,
+  ResourceProjectData,
 } from "../../../impower-game/data";
-import { getUpdatedFields } from "../../../impower-data-state";
-import { ProjectDocumentPath } from "../../../impower-api";
 
 export class ProjectEngineSync {
   private static _instance: ProjectEngineSync;
@@ -72,7 +72,7 @@ export class ProjectEngineSync {
     const gameData: GameProjectData = undefined;
     const projectCollection = path[0];
     const projectId = path[1];
-    if (projectCollection === "games") {
+    if (projectCollection === "projects") {
       const configsSnap = await new DataStateRead(
         projectCollection,
         projectId,
@@ -122,7 +122,7 @@ export class ProjectEngineSync {
   }
 
   async updateDoc(
-    doc: GameDocument | ResourceDocument,
+    doc: ProjectDocument,
     ...path: ProjectDocumentPath
   ): Promise<void> {
     this.onChange.emit();
@@ -133,10 +133,7 @@ export class ProjectEngineSync {
     this.onSync.emit();
   }
 
-  syncDoc(
-    update: GameDocument | ResourceDocument,
-    ...path: ProjectDocumentPath
-  ): void {
+  syncDoc(update: ProjectDocument, ...path: ProjectDocumentPath): void {
     this.updateDoc(update, ...path);
   }
 }

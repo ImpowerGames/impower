@@ -33,34 +33,29 @@ export type UserDeletedSubmissionDocumentPath = [
 ];
 
 export type StudioDocumentPath = ["studios", string];
-export type ResourceDocumentPath = ["resources", string];
-export type GameDocumentPath = ["games", string];
-export type PageDocumentPath = ["studios" | "resources" | "games", string];
-export type ProjectDocumentPath = ["resources" | "games", string];
+export type PageDocumentPath = ["studios" | "projects", string];
+export type ProjectDocumentPath = ["projects", string];
 
 export type PublishedPageDocumentPath = [
-  "published_studios" | "published_resources" | "published_games",
+  "published_studios" | "published_projects",
   string
 ];
 export type PublishedPageCommentDocumentPath = [
-  "pitched_resources" | "pitched_games",
+  "pitched_projects",
   string,
   "comments",
   string
 ];
 
-export type PitchedProjectDocumentPath = [
-  "pitched_resources" | "pitched_games",
-  string
-];
+export type PitchedProjectDocumentPath = ["pitched_projects", string];
 export type PitchedProjectContributionDocumentPath = [
-  "pitched_resources" | "pitched_games",
+  "pitched_projects",
   string,
   "contributions",
   string
 ];
 export type PitchedProjectNoteDocumentPath = [
-  "pitched_resources" | "pitched_games",
+  "pitched_projects",
   string,
   "notes",
   string

@@ -13,7 +13,7 @@ export const pageNames: { [baseRoute: string]: string } = {
   "/invite": "Invite",
   "/contact": "Contact",
   "/g": "Game",
-  "/r": "Resource",
+  "/r": "Project",
   "/s": "Studio",
   "/u": "Profile",
 };

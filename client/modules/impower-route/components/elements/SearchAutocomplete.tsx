@@ -409,14 +409,12 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
       "array-contains",
       `name#${value.toLowerCase()}`
     );
-    const collection = window.location.pathname.startsWith("/pitch")
-      ? "games"
-      : "";
-    if (!collection) {
+    const tagType = window.location.pathname.startsWith("/pitch") ? "game" : "";
+    if (!tagType) {
       return;
     }
-    if (collection) {
-      queryFilter = queryFilter.orderBy(`${collection}`, "desc");
+    if (tagType) {
+      queryFilter = queryFilter.orderBy(`${tagType}`, "desc");
     }
     const queryGet = queryFilter.limit(10).get<TagDocument>();
 

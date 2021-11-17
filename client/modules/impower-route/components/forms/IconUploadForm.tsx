@@ -61,7 +61,7 @@ const StyledUploadInstructionsTypography = styled(Typography)`
 `;
 
 export interface IconUploadFormProps {
-  collection: "users" | "games" | "resources" | "studios";
+  collection: "users" | "studios" | "projects";
   docId: string;
   doc: PageDocument;
   onUploadIcon: (file: StorageFile) => void;

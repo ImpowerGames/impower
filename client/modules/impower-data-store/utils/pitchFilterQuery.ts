@@ -13,7 +13,7 @@ const pitchFilterQuery = (
     tags?: string[];
     creator?: string;
   },
-  collection: "pitched_resources" | "pitched_games"
+  collection: "pitched_projects"
 ) => {
   const { sort, goal, age, nsfw, tags, creator } = options;
 

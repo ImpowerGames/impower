@@ -111,8 +111,6 @@ interface StaticPitchListProps {
 
 const StaticPitchList = React.memo(
   (props: StaticPitchListProps): JSX.Element => {
-    const pitchedCollection = "pitched_games";
-
     const {
       config,
       icons,
@@ -259,7 +257,7 @@ const StaticPitchList = React.memo(
         ).default;
         const snapshots = await Promise.all(
           loadingKeys.map((id) =>
-            new DataStoreRead(pitchedCollection, id).get<ProjectDocument>()
+            new DataStoreRead("pitched_projects", id).get<ProjectDocument>()
           )
         );
         cursorIndexRef.current = end;

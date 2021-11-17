@@ -2,7 +2,7 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import React, { useCallback, useContext, useEffect, useMemo } from "react";
 import { useAllDocs } from "../../impower-data-state";
-import { ResourceDocument } from "../../impower-data-store";
+import { ProjectDocument } from "../../impower-data-store";
 import { ResourceProjectData } from "../../impower-game/data";
 import {
   NavigationContext,
@@ -55,7 +55,7 @@ const ResourceContextProvider = React.memo(
     const { rid } = router.query;
     const [, navigationDispatch] = useContext(NavigationContext);
     const [userState] = useContext(UserContext);
-    const { my_studio_memberships, my_resource_memberships } = userState;
+    const { my_studio_memberships, my_project_memberships } = userState;
 
     const theme = useTheme();
 
@@ -78,14 +78,14 @@ const ResourceContextProvider = React.memo(
       projectEngineState?.present?.project?.data?.doc?.studio;
 
     const memberDoc = useMemo(() => {
-      if (my_resource_memberships === undefined) {
+      if (my_project_memberships === undefined) {
         return undefined;
       }
-      if (my_resource_memberships === null) {
+      if (my_project_memberships === null) {
         return null;
       }
-      return my_resource_memberships[loadedResourceId];
-    }, [loadedResourceId, my_resource_memberships]);
+      return my_project_memberships[loadedResourceId];
+    }, [loadedResourceId, my_project_memberships]);
 
     const studioMemberDoc = useMemo(() => {
       if (my_studio_memberships === undefined) {
@@ -99,27 +99,25 @@ const ResourceContextProvider = React.memo(
 
     const recentlyAccessedResourceIds = useMemo(
       () =>
-        my_resource_memberships === undefined
+        my_project_memberships === undefined
           ? undefined
-          : my_resource_memberships === null
+          : my_project_memberships === null
           ? null
-          : Object.keys(my_resource_memberships),
-      [my_resource_memberships]
+          : Object.keys(my_project_memberships),
+      [my_project_memberships]
     );
-    const recentResourceDocs = useAllDocs<ResourceDocument>(
-      "resources",
+    const recentResourceDocs = useAllDocs<ProjectDocument>(
+      "projects",
       recentlyAccessedResourceIds
     );
 
     const handleLoadProjectData = useCallback(
       (data: ResourceProjectData) => {
-        projectEngineDispatch(
-          projectLoadData("resources", loadedResourceId, data)
-        );
+        projectEngineDispatch(projectLoadData(loadedResourceId, data));
       },
       [projectEngineDispatch, loadedResourceId]
     );
-    useProjectData("resources", loadedResourceId, handleLoadProjectData);
+    useProjectData(loadedResourceId, handleLoadProjectData);
 
     useEffect(() => {
       navigationDispatch(

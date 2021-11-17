@@ -5,8 +5,7 @@ import { difference } from "../../../impower-core";
 import { MemberAccess, MemberData } from "../../../impower-data-state";
 import {
   AccessDocument,
-  isGameDocument,
-  isResourceDocument,
+  isProjectDocument,
   isStudioDocument,
 } from "../../../impower-data-store";
 import { VirtualizedItem } from "../../../impower-react-virtualization";
@@ -96,10 +95,8 @@ export const PageMembersField = (
 
   const group = isStudioDocument(doc)
     ? "studios"
-    : isResourceDocument(doc)
-    ? "resources"
-    : isGameDocument(doc)
-    ? "games"
+    : isProjectDocument(doc)
+    ? "projects"
     : undefined;
 
   const handleNewMembersChange = useCallback(

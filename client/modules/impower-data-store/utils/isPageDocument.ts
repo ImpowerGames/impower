@@ -6,9 +6,8 @@ const isPageDocument = (obj: unknown): obj is PageDocument => {
   }
   const doc = obj as PageDocument;
   return (
-    doc._documentType === "GameDocument" ||
-    doc._documentType === "ResourceDocument" ||
-    doc._documentType === "StudioDocument"
+    doc._documentType === "StudioDocument" ||
+    doc._documentType === "ProjectDocument"
   );
 };
 

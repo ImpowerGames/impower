@@ -511,8 +511,6 @@ interface CreateContributionFormProps {
 
 const CreateContributionForm = React.memo(
   (props: CreateContributionFormProps): JSX.Element => {
-    const pitchedCollection = "pitched_games";
-
     const {
       pitchId,
       pitchDoc,
@@ -541,6 +539,7 @@ const CreateContributionForm = React.memo(
 
     const type = doc?.contributionType || "story";
     const newContributionId = `${uid}-${type?.toLowerCase()}`;
+    const projectType = pitchDoc?.projectType;
 
     const [tagsState, setTagsState] = useState(
       isProjectDocument(pitchDoc) ? pitchDoc?.tags : undefined
@@ -841,7 +840,7 @@ const CreateContributionForm = React.memo(
               userOnUpdateSubmission(
                 resolve,
                 { ...newDoc, delisted: false },
-                pitchedCollection,
+                "pitched_projects",
                 pitchId,
                 "contributions",
                 contributionId
@@ -854,7 +853,7 @@ const CreateContributionForm = React.memo(
               userOnCreateSubmission(
                 resolve,
                 newDoc,
-                pitchedCollection,
+                "pitched_projects",
                 pitchId,
                 "contributions",
                 contributionId
@@ -1081,7 +1080,9 @@ const CreateContributionForm = React.memo(
             {type === "pitch" && (
               <GameSummaryPreambleSelector
                 placeholder={
-                  ConfigCache.instance.params?.messages?.pitched_games_preamble
+                  ConfigCache.instance.params?.messages[
+                    `pitched_${projectType || "game"}_preamble`
+                  ]
                 }
                 tags={tagsState}
                 onChangeTags={setTagsState}
@@ -1144,13 +1145,14 @@ const CreateContributionForm = React.memo(
       }),
       [
         storyStyle,
+        type,
+        projectType,
+        tagsState,
         ios,
         forceOverflowStyle,
         showTruncationPreview,
         truncatedContent,
-        tagsState,
         fileUrlState,
-        type,
         aspectRatioState,
         handleOpenCropDialog,
         previewAspectRatio,

@@ -139,7 +139,7 @@ const StyledButton = styled(Button)``;
 interface EditMemberFormProps {
   uid: string;
   access: MemberAccess;
-  claimableCollection: "studios" | "games" | "resources";
+  claimableCollection: "studios" | "projects";
   claimableId: string;
   docId: string;
   doc: MemberData;

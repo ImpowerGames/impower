@@ -18,12 +18,12 @@ import {
 } from "../../../impower-core";
 import { MemberAccess } from "../../../impower-data-state";
 import {
-  GameDocument,
   GameDocumentInspector,
   isGameDocument,
+  isProjectDocument,
   isResourceDocument,
   PageDocumentInspector,
-  ResourceDocument,
+  ProjectDocument,
   ResourceDocumentInspector,
 } from "../../../impower-data-store";
 import {
@@ -264,8 +264,8 @@ const ConfigurationSetup = React.memo(() => {
 interface AccessSetupProps {
   mode: Mode;
   submitting?: boolean;
-  onChange: (doc: GameDocument | ResourceDocument) => void;
-  onDebouncedChange: (doc: GameDocument | ResourceDocument) => void;
+  onChange: (doc: ProjectDocument) => void;
+  onDebouncedChange: (doc: ProjectDocument) => void;
 }
 
 const AccessSetup = React.memo((props: AccessSetupProps) => {
@@ -281,7 +281,7 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
       ? GameDocumentInspector.instance
       : isResourceDocument(doc)
       ? ResourceDocumentInspector.instance
-      : new PageDocumentInspector<GameDocument | ResourceDocument>();
+      : new PageDocumentInspector<ProjectDocument>();
   }, [doc]);
 
   const handleGetPropertyDocIds = useCallback(() => [id], [id]);
@@ -298,38 +298,18 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
       if (uid) {
         switch (action) {
           case "create":
-            if (isGameDocument(doc)) {
+            if (isProjectDocument(doc)) {
               await new Promise<void>((resolve) =>
                 userDispatch(
                   userOnChangeMember(
                     resolve,
                     {
-                      g: "games",
+                      g: "projects",
                       access,
                       role: "",
                       t: timestampServerValue() as number,
                     },
-                    "games",
-                    id,
-                    "members",
-                    "data",
-                    uid
-                  )
-                )
-              );
-            }
-            if (isResourceDocument(doc)) {
-              await new Promise<void>((resolve) =>
-                userDispatch(
-                  userOnChangeMember(
-                    resolve,
-                    {
-                      g: "resources",
-                      access,
-                      role: "",
-                      t: timestampServerValue() as number,
-                    },
-                    "resources",
+                    "projects",
                     id,
                     "members",
                     "data",
@@ -340,36 +320,17 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
             }
             break;
           case "update":
-            if (isGameDocument(doc)) {
+            if (isProjectDocument(doc)) {
               await new Promise<void>((resolve) =>
                 userDispatch(
                   userOnChangeMember(
                     resolve,
                     {
-                      g: "games",
+                      g: "projects",
                       access,
                       role: "",
                     },
-                    "games",
-                    id,
-                    "members",
-                    "data",
-                    uid
-                  )
-                )
-              );
-            }
-            if (isResourceDocument(doc)) {
-              await new Promise<void>((resolve) =>
-                userDispatch(
-                  userOnChangeMember(
-                    resolve,
-                    {
-                      g: "resources",
-                      access,
-                      role: "",
-                    },
-                    "resources",
+                    "projects",
                     id,
                     "members",
                     "data",
@@ -380,28 +341,13 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
             }
             break;
           case "delete":
-            if (isGameDocument(doc)) {
+            if (isProjectDocument(doc)) {
               await new Promise<void>((resolve) =>
                 userDispatch(
                   userOnChangeMember(
                     resolve,
                     null,
-                    "games",
-                    id,
-                    "members",
-                    "data",
-                    uid
-                  )
-                )
-              );
-            }
-            if (isResourceDocument(doc)) {
-              await new Promise<void>((resolve) =>
-                userDispatch(
-                  userOnChangeMember(
-                    resolve,
-                    null,
-                    "resources",
+                    "projects",
                     id,
                     "members",
                     "data",
@@ -438,7 +384,7 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
   );
 
   const handleChange = useCallback(
-    (docs: (GameDocument | ResourceDocument)[]) => {
+    (docs: ProjectDocument[]) => {
       if (onChange) {
         onChange(docs[0]);
       }
@@ -447,7 +393,7 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
   );
 
   const handleDebouncedChange = useCallback(
-    (docs: (GameDocument | ResourceDocument)[]) => {
+    (docs: ProjectDocument[]) => {
       if (onDebouncedChange) {
         onDebouncedChange(docs[0]);
       }
@@ -503,7 +449,7 @@ const SetupPanel = React.memo((): JSX.Element => {
   const [tabIndex, setTabIndex] = useState(0);
   const [previousTabIndex, setPreviousTabIndex] = useState(-1);
 
-  const stateRef = useRef<GameDocument | ResourceDocument>(doc);
+  const stateRef = useRef<ProjectDocument>(doc);
 
   const section = state?.present?.dataPanel?.panels?.Setup?.Item?.section;
   const { submitting, errors } = state.present.dataPanel.panels.Setup.Detail;
@@ -580,22 +526,19 @@ const SetupPanel = React.memo((): JSX.Element => {
         : await getAllErrors(
             getAllVisiblePropertyPaths(
               currentData,
-              new PageDocumentInspector<GameDocument | ResourceDocument>()
-                .isPropertyVisible,
+              new PageDocumentInspector<ProjectDocument>().isPropertyVisible,
               createPageDocument
             ),
             currentData,
-            new PageDocumentInspector<GameDocument | ResourceDocument>()
-              .getPropertyError,
+            new PageDocumentInspector<ProjectDocument>().getPropertyError,
             () => [id]
           );
       dispatch(
         dataPanelSetErrors(DataWindowType.Setup, DataPanelType.Detail, errors)
       );
       if (Object.keys(errors).length === 0) {
-        const collection = isGameDocument(currentData) ? "games" : "resources";
         dispatch(
-          projectChangeDocument(collection, id, {
+          projectChangeDocument(id, {
             ...currentData,
             published: true,
             ...(currentData?.published
@@ -614,18 +557,14 @@ const SetupPanel = React.memo((): JSX.Element => {
     [dispatch, id]
   );
 
-  const handleChange = useCallback(
-    (newDoc: GameDocument | ResourceDocument) => {
-      stateRef.current = newDoc;
-    },
-    []
-  );
+  const handleChange = useCallback((newDoc: ProjectDocument) => {
+    stateRef.current = newDoc;
+  }, []);
 
   const handleDebouncedChange = useCallback(
-    async (newDoc: GameDocument | ResourceDocument) => {
-      const collection = isGameDocument(newDoc) ? "games" : "resources";
+    async (newDoc: ProjectDocument) => {
       dispatch(
-        projectChangeDocument(collection, id, {
+        projectChangeDocument(id, {
           ...stateRef.current,
           ...newDoc,
         })

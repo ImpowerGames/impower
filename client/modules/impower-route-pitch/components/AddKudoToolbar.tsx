@@ -124,8 +124,6 @@ interface AddKudoToolbarProps {
 }
 
 const AddKudoToolbar = React.memo((props: AddKudoToolbarProps): JSX.Element => {
-  const pitchedCollection = "pitched_games";
-
   const {
     toolbarRef,
     pitchId,
@@ -141,9 +139,9 @@ const AddKudoToolbar = React.memo((props: AddKudoToolbarProps): JSX.Element => {
   const path: InteractiveDocumentPath = useMemo(
     () =>
       pitchId && contributionId
-        ? [pitchedCollection, pitchId, "contributions", contributionId]
-        : [pitchedCollection, pitchId],
-    [pitchedCollection, pitchId, contributionId]
+        ? ["pitched_projects", pitchId, "contributions", contributionId]
+        : ["pitched_projects", pitchId],
+    [pitchId, contributionId]
   );
   const existingKudo = my_kudos?.[getDataStoreKey(...path)];
   const liked = my_likes?.[getDataStoreKey(...path)];

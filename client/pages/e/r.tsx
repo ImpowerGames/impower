@@ -14,7 +14,7 @@ import getTagConfigParameters from "../../lib/getTagConfigParameters";
 import { ConfigParameters } from "../../modules/impower-config";
 import ConfigCache from "../../modules/impower-config/classes/configCache";
 import { StorageFile } from "../../modules/impower-core";
-import { ResourceDocument } from "../../modules/impower-data-store";
+import { ProjectDocument } from "../../modules/impower-data-store";
 import DataStoreCache from "../../modules/impower-data-store/classes/dataStoreCache";
 import {
   NavigationContext,
@@ -95,7 +95,7 @@ const CreateResourcePage = React.memo((props: CreateResourcePageProps) => {
   const [userState] = useContext(UserContext);
   const { userDoc, uid, my_studio_memberships, studios } = userState;
   const [createDocId, setCreateDocId] = useState<string>();
-  const [createDoc, setCreateDoc] = useState<ResourceDocument>();
+  const [createDoc, setCreateDoc] = useState<ProjectDocument>();
   const router = useRouter();
 
   const theme = useTheme();

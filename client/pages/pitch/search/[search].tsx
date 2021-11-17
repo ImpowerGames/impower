@@ -170,7 +170,6 @@ export const getStaticProps: GetStaticProps<PitchSearchPageProps> = async (
     ...getLocalizationConfigParameters(),
     ...getTagConfigParameters(),
   };
-  const pitchedCollection = "pitched_games";
   const adminApp = await initAdminApp();
   const termsQuery = getAnySearchQuery({
     search: searchValue,
@@ -178,7 +177,7 @@ export const getStaticProps: GetStaticProps<PitchSearchPageProps> = async (
   });
   const pitchesSnapshot = await adminApp
     .firestore()
-    .collection(`${pitchedCollection}`)
+    .collection("pitched_projects")
     .where("nsfw", "==", false)
     .where("delisted", "==", false)
     .where("terms", "array-contains-any", termsQuery)

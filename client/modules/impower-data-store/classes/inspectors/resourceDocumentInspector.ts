@@ -1,12 +1,12 @@
+import { ProjectDocument } from "../..";
 import { getLabel } from "../../../impower-config";
 import ConfigCache from "../../../impower-config/classes/configCache";
 import { removeDuplicates } from "../../../impower-core";
-import { ResourceDocument } from "../../types/documents/resourceDocument";
 import { DevelopmentStatus } from "../../types/enums/developmentStatus";
 import createResourceDocument from "../../utils/createResourceDocument";
 import { PageDocumentInspector } from "./pageDocumentInspector";
 
-export class ResourceDocumentInspector extends PageDocumentInspector<ResourceDocument> {
+export class ResourceDocumentInspector extends PageDocumentInspector<ProjectDocument> {
   private static _instance: ResourceDocumentInspector;
 
   public static get instance(): ResourceDocumentInspector {
@@ -16,13 +16,13 @@ export class ResourceDocumentInspector extends PageDocumentInspector<ResourceDoc
     return this._instance;
   }
 
-  createData(data?: Partial<ResourceDocument>): ResourceDocument {
+  createData(data?: Partial<ProjectDocument>): ProjectDocument {
     return createResourceDocument(data);
   }
 
   getPropertyDisplayValue(
     propertyPath: string,
-    data: ResourceDocument,
+    data: ProjectDocument,
     value: unknown
   ): string {
     if (propertyPath === "status") {
@@ -35,7 +35,7 @@ export class ResourceDocumentInspector extends PageDocumentInspector<ResourceDoc
 
   isPropertyDisplayValueInverted(
     propertyPath: string,
-    _data: ResourceDocument
+    _data: ProjectDocument
   ): boolean {
     if (propertyPath === "restricted") {
       return true;
@@ -43,7 +43,7 @@ export class ResourceDocumentInspector extends PageDocumentInspector<ResourceDoc
     return undefined;
   }
 
-  getPropertyLabel(propertyPath: string, data: ResourceDocument): string {
+  getPropertyLabel(propertyPath: string, data: ProjectDocument): string {
     if (propertyPath === "summary") {
       return "A resource for developers who need...";
     }
@@ -56,7 +56,7 @@ export class ResourceDocumentInspector extends PageDocumentInspector<ResourceDoc
     return super.getPropertyLabel(propertyPath, data);
   }
 
-  getPropertyOptions(propertyPath: string, data?: ResourceDocument): unknown[] {
+  getPropertyOptions(propertyPath: string, data?: ProjectDocument): unknown[] {
     if (propertyPath === "status") {
       return Object.values(DevelopmentStatus);
     }
@@ -78,7 +78,7 @@ export class ResourceDocumentInspector extends PageDocumentInspector<ResourceDoc
 
   getPropertyValueGroup(
     propertyPath: string,
-    data: ResourceDocument,
+    data: ProjectDocument,
     value: string
   ): string {
     if (propertyPath === "tags") {
@@ -121,7 +121,7 @@ export class ResourceDocumentInspector extends PageDocumentInspector<ResourceDoc
 
   getPropertyValueDescription(
     propertyPath: string,
-    data: ResourceDocument,
+    data: ProjectDocument,
     value: string
   ): string {
     if (propertyPath === "published") {
@@ -146,7 +146,7 @@ export class ResourceDocumentInspector extends PageDocumentInspector<ResourceDoc
     return undefined;
   }
 
-  getPropertyPlaceholder(propertyPath: string, data: ResourceDocument): string {
+  getPropertyPlaceholder(propertyPath: string, data: ProjectDocument): string {
     if (propertyPath === "description") {
       return `Describe the resource, how it can be used, or anything else.`;
     }
@@ -155,7 +155,7 @@ export class ResourceDocumentInspector extends PageDocumentInspector<ResourceDoc
 
   isListReorderingDisabled(
     propertyPath: string,
-    _data: ResourceDocument
+    _data: ProjectDocument
   ): boolean {
     if (propertyPath === "files") {
       return true;

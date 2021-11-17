@@ -59,6 +59,7 @@ const getTagLink = (tag: string): string => `/pitch/search/${escapeURI(tag)}`;
 
 interface PitchCardContentProps {
   config: ConfigParameters;
+  projectType?: string;
   name?: string;
   summary?: string;
   tags?: string[];
@@ -69,9 +70,16 @@ interface PitchCardContentProps {
 
 const PitchCardContent = React.memo(
   (props: PitchCardContentProps): JSX.Element => {
-    const pitchedCollection = "pitched_games";
-
-    const { config, name, summary, tags, delisted, archived, titleRef } = props;
+    const {
+      config,
+      projectType,
+      name,
+      summary,
+      tags,
+      delisted,
+      archived,
+      titleRef,
+    } = props;
 
     const [configState] = useContext(ConfigContext);
     const [, navigationDispatch] = useContext(NavigationContext);
@@ -101,9 +109,12 @@ const PitchCardContent = React.memo(
     const mainTag = tags?.[0] || "";
     const currentConfig = configState || config || ConfigCache.instance.params;
     const summaryPreamble = currentConfig?.messages
-      ? `${format(currentConfig?.messages?.[`${pitchedCollection}_preamble`], {
-          tag: mainTag,
-        })}${summary?.[0]?.match(/[a-zA-Z]/) ? " " : ""}`
+      ? `${format(
+          currentConfig?.messages[`pitched_${projectType || "game"}_preamble`],
+          {
+            tag: mainTag,
+          }
+        )}${summary?.[0]?.match(/[a-zA-Z]/) ? " " : ""}`
       : undefined;
 
     return (

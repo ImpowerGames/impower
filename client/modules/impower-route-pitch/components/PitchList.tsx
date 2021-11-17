@@ -133,8 +133,6 @@ interface PitchListProps {
 
 const PitchList = React.memo(
   (props: PropsWithChildren<PitchListProps>): JSX.Element => {
-    const pitchedCollection = "pitched_games";
-
     const defaultContentElRef = useRef<HTMLDivElement>();
     const defaultListElRef = useRef<HTMLDivElement>();
     const defaultLoadingElRef = useRef<HTMLDivElement>();
@@ -353,8 +351,8 @@ const PitchList = React.memo(
         ).default;
 
         const sortedPitchesQuery = search
-          ? await pitchSearchQuery(options, pitchedCollection)
-          : await pitchFilterQuery(options, pitchedCollection);
+          ? await pitchSearchQuery(options, "pitched_projects")
+          : await pitchFilterQuery(options, "pitched_projects");
         const cursor = cursorsByTagRef.current[chunkKey];
         const cursorQuery = cursor
           ? sortedPitchesQuery.startAfter(cursor).limit(limit)

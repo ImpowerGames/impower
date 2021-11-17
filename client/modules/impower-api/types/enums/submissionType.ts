@@ -1,7 +1,6 @@
 export type SubmissionType =
   | "studios"
-  | "games"
-  | "resources"
+  | "projects"
   | "phrases"
   | "contributions"
   | "comments"

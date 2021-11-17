@@ -48,8 +48,7 @@ import {
   DevelopmentStatus,
   getSearchUrl,
   getTypeName,
-  isGameDocument,
-  isResourceDocument,
+  isProjectDocument,
   isStudioDocument,
   PageDocument,
 } from "../../../impower-data-store";
@@ -1124,9 +1123,7 @@ const PageContent = React.memo((props: PageContentProps): JSX.Element => {
                     <StyledInfoTypography variant="overline">
                       {doc ? (
                         <>
-                          {isGameDocument(doc) &&
-                            `${`${abbreviateCount(followersCount)} Followers`}`}
-                          {isResourceDocument(doc) &&
+                          {isProjectDocument(doc) &&
                             `${`${abbreviateCount(followersCount)} Followers`}`}
                           {isStudioDocument(doc) &&
                             `${abbreviateCount(followersCount)} Followers`}
@@ -1139,7 +1136,7 @@ const PageContent = React.memo((props: PageContentProps): JSX.Element => {
                       {doc ? (
                         <>
                           {`${getLabel(doc.status || "")}`}
-                          {(isGameDocument(doc) || isResourceDocument(doc)) &&
+                          {isProjectDocument(doc) &&
                             (doc.status === DevelopmentStatus.EarlyAccess ||
                               doc.status === DevelopmentStatus.Launched) &&
                             ` (${doc.version})`}
@@ -1176,8 +1173,7 @@ const PageContent = React.memo((props: PageContentProps): JSX.Element => {
                           backgroundColor: readableBackgroundMainColor,
                         }}
                       >
-                        {isGameDocument(doc) && `Install`}
-                        {isResourceDocument(doc) && `Download`}
+                        {isProjectDocument(doc) && `Download`}
                         {isStudioDocument(doc) && `Follow`}
                       </StyledActionButton>
                     )
@@ -1552,7 +1548,7 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
 
   const screenshotImages = useMemo(
     () =>
-      isGameDocument(doc)
+      isProjectDocument(doc)
         ? doc.screenshots.order
             .filter((id) => doc.screenshots.data[id].fileUrl)
             .map((id) => getPublicUrl(doc.screenshots.data[id].fileUrl))

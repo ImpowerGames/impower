@@ -14,7 +14,11 @@ import getIconSvgData from "../../lib/getIconSvgData";
 import getLocalizationConfigParameters from "../../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../../lib/getTagConfigParameters";
 import { initAdminApp } from "../../lib/initAdminApp";
-import { ConfigContext, ConfigParameters } from "../../modules/impower-config";
+import {
+  capitalize,
+  ConfigContext,
+  ConfigParameters,
+} from "../../modules/impower-config";
 import ConfigCache from "../../modules/impower-config/classes/configCache";
 import format from "../../modules/impower-config/utils/format";
 import {
@@ -104,15 +108,6 @@ interface PitchPostPageProps {
 }
 
 const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
-  const pitchedCollection = "pitched_games";
-  const collection = "games";
-  const section =
-    pitchedCollection === "pitched_games"
-      ? `Game Pitch`
-      : pitchedCollection === "pitched_resources"
-      ? `Resource Pitch`
-      : undefined;
-
   const { pid, doc, contributionDocs, config, icons, ogImage } = props;
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
@@ -140,6 +135,9 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
   const author = pitchDoc?._author;
   const tags = pitchDoc?.tags;
   const pitchedAt = pitchDoc?.pitchedAt;
+  const projectType = pitchDoc?.projectType;
+
+  const section = `${capitalize(projectType)} Pitch`;
 
   const pitchedAtISO =
     typeof pitchedAt === "string" ? pitchedAt : pitchedAt?.toDate()?.toJSON();
@@ -169,7 +167,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
             )
           ).default;
           const pitchedSnap = await new DataStoreRead(
-            pitchedCollection,
+            "pitched_projects",
             pid
           ).get();
           const pitched_doc = pitchedSnap.data() as ProjectDocument;
@@ -177,7 +175,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
             pitchDocRef.current = pitched_doc;
             setPitchDoc(pitchDocRef.current);
           } else {
-            const snap = await new DataStoreRead(collection, pid).get();
+            const snap = await new DataStoreRead("projects", pid).get();
             const doc = snap.data() as ProjectDocument;
             if (doc) {
               pitchDocRef.current = doc;
@@ -428,7 +426,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
         title={name}
         description={`${format(
           (configState || config).messages[
-            `${pitchedCollection}_author_preamble`
+            `pitched_${projectType || "game"}_author_preamble`
           ],
           {
             tag: pitchDoc?.tags?.[0] || "",
@@ -508,13 +506,12 @@ export const getStaticPaths: GetStaticPaths = async () => {
 };
 
 export const getStaticProps: GetStaticProps = async (context) => {
-  const pitchedCollection = "pitched_games";
   const { pid } = context.params;
   const docId = Array.isArray(pid) ? pid[0] : pid;
   const adminApp = await initAdminApp();
   const pitchSnapshot = await adminApp
     .firestore()
-    .doc(`${pitchedCollection}/${docId}`)
+    .doc(`pitched_projects/${docId}`)
     .get();
   let pitchDoc = null;
   if (pitchSnapshot) {
@@ -522,7 +519,7 @@ export const getStaticProps: GetStaticProps = async (context) => {
   }
   const contributionsSnapshot = await adminApp
     .firestore()
-    .collection(`${pitchedCollection}/${docId}/contributions`)
+    .collection(`pitched_projects/${docId}/contributions`)
     .where("nsfw", "==", false)
     .where("delisted", "==", false)
     .orderBy("rating", "desc")

@@ -6,7 +6,7 @@ const isProjectDocument = (obj: unknown): obj is ProjectDocument => {
   }
   const doc = obj as ProjectDocument;
   return (
-    doc._documentType === "GameDocument" ||
+    doc._documentType === "ProjectDocument" ||
     doc._documentType === "ResourceDocument"
   );
 };

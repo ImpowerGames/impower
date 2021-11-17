@@ -91,8 +91,6 @@ interface ContributionListProps {
 
 const ContributionList = React.memo(
   (props: PropsWithChildren<ContributionListProps>): JSX.Element => {
-    const pitchedCollection = "pitched_games";
-
     const {
       scrollParent,
       pitchId,
@@ -264,7 +262,7 @@ const ContributionList = React.memo(
           await import("../../impower-data-store/utils/contributionsQuery")
         ).default;
         const query = pitchId
-          ? await contributionsQuery(options, pitchedCollection, pitchId)
+          ? await contributionsQuery(options, "pitched_projects", pitchId)
           : await contributionsQuery(options, undefined);
         const cursor = cursorRef.current;
         const cursorQuery = cursor

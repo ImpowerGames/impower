@@ -82,8 +82,6 @@ interface KudoConnectDialogProps extends Omit<DialogProps, "maxWidth"> {
 }
 
 const KudoConnectDialog = React.memo((props: KudoConnectDialogProps) => {
-  const pitchedCollection = "pitched_games";
-
   const {
     scrollParent,
     pitchId,
@@ -126,12 +124,12 @@ const KudoConnectDialog = React.memo((props: KudoConnectDialogProps) => {
   const kudoKey =
     pitchId && contributionId
       ? getDataStoreKey(
-          pitchedCollection,
+          "pitched_projects",
           pitchId,
           "contributions",
           contributionId
         )
-      : getDataStoreKey(pitchedCollection, pitchId);
+      : getDataStoreKey("pitched_projects", pitchId);
   const existingKudo = my_kudos?.[kudoKey];
 
   useEffect(() => {
@@ -158,7 +156,7 @@ const KudoConnectDialog = React.memo((props: KudoConnectDialogProps) => {
       const query =
         pitchId && contributionId
           ? new DataStateQuery(
-              pitchedCollection,
+              "pitched_projects",
               pitchId,
               "contributions",
               contributionId,
@@ -167,7 +165,7 @@ const KudoConnectDialog = React.memo((props: KudoConnectDialogProps) => {
               "data"
             ).orderByChild("t")
           : new DataStateQuery(
-              pitchedCollection,
+              "pitched_projects",
               pitchId,
               "agg",
               "kudos",

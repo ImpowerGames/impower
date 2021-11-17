@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import { ConfigContext } from "../../../impower-config";
 import {
-  ResourceDocument,
+  ProjectDocument,
   ResourceDocumentInspector,
 } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
@@ -43,23 +43,19 @@ export const ResourceField = React.memo(
 
 interface CreateResourceFormProps {
   docId?: string;
-  doc: ResourceDocument;
+  doc: ProjectDocument;
   finishedSummary?: React.ReactNode;
   onClose?: (
     e: React.MouseEvent,
     reason: "backdropClick" | "escapeKeyDown" | "closeButtonClick" | "submitted"
   ) => void;
-  onChange?: (doc: ResourceDocument) => void;
+  onChange?: (doc: ProjectDocument) => void;
   onSubmit?: (
     e: React.FormEvent | React.MouseEvent,
     id: string,
-    doc: ResourceDocument
+    doc: ProjectDocument
   ) => void;
-  onSubmitted?: (
-    id: string,
-    doc: ResourceDocument,
-    successful: boolean
-  ) => void;
+  onSubmitted?: (id: string, doc: ProjectDocument, successful: boolean) => void;
 }
 
 const CreateResourceForm = React.memo(
@@ -97,7 +93,7 @@ const CreateResourceForm = React.memo(
     }, []);
 
     const handleChange = useCallback(
-      (newDoc: ResourceDocument) => {
+      (newDoc: ProjectDocument) => {
         if (onChange) {
           onChange(newDoc);
         }
@@ -111,7 +107,7 @@ const CreateResourceForm = React.memo(
       async (
         e: React.MouseEvent,
         newDocId: string,
-        newDoc: ResourceDocument
+        newDoc: ProjectDocument
       ): Promise<boolean> => {
         try {
           if (!isSignedIn) {
@@ -144,7 +140,7 @@ const CreateResourceForm = React.memo(
           };
           await new Promise<void>((resolve) =>
             userDispatch(
-              userOnCreateSubmission(resolve, claimedDoc, "resources", newDocId)
+              userOnCreateSubmission(resolve, claimedDoc, "projects", newDocId)
             )
           );
           if (onSubmitted) {

@@ -66,10 +66,7 @@ export interface UserState extends UserAttributes {
   my_studio_memberships?: {
     [docId: string]: MemberData;
   };
-  my_resource_memberships?: {
-    [docId: string]: MemberData;
-  };
-  my_game_memberships?: {
+  my_project_memberships?: {
     [docId: string]: MemberData;
   };
   my_recent_pages?: {

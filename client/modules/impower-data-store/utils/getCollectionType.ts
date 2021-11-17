@@ -4,13 +4,10 @@ const getCollectionType = (
   collection:
     | "users"
     | "studios"
-    | "games"
-    | "resources"
+    | "projects"
     | "published_studios"
-    | "published_resources"
-    | "pitched_resources"
-    | "published_games"
-    | "pitched_games"
+    | "published_projects"
+    | "pitched_projects"
     | "tags"
     | "comments"
     | "notes"
@@ -26,18 +23,14 @@ const getCollectionType = (
       return "UserDocument";
     case "studios":
       return "StudioDocument";
-    case "games":
-      return "GameDocument";
-    case "resources":
-      return "ResourceDocument";
+    case "projects":
+      return "ProjectDocument";
     case "published_studios":
       return "StudioDocument";
-    case "published_resources":
-      return "ResourceDocument";
-    case "published_games":
-      return "GameDocument";
-    case "pitched_games":
-      return "GameDocument";
+    case "published_projects":
+      return "ProjectDocument";
+    case "pitched_projects":
+      return "ProjectDocument";
     case "tags":
       return "TagDocument";
     case "comments":

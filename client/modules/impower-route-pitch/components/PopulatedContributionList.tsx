@@ -64,7 +64,7 @@ interface VirtualizedContributionCardProps {
   chunkIndex?: number;
   itemIndex?: number;
   pitchId: string;
-  pitchDoc: ProjectDocument | ContributionDocument;
+  pitchDoc: ProjectDocument;
   contributionId: string;
   doc: ContributionDocument;
   onChangeScore?: (

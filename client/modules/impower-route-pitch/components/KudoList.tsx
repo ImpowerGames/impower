@@ -85,8 +85,6 @@ interface KudoListProps {
 }
 
 const KudoList = React.memo((props: KudoListProps): JSX.Element => {
-  const pitchedCollection = "pitched_games";
-
   const {
     scrollParent,
     pitchId,
@@ -144,8 +142,8 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
 
   const targetPath: DataPath =
     pitchId && contributionId
-      ? [pitchedCollection, pitchId, "contributions", contributionId]
-      : [pitchedCollection, pitchId];
+      ? ["pitched_projects", pitchId, "contributions", contributionId]
+      : ["pitched_projects", pitchId];
   const kudoKey =
     pitchId && contributionId
       ? getDataStoreKey(...targetPath)
@@ -274,12 +272,12 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
         pitchId && contributionId
           ? await notesQuery(
               options,
-              pitchedCollection,
+              "pitched_projects",
               pitchId,
               "contributions",
               contributionId
             )
-          : await notesQuery(options, pitchedCollection, pitchId);
+          : await notesQuery(options, "pitched_projects", pitchId);
       const cursor = cursorRef.current;
       const cursorQuery = cursor
         ? query.startAfter(cursor).limit(limit)

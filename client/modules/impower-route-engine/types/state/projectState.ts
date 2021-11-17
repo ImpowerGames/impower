@@ -7,7 +7,6 @@ import {
 export interface ProjectState {
   id?: string;
   data?: GameProjectData | ResourceProjectData;
-  collection?: "games" | "resources";
   access?: MemberAccess;
   lastActionDescription?: string;
   lastActionTargets?: string[];

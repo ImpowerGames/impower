@@ -9,8 +9,7 @@ export const useUserSubmissionsCollectionLoad = (
     onLoad,
     {
       studios: null,
-      games: null,
-      resources: null,
+      projects: null,
       phrases: null,
       contributions: null,
       comments: null,

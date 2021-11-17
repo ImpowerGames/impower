@@ -101,8 +101,7 @@ export const signup = async (
       const userRef = adminApp.firestore().doc(`users/${userRecord.uid}`);
       const submissionTypes = [
         "studios",
-        "resources",
-        "games",
+        "projects",
         "contributions",
         "comments",
         "notes",

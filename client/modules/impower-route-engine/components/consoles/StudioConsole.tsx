@@ -4,7 +4,7 @@ import { Typography, useMediaQuery } from "@material-ui/core";
 import { useRouter } from "next/router";
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { MemberAccess, useAllDocs } from "../../../impower-data-state";
-import { GameDocument, ResourceDocument } from "../../../impower-data-store";
+import { ProjectDocument } from "../../../impower-data-store";
 import { layout } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
@@ -61,19 +61,19 @@ const StudioGamesConsole = React.memo(
     const { scrollParent, studioId, stickyStyle, fixedStyle } = props;
 
     const [userState] = useContext(UserContext);
-    const { my_game_memberships } = userState;
+    const { my_project_memberships } = userState;
     const gameIds = useMemo(() => {
-      if (my_game_memberships === undefined) {
+      if (my_project_memberships === undefined) {
         return undefined;
       }
-      if (my_game_memberships === null) {
+      if (my_project_memberships === null) {
         return null;
       }
-      return Object.entries(my_game_memberships)
+      return Object.entries(my_project_memberships)
         .filter(([, doc]) => doc.studio === studioId)
         .map(([id]) => id);
-    }, [my_game_memberships, studioId]);
-    const gameDocs = useAllDocs<GameDocument>("games", gameIds);
+    }, [my_project_memberships, studioId]);
+    const gameDocs = useAllDocs<ProjectDocument>("projects", gameIds);
 
     return (
       <GamesConsole
@@ -109,19 +109,19 @@ const StudioResourcesConsole = React.memo(
     const { scrollParent, studioId, stickyStyle, fixedStyle } = props;
 
     const [userState] = useContext(UserContext);
-    const { my_resource_memberships } = userState;
+    const { my_project_memberships } = userState;
     const resourceIds = useMemo(() => {
-      if (my_resource_memberships === undefined) {
+      if (my_project_memberships === undefined) {
         return undefined;
       }
-      if (my_resource_memberships === null) {
+      if (my_project_memberships === null) {
         return null;
       }
-      return Object.entries(my_resource_memberships)
+      return Object.entries(my_project_memberships)
         .filter(([, doc]) => doc.studio === studioId)
         .map(([id]) => id);
-    }, [my_resource_memberships, studioId]);
-    const resourceDocs = useAllDocs<ResourceDocument>("resources", resourceIds);
+    }, [my_project_memberships, studioId]);
+    const resourceDocs = useAllDocs<ProjectDocument>("projects", resourceIds);
 
     return (
       <ResourcesConsole
@@ -158,18 +158,18 @@ const SharedGamesConsole = React.memo(
     const { scrollParent, uid, studioId, stickyStyle, fixedStyle } = props;
 
     const [userState] = useContext(UserContext);
-    const { my_game_memberships } = userState;
+    const { my_project_memberships } = userState;
 
     const gameIds = useMemo(
       () =>
-        my_game_memberships === undefined
+        my_project_memberships === undefined
           ? undefined
-          : my_game_memberships === null
+          : my_project_memberships === null
           ? null
-          : Object.keys(my_game_memberships),
-      [my_game_memberships]
+          : Object.keys(my_project_memberships),
+      [my_project_memberships]
     );
-    const gameDocs = useAllDocs<GameDocument>("games", gameIds);
+    const gameDocs = useAllDocs<ProjectDocument>("projects", gameIds);
     const sharedGameDocs = useMemo(() => {
       if (!gameDocs) {
         return undefined;
@@ -221,18 +221,18 @@ const SharedResourcesConsole = React.memo(
     const { scrollParent, uid, studioId, stickyStyle, fixedStyle } = props;
 
     const [userState] = useContext(UserContext);
-    const { my_resource_memberships } = userState;
+    const { my_project_memberships } = userState;
 
     const resourceIds = useMemo(
       () =>
-        my_resource_memberships === undefined
+        my_project_memberships === undefined
           ? undefined
-          : my_resource_memberships === null
+          : my_project_memberships === null
           ? null
-          : Object.keys(my_resource_memberships),
-      [my_resource_memberships]
+          : Object.keys(my_project_memberships),
+      [my_project_memberships]
     );
-    const resourceDocs = useAllDocs<ResourceDocument>("resources", resourceIds);
+    const resourceDocs = useAllDocs<ProjectDocument>("projects", resourceIds);
     const sharedResourceDocs = useMemo(() => {
       if (!resourceDocs) {
         return undefined;

@@ -1,15 +1,15 @@
 import { Timestamp } from "../../impower-core";
-import { PageDocument } from "../types/documents/pageDocument";
 import { ProjectDocument } from "../types/documents/projectDocument";
 import { DevelopmentStatus } from "../types/enums/developmentStatus";
 import { PitchGoal } from "../types/enums/pitchGoal";
 import createPageDocument from "./createPageDocument";
 
 const createProjectDocument = (
-  doc?: Partial<ProjectDocument> & Pick<PageDocument, "_documentType">
+  doc?: Partial<ProjectDocument>
 ): ProjectDocument => {
   return {
     ...createPageDocument(),
+    _documentType: "ProjectDocument",
     slug: "",
     pitched: false,
     pitchedAt: new Timestamp(),
