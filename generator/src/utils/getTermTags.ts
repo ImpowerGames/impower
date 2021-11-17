@@ -4,8 +4,9 @@ import { unpackTag } from "./getTerms";
 
 export const negativeModifiers = [
   "don't",
-  "wouldn't",
   "couldn't",
+  "wouldn't",
+  "shouldn't",
   "won't",
   "can't",
   "cannot",
