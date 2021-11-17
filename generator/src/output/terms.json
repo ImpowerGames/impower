@@ -904,7 +904,6 @@
   "luke": ["angel"],
   "johnny": ["angel"],
   "john": ["angel"],
-  "jerusalem": ["angel"],
   "jehosophat": ["angel"],
   "holy": ["angel"],
   "his": ["angel"],
@@ -10266,15 +10265,6 @@
     "phantom thief",
     "regency",
     "steampunk",
-    "victorian"
-  ],
-  "codger": [
-    "cockney",
-    "creepy",
-    "horror",
-    "regency",
-    "steampunk",
-    "suspense",
     "victorian"
   ],
   "mirrors": [
