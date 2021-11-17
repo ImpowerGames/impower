@@ -13,6 +13,7 @@ export const doCleanup = async (
     "to"
   );
   const firestore = adminApp.firestore();
+  const database = adminApp.database();
   const bulkWriter = firestore.bulkWriter();
   // Delete all games/{id}
   const gameSnaps = await firestore.collection("games").get()
@@ -59,7 +60,6 @@ export const doCleanup = async (
     }
   })
   await bulkWriter.close();
-  const database = adminApp.database();
   await database.ref(`pitched_games`).remove();
   const tagsDataSnap = await database.ref(`tags`).get();
   const tagsVal = tagsDataSnap.val() as {[key: string]: {agg: { game: number; games: number } }};
@@ -75,7 +75,7 @@ export const doCleanup = async (
   Object.entries(usersVal).forEach(([userId, userData]) => {
     Object.entries(userData.agg || {}).forEach(([type, agg]) => {
       Object.entries(userData.agg[type].data || {}).forEach(([target]) => {
-          if (target.includes("games")) {
+          if (target.includes("games%")) {
             userData.agg[type].data[target] = null;
           }
       })
@@ -83,7 +83,7 @@ export const doCleanup = async (
       userData.agg[type] = agg;
     })
     Object.entries(userData.deleted_submissions || {}).forEach(([target]) => {
-      if (target.includes("games")) {
+      if (target.includes("games%")) {
         userData.deleted_submissions[target] = null;
       }
     })
