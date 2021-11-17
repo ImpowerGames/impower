@@ -295,7 +295,7 @@ const AutocompleteInput = React.memo(
       noDefaultOptions || options?.length > searchableThreshold;
 
     const handleHighlightChange = useCallback(
-      (e: React.SyntheticEvent, option: unknown): string => {
+      (e: React.SyntheticEvent, option: unknown) => {
         highlightedOptionRef.current = option;
       },
       []
