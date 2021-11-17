@@ -124,8 +124,8 @@ const SelectOption = React.memo((props: OptionProps) => {
 
   const [root, setRoot] = useState<HTMLElement>();
   const handleRef = useCallback((instance: HTMLElement) => {
-    if (instance.parentElement?.parentElement) {
-      setRoot(instance.parentElement?.parentElement);
+    if (instance?.parentElement?.parentElement) {
+      setRoot(instance?.parentElement?.parentElement);
     }
   }, []);
 
