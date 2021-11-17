@@ -37,7 +37,7 @@ export const getTermRelevancyScore = (
   });
   // Phrase must have at least 2 unique relevant terms to benefit from this bonus
   // (This is because we need at least 2 relevant ideas for a double-entendre)
-  if (matchedTags.size > 1) {
+  if (tagsSortedBySpecificity.length === 1 || matchedTags.size > 1) {
     return relevantTermWeight / termCount;
   }
   return 0;
@@ -118,6 +118,9 @@ const getRelevantPhrases = (
     }
   );
 
+  if (tagsSortedBySpecificity.length === 1) {
+    return sortedPhrases;
+  }
   // The more tags we have as input, the more confident we can be in our generator's output.
   // So if the user provides less tags, suggest less phrases.
   return sortedPhrases.slice(0, limit * (tagsSortedBySpecificity.length / 10));
