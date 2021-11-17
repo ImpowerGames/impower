@@ -8,7 +8,6 @@ import IconButton from "@material-ui/core/IconButton";
 import Paper, { PaperProps } from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
 import useMediaQuery from "@material-ui/core/useMediaQuery";
-import dynamic from "next/dynamic";
 import React, {
   useCallback,
   useContext,
@@ -47,26 +46,12 @@ import {
   userUndoLike,
 } from "../../../impower-user";
 import ScaleAnimation from "../animations/ScaleAnimation";
+import ContextMenu from "../popups/ContextMenu";
 import HelpDialog from "./HelpDialog";
+import PhraseExplanationDialog from "./PhraseExplanationDialog";
+import PhraseReportDialog from "./PhraseReportDialog";
+import PhraseSuggestionDialog from "./PhraseSuggestionDialog";
 import SortableList from "./SortableList";
-
-const ContextMenu = dynamic(() => import("../popups/ContextMenu"), {
-  ssr: false,
-});
-
-const PhraseExplanationDialog = dynamic(
-  () => import("./PhraseExplanationDialog"),
-  { ssr: false }
-);
-
-const PhraseReportDialog = dynamic(() => import("./PhraseReportDialog"), {
-  ssr: false,
-});
-
-const PhraseSuggestionDialog = dynamic(
-  () => import("./PhraseSuggestionDialog"),
-  { ssr: false }
-);
 
 const StyledPaper = styled(Paper)``;
 
@@ -562,16 +547,14 @@ const PhraseButton = React.memo((props: PhraseButtonProps) => {
             <EllipsisVerticalRegularIcon />
           </FontIcon>
         </StyledOptionsIconButton>
-        {contextMenuOpen !== undefined && (
-          <ContextMenu
-            anchorReference="anchorEl"
-            anchorEl={contextMenuAnchorEl}
-            open={contextMenuOpen}
-            options={options}
-            onOption={handleOption}
-            onClose={handleContextClose}
-          />
-        )}
+        <ContextMenu
+          anchorReference="anchorEl"
+          anchorEl={contextMenuAnchorEl}
+          open={contextMenuOpen}
+          options={options}
+          onOption={handleOption}
+          onClose={handleContextClose}
+        />
       </StyledPhraseArea>
     </VirtualizedItem>
   );
@@ -1165,35 +1148,29 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
         <StyledDivider />
         <TipsArea />
       </HelpDialog>
-      {dialogOpenKey !== undefined && (
-        <PhraseExplanationDialog
-          open={explanationDialogOpen}
-          phrase={explanationPhrase}
-          terms={terms}
-          tags={sortedTags}
-          onClose={handleCloseExplanationDialog}
-        />
-      )}
-      {dialogOpenKey !== undefined && (
-        <PhraseSuggestionDialog
-          open={suggestionDialogOpen}
-          defaultSuggestion={defaultPhraseSuggestion}
-          tags={sortedTags}
-          selectedTags={currentSelectedTags}
-          onSubmit={handleSubmitSuggestion}
-          onClose={handleCloseSuggestionDialog}
-        />
-      )}
-      {dialogOpenKey !== undefined && (
-        <PhraseReportDialog
-          open={reportDialogOpen}
-          phrase={reportingPhrase}
-          tags={sortedTags}
-          selectedTags={currentSelectedTags}
-          onSubmit={handleSubmitReport}
-          onClose={handleCloseReportDialog}
-        />
-      )}
+      <PhraseExplanationDialog
+        open={explanationDialogOpen}
+        phrase={explanationPhrase}
+        terms={terms}
+        tags={sortedTags}
+        onClose={handleCloseExplanationDialog}
+      />
+      <PhraseSuggestionDialog
+        open={suggestionDialogOpen}
+        defaultSuggestion={defaultPhraseSuggestion}
+        tags={sortedTags}
+        selectedTags={currentSelectedTags}
+        onSubmit={handleSubmitSuggestion}
+        onClose={handleCloseSuggestionDialog}
+      />
+      <PhraseReportDialog
+        open={reportDialogOpen}
+        phrase={reportingPhrase}
+        tags={sortedTags}
+        selectedTags={currentSelectedTags}
+        onSubmit={handleSubmitReport}
+        onClose={handleCloseReportDialog}
+      />
     </>
   );
 });
