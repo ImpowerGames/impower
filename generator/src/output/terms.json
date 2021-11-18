@@ -3353,7 +3353,6 @@
   "reins": ["animals", "farming", "livestock", "western"],
   "rein": ["animals", "farming", "livestock", "western"],
   "pup": ["animals", "pet", "werewolf", "wolf"],
-  "poodle": ["animals", "cute", "mammal", "pet"],
   "pigeons": ["animals", "bird", "cooking", "meat"],
   "pigeon": ["animals", "bird", "cooking", "meat"],
   "pastures": ["animals", "farming", "livestock", "western"],
@@ -4275,7 +4274,6 @@
   "intruder": ["covert", "dystopian", "espionage", "invisibility", "stealth"],
   "truffle": ["cooking", "crop", "cute", "farming", "nature"],
   "teeth": ["cooking", "cryptid", "medical", "monster", "monster tamer"],
-  "mixture": ["cooking", "futuristic", "psychedelic", "sci-fi", "science"],
   "grinder": ["cooking", "crafting", "jrpg", "role playing", "rpg"],
   "butter": ["cooking", "dairy", "deconstruction", "farming", "parody"],
   "successor": ["contest", "fairy tale", "fame", "fantasy", "royalty"],
@@ -5016,6 +5014,13 @@
     "robot",
     "technology"
   ],
+  "denial of service": [
+    "artificial intelligence",
+    "cyberpunk",
+    "hacking",
+    "robot",
+    "technology"
+  ],
   "delete": [
     "artificial intelligence",
     "cyberpunk",
@@ -5622,14 +5627,6 @@
     "ninja",
     "sneaking",
     "stealth"
-  ],
-  "vibrations": [
-    "futuristic",
-    "musical",
-    "physics",
-    "rhythm",
-    "sci-fi",
-    "science"
   ],
   "helicopter": ["flight", "mecha", "military", "quest", "rescue", "war"],
   "april": [
@@ -9251,6 +9248,15 @@
     "social deduction"
   ],
   "press": [
+    "dress-up",
+    "fame",
+    "fashion",
+    "investigation",
+    "legal",
+    "political",
+    "social deduction"
+  ],
+  "impressed": [
     "dress-up",
     "fame",
     "fashion",
@@ -15000,16 +15006,6 @@
     "creative",
     "office"
   ],
-  "masterpiece": [
-    "art",
-    "artist",
-    "beautiful",
-    "creative",
-    "decopunk",
-    "educational",
-    "fame",
-    "genius"
-  ],
   "line": [
     "art",
     "artist",
@@ -16869,17 +16865,6 @@
     "victorian"
   ],
   "dukes": [
-    "fairy tale",
-    "fantasy",
-    "medieval",
-    "regency",
-    "role playing",
-    "royalty",
-    "steampunk",
-    "sword & sorcery",
-    "victorian"
-  ],
-  "duke's": [
     "fairy tale",
     "fantasy",
     "medieval",
@@ -21048,18 +21033,6 @@
     "mystery",
     "noir",
     "puzzle"
-  ],
-  "liberation": [
-    "comics",
-    "mecha",
-    "military",
-    "political",
-    "quest",
-    "rebellion",
-    "redemption",
-    "rescue",
-    "superhero",
-    "war"
   ],
   "inorganic": [
     "comics",
@@ -26853,21 +26826,6 @@
     "werewolf",
     "witch",
     "witchcraft"
-  ],
-  "faker": [
-    "conspiracy",
-    "creepy",
-    "deception",
-    "detective",
-    "horror",
-    "illusion",
-    "impersonation",
-    "investigation",
-    "mystery",
-    "noir",
-    "shapeshifting",
-    "social deduction",
-    "suspense"
   ],
   "facts": [
     "conspiracy",
