@@ -83,7 +83,7 @@ export default class MyDocument extends Document {
 
   render(): JSX.Element {
     const title = `Impower Games`;
-    const description = "Create games together.";
+    const description = "Make games together.";
     return (
       <Html lang="en">
         <Head>
