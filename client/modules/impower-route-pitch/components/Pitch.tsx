@@ -323,6 +323,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
               />
             ) : (
               <PitchList
+                key={activeTab}
                 config={config}
                 icons={icons}
                 pitchDocs={validPitchDocs}
