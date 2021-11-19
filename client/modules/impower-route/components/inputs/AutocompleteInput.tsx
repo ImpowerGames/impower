@@ -535,8 +535,8 @@ const AutocompleteInput = React.memo(
             : reason;
         const validValue =
           reason === "createOption" && highlightedOptionRef.current !== null
-            ? multiple
-              ? [highlightedOptionRef.current]
+            ? multiple && Array.isArray(stateRef.current)
+              ? [...stateRef.current, highlightedOptionRef.current]
               : highlightedOptionRef.current
             : newValue;
         if (validReason === "selectOption") {
