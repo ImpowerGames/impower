@@ -801,7 +801,6 @@
   "outhouse": ["cleaning"],
   "muck": ["cleaning"],
   "junkyard": ["cleaning"],
-  "heap": ["cleaning"],
   "grit": ["cleaning"],
   "goo": ["cleaning"],
   "garbage": ["cleaning"],
@@ -5166,7 +5165,6 @@
   "tide": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "swimming": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "swim": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
-  "swell": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "sunk": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "streaming": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "spring cleaning": [
@@ -14054,6 +14052,16 @@
     "relaxing",
     "shop",
     "social deduction",
+    "wealth"
+  ],
+  "demands": [
+    "business",
+    "caper",
+    "greed",
+    "heist",
+    "phantom thief",
+    "shop",
+    "steal",
     "wealth"
   ],
   "demand": [
