@@ -65,29 +65,38 @@ export const getSimilarPhrases = (
           aPhrase,
           bPhrase
         ).toLowerCase();
-        if (longestCommonSubstring.length >= 3) {
-          let sameWordCount = 0;
-          let similarWordCount = 0;
-          aWords.forEach((aW) => {
-            bWords.forEach((bW) => {
-              if (keywords[aW] || keywords[bW]) {
-                if (aW === bW) {
-                  sameWordCount += 1;
+        const longerPhraseWords =
+          aWords.length > bWords.length ? aWords : bWords;
+        if (longerPhraseWords.length >= 3) {
+          if (longestCommonSubstring.length >= 3) {
+            let sameWords: string[] = [];
+            let similarWordCount = 0;
+            aWords.forEach((aW) => {
+              bWords.forEach((bW) => {
+                if (keywords[aW] || keywords[bW]) {
+                  if (aW === bW) {
+                    if (!sameWords.includes(aW)) {
+                      sameWords.push(aW);
+                    }
+                  }
+                  if (distance(aW, bW) <= 3) {
+                    similarWordCount += 1;
+                  }
                 }
-                if (distance(aW, bW) <= 3) {
-                  similarWordCount += 1;
-                }
-              }
+              });
             });
-          });
-          if (sameWordCount >= 1 && similarWordCount >= 2) {
-            pairs.push([bPhrase, distance(aPhrase, bPhrase)]);
+            if (sameWords.length >= 2 && similarWordCount >= 2) {
+              pairs.push([bPhrase, distance(aPhrase, bPhrase)]);
+            }
           }
         }
       }
     });
     if (pairs.length > 0) {
-      similarPhrases[aPhrase] = pairs.sort((a, b) => a[1] - b[1]).slice(0, 3);
+      const similar = pairs.sort((a, b) => a[1] - b[1]).slice(0, 3);
+      if (similar[0][1] <= 8) {
+        similarPhrases[aPhrase] = similar;
+      }
     }
   });
   const sortedSimilarPhrases: { [phrase: string]: [string, number][] } = {};
