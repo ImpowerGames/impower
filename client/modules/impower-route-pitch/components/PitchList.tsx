@@ -94,6 +94,8 @@ const StyledEmptyArea = styled.div`
   right: 0;
   display: flex;
   flex-direction: column;
+  visibility: hidden;
+  pointer-events: none;
 `;
 
 const StyledForceOverflow = styled.div`
@@ -125,6 +127,7 @@ interface PitchListProps {
   reloading?: boolean;
   contentElRef?: React.MutableRefObject<HTMLDivElement>;
   listElRef?: React.MutableRefObject<HTMLDivElement>;
+  emptyElRef?: React.MutableRefObject<HTMLDivElement>;
   loadingElRef?: React.MutableRefObject<HTMLDivElement>;
   onReloading?: (reloading: boolean) => void;
   onFollowMore?: (open: boolean) => void;
@@ -135,6 +138,7 @@ const PitchList = React.memo(
   (props: PropsWithChildren<PitchListProps>): JSX.Element => {
     const defaultContentElRef = useRef<HTMLDivElement>();
     const defaultListElRef = useRef<HTMLDivElement>();
+    const defaultEmptyElRef = useRef<HTMLDivElement>();
     const defaultLoadingElRef = useRef<HTMLDivElement>();
 
     const {
@@ -156,6 +160,7 @@ const PitchList = React.memo(
       children,
       contentElRef = defaultContentElRef,
       listElRef = defaultListElRef,
+      emptyElRef = defaultEmptyElRef,
       loadingElRef = defaultLoadingElRef,
       onReloading,
       onFollowMore,
@@ -249,6 +254,9 @@ const PitchList = React.memo(
         listElRef.current.style.visibility = "hidden";
         listElRef.current.style.pointerEvents = "none";
       }
+      if (emptyElRef.current) {
+        emptyElRef.current.style.visibility = "hidden";
+      }
       if (loadingElRef.current) {
         loadingElRef.current.classList.add("animate");
         loadingElRef.current.style.visibility = null;
@@ -256,7 +264,7 @@ const PitchList = React.memo(
       }
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloadingState(true);
-    }, [contentElRef, listElRef, loadingElRef]);
+    }, [contentElRef, emptyElRef, listElRef, loadingElRef]);
 
     const handleHideLoadingPlaceholder = useCallback(async () => {
       if (loadingElRef.current) {
@@ -869,6 +877,12 @@ const PitchList = React.memo(
       }),
       [loading]
     );
+    const emptyStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: pitchCount === 0 ? "visible" : undefined,
+      }),
+      [pitchCount]
+    );
     const loadingStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? undefined : "hidden",
@@ -942,8 +956,10 @@ const PitchList = React.memo(
         </StyledPitchList>
         <StyledOverlayArea>
           <StyledForceOverflow />
-          {pitchCount === 0 && (
-            <StyledEmptyArea>{emptyPlaceholder}</StyledEmptyArea>
+          {reloading !== undefined && (
+            <StyledEmptyArea ref={emptyElRef} style={emptyStyle}>
+              {emptyPlaceholder}
+            </StyledEmptyArea>
           )}
           <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
             {loadingPlaceholder}

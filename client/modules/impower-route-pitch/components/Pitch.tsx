@@ -99,6 +99,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const toolbarRef = useRef<HTMLDivElement>();
   const contentElRef = useRef<HTMLDivElement>();
   const listElRef = useRef<HTMLDivElement>();
+  const emptyElRef = useRef<HTMLDivElement>();
   const loadingElRef = useRef<HTMLDivElement>();
 
   const shouldDisplayFollowingPitchesRef = useRef<boolean>();
@@ -119,7 +120,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const [allowReload, setAllowReload] = useState(!validPitchDocs);
   const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
-  const [reloading, setReloading] = useState(false);
+  const [reloading, setReloading] = useState<boolean>();
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
@@ -172,6 +173,9 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     if (listElRef.current) {
       listElRef.current.style.visibility = "hidden";
       listElRef.current.style.pointerEvents = "none";
+    }
+    if (emptyElRef.current) {
+      emptyElRef.current.style.visibility = "hidden";
     }
     if (loadingElRef.current) {
       loadingElRef.current.classList.add("animate");

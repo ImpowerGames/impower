@@ -94,6 +94,8 @@ const StyledEmptyArea = styled.div`
   right: 0;
   display: flex;
   flex-direction: column;
+  visibility: hidden;
+  pointer-events: none;
 `;
 
 interface StaticPitchListProps {
@@ -167,6 +169,7 @@ const StaticPitchList = React.memo(
 
     const contentElRef = useRef<HTMLDivElement>();
     const listElRef = useRef<HTMLDivElement>();
+    const emptyElRef = useRef<HTMLDivElement>();
     const loadingElRef = useRef<HTMLDivElement>();
 
     const orderedPitchDataEntries = useMemo(
@@ -204,6 +207,9 @@ const StaticPitchList = React.memo(
       if (listElRef.current) {
         listElRef.current.style.visibility = "hidden";
         listElRef.current.style.pointerEvents = "none";
+      }
+      if (emptyElRef.current) {
+        emptyElRef.current.style.visibility = "hidden";
       }
       if (loadingElRef.current) {
         loadingElRef.current.classList.add("animate");
@@ -518,6 +524,12 @@ const StaticPitchList = React.memo(
       }),
       [loading]
     );
+    const emptyStyle: React.CSSProperties = useMemo(
+      () => ({
+        visibility: pitchCount === 0 ? "visible" : undefined,
+      }),
+      [pitchCount]
+    );
     const loadingStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? undefined : "hidden",
@@ -599,8 +611,10 @@ const StaticPitchList = React.memo(
           </StyledContent>
         </StyledStaticPitchList>
         <StyledOverlayArea>
-          {pitchCount === 0 && (
-            <StyledEmptyArea>{emptyPlaceholder}</StyledEmptyArea>
+          {reloading !== undefined && (
+            <StyledEmptyArea ref={emptyElRef} style={emptyStyle}>
+              {emptyPlaceholder}
+            </StyledEmptyArea>
           )}
           <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
             {loadingPlaceholder}
