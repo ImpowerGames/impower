@@ -34,6 +34,7 @@
   "ice": ["weather"],
   "frosty": ["weather"],
   "frost": ["weather"],
+  "cold": ["weather"],
   "chill": ["weather"],
   "satisfied": ["utopian"],
   "perfectly": ["utopian"],
@@ -242,6 +243,10 @@
   "baton": ["police"],
   "badge": ["police"],
   "wriggle": ["physics"],
+  "turns": ["physics"],
+  "turning": ["physics"],
+  "turner": ["physics"],
+  "turned": ["physics"],
   "spiral": ["physics"],
   "spinning": ["physics"],
   "spinner": ["physics"],
@@ -1048,6 +1053,7 @@
   "down": ["platformer", "side scroller"],
   "bottomed": ["platformer", "side scroller"],
   "bottom": ["platformer", "side scroller"],
+  "turn": ["physics", "turn-based"],
   "folding": ["physics", "shapeshifting"],
   "fold": ["physics", "shapeshifting"],
   "untouched": ["open world", "sandbox"],
@@ -1152,6 +1158,8 @@
   "direct": ["metroidvania", "nonlinear"],
   "backwards": ["metroidvania", "nonlinear"],
   "backward": ["metroidvania", "nonlinear"],
+  "returns": ["memories", "reunion"],
+  "return": ["memories", "reunion"],
   "opus": ["memories", "myth"],
   "wellness": ["medical", "rehabilitation"],
   "suffering": ["medical", "rehabilitation"],
@@ -1868,6 +1876,7 @@
   "evening": ["schedule", "time management", "time travel"],
   "afternoon": ["schedule", "time management", "time travel"],
   "you'll pay": ["revenge", "sabotage", "social deduction"],
+  "served cold": ["revenge", "sabotage", "social deduction"],
   "goes around comes around": ["revenge", "sabotage", "social deduction"],
   "get even": ["revenge", "sabotage", "social deduction"],
   "for blood": ["revenge", "sabotage", "social deduction"],
@@ -1952,6 +1961,7 @@
   "men's": ["mecha", "military", "war"],
   "men": ["mecha", "military", "war"],
   "corps": ["mecha", "military", "war"],
+  "collateral damage": ["mecha", "military", "war"],
   "cadet": ["mecha", "military", "war"],
   "brigade": ["mecha", "military", "war"],
   "booted": ["mecha", "military", "war"],
@@ -2135,6 +2145,7 @@
   "greatest": ["disillusionment", "fame", "rivals"],
   "discord": ["disillusionment", "rebellion", "rivals"],
   "careless": ["disillusionment", "glitch", "hacking"],
+  "unturned": ["detective", "investigation", "noir"],
   "gifts": ["destiny", "fantasy", "redemption"],
   "gift": ["destiny", "fantasy", "redemption"],
   "sorrows": ["demon", "emotional", "tragedy"],
@@ -2643,7 +2654,6 @@
   "campus": ["academia", "educational", "instruction"],
   "basics": ["academia", "educational", "instruction"],
   "rulebook": ["role playing", "social deduction", "sports", "tabletop"],
-  "cold": ["revenge", "sabotage", "social deduction", "weather"],
   "wicket": ["regency", "sports", "steampunk", "victorian"],
   "miss": ["regency", "reunion", "steampunk", "victorian"],
   "leisure": ["regency", "steampunk", "tycoon", "victorian"],
@@ -3021,6 +3031,7 @@
   "frontal": ["conspiracy", "mecha", "military", "war"],
   "front": ["conspiracy", "mecha", "military", "war"],
   "fringe": ["conspiracy", "cryptid", "occult", "supernatural"],
+  "convictions": ["conspiracy", "investigation", "legal", "social deduction"],
   "covering": ["concealment", "invisibility", "ninja", "stealth"],
   "covered": ["concealment", "invisibility", "ninja", "stealth"],
   "conceals": ["concealment", "invisibility", "ninja", "stealth"],
@@ -3247,7 +3258,9 @@
   "beam": ["building", "science", "teleportation", "time travel"],
   "peacock": ["bird", "regency", "steampunk", "victorian"],
   "your word": ["betrayal", "revenge", "sabotage", "social deduction"],
+  "your back": ["betrayal", "revenge", "sabotage", "social deduction"],
   "you said": ["betrayal", "revenge", "sabotage", "social deduction"],
+  "turn coat": ["betrayal", "revenge", "sabotage", "social deduction"],
   "not funny": ["betrayal", "revenge", "sabotage", "social deduction"],
   "et tu": ["betrayal", "revenge", "sabotage", "social deduction"],
   "double crossed": ["betrayal", "revenge", "sabotage", "social deduction"],
@@ -3624,6 +3637,7 @@
     "replayable",
     "roguelike"
   ],
+  "back": ["metroidvania", "nonlinear", "replayable", "reunion", "roguelike"],
   "patience": ["medical", "redemption", "rehabilitation", "relaxing", "rivals"],
   "vessels": ["mecha", "military", "nautical", "swashbuckling", "war"],
   "squad": ["mecha", "military", "sports", "team-based", "war"],
@@ -4512,6 +4526,7 @@
   "spy": ["caper", "dystopian", "espionage", "invisibility", "surveillance"],
   "provocateur": ["caper", "conspiracy", "crime", "espionage", "noir"],
   "ponzi": ["caper", "conspiracy", "crime", "greed", "noir"],
+  "infamy": ["caper", "crime", "fame", "noir", "redemption"],
   "fingered": ["caper", "greed", "heist", "phantom thief", "steal"],
   "finger": ["caper", "greed", "heist", "phantom thief", "steal"],
   "drugs": ["caper", "crime", "medical", "noir", "psychedelic"],
@@ -4557,6 +4572,7 @@
   "eco": ["business", "greed", "nature", "shop", "wealth"],
   "due": ["business", "disillusionment", "greed", "shop", "wealth"],
   "dual": ["business", "disillusionment", "greed", "shop", "wealth"],
+  "collateral": ["business", "espionage", "greed", "shop", "wealth"],
   "coin": ["business", "card", "greed", "shop", "wealth"],
   "co": ["business", "co-op", "friendship", "office", "rivals"],
   "capitalist": ["business", "greed", "political", "shop", "wealth"],
@@ -4612,10 +4628,6 @@
   "build": ["building", "jrpg", "role playing", "rpg", "tycoon"],
   "flight": ["bird", "extraterrestrial", "flight", "mecha", "space"],
   "flies": ["bird", "flight", "insects", "mecha", "nature"],
-  "turns": ["betrayal", "physics", "revenge", "sabotage", "social deduction"],
-  "turning": ["betrayal", "physics", "revenge", "sabotage", "social deduction"],
-  "turner": ["betrayal", "physics", "revenge", "sabotage", "social deduction"],
-  "turned": ["betrayal", "physics", "revenge", "sabotage", "social deduction"],
   "pedestal": ["betrayal", "fame", "revenge", "sabotage", "social deduction"],
   "harmed": ["betrayal", "ethics", "revenge", "sabotage", "social deduction"],
   "harm's": ["betrayal", "ethics", "revenge", "sabotage", "social deduction"],
@@ -6556,14 +6568,6 @@
     "folklore",
     "myth"
   ],
-  "convictions": [
-    "conspiracy",
-    "investigation",
-    "legal",
-    "revenge",
-    "sabotage",
-    "social deduction"
-  ],
   "contempt": [
     "conspiracy",
     "disillusionment",
@@ -7250,14 +7254,6 @@
     "sabotage",
     "social deduction"
   ],
-  "turn": [
-    "betrayal",
-    "physics",
-    "revenge",
-    "sabotage",
-    "social deduction",
-    "turn-based"
-  ],
   "pretty": ["beautiful", "dating", "dress-up", "fashion", "love", "romance"],
   "chic": ["beautiful", "decopunk", "dress-up", "fame", "fashion", "stylish"],
   "winning": [
@@ -7323,6 +7319,14 @@
     "regency",
     "steampunk",
     "victorian"
+  ],
+  "mob": [
+    "battle royale",
+    "caper",
+    "crime",
+    "multiplayer",
+    "noir",
+    "social deduction"
   ],
   "million": [
     "battle royale",
@@ -10748,15 +10752,6 @@
     "sabotage",
     "social deduction"
   ],
-  "returns": [
-    "betrayal",
-    "memories",
-    "physics",
-    "reunion",
-    "revenge",
-    "sabotage",
-    "social deduction"
-  ],
   "grievous": [
     "betrayal",
     "demon",
@@ -13864,16 +13859,6 @@
     "police",
     "social deduction"
   ],
-  "infamy": [
-    "caper",
-    "crime",
-    "fame",
-    "noir",
-    "redemption",
-    "revenge",
-    "sabotage",
-    "social deduction"
-  ],
   "hostage": [
     "caper",
     "comics",
@@ -14074,16 +14059,6 @@
     "steal",
     "wealth"
   ],
-  "collateral": [
-    "business",
-    "espionage",
-    "greed",
-    "revenge",
-    "sabotage",
-    "shop",
-    "social deduction",
-    "wealth"
-  ],
   "cash": [
     "business",
     "caper",
@@ -14244,26 +14219,6 @@
     "steal",
     "tower defense"
   ],
-  "unturned": [
-    "betrayal",
-    "detective",
-    "investigation",
-    "noir",
-    "physics",
-    "revenge",
-    "sabotage",
-    "social deduction"
-  ],
-  "return": [
-    "betrayal",
-    "memories",
-    "physics",
-    "reunion",
-    "revenge",
-    "sabotage",
-    "social deduction",
-    "turn-based"
-  ],
   "splendid": [
     "beautiful",
     "cockney",
@@ -14363,16 +14318,6 @@
     "role playing",
     "rpg",
     "sports"
-  ],
-  "mob": [
-    "battle royale",
-    "caper",
-    "crime",
-    "multiplayer",
-    "noir",
-    "revenge",
-    "sabotage",
-    "social deduction"
   ],
   "leagues": [
     "battle royale",
@@ -18148,6 +18093,17 @@
     "steampunk",
     "victorian"
   ],
+  "offender": [
+    "caper",
+    "communication",
+    "conversation",
+    "crime",
+    "detective",
+    "investigation",
+    "legal",
+    "noir",
+    "social deduction"
+  ],
   "keyed": [
     "caper",
     "extraterrestrial",
@@ -18554,17 +18510,6 @@
     "sabotage",
     "social deduction",
     "tragedy"
-  ],
-  "back": [
-    "betrayal",
-    "metroidvania",
-    "nonlinear",
-    "replayable",
-    "reunion",
-    "revenge",
-    "roguelike",
-    "sabotage",
-    "social deduction"
   ],
   "sparkling": [
     "beautiful",
@@ -19302,6 +19247,17 @@
     "pet",
     "prehistoric",
     "resurrection"
+  ],
+  "wrath": [
+    "angel",
+    "demon",
+    "emotional",
+    "fairy tale",
+    "fantasy",
+    "medieval",
+    "oldtimey",
+    "role playing",
+    "sword & sorcery"
   ],
   "perchance": [
     "angel",
@@ -23471,19 +23427,6 @@
     "police",
     "tracking"
   ],
-  "offender": [
-    "caper",
-    "communication",
-    "conversation",
-    "crime",
-    "detective",
-    "investigation",
-    "legal",
-    "noir",
-    "revenge",
-    "sabotage",
-    "social deduction"
-  ],
   "lawn": [
     "caper",
     "crime",
@@ -27344,21 +27287,6 @@
     "swashbuckling",
     "technology",
     "walking simulator"
-  ],
-  "wrath": [
-    "angel",
-    "betrayal",
-    "demon",
-    "emotional",
-    "fairy tale",
-    "fantasy",
-    "medieval",
-    "oldtimey",
-    "revenge",
-    "role playing",
-    "sabotage",
-    "social deduction",
-    "sword & sorcery"
   ],
   "woe": [
     "angel",

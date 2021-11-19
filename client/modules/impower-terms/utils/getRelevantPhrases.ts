@@ -38,7 +38,7 @@ export const getTermRelevancyScore = (
   // Phrase must have at least 2 unique relevant terms to benefit from this bonus
   // (This is because we need at least 2 relevant ideas for a double-entendre)
   if (matchedTags.length > 1) {
-    return relevantTermWeight / termCount;
+    return relevantTermWeight / Math.min(termCount, words.length);
   }
   return 0;
 };
