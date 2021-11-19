@@ -170,7 +170,6 @@ const StaticPitchList = React.memo(
 
     const contentElRef = useRef<HTMLDivElement>();
     const listElRef = useRef<HTMLDivElement>();
-    const emptyElRef = useRef<HTMLDivElement>();
     const loadingElRef = useRef<HTMLDivElement>();
 
     const orderedPitchDataEntries = useMemo(
@@ -207,9 +206,6 @@ const StaticPitchList = React.memo(
       if (listElRef.current) {
         listElRef.current.style.visibility = "hidden";
         listElRef.current.style.pointerEvents = "none";
-      }
-      if (emptyElRef.current) {
-        emptyElRef.current.style.visibility = "hidden";
       }
       if (loadingElRef.current) {
         loadingElRef.current.classList.add("animate");
@@ -610,7 +606,7 @@ const StaticPitchList = React.memo(
         </StyledStaticPitchList>
         <StyledOverlayArea>
           {reloading !== undefined && (
-            <StyledEmptyArea ref={emptyElRef} style={emptyStyle}>
+            <StyledEmptyArea style={emptyStyle}>
               {emptyPlaceholder}
             </StyledEmptyArea>
           )}

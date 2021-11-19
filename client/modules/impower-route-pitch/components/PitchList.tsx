@@ -128,7 +128,6 @@ interface PitchListProps {
   reloading?: boolean;
   contentElRef?: React.MutableRefObject<HTMLDivElement>;
   listElRef?: React.MutableRefObject<HTMLDivElement>;
-  emptyElRef?: React.MutableRefObject<HTMLDivElement>;
   loadingElRef?: React.MutableRefObject<HTMLDivElement>;
   onReloading?: (reloading: boolean) => void;
   onFollowMore?: (open: boolean) => void;
@@ -139,7 +138,6 @@ const PitchList = React.memo(
   (props: PropsWithChildren<PitchListProps>): JSX.Element => {
     const defaultContentElRef = useRef<HTMLDivElement>();
     const defaultListElRef = useRef<HTMLDivElement>();
-    const defaultEmptyElRef = useRef<HTMLDivElement>();
     const defaultLoadingElRef = useRef<HTMLDivElement>();
 
     const {
@@ -161,7 +159,6 @@ const PitchList = React.memo(
       children,
       contentElRef = defaultContentElRef,
       listElRef = defaultListElRef,
-      emptyElRef = defaultEmptyElRef,
       loadingElRef = defaultLoadingElRef,
       onReloading,
       onFollowMore,
@@ -254,16 +251,13 @@ const PitchList = React.memo(
         listElRef.current.style.visibility = "hidden";
         listElRef.current.style.pointerEvents = "none";
       }
-      if (emptyElRef.current) {
-        emptyElRef.current.style.visibility = "hidden";
-      }
       if (loadingElRef.current) {
         loadingElRef.current.classList.add("animate");
         loadingElRef.current.style.visibility = "visible";
       }
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloadingState(true);
-    }, [contentElRef, emptyElRef, listElRef, loadingElRef]);
+    }, [contentElRef, listElRef, loadingElRef]);
 
     const handleHideLoadingPlaceholder = useCallback(async () => {
       if (loadingElRef.current) {
@@ -955,7 +949,7 @@ const PitchList = React.memo(
         <StyledOverlayArea>
           <StyledForceOverflow />
           {reloading !== undefined && (
-            <StyledEmptyArea ref={emptyElRef} style={emptyStyle}>
+            <StyledEmptyArea style={emptyStyle}>
               {emptyPlaceholder}
             </StyledEmptyArea>
           )}
