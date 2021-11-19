@@ -5,7 +5,7 @@ import Divider from "@material-ui/core/Divider";
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
 import NextLink from "next/link";
-import React, { useCallback, useContext, useMemo } from "react";
+import React, { useCallback, useContext, useEffect, useMemo } from "react";
 import { capitalize, ConfigContext } from "../../impower-config";
 import ConfigCache from "../../impower-config/classes/configCache";
 import { escapeURI, getDataStoreKey } from "../../impower-data-store";
@@ -320,6 +320,7 @@ const PitchFollowTags = React.memo(
 
     const [configState] = useContext(ConfigContext);
     const [userState] = useContext(UserContext);
+    const [, navigationDispatch] = useContext(NavigationContext);
     const { my_follows } = userState;
 
     const handleReload = useCallback(
@@ -337,6 +338,10 @@ const PitchFollowTags = React.memo(
     const showReloadArea =
       Object.entries(my_follows || {}).filter(([, v]) => v.g === "tags")
         ?.length > 0;
+
+    useEffect(() => {
+      navigationDispatch(navigationSetTransitioning(false));
+    }, [navigationDispatch]);
 
     if (my_follows === undefined) {
       return <>{loadingPlaceholder}</>;

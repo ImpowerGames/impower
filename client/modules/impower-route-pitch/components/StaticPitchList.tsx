@@ -84,6 +84,7 @@ const StyledLoadingArea = styled.div`
   right: 0;
   display: flex;
   flex-direction: column;
+  pointer-events: none;
 `;
 
 const StyledEmptyArea = styled.div`
@@ -200,7 +201,6 @@ const StaticPitchList = React.memo(
     }, [recentPitchDocs]);
 
     const handleShowLoadingPlaceholder = useCallback(async () => {
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
       if (contentElRef.current) {
         contentElRef.current.style.overflow = "hidden";
       }
@@ -213,8 +213,7 @@ const StaticPitchList = React.memo(
       }
       if (loadingElRef.current) {
         loadingElRef.current.classList.add("animate");
-        loadingElRef.current.style.visibility = null;
-        loadingElRef.current.style.pointerEvents = null;
+        loadingElRef.current.style.visibility = "visible";
       }
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloading(true);
@@ -526,14 +525,13 @@ const StaticPitchList = React.memo(
     );
     const emptyStyle: React.CSSProperties = useMemo(
       () => ({
-        visibility: pitchCount === 0 ? "visible" : undefined,
+        visibility: pitchCount === 0 ? "visible" : "hidden",
       }),
       [pitchCount]
     );
     const loadingStyle: React.CSSProperties = useMemo(
       () => ({
-        visibility: loading ? undefined : "hidden",
-        pointerEvents: loading ? undefined : "none",
+        visibility: loading ? "visible" : "hidden",
       }),
       [loading]
     );

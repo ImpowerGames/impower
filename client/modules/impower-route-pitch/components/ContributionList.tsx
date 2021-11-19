@@ -63,6 +63,7 @@ const StyledLoadingArea = styled.div`
   right: 0;
   display: flex;
   flex-direction: column;
+  pointer-events: none;
 `;
 
 interface ContributionListProps {
@@ -198,7 +199,6 @@ const ContributionList = React.memo(
     );
 
     const handleShowLoadingPlaceholder = useCallback(async () => {
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
       if (contentElRef.current) {
         contentElRef.current.style.overflow = "hidden";
       }
@@ -208,8 +208,7 @@ const ContributionList = React.memo(
       }
       if (loadingElRef.current) {
         loadingElRef.current.classList.add("animate");
-        loadingElRef.current.style.visibility = null;
-        loadingElRef.current.style.pointerEvents = null;
+        loadingElRef.current.style.visibility = "visible";
       }
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloading(true);
@@ -539,8 +538,7 @@ const ContributionList = React.memo(
     );
     const loadingStyle: React.CSSProperties = useMemo(
       () => ({
-        visibility: loading ? undefined : "hidden",
-        pointerEvents: loading ? undefined : "none",
+        visibility: loading ? "visible" : "hidden",
       }),
       [loading]
     );

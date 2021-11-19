@@ -84,6 +84,7 @@ const StyledLoadingArea = styled.div`
   right: 0;
   display: flex;
   flex-direction: column;
+  pointer-events: none;
 `;
 
 const StyledEmptyArea = styled.div`
@@ -94,8 +95,8 @@ const StyledEmptyArea = styled.div`
   right: 0;
   display: flex;
   flex-direction: column;
-  visibility: hidden;
   pointer-events: none;
+  visibility: hidden;
 `;
 
 const StyledForceOverflow = styled.div`
@@ -201,7 +202,7 @@ const PitchList = React.memo(
     const cursorsByTagRef = useRef<{
       [tag: string]: DocumentSnapshot<ProjectDocument>;
     }>({});
-    const loadingKey = useRef<string>();
+    const loadingKeyRef = useRef<string>();
     const cacheKeys = useRef<Set<string>>(new Set());
     const [allowReloadState, setAllowReloadState] = useState(
       allowReload !== undefined ? allowReload : !pitchDocsRef.current
@@ -246,7 +247,6 @@ const PitchList = React.memo(
     const recentPitchDocsRef = useRef(recentPitchDocs);
 
     const handleShowLoadingPlaceholder = useCallback(async () => {
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
       if (contentElRef.current) {
         contentElRef.current.style.overflow = "hidden";
       }
@@ -259,8 +259,7 @@ const PitchList = React.memo(
       }
       if (loadingElRef.current) {
         loadingElRef.current.classList.add("animate");
-        loadingElRef.current.style.visibility = null;
-        loadingElRef.current.style.pointerEvents = null;
+        loadingElRef.current.style.visibility = "visible";
       }
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloadingState(true);
@@ -368,7 +367,7 @@ const PitchList = React.memo(
         cacheKeys.current.add(cursorQuery.key);
         const snapshot = await cursorQuery.get<ProjectDocument>();
 
-        if (loadingKey.current !== currentLoadingKey) {
+        if (loadingKeyRef.current !== currentLoadingKey) {
           return undefined;
         }
 
@@ -380,7 +379,7 @@ const PitchList = React.memo(
           newDocs[d.id] = d.data();
         });
 
-        if (loadingKey.current !== currentLoadingKey) {
+        if (loadingKeyRef.current !== currentLoadingKey) {
           return undefined;
         }
 
@@ -421,7 +420,7 @@ const PitchList = React.memo(
 
         const currentLoadingKey = getLoadingKey(options);
 
-        loadingKey.current = currentLoadingKey;
+        loadingKeyRef.current = currentLoadingKey;
 
         try {
           if (tab === "Top") {
@@ -879,14 +878,13 @@ const PitchList = React.memo(
     );
     const emptyStyle: React.CSSProperties = useMemo(
       () => ({
-        visibility: pitchCount === 0 ? "visible" : undefined,
+        visibility: pitchCount === 0 ? "visible" : "hidden",
       }),
       [pitchCount]
     );
     const loadingStyle: React.CSSProperties = useMemo(
       () => ({
-        visibility: loading ? undefined : "hidden",
-        pointerEvents: loading ? undefined : "none",
+        visibility: loading ? "visible" : "hidden",
       }),
       [loading]
     );

@@ -139,7 +139,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const loadedFollowedTags = followedTags !== undefined;
 
   const showFollowTags =
-    Object.keys(my_follows || {}).length === 0 ||
+    (my_follows && Object.keys(my_follows).length === 0) ||
     !shouldDisplayFollowingPitches;
 
   useEffect(() => {
@@ -166,7 +166,6 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   }, [loadedFollowedTags]);
 
   const handleShowLoadingPlaceholder = useCallback(async () => {
-    await new Promise((resolve) => window.requestAnimationFrame(resolve));
     if (contentElRef.current) {
       contentElRef.current.style.overflow = "hidden";
     }
@@ -179,8 +178,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     }
     if (loadingElRef.current) {
       loadingElRef.current.classList.add("animate");
-      loadingElRef.current.style.visibility = null;
-      loadingElRef.current.style.pointerEvents = null;
+      loadingElRef.current.style.visibility = "visible";
     }
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
     setReloading(true);
