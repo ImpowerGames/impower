@@ -344,11 +344,13 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
             )}
           </StyledListContent>
         </StyledListArea>
-        <AddPitchToolbar
-          toolbarRef={toolbarRef}
-          config={config}
-          icons={icons}
-        />
+        {(activeTab !== "Following" || !showFollowTags) && (
+          <AddPitchToolbar
+            toolbarRef={toolbarRef}
+            config={config}
+            icons={icons}
+          />
+        )}
       </StyledApp>
     </StyledPitch>
   );
