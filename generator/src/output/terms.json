@@ -1451,6 +1451,10 @@
   "self": ["deconstruction", "meta"],
   "gaggle": ["deconstruction", "parody"],
   "butt": ["deconstruction", "parody"],
+  "sunset": ["day", "time management"],
+  "evening": ["day", "time management"],
+  "dawn": ["day", "time management"],
+  "afternoon": ["day", "time management"],
   "woman's": ["dating", "romance"],
   "woman": ["dating", "romance"],
   "split up": ["dating", "romance"],
@@ -1575,7 +1579,6 @@
   "mean it": ["communication", "conversation"],
   "lips": ["communication", "conversation"],
   "lip": ["communication", "conversation"],
-  "linguist": ["communication", "conversation"],
   "language": ["communication", "conversation"],
   "ignore": ["communication", "conversation"],
   "hey": ["communication", "conversation"],
@@ -1788,7 +1791,6 @@
   "kangaroos": ["animals", "mammal"],
   "kangaroo": ["animals", "mammal"],
   "jungle": ["animals", "survival"],
-  "hump": ["animals", "pet"],
   "house broken": ["animals", "pet"],
   "hare": ["animals", "pet"],
   "hackles": ["animals", "mammal"],
@@ -1873,8 +1875,6 @@
   "shifting": ["shapeshifting", "teleportation", "time travel"],
   "phases": ["science", "teleportation", "time travel"],
   "fully booked": ["schedule", "time management", "time travel"],
-  "evening": ["schedule", "time management", "time travel"],
-  "afternoon": ["schedule", "time management", "time travel"],
   "you'll pay": ["revenge", "sabotage", "social deduction"],
   "served cold": ["revenge", "sabotage", "social deduction"],
   "goes around comes around": ["revenge", "sabotage", "social deduction"],
@@ -2169,8 +2169,12 @@
   "pattern": ["deconstruction", "parody", "rhythm"],
   "patter": ["deconstruction", "parody", "rhythm"],
   "mock": ["deconstruction", "parody", "rivals"],
-  "sunset": ["day", "time management", "time travel"],
-  "dawn": ["day", "time management", "time travel"],
+  "tonight": ["day", "dreams", "time management"],
+  "noon": ["day", "real-time", "time management"],
+  "mornings": ["day", "real-time", "time management"],
+  "morning": ["day", "real-time", "time management"],
+  "daylights": ["day", "real-time", "time management"],
+  "daylight": ["day", "real-time", "time management"],
   "with love": ["dating", "love", "romance"],
   "unresolved": ["dating", "love", "romance"],
   "two backs": ["dating", "love", "romance"],
@@ -2636,6 +2640,7 @@
   "scholar": ["academia", "educational", "instruction"],
   "reeducation": ["academia", "educational", "instruction"],
   "philosopher's": ["academia", "educational", "genius"],
+  "linguist": ["academia", "communication", "conversation"],
   "librarian": ["academia", "educational", "instruction"],
   "lesson": ["academia", "educational", "instruction"],
   "learning": ["academia", "educational", "instruction"],
@@ -2866,7 +2871,6 @@
   "wheels": ["dieselpunk", "driving", "racing", "vehicle"],
   "wheeling": ["dieselpunk", "driving", "racing", "vehicle"],
   "wheel": ["dieselpunk", "driving", "racing", "vehicle"],
-  "vehicle": ["dieselpunk", "driving", "racing", "vehicle"],
   "truckin'": ["dieselpunk", "driving", "racing", "vehicle"],
   "truck": ["dieselpunk", "driving", "racing", "vehicle"],
   "trailer": ["dieselpunk", "episodic", "fame", "interactive film"],
@@ -2900,14 +2904,12 @@
   "epoque": ["decopunk", "regency", "steampunk", "victorian"],
   "mockery": ["deconstruction", "disillusionment", "parody", "rivals"],
   "goofin'": ["deconstruction", "parody", "party", "whimsical"],
-  "tonight": ["day", "dreams", "time management", "time travel"],
-  "mornings": ["day", "real-time", "time management", "time travel"],
-  "morning": ["day", "real-time", "time management", "time travel"],
+  "today's": ["day", "modern", "real-time", "time management"],
+  "today": ["day", "modern", "real-time", "time management"],
   "days": ["day", "real-time", "time management", "time travel"],
-  "daylights": ["day", "real-time", "time management", "time travel"],
-  "daylight": ["day", "real-time", "time management", "time travel"],
   "day's": ["day", "real-time", "time management", "time travel"],
   "day": ["day", "real-time", "time management", "time travel"],
+  "daily": ["day", "real-time", "slice-of-life", "time management"],
   "tease": ["dating", "love", "rivals", "romance"],
   "romance": ["dating", "love", "myth", "romance"],
   "pleasures": ["dating", "greed", "love", "romance"],
@@ -4231,8 +4233,14 @@
     "time management",
     "time travel"
   ],
-  "today's": ["day", "modern", "real-time", "time management", "time travel"],
-  "today": ["day", "modern", "real-time", "time management", "time travel"],
+  "sunrise": [
+    "day",
+    "extraterrestrial",
+    "real-time",
+    "space",
+    "time management"
+  ],
+  "sundown": ["day", "dreams", "extraterrestrial", "space", "time management"],
   "lovely": ["dating", "disillusionment", "emotional", "love", "romance"],
   "kisses": ["dating", "fairy tale", "fantasy", "love", "romance"],
   "kissed": ["dating", "fairy tale", "fantasy", "love", "romance"],
@@ -6333,29 +6341,21 @@
     "time management",
     "time travel"
   ],
-  "sunrise": [
-    "day",
-    "extraterrestrial",
-    "real-time",
-    "space",
-    "time management",
-    "time travel"
-  ],
-  "sundown": [
+  "midnight's": [
     "day",
     "dreams",
-    "extraterrestrial",
-    "space",
-    "time management",
-    "time travel"
-  ],
-  "daily": [
-    "day",
+    "heist",
+    "phantom thief",
     "real-time",
-    "schedule",
-    "slice-of-life",
-    "time management",
-    "time travel"
+    "time management"
+  ],
+  "midnight": [
+    "day",
+    "dreams",
+    "heist",
+    "phantom thief",
+    "real-time",
+    "time management"
   ],
   "wife": ["dating", "love", "regency", "romance", "steampunk", "victorian"],
   "rhapsody": ["dating", "emotional", "love", "musical", "rhythm", "romance"],
@@ -9501,24 +9501,6 @@
     "psychic",
     "surveillance"
   ],
-  "midnight's": [
-    "day",
-    "dreams",
-    "heist",
-    "phantom thief",
-    "real-time",
-    "time management",
-    "time travel"
-  ],
-  "midnight": [
-    "day",
-    "dreams",
-    "heist",
-    "phantom thief",
-    "real-time",
-    "time management",
-    "time travel"
-  ],
   "teaser": [
     "dating",
     "episodic",
@@ -12579,16 +12561,6 @@
     "steampunk",
     "victorian"
   ],
-  "noon": [
-    "quick-time events",
-    "real-time",
-    "schedule",
-    "time",
-    "time limit",
-    "time management",
-    "time manipulation",
-    "time travel"
-  ],
   "minutes": [
     "minigames",
     "quick-time events",
@@ -13618,6 +13590,36 @@
     "surveillance",
     "survival",
     "weather"
+  ],
+  "nights": [
+    "concealment",
+    "day",
+    "dreams",
+    "invisibility",
+    "ninja",
+    "real-time",
+    "stealth",
+    "time management"
+  ],
+  "nighter": [
+    "concealment",
+    "day",
+    "dreams",
+    "invisibility",
+    "ninja",
+    "real-time",
+    "stealth",
+    "time management"
+  ],
+  "night": [
+    "concealment",
+    "day",
+    "dreams",
+    "invisibility",
+    "ninja",
+    "real-time",
+    "stealth",
+    "time management"
   ],
   "whisper": [
     "communication",
@@ -17498,39 +17500,6 @@
     "noir",
     "political",
     "romance"
-  ],
-  "nights": [
-    "concealment",
-    "day",
-    "dreams",
-    "invisibility",
-    "ninja",
-    "real-time",
-    "stealth",
-    "time management",
-    "time travel"
-  ],
-  "nighter": [
-    "concealment",
-    "day",
-    "dreams",
-    "invisibility",
-    "ninja",
-    "real-time",
-    "stealth",
-    "time management",
-    "time travel"
-  ],
-  "night": [
-    "concealment",
-    "day",
-    "dreams",
-    "invisibility",
-    "ninja",
-    "real-time",
-    "stealth",
-    "time management",
-    "time travel"
   ],
   "remark": [
     "communication",
