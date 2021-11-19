@@ -423,8 +423,6 @@
   "outlived": ["immortality"],
   "sleight": ["illusion"],
   "manipulative": ["illusion"],
-  "slaying": ["hunting"],
-  "slay": ["hunting"],
   "frightened": ["horror"],
   "cowards": ["horror"],
   "object": ["hidden object"],
@@ -724,7 +722,6 @@
   "cooked": ["cooking"],
   "cook's": ["cooking"],
   "cook": ["cooking"],
-  "chutney": ["cooking"],
   "chow": ["cooking"],
   "chew": ["cooking"],
   "chef": ["cooking"],
@@ -1278,7 +1275,6 @@
   "teacup": ["fairy tale", "fantasy"],
   "robin": ["fairy tale", "fantasy"],
   "oz": ["fairy tale", "fantasy"],
-  "happily": ["fairy tale", "fantasy"],
   "glimmer": ["fairy tale", "fantasy"],
   "get her poor doggie": ["fairy tale", "fantasy"],
   "genie": ["fairy tale", "fantasy"],
@@ -1497,6 +1493,7 @@
   "pies": ["cooking", "cute"],
   "pie": ["cooking", "cute"],
   "oven": ["cooking", "crafting"],
+  "nom": ["cooking", "fame"],
   "muffin": ["cooking", "cute"],
   "martini": ["cooking", "liquor"],
   "marshmallow": ["cooking", "cute"],
@@ -1520,7 +1517,6 @@
   "craving": ["cooking", "greed"],
   "cookies": ["cooking", "cute"],
   "cookie": ["cooking", "cute"],
-  "cinnamon": ["cooking", "cute"],
   "chocolates": ["cooking", "cute"],
   "chocolate": ["cooking", "cute"],
   "candy": ["cooking", "cute"],
@@ -1957,6 +1953,7 @@
   "warfare": ["mecha", "military", "war"],
   "war": ["mecha", "military", "war"],
   "trench": ["mecha", "military", "war"],
+  "san fairy ann": ["mecha", "military", "war"],
   "muster": ["mecha", "military", "war"],
   "men's": ["mecha", "military", "war"],
   "men": ["mecha", "military", "war"],
@@ -2152,7 +2149,6 @@
   "sorrowing": ["demon", "emotional", "tragedy"],
   "sorrow": ["demon", "emotional", "tragedy"],
   "demon": ["demon", "occult", "supernatural"],
-  "truckload": ["delivery", "dieselpunk", "inventory management"],
   "poster": ["delivery", "fame", "political"],
   "packing": ["delivery", "inventory management", "resource management"],
   "packed": ["delivery", "inventory management", "resource management"],
@@ -3046,7 +3042,6 @@
   "sorry": ["communication", "conversation", "medical", "redemption"],
   "sigh": ["communication", "conversation", "emotional", "tragedy"],
   "sentence": ["communication", "conversation", "police", "punishment"],
-  "ringing": ["communication", "musical", "real-time", "rhythm"],
   "radio": ["communication", "fame", "musical", "rhythm"],
   "politic": ["communication", "conversation", "political", "relaxing"],
   "messaging": ["communication", "conversation", "destiny", "fantasy"],
@@ -3308,6 +3303,8 @@
   "science": ["atompunk", "futuristic", "sci-fi", "science"],
   "atom": ["atompunk", "futuristic", "sci-fi", "science"],
   "suicide": ["assassination", "caper", "crime", "noir"],
+  "slaying": ["assassination", "hunting", "supernatural", "vampire"],
+  "slay": ["assassination", "hunting", "supernatural", "vampire"],
   "revenge": ["assassination", "revenge", "sabotage", "social deduction"],
   "contract": ["assassination", "business", "office", "quest"],
   "bleed": ["assassination", "medical", "supernatural", "vampire"],
@@ -3359,7 +3356,6 @@
   "armageddon": ["apocalyptic", "demon", "eldritch", "post apocalyptic"],
   "apocalypse": ["apocalyptic", "demon", "eldritch", "post apocalyptic"],
   "anarchy": ["apocalyptic", "demon", "post apocalyptic", "rebellion"],
-  "whiskers": ["animals", "cute", "mammal", "pet"],
   "tailed": ["animals", "bird", "mammal", "merfolk"],
   "tail": ["animals", "mammal", "merfolk", "pet"],
   "rooster": ["animals", "bird", "farming", "livestock"],
@@ -3455,7 +3451,6 @@
   "speeding": ["action", "driving", "racing", "superspeed"],
   "slippage": ["action", "parkour", "platformer", "side scroller"],
   "sling": ["action", "extraterrestrial", "physics", "space"],
-  "sliding": ["action", "physics", "platformer", "side scroller"],
   "slidin'": ["action", "physics", "platformer", "side scroller"],
   "slide": ["action", "physics", "platformer", "side scroller"],
   "shots": ["action", "bullet hell", "hunting", "shooter"],
@@ -5241,7 +5236,6 @@
   "barge": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "ashore": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "aqua": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
-  "anchors": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "anchor": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "slaughter": [
     "apocalyptic",
@@ -7984,14 +7978,6 @@
     "fishing",
     "merfolk",
     "nautical",
-    "swashbuckling"
-  ],
-  "beached": [
-    "aquatic",
-    "fishing",
-    "merfolk",
-    "nautical",
-    "survival",
     "swashbuckling"
   ],
   "rage": [
@@ -14891,16 +14877,6 @@
     "steampunk",
     "victorian"
   ],
-  "traces": [
-    "art",
-    "artist",
-    "creative",
-    "detective",
-    "drawing",
-    "forensic",
-    "investigation",
-    "noir"
-  ],
   "trace": [
     "art",
     "artist",
@@ -18931,17 +18907,6 @@
     "rivals",
     "scavenging"
   ],
-  "berry": [
-    "art nouveau",
-    "cooking",
-    "crop",
-    "cute",
-    "farming",
-    "gardening",
-    "nature",
-    "plants",
-    "scavenging"
-  ],
   "tools": [
     "art",
     "artificial intelligence",
@@ -19975,6 +19940,17 @@
     "post apocalyptic",
     "romance",
     "sabotage"
+  ],
+  "bombs": [
+    "action",
+    "apocalyptic",
+    "destruction",
+    "disaster",
+    "mecha",
+    "military",
+    "post apocalyptic",
+    "sabotage",
+    "war"
   ],
   "bombing": [
     "action",
@@ -27003,21 +26979,6 @@
     "simulator"
   ],
   "scam": [
-    "betrayal",
-    "caper",
-    "conspiracy",
-    "crime",
-    "deception",
-    "detective",
-    "greed",
-    "investigation",
-    "mystery",
-    "noir",
-    "revenge",
-    "sabotage",
-    "social deduction"
-  ],
-  "cheats": [
     "betrayal",
     "caper",
     "conspiracy",
