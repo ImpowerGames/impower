@@ -82,46 +82,52 @@ const PhraseExplanationDialog = React.memo(
       return [...includes, ...excludes];
     }, [configState?.gameTags, phrase, tags, terms]);
 
+    const content = useMemo(
+      () => (
+        <StyledExplanationListArea>
+          {breakdown.map(([subphrase, associatedTags]) => (
+            <StyledExplanationItemArea key={subphrase}>
+              <StyledSubphraseTypography>{`"${subphrase}"`}</StyledSubphraseTypography>
+              {associatedTags && (
+                <StyledTagsArea>
+                  {associatedTags.map((tag, index) => {
+                    const selected = tags?.includes(tag);
+                    return (
+                      <StyledTagTypography
+                        key={tag}
+                        style={{ fontWeight: selected ? 700 : undefined }}
+                        variant="caption"
+                      >
+                        {capitalize(tag)}
+                        {index < associatedTags.length - 1 && `, `}
+                      </StyledTagTypography>
+                    );
+                  })}
+                </StyledTagsArea>
+              )}
+            </StyledExplanationItemArea>
+          ))}
+        </StyledExplanationListArea>
+      ),
+      [breakdown, tags]
+    );
+
+    const actions = useMemo(
+      () => (
+        <StyledDialogButton onClick={onClose} color="primary">
+          {`OK`}
+        </StyledDialogButton>
+      ),
+      [onClose]
+    );
+
     return (
       <PhraseDialog
         open={open}
         onClose={onClose}
         title={phrase}
-        content={
-          <>
-            <StyledExplanationListArea>
-              {breakdown.map(([subphrase, associatedTags]) => (
-                <StyledExplanationItemArea key={subphrase}>
-                  <StyledSubphraseTypography>{`"${subphrase}"`}</StyledSubphraseTypography>
-                  {associatedTags && (
-                    <StyledTagsArea>
-                      {associatedTags.map((tag, index) => {
-                        const selected = tags?.includes(tag);
-                        return (
-                          <StyledTagTypography
-                            key={tag}
-                            style={{ fontWeight: selected ? 700 : undefined }}
-                            variant="caption"
-                          >
-                            {capitalize(tag)}
-                            {index < associatedTags.length - 1 && `, `}
-                          </StyledTagTypography>
-                        );
-                      })}
-                    </StyledTagsArea>
-                  )}
-                </StyledExplanationItemArea>
-              ))}
-            </StyledExplanationListArea>
-          </>
-        }
-        actions={
-          <>
-            <StyledDialogButton onClick={onClose} color="primary">
-              {`OK`}
-            </StyledDialogButton>
-          </>
-        }
+        content={content}
+        actions={actions}
       />
     );
   }
