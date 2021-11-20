@@ -1788,6 +1788,7 @@
     "wrote"
   ],
   "competitive": [
+    "_draw_",
     "_record_",
     "_records_",
     "_superb owl_",
@@ -1816,7 +1817,6 @@
     "cup",
     "defeat",
     "division",
-    "draw",
     "final",
     "finish",
     "first",
@@ -1954,10 +1954,7 @@
   ],
   "conversation": [
     "!",
-    ">i",
-    ">me",
     ">we",
-    ">you",
     "?",
     "_mean it_",
     "_meant it_",
@@ -2982,9 +2979,7 @@
   ],
   "dating": [
     ">love",
-    ">me",
     ">we",
-    ">you",
     "_breaking up_",
     "_broke up_",
     "_split up_",
@@ -5992,7 +5987,8 @@
     "teach",
     "test",
     "textbook",
-    "train"
+    "trained",
+    "training"
   ],
   "interactive film": [
     ">branching narrative",
@@ -8020,6 +8016,8 @@
     "yore"
   ],
   "on-rails": [
+    "_train_",
+    "_trains_",
     "coaster",
     "fence",
     "line_",
@@ -8040,7 +8038,6 @@
     "track",
     "trail_",
     "trails_",
-    "train",
     "tram",
     "trolley",
     "tunnel",
@@ -8221,13 +8218,9 @@
     "wink"
   ],
   "party": [
-    "adventure",
-    "bandwagon",
-    "bash",
-    "boys",
+    "_bash_",
     "buddy",
     "circus",
-    "clown",
     "crazy",
     "dude",
     "everybody",
@@ -8236,18 +8229,14 @@
     "fun",
     "gang",
     "giggle",
-    "girls",
     "goof",
     "goofin",
-    "guys",
-    "jerks",
     "laugh",
     "pal",
     "party",
     "razzle",
     "social",
     "wacky",
-    "whizz",
     "whoopee"
   ],
   "pet": [
@@ -9063,7 +9052,8 @@
     "tame",
     "teach",
     "toddle",
-    "train",
+    "trained",
+    "training",
     "upbringing"
   ],
   "real-time": [
@@ -11661,7 +11651,7 @@
     "_move in_",
     "_move out_",
     "_order",
-    "advance",
+    "advance_",
     "advantage",
     "authority",
     "base",
@@ -12313,6 +12303,8 @@
   "vehicle": [
     "_green light_",
     "_red light_",
+    "_train_",
+    "_trains_",
     "_yellow light_",
     "accident",
     "belt",
@@ -12363,7 +12355,6 @@
     "suspension",
     "tailgate",
     "tractor",
-    "train",
     "tram",
     "treads",
     "trolley",

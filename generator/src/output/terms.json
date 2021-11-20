@@ -43,10 +43,10 @@
   "kindly": ["utopian"],
   "kind": ["utopian"],
   "ideal": ["utopian"],
-  "equals": ["utopian"],
   "equal": ["utopian"],
   "monumental": ["tycoon"],
   "underground": ["train"],
+  "trainer": ["train"],
   "keepers": ["tower defense"],
   "flagpole": ["tower defense"],
   "stopper": ["time manipulation"],
@@ -260,10 +260,8 @@
   "lean": ["physics"],
   "angle": ["physics"],
   "calling card": ["phantom thief"],
-  "jerks": ["party"],
   "everybody": ["party"],
   "dude": ["party"],
-  "bandwagon": ["party"],
   "medium": ["paranormal"],
   "haunted": ["paranormal"],
   "boo": ["paranormal"],
@@ -760,6 +758,7 @@
   "author": ["communication"],
   "prime": ["coming-of-age"],
   "miss it for the world": ["coming-of-age"],
+  "girls": ["coming-of-age"],
   "girl's": ["coming-of-age"],
   "girl": ["coming-of-age"],
   "boy": ["coming-of-age"],
@@ -768,6 +767,7 @@
   "hilarious": ["comedy"],
   "comedy": ["comedy"],
   "comedian": ["comedy"],
+  "clown": ["comedy"],
   "best form of medicine": ["comedy"],
   "amused": ["comedy"],
   "variety": ["colorful"],
@@ -1595,7 +1595,6 @@
   "teen": ["coming-of-age", "young"],
   "nineteen": ["coming-of-age", "multiplayer"],
   "juvenile": ["coming-of-age", "young"],
-  "girls": ["coming-of-age", "party"],
   "family": ["coming-of-age", "family"],
   "awkward": ["coming-of-age", "cute"],
   "aunt": ["coming-of-age", "family"],
@@ -1617,7 +1616,6 @@
   "razzle": ["comedy", "party"],
   "mirth": ["comedy", "whimsical"],
   "humor": ["comedy", "whimsical"],
-  "clown": ["comedy", "party"],
   "glowing": ["colorful", "gothic"],
   "glow": ["colorful", "gothic"],
   "brights": ["colorful", "weather"],
@@ -1895,6 +1893,7 @@
   "civvy": ["regency", "steampunk", "victorian"],
   "cheshire": ["regency", "steampunk", "victorian"],
   "butler": ["regency", "steampunk", "victorian"],
+  "boys'": ["regency", "steampunk", "victorian"],
   "baker's": ["regency", "steampunk", "victorian"],
   "any word": ["regency", "steampunk", "victorian"],
   "a woman": ["regency", "steampunk", "victorian"],
@@ -2101,7 +2100,6 @@
   "focus": ["dystopian", "invisibility", "surveillance"],
   "fahrenheit": ["dystopian", "nature", "weather"],
   "channel": ["dystopian", "invisibility", "surveillance"],
-  "blinked": ["dystopian", "invisibility", "surveillance"],
   "blink": ["dystopian", "invisibility", "surveillance"],
   "vanity": ["driving", "racing", "vehicle"],
   "van": ["driving", "racing", "vehicle"],
@@ -2202,6 +2200,7 @@
   "honeymoon": ["dating", "love", "romance"],
   "holding me": ["dating", "love", "romance"],
   "hold me": ["dating", "love", "romance"],
+  "guys": ["dating", "love", "romance"],
   "guy": ["dating", "love", "romance"],
   "good looking": ["dating", "love", "romance"],
   "good lookin'": ["dating", "love", "romance"],
@@ -2661,7 +2660,6 @@
   "society": ["political", "regency", "steampunk", "victorian"],
   "articles": ["political", "text", "text adventure", "visual novel"],
   "article": ["political", "text", "text adventure", "visual novel"],
-  "boys'": ["party", "regency", "steampunk", "victorian"],
   "limits": ["open world", "quick-time events", "sandbox", "time limit"],
   "tunes": ["musical", "retro", "rhythm", "vaporwave"],
   "harmony": ["musical", "relaxing", "rhythm", "utopian"],
@@ -2718,6 +2716,10 @@
   "earworm": ["insects", "musical", "nature", "rhythm"],
   "living": ["immortality", "life", "resurrection", "simulator"],
   "lived": ["immortality", "life", "resurrection", "simulator"],
+  "i've": ["i", "psychic", "psychological", "rivals"],
+  "i'm": ["i", "psychic", "psychological", "rivals"],
+  "i'll": ["i", "psychic", "psychological", "rivals"],
+  "i": ["i", "psychic", "psychological", "rivals"],
   "ego": ["greed", "psychic", "psychological", "rivals"],
   "prone": ["glitch", "hacking", "role playing", "tabletop"],
   "limitation": ["glitch", "hacking", "quick-time events", "time limit"],
@@ -2920,7 +2922,6 @@
   "love's": ["dating", "emotional", "love", "romance"],
   "love": ["dating", "emotional", "love", "romance"],
   "lonely": ["dating", "love", "romance", "western"],
-  "guys": ["dating", "love", "party", "romance"],
   "entanglement": ["dating", "love", "rivals", "romance"],
   "bride": ["dating", "love", "marriage", "romance"],
   "bedfellows": ["dating", "dreams", "love", "romance"],
@@ -3053,6 +3054,7 @@
   "buzzing": ["communication", "fame", "insects", "nature"],
   "buzz": ["communication", "fame", "insects", "nature"],
   "moving out": ["coming-of-age", "dating", "love", "romance"],
+  "boys": ["coming-of-age", "regency", "steampunk", "victorian"],
   "villain": ["comics", "demon", "rivals", "superhero"],
   "pride": ["comics", "fame", "rivals", "superhero"],
   "captain's": ["comics", "nautical", "superhero", "swashbuckling"],
@@ -3063,6 +3065,7 @@
   "naughty": ["comedy", "deconstruction", "parody", "whimsical"],
   "grinning": ["comedy", "creepy", "horror", "suspense"],
   "grin": ["comedy", "creepy", "horror", "suspense"],
+  "clowns": ["comedy", "creepy", "horror", "suspense"],
   "technicolor": ["colorful", "fame", "interactive film", "stylish"],
   "limited": ["collecting", "quest", "quick-time events", "time limit"],
   "pish": ["cockney", "regency", "steampunk", "victorian"],
@@ -3337,6 +3340,8 @@
   "illegible": ["art", "artist", "creative", "drawing"],
   "gallery": ["art", "artist", "creative", "decopunk"],
   "drew": ["art", "artist", "creative", "drawing"],
+  "drawn": ["art", "artist", "creative", "drawing"],
+  "drawing": ["art", "artist", "creative", "drawing"],
   "dotted": ["art", "artist", "creative", "drawing"],
   "dots": ["art", "artist", "creative", "drawing"],
   "circles": ["art", "artist", "creative", "drawing"],
@@ -3646,7 +3651,6 @@
   "commando": ["mecha", "military", "strategy", "tactical", "war"],
   "camps": ["mecha", "military", "roadtrip", "survival", "war"],
   "camp": ["mecha", "military", "roadtrip", "survival", "war"],
-  "advanced": ["mecha", "military", "strategy", "tactical", "war"],
   "advance": ["mecha", "military", "strategy", "tactical", "war"],
   "status": ["jrpg", "monster tamer", "raising", "role playing", "rpg"],
   "practice": [
@@ -4073,6 +4077,7 @@
   "blur": ["dystopian", "gothic", "illusion", "invisibility", "surveillance"],
   "trolley": ["driving", "on-rails", "racing", "train", "vehicle"],
   "tram": ["driving", "on-rails", "racing", "train", "vehicle"],
+  "train": ["driving", "on-rails", "racing", "train", "vehicle"],
   "undress": ["dress-up", "fashion", "regency", "steampunk", "victorian"],
   "trousers": ["dress-up", "fashion", "regency", "steampunk", "victorian"],
   "skirting": ["dress-up", "fashion", "regency", "steampunk", "victorian"],
@@ -4401,7 +4406,6 @@
     "parent",
     "raising"
   ],
-  "boys": ["coming-of-age", "party", "regency", "steampunk", "victorian"],
   "syndrome": ["comics", "medical", "mutant", "psychic", "psychological"],
   "soldiers": ["comics", "mecha", "military", "superhero", "war"],
   "soldiering": ["comics", "mecha", "military", "superhero", "war"],
@@ -4460,7 +4464,6 @@
     "parody"
   ],
   "dumb": ["comedy", "deconstruction", "educational", "genius", "parody"],
-  "clowns": ["comedy", "creepy", "horror", "party", "suspense"],
   "style": ["colorful", "decopunk", "dress-up", "fashion", "stylish"],
   "greener": ["colorful", "gardening", "nature", "plants", "scavenging"],
   "green": ["colorful", "gardening", "nature", "plants", "scavenging"],
@@ -4483,10 +4486,17 @@
     "victorian"
   ],
   "bastards": ["cockney", "demon", "regency", "steampunk", "victorian"],
+  "yourself": ["co-op", "disillusionment", "friendship", "rivals", "you"],
+  "your": ["co-op", "disillusionment", "friendship", "rivals", "you"],
+  "you're": ["co-op", "disillusionment", "friendship", "rivals", "you"],
+  "you": ["co-op", "disillusionment", "friendship", "rivals", "you"],
   "welcome": ["co-op", "friendship", "relaxing", "reunion", "utopian"],
   "sister": ["co-op", "coming-of-age", "family", "friendship", "sibling"],
   "relationship": ["co-op", "dating", "friendship", "love", "romance"],
   "pals": ["co-op", "disillusionment", "friendship", "party", "rivals"],
+  "myself": ["co-op", "disillusionment", "friendship", "me", "rivals"],
+  "me": ["co-op", "disillusionment", "friendship", "me", "rivals"],
+  "is mine": ["co-op", "disillusionment", "friendship", "me", "rivals"],
   "friends": ["co-op", "coming-of-age", "friendship", "party", "rivals"],
   "friendly": ["co-op", "coming-of-age", "friendship", "party", "rivals"],
   "friend": ["co-op", "coming-of-age", "friendship", "party", "rivals"],
@@ -4494,6 +4504,7 @@
   "buddy": ["co-op", "disillusionment", "friendship", "party", "rivals"],
   "buddies": ["co-op", "disillusionment", "friendship", "party", "rivals"],
   "bro": ["co-op", "coming-of-age", "family", "friendship", "sibling"],
+  "against mine": ["co-op", "disillusionment", "friendship", "me", "rivals"],
   "acquaintance": ["co-op", "friendship", "regency", "steampunk", "victorian"],
   "i'd like": ["co-op", "dating", "friendship", "love", "romance"],
   "they really like": ["co-op", "dating", "friendship", "love", "romance"],
@@ -5153,6 +5164,7 @@
   "ink": ["art", "artist", "colorful", "creative", "drawing"],
   "glued": ["art", "artist", "crafting", "creative", "repair"],
   "glue": ["art", "artist", "crafting", "creative", "repair"],
+  "drawer": ["art", "artist", "creative", "drawing", "inventory management"],
   "deco": ["art", "artist", "building", "creative", "decopunk"],
   "coloring": ["art", "artist", "colorful", "creative", "drawing"],
   "color": ["art", "artist", "colorful", "creative", "drawing"],
@@ -6568,38 +6580,6 @@
     "legal",
     "rivals",
     "social deduction"
-  ],
-  "i've": [
-    "communication",
-    "conversation",
-    "i",
-    "psychic",
-    "psychological",
-    "rivals"
-  ],
-  "i'm": [
-    "communication",
-    "conversation",
-    "i",
-    "psychic",
-    "psychological",
-    "rivals"
-  ],
-  "i'll": [
-    "communication",
-    "conversation",
-    "i",
-    "psychic",
-    "psychological",
-    "rivals"
-  ],
-  "i": [
-    "communication",
-    "conversation",
-    "i",
-    "psychic",
-    "psychological",
-    "rivals"
   ],
   "gasp": [
     "communication",
@@ -8790,6 +8770,14 @@
     "swashbuckling"
   ],
   "actions": ["action", "comics", "mecha", "military", "superhero", "war"],
+  "training": [
+    "academia",
+    "educational",
+    "instruction",
+    "monster tamer",
+    "raising",
+    "train"
+  ],
   "halls": [
     "academia",
     "fame",
@@ -12473,6 +12461,24 @@
     "fighting",
     "mammal",
     "sports"
+  ],
+  "bashing": [
+    "action",
+    "apocalyptic",
+    "beat 'em up",
+    "destruction",
+    "fighting",
+    "post apocalyptic",
+    "sabotage"
+  ],
+  "basher": [
+    "action",
+    "apocalyptic",
+    "beat 'em up",
+    "destruction",
+    "fighting",
+    "post apocalyptic",
+    "sabotage"
   ],
   "axe": [
     "action",
@@ -16566,26 +16572,6 @@
     "hunting",
     "shooter"
   ],
-  "bashing": [
-    "action",
-    "apocalyptic",
-    "beat 'em up",
-    "destruction",
-    "fighting",
-    "party",
-    "post apocalyptic",
-    "sabotage"
-  ],
-  "basher": [
-    "action",
-    "apocalyptic",
-    "beat 'em up",
-    "destruction",
-    "fighting",
-    "party",
-    "post apocalyptic",
-    "sabotage"
-  ],
   "bash": [
     "action",
     "apocalyptic",
@@ -17663,50 +17649,6 @@
     "steampunk",
     "victorian"
   ],
-  "yourself": [
-    "co-op",
-    "communication",
-    "conversation",
-    "dating",
-    "disillusionment",
-    "friendship",
-    "rivals",
-    "romance",
-    "you"
-  ],
-  "your": [
-    "co-op",
-    "communication",
-    "conversation",
-    "dating",
-    "disillusionment",
-    "friendship",
-    "rivals",
-    "romance",
-    "you"
-  ],
-  "you're": [
-    "co-op",
-    "communication",
-    "conversation",
-    "dating",
-    "disillusionment",
-    "friendship",
-    "rivals",
-    "romance",
-    "you"
-  ],
-  "you": [
-    "co-op",
-    "communication",
-    "conversation",
-    "dating",
-    "disillusionment",
-    "friendship",
-    "rivals",
-    "romance",
-    "you"
-  ],
   "we've": [
     "co-op",
     "communication",
@@ -17784,39 +17726,6 @@
     "romance",
     "we"
   ],
-  "myself": [
-    "co-op",
-    "communication",
-    "conversation",
-    "dating",
-    "disillusionment",
-    "friendship",
-    "me",
-    "rivals",
-    "romance"
-  ],
-  "me": [
-    "co-op",
-    "communication",
-    "conversation",
-    "dating",
-    "disillusionment",
-    "friendship",
-    "me",
-    "rivals",
-    "romance"
-  ],
-  "is mine": [
-    "co-op",
-    "communication",
-    "conversation",
-    "dating",
-    "disillusionment",
-    "friendship",
-    "me",
-    "rivals",
-    "romance"
-  ],
   "helps": [
     "co-op",
     "comics",
@@ -17882,17 +17791,6 @@
     "rehabilitation",
     "rescue",
     "superhero"
-  ],
-  "against mine": [
-    "co-op",
-    "communication",
-    "conversation",
-    "dating",
-    "disillusionment",
-    "friendship",
-    "me",
-    "rivals",
-    "romance"
   ],
   "countdown": [
     "clicker",
@@ -19026,28 +18924,6 @@
     "drawing",
     "invention",
     "robot"
-  ],
-  "drawn": [
-    "art",
-    "artist",
-    "battle royale",
-    "competitive",
-    "contest",
-    "creative",
-    "drawing",
-    "multiplayer",
-    "sports"
-  ],
-  "drawing": [
-    "art",
-    "artist",
-    "battle royale",
-    "competitive",
-    "contest",
-    "creative",
-    "drawing",
-    "multiplayer",
-    "sports"
   ],
   "draw": [
     "art",
@@ -21446,18 +21322,6 @@
     "liquor",
     "surveillance"
   ],
-  "drawer": [
-    "art",
-    "artist",
-    "battle royale",
-    "competitive",
-    "contest",
-    "creative",
-    "drawing",
-    "inventory management",
-    "multiplayer",
-    "sports"
-  ],
   "designer": [
     "art",
     "artist",
@@ -22573,42 +22437,6 @@
     "rhythm",
     "sabotage",
     "shooter"
-  ],
-  "training": [
-    "academia",
-    "driving",
-    "educational",
-    "instruction",
-    "monster tamer",
-    "on-rails",
-    "racing",
-    "raising",
-    "train",
-    "vehicle"
-  ],
-  "trainer": [
-    "academia",
-    "driving",
-    "educational",
-    "instruction",
-    "monster tamer",
-    "on-rails",
-    "racing",
-    "raising",
-    "train",
-    "vehicle"
-  ],
-  "train": [
-    "academia",
-    "driving",
-    "educational",
-    "instruction",
-    "monster tamer",
-    "on-rails",
-    "racing",
-    "raising",
-    "train",
-    "vehicle"
   ],
   "smarty": [
     "academia",
@@ -24358,6 +24186,45 @@
     "redemption",
     "superhero",
     "war"
+  ],
+  "adventurous": [
+    "adventure",
+    "fairy tale",
+    "fantasy",
+    "journey",
+    "jrpg",
+    "roadtrip",
+    "role playing",
+    "rpg",
+    "sword & sorcery",
+    "text adventure",
+    "visual novel"
+  ],
+  "adventures": [
+    "adventure",
+    "fairy tale",
+    "fantasy",
+    "journey",
+    "jrpg",
+    "roadtrip",
+    "role playing",
+    "rpg",
+    "sword & sorcery",
+    "text adventure",
+    "visual novel"
+  ],
+  "adventure": [
+    "adventure",
+    "fairy tale",
+    "fantasy",
+    "journey",
+    "jrpg",
+    "roadtrip",
+    "role playing",
+    "rpg",
+    "sword & sorcery",
+    "text adventure",
+    "visual novel"
   ],
   "spills": [
     "action",
@@ -26179,48 +26046,6 @@
     "time manipulation",
     "time travel",
     "vaporwave"
-  ],
-  "adventurous": [
-    "adventure",
-    "fairy tale",
-    "fantasy",
-    "journey",
-    "jrpg",
-    "party",
-    "roadtrip",
-    "role playing",
-    "rpg",
-    "sword & sorcery",
-    "text adventure",
-    "visual novel"
-  ],
-  "adventures": [
-    "adventure",
-    "fairy tale",
-    "fantasy",
-    "journey",
-    "jrpg",
-    "party",
-    "roadtrip",
-    "role playing",
-    "rpg",
-    "sword & sorcery",
-    "text adventure",
-    "visual novel"
-  ],
-  "adventure": [
-    "adventure",
-    "fairy tale",
-    "fantasy",
-    "journey",
-    "jrpg",
-    "party",
-    "roadtrip",
-    "role playing",
-    "rpg",
-    "sword & sorcery",
-    "text adventure",
-    "visual novel"
   ],
   "trap": [
     "action",
