@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { Grow } from "@material-ui/core";
+import { Grow, Typography } from "@material-ui/core";
 import Dialog, { DialogProps } from "@material-ui/core/Dialog";
 import DialogActions from "@material-ui/core/DialogActions";
 import DialogContent from "@material-ui/core/DialogContent";
@@ -26,9 +26,19 @@ const StyledPhraseDialog = styled(Dialog)`
   }
 `;
 
-const StyledDialogTitle = styled(DialogTitle)`
-  padding-top: ${(props): string => props.theme.spacing(3)};
+const StyledDialogTitleArea = styled.div`
+  padding: ${(props): string => props.theme.spacing(3, 3, 2, 3)};
   text-align: center;
+`;
+
+const StyledDialogTitle = styled(DialogTitle)`
+  padding: 0;
+  text-align: center;
+`;
+
+const StyledDialogSubtitle = styled(Typography)`
+  text-align: center;
+  font-weight: 600;
 `;
 
 const StyledDialogContent = styled(DialogContent)`
@@ -48,13 +58,14 @@ const StyledDialogActions = styled(DialogActions)`
 interface PhraseDialogProps extends Omit<DialogProps, "title"> {
   open: boolean;
   title?: React.ReactNode;
+  subtitle?: React.ReactNode;
   content?: React.ReactNode;
   actions?: React.ReactNode;
   onClose?: () => void;
 }
 
 const PhraseDialog = React.memo((props: PhraseDialogProps) => {
-  const { open, title, content, actions, onClose, ...other } = props;
+  const { open, title, subtitle, content, actions, onClose, ...other } = props;
 
   return (
     <StyledPhraseDialog
@@ -64,7 +75,14 @@ const PhraseDialog = React.memo((props: PhraseDialogProps) => {
       maxWidth="sm"
       {...other}
     >
-      <StyledDialogTitle>{title}</StyledDialogTitle>
+      <StyledDialogTitleArea>
+        <StyledDialogTitle>{title}</StyledDialogTitle>
+        {subtitle && (
+          <StyledDialogSubtitle variant="caption" color="textSecondary">
+            {subtitle}
+          </StyledDialogSubtitle>
+        )}
+      </StyledDialogTitleArea>
       <StyledDialogContent>{content}</StyledDialogContent>
       <StyledDialogActions>{actions}</StyledDialogActions>
     </StyledPhraseDialog>

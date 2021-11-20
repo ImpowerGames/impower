@@ -1,3 +1,4 @@
+import { shuffle } from "../../impower-core";
 import getCleanedWords from "./getCleanedWords";
 import getSubphrases from "./getSubphrases";
 
@@ -25,7 +26,7 @@ export const getTermRelevancyScore = (
       const tagMatchIndex = tagsSortedBySpecificity.findIndex(
         (tag) =>
           (subphrase === tag?.toLowerCase() || termTags.includes(tag)) &&
-          (!matchedTags.includes(tag) || tagsSortedBySpecificity.length === 1)
+          (tagsSortedBySpecificity.length === 1 || !matchedTags.includes(tag))
       );
       if (tagMatchIndex >= 0) {
         matchedTags.push(tagsSortedBySpecificity[tagMatchIndex]);
@@ -37,7 +38,7 @@ export const getTermRelevancyScore = (
   });
   // Phrase must have at least 2 unique relevant terms to benefit from this bonus
   // (This is because we need at least 2 relevant ideas for a double-entendre)
-  if (matchedTags.length > 1) {
+  if (matchedTags.length > 1 || matchedTags[0] === tagsSortedBySpecificity[0]) {
     return relevantTermWeight / Math.min(termCount, words.length);
   }
   return 0;
@@ -61,8 +62,8 @@ const getRelevantPhrases = (
     [term: string]: string[];
   },
   limit = 200
-): string[] => {
-  const phraseTagRelevancyScoreMap: { [phrase: string]: number } = {};
+): [string, number][] => {
+  const phraseRelevancyScoreMap: { [phrase: string]: number } = {};
 
   if (!tagsSortedBySpecificity || tagsSortedBySpecificity.length === 0) {
     return [];
@@ -73,21 +74,25 @@ const getRelevantPhrases = (
 
   tagsSortedBySpecificity.forEach((tag, index) => {
     // Get all phrases that are related to this tag.
-    // (For best results, ensure these phrases are sorted by length:
-    // shorter, snappier phrases are generally perceived as more clever)
-    const tagPhrases = tagPhrasesMap[tag];
+    const tagPhrases = shuffle(tagPhrasesMap[tag]);
     if (tagPhrases) {
       tagPhrases.forEach((p) => {
-        const currentTagScore = phraseTagRelevancyScoreMap[p] || 0;
         // All suggested phrases must at least satisfy the first (primary/most specific) tag.
         if (primaryTagPhrases?.includes(p)) {
+          if (phraseRelevancyScoreMap[p] === undefined) {
+            phraseRelevancyScoreMap[p] = getTermRelevancyScore(
+              p,
+              tagsSortedBySpecificity,
+              termTagsMap
+            );
+          }
           // The increment value is weighted by how specific the tag is.
           // A more specific tag (e.g. "vampire") will have more weight than a more general tag (e.g. "conversation").
           // This is because specific tags like "vampire" typically have stronger associated terms ("blood", "fangs", "dead")
           // and thus more "pun potential".
           const max = tagsSortedBySpecificity.length;
           const weight = (max - index) / max;
-          phraseTagRelevancyScoreMap[p] = currentTagScore + weight;
+          phraseRelevancyScoreMap[p] += weight;
         }
       });
     }
@@ -98,22 +103,10 @@ const getRelevantPhrases = (
   // and the more words in the phrase that are relevant,
   // the higher it will rank.
   // (We like titles that work on multiple levels!)
-  const sortedPhrases = Object.keys(phraseTagRelevancyScoreMap).sort(
-    (aPhrase, bPhrase) => {
-      const aTagScore = phraseTagRelevancyScoreMap[aPhrase] || 0;
-      const aTermScore = getTermRelevancyScore(
-        aPhrase,
-        tagsSortedBySpecificity,
-        termTagsMap
-      );
-      const aScore = aTagScore + aTermScore * 0.5;
-      const bTagScore = phraseTagRelevancyScoreMap[bPhrase] || 0;
-      const bTermScore = getTermRelevancyScore(
-        bPhrase,
-        tagsSortedBySpecificity,
-        termTagsMap
-      );
-      const bScore = bTagScore + bTermScore * 0.5;
+  const sortedPhrases = Object.entries(phraseRelevancyScoreMap).sort(
+    ([aPhrase], [bPhrase]) => {
+      const aScore = phraseRelevancyScoreMap[aPhrase] || 0;
+      const bScore = phraseRelevancyScoreMap[bPhrase] || 0;
       return bScore - aScore;
     }
   );

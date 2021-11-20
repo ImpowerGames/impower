@@ -10,7 +10,7 @@ export interface GameNameFieldProps extends RenderPropertyProps {
   chosenTitle?: string;
   sortedTags?: string[];
   relevancyFilteredTags?: string[];
-  relevantTitles?: string[];
+  relevantTitles?: [string, number][];
   terms?: { [term: string]: string[] };
   onRelevancyFilter?: (filteredTags: string[]) => void;
   onOpenTitleSuggestions?: () => void;

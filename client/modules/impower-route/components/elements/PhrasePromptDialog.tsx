@@ -351,13 +351,19 @@ interface PhraseButtonProps {
   index: number;
   selected?: boolean;
   phrase?: string;
+  score?: number;
   liked?: boolean;
   disliked?: boolean;
   style?: React.CSSProperties;
   onClick?: (e: React.MouseEvent, phrase: string) => void;
   onUnlike?: (e: React.MouseEvent, phrase: string) => Promise<void>;
   onUndislike?: (e: React.MouseEvent, phrase: string) => Promise<void>;
-  onOption?: (e: React.MouseEvent, option: string, phrase: string) => void;
+  onOption?: (
+    e: React.MouseEvent,
+    option: string,
+    phrase: string,
+    score?: number
+  ) => void;
 }
 
 const PhraseButton = React.memo((props: PhraseButtonProps) => {
@@ -366,6 +372,7 @@ const PhraseButton = React.memo((props: PhraseButtonProps) => {
     index,
     selected,
     phrase,
+    score,
     liked,
     disliked,
     style,
@@ -481,10 +488,10 @@ const PhraseButton = React.memo((props: PhraseButtonProps) => {
   const handleOption = useCallback(
     (e: React.MouseEvent, option: string) => {
       if (onOption) {
-        onOption(e, option, phrase);
+        onOption(e, option, phrase, score);
       }
     },
-    [onOption, phrase]
+    [onOption, phrase, score]
   );
 
   const handleVote = liked
@@ -562,12 +569,17 @@ const PhraseButton = React.memo((props: PhraseButtonProps) => {
 
 interface PhraseListProps {
   scrollParent?: HTMLElement;
-  relevantTitles?: string[];
+  relevantTitles?: [string, number][];
   selectedTitle?: string;
   onClickPhrase?: (e: React.MouseEvent, phrase: string) => void;
   onUnlike?: (e: React.MouseEvent, phrase: string) => Promise<void>;
   onUndislike?: (e: React.MouseEvent, phrase: string) => Promise<void>;
-  onOption?: (e: React.MouseEvent, option: string, phrase: string) => void;
+  onOption?: (
+    e: React.MouseEvent,
+    option: string,
+    phrase: string,
+    score?: number
+  ) => void;
 }
 
 const PhraseList = React.memo((props: PhraseListProps) => {
@@ -588,13 +600,14 @@ const PhraseList = React.memo((props: PhraseListProps) => {
     <>
       {Array.from({ length: relevantTitles.length }, (v, k) => k).map(
         (index) => {
-          const title = relevantTitles[index];
+          const [title, score] = relevantTitles[index];
           return (
             <PhraseButton
               key={index}
               scrollParent={scrollParent}
               index={index}
               phrase={title}
+              score={score}
               liked={Boolean(my_likes?.[getDataStoreKey("phrases", title)])}
               disliked={Boolean(
                 my_dislikes?.[getDataStoreKey("phrases", title)]
@@ -624,7 +637,7 @@ interface PhrasePromptDialogProps extends Omit<DialogProps, "title"> {
   chosenTitle?: string;
   sortedTags?: string[];
   relevancyFilteredTags?: string[];
-  relevantTitles?: string[];
+  relevantTitles?: [string, number][];
   terms?: { [term: string]: string[] };
   onChooseTitle?: (title: string) => void;
   onRelevancyFilter?: (filteredTags: string[]) => void;
@@ -667,6 +680,7 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
   const [defaultPhraseSuggestion, setDefaultPhraseSuggestion] = useState("");
   const [reportingPhrase, setReportingPhrase] = useState("");
   const [explanationPhrase, setExplanationPhrase] = useState("");
+  const [explanationScore, setExplanationScore] = useState<number>();
 
   const suggestionDialogOpen = dialogOpenKey === "suggest";
   const reportDialogOpen = dialogOpenKey === "report";
@@ -1015,8 +1029,9 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
   );
 
   const handleExplainPhrase = useCallback(
-    (phrase: string) => {
+    (phrase: string, score: number) => {
       setExplanationPhrase(phrase);
+      setExplanationScore(score);
       setDialogOpenKey("explain");
       openInfoDialog("explain");
     },
@@ -1037,7 +1052,12 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
   );
 
   const handlePhraseOption = useCallback(
-    async (e: React.MouseEvent, option: string, phrase: string) => {
+    async (
+      e: React.MouseEvent,
+      option: string,
+      phrase: string,
+      score?: number
+    ) => {
       if (option === "like") {
         if (my_likes?.[getDataStoreKey("phrases", phrase)]) {
           handleUnlikePhrase(e, phrase);
@@ -1053,7 +1073,7 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
         }
       }
       if (option === "why") {
-        handleExplainPhrase(phrase);
+        handleExplainPhrase(phrase, score);
       }
       if (option === "edit") {
         handleEditPhrase(phrase);
@@ -1151,6 +1171,7 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
       <PhraseExplanationDialog
         open={explanationDialogOpen}
         phrase={explanationPhrase}
+        score={explanationScore}
         terms={terms}
         tags={sortedTags}
         onClose={handleCloseExplanationDialog}

@@ -227,14 +227,14 @@ const CreateGameForm = React.memo((props: CreateGameFormProps): JSX.Element => {
     [tag: string]: string[];
   }>();
   const [filteredRelevantTitles, setFilteredRelevantTitles] = useState<
-    string[]
+    [string, number][]
   >([]);
 
   useEffect(() => {
     setDocIdState(docId);
   }, [docId]);
 
-  const suggestedTitle = filteredRelevantTitles?.[0] || originalDoc?.name;
+  const [suggestedTitle] = filteredRelevantTitles?.[0] || [originalDoc?.name];
 
   const updateFilteredRelevantTitles = useCallback(
     (

@@ -32,6 +32,7 @@ const StyledSubphraseTypography = styled(Typography)`
 interface PhraseExplanationDialogProps {
   open: boolean;
   phrase?: string;
+  score?: number;
   tags?: string[];
   terms?: { [term: string]: string[] };
   onClose?: () => void;
@@ -39,7 +40,7 @@ interface PhraseExplanationDialogProps {
 
 const PhraseExplanationDialog = React.memo(
   (props: PhraseExplanationDialogProps) => {
-    const { open, phrase, tags, terms, onClose } = props;
+    const { open, phrase, score, tags, terms, onClose } = props;
 
     const [configState] = useContext(ConfigContext);
 
@@ -121,11 +122,23 @@ const PhraseExplanationDialog = React.memo(
       [onClose]
     );
 
+    const tagCount = tags?.length || 0;
+
+    const maxScore = useMemo(() => {
+      let weight = 0;
+      for (let index = 0; index < tagCount; index += 1) {
+        const max = tagCount;
+        weight += (max - index) / max;
+      }
+      return weight + 1;
+    }, [tagCount]);
+
     return (
       <PhraseDialog
         open={open}
         onClose={onClose}
         title={phrase}
+        subtitle={`(${Math.round(Math.min(1, score / maxScore) * 100)}% match)`}
         content={content}
         actions={actions}
       />

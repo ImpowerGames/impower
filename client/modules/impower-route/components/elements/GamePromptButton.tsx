@@ -24,7 +24,7 @@ interface GamePromptButtonProps {
   chosenTitle?: string;
   sortedTags?: string[];
   relevancyFilteredTags?: string[];
-  relevantTitles?: string[];
+  relevantTitles?: [string, number][];
   terms?: { [term: string]: string[] };
   style?: React.CSSProperties;
   onRelevancyFilter?: (filteredTags: string[]) => void;
