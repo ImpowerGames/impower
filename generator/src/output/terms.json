@@ -9,6 +9,7 @@
   "saddles": ["western"],
   "saddle": ["western"],
   "rustles": ["western"],
+  "rustled": ["western"],
   "rustle": ["western"],
   "rodeo": ["western"],
   "paddock": ["western"],
@@ -122,6 +123,7 @@
   "denominator": ["science"],
   "cycle": ["science"],
   "cobalt": ["science"],
+  "subverting": ["sabotage"],
   "dares": ["roguelike"],
   "dare": ["roguelike"],
   "vacation": ["roadtrip"],
@@ -209,6 +211,10 @@
   "bicycle": ["racing"],
   "vital": ["quest"],
   "daunting": ["quest"],
+  "publishing": ["publication"],
+  "font": ["publication"],
+  "encyclopaedia": ["publication"],
+  "dictionary": ["publication"],
   "puppet": ["psychic"],
   "rocks": ["prehistoric"],
   "long ago": ["prehistoric"],
@@ -722,6 +728,7 @@
   "cook": ["cooking"],
   "chow": ["cooking"],
   "chew": ["cooking"],
+  "chef's": ["cooking"],
   "chef": ["cooking"],
   "cannoli": ["cooking"],
   "can of": ["cooking"],
@@ -748,6 +755,7 @@
   "ringer": ["communication"],
   "ring": ["communication"],
   "phone": ["communication"],
+  "jot": ["communication"],
   "gesture": ["communication"],
   "definition": ["communication"],
   "calls": ["communication"],
@@ -841,6 +849,7 @@
   "block": ["building"],
   "asbestos": ["building"],
   "vulture": ["bird"],
+  "tweet": ["bird"],
   "raven": ["bird"],
   "perch": ["bird"],
   "penguins": ["bird"],
@@ -932,6 +941,7 @@
   "bethlehem": ["angel"],
   "bell rings": ["angel"],
   "augustine": ["angel"],
+  "atheists": ["angel"],
   "atheist": ["angel"],
   "ark": ["angel"],
   "amen": ["angel"],
@@ -940,6 +950,8 @@
   "abraham's": ["angel"],
   "abel": ["angel"],
   "a man a fish": ["angel"],
+  "yet": ["alternate history"],
+  "meaningful": ["alternate history"],
   "chosen one": ["adventure"],
   "whipping": ["action"],
   "whipper": ["action"],
@@ -970,6 +982,7 @@
   "saturday": ["time management", "week"],
   "monday": ["time management", "week"],
   "friday": ["time management", "week"],
+  "portals": ["teleportation", "time travel"],
   "phase": ["teleportation", "time travel"],
   "suspense": ["suspense", "thriller"],
   "vampires": ["supernatural", "vampire"],
@@ -1030,6 +1043,8 @@
   "protest": ["political", "rebellion"],
   "liberal": ["political", "rebellion"],
   "banner": ["political", "rebellion"],
+  "articles": ["political", "publication"],
+  "article": ["political", "publication"],
   "you in for": ["police", "punishment"],
   "sheriff": ["police", "western"],
   "jailhouse": ["police", "punishment"],
@@ -1539,6 +1554,7 @@
   "inside": ["conspiracy", "espionage"],
   "gossip": ["conspiracy", "fame"],
   "yada": ["communication", "conversation"],
+  "written": ["communication", "publication"],
   "words": ["communication", "conversation"],
   "word": ["communication", "conversation"],
   "unmentionables": ["communication", "conversation"],
@@ -1567,6 +1583,7 @@
   "said": ["communication", "conversation"],
   "quotes": ["communication", "conversation"],
   "quote": ["communication", "conversation"],
+  "phrasing": ["communication", "conversation"],
   "phrase": ["communication", "conversation"],
   "mentioned": ["communication", "conversation"],
   "mention": ["communication", "conversation"],
@@ -1679,6 +1696,7 @@
   "petco": ["business", "shop"],
   "muppet shuffle": ["business", "office"],
   "mom and pop": ["business", "shop"],
+  "meeting": ["business", "office"],
   "hire": ["business", "office"],
   "downsizing": ["business", "office"],
   "desko": ["business", "office"],
@@ -1733,6 +1751,7 @@
   "thousand": ["battle royale", "multiplayer"],
   "many's": ["battle royale", "multiplayer"],
   "many": ["battle royale", "multiplayer"],
+  "manic": ["battle royale", "multiplayer"],
   "tube": ["automation", "science"],
   "rack": ["automation", "inventory management"],
   "feeder": ["automation", "cooking"],
@@ -1779,6 +1798,7 @@
   "lions": ["animals", "mammal"],
   "lion's": ["animals", "mammal"],
   "lion": ["animals", "mammal"],
+  "leopards": ["animals", "mammal"],
   "leopard": ["animals", "mammal"],
   "leash": ["animals", "pet"],
   "kangaroos": ["animals", "mammal"],
@@ -1835,8 +1855,7 @@
   "atoning": ["angel", "redemption"],
   "angels": ["angel", "demon"],
   "angel": ["angel", "demon"],
-  "yet": ["alternate history", "time travel"],
-  "meaningful": ["alternate history", "time travel"],
+  "worst": ["alternate history", "rivals"],
   "daring": ["adventure", "roguelike"],
   "whirl": ["action", "physics"],
   "tilting": ["action", "physics"],
@@ -1858,13 +1877,9 @@
   "don't ever change": ["academia", "coming-of-age"],
   "degree": ["academia", "science"],
   "community": ["academia", "political"],
-  "publishing": ["text", "text adventure", "visual novel"],
-  "notes": ["text", "text adventure", "visual novel"],
-  "font": ["text", "text adventure", "visual novel"],
-  "encyclopaedia": ["text", "text adventure", "visual novel"],
-  "dictionary": ["text", "text adventure", "visual novel"],
   "omega": ["supernatural", "werewolf", "wolf"],
   "alpha": ["supernatural", "werewolf", "wolf"],
+  "notes": ["story", "text adventure", "visual novel"],
   "shifting": ["shapeshifting", "teleportation", "time travel"],
   "phases": ["science", "teleportation", "time travel"],
   "fully booked": ["schedule", "time management", "time travel"],
@@ -1921,6 +1936,7 @@
   "whistle": ["musical", "real-time", "rhythm"],
   "vox": ["musical", "rhythm", "vaporwave"],
   "vibes": ["musical", "rhythm", "vaporwave"],
+  "vibe": ["musical", "rhythm", "vaporwave"],
   "rock": ["musical", "prehistoric", "rhythm"],
   "pitched": ["musical", "rhythm", "sports"],
   "pitch": ["musical", "rhythm", "sports"],
@@ -2235,6 +2251,7 @@
   "fearing": ["creepy", "horror", "suspense"],
   "fear": ["creepy", "horror", "suspense"],
   "disturbing": ["creepy", "horror", "suspense"],
+  "disgusting": ["creepy", "horror", "suspense"],
   "desperandum": ["creepy", "horror", "suspense"],
   "dazed": ["creepy", "horror", "suspense"],
   "crept": ["creepy", "horror", "suspense"],
@@ -2453,6 +2470,7 @@
   "albatross": ["bird", "nautical", "swashbuckling"],
   "gentle": ["beautiful", "cozy", "relaxing"],
   "facing": ["beautiful", "impersonation", "shapeshifting"],
+  "faces": ["beautiful", "impersonation", "shapeshifting"],
   "faced": ["beautiful", "impersonation", "shapeshifting"],
   "face": ["beautiful", "impersonation", "shapeshifting"],
   "crowded": ["battle royale", "fame", "multiplayer"],
@@ -2568,12 +2586,12 @@
   "choir": ["angel", "musical", "rhythm"],
   "bliss": ["angel", "relaxing", "utopian"],
   "adder": ["angel", "animals", "reptile"],
-  "worst": ["alternate history", "rivals", "time travel"],
   "used to": ["alternate history", "historical", "time travel"],
   "pharaohs": ["alternate history", "historical", "time travel"],
   "my day": ["alternate history", "historical", "time travel"],
   "moses": ["alternate history", "historical", "time travel"],
   "millennium": ["alternate history", "historical", "time travel"],
+  "meant to": ["alternate history", "repair", "rivals"],
   "cleopatra": ["alternate history", "historical", "time travel"],
   "ago": ["alternate history", "historical", "time travel"],
   "fate": ["adventure", "destiny", "fantasy"],
@@ -2628,7 +2646,6 @@
   "youth": ["academia", "coming-of-age", "young"],
   "time's up": ["academia", "resurrection", "zombie"],
   "time is up": ["academia", "resurrection", "zombie"],
-  "textbook": ["academia", "educational", "instruction"],
   "taught": ["academia", "educational", "instruction"],
   "show your work": ["academia", "educational", "instruction"],
   "scholar": ["academia", "educational", "instruction"],
@@ -2658,8 +2675,6 @@
   "leisure": ["regency", "steampunk", "tycoon", "victorian"],
   "billiards": ["regency", "sports", "steampunk", "victorian"],
   "society": ["political", "regency", "steampunk", "victorian"],
-  "articles": ["political", "text", "text adventure", "visual novel"],
-  "article": ["political", "text", "text adventure", "visual novel"],
   "limits": ["open world", "quick-time events", "sandbox", "time limit"],
   "tunes": ["musical", "retro", "rhythm", "vaporwave"],
   "harmony": ["musical", "relaxing", "rhythm", "utopian"],
@@ -2672,7 +2687,9 @@
   "last time": ["metroidvania", "nonlinear", "replayable", "roguelike"],
   "extra": ["metroidvania", "nonlinear", "replayable", "roguelike"],
   "another": ["metroidvania", "nonlinear", "replayable", "roguelike"],
+  "additional": ["metroidvania", "nonlinear", "replayable", "roguelike"],
   "relief": ["medical", "quest", "rehabilitation", "rescue"],
+  "pamphlets": ["medical", "political", "publication", "rebellion"],
   "mended": ["medical", "redemption", "rehabilitation", "repair"],
   "mend": ["medical", "redemption", "rehabilitation", "repair"],
   "cell": ["medical", "police", "punishment", "science"],
@@ -3024,6 +3041,7 @@
   "beanpole": ["cooking", "crop", "farming", "nature"],
   "verdict": ["contest", "investigation", "legal", "social deduction"],
   "jury's": ["contest", "investigation", "legal", "social deduction"],
+  "jury": ["contest", "investigation", "legal", "social deduction"],
   "publicity": ["conspiracy", "cryptid", "fame", "political"],
   "media": ["conspiracy", "cryptid", "fame", "political"],
   "frontal": ["conspiracy", "mecha", "military", "war"],
@@ -3033,7 +3051,6 @@
   "covering": ["concealment", "invisibility", "ninja", "stealth"],
   "covered": ["concealment", "invisibility", "ninja", "stealth"],
   "conceals": ["concealment", "invisibility", "ninja", "stealth"],
-  "written": ["communication", "text", "text adventure", "visual novel"],
   "whatever": ["communication", "conversation", "disillusionment", "rivals"],
   "voice": ["communication", "conversation", "musical", "rhythm"],
   "verbal": ["communication", "conversation", "fantasy", "folklore"],
@@ -3047,7 +3064,6 @@
   "messaging": ["communication", "conversation", "destiny", "fantasy"],
   "messages": ["communication", "conversation", "destiny", "fantasy"],
   "message": ["communication", "conversation", "destiny", "fantasy"],
-  "jot": ["communication", "text", "text adventure", "visual novel"],
   "insults": ["communication", "conversation", "disillusionment", "rivals"],
   "insult": ["communication", "conversation", "disillusionment", "rivals"],
   "deaf": ["communication", "conversation", "disillusionment", "medical"],
@@ -3068,6 +3084,7 @@
   "clowns": ["comedy", "creepy", "horror", "suspense"],
   "technicolor": ["colorful", "fame", "interactive film", "stylish"],
   "limited": ["collecting", "quest", "quick-time events", "time limit"],
+  "edition": ["collecting", "customization", "publication", "quest"],
   "pish": ["cockney", "regency", "steampunk", "victorian"],
   "keen": ["cockney", "regency", "steampunk", "victorian"],
   "jove": ["cockney", "regency", "steampunk", "victorian"],
@@ -3219,6 +3236,10 @@
   "ties": ["bureaucracy", "business", "co-op", "friendship"],
   "secretary": ["bureaucracy", "business", "office", "political"],
   "reunion": ["bureaucracy", "business", "rebellion", "reunion"],
+  "requests": ["bureaucracy", "business", "communication", "conversation"],
+  "requested": ["bureaucracy", "business", "communication", "conversation"],
+  "request": ["bureaucracy", "business", "communication", "conversation"],
+  "remembers": ["bureaucracy", "business", "memories", "political"],
   "remember": ["bureaucracy", "business", "memories", "political"],
   "regulatory": ["bureaucracy", "business", "management", "simulator"],
   "redistribution": [
@@ -3236,6 +3257,7 @@
   "difficulties": ["bureaucracy", "business", "disillusionment", "soulslike"],
   "corporate": ["bureaucracy", "business", "office", "tycoon"],
   "controversy": ["bureaucracy", "business", "conspiracy", "fame"],
+  "controversial": ["bureaucracy", "business", "conspiracy", "fame"],
   "company": ["bureaucracy", "business", "office", "shop"],
   "clerks": ["bureaucracy", "business", "office", "shop"],
   "buggin's turn": ["bureaucracy", "business", "office", "political"],
@@ -3437,8 +3459,8 @@
     "post apocalyptic"
   ],
   "rome": ["alternate history", "historical", "myth", "time travel"],
+  "predict": ["alternate history", "destiny", "fantasy", "psychic"],
   "period": ["alternate history", "historical", "real-time", "time travel"],
-  "meant to": ["alternate history", "repair", "rivals", "time travel"],
   "ides": ["alternate history", "historical", "myth", "time travel"],
   "greeks": ["alternate history", "historical", "myth", "time travel"],
   "greek": ["alternate history", "historical", "myth", "time travel"],
@@ -3455,6 +3477,7 @@
   "speeding": ["action", "driving", "racing", "superspeed"],
   "slippage": ["action", "parkour", "platformer", "side scroller"],
   "sling": ["action", "extraterrestrial", "physics", "space"],
+  "sliding": ["action", "physics", "platformer", "side scroller"],
   "slidin'": ["action", "physics", "platformer", "side scroller"],
   "slide": ["action", "physics", "platformer", "side scroller"],
   "shots": ["action", "bullet hell", "hunting", "shooter"],
@@ -3519,6 +3542,7 @@
   "armed": ["action", "bullet hell", "hunting", "shooter"],
   "aim": ["action", "bullet hell", "hunting", "shooter"],
   "aggression": ["action", "beat 'em up", "fighting", "rebellion"],
+  "textbook": ["academia", "educational", "instruction", "publication"],
   "testing": ["academia", "educational", "instruction", "science"],
   "test": ["academia", "educational", "instruction", "science"],
   "senior": ["academia", "bureaucracy", "business", "coming-of-age"],
@@ -3711,7 +3735,7 @@
   "shovel": ["farming", "gardening", "nature", "plants", "scavenging"],
   "raked": ["farming", "gardening", "nature", "plants", "scavenging"],
   "rake": ["farming", "gardening", "nature", "plants", "scavenging"],
-  "prose": ["fantasy", "folklore", "text", "text adventure", "visual novel"],
+  "prose": ["fantasy", "folklore", "story", "text adventure", "visual novel"],
   "acting": [
     "fame",
     "impersonation",
@@ -3735,6 +3759,13 @@
     "sword & sorcery"
   ],
   "stead": [
+    "fairy tale",
+    "fantasy",
+    "medieval",
+    "role playing",
+    "sword & sorcery"
+  ],
+  "sorcery": [
     "fairy tale",
     "fantasy",
     "medieval",
@@ -4318,7 +4349,7 @@
   "translation": [
     "communication",
     "conversation",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
@@ -4346,35 +4377,35 @@
   "ready": [
     "communication",
     "conversation",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
   "readings": [
     "communication",
     "conversation",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
   "reading": [
     "communication",
     "conversation",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
   "reader": [
     "communication",
     "conversation",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
   "read": [
     "communication",
     "conversation",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
@@ -5286,6 +5317,7 @@
   "birdy": ["animals", "bird", "cute", "flight", "mecha"],
   "bats": ["animals", "mammal", "sports", "supernatural", "vampire"],
   "bat": ["animals", "mammal", "sports", "supernatural", "vampire"],
+  "sacrifices": ["angel", "demon", "occult", "redemption", "supernatural"],
   "sacrifice": ["angel", "demon", "occult", "redemption", "supernatural"],
   "prophet": ["angel", "destiny", "fantasy", "myth", "psychic"],
   "miracles": ["angel", "destiny", "fairy tale", "fantasy", "resurrection"],
@@ -5334,13 +5366,6 @@
     "invasion",
     "time travel"
   ],
-  "predict": [
-    "alternate history",
-    "destiny",
-    "fantasy",
-    "psychic",
-    "time travel"
-  ],
   "old": [
     "alternate history",
     "historical",
@@ -5383,6 +5408,13 @@
     "time management",
     "time travel"
   ],
+  "better": [
+    "alternate history",
+    "medical",
+    "rehabilitation",
+    "repair",
+    "rivals"
+  ],
   "aged": [
     "alternate history",
     "coming-of-age",
@@ -5419,13 +5451,6 @@
   "swiftly": ["action", "racing", "runner", "side scroller", "superspeed"],
   "swift": ["action", "racing", "runner", "side scroller", "superspeed"],
   "suspended": ["action", "parkour", "physics", "platformer", "side scroller"],
-  "subverting": [
-    "action",
-    "apocalyptic",
-    "destruction",
-    "post apocalyptic",
-    "sabotage"
-  ],
   "striking": ["action", "beat 'em up", "business", "fighting", "office"],
   "strikes": ["action", "beat 'em up", "business", "fighting", "office"],
   "strike": ["action", "beat 'em up", "business", "fighting", "office"],
@@ -5621,14 +5646,6 @@
     "resurrection",
     "roguelike",
     "time travel"
-  ],
-  "pamphlets": [
-    "medical",
-    "political",
-    "rebellion",
-    "text",
-    "text adventure",
-    "visual novel"
   ],
   "fatigue": [
     "medical",
@@ -6210,6 +6227,14 @@
     "rivals",
     "tragedy"
   ],
+  "hurting": [
+    "disillusionment",
+    "emotional",
+    "medical",
+    "rehabilitation",
+    "rivals",
+    "tragedy"
+  ],
   "hurt": [
     "disillusionment",
     "emotional",
@@ -6772,14 +6797,6 @@
     "scavenging"
   ],
   "fetch": ["collecting", "delivery", "gather", "greed", "quest", "scavenging"],
-  "edition": [
-    "collecting",
-    "customization",
-    "quest",
-    "text",
-    "text adventure",
-    "visual novel"
-  ],
   "collected": [
     "collecting",
     "delivery",
@@ -6808,9 +6825,7 @@
   "pairing": ["co-op", "dating", "friendship", "love", "rivals", "romance"],
   "pair": ["co-op", "dating", "friendship", "love", "rivals", "romance"],
   "not to like": ["co-op", "dating", "friendship", "love", "rivals", "romance"],
-  "meter": ["co-op", "dating", "friendship", "love", "reunion", "romance"],
   "met": ["co-op", "dating", "friendship", "love", "reunion", "romance"],
-  "meets": ["co-op", "dating", "friendship", "love", "reunion", "romance"],
   "meet": ["co-op", "dating", "friendship", "love", "reunion", "romance"],
   "disagree": [
     "co-op",
@@ -7051,7 +7066,7 @@
     "bureaucracy",
     "business",
     "communication",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
@@ -7059,7 +7074,7 @@
     "bureaucracy",
     "business",
     "communication",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
@@ -7454,6 +7469,7 @@
     "sci-fi",
     "space"
   ],
+  "metal": ["atompunk", "building", "crafting", "musical", "rhythm", "science"],
   "assassination": [
     "assassination",
     "caper",
@@ -8266,13 +8282,13 @@
     "post apocalyptic",
     "time travel"
   ],
-  "better": [
+  "best": [
     "alternate history",
-    "medical",
-    "rehabilitation",
-    "repair",
-    "rivals",
-    "time travel"
+    "battle royale",
+    "competitive",
+    "contest",
+    "multiplayer",
+    "sports"
   ],
   "greatness": [
     "adventure",
@@ -8798,7 +8814,7 @@
     "academia",
     "educational",
     "instruction",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
@@ -8806,7 +8822,7 @@
     "academia",
     "educational",
     "instruction",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
@@ -8885,7 +8901,7 @@
     "memories",
     "simulator",
     "slice-of-life",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
@@ -10086,6 +10102,15 @@
     "steampunk",
     "victorian"
   ],
+  "volumes": [
+    "collecting",
+    "episodic",
+    "musical",
+    "publication",
+    "quest",
+    "rhythm",
+    "science"
+  ],
   "mirrors": [
     "co-op",
     "fairy tale",
@@ -10911,6 +10936,15 @@
     "dress-up",
     "fashion",
     "hacking",
+    "robot",
+    "technology"
+  ],
+  "scroll": [
+    "artificial intelligence",
+    "clicker",
+    "cyberpunk",
+    "hacking",
+    "publication",
     "robot",
     "technology"
   ],
@@ -11751,6 +11785,150 @@
     "romance",
     "supernatural"
   ],
+  "undoing": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "undo": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "timeline": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "reverse": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "potential": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "parallel": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "outcome": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "might": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "if": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "happens": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "happening": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "happen": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "differences": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "difference": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "coincidences": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "coincidence": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
   "chariot": [
     "alternate history",
     "driving",
@@ -11760,14 +11938,32 @@
     "time travel",
     "vehicle"
   ],
-  "best": [
+  "branch": [
     "alternate history",
-    "battle royale",
-    "competitive",
-    "contest",
-    "multiplayer",
-    "sports",
-    "time travel"
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "affected": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "can't accept": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
   ],
   "wildfire": [
     "action",
@@ -12530,7 +12726,7 @@
     "educational",
     "episodic",
     "instruction",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
@@ -12538,7 +12734,7 @@
     "academia",
     "educational",
     "instruction",
-    "text",
+    "story",
     "text adventure",
     "time management",
     "visual novel"
@@ -12961,6 +13157,16 @@
     "psychic",
     "psychological",
     "rehabilitation"
+  ],
+  "solved": [
+    "detective",
+    "educational",
+    "genius",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "puzzle"
   ],
   "sensible": [
     "detective",
@@ -14001,16 +14207,6 @@
     "shop",
     "steal",
     "wealth"
-  ],
-  "meeting": [
-    "business",
-    "co-op",
-    "dating",
-    "friendship",
-    "love",
-    "office",
-    "reunion",
-    "romance"
   ],
   "fois gras": [
     "business",
@@ -15752,24 +15948,24 @@
     "time management",
     "time travel"
   ],
-  "undoing": [
+  "worse": [
     "alternate history",
-    "branching narrative",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
+    "disillusionment",
+    "glitch",
+    "hacking",
+    "medical",
+    "rehabilitation",
+    "repair",
+    "rivals"
   ],
-  "undo": [
+  "unaffected": [
     "alternate history",
     "branching narrative",
+    "disillusionment",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
     "visual novel"
   ],
   "times": [
@@ -15782,64 +15978,64 @@
     "time management",
     "time travel"
   ],
-  "timeline": [
+  "selection": [
     "alternate history",
     "branching narrative",
+    "contest",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
     "visual novel"
   ],
-  "reverse": [
+  "result": [
     "alternate history",
     "branching narrative",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
+    "science",
     "visual novel"
   ],
-  "potential": [
+  "other's": [
     "alternate history",
     "branching narrative",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
+    "rivals",
     "visual novel"
   ],
-  "parallel": [
+  "other": [
     "alternate history",
     "branching narrative",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
+    "rivals",
     "visual novel"
   ],
-  "outcome": [
+  "option": [
     "alternate history",
     "branching narrative",
+    "customization",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
     "visual novel"
   ],
-  "might": [
+  "inevitable": [
     "alternate history",
     "branching narrative",
+    "disillusionment",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
     "visual novel"
   ],
   "immemorial": [
@@ -15852,44 +16048,14 @@
     "psychological",
     "time travel"
   ],
-  "if": [
+  "happened": [
     "alternate history",
     "branching narrative",
     "interactive film",
+    "memories",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "happens": [
-    "alternate history",
-    "branching narrative",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "happening": [
-    "alternate history",
-    "branching narrative",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "happen": [
-    "alternate history",
-    "branching narrative",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
     "visual novel"
   ],
   "grandmother": [
@@ -15902,24 +16068,14 @@
     "raising",
     "time travel"
   ],
-  "differences": [
+  "foregone": [
     "alternate history",
     "branching narrative",
+    "disillusionment",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "difference": [
-    "alternate history",
-    "branching narrative",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
     "visual novel"
   ],
   "date": [
@@ -15932,34 +16088,34 @@
     "time management",
     "time travel"
   ],
-  "coincidences": [
+  "conclusion": [
     "alternate history",
     "branching narrative",
+    "disillusionment",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
     "visual novel"
   ],
-  "coincidence": [
+  "choosers": [
     "alternate history",
     "branching narrative",
+    "customization",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
     "visual novel"
   ],
-  "branch": [
+  "choose": [
     "alternate history",
     "branching narrative",
+    "customization",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
     "visual novel"
   ],
   "beginning": [
@@ -15972,24 +16128,34 @@
     "roguelike",
     "time travel"
   ],
-  "affected": [
+  "alternative": [
     "alternate history",
     "branching narrative",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
+    "turn-based",
     "visual novel"
   ],
-  "can't accept": [
+  "alternate": [
     "alternate history",
     "branching narrative",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
+    "turn-based",
+    "visual novel"
+  ],
+  "alter": [
+    "alternate history",
+    "branching narrative",
+    "customization",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
     "visual novel"
   ],
   "treasure": [
@@ -16221,6 +16387,16 @@
     "racing",
     "superspeed",
     "swashbuckling"
+  ],
+  "racing": [
+    "action",
+    "battle royale",
+    "competitive",
+    "contest",
+    "multiplayer",
+    "racing",
+    "sports",
+    "superspeed"
   ],
   "races": [
     "action",
@@ -16641,6 +16817,16 @@
     "investigation",
     "noir",
     "science"
+  ],
+  "secondary": [
+    "academia",
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
   ],
   "honored": [
     "academia",
@@ -17627,17 +17813,6 @@
     "witch",
     "witchcraft"
   ],
-  "volumes": [
-    "collecting",
-    "episodic",
-    "musical",
-    "quest",
-    "rhythm",
-    "science",
-    "text",
-    "text adventure",
-    "visual novel"
-  ],
   "mum": [
     "cockney",
     "coming-of-age",
@@ -18536,7 +18711,7 @@
     "memories",
     "simulator",
     "slice-of-life",
-    "text",
+    "story",
     "text adventure",
     "visual novel"
   ],
@@ -18561,17 +18736,6 @@
     "rhythm",
     "robot",
     "technology"
-  ],
-  "scroll": [
-    "artificial intelligence",
-    "clicker",
-    "cyberpunk",
-    "hacking",
-    "robot",
-    "technology",
-    "text",
-    "text adventure",
-    "visual novel"
   ],
   "platform": [
     "artificial intelligence",
@@ -18638,6 +18802,17 @@
     "mystery",
     "noir",
     "puzzle"
+  ],
+  "copy": [
+    "artificial intelligence",
+    "communication",
+    "cyberpunk",
+    "hacking",
+    "impersonation",
+    "publication",
+    "robot",
+    "shapeshifting",
+    "technology"
   ],
   "clicks": [
     "artificial intelligence",
@@ -18958,6 +19133,17 @@
     "invention",
     "robot"
   ],
+  "construct": [
+    "art",
+    "artificial intelligence",
+    "artist",
+    "building",
+    "crafting",
+    "creative",
+    "drawing",
+    "invention",
+    "robot"
+  ],
   "joystick": [
     "arcade",
     "artificial intelligence",
@@ -19167,37 +19353,37 @@
     "role playing",
     "sword & sorcery"
   ],
-  "worse": [
-    "alternate history",
-    "disillusionment",
-    "glitch",
-    "hacking",
-    "medical",
-    "rehabilitation",
-    "repair",
-    "rivals",
-    "time travel"
-  ],
-  "unaffected": [
+  "ways": [
     "alternate history",
     "branching narrative",
-    "disillusionment",
+    "escape",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
+    "thriller",
     "visual novel"
   ],
-  "selection": [
+  "way": [
     "alternate history",
     "branching narrative",
-    "contest",
+    "escape",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
+    "thriller",
+    "visual novel"
+  ],
+  "unintended": [
+    "alternate history",
+    "branching narrative",
+    "glitch",
+    "hacking",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
     "visual novel"
   ],
   "revolution": [
@@ -19211,59 +19397,37 @@
     "space",
     "time travel"
   ],
-  "result": [
+  "reversal": [
     "alternate history",
     "branching narrative",
+    "glitch",
+    "hacking",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "science",
-    "time travel",
     "visual novel"
   ],
-  "other's": [
+  "possibilities": [
     "alternate history",
     "branching narrative",
+    "futuristic",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "rivals",
-    "time travel",
+    "sci-fi",
     "visual novel"
   ],
-  "other": [
+  "nonessential": [
     "alternate history",
     "branching narrative",
     "interactive film",
+    "inventory management",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "rivals",
-    "time travel",
-    "visual novel"
-  ],
-  "option": [
-    "alternate history",
-    "branching narrative",
-    "customization",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "inevitable": [
-    "alternate history",
-    "branching narrative",
-    "disillusionment",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
+    "resource management",
     "visual novel"
   ],
   "imperialism": [
@@ -19277,28 +19441,6 @@
     "sword & sorcery",
     "time travel"
   ],
-  "happened": [
-    "alternate history",
-    "branching narrative",
-    "interactive film",
-    "memories",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "foregone": [
-    "alternate history",
-    "branching narrative",
-    "disillusionment",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
   "emperor's": [
     "alternate history",
     "fairy tale",
@@ -19310,16 +19452,27 @@
     "sword & sorcery",
     "time travel"
   ],
-  "conclusion": [
+  "differently": [
     "alternate history",
     "branching narrative",
-    "disillusionment",
+    "customization",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
-    "visual novel"
+    "visual novel",
+    "weird"
+  ],
+  "different": [
+    "alternate history",
+    "branching narrative",
+    "customization",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel",
+    "weird"
   ],
   "civilization": [
     "alternate history",
@@ -19332,60 +19485,27 @@
     "post apocalyptic",
     "time travel"
   ],
-  "choosers": [
+  "choice": [
     "alternate history",
     "branching narrative",
+    "contest",
     "customization",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
     "visual novel"
   ],
-  "choose": [
+  "actually": [
     "alternate history",
-    "branching narrative",
-    "customization",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "alternative": [
-    "alternate history",
-    "branching narrative",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "turn-based",
-    "visual novel"
-  ],
-  "alternate": [
-    "alternate history",
-    "branching narrative",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "turn-based",
-    "visual novel"
-  ],
-  "alter": [
-    "alternate history",
-    "branching narrative",
-    "customization",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
+    "detective",
+    "educational",
+    "genius",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "puzzle"
   ],
   "wrecked": [
     "action",
@@ -19981,17 +20101,6 @@
     "superhero",
     "war"
   ],
-  "secondary": [
-    "academia",
-    "alternate history",
-    "branching narrative",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
   "classes": [
     "academia",
     "educational",
@@ -20241,6 +20350,18 @@
     "noir",
     "puzzle",
     "rivals"
+  ],
+  "problems": [
+    "detective",
+    "educational",
+    "genius",
+    "glitch",
+    "hacking",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "puzzle"
   ],
   "problem": [
     "detective",
@@ -21730,54 +21851,6 @@
     "witch",
     "witchcraft"
   ],
-  "ways": [
-    "alternate history",
-    "branching narrative",
-    "escape",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "thriller",
-    "time travel",
-    "visual novel"
-  ],
-  "way": [
-    "alternate history",
-    "branching narrative",
-    "escape",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "thriller",
-    "time travel",
-    "visual novel"
-  ],
-  "unintended": [
-    "alternate history",
-    "branching narrative",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "reversal": [
-    "alternate history",
-    "branching narrative",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
   "regime": [
     "alternate history",
     "fairy tale",
@@ -21789,18 +21862,6 @@
     "royalty",
     "simulator",
     "time travel"
-  ],
-  "possibilities": [
-    "alternate history",
-    "branching narrative",
-    "futuristic",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "sci-fi",
-    "time travel",
-    "visual novel"
   ],
   "original": [
     "alternate history",
@@ -21814,16 +21875,28 @@
     "retro",
     "time travel"
   ],
-  "nonessential": [
+  "opportunity": [
     "alternate history",
     "branching narrative",
+    "destiny",
+    "fantasy",
     "interactive film",
-    "inventory management",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "resource management",
-    "time travel",
+    "redemption",
+    "visual novel"
+  ],
+  "necessary": [
+    "alternate history",
+    "branching narrative",
+    "ethics",
+    "interactive film",
+    "management",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "simulator",
     "visual novel"
   ],
   "natives": [
@@ -21838,6 +21911,42 @@
     "time travel",
     "walking simulator"
   ],
+  "narrative": [
+    "alternate history",
+    "branching narrative",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "story",
+    "text adventure",
+    "visual novel",
+    "walking simulator"
+  ],
+  "influence": [
+    "alternate history",
+    "branching narrative",
+    "bureaucracy",
+    "business",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "psychic",
+    "visual novel"
+  ],
+  "indifference": [
+    "alternate history",
+    "branching narrative",
+    "disillusionment",
+    "emotional",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "rivals",
+    "visual novel"
+  ],
   "humanity": [
     "alternate history",
     "angel",
@@ -21849,6 +21958,18 @@
     "redemption",
     "time travel",
     "utopian"
+  ],
+  "fractional": [
+    "alternate history",
+    "branching narrative",
+    "futuristic",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "sci-fi",
+    "science",
+    "visual novel"
   ],
   "empire": [
     "alternate history",
@@ -21862,40 +21983,16 @@
     "sword & sorcery",
     "time travel"
   ],
-  "differently": [
+  "effect": [
     "alternate history",
     "branching narrative",
-    "customization",
+    "glitch",
+    "hacking",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "time travel",
-    "visual novel",
-    "weird"
-  ],
-  "different": [
-    "alternate history",
-    "branching narrative",
-    "customization",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel",
-    "weird"
-  ],
-  "choice": [
-    "alternate history",
-    "branching narrative",
-    "contest",
-    "customization",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
+    "science",
     "visual novel"
   ],
   "century": [
@@ -21910,6 +22007,42 @@
     "sword & sorcery",
     "time travel"
   ],
+  "causing": [
+    "alternate history",
+    "branching narrative",
+    "disillusionment",
+    "glitch",
+    "hacking",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "causes": [
+    "alternate history",
+    "branching narrative",
+    "disillusionment",
+    "glitch",
+    "hacking",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
+  "cause": [
+    "alternate history",
+    "branching narrative",
+    "disillusionment",
+    "glitch",
+    "hacking",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
   "ages": [
     "alternate history",
     "coming-of-age",
@@ -21921,18 +22054,6 @@
     "sword & sorcery",
     "time travel",
     "young"
-  ],
-  "actually": [
-    "alternate history",
-    "detective",
-    "educational",
-    "genius",
-    "investigation",
-    "logic",
-    "mystery",
-    "noir",
-    "puzzle",
-    "time travel"
   ],
   "quest": [
     "adventure",
@@ -22149,6 +22270,18 @@
     "side scroller",
     "swashbuckling",
     "thriller"
+  ],
+  "panic": [
+    "action",
+    "apocalyptic",
+    "cooking",
+    "creepy",
+    "disaster",
+    "emotional",
+    "horror",
+    "post apocalyptic",
+    "quick-time events",
+    "suspense"
   ],
   "pains": [
     "action",
@@ -22622,7 +22755,7 @@
     "jrpg",
     "role playing",
     "rpg",
-    "text",
+    "story",
     "text adventure",
     "visual novel",
     "walking simulator"
@@ -23675,21 +23808,8 @@
     "psychic",
     "rebellion",
     "robot",
+    "story",
     "technology",
-    "text",
-    "text adventure",
-    "visual novel"
-  ],
-  "copy": [
-    "artificial intelligence",
-    "communication",
-    "cyberpunk",
-    "hacking",
-    "impersonation",
-    "robot",
-    "shapeshifting",
-    "technology",
-    "text",
     "text adventure",
     "visual novel"
   ],
@@ -23992,6 +24112,19 @@
     "suspense",
     "sword & sorcery"
   ],
+  "unintentional": [
+    "alternate history",
+    "branching narrative",
+    "disillusionment",
+    "ethics",
+    "glitch",
+    "hacking",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
   "tradition": [
     "alternate history",
     "angel",
@@ -24031,135 +24164,31 @@
     "time manipulation",
     "time travel"
   ],
-  "opportunity": [
+  "scenario": [
     "alternate history",
     "branching narrative",
-    "destiny",
-    "fantasy",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "redemption",
-    "time travel",
+    "realistic",
+    "role playing",
+    "slice-of-life",
+    "tabletop",
     "visual novel"
   ],
-  "necessary": [
+  "problematic": [
     "alternate history",
-    "branching narrative",
-    "ethics",
-    "interactive film",
-    "management",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "simulator",
-    "time travel",
-    "visual novel"
-  ],
-  "narrative": [
-    "alternate history",
-    "branching narrative",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "text",
-    "text adventure",
-    "time travel",
-    "visual novel",
-    "walking simulator"
-  ],
-  "influence": [
-    "alternate history",
-    "branching narrative",
-    "bureaucracy",
-    "business",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "psychic",
-    "time travel",
-    "visual novel"
-  ],
-  "indifference": [
-    "alternate history",
-    "branching narrative",
-    "disillusionment",
-    "emotional",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "rivals",
-    "time travel",
-    "visual novel"
-  ],
-  "fractional": [
-    "alternate history",
-    "branching narrative",
-    "futuristic",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "sci-fi",
-    "science",
-    "time travel",
-    "visual novel"
-  ],
-  "effect": [
-    "alternate history",
-    "branching narrative",
+    "detective",
+    "educational",
+    "genius",
     "glitch",
     "hacking",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "science",
-    "time travel",
-    "visual novel"
-  ],
-  "causing": [
-    "alternate history",
-    "branching narrative",
-    "disillusionment",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "causes": [
-    "alternate history",
-    "branching narrative",
-    "disillusionment",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "cause": [
-    "alternate history",
-    "branching narrative",
-    "disillusionment",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "puzzle"
   ],
   "ancient": [
     "alternate history",
@@ -25459,20 +25488,6 @@
     "walking simulator",
     "whimsical"
   ],
-  "metal": [
-    "atompunk",
-    "building",
-    "co-op",
-    "crafting",
-    "dating",
-    "friendship",
-    "love",
-    "musical",
-    "reunion",
-    "rhythm",
-    "romance",
-    "science"
-  ],
   "executive": [
     "assassination",
     "bureaucracy",
@@ -25991,48 +26006,6 @@
     "wizard",
     "wizardry"
   ],
-  "unintentional": [
-    "alternate history",
-    "branching narrative",
-    "disillusionment",
-    "ethics",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "scenario": [
-    "alternate history",
-    "branching narrative",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "realistic",
-    "role playing",
-    "slice-of-life",
-    "tabletop",
-    "time travel",
-    "visual novel"
-  ],
-  "problematic": [
-    "alternate history",
-    "detective",
-    "educational",
-    "genius",
-    "glitch",
-    "hacking",
-    "investigation",
-    "logic",
-    "mystery",
-    "noir",
-    "puzzle",
-    "time travel"
-  ],
   "past": [
     "alternate history",
     "disillusionment",
@@ -26046,6 +26019,90 @@
     "time manipulation",
     "time travel",
     "vaporwave"
+  ],
+  "effects": [
+    "alternate history",
+    "branching narrative",
+    "comics",
+    "glitch",
+    "hacking",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "mutant",
+    "nonlinear",
+    "science",
+    "visual novel"
+  ],
+  "changing": [
+    "alternate history",
+    "branching narrative",
+    "customization",
+    "dress-up",
+    "fashion",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "rebellion",
+    "shapeshifting",
+    "visual novel"
+  ],
+  "changer": [
+    "alternate history",
+    "branching narrative",
+    "customization",
+    "dress-up",
+    "fashion",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "rebellion",
+    "shapeshifting",
+    "visual novel"
+  ],
+  "changed": [
+    "alternate history",
+    "branching narrative",
+    "customization",
+    "dress-up",
+    "fashion",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "rebellion",
+    "shapeshifting",
+    "visual novel"
+  ],
+  "change": [
+    "alternate history",
+    "branching narrative",
+    "customization",
+    "dress-up",
+    "fashion",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "rebellion",
+    "shapeshifting",
+    "visual novel"
+  ],
+  "chances": [
+    "alternate history",
+    "branching narrative",
+    "contest",
+    "destiny",
+    "fantasy",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "procedurally generated",
+    "roguelike",
+    "visual novel"
   ],
   "trap": [
     "action",
@@ -26130,20 +26187,6 @@
     "supernatural",
     "suspense",
     "zombie"
-  ],
-  "panic": [
-    "action",
-    "apocalyptic",
-    "cooking",
-    "creepy",
-    "destruction",
-    "disaster",
-    "emotional",
-    "horror",
-    "post apocalyptic",
-    "quick-time events",
-    "sabotage",
-    "suspense"
   ],
   "hail": [
     "action",
@@ -27132,6 +27175,81 @@
     "sword & sorcery",
     "utopian"
   ],
+  "unpredictable": [
+    "alternate history",
+    "branching narrative",
+    "destiny",
+    "fantasy",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "procedurally generated",
+    "psychic",
+    "roguelike",
+    "visual novel",
+    "weird"
+  ],
+  "unnecessary": [
+    "alternate history",
+    "branching narrative",
+    "disillusionment",
+    "ethics",
+    "glitch",
+    "hacking",
+    "interactive film",
+    "management",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "simulator",
+    "visual novel"
+  ],
+  "paths": [
+    "alternate history",
+    "branching narrative",
+    "escort mission",
+    "exploration",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "on-rails",
+    "open world",
+    "roadtrip",
+    "visual novel",
+    "walking simulator"
+  ],
+  "path": [
+    "alternate history",
+    "branching narrative",
+    "escort mission",
+    "exploration",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "on-rails",
+    "open world",
+    "roadtrip",
+    "visual novel",
+    "walking simulator"
+  ],
+  "opportunities": [
+    "alternate history",
+    "branching narrative",
+    "bureaucracy",
+    "business",
+    "destiny",
+    "fantasy",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "office",
+    "redemption",
+    "visual novel"
+  ],
   "older": [
     "alternate history",
     "angel",
@@ -27146,6 +27264,21 @@
     "sword & sorcery",
     "time travel",
     "vaporwave"
+  ],
+  "necessity": [
+    "alternate history",
+    "branching narrative",
+    "bureaucracy",
+    "business",
+    "disillusionment",
+    "ethics",
+    "interactive film",
+    "management",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "simulator",
+    "visual novel"
   ],
   "mummy": [
     "alternate history",
@@ -27162,6 +27295,51 @@
     "time travel",
     "victorian"
   ],
+  "mistaking": [
+    "alternate history",
+    "branching narrative",
+    "caper",
+    "crime",
+    "disillusionment",
+    "glitch",
+    "hacking",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "noir",
+    "nonlinear",
+    "visual novel"
+  ],
+  "mistakes": [
+    "alternate history",
+    "branching narrative",
+    "caper",
+    "crime",
+    "disillusionment",
+    "glitch",
+    "hacking",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "noir",
+    "nonlinear",
+    "visual novel"
+  ],
+  "junction": [
+    "alternate history",
+    "branching narrative",
+    "city",
+    "driving",
+    "interactive film",
+    "metroidvania",
+    "modern",
+    "multiple endings",
+    "nonlinear",
+    "roadtrip",
+    "train",
+    "urban",
+    "visual novel"
+  ],
   "gen": [
     "alternate history",
     "artificial intelligence",
@@ -27176,21 +27354,6 @@
     "technology",
     "time travel",
     "victorian"
-  ],
-  "effects": [
-    "alternate history",
-    "branching narrative",
-    "comics",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "mutant",
-    "nonlinear",
-    "science",
-    "time travel",
-    "visual novel"
   ],
   "directions": [
     "alternate history",
@@ -27222,6 +27385,51 @@
     "time travel",
     "visual novel"
   ],
+  "decisions": [
+    "alternate history",
+    "branching narrative",
+    "bureaucracy",
+    "business",
+    "contest",
+    "interactive film",
+    "management",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "political",
+    "simulator",
+    "visual novel"
+  ],
+  "decision's": [
+    "alternate history",
+    "branching narrative",
+    "bureaucracy",
+    "business",
+    "contest",
+    "interactive film",
+    "management",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "political",
+    "simulator",
+    "visual novel"
+  ],
+  "decision": [
+    "alternate history",
+    "branching narrative",
+    "bureaucracy",
+    "business",
+    "contest",
+    "interactive film",
+    "management",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "political",
+    "simulator",
+    "visual novel"
+  ],
   "culture": [
     "alternate history",
     "art",
@@ -27236,81 +27444,6 @@
     "steampunk",
     "time travel",
     "victorian"
-  ],
-  "changing": [
-    "alternate history",
-    "branching narrative",
-    "customization",
-    "dress-up",
-    "fashion",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "rebellion",
-    "shapeshifting",
-    "time travel",
-    "visual novel"
-  ],
-  "changer": [
-    "alternate history",
-    "branching narrative",
-    "customization",
-    "dress-up",
-    "fashion",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "rebellion",
-    "shapeshifting",
-    "time travel",
-    "visual novel"
-  ],
-  "changed": [
-    "alternate history",
-    "branching narrative",
-    "customization",
-    "dress-up",
-    "fashion",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "rebellion",
-    "shapeshifting",
-    "time travel",
-    "visual novel"
-  ],
-  "change": [
-    "alternate history",
-    "branching narrative",
-    "customization",
-    "dress-up",
-    "fashion",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "rebellion",
-    "shapeshifting",
-    "time travel",
-    "visual novel"
-  ],
-  "chances": [
-    "alternate history",
-    "branching narrative",
-    "contest",
-    "destiny",
-    "fantasy",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "procedurally generated",
-    "roguelike",
-    "time travel",
-    "visual novel"
   ],
   "runner": [
     "action",
@@ -27576,6 +27709,22 @@
     "suspense"
   ],
   "questions": [
+    "communication",
+    "conversation",
+    "detective",
+    "educational",
+    "genius",
+    "interrogation",
+    "investigation",
+    "legal",
+    "logic",
+    "mystery",
+    "noir",
+    "police",
+    "puzzle",
+    "social deduction"
+  ],
+  "question": [
     "communication",
     "conversation",
     "detective",
@@ -28055,245 +28204,37 @@
     "surveillance",
     "sword & sorcery"
   ],
-  "unpredictable": [
+  "expected": [
+    "alternate history",
+    "destiny",
+    "detective",
+    "educational",
+    "fantasy",
+    "genius",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "procedurally generated",
+    "psychic",
+    "puzzle",
+    "roguelike"
+  ],
+  "consequences": [
     "alternate history",
     "branching narrative",
-    "destiny",
-    "fantasy",
+    "disillusionment",
+    "ethics",
     "interactive film",
     "metroidvania",
     "multiple endings",
     "nonlinear",
     "procedurally generated",
-    "psychic",
+    "revenge",
     "roguelike",
-    "time travel",
-    "visual novel",
-    "weird"
-  ],
-  "unnecessary": [
-    "alternate history",
-    "branching narrative",
-    "disillusionment",
-    "ethics",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "management",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "simulator",
-    "time travel",
+    "sabotage",
+    "social deduction",
     "visual novel"
-  ],
-  "paths": [
-    "alternate history",
-    "branching narrative",
-    "escort mission",
-    "exploration",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "on-rails",
-    "open world",
-    "roadtrip",
-    "time travel",
-    "visual novel",
-    "walking simulator"
-  ],
-  "path": [
-    "alternate history",
-    "branching narrative",
-    "escort mission",
-    "exploration",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "on-rails",
-    "open world",
-    "roadtrip",
-    "time travel",
-    "visual novel",
-    "walking simulator"
-  ],
-  "opportunities": [
-    "alternate history",
-    "branching narrative",
-    "bureaucracy",
-    "business",
-    "destiny",
-    "fantasy",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "office",
-    "redemption",
-    "time travel",
-    "visual novel"
-  ],
-  "necessity": [
-    "alternate history",
-    "branching narrative",
-    "bureaucracy",
-    "business",
-    "disillusionment",
-    "ethics",
-    "interactive film",
-    "management",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "simulator",
-    "time travel",
-    "visual novel"
-  ],
-  "mistaking": [
-    "alternate history",
-    "branching narrative",
-    "caper",
-    "crime",
-    "disillusionment",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "noir",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "mistakes": [
-    "alternate history",
-    "branching narrative",
-    "caper",
-    "crime",
-    "disillusionment",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "metroidvania",
-    "multiple endings",
-    "noir",
-    "nonlinear",
-    "time travel",
-    "visual novel"
-  ],
-  "junction": [
-    "alternate history",
-    "branching narrative",
-    "city",
-    "driving",
-    "interactive film",
-    "metroidvania",
-    "modern",
-    "multiple endings",
-    "nonlinear",
-    "roadtrip",
-    "time travel",
-    "train",
-    "urban",
-    "visual novel"
-  ],
-  "decisions": [
-    "alternate history",
-    "branching narrative",
-    "bureaucracy",
-    "business",
-    "contest",
-    "interactive film",
-    "management",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "political",
-    "simulator",
-    "time travel",
-    "visual novel"
-  ],
-  "decision's": [
-    "alternate history",
-    "branching narrative",
-    "bureaucracy",
-    "business",
-    "contest",
-    "interactive film",
-    "management",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "political",
-    "simulator",
-    "time travel",
-    "visual novel"
-  ],
-  "decision": [
-    "alternate history",
-    "branching narrative",
-    "bureaucracy",
-    "business",
-    "contest",
-    "interactive film",
-    "management",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "political",
-    "simulator",
-    "time travel",
-    "visual novel"
-  ],
-  "requests": [
-    "adventure",
-    "bureaucracy",
-    "business",
-    "communication",
-    "conversation",
-    "destiny",
-    "fairy tale",
-    "fantasy",
-    "jrpg",
-    "medieval",
-    "quest",
-    "role playing",
-    "rpg",
-    "sword & sorcery"
-  ],
-  "requested": [
-    "adventure",
-    "bureaucracy",
-    "business",
-    "communication",
-    "conversation",
-    "destiny",
-    "fairy tale",
-    "fantasy",
-    "jrpg",
-    "medieval",
-    "quest",
-    "role playing",
-    "rpg",
-    "sword & sorcery"
-  ],
-  "request": [
-    "adventure",
-    "bureaucracy",
-    "business",
-    "communication",
-    "conversation",
-    "destiny",
-    "fairy tale",
-    "fantasy",
-    "jrpg",
-    "medieval",
-    "quest",
-    "role playing",
-    "rpg",
-    "sword & sorcery"
   ],
   "split": [
     "action",
@@ -29103,6 +29044,23 @@
     "sword & sorcery",
     "time travel"
   ],
+  "options": [
+    "alternate history",
+    "artificial intelligence",
+    "branching narrative",
+    "customization",
+    "cyberpunk",
+    "hacking",
+    "interactive film",
+    "management",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "robot",
+    "simulator",
+    "technology",
+    "visual novel"
+  ],
   "oldies": [
     "alternate history",
     "angel",
@@ -29137,38 +29095,38 @@
     "time travel",
     "visual novel"
   ],
-  "expected": [
-    "alternate history",
-    "destiny",
-    "detective",
-    "educational",
-    "fantasy",
-    "genius",
-    "investigation",
-    "logic",
-    "mystery",
-    "noir",
-    "procedurally generated",
-    "psychic",
-    "puzzle",
-    "roguelike",
-    "time travel"
-  ],
-  "consequences": [
+  "dilemma": [
     "alternate history",
     "branching narrative",
-    "disillusionment",
-    "ethics",
+    "detective",
+    "educational",
+    "genius",
     "interactive film",
+    "investigation",
+    "logic",
     "metroidvania",
     "multiple endings",
+    "mystery",
+    "noir",
     "nonlinear",
-    "procedurally generated",
-    "revenge",
-    "roguelike",
-    "sabotage",
+    "puzzle",
+    "visual novel"
+  ],
+  "circumstances": [
+    "alternate history",
+    "branching narrative",
+    "detective",
+    "disillusionment",
+    "interactive film",
+    "interrogation",
+    "investigation",
+    "legal",
+    "metroidvania",
+    "multiple endings",
+    "mystery",
+    "noir",
+    "nonlinear",
     "social deduction",
-    "time travel",
     "visual novel"
   ],
   "mission": [
@@ -29953,22 +29911,40 @@
     "suspense",
     "sword & sorcery"
   ],
-  "options": [
+  "route": [
     "alternate history",
-    "artificial intelligence",
     "branching narrative",
-    "customization",
-    "cyberpunk",
-    "hacking",
+    "driving",
+    "exploration",
     "interactive film",
-    "management",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "robot",
-    "simulator",
-    "technology",
-    "time travel",
+    "on-rails",
+    "open world",
+    "racing",
+    "roadtrip",
+    "train",
+    "vehicle",
+    "visual novel",
+    "walking simulator"
+  ],
+  "mistake": [
+    "alternate history",
+    "branching narrative",
+    "caper",
+    "crime",
+    "disillusionment",
+    "glitch",
+    "hacking",
+    "heist",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "noir",
+    "nonlinear",
+    "phantom thief",
+    "steal",
     "visual novel"
   ],
   "legends": [
@@ -30007,10 +29983,11 @@
     "witch",
     "witchcraft"
   ],
-  "dilemma": [
+  "conclusions": [
     "alternate history",
     "branching narrative",
     "detective",
+    "disillusionment",
     "educational",
     "genius",
     "interactive film",
@@ -30022,25 +29999,6 @@
     "noir",
     "nonlinear",
     "puzzle",
-    "time travel",
-    "visual novel"
-  ],
-  "circumstances": [
-    "alternate history",
-    "branching narrative",
-    "detective",
-    "disillusionment",
-    "interactive film",
-    "interrogation",
-    "investigation",
-    "legal",
-    "metroidvania",
-    "multiple endings",
-    "mystery",
-    "noir",
-    "nonlinear",
-    "social deduction",
-    "time travel",
     "visual novel"
   ],
   "duties": [
@@ -30623,62 +30581,43 @@
     "werewolf",
     "wolf"
   ],
-  "route": [
+  "optimal": [
     "alternate history",
+    "artificial intelligence",
     "branching narrative",
-    "driving",
-    "exploration",
+    "cyberpunk",
+    "futuristic",
+    "hacking",
     "interactive film",
+    "inventory management",
     "metroidvania",
     "multiple endings",
     "nonlinear",
-    "on-rails",
-    "open world",
-    "racing",
-    "roadtrip",
-    "time travel",
-    "train",
-    "vehicle",
-    "visual novel",
-    "walking simulator"
+    "resource management",
+    "robot",
+    "sci-fi",
+    "science",
+    "technology",
+    "visual novel"
   ],
-  "mistake": [
+  "effective": [
     "alternate history",
     "branching narrative",
-    "caper",
-    "crime",
-    "disillusionment",
     "glitch",
     "hacking",
-    "heist",
     "interactive film",
+    "management",
+    "mecha",
     "metroidvania",
+    "military",
     "multiple endings",
-    "noir",
     "nonlinear",
-    "phantom thief",
-    "steal",
-    "time travel",
-    "visual novel"
-  ],
-  "conclusions": [
-    "alternate history",
-    "branching narrative",
-    "detective",
-    "disillusionment",
-    "educational",
-    "genius",
-    "interactive film",
-    "investigation",
-    "logic",
-    "metroidvania",
-    "multiple endings",
-    "mystery",
-    "noir",
-    "nonlinear",
-    "puzzle",
-    "time travel",
-    "visual novel"
+    "science",
+    "simulator",
+    "strategy",
+    "tactical",
+    "visual novel",
+    "war"
   ],
   "offense": [
     "action",
@@ -30874,45 +30813,65 @@
     "technology",
     "utopian"
   ],
-  "optimal": [
+  "possibility": [
     "alternate history",
+    "branching narrative",
+    "conspiracy",
+    "deception",
+    "destiny",
+    "detective",
+    "fantasy",
+    "interactive film",
+    "investigation",
+    "metroidvania",
+    "multiple endings",
+    "mystery",
+    "noir",
+    "nonlinear",
+    "procedurally generated",
+    "roguelike",
+    "social deduction",
+    "visual novel"
+  ],
+  "indecision": [
+    "alternate history",
+    "branching narrative",
+    "bureaucracy",
+    "business",
+    "contest",
+    "creepy",
+    "disillusionment",
+    "horror",
+    "interactive film",
+    "management",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "political",
+    "rivals",
+    "simulator",
+    "suspense",
+    "visual novel"
+  ],
+  "flow": [
+    "alternate history",
+    "aquatic",
     "artificial intelligence",
     "branching narrative",
     "cyberpunk",
-    "futuristic",
+    "fishing",
     "hacking",
     "interactive film",
-    "inventory management",
+    "merfolk",
     "metroidvania",
     "multiple endings",
+    "nautical",
     "nonlinear",
-    "resource management",
     "robot",
-    "sci-fi",
     "science",
+    "swashbuckling",
     "technology",
-    "time travel",
     "visual novel"
-  ],
-  "effective": [
-    "alternate history",
-    "branching narrative",
-    "glitch",
-    "hacking",
-    "interactive film",
-    "management",
-    "mecha",
-    "metroidvania",
-    "military",
-    "multiple endings",
-    "nonlinear",
-    "science",
-    "simulator",
-    "strategy",
-    "tactical",
-    "time travel",
-    "visual novel",
-    "war"
   ],
   "glorious": [
     "adventure",
@@ -31141,69 +31100,6 @@
     "sword & sorcery",
     "tragedy"
   ],
-  "possibility": [
-    "alternate history",
-    "branching narrative",
-    "conspiracy",
-    "deception",
-    "destiny",
-    "detective",
-    "fantasy",
-    "interactive film",
-    "investigation",
-    "metroidvania",
-    "multiple endings",
-    "mystery",
-    "noir",
-    "nonlinear",
-    "procedurally generated",
-    "roguelike",
-    "social deduction",
-    "time travel",
-    "visual novel"
-  ],
-  "indecision": [
-    "alternate history",
-    "branching narrative",
-    "bureaucracy",
-    "business",
-    "contest",
-    "creepy",
-    "disillusionment",
-    "horror",
-    "interactive film",
-    "management",
-    "metroidvania",
-    "multiple endings",
-    "nonlinear",
-    "political",
-    "rivals",
-    "simulator",
-    "suspense",
-    "time travel",
-    "visual novel"
-  ],
-  "flow": [
-    "alternate history",
-    "aquatic",
-    "artificial intelligence",
-    "branching narrative",
-    "cyberpunk",
-    "fishing",
-    "hacking",
-    "interactive film",
-    "merfolk",
-    "metroidvania",
-    "multiple endings",
-    "nautical",
-    "nonlinear",
-    "robot",
-    "science",
-    "swashbuckling",
-    "technology",
-    "time travel",
-    "visual novel"
-  ],
   "charms": [
     "beautiful",
     "comedy",
@@ -31383,35 +31279,8 @@
     "puzzle",
     "quick-time events",
     "roguelike",
-    "time travel",
     "visual novel",
     "weird"
-  ],
-  "question": [
-    "adventure",
-    "communication",
-    "conversation",
-    "destiny",
-    "detective",
-    "educational",
-    "fairy tale",
-    "fantasy",
-    "genius",
-    "interrogation",
-    "investigation",
-    "jrpg",
-    "legal",
-    "logic",
-    "medieval",
-    "mystery",
-    "noir",
-    "police",
-    "puzzle",
-    "quest",
-    "role playing",
-    "rpg",
-    "social deduction",
-    "sword & sorcery"
   ],
   "cloaked": [
     "dark",
