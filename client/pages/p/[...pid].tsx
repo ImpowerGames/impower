@@ -198,7 +198,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useEffect(() => {
+  useMemo(() => {
     navigationDispatch(navigationSetType("none"));
     navigationDispatch(navigationSetText(undefined, "Pitch"));
     navigationDispatch(navigationSetLinks());

@@ -191,7 +191,7 @@ const ContributionPostPageContent = React.memo(
       DataStoreCache.instance.clear();
     }, []);
 
-    useEffect(() => {
+    useMemo(() => {
       navigationDispatch(navigationSetType("none"));
       navigationDispatch(navigationSetText(undefined, "Contribution"));
       navigationDispatch(navigationSetLinks());

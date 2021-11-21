@@ -151,7 +151,7 @@ const CreateGamePage = React.memo((props: CreateGamePageProps) => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useEffect(() => {
+  useMemo(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Game"));
     navigationDispatch(navigationSetLinks());

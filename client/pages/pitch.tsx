@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import { GetStaticProps } from "next";
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useMemo } from "react";
 import getIconSvgData from "../lib/getIconSvgData";
 import getLocalizationConfigParameters from "../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../lib/getTagConfigParameters";
@@ -62,7 +62,7 @@ const PitchPageContent = React.memo((props: PitchPageProps) => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useEffect(() => {
+  useMemo(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Pitch"));
     navigationDispatch(navigationSetLinks());

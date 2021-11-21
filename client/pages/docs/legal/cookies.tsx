@@ -45,7 +45,7 @@ const CookiesPage = React.memo((props: CookiesPageProps) => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useEffect(() => {
+  useMemo(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Cookies"));
     navigationDispatch(navigationSetLinks());

@@ -2,7 +2,13 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { GetStaticProps } from "next";
 import dynamic from "next/dynamic";
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import getLocalizationConfigParameters from "../../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../../lib/getTagConfigParameters";
 import { ConfigParameters } from "../../modules/impower-config";
@@ -130,7 +136,7 @@ const CreateStudioPage = React.memo((props: CreateStudioPageProps) => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useEffect(() => {
+  useMemo(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Studio"));
     navigationDispatch(navigationSetLinks());

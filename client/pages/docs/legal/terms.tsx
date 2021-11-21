@@ -45,7 +45,7 @@ const TermsPage = React.memo((props: TermsPageProps) => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useEffect(() => {
+  useMemo(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Terms"));
     navigationDispatch(navigationSetLinks());

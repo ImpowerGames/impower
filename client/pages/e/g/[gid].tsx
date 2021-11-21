@@ -2,7 +2,7 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { GetStaticPaths, GetStaticProps } from "next";
 import dynamic from "next/dynamic";
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useMemo } from "react";
 import getLocalizationConfigParameters from "../../../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../../../lib/getTagConfigParameters";
 import { ConfigParameters } from "../../../modules/impower-config";
@@ -59,7 +59,7 @@ const GamePage = React.memo((props: GamePageProps) => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useEffect(() => {
+  useMemo(() => {
     navigationDispatch(navigationSetType("none"));
     navigationDispatch(navigationSetSearchbar());
     navigationDispatch(navigationSetElevation());

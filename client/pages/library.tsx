@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import { GetStaticProps } from "next";
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useMemo } from "react";
 import getLocalizationConfigParameters from "../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../lib/getTagConfigParameters";
 import { ConfigParameters } from "../modules/impower-config";
@@ -40,7 +40,7 @@ const LibraryPage = React.memo((props: LibraryPageProps) => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useEffect(() => {
+  useMemo(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Library"));
     navigationDispatch(navigationSetLinks());

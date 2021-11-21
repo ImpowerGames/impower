@@ -152,7 +152,7 @@ const CreateResourcePage = React.memo((props: CreateResourcePageProps) => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useEffect(() => {
+  useMemo(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Resource"));
     navigationDispatch(navigationSetLinks());

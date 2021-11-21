@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { GetStaticProps } from "next";
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useMemo } from "react";
 import getTagConfigParameters from "../lib/getTagConfigParameters";
 import { ConfigParameters } from "../modules/impower-config";
 import ConfigCache from "../modules/impower-config/classes/configCache";
@@ -56,7 +56,7 @@ const AccountPage = React.memo((props: AccountPageProps) => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useEffect(() => {
+  useMemo(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Account"));
     navigationDispatch(navigationSetLinks());
