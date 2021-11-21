@@ -82,6 +82,8 @@ interface NoteCardProps {
 const NoteCard = React.memo((props: NoteCardProps): JSX.Element => {
   const { innerRef, pitchId, contributionId, targetDoc, id, doc, style } =
     props;
+  const removed = doc?.removed;
+  const removedPlaceholder = `[removed]`;
   return (
     <NoteCardContent
       innerRef={innerRef}
@@ -96,7 +98,7 @@ const NoteCard = React.memo((props: NoteCardProps): JSX.Element => {
           ? new Date(doc?._createdAt)
           : doc?._createdAt?.toDate()
       }
-      content={doc?.content}
+      content={removed ? removedPlaceholder : doc?.content}
       style={style}
     />
   );

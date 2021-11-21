@@ -1,5 +1,5 @@
 import dynamic from "next/dynamic";
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import {
   ConfirmDialogContext,
   confirmDialogNavOpen,
@@ -418,6 +418,10 @@ const ContributionCard = React.memo(
         ? doc?._createdAt
         : doc?._createdAt?.toDate()?.toJSON();
 
+    const removed = doc?.removed;
+    const removedPlaceholder = `[removed]`;
+    const removedFile = useMemo(() => ({ storageKey: "", fileUrl: "" }), []);
+
     return (
       <>
         <ContributionCardLayout
@@ -441,8 +445,8 @@ const ContributionCard = React.memo(
           createdBy={doc?._createdBy}
           targetCreatedBy={pitchDoc?._createdBy}
           contributionType={doc?.contributionType}
-          content={doc?.content}
-          file={doc?.file}
+          content={removed ? removedPlaceholder : doc?.content}
+          file={removed ? removedFile : doc?.file}
           waveform={doc?.waveform}
           aspectRatio={doc?.aspectRatio}
           square={doc?.square}

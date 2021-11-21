@@ -431,6 +431,9 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
       ? doc?.pitchedAt
       : doc?.pitchedAt?.toDate()?.toJSON();
 
+  const removed = doc?.removed;
+  const removedPlaceholder = `[removed]`;
+
   return (
     <>
       <PitchCardLayout
@@ -443,8 +446,8 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         config={config}
         icons={icons}
         projectType={doc?.projectType}
-        name={doc?.name}
-        summary={doc?.summary}
+        name={removed ? removedPlaceholder : doc?.name}
+        summary={removed ? removedPlaceholder : doc?.summary}
         tags={doc?.tags}
         author={doc?._author}
         createdBy={doc?._createdBy}
