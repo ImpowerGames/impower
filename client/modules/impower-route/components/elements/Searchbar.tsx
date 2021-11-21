@@ -28,6 +28,7 @@ const PlaceholderArea = styled.div`
 `;
 
 interface SearchbarProps {
+  initial?: number;
   label?: string;
   placeholder?: string;
   value?: string;
@@ -35,7 +36,7 @@ interface SearchbarProps {
 }
 
 const Searchbar = (props: SearchbarProps): JSX.Element => {
-  const { value, label, placeholder, style } = props;
+  const { initial, value, label, placeholder, style } = props;
 
   const [autocomplete, setAutocomplete] = useState(false);
 
@@ -59,7 +60,7 @@ const Searchbar = (props: SearchbarProps): JSX.Element => {
 
   return (
     <UnmountAnimation>
-      <StyledMotionDiv initial={0} animate={1} exit={0} duration={0.3}>
+      <StyledMotionDiv initial={initial} animate={1} exit={0} duration={0.3}>
         <PlaceholderArea
           style={{ pointerEvents: autocomplete ? "none" : undefined }}
         >

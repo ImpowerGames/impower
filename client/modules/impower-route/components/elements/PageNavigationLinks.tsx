@@ -120,7 +120,6 @@ const StyledDivider = styled(Divider)`
 `;
 
 interface NavigationLinksProps {
-  initial: string;
   useAccountDialog?: boolean;
 }
 

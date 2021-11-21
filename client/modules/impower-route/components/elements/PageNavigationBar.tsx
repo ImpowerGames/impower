@@ -185,7 +185,7 @@ const PageNavigationBar = (props: PageNavigationBarProps): JSX.Element => {
           <StyledToolbarArea>
             <StyledToolbar>
               <PageNavigationBarContent
-                initial="show"
+                initial={baseRoute === "/" ? 0 : 1}
                 searchLabel={searchLabel}
                 searchPlaceholder={searchPlaceholder}
                 searchValue={searchValue}

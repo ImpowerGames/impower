@@ -61,18 +61,19 @@ const StyledRightArea = styled.div`
 
 interface LeftLogoAreaProps {
   href: string;
+  initial?: number;
   onClickMenuButton: () => void;
 }
 
 const LeftLogoArea = React.memo((props: LeftLogoAreaProps): JSX.Element => {
-  const { href, onClickMenuButton } = props;
+  const { initial, href, onClickMenuButton } = props;
 
   const theme = useTheme();
 
   const belowSmBreakpoint = useMediaQuery(theme.breakpoints.down("md"));
 
   return (
-    <StyledLogoArea initial={0} animate={1}>
+    <StyledLogoArea initial={initial} animate={1}>
       {belowSmBreakpoint ? (
         <StyledIconButton
           color="inherit"
@@ -85,7 +86,7 @@ const LeftLogoArea = React.memo((props: LeftLogoAreaProps): JSX.Element => {
           </FontIcon>
         </StyledIconButton>
       ) : (
-        <Logo animate href={href}>
+        <Logo animate={initial === 0} href={href}>
           <LogoFlatBlack />
         </Logo>
       )}
@@ -94,11 +95,12 @@ const LeftLogoArea = React.memo((props: LeftLogoAreaProps): JSX.Element => {
 });
 
 interface RightLogoAreaProps {
+  initial?: number;
   href: string;
 }
 
 const RightLogoArea = React.memo((props: RightLogoAreaProps): JSX.Element => {
-  const { href } = props;
+  const { initial, href } = props;
 
   const theme = useTheme();
 
@@ -107,7 +109,7 @@ const RightLogoArea = React.memo((props: RightLogoAreaProps): JSX.Element => {
   return (
     <>
       {belowSmBreakpoint && (
-        <Logo animate href={href}>
+        <Logo animate={initial === 0} href={href}>
           <LogoFlatBlack />
         </Logo>
       )}
@@ -116,7 +118,7 @@ const RightLogoArea = React.memo((props: RightLogoAreaProps): JSX.Element => {
 });
 
 interface PageNavigationBarContentProps {
-  initial: string;
+  initial: number;
   searchLabel?: string;
   searchPlaceholder?: string;
   searchValue?: string;
@@ -154,7 +156,11 @@ const PageNavigationBarContent = (
 
   return (
     <StyledToolbarContent>
-      <LeftLogoArea href="/" onClickMenuButton={onClickMenuButton} />
+      <LeftLogoArea
+        initial={initial}
+        href="/"
+        onClickMenuButton={onClickMenuButton}
+      />
       <StyledFlex
         style={{
           alignItems: "center",
@@ -166,6 +172,7 @@ const PageNavigationBarContent = (
       >
         {searchLabel ? (
           <Searchbar
+            initial={initial}
             label={searchLabel}
             placeholder={searchPlaceholder}
             value={searchValue}
@@ -175,7 +182,7 @@ const PageNavigationBarContent = (
             }}
           />
         ) : (
-          <StyledMotionTitleArea initial={0} animate={1}>
+          <StyledMotionTitleArea initial={initial} animate={1}>
             <Title
               title={title || product}
               secondaryTitle={secondaryTitle}
@@ -192,13 +199,10 @@ const PageNavigationBarContent = (
           flex: aboveSmBreakpoint ? 1 : 0,
         }}
       >
-        <RightLogoArea href="/" />
+        <RightLogoArea initial={initial} href="/" />
         {aboveSmBreakpoint && (
           <StyledRightArea>
-            <PageNavigationLinks
-              initial={initial}
-              useAccountDialog={useAccountDialog}
-            />
+            <PageNavigationLinks useAccountDialog={useAccountDialog} />
           </StyledRightArea>
         )}
       </StyledFlex>
