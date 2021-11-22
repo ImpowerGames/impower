@@ -693,9 +693,11 @@ export const getStaticProps: GetStaticProps = async (context) => {
     const component = (
       await import(`../../resources/icons/solid/${tagIconName}.svg`)
     ).default;
-    const svgData = getIconSvgData(component);
-    if (svgData) {
-      icons[tagIconName] = svgData;
+    if (component) {
+      const svgData = getIconSvgData(component);
+      if (svgData) {
+        icons[tagIconName] = svgData;
+      }
     }
     ogImage = pitchDoc?.og;
     if (!ogImage) {

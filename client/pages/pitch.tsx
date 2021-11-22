@@ -118,15 +118,15 @@ export const getStaticProps: GetStaticProps<PitchPageProps> = async () => {
     const serializableData = getSerializableDocument<ProjectDocument>(s.data());
     pitchDocs[s.id] = serializableData;
     const mainTag = serializableData?.tags?.[0] || "";
-    const tagIconName = config.tagIconNames[mainTag] || "hashtag";
+    const tagIconName = config?.tagIconNames?.[mainTag] || "hashtag";
     iconNamesSet.add(tagIconName);
   });
   const iconNames = Array.from(iconNamesSet);
   const iconData = await Promise.all(
     iconNames.map(async (name) => {
-      if (name) {
-        const component = (await import(`../resources/icons/solid/${name}.svg`))
-          .default;
+      const component = (await import(`../resources/icons/solid/${name}.svg`))
+        .default;
+      if (component) {
         return getIconSvgData(component);
       }
       return null;
