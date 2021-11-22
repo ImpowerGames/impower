@@ -41,10 +41,7 @@ const StyledFixedPortalContent = styled.div`
 
 const StyledCardArea = styled.div``;
 
-const StyledFadeArea = styled(FadeAnimation)`
-  padding-top: ${(props): string => props.theme.spacing(1)};
-  padding-bottom: ${(props): string => props.theme.spacing(1)};
-`;
+const StyledFadeArea = styled(FadeAnimation)``;
 
 const StyledPopulatedContributionList = styled.div`
   flex: 1;

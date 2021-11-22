@@ -1,10 +1,12 @@
 import { DataDocument, StorageFile, Timestamp } from "../../../impower-core";
 import { Alignment } from "../enums/alignment";
 import { AccessDocument } from "./accessDocument";
+import { FlaggableDocument } from "./flaggableDocument";
 
 export interface PageDocument<T extends string = string>
   extends DataDocument<T>,
-    AccessDocument<T> {
+    AccessDocument<T>,
+    FlaggableDocument {
   published: boolean;
   publishedAt: string | Timestamp;
   republishedAt: string | Timestamp;
@@ -35,10 +37,6 @@ export interface PageDocument<T extends string = string>
   readonly rank?: number;
   readonly rating?: number;
 
-  readonly delisted?: boolean;
-  readonly removed?: boolean;
-  readonly banned?: boolean;
-  readonly nsfw?: boolean;
   readonly terms?: string[];
   readonly hoursWhenDayOld?: number[];
   readonly daysWhenWeekOld?: number[];

@@ -1,8 +1,10 @@
 import { DataDocument, StorageFile } from "../../../impower-core";
 import { ContributionType } from "../enums/contributionType";
+import { FlaggableDocument } from "./flaggableDocument";
 
 export interface ContributionDocument
-  extends DataDocument<"ContributionDocument"> {
+  extends DataDocument<"ContributionDocument">,
+    FlaggableDocument {
   contributionType: ContributionType;
   content: string;
   backgroundHex: string;
@@ -22,10 +24,6 @@ export interface ContributionDocument
 
   readonly rank?: number;
   readonly rating?: number;
-
-  readonly delisted?: boolean;
-  readonly removed?: boolean;
-  readonly banned?: boolean;
 
   readonly mentions?: string[];
 }

@@ -399,6 +399,7 @@ const ContributionCard = React.memo(
 
     const removed = doc?.removed || doc?.banned;
     const removedPlaceholder = `[removed]`;
+    const flaggedPlaceholder = `[flagged]`;
     const removedFile = useMemo(() => ({ storageKey: "", fileUrl: "" }), []);
 
     return (
@@ -424,8 +425,20 @@ const ContributionCard = React.memo(
           createdBy={doc?._createdBy}
           targetCreatedBy={pitchDoc?._createdBy}
           contributionType={doc?.contributionType}
-          content={removed ? removedPlaceholder : doc?.content}
-          file={removed ? removedFile : doc?.file}
+          content={
+            removed
+              ? removedPlaceholder
+              : doc?.flagged?.includes("content")
+              ? flaggedPlaceholder
+              : doc?.content
+          }
+          file={
+            removed
+              ? removedFile
+              : doc?.flagged?.includes("file")
+              ? null
+              : doc?.file
+          }
           waveform={doc?.waveform}
           aspectRatio={doc?.aspectRatio}
           square={doc?.square}

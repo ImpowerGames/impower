@@ -176,6 +176,9 @@ const PitchContributionList = React.memo(
       []
     );
 
+    const listStyle = useMemo(() => ({ backgroundColor: "white" }), []);
+    const queryHeaderStyle = useMemo(() => ({ backgroundColor: "white" }), []);
+
     return (
       <>
         <ContributionList
@@ -188,6 +191,8 @@ const PitchContributionList = React.memo(
           emptySubtitle={`Contribute Something!`}
           noMoreLabel={`That's all for now!`}
           loadingPlaceholder={loadingPlaceholder}
+          style={listStyle}
+          queryHeaderStyle={queryHeaderStyle}
           onEditContribution={handleEditContribution}
           onDeleteContribution={onDeleteContribution}
         >

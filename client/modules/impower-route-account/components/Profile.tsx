@@ -87,25 +87,6 @@ const StyledTabs = styled(Tabs)``;
 
 const StyledTab = styled(Tab)``;
 
-const StyledListArea = styled.div`
-  flex: 1;
-  min-width: 0;
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-`;
-
-const StyledListContent = styled.div`
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-`;
-
 const StyledLoadingOverlay = styled.div`
   position: absolute;
   top: 0;
@@ -248,6 +229,9 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
     await router.push(`/account#profile`);
   }, [navigationDispatch]);
 
+  const listStyle = useMemo(() => ({ backgroundColor: "white" }), []);
+  const queryHeaderStyle = useMemo(() => ({ backgroundColor: "white" }), []);
+
   return (
     <>
       <StyledContainer>
@@ -319,35 +303,35 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                       <StyledTab value={1} label={`CONTRIBUTIONS`} />
                     </StyledTabs>
                   </StyledTabsArea>
-                  <StyledListArea>
-                    <StyledListContent>
-                      {tabIndex === 0 ? (
-                        <PitchList
-                          config={config}
-                          icons={icons}
-                          creator={id}
-                          sortOptions={SORT_OPTIONS}
-                          compact
-                          emptyLabel={`No Pitches`}
-                          loadingPlaceholder={loadingPlaceholder}
-                          offlinePlaceholder={
-                            <StyledOfflineArea>
-                              <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
-                            </StyledOfflineArea>
-                          }
-                          hideAddToolbar
-                        />
-                      ) : (
-                        <ContributionList
-                          creator={id}
-                          sortOptions={SORT_OPTIONS}
-                          emptyLabel={`No Contributions`}
-                          noMoreLabel={`That's all for now!`}
-                          loadingPlaceholder={loadingPlaceholder}
-                        />
-                      )}
-                    </StyledListContent>
-                  </StyledListArea>
+                  {tabIndex === 0 ? (
+                    <PitchList
+                      compact
+                      config={config}
+                      icons={icons}
+                      creator={id}
+                      sortOptions={SORT_OPTIONS}
+                      emptyLabel={`No Pitches`}
+                      loadingPlaceholder={loadingPlaceholder}
+                      offlinePlaceholder={
+                        <StyledOfflineArea>
+                          <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
+                        </StyledOfflineArea>
+                      }
+                      hideAddToolbar
+                      queryHeaderStyle={queryHeaderStyle}
+                      style={listStyle}
+                    />
+                  ) : (
+                    <ContributionList
+                      creator={id}
+                      sortOptions={SORT_OPTIONS}
+                      emptyLabel={`No Contributions`}
+                      noMoreLabel={`That's all for now!`}
+                      loadingPlaceholder={loadingPlaceholder}
+                      queryHeaderStyle={queryHeaderStyle}
+                      style={listStyle}
+                    />
+                  )}
                 </>
               )}
             </>

@@ -1,6 +1,9 @@
 import { DataDocument } from "../../../impower-core";
+import { FlaggableDocument } from "./flaggableDocument";
 
-export interface CommentDocument extends DataDocument<"CommentDocument"> {
+export interface CommentDocument
+  extends DataDocument<"CommentDocument">,
+    FlaggableDocument {
   content: string;
   deleted: boolean;
 
@@ -10,9 +13,6 @@ export interface CommentDocument extends DataDocument<"CommentDocument"> {
 
   readonly rank?: number;
   readonly rating?: number;
-
-  readonly delisted?: boolean;
-  readonly removed?: boolean;
 
   readonly mentions?: string[];
 }

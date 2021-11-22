@@ -29,12 +29,32 @@ const LOAD_MORE_LIMIT = 10;
 
 const SORT_OPTIONS: ["new", "old"] = ["new", "old"];
 
+const StyledListArea = styled.div`
+  flex: 1;
+  min-width: 0;
+  background-color: ${(props): string => props.theme.colors.lightForeground};
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+`;
+
+const StyledContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
 const StyledStaticContributionList = styled.div`
   flex: 1;
   position: relative;
 `;
 
-const StyledContent = styled.div`
+const StyledListContent = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
@@ -83,6 +103,9 @@ interface StaticContributionListProps {
   emptySubtitle?: string;
   noMoreLabel?: string;
   loadingPlaceholder?: React.ReactNode;
+  style?: React.CSSProperties;
+  contentStyle?: React.CSSProperties;
+  queryHeaderStyle?: React.CSSProperties;
   onEditContribution?: (
     e: React.MouseEvent,
     pitchId: string,
@@ -106,6 +129,9 @@ const StaticContributionList = React.memo(
       emptySubtitle,
       noMoreLabel,
       loadingPlaceholder,
+      style,
+      contentStyle,
+      queryHeaderStyle,
       onEditContribution,
       onDeleteContribution,
       onRefresh,
@@ -543,16 +569,16 @@ const StaticContributionList = React.memo(
 
     const loading = transitioning || !contributionDocsState || reloading;
 
-    const contentStyle: React.CSSProperties = useMemo(
-      () => ({
-        overflow: loading ? "hidden" : undefined,
-      }),
-      [loading]
-    );
     const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
         pointerEvents: loading ? "none" : undefined,
+      }),
+      [loading]
+    );
+    const listContentStyle: React.CSSProperties = useMemo(
+      () => ({
+        overflow: loading ? "hidden" : undefined,
       }),
       [loading]
     );
@@ -565,68 +591,76 @@ const StaticContributionList = React.memo(
 
     return (
       <>
-        <StyledStaticContributionList ref={listElRef} style={listStyle}>
-          <StyledContent ref={contentElRef} style={contentStyle}>
-            <QueryHeader id="pitch-filter-header">
-              <QueryButton
-                target="pitch"
-                menuType="sort"
-                label={`Sort By`}
-                icon={sortIcon}
-                value={sort}
-                options={SORT_OPTIONS}
-                getOptionLabels={getStaticSortOptionLabels}
-                getOptionIcons={handleGetSortOptionIcons}
-                onOption={handleChangeSort}
-              />
-              <StyledSpacer />
-              <QueryButton
-                target="pitch"
-                menuType="filter"
-                label={`Kudoed`}
-                flexDirection="row-reverse"
-                icon={filterIcon}
-                value={rangeFilter}
-                getOptionLabels={getRangeFilterOptionLabels}
-                getOptionIcons={handleGetFilterOptionIcons}
-                onOption={handleChangeFilter}
-              />
-            </QueryHeader>
-            <ContributionListContent
-              scrollParent={scrollParent}
-              contributionDocs={contributionDocsState}
-              chunkMap={chunkMap}
-              lastLoadedChunk={lastLoadedChunk}
-              onChangeScore={handleChangeScore}
-              onKudo={handleKudo}
-              onEdit={handleEditContribution}
-              onDelete={handleDeleteContribution}
-            />
-            {contributionDocsState && (
-              <PitchLoadingProgress
-                loadingMore={loadingMore}
-                noMore={noMore || contributionEntries?.length === 0}
-                noMoreLabel={
-                  contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
-                }
-                noMoreSubtitle={
-                  contributionEntries?.length === 0 ? emptySubtitle : undefined
-                }
-                refreshLabel={
-                  contributionEntries?.length === 0 ? undefined : `Refresh?`
-                }
-                onScrolledToEnd={handleScrolledToEnd}
-                onRefresh={handleRefresh}
-              />
-            )}
-            {children}
+        <StyledListArea style={style}>
+          <StyledContent style={contentStyle}>
+            <StyledStaticContributionList ref={listElRef} style={listStyle}>
+              <StyledListContent ref={contentElRef} style={listContentStyle}>
+                <QueryHeader id="pitch-filter-header" style={queryHeaderStyle}>
+                  <QueryButton
+                    target="pitch"
+                    menuType="sort"
+                    label={`Sort By`}
+                    icon={sortIcon}
+                    value={sort}
+                    options={SORT_OPTIONS}
+                    getOptionLabels={getStaticSortOptionLabels}
+                    getOptionIcons={handleGetSortOptionIcons}
+                    onOption={handleChangeSort}
+                  />
+                  <StyledSpacer />
+                  <QueryButton
+                    target="pitch"
+                    menuType="filter"
+                    label={`Kudoed`}
+                    flexDirection="row-reverse"
+                    icon={filterIcon}
+                    value={rangeFilter}
+                    getOptionLabels={getRangeFilterOptionLabels}
+                    getOptionIcons={handleGetFilterOptionIcons}
+                    onOption={handleChangeFilter}
+                  />
+                </QueryHeader>
+                <ContributionListContent
+                  scrollParent={scrollParent}
+                  contributionDocs={contributionDocsState}
+                  chunkMap={chunkMap}
+                  lastLoadedChunk={lastLoadedChunk}
+                  onChangeScore={handleChangeScore}
+                  onKudo={handleKudo}
+                  onEdit={handleEditContribution}
+                  onDelete={handleDeleteContribution}
+                />
+                {contributionDocsState && (
+                  <PitchLoadingProgress
+                    loadingMore={loadingMore}
+                    noMore={noMore || contributionEntries?.length === 0}
+                    noMoreLabel={
+                      contributionEntries?.length === 0
+                        ? emptyLabel
+                        : noMoreLabel
+                    }
+                    noMoreSubtitle={
+                      contributionEntries?.length === 0
+                        ? emptySubtitle
+                        : undefined
+                    }
+                    refreshLabel={
+                      contributionEntries?.length === 0 ? undefined : `Refresh?`
+                    }
+                    onScrolledToEnd={handleScrolledToEnd}
+                    onRefresh={handleRefresh}
+                  />
+                )}
+                {children}
+              </StyledListContent>
+            </StyledStaticContributionList>
+            <StyledOverlayArea>
+              <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+                {loadingPlaceholder}
+              </StyledLoadingArea>
+            </StyledOverlayArea>
           </StyledContent>
-        </StyledStaticContributionList>
-        <StyledOverlayArea>
-          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
-            {loadingPlaceholder}
-          </StyledLoadingArea>
-        </StyledOverlayArea>
+        </StyledListArea>
       </>
     );
   }

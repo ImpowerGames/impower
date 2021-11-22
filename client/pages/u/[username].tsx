@@ -84,10 +84,21 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
       ? decodeURI(window.location.pathname.split("/").pop())
       : "";
 
-  const username = latestDoc?.username || searchValue;
-  const icon = latestDoc?.icon?.fileUrl;
+  const username =
+    (latestDoc?.flagged?.includes("username")
+      ? "[flagged]"
+      : latestDoc?.username) || searchValue;
+
+  const icon = latestDoc?.flagged?.includes("icon")
+    ? latestDoc?.icon?.fileUrl
+    : null;
+
   const hex = latestDoc?.hex;
-  const bio = latestDoc?.bio;
+
+  const bio = latestDoc?.flagged?.includes("bio")
+    ? "[flagged]"
+    : latestDoc?.bio;
+
   return (
     <StyledProfilePage>
       <BetaBanner />

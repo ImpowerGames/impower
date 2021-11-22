@@ -1,6 +1,9 @@
 import { DataDocument } from "../../../impower-core";
+import { FlaggableDocument } from "./flaggableDocument";
 
-export interface TagDocument extends DataDocument<"TagDocument"> {
+export interface TagDocument
+  extends DataDocument<"TagDocument">,
+    FlaggableDocument {
   readonly name?: string;
   readonly summary?: string;
   readonly nsfw?: boolean;

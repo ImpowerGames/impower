@@ -71,7 +71,7 @@ const StyledListArea = styled.div`
   position: relative;
 `;
 
-const StyledListContent = styled.div`
+const StyledContent = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
@@ -86,7 +86,7 @@ const StyledPitchList = styled.div`
   position: relative;
 `;
 
-const StyledContent = styled.div`
+const StyledListContent = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
@@ -164,6 +164,9 @@ interface PitchListProps {
   contentElRef?: React.MutableRefObject<HTMLDivElement>;
   listElRef?: React.MutableRefObject<HTMLDivElement>;
   loadingElRef?: React.MutableRefObject<HTMLDivElement>;
+  style?: React.CSSProperties;
+  contentStyle?: React.CSSProperties;
+  queryHeaderStyle?: React.CSSProperties;
   hideAddToolbar?: boolean;
   onReloading?: (reloading: boolean) => void;
   onFollowMore?: (open: boolean) => void;
@@ -198,6 +201,9 @@ const PitchList = React.memo(
       contentElRef = defaultContentElRef,
       listElRef = defaultListElRef,
       loadingElRef = defaultLoadingElRef,
+      style,
+      contentStyle,
+      queryHeaderStyle,
       hideAddToolbar,
       onReloading,
       onFollowMore,
@@ -384,7 +390,7 @@ const PitchList = React.memo(
         setPitchDocsState(pitchDocsRef.current);
         setChunkMap(chunkMapRef.current);
       }
-    }, [creator, recentPitchDocs]);
+    }, [creator, goalFilter, recentPitchDocs, search]);
 
     const handleLoadMore = useCallback(
       async (
@@ -1085,16 +1091,16 @@ const PitchList = React.memo(
 
     const loading = transitioning || !pitchDocsState || reloadingState;
 
-    const contentStyle: React.CSSProperties = useMemo(
-      () => ({
-        overflow: loading ? "hidden" : undefined,
-      }),
-      [loading]
-    );
     const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
         pointerEvents: loading ? "none" : undefined,
+      }),
+      [loading]
+    );
+    const listContentStyle: React.CSSProperties = useMemo(
+      () => ({
+        overflow: loading ? "hidden" : undefined,
       }),
       [loading]
     );
@@ -1113,10 +1119,10 @@ const PitchList = React.memo(
 
     return (
       <>
-        <StyledListArea>
-          <StyledListContent>
+        <StyledListArea style={style}>
+          <StyledContent style={contentStyle}>
             <StyledPitchList ref={listElRef} style={listStyle}>
-              <StyledContent ref={contentElRef} style={contentStyle}>
+              <StyledListContent ref={contentElRef} style={listContentStyle}>
                 <PitchListQueryHeader
                   goalFilter={goalFilter}
                   rangeFilter={rangeFilter}
@@ -1132,6 +1138,7 @@ const PitchList = React.memo(
                   onFollowMore={
                     tabState === "Following" ? handleFollowMore : undefined
                   }
+                  style={queryHeaderStyle}
                 />
                 <PitchListContent
                   config={config}
@@ -1181,7 +1188,7 @@ const PitchList = React.memo(
                 )}
                 {children}
                 {loadIcons && <TagIconLoader />}
-              </StyledContent>
+              </StyledListContent>
             </StyledPitchList>
             <StyledOverlayArea>
               <StyledForceOverflow />
@@ -1194,7 +1201,7 @@ const PitchList = React.memo(
                 {loadingPlaceholder}
               </StyledLoadingArea>
             </StyledOverlayArea>
-          </StyledListContent>
+          </StyledContent>
         </StyledListArea>
         {!hideAddToolbar && (
           <AddPitchToolbar

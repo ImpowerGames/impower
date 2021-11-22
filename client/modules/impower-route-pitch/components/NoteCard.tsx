@@ -84,6 +84,7 @@ const NoteCard = React.memo((props: NoteCardProps): JSX.Element => {
     props;
   const removed = doc?.removed || doc?.banned;
   const removedPlaceholder = `[removed]`;
+  const flaggedPlaceholder = `[flagged]`;
   return (
     <NoteCardContent
       innerRef={innerRef}
@@ -98,7 +99,13 @@ const NoteCard = React.memo((props: NoteCardProps): JSX.Element => {
           ? new Date(doc?._createdAt)
           : doc?._createdAt?.toDate()
       }
-      content={removed ? removedPlaceholder : doc?.content}
+      content={
+        removed
+          ? removedPlaceholder
+          : doc?.flagged?.includes("content")
+          ? flaggedPlaceholder
+          : doc?.content
+      }
       style={style}
     />
   );

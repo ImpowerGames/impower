@@ -44,25 +44,6 @@ const StyledTabs = styled(Tabs)``;
 
 const StyledTab = styled(Tab)``;
 
-const StyledListArea = styled.div`
-  flex: 1;
-  min-width: 0;
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-`;
-
-const StyledListContent = styled.div`
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-`;
-
 const StyledLoadingOverlay = styled.div`
   position: absolute;
   top: 0;
@@ -183,6 +164,9 @@ const Kudos = React.memo((): JSX.Element | null => {
     ? `${abbreviateCount(contributionCount)} `
     : "";
 
+  const listStyle = useMemo(() => ({ backgroundColor: "white" }), []);
+  const queryHeaderStyle = useMemo(() => ({ backgroundColor: "white" }), []);
+
   return (
     <>
       <StyledContainer>
@@ -212,35 +196,35 @@ const Kudos = React.memo((): JSX.Element | null => {
                   />
                 </StyledTabs>
               </StyledTabsArea>
-              <StyledListArea>
-                <StyledListContent>
-                  {tabIndex === 0 && pitchDataEntries ? (
-                    <StaticPitchList
-                      compact
-                      pitchDataEntries={pitchDataEntries}
-                      emptyLabel={`No Kudoed Pitches`}
-                      loadingPlaceholder={loadingPlaceholder}
-                      offlinePlaceholder={
-                        <StyledOfflineArea>
-                          <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
-                        </StyledOfflineArea>
-                      }
-                      hideAddToolbar
-                      onRefresh={handleRefresh}
-                    />
-                  ) : tabIndex === 1 && contributionDataEntries ? (
-                    <StaticContributionList
-                      contributionDataEntries={contributionDataEntries}
-                      emptyLabel={`No Kudoed Contributions`}
-                      noMoreLabel={`That's all for now!`}
-                      loadingPlaceholder={loadingPlaceholder}
-                      onRefresh={handleRefresh}
-                    />
-                  ) : (
-                    loadingPlaceholder
-                  )}
-                </StyledListContent>
-              </StyledListArea>
+              {tabIndex === 0 && pitchDataEntries ? (
+                <StaticPitchList
+                  compact
+                  pitchDataEntries={pitchDataEntries}
+                  emptyLabel={`No Kudoed Pitches`}
+                  loadingPlaceholder={loadingPlaceholder}
+                  offlinePlaceholder={
+                    <StyledOfflineArea>
+                      <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
+                    </StyledOfflineArea>
+                  }
+                  hideAddToolbar
+                  onRefresh={handleRefresh}
+                  queryHeaderStyle={queryHeaderStyle}
+                  style={listStyle}
+                />
+              ) : tabIndex === 1 && contributionDataEntries ? (
+                <StaticContributionList
+                  contributionDataEntries={contributionDataEntries}
+                  emptyLabel={`No Kudoed Contributions`}
+                  noMoreLabel={`That's all for now!`}
+                  loadingPlaceholder={loadingPlaceholder}
+                  onRefresh={handleRefresh}
+                  queryHeaderStyle={queryHeaderStyle}
+                  style={listStyle}
+                />
+              ) : (
+                loadingPlaceholder
+              )}
             </>
           )}
         </StyledPaper>

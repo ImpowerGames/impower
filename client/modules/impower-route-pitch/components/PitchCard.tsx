@@ -454,6 +454,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
 
   const removed = doc?.removed || doc?.banned;
   const removedPlaceholder = `[removed]`;
+  const flaggedPlaceholder = `[flagged]`;
 
   return (
     <>
@@ -467,9 +468,21 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         config={config}
         icons={icons}
         projectType={doc?.projectType}
-        name={removed ? removedPlaceholder : doc?.name}
-        summary={removed ? removedPlaceholder : doc?.summary}
-        tags={doc?.tags}
+        name={
+          removed
+            ? removedPlaceholder
+            : doc?.flagged?.includes("name")
+            ? flaggedPlaceholder
+            : doc?.name
+        }
+        summary={
+          removed
+            ? removedPlaceholder
+            : doc?.flagged?.includes("summary")
+            ? flaggedPlaceholder
+            : doc?.summary
+        }
+        tags={doc?.flagged?.includes("tags") ? [flaggedPlaceholder] : doc?.tags}
         author={doc?._author}
         createdBy={doc?._createdBy}
         delisted={delisted}

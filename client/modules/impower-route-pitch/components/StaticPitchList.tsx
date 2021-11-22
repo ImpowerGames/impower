@@ -65,7 +65,7 @@ const StyledListArea = styled.div`
   position: relative;
 `;
 
-const StyledListContent = styled.div`
+const StyledContent = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
@@ -80,7 +80,7 @@ const StyledStaticPitchList = styled.div`
   position: relative;
 `;
 
-const StyledContent = styled.div`
+const StyledListContent = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
@@ -144,6 +144,9 @@ interface StaticPitchListProps {
   offlinePlaceholder?: React.ReactNode;
   emptyLabel?: string;
   emptySubtitle?: string;
+  style?: React.CSSProperties;
+  contentStyle?: React.CSSProperties;
+  queryHeaderStyle?: React.CSSProperties;
   hideAddToolbar?: boolean;
   onRefresh?: () => void;
 }
@@ -160,6 +163,9 @@ const StaticPitchList = React.memo(
       offlinePlaceholder,
       emptyLabel,
       emptySubtitle,
+      style,
+      contentStyle,
+      queryHeaderStyle,
       hideAddToolbar,
       onRefresh,
     } = props;
@@ -720,16 +726,16 @@ const StaticPitchList = React.memo(
 
     const loading = transitioning || !pitchDocsState || reloading;
 
-    const contentStyle: React.CSSProperties = useMemo(
-      () => ({
-        overflow: loading ? "hidden" : undefined,
-      }),
-      [loading]
-    );
     const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
         pointerEvents: loading ? "none" : undefined,
+      }),
+      [loading]
+    );
+    const listContentStyle: React.CSSProperties = useMemo(
+      () => ({
+        overflow: loading ? "hidden" : undefined,
       }),
       [loading]
     );
@@ -748,11 +754,11 @@ const StaticPitchList = React.memo(
 
     return (
       <>
-        <StyledListArea>
-          <StyledListContent>
+        <StyledListArea style={style}>
+          <StyledContent style={contentStyle}>
             <StyledStaticPitchList ref={listElRef} style={listStyle}>
-              <StyledContent ref={contentElRef} style={contentStyle}>
-                <QueryHeader id="pitch-filter-header">
+              <StyledListContent ref={contentElRef} style={listContentStyle}>
+                <QueryHeader id="pitch-filter-header" style={queryHeaderStyle}>
                   <QueryButton
                     target="pitch"
                     menuType="sort"
@@ -823,7 +829,7 @@ const StaticPitchList = React.memo(
                   />
                 )}
                 {loadIcons && <TagIconLoader />}
-              </StyledContent>
+              </StyledListContent>
             </StyledStaticPitchList>
             <StyledOverlayArea>
               {reloading !== undefined && (
@@ -835,7 +841,7 @@ const StaticPitchList = React.memo(
                 {loadingPlaceholder}
               </StyledLoadingArea>
             </StyledOverlayArea>
-          </StyledListContent>
+          </StyledContent>
         </StyledListArea>
         {!hideAddToolbar && (
           <AddPitchToolbar onClick={handleOpenCreateDialog} />

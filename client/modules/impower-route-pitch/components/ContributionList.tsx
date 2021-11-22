@@ -26,12 +26,32 @@ import PitchLoadingProgress from "./PitchLoadingProgress";
 
 const LOAD_MORE_LIMIT = 10;
 
+const StyledListArea = styled.div`
+  flex: 1;
+  min-width: 0;
+  background-color: ${(props): string => props.theme.colors.lightForeground};
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+`;
+
+const StyledContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
 const StyledContributionList = styled.div`
   flex: 1;
   position: relative;
 `;
 
-const StyledContent = styled.div`
+const StyledListContent = styled.div`
   position: absolute;
   top: 0;
   bottom: 0;
@@ -77,6 +97,9 @@ interface ContributionListProps {
   emptySubtitle?: string;
   noMoreLabel?: string;
   loadingPlaceholder?: React.ReactNode;
+  style?: React.CSSProperties;
+  contentStyle?: React.CSSProperties;
+  queryHeaderStyle?: React.CSSProperties;
   onEditContribution?: (
     e: React.MouseEvent,
     pitchId: string,
@@ -103,6 +126,9 @@ const ContributionList = React.memo(
       emptySubtitle,
       noMoreLabel,
       loadingPlaceholder,
+      style,
+      contentStyle,
+      queryHeaderStyle,
       onEditContribution,
       onDeleteContribution,
       children,
@@ -523,16 +549,16 @@ const ContributionList = React.memo(
 
     const loading = transitioning || !contributionDocsState || reloading;
 
-    const contentStyle: React.CSSProperties = useMemo(
-      () => ({
-        overflow: loading ? "hidden" : undefined,
-      }),
-      [loading]
-    );
     const listStyle: React.CSSProperties = useMemo(
       () => ({
         visibility: loading ? "hidden" : undefined,
         pointerEvents: loading ? "none" : undefined,
+      }),
+      [loading]
+    );
+    const listContentStyle: React.CSSProperties = useMemo(
+      () => ({
+        overflow: loading ? "hidden" : undefined,
       }),
       [loading]
     );
@@ -545,51 +571,60 @@ const ContributionList = React.memo(
 
     return (
       <>
-        <StyledContributionList ref={listElRef} style={listStyle}>
-          <StyledContent ref={contentElRef} style={contentStyle}>
-            <ContributionListQueryHeader
-              filter={typeFilter}
-              sort={sort}
-              sortOptions={sortOptions}
-              onFilter={handleFilter}
-              onSort={handleSort}
-            />
-            <ContributionListContent
-              scrollParent={scrollParent}
-              pitchDocs={pitchDocs}
-              contributionDocs={contributionDocsState}
-              chunkMap={chunkMap}
-              lastLoadedChunk={lastLoadedChunk}
-              onChangeScore={handleChangeScore}
-              onKudo={handleKudo}
-              onEdit={handleEditContribution}
-              onDelete={handleDeleteContribution}
-            />
-            {contributionDocsState && (
-              <PitchLoadingProgress
-                loadingMore={loadingMore}
-                noMore={noMore || contributionEntries?.length === 0}
-                noMoreLabel={
-                  contributionEntries?.length === 0 ? emptyLabel : noMoreLabel
-                }
-                noMoreSubtitle={
-                  contributionEntries?.length === 0 ? emptySubtitle : undefined
-                }
-                refreshLabel={
-                  contributionEntries?.length === 0 ? undefined : `Refresh?`
-                }
-                onScrolledToEnd={handleScrolledToEnd}
-                onRefresh={handleRefresh}
-              />
-            )}
-            {children}
+        <StyledListArea style={style}>
+          <StyledContent style={contentStyle}>
+            <StyledContributionList ref={listElRef} style={listStyle}>
+              <StyledListContent ref={contentElRef} style={listContentStyle}>
+                <ContributionListQueryHeader
+                  filter={typeFilter}
+                  sort={sort}
+                  sortOptions={sortOptions}
+                  onFilter={handleFilter}
+                  onSort={handleSort}
+                  style={queryHeaderStyle}
+                />
+                <ContributionListContent
+                  scrollParent={scrollParent}
+                  pitchDocs={pitchDocs}
+                  contributionDocs={contributionDocsState}
+                  chunkMap={chunkMap}
+                  lastLoadedChunk={lastLoadedChunk}
+                  onChangeScore={handleChangeScore}
+                  onKudo={handleKudo}
+                  onEdit={handleEditContribution}
+                  onDelete={handleDeleteContribution}
+                />
+                {contributionDocsState && (
+                  <PitchLoadingProgress
+                    loadingMore={loadingMore}
+                    noMore={noMore || contributionEntries?.length === 0}
+                    noMoreLabel={
+                      contributionEntries?.length === 0
+                        ? emptyLabel
+                        : noMoreLabel
+                    }
+                    noMoreSubtitle={
+                      contributionEntries?.length === 0
+                        ? emptySubtitle
+                        : undefined
+                    }
+                    refreshLabel={
+                      contributionEntries?.length === 0 ? undefined : `Refresh?`
+                    }
+                    onScrolledToEnd={handleScrolledToEnd}
+                    onRefresh={handleRefresh}
+                  />
+                )}
+                {children}
+              </StyledListContent>
+            </StyledContributionList>
+            <StyledOverlayArea>
+              <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+                {loadingPlaceholder}
+              </StyledLoadingArea>
+            </StyledOverlayArea>
           </StyledContent>
-        </StyledContributionList>
-        <StyledOverlayArea>
-          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
-            {loadingPlaceholder}
-          </StyledLoadingArea>
-        </StyledOverlayArea>
+        </StyledListArea>
       </>
     );
   }
