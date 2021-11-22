@@ -82,7 +82,7 @@ interface NoteCardProps {
 const NoteCard = React.memo((props: NoteCardProps): JSX.Element => {
   const { innerRef, pitchId, contributionId, targetDoc, id, doc, style } =
     props;
-  const removed = doc?.removed;
+  const removed = doc?.removed || doc?.banned;
   const removedPlaceholder = `[removed]`;
   return (
     <NoteCardContent

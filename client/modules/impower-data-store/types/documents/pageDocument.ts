@@ -37,6 +37,7 @@ export interface PageDocument<T extends string = string>
 
   readonly delisted?: boolean;
   readonly removed?: boolean;
+  readonly banned?: boolean;
   readonly nsfw?: boolean;
   readonly terms?: string[];
   readonly hoursWhenDayOld?: number[];

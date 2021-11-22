@@ -25,6 +25,7 @@ export interface ContributionDocument
 
   readonly delisted?: boolean;
   readonly removed?: boolean;
+  readonly banned?: boolean;
 
   readonly mentions?: string[];
 }

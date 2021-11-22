@@ -452,7 +452,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
       ? doc?.repitchedAt
       : doc?.repitchedAt?.toDate()?.toJSON();
 
-  const removed = doc?.removed;
+  const removed = doc?.removed || doc?.banned;
   const removedPlaceholder = `[removed]`;
 
   return (

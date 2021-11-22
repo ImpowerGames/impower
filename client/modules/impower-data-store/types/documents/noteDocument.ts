@@ -5,6 +5,7 @@ export interface NoteDocument extends DataDocument<"NoteDocument"> {
 
   readonly delisted?: boolean;
   readonly removed?: boolean;
+  readonly banned?: boolean;
 
   readonly mentions?: string[];
 }

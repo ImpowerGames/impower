@@ -397,7 +397,7 @@ const ContributionCard = React.memo(
         ? doc?._updatedAt
         : doc?._updatedAt?.toDate()?.toJSON();
 
-    const removed = doc?.removed;
+    const removed = doc?.removed || doc?.banned;
     const removedPlaceholder = `[removed]`;
     const removedFile = useMemo(() => ({ storageKey: "", fileUrl: "" }), []);
 
