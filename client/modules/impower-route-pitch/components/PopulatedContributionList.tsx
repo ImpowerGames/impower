@@ -608,17 +608,19 @@ const VirtualizedContributionChunk = React.memo(
       [onExited]
     );
 
-    if (!chunkNodes) {
-      return (
-        <>
-          {chunkEntries.map(([id, doc], itemIndex) => {
-            if (!itemContentRefs.current[id]) {
-              itemContentRefs.current[id] = { current: null };
-            }
-            const opened = openedItemIndex === itemIndex;
-            const [pitchId, contributionId] = id.split("/");
-            const pitchDoc = pitchDocs?.[pitchId];
-            const itemRef = itemContentRefs.current[id];
+    return (
+      <>
+        {chunkEntries.map(([id, doc], itemIndex) => {
+          if (!itemContentRefs.current[id]) {
+            itemContentRefs.current[id] = { current: null };
+          }
+          const chunkNode = chunkNodes?.[itemIndex];
+          const opened = openedItemIndex === itemIndex;
+          const isolated = isolatedItemIndex === itemIndex;
+          const [pitchId, contributionId] = id.split("/");
+          const pitchDoc = pitchDocs?.[pitchId];
+          const itemRef = itemContentRefs.current[id];
+          if (!chunkNode) {
             return (
               <VirtualizedItem
                 key={id}
@@ -647,24 +649,9 @@ const VirtualizedContributionChunk = React.memo(
                 />
               </VirtualizedItem>
             );
-          })}
-        </>
-      );
-    }
-    return (
-      <>
-        {chunkEntries.map(([id, doc], itemIndex) => {
-          if (!itemContentRefs.current[id]) {
-            itemContentRefs.current[id] = { current: null };
           }
-          const chunkNode = chunkNodes[itemIndex];
-          const opened = openedItemIndex === itemIndex;
-          const isolated = isolatedItemIndex === itemIndex;
           const InWrapper = chunkNode ? InPortal : React.Fragment;
           const OutWrapper = chunkNode ? OutPortal : React.Fragment;
-          const [pitchId, contributionId] = id.split("/");
-          const pitchDoc = pitchDocs?.[pitchId];
-          const itemRef = itemContentRefs.current[id];
           return (
             <VirtualizedItem
               key={id}
@@ -774,7 +761,7 @@ const PopulatedContributionList = React.memo(
     }, [chunkMap, contributionEntries]);
 
     const chunkContentRefs = useRef<{ current: HTMLDivElement }[]>([]);
-    const nodes = useRef<HtmlPortalNode<Component>[][]>([]);
+    const nodesRef = useRef<HtmlPortalNode<Component>[][]>([]);
 
     const chunkVisiblityRef = useRef<boolean[]>([true, true]);
     const mountedChunksRef = useRef<number[]>([lastLoadedChunk]);
@@ -851,14 +838,22 @@ const PopulatedContributionList = React.memo(
     return (
       <StyledPopulatedContributionList style={style}>
         {contributionChunks.map((chunkEntries, chunkIndex) => {
-          if (!nodes.current[chunkIndex] && typeof document !== "undefined") {
-            nodes.current[chunkIndex] = chunkEntries.map(() =>
-              createHtmlPortalNode({
-                attributes: {
-                  class: "out-portal",
-                },
-              })
-            );
+          if (
+            nodesRef.current[chunkIndex]?.length !== chunkEntries?.length &&
+            typeof document !== "undefined"
+          ) {
+            if (!nodesRef.current[chunkIndex]) {
+              nodesRef.current[chunkIndex] = [];
+            }
+            for (let i = 0; i < chunkEntries?.length; i += 1) {
+              nodesRef.current[chunkIndex][i] =
+                nodesRef.current[chunkIndex][i] ||
+                createHtmlPortalNode({
+                  attributes: {
+                    class: "out-portal",
+                  },
+                });
+            }
           }
           if (!chunkContentRefs.current[chunkIndex]) {
             chunkContentRefs.current[chunkIndex] = { current: null };
@@ -877,7 +872,7 @@ const PopulatedContributionList = React.memo(
                 pitchDocs={pitchDocs}
                 chunkIndex={chunkIndex}
                 chunkEntries={chunkEntries}
-                chunkNodes={nodes.current[chunkIndex]}
+                chunkNodes={nodesRef.current[chunkIndex]}
                 onChangeScore={onChangeScore}
                 onDelete={onDelete}
                 onKudo={onKudo}

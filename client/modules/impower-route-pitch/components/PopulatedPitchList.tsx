@@ -694,14 +694,16 @@ const VirtualizedPitchChunk = React.memo(
       [onExited]
     );
 
-    if (!chunkNodes) {
-      return (
-        <>
-          {chunkEntries.map(([id, doc], itemIndex) => {
-            if (!itemContentRefs.current[id]) {
-              itemContentRefs.current[id] = { current: null };
-            }
-            const opened = openedItemIndex === itemIndex;
+    return (
+      <>
+        {chunkEntries.map(([id, doc], itemIndex) => {
+          if (!itemContentRefs.current[id]) {
+            itemContentRefs.current[id] = { current: null };
+          }
+          const chunkNode = chunkNodes?.[itemIndex];
+          const opened = openedItemIndex === itemIndex;
+          const isolated = isolatedItemIndex === itemIndex;
+          if (!chunkNode) {
             return (
               <VirtualizedItem
                 key={id}
@@ -733,20 +735,7 @@ const VirtualizedPitchChunk = React.memo(
                 />
               </VirtualizedItem>
             );
-          })}
-        </>
-      );
-    }
-
-    return (
-      <>
-        {chunkEntries.map(([id, doc], itemIndex) => {
-          if (!itemContentRefs.current[id]) {
-            itemContentRefs.current[id] = { current: null };
           }
-          const chunkNode = chunkNodes[itemIndex];
-          const opened = openedItemIndex === itemIndex;
-          const isolated = isolatedItemIndex === itemIndex;
           const InWrapper = chunkNode ? InPortal : React.Fragment;
           const OutWrapper = chunkNode ? OutPortal : React.Fragment;
           return (
@@ -879,7 +868,7 @@ const PopulatedPitchList = React.memo(
     }, [chunkMap, pitchEntries]);
 
     const chunkContentRefs = useRef<{ current: HTMLDivElement }[]>([]);
-    const nodes = useRef<HtmlPortalNode<Component>[][]>([]);
+    const nodesRef = useRef<HtmlPortalNode<Component>[][]>([]);
 
     const chunkVisiblityRef = useRef<boolean[]>([true, true]);
     const mountedChunksRef = useRef<number[]>([lastLoadedChunk]);
@@ -957,14 +946,22 @@ const PopulatedPitchList = React.memo(
       <>
         <StyledPopulatedPitchList style={style}>
           {pitchChunks.map((chunkEntries, chunkIndex) => {
-            if (!nodes.current[chunkIndex] && typeof document !== "undefined") {
-              nodes.current[chunkIndex] = chunkEntries.map(() =>
-                createHtmlPortalNode({
-                  attributes: {
-                    class: "out-portal",
-                  },
-                })
-              );
+            if (
+              nodesRef.current[chunkIndex]?.length !== chunkEntries?.length &&
+              typeof document !== "undefined"
+            ) {
+              if (!nodesRef.current[chunkIndex]) {
+                nodesRef.current[chunkIndex] = [];
+              }
+              for (let i = 0; i < chunkEntries?.length; i += 1) {
+                nodesRef.current[chunkIndex][i] =
+                  nodesRef.current[chunkIndex][i] ||
+                  createHtmlPortalNode({
+                    attributes: {
+                      class: "out-portal",
+                    },
+                  });
+              }
             }
             if (!chunkContentRefs.current[chunkIndex]) {
               chunkContentRefs.current[chunkIndex] = { current: null };
@@ -983,7 +980,7 @@ const PopulatedPitchList = React.memo(
                   icons={icons}
                   chunkIndex={chunkIndex}
                   chunkEntries={chunkEntries}
-                  chunkNodes={nodes.current[chunkIndex]}
+                  chunkNodes={nodesRef.current[chunkIndex]}
                   compact={compact}
                   dontFade={dontFade}
                   onChangeScore={onChangeScore}
