@@ -1,4 +1,3 @@
-import { shuffle } from "../../impower-core";
 import getCleanedWords from "./getCleanedWords";
 import getSubphrases from "./getSubphrases";
 
@@ -75,7 +74,7 @@ const getRelevantPhrases = (
 
   tagsSortedBySpecificity.forEach((tag, index) => {
     // Get all phrases that are related to this tag.
-    const tagPhrases = shuffle(tagPhrasesMap[tag]);
+    const tagPhrases = tagPhrasesMap[tag];
     if (tagPhrases) {
       tagPhrases.forEach((p) => {
         // All suggested phrases must at least satisfy the first (primary/most specific) tag.

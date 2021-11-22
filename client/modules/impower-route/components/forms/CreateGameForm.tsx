@@ -14,7 +14,7 @@ import {
   getRandomizedTags,
   getTagsSortedBySpecificity,
 } from "../../../impower-config";
-import { difference } from "../../../impower-core";
+import { difference, shuffle } from "../../../impower-core";
 import {
   GameDocumentInspector,
   ProjectDocument,
@@ -266,7 +266,7 @@ const CreateGameForm = React.memo((props: CreateGameFormProps): JSX.Element => {
       const getPhraseTagsMap = (
         await import("../../../impower-terms/utils/getPhraseTagsMap")
       ).default;
-      const phrases = latestConfigState?.phrases;
+      const phrases = shuffle(latestConfigState?.phrases);
       const termTagsMap = latestConfigState?.terms;
       const phraseTagsMap = getPhraseTagsMap(phrases, termTagsMap);
       setTermTagsMap(termTagsMap);
