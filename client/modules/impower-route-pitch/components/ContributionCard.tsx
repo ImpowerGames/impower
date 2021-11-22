@@ -1,6 +1,5 @@
 import dynamic from "next/dynamic";
 import React, { useCallback, useContext, useMemo, useState } from "react";
-import { ConfirmDialogContext } from "../../impower-confirm-dialog";
 import {
   ContributionDocument,
   escapeURI,
@@ -110,7 +109,6 @@ const ContributionCard = React.memo(
     const delisted = doc?.delisted;
 
     const [, navigationDispatch] = useContext(NavigationContext);
-    const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
     const [userState, userDispatch] = useContext(UserContext);
     const {
       uid,

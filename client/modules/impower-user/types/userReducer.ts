@@ -789,14 +789,6 @@ export const userReducer = (
             ...(my_recent_comments || {}),
             [parentDocId]: {
               ...(my_recent_comments?.[parentDocId] || {}),
-              [id]: { ...newDoc, delisted: true },
-            },
-          };
-        } else {
-          my_recent_comments = {
-            ...(my_recent_comments || {}),
-            [parentDocId]: {
-              ...(my_recent_comments?.[parentDocId] || {}),
               [id]: {
                 ...(my_recent_comments?.[parentDocId]?.[id] || {}),
                 ...newDoc,
@@ -809,18 +801,18 @@ export const userReducer = (
               },
             },
           };
+        } else {
+          my_recent_comments = {
+            ...(my_recent_comments || {}),
+            [parentDocId]: {
+              ...(my_recent_comments?.[parentDocId] || {}),
+              [id]: { ...newDoc, delisted: false },
+            },
+          };
         }
       }
       if (isContributionDocument(newDoc)) {
         if (newDoc.deleted) {
-          my_recent_contributions = {
-            ...(my_recent_contributions || {}),
-            [parentDocId]: {
-              ...(my_recent_contributions?.[parentDocId] || {}),
-              [id]: { ...newDoc, delisted: true },
-            },
-          };
-        } else {
           if (my_recent_pitched_projects?.[parentDocId]) {
             my_recent_pitched_projects = {
               ...(my_recent_pitched_projects || {}),
@@ -847,6 +839,14 @@ export const userReducer = (
                   h: "#FFFFFF",
                 },
               },
+            },
+          };
+        } else {
+          my_recent_contributions = {
+            ...(my_recent_contributions || {}),
+            [parentDocId]: {
+              ...(my_recent_contributions?.[parentDocId] || {}),
+              [id]: { ...newDoc, delisted: false },
             },
           };
         }
