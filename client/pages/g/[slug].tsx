@@ -247,16 +247,14 @@ export const getStaticProps: GetStaticProps = async (context) => {
     ...getTagConfigParameters(),
   };
   const mainTag = serializableData?.tags?.[0] || "";
-  const iconName = config.tagIconNames[mainTag];
+  const tagIconName = config.tagIconNames[mainTag] || "hashtag";
   const icons = {};
-  if (iconName) {
-    const component = (
-      await import(`../../resources/icons/solid/${iconName}.svg`)
-    ).default;
-    const svgData = getIconSvgData(component);
-    if (svgData) {
-      icons[iconName] = svgData;
-    }
+  const component = (
+    await import(`../../resources/icons/solid/${tagIconName}.svg`)
+  ).default;
+  const svgData = getIconSvgData(component);
+  if (svgData) {
+    icons[tagIconName] = svgData;
   }
   // Revalidate every 60 seconds in case the published page was edited
   return {

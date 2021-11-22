@@ -689,15 +689,13 @@ export const getStaticProps: GetStaticProps = async (context) => {
 
   if (pitchDoc) {
     const mainTag = pitchDoc?.tags?.[0] || "";
-    const iconName = config?.tagIconNames?.[mainTag] || "hashtag";
-    if (iconName) {
-      const component = (
-        await import(`../../resources/icons/solid/${iconName}.svg`)
-      ).default;
-      const svgData = getIconSvgData(component);
-      if (svgData) {
-        icons[iconName] = svgData;
-      }
+    const tagIconName = config?.tagIconNames?.[mainTag] || "hashtag";
+    const component = (
+      await import(`../../resources/icons/solid/${tagIconName}.svg`)
+    ).default;
+    const svgData = getIconSvgData(component);
+    if (svgData) {
+      icons[tagIconName] = svgData;
     }
     ogImage = pitchDoc?.og;
     if (!ogImage) {

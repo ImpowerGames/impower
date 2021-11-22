@@ -190,10 +190,8 @@ export const getStaticProps: GetStaticProps<PitchSearchPageProps> = async (
     const serializableData = getSerializableDocument<ProjectDocument>(s.data());
     pitchDocs[s.id] = serializableData;
     const mainTag = serializableData?.tags?.[0] || "";
-    const tagIconName = config.tagIconNames[mainTag];
-    if (tagIconName) {
-      iconNamesSet.add(tagIconName);
-    }
+    const tagIconName = config.tagIconNames[mainTag] || "hashtag";
+    iconNamesSet.add(tagIconName);
   });
   const iconNames = Array.from(iconNamesSet);
   const iconData = await Promise.all(
