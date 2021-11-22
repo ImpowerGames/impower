@@ -1,9 +1,6 @@
 import dynamic from "next/dynamic";
 import React, { useCallback, useContext, useMemo, useState } from "react";
-import {
-  ConfirmDialogContext,
-  confirmDialogNavOpen,
-} from "../../impower-confirm-dialog";
+import { ConfirmDialogContext } from "../../impower-confirm-dialog";
 import {
   ContributionDocument,
   escapeURI,
@@ -32,13 +29,6 @@ const PostMenu = dynamic(
   () => import("../../impower-route/components/popups/PostMenu"),
   { ssr: false }
 );
-
-const deleteConfirmationInfo = {
-  title: "Are you sure you want to delete this contribution?",
-  content: "*This action cannot be undone.*\n\n",
-  agreeLabel: "Yes, Delete My Contribution",
-  disagreeLabel: "Cancel",
-};
 
 interface ContributionCardProps {
   cardRef?: React.Ref<HTMLDivElement>;
@@ -222,40 +212,27 @@ const ContributionCard = React.memo(
 
     const handleDelete = useCallback(
       async (e: React.MouseEvent): Promise<void> => {
-        const onYes = async (): Promise<void> => {
-          await new Promise<void>((resolve) =>
-            userDispatch(
-              userOnUpdateSubmission(
-                resolve,
-                {
-                  ...doc,
-                  deleted: true,
-                  delisted: true,
-                },
-                "pitched_projects",
-                pitchId,
-                "contributions",
-                id
-              )
+        await new Promise<void>((resolve) =>
+          userDispatch(
+            userOnUpdateSubmission(
+              resolve,
+              {
+                ...doc,
+                deleted: true,
+                delisted: true,
+              },
+              "pitched_projects",
+              pitchId,
+              "contributions",
+              id
             )
-          );
-          if (onDelete) {
-            onDelete(e);
-          }
-        };
-        confirmDialogDispatch(
-          confirmDialogNavOpen(
-            deleteConfirmationInfo.title,
-            deleteConfirmationInfo.content,
-            deleteConfirmationInfo.agreeLabel,
-            onYes,
-            deleteConfirmationInfo.disagreeLabel,
-            undefined,
-            { asynchronous: true, responsive: true }
           )
         );
+        if (onDelete) {
+          onDelete(e);
+        }
       },
-      [confirmDialogDispatch, doc, id, onDelete, pitchId, userDispatch]
+      [doc, id, onDelete, pitchId, userDispatch]
     );
 
     const handleSetupAndOpenPostMenu = useCallback(async () => {
