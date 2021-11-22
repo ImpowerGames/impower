@@ -366,6 +366,16 @@ const PitchList = React.memo(
           if (creator && creator !== doc._createdBy) {
             delete newPitchDocs[id];
           }
+          if (
+            goalFilter &&
+            goalFilter !== "All" &&
+            goalFilter !== doc.pitchGoal
+          ) {
+            delete newPitchDocs[id];
+          }
+          if (search && !doc?.tags?.includes(search?.toLowerCase())) {
+            delete newPitchDocs[id];
+          }
           if (chunkMapRef.current[id] === undefined) {
             chunkMapRef.current[id] = lastLoadedChunkRef.current;
           }
@@ -637,7 +647,8 @@ const PitchList = React.memo(
               ([id, doc]) => {
                 if (
                   (!goal || goal === doc?.pitchGoal) &&
-                  (!creator || creator === doc?._createdBy)
+                  (!creator || creator === doc?._createdBy) &&
+                  (!search || doc?.tags?.includes(search?.toLowerCase()))
                 ) {
                   matchingRecentPitchDocs[id] = doc;
                 }
