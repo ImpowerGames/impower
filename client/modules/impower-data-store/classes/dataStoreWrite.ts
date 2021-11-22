@@ -79,6 +79,17 @@ class DataStoreWrite<T extends DocumentPath = DocumentPath> {
         delete validDoc.pitchedAt;
       }
     }
+    if (validDoc.repitchedAt && !isFieldValue(validDoc.repitchedAt)) {
+      if (
+        validDoc.pitched &&
+        isTimestamp(validDoc.repitchedAt) &&
+        validDoc.repitchedAt.server
+      ) {
+        validDoc.repitchedAt = timestampServerValue();
+      } else {
+        delete validDoc.repitchedAt;
+      }
+    }
     if (validDoc.publishedAt && !isFieldValue(validDoc.publishedAt)) {
       if (
         validDoc.published &&
@@ -161,27 +172,22 @@ class DataStoreWrite<T extends DocumentPath = DocumentPath> {
       delete newDoc._updates;
     }
     const validDoc: Record<string, unknown> = { ...newDoc };
-    if (validDoc.pitchedAt && !isFieldValue(validDoc.pitchedAt)) {
+    if (validDoc.pitchedAt) {
+      delete validDoc.pitchedAt;
+    }
+    if (validDoc.repitchedAt && !isFieldValue(validDoc.repitchedAt)) {
       if (
         validDoc.pitched &&
-        isTimestamp(validDoc.pitchedAt) &&
-        validDoc.pitchedAt.server
+        isTimestamp(validDoc.repitchedAt) &&
+        validDoc.repitchedAt.server
       ) {
-        validDoc.pitchedAt = timestampServerValue();
+        validDoc.repitchedAt = timestampServerValue();
       } else {
-        delete validDoc.pitchedAt;
+        delete validDoc.repitchedAt;
       }
     }
-    if (validDoc.publishedAt && !isFieldValue(validDoc.publishedAt)) {
-      if (
-        validDoc.published &&
-        isTimestamp(validDoc.publishedAt) &&
-        validDoc.publishedAt.server
-      ) {
-        validDoc.publishedAt = timestampServerValue();
-      } else {
-        delete validDoc.publishedAt;
-      }
+    if (validDoc.publishedAt) {
+      delete validDoc.publishedAt;
     }
     if (validDoc.republishedAt && !isFieldValue(validDoc.republishedAt)) {
       if (

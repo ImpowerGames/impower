@@ -13,7 +13,8 @@ import CreateGameForm from "../../impower-route/components/forms/CreateGameForm"
 import EditDialog from "../../impower-route/components/popups/EditDialog";
 import PitchCard from "./PitchCard";
 
-const submitLabel = "Pitch Game";
+const createLabel = "Pitch Game";
+const editLabel = "Update Pitch";
 
 const steps: CreationStep[] = [
   {
@@ -86,12 +87,11 @@ const StyledMonospaceFontLoader = styled.p`
 interface PitchPreviewProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
-  id: string;
   doc: ProjectDocument;
 }
 
 const PitchPreview = React.memo((props: PitchPreviewProps) => {
-  const { config, icons, id, doc } = props;
+  const { config, icons, doc } = props;
   const theme = useTheme();
   const creativeCommonsIconStyle = useMemo(
     () => ({ marginBottom: theme.spacing(0.5) }),
@@ -107,7 +107,6 @@ const PitchPreview = React.memo((props: PitchPreviewProps) => {
         <PitchCard
           config={config}
           icons={icons}
-          id={id}
           doc={doc}
           preview
           style={previewStyle}
@@ -152,8 +151,9 @@ interface CreatePitchDialogProps
   extends Omit<DialogProps, "maxWidth" | "onSubmit" | "onChange"> {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
-  id: string;
+  docId?: string;
   doc?: ProjectDocument;
+  editing?: boolean;
   onChange?: (doc: ProjectDocument) => void;
   onSubmit?: (
     e: React.FormEvent | React.MouseEvent,
@@ -172,8 +172,9 @@ const CreatePitchDialog = React.memo((props: CreatePitchDialogProps) => {
     config,
     icons,
     open,
-    id,
+    docId,
     doc,
+    editing,
     onChange,
     onSubmit,
     onSubmitted,
@@ -182,8 +183,8 @@ const CreatePitchDialog = React.memo((props: CreatePitchDialogProps) => {
   } = props;
 
   const preview = useMemo(
-    () => <PitchPreview config={config} icons={icons} id={id} doc={doc} />,
-    [config, doc, icons, id]
+    () => <PitchPreview config={config} icons={icons} doc={doc} />,
+    [config, doc, icons]
   );
 
   return (
@@ -192,9 +193,10 @@ const CreatePitchDialog = React.memo((props: CreatePitchDialogProps) => {
       <StyledMonospaceFontLoader>.</StyledMonospaceFontLoader>
       <EditDialog open={open} onClose={onClose} {...dialogProps}>
         <CreateGameForm
+          docId={docId}
           doc={doc}
           steps={steps}
-          submitLabel={submitLabel}
+          submitLabel={editing ? editLabel : createLabel}
           preview={preview}
           onChange={onChange}
           onSubmit={onSubmit}

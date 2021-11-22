@@ -25,6 +25,7 @@ interface PitchListContentProps {
     pitchId: string,
     contributionId?: string
   ) => void;
+  onEdit?: (e: React.MouseEvent, id: string) => void;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -65,6 +66,7 @@ const PitchListContent = React.memo(
       dontFade,
       style,
       onChangeScore,
+      onEdit,
       onDelete,
       onKudo,
       onCreateContribution,
@@ -94,6 +96,7 @@ const PitchListContent = React.memo(
           dontFade={dontFade}
           style={style}
           onChangeScore={onChangeScore}
+          onEdit={onEdit}
           onDelete={onDelete}
           onKudo={onKudo}
           onCreateContribution={onCreateContribution}

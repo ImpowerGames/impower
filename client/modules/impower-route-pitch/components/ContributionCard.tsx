@@ -229,7 +229,7 @@ const ContributionCard = React.memo(
                 resolve,
                 {
                   ...doc,
-                  contributed: false,
+                  deleted: true,
                   delisted: true,
                 },
                 "pitched_projects",
@@ -417,6 +417,10 @@ const ContributionCard = React.memo(
       typeof doc?._createdAt === "string"
         ? doc?._createdAt
         : doc?._createdAt?.toDate()?.toJSON();
+    const updatedAt =
+      typeof doc?._updatedAt === "string"
+        ? doc?._updatedAt
+        : doc?._updatedAt?.toDate()?.toJSON();
 
     const removed = doc?.removed;
     const removedPlaceholder = `[removed]`;
@@ -454,6 +458,7 @@ const ContributionCard = React.memo(
           tags={doc?.tags}
           delisted={doc?.delisted}
           createdAt={createdAt}
+          updatedAt={updatedAt}
           score={doc?.score}
           connectedTo={connectedTo}
           connectedFrom={connectedFrom}

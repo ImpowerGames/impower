@@ -9,7 +9,7 @@ const createCommentDocument = (
   _documentType: "CommentDocument",
   _createdAt: new Timestamp(),
   content: "",
-  commented: true,
+  deleted: false,
   delisted: false,
   score: 1,
   likes: 1,

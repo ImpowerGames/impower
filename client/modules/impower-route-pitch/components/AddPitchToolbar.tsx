@@ -1,27 +1,9 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import dynamic from "next/dynamic";
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import PencilSolidIcon from "../../../resources/icons/solid/pencil.svg";
-import { ConfigParameters } from "../../impower-config";
-import {
-  ConfirmDialogContext,
-  confirmDialogNavOpen,
-} from "../../impower-confirm-dialog";
-import { Timestamp } from "../../impower-core";
-import { ProjectDocument } from "../../impower-data-store";
-import { useDialogNavigation } from "../../impower-dialog";
-import { FontIcon, SvgData } from "../../impower-icon";
+import { FontIcon } from "../../impower-icon";
 import CornerFab from "../../impower-route-engine/components/fabs/CornerFab";
-import { useRouter } from "../../impower-router";
-import { UserContext } from "../../impower-user";
 
 const createPitchLabel = "Pitch A Game";
 
@@ -47,196 +29,16 @@ const StyledScrollSentinel = styled.div`
   height: 1px;
 `;
 
-const CreatePitchDialog = dynamic(() => import("./CreatePitchDialog"), {
-  ssr: false,
-});
-
-const discardInfo = {
-  title: "Discard unsaved changes?",
-  agreeLabel: "Discard",
-  disagreeLabel: "Keep Editing",
-};
-
 interface AddPitchToolbarProps {
   toolbarRef?: React.Ref<HTMLDivElement>;
-  config: ConfigParameters;
-  icons: { [name: string]: SvgData };
+  onClick?: (e: React.MouseEvent) => void;
 }
 
 const AddPitchToolbar = React.memo(
   (props: AddPitchToolbarProps): JSX.Element => {
-    const { toolbarRef, config, icons } = props;
+    const { toolbarRef, onClick } = props;
 
     const [scrollSentinel, setScrollSentinel] = useState<HTMLElement>();
-
-    const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
-    const [userState] = useContext(UserContext);
-    const { uid } = userState;
-
-    const [canClose, setCanClose] = useState(true);
-    const [newDocId, setNewDocId] = useState<string>();
-    const [createDoc, setCreateDoc] = useState<ProjectDocument>();
-    const [createDialogOpenKey, setCreateDialogOpenKey] = useState<"game">();
-
-    const openedWithQueryRef = useRef(false);
-
-    const createDialogOpen = createDialogOpenKey === "game";
-
-    const router = useRouter();
-
-    const handleStartCreation = useCallback(async () => {
-      setCanClose(true);
-      const Auth = (await import("../../impower-auth/classes/auth")).default;
-      const createGameDocument = (
-        await import("../../impower-data-store/utils/createGameDocument")
-      ).default;
-      const newGame = createGameDocument({
-        _createdBy: uid,
-        _author: Auth.instance.author,
-        name: "",
-        slug: "",
-        owners: [uid],
-        pitched: true,
-        pitchedAt: new Timestamp(),
-        projectType: "game",
-      });
-      setCreateDoc(newGame);
-      setCreateDialogOpenKey("game");
-    }, [uid]);
-
-    const createDocExists = Boolean(createDoc);
-
-    const handleEndCreation = useCallback(
-      (
-        reason:
-          | "backdropClick"
-          | "escapeKeyDown"
-          | "closeButtonClick"
-          | "submitted"
-          | "browserBack",
-        onClose?: () => void
-      ) => {
-        if (!canClose) {
-          return;
-        }
-        if (reason === "submitted") {
-          return;
-        }
-        const onDiscardChanges = (): void => {
-          setCreateDialogOpenKey(null);
-          if (onClose) {
-            onClose();
-          }
-        };
-        const onKeepEditing = (): void => {
-          if (reason === "browserBack") {
-            window.setTimeout(() => {
-              // eslint-disable-next-line @typescript-eslint/no-use-before-define
-              openEditDialog("game");
-            }, 200);
-          }
-        };
-        const hasUnsavedChanges =
-          createDoc &&
-          (createDoc.name !== "" ||
-            createDoc.summary !== "" ||
-            JSON.stringify(createDoc.tags) !== JSON.stringify([]));
-        if (hasUnsavedChanges) {
-          confirmDialogDispatch(
-            confirmDialogNavOpen(
-              discardInfo.title,
-              undefined,
-              discardInfo.agreeLabel,
-              onDiscardChanges,
-              discardInfo.disagreeLabel,
-              onKeepEditing
-            )
-          );
-        } else {
-          onDiscardChanges();
-        }
-      },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [canClose, confirmDialogDispatch, createDoc]
-    );
-
-    const handleBrowserNavigation = useCallback(
-      (
-        currState: Record<string, string>,
-        prevState?: Record<string, string>
-      ) => {
-        if (currState?.e !== prevState?.e) {
-          if (currState?.e === "game") {
-            if (!createDocExists) {
-              handleStartCreation();
-            }
-          } else {
-            handleEndCreation("browserBack");
-          }
-        }
-      },
-      [createDocExists, handleEndCreation, handleStartCreation]
-    );
-    const [openEditDialog, closeEditDialog] = useDialogNavigation(
-      "e",
-      handleBrowserNavigation
-    );
-
-    const handleOpenCreateDialog = useCallback((): void => {
-      handleStartCreation();
-      openEditDialog("game");
-    }, [handleStartCreation, openEditDialog]);
-
-    const handleCloseCreateDialog = useCallback(
-      (
-        e: React.MouseEvent,
-        reason:
-          | "backdropClick"
-          | "escapeKeyDown"
-          | "closeButtonClick"
-          | "submitted"
-      ): void => {
-        if (openedWithQueryRef.current) {
-          handleEndCreation(reason, () => {
-            const newState = { ...(window.history.state || {}) };
-            delete newState.query;
-            window.history.replaceState(newState, "", "/pitch");
-          });
-        } else {
-          handleEndCreation(reason, closeEditDialog);
-        }
-      },
-      [closeEditDialog, handleEndCreation]
-    );
-
-    const handleSubmit = useCallback(
-      async (e: React.MouseEvent, id: string) => {
-        setNewDocId(id);
-        setCanClose(false);
-      },
-      []
-    );
-
-    const handleSubmitted = useCallback(
-      async (id: string, doc: ProjectDocument, successful: boolean) => {
-        if (successful) {
-          await router.replace(`/p/${id}`);
-        }
-        setCanClose(true);
-      },
-      [router]
-    );
-
-    useEffect(() => {
-      if (router.isReady) {
-        if (window.location.search?.toLowerCase() === "?e=game") {
-          openedWithQueryRef.current = true;
-          if (!createDocExists) {
-            handleStartCreation();
-          }
-        }
-      }
-    }, [createDocExists, handleStartCreation, router]);
 
     const handleScrollSentinelRef = useCallback((instance: HTMLDivElement) => {
       if (instance) {
@@ -279,22 +81,9 @@ const AddPitchToolbar = React.memo(
             label={createPitchLabel}
             color="primary"
             scrollSentinel={scrollSentinel}
-            onClick={handleOpenCreateDialog}
+            onClick={onClick}
             style={fabStyle}
           />
-          {createDialogOpenKey !== undefined && (
-            <CreatePitchDialog
-              config={config}
-              icons={icons}
-              open={createDialogOpen}
-              id={newDocId}
-              doc={createDoc}
-              onClose={handleCloseCreateDialog}
-              onChange={setCreateDoc}
-              onSubmit={handleSubmit}
-              onSubmitted={handleSubmitted}
-            />
-          )}
         </StyledAddPitchToolbarArea>
       </>
     );

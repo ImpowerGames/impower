@@ -106,7 +106,8 @@ interface PitchCardLayoutProps {
   tags?: string[];
   delisted?: boolean;
   archived?: boolean;
-  pitchedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
   score?: number;
   pitchGoal?: PitchGoal;
   style?: React.CSSProperties;
@@ -142,7 +143,8 @@ const PitchCardLayout = React.memo(
       tags,
       delisted,
       archived,
-      pitchedAt,
+      createdAt,
+      updatedAt,
       score,
       pitchGoal,
       kudoed,
@@ -199,7 +201,8 @@ const PitchCardLayout = React.memo(
                 tags={tags}
                 delisted={delisted}
                 archived={archived}
-                pitchedAt={pitchedAt}
+                createdAt={createdAt}
+                updatedAt={updatedAt}
                 pitchGoal={pitchGoal}
                 connectionCount={connectionCount}
                 preview={preview}

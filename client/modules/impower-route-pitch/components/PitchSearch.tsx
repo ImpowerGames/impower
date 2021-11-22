@@ -9,7 +9,6 @@ import navigationSetTransitioning from "../../impower-navigation/utils/navigatio
 import { BetaBanner } from "../../impower-route";
 import { useRouter } from "../../impower-router";
 import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
-import AddPitchToolbar from "./AddPitchToolbar";
 import EmptyPitchList from "./EmptyPitchList";
 import PitchList from "./PitchList";
 import PitchSearchToolbar from "./PitchSearchToolbar";
@@ -52,26 +51,6 @@ const StyledApp = styled.div`
     ${(props): string => props.theme.minHeight.navigationBar} +
       ${(props): string => props.theme.minHeight.navigationTabs}
   );
-`;
-
-const StyledListArea = styled.div`
-  flex: 1;
-  min-width: 0;
-  background-color: ${(props): string => props.theme.colors.lightForeground};
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-`;
-
-const StyledListContent = styled.div`
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
 `;
 
 interface PitchSearchPageProps {
@@ -224,21 +203,16 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
           }
         />
         <BetaBanner />
-        <StyledListArea>
-          <StyledListContent>
-            <PitchList
-              config={config}
-              icons={icons}
-              pitchDocs={pitchDocs}
-              search={activeSearch}
-              sortOptions={SORT_OPTIONS}
-              loadingPlaceholder={loadingPlaceholder}
-              emptyPlaceholder={emptyPlaceholder}
-              offlinePlaceholder={offlinePlaceholder}
-            />
-          </StyledListContent>
-        </StyledListArea>
-        <AddPitchToolbar config={config} icons={icons} />
+        <PitchList
+          config={config}
+          icons={icons}
+          pitchDocs={pitchDocs}
+          search={activeSearch}
+          sortOptions={SORT_OPTIONS}
+          loadingPlaceholder={loadingPlaceholder}
+          emptyPlaceholder={emptyPlaceholder}
+          offlinePlaceholder={offlinePlaceholder}
+        />
       </StyledApp>
     </StyledPitchSearch>
   );

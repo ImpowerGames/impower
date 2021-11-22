@@ -62,6 +62,7 @@ interface PitchCardProps {
   onLike?: (e: React.MouseEvent, liked: boolean) => void;
   onDislike?: (e: React.MouseEvent, disliked: boolean) => void;
   onChangeScore?: (e: React.MouseEvent, score: number) => void;
+  onEdit?: (e: React.MouseEvent) => void;
   onDelete?: (e: React.MouseEvent) => void;
 }
 
@@ -87,6 +88,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
     onLike,
     onDislike,
     onChangeScore,
+    onEdit,
     onDelete,
   } = props;
 
@@ -219,6 +221,15 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
     [id, onDislike, userDispatch]
   );
 
+  const handleEdit = useCallback(
+    async (e: React.MouseEvent): Promise<void> => {
+      if (onEdit) {
+        onEdit(e);
+      }
+    },
+    [onEdit]
+  );
+
   const handleDelete = useCallback(
     async (e: React.MouseEvent): Promise<void> => {
       const onYes = async (): Promise<void> => {
@@ -229,6 +240,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
               {
                 ...doc,
                 pitched: false,
+                delisted: true,
               },
               "projects",
               id
@@ -372,6 +384,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
     async (
       e: React.MouseEvent,
       option:
+        | "Edit"
         | "Delete"
         | "FollowProject"
         | "FollowUser"
@@ -396,6 +409,9 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         handleReport();
       }
       const absoluteUrl = window.origin + url;
+      if (option === "Edit") {
+        handleEdit(e);
+      }
       if (option === "Link") {
         if (navigator.clipboard) {
           navigator.clipboard.writeText(absoluteUrl);
@@ -420,16 +436,21 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
       followedUser,
       handleClosePostMenu,
       handleDelete,
+      handleEdit,
       handleFollowUser,
       handleReport,
       url,
     ]
   );
 
-  const pitchedAt =
+  const createdAt =
     typeof doc?.pitchedAt === "string"
       ? doc?.pitchedAt
       : doc?.pitchedAt?.toDate()?.toJSON();
+  const updatedAt =
+    typeof doc?.repitchedAt === "string"
+      ? doc?.repitchedAt
+      : doc?.repitchedAt?.toDate()?.toJSON();
 
   const removed = doc?.removed;
   const removedPlaceholder = `[removed]`;
@@ -452,7 +473,8 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         author={doc?._author}
         createdBy={doc?._createdBy}
         delisted={delisted}
-        pitchedAt={pitchedAt}
+        createdAt={createdAt}
+        updatedAt={updatedAt}
         score={doc?.score}
         pitchGoal={doc?.pitchGoal}
         kudoCount={doc?.kudos}

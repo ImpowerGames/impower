@@ -17,7 +17,6 @@ import { BetaBanner } from "../../impower-route";
 import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
 import getRangeFilterLabel from "../utils/getRangeFilterLabel";
-import AddPitchToolbar from "./AddPitchToolbar";
 import EmptyPitchList from "./EmptyPitchList";
 import PitchList from "./PitchList";
 import PitchTabsToolbar, { PitchToolbarTab } from "./PitchTabsToolbar";
@@ -64,26 +63,6 @@ const StyledApp = styled.div`
     ${(props): string => props.theme.minHeight.navigationBar} +
       ${(props): string => props.theme.minHeight.navigationTabs}
   );
-`;
-
-const StyledListArea = styled.div`
-  flex: 1;
-  min-width: 0;
-  background-color: ${(props): string => props.theme.colors.lightForeground};
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-`;
-
-const StyledListContent = styled.div`
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
 `;
 
 interface PitchProps {
@@ -312,42 +291,33 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       <StyledApp>
         <PitchTabsToolbar value={activeTab} onChange={handleChangeTab} />
         <BetaBanner />
-        <StyledListArea>
-          <StyledListContent>
-            {loading ? (
-              loadingPlaceholder
-            ) : activeTab === "Following" && showFollowTags ? (
-              <PitchFollowTags
-                loadingPlaceholder={loadingPlaceholder}
-                onReload={handleReloadFollowing}
-              />
-            ) : (
-              <PitchList
-                key={activeTab}
-                config={config}
-                icons={icons}
-                pitchDocs={validPitchDocs}
-                tab={activeTab}
-                sortOptions={SORT_OPTIONS}
-                allowReload={allowReload}
-                reloading={reloading}
-                loadingPlaceholder={loadingPlaceholder}
-                emptyPlaceholder={emptyPlaceholder}
-                offlinePlaceholder={offlinePlaceholder}
-                listElRef={listElRef}
-                loadingElRef={loadingElRef}
-                onFollowMore={handleFollowMore}
-                onRangeFilter={handleRangeFilter}
-                onReloading={setReloading}
-              />
-            )}
-          </StyledListContent>
-        </StyledListArea>
-        {(activeTab !== "Following" || !showFollowTags) && (
-          <AddPitchToolbar
-            toolbarRef={toolbarRef}
+        {loading ? (
+          loadingPlaceholder
+        ) : activeTab === "Following" && showFollowTags ? (
+          <PitchFollowTags
+            loadingPlaceholder={loadingPlaceholder}
+            onReload={handleReloadFollowing}
+          />
+        ) : (
+          <PitchList
+            key={activeTab}
             config={config}
             icons={icons}
+            pitchDocs={validPitchDocs}
+            tab={activeTab}
+            sortOptions={SORT_OPTIONS}
+            allowReload={allowReload}
+            reloading={reloading}
+            loadingPlaceholder={loadingPlaceholder}
+            emptyPlaceholder={emptyPlaceholder}
+            offlinePlaceholder={offlinePlaceholder}
+            listElRef={listElRef}
+            loadingElRef={loadingElRef}
+            toolbarElRef={toolbarRef}
+            onFollowMore={handleFollowMore}
+            onRangeFilter={handleRangeFilter}
+            onReloading={setReloading}
+            hideAddToolbar={activeTab === "Following" && showFollowTags}
           />
         )}
       </StyledApp>

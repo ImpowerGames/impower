@@ -219,6 +219,7 @@ interface ContributionCardLayoutProps {
   crop?: number;
   tags?: string[];
   createdAt?: string;
+  updatedAt?: string;
   score?: number;
   delisted?: boolean;
   showBackButton?: boolean;
@@ -268,6 +269,7 @@ const ContributionCardLayout = React.memo(
       crop,
       tags,
       createdAt,
+      updatedAt,
       score,
       connectedTo,
       connectedFrom,
@@ -396,6 +398,7 @@ const ContributionCardLayout = React.memo(
                             authorStyle={authorStyle}
                             author={author}
                             createdAt={createdAt}
+                            updatedAt={updatedAt}
                             hasPostMenu={hasPostMenu}
                             showBackButton={showBackButton}
                             onOpenPostMenu={onOpenPostMenu}

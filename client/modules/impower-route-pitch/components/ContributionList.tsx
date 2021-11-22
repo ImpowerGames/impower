@@ -451,7 +451,7 @@ const ContributionList = React.memo(
         if (contributionDocsRef.current[key]) {
           const newDoc = {
             ...contributionDocsRef.current[key],
-            contributed: false,
+            deleted: true,
             delisted: true,
             content: "[deleted]",
             file: { storageKey: "", fileUrl: "" },

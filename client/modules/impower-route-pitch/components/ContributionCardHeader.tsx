@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import NextLink from "next/link";
 import React, { useCallback, useMemo } from "react";
 import EllipsisVerticalRegularIcon from "../../../resources/icons/regular/ellipsis-vertical.svg";
+import PenRegularIcon from "../../../resources/icons/regular/pen-line.svg";
 import { AuthorAttributes } from "../../impower-auth";
 import { abbreviateAge } from "../../impower-config";
 import { FontIcon } from "../../impower-icon";
@@ -124,6 +125,7 @@ interface ContributionCardHeaderProps {
   authorColor: "primary" | "secondary" | "inherit";
   authorStyle: React.CSSProperties;
   createdAt: string;
+  updatedAt: string;
   hasPostMenu?: boolean;
   showBackButton?: boolean;
   onClose?: (e: React.MouseEvent) => void;
@@ -141,6 +143,7 @@ const ContributionCardHeader = React.memo(
       author,
       hasPostMenu,
       createdAt,
+      updatedAt,
       showBackButton,
       onClose,
       onOpenPostMenu,
@@ -151,7 +154,16 @@ const ContributionCardHeader = React.memo(
     const avatarColor = author?.h;
     const avatarLink = getUserLink(author?.u);
 
-    const age = useMemo(() => abbreviateAge(new Date(createdAt)), [createdAt]);
+    const edited =
+      updatedAt &&
+      new Date(updatedAt).getTime() - new Date(createdAt).getTime() > 1000;
+    const age = useMemo(
+      () =>
+        edited
+          ? abbreviateAge(new Date(updatedAt))
+          : abbreviateAge(new Date(createdAt)),
+      [edited, updatedAt, createdAt]
+    );
 
     const handleBlockRipplePropogation = useCallback(
       (e: React.MouseEvent | React.TouchEvent): void => {
@@ -173,6 +185,10 @@ const ContributionCardHeader = React.memo(
 
     const iconStyle: React.CSSProperties = useMemo(
       () => ({ opacity: 0.6 }),
+      []
+    );
+    const editedIconStyle: React.CSSProperties = useMemo(
+      () => ({ opacity: 0.4 }),
       []
     );
 
@@ -260,11 +276,25 @@ const ContributionCardHeader = React.memo(
             <StyledSingleLineTypography variant="body2">
               {"  •  "}
               {age}
+              {"  "}
             </StyledSingleLineTypography>
+            {edited && (
+              <FontIcon aria-label={`Edited`} size={12} style={editedIconStyle}>
+                <PenRegularIcon />
+              </FontIcon>
+            )}
           </StyledSubheaderContent>
         </StyledTitleArea>
       ),
-      [age, author?.u, authorColor, authorStyle, handleBlockRipplePropogation]
+      [
+        age,
+        author?.u,
+        authorColor,
+        authorStyle,
+        edited,
+        editedIconStyle,
+        handleBlockRipplePropogation,
+      ]
     );
 
     return (

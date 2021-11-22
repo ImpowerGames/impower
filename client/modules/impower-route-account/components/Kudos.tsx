@@ -225,6 +225,7 @@ const Kudos = React.memo((): JSX.Element | null => {
                           <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
                         </StyledOfflineArea>
                       }
+                      hideAddToolbar
                       onRefresh={handleRefresh}
                     />
                   ) : tabIndex === 1 && contributionDataEntries ? (

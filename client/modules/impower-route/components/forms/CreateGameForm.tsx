@@ -29,6 +29,7 @@ import { ToastContext, toastTop } from "../../../impower-toast";
 import {
   UserContext,
   userOnCreateSubmission,
+  userOnUpdateSubmission,
   userSetCustomization,
 } from "../../../impower-user";
 import { EngineConsoleType, studioConsoles } from "../../types/info/console";
@@ -487,16 +488,25 @@ const CreateGameForm = React.memo((props: CreateGameFormProps): JSX.Element => {
         const tagColorName = tagColorNames[mainTag] || "";
         const claimedDoc = {
           ...newDoc,
+          _createdBy: newDoc?._createdBy || Auth.instance.uid,
           name: newDoc.name.trim(),
           slug,
           hex: colors[tagColorName] || getRandomColor(),
           owners: [Auth.instance.uid],
         };
-        await new Promise<void>((resolve) =>
-          userDispatch(
-            userOnCreateSubmission(resolve, claimedDoc, "projects", newDocId)
-          )
-        );
+        if (claimedDoc._createdAt) {
+          await new Promise<void>((resolve) =>
+            userDispatch(
+              userOnUpdateSubmission(resolve, claimedDoc, "projects", newDocId)
+            )
+          );
+        } else {
+          await new Promise<void>((resolve) =>
+            userDispatch(
+              userOnCreateSubmission(resolve, claimedDoc, "projects", newDocId)
+            )
+          );
+        }
         if (onSubmitted) {
           await onSubmitted(newDocId, claimedDoc, true);
         }

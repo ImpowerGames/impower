@@ -335,6 +335,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                               <StyledOfflineTypography variant="h6">{`Looks like you're offline.`}</StyledOfflineTypography>
                             </StyledOfflineArea>
                           }
+                          hideAddToolbar
                         />
                       ) : (
                         <ContributionList

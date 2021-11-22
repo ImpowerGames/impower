@@ -2,7 +2,7 @@ import { DataDocument } from "../../../impower-core";
 
 export interface CommentDocument extends DataDocument<"CommentDocument"> {
   content: string;
-  commented: boolean;
+  deleted: boolean;
 
   score?: number;
   likes?: number;

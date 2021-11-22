@@ -24,7 +24,9 @@ import format from "../../modules/impower-config/utils/format";
 import {
   confirmDialogClose,
   ConfirmDialogContext,
+  confirmDialogNavOpen,
 } from "../../modules/impower-confirm-dialog";
+import { Timestamp } from "../../modules/impower-core";
 import {
   ContributionDocument,
   getSerializableDocument,
@@ -49,6 +51,7 @@ import {
 } from "../../modules/impower-navigation";
 import navigationSetTransitioning from "../../modules/impower-navigation/utils/navigationSetTransitioning";
 import { PageHead, ShareArticleHead } from "../../modules/impower-route";
+import CreatePitchDialog from "../../modules/impower-route-pitch/components/CreatePitchDialog";
 import PitchCard from "../../modules/impower-route-pitch/components/PitchCard";
 import PitchCardLayout from "../../modules/impower-route-pitch/components/PitchCardLayout";
 import PostFooter from "../../modules/impower-route-pitch/components/PostFooter";
@@ -62,6 +65,12 @@ import { useRouter } from "../../modules/impower-router";
 import { UserContext } from "../../modules/impower-user";
 
 const LOAD_INITIAL_LIMIT = 5;
+
+const discardInfo = {
+  title: "Discard unsaved changes?",
+  agreeLabel: "Discard",
+  disagreeLabel: "Keep Editing",
+};
 
 const DelistedPitchBanner = dynamic(
   () =>
@@ -127,20 +136,23 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
   const [scrollParent, setScrollParent] = useState<HTMLDivElement>();
   const [titleEl, setTitleEl] = useState<HTMLDivElement>();
   const [titleHeight, setTitleHeight] = useState<number>();
-  const [pitchDoc, setPitchDoc] = useState(validDoc || undefined);
+  const [pitchDocState, setPitchDocState] = useState(validDoc || undefined);
   const [viewingArchvied, setViewingArchived] = useState(false);
   const pitchDocRef = useRef(validDoc || undefined);
 
-  const name = pitchDoc?.name;
-  const author = pitchDoc?._author;
-  const tags = pitchDoc?.tags;
-  const pitchedAt = pitchDoc?.pitchedAt;
-  const projectType = pitchDoc?.projectType;
+  const name = pitchDocState?.name;
+  const author = pitchDocState?._author;
+  const tags = pitchDocState?.tags;
+  const createdAt = pitchDocState?.pitchedAt;
+  const updatedAt = pitchDocState?.repitchedAt;
+  const projectType = pitchDocState?.projectType;
 
   const section = `${capitalize(projectType)} Pitch`;
 
-  const pitchedAtISO =
-    typeof pitchedAt === "string" ? pitchedAt : pitchedAt?.toDate()?.toJSON();
+  const createdAtISO =
+    typeof createdAt === "string" ? createdAt : createdAt?.toDate()?.toJSON();
+  const updatedAtISO =
+    typeof updatedAt === "string" ? updatedAt : updatedAt?.toDate()?.toJSON();
 
   const theme = useTheme();
 
@@ -157,7 +169,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
   useEffect(() => {
     if (validDoc) {
       pitchDocRef.current = validDoc;
-      setPitchDoc(validDoc);
+      setPitchDocState(validDoc);
     } else {
       const loadPitchDoc = async (): Promise<void> => {
         try {
@@ -173,21 +185,21 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
           const pitched_doc = pitchedSnap.data() as ProjectDocument;
           if (pitched_doc) {
             pitchDocRef.current = pitched_doc;
-            setPitchDoc(pitchDocRef.current);
+            setPitchDocState(pitchDocRef.current);
           } else {
             const snap = await new DataStoreRead("projects", pid).get();
             const doc = snap.data() as ProjectDocument;
             if (doc) {
               pitchDocRef.current = doc;
-              setPitchDoc(pitchDocRef.current);
+              setPitchDocState(pitchDocRef.current);
             } else {
               pitchDocRef.current = null;
-              setPitchDoc(pitchDocRef.current);
+              setPitchDocState(pitchDocRef.current);
             }
           }
         } catch {
           pitchDocRef.current = null;
-          setPitchDoc(pitchDocRef.current);
+          setPitchDocState(pitchDocRef.current);
         }
       };
       loadPitchDoc();
@@ -215,6 +227,126 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
 
   const url = useMemo(() => `/p/${pid}`, [pid]);
 
+  const canCloseRef = useRef(true);
+  const [editDoc, setEditDoc] = useState<ProjectDocument>();
+  const [editDialogOpen, setEditDialogOpen] = useState<boolean>();
+
+  const handleStartEdit = useCallback(async () => {
+    canCloseRef.current = true;
+    setEditDoc({
+      ...pitchDocState,
+      repitchedAt: new Timestamp(),
+    });
+    setEditDialogOpen(true);
+  }, [pitchDocState]);
+
+  const editDocExists = Boolean(editDoc);
+
+  const handleEndEdit = useCallback(
+    (
+      reason:
+        | "backdropClick"
+        | "escapeKeyDown"
+        | "closeButtonClick"
+        | "submitted"
+        | "browserBack",
+      onClose?: () => void
+    ) => {
+      if (reason === "submitted") {
+        setEditDialogOpen(false);
+        if (onClose) {
+          onClose();
+        }
+        return;
+      }
+      if (!canCloseRef.current) {
+        return;
+      }
+      const onDiscardChanges = (): void => {
+        setEditDialogOpen(false);
+        if (onClose) {
+          onClose();
+        }
+      };
+      const onKeepEditing = (): void => {
+        if (reason === "browserBack") {
+          window.setTimeout(() => {
+            // eslint-disable-next-line @typescript-eslint/no-use-before-define
+            openEditDialog("game");
+          }, 200);
+        }
+      };
+      const hasUnsavedChanges =
+        editDoc &&
+        (editDoc.name !== "" ||
+          editDoc.summary !== "" ||
+          JSON.stringify(editDoc.tags) !== JSON.stringify([]));
+      if (hasUnsavedChanges) {
+        confirmDialogDispatch(
+          confirmDialogNavOpen(
+            discardInfo.title,
+            undefined,
+            discardInfo.agreeLabel,
+            onDiscardChanges,
+            discardInfo.disagreeLabel,
+            onKeepEditing
+          )
+        );
+      } else {
+        onDiscardChanges();
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [confirmDialogDispatch, editDoc]
+  );
+
+  const handleBrowserNavigation = useCallback(
+    (currState: Record<string, string>, prevState?: Record<string, string>) => {
+      if (currState?.e !== prevState?.e) {
+        if (currState?.e === "game") {
+          if (!editDocExists) {
+            handleStartEdit();
+          }
+        } else {
+          handleEndEdit("browserBack");
+        }
+      }
+    },
+    [editDocExists, handleEndEdit, handleStartEdit]
+  );
+  const [openEditDialog, closeEditDialog] = useDialogNavigation(
+    "e",
+    handleBrowserNavigation
+  );
+
+  const handleOpenEditDialog = useCallback((): void => {
+    handleStartEdit();
+    openEditDialog("game");
+  }, [handleStartEdit, openEditDialog]);
+
+  const handleCloseEditDialog = useCallback(
+    (
+      e: React.MouseEvent,
+      reason:
+        | "backdropClick"
+        | "escapeKeyDown"
+        | "closeButtonClick"
+        | "submitted"
+    ): void => {
+      setEditDialogOpen(false);
+      handleEndEdit(reason, closeEditDialog);
+    },
+    [closeEditDialog, handleEndEdit]
+  );
+
+  const handleSubmit = useCallback(async () => {
+    canCloseRef.current = false;
+  }, []);
+
+  const handleSubmitted = useCallback(async () => {
+    canCloseRef.current = true;
+  }, []);
+
   const handleKudo = useCallback(
     (
       e: React.MouseEvent,
@@ -230,7 +362,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
         const newDoc = { ...currentDoc, kudos };
         pitchDocRef.current = newDoc;
         DataStoreCache.instance.override(pitchId, { kudos });
-        setPitchDoc({ ...pitchDocRef.current });
+        setPitchDocState({ ...pitchDocRef.current });
       }
     },
     [pid]
@@ -244,7 +376,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
         const newDoc = { ...currentDoc, contributions };
         pitchDocRef.current = newDoc;
         DataStoreCache.instance.override(pitchId, { contributions });
-        setPitchDoc({ ...pitchDocRef.current });
+        setPitchDocState({ ...pitchDocRef.current });
       }
     },
     [recentSubmission]
@@ -261,7 +393,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
         const newDoc = { ...currentDoc, contributions };
         pitchDocRef.current = newDoc;
         DataStoreCache.instance.override(pitchId, { contributions });
-        setPitchDoc({ ...pitchDocRef.current });
+        setPitchDocState({ ...pitchDocRef.current });
         confirmDialogDispatch(confirmDialogClose());
       }
     },
@@ -272,7 +404,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
     (e: React.MouseEvent, score: number): void => {
       pitchDocRef.current.score = score || 0;
       DataStoreCache.instance.override(pid, { score });
-      setPitchDoc({ ...pitchDocRef.current });
+      setPitchDocState({ ...pitchDocRef.current });
     },
     [pid]
   );
@@ -290,7 +422,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
         _author: { u: "[deleted]", i: null, h: "#FFFFFF" },
       };
     }
-    setPitchDoc(pitchDocRef.current);
+    setPitchDocState(pitchDocRef.current);
     confirmDialogDispatch(confirmDialogClose());
     closeAppDialog();
   }, [confirmDialogDispatch, closeAppDialog]);
@@ -305,7 +437,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
   }, []);
 
   const handleViewArchived = useCallback(async (value: ProjectDocument) => {
-    setPitchDoc(value);
+    setPitchDocState(value);
     setViewingArchived(true);
   }, []);
 
@@ -395,7 +527,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
     return <EmptyPitchList loading loadingMessage={`Loading...`} />;
   }
 
-  if (pitchDoc === undefined) {
+  if (pitchDocState === undefined) {
     return (
       <>
         <PostLayout style={postStyle}>
@@ -411,7 +543,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
     );
   }
 
-  if (!pitchDoc) {
+  if (!pitchDocState) {
     return <PageNotFound />;
   }
 
@@ -419,8 +551,8 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
     <StyledPage>
       <ShareArticleHead
         author={author?.u}
-        publishedTime={pitchedAtISO}
-        modifiedTime={pitchedAtISO}
+        publishedTime={createdAtISO}
+        modifiedTime={updatedAtISO}
         section={section}
         tags={tags}
         title={name}
@@ -429,7 +561,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
             `pitched_${projectType}_author_preamble`
           ] || (configState || config).messages.pitched_games_author_preamble,
           {
-            tag: pitchDoc?.tags?.[0] || "",
+            tag: pitchDocState?.tags?.[0] || "",
           }
         )} @${author?.u}`}
         url={url}
@@ -450,7 +582,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
               <DelistedPitchBanner
                 id={pid}
                 archived={viewingArchvied}
-                removed={pitchDoc?.removed}
+                removed={pitchDocState?.removed}
                 onChange={handleViewArchived}
               />
             )}
@@ -458,21 +590,22 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
               config={config}
               icons={icons}
               id={pid}
-              doc={pitchDoc}
+              doc={pitchDocState}
               style={cardStyle}
               openedActionsStyle={openedActionsStyle}
               closedActionsStyle={closedActionsStyle}
               scrollbarSpacerStyle={scrollbarSpacerStyle}
               titleRef={handleTitleRef}
               onChangeScore={handleChangeScore}
+              onEdit={handleOpenEditDialog}
               onDelete={handleDeletePitch}
             />
             <PostFooter
               scrollParent={scrollParent}
               pitchId={pid}
-              doc={pitchDoc}
-              kudoCount={pitchDoc?.kudos}
-              contributionCount={pitchDoc?.contributions}
+              doc={pitchDocState}
+              kudoCount={pitchDocState?.kudos}
+              contributionCount={pitchDocState?.contributions}
               contributionDocs={contributionDocs}
               dividerStyle={dividerStyle}
               style={footerStyle}
@@ -481,6 +614,20 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
               onDeleteContribution={handleDeleteContribution}
             />
           </PostLayout>
+          {editDialogOpen !== undefined && (
+            <CreatePitchDialog
+              config={config}
+              icons={icons}
+              open={editDialogOpen}
+              docId={pid}
+              doc={editDoc}
+              onClose={handleCloseEditDialog}
+              onChange={setEditDoc}
+              onSubmit={handleSubmit}
+              onSubmitted={handleSubmitted}
+              editing
+            />
+          )}
         </StyledAbsoluteContent>
       </StyledPageContent>
     </StyledPage>

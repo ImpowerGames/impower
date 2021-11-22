@@ -13,6 +13,7 @@ const createProjectDocument = (
     slug: "",
     pitched: false,
     pitchedAt: new Timestamp(),
+    repitchedAt: new Timestamp(),
     pitchGoal: PitchGoal.Collaboration,
     restricted: false,
     version: "0.0.1",

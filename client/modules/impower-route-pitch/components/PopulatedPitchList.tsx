@@ -70,6 +70,7 @@ interface VirtualizedPitchCardProps {
   itemIndex?: number;
   compact?: boolean;
   dontFade?: boolean;
+  onEdit?: (e: React.MouseEvent, id: string) => void;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onChangeScore?: (
     e: React.MouseEvent,
@@ -117,6 +118,7 @@ const VirtualizedPitchCard = React.memo((props: VirtualizedPitchCardProps) => {
     itemIndex,
     compact,
     dontFade,
+    onEdit,
     onDelete,
     onChangeScore,
     onKudo,
@@ -441,7 +443,16 @@ const VirtualizedPitchCard = React.memo((props: VirtualizedPitchCardProps) => {
     [id, onChangeScore]
   );
 
-  const handleDelete = useCallback(
+  const handleEditPitch = useCallback(
+    (e: React.MouseEvent<Element, MouseEvent>): void => {
+      if (onEdit) {
+        onEdit(e, id);
+      }
+    },
+    [id, onEdit]
+  );
+
+  const handleDeletePitch = useCallback(
     (e: React.MouseEvent<Element, MouseEvent>): void => {
       if (onDelete) {
         onDelete(e, id);
@@ -526,7 +537,8 @@ const VirtualizedPitchCard = React.memo((props: VirtualizedPitchCardProps) => {
                 doc={doc}
                 onOpen={handleOpen}
                 onChangeScore={handleChangeScore}
-                onDelete={handleDelete}
+                onEdit={handleEditPitch}
+                onDelete={handleDeletePitch}
               />
               <PostFooter
                 scrollParent={scrollParent}
@@ -567,6 +579,7 @@ interface VirtualizedPitchChunkProps {
     pitchId: string,
     contributionId?: string
   ) => void;
+  onEdit?: (e: React.MouseEvent, id: string) => void;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -610,6 +623,7 @@ const VirtualizedPitchChunk = React.memo(
       compact,
       dontFade,
       onChangeScore,
+      onEdit,
       onDelete,
       onKudo,
       onCreateContribution,
@@ -706,6 +720,7 @@ const VirtualizedPitchChunk = React.memo(
                   compact={compact}
                   dontFade={dontFade}
                   onChangeScore={onChangeScore}
+                  onEdit={onEdit}
                   onDelete={onDelete}
                   onKudo={onKudo}
                   onCreateContribution={onCreateContribution}
@@ -755,6 +770,7 @@ const VirtualizedPitchChunk = React.memo(
                   compact={compact}
                   dontFade={dontFade}
                   onChangeScore={onChangeScore}
+                  onEdit={onEdit}
                   onDelete={onDelete}
                   onKudo={onKudo}
                   onCreateContribution={onCreateContribution}
@@ -798,6 +814,7 @@ interface PopulatedPitchListProps {
     pitchId: string,
     contributionId?: string
   ) => void;
+  onEdit?: (e: React.MouseEvent, id: string) => void;
   onDelete?: (e: React.MouseEvent, id: string) => void;
   onKudo?: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -837,6 +854,7 @@ const PopulatedPitchList = React.memo(
       dontFade,
       style,
       onChangeScore,
+      onEdit,
       onDelete,
       onKudo,
       onCreateContribution,
@@ -969,6 +987,7 @@ const PopulatedPitchList = React.memo(
                   compact={compact}
                   dontFade={dontFade}
                   onChangeScore={onChangeScore}
+                  onEdit={onEdit}
                   onDelete={onDelete}
                   onKudo={onKudo}
                   onCreateContribution={onCreateContribution}

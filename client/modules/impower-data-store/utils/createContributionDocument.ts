@@ -17,7 +17,7 @@ const createContributionDocument = (
   aspectRatio: 1,
   square: true,
   crop: 0.5,
-  contributed: true,
+  deleted: false,
   delisted: false,
   score: 1,
   likes: 1,

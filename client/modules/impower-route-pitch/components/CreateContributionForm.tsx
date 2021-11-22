@@ -115,12 +115,6 @@ const discardInfo = {
   disagreeLabel: "Keep Editing",
 };
 
-const editWarningInfo = {
-  title: "Editing a contribution will reset its score",
-  agreeLabel: "Edit And Reset",
-  disagreeLabel: "Cancel",
-};
-
 const StyledContainer = styled.div`
   width: 100%;
   margin: auto;
@@ -770,7 +764,7 @@ const CreateContributionForm = React.memo(
         ).default;
         const newDoc = createContributionDocument({
           ...(doc || {}),
-          _createdBy: uid,
+          _createdBy: uid || Auth.instance.uid,
           _author: Auth.instance.author,
           content: contentState,
           contributionType: type,
@@ -901,26 +895,9 @@ const CreateContributionForm = React.memo(
 
     const handleSubmit = useCallback(
       async (e: React.MouseEvent): Promise<void> => {
-        const onPost = (): void => {
-          handlePost(e);
-        };
-        if (editing && hasUnsavedChanges) {
-          confirmDialogDispatch(
-            confirmDialogNavOpen(
-              editWarningInfo.title,
-              undefined,
-              editWarningInfo.agreeLabel,
-              onPost,
-              editWarningInfo.disagreeLabel,
-              undefined,
-              { disableAutoFocus: !ios, disableEnforceFocus: !ios }
-            )
-          );
-        } else {
-          onPost();
-        }
+        handlePost(e);
       },
-      [editing, hasUnsavedChanges, handlePost, confirmDialogDispatch, ios]
+      [handlePost]
     );
 
     const handleClose = useCallback(
@@ -1296,7 +1273,7 @@ const CreateContributionForm = React.memo(
                       disableElevation
                       onClick={handleSubmit}
                     >
-                      {editing ? `Submit` : `Contribute`}
+                      {editing ? `Update` : `Contribute`}
                     </StyledSubmitButton>
                   </StyledSubmitButtonArea>
                 </StyledHeaderContainer>

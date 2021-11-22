@@ -127,6 +127,7 @@ const ContributionPostPageContent = React.memo(
       _author: author,
       content,
       _createdAt,
+      _updatedAt,
       contributionType,
     } = contributionDocState;
     const hasUnsavedChangesRef = useRef(false);
@@ -135,6 +136,10 @@ const ContributionPostPageContent = React.memo(
       typeof _createdAt === "string"
         ? _createdAt
         : _createdAt?.toDate()?.toJSON();
+    const updatedAtISO =
+      typeof _updatedAt === "string"
+        ? _updatedAt
+        : _updatedAt?.toDate()?.toJSON();
 
     const theme = useTheme();
 
@@ -246,7 +251,7 @@ const ContributionPostPageContent = React.memo(
       if (contributionDocRef.current) {
         contributionDocRef.current = {
           ...contributionDocRef.current,
-          contributed: false,
+          deleted: true,
           delisted: true,
           content: "[deleted]",
           file: { storageKey: "", fileUrl: "" },
@@ -359,7 +364,7 @@ const ContributionPostPageContent = React.memo(
         <ShareArticleHead
           author={author?.u}
           publishedTime={createdAtISO}
-          modifiedTime={createdAtISO}
+          modifiedTime={updatedAtISO}
           section={`${contributionType} Contribution`}
           title={`Impower Games`}
           description={content}

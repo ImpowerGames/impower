@@ -9,6 +9,7 @@ import React, { useCallback, useContext, useMemo } from "react";
 import EllipsisVerticalRegularIcon from "../../../resources/icons/regular/ellipsis-vertical.svg";
 import HandshakeSimpleRegularIcon from "../../../resources/icons/regular/handshake-simple.svg";
 import LightbulbOnRegularIcon from "../../../resources/icons/regular/lightbulb-on.svg";
+import PenRegularIcon from "../../../resources/icons/regular/pen-line.svg";
 import { AuthorAttributes } from "../../impower-auth";
 import {
   abbreviateAge,
@@ -187,6 +188,7 @@ const PitchCardHeaderTitle = React.memo((props: PitchCardHeaderTitleProps) => {
 });
 
 interface PitchCardHeaderSubheaderProps {
+  edited: boolean;
   age: string;
   archived: boolean;
   authorName: string;
@@ -202,6 +204,7 @@ interface PitchCardHeaderSubheaderProps {
 const PitchCardHeaderSubheader = React.memo(
   (props: PitchCardHeaderSubheaderProps) => {
     const {
+      edited,
       age,
       archived,
       authorName,
@@ -222,7 +225,11 @@ const PitchCardHeaderSubheader = React.memo(
       []
     );
     const iconStyle: React.CSSProperties = useMemo(
-      () => ({ opacity: 0.7 }),
+      () => ({ opacity: 0.6 }),
+      []
+    );
+    const editedIconStyle: React.CSSProperties = useMemo(
+      () => ({ opacity: 0.4 }),
       []
     );
 
@@ -275,10 +282,6 @@ const PitchCardHeaderSubheader = React.memo(
           )}
           <StyledSingleLineTypography variant="body2" color="textSecondary">
             {"  •  "}
-            {age || <Skeleton width={50} />}
-          </StyledSingleLineTypography>
-          <StyledSingleLineTypography variant="body2" color="textSecondary">
-            {"  •  "}
           </StyledSingleLineTypography>
           <FontIcon
             aria-label={`Goal`}
@@ -293,6 +296,18 @@ const PitchCardHeaderSubheader = React.memo(
               {"  "}
               {abbreviateCount(participationCount)}
             </StyledSingleLineTypography>
+          )}
+          {age && (
+            <StyledSingleLineTypography variant="body2" color="textSecondary">
+              {"  •  "}
+              {age}
+              {"  "}
+            </StyledSingleLineTypography>
+          )}
+          {edited && (
+            <FontIcon aria-label={`Edited`} size={12} style={editedIconStyle}>
+              <PenRegularIcon />
+            </FontIcon>
           )}
         </StyledSubheaderContent>
       </StyledSubheaderArea>
@@ -311,7 +326,8 @@ interface PitchCardHeaderProps {
   tags?: string[];
   delisted?: boolean;
   archived?: boolean;
-  pitchedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
   pitchGoal?: PitchGoal;
   onOpenPostMenu?: (e: React.MouseEvent) => void;
 }
@@ -325,7 +341,8 @@ const PitchCardHeader = React.memo(
       tags,
       delisted,
       archived,
-      pitchedAt,
+      createdAt,
+      updatedAt,
       pitchGoal,
       connectionCount,
       preview,
@@ -361,9 +378,19 @@ const PitchCardHeader = React.memo(
     const participationCount =
       pitchGoal === PitchGoal.Collaboration ? connectionCount : undefined;
 
+    const edited =
+      !preview &&
+      updatedAt &&
+      createdAt &&
+      new Date(updatedAt).getTime() - new Date(createdAt).getTime() > 1000;
     const age = useMemo(
-      () => abbreviateAge(preview ? new Date() : new Date(pitchedAt)),
-      [pitchedAt, preview]
+      () =>
+        !preview && edited
+          ? abbreviateAge(new Date(updatedAt))
+          : !preview
+          ? abbreviateAge(new Date(createdAt))
+          : abbreviateAge(new Date()),
+      [preview, edited, updatedAt, createdAt]
     );
 
     const mainTag = tags?.[0] || "";
@@ -450,6 +477,7 @@ const PitchCardHeader = React.memo(
     const subheader = useMemo(
       () => (
         <PitchCardHeaderSubheader
+          edited={edited}
           age={age}
           archived={archived}
           authorName={authorName}
@@ -463,6 +491,7 @@ const PitchCardHeader = React.memo(
         />
       ),
       [
+        edited,
         age,
         archived,
         authorName,

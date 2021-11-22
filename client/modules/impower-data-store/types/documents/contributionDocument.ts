@@ -12,7 +12,7 @@ export interface ContributionDocument
   square?: boolean;
   crop: number;
   tags: string[];
-  contributed: boolean;
+  deleted: boolean;
 
   score?: number;
   likes?: number;

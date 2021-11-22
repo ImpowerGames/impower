@@ -15,6 +15,7 @@ export interface ProjectDocument extends PageDocument<"ProjectDocument"> {
   restricted: boolean;
   pitched: boolean;
   pitchedAt: string | Timestamp;
+  repitchedAt: string | Timestamp;
   pitchGoal: PitchGoal;
   engine: boolean;
 

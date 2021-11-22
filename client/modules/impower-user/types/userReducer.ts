@@ -682,7 +682,13 @@ export const userReducer = (
             typeof newDoc.pitchedAt === "string"
               ? newDoc.pitchedAt
               : newDoc.pitchedAt.toDate().toJSON();
-          if (newDoc.delisted) {
+          if (newDoc.pitched) {
+            my_recent_pitched_projects = {
+              [id]: newDoc,
+              ...(my_recent_pitched_projects || {}),
+              [id]: newDoc,
+            };
+          } else {
             const newDelistedProject = {
               ...newDoc,
               name: "[deleted]",
@@ -692,17 +698,12 @@ export const userReducer = (
                 i: null,
                 h: "#FFFFFF",
               },
+              delisted: true,
             };
             my_recent_pitched_projects = {
               [id]: newDelistedProject,
               ...(my_recent_pitched_projects || {}),
               [id]: newDelistedProject,
-            };
-          } else {
-            my_recent_pitched_projects = {
-              [id]: newDoc,
-              ...(my_recent_pitched_projects || {}),
-              [id]: newDoc,
             };
           }
         }
@@ -711,7 +712,12 @@ export const userReducer = (
             typeof newDoc.publishedAt === "string"
               ? newDoc.publishedAt
               : newDoc.publishedAt.toDate().toJSON();
-          if (newDoc.delisted) {
+          if (newDoc.published) {
+            my_recent_published_pages = {
+              ...(my_recent_published_pages || {}),
+              [id]: newDoc,
+            };
+          } else {
             my_recent_published_pages = {
               ...(my_recent_published_pages || {}),
               [id]: {
@@ -728,12 +734,8 @@ export const userReducer = (
                   i: null,
                   h: "#FFFFFF",
                 },
+                delisted: true,
               },
-            };
-          } else {
-            my_recent_published_pages = {
-              ...(my_recent_published_pages || {}),
-              [id]: newDoc,
             };
           }
         }
@@ -782,7 +784,15 @@ export const userReducer = (
         }
       }
       if (isCommentDocument(newDoc)) {
-        if (newDoc.delisted) {
+        if (newDoc.deleted) {
+          my_recent_comments = {
+            ...(my_recent_comments || {}),
+            [parentDocId]: {
+              ...(my_recent_comments?.[parentDocId] || {}),
+              [id]: { ...newDoc, delisted: true },
+            },
+          };
+        } else {
           my_recent_comments = {
             ...(my_recent_comments || {}),
             [parentDocId]: {
@@ -799,18 +809,18 @@ export const userReducer = (
               },
             },
           };
-        } else {
-          my_recent_comments = {
-            ...(my_recent_comments || {}),
-            [parentDocId]: {
-              ...(my_recent_comments?.[parentDocId] || {}),
-              [id]: newDoc,
-            },
-          };
         }
       }
       if (isContributionDocument(newDoc)) {
-        if (newDoc.delisted) {
+        if (newDoc.deleted) {
+          my_recent_contributions = {
+            ...(my_recent_contributions || {}),
+            [parentDocId]: {
+              ...(my_recent_contributions?.[parentDocId] || {}),
+              [id]: { ...newDoc, delisted: true },
+            },
+          };
+        } else {
           if (my_recent_pitched_projects?.[parentDocId]) {
             my_recent_pitched_projects = {
               ...(my_recent_pitched_projects || {}),
@@ -837,14 +847,6 @@ export const userReducer = (
                   h: "#FFFFFF",
                 },
               },
-            },
-          };
-        } else {
-          my_recent_contributions = {
-            ...(my_recent_contributions || {}),
-            [parentDocId]: {
-              ...(my_recent_contributions?.[parentDocId] || {}),
-              [id]: newDoc,
             },
           };
         }

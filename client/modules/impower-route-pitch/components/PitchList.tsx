@@ -13,8 +13,9 @@ import { ConfigParameters } from "../../impower-config";
 import {
   confirmDialogClose,
   ConfirmDialogContext,
+  confirmDialogNavOpen,
 } from "../../impower-confirm-dialog";
-import { chunk } from "../../impower-core";
+import { chunk, Timestamp } from "../../impower-core";
 import {
   DateAge,
   DocumentSnapshot,
@@ -23,16 +24,25 @@ import {
   QuerySort,
 } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
+import { useDialogNavigation } from "../../impower-dialog";
 import { SvgData } from "../../impower-icon";
 import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
+import { useRouter } from "../../impower-router";
 import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
 import { PitchGoalFilter } from "../types/pitchGoalFilter";
+import AddPitchToolbar from "./AddPitchToolbar";
 import PitchListContent from "./PitchListContent";
 import PitchListQueryHeader from "./PitchListQueryHeader";
 import PitchLoadingProgress from "./PitchLoadingProgress";
 import { PitchToolbarTab } from "./PitchTabsToolbar";
+
+const discardInfo = {
+  title: "Discard unsaved changes?",
+  agreeLabel: "Discard",
+  disagreeLabel: "Keep Editing",
+};
 
 const LOAD_MORE_LIMIT = 10;
 
@@ -42,10 +52,34 @@ const getLoadingKey = (options: Record<string, unknown>): string =>
     .map((key) => options[key])
     .join(",");
 
+const CreatePitchDialog = dynamic(() => import("./CreatePitchDialog"), {
+  ssr: false,
+});
+
 const TagIconLoader = dynamic(
   () => import("../../impower-route/components/elements/TagIconLoader"),
   { ssr: false }
 );
+
+const StyledListArea = styled.div`
+  flex: 1;
+  min-width: 0;
+  background-color: ${(props): string => props.theme.colors.lightForeground};
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+`;
+
+const StyledListContent = styled.div`
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+`;
 
 const StyledPitchList = styled.div`
   flex: 1;
@@ -126,9 +160,11 @@ interface PitchListProps {
   emptySubtitle?: string;
   allowReload?: boolean;
   reloading?: boolean;
+  toolbarElRef?: React.MutableRefObject<HTMLDivElement>;
   contentElRef?: React.MutableRefObject<HTMLDivElement>;
   listElRef?: React.MutableRefObject<HTMLDivElement>;
   loadingElRef?: React.MutableRefObject<HTMLDivElement>;
+  hideAddToolbar?: boolean;
   onReloading?: (reloading: boolean) => void;
   onFollowMore?: (open: boolean) => void;
   onRangeFilter?: (e: React.MouseEvent, rangeFilter: DateRangeFilter) => void;
@@ -136,6 +172,7 @@ interface PitchListProps {
 
 const PitchList = React.memo(
   (props: PropsWithChildren<PitchListProps>): JSX.Element => {
+    const defaultToolbarElRef = useRef<HTMLDivElement>();
     const defaultContentElRef = useRef<HTMLDivElement>();
     const defaultListElRef = useRef<HTMLDivElement>();
     const defaultLoadingElRef = useRef<HTMLDivElement>();
@@ -157,9 +194,11 @@ const PitchList = React.memo(
       allowReload,
       reloading,
       children,
+      toolbarElRef = defaultToolbarElRef,
       contentElRef = defaultContentElRef,
       listElRef = defaultListElRef,
       loadingElRef = defaultLoadingElRef,
+      hideAddToolbar,
       onReloading,
       onFollowMore,
       onRangeFilter,
@@ -167,7 +206,7 @@ const PitchList = React.memo(
 
     const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
     const [userState] = useContext(UserContext);
-    const { settings, my_recent_pitched_projects, my_follows } = userState;
+    const { uid, settings, my_recent_pitched_projects, my_follows } = userState;
     const account = settings?.account;
     const nsfwVisible =
       account === undefined ? undefined : account?.nsfwVisible || false;
@@ -236,6 +275,16 @@ const PitchList = React.memo(
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rank");
     const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
     const [reloadingState, setReloadingState] = useState(reloading);
+
+    const canCloseRef = useRef(true);
+    const [editing, setEditing] = useState(false);
+    const [editDocId, setEditDocId] = useState<string>();
+    const [editDoc, setEditDoc] = useState<ProjectDocument>();
+    const [editDialogOpen, setEditDialogOpen] = useState<boolean>();
+
+    const openedWithQueryRef = useRef(false);
+
+    const router = useRouter();
 
     const [navigationState, navigationDispatch] = useContext(NavigationContext);
     const transitioning = navigationState?.transitioning;
@@ -308,6 +357,7 @@ const PitchList = React.memo(
         const newPitchDocs = {
           ...recentPitchDocsRef.current,
           ...pitchDocsRef.current,
+          ...recentPitchDocsRef.current,
         };
         Object.entries(newPitchDocs).forEach(([id, doc]) => {
           if (doc.delisted) {
@@ -847,6 +897,173 @@ const PitchList = React.memo(
       [confirmDialogDispatch]
     );
 
+    const handleStartCreation = useCallback(async () => {
+      canCloseRef.current = true;
+      const Auth = (await import("../../impower-auth/classes/auth")).default;
+      const createGameDocument = (
+        await import("../../impower-data-store/utils/createGameDocument")
+      ).default;
+      const newGame = createGameDocument({
+        _createdBy: uid,
+        _author: Auth.instance.author,
+        name: "",
+        slug: "",
+        owners: [uid],
+        pitched: true,
+        pitchedAt: new Timestamp(),
+        projectType: "game",
+      });
+      setEditing(false);
+      setEditDocId(undefined);
+      setEditDoc(newGame);
+      setEditDialogOpen(true);
+    }, [uid]);
+
+    const createDocExists = Boolean(editDoc);
+
+    const handleEndCreation = useCallback(
+      (
+        reason:
+          | "backdropClick"
+          | "escapeKeyDown"
+          | "closeButtonClick"
+          | "submitted"
+          | "browserBack",
+        onClose?: () => void
+      ) => {
+        if (!canCloseRef.current) {
+          return;
+        }
+        if (reason === "submitted") {
+          return;
+        }
+        const onDiscardChanges = (): void => {
+          setEditDialogOpen(false);
+          if (onClose) {
+            onClose();
+          }
+        };
+        const onKeepEditing = (): void => {
+          if (reason === "browserBack") {
+            window.setTimeout(() => {
+              // eslint-disable-next-line @typescript-eslint/no-use-before-define
+              openEditDialog("game");
+            }, 200);
+          }
+        };
+        const hasUnsavedChanges =
+          editDoc &&
+          (editDoc.name !== "" ||
+            editDoc.summary !== "" ||
+            JSON.stringify(editDoc.tags) !== JSON.stringify([]));
+        if (hasUnsavedChanges) {
+          confirmDialogDispatch(
+            confirmDialogNavOpen(
+              discardInfo.title,
+              undefined,
+              discardInfo.agreeLabel,
+              onDiscardChanges,
+              discardInfo.disagreeLabel,
+              onKeepEditing
+            )
+          );
+        } else {
+          onDiscardChanges();
+        }
+      },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [confirmDialogDispatch, editDoc]
+    );
+
+    const handleBrowserNavigation = useCallback(
+      (
+        currState: Record<string, string>,
+        prevState?: Record<string, string>
+      ) => {
+        if (currState?.e !== prevState?.e) {
+          if (currState?.e === "game") {
+            if (!createDocExists) {
+              handleStartCreation();
+            }
+          } else {
+            handleEndCreation("browserBack");
+          }
+        }
+      },
+      [createDocExists, handleEndCreation, handleStartCreation]
+    );
+    const [openEditDialog, closeEditDialog] = useDialogNavigation(
+      "e",
+      handleBrowserNavigation
+    );
+
+    const handleOpenEditDialog = useCallback(
+      async (e: React.MouseEvent, id: string): Promise<void> => {
+        canCloseRef.current = true;
+        setEditing(true);
+        setEditDocId(id);
+        setEditDoc({
+          ...pitchDocsRef.current[id],
+          repitchedAt: new Timestamp(),
+        });
+        setEditDialogOpen(true);
+        openEditDialog("game");
+      },
+      [openEditDialog]
+    );
+
+    const handleOpenCreateDialog = useCallback((): void => {
+      handleStartCreation();
+      openEditDialog("game");
+    }, [handleStartCreation, openEditDialog]);
+
+    const handleCloseCreateDialog = useCallback(
+      (
+        e: React.MouseEvent,
+        reason:
+          | "backdropClick"
+          | "escapeKeyDown"
+          | "closeButtonClick"
+          | "submitted"
+      ): void => {
+        if (openedWithQueryRef.current) {
+          handleEndCreation(reason, () => {
+            const newState = { ...(window.history.state || {}) };
+            delete newState.query;
+            window.history.replaceState(newState, "", "/pitch");
+          });
+        } else {
+          handleEndCreation(reason, closeEditDialog);
+        }
+      },
+      [closeEditDialog, handleEndCreation]
+    );
+
+    const handleSubmit = useCallback(async () => {
+      canCloseRef.current = false;
+    }, []);
+
+    const handleSubmitted = useCallback(
+      async (id: string, doc: ProjectDocument, successful: boolean) => {
+        if (successful) {
+          await router.replace(`/p/${id}`);
+        }
+        canCloseRef.current = true;
+      },
+      [router]
+    );
+
+    useEffect(() => {
+      if (router.isReady) {
+        if (window.location.search?.toLowerCase() === "?e=game") {
+          openedWithQueryRef.current = true;
+          if (!createDocExists) {
+            handleStartCreation();
+          }
+        }
+      }
+    }, [createDocExists, handleStartCreation, router]);
+
     const pitchCount = useMemo(
       () =>
         pitchDocsState
@@ -885,78 +1102,109 @@ const PitchList = React.memo(
 
     return (
       <>
-        <StyledPitchList ref={listElRef} style={listStyle}>
-          <StyledContent ref={contentElRef} style={contentStyle}>
-            <PitchListQueryHeader
-              goalFilter={goalFilter}
-              rangeFilter={rangeFilter}
-              sort={sort}
-              sortOptions={sortOptions}
-              onGoalFilter={handleChangeGoalFilter}
-              onRangeFilter={
-                tabState === "Top" ? handleChangeRangeFilter : undefined
-              }
-              onSort={tabState === "Top" ? undefined : handleChangeSortFilter}
-              onFollowMore={
-                tabState === "Following" ? handleFollowMore : undefined
-              }
-            />
-            <PitchListContent
-              config={config}
-              icons={icons}
-              pitchDocs={pitchDocsState}
-              chunkMap={chunkMap}
-              lastLoadedChunk={lastLoadedChunk}
-              compact={compact}
-              offlinePlaceholder={offlinePlaceholder}
-              dontFade={!initialLoadComplete}
-              onChangeScore={handleChangeScore}
-              onDelete={handleDeletePitch}
-              onKudo={handleKudo}
-              onCreateContribution={handleCreateContribution}
-              onDeleteContribution={handleDeleteContribution}
-            />
-            {((emptyPlaceholder && pitchCount > 0) ||
-              (!emptyPlaceholder && pitchDocsState)) && (
-              <PitchLoadingProgress
-                loadingMore={Boolean(pitchDocsState) && Boolean(loadingMore)}
-                noMore={
-                  emptyPlaceholder
-                    ? pitchDocsState && pitchCount > 0 && noMore
-                    : pitchDocsState && (noMore || pitchCount === 0)
-                }
-                noMoreLabel={
-                  pitchDocsState && !emptyPlaceholder && pitchCount === 0
-                    ? emptyLabel
-                    : `That's all for now!`
-                }
-                noMoreSubtitle={
-                  pitchDocsState && !emptyPlaceholder && pitchCount === 0
-                    ? emptySubtitle
-                    : undefined
-                }
-                refreshLabel={
-                  !emptyPlaceholder && pitchCount === 0 ? undefined : `Refresh?`
-                }
-                onScrolledToEnd={handleScrolledToEnd}
-                onRefresh={handleRefresh}
-              />
-            )}
-            {children}
-            {loadIcons && <TagIconLoader />}
-          </StyledContent>
-        </StyledPitchList>
-        <StyledOverlayArea>
-          <StyledForceOverflow />
-          {reloading !== undefined && (
-            <StyledEmptyArea style={emptyStyle}>
-              {emptyPlaceholder}
-            </StyledEmptyArea>
-          )}
-          <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
-            {loadingPlaceholder}
-          </StyledLoadingArea>
-        </StyledOverlayArea>
+        <StyledListArea>
+          <StyledListContent>
+            <StyledPitchList ref={listElRef} style={listStyle}>
+              <StyledContent ref={contentElRef} style={contentStyle}>
+                <PitchListQueryHeader
+                  goalFilter={goalFilter}
+                  rangeFilter={rangeFilter}
+                  sort={sort}
+                  sortOptions={sortOptions}
+                  onGoalFilter={handleChangeGoalFilter}
+                  onRangeFilter={
+                    tabState === "Top" ? handleChangeRangeFilter : undefined
+                  }
+                  onSort={
+                    tabState === "Top" ? undefined : handleChangeSortFilter
+                  }
+                  onFollowMore={
+                    tabState === "Following" ? handleFollowMore : undefined
+                  }
+                />
+                <PitchListContent
+                  config={config}
+                  icons={icons}
+                  pitchDocs={pitchDocsState}
+                  chunkMap={chunkMap}
+                  lastLoadedChunk={lastLoadedChunk}
+                  compact={compact}
+                  offlinePlaceholder={offlinePlaceholder}
+                  dontFade={!initialLoadComplete}
+                  onChangeScore={handleChangeScore}
+                  onEdit={handleOpenEditDialog}
+                  onDelete={handleDeletePitch}
+                  onKudo={handleKudo}
+                  onCreateContribution={handleCreateContribution}
+                  onDeleteContribution={handleDeleteContribution}
+                />
+                {((emptyPlaceholder && pitchCount > 0) ||
+                  (!emptyPlaceholder && pitchDocsState)) && (
+                  <PitchLoadingProgress
+                    loadingMore={
+                      Boolean(pitchDocsState) && Boolean(loadingMore)
+                    }
+                    noMore={
+                      emptyPlaceholder
+                        ? pitchDocsState && pitchCount > 0 && noMore
+                        : pitchDocsState && (noMore || pitchCount === 0)
+                    }
+                    noMoreLabel={
+                      pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                        ? emptyLabel
+                        : `That's all for now!`
+                    }
+                    noMoreSubtitle={
+                      pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                        ? emptySubtitle
+                        : undefined
+                    }
+                    refreshLabel={
+                      !emptyPlaceholder && pitchCount === 0
+                        ? undefined
+                        : `Refresh?`
+                    }
+                    onScrolledToEnd={handleScrolledToEnd}
+                    onRefresh={handleRefresh}
+                  />
+                )}
+                {children}
+                {loadIcons && <TagIconLoader />}
+              </StyledContent>
+            </StyledPitchList>
+            <StyledOverlayArea>
+              <StyledForceOverflow />
+              {reloading !== undefined && (
+                <StyledEmptyArea style={emptyStyle}>
+                  {emptyPlaceholder}
+                </StyledEmptyArea>
+              )}
+              <StyledLoadingArea ref={loadingElRef} style={loadingStyle}>
+                {loadingPlaceholder}
+              </StyledLoadingArea>
+            </StyledOverlayArea>
+          </StyledListContent>
+        </StyledListArea>
+        {!hideAddToolbar && (
+          <AddPitchToolbar
+            toolbarRef={toolbarElRef}
+            onClick={handleOpenCreateDialog}
+          />
+        )}
+        {editDialogOpen !== undefined && (
+          <CreatePitchDialog
+            config={config}
+            icons={icons}
+            open={editDialogOpen}
+            docId={editDocId}
+            doc={editDoc}
+            onClose={handleCloseCreateDialog}
+            onChange={setEditDoc}
+            onSubmit={handleSubmit}
+            onSubmitted={handleSubmitted}
+            editing={editing}
+          />
+        )}
       </>
     );
   }

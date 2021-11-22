@@ -274,7 +274,7 @@ const ContributionTypeButton = React.memo(
       [existingDoc, onAdd, toastDispatch]
     );
 
-    const disabled = existingDoc && existingDoc.contributed;
+    const disabled = existingDoc && !existingDoc.deleted;
     const disabledLabel = existingDoc?.removed ? "removed" : "submitted!";
 
     const buttonStyle = useMemo(
