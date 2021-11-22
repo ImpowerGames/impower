@@ -211,7 +211,7 @@ const CreateGameForm = React.memo((props: CreateGameFormProps): JSX.Element => {
   const [tagCount, setTagCount] = useState(5);
   const [lockedTags, setLockedTags] = useState<string[]>([]);
   const [relevancyFilteredTags, setRelevancyFilteredTags] = useState<string[]>(
-    doc?.tags || []
+    []
   );
   const [nameEdited, setNameEdited] = useState(false);
 
