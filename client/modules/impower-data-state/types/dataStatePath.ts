@@ -69,8 +69,6 @@ export type TagAggQueryPath =
   | [...TagDocumentPath, "agg", "follows", "data"]
   | [...TagDocumentPath, "agg", "reports", "data"];
 
-export type UserDeletedSubmissionsReadPath =
-  | [...UserDocumentPath, "deleted_submissions", string];
 export type UserAggReadPath =
   | [...UserDocumentPath, "agg", "my_memberships", "public"]
   | [...UserDocumentPath, "agg", "my_memberships", "count"]
@@ -300,7 +298,6 @@ export type AggWritePath =
 
 export type DataStateReadPath =
   | ExportReadPath
-  | UserDeletedSubmissionsReadPath
   | InfoReadPath
   | UserAggReadPath
   | UserNotificationsReadPath

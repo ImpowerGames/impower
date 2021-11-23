@@ -437,7 +437,16 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
   }, []);
 
   const handleViewArchived = useCallback(async (value: ProjectDocument) => {
-    setPitchDocState(value);
+    if (value) {
+      setPitchDocState(value);
+    } else {
+      setPitchDocState({
+        ...pitchDocRef.current,
+        removed: false,
+        suspended: false,
+        banned: false,
+      });
+    }
     setViewingArchived(true);
   }, []);
 

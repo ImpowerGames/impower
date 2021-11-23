@@ -306,7 +306,16 @@ const ContributionPostPageContent = React.memo(
 
     const handleViewArchived = useCallback(
       async (value: ContributionDocument) => {
-        setContributionDocState(value);
+        if (value) {
+          setContributionDocState(value);
+        } else {
+          setContributionDocState({
+            ...contributionDocRef.current,
+            removed: false,
+            suspended: false,
+            banned: false,
+          });
+        }
         setViewingArchived(true);
       },
       []

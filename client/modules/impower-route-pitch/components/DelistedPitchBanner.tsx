@@ -64,6 +64,13 @@ const DelistedPitchBanner = React.memo(
     const [isCreator, setIsCreator] = useState<boolean>();
 
     useEffect(() => {
+      if (uid === undefined) {
+        return;
+      }
+      if (!uid) {
+        setIsCreator(false);
+        return;
+      }
       if (my_recent_pitched_projects?.[id]) {
         setIsCreator(true);
       } else {
@@ -75,7 +82,9 @@ const DelistedPitchBanner = React.memo(
           const ref = new DataStateRead(
             "users",
             uid,
-            "deleted_submissions",
+            "agg",
+            "my_submissions",
+            "data",
             submissionKey
           );
           const snapshot = await ref.get();
@@ -126,20 +135,12 @@ const DelistedPitchBanner = React.memo(
         onClick={handleOpenArchivedConfirmDialog}
       >
         <StyledBoldWarningTypography>
-          {removed
-            ? archived
-              ? `This is an archived version of the pitch before it was removed.`
-              : `This pitch has been removed by a moderator.`
-            : archived
-            ? `This is an archived version of the pitch before it was deleted.`
-            : `This pitch has been deleted.`}
+          {archived
+            ? `This is an archived version of the pitch.`
+            : `This pitch has been removed by a moderator.`}
         </StyledBoldWarningTypography>
         <StyledWarningTypography variant="caption">
-          {removed
-            ? archived
-              ? `It is only visible to you and moderators`
-              : `Its original contents are only accessible to moderators and the creator`
-            : archived
+          {archived
             ? `It cannot be viewed by others`
             : `Its original contents are only accessible to the creator`}
         </StyledWarningTypography>
