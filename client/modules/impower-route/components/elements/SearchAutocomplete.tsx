@@ -8,7 +8,11 @@ import {
   AutocompleteGroupedOption,
   AutocompleteInputChangeReason,
 } from "@material-ui/core/useAutocomplete";
-import { useAutocomplete } from "@material-ui/unstyled/AutocompleteUnstyled";
+import {
+  createFilterOptions,
+  FilterOptionsState,
+  useAutocomplete,
+} from "@material-ui/unstyled/AutocompleteUnstyled";
 import React, {
   useCallback,
   useContext,
@@ -35,6 +39,7 @@ import {
 } from "../../../impower-navigation";
 import navigationSetTransitioning from "../../../impower-navigation/utils/navigationSetTransitioning";
 import { useRouter } from "../../../impower-router";
+import { UserContext } from "../../../impower-user";
 import useIOS from "../../hooks/useIOS";
 import useVisualViewport from "../../hooks/useVisualViewport";
 import { getBaseRoute } from "../../utils/getBaseRoute";
@@ -349,6 +354,11 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const searching = navigationState?.search?.searching;
+  const [userState] = useContext(UserContext);
+  const { settings } = userState;
+  const account = settings?.account;
+  const nsfwVisible =
+    account === undefined ? undefined : account?.nsfwVisible || false;
 
   const visualViewportSupported = useVisualViewport(viewportArea);
   const ios = useIOS();
@@ -404,7 +414,11 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
     const docGet = new DataStoreRead("tags", value).get<TagDocument>();
 
     const queryRef = new DataStoreQuery("tags");
-    let queryFilter = queryRef.where(
+    let queryFilter = queryRef.where("delisted", "==", false);
+    if (!nsfwVisible) {
+      queryFilter = queryFilter.where("nsfw", "==", false);
+    }
+    queryFilter = queryFilter.where(
       "terms",
       "array-contains",
       `name#${value.toLowerCase()}`
@@ -427,7 +441,6 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
     const [docSnapshot, querySnapshot] = await Promise.all(promises);
 
     const results = new Set<string>();
-    results.add(value);
     if (docSnapshot.exists()) {
       results.add(docSnapshot.id);
     }
@@ -437,7 +450,7 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
       }
     });
     setOptions(Array.from(results));
-  }, []);
+  }, [nsfwVisible]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleDebouncedInputChange = useCallback(
@@ -539,6 +552,26 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
     [closeFieldDialog, dialog, navigationDispatch, router]
   );
 
+  const defaultFilterOptions = useMemo(
+    () =>
+      createFilterOptions({
+        matchFrom: "start",
+      }),
+    []
+  );
+
+  const handleFilterOptions = useCallback(
+    (options: unknown[], state: FilterOptionsState<unknown>): unknown[] => {
+      return Array.from(
+        new Set([
+          inputValueRef.current,
+          ...defaultFilterOptions(options, state),
+        ])
+      );
+    },
+    [defaultFilterOptions]
+  );
+
   const {
     getRootProps,
     getInputProps,
@@ -561,6 +594,7 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
     isOptionEqualToValue: handleIsOptionEqualToValue,
     onInputChange: handleInputChange,
     onChange: handleSearchChange,
+    filterOptions: handleFilterOptions,
   });
 
   const rootProps = getRootProps();
