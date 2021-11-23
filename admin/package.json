@@ -12,6 +12,12 @@
     "config-test": "ts-node scripts/config/config.ts test",
     "config-prod": "ts-node scripts/config/config.ts prod",
     "config-all": "npm run config-dev && npm run config-test && npm run config-prod",
+    "restructure": "npm run restructure-dev",
+    "restructure-dev": "ts-node scripts/restructure/restructure-dev.ts dev",
+    "restructure-prod": "ts-node scripts/restructure/restructure-prod.ts prod",
+    "cleanup": "npm run cleanup-dev",
+    "cleanup-dev": "ts-node scripts/restructure/cleanup-dev.ts dev",
+    "cleanup-prod": "ts-node scripts/restructure/cleanup-prod.ts prod",
     "icons": "ts-node scripts/config/icons.ts",
     "promote-test": "firebase use dev && firebase auth:export dev.accounts.json && ts-node scripts/promote/promote-test.ts && firebase use dev",
     "promote-prod": "firebase use test && firebase auth:export test.accounts.json && ts-node scripts/promote/promote-prod.ts && firebase use dev"
