@@ -4,32 +4,49 @@ export const getRandomizedStorySetup = async (
   catalysts?: string[],
   personalities?: string[],
   archetypes?: string[],
-  recentlyRandomizedTags?: string[],
+  recentlyRandomizedCatalysts?: string[],
+  recentlyRandomizedPersonalities?: string[],
+  recentlyRandomizedArchetypes?: string[],
   lockedTags?: string[]
 ): Promise<string[]> => {
-  const validCatalystTags = getValidTags(
+  let validCatalystTags = getValidTags(
     catalysts,
     lockedTags,
-    recentlyRandomizedTags
+    recentlyRandomizedCatalysts
   );
-  const validPersonalityTags = getValidTags(
+  let validPersonalityTags = getValidTags(
     personalities,
     lockedTags,
-    recentlyRandomizedTags
+    recentlyRandomizedPersonalities
   );
-  const validArchetypeTags = getValidTags(
+  let validArchetypeTags = getValidTags(
     archetypes,
     lockedTags,
-    recentlyRandomizedTags
+    recentlyRandomizedArchetypes
   );
   if (validCatalystTags.length === 0) {
-    return undefined;
+    recentlyRandomizedCatalysts.length = 0;
+    validCatalystTags = getValidTags(
+      catalysts,
+      lockedTags,
+      recentlyRandomizedCatalysts
+    );
   }
   if (validPersonalityTags.length === 0) {
-    return undefined;
+    recentlyRandomizedPersonalities.length = 0;
+    validPersonalityTags = getValidTags(
+      personalities,
+      lockedTags,
+      recentlyRandomizedPersonalities
+    );
   }
   if (validArchetypeTags.length === 0) {
-    return undefined;
+    recentlyRandomizedArchetypes.length = 0;
+    validArchetypeTags = getValidTags(
+      archetypes,
+      lockedTags,
+      recentlyRandomizedArchetypes
+    );
   }
   const sample = (await import("../../impower-core/utils/sample")).default;
   const newRandomizedTags = [

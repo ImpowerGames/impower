@@ -132,7 +132,9 @@ const CreateProjectForm = React.memo(
     const [summaryInputValue, setSummaryInputValue] = useState(summary);
 
     const recentlyRandomizedTags = useRef(new Set<string>());
-    const recentlyRandomizedSummaryParts = useRef(new Set<string>());
+    const recentlyRandomizedCatalysts = useRef<string[]>([]);
+    const recentlyRandomizedPersonalities = useRef<string[]>([]);
+    const recentlyRandomizedArchetypes = useRef<string[]>([]);
 
     const [docIdState, setDocIdState] = useState(docId);
     const [tagCount, setTagCount] = useState(5);
@@ -568,27 +570,20 @@ const CreateProjectForm = React.memo(
           filteredRelevantArchetypes?.length > 0
             ? filteredRelevantArchetypes
             : archetypes;
-        let newRandomizedTags = await getRandomizedStorySetup(
+        const newRandomizedTags = await getRandomizedStorySetup(
           randomizableCatalysts,
           randomizablePersonalities,
           randomizableArchetypes,
-          Array.from(recentlyRandomizedSummaryParts.current)
+          recentlyRandomizedCatalysts.current,
+          recentlyRandomizedPersonalities.current,
+          recentlyRandomizedArchetypes.current
         );
-        if (!newRandomizedTags) {
-          recentlyRandomizedSummaryParts.current.clear();
-          newRandomizedTags = await getRandomizedStorySetup(
-            randomizableCatalysts,
-            randomizablePersonalities,
-            randomizableArchetypes,
-            Array.from(recentlyRandomizedSummaryParts.current)
-          );
-        }
         if (!newRandomizedTags) {
           return;
         }
-        newRandomizedTags.forEach((tag) => {
-          recentlyRandomizedSummaryParts.current.add(tag);
-        });
+        recentlyRandomizedCatalysts.current.push(newRandomizedTags[0]);
+        recentlyRandomizedPersonalities.current.push(newRandomizedTags[1]);
+        recentlyRandomizedArchetypes.current.push(newRandomizedTags[2]);
         const tags = [...newRandomizedTags];
         const newPrefix = format(
           `After {catalyst}, {personality:regex:a} {personality} {archetype} must`,
