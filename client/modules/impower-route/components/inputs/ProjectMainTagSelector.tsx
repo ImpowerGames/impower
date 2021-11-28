@@ -35,14 +35,14 @@ const StyledChip = styled(Chip)`
   }
 `;
 
-export interface ProjectSummaryPreambleTagSelectorProps {
+export interface ProjectMainTagSelectorProps {
   placeholder: string;
   tags: string[];
   onChangeTags: (tags: string[]) => void;
 }
 
-export const ProjectSummaryPreambleTagSelector = (
-  props: ProjectSummaryPreambleTagSelectorProps
+export const ProjectMainTagSelector = (
+  props: ProjectMainTagSelectorProps
 ): JSX.Element | null => {
   const { placeholder = "", tags, onChangeTags } = props;
 
@@ -101,4 +101,4 @@ export const ProjectSummaryPreambleTagSelector = (
   );
 };
 
-export default ProjectSummaryPreambleTagSelector;
+export default ProjectMainTagSelector;

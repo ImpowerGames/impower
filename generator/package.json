@@ -18,6 +18,7 @@
     "map": "ts-node src/scripts/map.ts",
     "sort": "ts-node src/scripts/sort.ts",
     "unpack": "ts-node src/scripts/unpack.ts",
+    "missing": "ts-node src/scripts/missing.ts",
     "suggest": "npm run keywords && npm run vector && npm run related",
     "prep": "npm run sort && npm run clean && npm run unpack",
     "dev": "npm run prep && npm run curate"

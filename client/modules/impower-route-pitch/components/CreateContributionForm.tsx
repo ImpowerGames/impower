@@ -45,7 +45,7 @@ import AspectRatioBox from "../../impower-route/components/inputs/AspectRatioBox
 import AudioPreview from "../../impower-route/components/inputs/AudioPreview";
 import CropDialog from "../../impower-route/components/inputs/CropDialog";
 import ImagePreview from "../../impower-route/components/inputs/ImagePreview";
-import ProjectSummaryPreambleTagSelector from "../../impower-route/components/inputs/ProjectSummaryPreambleTagSelector";
+import ProjectMainTagSelector from "../../impower-route/components/inputs/ProjectMainTagSelector";
 import Fallback from "../../impower-route/components/layouts/Fallback";
 import useIOS from "../../impower-route/hooks/useIOS";
 import useVisualViewport from "../../impower-route/hooks/useVisualViewport";
@@ -1055,7 +1055,7 @@ const CreateContributionForm = React.memo(
         startAdornment: (
           <>
             {type === "pitch" && (
-              <ProjectSummaryPreambleTagSelector
+              <ProjectMainTagSelector
                 placeholder={
                   ConfigCache.instance.params?.messages[
                     `pitched_${projectType}_preamble`

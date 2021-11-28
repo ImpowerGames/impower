@@ -1,14 +1,12 @@
-import ConfigCache from "../classes/configCache";
 import { getValidTags } from "./getValidTags";
 
 export const getRandomizedStorySetup = async (
+  catalysts?: string[],
+  personalities?: string[],
+  archetypes?: string[],
   recentlyRandomizedTags?: string[],
   lockedTags?: string[]
 ): Promise<string[]> => {
-  const catalysts = ConfigCache.instance.params?.catalysts || [];
-  const personalities =
-    ConfigCache.instance.params?.moods?.personality?.flatMap((x) => x) || [];
-  const archetypes = ConfigCache.instance.params?.archetypes || [];
   const validCatalystTags = getValidTags(
     catalysts,
     lockedTags,

@@ -149,10 +149,10 @@ const PitchSearchPage = React.memo((props: PitchSearchPageProps) => {
 export default PitchSearchPage;
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  const configGameTags = (
-    await import("../../../resources/json/en/gameTags.json")
+  const configProjectTags = (
+    await import("../../../resources/json/en/projectTags.json")
   ).default;
-  const gameTags = Object.values(configGameTags)
+  const gameTags = Object.values(configProjectTags)
     .flatMap((categories) => categories.flatMap((groups) => groups))
     .map((tag) => tag.toLowerCase());
   return {

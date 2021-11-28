@@ -4,6 +4,7 @@
   "buried": ["zombie"],
   "not with us": ["zombie"],
   "which": ["witch"],
+  "whimsical": ["whimsical"],
   "chock full": ["whimsical"],
   "chock": ["whimsical"],
   "saddles": ["western"],
@@ -62,6 +63,7 @@
   "they": ["they"],
   "tent": ["survival"],
   "starve": ["survival"],
+  "supernatural": ["supernatural"],
   "slicker": ["stylish"],
   "hips": ["stylish"],
   "hip": ["stylish"],
@@ -88,6 +90,7 @@
   "hardball": ["sports"],
   "goalposts": ["sports"],
   "football": ["sports"],
+  "display": ["sports"],
   "bench": ["sports"],
   "baseball": ["sports"],
   "ballpark": ["sports"],
@@ -106,6 +109,7 @@
   "slender": ["shapeshifting"],
   "sizes": ["shapeshifting"],
   "size": ["shapeshifting"],
+  "shapeshifter": ["shapeshifting"],
   "proportions": ["shapeshifting"],
   "palm of my hand": ["shapeshifting"],
   "disproportionate": ["shapeshifting"],
@@ -142,6 +146,7 @@
   "opposite": ["rivals"],
   "only": ["rivals"],
   "old married couple": ["rivals"],
+  "obsessive": ["rivals"],
   "means": ["rivals"],
   "meaning": ["rivals"],
   "meaner": ["rivals"],
@@ -150,6 +155,7 @@
   "keeping up": ["rivals"],
   "keep up": ["rivals"],
   "intensifies": ["rivals"],
+  "intense": ["rivals"],
   "hate": ["rivals"],
   "for good": ["rivals"],
   "flattery": ["rivals"],
@@ -190,8 +196,10 @@
   "halves": ["repair"],
   "manners": ["relaxing"],
   "redemption": ["redemption"],
+  "reconciliation": ["redemption"],
   "proud": ["redemption"],
   "overcome": ["redemption"],
+  "forgiving": ["redemption"],
   "forgiven": ["redemption"],
   "forgive": ["redemption"],
   "dignity": ["redemption"],
@@ -199,9 +207,11 @@
   "amends": ["redemption"],
   "people's": ["rebellion"],
   "people": ["rebellion"],
+  "overthrowing": ["rebellion"],
   "mandela": ["rebellion"],
   "in your place": ["rebellion"],
   "diem": ["rebellion"],
+  "rebellious": ["real-time"],
   "half": ["real-time"],
   "belly": ["real-time"],
   "bell": ["real-time"],
@@ -222,29 +232,36 @@
   "caveman": ["prehistoric"],
   "caved": ["prehistoric"],
   "cave": ["prehistoric"],
+  "archeologist": ["prehistoric"],
   "vice": ["political"],
   "terms": ["political"],
   "term": ["political"],
+  "stately": ["political"],
   "reds": ["political"],
   "red": ["political"],
   "presidents": ["political"],
   "president": ["political"],
   "politics": ["political"],
+  "politician": ["political"],
   "politically": ["political"],
   "political": ["political"],
   "national": ["political"],
   "nation": ["political"],
   "minority": ["political"],
   "minister": ["political"],
+  "liberator": ["political"],
   "journalism": ["political"],
   "independent": ["political"],
   "government": ["political"],
   "foreign": ["political"],
   "federal": ["political"],
   "downturn": ["political"],
+  "diplomat": ["political"],
+  "dictator": ["political"],
   "democracy": ["political"],
   "cabinet": ["political"],
   "ban": ["political"],
+  "ambassador": ["political"],
   "bobby": ["police"],
   "baton": ["police"],
   "badge": ["police"],
@@ -269,7 +286,9 @@
   "everybody": ["party"],
   "dude": ["party"],
   "medium": ["paranormal"],
+  "haunting": ["paranormal"],
   "haunted": ["paranormal"],
+  "ghoul": ["paranormal"],
   "boo": ["paranormal"],
   "strictly": ["on-rails"],
   "restricted": ["on-rails"],
@@ -333,7 +352,6 @@
   "few": ["minigames"],
   "brief": ["minigames"],
   "corridors": ["metroidvania"],
-  "sailor's": ["merfolk"],
   "other half": ["merfolk"],
   "half the man": ["merfolk"],
   "better half": ["merfolk"],
@@ -355,12 +373,14 @@
   "vein": ["medical"],
   "umbilical": ["medical"],
   "typhoid": ["medical"],
+  "surgeon": ["medical"],
   "stroke": ["medical"],
   "stools": ["medical"],
   "stool": ["medical"],
   "side effects": ["medical"],
   "shoulders": ["medical"],
   "shoulder": ["medical"],
+  "severe": ["medical"],
   "scratch": ["medical"],
   "ribs": ["medical"],
   "prescription": ["medical"],
@@ -369,6 +389,8 @@
   "physical": ["medical"],
   "perspiration": ["medical"],
   "palliative": ["medical"],
+  "operator": ["medical"],
+  "operative": ["medical"],
   "operated": ["medical"],
   "ointment": ["medical"],
   "nosing": ["medical"],
@@ -392,6 +414,7 @@
   "knees": ["medical"],
   "knee": ["medical"],
   "itch": ["medical"],
+  "illness": ["medical"],
   "ill": ["medical"],
   "hygiene": ["medical"],
   "how bad is it": ["medical"],
@@ -428,11 +451,14 @@
   "sleight": ["illusion"],
   "manipulative": ["illusion"],
   "frightened": ["horror"],
+  "distraught": ["horror"],
   "cowards": ["horror"],
   "object": ["hidden object"],
   "to have": ["greed"],
   "spoils": ["greed"],
+  "regaining": ["greed"],
   "regain": ["greed"],
+  "possessive": ["greed"],
   "indulge": ["greed"],
   "haves": ["greed"],
   "havenots": ["greed"],
@@ -451,9 +477,11 @@
   "pick 'em": ["farming"],
   "hay": ["farming"],
   "farming": ["farming"],
+  "farmer": ["farming"],
   "farm": ["farming"],
   "chaff": ["farming"],
   "applecart": ["farming"],
+  "fantastical": ["fantasy"],
   "fantastic": ["fantasy"],
   "winner's": ["fame"],
   "wannabee": ["fame"],
@@ -464,6 +492,7 @@
   "proper": ["fame"],
   "prop": ["fame"],
   "profile": ["fame"],
+  "popstar": ["fame"],
   "parade": ["fame"],
   "names": ["fame"],
   "named": ["fame"],
@@ -475,6 +504,8 @@
   "famous": ["fame"],
   "fame": ["fame"],
   "excellence": ["fame"],
+  "entertainer": ["fame"],
+  "debutante": ["fame"],
   "ceremony": ["fame"],
   "celebrity": ["fame"],
   "celebrities": ["fame"],
@@ -482,6 +513,8 @@
   "call time": ["fame"],
   "applause": ["fame"],
   "ado": ["fame"],
+  "unjust": ["ethics"],
+  "righting": ["ethics"],
   "right": ["ethics"],
   "ought": ["ethics"],
   "just": ["ethics"],
@@ -541,15 +574,19 @@
   "no": ["disillusionment"],
   "needless": ["disillusionment"],
   "middling": ["disillusionment"],
+  "jaded": ["disillusionment"],
   "inhibitions": ["disillusionment"],
+  "indecisive": ["disillusionment"],
   "habits": ["disillusionment"],
   "futile": ["disillusionment"],
   "confidence": ["disillusionment"],
+  "concerned": ["disillusionment"],
   "concern": ["disillusionment"],
   "between": ["disillusionment"],
   "averse": ["disillusionment"],
   "don't think so": ["disillusionment"],
   "monger": ["demon"],
+  "damning": ["demon"],
   "damn": ["demon"],
   "to you": ["delivery"],
   "the goods": ["delivery"],
@@ -563,11 +600,13 @@
   "for you": ["delivery"],
   "envelope": ["delivery"],
   "deliver": ["delivery"],
+  "courier": ["delivery"],
   "bundle": ["delivery"],
   "brought": ["delivery"],
   "brings": ["delivery"],
   "bringing": ["delivery"],
   "bring": ["delivery"],
+  "opulent": ["decopunk"],
   "ivories": ["decopunk"],
   "avant": ["decopunk"],
   "wuzzy": ["cute"],
@@ -581,6 +620,7 @@
   "fuzzy": ["cute"],
   "cheeks": ["cute"],
   "bubblegum": ["cute"],
+  "adorable": ["cute"],
   "rearranging": ["customization"],
   "individual": ["customization"],
   "edit": ["customization"],
@@ -614,6 +654,7 @@
   "well done": ["cooking"],
   "vinegar": ["cooking"],
   "teapot": ["cooking"],
+  "sugary": ["cooking"],
   "sugar": ["cooking"],
   "stir": ["cooking"],
   "stew": ["cooking"],
@@ -745,10 +786,12 @@
   "a la carte": ["cooking"],
   "clinch": ["contest"],
   "chose": ["contest"],
+  "uncovering": ["conspiracy"],
   "identity": ["conspiracy"],
   "wrote": ["communication"],
   "writing": ["communication"],
   "writes": ["communication"],
+  "writer": ["communication"],
   "write": ["communication"],
   "telephone": ["communication"],
   "ringer": ["communication"],
@@ -821,6 +864,7 @@
   "easy": ["casual"],
   "easier": ["casual"],
   "ease": ["casual"],
+  "casual": ["casual"],
   "whammy": ["card"],
   "spade": ["card"],
   "roulette": ["card"],
@@ -841,6 +885,7 @@
   "housing": ["building"],
   "house": ["building"],
   "furniture": ["building"],
+  "framed": ["building"],
   "frame": ["building"],
   "cement": ["building"],
   "built": ["building"],
@@ -874,6 +919,7 @@
   "buzzard": ["bird"],
   "budgie": ["bird"],
   "wow": ["beautiful"],
+  "inspiring": ["beautiful"],
   "blondes": ["beautiful"],
   "blonde": ["beautiful"],
   "awe": ["beautiful"],
@@ -895,9 +941,11 @@
   "convey": ["automation"],
   "assembly": ["automation"],
   "geek": ["atompunk"],
+  "assassin": ["assassination"],
   "sugar and spice and everything nice": ["artificial intelligence"],
   "sticks and snails and puppy dog tails": ["artificial intelligence"],
   "made of": ["artificial intelligence"],
+  "decorator": ["art nouveau"],
   "species": ["animals"],
   "safari": ["animals"],
   "prey": ["animals"],
@@ -906,6 +954,7 @@
   "sistine": ["angel"],
   "sacred": ["angel"],
   "priest": ["angel"],
+  "preachy": ["angel"],
   "preaching": ["angel"],
   "preach": ["angel"],
   "praying": ["angel"],
@@ -981,9 +1030,12 @@
   "saturday": ["time management", "week"],
   "monday": ["time management", "week"],
   "friday": ["time management", "week"],
+  "shifty": ["teleportation", "time travel"],
   "portals": ["teleportation", "time travel"],
   "phase": ["teleportation", "time travel"],
+  "suspenseful": ["suspense", "thriller"],
   "suspense": ["suspense", "thriller"],
+  "werewolf": ["supernatural", "werewolf"],
   "vampires": ["supernatural", "vampire"],
   "vampire": ["supernatural", "vampire"],
   "sucker": ["supernatural", "vampire"],
@@ -1004,8 +1056,10 @@
   "forward": ["runner", "side scroller"],
   "beeline": ["runner", "side scroller"],
   "throw": ["role playing", "tabletop"],
+  "stunned": ["role playing", "tabletop"],
   "session": ["role playing", "tabletop"],
   "penalty": ["role playing", "tabletop"],
+  "intimidated": ["role playing", "tabletop"],
   "grappling": ["role playing", "tabletop"],
   "glass cannon": ["role playing", "tabletop"],
   "survive": ["roguelike", "survival"],
@@ -1013,6 +1067,7 @@
   "knocked down": ["roguelike", "soulslike"],
   "recreational": ["roadtrip", "tycoon"],
   "campfire": ["roadtrip", "survival"],
+  "nostalgic": ["retro", "vaporwave"],
   "passing on": ["resurrection", "zombie"],
   "no longer with us": ["resurrection", "zombie"],
   "graves": ["resurrection", "zombie"],
@@ -1053,6 +1108,7 @@
   "do the time": ["police", "punishment"],
   "cruel and unusual": ["police", "punishment"],
   "cop": ["police", "punishment"],
+  "arrested": ["police", "punishment"],
   "arrest": ["police", "punishment"],
   "vertically": ["platformer", "side scroller"],
   "upper": ["platformer", "side scroller"],
@@ -1067,8 +1123,10 @@
   "turn": ["physics", "turn-based"],
   "folding": ["physics", "shapeshifting"],
   "fold": ["physics", "shapeshifting"],
+  "phantom": ["paranormal", "phantom thief"],
   "untouched": ["open world", "sandbox"],
   "boxes": ["open world", "sandbox"],
+  "boxer": ["open world", "sandbox"],
   "box": ["open world", "sandbox"],
   "vessel": ["nautical", "swashbuckling"],
   "stern": ["nautical", "swashbuckling"],
@@ -1101,6 +1159,7 @@
   "breeze": ["nature", "weather"],
   "damascus": ["myth", "rebellion"],
   "zoot": ["musical", "rhythm"],
+  "upbeat": ["musical", "rhythm"],
   "tuned": ["musical", "rhythm"],
   "tune": ["musical", "rhythm"],
   "tooty": ["musical", "rhythm"],
@@ -1122,6 +1181,7 @@
   "piano": ["musical", "rhythm"],
   "off key": ["musical", "rhythm"],
   "noise": ["musical", "rhythm"],
+  "musician": ["musical", "rhythm"],
   "musical": ["musical", "rhythm"],
   "musica": ["musical", "rhythm"],
   "music": ["musical", "rhythm"],
@@ -1145,6 +1205,7 @@
   "drummed": ["musical", "rhythm"],
   "drum": ["musical", "rhythm"],
   "dancing": ["musical", "rhythm"],
+  "dancer": ["musical", "rhythm"],
   "dance": ["musical", "rhythm"],
   "chorus": ["musical", "rhythm"],
   "chord": ["musical", "rhythm"],
@@ -1170,6 +1231,7 @@
   "backwards": ["metroidvania", "nonlinear"],
   "backward": ["metroidvania", "nonlinear"],
   "returns": ["memories", "reunion"],
+  "returning": ["memories", "reunion"],
   "return": ["memories", "reunion"],
   "opus": ["memories", "myth"],
   "wellness": ["medical", "rehabilitation"],
@@ -1184,6 +1246,7 @@
   "massage": ["medical", "rehabilitation"],
   "lungs": ["medical", "merfolk"],
   "injection": ["medical", "science"],
+  "impatient": ["medical", "rehabilitation"],
   "heals": ["medical", "rehabilitation"],
   "healing": ["medical", "rehabilitation"],
   "heal": ["medical", "rehabilitation"],
@@ -1211,8 +1274,11 @@
   "consult": ["management", "simulator"],
   "allowed": ["management", "simulator"],
   "allow": ["management", "simulator"],
+  "actor": ["management", "simulator"],
   "active": ["management", "simulator"],
+  "achieve": ["management", "simulator"],
   "lives": ["life", "simulator"],
+  "lively": ["life", "simulator"],
   "portion": ["inventory management", "resource management"],
   "exceed": ["inventory management", "resource management"],
   "worms": ["insects", "nature"],
@@ -1241,6 +1307,7 @@
   "similar": ["impersonation", "shapeshifting"],
   "same": ["impersonation", "shapeshifting"],
   "resemblance": ["impersonation", "shapeshifting"],
+  "performer": ["impersonation", "shapeshifting"],
   "form of flattery": ["impersonation", "shapeshifting"],
   "are you me": ["impersonation", "shapeshifting"],
   "techniques": ["illusion", "science"],
@@ -1272,14 +1339,17 @@
   "ticket": ["fame", "train"],
   "repute": ["fame", "redemption"],
   "reception": ["fame", "reunion"],
+  "publicly": ["fame", "political"],
   "public": ["fame", "political"],
   "news": ["fame", "political"],
+  "journalist": ["fame", "political"],
   "introduction": ["fame", "reunion"],
   "host": ["fame", "online"],
   "hollywood": ["fame", "interactive film"],
   "headlines": ["fame", "political"],
   "fanny": ["fame", "retro"],
   "fan": ["fame", "retro"],
+  "exposé": ["fame", "political"],
   "commentator's": ["fame", "sports"],
   "circuses": ["fame", "party"],
   "circus": ["fame", "party"],
@@ -1337,8 +1407,11 @@
   "infinite": ["endless", "immortality"],
   "goes on": ["endless", "immortality"],
   "unkindest": ["emotional", "tragedy"],
+  "tragic": ["emotional", "tragedy"],
   "tears": ["emotional", "tragedy"],
+  "somber": ["emotional", "tragedy"],
   "mood": ["emotional", "psychic"],
+  "hopeless": ["emotional", "tragedy"],
   "grief": ["emotional", "tragedy"],
   "excitement": ["emotional", "whimsical"],
   "anger": ["emotional", "rivals"],
@@ -1346,9 +1419,13 @@
   "wiser": ["educational", "genius"],
   "wise": ["educational", "genius"],
   "wisdom": ["educational", "genius"],
+  "visionary": ["educational", "genius"],
+  "prodigy": ["educational", "genius"],
   "nerd": ["educational", "genius"],
+  "incompetent": ["educational", "genius"],
   "harebrained": ["educational", "genius"],
   "genius": ["educational", "genius"],
+  "expert": ["educational", "genius"],
   "prejudice": ["dystopian", "political"],
   "police": ["dystopian", "police"],
   "interception": ["dystopian", "espionage"],
@@ -1431,6 +1508,7 @@
   "troubles": ["disillusionment", "drama"],
   "thankless": ["disillusionment", "quest"],
   "stubborn": ["disillusionment", "rivals"],
+  "spiting": ["disillusionment", "rivals"],
   "oh": ["disillusionment", "rivals"],
   "of course": ["disillusionment", "rivals"],
   "obscurity": ["disillusionment", "fame"],
@@ -1438,6 +1516,7 @@
   "modesty": ["disillusionment", "rivals"],
   "intentions": ["disillusionment", "ethics"],
   "greatly": ["disillusionment", "rivals"],
+  "greater": ["disillusionment", "rivals"],
   "great": ["disillusionment", "rivals"],
   "fickle": ["disillusionment", "rivals"],
   "donor": ["disillusionment", "rivals"],
@@ -1475,6 +1554,7 @@
   "own": ["customization", "disillusionment"],
   "abominable": ["cryptid", "demon"],
   "slate": ["crafting", "prehistoric"],
+  "rustic": ["crafting", "nature"],
   "rust": ["crafting", "nature"],
   "warms": ["cozy", "weather"],
   "warming": ["cozy", "weather"],
@@ -1500,6 +1580,7 @@
   "serves": ["cooking", "quest"],
   "served": ["cooking", "quest"],
   "serve": ["cooking", "quest"],
+  "reserved": ["cooking", "quest"],
   "reservation": ["cooking", "quest"],
   "pint": ["cooking", "liquor"],
   "pin": ["cooking", "cute"],
@@ -1543,6 +1624,7 @@
   "voting": ["contest", "political"],
   "voter": ["contest", "political"],
   "vote": ["contest", "political"],
+  "successful": ["contest", "fame"],
   "success": ["contest", "fame"],
   "favors": ["contest", "redemption"],
   "favorite": ["contest", "fame"],
@@ -1584,6 +1666,7 @@
   "quote": ["communication", "conversation"],
   "phrasing": ["communication", "conversation"],
   "phrase": ["communication", "conversation"],
+  "offended": ["communication", "conversation"],
   "mentioned": ["communication", "conversation"],
   "mention": ["communication", "conversation"],
   "meant it": ["communication", "conversation"],
@@ -1643,6 +1726,7 @@
   "two": ["co-op", "friendship"],
   "neighbor": ["co-op", "friendship"],
   "loyalty": ["co-op", "friendship"],
+  "loyal": ["co-op", "friendship"],
   "fellow": ["co-op", "friendship"],
   "duo": ["co-op", "friendship"],
   "doubled": ["co-op", "friendship"],
@@ -1650,6 +1734,7 @@
   "both": ["co-op", "friendship"],
   "arm in arm": ["co-op", "friendship"],
   "idle": ["clicker", "idle"],
+  "unstable": ["cleaning", "science"],
   "tidy": ["cleaning", "minimalist"],
   "stuffer": ["cleaning", "cooking"],
   "stuffed": ["cleaning", "cooking"],
@@ -1708,12 +1793,14 @@
   "checkout": ["business", "shop"],
   "check out": ["business", "shop"],
   "brand": ["business", "shop"],
+  "bossy": ["business", "office"],
   "bosses": ["business", "office"],
   "boss": ["business", "office"],
   "blueline": ["business", "shop"],
   "benefits": ["business", "office"],
   "auction": ["business", "shop"],
   "always open": ["business", "office"],
+  "advertiser": ["business", "tycoon"],
   "ad": ["business", "tycoon"],
   "sign on": ["bureaucracy", "business"],
   "sign off": ["bureaucracy", "business"],
@@ -1745,6 +1832,7 @@
   "flap": ["bird", "physics"],
   "doves": ["bird", "relaxing"],
   "dover": ["bird", "relaxing"],
+  "glamourous": ["beautiful", "fame"],
   "fabulous": ["beautiful", "stylish"],
   "amazing": ["beautiful", "stylish"],
   "thousand": ["battle royale", "multiplayer"],
@@ -1778,6 +1866,7 @@
   "skunk": ["animals", "mammal"],
   "scent": ["animals", "pet"],
   "rodent": ["animals", "mammal"],
+  "reptile": ["animals", "reptile"],
   "python": ["animals", "reptile"],
   "pug": ["animals", "pet"],
   "possum": ["animals", "mammal"],
@@ -1841,6 +1930,7 @@
   "praised": ["angel", "fame"],
   "praise": ["angel", "fame"],
   "jesus": ["angel", "resurrection"],
+  "idol": ["angel", "fame"],
   "humble": ["angel", "relaxing"],
   "hissy": ["angel", "rivals"],
   "divine": ["angel", "utopian"],
@@ -1858,6 +1948,7 @@
   "daring": ["adventure", "roguelike"],
   "whirl": ["action", "physics"],
   "tilting": ["action", "physics"],
+  "shocked": ["action", "medical"],
   "shock": ["action", "medical"],
   "refusing": ["action", "repair"],
   "halt": ["action", "time manipulation"],
@@ -1882,6 +1973,7 @@
   "shifting": ["shapeshifting", "teleportation", "time travel"],
   "phases": ["science", "teleportation", "time travel"],
   "fully booked": ["schedule", "time management", "time travel"],
+  "rogue": ["roguelike", "role playing", "tabletop"],
   "you'll pay": ["revenge", "sabotage", "social deduction"],
   "served cold": ["revenge", "sabotage", "social deduction"],
   "goes around comes around": ["revenge", "sabotage", "social deduction"],
@@ -1919,6 +2011,7 @@
   "week": ["real-time", "time management", "week"],
   "derby": ["racing", "sports", "western"],
   "to the wire": ["quick-time events", "thriller", "time limit"],
+  "surprised": ["procedurally generated", "reunion", "roguelike"],
   "surprise": ["procedurally generated", "reunion", "roguelike"],
   "remains": ["prehistoric", "resurrection", "zombie"],
   "pointy": ["point & click", "role playing", "tabletop"],
@@ -1952,6 +2045,7 @@
   "suckers": ["merfolk", "supernatural", "vampire"],
   "welfare": ["medical", "political", "rehabilitation"],
   "sore": ["medical", "rehabilitation", "rivals"],
+  "soothing": ["medical", "rehabilitation", "relaxing"],
   "reflex": ["medical", "role playing", "tabletop"],
   "paralysis": ["medical", "psychic", "psychological"],
   "organ": ["medical", "musical", "rhythm"],
@@ -1987,6 +2081,7 @@
   "lawyer": ["investigation", "legal", "social deduction"],
   "habeas": ["investigation", "legal", "social deduction"],
   "declare": ["investigation", "legal", "social deduction"],
+  "attorney": ["investigation", "legal", "social deduction"],
   "improvise": ["interactive film", "role playing", "tabletop"],
   "cricket": ["insects", "nature", "sports"],
   "compare": ["impersonation", "rivals", "shapeshifting"],
@@ -2002,6 +2097,7 @@
   "missing": ["glitch", "hacking", "reunion"],
   "wavelength": ["futuristic", "sci-fi", "science"],
   "solid": ["futuristic", "sci-fi", "science"],
+  "scientist": ["futuristic", "sci-fi", "science"],
   "precision": ["futuristic", "sci-fi", "science"],
   "polarity": ["futuristic", "sci-fi", "science"],
   "negative": ["futuristic", "sci-fi", "science"],
@@ -2032,10 +2128,16 @@
   "tinseltown": ["fairy tale", "fame", "fantasy"],
   "tinkers": ["fairy tale", "fantasy", "magical"],
   "tinker's": ["fairy tale", "fantasy", "magical"],
+  "pixie": ["fairy tale", "fantasy", "magical"],
+  "patriarch": ["fairy tale", "fantasy", "royalty"],
+  "monarch": ["fairy tale", "fantasy", "royalty"],
+  "matriarch": ["fairy tale", "fantasy", "royalty"],
   "illegitimate": ["fairy tale", "fantasy", "royalty"],
   "handbasket": ["fairy tale", "fantasy", "inventory management"],
+  "gnome": ["fairy tale", "fantasy", "magical"],
   "fiction": ["fairy tale", "fantasy", "folklore"],
   "fairytale": ["fairy tale", "fantasy", "folklore"],
+  "empress": ["fairy tale", "fantasy", "royalty"],
   "venus": ["extraterrestrial", "myth", "space"],
   "sun": ["extraterrestrial", "space", "weather"],
   "stardom": ["extraterrestrial", "fame", "space"],
@@ -2073,6 +2175,7 @@
   "anywhere": ["exploration", "open world", "walking simulator"],
   "abroad": ["exploration", "open world", "walking simulator"],
   "volunteer's": ["escort mission", "quest", "rescue"],
+  "volunteer": ["escort mission", "quest", "rescue"],
   "prepared": ["escort mission", "management", "simulator"],
   "prepare": ["escort mission", "management", "simulator"],
   "exit": ["escape", "roadtrip", "thriller"],
@@ -2086,11 +2189,13 @@
   "goodbye": ["emotional", "reunion", "tragedy"],
   "farewell": ["emotional", "reunion", "tragedy"],
   "envy": ["emotional", "greed", "rivals"],
+  "envious": ["emotional", "greed", "rivals"],
   "envied": ["emotional", "greed", "rivals"],
   "subterranean": ["eldritch", "extraterrestrial", "prehistoric"],
   "solstice": ["eldritch", "extraterrestrial", "space"],
   "wiz": ["educational", "genius", "wizard"],
   "whiz": ["educational", "genius", "wizard"],
+  "skill": ["educational", "genius", "quest"],
   "savvy": ["educational", "genius", "stylish"],
   "windows": ["dystopian", "invisibility", "surveillance"],
   "window": ["dystopian", "invisibility", "surveillance"],
@@ -2112,6 +2217,7 @@
   "glances": ["dystopian", "invisibility", "surveillance"],
   "glance": ["dystopian", "invisibility", "surveillance"],
   "gander": ["dystopian", "invisibility", "surveillance"],
+  "focused": ["dystopian", "invisibility", "surveillance"],
   "focus": ["dystopian", "invisibility", "surveillance"],
   "fahrenheit": ["dystopian", "nature", "weather"],
   "channel": ["dystopian", "invisibility", "surveillance"],
@@ -2134,22 +2240,28 @@
   "wear": ["dress-up", "fashion", "werewolf"],
   "vested": ["dress-up", "fashion", "phantom thief"],
   "vest": ["dress-up", "fashion", "phantom thief"],
+  "stylish": ["dress-up", "fashion", "stylish"],
   "handbags": ["dress-up", "fashion", "inventory management"],
   "couture": ["dress-up", "fashion", "stylish"],
   "shuteye": ["dreams", "nautical", "swashbuckling"],
+  "dreamy": ["dreams", "fairy tale", "fantasy"],
   "dreams": ["dreams", "fairy tale", "fantasy"],
   "dreaming": ["dreams", "fairy tale", "fantasy"],
+  "dreamer": ["dreams", "fairy tale", "fantasy"],
   "dreamed": ["dreams", "fairy tale", "fantasy"],
   "dream": ["dreams", "fairy tale", "fantasy"],
   "berth": ["dreams", "nautical", "swashbuckling"],
   "sadder": ["drama", "emotional", "tragedy"],
   "sad": ["drama", "emotional", "tragedy"],
+  "weeping": ["disillusionment", "emotional", "tragedy"],
   "weep": ["disillusionment", "emotional", "tragedy"],
   "tempered": ["disillusionment", "emotional", "rivals"],
   "temper": ["disillusionment", "emotional", "rivals"],
   "situation": ["disillusionment", "drama", "social deduction"],
   "modest": ["disillusionment", "multiplayer", "rivals"],
   "lack": ["disillusionment", "glitch", "hacking"],
+  "humiliation": ["disillusionment", "emotional", "rivals"],
+  "humiliated": ["disillusionment", "emotional", "rivals"],
   "hubris": ["disillusionment", "myth", "rivals"],
   "greatest": ["disillusionment", "fame", "rivals"],
   "discord": ["disillusionment", "rebellion", "rivals"],
@@ -2159,6 +2271,7 @@
   "gift": ["destiny", "fantasy", "redemption"],
   "sorrows": ["demon", "emotional", "tragedy"],
   "sorrowing": ["demon", "emotional", "tragedy"],
+  "sorrowful": ["demon", "emotional", "tragedy"],
   "sorrow": ["demon", "emotional", "tragedy"],
   "demon": ["demon", "occult", "supernatural"],
   "poster": ["delivery", "fame", "political"],
@@ -2166,6 +2279,7 @@
   "packed": ["delivery", "inventory management", "resource management"],
   "baby's": ["delivery", "monster tamer", "raising"],
   "baby": ["delivery", "monster tamer", "raising"],
+  "refined": ["decopunk", "disillusionment", "rivals"],
   "finn": ["decopunk", "disillusionment", "rivals"],
   "finest": ["decopunk", "disillusionment", "rivals"],
   "finer": ["decopunk", "disillusionment", "rivals"],
@@ -2176,6 +2290,7 @@
   "ballroom": ["decopunk", "fairy tale", "fantasy"],
   "pattern": ["deconstruction", "parody", "rhythm"],
   "patter": ["deconstruction", "parody", "rhythm"],
+  "mocking": ["deconstruction", "parody", "rivals"],
   "mock": ["deconstruction", "parody", "rivals"],
   "tonight": ["day", "dreams", "time management"],
   "noon": ["day", "real-time", "time management"],
@@ -2196,9 +2311,11 @@
   "smile more": ["dating", "love", "romance"],
   "sleeping with": ["dating", "love", "romance"],
   "sleep with": ["dating", "love", "romance"],
+  "sexy": ["dating", "love", "romance"],
   "sexes": ["dating", "love", "romance"],
   "sex": ["dating", "love", "romance"],
   "seeing": ["dating", "love", "romance"],
+  "romantic": ["dating", "love", "romance"],
   "romancing": ["dating", "love", "romance"],
   "rice in the church": ["dating", "love", "romance"],
   "queer": ["dating", "love", "romance"],
@@ -2242,15 +2359,18 @@
   "gored": ["cryptid", "monster", "monster tamer"],
   "brutish": ["cryptid", "monster", "monster tamer"],
   "whimper": ["creepy", "horror", "suspense"],
+  "unsettling": ["creepy", "horror", "suspense"],
   "tangled": ["creepy", "horror", "suspense"],
   "stepford": ["creepy", "horror", "suspense"],
   "screeching": ["creepy", "horror", "suspense"],
   "moaning": ["creepy", "horror", "suspense"],
   "fogey": ["creepy", "horror", "suspense"],
   "fearing": ["creepy", "horror", "suspense"],
+  "fearful": ["creepy", "horror", "suspense"],
   "fear": ["creepy", "horror", "suspense"],
   "disturbing": ["creepy", "horror", "suspense"],
   "disgusting": ["creepy", "horror", "suspense"],
+  "disgusted": ["creepy", "horror", "suspense"],
   "desperandum": ["creepy", "horror", "suspense"],
   "dazed": ["creepy", "horror", "suspense"],
   "crept": ["creepy", "horror", "suspense"],
@@ -2318,6 +2438,7 @@
   "fifteen": ["coming-of-age", "multiplayer", "young"],
   "titans": ["comics", "myth", "superhero"],
   "special": ["comics", "mutant", "superhero"],
+  "mutant": ["comics", "mutant", "shapeshifting"],
   "immunity": ["comics", "medical", "mutant"],
   "immune": ["comics", "medical", "mutant"],
   "germ": ["comics", "medical", "mutant"],
@@ -2335,11 +2456,13 @@
   "idiot": ["comedy", "educational", "genius"],
   "gag": ["comedy", "deconstruction", "parody"],
   "comic": ["comedy", "comics", "superhero"],
+  "cheerful": ["comedy", "reunion", "whimsical"],
   "cheer": ["comedy", "reunion", "whimsical"],
   "stripes": ["colorful", "dress-up", "fashion"],
   "wants": ["collecting", "greed", "quest"],
   "wanted": ["collecting", "greed", "quest"],
   "want": ["collecting", "greed", "quest"],
+  "unwanted": ["collecting", "greed", "quest"],
   "raring": ["collecting", "cooking", "quest"],
   "rarest": ["collecting", "cooking", "quest"],
   "rare": ["collecting", "cooking", "quest"],
@@ -2369,6 +2492,7 @@
   "dust": ["cleaning", "farming", "gothic"],
   "cleans": ["cleaning", "minimalist", "repair"],
   "cleaning": ["cleaning", "minimalist", "repair"],
+  "cleaner": ["cleaning", "minimalist", "repair"],
   "cleaned": ["cleaning", "minimalist", "repair"],
   "clean": ["cleaning", "minimalist", "repair"],
   "urban": ["city", "modern", "urban"],
@@ -2432,6 +2556,7 @@
   "exchange": ["bureaucracy", "business", "shop"],
   "diplomacy": ["bureaucracy", "business", "political"],
   "agent": ["bureaucracy", "business", "espionage"],
+  "administrator": ["bureaucracy", "business", "office"],
   "abide": ["bureaucracy", "business", "rebellion"],
   "moving": ["bullet hell", "runner", "side scroller"],
   "moves": ["bullet hell", "runner", "side scroller"],
@@ -2506,10 +2631,12 @@
   "wallpaper": ["art", "artist", "creative"],
   "textured": ["art", "artist", "creative"],
   "statue": ["art", "artist", "creative"],
+  "sculptor": ["art", "artist", "creative"],
   "grub street": ["art", "artist", "creative"],
   "gogh's": ["art", "artist", "creative"],
   "art's": ["art", "artist", "creative"],
   "art": ["art", "artist", "creative"],
+  "uprising": ["apocalyptic", "post apocalyptic", "rebellion"],
   "ends": ["apocalyptic", "multiple endings", "post apocalyptic"],
   "ending": ["apocalyptic", "multiple endings", "post apocalyptic"],
   "end": ["apocalyptic", "multiple endings", "post apocalyptic"],
@@ -2578,6 +2705,7 @@
   "heavenly": ["angel", "demon", "utopian"],
   "heaven's": ["angel", "demon", "utopian"],
   "heaven": ["angel", "demon", "utopian"],
+  "healer": ["angel", "medical", "rehabilitation"],
   "hades": ["angel", "demon", "myth"],
   "gracious": ["angel", "redemption", "relaxing"],
   "goodwill": ["angel", "redemption", "utopian"],
@@ -2634,6 +2762,7 @@
   "fisted": ["action", "beat 'em up", "fighting"],
   "fist": ["action", "beat 'em up", "fighting"],
   "drag": ["action", "physics", "racing"],
+  "dashing": ["action", "racing", "superspeed"],
   "dashed": ["action", "racing", "superspeed"],
   "dash": ["action", "racing", "superspeed"],
   "bumpy": ["action", "driving", "physics"],
@@ -2648,9 +2777,12 @@
   "time is up": ["academia", "resurrection", "zombie"],
   "taught": ["academia", "educational", "instruction"],
   "show your work": ["academia", "educational", "instruction"],
+  "scholarly": ["academia", "educational", "instruction"],
   "scholar": ["academia", "educational", "instruction"],
   "reeducation": ["academia", "educational", "instruction"],
+  "professor": ["academia", "educational", "instruction"],
   "philosopher's": ["academia", "educational", "genius"],
+  "philosopher": ["academia", "educational", "genius"],
   "linguist": ["academia", "communication", "conversation"],
   "librarian": ["academia", "educational", "instruction"],
   "lesson": ["academia", "educational", "instruction"],
@@ -2659,6 +2791,7 @@
   "learned": ["academia", "educational", "instruction"],
   "learn": ["academia", "educational", "instruction"],
   "junior": ["academia", "coming-of-age", "young"],
+  "instructor": ["academia", "educational", "instruction"],
   "instruction": ["academia", "educational", "instruction"],
   "homework": ["academia", "educational", "instruction"],
   "grade": ["academia", "educational", "instruction"],
@@ -2674,6 +2807,7 @@
   "miss": ["regency", "reunion", "steampunk", "victorian"],
   "leisure": ["regency", "steampunk", "tycoon", "victorian"],
   "billiards": ["regency", "sports", "steampunk", "victorian"],
+  "survivor": ["quest", "rescue", "roguelike", "survival"],
   "society": ["political", "regency", "steampunk", "victorian"],
   "limits": ["open world", "quick-time events", "sandbox", "time limit"],
   "tunes": ["musical", "retro", "rhythm", "vaporwave"],
@@ -2785,12 +2919,14 @@
   "critical": ["fame", "jrpg", "role playing", "rpg"],
   "critic": ["fame", "jrpg", "role playing", "rpg"],
   "twilight": ["fairy tale", "fantasy", "supernatural", "werewolf"],
-  "trolling": ["fairy tale", "fantasy", "role playing", "sword & sorcery"],
   "tricks": ["fairy tale", "fantasy", "illusion", "magical"],
   "symphony": ["fairy tale", "fantasy", "musical", "rhythm"],
   "serenade": ["fairy tale", "fantasy", "musical", "rhythm"],
   "presto": ["fairy tale", "fantasy", "illusion", "magical"],
+  "magician": ["fairy tale", "fantasy", "illusion", "magical"],
   "houdini": ["fairy tale", "fantasy", "illusion", "magical"],
+  "goblin": ["fairy tale", "fantasy", "role playing", "sword & sorcery"],
+  "elf": ["fairy tale", "fantasy", "role playing", "sword & sorcery"],
   "diplomatic": ["fairy tale", "fantasy", "political", "royalty"],
   "dazzler": ["fairy tale", "fantasy", "illusion", "magical"],
   "dazzle": ["fairy tale", "fantasy", "illusion", "magical"],
@@ -2805,6 +2941,7 @@
   "core": ["extraterrestrial", "futuristic", "sci-fi", "space"],
   "bypass": ["extraterrestrial", "hacking", "infiltration", "invasion"],
   "axis": ["extraterrestrial", "physics", "science", "space"],
+  "astronaut": ["extraterrestrial", "futuristic", "sci-fi", "space"],
   "west": ["exploration", "open world", "walking simulator", "western"],
   "southern": ["exploration", "open world", "walking simulator", "western"],
   "south": ["exploration", "open world", "walking simulator", "western"],
@@ -2827,11 +2964,13 @@
   "opened": ["escape", "open world", "sandbox", "thriller"],
   "open": ["escape", "open world", "sandbox", "thriller"],
   "inmates": ["escape", "police", "punishment", "thriller"],
+  "imprisonment": ["escape", "police", "punishment", "thriller"],
   "away": ["escape", "reunion", "roadtrip", "thriller"],
   "character": ["episodic", "jrpg", "role playing", "rpg"],
   "spanner": ["endless", "immortality", "teleportation", "time travel"],
   "span": ["endless", "immortality", "teleportation", "time travel"],
   "lasting": ["endless", "immortality", "multiplayer", "multiple endings"],
+  "exhausted": ["endless", "immortality", "role playing", "tabletop"],
   "skills": ["educational", "genius", "quest", "simulator"],
   "east": ["eastern", "exploration", "open world", "walking simulator"],
   "watching": ["dystopian", "invisibility", "rivals", "surveillance"],
@@ -2881,6 +3020,7 @@
   "tripper": ["discovery", "exploration", "open world", "walking simulator"],
   "survey": ["discovery", "exploration", "open world", "walking simulator"],
   "expedition": ["discovery", "exploration", "open world", "walking simulator"],
+  "discovery": ["discovery", "exploration", "open world", "walking simulator"],
   "columbus": ["discovery", "exploration", "open world", "walking simulator"],
   "wheels": ["dieselpunk", "driving", "racing", "vehicle"],
   "wheeling": ["dieselpunk", "driving", "racing", "vehicle"],
@@ -2905,6 +3045,8 @@
   "enhance": ["detective", "forensic", "investigation", "noir"],
   "crux": ["detective", "investigation", "mystery", "noir"],
   "afoot": ["detective", "investigation", "mystery", "noir"],
+  "prophecy": ["destiny", "fantasy", "myth", "psychic"],
+  "oracle": ["destiny", "fantasy", "myth", "psychic"],
   "luck": ["destiny", "fantasy", "procedurally generated", "roguelike"],
   "weight": ["delivery", "inventory management", "physics", "science"],
   "parcel": [
@@ -2924,6 +3066,7 @@
   "day's": ["day", "real-time", "time management", "time travel"],
   "day": ["day", "real-time", "time management", "time travel"],
   "daily": ["day", "real-time", "slice-of-life", "time management"],
+  "teasing": ["dating", "love", "rivals", "romance"],
   "tease": ["dating", "love", "rivals", "romance"],
   "romance": ["dating", "love", "myth", "romance"],
   "pleasures": ["dating", "greed", "love", "romance"],
@@ -2971,8 +3114,6 @@
   "recording": ["cryptid", "dystopian", "invisibility", "surveillance"],
   "observe": ["cryptid", "dystopian", "invisibility", "surveillance"],
   "it was right here": ["cryptid", "dystopian", "invisibility", "surveillance"],
-  "giants": ["cryptid", "mecha", "monster", "monster tamer"],
-  "giant": ["cryptid", "mecha", "monster", "monster tamer"],
   "camera": ["cryptid", "dystopian", "invisibility", "surveillance"],
   "are we getting this": [
     "cryptid",
@@ -2987,6 +3128,7 @@
   "unpleasantness": ["creepy", "disillusionment", "horror", "suspense"],
   "tired": ["creepy", "disillusionment", "horror", "suspense"],
   "stumbling": ["creepy", "disillusionment", "horror", "suspense"],
+  "spooky": ["creepy", "horror", "paranormal", "suspense"],
   "sleepless": ["creepy", "dreams", "horror", "suspense"],
   "scary": ["creepy", "horror", "paranormal", "suspense"],
   "scared": ["creepy", "horror", "paranormal", "suspense"],
@@ -3039,6 +3181,7 @@
   "cake": ["cooking", "cute", "fairy tale", "fantasy"],
   "beer": ["cooking", "insects", "liquor", "nature"],
   "beanpole": ["cooking", "crop", "farming", "nature"],
+  "baker": ["cooking", "regency", "steampunk", "victorian"],
   "verdict": ["contest", "investigation", "legal", "social deduction"],
   "jury's": ["contest", "investigation", "legal", "social deduction"],
   "jury": ["contest", "investigation", "legal", "social deduction"],
@@ -3048,6 +3191,7 @@
   "front": ["conspiracy", "mecha", "military", "war"],
   "fringe": ["conspiracy", "cryptid", "occult", "supernatural"],
   "convictions": ["conspiracy", "investigation", "legal", "social deduction"],
+  "conviction": ["conspiracy", "investigation", "legal", "social deduction"],
   "covering": ["concealment", "invisibility", "ninja", "stealth"],
   "covered": ["concealment", "invisibility", "ninja", "stealth"],
   "conceals": ["concealment", "invisibility", "ninja", "stealth"],
@@ -3073,8 +3217,6 @@
   "boys": ["coming-of-age", "regency", "steampunk", "victorian"],
   "villain": ["comics", "demon", "rivals", "superhero"],
   "pride": ["comics", "fame", "rivals", "superhero"],
-  "captain's": ["comics", "nautical", "superhero", "swashbuckling"],
-  "captain": ["comics", "nautical", "superhero", "swashbuckling"],
   "acid": ["comics", "mutant", "psychedelic", "science"],
   "seriously": ["comedy", "disillusionment", "drama", "rivals"],
   "serious": ["comedy", "disillusionment", "drama", "rivals"],
@@ -3144,6 +3286,7 @@
   "purloined": ["caper", "heist", "phantom thief", "steal"],
   "nab": ["caper", "heist", "phantom thief", "steal"],
   "mistook": ["caper", "heist", "phantom thief", "steal"],
+  "infamous": ["caper", "crime", "fame", "noir"],
   "i'm in": ["caper", "heist", "phantom thief", "steal"],
   "hold up": ["caper", "heist", "phantom thief", "steal"],
   "held up": ["caper", "heist", "phantom thief", "steal"],
@@ -3159,10 +3302,12 @@
   "delinquent": ["caper", "coming-of-age", "crime", "noir"],
   "break and enter": ["caper", "heist", "phantom thief", "steal"],
   "blackmail": ["caper", "crime", "espionage", "noir"],
+  "abuse": ["caper", "conspiracy", "crime", "noir"],
   "worth": ["business", "greed", "shop", "wealth"],
   "working": ["business", "office", "repair", "simulator"],
   "worker": ["business", "office", "shop", "simulator"],
   "windfall": ["business", "greed", "shop", "wealth"],
+  "unearned": ["business", "greed", "shop", "wealth"],
   "unchained": ["business", "police", "punishment", "shop"],
   "spending": ["business", "greed", "shop", "wealth"],
   "spender": ["business", "greed", "shop", "wealth"],
@@ -3260,6 +3405,7 @@
   "controversial": ["bureaucracy", "business", "conspiracy", "fame"],
   "company": ["bureaucracy", "business", "office", "shop"],
   "clerks": ["bureaucracy", "business", "office", "shop"],
+  "clerk": ["bureaucracy", "business", "office", "shop"],
   "buggin's turn": ["bureaucracy", "business", "office", "political"],
   "anti": ["bureaucracy", "business", "conspiracy", "rebellion"],
   "abiding": ["bureaucracy", "business", "rebellion", "relaxing"],
@@ -3330,9 +3476,11 @@
   "slaying": ["assassination", "hunting", "supernatural", "vampire"],
   "slay": ["assassination", "hunting", "supernatural", "vampire"],
   "revenge": ["assassination", "revenge", "sabotage", "social deduction"],
+  "contractor": ["assassination", "business", "office", "quest"],
   "contract": ["assassination", "business", "office", "quest"],
   "bleed": ["assassination", "medical", "supernatural", "vampire"],
   "roboto": ["artificial intelligence", "automation", "cyberpunk", "robot"],
+  "psychic": ["artificial intelligence", "myth", "psychic", "psychological"],
   "psyched": ["artificial intelligence", "myth", "psychic", "psychological"],
   "psyche": ["artificial intelligence", "myth", "psychic", "psychological"],
   "paradigm": [
@@ -3348,6 +3496,12 @@
     "steampunk"
   ],
   "consciousness": [
+    "artificial intelligence",
+    "medical",
+    "psychic",
+    "psychological"
+  ],
+  "conscious": [
     "artificial intelligence",
     "medical",
     "psychic",
@@ -3410,6 +3564,7 @@
   "doggie": ["animals", "cute", "mammal", "pet"],
   "cuddle": ["animals", "cozy", "cute", "pet"],
   "coop": ["animals", "bird", "farming", "livestock"],
+  "cocky": ["animals", "bird", "farming", "livestock"],
   "cock": ["animals", "bird", "farming", "livestock"],
   "cluck": ["animals", "bird", "farming", "livestock"],
   "chick": ["animals", "bird", "farming", "livestock"],
@@ -3437,6 +3592,7 @@
   "shepherd": ["angel", "animals", "farming", "livestock"],
   "satanic": ["angel", "demon", "occult", "supernatural"],
   "satan": ["angel", "demon", "occult", "supernatural"],
+  "peaceful": ["angel", "redemption", "relaxing", "utopian"],
   "peace": ["angel", "redemption", "relaxing", "utopian"],
   "nicely": ["angel", "cute", "relaxing", "utopian"],
   "nice": ["angel", "cute", "relaxing", "utopian"],
@@ -3468,6 +3624,8 @@
   "caesar": ["alternate history", "historical", "myth", "time travel"],
   "aztec": ["alternate history", "historical", "myth", "time travel"],
   "fated": ["adventure", "cooking", "destiny", "fantasy"],
+  "encouraging": ["adventure", "comics", "redemption", "superhero"],
+  "courageous": ["adventure", "comics", "redemption", "superhero"],
   "courage": ["adventure", "comics", "redemption", "superhero"],
   "wrenching": ["action", "emotional", "repair", "tragedy"],
   "treading": ["action", "parkour", "platformer", "side scroller"],
@@ -3521,6 +3679,7 @@
   "heat": ["action", "cooking", "demon", "weather"],
   "hasty": ["action", "disillusionment", "racing", "superspeed"],
   "hands": ["action", "beat 'em up", "card", "fighting"],
+  "gutsy": ["action", "beat 'em up", "demon", "fighting"],
   "guns": ["action", "bullet hell", "hunting", "shooter"],
   "gunned": ["action", "bullet hell", "hunting", "shooter"],
   "gun": ["action", "bullet hell", "hunting", "shooter"],
@@ -3545,6 +3704,7 @@
   "textbook": ["academia", "educational", "instruction", "publication"],
   "testing": ["academia", "educational", "instruction", "science"],
   "test": ["academia", "educational", "instruction", "science"],
+  "student": ["academia", "coming-of-age", "educational", "instruction"],
   "senior": ["academia", "bureaucracy", "business", "coming-of-age"],
   "school's": ["academia", "coming-of-age", "educational", "instruction"],
   "school": ["academia", "coming-of-age", "educational", "instruction"],
@@ -3673,6 +3833,7 @@
   "fleet's": ["mecha", "military", "nautical", "swashbuckling", "war"],
   "fleet": ["mecha", "military", "nautical", "swashbuckling", "war"],
   "commando": ["mecha", "military", "strategy", "tactical", "war"],
+  "campy": ["mecha", "military", "roadtrip", "survival", "war"],
   "camps": ["mecha", "military", "roadtrip", "survival", "war"],
   "camp": ["mecha", "military", "roadtrip", "survival", "war"],
   "advance": ["mecha", "military", "strategy", "tactical", "war"],
@@ -3696,6 +3857,13 @@
     "legal",
     "psychic",
     "psychological",
+    "social deduction"
+  ],
+  "advisor": [
+    "investigation",
+    "legal",
+    "management",
+    "simulator",
     "social deduction"
   ],
   "advised": [
@@ -3748,6 +3916,20 @@
     "fairy tale",
     "fantasy",
     "medieval",
+    "role playing",
+    "sword & sorcery"
+  ],
+  "trolling": [
+    "fairy tale",
+    "fantasy",
+    "magical",
+    "role playing",
+    "sword & sorcery"
+  ],
+  "troll": [
+    "fairy tale",
+    "fantasy",
+    "magical",
     "role playing",
     "sword & sorcery"
   ],
@@ -4018,7 +4200,15 @@
     "roadtrip",
     "walking simulator"
   ],
+  "sneaky": ["espionage", "invisibility", "ninja", "sneaking", "stealth"],
   "secure": [
+    "escort mission",
+    "extraterrestrial",
+    "hacking",
+    "infiltration",
+    "invasion"
+  ],
+  "insecure": [
     "escort mission",
     "extraterrestrial",
     "hacking",
@@ -4221,6 +4411,13 @@
     "medical",
     "surveillance"
   ],
+  "trippy": [
+    "discovery",
+    "exploration",
+    "open world",
+    "psychedelic",
+    "walking simulator"
+  ],
   "tractor": ["dieselpunk", "driving", "farming", "racing", "vehicle"],
   "fuel": ["dieselpunk", "driving", "mecha", "racing", "vehicle"],
   "unwarranted": [
@@ -4310,6 +4507,7 @@
   "grudging": ["creepy", "disillusionment", "horror", "rivals", "suspense"],
   "grudges": ["creepy", "disillusionment", "horror", "rivals", "suspense"],
   "grudge": ["creepy", "disillusionment", "horror", "rivals", "suspense"],
+  "ghostly": ["creepy", "horror", "paranormal", "phantom thief", "suspense"],
   "ghost": ["creepy", "horror", "paranormal", "phantom thief", "suspense"],
   "bodysnatchers": [
     "creepy",
@@ -4322,6 +4520,7 @@
   "stitches": ["crafting", "dress-up", "fashion", "medical", "repair"],
   "stitch": ["crafting", "dress-up", "fashion", "medical", "repair"],
   "airy": ["cozy", "flight", "mecha", "nature", "weather"],
+  "intruders": ["covert", "dystopian", "espionage", "invisibility", "stealth"],
   "intruder": ["covert", "dystopian", "espionage", "invisibility", "stealth"],
   "truffle": ["cooking", "crop", "cute", "farming", "nature"],
   "teeth": ["cooking", "cryptid", "medical", "monster", "monster tamer"],
@@ -4342,6 +4541,7 @@
     "invisibility",
     "surveillance"
   ],
+  "conspiracy": ["conspiracy", "cryptid", "occult", "supernatural", "suspense"],
   "cover": ["concealment", "espionage", "invisibility", "ninja", "stealth"],
   "whoopsy": ["communication", "conversation", "glitch", "hacking", "repair"],
   "unspoken": ["communication", "conversation", "dating", "love", "romance"],
@@ -4495,6 +4695,7 @@
     "parody"
   ],
   "dumb": ["comedy", "deconstruction", "educational", "genius", "parody"],
+  "stylist": ["colorful", "decopunk", "dress-up", "fashion", "stylish"],
   "style": ["colorful", "decopunk", "dress-up", "fashion", "stylish"],
   "greener": ["colorful", "gardening", "nature", "plants", "scavenging"],
   "green": ["colorful", "gardening", "nature", "plants", "scavenging"],
@@ -4548,6 +4749,7 @@
   "rotten": ["cleaning", "cooking", "creepy", "horror", "suspense"],
   "resting": ["cleaning", "dreams", "immortality", "resurrection", "zombie"],
   "mud": ["cleaning", "gardening", "nature", "plants", "scavenging"],
+  "messy": ["cleaning", "creepy", "horror", "repair", "suspense"],
   "messing": ["cleaning", "creepy", "horror", "repair", "suspense"],
   "messes": ["cleaning", "creepy", "horror", "repair", "suspense"],
   "mess": ["cleaning", "creepy", "horror", "repair", "suspense"],
@@ -4605,6 +4807,7 @@
   "profit": ["business", "greed", "shop", "tycoon", "wealth"],
   "pro": ["business", "disillusionment", "office", "rivals", "sports"],
   "owe": ["business", "disillusionment", "greed", "shop", "wealth"],
+  "overdue": ["business", "disillusionment", "greed", "shop", "wealth"],
   "nickel": ["business", "crafting", "greed", "shop", "wealth"],
   "merchant": ["business", "regency", "shop", "steampunk", "victorian"],
   "marketing": ["business", "greed", "shop", "tycoon", "wealth"],
@@ -4633,6 +4836,7 @@
   "supreme": ["bureaucracy", "business", "fairy tale", "fantasy", "royalty"],
   "recognition": ["bureaucracy", "business", "contest", "fame", "redemption"],
   "plans": ["bureaucracy", "business", "management", "simulator", "strategy"],
+  "planner": ["bureaucracy", "business", "management", "simulator", "strategy"],
   "planned": ["bureaucracy", "business", "management", "simulator", "strategy"],
   "plan": ["bureaucracy", "business", "management", "simulator", "strategy"],
   "pact": ["bureaucracy", "business", "co-op", "friendship", "rebellion"],
@@ -4652,6 +4856,7 @@
   "equity": ["bureaucracy", "business", "greed", "shop", "wealth"],
   "dividend": ["bureaucracy", "business", "greed", "shop", "wealth"],
   "dealing": ["bureaucracy", "business", "greed", "shop", "wealth"],
+  "dealer": ["bureaucracy", "business", "greed", "shop", "wealth"],
   "deal": ["bureaucracy", "business", "greed", "shop", "wealth"],
   "credit's": ["bureaucracy", "business", "greed", "shop", "wealth"],
   "credit": ["bureaucracy", "business", "greed", "shop", "wealth"],
@@ -4670,6 +4875,7 @@
   "door's": ["building", "escape", "metroidvania", "thriller", "tower defense"],
   "door": ["building", "escape", "metroidvania", "thriller", "tower defense"],
   "build": ["building", "jrpg", "role playing", "rpg", "tycoon"],
+  "flighty": ["bird", "extraterrestrial", "flight", "mecha", "space"],
   "flight": ["bird", "extraterrestrial", "flight", "mecha", "space"],
   "flies": ["bird", "flight", "insects", "mecha", "nature"],
   "pedestal": ["betrayal", "fame", "revenge", "sabotage", "social deduction"],
@@ -4789,6 +4995,13 @@
   "loser": ["battle royale", "competitive", "contest", "multiplayer", "sports"],
   "lose": ["battle royale", "competitive", "contest", "multiplayer", "sports"],
   "goal": ["battle royale", "competitive", "contest", "multiplayer", "sports"],
+  "contestant": [
+    "battle royale",
+    "competitive",
+    "contest",
+    "multiplayer",
+    "sports"
+  ],
   "contest": [
     "battle royale",
     "competitive",
@@ -4820,6 +5033,13 @@
     "sports"
   ],
   "athlete's": [
+    "battle royale",
+    "competitive",
+    "contest",
+    "multiplayer",
+    "sports"
+  ],
+  "athlete": [
     "battle royale",
     "competitive",
     "contest",
@@ -4964,6 +5184,13 @@
     "robot",
     "technology"
   ],
+  "robot": [
+    "artificial intelligence",
+    "automation",
+    "cyberpunk",
+    "mecha",
+    "robot"
+  ],
   "queue": [
     "artificial intelligence",
     "cyberpunk",
@@ -5054,6 +5281,13 @@
     "hacking",
     "robot",
     "technology"
+  ],
+  "disobeying": [
+    "artificial intelligence",
+    "fairy tale",
+    "fantasy",
+    "robot",
+    "royalty"
   ],
   "digits": [
     "artificial intelligence",
@@ -5235,6 +5469,7 @@
   "seas": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "seal": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "sea": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
+  "sailor's": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "rivers": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "river": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
   "reservoir": ["aquatic", "fishing", "merfolk", "nautical", "swashbuckling"],
@@ -5317,6 +5552,7 @@
   "birdy": ["animals", "bird", "cute", "flight", "mecha"],
   "bats": ["animals", "mammal", "sports", "supernatural", "vampire"],
   "bat": ["animals", "mammal", "sports", "supernatural", "vampire"],
+  "sacrificing": ["angel", "demon", "occult", "redemption", "supernatural"],
   "sacrifices": ["angel", "demon", "occult", "redemption", "supernatural"],
   "sacrifice": ["angel", "demon", "occult", "redemption", "supernatural"],
   "prophet": ["angel", "destiny", "fantasy", "myth", "psychic"],
@@ -5343,6 +5579,7 @@
     "walking simulator"
   ],
   "cult": ["angel", "conspiracy", "fame", "occult", "supernatural"],
+  "compassionate": ["angel", "emotional", "redemption", "relaxing", "utopian"],
   "compassion": ["angel", "emotional", "redemption", "relaxing", "utopian"],
   "above": ["angel", "flight", "mecha", "platformer", "side scroller"],
   "year's": [
@@ -5498,6 +5735,13 @@
   "grip": ["action", "parkour", "physics", "platformer", "side scroller"],
   "grabs": ["action", "caper", "heist", "phantom thief", "steal"],
   "grab": ["action", "caper", "heist", "phantom thief", "steal"],
+  "devastating": [
+    "action",
+    "apocalyptic",
+    "destruction",
+    "post apocalyptic",
+    "sabotage"
+  ],
   "crumbles": [
     "action",
     "apocalyptic",
@@ -5717,6 +5961,14 @@
     "royalty",
     "sword & sorcery"
   ],
+  "princely": [
+    "fairy tale",
+    "fantasy",
+    "medieval",
+    "role playing",
+    "royalty",
+    "sword & sorcery"
+  ],
   "prince": [
     "fairy tale",
     "fantasy",
@@ -5757,8 +6009,32 @@
     "royalty",
     "sword & sorcery"
   ],
+  "heir": [
+    "fairy tale",
+    "fantasy",
+    "medieval",
+    "role playing",
+    "royalty",
+    "sword & sorcery"
+  ],
   "harping": ["fairy tale", "fantasy", "folklore", "musical", "myth", "rhythm"],
   "harp": ["fairy tale", "fantasy", "folklore", "musical", "myth", "rhythm"],
+  "duchess": [
+    "fairy tale",
+    "fantasy",
+    "regency",
+    "royalty",
+    "steampunk",
+    "victorian"
+  ],
+  "cultist": [
+    "fairy tale",
+    "fantasy",
+    "occult",
+    "role playing",
+    "supernatural",
+    "sword & sorcery"
+  ],
   "balls": [
     "fairy tale",
     "fantasy",
@@ -5904,22 +6180,6 @@
     "side scroller",
     "walking simulator"
   ],
-  "sailors": [
-    "exploration",
-    "merfolk",
-    "nautical",
-    "open world",
-    "swashbuckling",
-    "walking simulator"
-  ],
-  "sailor": [
-    "exploration",
-    "merfolk",
-    "nautical",
-    "open world",
-    "swashbuckling",
-    "walking simulator"
-  ],
   "rocking": [
     "exploration",
     "musical",
@@ -5975,6 +6235,14 @@
     "open world",
     "space",
     "walking simulator"
+  ],
+  "stealthy": [
+    "espionage",
+    "invisibility",
+    "mecha",
+    "ninja",
+    "sneaking",
+    "stealth"
   ],
   "stealth": [
     "espionage",
@@ -6389,6 +6657,23 @@
   ],
   "wife": ["dating", "love", "regency", "romance", "steampunk", "victorian"],
   "rhapsody": ["dating", "emotional", "love", "musical", "rhythm", "romance"],
+  "regal": ["dating", "fairy tale", "fantasy", "love", "romance", "royalty"],
+  "mistress'": [
+    "dating",
+    "love",
+    "regency",
+    "romance",
+    "steampunk",
+    "victorian"
+  ],
+  "mistress": [
+    "dating",
+    "love",
+    "regency",
+    "romance",
+    "steampunk",
+    "victorian"
+  ],
   "make up": ["dating", "dress-up", "fashion", "love", "reunion", "romance"],
   "lust": ["dating", "demon", "emotional", "greed", "love", "romance"],
   "husband": ["dating", "love", "regency", "romance", "steampunk", "victorian"],
@@ -7356,6 +7641,14 @@
     "multiplayer",
     "sports"
   ],
+  "competitor": [
+    "battle royale",
+    "competitive",
+    "contest",
+    "multiplayer",
+    "rivals",
+    "sports"
+  ],
   "championship": [
     "battle royale",
     "competitive",
@@ -7582,6 +7875,22 @@
     "robot",
     "technology"
   ],
+  "mechanical": [
+    "artificial intelligence",
+    "automation",
+    "mecha",
+    "repair",
+    "robot",
+    "steampunk"
+  ],
+  "mechanic": [
+    "artificial intelligence",
+    "automation",
+    "mecha",
+    "repair",
+    "robot",
+    "steampunk"
+  ],
   "linking": [
     "artificial intelligence",
     "cyberpunk",
@@ -7645,6 +7954,14 @@
     "robot",
     "science",
     "steampunk"
+  ],
+  "developer": [
+    "artificial intelligence",
+    "building",
+    "cyberpunk",
+    "hacking",
+    "robot",
+    "technology"
   ],
   "current": [
     "artificial intelligence",
@@ -7737,6 +8054,7 @@
     "victorian"
   ],
   "painting": ["art", "artist", "colorful", "crafting", "creative", "drawing"],
+  "painter": ["art", "artist", "colorful", "crafting", "creative", "drawing"],
   "painted": ["art", "artist", "colorful", "crafting", "creative", "drawing"],
   "paint": ["art", "artist", "colorful", "crafting", "creative", "drawing"],
   "nouveau": ["art", "art nouveau", "artist", "creative", "decopunk", "gothic"],
@@ -7879,6 +8197,22 @@
     "sports",
     "swashbuckling"
   ],
+  "merman": [
+    "aquatic",
+    "fantasy",
+    "fishing",
+    "merfolk",
+    "nautical",
+    "swashbuckling"
+  ],
+  "mermaid": [
+    "aquatic",
+    "fantasy",
+    "fishing",
+    "merfolk",
+    "nautical",
+    "swashbuckling"
+  ],
   "gargle": [
     "aquatic",
     "fishing",
@@ -7918,6 +8252,14 @@
     "nautical",
     "swashbuckling",
     "weather"
+  ],
+  "drained": [
+    "aquatic",
+    "cleaning",
+    "fishing",
+    "merfolk",
+    "nautical",
+    "swashbuckling"
   ],
   "drain": [
     "aquatic",
@@ -8145,6 +8487,14 @@
     "superhero",
     "utopian"
   ],
+  "massive": [
+    "angel",
+    "extraterrestrial",
+    "futuristic",
+    "sci-fi",
+    "science",
+    "space"
+  ],
   "masses": [
     "angel",
     "extraterrestrial",
@@ -8297,6 +8647,14 @@
     "fantasy",
     "redemption",
     "rivals"
+  ],
+  "explorer": [
+    "adventure",
+    "exploration",
+    "extraterrestrial",
+    "open world",
+    "space",
+    "walking simulator"
   ],
   "explore": [
     "adventure",
@@ -8465,6 +8823,14 @@
     "apocalyptic",
     "demon",
     "destruction",
+    "post apocalyptic",
+    "sabotage"
+  ],
+  "sabotage": [
+    "action",
+    "apocalyptic",
+    "destruction",
+    "espionage",
     "post apocalyptic",
     "sabotage"
   ],
@@ -8896,6 +9262,15 @@
     "steampunk",
     "victorian"
   ],
+  "nurse": [
+    "medical",
+    "monster tamer",
+    "raising",
+    "regency",
+    "rehabilitation",
+    "steampunk",
+    "victorian"
+  ],
   "memoire": [
     "life",
     "memories",
@@ -9247,6 +9622,15 @@
     "political",
     "social deduction"
   ],
+  "impressive": [
+    "dress-up",
+    "fame",
+    "fashion",
+    "investigation",
+    "legal",
+    "political",
+    "social deduction"
+  ],
   "impressed": [
     "dress-up",
     "fame",
@@ -9552,6 +9936,24 @@
     "nature",
     "open world",
     "walking simulator"
+  ],
+  "giants": [
+    "cryptid",
+    "fairy tale",
+    "fantasy",
+    "magical",
+    "mecha",
+    "monster",
+    "monster tamer"
+  ],
+  "giant": [
+    "cryptid",
+    "fairy tale",
+    "fantasy",
+    "magical",
+    "mecha",
+    "monster",
+    "monster tamer"
   ],
   "numbing": [
     "creepy",
@@ -10336,6 +10738,24 @@
     "resource management",
     "shop"
   ],
+  "supplies": [
+    "business",
+    "crafting",
+    "delivery",
+    "greed",
+    "inventory management",
+    "resource management",
+    "shop"
+  ],
+  "stressed": [
+    "business",
+    "medical",
+    "office",
+    "psychic",
+    "psychological",
+    "rehabilitation",
+    "science"
+  ],
   "stress": [
     "business",
     "medical",
@@ -10423,6 +10843,15 @@
     "fantasy",
     "greed",
     "royalty",
+    "shop",
+    "wealth"
+  ],
+  "gambler": [
+    "business",
+    "card",
+    "greed",
+    "procedurally generated",
+    "roguelike",
     "shop",
     "wealth"
   ],
@@ -10597,6 +11026,15 @@
     "simulator",
     "tycoon"
   ],
+  "counselor": [
+    "bureaucracy",
+    "business",
+    "investigation",
+    "legal",
+    "management",
+    "simulator",
+    "social deduction"
+  ],
   "counsel": [
     "bureaucracy",
     "business",
@@ -10650,6 +11088,15 @@
     "legal",
     "redemption",
     "social deduction"
+  ],
+  "avoiding": [
+    "bullet hell",
+    "escape",
+    "invisibility",
+    "ninja",
+    "sneaking",
+    "stealth",
+    "thriller"
   ],
   "avoid": [
     "bullet hell",
@@ -10813,6 +11260,15 @@
     "rivals",
     "sports"
   ],
+  "rival": [
+    "battle royale",
+    "competitive",
+    "contest",
+    "multiplayer",
+    "political",
+    "rivals",
+    "sports"
+  ],
   "replay": [
     "battle royale",
     "metroidvania",
@@ -10948,6 +11404,15 @@
     "robot",
     "technology"
   ],
+  "remodeler": [
+    "artificial intelligence",
+    "dress-up",
+    "fashion",
+    "futuristic",
+    "sci-fi",
+    "science",
+    "simulator"
+  ],
   "pulse": [
     "artificial intelligence",
     "futuristic",
@@ -11010,6 +11475,15 @@
     "hacking",
     "robot",
     "technology"
+  ],
+  "impulsive": [
+    "artificial intelligence",
+    "futuristic",
+    "musical",
+    "quick-time events",
+    "rhythm",
+    "sci-fi",
+    "science"
   ],
   "impulse": [
     "artificial intelligence",
@@ -11452,6 +11926,24 @@
     "nautical",
     "swashbuckling"
   ],
+  "captain's": [
+    "aquatic",
+    "comics",
+    "fishing",
+    "merfolk",
+    "nautical",
+    "superhero",
+    "swashbuckling"
+  ],
+  "captain": [
+    "aquatic",
+    "comics",
+    "fishing",
+    "merfolk",
+    "nautical",
+    "superhero",
+    "swashbuckling"
+  ],
   "bottled": [
     "aquatic",
     "cooking",
@@ -11462,6 +11954,15 @@
     "swashbuckling"
   ],
   "raging": [
+    "apocalyptic",
+    "cleaning",
+    "demon",
+    "emotional",
+    "post apocalyptic",
+    "rebellion",
+    "rivals"
+  ],
+  "enraged": [
     "apocalyptic",
     "cleaning",
     "demon",
@@ -11704,6 +12205,15 @@
     "sabotage",
     "social deduction"
   ],
+  "passionate": [
+    "angel",
+    "dating",
+    "emotional",
+    "life",
+    "love",
+    "romance",
+    "simulator"
+  ],
   "passion": [
     "angel",
     "dating",
@@ -11723,6 +12233,15 @@
     "sword & sorcery"
   ],
   "majesty": [
+    "angel",
+    "fairy tale",
+    "fantasy",
+    "medieval",
+    "role playing",
+    "royalty",
+    "sword & sorcery"
+  ],
+  "majestic": [
     "angel",
     "fairy tale",
     "fantasy",
@@ -12252,6 +12771,15 @@
     "medieval",
     "role playing",
     "sword & sorcery"
+  ],
+  "pained": [
+    "action",
+    "beat 'em up",
+    "disillusionment",
+    "fighting",
+    "medical",
+    "rehabilitation",
+    "rivals"
   ],
   "pain": [
     "action",
@@ -12848,6 +13376,26 @@
     "sword & sorcery",
     "victorian"
   ],
+  "commanding": [
+    "fairy tale",
+    "fantasy",
+    "mecha",
+    "military",
+    "royalty",
+    "strategy",
+    "tactical",
+    "war"
+  ],
+  "commander": [
+    "fairy tale",
+    "fantasy",
+    "mecha",
+    "military",
+    "royalty",
+    "strategy",
+    "tactical",
+    "war"
+  ],
   "command": [
     "fairy tale",
     "fantasy",
@@ -12919,6 +13467,16 @@
     "weather"
   ],
   "visiting": [
+    "exploration",
+    "extraterrestrial",
+    "invasion",
+    "journey",
+    "open world",
+    "reunion",
+    "roadtrip",
+    "walking simulator"
+  ],
+  "visit": [
     "exploration",
     "extraterrestrial",
     "invasion",
@@ -13007,6 +13565,16 @@
     "magical",
     "reunion",
     "surveillance"
+  ],
+  "cryptic": [
+    "dungeon crawler",
+    "gothic",
+    "occult",
+    "resurrection",
+    "role playing",
+    "supernatural",
+    "vampire",
+    "zombie"
   ],
   "crypt": [
     "dungeon crawler",
@@ -13158,6 +13726,16 @@
     "psychological",
     "rehabilitation"
   ],
+  "solving": [
+    "detective",
+    "educational",
+    "genius",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "puzzle"
+  ],
   "solved": [
     "detective",
     "educational",
@@ -13229,6 +13807,16 @@
     "puzzle"
   ],
   "quandary": [
+    "detective",
+    "educational",
+    "genius",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "puzzle"
+  ],
+  "puzzled": [
     "detective",
     "educational",
     "genius",
@@ -13318,7 +13906,27 @@
     "police",
     "social deduction"
   ],
+  "investigator": [
+    "detective",
+    "educational",
+    "genius",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "puzzle"
+  ],
   "intriguing": [
+    "detective",
+    "educational",
+    "genius",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "puzzle"
+  ],
+  "intrigued": [
     "detective",
     "educational",
     "genius",
@@ -13368,6 +13976,16 @@
     "noir",
     "puzzle"
   ],
+  "examiner": [
+    "detective",
+    "educational",
+    "genius",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "puzzle"
+  ],
   "examined": [
     "detective",
     "educational",
@@ -13399,6 +14017,16 @@
     "puzzle"
   ],
   "correct": [
+    "detective",
+    "educational",
+    "genius",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "puzzle"
+  ],
+  "contemplative": [
     "detective",
     "educational",
     "genius",
@@ -13538,6 +14166,16 @@
     "police",
     "social deduction"
   ],
+  "accusation": [
+    "detective",
+    "interrogation",
+    "investigation",
+    "legal",
+    "mystery",
+    "noir",
+    "police",
+    "social deduction"
+  ],
   "retribution": [
     "demon",
     "fame",
@@ -13647,6 +14285,16 @@
     "horror",
     "suspense",
     "tragedy"
+  ],
+  "comforting": [
+    "cozy",
+    "medical",
+    "quest",
+    "redemption",
+    "rehabilitation",
+    "relaxing",
+    "rescue",
+    "utopian"
   ],
   "comfort": [
     "cozy",
@@ -13787,6 +14435,16 @@
     "surveillance",
     "survival",
     "weather"
+  ],
+  "dishonest": [
+    "conspiracy",
+    "deception",
+    "detective",
+    "ethics",
+    "investigation",
+    "mystery",
+    "noir",
+    "social deduction"
   ],
   "nights": [
     "concealment",
@@ -14028,6 +14686,16 @@
     "rescue",
     "steal"
   ],
+  "recovering": [
+    "caper",
+    "heist",
+    "medical",
+    "phantom thief",
+    "quest",
+    "rehabilitation",
+    "rescue",
+    "steal"
+  ],
   "lock": [
     "caper",
     "extraterrestrial",
@@ -14238,7 +14906,27 @@
     "steal",
     "wealth"
   ],
+  "demanding": [
+    "business",
+    "caper",
+    "greed",
+    "heist",
+    "phantom thief",
+    "shop",
+    "steal",
+    "wealth"
+  ],
   "demand": [
+    "business",
+    "caper",
+    "greed",
+    "heist",
+    "phantom thief",
+    "shop",
+    "steal",
+    "wealth"
+  ],
+  "cashier": [
     "business",
     "caper",
     "greed",
@@ -14259,6 +14947,16 @@
     "wealth"
   ],
   "banks": [
+    "business",
+    "caper",
+    "greed",
+    "heist",
+    "phantom thief",
+    "shop",
+    "steal",
+    "wealth"
+  ],
+  "banker": [
     "business",
     "caper",
     "greed",
@@ -14958,6 +15656,16 @@
     "steampunk",
     "victorian"
   ],
+  "gardener": [
+    "art nouveau",
+    "gardening",
+    "nature",
+    "plants",
+    "regency",
+    "scavenging",
+    "steampunk",
+    "victorian"
+  ],
   "garden": [
     "art nouveau",
     "gardening",
@@ -15118,6 +15826,16 @@
     "invention",
     "shapeshifting"
   ],
+  "photographer": [
+    "art",
+    "artist",
+    "creative",
+    "cryptid",
+    "dystopian",
+    "invisibility",
+    "memories",
+    "surveillance"
+  ],
   "photograph": [
     "art",
     "artist",
@@ -15229,6 +15947,26 @@
     "walking simulator"
   ],
   "sand": [
+    "aquatic",
+    "exploration",
+    "fishing",
+    "merfolk",
+    "nautical",
+    "open world",
+    "swashbuckling",
+    "walking simulator"
+  ],
+  "sailors": [
+    "aquatic",
+    "exploration",
+    "fishing",
+    "merfolk",
+    "nautical",
+    "open world",
+    "swashbuckling",
+    "walking simulator"
+  ],
+  "sailor": [
     "aquatic",
     "exploration",
     "fishing",
@@ -16098,6 +16836,16 @@
     "nonlinear",
     "visual novel"
   ],
+  "choosing": [
+    "alternate history",
+    "branching narrative",
+    "customization",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel"
+  ],
   "choosers": [
     "alternate history",
     "branching narrative",
@@ -16578,6 +17326,26 @@
     "nautical",
     "swashbuckling"
   ],
+  "flashy": [
+    "action",
+    "apocalyptic",
+    "destruction",
+    "post apocalyptic",
+    "racing",
+    "sabotage",
+    "stylish",
+    "superspeed"
+  ],
+  "escaping": [
+    "action",
+    "caper",
+    "crime",
+    "escape",
+    "noir",
+    "quest",
+    "rescue",
+    "thriller"
+  ],
   "escapes": [
     "action",
     "caper",
@@ -16619,6 +17387,16 @@
     "victorian"
   ],
   "diving": [
+    "action",
+    "aquatic",
+    "fishing",
+    "flight",
+    "mecha",
+    "merfolk",
+    "nautical",
+    "swashbuckling"
+  ],
+  "diver": [
     "action",
     "aquatic",
     "fishing",
@@ -17384,28 +18162,6 @@
     "sci-fi",
     "space"
   ],
-  "mistress'": [
-    "dating",
-    "fairy tale",
-    "fantasy",
-    "love",
-    "regency",
-    "romance",
-    "royalty",
-    "steampunk",
-    "victorian"
-  ],
-  "mistress": [
-    "dating",
-    "fairy tale",
-    "fantasy",
-    "love",
-    "regency",
-    "romance",
-    "royalty",
-    "steampunk",
-    "victorian"
-  ],
   "wearing": [
     "creepy",
     "disillusionment",
@@ -17505,6 +18261,17 @@
     "noir",
     "social deduction"
   ],
+  "paranoid": [
+    "conspiracy",
+    "cryptid",
+    "dystopian",
+    "invisibility",
+    "occult",
+    "psychic",
+    "psychological",
+    "supernatural",
+    "surveillance"
+  ],
   "lies": [
     "conspiracy",
     "deception",
@@ -17602,6 +18369,17 @@
     "mystery",
     "noir",
     "parody",
+    "social deduction"
+  ],
+  "deceitful": [
+    "conspiracy",
+    "deception",
+    "detective",
+    "impersonation",
+    "investigation",
+    "mystery",
+    "noir",
+    "shapeshifting",
     "social deduction"
   ],
   "debunked": [
@@ -17715,6 +18493,17 @@
     "vampire"
   ],
   "relativity": [
+    "coming-of-age",
+    "extraterrestrial",
+    "family",
+    "futuristic",
+    "monster tamer",
+    "raising",
+    "sci-fi",
+    "science",
+    "space"
+  ],
+  "relative's": [
     "coming-of-age",
     "extraterrestrial",
     "family",
@@ -18022,6 +18811,17 @@
     "urban",
     "walking simulator"
   ],
+  "uncomfortable": [
+    "casual",
+    "cozy",
+    "medical",
+    "quest",
+    "redemption",
+    "rehabilitation",
+    "relaxing",
+    "rescue",
+    "slice-of-life"
+  ],
   "table": [
     "card",
     "cooking",
@@ -18043,6 +18843,17 @@
     "sci-fi",
     "science",
     "simulator"
+  ],
+  "pursuing": [
+    "capture",
+    "cryptid",
+    "detective",
+    "hunting",
+    "investigation",
+    "monster tamer",
+    "noir",
+    "police",
+    "tracking"
   ],
   "captures": [
     "capture",
@@ -18517,6 +19328,17 @@
     "social deduction",
     "tragedy"
   ],
+  "regretful": [
+    "betrayal",
+    "disillusionment",
+    "emotional",
+    "memories",
+    "redemption",
+    "revenge",
+    "sabotage",
+    "social deduction",
+    "tragedy"
+  ],
   "regret": [
     "betrayal",
     "disillusionment",
@@ -18692,6 +19514,17 @@
     "replayable",
     "roguelike",
     "train"
+  ],
+  "murderer": [
+    "assassination",
+    "caper",
+    "crime",
+    "detective",
+    "investigation",
+    "legal",
+    "noir",
+    "social deduction",
+    "thriller"
   ],
   "murder": [
     "assassination",
@@ -19078,6 +19911,17 @@
     "invention",
     "robot"
   ],
+  "inventor": [
+    "art",
+    "artificial intelligence",
+    "artist",
+    "building",
+    "crafting",
+    "creative",
+    "drawing",
+    "invention",
+    "robot"
+  ],
   "invention": [
     "art",
     "artificial intelligence",
@@ -19430,6 +20274,17 @@
     "resource management",
     "visual novel"
   ],
+  "indifferent": [
+    "alternate history",
+    "branching narrative",
+    "customization",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "visual novel",
+    "weird"
+  ],
   "imperialism": [
     "alternate history",
     "fairy tale",
@@ -19442,6 +20297,17 @@
     "time travel"
   ],
   "emperor's": [
+    "alternate history",
+    "fairy tale",
+    "fantasy",
+    "historical",
+    "medieval",
+    "role playing",
+    "royalty",
+    "sword & sorcery",
+    "time travel"
+  ],
+  "emperor": [
     "alternate history",
     "fairy tale",
     "fantasy",
@@ -19870,6 +20736,17 @@
     "romance",
     "sabotage"
   ],
+  "crushed": [
+    "action",
+    "apocalyptic",
+    "dating",
+    "destruction",
+    "love",
+    "post apocalyptic",
+    "rivals",
+    "romance",
+    "sabotage"
+  ],
   "crush": [
     "action",
     "apocalyptic",
@@ -20219,6 +21096,18 @@
     "wizard",
     "wizardry"
   ],
+  "forceful": [
+    "extraterrestrial",
+    "hacking",
+    "infiltration",
+    "invasion",
+    "mecha",
+    "military",
+    "physics",
+    "strategy",
+    "tactical",
+    "war"
+  ],
   "forced": [
     "extraterrestrial",
     "hacking",
@@ -20567,6 +21456,18 @@
     "role playing",
     "suspense"
   ],
+  "gloomy": [
+    "creepy",
+    "dark",
+    "demon",
+    "emotional",
+    "gothic",
+    "horror",
+    "noir",
+    "occult",
+    "supernatural",
+    "suspense"
+  ],
   "gloom": [
     "creepy",
     "dark",
@@ -20783,6 +21684,18 @@
     "supernatural",
     "suspense"
   ],
+  "honesty": [
+    "conspiracy",
+    "deception",
+    "detective",
+    "ethics",
+    "investigation",
+    "mystery",
+    "noir",
+    "redemption",
+    "relaxing",
+    "social deduction"
+  ],
   "honestly": [
     "conspiracy",
     "deception",
@@ -20844,6 +21757,18 @@
     "social deduction"
   ],
   "deceptive": [
+    "conspiracy",
+    "deception",
+    "detective",
+    "illusion",
+    "impersonation",
+    "investigation",
+    "mystery",
+    "noir",
+    "shapeshifting",
+    "social deduction"
+  ],
+  "deception": [
     "conspiracy",
     "deception",
     "detective",
@@ -21167,6 +22092,18 @@
     "police",
     "social deduction"
   ],
+  "director": [
+    "bureaucracy",
+    "business",
+    "fame",
+    "interactive film",
+    "management",
+    "metroidvania",
+    "nonlinear",
+    "office",
+    "simulator",
+    "tycoon"
+  ],
   "budget": [
     "bureaucracy",
     "business",
@@ -21276,6 +22213,18 @@
     "sports"
   ],
   "terminally": [
+    "artificial intelligence",
+    "cyberpunk",
+    "detective",
+    "forensic",
+    "hacking",
+    "investigation",
+    "medical",
+    "noir",
+    "robot",
+    "technology"
+  ],
+  "terminal": [
     "artificial intelligence",
     "cyberpunk",
     "detective",
@@ -22115,6 +23064,18 @@
     "roguelike",
     "utopian"
   ],
+  "hopeful": [
+    "adventure",
+    "destiny",
+    "disillusionment",
+    "fantasy",
+    "procedurally generated",
+    "redemption",
+    "relaxing",
+    "rivals",
+    "roguelike",
+    "utopian"
+  ],
   "hope": [
     "adventure",
     "destiny",
@@ -22246,6 +23207,18 @@
     "post apocalyptic",
     "sabotage",
     "suspense"
+  ],
+  "rescuer": [
+    "action",
+    "comics",
+    "escape",
+    "escort mission",
+    "medical",
+    "quest",
+    "rehabilitation",
+    "rescue",
+    "superhero",
+    "thriller"
   ],
   "rescue": [
     "action",
@@ -22582,6 +23555,18 @@
     "mystery",
     "noir",
     "puzzle"
+  ],
+  "programmer": [
+    "academia",
+    "artificial intelligence",
+    "automation",
+    "cyberpunk",
+    "educational",
+    "episodic",
+    "hacking",
+    "instruction",
+    "robot",
+    "technology"
   ],
   "program": [
     "academia",
@@ -23514,6 +24499,19 @@
     "tycoon",
     "wealth"
   ],
+  "conductor": [
+    "bureaucracy",
+    "business",
+    "detective",
+    "futuristic",
+    "investigation",
+    "management",
+    "noir",
+    "sci-fi",
+    "science",
+    "simulator",
+    "social deduction"
+  ],
   "conduct": [
     "bureaucracy",
     "business",
@@ -24190,6 +25188,19 @@
     "noir",
     "puzzle"
   ],
+  "influencer": [
+    "alternate history",
+    "branching narrative",
+    "bureaucracy",
+    "business",
+    "fame",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "nonlinear",
+    "psychic",
+    "visual novel"
+  ],
   "ancient": [
     "alternate history",
     "fairy tale",
@@ -24230,6 +25241,19 @@
     "visual novel"
   ],
   "adventures": [
+    "adventure",
+    "fairy tale",
+    "fantasy",
+    "journey",
+    "jrpg",
+    "roadtrip",
+    "role playing",
+    "rpg",
+    "sword & sorcery",
+    "text adventure",
+    "visual novel"
+  ],
+  "adventurer": [
     "adventure",
     "fairy tale",
     "fantasy",
@@ -24634,6 +25658,20 @@
     "sword & sorcery",
     "war"
   ],
+  "conqueror": [
+    "extraterrestrial",
+    "fairy tale",
+    "fantasy",
+    "invasion",
+    "mecha",
+    "medieval",
+    "military",
+    "rivals",
+    "role playing",
+    "royalty",
+    "sword & sorcery",
+    "war"
+  ],
   "conquering": [
     "extraterrestrial",
     "fairy tale",
@@ -24675,6 +25713,20 @@
     "royalty",
     "sword & sorcery",
     "war"
+  ],
+  "wrongful": [
+    "detective",
+    "disillusionment",
+    "educational",
+    "ethics",
+    "genius",
+    "glitch",
+    "hacking",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "puzzle"
   ],
   "wrong": [
     "detective",
@@ -24746,6 +25798,20 @@
     "sci-fi",
     "science"
   ],
+  "sinister": [
+    "demon",
+    "eldritch",
+    "ethics",
+    "fairy tale",
+    "fantasy",
+    "magical",
+    "occult",
+    "role playing",
+    "supernatural",
+    "sword & sorcery",
+    "witch",
+    "witchcraft"
+  ],
   "bases": [
     "dating",
     "extraterrestrial",
@@ -24773,6 +25839,20 @@
     "tactical",
     "tower defense",
     "war"
+  ],
+  "witnessing": [
+    "cryptid",
+    "detective",
+    "dystopian",
+    "interrogation",
+    "investigation",
+    "invisibility",
+    "legal",
+    "mystery",
+    "noir",
+    "police",
+    "social deduction",
+    "surveillance"
   ],
   "witnesses": [
     "cryptid",
@@ -25460,6 +26540,20 @@
     "sabotage",
     "social deduction"
   ],
+  "scheming": [
+    "betrayal",
+    "caper",
+    "conspiracy",
+    "crime",
+    "deception",
+    "detective",
+    "investigation",
+    "mystery",
+    "noir",
+    "revenge",
+    "sabotage",
+    "social deduction"
+  ],
   "scheme": [
     "betrayal",
     "caper",
@@ -25503,6 +26597,20 @@
     "war"
   ],
   "thoughts": [
+    "artificial intelligence",
+    "detective",
+    "disillusionment",
+    "educational",
+    "genius",
+    "investigation",
+    "logic",
+    "mystery",
+    "noir",
+    "psychic",
+    "psychological",
+    "puzzle"
+  ],
+  "thoughtful": [
     "artificial intelligence",
     "detective",
     "disillusionment",
@@ -26104,6 +27212,34 @@
     "roguelike",
     "visual novel"
   ],
+  "violent": [
+    "action",
+    "assassination",
+    "battle royale",
+    "beat 'em up",
+    "bullet hell",
+    "caper",
+    "crime",
+    "fighting",
+    "hunting",
+    "noir",
+    "shooter",
+    "thriller"
+  ],
+  "violence": [
+    "action",
+    "assassination",
+    "battle royale",
+    "beat 'em up",
+    "bullet hell",
+    "caper",
+    "crime",
+    "fighting",
+    "hunting",
+    "noir",
+    "shooter",
+    "thriller"
+  ],
   "trap": [
     "action",
     "capture",
@@ -26230,6 +27366,20 @@
     "sword & sorcery",
     "technology"
   ],
+  "hacker": [
+    "action",
+    "artificial intelligence",
+    "cyberpunk",
+    "fairy tale",
+    "fantasy",
+    "glitch",
+    "hack & slash",
+    "hacking",
+    "robot",
+    "role playing",
+    "sword & sorcery",
+    "technology"
+  ],
   "hack": [
     "action",
     "artificial intelligence",
@@ -26341,6 +27491,20 @@
     "role playing",
     "sabotage",
     "sword & sorcery"
+  ],
+  "combative": [
+    "action",
+    "beat 'em up",
+    "comics",
+    "fighting",
+    "jrpg",
+    "mecha",
+    "military",
+    "quest",
+    "role playing",
+    "rpg",
+    "superhero",
+    "war"
   ],
   "combat": [
     "action",
@@ -26469,6 +27633,21 @@
     "sword & sorcery",
     "tower defense",
     "war"
+  ],
+  "disappearance": [
+    "dress-up",
+    "dystopian",
+    "fairy tale",
+    "fame",
+    "fantasy",
+    "fashion",
+    "illusion",
+    "impersonation",
+    "invisibility",
+    "magical",
+    "reunion",
+    "shapeshifting",
+    "surveillance"
   ],
   "irrational": [
     "detective",
@@ -26815,6 +27994,21 @@
     "sci-fi",
     "science"
   ],
+  "reporter": [
+    "bureaucracy",
+    "business",
+    "detective",
+    "fame",
+    "forensic",
+    "investigation",
+    "management",
+    "noir",
+    "police",
+    "political",
+    "quest",
+    "simulator",
+    "social deduction"
+  ],
   "enquiries": [
     "bureaucracy",
     "business",
@@ -26936,6 +28130,21 @@
     "puzzle"
   ],
   "powers": [
+    "artificial intelligence",
+    "comics",
+    "cyberpunk",
+    "fairy tale",
+    "fantasy",
+    "hacking",
+    "magical",
+    "mutant",
+    "political",
+    "robot",
+    "royalty",
+    "superhero",
+    "technology"
+  ],
+  "powerful": [
     "artificial intelligence",
     "comics",
     "cyberpunk",
@@ -28060,6 +29269,22 @@
     "science",
     "technology"
   ],
+  "reformer": [
+    "art",
+    "artist",
+    "building",
+    "bureaucracy",
+    "business",
+    "crafting",
+    "creative",
+    "drawing",
+    "invention",
+    "political",
+    "rebellion",
+    "redemption",
+    "repair",
+    "shapeshifting"
+  ],
   "reform": [
     "art",
     "artist",
@@ -28283,6 +29508,38 @@
     "side scroller",
     "space",
     "zombie"
+  ],
+  "engines": [
+    "action",
+    "artificial intelligence",
+    "cooking",
+    "cyberpunk",
+    "dieselpunk",
+    "driving",
+    "flight",
+    "hacking",
+    "mecha",
+    "racing",
+    "robot",
+    "steampunk",
+    "technology",
+    "vehicle"
+  ],
+  "engineer": [
+    "action",
+    "artificial intelligence",
+    "automation",
+    "cyberpunk",
+    "dieselpunk",
+    "driving",
+    "flight",
+    "hacking",
+    "mecha",
+    "racing",
+    "robot",
+    "steampunk",
+    "technology",
+    "vehicle"
   ],
   "broken": [
     "action",
@@ -28890,6 +30147,23 @@
     "robot",
     "technology",
     "war"
+  ],
+  "finally": [
+    "apocalyptic",
+    "battle royale",
+    "competitive",
+    "contest",
+    "decopunk",
+    "disillusionment",
+    "metroidvania",
+    "multiplayer",
+    "multiple endings",
+    "nonlinear",
+    "post apocalyptic",
+    "replayable",
+    "rivals",
+    "roguelike",
+    "sports"
   ],
   "final": [
     "apocalyptic",
@@ -29929,6 +31203,42 @@
     "visual novel",
     "walking simulator"
   ],
+  "pastor": [
+    "alternate history",
+    "art",
+    "artist",
+    "cooking",
+    "creative",
+    "disillusionment",
+    "historical",
+    "immortality",
+    "quick-time events",
+    "retro",
+    "time",
+    "time limit",
+    "time management",
+    "time manipulation",
+    "time travel",
+    "vaporwave"
+  ],
+  "mistaken": [
+    "alternate history",
+    "branching narrative",
+    "caper",
+    "crime",
+    "disillusionment",
+    "glitch",
+    "hacking",
+    "heist",
+    "interactive film",
+    "metroidvania",
+    "multiple endings",
+    "noir",
+    "nonlinear",
+    "phantom thief",
+    "steal",
+    "visual novel"
+  ],
   "mistake": [
     "alternate history",
     "branching narrative",
@@ -30277,6 +31587,25 @@
     "social deduction",
     "surveillance"
   ],
+  "researcher": [
+    "collecting",
+    "cryptid",
+    "detective",
+    "exploration",
+    "hidden object",
+    "hunting",
+    "investigation",
+    "medical",
+    "monster tamer",
+    "noir",
+    "open world",
+    "quest",
+    "scavenging",
+    "science",
+    "search",
+    "tracking",
+    "walking simulator"
+  ],
   "research": [
     "collecting",
     "cryptid",
@@ -30505,6 +31834,25 @@
     "walking simulator",
     "war"
   ],
+  "dispatcher": [
+    "assassination",
+    "automation",
+    "comics",
+    "delivery",
+    "discovery",
+    "espionage",
+    "exploration",
+    "mecha",
+    "military",
+    "open world",
+    "quest",
+    "rescue",
+    "strategy",
+    "superhero",
+    "tactical",
+    "walking simulator",
+    "war"
+  ],
   "dispatch": [
     "assassination",
     "automation",
@@ -30561,6 +31909,25 @@
     "parody",
     "shapeshifting",
     "social deduction"
+  ],
+  "formal": [
+    "art",
+    "artificial intelligence",
+    "artist",
+    "building",
+    "bureaucracy",
+    "business",
+    "crafting",
+    "creative",
+    "drawing",
+    "dress-up",
+    "fashion",
+    "invention",
+    "regency",
+    "robot",
+    "shapeshifting",
+    "steampunk",
+    "victorian"
   ],
   "hunter": [
     "animals",
@@ -30732,6 +32099,26 @@
     "racing",
     "sabotage",
     "vehicle"
+  ],
+  "detective": [
+    "cryptid",
+    "detection",
+    "detective",
+    "dystopian",
+    "extraterrestrial",
+    "hacking",
+    "infiltration",
+    "interrogation",
+    "invasion",
+    "investigation",
+    "invisibility",
+    "legal",
+    "mystery",
+    "noir",
+    "police",
+    "social deduction",
+    "stealth",
+    "surveillance"
   ],
   "promised": [
     "co-op",
@@ -31122,6 +32509,28 @@
     "wizard",
     "wizardry"
   ],
+  "charming": [
+    "beautiful",
+    "comedy",
+    "cozy",
+    "dating",
+    "fairy tale",
+    "fantasy",
+    "love",
+    "magical",
+    "regency",
+    "role playing",
+    "romance",
+    "steampunk",
+    "supernatural",
+    "sword & sorcery",
+    "victorian",
+    "whimsical",
+    "witch",
+    "witchcraft",
+    "wizard",
+    "wizardry"
+  ],
   "charmer": [
     "beautiful",
     "comedy",
@@ -31194,29 +32603,6 @@
     "artificial intelligence",
     "artist",
     "building",
-    "crafting",
-    "creative",
-    "cyberpunk",
-    "dieselpunk",
-    "drawing",
-    "driving",
-    "flight",
-    "hacking",
-    "invention",
-    "mecha",
-    "racing",
-    "robot",
-    "steampunk",
-    "technology",
-    "vehicle"
-  ],
-  "engines": [
-    "action",
-    "art",
-    "artificial intelligence",
-    "artist",
-    "building",
-    "cooking",
     "crafting",
     "creative",
     "cyberpunk",

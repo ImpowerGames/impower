@@ -317,7 +317,7 @@ const Transition = React.forwardRef(
 );
 
 export interface AutocompleteDialogProps
-  extends Omit<StringDialogProps, "value" | "defaultValue"> {
+  extends Omit<StringDialogProps, "value" | "defaultValue" | "onInputChange"> {
   freeSolo?: boolean;
   clearOnBlur?: boolean;
   handleHomeEndKeys?: boolean;
@@ -359,9 +359,9 @@ export interface AutocompleteDialogProps
     getTagProps: AutocompleteGetTagProps
   ) => React.ReactNode;
   onInputChange?: (
-    e: React.SyntheticEvent,
-    value: string,
-    reason: AutocompleteInputChangeReason
+    e: React.ChangeEvent | React.SyntheticEvent,
+    value?: string,
+    reason?: AutocompleteInputChangeReason
   ) => void;
 }
 

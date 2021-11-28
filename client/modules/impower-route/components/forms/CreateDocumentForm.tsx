@@ -38,6 +38,8 @@ export interface CreationStep {
   propertyPaths?: string[];
   description?: string;
   preview?: boolean;
+  headerChildren?: React.ReactNode;
+  footerChildren?: React.ReactNode;
 }
 
 const StyledMobileStepper = styled(MobileStepper)`
@@ -178,10 +180,6 @@ const StyledFormArea = styled.div`
   flex-direction: column;
 `;
 
-const StyledSeparator = styled.div`
-  flex: 1;
-`;
-
 const StyledIconButton = styled(IconButton)`
   pointer-events: auto;
   z-index: 1;
@@ -192,6 +190,7 @@ export interface CreateDocumentFormProps<T = DataDocument>
     InspectorFormProps,
     "data" | "onChange" | "onSubmit" | "getInspector"
   > {
+  step?: number;
   steps: CreationStep[];
   docId: string;
   doc: T;
@@ -201,7 +200,6 @@ export interface CreateDocumentFormProps<T = DataDocument>
   doneLabel: string;
   showErrors?: boolean;
   errors?: { [propertyPath: string]: string };
-  firstButtons?: React.ReactNode;
   preview?: React.ReactNode;
   finishedSummary?: React.ReactNode;
   renderProperty?: (props: RenderPropertyProps) => React.ReactNode;
@@ -212,7 +210,7 @@ export interface CreateDocumentFormProps<T = DataDocument>
     reason: "backdropClick" | "escapeKeyDown" | "closeButtonClick" | "submitted"
   ) => void;
   onChange: (doc: T) => void;
-  onStep?: (e: React.MouseEvent, step: number, doc: T) => Promise<boolean>;
+  onStep?: (e: React.MouseEvent, step: number, doc?: T) => Promise<boolean>;
   onSubmit: (
     e: React.FormEvent | React.MouseEvent,
     id: string,
@@ -227,6 +225,7 @@ export interface CreateDocumentFormProps<T = DataDocument>
 const CreateDocumentForm = React.memo(
   (props: PropsWithChildren<CreateDocumentFormProps>): JSX.Element | null => {
     const {
+      step = 0,
       steps,
       docId,
       doc,
@@ -236,7 +235,6 @@ const CreateDocumentForm = React.memo(
       doneLabel,
       showErrors,
       errors,
-      firstButtons,
       children,
       preview,
       finishedSummary,
@@ -255,7 +253,7 @@ const CreateDocumentForm = React.memo(
     } = props;
 
     const [docIdState, setDocIdState] = useState(docId);
-    const [step, setStep] = useState(0);
+    const [stepState, setStepState] = useState(step);
     const [previousStepIndex, setPreviousStepIndex] = useState(-1);
     const [creating, setCreating] = useState(false);
     const [expandedProperties, setExpandedProperties] = useState<string[]>([]);
@@ -268,6 +266,10 @@ const CreateDocumentForm = React.memo(
     const displayFinishedSummary = finished && finishedSummary;
 
     const theme = useTheme();
+
+    useEffect(() => {
+      setStepState(step);
+    }, [step]);
 
     useEffect(() => {
       setDocIdState(docId);
@@ -285,8 +287,8 @@ const CreateDocumentForm = React.memo(
             return;
           }
         }
-        setPreviousStepIndex(step);
-        setStep(newStep);
+        setPreviousStepIndex(stepState);
+        setStepState(newStep);
         if (contentRef.current?.parentElement) {
           contentRef.current?.parentElement.scrollTo({
             top: 0,
@@ -295,21 +297,21 @@ const CreateDocumentForm = React.memo(
           });
         }
       },
-      [onStep, step]
+      [onStep, stepState]
     );
 
     const handleBack = useCallback(
       async (e: React.MouseEvent): Promise<void> => {
-        await handleStep(e, step - 1);
+        await handleStep(e, stepState - 1);
       },
-      [handleStep, step]
+      [handleStep, stepState]
     );
 
     const handleNext = useCallback(
       async (e: React.MouseEvent): Promise<void> => {
-        await handleStep(e, step + 1);
+        await handleStep(e, stepState + 1);
       },
-      [handleStep, step]
+      [handleStep, stepState]
     );
 
     const handleSubmit = useCallback(
@@ -340,8 +342,8 @@ const CreateDocumentForm = React.memo(
       [docIdState, onClose, onSubmit, onSubmitted]
     );
 
-    const isLastCreationStep = step >= steps.length - 1;
-    const currentStep = steps[step];
+    const isLastCreationStep = stepState >= steps.length - 1;
+    const currentStep = steps[stepState];
 
     const currentStepFilledIn = useMemo(() => {
       return currentStep.propertyPaths
@@ -414,9 +416,9 @@ const CreateDocumentForm = React.memo(
         : currentStep?.description;
     const buttonAreaStyle = useMemo(
       () => ({
-        marginTop: step === 0 ? theme.spacing(5) : theme.spacing(3),
+        marginTop: stepState === 0 ? theme.spacing(5) : theme.spacing(3),
       }),
-      [theme, step]
+      [theme, stepState]
     );
 
     if (!doc) {
@@ -429,13 +431,15 @@ const CreateDocumentForm = React.memo(
           <StyledForegroundArea>
             <StyledContentArea style={{ overflow: "hidden" }}>
               <PeerTransition
-                currentIndex={step}
+                currentIndex={stepState}
                 previousIndex={previousStepIndex}
                 style={{ width: "100%", maxWidth: "100%" }}
               >
                 <StyledContainer
                   bgcolor={
-                    steps?.[step]?.preview ? theme.palette.grey[200] : "white"
+                    steps?.[stepState]?.preview
+                      ? theme.palette.grey[200]
+                      : "white"
                   }
                 >
                   {!displayFinishedSummary && (
@@ -453,7 +457,7 @@ const CreateDocumentForm = React.memo(
                         propertyPaths={currentStep?.propertyPaths}
                         expandedProperties={expandedProperties}
                         backButtonLabel={
-                          displayFinishedSummary || step === 0
+                          displayFinishedSummary || stepState === 0
                             ? undefined
                             : backLabel
                         }
@@ -493,25 +497,26 @@ const CreateDocumentForm = React.memo(
                           displayFinishedSummary && successful ? (
                             finishedSummary
                           ) : (
-                            <StyledHeaderTitleArea>
-                              {title && (
-                                <StyledTitleTypography variant="h5">
-                                  {title}
-                                </StyledTitleTypography>
-                              )}
-                              {title && description && <StyledDivider />}
-                              {description && (
-                                <StyledDescriptionTypography variant="body1">
-                                  {description}
-                                </StyledDescriptionTypography>
-                              )}
-                              <StyledSpacer />
-                            </StyledHeaderTitleArea>
+                            <>
+                              <StyledHeaderTitleArea>
+                                {title && (
+                                  <StyledTitleTypography variant="h5">
+                                    {title}
+                                  </StyledTitleTypography>
+                                )}
+                                {title && description && <StyledDivider />}
+                                {description && (
+                                  <StyledDescriptionTypography variant="body1">
+                                    {description}
+                                  </StyledDescriptionTypography>
+                                )}
+                                <StyledSpacer />
+                              </StyledHeaderTitleArea>
+                              {steps?.[stepState]?.headerChildren}
+                            </>
                           )
                         }
-                        buttonChildren={
-                          step === 0 && (firstButtons || <StyledSeparator />)
-                        }
+                        buttonChildren={steps?.[stepState]?.footerChildren}
                         renderProperty={renderProperty}
                         renderPropertyProps={renderPropertyProps}
                       >
@@ -548,7 +553,7 @@ const CreateDocumentForm = React.memo(
                     variant="dots"
                     steps={steps?.length}
                     position="static"
-                    activeStep={step}
+                    activeStep={stepState}
                     backButton={null}
                     nextButton={null}
                   />

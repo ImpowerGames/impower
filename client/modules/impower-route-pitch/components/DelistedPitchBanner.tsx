@@ -49,13 +49,12 @@ const StyledBoldWarningTypography = styled(StyledWarningTypography)`
 interface DelistedPitchBannerProps {
   archived?: boolean;
   id: string;
-  removed?: boolean;
   onChange?: (value: ProjectDocument) => void;
 }
 
 const DelistedPitchBanner = React.memo(
   (props: DelistedPitchBannerProps): JSX.Element => {
-    const { archived, id, removed, onChange } = props;
+    const { archived, id, onChange } = props;
 
     const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
     const [userState] = useContext(UserContext);

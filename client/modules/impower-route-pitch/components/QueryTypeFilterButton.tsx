@@ -1,11 +1,9 @@
 import React, { useCallback, useMemo } from "react";
 import BookOpenRegularIcon from "../../../resources/icons/regular/book-open.svg";
-import FlaskRoundPotionRegularIcon from "../../../resources/icons/regular/flask-round-potion.svg";
 import GamepadRegularIcon from "../../../resources/icons/regular/gamepad.svg";
 import HouseRegularIcon from "../../../resources/icons/regular/house.svg";
 import MicrophoneRegularIcon from "../../../resources/icons/regular/microphone.svg";
 import MusicRegularIcon from "../../../resources/icons/regular/music.svg";
-import SidebarRegularIcon from "../../../resources/icons/regular/sidebar.svg";
 import UserRegularIcon from "../../../resources/icons/regular/user.svg";
 import WaveformRegularIcon from "../../../resources/icons/regular/waveform.svg";
 import { ProjectType } from "../../impower-data-store";
@@ -41,12 +39,8 @@ const QueryTypeFilterButton = React.memo(
           <BookOpenRegularIcon />
         ) : value === "character" ? (
           <UserRegularIcon />
-        ) : value === "setting" ? (
+        ) : value === "environment" ? (
           <HouseRegularIcon />
-        ) : value === "prop" ? (
-          <FlaskRoundPotionRegularIcon />
-        ) : value === "interface" ? (
-          <SidebarRegularIcon />
         ) : value === "music" ? (
           <MusicRegularIcon />
         ) : value === "sound" ? (

@@ -26,6 +26,7 @@ import React, {
 } from "react";
 import { DynamicIcon, FontIcon } from "../../../impower-icon";
 import SelectOption from "./SelectOption";
+import { StringDialogProps } from "./StringDialog";
 import StringInput, { StringInputProps } from "./StringInput";
 import TagChip from "./TagChip";
 import VirtualizedAutocompleteGroup from "./VirtualizedAutocompleteGroup";
@@ -86,8 +87,12 @@ export interface AutocompleteInputProps
       | "onKeyDown"
       | "onFocus"
       | "onPointerEnter"
+      | "onInputChange"
     >,
-    Omit<Partial<StringInputProps>, "onChange" | "ref" | "autoComplete"> {
+    Omit<
+      Partial<StringInputProps>,
+      "onChange" | "ref" | "autoComplete" | "onInputChange"
+    > {
   options?: unknown[];
   fixedOptions?: unknown[];
   actions?: (string | number)[];
@@ -114,6 +119,11 @@ export interface AutocompleteInputProps
     getTagProps: AutocompleteGetTagProps
   ) => React.ReactNode;
   onDebouncedInputChange?: (value?: string) => void;
+  onInputChange?: (
+    e: React.ChangeEvent | React.SyntheticEvent,
+    value?: string,
+    reason?: AutocompleteInputChangeReason
+  ) => void;
 }
 
 const AutocompleteInput = React.memo(
@@ -507,7 +517,7 @@ const AutocompleteInput = React.memo(
     const handleInputChange = useCallback(
       (
         e: React.ChangeEvent,
-        value: string,
+        value?: string,
         reason?: AutocompleteInputChangeReason
       ) => {
         setInputValueState(value);
@@ -696,7 +706,7 @@ const AutocompleteInput = React.memo(
       ]
     );
 
-    const AutocompleteDialogProps = useMemo(
+    const AutocompleteDialogProps: StringDialogProps = useMemo(
       () => ({
         options: optionsAndActions,
         value: currentValue as string | number,

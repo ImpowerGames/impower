@@ -598,7 +598,6 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
               <DelistedPitchBanner
                 id={pid}
                 archived={viewingArchvied}
-                removed={pitchDocState?.removed}
                 onChange={handleViewArchived}
               />
             )}

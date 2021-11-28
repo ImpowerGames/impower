@@ -1,24 +1,8 @@
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
 import { InputProps } from "@material-ui/core/Input";
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import DiceFiveSolidIcon from "../../../../resources/icons/solid/dice-five.svg";
-import format from "../../../impower-config/utils/format";
-import { getRandomizedStorySetup } from "../../../impower-config/utils/getRandomizedStorySetup";
-import { FontIcon } from "../../../impower-icon";
-import RotateAnimation from "../animations/RotateAnimation";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import DataField, { RenderPropertyProps } from "./DataField";
-import ProjectSummaryPreambleTagSelector from "./ProjectSummaryPreambleTagSelector";
-
-const StyledMotionArea = styled.div`
-  pointer-events: auto;
-`;
-
-const StyledRandomizeButton = styled(Button)`
-  color: ${(props): string => props.theme.palette.text.primary};
-  min-width: 0;
-  padding: ${(props): string => props.theme.spacing(1)};
-`;
+import ProjectMainTagSelector from "./ProjectMainTagSelector";
 
 const StyledPlaceholderOverlay = styled.div`
   padding: inherit;
@@ -31,7 +15,6 @@ const StyledPlaceholderOverlay = styled.div`
   height: fit-content;
   pointer-events: none;
   color: ${(props): string => props.theme.colors.black40};
-  margin-right: 36px;
   white-space: pre-wrap;
 `;
 
@@ -55,7 +38,7 @@ export const ProjectGameSummaryField = (
       displayTagSelector
         ? {
             startAdornment: (
-              <ProjectSummaryPreambleTagSelector
+              <ProjectMainTagSelector
                 placeholder={placeholder}
                 tags={tags}
                 onChangeTags={onChangeTags}
@@ -105,10 +88,11 @@ export const PlaceholderOverlay = (
 ): JSX.Element | null => {
   const { placeholder, inputValue } = props;
   const inputMarkStyle = useMemo(() => ({ opacity: 0 }), []);
+  const showPlaceholder = Boolean(inputValue) && inputValue?.endsWith(" must ");
   return (
     <StyledPlaceholderOverlay>
       <StyledMark style={inputMarkStyle}>{inputValue}</StyledMark>
-      <StyledMark>{placeholder}</StyledMark>
+      {showPlaceholder && <StyledMark>{placeholder}</StyledMark>}
     </StyledPlaceholderOverlay>
   );
 };
@@ -121,79 +105,16 @@ export interface ProjectStorySummaryFieldProps extends RenderPropertyProps {
 export const ProjectStorySummaryField = (
   props: ProjectSummaryFieldProps
 ): JSX.Element | null => {
-  const {
-    propertyPath,
-    data,
-    onPropertyInputChange,
-    onPropertyChange,
-    onDebouncedPropertyChange,
-  } = props;
+  const { data } = props;
 
   const summary = data?.[0]?.summary as string;
 
-  const [defaultValue, setDefaultValue] = useState("");
   const [inputValue, setInputValue] = useState(summary);
-  const [rotation, setRotation] = useState(0);
-  const recentlyRandomizedTags = useRef(new Set<string>());
 
-  const disabled = Boolean(inputValue) && !inputValue?.includes(" must ");
-  const showPlaceholder = Boolean(inputValue) && inputValue?.endsWith(" must ");
+  useEffect(() => {
+    setInputValue(summary);
+  }, [summary]);
 
-  const handlePointerDown = useCallback((): void => {
-    setRotation(rotation + 180);
-  }, [rotation]);
-  const handleClick = useCallback(
-    async (e: React.MouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const parts = inputValue.split(" must ");
-      const currentSuffix = parts[1] || "";
-      let newRandomizedTags = await getRandomizedStorySetup(
-        [],
-        Array.from(recentlyRandomizedTags.current)
-      );
-      if (!newRandomizedTags) {
-        recentlyRandomizedTags.current.clear();
-        newRandomizedTags = await getRandomizedStorySetup(
-          Array.from(recentlyRandomizedTags.current)
-        );
-      }
-      if (!newRandomizedTags) {
-        return;
-      }
-      newRandomizedTags.forEach((tag) => {
-        recentlyRandomizedTags.current.add(tag);
-      });
-      const tags = [...newRandomizedTags];
-      const newPrefix = format(
-        `After {catalyst}, {personality:regex:a} {personality} {archetype} must`,
-        {
-          catalyst: tags[0],
-          personality: tags[1],
-          archetype: tags[2],
-        }
-      );
-      const newValue = `${newPrefix} ${currentSuffix}`;
-      setDefaultValue(newValue);
-      setInputValue(newValue);
-      if (onPropertyInputChange) {
-        onPropertyInputChange(propertyPath, newValue);
-      }
-      if (onPropertyChange) {
-        onPropertyChange(propertyPath, newValue);
-      }
-      if (onDebouncedPropertyChange) {
-        onDebouncedPropertyChange(propertyPath, newValue);
-      }
-    },
-    [
-      onDebouncedPropertyChange,
-      onPropertyChange,
-      onPropertyInputChange,
-      propertyPath,
-      inputValue,
-    ]
-  );
   const handlePropertyInputChange = useCallback(
     async (propertyPath: string, value: string) => {
       if (propertyPath === "summary") {
@@ -208,51 +129,14 @@ export const ProjectStorySummaryField = (
       startAdornment: (
         <PlaceholderOverlay
           inputValue={inputValue}
-          placeholder={
-            showPlaceholder
-              ? `(overcome an obstacle) (and achieve a goal) (or else stakes).`
-              : undefined
-          }
+          placeholder={`(overcome an obstacle) (and achieve a goal) (or else stakes).`}
         />
-      ),
-      endAdornment: (
-        <StyledMotionArea
-          onPointerDown={handlePointerDown}
-          style={{ pointerEvents: disabled ? "none" : undefined }}
-        >
-          <StyledRandomizeButton
-            size="large"
-            disabled={disabled}
-            onClick={handleClick}
-          >
-            <RotateAnimation
-              initial={0}
-              animate={rotation}
-              style={{ position: "relative" }}
-            >
-              <FontIcon
-                aria-label={`Randomize`}
-                size={20}
-                color="rgba(0, 0, 0, 0.5)"
-              >
-                <DiceFiveSolidIcon />
-              </FontIcon>
-            </RotateAnimation>
-          </StyledRandomizeButton>
-        </StyledMotionArea>
       ),
       style: {
         overflow: "hidden",
       },
     }),
-    [
-      disabled,
-      handleClick,
-      handlePointerDown,
-      inputValue,
-      rotation,
-      showPlaceholder,
-    ]
+    [inputValue]
   );
   const SummaryDialogProps = useMemo(
     () => ({
@@ -266,7 +150,7 @@ export const ProjectStorySummaryField = (
       {...props}
       InputProps={SummaryInputProps}
       DialogProps={SummaryDialogProps}
-      defaultValue={defaultValue}
+      defaultValue={summary}
       onPropertyInputChange={handlePropertyInputChange}
       renderProperty={undefined}
     />

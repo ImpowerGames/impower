@@ -388,7 +388,6 @@ const ContributionPostPageContent = React.memo(
                   pitchId={pid}
                   id={cid}
                   archived={viewingArchvied}
-                  removed={contributionDocState?.removed}
                   onChange={handleViewArchived}
                 />
               )}

@@ -7,16 +7,22 @@ import RotateAnimation from "../animations/RotateAnimation";
 
 const StyledMotionArea = styled.div``;
 
-const StyledButtonIconArea = styled.div`
-  padding-right: ${(props): string => props.theme.spacing(1.5)};
-`;
+const StyledButtonIconArea = styled.div``;
 
 const StyledRandomizeButton = styled(Button)`
   color: ${(props): string => props.theme.palette.text.primary};
   border-color: rgba(0, 0, 0, 0.23);
 `;
 
+const StyledLabelArea = styled.div<{ responsive?: boolean }>`
+  padding-left: ${(props): string => props.theme.spacing(1.5)};
+  ${(props): string => props.theme.breakpoints.down("sm")} {
+    ${(props): string => (props.responsive ? `display: none;` : "")}
+  }
+`;
+
 interface RandomizeButtonProps {
+  variant?: "text" | "outlined" | "contained";
   color?:
     | "inherit"
     | "primary"
@@ -26,6 +32,7 @@ interface RandomizeButtonProps {
     | "info"
     | "warning";
   size?: number;
+  responsive?: boolean;
   label?: string;
   disabled?: boolean;
   style?: React.CSSProperties;
@@ -35,8 +42,10 @@ interface RandomizeButtonProps {
 const RandomizeButton = React.memo(
   (props: RandomizeButtonProps): JSX.Element => {
     const {
+      variant = "outlined",
       color = "inherit",
       size = 20,
+      responsive,
       label,
       disabled,
       style,
@@ -51,7 +60,7 @@ const RandomizeButton = React.memo(
         style={{ pointerEvents: disabled ? "none" : undefined, ...style }}
       >
         <StyledRandomizeButton
-          variant="outlined"
+          variant={variant}
           size="large"
           color={color}
           disabled={disabled}
@@ -72,7 +81,7 @@ const RandomizeButton = React.memo(
               </FontIcon>
             </RotateAnimation>
           </StyledButtonIconArea>
-          {label}
+          <StyledLabelArea responsive={responsive}>{label}</StyledLabelArea>
         </StyledRandomizeButton>
       </StyledMotionArea>
     );

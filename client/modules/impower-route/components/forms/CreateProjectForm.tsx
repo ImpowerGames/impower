@@ -1,6 +1,4 @@
-import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Slider, Typography } from "@material-ui/core";
 import React, {
   useCallback,
   useContext,
@@ -14,6 +12,8 @@ import {
   getRandomizedTags,
   getTagsSortedBySpecificity,
 } from "../../../impower-config";
+import format from "../../../impower-config/utils/format";
+import { getRandomizedStorySetup } from "../../../impower-config/utils/getRandomizedStorySetup";
 import { difference, shuffle } from "../../../impower-core";
 import {
   ProjectDocument,
@@ -34,95 +34,33 @@ import {
 } from "../../../impower-user";
 import { RenderPropertyProps } from "../inputs/DataField";
 import PageTagField, { PageTagFieldProps } from "../inputs/PageTagField";
+import ProjectGeneratorTagsSelector from "../inputs/ProjectGeneratorTagsSelector";
 import ProjectNameField, {
   ProjectNameFieldProps,
 } from "../inputs/ProjectNameField";
 import ProjectSummaryField, {
   ProjectSummaryFieldProps,
 } from "../inputs/ProjectSummaryField";
-import RandomizeButton from "../inputs/RandomizeButton";
+import ProjectSummaryInspiration from "../inputs/ProjectSummaryInspiration";
+import ProjectTagsInspiration from "../inputs/ProjectTagsInspiration";
 import { CreationStep } from "./CreateDocumentForm";
 import CreatePageForm from "./CreatePageForm";
 
-const inspirationText = "Need some inspiration?";
-const randomizeText = "Randomize!";
 const skipLabel = "Skip";
 const backLabel = "Back";
 const nextLabel = "Next";
 const finishCreationLabel = "Create";
 
-const StyledTagInspiration = styled.div`
-  position: relative;
+const StyledSeparator = styled.div`
+  flex: 1;
+`;
+
+const StyledGeneratorArea = styled.div`
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
 `;
-
-const StyledTypography = styled(Typography)`
-  font-size: 0.9375rem;
-  white-space: nowrap;
-`;
-
-const StyledInspirationTextArea = styled.div`
-  position: absolute;
-  top: -${(props): string => props.theme.spacing(4)};
-  left: 0;
-  right: 0;
-`;
-
-const StyledSliderArea = styled.div`
-  position: absolute;
-  bottom: ${(props): string => props.theme.spacing(-3.5)};
-  left: 0;
-  right: 0;
-`;
-
-const StyledSlider = styled(Slider)``;
-
-interface TagInspirationProps {
-  min: number;
-  max: number;
-  amount: number;
-  disabled?: boolean;
-  onChangeAmount: (value: number) => void;
-  onClick: () => void;
-}
-
-const TagInspiration = React.memo((props: TagInspirationProps): JSX.Element => {
-  const { min, max, amount, disabled, onChangeAmount, onClick } = props;
-  const theme = useTheme();
-  const handleChange = useCallback(
-    (e, v): void => {
-      onChangeAmount(v);
-    },
-    [onChangeAmount]
-  );
-  return (
-    <StyledTagInspiration>
-      <StyledInspirationTextArea>
-        <StyledTypography>{inspirationText}</StyledTypography>
-      </StyledInspirationTextArea>
-      <RandomizeButton
-        disabled={disabled}
-        label={randomizeText}
-        onClick={onClick}
-      />
-      <StyledSliderArea>
-        <StyledSlider
-          value={amount}
-          valueLabelDisplay="auto"
-          size="small"
-          step={1}
-          marks
-          min={min}
-          max={max}
-          disabled={disabled}
-          onChange={handleChange}
-          style={{ padding: theme.spacing(1, 0) }}
-        />
-      </StyledSliderArea>
-    </StyledTagInspiration>
-  );
-});
 
 interface ProjectFieldProps
   extends RenderPropertyProps,
@@ -179,6 +117,9 @@ const CreateProjectForm = React.memo(
       onSubmitted,
     } = props;
 
+    const summary = doc?.summary;
+
+    const [step, setStep] = useState(0);
     const [configState, fetchConfigState] = useContext(ConfigContext);
     const [, toastDispatch] = useContext(ToastContext);
     const [userState, userDispatch] = useContext(UserContext);
@@ -188,20 +129,26 @@ const CreateProjectForm = React.memo(
     const hex = userDoc?.hex;
     const phraseAdditions = customizations?.phrase_additions?.phraseTags;
     const phraseDeletions = customizations?.phrase_deletions?.phraseTags;
+    const [summaryInputValue, setSummaryInputValue] = useState(summary);
 
     const recentlyRandomizedTags = useRef(new Set<string>());
+    const recentlyRandomizedSummaryParts = useRef(new Set<string>());
 
     const [docIdState, setDocIdState] = useState(docId);
     const [tagCount, setTagCount] = useState(5);
     const [lockedTags, setLockedTags] = useState<string[]>([]);
-    const [relevancyFilteredTags, setRelevancyFilteredTags] = useState<
-      string[]
-    >([]);
+    const [filteredTitleTags, setFilteredTitleTags] = useState<string[]>([]);
+    const [filteredSummaryTags, setFilteredSummaryTags] = useState<string[]>(
+      []
+    );
     const [nameEdited, setNameEdited] = useState(false);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const originalDoc = useMemo(() => ({ ...(doc || {}) }), []);
 
+    const [catalysts, setCatalysts] = useState<string[]>([]);
+    const [personalities, setPersonalities] = useState<string[]>([]);
+    const [archetypes, setArchetypes] = useState<string[]>([]);
     const [termTagsMap, setTermTagsMap] = useState<{
       [term: string]: string[];
     }>();
@@ -211,9 +158,20 @@ const CreateProjectForm = React.memo(
     const [tagPhrasesMap, setTagPhrasesMap] = useState<{
       [tag: string]: string[];
     }>();
+    const [tagCatalystsMap, setTagCatalystsMap] = useState<{
+      [tag: string]: string[];
+    }>();
+    const [tagArchetypesMap, setTagArchetypesMap] = useState<{
+      [tag: string]: string[];
+    }>();
     const [filteredRelevantTitles, setFilteredRelevantTitles] = useState<
       [string, number][]
     >([]);
+    const [filteredRelevantCatalysts, setFilteredRelevantCatalysts] = useState<
+      string[]
+    >([]);
+    const [filteredRelevantArchetypes, setFilteredRelevantArchetypes] =
+      useState<string[]>([]);
 
     useEffect(() => {
       setDocIdState(docId);
@@ -221,25 +179,25 @@ const CreateProjectForm = React.memo(
 
     const [suggestedTitle] = filteredRelevantTitles?.[0] || [originalDoc?.name];
 
-    const updateFilteredRelevantTitles = useCallback(
-      (
+    const getFilteredRelevantStrings = useCallback(
+      async (
         specificitySortedTags: string[],
-        relevancyFilteredTags: string[],
+        filteredTags: string[],
         tagPhrasesMap: {
           [tag: string]: string[];
-        }
-      ) => {
-        window.requestAnimationFrame(() => {
-          const relevantTags = specificitySortedTags.filter(
-            (tag) => !(relevancyFilteredTags || []).includes(tag)
-          );
-          const filteredRelevantTitles = getRelevantPhrases(
-            relevantTags,
-            tagPhrasesMap,
-            termTagsMap
-          );
-          setFilteredRelevantTitles(filteredRelevantTitles);
-        });
+        },
+        limit?: number
+      ): Promise<[string, number][]> => {
+        await new Promise((resolve) => window.requestAnimationFrame(resolve));
+        const relevantTags = specificitySortedTags.filter(
+          (tag) => !(filteredTags || []).includes(tag)
+        );
+        return getRelevantPhrases(
+          relevantTags,
+          tagPhrasesMap,
+          termTagsMap,
+          limit
+        );
       },
       [termTagsMap]
     );
@@ -248,14 +206,26 @@ const CreateProjectForm = React.memo(
       const setup = async (): Promise<void> => {
         const latestConfigState = await fetchConfigState();
         const phrases = shuffle(latestConfigState?.phrases);
+        const catalysts = shuffle(latestConfigState?.catalysts);
+        const personalties = shuffle(
+          latestConfigState?.moods?.personality?.flatMap((x) => x)
+        );
+        const archetypes = shuffle(latestConfigState?.archetypes);
+        setCatalysts(catalysts);
+        setPersonalities(personalties);
+        setArchetypes(archetypes);
         const termTagsMap = latestConfigState?.terms;
         const getPhraseTagsMap = (
           await import("../../../impower-terms/utils/getPhraseTagsMap")
         ).default;
-        const phraseTagsMap = getPhraseTagsMap(phrases, termTagsMap);
         setTermTagsMap(termTagsMap);
-        setTagPhrasesMap(getReversedMap(phraseTagsMap));
+        const phraseTagsMap = getPhraseTagsMap(phrases, termTagsMap);
         setPhraseTagsMap(phraseTagsMap);
+        setTagPhrasesMap(getReversedMap(phraseTagsMap));
+        const catalystTagsMap = getPhraseTagsMap(catalysts, termTagsMap);
+        setTagCatalystsMap(getReversedMap(catalystTagsMap));
+        const archetypeTagsMap = getPhraseTagsMap(archetypes, termTagsMap);
+        setTagArchetypesMap(getReversedMap(archetypeTagsMap));
       };
       setup();
     }, [fetchConfigState]);
@@ -272,18 +242,53 @@ const CreateProjectForm = React.memo(
     }, [phraseTagsMap, phraseAdditions, phraseDeletions]);
 
     useEffect(() => {
-      if (doc?.tags && relevancyFilteredTags && tagPhrasesMap) {
-        updateFilteredRelevantTitles(
+      if (doc?.tags && filteredTitleTags && tagPhrasesMap) {
+        getFilteredRelevantStrings(
           doc?.tags,
-          relevancyFilteredTags,
-          tagPhrasesMap
-        );
+          filteredTitleTags,
+          tagPhrasesMap,
+          200
+        ).then((result) => setFilteredRelevantTitles(result));
       }
     }, [
       tagPhrasesMap,
-      relevancyFilteredTags,
+      filteredTitleTags,
       doc?.tags,
-      updateFilteredRelevantTitles,
+      getFilteredRelevantStrings,
+    ]);
+
+    useEffect(() => {
+      if (doc?.tags && filteredSummaryTags && tagCatalystsMap) {
+        getFilteredRelevantStrings(
+          doc?.tags,
+          filteredSummaryTags,
+          tagCatalystsMap
+        ).then((result) =>
+          setFilteredRelevantCatalysts(result.map(([x]) => x))
+        );
+      }
+    }, [
+      tagCatalystsMap,
+      filteredSummaryTags,
+      doc?.tags,
+      getFilteredRelevantStrings,
+    ]);
+
+    useEffect(() => {
+      if (doc?.tags && filteredSummaryTags && tagArchetypesMap) {
+        getFilteredRelevantStrings(
+          doc?.tags,
+          filteredSummaryTags,
+          tagArchetypesMap
+        ).then((result) =>
+          setFilteredRelevantArchetypes(result.map(([x]) => x))
+        );
+      }
+    }, [
+      tagArchetypesMap,
+      filteredSummaryTags,
+      doc?.tags,
+      getFilteredRelevantStrings,
     ]);
 
     const handleAddPhrase = useCallback(
@@ -427,21 +432,6 @@ const CreateProjectForm = React.memo(
       },
       [doc?.tags, lockedTags, tagCount, tagLimit]
     );
-    const handleRandomChange = useCallback(
-      (newRandomizedTags: string[]) => {
-        newRandomizedTags.forEach((tag) => {
-          recentlyRandomizedTags.current.add(tag);
-        });
-        const tags = [...lockedTags, ...newRandomizedTags];
-        if (onChange) {
-          onChange({
-            ...doc,
-            tags,
-          });
-        }
-      },
-      [doc, lockedTags, onChange]
-    );
 
     const [openAccountDialog] = useDialogNavigation("a");
 
@@ -549,8 +539,85 @@ const CreateProjectForm = React.memo(
           doc?.projectType
         );
       }
-      handleRandomChange(getTagsSortedBySpecificity(newRandomizedTags));
-    }, [lockedTags, tagCount, doc?.projectType, handleRandomChange]);
+      const sortedRandomizedTags =
+        getTagsSortedBySpecificity(newRandomizedTags);
+      sortedRandomizedTags.forEach((tag) => {
+        recentlyRandomizedTags.current.add(tag);
+      });
+      const tags = [...lockedTags, ...sortedRandomizedTags];
+      if (onChange) {
+        onChange({
+          ...doc,
+          tags,
+        });
+      }
+    }, [lockedTags, tagCount, doc, onChange]);
+
+    const handleRandomizeSummary = useCallback(
+      async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const parts = summaryInputValue.split(" must ");
+        const currentSuffix = parts[1] || "";
+        const randomizableCatalysts =
+          filteredRelevantCatalysts?.length > 0
+            ? filteredRelevantCatalysts
+            : catalysts;
+        const randomizablePersonalities = personalities;
+        const randomizableArchetypes =
+          filteredRelevantArchetypes?.length > 0
+            ? filteredRelevantArchetypes
+            : archetypes;
+        let newRandomizedTags = await getRandomizedStorySetup(
+          randomizableCatalysts,
+          randomizablePersonalities,
+          randomizableArchetypes,
+          Array.from(recentlyRandomizedSummaryParts.current)
+        );
+        if (!newRandomizedTags) {
+          recentlyRandomizedSummaryParts.current.clear();
+          newRandomizedTags = await getRandomizedStorySetup(
+            randomizableCatalysts,
+            randomizablePersonalities,
+            randomizableArchetypes,
+            Array.from(recentlyRandomizedSummaryParts.current)
+          );
+        }
+        if (!newRandomizedTags) {
+          return;
+        }
+        newRandomizedTags.forEach((tag) => {
+          recentlyRandomizedSummaryParts.current.add(tag);
+        });
+        const tags = [...newRandomizedTags];
+        const newPrefix = format(
+          `After {catalyst}, {personality:regex:a} {personality} {archetype} must`,
+          {
+            catalyst: tags[0],
+            personality: tags[1],
+            archetype: tags[2],
+          }
+        );
+        const newValue = `${newPrefix} ${currentSuffix}`;
+        setSummaryInputValue(newValue);
+        if (onChange) {
+          onChange({
+            ...doc,
+            summary: newValue,
+          });
+        }
+      },
+      [
+        summaryInputValue,
+        filteredRelevantCatalysts,
+        catalysts,
+        personalities,
+        filteredRelevantArchetypes,
+        archetypes,
+        onChange,
+        doc,
+      ]
+    );
 
     const handleLockTag = useCallback(
       (tag: string) => {
@@ -583,12 +650,12 @@ const CreateProjectForm = React.memo(
       lockedTags,
       chosenTitle: doc?.name,
       sortedTags: doc?.tags,
-      relevancyFilteredTags,
+      relevancyFilteredTags: filteredTitleTags,
       relevantTitles: filteredRelevantTitles,
       terms: termTagsMap,
       tags: doc?.tags,
       onLockTag: handleLockTag,
-      onRelevancyFilter: setRelevancyFilteredTags,
+      onRelevancyFilter: setFilteredTitleTags,
       onChooseTitle: handleChosenTitle,
       onAddPhrase: handleAddPhrase,
       onDeletePhrase: handleDeletePhrase,
@@ -596,9 +663,66 @@ const CreateProjectForm = React.memo(
       onChangeTags: handleChangeTags,
     };
 
+    const handleStep = useCallback(
+      async (e: React.MouseEvent, newStep: number): Promise<boolean> => {
+        setStep(newStep);
+        return true;
+      },
+      []
+    );
+
+    const stepsWithChildren = useMemo(() => {
+      const newSteps = [...steps];
+      const tagStepIndex = steps.findIndex((step) =>
+        step.propertyPaths.includes("tags")
+      );
+      newSteps[tagStepIndex].footerChildren = (
+        <>
+          <ProjectTagsInspiration
+            min={lockedTags.length + 1}
+            max={tagLimit}
+            amount={tagCount}
+            disabled={lockedTags.length >= tagLimit}
+            onChangeAmount={setTagCount}
+            onClick={handleRandomizeTags}
+          />
+          <StyledSeparator />
+        </>
+      );
+      const summaryStepIndex = steps.findIndex((step) =>
+        step.propertyPaths.includes("summary")
+      );
+      newSteps[summaryStepIndex].headerChildren =
+        doc?.projectType === "story" ? (
+          <StyledGeneratorArea>
+            <ProjectGeneratorTagsSelector
+              tags={doc?.tags}
+              filteredTags={filteredSummaryTags}
+              onFilterTags={setFilteredSummaryTags}
+            />
+          </StyledGeneratorArea>
+        ) : undefined;
+      newSteps[summaryStepIndex].footerChildren =
+        doc?.projectType === "story" ? (
+          <ProjectSummaryInspiration onClick={handleRandomizeSummary} />
+        ) : undefined;
+      return newSteps;
+    }, [
+      doc?.projectType,
+      doc?.tags,
+      filteredSummaryTags,
+      handleRandomizeSummary,
+      handleRandomizeTags,
+      lockedTags.length,
+      steps,
+      tagCount,
+      tagLimit,
+    ]);
+
     return (
       <CreatePageForm
-        steps={steps}
+        step={step}
+        steps={stepsWithChildren}
         docId={docIdState}
         doc={doc}
         skipLabel={skipLabel}
@@ -614,16 +738,7 @@ const CreateProjectForm = React.memo(
         onClose={onClose}
         renderProperty={ProjectField}
         renderPropertyProps={InspectorRenderPropertyProps}
-        firstButtons={
-          <TagInspiration
-            min={lockedTags.length + 1}
-            max={tagLimit}
-            amount={tagCount}
-            disabled={lockedTags.length >= tagLimit}
-            onChangeAmount={setTagCount}
-            onClick={handleRandomizeTags}
-          />
-        }
+        onStep={handleStep}
       />
     );
   }

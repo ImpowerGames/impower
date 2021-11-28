@@ -54,13 +54,12 @@ interface DelistedContributionBannerProps {
   archived?: boolean;
   pitchId?: string;
   id?: string;
-  removed?: boolean;
   onChange?: (value: ContributionDocument) => void;
 }
 
 const DelistedContributionBanner = React.memo(
   (props: DelistedContributionBannerProps): JSX.Element => {
-    const { archived, pitchId, id, removed, onChange } = props;
+    const { archived, pitchId, id, onChange } = props;
 
     const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
     const [userState] = useContext(UserContext);
