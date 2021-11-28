@@ -126,6 +126,7 @@ const ListInput = (props: ListInputProps): JSX.Element => {
     virtualize,
     disabled,
     onExpandProperty,
+    onPropertyInputChange,
     onPropertyChange,
     onDebouncedPropertyChange,
     getFormattedSummary = format,
@@ -172,6 +173,7 @@ const ListInput = (props: ListInputProps): JSX.Element => {
         };
         onExpandProperty(`${propertyPath}.data.${id}`, true);
       });
+      onPropertyInputChange(propertyPath, newList);
       onPropertyChange(propertyPath, newList);
       onDebouncedPropertyChange(propertyPath, newList);
     },
@@ -179,6 +181,7 @@ const ListInput = (props: ListInputProps): JSX.Element => {
       defaultElement,
       onDebouncedPropertyChange,
       onExpandProperty,
+      onPropertyInputChange,
       onPropertyChange,
       propertyPath,
       propertyValue,
@@ -188,18 +191,42 @@ const ListInput = (props: ListInputProps): JSX.Element => {
   const handleRemoveListData = useCallback(
     (id: string): void => {
       const newList = removeOrderedCollectionData(propertyValue, [id]);
+      onPropertyInputChange(propertyPath, newList);
       onPropertyChange(propertyPath, newList);
       onDebouncedPropertyChange(propertyPath, newList);
     },
-    [propertyValue, onPropertyChange, propertyPath, onDebouncedPropertyChange]
+    [
+      propertyValue,
+      propertyPath,
+      onPropertyInputChange,
+      onPropertyChange,
+      onDebouncedPropertyChange,
+    ]
   );
   const handleSetOrder = useCallback(
     (ids: string[]): void => {
       const newList = setOrderedCollectionOrder(propertyValue, ids);
+      onPropertyInputChange(propertyPath, newList);
       onPropertyChange(propertyPath, newList);
       onDebouncedPropertyChange(propertyPath, newList);
     },
-    [propertyValue, onPropertyChange, propertyPath, onDebouncedPropertyChange]
+    [
+      propertyValue,
+      propertyPath,
+      onPropertyInputChange,
+      onPropertyChange,
+      onDebouncedPropertyChange,
+    ]
+  );
+  const handleItemPropertyInputChange = useCallback(
+    (itemPropertyPath: string, value: unknown) => {
+      if (isStorageFile(value) && usingStorageOnly && !value.storageKey) {
+        handleRemoveListData(getPropertyName(itemPropertyPath));
+      } else {
+        onPropertyInputChange(itemPropertyPath, value);
+      }
+    },
+    [usingStorageOnly, handleRemoveListData, onPropertyInputChange]
   );
   const handleItemPropertyChange = useCallback(
     (itemPropertyPath: string, value: unknown) => {
@@ -353,6 +380,7 @@ const ListInput = (props: ListInputProps): JSX.Element => {
                 moreIconSize={theme.fontSize.addRemoveIcon}
                 blob={blobs?.[id] || blob}
                 onMore={handleRemoveListData}
+                onPropertyInputChange={handleItemPropertyInputChange}
                 onPropertyChange={handleItemPropertyChange}
                 onDebouncedPropertyChange={handleItemDebouncedPropertyChange}
               />

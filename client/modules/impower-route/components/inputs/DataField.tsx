@@ -107,6 +107,7 @@ export interface InheritedProps {
   BooleanInputComponent?: React.ComponentType<BooleanInputProps>;
   ObjectFieldComponent?: React.ComponentType<ObjectFieldProps>;
   getDocIds?: (propertyPath: string, data: Record<string, unknown>) => string[];
+  onPropertyInputChange?: (propertyPath: string, value: unknown) => void;
   onPropertyChange?: (propertyPath: string, value: unknown) => void;
   onDebouncedPropertyChange?: (propertyPath: string, value: unknown) => void;
   onPropertyBlur?: (propertyPath: string, value: unknown) => void;
@@ -241,7 +242,7 @@ const DataFieldArea = React.memo(
       multiline,
       type,
       displayValueInverted,
-      minRows = 3,
+      minRows = 5,
       maxRows = 10,
       options,
       valueBounds,
@@ -276,6 +277,7 @@ const DataFieldArea = React.memo(
       renderOptionIcon,
       renderChips,
       onMore,
+      onPropertyInputChange,
       onPropertyChange,
       onDebouncedPropertyChange,
       onPropertyBlur,
@@ -304,6 +306,15 @@ const DataFieldArea = React.memo(
           data.map((d) => JSON.stringify(getValue(d, propertyPath)))
         ).length > 1,
       [data, propertyPath]
+    );
+
+    const handleInputChange = useCallback(
+      (e: React.ChangeEvent, value: unknown) => {
+        if (onPropertyInputChange) {
+          onPropertyInputChange(propertyPath, value);
+        }
+      },
+      [onPropertyInputChange, propertyPath]
     );
 
     const handleChange = useCallback(
@@ -428,6 +439,7 @@ const DataFieldArea = React.memo(
       getInputError: handleGetInputError,
       onErrorFound: handleErrorFound,
       onErrorFixed: handleErrorFixed,
+      onInputChange: handleInputChange,
       onChange: handleChange,
       onDebouncedChange: handleDebouncedChange,
       onBlur: handleBlur,
@@ -470,6 +482,9 @@ const DataFieldArea = React.memo(
     if (Array.isArray(propertyValue)) {
       const handleListChange = (newValue: string | string[]): void => {
         if (Array.isArray(newValue)) {
+          if (onPropertyInputChange) {
+            onPropertyInputChange(propertyPath, newValue);
+          }
           if (onPropertyChange) {
             onPropertyChange(propertyPath, newValue);
           }
@@ -477,6 +492,9 @@ const DataFieldArea = React.memo(
             onDebouncedPropertyChange(propertyPath, newValue);
           }
         } else {
+          if (onPropertyInputChange) {
+            onPropertyInputChange(propertyPath, []);
+          }
           if (onPropertyChange) {
             onPropertyChange(propertyPath, []);
           }
@@ -737,6 +755,7 @@ const DataField = React.memo((props: DataFieldProps): JSX.Element | null => {
     renderChips,
     onMore,
     onClickMenuItem,
+    onPropertyInputChange,
     onPropertyChange,
     onDebouncedPropertyChange,
     onPropertyBlur,
@@ -1063,6 +1082,7 @@ const DataField = React.memo((props: DataFieldProps): JSX.Element | null => {
         filterOptions={filterOptions}
         getInputError={propertyGetInputError}
         onMore={propertyMenuItems ? onMore || handleOpenMenu : undefined}
+        onPropertyInputChange={onPropertyInputChange}
         onPropertyChange={onPropertyChange}
         onDebouncedPropertyChange={onDebouncedPropertyChange}
         onPropertyBlur={onPropertyBlur}

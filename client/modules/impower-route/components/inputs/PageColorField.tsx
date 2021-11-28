@@ -6,7 +6,12 @@ import RandomizeButton from "./RandomizeButton";
 export const PageColorField = (
   props: RenderPropertyProps
 ): JSX.Element | null => {
-  const { propertyPath, onPropertyChange, onDebouncedPropertyChange } = props;
+  const {
+    propertyPath,
+    onPropertyInputChange,
+    onPropertyChange,
+    onDebouncedPropertyChange,
+  } = props;
 
   const onDelayedChange = useCallback(
     (propertyPath: string, value: unknown) => {
@@ -21,6 +26,15 @@ export const PageColorField = (
   const handleDebouncedChange = useCallback(debounce(onDelayedChange, 500), [
     onDelayedChange,
   ]);
+
+  const handleInputChange = useCallback(
+    (propertyPath: string, value: unknown) => {
+      if (onPropertyInputChange) {
+        onPropertyInputChange(propertyPath, value);
+      }
+    },
+    [onPropertyInputChange]
+  );
 
   const handleChange = useCallback(
     (propertyPath: string, value: unknown) => {
@@ -44,6 +58,7 @@ export const PageColorField = (
                 await import("../../../impower-core/utils/getRandomColor")
               ).default;
               const randomColor = getRandomColor();
+              handleInputChange(propertyPath, randomColor);
               handleChange(propertyPath, randomColor);
               handleDebouncedChange(propertyPath, randomColor);
             }}

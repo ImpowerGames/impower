@@ -35,14 +35,14 @@ const StyledChip = styled(Chip)`
   }
 `;
 
-export interface GameSummaryPreambleSelectorProps {
+export interface ProjectSummaryPreambleTagSelectorProps {
   placeholder: string;
   tags: string[];
   onChangeTags: (tags: string[]) => void;
 }
 
-export const GameSummaryPreambleSelector = (
-  props: GameSummaryPreambleSelectorProps
+export const ProjectSummaryPreambleTagSelector = (
+  props: ProjectSummaryPreambleTagSelectorProps
 ): JSX.Element | null => {
   const { placeholder = "", tags, onChangeTags } = props;
 
@@ -101,4 +101,4 @@ export const GameSummaryPreambleSelector = (
   );
 };
 
-export default GameSummaryPreambleSelector;
+export default ProjectSummaryPreambleTagSelector;

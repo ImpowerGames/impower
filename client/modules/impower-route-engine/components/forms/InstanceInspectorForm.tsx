@@ -77,8 +77,9 @@ const InstanceRenderProperty = (
     helperText,
     moreInfoPopup,
     loading,
-    onPropertyChange = (): void => null,
-    onDebouncedPropertyChange = (): void => null,
+    onPropertyInputChange,
+    onPropertyChange,
+    onDebouncedPropertyChange,
     onMore,
     getDocIds,
     getInputError,
@@ -107,6 +108,11 @@ const InstanceRenderProperty = (
           )
         : null,
     [getDocIds, getInputError, inspectedData, propertyPath]
+  );
+
+  const handleInputChange = useCallback(
+    (value: unknown): void => onPropertyInputChange(propertyPath, value),
+    [onPropertyInputChange, propertyPath]
   );
 
   const handleChange = useCallback(
@@ -192,6 +198,7 @@ const InstanceRenderProperty = (
           loading={loading}
           endAdornmentPosition="replace"
           getInputError={handleGetInputError}
+          onInputChange={handleInputChange}
           onChange={handleChange}
           onDebouncedChange={handleDebouncedChange}
         />
@@ -205,10 +212,15 @@ const InstanceRenderProperty = (
 interface InstanceInspectorFormProps
   extends Omit<
     InspectorFormProps,
-    "onPropertyChange" | "onDebouncedPropertyChange"
+    "onPropertyInputChange" | "onPropertyChange" | "onDebouncedPropertyChange"
   > {
   data: InstanceData[];
   inspectedContainerId?: string;
+  onPropertyInputChange?: (
+    references: Reference[],
+    propertyPath: string,
+    value: unknown
+  ) => void;
   onPropertyChange?: (
     references: Reference[],
     propertyPath: string,
@@ -234,8 +246,9 @@ const InstanceInspectorForm = React.memo(
     const {
       data,
       inspectedContainerId,
-      onPropertyChange = (): void => null,
-      onDebouncedPropertyChange = (): void => null,
+      onPropertyInputChange,
+      onPropertyChange,
+      onDebouncedPropertyChange,
       children,
     } = props;
 
@@ -262,6 +275,14 @@ const InstanceInspectorForm = React.memo(
     const serializedReferences = useMemo(
       () => JSON.stringify(data.map((d) => d.reference)),
       [data]
+    );
+
+    const handlePropertyInputChange = useCallback(
+      (propertyPath: string, value: unknown) => {
+        const references = JSON.parse(serializedReferences);
+        onPropertyInputChange(references, propertyPath, value);
+      },
+      [onPropertyInputChange, serializedReferences]
     );
 
     const handlePropertyChange = useCallback(
@@ -357,6 +378,7 @@ const InstanceInspectorForm = React.memo(
         getPropertyDocIds={handleGetPropertyDocIds}
         setValueId={handleSetValueId}
         onClickMenuItem={handleClickMenuItem}
+        onPropertyInputChange={handlePropertyInputChange}
         onPropertyChange={handlePropertyChange}
         onDebouncedPropertyChange={handleDebouncedPropertyChange}
         renderProperty={InstanceRenderProperty}

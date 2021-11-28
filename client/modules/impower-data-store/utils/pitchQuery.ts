@@ -1,18 +1,18 @@
 import { PitchedProjectCollectionPath } from "../../impower-api";
-import { PitchGoal } from "../types/enums/pitchGoal";
+import { ProjectType } from "../types/enums/projectType";
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const pitchQuery = async (
   options: {
     sort: "rank" | "rating" | "new";
-    goal?: PitchGoal;
+    type?: ProjectType;
     nsfw?: boolean;
     termsQuery?: string[];
     creator?: string;
   },
   ...path: PitchedProjectCollectionPath
 ) => {
-  const { sort, goal, nsfw, termsQuery, creator } = options;
+  const { sort, type, nsfw, termsQuery, creator } = options;
 
   const DataStoreQuery = await (
     await import("../classes/dataStoreQuery")
@@ -22,8 +22,8 @@ const pitchQuery = async (
 
   query = query.where("delisted", "==", false);
 
-  if (goal) {
-    query = query.where("pitchGoal", "==", goal);
+  if (type) {
+    query = query.where("projectType", "==", type);
   }
 
   if (!nsfw) {

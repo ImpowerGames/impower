@@ -1,15 +1,16 @@
 import ConfigCache from "../classes/configCache";
 
 export const getTagsSortedBySpecificity = (tags: string[]): string[] => {
-  const gameTags = ConfigCache.instance.params?.gameTags;
-  const specificMechanics = gameTags.Mechanics[0];
-  const generalMechanics = gameTags.Mechanics.slice(1).flatMap((c) => c);
-  const specificGenres = gameTags.Genres[0];
-  const generalGenres = gameTags.Genres.slice(1).flatMap((c) => c);
-  const specificSubjects = gameTags.Subjects[0];
-  const generalSubjects = gameTags.Subjects.slice(1).flatMap((c) => c);
-  const specificAesthetics = gameTags.Aesthetics[0];
-  const generalAesthetics = gameTags.Aesthetics.slice(1).flatMap((c) => c);
+  const projectTags = ConfigCache.instance.params?.projectTags;
+  const specificMechanics =
+    projectTags.Mechanics[0] || projectTags.Mechanics[1];
+  const generalMechanics = projectTags.Mechanics.slice(2).flatMap((c) => c);
+  const specificGenres = projectTags.Genres[0];
+  const generalGenres = projectTags.Genres.slice(1).flatMap((c) => c);
+  const specificSubjects = projectTags.Subjects[0];
+  const generalSubjects = projectTags.Subjects.slice(1).flatMap((c) => c);
+  const specificAesthetics = projectTags.Aesthetics[0];
+  const generalAesthetics = projectTags.Aesthetics.slice(1).flatMap((c) => c);
   // Prefer titles that are more relevant to specific subjects, aesthetics, and genres
   return [
     ...specificAesthetics.filter((t) => tags?.includes(t)),

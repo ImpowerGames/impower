@@ -1,14 +1,25 @@
 import styled from "@emotion/styled";
 import dynamic from "next/dynamic";
-import React, { useCallback, useContext, useEffect, useMemo } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { ConfigParameters } from "../../impower-config";
-import { getSearchedTerms, ProjectDocument } from "../../impower-data-store";
+import {
+  getSearchedTerms,
+  ProjectDocument,
+  ProjectType,
+} from "../../impower-data-store";
 import { SvgData } from "../../impower-icon";
 import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { BetaBanner } from "../../impower-route";
 import { useRouter } from "../../impower-router";
 import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
+import getPitchTypeFilterOptionLabels from "../utils/getPitchTypeFilterOptionLabels";
 import EmptyPitchList from "./EmptyPitchList";
 import PitchList from "./PitchList";
 import PitchSearchToolbar from "./PitchSearchToolbar";
@@ -64,6 +75,24 @@ interface PitchSearchPageProps {
 const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
   const { config, icons, search, pitchDocs, style } = props;
 
+  const locationSearch =
+    typeof window !== "undefined" ? window.location.search : "";
+  const params: { [key: string]: string } =
+    typeof window !== "undefined"
+      ? locationSearch
+          .slice(1)
+          .split("&")
+          .reduce((a, q): { [key: string]: string } => {
+            const [key, value] = q.split("=");
+            a[key] = value;
+            return a;
+          }, {})
+      : {};
+
+  const [typeFilter, setTypeFilter] = useState<ProjectType>(
+    (params?.b?.toLowerCase() as ProjectType) || "game"
+  );
+
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const searching = navigationState?.search?.searching;
   const transitioning = navigationState?.transitioning;
@@ -118,11 +147,26 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
     [followedTags, searchedTerms, userDispatch]
   );
 
+  const handleTypeFilter = useCallback(
+    async (e: React.MouseEvent, value: ProjectType) => {
+      setTypeFilter(value);
+      // Wait a bit for dialog to close
+      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `/pitch?b=${value}`
+      );
+    },
+    []
+  );
+
   const emptyImage = useMemo(() => <AnimatedDefaultMascot />, []);
   const emptySubtitle1 = `Got an idea?`;
   const emptySubtitle2 = `Why not pitch it?`;
 
-  const filterLabel = `pitches`;
+  const filterLabel =
+    getPitchTypeFilterOptionLabels()?.[typeFilter]?.toLowerCase();
   const searchLabel = useMemo(
     () =>
       activeSearch
@@ -206,12 +250,14 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
         <PitchList
           config={config}
           icons={icons}
+          typeFilter={typeFilter}
           pitchDocs={pitchDocs}
           search={activeSearch}
           sortOptions={SORT_OPTIONS}
           loadingPlaceholder={loadingPlaceholder}
           emptyPlaceholder={emptyPlaceholder}
           offlinePlaceholder={offlinePlaceholder}
+          onTypeFilter={handleTypeFilter}
         />
       </StyledApp>
     </StyledPitchSearch>

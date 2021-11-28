@@ -1,5 +1,5 @@
-export * from "./classes/inspectors/gameDocumentInspector";
 export * from "./classes/inspectors/pageDocumentInspector";
+export * from "./classes/inspectors/projectDocumentInspector";
 export * from "./classes/inspectors/resourceDocumentInspector";
 export * from "./classes/inspectors/studioDocumentInspector";
 export * from "./classes/inspectors/userDocumentInspector";

@@ -1,7 +1,7 @@
 export const getValidTags = (
   tags: string[],
-  lockedTags: string[],
-  recentlyRandomizedTags?: string[]
+  recentlyRandomizedTags?: string[],
+  lockedTags?: string[]
 ): string[] => {
   const forbiddenTags = new Set(
     recentlyRandomizedTags?.map((tag) => tag.toLowerCase()) || []

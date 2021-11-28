@@ -18,7 +18,7 @@ import {
 } from "../../impower-confirm-dialog";
 import { Timestamp } from "../../impower-core";
 import { AggData } from "../../impower-data-state";
-import { getAge, ProjectDocument } from "../../impower-data-store";
+import { getAge, ProjectDocument, ProjectType } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
 import { useDialogNavigation } from "../../impower-dialog";
 import { SvgData } from "../../impower-icon";
@@ -137,6 +137,7 @@ const StyledEmptyArea = styled.div`
 interface StaticPitchListProps {
   config?: ConfigParameters;
   icons?: { [name: string]: SvgData };
+  type?: ProjectType;
   pitchDataEntries?: [string, AggData][];
   compact?: boolean;
   loadingPlaceholder?: React.ReactNode;
@@ -156,6 +157,7 @@ const StaticPitchList = React.memo(
     const {
       config,
       icons,
+      type,
       pitchDataEntries,
       compact,
       loadingPlaceholder,
@@ -546,10 +548,10 @@ const StaticPitchList = React.memo(
     const handleStartCreation = useCallback(async () => {
       canCloseRef.current = true;
       const Auth = (await import("../../impower-auth/classes/auth")).default;
-      const createGameDocument = (
-        await import("../../impower-data-store/utils/createGameDocument")
+      const createProjectDocument = (
+        await import("../../impower-data-store/utils/createProjectDocument")
       ).default;
-      const newGame = createGameDocument({
+      const newGame = createProjectDocument({
         _createdBy: uid,
         _author: Auth.instance.author,
         name: "",
@@ -557,13 +559,13 @@ const StaticPitchList = React.memo(
         owners: [uid],
         pitched: true,
         pitchedAt: new Timestamp(),
-        projectType: "game",
+        projectType: type,
       });
       setEditing(false);
       setEditDocId(undefined);
       setEditDoc(newGame);
       setEditDialogOpen(true);
-    }, [uid]);
+    }, [type, uid]);
 
     const createDocExists = Boolean(editDoc);
 
@@ -752,6 +754,8 @@ const StaticPitchList = React.memo(
       [loading]
     );
 
+    const addLabel = `pitch a ${type}`;
+
     return (
       <>
         <StyledListArea style={style}>
@@ -844,12 +848,13 @@ const StaticPitchList = React.memo(
           </StyledContent>
         </StyledListArea>
         {!hideAddToolbar && (
-          <AddPitchToolbar onClick={handleOpenCreateDialog} />
+          <AddPitchToolbar label={addLabel} onClick={handleOpenCreateDialog} />
         )}
         {editDialogOpen !== undefined && (
           <CreatePitchDialog
             config={config}
             icons={icons}
+            type={type}
             open={editDialogOpen}
             docId={editDocId}
             doc={editDoc}

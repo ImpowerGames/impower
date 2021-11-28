@@ -21,11 +21,11 @@ import {
   confirmDialogNavOpen,
 } from "../../../impower-confirm-dialog";
 import {
-  GameDocumentInspector,
   isGameDocument,
   isResourceDocument,
   PageDocumentInspector,
   ProjectDocument,
+  ProjectDocumentInspector,
   ResourceDocumentInspector,
 } from "../../../impower-data-store";
 import {
@@ -251,7 +251,7 @@ const SetupDetails = React.memo((props: SetupDetailsProps) => {
 
   const handleGetInspector = useCallback(() => {
     return isGameDocument(doc)
-      ? GameDocumentInspector.instance
+      ? ProjectDocumentInspector.instance
       : isResourceDocument(doc)
       ? ResourceDocumentInspector.instance
       : new PageDocumentInspector<ProjectDocument>();

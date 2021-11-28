@@ -29,7 +29,7 @@ const StyledMark = styled.mark`
   max-width: 100%;
 `;
 
-const StyledLabelTypography = styled(Typography)`
+const StyledLabelTypography = styled(Typography)<{ component?: string }>`
   max-width: 100%;
 `;
 
@@ -70,6 +70,7 @@ const EmptyPitchListText = React.memo(
       <>
         <StyledLabelTypography
           variant="h6"
+          component="p"
           color="textSecondary"
           style={emptyLabelStyle}
         >
@@ -77,6 +78,7 @@ const EmptyPitchListText = React.memo(
         </StyledLabelTypography>
         <StyledLabelTypography
           variant="h6"
+          component="p"
           color="textSecondary"
           style={emptyLabelStyle}
         >

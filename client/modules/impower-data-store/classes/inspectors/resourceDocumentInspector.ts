@@ -62,7 +62,7 @@ export class ResourceDocumentInspector extends PageDocumentInspector<ProjectDocu
     }
     if (propertyPath === "tags") {
       const resourceTags = ConfigCache.instance.params?.resourceTags;
-      const gameTags = ConfigCache.instance.params?.gameTags;
+      const gameTags = ConfigCache.instance.params?.projectTags;
       return removeDuplicates([
         ...resourceTags.AssetTypes.sort().map((tag) => tag.toLowerCase()),
         ...resourceTags.VisualStyles.sort().map((tag) => tag.toLowerCase()),
@@ -83,7 +83,7 @@ export class ResourceDocumentInspector extends PageDocumentInspector<ProjectDocu
   ): string {
     if (propertyPath === "tags") {
       const resourceTags = ConfigCache.instance.params?.resourceTags;
-      const gameTags = ConfigCache.instance.params?.gameTags;
+      const gameTags = ConfigCache.instance.params?.projectTags;
       if (
         resourceTags.AssetTypes.map((tag) => tag.toLowerCase()).includes(value)
       ) {

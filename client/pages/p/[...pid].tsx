@@ -51,7 +51,6 @@ import {
 } from "../../modules/impower-navigation";
 import navigationSetTransitioning from "../../modules/impower-navigation/utils/navigationSetTransitioning";
 import { PageHead, ShareArticleHead } from "../../modules/impower-route";
-import CreatePitchDialog from "../../modules/impower-route-pitch/components/CreatePitchDialog";
 import PitchCard from "../../modules/impower-route-pitch/components/PitchCard";
 import PitchCardLayout from "../../modules/impower-route-pitch/components/PitchCardLayout";
 import PostFooter from "../../modules/impower-route-pitch/components/PostFooter";
@@ -63,6 +62,14 @@ import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBac
 import useThemeColor from "../../modules/impower-route/hooks/useThemeColor";
 import { useRouter } from "../../modules/impower-router";
 import { UserContext } from "../../modules/impower-user";
+
+const CreatePitchDialog = dynamic(
+  () =>
+    import("../../modules/impower-route-pitch/components/CreatePitchDialog"),
+  {
+    ssr: false,
+  }
+);
 
 const LOAD_INITIAL_LIMIT = 5;
 

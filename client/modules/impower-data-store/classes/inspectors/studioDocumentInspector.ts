@@ -54,7 +54,7 @@ export class StudioDocumentInspector extends PageDocumentInspector<StudioDocumen
     value: string
   ): string {
     if (propertyPath === "tags") {
-      const gameTags = ConfigCache.instance.params?.gameTags;
+      const gameTags = ConfigCache.instance.params?.projectTags;
       if (
         gameTags.Mechanics.flatMap((x) => x)
           .map((tag) => tag.toLowerCase())
@@ -96,7 +96,7 @@ export class StudioDocumentInspector extends PageDocumentInspector<StudioDocumen
       return roleTags.Roles.sort();
     }
     if (propertyPath === "tags") {
-      const gameTags = ConfigCache.instance.params?.gameTags;
+      const gameTags = ConfigCache.instance.params?.projectTags;
       return [
         ...gameTags.Mechanics.flatMap((x) => x)
           .sort()

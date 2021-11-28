@@ -8,9 +8,14 @@ import { FontIcon } from "../../impower-icon";
 import { Tabs } from "../../impower-route";
 import PitchToolbar from "./PitchToolbar";
 
-export type PitchToolbarTab = "Following" | "Trending" | "Top";
+export type PitchToolbarTab = "following" | "trending" | "top";
 
-const tabs: PitchToolbarTab[] = ["Following", "Trending", "Top"];
+const tabs: PitchToolbarTab[] = ["following", "trending", "top"];
+const tabLabels: { [tab in PitchToolbarTab]: string } = {
+  following: "Following",
+  trending: "Trending",
+  top: "Top",
+};
 const icons = [BellSolidIcon, FireSolidIcon, TrophyStarSolidIcon];
 
 const StyledToolbarContent = styled.div`
@@ -78,7 +83,7 @@ const PitchTab = React.memo((props: PitchTabProps): JSX.Element => {
         <FontIcon aria-label={tab} size={17} style={iconStyle}>
           {icon}
         </FontIcon>
-        {tab}
+        {tabLabels?.[tab]}
       </>
     ),
     [icon, iconStyle, tab]

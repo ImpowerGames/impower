@@ -108,6 +108,7 @@ export interface InspectorFormProps extends InheritedProps {
     data: Record<string, unknown>
   ) => void;
   onExpandProperty?: (propertyPath: string, expanded: boolean) => void;
+  onPropertyInputChange?: (propertyPath: string, value: unknown) => void;
   onPropertyChange?: (propertyPath: string, value: unknown) => void;
   onDebouncedPropertyChange?: (propertyPath: string, value: unknown) => void;
   onChange?: (data: Record<string, unknown>[]) => void;
@@ -170,6 +171,7 @@ const InspectorForm = React.memo(
       getFormattedSummary,
       onClickMenuItem,
       onExpandProperty,
+      onPropertyInputChange,
       onPropertyChange,
       onPropertyBlur,
       onDebouncedPropertyChange,
@@ -493,6 +495,7 @@ const InspectorForm = React.memo(
                     onClickMenuItem={onClickMenuItem}
                     onExpandProperty={onExpandProperty}
                     renderProperty={renderProperty}
+                    onPropertyInputChange={onPropertyInputChange}
                     onPropertyChange={handlePropertyChange}
                     onPropertyBlur={onPropertyBlur}
                     onDebouncedPropertyChange={handleDebouncedPropertyChange}
@@ -533,6 +536,7 @@ const InspectorForm = React.memo(
                       getInspector={getInspector}
                       getFormattedSummary={getFormattedSummary}
                       getDocIds={getPropertyDocIds}
+                      onPropertyInputChange={onPropertyInputChange}
                       onPropertyChange={handlePropertyChange}
                       onPropertyBlur={onPropertyBlur}
                       onDebouncedPropertyChange={handleDebouncedPropertyChange}

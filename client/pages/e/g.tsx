@@ -28,6 +28,7 @@ import {
 import { Fallback } from "../../modules/impower-route";
 import Footer from "../../modules/impower-route-home/components/elements/Footer";
 import Illustration from "../../modules/impower-route-home/components/elements/Illustration";
+import { CreationStep } from "../../modules/impower-route/components/forms/CreateDocumentForm";
 import GameCreationFinishedSummary from "../../modules/impower-route/components/forms/GameCreationFinishedSummary";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
@@ -35,8 +36,27 @@ import { useRouter } from "../../modules/impower-router";
 import { UserContext } from "../../modules/impower-user";
 import IllustrationImage from "../../resources/illustrations/clip-working-from-home-2.svg";
 
-const CreateGameForm = dynamic(
-  () => import("../../modules/impower-route/components/forms/CreateGameForm"),
+const steps: CreationStep[] = [
+  {
+    title: "Create a game",
+    description: "What kind of game would you like to make?",
+    propertyPaths: ["tags"],
+  },
+  {
+    title: "What's it called?",
+    propertyPaths: ["name"],
+  },
+  {
+    title: "Last thing! Describe it!",
+    propertyPaths: ["summary"],
+  },
+];
+
+const submitLabel = "Create Game";
+
+const CreateProjectForm = dynamic(
+  () =>
+    import("../../modules/impower-route/components/forms/CreateProjectForm"),
   { loading: () => <Fallback color="primary" /> }
 );
 
@@ -122,13 +142,13 @@ const CreateGamePage = React.memo((props: CreateGamePageProps) => {
   useEffect(() => {
     if (uid !== undefined) {
       const setup = async (): Promise<void> => {
-        const createGameDocument = (
+        const createProjectDocument = (
           await import(
-            "../../modules/impower-data-store/utils/createGameDocument"
+            "../../modules/impower-data-store/utils/createProjectDocument"
           )
         ).default;
         setCreateDoc(
-          createGameDocument({
+          createProjectDocument({
             studio,
             _createdBy: uid,
             _author: {
@@ -194,9 +214,11 @@ const CreateGamePage = React.memo((props: CreateGamePageProps) => {
         <StyledContent>
           <StyledContainer>
             {createDoc ? (
-              <CreateGameForm
+              <CreateProjectForm
                 docId={createDocId}
                 doc={createDoc}
+                steps={steps}
+                submitLabel={submitLabel}
                 onChange={setCreateDoc}
                 onSubmit={handleSubmit}
                 finishedSummary={

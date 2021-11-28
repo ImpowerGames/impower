@@ -2,9 +2,7 @@ export type ProjectType =
   | "game"
   | "story"
   | "character"
-  | "setting"
-  | "prop"
-  | "interface"
+  | "environment"
   | "music"
   | "sound"
   | "voice";

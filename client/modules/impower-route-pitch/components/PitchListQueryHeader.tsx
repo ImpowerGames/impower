@@ -2,12 +2,11 @@ import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
 import dynamic from "next/dynamic";
 import React from "react";
-import { QuerySort } from "../../impower-data-store";
+import { ProjectType, QuerySort } from "../../impower-data-store";
 import { DateRangeFilter } from "../types/dateRangeFilter";
-import { PitchGoalFilter } from "../types/pitchGoalFilter";
-import QueryGoalFilterButton from "./QueryGoalFilterButton";
 import QueryHeader from "./QueryHeader";
 import QuerySortButton from "./QuerySortButton";
+import QueryTypeFilterButton from "./QueryTypeFilterButton";
 
 const RangeFilterButton = dynamic(() => import("./QueryRangeFilterButton"), {
   ssr: false,
@@ -40,12 +39,12 @@ const StyledCenterArea = styled.div`
 `;
 
 interface PitchListQueryHeaderProps {
-  goalFilter?: PitchGoalFilter;
+  typeFilter?: ProjectType;
   rangeFilter?: DateRangeFilter;
   sort?: QuerySort;
   sortOptions?: QuerySort[];
   style?: React.CSSProperties;
-  onGoalFilter?: (e: React.MouseEvent, filter: PitchGoalFilter) => void;
+  onTypeFilter?: (e: React.MouseEvent, filter: ProjectType) => void;
   onRangeFilter?: (e: React.MouseEvent, filter: DateRangeFilter) => void;
   onSort?: (e: React.MouseEvent, sort: QuerySort) => void;
   onFollowMore?: (e: React.MouseEvent) => void;
@@ -54,12 +53,12 @@ interface PitchListQueryHeaderProps {
 const PitchListQueryHeader = React.memo(
   (props: PitchListQueryHeaderProps): JSX.Element => {
     const {
-      goalFilter,
+      typeFilter,
       rangeFilter,
       sort,
       sortOptions,
       style,
-      onGoalFilter,
+      onTypeFilter,
       onRangeFilter,
       onSort,
       onFollowMore,
@@ -67,7 +66,7 @@ const PitchListQueryHeader = React.memo(
 
     return (
       <QueryHeader id="pitch-filter-header" style={style}>
-        <QueryGoalFilterButton value={goalFilter} onOption={onGoalFilter} />
+        <QueryTypeFilterButton value={typeFilter} onOption={onTypeFilter} />
         <StyledSpacer />
         <StyledCenterArea>
           {onFollowMore && (

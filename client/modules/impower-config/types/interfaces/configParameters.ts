@@ -2,9 +2,21 @@ import { Message } from "../enums/message";
 
 export interface TagConfigParameters {
   /**
-   * Our map of game tags organized by category and grouped by specificity [[...specific], [...general]]
+   * Our map of project tags organized by category and grouped by specificity [[...specific], [...general]]
    */
-  gameTags: { [categories: string]: string[][] };
+  projectTags: { [categories: string]: string[][] };
+  /**
+   * Our map of moods organized by category (personality or emotion) and grouped by sentiment [[...positive], [...negative]]
+   */
+  moods: { [categories: string]: string[][] };
+  /**
+   * Our list of catalysts
+   */
+  catalysts: string[];
+  /**
+   * Our list of archetypes
+   */
+  archetypes: string[];
   /**
    * Our map of resource tags organized by category
    */
@@ -38,10 +50,6 @@ export interface TagConfigParameters {
 }
 
 export interface GeneratorConfigParameters {
-  /**
-   * Our map of moods organized by category
-   */
-  moods: { [categories: string]: string[] };
   /**
    * Our array of phrases that are used by our Punny Idea Generator
    */

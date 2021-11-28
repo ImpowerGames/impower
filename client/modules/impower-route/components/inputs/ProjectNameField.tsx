@@ -6,7 +6,7 @@ const GamePromptButton = dynamic(() => import("../elements/GamePromptButton"), {
   ssr: false,
 });
 
-export interface GameNameFieldProps extends RenderPropertyProps {
+export interface ProjectNameFieldProps extends RenderPropertyProps {
   chosenTitle?: string;
   sortedTags?: string[];
   relevancyFilteredTags?: string[];
@@ -21,8 +21,8 @@ export interface GameNameFieldProps extends RenderPropertyProps {
   onChangeTags?: (tags: string[]) => void;
 }
 
-export const GameNameField = (
-  props: GameNameFieldProps
+export const ProjectNameField = (
+  props: ProjectNameFieldProps
 ): JSX.Element | null => {
   const {
     chosenTitle,
@@ -66,4 +66,4 @@ export const GameNameField = (
   );
 };
 
-export default GameNameField;
+export default ProjectNameField;

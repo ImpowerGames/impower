@@ -1,88 +1,133 @@
+import { ProjectType } from "../../impower-data-store";
 import ConfigCache from "../classes/configCache";
 import { getRequiredTagCounts } from "./getRequiredTagCounts";
 import { getValidTags } from "./getValidTags";
 
+export const getRandomizableTags = (
+  type?: ProjectType
+): {
+  Mechanics: string[];
+  Genres: string[];
+  Aesthetics: string[];
+  Subjects: string[];
+} => {
+  const projectTags = ConfigCache.instance.params?.projectTags;
+  if (!projectTags) {
+    return {
+      Mechanics: [],
+      Genres: [],
+      Aesthetics: [],
+      Subjects: [],
+    };
+  }
+  const aiMechanicTags =
+    type === "game"
+      ? [
+          ...projectTags.Mechanics[0],
+          ...projectTags.Mechanics[1],
+          ...projectTags.Mechanics[2],
+        ]
+      : [];
+  const aiGenreTags = [...projectTags.Genres[0], ...projectTags.Genres[1]];
+  const aiAestheticTags = [
+    ...projectTags.Aesthetics[0],
+    ...projectTags.Aesthetics[1],
+  ];
+  const aiSubjectTags =
+    type === "game"
+      ? [...projectTags.Subjects[0], ...projectTags.Subjects[1]]
+      : type === "story"
+      ? [
+          ...projectTags.Mechanics[0],
+          ...projectTags.Subjects[0],
+          ...projectTags.Subjects[1],
+        ]
+      : [];
+
+  return {
+    Mechanics: aiMechanicTags.map((tag) => tag.toLowerCase()),
+    Genres: aiGenreTags.map((tag) => tag.toLowerCase()),
+    Aesthetics: aiAestheticTags.map((tag) => tag.toLowerCase()),
+    Subjects: aiSubjectTags.map((tag) => tag.toLowerCase()),
+  };
+};
+
 export const getRandomizedTags = async (
   tagCount: number,
-  lockedTags: string[],
-  recentlyRandomizedTags?: string[]
+  recentlyRandomizedTags?: string[],
+  lockedTags?: string[],
+  type?: ProjectType
 ): Promise<string[]> => {
-  const gameTags = ConfigCache.instance.params?.gameTags;
-  if (!gameTags) {
-    return [];
-  }
   const {
     requiredMechanicCount,
     requiredGenreCount,
     requiredAestheticCount,
     requiredSubjectCount,
-  } = getRequiredTagCounts(tagCount);
-  const aiMechanicTags = [...gameTags.Mechanics[0], ...gameTags.Mechanics[1]];
-  const aiGenreTags = [...gameTags.Genres[0], ...gameTags.Genres[1]];
-  const aiAestheticTags = [
-    ...gameTags.Aesthetics[0],
-    ...gameTags.Aesthetics[1],
-  ];
-  const aiSubjectTags = [...gameTags.Subjects[0], ...gameTags.Subjects[1]];
-  const normalizedMechanicTags = aiMechanicTags.map((tag) => tag.toLowerCase());
-  const normalizedGenreTags = aiGenreTags.map((tag) => tag.toLowerCase());
-  const normalizedAestheticTags = aiAestheticTags.map((tag) =>
-    tag.toLowerCase()
-  );
-  const normalizedSubjectTags = aiSubjectTags.map((tag) => tag.toLowerCase());
+  } = getRequiredTagCounts(tagCount, type);
+  const randomizableTags = getRandomizableTags(type);
   const lockedMechanicCount = lockedTags.filter((tag) =>
-    normalizedMechanicTags.includes(tag)
+    randomizableTags.Mechanics.includes(tag)
   ).length;
   const lockedGenreCount = lockedTags.filter((tag) =>
-    normalizedGenreTags.includes(tag)
+    randomizableTags.Genres.includes(tag)
   ).length;
   const lockedAestheticCount = lockedTags.filter((tag) =>
-    normalizedAestheticTags.includes(tag)
+    randomizableTags.Aesthetics.includes(tag)
   ).length;
   const lockedSubjectCount = lockedTags.filter((tag) =>
-    normalizedSubjectTags.includes(tag)
+    randomizableTags.Subjects.includes(tag)
   ).length;
-  const randomMechanicCount = requiredMechanicCount - lockedMechanicCount;
-  const randomGenreCount = requiredGenreCount - lockedGenreCount;
-  const randomAestheticCount = requiredAestheticCount - lockedAestheticCount;
-  const randomSubjectCount = requiredSubjectCount - lockedSubjectCount;
+  const randomMechanicCount =
+    requiredMechanicCount !== null
+      ? requiredMechanicCount - lockedMechanicCount
+      : null;
+  const randomGenreCount =
+    requiredGenreCount !== null ? requiredGenreCount - lockedGenreCount : null;
+  const randomAestheticCount =
+    requiredAestheticCount !== null
+      ? requiredAestheticCount - lockedAestheticCount
+      : null;
+  const randomSubjectCount =
+    requiredSubjectCount !== null
+      ? requiredSubjectCount - lockedSubjectCount
+      : null;
   const randomOtherTags = [];
   if (requiredMechanicCount < 1) {
-    randomOtherTags.push(...normalizedMechanicTags);
+    randomOtherTags.push(...randomizableTags.Mechanics);
   }
   if (requiredGenreCount < 1) {
-    randomOtherTags.push(...normalizedGenreTags);
+    randomOtherTags.push(...randomizableTags.Genres);
   }
   if (requiredAestheticCount < 1) {
-    randomOtherTags.push(...normalizedAestheticTags);
+    randomOtherTags.push(...randomizableTags.Aesthetics);
   }
   if (requiredSubjectCount < 1) {
-    randomOtherTags.push(...normalizedSubjectTags);
+    randomOtherTags.push(...randomizableTags.Subjects);
   }
   const validMechanicTags = getValidTags(
-    normalizedMechanicTags,
-    lockedTags,
-    recentlyRandomizedTags
+    randomizableTags.Mechanics,
+    recentlyRandomizedTags,
+    lockedTags
   );
   const validGenreTags = getValidTags(
-    normalizedGenreTags,
-    lockedTags,
-    recentlyRandomizedTags
+    randomizableTags.Genres,
+    recentlyRandomizedTags,
+    lockedTags
   );
   const validAestheticTags = getValidTags(
-    normalizedAestheticTags,
-    lockedTags,
-    recentlyRandomizedTags
+    randomizableTags.Aesthetics,
+    recentlyRandomizedTags,
+    lockedTags
+  );
+  const validSubjectTags = getValidTags(
+    randomizableTags.Subjects,
+    recentlyRandomizedTags,
+    lockedTags
   );
   const validOtherTags = getValidTags(
     randomOtherTags,
-    lockedTags,
-    recentlyRandomizedTags
-  );
-  const validSubjectTags = getValidTags(
-    normalizedSubjectTags,
-    lockedTags,
-    recentlyRandomizedTags
+    recentlyRandomizedTags,
+    lockedTags
   );
   if (randomMechanicCount > validMechanicTags.length) {
     return undefined;
@@ -93,10 +138,10 @@ export const getRandomizedTags = async (
   if (randomAestheticCount > validAestheticTags.length) {
     return undefined;
   }
-  if (randomOtherTags.length > validOtherTags.length) {
+  if (randomSubjectCount > validSubjectTags.length) {
     return undefined;
   }
-  if (randomSubjectCount > validSubjectTags.length) {
+  if (randomOtherTags.length > validOtherTags.length) {
     return undefined;
   }
   const sample = (await import("../../impower-core/utils/sample")).default;

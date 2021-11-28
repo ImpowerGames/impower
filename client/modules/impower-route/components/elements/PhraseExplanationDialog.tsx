@@ -50,7 +50,7 @@ const PhraseExplanationDialog = React.memo(
       subphrases.forEach((subphrase) => {
         const termTags = terms[subphrase];
         if (termTags) {
-          const gameTags = configState?.gameTags;
+          const gameTags = configState?.projectTags;
           if (termTags.length > 0) {
             const officialGameTags = Object.values(gameTags)
               .flatMap((c) => c)
@@ -81,7 +81,7 @@ const PhraseExplanationDialog = React.memo(
         ([, associatedTags]) => !associatedTags.some((t) => tags.includes(t))
       );
       return [...includes, ...excludes];
-    }, [configState?.gameTags, phrase, tags, terms]);
+    }, [configState?.projectTags, phrase, tags, terms]);
 
     const content = useMemo(
       () => (

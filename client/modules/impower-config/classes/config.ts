@@ -9,10 +9,12 @@ import phrases from "../../../../generator/src/input/phrases.json";
 import terms from "../../../../generator/src/output/terms.json";
 import colors from "../../../resources/json/colors.json";
 import abbreviations from "../../../resources/json/en/abbreviations.json";
+import archetypes from "../../../resources/json/en/archetypes.json";
 import capitalizations from "../../../resources/json/en/capitalizations.json";
-import gameTags from "../../../resources/json/en/gameTags.json";
+import catalysts from "../../../resources/json/en/catalysts.json";
 import messages from "../../../resources/json/en/messages.json";
 import moods from "../../../resources/json/en/moods.json";
+import projectTags from "../../../resources/json/en/projectTags.json";
 import regexes from "../../../resources/json/en/regexes.json";
 import resourceTags from "../../../resources/json/en/resourceTags.json";
 import roleTags from "../../../resources/json/en/roleTags.json";
@@ -145,9 +147,11 @@ class Config {
       abbreviations: this.getValue("abbreviations", abbreviations),
       capitalizations: this.getValue("capitalizations", capitalizations),
       colors: this.getValue("colors", colors),
-      gameTags: this.getValue("gameTags", gameTags),
+      projectTags: this.getValue("projectTags", projectTags),
       messages: this.getValue("messages", messages),
       moods: this.getValue("moods", moods),
+      catalysts: this.getValue("catalysts", catalysts),
+      archetypes: this.getValue("archetypes", archetypes),
       phrases: this.getValue("phrases", phrases),
       regexes: this.getValue("regexes", regexes),
       resourceTags: this.getValue("resourceTags", resourceTags),

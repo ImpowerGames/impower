@@ -58,6 +58,7 @@ export const PageMembersField = (
     allowEdit,
     newAccess,
     getInspector,
+    onPropertyInputChange,
     onPropertyChange,
     onDebouncedPropertyChange,
     onNewAccessChange,
@@ -118,11 +119,20 @@ export const PageMembersField = (
           g: group,
         });
       });
+      if (onPropertyInputChange) {
+        onPropertyInputChange("members", newValue);
+      }
       if (onPropertyChange) {
         onPropertyChange("members", newValue);
       }
     },
-    [changedMemberAccessIds, group, doc?.changedMembers?.data, onPropertyChange]
+    [
+      changedMemberAccessIds,
+      onPropertyInputChange,
+      onPropertyChange,
+      doc?.changedMembers?.data,
+      group,
+    ]
   );
 
   const handleNewDebouncedMembersChange = useCallback(
@@ -158,6 +168,13 @@ export const PageMembersField = (
 
   const handleExistingMemberChange = useCallback(
     (e: React.ChangeEvent, uid: string, value: MemberAccess | "Remove") => {
+      if (onPropertyInputChange) {
+        if (value === "Remove") {
+          onPropertyInputChange(`members.data.${uid}`, null);
+        } else {
+          onPropertyInputChange(`members.data.${uid}.access`, value);
+        }
+      }
       if (onPropertyChange) {
         if (value === "Remove") {
           onPropertyChange(`members.data.${uid}`, null);
@@ -166,7 +183,7 @@ export const PageMembersField = (
         }
       }
     },
-    [onPropertyChange]
+    [onPropertyChange, onPropertyInputChange]
   );
 
   const handleDebouncedExistingMemberChange = useCallback(

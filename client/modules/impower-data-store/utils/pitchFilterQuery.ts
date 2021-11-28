@@ -1,5 +1,5 @@
 import { DateAge } from "../types/enums/dateAge";
-import { PitchGoal } from "../types/enums/pitchGoal";
+import { ProjectType } from "../types/enums/projectType";
 import getFilterQuery from "./getFilterQuery";
 import pitchQuery from "./pitchQuery";
 
@@ -7,7 +7,7 @@ import pitchQuery from "./pitchQuery";
 const pitchFilterQuery = (
   options: {
     sort?: "rank" | "rating" | "new";
-    goal?: PitchGoal;
+    type?: ProjectType;
     age?: DateAge;
     nsfw?: boolean;
     tags?: string[];
@@ -15,14 +15,14 @@ const pitchFilterQuery = (
   },
   collection: "pitched_projects"
 ) => {
-  const { sort, goal, age, nsfw, tags, creator } = options;
+  const { sort, type, age, nsfw, tags, creator } = options;
 
   const termsQuery = getFilterQuery({
     tags,
     age,
   });
 
-  return pitchQuery({ sort, goal, nsfw, termsQuery, creator }, collection);
+  return pitchQuery({ sort, type, nsfw, termsQuery, creator }, collection);
 };
 
 export default pitchFilterQuery;

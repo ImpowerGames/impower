@@ -18,6 +18,7 @@ export const PageStudioField = (
     propertyPath,
     spacing,
     debounceInterval,
+    onPropertyInputChange,
     onPropertyChange,
     onDebouncedPropertyChange,
   } = props;
@@ -31,11 +32,14 @@ export const PageStudioField = (
 
   const handleStudioChange = useCallback(
     (e: React.ChangeEvent, value: string) => {
+      if (onPropertyInputChange) {
+        onPropertyInputChange("studio", value);
+      }
       if (onPropertyChange) {
         onPropertyChange("studio", value);
       }
     },
-    [onPropertyChange]
+    [onPropertyChange, onPropertyInputChange]
   );
 
   const handleDebouncedStudioChange = useCallback(

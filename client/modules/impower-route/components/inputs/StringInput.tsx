@@ -243,6 +243,7 @@ export interface StringInputProps extends TextFieldProps {
   onOpenDialog?: () => void;
   onCloseDialog?: () => void;
   getInputError?: (value: unknown) => Promise<string | null>;
+  onInputChange?: (e: React.ChangeEvent, value?: unknown) => void;
   onChange?: (e: React.ChangeEvent, value?: unknown) => void;
   onDebouncedChange?: (value: unknown) => void;
   onBlur?: (e: React.FocusEvent, value?: unknown) => void;
@@ -308,6 +309,7 @@ const StringInput = React.memo(
       onOpenDialog,
       onCloseDialog,
       getInputError,
+      onInputChange,
       onChange,
       onDebouncedChange,
       onBlur,
@@ -417,27 +419,31 @@ const StringInput = React.memo(
     }, [onDelayedChange]);
 
     const handleChange = useCallback(
-      (
-        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-        newValue: string
-      ): void => {
+      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>): void => {
+        const newValue = e.target.value;
         const transformedValue = handleGetTransformedValue(newValue);
         stateRef.current = transformedValue;
         setState(transformedValue);
+        if (onInputChange) {
+          onInputChange(e, transformedValue);
+        }
         if (onChange) {
           onChange(e, transformedValue);
         }
         handleDelayedChange();
       },
-      [handleGetTransformedValue, handleDelayedChange, onChange]
+      [handleGetTransformedValue, onInputChange, onChange, handleDelayedChange]
     );
 
-    const handleInputChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>): void => {
+    const handleDialogInputChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
-        handleChange(e, newValue);
+        const transformedValue = handleGetTransformedValue(newValue);
+        if (onInputChange) {
+          onInputChange(e, transformedValue);
+        }
       },
-      [handleChange]
+      [handleGetTransformedValue, onInputChange]
     );
 
     const handleDialogChange = useCallback(
@@ -447,10 +453,10 @@ const StringInput = React.memo(
         if (onSubmit) {
           onSubmit(e, transformedValue);
         }
-        handleInputChange(e);
+        handleChange(e);
         return true;
       },
-      [handleInputChange, handleGetTransformedValue, onSubmit]
+      [handleChange, handleGetTransformedValue, onSubmit]
     );
 
     const handleBlur = useCallback(
@@ -832,7 +838,7 @@ const StringInput = React.memo(
           InputProps={StringInputProps}
           FormHelperTextProps={StringFormHelperTextProps}
           fullWidth
-          onChange={handleInputChange}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           onBlur={showFullscreen ? undefined : handleBlur}
@@ -847,7 +853,7 @@ const StringInput = React.memo(
             id={`${id}-${true}`}
             open={dialogOpenState}
             label={label}
-            defaultValue={String(state)}
+            defaultValue={defaultValue || String(state)}
             value={String(state)}
             errorText={errorText}
             helperText={stringDialogHelperText}
@@ -866,6 +872,7 @@ const StringInput = React.memo(
             getTransformedValue={handleGetTransformedValue}
             getInputError={getInputError}
             onClose={handleCloseDialog}
+            onInputChange={handleDialogInputChange}
             onChange={handleDialogChange}
             DialogTextFieldProps={DialogTextFieldProps}
             DialogTextFieldComponent={DialogTextFieldComponent}

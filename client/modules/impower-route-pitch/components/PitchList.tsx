@@ -19,8 +19,8 @@ import { chunk, Timestamp } from "../../impower-core";
 import {
   DateAge,
   DocumentSnapshot,
-  PitchGoal,
   ProjectDocument,
+  ProjectType,
   QuerySort,
 } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
@@ -31,7 +31,6 @@ import navigationSetTransitioning from "../../impower-navigation/utils/navigatio
 import { useRouter } from "../../impower-router";
 import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
-import { PitchGoalFilter } from "../types/pitchGoalFilter";
 import AddPitchToolbar from "./AddPitchToolbar";
 import PitchListContent from "./PitchListContent";
 import PitchListQueryHeader from "./PitchListQueryHeader";
@@ -150,7 +149,9 @@ interface PitchListProps {
   pitchDocs?: { [id: string]: ProjectDocument };
   search?: string;
   creator?: string;
-  tab?: "Trending" | "Top" | "Following";
+  tab?: "trending" | "top" | "following";
+  typeFilter?: ProjectType;
+  rangeFilter?: DateRangeFilter;
   compact?: boolean;
   sortOptions?: QuerySort[];
   loadingPlaceholder?: React.ReactNode;
@@ -171,6 +172,7 @@ interface PitchListProps {
   onReloading?: (reloading: boolean) => void;
   onFollowMore?: (open: boolean) => void;
   onRangeFilter?: (e: React.MouseEvent, rangeFilter: DateRangeFilter) => void;
+  onTypeFilter?: (e: React.MouseEvent, typeFilter: ProjectType) => void;
 }
 
 const PitchList = React.memo(
@@ -187,6 +189,8 @@ const PitchList = React.memo(
       creator,
       pitchDocs,
       tab,
+      typeFilter,
+      rangeFilter,
       compact,
       sortOptions,
       loadingPlaceholder,
@@ -208,6 +212,7 @@ const PitchList = React.memo(
       onReloading,
       onFollowMore,
       onRangeFilter,
+      onTypeFilter,
     } = props;
 
     const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
@@ -274,12 +279,16 @@ const PitchList = React.memo(
 
     const loadingMoreRef = useRef<boolean>();
     const [loadingMore, setLoadingMore] = useState<boolean>();
-    const [loadIcons, setLoadIcons] = useState(false);
+    const [loadIcons, setLoadIcons] = useState(initialPitchIds.length === 0);
     const noMoreRef = useRef<boolean>(initialPitchIds.length === 0);
     const [noMore, setNoMore] = useState<boolean>(noMoreRef.current);
-    const [goalFilter, setGoalFilter] = useState<PitchGoalFilter>("All");
+    const [typeFilterState, setTypeFilterState] = useState<ProjectType>(
+      typeFilter || "game"
+    );
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rank");
-    const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
+    const [rangeFilterState, setRangeFilterState] = useState<DateRangeFilter>(
+      rangeFilter || "d"
+    );
     const [reloadingState, setReloadingState] = useState(reloading);
 
     const canCloseRef = useRef(true);
@@ -312,6 +321,7 @@ const PitchList = React.memo(
       }
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloadingState(true);
+      console.warn("RELOAD");
     }, [contentElRef, listElRef, loadingElRef]);
 
     const handleHideLoadingPlaceholder = useCallback(async () => {
@@ -336,28 +346,6 @@ const PitchList = React.memo(
     }, [handleShowLoadingPlaceholder, onReloading]);
 
     useEffect(() => {
-      if (allowReload) {
-        handleAllowReload();
-      }
-    }, [allowReload, handleAllowReload]);
-
-    useEffect(() => {
-      if (reloading !== undefined) {
-        if (reloading) {
-          handleShowLoadingPlaceholder();
-        } else {
-          handleHideLoadingPlaceholder();
-        }
-      }
-    }, [handleHideLoadingPlaceholder, handleShowLoadingPlaceholder, reloading]);
-
-    useEffect(() => {
-      if (tab !== undefined) {
-        setTabState(tab);
-      }
-    }, [tab]);
-
-    useEffect(() => {
       recentPitchDocsRef.current = recentPitchDocs || {};
       if (pitchDocsRef.current) {
         const newPitchDocs = {
@@ -372,11 +360,7 @@ const PitchList = React.memo(
           if (creator && creator !== doc._createdBy) {
             delete newPitchDocs[id];
           }
-          if (
-            goalFilter &&
-            goalFilter !== "All" &&
-            goalFilter !== doc.pitchGoal
-          ) {
+          if (typeFilterState && typeFilterState !== doc.projectType) {
             delete newPitchDocs[id];
           }
           if (search && !doc?.tags?.includes(search?.toLowerCase())) {
@@ -390,13 +374,13 @@ const PitchList = React.memo(
         setPitchDocsState(pitchDocsRef.current);
         setChunkMap(chunkMapRef.current);
       }
-    }, [creator, goalFilter, recentPitchDocs, search]);
+    }, [creator, typeFilterState, recentPitchDocs, search]);
 
     const handleLoadMore = useCallback(
       async (
         options: {
           sort: QuerySort;
-          goal?: PitchGoal;
+          type?: ProjectType;
           age?: DateAge;
           nsfw?: boolean;
           tags?: string[];
@@ -460,7 +444,7 @@ const PitchList = React.memo(
       async (options: {
         tab: PitchToolbarTab;
         sort: QuerySort;
-        goalFilter?: PitchGoalFilter;
+        typeFilter?: ProjectType;
         rangeFilter?: DateRangeFilter;
         nsfwVisible?: boolean;
         followedTags?: string[];
@@ -470,7 +454,7 @@ const PitchList = React.memo(
         const {
           tab,
           sort,
-          goalFilter,
+          typeFilter,
           rangeFilter,
           nsfwVisible,
           followedTags,
@@ -483,18 +467,18 @@ const PitchList = React.memo(
         loadingKeyRef.current = currentLoadingKey;
 
         try {
-          if (tab === "Top") {
+          if (tab === "top") {
             const limit = LOAD_MORE_LIMIT;
             const options: {
               sort: "rank" | "rating" | "new";
-              goal: PitchGoal;
+              type: ProjectType;
               age: DateAge;
               nsfw: boolean;
               search?: string;
               creator?: string;
             } = {
               sort: "rating",
-              goal: goalFilter !== "All" ? goalFilter : undefined,
+              type: typeFilter,
               age: rangeFilter !== "All" ? rangeFilter : undefined,
               nsfw: nsfwVisible,
               search,
@@ -510,11 +494,11 @@ const PitchList = React.memo(
             }
             const matchingRecentPitchDocs: { [id: string]: ProjectDocument } =
               {};
-            const { goal } = options;
+            const { type } = options;
             Object.entries(recentPitchDocsRef.current || {}).forEach(
               ([id, doc]) => {
                 if (
-                  (!goal || goal === doc?.pitchGoal) &&
+                  (!type || type === doc?.projectType) &&
                   (!creator || creator === doc?._createdBy)
                 ) {
                   matchingRecentPitchDocs[id] = doc;
@@ -539,7 +523,7 @@ const PitchList = React.memo(
             setPitchDocsState(pitchDocsRef.current);
             setChunkMap(chunkMapRef.current);
             setNoMore(noMoreRef.current);
-          } else if (tab === "Following") {
+          } else if (tab === "following") {
             if (!followedTags || followedTags?.length === 0) {
               return;
             }
@@ -554,13 +538,13 @@ const PitchList = React.memo(
             const chunks = chunk(shuffledTags, 10);
             const options: {
               sort: "rank" | "rating" | "new";
-              goal: PitchGoal;
+              type: ProjectType;
               nsfw: boolean;
               search?: string;
               creator?: string;
             } = {
               sort,
-              goal: goalFilter !== "All" ? goalFilter : undefined,
+              type: typeFilter,
               nsfw: nsfwVisible,
               search,
               creator,
@@ -589,11 +573,11 @@ const PitchList = React.memo(
 
             const matchingRecentPitchDocs: { [id: string]: ProjectDocument } =
               {};
-            const { goal } = options;
+            const { type } = options;
             Object.entries(recentPitchDocsRef.current || {}).forEach(
               ([id, doc]) => {
                 if (
-                  (!goal || goal === doc?.pitchGoal) &&
+                  (!type || type === doc?.projectType) &&
                   followedTags.some((t) => doc?.tags?.includes(t)) &&
                   (!creator || creator === doc?._createdBy)
                 ) {
@@ -627,13 +611,13 @@ const PitchList = React.memo(
             const limit = LOAD_MORE_LIMIT;
             const options: {
               sort: "rank" | "rating" | "new";
-              goal: PitchGoal;
+              type: ProjectType;
               nsfw: boolean;
               search?: string;
               creator?: string;
             } = {
               sort,
-              goal: goalFilter !== "All" ? goalFilter : undefined,
+              type: typeFilter,
               nsfw: nsfwVisible,
               search,
               creator,
@@ -648,11 +632,11 @@ const PitchList = React.memo(
             }
             const matchingRecentPitchDocs: { [id: string]: ProjectDocument } =
               {};
-            const { goal } = options;
+            const { type } = options;
             Object.entries(recentPitchDocsRef.current || {}).forEach(
               ([id, doc]) => {
                 if (
-                  (!goal || goal === doc?.pitchGoal) &&
+                  (!type || type === doc?.projectType) &&
                   (!creator || creator === doc?._createdBy) &&
                   (!search || doc?.tags?.includes(search?.toLowerCase()))
                 ) {
@@ -707,9 +691,9 @@ const PitchList = React.memo(
         await handleLoadTab({
           tab: tabState,
           sort,
-          goalFilter,
+          typeFilter: typeFilterState,
           nsfwVisible,
-          rangeFilter,
+          rangeFilter: rangeFilterState,
           followedTags,
           search,
           creator,
@@ -721,9 +705,9 @@ const PitchList = React.memo(
       handleLoadTab,
       tabState,
       sort,
-      goalFilter,
+      typeFilterState,
       nsfwVisible,
-      rangeFilter,
+      rangeFilterState,
       followedTags,
       search,
       creator,
@@ -739,9 +723,9 @@ const PitchList = React.memo(
       await handleLoadTab({
         tab: tabState,
         sort,
-        goalFilter,
+        typeFilter: typeFilterState,
         nsfwVisible,
-        rangeFilter,
+        rangeFilter: rangeFilterState,
         followedTags,
         search,
         creator,
@@ -750,9 +734,9 @@ const PitchList = React.memo(
       handleLoadTab,
       tabState,
       sort,
-      goalFilter,
+      typeFilterState,
       nsfwVisible,
-      rangeFilter,
+      rangeFilterState,
       followedTags,
       search,
       creator,
@@ -775,24 +759,42 @@ const PitchList = React.memo(
         followedTags,
         tab: tabState,
         sort,
-        goalFilter,
-        rangeFilter,
+        typeFilter: typeFilterState,
+        rangeFilter: rangeFilterState,
         search,
         creator,
       });
     }, [
       creator,
       followedTags,
-      goalFilter,
+      typeFilterState,
       handleLoadTab,
       handleShowLoadingPlaceholder,
       nsfwVisible,
       onReloading,
-      rangeFilter,
+      rangeFilterState,
       search,
       sort,
       tabState,
     ]);
+
+    useEffect(() => {
+      if (tab !== undefined) {
+        setTabState(tab);
+      }
+    }, [tab]);
+
+    useEffect(() => {
+      if (typeFilter !== undefined) {
+        setTypeFilterState(typeFilter);
+      }
+    }, [typeFilter]);
+
+    useEffect(() => {
+      if (rangeFilter !== undefined) {
+        setRangeFilterState(rangeFilter);
+      }
+    }, [rangeFilter]);
 
     useEffect(() => {
       navigationDispatch(navigationSetTransitioning(false));
@@ -812,12 +814,15 @@ const PitchList = React.memo(
       nsfwVisible,
     ]);
 
-    const handleChangeGoalFilter = useCallback(
-      async (e: React.MouseEvent, value: PitchGoalFilter): Promise<void> => {
+    const handleChangeTypeFilter = useCallback(
+      async (e: React.MouseEvent, value: ProjectType): Promise<void> => {
         await handleAllowReload();
-        setGoalFilter(value);
+        setTypeFilterState(value);
+        if (onTypeFilter) {
+          onTypeFilter(e, value);
+        }
       },
-      [handleAllowReload]
+      [handleAllowReload, onTypeFilter]
     );
 
     const handleChangeSortFilter = useCallback(
@@ -831,7 +836,7 @@ const PitchList = React.memo(
     const handleChangeRangeFilter = useCallback(
       async (e: React.MouseEvent, value: DateRangeFilter) => {
         await handleAllowReload();
-        setRangeFilter(value);
+        setRangeFilterState(value);
         if (onRangeFilter) {
           onRangeFilter(e, value);
         }
@@ -917,10 +922,10 @@ const PitchList = React.memo(
     const handleStartCreation = useCallback(async () => {
       canCloseRef.current = true;
       const Auth = (await import("../../impower-auth/classes/auth")).default;
-      const createGameDocument = (
-        await import("../../impower-data-store/utils/createGameDocument")
+      const createProjectDocument = (
+        await import("../../impower-data-store/utils/createProjectDocument")
       ).default;
-      const newGame = createGameDocument({
+      const newGame = createProjectDocument({
         _createdBy: uid,
         _author: Auth.instance.author,
         name: "",
@@ -928,13 +933,13 @@ const PitchList = React.memo(
         owners: [uid],
         pitched: true,
         pitchedAt: new Timestamp(),
-        projectType: "game",
+        projectType: typeFilterState,
       });
       setEditing(false);
       setEditDocId(undefined);
       setEditDoc(newGame);
       setEditDialogOpen(true);
-    }, [uid]);
+    }, [typeFilterState, uid]);
 
     const createDocExists = Boolean(editDoc);
 
@@ -1117,6 +1122,8 @@ const PitchList = React.memo(
       [loading]
     );
 
+    const addLabel = `pitch a ${typeFilterState}`;
+
     return (
       <>
         <StyledListArea style={style}>
@@ -1124,19 +1131,19 @@ const PitchList = React.memo(
             <StyledPitchList ref={listElRef} style={listStyle}>
               <StyledListContent ref={contentElRef} style={listContentStyle}>
                 <PitchListQueryHeader
-                  goalFilter={goalFilter}
-                  rangeFilter={rangeFilter}
+                  typeFilter={typeFilterState}
+                  rangeFilter={rangeFilterState}
                   sort={sort}
                   sortOptions={sortOptions}
-                  onGoalFilter={handleChangeGoalFilter}
+                  onTypeFilter={handleChangeTypeFilter}
                   onRangeFilter={
-                    tabState === "Top" ? handleChangeRangeFilter : undefined
+                    tabState === "top" ? handleChangeRangeFilter : undefined
                   }
                   onSort={
-                    tabState === "Top" ? undefined : handleChangeSortFilter
+                    tabState === "top" ? undefined : handleChangeSortFilter
                   }
                   onFollowMore={
-                    tabState === "Following" ? handleFollowMore : undefined
+                    tabState === "following" ? handleFollowMore : undefined
                   }
                   style={queryHeaderStyle}
                 />
@@ -1192,7 +1199,7 @@ const PitchList = React.memo(
             </StyledPitchList>
             <StyledOverlayArea>
               <StyledForceOverflow />
-              {reloading !== undefined && (
+              {reloadingState !== undefined && (
                 <StyledEmptyArea style={emptyStyle}>
                   {emptyPlaceholder}
                 </StyledEmptyArea>
@@ -1205,6 +1212,7 @@ const PitchList = React.memo(
         </StyledListArea>
         {!hideAddToolbar && (
           <AddPitchToolbar
+            label={addLabel}
             toolbarRef={toolbarElRef}
             onClick={handleOpenCreateDialog}
           />
@@ -1214,6 +1222,7 @@ const PitchList = React.memo(
             config={config}
             icons={icons}
             open={editDialogOpen}
+            type={typeFilterState}
             docId={editDocId}
             doc={editDoc}
             onClose={handleCloseCreateDialog}

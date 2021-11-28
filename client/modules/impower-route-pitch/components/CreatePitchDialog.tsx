@@ -6,41 +6,12 @@ import React, { useMemo } from "react";
 import CreativeCommonsZeroBrandsIcon from "../../../resources/icons/brands/creative-commons-zero.svg";
 import CreativeCommonsBrandsIcon from "../../../resources/icons/brands/creative-commons.svg";
 import { ConfigParameters } from "../../impower-config";
-import { ProjectDocument } from "../../impower-data-store";
+import { ProjectDocument, ProjectType } from "../../impower-data-store";
 import { FontIcon, SvgData } from "../../impower-icon";
 import { CreationStep } from "../../impower-route/components/forms/CreateDocumentForm";
-import CreateGameForm from "../../impower-route/components/forms/CreateGameForm";
+import CreateProjectForm from "../../impower-route/components/forms/CreateProjectForm";
 import EditDialog from "../../impower-route/components/popups/EditDialog";
 import PitchCard from "./PitchCard";
-
-const createLabel = "Pitch Game";
-const editLabel = "Update Pitch";
-
-const steps: CreationStep[] = [
-  {
-    title: "Pitch a game",
-    description: "What kind of game is it?",
-    propertyPaths: ["tags"],
-  },
-  {
-    title: "What's it called?",
-    propertyPaths: ["name"],
-  },
-  {
-    title: "Describe it!",
-    propertyPaths: ["summary"],
-  },
-  {
-    title: "Last thing!",
-    description: "What's the goal of your pitch?",
-    propertyPaths: ["pitchGoal"],
-  },
-  {
-    title: "Ready to pitch?",
-    propertyPaths: [],
-    preview: true,
-  },
-];
 
 const StyledLinkButton = styled(Button)`
   text-transform: none;
@@ -151,6 +122,7 @@ interface CreatePitchDialogProps
   extends Omit<DialogProps, "maxWidth" | "onSubmit" | "onChange"> {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
+  type?: ProjectType;
   docId?: string;
   doc?: ProjectDocument;
   editing?: boolean;
@@ -172,6 +144,7 @@ const CreatePitchDialog = React.memo((props: CreatePitchDialogProps) => {
     config,
     icons,
     open,
+    type,
     docId,
     doc,
     editing,
@@ -187,12 +160,44 @@ const CreatePitchDialog = React.memo((props: CreatePitchDialogProps) => {
     [config, doc, icons]
   );
 
+  const createLabel = "Pitch Game";
+  const editLabel = "Update Pitch";
+
+  const steps: CreationStep[] = useMemo(
+    () => [
+      {
+        title: `Pitch a ${type}`,
+        description: `What kind of ${type} is it?`,
+        propertyPaths: ["tags"],
+      },
+      {
+        title: "What's it called?",
+        propertyPaths: ["name"],
+      },
+      {
+        title: "Describe it!",
+        propertyPaths: ["summary"],
+      },
+      {
+        title: "Last thing!",
+        description: "What's the goal of your pitch?",
+        propertyPaths: ["pitchGoal"],
+      },
+      {
+        title: "Ready to pitch?",
+        propertyPaths: [],
+        preview: true,
+      },
+    ],
+    [type]
+  );
+
   return (
     <>
       {/* Load fonts so they don't flash later */}
       <StyledMonospaceFontLoader>.</StyledMonospaceFontLoader>
       <EditDialog open={open} onClose={onClose} {...dialogProps}>
-        <CreateGameForm
+        <CreateProjectForm
           docId={docId}
           doc={doc}
           steps={steps}

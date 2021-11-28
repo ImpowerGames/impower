@@ -2,6 +2,7 @@ import { Timestamp } from "../../impower-core";
 import { ProjectDocument } from "../types/documents/projectDocument";
 import { DevelopmentStatus } from "../types/enums/developmentStatus";
 import { PitchGoal } from "../types/enums/pitchGoal";
+import { ProjectType } from "../types/enums/projectType";
 import createPageDocument from "./createPageDocument";
 
 const createProjectDocument = (
@@ -10,6 +11,7 @@ const createProjectDocument = (
   return {
     ...createPageDocument(),
     _documentType: "ProjectDocument",
+    projectType: "" as ProjectType,
     slug: "",
     pitched: false,
     pitchedAt: new Timestamp(),

@@ -4,21 +4,21 @@ import { getPropertyName, getValue, List } from "../../../impower-core";
 import { ProjectDocument } from "../../types/documents/projectDocument";
 import { DevelopmentStatus } from "../../types/enums/developmentStatus";
 import { PitchGoal } from "../../types/enums/pitchGoal";
-import createGameDocument from "../../utils/createGameDocument";
+import createProjectDocument from "../../utils/createProjectDocument";
 import { PageDocumentInspector } from "./pageDocumentInspector";
 
-export class GameDocumentInspector extends PageDocumentInspector<ProjectDocument> {
-  private static _instance: GameDocumentInspector;
+export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocument> {
+  private static _instance: ProjectDocumentInspector;
 
-  public static get instance(): GameDocumentInspector {
+  public static get instance(): ProjectDocumentInspector {
     if (!this._instance) {
-      this._instance = new GameDocumentInspector();
+      this._instance = new ProjectDocumentInspector();
     }
     return this._instance;
   }
 
   createData(data?: Partial<ProjectDocument>): ProjectDocument {
-    return createGameDocument(data);
+    return createProjectDocument(data);
   }
 
   async getPropertyError(
@@ -71,7 +71,7 @@ export class GameDocumentInspector extends PageDocumentInspector<ProjectDocument
       return `Screenshot ${index + 1}`;
     }
     if (propertyPath === "restricted") {
-      return "All studio members can access this game";
+      return "All studio members can access this";
     }
     if (propertyPath === "pitchGoal") {
       return "";
@@ -134,10 +134,41 @@ export class GameDocumentInspector extends PageDocumentInspector<ProjectDocument
       return Object.values(DevelopmentStatus);
     }
     if (propertyPath === "tags") {
-      const gameTags = ConfigCache.instance.params?.gameTags;
-      return Object.values(gameTags)
-        .flatMap((categories) => categories.flatMap((groups) => groups).sort())
-        .map((tag) => tag.toLowerCase());
+      const gameTags = ConfigCache.instance.params?.projectTags;
+      const resourceTags = ConfigCache.instance.params?.resourceTags;
+      const roleTags = ConfigCache.instance.params?.roleTags;
+      if (data?.projectType === "game") {
+        return Object.values(gameTags)
+          .flatMap((list) => list.flatMap((groups) => groups).sort())
+          .map((tag) => tag.toLowerCase());
+      }
+      if (data?.projectType === "story") {
+        return Object.entries(gameTags)
+          .flatMap(([category, list]) => {
+            if (category === "Mechanics") {
+              return [];
+            }
+            if (category === "Subjects") {
+              return [
+                ...list.flatMap((groups) => groups),
+                ...gameTags.Mechanics[0],
+              ].sort();
+            }
+            return list.flatMap((groups) => groups).sort();
+          })
+          .map((tag) => tag.toLowerCase());
+      }
+      return [
+        ...Object.values(gameTags)
+          .flatMap((list) => list.flatMap((groups) => groups).sort())
+          .map((tag) => tag.toLowerCase()),
+        ...Object.values(resourceTags).flatMap((list) =>
+          list.flatMap((groups) => groups)
+        ),
+        ...Object.values(roleTags).flatMap((list) =>
+          list.flatMap((groups) => groups)
+        ),
+      ];
     }
     if (propertyPath === "pitchGoal") {
       return Object.values(PitchGoal);
@@ -147,38 +178,71 @@ export class GameDocumentInspector extends PageDocumentInspector<ProjectDocument
 
   getPropertyValueGroup(
     propertyPath: string,
-    _data: ProjectDocument,
+    data: ProjectDocument,
     value: string
   ): string {
     if (propertyPath === "tags") {
-      const gameTags = ConfigCache.instance.params?.gameTags;
-      if (
-        gameTags.Mechanics.flatMap((groups) => groups)
-          .map((tag) => tag.toLowerCase())
-          .includes(value)
-      ) {
-        return "Mechanics";
+      if (data?.projectType === "game") {
+        const gameTags = ConfigCache.instance.params?.projectTags;
+        if (
+          gameTags.Mechanics.flatMap((groups) => groups)
+            .map((tag) => tag.toLowerCase())
+            .includes(value)
+        ) {
+          return "Mechanics";
+        }
+        if (
+          gameTags.Genres.flatMap((groups) => groups)
+            .map((tag) => tag.toLowerCase())
+            .includes(value)
+        ) {
+          return "Genres";
+        }
+        if (
+          gameTags.Aesthetics.flatMap((groups) => groups)
+            .map((tag) => tag.toLowerCase())
+            .includes(value)
+        ) {
+          return "Aesthetics";
+        }
+        if (
+          gameTags.Subjects.flatMap((groups) => groups)
+            .map((tag) => tag.toLowerCase())
+            .includes(value)
+        ) {
+          return "Subjects";
+        }
       }
-      if (
-        gameTags.Genres.flatMap((groups) => groups)
-          .map((tag) => tag.toLowerCase())
-          .includes(value)
-      ) {
-        return "Genres";
-      }
-      if (
-        gameTags.Aesthetics.flatMap((groups) => groups)
-          .map((tag) => tag.toLowerCase())
-          .includes(value)
-      ) {
-        return "Aesthetics";
-      }
-      if (
-        gameTags.Subjects.flatMap((groups) => groups)
-          .map((tag) => tag.toLowerCase())
-          .includes(value)
-      ) {
-        return "Subjects";
+      if (data?.projectType === "story") {
+        const gameTags = ConfigCache.instance.params?.projectTags;
+        if (
+          gameTags.Mechanics.flatMap((groups) => groups)
+            .map((tag) => tag.toLowerCase())
+            .includes(value)
+        ) {
+          return "Subjects";
+        }
+        if (
+          gameTags.Genres.flatMap((groups) => groups)
+            .map((tag) => tag.toLowerCase())
+            .includes(value)
+        ) {
+          return "Genres";
+        }
+        if (
+          gameTags.Aesthetics.flatMap((groups) => groups)
+            .map((tag) => tag.toLowerCase())
+            .includes(value)
+        ) {
+          return "Aesthetics";
+        }
+        if (
+          gameTags.Subjects.flatMap((groups) => groups)
+            .map((tag) => tag.toLowerCase())
+            .includes(value)
+        ) {
+          return "Subjects";
+        }
       }
     }
     return undefined;
@@ -191,18 +255,18 @@ export class GameDocumentInspector extends PageDocumentInspector<ProjectDocument
   ): string {
     if (propertyPath.endsWith("access")) {
       if (value === "owner") {
-        return "Can delete and manage access to the game";
+        return "Can delete and manage access";
       }
       if (value === "editor") {
-        return "Can edit the game project";
+        return "Can edit the project";
       }
       if (value === "viewer") {
-        return "Can view & play the game";
+        return "Can view the project";
       }
     }
     if (propertyPath.endsWith("pitchGoal")) {
       if (value === PitchGoal.Inspiration) {
-        return "I'd love to play a game like this!";
+        return "I'd love if someone made this!";
       }
       if (value === PitchGoal.Collaboration) {
         return "I'd like to collaborate with others on this!";
@@ -265,15 +329,34 @@ export class GameDocumentInspector extends PageDocumentInspector<ProjectDocument
     alignment?: "flex-start" | "center" | "flex-end";
   } {
     if (propertyPath === "summary" && !data?._createdAt) {
-      return {
-        icon: "info-circle",
-        title: "What makes a good game pitch?",
-        description: `1. It is short. 
-2. It has a strong sense of irony.
-3. It paints a compelling mental picture.
+      if (data.projectType === "story") {
+        return {
+          icon: "info-circle",
+          title: "What makes a good logline?",
+          description: `1. It begins with the inciting action (the catalyst).
+2. It describes an interesting protagonist (the hero).
+3. It clearly outlines the central conflict (the obstacle the hero must overcome) and the objective (the hero's goal).
+4. It's apparent what's at risk should the protagonist fail (the stakes).`,
+          caption: `Below are some examples of solid loglines:
+
+- **The Exorcist**: When a teenage girl is possessed by a mysterious entity, her mother seeks the help of two priests to save her daughter.
+
+- **Reservoir Dogs**: After a simple jewelry heist goes terribly wrong, the surviving criminals begin to suspect that one of them is a police informant.
+
+- **Take Shelter**: Plagued by a series of apocalyptic visions, a young husband and father questions whether to shelter his family from a coming storm, or from himself.
+    `,
+        };
+      }
+      if (data.projectType === "game") {
+        return {
+          icon: "info-circle",
+          title: "What makes a good game pitch?",
+          description: `1. It is short. 
+2. It paints a compelling mental picture.
+3. It has a strong sense of irony.
 4. It clearly describes what the player will be doing (a.k.a. "The Core Gameplay Loop").
 5. (And most importantly) The gameplay sounds fun or engaging!`,
-        caption: `(Below are some examples of excellent game pitches from 'The Beginner's Guide')
+          caption: `Below are some examples of excellent game pitches from 'The Beginner's Guide':
 
 - **Man Eating Beast**: A game where you are chased by a beast that's trying to eat you. Simultaneously, you are trying to eat the beast.
 
@@ -285,7 +368,8 @@ export class GameDocumentInspector extends PageDocumentInspector<ProjectDocument
 
 - **Meat Market**: A game where you run a shop inside your body, selling your organs strategically to make the most money before you die.
 `,
-      };
+        };
+      }
     }
     return super.getPropertyMoreInfoPopup(propertyPath, data);
   }

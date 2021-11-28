@@ -19,7 +19,8 @@ import { ProjectDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { DynamicIcon } from "../../../impower-icon";
 import Illustration from "../../../impower-route-home/components/elements/Illustration";
-import CreateGameForm from "../../../impower-route/components/forms/CreateGameForm";
+import { CreationStep } from "../../../impower-route/components/forms/CreateDocumentForm";
+import CreateProjectForm from "../../../impower-route/components/forms/CreateProjectForm";
 import GameCreationFinishedSummary from "../../../impower-route/components/forms/GameCreationFinishedSummary";
 import EditDialog from "../../../impower-route/components/popups/EditDialog";
 import {
@@ -30,6 +31,24 @@ import { useRouter } from "../../../impower-router";
 import { ToastContext, toastTop } from "../../../impower-toast";
 import { UserContext } from "../../../impower-user";
 import EngineConsoleList, { CardDetail } from "../lists/EngineConsoleList";
+
+const steps: CreationStep[] = [
+  {
+    title: "Create a game",
+    description: "What kind of game would you like to make?",
+    propertyPaths: ["tags"],
+  },
+  {
+    title: "What's it called?",
+    propertyPaths: ["name"],
+  },
+  {
+    title: "Last thing! Describe it!",
+    propertyPaths: ["summary"],
+  },
+];
+
+const submitLabel = "Create Game";
 
 const discardInfo = {
   title: "Discard unsaved changes?",
@@ -401,10 +420,10 @@ const GamesConsole = (props: YourGamesConsoleProps): JSX.Element => {
   const handleAdd = useCallback(async () => {
     setCanClose(true);
     const Auth = (await import("../../../impower-auth/classes/auth")).default;
-    const createGameDocument = (
-      await import("../../../impower-data-store/utils/createGameDocument")
+    const createProjectDocument = (
+      await import("../../../impower-data-store/utils/createProjectDocument")
     ).default;
-    const newGame = createGameDocument({
+    const newGame = createProjectDocument({
       _createdBy: uid,
       _author: Auth.instance.author,
       studio,
@@ -572,9 +591,11 @@ const GamesConsole = (props: YourGamesConsoleProps): JSX.Element => {
         />
       </StyledConsoleContentArea>
       <EditDialog open={createDialogOpen} onClose={handleCloseCreateMenu}>
-        <CreateGameForm
+        <CreateProjectForm
           docId={createDocId}
           doc={createDoc}
+          steps={steps}
+          submitLabel={submitLabel}
           onChange={setCreateDoc}
           onSubmit={handleSubmit}
           onSubmitted={handleSubmitted}

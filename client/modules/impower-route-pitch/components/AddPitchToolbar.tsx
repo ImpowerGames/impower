@@ -5,8 +5,6 @@ import PencilSolidIcon from "../../../resources/icons/solid/pencil.svg";
 import { FontIcon } from "../../impower-icon";
 import CornerFab from "../../impower-route-engine/components/fabs/CornerFab";
 
-const createPitchLabel = "Pitch A Game";
-
 const StyledAddPitchToolbarArea = styled.div`
   position: absolute;
   top: 0;
@@ -31,12 +29,13 @@ const StyledScrollSentinel = styled.div`
 
 interface AddPitchToolbarProps {
   toolbarRef?: React.Ref<HTMLDivElement>;
+  label?: string;
   onClick?: (e: React.MouseEvent) => void;
 }
 
 const AddPitchToolbar = React.memo(
   (props: AddPitchToolbarProps): JSX.Element => {
-    const { toolbarRef, onClick } = props;
+    const { toolbarRef, label, onClick } = props;
 
     const [scrollSentinel, setScrollSentinel] = useState<HTMLElement>();
 
@@ -66,11 +65,11 @@ const AddPitchToolbar = React.memo(
 
     const icon = useMemo(
       () => (
-        <FontIcon aria-label={createPitchLabel} size={15}>
+        <FontIcon aria-label={label} size={15}>
           <PencilSolidIcon />
         </FontIcon>
       ),
-      []
+      [label]
     );
     return (
       <>
@@ -78,7 +77,7 @@ const AddPitchToolbar = React.memo(
         <StyledAddPitchToolbarArea id="add-pitch-toolbar" ref={toolbarRef}>
           <CornerFab
             icon={icon}
-            label={createPitchLabel}
+            label={label}
             color="primary"
             scrollSentinel={scrollSentinel}
             onClick={onClick}

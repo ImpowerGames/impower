@@ -337,6 +337,7 @@ export interface StringDialogProps
   getTransformedValue?: (newValue: React.ReactText) => string;
   getInputError?: (value: unknown) => Promise<string | null>;
   onClick?: (e: React.MouseEvent) => void;
+  onInputChange?: (e: React.ChangeEvent) => void;
   onChange?: (e: React.ChangeEvent) => Promise<boolean>;
   onClose?: (
     e:
@@ -382,6 +383,7 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
     getTransformedValue,
     getInputError,
     onClick,
+    onInputChange,
     onChange,
     onClose,
     onBlur,
@@ -424,6 +426,11 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
   );
 
   const hasError = Boolean(errorText) || Boolean(inputError);
+
+  useEffect(() => {
+    stateRef.current = defaultValue;
+    setState(defaultValue);
+  }, [defaultValue]);
 
   useEffect(() => {
     stateRef.current = value;
@@ -616,9 +623,12 @@ const StringDialog = React.memo((props: StringDialogProps): JSX.Element => {
         : newValue;
       stateRef.current = transformedValue;
       setState(transformedValue);
+      if (onInputChange) {
+        onInputChange(e);
+      }
       handleDelayedChange();
     },
-    [getTransformedValue, handleDelayedChange]
+    [getTransformedValue, handleDelayedChange, onInputChange]
   );
 
   const CustomInputProps = useMemo(

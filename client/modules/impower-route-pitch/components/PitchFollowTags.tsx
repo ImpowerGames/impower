@@ -272,7 +272,7 @@ const PitchFollowTagsList = React.memo(
     const [configState] = useContext(ConfigContext);
 
     const gameTags =
-      configState?.gameTags || ConfigCache.instance.params?.gameTags;
+      configState?.projectTags || ConfigCache.instance.params?.projectTags;
 
     const tags = useMemo(
       () => gameTags[category].flatMap((g) => g).sort(),
@@ -333,7 +333,7 @@ const PitchFollowTags = React.memo(
     );
 
     const gameTags =
-      configState?.gameTags || ConfigCache.instance.params?.gameTags;
+      configState?.projectTags || ConfigCache.instance.params?.projectTags;
 
     const showReloadArea =
       Object.entries(my_follows || {}).filter(([, v]) => v.g === "tags")

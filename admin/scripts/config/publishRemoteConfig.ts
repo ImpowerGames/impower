@@ -20,8 +20,8 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   const capitalizations = JSON.stringify(
     (await import("../../../client/resources/json/en/capitalizations.json")).default
   );
-  const gameTags = JSON.stringify(
-    (await import("../../../client/resources/json/en/gameTags.json")).default
+  const projectTags = JSON.stringify(
+    (await import("../../../client/resources/json/en/projectTags.json")).default
   );
   const messages = JSON.stringify(
     (await import("../../../client/resources/json/en/messages.json")).default
@@ -66,8 +66,8 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   template.parameters["capitalizations"] = {
     defaultValue: { value: capitalizations },
   };
-  template.parameters["gameTags"] = {
-    defaultValue: { value: gameTags },
+  template.parameters["projectTags"] = {
+    defaultValue: { value: projectTags },
   };
   template.parameters["messages"] = {
     defaultValue: { value: messages },

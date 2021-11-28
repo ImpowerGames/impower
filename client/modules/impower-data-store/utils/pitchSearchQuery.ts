@@ -1,4 +1,4 @@
-import { PitchGoal } from "../types/enums/pitchGoal";
+import { ProjectType } from "../types/enums/projectType";
 import getAnySearchQuery from "./getAnySearchQuery";
 import pitchQuery from "./pitchQuery";
 
@@ -6,7 +6,7 @@ import pitchQuery from "./pitchQuery";
 const pitchSearchQuery = (
   options: {
     sort?: "rank" | "new" | "rating";
-    goal?: PitchGoal;
+    type?: ProjectType;
     nsfw?: boolean;
     search?: string;
     searchTargets?: ("tags" | "name" | "summary")[];
@@ -14,14 +14,14 @@ const pitchSearchQuery = (
   },
   collection: "pitched_projects"
 ) => {
-  const { sort, goal, nsfw, search, searchTargets, creator } = options;
+  const { sort, type, nsfw, search, searchTargets, creator } = options;
 
   const termsQuery = getAnySearchQuery({
     search,
     searchTargets,
   });
 
-  return pitchQuery({ sort, goal, nsfw, termsQuery, creator }, collection);
+  return pitchQuery({ sort, type, nsfw, termsQuery, creator }, collection);
 };
 
 export default pitchSearchQuery;

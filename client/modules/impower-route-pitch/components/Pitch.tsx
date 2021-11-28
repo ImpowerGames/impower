@@ -9,13 +9,14 @@ import React, {
   useState,
 } from "react";
 import { ConfigParameters } from "../../impower-config";
-import { ProjectDocument } from "../../impower-data-store";
+import { ProjectDocument, ProjectType } from "../../impower-data-store";
 import { SvgData } from "../../impower-icon";
 import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { BetaBanner } from "../../impower-route";
 import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
+import getPitchTypeFilterOptionLabels from "../utils/getPitchTypeFilterOptionLabels";
 import getRangeFilterLabel from "../utils/getRangeFilterLabel";
 import EmptyPitchList from "./EmptyPitchList";
 import PitchList from "./PitchList";
@@ -84,21 +85,34 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const [shouldDisplayFollowingPitches, setShouldDisplayFollowingPitches] =
     useState<boolean>(shouldDisplayFollowingPitchesRef.current);
 
+  const locationSearch =
+    typeof window !== "undefined" ? window.location.search : "";
+  const params: { [key: string]: string } =
+    typeof window !== "undefined"
+      ? locationSearch
+          .slice(1)
+          .split("&")
+          .reduce((a, q): { [key: string]: string } => {
+            const [key, value] = q.split("=");
+            a[key] = value;
+            return a;
+          }, {})
+      : {};
+
   const [activeTab, setActiveTab] = useState<PitchToolbarTab>(
-    typeof window !== "undefined" &&
-      window.location.search?.toLowerCase() === "?t=following"
-      ? "Following"
-      : typeof window !== "undefined" &&
-        window.location.search?.toLowerCase() === "?t=top"
-      ? "Top"
-      : "Trending"
+    (params?.t?.toLowerCase() as PitchToolbarTab) || "trending"
   );
 
-  const validPitchDocs = activeTab === "Trending" ? pitchDocs : undefined;
-
-  const [allowReload, setAllowReload] = useState(!validPitchDocs);
+  const [typeFilter, setTypeFilter] = useState<ProjectType>(
+    (params?.b?.toLowerCase() as ProjectType) || "game"
+  );
   const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
-  const [reloading, setReloading] = useState<boolean>();
+  const validPitchDocs =
+    activeTab === "trending" && typeFilter === "game" ? pitchDocs : undefined;
+  const [allowReload, setAllowReload] = useState(!validPitchDocs);
+  const [reloading, setReloading] = useState<boolean>(
+    Object.keys(validPitchDocs || {}).length === 0 ? true : undefined
+  );
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const transitioning = navigationState?.transitioning;
@@ -156,7 +170,6 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       loadingElRef.current.style.visibility = "visible";
     }
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
-    setReloading(true);
   }, []);
 
   const handleChangeTab = useCallback(
@@ -169,7 +182,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       }
       if (toolbarRef.current) {
         toolbarRef.current.style.opacity =
-          tab === "Following" && !shouldDisplayFollowingPitchesRef.current
+          tab === "following" && !shouldDisplayFollowingPitchesRef.current
             ? "0"
             : null;
       }
@@ -182,10 +195,10 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       window.history.replaceState(
         window.history.state,
         "",
-        `/pitch?t=${tab.toLowerCase()}`
+        `/pitch?b=${typeFilter}&t=${tab.toLowerCase()}`
       );
     },
-    [followedTags, handleShowLoadingPlaceholder]
+    [followedTags, handleShowLoadingPlaceholder, typeFilter]
   );
 
   const handleReloadFollowing = useCallback(async (): Promise<void> => {
@@ -198,7 +211,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       shouldDisplayFollowingPitchesRef.current = !open;
       if (toolbarRef.current) {
         toolbarRef.current.style.opacity =
-          activeTab === "Following" && !shouldDisplayFollowingPitchesRef.current
+          activeTab === "following" && !shouldDisplayFollowingPitchesRef.current
             ? "0"
             : null;
       }
@@ -213,12 +226,13 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const emptySubtitle1 = `Got an idea?`;
   const emptySubtitle2 = `Why not pitch it?`;
   const searchLabel = `${
-    activeTab === "Following" || activeTab === "Trending"
+    activeTab === "following" || activeTab === "trending"
       ? `for now`
       : `for ${getRangeFilterLabel(rangeFilter)?.toLowerCase()}`
   }.`;
 
-  const filterLabel = `pitches`;
+  const filterLabel =
+    getPitchTypeFilterOptionLabels()?.[typeFilter]?.toLowerCase();
   const emptyLabelStyle: React.CSSProperties = useMemo(
     () => ({
       display: "flex",
@@ -284,6 +298,20 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     []
   );
 
+  const handleTypeFilter = useCallback(
+    async (e: React.MouseEvent, value: ProjectType) => {
+      setTypeFilter(value);
+      // Wait a bit for dialog to close
+      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `/pitch?b=${value}&t=${activeTab.toLowerCase()}`
+      );
+    },
+    [activeTab]
+  );
+
   const loading = transitioning;
 
   return (
@@ -293,7 +321,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
         <BetaBanner />
         {loading ? (
           loadingPlaceholder
-        ) : activeTab === "Following" && showFollowTags ? (
+        ) : activeTab === "following" && showFollowTags ? (
           <PitchFollowTags
             loadingPlaceholder={loadingPlaceholder}
             onReload={handleReloadFollowing}
@@ -305,6 +333,8 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
             icons={icons}
             pitchDocs={validPitchDocs}
             tab={activeTab}
+            typeFilter={typeFilter}
+            rangeFilter={rangeFilter}
             sortOptions={SORT_OPTIONS}
             allowReload={allowReload}
             reloading={reloading}
@@ -316,8 +346,9 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
             toolbarElRef={toolbarRef}
             onFollowMore={handleFollowMore}
             onRangeFilter={handleRangeFilter}
+            onTypeFilter={handleTypeFilter}
             onReloading={setReloading}
-            hideAddToolbar={activeTab === "Following" && showFollowTags}
+            hideAddToolbar={activeTab === "following" && showFollowTags}
           />
         )}
       </StyledApp>
