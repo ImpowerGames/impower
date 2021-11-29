@@ -6,43 +6,49 @@ const getSuffixedAlternatives = (word: string): string[] => {
   }
   word = word.toLowerCase();
   const general = [
+    `${word}'n`,
     `${word}'s`,
     `${word}able`,
     `${word}ables`,
     `${word}ably`,
-    `${word}ty`,
     `${word}al`,
-    `${word}ally`,
+    `${word}alist`,
     `${word}ality`,
+    `${word}ally`,
     `${word}als`,
     `${word}ance`,
     `${word}ances`,
+    `${word}ant`,
     `${word}ate`,
     `${word}ates`,
     `${word}ation`,
-    `${word}ations`,
+    `${word}ational`,
     `${word}ationist`,
     `${word}ationists`,
+    `${word}ations`,
     `${word}ed`,
     `${word}en`,
     `${word}ens`,
     `${word}er`,
-    `${word}ery`,
     `${word}ers`,
+    `${word}ery`,
     `${word}es`,
     `${word}est`,
     `${word}ful`,
     `${word}fuls`,
+    `${word}ian`,
     `${word}ic`,
     `${word}ics`,
     `${word}in'`,
     `${word}ing`,
     `${word}ings`,
     `${word}ism`,
-    `${word}ity`,
+    `${word}ist`,
     `${word}ities`,
+    `${word}ity`,
+    `${word}ive`,
+    `${word}ives`,
     `${word}ly`,
-    `${word}'n`,
     `${word}ment`,
     `${word}ments`,
     `${word}n`,
@@ -54,20 +60,38 @@ const getSuffixedAlternatives = (word: string): string[] => {
     `${word}ress`,
     `${word}ry`,
     `${word}s`,
+    `${word}ty`,
+    `${word}ure`,
     `${word}y`,
-    `${word}ive`,
-    `${word}ives`,
   ];
-  const sSuffixed = word.endsWith("s") ? [`${word}'`, `${word}ses`] : [];
-  const tSuffixed = word.endsWith("t") ? [`${word}ion`, `${word}ionist`] : [];
+  const sSuffixed = word.endsWith("s")
+    ? [`${word}'`, `${word}ses`, `${word.slice(0, word.length - 1)}ist`]
+    : [];
+  const tSuffixed = word.endsWith("t")
+    ? [`${word}ion`, `${word}ionist`, `${word.slice(0, word.length - 1)}ist`]
+    : [];
   const leSuffixed = word.endsWith("le")
     ? [`${word.slice(0, word.length - 2)}ility`]
+    : [];
+  const ateSuffixed = word.endsWith("ate")
+    ? [
+        `${word.slice(0, word.length - 1)}ion`,
+        `${word.slice(0, word.length - 1)}ional`,
+        `${word.slice(0, word.length - 1)}ionist`,
+        `${word.slice(0, word.length - 1)}ions`,
+        `${word.slice(0, word.length - 1)}ionship`,
+      ]
     : [];
   const mSuffixed = word.endsWith("m") ? [`${word}atic`] : [`${word}matic`];
   const ySuffixed = word.endsWith("y")
     ? [
         `${word.slice(0, word.length - 1)}able`,
         `${word.slice(0, word.length - 1)}ably`,
+        `${word.slice(0, word.length - 1)}ial`,
+        `${word.slice(0, word.length - 1)}ian`,
+        `${word.slice(0, word.length - 1)}ic`,
+        `${word.slice(0, word.length - 1)}ical`,
+        `${word.slice(0, word.length - 1)}ically`,
         `${word.slice(0, word.length - 1)}ied`,
         `${word.slice(0, word.length - 1)}ier`,
         `${word.slice(0, word.length - 1)}ies`,
@@ -75,14 +99,11 @@ const getSuffixedAlternatives = (word: string): string[] => {
         `${word.slice(0, word.length - 1)}ing`,
         `${word.slice(0, word.length - 1)}ious`,
         `${word.slice(0, word.length - 1)}iously`,
+        `${word.slice(0, word.length - 1)}ist`,
         `${word.slice(0, word.length - 1)}ity`,
-        `${word.slice(0, word.length - 1)}ic`,
-        `${word.slice(0, word.length - 1)}ial`,
-        `${word.slice(0, word.length - 1)}ical`,
-        `${word.slice(0, word.length - 1)}ically`,
       ]
     : [
-        `${word}ation`,
+        `${word}ian`,
         `${word}ied`,
         `${word}ier`,
         `${word}ies`,
@@ -90,6 +111,7 @@ const getSuffixedAlternatives = (word: string): string[] => {
         `${word}ing`,
         `${word}ious`,
         `${word}iously`,
+        `${word}ist`,
         `${word}ity`,
       ];
   const eSuffixed = word.endsWith("e")
@@ -97,24 +119,30 @@ const getSuffixedAlternatives = (word: string): string[] => {
         `${word.slice(0, word.length - 1)}'n`,
         `${word.slice(0, word.length - 1)}able`,
         `${word.slice(0, word.length - 1)}al`,
+        `${word.slice(0, word.length - 1)}alist`,
         `${word.slice(0, word.length - 1)}ally`,
         `${word.slice(0, word.length - 1)}als`,
         `${word.slice(0, word.length - 1)}ance`,
         `${word.slice(0, word.length - 1)}ary`,
         `${word.slice(0, word.length - 1)}ate`,
         `${word.slice(0, word.length - 1)}ation`,
+        `${word.slice(0, word.length - 1)}ational`,
         `${word.slice(0, word.length - 1)}ationist`,
         `${word.slice(0, word.length - 1)}ed`,
         `${word.slice(0, word.length - 1)}er`,
         `${word.slice(0, word.length - 1)}ers`,
         `${word.slice(0, word.length - 1)}est`,
+        `${word.slice(0, word.length - 1)}ian`,
         `${word.slice(0, word.length - 1)}ic`,
         `${word.slice(0, word.length - 1)}ies`,
+        `${word.slice(0, word.length - 1)}ifies`,
+        `${word.slice(0, word.length - 1)}ify`,
         `${word.slice(0, word.length - 1)}in'`,
         `${word.slice(0, word.length - 1)}ing`,
         `${word.slice(0, word.length - 1)}ings`,
         `${word.slice(0, word.length - 1)}ion`,
         `${word.slice(0, word.length - 1)}ionist`,
+        `${word.slice(0, word.length - 1)}ist`,
         `${word.slice(0, word.length - 1)}ity`,
         `${word.slice(0, word.length - 1)}ive`,
         `${word.slice(0, word.length - 1)}n`,
@@ -124,10 +152,8 @@ const getSuffixedAlternatives = (word: string): string[] => {
         `${word.slice(0, word.length - 1)}ous`,
         `${word.slice(0, word.length - 1)}ously`,
         `${word.slice(0, word.length - 1)}tion`,
+        `${word.slice(0, word.length - 1)}tional`,
         `${word.slice(0, word.length - 1)}tionist`,
-        `${word.slice(0, word.length - 1)}ist`,
-        `${word.slice(0, word.length - 1)}ify`,
-        `${word.slice(0, word.length - 1)}ifies`,
       ]
     : [
         `${word + word[word.length - 1]}ed`,
@@ -136,9 +162,11 @@ const getSuffixedAlternatives = (word: string): string[] => {
         `${word + word[word.length - 1]}ers`,
         `${word + word[word.length - 1]}es`,
         `${word + word[word.length - 1]}est`,
+        `${word + word[word.length - 1]}ian`,
         `${word + word[word.length - 1]}ies`,
         `${word + word[word.length - 1]}ing`,
         `${word + word[word.length - 1]}ings`,
+        `${word + word[word.length - 1]}ist`,
         `${word + word[word.length - 1]}ly`,
         `${word + word[word.length - 1]}or`,
         `${word + word[word.length - 1]}y`,
@@ -147,6 +175,7 @@ const getSuffixedAlternatives = (word: string): string[] => {
     ...general,
     ...sSuffixed,
     ...tSuffixed,
+    ...ateSuffixed,
     ...leSuffixed,
     ...mSuffixed,
     ...ySuffixed,
@@ -186,17 +215,17 @@ const getPrefixedAlternatives = (word: string): string[] => {
   }
   word = word.toLowerCase();
   const prefixed = [
-    `over${word}`,
-    `en${word}`,
-    `re${word}`,
     `dis${word}`,
     `dys${word}`,
+    `en${word}`,
     `il${word}`,
     `im${word}`,
     `in${word}`,
     `mal${word}`,
     `mis${word}`,
     `non${word}`,
+    `over${word}`,
+    `re${word}`,
     `un${word}`,
   ];
   return [...prefixed];

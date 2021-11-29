@@ -1,13 +1,15 @@
 import fs from "fs";
-import tagTerms from "../input/tagTerms.json";
-import { keywords } from "../generated/keywords";
+import archetypes from "../../../client/resources/json/en/archetypes.json";
 import { termVectors } from "../generated/termVectors";
+import phrases from "../input/phrases.json";
+import tagTerms from "../input/tagTerms.json";
+import { getKeywords } from "../utils/getKeywords";
 import { getRelatedTerms } from "../utils/getRelatedTerms";
 
 getRelatedTerms(
   tagTerms,
   termVectors,
-  Object.keys(keywords),
+  Object.keys(getKeywords([...phrases, ...archetypes])),
   0.4,
   4,
   ...process.argv.slice(2)

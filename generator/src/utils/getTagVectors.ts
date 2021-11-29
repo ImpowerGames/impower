@@ -32,7 +32,11 @@ export const vectorizeTag = (
   tagTerms: { [tag: string]: string[] },
   termVectors: { [word: string]: number[] }
 ): number[] => {
-  return vectorizeTerms(tagTerms[tag], tagTerms, termVectors);
+  const relatedTerms = tagTerms[tag];
+  if (relatedTerms) {
+    return vectorizeTerms(relatedTerms, tagTerms, termVectors);
+  }
+  return vectorizeTerms([tag], tagTerms, termVectors);
 };
 
 export const getTagVectors = (

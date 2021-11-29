@@ -1,11 +1,10 @@
+import cliProgress from "cli-progress";
 import fs from "fs";
 import readline from "readline";
-import { vectorizeTag } from "./getTagVectors";
 
-export const getTermVectors = async (
-  tagTerms: { [tag: string]: string[] },
-  include: (word: string) => boolean
-) => {
+export const getWordVectors = async (include?: (word: string) => boolean) => {
+  const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
+
   const path = "./src/data/wiki.en.vec";
   const fileStream = fs.createReadStream(path);
 
@@ -16,19 +15,22 @@ export const getTermVectors = async (
     crlfDelay: Infinity,
   });
 
+  bar.start(2000000);
+
+  let i = 0;
+
   for await (const line of rl) {
+    bar.update(i);
     const parts = line.split(" ");
     const word = parts[0];
     const vector = parts.slice(1).map((n) => parseFloat(n));
-    if (include(word)) {
+    if (!include || include(word)) {
       wordVecs[word] = vector;
     }
+    i += 1;
   }
 
-  const tagVecs: { [tag: string]: number[] } = {};
-  Object.keys(tagTerms).forEach((tag) => {
-    tagVecs[tag] = vectorizeTag(tag, tagTerms, wordVecs);
-  });
+  console.log(`exported ${i} vectors`);
 
   return wordVecs;
 };

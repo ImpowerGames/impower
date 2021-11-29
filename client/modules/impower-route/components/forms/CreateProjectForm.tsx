@@ -160,17 +160,11 @@ const CreateProjectForm = React.memo(
     const [tagPhrasesMap, setTagPhrasesMap] = useState<{
       [tag: string]: string[];
     }>();
-    const [tagCatalystsMap, setTagCatalystsMap] = useState<{
-      [tag: string]: string[];
-    }>();
     const [tagArchetypesMap, setTagArchetypesMap] = useState<{
       [tag: string]: string[];
     }>();
     const [filteredRelevantTitles, setFilteredRelevantTitles] = useState<
       [string, number][]
-    >([]);
-    const [filteredRelevantCatalysts, setFilteredRelevantCatalysts] = useState<
-      string[]
     >([]);
     const [filteredRelevantArchetypes, setFilteredRelevantArchetypes] =
       useState<string[]>([]);
@@ -224,8 +218,6 @@ const CreateProjectForm = React.memo(
         const phraseTagsMap = getPhraseTagsMap(phrases, termTagsMap);
         setPhraseTagsMap(phraseTagsMap);
         setTagPhrasesMap(getReversedMap(phraseTagsMap));
-        const catalystTagsMap = getPhraseTagsMap(catalysts, termTagsMap);
-        setTagCatalystsMap(getReversedMap(catalystTagsMap));
         const archetypeTagsMap = getPhraseTagsMap(archetypes, termTagsMap);
         setTagArchetypesMap(getReversedMap(archetypeTagsMap));
       };
@@ -255,23 +247,6 @@ const CreateProjectForm = React.memo(
     }, [
       tagPhrasesMap,
       filteredTitleTags,
-      doc?.tags,
-      getFilteredRelevantStrings,
-    ]);
-
-    useEffect(() => {
-      if (doc?.tags && filteredSummaryTags && tagCatalystsMap) {
-        getFilteredRelevantStrings(
-          doc?.tags,
-          filteredSummaryTags,
-          tagCatalystsMap
-        ).then((result) =>
-          setFilteredRelevantCatalysts(result.map(([x]) => x))
-        );
-      }
-    }, [
-      tagCatalystsMap,
-      filteredSummaryTags,
       doc?.tags,
       getFilteredRelevantStrings,
     ]);
@@ -561,18 +536,13 @@ const CreateProjectForm = React.memo(
         e.preventDefault();
         const parts = summaryInputValue.split(" must ");
         const currentSuffix = parts[1] || "";
-        const randomizableCatalysts =
-          filteredRelevantCatalysts?.length > 0
-            ? filteredRelevantCatalysts
-            : catalysts;
-        const randomizablePersonalities = personalities;
         const randomizableArchetypes =
           filteredRelevantArchetypes?.length > 0
             ? filteredRelevantArchetypes
             : archetypes;
         const newRandomizedTags = await getRandomizedStorySetup(
-          randomizableCatalysts,
-          randomizablePersonalities,
+          catalysts,
+          personalities,
           randomizableArchetypes,
           recentlyRandomizedCatalysts.current,
           recentlyRandomizedPersonalities.current,
@@ -604,7 +574,6 @@ const CreateProjectForm = React.memo(
       },
       [
         summaryInputValue,
-        filteredRelevantCatalysts,
         catalysts,
         personalities,
         filteredRelevantArchetypes,
