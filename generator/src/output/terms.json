@@ -138,6 +138,7 @@
   "opposite": ["rivals"],
   "only": ["rivals"],
   "old married couple": ["rivals"],
+  "meddler": ["rivals"],
   "means": ["rivals"],
   "meaning": ["rivals"],
   "meaner": ["rivals"],
@@ -1131,6 +1132,7 @@
   "dutchman": ["nautical", "swashbuckling"],
   "crewmate": ["nautical", "swashbuckling"],
   "crew": ["nautical", "swashbuckling"],
+  "buccaneer": ["nautical", "swashbuckling"],
   "boardwalk": ["nautical", "swashbuckling"],
   "bermuda": ["nautical", "swashbuckling"],
   "astern": ["nautical", "swashbuckling"],
@@ -1355,6 +1357,7 @@
   "occupy": ["extraterrestrial", "invasion"],
   "occupied": ["extraterrestrial", "invasion"],
   "life support": ["extraterrestrial", "space"],
+  "inhabitant": ["extraterrestrial", "invasion"],
   "encompassing": ["extraterrestrial", "space"],
   "eclipse": ["extraterrestrial", "space"],
   "compass": ["extraterrestrial", "space"],
@@ -1596,6 +1599,7 @@
   "vote": ["contest", "political"],
   "success": ["contest", "fame"],
   "rookie": ["contest", "sports"],
+  "newcomer": ["contest", "reunion"],
   "favors": ["contest", "redemption"],
   "favorite": ["contest", "fame"],
   "favored": ["contest", "redemption"],
@@ -2057,8 +2061,10 @@
   "men": ["mecha", "military", "war"],
   "marines": ["mecha", "military", "war"],
   "marine": ["mecha", "military", "war"],
+  "major": ["mecha", "military", "war"],
   "infantry": ["mecha", "military", "war"],
   "corps": ["mecha", "military", "war"],
+  "colonel": ["mecha", "military", "war"],
   "collateral damage": ["mecha", "military", "war"],
   "cadet": ["mecha", "military", "war"],
   "brigade": ["mecha", "military", "war"],
@@ -2073,6 +2079,7 @@
   "testify": ["investigation", "legal", "social deduction"],
   "sue": ["investigation", "legal", "social deduction"],
   "solicitor": ["investigation", "legal", "social deduction"],
+  "public defender": ["investigation", "legal", "social deduction"],
   "pleading": ["investigation", "legal", "social deduction"],
   "lawyer": ["investigation", "legal", "social deduction"],
   "habeas": ["investigation", "legal", "social deduction"],
@@ -2584,7 +2591,6 @@
   "council": ["bureaucracy", "business", "political"],
   "colleague": ["bureaucracy", "business", "office"],
   "ambassador": ["bureaucracy", "business", "political"],
-  "agent": ["bureaucracy", "business", "espionage"],
   "abide": ["bureaucracy", "business", "rebellion"],
   "moving": ["bullet hell", "runner", "side scroller"],
   "moves": ["bullet hell", "runner", "side scroller"],
@@ -2662,7 +2668,6 @@
   "grub street": ["art", "artist", "creative"],
   "gogh's": ["art", "artist", "creative"],
   "artisan": ["art", "artist", "creative"],
-  "arrogance": ["arrogance", "fame", "genius"],
   "gamer": ["arcade", "minigames", "retro"],
   "ends": ["apocalyptic", "multiple endings", "post apocalyptic"],
   "ending": ["apocalyptic", "multiple endings", "post apocalyptic"],
@@ -3436,6 +3441,7 @@
   "bosses": ["bureaucracy", "business", "office", "political"],
   "boss": ["bureaucracy", "business", "office", "political"],
   "anti": ["bureaucracy", "business", "conspiracy", "rebellion"],
+  "agent": ["bureaucracy", "business", "espionage", "fame"],
   "administrator": ["bureaucracy", "business", "office", "political"],
   "abiding": ["bureaucracy", "business", "rebellion", "relaxing"],
   "walled": ["building", "platformer", "side scroller", "tower defense"],
@@ -3554,6 +3560,7 @@
   "art's": ["art", "art nouveau", "artist", "creative"],
   "art": ["art", "art nouveau", "artist", "creative"],
   "vain": ["arrogance", "fame", "genius", "rivals"],
+  "arrogance": ["arrogance", "fame", "genius", "rivals"],
   "slot": ["arcade", "card", "procedurally generated", "roguelike"],
   "shuffle": ["arcade", "card", "musical", "rhythm"],
   "games": ["arcade", "minigames", "retro", "sports"],
@@ -6163,6 +6170,14 @@
     "steampunk",
     "victorian"
   ],
+  "dowager": [
+    "fairy tale",
+    "fantasy",
+    "regency",
+    "royalty",
+    "steampunk",
+    "victorian"
+  ],
   "chamberlain": [
     "fairy tale",
     "fantasy",
@@ -8474,7 +8489,14 @@
   "creator": ["art", "artist", "crafting", "creative", "drawing", "invention"],
   "created": ["art", "artist", "crafting", "creative", "drawing", "invention"],
   "clay": ["art", "artist", "building", "crafting", "creative", "prehistoric"],
-  "vanity": ["arrogance", "driving", "fame", "genius", "racing", "vehicle"],
+  "narcissist": [
+    "arrogance",
+    "fame",
+    "genius",
+    "psychic",
+    "psychological",
+    "rivals"
+  ],
   "pixel": [
     "arcade",
     "artificial intelligence",
@@ -9759,15 +9781,6 @@
     "text adventure",
     "visual novel"
   ],
-  "eccentric": [
-    "fame",
-    "genius",
-    "psychedelic",
-    "psychic",
-    "psychological",
-    "surreal",
-    "weird"
-  ],
   "wizard": [
     "fairy tale",
     "fantasy",
@@ -10857,15 +10870,6 @@
     "parent",
     "raising"
   ],
-  "orphan": [
-    "coming-of-age",
-    "fairy tale",
-    "fantasy",
-    "monster tamer",
-    "quest",
-    "raising",
-    "rescue"
-  ],
   "mother": [
     "coming-of-age",
     "family",
@@ -11632,6 +11636,15 @@
     "urban",
     "victorian"
   ],
+  "homeowner": [
+    "building",
+    "city",
+    "extraterrestrial",
+    "invasion",
+    "modern",
+    "tycoon",
+    "urban"
+  ],
   "fences": [
     "building",
     "caper",
@@ -12271,6 +12284,15 @@
     "drawing",
     "invention"
   ],
+  "vanity": [
+    "arrogance",
+    "driving",
+    "fame",
+    "genius",
+    "racing",
+    "rivals",
+    "vehicle"
+  ],
   "egomaniac": [
     "arrogance",
     "fame",
@@ -12722,6 +12744,15 @@
     "supernatural"
   ],
   "sins": [
+    "angel",
+    "betrayal",
+    "greed",
+    "redemption",
+    "revenge",
+    "sabotage",
+    "social deduction"
+  ],
+  "sinned": [
     "angel",
     "betrayal",
     "greed",
@@ -13862,6 +13893,16 @@
     "nature",
     "seasons",
     "weather"
+  ],
+  "landowner": [
+    "fairy tale",
+    "fantasy",
+    "medieval",
+    "regency",
+    "role playing",
+    "steampunk",
+    "sword & sorcery",
+    "victorian"
   ],
   "hag": [
     "fairy tale",
@@ -15142,16 +15183,6 @@
     "political",
     "rehabilitation",
     "rivals"
-  ],
-  "manager": [
-    "bureaucracy",
-    "business",
-    "inventory management",
-    "management",
-    "office",
-    "resource management",
-    "simulator",
-    "tycoon"
   ],
   "managed": [
     "bureaucracy",
@@ -19126,6 +19157,17 @@
     "shapeshifting",
     "suspense"
   ],
+  "defender": [
+    "comics",
+    "defense",
+    "escort mission",
+    "investigation",
+    "legal",
+    "quest",
+    "social deduction",
+    "superhero",
+    "tower defense"
+  ],
   "cackle": [
     "comedy",
     "fairy tale",
@@ -19796,6 +19838,17 @@
     "rivals",
     "romance",
     "utopian"
+  ],
+  "manager": [
+    "bureaucracy",
+    "business",
+    "fame",
+    "inventory management",
+    "management",
+    "office",
+    "resource management",
+    "simulator",
+    "tycoon"
   ],
   "management": [
     "bureaucracy",
@@ -20732,17 +20785,6 @@
     "nautical",
     "swashbuckling"
   ],
-  "outsider": [
-    "apocalyptic",
-    "disillusionment",
-    "dystopian",
-    "escape",
-    "post apocalyptic",
-    "redemption",
-    "reunion",
-    "social deduction",
-    "thriller"
-  ],
   "deny": [
     "animals",
     "detective",
@@ -21281,6 +21323,17 @@
     "post apocalyptic",
     "sabotage",
     "supernatural"
+  ],
+  "first responder": [
+    "action",
+    "apocalyptic",
+    "comics",
+    "disaster",
+    "escort mission",
+    "post apocalyptic",
+    "quest",
+    "rescue",
+    "superhero"
   ],
   "fell": [
     "action",
@@ -22710,6 +22763,18 @@
     "psychological",
     "rivals",
     "romance"
+  ],
+  "orphan": [
+    "coming-of-age",
+    "fairy tale",
+    "fantasy",
+    "monster tamer",
+    "quest",
+    "raising",
+    "regency",
+    "rescue",
+    "steampunk",
+    "victorian"
   ],
   "inorganic": [
     "comics",
@@ -24342,18 +24407,6 @@
     "post apocalyptic",
     "sabotage",
     "suspense"
-  ],
-  "rescue": [
-    "action",
-    "comics",
-    "escape",
-    "escort mission",
-    "medical",
-    "quest",
-    "rehabilitation",
-    "rescue",
-    "superhero",
-    "thriller"
   ],
   "plunge": [
     "action",
@@ -26391,6 +26444,19 @@
     "robot",
     "steampunk",
     "technology"
+  ],
+  "outsider": [
+    "apocalyptic",
+    "disillusionment",
+    "dystopian",
+    "escape",
+    "extraterrestrial",
+    "invasion",
+    "post apocalyptic",
+    "redemption",
+    "reunion",
+    "social deduction",
+    "thriller"
   ],
   "trotter": [
     "animals",
@@ -30630,6 +30696,21 @@
     "side scroller",
     "sports",
     "superspeed",
+    "thriller"
+  ],
+  "rescue": [
+    "action",
+    "apocalyptic",
+    "comics",
+    "disaster",
+    "escape",
+    "escort mission",
+    "medical",
+    "post apocalyptic",
+    "quest",
+    "rehabilitation",
+    "rescue",
+    "superhero",
     "thriller"
   ],
   "remark": [
