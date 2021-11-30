@@ -1,9 +1,9 @@
 import fs from "fs";
-import { keywords } from "../generated/keywords";
 import tagTerms from "../input/tagTerms.json";
+import terms from "../output/terms.json";
 import { getWordVectors } from "../utils/getWordVectors";
 
-const include = (word: string) => Boolean(tagTerms[word] || keywords[word]);
+const include = (word: string) => Boolean(tagTerms[word] || terms[word]);
 
 getWordVectors(include).then((result) => {
   const definition = "export const termVectors = ";

@@ -1,6 +1,6 @@
 import fs from "fs";
-import archetypes from "../../../client/resources/json/en/archetypes.json";
 import { termVectors } from "../generated/termVectors";
+import archetypes from "../input/archetypes.json";
 import phrases from "../input/phrases.json";
 import tagTerms from "../input/tagTerms.json";
 import { getKeywords } from "../utils/getKeywords";

@@ -14,10 +14,6 @@ export interface TagConfigParameters {
    */
   catalysts: string[];
   /**
-   * Our list of archetypes
-   */
-  archetypes: string[];
-  /**
    * Our map of resource tags organized by category
    */
   resourceTags: {
@@ -54,6 +50,10 @@ export interface GeneratorConfigParameters {
    * Our array of phrases that are used by our Punny Idea Generator
    */
   phrases: string[];
+  /**
+   * Our list of archetypes that are used by our Story Idea Generator
+   */
+  archetypes: string[];
   /**
    * Our map of terms => tags that are used by our Punny Idea Generator
    */

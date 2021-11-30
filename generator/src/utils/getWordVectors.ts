@@ -15,22 +15,24 @@ export const getWordVectors = async (include?: (word: string) => boolean) => {
     crlfDelay: Infinity,
   });
 
-  bar.start(2000000);
+  const vectorCount = 2519371;
 
-  let i = 0;
+  bar.start(vectorCount);
 
   for await (const line of rl) {
-    bar.update(i);
+    bar.increment();
     const parts = line.split(" ");
     const word = parts[0];
-    const vector = parts.slice(1).map((n) => parseFloat(n));
+    const vector = parts
+      .slice(1)
+      .map((n) => parseFloat(n))
+      .filter((x) => !Number.isNaN(x));
     if (!include || include(word)) {
       wordVecs[word] = vector;
     }
-    i += 1;
   }
 
-  console.log(`exported ${i} vectors`);
+  bar.stop();
 
   return wordVecs;
 };

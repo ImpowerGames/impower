@@ -111,7 +111,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     activeTab === "trending" && typeFilter === "game" ? pitchDocs : undefined;
   const [allowReload, setAllowReload] = useState(!validPitchDocs);
   const [reloading, setReloading] = useState<boolean>(
-    Object.keys(validPitchDocs || {}).length === 0 ? true : undefined
+    Object.keys(validPitchDocs || {}).length === 0 ? false : undefined
   );
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);

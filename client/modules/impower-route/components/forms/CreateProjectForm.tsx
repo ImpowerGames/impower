@@ -24,6 +24,7 @@ import {
   getPersonalizedPhraseTagsMap,
   getRelevantPhrases,
   getReversedMap,
+  getSubphrases,
 } from "../../../impower-terms";
 import { ToastContext, toastTop } from "../../../impower-toast";
 import {
@@ -160,9 +161,6 @@ const CreateProjectForm = React.memo(
     const [tagPhrasesMap, setTagPhrasesMap] = useState<{
       [tag: string]: string[];
     }>();
-    const [tagArchetypesMap, setTagArchetypesMap] = useState<{
-      [tag: string]: string[];
-    }>();
     const [filteredRelevantTitles, setFilteredRelevantTitles] = useState<
       [string, number][]
     >([]);
@@ -218,8 +216,6 @@ const CreateProjectForm = React.memo(
         const phraseTagsMap = getPhraseTagsMap(phrases, termTagsMap);
         setPhraseTagsMap(phraseTagsMap);
         setTagPhrasesMap(getReversedMap(phraseTagsMap));
-        const archetypeTagsMap = getPhraseTagsMap(archetypes, termTagsMap);
-        setTagArchetypesMap(getReversedMap(archetypeTagsMap));
       };
       setup();
     }, [fetchConfigState]);
@@ -252,21 +248,24 @@ const CreateProjectForm = React.memo(
     ]);
 
     useEffect(() => {
-      if (doc?.tags && filteredSummaryTags && tagArchetypesMap) {
-        getFilteredRelevantStrings(
-          doc?.tags,
-          filteredSummaryTags,
-          tagArchetypesMap
-        ).then((result) =>
-          setFilteredRelevantArchetypes(result.map(([x]) => x))
-        );
+      if (doc?.tags && filteredSummaryTags && termTagsMap && archetypes) {
+        const filteredRelevantArchetypes = new Set<string>();
+        archetypes.forEach((archetype) => {
+          const subphrases = getSubphrases(archetype);
+          subphrases.forEach((subphrase) => {
+            const relatedTags = termTagsMap[subphrase];
+            if (relatedTags) {
+              relatedTags.forEach((t) => {
+                if (doc?.tags.includes(t) && !filteredSummaryTags.includes(t)) {
+                  filteredRelevantArchetypes.add(archetype);
+                }
+              });
+            }
+          });
+        });
+        setFilteredRelevantArchetypes(Array.from(filteredRelevantArchetypes));
       }
-    }, [
-      tagArchetypesMap,
-      filteredSummaryTags,
-      doc?.tags,
-      getFilteredRelevantStrings,
-    ]);
+    }, [filteredSummaryTags, doc?.tags, termTagsMap, archetypes]);
 
     const handleAddPhrase = useCallback(
       (phrase: string, tags: string[]) => {
@@ -537,7 +536,7 @@ const CreateProjectForm = React.memo(
         const parts = summaryInputValue.split(" must ");
         const currentSuffix = parts[1] || "";
         const randomizableArchetypes =
-          filteredRelevantArchetypes?.length > 0
+          filteredRelevantArchetypes?.length >= 3
             ? filteredRelevantArchetypes
             : archetypes;
         const newRandomizedTags = await getRandomizedStorySetup(
@@ -660,6 +659,8 @@ const CreateProjectForm = React.memo(
         doc?.projectType === "story" ? (
           <StyledGeneratorArea>
             <ProjectGeneratorTagsSelector
+              termTagsMap={termTagsMap}
+              phrases={archetypes}
               tags={doc?.tags}
               filteredTags={filteredSummaryTags}
               onFilterTags={setFilteredSummaryTags}
@@ -674,6 +675,7 @@ const CreateProjectForm = React.memo(
     }, [
       doc?.projectType,
       doc?.tags,
+      archetypes,
       filteredSummaryTags,
       handleRandomizeSummary,
       handleRandomizeTags,
@@ -681,6 +683,7 @@ const CreateProjectForm = React.memo(
       steps,
       tagCount,
       tagLimit,
+      termTagsMap,
     ]);
 
     return (

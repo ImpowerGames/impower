@@ -5,11 +5,11 @@ import {
   getRemoteConfig,
   getValue as _getValue,
 } from "@firebase/remote-config";
+import archetypes from "../../../../generator/src/input/archetypes.json";
 import phrases from "../../../../generator/src/input/phrases.json";
 import terms from "../../../../generator/src/output/terms.json";
 import colors from "../../../resources/json/colors.json";
 import abbreviations from "../../../resources/json/en/abbreviations.json";
-import archetypes from "../../../resources/json/en/archetypes.json";
 import capitalizations from "../../../resources/json/en/capitalizations.json";
 import catalysts from "../../../resources/json/en/catalysts.json";
 import messages from "../../../resources/json/en/messages.json";

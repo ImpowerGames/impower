@@ -1,13 +1,13 @@
 import styled from "@emotion/styled";
 import { Chip } from "@material-ui/core";
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
+import { getSubphrases } from "../../../impower-terms";
 
 const StyledPreambleArea = styled.div`
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  opacity: 0.8;
   pointer-events: none;
   margin-bottom: ${(props): string => props.theme.spacing(1.5)};
 `;
@@ -37,16 +37,31 @@ const StyledChip = styled(Chip)`
   }
 `;
 
+const StyledLabelArea = styled.div`
+  display: flex;
+`;
+
+const StyledLabel = styled.div``;
+
+const StyledDetail = styled.div`
+  padding-left: ${(props): string => props.theme.spacing(0.75)};
+  opacity: 0.5;
+`;
+
 export interface ProjectGeneratorTagsSelectorProps {
+  termTagsMap: { [term: string]: string[] };
+  phrases: string[];
   tags: string[];
   filteredTags: string[];
+  debug?: boolean;
   onFilterTags: (tags: string[]) => void;
 }
 
 export const ProjectGeneratorTagsSelector = (
   props: ProjectGeneratorTagsSelectorProps
 ): JSX.Element | null => {
-  const { tags, filteredTags, onFilterTags } = props;
+  const { termTagsMap, phrases, tags, filteredTags, debug, onFilterTags } =
+    props;
 
   const handleClickTag = useCallback(
     (e: React.MouseEvent, tag: string) => {
@@ -62,16 +77,65 @@ export const ProjectGeneratorTagsSelector = (
     [filteredTags, onFilterTags]
   );
 
+  const tagTerms = useMemo(() => {
+    if (!phrases || !termTagsMap) {
+      return {};
+    }
+    const dict: { [tag: string]: string[] } = {};
+    phrases.forEach((phrase) => {
+      const subphrases = getSubphrases(phrase);
+      subphrases.forEach((subphrase) => {
+        const relatedTags = termTagsMap[subphrase];
+        if (relatedTags) {
+          relatedTags.forEach((t) => {
+            if (tags.includes(t)) {
+              if (!dict[t]) {
+                dict[t] = [];
+              }
+              if (!dict[t].includes(phrase)) {
+                dict[t].push(phrase);
+              }
+            }
+          });
+        }
+      });
+    });
+    return dict;
+  }, [tags, termTagsMap, phrases]);
+
   return (
     <StyledPreambleArea>
       <StyledChipArea>
         {tags.map((tag) => (
           <StyledChip
             key={tag}
-            variant={filteredTags.includes(tag) ? "outlined" : "filled"}
+            disabled={!tagTerms[tag]}
+            variant={
+              filteredTags.includes(tag) || !tagTerms[tag]
+                ? "outlined"
+                : "filled"
+            }
             color="secondary"
-            label={tag}
+            label={
+              tagTerms[tag] ? (
+                <StyledLabelArea>
+                  <StyledLabel>{tag}</StyledLabel>
+                  {debug && (
+                    <StyledDetail>{`(${tagTerms[tag]?.length})`}</StyledDetail>
+                  )}
+                </StyledLabelArea>
+              ) : (
+                tag
+              )
+            }
             onClick={(e: React.MouseEvent): void => handleClickTag(e, tag)}
+            style={{
+              opacity: !tagTerms[tag]
+                ? 0.5
+                : filteredTags.includes(tag)
+                ? 0.9
+                : 0.8,
+            }}
           />
         ))}
       </StyledChipArea>

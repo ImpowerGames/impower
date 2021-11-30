@@ -9,6 +9,8 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   const template = await config.getTemplate();
   const phrasesPath = "../../../generator/src/input/phrases.json";
   const phrases = JSON.stringify((await import(phrasesPath)).default);
+  const archetypesPath = "../../../generator/src/input/archetypes.json";
+  const archetypes = JSON.stringify((await import(archetypesPath)).default);
   const termsPath = "../../../generator/src/output/terms.json";
   const terms = JSON.stringify((await import(termsPath)).default);
   const colors = JSON.stringify(
@@ -26,11 +28,17 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   const messages = JSON.stringify(
     (await import("../../../client/resources/json/en/messages.json")).default
   );
+  const catalysts = JSON.stringify(
+    (await import("../../../client/resources/json/en/catalysts.json")).default
+  );
   const moods = JSON.stringify(
     (await import("../../../client/resources/json/en/moods.json")).default
   );
   const regexes = JSON.stringify(
     (await import("../../../client/resources/json/en/regexes.json")).default
+  );
+  const styles = JSON.stringify(
+    (await import("../../../client/resources/json/en/styles.json")).default
   );
   const resourceTags = JSON.stringify(
     (await import("../../../client/resources/json/en/resourceTags.json")).default
@@ -54,6 +62,9 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   template.parameters["phrases"] = {
     defaultValue: { value: phrases },
   };
+  template.parameters["archetypes"] = {
+    defaultValue: { value: archetypes },
+  };
   template.parameters["terms"] = {
     defaultValue: { value: terms },
   };
@@ -72,11 +83,17 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   template.parameters["messages"] = {
     defaultValue: { value: messages },
   };
+  template.parameters["catalysts"] = {
+    defaultValue: { value: catalysts },
+  };
   template.parameters["moods"] = {
     defaultValue: { value: moods },
   };
   template.parameters["regexes"] = {
     defaultValue: { value: regexes },
+  };
+  template.parameters["styles"] = {
+    defaultValue: { value: styles },
   };
   template.parameters["resourceTags"] = {
     defaultValue: { value: resourceTags },

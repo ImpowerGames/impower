@@ -1,86 +1,117 @@
 import cliProgress from "cli-progress";
 import fs from "fs";
 import readline from "readline";
-import { vectorizeTerms } from "./getTagVectors";
-import { similarity } from "./math";
+import { average, similarity } from "./math";
 
 export const getAverageTerms = async (
-  tagTerms: { [tag: string]: string[] },
   threshold = 0.4,
   limit = 100,
-  ...tags: string[]
-): Promise<string[]> => {
-  const termTags: { [tag: string]: [string, number][] } = {};
-
-  const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
+  words: string[],
+  vector?: number[],
+  termVectors?: { [word: string]: number[] }
+): Promise<{ related: string[]; vector: number[] }> => {
+  const multibar = new cliProgress.MultiBar(
+    {
+      clearOnComplete: false,
+      hideCursor: true,
+    },
+    cliProgress.Presets.shades_classic
+  );
 
   const vectorCount = 2519371;
+  const termVectorEntries = termVectors ? Object.entries(termVectors) : [];
 
-  const targetTags = tags?.length > 0 ? tags : Object.keys(tagTerms);
+  const progressTotal = termVectorEntries?.length || vectorCount;
+
+  const bar1 = multibar.create(progressTotal, vector ? progressTotal : 0);
+  const bar2 = multibar.create(progressTotal, 0);
 
   const path = "./src/data/wiki.en.vec";
 
-  const wordVecs: { [word: string]: number[] } = {};
+  let wordVecs: { [word: string]: number[] } = {};
 
-  const fs1 = fs.createReadStream(path);
-  const rl1 = readline.createInterface({
-    input: fs1,
-    crlfDelay: Infinity,
-  });
+  if (!vector) {
+    const fs1 = fs.createReadStream(path);
+    const rl1 = readline.createInterface({
+      input: fs1,
+      crlfDelay: Infinity,
+    });
 
-  bar.start(vectorCount * 2);
+    for await (const line of rl1) {
+      bar1.increment();
 
-  let i1 = 0;
-
-  for await (const line of rl1) {
-    bar.update(i1);
-    const parts = line.split(" ");
-    const word = parts[0];
-    const wordVec = parts.slice(1).map((n) => parseFloat(n));
-    if (targetTags.includes(word)) {
-      wordVecs[word] = wordVec;
+      const parts = line.split(" ");
+      const word = parts[0];
+      const wordVec = parts
+        .slice(1)
+        .map((n) => parseFloat(n))
+        .filter((x) => !Number.isNaN(x));
+      if (words.includes(word)) {
+        wordVecs[word] = wordVec;
+      }
     }
-    i1 += 1;
+
+    rl1.close();
+    rl1.removeAllListeners();
   }
 
-  rl1.close();
-  rl1.removeAllListeners();
+  const averageVector = vector || average(Object.values(wordVecs));
+  wordVecs = {};
 
-  const averageVector = vectorizeTerms(targetTags, tagTerms, wordVecs);
+  const relatedWords: [string, number, number][] = [];
 
-  const relatedWords: [string, number][] = [];
+  let orderedRelatedWords: string[] = [];
 
-  const fs2 = fs.createReadStream(path);
-  const rl2 = readline.createInterface({
-    input: fs2,
-    crlfDelay: Infinity,
-  });
+  if (termVectorEntries?.length > 0) {
+    termVectorEntries.forEach(([word, wordVec], index) => {
+      bar2.increment();
 
-  let i2 = 0;
+      const sim = similarity(wordVec, averageVector);
+      if (!words.includes(word) && sim > threshold) {
+        relatedWords.push([word, index, sim]);
+      }
+    });
 
-  for await (const line of rl2) {
-    bar.update(i1 + i2);
-    const parts = line.split(" ");
-    const word = parts[0];
-    const wordVec = parts.slice(1).map((n) => parseFloat(n));
-    const sim = similarity(wordVec, averageVector);
-    if (!targetTags.includes(word) && sim > threshold) {
-      relatedWords.push([word, sim]);
+    orderedRelatedWords = relatedWords
+      .sort(([, , aSim], [, , bSim]) => bSim - aSim)
+      .slice(0, limit)
+      .map(([word]) => word);
+  } else {
+    const fs2 = fs.createReadStream(path);
+    const rl2 = readline.createInterface({
+      input: fs2,
+      crlfDelay: Infinity,
+    });
+
+    let index = 0;
+
+    for await (const line of rl2) {
+      bar2.increment();
+
+      const parts = line.split(" ");
+      const word = parts[0];
+      const wordVec = parts
+        .slice(1)
+        .map((n) => parseFloat(n))
+        .filter((x) => !Number.isNaN(x));
+      const sim = similarity(wordVec, averageVector);
+      if (!words.includes(word) && sim > threshold) {
+        relatedWords.push([word, index, sim]);
+      }
+      index += 1;
     }
-    i2 += 1;
+
+    rl2.close();
+    rl2.removeAllListeners();
+
+    orderedRelatedWords = relatedWords
+      .sort(([, , aSim], [, , bSim]) => bSim - aSim)
+      .slice(0, limit)
+      .sort(([, aIndex], [, bIndex]) => aIndex - bIndex)
+      .map(([word]) => word);
   }
 
-  rl2.close();
-  rl2.removeAllListeners();
+  multibar.stop();
 
-  const orderedRelatedWords = relatedWords
-    .sort(([, aSim], [, bSim]) => bSim - aSim)
-    .slice(0, limit)
-    .map(([word]) => word);
-
-  bar.stop();
-
-  console.log(`processed ${i2} vectors`);
-
-  return orderedRelatedWords;
+  return { related: orderedRelatedWords, vector: averageVector };
 };

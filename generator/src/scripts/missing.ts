@@ -1,5 +1,5 @@
 import fs from "fs";
-import archetypes from "../../../client/resources/json/en/archetypes.json";
+import archetypes from "../input/archetypes.json";
 import terms from "../output/terms.json";
 import { getKeywords } from "../utils/getKeywords";
 

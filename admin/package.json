@@ -7,7 +7,7 @@
     "clean": "cd ../generator && npm run clean && cd ../admin",
     "unpack": "cd ../generator && npm run unpack && cd ../admin",
     "prep": "cd ../generator && npm run prep && cd ../admin",
-    "missing": "cd ../generator && npm run missing && cd ../admin",
+    "average": "cd ../generator && npm run average && cd ../admin",
     "config": "npm run config-dev",
     "config-dev": "ts-node scripts/config/config.ts dev",
     "config-test": "ts-node scripts/config/config.ts test",
