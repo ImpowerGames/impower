@@ -74,12 +74,12 @@ These scripts take a `phrases.json` file and a `tagTerms.json` file as input to 
 
 ```json
 {
-  "don't": ["rivals"],
-  "divided": ["rivals"],
-  "brazen": ["rivals"],
-  "angry": ["rivals"],
-  "not like": ["rivals"],
-  "don't like": ["rivals"],
+  "don't": ["rival"],
+  "divided": ["rival"],
+  "brazen": ["rival"],
+  "angry": ["rival"],
+  "not like": ["rival"],
+  "don't like": ["rival"],
   "homesick": ["reunion"],
   "homecoming": ["reunion"],
   "hi": ["reunion"],

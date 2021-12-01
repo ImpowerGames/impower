@@ -131,14 +131,19 @@ const CreateProjectForm = React.memo(
     const phraseAdditions = customizations?.phrase_additions?.phraseTags;
     const phraseDeletions = customizations?.phrase_deletions?.phraseTags;
     const [summaryInputValue, setSummaryInputValue] = useState(summary);
+    const [inspector, setInspector] = useState(
+      ProjectDocumentInspector.instance
+    );
 
-    const recentlyRandomizedTags = useRef(new Set<string>());
+    const recentlyRandomizedTags = useRef<string[]>([]);
     const recentlyRandomizedCatalysts = useRef<string[]>([]);
     const recentlyRandomizedPersonalities = useRef<string[]>([]);
     const recentlyRandomizedArchetypes = useRef<string[]>([]);
 
     const [docIdState, setDocIdState] = useState(docId);
-    const [tagCount, setTagCount] = useState(5);
+    const [tagCount, setTagCount] = useState(
+      doc?.projectType === "game" || doc?.projectType === "story" ? 5 : 3
+    );
     const [lockedTags, setLockedTags] = useState<string[]>([]);
     const [filteredTitleTags, setFilteredTitleTags] = useState<string[]>([]);
     const [filteredSummaryTags, setFilteredSummaryTags] = useState<string[]>(
@@ -199,26 +204,39 @@ const CreateProjectForm = React.memo(
     useEffect(() => {
       const setup = async (): Promise<void> => {
         const latestConfigState = await fetchConfigState();
-        const phrases = shuffle(latestConfigState?.phrases);
-        const catalysts = shuffle(latestConfigState?.catalysts);
-        const personalties = shuffle(
-          latestConfigState?.moods?.personality?.flatMap((x) => x)
-        );
-        const archetypes = shuffle(latestConfigState?.archetypes);
-        setCatalysts(catalysts);
-        setPersonalities(personalties);
-        setArchetypes(archetypes);
+        const phrases = [...latestConfigState?.phrases];
+        const catalysts = [...latestConfigState?.catalysts];
+        const personalties = [
+          ...latestConfigState?.moods?.personality?.flatMap((x) => x),
+        ];
+        const archetypes = [...latestConfigState?.archetypes];
+        const shuffledPhrases = shuffle(phrases);
+        const shuffledCatalysts = shuffle(catalysts);
+        const shuffledPersonalties = shuffle(personalties);
+        const shuffledArchetypes = shuffle(archetypes);
+        setCatalysts(shuffledCatalysts);
+        setPersonalities(shuffledPersonalties);
+        setArchetypes(shuffledArchetypes);
         const termTagsMap = latestConfigState?.terms;
         const getPhraseTagsMap = (
           await import("../../../impower-terms/utils/getPhraseTagsMap")
         ).default;
         setTermTagsMap(termTagsMap);
-        const phraseTagsMap = getPhraseTagsMap(phrases, termTagsMap);
+        const phraseTagsMap = getPhraseTagsMap(shuffledPhrases, termTagsMap);
         setPhraseTagsMap(phraseTagsMap);
         setTagPhrasesMap(getReversedMap(phraseTagsMap));
+        setInspector(new ProjectDocumentInspector());
       };
       setup();
     }, [fetchConfigState]);
+
+    useEffect(() => {
+      if (doc?.projectType) {
+        setTagCount(
+          doc?.projectType === "game" || doc?.projectType === "story" ? 5 : 3
+        );
+      }
+    }, [doc?.projectType]);
 
     useEffect(() => {
       if (phraseTagsMap && phraseAdditions && phraseDeletions) {
@@ -231,8 +249,10 @@ const CreateProjectForm = React.memo(
       }
     }, [phraseTagsMap, phraseAdditions, phraseDeletions]);
 
+    const requiresName = steps.find((s) => s.propertyPaths.includes("name"));
+
     useEffect(() => {
-      if (doc?.tags && filteredTitleTags && tagPhrasesMap) {
+      if (doc?.tags && requiresName && filteredTitleTags && tagPhrasesMap) {
         getFilteredRelevantStrings(
           doc?.tags,
           filteredTitleTags,
@@ -245,6 +265,7 @@ const CreateProjectForm = React.memo(
       filteredTitleTags,
       doc?.tags,
       getFilteredRelevantStrings,
+      requiresName,
     ]);
 
     useEffect(() => {
@@ -374,8 +395,8 @@ const CreateProjectForm = React.memo(
     }, [suggestedTitle, username, icon]);
 
     const handleGetInspector = useCallback(() => {
-      return ProjectDocumentInspector.instance;
-    }, []);
+      return inspector;
+    }, [inspector]);
 
     const tagLimit = handleGetInspector().getPropertyListCountLimit(
       "tags",
@@ -500,26 +521,14 @@ const CreateProjectForm = React.memo(
       if (tagCount !== validTagCount) {
         setTagCount(validTagCount);
       }
-      let newRandomizedTags = await getRandomizedTags(
+      const newRandomizedTags = await getRandomizedTags(
         validTagCount,
-        Array.from(recentlyRandomizedTags.current),
+        recentlyRandomizedTags.current,
         lockedTags,
         doc?.projectType
       );
-      if (!newRandomizedTags) {
-        recentlyRandomizedTags.current.clear();
-        newRandomizedTags = await getRandomizedTags(
-          validTagCount,
-          Array.from(recentlyRandomizedTags.current),
-          lockedTags,
-          doc?.projectType
-        );
-      }
       const sortedRandomizedTags =
         getTagsSortedBySpecificity(newRandomizedTags);
-      sortedRandomizedTags.forEach((tag) => {
-        recentlyRandomizedTags.current.add(tag);
-      });
       const tags = [...lockedTags, ...sortedRandomizedTags];
       if (onChange) {
         onChange({
@@ -550,9 +559,6 @@ const CreateProjectForm = React.memo(
         if (!newRandomizedTags) {
           return;
         }
-        recentlyRandomizedCatalysts.current.push(newRandomizedTags[0]);
-        recentlyRandomizedPersonalities.current.push(newRandomizedTags[1]);
-        recentlyRandomizedArchetypes.current.push(newRandomizedTags[2]);
         const tags = [...newRandomizedTags];
         const newPrefix = format(
           `After {catalyst}, {personality:regex:a} {personality} {archetype} must`,
@@ -616,7 +622,6 @@ const CreateProjectForm = React.memo(
       relevancyFilteredTags: filteredTitleTags,
       relevantTitles: filteredRelevantTitles,
       terms: termTagsMap,
-      tags: doc?.tags,
       onLockTag: handleLockTag,
       onRelevancyFilter: setFilteredTitleTags,
       onChooseTitle: handleChosenTitle,

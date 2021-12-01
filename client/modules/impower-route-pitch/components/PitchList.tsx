@@ -321,7 +321,6 @@ const PitchList = React.memo(
       }
       await new Promise((resolve) => window.requestAnimationFrame(resolve));
       setReloadingState(true);
-      console.warn("RELOAD");
     }, [contentElRef, listElRef, loadingElRef]);
 
     const handleHideLoadingPlaceholder = useCallback(async () => {

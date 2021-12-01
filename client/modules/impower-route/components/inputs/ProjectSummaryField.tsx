@@ -1,6 +1,7 @@
 import styled from "@emotion/styled";
 import { InputProps } from "@material-ui/core/Input";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { ProjectDocument } from "../../../impower-data-store";
 import DataField, { RenderPropertyProps } from "./DataField";
 import ProjectMainTagSelector from "./ProjectMainTagSelector";
 
@@ -24,14 +25,14 @@ const StyledMark = styled.mark`
 `;
 
 export interface ProjectGameSummaryFieldProps extends RenderPropertyProps {
-  tags: string[];
   onChangeTags?: (tags: string[]) => void;
 }
 
 export const ProjectGameSummaryField = (
   props: ProjectSummaryFieldProps
 ): JSX.Element | null => {
-  const { placeholder, tags, onChangeTags } = props;
+  const { placeholder, data, onChangeTags } = props;
+  const inspectedData = data?.[0] as ProjectDocument;
   const displayTagSelector = placeholder?.includes("{tag}");
   const SummaryInputProps: InputProps = useMemo(
     () =>
@@ -40,7 +41,7 @@ export const ProjectGameSummaryField = (
             startAdornment: (
               <ProjectMainTagSelector
                 placeholder={placeholder}
-                tags={tags}
+                tags={inspectedData?.tags}
                 onChangeTags={onChangeTags}
               />
             ),
@@ -50,7 +51,7 @@ export const ProjectGameSummaryField = (
             },
           }
         : undefined,
-    [displayTagSelector, onChangeTags, placeholder, tags]
+    [displayTagSelector, onChangeTags, placeholder, inspectedData?.tags]
   );
   const SummaryDialogProps = useMemo(
     () => ({
@@ -158,7 +159,6 @@ export const ProjectStorySummaryField = (
 };
 
 export interface ProjectSummaryFieldProps extends RenderPropertyProps {
-  tags: string[];
   onChangeTags?: (tags: string[]) => void;
 }
 

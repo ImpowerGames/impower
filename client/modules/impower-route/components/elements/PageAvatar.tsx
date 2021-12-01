@@ -22,7 +22,11 @@ const PageAvatar = (props: PageAvatarProps): JSX.Element => {
   const mainTag = doc?.tags?.[0] || "";
   const tagIconNames =
     configState?.tagIconNames || ConfigCache.instance.params?.tagIconNames;
-  const tagIconName = tagIconNames?.[mainTag] || "";
+  const tagDisambiguations =
+    configState?.tagDisambiguations ||
+    ConfigCache.instance.params?.tagDisambiguations;
+  const validMainTag = tagDisambiguations[mainTag]?.[0] || mainTag;
+  const tagIconName = tagIconNames?.[validMainTag] || "hashtag";
 
   const tagColor = tagIconName ? doc?.hex : "#052d57";
 

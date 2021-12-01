@@ -575,8 +575,11 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
         description={`${format(
           (configState || config).messages[
             `pitched_${projectType}_author_preamble`
-          ] || (configState || config).messages.pitched_games_author_preamble,
+          ] ||
+            (configState || config).messages.pitched_author_preamble ||
+            (configState || config).messages.pitched_games_author_preamble,
           {
+            type: pitchDocState?.projectType || "",
             tag: pitchDocState?.tags?.[0] || "",
           }
         )} @${author?.u}`}
@@ -704,7 +707,8 @@ export const getStaticProps: GetStaticProps = async (context) => {
 
   if (pitchDoc) {
     const mainTag = pitchDoc?.tags?.[0] || "";
-    const tagIconName = config?.tagIconNames?.[mainTag] || "hashtag";
+    const validMainTag = config?.tagDisambiguations?.[mainTag]?.[0] || mainTag;
+    const tagIconName = config?.tagIconNames?.[validMainTag] || "hashtag";
     const component = (
       await import(`../../resources/icons/solid/${tagIconName}.svg`)
     ).default;

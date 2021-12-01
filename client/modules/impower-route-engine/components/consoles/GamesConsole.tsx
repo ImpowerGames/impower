@@ -150,12 +150,16 @@ const GamesConsoleContent = (
         const tagIconNames =
           configState?.tagIconNames ||
           ConfigCache.instance.params?.tagIconNames;
-        const tagIconName = tagIconNames?.[mainTag] || "";
+        const tagDisambiguations =
+          configState?.tagDisambiguations ||
+          ConfigCache.instance.params?.tagDisambiguations;
+        const validMainTag = tagDisambiguations[mainTag]?.[0] || mainTag;
+        const tagIconName = tagIconNames?.[validMainTag] || "hashtag";
         return <DynamicIcon icon={tagIconName} />;
       }
       return undefined;
     },
-    [configState?.tagIconNames, gameDocs]
+    [configState?.tagDisambiguations, configState?.tagIconNames, gameDocs]
   );
 
   const getRowColor = useCallback(

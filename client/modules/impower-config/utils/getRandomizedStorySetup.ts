@@ -11,41 +11,41 @@ export const getRandomizedStorySetup = async (
 ): Promise<string[]> => {
   let validCatalystTags = getValidTags(
     catalysts,
-    lockedTags,
-    recentlyRandomizedCatalysts
+    recentlyRandomizedCatalysts,
+    lockedTags
   );
   let validPersonalityTags = getValidTags(
     personalities,
-    lockedTags,
-    recentlyRandomizedPersonalities
+    recentlyRandomizedPersonalities,
+    lockedTags
   );
   let validArchetypeTags = getValidTags(
     archetypes,
-    lockedTags,
-    recentlyRandomizedArchetypes
+    recentlyRandomizedArchetypes,
+    lockedTags
   );
   if (validCatalystTags.length === 0) {
     recentlyRandomizedCatalysts.length = 0;
     validCatalystTags = getValidTags(
       catalysts,
-      lockedTags,
-      recentlyRandomizedCatalysts
+      recentlyRandomizedCatalysts,
+      lockedTags
     );
   }
   if (validPersonalityTags.length === 0) {
     recentlyRandomizedPersonalities.length = 0;
     validPersonalityTags = getValidTags(
       personalities,
-      lockedTags,
-      recentlyRandomizedPersonalities
+      recentlyRandomizedPersonalities,
+      lockedTags
     );
   }
   if (validArchetypeTags.length === 0) {
     recentlyRandomizedArchetypes.length = 0;
     validArchetypeTags = getValidTags(
       archetypes,
-      lockedTags,
-      recentlyRandomizedArchetypes
+      recentlyRandomizedArchetypes,
+      lockedTags
     );
   }
   const sample = (await import("../../impower-core/utils/sample")).default;
@@ -54,5 +54,8 @@ export const getRandomizedStorySetup = async (
     ...sample(validPersonalityTags, 1),
     ...sample(validArchetypeTags, 1),
   ];
+  recentlyRandomizedCatalysts.push(newRandomizedTags[0]);
+  recentlyRandomizedPersonalities.push(newRandomizedTags[1]);
+  recentlyRandomizedArchetypes.push(newRandomizedTags[2]);
   return newRandomizedTags;
 };

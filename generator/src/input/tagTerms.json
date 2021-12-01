@@ -354,7 +354,7 @@
     "wing",
     "worship"
   ],
-  "animals": [
+  "animal": [
     ">amphibian",
     ">livestock",
     ">mammal",
@@ -1299,9 +1299,9 @@
     "bureau",
     "bureaucracy",
     "bureaucrat",
+    "c.e.o.",
     "candidate",
     "capacity",
-    "ceo",
     "chair",
     "clerk",
     "colleague",
@@ -4091,7 +4091,7 @@
     "trace",
     "watercolor"
   ],
-  "dreams": [
+  "dream": [
     "_lying down_",
     "asleep",
     "awake",
@@ -5986,7 +5986,7 @@
     "bootleg",
     "bribery",
     "business",
-    "ceo",
+    "c.e.o.",
     "cheat",
     "corporate",
     "corruption",
@@ -6379,7 +6379,7 @@
     "tunnel",
     "walls"
   ],
-  "insects": [
+  "insect": [
     "_kill it with fire_",
     "_tick_",
     "ant",
@@ -6893,7 +6893,7 @@
     "lifetime",
     "live",
     "memoire",
-    "memories",
+    "memory",
     "narrate",
     "passion",
     "personal",
@@ -7837,7 +7837,7 @@
     "vivat",
     "woo"
   ],
-  "memories": [
+  "memory": [
     "_all too well_",
     "_my age_",
     "_what did_",
@@ -8484,7 +8484,7 @@
   ],
   "nature": [
     ">crop",
-    ">insects",
+    ">insect",
     ">plants",
     ">seasons",
     "_down pour_",
@@ -8705,8 +8705,8 @@
     "bureau",
     "bureaucracy",
     "business",
+    "c.e.o.",
     "candidate",
-    "ceo",
     "chair",
     "clerk",
     "clout",
@@ -11060,7 +11060,7 @@
     "vengeance"
   ],
   "rhythm": [">musical", "footwork", "knockin", "patter", "steppin", "throb"],
-  "rivals": [
+  "rival": [
     "!",
     ">arrogance",
     ">i",
@@ -13418,7 +13418,7 @@
     "hopeless",
     "hurt",
     "iniquity",
-    "memories",
+    "memory",
     "misery",
     "misfortune",
     "mourn",

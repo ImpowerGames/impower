@@ -1,5 +1,6 @@
-import { getLabel } from "../../../impower-config";
+import { getLabel, getTagsSortedBySpecificity } from "../../../impower-config";
 import ConfigCache from "../../../impower-config/classes/configCache";
+import format from "../../../impower-config/utils/format";
 import { getPropertyName, getValue, List } from "../../../impower-core";
 import { ProjectDocument } from "../../types/documents/projectDocument";
 import { DevelopmentStatus } from "../../types/enums/developmentStatus";
@@ -55,9 +56,18 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     return undefined;
   }
 
+  getPropertyMinRowCount(propertyPath: string, _data: ProjectDocument): number {
+    if (propertyPath === "tags") {
+      return 2;
+    }
+    return undefined;
+  }
+
   getPropertyLabel(propertyPath: string, data: ProjectDocument): string {
     if (propertyPath === "name") {
-      return "Title";
+      if (data?.type === "game" || data?.type === "story") {
+        return "Title";
+      }
     }
     if (propertyPath === "summary") {
       return "";
@@ -137,6 +147,8 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       const gameTags = ConfigCache.instance.params?.projectTags;
       const resourceTags = ConfigCache.instance.params?.resourceTags;
       const roleTags = ConfigCache.instance.params?.roleTags;
+      const moods = ConfigCache.instance.params?.moods;
+      const archetypes = ConfigCache.instance.params?.archetypes;
       if (data?.projectType === "game") {
         return Object.values(gameTags)
           .flatMap((list) => list.flatMap((groups) => groups).sort())
@@ -157,6 +169,14 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
             return list.flatMap((groups) => groups).sort();
           })
           .map((tag) => tag.toLowerCase());
+      }
+      if (data?.projectType === "character") {
+        return [
+          ...(moods
+            ? Object.values(moods).flatMap((x) => x.flatMap((y) => y))
+            : []),
+          ...(archetypes || []),
+        ].map((tag) => tag.toLowerCase());
       }
       return [
         ...Object.values(gameTags)
@@ -211,6 +231,25 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
             .includes(value)
         ) {
           return "Subjects";
+        }
+      }
+      if (data?.projectType === "character") {
+        const moods = ConfigCache.instance.params?.moods;
+        const archetypes = ConfigCache.instance.params?.archetypes;
+        if (
+          moods &&
+          Object.values(moods)
+            .flatMap((x) => x.flatMap((y) => y))
+            .map((tag) => tag.toLowerCase())
+            .includes(value)
+        ) {
+          return "Traits";
+        }
+        if (
+          archetypes &&
+          archetypes.map((tag) => tag.toLowerCase()).includes(value)
+        ) {
+          return "Archetypes";
         }
       }
       if (data?.projectType === "story") {
@@ -278,7 +317,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
   getPropertyValueIcon(
     propertyPath: string,
     data: ProjectDocument,
-    value: unknown
+    value: string
   ): string {
     if (propertyPath.endsWith("pitchGoal")) {
       if (value === PitchGoal.Inspiration) {
@@ -286,6 +325,27 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       }
       if (value === PitchGoal.Collaboration) {
         return "handshake-simple";
+      }
+    }
+    if (propertyPath === "tags") {
+      if (data?.projectType === "character") {
+        const moods = ConfigCache.instance.params?.moods;
+        const archetypes = ConfigCache.instance.params?.archetypes;
+        if (
+          moods &&
+          Object.values(moods)
+            .flatMap((x) => x.flatMap((y) => y))
+            .map((tag) => tag.toLowerCase())
+            .includes(value)
+        ) {
+          return "masks-theater";
+        }
+        if (
+          archetypes &&
+          archetypes.map((tag) => tag.toLowerCase()).includes(value)
+        ) {
+          return "person";
+        }
       }
     }
     return super.getPropertyValueIcon(propertyPath, data, value);
@@ -297,10 +357,43 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     }
     if (propertyPath === "summary") {
       const messages = ConfigCache.instance.params?.messages;
-      return (
-        messages[`pitched_${data?.projectType}_preamble`] ||
-        messages.pitched_games_preamble
-      );
+      if (data.projectType === "game") {
+        return (
+          messages.pitched_game_preamble || messages.pitched_games_preamble
+        );
+      }
+      if (data.projectType === "story") {
+        return `(After a catalyst), (a flawed hero) must (overcome an obstacle) (and achieve a goal) (or else stakes).`;
+      }
+      if (data.projectType === "character") {
+        const archetypes = ConfigCache.instance.params?.archetypes;
+        const mainTag = data?.tags?.[0];
+        const sortedTags = getTagsSortedBySpecificity(data?.tags);
+        const description = sortedTags
+          .map((x) => (x === mainTag ? `{tag}` : x))
+          .join(" ");
+        if (archetypes?.includes(sortedTags?.[sortedTags.length - 1])) {
+          return format(`{firstTag:regex:A} ${description} who`, {
+            tag: "{tag}",
+            firstTag: sortedTags?.[0],
+          });
+        }
+        return format(`{firstTag:regex:A} ${description} character who`, {
+          tag: "{tag}",
+          firstTag: sortedTags?.[0],
+        });
+      }
+    }
+    if (propertyPath === "tags") {
+      if (data.projectType === "game") {
+        return `Search mechanics, genres, or subjects`;
+      }
+      if (data.projectType === "story") {
+        return `Search genres, aesthetics, or subjects`;
+      }
+      if (data.projectType === "character") {
+        return `Search traits or archetypes`;
+      }
     }
     return super.getPropertyPlaceholder(propertyPath, data);
   }
@@ -313,7 +406,15 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       return `Tap the lightbulb for more suggestions!`;
     }
     if (propertyPath === "summary" && !data?._createdAt) {
-      return `Good pitches have a strong sense of irony.`;
+      if (data?.projectType === "game") {
+        return `Good pitches have a strong sense of irony.`;
+      }
+      if (data?.projectType === "story") {
+        return `Good loglines have a strong sense of irony.`;
+      }
+      if (data?.projectType === "character") {
+        return `Interesting characters are flawed but easy to root for.`;
+      }
     }
     return undefined;
   }

@@ -395,12 +395,14 @@ const PitchCardHeader = React.memo(
 
     const mainTag = tags?.[0] || "";
     const currentConfig = configState || config || ConfigCache.instance.params;
-    const tagColorName = currentConfig?.tagColorNames?.[mainTag] || "";
+    const tagDisambiguations = currentConfig?.tagDisambiguations;
+    const validMainTag = tagDisambiguations?.[mainTag]?.[0] || mainTag;
+    const tagColorName = currentConfig?.tagColorNames?.[validMainTag] || "";
     const mainTagLabel = capitalize(mainTag);
     const tagColor = currentConfig?.colors?.[tagColorName];
-    const tagIconName = currentConfig?.tagIconNames?.[mainTag];
-    const validTagIconName = tagIconName || "hashtag";
-    const validTagColor = tagIconName ? tagColor : "#052d57";
+    const tagIconName =
+      currentConfig?.tagIconNames?.[validMainTag] || "hashtag";
+    const validTagColor = tagColor || "#052d57";
 
     const handleClickMainTag = useCallback(
       async (e: React.MouseEvent): Promise<void> => {
@@ -418,10 +420,8 @@ const PitchCardHeader = React.memo(
     );
 
     const avatarIcon = useMemo(
-      () => (
-        <DynamicIcon icon={icons?.[validTagIconName] || validTagIconName} />
-      ),
-      [icons, validTagIconName]
+      () => <DynamicIcon icon={icons?.[tagIconName] || tagIconName} />,
+      [icons, tagIconName]
     );
 
     const avatarStyle: React.CSSProperties = useMemo(

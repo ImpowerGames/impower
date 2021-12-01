@@ -12,25 +12,7 @@ class ConfigCache {
     return this._instance;
   }
 
-  private _params: ConfigParameters = {
-    abbreviations: undefined,
-    capitalizations: undefined,
-    colors: undefined,
-    projectTags: undefined,
-    moods: undefined,
-    catalysts: undefined,
-    archetypes: undefined,
-    phrases: undefined,
-    messages: undefined,
-    regexes: undefined,
-    resourceTags: undefined,
-    roleTags: undefined,
-    tagColorNames: undefined,
-    tagDisambiguations: undefined,
-    tagIconNames: undefined,
-    tagPatterns: undefined,
-    terms: undefined,
-  };
+  private _params: ConfigParameters;
 
   public icons: { [name: string]: { v: string; d: string } };
 
@@ -44,7 +26,7 @@ class ConfigCache {
   }> = new Set();
 
   set(params: ConfigParameters): void {
-    this._params = params;
+    this._params = { ...(this._params || {}), ...params };
     const listeners = Array.from(this._listeners);
     listeners.forEach((listener) => {
       if (listener) {

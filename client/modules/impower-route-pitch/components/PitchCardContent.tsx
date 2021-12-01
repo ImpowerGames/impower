@@ -27,12 +27,13 @@ const StyledTitleArea = styled.div`
   margin-bottom: ${(props): string => props.theme.spacing(1.5)};
 `;
 
-const StyledSummaryArea = styled.div``;
+const StyledSummaryArea = styled.div`
+  margin-bottom: ${(props): string => props.theme.spacing(1.5)};
+`;
 
 const StyledTagsArea = styled.div`
   margin-left: ${(props): string => props.theme.spacing(-0.75)};
   margin-right: ${(props): string => props.theme.spacing(-0.75)};
-  margin-top: ${(props): string => props.theme.spacing(1.5)};
   display: flex;
   flex-wrap: wrap;
 `;
@@ -122,11 +123,13 @@ const PitchCardContent = React.memo(
       <StyledCardContent>
         {(archived || !delisted) && (
           <>
-            <StyledTitleArea ref={titleRef}>
-              <StyledTitleTypography variant="h6" component="h2">
-                {name}
-              </StyledTitleTypography>
-            </StyledTitleArea>
+            {name && (
+              <StyledTitleArea ref={titleRef}>
+                <StyledTitleTypography variant="h6" component="h2">
+                  {name}
+                </StyledTitleTypography>
+              </StyledTitleArea>
+            )}
             {summary !== "" && (
               <StyledSummaryArea>
                 {summary === undefined ? (

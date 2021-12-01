@@ -119,6 +119,9 @@ class DataStoreWrite<T extends DocumentPath = DocumentPath> {
         delete validDoc.accessedAt;
       }
     }
+    if (validDoc.slug === "") {
+      delete validDoc.slug;
+    }
     deleteReadOnlyFields(validDoc);
     const ref = _doc(internal, docPath);
     if (batch) {
@@ -206,6 +209,9 @@ class DataStoreWrite<T extends DocumentPath = DocumentPath> {
       } else {
         delete validDoc.accessedAt;
       }
+    }
+    if (validDoc.slug === "") {
+      delete validDoc.slug;
     }
     deleteReadOnlyFields(validDoc);
     const ref = _doc(internal, docPath);

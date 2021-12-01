@@ -247,7 +247,8 @@ export const getStaticProps: GetStaticProps = async (context) => {
     ...getTagConfigParameters(),
   };
   const mainTag = serializableData?.tags?.[0] || "";
-  const tagIconName = config?.tagIconNames?.[mainTag] || "hashtag";
+  const validMainTag = config?.tagDisambiguations?.[mainTag]?.[0] || mainTag;
+  const tagIconName = config?.tagIconNames?.[validMainTag] || "hashtag";
   const icons = {};
   const component = (
     await import(`../../resources/icons/solid/${tagIconName}.svg`)

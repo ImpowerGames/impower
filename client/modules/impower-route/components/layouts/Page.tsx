@@ -941,7 +941,11 @@ const PageContent = React.memo((props: PageContentProps): JSX.Element => {
   const mainTag = doc?.tags?.[0] || "";
   const tagIconNames =
     configState?.tagIconNames || ConfigCache.instance.params?.tagIconNames;
-  const tagIconName = tagIconNames?.[mainTag] || "";
+  const tagDisambiguations =
+    configState?.tagDisambiguations ||
+    ConfigCache.instance.params?.tagDisambiguations;
+  const validMainTag = tagDisambiguations[mainTag]?.[0] || mainTag;
+  const tagIconName = tagIconNames?.[validMainTag] || "hashtag";
 
   return (
     <StyledPageContent>

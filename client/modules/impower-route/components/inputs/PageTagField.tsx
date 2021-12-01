@@ -9,7 +9,6 @@ import React, { useCallback, useContext, useMemo } from "react";
 import { ConfigContext } from "../../../impower-config";
 import ConfigCache from "../../../impower-config/classes/configCache";
 import { DynamicIcon, FontIcon } from "../../../impower-icon";
-import FadeAnimation from "../animations/FadeAnimation";
 import DataField, { RenderPropertyProps } from "./DataField";
 import TagChip from "./TagChip";
 
@@ -23,70 +22,80 @@ export interface PageTagFieldProps extends RenderPropertyProps {
 }
 
 export const PageTagField = (props: PageTagFieldProps): JSX.Element | null => {
-  const { lockedTags, onLockTag, getDisplayValue } = props;
+  const {
+    lockedTags,
+    onLockTag,
+    getDisplayValue,
+    getInspector,
+    data,
+    propertyPath,
+    InputProps,
+  } = props;
 
   const [configState] = useContext(ConfigContext);
 
   const theme = useTheme();
 
-  const tagIconNames =
-    configState?.tagIconNames || ConfigCache.instance.params?.tagIconNames;
+  const inspectedData = data?.[0];
+
+  const inspector = useMemo(
+    () => getInspector(inspectedData),
+    [getInspector, inspectedData]
+  );
+
   const tagDisambiguations =
     configState?.tagDisambiguations ||
     ConfigCache.instance.params?.tagDisambiguations;
 
   const getValueIcon = useCallback(
     (option: string) => {
-      return tagIconNames?.[option || ""] || "hashtag";
+      return inspector.getPropertyValueIcon(
+        propertyPath,
+        inspectedData,
+        option
+      );
     },
-    [tagIconNames]
+    [inspectedData, inspector, propertyPath]
   );
 
   const renderTagChips = useCallback(
     (tagValue: string[], getTagProps: AutocompleteGetTagProps) => {
       return tagValue.map((option, index) => {
-        const tagIconName = tagIconNames?.[option || ""] || "hashtag";
+        const tagIconName = getValueIcon(option);
         const locked = lockedTags?.includes(option);
         return (
-          <FadeAnimation
+          <TagChip
             key={option}
-            initial={0}
-            animate={1}
-            duration={0.15}
-            ignoreContext
-          >
-            <TagChip
-              color={locked ? "secondary" : "default"}
-              icon={
-                tagIconName && onLockTag && !locked ? (
-                  <FontIcon
-                    aria-label={option}
-                    color={locked ? theme.colors.white80 : theme.colors.black40}
-                    size={18}
-                  >
-                    <DynamicIcon icon={tagIconName} />
-                  </FontIcon>
-                ) : tagIconName ? (
-                  <FontIcon
-                    aria-label={option}
-                    color={locked ? theme.colors.white80 : theme.colors.black40}
-                    size={18}
-                  >
-                    <DynamicIcon icon={tagIconName} />
-                  </FontIcon>
-                ) : undefined
+            color={locked ? "secondary" : "default"}
+            icon={
+              tagIconName && onLockTag && !locked ? (
+                <FontIcon
+                  aria-label={option}
+                  color={locked ? theme.colors.white80 : theme.colors.black40}
+                  size={18}
+                >
+                  <DynamicIcon icon={tagIconName} />
+                </FontIcon>
+              ) : tagIconName ? (
+                <FontIcon
+                  aria-label={option}
+                  color={locked ? theme.colors.white80 : theme.colors.black40}
+                  size={18}
+                >
+                  <DynamicIcon icon={tagIconName} />
+                </FontIcon>
+              ) : undefined
+            }
+            onClick={(e): void => {
+              e.stopPropagation();
+              e.preventDefault();
+              if (onLockTag) {
+                onLockTag(option);
               }
-              onClick={(e): void => {
-                e.stopPropagation();
-                e.preventDefault();
-                if (onLockTag) {
-                  onLockTag(option);
-                }
-              }}
-              {...getTagProps({ index })}
-              label={getDisplayValue(option)}
-            />
-          </FadeAnimation>
+            }}
+            {...getTagProps({ index })}
+            label={getDisplayValue(option)}
+          />
         );
       });
     },
@@ -94,7 +103,7 @@ export const PageTagField = (props: PageTagFieldProps): JSX.Element | null => {
       getDisplayValue,
       lockedTags,
       onLockTag,
-      tagIconNames,
+      getValueIcon,
       theme.colors.black40,
       theme.colors.white80,
     ]
@@ -126,6 +135,17 @@ export const PageTagField = (props: PageTagFieldProps): JSX.Element | null => {
     [defaultFilterOptions, tagDisambiguations]
   );
 
+  const TagInputProps = useMemo(
+    () => ({
+      ...(InputProps || {}),
+      style: {
+        ...(InputProps?.style || {}),
+        minHeight: 102,
+        alignItems: "flex-start",
+      },
+    }),
+    [InputProps]
+  );
   return (
     <>
       <DataField
@@ -134,6 +154,7 @@ export const PageTagField = (props: PageTagFieldProps): JSX.Element | null => {
         renderChips={renderTagChips}
         getValueIcon={getValueIcon}
         filterOptions={handleFilterTagOptions}
+        InputProps={TagInputProps}
       />
       <TagIconLoader />
     </>

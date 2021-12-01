@@ -4,195 +4,339 @@ export const getRequiredTagCounts = (
   requiredTagTotal: number,
   type?: ProjectType
 ): {
-  requiredMechanicCount: number;
-  requiredGenreCount: number;
-  requiredAestheticCount: number;
-  requiredSubjectCount: number;
+  mechanics: number;
+  genres: number;
+  aesthetics: number;
+  subjects: number;
+  moods: number;
+  archetypes: number;
 } => {
   if (requiredTagTotal === 1) {
     if (type === "game") {
       return {
-        requiredMechanicCount: 0,
-        requiredGenreCount: 0,
-        requiredAestheticCount: 0,
-        requiredSubjectCount: 0,
+        mechanics: 0,
+        genres: 0,
+        aesthetics: 0,
+        subjects: 0,
+        moods: null,
+        archetypes: null,
       };
     }
     if (type === "story") {
       return {
-        requiredMechanicCount: null,
-        requiredGenreCount: 0,
-        requiredAestheticCount: 0,
-        requiredSubjectCount: 0,
+        mechanics: null,
+        genres: 0,
+        aesthetics: 0,
+        subjects: 0,
+        moods: null,
+        archetypes: null,
+      };
+    }
+    if (type === "character") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: null,
+        moods: 0,
+        archetypes: 1,
       };
     }
   }
   if (requiredTagTotal === 2) {
     if (type === "game") {
       return {
-        requiredMechanicCount: 1,
-        requiredGenreCount: 0,
-        requiredAestheticCount: 0,
-        requiredSubjectCount: 0,
+        mechanics: 1,
+        genres: 0,
+        aesthetics: 0,
+        subjects: 0,
+        moods: null,
+        archetypes: null,
       };
     }
     if (type === "story") {
       return {
-        requiredMechanicCount: null,
-        requiredGenreCount: 0,
-        requiredAestheticCount: 0,
-        requiredSubjectCount: 1,
+        mechanics: null,
+        genres: 0,
+        aesthetics: 0,
+        subjects: 1,
+        moods: null,
+        archetypes: null,
+      };
+    }
+    if (type === "character") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: null,
+        moods: 1,
+        archetypes: 1,
       };
     }
   }
   if (requiredTagTotal === 3) {
     if (type === "game") {
       return {
-        requiredMechanicCount: 1,
-        requiredGenreCount: 0,
-        requiredAestheticCount: 0,
-        requiredSubjectCount: 1,
+        mechanics: 1,
+        genres: 0,
+        aesthetics: 0,
+        subjects: 1,
+        moods: null,
+        archetypes: null,
       };
     }
     if (type === "story") {
       return {
-        requiredMechanicCount: null,
-        requiredGenreCount: 1,
-        requiredAestheticCount: 0,
-        requiredSubjectCount: 1,
+        mechanics: null,
+        genres: 1,
+        aesthetics: 0,
+        subjects: 1,
+        moods: null,
+        archetypes: null,
+      };
+    }
+    if (type === "character") {
+      return {
+        mechanics: null,
+        genres: 0,
+        aesthetics: 0,
+        subjects: 0,
+        moods: 1,
+        archetypes: 1,
       };
     }
   }
   if (requiredTagTotal === 4) {
     if (type === "game") {
       return {
-        requiredMechanicCount: 1,
-        requiredGenreCount: 1,
-        requiredAestheticCount: 1,
-        requiredSubjectCount: 1,
+        mechanics: 1,
+        genres: 1,
+        aesthetics: 1,
+        subjects: 1,
+        moods: null,
+        archetypes: null,
       };
     }
     if (type === "story") {
       return {
-        requiredMechanicCount: null,
-        requiredGenreCount: 2,
-        requiredAestheticCount: 1,
-        requiredSubjectCount: 1,
+        mechanics: null,
+        genres: 2,
+        aesthetics: 1,
+        subjects: 1,
+        moods: null,
+        archetypes: null,
+      };
+    }
+    if (type === "character") {
+      return {
+        mechanics: null,
+        genres: 0,
+        aesthetics: 0,
+        subjects: 1,
+        moods: 1,
+        archetypes: 1,
       };
     }
   }
   if (requiredTagTotal === 5) {
     if (type === "game") {
       return {
-        requiredMechanicCount: 2,
-        requiredGenreCount: 1,
-        requiredAestheticCount: 1,
-        requiredSubjectCount: 1,
+        mechanics: 2,
+        genres: 1,
+        aesthetics: 1,
+        subjects: 1,
+        moods: null,
+        archetypes: null,
       };
     }
     if (type === "story") {
       return {
-        requiredMechanicCount: null,
-        requiredGenreCount: 2,
-        requiredAestheticCount: 1,
-        requiredSubjectCount: 2,
+        mechanics: null,
+        genres: 2,
+        aesthetics: 1,
+        subjects: 2,
+        moods: null,
+        archetypes: null,
+      };
+    }
+    if (type === "character") {
+      return {
+        mechanics: null,
+        genres: 1,
+        aesthetics: 1,
+        subjects: 1,
+        moods: 1,
+        archetypes: 1,
       };
     }
   }
   if (requiredTagTotal === 6) {
     if (type === "game") {
       return {
-        requiredMechanicCount: 2,
-        requiredGenreCount: 2,
-        requiredAestheticCount: 1,
-        requiredSubjectCount: 1,
+        mechanics: 2,
+        genres: 2,
+        aesthetics: 1,
+        subjects: 1,
+        moods: null,
+        archetypes: null,
       };
     }
     if (type === "story") {
       return {
-        requiredMechanicCount: null,
-        requiredGenreCount: 2,
-        requiredAestheticCount: 2,
-        requiredSubjectCount: 2,
+        mechanics: null,
+        genres: 2,
+        aesthetics: 2,
+        subjects: 2,
+        moods: null,
+        archetypes: null,
+      };
+    }
+    if (type === "character") {
+      return {
+        mechanics: null,
+        genres: 1,
+        aesthetics: 1,
+        subjects: 1,
+        moods: 2,
+        archetypes: 1,
       };
     }
   }
   if (requiredTagTotal === 7) {
     if (type === "game") {
       return {
-        requiredMechanicCount: 2,
-        requiredGenreCount: 2,
-        requiredAestheticCount: 1,
-        requiredSubjectCount: 2,
+        mechanics: 2,
+        genres: 2,
+        aesthetics: 1,
+        subjects: 2,
+        moods: null,
+        archetypes: null,
       };
     }
     if (type === "story") {
       return {
-        requiredMechanicCount: null,
-        requiredGenreCount: 2,
-        requiredAestheticCount: 2,
-        requiredSubjectCount: 3,
+        mechanics: null,
+        genres: 2,
+        aesthetics: 2,
+        subjects: 3,
+        moods: null,
+        archetypes: null,
+      };
+    }
+    if (type === "character") {
+      return {
+        mechanics: null,
+        genres: 1,
+        aesthetics: 1,
+        subjects: 2,
+        moods: 2,
+        archetypes: 1,
       };
     }
   }
   if (requiredTagTotal === 8) {
     if (type === "game") {
       return {
-        requiredMechanicCount: 2,
-        requiredGenreCount: 2,
-        requiredAestheticCount: 2,
-        requiredSubjectCount: 2,
+        mechanics: 2,
+        genres: 2,
+        aesthetics: 2,
+        subjects: 2,
+        moods: null,
+        archetypes: null,
       };
     }
     if (type === "story") {
       return {
-        requiredMechanicCount: null,
-        requiredGenreCount: 3,
-        requiredAestheticCount: 2,
-        requiredSubjectCount: 3,
+        mechanics: null,
+        genres: 3,
+        aesthetics: 2,
+        subjects: 3,
+        moods: null,
+        archetypes: null,
+      };
+    }
+    if (type === "character") {
+      return {
+        mechanics: null,
+        genres: 2,
+        aesthetics: 1,
+        subjects: 2,
+        moods: 2,
+        archetypes: 1,
       };
     }
   }
   if (requiredTagTotal === 9) {
     if (type === "game") {
       return {
-        requiredMechanicCount: 3,
-        requiredGenreCount: 2,
-        requiredAestheticCount: 2,
-        requiredSubjectCount: 2,
+        mechanics: 3,
+        genres: 2,
+        aesthetics: 2,
+        subjects: 2,
+        moods: null,
+        archetypes: null,
       };
     }
     if (type === "story") {
       return {
-        requiredMechanicCount: null,
-        requiredGenreCount: 3,
-        requiredAestheticCount: 3,
-        requiredSubjectCount: 3,
+        mechanics: null,
+        genres: 3,
+        aesthetics: 3,
+        subjects: 3,
+        moods: null,
+        archetypes: null,
+      };
+    }
+    if (type === "character") {
+      return {
+        mechanics: null,
+        genres: 2,
+        aesthetics: 1,
+        subjects: 2,
+        moods: 2,
+        archetypes: 2,
       };
     }
   }
   if (requiredTagTotal === 10) {
     if (type === "game") {
       return {
-        requiredMechanicCount: 3,
-        requiredGenreCount: 2,
-        requiredAestheticCount: 2,
-        requiredSubjectCount: 3,
+        mechanics: 3,
+        genres: 2,
+        aesthetics: 2,
+        subjects: 3,
+        moods: null,
+        archetypes: null,
       };
     }
     if (type === "story") {
       return {
-        requiredMechanicCount: null,
-        requiredGenreCount: 3,
-        requiredAestheticCount: 3,
-        requiredSubjectCount: 4,
+        mechanics: null,
+        genres: 3,
+        aesthetics: 3,
+        subjects: 4,
+        moods: null,
+        archetypes: null,
+      };
+    }
+    if (type === "character") {
+      return {
+        mechanics: null,
+        genres: 2,
+        aesthetics: 2,
+        subjects: 2,
+        moods: 2,
+        archetypes: 2,
       };
     }
   }
   return {
-    requiredMechanicCount: null,
-    requiredGenreCount: null,
-    requiredAestheticCount: null,
-    requiredSubjectCount: null,
+    mechanics: null,
+    genres: null,
+    aesthetics: null,
+    subjects: null,
+    moods: null,
+    archetypes: null,
   };
 };

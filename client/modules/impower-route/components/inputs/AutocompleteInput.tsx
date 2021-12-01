@@ -171,6 +171,8 @@ const AutocompleteInput = React.memo(
       initialOpen,
       searchableThreshold = 5,
       open = false,
+      minRows,
+      maxRows,
       DialogProps,
       filterOptions,
       getInputError,
@@ -836,6 +838,8 @@ const AutocompleteInput = React.memo(
             disableAutoKeyboard
             onDebouncedChange={onDebouncedInputChange}
             onCloseDialog={handleCloseDialog}
+            minRows={minRows}
+            maxRows={maxRows}
             {...params}
             DialogComponent={multiple ? TagDialog : AutocompleteDialog}
             DialogProps={AutocompleteDialogProps}
@@ -874,6 +878,8 @@ const AutocompleteInput = React.memo(
         debounceInterval,
         onDebouncedInputChange,
         handleCloseDialog,
+        minRows,
+        maxRows,
         multiple,
         AutocompleteDialogProps,
         InputComponent,
