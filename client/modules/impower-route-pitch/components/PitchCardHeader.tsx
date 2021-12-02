@@ -7,19 +7,16 @@ import Typography from "@material-ui/core/Typography";
 import dynamic from "next/dynamic";
 import React, { useCallback, useContext, useMemo } from "react";
 import EllipsisVerticalRegularIcon from "../../../resources/icons/regular/ellipsis-vertical.svg";
-import HandshakeSimpleRegularIcon from "../../../resources/icons/regular/handshake-simple.svg";
-import LightbulbOnRegularIcon from "../../../resources/icons/regular/lightbulb-on.svg";
 import PenRegularIcon from "../../../resources/icons/regular/pen-line.svg";
 import { AuthorAttributes } from "../../impower-auth";
 import {
   abbreviateAge,
-  abbreviateCount,
   capitalize,
   ConfigContext,
   ConfigParameters,
 } from "../../impower-config";
 import ConfigCache from "../../impower-config/classes/configCache";
-import { escapeURI, PitchGoal } from "../../impower-data-store";
+import { escapeURI } from "../../impower-data-store";
 import { DynamicIcon, FontIcon, SvgData } from "../../impower-icon";
 import {
   NavigationContext,
@@ -193,9 +190,6 @@ interface PitchCardHeaderSubheaderProps {
   archived: boolean;
   authorName: string;
   delisted: boolean;
-  participationCount: number;
-  participationIconColor: string;
-  particpationIcon: React.ReactNode;
   preview: boolean;
   tempUsername: string;
   onBlockRipplePropogation: (e: React.MouseEvent | React.TouchEvent) => void;
@@ -209,23 +203,15 @@ const PitchCardHeaderSubheader = React.memo(
       archived,
       authorName,
       delisted,
-      participationCount,
-      participationIconColor,
-      particpationIcon,
       preview,
       tempUsername,
       onBlockRipplePropogation,
     } = props;
 
-    const theme = useTheme();
     const [, navigationDispatch] = useContext(NavigationContext);
 
     const hiddenStyle: React.CSSProperties = useMemo(
       () => ({ visibility: "hidden" }),
-      []
-    );
-    const iconStyle: React.CSSProperties = useMemo(
-      () => ({ opacity: 0.6 }),
       []
     );
     const editedIconStyle: React.CSSProperties = useMemo(
@@ -280,23 +266,6 @@ const PitchCardHeaderSubheader = React.memo(
           ) : (
             `[deleted]`
           )}
-          <StyledSingleLineTypography variant="body2" color="textSecondary">
-            {"  •  "}
-          </StyledSingleLineTypography>
-          <FontIcon
-            aria-label={`Goal`}
-            size={theme.typography.body2.fontSize}
-            color={participationIconColor}
-            style={iconStyle}
-          >
-            {particpationIcon}
-          </FontIcon>
-          {participationCount && (
-            <StyledSingleLineTypography variant="body2" color="textSecondary">
-              {"  "}
-              {abbreviateCount(participationCount)}
-            </StyledSingleLineTypography>
-          )}
           {age && (
             <StyledSingleLineTypography variant="body2" color="textSecondary">
               {"  •  "}
@@ -320,7 +289,6 @@ interface PitchCardHeaderProps {
   icons: { [name: string]: SvgData };
   preview?: boolean;
   kudoCount?: number;
-  connectionCount?: number;
   contributionCount?: number;
   author?: AuthorAttributes;
   tags?: string[];
@@ -328,7 +296,6 @@ interface PitchCardHeaderProps {
   archived?: boolean;
   createdAt?: string;
   updatedAt?: string;
-  pitchGoal?: PitchGoal;
   onOpenPostMenu?: (e: React.MouseEvent) => void;
 }
 
@@ -343,8 +310,6 @@ const PitchCardHeader = React.memo(
       archived,
       createdAt,
       updatedAt,
-      pitchGoal,
-      connectionCount,
       preview,
       onOpenPostMenu,
     } = props;
@@ -361,22 +326,7 @@ const PitchCardHeader = React.memo(
       []
     );
 
-    const theme = useTheme();
-
     const authorName = author?.u;
-
-    const particpationIcon = useMemo(
-      () =>
-        pitchGoal === PitchGoal.Collaboration ? (
-          <HandshakeSimpleRegularIcon />
-        ) : pitchGoal === PitchGoal.Inspiration ? (
-          <LightbulbOnRegularIcon />
-        ) : undefined,
-      [pitchGoal]
-    );
-    const participationIconColor = theme.palette.text.secondary;
-    const participationCount =
-      pitchGoal === PitchGoal.Collaboration ? connectionCount : undefined;
 
     const edited =
       !preview &&
@@ -482,9 +432,6 @@ const PitchCardHeader = React.memo(
           archived={archived}
           authorName={authorName}
           delisted={delisted}
-          participationCount={participationCount}
-          participationIconColor={participationIconColor}
-          particpationIcon={particpationIcon}
           preview={preview}
           tempUsername={tempUsername}
           onBlockRipplePropogation={handleBlockRipplePropogation}
@@ -497,9 +444,6 @@ const PitchCardHeader = React.memo(
         authorName,
         delisted,
         handleBlockRipplePropogation,
-        participationCount,
-        participationIconColor,
-        particpationIcon,
         preview,
         tempUsername,
       ]

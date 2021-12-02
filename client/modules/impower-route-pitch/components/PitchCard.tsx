@@ -489,7 +489,6 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         createdAt={createdAt}
         updatedAt={updatedAt}
         score={doc?.score}
-        pitchGoal={doc?.pitchGoal}
         kudoCount={doc?.kudos}
         contributionCount={doc?.contributions}
         contributed={contributed}

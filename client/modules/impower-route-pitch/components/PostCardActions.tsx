@@ -474,7 +474,6 @@ interface PostCardActionsProps {
   contributionCount?: number;
   kudoCount?: number;
   score?: number;
-  allowConnect?: boolean;
   allowKudo?: boolean;
   allowContribute?: boolean;
   style?: React.CSSProperties;
@@ -495,7 +494,6 @@ const PostCardActions = React.memo(
       closedActionsRef,
       createdBy,
       score,
-      allowConnect,
       allowKudo,
       allowContribute,
       kudoed,
@@ -679,8 +677,7 @@ const PostCardActions = React.memo(
     const loadingUser = uid === undefined;
     const voteDisabled =
       loadingUser || liked === undefined || disliked === undefined;
-    const hideConnect =
-      voteDisabled || loadingUser || isCreator || !allowConnect;
+    const hideConnect = voteDisabled || loadingUser || isCreator;
 
     const openedActionContentStyle: React.CSSProperties = useMemo(
       () => ({

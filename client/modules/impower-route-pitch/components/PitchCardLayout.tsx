@@ -4,7 +4,6 @@ import CardActionArea from "@material-ui/core/CardActionArea";
 import React, { useCallback } from "react";
 import { AuthorAttributes } from "../../impower-auth";
 import { ConfigParameters } from "../../impower-config";
-import { PitchGoal } from "../../impower-data-store";
 import { LazyHydrate } from "../../impower-hydration";
 import { SvgData } from "../../impower-icon";
 import PitchCardContent from "./PitchCardContent";
@@ -95,7 +94,6 @@ interface PitchCardLayoutProps {
   connectedTo?: boolean;
   connectedFrom?: boolean;
   preview?: boolean;
-  connectionCount?: number;
   kudoCount?: number;
   contributionCount?: number;
   createdBy?: string;
@@ -109,7 +107,6 @@ interface PitchCardLayoutProps {
   createdAt?: string;
   updatedAt?: string;
   score?: number;
-  pitchGoal?: PitchGoal;
   style?: React.CSSProperties;
   buttonStyle?: React.CSSProperties;
   scrollbarSpacerStyle?: React.CSSProperties;
@@ -146,14 +143,12 @@ const PitchCardLayout = React.memo(
       createdAt,
       updatedAt,
       score,
-      pitchGoal,
       kudoed,
       contributed,
       liked,
       disliked,
       connectedTo,
       connectedFrom,
-      connectionCount,
       kudoCount,
       contributionCount,
       preview,
@@ -203,8 +198,6 @@ const PitchCardLayout = React.memo(
                 archived={archived}
                 createdAt={createdAt}
                 updatedAt={updatedAt}
-                pitchGoal={pitchGoal}
-                connectionCount={connectionCount}
                 preview={preview}
                 onOpenPostMenu={onOpenPostMenu}
               />
@@ -232,7 +225,6 @@ const PitchCardLayout = React.memo(
                   connectedFrom={connectedFrom}
                   kudoCount={kudoCount}
                   contributionCount={contributionCount}
-                  allowConnect={pitchGoal === PitchGoal.Collaboration}
                   allowContribute
                   allowKudo
                   openedActionsStyle={openedActionsStyle}
