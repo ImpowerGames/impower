@@ -12,12 +12,16 @@ export const getRandomizableTags = (
   subjects: string[];
   moods: string[];
   archetypes: string[];
+  locations: string[];
+  atmospheres: string[];
 } => {
   const projectTags = ConfigCache.instance.params?.projectTags;
   const moods = Object.values(ConfigCache.instance.params?.moods || []).flatMap(
     (x) => x.flatMap((y) => y)
   );
   const archetypes = ConfigCache.instance.params?.archetypes || [];
+  const locations = ConfigCache.instance.params?.locations || [];
+  const atmospheres = ConfigCache.instance.params?.atmospheres || [];
   if (!projectTags) {
     return {
       mechanics: [],
@@ -26,6 +30,8 @@ export const getRandomizableTags = (
       subjects: [],
       moods: [],
       archetypes: [],
+      locations: [],
+      atmospheres: [],
     };
   }
   const aiMechanicTags =
@@ -35,43 +41,46 @@ export const getRandomizableTags = (
           ...projectTags.Mechanics[1],
           ...projectTags.Mechanics[2],
         ]
-      : type === "character"
-      ? [
-          ...projectTags.Mechanics.flatMap((x) => x).filter(
-            (x) => !archetypes.includes(x) && !moods.includes(x)
-          ),
-        ]
+      : type === "character" || type === "voice"
+      ? [...projectTags.Mechanics.flatMap((x) => x)].filter(
+          (x) => !archetypes.includes(x) && !moods.includes(x)
+        )
       : [];
   const aiGenreTags =
-    type === "character"
-      ? [
-          ...projectTags.Genres.flatMap((x) => x).filter(
-            (x) => !archetypes.includes(x) && !moods.includes(x)
-          ),
-        ]
+    type === "character" || type === "voice"
+      ? [...projectTags.Genres.flatMap((x) => x)].filter(
+          (x) => !archetypes.includes(x) && !moods.includes(x)
+        )
       : [...projectTags.Genres[0], ...projectTags.Genres[1]];
   const aiAestheticTags =
-    type === "character"
-      ? [
-          ...projectTags.Aesthetics.flatMap((x) => x).filter(
-            (x) => !archetypes.includes(x) && !moods.includes(x)
-          ),
-        ]
+    type === "character" || type === "voice"
+      ? [...projectTags.Aesthetics.flatMap((x) => x)].filter(
+          (x) => !archetypes.includes(x) && !moods.includes(x)
+        )
       : [...projectTags.Aesthetics[0], ...projectTags.Aesthetics[1]];
   const aiSubjectTags =
     type === "game"
       ? [...projectTags.Subjects[0], ...projectTags.Subjects[1]]
-      : type === "story"
-      ? [...projectTags.Mechanics[0], ...projectTags.Subjects.flatMap((x) => x)]
-      : type === "character"
+      : type === "character" || type === "voice"
+      ? [...projectTags.Subjects.flatMap((x) => x)].filter(
+          (x) => !archetypes.includes(x) && !moods.includes(x)
+        )
+      : type === "environment" || type === "sound"
       ? [
-          ...projectTags.Subjects.flatMap((x) => x).filter(
-            (x) => !archetypes.includes(x) && !moods.includes(x)
-          ),
-        ]
-      : [];
-  const aiMoodTags = type === "character" ? [...moods] : [];
-  const aiArchetypeTags = type === "character" ? [...archetypes] : [];
+          ...projectTags.Mechanics[0],
+          ...projectTags.Subjects.flatMap((x) => x),
+        ].filter((x) => !atmospheres.includes(x))
+      : [
+          ...projectTags.Mechanics[0],
+          ...projectTags.Subjects.flatMap((x) => x),
+        ];
+  const aiMoodTags = type === "character" || type === "voice" ? [...moods] : [];
+  const aiArchetypeTags =
+    type === "character" || type === "voice" ? [...archetypes] : [];
+  const aiLocationTags =
+    type === "environment" || type === "sound" ? [...locations] : [];
+  const aiAtmospheresTags =
+    type === "environment" || type === "sound" ? [...atmospheres] : [];
 
   return {
     mechanics: aiMechanicTags,
@@ -80,6 +89,8 @@ export const getRandomizableTags = (
     subjects: aiSubjectTags,
     moods: aiMoodTags,
     archetypes: aiArchetypeTags,
+    locations: aiLocationTags,
+    atmospheres: aiAtmospheresTags,
   };
 };
 

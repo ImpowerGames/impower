@@ -170,7 +170,15 @@ const CreatePitchDialog = React.memo((props: CreatePitchDialogProps) => {
         description: `What kind of ${type} is it?`,
         propertyPaths: ["tags"],
       },
-      ...(type === "character"
+      ...(type === "game" || type === "story"
+        ? [
+            {
+              title: "What's it called?",
+              propertyPaths: ["name"],
+            },
+          ]
+        : []),
+      ...(type === "character" || doc?.projectType === "voice"
         ? [
             {
               title: "Describe them!",
@@ -178,10 +186,6 @@ const CreatePitchDialog = React.memo((props: CreatePitchDialogProps) => {
             },
           ]
         : [
-            {
-              title: "What's it called?",
-              propertyPaths: ["name"],
-            },
             {
               title: "Describe it!",
               propertyPaths: ["summary"],

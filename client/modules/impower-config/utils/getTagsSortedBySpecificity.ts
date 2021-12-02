@@ -6,6 +6,8 @@ export const getTagsSortedBySpecificity = (tags: string[]): string[] => {
   const moods = Object.values(ConfigCache.instance.params?.moods || []).flatMap(
     (x) => x.flatMap((y) => y)
   );
+  const atmospheres = ConfigCache.instance.params?.atmospheres || [];
+  const locations = ConfigCache.instance.params?.locations || [];
   const specificMechanics =
     projectTags.Mechanics[0] || projectTags.Mechanics[1];
   const generalMechanics = projectTags.Mechanics.slice(2).flatMap((c) => c);
@@ -18,6 +20,7 @@ export const getTagsSortedBySpecificity = (tags: string[]): string[] => {
   // Prefer titles that are more relevant to specific subjects, aesthetics, and genres
   const beforeTags = [
     ...moods.filter((t) => tags?.includes(t)),
+    ...atmospheres.filter((t) => tags?.includes(t)),
     ...specificAesthetics.filter((t) => tags?.includes(t)),
     ...specificSubjects.filter((t) => tags?.includes(t)),
     ...specificGenres.filter((t) => tags?.includes(t)),
@@ -27,7 +30,10 @@ export const getTagsSortedBySpecificity = (tags: string[]): string[] => {
     ...generalGenres.filter((t) => tags?.includes(t)),
     ...generalAesthetics.filter((t) => tags?.includes(t)),
   ];
-  const afterTags = [...archetypes.filter((t) => tags?.includes(t))];
+  const afterTags = [
+    ...archetypes.filter((t) => tags?.includes(t)),
+    ...locations.filter((t) => tags?.includes(t)),
+  ];
   return Array.from(
     new Set([
       ...beforeTags,

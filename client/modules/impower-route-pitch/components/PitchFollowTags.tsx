@@ -267,21 +267,12 @@ const VirtualizedTagItem = React.memo((props: VirtualizedTagItemProps) => {
 
 interface PitchFollowTagsListProps {
   category: string;
+  tags: string[];
 }
 
 const PitchFollowTagsList = React.memo(
   (props: PitchFollowTagsListProps): JSX.Element => {
-    const { category } = props;
-
-    const [configState] = useContext(ConfigContext);
-
-    const gameTags =
-      configState?.projectTags || ConfigCache.instance.params?.projectTags;
-
-    const tags = useMemo(
-      () => gameTags[category].flatMap((g) => g).sort(),
-      [category, gameTags]
-    );
+    const { category, tags } = props;
 
     const groupNameHeight = 48;
     const optionHeight = 60;
@@ -336,7 +327,7 @@ const PitchFollowTags = React.memo(
       [onReload]
     );
 
-    const gameTags =
+    const allTags =
       configState?.projectTags || ConfigCache.instance.params?.projectTags;
 
     const showReloadArea =
@@ -367,8 +358,12 @@ const PitchFollowTags = React.memo(
               </StyledDescriptionTypography>
             </StyledInfoArea>
             <Divider />
-            {Object.keys(gameTags).map((category) => (
-              <PitchFollowTagsList key={category} category={category} />
+            {Object.entries(allTags).map(([category, tags]) => (
+              <PitchFollowTagsList
+                key={category}
+                category={category}
+                tags={tags?.flatMap((x) => x)}
+              />
             ))}
           </StyledPaper>
           <StyledReloadArea

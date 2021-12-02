@@ -1,8 +1,8 @@
 import fs from "fs";
-import archetypes from "../input/archetypes.json";
+import locations from "../../../client/resources/json/en/locations.json";
 import { getAverageTerms } from "../utils/getAverageTerms";
 
-getAverageTerms(0.4, 5000, archetypes).then((result) => {
+getAverageTerms(0.4, 5000, locations).then((result) => {
   const path = "./src/tmp/average.json";
 
   fs.writeFile(path, JSON.stringify(result), (err) => {

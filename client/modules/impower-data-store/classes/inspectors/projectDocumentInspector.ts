@@ -170,7 +170,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
           })
           .map((tag) => tag.toLowerCase());
       }
-      if (data?.projectType === "character") {
+      if (data?.projectType === "character" || data?.projectType === "voice") {
         return [
           ...(moods
             ? Object.values(moods).flatMap((x) => x.flatMap((y) => y))
@@ -202,38 +202,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     value: string
   ): string {
     if (propertyPath === "tags") {
-      if (data?.projectType === "game") {
-        const gameTags = ConfigCache.instance.params?.projectTags;
-        if (
-          gameTags.Mechanics.flatMap((groups) => groups)
-            .map((tag) => tag.toLowerCase())
-            .includes(value)
-        ) {
-          return "Mechanics";
-        }
-        if (
-          gameTags.Genres.flatMap((groups) => groups)
-            .map((tag) => tag.toLowerCase())
-            .includes(value)
-        ) {
-          return "Genres";
-        }
-        if (
-          gameTags.Aesthetics.flatMap((groups) => groups)
-            .map((tag) => tag.toLowerCase())
-            .includes(value)
-        ) {
-          return "Aesthetics";
-        }
-        if (
-          gameTags.Subjects.flatMap((groups) => groups)
-            .map((tag) => tag.toLowerCase())
-            .includes(value)
-        ) {
-          return "Subjects";
-        }
-      }
-      if (data?.projectType === "character") {
+      if (data?.projectType === "character" || data?.projectType === "voice") {
         const moods = ConfigCache.instance.params?.moods;
         const archetypes = ConfigCache.instance.params?.archetypes;
         if (
@@ -261,27 +230,60 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
         ) {
           return "Subjects";
         }
-        if (
-          gameTags.Genres.flatMap((groups) => groups)
-            .map((tag) => tag.toLowerCase())
-            .includes(value)
-        ) {
-          return "Genres";
-        }
-        if (
-          gameTags.Aesthetics.flatMap((groups) => groups)
-            .map((tag) => tag.toLowerCase())
-            .includes(value)
-        ) {
-          return "Aesthetics";
-        }
-        if (
-          gameTags.Subjects.flatMap((groups) => groups)
-            .map((tag) => tag.toLowerCase())
-            .includes(value)
-        ) {
-          return "Subjects";
-        }
+      }
+      const gameTags = ConfigCache.instance.params?.projectTags;
+      if (
+        gameTags.Mechanics.flatMap((groups) => groups)
+          .map((tag) => tag.toLowerCase())
+          .includes(value)
+      ) {
+        return "Mechanics";
+      }
+      if (
+        gameTags.Genres.flatMap((groups) => groups)
+          .map((tag) => tag.toLowerCase())
+          .includes(value)
+      ) {
+        return "Genres";
+      }
+      if (
+        gameTags.Aesthetics.flatMap((groups) => groups)
+          .map((tag) => tag.toLowerCase())
+          .includes(value)
+      ) {
+        return "Aesthetics";
+      }
+      if (
+        gameTags.Subjects.flatMap((groups) => groups)
+          .map((tag) => tag.toLowerCase())
+          .includes(value)
+      ) {
+        return "Subjects";
+      }
+      const moods = ConfigCache.instance.params?.moods;
+      const archetypes = ConfigCache.instance.params?.archetypes;
+      if (
+        moods &&
+        Object.values(moods)
+          .flatMap((x) => x.flatMap((y) => y))
+          .map((tag) => tag.toLowerCase())
+          .includes(value)
+      ) {
+        return "Traits";
+      }
+      if (
+        archetypes &&
+        archetypes.map((tag) => tag.toLowerCase()).includes(value)
+      ) {
+        return "Archetypes";
+      }
+      const locations = ConfigCache.instance.params?.locations;
+      const atmospheres = ConfigCache.instance.params?.atmospheres;
+      if (locations.map((tag) => tag.toLowerCase()).includes(value)) {
+        return "Locations";
+      }
+      if (atmospheres.map((tag) => tag.toLowerCase()).includes(value)) {
+        return "Atmosphere";
       }
     }
     return undefined;
@@ -328,7 +330,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       }
     }
     if (propertyPath === "tags") {
-      if (data?.projectType === "character") {
+      if (data?.projectType === "character" || data?.projectType === "voice") {
         const moods = ConfigCache.instance.params?.moods;
         const archetypes = ConfigCache.instance.params?.archetypes;
         if (
@@ -365,7 +367,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       if (data.projectType === "story") {
         return `(After a catalyst), (a flawed hero) must (overcome an obstacle) (and achieve a goal) (or else stakes).`;
       }
-      if (data.projectType === "character") {
+      if (data.projectType === "character" || data?.projectType === "voice") {
         const archetypes = ConfigCache.instance.params?.archetypes;
         const mainTag = data?.tags?.[0];
         const sortedTags = getTagsSortedBySpecificity(data?.tags);
@@ -383,6 +385,42 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
           firstTag: sortedTags?.[0],
         });
       }
+      if (data.projectType === "environment") {
+        const locations = ConfigCache.instance.params?.locations;
+        const mainTag = data?.tags?.[0];
+        const sortedTags = getTagsSortedBySpecificity(data?.tags);
+        const description = sortedTags
+          .map((x) => (x === mainTag ? `{tag}` : x))
+          .join(" ");
+        if (locations?.includes(sortedTags?.[sortedTags.length - 1])) {
+          return format(`{firstTag:regex:A} ${description} where`, {
+            tag: "{tag}",
+            firstTag: sortedTags?.[0],
+          });
+        }
+        return format(`{firstTag:regex:A} ${description} environment where`, {
+          tag: "{tag}",
+          firstTag: sortedTags?.[0],
+        });
+      }
+      if (data?.projectType === "sound") {
+        const locations = ConfigCache.instance.params?.locations;
+        const mainTag = data?.tags?.[0];
+        const sortedTags = getTagsSortedBySpecificity(data?.tags);
+        const description = sortedTags
+          .map((x) => (x === mainTag ? `{tag}` : x))
+          .join(" ");
+        if (locations?.includes(sortedTags?.[sortedTags.length - 1])) {
+          return format(`{firstTag:regex:A} ${description} with`, {
+            tag: "{tag}",
+            firstTag: sortedTags?.[0],
+          });
+        }
+        return format(`{firstTag:regex:A} ${description} environment with`, {
+          tag: "{tag}",
+          firstTag: sortedTags?.[0],
+        });
+      }
     }
     if (propertyPath === "tags") {
       if (data.projectType === "game") {
@@ -391,7 +429,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       if (data.projectType === "story") {
         return `Search genres, aesthetics, or subjects`;
       }
-      if (data.projectType === "character") {
+      if (data.projectType === "character" || data?.projectType === "voice") {
         return `Search traits or archetypes`;
       }
     }

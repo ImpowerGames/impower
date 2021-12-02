@@ -14,6 +14,14 @@ export interface TagConfigParameters {
    */
   catalysts: string[];
   /**
+   * Our list of locations
+   */
+  locations: string[];
+  /**
+   * Our list of atmospheres
+   */
+  atmospheres: string[];
+  /**
    * Our map of resource tags organized by category
    */
   resourceTags: {

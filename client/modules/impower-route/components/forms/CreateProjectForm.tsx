@@ -142,7 +142,11 @@ const CreateProjectForm = React.memo(
 
     const [docIdState, setDocIdState] = useState(docId);
     const [tagCount, setTagCount] = useState(
-      doc?.projectType === "game" || doc?.projectType === "story" ? 5 : 3
+      doc?.projectType === "game" || doc?.projectType === "story"
+        ? 5
+        : doc?.projectType === "character" || doc?.projectType === "voice"
+        ? 3
+        : 2
     );
     const [lockedTags, setLockedTags] = useState<string[]>([]);
     const [filteredTitleTags, setFilteredTitleTags] = useState<string[]>([]);
@@ -233,7 +237,11 @@ const CreateProjectForm = React.memo(
     useEffect(() => {
       if (doc?.projectType) {
         setTagCount(
-          doc?.projectType === "game" || doc?.projectType === "story" ? 5 : 3
+          doc?.projectType === "game" || doc?.projectType === "story"
+            ? 5
+            : doc?.projectType === "character" || doc?.projectType === "voice"
+            ? 3
+            : 2
         );
       }
     }, [doc?.projectType]);

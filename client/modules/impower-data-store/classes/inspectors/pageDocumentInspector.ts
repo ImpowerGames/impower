@@ -142,14 +142,26 @@ export class PageDocumentInspector<T extends PageDocument>
     return undefined;
   }
 
-  getPropertyValueIcon(propertyPath: string, _data: T, value: unknown): string {
+  getPropertyValueIcon(propertyPath: string, _data: T, value: string): string {
     if (propertyPath === "tags") {
       const tagIconNames = ConfigCache.instance.params?.tagIconNames;
       const tag = ((value as string) || "")?.toLowerCase();
       const tagDisambiguations =
         ConfigCache.instance.params?.tagDisambiguations;
       const validTag = tagDisambiguations[tag]?.[0] || tag || "";
-      return tagIconNames?.[validTag] || "hashtag";
+      const tagIconName = tagIconNames?.[validTag];
+      if (tagIconName) {
+        return tagIconName;
+      }
+      const locations = ConfigCache.instance.params?.locations;
+      const atmospheres = ConfigCache.instance.params?.atmospheres;
+      if (locations.map((tag) => tag.toLowerCase()).includes(value)) {
+        return "bench-tree";
+      }
+      if (atmospheres.map((tag) => tag.toLowerCase()).includes(value)) {
+        return "sparkles";
+      }
+      return "hashtag";
     }
     return undefined;
   }

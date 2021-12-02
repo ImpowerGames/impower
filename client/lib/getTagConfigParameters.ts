@@ -1,6 +1,8 @@
 import { TagConfigParameters } from "../modules/impower-config";
 import colors from "../resources/json/colors.json";
+import atmospheres from "../resources/json/en/atmospheres.json";
 import catalysts from "../resources/json/en/catalysts.json";
+import locations from "../resources/json/en/locations.json";
 import moods from "../resources/json/en/moods.json";
 import projectTags from "../resources/json/en/projectTags.json";
 import resourceTags from "../resources/json/en/resourceTags.json";
@@ -15,6 +17,8 @@ const getTagConfigParameters = (): TagConfigParameters => {
     colors,
     projectTags,
     moods,
+    locations,
+    atmospheres,
     catalysts,
     resourceTags,
     roleTags,
