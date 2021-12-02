@@ -178,19 +178,22 @@ const CreatePitchDialog = React.memo((props: CreatePitchDialogProps) => {
             },
           ]
         : []),
-      ...(type === "character" || type === "voice"
+      ...(type === "character"
         ? [
             {
               title: "Describe them!",
               propertyPaths: ["summary"],
             },
           ]
-        : [
+        : []),
+      ...(type === "game" || type === "story" || type === "environment"
+        ? [
             {
               title: "Describe it!",
               propertyPaths: ["summary"],
             },
-          ]),
+          ]
+        : []),
       {
         title: "Ready to pitch?",
         propertyPaths: [],

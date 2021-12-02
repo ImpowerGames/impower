@@ -668,22 +668,25 @@ const CreateProjectForm = React.memo(
       const summaryStepIndex = steps.findIndex((step) =>
         step.propertyPaths.includes("summary")
       );
-      newSteps[summaryStepIndex].headerChildren =
-        doc?.projectType === "story" ? (
-          <StyledGeneratorArea>
-            <ProjectGeneratorTagsSelector
-              termTagsMap={termTagsMap}
-              phrases={archetypes}
-              tags={doc?.tags}
-              filteredTags={filteredSummaryTags}
-              onFilterTags={setFilteredSummaryTags}
-            />
-          </StyledGeneratorArea>
-        ) : undefined;
-      newSteps[summaryStepIndex].footerChildren =
-        doc?.projectType === "story" ? (
-          <ProjectSummaryInspiration onClick={handleRandomizeSummary} />
-        ) : undefined;
+      const step = newSteps?.[summaryStepIndex];
+      if (step) {
+        step.headerChildren =
+          doc?.projectType === "story" ? (
+            <StyledGeneratorArea>
+              <ProjectGeneratorTagsSelector
+                termTagsMap={termTagsMap}
+                phrases={archetypes}
+                tags={doc?.tags}
+                filteredTags={filteredSummaryTags}
+                onFilterTags={setFilteredSummaryTags}
+              />
+            </StyledGeneratorArea>
+          ) : undefined;
+        step.footerChildren =
+          doc?.projectType === "story" ? (
+            <ProjectSummaryInspiration onClick={handleRandomizeSummary} />
+          ) : undefined;
+      }
       return newSteps;
     }, [
       doc?.projectType,
