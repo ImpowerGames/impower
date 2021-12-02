@@ -1121,7 +1121,10 @@ const PitchList = React.memo(
       [loading]
     );
 
-    const addLabel = `pitch a ${typeFilterState}`;
+    const addLabel =
+      typeFilterState === "music"
+        ? `pitch ${typeFilterState}`
+        : `pitch a ${typeFilterState}`;
 
     return (
       <>

@@ -1,8 +1,8 @@
 import fs from "fs";
-import locations from "../../../client/resources/json/en/locations.json";
+import musicalStyles from "../../../client/resources/json/en/musicalStyles.json";
 import { getAverageTerms } from "../utils/getAverageTerms";
 
-getAverageTerms(0.4, 5000, locations).then((result) => {
+getAverageTerms(0.4, 5000, musicalStyles).then((result) => {
   const path = "./src/tmp/average.json";
 
   fs.writeFile(path, JSON.stringify(result), (err) => {

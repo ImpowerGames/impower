@@ -553,19 +553,22 @@ const StaticContributionList = React.memo(
       []
     );
 
-    const sortIcon = useMemo(() => {
+    const handleGetActiveSortOptionIcon = useCallback((sort?: string) => {
       const icons = getStaticSortOptionIcons();
       const Icon = icons[sort];
       return <Icon />;
-    }, [sort]);
+    }, []);
 
-    const filterIcon = useMemo(() => {
-      return rangeFilter === "All" ? (
-        <CalendarRegularIcon />
-      ) : (
-        <CalendarRangeSolidIcon />
-      );
-    }, [rangeFilter]);
+    const handleGetActiveFilterOptionIcon = useCallback(
+      (rangeFilter?: string) => {
+        return rangeFilter === "All" ? (
+          <CalendarRegularIcon />
+        ) : (
+          <CalendarRangeSolidIcon />
+        );
+      },
+      []
+    );
 
     const loading = transitioning || !contributionDocsState || reloading;
 
@@ -600,11 +603,11 @@ const StaticContributionList = React.memo(
                     target="pitch"
                     menuType="sort"
                     label={`Sort By`}
-                    icon={sortIcon}
                     value={sort}
                     options={SORT_OPTIONS}
                     getOptionLabels={getStaticSortOptionLabels}
                     getOptionIcons={handleGetSortOptionIcons}
+                    getActiveOptionIcon={handleGetActiveSortOptionIcon}
                     onOption={handleChangeSort}
                   />
                   <StyledSpacer />
@@ -613,10 +616,10 @@ const StaticContributionList = React.memo(
                     menuType="filter"
                     label={`Kudoed`}
                     flexDirection="row-reverse"
-                    icon={filterIcon}
                     value={rangeFilter}
                     getOptionLabels={getRangeFilterOptionLabels}
                     getOptionIcons={handleGetFilterOptionIcons}
+                    getActiveOptionIcon={handleGetActiveFilterOptionIcon}
                     onOption={handleChangeFilter}
                   />
                 </QueryHeader>

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import CalendarRegularIcon from "../../../resources/icons/regular/calendar.svg";
 import CalendarRangeSolidIcon from "../../../resources/icons/solid/calendar-range.svg";
 import { DateRangeFilter } from "../types/dateRangeFilter";
@@ -27,24 +27,24 @@ const QueryRangeFilterButton = React.memo(
       },
       []
     );
-    const filterIcon = useMemo(() => {
+    const handleGetActiveOptionIcon = useCallback((value?: string) => {
       return value === "All" ? (
         <CalendarRegularIcon />
       ) : (
         <CalendarRangeSolidIcon />
       );
-    }, [value]);
+    }, []);
 
     return (
       <QueryButton
         target={target}
         menuType="filter"
         label={`Top Posts From`}
-        icon={filterIcon}
         flexDirection="row-reverse"
         value={value}
         getOptionLabels={getRangeFilterOptionLabels}
         getOptionIcons={handleGetOptionIcons}
+        getActiveOptionIcon={handleGetActiveOptionIcon}
         onOption={onOption}
       />
     );

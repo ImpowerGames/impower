@@ -712,19 +712,22 @@ const StaticPitchList = React.memo(
       }
     }, [createDocExists, handleStartCreation, router]);
 
-    const sortIcon = useMemo(() => {
+    const handleGetActiveSortOptionIcon = useCallback((sort?: string) => {
       const icons = getStaticSortOptionIcons();
       const Icon = icons[sort];
       return <Icon />;
-    }, [sort]);
+    }, []);
 
-    const filterIcon = useMemo(() => {
-      return rangeFilter === "All" ? (
-        <CalendarRegularIcon />
-      ) : (
-        <CalendarRangeSolidIcon />
-      );
-    }, [rangeFilter]);
+    const handleGetActiveFilterOptionIcon = useCallback(
+      (rangeFilter?: string) => {
+        return rangeFilter === "All" ? (
+          <CalendarRegularIcon />
+        ) : (
+          <CalendarRangeSolidIcon />
+        );
+      },
+      []
+    );
 
     const loading = transitioning || !pitchDocsState || reloading;
 
@@ -754,7 +757,7 @@ const StaticPitchList = React.memo(
       [loading]
     );
 
-    const addLabel = `pitch a ${type}`;
+    const addLabel = type === "music" ? `pitch ${type}` : `pitch a ${type}`;
 
     return (
       <>
@@ -767,11 +770,11 @@ const StaticPitchList = React.memo(
                     target="pitch"
                     menuType="sort"
                     label={`Sort By`}
-                    icon={sortIcon}
                     value={sort}
                     options={SORT_OPTIONS}
                     getOptionLabels={getStaticSortOptionLabels}
                     getOptionIcons={handleGetSortOptionIcons}
+                    getActiveOptionIcon={handleGetActiveSortOptionIcon}
                     onOption={handleChangeSort}
                   />
                   <StyledSpacer />
@@ -780,10 +783,10 @@ const StaticPitchList = React.memo(
                     menuType="filter"
                     label={`Kudoed`}
                     flexDirection="row-reverse"
-                    icon={filterIcon}
                     value={rangeFilter}
                     getOptionLabels={getRangeFilterOptionLabels}
                     getOptionIcons={handleGetFilterOptionIcons}
+                    getActiveOptionIcon={handleGetActiveFilterOptionIcon}
                     onOption={handleChangeFilter}
                   />
                 </QueryHeader>

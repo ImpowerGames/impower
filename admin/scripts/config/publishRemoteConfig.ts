@@ -28,6 +28,12 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   const messages = JSON.stringify(
     (await import("../../../client/resources/json/en/messages.json")).default
   );
+  const atmospheres = JSON.stringify(
+    (await import("../../../client/resources/json/en/atmospheres.json")).default
+  );
+  const locations = JSON.stringify(
+    (await import("../../../client/resources/json/en/locations.json")).default
+  );
   const catalysts = JSON.stringify(
     (await import("../../../client/resources/json/en/catalysts.json")).default
   );
@@ -37,8 +43,11 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   const regexes = JSON.stringify(
     (await import("../../../client/resources/json/en/regexes.json")).default
   );
-  const styles = JSON.stringify(
-    (await import("../../../client/resources/json/en/styles.json")).default
+  const visualStyles = JSON.stringify(
+    (await import("../../../client/resources/json/en/visualStyles.json")).default
+  );
+  const musicalStyles = JSON.stringify(
+    (await import("../../../client/resources/json/en/musicalStyles.json")).default
   );
   const resourceTags = JSON.stringify(
     (await import("../../../client/resources/json/en/resourceTags.json")).default
@@ -83,6 +92,12 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   template.parameters["messages"] = {
     defaultValue: { value: messages },
   };
+  template.parameters["atmospheres"] = {
+    defaultValue: { value: atmospheres },
+  };
+  template.parameters["locations"] = {
+    defaultValue: { value: locations },
+  };
   template.parameters["catalysts"] = {
     defaultValue: { value: catalysts },
   };
@@ -92,8 +107,11 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   template.parameters["regexes"] = {
     defaultValue: { value: regexes },
   };
-  template.parameters["styles"] = {
-    defaultValue: { value: styles },
+  template.parameters["visualStyles"] = {
+    defaultValue: { value: visualStyles },
+  };
+  template.parameters["musicalStyles"] = {
+    defaultValue: { value: musicalStyles },
   };
   template.parameters["resourceTags"] = {
     defaultValue: { value: resourceTags },

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import BookOpenRegularIcon from "../../../resources/icons/regular/book-open.svg";
 import FilterRegularIcon from "../../../resources/icons/regular/filter.svg";
 import ImageRegularIcon from "../../../resources/icons/regular/image.svg";
@@ -29,8 +29,8 @@ const ContributionTypeFilterButton = React.memo(
       },
       []
     );
-    const icon = useMemo(
-      () =>
+    const handleGetActiveOptionIcon = useCallback(
+      (value?: string) =>
         value === "pitch" ? (
           <LightbulbOnRegularIcon />
         ) : value === "story" ? (
@@ -42,17 +42,17 @@ const ContributionTypeFilterButton = React.memo(
         ) : (
           <FilterRegularIcon />
         ),
-      [value]
+      []
     );
     return (
       <QueryButton
         target="contribution"
         menuType="type"
         label={`Type`}
-        icon={icon}
         value={value}
         getOptionLabels={getContributionTypeFilterOptionLabels}
         getOptionIcons={handleGetOptionIcons}
+        getActiveOptionIcon={handleGetActiveOptionIcon}
         onOption={onOption}
       />
     );

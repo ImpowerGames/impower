@@ -14,6 +14,8 @@ export const getRandomizableTags = (
   archetypes: string[];
   locations: string[];
   atmospheres: string[];
+  visualStyles: string[];
+  musicalStyles: string[];
 } => {
   const projectTags = ConfigCache.instance.params?.projectTags;
   const moods = Object.values(ConfigCache.instance.params?.moods || []).flatMap(
@@ -22,6 +24,8 @@ export const getRandomizableTags = (
   const archetypes = ConfigCache.instance.params?.archetypes || [];
   const locations = ConfigCache.instance.params?.locations || [];
   const atmospheres = ConfigCache.instance.params?.atmospheres || [];
+  const visualStyles = ConfigCache.instance.params?.visualStyles || [];
+  const musicalStyles = ConfigCache.instance.params?.musicalStyles || [];
   if (!projectTags) {
     return {
       mechanics: [],
@@ -32,6 +36,8 @@ export const getRandomizableTags = (
       archetypes: [],
       locations: [],
       atmospheres: [],
+      visualStyles: [],
+      musicalStyles: [],
     };
   }
   const aiMechanicTags =
@@ -74,13 +80,12 @@ export const getRandomizableTags = (
           ...projectTags.Mechanics[0],
           ...projectTags.Subjects.flatMap((x) => x),
         ];
-  const aiMoodTags = type === "character" || type === "voice" ? [...moods] : [];
-  const aiArchetypeTags =
-    type === "character" || type === "voice" ? [...archetypes] : [];
-  const aiLocationTags =
-    type === "environment" || type === "sound" ? [...locations] : [];
-  const aiAtmospheresTags =
-    type === "environment" || type === "sound" ? [...atmospheres] : [];
+  const aiMoodTags = [...moods];
+  const aiArchetypeTags = [...archetypes];
+  const aiLocationTags = [...locations];
+  const aiAtmospheresTags = [...atmospheres];
+  const aiVisualStyleTags = [...visualStyles];
+  const aiMusicalStyleTags = [...musicalStyles];
 
   return {
     mechanics: aiMechanicTags,
@@ -91,6 +96,8 @@ export const getRandomizableTags = (
     archetypes: aiArchetypeTags,
     locations: aiLocationTags,
     atmospheres: aiAtmospheresTags,
+    visualStyles: aiVisualStyleTags,
+    musicalStyles: aiMusicalStyleTags,
   };
 };
 

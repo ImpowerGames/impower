@@ -8,6 +8,8 @@ export const getTagsSortedBySpecificity = (tags: string[]): string[] => {
   );
   const atmospheres = ConfigCache.instance.params?.atmospheres || [];
   const locations = ConfigCache.instance.params?.locations || [];
+  const visualStyles = ConfigCache.instance.params?.visualStyles || [];
+  const musicalStyles = ConfigCache.instance.params?.musicalStyles || [];
   const specificMechanics =
     projectTags.Mechanics[0] || projectTags.Mechanics[1];
   const generalMechanics = projectTags.Mechanics.slice(2).flatMap((c) => c);
@@ -19,6 +21,7 @@ export const getTagsSortedBySpecificity = (tags: string[]): string[] => {
   const generalAesthetics = projectTags.Aesthetics.slice(1).flatMap((c) => c);
   // Prefer titles that are more relevant to specific subjects, aesthetics, and genres
   const beforeTags = [
+    ...visualStyles.filter((t) => tags?.includes(t)),
     ...moods.filter((t) => tags?.includes(t)),
     ...atmospheres.filter((t) => tags?.includes(t)),
     ...specificAesthetics.filter((t) => tags?.includes(t)),
@@ -31,6 +34,7 @@ export const getTagsSortedBySpecificity = (tags: string[]): string[] => {
     ...generalAesthetics.filter((t) => tags?.includes(t)),
   ];
   const afterTags = [
+    ...musicalStyles.filter((t) => tags?.includes(t)),
     ...archetypes.filter((t) => tags?.includes(t)),
     ...locations.filter((t) => tags?.includes(t)),
   ];

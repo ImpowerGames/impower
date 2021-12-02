@@ -144,7 +144,7 @@ const CreateProjectForm = React.memo(
     const [tagCount, setTagCount] = useState(
       doc?.projectType === "game" || doc?.projectType === "story"
         ? 5
-        : doc?.projectType === "character" || doc?.projectType === "voice"
+        : doc?.projectType === "character"
         ? 3
         : 2
     );
@@ -239,7 +239,7 @@ const CreateProjectForm = React.memo(
         setTagCount(
           doc?.projectType === "game" || doc?.projectType === "story"
             ? 5
-            : doc?.projectType === "character" || doc?.projectType === "voice"
+            : doc?.projectType === "character"
             ? 3
             : 2
         );

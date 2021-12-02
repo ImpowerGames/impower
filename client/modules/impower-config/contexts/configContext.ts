@@ -12,6 +12,8 @@ export const ConfigContext = React.createContext<ConfigContextState>([
     moods: undefined,
     locations: undefined,
     atmospheres: undefined,
+    visualStyles: undefined,
+    musicalStyles: undefined,
     catalysts: undefined,
     archetypes: undefined,
     phrases: undefined,

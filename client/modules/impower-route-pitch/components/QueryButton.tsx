@@ -43,16 +43,16 @@ interface QueryButtonProps {
   target?: "pitch" | "contribution";
   menuType?: string;
   label?: string;
-  icon?: React.ReactNode;
   value?: string;
   flexDirection?: "row" | "row-reverse";
   options?: string[];
   getOptionLabels?: () => {
     [option: string]: string;
   };
-  getOptionIcons?: (value: string) => Promise<{
+  getOptionIcons?: (value?: string) => Promise<{
     [option: string]: React.ComponentType;
   }>;
+  getActiveOptionIcon?: (value?: string) => React.ReactNode;
   onOption?: (e: React.MouseEvent, option: string) => void;
 }
 
@@ -62,11 +62,11 @@ const QueryButton = React.memo((props: QueryButtonProps): JSX.Element => {
     menuType,
     value,
     label,
-    icon,
     flexDirection,
     options,
     getOptionLabels,
     getOptionIcons,
+    getActiveOptionIcon,
     onOption,
   } = props;
 
@@ -152,6 +152,14 @@ const QueryButton = React.memo((props: QueryButtonProps): JSX.Element => {
     return optionLabel;
   }, [value, getOptionLabels]);
 
+  const activeOptionIcon = useMemo(() => {
+    const optionLabel =
+      value && typeof window !== "undefined"
+        ? getActiveOptionIcon?.(value)
+        : undefined;
+    return optionLabel;
+  }, [value, getActiveOptionIcon]);
+
   const filterButtonStyle = useMemo(() => ({ flexDirection }), [flexDirection]);
 
   return (
@@ -163,7 +171,7 @@ const QueryButton = React.memo((props: QueryButtonProps): JSX.Element => {
       >
         <StyledButtonIconArea>
           <FontIcon aria-label={label} size={16}>
-            {icon}
+            {activeOptionIcon}
           </FontIcon>
         </StyledButtonIconArea>
         <StyledSpacer />

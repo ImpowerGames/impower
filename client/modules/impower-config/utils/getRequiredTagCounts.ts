@@ -12,6 +12,8 @@ export const getRequiredTagCounts = (
   archetypes: number;
   locations: number;
   atmospheres: number;
+  visualStyles: number;
+  musicalStyles: number;
 } => {
   if (requiredTagTotal === 1) {
     if (type === "game") {
@@ -24,6 +26,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "story") {
@@ -36,6 +40,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "character" || type === "voice") {
@@ -48,6 +54,8 @@ export const getRequiredTagCounts = (
         archetypes: 1,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "environment" || type === "sound") {
@@ -60,6 +68,22 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: 1,
         atmospheres: 0,
+        visualStyles: null,
+        musicalStyles: null,
+      };
+    }
+    if (type === "music") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: null,
+        moods: null,
+        archetypes: null,
+        locations: null,
+        atmospheres: null,
+        visualStyles: null,
+        musicalStyles: 1,
       };
     }
   }
@@ -74,6 +98,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "story") {
@@ -86,6 +112,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "character" || type === "voice") {
@@ -98,6 +126,8 @@ export const getRequiredTagCounts = (
         archetypes: 1,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "environment" || type === "sound") {
@@ -110,6 +140,22 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: 1,
         atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: null,
+      };
+    }
+    if (type === "music") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: null,
+        moods: 1,
+        archetypes: null,
+        locations: null,
+        atmospheres: null,
+        visualStyles: null,
+        musicalStyles: 1,
       };
     }
   }
@@ -124,6 +170,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "story") {
@@ -136,6 +184,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "character" || type === "voice") {
@@ -148,6 +198,8 @@ export const getRequiredTagCounts = (
         archetypes: 1,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "environment" || type === "sound") {
@@ -160,6 +212,22 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: 1,
         atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: null,
+      };
+    }
+    if (type === "music") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: null,
+        moods: 1,
+        archetypes: null,
+        locations: null,
+        atmospheres: null,
+        visualStyles: null,
+        musicalStyles: 2,
       };
     }
   }
@@ -174,6 +242,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "story") {
@@ -186,6 +256,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "character" || type === "voice") {
@@ -198,6 +270,8 @@ export const getRequiredTagCounts = (
         archetypes: 1,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "environment" || type === "sound") {
@@ -207,9 +281,25 @@ export const getRequiredTagCounts = (
         aesthetics: null,
         subjects: 1,
         moods: null,
-        archetypes: null,
+        archetypes: 1,
         locations: 1,
         atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: null,
+      };
+    }
+    if (type === "music") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: null,
+        moods: 1,
+        archetypes: null,
+        locations: null,
+        atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: 2,
       };
     }
   }
@@ -224,6 +314,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "story") {
@@ -236,6 +328,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "character" || type === "voice") {
@@ -248,6 +342,8 @@ export const getRequiredTagCounts = (
         archetypes: 1,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "environment" || type === "sound") {
@@ -257,9 +353,25 @@ export const getRequiredTagCounts = (
         aesthetics: null,
         subjects: 1,
         moods: null,
-        archetypes: 1,
+        archetypes: null,
         locations: 1,
         atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: null,
+      };
+    }
+    if (type === "music") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: 0,
+        moods: 1,
+        archetypes: 0,
+        locations: 0,
+        atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: 2,
       };
     }
   }
@@ -274,6 +386,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "story") {
@@ -286,6 +400,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "character" || type === "voice") {
@@ -298,6 +414,8 @@ export const getRequiredTagCounts = (
         archetypes: 1,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "environment" || type === "sound") {
@@ -310,6 +428,22 @@ export const getRequiredTagCounts = (
         archetypes: 1,
         locations: 1,
         atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: null,
+      };
+    }
+    if (type === "music") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: 1,
+        moods: 1,
+        archetypes: 0,
+        locations: 0,
+        atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: 2,
       };
     }
   }
@@ -324,6 +458,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "story") {
@@ -336,6 +472,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "character" || type === "voice") {
@@ -348,6 +486,8 @@ export const getRequiredTagCounts = (
         archetypes: 1,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "environment" || type === "sound") {
@@ -360,6 +500,22 @@ export const getRequiredTagCounts = (
         archetypes: 1,
         locations: 1,
         atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: null,
+      };
+    }
+    if (type === "music") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: 1,
+        moods: 1,
+        archetypes: 1,
+        locations: 1,
+        atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: 2,
       };
     }
   }
@@ -374,6 +530,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "story") {
@@ -386,6 +544,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "character" || type === "voice") {
@@ -398,6 +558,8 @@ export const getRequiredTagCounts = (
         archetypes: 1,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "environment" || type === "sound") {
@@ -410,6 +572,22 @@ export const getRequiredTagCounts = (
         archetypes: 1,
         locations: 1,
         atmospheres: 2,
+        visualStyles: null,
+        musicalStyles: null,
+      };
+    }
+    if (type === "music") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: 2,
+        moods: 1,
+        archetypes: 1,
+        locations: 1,
+        atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: 2,
       };
     }
   }
@@ -424,6 +602,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "story") {
@@ -436,6 +616,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "character" || type === "voice") {
@@ -448,6 +630,8 @@ export const getRequiredTagCounts = (
         archetypes: 2,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "environment" || type === "sound") {
@@ -460,6 +644,22 @@ export const getRequiredTagCounts = (
         archetypes: 2,
         locations: 1,
         atmospheres: 2,
+        visualStyles: null,
+        musicalStyles: null,
+      };
+    }
+    if (type === "music") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: 2,
+        moods: 2,
+        archetypes: 1,
+        locations: 1,
+        atmospheres: 1,
+        visualStyles: null,
+        musicalStyles: 2,
       };
     }
   }
@@ -474,6 +674,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "story") {
@@ -486,6 +688,8 @@ export const getRequiredTagCounts = (
         archetypes: null,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "character" || type === "voice") {
@@ -498,6 +702,8 @@ export const getRequiredTagCounts = (
         archetypes: 2,
         locations: null,
         atmospheres: null,
+        visualStyles: null,
+        musicalStyles: null,
       };
     }
     if (type === "environment" || type === "sound") {
@@ -510,6 +716,22 @@ export const getRequiredTagCounts = (
         archetypes: 2,
         locations: 2,
         atmospheres: 2,
+        visualStyles: null,
+        musicalStyles: null,
+      };
+    }
+    if (type === "music") {
+      return {
+        mechanics: null,
+        genres: null,
+        aesthetics: null,
+        subjects: 2,
+        moods: 2,
+        archetypes: 1,
+        locations: 1,
+        atmospheres: 2,
+        visualStyles: null,
+        musicalStyles: 2,
       };
     }
   }
@@ -522,5 +744,7 @@ export const getRequiredTagCounts = (
     archetypes: null,
     locations: null,
     atmospheres: null,
+    visualStyles: null,
+    musicalStyles: null,
   };
 };

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import FireRegularIcon from "../../../resources/icons/regular/fire.svg";
 import SeedlingRegularIcon from "../../../resources/icons/regular/seedling.svg";
 import TrophyStarRegularIcon from "../../../resources/icons/regular/trophy-star.svg";
@@ -28,8 +28,8 @@ const QuerySortButton = React.memo(
       },
       []
     );
-    const icon = useMemo(
-      () =>
+    const handleGetActiveOptionIcon = useCallback(
+      (value?: string) =>
         value === "rank" ? (
           <FireRegularIcon />
         ) : value === "new" ? (
@@ -37,19 +37,19 @@ const QuerySortButton = React.memo(
         ) : (
           <TrophyStarRegularIcon />
         ),
-      [value]
+      []
     );
     return (
       <QueryButton
         target={target}
         menuType="sort"
         label={`Sort By`}
-        icon={icon}
         flexDirection="row-reverse"
         value={value}
         options={options}
         getOptionLabels={getSortOptionLabels}
         getOptionIcons={handleGetOptionIcons}
+        getActiveOptionIcon={handleGetActiveOptionIcon}
         onOption={onOption}
       />
     );

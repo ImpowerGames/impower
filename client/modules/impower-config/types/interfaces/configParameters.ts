@@ -22,6 +22,14 @@ export interface TagConfigParameters {
    */
   atmospheres: string[];
   /**
+   * Our list of visualStyles
+   */
+  visualStyles: string[];
+  /**
+   * Our list of musicalStyles
+   */
+  musicalStyles: string[];
+  /**
    * Our map of resource tags organized by category
    */
   resourceTags: {

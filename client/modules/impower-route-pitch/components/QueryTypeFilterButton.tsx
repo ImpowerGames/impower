@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import BookOpenRegularIcon from "../../../resources/icons/regular/book-open.svg";
 import GamepadRegularIcon from "../../../resources/icons/regular/gamepad.svg";
 import HouseRegularIcon from "../../../resources/icons/regular/house.svg";
@@ -31,8 +31,8 @@ const QueryTypeFilterButton = React.memo(
       },
       []
     );
-    const filterIcon = useMemo(
-      () =>
+    const handleGetActiveOptionIcon = useCallback(
+      (value?: string) =>
         value === "game" ? (
           <GamepadRegularIcon />
         ) : value === "story" ? (
@@ -48,17 +48,17 @@ const QueryTypeFilterButton = React.memo(
         ) : value === "voice" ? (
           <MicrophoneRegularIcon />
         ) : undefined,
-      [value]
+      []
     );
     return (
       <QueryButton
         target="pitch"
         menuType="filter"
         label={`Project Type`}
-        icon={filterIcon}
         value={value}
         getOptionLabels={getPitchTypeFilterOptionLabels}
         getOptionIcons={handleGetOptionIcons}
+        getActiveOptionIcon={handleGetActiveOptionIcon}
         onOption={onOption}
       />
     );

@@ -285,6 +285,14 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       if (atmospheres.map((tag) => tag.toLowerCase()).includes(value)) {
         return "Atmosphere";
       }
+      const visualStyles = ConfigCache.instance.params?.visualStyles;
+      const musicalStyles = ConfigCache.instance.params?.musicalStyles;
+      if (visualStyles.map((tag) => tag.toLowerCase()).includes(value)) {
+        return "Visual Styles";
+      }
+      if (musicalStyles.map((tag) => tag.toLowerCase()).includes(value)) {
+        return "Musical Styles";
+      }
     }
     return undefined;
   }
@@ -327,27 +335,6 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       }
       if (value === PitchGoal.Collaboration) {
         return "handshake-simple";
-      }
-    }
-    if (propertyPath === "tags") {
-      if (data?.projectType === "character" || data?.projectType === "voice") {
-        const moods = ConfigCache.instance.params?.moods;
-        const archetypes = ConfigCache.instance.params?.archetypes;
-        if (
-          moods &&
-          Object.values(moods)
-            .flatMap((x) => x.flatMap((y) => y))
-            .map((tag) => tag.toLowerCase())
-            .includes(value)
-        ) {
-          return "masks-theater";
-        }
-        if (
-          archetypes &&
-          archetypes.map((tag) => tag.toLowerCase()).includes(value)
-        ) {
-          return "person";
-        }
       }
     }
     return super.getPropertyValueIcon(propertyPath, data, value);

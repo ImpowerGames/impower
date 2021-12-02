@@ -327,8 +327,20 @@ const PitchFollowTags = React.memo(
       [onReload]
     );
 
-    const allTags =
+    const projectTags =
       configState?.projectTags || ConfigCache.instance.params?.projectTags;
+    const flattenedProjectTags = useMemo(() => {
+      const dict = {};
+      Object.entries(projectTags).forEach(([category, tags]) => {
+        dict[category] = tags?.flatMap((x) => x);
+      });
+      return dict;
+    }, [projectTags]);
+    const allTags = {
+      ...flattenedProjectTags,
+      "Visual Styles": ConfigCache.instance.params?.visualStyles,
+      "Music Styles": ConfigCache.instance.params?.musicalStyles,
+    };
 
     const showReloadArea =
       Object.entries(my_follows || {}).filter(([, v]) => v.g === "tags")
@@ -362,7 +374,8 @@ const PitchFollowTags = React.memo(
               <PitchFollowTagsList
                 key={category}
                 category={category}
-                tags={tags?.flatMap((x) => x)}
+                tags={tags}
+                // tags={tags?.flatMap((x) => x)}
               />
             ))}
           </StyledPaper>

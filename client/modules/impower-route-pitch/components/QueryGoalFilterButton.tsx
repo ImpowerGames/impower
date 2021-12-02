@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback } from "react";
 import BinocularsRegularIcon from "../../../resources/icons/regular/binoculars.svg";
 import HandshakeSimpleRegularIcon from "../../../resources/icons/regular/handshake-simple.svg";
 import LightbulbOnRegularIcon from "../../../resources/icons/regular/lightbulb-on.svg";
@@ -27,26 +27,24 @@ const QueryGoalFilterButton = React.memo(
       },
       []
     );
-    const filterIcon = useMemo(
-      () =>
-        value === "collaboration" ? (
-          <HandshakeSimpleRegularIcon />
-        ) : value === "inspiration" ? (
-          <LightbulbOnRegularIcon />
-        ) : (
-          <BinocularsRegularIcon />
-        ),
-      [value]
-    );
+    const handleGetActiveOptionIcon = useCallback((value?: string) => {
+      return value === "collaboration" ? (
+        <HandshakeSimpleRegularIcon />
+      ) : value === "inspiration" ? (
+        <LightbulbOnRegularIcon />
+      ) : (
+        <BinocularsRegularIcon />
+      );
+    }, []);
     return (
       <QueryButton
         target="pitch"
         menuType="filter"
         label={`Looking For`}
-        icon={filterIcon}
         value={value}
         getOptionLabels={getPitchGoalFilterOptionLabels}
         getOptionIcons={handleGetOptionIcons}
+        getActiveOptionIcon={handleGetActiveOptionIcon}
         onOption={onOption}
       />
     );

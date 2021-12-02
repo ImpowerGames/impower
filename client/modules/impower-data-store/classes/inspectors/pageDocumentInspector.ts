@@ -153,13 +153,22 @@ export class PageDocumentInspector<T extends PageDocument>
       if (tagIconName) {
         return tagIconName;
       }
-      const locations = ConfigCache.instance.params?.locations;
-      const atmospheres = ConfigCache.instance.params?.atmospheres;
-      if (locations.map((tag) => tag.toLowerCase()).includes(value)) {
-        return "bench-tree";
+      const moods = ConfigCache.instance.params?.moods;
+      const archetypes = ConfigCache.instance.params?.archetypes;
+      if (
+        moods &&
+        Object.values(moods)
+          .flatMap((x) => x.flatMap((y) => y))
+          .map((tag) => tag.toLowerCase())
+          .includes(value)
+      ) {
+        return "masks-theater";
       }
-      if (atmospheres.map((tag) => tag.toLowerCase()).includes(value)) {
-        return "sparkles";
+      if (
+        archetypes &&
+        archetypes.map((tag) => tag.toLowerCase()).includes(value)
+      ) {
+        return "person";
       }
       return "hashtag";
     }

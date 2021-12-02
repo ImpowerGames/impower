@@ -160,13 +160,13 @@ const CreatePitchDialog = React.memo((props: CreatePitchDialogProps) => {
     [config, doc, icons]
   );
 
-  const createLabel = "Pitch Game";
+  const createLabel = `Pitch ${type}`;
   const editLabel = "Update Pitch";
 
   const steps: CreationStep[] = useMemo(
     () => [
       {
-        title: `Pitch a ${type}`,
+        title: type === "music" ? `Pitch a ${type} track` : `Pitch a ${type}`,
         description: `What kind of ${type} is it?`,
         propertyPaths: ["tags"],
       },
