@@ -69,12 +69,13 @@ const StyledApp = styled.div`
 interface PitchProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
+  type?: ProjectType;
   pitchDocs?: { [id: string]: ProjectDocument };
   style?: React.CSSProperties;
 }
 
 const Pitch = React.memo((props: PitchProps): JSX.Element => {
-  const { config, icons, pitchDocs, style } = props;
+  const { config, icons, type, pitchDocs, style } = props;
 
   const toolbarRef = useRef<HTMLDivElement>();
   const contentElRef = useRef<HTMLDivElement>();
@@ -102,13 +103,11 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const [activeTab, setActiveTab] = useState<PitchToolbarTab>(
     (params?.t?.toLowerCase() as PitchToolbarTab) || "trending"
   );
+  const [typeFilter, setTypeFilter] = useState<ProjectType>(type || "game");
 
-  const [typeFilter, setTypeFilter] = useState<ProjectType>(
-    (params?.b?.toLowerCase() as ProjectType) || "game"
-  );
   const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
   const validPitchDocs =
-    activeTab === "trending" && typeFilter === "game" ? pitchDocs : undefined;
+    activeTab === "trending" && type === typeFilter ? pitchDocs : undefined;
   const [allowReload, setAllowReload] = useState(!validPitchDocs);
   const [reloading, setReloading] = useState<boolean>(
     Object.keys(validPitchDocs || {}).length === 0 ? false : undefined
@@ -195,7 +194,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       window.history.replaceState(
         window.history.state,
         "",
-        `/pitch?b=${typeFilter}&t=${tab.toLowerCase()}`
+        `/pitch/${typeFilter}?t=${tab.toLowerCase()}`
       );
     },
     [followedTags, handleShowLoadingPlaceholder, typeFilter]
@@ -303,11 +302,14 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       setTypeFilter(value);
       // Wait a bit for dialog to close
       await new Promise((resolve) => window.setTimeout(resolve, 1));
-      window.history.replaceState(
-        window.history.state,
-        "",
-        `/pitch?b=${value}&t=${activeTab.toLowerCase()}`
-      );
+      const urlParts = window.location.pathname.split("/");
+      const link =
+        urlParts.length === 4
+          ? `${urlParts[0]}/${
+              urlParts[1]
+            }/${value}?t=${activeTab.toLowerCase()}`
+          : `${urlParts[0]}/${value}?t=${activeTab.toLowerCase()}`;
+      window.history.replaceState(window.history.state, "", link);
     },
     [activeTab]
   );
@@ -329,12 +331,12 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
           />
         ) : (
           <PitchList
-            key={activeTab + typeFilter}
+            key={activeTab}
             config={config}
             icons={icons}
             pitchDocs={validPitchDocs}
             tab={activeTab}
-            typeFilter={typeFilter}
+            type={typeFilter}
             rangeFilter={rangeFilter}
             sortOptions={SORT_OPTIONS}
             allowReload={allowReload}

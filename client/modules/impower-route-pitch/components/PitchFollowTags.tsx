@@ -10,20 +10,20 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState,
+  useState
 } from "react";
 import { capitalize, ConfigContext } from "../../impower-config";
 import ConfigCache from "../../impower-config/classes/configCache";
 import {
   escapeURI,
   getDataStoreKey,
-  ProjectType,
+  ProjectType
 } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { DynamicIcon, FontIcon } from "../../impower-icon";
 import {
   NavigationContext,
-  navigationSetSearchbar,
+  navigationSetSearchbar
 } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { VirtualizedItem } from "../../impower-react-virtualization";
@@ -31,7 +31,16 @@ import FadeAnimation from "../../impower-route/components/animations/FadeAnimati
 import TagIconLoader from "../../impower-route/components/elements/TagIconLoader";
 import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
 
-const getTagLink = (tag: string): string => `/pitch/search/${escapeURI(tag)}`;
+const getTagLink = (tag: string): string => {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  const urlParts = window.location.pathname.split("/");
+  if (urlParts.length === 4) {
+    return `${urlParts[0]}/${urlParts[1]}/${urlParts[2]}/${escapeURI(tag)}`;
+  }
+  return `${urlParts.join("/")}/${escapeURI(tag)}`;
+};
 
 const StyledContainer = styled.div`
   width: 100%;

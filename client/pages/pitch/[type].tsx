@@ -1,22 +1,23 @@
 import { useTheme } from "@emotion/react";
-import { GetStaticProps } from "next";
+import { GetStaticPaths, GetStaticProps } from "next";
 import React, { useContext, useEffect, useMemo } from "react";
-import getIconSvgData from "../lib/getIconSvgData";
-import getLocalizationConfigParameters from "../lib/getLocalizationConfigParameters";
-import getTagConfigParameters from "../lib/getTagConfigParameters";
-import { initAdminApp } from "../lib/initAdminApp";
-import { ConfigParameters } from "../modules/impower-config";
-import ConfigCache from "../modules/impower-config/classes/configCache";
+import getIconSvgData from "../../lib/getIconSvgData";
+import getLocalizationConfigParameters from "../../lib/getLocalizationConfigParameters";
+import getTagConfigParameters from "../../lib/getTagConfigParameters";
+import { initAdminApp } from "../../lib/initAdminApp";
+import { ConfigParameters } from "../../modules/impower-config";
+import ConfigCache from "../../modules/impower-config/classes/configCache";
 import {
   getSerializableDocument,
   ProjectDocument,
-} from "../modules/impower-data-store";
-import DataStoreCache from "../modules/impower-data-store/classes/dataStoreCache";
+  ProjectType,
+} from "../../modules/impower-data-store";
+import DataStoreCache from "../../modules/impower-data-store/classes/dataStoreCache";
 import {
   IconLibraryContext,
   iconLibraryRegister,
   SvgData,
-} from "../modules/impower-icon";
+} from "../../modules/impower-icon";
 import {
   NavigationContext,
   navigationSetBackgroundColor,
@@ -25,24 +26,25 @@ import {
   navigationSetSearchbar,
   navigationSetText,
   navigationSetType,
-} from "../modules/impower-navigation";
-import navigationSetTransitioning from "../modules/impower-navigation/utils/navigationSetTransitioning";
-import { PageHead } from "../modules/impower-route";
-import Pitch from "../modules/impower-route-pitch/components/Pitch";
-import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
-import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
-import { useRouter } from "../modules/impower-router";
+} from "../../modules/impower-navigation";
+import navigationSetTransitioning from "../../modules/impower-navigation/utils/navigationSetTransitioning";
+import { PageHead } from "../../modules/impower-route";
+import Pitch from "../../modules/impower-route-pitch/components/Pitch";
+import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
+import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import { useRouter } from "../../modules/impower-router";
 
 const LOAD_INITIAL_LIMIT = 5;
 
 interface PitchPageProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
+  type?: ProjectType;
   pitchDocs: { [id: string]: ProjectDocument };
 }
 
 const PitchPageContent = React.memo((props: PitchPageProps) => {
-  const { config, icons, pitchDocs } = props;
+  const { config, icons, type, pitchDocs } = props;
 
   const [, navigationDispatch] = useContext(NavigationContext);
   const [, iconLibraryDispatch] = useContext(IconLibraryContext);
@@ -54,6 +56,12 @@ const PitchPageContent = React.memo((props: PitchPageProps) => {
 
   const router = useRouter();
   const routerIsReady = router.isReady;
+
+  const typeValue =
+    type ||
+    ((typeof window !== "undefined"
+      ? decodeURI(window.location.pathname.split("/").pop())
+      : "") as ProjectType);
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
@@ -84,7 +92,14 @@ const PitchPageContent = React.memo((props: PitchPageProps) => {
     }
   }, [navigationDispatch, routerIsReady]);
 
-  return <Pitch config={config} icons={icons} pitchDocs={pitchDocs} />;
+  return (
+    <Pitch
+      config={config}
+      icons={icons}
+      type={typeValue}
+      pitchDocs={pitchDocs}
+    />
+  );
 });
 
 const PitchPage = React.memo((props: PitchPageProps) => {
@@ -98,7 +113,27 @@ const PitchPage = React.memo((props: PitchPageProps) => {
 
 export default PitchPage;
 
-export const getStaticProps: GetStaticProps<PitchPageProps> = async () => {
+export const getStaticPaths: GetStaticPaths = async () => {
+  const projectTypes = [
+    "game",
+    "story",
+    "character",
+    "environment",
+    "music",
+    "sound",
+    "voice",
+  ];
+  return {
+    paths: projectTypes.map((type) => `/pitch/${type}`),
+    fallback: true,
+  };
+};
+
+export const getStaticProps: GetStaticProps<PitchPageProps> = async (
+  context
+) => {
+  const { type } = context.params;
+  const typeValue = (Array.isArray(type) ? type[0] : type) as ProjectType;
   const config = {
     ...getLocalizationConfigParameters(),
     ...getTagConfigParameters(),
@@ -109,6 +144,7 @@ export const getStaticProps: GetStaticProps<PitchPageProps> = async () => {
     .collection("pitched_projects")
     .where("nsfw", "==", false)
     .where("delisted", "==", false)
+    .where("projectType", "==", typeValue)
     .orderBy("rank", "desc")
     .limit(LOAD_INITIAL_LIMIT)
     .get();
@@ -125,8 +161,9 @@ export const getStaticProps: GetStaticProps<PitchPageProps> = async () => {
   const iconNames = Array.from(iconNamesSet);
   const iconData = await Promise.all(
     iconNames.map(async (name) => {
-      const component = (await import(`../resources/icons/solid/${name}.svg`))
-        .default;
+      const component = (
+        await import(`../../resources/icons/solid/${name}.svg`)
+      ).default;
       if (component) {
         return getIconSvgData(component);
       }
@@ -141,6 +178,7 @@ export const getStaticProps: GetStaticProps<PitchPageProps> = async () => {
   });
   return {
     props: {
+      type: typeValue,
       pitchDocs,
       config,
       icons,

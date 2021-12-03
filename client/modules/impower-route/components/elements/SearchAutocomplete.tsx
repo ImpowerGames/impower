@@ -42,7 +42,6 @@ import { useRouter } from "../../../impower-router";
 import { UserContext } from "../../../impower-user";
 import useIOS from "../../hooks/useIOS";
 import useVisualViewport from "../../hooks/useVisualViewport";
-import { getBaseRoute } from "../../utils/getBaseRoute";
 import SelectOption from "../inputs/SelectOption";
 import VirtualizedAutocompleteGroup from "../inputs/VirtualizedAutocompleteGroup";
 import SearchInput from "./SearchInput";
@@ -538,8 +537,13 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
       // wait a bit for dialog to close
       await new Promise((resolve) => window.setTimeout(resolve, 100));
       closingRef.current = false;
-      const baseRoute = getBaseRoute(router.route);
-      const link = `${baseRoute}/search/${escapeURI(newSearch)}`;
+      const urlParts = window.location.pathname.split("/");
+      const link =
+        urlParts.length === 4
+          ? `${urlParts[0]}/${urlParts[1]}/${urlParts[2]}/${escapeURI(
+              newSearch
+            )}`
+          : `${urlParts.join("/")}/${escapeURI(newSearch)}`;
       if (window.location.pathname.endsWith(link)) {
         return;
       }

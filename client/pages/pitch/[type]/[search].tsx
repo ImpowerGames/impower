@@ -12,6 +12,7 @@ import {
   getAnySearchQuery,
   getSerializableDocument,
   ProjectDocument,
+  ProjectType,
 } from "../../../modules/impower-data-store";
 import DataStoreCache from "../../../modules/impower-data-store/classes/dataStoreCache";
 import {
@@ -62,12 +63,13 @@ const StyledLoadingForeground = styled.div`
 interface PitchSearchPageProps {
   config: ConfigParameters;
   search: string;
+  type: ProjectType;
   pitchDocs: { [id: string]: ProjectDocument };
   icons: { [name: string]: SvgData };
 }
 
 const PitchSearchPageContent = React.memo((props: PitchSearchPageProps) => {
-  const { search, pitchDocs, config, icons } = props;
+  const { search, type, pitchDocs, config, icons } = props;
 
   const [, navigationDispatch] = useContext(NavigationContext);
   const [, iconLibraryDispatch] = useContext(IconLibraryContext);
@@ -78,9 +80,16 @@ const PitchSearchPageContent = React.memo((props: PitchSearchPageProps) => {
   const routerIsReady = router.isReady;
 
   const searchValue =
-    typeof window !== "undefined"
+    search ||
+    (typeof window !== "undefined"
       ? decodeURI(window.location.pathname.split("/").pop())
-      : "";
+      : "");
+
+  const typeValue =
+    type ||
+    ((typeof window !== "undefined"
+      ? decodeURI(window.location.pathname.split("/").pop())
+      : "") as ProjectType);
 
   ConfigCache.instance.set(config);
   iconLibraryDispatch(iconLibraryRegister("solid", icons));
@@ -128,11 +137,12 @@ const PitchSearchPageContent = React.memo((props: PitchSearchPageProps) => {
 
   return (
     <PitchSearch
-      key={search}
+      key={searchValue}
       config={config}
       icons={icons}
       pitchDocs={pitchDocs}
-      search={search}
+      type={typeValue}
+      search={searchValue}
     />
   );
 });
@@ -152,11 +162,22 @@ export const getStaticPaths: GetStaticPaths = async () => {
   const configProjectTags = (
     await import("../../../resources/json/en/projectTags.json")
   ).default;
+  const projectTypes = [
+    "game",
+    "story",
+    "character",
+    "environment",
+    "music",
+    "sound",
+    "voice",
+  ];
   const gameTags = Object.values(configProjectTags)
     .flatMap((categories) => categories.flatMap((groups) => groups))
     .map((tag) => tag.toLowerCase());
   return {
-    paths: [...gameTags].map((tag) => `/pitch/search/${tag}`),
+    paths: projectTypes.flatMap((type) =>
+      gameTags.map((tag) => `/pitch/${type}/${tag}`)
+    ),
     fallback: true,
   };
 };
@@ -164,7 +185,8 @@ export const getStaticPaths: GetStaticPaths = async () => {
 export const getStaticProps: GetStaticProps<PitchSearchPageProps> = async (
   context
 ) => {
-  const { search } = context.params;
+  const { type, search } = context.params;
+  const typeValue = (Array.isArray(type) ? type[0] : type) as ProjectType;
   const searchValue = Array.isArray(search) ? search[0] : search;
   const config = {
     ...getLocalizationConfigParameters(),
@@ -180,6 +202,7 @@ export const getStaticProps: GetStaticProps<PitchSearchPageProps> = async (
     .collection("pitched_projects")
     .where("nsfw", "==", false)
     .where("delisted", "==", false)
+    .where("projectType", "==", typeValue)
     .where("terms", "array-contains-any", termsQuery)
     .orderBy("rank", "desc")
     .limit(LOAD_INITIAL_LIMIT)
@@ -215,6 +238,7 @@ export const getStaticProps: GetStaticProps<PitchSearchPageProps> = async (
   return {
     props: {
       search: searchValue,
+      type: typeValue,
       pitchDocs,
       config,
       icons,

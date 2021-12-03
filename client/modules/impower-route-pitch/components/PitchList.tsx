@@ -150,7 +150,7 @@ interface PitchListProps {
   search?: string;
   creator?: string;
   tab?: "trending" | "top" | "following";
-  typeFilter?: ProjectType;
+  type?: ProjectType;
   rangeFilter?: DateRangeFilter;
   compact?: boolean;
   sortOptions?: QuerySort[];
@@ -189,7 +189,7 @@ const PitchList = React.memo(
       creator,
       pitchDocs,
       tab,
-      typeFilter,
+      type,
       rangeFilter,
       compact,
       sortOptions,
@@ -283,7 +283,7 @@ const PitchList = React.memo(
     const noMoreRef = useRef<boolean>(initialPitchIds.length === 0);
     const [noMore, setNoMore] = useState<boolean>(noMoreRef.current);
     const [typeFilterState, setTypeFilterState] = useState<ProjectType>(
-      typeFilter || "game"
+      type || "game"
     );
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rank");
     const [rangeFilterState, setRangeFilterState] = useState<DateRangeFilter>(
@@ -784,10 +784,10 @@ const PitchList = React.memo(
     }, [tab]);
 
     useEffect(() => {
-      if (typeFilter !== undefined) {
-        setTypeFilterState(typeFilter);
+      if (type !== undefined) {
+        setTypeFilterState(type);
       }
-    }, [typeFilter]);
+    }, [type]);
 
     useEffect(() => {
       if (rangeFilter !== undefined) {

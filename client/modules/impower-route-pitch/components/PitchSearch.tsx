@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { ConfigParameters } from "../../impower-config";
 import {
+  escapeURI,
   getSearchedTerms,
   ProjectDocument,
   ProjectType,
@@ -67,31 +68,14 @@ const StyledApp = styled.div`
 interface PitchSearchPageProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
+  type?: ProjectType;
   pitchDocs?: { [id: string]: ProjectDocument };
   search: string;
   style?: React.CSSProperties;
 }
 
 const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
-  const { config, icons, search, pitchDocs, style } = props;
-
-  const locationSearch =
-    typeof window !== "undefined" ? window.location.search : "";
-  const params: { [key: string]: string } =
-    typeof window !== "undefined"
-      ? locationSearch
-          .slice(1)
-          .split("&")
-          .reduce((a, q): { [key: string]: string } => {
-            const [key, value] = q.split("=");
-            a[key] = value;
-            return a;
-          }, {})
-      : {};
-
-  const [typeFilter, setTypeFilter] = useState<ProjectType>(
-    (params?.b?.toLowerCase() as ProjectType) || "game"
-  );
+  const { config, icons, search, type, pitchDocs, style } = props;
 
   const [navigationState, navigationDispatch] = useContext(NavigationContext);
   const searching = navigationState?.search?.searching;
@@ -106,6 +90,12 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
             .map(([target]) => target.split("%").slice(-1).join(""))
         : (my_follows as null | undefined),
     [my_follows]
+  );
+  const [typeFilter, setTypeFilter] = useState<ProjectType>(type || "game");
+  const validPitchDocs = type === typeFilter ? pitchDocs : undefined;
+  const allowReload = !validPitchDocs;
+  const [reloading, setReloading] = useState<boolean>(
+    Object.keys(validPitchDocs || {}).length === 0 ? false : undefined
   );
 
   const router = useRouter();
@@ -152,13 +142,14 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
       setTypeFilter(value);
       // Wait a bit for dialog to close
       await new Promise((resolve) => window.setTimeout(resolve, 1));
-      window.history.replaceState(
-        window.history.state,
-        "",
-        `/pitch?b=${value}`
-      );
+      const urlParts = window.location.pathname.split("/");
+      const link =
+        urlParts.length === 4
+          ? `${urlParts[0]}/${urlParts[1]}/${value}/${escapeURI(search)}`
+          : `${urlParts[0]}/${value}/${escapeURI(search)}`;
+      window.history.replaceState(window.history.state, "", link);
     },
-    []
+    [search]
   );
 
   const emptyImage = useMemo(() => <AnimatedDefaultMascot />, []);
@@ -248,16 +239,18 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
         />
         <BetaBanner />
         <PitchList
-          key={typeFilter}
           config={config}
           icons={icons}
-          typeFilter={typeFilter}
-          pitchDocs={pitchDocs}
+          type={typeFilter}
+          pitchDocs={validPitchDocs}
           search={activeSearch}
           sortOptions={SORT_OPTIONS}
           loadingPlaceholder={loadingPlaceholder}
           emptyPlaceholder={emptyPlaceholder}
           offlinePlaceholder={offlinePlaceholder}
+          allowReload={allowReload}
+          reloading={reloading}
+          onReloading={setReloading}
           onTypeFilter={handleTypeFilter}
         />
       </StyledApp>

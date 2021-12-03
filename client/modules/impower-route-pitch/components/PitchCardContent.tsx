@@ -56,7 +56,16 @@ const StyledTagSkeleton = styled(Skeleton)`
   margin: ${(props): string => props.theme.spacing(0.25, 0.75)};
 `;
 
-const getTagLink = (tag: string): string => `/pitch/search/${escapeURI(tag)}`;
+const getTagLink = (tag: string): string => {
+  if (typeof window === "undefined") {
+    return "";
+  }
+  const urlParts = window.location.pathname.split("/");
+  if (urlParts.length === 4) {
+    return `${urlParts[0]}/${urlParts[1]}/${urlParts[2]}/${escapeURI(tag)}`;
+  }
+  return `${urlParts.join("/")}/${escapeURI(tag)}`;
+};
 
 interface PitchCardContentProps {
   config: ConfigParameters;
