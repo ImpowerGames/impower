@@ -73,7 +73,7 @@ const PitchListQueryHeader = React.memo(
             <StyledButton
               color="primary"
               onClick={onFollowMore}
-            >{`More`}</StyledButton>
+            >{`List All`}</StyledButton>
           )}
         </StyledCenterArea>
         {onRangeFilter && (

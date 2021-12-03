@@ -5,7 +5,13 @@ import Divider from "@material-ui/core/Divider";
 import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
 import NextLink from "next/link";
-import React, { useCallback, useContext, useEffect, useMemo } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { capitalize, ConfigContext } from "../../impower-config";
 import ConfigCache from "../../impower-config/classes/configCache";
 import {
@@ -49,7 +55,7 @@ const StyledTagLink = styled(Button)`
 const StyledPitchFollowTags = styled(FadeAnimation)``;
 
 const StyledPaper = styled(Paper)`
-  padding: ${(props): string => props.theme.spacing(2, 0)};
+  padding: 0;
   margin: ${(props): string => props.theme.spacing(2, 0)};
   ${(props): string => props.theme.breakpoints.down("md")} {
     border-radius: 0;
@@ -58,8 +64,7 @@ const StyledPaper = styled(Paper)`
 `;
 
 const StyledInfoArea = styled.div`
-  padding: ${(props): string => props.theme.spacing(2, 4)};
-  margin-bottom: ${(props): string => props.theme.spacing(2)};
+  padding: ${(props): string => props.theme.spacing(4)};
 `;
 
 const StyledReloadArea = styled(FadeAnimation)`
@@ -274,11 +279,12 @@ interface PitchFollowTagsListProps {
   category: string;
   categoryIcon?: string;
   tags: string[];
+  excludeTags?: string[];
 }
 
 const PitchFollowTagsList = React.memo(
   (props: PitchFollowTagsListProps): JSX.Element => {
-    const { category, categoryIcon, tags } = props;
+    const { category, categoryIcon, tags, excludeTags } = props;
 
     const groupNameHeight = 48;
     const optionHeight = 60;
@@ -299,19 +305,21 @@ const PitchFollowTagsList = React.memo(
             <StyledTypography>{category}</StyledTypography>
           </StyledGroupName>
         )}
-        {tags.map((tag, index) => {
-          const label = capitalize(tag || "");
-          return (
-            <VirtualizedItem key={tag} index={index} minHeight={optionHeight}>
-              <VirtualizedTagItem
-                key={tag}
-                tag={tag?.toLowerCase()}
-                label={label}
-                categoryIcon={categoryIcon}
-              />
-            </VirtualizedItem>
-          );
-        })}
+        {tags
+          .filter((tag) => !excludeTags?.includes(tag))
+          .map((tag, index) => {
+            const label = capitalize(tag || "");
+            return (
+              <VirtualizedItem key={tag} index={index} minHeight={optionHeight}>
+                <VirtualizedTagItem
+                  key={tag}
+                  tag={tag?.toLowerCase()}
+                  label={label}
+                  categoryIcon={categoryIcon}
+                />
+              </VirtualizedItem>
+            );
+          })}
       </StyledGroup>
     );
   }
@@ -331,6 +339,17 @@ const PitchFollowTags = React.memo(
     const [userState] = useContext(UserContext);
     const [, navigationDispatch] = useContext(NavigationContext);
     const { my_follows } = userState;
+    const followedTags = useMemo(
+      () =>
+        my_follows
+          ? Object.entries(my_follows)
+              .filter(([, v]) => v.g === "tags")
+              .map(([target]) => target.split("%").slice(-1).join(""))
+          : (my_follows as null | undefined),
+      [my_follows]
+    );
+    const [initialFollowedTags, setInitialFollowedTags] =
+      useState(followedTags);
 
     const handleReload = useCallback(
       (e: React.MouseEvent) => {
@@ -439,7 +458,16 @@ const PitchFollowTags = React.memo(
       navigationDispatch(navigationSetTransitioning(false));
     }, [navigationDispatch]);
 
-    if (my_follows === undefined) {
+    const loadedFollows = my_follows !== undefined;
+
+    useEffect(() => {
+      if (loadedFollows) {
+        setInitialFollowedTags(followedTags);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loadedFollows]);
+
+    if (!loadedFollows) {
       return <>{loadingPlaceholder}</>;
     }
 
@@ -447,6 +475,15 @@ const PitchFollowTags = React.memo(
       <StyledContainer>
         <StyledPitchFollowTags initial={0} animate={1} duration={0.1}>
           <StyledPaper>
+            {initialFollowedTags?.length > 0 && (
+              <>
+                <PitchFollowTagsList
+                  category={`Currently Following`}
+                  tags={initialFollowedTags}
+                />
+                <StyledDivider />
+              </>
+            )}
             <StyledInfoArea>
               <StyledTitleTypography variant="h6">
                 {`Any specific ${type} you enjoy?`}
@@ -465,6 +502,7 @@ const PitchFollowTags = React.memo(
                 category={category}
                 tags={tags}
                 categoryIcon={overrideIcons[category]}
+                excludeTags={initialFollowedTags}
               />
             ))}
           </StyledPaper>
