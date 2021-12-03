@@ -1,3 +1,4 @@
+import archetypes from "../../generator/src/input/archetypes.json";
 import { TagConfigParameters } from "../modules/impower-config";
 import colors from "../resources/json/colors.json";
 import atmospheres from "../resources/json/en/atmospheres.json";
@@ -16,20 +17,21 @@ import tagPatterns from "../resources/json/tagPatterns.json";
 
 const getTagConfigParameters = (): TagConfigParameters => {
   return {
-    colors,
-    projectTags,
-    moods,
-    locations,
+    archetypes,
     atmospheres,
-    visualStyles,
-    musicalStyles,
     catalysts,
+    colors,
+    locations,
+    moods,
+    musicalStyles,
+    projectTags,
     resourceTags,
     roleTags,
     tagColorNames,
     tagDisambiguations,
     tagIconNames,
     tagPatterns,
+    visualStyles,
   };
 };
 

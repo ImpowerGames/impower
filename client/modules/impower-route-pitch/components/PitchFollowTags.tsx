@@ -8,7 +8,11 @@ import NextLink from "next/link";
 import React, { useCallback, useContext, useEffect, useMemo } from "react";
 import { capitalize, ConfigContext } from "../../impower-config";
 import ConfigCache from "../../impower-config/classes/configCache";
-import { escapeURI, getDataStoreKey } from "../../impower-data-store";
+import {
+  escapeURI,
+  getDataStoreKey,
+  ProjectType,
+} from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { DynamicIcon, FontIcon } from "../../impower-icon";
 import {
@@ -155,13 +159,14 @@ const StyledDivider = styled(Divider)`
 `;
 
 interface VirtualizedTagItemProps {
+  categoryIcon?: string;
   tag: string;
   label: string;
   style?: React.CSSProperties;
 }
 
 const VirtualizedTagItem = React.memo((props: VirtualizedTagItemProps) => {
-  const { tag, label, style } = props;
+  const { categoryIcon, tag, label, style } = props;
 
   const [configState] = useContext(ConfigContext);
   const [userState, userDispatch] = useContext(UserContext);
@@ -243,7 +248,7 @@ const VirtualizedTagItem = React.memo((props: VirtualizedTagItemProps) => {
                 color={theme.palette.text.secondary}
                 size={theme.fontSize.smallIcon}
               >
-                <DynamicIcon icon={tagIconName} />
+                <DynamicIcon icon={categoryIcon || tagIconName} />
               </FontIcon>
             </StyledOptionIconArea>
             <StyledLabelContent>
@@ -267,19 +272,26 @@ const VirtualizedTagItem = React.memo((props: VirtualizedTagItemProps) => {
 
 interface PitchFollowTagsListProps {
   category: string;
+  categoryIcon?: string;
   tags: string[];
 }
 
 const PitchFollowTagsList = React.memo(
   (props: PitchFollowTagsListProps): JSX.Element => {
-    const { category, tags } = props;
+    const { category, categoryIcon, tags } = props;
 
     const groupNameHeight = 48;
     const optionHeight = 60;
 
+    if (!tags) {
+      return null;
+    }
+
     return (
       <StyledGroup
-        style={{ minHeight: groupNameHeight + optionHeight * tags.length }}
+        style={{
+          minHeight: groupNameHeight + optionHeight * tags.length,
+        }}
       >
         {category && (
           <StyledGroupName>
@@ -295,6 +307,7 @@ const PitchFollowTagsList = React.memo(
                 key={tag}
                 tag={tag?.toLowerCase()}
                 label={label}
+                categoryIcon={categoryIcon}
               />
             </VirtualizedItem>
           );
@@ -305,13 +318,14 @@ const PitchFollowTagsList = React.memo(
 );
 
 interface PitchFollowTagsProps {
+  type?: ProjectType;
   loadingPlaceholder?: React.ReactNode;
   onReload?: (e: React.MouseEvent) => void;
 }
 
 const PitchFollowTags = React.memo(
   (props: PitchFollowTagsProps): JSX.Element => {
-    const { loadingPlaceholder, onReload } = props;
+    const { type, loadingPlaceholder, onReload } = props;
 
     const [configState] = useContext(ConfigContext);
     const [userState] = useContext(UserContext);
@@ -329,18 +343,93 @@ const PitchFollowTags = React.memo(
 
     const projectTags =
       configState?.projectTags || ConfigCache.instance.params?.projectTags;
-    const flattenedProjectTags = useMemo(() => {
+    const flattenedProjectTags: {
+      [categories: string]: string[];
+    } = useMemo(() => {
       const dict = {};
       Object.entries(projectTags).forEach(([category, tags]) => {
         dict[category] = tags?.flatMap((x) => x);
       });
       return dict;
     }, [projectTags]);
-    const allTags = {
-      ...flattenedProjectTags,
-      "Visual Styles": ConfigCache.instance.params?.visualStyles,
-      "Music Styles": ConfigCache.instance.params?.musicalStyles,
-    };
+    const { Mechanics, Genres, Aesthetics, Subjects } = flattenedProjectTags;
+    const moods = configState?.moods || ConfigCache.instance.params?.moods;
+    const flattenedMoods = Array.from(
+      new Set(Object.values(moods || {}).flatMap((x) => x.flatMap((y) => y)))
+    );
+    const visualStyles =
+      configState?.visualStyles || ConfigCache.instance.params?.visualStyles;
+    const musicalStyles =
+      configState?.musicalStyles || ConfigCache.instance.params?.musicalStyles;
+    const archetypes =
+      configState?.archetypes || ConfigCache.instance.params?.archetypes;
+    const atmospheres =
+      configState?.atmospheres || ConfigCache.instance.params?.atmospheres;
+    const locations =
+      configState?.locations || ConfigCache.instance.params?.locations;
+    const allTags = useMemo(
+      () =>
+        type === "game"
+          ? {
+              Mechanics,
+              Genres,
+              Aesthetics,
+              Subjects,
+              "Visual Styles": visualStyles,
+              "Music Styles": musicalStyles,
+            }
+          : type === "character"
+          ? {
+              Archetypes: archetypes,
+              Subjects,
+              Mood: flattenedMoods,
+            }
+          : type === "voice"
+          ? {
+              Archetypes: archetypes,
+              Mood: flattenedMoods,
+            }
+          : type === "environment"
+          ? {
+              Locations: locations,
+              Atmospheres: atmospheres,
+            }
+          : type === "sound"
+          ? {
+              Locations: locations,
+              Atmospheres: atmospheres,
+            }
+          : type === "music"
+          ? {
+              "Music Styles": musicalStyles,
+              "Mood": flattenedMoods,
+            }
+          : {
+              Genres,
+              Aesthetics,
+              Subjects,
+            },
+      [
+        Aesthetics,
+        Genres,
+        Mechanics,
+        Subjects,
+        archetypes,
+        atmospheres,
+        flattenedMoods,
+        locations,
+        musicalStyles,
+        type,
+        visualStyles,
+      ]
+    );
+    const overrideIcons = useMemo(
+      () => ({
+        Archetypes: "person",
+        Mood: "masks-theater",
+      }),
+      []
+    );
 
     const showReloadArea =
       Object.entries(my_follows || {}).filter(([, v]) => v.g === "tags")
@@ -360,7 +449,7 @@ const PitchFollowTags = React.memo(
           <StyledPaper>
             <StyledInfoArea>
               <StyledTitleTypography variant="h6">
-                {`Any specific genres or subjects you enjoy?`}
+                {`Any specific ${type} you enjoy?`}
               </StyledTitleTypography>
               <StyledDescriptionTypography
                 variant="body2"
@@ -375,7 +464,7 @@ const PitchFollowTags = React.memo(
                 key={category}
                 category={category}
                 tags={tags}
-                // tags={tags?.flatMap((x) => x)}
+                categoryIcon={overrideIcons[category]}
               />
             ))}
           </StyledPaper>

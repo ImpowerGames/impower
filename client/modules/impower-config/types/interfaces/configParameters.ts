@@ -12,6 +12,10 @@ export interface TagConfigParameters {
   /**
    * Our list of catalysts
    */
+  archetypes: string[];
+  /**
+   * Our list of catalysts
+   */
   catalysts: string[];
   /**
    * Our list of locations

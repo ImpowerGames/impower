@@ -618,6 +618,7 @@
   "rearranging": ["customization"],
   "individual": ["customization"],
   "custom": ["customization"],
+  "cryptid": ["cryptid"],
   "inspiration": ["creative"],
   "tin": ["crafting"],
   "teflon": ["crafting"],
@@ -1090,8 +1091,6 @@
   "digger": ["prehistoric", "scavenging"],
   "dig": ["prehistoric", "scavenging"],
   "radical": ["political", "rebellion"],
-  "protester": ["political", "rebellion"],
-  "protest": ["political", "rebellion"],
   "liberal": ["political", "rebellion"],
   "banner": ["political", "rebellion"],
   "articles": ["political", "publication"],
@@ -1994,9 +1993,12 @@
   "loner": ["psychic", "psychological", "western"],
   "surprise": ["procedurally generated", "reunion", "roguelike"],
   "remains": ["prehistoric", "resurrection", "zombie"],
+  "protester": ["political", "rebellion", "rival"],
+  "protest": ["political", "rebellion", "rival"],
   "apologist": ["political", "rebellion", "redemption"],
   "you in for": ["police", "punishment", "social deduction"],
   "jailhouse": ["police", "punishment", "social deduction"],
+  "jailer": ["police", "punishment", "social deduction"],
   "jail": ["police", "punishment", "social deduction"],
   "handcuffs": ["police", "punishment", "social deduction"],
   "doing hard time": ["police", "punishment", "social deduction"],
@@ -2203,6 +2205,7 @@
   "constant": ["endless", "immortality", "science"],
   "goodbyes": ["emotional", "reunion", "tragedy"],
   "goodbye": ["emotional", "reunion", "tragedy"],
+  "feeling's": ["emotional", "rival", "tragedy"],
   "farewell": ["emotional", "reunion", "tragedy"],
   "envy": ["emotional", "greed", "rival"],
   "envied": ["emotional", "greed", "rival"],
@@ -4165,6 +4168,13 @@
     "side scroller",
     "walking simulator"
   ],
+  "walkin'": [
+    "exploration",
+    "open world",
+    "platformer",
+    "side scroller",
+    "walking simulator"
+  ],
   "walked": [
     "exploration",
     "open world",
@@ -4918,13 +4928,6 @@
   "bounty": ["business", "decopunk", "greed", "shop", "wealth"],
   "billy": ["business", "greed", "political", "shop", "wealth"],
   "bill": ["business", "greed", "political", "shop", "wealth"],
-  "unplanned": [
-    "bureaucracy",
-    "business",
-    "management",
-    "simulator",
-    "strategy"
-  ],
   "supreme": ["bureaucracy", "business", "fairy tale", "fantasy", "royalty"],
   "reporting": [
     "bureaucracy",
@@ -4935,10 +4938,6 @@
   ],
   "recognition": ["bureaucracy", "business", "contest", "fame", "redemption"],
   "professional": ["bureaucracy", "business", "fame", "simulator", "sports"],
-  "plans": ["bureaucracy", "business", "management", "simulator", "strategy"],
-  "planner": ["bureaucracy", "business", "management", "simulator", "strategy"],
-  "planned": ["bureaucracy", "business", "management", "simulator", "strategy"],
-  "plan": ["bureaucracy", "business", "management", "simulator", "strategy"],
   "pact": ["bureaucracy", "business", "co-op", "friendship", "rebellion"],
   "nonrenewable": [
     "bureaucracy",
@@ -6887,9 +6886,6 @@
   ],
   "getting on": ["dating", "journey", "love", "roadtrip", "romance", "train"],
   "get on": ["dating", "journey", "love", "roadtrip", "romance", "train"],
-  "feelings": ["dating", "emotional", "love", "rival", "romance", "tragedy"],
-  "feeling's": ["dating", "emotional", "love", "rival", "romance", "tragedy"],
-  "feeling": ["dating", "emotional", "love", "rival", "romance", "tragedy"],
   "embarrassment": [
     "dating",
     "disillusionment",
@@ -7640,6 +7636,14 @@
   "balancing": ["business", "greed", "physics", "science", "shop", "wealth"],
   "balanced": ["business", "greed", "physics", "science", "shop", "wealth"],
   "balance": ["business", "greed", "physics", "science", "shop", "wealth"],
+  "unplanned": [
+    "bureaucracy",
+    "business",
+    "management",
+    "simulator",
+    "strategy",
+    "tycoon"
+  ],
   "salaryman": ["bureaucracy", "business", "greed", "office", "shop", "wealth"],
   "risky": [
     "bureaucracy",
@@ -7658,7 +7662,39 @@
     "political",
     "simulator"
   ],
+  "plans": [
+    "bureaucracy",
+    "business",
+    "management",
+    "simulator",
+    "strategy",
+    "tycoon"
+  ],
   "planning": [
+    "bureaucracy",
+    "business",
+    "management",
+    "simulator",
+    "strategy",
+    "tycoon"
+  ],
+  "planner": [
+    "bureaucracy",
+    "business",
+    "management",
+    "simulator",
+    "strategy",
+    "tycoon"
+  ],
+  "planned": [
+    "bureaucracy",
+    "business",
+    "management",
+    "simulator",
+    "strategy",
+    "tycoon"
+  ],
+  "plan": [
     "bureaucracy",
     "business",
     "management",
@@ -10311,6 +10347,33 @@
     "rival",
     "romance",
     "simulator"
+  ],
+  "feels": [
+    "dating",
+    "love",
+    "medical",
+    "psychic",
+    "psychological",
+    "rehabilitation",
+    "romance"
+  ],
+  "feelers": [
+    "dating",
+    "love",
+    "medical",
+    "psychic",
+    "psychological",
+    "rehabilitation",
+    "romance"
+  ],
+  "feel": [
+    "dating",
+    "love",
+    "medical",
+    "psychic",
+    "psychological",
+    "rehabilitation",
+    "romance"
   ],
   "closure": [
     "dating",
@@ -22324,6 +22387,30 @@
     "rival",
     "time travel",
     "walking simulator"
+  ],
+  "feelings": [
+    "dating",
+    "emotional",
+    "love",
+    "medical",
+    "psychic",
+    "psychological",
+    "rehabilitation",
+    "rival",
+    "romance",
+    "tragedy"
+  ],
+  "feeling": [
+    "dating",
+    "emotional",
+    "love",
+    "medical",
+    "psychic",
+    "psychological",
+    "rehabilitation",
+    "rival",
+    "romance",
+    "tragedy"
   ],
   "distant": [
     "dating",

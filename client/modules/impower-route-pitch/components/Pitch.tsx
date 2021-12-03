@@ -323,6 +323,7 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
           loadingPlaceholder
         ) : activeTab === "following" && showFollowTags ? (
           <PitchFollowTags
+            type={typeFilter}
             loadingPlaceholder={loadingPlaceholder}
             onReload={handleReloadFollowing}
           />
