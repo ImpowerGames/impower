@@ -795,12 +795,14 @@ const PitchList = React.memo(
       }
     }, [rangeFilter]);
 
+    const needsInitialLoad = !pitchDocsState;
+
     useEffect(() => {
       navigationDispatch(navigationSetTransitioning(false));
       if ([nsfwVisible, followedTags].some((x) => x === undefined)) {
         return;
       }
-      if (!allowReloadState) {
+      if (!needsInitialLoad && !allowReloadState) {
         return;
       }
       setLoadIcons(true);
@@ -811,6 +813,7 @@ const PitchList = React.memo(
       handleReload,
       navigationDispatch,
       nsfwVisible,
+      needsInitialLoad,
     ]);
 
     const handleChangeTypeFilter = useCallback(

@@ -248,6 +248,7 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
         />
         <BetaBanner />
         <PitchList
+          key={typeFilter}
           config={config}
           icons={icons}
           typeFilter={typeFilter}
