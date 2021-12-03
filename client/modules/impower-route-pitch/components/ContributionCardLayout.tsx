@@ -440,7 +440,6 @@ const ContributionCardLayout = React.memo(
                           style={cardActionsStyle}
                           openedActionsStyle={openedActionsStyle}
                           closedActionsStyle={closedActionsStyle}
-                          allowConnect
                           allowKudo
                           onConnect={onConnect}
                           onLike={onLike}
