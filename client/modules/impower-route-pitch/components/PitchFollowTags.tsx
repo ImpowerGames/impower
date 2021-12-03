@@ -10,20 +10,20 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useState
+  useState,
 } from "react";
 import { capitalize, ConfigContext } from "../../impower-config";
 import ConfigCache from "../../impower-config/classes/configCache";
 import {
   escapeURI,
   getDataStoreKey,
-  ProjectType
+  ProjectType,
 } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { DynamicIcon, FontIcon } from "../../impower-icon";
 import {
   NavigationContext,
-  navigationSetSearchbar
+  navigationSetSearchbar,
 } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { VirtualizedItem } from "../../impower-react-virtualization";
