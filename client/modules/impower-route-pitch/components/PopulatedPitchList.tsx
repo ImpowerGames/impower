@@ -464,10 +464,11 @@ const VirtualizedPitchCard = React.memo((props: VirtualizedPitchCardProps) => {
   const postLayoutStyle: React.CSSProperties = useMemo(
     () => ({
       boxShadow: compact ? undefined : theme.shadows[1],
-      borderBottom: compact ? "1px solid rgba(0, 0, 0, 0.12)" : undefined,
+      borderTop:
+        compact && itemIndex > 0 ? "1px solid rgba(0, 0, 0, 0.12)" : undefined,
       overflow: "hidden",
     }),
-    [compact, theme.shadows]
+    [compact, itemIndex, theme.shadows]
   );
 
   const fadeAreaStyle = useMemo(
