@@ -39,6 +39,10 @@ const TagIconLoader = (): JSX.Element => {
         ).default;
         ConfigCache.instance.set({ tagDisambiguations });
       }
+      const Config = (await import("../../../impower-config/classes/config"))
+        .default;
+      const params = Config.instance.hydrate();
+      ConfigCache.instance.set(params);
       if (needsLoad) {
         logInfoEnd("Route", "LOADING TAG ICONS");
       }

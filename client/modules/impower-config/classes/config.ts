@@ -25,7 +25,6 @@ import tagPatterns from "../../../resources/json/tagPatterns.json";
 import { InternalConfig } from "../types/aliases";
 import { ConfigKey } from "../types/enums/configKey";
 import { ConfigParameters } from "../types/interfaces/configParameters";
-import ConfigCache from "./configCache";
 
 class Config {
   private static _instance: Config;
@@ -165,7 +164,6 @@ class Config {
       tagPatterns: this.getValue("tagPatterns", tagPatterns),
       terms: this.getValue("terms", terms),
     };
-    ConfigCache.instance.set(params);
     return params;
   }
 }
