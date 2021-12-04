@@ -14,17 +14,7 @@ export const useConfigContextState = (): ConfigContextState => {
         const Config = (await import("../classes/config")).default;
         stateRef.current = Config.instance.hydrate();
         setState(stateRef.current);
-        if (process.env.NEXT_PUBLIC_ORIGIN.includes("localhost")) {
-          // Fetch then activate latest values
-          // (This may cause things in the interface to change suddenly after the fetch is done
-          // but this behavior should be ok in a dev environment)
-          await Config.instance.fetchAndActivate();
-        } else {
-          // Activate values that were fetched during last app startup.
-          // And then fetch and cache new values for next startup.
-          // (This prevents the interface from changing around suddenly after the fetch is done)
-          await Config.instance.activateThenFetch();
-        }
+        await Config.instance.fetchAndActivate();
         stateRef.current = Config.instance.hydrate();
         setState(stateRef.current);
       }
