@@ -4,8 +4,6 @@ import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
 import dynamic from "next/dynamic";
 import React, { useCallback, useContext } from "react";
-import { ConfigContext, ConfigParameters } from "../../impower-config";
-import ConfigCache from "../../impower-config/classes/configCache";
 import format from "../../impower-config/utils/format";
 import {
   escapeURI,
@@ -49,11 +47,6 @@ const StyledTagButton = styled(Button)`
   opacity: 0.7;
 `;
 
-const StyledMark = styled.mark`
-  background-color: inherit;
-  color: inherit;
-`;
-
 const StyledTitleTypography = styled(Typography)<{ component?: string }>``;
 
 const StyledTagSkeleton = styled(Skeleton)`
@@ -72,7 +65,6 @@ const getTagLink = (tag: string): string => {
 };
 
 interface PitchCardContentProps {
-  config: ConfigParameters;
   pitchDoc?: ProjectDocument;
   name?: string;
   summary?: string;
@@ -84,18 +76,9 @@ interface PitchCardContentProps {
 
 const PitchCardContent = React.memo(
   (props: PitchCardContentProps): JSX.Element => {
-    const {
-      config,
-      pitchDoc,
-      name,
-      summary,
-      tags,
-      delisted,
-      archived,
-      titleRef,
-    } = props;
+    const { pitchDoc, name, summary, tags, delisted, archived, titleRef } =
+      props;
 
-    const [configState] = useContext(ConfigContext);
     const [, navigationDispatch] = useContext(NavigationContext);
 
     const handleBlockRipplePropogation = useCallback(
@@ -121,22 +104,18 @@ const PitchCardContent = React.memo(
     );
 
     const mainTag = tags?.[0] || "";
-    const currentConfig = configState || config || ConfigCache.instance.params;
     const spacer = summary?.[0]?.match(/[a-zA-Z]/) ? " " : "";
     const formattedContent =
       pitchDoc?.projectType === "voice" ? `"${summary}"` : summary;
-    const formattedSummary = currentConfig?.messages
-      ? `${format(
-          ProjectDocumentInspector.instance.getPropertyPlaceholder(
-            "summary",
-            pitchDoc
-          ),
-          {
-            tag: mainTag,
-          }
-        )}${spacer}${formattedContent}`
-      : undefined;
-
+    const formattedSummary = `${format(
+      ProjectDocumentInspector.instance.getPropertyPlaceholder(
+        "summary",
+        pitchDoc
+      ),
+      {
+        tag: mainTag,
+      }
+    )}${spacer}${formattedContent}`;
     return (
       <StyledCardContent>
         {(archived || !delisted) && (

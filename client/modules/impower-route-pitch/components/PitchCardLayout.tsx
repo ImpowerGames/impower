@@ -204,7 +204,6 @@ const PitchCardLayout = React.memo(
               />
               <PitchCardContent
                 titleRef={titleRef}
-                config={config}
                 pitchDoc={pitchDoc}
                 name={name}
                 summary={summary}
