@@ -137,7 +137,7 @@ const CreateProjectForm = React.memo(
 
     const recentlyRandomizedTags = useRef<string[]>([]);
     const recentlyRandomizedCatalysts = useRef<string[]>([]);
-    const recentlyRandomizedPersonalities = useRef<string[]>([]);
+    const recentlyRandomizedMoods = useRef<string[]>([]);
     const recentlyRandomizedArchetypes = useRef<string[]>([]);
 
     const [docIdState, setDocIdState] = useState(docId);
@@ -160,6 +160,8 @@ const CreateProjectForm = React.memo(
 
     const [catalysts, setCatalysts] = useState<string[]>([]);
     const [personalities, setPersonalities] = useState<string[]>([]);
+    const [descriptors, setDescriptors] = useState<string[]>([]);
+    const [emotions, setEmotions] = useState<string[]>([]);
     const [archetypes, setArchetypes] = useState<string[]>([]);
     const [termTagsMap, setTermTagsMap] = useState<{
       [term: string]: string[];
@@ -213,13 +215,23 @@ const CreateProjectForm = React.memo(
         const personalties = [
           ...latestConfigState?.moods?.personality?.flatMap((x) => x),
         ];
+        const descriptors = [
+          ...latestConfigState?.moods?.descriptor?.flatMap((x) => x),
+        ];
+        const emotions = [
+          ...latestConfigState?.moods?.emotion?.flatMap((x) => x),
+        ];
         const archetypes = [...latestConfigState?.archetypes];
         const shuffledPhrases = shuffle(phrases);
         const shuffledCatalysts = shuffle(catalysts);
         const shuffledPersonalties = shuffle(personalties);
+        const shuffledDescriptors = shuffle(descriptors);
+        const shuffledEmotions = shuffle(emotions);
         const shuffledArchetypes = shuffle(archetypes);
         setCatalysts(shuffledCatalysts);
         setPersonalities(shuffledPersonalties);
+        setDescriptors(shuffledDescriptors);
+        setEmotions(shuffledEmotions);
         setArchetypes(shuffledArchetypes);
         const termTagsMap = latestConfigState?.terms;
         const getPhraseTagsMap = (
@@ -559,9 +571,11 @@ const CreateProjectForm = React.memo(
         const newRandomizedTags = await getRandomizedStorySetup(
           catalysts,
           personalities,
+          emotions,
+          descriptors,
           randomizableArchetypes,
           recentlyRandomizedCatalysts.current,
-          recentlyRandomizedPersonalities.current,
+          recentlyRandomizedMoods.current,
           recentlyRandomizedArchetypes.current
         );
         if (!newRandomizedTags) {
@@ -569,10 +583,10 @@ const CreateProjectForm = React.memo(
         }
         const tags = [...newRandomizedTags];
         const newPrefix = format(
-          `After {catalyst}, {personality:regex:a} {personality} {archetype} must`,
+          `After {catalyst}, {mood:regex:a} {mood} {archetype} must`,
           {
             catalyst: tags[0],
-            personality: tags[1],
+            mood: tags[1],
             archetype: tags[2],
           }
         );
@@ -587,10 +601,12 @@ const CreateProjectForm = React.memo(
       },
       [
         summaryInputValue,
-        catalysts,
-        personalities,
         filteredRelevantArchetypes,
         archetypes,
+        catalysts,
+        personalities,
+        descriptors,
+        emotions,
         onChange,
         doc,
       ]
