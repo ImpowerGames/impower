@@ -31,13 +31,13 @@ const TagIconLoader = (): JSX.Element => {
         const tagIconNames = (
           await import(`../../../../resources/json/tagIconNames.json`)
         ).default;
-        ConfigCache.instance.params.tagIconNames = tagIconNames;
+        ConfigCache.instance.set({ tagIconNames });
       }
       if (!ConfigCache.instance.params?.tagDisambiguations) {
         const tagDisambiguations = (
           await import(`../../../../resources/json/en/tagDisambiguations.json`)
         ).default;
-        ConfigCache.instance.params.tagDisambiguations = tagDisambiguations;
+        ConfigCache.instance.set({ tagDisambiguations });
       }
       if (needsLoad) {
         logInfoEnd("Route", "LOADING TAG ICONS");
