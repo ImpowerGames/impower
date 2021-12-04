@@ -153,10 +153,7 @@ const QueryButton = React.memo((props: QueryButtonProps): JSX.Element => {
   }, [value, getOptionLabels]);
 
   const activeOptionIcon = useMemo(() => {
-    const optionLabel =
-      value && typeof window !== "undefined"
-        ? getActiveOptionIcon?.(value)
-        : undefined;
+    const optionLabel = getActiveOptionIcon?.(value);
     return optionLabel;
   }, [value, getActiveOptionIcon]);
 
