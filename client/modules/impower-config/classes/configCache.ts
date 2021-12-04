@@ -26,7 +26,16 @@ class ConfigCache {
   }> = new Set();
 
   set(params: ConfigParameters): void {
-    this._params = { ...(this._params || {}), ...params };
+    if (!params) {
+      return;
+    }
+    const validParams = { ...params };
+    Object.entries(params).forEach(([key, value]) => {
+      if (!value) {
+        delete validParams[key];
+      }
+    });
+    this._params = { ...(this._params || {}), ...validParams };
     const listeners = Array.from(this._listeners);
     listeners.forEach((listener) => {
       if (listener) {
