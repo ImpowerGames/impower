@@ -7,7 +7,11 @@ import React, { useCallback, useContext } from "react";
 import { ConfigContext, ConfigParameters } from "../../impower-config";
 import ConfigCache from "../../impower-config/classes/configCache";
 import format from "../../impower-config/utils/format";
-import { escapeURI } from "../../impower-data-store";
+import {
+  escapeURI,
+  ProjectDocument,
+  ProjectDocumentInspector,
+} from "../../impower-data-store";
 import {
   NavigationContext,
   navigationSetSearchbar,
@@ -69,7 +73,7 @@ const getTagLink = (tag: string): string => {
 
 interface PitchCardContentProps {
   config: ConfigParameters;
-  projectType?: string;
+  pitchDoc?: ProjectDocument;
   name?: string;
   summary?: string;
   tags?: string[];
@@ -82,7 +86,7 @@ const PitchCardContent = React.memo(
   (props: PitchCardContentProps): JSX.Element => {
     const {
       config,
-      projectType,
+      pitchDoc,
       name,
       summary,
       tags,
@@ -118,14 +122,19 @@ const PitchCardContent = React.memo(
 
     const mainTag = tags?.[0] || "";
     const currentConfig = configState || config || ConfigCache.instance.params;
-    const summaryPreamble = currentConfig?.messages
+    const spacer = summary?.[0]?.match(/[a-zA-Z]/) ? " " : "";
+    const formattedContent =
+      pitchDoc?.projectType === "voice" ? `"${summary}"` : summary;
+    const formattedSummary = currentConfig?.messages
       ? `${format(
-          currentConfig?.messages[`pitched_${projectType}_preamble`] ||
-            currentConfig?.messages.pitched_games_preamble,
+          ProjectDocumentInspector.instance.getPropertyPlaceholder(
+            "summary",
+            pitchDoc
+          ),
           {
             tag: mainTag,
           }
-        )}${summary?.[0]?.match(/[a-zA-Z]/) ? " " : ""}`
+        )}${spacer}${formattedContent}`
       : undefined;
 
     return (
@@ -145,8 +154,7 @@ const PitchCardContent = React.memo(
                   <Skeleton variant="rectangular" height={96} />
                 ) : (
                   <Typography variant="body1" component="p">
-                    <StyledMark>{summaryPreamble}</StyledMark>
-                    {summary}
+                    {formattedSummary}
                   </Typography>
                 )}
               </StyledSummaryArea>

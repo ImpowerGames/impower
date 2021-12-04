@@ -467,7 +467,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         closedActionsRef={closedActionsRef}
         config={config}
         icons={icons}
-        projectType={doc?.projectType}
+        pitchDoc={doc}
         name={
           removed
             ? removedPlaceholder

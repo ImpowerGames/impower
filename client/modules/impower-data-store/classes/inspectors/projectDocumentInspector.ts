@@ -345,16 +345,13 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       return `Describe the game's story, features, controls, or anything else.`;
     }
     if (propertyPath === "summary") {
-      const messages = ConfigCache.instance.params?.messages;
       if (data.projectType === "game") {
-        return (
-          messages.pitched_game_preamble || messages.pitched_games_preamble
-        );
+        return `{tag:regex:A} {tag} {type} where you`;
       }
       if (data.projectType === "story") {
         return `(After a catalyst), (a flawed hero) must (overcome an obstacle) (and achieve a goal) (or else stakes).`;
       }
-      if (data.projectType === "character" || data?.projectType === "voice") {
+      if (data.projectType === "character") {
         const archetypes = ConfigCache.instance.params?.archetypes;
         const mainTag = data?.tags?.[0];
         const sortedTags = getTagsSortedBySpecificity(data?.tags);
@@ -368,6 +365,24 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
           });
         }
         return format(`{firstTag:regex:A} ${description} character who`, {
+          tag: "{tag}",
+          firstTag: sortedTags?.[0],
+        });
+      }
+      if (data.projectType === "voice") {
+        const archetypes = ConfigCache.instance.params?.archetypes;
+        const mainTag = data?.tags?.[0];
+        const sortedTags = getTagsSortedBySpecificity(data?.tags);
+        const description = sortedTags
+          .map((x) => (x === mainTag ? `{tag}` : x))
+          .join(" ");
+        if (archetypes?.includes(sortedTags?.[sortedTags.length - 1])) {
+          return format(`{firstTag:regex:A} ${description} who says`, {
+            tag: "{tag}",
+            firstTag: sortedTags?.[0],
+          });
+        }
+        return format(`{firstTag:regex:A} ${description} character who says`, {
           tag: "{tag}",
           firstTag: sortedTags?.[0],
         });

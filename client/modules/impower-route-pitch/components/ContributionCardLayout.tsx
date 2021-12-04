@@ -6,10 +6,13 @@ import Divider from "@material-ui/core/Divider";
 import Typography from "@material-ui/core/Typography";
 import React, { useCallback, useContext, useMemo } from "react";
 import { AuthorAttributes } from "../../impower-auth";
-import ConfigCache from "../../impower-config/classes/configCache";
 import format from "../../impower-config/utils/format";
 import { StorageFile } from "../../impower-core";
-import { ContributionType } from "../../impower-data-store";
+import {
+  ContributionType,
+  ProjectDocument,
+  ProjectDocumentInspector,
+} from "../../impower-data-store";
 import { LazyHydrate } from "../../impower-hydration";
 import { UserContext } from "../../impower-user";
 import getContributionPostOptionLabels from "../utils/getContributionPostOptionLabels";
@@ -200,7 +203,7 @@ interface ContributionCardLayoutProps {
   openedActionsRef?: React.Ref<HTMLDivElement>;
   contentRef?: React.Ref<HTMLDivElement>;
   pitchId?: string;
-  projectType?: string;
+  pitchDoc?: ProjectDocument;
   liked?: boolean;
   disliked?: boolean;
   connectedTo?: boolean;
@@ -256,7 +259,7 @@ const ContributionCardLayout = React.memo(
       openedActionsRef,
       contentRef,
       pitchId,
-      projectType,
+      pitchDoc,
       author,
       targetCreatedBy,
       createdBy,
@@ -345,10 +348,10 @@ const ContributionCardLayout = React.memo(
       [theme]
     );
 
-    const preamble =
-      ConfigCache.instance.params?.messages?.[
-        `pitched_${projectType}_preamble`
-      ] || ConfigCache.instance.params?.messages?.pitched_games_preamble;
+    const preamble = ProjectDocumentInspector.instance.getPropertyPlaceholder(
+      "summary",
+      pitchDoc
+    );
     const truncationLimit = 300;
     const truncatedContent = getTruncatedContent(content, truncationLimit);
     const isTruncated =

@@ -1,7 +1,6 @@
 {
   "pitched_games_preamble": "{tag:regex:A} {tag} game where you",
   "pitched_games_author_preamble": "{tag:regex:A} {tag} game pitched by",
-  "pitched_game_preamble": "{tag:regex:A} {tag} {type} where you",
   "pitched_game_author_preamble": "{tag:regex:A} {tag} {type} pitched by",
   "pitched_music_author_preamble": "Music pitched by",
   "pitched_sound_author_preamble": "Sounds pitched by",

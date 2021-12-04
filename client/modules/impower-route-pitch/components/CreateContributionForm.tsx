@@ -19,7 +19,6 @@ import CropSimpleSolidIcon from "../../../resources/icons/solid/crop-simple.svg"
 import ImageSolidIcon from "../../../resources/icons/solid/image.svg";
 import VolumeHighSolidIcon from "../../../resources/icons/solid/volume-high.svg";
 import XmarkSolidIcon from "../../../resources/icons/solid/xmark.svg";
-import ConfigCache from "../../impower-config/classes/configCache";
 import {
   ConfirmDialogContext,
   confirmDialogNavOpen,
@@ -34,6 +33,7 @@ import {
   ContributionType,
   isProjectDocument,
   ProjectDocument,
+  ProjectDocumentInspector,
 } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { FontIcon } from "../../impower-icon";
@@ -490,7 +490,7 @@ const getFileType = (contributionType: ContributionType): FileType =>
 
 interface CreateContributionFormProps {
   pitchId: string;
-  pitchDoc: ProjectDocument | ContributionDocument;
+  pitchDoc: ProjectDocument;
   editing?: boolean;
   doc?: ContributionDocument;
   file?: globalThis.File;
@@ -533,7 +533,6 @@ const CreateContributionForm = React.memo(
 
     const type = doc?.contributionType || "story";
     const newContributionId = `${uid}-${type?.toLowerCase()}`;
-    const projectType = pitchDoc?.projectType;
 
     const [tagsState, setTagsState] = useState(
       isProjectDocument(pitchDoc) ? pitchDoc?.tags : undefined
@@ -1056,12 +1055,10 @@ const CreateContributionForm = React.memo(
           <>
             {type === "pitch" && (
               <ProjectMainTagSelector
-                placeholder={
-                  ConfigCache.instance.params?.messages[
-                    `pitched_${projectType}_preamble`
-                  ] ||
-                  ConfigCache.instance.params?.messages.pitched_games_preamble
-                }
+                placeholder={ProjectDocumentInspector.instance.getPropertyPlaceholder(
+                  "summary",
+                  pitchDoc
+                )}
                 tags={tagsState}
                 onChangeTags={setTagsState}
               />
@@ -1124,7 +1121,7 @@ const CreateContributionForm = React.memo(
       [
         storyStyle,
         type,
-        projectType,
+        pitchDoc,
         tagsState,
         ios,
         forceOverflowStyle,
