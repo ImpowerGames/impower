@@ -346,7 +346,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     }
     if (propertyPath === "summary") {
       if (data.projectType === "game") {
-        return `{tag:regex:A} {tag} {type} where you`;
+        return `{tag:regex:A} {tag} game where you`;
       }
       if (data.projectType === "story") {
         return `(After a catalyst), (a flawed hero) must (overcome an obstacle) (and achieve a goal) (or else stakes).`;
