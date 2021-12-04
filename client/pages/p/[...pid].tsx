@@ -706,25 +706,34 @@ export const getStaticProps: GetStaticProps = async (context) => {
   let ogImage = null;
 
   if (pitchDoc) {
-    const mainTag = pitchDoc?.tags?.[0] || "";
-    const validMainTag = config?.tagDisambiguations?.[mainTag]?.[0] || mainTag;
-    const tagIconName = config?.tagIconNames?.[validMainTag] || "hashtag";
-    const component = (
-      await import(`../../resources/icons/solid/${tagIconName}.svg`)
-    ).default;
-    if (component) {
-      const svgData = getIconSvgData(component);
-      if (svgData) {
-        icons[tagIconName] = svgData;
+    try {
+      const mainTag = pitchDoc?.tags?.[0] || "";
+      const validMainTag =
+        config?.tagDisambiguations?.[mainTag]?.[0] || mainTag;
+      const tagIconName = config?.tagIconNames?.[validMainTag] || "hashtag";
+      const component = (
+        await import(`../../resources/icons/solid/${tagIconName}.svg`)
+      ).default;
+      if (component) {
+        const svgData = getIconSvgData(component);
+        if (svgData) {
+          icons[tagIconName] = svgData;
+        }
       }
+    } catch {
+      // icon doesn't exist
     }
     ogImage = pitchDoc?.og;
     if (!ogImage) {
-      const storage = adminApp.storage();
-      const bucket = storage.bucket();
-      const ogFilePath = `public/og/p/${pid}`;
-      const ogFile = bucket.file(ogFilePath);
-      ogImage = ogFile.publicUrl();
+      try {
+        const storage = adminApp.storage();
+        const bucket = storage.bucket();
+        const ogFilePath = `public/og/p/${pid}`;
+        const ogFile = bucket.file(ogFilePath);
+        ogImage = ogFile.publicUrl();
+      } catch {
+        // ogImage doesn't exist
+      }
     }
   }
 
