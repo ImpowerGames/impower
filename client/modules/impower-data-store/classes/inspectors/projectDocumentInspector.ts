@@ -349,7 +349,9 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
         return `{tag:regex:A} {tag} game where you`;
       }
       if (data.projectType === "story") {
-        return `(After a catalyst), (a flawed hero) must (overcome an obstacle) (and achieve a goal) (or else stakes).`;
+        if (!data?._createdAt) {
+          return `(After a catalyst), (a flawed hero) must (overcome an obstacle) (and achieve a goal) (or else stakes).`;
+        }
       }
       if (data.projectType === "character") {
         const archetypes = ConfigCache.instance.params?.archetypes;
@@ -423,6 +425,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
           firstTag: sortedTags?.[0],
         });
       }
+      return "";
     }
     if (propertyPath === "tags") {
       if (data.projectType === "game") {
