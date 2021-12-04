@@ -203,7 +203,7 @@ const LoginForm = React.memo((props: LoginFormProps): JSX.Element | null => {
         closeAccountDialog();
       } else {
         const router = (await import("next/router")).default;
-        router.push("/pitch");
+        router.push("/pitch/game");
       }
     } catch (error) {
       const logError = (await import("../../impower-logger/utils/logError"))

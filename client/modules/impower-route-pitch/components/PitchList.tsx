@@ -19,6 +19,7 @@ import { chunk, Timestamp } from "../../impower-core";
 import {
   DateAge,
   DocumentSnapshot,
+  escapeURI,
   ProjectDocument,
   ProjectType,
   QuerySort,
@@ -971,7 +972,7 @@ const PitchList = React.memo(
           if (reason === "browserBack") {
             window.setTimeout(() => {
               // eslint-disable-next-line @typescript-eslint/no-use-before-define
-              openEditDialog("game");
+              openEditDialog("create");
             }, 200);
           }
         };
@@ -1005,7 +1006,7 @@ const PitchList = React.memo(
         prevState?: Record<string, string>
       ) => {
         if (currState?.e !== prevState?.e) {
-          if (currState?.e === "game") {
+          if (currState?.e === "create") {
             if (!createDocExists) {
               handleStartCreation();
             }
@@ -1031,14 +1032,14 @@ const PitchList = React.memo(
           repitchedAt: new Timestamp(),
         });
         setEditDialogOpen(true);
-        openEditDialog("game");
+        openEditDialog("create");
       },
       [openEditDialog]
     );
 
     const handleOpenCreateDialog = useCallback((): void => {
       handleStartCreation();
-      openEditDialog("game");
+      openEditDialog("create");
     }, [handleStartCreation, openEditDialog]);
 
     const handleCloseCreateDialog = useCallback(
@@ -1054,13 +1055,17 @@ const PitchList = React.memo(
           handleEndCreation(reason, () => {
             const newState = { ...(window.history.state || {}) };
             delete newState.query;
-            window.history.replaceState(newState, "", "/pitch");
+            const link = search
+              ? `/pitch/${type}/${escapeURI(search)}`
+              : `/pitch/${type}`;
+            window.history.replaceState(newState, "", link);
+            router.replace(link);
           });
         } else {
           handleEndCreation(reason, closeEditDialog);
         }
       },
-      [closeEditDialog, handleEndCreation]
+      [closeEditDialog, handleEndCreation, router, search, type]
     );
 
     const handleSubmit = useCallback(async () => {
@@ -1079,7 +1084,7 @@ const PitchList = React.memo(
 
     useEffect(() => {
       if (router.isReady) {
-        if (window.location.search?.toLowerCase() === "?e=game") {
+        if (window.location.search?.toLowerCase() === "?e=create") {
           openedWithQueryRef.current = true;
           if (!createDocExists) {
             handleStartCreation();

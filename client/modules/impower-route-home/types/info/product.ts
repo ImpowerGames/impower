@@ -20,7 +20,7 @@ export const productInfo = {
       description: "Pitch a game",
       caption: "that you'd like to make or play",
       color: "#f06595",
-      link: "/pitch",
+      link: "/pitch/game",
     },
     {
       icon: UsersSolidIcon,

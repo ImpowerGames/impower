@@ -6,7 +6,7 @@ export const pageNames: { [baseRoute: string]: string } = {
   "/confirm": "Confirm",
   "/login": "Login",
   "/": "Home",
-  "/pitch": "Pitch",
+  "/pitch/game": "Pitch",
   "/library": "Library",
   "/dashboard": "Dashboard",
   "#donate": "Donate",

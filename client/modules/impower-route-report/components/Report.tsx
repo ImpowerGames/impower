@@ -319,7 +319,7 @@ const Report = (): JSX.Element | null => {
     if (HistoryState.instance.prev) {
       router.back();
     } else {
-      router.replace("/pitch");
+      router.replace("/pitch/game");
     }
   }, []);
 

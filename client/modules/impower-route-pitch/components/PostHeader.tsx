@@ -3,6 +3,7 @@ import styled from "@emotion/styled";
 import Typography from "@material-ui/core/Typography";
 import React, { useMemo } from "react";
 import LogoFlatColor from "../../../resources/logos/logo-flat-color.svg";
+import { ProjectDocument } from "../../impower-data-store";
 import { layout } from "../../impower-route";
 import Logo from "../../impower-route/components/elements/Logo";
 import PostBackButton from "./PostBackButton";
@@ -106,7 +107,7 @@ interface PostHeaderProps {
   titleY?: number;
   titleHeight?: number;
   delisted?: boolean;
-  title?: React.ReactNode;
+  pitchDoc?: ProjectDocument;
   style?: React.CSSProperties;
   spacerStyle?: React.CSSProperties;
   onBack?: (e: React.MouseEvent) => void;
@@ -125,7 +126,7 @@ const PostHeader = React.memo((props: PostHeaderProps): JSX.Element => {
     fontSize = 18,
     titleY = 135,
     titleHeight,
-    title,
+    pitchDoc,
     delisted,
     style,
     spacerStyle,
@@ -220,13 +221,16 @@ const PostHeader = React.memo((props: PostHeaderProps): JSX.Element => {
           </StyledTopStickyContent>
         </StyledTopWrapper>
         <StyledHeader>
-          <PostBackButton backUrl="/pitch" onBack={onBack} />
+          <PostBackButton
+            backUrl={`/pitch/${pitchDoc?.projectType}`}
+            onBack={onBack}
+          />
         </StyledHeader>
       </StyledAbsoluteArea>
       <StyledAbsoluteArea ref={titleRef} style={currentTitleStyle}>
         {stickyTitleOffset !== undefined && !delisted && (
           <StickyTitle
-            title={title}
+            title={pitchDoc?.name}
             fontSize={fontSize}
             titleOffset={stickyTitleOffset}
           />

@@ -422,7 +422,7 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
       "array-contains",
       `name#${value.toLowerCase()}`
     );
-    const tagType = window.location.pathname.startsWith("/pitch") ? "game" : "";
+    const tagType = window.location.pathname.split("/")?.[2];
     if (!tagType) {
       return;
     }

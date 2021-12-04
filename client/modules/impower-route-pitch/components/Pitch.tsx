@@ -14,6 +14,7 @@ import { SvgData } from "../../impower-icon";
 import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { BetaBanner } from "../../impower-route";
+import { useRouter } from "../../impower-router";
 import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
 import getPitchTypeFilterOptionLabels from "../utils/getPitchTypeFilterOptionLabels";
@@ -171,6 +172,8 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
   }, []);
 
+  const router = useRouter();
+
   const handleChangeTab = useCallback(
     async (tab: PitchToolbarTab) => {
       if (followedTags === null) {
@@ -191,13 +194,11 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       setShouldDisplayFollowingPitches(
         shouldDisplayFollowingPitchesRef.current
       );
-      window.history.replaceState(
-        window.history.state,
-        "",
-        `/pitch/${typeFilter}?t=${tab.toLowerCase()}`
-      );
+      const link = `/pitch/${typeFilter}?t=${tab.toLowerCase()}`;
+      window.history.replaceState(window.history.state, "", link);
+      router.replace(link);
     },
-    [followedTags, handleShowLoadingPlaceholder, typeFilter]
+    [followedTags, handleShowLoadingPlaceholder, router, typeFilter]
   );
 
   const handleReloadFollowing = useCallback(async (): Promise<void> => {
@@ -302,18 +303,11 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       setTypeFilter(value);
       // Wait a bit for dialog to close
       await new Promise((resolve) => window.setTimeout(resolve, 1));
-      const urlParts = window.location.pathname.split("/");
-      const link =
-        urlParts.length === 4
-          ? `${urlParts[0]}/${urlParts[1]}/${
-              urlParts[2]
-            }/${value}?t=${activeTab.toLowerCase()}`
-          : `${urlParts[0]}/${
-              urlParts[1]
-            }/${value}?t=${activeTab.toLowerCase()}`;
+      const link = `/pitch/${value}?t=${activeTab.toLowerCase()}`;
       window.history.replaceState(window.history.state, "", link);
+      router.replace(link);
     },
-    [activeTab]
+    [activeTab, router]
   );
 
   const loading = transitioning;

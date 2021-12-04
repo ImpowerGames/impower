@@ -142,14 +142,11 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
       setTypeFilter(value);
       // Wait a bit for dialog to close
       await new Promise((resolve) => window.setTimeout(resolve, 1));
-      const urlParts = window.location.pathname.split("/");
-      const link =
-        urlParts.length === 4
-          ? `${urlParts[0]}/${urlParts[1]}/${value}/${escapeURI(search)}`
-          : `${urlParts[0]}/${value}/${escapeURI(search)}`;
+      const link = `/pitch/${value}/${escapeURI(search)}`;
       window.history.replaceState(window.history.state, "", link);
+      router.replace(link);
     },
-    [search]
+    [router, search]
   );
 
   const emptyImage = useMemo(() => <AnimatedDefaultMascot />, []);

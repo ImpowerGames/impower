@@ -515,13 +515,13 @@ const VirtualizedPitchCard = React.memo((props: VirtualizedPitchCardProps) => {
             >
               <PostHeader
                 initiallyHidden
+                pitchDoc={doc}
                 titleHeight={titleHeight}
                 headerRef={handleHeaderRef}
                 spacerRef={handleHeaderSpacerRef}
                 titleRef={headerTitleRef}
                 delisted={doc?.delisted}
                 label={`Impower Pitch`}
-                title={doc?.name}
                 onBack={handleClose}
               />
               <PitchCard

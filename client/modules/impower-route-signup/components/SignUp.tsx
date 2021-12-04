@@ -272,7 +272,7 @@ const SignUp = React.memo((props: SignUpProps): JSX.Element => {
         const redirect = async (): Promise<void> => {
           // Redirect if already authenticated
           const router = (await import("next/router")).default;
-          router.replace("/pitch");
+          router.replace("/pitch/game");
         };
         redirect();
       }
@@ -485,7 +485,7 @@ const SignUp = React.memo((props: SignUpProps): JSX.Element => {
             closeAccountDialog();
           } else {
             const router = (await import("next/router")).default;
-            router.push("/pitch");
+            router.push("/pitch/game");
           }
         }
       } catch (error) {

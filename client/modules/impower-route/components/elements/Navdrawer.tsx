@@ -35,15 +35,15 @@ export const unauthenticatedAccountPages: string[] = ["/signup", "/login"];
 export const navbarPages: string[] = process.env.NEXT_PUBLIC_ORIGIN?.includes(
   "localhost"
 )
-  ? ["/", "/pitch", "/library", "/dashboard", "#donate"]
-  : ["/", "/pitch", "#donate"];
+  ? ["/", "/pitch/game", "/library", "/dashboard", "#donate"]
+  : ["/", "/pitch/game", "#donate"];
 export const install = "Install";
 
 const pageIcons: { [baseRoute: string]: React.ReactNode } = {
   "/account": <CircleUserSolidIcon />,
   "/profile": <CircleUserSolidIcon />,
   "/": <HouseSolidIcon />,
-  "/pitch": <BullhornSolidIcon />,
+  "/pitch/game": <BullhornSolidIcon />,
   "/library": <PhotoFilmSolidIcon />,
   "/dashboard": <GamepadSolidIcon />,
   "#donate": <PatreonBrandsIcon />,

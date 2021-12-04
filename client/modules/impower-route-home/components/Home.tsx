@@ -27,7 +27,7 @@ import RoadmapSection from "./sections/RoadmapSection";
 
 const title = `Make Games Together.`;
 const body = `Impower is a free, open-source indie development platform that gives creative people the tools they need to bring their ideas to life.`;
-const tryButton = { label: `Pitch a game!`, link: `/pitch?e=game` };
+const tryButton = { label: `Pitch a game!`, link: `/pitch/game?e=create` };
 const scrollInstruction = `SCROLL TO LEARN MORE`;
 
 const HoverTapTransition = dynamic(

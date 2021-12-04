@@ -439,7 +439,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
     if (HistoryState.instance.prev) {
       router.back();
     } else {
-      router.replace("/pitch");
+      router.replace(`/pitch/${pitchDocRef.current?.projectType}`);
     }
   }, []);
 
@@ -591,7 +591,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
           <PostLayout ref={handlePostLayoutRef} style={postStyle}>
             <PostHeader
               label={`Impower Pitch`}
-              title={doc?.name}
+              pitchDoc={doc}
               elevation={2}
               titleHeight={titleHeight}
               delisted={delisted}

@@ -595,7 +595,7 @@ const StaticPitchList = React.memo(
           if (reason === "browserBack") {
             window.setTimeout(() => {
               // eslint-disable-next-line @typescript-eslint/no-use-before-define
-              openEditDialog("game");
+              openEditDialog("create");
             }, 200);
           }
         };
@@ -629,7 +629,7 @@ const StaticPitchList = React.memo(
         prevState?: Record<string, string>
       ) => {
         if (currState?.e !== prevState?.e) {
-          if (currState?.e === "game") {
+          if (currState?.e === "create") {
             if (!createDocExists) {
               handleStartCreation();
             }
@@ -655,14 +655,14 @@ const StaticPitchList = React.memo(
           repitchedAt: new Timestamp(),
         });
         setEditDialogOpen(true);
-        openEditDialog("game");
+        openEditDialog("create");
       },
       [openEditDialog]
     );
 
     const handleOpenCreateDialog = useCallback((): void => {
       handleStartCreation();
-      openEditDialog("game");
+      openEditDialog("create");
     }, [handleStartCreation, openEditDialog]);
 
     const handleCloseCreateDialog = useCallback(
@@ -675,16 +675,18 @@ const StaticPitchList = React.memo(
           | "submitted"
       ): void => {
         if (openedWithQueryRef.current) {
+          const link = window.location.pathname;
           handleEndCreation(reason, () => {
             const newState = { ...(window.history.state || {}) };
             delete newState.query;
-            window.history.replaceState(newState, "", "/pitch");
+            window.history.replaceState(newState, "", link);
+            router.replace(link);
           });
         } else {
           handleEndCreation(reason, closeEditDialog);
         }
       },
-      [closeEditDialog, handleEndCreation]
+      [closeEditDialog, handleEndCreation, router]
     );
 
     const handleSubmit = useCallback(async () => {
@@ -703,7 +705,7 @@ const StaticPitchList = React.memo(
 
     useEffect(() => {
       if (router.isReady) {
-        if (window.location.search?.toLowerCase() === "?e=game") {
+        if (window.location.search?.toLowerCase() === "?e=create") {
           openedWithQueryRef.current = true;
           if (!createDocExists) {
             handleStartCreation();

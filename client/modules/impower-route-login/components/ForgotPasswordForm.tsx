@@ -81,7 +81,7 @@ const ForgotPasswordForm = React.memo(
         if (window.location.pathname.startsWith("/login")) {
           const redirect = async (): Promise<void> => {
             const router = (await import("next/router")).default;
-            router.replace("/pitch");
+            router.replace("/pitch/game");
           };
           redirect();
         }
