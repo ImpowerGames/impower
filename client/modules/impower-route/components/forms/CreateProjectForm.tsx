@@ -12,6 +12,7 @@ import {
   getRandomizedTags,
   getTagsSortedBySpecificity,
 } from "../../../impower-config";
+import ConfigCache from "../../../impower-config/classes/configCache";
 import format from "../../../impower-config/utils/format";
 import { getRandomizedStorySetup } from "../../../impower-config/utils/getRandomizedStorySetup";
 import { difference, shuffle } from "../../../impower-core";
@@ -121,7 +122,7 @@ const CreateProjectForm = React.memo(
     const summary = doc?.summary;
 
     const [step, setStep] = useState(0);
-    const [configState, fetchConfigState] = useContext(ConfigContext);
+    const [, fetchConfigState] = useContext(ConfigContext);
     const [, toastDispatch] = useContext(ToastContext);
     const [userState, userDispatch] = useContext(UserContext);
     const { customizations, isSignedIn, userDoc } = userState;
@@ -214,18 +215,18 @@ const CreateProjectForm = React.memo(
         logInfo("Config", "LOADING CONFIG");
         const latestConfigState = await fetchConfigState();
         logInfo("Config", "LOADED CONFIG", latestConfigState);
-        const phrases = [...latestConfigState?.phrases];
-        const catalysts = [...latestConfigState?.catalysts];
+        const phrases = [...(latestConfigState?.phrases || [])];
+        const catalysts = [...(latestConfigState?.catalysts || [])];
         const personalties = [
-          ...latestConfigState?.moods?.personality?.flatMap((x) => x),
+          ...(latestConfigState?.moods?.personality?.flatMap((x) => x) || []),
         ];
         const descriptors = [
-          ...latestConfigState?.moods?.descriptor?.flatMap((x) => x),
+          ...(latestConfigState?.moods?.descriptor?.flatMap((x) => x) || []),
         ];
         const emotions = [
-          ...latestConfigState?.moods?.emotion?.flatMap((x) => x),
+          ...(latestConfigState?.moods?.emotion?.flatMap((x) => x) || []),
         ];
-        const archetypes = [...latestConfigState?.archetypes];
+        const archetypes = [...(latestConfigState?.archetypes || [])];
         const shuffledPhrases = shuffle(phrases);
         const shuffledCatalysts = shuffle(catalysts);
         const shuffledPersonalties = shuffle(personalties);
@@ -480,8 +481,8 @@ const CreateProjectForm = React.memo(
             await import("../../../impower-core/utils/getRandomColor")
           ).default;
           const slug = await getUniqueSlug(newDocId, "slugs", newDoc.name);
-          const tagColorNames = configState?.tagColorNames;
-          const colors = configState?.colors;
+          const tagColorNames = ConfigCache.instance?.params?.tagColorNames;
+          const colors = ConfigCache.instance?.params?.colors;
           const mainTag = newDoc?.tags?.[0] || "";
           const tagColorName = tagColorNames[mainTag] || "";
           const claimedDoc = {
@@ -530,8 +531,6 @@ const CreateProjectForm = React.memo(
       [
         isSignedIn,
         onSubmit,
-        configState?.tagColorNames,
-        configState?.colors,
         onSubmitted,
         openAccountDialog,
         userDispatch,
