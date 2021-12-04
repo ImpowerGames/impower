@@ -153,8 +153,7 @@ const QueryButton = React.memo((props: QueryButtonProps): JSX.Element => {
   }, [value, getOptionLabels]);
 
   const activeOptionIcon = useMemo(() => {
-    const optionLabel = getActiveOptionIcon?.(value);
-    return optionLabel;
+    return getActiveOptionIcon?.(value);
   }, [value, getActiveOptionIcon]);
 
   const filterButtonStyle = useMemo(() => ({ flexDirection }), [flexDirection]);
