@@ -12,7 +12,29 @@ class ConfigCache {
     return this._instance;
   }
 
-  private _params: ConfigParameters;
+  private _params: ConfigParameters = {
+    abbreviations: undefined,
+    capitalizations: undefined,
+    colors: undefined,
+    projectTags: undefined,
+    moods: undefined,
+    locations: undefined,
+    atmospheres: undefined,
+    visualStyles: undefined,
+    musicalStyles: undefined,
+    catalysts: undefined,
+    archetypes: undefined,
+    phrases: undefined,
+    messages: undefined,
+    regexes: undefined,
+    resourceTags: undefined,
+    roleTags: undefined,
+    tagColorNames: undefined,
+    tagDisambiguations: undefined,
+    tagIconNames: undefined,
+    tagPatterns: undefined,
+    terms: undefined,
+  };
 
   public icons: { [name: string]: { v: string; d: string } };
 
