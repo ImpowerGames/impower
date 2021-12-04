@@ -32,7 +32,7 @@ class ConfigCache {
       if (listener) {
         const { callback, once } = listener;
         if (callback) {
-          callback(params);
+          callback(this._params);
         }
         if (once) {
           this._listeners.delete(listener);

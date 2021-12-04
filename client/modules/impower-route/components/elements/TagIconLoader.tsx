@@ -12,11 +12,11 @@ const TagIconLoader = (): JSX.Element => {
       const logInfoEnd = (
         await import(`../../../impower-logger/utils/logInfoEnd`)
       ).default;
-      if (
+      const needsLoad =
         !ConfigCache.instance.icons ||
         !ConfigCache.instance.params?.tagIconNames ||
-        !ConfigCache.instance.params?.tagDisambiguations
-      ) {
+        !ConfigCache.instance.params?.tagDisambiguations;
+      if (needsLoad) {
         logInfo("Route", "LOADING TAG ICONS");
       }
       if (!ConfigCache.instance.icons) {
@@ -31,25 +31,15 @@ const TagIconLoader = (): JSX.Element => {
         const tagIconNames = (
           await import(`../../../../resources/json/tagIconNames.json`)
         ).default;
-        ConfigCache.instance.set({
-          ...ConfigCache.instance.params,
-          tagIconNames,
-        });
+        ConfigCache.instance.params.tagIconNames = tagIconNames;
       }
       if (!ConfigCache.instance.params?.tagDisambiguations) {
         const tagDisambiguations = (
           await import(`../../../../resources/json/en/tagDisambiguations.json`)
         ).default;
-        ConfigCache.instance.set({
-          ...ConfigCache.instance.params,
-          tagDisambiguations,
-        });
+        ConfigCache.instance.params.tagDisambiguations = tagDisambiguations;
       }
-      if (
-        !ConfigCache.instance.icons ||
-        !ConfigCache.instance.params?.tagIconNames ||
-        !ConfigCache.instance.params?.tagDisambiguations
-      ) {
+      if (needsLoad) {
         logInfoEnd("Route", "LOADING TAG ICONS");
       }
     };
