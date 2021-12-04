@@ -19,13 +19,15 @@ export const getRandomizableTags = (
 } => {
   const projectTags = ConfigCache.instance.params?.projectTags;
   const personalities = [
-    ...ConfigCache.instance.params?.moods?.personality?.flatMap((x) => x),
+    ...(ConfigCache.instance.params?.moods?.personality?.flatMap((x) => x) ||
+      []),
   ];
   const descriptors = [
-    ...ConfigCache.instance.params?.moods?.descriptor?.flatMap((x) => x),
+    ...(ConfigCache.instance.params?.moods?.descriptor?.flatMap((x) => x) ||
+      []),
   ];
   const emotions = [
-    ...ConfigCache.instance.params?.moods?.emotion?.flatMap((x) => x),
+    ...(ConfigCache.instance.params?.moods?.emotion?.flatMap((x) => x) || []),
   ];
   const archetypes = ConfigCache.instance.params?.archetypes || [];
   const locations = ConfigCache.instance.params?.locations || [];
