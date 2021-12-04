@@ -129,8 +129,8 @@ class Config {
       !process.env.NEXT_PUBLIC_ORIGIN.includes("localhost") &&
       this.internal
     ) {
-      const value = _getValue(this.internal, key).asString();
       try {
+        const value = _getValue(this.internal, key).asString();
         if (value) {
           return JSON.parse(value);
         }
