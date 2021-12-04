@@ -23,21 +23,27 @@ const TagIconLoader = (): JSX.Element => {
         ConfigCache.instance.icons = (
           await import(`../../../../resources/json/tagIcons.json`)
         ).default;
-        iconLibraryDispatch(
-          iconLibraryRegister("solid", ConfigCache.instance.icons)
-        );
+        if (ConfigCache.instance.icons) {
+          iconLibraryDispatch(
+            iconLibraryRegister("solid", ConfigCache.instance.icons)
+          );
+        }
       }
       if (!ConfigCache.instance.params?.tagIconNames) {
         const tagIconNames = (
           await import(`../../../../resources/json/tagIconNames.json`)
         ).default;
-        ConfigCache.instance.set({ tagIconNames });
+        if (tagIconNames) {
+          ConfigCache.instance.set({ tagIconNames });
+        }
       }
       if (!ConfigCache.instance.params?.tagDisambiguations) {
         const tagDisambiguations = (
           await import(`../../../../resources/json/en/tagDisambiguations.json`)
         ).default;
-        ConfigCache.instance.set({ tagDisambiguations });
+        if (tagDisambiguations) {
+          ConfigCache.instance.set({ tagDisambiguations });
+        }
       }
       const Config = (await import("../../../impower-config/classes/config"))
         .default;
