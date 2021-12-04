@@ -305,10 +305,12 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       const urlParts = window.location.pathname.split("/");
       const link =
         urlParts.length === 4
-          ? `${urlParts[0]}/${
-              urlParts[1]
+          ? `${urlParts[0]}/${urlParts[1]}/${
+              urlParts[2]
             }/${value}?t=${activeTab.toLowerCase()}`
-          : `${urlParts[0]}/${value}?t=${activeTab.toLowerCase()}`;
+          : `${urlParts[0]}/${
+              urlParts[1]
+            }/${value}?t=${activeTab.toLowerCase()}`;
       window.history.replaceState(window.history.state, "", link);
     },
     [activeTab]
