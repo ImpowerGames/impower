@@ -210,6 +210,9 @@ const CreateProjectForm = React.memo(
     useEffect(() => {
       const setup = async (): Promise<void> => {
         const latestConfigState = await fetchConfigState();
+        const logInfo = (await import(`../../../impower-logger/utils/logInfo`))
+          .default;
+        logInfo("Config", "latestConfigState", latestConfigState);
         const phrases = [...latestConfigState?.phrases];
         const catalysts = [...latestConfigState?.catalysts];
         const personalties = [
