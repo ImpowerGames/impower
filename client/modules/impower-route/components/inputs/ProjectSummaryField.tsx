@@ -125,6 +125,8 @@ export const ProjectStorySummaryField = (
     []
   );
 
+  const placeholder = `(After a catalyst), (a flawed hero) must (overcome an obstacle) (and achieve a goal) (or else stakes).`;
+
   const SummaryInputProps: InputProps = useMemo(
     () => ({
       startAdornment: (
@@ -154,6 +156,7 @@ export const ProjectStorySummaryField = (
       defaultValue={summary}
       onPropertyInputChange={handlePropertyInputChange}
       renderProperty={undefined}
+      placeholder={placeholder}
     />
   );
 };

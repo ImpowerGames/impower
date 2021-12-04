@@ -348,11 +348,6 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       if (data.projectType === "game") {
         return `{tag:regex:A} {tag} game where you`;
       }
-      if (data.projectType === "story") {
-        if (!data?._createdAt) {
-          return `(After a catalyst), (a flawed hero) must (overcome an obstacle) (and achieve a goal) (or else stakes).`;
-        }
-      }
       if (data.projectType === "character") {
         const archetypes = ConfigCache.instance.params?.archetypes;
         const mainTag = data?.tags?.[0];
