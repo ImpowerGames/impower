@@ -345,10 +345,10 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       return `Describe the game's story, features, controls, or anything else.`;
     }
     if (propertyPath === "summary") {
-      if (data.projectType === "game") {
+      if (data?.projectType === "game") {
         return `{tag:regex:A} {tag} game where you`;
       }
-      if (data.projectType === "character") {
+      if (data?.projectType === "character") {
         const archetypes = ConfigCache.instance.params?.archetypes;
         const mainTag = data?.tags?.[0];
         const sortedTags = getTagsSortedBySpecificity(data?.tags);
@@ -366,7 +366,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
           firstTag: sortedTags?.[0],
         });
       }
-      if (data.projectType === "voice") {
+      if (data?.projectType === "voice") {
         const archetypes = ConfigCache.instance.params?.archetypes;
         const mainTag = data?.tags?.[0];
         const sortedTags = getTagsSortedBySpecificity(data?.tags);
@@ -384,7 +384,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
           firstTag: sortedTags?.[0],
         });
       }
-      if (data.projectType === "environment") {
+      if (data?.projectType === "environment") {
         const locations = ConfigCache.instance.params?.locations;
         const mainTag = data?.tags?.[0];
         const sortedTags = getTagsSortedBySpecificity(data?.tags);
@@ -423,13 +423,13 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
       return "";
     }
     if (propertyPath === "tags") {
-      if (data.projectType === "game") {
+      if (data?.projectType === "game") {
         return `Search mechanics, genres, or subjects`;
       }
-      if (data.projectType === "story") {
+      if (data?.projectType === "story") {
         return `Search genres, aesthetics, or subjects`;
       }
-      if (data.projectType === "character" || data?.projectType === "voice") {
+      if (data?.projectType === "character" || data?.projectType === "voice") {
         return `Search traits or archetypes`;
       }
     }
