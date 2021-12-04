@@ -70,11 +70,6 @@ class ConfigCache {
         }
       }
     });
-    const load = async (): Promise<void> => {
-      const Config = (await import("./config")).default;
-      Config.instance.hydrate();
-    };
-    load();
   }
 
   observe(
