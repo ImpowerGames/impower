@@ -161,10 +161,10 @@ const PitchContributionList = React.memo(
 
     const contributionTypes: ContributionType[] = useMemo(
       () =>
-        pitchDoc?.summary === ""
+        pitchDoc?.projectType === "game" && pitchDoc?.summary === ""
           ? ["pitch", "story", "image", "audio"]
           : ["story", "image", "audio"],
-      [pitchDoc?.summary]
+      [pitchDoc?.projectType, pitchDoc?.summary]
     );
 
     const loadingPlaceholder = useMemo(
