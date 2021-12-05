@@ -136,7 +136,7 @@ const DelistedPitchBanner = React.memo(
         <StyledBoldWarningTypography>
           {archived
             ? `This is an archived version of the pitch.`
-            : `This pitch has been removed by a moderator.`}
+            : `This pitch has been deleted.`}
         </StyledBoldWarningTypography>
         <StyledWarningTypography variant="caption">
           {archived

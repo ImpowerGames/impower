@@ -454,9 +454,16 @@ const StaticPitchList = React.memo(
       []
     );
 
-    const handleDeletePitch = useCallback(async (): Promise<void> => {
-      confirmDialogDispatch(confirmDialogClose());
-    }, [confirmDialogDispatch]);
+    const handleDeletePitch = useCallback(
+      async (e: React.MouseEvent, pitchId: string): Promise<void> => {
+        setReloading(true);
+        confirmDialogDispatch(confirmDialogClose());
+        // Wait a bit for dialog to close
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        await router.replace(`/p/${pitchId}`);
+      },
+      [confirmDialogDispatch, router]
+    );
 
     const handleCreateContribution = useCallback(
       async (

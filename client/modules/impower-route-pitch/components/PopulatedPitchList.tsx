@@ -454,11 +454,12 @@ const VirtualizedPitchCard = React.memo((props: VirtualizedPitchCardProps) => {
 
   const handleDeletePitch = useCallback(
     (e: React.MouseEvent<Element, MouseEvent>): void => {
+      handleClose(e);
       if (onDelete) {
         onDelete(e, id);
       }
     },
-    [id, onDelete]
+    [handleClose, id, onDelete]
   );
 
   const postLayoutStyle: React.CSSProperties = useMemo(
