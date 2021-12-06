@@ -9,7 +9,10 @@ import React, { useCallback, useContext } from "react";
 import CircleUserSolidIcon from "../../../../resources/icons/solid/circle-user.svg";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { FontIcon } from "../../../impower-icon";
+import { NavigationContext } from "../../../impower-navigation";
+import navigationSetTransitioning from "../../../impower-navigation/utils/navigationSetTransitioning";
 import { isAppInstalled, ServiceWorkerContext } from "../../../impower-pwa";
+import { useRouter } from "../../../impower-router";
 import { UserContext } from "../../../impower-user";
 import { pageNames } from "../../types/info/pageNames";
 import FadeAnimation from "../animations/FadeAnimation";
@@ -146,6 +149,7 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
   }, []);
 
   const [openAccountDialog] = useDialogNavigation("a");
+  const [, navigationDispatch] = useContext(NavigationContext);
 
   const handleOpenSignupDialog = useCallback((): void => {
     openAccountDialog("signup");
@@ -153,6 +157,24 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
   const handleOpenLoginDialog = useCallback((): void => {
     openAccountDialog("login");
   }, [openAccountDialog]);
+
+  const router = useRouter();
+
+  const handleClick = useCallback(
+    async (e: React.MouseEvent, href?: string): Promise<void> => {
+      if (href === "/install") {
+        if (onInstall) {
+          onInstall();
+        }
+      } else if (href) {
+        navigationDispatch(navigationSetTransitioning(true));
+        // wait a bit for dialog to close
+        await new Promise((resolve) => window.setTimeout(resolve, 1));
+        router.push(href);
+      }
+    },
+    [navigationDispatch, onInstall, router]
+  );
 
   const isAuthenticated = isSignedIn && !isAnonymous;
 
@@ -217,14 +239,13 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
                       {pageNames[link]}
                     </StyledButton>
                   ) : (
-                    <NextLink href={link} passHref>
-                      <StyledButton
-                        aria-label={pageNames[link]}
-                        color="inherit"
-                      >
-                        {pageNames[link]}
-                      </StyledButton>
-                    </NextLink>
+                    <StyledButton
+                      aria-label={pageNames[link]}
+                      color="inherit"
+                      onClick={(e): Promise<void> => handleClick(e, link)}
+                    >
+                      {pageNames[link]}
+                    </StyledButton>
                   )}
                 </HoverTapTransition>
               </FadeAnimation>

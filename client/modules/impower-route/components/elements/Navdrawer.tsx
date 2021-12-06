@@ -19,6 +19,8 @@ import PhotoFilmSolidIcon from "../../../../resources/icons/solid/photo-film.svg
 import SquareArrowDownSolidIcon from "../../../../resources/icons/solid/square-arrow-down.svg";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { FontIcon } from "../../../impower-icon";
+import { NavigationContext } from "../../../impower-navigation";
+import navigationSetTransitioning from "../../../impower-navigation/utils/navigationSetTransitioning";
 import { isAppInstalled, ServiceWorkerContext } from "../../../impower-pwa";
 import { useRouter } from "../../../impower-router";
 import { UserContext } from "../../../impower-user";
@@ -219,6 +221,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
   }, []);
 
   const [openAccountDialog] = useDialogNavigation("a");
+  const [, navigationDispatch] = useContext(NavigationContext);
 
   const handleOpenSignupDialog = useCallback(
     async (e: React.MouseEvent): Promise<void> => {
@@ -248,13 +251,14 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
       } else {
         handleClose(e);
         if (href) {
+          navigationDispatch(navigationSetTransitioning(true));
           // wait a bit for dialog to close
           await new Promise((resolve) => window.setTimeout(resolve, 1));
           router.push(href);
         }
       }
     },
-    [handleClose, onInstall, router]
+    [handleClose, navigationDispatch, onInstall, router]
   );
   const handleClickTitle = useCallback(
     async (e: React.MouseEvent): Promise<void> => {

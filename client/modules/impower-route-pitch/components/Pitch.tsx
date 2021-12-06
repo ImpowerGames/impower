@@ -312,6 +312,16 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
 
   const loading = transitioning;
 
+  useEffect(() => {
+    if (router.isReady) {
+      if (window.location.pathname?.startsWith("/pitch/")) {
+        const value = window.location.pathname.split("/")?.[2] as ProjectType;
+        setTypeFilter(value);
+        navigationDispatch(navigationSetTransitioning(false));
+      }
+    }
+  }, [navigationDispatch, router]);
+
   return (
     <StyledPitch style={style}>
       <StyledApp>
