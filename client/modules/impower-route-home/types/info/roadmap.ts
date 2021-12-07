@@ -52,7 +52,7 @@ export const roadmapInfo = {
       title: "Development Platform Roadmap",
       features: [
         {
-          description: "Pitch Board",
+          description: "Pitch Boards",
           supported: "✓",
         },
         {
