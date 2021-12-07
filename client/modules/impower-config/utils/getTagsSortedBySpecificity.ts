@@ -10,15 +10,20 @@ export const getTagsSortedBySpecificity = (tags: string[]): string[] => {
   const locations = ConfigCache.instance.params?.locations || [];
   const visualStyles = ConfigCache.instance.params?.visualStyles || [];
   const musicalStyles = ConfigCache.instance.params?.musicalStyles || [];
-  const specificMechanics =
-    projectTags.Mechanics[0] || projectTags.Mechanics[1];
-  const generalMechanics = projectTags.Mechanics.slice(2).flatMap((c) => c);
-  const specificGenres = projectTags.Genres[0];
-  const generalGenres = projectTags.Genres.slice(1).flatMap((c) => c);
-  const specificSubjects = projectTags.Subjects[0];
-  const generalSubjects = projectTags.Subjects.slice(1).flatMap((c) => c);
-  const specificAesthetics = projectTags.Aesthetics[0];
-  const generalAesthetics = projectTags.Aesthetics.slice(1).flatMap((c) => c);
+  const specificMechanics = [
+    ...(projectTags?.Mechanics[0] || []),
+    ...(projectTags?.Mechanics[1] || []),
+  ];
+  const generalMechanics =
+    projectTags?.Mechanics.slice(2).flatMap((c) => c) || [];
+  const specificGenres = projectTags?.Genres[0] || [];
+  const generalGenres = projectTags?.Genres.slice(1).flatMap((c) => c) || [];
+  const specificSubjects = projectTags?.Subjects[0] || [];
+  const generalSubjects =
+    projectTags?.Subjects.slice(1).flatMap((c) => c) || [];
+  const specificAesthetics = projectTags?.Aesthetics[0] || [];
+  const generalAesthetics =
+    projectTags?.Aesthetics.slice(1).flatMap((c) => c) || [];
   // Prefer titles that are more relevant to specific subjects, aesthetics, and genres
   const beforeTags = [
     ...visualStyles.filter((t) => tags?.includes(t)),
