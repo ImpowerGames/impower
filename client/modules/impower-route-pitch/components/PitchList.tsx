@@ -915,7 +915,8 @@ const PitchList = React.memo(
     const handleDeleteContribution = useCallback(
       async (
         e: React.MouseEvent<Element, MouseEvent>,
-        pitchId: string
+        pitchId: string,
+        contributionId: string
       ): Promise<void> => {
         const contributions =
           (pitchDocsRef.current[pitchId].contributions || 0) - 1;
@@ -925,8 +926,11 @@ const PitchList = React.memo(
         DataStoreCache.instance.override(pitchId, { contributions });
         setPitchDocsState({ ...pitchDocsRef.current });
         confirmDialogDispatch(confirmDialogClose());
+        // Wait a bit for dialog to close
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        await router.replace(`/p/${pitchId}/c/${contributionId}`);
       },
-      [confirmDialogDispatch]
+      [confirmDialogDispatch, router]
     );
 
     const handleStartCreation = useCallback(async () => {

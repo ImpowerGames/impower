@@ -3,6 +3,7 @@ import styled from "@emotion/styled";
 import React, {
   Component,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -20,6 +21,8 @@ import {
   ProjectDocument,
 } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
+import { NavigationContext } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { VirtualizedItem } from "../../impower-react-virtualization";
 import { FadeAnimation, layout, Portal } from "../../impower-route";
 import { getPreviewAspectRatio } from "../utils/getPreviewAspectRatio";
@@ -111,6 +114,8 @@ const VirtualizedContributionCard = React.memo(
       onExit,
       onExited,
     } = props;
+
+    const [, navigationDispatch] = useContext(NavigationContext);
 
     const openedRef = useRef<boolean>(false);
     const modalRef = useRef<HTMLDivElement>();
@@ -391,11 +396,12 @@ const VirtualizedContributionCard = React.memo(
 
     const handleDelete = useCallback(
       (e: React.MouseEvent): void => {
+        navigationDispatch(navigationSetTransitioning(true));
         if (onDelete) {
           onDelete(e, pitchId, contributionId);
         }
       },
-      [contributionId, onDelete, pitchId]
+      [contributionId, navigationDispatch, onDelete, pitchId]
     );
 
     const previewAspectRatio = getPreviewAspectRatio(

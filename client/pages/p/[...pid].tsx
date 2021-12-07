@@ -392,7 +392,8 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
   const handleDeleteContribution = useCallback(
     async (
       e: React.MouseEvent<Element, MouseEvent>,
-      pitchId: string
+      pitchId: string,
+      contributionId: string
     ): Promise<void> => {
       if (!recentSubmission) {
         const contributions = (pitchDocRef.current.contributions || 0) - 1;
@@ -402,9 +403,12 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
         DataStoreCache.instance.override(pitchId, { contributions });
         setPitchDocState({ ...pitchDocRef.current });
         confirmDialogDispatch(confirmDialogClose());
+        // Wait a bit for dialog to close
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        await router.replace(`/p/${pitchId}/c/${contributionId}`);
       }
     },
-    [confirmDialogDispatch, recentSubmission]
+    [confirmDialogDispatch, recentSubmission, router]
   );
 
   const handleChangeScore = useCallback(

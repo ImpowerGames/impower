@@ -151,7 +151,7 @@ const DelistedContributionBanner = React.memo(
         <StyledBoldWarningTypography>
           {archived
             ? `This is an archived version of the contribution.`
-            : `This pitch has been deleted.`}
+            : `This contribution has been deleted.`}
         </StyledBoldWarningTypography>
         <StyledWarningTypography variant="caption">
           {archived
