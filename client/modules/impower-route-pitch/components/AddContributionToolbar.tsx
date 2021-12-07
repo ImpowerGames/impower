@@ -426,8 +426,7 @@ const AddContributionToolbar = React.memo(
     const [userContributionDocsState, setUserContributionDocsState] = useState<{
       [id: string]: ContributionDocument;
     }>();
-    const [dialOpenKey, setDialOpenKey] = useState<"type">();
-    const dialOpen = dialOpenKey === "type";
+    const [dialOpen, setDialOpen] = useState<boolean>();
 
     const handleLoadUserContributions = useCallback(
       (docs: { [id: string]: ContributionDocument }) => {
@@ -476,9 +475,9 @@ const AddContributionToolbar = React.memo(
         e.preventDefault();
         e.stopPropagation();
         if (dialOpen) {
-          setDialOpenKey(null);
+          setDialOpen(false);
         } else {
-          setDialOpenKey("type");
+          setDialOpen(true);
         }
       },
       [dialOpen]
@@ -487,7 +486,7 @@ const AddContributionToolbar = React.memo(
     const handleClose = useCallback((e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      setDialOpenKey(null);
+      setDialOpen(false);
     }, []);
 
     const fabLabel = "Contribute A Concept";
@@ -509,7 +508,7 @@ const AddContributionToolbar = React.memo(
         doc: ContributionDocument,
         file?: globalThis.File
       ) => {
-        setDialOpenKey(null);
+        setDialOpen(false);
         if (onAdd) {
           onAdd(e, doc, file);
         }

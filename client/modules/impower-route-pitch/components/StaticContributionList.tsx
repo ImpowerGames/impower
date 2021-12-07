@@ -173,7 +173,7 @@ const StaticContributionList = React.memo(
     const noMoreRef = useRef<boolean>();
     const [noMore, setNoMore] = useState<boolean>();
     const [sort, setSort] = useState<"new" | "old">(SORT_OPTIONS?.[0] || "new");
-    const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("All");
+    const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("all");
     const [reloading, setReloading] = useState(false);
 
     const contentElRef = useRef<HTMLDivElement>();
@@ -255,13 +255,13 @@ const StaticContributionList = React.memo(
         }
 
         const nowAge =
-          rangeFilter === "All" ? -1 : getAge(new Date(), rangeFilter, true);
+          rangeFilter === "all" ? -1 : getAge(new Date(), rangeFilter, true);
 
         const loadingKeys: string[] = [];
         for (let i = start; i < end; i += 1) {
           const [key, data] = orderedContributionDataEntries[i];
           const kudoedAge =
-            rangeFilter === "All"
+            rangeFilter === "all"
               ? -1
               : getAge(new Date(data.t), rangeFilter, true);
           if (nowAge === kudoedAge) {
@@ -561,7 +561,7 @@ const StaticContributionList = React.memo(
 
     const handleGetActiveFilterOptionIcon = useCallback(
       (rangeFilter?: string) => {
-        return rangeFilter === "All" ? (
+        return rangeFilter === "all" ? (
           <CalendarRegularIcon />
         ) : (
           <CalendarRangeSolidIcon />

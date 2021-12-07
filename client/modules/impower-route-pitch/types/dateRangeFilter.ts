@@ -1,3 +1,3 @@
 import { DateAge } from "../../impower-data-store";
 
-export type DateRangeFilter = DateAge | "All";
+export type DateRangeFilter = DateAge | "all";

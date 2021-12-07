@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import React from "react";
 import { ProjectType, QuerySort } from "../../impower-data-store";
 import { DateRangeFilter } from "../types/dateRangeFilter";
+import { ProjectTypeFilter } from "../types/projectTypeFilter";
 import QueryHeader from "./QueryHeader";
 import QuerySortButton from "./QuerySortButton";
 import QueryTypeFilterButton from "./QueryTypeFilterButton";
@@ -39,7 +40,7 @@ const StyledCenterArea = styled.div`
 `;
 
 interface PitchListQueryHeaderProps {
-  typeFilter?: ProjectType;
+  typeFilter?: ProjectTypeFilter;
   rangeFilter?: DateRangeFilter;
   sort?: QuerySort;
   sortOptions?: QuerySort[];

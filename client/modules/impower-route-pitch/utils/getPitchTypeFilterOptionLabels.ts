@@ -1,8 +1,9 @@
-import { ProjectType } from "../../impower-data-store";
+import { ProjectTypeFilter } from "../types/projectTypeFilter";
 
 const getPitchTypeFilterOptionLabels = (): {
-  [filter in ProjectType]: string;
+  [filter in ProjectTypeFilter]: string;
 } => ({
+  all: "All",
   game: "Games",
   story: "Stories",
   character: "Characters",

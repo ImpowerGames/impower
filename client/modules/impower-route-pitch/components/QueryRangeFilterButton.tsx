@@ -28,7 +28,7 @@ const QueryRangeFilterButton = React.memo(
       []
     );
     const handleGetActiveOptionIcon = useCallback((value?: string) => {
-      return value === "All" ? (
+      return value === "all" ? (
         <CalendarRegularIcon />
       ) : (
         <CalendarRangeSolidIcon />

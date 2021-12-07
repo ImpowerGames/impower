@@ -17,6 +17,7 @@ import { BetaBanner } from "../../impower-route";
 import { useRouter } from "../../impower-router";
 import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
+import { ProjectTypeFilter } from "../types/projectTypeFilter";
 import getPitchTypeFilterOptionLabels from "../utils/getPitchTypeFilterOptionLabels";
 import getRangeFilterLabel from "../utils/getRangeFilterLabel";
 import EmptyPitchList from "./EmptyPitchList";
@@ -70,7 +71,7 @@ const StyledApp = styled.div`
 interface PitchProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
-  type?: ProjectType;
+  type?: ProjectTypeFilter;
   pitchDocs?: { [id: string]: ProjectDocument };
   style?: React.CSSProperties;
 }
@@ -104,7 +105,9 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   const [activeTab, setActiveTab] = useState<PitchToolbarTab>(
     (params?.t?.toLowerCase() as PitchToolbarTab) || "trending"
   );
-  const [typeFilter, setTypeFilter] = useState<ProjectType>(type || "game");
+  const [typeFilter, setTypeFilter] = useState<ProjectTypeFilter>(
+    type || "all"
+  );
 
   const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("d");
   const validPitchDocs =

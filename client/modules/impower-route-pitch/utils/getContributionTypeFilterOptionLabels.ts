@@ -3,7 +3,7 @@ import { ContributionTypeFilter } from "../types/contributionTypeFilter";
 const getContributionTypeFilterOptionLabels = (): {
   [filter in ContributionTypeFilter]: string;
 } => ({
-  All: "All",
+  all: "All",
   pitch: "Pitch",
   story: "Story",
   image: "Image",

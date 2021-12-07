@@ -1,17 +1,18 @@
 import React, { useCallback } from "react";
 import BookOpenRegularIcon from "../../../resources/icons/regular/book-open.svg";
+import FilterRegularIcon from "../../../resources/icons/regular/filter.svg";
 import GamepadRegularIcon from "../../../resources/icons/regular/gamepad.svg";
 import HouseRegularIcon from "../../../resources/icons/regular/house.svg";
 import MicrophoneRegularIcon from "../../../resources/icons/regular/microphone.svg";
 import MusicRegularIcon from "../../../resources/icons/regular/music.svg";
 import UserRegularIcon from "../../../resources/icons/regular/user.svg";
 import WaveformRegularIcon from "../../../resources/icons/regular/waveform.svg";
-import { ProjectType } from "../../impower-data-store";
+import { ProjectTypeFilter } from "../types/projectTypeFilter";
 import getPitchTypeFilterOptionLabels from "../utils/getPitchTypeFilterOptionLabels";
 import QueryButton from "./QueryButton";
 
 interface QueryTypeFilterButtonProps {
-  value?: ProjectType;
+  value?: ProjectTypeFilter;
   onOption?: (e: React.MouseEvent, option: string) => void;
 }
 
@@ -20,7 +21,7 @@ const QueryTypeFilterButton = React.memo(
     const { value, onOption } = props;
     const handleGetOptionIcons = useCallback(
       async (
-        value: ProjectType
+        value: ProjectTypeFilter
       ): Promise<{
         [option: string]: React.ComponentType;
       }> => {
@@ -47,7 +48,9 @@ const QueryTypeFilterButton = React.memo(
           <WaveformRegularIcon />
         ) : value === "voice" ? (
           <MicrophoneRegularIcon />
-        ) : undefined,
+        ) : (
+          <FilterRegularIcon />
+        ),
       []
     );
     return (

@@ -3,7 +3,7 @@ import { PitchGoalFilter } from "../types/pitchGoalFilter";
 const getPitchGoalFilterOptionLabels = (): {
   [filter in PitchGoalFilter]: string;
 } => ({
-  All: "All",
+  all: "All",
   collaboration: "Collaboration",
   inspiration: "Inspiration",
 });

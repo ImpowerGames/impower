@@ -8,7 +8,7 @@ export const getRangeFilterOptionLabels = (): {
   w: getRangeFilterLabel("w"),
   mo: getRangeFilterLabel("mo"),
   yr: getRangeFilterLabel("yr"),
-  All: getRangeFilterLabel("All"),
+  all: getRangeFilterLabel("all"),
 });
 
 export default getRangeFilterOptionLabels;

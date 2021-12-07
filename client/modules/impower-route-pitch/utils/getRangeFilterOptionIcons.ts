@@ -11,7 +11,7 @@ export const getRangeFilterOptionIcons = (
   w: filter === "w" ? CircleDotRegularIcon : CircleRegularIcon,
   mo: filter === "mo" ? CircleDotRegularIcon : CircleRegularIcon,
   yr: filter === "yr" ? CircleDotRegularIcon : CircleRegularIcon,
-  All: filter === "All" ? CircleDotRegularIcon : CircleRegularIcon,
+  all: filter === "all" ? CircleDotRegularIcon : CircleRegularIcon,
 });
 
 export default getRangeFilterOptionIcons;

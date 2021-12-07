@@ -4,7 +4,7 @@ import CardActionArea from "@material-ui/core/CardActionArea";
 import React, { useCallback } from "react";
 import { AuthorAttributes } from "../../impower-auth";
 import { ConfigParameters } from "../../impower-config";
-import { ProjectDocument } from "../../impower-data-store";
+import { ProjectDocument, ProjectType } from "../../impower-data-store";
 import { LazyHydrate } from "../../impower-hydration";
 import { SvgData } from "../../impower-icon";
 import PitchCardContent from "./PitchCardContent";
@@ -100,6 +100,7 @@ interface PitchCardLayoutProps {
   createdBy?: string;
   author?: AuthorAttributes;
   pitchDoc?: ProjectDocument;
+  projectType?: ProjectType;
   name?: string;
   summary?: string;
   tags?: string[];
@@ -133,6 +134,7 @@ const PitchCardLayout = React.memo(
       closedActionsRef,
       config,
       icons,
+      projectType,
       createdBy,
       author,
       pitchDoc,
@@ -193,6 +195,7 @@ const PitchCardLayout = React.memo(
               <PitchCardHeader
                 config={config}
                 icons={icons}
+                projectType={projectType}
                 author={author}
                 tags={tags}
                 delisted={delisted}

@@ -15,7 +15,7 @@ const getContributionTypeFilterOptionIcons = (
 ): {
   [filter in ContributionTypeFilter]: React.ComponentType;
 } => ({
-  All: filter === "All" ? FilterSolidIcon : FilterRegularIcon,
+  all: filter === "all" ? FilterSolidIcon : FilterRegularIcon,
   pitch: filter === "pitch" ? LightbulbOnSolidIcon : LightbulbOnRegularIcon,
   story: filter === "story" ? BookOpenSolidIcon : BookOpenRegularIcon,
   image: filter === "image" ? ImageSolidIcon : ImageRegularIcon,

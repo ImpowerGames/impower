@@ -472,6 +472,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         config={config}
         icons={icons}
         pitchDoc={doc}
+        projectType={doc?.projectType}
         name={
           removed
             ? removedPlaceholder

@@ -140,7 +140,7 @@ const ContributionList = React.memo(
     const nsfwVisible =
       account === undefined ? undefined : account?.nsfwVisible || false;
 
-    const [typeFilter, setTypeFilter] = useState<ContributionTypeFilter>("All");
+    const [typeFilter, setTypeFilter] = useState<ContributionTypeFilter>("all");
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rating");
     const [reloading, setReloading] = useState(false);
 
@@ -216,7 +216,7 @@ const ContributionList = React.memo(
       creator?: string;
     } = useMemo(
       () => ({
-        filter: typeFilter === "All" ? undefined : typeFilter,
+        filter: typeFilter === "all" ? undefined : typeFilter,
         sort,
         nsfw: nsfwVisible,
         creator,

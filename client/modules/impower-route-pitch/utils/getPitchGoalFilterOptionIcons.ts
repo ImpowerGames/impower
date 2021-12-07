@@ -11,7 +11,7 @@ const getPitchGoalFilterOptionIcons = (
 ): {
   [filter in PitchGoalFilter]: React.ComponentType;
 } => ({
-  All: filter === "All" ? BinocularsSolidIcon : BinocularsRegularIcon,
+  all: filter === "all" ? BinocularsSolidIcon : BinocularsRegularIcon,
   collaboration:
     filter === "collaboration"
       ? HandshakeSimpleSolidIcon

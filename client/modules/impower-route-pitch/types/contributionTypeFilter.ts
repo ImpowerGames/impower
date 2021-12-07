@@ -1,3 +1,3 @@
 import { ContributionType } from "../../impower-data-store";
 
-export type ContributionTypeFilter = ContributionType | "All";
+export type ContributionTypeFilter = ContributionType | "all";

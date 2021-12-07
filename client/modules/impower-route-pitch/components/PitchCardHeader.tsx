@@ -16,7 +16,7 @@ import {
   ConfigParameters,
 } from "../../impower-config";
 import ConfigCache from "../../impower-config/classes/configCache";
-import { escapeURI } from "../../impower-data-store";
+import { escapeURI, ProjectType } from "../../impower-data-store";
 import { DynamicIcon, FontIcon, SvgData } from "../../impower-icon";
 import {
   NavigationContext,
@@ -297,6 +297,7 @@ interface PitchCardHeaderProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
   preview?: boolean;
+  projectType?: ProjectType;
   kudoCount?: number;
   contributionCount?: number;
   author?: AuthorAttributes;
@@ -313,6 +314,7 @@ const PitchCardHeader = React.memo(
     const {
       config,
       icons,
+      projectType,
       author,
       tags,
       delisted,
@@ -357,7 +359,7 @@ const PitchCardHeader = React.memo(
     const tagDisambiguations = currentConfig?.tagDisambiguations;
     const validMainTag = tagDisambiguations?.[mainTag]?.[0] || mainTag;
     const tagColorName = currentConfig?.tagColorNames?.[validMainTag] || "";
-    const mainTagLabel = capitalize(mainTag);
+    const mainTagLabel = `${capitalize(mainTag)} ${capitalize(projectType)}`;
     const tagColor = currentConfig?.colors?.[tagColorName];
     const tagIconName =
       currentConfig?.tagIconNames?.[validMainTag] || "hashtag";

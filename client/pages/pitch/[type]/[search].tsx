@@ -39,6 +39,16 @@ import { useRouter } from "../../../modules/impower-router";
 
 const LOAD_INITIAL_LIMIT = 5;
 
+const projectTypes = [
+  "game",
+  "story",
+  "character",
+  "environment",
+  "music",
+  "sound",
+  "voice",
+];
+
 const StyledLoadingBackground = styled.div`
   background-color: ${(props): string => props.theme.palette.primary.main};
   flex: 1;
@@ -162,15 +172,6 @@ export const getStaticPaths: GetStaticPaths = async () => {
   const configProjectTags = (
     await import("../../../resources/json/en/projectTags.json")
   ).default;
-  const projectTypes = [
-    "game",
-    "story",
-    "character",
-    "environment",
-    "music",
-    "sound",
-    "voice",
-  ];
   const gameTags = Object.values(configProjectTags)
     .flatMap((categories) => categories.flatMap((groups) => groups))
     .map((tag) => tag.toLowerCase());

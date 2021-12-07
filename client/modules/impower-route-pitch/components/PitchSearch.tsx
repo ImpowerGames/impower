@@ -20,6 +20,7 @@ import navigationSetTransitioning from "../../impower-navigation/utils/navigatio
 import { BetaBanner } from "../../impower-route";
 import { useRouter } from "../../impower-router";
 import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
+import { ProjectTypeFilter } from "../types/projectTypeFilter";
 import getPitchTypeFilterOptionLabels from "../utils/getPitchTypeFilterOptionLabels";
 import EmptyPitchList from "./EmptyPitchList";
 import PitchList from "./PitchList";
@@ -91,7 +92,9 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
         : (my_follows as null | undefined),
     [my_follows]
   );
-  const [typeFilter, setTypeFilter] = useState<ProjectType>(type || "game");
+  const [typeFilter, setTypeFilter] = useState<ProjectTypeFilter>(
+    type || "all"
+  );
   const validPitchDocs = type === typeFilter ? pitchDocs : undefined;
   const allowReload = !validPitchDocs;
   const [reloading, setReloading] = useState<boolean>(

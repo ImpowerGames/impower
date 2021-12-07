@@ -32,6 +32,7 @@ import navigationSetTransitioning from "../../impower-navigation/utils/navigatio
 import { useRouter } from "../../impower-router";
 import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
+import { ProjectTypeFilter } from "../types/projectTypeFilter";
 import AddPitchToolbar from "./AddPitchToolbar";
 import PitchListContent from "./PitchListContent";
 import PitchListQueryHeader from "./PitchListQueryHeader";
@@ -151,7 +152,7 @@ interface PitchListProps {
   search?: string;
   creator?: string;
   tab?: "trending" | "top" | "following";
-  type?: ProjectType;
+  type?: ProjectTypeFilter;
   rangeFilter?: DateRangeFilter;
   compact?: boolean;
   sortOptions?: QuerySort[];
@@ -283,8 +284,8 @@ const PitchList = React.memo(
     const [loadIcons, setLoadIcons] = useState(initialPitchIds.length === 0);
     const noMoreRef = useRef<boolean>(initialPitchIds.length === 0);
     const [noMore, setNoMore] = useState<boolean>(noMoreRef.current);
-    const [typeFilterState, setTypeFilterState] = useState<ProjectType>(
-      type || "game"
+    const [typeFilterState, setTypeFilterState] = useState<ProjectTypeFilter>(
+      type || "all"
     );
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rank");
     const [rangeFilterState, setRangeFilterState] = useState<DateRangeFilter>(
@@ -444,7 +445,7 @@ const PitchList = React.memo(
       async (options: {
         tab: PitchToolbarTab;
         sort: QuerySort;
-        typeFilter?: ProjectType;
+        typeFilter?: ProjectTypeFilter;
         rangeFilter?: DateRangeFilter;
         nsfwVisible?: boolean;
         followedTags?: string[];
@@ -478,8 +479,8 @@ const PitchList = React.memo(
               creator?: string;
             } = {
               sort: "rating",
-              type: typeFilter,
-              age: rangeFilter !== "All" ? rangeFilter : undefined,
+              type: typeFilter !== "all" ? typeFilter : undefined,
+              age: rangeFilter !== "all" ? rangeFilter : undefined,
               nsfw: nsfwVisible,
               search,
               creator,
@@ -544,7 +545,7 @@ const PitchList = React.memo(
               creator?: string;
             } = {
               sort,
-              type: typeFilter,
+              type: typeFilter !== "all" ? typeFilter : undefined,
               nsfw: nsfwVisible,
               search,
               creator,
@@ -617,7 +618,7 @@ const PitchList = React.memo(
               creator?: string;
             } = {
               sort,
-              type: typeFilter,
+              type: typeFilter !== "all" ? typeFilter : undefined,
               nsfw: nsfwVisible,
               search,
               creator,
@@ -933,27 +934,30 @@ const PitchList = React.memo(
       [confirmDialogDispatch, router]
     );
 
-    const handleStartCreation = useCallback(async () => {
-      canCloseRef.current = true;
-      const Auth = (await import("../../impower-auth/classes/auth")).default;
-      const createProjectDocument = (
-        await import("../../impower-data-store/utils/createProjectDocument")
-      ).default;
-      const newGame = createProjectDocument({
-        _createdBy: uid,
-        _author: Auth.instance.author,
-        name: "",
-        slug: "",
-        owners: [uid],
-        pitched: true,
-        pitchedAt: new Timestamp(),
-        projectType: typeFilterState,
-      });
-      setEditing(false);
-      setEditDocId(undefined);
-      setEditDoc(newGame);
-      setEditDialogOpen(true);
-    }, [typeFilterState, uid]);
+    const handleStartCreation = useCallback(
+      async (type: ProjectType) => {
+        canCloseRef.current = true;
+        const Auth = (await import("../../impower-auth/classes/auth")).default;
+        const createProjectDocument = (
+          await import("../../impower-data-store/utils/createProjectDocument")
+        ).default;
+        const newGame = createProjectDocument({
+          _createdBy: uid,
+          _author: Auth.instance.author,
+          name: "",
+          slug: "",
+          owners: [uid],
+          pitched: true,
+          pitchedAt: new Timestamp(),
+          projectType: type,
+        });
+        setEditing(false);
+        setEditDocId(undefined);
+        setEditDoc(newGame);
+        setEditDialogOpen(true);
+      },
+      [uid]
+    );
 
     const createDocExists = Boolean(editDoc);
 
@@ -1019,14 +1023,16 @@ const PitchList = React.memo(
         if (currState?.e !== prevState?.e) {
           if (currState?.e === "create") {
             if (!createDocExists) {
-              handleStartCreation();
+              handleStartCreation(
+                typeFilterState !== "all" ? typeFilterState : "game"
+              );
             }
           } else {
             handleEndCreation("browserBack");
           }
         }
       },
-      [createDocExists, handleEndCreation, handleStartCreation]
+      [createDocExists, handleEndCreation, handleStartCreation, typeFilterState]
     );
     const [openEditDialog, closeEditDialog] = useDialogNavigation(
       "e",
@@ -1048,10 +1054,13 @@ const PitchList = React.memo(
       [openEditDialog]
     );
 
-    const handleOpenCreateDialog = useCallback((): void => {
-      handleStartCreation();
-      openEditDialog("create");
-    }, [handleStartCreation, openEditDialog]);
+    const handleOpenCreateDialog = useCallback(
+      (e: React.MouseEvent, type: ProjectType): void => {
+        handleStartCreation(type);
+        openEditDialog("create");
+      },
+      [handleStartCreation, openEditDialog]
+    );
 
     const handleCloseCreateDialog = useCallback(
       (
@@ -1098,11 +1107,13 @@ const PitchList = React.memo(
         if (window.location.search?.toLowerCase() === "?e=create") {
           openedWithQueryRef.current = true;
           if (!createDocExists) {
-            handleStartCreation();
+            handleStartCreation(
+              typeFilterState !== "all" ? typeFilterState : "game"
+            );
           }
         }
       }
-    }, [createDocExists, handleStartCreation, router]);
+    }, [createDocExists, handleStartCreation, router, typeFilterState]);
 
     const pitchCount = useMemo(
       () =>
@@ -1141,7 +1152,9 @@ const PitchList = React.memo(
     );
 
     const addLabel =
-      typeFilterState === "music"
+      typeFilterState === "all"
+        ? `create a pitch`
+        : typeFilterState === "music"
         ? `pitch ${typeFilterState}`
         : `pitch a ${typeFilterState}`;
 
@@ -1233,9 +1246,10 @@ const PitchList = React.memo(
         </StyledListArea>
         {!hideAddToolbar && (
           <AddPitchToolbar
+            type={typeFilterState !== "all" ? typeFilterState : undefined}
             label={addLabel}
             toolbarRef={toolbarElRef}
-            onClick={handleOpenCreateDialog}
+            onAdd={handleOpenCreateDialog}
           />
         )}
         {editDialogOpen !== undefined && (
@@ -1243,7 +1257,7 @@ const PitchList = React.memo(
             config={config}
             icons={icons}
             open={editDialogOpen}
-            type={typeFilterState}
+            type={typeFilterState !== "all" ? typeFilterState : undefined}
             docId={editDocId}
             doc={editDoc}
             onClose={handleCloseCreateDialog}

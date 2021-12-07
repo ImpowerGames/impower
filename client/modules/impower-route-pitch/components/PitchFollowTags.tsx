@@ -14,11 +14,7 @@ import React, {
 } from "react";
 import { capitalize, ConfigContext } from "../../impower-config";
 import ConfigCache from "../../impower-config/classes/configCache";
-import {
-  escapeURI,
-  getDataStoreKey,
-  ProjectType,
-} from "../../impower-data-store";
+import { escapeURI, getDataStoreKey } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { DynamicIcon, FontIcon } from "../../impower-icon";
 import {
@@ -30,6 +26,7 @@ import { VirtualizedItem } from "../../impower-react-virtualization";
 import FadeAnimation from "../../impower-route/components/animations/FadeAnimation";
 import TagIconLoader from "../../impower-route/components/elements/TagIconLoader";
 import { UserContext, userDoFollow, userUndoFollow } from "../../impower-user";
+import { ProjectTypeFilter } from "../types/projectTypeFilter";
 
 const getTagLink = (tag: string): string => {
   if (typeof window === "undefined") {
@@ -335,7 +332,7 @@ const PitchFollowTagsList = React.memo(
 );
 
 interface PitchFollowTagsProps {
-  type?: ProjectType;
+  type?: ProjectTypeFilter;
   loadingPlaceholder?: React.ReactNode;
   onReload?: (e: React.MouseEvent) => void;
 }
@@ -432,10 +429,15 @@ const PitchFollowTags = React.memo(
               "Music Styles": musicalStyles,
               "Mood": flattenedMoods,
             }
+          : type === "story"
+          ? { Genres, Aesthetics, Subjects }
           : {
+              Mechanics,
               Genres,
               Aesthetics,
               Subjects,
+              "Visual Styles": visualStyles,
+              "Music Styles": musicalStyles,
             },
       [
         Aesthetics,

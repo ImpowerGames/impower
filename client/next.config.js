@@ -33,12 +33,7 @@ module.exports = withBundleAnalyzer(
         return [
           {
             source: "/p",
-            destination: "/pitch/game",
-            permanent: true,
-          },
-          {
-            source: "/pitch",
-            destination: "/pitch/game",
+            destination: "/pitch",
             permanent: true,
           },
           {

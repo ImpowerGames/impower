@@ -5,7 +5,7 @@ const rangeFilterLabels: { [filter in DateRangeFilter]: string } = {
   w: "This Week",
   mo: "This Month",
   yr: "This Year",
-  All: "All Time",
+  all: "All Time",
 };
 
 export const getRangeFilterLabel = (filter: DateRangeFilter): string =>

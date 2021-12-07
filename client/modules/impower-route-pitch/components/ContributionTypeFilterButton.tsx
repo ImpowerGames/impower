@@ -48,7 +48,7 @@ const ContributionTypeFilterButton = React.memo(
       <QueryButton
         target="contribution"
         menuType="type"
-        label={`Type`}
+        label={`Contribution Type`}
         value={value}
         getOptionLabels={getContributionTypeFilterOptionLabels}
         getOptionIcons={handleGetOptionIcons}

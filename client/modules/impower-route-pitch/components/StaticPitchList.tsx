@@ -197,7 +197,7 @@ const StaticPitchList = React.memo(
     const noMoreRef = useRef<boolean>(false);
     const [noMore, setNoMore] = useState<boolean>(noMoreRef.current);
     const [sort, setSort] = useState<"new" | "old">(SORT_OPTIONS?.[0] || "new");
-    const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("All");
+    const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("all");
     const [reloading, setReloading] = useState(false);
 
     const pitchDocsRef = useRef<{ [id: string]: ProjectDocument }>();
@@ -294,13 +294,13 @@ const StaticPitchList = React.memo(
         }
 
         const nowAge =
-          rangeFilter === "All" ? -1 : getAge(new Date(), rangeFilter, true);
+          rangeFilter === "all" ? -1 : getAge(new Date(), rangeFilter, true);
 
         const loadingKeys: string[] = [];
         for (let i = start; i < end; i += 1) {
           const [key, data] = orderedPitchDataEntries[i];
           const kudoedAge =
-            rangeFilter === "All"
+            rangeFilter === "all"
               ? -1
               : getAge(new Date(data.t), rangeFilter, true);
           if (nowAge === kudoedAge) {
@@ -556,27 +556,30 @@ const StaticPitchList = React.memo(
       []
     );
 
-    const handleStartCreation = useCallback(async () => {
-      canCloseRef.current = true;
-      const Auth = (await import("../../impower-auth/classes/auth")).default;
-      const createProjectDocument = (
-        await import("../../impower-data-store/utils/createProjectDocument")
-      ).default;
-      const newGame = createProjectDocument({
-        _createdBy: uid,
-        _author: Auth.instance.author,
-        name: "",
-        slug: "",
-        owners: [uid],
-        pitched: true,
-        pitchedAt: new Timestamp(),
-        projectType: type,
-      });
-      setEditing(false);
-      setEditDocId(undefined);
-      setEditDoc(newGame);
-      setEditDialogOpen(true);
-    }, [type, uid]);
+    const handleStartCreation = useCallback(
+      async (type: ProjectType) => {
+        canCloseRef.current = true;
+        const Auth = (await import("../../impower-auth/classes/auth")).default;
+        const createProjectDocument = (
+          await import("../../impower-data-store/utils/createProjectDocument")
+        ).default;
+        const newGame = createProjectDocument({
+          _createdBy: uid,
+          _author: Auth.instance.author,
+          name: "",
+          slug: "",
+          owners: [uid],
+          pitched: true,
+          pitchedAt: new Timestamp(),
+          projectType: type,
+        });
+        setEditing(false);
+        setEditDocId(undefined);
+        setEditDoc(newGame);
+        setEditDialogOpen(true);
+      },
+      [uid]
+    );
 
     const createDocExists = Boolean(editDoc);
 
@@ -642,14 +645,14 @@ const StaticPitchList = React.memo(
         if (currState?.e !== prevState?.e) {
           if (currState?.e === "create") {
             if (!createDocExists) {
-              handleStartCreation();
+              handleStartCreation(type);
             }
           } else {
             handleEndCreation("browserBack");
           }
         }
       },
-      [createDocExists, handleEndCreation, handleStartCreation]
+      [createDocExists, handleEndCreation, handleStartCreation, type]
     );
     const [openEditDialog, closeEditDialog] = useDialogNavigation(
       "e",
@@ -671,10 +674,13 @@ const StaticPitchList = React.memo(
       [openEditDialog]
     );
 
-    const handleOpenCreateDialog = useCallback((): void => {
-      handleStartCreation();
-      openEditDialog("create");
-    }, [handleStartCreation, openEditDialog]);
+    const handleOpenCreateDialog = useCallback(
+      (e: React.MouseEvent, type: ProjectType): void => {
+        handleStartCreation(type);
+        openEditDialog("create");
+      },
+      [handleStartCreation, openEditDialog]
+    );
 
     const handleCloseCreateDialog = useCallback(
       (
@@ -719,11 +725,11 @@ const StaticPitchList = React.memo(
         if (window.location.search?.toLowerCase() === "?e=create") {
           openedWithQueryRef.current = true;
           if (!createDocExists) {
-            handleStartCreation();
+            handleStartCreation(type);
           }
         }
       }
-    }, [createDocExists, handleStartCreation, router]);
+    }, [createDocExists, handleStartCreation, router, type]);
 
     const handleGetActiveSortOptionIcon = useCallback((sort?: string) => {
       const icons = getStaticSortOptionIcons();
@@ -733,7 +739,7 @@ const StaticPitchList = React.memo(
 
     const handleGetActiveFilterOptionIcon = useCallback(
       (rangeFilter?: string) => {
-        return rangeFilter === "All" ? (
+        return rangeFilter === "all" ? (
           <CalendarRegularIcon />
         ) : (
           <CalendarRangeSolidIcon />
@@ -864,7 +870,11 @@ const StaticPitchList = React.memo(
           </StyledContent>
         </StyledListArea>
         {!hideAddToolbar && (
-          <AddPitchToolbar label={addLabel} onClick={handleOpenCreateDialog} />
+          <AddPitchToolbar
+            type={type}
+            label={addLabel}
+            onAdd={handleOpenCreateDialog}
+          />
         )}
         {editDialogOpen !== undefined && (
           <CreatePitchDialog
