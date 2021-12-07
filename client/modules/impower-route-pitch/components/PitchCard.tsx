@@ -12,6 +12,8 @@ import {
 } from "../../impower-data-store";
 import { useDialogNavigation } from "../../impower-dialog";
 import { SvgData } from "../../impower-icon";
+import { NavigationContext } from "../../impower-navigation";
+import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import {
   UserContext,
   userDoConnect,
@@ -98,6 +100,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
 
   const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
   const [userState, userDispatch] = useContext(UserContext);
+  const [, navigationDispatch] = useContext(NavigationContext);
   const {
     uid,
     connects,
@@ -233,6 +236,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
   const handleDelete = useCallback(
     async (e: React.MouseEvent): Promise<void> => {
       const onYes = async (): Promise<void> => {
+        navigationDispatch(navigationSetTransitioning(true));
         await new Promise<void>((resolve) =>
           userDispatch(
             userOnUpdateSubmission(
@@ -263,7 +267,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         )
       );
     },
-    [confirmDialogDispatch, onDelete, userDispatch, id, doc]
+    [confirmDialogDispatch, navigationDispatch, onDelete, userDispatch, doc, id]
   );
 
   const handleSetupAndOpenPostMenu = useCallback(async () => {
