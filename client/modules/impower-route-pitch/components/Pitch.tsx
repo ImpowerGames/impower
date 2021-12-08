@@ -235,7 +235,9 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   }.`;
 
   const filterLabel =
-    getPitchTypeFilterOptionLabels()?.[typeFilter]?.toLowerCase();
+    typeFilter === "all"
+      ? "pitches"
+      : getPitchTypeFilterOptionLabels()?.[typeFilter]?.toLowerCase();
   const emptyLabelStyle: React.CSSProperties = useMemo(
     () => ({
       display: "flex",

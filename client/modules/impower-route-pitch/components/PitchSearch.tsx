@@ -157,7 +157,9 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
   const emptySubtitle2 = `Why not pitch it?`;
 
   const filterLabel =
-    getPitchTypeFilterOptionLabels()?.[typeFilter]?.toLowerCase();
+    typeFilter === "all"
+      ? "pitches"
+      : getPitchTypeFilterOptionLabels()?.[typeFilter]?.toLowerCase();
   const searchLabel = useMemo(
     () =>
       activeSearch
