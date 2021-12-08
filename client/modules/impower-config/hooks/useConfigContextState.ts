@@ -17,9 +17,10 @@ export const useConfigContextState = (): ConfigContextState => {
         await Config.instance.fetchAndActivate();
         stateRef.current = Config.instance.hydrate();
         ConfigCache.instance.set(stateRef.current);
-        setState(stateRef.current);
       }
     }
+    stateRef.current = ConfigCache.instance?.params;
+    setState(stateRef.current);
     return stateRef.current;
   }, []);
   return useMemo(() => [state, handleFetchConfig], [handleFetchConfig, state]);
