@@ -10,11 +10,16 @@ import React, {
 } from "react";
 import CalendarRegularIcon from "../../../resources/icons/regular/calendar.svg";
 import CalendarRangeSolidIcon from "../../../resources/icons/solid/calendar-range.svg";
+import {
+  confirmDialogClose,
+  ConfirmDialogContext,
+} from "../../impower-confirm-dialog";
 import { AggData } from "../../impower-data-state";
 import { ContributionDocument, getAge } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
 import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
+import { useRouter } from "../../impower-router";
 import { UserContext } from "../../impower-user";
 import { DateRangeFilter } from "../types/dateRangeFilter";
 import getRangeFilterOptionLabels from "../utils/getRangeFilterOptionLabels";
@@ -144,6 +149,7 @@ const StaticContributionList = React.memo(
     const nsfwVisible =
       account === undefined ? undefined : account?.nsfwVisible || false;
 
+    const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
     const [navigationState, navigationDispatch] = useContext(NavigationContext);
     const transitioning = navigationState?.transitioning;
 
@@ -432,6 +438,8 @@ const StaticContributionList = React.memo(
       [onEditContribution]
     );
 
+    const router = useRouter();
+
     const handleDeleteContribution = useCallback(
       async (
         e: React.MouseEvent,
@@ -453,11 +461,15 @@ const StaticContributionList = React.memo(
             [contributionId]: newDoc,
           });
         }
+        confirmDialogDispatch(confirmDialogClose());
+        // Wait a bit for dialog to close
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        await router.replace(`/p/${pitchId}/c/${contributionId}`);
         if (onDeleteContribution) {
           onDeleteContribution(e, pitchId, contributionId);
         }
       },
-      [onDeleteContribution]
+      [confirmDialogDispatch, onDeleteContribution, router]
     );
 
     const handleChangeScore = useCallback(

@@ -9,6 +9,10 @@ import React, {
   useState,
 } from "react";
 import {
+  confirmDialogClose,
+  ConfirmDialogContext,
+} from "../../impower-confirm-dialog";
+import {
   ContributionDocument,
   ContributionType,
   DocumentSnapshot,
@@ -18,6 +22,7 @@ import {
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
 import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
+import { useRouter } from "../../impower-router";
 import { UserContext } from "../../impower-user";
 import { ContributionTypeFilter } from "../types/contributionTypeFilter";
 import ContributionListContent from "./ContributionListContent";
@@ -144,6 +149,7 @@ const ContributionList = React.memo(
     const [sort, setSort] = useState<QuerySort>(sortOptions?.[0] || "rating");
     const [reloading, setReloading] = useState(false);
 
+    const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
     const [navigationState, navigationDispatch] = useContext(NavigationContext);
     const transitioning = navigationState?.transitioning;
 
@@ -467,6 +473,8 @@ const ContributionList = React.memo(
       [onEditContribution]
     );
 
+    const router = useRouter();
+
     const handleDeleteContribution = useCallback(
       async (
         e: React.MouseEvent,
@@ -488,11 +496,15 @@ const ContributionList = React.memo(
             [contributionId]: newDoc,
           });
         }
+        confirmDialogDispatch(confirmDialogClose());
+        // Wait a bit for dialog to close
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        await router.replace(`/p/${pitchId}/c/${contributionId}`);
         if (onDeleteContribution) {
           onDeleteContribution(e, pitchId, contributionId);
         }
       },
-      [onDeleteContribution]
+      [confirmDialogDispatch, onDeleteContribution, router]
     );
 
     const handleChangeScore = useCallback(

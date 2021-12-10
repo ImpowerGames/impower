@@ -401,14 +401,9 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
         const newDoc = { ...currentDoc, contributions };
         pitchDocRef.current = newDoc;
         DataStoreCache.instance.override(pitchId, { contributions });
-        setPitchDocState({ ...pitchDocRef.current });
-        confirmDialogDispatch(confirmDialogClose());
-        // Wait a bit for dialog to close
-        await new Promise((resolve) => setTimeout(resolve, 1));
-        await router.replace(`/p/${pitchId}/c/${contributionId}`);
       }
     },
-    [confirmDialogDispatch, recentSubmission, router]
+    [recentSubmission, router]
   );
 
   const handleChangeScore = useCallback(
