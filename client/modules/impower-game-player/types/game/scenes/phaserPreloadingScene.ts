@@ -1,6 +1,5 @@
 import Phaser from "phaser";
-import { FileType, Vector2 } from "../../../../impower-core";
-import { FileExtension } from "../../../../impower-core/types/enums/fileExtension";
+import { FileExtension, FileType, Vector2 } from "../../../../impower-core";
 import { FileData } from "../../../../impower-game/data";
 import { Ease } from "../../../../impower-game/data/enums/ease";
 import { GameTrigger } from "../../../../impower-game/data/enums/gameTrigger";
@@ -178,7 +177,7 @@ export class PhaserPreloadingScene extends Phaser.Scene {
           const dataMapFiles: FileData = this.impowerDataMap.files[refId];
           if (dataMapFiles) {
             refUrl = dataMapFiles.fileUrl;
-            refType = dataMapFiles.fileType;
+            refType = dataMapFiles.fileType as FileType;
             if (refType.toLowerCase().startsWith(this.refTypeImage)) {
               this.load.image(refId, refUrl);
             }
@@ -197,14 +196,14 @@ export class PhaserPreloadingScene extends Phaser.Scene {
 
           if (dataMapFile) {
             refUrl = dataMapFile.fileUrl;
-            refType = dataMapFile.fileType;
+            refType = dataMapFile.fileType as FileType;
             if (refType.toLowerCase().startsWith(this.refTypeImage)) {
               this.load.image(refId, refUrl);
             }
             if (refType.toLowerCase().startsWith(this.refTypeAudio)) {
               // Unlike images, Phaser cannot determine this is an audio file by the url.
               // Force Phaser to treat it as an audio file by adding the audio file extension.
-              refExt = dataMapFile.fileExtension;
+              refExt = dataMapFile.fileExtension as FileExtension;
               this.load.audio(refId, `${refUrl}.${refExt}`);
             }
           }

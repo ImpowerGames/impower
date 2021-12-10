@@ -6,7 +6,7 @@ import TextSolidIcon from "../../../../resources/icons/solid/text.svg";
 import UploadSolidIcon from "../../../../resources/icons/solid/upload.svg";
 import VideoSolidIcon from "../../../../resources/icons/solid/video.svg";
 import VolumeHighSolidIcon from "../../../../resources/icons/solid/volume-high.svg";
-import { FileType, StorageFile } from "../../../impower-core";
+import { StorageFile } from "../../../impower-core";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { TransparencyPattern } from "../../../impower-react-color-picker";
 import { getPlaceholderUrl } from "../../../impower-storage";
@@ -57,7 +57,7 @@ const StyledFilePreviewArea = styled.div`
   right: 0;
 `;
 
-const getFilePreviewIcon = (fileType: FileType): string => {
+const getFilePreviewIcon = (fileType: string): string => {
   if (fileType.toLowerCase().startsWith("image")) {
     return ImagePolaroidSolidIcon;
   }
