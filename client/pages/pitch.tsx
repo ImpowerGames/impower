@@ -84,7 +84,9 @@ const PitchPageContent = React.memo((props: PitchPageProps) => {
     }
   }, [navigationDispatch, routerIsReady]);
 
-  return <Pitch config={config} icons={icons} pitchDocs={pitchDocs} />;
+  return (
+    <Pitch config={config} icons={icons} type="all" pitchDocs={pitchDocs} />
+  );
 });
 
 const PitchPage = React.memo((props: PitchPageProps) => {

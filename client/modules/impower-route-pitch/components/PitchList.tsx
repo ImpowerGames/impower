@@ -361,7 +361,11 @@ const PitchList = React.memo(
           if (creator && creator !== doc._createdBy) {
             delete newPitchDocs[id];
           }
-          if (typeFilterState && typeFilterState !== doc.projectType) {
+          if (
+            typeFilterState &&
+            typeFilterState !== "all" &&
+            typeFilterState !== doc.projectType
+          ) {
             delete newPitchDocs[id];
           }
           if (search && !doc?.tags?.includes(search?.toLowerCase())) {
