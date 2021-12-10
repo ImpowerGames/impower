@@ -80,12 +80,22 @@ export class VariableInspector<
     return super.isPropertyVisible(propertyPath, data);
   }
 
-  isPropertyDisabled(propertyPath: string, data: D, docIds: string[]): boolean {
+  isPropertyDisabled(
+    propertyPath: string,
+    data: D,
+    docPaths: string[]
+  ): boolean {
     if (propertyPath === "name") {
-      return data.overrideParentContainerId !== docIds[0];
+      return (
+        data.overrideParentContainerId !==
+        docPaths[0].split("/").slice(-1).join("/")
+      );
     }
     if (propertyPath === "scope") {
-      return data.overrideParentContainerId !== docIds[0];
+      return (
+        data.overrideParentContainerId !==
+        docPaths[0].split("/").slice(-1).join("/")
+      );
     }
     return undefined;
   }

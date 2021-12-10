@@ -1,14 +1,15 @@
 import styled from "@emotion/styled";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
-import React, { useMemo } from "react";
+import React, { useContext, useMemo } from "react";
 import { StorageFile } from "../../impower-core";
 import { ContributionType } from "../../impower-data-store";
 import LazyImage from "../../impower-route/components/elements/LazyImage";
 import Markdown from "../../impower-route/components/elements/Markdown";
 import AspectRatioBox from "../../impower-route/components/inputs/AspectRatioBox";
 import AudioPreview from "../../impower-route/components/inputs/AudioPreview";
-import { getPlaceholderUrl } from "../../impower-storage";
+import { getPlaceholderUrl, getSfwUrl } from "../../impower-storage";
+import { UserContext } from "../../impower-user";
 import { getPreviewAspectRatio } from "../utils/getPreviewAspectRatio";
 import { getPreviewInnerStyle } from "../utils/getPreviewInnerStyle";
 
@@ -57,6 +58,7 @@ const StyledPrefixMark = styled.mark`
 `;
 
 interface ContributionCollapsedContentProps {
+  createdBy?: string;
   contributionType?: ContributionType;
   prefix?: string;
   content?: string;
@@ -71,6 +73,7 @@ interface ContributionCollapsedContentProps {
 const ContributionCollapsedContent = React.memo(
   (props: ContributionCollapsedContentProps): JSX.Element => {
     const {
+      createdBy,
       contributionType,
       prefix,
       content,
@@ -81,6 +84,9 @@ const ContributionCollapsedContent = React.memo(
       crop,
       preview,
     } = props;
+
+    const [userState] = useContext(UserContext);
+    const { uid } = userState;
 
     const previewAspectRatio = getPreviewAspectRatio(aspectRatio, square);
     const positionHorizontally = aspectRatio > previewAspectRatio;
@@ -119,7 +125,9 @@ const ContributionCollapsedContent = React.memo(
             >
               <LazyImage
                 aria-label={`Contribution`}
-                src={file?.fileUrl}
+                src={
+                  createdBy === uid ? file?.fileUrl : getSfwUrl(file?.fileUrl)
+                }
                 placeholder={getPlaceholderUrl(file?.fileUrl)}
                 pinchAndZoom
                 style={imagePreviewStyle}
@@ -155,6 +163,7 @@ const ContributionCollapsedContent = React.memo(
 );
 
 interface ContributionCardContentProps {
+  createdBy?: string;
   contributionType?: ContributionType;
   contentRef?: React.Ref<HTMLDivElement>;
   prefix?: string;
@@ -170,6 +179,7 @@ interface ContributionCardContentProps {
 const ContributionCardContent = React.memo(
   (props: ContributionCardContentProps): JSX.Element => {
     const {
+      createdBy,
       contributionType,
       contentRef,
       prefix,
@@ -196,6 +206,7 @@ const ContributionCardContent = React.memo(
               square={square}
               crop={crop}
               preview={preview}
+              createdBy={createdBy}
             />
           </StyledOffset>
         </StyledContent>

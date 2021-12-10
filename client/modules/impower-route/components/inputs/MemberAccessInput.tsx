@@ -97,7 +97,7 @@ const MemberAccessInput = React.memo(
         inspector.isPropertyDisabled(
           accessPropertyPath,
           memberDoc,
-          memberId ? [memberId] : undefined
+          memberId ? [`users/${memberId}`] : undefined
         ),
       [accessPropertyPath, inspector, memberDoc, memberId]
     );

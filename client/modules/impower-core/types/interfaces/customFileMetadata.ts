@@ -3,6 +3,8 @@ export interface CustomFileMetadata {
   fileType?: string;
   fileExtension?: string;
   fileName?: string;
+  docPath?: string;
+  propertyPath?: string;
   _createdBy?: string;
   _updatedBy?: string;
 }

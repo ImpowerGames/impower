@@ -302,25 +302,23 @@ const FileInput = React.memo((props: FileInputProps): JSX.Element => {
 
       try {
         const fileExtension = ext as FileExtension;
-        const newValue: StorageFile = {
-          ...state,
-          fileType: state.fileType || getFileContentType(ext),
-          fileExtension,
-          fileName: file.name,
-        };
         if (onBeforeUpload) {
-          await onBeforeUpload(newValue);
+          await onBeforeUpload({
+            ...state,
+            fileType: state.fileType || getFileContentType(ext),
+            fileExtension,
+            fileName: file.name,
+          });
         }
         const customMetadata = {
           fileType: state.fileType || getFileContentType(ext),
           fileExtension: ext,
           fileName: file.name,
         };
-        let storageKey = "";
         const Storage = (
           await import("../../../impower-storage/classes/storage")
         ).default;
-        const fileUrl = await Storage.instance.put(
+        const uploadedFile = await Storage.instance.put(
           file,
           {
             contentType: getFileContentType(ext),
@@ -329,19 +327,14 @@ const FileInput = React.memo((props: FileInputProps): JSX.Element => {
           (snapshot) => {
             setLoadedAmount(snapshot.bytesTransferred);
             setTotalAmount(snapshot.totalBytes);
-          },
-          (key) => {
-            storageKey = key;
           }
         );
         setLoadedAmount(undefined);
         setTotalAmount(undefined);
-        newValue.fileUrl = fileUrl;
-        newValue.storageKey = storageKey;
-        setState(newValue);
-        onChange(null, newValue);
+        setState(uploadedFile);
+        onChange(null, uploadedFile);
         if (getInputError) {
-          const error = await getInputError(newValue);
+          const error = await getInputError(uploadedFile);
           setInputError(error);
           if (error) {
             if (onErrorFound) {
@@ -352,18 +345,18 @@ const FileInput = React.memo((props: FileInputProps): JSX.Element => {
           }
           if (!error) {
             if (onDebouncedChange) {
-              onDebouncedChange(newValue);
+              onDebouncedChange(uploadedFile);
             }
             if (onBlur) {
-              onBlur(null, newValue);
+              onBlur(null, uploadedFile);
             }
           }
         } else {
           if (onDebouncedChange) {
-            onDebouncedChange(newValue);
+            onDebouncedChange(uploadedFile);
           }
           if (onBlur) {
-            onBlur(null, newValue);
+            onBlur(null, uploadedFile);
           }
         }
       } catch (error) {
@@ -377,12 +370,12 @@ const FileInput = React.memo((props: FileInputProps): JSX.Element => {
       }
     },
     [
-      onBeforeUpload,
+      onErrorFound,
       state,
+      onBeforeUpload,
       onChange,
       getInputError,
       onErrorFixed,
-      onErrorFound,
       onDebouncedChange,
       onBlur,
       toastDispatch,

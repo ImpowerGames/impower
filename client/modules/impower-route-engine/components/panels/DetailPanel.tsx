@@ -284,7 +284,7 @@ const SetupDetails = React.memo((props: SetupDetailsProps) => {
         NumberInputComponent={NumberInput}
         BooleanInputComponent={BooleanInput}
         ObjectFieldComponent={ObjectField}
-        getPropertyDocIds={handleGetPropertyDocIds}
+        getPropertyDocPaths={handleGetPropertyDocIds}
         onExpandProperty={onExpandProperty}
         onChange={onChange}
         onDebouncedChange={onDebouncedChange}

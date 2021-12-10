@@ -1,8 +1,4 @@
-import {
-  FileContentType,
-  FileType,
-  StorageFile,
-} from "../../../../../impower-core";
+import { FileContentType, StorageFile } from "../../../../../impower-core";
 import {
   createFileReference,
   FileReference,
@@ -15,7 +11,7 @@ export interface FileData
     InstanceData<StorageType.File, FileReference> {
   name: string;
   folder: string;
-  fileType?: FileType;
+  fileType?: string;
 
   readonly contentType?: FileContentType;
   readonly size?: number;

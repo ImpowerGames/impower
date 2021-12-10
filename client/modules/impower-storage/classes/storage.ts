@@ -6,6 +6,7 @@ import {
 } from "firebase/storage";
 import { getClientCredentials } from "../../impower-api";
 import API from "../../impower-api/classes/api";
+import { StorageFile } from "../../impower-core";
 import {
   FileMetadata,
   InternalStorage,
@@ -76,7 +77,7 @@ class Storage {
     metadata?: Partial<FileMetadata>,
     onProgress?: (snapshot: UploadTaskSnapshot) => void,
     onStart?: (storageKey: string) => void
-  ): Promise<string> {
+  ): Promise<StorageFile> {
     const internal = await this.internal();
     const claims = await API.instance.verifyUploadClaim();
     const storageKey = claims?.storage?.key;
@@ -96,11 +97,12 @@ class Storage {
     };
     const ref = _ref(internal, storageKey);
     const uploadTask = _uploadBytesResumable(ref, object, newMetadata);
-    return new Promise<string>((resolve, reject): void => {
+    return new Promise<StorageFile>((resolve, reject): void => {
       const onComplete = async (): Promise<void> => {
         const { ref } = uploadTask.snapshot;
         const url = await _getDownloadURL(ref);
-        resolve(url);
+        const file = { fileUrl: url, storageKey, ...metadata.customMetadata };
+        resolve(file);
       };
       const onError = (error: unknown): void => {
         reject(error);

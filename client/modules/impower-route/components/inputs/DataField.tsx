@@ -106,7 +106,10 @@ export interface InheritedProps {
   StringInputComponent?: React.ComponentType<StringInputProps>;
   BooleanInputComponent?: React.ComponentType<BooleanInputProps>;
   ObjectFieldComponent?: React.ComponentType<ObjectFieldProps>;
-  getDocIds?: (propertyPath: string, data: Record<string, unknown>) => string[];
+  getDocPaths?: (
+    propertyPath: string,
+    data: Record<string, unknown>
+  ) => string[];
   onPropertyInputChange?: (propertyPath: string, value: unknown) => void;
   onPropertyChange?: (propertyPath: string, value: unknown) => void;
   onDebouncedPropertyChange?: (propertyPath: string, value: unknown) => void;
@@ -284,7 +287,7 @@ const DataFieldArea = React.memo(
       onPropertyKeyDown,
       onPropertyErrorFound,
       onPropertyErrorFixed,
-      getDocIds,
+      getDocPaths,
       getInputError,
       getDisplayValue,
       getValueDescription,
@@ -378,10 +381,10 @@ const DataFieldArea = React.memo(
               propertyPath,
               inspectedData,
               value,
-              getDocIds ? getDocIds(propertyPath, inspectedData) : []
+              getDocPaths ? getDocPaths(propertyPath, inspectedData) : []
             )
           : null,
-      [getDocIds, getInputError, inspectedData, propertyPath]
+      [getDocPaths, getInputError, inspectedData, propertyPath]
     );
 
     const handleErrorFound = useCallback(
@@ -647,11 +650,11 @@ interface DataFieldProps extends RenderPropertyProps {
 
 const DataField = React.memo((props: DataFieldProps): JSX.Element | null => {
   const theme = useTheme();
-  const { propertyPath, data, getInspector, getDocIds } = props;
+  const { propertyPath, data, getInspector, getDocPaths } = props;
   const inspectedData = data[0];
   const inspector = getInspector?.(inspectedData);
-  const propertyDocIds = getDocIds
-    ? getDocIds(propertyPath, inspectedData)
+  const propertyDocPaths = getDocPaths
+    ? getDocPaths(propertyPath, inspectedData)
     : [];
   const {
     label = inspector?.getPropertyLabel?.(propertyPath, inspectedData),
@@ -669,7 +672,7 @@ const DataField = React.memo((props: DataFieldProps): JSX.Element | null => {
     disabled = inspector?.isPropertyDisabled?.(
       propertyPath,
       inspectedData,
-      propertyDocIds
+      propertyDocPaths
     ),
     markdown = inspector?.isPropertyMarkdown?.(propertyPath, inspectedData),
     multiline = inspector?.isPropertyMultiline?.(propertyPath, inspectedData),
@@ -1089,7 +1092,7 @@ const DataField = React.memo((props: DataFieldProps): JSX.Element | null => {
         onPropertyKeyDown={onPropertyKeyDown}
         onClickMenuItem={onClickMenuItem}
         onExpandProperty={onExpandProperty}
-        getDocIds={getDocIds}
+        getDocPaths={getDocPaths}
         getFormattedSummary={getFormattedSummary}
         getInspector={getInspector}
         onPropertyErrorFound={onPropertyErrorFound}

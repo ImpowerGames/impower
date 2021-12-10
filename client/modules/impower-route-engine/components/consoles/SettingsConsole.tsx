@@ -221,7 +221,7 @@ const SettingsConsole = (props: SettingsConsoleProps): JSX.Element => {
           spacing={16}
           data={data}
           expandedProperties={expandedProperties}
-          getPropertyDocIds={handleGetPropertyDocIds}
+          getPropertyDocPaths={handleGetPropertyDocIds}
           onExpandProperty={handleExpandProperty}
           getInspector={handleGetInspector}
           onDebouncedChange={handleDebouncedChange}

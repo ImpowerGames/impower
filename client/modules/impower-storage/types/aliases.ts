@@ -28,6 +28,8 @@ export interface SettableCustomFileMetadata extends StringData {
   fileType?: string;
   fileExtension?: string;
   fileName?: string;
+  docPath?: string;
+  propertyPath?: string;
 }
 
 export interface FileMetadata {

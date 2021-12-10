@@ -480,7 +480,7 @@ const ManageAccessForm = React.memo(
                   onDebouncedChange={handleDebouncedChange}
                   onSubmit={handleSubmit}
                   onSubmitting={onSubmitting}
-                  getPropertyDocIds={handleGetPropertyDocIds}
+                  getPropertyDocPaths={handleGetPropertyDocIds}
                   buttonChildren={
                     restricted !== undefined && !addingNewMembers ? (
                       <StyledFormControlLabel

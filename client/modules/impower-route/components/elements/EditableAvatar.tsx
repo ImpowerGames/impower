@@ -316,7 +316,7 @@ const EditableAvatar = (props: EditableAvatarProps): JSX.Element => {
         const Storage = (
           await import("../../../impower-storage/classes/storage")
         ).default;
-        const fileUrl = await Storage.instance.put(
+        const uploadedFile = await Storage.instance.put(
           file,
           {
             contentType: getFileContentType(ext),
@@ -329,8 +329,7 @@ const EditableAvatar = (props: EditableAvatarProps): JSX.Element => {
         );
         setIconUploadTotal(undefined);
         onUpload({
-          ...customMetadata,
-          fileUrl,
+          ...uploadedFile,
         } as StorageFile);
       } catch (error) {
         setIconUploadTotal(undefined);

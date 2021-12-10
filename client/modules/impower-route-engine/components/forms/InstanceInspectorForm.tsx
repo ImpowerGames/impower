@@ -81,7 +81,7 @@ const InstanceRenderProperty = (
     onPropertyChange,
     onDebouncedPropertyChange,
     onMore,
-    getDocIds,
+    getDocPaths,
     getInputError,
     getInspector,
   } = props;
@@ -104,10 +104,10 @@ const InstanceRenderProperty = (
             propertyPath,
             inspectedData,
             value,
-            getDocIds(propertyPath, inspectedData)
+            getDocPaths(propertyPath, inspectedData)
           )
         : null,
-    [getDocIds, getInputError, inspectedData, propertyPath]
+    [getDocPaths, getInputError, inspectedData, propertyPath]
   );
 
   const handleInputChange = useCallback(
@@ -301,7 +301,7 @@ const InstanceInspectorForm = React.memo(
       [onDebouncedPropertyChange, serializedReferences]
     );
 
-    const handleGetPropertyDocIds = useCallback(
+    const handleGetPropertyDocPaths = useCallback(
       () =>
         [inspectedContainerId] ||
         data.map((d) => d.reference.parentContainerId),
@@ -375,7 +375,7 @@ const InstanceInspectorForm = React.memo(
         data={data}
         getInspector={handleGetInspector}
         getFormattedSummary={handleGetFormattedSummary}
-        getPropertyDocIds={handleGetPropertyDocIds}
+        getPropertyDocPaths={handleGetPropertyDocPaths}
         setValueId={handleSetValueId}
         onClickMenuItem={handleClickMenuItem}
         onPropertyInputChange={handlePropertyInputChange}

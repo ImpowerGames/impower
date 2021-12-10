@@ -6,7 +6,7 @@ export interface Inspector<T = Record<string, unknown>> {
   isPropertyDisabled?: (
     _propertyPath: string,
     _data: T,
-    _docIds?: string[]
+    _docPaths?: string[]
   ) => boolean;
   isPropertyRequired?: (_propertyPath: string, _data: T) => boolean;
   isPropertyMultiline?: (_propertyPath: string, _data: T) => boolean;

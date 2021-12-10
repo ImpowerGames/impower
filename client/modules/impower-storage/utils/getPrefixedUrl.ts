@@ -6,6 +6,7 @@ export const getPrefixedUrl = (
   if (!fileUrl) {
     return fileUrl;
   }
+  const baseUrl = fileUrl.split("/").slice(0, -1).join("/");
   const tokenQuery = "&token=";
   const tokenQueryIndex = fileUrl.indexOf(tokenQuery);
   if (tokenQueryIndex < 0) {
@@ -19,12 +20,11 @@ export const getPrefixedUrl = (
   const folderEndSlashIndex = objectId.lastIndexOf("%2F");
   const fileDir = objectId.substring(0, folderEndSlashIndex);
   const fileName = objectId.substring(folderEndSlashIndex + 3);
-  const firebaseProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const validFileDirPrefix = fileDirPrefix
     ? encodeURIComponent(fileDirPrefix)
     : "";
   const validFileNamePrefix = fileNamePrefix
     ? encodeURIComponent(fileNamePrefix)
     : "";
-  return `https://firebasestorage.googleapis.com/v0/b/${firebaseProjectId}.appspot.com/o/${validFileDirPrefix}${fileDir}%2F${validFileNamePrefix}${fileName}?alt=media${tokenQuery}${token}`;
+  return `${baseUrl}/${validFileDirPrefix}${fileDir}%2F${validFileNamePrefix}${fileName}?alt=media&v=${token}`;
 };

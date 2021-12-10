@@ -93,7 +93,7 @@ export interface InspectorFormProps extends InheritedProps {
   submitOnEnter?: boolean;
   setValueId?: (value: unknown, id: string) => unknown;
   getInspector?: (data: Record<string, unknown>) => Inspector;
-  getPropertyDocIds?: (
+  getPropertyDocPaths?: (
     propertyPath: string,
     data: Record<string, unknown>
   ) => string[];
@@ -167,7 +167,7 @@ const InspectorForm = React.memo(
       submitOnEnter,
       setValueId,
       getInspector,
-      getPropertyDocIds,
+      getPropertyDocPaths,
       getFormattedSummary,
       onClickMenuItem,
       onExpandProperty,
@@ -291,7 +291,7 @@ const InspectorForm = React.memo(
             propertyPaths,
             currentData[0],
             inspector?.getPropertyError,
-            getPropertyDocIds
+            getPropertyDocPaths
           );
           setErrorsState(errors);
           setShowErrorsState(true);
@@ -311,7 +311,7 @@ const InspectorForm = React.memo(
           onSubmitting(false);
         }
       },
-      [onSubmitting, getInspector, propertyPaths, getPropertyDocIds, onSubmit]
+      [onSubmitting, getInspector, propertyPaths, getPropertyDocPaths, onSubmit]
     );
 
     const handleChange = useCallback(
@@ -490,7 +490,7 @@ const InspectorForm = React.memo(
                     showErrors={showErrorsState}
                     setValueId={setValueId}
                     getInspector={getInspector}
-                    getPropertyDocIds={getPropertyDocIds}
+                    getPropertyDocPaths={getPropertyDocPaths}
                     getFormattedSummary={getFormattedSummary}
                     onClickMenuItem={onClickMenuItem}
                     onExpandProperty={onExpandProperty}
@@ -535,7 +535,7 @@ const InspectorForm = React.memo(
                       errorText={errorsState?.[propertyPath]}
                       getInspector={getInspector}
                       getFormattedSummary={getFormattedSummary}
-                      getDocIds={getPropertyDocIds}
+                      getDocPaths={getPropertyDocPaths}
                       onPropertyInputChange={onPropertyInputChange}
                       onPropertyChange={handlePropertyChange}
                       onPropertyBlur={onPropertyBlur}

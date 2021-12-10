@@ -400,7 +400,7 @@ const EditMemberForm = React.memo(
                   onDebouncedChange={handleDebouncedChange}
                   onSubmit={handleSubmit}
                   onSubmitting={setEditing}
-                  getPropertyDocIds={handleGetPropertyDocIds}
+                  getPropertyDocPaths={handleGetPropertyDocIds}
                   buttonChildren={
                     <>
                       {canDelete && (

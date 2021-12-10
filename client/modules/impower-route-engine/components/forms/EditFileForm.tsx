@@ -126,7 +126,7 @@ const EditFileForm = React.memo(
             expandedProperties={expandedProperties}
             onExpandProperty={handleExpandProperty}
             onDebouncedChange={handleDebouncedChange}
-            getPropertyDocIds={handleGetPropertyDocIds}
+            getPropertyDocPaths={handleGetPropertyDocIds}
           >
             {children}
           </InspectorForm>

@@ -410,6 +410,7 @@ const ContributionCardLayout = React.memo(
                         </StyledStickyHeaderContent>
                       </StyledStickyHeaderArea>
                       <ContributionCardContent
+                        createdBy={createdBy}
                         contributionType={contributionType}
                         contentRef={contentRef}
                         prefix={prefix}

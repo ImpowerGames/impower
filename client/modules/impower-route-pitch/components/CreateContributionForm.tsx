@@ -775,6 +775,7 @@ const CreateContributionForm = React.memo(
         if (waveformState) {
           newDoc.waveform = waveformState;
         }
+        const contributionId = newContributionId;
         if (fileState) {
           const Storage = (
             await import("../../impower-storage/classes/storage")
@@ -791,13 +792,12 @@ const CreateContributionForm = React.memo(
             fileExtension,
             fileName: fileState.name,
           };
-          const fileUrl = await Storage.instance.put(fileState, {
+          const uploadedFile = await Storage.instance.put(fileState, {
             contentType: getFileContentType(fileExtension),
             customMetadata,
           });
           newDoc.file = {
-            ...customMetadata,
-            fileUrl,
+            ...uploadedFile,
           };
           newDoc.square = squareState;
           newDoc.crop = cropState;
@@ -805,7 +805,7 @@ const CreateContributionForm = React.memo(
             const FastAverageColor = (await import("fast-average-color"))
               .default;
             const fac = new FastAverageColor();
-            const { hex } = await fac.getColorAsync(fileUrl, {
+            const { hex } = await fac.getColorAsync(uploadedFile?.fileUrl, {
               ignoredColor: [255, 255, 255, 255], // white
             });
             const getReadableBackgroundColorHex = (
@@ -818,7 +818,7 @@ const CreateContributionForm = React.memo(
               hex
             );
             const img = new Image();
-            img.src = fileUrl;
+            img.src = uploadedFile?.fileUrl;
             newDoc.aspectRatio = await new Promise((resolve) => {
               img.onload = (): void => {
                 resolve(img.width / img.height);
@@ -826,7 +826,6 @@ const CreateContributionForm = React.memo(
             });
           }
         }
-        const contributionId = newContributionId;
         if (editing || newDoc.delisted) {
           await new Promise<void>((resolve) =>
             userDispatch(

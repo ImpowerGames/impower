@@ -427,7 +427,7 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
         disabled={mode === Mode.Test}
         submitting={submitting}
         data={data}
-        getPropertyDocIds={handleGetPropertyDocIds}
+        getPropertyDocPaths={handleGetPropertyDocIds}
         getInspector={handleGetInspector}
         onChange={handleChange}
         onDebouncedChange={handleDebouncedChange}

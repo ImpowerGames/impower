@@ -35,7 +35,7 @@ const InspectorGroupForm = React.memo(
       showErrors,
       setValueId,
       getInspector,
-      getPropertyDocIds,
+      getPropertyDocPaths,
       getFormattedSummary,
       onClickMenuItem,
       onExpandProperty,
@@ -89,7 +89,7 @@ const InspectorGroupForm = React.memo(
               debounceInterval={debounceInterval}
               getInspector={getInspector}
               getFormattedSummary={getFormattedSummary}
-              getDocIds={getPropertyDocIds}
+              getDocPaths={getPropertyDocPaths}
               onPropertyInputChange={onPropertyInputChange}
               onPropertyChange={onPropertyChange}
               onDebouncedPropertyChange={onDebouncedPropertyChange}
