@@ -279,13 +279,20 @@ const AddPitchToolbar = React.memo(
 
     const handleAdd = useCallback(
       async (e: React.MouseEvent, newType?: ProjectType) => {
-        setDialOpen(false);
-        await new Promise((resolve) => setTimeout(resolve, 1));
         if (onAdd) {
           onAdd(e, newType || type);
         }
       },
       [onAdd, type]
+    );
+
+    const handleAddType = useCallback(
+      async (e: React.MouseEvent, newType: ProjectType) => {
+        setDialOpen(false);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        handleAdd(e, newType);
+      },
+      [handleAdd]
     );
 
     const theme = useTheme();
@@ -334,7 +341,7 @@ const AddPitchToolbar = React.memo(
                     <AddContributionList
                       options={options}
                       key="list"
-                      onAdd={handleAdd}
+                      onAdd={handleAddType}
                     />
                   )}
                 </UnmountAnimation>
