@@ -9,7 +9,8 @@ const getUniqueSlug = async (
     .split(" ")
     .join("_")
     .toLowerCase()
-    .replace(/[^a-zA-Z0-9_]/gi, "");
+    .replace(/[^a-zA-Z0-9_]/gi, "")
+    .slice(0, 50);
   const newSlug =
     suffix !== undefined ? validSlug + suffix.toString() : validSlug;
   if (!newSlug) {
