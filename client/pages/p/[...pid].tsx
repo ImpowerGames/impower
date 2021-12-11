@@ -392,8 +392,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
   const handleDeleteContribution = useCallback(
     async (
       e: React.MouseEvent<Element, MouseEvent>,
-      pitchId: string,
-      contributionId: string
+      pitchId: string
     ): Promise<void> => {
       if (!recentSubmission) {
         const contributions = (pitchDocRef.current.contributions || 0) - 1;
@@ -403,7 +402,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
         DataStoreCache.instance.override(pitchId, { contributions });
       }
     },
-    [recentSubmission, router]
+    [recentSubmission]
   );
 
   const handleChangeScore = useCallback(
