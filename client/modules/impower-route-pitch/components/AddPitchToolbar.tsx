@@ -65,7 +65,7 @@ const StyledAddPitchToolbarArea = styled.div`
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
   transition: opacity 0.15s ease;
 `;
 
@@ -106,7 +106,7 @@ const StyledFixedBackdrop = styled(Backdrop)`
   right: 0;
   width: 100%;
   height: 100%;
-  z-index: 2;
+  z-index: 3;
 `;
 
 const StyledButtonTypography = styled(Typography)`
@@ -280,6 +280,7 @@ const AddPitchToolbar = React.memo(
     const handleAdd = useCallback(
       async (e: React.MouseEvent, newType?: ProjectType) => {
         setDialOpen(false);
+        await new Promise((resolve) => setTimeout(resolve, 1));
         if (onAdd) {
           onAdd(e, newType || type);
         }
