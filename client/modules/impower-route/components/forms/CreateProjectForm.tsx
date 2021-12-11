@@ -154,7 +154,7 @@ const CreateProjectForm = React.memo(
     const [filteredSummaryTags, setFilteredSummaryTags] = useState<string[]>(
       []
     );
-    const [nameEdited, setNameEdited] = useState(false);
+    const [nameEdited, setNameEdited] = useState(Boolean(doc?.name));
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const originalDoc = useMemo(() => ({ ...(doc || {}) }), []);
