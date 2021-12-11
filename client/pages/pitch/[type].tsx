@@ -30,6 +30,7 @@ import {
 import navigationSetTransitioning from "../../modules/impower-navigation/utils/navigationSetTransitioning";
 import { PageHead } from "../../modules/impower-route";
 import Pitch from "../../modules/impower-route-pitch/components/Pitch";
+import { ProjectTypeFilter } from "../../modules/impower-route-pitch/types/projectTypeFilter";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import { useRouter } from "../../modules/impower-router";
@@ -39,7 +40,7 @@ const LOAD_INITIAL_LIMIT = 5;
 interface PitchPageProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
-  type?: ProjectType;
+  type?: ProjectTypeFilter;
   pitchDocs: { [id: string]: ProjectDocument };
 }
 
@@ -56,12 +57,6 @@ const PitchPageContent = React.memo((props: PitchPageProps) => {
 
   const router = useRouter();
   const routerIsReady = router.isReady;
-
-  const typeValue =
-    type ||
-    ((typeof window !== "undefined"
-      ? decodeURI(window.location.pathname.split("/").pop())
-      : "") as ProjectType);
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
@@ -93,12 +88,7 @@ const PitchPageContent = React.memo((props: PitchPageProps) => {
   }, [navigationDispatch, routerIsReady]);
 
   return (
-    <Pitch
-      config={config}
-      icons={icons}
-      type={typeValue}
-      pitchDocs={pitchDocs}
-    />
+    <Pitch config={config} icons={icons} type={type} pitchDocs={pitchDocs} />
   );
 });
 
@@ -133,18 +123,23 @@ export const getStaticProps: GetStaticProps<PitchPageProps> = async (
   context
 ) => {
   const { type } = context.params;
-  const typeValue = (Array.isArray(type) ? type[0] : type) as ProjectType;
+  const typeValue = (Array.isArray(type) ? type[0] : type)?.toLowerCase() as
+    | ProjectType
+    | "all";
   const config = {
     ...getLocalizationConfigParameters(),
     ...getTagConfigParameters(),
   };
   const adminApp = await initAdminApp();
-  const pitchesSnapshot = await adminApp
+  let pitchesQuery = adminApp
     .firestore()
     .collection("pitched_projects")
     .where("nsfw", "==", false)
-    .where("delisted", "==", false)
-    .where("projectType", "==", typeValue)
+    .where("delisted", "==", false);
+  if (typeValue && typeValue !== "all") {
+    pitchesQuery = pitchesQuery.where("projectType", "==", typeValue);
+  }
+  const pitchesSnapshot = await pitchesQuery
     .orderBy("rank", "desc")
     .limit(LOAD_INITIAL_LIMIT)
     .get();

@@ -235,9 +235,9 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   }.`;
 
   const filterLabel =
-    typeFilter === "all"
-      ? "pitches"
-      : getPitchTypeFilterOptionLabels()?.[typeFilter]?.toLowerCase();
+    typeFilter?.toLowerCase() !== "all"
+      ? getPitchTypeFilterOptionLabels()?.[typeFilter]?.toLowerCase()
+      : "pitches";
   const emptyLabelStyle: React.CSSProperties = useMemo(
     () => ({
       display: "flex",
@@ -320,7 +320,9 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
   useEffect(() => {
     if (router.isReady) {
       if (window.location.pathname?.startsWith("/pitch/")) {
-        const value = window.location.pathname.split("/")?.[2] as ProjectType;
+        const value = window.location.pathname
+          .split("/")?.[2]
+          ?.toLowerCase() as ProjectType;
         setTypeFilter(value);
         navigationDispatch(navigationSetTransitioning(false));
       }

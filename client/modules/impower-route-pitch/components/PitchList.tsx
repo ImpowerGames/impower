@@ -240,7 +240,9 @@ const PitchList = React.memo(
       lastLoadedChunkRef.current
     );
 
-    const pitchDocsRef = useRef<{ [id: string]: ProjectDocument }>(pitchDocs);
+    const pitchDocsRef = useRef<{ [id: string]: ProjectDocument }>({
+      ...pitchDocs,
+    });
     const [pitchDocsState, setPitchDocsState] = useState<{
       [id: string]: ProjectDocument;
     }>(pitchDocsRef.current);
