@@ -301,7 +301,7 @@ const ContributionPostPageContent = React.memo(
 
     const handleBack = useCallback(async () => {
       const router = (await import("next/router")).default;
-      router.push(`/p/${pid}`);
+      router.replace(`/p/${pid}`);
     }, [pid]);
 
     const handleViewArchived = useCallback(
