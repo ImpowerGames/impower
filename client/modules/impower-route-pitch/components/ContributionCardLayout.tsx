@@ -227,6 +227,7 @@ interface ContributionCardLayoutProps {
   delisted?: boolean;
   showBackButton?: boolean;
   preview?: boolean;
+  nsfw?: boolean;
   hideFooterCover?: boolean;
   style?: React.CSSProperties;
   buttonStyle?: React.CSSProperties;
@@ -282,6 +283,7 @@ const ContributionCardLayout = React.memo(
       delisted,
       showBackButton,
       preview,
+      nsfw,
       hideFooterCover,
       style,
       buttonStyle,
@@ -421,6 +423,7 @@ const ContributionCardLayout = React.memo(
                         square={square}
                         crop={crop}
                         preview={preview}
+                        nsfw={nsfw}
                       />
                       {isTruncated && (
                         <StyledTruncatedIndicator>

@@ -8,7 +8,7 @@ import LazyImage from "../../impower-route/components/elements/LazyImage";
 import Markdown from "../../impower-route/components/elements/Markdown";
 import AspectRatioBox from "../../impower-route/components/inputs/AspectRatioBox";
 import AudioPreview from "../../impower-route/components/inputs/AudioPreview";
-import { getPlaceholderUrl, getSfwUrl } from "../../impower-storage";
+import { getPlaceholderUrl } from "../../impower-storage";
 import { UserContext } from "../../impower-user";
 import { getPreviewAspectRatio } from "../utils/getPreviewAspectRatio";
 import { getPreviewInnerStyle } from "../utils/getPreviewInnerStyle";
@@ -68,6 +68,7 @@ interface ContributionCollapsedContentProps {
   square?: boolean;
   crop?: number;
   preview?: boolean;
+  nsfw?: boolean;
 }
 
 const ContributionCollapsedContent = React.memo(
@@ -83,6 +84,7 @@ const ContributionCollapsedContent = React.memo(
       square,
       crop,
       preview,
+      nsfw,
     } = props;
 
     const [userState] = useContext(UserContext);
@@ -125,9 +127,7 @@ const ContributionCollapsedContent = React.memo(
             >
               <LazyImage
                 aria-label={`Contribution`}
-                src={
-                  createdBy === uid ? file?.fileUrl : getSfwUrl(file?.fileUrl)
-                }
+                src={nsfw ? undefined : file?.fileUrl}
                 placeholder={getPlaceholderUrl(file?.fileUrl)}
                 pinchAndZoom
                 style={imagePreviewStyle}
@@ -174,6 +174,7 @@ interface ContributionCardContentProps {
   square?: boolean;
   crop?: number;
   preview?: boolean;
+  nsfw?: boolean;
 }
 
 const ContributionCardContent = React.memo(
@@ -190,6 +191,7 @@ const ContributionCardContent = React.memo(
       square,
       crop,
       preview,
+      nsfw,
     } = props;
 
     return (
@@ -207,6 +209,7 @@ const ContributionCardContent = React.memo(
               crop={crop}
               preview={preview}
               createdBy={createdBy}
+              nsfw={nsfw}
             />
           </StyledOffset>
         </StyledContent>

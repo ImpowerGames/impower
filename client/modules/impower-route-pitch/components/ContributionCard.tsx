@@ -448,6 +448,7 @@ const ContributionCard = React.memo(
           createdAt={createdAt}
           updatedAt={updatedAt}
           score={doc?.score}
+          nsfw={doc?.nsfw}
           connectedTo={connectedTo}
           connectedFrom={connectedFrom}
           liked={liked}

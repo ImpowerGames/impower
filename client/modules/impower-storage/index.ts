@@ -5,5 +5,4 @@ export * from "./utils/getFileSizeDisplayValue";
 export * from "./utils/getFileSizeLimit";
 export * from "./utils/getPlaceholderUrl";
 export * from "./utils/getPrefixedUrl";
-export * from "./utils/getSfwUrl";
 export * from "./utils/getThumbnailUrl";
