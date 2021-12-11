@@ -8,6 +8,7 @@ const getReadOnlyFields = (): string[] => {
     "daysWhenWeekOld",
     "delisted",
     "dislikes",
+    "fileClassifications",
     "flagged",
     "follows",
     "hoursWhenDayOld",
