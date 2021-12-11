@@ -23,6 +23,7 @@ const getReadOnlyFields = (): string[] => {
     "my_submissions",
     "notes",
     "nsfw",
+    "nsfwData",
     "nsfwWords",
     "og",
     "rank",
