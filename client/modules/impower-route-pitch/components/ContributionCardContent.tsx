@@ -70,13 +70,13 @@ const StyledNSFWOverlay = styled.div`
   left: 0;
   right: 0;
   background-color: ${(props): string => props.theme.colors.black50};
+  color: white;
 `;
 
 const StyledNSFWIconArea = styled.div`
   margin: ${(props): string => props.theme.spacing(1)};
 `;
 const StyledNSFWTypography = styled(Typography)`
-  color: white;
   overflow-wrap: break-word;
   word-wrap: break-word;
   margin: ${(props): string => props.theme.spacing(0.5)};
@@ -84,7 +84,6 @@ const StyledNSFWTypography = styled(Typography)`
 `;
 
 const StyledNSFWSubtitleTypography = styled(Typography)`
-  color: white;
   overflow-wrap: break-word;
   word-wrap: break-word;
   margin: ${(props): string => props.theme.spacing(0.5)};
@@ -178,7 +177,7 @@ const ContributionCollapsedContent = React.memo(
               {blurNSFW && (
                 <StyledNSFWOverlay>
                   <StyledNSFWIconArea>
-                    <FontIcon aria-label={`NSFW`} size={48} color="white">
+                    <FontIcon aria-label={`NSFW`} size={48}>
                       <TriangleExclamationSolidIcon />
                     </FontIcon>
                   </StyledNSFWIconArea>
