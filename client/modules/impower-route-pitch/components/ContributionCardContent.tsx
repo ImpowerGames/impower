@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
-import React, { useContext, useMemo } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import TriangleExclamationSolidIcon from "../../../resources/icons/solid/triangle-exclamation.svg";
 import { StorageFile } from "../../impower-core";
 import { ContributionType } from "../../impower-data-store";
@@ -117,6 +117,8 @@ const ContributionCollapsedContent = React.memo(
       nsfw,
     } = props;
 
+    const [reveal, setReveal] = useState(false);
+
     const [userState] = useContext(UserContext);
     const { settings } = userState;
     const account = settings?.account;
@@ -154,7 +156,12 @@ const ContributionCollapsedContent = React.memo(
       []
     );
 
-    const blurNSFW = nsfw && nsfwBlurred && preview;
+    const handleClickNsfwOverlay = useCallback(() => {
+      setReveal(true);
+    }, []);
+
+    const blurNSFW =
+      nsfw && nsfw !== null && nsfw !== undefined && nsfwBlurred && !reveal;
 
     return (
       <>
@@ -166,16 +173,14 @@ const ContributionCollapsedContent = React.memo(
             >
               <LazyImage
                 aria-label={`Contribution`}
-                src={
-                  blurNSFW ? getPlaceholderUrl(file?.fileUrl) : file?.fileUrl
-                }
+                src={blurNSFW ? undefined : file?.fileUrl}
                 placeholder={getPlaceholderUrl(file?.fileUrl)}
                 pinchAndZoom
                 style={imagePreviewStyle}
                 innerStyle={previewInnerStyle}
               />
               {blurNSFW && (
-                <StyledNSFWOverlay>
+                <StyledNSFWOverlay onClick={handleClickNsfwOverlay}>
                   <StyledNSFWIconArea>
                     <FontIcon aria-label={`NSFW`} size={48}>
                       <TriangleExclamationSolidIcon />

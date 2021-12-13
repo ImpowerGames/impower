@@ -118,9 +118,12 @@ export const LazyImage = (props: LazyImageProps): JSX.Element => {
   const currentPlaceholderStyle = useMemo(
     () => ({
       objectFit: placeholderObjectFit,
-      opacity: placeholderVisible && !imageVisible ? 1 : undefined,
+      opacity:
+        (placeholder && !src) || (placeholderVisible && !imageVisible)
+          ? 1
+          : undefined,
     }),
-    [imageVisible, placeholderObjectFit, placeholderVisible]
+    [imageVisible, placeholder, placeholderObjectFit, placeholderVisible, src]
   );
 
   const currentImageStyle = useMemo(
@@ -184,23 +187,27 @@ export const LazyImage = (props: LazyImageProps): JSX.Element => {
 
   return (
     <StyledLazyImage style={currentStyle}>
-      <StyledPlaceholder
-        src={placeholder}
-        onLoad={handleLoadPlaceholder}
-        aria-label="hidden"
-        style={currentPlaceholderStyle}
-      />
-      <StyledImage
-        onTouchStart={pinchAndZoom ? handleTouchStart : undefined}
-        onTouchMove={pinchAndZoom ? handleTouchMove : undefined}
-        onTouchEnd={pinchAndZoom ? handleTouchEnd : undefined}
-        src={src}
-        onLoad={handleLoadImage}
-        onError={onError}
-        aria-label={ariaLabel}
-        alt={alt}
-        style={currentImageStyle}
-      />
+      {placeholder && (
+        <StyledPlaceholder
+          src={placeholder}
+          onLoad={handleLoadPlaceholder}
+          aria-label="hidden"
+          style={currentPlaceholderStyle}
+        />
+      )}
+      {src && (
+        <StyledImage
+          onTouchStart={pinchAndZoom ? handleTouchStart : undefined}
+          onTouchMove={pinchAndZoom ? handleTouchMove : undefined}
+          onTouchEnd={pinchAndZoom ? handleTouchEnd : undefined}
+          src={src}
+          onLoad={handleLoadImage}
+          onError={onError}
+          aria-label={ariaLabel}
+          alt={alt}
+          style={currentImageStyle}
+        />
+      )}
     </StyledLazyImage>
   );
 };
