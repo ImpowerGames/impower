@@ -235,7 +235,12 @@ const StyledCircularProgress = styled(CircularProgress)`
 `;
 
 const profilePropertyPaths = ["icon", "bio"];
-const settingsPropertyPaths = ["contactMethod", "contact", "nsfwVisible"];
+const settingsPropertyPaths = [
+  "contactMethod",
+  "contact",
+  "nsfwVisible",
+  "nsfwBlurred",
+];
 const labels = {
   username: "Change Username",
   email: "Change Email",

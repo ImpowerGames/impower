@@ -5,7 +5,7 @@ const createSettingsDocument = (
 ): SettingsDocument => ({
   _documentType: "SettingsDocument",
   nsfwVisible: false,
-  nsfwBlurred: false,
+  nsfwBlurred: true,
   emailMarketing: false,
   emailNotifications: false,
   appNotifications: false,

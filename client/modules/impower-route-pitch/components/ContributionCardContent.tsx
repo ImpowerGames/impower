@@ -2,8 +2,10 @@ import styled from "@emotion/styled";
 import CardContent from "@material-ui/core/CardContent";
 import Typography from "@material-ui/core/Typography";
 import React, { useContext, useMemo } from "react";
+import TriangleExclamationSolidIcon from "../../../resources/icons/solid/triangle-exclamation.svg";
 import { StorageFile } from "../../impower-core";
 import { ContributionType } from "../../impower-data-store";
+import { FontIcon } from "../../impower-icon";
 import LazyImage from "../../impower-route/components/elements/LazyImage";
 import Markdown from "../../impower-route/components/elements/Markdown";
 import AspectRatioBox from "../../impower-route/components/inputs/AspectRatioBox";
@@ -57,8 +59,38 @@ const StyledPrefixMark = styled.mark`
   font-weight: 600;
 `;
 
+const StyledNSFWOverlay = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: ${(props): string => props.theme.colors.black50};
+`;
+
+const StyledNSFWIconArea = styled.div`
+  margin: ${(props): string => props.theme.spacing(1)};
+`;
+const StyledNSFWTypography = styled(Typography)`
+  color: white;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  margin: ${(props): string => props.theme.spacing(0.5)};
+  font-weight: 700;
+`;
+
+const StyledNSFWSubtitleTypography = styled(Typography)`
+  color: white;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  margin: ${(props): string => props.theme.spacing(0.5)};
+`;
+
 interface ContributionCollapsedContentProps {
-  createdBy?: string;
   contributionType?: ContributionType;
   prefix?: string;
   content?: string;
@@ -74,7 +106,6 @@ interface ContributionCollapsedContentProps {
 const ContributionCollapsedContent = React.memo(
   (props: ContributionCollapsedContentProps): JSX.Element => {
     const {
-      createdBy,
       contributionType,
       prefix,
       content,
@@ -88,7 +119,14 @@ const ContributionCollapsedContent = React.memo(
     } = props;
 
     const [userState] = useContext(UserContext);
-    const { uid } = userState;
+    const { settings } = userState;
+    const account = settings?.account;
+    const nsfwBlurred =
+      account === undefined
+        ? undefined
+        : account?.nsfwBlurred !== undefined
+        ? account?.nsfwBlurred
+        : true;
 
     const previewAspectRatio = getPreviewAspectRatio(aspectRatio, square);
     const positionHorizontally = aspectRatio > previewAspectRatio;
@@ -117,6 +155,8 @@ const ContributionCollapsedContent = React.memo(
       []
     );
 
+    const blurNSFW = nsfw && nsfwBlurred && preview;
+
     return (
       <>
         {file?.fileUrl && file?.fileType === "image/*" && (
@@ -127,12 +167,25 @@ const ContributionCollapsedContent = React.memo(
             >
               <LazyImage
                 aria-label={`Contribution`}
-                src={nsfw ? undefined : file?.fileUrl}
+                src={
+                  blurNSFW ? getPlaceholderUrl(file?.fileUrl) : file?.fileUrl
+                }
                 placeholder={getPlaceholderUrl(file?.fileUrl)}
                 pinchAndZoom
                 style={imagePreviewStyle}
                 innerStyle={previewInnerStyle}
               />
+              {blurNSFW && (
+                <StyledNSFWOverlay>
+                  <StyledNSFWIconArea>
+                    <FontIcon aria-label={`NSFW`} size={48} color="white">
+                      <TriangleExclamationSolidIcon />
+                    </FontIcon>
+                  </StyledNSFWIconArea>
+                  <StyledNSFWTypography variant="h4">{`NSFW`}</StyledNSFWTypography>
+                  <StyledNSFWSubtitleTypography>{`sensitive content - tap to view`}</StyledNSFWSubtitleTypography>
+                </StyledNSFWOverlay>
+              )}
             </AspectRatioBox>
           </StyledFileContent>
         )}
@@ -163,7 +216,6 @@ const ContributionCollapsedContent = React.memo(
 );
 
 interface ContributionCardContentProps {
-  createdBy?: string;
   contributionType?: ContributionType;
   contentRef?: React.Ref<HTMLDivElement>;
   prefix?: string;
@@ -180,7 +232,6 @@ interface ContributionCardContentProps {
 const ContributionCardContent = React.memo(
   (props: ContributionCardContentProps): JSX.Element => {
     const {
-      createdBy,
       contributionType,
       contentRef,
       prefix,
@@ -208,7 +259,6 @@ const ContributionCardContent = React.memo(
               square={square}
               crop={crop}
               preview={preview}
-              createdBy={createdBy}
               nsfw={nsfw}
             />
           </StyledOffset>
