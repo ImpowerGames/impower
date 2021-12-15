@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import dynamic from "next/dynamic";
 import React, {
   PropsWithChildren,
   useCallback,
@@ -12,6 +13,7 @@ import {
   confirmDialogClose,
   ConfirmDialogContext,
 } from "../../impower-confirm-dialog";
+import { Timestamp } from "../../impower-core";
 import {
   ContributionDocument,
   ContributionType,
@@ -20,14 +22,45 @@ import {
   QuerySort,
 } from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
+import { useDialogNavigation } from "../../impower-dialog";
 import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { useRouter } from "../../impower-router";
 import { UserContext } from "../../impower-user";
 import { ContributionTypeFilter } from "../types/contributionTypeFilter";
+import AddContributionToolbar from "./AddContributionToolbar";
 import ContributionListContent from "./ContributionListContent";
 import ContributionListQueryHeader from "./ContributionListQueryHeader";
 import PitchLoadingProgress from "./PitchLoadingProgress";
+
+const contributionTypes: ContributionType[] = [
+  "pitch",
+  "story",
+  "image",
+  "audio",
+];
+
+const getTime = (date: string | Timestamp): number => {
+  if (!date) {
+    return new Date().getTime();
+  }
+  if (typeof date === "string") {
+    return new Date(date).getTime();
+  }
+  return date.toDate().getTime();
+};
+
+const getValue = (num: number): number => {
+  if (num === undefined || num === null) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  return num;
+};
+
+const CreateContributionDialog = dynamic(
+  () => import("./CreateContributionDialog"),
+  { ssr: false }
+);
 
 const LOAD_MORE_LIMIT = 10;
 
@@ -97,6 +130,9 @@ interface ContributionListProps {
   pitchDoc?: ProjectDocument;
   creator?: string;
   contributionDocs?: { [key: string]: ContributionDocument };
+  toolbarRef?: React.Ref<HTMLDivElement>;
+  toolbarAreaStyle?: React.CSSProperties;
+  toolbarStyle?: React.CSSProperties;
   sortOptions?: QuerySort[];
   emptyLabel?: string;
   emptySubtitle?: string;
@@ -105,7 +141,14 @@ interface ContributionListProps {
   style?: React.CSSProperties;
   contentStyle?: React.CSSProperties;
   queryHeaderStyle?: React.CSSProperties;
-  onEditContribution?: (
+  hideAddToolbar?: boolean;
+  onCreateContribution?: (
+    e: React.MouseEvent,
+    pitchId: string,
+    contributionId: string,
+    doc: ContributionDocument
+  ) => void;
+  onUpdateContribution?: (
     e: React.MouseEvent,
     pitchId: string,
     contributionId: string,
@@ -126,21 +169,26 @@ const ContributionList = React.memo(
       pitchDoc,
       creator,
       contributionDocs,
+      toolbarRef,
+      toolbarAreaStyle,
+      toolbarStyle,
       sortOptions,
       emptyLabel,
       emptySubtitle,
       noMoreLabel,
       loadingPlaceholder,
+      hideAddToolbar,
       style,
       contentStyle,
       queryHeaderStyle,
-      onEditContribution,
+      onCreateContribution,
+      onUpdateContribution,
       onDeleteContribution,
       children,
     } = props;
 
     const [userState] = useContext(UserContext);
-    const { settings, my_recent_contributions } = userState;
+    const { uid, settings, my_recent_contributions } = userState;
     const account = settings?.account;
     const nsfwVisible =
       account === undefined ? undefined : account?.nsfwVisible || false;
@@ -164,12 +212,12 @@ const ContributionList = React.memo(
     const chunkMapRef = useRef<{
       [id: string]: number;
     }>(initialChunkMap);
-    const [chunkMap, setChunkMap] = useState<{
+    const [chunkMapState, setChunkMapState] = useState<{
       [id: string]: number;
     }>(chunkMapRef.current);
 
     const lastLoadedChunkRef = useRef(0);
-    const [lastLoadedChunk, setLastLoadedChunk] = useState(
+    const [lastLoadedChunkState, setLastLoadedChunkState] = useState(
       lastLoadedChunkRef.current
     );
 
@@ -195,6 +243,22 @@ const ContributionList = React.memo(
     const listElRef = useRef<HTMLDivElement>();
     const loadingElRef = useRef<HTMLDivElement>();
 
+    const [editDialogOpen, setEditDialogOpen] = useState<boolean>();
+    const [editing, setEditing] = useState(false);
+    const [editPitchId, setEditPitchId] = useState<string>(pitchId);
+    const [editPitchDoc, setEditPitchDoc] = useState<ProjectDocument>(pitchDoc);
+    const [editDoc, setEditDoc] = useState<ContributionDocument>();
+    const [createFile, setCreateFile] = useState<globalThis.File>();
+
+    const hasUnsavedChangesRef = useRef(false);
+
+    const userContributionDocsRef = useRef<{
+      [id: string]: ContributionDocument;
+    }>({});
+    const [userContributionDocsState, setUserContributionDocsState] = useState<{
+      [id: string]: ContributionDocument;
+    }>();
+
     const recentContributionDocs = useMemo(() => {
       const result: { [id: string]: ContributionDocument } = {};
       Object.entries(my_recent_contributions).forEach(
@@ -214,6 +278,131 @@ const ContributionList = React.memo(
       return result;
     }, [creator, my_recent_contributions, pitchId]);
     const recentContributionDocsRef = useRef(recentContributionDocs);
+
+    useEffect(() => {
+      if (recentContributionDocs) {
+        Object.entries(recentContributionDocs).forEach(([id, doc]) => {
+          userContributionDocsRef.current[id] = doc;
+        });
+        setUserContributionDocsState({ ...userContributionDocsRef.current });
+      }
+    }, [recentContributionDocs]);
+
+    const handleLoadUserContributions = useCallback(
+      (docs: { [id: string]: ContributionDocument }) => {
+        userContributionDocsRef.current = {
+          ...(recentContributionDocs || {}),
+          ...docs,
+          ...(recentContributionDocs || {}),
+        };
+        setUserContributionDocsState({ ...userContributionDocsRef.current });
+      },
+      [recentContributionDocs]
+    );
+
+    useEffect(() => {
+      if (uid === undefined) {
+        return;
+      }
+      if (!uid || !pitchId) {
+        handleLoadUserContributions({});
+        return;
+      }
+      const getData = async (): Promise<void> => {
+        const DataStoreQuery = (
+          await import("../../impower-data-store/classes/dataStoreQuery")
+        ).default;
+        try {
+          const snapshot = await new DataStoreQuery(
+            "pitched_projects",
+            pitchId,
+            "contributions"
+          )
+            .where("_createdBy", "==", uid)
+            .orderBy("_createdAt", "desc")
+            .limit(100)
+            .get();
+          const newDocs = {};
+          snapshot.docs.forEach((d) => {
+            const pitchId = d.ref.parent.parent.id;
+            const contributionId = d.id;
+            newDocs[`${pitchId}/${contributionId}`] = d.data();
+          });
+          handleLoadUserContributions(newDocs);
+        } catch (e) {
+          const logError = (await import("../../impower-logger/utils/logError"))
+            .default;
+          logError("DataStore", e);
+        }
+      };
+
+      getData();
+    }, [uid, handleLoadUserContributions, pitchId]);
+
+    const handleBrowserNavigation = useCallback(
+      (
+        currState: Record<string, string>,
+        prevState?: Record<string, string>
+      ) => {
+        if (currState?.e !== prevState?.e) {
+          setEditDialogOpen(currState?.e === "contribution");
+        }
+      },
+      []
+    );
+    const [openEditDialog, closeEditDialog] = useDialogNavigation(
+      "e",
+      handleBrowserNavigation
+    );
+
+    const handleOpenCreateDialogForm = useCallback(
+      async (
+        e: React.MouseEvent<Element, MouseEvent>,
+        newDoc: ContributionDocument,
+        file: globalThis.File
+      ): Promise<void> => {
+        setEditPitchId(pitchId);
+        setEditPitchDoc(pitchDoc);
+        setEditDoc(newDoc);
+        setCreateFile(file);
+        setEditing(false);
+        setEditDialogOpen(true);
+        openEditDialog("contribution", "Create Contribution");
+      },
+      [openEditDialog, pitchDoc, pitchId]
+    );
+
+    const handleCloseCreateDialog = useCallback(async () => {
+      if (hasUnsavedChangesRef.current) {
+        return;
+      }
+      setEditDialogOpen(false);
+      closeEditDialog();
+    }, [closeEditDialog]);
+
+    const handleContribute = useCallback(
+      (
+        e: React.MouseEvent<Element, MouseEvent>,
+        contributionId: string,
+        doc: ContributionDocument
+      ): void => {
+        if (editing) {
+          if (onUpdateContribution) {
+            onUpdateContribution(e, pitchId, contributionId, doc);
+          }
+        } else if (onCreateContribution) {
+          onCreateContribution(e, pitchId, contributionId, doc);
+        }
+      },
+      [editing, onCreateContribution, onUpdateContribution, pitchId]
+    );
+
+    const handleUnsavedChange = useCallback(
+      (hasUnsavedChanges: boolean): void => {
+        hasUnsavedChangesRef.current = hasUnsavedChanges;
+      },
+      []
+    );
 
     const queryOptions: {
       filter: ContributionType;
@@ -286,6 +475,7 @@ const ContributionList = React.memo(
           filter?: ContributionType;
           sort: QuerySort;
           nsfw?: boolean;
+          creator?: string;
         },
         limit: number
       ): Promise<number> => {
@@ -294,6 +484,8 @@ const ContributionList = React.memo(
         ).default;
         const query = pitchId
           ? await contributionsQuery(options, "pitched_projects", pitchId)
+          : uid === creator
+          ? await contributionsQuery({ ...options, nsfw: undefined }, undefined)
           : await contributionsQuery(options, undefined);
         const cursor = cursorRef.current;
         const cursorQuery = cursor
@@ -306,7 +498,18 @@ const ContributionList = React.memo(
         const lastSnapshot = docs[cursorIndex] || null;
         cursorRef.current = lastSnapshot;
         const currentDocs = contributionDocsRef.current || {};
-        const matchingRecentDocs = recentContributionDocsRef.current || {};
+        const { filter } = options;
+        const matchingRecentDocs: { [id: string]: ContributionDocument } = {};
+        Object.entries(recentContributionDocsRef.current || {}).forEach(
+          ([id, doc]) => {
+            if (
+              (!filter || filter === doc?.contributionType) &&
+              (!creator || creator === doc?._createdBy)
+            ) {
+              matchingRecentDocs[id] = doc;
+            }
+          }
+        );
         const newDocs = {
           ...matchingRecentDocs,
           ...currentDocs,
@@ -330,7 +533,7 @@ const ContributionList = React.memo(
         contributionDocsRef.current = newDocs;
         return docs.length;
       },
-      []
+      [creator, uid]
     );
 
     const handleLoadMoreItems = useCallback(
@@ -345,11 +548,8 @@ const ContributionList = React.memo(
         const limit = LOAD_MORE_LIMIT;
         const loadedCount = await handleLoad(pitchId, options, limit);
         setContributionDocsState(contributionDocsRef.current);
-        setChunkMap(chunkMapRef.current);
-        noMoreRef.current =
-          Object.keys(contributionDocsRef.current).length === 0
-            ? undefined
-            : loadedCount < limit;
+        setChunkMapState(chunkMapRef.current);
+        noMoreRef.current = loadedCount < limit;
         setNoMore(noMoreRef.current);
         await handleHideLoadingPlaceholder();
       },
@@ -365,7 +565,7 @@ const ContributionList = React.memo(
         loadingMoreRef.current = true;
         setLoadingMore(loadingMoreRef.current);
         lastLoadedChunkRef.current += 1;
-        setLastLoadedChunk(lastLoadedChunkRef.current);
+        setLastLoadedChunkState(lastLoadedChunkRef.current);
         await handleLoadMoreItems(pitchId, queryOptions);
         loadingMoreRef.current = false;
         setLoadingMore(loadingMoreRef.current);
@@ -385,45 +585,6 @@ const ContributionList = React.memo(
       DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
       await handleLoadMoreItems(pitchId, queryOptions);
     }, [scrollParent, handleLoadMoreItems, pitchId, queryOptions]);
-
-    useEffect(() => {
-      const recentContributionDocs: { [id: string]: ContributionDocument } = {};
-      Object.entries(my_recent_contributions).forEach(
-        ([targetPitchId, contributions]) => {
-          Object.entries(contributions).forEach(
-            ([contributionId, contributionDoc]) => {
-              if (
-                (!pitchId || pitchId === targetPitchId) &&
-                (!creator || contributionDoc._createdBy === creator)
-              ) {
-                recentContributionDocs[`${targetPitchId}/${contributionId}`] =
-                  contributionDoc;
-              }
-            }
-          );
-        }
-      );
-      recentContributionDocsRef.current = recentContributionDocs;
-      if (contributionDocsRef.current) {
-        const matchingRecentContributionDocs = recentContributionDocs || {};
-        const newContributionDocs = {
-          ...matchingRecentContributionDocs,
-          ...contributionDocsRef.current,
-          ...matchingRecentContributionDocs,
-        };
-        Object.entries(newContributionDocs).forEach(([key, doc]) => {
-          if (doc.delisted) {
-            delete newContributionDocs[key];
-          }
-          if (chunkMapRef.current[key] === undefined) {
-            chunkMapRef.current[key] = lastLoadedChunkRef.current;
-          }
-        });
-        contributionDocsRef.current = newContributionDocs;
-        setContributionDocsState(contributionDocsRef.current);
-        setChunkMap(chunkMapRef.current);
-      }
-    }, [creator, my_recent_contributions, pitchId]);
 
     const handleReload = useCallback(async () => {
       if (contributionDocsRef.current) {
@@ -460,17 +621,25 @@ const ContributionList = React.memo(
         contributionId: string
       ): Promise<void> => {
         const key = `${pitchId}/${contributionId}`;
-        if (onEditContribution) {
-          onEditContribution(
-            e,
-            pitchId,
-            contributionId,
-            recentContributionDocsRef.current[key] ||
-              contributionDocsRef.current[key]
-          );
-        }
+        const doc =
+          recentContributionDocsRef.current[key] ||
+          contributionDocsRef.current[key];
+        const DataStoreRead = (
+          await import("../../impower-data-store/classes/dataStoreRead")
+        ).default;
+        const pitchSnapshot = await new DataStoreRead(
+          "pitched_projects",
+          pitchId
+        ).get<ProjectDocument>();
+        const pitchDoc = pitchSnapshot.data();
+        setEditPitchId(pitchId);
+        setEditPitchDoc(pitchDoc);
+        setEditDoc(doc);
+        setEditing(true);
+        setEditDialogOpen(true);
+        openEditDialog("contribution", "Edit Contribution");
       },
-      [onEditContribution]
+      [openEditDialog]
     );
 
     const router = useRouter();
@@ -581,6 +750,46 @@ const ContributionList = React.memo(
       [loading]
     );
 
+    const validContributionDocsState = useMemo(() => {
+      const docs: { [key: string]: ContributionDocument } = {
+        ...contributionDocsState,
+        ...userContributionDocsState,
+        ...recentContributionDocs,
+      };
+      const result: { [id: string]: ContributionDocument } = {};
+      Object.entries(docs)
+        .sort(([, aDoc], [, bDoc]) => {
+          return getTime(bDoc?._createdAt) - getTime(aDoc?._createdAt);
+        })
+        .sort(([, aDoc], [, bDoc]) => {
+          return sort === "new"
+            ? getTime(bDoc?._createdAt) - getTime(aDoc?._createdAt)
+            : sort === "rank"
+            ? getValue(bDoc?.rank) - getValue(aDoc?.rank)
+            : sort === "rating"
+            ? getValue(bDoc?.rating) - getValue(aDoc?.rating)
+            : 0;
+        })
+        .forEach(([key, doc]) => {
+          if (
+            (!typeFilter ||
+              typeFilter === "all" ||
+              typeFilter === doc?.contributionType) &&
+            (!creator || creator === doc?._createdBy)
+          ) {
+            result[key] = doc;
+          }
+        });
+      return result;
+    }, [
+      contributionDocsState,
+      creator,
+      recentContributionDocs,
+      sort,
+      typeFilter,
+      userContributionDocsState,
+    ]);
+
     return (
       <>
         <StyledListArea style={style}>
@@ -598,15 +807,15 @@ const ContributionList = React.memo(
                 <ContributionListContent
                   scrollParent={scrollParent}
                   pitchDocs={pitchDocs}
-                  contributionDocs={contributionDocsState}
-                  chunkMap={chunkMap}
-                  lastLoadedChunk={lastLoadedChunk}
+                  contributionDocs={validContributionDocsState}
+                  chunkMap={chunkMapState}
+                  lastLoadedChunk={lastLoadedChunkState}
                   onChangeScore={handleChangeScore}
                   onKudo={handleKudo}
                   onEdit={handleEditContribution}
                   onDelete={handleDeleteContribution}
                 />
-                {contributionDocsState && (
+                {validContributionDocsState && (
                   <PitchLoadingProgress
                     loadingMore={loadingMore}
                     noMore={noMore || contributionEntries?.length === 0}
@@ -627,6 +836,17 @@ const ContributionList = React.memo(
                     onRefresh={handleRefresh}
                   />
                 )}
+                {!hideAddToolbar && pitchId && (
+                  <AddContributionToolbar
+                    types={contributionTypes}
+                    toolbarRef={toolbarRef}
+                    userContributionDocs={userContributionDocsState}
+                    hidden={editDialogOpen}
+                    onAdd={handleOpenCreateDialogForm}
+                    style={toolbarStyle}
+                    toolbarAreaStyle={toolbarAreaStyle}
+                  />
+                )}
                 {children}
               </StyledListContent>
             </StyledContributionList>
@@ -637,6 +857,19 @@ const ContributionList = React.memo(
             </StyledOverlayArea>
           </StyledContent>
         </StyledListArea>
+        {editDialogOpen !== undefined && (
+          <CreateContributionDialog
+            open={editDialogOpen}
+            pitchId={editPitchId}
+            pitchDoc={editPitchDoc}
+            doc={editDoc}
+            file={createFile}
+            editing={editing}
+            onClose={handleCloseCreateDialog}
+            onSubmit={handleContribute}
+            onUnsavedChange={handleUnsavedChange}
+          />
+        )}
       </>
     );
   }

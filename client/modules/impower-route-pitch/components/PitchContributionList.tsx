@@ -1,22 +1,13 @@
 import styled from "@emotion/styled";
 import CircularProgress from "@material-ui/core/CircularProgress";
-import dynamic from "next/dynamic";
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useMemo } from "react";
 import {
   ContributionDocument,
-  ContributionType,
   ProjectDocument,
 } from "../../impower-data-store";
-import { useDialogNavigation } from "../../impower-dialog";
-import AddContributionToolbar from "./AddContributionToolbar";
 import ContributionList from "./ContributionList";
 
 const SORT_OPTIONS: ["rating", "rank", "new"] = ["rating", "rank", "new"];
-
-const CreateContributionDialog = dynamic(
-  () => import("./CreateContributionDialog"),
-  { ssr: false }
-);
 
 const StyledLoadingArea = styled.div`
   flex: 1;
@@ -35,7 +26,7 @@ interface PitchContributionListProps {
   scrollParent?: HTMLElement;
   pitchId?: string;
   pitchDoc?: ProjectDocument;
-  contributionDocs?: { [id: string]: ContributionDocument };
+  contributionDocs?: { [key: string]: ContributionDocument };
   toolbarRef?: React.Ref<HTMLDivElement>;
   toolbarAreaStyle?: React.CSSProperties;
   toolbarStyle?: React.CSSProperties;
@@ -73,100 +64,6 @@ const PitchContributionList = React.memo(
       onDeleteContribution,
     } = props;
 
-    const [createContributionDialogOpen, setCreateContributionDialogOpen] =
-      useState<boolean>();
-    const [editing, setEditing] = useState(false);
-    const [createDoc, setCreateDoc] = useState<ContributionDocument>();
-    const [createFile, setCreateFile] = useState<globalThis.File>();
-
-    const hasUnsavedChangesRef = useRef(false);
-
-    const handleBrowserNavigation = useCallback(
-      (
-        currState: Record<string, string>,
-        prevState?: Record<string, string>
-      ) => {
-        if (currState?.e !== prevState?.e) {
-          setCreateContributionDialogOpen(currState?.e === "contribution");
-        }
-      },
-      []
-    );
-    const [openEditDialog, closeEditDialog] = useDialogNavigation(
-      "e",
-      handleBrowserNavigation
-    );
-
-    const handleEditContribution = useCallback(
-      async (
-        e: React.MouseEvent,
-        pitchId: string,
-        contributionId: string,
-        doc: ContributionDocument
-      ): Promise<void> => {
-        setCreateDoc(doc);
-        setEditing(true);
-        setCreateContributionDialogOpen(true);
-        openEditDialog("contribution", "Edit Contribution");
-      },
-      [openEditDialog]
-    );
-
-    const handleOpenCreateDialogForm = useCallback(
-      async (
-        e: React.MouseEvent<Element, MouseEvent>,
-        newDoc: ContributionDocument,
-        file: globalThis.File
-      ): Promise<void> => {
-        setCreateDoc(newDoc);
-        setCreateFile(file);
-        setEditing(false);
-        setCreateContributionDialogOpen(true);
-        openEditDialog("contribution", "Create Contribution");
-      },
-      [openEditDialog]
-    );
-
-    const handleCloseCreateDialog = useCallback(async () => {
-      if (hasUnsavedChangesRef.current) {
-        return;
-      }
-      setCreateContributionDialogOpen(false);
-      closeEditDialog();
-    }, [closeEditDialog]);
-
-    const handleContribute = useCallback(
-      (
-        e: React.MouseEvent<Element, MouseEvent>,
-        contributionId: string,
-        doc: ContributionDocument
-      ): void => {
-        if (editing) {
-          if (onUpdateContribution) {
-            onUpdateContribution(e, pitchId, contributionId, doc);
-          }
-        } else if (onCreateContribution) {
-          onCreateContribution(e, pitchId, contributionId, doc);
-        }
-      },
-      [editing, onCreateContribution, onUpdateContribution, pitchId]
-    );
-
-    const handleUnsavedChange = useCallback(
-      (hasUnsavedChanges: boolean): void => {
-        hasUnsavedChangesRef.current = hasUnsavedChanges;
-      },
-      []
-    );
-
-    const contributionTypes: ContributionType[] = useMemo(
-      () =>
-        pitchDoc?.projectType === "game" && pitchDoc?.summary === ""
-          ? ["pitch", "story", "image", "audio"]
-          : ["story", "image", "audio"],
-      [pitchDoc?.projectType, pitchDoc?.summary]
-    );
-
     const loadingPlaceholder = useMemo(
       () => (
         <StyledLoadingArea>
@@ -193,32 +90,13 @@ const PitchContributionList = React.memo(
           loadingPlaceholder={loadingPlaceholder}
           style={listStyle}
           queryHeaderStyle={queryHeaderStyle}
-          onEditContribution={handleEditContribution}
+          toolbarRef={toolbarRef}
+          toolbarAreaStyle={toolbarAreaStyle}
+          toolbarStyle={toolbarStyle}
+          onCreateContribution={onCreateContribution}
+          onUpdateContribution={onUpdateContribution}
           onDeleteContribution={onDeleteContribution}
-        >
-          <AddContributionToolbar
-            types={contributionTypes}
-            toolbarRef={toolbarRef}
-            pitchId={pitchId}
-            hidden={createContributionDialogOpen}
-            onAdd={handleOpenCreateDialogForm}
-            style={toolbarStyle}
-            toolbarAreaStyle={toolbarAreaStyle}
-          />
-        </ContributionList>
-        {createContributionDialogOpen !== undefined && (
-          <CreateContributionDialog
-            open={createContributionDialogOpen}
-            pitchId={pitchId}
-            pitchDoc={pitchDoc}
-            doc={createDoc}
-            file={createFile}
-            editing={editing}
-            onClose={handleCloseCreateDialog}
-            onSubmit={handleContribute}
-            onUnsavedChange={handleUnsavedChange}
-          />
-        )}
+        />
       </>
     );
   }

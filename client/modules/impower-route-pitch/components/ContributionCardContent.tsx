@@ -125,7 +125,7 @@ const ContributionCollapsedContent = React.memo(
     const nsfwBlurred =
       account === undefined
         ? undefined
-        : account?.nsfwBlurred !== undefined
+        : account?.nsfwVisible && account?.nsfwBlurred !== undefined
         ? account?.nsfwBlurred
         : true;
 
@@ -160,8 +160,7 @@ const ContributionCollapsedContent = React.memo(
       setReveal(true);
     }, []);
 
-    const blurNSFW =
-      nsfw && nsfw !== null && nsfw !== undefined && nsfwBlurred && !reveal;
+    const blurNSFW = nsfw && nsfw !== null && nsfwBlurred && !reveal;
 
     return (
       <>
@@ -173,7 +172,9 @@ const ContributionCollapsedContent = React.memo(
             >
               <LazyImage
                 aria-label={`Contribution`}
-                src={blurNSFW ? undefined : file?.fileUrl}
+                src={
+                  blurNSFW || blurNSFW === undefined ? undefined : file?.fileUrl
+                }
                 placeholder={getPlaceholderUrl(file?.fileUrl)}
                 pinchAndZoom
                 style={imagePreviewStyle}

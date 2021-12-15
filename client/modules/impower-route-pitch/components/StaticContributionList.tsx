@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import dynamic from "next/dynamic";
 import React, {
   PropsWithChildren,
   useCallback,
@@ -15,8 +16,13 @@ import {
   ConfirmDialogContext,
 } from "../../impower-confirm-dialog";
 import { AggData } from "../../impower-data-state";
-import { ContributionDocument, getAge } from "../../impower-data-store";
+import {
+  ContributionDocument,
+  getAge,
+  ProjectDocument,
+} from "../../impower-data-store";
 import DataStoreCache from "../../impower-data-store/classes/dataStoreCache";
+import { useDialogNavigation } from "../../impower-dialog";
 import { NavigationContext } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 import { useRouter } from "../../impower-router";
@@ -33,6 +39,11 @@ import QueryHeader from "./QueryHeader";
 const LOAD_MORE_LIMIT = 10;
 
 const SORT_OPTIONS: ["new", "old"] = ["new", "old"];
+
+const CreateContributionDialog = dynamic(
+  () => import("./CreateContributionDialog"),
+  { ssr: false }
+);
 
 const StyledListArea = styled.div`
   flex: 1;
@@ -111,7 +122,17 @@ interface StaticContributionListProps {
   style?: React.CSSProperties;
   contentStyle?: React.CSSProperties;
   queryHeaderStyle?: React.CSSProperties;
-  onEditContribution?: (
+  hideAddToolbar?: boolean;
+  toolbarRef?: React.Ref<HTMLDivElement>;
+  toolbarAreaStyle?: React.CSSProperties;
+  toolbarStyle?: React.CSSProperties;
+  onCreateContribution?: (
+    e: React.MouseEvent,
+    pitchId: string,
+    contributionId: string,
+    doc: ContributionDocument
+  ) => void;
+  onUpdateContribution?: (
     e: React.MouseEvent,
     pitchId: string,
     contributionId: string,
@@ -137,7 +158,8 @@ const StaticContributionList = React.memo(
       style,
       contentStyle,
       queryHeaderStyle,
-      onEditContribution,
+      onCreateContribution,
+      onUpdateContribution,
       onDeleteContribution,
       onRefresh,
       children,
@@ -186,6 +208,14 @@ const StaticContributionList = React.memo(
     const listElRef = useRef<HTMLDivElement>();
     const loadingElRef = useRef<HTMLDivElement>();
 
+    const [editDialogOpen, setEditDialogOpen] = useState<boolean>();
+    const [editing, setEditing] = useState(false);
+    const [editPitchId, setEditPitchId] = useState<string>();
+    const [editPitchDoc, setEditPitchDoc] = useState<ProjectDocument>();
+    const [editDoc, setEditDoc] = useState<ContributionDocument>();
+
+    const hasUnsavedChangesRef = useRef(false);
+
     const recentContributionDocs = useMemo(() => {
       const result: { [id: string]: ContributionDocument } = {};
       Object.entries(my_recent_contributions).forEach(
@@ -200,6 +230,54 @@ const StaticContributionList = React.memo(
       return result;
     }, [my_recent_contributions]);
     const recentContributionDocsRef = useRef(recentContributionDocs);
+
+    const handleBrowserNavigation = useCallback(
+      (
+        currState: Record<string, string>,
+        prevState?: Record<string, string>
+      ) => {
+        if (currState?.e !== prevState?.e) {
+          setEditDialogOpen(currState?.e === "contribution");
+        }
+      },
+      []
+    );
+    const [openEditDialog, closeEditDialog] = useDialogNavigation(
+      "e",
+      handleBrowserNavigation
+    );
+
+    const handleCloseCreateDialog = useCallback(async () => {
+      if (hasUnsavedChangesRef.current) {
+        return;
+      }
+      setEditDialogOpen(false);
+      closeEditDialog();
+    }, [closeEditDialog]);
+
+    const handleContribute = useCallback(
+      (
+        e: React.MouseEvent<Element, MouseEvent>,
+        contributionId: string,
+        doc: ContributionDocument
+      ): void => {
+        if (editing) {
+          if (onUpdateContribution) {
+            onUpdateContribution(e, editPitchId, contributionId, doc);
+          }
+        } else if (onCreateContribution) {
+          onCreateContribution(e, editPitchId, contributionId, doc);
+        }
+      },
+      [editPitchId, editing, onCreateContribution, onUpdateContribution]
+    );
+
+    const handleUnsavedChange = useCallback(
+      (hasUnsavedChanges: boolean): void => {
+        hasUnsavedChangesRef.current = hasUnsavedChanges;
+      },
+      []
+    );
 
     const queryOptions: {
       nsfw?: boolean;
@@ -426,16 +504,25 @@ const StaticContributionList = React.memo(
         contributionId: string
       ): Promise<void> => {
         const key = `${pitchId}/${contributionId}`;
-        if (onEditContribution) {
-          onEditContribution(
-            e,
-            pitchId,
-            contributionId,
-            contributionDocsRef.current[key]
-          );
-        }
+        const doc =
+          recentContributionDocsRef.current[key] ||
+          contributionDocsRef.current[key];
+        const DataStoreRead = (
+          await import("../../impower-data-store/classes/dataStoreRead")
+        ).default;
+        const pitchSnapshot = await new DataStoreRead(
+          "pitched_projects",
+          pitchId
+        ).get<ProjectDocument>();
+        const pitchDoc = pitchSnapshot.data();
+        setEditPitchId(pitchId);
+        setEditPitchDoc(pitchDoc);
+        setEditDoc(doc);
+        setEditing(true);
+        setEditDialogOpen(true);
+        openEditDialog("contribution", "Edit Contribution");
       },
-      [onEditContribution]
+      [openEditDialog]
     );
 
     const router = useRouter();
@@ -676,6 +763,18 @@ const StaticContributionList = React.memo(
             </StyledOverlayArea>
           </StyledContent>
         </StyledListArea>
+        {editDialogOpen !== undefined && (
+          <CreateContributionDialog
+            open={editDialogOpen}
+            pitchId={editPitchId}
+            pitchDoc={editPitchDoc}
+            doc={editDoc}
+            editing={editing}
+            onClose={handleCloseCreateDialog}
+            onSubmit={handleContribute}
+            onUnsavedChange={handleUnsavedChange}
+          />
+        )}
       </>
     );
   }

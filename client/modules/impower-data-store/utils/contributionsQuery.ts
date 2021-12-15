@@ -21,7 +21,7 @@ const contributionsQuery = async (
 
   query = query.where("delisted", "==", false);
 
-  if (!nsfw) {
+  if (nsfw !== undefined && nsfw !== null && !nsfw) {
     query = query.where("nsfw", "==", false);
   }
 

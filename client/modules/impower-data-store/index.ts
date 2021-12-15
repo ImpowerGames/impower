@@ -5,7 +5,6 @@ export * from "./classes/inspectors/studioDocumentInspector";
 export * from "./classes/inspectors/userDocumentInspector";
 export * from "./hooks/useDataStoreConnectionStatus";
 export * from "./hooks/useDocument";
-export * from "./hooks/usePitchUserContributionsCollection";
 export * from "./hooks/useUserCustomizationsCollectionLoad";
 export * from "./hooks/useUserSettingsCollectionLoad";
 export * from "./hooks/useUserSubmissionsCollectionLoad";

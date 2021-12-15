@@ -9,7 +9,6 @@ import React, {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import BookOpenSolidIcon from "../../../resources/icons/solid/book-open.svg";
@@ -21,7 +20,6 @@ import { FileType } from "../../impower-core";
 import {
   ContributionDocument,
   ContributionType,
-  usePitchUserContributionDocuments,
 } from "../../impower-data-store";
 import { FontIcon } from "../../impower-icon";
 import {
@@ -385,7 +383,9 @@ const AddContributionList = React.memo(
 interface AddContributionToolbarProps {
   types: ContributionType[];
   toolbarRef?: React.Ref<HTMLDivElement>;
-  pitchId?: string;
+  userContributionDocs?: {
+    [id: string]: ContributionDocument;
+  };
   hidden?: boolean;
   onAdd?: (
     e: React.MouseEvent | React.ChangeEvent<HTMLInputElement>,
@@ -401,7 +401,7 @@ const AddContributionToolbar = React.memo(
     const {
       types,
       toolbarRef,
-      pitchId,
+      userContributionDocs,
       hidden,
       style,
       toolbarAreaStyle,
@@ -416,45 +416,7 @@ const AddContributionToolbar = React.memo(
       });
     }, [hidden]);
 
-    const [userState] = useContext(UserContext);
-    const { uid, my_recent_contributions } = userState;
-    const recentContributionDocs = my_recent_contributions[pitchId];
-
-    const userContributionDocsRef = useRef<{
-      [id: string]: ContributionDocument;
-    }>({});
-    const [userContributionDocsState, setUserContributionDocsState] = useState<{
-      [id: string]: ContributionDocument;
-    }>();
     const [dialOpen, setDialOpen] = useState<boolean>();
-
-    const handleLoadUserContributions = useCallback(
-      (docs: { [id: string]: ContributionDocument }) => {
-        userContributionDocsRef.current = {
-          ...(recentContributionDocs || {}),
-          ...docs,
-          ...(recentContributionDocs || {}),
-        };
-        setUserContributionDocsState({ ...userContributionDocsRef.current });
-      },
-      [recentContributionDocs]
-    );
-
-    usePitchUserContributionDocuments(
-      "pitched_projects",
-      pitchId,
-      uid,
-      handleLoadUserContributions
-    );
-
-    useEffect(() => {
-      if (recentContributionDocs) {
-        Object.entries(recentContributionDocs).forEach(([id, doc]) => {
-          userContributionDocsRef.current[id] = doc;
-        });
-        setUserContributionDocsState({ ...userContributionDocsRef.current });
-      }
-    }, [recentContributionDocs]);
 
     const fabSpacing = 16;
 
@@ -533,7 +495,7 @@ const AddContributionToolbar = React.memo(
                   <AddContributionList
                     types={types}
                     key="list"
-                    userContributionDocs={userContributionDocsState}
+                    userContributionDocs={userContributionDocs}
                     onAdd={handleAdd}
                   />
                 )}

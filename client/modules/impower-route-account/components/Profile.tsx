@@ -32,8 +32,8 @@ import {
 
 const SORT_OPTIONS: ["new", "rating", "rank"] = ["new", "rating", "rank"];
 
-const ContributionList = dynamic(
-  () => import("../../impower-route-pitch/components/ContributionList"),
+const ProfileContributionList = dynamic(
+  () => import("../../impower-route-pitch/components/ProfileContributionList"),
   { ssr: false }
 );
 
@@ -322,15 +322,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
                       style={listStyle}
                     />
                   ) : (
-                    <ContributionList
-                      creator={id}
-                      sortOptions={SORT_OPTIONS}
-                      emptyLabel={`No Contributions`}
-                      noMoreLabel={`That's all for now!`}
-                      loadingPlaceholder={loadingPlaceholder}
-                      queryHeaderStyle={queryHeaderStyle}
-                      style={listStyle}
-                    />
+                    <ProfileContributionList creator={id} />
                   )}
                 </>
               )}
