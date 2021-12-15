@@ -7,7 +7,7 @@ const GamePromptButton = dynamic(() => import("../elements/GamePromptButton"), {
 });
 
 export interface ProjectNameFieldProps extends RenderPropertyProps {
-  chosenTitle?: string;
+  defaultName?: string;
   sortedTags?: string[];
   relevancyFilteredTags?: string[];
   relevantTitles?: [string, number][];
@@ -25,7 +25,7 @@ export const ProjectNameField = (
   props: ProjectNameFieldProps
 ): JSX.Element | null => {
   const {
-    chosenTitle,
+    defaultName,
     sortedTags,
     relevancyFilteredTags,
     relevantTitles,
@@ -43,11 +43,11 @@ export const ProjectNameField = (
     <DataField
       {...props}
       renderProperty={undefined}
-      defaultValue={chosenTitle}
+      defaultValue={defaultName}
       InputProps={{
         endAdornment: (
           <GamePromptButton
-            chosenTitle={chosenTitle}
+            chosenTitle={defaultName}
             sortedTags={sortedTags}
             relevancyFilteredTags={relevancyFilteredTags}
             relevantTitles={relevantTitles}

@@ -24,7 +24,8 @@ const StyledMark = styled.mark`
   color: inherit;
 `;
 
-export interface ProjectGameSummaryFieldProps extends RenderPropertyProps {
+export interface ProjectSummaryFieldProps extends RenderPropertyProps {
+  defaultSummary?: string;
   onChangeTags?: (tags: string[]) => void;
 }
 
@@ -98,31 +99,27 @@ export const PlaceholderOverlay = (
   );
 };
 
-export interface ProjectStorySummaryFieldProps extends RenderPropertyProps {
-  tags: string[];
-  onChangeTags?: (tags: string[]) => void;
-}
-
 export const ProjectStorySummaryField = (
   props: ProjectSummaryFieldProps
 ): JSX.Element | null => {
-  const { data } = props;
+  const { defaultSummary, onPropertyInputChange } = props;
 
-  const summary = data?.[0]?.summary as string;
-
-  const [inputValue, setInputValue] = useState(summary);
+  const [inputValue, setInputValue] = useState(defaultSummary);
 
   useEffect(() => {
-    setInputValue(summary);
-  }, [summary]);
+    setInputValue(defaultSummary);
+  }, [defaultSummary]);
 
   const handlePropertyInputChange = useCallback(
-    async (propertyPath: string, value: string) => {
+    async (propertyPath: string, value: unknown) => {
       if (propertyPath === "summary") {
-        setInputValue(value);
+        setInputValue(value as string);
+      }
+      if (onPropertyInputChange) {
+        onPropertyInputChange(propertyPath, value);
       }
     },
-    []
+    [onPropertyInputChange]
   );
 
   const placeholder = `(After a catalyst), (a flawed hero) must (overcome an obstacle) (and achieve a goal) (or else stakes).`;
@@ -151,19 +148,15 @@ export const ProjectStorySummaryField = (
   return (
     <DataField
       {...props}
+      defaultValue={defaultSummary}
       InputProps={SummaryInputProps}
       DialogProps={SummaryDialogProps}
-      defaultValue={summary}
       onPropertyInputChange={handlePropertyInputChange}
       renderProperty={undefined}
       placeholder={placeholder}
     />
   );
 };
-
-export interface ProjectSummaryFieldProps extends RenderPropertyProps {
-  onChangeTags?: (tags: string[]) => void;
-}
 
 export const ProjectSummaryField = (
   props: ProjectSummaryFieldProps
