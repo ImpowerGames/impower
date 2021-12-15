@@ -279,6 +279,46 @@ const ContributionList = React.memo(
     }, [creator, my_recent_contributions, pitchId]);
     const recentContributionDocsRef = useRef(recentContributionDocs);
 
+    const validContributionDocsState = useMemo(() => {
+      const docs: { [key: string]: ContributionDocument } = {
+        ...contributionDocsState,
+        ...userContributionDocsState,
+        ...recentContributionDocs,
+      };
+      const result: { [id: string]: ContributionDocument } = {};
+      Object.entries(docs)
+        .sort(([, aDoc], [, bDoc]) => {
+          return getTime(bDoc?._createdAt) - getTime(aDoc?._createdAt);
+        })
+        .sort(([, aDoc], [, bDoc]) => {
+          return sort === "new"
+            ? getTime(bDoc?._createdAt) - getTime(aDoc?._createdAt)
+            : sort === "rank"
+            ? getValue(bDoc?.rank) - getValue(aDoc?.rank)
+            : sort === "rating"
+            ? getValue(bDoc?.rating) - getValue(aDoc?.rating)
+            : 0;
+        })
+        .forEach(([key, doc]) => {
+          if (
+            (!typeFilter ||
+              typeFilter === "all" ||
+              typeFilter === doc?.contributionType) &&
+            (!creator || creator === doc?._createdBy)
+          ) {
+            result[key] = doc;
+          }
+        });
+      return result;
+    }, [
+      contributionDocsState,
+      creator,
+      recentContributionDocs,
+      sort,
+      typeFilter,
+      userContributionDocsState,
+    ]);
+
     useEffect(() => {
       if (recentContributionDocs) {
         Object.entries(recentContributionDocs).forEach(([id, doc]) => {
@@ -355,21 +395,54 @@ const ContributionList = React.memo(
       handleBrowserNavigation
     );
 
+    const handleEditContribution = useCallback(
+      async (
+        e: React.MouseEvent,
+        pitchId: string,
+        contributionId: string
+      ): Promise<void> => {
+        const key = `${pitchId}/${contributionId}`;
+        const doc = validContributionDocsState[key];
+        let parentPitchDoc = pitchDoc;
+        if (!parentPitchDoc) {
+          const DataStoreRead = (
+            await import("../../impower-data-store/classes/dataStoreRead")
+          ).default;
+          const pitchSnapshot = await new DataStoreRead(
+            "pitched_projects",
+            pitchId
+          ).get<ProjectDocument>();
+          parentPitchDoc = pitchSnapshot.data();
+        }
+        setEditPitchId(pitchId);
+        setEditPitchDoc(parentPitchDoc);
+        setEditDoc(doc);
+        setEditing(true);
+        setEditDialogOpen(true);
+        openEditDialog("contribution", "Edit Contribution");
+      },
+      [openEditDialog, pitchDoc, validContributionDocsState]
+    );
+
     const handleOpenCreateDialogForm = useCallback(
       async (
         e: React.MouseEvent<Element, MouseEvent>,
         newDoc: ContributionDocument,
         file: globalThis.File
       ): Promise<void> => {
+        const contributionId = `${uid}-${newDoc.contributionType}`;
+        const existingContributionKey = `${pitchId}/${contributionId}`;
+        const existingDoc =
+          validContributionDocsState?.[existingContributionKey];
         setEditPitchId(pitchId);
         setEditPitchDoc(pitchDoc);
-        setEditDoc(newDoc);
+        setEditDoc({ ...newDoc, deleted: existingDoc?.deleted || false });
         setCreateFile(file);
         setEditing(false);
         setEditDialogOpen(true);
         openEditDialog("contribution", "Create Contribution");
       },
-      [openEditDialog, pitchDoc, pitchId]
+      [validContributionDocsState, openEditDialog, pitchDoc, pitchId, uid]
     );
 
     const handleCloseCreateDialog = useCallback(async () => {
@@ -393,6 +466,8 @@ const ContributionList = React.memo(
         } else if (onCreateContribution) {
           onCreateContribution(e, pitchId, contributionId, doc);
         }
+        contributionDocsRef.current[`${pitchId}/${contributionId}`] = doc;
+        setContributionDocsState({ ...contributionDocsRef.current });
       },
       [editing, onCreateContribution, onUpdateContribution, pitchId]
     );
@@ -614,34 +689,6 @@ const ContributionList = React.memo(
       handleReload();
     }, [allowReload, handleReload, navigationDispatch, nsfwVisible]);
 
-    const handleEditContribution = useCallback(
-      async (
-        e: React.MouseEvent,
-        pitchId: string,
-        contributionId: string
-      ): Promise<void> => {
-        const key = `${pitchId}/${contributionId}`;
-        const doc =
-          recentContributionDocsRef.current[key] ||
-          contributionDocsRef.current[key];
-        const DataStoreRead = (
-          await import("../../impower-data-store/classes/dataStoreRead")
-        ).default;
-        const pitchSnapshot = await new DataStoreRead(
-          "pitched_projects",
-          pitchId
-        ).get<ProjectDocument>();
-        const pitchDoc = pitchSnapshot.data();
-        setEditPitchId(pitchId);
-        setEditPitchDoc(pitchDoc);
-        setEditDoc(doc);
-        setEditing(true);
-        setEditDialogOpen(true);
-        openEditDialog("contribution", "Edit Contribution");
-      },
-      [openEditDialog]
-    );
-
     const router = useRouter();
 
     const handleDeleteContribution = useCallback(
@@ -750,46 +797,6 @@ const ContributionList = React.memo(
       [loading]
     );
 
-    const validContributionDocsState = useMemo(() => {
-      const docs: { [key: string]: ContributionDocument } = {
-        ...contributionDocsState,
-        ...userContributionDocsState,
-        ...recentContributionDocs,
-      };
-      const result: { [id: string]: ContributionDocument } = {};
-      Object.entries(docs)
-        .sort(([, aDoc], [, bDoc]) => {
-          return getTime(bDoc?._createdAt) - getTime(aDoc?._createdAt);
-        })
-        .sort(([, aDoc], [, bDoc]) => {
-          return sort === "new"
-            ? getTime(bDoc?._createdAt) - getTime(aDoc?._createdAt)
-            : sort === "rank"
-            ? getValue(bDoc?.rank) - getValue(aDoc?.rank)
-            : sort === "rating"
-            ? getValue(bDoc?.rating) - getValue(aDoc?.rating)
-            : 0;
-        })
-        .forEach(([key, doc]) => {
-          if (
-            (!typeFilter ||
-              typeFilter === "all" ||
-              typeFilter === doc?.contributionType) &&
-            (!creator || creator === doc?._createdBy)
-          ) {
-            result[key] = doc;
-          }
-        });
-      return result;
-    }, [
-      contributionDocsState,
-      creator,
-      recentContributionDocs,
-      sort,
-      typeFilter,
-      userContributionDocsState,
-    ]);
-
     return (
       <>
         <StyledListArea style={style}>
@@ -840,6 +847,7 @@ const ContributionList = React.memo(
                   <AddContributionToolbar
                     types={contributionTypes}
                     toolbarRef={toolbarRef}
+                    pitchId={pitchId}
                     userContributionDocs={userContributionDocsState}
                     hidden={editDialogOpen}
                     onAdd={handleOpenCreateDialogForm}

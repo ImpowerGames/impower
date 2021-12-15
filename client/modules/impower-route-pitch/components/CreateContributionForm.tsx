@@ -826,12 +826,12 @@ const CreateContributionForm = React.memo(
             });
           }
         }
-        if (editing || newDoc.delisted) {
+        if (editing || newDoc.deleted) {
           await new Promise<void>((resolve) =>
             userDispatch(
               userOnUpdateSubmission(
                 resolve,
-                { ...newDoc, delisted: false },
+                { ...newDoc, deleted: false, delisted: false },
                 "pitched_projects",
                 pitchId,
                 "contributions",
@@ -844,7 +844,7 @@ const CreateContributionForm = React.memo(
             userDispatch(
               userOnCreateSubmission(
                 resolve,
-                newDoc,
+                { ...newDoc, deleted: false, delisted: false },
                 "pitched_projects",
                 pitchId,
                 "contributions",
@@ -1339,7 +1339,7 @@ const CreateContributionForm = React.memo(
                   {dialogHelperText}
                 </StyledFormHelperText>
               )}
-              {(type === "image" || type === "audio") && !doc.delisted && (
+              {(type === "image" || type === "audio") && (
                 <StyledAttachmentArea>
                   <StyledFileInputButton fullWidth style={fileInputButtonStyle}>
                     <StyledFileInput

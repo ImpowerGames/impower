@@ -206,8 +206,8 @@ const ContributionTypeButton = React.memo(
           _author: Auth.instance.author,
           content: "",
           contributionType: "story",
-          deleted: false,
-          delisted: existingDoc ? existingDoc.delisted : false,
+          deleted: existingDoc?.deleted || false,
+          delisted: existingDoc?.delisted || false,
         });
         if (onAdd) {
           onAdd(e, doc);
@@ -326,8 +326,9 @@ const ContributionTypeButton = React.memo(
 
 interface AddContributionListProps {
   types: ContributionType[];
+  pitchId?: string;
   userContributionDocs?: {
-    [id: string]: ContributionDocument;
+    [key: string]: ContributionDocument;
   };
   onAdd?: (
     e: React.MouseEvent | React.ChangeEvent<HTMLInputElement>,
@@ -338,7 +339,7 @@ interface AddContributionListProps {
 
 const AddContributionList = React.memo(
   (props: AddContributionListProps): JSX.Element => {
-    const { types, userContributionDocs, onAdd } = props;
+    const { types, pitchId, userContributionDocs, onAdd } = props;
 
     const [userState] = useContext(UserContext);
     const { uid } = userState;
@@ -370,7 +371,7 @@ const AddContributionList = React.memo(
               index={index}
               color={color}
               icon={icon}
-              existingDoc={userContributionDocs?.[`${uid}-${key}`]}
+              existingDoc={userContributionDocs?.[`${pitchId}/${uid}-${key}`]}
               onAdd={onAdd}
             />
           );
@@ -383,6 +384,7 @@ const AddContributionList = React.memo(
 interface AddContributionToolbarProps {
   types: ContributionType[];
   toolbarRef?: React.Ref<HTMLDivElement>;
+  pitchId?: string;
   userContributionDocs?: {
     [id: string]: ContributionDocument;
   };
@@ -401,6 +403,7 @@ const AddContributionToolbar = React.memo(
     const {
       types,
       toolbarRef,
+      pitchId,
       userContributionDocs,
       hidden,
       style,
@@ -495,6 +498,7 @@ const AddContributionToolbar = React.memo(
                   <AddContributionList
                     types={types}
                     key="list"
+                    pitchId={pitchId}
                     userContributionDocs={userContributionDocs}
                     onAdd={handleAdd}
                   />
