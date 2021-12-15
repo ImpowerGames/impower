@@ -69,34 +69,39 @@ const getRelevantPhrases = (
     return [];
   }
 
-  const primaryTag = tagsSortedBySpecificity[0];
-  const primaryTagPhrases = tagPhrasesMap[primaryTag];
+  const primaryTagIndex = tagsSortedBySpecificity.findIndex(
+    (tag) => tagPhrasesMap[tag]?.length > 0
+  );
+  if (primaryTagIndex >= 0) {
+    const primaryTag = tagsSortedBySpecificity[primaryTagIndex];
+    const primaryTagPhrases = tagPhrasesMap[primaryTag];
 
-  tagsSortedBySpecificity.forEach((tag, index) => {
-    // Get all phrases that are related to this tag.
-    const tagPhrases = tagPhrasesMap[tag];
-    if (tagPhrases) {
-      tagPhrases.forEach((p) => {
-        // All suggested phrases must at least satisfy the first (primary/most specific) tag.
-        if (primaryTagPhrases?.includes(p)) {
-          if (phraseRelevancyScoreMap[p] === undefined) {
-            phraseRelevancyScoreMap[p] = getTermRelevancyScore(
-              p,
-              tagsSortedBySpecificity,
-              termTagsMap
-            );
+    tagsSortedBySpecificity.forEach((tag, index) => {
+      // Get all phrases that are related to this tag.
+      const tagPhrases = tagPhrasesMap[tag];
+      if (tagPhrases) {
+        tagPhrases.forEach((p) => {
+          // All suggested phrases must at least satisfy the first (primary/most specific) tag.
+          if (primaryTagPhrases?.includes(p)) {
+            if (phraseRelevancyScoreMap[p] === undefined) {
+              phraseRelevancyScoreMap[p] = getTermRelevancyScore(
+                p,
+                tagsSortedBySpecificity,
+                termTagsMap
+              );
+            }
+            // The increment value is weighted by how specific the tag is.
+            // A more specific tag (e.g. "vampire") will have more weight than a more general tag (e.g. "conversation").
+            // This is because specific tags like "vampire" typically have stronger associated terms ("blood", "fangs", "dead")
+            // and thus more "pun potential".
+            const max = tagsSortedBySpecificity.length;
+            const weight = (max - index) / max;
+            phraseRelevancyScoreMap[p] += weight;
           }
-          // The increment value is weighted by how specific the tag is.
-          // A more specific tag (e.g. "vampire") will have more weight than a more general tag (e.g. "conversation").
-          // This is because specific tags like "vampire" typically have stronger associated terms ("blood", "fangs", "dead")
-          // and thus more "pun potential".
-          const max = tagsSortedBySpecificity.length;
-          const weight = (max - index) / max;
-          phraseRelevancyScoreMap[p] += weight;
-        }
-      });
-    }
-  });
+        });
+      }
+    });
+  }
 
   // Sort phrases by tag relevancy score and term relevancy score.
   // Generally, the more tags a phrase is related to
