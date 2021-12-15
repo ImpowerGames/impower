@@ -104,6 +104,7 @@ interface PitchCardLayoutProps {
   name?: string;
   summary?: string;
   tags?: string[];
+  nsfw?: boolean;
   delisted?: boolean;
   archived?: boolean;
   createdAt?: string;
@@ -141,6 +142,7 @@ const PitchCardLayout = React.memo(
       name,
       summary,
       tags,
+      nsfw,
       delisted,
       archived,
       createdAt,
@@ -198,6 +200,7 @@ const PitchCardLayout = React.memo(
                 projectType={projectType}
                 author={author}
                 tags={tags}
+                nsfw={nsfw}
                 delisted={delisted}
                 archived={archived}
                 createdAt={createdAt}

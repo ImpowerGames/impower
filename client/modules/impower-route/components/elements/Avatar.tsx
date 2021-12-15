@@ -78,16 +78,18 @@ const StyledButtonContent = styled.div`
 
 const StyledInitialsTypography = styled(Typography)`
   font-weight: ${(props): number => props.theme.fontWeight.bold};
-  line-height: 1;
+  line-height: 1.25;
 `;
 
 interface AvatarProps {
   "backgroundColor"?: string;
+  "label"?: string;
   "src"?: string;
   "icon"?: React.ReactNode;
   "iconColor"?: string;
   "size"?: string | number;
   "fontSize"?: string | number;
+  "iconSize"?: string | number;
   "href"?: string;
   "objectFit"?: "none" | "contain" | "fill" | "cover" | "scale-down";
   "aria-label"?: string;
@@ -105,10 +107,12 @@ const Avatar = React.memo(
     const {
       backgroundColor,
       src,
+      label,
       icon,
       iconColor,
       size,
       fontSize,
+      iconSize = fontSize,
       href,
       objectFit = "cover",
       "aria-label": ariaLabel,
@@ -175,12 +179,17 @@ const Avatar = React.memo(
           )}
           <StyledButtonContent style={contentButtonStyle}>
             {alt === "[deleted]" ? null : icon ? (
-              <FontIcon aria-label={alt} color={iconColor} size={fontSize}>
+              <FontIcon aria-label={alt} color={iconColor} size={iconSize}>
                 {icon}
               </FontIcon>
             ) : (
               <StyledInitialsTypography style={initialsStyle}>
                 {getInitials(alt).toUpperCase()}
+              </StyledInitialsTypography>
+            )}
+            {label && (
+              <StyledInitialsTypography style={initialsStyle}>
+                {label}
               </StyledInitialsTypography>
             )}
             {!children && (onClick || onPointerDown || href) && (

@@ -490,6 +490,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
         tags={doc?.flagged?.includes("tags") ? [flaggedPlaceholder] : doc?.tags}
         author={doc?._author}
         createdBy={doc?._createdBy}
+        nsfw={doc?.nsfw}
         delisted={delisted}
         createdAt={createdAt}
         updatedAt={updatedAt}

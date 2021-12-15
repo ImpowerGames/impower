@@ -302,6 +302,7 @@ interface PitchCardHeaderProps {
   contributionCount?: number;
   author?: AuthorAttributes;
   tags?: string[];
+  nsfw?: boolean;
   delisted?: boolean;
   archived?: boolean;
   createdAt?: string;
@@ -317,6 +318,7 @@ const PitchCardHeader = React.memo(
       projectType,
       author,
       tags,
+      nsfw,
       delisted,
       archived,
       createdAt,
@@ -380,6 +382,8 @@ const PitchCardHeader = React.memo(
       [mainTag, navigationDispatch]
     );
 
+    const theme = useTheme();
+
     const avatarIcon = useMemo(
       () => <DynamicIcon icon={icons?.[tagIconName] || tagIconName} />,
       [icons, tagIconName]
@@ -393,9 +397,11 @@ const PitchCardHeader = React.memo(
     const avatar = useMemo(
       () => (
         <Avatar
-          alt={mainTag}
-          backgroundColor={validTagColor}
-          fontSize={24}
+          alt={nsfw ? `NSFW` : mainTag}
+          backgroundColor={nsfw ? theme.palette.error.main : validTagColor}
+          fontSize={13}
+          iconSize={nsfw ? 16 : 24}
+          label={nsfw ? `18+` : undefined}
           icon={avatarIcon}
           aria-label={mainTag}
           onClick={handleClickMainTag}
@@ -405,7 +411,9 @@ const PitchCardHeader = React.memo(
         />
       ),
       [
+        nsfw,
         mainTag,
+        theme.palette.error.main,
         validTagColor,
         avatarIcon,
         handleClickMainTag,
