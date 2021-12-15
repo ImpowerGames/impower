@@ -542,11 +542,15 @@ const AutocompleteInput = React.memo(
         details?: AutocompleteChangeDetails
       ): Promise<boolean> => {
         const validReason =
-          reason === "createOption" && highlightedOptionRef.current !== null
+          reason === "createOption" &&
+          highlightedOptionRef.current !== null &&
+          highlightedOptionRef.current !== undefined
             ? "selectOption"
             : reason;
         const validValue =
-          reason === "createOption" && highlightedOptionRef.current !== null
+          reason === "createOption" &&
+          highlightedOptionRef.current !== null &&
+          highlightedOptionRef.current !== undefined
             ? multiple && Array.isArray(stateRef.current)
               ? [...stateRef.current, highlightedOptionRef.current]
               : highlightedOptionRef.current

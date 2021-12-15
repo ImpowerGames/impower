@@ -22,7 +22,7 @@ export class PageDocumentInspector<T extends PageDocument>
       tags: removeDuplicates(
         data.tags.flatMap((a) =>
           a
-            .trim()
+            ?.trim()
             .split(/\s*[#,]\s*/)
             .map((x) => x.toLowerCase().replace(/[#,]/g, ""))
         )

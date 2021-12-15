@@ -427,7 +427,8 @@ const TagDialog = React.memo((props: TagDialogProps): JSX.Element => {
 
   const [viewportArea, setViewportArea] = useState<HTMLDivElement>();
   const [limitAnimation, setLimitAnimation] = useState(false);
-  const [inputValueState, setInputValueState] = useState(inputValue);
+  const inputValueRef = useRef<string>(inputValue);
+  const [inputValueState, setInputValueState] = useState(inputValueRef.current);
 
   const closingRef = useRef(false);
   const autocompleteRef = useRef<HTMLDivElement>();
@@ -588,12 +589,30 @@ const TagDialog = React.memo((props: TagDialogProps): JSX.Element => {
       value: string,
       reason: AutocompleteInputChangeReason
     ): void => {
-      setInputValueState(value);
+      inputValueRef.current = value;
+      setInputValueState(inputValueRef.current);
       if (onInputChange) {
         onInputChange(e, value, reason);
       }
     },
     [onInputChange]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent): void => {
+      if (freeSolo && Array.isArray(value)) {
+        if (e.key === "Enter") {
+          const changeEvent =
+            e as unknown as React.ChangeEvent<HTMLInputElement>;
+          changeEvent.target.value = inputValueRef.current || "";
+          const newValue = [...value, inputValueRef.current];
+          handleChange(changeEvent, newValue, "createOption", {
+            option: inputValueRef.current,
+          });
+        }
+      }
+    },
+    [freeSolo, handleChange, value]
   );
 
   const handleBlur = useCallback(
@@ -681,6 +700,7 @@ const TagDialog = React.memo((props: TagDialogProps): JSX.Element => {
           fullWidth
           onBlur={handleBlur}
           onClick={onClick}
+          onKeyDown={handleKeyDown}
           {...params}
           {...DialogInputProps}
           InputProps={{
@@ -725,6 +745,7 @@ const TagDialog = React.memo((props: TagDialogProps): JSX.Element => {
       FormHelperTextProps,
       handleBlur,
       onClick,
+      handleKeyDown,
       DialogInputProps,
       InputProps,
       ios,
