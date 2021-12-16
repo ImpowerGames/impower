@@ -356,10 +356,7 @@ const PitchList = React.memo(
               typeFilterState === "all" ||
               typeFilterState === doc?.projectType) &&
             (!creator || creator === doc?._createdBy) &&
-            (nsfwVisible === undefined ||
-              nsfwVisible === null ||
-              nsfwVisible ||
-              !doc?.nsfw)
+            (nsfwVisible === undefined || nsfwVisible || !doc?.nsfw)
           ) {
             result[key] = doc;
           }
@@ -1192,7 +1189,11 @@ const PitchList = React.memo(
       [validPitchDocsState]
     );
 
-    const loading = transitioning || !validPitchDocsState || reloadingState;
+    const loading =
+      transitioning ||
+      nsfwVisible === undefined ||
+      !validPitchDocsState ||
+      reloadingState;
 
     const listStyle: React.CSSProperties = useMemo(
       () => ({

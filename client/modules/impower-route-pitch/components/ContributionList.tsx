@@ -777,7 +777,11 @@ const ContributionList = React.memo(
       [pitchId, pitchDoc]
     );
 
-    const loading = transitioning || !contributionDocsState || reloading;
+    const loading =
+      transitioning ||
+      nsfwVisible === undefined ||
+      !contributionDocsState ||
+      reloading;
 
     const listStyle: React.CSSProperties = useMemo(
       () => ({
