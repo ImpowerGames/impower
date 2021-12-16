@@ -683,7 +683,6 @@ export const getStaticProps: GetStaticProps = async (context) => {
   const contributionsSnapshot = await adminApp
     .firestore()
     .collection(`pitched_projects/${docId}/contributions`)
-    .where("nsfw", "==", false)
     .where("delisted", "==", false)
     .orderBy("rating", "desc")
     .limit(LOAD_INITIAL_LIMIT)

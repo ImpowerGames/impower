@@ -304,7 +304,8 @@ const ContributionList = React.memo(
             (!typeFilter ||
               typeFilter === "all" ||
               typeFilter === doc?.contributionType) &&
-            (!creator || creator === doc?._createdBy)
+            (!creator || creator === doc?._createdBy) &&
+            (nsfwVisible || !doc?.nsfw)
           ) {
             result[key] = doc;
           }
@@ -313,6 +314,7 @@ const ContributionList = React.memo(
     }, [
       contributionDocsState,
       creator,
+      nsfwVisible,
       recentContributionDocs,
       sort,
       typeFilter,

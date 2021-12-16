@@ -134,7 +134,6 @@ export const getStaticProps: GetStaticProps<PitchPageProps> = async (
   let pitchesQuery = adminApp
     .firestore()
     .collection("pitched_projects")
-    .where("nsfw", "==", false)
     .where("delisted", "==", false);
   if (typeValue && typeValue !== "all") {
     pitchesQuery = pitchesQuery.where("projectType", "==", typeValue);

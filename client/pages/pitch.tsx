@@ -109,7 +109,6 @@ export const getStaticProps: GetStaticProps<PitchPageProps> = async () => {
   const pitchesSnapshot = await adminApp
     .firestore()
     .collection("pitched_projects")
-    .where("nsfw", "==", false)
     .where("delisted", "==", false)
     .orderBy("rank", "desc")
     .limit(LOAD_INITIAL_LIMIT)

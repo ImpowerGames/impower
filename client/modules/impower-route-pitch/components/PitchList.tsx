@@ -47,6 +47,23 @@ const discardInfo = {
 
 const LOAD_MORE_LIMIT = 10;
 
+const getTime = (date: string | Timestamp): number => {
+  if (!date) {
+    return new Date().getTime();
+  }
+  if (typeof date === "string") {
+    return new Date(date).getTime();
+  }
+  return date.toDate().getTime();
+};
+
+const getValue = (num: number): number => {
+  if (num === undefined || num === null) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+  return num;
+};
+
 const getLoadingKey = (options: Record<string, unknown>): string =>
   Object.keys(options)
     .sort()
@@ -310,6 +327,52 @@ const PitchList = React.memo(
 
     const recentPitchDocs = my_recent_pitched_projects;
     const recentPitchDocsRef = useRef(recentPitchDocs);
+
+    const validPitchDocsState = useMemo(() => {
+      if (!pitchDocsState) {
+        return pitchDocsState;
+      }
+      const docs: { [key: string]: ProjectDocument } = {
+        ...pitchDocsState,
+        ...recentPitchDocs,
+      };
+      const result: { [id: string]: ProjectDocument } = {};
+      Object.entries(docs)
+        .sort(([, aDoc], [, bDoc]) => {
+          return getTime(bDoc?._createdAt) - getTime(aDoc?._createdAt);
+        })
+        .sort(([, aDoc], [, bDoc]) => {
+          return sort === "new"
+            ? getTime(bDoc?._createdAt) - getTime(aDoc?._createdAt)
+            : sort === "rank"
+            ? getValue(bDoc?.rank) - getValue(aDoc?.rank)
+            : sort === "rating"
+            ? getValue(bDoc?.rating) - getValue(aDoc?.rating)
+            : 0;
+        })
+        .forEach(([key, doc]) => {
+          if (
+            (!typeFilterState ||
+              typeFilterState === "all" ||
+              typeFilterState === doc?.projectType) &&
+            (!creator || creator === doc?._createdBy) &&
+            (nsfwVisible === undefined ||
+              nsfwVisible === null ||
+              nsfwVisible ||
+              !doc?.nsfw)
+          ) {
+            result[key] = doc;
+          }
+        });
+      return result;
+    }, [
+      pitchDocsState,
+      creator,
+      nsfwVisible,
+      recentPitchDocs,
+      sort,
+      typeFilterState,
+    ]);
 
     const handleShowLoadingPlaceholder = useCallback(async () => {
       if (contentElRef.current) {
@@ -803,7 +866,7 @@ const PitchList = React.memo(
       }
     }, [rangeFilter]);
 
-    const needsInitialLoad = !pitchDocsState;
+    const needsInitialLoad = !validPitchDocsState;
 
     useEffect(() => {
       navigationDispatch(navigationSetTransitioning(false));
@@ -1123,13 +1186,13 @@ const PitchList = React.memo(
 
     const pitchCount = useMemo(
       () =>
-        pitchDocsState
-          ? Object.keys(pitchDocsState)?.length
-          : (pitchDocsState as null | undefined),
-      [pitchDocsState]
+        validPitchDocsState
+          ? Object.keys(validPitchDocsState)?.length
+          : (validPitchDocsState as null | undefined),
+      [validPitchDocsState]
     );
 
-    const loading = transitioning || !pitchDocsState || reloadingState;
+    const loading = transitioning || !validPitchDocsState || reloadingState;
 
     const listStyle: React.CSSProperties = useMemo(
       () => ({
@@ -1190,7 +1253,7 @@ const PitchList = React.memo(
                 <PitchListContent
                   config={config}
                   icons={icons}
-                  pitchDocs={pitchDocsState}
+                  pitchDocs={validPitchDocsState}
                   chunkMap={chunkMap}
                   lastLoadedChunk={lastLoadedChunk}
                   compact={compact}
@@ -1204,23 +1267,27 @@ const PitchList = React.memo(
                   onDeleteContribution={handleDeleteContribution}
                 />
                 {((emptyPlaceholder && pitchCount > 0) ||
-                  (!emptyPlaceholder && pitchDocsState)) && (
+                  (!emptyPlaceholder && validPitchDocsState)) && (
                   <PitchLoadingProgress
                     loadingMore={
-                      Boolean(pitchDocsState) && Boolean(loadingMore)
+                      Boolean(validPitchDocsState) && Boolean(loadingMore)
                     }
                     noMore={
                       emptyPlaceholder
-                        ? pitchDocsState && pitchCount > 0 && noMore
-                        : pitchDocsState && (noMore || pitchCount === 0)
+                        ? validPitchDocsState && pitchCount > 0 && noMore
+                        : validPitchDocsState && (noMore || pitchCount === 0)
                     }
                     noMoreLabel={
-                      pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                      validPitchDocsState &&
+                      !emptyPlaceholder &&
+                      pitchCount === 0
                         ? emptyLabel
                         : `That's all for now!`
                     }
                     noMoreSubtitle={
-                      pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                      validPitchDocsState &&
+                      !emptyPlaceholder &&
+                      pitchCount === 0
                         ? emptySubtitle
                         : undefined
                     }

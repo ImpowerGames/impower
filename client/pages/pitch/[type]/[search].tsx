@@ -201,7 +201,6 @@ export const getStaticProps: GetStaticProps<PitchSearchPageProps> = async (
   const pitchesSnapshot = await adminApp
     .firestore()
     .collection("pitched_projects")
-    .where("nsfw", "==", false)
     .where("delisted", "==", false)
     .where("projectType", "==", typeValue)
     .where("terms", "array-contains-any", termsQuery)
