@@ -31753,22 +31753,6 @@
     "simulator",
     "technology"
   ],
-  "dysfunction": [
-    "artificial intelligence",
-    "comics",
-    "cyberpunk",
-    "futuristic",
-    "hacking",
-    "medical",
-    "mutant",
-    "psychic",
-    "psychological",
-    "rehabilitation",
-    "robot",
-    "sci-fi",
-    "science",
-    "technology"
-  ],
   "potion": [
     "art",
     "artist",
@@ -32996,23 +32980,6 @@
     "scavenging",
     "social deduction"
   ],
-  "dysfunctional": [
-    "artificial intelligence",
-    "comics",
-    "cyberpunk",
-    "disillusionment",
-    "futuristic",
-    "hacking",
-    "medical",
-    "mutant",
-    "psychic",
-    "psychological",
-    "rehabilitation",
-    "robot",
-    "sci-fi",
-    "science",
-    "technology"
-  ],
   "discharge": [
     "artificial intelligence",
     "business",
@@ -34183,6 +34150,24 @@
     "puzzle",
     "rehabilitation",
     "social deduction"
+  ],
+  "dysfunction": [
+    "artificial intelligence",
+    "comics",
+    "cyberpunk",
+    "futuristic",
+    "glitch",
+    "hacking",
+    "medical",
+    "mutant",
+    "psychic",
+    "psychological",
+    "rehabilitation",
+    "repair",
+    "robot",
+    "sci-fi",
+    "science",
+    "technology"
   ],
   "connection": [
     "artificial intelligence",
@@ -36026,6 +36011,27 @@
     "revenge",
     "sabotage",
     "social deduction"
+  ],
+  "dysfunctional": [
+    "artificial intelligence",
+    "comics",
+    "cyberpunk",
+    "dating",
+    "disillusionment",
+    "futuristic",
+    "glitch",
+    "hacking",
+    "medical",
+    "mutant",
+    "psychic",
+    "psychological",
+    "rehabilitation",
+    "repair",
+    "robot",
+    "romance",
+    "sci-fi",
+    "science",
+    "technology"
   ],
   "conductor": [
     "artificial intelligence",
