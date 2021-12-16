@@ -33,6 +33,7 @@ import navigationSetTransitioning from "../../../modules/impower-navigation/util
 import { Fallback, PageHead } from "../../../modules/impower-route";
 import PitchSearch from "../../../modules/impower-route-pitch/components/PitchSearch";
 import PitchSearchToolbar from "../../../modules/impower-route-pitch/components/PitchSearchToolbar";
+import { ProjectTypeFilter } from "../../../modules/impower-route-pitch/types/projectTypeFilter";
 import useBodyBackgroundColor from "../../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import { useRouter } from "../../../modules/impower-router";
@@ -73,7 +74,7 @@ const StyledLoadingForeground = styled.div`
 interface PitchSearchPageProps {
   config: ConfigParameters;
   search: string;
-  type: ProjectType;
+  type: ProjectTypeFilter;
   pitchDocs: { [id: string]: ProjectDocument };
   icons: { [name: string]: SvgData };
 }
@@ -187,7 +188,9 @@ export const getStaticProps: GetStaticProps<PitchSearchPageProps> = async (
   context
 ) => {
   const { type, search } = context.params;
-  const typeValue = (Array.isArray(type) ? type[0] : type) as ProjectType;
+  const typeValue = (Array.isArray(type) ? type[0] : type)?.toLowerCase() as
+    | ProjectType
+    | "all";
   const searchValue = Array.isArray(search) ? search[0] : search;
   const config = {
     ...getLocalizationConfigParameters(),
@@ -198,11 +201,14 @@ export const getStaticProps: GetStaticProps<PitchSearchPageProps> = async (
     search: searchValue,
     searchTargets: ["tags"],
   });
-  const pitchesSnapshot = await adminApp
+  let pitchesQuery = adminApp
     .firestore()
     .collection("pitched_projects")
-    .where("delisted", "==", false)
-    .where("projectType", "==", typeValue)
+    .where("delisted", "==", false);
+  if (typeValue && typeValue !== "all") {
+    pitchesQuery = pitchesQuery.where("projectType", "==", typeValue);
+  }
+  const pitchesSnapshot = await pitchesQuery
     .where("terms", "array-contains-any", termsQuery)
     .orderBy("rank", "desc")
     .limit(LOAD_INITIAL_LIMIT)

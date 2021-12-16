@@ -69,7 +69,7 @@ const StyledApp = styled.div`
 interface PitchSearchPageProps {
   config: ConfigParameters;
   icons: { [name: string]: SvgData };
-  type?: ProjectType;
+  type?: ProjectTypeFilter;
   pitchDocs?: { [id: string]: ProjectDocument };
   search: string;
   style?: React.CSSProperties;
