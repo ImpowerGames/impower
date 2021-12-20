@@ -1056,7 +1056,7 @@ const CreateContributionForm = React.memo(
               <ProjectMainTagSelector
                 placeholder={ProjectDocumentInspector.instance.getPropertyPlaceholder(
                   "summary",
-                  pitchDoc
+                  { ...pitchDoc, projectType: "game" }
                 )}
                 tags={tagsState}
                 onChangeTags={setTagsState}
