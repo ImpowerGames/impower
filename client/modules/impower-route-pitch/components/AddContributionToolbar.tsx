@@ -229,8 +229,8 @@ const ContributionTypeButton = React.memo(
           _author: Auth.instance.author,
           content: "",
           contributionType: "pitch",
-          deleted: false,
-          delisted: existingDoc ? existingDoc.delisted : false,
+          deleted: existingDoc?.deleted || false,
+          delisted: existingDoc?.delisted || false,
         });
         if (onAdd) {
           onAdd(e, doc);
@@ -265,8 +265,8 @@ const ContributionTypeButton = React.memo(
           _author: Auth.instance.author,
           content: "",
           contributionType: type,
-          deleted: false,
-          delisted: existingDoc ? existingDoc.delisted : false,
+          deleted: existingDoc?.deleted || false,
+          delisted: existingDoc?.delisted || false,
         });
         if (onAdd) {
           onAdd(e, doc, file);
