@@ -333,13 +333,13 @@ const ContributionList = React.memo(
     const handleLoadUserContributions = useCallback(
       (docs: { [id: string]: ContributionDocument }) => {
         userContributionDocsRef.current = {
-          ...(recentContributionDocs || {}),
+          ...(recentContributionDocsRef.current || {}),
           ...docs,
-          ...(recentContributionDocs || {}),
+          ...(recentContributionDocsRef.current || {}),
         };
         setUserContributionDocsState({ ...userContributionDocsRef.current });
       },
-      [recentContributionDocs]
+      []
     );
 
     useEffect(() => {
