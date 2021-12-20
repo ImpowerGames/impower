@@ -327,7 +327,7 @@ const ContributionTypeButton = React.memo(
 interface AddContributionListProps {
   types: ContributionType[];
   pitchId?: string;
-  userContributionDocs?: {
+  contributionDocs?: {
     [key: string]: ContributionDocument;
   };
   onAdd?: (
@@ -339,7 +339,7 @@ interface AddContributionListProps {
 
 const AddContributionList = React.memo(
   (props: AddContributionListProps): JSX.Element => {
-    const { types, pitchId, userContributionDocs, onAdd } = props;
+    const { types, pitchId, contributionDocs, onAdd } = props;
 
     const [userState] = useContext(UserContext);
     const { uid } = userState;
@@ -371,7 +371,7 @@ const AddContributionList = React.memo(
               index={index}
               color={color}
               icon={icon}
-              existingDoc={userContributionDocs?.[`${pitchId}/${uid}-${key}`]}
+              existingDoc={contributionDocs?.[`${pitchId}/${uid}-${key}`]}
               onAdd={onAdd}
             />
           );
@@ -385,7 +385,7 @@ interface AddContributionToolbarProps {
   types: ContributionType[];
   toolbarRef?: React.Ref<HTMLDivElement>;
   pitchId?: string;
-  userContributionDocs?: {
+  contributionDocs?: {
     [id: string]: ContributionDocument;
   };
   hidden?: boolean;
@@ -404,7 +404,7 @@ const AddContributionToolbar = React.memo(
       types,
       toolbarRef,
       pitchId,
-      userContributionDocs,
+      contributionDocs,
       hidden,
       style,
       toolbarAreaStyle,
@@ -499,7 +499,7 @@ const AddContributionToolbar = React.memo(
                     types={types}
                     key="list"
                     pitchId={pitchId}
-                    userContributionDocs={userContributionDocs}
+                    contributionDocs={contributionDocs}
                     onAdd={handleAdd}
                   />
                 )}
