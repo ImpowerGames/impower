@@ -356,7 +356,10 @@ const PitchList = React.memo(
               typeFilterState === "all" ||
               typeFilterState === doc?.projectType) &&
             (!creator || creator === doc?._createdBy) &&
-            (nsfwVisible === undefined || nsfwVisible || !doc?.nsfw)
+            (nsfwVisible === undefined ||
+              nsfwVisible ||
+              !doc?.nsfw ||
+              doc?._createdBy === uid)
           ) {
             result[key] = doc;
           }
@@ -364,11 +367,12 @@ const PitchList = React.memo(
       return result;
     }, [
       pitchDocsState,
-      creator,
-      nsfwVisible,
       recentPitchDocs,
       sort,
       typeFilterState,
+      creator,
+      nsfwVisible,
+      uid,
     ]);
 
     const handleShowLoadingPlaceholder = useCallback(async () => {

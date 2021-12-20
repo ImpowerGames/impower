@@ -305,7 +305,10 @@ const ContributionList = React.memo(
               typeFilter === "all" ||
               typeFilter === doc?.contributionType) &&
             (!creator || creator === doc?._createdBy) &&
-            (nsfwVisible || !doc?.nsfw)
+            (nsfwVisible === undefined ||
+              nsfwVisible ||
+              !doc?.nsfw ||
+              doc?._createdBy === uid)
           ) {
             result[key] = doc;
           }
@@ -318,6 +321,7 @@ const ContributionList = React.memo(
       recentContributionDocs,
       sort,
       typeFilter,
+      uid,
       userContributionDocsState,
     ]);
 
@@ -766,10 +770,10 @@ const ContributionList = React.memo(
 
     const contributionEntries = useMemo(
       () =>
-        contributionDocsState
-          ? Object.entries(contributionDocsState)
+        validContributionDocsState
+          ? Object.entries(validContributionDocsState)
           : undefined,
-      [contributionDocsState]
+      [validContributionDocsState]
     );
 
     const pitchDocs = useMemo(
@@ -780,7 +784,7 @@ const ContributionList = React.memo(
     const loading =
       transitioning ||
       nsfwVisible === undefined ||
-      !contributionDocsState ||
+      !validContributionDocsState ||
       reloading;
 
     const listStyle: React.CSSProperties = useMemo(
