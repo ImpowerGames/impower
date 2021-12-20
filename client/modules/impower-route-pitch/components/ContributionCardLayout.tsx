@@ -352,7 +352,7 @@ const ContributionCardLayout = React.memo(
 
     const preamble = ProjectDocumentInspector.instance.getPropertyPlaceholder(
       "summary",
-      pitchDoc
+      { ...pitchDoc, projectType: "game" }
     );
     const truncationLimit = 300;
     const truncatedContent = getTruncatedContent(content, truncationLimit);
