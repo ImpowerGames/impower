@@ -299,10 +299,7 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
       Object.entries(matchingRecentDocs).forEach(([key, doc]) => {
         newDocs[key] = doc;
       });
-      Object.entries(newDocs).forEach(([key, doc]) => {
-        if (doc.delisted) {
-          delete newDocs[key];
-        }
+      Object.entries(newDocs).forEach(([key]) => {
         if (chunkMapRef.current[key] === undefined) {
           chunkMapRef.current[key] = lastLoadedChunkRef.current;
         }

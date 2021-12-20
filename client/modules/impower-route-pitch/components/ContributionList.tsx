@@ -604,9 +604,6 @@ const ContributionList = React.memo(
           newDocs[key] = doc;
         });
         Object.entries(newDocs).forEach(([key, doc]) => {
-          if (doc.delisted) {
-            delete newDocs[key];
-          }
           if (chunkMapRef.current[key] === undefined) {
             chunkMapRef.current[key] = lastLoadedChunkRef.current;
           }

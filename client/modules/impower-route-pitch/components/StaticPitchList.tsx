@@ -240,10 +240,7 @@ const StaticPitchList = React.memo(
           ...recentPitchDocsRef.current,
           ...pitchDocsRef.current,
         };
-        Object.entries(newPitchDocs).forEach(([id, doc]) => {
-          if (doc.delisted) {
-            delete newPitchDocs[id];
-          }
+        Object.entries(newPitchDocs).forEach(([id]) => {
           if (chunkMapRef.current[id] === undefined) {
             chunkMapRef.current[id] = lastLoadedChunkRef.current;
           }

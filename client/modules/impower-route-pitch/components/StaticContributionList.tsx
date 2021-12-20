@@ -463,10 +463,7 @@ const StaticContributionList = React.memo(
           ...contributionDocsRef.current,
           ...matchingRecentContributionDocs,
         };
-        Object.entries(newContributionDocs).forEach(([key, doc]) => {
-          if (doc.delisted) {
-            delete newContributionDocs[key];
-          }
+        Object.entries(newContributionDocs).forEach(([key]) => {
           if (chunkMapRef.current[key] === undefined) {
             chunkMapRef.current[key] = lastLoadedChunkRef.current;
           }

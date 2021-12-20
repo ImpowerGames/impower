@@ -421,9 +421,6 @@ const PitchList = React.memo(
           ...recentPitchDocsRef.current,
         };
         Object.entries(newPitchDocs).forEach(([id, doc]) => {
-          if (doc.delisted) {
-            delete newPitchDocs[id];
-          }
           if (creator && creator !== doc._createdBy) {
             delete newPitchDocs[id];
           }
@@ -581,10 +578,7 @@ const PitchList = React.memo(
               ...pitchDocsByTagRef.current[""],
               ...matchingRecentPitchDocs,
             };
-            Object.entries(newPitchDocs).forEach(([id, doc]) => {
-              if (doc.delisted) {
-                delete newPitchDocs[id];
-              }
+            Object.entries(newPitchDocs).forEach(([id]) => {
               if (chunkMapRef.current[id] === undefined) {
                 chunkMapRef.current[id] = lastLoadedChunkRef.current;
               }
@@ -662,10 +656,7 @@ const PitchList = React.memo(
               ...newDocs,
               ...matchingRecentPitchDocs,
             };
-            Object.entries(newPitchDocs).forEach(([id, doc]) => {
-              if (doc.delisted) {
-                delete newPitchDocs[id];
-              }
+            Object.entries(newPitchDocs).forEach(([id]) => {
               if (chunkMapRef.current[id] === undefined) {
                 chunkMapRef.current[id] = lastLoadedChunkRef.current;
               }
@@ -720,10 +711,7 @@ const PitchList = React.memo(
               ...pitchDocsByTagRef.current[""],
               ...matchingRecentPitchDocs,
             };
-            Object.entries(newPitchDocs).forEach(([id, doc]) => {
-              if (doc.delisted) {
-                delete newPitchDocs[id];
-              }
+            Object.entries(newPitchDocs).forEach(([id]) => {
               if (chunkMapRef.current[id] === undefined) {
                 chunkMapRef.current[id] = lastLoadedChunkRef.current;
               }
