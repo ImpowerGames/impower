@@ -644,7 +644,7 @@ const CreateProjectForm = React.memo(
 
     const InspectorRenderPropertyProps: Partial<ProjectFieldProps> = {
       lockedTags,
-      defaultSummary: doc?.summary,
+      defaultSummary: summaryInputValue,
       defaultName: doc?.name,
       sortedTags: doc?.tags,
       relevancyFilteredTags: filteredTitleTags,
