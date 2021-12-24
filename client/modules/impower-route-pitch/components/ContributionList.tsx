@@ -325,22 +325,9 @@ const ContributionList = React.memo(
       userContributionDocsState,
     ]);
 
-    useEffect(() => {
-      if (recentContributionDocs) {
-        Object.entries(recentContributionDocs).forEach(([id, doc]) => {
-          userContributionDocsRef.current[id] = doc;
-        });
-        setUserContributionDocsState({ ...userContributionDocsRef.current });
-      }
-    }, [recentContributionDocs]);
-
     const handleLoadUserContributions = useCallback(
       (docs: { [id: string]: ContributionDocument }) => {
-        userContributionDocsRef.current = {
-          ...(recentContributionDocsRef.current || {}),
-          ...docs,
-          ...(recentContributionDocsRef.current || {}),
-        };
+        userContributionDocsRef.current = { ...docs };
         setUserContributionDocsState({ ...userContributionDocsRef.current });
       },
       []
@@ -603,7 +590,7 @@ const ContributionList = React.memo(
         Object.entries(matchingRecentDocs).forEach(([key, doc]) => {
           newDocs[key] = doc;
         });
-        Object.entries(newDocs).forEach(([key, doc]) => {
+        Object.entries(newDocs).forEach(([key]) => {
           if (chunkMapRef.current[key] === undefined) {
             chunkMapRef.current[key] = lastLoadedChunkRef.current;
           }
