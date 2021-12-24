@@ -308,7 +308,8 @@ const ContributionList = React.memo(
             (nsfwVisible === undefined ||
               nsfwVisible ||
               !doc?.nsfw ||
-              doc?._createdBy === uid)
+              doc?._createdBy === uid ||
+              userContributionDocsState[key])
           ) {
             result[key] = doc;
           }
