@@ -793,8 +793,6 @@ const ContributionList = React.memo(
       [loading]
     );
 
-    console.warn("validContributionDocsState", validContributionDocsState);
-
     return (
       <>
         <StyledListArea style={style}>
