@@ -791,7 +791,7 @@ const ContributionList = React.memo(
       [loading]
     );
 
-    console.log(validContributionDocsState);
+    console.warn("validContributionDocsState", validContributionDocsState);
 
     return (
       <>
