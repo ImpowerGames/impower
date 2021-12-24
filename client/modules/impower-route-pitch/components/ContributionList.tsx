@@ -791,6 +791,8 @@ const ContributionList = React.memo(
       [loading]
     );
 
+    console.log(validContributionDocsState);
+
     return (
       <>
         <StyledListArea style={style}>
