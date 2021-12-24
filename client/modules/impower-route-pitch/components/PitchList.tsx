@@ -360,7 +360,7 @@ const PitchList = React.memo(
               nsfwVisible ||
               !doc?.nsfw ||
               doc?._createdBy === uid ||
-              userContributionDocsState[key])
+              recentPitchDocs[key])
           ) {
             result[key] = doc;
           }
