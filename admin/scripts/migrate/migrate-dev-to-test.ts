@@ -7,7 +7,7 @@ const fromCredentialsPath = "../../dev.credentials.json";
 const fromDatabaseURL = "https://impowergames-dev.firebaseio.com";
 const fromStorageBucket = "gs://impowergames-dev.appspot.com";
 const toCredentialsPath = "../../test.credentials.json";
-const toDatabaseURL = "https://impowergames-test.firebaseio.com";
+const toDatabaseURL = "https://impowergames-test-default-rtdb.firebaseio.com/";
 const toStorageBucket = "gs://impowergames-test.appspot.com";
 
 const migrate = async () => {

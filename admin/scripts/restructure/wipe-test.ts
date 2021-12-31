@@ -2,7 +2,7 @@ import { ServiceAccount } from "firebase-admin";
 import { doWipe } from "./doWipe";
 
 const credentialsPath = "../../test.credentials.json";
-const databaseURL = "https://impowergames-test.firebaseio.com";
+const databaseURL = "https://impowergames-test-default-rtdb.firebaseio.com/";
 const storageBucket = "gs://impowergames-test.appspot.com";
 
 const wipe = async () => {
