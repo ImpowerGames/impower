@@ -257,12 +257,12 @@ const PitchList = React.memo(
       lastLoadedChunkRef.current
     );
 
-    const pitchDocsRef = useRef<{ [id: string]: ProjectDocument }>({
+    const loadedPitchDocsRef = useRef<{ [id: string]: ProjectDocument }>({
       ...pitchDocs,
     });
-    const [pitchDocsState, setPitchDocsState] = useState<{
+    const [loadedPitchDocs, setLoadedPitchDocs] = useState<{
       [id: string]: ProjectDocument;
-    }>(pitchDocsRef.current);
+    }>(loadedPitchDocsRef.current);
 
     const pitchDocsByTagRef = useRef<{
       [tag: string]: { [id: string]: ProjectDocument };
@@ -273,14 +273,14 @@ const PitchList = React.memo(
     const loadingKeyRef = useRef<string>();
     const cacheKeys = useRef<Set<string>>(new Set());
     const [allowReloadState, setAllowReloadState] = useState(
-      allowReload !== undefined ? allowReload : !pitchDocsRef.current
+      allowReload !== undefined ? allowReload : !loadedPitchDocsRef.current
     );
     const [initialLoadComplete, setInitialLoadComplete] = useState(
-      !pitchDocsRef.current
+      !loadedPitchDocsRef.current
     );
 
     const initialPitchIds = useMemo(() => {
-      return Object.keys(pitchDocsRef.current || {});
+      return Object.keys(loadedPitchDocsRef.current || {});
     }, []);
 
     const initialChunkMap = useMemo(() => {
@@ -326,14 +326,14 @@ const PitchList = React.memo(
     const transitioning = navigationState?.transitioning;
 
     const recentPitchDocs = my_recent_pitched_projects;
-    const recentPitchDocsRef = useRef(recentPitchDocs);
 
     const validPitchDocsState = useMemo(() => {
-      if (!pitchDocsState) {
-        return pitchDocsState;
+      if (!loadedPitchDocs) {
+        return loadedPitchDocs;
       }
       const docs: { [key: string]: ProjectDocument } = {
-        ...pitchDocsState,
+        ...recentPitchDocs,
+        ...loadedPitchDocs,
         ...recentPitchDocs,
       };
       const result: { [id: string]: ProjectDocument } = {};
@@ -367,7 +367,7 @@ const PitchList = React.memo(
         });
       return result;
     }, [
-      pitchDocsState,
+      loadedPitchDocs,
       recentPitchDocs,
       sort,
       typeFilterState,
@@ -407,43 +407,28 @@ const PitchList = React.memo(
       lastLoadedChunkRef.current = 0;
       cursorsByTagRef.current = {};
       pitchDocsByTagRef.current = {};
-      pitchDocsRef.current = {};
+      loadedPitchDocsRef.current = {};
       chunkMapRef.current = {};
       DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
       setAllowReloadState(true);
     }, [handleShowLoadingPlaceholder, onReloading]);
 
     useEffect(() => {
-      recentPitchDocsRef.current = recentPitchDocs || {};
-      if (pitchDocsRef.current) {
+      if (pitchDocs && loadedPitchDocsRef.current) {
         const newPitchDocs = {
-          ...recentPitchDocsRef.current,
-          ...pitchDocsRef.current,
-          ...recentPitchDocsRef.current,
+          ...pitchDocs,
+          ...loadedPitchDocsRef.current,
         };
-        Object.entries(newPitchDocs).forEach(([id, doc]) => {
-          if (creator && creator !== doc._createdBy) {
-            delete newPitchDocs[id];
-          }
-          if (
-            typeFilterState &&
-            typeFilterState !== "all" &&
-            typeFilterState !== doc.projectType
-          ) {
-            delete newPitchDocs[id];
-          }
-          if (search && !doc?.tags?.includes(search?.toLowerCase())) {
-            delete newPitchDocs[id];
-          }
+        Object.entries(newPitchDocs).forEach(([id]) => {
           if (chunkMapRef.current[id] === undefined) {
             chunkMapRef.current[id] = lastLoadedChunkRef.current;
           }
         });
-        pitchDocsRef.current = newPitchDocs;
-        setPitchDocsState(pitchDocsRef.current);
+        loadedPitchDocsRef.current = newPitchDocs;
+        setLoadedPitchDocs(loadedPitchDocsRef.current);
         setChunkMap(chunkMapRef.current);
       }
-    }, [creator, typeFilterState, recentPitchDocs, search]);
+    }, [pitchDocs]);
 
     const handleLoadMore = useCallback(
       async (
@@ -561,32 +546,21 @@ const PitchList = React.memo(
             if (loadedCount === undefined) {
               return;
             }
-            const matchingRecentPitchDocs: { [id: string]: ProjectDocument } =
-              {};
-            const { type } = options;
-            Object.entries(recentPitchDocsRef.current || {}).forEach(
-              ([id, doc]) => {
-                if (
-                  (!type || type === doc?.projectType) &&
-                  (!creator || creator === doc?._createdBy)
-                ) {
-                  matchingRecentPitchDocs[id] = doc;
-                }
-              }
-            );
+            const currentDocs = loadedPitchDocsRef.current || {};
+            const oldCount = Object.keys(currentDocs).length;
             const newPitchDocs = {
-              ...matchingRecentPitchDocs,
+              ...currentDocs,
               ...pitchDocsByTagRef.current[""],
-              ...matchingRecentPitchDocs,
             };
             Object.entries(newPitchDocs).forEach(([id]) => {
               if (chunkMapRef.current[id] === undefined) {
                 chunkMapRef.current[id] = lastLoadedChunkRef.current;
               }
             });
-            pitchDocsRef.current = newPitchDocs;
-            noMoreRef.current = loadedCount < limit;
-            setPitchDocsState(pitchDocsRef.current);
+            loadedPitchDocsRef.current = newPitchDocs;
+            const newCount = Object.keys(loadedPitchDocsRef.current).length;
+            noMoreRef.current = oldCount > 0 && newCount === oldCount;
+            setLoadedPitchDocs(loadedPitchDocsRef.current);
             setChunkMap(chunkMapRef.current);
             setNoMore(noMoreRef.current);
           } else if (tab === "following") {
@@ -627,47 +601,27 @@ const PitchList = React.memo(
             const newDocs: { [id: string]: ProjectDocument } = {};
             Object.entries(pitchDocsByTagRef.current).forEach(([, list]) => {
               Object.entries(list).forEach(([id, pitch]) => {
-                if (!pitchDocsRef.current?.[id]) {
+                if (!loadedPitchDocsRef.current?.[id]) {
                   newDocs[id] = pitch;
                 }
               });
             });
 
-            const currentDocs = pitchDocsRef.current || {};
-
+            const currentDocs = loadedPitchDocsRef.current || {};
             const oldCount = Object.keys(currentDocs).length;
-
-            const matchingRecentPitchDocs: { [id: string]: ProjectDocument } =
-              {};
-            const { type } = options;
-            Object.entries(recentPitchDocsRef.current || {}).forEach(
-              ([id, doc]) => {
-                if (
-                  (!type || type === doc?.projectType) &&
-                  followedTags.some((t) => doc?.tags?.includes(t)) &&
-                  (!creator || creator === doc?._createdBy)
-                ) {
-                  matchingRecentPitchDocs[id] = doc;
-                }
-              }
-            );
             const newPitchDocs = {
-              ...matchingRecentPitchDocs,
               ...currentDocs,
               ...newDocs,
-              ...matchingRecentPitchDocs,
             };
             Object.entries(newPitchDocs).forEach(([id]) => {
               if (chunkMapRef.current[id] === undefined) {
                 chunkMapRef.current[id] = lastLoadedChunkRef.current;
               }
             });
-            pitchDocsRef.current = newPitchDocs;
-
-            const newCount = Object.keys(pitchDocsRef.current).length;
+            loadedPitchDocsRef.current = newPitchDocs;
+            const newCount = Object.keys(loadedPitchDocsRef.current).length;
             noMoreRef.current = oldCount > 0 && newCount === oldCount;
-
-            setPitchDocsState(pitchDocsRef.current);
+            setLoadedPitchDocs(loadedPitchDocsRef.current);
             setChunkMap(chunkMapRef.current);
             setNoMore(noMoreRef.current);
           } else {
@@ -693,33 +647,21 @@ const PitchList = React.memo(
             if (loadedCount === undefined) {
               return;
             }
-            const matchingRecentPitchDocs: { [id: string]: ProjectDocument } =
-              {};
-            const { type } = options;
-            Object.entries(recentPitchDocsRef.current || {}).forEach(
-              ([id, doc]) => {
-                if (
-                  (!type || type === doc?.projectType) &&
-                  (!creator || creator === doc?._createdBy) &&
-                  (!search || doc?.tags?.includes(search?.toLowerCase()))
-                ) {
-                  matchingRecentPitchDocs[id] = doc;
-                }
-              }
-            );
+            const currentDocs = loadedPitchDocsRef.current || {};
+            const oldCount = Object.keys(currentDocs).length;
             const newPitchDocs = {
-              ...matchingRecentPitchDocs,
+              ...currentDocs,
               ...pitchDocsByTagRef.current[""],
-              ...matchingRecentPitchDocs,
             };
             Object.entries(newPitchDocs).forEach(([id]) => {
               if (chunkMapRef.current[id] === undefined) {
                 chunkMapRef.current[id] = lastLoadedChunkRef.current;
               }
             });
-            pitchDocsRef.current = newPitchDocs;
-            noMoreRef.current = loadedCount < limit;
-            setPitchDocsState(pitchDocsRef.current);
+            loadedPitchDocsRef.current = newPitchDocs;
+            const newCount = Object.keys(loadedPitchDocsRef.current).length;
+            noMoreRef.current = oldCount > 0 && newCount === oldCount;
+            setLoadedPitchDocs(loadedPitchDocsRef.current);
             setChunkMap(chunkMapRef.current);
             setNoMore(noMoreRef.current);
           }
@@ -739,7 +681,7 @@ const PitchList = React.memo(
 
     const handleScrolledToEnd = useCallback(async (): Promise<void> => {
       if (
-        pitchDocsRef.current &&
+        loadedPitchDocsRef.current &&
         !noMoreRef.current &&
         !loadingMoreRef.current
       ) {
@@ -777,7 +719,7 @@ const PitchList = React.memo(
       window.scrollTo({ top: 0 });
       cursorsByTagRef.current = {};
       pitchDocsByTagRef.current = {};
-      pitchDocsRef.current = {};
+      loadedPitchDocsRef.current = {};
       chunkMapRef.current = {};
       DataStoreCache.instance.clear(...Array.from(cacheKeys.current));
       await handleLoadTab({
@@ -803,7 +745,7 @@ const PitchList = React.memo(
     ]);
 
     const handleReload = useCallback(async () => {
-      if (pitchDocsRef.current) {
+      if (loadedPitchDocsRef.current) {
         await handleShowLoadingPlaceholder();
         if (onReloading) {
           onReloading(true);
@@ -811,7 +753,7 @@ const PitchList = React.memo(
       }
       cursorsByTagRef.current = {};
       pitchDocsByTagRef.current = {};
-      pitchDocsRef.current = {};
+      loadedPitchDocsRef.current = {};
       chunkMapRef.current = {};
       noMoreRef.current = false;
       await handleLoadTab({
@@ -856,7 +798,7 @@ const PitchList = React.memo(
       }
     }, [rangeFilter]);
 
-    const needsInitialLoad = !validPitchDocsState;
+    const needsInitialLoad = !pitchDocs;
 
     useEffect(() => {
       navigationDispatch(navigationSetTransitioning(false));
@@ -920,15 +862,15 @@ const PitchList = React.memo(
         pitchId: string,
         contributionId: string
       ): void => {
-        if (!contributionId && pitchDocsRef.current[pitchId]) {
+        if (!contributionId && loadedPitchDocsRef.current[pitchId]) {
           const kudos = kudoed
-            ? (pitchDocsRef.current[pitchId].kudos || 0) + 1
-            : (pitchDocsRef.current[pitchId].kudos || 0) - 1;
-          const currentDoc = pitchDocsRef.current[pitchId];
+            ? (loadedPitchDocsRef.current[pitchId].kudos || 0) + 1
+            : (loadedPitchDocsRef.current[pitchId].kudos || 0) - 1;
+          const currentDoc = loadedPitchDocsRef.current[pitchId];
           const newDoc = { ...currentDoc, kudos };
-          pitchDocsRef.current[pitchId] = newDoc;
+          loadedPitchDocsRef.current[pitchId] = newDoc;
           DataStoreCache.instance.override(pitchId, { kudos });
-          setPitchDocsState({ ...pitchDocsRef.current });
+          setLoadedPitchDocs({ ...loadedPitchDocsRef.current });
         }
       },
       []
@@ -936,11 +878,11 @@ const PitchList = React.memo(
 
     const handleChangeScore = useCallback(
       (e: React.MouseEvent, score: number, pitchId: string): void => {
-        const currentDoc = pitchDocsRef.current[pitchId];
+        const currentDoc = loadedPitchDocsRef.current[pitchId];
         const newDoc = { ...currentDoc, score };
-        pitchDocsRef.current[pitchId] = newDoc;
+        loadedPitchDocsRef.current[pitchId] = newDoc;
         DataStoreCache.instance.override(pitchId, { score });
-        setPitchDocsState({ ...pitchDocsRef.current });
+        setLoadedPitchDocs({ ...loadedPitchDocsRef.current });
       },
       []
     );
@@ -962,12 +904,12 @@ const PitchList = React.memo(
         pitchId: string
       ): Promise<void> => {
         const contributions =
-          (pitchDocsRef.current[pitchId].contributions || 0) + 1;
-        const currentDoc = pitchDocsRef.current[pitchId];
+          (loadedPitchDocsRef.current[pitchId].contributions || 0) + 1;
+        const currentDoc = loadedPitchDocsRef.current[pitchId];
         const newDoc = { ...currentDoc, contributions };
-        pitchDocsRef.current[pitchId] = newDoc;
+        loadedPitchDocsRef.current[pitchId] = newDoc;
         DataStoreCache.instance.override(pitchId, { contributions });
-        setPitchDocsState({ ...pitchDocsRef.current });
+        setLoadedPitchDocs({ ...loadedPitchDocsRef.current });
       },
       []
     );
@@ -979,12 +921,12 @@ const PitchList = React.memo(
         contributionId: string
       ): Promise<void> => {
         const contributions =
-          (pitchDocsRef.current[pitchId].contributions || 0) - 1;
-        const currentDoc = pitchDocsRef.current[pitchId];
+          (loadedPitchDocsRef.current[pitchId].contributions || 0) - 1;
+        const currentDoc = loadedPitchDocsRef.current[pitchId];
         const newDoc = { ...currentDoc, contributions };
-        pitchDocsRef.current[pitchId] = newDoc;
+        loadedPitchDocsRef.current[pitchId] = newDoc;
         DataStoreCache.instance.override(pitchId, { contributions });
-        setPitchDocsState({ ...pitchDocsRef.current });
+        setLoadedPitchDocs({ ...loadedPitchDocsRef.current });
         confirmDialogDispatch(confirmDialogClose());
         // Wait a bit for dialog to close
         await new Promise((resolve) => setTimeout(resolve, 1));
@@ -1104,7 +1046,7 @@ const PitchList = React.memo(
         setEditing(true);
         setEditDocId(id);
         setEditDoc({
-          ...pitchDocsRef.current[id],
+          ...loadedPitchDocsRef.current[id],
           repitchedAt: new Timestamp(),
         });
         setEditDialogOpen(true);

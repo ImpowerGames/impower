@@ -36,6 +36,16 @@ import PitchLoadingProgress from "./PitchLoadingProgress";
 import QueryButton from "./QueryButton";
 import QueryHeader from "./QueryHeader";
 
+const getTime = (date: string | Timestamp): number => {
+  if (!date) {
+    return new Date().getTime();
+  }
+  if (typeof date === "string") {
+    return new Date(date).getTime();
+  }
+  return date.toDate().getTime();
+};
+
 const discardInfo = {
   title: "Discard unsaved changes?",
   agreeLabel: "Discard",
@@ -200,10 +210,10 @@ const StaticPitchList = React.memo(
     const [rangeFilter, setRangeFilter] = useState<DateRangeFilter>("all");
     const [reloading, setReloading] = useState(false);
 
-    const pitchDocsRef = useRef<{ [id: string]: ProjectDocument }>();
-    const [pitchDocsState, setPitchDocsState] = useState<{
+    const loadedPitchDocsRef = useRef<{ [id: string]: ProjectDocument }>();
+    const [loadedPitchDocs, setLoadedPitchDocs] = useState<{
       [id: string]: ProjectDocument;
-    }>(pitchDocsRef.current);
+    }>(loadedPitchDocsRef.current);
 
     const cursorIndexRef = useRef<number>(0);
 
@@ -221,7 +231,6 @@ const StaticPitchList = React.memo(
     const transitioning = navigationState?.transitioning;
 
     const recentPitchDocs = my_recent_pitched_projects;
-    const recentPitchDocsRef = useRef(recentPitchDocs);
 
     const contentElRef = useRef<HTMLDivElement>();
     const listElRef = useRef<HTMLDivElement>();
@@ -233,23 +242,56 @@ const StaticPitchList = React.memo(
       [pitchDataEntries, sort]
     );
 
+    const validPitchDocsState = useMemo(() => {
+      if (!loadedPitchDocs) {
+        return loadedPitchDocs;
+      }
+      const docs: { [key: string]: ProjectDocument } = {
+        ...recentPitchDocs,
+        ...loadedPitchDocs,
+        ...recentPitchDocs,
+      };
+      const result: { [id: string]: ProjectDocument } = {};
+      Object.entries(docs)
+        .sort(([, aDoc], [, bDoc]) => {
+          return getTime(bDoc?._createdAt) - getTime(aDoc?._createdAt);
+        })
+        .sort(([, aDoc], [, bDoc]) => {
+          return sort === "new"
+            ? getTime(bDoc?._createdAt) - getTime(aDoc?._createdAt)
+            : sort === "old"
+            ? getTime(aDoc?._createdAt) - getTime(bDoc?._createdAt)
+            : 0;
+        })
+        .forEach(([key, doc]) => {
+          if (
+            nsfwVisible === undefined ||
+            nsfwVisible ||
+            !doc?.nsfw ||
+            doc?._createdBy === uid ||
+            recentPitchDocs[key]
+          ) {
+            result[key] = doc;
+          }
+        });
+      return result;
+    }, [loadedPitchDocs, recentPitchDocs, sort, nsfwVisible, uid]);
+
     useEffect(() => {
-      recentPitchDocsRef.current = recentPitchDocs || {};
-      if (pitchDocsRef.current) {
+      if (loadedPitchDocsRef.current) {
         const newPitchDocs = {
-          ...recentPitchDocsRef.current,
-          ...pitchDocsRef.current,
+          ...loadedPitchDocsRef.current,
         };
         Object.entries(newPitchDocs).forEach(([id]) => {
           if (chunkMapRef.current[id] === undefined) {
             chunkMapRef.current[id] = lastLoadedChunkRef.current;
           }
         });
-        pitchDocsRef.current = newPitchDocs;
-        setPitchDocsState(pitchDocsRef.current);
+        loadedPitchDocsRef.current = newPitchDocs;
+        setLoadedPitchDocs(loadedPitchDocsRef.current);
         setChunkMap(chunkMapRef.current);
       }
-    }, [recentPitchDocs]);
+    }, []);
 
     const handleShowLoadingPlaceholder = useCallback(async () => {
       if (contentElRef.current) {
@@ -314,12 +356,8 @@ const StaticPitchList = React.memo(
           )
         );
         cursorIndexRef.current = end;
-        const matchingRecentPitchDocs: { [id: string]: ProjectDocument } =
-          recentPitchDocsRef.current || {};
         const newDocs: { [id: string]: ProjectDocument } = {
-          ...matchingRecentPitchDocs,
-          ...pitchDocsRef.current,
-          ...matchingRecentPitchDocs,
+          ...loadedPitchDocsRef.current,
         };
         snapshots.forEach((d) => {
           const data = d.data();
@@ -334,7 +372,7 @@ const StaticPitchList = React.memo(
           }
         });
 
-        pitchDocsRef.current = newDocs;
+        loadedPitchDocsRef.current = newDocs;
 
         return snapshots.length;
       },
@@ -357,7 +395,7 @@ const StaticPitchList = React.memo(
             return;
           }
           noMoreRef.current = loadedCount < limit;
-          setPitchDocsState(pitchDocsRef.current);
+          setLoadedPitchDocs(loadedPitchDocsRef.current);
           setChunkMap(chunkMapRef.current);
           setNoMore(noMoreRef.current);
         } catch (e) {
@@ -372,7 +410,7 @@ const StaticPitchList = React.memo(
 
     const handleScrolledToEnd = useCallback(async (): Promise<void> => {
       if (
-        pitchDocsRef.current &&
+        loadedPitchDocsRef.current &&
         !noMoreRef.current &&
         !loadingMoreRef.current
       ) {
@@ -393,17 +431,17 @@ const StaticPitchList = React.memo(
       }
       window.scrollTo({ top: 0 });
       cursorIndexRef.current = 0;
-      pitchDocsRef.current = {};
+      loadedPitchDocsRef.current = {};
       chunkMapRef.current = {};
       await handleLoadTab({ nsfw: nsfwVisible });
     }, [handleLoadTab, nsfwVisible, onRefresh]);
 
     const handleReload = useCallback(async () => {
-      if (pitchDocsRef.current) {
+      if (loadedPitchDocsRef.current) {
         await handleShowLoadingPlaceholder();
       }
       cursorIndexRef.current = 0;
-      pitchDocsRef.current = {};
+      loadedPitchDocsRef.current = {};
       chunkMapRef.current = {};
       noMoreRef.current = false;
       setNoMore(noMoreRef.current);
@@ -426,15 +464,15 @@ const StaticPitchList = React.memo(
         pitchId: string,
         contributionId: string
       ): void => {
-        if (!contributionId && pitchDocsRef.current[pitchId]) {
+        if (!contributionId && loadedPitchDocsRef.current[pitchId]) {
           const kudos = kudoed
-            ? (pitchDocsRef.current[pitchId].kudos || 0) + 1
-            : (pitchDocsRef.current[pitchId].kudos || 0) - 1;
-          const currentDoc = pitchDocsRef.current[pitchId];
+            ? (loadedPitchDocsRef.current[pitchId].kudos || 0) + 1
+            : (loadedPitchDocsRef.current[pitchId].kudos || 0) - 1;
+          const currentDoc = loadedPitchDocsRef.current[pitchId];
           const newDoc = { ...currentDoc, kudos };
-          pitchDocsRef.current[pitchId] = newDoc;
+          loadedPitchDocsRef.current[pitchId] = newDoc;
           DataStoreCache.instance.override(pitchId, { kudos });
-          setPitchDocsState({ ...pitchDocsRef.current });
+          setLoadedPitchDocs({ ...loadedPitchDocsRef.current });
         }
       },
       []
@@ -442,11 +480,11 @@ const StaticPitchList = React.memo(
 
     const handleChangeScore = useCallback(
       (e: React.MouseEvent, score: number, pitchId: string): void => {
-        const currentDoc = pitchDocsRef.current[pitchId];
+        const currentDoc = loadedPitchDocsRef.current[pitchId];
         const newDoc = { ...currentDoc, score };
-        pitchDocsRef.current[pitchId] = newDoc;
+        loadedPitchDocsRef.current[pitchId] = newDoc;
         DataStoreCache.instance.override(pitchId, { score });
-        setPitchDocsState({ ...pitchDocsRef.current });
+        setLoadedPitchDocs({ ...loadedPitchDocsRef.current });
       },
       []
     );
@@ -468,12 +506,12 @@ const StaticPitchList = React.memo(
         pitchId: string
       ): Promise<void> => {
         const contributions =
-          (pitchDocsRef.current[pitchId].contributions || 0) + 1;
-        const currentDoc = pitchDocsRef.current[pitchId];
+          (loadedPitchDocsRef.current[pitchId].contributions || 0) + 1;
+        const currentDoc = loadedPitchDocsRef.current[pitchId];
         const newDoc = { ...currentDoc, contributions };
-        pitchDocsRef.current[pitchId] = newDoc;
+        loadedPitchDocsRef.current[pitchId] = newDoc;
         DataStoreCache.instance.override(pitchId, { contributions });
-        setPitchDocsState({ ...pitchDocsRef.current });
+        setLoadedPitchDocs({ ...loadedPitchDocsRef.current });
       },
       []
     );
@@ -485,12 +523,12 @@ const StaticPitchList = React.memo(
         contributionId: string
       ): Promise<void> => {
         const contributions =
-          (pitchDocsRef.current[pitchId].contributions || 0) - 1;
-        const currentDoc = pitchDocsRef.current[pitchId];
+          (loadedPitchDocsRef.current[pitchId].contributions || 0) - 1;
+        const currentDoc = loadedPitchDocsRef.current[pitchId];
         const newDoc = { ...currentDoc, contributions };
-        pitchDocsRef.current[pitchId] = newDoc;
+        loadedPitchDocsRef.current[pitchId] = newDoc;
         DataStoreCache.instance.override(pitchId, { contributions });
-        setPitchDocsState({ ...pitchDocsRef.current });
+        setLoadedPitchDocs({ ...loadedPitchDocsRef.current });
         confirmDialogDispatch(confirmDialogClose());
         // Wait a bit for dialog to close
         await new Promise((resolve) => setTimeout(resolve, 1));
@@ -501,16 +539,16 @@ const StaticPitchList = React.memo(
 
     const pitchCount = useMemo(
       () =>
-        pitchDocsState
-          ? Object.keys(pitchDocsState)?.length
-          : (pitchDocsState as null | undefined),
-      [pitchDocsState]
+        validPitchDocsState
+          ? Object.keys(validPitchDocsState)?.length
+          : (validPitchDocsState as null | undefined),
+      [validPitchDocsState]
     );
 
     const handleAllowReload = useCallback(() => {
       lastLoadedChunkRef.current = 0;
       cursorIndexRef.current = 0;
-      pitchDocsRef.current = {};
+      loadedPitchDocsRef.current = {};
       chunkMapRef.current = {};
     }, []);
 
@@ -662,7 +700,7 @@ const StaticPitchList = React.memo(
         setEditing(true);
         setEditDocId(id);
         setEditDoc({
-          ...pitchDocsRef.current[id],
+          ...loadedPitchDocsRef.current[id],
           repitchedAt: new Timestamp(),
         });
         setEditDialogOpen(true);
@@ -745,7 +783,7 @@ const StaticPitchList = React.memo(
       []
     );
 
-    const loading = transitioning || !pitchDocsState || reloading;
+    const loading = transitioning || !validPitchDocsState || reloading;
 
     const listStyle: React.CSSProperties = useMemo(
       () => ({
@@ -809,7 +847,7 @@ const StaticPitchList = React.memo(
                 <PitchListContent
                   config={config}
                   icons={icons}
-                  pitchDocs={pitchDocsState}
+                  pitchDocs={validPitchDocsState}
                   chunkMap={chunkMap}
                   lastLoadedChunk={lastLoadedChunk}
                   compact={compact}
@@ -822,23 +860,27 @@ const StaticPitchList = React.memo(
                   onDeleteContribution={handleDeleteContribution}
                 />
                 {((emptyPlaceholder && pitchCount > 0) ||
-                  (!emptyPlaceholder && pitchDocsState)) && (
+                  (!emptyPlaceholder && validPitchDocsState)) && (
                   <PitchLoadingProgress
                     loadingMore={
-                      Boolean(pitchDocsState) && Boolean(loadingMore)
+                      Boolean(validPitchDocsState) && Boolean(loadingMore)
                     }
                     noMore={
                       emptyPlaceholder
-                        ? pitchDocsState && pitchCount > 0 && noMore
-                        : pitchDocsState && (noMore || pitchCount === 0)
+                        ? validPitchDocsState && pitchCount > 0 && noMore
+                        : validPitchDocsState && (noMore || pitchCount === 0)
                     }
                     noMoreLabel={
-                      pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                      validPitchDocsState &&
+                      !emptyPlaceholder &&
+                      pitchCount === 0
                         ? emptyLabel
                         : `That's all for now!`
                     }
                     noMoreSubtitle={
-                      pitchDocsState && !emptyPlaceholder && pitchCount === 0
+                      validPitchDocsState &&
+                      !emptyPlaceholder &&
+                      pitchCount === 0
                         ? emptySubtitle
                         : undefined
                     }
