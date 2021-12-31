@@ -24,7 +24,7 @@
     "wipe-test": "ts-node scripts/restructure/wipe-test.ts test",
     "icons": "ts-node scripts/config/icons.ts",
     "migrate-dev-to-test": "ts-node scripts/migrate/migrate-dev-to-test.ts",
-    "migrate-prod-to-test": "ts-node scripts/migrate/migrate-prod-to-test.ts && firebase use dev"
+    "migrate-prod-to-test": "ts-node scripts/migrate/migrate-prod-to-test.ts"
   },
   "engines": {
     "node": "10"
