@@ -15,6 +15,7 @@
     "config-all": "npm run config-dev && npm run config-test && npm run config-prod",
     "restructure": "npm run restructure-dev",
     "restructure-dev": "ts-node scripts/restructure/restructure-dev.ts dev",
+    "restructure-test": "ts-node scripts/restructure/restructure-test.ts test",
     "restructure-prod": "ts-node scripts/restructure/restructure-prod.ts prod",
     "cleanup": "npm run cleanup-dev",
     "cleanup-dev": "ts-node scripts/restructure/cleanup-dev.ts dev",
