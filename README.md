@@ -78,16 +78,7 @@ The Impower Engine can export:
 ### First-Time Setup (server/functions):
 
 1. Make sure you have been added as a developer on our private server repo. Then clone the server repo.
-2. Open the server/functions folder in the vscode terminal
-3. Install firebase tools globally: `npm install -g firebase-tools`
-4. Login to our development firebase project `impowergames-dev`: `firebase login --project=impowergames-dev`
-5. Install dependencies: `npm install`
-
-### How To Run (server/functions):
-
-1. Open the server/functions folder in the vscode terminal
-2. Run the server: `npm run serve`
-3. Open [http://localhost:4000](http://localhost:4000) with your browser to view the server emulator ui.
+2. Follow the steps in the server's README Getting Started section to setup and run the local emulator.
 
 ### Making Changes (server/functions):
 
