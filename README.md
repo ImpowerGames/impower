@@ -51,7 +51,7 @@ The Impower Engine can export:
 
 ### First-Time Setup (impower/client):
 
-1. Open the impower/client folder in the vscode terminal
+1. Open the client folder: `cd client`
 2. Install dependencies: `npm install`
 3. Install preact aliases: `npm i --save react@npm:@preact/compat react-dom@npm:@preact/compat`
 4. Located within the `client` folder, create a copy of the `.env.local.example` file and name it `.env.development.local`
