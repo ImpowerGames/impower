@@ -42,7 +42,8 @@ export const useObservedCollectionDataLoad = <T>(
         .default;
       const onSnapshot = (snapshot: DataSnapshot): void => {
         snapshot.forEach((s) => {
-          dataRef.current[s.key] = s.val();
+          const val = s.val();
+          dataRef.current[s.key] = val === undefined ? null : val;
         });
         setData(dataRef.current);
         if (onLoad) {

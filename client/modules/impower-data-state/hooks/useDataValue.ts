@@ -22,7 +22,8 @@ export const useDataValue = <T>(...path: DataStateReadPath): T => {
       const DataStateRead = (await import("../classes/dataStateRead")).default;
       const ref = new DataStateRead(...memoizedPath);
       const snapshot = await ref.get();
-      setValue(snapshot.val());
+      const val = snapshot.val();
+      setValue(val === undefined ? null : val);
     };
     getData();
   }, [memoizedPath]);

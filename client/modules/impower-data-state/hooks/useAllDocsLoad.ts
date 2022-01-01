@@ -40,7 +40,7 @@ export const useAllDocsLoad = <T extends PageDocument>(
       );
       const values: { [id: string]: T } = {};
       entries.forEach(([key, value]) => {
-        values[key] = value;
+        values[key] = value === undefined ? null : value;
       });
       setCollection(values);
       if (onLoad) {

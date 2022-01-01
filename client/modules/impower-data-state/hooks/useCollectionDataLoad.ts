@@ -54,7 +54,8 @@ export const useCollectionDataLoad = <T>(
       const snapshot = await query.get(source === "cache");
       const newData = {};
       snapshot.forEach((s) => {
-        newData[s.key] = s.val();
+        const val = s.val();
+        newData[s.key] = val === undefined ? null : val;
       });
       setCollection(newData);
       if (onLoad) {
