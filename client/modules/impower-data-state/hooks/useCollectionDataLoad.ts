@@ -51,12 +51,18 @@ export const useCollectionDataLoad = <T>(
       if (limitToLast) {
         query = query.limitToLast(limitToLast);
       }
-      const snapshot = await query.get(source === "cache");
       const newData = {};
-      snapshot.forEach((s) => {
-        const val = s.val();
-        newData[s.key] = val === undefined ? null : val;
-      });
+      try {
+        const snapshot = await query.get(source === "cache");
+        snapshot.forEach((s) => {
+          const val = s.val();
+          newData[s.key] = val === undefined ? null : val;
+        });
+      } catch (e) {
+        const logError = (await import("../../impower-logger/utils/logError"))
+          .default;
+        logError("DataState", e);
+      }
       setCollection(newData);
       if (onLoad) {
         onLoad(newData);
