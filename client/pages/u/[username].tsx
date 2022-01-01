@@ -90,8 +90,8 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
       : latestDoc?.username) || searchValue;
 
   const icon = latestDoc?.flagged?.includes("icon")
-    ? latestDoc?.icon?.fileUrl
-    : null;
+    ? null
+    : latestDoc?.icon?.fileUrl;
 
   const hex = latestDoc?.hex;
 
