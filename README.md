@@ -64,9 +64,8 @@ The Impower Engine can export:
 
 ### How To Run (impower/client):
 
-1. Open the impower/client folder in the vscode terminal
-2. Run the client: `npm run dev`
-3. Open [http://localhost:3000](http://localhost:3000) with your browser to view the client app.
+1. Run the client: `npm run dev`
+2. Open [http://localhost:3000](http://localhost:3000) with your browser to view the client app.
 
 ### Making Changes (impower/client):
 
