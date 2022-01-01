@@ -59,7 +59,27 @@ These are scripts that can be run to manage data across our various server envir
 - To publish to test environment: `npm run config-test`
 - To publish to prod environment: `npm run config-prod`
 
-## Promoting Auth, Database, & Storage Data
+## Wiping or Migrating Backend Data
 
-- To promote data from dev to test environment: `npm run promote-test`
-- To promote data from test to prod environment: `npm run promote-prod`
+- To wipe data from test environment: `npm run wipe-test`
+- To migrate data from prod to test environment: `npm run migrate-prod-to-test`
+
+---
+
+## Production Deployment Process
+
+First migrate the current production data into the test environment so old data can be tested with the new backend:
+
+1. Deploy the test frontend by merging the branch deploy/dev into deploy/test
+2. Deploy the test backend by running `npm run deploy-test` in `server/functions`
+3. Deploy the test remote config variables by running `npm run config-test` in `impower/admin`
+4. Wipe data in the test endpoint by running `npm run wipe-test` in `impower/admin`
+5. Migrate prod data to the test endpoint by running `npm run migrate-prod-to-test` in `impower/admin`
+6. Upgrade test data to the latest structure by running `npm run restructure-test` in `impower/admin`
+
+Test the test endpoint at https://test.impower.app, and once all bugs are fixed, deploy to prod:
+
+1. Deploy the prod frontend by merging the branch deploy/test into deploy/prod
+2. Deploy the prod backend by running `npm run deploy-prod` in `server/functions`
+3. Deploy the prod remote config variables by running `npm run config-prod` in `impower/admin`
+6. Upgrade prod data to the latest structure by running `npm run restructure-prod` in `impower/admin`
