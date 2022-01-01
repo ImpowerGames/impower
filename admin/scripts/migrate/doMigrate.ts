@@ -144,10 +144,27 @@ export const doMigrate = async (
   const fromCollections = await fromApp.firestore().listCollections();
   const migrateCollection = async (collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>) => {
     const colSnap = await collection.get();
-    return await Promise.all(colSnap.docs.map((docSnap) => 
-      toBulkWriter.set(toApp.firestore().doc(docSnap.ref.path), docSnap.data())
-    ));
-  }
+    const colPromises = colSnap.docs.map(async (docSnap) => {
+      const fromChildCollections = await docSnap.ref.listCollections();
+      const fromChildColPromises = fromChildCollections.map(async (childColRef) => {
+        const childColSnap = await childColRef.get();
+        const childColDocPromises = childColSnap.docs.map(async (childDocSnap) => {
+          return await toBulkWriter.set(toApp.firestore().doc(childDocSnap.ref.path), childDocSnap.data(), {merge: true});
+        });
+        const childColDocResults = await Promise.all(childColDocPromises);
+        return childColDocResults;
+      });
+      const fromDocPromise = toBulkWriter.set(toApp.firestore().doc(docSnap.ref.path), docSnap.data(), {merge: true});
+      const docResult = await fromDocPromise;
+      const colResults = await Promise.all(fromChildColPromises);
+      const colFlatResults = colResults.flatMap(x => x);
+      const results = [docResult, ...colFlatResults];
+      return results;
+    });
+    const colResults = await Promise.all(colPromises);
+    const colFlatResults = colResults.flatMap(x => x);
+    return colFlatResults;
+  };
   await Promise.all(fromCollections.map(collection => migrateCollection(collection)));
   await toBulkWriter.close();
 };
