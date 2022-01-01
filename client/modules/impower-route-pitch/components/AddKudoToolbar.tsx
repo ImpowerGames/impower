@@ -264,6 +264,8 @@ const AddKudoToolbar = React.memo((props: AddKudoToolbarProps): JSX.Element => {
     [minHeight]
   );
 
+  console.warn("my_kudos", my_kudos);
+
   return (
     <StyledKudoToolbarArea style={toolbarAreaStyle}>
       <StyledPaper elevation={2} />
