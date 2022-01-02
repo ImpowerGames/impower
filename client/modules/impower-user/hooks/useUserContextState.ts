@@ -207,7 +207,7 @@ export const useUserContextState = (
         }
       });
       setUnreadNotifications(unread);
-      dispatch(userLoadNotifications(unread));
+      dispatch(userLoadNotifications(data));
     },
     []
   );
