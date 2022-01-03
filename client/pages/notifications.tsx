@@ -36,13 +36,13 @@ const NotificationsPage = React.memo(() => {
   useBodyBackgroundColor("white");
   useHTMLBackgroundColor("white");
 
-  //Anything that says use is a hook
-  //Effects runs on Client only (we dont need to cache user data on the server becasue no other user will ever use it)
+  // Anything that says use is a hook
+  // Effects runs on Client only (we dont need to cache user data on the server becasue no other user will ever use it)
   useEffect(() => {
     DataStoreCache.instance.clear();
   }, []);
 
-  //Memo runs on both server and the client, want to render & cache as many components on the page ahead of time as possible
+  // Memo runs on both server and the client, want to render & cache as many components on the page ahead of time as possible
   useMemo(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Notifications"));
@@ -52,7 +52,7 @@ const NotificationsPage = React.memo(() => {
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
 
-  //below are componenents, the weird bastard child of HTML and Javascript (which is in turn the weird bastard of real code and satan)
+  // below are componenents, the weird bastard child of HTML and Javascript (which is in turn the weird bastard of real code and satan)
   return (
     <StyledNotificationsPage>
       <BetaBanner />

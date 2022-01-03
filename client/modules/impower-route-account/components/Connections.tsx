@@ -1,17 +1,11 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import {
-  Button,
   CircularProgress,
   Divider,
   IconButton,
   List,
-  ListItem,
-  ListItemAvatar,
-  ListItemButton,
-  ListItemText,
   OutlinedInput,
-  useMediaQuery,
 } from "@material-ui/core";
 import Paper from "@material-ui/core/Paper";
 import Tab from "@material-ui/core/Tab";
@@ -22,23 +16,15 @@ import {
   useAutocomplete,
 } from "@material-ui/unstyled/AutocompleteUnstyled";
 import React, { useCallback, useContext, useMemo, useState } from "react";
-import DiscordBrandsIcon from "../../../resources/icons/brands/discord.svg";
-import EnvelopeRegularIcon from "../../../resources/icons/regular/envelope.svg";
 import MagnifyingGlassRegularIcon from "../../../resources/icons/regular/magnifying-glass.svg";
 import XmarkRegularIcon from "../../../resources/icons/regular/xmark.svg";
-import { abbreviateAge, abbreviateCount } from "../../impower-config";
+import { abbreviateCount } from "../../impower-config";
 import { AggData } from "../../impower-data-state";
-import { useDialogNavigation } from "../../impower-dialog";
 import { FontIcon } from "../../impower-icon";
 import { Tabs } from "../../impower-route";
-import Avatar from "../../impower-route/components/elements/Avatar";
 import { useRouter } from "../../impower-router";
-import {
-  UserContext,
-  userDoConnect,
-  userUndoConnect,
-} from "../../impower-user";
-import userRejectConnect from "../../impower-user/utils/userRejectConnect";
+import { UserContext } from "../../impower-user";
+import ConnectionListItem from "./ConnectionListItem";
 
 const StyledContainer = styled.div`
   flex: 1;
@@ -85,23 +71,6 @@ const StyledList = styled(List)`
   min-height: 100%;
 `;
 
-const StyledListItem = styled(ListItem)``;
-
-const StyledListItemButton = styled(ListItemButton)`
-  max-width: 100%;
-  ${(props): string => props.theme.breakpoints.down("sm")} {
-    padding: ${(props): string => props.theme.spacing(1)};
-  }
-`;
-
-const StyledListItemText = styled(ListItemText)`
-  & .MuiListItemText-secondary {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-`;
-
 const StyledTabsArea = styled.div`
   position: sticky;
   top: ${(props): string => props.theme.minHeight.navigationBar};
@@ -116,10 +85,6 @@ const StyledTab = styled(Tab)``;
 const StyledIconArea = styled.div`
   padding-left: ${(props): string => props.theme.spacing(1)};
   padding-right: ${(props): string => props.theme.spacing(2)};
-`;
-
-const StyledItemDivider = styled(Divider)`
-  width: calc(100% - 72px);
 `;
 
 const StyledLoadingArea = styled.div`
@@ -159,12 +124,6 @@ const StyledEmptyTypography = styled(Typography)`
   opacity: 0.6;
 `;
 
-const StyledButton = styled(Button)`
-  margin: ${(props): string => props.theme.spacing(0, 0.5)};
-  flex-shrink: 0;
-  min-width: 0;
-`;
-
 const StyledIconButton = styled(IconButton)`
   color: inherit;
   display: none;
@@ -173,27 +132,10 @@ const StyledIconButton = styled(IconButton)`
   }
 `;
 
-const StyledContactArea = styled.div`
-  display: flex;
-  align-items: center;
-`;
-
-const StyledContactIconArea = styled.div`
-  padding-right: ${(props): string => props.theme.spacing(1)};
-  opacity: 0.8;
-`;
-
-const StyledContactLabelArea = styled.div`
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
 const StyledDivider = styled(Divider)``;
 
 const Connections = React.memo((): JSX.Element | null => {
-  const [userState, userDispatch] = useContext(UserContext);
+  const [userState] = useContext(UserContext);
   const [tabIndex, setTabIndex] = useState(
     typeof window !== "undefined" &&
       window.location.search?.toLowerCase() === "?t=outgoing"
@@ -206,11 +148,9 @@ const Connections = React.memo((): JSX.Element | null => {
   const [filterValue, setFilterValue] = useState<string>("");
   const [filterInputValue, setFilterInputValue] = useState<string>("");
   const [filtering, setFiltering] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
 
-  const { connects, my_connects, settings } = userState;
-  const account = settings?.account;
-  const contact = account === undefined ? undefined : account?.contact || "";
+  const { connects, my_connects } = userState;
 
   const router = useRouter();
 
@@ -269,62 +209,6 @@ const Connections = React.memo((): JSX.Element | null => {
   const outgoingRequestsCountLabel = outgoingRequests
     ? `${abbreviateCount(outgoingRequests.length)} `
     : "";
-
-  const [openAccountDialog] = useDialogNavigation("a");
-
-  const handleClick = useCallback(
-    async (e: React.MouseEvent, id: string, data: AggData) => {
-      setLoading(true);
-      await router.push(`/u/${data?.a?.u}?t=contributions`);
-      setLoading(false);
-    },
-    [router]
-  );
-
-  const handleBlockRipplePropogation = useCallback(
-    (e: React.MouseEvent | React.TouchEvent): void => {
-      e.stopPropagation();
-    },
-    []
-  );
-
-  const handleCopy = useCallback((e: React.MouseEvent, value: string) => {
-    e.stopPropagation();
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(value);
-    }
-  }, []);
-
-  const handleIgnore = useCallback(
-    async (e: React.MouseEvent, id: string) => {
-      e.preventDefault();
-      e.stopPropagation();
-      userDispatch(userRejectConnect("users", id));
-    },
-    [userDispatch]
-  );
-
-  const handleDoConnect = useCallback(
-    (e: React.MouseEvent, id: string) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!contact) {
-        openAccountDialog(`contact_${id}`);
-        return;
-      }
-      userDispatch(userDoConnect("users", id));
-    },
-    [contact, openAccountDialog, userDispatch]
-  );
-
-  const handleUndoConnect = useCallback(
-    (e: React.MouseEvent, id: string) => {
-      e.preventDefault();
-      e.stopPropagation();
-      userDispatch(userUndoConnect("users", id));
-    },
-    [userDispatch]
-  );
 
   const handleInputChange = useCallback(
     (
@@ -421,7 +305,6 @@ const Connections = React.memo((): JSX.Element | null => {
   );
 
   const theme = useTheme();
-  const belowSmBreakpoint = useMediaQuery(theme.breakpoints.down("sm"));
 
   const showSearchbar =
     (tabIndex === 0 && connections?.length > 0) ||
@@ -432,7 +315,7 @@ const Connections = React.memo((): JSX.Element | null => {
     <>
       <StyledContainer>
         <StyledPaper>
-          {loading ? (
+          {transitioning ? (
             <StyledLoadingArea>
               <StyledCircularProgress color="secondary" />
             </StyledLoadingArea>
@@ -489,80 +372,15 @@ const Connections = React.memo((): JSX.Element | null => {
                 {tabIndex === 0 && connections ? (
                   connections.length > 0 ? (
                     <StyledList sx={{ width: "100%" }}>
-                      {filteredConnections.map(([id, data]) => {
-                        return (
-                          <StyledListItem
-                            key={id}
-                            alignItems="flex-start"
-                            disablePadding
-                          >
-                            <StyledListItemButton
-                              onClick={(e): void => {
-                                handleClick(e, id, data);
-                              }}
-                            >
-                              <ListItemAvatar>
-                                <Avatar
-                                  alt={data?.a?.u}
-                                  src={data?.a?.i}
-                                  backgroundColor={data?.a?.h}
-                                />
-                              </ListItemAvatar>
-                              <StyledListItemText
-                                primary={data?.a?.u}
-                                secondary={
-                                  data?.c ? (
-                                    <StyledContactArea>
-                                      <StyledContactIconArea>
-                                        <FontIcon
-                                          aria-label={
-                                            data?.c?.includes("@")
-                                              ? "email"
-                                              : "discord"
-                                          }
-                                          size={14}
-                                        >
-                                          {data?.c?.includes("@") ? (
-                                            <EnvelopeRegularIcon />
-                                          ) : (
-                                            <DiscordBrandsIcon />
-                                          )}
-                                        </FontIcon>
-                                      </StyledContactIconArea>
-                                      <StyledContactLabelArea>
-                                        {data?.c}
-                                      </StyledContactLabelArea>
-                                    </StyledContactArea>
-                                  ) : undefined
-                                }
-                              />
-                              {data?.c && data?.c?.includes("@") ? (
-                                <StyledButton
-                                  variant="outlined"
-                                  href={`mailto:${data?.c}`}
-                                  onMouseDown={handleBlockRipplePropogation}
-                                  onTouchStart={handleBlockRipplePropogation}
-                                  onClick={handleBlockRipplePropogation}
-                                >
-                                  {`Contact`}
-                                </StyledButton>
-                              ) : data?.c ? (
-                                <StyledButton
-                                  variant="outlined"
-                                  onMouseDown={handleBlockRipplePropogation}
-                                  onTouchStart={handleBlockRipplePropogation}
-                                  onClick={(e: React.MouseEvent): void => {
-                                    handleCopy(e, data?.c);
-                                  }}
-                                >
-                                  {`Copy`}
-                                </StyledButton>
-                              ) : null}
-                            </StyledListItemButton>
-                            <StyledItemDivider variant="inset" absolute />
-                          </StyledListItem>
-                        );
-                      })}
+                      {filteredConnections.map(([id, data]) => (
+                        <ConnectionListItem
+                          key={id}
+                          id={id}
+                          data={data}
+                          status="connected"
+                          onLoading={setTransitioning}
+                        />
+                      ))}
                     </StyledList>
                   ) : (
                     <>
@@ -573,47 +391,13 @@ const Connections = React.memo((): JSX.Element | null => {
                   incomingRequests.length > 0 ? (
                     <StyledList sx={{ width: "100%" }}>
                       {filteredIncomingRequests.map(([id, data]) => (
-                        <StyledListItem
+                        <ConnectionListItem
                           key={id}
-                          alignItems="flex-start"
-                          disablePadding
-                        >
-                          <StyledListItemButton
-                            onClick={(e): void => {
-                              handleClick(e, id, data);
-                            }}
-                          >
-                            <ListItemAvatar>
-                              <Avatar
-                                alt={data?.a?.u}
-                                src={data?.a?.i}
-                                backgroundColor={data?.a?.h}
-                              />
-                            </ListItemAvatar>
-                            <StyledListItemText
-                              primary={data?.a?.u}
-                              secondary={`${
-                                belowSmBreakpoint ? "" : "wants to connect — "
-                              }${abbreviateAge(new Date(data?.t))}`}
-                            />
-                            <StyledButton
-                              onMouseDown={handleBlockRipplePropogation}
-                              onTouchStart={handleBlockRipplePropogation}
-                              onClick={(e): void => {
-                                handleIgnore(e, id);
-                              }}
-                            >{`Ignore`}</StyledButton>
-                            <StyledButton
-                              variant="outlined"
-                              onMouseDown={handleBlockRipplePropogation}
-                              onTouchStart={handleBlockRipplePropogation}
-                              onClick={(e): void => {
-                                handleDoConnect(e, id);
-                              }}
-                            >{`Connect`}</StyledButton>
-                          </StyledListItemButton>
-                          <StyledItemDivider variant="inset" absolute />
-                        </StyledListItem>
+                          id={id}
+                          data={data}
+                          status="incoming"
+                          onLoading={setTransitioning}
+                        />
                       ))}
                     </StyledList>
                   ) : (
@@ -625,40 +409,13 @@ const Connections = React.memo((): JSX.Element | null => {
                   outgoingRequests.length > 0 ? (
                     <StyledList sx={{ width: "100%" }}>
                       {filteredOutgoingRequests.map(([id, data]) => (
-                        <StyledListItem
+                        <ConnectionListItem
                           key={id}
-                          alignItems="flex-start"
-                          disablePadding
-                        >
-                          <StyledListItemButton
-                            onClick={(e): void => {
-                              handleClick(e, id, data);
-                            }}
-                          >
-                            <ListItemAvatar>
-                              <Avatar
-                                alt={data?.a?.u}
-                                src={data?.a?.i}
-                                backgroundColor={data?.a?.h}
-                              />
-                            </ListItemAvatar>
-                            <StyledListItemText
-                              primary={data?.a?.u}
-                              secondary={`${
-                                belowSmBreakpoint ? "" : "was sent a request — "
-                              }${abbreviateAge(new Date(data?.t))}`}
-                            />
-                            <StyledButton
-                              variant="outlined"
-                              onMouseDown={handleBlockRipplePropogation}
-                              onTouchStart={handleBlockRipplePropogation}
-                              onClick={(e): void => {
-                                handleUndoConnect(e, id);
-                              }}
-                            >{`Cancel`}</StyledButton>
-                          </StyledListItemButton>
-                          <StyledItemDivider variant="inset" absolute />
-                        </StyledListItem>
+                          id={id}
+                          data={data}
+                          status="outgoing"
+                          onLoading={setTransitioning}
+                        />
                       ))}
                     </StyledList>
                   ) : (
