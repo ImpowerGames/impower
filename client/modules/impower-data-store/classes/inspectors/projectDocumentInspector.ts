@@ -65,12 +65,14 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
 
   getPropertyLabel(propertyPath: string, data: ProjectDocument): string {
     if (propertyPath === "name") {
-      if (data?.type === "game" || data?.type === "story") {
+      if (data?.projectType === "game" || data?.projectType === "story") {
         return "Title";
       }
     }
     if (propertyPath === "summary") {
-      return "";
+      if (data?.projectType === "game" || data?.projectType === "environment") {
+        return "Description";
+      }
     }
     if (propertyPath === "status") {
       return "Development Status";

@@ -140,7 +140,7 @@ export const ProjectStorySummaryField = (
   );
   const SummaryDialogProps = useMemo(
     () => ({
-      placeholder: "Description",
+      placeholder: "Summary",
     }),
     []
   );

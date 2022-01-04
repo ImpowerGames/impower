@@ -1,4 +1,5 @@
 import styled from "@emotion/styled";
+import Typography from "@material-ui/core/Typography";
 import React, {
   useCallback,
   useContext,
@@ -57,11 +58,17 @@ const StyledSeparator = styled.div`
   flex: 1;
 `;
 
-const StyledGeneratorArea = styled.div`
+const StyledHeaderChildrenArea = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+`;
+
+const StyledTitleTypography = styled(Typography)`
+  text-align: center;
+  padding: ${(props): string => props.theme.spacing(1, 0)};
+  font-weight: ${(props): number => props.theme.fontWeight.bold};
 `;
 
 interface ProjectFieldProps
@@ -688,11 +695,16 @@ const CreateProjectForm = React.memo(
       const summaryStepIndex = steps.findIndex((step) =>
         step.propertyPaths.includes("summary")
       );
-      const step = newSteps?.[summaryStepIndex];
-      if (step) {
-        step.headerChildren =
+      const summaryStep = newSteps?.[summaryStepIndex];
+      if (summaryStep) {
+        summaryStep.headerChildren =
           doc?.projectType === "story" ? (
-            <StyledGeneratorArea>
+            <StyledHeaderChildrenArea>
+              {doc?.name && (
+                <StyledTitleTypography variant="h6">
+                  {doc?.name}
+                </StyledTitleTypography>
+              )}
               <ProjectGeneratorTagsSelector
                 termTagsMap={termTagsMap}
                 phrases={archetypes}
@@ -700,26 +712,33 @@ const CreateProjectForm = React.memo(
                 filteredTags={filteredSummaryTags}
                 onFilterTags={setFilteredSummaryTags}
               />
-            </StyledGeneratorArea>
+            </StyledHeaderChildrenArea>
+          ) : doc?.name ? (
+            <StyledHeaderChildrenArea>
+              <StyledTitleTypography variant="h6">
+                {doc?.name}
+              </StyledTitleTypography>
+            </StyledHeaderChildrenArea>
           ) : undefined;
-        step.footerChildren =
+        summaryStep.footerChildren =
           doc?.projectType === "story" ? (
             <ProjectSummaryInspiration onClick={handleRandomizeSummary} />
           ) : undefined;
       }
       return newSteps;
     }, [
+      steps,
+      lockedTags.length,
+      tagLimit,
+      tagCount,
+      handleRandomizeTags,
       doc?.projectType,
+      doc?.name,
       doc?.tags,
+      termTagsMap,
       archetypes,
       filteredSummaryTags,
       handleRandomizeSummary,
-      handleRandomizeTags,
-      lockedTags.length,
-      steps,
-      tagCount,
-      tagLimit,
-      termTagsMap,
     ]);
 
     return (

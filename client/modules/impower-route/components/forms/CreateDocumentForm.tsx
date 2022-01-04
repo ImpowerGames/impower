@@ -498,20 +498,22 @@ const CreateDocumentForm = React.memo(
                             finishedSummary
                           ) : (
                             <>
-                              <StyledHeaderTitleArea>
-                                {title && (
-                                  <StyledTitleTypography variant="h5">
-                                    {title}
-                                  </StyledTitleTypography>
-                                )}
-                                {title && description && <StyledDivider />}
-                                {description && (
-                                  <StyledDescriptionTypography variant="body1">
-                                    {description}
-                                  </StyledDescriptionTypography>
-                                )}
-                                <StyledSpacer />
-                              </StyledHeaderTitleArea>
+                              {(title || description) && (
+                                <StyledHeaderTitleArea>
+                                  {title && (
+                                    <StyledTitleTypography variant="h5">
+                                      {title}
+                                    </StyledTitleTypography>
+                                  )}
+                                  {title && description && <StyledDivider />}
+                                  {description && (
+                                    <StyledDescriptionTypography variant="body1">
+                                      {description}
+                                    </StyledDescriptionTypography>
+                                  )}
+                                  <StyledSpacer />
+                                </StyledHeaderTitleArea>
+                              )}
                               {steps?.[stepState]?.headerChildren}
                             </>
                           )

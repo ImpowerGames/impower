@@ -189,7 +189,7 @@ const CreatePitchDialog = React.memo((props: CreatePitchDialogProps) => {
       ...(type === "game" || type === "story" || type === "environment"
         ? [
             {
-              title: "Describe it!",
+              title: "",
               propertyPaths: ["summary"],
             },
           ]
