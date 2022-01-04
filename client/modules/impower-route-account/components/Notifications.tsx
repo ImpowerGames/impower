@@ -18,6 +18,22 @@ import BellSolidIcon from "../../../resources/icons/solid/bell.svg";
 import { AggData } from "../../impower-data-state";
 import ConnectionListItem from "./ConnectionListItem";
 
+// const DataStateWrite = (
+//     await import("../../impower-data-state/classes/dataStateWrite")
+//   ).default;
+//   await Promise.all([
+//     ...Object.entries(unreadNotifications).map(([id]) =>
+//       new DataStateWrite(
+//         "users",
+//         uid,
+//         "notifications",
+//         "data",
+//         id,
+//         "r"
+//       ).set(true)
+//     ),
+//   ]);
+
 const StyledContainer = styled.div`
   flex: 1;
   position: relative;
@@ -160,9 +176,7 @@ const Notifications = React.memo(() => {
   const notificationEntries = Object.entries(notifications || {});
 
   // Filter takes in an array and only returns values where the function passed into the filter returns true
-  const unreadNotificationCount = notificationEntries.filter(
-    ([, data]) => !data.r
-  ).length;
+  const unreadNotifications = notificationEntries.filter(([, data]) => !data.r);
 
   // define a state variable for which tab is currently selected,
   // state variables allow you to story data in memory outside the scope of the current functional component
@@ -188,7 +202,7 @@ const Notifications = React.memo(() => {
   );
 
   const unreadNotificationCountLabel = notifications
-    ? `${abbreviateCount(unreadNotificationCount)} `
+    ? `${abbreviateCount(unreadNotifications.length)} `
     : "";
 
   return (
@@ -221,6 +235,19 @@ const Notifications = React.memo(() => {
                   notificationEntries.length > 0 && (
                     <StyledList sx={{ width: "100%" }}>
                       {notificationEntries.reverse().map(([id, data]) => (
+                        <NotificationListItem
+                          key={id}
+                          id={id}
+                          data={data}
+                          onLoading={setTransitioning}
+                        />
+                      ))}
+                    </StyledList>
+                  )
+                ) : selectedTabIndex === 1 && notifications ? (
+                  unreadNotifications.length > 0 && (
+                    <StyledList sx={{ width: "100%" }}>
+                      {unreadNotifications.reverse().map(([id, data]) => (
                         <NotificationListItem
                           key={id}
                           id={id}

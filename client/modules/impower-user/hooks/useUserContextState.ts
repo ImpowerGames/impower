@@ -334,21 +334,6 @@ export const useUserContextState = (
           );
         }
       }
-      const DataStateWrite = (
-        await import("../../impower-data-state/classes/dataStateWrite")
-      ).default;
-      await Promise.all([
-        ...Object.entries(unreadNotifications).map(([id]) =>
-          new DataStateWrite(
-            "users",
-            uid,
-            "notifications",
-            "data",
-            id,
-            "r"
-          ).set(true)
-        ),
-      ]);
     };
     notify();
     // eslint-disable-next-line react-hooks/exhaustive-deps
