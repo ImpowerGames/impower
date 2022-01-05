@@ -149,13 +149,21 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
       ? getDataStoreKey(...targetPath)
       : getDataStoreKey(...targetPath);
   const existingKudo = my_kudos?.[kudoKey];
+
+  const username = userDoc?.flagged?.includes("username")
+    ? "[flagged]"
+    : userDoc?.username;
+  const icon = userDoc?.flagged?.includes("icon")
+    ? null
+    : userDoc?.icon?.fileUrl;
+
   const existingKudoRef = useRef<AggData>(
     existingKudo
       ? {
           ...existingKudo,
           a: {
-            u: userDoc?.username,
-            i: userDoc?.icon?.fileUrl,
+            u: username,
+            i: icon,
             h: userDoc?.hex,
           },
         }
@@ -171,14 +179,14 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
             _createdBy: uid,
             _createdAt: new Date(existingKudo?.t).toJSON(),
             _author: {
-              u: userDoc?.username,
-              i: userDoc?.icon?.fileUrl,
+              u: username,
+              i: icon,
               h: userDoc?.hex,
             },
             content: existingKudo?.c,
           }
         : null,
-    [existingKudo, uid, userDoc?.hex, userDoc?.icon?.fileUrl, userDoc?.username]
+    [existingKudo, icon, uid, userDoc?.hex, username]
   );
   const recentNotesRef = useRef<{ [id: string]: NoteDocument }>(
     recentNote === undefined
@@ -233,8 +241,8 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
       delete newNotes[uid];
     }
     const author = {
-      u: userDoc?.username,
-      i: userDoc?.icon?.fileUrl,
+      u: username,
+      i: icon,
       h: userDoc?.hex,
     };
     if (existingKudo) {
@@ -251,14 +259,7 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
     };
     setNotesState(notesRef.current);
     setAuthors(authorsRef.current);
-  }, [
-    existingKudo,
-    recentNote,
-    uid,
-    userDoc?.hex,
-    userDoc?.icon?.fileUrl,
-    userDoc?.username,
-  ]);
+  }, [existingKudo, icon, recentNote, uid, userDoc?.hex, username]);
 
   const handleLoad = useCallback(
     async (
@@ -387,8 +388,8 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
           _createdBy: uid,
           _createdAt: new Date().toJSON(),
           _author: {
-            u: userDoc?.username,
-            i: userDoc?.icon?.fileUrl,
+            u: username,
+            i: icon,
             h: userDoc?.hex,
           },
           content: data?.c,
@@ -401,8 +402,8 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
       }
       if (kudoed) {
         newAuthors[uid] = {
-          u: userDoc?.username,
-          i: userDoc?.icon?.fileUrl,
+          u: username,
+          i: icon,
           h: userDoc?.hex,
         };
       } else {
@@ -417,7 +418,7 @@ const KudoList = React.memo((props: KudoListProps): JSX.Element => {
         onKudo(e, kudoed, pitchId, contributionId, data);
       }
     },
-    [onKudo, uid, userDoc?.hex, userDoc?.icon?.fileUrl, userDoc?.username]
+    [icon, onKudo, uid, userDoc?.hex, username]
   );
 
   const handleBrowserNavigation = useCallback(
