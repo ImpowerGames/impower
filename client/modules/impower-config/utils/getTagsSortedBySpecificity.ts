@@ -26,9 +26,6 @@ export const getTagsSortedBySpecificity = (tags: string[]): string[] => {
     projectTags?.Aesthetics.slice(1).flatMap((c) => c) || [];
   // Prefer titles that are more relevant to specific subjects, aesthetics, and genres
   const beforeTags = [
-    ...visualStyles.filter((t) => tags?.includes(t)),
-    ...moods.filter((t) => tags?.includes(t)),
-    ...atmospheres.filter((t) => tags?.includes(t)),
     ...specificAesthetics.filter((t) => tags?.includes(t)),
     ...specificSubjects.filter((t) => tags?.includes(t)),
     ...specificGenres.filter((t) => tags?.includes(t)),
@@ -37,6 +34,9 @@ export const getTagsSortedBySpecificity = (tags: string[]): string[] => {
     ...generalMechanics.filter((t) => tags?.includes(t)),
     ...generalGenres.filter((t) => tags?.includes(t)),
     ...generalAesthetics.filter((t) => tags?.includes(t)),
+    ...visualStyles.filter((t) => tags?.includes(t)),
+    ...moods.filter((t) => tags?.includes(t)),
+    ...atmospheres.filter((t) => tags?.includes(t)),
   ];
   const afterTags = [
     ...musicalStyles.filter((t) => tags?.includes(t)),
