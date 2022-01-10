@@ -7,6 +7,7 @@ import {
   ListItemButton,
   Paper,
   Tab,
+  Typography,
 } from "@material-ui/core";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { abbreviateAge, abbreviateCount } from "../../impower-config";
@@ -98,6 +99,10 @@ const StyledListArea = styled.div`
 
 const StyledList = styled(List)`
   min-height: 100%;
+`;
+
+const StyledEmptyTypography = styled(Typography)`
+  opacity: 0.6;
 `;
 
 const StyledListItemButton = styled(ListItemButton)`
@@ -232,7 +237,7 @@ const Notifications = React.memo(() => {
               </StyledTabsArea>
               <StyledListArea>
                 {selectedTabIndex === 0 && notifications ? (
-                  notificationEntries.length > 0 && (
+                  notificationEntries.length > 0 ? (
                     <StyledList sx={{ width: "100%" }}>
                       {notificationEntries.reverse().map(([id, data]) => (
                         <NotificationListItem
@@ -243,9 +248,15 @@ const Notifications = React.memo(() => {
                         />
                       ))}
                     </StyledList>
+                  ) : (
+                    <>
+                      <StyledEmptyTypography variant="subtitle1">
+                        {`No Notifications`}
+                      </StyledEmptyTypography>
+                    </>
                   )
                 ) : selectedTabIndex === 1 && notifications ? (
-                  unreadNotifications.length > 0 && (
+                  unreadNotifications.length > 0 ? (
                     <StyledList sx={{ width: "100%" }}>
                       {unreadNotifications.reverse().map(([id, data]) => (
                         <NotificationListItem
@@ -256,6 +267,12 @@ const Notifications = React.memo(() => {
                         />
                       ))}
                     </StyledList>
+                  ) : (
+                    <>
+                      <StyledEmptyTypography variant="subtitle1">
+                        {`No New Notifications`}
+                      </StyledEmptyTypography>
+                    </>
                   )
                 ) : (
                   <StyledLoadingArea>

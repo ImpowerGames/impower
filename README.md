@@ -62,15 +62,17 @@ The Impower Engine can export:
 9. Open the generated file and copy the entire json object.
 10. Paste the entire json object into your `.env.development.local` file after `FIREBASE_SERVICE_ACCOUNT_KEY=`. (Format the json object so that it is all on a single line.)
 
-### How To Run (impower/client):
+### How To Run (impower/client) After First Time Setup:
 
-1. Run the client: `npm run dev`
-2. Open [http://localhost:3000](http://localhost:3000) with your browser to view the client app.
+1. Verify that you are in impower/client folder (terminal should read `C:\Users\Colin\Documents\GitHub\impower\client>`), if not run `cd functions`
+2. Run the client: `npm run dev`
+3. Open [http://localhost:3000](http://localhost:3000) with your browser to view the client app.
 
 ### Making Changes (impower/client):
 
-1. You can start editing the app by modifying the files in `pages`. The app auto-updates as you edit the files.
-2. Before pushing up your code, do `npm run check` to lint and type-check your files.
+1. You can start editing the app by modifying the files in `pages`.
+2. After making changes, save them by clicking `CTRL-S`. The app should auto-update as you save your changes, but if it doesn't just refresh the page on your browser.
+3. Before pushing up your code, do `npm run check` to lint and type-check your files.
 
 ## The Server:
 

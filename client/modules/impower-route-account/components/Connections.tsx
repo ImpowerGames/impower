@@ -372,7 +372,7 @@ const Connections = React.memo((): JSX.Element | null => {
                 {tabIndex === 0 && connections ? (
                   connections.length > 0 ? (
                     <StyledList sx={{ width: "100%" }}>
-                      {filteredConnections.map(([id, data]) => (
+                      {filteredConnections.reverse().map(([id, data]) => (
                         <ConnectionListItem
                           key={id}
                           id={id}
@@ -390,7 +390,7 @@ const Connections = React.memo((): JSX.Element | null => {
                 ) : tabIndex === 1 && incomingRequests ? (
                   incomingRequests.length > 0 ? (
                     <StyledList sx={{ width: "100%" }}>
-                      {filteredIncomingRequests.map(([id, data]) => (
+                      {filteredIncomingRequests.reverse().map(([id, data]) => (
                         <ConnectionListItem
                           key={id}
                           id={id}
@@ -408,7 +408,7 @@ const Connections = React.memo((): JSX.Element | null => {
                 ) : tabIndex === 2 && outgoingRequests ? (
                   outgoingRequests.length > 0 ? (
                     <StyledList sx={{ width: "100%" }}>
-                      {filteredOutgoingRequests.map(([id, data]) => (
+                      {filteredOutgoingRequests.reverse().map(([id, data]) => (
                         <ConnectionListItem
                           key={id}
                           id={id}
