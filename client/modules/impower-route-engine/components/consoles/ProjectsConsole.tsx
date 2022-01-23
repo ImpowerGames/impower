@@ -26,7 +26,6 @@ import { ProjectDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { DynamicIcon } from "../../../impower-icon";
 import Illustration from "../../../impower-route-home/components/elements/Illustration";
-import TagIconLoader from "../../../impower-route/components/elements/TagIconLoader";
 import { CreationStep } from "../../../impower-route/components/forms/CreateDocumentForm";
 import CreateProjectForm from "../../../impower-route/components/forms/CreateProjectForm";
 import ProjectCreationFinishedSummary from "../../../impower-route/components/forms/ProjectCreationFinishedSummary";
@@ -630,7 +629,6 @@ const ProjectsConsole = (props: YourProjectsConsoleProps): JSX.Element => {
           }
         />
       </EditDialog>
-      <TagIconLoader />
     </>
   );
 };
