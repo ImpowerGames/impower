@@ -855,6 +855,7 @@ const EngineConsoleFooter = React.memo(
           alignItems: "center",
           justifyContent: "flex-end",
           color: theme.palette.grey[400],
+          fontSize: theme.typography.button.fontSize,
         }}
       >
         {label}

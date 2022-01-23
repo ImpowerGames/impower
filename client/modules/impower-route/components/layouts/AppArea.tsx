@@ -13,16 +13,12 @@ import {
 import { toastClose, ToastContext } from "../../../impower-toast";
 import { ScreenContext } from "../../contexts/screenContext";
 import PageNavigationBar from "../elements/PageNavigationBar";
+import StudioNavigationBar from "../elements/StudioNavigationBar";
 import AppContent from "./AppContent";
 
 const ConfirmDialog = dynamic(() => import("../popups/ConfirmDialog"), {
   ssr: false,
 });
-
-const StudioNavigationBar = dynamic(
-  () => import("../elements/StudioNavigationBar"),
-  { ssr: false }
-);
 
 const Banner = dynamic(() => import("../popups/Banner"), { ssr: false });
 

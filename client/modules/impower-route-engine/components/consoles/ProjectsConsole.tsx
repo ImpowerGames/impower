@@ -1,11 +1,18 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { useMediaQuery } from "@material-ui/core";
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import BullhornRegularIcon from "../../../../resources/icons/regular/bullhorn.svg";
 import CircleInfoRegularIcon from "../../../../resources/icons/regular/circle-info.svg";
 import PencilRegularIcon from "../../../../resources/icons/regular/pencil.svg";
-import IllustrationImage from "../../../../resources/illustrations/clip-girl-drawing.svg";
+import IllustrationImage from "../../../../resources/illustrations/clip-working-from-home-2.svg";
 import { abbreviateAge, ConfigContext } from "../../../impower-config";
 import ConfigCache from "../../../impower-config/classes/configCache";
 import format from "../../../impower-config/utils/format";
@@ -19,8 +26,10 @@ import { ProjectDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { DynamicIcon } from "../../../impower-icon";
 import Illustration from "../../../impower-route-home/components/elements/Illustration";
-import CreateResourceForm from "../../../impower-route/components/forms/CreateResourceForm";
-import ResourceCreationFinishedSummary from "../../../impower-route/components/forms/ResourceCreationFinishedSummary";
+import TagIconLoader from "../../../impower-route/components/elements/TagIconLoader";
+import { CreationStep } from "../../../impower-route/components/forms/CreateDocumentForm";
+import CreateProjectForm from "../../../impower-route/components/forms/CreateProjectForm";
+import ProjectCreationFinishedSummary from "../../../impower-route/components/forms/ProjectCreationFinishedSummary";
 import EditDialog from "../../../impower-route/components/popups/EditDialog";
 import {
   EngineConsoleType,
@@ -31,19 +40,36 @@ import { ToastContext, toastTop } from "../../../impower-toast";
 import { UserContext } from "../../../impower-user";
 import EngineConsoleList, { CardDetail } from "../lists/EngineConsoleList";
 
+const steps: CreationStep[] = [
+  {
+    title: "Create a Project",
+    description: "What kind of project would you like to make?",
+    propertyPaths: ["tags"],
+  },
+  {
+    title: "What's it called?",
+    propertyPaths: ["name"],
+  },
+  {
+    title: "Last thing! Describe it!",
+    propertyPaths: ["summary"],
+  },
+];
+
+const submitLabel = "Create Project";
+
 const discardInfo = {
   title: "Discard unsaved changes?",
   agreeLabel: "Discard",
   disagreeLabel: "Keep Editing",
 };
 
-interface ResourcesConsoleContentProps {
+interface ProjectsConsoleContentProps {
   scrollParent?: HTMLElement;
   loading?: boolean;
   cardDetails: { [key: string]: CardDetail };
-  resourceDocs?: { [id: string]: ProjectDocument };
-  resourceMemberDocs?: { [id: string]: MemberData };
-  studioMemberDoc?: MemberData;
+  studioMemberships?: { [id: string]: MemberData };
+  projectMemberships?: { [id: string]: MemberData };
   createLabel: string;
   addLabel: string;
   selectedLabel: string;
@@ -74,16 +100,15 @@ interface ResourcesConsoleContentProps {
   onClick?: (e: React.MouseEvent, path: string) => void;
 }
 
-const ResourcesConsoleContent = (
-  props: ResourcesConsoleContentProps
+const ProjectsConsoleContent = (
+  props: ProjectsConsoleContentProps
 ): JSX.Element | null => {
   const {
     scrollParent,
     loading,
     cardDetails,
-    resourceDocs,
-    resourceMemberDocs,
-    studioMemberDoc,
+    studioMemberships,
+    projectMemberships,
     createLabel,
     addLabel,
     selectedLabel,
@@ -108,73 +133,71 @@ const ResourcesConsoleContent = (
   const router = useRouter();
 
   const ids = useMemo(
-    () => (resourceDocs ? Object.keys(resourceDocs) : undefined),
-    [resourceDocs]
+    () => (projectMemberships ? Object.keys(projectMemberships) : []),
+    [projectMemberships]
   );
 
   const getRowImage = useCallback(
     (id: string) => {
-      const doc = resourceDocs?.[id];
-      if (doc) {
-        return doc.icon?.fileUrl;
+      const data = projectMemberships?.[id];
+      if (data) {
+        return data?.p?.i;
       }
       return "";
     },
-    [resourceDocs]
+    [projectMemberships]
   );
+
   const getRowIcon = useCallback(
     (id: string): React.ReactNode => {
-      const doc = resourceDocs?.[id];
-      const mainTag = doc?.tags?.[0] || "";
-      const tagIconNames =
-        configState?.tagIconNames || ConfigCache.instance.params?.tagIconNames;
-      const tagDisambiguations =
-        configState?.tagDisambiguations ||
-        ConfigCache.instance.params?.tagDisambiguations;
-      const validMainTag = tagDisambiguations[mainTag]?.[0] || mainTag;
-      const tagIconName = tagIconNames?.[validMainTag] || "hashtag";
-      if (doc) {
+      const data = projectMemberships?.[id];
+      if (data) {
+        const mainTag = data?.p?.tags?.[0] || "";
+        const tagIconNames =
+          configState?.tagIconNames ||
+          ConfigCache.instance.params?.tagIconNames;
+        const tagDisambiguations =
+          configState?.tagDisambiguations ||
+          ConfigCache.instance.params?.tagDisambiguations;
+        const validMainTag = tagDisambiguations[mainTag]?.[0] || mainTag;
+        const tagIconName = tagIconNames?.[validMainTag] || "hashtag";
         return <DynamicIcon icon={tagIconName} />;
       }
       return undefined;
     },
-    [configState?.tagDisambiguations, configState?.tagIconNames, resourceDocs]
+    [
+      configState?.tagDisambiguations,
+      configState?.tagIconNames,
+      projectMemberships,
+    ]
   );
+
   const getRowColor = useCallback(
     (id: string) => {
-      const doc = resourceDocs?.[id];
-      if (doc) {
-        return doc.hex;
+      const data = projectMemberships?.[id];
+      if (data) {
+        return data?.p?.h;
       }
       return "";
     },
-    [resourceDocs]
+    [projectMemberships]
   );
 
   const getCellDisplayValue = useCallback(
     (id: string, key: string): string => {
-      const doc = resourceDocs?.[id];
+      const data = projectMemberships?.[id];
       const memberDoc =
-        resourceMemberDocs?.[id] ||
-        (!doc?.restricted ? studioMemberDoc : undefined);
-      if (doc) {
+        projectMemberships?.[id] ||
+        (!data?.restricted ? studioMemberships?.[data?.s?.id] : undefined);
+      if (data) {
         if (key === "name") {
-          return doc.name;
-        }
-        if (key === "type") {
-          return "Resource";
+          return data?.p?.n;
         }
         if (key === "modified") {
-          if (doc._updatedAt) {
-            const updatedAt =
-              typeof doc?._updatedAt === "string"
-                ? new Date(doc?._updatedAt)
-                : doc?._updatedAt?.toDate();
-            return format("Modified {date}", {
-              date: abbreviateAge(updatedAt),
-            });
-          }
-          return "";
+          const accessedAt = new Date(data?.accessedAt || data?.t);
+          return format("Modified {date}", {
+            date: abbreviateAge(accessedAt),
+          });
         }
         if (key === "access") {
           if (memberDoc?.access) {
@@ -182,63 +205,53 @@ const ResourcesConsoleContent = (
           }
           return "";
         }
-        return String(doc[key]);
+        const value = data[key];
+        return value as string;
       }
       return "";
     },
-    [resourceDocs, resourceMemberDocs, studioMemberDoc]
+    [projectMemberships, studioMemberships]
   );
 
   const getCellSortValue = useCallback(
     (id: string, key: string): string | number => {
-      const doc = resourceDocs?.[id];
-      if (doc) {
-        if (key === "name") {
-          return doc.name;
-        }
-        if (key === "type") {
-          return "Resource";
-        }
+      const data = projectMemberships?.[id];
+      if (data) {
         if (key === "modified") {
-          const updatedAt =
-            typeof doc?._updatedAt === "string"
-              ? new Date(doc?._updatedAt)
-              : doc?._updatedAt?.toDate();
-          return updatedAt.toJSON();
+          return new Date(data?.accessedAt || data?.t).toJSON();
         }
-        return getCellDisplayValue(id, key);
       }
-      return "";
+      return getCellDisplayValue(id, key);
     },
-    [resourceDocs, getCellDisplayValue]
+    [projectMemberships, getCellDisplayValue]
   );
 
   const getRowMoreOptions = useCallback(
     (id: string) => {
-      const doc = resourceDocs?.[id];
+      const data = projectMemberships?.[id];
       const memberDoc =
-        resourceMemberDocs?.[id] ||
-        (!doc?.restricted ? studioMemberDoc : undefined);
-      if (doc) {
+        projectMemberships?.[id] ||
+        (!data?.restricted ? studioMemberships?.[data?.s?.id] : undefined);
+      if (data) {
         const pitchOptions =
           memberDoc?.access === MemberAccess.Owner
-            ? doc.pitched
+            ? data.pitched
               ? ["View Pitch"]
-              : ["Pitch Resource"]
+              : ["Pitch Project"]
             : [];
         const pageOptions = ["View Public Page"];
         return [...pitchOptions, ...pageOptions];
       }
       return [];
     },
-    [resourceDocs, resourceMemberDocs, studioMemberDoc]
+    [projectMemberships, studioMemberships]
   );
 
   const getOptionIcon = useCallback((option: string) => {
-    if (option === "Edit Resource") {
+    if (option === "Edit Project") {
       return <PencilRegularIcon />;
     }
-    if (option === "Pitch Resource" || option === "View Pitch") {
+    if (option === "Pitch Project" || option === "View Pitch") {
       return <BullhornRegularIcon />;
     }
     if (option === "View Public Page") {
@@ -247,9 +260,14 @@ const ResourcesConsoleContent = (
     return undefined;
   }, []);
 
-  const handleIsContextAllowed = useCallback((): boolean => {
-    return studioMemberDoc?.access === MemberAccess.Owner;
-  }, [studioMemberDoc?.access]);
+  const handleIsContextAllowed = useCallback(
+    (id: string): boolean => {
+      const data = projectMemberships?.[id];
+      const studioMembership = studioMemberships?.[data?.s?.id];
+      return studioMembership?.access === MemberAccess.Owner;
+    },
+    [projectMemberships, studioMemberships]
+  );
 
   const handleMore = useCallback(
     async (
@@ -259,21 +277,21 @@ const ResourcesConsoleContent = (
     ) => {
       event.preventDefault();
       event.stopPropagation();
-      const doc = resourceDocs?.[id];
-      if (option === "Edit Resource") {
+      const data = projectMemberships?.[id];
+      if (option === "Edit Project") {
         onClick(event as React.MouseEvent, id);
       }
-      if (option === "Pitch Resource") {
-        router.push(`/r/p?resource=${id}`);
+      if (option === "Pitch Project") {
+        router.push(`/g/p?project=${id}`);
       }
       if (option === "View Pitch") {
-        router.push(`/r/p/${id}`);
+        router.push(`/g/p/${id}`);
       }
       if (option === "View Public Page") {
-        router.push(`/r/${doc?.slug}`);
+        router.push(`/g/${data.slug}`);
       }
     },
-    [onClick, resourceDocs, router]
+    [projectMemberships, onClick, router]
   );
 
   const theme = useTheme();
@@ -328,10 +346,11 @@ const StyledConsoleContentArea = styled.div`
   flex-direction: column;
 `;
 
-interface YourResourcesConsoleProps {
+interface YourProjectsConsoleProps {
   scrollParent?: HTMLElement;
   studioId?: string;
-  resourceDocs: { [id: string]: ProjectDocument };
+  studioMemberships: { [id: string]: MemberData };
+  projectMemberships: { [id: string]: MemberData };
   emptyLabel?: React.ReactNode;
   fixedStyle?: React.CSSProperties;
   stickyStyle?: {
@@ -347,27 +366,19 @@ interface YourResourcesConsoleProps {
   };
 }
 
-const ResourcesConsole = (props: YourResourcesConsoleProps): JSX.Element => {
+const ProjectsConsole = (props: YourProjectsConsoleProps): JSX.Element => {
   const {
     scrollParent,
-    studioId: studio,
-    resourceDocs,
+    studioId,
+    studioMemberships,
+    projectMemberships,
     emptyLabel,
     stickyStyle,
     fixedStyle,
   } = props;
 
-  const [createDocId, setCreateDocId] = useState<string>();
-  const [createDoc, setCreateDoc] = useState<ProjectDocument>();
-  const [createDialogOpen, setCreateDialogOpen] = useState<boolean>();
-  const [canClose, setCanClose] = useState(true);
-  const [, toastDispatch] = useContext(ToastContext);
-  const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
-  const [userState] = useContext(UserContext);
-  const { uid, my_studio_memberships, my_project_memberships } = userState;
-
   const engineConsole = studioConsoles.find(
-    (c) => c.type === EngineConsoleType.Resources
+    (c) => c.type === EngineConsoleType.Projects
   );
   const {
     createLabel,
@@ -384,20 +395,30 @@ const ResourcesConsole = (props: YourResourcesConsoleProps): JSX.Element => {
     doneLabel,
   } = engineConsole;
 
-  const studioMemberDoc = useMemo(() => {
-    if (my_studio_memberships === undefined) {
-      return undefined;
-    }
-    if (my_studio_memberships === null) {
-      return null;
-    }
-    return my_studio_memberships[studio];
-  }, [studio, my_studio_memberships]);
+  const [, toastDispatch] = useContext(ToastContext);
+  const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
+  const [userState] = useContext(UserContext);
+  const { uid } = userState;
+
+  const [createDocId, setCreateDocId] = useState<string>();
+  const [createDoc, setCreateDoc] = useState<ProjectDocument>();
+  const [createDialogOpen, setCreateDialogOpen] = useState<boolean>();
+  const [canClose, setCanClose] = useState(true);
+
+  const projectMembershipsStateRef = useRef(projectMemberships);
+  const [projectMembershipsState, setProjectMembershipsState] = useState(
+    projectMembershipsStateRef.current
+  );
+
+  useEffect(() => {
+    projectMembershipsStateRef.current = projectMemberships;
+    setProjectMembershipsState({ ...projectMembershipsStateRef.current });
+  }, [projectMemberships]);
 
   const handleBrowserNavigation = useCallback(
     (currState: Record<string, string>, prevState?: Record<string, string>) => {
       if (currState?.e !== prevState?.e) {
-        setCreateDialogOpen(currState.e === "resource");
+        setCreateDialogOpen(currState.e === "project");
       }
     },
     []
@@ -408,29 +429,32 @@ const ResourcesConsole = (props: YourResourcesConsoleProps): JSX.Element => {
   );
 
   const handleAdd = useCallback(async () => {
+    setCanClose(true);
     const Auth = (await import("../../../impower-auth/classes/auth")).default;
-    const createResourceDocument = (
-      await import("../../../impower-data-store/utils/createResourceDocument")
+    const createProjectDocument = (
+      await import("../../../impower-data-store/utils/createProjectDocument")
     ).default;
-    const newResource = createResourceDocument({
+    const newProject = createProjectDocument({
       _createdBy: uid,
       _author: Auth.instance.author,
-      studio,
+      studio: studioId,
       name: "",
       slug: "",
       owners: [uid],
+      projectType: "game",
+      engine: true,
     });
-    setCreateDoc(newResource);
+    setCreateDoc(newProject);
     setCreateDialogOpen(true);
-    openEditDialog("resource");
-  }, [studio, uid, openEditDialog]);
+    openEditDialog("project");
+  }, [openEditDialog, studioId, uid]);
 
   const handleClick = useCallback(
     async (e: React.MouseEvent, id: string) => {
       if (id) {
         try {
           const router = (await import("next/router")).default;
-          await router.push(`/e/r/${id}`);
+          await router.push(`/e/g/${id}`);
         } catch (error) {
           toastDispatch(toastTop(error.message, "error"));
         }
@@ -488,12 +512,20 @@ const ResourcesConsole = (props: YourResourcesConsoleProps): JSX.Element => {
     ]
   );
 
-  const handleSubmit = useCallback(async (e: React.MouseEvent, id: string) => {
-    setCreateDocId(id);
-    setCanClose(false);
-  }, []);
+  const handleSubmit = useCallback(
+    async (e: React.MouseEvent, id: string, doc: ProjectDocument) => {
+      setCreateDocId(id);
+      projectMembershipsStateRef.current = {
+        ...(projectMembershipsStateRef.current || {}),
+        [id]: doc,
+      };
+      setProjectMembershipsState(projectMembershipsStateRef.current);
+      setCanClose(false);
+    },
+    []
+  );
 
-  const handleSubmitted = useCallback(async () => {
+  const handleSubmitted = useCallback(() => {
     setCanClose(true);
   }, []);
 
@@ -504,9 +536,11 @@ const ResourcesConsole = (props: YourResourcesConsoleProps): JSX.Element => {
     [createDoc]
   );
 
-  const resourceCount = resourceDocs ? Object.keys(resourceDocs).length : 0;
-  const canAdd = studioMemberDoc?.access === MemberAccess.Owner;
-  const footerLabel = `${resourceCount} resources`;
+  const projectCount = projectMembershipsState
+    ? Object.keys(projectMembershipsState).length
+    : 0;
+  const canAdd = studioMemberships?.[studioId]?.access === MemberAccess.Owner;
+  const footerLabel = `${projectCount} projects`;
 
   const cardDetails = useMemo(
     () => ({
@@ -539,13 +573,12 @@ const ResourcesConsole = (props: YourResourcesConsoleProps): JSX.Element => {
       <StyledConsoleContentArea
         className={StyledConsoleContentArea.displayName}
       >
-        <ResourcesConsoleContent
+        <ProjectsConsoleContent
           scrollParent={scrollParent}
-          loading={!resourceDocs}
+          loading={!projectMembershipsState}
           cardDetails={cardDetails}
-          resourceDocs={resourceDocs}
-          studioMemberDoc={studioMemberDoc}
-          resourceMemberDocs={my_project_memberships}
+          studioMemberships={studioMemberships}
+          projectMemberships={projectMembershipsState}
           createLabel={createLabel}
           addLabel={addLabel}
           selectedLabel={selectedLabel}
@@ -579,15 +612,17 @@ const ResourcesConsole = (props: YourResourcesConsoleProps): JSX.Element => {
         />
       </StyledConsoleContentArea>
       <EditDialog open={createDialogOpen} onClose={handleCloseCreateMenu}>
-        <CreateResourceForm
+        <CreateProjectForm
           docId={createDocId}
           doc={createDoc}
+          steps={steps}
+          submitLabel={submitLabel}
           onChange={setCreateDoc}
-          onClose={handleCloseCreateMenu}
           onSubmit={handleSubmit}
           onSubmitted={handleSubmitted}
+          onClose={handleCloseCreateMenu}
           finishedSummary={
-            <ResourceCreationFinishedSummary
+            <ProjectCreationFinishedSummary
               docId={createDocId}
               doc={createDoc}
               onUploadIcon={handleUploadIcon}
@@ -595,8 +630,9 @@ const ResourcesConsole = (props: YourResourcesConsoleProps): JSX.Element => {
           }
         />
       </EditDialog>
+      <TagIconLoader />
     </>
   );
 };
 
-export default ResourcesConsole;
+export default ProjectsConsole;

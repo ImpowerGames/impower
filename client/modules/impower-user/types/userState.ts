@@ -13,7 +13,6 @@ import {
   PageDocument,
   ProjectDocument,
   SettingsDocument,
-  StudioDocument,
   UserDocument,
 } from "../../impower-data-store";
 
@@ -24,9 +23,6 @@ export interface UserState extends UserAttributes {
   claims?: UserClaims;
   tempEmail?: string;
   tempUsername?: string;
-  studios?: {
-    [id: string]: StudioDocument;
-  };
   submissions?: {
     [submissionType in SubmissionType]: DataDocument;
   };

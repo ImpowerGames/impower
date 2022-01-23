@@ -130,12 +130,12 @@ const CreateResourceForm = React.memo(
           const mainTag = newDoc?.tags?.[0] || "";
           const tagColorNames = configState?.tagColorNames;
           const colors = configState?.colors;
-          const tagColorName = tagColorNames[mainTag] || "";
+          const tagColorName = tagColorNames?.[mainTag] || "";
           const claimedDoc = {
             ...newDoc,
             name: newDoc.name.trim(),
             slug,
-            hex: colors[tagColorName] || getRandomColor(),
+            hex: colors?.[tagColorName] || getRandomColor(),
             owners: [Auth.instance.uid],
           };
           await new Promise<void>((resolve) =>

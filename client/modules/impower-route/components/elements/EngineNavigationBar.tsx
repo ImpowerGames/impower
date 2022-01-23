@@ -215,7 +215,7 @@ const EngineNavigationBar = React.memo(
                 aria-label="open drawer"
                 onClick={handleOpenNavdrawer}
               >
-                <FontIcon aria-label="Menu" size={24}>
+                <FontIcon aria-label="Menu" size={24} color="white">
                   <BarsRegularIcon />
                 </FontIcon>
               </IconButton>

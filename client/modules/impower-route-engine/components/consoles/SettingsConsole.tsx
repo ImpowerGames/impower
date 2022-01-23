@@ -12,8 +12,10 @@ import { Timestamp } from "../../../impower-core";
 import {
   StudioDocument,
   StudioDocumentInspector,
+  useDocument,
 } from "../../../impower-data-store";
 import InspectorForm from "../../../impower-route/components/forms/InspectorForm";
+import AutocompleteInput from "../../../impower-route/components/inputs/AutocompleteInput";
 import BooleanInput from "../../../impower-route/components/inputs/BooleanInput";
 import ColorInput from "../../../impower-route/components/inputs/ColorInput";
 import FileInput from "../../../impower-route/components/inputs/FileInput";
@@ -37,7 +39,22 @@ const deleteConfirmationInfo = {
   disagreeLabel: "Cancel",
 };
 
+const propertyPaths = [
+  "About/name",
+  "About/tags",
+  "About/neededRoles",
+  "About/summary",
+  "Branding/hex",
+  "Branding/icon",
+  "Branding/cover",
+  "Branding/logo",
+  "Page/slug",
+  "Page/status",
+  "Page/published",
+];
+
 const StyledPaddingArea = styled.div`
+  flex: 1;
   position: relative;
   top: 0;
   left: 0;
@@ -59,6 +76,7 @@ const StyledPaddingArea = styled.div`
 `;
 
 const StyledPaper = styled(Paper)`
+  flex: 1;
   margin: auto;
   position: relative;
   width: 100%;
@@ -99,27 +117,12 @@ const SettingsConsole = (props: SettingsConsoleProps): JSX.Element => {
   } = props;
 
   const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
-  const [userState, userDispatch] = useContext(UserContext);
-  const { studios } = userState;
+  const [, userDispatch] = useContext(UserContext);
 
-  const studioDoc = studios?.[studioId || ""];
+  const studioDoc = useDocument<StudioDocument>("studios", studioId);
   const studioName = studioDoc?.name;
 
   const [expandedProperties, setExpandedProperties] = useState<string[]>([]);
-
-  const propertyPaths = [
-    "About/name",
-    "About/tags",
-    "About/neededRoles",
-    "About/summary",
-    "Branding/hex",
-    "Branding/icon",
-    "Branding/cover",
-    "Branding/logo",
-    "Page/slug",
-    "Page/status",
-    "Page/published",
-  ];
 
   const data = useMemo(() => [studioDoc], [studioDoc]);
   const handleGetPropertyDocIds = useCallback(() => [studioId], [studioId]);
@@ -201,6 +204,10 @@ const SettingsConsole = (props: SettingsConsoleProps): JSX.Element => {
     ]
   );
 
+  if (!studioDoc) {
+    return null;
+  }
+
   return (
     <StyledPaddingArea>
       <StyledPaper
@@ -216,6 +223,7 @@ const SettingsConsole = (props: SettingsConsoleProps): JSX.Element => {
           FileInputComponent={FileInput}
           NumberInputComponent={NumberInput}
           BooleanInputComponent={BooleanInput}
+          AutocompleteInputComponent={AutocompleteInput}
           size="medium"
           propertyPaths={propertyPaths}
           spacing={16}

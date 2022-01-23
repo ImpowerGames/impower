@@ -1,4 +1,11 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import styled from "@emotion/styled";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { ConfigContext } from "../../../impower-config";
 import {
   StudioDocument,
@@ -10,6 +17,9 @@ import { ToastContext, toastTop } from "../../../impower-toast";
 import { UserContext, userOnCreateSubmission } from "../../../impower-user";
 import { engineConsoles, EngineConsoleType } from "../../types/info/console";
 import { RenderPropertyProps } from "../inputs/DataField";
+import PageMembersField, {
+  PageMembersFieldProps,
+} from "../inputs/PageMembersField";
 import PageTagField, { PageTagFieldProps } from "../inputs/PageTagField";
 import { CreationStep } from "./CreateDocumentForm";
 import CreatePageForm from "./CreatePageForm";
@@ -17,12 +27,17 @@ import CreatePageForm from "./CreatePageForm";
 const steps: CreationStep[] = [
   {
     title: "Create a studio",
-    description: "What developers will be part of your studio?",
-    propertyPaths: ["members", "neededRoles"],
+    description: "Who will be part of your studio?",
+    propertyPaths: ["members"],
+  },
+  {
+    title: "Studio Recruitment",
+    description: "What other types of developers do you need?",
+    propertyPaths: ["neededRoles"],
   },
   {
     title: "About your studio",
-    description: "What kind of projects will your studio specialize in?",
+    description: "What will your studio specialize in?",
     propertyPaths: ["tags"],
   },
   {
@@ -32,12 +47,22 @@ const steps: CreationStep[] = [
   },
 ];
 
-interface StudioFieldProps extends RenderPropertyProps, PageTagFieldProps {}
+const StyledSeparator = styled.div`
+  flex: 1;
+`;
+
+interface StudioFieldProps
+  extends RenderPropertyProps,
+    PageTagFieldProps,
+    PageMembersFieldProps {}
 
 export const StudioField = (props: StudioFieldProps): JSX.Element | null => {
   const { propertyPath } = props;
   if (propertyPath === "tags") {
     return <PageTagField {...props} />;
+  }
+  if (propertyPath === "members") {
+    return <PageMembersField creating {...props} />;
   }
   return null;
 };
@@ -84,7 +109,10 @@ const CreateStudioForm = React.memo(
     const [configState] = useContext(ConfigContext);
     const [, toastDispatch] = useContext(ToastContext);
     const [userState, userDispatch] = useContext(UserContext);
-    const { isSignedIn } = userState;
+    const { uid, isSignedIn, userDoc } = userState;
+    const username = userDoc?.username;
+    const icon = userDoc?.icon?.fileUrl;
+    const hex = userDoc?.hex;
 
     useEffect(() => {
       setDocIdState(docId);
@@ -126,16 +154,21 @@ const CreateStudioForm = React.memo(
         const getRandomColor = (
           await import("../../../impower-core/utils/getRandomColor")
         ).default;
-        const handle = await getUniqueSlug(newDocId, "handles", newDoc.name);
+        const handle = await getUniqueSlug(
+          newDocId,
+          "handles",
+          newDoc.name,
+          15
+        );
         const tagColorNames = configState?.tagColorNames;
         const colors = configState?.colors;
         const mainTag = newDoc?.tags?.[0] || "";
-        const tagColorName = tagColorNames[mainTag] || "";
+        const tagColorName = tagColorNames?.[mainTag] || "";
         const claimedDoc = {
           ...newDoc,
           name: newDoc.name.trim(),
           handle,
-          hex: colors[tagColorName] || getRandomColor(),
+          hex: colors?.[tagColorName] || getRandomColor(),
           owners: [Auth.instance.uid],
         };
         try {
@@ -170,9 +203,33 @@ const CreateStudioForm = React.memo(
       ]
     );
 
+    const memberDocs = useMemo(
+      () => ({
+        ...(doc?.changedMembers?.data || {}),
+        [uid]: {
+          g: "studios",
+          access: "owner",
+          role: "",
+          accessedAt: new Date().getTime(),
+          a: { u: username, h: hex, i: icon },
+        },
+      }),
+      [doc?.changedMembers, hex, icon, uid, username]
+    );
+
+    const stepsWithChildren = useMemo(() => {
+      const newSteps = [...steps];
+      newSteps[0].footerChildren = (
+        <>
+          <StyledSeparator />
+        </>
+      );
+      return newSteps;
+    }, []);
+
     return (
       <CreatePageForm
-        steps={steps}
+        steps={stepsWithChildren}
         docId={docIdState}
         doc={doc}
         skipLabel={skipLabel}
@@ -181,6 +238,7 @@ const CreateStudioForm = React.memo(
         doneLabel={finishCreationLabel}
         finishedSummary={finishedSummary}
         renderProperty={StudioField}
+        renderPropertyProps={{ memberDocs }}
         getInspector={handleGetInspector}
         onChange={handleChange}
         onSubmit={handleSaveDoc}

@@ -8,8 +8,8 @@ const createStudioDocument = (
   ...createPageDocument(),
   handle: "",
   _documentType: "StudioDocument",
-  collection: "studios",
   neededRoles: [],
+  changedMembers: { data: {} },
   status: DeveloperStatus.Active,
   ...doc,
 });

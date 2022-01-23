@@ -92,8 +92,10 @@ export class StudioDocumentInspector extends PageDocumentInspector<StudioDocumen
       return Object.values(DeveloperStatus);
     }
     if (propertyPath === "neededRoles") {
-      const roleTags = ConfigCache.instance.params?.roleTags;
-      return roleTags.Roles.sort();
+      const roleTags = ConfigCache.instance.params?.roleTags?.roles;
+      if (roleTags) {
+        return roleTags.sort();
+      }
     }
     if (propertyPath === "tags") {
       const gameTags = ConfigCache.instance.params?.projectTags;

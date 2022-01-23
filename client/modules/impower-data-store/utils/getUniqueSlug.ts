@@ -2,17 +2,18 @@ const getUniqueSlug = async (
   docId: string,
   slugCollection: "handles" | "slugs",
   slug: string,
+  maxLength = 50,
   suffix?: number
 ): Promise<string> => {
+  const suffixString = suffix !== undefined ? suffix.toString() : "";
   const validSlug = slug
     .trim()
     .split(" ")
     .join("_")
     .toLowerCase()
     .replace(/[^a-zA-Z0-9_]/gi, "")
-    .slice(0, 50);
-  const newSlug =
-    suffix !== undefined ? validSlug + suffix.toString() : validSlug;
+    .slice(0, maxLength - suffixString.length);
+  const newSlug = validSlug + suffixString;
   if (!newSlug) {
     return "";
   }
@@ -27,7 +28,13 @@ const getUniqueSlug = async (
   if (!slugSnap.exists() || slugSnap.id === docId) {
     return newSlug;
   }
-  return getUniqueSlug(docId, slugCollection, slug, (suffix || 0) + 1);
+  return getUniqueSlug(
+    docId,
+    slugCollection,
+    slug,
+    maxLength,
+    (suffix || 0) + 1
+  );
 };
 
 export default getUniqueSlug;

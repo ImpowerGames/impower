@@ -411,7 +411,7 @@ const AutocompleteInput = React.memo(
       }
       const hasDescription = options && handleGetOptionDescription(options[0]);
       const hasIcon = options && handleGetOptionIcon(options[0]);
-      return hasIcon && hasDescription ? 60 : hasDescription ? 56 : 48;
+      return hasIcon && hasDescription ? 60 : 48;
     }, [
       handleGetOptionDescription,
       handleGetOptionIcon,

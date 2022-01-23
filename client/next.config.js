@@ -48,7 +48,7 @@ module.exports = withBundleAnalyzer(
           },
           {
             source: "/e",
-            destination: "/dashboard",
+            destination: "/engine",
             permanent: true,
           },
         ];

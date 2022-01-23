@@ -35,7 +35,9 @@ export const useAllDocsLoad = <T extends PageDocument>(
       const DataStateRead = (await import("../classes/dataStateRead")).default;
       const entries = await Promise.all(
         memoizedIds.map((id) =>
-          new DataStateRead(parent, id, "doc").get().then((s) => [id, s.val()])
+          new DataStateRead(parent, id, "doc")
+            .get()
+            .then((s): [string, T] => [id, s.val() as T])
         )
       );
       const values: { [id: string]: T } = {};

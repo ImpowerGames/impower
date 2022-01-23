@@ -24,7 +24,6 @@ export { default as userLoadMyLikes } from "./utils/userLoadMyLikes";
 export { default as userLoadMyMemberships } from "./utils/userLoadMyMemberships";
 export { default as userLoadMySubmissions } from "./utils/userLoadMySubmissions";
 export { default as userLoadSettings } from "./utils/userLoadSettings";
-export { default as userLoadStudios } from "./utils/userLoadStudios";
 export { default as userLoadSubmissions } from "./utils/userLoadSubmissions";
 export { default as userLoadUserDoc } from "./utils/userLoadUserDoc";
 export { default as userOnChangeMember } from "./utils/userOnChangeMember";

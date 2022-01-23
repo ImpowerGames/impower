@@ -22,7 +22,7 @@ import Avatar from "./Avatar";
 export const navbarPages: string[] = process.env.NEXT_PUBLIC_ORIGIN?.includes(
   "localhost"
 )
-  ? ["/", "/pitch/game", "/library", "/dashboard", "#donate"]
+  ? ["/", "/pitch/game", "/library", "/engine", "#donate"]
   : ["/", "/pitch/game", "#donate"];
 export const unauthenticatedAccountPages: string[] = ["/signup", "/login"];
 export const install = "Install";

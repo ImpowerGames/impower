@@ -1,11 +1,7 @@
 import { Metadata } from "./metadata";
 
-export interface Data {
-  [field: string]: unknown;
-}
-
 export interface DataDocument<T extends string = string>
-  extends Data,
+  extends Record<string, unknown>,
     Metadata {
   _documentType: T;
 }

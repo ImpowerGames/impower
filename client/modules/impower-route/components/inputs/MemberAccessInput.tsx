@@ -47,6 +47,7 @@ const MemberAccessInput = React.memo(
       propertyPath,
       memberId,
       memberDoc,
+      disabled,
       variant,
       InputComponent,
       size,
@@ -92,15 +93,6 @@ const MemberAccessInput = React.memo(
 
     const inspector = getInspector();
 
-    const disabled = useMemo(
-      () =>
-        inspector.isPropertyDisabled(
-          accessPropertyPath,
-          memberDoc,
-          memberId ? [`users/${memberId}`] : undefined
-        ),
-      [accessPropertyPath, inspector, memberDoc, memberId]
-    );
     const label = useMemo(
       () => inspector.getPropertyLabel(accessPropertyPath, memberDoc),
       [accessPropertyPath, inspector, memberDoc]
@@ -138,16 +130,9 @@ const MemberAccessInput = React.memo(
       [accessPropertyPath, inspector, memberDoc]
     );
 
-    const name =
-      uid === memberId
-        ? `(You) ${memberDoc?.a?.u || ""}`
-        : memberDoc?.a?.u || "";
-
     const username = memberDoc?.a?.u || "";
 
-    if (!accessOnly) {
-      return null;
-    }
+    const name = uid === memberId ? `(You) ${username}` : username;
 
     return (
       <FadeAnimation duration={0.1}>
@@ -166,7 +151,7 @@ const MemberAccessInput = React.memo(
               name={name as string}
               style={{ flex: 2 }}
             >
-              {username}
+              {memberDoc?.role || null}
             </MemberAccessItem>
           )}
           <AutocompleteInput

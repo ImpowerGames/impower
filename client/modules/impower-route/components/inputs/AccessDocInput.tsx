@@ -40,8 +40,15 @@ export interface AccessDocInputProps extends StringInputProps {
   fixedOptions?: string[];
   excludeDocsFromSearch?: string[];
   disableClearable?: boolean;
-  onChange?: (e?: React.ChangeEvent, value?: string | string[]) => void;
-  onDebouncedChange?: (value: string | string[]) => void;
+  onChange?: (
+    e?: React.ChangeEvent,
+    value?: string | string[],
+    doc?: (StudioDocument | UserDocument) | (StudioDocument | UserDocument)[]
+  ) => void;
+  onDebouncedChange?: (
+    value: string | string[],
+    doc?: (StudioDocument | UserDocument) | (StudioDocument | UserDocument)[]
+  ) => void;
 }
 
 const AccessDocInput = React.memo((props: AccessDocInputProps): JSX.Element => {
@@ -262,16 +269,24 @@ const AccessDocInput = React.memo((props: AccessDocInputProps): JSX.Element => {
         if (searchedDocs[option]) {
           currentDocs.current[option] = searchedDocs[option];
         }
+        updateCurrentDocs(option);
+        if (onChange) {
+          onChange(e, option, currentDocs.current[option]);
+        }
       } else {
         option.forEach((id) => {
           if (searchedDocs[id]) {
             currentDocs.current[id] = searchedDocs[id];
           }
         });
-      }
-      updateCurrentDocs(option);
-      if (onChange) {
-        onChange(e, option);
+        updateCurrentDocs(option);
+        if (onChange) {
+          onChange(
+            e,
+            option,
+            option.map((id) => currentDocs.current[id])
+          );
+        }
       }
       setSearchedDocs({});
       setInputValue("");
@@ -288,16 +303,23 @@ const AccessDocInput = React.memo((props: AccessDocInputProps): JSX.Element => {
         if (searchedDocs[option]) {
           currentDocs.current[option] = searchedDocs[option];
         }
+        updateCurrentDocs(option);
+        if (onDebouncedChange) {
+          onDebouncedChange(option, currentDocs.current[option]);
+        }
       } else {
         option.forEach((id) => {
           if (searchedDocs[id]) {
             currentDocs.current[id] = searchedDocs[id];
           }
         });
-      }
-      updateCurrentDocs(option);
-      if (onDebouncedChange) {
-        onDebouncedChange(option);
+        updateCurrentDocs(option);
+        if (onDebouncedChange) {
+          onDebouncedChange(
+            option,
+            option.map((id) => currentDocs.current[id])
+          );
+        }
       }
       setSearchedDocs({});
       if (value === "") {

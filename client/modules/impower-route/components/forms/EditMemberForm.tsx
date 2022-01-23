@@ -114,6 +114,7 @@ const StyledForegroundArea = styled.div`
   flex: 2;
   display: flex;
   flex-direction: column;
+  width: 100%;
 `;
 
 const StyledContentArea = styled.div`

@@ -16,13 +16,13 @@ const actionButtons: {
     variant?: "text" | "outlined" | "contained";
   };
 } = {
-  PitchGame: {
+  Pitch: {
     label: "Build It!",
     icon: ScrewdriverWrenchRegularIcon,
     link: "/e/g/{id}",
     variant: "contained",
   },
-  BuildGame: {
+  Build: {
     label: "Pitch It!",
     icon: BullhornRegularIcon,
     link: "/g/p?game={id}",
@@ -30,14 +30,14 @@ const actionButtons: {
   },
 };
 
-interface GameCreationFinishedSummaryProps {
+interface ProjectCreationFinishedSummaryProps {
   docId: string;
   doc: ProjectDocument;
   onUploadIcon: (file: StorageFile) => void;
 }
 
-const GameCreationFinishedSummary = React.memo(
-  (props: GameCreationFinishedSummaryProps): JSX.Element | null => {
+const ProjectCreationFinishedSummary = React.memo(
+  (props: ProjectCreationFinishedSummaryProps): JSX.Element | null => {
     const { docId, doc, onUploadIcon } = props;
     return (
       <CreationFinishedSummary
@@ -53,4 +53,4 @@ const GameCreationFinishedSummary = React.memo(
   }
 );
 
-export default GameCreationFinishedSummary;
+export default ProjectCreationFinishedSummary;

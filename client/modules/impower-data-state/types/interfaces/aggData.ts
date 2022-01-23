@@ -7,6 +7,8 @@ export interface AggData extends Record<string, unknown> {
   t?: number;
   /** author */
   readonly a?: {
+    /** name */
+    n?: string;
     /** username */
     u?: string;
     /** icon */

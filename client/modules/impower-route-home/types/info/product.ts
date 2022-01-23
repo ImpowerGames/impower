@@ -43,7 +43,7 @@ export const productInfo = {
       caption:
         "using our intuitive drag-and-drop visual engine.\nNo coding required!",
       color: "#ff922b",
-      link: "/dashboard",
+      link: "/engine",
     },
   ] as StepInfo[],
 };

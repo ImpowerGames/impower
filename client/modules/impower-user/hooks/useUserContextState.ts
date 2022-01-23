@@ -12,14 +12,12 @@ import onIdTokenChanged from "../../impower-auth/utils/onIdTokenChanged";
 import {
   AggData,
   MemberData,
-  useAllDocsLoad,
   useCollectionDataLoad,
 } from "../../impower-data-state";
 import {
   CustomizationDocument,
   PathDocument,
   SettingsDocument,
-  StudioDocument,
   UserDocument,
   useUserCustomizationsCollectionLoad,
   useUserSettingsCollectionLoad,
@@ -50,7 +48,6 @@ import userLoadMyReports from "../utils/userLoadMyReports";
 import userLoadMySubmissions from "../utils/userLoadMySubmissions";
 import userLoadNotifications from "../utils/userLoadNotifications";
 import userLoadSettings from "../utils/userLoadSettings";
-import userLoadStudios from "../utils/userLoadStudios";
 import userLoadSubmissions from "../utils/userLoadSubmissions";
 import userLoadUserDoc from "../utils/userLoadUserDoc";
 
@@ -108,29 +105,11 @@ export const useUserContextState = (
   }, []);
   useDocumentLoad<UserDocument>(handleLoadUserDocument, "users", uid);
 
-  const { my_studio_memberships, my_connects } = state;
+  const { my_connects } = state;
 
   const [unreadNotifications, setUnreadNotifications] = useState<{
     [id: string]: AggData;
   }>({});
-
-  const studioIds = useMemo(
-    () =>
-      my_studio_memberships === undefined
-        ? undefined
-        : my_studio_memberships === null
-        ? null
-        : Object.keys(my_studio_memberships),
-    [my_studio_memberships]
-  );
-
-  const handleLoadStudios = useCallback(
-    (studios: { [id: string]: StudioDocument }) => {
-      dispatch(userLoadStudios(studios));
-    },
-    []
-  );
-  useAllDocsLoad<StudioDocument>(handleLoadStudios, "studios", studioIds);
 
   const handleLoadSubmissions = useCallback(
     (submissions: {

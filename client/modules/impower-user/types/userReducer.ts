@@ -31,7 +31,6 @@ import { USER_LOAD_MY_REPORTS } from "./actions/userLoadMyReportsAction";
 import { USER_LOAD_MY_SUBMISSIONS } from "./actions/userLoadMySubmissionsAction";
 import { USER_LOAD_NOTIFICATIONS } from "./actions/userLoadNotificationsAction";
 import { USER_LOAD_SETTINGS } from "./actions/userLoadSettingsAction";
-import { USER_LOAD_STUDIOS } from "./actions/userLoadStudiosAction";
 import { USER_LOAD_SUBMISSIONS } from "./actions/userLoadSubmissionsAction";
 import { USER_LOAD_USER_DOC } from "./actions/userLoadUserDocAction";
 import { USER_REJECT_CONNECT } from "./actions/userRejectConnectAction";
@@ -80,13 +79,6 @@ export const userReducer = (
       return {
         ...state,
         tempUsername,
-      };
-    }
-    case USER_LOAD_STUDIOS: {
-      const { studios } = action.payload;
-      return {
-        ...state,
-        studios,
       };
     }
     case USER_LOAD_USER_DOC: {
@@ -396,13 +388,23 @@ export const userReducer = (
     }
     case USER_CHANGE_MEMBER: {
       const { path, data, onFinished } = action.payload;
+      const validUpdate: MemberData = {
+        ...(data?.access ? { access: data?.access } : {}),
+        ...(data?.role ? { role: data?.role } : {}),
+      };
       const setData = async (): Promise<void> => {
         const DataStateWrite = (
           await import("../../impower-data-state/classes/dataStateWrite")
         ).default;
+        const timestampServerValue = (
+          await import("../../impower-data-state/utils/timestampServerValue")
+        ).default;
         try {
           const memberRef = new DataStateWrite(...path);
-          await memberRef.update(data);
+          await memberRef.update({
+            ...validUpdate,
+            t: timestampServerValue(),
+          });
         } catch (e) {
           const logWarn = (await import("../../impower-logger/utils/logWarn"))
             .default;
@@ -419,13 +421,19 @@ export const userReducer = (
       const id = path[path.length - 1];
       const parentDocId = path[path.length - 4];
       if (id === state?.uid) {
-        if (data.g === "studios") {
+        if (validUpdate.g === "studios") {
           my_studio_memberships = { ...my_studio_memberships };
-          my_studio_memberships[parentDocId] = data;
+          my_studio_memberships[parentDocId] = {
+            ...(my_studio_memberships[parentDocId] || {}),
+            ...validUpdate,
+          };
         }
-        if (data.g === "projects") {
+        if (validUpdate.g === "projects") {
           my_project_memberships = { ...my_project_memberships };
-          my_project_memberships[parentDocId] = data;
+          my_project_memberships[parentDocId] = {
+            ...(my_project_memberships[parentDocId] || {}),
+            ...validUpdate,
+          };
         }
       }
       return {
@@ -491,7 +499,6 @@ export const userReducer = (
       };
       setData();
       const newDoc = getLocalCreateAnnotatedDocument(doc);
-      let studios = state?.studios;
       let my_likes = state?.my_likes;
       let my_studio_memberships = state?.my_studio_memberships;
       let my_project_memberships = state?.my_project_memberships;
@@ -598,7 +605,6 @@ export const userReducer = (
         };
       }
       if (submissionType === "studios" && isStudioDocument(newDoc)) {
-        studios = { ...(studios || {}), [id]: newDoc };
         my_studio_memberships = {
           ...(my_studio_memberships || {}),
           [id]: {
@@ -607,6 +613,13 @@ export const userReducer = (
             accessedAt: Date.now(),
             t: Date.now(),
             g: "studios",
+            s: {
+              id,
+              n: newDoc?.name,
+              u: newDoc?.handle,
+              h: newDoc?.hex,
+              i: newDoc?.icon?.fileUrl,
+            },
           },
         };
       }
@@ -619,6 +632,16 @@ export const userReducer = (
             accessedAt: Date.now(),
             t: Date.now(),
             g: "projects",
+            s: {
+              id: newDoc?.studio,
+            },
+            p: {
+              id,
+              n: newDoc?.name,
+              u: newDoc?.slug,
+              h: newDoc?.hex,
+              i: newDoc?.icon?.fileUrl,
+            },
           },
         };
       }
@@ -628,7 +651,6 @@ export const userReducer = (
       );
       return {
         ...state,
-        studios,
         my_likes,
         my_studio_memberships,
         my_project_memberships,
@@ -666,7 +688,6 @@ export const userReducer = (
       setData();
       const newDoc = getLocalUpdateAnnotatedDocument(doc);
       const userDoc = isUserDocument(doc) ? doc : state?.userDoc;
-      let studios = state?.studios;
       let my_studio_memberships = state?.my_studio_memberships;
       let my_project_memberships = state?.my_project_memberships;
       let my_recent_pages = state?.my_recent_pages;
@@ -926,16 +947,12 @@ export const userReducer = (
           }
         );
       }
-      if (submissionType === "studios" && isStudioDocument(newDoc)) {
-        studios = { ...(studios || {}), [id]: newDoc };
-      }
       const existingSubmissionDoc = state?.submissions?.[submissionType];
       const newSubmissionDoc = getLocalUpdateAnnotatedDocument(
         existingSubmissionDoc
       );
       return {
         ...state,
-        studios,
         userDoc,
         my_studio_memberships,
         my_project_memberships,
@@ -970,7 +987,6 @@ export const userReducer = (
         }
       };
       setData();
-      let studios = state?.studios;
       let my_studio_memberships = state?.my_studio_memberships;
       let my_project_memberships = state?.my_project_memberships;
       let my_recent_pages = state?.my_recent_pages;
@@ -1004,7 +1020,6 @@ export const userReducer = (
         my_recent_contributions[parentDocId][id] = null;
       }
       if (submissionType === "studios") {
-        studios = { ...(studios || {}), [id]: null };
         my_studio_memberships = {
           ...(my_studio_memberships || {}),
           [id]: null,
@@ -1030,7 +1045,6 @@ export const userReducer = (
           : existingSubmissionDoc;
       return {
         ...state,
-        studios,
         my_studio_memberships,
         my_project_memberships,
         my_recent_pages,

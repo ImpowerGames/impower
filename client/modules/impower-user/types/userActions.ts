@@ -15,7 +15,6 @@ import { UserLoadMyReportsAction } from "./actions/userLoadMyReportsAction";
 import { UserLoadMySubmissionsAction } from "./actions/userLoadMySubmissionsAction";
 import { UserLoadNotificationsAction } from "./actions/userLoadNotificationsAction";
 import { UserLoadSettingsAction } from "./actions/userLoadSettingsAction";
-import { UserLoadStudiosAction } from "./actions/userLoadStudiosAction";
 import { UserLoadSubmissionsAction } from "./actions/userLoadSubmissionsAction";
 import { UserLoadUserDocAction } from "./actions/userLoadUserDocAction";
 import { UserRejectConnectAction } from "./actions/userRejectConnectAction";
@@ -27,7 +26,6 @@ import { UserUndoActivityAction } from "./actions/userUndoActivityAction";
 import { UserUpdateSubmissionAction } from "./actions/userUpdateSubmissionAction";
 
 export type UserAction =
-  | UserLoadStudiosAction
   | UserLoadUserDocAction
   | UserLoadSubmissionsAction
   | UserLoadCustomizationsAction

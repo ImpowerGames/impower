@@ -2,9 +2,8 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { Typography, useMediaQuery } from "@material-ui/core";
 import { useRouter } from "next/router";
-import React, { useContext, useEffect, useMemo, useState } from "react";
-import { MemberAccess, useAllDocs } from "../../../impower-data-state";
-import { ProjectDocument } from "../../../impower-data-store";
+import React, { useEffect, useMemo, useState } from "react";
+import { MemberAccess, MemberData } from "../../../impower-data-state";
 import { layout } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
@@ -12,10 +11,8 @@ import {
   EngineConsoleType,
   studioConsoles,
 } from "../../../impower-route/types/info/console";
-import { UserContext } from "../../../impower-user";
-import GamesConsole from "./GamesConsole";
 import MembersConsole from "./MembersConsole";
-import ResourcesConsole from "./ResourcesConsole";
+import ProjectsConsole from "./ProjectsConsole";
 import SettingsConsole from "./SettingsConsole";
 
 const StyledConsoleArea = styled.div`
@@ -39,7 +36,13 @@ const StyledEmptyLabelTypography = styled(Typography)`
   text-align: center;
 `;
 
-interface StudioGamesConsoleProps {
+interface StudioProjectsConsoleProps {
+  studioMemberships: {
+    [docId: string]: MemberData;
+  };
+  projectMemberships: {
+    [docId: string]: MemberData;
+  };
   scrollParent?: HTMLElement;
   studioId: string;
   fixedStyle?: React.CSSProperties;
@@ -56,30 +59,23 @@ interface StudioGamesConsoleProps {
   };
 }
 
-const StudioGamesConsole = React.memo(
-  (props: StudioGamesConsoleProps): JSX.Element | null => {
-    const { scrollParent, studioId, stickyStyle, fixedStyle } = props;
-
-    const [userState] = useContext(UserContext);
-    const { my_project_memberships } = userState;
-    const gameIds = useMemo(() => {
-      if (my_project_memberships === undefined) {
-        return undefined;
-      }
-      if (my_project_memberships === null) {
-        return null;
-      }
-      return Object.entries(my_project_memberships)
-        .filter(([, doc]) => doc.studio === studioId)
-        .map(([id]) => id);
-    }, [my_project_memberships, studioId]);
-    const gameDocs = useAllDocs<ProjectDocument>("projects", gameIds);
+const StudioProjectsConsole = React.memo(
+  (props: StudioProjectsConsoleProps): JSX.Element | null => {
+    const {
+      studioMemberships,
+      projectMemberships,
+      scrollParent,
+      studioId,
+      stickyStyle,
+      fixedStyle,
+    } = props;
 
     return (
-      <GamesConsole
+      <ProjectsConsole
         scrollParent={scrollParent}
         studioId={studioId}
-        gameDocs={gameDocs}
+        studioMemberships={studioMemberships}
+        projectMemberships={projectMemberships}
         stickyStyle={stickyStyle}
         fixedStyle={fixedStyle}
       />
@@ -87,7 +83,13 @@ const StudioGamesConsole = React.memo(
   }
 );
 
-interface StudioResourcesConsoleProps {
+interface SharedProjectsConsoleProps {
+  studioMemberships: {
+    [docId: string]: MemberData;
+  };
+  projectMemberships: {
+    [docId: string]: MemberData;
+  };
   scrollParent?: HTMLElement;
   studioId: string;
   fixedStyle?: React.CSSProperties;
@@ -104,157 +106,27 @@ interface StudioResourcesConsoleProps {
   };
 }
 
-const StudioResourcesConsole = React.memo(
-  (props: StudioResourcesConsoleProps): JSX.Element | null => {
-    const { scrollParent, studioId, stickyStyle, fixedStyle } = props;
-
-    const [userState] = useContext(UserContext);
-    const { my_project_memberships } = userState;
-    const resourceIds = useMemo(() => {
-      if (my_project_memberships === undefined) {
-        return undefined;
-      }
-      if (my_project_memberships === null) {
-        return null;
-      }
-      return Object.entries(my_project_memberships)
-        .filter(([, doc]) => doc.studio === studioId)
-        .map(([id]) => id);
-    }, [my_project_memberships, studioId]);
-    const resourceDocs = useAllDocs<ProjectDocument>("projects", resourceIds);
+const SharedProjectsConsole = React.memo(
+  (props: SharedProjectsConsoleProps): JSX.Element | null => {
+    const {
+      studioMemberships,
+      projectMemberships,
+      scrollParent,
+      studioId,
+      stickyStyle,
+      fixedStyle,
+    } = props;
 
     return (
-      <ResourcesConsole
+      <ProjectsConsole
         scrollParent={scrollParent}
         studioId={studioId}
-        resourceDocs={resourceDocs}
-        stickyStyle={stickyStyle}
-        fixedStyle={fixedStyle}
-      />
-    );
-  }
-);
-
-interface SharedGamesConsoleProps {
-  scrollParent?: HTMLElement;
-  uid: string;
-  studioId: string;
-  fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
-}
-
-const SharedGamesConsole = React.memo(
-  (props: SharedGamesConsoleProps): JSX.Element | null => {
-    const { scrollParent, uid, studioId, stickyStyle, fixedStyle } = props;
-
-    const [userState] = useContext(UserContext);
-    const { my_project_memberships } = userState;
-
-    const gameIds = useMemo(
-      () =>
-        my_project_memberships === undefined
-          ? undefined
-          : my_project_memberships === null
-          ? null
-          : Object.keys(my_project_memberships),
-      [my_project_memberships]
-    );
-    const gameDocs = useAllDocs<ProjectDocument>("projects", gameIds);
-    const sharedGameDocs = useMemo(() => {
-      if (!gameDocs) {
-        return undefined;
-      }
-      const sharedDocs = {};
-      Object.entries(gameDocs).forEach(([id, doc]) => {
-        if (gameDocs[id]?._createdBy !== uid) {
-          sharedDocs[id] = doc;
-        }
-      });
-      return sharedDocs;
-    }, [gameDocs, uid]);
-
-    return (
-      <GamesConsole
-        scrollParent={scrollParent}
-        studioId={studioId}
-        gameDocs={sharedGameDocs}
+        projectMemberships={projectMemberships}
+        studioMemberships={studioMemberships}
         stickyStyle={stickyStyle}
         fixedStyle={fixedStyle}
         emptyLabel={
-          <StyledEmptyLabelTypography>{`(Games you've been added to will appear here)`}</StyledEmptyLabelTypography>
-        }
-      />
-    );
-  }
-);
-
-interface SharedResourcesConsoleProps {
-  scrollParent?: HTMLElement;
-  uid: string;
-  studioId: string;
-  fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
-}
-
-const SharedResourcesConsole = React.memo(
-  (props: SharedResourcesConsoleProps): JSX.Element | null => {
-    const { scrollParent, uid, studioId, stickyStyle, fixedStyle } = props;
-
-    const [userState] = useContext(UserContext);
-    const { my_project_memberships } = userState;
-
-    const resourceIds = useMemo(
-      () =>
-        my_project_memberships === undefined
-          ? undefined
-          : my_project_memberships === null
-          ? null
-          : Object.keys(my_project_memberships),
-      [my_project_memberships]
-    );
-    const resourceDocs = useAllDocs<ProjectDocument>("projects", resourceIds);
-    const sharedResourceDocs = useMemo(() => {
-      if (!resourceDocs) {
-        return undefined;
-      }
-      const sharedDocs = {};
-      Object.entries(resourceDocs).forEach(([id, doc]) => {
-        if (resourceDocs[id]?._createdBy !== uid) {
-          sharedDocs[id] = doc;
-        }
-      });
-      return sharedDocs;
-    }, [resourceDocs, uid]);
-
-    return (
-      <ResourcesConsole
-        scrollParent={scrollParent}
-        studioId={studioId}
-        resourceDocs={sharedResourceDocs}
-        stickyStyle={stickyStyle}
-        fixedStyle={fixedStyle}
-        emptyLabel={
-          <StyledEmptyLabelTypography>{`(Resources you've been added to will appear here)`}</StyledEmptyLabelTypography>
+          <StyledEmptyLabelTypography>{`(Projects you've been added to will appear here)`}</StyledEmptyLabelTypography>
         }
       />
     );
@@ -266,6 +138,12 @@ interface ConsoleProps {
   type: EngineConsoleType;
   uid: string;
   studioId: string;
+  studioMemberships: {
+    [docId: string]: MemberData;
+  };
+  projectMemberships: {
+    [docId: string]: MemberData;
+  };
   fixedStyle?: React.CSSProperties;
   stickyStyle?: {
     position?: string;
@@ -289,6 +167,8 @@ const Console = React.memo((props: ConsoleProps): JSX.Element | null => {
     type,
     uid,
     studioId,
+    studioMemberships,
+    projectMemberships,
     stickyStyle,
     fixedStyle,
     onDeleting,
@@ -296,17 +176,50 @@ const Console = React.memo((props: ConsoleProps): JSX.Element | null => {
     onDeletionFailed,
   } = props;
 
+  const studioProjectMemberships = useMemo(() => {
+    if (projectMemberships === undefined) {
+      return undefined;
+    }
+    if (projectMemberships === null) {
+      return null;
+    }
+    const memberships = {};
+    Object.entries(projectMemberships).forEach(([id, data]) => {
+      if (data?.s?.id === studioId) {
+        memberships[id] = data;
+      }
+    });
+    return memberships;
+  }, [projectMemberships, studioId]);
+
+  const sharedProjectMemberships = useMemo(() => {
+    if (projectMemberships === undefined) {
+      return undefined;
+    }
+    if (!projectMemberships) {
+      return null;
+    }
+    const memberships = {};
+    Object.entries(projectMemberships).forEach(([id, data]) => {
+      if (projectMemberships[id]?._createdBy !== uid) {
+        memberships[id] = data;
+      }
+    });
+    return memberships;
+  }, [projectMemberships, uid]);
+
   const theme = useTheme();
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
 
-  if (type === EngineConsoleType.Games) {
+  if (type === EngineConsoleType.Projects) {
     if (studioId?.toLowerCase() === "shared") {
       return (
-        <SharedGamesConsole
+        <SharedProjectsConsole
+          studioMemberships={studioMemberships}
+          projectMemberships={sharedProjectMemberships}
           scrollParent={scrollParent}
-          uid={uid}
           studioId={studioId}
           stickyStyle={stickyStyle}
           fixedStyle={fixedStyle}
@@ -314,28 +227,9 @@ const Console = React.memo((props: ConsoleProps): JSX.Element | null => {
       );
     }
     return (
-      <StudioGamesConsole
-        scrollParent={scrollParent}
-        studioId={studioId}
-        stickyStyle={stickyStyle}
-        fixedStyle={fixedStyle}
-      />
-    );
-  }
-  if (type === EngineConsoleType.Resources) {
-    if (studioId?.toLowerCase() === "shared") {
-      return (
-        <SharedResourcesConsole
-          scrollParent={scrollParent}
-          uid={uid}
-          studioId={studioId}
-          stickyStyle={stickyStyle}
-          fixedStyle={fixedStyle}
-        />
-      );
-    }
-    return (
-      <StudioResourcesConsole
+      <StudioProjectsConsole
+        studioMemberships={studioMemberships}
+        projectMemberships={studioProjectMemberships}
         scrollParent={scrollParent}
         studioId={studioId}
         stickyStyle={stickyStyle}
@@ -367,29 +261,38 @@ const Console = React.memo((props: ConsoleProps): JSX.Element | null => {
 });
 
 interface StudioConsoleProps {
+  uid: string;
   studioId: string;
+  studioMemberships: { [id: string]: MemberData };
+  projectMemberships: { [id: string]: MemberData };
   onDeleting?: () => void;
   onDeleted?: () => void;
   onDeletionFailed?: () => void;
 }
 
 const StudioConsole = React.memo((props: StudioConsoleProps) => {
-  const { studioId, onDeleting, onDeleted, onDeletionFailed } = props;
+  const {
+    uid,
+    studioId,
+    studioMemberships,
+    projectMemberships,
+    onDeleting,
+    onDeleted,
+    onDeletionFailed,
+  } = props;
   const router = useRouter();
-  const [userState] = useContext(UserContext);
-  const { uid, my_studio_memberships } = userState;
   const [scrollParent, setScrollParent] = useState<HTMLElement>();
   const [consoleIndex, setConsoleIndex] = useState<number>();
 
   const studioMemberDoc = useMemo(() => {
-    if (my_studio_memberships === undefined) {
+    if (studioMemberships === undefined) {
       return undefined;
     }
-    if (my_studio_memberships === null) {
+    if (studioMemberships === null) {
       return null;
     }
-    return my_studio_memberships[studioId];
-  }, [studioId, my_studio_memberships]);
+    return studioMemberships[studioId];
+  }, [studioId, studioMemberships]);
 
   const consoles =
     studioId?.toLowerCase() === "shared"
@@ -420,7 +323,7 @@ const StudioConsole = React.memo((props: StudioConsoleProps) => {
     : layout.size.minWidth.navigationBar;
   const tabsHeight = 48;
 
-  const buttonSpacing = theme.spacing(3);
+  const buttonSpacing = 8 * 3;
   const fixedStyle = {
     left: sidebarWidth + buttonSpacing,
     right: buttonSpacing,
@@ -452,8 +355,9 @@ const StudioConsole = React.memo((props: StudioConsoleProps) => {
   return (
     <StyledConsoleArea>
       <Console
-        key={activeConsoleType}
         type={activeConsoleType}
+        studioMemberships={studioMemberships}
+        projectMemberships={projectMemberships}
         uid={uid}
         scrollParent={scrollParent}
         studioId={studioId}

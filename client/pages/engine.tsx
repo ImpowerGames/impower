@@ -19,7 +19,7 @@ import { UserContext } from "../modules/impower-user";
 const DashboardPage = React.memo(() => {
   const [, navigationDispatch] = useContext(NavigationContext);
   const [userState] = useContext(UserContext);
-  const { isAnonymous, uid, my_studio_memberships } = userState;
+  const { uid, my_studio_memberships } = userState;
   const router = useRouter();
   const theme = useTheme();
 
@@ -67,9 +67,7 @@ const DashboardPage = React.memo(() => {
     if (!underConstruction) {
       if (uid !== undefined) {
         if (uid) {
-          if (isAnonymous) {
-            router.push(`/e/g`);
-          } else if (latestAccessedStudioId) {
+          if (latestAccessedStudioId) {
             router.push(`/e/s/${latestAccessedStudioId}`);
           } else if (firstStudioId) {
             router.push(`/e/s/${firstStudioId}`);
@@ -77,13 +75,12 @@ const DashboardPage = React.memo(() => {
             router.push(`/e/s`);
           }
         } else {
-          router.push(`/e/g`);
+          router.push(`/signup`);
         }
       }
     }
   }, [
     firstStudioId,
-    isAnonymous,
     latestAccessedStudioId,
     router,
     underConstruction,

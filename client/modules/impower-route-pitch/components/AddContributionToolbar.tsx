@@ -351,11 +351,11 @@ const AddContributionList = React.memo(
     }[] = useMemo(
       () =>
         types.map((type) => {
-          const Icon = icons[type];
+          const Icon = icons?.[type];
           return {
             key: type,
-            color: colors[type],
-            icon: <Icon />,
+            color: colors?.[type],
+            icon: Icon ? <Icon /> : undefined,
           };
         }),
       [types]

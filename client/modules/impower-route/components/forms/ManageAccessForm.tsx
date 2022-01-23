@@ -110,6 +110,7 @@ const StyledForegroundArea = styled.div`
   flex: 2;
   display: flex;
   flex-direction: column;
+  width: 100%;
 `;
 
 const StyledContentArea = styled.div`
@@ -152,7 +153,7 @@ export const AccessField = (
 interface ManageAccessFormProps {
   claimableCollection: "studios" | "projects";
   claimableIds: string[];
-  claimableDocs: PageDocument[];
+  claimableDocs: MemberData[];
   memberDocs: {
     [id: string]: MemberData;
   };
@@ -217,25 +218,12 @@ const ManageAccessForm = React.memo(
         if (!memberId || memberId === "null") {
           return;
         }
-        const existingMember = memberDocs?.[memberId];
         if (memberDoc) {
-          const timestampServerValue = (
-            await import(
-              "../../../impower-data-state/utils/timestampServerValue"
-            )
-          ).default;
           await new Promise<void>((resolve) =>
             userDispatch(
               userOnChangeMember(
                 resolve,
-                {
-                  access: memberDoc ? memberDoc.access : newAccess,
-                  g: memberDoc.g,
-                  role: memberDoc.role,
-                  ...(existingMember
-                    ? {}
-                    : { t: timestampServerValue() as number }),
-                },
+                memberDoc,
                 claimableCollection,
                 docId,
                 "members",
@@ -260,7 +248,7 @@ const ManageAccessForm = React.memo(
           );
         }
       },
-      [claimableCollection, memberDocs, newAccess, userDispatch]
+      [claimableCollection, memberDocs, userDispatch]
     );
 
     const doUpdateClaimableMembers = useCallback(
@@ -301,11 +289,9 @@ const ManageAccessForm = React.memo(
       async (e: React.MouseEvent): Promise<void> => {
         e.preventDefault();
         const newDoc = { ...latestDoc.current };
-        const starterPromise = Promise.resolve(null);
         // Claimable docs must be changed one at a time so that claims can be validated for each one
-        await claimableIds.reduce(
-          (p, docId) => p.then(() => doUpdateClaimableMembers(newDoc, docId)),
-          starterPromise
+        await Promise.all(
+          claimableIds.map((docId) => doUpdateClaimableMembers(newDoc, docId))
         );
         if (onSubmitting) {
           onSubmitting(false);
@@ -369,7 +355,7 @@ const ManageAccessForm = React.memo(
         return "";
       }
       const names = claimableDocs
-        .map((doc) => doc?.name)
+        .map((doc) => doc?.s?.n)
         .slice(0, 3)
         .join(", ");
       if (claimableDocs.length > 3) {
@@ -456,7 +442,7 @@ const ManageAccessForm = React.memo(
                   renderProperty={AccessField}
                   renderPropertyProps={{
                     allowEdit,
-                    memberDocs,
+                    memberDocs: doc?.changedMembers,
                     newAccess,
                     onNewAccessChange: setNewAccess,
                   }}

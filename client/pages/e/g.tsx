@@ -29,7 +29,7 @@ import { Fallback } from "../../modules/impower-route";
 import Footer from "../../modules/impower-route-home/components/elements/Footer";
 import Illustration from "../../modules/impower-route-home/components/elements/Illustration";
 import { CreationStep } from "../../modules/impower-route/components/forms/CreateDocumentForm";
-import GameCreationFinishedSummary from "../../modules/impower-route/components/forms/GameCreationFinishedSummary";
+import ProjectCreationFinishedSummary from "../../modules/impower-route/components/forms/ProjectCreationFinishedSummary";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import { useRouter } from "../../modules/impower-router";
@@ -111,7 +111,7 @@ const CreateGamePage = React.memo((props: CreateGamePageProps) => {
 
   const [, navigationDispatch] = useContext(NavigationContext);
   const [userState] = useContext(UserContext);
-  const { userDoc, uid, my_studio_memberships, studios } = userState;
+  const { userDoc, uid, my_studio_memberships } = userState;
   const [createDocId, setCreateDocId] = useState<string>();
   const [createDoc, setCreateDoc] = useState<ProjectDocument>();
   const router = useRouter();
@@ -136,8 +136,8 @@ const CreateGamePage = React.memo((props: CreateGamePageProps) => {
     [my_studio_memberships]
   );
   const studio = recentlyAccessedStudioIds?.[0];
-  const studioDoc = studios?.[studio || ""];
-  const studioHandle = studioDoc?.handle || "";
+  const studioData = my_studio_memberships?.[studio || ""];
+  const studioHandle = studioData?.s?.u || "";
 
   useEffect(() => {
     if (uid !== undefined) {
@@ -222,7 +222,7 @@ const CreateGamePage = React.memo((props: CreateGamePageProps) => {
                 onChange={setCreateDoc}
                 onSubmit={handleSubmit}
                 finishedSummary={
-                  <GameCreationFinishedSummary
+                  <ProjectCreationFinishedSummary
                     docId={createDocId}
                     doc={createDoc}
                     onUploadIcon={handleUploadIcon}

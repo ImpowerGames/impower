@@ -491,13 +491,13 @@ const CreateProjectForm = React.memo(
           const tagColorNames = ConfigCache.instance?.params?.tagColorNames;
           const colors = ConfigCache.instance?.params?.colors;
           const mainTag = newDoc?.tags?.[0] || "";
-          const tagColorName = tagColorNames[mainTag] || "";
+          const tagColorName = tagColorNames?.[mainTag] || "";
           const claimedDoc = {
             ...newDoc,
             _createdBy: newDoc?._createdBy || Auth.instance.uid,
             name: newDoc.name.trim(),
             slug,
-            hex: colors[tagColorName] || getRandomColor(),
+            hex: colors?.[tagColorName] || getRandomColor(),
             owners: [Auth.instance.uid],
           };
           if (claimedDoc._createdAt) {

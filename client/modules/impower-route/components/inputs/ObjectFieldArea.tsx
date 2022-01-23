@@ -3,7 +3,7 @@ import styled from "@emotion/styled";
 import { Typography } from "@material-ui/core";
 import dynamic from "next/dynamic";
 import React, { CSSProperties, PropsWithChildren } from "react";
-import AngleDownRegularIcon from "../../../../resources/icons/regular/angle-down.svg";
+import AngleUpRegularIcon from "../../../../resources/icons/regular/angle-up.svg";
 import CircleExclamationSolidIcon from "../../../../resources/icons/solid/circle-exclamation.svg";
 import { FontIcon } from "../../../impower-icon";
 import RotateAnimation from "../animations/RotateAnimation";
@@ -43,6 +43,7 @@ const StyledExpandIconArea = styled.div`
   align-items: center;
   opacity: 0.7;
   margin-left: ${(props): string => props.theme.spacing(1)};
+  margin-right: ${(props): string => props.theme.spacing(1)};
 `;
 
 const StyledTextArea = styled.div`
@@ -172,7 +173,7 @@ const ObjectFieldArea = (
                   aria-label={expanded ? "Collapse" : "Expand"}
                   size={theme.fontSize.smallIcon}
                 >
-                  <AngleDownRegularIcon />
+                  <AngleUpRegularIcon />
                 </FontIcon>
               </StyledExpandIconArea>
             </RotateAnimation>

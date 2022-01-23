@@ -38,6 +38,7 @@ const getReadOnlyFields = (): string[] => {
     "total_reports",
     "violation",
     "weeksWhenMonthOld",
+    "changedMembers",
   ];
 };
 

@@ -1,14 +1,17 @@
 import styled from "@emotion/styled";
 import FilledInput from "@material-ui/core/FilledInput";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useContext, useMemo } from "react";
 import { difference } from "../../../impower-core";
 import { MemberAccess, MemberData } from "../../../impower-data-state";
 import {
   AccessDocument,
   isProjectDocument,
   isStudioDocument,
+  StudioDocument,
+  UserDocument,
 } from "../../../impower-data-store";
 import { VirtualizedItem } from "../../../impower-react-virtualization";
+import { UserContext } from "../../../impower-user";
 import AccessDocInput from "./AccessDocInput";
 import { RenderPropertyProps } from "./DataField";
 import MemberAccessInput from "./MemberAccessInput";
@@ -21,22 +24,18 @@ const StyledMembersArea = styled.div`
 `;
 
 const StyledMembersContent = styled.div`
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
   padding: ${(props): string => props.theme.spacing(0, 1)};
 `;
 
 export interface PageMembersFieldProps extends RenderPropertyProps {
-  data: AccessDocument[];
+  data: Record<string, unknown>[];
   memberDocs?: {
     [id: string]: MemberData;
   };
+  creating?: boolean;
   allowEdit?: boolean;
   newAccess?: MemberAccess;
-  onNewAccessChange?: (access: MemberAccess) => void;
+  onNewAccessChange?: (uid: string, access: MemberAccess) => void;
 }
 
 export const PageMembersField = (
@@ -55,6 +54,7 @@ export const PageMembersField = (
     propertyPath,
     spacing,
     debounceInterval,
+    creating,
     allowEdit,
     newAccess,
     getInspector,
@@ -64,10 +64,16 @@ export const PageMembersField = (
     onNewAccessChange,
   } = props;
 
-  const doc = data[0];
+  const [userState] = useContext(UserContext);
+  const { uid } = userState;
+
+  const doc = data[0] as AccessDocument;
 
   const existingMemberAccessIds = useMemo(
-    () => Object.keys(memberDocs || {}),
+    () =>
+      Object.entries(memberDocs || {})
+        .filter(([, doc]) => Boolean(doc))
+        .map(([id]) => id),
     [memberDocs]
   );
 
@@ -90,8 +96,8 @@ export const PageMembersField = (
   );
 
   const excludeMemberIdsFromSearch = useMemo(
-    () => [...changedMemberAccessIds, ...existingMemberAccessIds],
-    [changedMemberAccessIds, existingMemberAccessIds]
+    () => existingMemberAccessIds,
+    [existingMemberAccessIds]
   );
 
   const group = isStudioDocument(doc)
@@ -101,7 +107,11 @@ export const PageMembersField = (
     : undefined;
 
   const handleNewMembersChange = useCallback(
-    async (e: React.ChangeEvent, value: string[]) => {
+    async (
+      e: React.ChangeEvent,
+      value: string[],
+      docs: (StudioDocument | UserDocument)[]
+    ) => {
       const newValue = {
         data: {},
       };
@@ -111,19 +121,24 @@ export const PageMembersField = (
       const createMemberData = (
         await import("../../../impower-data-state/utils/createMemberData")
       ).default;
-      value.forEach((id) => {
+      value.forEach((id, index) => {
         newValue.data[id] = createMemberData({
           ...(doc?.changedMembers?.data?.[id] || {}),
           access: MemberAccess.Editor,
           role: "",
           g: group,
+          a: {
+            u: (docs[index]?.username || docs[index]?.handle) as string,
+            h: docs[index]?.hex,
+            i: docs[index]?.icon?.fileUrl,
+          },
         });
       });
       if (onPropertyInputChange) {
-        onPropertyInputChange("members", newValue);
+        onPropertyInputChange("changedMembers", newValue);
       }
       if (onPropertyChange) {
-        onPropertyChange("members", newValue);
+        onPropertyChange("changedMembers", newValue);
       }
     },
     [
@@ -136,7 +151,7 @@ export const PageMembersField = (
   );
 
   const handleNewDebouncedMembersChange = useCallback(
-    async (value: string[]) => {
+    async (value: string[], docs: (StudioDocument | UserDocument)[]) => {
       const newValue = {
         data: {},
       };
@@ -146,16 +161,21 @@ export const PageMembersField = (
       const createMemberData = (
         await import("../../../impower-data-state/utils/createMemberData")
       ).default;
-      value.forEach((id) => {
+      value.forEach((id, index) => {
         newValue.data[id] = createMemberData({
           ...(doc?.changedMembers?.data?.[id] || {}),
           access: MemberAccess.Editor,
           role: "",
           g: group,
+          a: {
+            u: (docs[index]?.username || docs[index]?.handle) as string,
+            h: docs[index]?.hex,
+            i: docs[index]?.icon?.fileUrl,
+          },
         });
       });
       if (onDebouncedPropertyChange) {
-        onDebouncedPropertyChange("members", newValue);
+        onDebouncedPropertyChange("changedMembers", newValue);
       }
     },
     [
@@ -170,16 +190,16 @@ export const PageMembersField = (
     (e: React.ChangeEvent, uid: string, value: MemberAccess | "Remove") => {
       if (onPropertyInputChange) {
         if (value === "Remove") {
-          onPropertyInputChange(`members.data.${uid}`, null);
+          onPropertyInputChange(`changedMembers.data.${uid}`, null);
         } else {
-          onPropertyInputChange(`members.data.${uid}.access`, value);
+          onPropertyInputChange(`changedMembers.data.${uid}.access`, value);
         }
       }
       if (onPropertyChange) {
         if (value === "Remove") {
-          onPropertyChange(`members.data.${uid}`, null);
+          onPropertyChange(`changedMembers.data.${uid}`, null);
         } else {
-          onPropertyChange(`members.data.${uid}.access`, value);
+          onPropertyChange(`changedMembers.data.${uid}.access`, value);
         }
       }
     },
@@ -188,26 +208,31 @@ export const PageMembersField = (
 
   const handleDebouncedExistingMemberChange = useCallback(
     (uid: string, value: MemberAccess | "Remove") => {
-      if (value === "Remove") {
-        if (onDebouncedPropertyChange) {
-          if (value === "Remove") {
-            onDebouncedPropertyChange(`members.data.${uid}`, null);
-          } else {
-            onDebouncedPropertyChange(`members.data.${uid}.access`, value);
-          }
+      if (onDebouncedPropertyChange) {
+        if (value === "Remove") {
+          onDebouncedPropertyChange(`changedMembers.data.${uid}`, null);
+        } else {
+          onDebouncedPropertyChange(`changedMembers.data.${uid}.access`, value);
         }
       }
     },
     [onDebouncedPropertyChange]
   );
 
-  const handleDebouncedNewAccessChange = useCallback(
-    (uid: string, value: MemberAccess) => {
+  const handleNewAccessChange = useCallback(
+    (e: React.ChangeEvent, uid: string, value: MemberAccess) => {
       if (onNewAccessChange) {
-        onNewAccessChange(value);
+        onNewAccessChange(uid, value);
       }
     },
     [onNewAccessChange]
+  );
+
+  const handleDebouncedNewAccessChange = useCallback(
+    (uid: string, value: MemberAccess) => {
+      handleNewAccessChange(null, uid, value);
+    },
+    [handleNewAccessChange]
   );
 
   const itemSize = 72;
@@ -239,7 +264,8 @@ export const PageMembersField = (
           onChange={handleNewMembersChange}
           onDebouncedChange={handleNewDebouncedMembersChange}
         />
-        {!allowEdit || (newAccess && newMemberAccessIds?.length > 0) ? (
+        {allowEdit === false ||
+        (newAccess && newMemberAccessIds?.length > 0) ? (
           <MemberAccessInput
             propertyPath={propertyPath}
             value={newAccess}
@@ -250,6 +276,7 @@ export const PageMembersField = (
             backgroundColor={backgroundColor}
             accessOnly
             onDebouncedChange={handleDebouncedNewAccessChange}
+            onChange={handleNewAccessChange}
             getInspector={getInspector}
           />
         ) : (
@@ -257,6 +284,15 @@ export const PageMembersField = (
             <>
               {existingMemberAccessIds.map((id, index) => {
                 const doc = memberDocs?.[id || ""];
+                const disabled =
+                  id === uid &&
+                  (creating ||
+                    !Object.entries(memberDocs).some(
+                      ([k, v]) => v.access === "owner" && k !== uid
+                    ));
+                if (!doc) {
+                  return null;
+                }
                 return (
                   <VirtualizedItem key={id} index={index}>
                     <MemberAccessInput
@@ -269,6 +305,7 @@ export const PageMembersField = (
                       variant={variant}
                       InputComponent={InputComponent}
                       size={size}
+                      disabled={disabled}
                       backgroundColor={backgroundColor}
                       onChange={handleExistingMemberChange}
                       onDebouncedChange={handleDebouncedExistingMemberChange}

@@ -21,7 +21,6 @@ import {
 } from "../../../impower-data-state";
 import {
   AccessDocument,
-  StudioDocument,
   StudioDocumentInspector,
 } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
@@ -126,7 +125,7 @@ const MembersConsoleContent = (
     (id: string) => {
       const memberDoc = memberDocs?.[id];
       if (memberDoc) {
-        return memberDoc.a.i;
+        return memberDoc?.a?.i;
       }
       return "";
     },
@@ -139,7 +138,7 @@ const MembersConsoleContent = (
     (id: string) => {
       const memberDoc = memberDocs?.[id];
       if (memberDoc) {
-        return memberDoc.a.h;
+        return memberDoc?.a?.h;
       }
       return "";
     },
@@ -342,7 +341,7 @@ const MembersConsole = (props: MembersConsoleProps): JSX.Element => {
   } = engineConsole;
 
   const [userState, userDispatch] = useContext(UserContext);
-  const { uid, my_studio_memberships, studios } = userState;
+  const { uid, my_studio_memberships } = userState;
   const router = useRouter();
 
   const [editDialogOpenKey, setEditDialogOpenKey] = useState<
@@ -381,16 +380,13 @@ const MembersConsole = (props: MembersConsoleProps): JSX.Element => {
     "data"
   );
 
-  const studioDoc = useMemo<StudioDocument>(
-    () => studios?.[studioId],
-    [studios, studioId]
+  const studioData = useMemo(
+    () => my_studio_memberships?.[studioId],
+    [my_studio_memberships, studioId]
   );
 
   const claimableIds = useMemo<string[]>(() => [studioId], [studioId]);
-  const claimableDocs = useMemo<StudioDocument[]>(
-    () => [studioDoc],
-    [studioDoc]
-  );
+  const claimableDocs = useMemo<MemberData[]>(() => [studioData], [studioData]);
 
   const ownerCount = useMemo(
     () =>
@@ -404,7 +400,8 @@ const MembersConsole = (props: MembersConsoleProps): JSX.Element => {
 
   useEffect(() => {
     if (initialMemberDocs) {
-      setMemberDocs({ ...initialMemberDocs });
+      memberDocsRef.current = { ...initialMemberDocs };
+      setMemberDocs(memberDocsRef.current);
     }
   }, [initialMemberDocs]);
 
@@ -442,7 +439,7 @@ const MembersConsole = (props: MembersConsoleProps): JSX.Element => {
         studioMemberDoc?.access === MemberAccess.Owner || id === uid;
       if (doc && canEdit) {
         setEditDocId(id);
-        setEditDoc(doc);
+        setEditDoc({ ...doc });
         setEditDialogOpenKey("member");
         openEditDialog("member");
       }
@@ -469,7 +466,7 @@ const MembersConsole = (props: MembersConsoleProps): JSX.Element => {
   }, [router]);
 
   const memberCount = memberDocs ? Object.keys(memberDocs).length : 0;
-  const canAdd = studioDoc.access === MemberAccess.Owner;
+  const canAdd = studioData.access === MemberAccess.Owner;
   const footerLabel = `${memberCount} members`;
 
   const cardDetails = useMemo(
@@ -502,7 +499,10 @@ const MembersConsole = (props: MembersConsoleProps): JSX.Element => {
   );
 
   const handleSubmitMember = useCallback(async (): Promise<void> => {
-    memberDocsRef.current[editDocId] = editDoc;
+    memberDocsRef.current[editDocId] = {
+      ...(memberDocsRef.current[editDocId] || {}),
+      ...editDoc,
+    };
     setMemberDocs({ ...memberDocsRef.current });
     setEditDialogOpenKey(null);
     closeEditDialog();

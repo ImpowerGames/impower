@@ -8,7 +8,7 @@ export const pageNames: { [baseRoute: string]: string } = {
   "/": "Home",
   "/pitch/game": "Pitch",
   "/library": "Library",
-  "/dashboard": "Dashboard",
+  "/engine": "Engine",
   "#donate": "Donate",
   "/invite": "Invite",
   "/contact": "Contact",

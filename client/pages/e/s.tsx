@@ -1,5 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
+import Paper from "@material-ui/core/Paper";
 import { GetStaticProps } from "next";
 import dynamic from "next/dynamic";
 import React, {
@@ -28,9 +29,11 @@ import {
 import { Fallback } from "../../modules/impower-route";
 import Footer from "../../modules/impower-route-home/components/elements/Footer";
 import Illustration from "../../modules/impower-route-home/components/elements/Illustration";
+import NavigationBarSpacer from "../../modules/impower-route/components/elements/NavigationBarSpacer";
 import StudioCreationFinishedSummary from "../../modules/impower-route/components/forms/StudioCreationFinishedSummary";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import { useRouter } from "../../modules/impower-router";
 import { UserContext } from "../../modules/impower-user";
 import IllustrationImage from "../../resources/illustrations/clip-busy-day-at-the-office.svg";
 
@@ -75,10 +78,15 @@ const StyledBackgroundArea = styled.div`
   }
 `;
 
-const StyledContainer = styled.div`
+const StyledContainer = styled(Paper)`
   max-width: 100%;
   width: ${(props): string => props.theme.spacing(60)};
   margin: auto;
+  overflow: hidden;
+  ${(props): string => props.theme.breakpoints.down("md")} {
+    border-radius: 0;
+    box-shadow: none;
+  }
 `;
 
 interface CreateStudioPageProps {
@@ -106,6 +114,8 @@ const CreateStudioPage = React.memo((props: CreateStudioPageProps) => {
   const icon = userDoc?.icon?.fileUrl;
   const hex = userDoc?.hex;
 
+  const router = useRouter();
+
   useEffect(() => {
     if (uid) {
       const setup = async (): Promise<void> => {
@@ -122,15 +132,17 @@ const CreateStudioPage = React.memo((props: CreateStudioPageProps) => {
               i: icon,
               h: hex,
             },
-            name: "",
+            name: `${username}'s studio`,
             handle: "",
             owners: [uid],
           })
         );
       };
       setup();
+    } else if (uid === null) {
+      router.push(`/signup`);
     }
-  }, [hex, icon, uid, username]);
+  }, [hex, icon, router, uid, username]);
 
   useEffect(() => {
     DataStoreCache.instance.clear();
@@ -162,6 +174,7 @@ const CreateStudioPage = React.memo((props: CreateStudioPageProps) => {
 
   return (
     <>
+      <NavigationBarSpacer />
       <StyledPage>
         <StyledBackgroundArea>
           <Illustration

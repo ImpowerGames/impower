@@ -4,12 +4,10 @@ import Button from "@material-ui/core/Button";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import PlusRegularIcon from "../../../../resources/icons/regular/plus.svg";
 import UserGroupSolidIcon from "../../../../resources/icons/solid/user-group.svg";
-import { ConfigContext } from "../../../impower-config";
-import ConfigCache from "../../../impower-config/classes/configCache";
 import { StorageFile } from "../../../impower-core";
 import { StudioDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
-import { DynamicIcon, FontIcon } from "../../../impower-icon";
+import { FontIcon } from "../../../impower-icon";
 import { useRouter } from "../../../impower-router";
 import { UserContext } from "../../../impower-user";
 import { engineConsoles, EngineConsoleType } from "../../types/info/console";
@@ -30,9 +28,8 @@ const StyledButton = styled(Button)`
 `;
 
 const StudioNavigationBar = React.memo(() => {
-  const [configState] = useContext(ConfigContext);
   const [userState] = useContext(UserContext);
-  const { uid, studios } = userState;
+  const { uid, my_studio_memberships } = userState;
 
   const [createDocId, setCreateDocId] = useState<string>();
   const [createDoc, setCreateDoc] = useState<StudioDocument>();
@@ -58,25 +55,15 @@ const StudioNavigationBar = React.memo(() => {
 
   const theme = useTheme();
 
-  const mainTag = createDoc?.tags?.[0] || "";
-  const tagIconNames =
-    configState?.tagIconNames || ConfigCache.instance.params?.tagIconNames;
-  const tagDisambiguations =
-    configState?.tagDisambiguations ||
-    ConfigCache.instance.params?.tagDisambiguations;
-  const validMainTag = tagDisambiguations[mainTag]?.[0] || mainTag;
-  const tagIconName = tagIconNames?.[validMainTag] || "hashtag";
-
   useEffect(() => {
     setLinks(
-      studios
+      my_studio_memberships
         ? [
-            ...Object.entries(studios).map(([id, doc]) => ({
-              label: doc?.name,
+            ...Object.entries(my_studio_memberships).map(([id, data]) => ({
+              label: data?.s?.n,
               link: `/e/s/${id}`,
-              icon: mainTag ? <DynamicIcon icon={tagIconName} /> : undefined,
-              image: doc?.icon.fileUrl,
-              backgroundColor: doc?.hex,
+              image: data?.s?.i,
+              backgroundColor: data?.s?.h,
             })),
             {
               label: "Shared With You",
@@ -87,7 +74,7 @@ const StudioNavigationBar = React.memo(() => {
           ]
         : undefined
     );
-  }, [mainTag, studios, tagIconName, theme]);
+  }, [my_studio_memberships, theme]);
 
   const handleBrowserNavigation = useCallback(
     (currState: Record<string, string>, prevState?: Record<string, string>) => {

@@ -140,7 +140,7 @@ const EditDialog = React.memo(
         <StyledEditDialog
           {...props}
           ref={ref}
-          open={open}
+          open={open || false}
           onClose={onClose}
           TransitionProps={{
             ...TransitionProps,

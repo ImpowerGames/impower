@@ -197,9 +197,7 @@ const InspectorForm = React.memo(
     const stateRef = useRef<Record<string, unknown>[]>(
       data.map((d) => ({ ...(inspector?.createData?.() || {}), ...d }))
     );
-    const [state, setState] = useState<Record<string, unknown>[]>(
-      data.map((d) => ({ ...(inspector?.createData?.() || {}), ...d }))
-    );
+    const [state, setState] = useState(stateRef.current);
     const [submittingState, setSubmittingState] = useState(submitting);
     const [showErrorsState, setShowErrorsState] = useState(showErrors);
     const [errorsState, setErrorsState] = useState<{

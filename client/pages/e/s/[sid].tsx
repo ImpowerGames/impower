@@ -1,5 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
+import { Skeleton } from "@material-ui/core";
 import Button from "@material-ui/core/Button";
 import Tab from "@material-ui/core/Tab";
 import Typography from "@material-ui/core/Typography";
@@ -25,12 +26,7 @@ import {
   navigationSetElevation,
   navigationSetType,
 } from "../../../modules/impower-navigation";
-import {
-  FadeAnimation,
-  Fallback,
-  Tabs,
-  UnmountAnimation,
-} from "../../../modules/impower-route";
+import { Fallback, Tabs } from "../../../modules/impower-route";
 import useBodyBackgroundColor from "../../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import {
@@ -212,11 +208,9 @@ const StudioPageContent = React.memo((props: StudioPageContentProps) => {
   const { studioId } = props;
   const router = useRouter();
   const [userState] = useContext(UserContext);
-  const { my_studio_memberships, studios } = userState;
+  const { uid, my_studio_memberships, my_project_memberships } = userState;
   const [consoleIndex, setConsoleIndex] = useState<number>();
   const [deletionState, setDeletionState] = useState<"deleting" | "deleted">();
-
-  const studioDoc = studios?.[studioId];
 
   const engineConsole = engineConsoles.find(
     (c) => c.type === EngineConsoleType.Studios
@@ -279,9 +273,6 @@ const StudioPageContent = React.memo((props: StudioPageContentProps) => {
     [studioId, router, tabs]
   );
 
-  const loading =
-    studioId?.toLowerCase() === "shared" ? false : Boolean(studioDoc);
-
   const handleDeleting = useCallback(() => {
     setDeletionState("deleting");
   }, []);
@@ -299,6 +290,9 @@ const StudioPageContent = React.memo((props: StudioPageContentProps) => {
       `/e/s/${studioId}?t=${tabs[validConsoleIndex]}&mode=create-studio`
     );
   }, [router, studioId, tabs, validConsoleIndex]);
+
+  const studioData = my_studio_memberships?.[studioId];
+  const loading = studioId?.toLowerCase() === "shared" ? false : !studioData;
 
   if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
     return null;
@@ -357,7 +351,14 @@ const StudioPageContent = React.memo((props: StudioPageContentProps) => {
           <StyledToolbar>
             <StyledToolbarContent>
               <StyledMainTitleTypography variant="h6">
-                {studioDoc?.name || `Shared With You`}
+                {studioId === "shared"
+                  ? `Shared With You`
+                  : studioData?.s?.n || (
+                      <Skeleton
+                        width={200}
+                        sx={{ bgcolor: theme.colors.white20 }}
+                      />
+                    )}
               </StyledMainTitleTypography>
             </StyledToolbarContent>
           </StyledToolbar>
@@ -387,12 +388,13 @@ const StudioPageContent = React.memo((props: StudioPageContentProps) => {
           </StyledToolbar>
         </StyledToolbarArea>
         {loading ? (
-          <>
-            <Fallback color="secondary" />
-          </>
+          <Fallback color="secondary" />
         ) : (
           <StudioConsole
             key={activeConsoleType}
+            uid={uid}
+            studioMemberships={my_studio_memberships}
+            projectMemberships={my_project_memberships}
             studioId={studioId}
             onDeleting={handleDeleting}
             onDeleted={handleDeleted}
@@ -411,7 +413,8 @@ interface StudioPageProps {
 const StudioPage = React.memo((props: StudioPageProps) => {
   const { config } = props;
 
-  const [, navigationDispatch] = useContext(NavigationContext);
+  const [navigationState, navigationDispatch] = useContext(NavigationContext);
+  const { type } = navigationState;
 
   const router = useRouter();
   const { sid } = router.query;
@@ -424,11 +427,11 @@ const StudioPage = React.memo((props: StudioPageProps) => {
   useBodyBackgroundColor(theme.palette.primary.main);
   useHTMLBackgroundColor(theme.palette.primary.main);
 
-  useEffect(() => {
+  if (type !== "studio") {
     navigationDispatch(navigationSetType("studio"));
     navigationDispatch(navigationSetElevation());
     navigationDispatch(navigationSetBackgroundColor());
-  }, [navigationDispatch]);
+  }
 
   if (process.env.NEXT_PUBLIC_ENVIRONMENT !== "development") {
     return null;
@@ -437,11 +440,7 @@ const StudioPage = React.memo((props: StudioPageProps) => {
   return (
     <>
       <StyledStudioPage>
-        <UnmountAnimation>
-          <FadeAnimation key={studioId} initial={0} animate={1} exit={0}>
-            <StudioPageContent studioId={studioId} />
-          </FadeAnimation>
-        </UnmountAnimation>
+        <StudioPageContent studioId={studioId} />
       </StyledStudioPage>
       <TagIconLoader />
     </>
