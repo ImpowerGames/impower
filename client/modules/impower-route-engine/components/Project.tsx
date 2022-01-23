@@ -21,6 +21,7 @@ import {
   TransitionState,
   useTransitionAnimation,
 } from "../../impower-route";
+import NavigationBarSpacer from "../../impower-route/components/elements/NavigationBarSpacer";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../contexts/transitionContext";
 import { dataPanelSetPaneSize } from "../types/actions/dataPanelActions";
@@ -445,14 +446,17 @@ const Project = React.memo((): JSX.Element => {
     <WindowTransitionContext.Provider value={windowTransitionContext}>
       <StyledProject onContextMenu={handleContextMenu}>
         {!fullscreen && !portrait && (
-          <PageNavigationBar
-            title={navigationState.title}
-            secondaryTitle={navigationState.secondaryTitle}
-            subtitle={navigationState.subtitle}
-            titleLinks={navigationState.links}
-            elevation={navigationState.elevation}
-            backgroundColor={navigationState.backgroundColor}
-          />
+          <>
+            <NavigationBarSpacer />
+            <PageNavigationBar
+              title={navigationState.title}
+              secondaryTitle={navigationState.secondaryTitle}
+              subtitle={navigationState.subtitle}
+              titleLinks={navigationState.links}
+              elevation={navigationState.elevation}
+              backgroundColor={navigationState.backgroundColor}
+            />
+          </>
         )}
         <StyledProjectTopArea>
           <StyledProjectContentArea>

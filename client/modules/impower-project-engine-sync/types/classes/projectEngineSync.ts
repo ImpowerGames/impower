@@ -3,6 +3,7 @@ import { Event, RecursivePartial } from "../../../impower-core";
 import { getUpdatedFields } from "../../../impower-data-state";
 import { ProjectDocument } from "../../../impower-data-store";
 import {
+  ConfigDataCollection,
   GameProjectData,
   ProjectData,
   ResourceProjectData,
@@ -69,7 +70,15 @@ export class ProjectEngineSync {
         folders: foldersSnap.val(),
       },
     };
-    const gameData: GameProjectData = undefined;
+    const gameData: GameProjectData = {
+      instances: {
+        files: { data: {} },
+        folders: { data: {} },
+        configs: { data: {} } as ConfigDataCollection,
+        constructs: { data: {} },
+        blocks: { data: {} },
+      },
+    };
     const projectCollection = path[0];
     const projectId = path[1];
     if (projectCollection === "projects") {

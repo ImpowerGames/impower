@@ -146,6 +146,7 @@ const Title = (props: PropsWithChildren<TitleProps>): JSX.Element => {
                   <FontIcon
                     aria-label={changeLabel}
                     size={theme.fontSize.headerIcon}
+                    color="white"
                   >
                     <SortSolidIcon />
                   </FontIcon>

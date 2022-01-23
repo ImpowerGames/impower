@@ -926,17 +926,17 @@ const PageContent = React.memo((props: PageContentProps): JSX.Element => {
   const publishedAt =
     typeof doc?.publishedAt === "string"
       ? new Date(doc?.publishedAt)
-      : doc?.publishedAt?.toDate();
+      : doc?.publishedAt?.toDate?.();
 
   const republishedAt =
     typeof doc?.republishedAt === "string"
       ? new Date(doc?.republishedAt)
-      : doc?.republishedAt?.toDate();
+      : doc?.republishedAt?.toDate?.();
 
   const updatedAt =
     typeof doc?._updatedAt === "string"
       ? new Date(doc?._updatedAt)
-      : doc?._updatedAt?.toDate();
+      : doc?._updatedAt?.toDate?.();
 
   const mainTag = doc?.tags?.[0] || "";
   const tagIconNames =
@@ -1553,7 +1553,7 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
   const screenshotImages = useMemo(
     () =>
       isProjectDocument(doc)
-        ? doc.screenshots.order
+        ? (doc?.screenshots?.order || Object.keys(doc?.screenshots?.data || {}))
             .filter((id) => doc.screenshots.data[id].fileUrl)
             .map((id) => getPublicUrl(doc.screenshots.data[id].fileUrl))
         : [],
@@ -1602,7 +1602,7 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
             edit={edit}
             uid={uid}
             pattern={
-              doc?.tags?.[0] ? tagPatterns[doc?.tags?.[0] || ""] : undefined
+              doc?.tags?.[0] ? tagPatterns?.[doc?.tags?.[0] || ""] : undefined
             }
             patternScale={doc?.patternScale}
             folded={isFolded}
