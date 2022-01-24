@@ -18,11 +18,8 @@ import { useDialogNavigation } from "../../impower-dialog";
 import { FontIcon } from "../../impower-icon";
 import Avatar from "../../impower-route/components/elements/Avatar";
 import { useRouter } from "../../impower-router";
-import {
-  UserContext,
-  userDoConnect,
-  userUndoConnect,
-} from "../../impower-user";
+import { UserContext, userUndoConnect } from "../../impower-user";
+import userAcceptConnect from "../../impower-user/utils/userAcceptConnect";
 import userRejectConnect from "../../impower-user/utils/userRejectConnect";
 
 const StyledListItem = styled(ListItem)``;
@@ -177,7 +174,7 @@ const ConnectionListItemButtons = React.memo(
           openAccountDialog(`contact_${id}`);
           return;
         }
-        userDispatch(userDoConnect("users", id));
+        userDispatch(userAcceptConnect("users", id));
       },
       [contact, openAccountDialog, userDispatch]
     );
@@ -221,21 +218,25 @@ const ConnectionListItemButtons = React.memo(
     if (status === "incoming") {
       return (
         <>
-          <StyledButton
-            onMouseDown={handleBlockRipplePropogation}
-            onTouchStart={handleBlockRipplePropogation}
-            onClick={(e): void => {
-              handleIgnore(e, id);
-            }}
-          >{`Ignore`}</StyledButton>
-          <StyledButton
-            variant="outlined"
-            onMouseDown={handleBlockRipplePropogation}
-            onTouchStart={handleBlockRipplePropogation}
-            onClick={(e): void => {
-              handleDoConnect(e, id);
-            }}
-          >{`Connect`}</StyledButton>
+          {!data?.r && (
+            <>
+              <StyledButton
+                onMouseDown={handleBlockRipplePropogation}
+                onTouchStart={handleBlockRipplePropogation}
+                onClick={(e): void => {
+                  handleIgnore(e, id);
+                }}
+              >{`Ignore`}</StyledButton>
+              <StyledButton
+                variant="outlined"
+                onMouseDown={handleBlockRipplePropogation}
+                onTouchStart={handleBlockRipplePropogation}
+                onClick={(e): void => {
+                  handleDoConnect(e, id);
+                }}
+              >{`Connect`}</StyledButton>
+            </>
+          )}
         </>
       );
     }
@@ -278,7 +279,7 @@ const ConnectionListItem = React.memo(
     );
 
     return (
-      <StyledListItem key={id} alignItems="flex-start" disablePadding>
+      <StyledListItem alignItems="flex-start" disablePadding>
         <StyledListItemButton
           onClick={(e): void => {
             handleClick(e, id, data);

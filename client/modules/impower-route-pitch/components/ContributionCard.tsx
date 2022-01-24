@@ -21,6 +21,7 @@ import {
   userUndoFollow,
   userUndoLike,
 } from "../../impower-user";
+import userAcceptConnect from "../../impower-user/utils/userAcceptConnect";
 import getContributionPostOptionLabels from "../utils/getContributionPostOptionLabels";
 import ContributionCardLayout from "./ContributionCardLayout";
 
@@ -197,7 +198,11 @@ const ContributionCard = React.memo(
     const handleConnect = useCallback(
       async (e: React.MouseEvent, connected: boolean): Promise<void> => {
         if (connected) {
-          userDispatch(userDoConnect("users", doc?._createdBy));
+          if (connectedFrom) {
+            userDispatch(userAcceptConnect("users", doc?._createdBy));
+          } else {
+            userDispatch(userDoConnect("users", doc?._createdBy));
+          }
         } else {
           userDispatch(userUndoConnect("users", doc?._createdBy));
         }
@@ -205,7 +210,7 @@ const ContributionCard = React.memo(
           onConnect(e, connected);
         }
       },
-      [doc?._createdBy, onConnect, userDispatch]
+      [connectedFrom, doc?._createdBy, onConnect, userDispatch]
     );
 
     const handleDelete = useCallback(

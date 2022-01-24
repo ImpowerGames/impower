@@ -129,10 +129,11 @@ const NotificationListItem = React.memo(
     const { id, data, onLoading } = props;
 
     if (data.type === "connects") {
+      const parts = id.split("%");
+      const uid = parts[parts.length - 1];
       return (
         <ConnectionListItem
-          key={id}
-          id={id}
+          id={uid}
           data={data}
           status="incoming"
           onLoading={onLoading}

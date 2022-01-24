@@ -64,7 +64,7 @@ The Impower Engine can export:
 
 ### How To Run (impower/client) After First Time Setup:
 
-1. Verify that you are in impower/client folder (terminal should read `C:\Users\Colin\Documents\GitHub\impower\client>`), if not run `cd functions`
+1. Verify that you are in impower/client folder (terminal should read `C:\Users\Colin\Documents\GitHub\impower\client>`), if not run `cd client`
 2. Run the client: `npm run dev`
 3. Open [http://localhost:3000](http://localhost:3000) with your browser to view the client app.
 

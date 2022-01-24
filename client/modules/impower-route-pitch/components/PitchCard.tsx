@@ -26,6 +26,7 @@ import {
   userUndoFollow,
   userUndoLike,
 } from "../../impower-user";
+import userAcceptConnect from "../../impower-user/utils/userAcceptConnect";
 import PitchCardLayout from "./PitchCardLayout";
 
 const deleteConfirmationInfo = {
@@ -303,12 +304,16 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
   const handleConnect = useCallback(
     (e: React.MouseEvent, connected: boolean): void => {
       if (connected) {
-        userDispatch(userDoConnect("users", doc?._createdBy));
+        if (connectedFrom) {
+          userDispatch(userAcceptConnect("users", doc?._createdBy));
+        } else {
+          userDispatch(userDoConnect("users", doc?._createdBy));
+        }
       } else {
         userDispatch(userUndoConnect("users", doc?._createdBy));
       }
     },
-    [doc?._createdBy, userDispatch]
+    [connectedFrom, doc?._createdBy, userDispatch]
   );
 
   const handleFollowUser = useCallback(

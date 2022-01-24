@@ -14,6 +14,7 @@ import {
   ProjectDocument,
   SettingsDocument,
 } from "../../impower-data-store";
+import { USER_ACCEPT_CONNECT } from "./actions/userAcceptConnectAction";
 import { USER_CHANGE_MEMBER } from "./actions/userChangeMemberAction";
 import { USER_CREATE_SUBMISSION } from "./actions/userCreateSubmissionAction";
 import { USER_DELETE_SUBMISSION } from "./actions/userDeleteSubmissionAction";
@@ -219,6 +220,12 @@ export const userReducer = (
     }
     case USER_DO_ACTIVITY: {
       const { path, type, aggData, onFinished } = action.payload;
+      const data: AggData = {
+        ...(aggData || {}),
+      };
+      if (type === "connects") {
+        data.c = state?.settings?.account?.contact;
+      }
       const setData = async (): Promise<void> => {
         const Auth = (await import("../../impower-auth/classes/auth")).default;
         const DataStateWrite = (
@@ -233,19 +240,25 @@ export const userReducer = (
         const { uid, author } = Auth.instance;
         const aggRef = new DataStateWrite(...path, "agg", type);
         const a = author;
-        const data: AggData = {
-          ...(aggData || {}),
-          t: timestampServerValue() as number,
-          a,
-        };
-        if (type === "connects") {
-          data.c = state?.settings?.account?.contact;
-        }
+        data.t = timestampServerValue() as number;
+        data.a = a;
         try {
           await aggRef.update({
             count: incrementServerValue(1),
             [`data/${uid}`]: data,
           });
+          if (type === "connects") {
+            const notificationId = `${type}%${path[path.length - 1]}`;
+            const notificationsRef = new DataStateWrite(
+              "users",
+              uid,
+              "notifications",
+              "data",
+              notificationId,
+              "r"
+            );
+            await notificationsRef.set(true);
+          }
         } catch (e) {
           const logWarn = (await import("../../impower-logger/utils/logWarn"))
             .default;
@@ -265,7 +278,7 @@ export const userReducer = (
       const target = path.join("%");
       const t = Date.now();
       myActivities[target] = {
-        ...(aggData || {}),
+        ...(data || {}),
         g,
         t,
       };
@@ -352,6 +365,77 @@ export const userReducer = (
         my_recent_pitched_projects,
       };
     }
+    case USER_ACCEPT_CONNECT: {
+      const { path, onFinished } = action.payload;
+      const type = "connects";
+      const data: AggData = {};
+      data.c = state?.settings?.account?.contact;
+      const id = path?.[path.length - 1];
+      const setData = async (): Promise<void> => {
+        const Auth = (await import("../../impower-auth/classes/auth")).default;
+        const DataStateWrite = (
+          await import("../../impower-data-state/classes/dataStateWrite")
+        ).default;
+        const timestampServerValue = (
+          await import("../../impower-data-state/utils/timestampServerValue")
+        ).default;
+        const incrementServerValue = (
+          await import("../../impower-data-state/utils/incrementServerValue")
+        ).default;
+        const { uid, author } = Auth.instance;
+        const aggRef = new DataStateWrite(...path, "agg", type);
+        const a = author;
+        data.t = timestampServerValue() as number;
+        data.a = a;
+        try {
+          await aggRef.update({
+            count: incrementServerValue(1),
+            [`data/${uid}`]: data,
+          });
+          const notificationId = `${type}%${path[path.length - 1]}`;
+          const notificationsRef = new DataStateWrite(
+            "users",
+            uid,
+            "notifications",
+            "data",
+            notificationId,
+            "r"
+          );
+          await notificationsRef.set(true);
+        } catch (e) {
+          const logWarn = (await import("../../impower-logger/utils/logWarn"))
+            .default;
+          logWarn("DataState", e);
+          errorHandler?.(e.code);
+        }
+        if (onFinished) {
+          onFinished();
+        }
+      };
+      setData();
+      const myConnects = { ...(state?.my_connects || {}) };
+      const collectionPath = path.slice(0, -1).join("/");
+      const g = collectionPath.split("/").slice(-1).join("");
+      const target = path.join("%");
+      const t = Date.now();
+      myConnects[target] = {
+        ...(data || {}),
+        g,
+        t,
+      };
+
+      return {
+        ...state,
+        my_connects: myConnects,
+        connects: {
+          ...(state?.connects || {}),
+          [id]: {
+            ...(state?.connects?.[id] || {}),
+            r: true,
+          },
+        },
+      };
+    }
     case USER_REJECT_CONNECT: {
       const { path, onFinished } = action.payload;
       const id = path?.[path.length - 1];
@@ -361,7 +445,7 @@ export const userReducer = (
           await import("../../impower-data-state/classes/dataStateWrite")
         ).default;
         const { uid } = Auth.instance;
-        const rejectRef = new DataStateWrite(
+        const connectsRef = new DataStateWrite(
           "users",
           uid,
           "agg",
@@ -370,8 +454,19 @@ export const userReducer = (
           id,
           "r"
         );
+        const type = "connects";
+        const notificationId = `${type}%${id}`;
+        const notificationsRef = new DataStateWrite(
+          "users",
+          uid,
+          "notifications",
+          "data",
+          notificationId,
+          "r"
+        );
         try {
-          await rejectRef.set(true);
+          await connectsRef.set(true);
+          await notificationsRef.set(true);
         } catch (e) {
           const logWarn = (await import("../../impower-logger/utils/logWarn"))
             .default;
