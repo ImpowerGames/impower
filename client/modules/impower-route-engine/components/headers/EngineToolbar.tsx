@@ -74,6 +74,10 @@ const StyledFixableContent = styled.div`
   padding: ${(props): string => props.theme.spacing(0, 1)};
 `;
 
+const StyledFadeAnimation = styled(FadeAnimation)`
+  flex: 1;
+`;
+
 const StyledEngineConsoleToolbarContent = styled.div`
   display: flex;
   position: relative;
@@ -150,6 +154,11 @@ const StyledContextButton = styled(Button)`
     color: inherit;
     opacity: 0.2;
   }
+`;
+
+const StyledIconButton = styled(IconButton)`
+  pointer-events: auto;
+  color: inherit;
 `;
 
 const StyledHeaderContent = styled.div`
@@ -405,7 +414,7 @@ const EngineToolbarContent = React.memo(
             </StyledContextButton>
           }
           rotateChildren={
-            <IconButton onClick={onDone} style={{ ...doneButtonStyle }}>
+            <StyledIconButton onClick={onDone} style={{ ...doneButtonStyle }}>
               <FontIcon
                 aria-label={doneLabel}
                 size={theme.fontSize.smallIcon}
@@ -413,7 +422,7 @@ const EngineToolbarContent = React.memo(
               >
                 <XmarkSolidIcon />
               </FontIcon>
-            </IconButton>
+            </StyledIconButton>
           }
           headerStyle={headerStyle}
           leftStyle={leftStyle}
@@ -428,7 +437,7 @@ const EngineToolbarContent = React.memo(
           minHeight={minHeight}
           leftChildren={
             onCloseSearch ? (
-              <IconButton
+              <StyledIconButton
                 onClick={onCloseSearch}
                 style={{ ...searchButtonStyle }}
               >
@@ -439,7 +448,7 @@ const EngineToolbarContent = React.memo(
                 >
                   <ArrowLeftRegularIcon />
                 </FontIcon>
-              </IconButton>
+              </StyledIconButton>
             ) : undefined
           }
           middleChildren={
@@ -455,7 +464,7 @@ const EngineToolbarContent = React.memo(
             />
           }
           rotateChildren={
-            <IconButton
+            <StyledIconButton
               onClick={handleSearchClear}
               style={{ ...clearButtonStyle }}
             >
@@ -466,7 +475,7 @@ const EngineToolbarContent = React.memo(
               >
                 <XmarkSolidIcon />
               </FontIcon>
-            </IconButton>
+            </StyledIconButton>
           }
           headerStyle={headerStyle}
           leftStyle={leftStyle}
@@ -480,7 +489,7 @@ const EngineToolbarContent = React.memo(
         minHeight={minHeight}
         leftChildren={
           onBack ? (
-            <IconButton onClick={onBack} style={{ ...backButtonStyle }}>
+            <StyledIconButton onClick={onBack} style={{ ...backButtonStyle }}>
               <FontIcon
                 aria-label={backLabel}
                 size={theme.fontSize.smallIcon}
@@ -488,7 +497,7 @@ const EngineToolbarContent = React.memo(
               >
                 {backIcon}
               </FontIcon>
-            </IconButton>
+            </StyledIconButton>
           ) : undefined
         }
         middleChildren={
@@ -507,7 +516,7 @@ const EngineToolbarContent = React.memo(
           <>
             {children}
             {onOpenSearch && (
-              <IconButton
+              <StyledIconButton
                 onClick={onOpenSearch}
                 style={{
                   opacity: 0.5,
@@ -520,13 +529,13 @@ const EngineToolbarContent = React.memo(
                 >
                   <MagnifyingGlassRegularIcon />
                 </FontIcon>
-              </IconButton>
+              </StyledIconButton>
             )}
           </>
         }
         rotateChildren={
           onMore && (
-            <IconButton
+            <StyledIconButton
               onClick={onMore}
               style={{
                 opacity: 0.5,
@@ -536,7 +545,7 @@ const EngineToolbarContent = React.memo(
               <FontIcon aria-label={moreLabel} size={theme.fontSize.smallIcon}>
                 {moreIcon}
               </FontIcon>
-            </IconButton>
+            </StyledIconButton>
           )
         }
         headerStyle={headerStyle}
@@ -696,7 +705,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                 }}
               >
                 <UnmountAnimation>
-                  <FadeAnimation
+                  <StyledFadeAnimation
                     key={type}
                     initial={1}
                     animate={1}
@@ -742,7 +751,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                     >
                       {rightChildren}
                     </EngineToolbarContent>
-                  </FadeAnimation>
+                  </StyledFadeAnimation>
                 </UnmountAnimation>
               </StyledFixableContent>
             </StyledFixableArea>

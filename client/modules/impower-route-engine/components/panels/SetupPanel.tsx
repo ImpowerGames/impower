@@ -40,6 +40,8 @@ import {
 } from "../../../impower-route";
 import PeerTransition from "../../../impower-route/components/animations/PeerTransition";
 import InspectorForm from "../../../impower-route/components/forms/InspectorForm";
+import AutocompleteInput from "../../../impower-route/components/inputs/AutocompleteInput";
+import BooleanInput from "../../../impower-route/components/inputs/BooleanInput";
 import PageMembersField, {
   PageMembersFieldProps,
 } from "../../../impower-route/components/inputs/PageMembersField";
@@ -133,6 +135,7 @@ const StyledTabs = styled(Tabs)`
 
 const StyledTab = styled(Tab)`
   padding: ${(props): string => props.theme.spacing(2, 2)};
+  flex: 1;
 `;
 
 const StyledHeaderArea = styled.div`
@@ -420,6 +423,8 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
         variant="filled"
         inset
         InputComponent={FilledInput}
+        AutocompleteInputComponent={AutocompleteInput}
+        BooleanInputComponent={BooleanInput}
         size="medium"
         backgroundColor="white"
         propertyPaths={propertyPaths}

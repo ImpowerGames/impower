@@ -9,8 +9,10 @@ import EngineToolbar from "./EngineToolbar";
 const StyledBottomButtonArea = styled.div``;
 
 const StyledBottomButtonContent = styled.div`
-  padding-left: ${(props): string =>
-    props.theme.spacing(props.theme.space.panelLeft)};
+  padding-left: calc(
+    ${(props): string => props.theme.spacing(props.theme.space.panelLeft)} -
+      ${(props): string => props.theme.spacing(2)}
+  );
   margin-top: -${(props): string => props.theme.spacing(1)};
 `;
 
