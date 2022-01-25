@@ -19,7 +19,6 @@ import { UserLoadStudiosAction } from "./actions/userLoadStudiosAction";
 import { UserLoadSubmissionsAction } from "./actions/userLoadSubmissionsAction";
 import { UserLoadUserDocAction } from "./actions/userLoadUserDocAction";
 import { UserRejectConnectAction } from "./actions/userRejectConnectAction";
-import { UserAcceptConnectAction } from "./actions/userAcceptConnectAction";
 import { UserSetCustomizationAction } from "./actions/userSetCustomizationAction";
 import { UserSetSettingAction } from "./actions/userSetSettingAction";
 import { UserSetTempEmailAction } from "./actions/userSetTempEmailAction";
@@ -47,7 +46,6 @@ export type UserAction =
   | UserDoActivityAction
   | UserUndoActivityAction
   | UserRejectConnectAction
-  | UserAcceptConnectAction
   | UserChangeMemberAction
   | UserCreateSubmissionAction
   | UserUpdateSubmissionAction

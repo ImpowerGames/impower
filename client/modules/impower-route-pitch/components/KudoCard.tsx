@@ -14,7 +14,6 @@ import {
   userDoConnect,
   userUndoConnect,
 } from "../../impower-user";
-import userAcceptConnect from "../../impower-user/utils/userAcceptConnect";
 import KudoCardLayout from "./KudoCardLayout";
 
 const StyledSingleLineTypography = styled(Typography)`
@@ -120,11 +119,7 @@ const KudoCard = React.memo((props: KudoCardProps): JSX.Element => {
   const handleConnect = useCallback(
     async (e: React.MouseEvent, connected: boolean): Promise<void> => {
       if (connected) {
-        if (connectedFrom) {
-          userDispatch(userAcceptConnect("users", id));
-        } else {
-          userDispatch(userDoConnect("users", id));
-        }
+        userDispatch(userDoConnect("users", id));
       } else {
         userDispatch(userUndoConnect("users", id));
       }
@@ -132,7 +127,7 @@ const KudoCard = React.memo((props: KudoCardProps): JSX.Element => {
         onConnect(e, connected);
       }
     },
-    [connectedFrom, id, onConnect, userDispatch]
+    [id, onConnect, userDispatch]
   );
 
   return (

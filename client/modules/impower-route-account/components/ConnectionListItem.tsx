@@ -18,8 +18,11 @@ import { useDialogNavigation } from "../../impower-dialog";
 import { FontIcon } from "../../impower-icon";
 import Avatar from "../../impower-route/components/elements/Avatar";
 import { useRouter } from "../../impower-router";
-import { UserContext, userUndoConnect } from "../../impower-user";
-import userAcceptConnect from "../../impower-user/utils/userAcceptConnect";
+import {
+  UserContext,
+  userDoConnect,
+  userUndoConnect,
+} from "../../impower-user";
 import userRejectConnect from "../../impower-user/utils/userRejectConnect";
 
 const StyledListItem = styled(ListItem)``;
@@ -174,7 +177,7 @@ const ConnectionListItemButtons = React.memo(
           openAccountDialog(`contact_${id}`);
           return;
         }
-        userDispatch(userAcceptConnect("users", id));
+        userDispatch(userDoConnect("users", id));
       },
       [contact, openAccountDialog, userDispatch]
     );

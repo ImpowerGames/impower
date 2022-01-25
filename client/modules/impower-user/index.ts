@@ -5,7 +5,6 @@ export * from "./types/userContextState";
 export * from "./types/userState";
 export { default as createUserContextState } from "./utils/createUserContextState";
 export { default as createUserState } from "./utils/createUserState";
-export { default as userAcceptConnect } from "./utils/userAcceptConnect";
 export { default as userChangeMember } from "./utils/userChangeMember";
 export { default as userCreateSubmission } from "./utils/userCreateSubmission";
 export { default as userDeleteSubmission } from "./utils/userDeleteSubmission";

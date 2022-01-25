@@ -29,7 +29,6 @@ import {
   userDoConnect,
   userUndoConnect,
 } from "../../impower-user";
-import userAcceptConnect from "../../impower-user/utils/userAcceptConnect";
 
 const SORT_OPTIONS: ["new", "rating", "rank"] = ["new", "rating", "rank"];
 
@@ -181,17 +180,12 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
         return;
       }
       setConnectedToState(newConnectedTo);
-      if (connectedFrom) {
-        userDispatch(userAcceptConnect("users", id));
-      } else {
-        userDispatch(userDoConnect("users", id));
-      }
+      userDispatch(userDoConnect("users", id));
     } else {
       setConnectedToState(newConnectedTo);
       userDispatch(userUndoConnect("users", id));
     }
   }, [
-    connectedFrom,
     connectedToState,
     contact,
     id,

@@ -119,23 +119,24 @@ const StyledItemDivider = styled(Divider)`
 `;
 
 interface NotificationListItemProps {
-  id: string;
-  data: AggData;
+  uid: string;
+  notificationData: AggData;
+  connectFromData: AggData;
+  connectToData: AggData;
   onLoading?: (isLoading: boolean) => void;
 }
 
 const NotificationListItem = React.memo(
   (props: NotificationListItemProps): JSX.Element | null => {
-    const { id, data, onLoading } = props;
+    const { uid, notificationData, connectFromData, connectToData, onLoading } =
+      props;
 
-    if (data.type === "connects") {
-      const parts = id.split("%");
-      const uid = parts[parts.length - 1];
+    if (notificationData.type === "connects") {
       return (
         <ConnectionListItem
           id={uid}
-          data={data}
-          status="incoming"
+          data={connectFromData}
+          status={connectToData ? "connected" : "incoming"}
           onLoading={onLoading}
         />
       );
@@ -240,14 +241,21 @@ const Notifications = React.memo(() => {
                 {selectedTabIndex === 0 && notifications ? (
                   notificationEntries.length > 0 ? (
                     <StyledList sx={{ width: "100%" }}>
-                      {notificationEntries.reverse().map(([id, data]) => (
-                        <NotificationListItem
-                          key={id}
-                          id={id}
-                          data={data}
-                          onLoading={setTransitioning}
-                        />
-                      ))}
+                      {notificationEntries.reverse().map(([id, data]) => {
+                        const parts = id.split("%");
+                        const uid = parts[parts.length - 1];
+                        const connectToID = `users%${uid}`;
+                        return (
+                          <NotificationListItem
+                            key={uid}
+                            uid={uid}
+                            notificationData={data}
+                            connectFromData={connects?.[uid]}
+                            connectToData={my_connects?.[connectToID]}
+                            onLoading={setTransitioning}
+                          />
+                        );
+                      })}
                     </StyledList>
                   ) : (
                     <>
@@ -259,14 +267,21 @@ const Notifications = React.memo(() => {
                 ) : selectedTabIndex === 1 && notifications ? (
                   unreadNotifications.length > 0 ? (
                     <StyledList sx={{ width: "100%" }}>
-                      {unreadNotifications.reverse().map(([id, data]) => (
-                        <NotificationListItem
-                          key={id}
-                          id={id}
-                          data={data}
-                          onLoading={setTransitioning}
-                        />
-                      ))}
+                      {unreadNotifications.reverse().map(([id, data]) => {
+                        const parts = id.split("%");
+                        const uid = parts[parts.length - 1];
+                        const connectToID = `users%${uid}`;
+                        return (
+                          <NotificationListItem
+                            key={uid}
+                            uid={uid}
+                            notificationData={data}
+                            connectFromData={connects?.[uid]}
+                            connectToData={my_connects?.[connectToID]}
+                            onLoading={setTransitioning}
+                          />
+                        );
+                      })}
                     </StyledList>
                   ) : (
                     <>
