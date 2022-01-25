@@ -659,7 +659,9 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
           <PanelHeader
             type="default"
             title={inspectedDataName}
-            breadcrumbs={itemHeaderBreadcrumbs}
+            breadcrumbs={
+              windowType === DataWindowType.Setup ? [] : itemHeaderBreadcrumbs
+            }
             backIcon={<ArrowLeftRegularIcon />}
             backLabel={`Close`}
             scrollParent={scrollParent}
