@@ -15,6 +15,7 @@ import {
   navigationSetSearchbar,
   navigationSetType,
 } from "../../../modules/impower-navigation";
+import TagIconLoader from "../../../modules/impower-route/components/elements/TagIconLoader";
 import useBodyBackgroundColor from "../../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../modules/impower-route/hooks/useHTMLBackgroundColor";
 
@@ -75,6 +76,7 @@ const EngineProjectPage = React.memo((props: GamePageProps) => {
       <StyledProjectPage>
         <Project />
       </StyledProjectPage>
+      <TagIconLoader />
     </GameContextProvider>
   );
 });
