@@ -20,11 +20,9 @@ import { MemberAccess } from "../../../impower-data-state";
 import {
   isGameDocument,
   isProjectDocument,
-  isResourceDocument,
   PageDocumentInspector,
   ProjectDocument,
   ProjectDocumentInspector,
-  ResourceDocumentInspector,
 } from "../../../impower-data-store";
 import {
   createConfigDataCollection,
@@ -282,8 +280,6 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
   const handleGetInspector = useCallback(() => {
     return isGameDocument(doc)
       ? ProjectDocumentInspector.instance
-      : isResourceDocument(doc)
-      ? ResourceDocumentInspector.instance
       : new PageDocumentInspector<ProjectDocument>();
   }, [doc]);
 
@@ -515,17 +511,6 @@ const SetupPanel = React.memo((): JSX.Element => {
             ),
             currentData,
             ProjectDocumentInspector.instance.getPropertyError,
-            () => [id]
-          )
-        : isResourceDocument(currentData)
-        ? await getAllErrors(
-            getAllVisiblePropertyPaths(
-              currentData,
-              ResourceDocumentInspector.instance.isPropertyVisible,
-              ResourceDocumentInspector.instance.createData
-            ),
-            currentData,
-            ResourceDocumentInspector.instance.getPropertyError,
             () => [id]
           )
         : await getAllErrors(

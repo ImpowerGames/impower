@@ -22,17 +22,14 @@ import {
 } from "../../../impower-confirm-dialog";
 import {
   isGameDocument,
-  isResourceDocument,
   PageDocumentInspector,
   ProjectDocument,
   ProjectDocumentInspector,
-  ResourceDocumentInspector,
 } from "../../../impower-data-store";
 import {
   ConfigTypeId,
   GameProjectData,
   InstanceData,
-  isGameProjectData,
   ItemData,
   ItemReference,
   ItemSectionType,
@@ -89,20 +86,12 @@ import EditGameTooltipContent from "../instructions/EditGameTooltipContent";
 import Panel from "../layouts/Panel";
 
 const deleteGameLabel = "Permanently Delete Game";
-const deleteResourceLabel = "Permanently Delete Resource";
 
 const deleteGameConfirmationInfo = {
   title: "Are you sure you want to delete this game?",
   content:
     "Deleting {name} will delete the game project, all assets uploaded to the project, and the game's public page.\n\n*No one will be able to edit or play this game again.*\n\n**This action cannot be undone.**",
   agreeLabel: "Yes, Delete My Game",
-  disagreeLabel: "Cancel",
-};
-const deleteResourceConfirmationInfo = {
-  title: "Are you sure you want to delete this resource?",
-  content:
-    "Deleting {name} will delete the resource project, all assets uploaded to the project, and the resource's public page.\n\n*No one will be able to edit or play this resource again.*\n\n**This action cannot be undone.**",
-  agreeLabel: "Yes, Delete My Resource",
   disagreeLabel: "Cancel",
 };
 
@@ -252,8 +241,6 @@ const SetupDetails = React.memo((props: SetupDetailsProps) => {
   const handleGetInspector = useCallback(() => {
     return isGameDocument(doc)
       ? ProjectDocumentInspector.instance
-      : isResourceDocument(doc)
-      ? ResourceDocumentInspector.instance
       : new PageDocumentInspector<ProjectDocument>();
   }, [doc]);
 
@@ -323,16 +310,6 @@ const SetupAdvanced = React.memo((props: SetupAdvancedProps) => {
             router.push(`/e`);
           }
         }
-        if (isResourceDocument(doc)) {
-          await new Promise<void>((resolve) =>
-            userDispatch(userOnDeleteSubmission(resolve, "projects", id))
-          );
-          if (studioId) {
-            router.push(`/e/s/${studioId}?t=resources`);
-          } else {
-            router.push(`/e`);
-          }
-        }
       };
       if (isGameDocument(doc)) {
         confirmDialogDispatch(
@@ -347,28 +324,11 @@ const SetupAdvanced = React.memo((props: SetupAdvancedProps) => {
           )
         );
       }
-      if (isResourceDocument(doc)) {
-        confirmDialogDispatch(
-          confirmDialogNavOpen(
-            deleteResourceConfirmationInfo.title,
-            format(deleteGameConfirmationInfo.content, {
-              name: doc?.name ? `"${doc?.name}"` : "this resource",
-            }),
-            deleteResourceConfirmationInfo.agreeLabel,
-            onAgree,
-            deleteResourceConfirmationInfo.disagreeLabel
-          )
-        );
-      }
     },
     [confirmDialogDispatch, doc, id, router, userDispatch]
   );
 
-  const deleteLabel = isGameDocument(doc)
-    ? deleteGameLabel
-    : isResourceDocument(doc)
-    ? deleteResourceLabel
-    : undefined;
+  const deleteLabel = isGameDocument(doc) ? deleteGameLabel : undefined;
 
   return (
     <StyledRightPaddingArea>
@@ -468,10 +428,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   }, [section, selectedItemReferences, data]);
   const inspectedInstanceData: InstanceData[] = useMemo(() => {
     if (windowType === DataWindowType.Setup) {
-      if (
-        section === SetupSectionType.Configuration &&
-        isGameProjectData(data)
-      ) {
+      if (section === SetupSectionType.Configuration) {
         const config =
           data?.instances?.configs?.data?.[inspectedTargetId as ConfigTypeId];
         if (config) {
@@ -664,10 +621,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
 
   const inspectedDataName = useMemo(() => {
     if (windowType === DataWindowType.Setup) {
-      if (
-        section === SetupSectionType.Configuration &&
-        isGameProjectData(data)
-      ) {
+      if (section === SetupSectionType.Configuration) {
         const config =
           data?.instances?.configs?.data[inspectedTargetId as ConfigTypeId];
         if (config) {

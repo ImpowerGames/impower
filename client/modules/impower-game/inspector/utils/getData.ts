@@ -1,13 +1,13 @@
 import {
-  Reference,
-  isItemReference,
+  ConfigType,
+  ContainerType,
+  FileData,
+  FolderData,
   GameProjectData,
   InstanceData,
-  ContainerType,
+  isItemReference,
   ItemType,
-  ConfigType,
-  FolderData,
-  FileData,
+  Reference,
   StorageType,
 } from "../../data";
 import { getVariableContainer } from "./getVariableContainer";
@@ -114,7 +114,7 @@ export const getData = (
     }
     case StorageType.File: {
       if (project?.instances?.files) {
-        return project?.instances?.files.data[reference.refId];
+        return project?.instances?.files?.data?.[reference.refId];
       }
       break;
     }

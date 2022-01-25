@@ -1,12 +1,12 @@
 import {
+  ConfigData,
+  ConfigType,
+  ContainerType,
+  GameProjectData,
   InstanceData,
   isItemReference,
-  GameProjectData,
-  ContainerType,
   ItemType,
   Reference,
-  ConfigType,
-  ConfigData,
 } from "../../data";
 import { getVariableContainer } from "./getVariableContainer";
 
@@ -131,11 +131,11 @@ const getNestedDataInternal = (
           dict[reference.refId] = container.variables.data[reference.refId];
         }
         if (reference.parentContainerType === ContainerType.Block) {
-          const container = Object.values(project?.instances?.blocks.data).find(
-            (c) => {
-              return c.variables.data[reference.refId];
-            }
-          );
+          const container = Object.values(
+            project?.instances?.blocks?.data || {}
+          ).find((c) => {
+            return c.variables.data[reference.refId];
+          });
           if (container) {
             dict[reference.refId] = container.variables.data[reference.refId];
           }

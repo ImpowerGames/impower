@@ -1,24 +1,24 @@
 import { orderBy } from "../../../impower-core";
+import {
+  ConfigData,
+  ConfigType,
+  ContainerType,
+  DataLookup,
+  FileData,
+  FolderData,
+  GameProjectData,
+  InstanceData,
+  isContainerReference,
+  ItemType,
+  Permission,
+  Scope,
+  StorageType,
+  VariableContainerData,
+  VariableData,
+  VariableLifetime,
+} from "../../data";
 import { getData } from "./getData";
 import { getVariableContainer } from "./getVariableContainer";
-import {
-  InstanceData,
-  Permission,
-  DataLookup,
-  ContainerType,
-  ItemType,
-  GameProjectData,
-  VariableContainerData,
-  Scope,
-  VariableLifetime,
-  VariableData,
-  isContainerReference,
-  ConfigType,
-  ConfigData,
-  FolderData,
-  FileData,
-  StorageType,
-} from "../../data";
 
 const getAllDataInternal = (
   dict: {
@@ -84,7 +84,7 @@ const getAllDataInternal = (
     case ContainerType.Block: {
       if (project?.instances?.blocks) {
         if (!lookup.parentContainerId || permission === Permission.Runtime) {
-          Object.keys(project?.instances?.blocks.data).forEach((id) => {
+          Object.keys(project?.instances?.blocks?.data || {}).forEach((id) => {
             const data = project?.instances?.blocks.data[id];
             if (data) {
               dict[id] = { id: data.reference.refId, data, level };
@@ -148,7 +148,7 @@ const getAllDataInternal = (
     case ItemType.Trigger: {
       if (project?.instances?.blocks) {
         if (!lookup.parentContainerId || permission === Permission.Runtime) {
-          const blocks = Object.values(project?.instances?.blocks.data);
+          const blocks = Object.values(project?.instances?.blocks?.data || {});
           blocks.forEach((block) =>
             block.triggers.order.forEach((id) => {
               const data = block.triggers.data[id];
@@ -157,7 +157,7 @@ const getAllDataInternal = (
           );
         } else {
           const block =
-            project?.instances?.blocks.data[lookup.parentContainerId];
+            project?.instances?.blocks?.data?.[lookup.parentContainerId];
           if (!block) {
             throw new Error(
               `${lookup.parentContainerType} with id '${lookup.parentContainerId}' does not exist in project`
@@ -176,7 +176,7 @@ const getAllDataInternal = (
     case ItemType.Command: {
       if (project?.instances?.blocks) {
         if (!lookup.parentContainerId || permission === Permission.Runtime) {
-          const blocks = Object.values(project?.instances?.blocks.data);
+          const blocks = Object.values(project?.instances?.blocks?.data || {});
           blocks.forEach((block) =>
             block.commands.order.forEach((id) => {
               const data = block.commands.data[id];
@@ -215,7 +215,7 @@ const getAllDataInternal = (
               dict[id] = { id: data.reference.refId, data, level };
             })
           );
-          const blocks = Object.values(project?.instances?.blocks.data);
+          const blocks = Object.values(project?.instances?.blocks?.data || {});
           blocks.forEach((block) =>
             block.variables.order.forEach((id) => {
               const data = block.variables.data[id];
@@ -281,8 +281,8 @@ const getAllDataInternal = (
     }
     case StorageType.File: {
       if (project?.instances?.files) {
-        Object.keys(project?.instances?.files.data).forEach((id) => {
-          const data = project?.instances?.files.data[id];
+        Object.keys(project?.instances?.files?.data || {}).forEach((id) => {
+          const data = project?.instances?.files?.data?.[id];
           if (data) {
             dict[id] = { id, data, level };
           }

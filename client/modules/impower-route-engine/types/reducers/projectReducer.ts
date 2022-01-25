@@ -4,9 +4,7 @@ import { ProjectDocument } from "../../../impower-data-store";
 import {
   GameProjectData,
   InstanceData,
-  isGameProjectData,
   Reference,
-  ResourceProjectData,
 } from "../../../impower-game/data";
 import {
   getData,
@@ -44,42 +42,40 @@ const doProjectAccess = (
 
 const doProjectValidate = (state: ProjectState): ProjectState => {
   const project = state.data;
-  if (isGameProjectData(project)) {
-    // Validate the entire project
-    // This is slow, only call before starting game
-    const blocks = Object.values(project.instances?.blocks?.data);
-    const blockTriggers = blocks.flatMap((block) =>
-      Object.values(block.triggers?.data)
-    );
-    const blockCommands = blocks.flatMap((block) =>
-      Object.values(block.commands?.data)
-    );
-    let newProject = { ...project };
-    const validateData = (
-      project: GameProjectData,
-      newData: InstanceData[]
-    ): {
-      updated: { [refId: string]: InstanceData };
-      original: { [refId: string]: InstanceData };
-    } => ImpowerGameInspector.instance.validateData(project, newData);
-    // Validate all triggers and commands
-    newProject = {
-      ...newProject,
-      ...insertGameProjectData(newProject, blockTriggers, validateData),
+  // Validate the entire project
+  // This is slow, only call before starting game
+  const blocks = Object.values(project?.instances?.blocks?.data || {});
+  const blockTriggers = blocks.flatMap((block) =>
+    Object.values(block.triggers?.data)
+  );
+  const blockCommands = blocks.flatMap((block) =>
+    Object.values(block.commands?.data)
+  );
+  let newProject = { ...project };
+  const validateData = (
+    project: GameProjectData,
+    newData: InstanceData[]
+  ): {
+    updated: { [refId: string]: InstanceData };
+    original: { [refId: string]: InstanceData };
+  } => ImpowerGameInspector.instance.validateData(project, newData);
+  // Validate all triggers and commands
+  newProject = {
+    ...newProject,
+    ...insertGameProjectData(newProject, blockTriggers, validateData),
+  };
+  newProject = {
+    ...newProject,
+    ...insertGameProjectData(newProject, blockCommands, validateData),
+  };
+  if (JSON.stringify(newProject) !== JSON.stringify(state.data)) {
+    return {
+      ...state,
+      data: {
+        ...state.data,
+        ...newProject,
+      },
     };
-    newProject = {
-      ...newProject,
-      ...insertGameProjectData(newProject, blockCommands, validateData),
-    };
-    if (JSON.stringify(newProject) !== JSON.stringify(state.data)) {
-      return {
-        ...state,
-        data: {
-          ...state.data,
-          ...newProject,
-        },
-      };
-    }
   }
   return state;
 };
@@ -90,40 +86,38 @@ const doProjectValidateData = (
     newData: InstanceData[];
   }
 ): ProjectState => {
-  if (isGameProjectData(state.data)) {
-    const { newData } = payload;
+  const { newData } = payload;
 
-    const firstData = newData[0];
-    if (!firstData) {
-      return state;
-    }
+  const firstData = newData[0];
+  if (!firstData) {
+    return state;
+  }
 
-    const validateData = (
-      project: GameProjectData,
-      newData: InstanceData[]
-    ): {
-      updated: { [refId: string]: InstanceData };
-      original: { [refId: string]: InstanceData };
-    } => ImpowerGameInspector.instance.validateData(project, newData);
+  const validateData = (
+    project: GameProjectData,
+    newData: InstanceData[]
+  ): {
+    updated: { [refId: string]: InstanceData };
+    original: { [refId: string]: InstanceData };
+  } => ImpowerGameInspector.instance.validateData(project, newData);
 
-    const { newProject } = insertGameProjectData(
-      state.data,
-      newData,
-      validateData
-    );
+  const { newProject } = insertGameProjectData(
+    state.data,
+    newData,
+    validateData
+  );
 
-    if (JSON.stringify(newProject) !== JSON.stringify(state.data)) {
-      // Inserting data automatically validates it
-      // But by making this a separate action,
-      // it can be ignored by the undo/redo tracking
-      return {
-        ...state,
-        data: {
-          ...state.data,
-          ...newProject,
-        },
-      };
-    }
+  if (JSON.stringify(newProject) !== JSON.stringify(state.data)) {
+    // Inserting data automatically validates it
+    // But by making this a separate action,
+    // it can be ignored by the undo/redo tracking
+    return {
+      ...state,
+      data: {
+        ...state.data,
+        ...newProject,
+      },
+    };
   }
   return state;
 };
@@ -137,57 +131,53 @@ const doProjectInsertData = (
     skipSync?: boolean;
   }
 ): ProjectState => {
-  if (isGameProjectData(state.data)) {
-    const { description, newData, index, skipSync } = payload;
+  const { description, newData, index, skipSync } = payload;
 
-    const firstData = newData[0];
-    if (!firstData) {
-      return state;
-    }
-    const validateData = (
-      project: GameProjectData,
-      newData: InstanceData[]
-    ): {
-      updated: { [refId: string]: InstanceData };
-      original: { [refId: string]: InstanceData };
-    } => ImpowerGameInspector.instance.validateData(project, newData);
-
-    const { newProject } = insertGameProjectData(
-      state.data,
-      newData,
-      validateData,
-      index
-    );
-
-    const dataListSummary =
-      ImpowerGameInspector.instance.getDataListSummary(newData);
-
-    const lastActionDescription = description
-      ? `${description} ${dataListSummary}`
-      : undefined;
-
-    let lastActionTargets = [];
-    if (!skipSync) {
-      lastActionTargets = ProjectEngineSync.instance.syncData(
-        newProject,
-        state.data,
-        "projects",
-        state.id
-      );
-    }
-
-    return {
-      ...state,
-      lastActionDescription:
-        lastActionDescription || state.lastActionDescription,
-      lastActionTargets,
-      data: {
-        ...state.data,
-        ...newProject,
-      },
-    };
+  const firstData = newData[0];
+  if (!firstData) {
+    return state;
   }
-  return state;
+  const validateData = (
+    project: GameProjectData,
+    newData: InstanceData[]
+  ): {
+    updated: { [refId: string]: InstanceData };
+    original: { [refId: string]: InstanceData };
+  } => ImpowerGameInspector.instance.validateData(project, newData);
+
+  const { newProject } = insertGameProjectData(
+    state.data,
+    newData,
+    validateData,
+    index
+  );
+
+  const dataListSummary =
+    ImpowerGameInspector.instance.getDataListSummary(newData);
+
+  const lastActionDescription = description
+    ? `${description} ${dataListSummary}`
+    : undefined;
+
+  let lastActionTargets = [];
+  if (!skipSync) {
+    lastActionTargets = ProjectEngineSync.instance.syncData(
+      newProject,
+      state.data,
+      "projects",
+      state.id
+    );
+  }
+
+  return {
+    ...state,
+    lastActionDescription: lastActionDescription || state.lastActionDescription,
+    lastActionTargets,
+    data: {
+      ...state.data,
+      ...newProject,
+    },
+  };
 };
 
 const doProjectRemoveData = (
@@ -198,54 +188,47 @@ const doProjectRemoveData = (
     skipSync?: boolean;
   }
 ): ProjectState => {
-  if (isGameProjectData(state.data)) {
-    const { description, references, skipSync } = payload;
+  const { description, references, skipSync } = payload;
 
-    const firstReference = references[0];
-    if (!firstReference) {
-      return state;
-    }
-
-    const firstData = getData(firstReference, state.data);
-    if (!firstData) {
-      return state;
-    }
-
-    const { newProject, deleted } = removeGameProjectData(
-      state.data,
-      references
-    );
-
-    const dataListSummary = ImpowerGameInspector.instance.getDataListSummary(
-      Object.values(deleted)
-    );
-
-    const lastActionDescription = description
-      ? `${description} ${dataListSummary}`
-      : undefined;
-
-    let lastActionTargets = [];
-    if (!skipSync) {
-      lastActionTargets = ProjectEngineSync.instance.syncData(
-        newProject,
-        state.data,
-        "projects",
-        state.id
-      );
-    }
-
-    return {
-      ...state,
-      lastActionDescription:
-        lastActionDescription || state.lastActionDescription,
-      lastActionTargets,
-      data: {
-        ...state.data,
-        ...newProject,
-      },
-    };
+  const firstReference = references[0];
+  if (!firstReference) {
+    return state;
   }
-  return state;
+
+  const firstData = getData(firstReference, state.data);
+  if (!firstData) {
+    return state;
+  }
+
+  const { newProject, deleted } = removeGameProjectData(state.data, references);
+
+  const dataListSummary = ImpowerGameInspector.instance.getDataListSummary(
+    Object.values(deleted)
+  );
+
+  const lastActionDescription = description
+    ? `${description} ${dataListSummary}`
+    : undefined;
+
+  let lastActionTargets = [];
+  if (!skipSync) {
+    lastActionTargets = ProjectEngineSync.instance.syncData(
+      newProject,
+      state.data,
+      "projects",
+      state.id
+    );
+  }
+
+  return {
+    ...state,
+    lastActionDescription: lastActionDescription || state.lastActionDescription,
+    lastActionTargets,
+    data: {
+      ...state.data,
+      ...newProject,
+    },
+  };
 };
 
 const doProjectUpdateData = (
@@ -257,21 +240,18 @@ const doProjectUpdateData = (
     value: unknown;
   }
 ): ProjectState => {
-  if (isGameProjectData(state.data)) {
-    const { description, references, propertyPath, value } = payload;
+  const { description, references, propertyPath, value } = payload;
 
-    const project = state.data;
-    const newData = references.map((r) => {
-      const d = getData(r, project);
-      if (!d) {
-        throw new Error(`Invalid Reference: ${JSON.stringify(r)}`);
-      }
-      return setValue(d, propertyPath, value);
-    }) as InstanceData[];
+  const project = state.data;
+  const newData = references.map((r) => {
+    const d = getData(r, project);
+    if (!d) {
+      throw new Error(`Invalid Reference: ${JSON.stringify(r)}`);
+    }
+    return setValue(d, propertyPath, value);
+  }) as InstanceData[];
 
-    return doProjectInsertData(state, { description, newData });
-  }
-  return state;
+  return doProjectInsertData(state, { description, newData });
 };
 
 const doProjectChangeDocument = (
@@ -360,7 +340,7 @@ const doProjectLoadData = (
   state: ProjectState,
   payload: {
     id: string;
-    data: ResourceProjectData | GameProjectData;
+    data: GameProjectData;
   }
 ): ProjectState => {
   const { id, data } = payload;

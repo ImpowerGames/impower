@@ -1,16 +1,15 @@
-import { useMemo, useCallback, useContext } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import {
   ContainerData,
   ContainerReference,
-  isGameProjectData,
   ItemData,
   ItemReference,
 } from "../../impower-game/data";
 import { DataContext } from "../contexts/dataContext";
+import { getChildContainers } from "../types/selectors/dataPanelSelectors";
+import { projectContainersSelector } from "../types/selectors/projectSelectors";
 import { getContainerType } from "../types/selectors/windowSelectors";
 import { DataWindowType } from "../types/state/dataPanelState";
-import { projectContainersSelector } from "../types/selectors/projectSelectors";
-import { getChildContainers } from "../types/selectors/dataPanelSelectors";
 import { ProjectEngineState } from "../types/state/projectEngineState";
 
 export const useInspectedContainers = (
@@ -24,15 +23,12 @@ export const useInspectedContainers = (
   const parentContainerId =
     state.dataPanel.panels[windowType].Container.inspectedTargetId;
   const projectContainers = useMemo(
-    () =>
-      isGameProjectData(state.project.data)
-        ? projectContainersSelector(state.project.data, containerType)
-        : {},
+    () => projectContainersSelector(state.project.data, containerType),
     [containerType, state.project.data]
   );
   const projectContainersData = useMemo(() => {
     const data = {};
-    Object.entries(projectContainers).forEach(([key, value]) => {
+    Object.entries(projectContainers || {}).forEach(([key, value]) => {
       data[key] = value;
     });
     return data;
@@ -71,10 +67,7 @@ export const useContainerNavigation = (
   const parentContainerId =
     state.dataPanel.panels[windowType].Container.inspectedTargetId;
   const projectContainers = useMemo(
-    () =>
-      isGameProjectData(state.project.data)
-        ? projectContainersSelector(state.project.data, containerType)
-        : {},
+    () => projectContainersSelector(state.project.data, containerType),
     [containerType, state.project.data]
   );
 

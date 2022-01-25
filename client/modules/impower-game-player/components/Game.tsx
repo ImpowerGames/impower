@@ -1,20 +1,20 @@
 import React, {
-  useEffect,
-  useState,
-  useRef,
-  useContext,
   PropsWithChildren,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
 } from "react";
 import Measure from "react-measure";
 import { ContainerType, getBlockTree } from "../../impower-game/data";
 import { ImpowerGame, SaveData } from "../../impower-game/game";
-import { ImpowerGameRunner } from "../../impower-game/runner";
-import UI from "./UI";
-import { PhaserGame } from "../types/game/phaserGame";
-import { Control } from "../types/control";
-import { useGameStyle } from "../hooks/gameHooks";
-import { ProjectEngineContext } from "../../impower-route-engine/contexts/projectEngineContext";
 import { GameProjectData } from "../../impower-game/project/classes/project/gameProjectData";
+import { ImpowerGameRunner } from "../../impower-game/runner";
+import { ProjectEngineContext } from "../../impower-route-engine/contexts/projectEngineContext";
+import { useGameStyle } from "../hooks/gameHooks";
+import { Control } from "../types/control";
+import { PhaserGame } from "../types/game/phaserGame";
+import UI from "./UI";
 
 const createGame = (
   project: GameProjectData,
@@ -26,7 +26,7 @@ const createGame = (
   const game = new ImpowerGame(
     {
       defaultStartBlockId,
-      seed: project.instances.configs.data.DebugConfig.randomizationSeed,
+      seed: project?.instances?.configs?.data?.DebugConfig?.randomizationSeed,
       blockTree,
     },
     isMobile,

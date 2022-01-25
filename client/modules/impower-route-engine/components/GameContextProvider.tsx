@@ -223,7 +223,9 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const projectBlocks = useMemo(
     () =>
       gameProject?.instances?.blocks?.data
-        ? Object.values(gameProject?.instances?.blocks?.data).map((doc) => doc)
+        ? Object.values(gameProject?.instances?.blocks?.data || {}).map(
+            (doc) => doc
+          )
         : [],
     [gameProject?.instances?.blocks?.data]
   );

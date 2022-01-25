@@ -1,10 +1,9 @@
 import Phaser from "phaser";
-import { getColorRgbString, hexToHsla, Color } from "../../../impower-core";
-
+import { Color, getColorRgbString, hexToHsla } from "../../../impower-core";
 import {
+  CenterType,
   GameProjectData,
   ScaleModeType,
-  CenterType,
 } from "../../../impower-game/data";
 import { ImpowerGame } from "../../../impower-game/game";
 import { ImpowerDataMap } from "../../../impower-game/project";
@@ -13,17 +12,17 @@ import {
   ImpowerGameRunner,
 } from "../../../impower-game/runner";
 import { Control } from "../control";
-import { PhaserMainScene, MAIN_SCENE_KEY } from "./scenes/phaserMainScene";
-import { PhaserBlockScene, BLOCK_SCENE_KEY } from "./scenes/phaserBlockScene";
-import {
-  SPLASH_SCENE_KEY,
-  PhaserSplashScene,
-} from "./scenes/phaserSplashScene";
 import { ASSET_SCENE_KEY, PhaserAssetScene } from "./scenes/phaserAssetScene";
+import { BLOCK_SCENE_KEY, PhaserBlockScene } from "./scenes/phaserBlockScene";
+import { MAIN_SCENE_KEY, PhaserMainScene } from "./scenes/phaserMainScene";
 import {
-  PRELOADING_SCENE_KEY,
   PhaserPreloadingScene,
+  PRELOADING_SCENE_KEY,
 } from "./scenes/phaserPreloadingScene";
+import {
+  PhaserSplashScene,
+  SPLASH_SCENE_KEY,
+} from "./scenes/phaserSplashScene";
 
 export class PhaserGame extends Phaser.Game {
   private _project: GameProjectData;
@@ -118,13 +117,13 @@ export class PhaserGame extends Phaser.Game {
     project: GameProjectData
   ): Phaser.Types.Core.ScaleConfig {
     const mode = PhaserGame.getPhaserScaleModeType(
-      project.instances.configs.data.ScaleConfig.mode
+      project?.instances?.configs?.data?.ScaleConfig?.mode
     );
     const autoCenter = PhaserGame.getPhaserCenterType(
-      project.instances.configs.data.ScaleConfig.autoCenter
+      project?.instances?.configs?.data?.ScaleConfig?.autoCenter
     );
     return {
-      ...project.instances.configs.data.ScaleConfig,
+      ...(project?.instances?.configs?.data?.ScaleConfig || {}),
       parent: "game",
       mode,
       autoCenter,
@@ -137,8 +136,8 @@ export class PhaserGame extends Phaser.Game {
     game: ImpowerGame
   ): string {
     const gameColor: Color = getRuntimeValue(
-      project.instances.configs.data.BackgroundConfig.game,
-      impowerProject.variables,
+      project?.instances?.configs?.data?.BackgroundConfig?.game,
+      impowerProject?.variables,
       game
     );
     if (gameColor) {
@@ -259,7 +258,7 @@ export class PhaserGame extends Phaser.Game {
     const { project, impowerDataMap: impowerProject, impowerGame } = this;
 
     const color: Color = getRuntimeValue(
-      project.instances.configs.data.BackgroundConfig.screen,
+      project?.instances?.configs?.data?.BackgroundConfig?.screen,
       impowerProject?.variables,
       impowerGame
     );
@@ -276,7 +275,7 @@ export class PhaserGame extends Phaser.Game {
   getGameStyle(): { backgroundColor: string } {
     const { project, impowerDataMap: impowerProject, impowerGame } = this;
     const color: Color = getRuntimeValue(
-      project.instances.configs.data.BackgroundConfig.game,
+      project?.instances?.configs?.data?.BackgroundConfig?.game,
       impowerProject?.variables,
       impowerGame
     );
@@ -293,7 +292,7 @@ export class PhaserGame extends Phaser.Game {
   getUIStyle(): { backgroundColor: string } {
     const { project, impowerDataMap: impowerProject, impowerGame } = this;
     const color: Color = getRuntimeValue(
-      project.instances.configs.data.BackgroundConfig.ui,
+      project?.instances?.configs?.data?.BackgroundConfig?.ui,
       impowerProject?.variables,
       impowerGame
     );

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { GameProjectData, ResourceProjectData } from "../../impower-game/data";
+import { GameProjectData } from "../../impower-game/data";
 import { ProjectEngineSync } from "../types/classes/projectEngineSync";
 
-export const useProjectData = <T extends ResourceProjectData | GameProjectData>(
+export const useProjectData = <T extends GameProjectData>(
   projectId: string,
   onLoad?: (doc: T) => void
 ): T => {

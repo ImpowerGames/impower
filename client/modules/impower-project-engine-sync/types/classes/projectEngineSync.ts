@@ -2,11 +2,7 @@ import { ProjectDocumentPath } from "../../../impower-api";
 import { Event, RecursivePartial } from "../../../impower-core";
 import { getUpdatedFields } from "../../../impower-data-state";
 import { ProjectDocument } from "../../../impower-data-store";
-import {
-  GameProjectData,
-  ProjectData,
-  ResourceProjectData,
-} from "../../../impower-game/data";
+import { GameProjectData, ProjectData } from "../../../impower-game/data";
 
 export class ProjectEngineSync {
   private static _instance: ProjectEngineSync;
@@ -42,7 +38,7 @@ export class ProjectEngineSync {
     return this._onSync;
   }
 
-  async loadData<T extends GameProjectData | ResourceProjectData>(
+  async loadData<T extends GameProjectData>(
     ...path: ProjectDocumentPath
   ): Promise<T> {
     this.onLoad.emit();
@@ -61,7 +57,7 @@ export class ProjectEngineSync {
     return { ...projectData } as T;
   }
 
-  async updateData<T extends GameProjectData | ResourceProjectData>(
+  async updateData<T extends GameProjectData>(
     value: RecursivePartial<T>,
     ...path: ProjectDocumentPath
   ): Promise<void> {
@@ -73,7 +69,7 @@ export class ProjectEngineSync {
     this.onSync.emit();
   }
 
-  syncData<T extends GameProjectData | ResourceProjectData>(
+  syncData<T extends GameProjectData>(
     newProject: T,
     oldProject: T,
     ...path: ProjectDocumentPath

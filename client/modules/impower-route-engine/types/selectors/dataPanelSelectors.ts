@@ -1,19 +1,19 @@
 import { Vector2 } from "../../../impower-core";
 import {
-  ContainerType,
-  ConstructData,
   BlockData,
+  ConstructData,
   ContainerData,
-  isPositionable,
-  ItemType,
+  ContainerType,
   isBlockData,
-  ItemData,
   isConstructData,
+  isPositionable,
+  ItemData,
+  ItemType,
   Reference,
 } from "../../../impower-game/data";
 import {
-  DataPanelState,
   DataInteractionType,
+  DataPanelState,
   DataPanelType,
   DataWindowType,
   PanelInteractionState,
@@ -109,7 +109,7 @@ export const getPositions = (projectContainers: {
   [refId: string]: ContainerData;
 }): { [refId: string]: Vector2 } => {
   const positions: { [refId: string]: Vector2 } = {};
-  Object.values(projectContainers).forEach((container) => {
+  Object.values(projectContainers || {}).forEach((container) => {
     if (isPositionable(container)) {
       positions[container.reference.refId] = container.nodePosition;
     }

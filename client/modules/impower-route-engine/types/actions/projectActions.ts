@@ -4,7 +4,6 @@ import {
   GameProjectData,
   InstanceData,
   Reference,
-  ResourceProjectData,
 } from "../../../impower-game/data";
 
 export const PROJECT_ACCESS = "PROJECT_ACCESS";
@@ -149,12 +148,12 @@ export interface ProjectLoadDataAction {
   type: typeof PROJECT_LOAD_DATA;
   payload: {
     id: string;
-    data: ResourceProjectData | GameProjectData;
+    data: GameProjectData;
   };
 }
 export const projectLoadData = (
   id: string,
-  data: ResourceProjectData | GameProjectData
+  data: GameProjectData
 ): ProjectLoadDataAction => {
   return {
     type: PROJECT_LOAD_DATA,

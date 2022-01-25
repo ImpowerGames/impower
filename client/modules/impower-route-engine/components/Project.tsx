@@ -10,7 +10,7 @@ import React, {
   useState,
 } from "react";
 import { MemberAccess } from "../../impower-data-state";
-import { isGameDocument, isResourceDocument } from "../../impower-data-store";
+import { isGameDocument } from "../../impower-data-store";
 import { NavigationContext } from "../../impower-navigation";
 import {
   layout,
@@ -33,7 +33,7 @@ import {
   testPlayerVisibility,
 } from "../types/actions/testActions";
 import { windowSwitch } from "../types/actions/windowActions";
-import { gameWindows, resourceWindows } from "../types/info/windows";
+import { gameWindows } from "../types/info/windows";
 import { Control, Layout, Mode } from "../types/state/testState";
 import { PanelType, WindowType } from "../types/state/windowState";
 import { PanelbarPosition } from "./bars/Panelbar";
@@ -409,11 +409,7 @@ const Project = React.memo((): JSX.Element => {
     handleComplete
   );
 
-  const footerButtons = isResourceDocument(state?.present?.project?.data?.doc)
-    ? access === MemberAccess.Viewer
-      ? resourceWindows.filter((w) => w.type === WindowType.Test)
-      : resourceWindows
-    : isGameDocument(state?.present?.project?.data?.doc)
+  const footerButtons = isGameDocument(state?.present?.project?.data?.doc)
     ? access === MemberAccess.Viewer
       ? gameWindows.filter((w) => w.type === WindowType.Test)
       : gameWindows

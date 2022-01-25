@@ -1,13 +1,13 @@
+import { BlockData, ConstructData } from "../../data";
+import { ImpowerGameRunner } from "../../runner/classes/impowerGameRunner";
+import { FileData } from "./instances/file/fileData";
+import { CommandData } from "./instances/items/command/commandData";
+import { CommandRunner } from "./instances/items/command/commandRunner";
 import { ElementData } from "./instances/items/element/elementData";
-import { VariableData } from "./instances/items/variable/variableData";
-import { GameProjectData } from "./project/gameProjectData";
 import { TriggerData } from "./instances/items/trigger/triggerData";
 import { TriggerRunner } from "./instances/items/trigger/triggerRunner";
-import { CommandRunner } from "./instances/items/command/commandRunner";
-import { CommandData } from "./instances/items/command/commandData";
-import { ImpowerGameRunner } from "../../runner/classes/impowerGameRunner";
-import { BlockData, ConstructData } from "../../data";
-import { FileData } from "./instances/file/fileData";
+import { VariableData } from "./instances/items/variable/variableData";
+import { GameProjectData } from "./project/gameProjectData";
 
 export class ImpowerDataMap {
   private _files: { [refId: string]: FileData };
@@ -73,24 +73,26 @@ export class ImpowerDataMap {
   }
 
   constructor(project: GameProjectData, runner: ImpowerGameRunner) {
-    this._files = { ...project.instances.files.data };
+    this._files = { ...(project?.instances?.files?.data || {}) };
     this._constructs = {};
     this._variables = {};
     this._elements = {};
     this._blocks = {};
     this._blockInternalRunners = {};
 
-    Object.values(project.instances.constructs.data).forEach((construct) => {
-      this._constructs[construct.reference.refId] = construct;
-      Object.values(construct.variables.data).forEach((variable) => {
-        this._variables[variable.reference.refId] = variable;
-      });
-      Object.values(construct.elements.data).forEach((element) => {
-        this._elements[element.reference.refId] = element;
-      });
-    });
+    Object.values(project?.instances?.constructs?.data || {}).forEach(
+      (construct) => {
+        this._constructs[construct.reference.refId] = construct;
+        Object.values(construct.variables.data).forEach((variable) => {
+          this._variables[variable.reference.refId] = variable;
+        });
+        Object.values(construct.elements.data).forEach((element) => {
+          this._elements[element.reference.refId] = element;
+        });
+      }
+    );
 
-    Object.values(project.instances.blocks.data).forEach((block) => {
+    Object.values(project?.instances?.blocks?.data || {}).forEach((block) => {
       this._blocks[block.reference.refId] = block;
       this._blockInternalRunners[block.reference.refId] = {
         triggers: runner.getIterableRunners(block.triggers),

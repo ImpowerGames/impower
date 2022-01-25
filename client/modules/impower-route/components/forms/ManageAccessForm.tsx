@@ -154,9 +154,6 @@ interface ManageAccessFormProps {
   claimableCollection: "studios" | "projects";
   claimableIds: string[];
   claimableDocs: MemberData[];
-  memberDocs: {
-    [id: string]: MemberData;
-  };
   doc: AccessDocument;
   allowEdit?: boolean;
   submitting?: boolean;
@@ -173,7 +170,6 @@ const ManageAccessForm = React.memo(
       claimableCollection,
       claimableIds,
       claimableDocs,
-      memberDocs,
       doc,
       allowEdit,
       submitting,
@@ -248,7 +244,7 @@ const ManageAccessForm = React.memo(
           );
         }
       },
-      [claimableCollection, memberDocs, userDispatch]
+      [claimableCollection, userDispatch]
     );
 
     const doUpdateClaimableMembers = useCallback(

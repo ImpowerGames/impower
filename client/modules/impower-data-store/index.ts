@@ -1,6 +1,5 @@
 export * from "./classes/inspectors/pageDocumentInspector";
 export * from "./classes/inspectors/projectDocumentInspector";
-export * from "./classes/inspectors/resourceDocumentInspector";
 export * from "./classes/inspectors/studioDocumentInspector";
 export * from "./classes/inspectors/userDocumentInspector";
 export * from "./hooks/useDataStoreConnectionStatus";
@@ -80,8 +79,6 @@ export { default as isPageDocument } from "./utils/isPageDocument";
 export { default as isPathDocument } from "./utils/isPathDocument";
 export { default as isPhraseDocument } from "./utils/isPhraseDocument";
 export { default as isProjectDocument } from "./utils/isProjectDocument";
-export { default as isResourceDocument } from "./utils/isResourceDocument";
-export { default as isSettingsDocument } from "./utils/isSettingsDocument";
 export { default as isSlugDocument } from "./utils/isSlugDocument";
 export { default as isStudioDocument } from "./utils/isStudioDocument";
 export { default as isSuggestionDocument } from "./utils/isSuggestionDocument";

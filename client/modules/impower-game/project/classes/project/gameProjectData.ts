@@ -1,44 +1,44 @@
 import { Collection } from "../../../../impower-core";
-import { createConstructReference } from "../../../data/interfaces/references/constructReference";
+import { ContainerType } from "../../../data/enums/data";
 import { createBlockReference } from "../../../data/interfaces/references/blockReference";
+import { createConstructReference } from "../../../data/interfaces/references/constructReference";
+import { ConfigData } from "../instances/config/configData";
 import { ConfigTypeId } from "../instances/config/configTypeId";
 import {
-  createScaleConfigData,
-  ScaleConfigData,
-} from "../instances/configs/scaleConfig/scaleConfigData";
+  AdvancedConfigData,
+  createAdvancedConfigData,
+} from "../instances/configs/advancedConfig/advancedConfigData";
 import {
   BackgroundConfigData,
   createBackgroundConfigData,
 } from "../instances/configs/backgroundConfig/backgroundConfigData";
 import {
-  createAdvancedConfigData,
-  AdvancedConfigData,
-} from "../instances/configs/advancedConfig/advancedConfigData";
-import {
-  createSaveConfigData,
-  SaveConfigData,
-} from "../instances/configs/saveConfig/saveConfigData";
+  createDebugConfigData,
+  DebugConfigData,
+} from "../instances/configs/debugConfig/debugConfigData";
 import {
   createPhysicsConfigData,
   PhysicsConfigData,
 } from "../instances/configs/physicsConfig/physicsConfigData";
 import {
-  createDebugConfigData,
-  DebugConfigData,
-} from "../instances/configs/debugConfig/debugConfigData";
+  createSaveConfigData,
+  SaveConfigData,
+} from "../instances/configs/saveConfig/saveConfigData";
 import {
-  ConstructData,
-  createConstructData,
-} from "../instances/containers/construct/constructData";
+  createScaleConfigData,
+  ScaleConfigData,
+} from "../instances/configs/scaleConfig/scaleConfigData";
 import {
   BlockData,
   createBlockData,
 } from "../instances/containers/block/blockData";
-import { ContainerType } from "../../../data/enums/data";
-import { ConfigData } from "../instances/config/configData";
-import { createProjectData, isProjectData, ProjectData } from "./projectData";
+import {
+  ConstructData,
+  createConstructData,
+} from "../instances/containers/construct/constructData";
 import { FileData } from "../instances/file/fileData";
 import { FolderData } from "../instances/folder/folderData";
+import { createProjectData, ProjectData } from "./projectData";
 
 export interface ConfigDataCollection
   extends Collection<ConfigData, ConfigTypeId> {
@@ -111,15 +111,3 @@ export const createGameProjectData = (
   },
   ...obj,
 });
-
-export const isGameProjectData = (obj: unknown): obj is GameProjectData => {
-  if (!obj) {
-    return false;
-  }
-  const projectData = obj as GameProjectData;
-  return (
-    isProjectData(obj) &&
-    projectData?.instances?.constructs !== undefined &&
-    projectData?.instances?.blocks !== undefined
-  );
-};

@@ -15,17 +15,11 @@ import CircleQuestionSolidIcon from "../../../../resources/icons/solid/circle-qu
 import OctagonXmarkSolidIcon from "../../../../resources/icons/solid/octagon-xmark.svg";
 import TriangleExclamationSolidIcon from "../../../../resources/icons/solid/triangle-exclamation.svg";
 import { throttle } from "../../../impower-core";
-import {
-  isGameDocument,
-  isResourceDocument,
-  ProjectDocument,
-} from "../../../impower-data-store";
+import { ProjectDocument } from "../../../impower-data-store";
 import { Player } from "../../../impower-game-player";
 import {
   CenterType,
   GameProjectData,
-  isGameProjectData,
-  ResourceProjectData,
   ScaleModeType,
 } from "../../../impower-game/data";
 import { LogData } from "../../../impower-game/game";
@@ -35,7 +29,6 @@ import { VirtualizedItem } from "../../../impower-react-virtualization";
 import { AccessibleEvent } from "../../../impower-route";
 import FadeAnimation from "../../../impower-route/components/animations/FadeAnimation";
 import UnmountAnimation from "../../../impower-route/components/animations/UnmountAnimation";
-import LazyImage from "../../../impower-route/components/elements/LazyImage";
 import PlayerPreview from "../../../impower-route/components/elements/PlayerPreview";
 import Page from "../../../impower-route/components/layouts/Page";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
@@ -504,7 +497,7 @@ interface TestPanelContentProps {
   uid: string;
   docId: string;
   doc: ProjectDocument;
-  project: GameProjectData | ResourceProjectData;
+  project: GameProjectData;
   startTime: number;
   mode: Mode;
   control: Control;
@@ -532,13 +525,8 @@ const TestPanelContent = React.memo(
         setBreakpoint(getBreakpoint(contentRect.bounds.width));
       }
     }, []);
-    const width = isGameProjectData(project)
-      ? project?.instances?.configs?.data?.ScaleConfig?.width
-      : 16;
-    const height = isGameProjectData(project)
-      ? project?.instances?.configs?.data?.ScaleConfig?.height
-      : 9;
-    const previewSrc = doc?.preview?.fileUrl;
+    const width = project?.instances?.configs?.data?.ScaleConfig?.width;
+    const height = project?.instances?.configs?.data?.ScaleConfig?.height;
 
     const theme = useTheme();
 
@@ -563,30 +551,14 @@ const TestPanelContent = React.memo(
               getPlaceholderUrl={getPlaceholderUrl}
               preview
             >
-              {isGameDocument(doc) && isGameProjectData(project) && (
-                <TestPlayer
-                  doc={doc}
-                  project={project}
-                  startTime={startTime}
-                  mode={mode}
-                  control={control}
-                  debug={debug}
-                />
-              )}
-              {isResourceDocument(doc) && (
-                <LazyImage
-                  src={previewSrc}
-                  placeholder={getPlaceholderUrl(previewSrc)}
-                  objectFit="cover"
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                  }}
-                />
-              )}
+              <TestPlayer
+                doc={doc}
+                project={project}
+                startTime={startTime}
+                mode={mode}
+                control={control}
+                debug={debug}
+              />
             </Page>
           )}
         </Measure>

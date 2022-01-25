@@ -631,7 +631,6 @@ const MembersConsole = (props: MembersConsoleProps): JSX.Element => {
           claimableCollection="studios"
           claimableIds={claimableIds}
           claimableDocs={claimableDocs}
-          memberDocs={memberDocs}
           doc={accessDoc}
           onChange={setAccessDoc}
           onSubmit={handleSubmitAccessMenu}
