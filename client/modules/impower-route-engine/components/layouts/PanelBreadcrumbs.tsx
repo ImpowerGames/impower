@@ -8,7 +8,7 @@ const StyledBreadcrumbs = styled.div`
   flex: 1;
   position: relative;
   min-width: 0;
-  min-height: ${(props): string => props.theme.spacing(4)};
+  min-height: ${(props): string => props.theme.spacing(2)};
 `;
 
 const StyledBreadcrumbsContent = styled.div`

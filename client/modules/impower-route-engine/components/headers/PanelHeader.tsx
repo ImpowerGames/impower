@@ -13,7 +13,6 @@ const StyledBottomButtonContent = styled.div`
     ${(props): string => props.theme.spacing(props.theme.space.panelLeft)} -
       ${(props): string => props.theme.spacing(2)}
   );
-  margin-top: -${(props): string => props.theme.spacing(1)};
 `;
 
 interface PanelHeaderProps {

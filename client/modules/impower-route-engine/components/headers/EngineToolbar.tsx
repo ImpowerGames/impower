@@ -36,6 +36,7 @@ const StyledEngineToolbar = styled.div`
   color: inherit;
   background-color: inherit;
   padding: ${(props): string => props.theme.spacing(0, 2)};
+  margin-bottom: ${(props): string => props.theme.spacing(1)};
   top: 0;
   left: 0;
   right: 0;

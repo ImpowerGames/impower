@@ -648,8 +648,6 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     setScrollParent(scrollParent);
   }, []);
 
-  const panelHeaderStyle = useMemo(() => ({ zIndex: 2 }), []);
-
   return (
     <>
       <Panel
@@ -678,7 +676,6 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
                 />
               ) : undefined
             }
-            style={panelHeaderStyle}
           />
         }
       >
