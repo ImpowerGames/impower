@@ -126,8 +126,8 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
     if (phaserGame) {
       if (
         JSON.stringify(
-          phaserGame.project.instances.configs.data.ScaleConfig
-        ) !== JSON.stringify(project.instances.configs.data.ScaleConfig)
+          phaserGame?.project?.instances?.configs?.data?.ScaleConfig
+        ) !== JSON.stringify(project?.instances?.configs?.data?.ScaleConfig)
       ) {
         phaserGame.destroy(true);
         setPhaserGame(
