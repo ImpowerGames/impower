@@ -43,7 +43,7 @@ interface GamePageProps {
   config: ConfigParameters;
 }
 
-const GamePage = React.memo((props: GamePageProps) => {
+const EngineProjectPage = React.memo((props: GamePageProps) => {
   const { config } = props;
 
   const [, navigationDispatch] = useContext(NavigationContext);
@@ -79,7 +79,7 @@ const GamePage = React.memo((props: GamePageProps) => {
   );
 });
 
-export default GamePage;
+export default EngineProjectPage;
 
 export const getStaticPaths: GetStaticPaths = async () => {
   return { paths: [], fallback: "blocking" };

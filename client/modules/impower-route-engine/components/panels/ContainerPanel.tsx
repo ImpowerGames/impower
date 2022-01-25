@@ -193,7 +193,7 @@ const getParentContainer = (
   parentContainerId: string,
   containers: { [refId: string]: ContainerData }
 ): ContainerData => {
-  return containers[parentContainerId];
+  return containers?.[parentContainerId];
 };
 
 const isRoot = (
@@ -203,8 +203,8 @@ const isRoot = (
   return (
     !parentContainer ||
     !parentContainer ||
-    parentContainer.reference.parentContainerId === "" ||
-    !containers[parentContainer.reference.parentContainerId]
+    parentContainer?.reference?.parentContainerId === "" ||
+    !containers?.[parentContainer?.reference?.parentContainerId || ""]
   );
 };
 
@@ -562,13 +562,15 @@ const ContainerPanelContent = React.memo(
       return getContainerChart(inspector, childContainers);
     }, [inspector, childContainers]);
 
-    const parentContainerId = parentContainer.reference.refId;
+    const parentContainerId = parentContainer?.reference?.refId;
     const buttonShape = ButtonShape.Square;
 
     const getSearchTargets = (refId: string): string[] => [
       list.data[refId].name,
       list.data[refId].summary,
     ];
+
+    const Icon = headerInfo.iconOn;
 
     switch (containerPanelState.arrangement) {
       case ContainerArrangement.Chart:
@@ -651,7 +653,7 @@ const ContainerPanelContent = React.memo(
                     <EmptyPanelContent
                       instruction={addInstruction}
                       name={headerInfo.name}
-                      icon={headerInfo.iconOn}
+                      icon={<Icon />}
                       onContextMenu={onContextMenu}
                     />
                   </StyledEmptyPanelContentArea>
@@ -884,12 +886,12 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       dataPanelInspect(
         windowType,
         DataPanelType.Container,
-        parentContainer.reference.parentContainerId
+        parentContainer?.reference?.parentContainerId
       )
     );
     setBreadcrumbIndex(
       headerBreadcrumbs.findIndex(
-        (x) => x.id === parentContainer.reference.parentContainerId
+        (x) => x.id === parentContainer?.reference?.parentContainerId
       )
     );
     setBreadcrumbPreviousIndex(
@@ -898,7 +900,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   }, [
     dispatch,
     windowType,
-    parentContainer.reference.parentContainerId,
+    parentContainer?.reference?.parentContainerId,
     headerBreadcrumbs,
     parentContainerId,
   ]);
@@ -939,7 +941,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       dispatch(
         projectUpdateData(
           "Reorder",
-          [parentContainer.reference],
+          [parentContainer?.reference],
           "childContainerIds",
           ids
         )
@@ -1704,6 +1706,8 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const fabLabel = `Add ${headerInfo.name}`;
 
+  const Icon = headerInfo.iconOn;
+
   return (
     <Panel
       key={containerType}
@@ -1809,7 +1813,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
                 <EmptyPanelContent
                   instruction={addInstruction}
                   name={headerInfo.name}
-                  icon={headerInfo.iconOn}
+                  icon={<Icon />}
                   onContextMenu={handleContextMenu}
                 />
               </StyledChartEmptyPanelContentArea>

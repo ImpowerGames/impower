@@ -952,8 +952,8 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
   const handleDialogRef = useCallback((element: HTMLElement) => {
     if (element) {
       setDialogScrollElement(
-        element.querySelector(".MuiDialog-scrollPaper")
-          .firstElementChild as HTMLElement
+        element?.querySelector?.(".MuiDialog-scrollPaper")
+          ?.firstElementChild as HTMLElement
       );
     }
   }, []);

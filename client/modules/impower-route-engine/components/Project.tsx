@@ -442,6 +442,10 @@ const Project = React.memo((): JSX.Element => {
     };
   }, []);
 
+  useEffect(() => {
+    document.documentElement.style.overflowY = portrait ? "scroll" : "hidden";
+  }, [portrait]);
+
   return (
     <WindowTransitionContext.Provider value={windowTransitionContext}>
       <StyledProject onContextMenu={handleContextMenu}>

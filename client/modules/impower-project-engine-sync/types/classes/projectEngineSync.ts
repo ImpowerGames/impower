@@ -3,7 +3,6 @@ import { Event, RecursivePartial } from "../../../impower-core";
 import { getUpdatedFields } from "../../../impower-data-state";
 import { ProjectDocument } from "../../../impower-data-store";
 import {
-  ConfigDataCollection,
   GameProjectData,
   ProjectData,
   ResourceProjectData,
@@ -52,60 +51,14 @@ export class ProjectEngineSync {
     ).default;
     const docSnap = await new DataStateRead(...path, "doc").get();
     const membersSnap = await new DataStateRead(...path, "members").get();
-    const filesSnap = await new DataStateRead(
-      ...path,
-      "instances",
-      "files"
-    ).get();
-    const foldersSnap = await new DataStateRead(
-      ...path,
-      "instances",
-      "folders"
-    ).get();
+    const instancesSnap = await new DataStateRead(...path, "instances").get();
     const projectData: ProjectData = {
       doc: docSnap.val(),
       members: membersSnap.val(),
-      instances: {
-        files: filesSnap.val(),
-        folders: foldersSnap.val(),
-      },
+      instances: instancesSnap.val(),
     };
-    const gameData: GameProjectData = {
-      instances: {
-        files: { data: {} },
-        folders: { data: {} },
-        configs: { data: {} } as ConfigDataCollection,
-        constructs: { data: {} },
-        blocks: { data: {} },
-      },
-    };
-    const projectCollection = path[0];
-    const projectId = path[1];
-    if (projectCollection === "projects") {
-      const configsSnap = await new DataStateRead(
-        projectCollection,
-        projectId,
-        "instances",
-        "configs"
-      ).get();
-      const constructsSnap = await new DataStateRead(
-        projectCollection,
-        projectId,
-        "instances",
-        "constructs"
-      ).get();
-      const blocksSnap = await new DataStateRead(
-        projectCollection,
-        projectId,
-        "instances",
-        "blocks"
-      ).get();
-      gameData.instances.configs = configsSnap.val();
-      gameData.instances.constructs = constructsSnap.val();
-      gameData.instances.blocks = blocksSnap.val();
-    }
     this.onLoaded.emit();
-    return { ...projectData, ...(gameData || {}) } as T;
+    return { ...projectData } as T;
   }
 
   async updateData<T extends GameProjectData | ResourceProjectData>(

@@ -141,7 +141,7 @@ const ResourceContextProvider = React.memo(
             .filter(([key]) => key !== loadedResourceId)
             .map(([key, value]) => ({
               label: value.name,
-              link: `/e/g/${key}`,
+              link: `/e/p/${key}`,
             }))
         : [];
       navigationDispatch(

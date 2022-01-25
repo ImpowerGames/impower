@@ -156,7 +156,7 @@ const GamePage = React.memo((props: GamePageProps) => {
     return getPlaceholderUrl(fileUrl);
   }, []);
 
-  const url = useMemo(() => `/g/${slug}`, [slug]);
+  const url = useMemo(() => `/i/${slug}`, [slug]);
 
   const theme = useTheme();
 

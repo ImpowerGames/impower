@@ -73,14 +73,14 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const { children } = props;
 
   const router = useRouter();
-  const { gid } = router.query;
+  const { pid } = router.query;
   const [, navigationDispatch] = useContext(NavigationContext);
   const [userState] = useContext(UserContext);
   const { my_studio_memberships, my_project_memberships } = userState;
 
   const theme = useTheme();
 
-  const loadedGameId = Array.isArray(gid) ? gid[0] : gid;
+  const loadedProjectId = Array.isArray(pid) ? pid[0] : pid;
 
   const projectEngineContext = useUndoableReducer(
     projectEngineReducer,
@@ -106,8 +106,8 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     if (my_project_memberships === null) {
       return null;
     }
-    return my_project_memberships[loadedGameId];
-  }, [loadedGameId, my_project_memberships]);
+    return my_project_memberships[loadedProjectId];
+  }, [loadedProjectId, my_project_memberships]);
 
   const studioMemberDoc = useMemo(() => {
     if (my_studio_memberships === undefined) {
@@ -135,11 +135,11 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
 
   const handleLoadProjectData = useCallback(
     (data: GameProjectData) => {
-      projectEngineDispatch(projectLoadData(loadedGameId, data));
+      projectEngineDispatch(projectLoadData(loadedProjectId, data));
     },
-    [projectEngineDispatch, loadedGameId]
+    [projectEngineDispatch, loadedProjectId]
   );
-  useProjectData(loadedGameId, handleLoadProjectData);
+  useProjectData(loadedProjectId, handleLoadProjectData);
 
   useEffect(() => {
     navigationDispatch(
@@ -160,10 +160,10 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   useEffect(() => {
     const gameLinks = recentGameDocs
       ? Object.entries(recentGameDocs)
-          .filter(([key]) => key !== loadedGameId)
+          .filter(([key]) => key !== loadedProjectId)
           .map(([key, value]) => ({
             label: value.name,
-            link: `/e/g/${key}`,
+            link: `/e/p/${key}`,
           }))
       : [];
     navigationDispatch(
@@ -173,7 +173,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
         { label: "View All Games", link: `/e/s/${loadedStudioId}?t=games` },
       ])
     );
-  }, [navigationDispatch, loadedGameId, recentGameDocs, loadedStudioId]);
+  }, [navigationDispatch, loadedProjectId, recentGameDocs, loadedStudioId]);
 
   const [game, setGame] = useState<ImpowerGame>();
   const [gameInspector, setGameInspector] = useState<ImpowerGameInspector>(
@@ -341,7 +341,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const loading =
     !access ||
     !loadedStudioId ||
-    !loadedGameId ||
+    !loadedProjectId ||
     !projectEngineState.present.project.id ||
     projectEngineState.present.project.data === undefined;
 

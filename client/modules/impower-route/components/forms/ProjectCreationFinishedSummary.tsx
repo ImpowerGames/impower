@@ -19,13 +19,13 @@ const actionButtons: {
   Pitch: {
     label: "Build It!",
     icon: ScrewdriverWrenchRegularIcon,
-    link: "/e/g/{id}",
+    link: "/e/p/{id}",
     variant: "contained",
   },
   Build: {
     label: "Pitch It!",
     icon: BullhornRegularIcon,
-    link: "/g/p?game={id}",
+    link: "/pitch",
     variant: "outlined",
   },
 };

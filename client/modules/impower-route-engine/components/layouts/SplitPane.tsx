@@ -269,9 +269,9 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
 
     if (isPanel1Primary) {
       setPane1Size(newSize);
-      setPane2Size(undefined);
+      setPane2Size("100%");
     } else {
-      setPane1Size(undefined);
+      setPane1Size("100%");
       setPane2Size(newSize);
     }
   }, [defaultSize, draggedSize, maxSize, minSize, primary, size]);

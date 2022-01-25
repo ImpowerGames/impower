@@ -264,6 +264,7 @@ export type PageMemberWritePath = PageMemberReadPath;
 export type PageMemberQueryPath = [...PageDocumentPath, "members", "data"];
 
 export type ProjectInstancesReadPath =
+  | [...ProjectDocumentPath, "instances"]
   | [...ProjectDocumentPath, "instances", "files"]
   | [...ProjectDocumentPath, "instances", "folders"]
   | [...ProjectDocumentPath, "instances", "configs"]

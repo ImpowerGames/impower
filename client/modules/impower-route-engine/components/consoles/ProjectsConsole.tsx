@@ -281,13 +281,13 @@ const ProjectsConsoleContent = (
         onClick(event as React.MouseEvent, id);
       }
       if (option === "Pitch Project") {
-        router.push(`/g/p?project=${id}`);
+        router.push(`/pitch`);
       }
       if (option === "View Pitch") {
-        router.push(`/g/p/${id}`);
+        router.push(`/p/${id}`);
       }
       if (option === "View Public Page") {
-        router.push(`/g/${data.slug}`);
+        router.push(`/i/${data.slug}`);
       }
     },
     [projectMemberships, onClick, router]
@@ -453,7 +453,7 @@ const ProjectsConsole = (props: YourProjectsConsoleProps): JSX.Element => {
       if (id) {
         try {
           const router = (await import("next/router")).default;
-          await router.push(`/e/g/${id}`);
+          await router.push(`/e/p/${id}`);
         } catch (error) {
           toastDispatch(toastTop(error.message, "error"));
         }
