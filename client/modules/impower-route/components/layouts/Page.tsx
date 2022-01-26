@@ -1471,8 +1471,18 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
 
   const isFolded = edit || folded;
 
-  const developerHandle = doc._author?.u;
-  const developerLink = `/u/${developerHandle}`;
+  const developerName =
+    isProjectDocument(doc) && doc.studioInfo
+      ? doc.studioInfo?.n
+      : doc._author?.u;
+  const developerHandle =
+    isProjectDocument(doc) && doc.studioInfo
+      ? doc.studioInfo?.u
+      : doc._author?.u;
+  const developerLink =
+    isProjectDocument(doc) && doc.studioInfo
+      ? `/i/s/${developerHandle}`
+      : `/u/${developerHandle}`;
 
   useEffect(() => {
     setIsLiked(liked);
@@ -1816,7 +1826,7 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
                       {doc?.name || <Skeleton width={200} />}
                     </StyledNameTypography>
                     {doc ? (
-                      developerHandle && (
+                      developerName && (
                         <StyledDeveloperArea>
                           <StyledDeveloperTypography variant="body2">
                             {`${developerPrefix} `}
@@ -1825,7 +1835,7 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
                             variant="body2"
                             href={developerLink}
                           >
-                            {developerHandle}
+                            {developerName}
                           </StyledDeveloperLink>
                         </StyledDeveloperArea>
                       )

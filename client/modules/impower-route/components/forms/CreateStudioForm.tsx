@@ -43,7 +43,7 @@ const steps: CreationStep[] = [
   {
     title: "Customize your studio",
     description: "Last thing! Give your studio a name!",
-    propertyPaths: ["name", "slug"],
+    propertyPaths: ["name"],
   },
 ];
 

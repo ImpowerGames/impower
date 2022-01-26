@@ -1,3 +1,5 @@
+import { InfoAttributes } from "./infoAttributes";
+
 export interface AggData extends Record<string, unknown> {
   /** group */
   g?: string;
@@ -6,16 +8,7 @@ export interface AggData extends Record<string, unknown> {
   /** time */
   t?: number;
   /** author */
-  readonly a?: {
-    /** name */
-    n?: string;
-    /** username */
-    u?: string;
-    /** icon */
-    i?: string;
-    /** hex */
-    h?: string;
-  };
+  readonly a?: InfoAttributes;
   /** read  */
   r?: boolean;
   type?: string;

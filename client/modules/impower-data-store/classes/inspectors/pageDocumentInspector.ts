@@ -60,6 +60,11 @@ export class PageDocumentInspector<T extends PageDocument>
         return true;
       }
     }
+    if (propertyPath === "handle") {
+      if (data.handle !== undefined) {
+        return true;
+      }
+    }
     if (propertyPath === "version") {
       if (
         data.status === DevelopmentStatus.EarlyAccess ||

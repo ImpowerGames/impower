@@ -1,5 +1,6 @@
 import { MemberAccess } from "../enums/memberAccess";
 import { AggData } from "./aggData";
+import { InfoAttributes } from "./infoAttributes";
 
 export interface MemberData extends AggData {
   g?: "studios" | "projects";
@@ -7,31 +8,7 @@ export interface MemberData extends AggData {
   role?: string;
   accessedAt?: number;
   /** studio */
-  readonly s?: {
-    id?: string;
-    /** tags */
-    tags?: string[];
-    /** name */
-    n?: string;
-    /** unique name */
-    u?: string;
-    /** icon */
-    i?: string;
-    /** hex */
-    h?: string;
-  };
+  readonly s?: InfoAttributes;
   /** project */
-  readonly p?: {
-    id?: string;
-    /** tags */
-    tags?: string[];
-    /** name */
-    n?: string;
-    /** unique name */
-    u?: string;
-    /** icon */
-    i?: string;
-    /** hex */
-    h?: string;
-  };
+  readonly p?: InfoAttributes;
 }
