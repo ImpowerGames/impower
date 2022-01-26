@@ -24,8 +24,8 @@ const PeerTransition = React.memo(
       <UnmountAnimation
         disableFirstTimeEnter
         exitProps={{
-          initial: 0,
-          animate: 0,
+          initial: xDirection > 0 ? 1 : -1,
+          animate: xDirection > 0 ? 1 : -1,
           exit: xDirection > 0 ? -1 : 1,
           style: {
             position: "absolute",
@@ -38,6 +38,7 @@ const PeerTransition = React.memo(
       >
         <PeerAnimation
           key={currentIndex.toString()}
+          id={currentIndex.toString()}
           initial={xDirection > 0 ? 1 : -1}
           animate={0}
           exit={xDirection > 0 ? -1 : 1}

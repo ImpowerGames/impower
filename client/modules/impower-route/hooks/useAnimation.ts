@@ -109,21 +109,6 @@ export function useAnimation(
     style: latestStyle,
   } = latestProps;
 
-  const latestNoEnterAnimation =
-    latestInitialRender.current &&
-    latestInitial !== undefined &&
-    latestInitial !== null;
-
-  const latestValidDuration = latestNoEnterAnimation ? 0 : duration || 0;
-  const latestValidDelay = latestNoEnterAnimation ? 0 : delay || 0;
-
-  const latestAnimationStyle = {
-    transitionDuration: `${latestValidDuration}s`,
-    transitionTimingFunction: `${bezier(ease)}`,
-    transitionDelay: `${latestValidDelay}s`,
-    ...latestStyle,
-  };
-
   // It's safe to call the following hooks conditionally (after an early return) because the context will always
   // either be null or non-null for the lifespan of the component.
 
@@ -161,5 +146,26 @@ export function useAnimation(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPresent, latestAnimate]);
 
-  return [latestState, latestAnimationStyle, handleTransitionEnd];
+  const initialExit = exiting.current && !exitProps;
+
+  const latestNoEnterAnimation =
+    initialExit ||
+    (latestInitialRender.current &&
+      latestInitial !== undefined &&
+      latestInitial !== null);
+  const latestValidDuration = latestNoEnterAnimation ? 0 : duration || 0;
+  const latestValidDelay = latestNoEnterAnimation ? 0 : delay || 0;
+
+  const latestAnimationStyle = {
+    transitionDuration: `${latestValidDuration}s`,
+    transitionTimingFunction: `${bezier(ease)}`,
+    transitionDelay: `${latestValidDelay}s`,
+    ...latestStyle,
+  };
+
+  return [
+    initialExit ? latestInitial : latestState,
+    latestAnimationStyle,
+    handleTransitionEnd,
+  ];
 }
