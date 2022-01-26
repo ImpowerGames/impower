@@ -46,7 +46,7 @@ import getReadableForegroundColorHex from "../../../impower-core/utils/getReadab
 import {
   DeveloperStatus,
   DevelopmentStatus,
-  getSearchUrl,
+  escapeURI,
   getTypeName,
   isProjectDocument,
   isStudioDocument,
@@ -63,6 +63,36 @@ import LazyImage from "../elements/LazyImage";
 import Markdown from "../elements/Markdown";
 import Slideshow from "../elements/Slideshow";
 import StringInput from "../inputs/StringInput";
+
+const getTagUrl = (...tags: string[]): string => {
+  return `/i/${escapeURI(tags.join(","))}`;
+};
+
+const getDate = (
+  date:
+    | string
+    | { _nanoseconds: number; _seconds: number }
+    | { toDate: () => Date }
+): Date => {
+  if (date === undefined) {
+    return undefined;
+  }
+  if (!date) {
+    return null;
+  }
+  if (date === "string") {
+    return new Date(date);
+  }
+  const dateInstance = date as { toDate: () => Date };
+  if (dateInstance.toDate) {
+    return dateInstance.toDate();
+  }
+  const dateObject = date as { _nanoseconds: number; _seconds: number };
+  if (dateObject._seconds) {
+    return new Date(dateObject._seconds * 1000);
+  }
+  return undefined;
+};
 
 const Skeleton = dynamic(() => import("@material-ui/core/Skeleton"), {
   ssr: false,
@@ -253,6 +283,10 @@ const StyledInfoTypography = styled(Typography)`
   display: block;
   line-height: 1.8;
   white-space: pre;
+`;
+
+const StyledDateTypography = styled(StyledInfoTypography)`
+  text-transform: none;
 `;
 
 const StyledIconArea = styled.div`
@@ -483,11 +517,13 @@ const StyledSortButton = styled(Button)`
 `;
 
 const StyledSortSelect = styled(Select)`
-  padding-top: 1px;
-  padding-left: ${(props): string => props.theme.spacing(1)};
-  padding-right: ${(props): string => props.theme.spacing(1)};
-  padding-bottom: ${(props): string => props.theme.spacing(0.5)};
+  padding: 0;
   border-radius: ${(props): string => props.theme.spacing(1)};
+  & .MuiInputBase-input {
+    padding-top: ${(props): string => props.theme.spacing(0.5)};
+    padding-bottom: ${(props): string => props.theme.spacing(1.5)};
+    padding-left: ${(props): string => props.theme.spacing(2)};
+  }
   &.MuiInput-underline:after {
     display: none;
   }
@@ -697,7 +733,7 @@ const Comments = React.memo((props: CommentsProps): JSX.Element => {
         <StyledSortArea>
           {allowRating && (
             <>
-              <StyledSortButton onClick={handleClickFilter}>
+              <StyledSortButton color="inherit" onClick={handleClickFilter}>
                 <StyledSortIconArea>
                   <FontIcon
                     aria-label="Filter"
@@ -718,7 +754,7 @@ const Comments = React.memo((props: CommentsProps): JSX.Element => {
               <StyledSortSpacer />
             </>
           )}
-          <StyledSortButton onClick={handleClickSort}>
+          <StyledSortButton color="inherit" onClick={handleClickSort}>
             <StyledSortIconArea>
               <FontIcon
                 aria-label="Sort"
@@ -728,12 +764,13 @@ const Comments = React.memo((props: CommentsProps): JSX.Element => {
                 <ArrowDownWideShortRegularIcon />
               </FontIcon>
             </StyledSortIconArea>
-            <StyledSortButtonTypography variant="button">
+            <StyledSortButtonTypography variant="button" color="inherit">
               {sortLabels[sortIndex]}
             </StyledSortButtonTypography>
           </StyledSortButton>
           <StyledSortSpacer />
           <StyledSortSelect
+            variant="standard"
             disabled={sortIndex > 0}
             value={sortIndex > 0 ? rangeLabels[0] : range}
             onChange={handleClickRange}
@@ -923,20 +960,13 @@ const PageContent = React.memo((props: PageContentProps): JSX.Element => {
 
   const followersCount = doc?.follows || 0;
 
-  const publishedAt =
-    typeof doc?.publishedAt === "string"
-      ? new Date(doc?.publishedAt)
-      : doc?.publishedAt?.toDate?.();
-
-  const republishedAt =
-    typeof doc?.republishedAt === "string"
-      ? new Date(doc?.republishedAt)
-      : doc?.republishedAt?.toDate?.();
-
-  const updatedAt =
-    typeof doc?._updatedAt === "string"
-      ? new Date(doc?._updatedAt)
-      : doc?._updatedAt?.toDate?.();
+  const publishedAt = getDate(doc?.publishedAt);
+  const republishedAt = getDate(doc?.republishedAt);
+  const updatedAt = getDate(doc?._updatedAt);
+  const createdAt = getDate(doc?._createdAt);
+  const age = abbreviateAge(
+    republishedAt || publishedAt || updatedAt || createdAt
+  );
 
   const mainTag = doc?.tags?.[0] || "";
   const tagIconNames =
@@ -1155,11 +1185,9 @@ const PageContent = React.memo((props: PageContentProps): JSX.Element => {
                           <FontIcon aria-label="Last Published At" size={12}>
                             <ClockRegularIcon />
                           </FontIcon>
-                          <StyledInfoTypography variant="overline">
-                            {` ${abbreviateAge(
-                              republishedAt || publishedAt || updatedAt
-                            )}`}
-                          </StyledInfoTypography>
+                          <StyledDateTypography variant="overline">
+                            {` ${age}${age === "Now" ? "" : " ago"}`}
+                          </StyledDateTypography>
                         </>
                       ) : (
                         <Skeleton width={100} />
@@ -1275,7 +1303,7 @@ const PageContent = React.memo((props: PageContentProps): JSX.Element => {
                             <StyledTagListItem key={tag}>
                               <StyledTagLink
                                 variant="overline"
-                                href={getSearchUrl(doc?._documentType, tag)}
+                                href={getTagUrl(tag)}
                               >
                                 {tag}
                               </StyledTagLink>
@@ -1761,7 +1789,7 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
                                 fontSize: theme.typography.button.fontSize,
                                 fontWeight: theme.fontWeight.bold,
                               }}
-                              href={getSearchUrl(doc?._documentType, tag)}
+                              href={getTagUrl(tag)}
                             >
                               {tag}
                             </StyledTagLink>
@@ -1823,7 +1851,10 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
                             breakpoint >= Breakpoint.lg ? 300 : undefined,
                         }}
                       >
-                        <StyledEngagementButton onClick={handleLike}>
+                        <StyledEngagementButton
+                          color="inherit"
+                          onClick={handleLike}
+                        >
                           <FontIcon
                             aria-label="Likes"
                             color={theme.colors.black50}
@@ -1841,7 +1872,10 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
                               : "..."}
                           </StyledEngagementButtonTypography>
                         </StyledEngagementButton>
-                        <StyledEngagementButton onClick={handleDislike}>
+                        <StyledEngagementButton
+                          color="inherit"
+                          onClick={handleDislike}
+                        >
                           <FontIcon
                             aria-label="Dislikes"
                             color={theme.colors.black50}
@@ -1861,7 +1895,10 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
                               : "..."}
                           </StyledEngagementButtonTypography>
                         </StyledEngagementButton>
-                        <StyledEngagementButton onClick={onShare}>
+                        <StyledEngagementButton
+                          color="inherit"
+                          onClick={onShare}
+                        >
                           <FontIcon
                             aria-label="Share"
                             color={theme.colors.black50}
@@ -1873,7 +1910,10 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
                             {`Share`}
                           </StyledEngagementButtonTypography>
                         </StyledEngagementButton>
-                        <StyledEngagementButton onClick={handleFollow}>
+                        <StyledEngagementButton
+                          color="inherit"
+                          onClick={handleFollow}
+                        >
                           <FontIcon
                             aria-label="Follow"
                             color={theme.colors.black50}
