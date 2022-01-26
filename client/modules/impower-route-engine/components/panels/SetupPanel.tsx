@@ -179,6 +179,10 @@ const StyledSpacer = styled.div`
   flex: 1;
 `;
 
+const StyledFilledInput = styled(FilledInput)`
+  border-radius: ${(props): string => props.theme.spacing(1)};
+`;
+
 export const AccessField = (
   props: PageMembersFieldProps
 ): JSX.Element | null => {
@@ -278,10 +282,8 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
   const memberDocs = state.present.project?.data?.members?.data;
 
   const handleGetInspector = useCallback(() => {
-    return isGameDocument(doc)
-      ? ProjectDocumentInspector.instance
-      : new PageDocumentInspector<ProjectDocument>();
-  }, [doc]);
+    return ProjectDocumentInspector.instance;
+  }, []);
 
   const handleGetPropertyDocIds = useCallback(() => [id], [id]);
 
@@ -418,7 +420,7 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
       <InspectorForm
         variant="filled"
         inset
-        InputComponent={FilledInput}
+        InputComponent={StyledFilledInput}
         AutocompleteInputComponent={AutocompleteInput}
         BooleanInputComponent={BooleanInput}
         size="medium"

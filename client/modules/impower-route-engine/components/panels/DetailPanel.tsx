@@ -135,6 +135,10 @@ const StyledRightPaddingArea = styled.div`
     props.theme.spacing(props.theme.space.panelLeft)};
 `;
 
+const StyledFilledInput = styled(FilledInput)`
+  border-radius: ${(props): string => props.theme.spacing(1)};
+`;
+
 interface ItemNavigatorProps {
   itemSectionType: ItemType | ItemSectionType;
   inspectedTargetId: string;
@@ -263,7 +267,7 @@ const SetupDetails = React.memo((props: SetupDetailsProps) => {
         errors={errors}
         data={data}
         expandedProperties={expandedProperties}
-        InputComponent={FilledInput}
+        InputComponent={StyledFilledInput}
         ColorInputComponent={ColorInput}
         AutocompleteInputComponent={AutocompleteInput}
         StringInputComponent={StringInput}
@@ -706,7 +710,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
             <InstanceInspectorForm
               variant="filled"
               inset
-              InputComponent={FilledInput}
+              InputComponent={StyledFilledInput}
               size="small"
               backgroundColor="white"
               data={inspectedInstanceData}
