@@ -31,8 +31,8 @@ interface SplitPaneProps {
   children?: React.ReactNode;
   className?: string;
   primary?: "first" | "second";
-  minSize?: string | number;
-  maxSize?: string | number;
+  minSize?: number;
+  maxSize?: number;
   defaultSize?: string | number;
   size?: string | number;
   split?: "vertical" | "horizontal";
@@ -94,7 +94,10 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
     primary === "second" ? initialSize : undefined
   );
   const [draggedSize, setDraggedSize] = useState<string | number>();
-  const [position, setPosition] = useState<number>();
+  const startPositionRef = useRef<number>();
+  const startSizeRef = useRef<number>();
+  const totalSizeRef = useRef<number>();
+  const reverseOrderRef = useRef<boolean>();
 
   const splitPaneRef = useRef<HTMLDivElement>();
   const pane1Ref = useRef<HTMLDivElement>();
@@ -113,10 +116,25 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
           onDragStarted();
         }
         setActive(true);
-        setPosition(position);
+        startPositionRef.current = position;
+        const isPrimaryFirst = primary === "first";
+        const ref1 = isPrimaryFirst ? pane1Ref.current : pane2Ref.current;
+        const ref2 = isPrimaryFirst ? pane2Ref.current : pane1Ref.current;
+        const pane1Order = Number(window.getComputedStyle(ref1).order);
+        const pane2Order = Number(window.getComputedStyle(ref2).order);
+        reverseOrderRef.current = pane1Order > pane2Order;
+        if (splitPaneRef.current) {
+          const { width, height } =
+            splitPaneRef.current.getBoundingClientRect();
+          totalSizeRef.current = split === "vertical" ? width : height;
+        }
+        if (ref1) {
+          const { width, height } = ref1.getBoundingClientRect();
+          startSizeRef.current = split === "vertical" ? width : height;
+        }
       }
     },
-    [allowResize, onDragStarted, split]
+    [allowResize, onDragStarted, primary, split]
   );
 
   const onMouseDown = useCallback(
@@ -134,89 +152,49 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
       if (allowResize && active) {
         unFocus(document, window);
         const isPrimaryFirst = primary === "first";
-        const ref = isPrimaryFirst ? pane1Ref.current : pane2Ref.current;
-        const ref2 = isPrimaryFirst ? pane2Ref.current : pane1Ref.current;
-        if (ref) {
-          const node = ref;
-          const node2 = ref2;
+        const currentPosition =
+          split === "vertical"
+            ? event.touches[0].clientX
+            : event.touches[0].clientY;
 
-          if (node.getBoundingClientRect) {
-            const { width, height } = node.getBoundingClientRect();
-            const current =
-              split === "vertical"
-                ? event.touches[0].clientX
-                : event.touches[0].clientY;
-            const size = split === "vertical" ? width : height;
-            let positionDelta = position - current;
-            if (step) {
-              if (Math.abs(positionDelta) < step) {
-                return;
-              }
-              // Integer division
-              // eslint-disable-next-line no-bitwise
-              positionDelta = ~~(positionDelta / step) * step;
-            }
-            let sizeDelta = isPrimaryFirst ? positionDelta : -positionDelta;
+        let positionDelta = startPositionRef.current - currentPosition;
 
-            const pane1Order = Number(window.getComputedStyle(node).order);
-            const pane2Order = Number(window.getComputedStyle(node2).order);
-            if (pane1Order > pane2Order) {
-              sizeDelta = -sizeDelta;
-            }
-
-            let newMaxSize = maxSize;
-            if (
-              maxSize !== undefined &&
-              typeof maxSize === "number" &&
-              maxSize <= 0
-            ) {
-              const splitPane = splitPaneRef.current;
-              if (split === "vertical") {
-                newMaxSize = splitPane.getBoundingClientRect().width + maxSize;
-              } else {
-                newMaxSize = splitPane.getBoundingClientRect().height + maxSize;
-              }
-            }
-
-            let newSize = size - sizeDelta;
-            const newPosition = position - positionDelta;
-
-            if (typeof minSize === "number" && newSize < minSize) {
-              newSize = minSize;
-            } else if (
-              typeof minSize === "number" &&
-              typeof newMaxSize === "number" &&
-              maxSize !== undefined &&
-              newSize > newMaxSize
-            ) {
-              newSize = newMaxSize;
-            } else {
-              setPosition(newPosition);
-            }
-
-            if (onChange) onChange(newSize);
-
-            setDraggedSize(newSize);
-            if (isPrimaryFirst) {
-              setPane1Size(newSize);
-            } else {
-              setPane2Size(newSize);
-            }
+        if (step) {
+          if (Math.abs(positionDelta) < step) {
+            return;
           }
+          // Integer division
+          // eslint-disable-next-line no-bitwise
+          positionDelta = ~~(positionDelta / step) * step;
+        }
+
+        let newSize = startSizeRef.current - positionDelta;
+        if (reverseOrderRef.current) {
+          newSize = -newSize;
+        }
+
+        const validMinSize =
+          minSize < 0 ? totalSizeRef.current + minSize : minSize;
+        const validMaxSize =
+          maxSize < 0 ? totalSizeRef.current + maxSize : maxSize;
+        if (newSize < validMinSize) {
+          newSize = validMinSize;
+        } else if (newSize > validMaxSize) {
+          newSize = validMaxSize;
+        }
+
+        onChange?.(newSize);
+
+        setDraggedSize(newSize);
+
+        if (isPrimaryFirst) {
+          setPane1Size(newSize);
+        } else {
+          setPane2Size(newSize);
         }
       }
     },
-    [
-      active,
-      allowResize,
-      maxSize,
-      minSize,
-      onChange,
-      position,
-      primary,
-      split,
-      step,
-    ]
+    [active, allowResize, maxSize, minSize, onChange, primary, split, step]
   );
 
   const onMouseMove = useCallback(
@@ -277,9 +255,6 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
   }, [defaultSize, draggedSize, maxSize, minSize, primary, size]);
 
   const disabledClass = allowResize ? "" : "disabled";
-  const resizerClassNamesIncludingDefault = resizerClassName
-    ? `${resizerClassName} ${RESIZER_DEFAULT_CLASSNAME}`
-    : resizerClassName;
 
   const directionStyle: React.CSSProperties =
     split === "vertical"
@@ -311,13 +286,28 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
     ...style,
   };
 
-  const classes = ["SplitPane", className, split, disabledClass];
+  const classes = ["SplitPane", className, split, disabledClass]
+    .filter((x) => Boolean(x))
+    .join(" ");
+  const pane1Classes = ["Pane1", paneClassName, pane1ClassName]
+    .filter((x) => Boolean(x))
+    .join(" ");
+  const pane2Classes = ["Pane2", paneClassName, pane2ClassName]
+    .filter((x) => Boolean(x))
+    .join(" ");
+  const resizerClasses = [
+    RESIZER_DEFAULT_CLASSNAME,
+    resizerClassName,
+    split,
+    disabledClass,
+  ]
+    .filter((x) => Boolean(x))
+    .join(" ");
 
-  const pane1Classes = ["Pane1", paneClassName, pane1ClassName].join(" ");
-  const pane2Classes = ["Pane2", paneClassName, pane2ClassName].join(" ");
+  const isPrimaryFirst = primary === "first";
 
   return (
-    <div className={classes.join(" ")} ref={splitPaneRef} style={styleState}>
+    <div className={classes} ref={splitPaneRef} style={styleState}>
       <div
         className={pane1Classes}
         key="pane1"
@@ -328,6 +318,14 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
           flex: size !== undefined ? "none" : 1,
           width: split === "vertical" ? pane1Size : undefined,
           height: split === "horizontal" ? pane1Size : undefined,
+          minWidth:
+            isPrimaryFirst && split === "vertical" ? pane1Size : undefined,
+          maxWidth:
+            isPrimaryFirst && split === "vertical" ? pane1Size : undefined,
+          minHeight:
+            isPrimaryFirst && split === "horizontal" ? pane1Size : undefined,
+          maxHeight:
+            isPrimaryFirst && split === "horizontal" ? pane1Size : undefined,
           display: split === "horizontal" ? "flex" : undefined,
           ...paneStyle,
           ...pane1Style,
@@ -337,11 +335,7 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
       </div>
       <span
         role="presentation"
-        className={[
-          resizerClassNamesIncludingDefault,
-          split,
-          disabledClass,
-        ].join(" ")}
+        className={resizerClasses}
         style={resizerStyle || {}}
         onMouseDown={(event): void => {
           if (onMouseDown) {
@@ -383,6 +377,14 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
           flex: size !== undefined ? "none" : 1,
           width: split === "vertical" ? pane2Size : undefined,
           height: split === "horizontal" ? pane2Size : undefined,
+          minWidth:
+            !isPrimaryFirst && split === "vertical" ? pane2Size : undefined,
+          maxWidth:
+            !isPrimaryFirst && split === "vertical" ? pane2Size : undefined,
+          minHeight:
+            !isPrimaryFirst && split === "horizontal" ? pane2Size : undefined,
+          maxHeight:
+            !isPrimaryFirst && split === "horizontal" ? pane2Size : undefined,
           display: split === "horizontal" ? "flex" : undefined,
           ...paneStyle,
           ...pane2Style,
