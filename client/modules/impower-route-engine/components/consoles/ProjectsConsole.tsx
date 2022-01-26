@@ -261,6 +261,9 @@ const ProjectsConsoleContent = (
 
   const handleIsContextAllowed = useCallback(
     (id: string): boolean => {
+      if (!id) {
+        return true;
+      }
       const data = projectMemberships?.[id];
       const studioMembership = studioMemberships?.[data?.s?.id];
       return studioMembership?.access === MemberAccess.Owner;

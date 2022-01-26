@@ -80,6 +80,7 @@ export const studioConsoles: EngineConsoleInfo[] = [
     addLabel: "Create Project",
     selectedLabel: "{count} Selected",
     editMultipleLabel: "Manage",
+    contextLabel: "Manage Access",
     skipLabel: "Skip",
     backLabel: "Back",
     nextLabel: "Next",
