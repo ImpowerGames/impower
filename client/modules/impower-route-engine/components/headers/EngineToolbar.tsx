@@ -21,9 +21,7 @@ import format from "../../../impower-config/utils/format";
 import { FontIcon } from "../../../impower-icon";
 import { useStickyStyle } from "../../../impower-react-virtualization";
 import { TextField } from "../../../impower-route";
-import FadeAnimation from "../../../impower-route/components/animations/FadeAnimation";
 import RotateAnimation from "../../../impower-route/components/animations/RotateAnimation";
-import UnmountAnimation from "../../../impower-route/components/animations/UnmountAnimation";
 
 const StyledFixedSpacer = styled.div`
   margin-top: env(safe-area-inset-top, 0);
@@ -75,11 +73,8 @@ const StyledFixableContent = styled.div`
   padding: ${(props): string => props.theme.spacing(0, 1)};
 `;
 
-const StyledFadeAnimation = styled(FadeAnimation)`
-  flex: 1;
-`;
-
 const StyledEngineConsoleToolbarContent = styled.div`
+  flex: 1;
   display: flex;
   position: relative;
   overflow: hidden;
@@ -96,6 +91,7 @@ const StyledHeaderRightButtonArea = styled.div`
 `;
 
 const StyledSearchTextField = styled(TextField)`
+  pointer-events: auto;
   flex: 1;
   border-bottom-color: inherit;
   caret-color: inherit;
@@ -182,6 +178,12 @@ const StyledHeaderNameTypography = styled(Typography)`
   white-space: pre;
 `;
 
+const StyledRotateAnimation = styled(RotateAnimation)`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
 interface EngineToolbarLayoutProps {
   minHeight: number;
   leftChildren?: React.ReactNode;
@@ -229,14 +231,14 @@ const EngineToolbarLayout = React.memo(
           </StyledHeaderRightButtonArea>
         )}
         {rotateChildren && (
-          <RotateAnimation
-            initial={0}
+          <StyledRotateAnimation
+            initial={180}
             animate={180}
             exit={0}
             style={{ minWidth: minHeight, ...rotateStyle }}
           >
             {rotateChildren}
-          </RotateAnimation>
+          </StyledRotateAnimation>
         )}
       </StyledEngineConsoleToolbarContent>
     );
@@ -328,7 +330,7 @@ const EngineToolbarContent = React.memo(
     } = props;
 
     const theme = useTheme();
-    const searchInputRef = useRef<HTMLInputElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>();
 
     const handleSearchChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -338,6 +340,14 @@ const EngineToolbarContent = React.memo(
       },
       [onSearch]
     );
+
+    const handleSearchInputRef = useCallback((instance: HTMLInputElement) => {
+      if (instance) {
+        searchInputRef.current = instance;
+        instance.focus();
+        window.setTimeout(() => instance.focus(), 100);
+      }
+    }, []);
 
     const handleSearchClear = useCallback(() => {
       if (onSearch) {
@@ -454,7 +464,7 @@ const EngineToolbarContent = React.memo(
           }
           middleChildren={
             <StyledSearchTextField
-              inputRef={searchInputRef}
+              inputRef={handleSearchInputRef}
               placeholder={searchLabel}
               value={search}
               variant="standard"
@@ -705,55 +715,46 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                   ...fixableContentStyle,
                 }}
               >
-                <UnmountAnimation>
-                  <StyledFadeAnimation
-                    key={type}
-                    initial={1}
-                    animate={1}
-                    exit={0}
-                    duration={0.15}
-                  >
-                    <EngineToolbarContent
-                      type={type}
-                      minHeight={minHeight}
-                      search={search}
-                      selectedPaths={selectedPaths}
-                      paths={paths}
-                      moreIcon={moreIcon}
-                      backIcon={backIcon}
-                      backLabel={backLabel}
-                      selectedLabel={selectedLabel}
-                      contextOptions={contextOptions}
-                      moreLabel={moreLabel}
-                      doneLabel={doneLabel}
-                      clearLabel={clearLabel}
-                      searchLabel={searchLabel}
-                      title={title}
-                      titleStyle={titleStyle}
-                      headerStyle={headerStyle}
-                      leftStyle={leftStyle}
-                      rightStyle={rightStyle}
-                      rotateStyle={rotateStyle}
-                      backButtonStyle={backButtonStyle}
-                      moreButtonStyle={moreButtonStyle}
-                      searchButtonStyle={searchButtonStyle}
-                      clearButtonStyle={clearButtonStyle}
-                      doneButtonStyle={doneButtonStyle}
-                      isSelectAllowed={isSelectAllowed}
-                      onSelectAll={onSelectAll}
-                      onDeselectAll={onDeselectAll}
-                      onClickMoreOption={onClickMoreOption}
-                      onBack={onBack}
-                      onDone={onDone}
-                      onOpenSearch={onOpenSearch}
-                      onCloseSearch={onCloseSearch}
-                      onSearch={onSearch}
-                      onMore={onMore}
-                    >
-                      {rightChildren}
-                    </EngineToolbarContent>
-                  </StyledFadeAnimation>
-                </UnmountAnimation>
+                <EngineToolbarContent
+                  key={type}
+                  type={type}
+                  minHeight={minHeight}
+                  search={search}
+                  selectedPaths={selectedPaths}
+                  paths={paths}
+                  moreIcon={moreIcon}
+                  backIcon={backIcon}
+                  backLabel={backLabel}
+                  selectedLabel={selectedLabel}
+                  contextOptions={contextOptions}
+                  moreLabel={moreLabel}
+                  doneLabel={doneLabel}
+                  clearLabel={clearLabel}
+                  searchLabel={searchLabel}
+                  title={title}
+                  titleStyle={titleStyle}
+                  headerStyle={headerStyle}
+                  leftStyle={leftStyle}
+                  rightStyle={rightStyle}
+                  rotateStyle={rotateStyle}
+                  backButtonStyle={backButtonStyle}
+                  moreButtonStyle={moreButtonStyle}
+                  searchButtonStyle={searchButtonStyle}
+                  clearButtonStyle={clearButtonStyle}
+                  doneButtonStyle={doneButtonStyle}
+                  isSelectAllowed={isSelectAllowed}
+                  onSelectAll={onSelectAll}
+                  onDeselectAll={onDeselectAll}
+                  onClickMoreOption={onClickMoreOption}
+                  onBack={onBack}
+                  onDone={onDone}
+                  onOpenSearch={onOpenSearch}
+                  onCloseSearch={onCloseSearch}
+                  onSearch={onSearch}
+                  onMore={onMore}
+                >
+                  {rightChildren}
+                </EngineToolbarContent>
               </StyledFixableContent>
             </StyledFixableArea>
           </StyledTopArea>
