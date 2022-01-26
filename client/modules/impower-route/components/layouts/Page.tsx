@@ -604,6 +604,7 @@ const StyledStatusAppBar = styled(AppBar)``;
 const StyledStatusToolbar = styled.div`
   display: flex;
   align-items: center;
+  padding: ${(props): string => props.theme.spacing(1, 2)};
 `;
 
 const StyledStatusDialogContent = styled.div`
@@ -1678,57 +1679,50 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
                   <StyledBannerTypography>
                     {getLabel(doc.status)}
                   </StyledBannerTypography>
-                  {doc.status !== DeveloperStatus.Inactive &&
-                    doc.statusInformation && (
-                      <>
-                        <StyledBannerButton
+                  <StyledBannerButton
+                    color="inherit"
+                    onClick={handleOpenStatusDialog}
+                  >{`More Info`}</StyledBannerButton>
+                  <StyledStatusDialog
+                    open={dialogOpen}
+                    onClose={handleCloseStatusDialog}
+                    bgcolor={readableBackgroundMainColor}
+                  >
+                    <StyledStatusAppBar
+                      position="sticky"
+                      style={{
+                        backgroundColor: readableBackgroundMainColor,
+                      }}
+                    >
+                      <StyledStatusToolbar>
+                        <StyledIconButton
+                          edge="start"
                           color="inherit"
-                          onClick={handleOpenStatusDialog}
-                        >{`More Info`}</StyledBannerButton>
-                        <StyledStatusDialog
-                          open={dialogOpen}
-                          onClose={handleCloseStatusDialog}
-                          bgcolor={readableBackgroundMainColor}
+                          onClick={handleCloseStatusDialog}
+                          aria-label="close"
+                          size="large"
                         >
-                          <StyledStatusAppBar
-                            position="sticky"
-                            style={{
-                              backgroundColor: readableBackgroundMainColor,
-                            }}
-                          >
-                            <StyledStatusToolbar>
-                              <StyledIconButton
-                                edge="start"
-                                color="inherit"
-                                onClick={handleCloseStatusDialog}
-                                aria-label="close"
-                                size="large"
-                              >
-                                <FontIcon aria-label="Close" size={24}>
-                                  <XmarkSolidIcon />
-                                </FontIcon>
-                              </StyledIconButton>
-                              <StyledStatusTitleTypography>
-                                {`Development Status`}
-                              </StyledStatusTitleTypography>
-                            </StyledStatusToolbar>
-                          </StyledStatusAppBar>
-                          <StyledStatusDialogContent>
-                            <Markdown>
-                              {doc.statusInformation ||
-                                format(
-                                  "No information found on the status of this {doc}",
-                                  {
-                                    doc: getTypeName(
-                                      doc._documentType
-                                    ).toLowerCase(),
-                                  }
-                                )}
-                            </Markdown>
-                          </StyledStatusDialogContent>
-                        </StyledStatusDialog>
-                      </>
-                    )}
+                          <FontIcon aria-label="Close" size={24}>
+                            <XmarkSolidIcon />
+                          </FontIcon>
+                        </StyledIconButton>
+                        <StyledStatusTitleTypography>
+                          {`Development Status`}
+                        </StyledStatusTitleTypography>
+                      </StyledStatusToolbar>
+                    </StyledStatusAppBar>
+                    <StyledStatusDialogContent>
+                      <Markdown>
+                        {doc.statusInformation ||
+                          format(
+                            "*No more information was provided on the status of this {doc}*",
+                            {
+                              doc: getTypeName(doc._documentType).toLowerCase(),
+                            }
+                          )}
+                      </Markdown>
+                    </StyledStatusDialogContent>
+                  </StyledStatusDialog>
                 </StyledBanner>
               )}
             {children &&
