@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 
 const RESIZER_DEFAULT_CLASSNAME = "Resizer";
 
@@ -71,9 +71,9 @@ interface SplitPaneProps {
   pane2Style?: React.CSSProperties;
   resizerStyle?: React.CSSProperties;
   children?: React.ReactNode;
-  onDragStarted?: () => void;
-  onDragFinished?: (newSize: number | string) => void;
-  onChange?: (newSize: number) => void;
+  onDragStarted?: (size: number, totalSize: number) => void;
+  onDragFinished?: (size: number, totalSize: number) => void;
+  onChange?: (size: number, totalSize: number) => void;
   onResizerClick?: (e: React.MouseEvent) => void;
   onResizerDoubleClick?: (e: React.MouseEvent) => void;
 }
@@ -118,65 +118,53 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
   const startSizeRef = useRef<number>();
   const totalSizeRef = useRef<number>();
   const reverseOrderRef = useRef<boolean>();
-  const draggedSizeRef = useRef<string | number>();
+  const draggedSizeRef = useRef<number>();
 
   const splitPaneRef = useRef<HTMLDivElement>();
   const pane1Ref = useRef<HTMLDivElement>();
   const pane2Ref = useRef<HTMLDivElement>();
 
-  const onTouchStart = useCallback(
-    (event): void => {
+  const handlePointerDown = useCallback(
+    (event: PointerEvent | React.PointerEvent): void => {
       if (allowResize) {
+        event.preventDefault();
         unFocus(document, window);
-        const position =
-          split === "vertical"
-            ? event.touches[0].clientX
-            : event.touches[0].clientY;
+        const position = split === "vertical" ? event.clientX : event.clientY;
 
-        if (typeof onDragStarted === "function") {
-          onDragStarted();
-        }
         activeRef.current = true;
         startPositionRef.current = position;
         const isPrimaryFirst = primary === "first";
-        const ref1 = isPrimaryFirst ? pane1Ref.current : pane2Ref.current;
-        const ref2 = isPrimaryFirst ? pane2Ref.current : pane1Ref.current;
-        const pane1Order = Number(window.getComputedStyle(ref1).order);
-        const pane2Order = Number(window.getComputedStyle(ref2).order);
+        const primaryRef = isPrimaryFirst ? pane1Ref.current : pane2Ref.current;
+        const secondaryRef = isPrimaryFirst
+          ? pane2Ref.current
+          : pane1Ref.current;
+        const pane1Order = Number(window.getComputedStyle(primaryRef).order);
+        const pane2Order = Number(window.getComputedStyle(secondaryRef).order);
         reverseOrderRef.current = pane1Order > pane2Order;
         if (splitPaneRef.current) {
           const { width, height } =
             splitPaneRef.current.getBoundingClientRect();
           totalSizeRef.current = split === "vertical" ? width : height;
         }
-        if (ref1) {
-          const { width, height } = ref1.getBoundingClientRect();
+        if (primaryRef) {
+          const { width, height } = primaryRef.getBoundingClientRect();
           startSizeRef.current = split === "vertical" ? width : height;
+        }
+        if (typeof onDragStarted === "function") {
+          onDragStarted(startSizeRef.current, totalSizeRef.current);
         }
       }
     },
     [allowResize, onDragStarted, primary, split]
   );
 
-  const onMouseDown = useCallback(
-    (event): void => {
-      onTouchStart({
-        ...event,
-        touches: [{ clientX: event.clientX, clientY: event.clientY }],
-      });
-    },
-    [onTouchStart]
-  );
-
-  const onTouchMove = useCallback(
-    (event): void => {
+  const handlePointerMove = useCallback(
+    (event: PointerEvent | React.PointerEvent): void => {
       if (allowResize && activeRef.current) {
         unFocus(document, window);
         const isPrimaryFirst = primary === "first";
         const currentPosition =
-          split === "vertical"
-            ? event.touches[0].clientX
-            : event.touches[0].clientY;
+          split === "vertical" ? event.clientX : event.clientY;
 
         let positionDelta = startPositionRef.current - currentPosition;
 
@@ -204,7 +192,7 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
           newSize = validMaxSize;
         }
 
-        onChange?.(newSize);
+        onChange?.(newSize, totalSizeRef.current);
 
         draggedSizeRef.current = newSize;
 
@@ -218,51 +206,55 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
     [allowResize, maxSize, minSize, onChange, primary, split, step]
   );
 
-  const onMouseMove = useCallback(
-    (event): void => {
-      onTouchMove({
-        ...event,
-        touches: [{ clientX: event.clientX, clientY: event.clientY }],
-      });
+  const handlePointerUp = useCallback(
+    (event: PointerEvent | React.PointerEvent): void => {
+      if (allowResize && activeRef.current) {
+        event.preventDefault();
+        if (onDragFinished) {
+          onDragFinished(draggedSizeRef.current, totalSizeRef.current);
+        }
+        activeRef.current = false;
+      }
     },
-    [onTouchMove]
+    [allowResize, onDragFinished]
   );
 
-  const onTouchEnd = useCallback((): void => {
-    if (allowResize && activeRef.current) {
-      if (typeof onDragFinished === "function") {
-        onDragFinished(draggedSizeRef.current);
+  const handleResizerClick = useCallback(
+    (event: React.MouseEvent): void => {
+      if (onResizerClick) {
+        event.preventDefault();
+        onResizerClick(event);
       }
-      activeRef.current = false;
-    }
-  }, [allowResize, onDragFinished]);
+    },
+    [onResizerClick]
+  );
 
-  const onMouseUp = useCallback((): void => {
-    onTouchEnd();
-  }, [onTouchEnd]);
+  const handleResizerDoubleClick = useCallback(
+    (event: React.MouseEvent): void => {
+      if (onResizerDoubleClick) {
+        event.preventDefault();
+        onResizerDoubleClick(event);
+      }
+    },
+    [onResizerDoubleClick]
+  );
 
   useEffect(() => {
-    document.addEventListener("mouseup", onMouseUp);
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("touchmove", onTouchMove, {
+    document.addEventListener("pointerup", handlePointerUp);
+    document.addEventListener("pointermove", handlePointerMove, {
       passive: true,
     });
     return (): void => {
-      document.removeEventListener("mouseup", onMouseUp);
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("pointerup", handlePointerUp);
+      document.removeEventListener("pointermove", handlePointerMove);
     };
-  }, [onMouseMove, onMouseUp, onTouchMove]);
+  }, [handlePointerUp, handlePointerMove]);
 
   useEffect(() => {
     const newSize =
       size !== undefined
         ? size
         : getDefaultSize(defaultSize, minSize, maxSize, draggedSizeRef.current);
-
-    if (size !== undefined) {
-      draggedSizeRef.current = newSize;
-    }
 
     const isPrimaryFirst = primary === "first";
 
@@ -272,6 +264,18 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
     } else {
       updateSize(pane1Ref.current, "100%", split, false);
       updateSize(pane2Ref.current, newSize, split, true);
+    }
+
+    if (size !== undefined) {
+      if (typeof newSize === "number") {
+        draggedSizeRef.current = newSize;
+      } else {
+        const primaryRef = isPrimaryFirst ? pane1Ref.current : pane2Ref.current;
+        if (primaryRef) {
+          const { width, height } = primaryRef.getBoundingClientRect();
+          draggedSizeRef.current = split === "vertical" ? width : height;
+        }
+      }
     }
   }, [defaultSize, maxSize, minSize, primary, size, split]);
 
@@ -327,105 +331,78 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
 
   const isPrimaryFirst = primary === "first";
 
+  const initialPane1Style: React.CSSProperties = useMemo(
+    () => ({
+      position: "relative",
+      outline: "none",
+      flex: size !== undefined ? "none" : 1,
+      width: split === "vertical" ? initialPane1Size : undefined,
+      height: split === "horizontal" ? initialPane1Size : undefined,
+      minWidth:
+        isPrimaryFirst && split === "vertical" ? initialPane1Size : undefined,
+      maxWidth:
+        isPrimaryFirst && split === "vertical" ? initialPane1Size : undefined,
+      minHeight:
+        isPrimaryFirst && split === "horizontal" ? initialPane1Size : undefined,
+      maxHeight:
+        isPrimaryFirst && split === "horizontal" ? initialPane1Size : undefined,
+      display: split === "horizontal" ? "flex" : undefined,
+      ...paneStyle,
+      ...pane1Style,
+    }),
+    [initialPane1Size, isPrimaryFirst, pane1Style, paneStyle, size, split]
+  );
+
+  const initialPane2Style: React.CSSProperties = useMemo(
+    () => ({
+      position: "relative",
+      outline: "none",
+      flex: size !== undefined ? "none" : 1,
+      width: split === "vertical" ? initialPane2Size : undefined,
+      height: split === "horizontal" ? initialPane2Size : undefined,
+      minWidth:
+        !isPrimaryFirst && split === "vertical" ? initialPane2Size : undefined,
+      maxWidth:
+        !isPrimaryFirst && split === "vertical" ? initialPane2Size : undefined,
+      minHeight:
+        !isPrimaryFirst && split === "horizontal"
+          ? initialPane2Size
+          : undefined,
+      maxHeight:
+        !isPrimaryFirst && split === "horizontal"
+          ? initialPane2Size
+          : undefined,
+      display: split === "horizontal" ? "flex" : undefined,
+      ...paneStyle,
+      ...pane2Style,
+    }),
+    [initialPane2Size, isPrimaryFirst, pane2Style, paneStyle, size, split]
+  );
+
   return (
     <div className={classes} ref={splitPaneRef} style={styleState}>
       <div
         className={pane1Classes}
         key="pane1"
         ref={pane1Ref}
-        style={{
-          position: "relative",
-          outline: "none",
-          flex: size !== undefined ? "none" : 1,
-          width: split === "vertical" ? initialPane1Size : undefined,
-          height: split === "horizontal" ? initialPane1Size : undefined,
-          minWidth:
-            isPrimaryFirst && split === "vertical"
-              ? initialPane1Size
-              : undefined,
-          maxWidth:
-            isPrimaryFirst && split === "vertical"
-              ? initialPane1Size
-              : undefined,
-          minHeight:
-            isPrimaryFirst && split === "horizontal"
-              ? initialPane1Size
-              : undefined,
-          maxHeight:
-            isPrimaryFirst && split === "horizontal"
-              ? initialPane1Size
-              : undefined,
-          display: split === "horizontal" ? "flex" : undefined,
-          ...paneStyle,
-          ...pane1Style,
-        }}
+        style={initialPane1Style}
       >
         {children[0]}
       </div>
       <span
         role="presentation"
         className={resizerClasses}
-        style={resizerStyle || {}}
-        onMouseDown={(event): void => {
-          if (onMouseDown) {
-            onMouseDown(event);
-          }
-        }}
-        onTouchStart={(event): void => {
-          if (onTouchStart) {
-            event.preventDefault();
-            onTouchStart(event);
-          }
-        }}
-        onTouchEnd={(event): void => {
-          if (onTouchEnd) {
-            event.preventDefault();
-            onTouchEnd();
-          }
-        }}
-        onClick={(event): void => {
-          if (onResizerClick) {
-            event.preventDefault();
-            onResizerClick(event);
-          }
-        }}
-        onDoubleClick={(event): void => {
-          if (onResizerDoubleClick) {
-            event.preventDefault();
-            onResizerDoubleClick(event);
-          }
-        }}
+        style={resizerStyle}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onClick={handleResizerClick}
+        onDoubleClick={handleResizerDoubleClick}
       />
       <div
         className={pane2Classes}
         key="pane2"
         ref={pane2Ref}
-        style={{
-          position: "relative",
-          outline: "none",
-          flex: size !== undefined ? "none" : 1,
-          width: split === "vertical" ? initialPane2Size : undefined,
-          height: split === "horizontal" ? initialPane2Size : undefined,
-          minWidth:
-            !isPrimaryFirst && split === "vertical"
-              ? initialPane2Size
-              : undefined,
-          maxWidth:
-            !isPrimaryFirst && split === "vertical"
-              ? initialPane2Size
-              : undefined,
-          minHeight:
-            !isPrimaryFirst && split === "horizontal"
-              ? initialPane2Size
-              : undefined,
-          maxHeight:
-            !isPrimaryFirst && split === "horizontal"
-              ? initialPane2Size
-              : undefined,
-          display: split === "horizontal" ? "flex" : undefined,
-          ...paneStyle,
-          ...pane2Style,
-        }}
+        style={initialPane2Style}
       >
         {children[1]}
       </div>
