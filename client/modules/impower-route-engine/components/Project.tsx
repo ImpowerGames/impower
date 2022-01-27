@@ -449,7 +449,7 @@ const Project = React.memo((): JSX.Element => {
           <>
             <NavigationBarSpacer />
             <PageNavigationBar
-              title={navigationState.title}
+              title=""
               secondaryTitle={navigationState.secondaryTitle}
               subtitle={navigationState.subtitle}
               titleLinks={navigationState.links}

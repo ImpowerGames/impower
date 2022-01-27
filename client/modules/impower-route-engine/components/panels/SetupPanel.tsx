@@ -583,7 +583,7 @@ const SetupPanel = React.memo((): JSX.Element => {
           portrait ? (
             <>
               <PageNavigationBar
-                title={navigationState.title}
+                title=""
                 secondaryTitle={navigationState.secondaryTitle}
                 subtitle={navigationState.subtitle}
                 titleLinks={navigationState.links}

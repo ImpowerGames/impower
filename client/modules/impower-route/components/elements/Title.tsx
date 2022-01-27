@@ -160,15 +160,13 @@ const Title = (props: PropsWithChildren<TitleProps>): JSX.Element => {
             >
               <StyledMainTitleTypography variant="h6" component="h1">
                 {title}
+                {separator && title && secondaryTitle && (
+                  <StyledSeparatorMark>{separator}</StyledSeparatorMark>
+                )}
                 {secondaryTitle && (
-                  <>
-                    {separator && (
-                      <StyledSeparatorMark>{separator}</StyledSeparatorMark>
-                    )}
-                    <StyledSecondaryTitleMark ref={secondaryTitleRef}>
-                      {secondaryTitle}
-                    </StyledSecondaryTitleMark>
-                  </>
+                  <StyledSecondaryTitleMark ref={secondaryTitleRef}>
+                    {secondaryTitle}
+                  </StyledSecondaryTitleMark>
                 )}
               </StyledMainTitleTypography>
             </StyledTitleButton>

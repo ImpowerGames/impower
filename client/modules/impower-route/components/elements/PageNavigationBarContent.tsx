@@ -184,7 +184,7 @@ const PageNavigationBarContent = (
         ) : (
           <StyledMotionTitleArea initial={initial} animate={1}>
             <Title
-              title={title || product}
+              title={title === "" ? "" : title || product}
               secondaryTitle={secondaryTitle}
               subtitle={subtitle || ""}
               separator="|"
