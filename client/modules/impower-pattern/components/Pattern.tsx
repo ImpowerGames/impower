@@ -92,97 +92,98 @@ interface PatternSvgProps {
   pattern: PatternName;
 }
 
-const PatternSvg = (props: PatternSvgProps): JSX.Element => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const PatternSvg = (props: PatternSvgProps): any => {
   const { pattern } = props;
-  if (pattern === "anchors-away") return <PatternAnchorsAway />;
-  if (pattern === "architect") return <PatternArchitect />;
-  if (pattern === "autumn") return <PatternAutumn />;
-  if (pattern === "aztec") return <PatternAztec />;
-  if (pattern === "bamboo") return <PatternBamboo />;
-  if (pattern === "bank-note") return <PatternBankNote />;
-  if (pattern === "bathroom-floor") return <PatternBathroomFloor />;
-  if (pattern === "bevel-circle") return <PatternBevelCircle />;
-  if (pattern === "boxes") return <PatternBoxes />;
-  if (pattern === "brick-wall") return <PatternBrickWall />;
-  if (pattern === "bubbles") return <PatternBubbles />;
-  if (pattern === "cage") return <PatternCage />;
-  if (pattern === "charlie-brown") return <PatternCharlieBrown />;
-  if (pattern === "church-on-sunday") return <PatternChurchOnSunday />;
-  if (pattern === "circles-and-squares") return <PatternCirclesAndSquares />;
-  if (pattern === "circuit-board") return <PatternCircuitBoard />;
-  if (pattern === "connections") return <PatternConnections />;
-  if (pattern === "cork-screw") return <PatternCorkScrew />;
-  if (pattern === "cubes") return <PatternCubes />;
-  if (pattern === "current") return <PatternCurrent />;
-  if (pattern === "curtain") return <PatternCurtain />;
-  if (pattern === "cutout") return <PatternCutout />;
-  if (pattern === "death-star") return <PatternDeathStar />;
-  if (pattern === "diagonal-lines") return <PatternDiagonalLines />;
-  if (pattern === "diagonal-stripes") return <PatternDiagonalStripes />;
-  if (pattern === "dominos") return <PatternDominos />;
-  if (pattern === "endless-clouds") return <PatternEndlessClouds />;
-  if (pattern === "eyes") return <PatternEyes />;
-  if (pattern === "falling-triangles") return <PatternFallingTriangles />;
-  if (pattern === "fancy-rectangles") return <PatternFancyRectangles />;
-  if (pattern === "flipped-diamonds") return <PatternFlippedDiamonds />;
-  if (pattern === "floating-cogs") return <PatternFloatingCogs />;
-  if (pattern === "floor-tile") return <PatternFloorTile />;
-  if (pattern === "formal-invitation") return <PatternFormalInvitation />;
-  if (pattern === "four-point-stars") return <PatternFourPointStars />;
-  if (pattern === "glamorous") return <PatternGlamourous />;
-  if (pattern === "graph-paper") return <PatternGraphPaper />;
-  if (pattern === "groovy") return <PatternGroovy />;
-  if (pattern === "happy-intersection") return <PatternHappyIntersection />;
-  if (pattern === "heavy-rain") return <PatternHeavyRain />;
-  if (pattern === "hexagons") return <PatternHexagons />;
-  if (pattern === "hideout") return <PatternHideout />;
-  if (pattern === "houndstooth") return <PatternHoundstooth />;
-  if (pattern === "i-like-food") return <PatternILikeFood />;
-  if (pattern === "intersecting-circles") return <PatternIntersectingCircles />;
-  if (pattern === "jigsaw") return <PatternJigsaw />;
-  if (pattern === "jupiter") return <PatternJupiter />;
-  if (pattern === "kiwi") return <PatternKiwi />;
-  if (pattern === "leaf") return <PatternLeaf />;
-  if (pattern === "lines-in-motion") return <PatternLinesInMotion />;
-  if (pattern === "lips") return <PatternLips />;
-  if (pattern === "lisbon") return <PatternLisbon />;
-  if (pattern === "melt") return <PatternMelt />;
-  if (pattern === "moroccan") return <PatternMoroccan />;
-  if (pattern === "morphing-diamonds") return <PatternMorphingDiamonds />;
-  if (pattern === "overcast") return <PatternOvercast />;
-  if (pattern === "overlapping-circles") return <PatternOverlappingCircles />;
-  if (pattern === "overlapping-diamonds") return <PatternOverlappingDiamonds />;
-  if (pattern === "overlapping-hexagons") return <PatternOverlappingHexagons />;
-  if (pattern === "parkay-floor") return <PatternParkayFloor />;
-  if (pattern === "piano-man") return <PatternPianoMan />;
-  if (pattern === "pie-factory") return <PatternPieFactory />;
-  if (pattern === "pixel-dots") return <PatternPixelDots />;
-  if (pattern === "plus") return <PatternPlus />;
-  if (pattern === "polka-dots") return <PatternPolkaDots />;
-  if (pattern === "rails") return <PatternRails />;
-  if (pattern === "rain") return <PatternRain />;
-  if (pattern === "random-shapes") return <PatternRandomShapes />;
-  if (pattern === "rounded-plus-connected")
-    return <PatternRoundedPlusConnected />;
-  if (pattern === "signal") return <PatternSignal />;
-  if (pattern === "skulls") return <PatternSkulls />;
-  if (pattern === "slanted-stars") return <PatternSlantedStars />;
-  if (pattern === "squares-in-squares") return <PatternSquaresInSquares />;
-  if (pattern === "squares") return <PatternSquares />;
-  if (pattern === "stamp-collection") return <PatternStampCollection />;
-  if (pattern === "steel-beams") return <PatternSteelBeams />;
-  if (pattern === "stripes") return <PatternStripes />;
-  if (pattern === "temple") return <PatternTemple />;
-  if (pattern === "texture") return <PatternTexture />;
-  if (pattern === "tic-tac-toe") return <PatternTicTacToe />;
-  if (pattern === "tiny-checkers") return <PatternTinyCheckers />;
-  if (pattern === "topography") return <PatternTopography />;
-  if (pattern === "volcano-lamp") return <PatternVolcanoLamp />;
-  if (pattern === "wallpaper") return <PatternWallpaper />;
-  if (pattern === "wiggle") return <PatternWiggle />;
-  if (pattern === "x-equals") return <PatternXEquals />;
-  if (pattern === "yyy") return <PatternYYY />;
-  if (pattern === "zig-zag;") return <PatternZigZag />;
+  if (pattern === "anchors-away") return PatternAnchorsAway;
+  if (pattern === "architect") return PatternArchitect;
+  if (pattern === "autumn") return PatternAutumn;
+  if (pattern === "aztec") return PatternAztec;
+  if (pattern === "bamboo") return PatternBamboo;
+  if (pattern === "bank-note") return PatternBankNote;
+  if (pattern === "bathroom-floor") return PatternBathroomFloor;
+  if (pattern === "bevel-circle") return PatternBevelCircle;
+  if (pattern === "boxes") return PatternBoxes;
+  if (pattern === "brick-wall") return PatternBrickWall;
+  if (pattern === "bubbles") return PatternBubbles;
+  if (pattern === "cage") return PatternCage;
+  if (pattern === "charlie-brown") return PatternCharlieBrown;
+  if (pattern === "church-on-sunday") return PatternChurchOnSunday;
+  if (pattern === "circles-and-squares") return PatternCirclesAndSquares;
+  if (pattern === "circuit-board") return PatternCircuitBoard;
+  if (pattern === "connections") return PatternConnections;
+  if (pattern === "cork-screw") return PatternCorkScrew;
+  if (pattern === "cubes") return PatternCubes;
+  if (pattern === "current") return PatternCurrent;
+  if (pattern === "curtain") return PatternCurtain;
+  if (pattern === "cutout") return PatternCutout;
+  if (pattern === "death-star") return PatternDeathStar;
+  if (pattern === "diagonal-lines") return PatternDiagonalLines;
+  if (pattern === "diagonal-stripes") return PatternDiagonalStripes;
+  if (pattern === "dominos") return PatternDominos;
+  if (pattern === "endless-clouds") return PatternEndlessClouds;
+  if (pattern === "eyes") return PatternEyes;
+  if (pattern === "falling-triangles") return PatternFallingTriangles;
+  if (pattern === "fancy-rectangles") return PatternFancyRectangles;
+  if (pattern === "flipped-diamonds") return PatternFlippedDiamonds;
+  if (pattern === "floating-cogs") return PatternFloatingCogs;
+  if (pattern === "floor-tile") return PatternFloorTile;
+  if (pattern === "formal-invitation") return PatternFormalInvitation;
+  if (pattern === "four-point-stars") return PatternFourPointStars;
+  if (pattern === "glamorous") return PatternGlamourous;
+  if (pattern === "graph-paper") return PatternGraphPaper;
+  if (pattern === "groovy") return PatternGroovy;
+  if (pattern === "happy-intersection") return PatternHappyIntersection;
+  if (pattern === "heavy-rain") return PatternHeavyRain;
+  if (pattern === "hexagons") return PatternHexagons;
+  if (pattern === "hideout") return PatternHideout;
+  if (pattern === "houndstooth") return PatternHoundstooth;
+  if (pattern === "i-like-food") return PatternILikeFood;
+  if (pattern === "intersecting-circles") return PatternIntersectingCircles;
+  if (pattern === "jigsaw") return PatternJigsaw;
+  if (pattern === "jupiter") return PatternJupiter;
+  if (pattern === "kiwi") return PatternKiwi;
+  if (pattern === "leaf") return PatternLeaf;
+  if (pattern === "lines-in-motion") return PatternLinesInMotion;
+  if (pattern === "lips") return PatternLips;
+  if (pattern === "lisbon") return PatternLisbon;
+  if (pattern === "melt") return PatternMelt;
+  if (pattern === "moroccan") return PatternMoroccan;
+  if (pattern === "morphing-diamonds") return PatternMorphingDiamonds;
+  if (pattern === "overcast") return PatternOvercast;
+  if (pattern === "overlapping-circles") return PatternOverlappingCircles;
+  if (pattern === "overlapping-diamonds") return PatternOverlappingDiamonds;
+  if (pattern === "overlapping-hexagons") return PatternOverlappingHexagons;
+  if (pattern === "parkay-floor") return PatternParkayFloor;
+  if (pattern === "piano-man") return PatternPianoMan;
+  if (pattern === "pie-factory") return PatternPieFactory;
+  if (pattern === "pixel-dots") return PatternPixelDots;
+  if (pattern === "plus") return PatternPlus;
+  if (pattern === "polka-dots") return PatternPolkaDots;
+  if (pattern === "rails") return PatternRails;
+  if (pattern === "rain") return PatternRain;
+  if (pattern === "random-shapes") return PatternRandomShapes;
+  if (pattern === "rounded-plus-connected") return PatternRoundedPlusConnected;
+  if (pattern === "signal") return PatternSignal;
+  if (pattern === "skulls") return PatternSkulls;
+  if (pattern === "slanted-stars") return PatternSlantedStars;
+  if (pattern === "squares-in-squares") return PatternSquaresInSquares;
+  if (pattern === "squares") return PatternSquares;
+  if (pattern === "stamp-collection") return PatternStampCollection;
+  if (pattern === "steel-beams") return PatternSteelBeams;
+  if (pattern === "stripes") return PatternStripes;
+  if (pattern === "temple") return PatternTemple;
+  if (pattern === "texture") return PatternTexture;
+  if (pattern === "tic-tac-toe") return PatternTicTacToe;
+  if (pattern === "tiny-checkers") return PatternTinyCheckers;
+  if (pattern === "topography") return PatternTopography;
+  if (pattern === "volcano-lamp") return PatternVolcanoLamp;
+  if (pattern === "wallpaper") return PatternWallpaper;
+  if (pattern === "wiggle") return PatternWiggle;
+  if (pattern === "x-equals") return PatternXEquals;
+  if (pattern === "yyy") return PatternYYY;
+  if (pattern === "zig-zag;") return PatternZigZag;
+  console.warn("PATTERN NOT FOUND");
   return null;
 };
 
@@ -197,24 +198,29 @@ interface PatternProps {
 const Pattern = (props: PatternProps): JSX.Element => {
   const { pattern, color = "black", opacity = 0.25, size, style } = props;
 
+  const patternSvgComponent = PatternSvg({ pattern })();
+
+  const { width, height, viewBox } = patternSvgComponent.props;
+  const widthProperty = width ? `width='${width}'` : "";
+  const heightProperty = height ? `height='${height}'` : "";
+  const viewBoxProperty = viewBox ? `viewBox='${viewBox}'` : "";
+  const { d } = patternSvgComponent.props?.children?.props;
+  const dProperty = d ? `d='${d}'` : "";
+
   return (
     <div
-      className="font-icon"
+      className="pattern"
       style={{
         position: "relative",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        width: size,
-        height: size,
-        fontSize: size,
+        minWidth: "100%",
+        minHeight: "100%",
+        backgroundSize: `${size * 25}%`,
         opacity,
         color,
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' ${widthProperty} ${heightProperty} ${viewBoxProperty}%3E%3Cg fill-rule='evenodd'%3E%3Cg %3E%3Cpath ${dProperty} /%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
         ...style,
       }}
-    >
-      <PatternSvg pattern={pattern} />
-    </div>
+    />
   );
 };
 

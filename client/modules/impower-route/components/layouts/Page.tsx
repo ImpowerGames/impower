@@ -1626,7 +1626,11 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
   const likesCount = doc?.likes || 0;
   const dislikesCount = doc?.dislikes || 0;
 
-  const tagPatterns = configState?.tagPatterns;
+  const mainTag = doc?.tags?.[0] || "";
+
+  const tagPattern =
+    configState?.tagPatterns?.[mainTag] ||
+    ConfigCache.instance?.params?.tagPatterns?.[mainTag];
 
   return (
     <StyledPage ref={innerRef} style={{ backgroundColor }}>
@@ -1640,9 +1644,7 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
             logoAlignment={doc?.logoAlignment}
             edit={edit}
             uid={uid}
-            pattern={
-              doc?.tags?.[0] ? tagPatterns?.[doc?.tags?.[0] || ""] : undefined
-            }
+            pattern={tagPattern}
             patternScale={doc?.patternScale}
             folded={isFolded}
             breakpoint={breakpoint}

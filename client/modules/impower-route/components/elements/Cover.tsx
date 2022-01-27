@@ -245,7 +245,7 @@ const Cover = (props: PropsWithChildren<CoverProps>): JSX.Element => {
             : validBackgroundColor,
         }}
       >
-        {!coverSrc && !pattern && patternScale > 0 && (
+        {!coverSrc && pattern && patternScale > 0 && (
           <Pattern pattern={pattern as PatternName} size={patternScale} />
         )}
         <StyledDarkOverlay
