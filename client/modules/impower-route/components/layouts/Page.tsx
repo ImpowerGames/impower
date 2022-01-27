@@ -724,10 +724,10 @@ const Comments = React.memo((props: CommentsProps): JSX.Element => {
     <StyledCommentsArea>
       <StyledCommentsHeaderArea>
         <StyledCommentsTitleArea>
-          <StyledCommentsTitleTypography variant="h5">
+          <StyledCommentsTitleTypography variant="h6">
             {commentsLabel}
           </StyledCommentsTitleTypography>
-          <StyledCommentCountTypography variant="h5">
+          <StyledCommentCountTypography variant="h6">
             ({abbreviateCount(commentsCount)})
           </StyledCommentCountTypography>
         </StyledCommentsTitleArea>
