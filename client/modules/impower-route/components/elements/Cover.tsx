@@ -292,7 +292,7 @@ const Cover = (props: PropsWithChildren<CoverProps>): JSX.Element => {
             style={{
               fontSize:
                 breakpoint <= Breakpoint.sm
-                  ? theme.typography.h5.fontSize
+                  ? theme.typography.h4.fontSize
                   : undefined,
             }}
           >
