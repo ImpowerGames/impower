@@ -71,21 +71,30 @@ const StyledContactLabelArea = styled.div`
 
 interface ConnectionListItemSecondaryTextProps {
   data: AggData;
-  status: "connected" | "incoming" | "outgoing";
+  connectStatus: "connected" | "incoming" | "outgoing";
+  notificationStatus: "read" | "unread";
 }
 
 const ConnectionListItemSecondaryText = React.memo(
   (props: ConnectionListItemSecondaryTextProps): JSX.Element | null => {
-    const { data, status } = props;
+    const { data, connectStatus, notificationStatus } = props;
 
     const theme = useTheme();
     const belowSmBreakpoint = useMediaQuery(theme.breakpoints.down("sm"));
 
-    if (status === "connected") {
+    if (connectStatus === "connected") {
       return (
         <>
           {data?.c && (
-            <StyledContactArea>
+            <StyledContactArea
+              style={{
+                color:
+                  notificationStatus === "unread"
+                    ? theme.palette.secondary.main
+                    : undefined,
+                fontWeight: notificationStatus === "unread" ? 600 : undefined,
+              }}
+            >
               <StyledContactIconArea>
                 <FontIcon
                   aria-label={data?.c?.includes("@") ? "email" : "discord"}
@@ -105,23 +114,39 @@ const ConnectionListItemSecondaryText = React.memo(
       );
     }
 
-    if (status === "incoming") {
+    if (connectStatus === "incoming") {
       return (
-        <>
+        <StyledContactArea
+          style={{
+            color:
+              notificationStatus === "unread"
+                ? theme.palette.secondary.main
+                : undefined,
+            fontWeight: notificationStatus === "unread" ? 600 : undefined,
+          }}
+        >
           {`${belowSmBreakpoint ? "" : "wants to connect — "}${abbreviateAge(
             new Date(data?.t)
           )}`}
-        </>
+        </StyledContactArea>
       );
     }
 
-    if (status === "outgoing") {
+    if (connectStatus === "outgoing") {
       return (
-        <>
+        <StyledContactArea
+          style={{
+            color:
+              notificationStatus === "unread"
+                ? theme.palette.secondary.main
+                : undefined,
+            fontWeight: notificationStatus === "unread" ? 600 : undefined,
+          }}
+        >
           {`${belowSmBreakpoint ? "" : "was sent a request — "}${abbreviateAge(
             new Date(data?.t)
           )}`}
-        </>
+        </StyledContactArea>
       );
     }
 
@@ -262,13 +287,14 @@ const ConnectionListItemButtons = React.memo(
 interface ConnectionListItemProps {
   id: string;
   data: AggData;
-  status: "connected" | "incoming" | "outgoing";
+  connectStatus: "connected" | "incoming" | "outgoing";
+  notificationStatus: "read" | "unread";
   onLoading?: (isLoading: boolean) => void;
 }
 
 const ConnectionListItem = React.memo(
   (props: ConnectionListItemProps): JSX.Element | null => {
-    const { id, data, status, onLoading } = props;
+    const { id, data, connectStatus, notificationStatus, onLoading } = props;
 
     const router = useRouter();
 
@@ -298,10 +324,18 @@ const ConnectionListItem = React.memo(
           <StyledListItemText
             primary={data?.a?.u}
             secondary={
-              <ConnectionListItemSecondaryText data={data} status={status} />
+              <ConnectionListItemSecondaryText
+                data={data}
+                connectStatus={connectStatus}
+                notificationStatus={notificationStatus}
+              />
             }
           />
-          <ConnectionListItemButtons id={id} data={data} status={status} />
+          <ConnectionListItemButtons
+            id={id}
+            data={data}
+            status={connectStatus}
+          />
         </StyledListItemButton>
         <StyledItemDivider variant="inset" absolute />
       </StyledListItem>

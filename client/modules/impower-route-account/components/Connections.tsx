@@ -377,7 +377,8 @@ const Connections = React.memo((): JSX.Element | null => {
                           key={id}
                           id={id}
                           data={data}
-                          status="connected"
+                          connectStatus="connected"
+                          notificationStatus="read"
                           onLoading={setTransitioning}
                         />
                       ))}
@@ -395,7 +396,8 @@ const Connections = React.memo((): JSX.Element | null => {
                           key={id}
                           id={id}
                           data={data}
-                          status="incoming"
+                          connectStatus="incoming"
+                          notificationStatus="read"
                           onLoading={setTransitioning}
                         />
                       ))}
@@ -413,7 +415,8 @@ const Connections = React.memo((): JSX.Element | null => {
                           key={id}
                           id={id}
                           data={data}
-                          status="outgoing"
+                          connectStatus="outgoing"
+                          notificationStatus="read"
                           onLoading={setTransitioning}
                         />
                       ))}

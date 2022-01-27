@@ -136,7 +136,8 @@ const NotificationListItem = React.memo(
         <ConnectionListItem
           id={uid}
           data={connectFromData}
-          status={connectToData ? "connected" : "incoming"}
+          connectStatus={connectToData ? "connected" : "incoming"}
+          notificationStatus="unread"
           onLoading={onLoading}
         />
       );
