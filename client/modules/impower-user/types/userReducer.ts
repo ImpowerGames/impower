@@ -222,6 +222,8 @@ export const userReducer = (
       const data: AggData = {
         ...(aggData || {}),
       };
+      const id = path?.[path.length - 1];
+      const notificationId = `${type}%${id}`;
       if (type === "connects") {
         data.c = state?.settings?.account?.contact;
       }
@@ -247,7 +249,6 @@ export const userReducer = (
             [`data/${uid}`]: data,
           });
           if (type === "connects") {
-            const notificationId = `${type}%${path[path.length - 1]}`;
             const notificationsRef = new DataStateWrite(
               "users",
               uid,
@@ -285,6 +286,7 @@ export const userReducer = (
       const parentDocId = path[1];
       const targetColId = path[2];
       let my_recent_pitched_projects = state?.my_recent_pitched_projects;
+      let notifications = state?.notifications;
       if (
         parentColId === "pitched_projects" &&
         type === "kudos" &&
@@ -298,11 +300,17 @@ export const userReducer = (
             kudos: (my_recent_pitched_projects?.[parentDocId]?.kudos || 0) + 1,
           } as ProjectDocument,
         };
+      } else if (parentColId === "users" && type === "connects") {
+        notifications = {
+          ...notifications,
+          [notificationId]: { ...notifications[notificationId], r: true },
+        };
       }
       return {
         ...state,
         [myActivitiesName]: myActivities,
         my_recent_pitched_projects,
+        notifications,
       };
     }
     case USER_UNDO_ACTIVITY: {
@@ -367,6 +375,8 @@ export const userReducer = (
     case USER_REJECT_CONNECT: {
       const { path, onFinished } = action.payload;
       const id = path?.[path.length - 1];
+      const type = "connects";
+      const notificationId = `${type}%${id}`;
       const setData = async (): Promise<void> => {
         const Auth = (await import("../../impower-auth/classes/auth")).default;
         const DataStateWrite = (
@@ -382,8 +392,6 @@ export const userReducer = (
           id,
           "r"
         );
-        const type = "connects";
-        const notificationId = `${type}%${id}`;
         const notificationsRef = new DataStateWrite(
           "users",
           uid,
@@ -406,6 +414,14 @@ export const userReducer = (
         }
       };
       setData();
+      const parentColId = path[0];
+      let notifications = state?.notifications;
+      if (parentColId === "users" && type === "connects") {
+        notifications = {
+          ...notifications,
+          [notificationId]: { ...notifications[notificationId], r: true },
+        };
+      }
       return {
         ...state,
         connects: {
@@ -415,6 +431,7 @@ export const userReducer = (
             r: true,
           },
         },
+        notifications,
       };
     }
     case USER_CHANGE_MEMBER: {
