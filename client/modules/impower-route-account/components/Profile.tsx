@@ -27,6 +27,7 @@ import Avatar from "../../impower-route/components/elements/Avatar";
 import {
   UserContext,
   userDoConnect,
+  userReadNotification,
   userUndoConnect,
 } from "../../impower-user";
 
@@ -181,6 +182,7 @@ const Profile = React.memo((props: ProfileProps): JSX.Element | null => {
       }
       setConnectedToState(newConnectedTo);
       userDispatch(userDoConnect("users", id));
+      userDispatch(userReadNotification("connects", "users", id));
     } else {
       setConnectedToState(newConnectedTo);
       userDispatch(userUndoConnect("users", id));

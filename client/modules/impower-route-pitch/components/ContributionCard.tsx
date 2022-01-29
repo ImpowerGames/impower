@@ -16,6 +16,7 @@ import {
   userDoFollow,
   userDoLike,
   userOnUpdateSubmission,
+  userReadNotification,
   userUndoConnect,
   userUndoDislike,
   userUndoFollow,
@@ -198,6 +199,9 @@ const ContributionCard = React.memo(
       async (e: React.MouseEvent, connected: boolean): Promise<void> => {
         if (connected) {
           userDispatch(userDoConnect("users", doc?._createdBy));
+          userDispatch(
+            userReadNotification("connects", "users", doc?._createdBy)
+          );
         } else {
           userDispatch(userUndoConnect("users", doc?._createdBy));
         }

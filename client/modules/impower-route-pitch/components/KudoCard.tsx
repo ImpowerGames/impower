@@ -12,6 +12,7 @@ import {
 import {
   UserContext,
   userDoConnect,
+  userReadNotification,
   userUndoConnect,
 } from "../../impower-user";
 import KudoCardLayout from "./KudoCardLayout";
@@ -120,6 +121,7 @@ const KudoCard = React.memo((props: KudoCardProps): JSX.Element => {
     async (e: React.MouseEvent, connected: boolean): Promise<void> => {
       if (connected) {
         userDispatch(userDoConnect("users", id));
+        userDispatch(userReadNotification("connects", "users", id));
       } else {
         userDispatch(userUndoConnect("users", id));
       }

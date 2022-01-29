@@ -22,8 +22,9 @@ import {
   UserContext,
   userDoConnect,
   userUndoConnect,
+  userReadNotification,
+  userRejectConnect,
 } from "../../impower-user";
-import userRejectConnect from "../../impower-user/utils/userRejectConnect";
 
 const StyledListItem = styled(ListItem)``;
 
@@ -190,6 +191,7 @@ const ConnectionListItemButtons = React.memo(
         e.preventDefault();
         e.stopPropagation();
         userDispatch(userRejectConnect("users", id));
+        userDispatch(userReadNotification("connects", "users", id));
       },
       [userDispatch]
     );
@@ -203,6 +205,7 @@ const ConnectionListItemButtons = React.memo(
           return;
         }
         userDispatch(userDoConnect("users", id));
+        userDispatch(userReadNotification("connects", "users", id));
       },
       [contact, openAccountDialog, userDispatch]
     );
@@ -288,7 +291,7 @@ interface ConnectionListItemProps {
   id: string;
   data: AggData;
   connectStatus: "connected" | "incoming" | "outgoing";
-  notificationStatus: "read" | "unread";
+  notificationStatus?: "read" | "unread";
   onLoading?: (isLoading: boolean) => void;
 }
 
@@ -296,15 +299,20 @@ const ConnectionListItem = React.memo(
   (props: ConnectionListItemProps): JSX.Element | null => {
     const { id, data, connectStatus, notificationStatus, onLoading } = props;
 
+    const [, userDispatch] = useContext(UserContext);
+
     const router = useRouter();
 
     const handleClick = useCallback(
       async (e: React.MouseEvent, id: string, data: AggData) => {
+        if (notificationStatus === "unread") {
+          userDispatch(userReadNotification("connects", "users", id));
+        }
         onLoading?.(true);
         await router.push(`/u/${data?.a?.u}?t=contributions`);
         onLoading?.(false);
       },
-      [onLoading, router]
+      [notificationStatus, onLoading, router, userDispatch]
     );
 
     return (

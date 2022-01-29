@@ -18,6 +18,7 @@ import { UserLoadSettingsAction } from "./actions/userLoadSettingsAction";
 import { UserLoadStudiosAction } from "./actions/userLoadStudiosAction";
 import { UserLoadSubmissionsAction } from "./actions/userLoadSubmissionsAction";
 import { UserLoadUserDocAction } from "./actions/userLoadUserDocAction";
+import { UserReadNotificationAction } from "./actions/userReadNotificationAction";
 import { UserRejectConnectAction } from "./actions/userRejectConnectAction";
 import { UserSetCustomizationAction } from "./actions/userSetCustomizationAction";
 import { UserSetSettingAction } from "./actions/userSetSettingAction";
@@ -45,6 +46,7 @@ export type UserAction =
   | UserLoadNotificationsAction
   | UserDoActivityAction
   | UserUndoActivityAction
+  | UserReadNotificationAction
   | UserRejectConnectAction
   | UserChangeMemberAction
   | UserCreateSubmissionAction
