@@ -12,7 +12,6 @@ import AngleRightSolidIcon from "../../../../resources/icons/solid/angle-right.s
 import BoltSolidIcon from "../../../../resources/icons/solid/bolt.svg";
 import WandMagicSparklesSolidIcon from "../../../../resources/icons/solid/wand-magic-sparkles.svg";
 import { FontIcon } from "../../../impower-icon";
-import { DraggableEvent } from "../../../impower-react-flowchart";
 import {
   AccessibleEvent,
   ButtonShape,
@@ -185,7 +184,7 @@ interface ContainerButtonProps {
   onOpenContextMenu: (event: AccessibleEvent) => void;
   onEdit: (refId: string, event: AccessibleEvent) => void;
   onChangeName: (refId: string, name: string) => void;
-  onDragHandleTrigger: (event: DraggableEvent) => void;
+  onDragHandleTrigger?: (event: PointerEvent | React.PointerEvent) => void;
 }
 
 const ContainerButton = React.memo(
@@ -223,11 +222,11 @@ const ContainerButton = React.memo(
     );
 
     const handleDragHandleTrigger = useCallback(
-      (event: DraggableEvent) => {
+      (event: PointerEvent | React.PointerEvent) => {
         if (mode === Mode.Test || changeNameTargetId) {
           return;
         }
-        onDragHandleTrigger(event);
+        onDragHandleTrigger?.(event);
       },
       [mode, changeNameTargetId, onDragHandleTrigger]
     );

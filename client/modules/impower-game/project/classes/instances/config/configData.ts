@@ -26,6 +26,5 @@ export const createConfigData = <T extends ConfigTypeId = ConfigTypeId>(
   ...createInstanceData<ConfigType.Config, ConfigReference<T>>({
     reference: obj?.reference,
   }),
-  _documentType: obj?.reference?.refType,
   ...obj,
 });

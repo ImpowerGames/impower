@@ -31,7 +31,6 @@ import React, {
   useState,
 } from "react";
 import { difference, OrderedCollection } from "../../../impower-core";
-import { DraggableEvent } from "../../../impower-react-flowchart";
 import {
   Alignment,
   VirtualizedList,
@@ -73,7 +72,7 @@ interface SortableItemProps {
   currentFocusedIds: string[] | null;
   currentSelectedIds: string[];
   currentDraggingIds: string[];
-  onDragHandleTrigger: (event: DraggableEvent) => void;
+  onDragHandleTrigger: (event: PointerEvent | React.PointerEvent) => void;
   children: (props: {
     id: string;
     index: number;
@@ -82,7 +81,7 @@ interface SortableItemProps {
     currentFocusedIds: string[] | null;
     currentSelectedIds: string[];
     currentDraggingIds: string[];
-    onDragHandleTrigger: (event: DraggableEvent) => void;
+    onDragHandleTrigger: (event: PointerEvent | React.PointerEvent) => void;
   }) => JSX.Element | null;
 }
 
@@ -166,7 +165,7 @@ interface VirtualSortableListProps {
   scrollParent?: HTMLElement | null;
   onScrollToIndex: () => void;
   onRef?: (instance: HTMLDivElement | null) => void;
-  onDragHandleTrigger: (event: DraggableEvent) => void;
+  onDragHandleTrigger: (event: PointerEvent | React.PointerEvent) => void;
   onDragStart?(event: DragStartEvent): void;
   onDragMove?(event: DragMoveEvent): void;
   onDragEnd?(
@@ -185,7 +184,7 @@ interface VirtualSortableListProps {
     currentFocusedIds: string[] | null;
     currentSelectedIds: string[];
     currentDraggingIds: string[];
-    onDragHandleTrigger: (event: DraggableEvent) => void;
+    onDragHandleTrigger: (event: PointerEvent | React.PointerEvent) => void;
   }) => JSX.Element | null;
 }
 
@@ -358,7 +357,7 @@ interface SortableListProps {
   currentSelectedIds: string[];
   currentDraggingIds: string[];
   disableReordering?: boolean;
-  onDragHandleTrigger: (event: DraggableEvent) => void;
+  onDragHandleTrigger: (event: PointerEvent | React.PointerEvent) => void;
   onDragStart?(event: DragStartEvent): void;
   onDragMove?(event: DragMoveEvent): void;
   onDragEnd?(
@@ -377,7 +376,7 @@ interface SortableListProps {
     currentFocusedIds: string[] | null;
     currentSelectedIds: string[];
     currentDraggingIds: string[];
-    onDragHandleTrigger: (event: DraggableEvent) => void;
+    onDragHandleTrigger: (event: PointerEvent | React.PointerEvent) => void;
   }) => JSX.Element | null;
   onRef?: (instance: HTMLDivElement | null) => void;
 }
@@ -573,7 +572,7 @@ interface DataListProps {
     currentFocusedIds: string[] | null;
     currentSelectedIds: string[];
     currentDraggingIds: string[];
-    onDragHandleTrigger: (event: DraggableEvent) => void;
+    onDragHandleTrigger: (event: PointerEvent | React.PointerEvent) => void;
   }) => JSX.Element | null;
 }
 
@@ -635,7 +634,8 @@ const DataList = (props: DataListProps): JSX.Element => {
       if (!draggingIds.includes(id)) {
         onSetDragging([id]);
       }
-      startClientX.current = event.active.rect.current.translated.offsetLeft;
+      startClientX.current =
+        event?.active?.rect?.current?.translated?.offsetLeft || 0;
       if (window.navigator.vibrate) {
         window.navigator.vibrate(10);
       }
@@ -650,7 +650,8 @@ const DataList = (props: DataListProps): JSX.Element => {
   );
 
   const handleSortMove = useCallback((event: DragMoveEvent): void => {
-    endClientX.current = event.active.rect.current.translated.offsetLeft;
+    endClientX.current =
+      event?.active?.rect?.current?.translated?.offsetLeft || 0;
   }, []);
 
   const handleSortEnd = useCallback(
@@ -730,7 +731,7 @@ const DataList = (props: DataListProps): JSX.Element => {
   );
 
   const handleDragHandleTrigger = useCallback(
-    (_event: DraggableEvent): void => {
+    (_event: PointerEvent | React.PointerEvent): void => {
       allowDrag.current = true;
     },
     []

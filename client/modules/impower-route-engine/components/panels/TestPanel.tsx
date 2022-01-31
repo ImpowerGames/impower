@@ -107,6 +107,7 @@ const StyledTestPlayer = styled.div`
 `;
 
 const StyledOverlay = styled.div`
+  pointer-events: none;
   position: absolute;
   top: 50%;
   right: 0;

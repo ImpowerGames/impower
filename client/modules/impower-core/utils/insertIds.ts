@@ -3,17 +3,18 @@ const insertIds = (
   idsToAdd: string[],
   index?: number
 ): string[] => {
+  const validIds = ids || [];
   if (idsToAdd.length === 0) {
-    return ids;
+    return validIds;
   }
-  const newIdsToAdd = idsToAdd.filter((id) => !ids.includes(id));
+  const newIdsToAdd = idsToAdd.filter((id) => !validIds.includes(id));
   if (newIdsToAdd.length > 0) {
-    const validIndex = index && index > -1 ? index : ids.length;
-    const newIds = [...ids];
+    const validIndex = index && index > -1 ? index : validIds.length;
+    const newIds = [...validIds];
     newIds.splice(validIndex, 0, ...newIdsToAdd);
     return newIds;
   }
-  return ids;
+  return validIds;
 };
 
 export default insertIds;

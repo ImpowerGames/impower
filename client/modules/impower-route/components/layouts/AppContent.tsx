@@ -59,13 +59,12 @@ const StyledFontLoader = styled.p``;
 
 interface AppContentProps {
   navigationChildren?: React.ReactNode;
-  bannerChildren?: React.ReactNode;
   fullscreen: boolean;
 }
 
 const AppContent = React.memo(
   (props: PropsWithChildren<AppContentProps>): JSX.Element | null => {
-    const { fullscreen, navigationChildren, bannerChildren, children } = props;
+    const { fullscreen, navigationChildren, children } = props;
 
     const theme = useTheme();
     const belowXsBreakpoint = useMediaQuery(theme.breakpoints.down("sm"));
@@ -80,7 +79,6 @@ const AppContent = React.memo(
               position: fullscreen ? "fixed" : undefined,
             }}
           >
-            {!fullscreen && bannerChildren}
             {children}
           </StyledAppContentArea>
         </StyledAppContent>

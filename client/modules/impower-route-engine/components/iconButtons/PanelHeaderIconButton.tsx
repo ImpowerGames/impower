@@ -40,6 +40,7 @@ const PanelHeaderIconButton = (
           color: color || theme.palette.secondary.main,
           justifyContent: "center",
           alignItems: "center",
+          pointerEvents: disabled ? undefined : "auto",
           ...style,
         }}
         onMouseDown={onMouseDown}

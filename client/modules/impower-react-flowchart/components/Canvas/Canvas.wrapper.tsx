@@ -1,65 +1,106 @@
-import { motion, useSpring } from "framer-motion";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { defaultFlowchartConfig, FlowChartConfig } from "../../types/config";
 import { OnPanCanvas, OnZoomCanvas } from "../../types/functions";
 import { Vector2 } from "../../types/generics";
+import { clamp } from "../../utils/clamp";
+import { getFocusedOffset, getFocusedPosition } from "../../utils/rect";
 import { CanvasDefault, CanvasDefaultProps } from "./Canvas.default";
-// import { clamp } from "../../utils/clamp";
-// import { getFocusedOffset, getFocusedPosition } from "../../utils/rect";
 
-const transition = {
-  stiffness: 600,
-  damping: 1000,
+const getCenter = (v1: number, v2: number): number => {
+  return (v1 + v2) / 2;
 };
 
-// const getVector = (xy?: [number, number]): Vector2 => {
-//   if (!xy) {
-//     return { x: 0, y: 0 };
-//   }
-//   return { x: xy[0], y: xy[1] };
-// };
+const getTouchPageCenter = (
+  event: TouchEvent | React.TouchEvent
+): { x: number; y: number } => {
+  return {
+    x: getCenter(event.touches[0].pageX, event.touches[1].pageX),
+    y: getCenter(event.touches[0].pageY, event.touches[1].pageY),
+  };
+};
 
-// const getPinchZoomScale = (
-//   scale: number,
-//   movementAmount: number,
-//   step: number,
-//   minScale: number,
-//   maxScale: number
-// ): number => {
-//   if (movementAmount < 0) {
-//     return clamp(scale / step, minScale, maxScale);
-//   }
-//   if (movementAmount > 0) {
-//     return clamp(scale * step, minScale, maxScale);
-//   }
-//   return scale;
-// };
+const getTouchPageDistance = (event: TouchEvent | React.TouchEvent): number => {
+  return Math.hypot(
+    event.touches[0].pageX - event.touches[1].pageX,
+    event.touches[0].pageY - event.touches[1].pageY
+  );
+};
 
-// const getWheelZoomScale = (
-//   scale: number,
-//   scaleMovement: Vector2,
-//   step: number,
-//   minScale: number,
-//   maxScale: number
-// ): number => {
-//   if (scaleMovement.x > 0 || scaleMovement.y > 0) {
-//     return clamp(scale / step, minScale, maxScale);
-//   }
-//   if (scaleMovement.x < 0 || scaleMovement.y < 0) {
-//     return clamp(scale * step, minScale, maxScale);
-//   }
-//   return scale;
-// };
+const getPinchZoomScale = (
+  scale: number,
+  movementAmount: number,
+  step: number,
+  minScale: number,
+  maxScale: number
+): number => {
+  if (movementAmount < 0) {
+    return clamp(scale / step, minScale, maxScale);
+  }
+  if (movementAmount > 0) {
+    return clamp(scale * step, minScale, maxScale);
+  }
+  return scale;
+};
+
+const getWheelZoomScale = (
+  scale: number,
+  scaleMovement: Vector2,
+  step: number,
+  minScale: number,
+  maxScale: number
+): number => {
+  if (scaleMovement.x > 0 || scaleMovement.y > 0) {
+    return clamp(scale / step, minScale, maxScale);
+  }
+  if (scaleMovement.x < 0 || scaleMovement.y < 0) {
+    return clamp(scale * step, minScale, maxScale);
+  }
+  return scale;
+};
+
+const getScrollOffset = (scrollParent: HTMLElement): Vector2 => {
+  if (!scrollParent) {
+    return { x: 0, y: 0 };
+  }
+  if (scrollParent === document.documentElement) {
+    return { x: window.scrollX, y: window.scrollY };
+  }
+  return {
+    x: scrollParent.scrollLeft,
+    y: scrollParent.scrollTop,
+  };
+};
+
+const setScrollOffset = (
+  scrollParent: HTMLElement,
+  newOffset: Vector2
+): void => {
+  if (!scrollParent) {
+    return;
+  }
+  if (scrollParent === document.documentElement) {
+    window.scrollX = newOffset.x;
+    window.scrollY = newOffset.y;
+  }
+  scrollParent.scrollLeft = newOffset.x;
+  scrollParent.scrollTop = newOffset.y;
+};
 
 export interface CanvasWrapperProps {
   config?: FlowChartConfig;
   defaultOffset: Vector2;
   defaultScale: number;
   size: Vector2;
-  allowPan: boolean;
   forcedScale?: { value: number };
   forcedOffset?: { value: Vector2 };
   scrollParent?: HTMLElement | null;
+  chartAreaRef?: React.Ref<HTMLDivElement>;
   onPanCanvasStart: OnPanCanvas;
   onPanCanvas: OnPanCanvas;
   onPanCanvasStop: OnPanCanvas;
@@ -68,7 +109,6 @@ export interface CanvasWrapperProps {
   onZoomCanvas: OnZoomCanvas;
   onZoomCanvasStop: OnZoomCanvas;
   onForcedZoomCanvas: OnZoomCanvas;
-  onChartAreaRef?: (instance: HTMLDivElement | null) => void;
   children?: (props: CanvasDefaultProps) => JSX.Element | null;
 }
 
@@ -81,429 +121,495 @@ export const CanvasWrapper = (props: CanvasWrapperProps): JSX.Element => {
     forcedScale,
     size,
     scrollParent,
-    // allowPan,
-    // onPanCanvasStart,
-    // onZoomCanvasStart,
+    chartAreaRef,
+    onZoomCanvasStart,
+    onPanCanvasStart,
     onPanCanvas,
     onPanCanvasStop,
     onForcedPanCanvas,
     onZoomCanvas,
     onZoomCanvasStop,
     onForcedZoomCanvas,
-    onChartAreaRef,
     children = CanvasDefault,
   } = props;
-  const [chartAreaElement, setChartAreaElement] = useState<HTMLDivElement>();
-  const scale = useRef(defaultScale);
-  const controllingRef = useRef(false);
+
   const gridColor =
     config?.canvasConfig?.options?.gridColor ||
     defaultFlowchartConfig.canvasConfig.options.gridColor;
   const gridSize =
     config?.canvasConfig?.options?.gridSize ||
     defaultFlowchartConfig.canvasConfig.options.gridSize;
-  // const focusedPosition = useRef<{
-  //   focusChartPosition: Vector2;
-  //   focusScrollPosition: Vector2;
-  // }>();
-  // const panningEnabled = useRef(allowPan);
-  // const mouseDraggingButton = useRef(-1);
-  // const mouseDragStartOffset = useRef<Vector2>(defaultOffset);
-  // const minScale =
-  //   config?.canvasConfig?.options?.minScale ||
-  //   defaultFlowchartConfig.canvasConfig.options.minScale;
-  // const maxScale =
-  //   config?.canvasConfig?.options?.maxScale ||
-  //   defaultFlowchartConfig.canvasConfig.options.maxScale;
-  // const pinchDisabled =
-  //   config?.canvasConfig?.pinch?.disabled ||
-  //   defaultFlowchartConfig.canvasConfig.pinch.disabled;
-  // const pinchStep =
-  //   config?.canvasConfig?.pinch?.step ||
-  //   defaultFlowchartConfig.canvasConfig.pinch.step;
-  // const wheelDisabled =
-  //   config?.canvasConfig?.wheel?.disabled ||
-  //   defaultFlowchartConfig.canvasConfig.wheel.disabled;
-  // const wheelStep =
-  //   config?.canvasConfig?.wheel?.step ||
-  //   defaultFlowchartConfig.canvasConfig.wheel.step;
-  // const panDisabled =
-  //   config?.canvasConfig?.pan?.disabled ||
-  //   defaultFlowchartConfig.canvasConfig.pan.disabled;
+  const focusedPosition = useRef<{
+    focusChartPosition: Vector2;
+    focusScrollPosition: Vector2;
+  }>();
+  const minScale =
+    config?.canvasConfig?.options?.minScale ||
+    defaultFlowchartConfig.canvasConfig.options.minScale;
+  const maxScale =
+    config?.canvasConfig?.options?.maxScale ||
+    defaultFlowchartConfig.canvasConfig.options.maxScale;
+  const pinchDisabled =
+    config?.canvasConfig?.pinch?.disabled ||
+    defaultFlowchartConfig.canvasConfig.pinch.disabled;
+  const pinchStep =
+    config?.canvasConfig?.pinch?.step ||
+    defaultFlowchartConfig.canvasConfig.pinch.step;
+  const wheelDisabled =
+    config?.canvasConfig?.wheel?.disabled ||
+    defaultFlowchartConfig.canvasConfig.wheel.disabled;
+  const wheelStep =
+    config?.canvasConfig?.wheel?.step ||
+    defaultFlowchartConfig.canvasConfig.wheel.step;
+  const panDisabled =
+    config?.canvasConfig?.pan?.disabled ||
+    defaultFlowchartConfig.canvasConfig.pan.disabled;
 
-  const getCurrentOffset = (): Vector2 => {
-    if (scrollParent) {
-      return {
-        x: scrollParent.scrollLeft,
-        y: scrollParent.scrollTop,
-      };
+  const [chartAreaElement, setChartAreaElement] = useState<HTMLDivElement>();
+
+  const mouseDraggingRef = useRef(false);
+  const startScrollXRef = useRef<number>();
+  const startScrollYRef = useRef<number>();
+  const startClientXRef = useRef<number>();
+  const startClientYRef = useRef<number>();
+  const startTouchCenterRef = useRef<Vector2>();
+  const startTouchDistanceRef = useRef<number>();
+  const scaleRef = useRef(defaultScale);
+  const wheelingRef = useRef(false);
+  const scrollingRef = useRef(false);
+  const pinchingRef = useRef(false);
+  const pointerDownRef = useRef(false);
+
+  const updateScale = useCallback(
+    (element: HTMLElement, value: number): void => {
+      scaleRef.current = value;
+      if (!element) {
+        return;
+      }
+      element.style.transform = `scale(${value})`;
+    },
+    []
+  );
+
+  const updateCursor = useCallback((element: HTMLElement) => {
+    if (!element) {
+      return;
     }
-    return defaultOffset;
-  };
-  const setCurrentOffset = (newOffset: Vector2): void => {
-    if (scrollParent) {
-      scrollParent.scrollLeft = newOffset.x;
-      scrollParent.scrollTop = newOffset.y;
-    }
-  };
+    element.style.cursor = mouseDraggingRef.current
+      ? "grabbing"
+      : !pointerDownRef.current
+      ? "grab"
+      : "pointer";
+  }, []);
 
-  const offsetXSpring = useSpring(getCurrentOffset().x, transition);
-  const offsetYSpring = useSpring(getCurrentOffset().y, transition);
-  const scaleSpring = useSpring(scale.current, transition);
+  const handleScrollStart = useCallback(
+    (event: Event) => {
+      const newOffset = getScrollOffset(scrollParent);
+      onPanCanvasStart?.({
+        offset: newOffset,
+        event,
+      });
+    },
+    [onPanCanvasStart, scrollParent]
+  );
 
-  // TODO: Fix to use event listeners instead;
-  // const bind = useGesture(
-  //   {
-  //     onPinchStart: (state) => {
-  //       if (!pinchDisabled) {
-  //         const event = state.event as React.BaseSyntheticEvent;
-  //         event.preventDefault();
-  //         controllingRef.current = true;
-  //         if (scrollParent && chartAreaElement) {
-  //           const scrollPosition = scrollParent.getBoundingClientRect();
-  //           const chartPosition = chartAreaElement.getBoundingClientRect();
-  //           focusedPosition.current = getFocusedPosition(
-  //             scrollPosition,
-  //             chartPosition,
-  //             scale.current,
-  //             getVector(state.origin)
-  //           );
-  //         }
-  //         onZoomCanvasStart({
-  //           scale: scale.current,
-  //           event: state.event,
-  //         });
-  //       }
-  //     },
-  //     onPinch: (state) => {
-  //       if (!pinchDisabled && !scaleSpring.isAnimating()) {
-  //         const event = state.event as React.BaseSyntheticEvent;
-  //         event.preventDefault();
-  //         controllingRef.current = true;
-  //         const newScale = getPinchZoomScale(
-  //           scale.current,
-  //           state.movement[0],
-  //           pinchStep,
-  //           minScale,
-  //           maxScale
-  //         );
-  //         scaleSpring.set(newScale, false);
-  //         if (chartAreaElement) {
-  //           chartAreaElement.style.transform = `scale(${newScale})`;
-  //         }
-  //         if (scrollParent && chartAreaElement && scale.current !== newScale) {
-  //           const focusedOffset = getFocusedOffset(
-  //             focusedPosition.current.focusScrollPosition,
-  //             focusedPosition.current.focusChartPosition,
-  //             newScale
-  //           );
-  //           setCurrentOffset(focusedOffset);
-  //         }
-  //         scale.current = newScale;
-  //         onZoomCanvas({
-  //           scale: newScale,
-  //           event: state.event,
-  //         });
-  //       }
-  //     },
-  //     onPinchEnd: (state) => {
-  //       if (!pinchDisabled && !scaleSpring.isAnimating()) {
-  //         const event = state.event as React.BaseSyntheticEvent;
-  //         event.preventDefault();
-  //         controllingRef.current = false;
-  //         onZoomCanvasStop({
-  //           scale: scale.current,
-  //           event: state.event,
-  //         });
-  //       }
-  //     },
-  //     onWheelStart: (state) => {
-  //       if (!wheelDisabled) {
-  //         const event = state.event as React.WheelEvent;
-  //         event.preventDefault();
-  //         controllingRef.current = true;
-  //         if (scrollParent && chartAreaElement) {
-  //           const scrollPosition = scrollParent.getBoundingClientRect();
-  //           const chartPosition = chartAreaElement.getBoundingClientRect();
-  //           focusedPosition.current = getFocusedPosition(
-  //             scrollPosition,
-  //             chartPosition,
-  //             scale.current,
-  //             { x: event.clientX, y: event.clientY }
-  //           );
-  //         }
-  //         onZoomCanvasStart({
-  //           scale: scale.current,
-  //           event: state.event,
-  //         });
-  //       }
-  //     },
-  //     onWheel: (state) => {
-  //       if (!wheelDisabled && !scaleSpring.isAnimating()) {
-  //         const event = state.event as React.WheelEvent;
-  //         event.preventDefault();
-  //         controllingRef.current = true;
-  //         const newScale = getWheelZoomScale(
-  //           scale.current,
-  //           getVector(state.movement),
-  //           wheelStep,
-  //           minScale,
-  //           maxScale
-  //         );
-  //         scaleSpring.set(newScale, false);
-  //         if (chartAreaElement) {
-  //           chartAreaElement.style.transform = `scale(${newScale})`;
-  //         }
-  //         if (scrollParent && chartAreaElement && scale.current !== newScale) {
-  //           const focusedOffset = getFocusedOffset(
-  //             focusedPosition.current.focusScrollPosition,
-  //             focusedPosition.current.focusChartPosition,
-  //             newScale
-  //           );
-  //           setCurrentOffset(focusedOffset);
-  //         }
-  //         scale.current = newScale;
-  //         onZoomCanvas({
-  //           scale: newScale,
-  //           event: state.event,
-  //         });
-  //       }
-  //     },
-  //     onWheelEnd: (state) => {
-  //       if (!wheelDisabled && !scaleSpring.isAnimating()) {
-  //         const event = state.event as React.WheelEvent;
-  //         event.preventDefault();
-  //         controllingRef.current = false;
-  //         onZoomCanvasStop({
-  //           scale: scale.current,
-  //           event: state.event,
-  //         });
-  //       }
-  //     },
-  //     onScrollStart: (state) => {
-  //       if (!panDisabled && allowPan) {
-  //         const newOffset = getVector(state.xy);
-  //         onPanCanvasStart({
-  //           offset: newOffset,
-  //           event: state.event,
-  //         });
-  //       }
-  //     },
-  //     onScroll: (state) => {
-  //       if (!panDisabled && allowPan) {
-  //         const newOffset = getVector(state.xy);
-  //         offsetXSpring.set(newOffset.x, false);
-  //         offsetYSpring.set(newOffset.y, false);
-  //         onPanCanvas({
-  //           offset: newOffset,
-  //           event: state.event,
-  //         });
-  //       }
-  //     },
-  //     onScrollEnd: (state) => {
-  //       if (!panDisabled && allowPan) {
-  //         const newOffset = getVector(state.xy);
-  //         offsetXSpring.set(newOffset.x, false);
-  //         offsetYSpring.set(newOffset.y, false);
-  //         onPanCanvasStop({
-  //           offset: newOffset,
-  //           event: state.event,
-  //         });
-  //       }
-  //     },
-  //     onDragStart: (state) => {
-  //       if (!panDisabled && allowPan) {
-  //         // 'Drag to scroll' is automatically handled on touch based browsers,
-  //         // So we only need to add this functionality for mouse based interfaces
-  //         if (state.event?.type === "mousedown") {
-  //           const mouseEvent = state.event as unknown as MouseEvent;
-  //           if (mouseEvent) {
-  //             mouseDraggingButton.current = mouseEvent.button;
-  //             mouseDragStartOffset.current = getCurrentOffset();
-  //           }
-  //         }
-  //       }
-  //     },
-  //     onDrag: (state) => {
-  //       if (!panDisabled && allowPan && panningEnabled.current) {
-  //         if (
-  //           mouseDraggingButton.current === 0 &&
-  //           !offsetXSpring.isAnimating() &&
-  //           !offsetYSpring.isAnimating()
-  //         ) {
-  //           const event = state.event as React.BaseSyntheticEvent;
-  //           const activeHTMLElement = document.activeElement as HTMLElement;
-  //           if (activeHTMLElement && activeHTMLElement.blur) {
-  //             activeHTMLElement.blur();
-  //           }
-  //           event.preventDefault();
-  //           const newOffset = {
-  //             x: mouseDragStartOffset.current.x - state.movement[0],
-  //             y: mouseDragStartOffset.current.y - state.movement[1],
-  //           };
-  //           setCurrentOffset(newOffset);
-  //         }
-  //       }
-  //       if (!allowPan) {
-  //         // If panning is disallowed at any point during dragging, keep it disallowed until the drag ends.
-  //         panningEnabled.current = allowPan;
-  //       }
-  //     },
-  //     onDragEnd: () => {
-  //       mouseDraggingButton.current = -1;
-  //       panningEnabled.current = allowPan;
-  //     },
-  //   },
-  //   {
-  //     domTarget: scrollParent || undefined,
-  //     eventOptions: { passive: false },
-  //   }
-  // );
+  const handleScroll = useCallback(
+    (event: Event) => {
+      if (!scrollingRef.current) {
+        scrollingRef.current = true;
+        handleScrollStart(event);
+      }
+      const newOffset = getScrollOffset(scrollParent);
+      onPanCanvas?.({
+        offset: newOffset,
+        event,
+      });
+    },
+    [handleScrollStart, onPanCanvas, scrollParent]
+  );
+
+  const handleScrollEnd = useCallback(
+    (event: Event) => {
+      const newOffset = getScrollOffset(scrollParent);
+      onPanCanvasStop?.({
+        offset: newOffset,
+        event,
+      });
+    },
+    [onPanCanvasStop, scrollParent]
+  );
+
+  const handleTouchStart = useCallback(
+    (event: React.TouchEvent) => {
+      pinchingRef.current = true;
+      if (event.touches.length === 2) {
+        if (!pinchDisabled) {
+          event.preventDefault();
+
+          // Calculate where the fingers have started on the X and Y axis
+          startTouchCenterRef.current = getTouchPageCenter(event);
+          startTouchDistanceRef.current = getTouchPageDistance(event);
+
+          if (scrollParent && chartAreaElement) {
+            const scrollPosition = scrollParent.getBoundingClientRect();
+            const chartPosition = chartAreaElement.getBoundingClientRect();
+            focusedPosition.current = getFocusedPosition(
+              scrollPosition,
+              chartPosition,
+              scaleRef.current,
+              startTouchCenterRef.current
+            );
+          }
+          onZoomCanvasStart?.({
+            scale: scaleRef.current,
+            event,
+          });
+        }
+      }
+    },
+    [chartAreaElement, onZoomCanvasStart, pinchDisabled, scrollParent]
+  );
+
+  const handleTouchMove = useCallback(
+    (event: TouchEvent | React.TouchEvent) => {
+      const imageElement = event.target as HTMLImageElement;
+      if (imageElement && event.touches.length === 2 && pinchingRef.current) {
+        if (!pinchDisabled) {
+          event.preventDefault();
+
+          const newTouchDistance = getTouchPageDistance(event);
+
+          const newScale = getPinchZoomScale(
+            scaleRef.current,
+            startTouchDistanceRef.current - newTouchDistance,
+            pinchStep,
+            minScale,
+            maxScale
+          );
+          updateScale(chartAreaElement, newScale);
+          if (scrollParent && chartAreaElement) {
+            const focusedOffset = getFocusedOffset(
+              focusedPosition.current.focusScrollPosition,
+              focusedPosition.current.focusChartPosition,
+              newScale
+            );
+            setScrollOffset(scrollParent, focusedOffset);
+          }
+          onZoomCanvas?.({
+            scale: newScale,
+            event,
+          });
+        }
+      }
+    },
+    [
+      chartAreaElement,
+      maxScale,
+      minScale,
+      onZoomCanvas,
+      pinchDisabled,
+      pinchStep,
+      scrollParent,
+      updateScale,
+    ]
+  );
+
+  const handleTouchEnd = useCallback(
+    (event: TouchEvent | React.TouchEvent): void => {
+      pinchingRef.current = false;
+      if (!pinchDisabled) {
+        onZoomCanvasStop?.({
+          scale: scaleRef.current,
+          event,
+        });
+      }
+      if (scrollingRef.current) {
+        scrollingRef.current = false;
+        handleScrollEnd(event as Event);
+      }
+    },
+    [handleScrollEnd, onZoomCanvasStop, pinchDisabled]
+  );
+
+  const handleWheelStart = useCallback(
+    (event: React.WheelEvent) => {
+      if (scrollParent && chartAreaElement) {
+        const scrollPosition = scrollParent.getBoundingClientRect();
+        const chartPosition = chartAreaElement.getBoundingClientRect();
+        focusedPosition.current = getFocusedPosition(
+          scrollPosition,
+          chartPosition,
+          scaleRef.current,
+          { x: event.clientX, y: event.clientY }
+        );
+      }
+      onZoomCanvasStart?.({
+        scale: scaleRef.current,
+        event,
+      });
+    },
+    [chartAreaElement, onZoomCanvasStart, scrollParent]
+  );
+
+  const handleWheel = useCallback(
+    (event: React.WheelEvent) => {
+      if (!wheelingRef.current) {
+        wheelingRef.current = true;
+        handleWheelStart(event);
+      }
+      if (!wheelDisabled) {
+        event.preventDefault();
+        const newScale = getWheelZoomScale(
+          scaleRef.current,
+          { x: event.deltaX, y: event.deltaY },
+          wheelStep,
+          minScale,
+          maxScale
+        );
+        updateScale(chartAreaElement, newScale);
+        if (scrollParent && chartAreaElement) {
+          const focusedOffset = getFocusedOffset(
+            focusedPosition.current.focusScrollPosition,
+            focusedPosition.current.focusChartPosition,
+            newScale
+          );
+          setScrollOffset(scrollParent, focusedOffset);
+        }
+        onZoomCanvas?.({
+          scale: newScale,
+          event,
+        });
+      }
+    },
+    [
+      chartAreaElement,
+      handleWheelStart,
+      maxScale,
+      minScale,
+      onZoomCanvas,
+      scrollParent,
+      updateScale,
+      wheelDisabled,
+      wheelStep,
+    ]
+  );
+
+  const handleWheelEnd = useCallback(
+    (event: React.WheelEvent) => {
+      if (!wheelDisabled) {
+        onZoomCanvasStop?.({
+          scale: scaleRef.current,
+          event,
+        });
+      }
+    },
+    [onZoomCanvasStop, wheelDisabled]
+  );
+
+  const handleMouseDown = useCallback(
+    (event: MouseEvent | React.MouseEvent): void => {
+      if (!panDisabled) {
+        if (scrollParent) {
+          event.preventDefault();
+          mouseDraggingRef.current = true;
+          startScrollXRef.current = scrollParent.scrollLeft;
+          startClientXRef.current = event.clientX;
+          startScrollYRef.current = scrollParent.scrollTop;
+          startClientYRef.current = event.clientY;
+          updateCursor(chartAreaElement);
+        }
+      }
+    },
+    [chartAreaElement, panDisabled, scrollParent, updateCursor]
+  );
+
+  const handleMouseMove = useCallback(
+    (event: MouseEvent | React.MouseEvent): void => {
+      if (!panDisabled) {
+        if (scrollParent && mouseDraggingRef.current) {
+          scrollParent.scrollLeft =
+            startScrollXRef.current + startClientXRef.current - event.clientX;
+          scrollParent.scrollTop =
+            startScrollYRef.current + startClientYRef.current - event.clientY;
+        }
+      }
+      if (wheelingRef.current) {
+        wheelingRef.current = false;
+        handleWheelEnd(undefined);
+      }
+      updateCursor(chartAreaElement);
+    },
+    [chartAreaElement, handleWheelEnd, panDisabled, scrollParent, updateCursor]
+  );
+
+  const handlePointerDown = useCallback((): void => {
+    pointerDownRef.current = true;
+    updateCursor(chartAreaElement);
+  }, [chartAreaElement, updateCursor]);
+
+  const handlePointerUp = useCallback(
+    (event: Event): void => {
+      pointerDownRef.current = false;
+      mouseDraggingRef.current = false;
+      if (scrollingRef.current) {
+        scrollingRef.current = false;
+        handleScrollEnd(event as Event);
+      }
+      updateCursor(chartAreaElement);
+    },
+    [chartAreaElement, handleScrollEnd, updateCursor]
+  );
 
   const handleChartAreaRef = useCallback(
     (instance: HTMLDivElement) => {
       if (instance) {
         setChartAreaElement(instance);
-        if (onChartAreaRef) {
-          onChartAreaRef(instance);
+        if (chartAreaRef) {
+          if (typeof chartAreaRef === "function") {
+            chartAreaRef(instance);
+          } else {
+            (chartAreaRef as { current: HTMLElement }).current = instance;
+          }
         }
       }
     },
-    [onChartAreaRef]
+    [chartAreaRef]
   );
 
-  const updateOffsetX = (value: number): void => {
-    if (!controllingRef.current && scrollParent) {
-      scrollParent.scrollLeft = value;
-      if (value === forcedOffset?.value.x) {
-        onPanCanvasStop({
-          offset: { x: value, y: scrollParent.scrollTop },
-        });
-      } else {
-        onPanCanvas({
-          offset: { x: value, y: scrollParent.scrollTop },
-        });
-      }
-    }
-  };
-  const updateOffsetY = (value: number): void => {
-    if (!controllingRef.current && scrollParent) {
-      scrollParent.scrollTop = value;
-      if (value === forcedOffset?.value.y) {
-        onPanCanvasStop({
-          offset: { x: scrollParent.scrollLeft, y: value },
-        });
-      } else {
-        onPanCanvas({
-          offset: { x: scrollParent.scrollLeft, y: value },
-        });
-      }
-    }
-  };
-  const updateScale = (value: number): void => {
-    if (!controllingRef.current) {
-      scale.current = value;
-      if (chartAreaElement) {
-        chartAreaElement.style.transform = `scale(${value})`;
-      }
-      if (value === forcedScale?.value) {
-        onZoomCanvasStop({ scale: value });
-      } else {
-        onZoomCanvas({ scale: value });
-      }
-    }
-  };
-
   useEffect(() => {
-    setCurrentOffset(defaultOffset);
-    onPanCanvas({ offset: defaultOffset });
-    onPanCanvasStop({ offset: defaultOffset });
+    setScrollOffset(scrollParent, defaultOffset);
+    onPanCanvas?.({ offset: defaultOffset });
+    onPanCanvasStop?.({ offset: defaultOffset });
   }, [defaultOffset, scrollParent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    scaleSpring.set(defaultScale, false);
-    scale.current = defaultScale;
-    if (chartAreaElement) {
-      chartAreaElement.style.transform = `scale(${defaultScale})`;
-    }
-    onZoomCanvas({ scale: defaultScale });
-    onZoomCanvasStop({ scale: defaultScale });
+    updateScale(chartAreaElement, defaultScale);
+    onZoomCanvas?.({ scale: defaultScale });
+    onZoomCanvasStop?.({ scale: defaultScale });
   }, [defaultScale, chartAreaElement]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const unsubscribeOffsetX = offsetXSpring.onRenderRequest(updateOffsetX);
-    const unsubscribeOffsetY = offsetYSpring.onRenderRequest(updateOffsetY);
-
     if (forcedOffset) {
-      const currentOffset = getCurrentOffset();
+      const currentOffset = getScrollOffset(scrollParent);
       if (
         currentOffset.x !== forcedOffset.value.x ||
         currentOffset.y !== forcedOffset.value.y
       ) {
-        offsetXSpring.set(forcedOffset.value.x);
-        offsetYSpring.set(forcedOffset.value.y);
+        setScrollOffset(scrollParent, {
+          x: forcedOffset.value.x,
+          y: forcedOffset.value.y,
+        });
       }
-      onForcedPanCanvas({ offset: forcedOffset.value });
+      onForcedPanCanvas?.({ offset: forcedOffset.value });
     }
-
-    return (): void => {
-      unsubscribeOffsetX();
-      unsubscribeOffsetY();
-    };
   }, [forcedOffset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const unsubscribeScale = scaleSpring.onRenderRequest(updateScale);
-
     if (forcedScale) {
-      if (scale.current !== forcedScale.value) {
-        scaleSpring.set(forcedScale.value);
+      if (scaleRef.current !== forcedScale.value) {
+        updateScale(chartAreaElement, forcedScale.value);
       }
-      onForcedZoomCanvas({ scale: forcedScale.value });
+      onForcedZoomCanvas?.({ scale: forcedScale.value });
     }
-
-    return (): void => {
-      unsubscribeScale();
-    };
   }, [forcedScale]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    document.addEventListener("pointerdown", handlePointerDown);
+    return (): void => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [handlePointerDown]);
+
+  useEffect(() => {
+    document.addEventListener("pointerup", handlePointerUp);
+    return (): void => {
+      document.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [handlePointerUp]);
+
+  useEffect(() => {
+    document.addEventListener("mousemove", handleMouseMove, {
+      passive: true,
+    });
+    return (): void => {
+      document.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, [handleMouseMove]);
+
+  useEffect(() => {
+    document.addEventListener("touchmove", handleTouchMove);
+    return (): void => {
+      document.removeEventListener("touchmove", handleTouchMove);
+    };
+  }, [handleTouchMove]);
+
+  useEffect(() => {
+    document.addEventListener("touchend", handleTouchEnd);
+    return (): void => {
+      document.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [handleTouchEnd]);
+
+  useEffect(() => {
+    if (scrollParent) {
+      scrollParent.addEventListener("scroll", handleScroll);
+    }
+    return (): void => {
+      if (scrollParent) {
+        scrollParent.removeEventListener("scroll", handleScroll);
+      }
+    };
+  }, [handleScroll, scrollParent]);
+
+  const wrapperStyle: React.CSSProperties = useMemo(
+    () => ({
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      width: "100%",
+      height: "100%",
+    }),
+    []
+  );
+
+  const scrollAreaStyle: React.CSSProperties = useMemo(
+    () => ({
+      transform: `translate(0px, 0px)`,
+    }),
+    []
+  );
+
+  const chartAreaStyle: React.CSSProperties = useMemo(
+    () => ({
+      position: "absolute",
+      transformOrigin: "top left",
+      minWidth: size.x,
+      minHeight: size.y,
+    }),
+    [size.x, size.y]
+  );
+
   return (
-    <div
-      className={"StyledCanvasWrapper"}
-      style={{
-        position: "absolute",
-        top: 0,
-        bottom: 0,
-        left: 0,
-        right: 0,
-        width: "100%",
-        height: "100%",
-      }}
-    >
-      <motion.div
-        className={"StyledCanvasScrollArea"}
-        // {...bind()}
-        style={{
-          transform: `translate(0px, 0px)`,
-        }}
-      >
-        <motion.div
+    <div className={"StyledCanvasWrapper"} style={wrapperStyle}>
+      <div className={"StyledCanvasScrollArea"} style={scrollAreaStyle}>
+        <div
           className={"StyledChartArea"}
+          role="none"
           ref={handleChartAreaRef}
-          style={{
-            position: "absolute",
-            transformOrigin: "top left",
-            minWidth: size.x,
-            minHeight: size.y,
-          }}
+          onMouseDown={handleMouseDown}
+          onWheel={handleWheel}
+          onTouchStart={handleTouchStart}
+          style={chartAreaStyle}
         >
           {children({
             gridColor,
             gridSize,
             size,
           })}
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </div>
   );
 };

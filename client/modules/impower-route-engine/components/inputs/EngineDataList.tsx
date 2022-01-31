@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { debounce, OrderedCollection } from "../../../impower-core";
-import { DraggableEvent } from "../../../impower-react-flowchart";
 import { Alignment } from "../../../impower-react-virtualization";
 import DataList from "../../../impower-route/components/inputs/DataList";
 import { DataContext } from "../../contexts/dataContext";
@@ -43,7 +42,7 @@ interface EngineDataListProps {
     currentFocusedIds: string[] | null;
     currentSelectedIds: string[];
     currentDraggingIds: string[];
-    onDragHandleTrigger: (event: DraggableEvent) => void;
+    onDragHandleTrigger: (event: PointerEvent | React.PointerEvent) => void;
   }) => JSX.Element | null;
 }
 

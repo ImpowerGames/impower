@@ -74,18 +74,26 @@ const StyledPlaceholderIndicator = styled.div<{ color?: string }>`
   opacity: 0;
 `;
 
-const StyledHorizontalPlaceholderIndicator = styled(StyledPlaceholderIndicator)`
+const StyledHorizontalPlaceholderIndicator = styled(
+  StyledPlaceholderIndicator
+)<{ color?: string }>`
   left: 0;
   right: 0;
   bottom: 0;
   width: 100%;
+  background-color: ${(props): string =>
+    props.color || props.theme.palette.secondary.main};
 `;
 
-const StyledVerticalPlaceholderIndicator = styled(StyledPlaceholderIndicator)`
+const StyledVerticalPlaceholderIndicator = styled(StyledPlaceholderIndicator)<{
+  color?: string;
+}>`
   right: 0;
   top: 0;
   bottom: 0;
   height: 100%;
+  background-color: ${(props): string =>
+    props.color || props.theme.palette.secondary.main};
 `;
 
 const StyledTabArea = styled.div`

@@ -1,13 +1,13 @@
 import {
-  ItemType,
-  ItemSectionType,
-  TriggerTypeId,
   CommandTypeId,
-  VariableTypeId,
-  ElementTypeId,
   ContainerType,
-  SetupSectionType,
+  ElementTypeId,
+  ItemSectionType,
+  ItemType,
   Reference,
+  SetupSectionType,
+  TriggerTypeId,
+  VariableTypeId,
 } from "../../../impower-game/data";
 
 export enum DataWindowType {
@@ -75,7 +75,7 @@ export interface DataPanelState {
 }
 
 export const createDataPanelState = (): DataPanelState => ({
-  paneSize: "45%",
+  paneSize: "50%",
   panels: {
     Setup: {
       openPanel: DataPanelType.Setup,

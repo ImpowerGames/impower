@@ -109,23 +109,6 @@ const UndoRedoControl = React.memo((): JSX.Element | null => {
             className={StyledLeftButtonBackground.displayName}
           >
             <IconButton
-              onClick={undo}
-              style={{
-                pointerEvents: canUndo ? "auto" : "none",
-                color: canUndo
-                  ? theme.palette.secondary.main
-                  : theme.colors.white10,
-              }}
-            >
-              <FontIcon aria-label="Undo" size={theme.fontSize.smallIcon}>
-                <RotateRightRegularIcon />
-              </FontIcon>
-            </IconButton>
-          </StyledLeftButtonBackground>
-          <StyledRightButtonBackground
-            className={StyledRightButtonBackground.displayName}
-          >
-            <IconButton
               onClick={redo}
               style={{
                 pointerEvents: canRedo ? "auto" : "none",
@@ -136,6 +119,23 @@ const UndoRedoControl = React.memo((): JSX.Element | null => {
             >
               <FontIcon aria-label="Redo" size={theme.fontSize.smallIcon}>
                 <RotateLeftRegularIcon />
+              </FontIcon>
+            </IconButton>
+          </StyledLeftButtonBackground>
+          <StyledRightButtonBackground
+            className={StyledRightButtonBackground.displayName}
+          >
+            <IconButton
+              onClick={undo}
+              style={{
+                pointerEvents: canUndo ? "auto" : "none",
+                color: canUndo
+                  ? theme.palette.secondary.main
+                  : theme.colors.white10,
+              }}
+            >
+              <FontIcon aria-label="Undo" size={theme.fontSize.smallIcon}>
+                <RotateRightRegularIcon />
               </FontIcon>
             </IconButton>
           </StyledRightButtonBackground>

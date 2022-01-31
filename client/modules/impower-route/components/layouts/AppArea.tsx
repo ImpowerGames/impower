@@ -6,10 +6,7 @@ import {
   ConfirmDialogContext,
 } from "../../../impower-confirm-dialog";
 import { useDialogNavigation } from "../../../impower-dialog";
-import {
-  NavigationContext,
-  navigationHideBanner,
-} from "../../../impower-navigation";
+import { NavigationContext } from "../../../impower-navigation";
 import { toastClose, ToastContext } from "../../../impower-toast";
 import { ScreenContext } from "../../contexts/screenContext";
 import PageNavigationBar from "../elements/PageNavigationBar";
@@ -19,8 +16,6 @@ import AppContent from "./AppContent";
 const ConfirmDialog = dynamic(() => import("../popups/ConfirmDialog"), {
   ssr: false,
 });
-
-const Banner = dynamic(() => import("../popups/Banner"), { ssr: false });
 
 const AccountDialog = dynamic(() => import("../elements/AccountDialog"), {
   ssr: false,
@@ -88,7 +83,7 @@ const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
     appDialogOpenKey?.startsWith("contact_");
 
   const screenState = useContext(ScreenContext);
-  const [navigationState, navigationDispatch] = useContext(NavigationContext);
+  const [navigationState] = useContext(NavigationContext);
   const [toastState, toastDispatch] = useContext(ToastContext);
   const [confirmDialogState, confirmDialogDispatch] =
     useContext(ConfirmDialogContext);
@@ -99,10 +94,6 @@ const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
   const handleToastClose = useCallback(() => {
     toastDispatch(toastClose());
   }, [toastDispatch]);
-
-  const handleNavigationHideBanner = useCallback(() => {
-    navigationDispatch(navigationHideBanner());
-  }, [navigationDispatch]);
 
   const handleQueryChange = useCallback((currState: Record<string, string>) => {
     setAppDialogOpenKey(currState.a || null);
@@ -162,18 +153,6 @@ const AppArea = React.memo((props: AppAreaProps): JSX.Element => {
           navigationState.type === "studio" ? (
             <StudioNavigationBar />
           ) : undefined
-        }
-        bannerChildren={
-          navigationState?.banner?.mount ? (
-            <Banner
-              open={Boolean(navigationState.banner)}
-              message={navigationState.banner?.message}
-              severity={navigationState.banner?.severity}
-              buttonLabel={navigationState.banner?.buttonLabel}
-              onClick={navigationState.banner?.onClickButton}
-              onClose={handleNavigationHideBanner}
-            />
-          ) : null
         }
       >
         {children}

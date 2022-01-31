@@ -124,6 +124,7 @@ const PanelHeader = (
   const backButtonStyle = {
     minWidth: theme.spacing(theme.space.panelLeft),
     backgroundColor: theme.colors.darkForeground,
+    color: theme.palette.secondary.light,
   };
   const searchButtonStyle = {
     opacity: 1,

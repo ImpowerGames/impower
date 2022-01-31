@@ -83,9 +83,9 @@ export const getItems = (
   if (isConstructData(container)) {
     switch (itemType) {
       case ItemType.Variable:
-        return container.variables.data;
+        return container?.variables?.data || {};
       case ItemType.Element:
-        return container.elements.data;
+        return container?.elements?.data || {};
       default:
         return {};
     }
@@ -93,11 +93,11 @@ export const getItems = (
   if (isBlockData(container)) {
     switch (itemType) {
       case ItemType.Trigger:
-        return container.triggers.data;
+        return container?.triggers?.data || {};
       case ItemType.Command:
-        return container.commands.data;
+        return container?.commands?.data || {};
       case ItemType.Variable:
-        return container.variables.data;
+        return container?.variables?.data || {};
       default:
         return {};
     }

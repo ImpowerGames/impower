@@ -5,7 +5,6 @@ import Typography from "@material-ui/core/Typography";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import CheckSolidIcon from "../../../../resources/icons/solid/check.svg";
 import { FontIcon } from "../../../impower-icon";
-import { DraggableEvent } from "../../../impower-react-flowchart";
 import {
   AccessibleEvent,
   ButtonShape,
@@ -105,7 +104,7 @@ interface ToggleButtonProps {
   selected: boolean;
   onToggleSelection: (event: AccessibleEvent) => void;
   onMultiSelection: (event: AccessibleEvent) => void;
-  onDragHandleTrigger?: (event: DraggableEvent) => void;
+  onDragHandleTrigger?: (event: PointerEvent | React.PointerEvent) => void;
 }
 
 const ToggleButton = React.memo((props: ToggleButtonProps): JSX.Element => {
@@ -257,7 +256,7 @@ interface BarButtonProps {
   onToggleSelection: (event: AccessibleEvent) => void;
   onMultiSelection: (event: AccessibleEvent) => void;
   onDoubleClick: (event: AccessibleEvent) => void;
-  onDragHandleTrigger?: (event: DraggableEvent) => void;
+  onDragHandleTrigger?: (event: PointerEvent | React.PointerEvent) => void;
 }
 
 const BarButton = React.memo((props: BarButtonProps): JSX.Element => {
@@ -467,7 +466,7 @@ interface ButtonBoxProps extends DataButtonInfo {
   ) => void;
   onContextMenu: (event: AccessibleEvent) => void;
   onDoubleClick: (id: string, event: AccessibleEvent) => void;
-  onDragHandleTrigger?: (event: DraggableEvent) => void;
+  onDragHandleTrigger?: (event: PointerEvent | React.PointerEvent) => void;
 }
 
 const ButtonBox = React.memo((props: ButtonBoxProps): JSX.Element => {
@@ -496,10 +495,10 @@ const ButtonBox = React.memo((props: ButtonBoxProps): JSX.Element => {
     onDragHandleTrigger,
   } = props;
 
-  const ghostingCount = ghostingIds.length;
-  const dragging = draggingIds.includes(refId);
-  const selected = selectedIds.includes(refId);
-  const ghosting = ghostingIds.includes(refId);
+  const ghostingCount = ghostingIds?.length || 0;
+  const dragging = draggingIds?.includes(refId);
+  const selected = selectedIds?.includes(refId);
+  const ghosting = ghostingIds?.includes(refId);
   const multidragging = isMultiDragging(dragging, ghostingCount);
   const handleContextMenu = useCallback(
     (event: React.MouseEvent): void => {
@@ -637,7 +636,7 @@ interface DataButtonProps extends DataButtonInfo {
   ) => void;
   onContextMenu: (event: AccessibleEvent) => void;
   onDoubleClick: (id: string, event: AccessibleEvent) => void;
-  onDragHandleTrigger?: (event: DraggableEvent) => void;
+  onDragHandleTrigger?: (event: PointerEvent | React.PointerEvent) => void;
 }
 
 const DataButton = (props: DataButtonProps): JSX.Element => {

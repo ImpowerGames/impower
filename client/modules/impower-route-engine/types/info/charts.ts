@@ -1,20 +1,19 @@
 import { Vector2 } from "../../../impower-core";
 import {
-  ContainerData,
   BlockData,
+  ContainerData,
   isPositionable,
 } from "../../../impower-game/data";
 import { ImpowerGameInspector } from "../../../impower-game/inspector";
-import { Chart, Node, Link } from "../../../impower-react-flowchart";
-import { styledTheme, layout } from "../../../impower-route";
+import { Chart, Link, Node } from "../../../impower-react-flowchart";
+import { layout, styledTheme } from "../../../impower-route";
 
-export const chartMinScale = 0.25;
+export const chartMinScale = 0.26;
 export const chartMaxScale = 1;
 export const chartSize = {
-  x: 1280 / chartMinScale,
-  y: 1280 / chartMinScale,
+  x: 3200,
+  y: 3200,
 };
-export const chartBoundsSelector = ".StyledChartArea";
 export const chartGridSize = 16;
 export const chartPinchStep = 1.2;
 export const chartWheelStep = 1.2;

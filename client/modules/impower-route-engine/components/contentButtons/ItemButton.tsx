@@ -18,7 +18,6 @@ import {
   ItemType,
 } from "../../../impower-game/data";
 import { FontIcon } from "../../../impower-icon";
-import { DraggableEvent } from "../../../impower-react-flowchart";
 import { AccessibleEvent, ButtonShape } from "../../../impower-route";
 import { GameContext } from "../../contexts/gameContext";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
@@ -249,7 +248,7 @@ interface ItemButtonProps {
   onOpenContextMenu: (event: AccessibleEvent) => void;
   onEdit: (refId: string, event: AccessibleEvent) => void;
   onChangeType: (refId: string, refTypeId: string) => void;
-  onDragHandleTrigger: (event: DraggableEvent) => void;
+  onDragHandleTrigger: (event: PointerEvent | React.PointerEvent) => void;
 }
 
 const ItemButton = React.memo((props: ItemButtonProps): JSX.Element => {
@@ -339,7 +338,7 @@ const ItemButton = React.memo((props: ItemButtonProps): JSX.Element => {
   );
 
   const handleDragHandleTrigger = useCallback(
-    (event: DraggableEvent) => {
+    (event: PointerEvent | React.PointerEvent) => {
       if (mode === Mode.Test || changeTypeTargetId) {
         return;
       }

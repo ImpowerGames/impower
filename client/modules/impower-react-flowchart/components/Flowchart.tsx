@@ -1,33 +1,30 @@
 import React, {
-  useState,
-  useRef,
   useCallback,
-  useMemo,
   useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
-import { useMotionValue } from "framer-motion";
-import { CanvasDefaultProps, CanvasDefault } from "./Canvas/Canvas.default";
-import { CanvasWrapper } from "./Canvas/Canvas.wrapper";
-import {
-  OnNodeSizeDetermined,
-  OnNodeSizeChanged,
-  OnPanCanvas,
-  OnZoomCanvas,
-  OnNodeSizeInput,
-  OnPanCanvasInput,
-  OnZoomCanvasInput,
-  OnTapNodeInput,
-  OnTapNode,
-  OnMultiDragNode,
-  DraggableEvent,
-} from "../types/functions";
-import { LinkDefaultProps, LinkDefault } from "./Link/Link.default";
-import { FlowchartNodeProvided } from "./FlowchartNode";
 import { Chart, Node } from "../types/chart";
-import { FlowChartConfig, defaultFlowchartConfig } from "../types/config";
-import { LinkWrapper } from "./Link/Link.wrapper";
+import { defaultFlowchartConfig, FlowChartConfig } from "../types/config";
+import {
+  OnDragNode,
+  OnNodeSizeChanged,
+  OnNodeSizeDetermined,
+  OnNodeSizeInput,
+  OnPanCanvas,
+  OnPanCanvasInput,
+  OnTapNode,
+  OnTapNodeInput,
+  OnZoomCanvas,
+  OnZoomCanvasInput,
+} from "../types/functions";
 import { Vector2 } from "../types/generics";
-import { getSnappedVector } from "../utils/snap";
+import { CanvasDefault, CanvasDefaultProps } from "./Canvas/Canvas.default";
+import { CanvasWrapper } from "./Canvas/Canvas.wrapper";
+import { FlowchartNodeProvided } from "./FlowchartNode";
+import { LinkDefault, LinkDefaultProps } from "./Link/Link.default";
+import { LinkWrapper } from "./Link/Link.wrapper";
 
 const getInitialNodePositions = (nodes: {
   [id: string]: Node;
@@ -54,17 +51,14 @@ const getInitialNodeVectors = (nodes: {
 };
 
 export interface FlowChartCallbacks {
-  onDragHandleTrigger?: (event: DraggableEvent) => void;
+  onDragHandleTrigger?: (event: PointerEvent | React.PointerEvent) => void;
   onPointerDownNode?: OnTapNode;
   onPointerUpNode?: OnTapNode;
-  onTapNodeStart?: OnTapNode;
-  onTapNode?: OnTapNode;
-  onTapNodeCancel?: OnTapNode;
-  onDragNodeForced?: OnMultiDragNode;
-  onDragNodeStart?: OnMultiDragNode;
-  onDragNode?: OnMultiDragNode;
-  onDragNodeEnd?: OnMultiDragNode;
-  onDragNodeTransitionEnd?: OnMultiDragNode;
+  onDragNodeForced?: OnDragNode;
+  onDragNodeCapture?: OnDragNode;
+  onDragNodeStart?: OnDragNode;
+  onDragNode?: OnDragNode;
+  onDragNodeEnd?: OnDragNode;
   onNodeSizeDetermined?: OnNodeSizeDetermined;
   onNodeSizeChanged?: OnNodeSizeChanged;
   onPanCanvasStart?: OnPanCanvas;
@@ -89,16 +83,14 @@ export interface FlowChartProps
   defaultOffset: Vector2;
   defaultScale: number;
   chartSize: Vector2;
-  ghostingIds?: string[];
+  selectedIds?: string[];
   scrollThreshold?: number;
   scrollSpeed?: number;
-  boundsSelector?: string;
   forcedOffset?: { value: Vector2 }; // When this property changes, the chart will be forcably panned to the specified offset
   forcedScale?: { value: number }; // When this property changes, the chart will be forcably zoomed to the specified scale
   config?: FlowChartConfig;
   scrollParent?: HTMLElement | null;
-  pressDelay?: number;
-  onChartAreaRef?: (instance: HTMLDivElement | null) => void;
+  chartAreaRef?: React.Ref<HTMLDivElement>;
   children: (props: FlowchartNodeProvided) => JSX.Element | null;
 }
 
@@ -108,266 +100,182 @@ export const Flowchart = (props: FlowChartProps): JSX.Element => {
     defaultOffset,
     defaultScale,
     chartSize,
-    ghostingIds = [],
-    scrollThreshold = 12,
+    selectedIds,
+    scrollThreshold = 80,
     scrollSpeed = 0.1,
-    boundsSelector = ".StyledChartArea",
     forcedOffset,
     forcedScale,
     config = defaultFlowchartConfig,
     scrollParent,
-    pressDelay,
-    onDragHandleTrigger,
-    onPointerDownNode = (): void => null,
-    onPointerUpNode = (): void => null,
-    onTapNodeStart = (): void => null,
-    onTapNode = (): void => null,
-    onTapNodeCancel = (): void => null,
-    onDragNodeForced = (): void => null,
-    onDragNodeStart = (): void => null,
-    onDragNode = (): void => null,
-    onDragNodeEnd = (): void => null,
-    onDragNodeTransitionEnd = (): void => null,
-    onPanCanvasStart = (): void => null,
-    onPanCanvas = (): void => null,
-    onPanCanvasStop = (): void => null,
-    onForcedPanCanvas = (): void => null,
-    onZoomCanvasStart = (): void => null,
-    onZoomCanvas = (): void => null,
-    onZoomCanvasStop = (): void => null,
-    onForcedZoomCanvas = (): void => null,
-    onNodeSizeDetermined = (): void => null,
-    onNodeSizeChanged = (): void => null,
-    onChartAreaRef = (): void => null,
+    chartAreaRef,
+    onPointerDownNode,
+    onPointerUpNode,
+    onDragNodeForced,
+    onDragNodeCapture,
+    onDragNodeStart,
+    onDragNode,
+    onDragNodeEnd,
+    onPanCanvasStart,
+    onPanCanvas,
+    onPanCanvasStop,
+    onForcedPanCanvas,
+    onZoomCanvasStart,
+    onZoomCanvas,
+    onZoomCanvasStop,
+    onForcedZoomCanvas,
+    onNodeSizeDetermined,
+    onNodeSizeChanged,
     ComponentCanvas = CanvasDefault,
     ComponentLink = LinkDefault,
     children,
   } = props;
 
   const [localChart, setLocalChart] = useState(chart);
+  const [scale, setScale] = useState(defaultScale);
+  const [draggingId, setDraggingId] = useState<string>();
+  const [startDraggingPosition, setStartDraggingPosition] = useState<Vector2>();
+
+  const ref = useRef<HTMLDivElement>(null);
+  const nodePositionsRef = useRef<{
+    [id: string]: Vector2;
+  }>(getInitialNodePositions(chart.nodes));
+  const nodeSizesRef = useRef<{
+    [id: string]: Vector2;
+  }>(getInitialNodeVectors(chart.nodes));
+  const nodeElementsRef = React.useRef<{
+    [id: string]: HTMLElement;
+  }>({});
+  const [nodePositions, setNodePositions] = useState(nodePositionsRef.current);
+  const [nodeSizes, setNodeSizes] = useState(nodeSizesRef.current);
+
   // Use the localChart state only for links.
   // This prevents sync issues when chart changes during copy and pasting since the link wrapper will attempt to access that hasn't been created yet.
   const { links } = localChart;
-  const [scale, setScale] = useState(defaultScale);
-  const [allowPan, setAllowPan] = useState(true);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const draggingX = useMotionValue(0);
-  const draggingY = useMotionValue(0);
-  const draggingOriginX = useMotionValue(0);
-  const draggingOriginY = useMotionValue(0);
-  const ref = useRef<HTMLDivElement>(null);
-  const nodePositions = useRef<{
-    [id: string]: Vector2;
-  }>(getInitialNodePositions(chart.nodes));
-
-  const nodeSizes = useRef<{
-    [id: string]: Vector2;
-  }>(getInitialNodeVectors(chart.nodes));
-  const nodeOffsets = useRef<{
-    [id: string]: Vector2;
-  }>(getInitialNodeVectors(chart.nodes));
-  const nodeRefs = React.useRef<{
-    [id: string]: HTMLElement | null;
-  }>({});
-  const [, forceUpdate] = useState({});
 
   const snapToGridSize = config.canvasConfig?.options?.gridSize || 1;
-
-  const updateNodePositionsWithGhostingOffsets = (
-    draggingPosition: Vector2,
-    offsets: { [id: string]: Vector2 },
-    ghostingNodeIds: string[]
-  ): void => {
-    ghostingNodeIds.forEach((ghostingNodeId) => {
-      const nodeOffset = offsets[ghostingNodeId];
-      if (nodeOffset) {
-        const nodePosition = {
-          x: draggingPosition.x + nodeOffset.x,
-          y: draggingPosition.y + nodeOffset.y,
-        };
-        nodePositions.current[ghostingNodeId] = nodePosition;
-      }
-    });
-  };
-
-  const snapNodePositions = (gridSize: number): void => {
-    Object.keys(nodePositions.current).forEach((nodeId) => {
-      const nodePosition = nodePositions.current[nodeId];
-      nodePositions.current[nodeId] =
-        gridSize !== undefined
-          ? getSnappedVector(nodePosition, gridSize)
-          : nodePosition;
-    });
-  };
-
-  const updateOffsets = (
-    draggingPosition: Vector2,
-    positions: { [id: string]: Vector2 }
-  ): void => {
-    Object.keys(positions).forEach((nodeId) => {
-      const nodePosition = positions[nodeId];
-      if (nodePosition) {
-        nodeOffsets.current[nodeId] = {
-          x: nodePosition.x - draggingPosition.x,
-          y: nodePosition.y - draggingPosition.y,
-        };
-      }
-    });
-  };
 
   const handleNodeSizeDetermined = useCallback(
     (input: OnNodeSizeInput): void => {
       const newNodeSizes = {
-        ...nodeSizes.current,
+        ...nodeSizesRef.current,
         [input.id]: { ...input.size },
       };
-      nodeSizes.current = newNodeSizes;
-      forceUpdate({});
-      onNodeSizeDetermined(input);
+      nodeSizesRef.current = newNodeSizes;
+      setNodePositions(nodeSizesRef.current);
+      onNodeSizeDetermined?.(input);
     },
-    [nodeSizes, onNodeSizeDetermined]
+    [nodeSizesRef, onNodeSizeDetermined]
   );
 
   const handleNodeSizeChanged = useCallback(
     (input: OnNodeSizeInput): void => {
       const newNodeSizes = {
-        ...nodeSizes.current,
+        ...nodeSizesRef.current,
         [input.id]: { ...input.size },
       };
-      nodeSizes.current = newNodeSizes;
-      forceUpdate({});
-      onNodeSizeChanged(input);
+      nodeSizesRef.current = newNodeSizes;
+      setNodeSizes(nodeSizesRef.current);
+      onNodeSizeChanged?.(input);
     },
-    [nodeSizes, onNodeSizeChanged]
+    [nodeSizesRef, onNodeSizeChanged]
   );
 
   const handlePointerDownNode = useCallback(
     (input: OnTapNodeInput): void => {
-      setAllowPan(false);
-      onPointerDownNode(input);
+      if (scrollParent) {
+        scrollParent.style.overflow = "hidden";
+      }
+      onPointerDownNode?.(input);
     },
-    [onPointerDownNode]
+    [onPointerDownNode, scrollParent]
   );
 
   const handlePointerUpNode = useCallback(
     (input: OnTapNodeInput): void => {
-      setAllowPan(true);
-      onPointerUpNode(input);
+      onPointerUpNode?.(input);
     },
     [onPointerUpNode]
   );
 
-  const handleTapNodeStart = useCallback(
-    (input: OnTapNodeInput): void => {
-      onTapNodeStart(input);
-    },
-    [onTapNodeStart]
-  );
+  const handlePointerUp = useCallback((): void => {
+    if (scrollParent) {
+      scrollParent.style.overflow = "auto";
+    }
+  }, [scrollParent]);
 
-  const handleTapNode = useCallback(
-    (input: OnTapNodeInput): void => {
-      onTapNode(input);
-    },
-    [onTapNode]
-  );
-
-  const handleTapNodeCancel = useCallback(
-    (input: OnTapNodeInput): void => {
-      onTapNodeCancel(input);
-    },
-    [onTapNodeCancel]
-  );
+  const handleTouchEnd = useCallback((): void => {
+    if (scrollParent) {
+      scrollParent.style.overflow = "auto";
+    }
+  }, [scrollParent]);
 
   const handleDragNodeForced = useCallback(
     ({ id, position, event }): void => {
-      nodePositions.current[id] = { ...position };
-      updateNodePositionsWithGhostingOffsets(
-        position,
-        nodeOffsets.current,
-        ghostingIds
-      );
-      setDraggingId(id);
-      setDraggingId(null);
-      onDragNodeForced({ id, positions: nodePositions.current, event });
+      nodePositionsRef.current[id] = { ...position };
+      onDragNodeForced?.({ id, position, event });
     },
-    [nodePositions, nodeOffsets, ghostingIds, onDragNodeForced]
+    [onDragNodeForced]
+  );
+
+  const handleDragNodeCapture = useCallback(
+    ({ id, position, event }): void => {
+      nodePositionsRef.current[id] = { ...position };
+      setDraggingId(id);
+      setStartDraggingPosition(position);
+      onDragNodeCapture?.({ id, position, event });
+    },
+    [onDragNodeCapture]
   );
 
   const handleDragNodeStart = useCallback(
     ({ id, position, event }): void => {
-      nodePositions.current[id] = { ...position };
-      updateOffsets(position, nodePositions.current);
-      setDraggingId(id);
-      onDragNodeStart({ id, positions: nodePositions.current, event });
+      nodePositionsRef.current[id] = { ...position };
+      onDragNodeStart?.({ id, position, event });
     },
     [onDragNodeStart]
   );
 
   const handleDragNode = useCallback(
     ({ id, position, event }): void => {
-      nodePositions.current[id] = { ...position };
-      updateNodePositionsWithGhostingOffsets(
-        position,
-        nodeOffsets.current,
-        ghostingIds
-      );
-      onDragNode({ id, positions: nodePositions.current, event });
+      nodePositionsRef.current[id] = { ...position };
+      onDragNode?.({ id, position, event });
     },
-    [nodePositions, ghostingIds, onDragNode]
+    [onDragNode]
   );
 
   const handleDragNodeEnd = useCallback(
     ({ id, position, event }): void => {
-      nodePositions.current[id] = { ...position };
-      updateNodePositionsWithGhostingOffsets(
-        position,
-        nodeOffsets.current,
-        ghostingIds
-      );
-      onDragNodeEnd({ id, positions: nodePositions.current, event });
-    },
-    [ghostingIds, onDragNodeEnd]
-  );
-
-  const handleDragNodeTransitionEnd = useCallback(
-    ({ id, position, event }): void => {
-      nodePositions.current[id] = { ...position };
-      updateNodePositionsWithGhostingOffsets(
-        position,
-        nodeOffsets.current,
-        ghostingIds
-      );
-      snapNodePositions(snapToGridSize);
+      nodePositionsRef.current[id] = { ...position };
       setDraggingId(null);
-      onDragNodeTransitionEnd({ id, positions: nodePositions.current, event });
+      onDragNodeEnd?.({ id, position, event });
     },
-    [nodePositions, ghostingIds, snapToGridSize, onDragNodeTransitionEnd]
+    [onDragNodeEnd]
   );
 
   const handlePanCanvasStart = useCallback(
     (input: OnPanCanvasInput): void => {
-      onPanCanvasStart(input);
+      onPanCanvasStart?.(input);
     },
     [onPanCanvasStart]
   );
 
   const handlePanCanvas = useCallback(
     (input: OnPanCanvasInput): void => {
-      onPanCanvas(input);
+      onPanCanvas?.(input);
     },
     [onPanCanvas]
   );
 
   const handlePanCanvasStop = useCallback(
     (input: OnPanCanvasInput): void => {
-      onPanCanvasStop(input);
+      onPanCanvasStop?.(input);
     },
     [onPanCanvasStop]
   );
 
   const handleZoomCanvasStart = useCallback(
     (input: OnZoomCanvasInput): void => {
-      onZoomCanvasStart(input);
+      onZoomCanvasStart?.(input);
     },
     [onZoomCanvasStart]
   );
@@ -375,7 +283,7 @@ export const Flowchart = (props: FlowChartProps): JSX.Element => {
   const handleZoomCanvas = useCallback(
     (input: OnZoomCanvasInput): void => {
       setScale(input.scale);
-      onZoomCanvas(input);
+      onZoomCanvas?.(input);
     },
     [onZoomCanvas]
   );
@@ -383,14 +291,14 @@ export const Flowchart = (props: FlowChartProps): JSX.Element => {
   const handleZoomCanvasStop = useCallback(
     (input: OnZoomCanvasInput): void => {
       setScale(input.scale);
-      onZoomCanvasStop(input);
+      onZoomCanvasStop?.(input);
     },
     [onZoomCanvasStop]
   );
 
   const handleNodeRef = useCallback(
     (id: string, instance: HTMLDivElement | null) => {
-      nodeRefs.current[id] = instance;
+      nodeElementsRef.current[id] = instance;
     },
     []
   );
@@ -398,33 +306,23 @@ export const Flowchart = (props: FlowChartProps): JSX.Element => {
 
   useEffect(() => {
     setLocalChart(chart);
-    nodePositions.current = getInitialNodePositions(chart.nodes);
-    forceUpdate({});
+    nodePositionsRef.current = getInitialNodePositions(chart.nodes);
+    setNodePositions(nodePositionsRef.current);
   }, [chart, chart.nodes]);
 
   useEffect(() => {
-    const updateX = (value: number): void => {
-      if (draggingId) {
-        nodePositions.current[draggingId].x = value;
-      }
+    document.addEventListener("touchend", handleTouchEnd);
+    return (): void => {
+      document.removeEventListener("touchend", handleTouchEnd);
     };
-    const updateY = (value: number): void => {
-      if (draggingId) {
-        nodePositions.current[draggingId].y = value;
-      }
+  }, [handleTouchEnd]);
+
+  useEffect(() => {
+    document.addEventListener("pointerup", handlePointerUp);
+    return (): void => {
+      document.removeEventListener("pointerup", handlePointerUp);
     };
-
-    if (draggingId) {
-      const unsubscribeX = draggingX.onChange(updateX);
-      const unsubscribeY = draggingY.onChange(updateY);
-
-      return (): void => {
-        unsubscribeX();
-        unsubscribeY();
-      };
-    }
-    return undefined;
-  }, [draggingId, draggingX, draggingY]);
+  }, [handlePointerUp]);
 
   return (
     <div
@@ -447,9 +345,8 @@ export const Flowchart = (props: FlowChartProps): JSX.Element => {
         forcedOffset={forcedOffset}
         forcedScale={forcedScale}
         size={chartSize}
-        allowPan={allowPan}
         scrollParent={scrollParent}
-        onChartAreaRef={onChartAreaRef}
+        chartAreaRef={chartAreaRef}
         onPanCanvasStart={handlePanCanvasStart}
         onPanCanvas={handlePanCanvas}
         onPanCanvasStop={handlePanCanvasStop}
@@ -476,13 +373,11 @@ export const Flowchart = (props: FlowChartProps): JSX.Element => {
                     key={link.id}
                     fromNodeId={link.fromNodeId}
                     toNodeId={link.toNodeId}
-                    draggingX={draggingX}
-                    draggingY={draggingY}
-                    draggingId={draggingId}
-                    ghostingIds={ghostingIds}
-                    nodePositions={nodePositions.current}
-                    nodeOffsets={nodeOffsets.current}
-                    nodeSizes={nodeSizes.current}
+                    fromPosition={nodePositions?.[link.fromNodeId]}
+                    toPosition={nodePositions?.[link.toNodeId]}
+                    fromSize={nodeSizes?.[link.fromNodeId]}
+                    toSize={nodeSizes?.[link.toNodeId]}
+                    selectedIds={selectedIds}
                   >
                     {({
                       fromNodeId,
@@ -519,27 +414,19 @@ export const Flowchart = (props: FlowChartProps): JSX.Element => {
                 scrollThreshold,
                 scrollSpeed,
                 snapToGridSize,
-                draggingX,
-                draggingY,
-                draggingOriginX,
-                draggingOriginY,
-                boundsSelector,
-                ghostingIds,
-                nodePositions: nodePositions.current,
-                nodeOffsets: nodeOffsets.current,
-                nodeSizes: nodeSizes.current,
-                pressDelay,
-                onDragHandleTrigger,
-                onTapNodeStart: handleTapNodeStart,
-                onTapNode: handleTapNode,
-                onTapNodeCancel: handleTapNodeCancel,
+                draggingId,
+                startDraggingPosition,
+                selectedIds,
+                chartSize,
+                nodeSizes,
+                nodeElements: nodeElementsRef.current,
                 onPointerDownNode: handlePointerDownNode,
                 onPointerUpNode: handlePointerUpNode,
                 onDragNodeForced: handleDragNodeForced,
+                onDragNodeCapture: handleDragNodeCapture,
                 onDragNodeStart: handleDragNodeStart,
                 onDragNode: handleDragNode,
                 onDragNodeEnd: handleDragNodeEnd,
-                onDragNodeTransitionEnd: handleDragNodeTransitionEnd,
                 onNodeSizeDetermined: handleNodeSizeDetermined,
                 onNodeSizeChanged: handleNodeSizeChanged,
                 onNodeRef: handleNodeRef,

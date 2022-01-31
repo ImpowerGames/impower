@@ -6,10 +6,18 @@ export const getSnappedValue = (value: number, snapSize: number): number => {
 
 export const getSnappedVector = (
   position: Vector2,
-  gridSize: number
+  gridSize: number,
+  size: Vector2,
+  chartSize: Vector2
 ): Vector2 => {
   return {
-    x: getSnappedValue(position.x, gridSize),
-    y: getSnappedValue(position.y, gridSize),
+    x: Math.min(
+      chartSize.x - size.x,
+      Math.max(0, getSnappedValue(position.x, gridSize))
+    ),
+    y: Math.min(
+      chartSize.y - size.y,
+      Math.max(0, getSnappedValue(position.y, gridSize))
+    ),
   };
 };

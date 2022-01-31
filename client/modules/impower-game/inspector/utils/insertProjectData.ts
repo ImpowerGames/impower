@@ -11,6 +11,10 @@ import {
   ConfigType,
   ConstructData,
   ContainerType,
+  createBlockData,
+  createBlockReference,
+  createConstructData,
+  createConstructReference,
   ElementData,
   GameProjectData,
   InstanceData,
@@ -94,6 +98,11 @@ export const insertGameProjectData = (
         } = parent.parentContainerId
           ? {
               [parent.parentContainerId]: {
+                ...createConstructData({
+                  reference: createConstructReference({
+                    refId: parent.parentContainerId,
+                  }),
+                }),
                 ...newProject?.instances?.constructs?.data[
                   parent.parentContainerId
                 ],
@@ -136,14 +145,14 @@ export const insertGameProjectData = (
       case ContainerType.Block: {
         const isFirstBlock =
           parent.parentContainerId &&
-          newProject?.instances?.blocks?.data[parent.parentContainerId]
-            .childContainerIds.length === 0;
+          !newProject?.instances?.blocks?.data?.[parent.parentContainerId]
+            ?.childContainerIds?.length;
         if (isFirstBlock) {
           const firstBlockId = Object.keys(updated)[0];
           if (firstBlockId) {
-            const firstBlock = allUpdated[firstBlockId] as BlockData;
+            const firstBlock = allUpdated?.[firstBlockId] as BlockData;
             if (firstBlock) {
-              if (firstBlock.triggers.order.length === 0) {
+              if (!firstBlock?.triggers?.order?.length) {
                 const newEnteredTrigger = TriggerInspector.instance.createData({
                   reference: {
                     parentContainerType: ContainerType.Block,
@@ -170,6 +179,11 @@ export const insertGameProjectData = (
         } = parent.parentContainerId
           ? {
               [parent.parentContainerId]: {
+                ...createBlockData({
+                  reference: createBlockReference({
+                    refId: parent.parentContainerId,
+                  }),
+                }),
                 ...newProject?.instances?.blocks?.data[
                   parent.parentContainerId
                 ],

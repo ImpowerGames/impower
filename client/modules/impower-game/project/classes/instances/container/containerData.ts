@@ -1,10 +1,10 @@
 import { Nameable } from "../../../../../impower-core";
-import { createInstanceData, InstanceData } from "../../instance/instanceData";
+import { ContainerType, ItemType } from "../../../../data/enums/data";
 import {
   ContainerReference,
   isContainerReference,
 } from "../../../../data/interfaces/references/containerReference";
-import { ContainerType, ItemType } from "../../../../data/enums/data";
+import { createInstanceData, InstanceData } from "../../instance/instanceData";
 
 export interface ContainerData<
   D extends ContainerType = ContainerType,
@@ -32,7 +32,6 @@ export const createContainerData = <
   obj?: Partial<ContainerData<D, R>> & Pick<ContainerData<D, R>, "reference">
 ): ContainerData<D, R> => ({
   ...createInstanceData(obj),
-  _documentType: obj?.reference?.refType,
   name: "NewContainer",
   childContainerIds: [],
   ...obj,

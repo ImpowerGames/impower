@@ -1,4 +1,4 @@
-import { Side, Port } from "./generics";
+import { Port, Side } from "./generics";
 
 export interface FlowChartConfig {
   canvasConfig?: CanvasConfig;
@@ -44,7 +44,7 @@ export const defaultFlowchartConfig = {
     options: {
       gridSize: 16,
       gridColor: "#FFFFFF40",
-      minScale: 0.25,
+      minScale: 0.5,
       maxScale: 1,
     },
     pan: {

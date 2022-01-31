@@ -12,7 +12,6 @@ import { debounce, difference } from "../../../impower-core";
 import { defaultNodeSize } from "../../../impower-game/data";
 import {
   Chart,
-  DraggableEvent,
   Flowchart,
   FlowchartNode,
   getCenteredFlowchart,
@@ -92,14 +91,13 @@ export interface DataChartProps {
   shape: ButtonShape;
   search?: string;
   fadeDelay?: number;
-  pressDelay?: number;
   scrollParent?: HTMLElement | null;
+  chartAreaRef?: React.Ref<HTMLDivElement>;
   onPanCanvas: OnPanCanvas;
   onZoomCanvas: OnZoomCanvas;
   onSetNodePositions: (positions: { [id: string]: Vector2 }) => void;
   onSetDragging: (ids: string[]) => void;
   onSetSelection: (ids: string[]) => void;
-  onRef?: (instance: HTMLDivElement | null) => void;
   children: (props: {
     id: string;
     index: number;
@@ -108,7 +106,6 @@ export interface DataChartProps {
     currentFocusedIds: string[] | null;
     currentSelectedIds: string[];
     currentDraggingIds: string[];
-    onDragHandleTrigger: (event: DraggableEvent) => void;
   }) => JSX.Element | null;
 }
 
@@ -121,15 +118,14 @@ const DataChart = (props: DataChartProps): JSX.Element => {
     changeTargetId,
     search,
     fadeDelay = 500,
-    pressDelay,
     scrollParent,
+    chartAreaRef,
     onPanCanvas,
     onZoomCanvas,
     onSetNodePositions,
     onSetDragging,
     onSetSelection,
     children,
-    onRef,
   } = props;
 
   const { transitionState } = useContext(WindowTransitionContext);
@@ -150,7 +146,6 @@ const DataChart = (props: DataChartProps): JSX.Element => {
   const [currentSelectedIds, setCurrentSelectedIds] = useState<string[]>([
     ...selectedIds,
   ]);
-  const [ghostingIds, setGhostingIds] = useState<string[]>([]);
   const ref = useRef<HTMLDivElement>(null);
   const nodePositions = useRef<{ [id: string]: Vector2 }>(
     getInitialNodePositions(chart.nodes)
@@ -171,8 +166,6 @@ const DataChart = (props: DataChartProps): JSX.Element => {
         () => multiSelection(id, currentSelectedIds, allIds)
       );
       setCurrentSelectedIds(newSelection);
-      const newGhostingIds = newSelection.filter((nodeId) => id !== nodeId);
-      setGhostingIds(newGhostingIds);
       if (!draggingIds.includes(id)) {
         onSetDragging([...newSelection]);
       }
@@ -184,18 +177,12 @@ const DataChart = (props: DataChartProps): JSX.Element => {
   );
   const handleDragNodeEnd = useCallback(
     ({ id, position }) => {
-      nodePositions.current[id] = position;
+      nodePositions.current = { ...nodePositions.current, [id]: position };
       onSetDragging([]);
-    },
-    [onSetDragging]
-  );
-  const handleDragNodeTransitionEnd = useCallback(
-    ({ positions }) => {
-      onSetNodePositions(positions);
+      onSetNodePositions({ ...nodePositions.current });
       onSetSelection(currentSelectedIds);
-      setGhostingIds([]);
     },
-    [onSetNodePositions, onSetSelection, currentSelectedIds]
+    [currentSelectedIds, onSetDragging, onSetNodePositions, onSetSelection]
   );
   const handleNodeSizeDetermined = useCallback(({ id, size }) => {
     nodeSizes.current[id] = size;
@@ -389,12 +376,6 @@ const DataChart = (props: DataChartProps): JSX.Element => {
     setCurrentSelectedIds([...selectedIds]);
   }, [selectedIds]);
 
-  const isTouch = !window.matchMedia("(hover: hover) and (pointer: fine)")
-    .matches;
-
-  const responsivePressDelay =
-    pressDelay !== undefined ? pressDelay : isTouch ? 200 : undefined;
-
   return (
     <StyledFlowchart className={StyledFlowchart.displayName} ref={ref}>
       <Flowchart
@@ -402,12 +383,11 @@ const DataChart = (props: DataChartProps): JSX.Element => {
         defaultOffset={defaultOffset}
         defaultScale={defaultScale}
         chartSize={chartSize}
-        ghostingIds={ghostingIds}
+        selectedIds={currentSelectedIds}
         forcedOffset={forcedOffset}
         forcedScale={forcedScale}
         config={containerChartConfig}
         scrollParent={scrollParent}
-        pressDelay={responsivePressDelay}
         ComponentLink={(provided: LinkDefaultProps): JSX.Element => (
           <DataTransition
             type="fade"
@@ -417,14 +397,13 @@ const DataChart = (props: DataChartProps): JSX.Element => {
             <DataLink {...provided} />
           </DataTransition>
         )}
-        onChartAreaRef={onRef}
+        chartAreaRef={chartAreaRef}
         onForcedPanCanvas={handleForcedPanCanvas}
         onForcedZoomCanvas={handleForcedZoomCanvas}
         onPanCanvas={onPanCanvas}
         onZoomCanvas={handleZoomCanvas}
         onDragNodeStart={handleDragNodeStart}
         onDragNodeEnd={handleDragNodeEnd}
-        onDragNodeTransitionEnd={handleDragNodeTransitionEnd}
         onNodeSizeDetermined={handleNodeSizeDetermined}
         onNodeSizeChanged={handleNodeSizeChanged}
       >
@@ -457,21 +436,16 @@ const DataChart = (props: DataChartProps): JSX.Element => {
                     id={node.id}
                     defaultPosition={node.defaultPosition}
                   >
-                    {({ onDragHandleTrigger }): JSX.Element => (
-                      <>
-                        {children &&
-                          children({
-                            id: node.id,
-                            index,
-                            value,
-                            currentOrderedIds: allIds,
-                            currentDraggingIds: draggingIds,
-                            currentSelectedIds,
-                            currentFocusedIds,
-                            onDragHandleTrigger,
-                          })}
-                      </>
-                    )}
+                    {children &&
+                      children({
+                        id: node.id,
+                        index,
+                        value,
+                        currentOrderedIds: allIds,
+                        currentDraggingIds: draggingIds,
+                        currentSelectedIds,
+                        currentFocusedIds,
+                      })}
                   </FlowchartNode>
                 </DataTransition>
               );

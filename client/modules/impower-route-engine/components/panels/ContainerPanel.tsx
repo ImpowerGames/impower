@@ -246,7 +246,7 @@ const getList = async (
       project
     );
     const error = errors.find(({ id }) => id === refId)?.error;
-    const hasChildren = childContainer.childContainerIds.length > 0;
+    const hasChildren = Boolean(childContainer?.childContainerIds?.length);
     const newInfo: DataButtonInfo = error
       ? {
           refId,
@@ -311,7 +311,7 @@ interface ArrangementPanelHeaderIconProps {
   onClick: (showList: boolean) => void;
 }
 
-const ArrangementPanelHeaderIcon = React.memo(
+const ArrangementPanelHeaderIconButton = React.memo(
   (props: ArrangementPanelHeaderIconProps): JSX.Element => {
     const { containerArrangement, onClick } = props;
     const theme = useTheme();
@@ -322,7 +322,10 @@ const ArrangementPanelHeaderIcon = React.memo(
             aria-label="View as Chart"
             icon={<SitemapSolidIcon />}
             size={theme.fontSize.smallIcon}
-            style={{ backgroundColor: theme.colors.darkForeground }}
+            style={{
+              backgroundColor: theme.colors.darkForeground,
+              marginRight: theme.spacing(2),
+            }}
             onClick={(): void => onClick(false)}
           />
         );
@@ -332,7 +335,10 @@ const ArrangementPanelHeaderIcon = React.memo(
             aria-label="View as List"
             icon={<TableListSolidIcon />}
             size={theme.fontSize.smallIcon}
-            style={{ backgroundColor: theme.colors.darkForeground }}
+            style={{
+              backgroundColor: theme.colors.darkForeground,
+              marginRight: theme.spacing(2),
+            }}
             onClick={(): void => onClick(true)}
           />
         );
@@ -433,7 +439,6 @@ const ContainerPanelHeader = React.memo(
         title={headerInfo.pluralName}
         search={search}
         breadcrumbs={headerBreadcrumbs}
-        breadcrumbIndicatorColor="secondary"
         style={headerStyle}
         stickyStyle={headerStickyStyle}
         scrollParent={scrollParent}
@@ -450,7 +455,7 @@ const ContainerPanelHeader = React.memo(
         rightChildren={
           containerType === ContainerType.Block && (
             <>
-              <ArrangementPanelHeaderIcon
+              <ArrangementPanelHeaderIconButton
                 containerArrangement={containerPanelState.arrangement}
                 onClick={onArrangement}
               />
@@ -590,12 +595,12 @@ const ContainerPanelContent = React.memo(
                 shape={buttonShape}
                 search={search}
                 scrollParent={scrollParent}
+                chartAreaRef={onDataAreaRef}
                 onSetDragging={onSetDragging}
                 onSetSelection={onSetSelection}
                 onPanCanvas={onPanCanvas}
                 onZoomCanvas={onZoomCanvas}
                 onSetNodePositions={onSetNodePositions}
-                onRef={onDataAreaRef}
               >
                 {({
                   id,
@@ -604,7 +609,6 @@ const ContainerPanelContent = React.memo(
                   currentSelectedIds,
                   currentFocusedIds,
                   currentDraggingIds,
-                  onDragHandleTrigger,
                 }): JSX.Element => {
                   return (
                     <ContainerButton
@@ -628,7 +632,6 @@ const ContainerPanelContent = React.memo(
                       onOpenContextMenu={onContextMenu}
                       onEdit={onEdit}
                       onChangeName={onChangeName}
-                      onDragHandleTrigger={onDragHandleTrigger}
                     />
                   );
                 }}
@@ -868,7 +871,12 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
           (newNodePosition?.y || defaultNodePosition.y) + nodeNextOffset.y
         ),
       };
-      return getSnappedVector(position, chartGridSize);
+      return getSnappedVector(
+        position,
+        chartGridSize,
+        defaultNodeSize,
+        chartSize
+      );
     },
     [scrollParent, dataAreaElement, currentScale]
   );
@@ -1307,10 +1315,10 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         .filter(
           (refId) =>
             (isBlockData(inspectedContainers[refId]) &&
-              positions[refId].x !==
-                (inspectedContainers[refId] as BlockData).nodePosition.x) ||
-            positions[refId].y !==
-              (inspectedContainers[refId] as BlockData).nodePosition.y
+              positions[refId]?.x !==
+                (inspectedContainers[refId] as BlockData).nodePosition?.x) ||
+            positions[refId]?.y !==
+              (inspectedContainers[refId] as BlockData).nodePosition?.y
         )
         .map((element) => ({
           ...inspectedContainers[element],

@@ -1,4 +1,3 @@
-import { NAVIGATION_HIDE_BANNER } from "./actions/navigationHideBannerAction";
 import { NAVIGATION_SET_BACKGROUND_COLOR } from "./actions/navigationSetBackgroundColorAction";
 import { NAVIGATION_SET_ELEVATION } from "./actions/navigationSetElevationAction";
 import { NAVIGATION_SET_LINKS } from "./actions/navigationSetLinksAction";
@@ -6,7 +5,6 @@ import { NAVIGATION_SET_SEARCHBAR } from "./actions/navigationSetSearchbarAction
 import { NAVIGATION_SET_TEXT } from "./actions/navigationSetTextAction";
 import { NAVIGATION_SET_TRANSITIONING } from "./actions/navigationSetTransitioningAction";
 import { NAVIGATION_SET_TYPE } from "./actions/navigationSetTypeAction";
-import { NAVIGATION_SHOW_BANNER } from "./actions/navigationShowBannerAction";
 import { NavigationAction } from "./navigationActions";
 import { NavigationState } from "./navigationState";
 
@@ -62,27 +60,6 @@ export const navigationReducer = (
       return {
         ...state,
         backgroundColor,
-      };
-    }
-    case NAVIGATION_SHOW_BANNER: {
-      const { id, message, severity, buttonLabel, onClickButton } =
-        action.payload;
-      return {
-        ...state,
-        banner: {
-          mount: true,
-          id,
-          message,
-          severity,
-          buttonLabel,
-          onClickButton,
-        },
-      };
-    }
-    case NAVIGATION_HIDE_BANNER: {
-      return {
-        ...state,
-        banner: undefined,
       };
     }
     case NAVIGATION_SET_TYPE: {

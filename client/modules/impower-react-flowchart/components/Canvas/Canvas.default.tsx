@@ -31,6 +31,7 @@ export const CanvasDefault = (props: CanvasDefaultProps): JSX.Element => {
             transparent 0
           )`,
         outline: `${lineStroke}px dashed ${gridColor}`,
+        pointerEvents: "none",
       }}
     >
       {children}

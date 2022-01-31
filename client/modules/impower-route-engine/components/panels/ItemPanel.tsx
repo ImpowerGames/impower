@@ -463,6 +463,8 @@ const ItemPanelContent = React.memo(
       list.data[refId].summary,
     ];
 
+    const Icon = headerInfo.iconOn;
+
     if (empty) {
       return (
         <>
@@ -472,7 +474,7 @@ const ItemPanelContent = React.memo(
             <EmptyPanelContent
               instruction={addInstruction}
               name={headerInfo.name}
-              icon={headerInfo.iconOn}
+              icon={<Icon />}
               onContextMenu={onContextMenu}
             />
           </StyledEmptyPanelContentArea>
@@ -1492,7 +1494,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
         <PeerTransition
           currentIndex={sectionIndex}
           previousIndex={previousSectionIndex}
-          style={{ display: "flex", flexDirection: "column" }}
+          style={{ display: "flex", flexDirection: "column", flex: 1 }}
         >
           <StyledList className={StyledList.displayName}>
             <ItemPanelContent

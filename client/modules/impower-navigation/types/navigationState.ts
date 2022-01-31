@@ -1,6 +1,3 @@
-import React from "react";
-import { AlertColor } from "./enums/alertColor";
-
 export interface NavigationState {
   title?: string;
   secondaryTitle?: string;
@@ -20,14 +17,6 @@ export interface NavigationState {
     placeholder?: string;
     value?: string;
     searching?: boolean;
-  };
-  banner?: {
-    mount?: boolean;
-    id?: string;
-    message?: string;
-    severity?: AlertColor;
-    buttonLabel?: React.ReactNode;
-    onClickButton?: () => void;
   };
   type?: "page" | "studio" | "none";
 }

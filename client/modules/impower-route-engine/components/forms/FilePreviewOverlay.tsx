@@ -241,7 +241,7 @@ const FilePreviewOverlay = React.memo(
     }, [portrait, splitPercentageSpring]);
 
     const minPaneWidth = layout.size.minWidth.panel;
-    const minPaneHeight = theme.spacing(8);
+    const minPaneHeight = 8 * 8;
 
     if (!value) {
       return null;

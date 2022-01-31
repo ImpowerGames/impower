@@ -487,23 +487,25 @@ export const VirtualizedListContent = React.memo(
               : scrollToIndex.index >= itemCount
               ? itemCount - 1
               : scrollToIndex.index;
-          const position = sizeAndPositionManager.getScrollPositionForIndex({
-            rootOffset,
-            containerSize: getContainerSize(
-              currentScrollParent,
-              scrollDirection
-            ),
-            targetIndex,
-            scrollPosition: getScrollPosition(
-              currentScrollParent,
-              scrollDirection
-            ),
-            align: scrollToAlignment,
-          });
-          scrollTo(position, scrollToIndex.transition);
+          if (sizeAndPositionManager) {
+            const position = sizeAndPositionManager.getScrollPositionForIndex({
+              rootOffset,
+              containerSize: getContainerSize(
+                currentScrollParent,
+                scrollDirection
+              ),
+              targetIndex,
+              scrollPosition: getScrollPosition(
+                currentScrollParent,
+                scrollDirection
+              ),
+              align: scrollToAlignment,
+            });
+            scrollTo(position, scrollToIndex.transition);
+          }
         }
       }
-    }, [scrollToIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [sizeAndPositionManager, scrollToIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
       if (!currentScrollParent) {

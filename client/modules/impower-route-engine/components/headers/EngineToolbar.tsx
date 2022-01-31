@@ -21,7 +21,6 @@ import format from "../../../impower-config/utils/format";
 import { FontIcon } from "../../../impower-icon";
 import { useStickyStyle } from "../../../impower-react-virtualization";
 import { TextField } from "../../../impower-route";
-import RotateAnimation from "../../../impower-route/components/animations/RotateAnimation";
 
 const StyledFixedSpacer = styled.div`
   margin-top: env(safe-area-inset-top, 0);
@@ -88,6 +87,13 @@ const StyledHeaderLeftButtonArea = styled.div`
 const StyledHeaderRightButtonArea = styled.div`
   display: flex;
   align-items: center;
+  justify-content: center;
+`;
+
+const StyledHeaderContextButtonArea = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 const StyledSearchTextField = styled(TextField)`
@@ -178,12 +184,6 @@ const StyledHeaderNameTypography = styled(Typography)`
   white-space: pre;
 `;
 
-const StyledRotateAnimation = styled(RotateAnimation)`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
 interface EngineToolbarLayoutProps {
   minHeight: number;
   leftChildren?: React.ReactNode;
@@ -231,14 +231,11 @@ const EngineToolbarLayout = React.memo(
           </StyledHeaderRightButtonArea>
         )}
         {rotateChildren && (
-          <StyledRotateAnimation
-            initial={180}
-            animate={180}
-            exit={0}
+          <StyledHeaderContextButtonArea
             style={{ minWidth: minHeight, ...rotateStyle }}
           >
             {rotateChildren}
-          </StyledRotateAnimation>
+          </StyledHeaderContextButtonArea>
         )}
       </StyledEngineConsoleToolbarContent>
     );
@@ -425,7 +422,11 @@ const EngineToolbarContent = React.memo(
             </StyledContextButton>
           }
           rotateChildren={
-            <StyledIconButton onClick={onDone} style={{ ...doneButtonStyle }}>
+            <StyledIconButton
+              color="inherit"
+              onClick={onDone}
+              style={{ ...doneButtonStyle }}
+            >
               <FontIcon
                 aria-label={doneLabel}
                 size={theme.fontSize.smallIcon}
@@ -449,8 +450,9 @@ const EngineToolbarContent = React.memo(
           leftChildren={
             onCloseSearch ? (
               <StyledIconButton
+                color="inherit"
                 onClick={onCloseSearch}
-                style={{ ...searchButtonStyle }}
+                style={{ ...backButtonStyle }}
               >
                 <FontIcon
                   aria-label={backLabel}
@@ -476,6 +478,7 @@ const EngineToolbarContent = React.memo(
           }
           rotateChildren={
             <StyledIconButton
+              color="inherit"
               onClick={handleSearchClear}
               style={{ ...clearButtonStyle }}
             >
@@ -500,7 +503,11 @@ const EngineToolbarContent = React.memo(
         minHeight={minHeight}
         leftChildren={
           onBack ? (
-            <StyledIconButton onClick={onBack} style={{ ...backButtonStyle }}>
+            <StyledIconButton
+              color="inherit"
+              onClick={onBack}
+              style={{ ...backButtonStyle }}
+            >
               <FontIcon
                 aria-label={backLabel}
                 size={theme.fontSize.smallIcon}
@@ -528,6 +535,7 @@ const EngineToolbarContent = React.memo(
             {children}
             {onOpenSearch && (
               <StyledIconButton
+                color="inherit"
                 onClick={onOpenSearch}
                 style={{
                   opacity: 0.5,
@@ -547,6 +555,7 @@ const EngineToolbarContent = React.memo(
         rotateChildren={
           onMore && (
             <StyledIconButton
+              color="inherit"
               onClick={onMore}
               style={{
                 opacity: 0.5,
