@@ -4,7 +4,6 @@ import Button from "@material-ui/core/Button";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import PlusRegularIcon from "../../../../resources/icons/regular/plus.svg";
 import UserGroupSolidIcon from "../../../../resources/icons/solid/user-group.svg";
-import { StorageFile } from "../../../impower-core";
 import { StudioDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { FontIcon } from "../../../impower-icon";
@@ -12,7 +11,6 @@ import { useRouter } from "../../../impower-router";
 import { UserContext } from "../../../impower-user";
 import { engineConsoles, EngineConsoleType } from "../../types/info/console";
 import CreateStudioForm from "../forms/CreateStudioForm";
-import StudioCreationFinishedSummary from "../forms/StudioCreationFinishedSummary";
 import EditDialog from "../popups/EditDialog";
 import EngineNavigationBar from "./EngineNavigationBar";
 
@@ -120,13 +118,6 @@ const StudioNavigationBar = React.memo(() => {
     setCreating(false);
   }, []);
 
-  const handleUploadIcon = useCallback(
-    (icon: StorageFile) => {
-      setCreateDoc({ ...createDoc, icon });
-    },
-    [createDoc]
-  );
-
   useEffect(() => {
     const { query } = router as { query: { mode?: string } };
     if (query?.mode === "create-studio") {
@@ -156,13 +147,6 @@ const StudioNavigationBar = React.memo(() => {
           onSubmit={handleSubmit}
           onSubmitted={handleSubmitted}
           onClose={handleCloseCreateMenu}
-          finishedSummary={
-            <StudioCreationFinishedSummary
-              docId={createDocId}
-              doc={createDoc}
-              onUploadIcon={handleUploadIcon}
-            />
-          }
         />
       </EditDialog>
     </>

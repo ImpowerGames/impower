@@ -14,7 +14,6 @@ import getLocalizationConfigParameters from "../../lib/getLocalizationConfigPara
 import getTagConfigParameters from "../../lib/getTagConfigParameters";
 import { ConfigParameters } from "../../modules/impower-config";
 import ConfigCache from "../../modules/impower-config/classes/configCache";
-import { StorageFile } from "../../modules/impower-core";
 import { StudioDocument } from "../../modules/impower-data-store";
 import DataStoreCache from "../../modules/impower-data-store/classes/dataStoreCache";
 import {
@@ -30,7 +29,6 @@ import { Fallback } from "../../modules/impower-route";
 import Footer from "../../modules/impower-route-home/components/elements/Footer";
 import Illustration from "../../modules/impower-route-home/components/elements/Illustration";
 import NavigationBarSpacer from "../../modules/impower-route/components/elements/NavigationBarSpacer";
-import StudioCreationFinishedSummary from "../../modules/impower-route/components/forms/StudioCreationFinishedSummary";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import { useRouter } from "../../modules/impower-router";
@@ -161,13 +159,6 @@ const CreateStudioPage = React.memo((props: CreateStudioPageProps) => {
     setCreateDocId(id);
   }, []);
 
-  const handleUploadIcon = useCallback(
-    (icon: StorageFile) => {
-      setCreateDoc({ ...createDoc, icon });
-    },
-    [createDoc]
-  );
-
   if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
     return null;
   }
@@ -197,13 +188,6 @@ const CreateStudioPage = React.memo((props: CreateStudioPageProps) => {
                 doc={createDoc}
                 onChange={setCreateDoc}
                 onSubmit={handleSubmit}
-                finishedSummary={
-                  <StudioCreationFinishedSummary
-                    docId={createDocId}
-                    doc={createDoc}
-                    onUploadIcon={handleUploadIcon}
-                  />
-                }
               />
             ) : (
               <Fallback color="primary" />
