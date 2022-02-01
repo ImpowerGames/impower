@@ -275,6 +275,8 @@ const StyledMotionEmptyArea = styled(FadeAnimation)`
   height: 100%;
 `;
 
+const StyledMotionEmptyContent = styled.div``;
+
 const StyledUploadOverlay = styled.div`
   position: absolute;
   top: 0;
@@ -2479,7 +2481,9 @@ export const EngineConsoleList = React.memo(
                       flex: 1,
                     }}
                   >
-                    {emptyBackground}
+                    <StyledMotionEmptyContent>
+                      {emptyBackground}
+                    </StyledMotionEmptyContent>
                   </StyledMotionEmptyArea>
                 </UnmountAnimation>
               )}
