@@ -615,6 +615,7 @@ export const userReducer = (
             g: "studios",
             s: {
               id,
+              tags: newDoc?.tags,
               n: newDoc?.name,
               u: newDoc?.handle,
               h: newDoc?.hex,
@@ -637,6 +638,7 @@ export const userReducer = (
             },
             p: {
               id,
+              tags: newDoc?.tags,
               n: newDoc?.name,
               u: newDoc?.slug,
               h: newDoc?.hex,
