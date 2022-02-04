@@ -12,7 +12,7 @@ export const sum = (vectors: number[][]): number[] => {
 
 export const difference = (v1: number[], v2: number[]): number[] => {
   const difference: number[] = [];
-  for (let i = 0; i < v1.length; i++) {
+  for (let i = 0; i < v1.length; i += 1) {
     difference[i] = (v1[i] || 0) - (v2[i] || 0);
   }
   return difference;

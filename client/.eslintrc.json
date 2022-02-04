@@ -39,6 +39,7 @@
     "no-console": ["error", { "allow": ["warn", "error"] }],
     "no-param-reassign": "off",
     "react/react-in-jsx-scope": "off",
+    "no-bitwise": "off",
     "no-undef": "off",
     "no-use-before-define": "off",
     "@typescript-eslint/no-use-before-define": "error",

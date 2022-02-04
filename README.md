@@ -34,7 +34,7 @@ The frontend and backend communicate through api calls provided by [Firebase](ht
 
 Impower games are built ontop of the [Phaser](http://phaser.io) game framework.
 
-The user can build their game using Impower Engine's visual drag-and-drop interface, or script it using Impower Ink, a simple scripting language based on [Ink](https://www.inklestudios.com/ink)
+The user can build their game using Impower Engine's visual drag-and-drop interface, or script it using Impower Script, a simple scripting language based on [Ink](https://www.inklestudios.com/ink) and [Fountain](https://fountain.io/)
 
 The Impower Engine can export:
 
