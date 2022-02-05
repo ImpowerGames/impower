@@ -9,9 +9,9 @@ export const isValue = (obj: unknown): obj is Value => {
 export abstract class Value<
   T extends { toString: () => string } = { toString: () => string }
 > extends AbstractValue {
-  public value: T;
+  public value: T = null;
 
-  constructor(val: T) {
+  constructor(val: T = null) {
     super();
     this.value = val;
   }

@@ -1,8 +1,8 @@
 import { BoolValue } from "../classes/BoolValue";
 import { DivertTargetValue } from "../classes/DivertTargetValue";
 import { FloatValue } from "../classes/FloatValue";
-import { ImpowerList } from "../classes/ImpowerList";
 import { IntValue } from "../classes/IntValue";
+import { List } from "../classes/List";
 import { ListValue } from "../classes/ListValue";
 import { Path } from "../classes/Path";
 import { StringValue } from "../classes/StringValue";
@@ -49,8 +49,8 @@ export const createValue = (
   if (val instanceof Path) {
     return new DivertTargetValue(val as Path);
   }
-  if (val instanceof ImpowerList) {
-    return new ListValue(val as ImpowerList);
+  if (val instanceof List) {
+    return new ListValue(val as List);
   }
 
   return null;

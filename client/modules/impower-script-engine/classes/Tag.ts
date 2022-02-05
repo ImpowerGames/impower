@@ -1,6 +1,6 @@
-import { ImpowerObject } from "./ImpowerObject";
+import { RuntimeObject } from "./RuntimeObject";
 
-export class Tag extends ImpowerObject {
+export class Tag extends RuntimeObject {
   public readonly text: string;
 
   constructor(tagText: string) {

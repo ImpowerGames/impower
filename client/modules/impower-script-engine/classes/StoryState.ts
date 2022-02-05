@@ -7,16 +7,16 @@ import { ControlCommand } from "./ControlCommand";
 import { Debug } from "./Debug";
 import { Flow } from "./Flow";
 import { Glue } from "./Glue";
-import { ImpowerList } from "./ImpowerList";
-import { ImpowerObject } from "./ImpowerObject";
 import { JsonReader } from "./JsonReader";
 import { JsonSerialisation } from "./JsonSerialisation";
 import { JsonWriter } from "./JsonWriter";
+import { List } from "./List";
 import { ListValue } from "./ListValue";
 import { NullException } from "./NullException";
 import { Path } from "./Path";
 import { Pointer } from "./Pointer";
 import { PRNG } from "./PRNG";
+import { RuntimeObject } from "./RuntimeObject";
 import { StatePatch } from "./StatePatch";
 import { Story } from "./Story";
 import { StringBuilder } from "./StringBuilder";
@@ -152,7 +152,7 @@ export class StoryState {
     return this.callStack.depth;
   }
 
-  get outputStream(): ImpowerObject[] {
+  get outputStream(): RuntimeObject[] {
     return this._currentFlow.outputStream;
   }
 
@@ -194,11 +194,11 @@ export class StoryState {
     return this._currentFlow.callStack;
   }
 
-  get evaluationStack(): ImpowerObject[] {
+  get evaluationStack(): RuntimeObject[] {
     return this._evaluationStack;
   }
 
-  private _evaluationStack: ImpowerObject[];
+  private _evaluationStack: RuntimeObject[];
 
   public divertedPointer: Pointer = Pointer.Null;
 
@@ -270,7 +270,7 @@ export class StoryState {
         }
       });
 
-      this._currentText = this.CleanOutputWhitespace(sb.toString());
+      this._currentText = this.CleanOutputWhitespace(sb.ToString());
       this._outputStreamTextDirty = false;
     }
 
@@ -314,7 +314,7 @@ export class StoryState {
       }
     }
 
-    return sb.toString();
+    return sb.ToString();
   }
 
   get currentTags(): string[] {
@@ -683,13 +683,13 @@ export class StoryState {
     this._currentWarnings = null;
   }
 
-  public ResetOutput(objs: ImpowerObject[] = null): void {
+  public ResetOutput(objs: RuntimeObject[] = null): void {
     this.outputStream.length = 0;
     if (objs !== null) this.outputStream.push(...objs);
     this.OutputStreamDirty();
   }
 
-  public PushToOutputStream(obj: ImpowerObject): void {
+  public PushToOutputStream(obj: RuntimeObject): void {
     const text = obj as StringValue;
     if (text !== null) {
       const listText = this.TrySplittingHeadTailWhitespace(text);
@@ -789,7 +789,7 @@ export class StoryState {
     return listTexts;
   }
 
-  public PushToOutputStreamIndividual(obj: ImpowerObject): void {
+  public PushToOutputStreamIndividual(obj: RuntimeObject): void {
     const glue = obj as Glue;
     const text = obj as StringValue;
 
@@ -947,7 +947,7 @@ export class StoryState {
     return false;
   }
 
-  public PushEvaluationStack(obj: ImpowerObject): void {
+  public PushEvaluationStack(obj: RuntimeObject): void {
     const listValue = obj as ListValue;
     if (listValue) {
       // Update origin when list is has something to indicate the list origin
@@ -981,7 +981,7 @@ export class StoryState {
     this.evaluationStack.push(obj);
   }
 
-  public PopEvaluationStackRange(numberOfObjects = 1): ImpowerObject[] {
+  public PopEvaluationStackRange(numberOfObjects = 1): RuntimeObject[] {
     if (numberOfObjects < 1) {
       return [];
     }
@@ -1000,11 +1000,11 @@ export class StoryState {
     return popped === undefined ? null : popped;
   }
 
-  public PopEvaluationStack(): ImpowerObject {
+  public PopEvaluationStack(): RuntimeObject {
     return this.PopEvaluationStackRange(1)[0];
   }
 
-  public PeekEvaluationStack(): ImpowerObject {
+  public PeekEvaluationStack(): RuntimeObject {
     return this.evaluationStack[this.evaluationStack.length - 1];
   }
 
@@ -1094,7 +1094,7 @@ export class StoryState {
         if (
           typeof arg !== "number" &&
           typeof arg !== "string" &&
-          !(arg instanceof ImpowerList)
+          !(arg instanceof List)
         ) {
           throw new Error(
             `${
@@ -1105,7 +1105,7 @@ export class StoryState {
         }
 
         this.PushEvaluationStack(
-          createValue(args[i]) as unknown as ImpowerObject
+          createValue(args[i]) as unknown as RuntimeObject
         );
       }
     }
@@ -1131,7 +1131,7 @@ export class StoryState {
     const originalEvaluationStackHeight =
       this.callStack.currentElement.evaluationStackHeightWhenPushed;
 
-    let returnedObj: ImpowerObject = null;
+    let returnedObj: RuntimeObject = null;
     while (this.evaluationStack.length > originalEvaluationStackHeight) {
       const poppedObj = this.PopEvaluationStack();
       if (returnedObj === null) {

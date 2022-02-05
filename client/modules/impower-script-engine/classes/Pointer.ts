@@ -1,7 +1,7 @@
 import { Container } from "./Container";
-import { ImpowerObject } from "./ImpowerObject";
 import { Path } from "./Path";
 import { PathComponent } from "./PathComponent";
+import { RuntimeObject } from "./RuntimeObject";
 
 export class Pointer {
   public container: Container = null;
@@ -18,7 +18,7 @@ export class Pointer {
     }
   }
 
-  public Resolve(): ImpowerObject {
+  public Resolve(): RuntimeObject {
     if (this.index < 0) {
       return this.container;
     }

@@ -1,8 +1,8 @@
 import { Container } from "./Container";
-import { ImpowerObject } from "./ImpowerObject";
+import { RuntimeObject } from "./RuntimeObject";
 
 export class StatePatch {
-  get globals(): Record<string, ImpowerObject> {
+  get globals(): Record<string, RuntimeObject> {
     return this._globals;
   }
 
@@ -39,8 +39,8 @@ export class StatePatch {
 
   public TryGetGlobal(
     name: string,
-    /* out */ value: ImpowerObject
-  ): ImpowerObject {
+    /* out */ value: RuntimeObject
+  ): RuntimeObject {
     if (name !== null && this._globals[name]) {
       return this._globals[name];
     }
@@ -48,7 +48,7 @@ export class StatePatch {
     return value;
   }
 
-  public SetGlobal(name: string, value: ImpowerObject): void {
+  public SetGlobal(name: string, value: RuntimeObject): void {
     this._globals[name] = value;
   }
 
@@ -86,7 +86,7 @@ export class StatePatch {
     return { result: index, exists: false };
   }
 
-  private _globals: Record<string, ImpowerObject>;
+  private _globals: Record<string, RuntimeObject>;
 
   private _changedVariables: Set<string> = new Set();
 

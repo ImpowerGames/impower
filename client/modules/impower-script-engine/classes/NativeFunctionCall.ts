@@ -1,16 +1,13 @@
 import { ValueType } from "../types/ValueType";
 import { createValue } from "../utils/createValue";
 import { BoolValue } from "./BoolValue";
-import { ImpowerList } from "./ImpowerList";
-import {
-  ImpowerListItem,
-  ImpowerListItemFromSerializedKey,
-} from "./ImpowerListItem";
-import { ImpowerObject } from "./ImpowerObject";
 import { IntValue } from "./IntValue";
+import { List } from "./List";
+import { ListItem, ListItemFromSerializedKey } from "./ListItem";
 import { ListValue } from "./ListValue";
 import { NullException } from "./NullException";
 import { Path } from "./Path";
+import { RuntimeObject } from "./RuntimeObject";
 import { StoryException } from "./StoryException";
 import { Value } from "./Value";
 import { Void } from "./Void";
@@ -18,7 +15,7 @@ import { Void } from "./Void";
 type BinaryOp<T> = (left: T, right: T) => unknown;
 type UnaryOp<T> = (val: T) => unknown;
 
-export class NativeFunctionCall extends ImpowerObject {
+export class NativeFunctionCall extends RuntimeObject {
   public static readonly Add: string = "+";
 
   public static readonly Subtract: string = "-";
@@ -123,7 +120,7 @@ export class NativeFunctionCall extends ImpowerObject {
 
   public _numberOfParameters = 0;
 
-  public Call(parameters: ImpowerObject[]): ImpowerObject {
+  public Call(parameters: RuntimeObject[]): RuntimeObject {
     if (this._prototype) {
       return this._prototype.Call(parameters);
     }
@@ -162,9 +159,7 @@ export class NativeFunctionCall extends ImpowerObject {
       return this.CallType<Path>(this.CoerceValuesToSingleType(parameters));
     }
     if (coercedType === "List") {
-      return this.CallType<ImpowerList>(
-        this.CoerceValuesToSingleType(parameters)
-      );
+      return this.CallType<List>(this.CoerceValuesToSingleType(parameters));
     }
 
     return null;
@@ -235,7 +230,7 @@ export class NativeFunctionCall extends ImpowerObject {
   }
 
   public CallBinaryListOperation(
-    parameters: ImpowerObject[]
+    parameters: RuntimeObject[]
   ): ListValue | BoolValue | Value<unknown> {
     if (
       (this.name === "+" || this.name === "-") &&
@@ -265,20 +260,18 @@ export class NativeFunctionCall extends ImpowerObject {
     }
 
     if (v1.valueType === "List" && v2.valueType === "List")
-      return this.CallType<ImpowerList>(
-        this.CoerceValuesToSingleType([v1, v2])
-      );
+      return this.CallType<List>(this.CoerceValuesToSingleType([v1, v2]));
 
     throw new StoryException(
       `Can not call use ${this.name} operation on ${v1.valueType} and ${v2.valueType}`
     );
   }
 
-  public CallListIncrementOperation(listIntParams: ImpowerObject[]): ListValue {
+  public CallListIncrementOperation(listIntParams: RuntimeObject[]): ListValue {
     const listVal = listIntParams[0] as ListValue;
     const intVal = listIntParams[1] as IntValue;
 
-    const resultList = new ImpowerList();
+    const resultList = new List();
 
     if (listVal.value === null) {
       throw new NullException(
@@ -286,7 +279,7 @@ export class NativeFunctionCall extends ImpowerObject {
       );
     }
     listVal.value.forEach((listItemValue, listItemKey) => {
-      const listItem = ImpowerListItemFromSerializedKey(listItemKey);
+      const listItem = ListItemFromSerializedKey(listItemKey);
 
       if (this._operationFuncs === null) {
         throw new NullException("NativeFunctionCall._operationFuncs");
@@ -316,7 +309,7 @@ export class NativeFunctionCall extends ImpowerObject {
       if (itemOrigin != null) {
         const incrementedItem = itemOrigin.TryGetItemWithValue(
           targetInt,
-          ImpowerListItem.Null
+          ListItem.Null
         );
         if (incrementedItem.exists)
           resultList.Add(incrementedItem.result, targetInt);
@@ -327,7 +320,7 @@ export class NativeFunctionCall extends ImpowerObject {
   }
 
   public CoerceValuesToSingleType<T>(
-    parametersIn: ImpowerObject[]
+    parametersIn: RuntimeObject[]
   ): Value<T>[] {
     let valType: ValueType = "Int" as ValueType;
 
@@ -366,7 +359,7 @@ export class NativeFunctionCall extends ImpowerObject {
               "NativeFunctionCall.CoerceValuesToSingleType list"
             );
           }
-          const item = list.TryGetItemWithValue(intVal, ImpowerListItem.Null);
+          const item = list.TryGetItemWithValue(intVal, ListItem.Null);
           if (item.exists) {
             const castedValue = new ListValue(item.result, intVal);
             parametersOut.push(castedValue);
@@ -532,9 +525,7 @@ export class NativeFunctionCall extends ImpowerObject {
 
   public AddOpFuncForType(
     valType: ValueType,
-    op:
-      | UnaryOp<number | ImpowerList>
-      | BinaryOp<number | string | ImpowerList | Path>
+    op: UnaryOp<number | List> | BinaryOp<number | string | List | Path>
   ): void {
     if (this._operationFuncs == null) {
       this._operationFuncs = new Map();
@@ -581,11 +572,11 @@ export class NativeFunctionCall extends ImpowerObject {
     this.AddOpToNativeFunc(name, 2, "String", op);
   }
 
-  public static AddListBinaryOp(name: string, op: BinaryOp<ImpowerList>): void {
+  public static AddListBinaryOp(name: string, op: BinaryOp<List>): void {
     this.AddOpToNativeFunc(name, 2, "List", op);
   }
 
-  public static AddListUnaryOp(name: string, op: UnaryOp<ImpowerList>): void {
+  public static AddListUnaryOp(name: string, op: UnaryOp<List>): void {
     this.AddOpToNativeFunc(name, 1, "List", op);
   }
 

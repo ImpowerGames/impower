@@ -7,8 +7,8 @@ import { Path } from "./Path";
 import { PathComponent } from "./PathComponent";
 import { SearchResult } from "./SearchResult";
 
-export class ImpowerObject {
-  public parent: ImpowerObject = null;
+export class RuntimeObject {
+  public parent: RuntimeObject = null;
 
   get debugMetadata(): DebugMetadata {
     if (this._debugMetadata === null) {
@@ -58,7 +58,7 @@ export class ImpowerObject {
         const comps: PathComponent[] = [];
 
         let container = isContainer(this.parent) ? this.parent : null;
-        let child: ImpowerObject = container;
+        let child: RuntimeObject = container;
 
         while (container !== null) {
           const namedChild =
@@ -176,14 +176,14 @@ export class ImpowerObject {
   }
 
   get rootContentContainer(): Container {
-    let ancestor: ImpowerObject = this.parent;
+    let ancestor: RuntimeObject = this.parent;
     while (ancestor.parent) {
       ancestor = ancestor.parent;
     }
     return isContainer(ancestor) ? ancestor : null;
   }
 
-  public Copy(): ImpowerObject {
+  public Copy(): RuntimeObject {
     throw Error("Not Implemented: Doesn't support copying");
   }
 
@@ -192,9 +192,9 @@ export class ImpowerObject {
   // the object and the property string.
   // TODO: This method can probably be rewritten with type-safety in mind.
   public SetChild(
-    obj: Record<string, ImpowerObject>,
+    obj: Record<string, RuntimeObject>,
     prop: string,
-    value: ImpowerObject
+    value: RuntimeObject
   ): void {
     if (obj[prop]) {
       obj[prop] = null;

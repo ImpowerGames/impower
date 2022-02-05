@@ -10,12 +10,12 @@
  *
  * For instance a `TryGet` prototype would look like this:
 ```
-TryGetItemWithValue(val: number, item: ImpowerListItem): TryGetResult<ImpowerListItem>{
+TryGetItemWithValue(val: number, item: ListItem): TryGetResult<ListItem>{
 ```
  *
  * On the other hand, dealing with the result can be done in the following way:
 ```
-var item = item.TryGetItemWithValue(intVal, ImpowerListItem.Null);
+var item = item.TryGetItemWithValue(intVal, ListItem.Null);
 if (item.exists) {
 	console.log(item.result)
 }

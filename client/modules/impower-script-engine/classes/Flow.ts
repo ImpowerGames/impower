@@ -1,9 +1,9 @@
 import { CallStack } from "./CallStack";
 import { Choice } from "./Choice";
-import { ImpowerObject } from "./ImpowerObject";
 import { JsonSerialisation } from "./JsonSerialisation";
 import { JsonWriter } from "./JsonWriter";
 import { NullException } from "./NullException";
+import { RuntimeObject } from "./RuntimeObject";
 import { Story } from "./Story";
 import { Thread } from "./Thread";
 
@@ -12,7 +12,7 @@ export class Flow {
 
   public callStack: CallStack;
 
-  public outputStream: ImpowerObject[];
+  public outputStream: RuntimeObject[];
 
   public currentChoices: Choice[];
 

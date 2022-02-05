@@ -4,13 +4,13 @@ import { AbstractValue } from "./AbstractValue";
 import { isBoolValue } from "./BoolValue";
 import { CallStack } from "./CallStack";
 import { isFloatValue } from "./FloatValue";
-import { ImpowerObject } from "./ImpowerObject";
 import { isIntValue } from "./IntValue";
 import { JsonSerialisation } from "./JsonSerialisation";
 import { JsonWriter } from "./JsonWriter";
 import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
 import { ListValue } from "./ListValue";
 import { NullException } from "./NullException";
+import { RuntimeObject } from "./RuntimeObject";
 import { StatePatch } from "./StatePatch";
 import { StoryException } from "./StoryException";
 import { isValue } from "./Value";
@@ -23,12 +23,12 @@ export class VariablesState {
   // an actual collection of delegates (ie. callbacks) to register a new one, there is a
   // special ObserveVariableChange method below.
   public variableChangedEventCallbacks: Array<
-    (variableName: string, newValue: ImpowerObject) => void
+    (variableName: string, newValue: RuntimeObject) => void
   > = [];
 
   public variableChangedEvent(
     variableName: string,
-    newValue: ImpowerObject
+    newValue: RuntimeObject
   ): void {
     this.variableChangedEventCallbacks.forEach((callback) => {
       callback(variableName, newValue);
@@ -209,8 +209,8 @@ export class VariablesState {
   }
 
   public RuntimeObjectsEqual(
-    obj1: ImpowerObject,
-    obj2: ImpowerObject
+    obj1: RuntimeObject,
+    obj2: RuntimeObject
   ): boolean {
     if (obj1 === null) {
       throw new NullException("obj1");
@@ -247,7 +247,7 @@ export class VariablesState {
     );
   }
 
-  public GetVariableWithName(name: string, contextIndex = -1): ImpowerObject {
+  public GetVariableWithName(name: string, contextIndex = -1): RuntimeObject {
     let varValue = this.GetRawVariableWithName(name, contextIndex);
 
     const varPointer = varValue as VariablePointerValue;
@@ -258,7 +258,7 @@ export class VariablesState {
     return varValue;
   }
 
-  public TryGetDefaultVariableValue(name: string): ImpowerObject {
+  public TryGetDefaultVariableValue(name: string): RuntimeObject {
     const val = this._defaultGlobalVariables[name];
     return val === undefined ? null : val;
   }
@@ -274,8 +274,8 @@ export class VariablesState {
   public GetRawVariableWithName(
     name: string,
     contextIndex: number
-  ): ListValue | ImpowerObject {
-    let varValue: ImpowerObject = null;
+  ): ListValue | RuntimeObject {
+    let varValue: RuntimeObject = null;
 
     if (contextIndex === 0 || contextIndex === -1) {
       let variableValue = null;
@@ -314,11 +314,11 @@ export class VariablesState {
     return varValue;
   }
 
-  public ValueAtVariablePointer(pointer: VariablePointerValue): ImpowerObject {
+  public ValueAtVariablePointer(pointer: VariablePointerValue): RuntimeObject {
     return this.GetVariableWithName(pointer.variableName, pointer.contextIndex);
   }
 
-  public Assign(varAss: VariableAssignment, value: ImpowerObject): void {
+  public Assign(varAss: VariableAssignment, value: RuntimeObject): void {
     let name = varAss.variableName;
     if (name === null) {
       throw new NullException("name");
@@ -371,8 +371,8 @@ export class VariablesState {
   }
 
   public RetainListOriginsForAssignment(
-    oldValue: ImpowerObject,
-    newValue: ImpowerObject
+    oldValue: RuntimeObject,
+    newValue: RuntimeObject
   ): void {
     const oldList = oldValue as ListValue;
     const newList = newValue as ListValue;
@@ -382,7 +382,7 @@ export class VariablesState {
     }
   }
 
-  public SetGlobal(variableName: string, value: ImpowerObject): void {
+  public SetGlobal(variableName: string, value: RuntimeObject): void {
     let oldValue = null;
 
     if (this.patch === null) {
@@ -470,14 +470,14 @@ export class VariablesState {
    * @param {function} callback
    */
   public ObserveVariableChange(
-    callback: (variableName: string, newValue: ImpowerObject) => void
+    callback: (variableName: string, newValue: RuntimeObject) => void
   ): void {
     this.variableChangedEventCallbacks.push(callback);
   }
 
-  private _globalVariables: Record<string, ImpowerObject> = {};
+  private _globalVariables: Record<string, RuntimeObject> = {};
 
-  private _defaultGlobalVariables: Record<string, ImpowerObject> = {};
+  private _defaultGlobalVariables: Record<string, RuntimeObject> = {};
 
   private _callStack: CallStack;
 

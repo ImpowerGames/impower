@@ -1,10 +1,10 @@
 import { ValueType } from "../types/ValueType";
 import { FloatValue } from "./FloatValue";
-import { ImpowerList } from "./ImpowerList";
-import { ImpowerListItem } from "./ImpowerListItem";
-import { ImpowerObject } from "./ImpowerObject";
 import { IntValue } from "./IntValue";
+import { List } from "./List";
+import { ListItem } from "./ListItem";
 import { NullException } from "./NullException";
+import { RuntimeObject } from "./RuntimeObject";
 import { StringValue } from "./StringValue";
 import { Value } from "./Value";
 
@@ -13,7 +13,7 @@ export const isListValue = (obj: unknown): obj is ListValue => {
   return value.valueType === "List";
 };
 
-export class ListValue extends Value<ImpowerList> {
+export class ListValue extends Value<List> {
   public get isTruthy(): boolean {
     if (this.value === null) {
       throw new NullException("this.value");
@@ -56,25 +56,22 @@ export class ListValue extends Value<ImpowerList> {
 
   constructor();
 
-  constructor(list: ImpowerList);
+  constructor(list: List);
 
-  constructor(listOrSingleItem: ImpowerListItem, singleValue: number);
+  constructor(listOrSingleItem: ListItem, singleValue: number);
 
-  constructor(
-    listOrSingleItem?: ImpowerListItem | ImpowerList,
-    singleValue?: number
-  ) {
+  constructor(listOrSingleItem?: ListItem | List, singleValue?: number) {
     super(null);
 
     if (!listOrSingleItem && !singleValue) {
-      this.value = new ImpowerList();
-    } else if (listOrSingleItem instanceof ImpowerList) {
-      this.value = new ImpowerList(listOrSingleItem);
+      this.value = new List();
+    } else if (listOrSingleItem instanceof List) {
+      this.value = new List(listOrSingleItem);
     } else if (
-      listOrSingleItem instanceof ImpowerListItem &&
+      listOrSingleItem instanceof ListItem &&
       typeof singleValue === "number"
     ) {
-      this.value = new ImpowerList({
+      this.value = new List({
         Key: listOrSingleItem,
         Value: singleValue,
       });
@@ -82,8 +79,8 @@ export class ListValue extends Value<ImpowerList> {
   }
 
   public static RetainListOriginsForAssignment(
-    oldValue: ImpowerObject,
-    newValue: ImpowerObject
+    oldValue: RuntimeObject,
+    newValue: RuntimeObject
   ): void {
     const oldList = oldValue as ListValue;
     const newList = newValue as ListValue;

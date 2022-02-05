@@ -8,10 +8,10 @@ export const isNamedContent = (obj: unknown): obj is INamedContent => {
   if (typeof item !== "object") {
     return false;
   }
-  if (item.name === undefined || item.hasValidName === undefined) {
+  if (item.name === undefined) {
     return false;
   }
-  if (typeof item.name !== "string" && typeof item.hasValidName !== "boolean") {
+  if (typeof item.name !== "string") {
     return false;
   }
 

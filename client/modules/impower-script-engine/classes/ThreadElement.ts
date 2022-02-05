@@ -1,13 +1,13 @@
 import { PushPopType } from "../types/PushPopType";
-import { ImpowerObject } from "./ImpowerObject";
 import { Pointer } from "./Pointer";
+import { RuntimeObject } from "./RuntimeObject";
 
 export class ThreadElement {
   public currentPointer: Pointer;
 
   public inExpressionEvaluation: boolean;
 
-  public temporaryVariables: Record<string, ImpowerObject>;
+  public temporaryVariables: Record<string, RuntimeObject>;
 
   public type: PushPopType;
 

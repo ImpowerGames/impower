@@ -1,4 +1,4 @@
-import { IImpowerListItem } from "../types/IImpowerListItem";
+import { IListItem } from "../types/IListItem";
 
 /**
  * In the original C# code, `InkListItem` was defined as value type, meaning
@@ -23,31 +23,22 @@ import { IImpowerListItem } from "../types/IImpowerListItem";
  * this method is that we will have to to reconstruct the original `InkListItem`
  * every time we'll need to access its properties.
  */
-export type SerializedImpowerListItem = string;
+export type SerializedListItem = string;
 
 /**
  * Determines whether the given item is sufficiently `InkListItem`-like
  * to be used as a template when reconstructing the InkListItem.
  */
-export const isImpowerListItem = (obj: unknown): obj is ImpowerListItem => {
-  const item = obj as ImpowerListItem;
+export const isRuntimeListItem = (obj: unknown): obj is ListItem => {
+  const item = obj as ListItem;
   if (typeof item !== "object") {
     return false;
   }
-  if (item.originName === undefined || item.itemName === undefined) {
-    return false;
-  }
-  if (typeof item.originName !== "string" && typeof item.originName !== null) {
-    return false;
-  }
-  if (typeof item.itemName !== "string" && typeof item.itemName !== null) {
-    return false;
-  }
 
-  return true;
+  return item.originName !== undefined && item.itemName !== undefined;
 };
 
-export class ImpowerListItem implements IImpowerListItem {
+export class ListItem implements IListItem {
   // InkListItem is a struct
 
   public readonly originName: string = null;
@@ -73,8 +64,8 @@ export class ImpowerListItem implements IImpowerListItem {
     }
   }
 
-  public static get Null(): ImpowerListItem {
-    return new ImpowerListItem(null, null);
+  public static get Null(): ListItem {
+    return new ListItem(null, null);
   }
 
   public get isNull(): boolean {
@@ -91,8 +82,8 @@ export class ImpowerListItem implements IImpowerListItem {
     return this.fullName;
   }
 
-  public Equals(obj: ImpowerListItem): boolean {
-    if (obj instanceof ImpowerListItem) {
+  public Equals(obj: ListItem): boolean {
+    if (obj instanceof ListItem) {
       const otherItem = obj;
       return (
         otherItem.itemName === this.itemName &&
@@ -111,15 +102,15 @@ export class ImpowerListItem implements IImpowerListItem {
   /**
    * Returns a shallow clone of the current instance.
    */
-  public copy(): ImpowerListItem {
-    return new ImpowerListItem(this.originName, this.itemName);
+  public copy(): ListItem {
+    return new ListItem(this.originName, this.itemName);
   }
 
   /**
    * Returns a `SerializedInkListItem` representing the current
    * instance. The result is intended to be used as a key inside a Map.
    */
-  public serialized(): SerializedImpowerListItem {
+  public serialized(): SerializedListItem {
     // We are simply using a JSON representation as a value-typed key.
     return JSON.stringify({
       originName: this.originName,
@@ -129,17 +120,17 @@ export class ImpowerListItem implements IImpowerListItem {
 }
 
 /**
- * Reconstructs a `ImpowerListItem` from the given SerializedImpowerListItem.
+ * Reconstructs a `ListItem` from the given SerializedListItem.
  */
-export const ImpowerListItemFromSerializedKey = (
-  key: SerializedImpowerListItem
-): ImpowerListItem => {
+export const ListItemFromSerializedKey = (
+  key: SerializedListItem
+): ListItem => {
   const obj = JSON.parse(key);
-  if (!isImpowerListItem(obj)) {
-    return ImpowerListItem.Null;
+  if (!isRuntimeListItem(obj)) {
+    return ListItem.Null;
   }
 
-  const inkListItem = obj as IImpowerListItem;
+  const inkListItem = obj as IListItem;
 
-  return new ImpowerListItem(inkListItem.originName, inkListItem.itemName);
+  return new ListItem(inkListItem.originName, inkListItem.itemName);
 };

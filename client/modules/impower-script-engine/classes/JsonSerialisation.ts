@@ -10,20 +10,17 @@ import { Divert } from "./Divert";
 import { DivertTargetValue } from "./DivertTargetValue";
 import { FloatValue } from "./FloatValue";
 import { Glue } from "./Glue";
-import { ImpowerList } from "./ImpowerList";
-import {
-  ImpowerListItem,
-  ImpowerListItemFromSerializedKey,
-} from "./ImpowerListItem";
-import { ImpowerObject } from "./ImpowerObject";
 import { IntValue } from "./IntValue";
 import { JsonWriter } from "./JsonWriter";
+import { List } from "./List";
 import { ListDefinition } from "./ListDefinition";
 import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
+import { ListItem, ListItemFromSerializedKey } from "./ListItem";
 import { ListValue } from "./ListValue";
 import { NativeFunctionCall } from "./NativeFunctionCall";
 import { NullException } from "./NullException";
 import { Path } from "./Path";
+import { RuntimeObject } from "./RuntimeObject";
 import { StringValue } from "./StringValue";
 import { Tag } from "./Tag";
 import { VariableAssignment } from "./VariableAssignment";
@@ -35,11 +32,11 @@ export class JsonSerialisation {
   public static JArrayToRuntimeObjList(
     jArray: unknown[],
     skipLast = false
-  ): ImpowerObject[] {
+  ): RuntimeObject[] {
     let count = jArray.length;
     if (skipLast) count -= 1;
 
-    const list: ImpowerObject[] = [];
+    const list: RuntimeObject[] = [];
 
     for (let i = 0; i < count; i += 1) {
       const jTok = jArray[i];
@@ -55,7 +52,7 @@ export class JsonSerialisation {
 
   public static WriteDictionaryRuntimeObjs(
     writer: JsonWriter,
-    dict: Record<string, ImpowerObject>
+    dict: Record<string, RuntimeObject>
   ): void {
     writer.WriteObjectStart();
     Object.entries(dict).forEach(([key, value]) => {
@@ -68,7 +65,7 @@ export class JsonSerialisation {
 
   public static WriteListRuntimeObjs(
     writer: JsonWriter,
-    list: ImpowerObject[]
+    list: RuntimeObject[]
   ): void {
     writer.WriteArrayStart();
     list.forEach((value) => {
@@ -90,7 +87,7 @@ export class JsonSerialisation {
 
   public static WriteRuntimeObject(
     writer: JsonWriter,
-    obj: ImpowerObject
+    obj: RuntimeObject
   ): void {
     const container = isContainer(obj) ? obj : null;
     if (container) {
@@ -263,8 +260,8 @@ export class JsonSerialisation {
 
   public static JObjectToDictionaryRuntimeObjs(
     jObject: Record<string, unknown>
-  ): Record<string, ImpowerObject> {
-    const dict: Record<string, ImpowerObject> = {};
+  ): Record<string, RuntimeObject> {
+    const dict: Record<string, RuntimeObject> = {};
 
     Object.entries(jObject).forEach(([key]) => {
       if (jObject[key] !== undefined) {
@@ -291,7 +288,7 @@ export class JsonSerialisation {
     return dict;
   }
 
-  public static JTokenToRuntimeObject(token: unknown): ImpowerObject {
+  public static JTokenToRuntimeObject(token: unknown): RuntimeObject {
     if (
       (typeof token === "number" && !Number.isNaN(token)) ||
       typeof token === "boolean"
@@ -476,7 +473,7 @@ export class JsonSerialisation {
       if (obj.list) {
         propValue = obj.list;
         const listContent = propValue as Record<string, unknown>;
-        const rawList = new ImpowerList();
+        const rawList = new List();
         if (obj.origins) {
           propValue = obj.origins;
           const namesAsObjs = propValue as string[];
@@ -486,7 +483,7 @@ export class JsonSerialisation {
         Object.entries(listContent).forEach(([key]) => {
           if (listContent[key] !== undefined) {
             const nameToVal = listContent[key];
-            const item = new ImpowerListItem(key);
+            const item = new ListItem(key);
             const val = Number(nameToVal);
             rawList.Add(item, val);
           }
@@ -615,7 +612,7 @@ export class JsonSerialisation {
     writer.WriteObjectStart();
 
     rawList.forEach((val: number, key: string) => {
-      const item = ImpowerListItemFromSerializedKey(key);
+      const item = ListItemFromSerializedKey(key);
       const itemVal = val;
 
       if (item.itemName === null) {
@@ -663,7 +660,7 @@ export class JsonSerialisation {
       const listDefJson: Record<string, unknown> = {};
 
       Object.entries(def.items).forEach(([key, val]) => {
-        const item = ImpowerListItemFromSerializedKey(key);
+        const item = ListItemFromSerializedKey(key);
         if (item.itemName === null) {
           throw new NullException("item.itemName");
         }

@@ -1,9 +1,9 @@
 import { Container } from "./Container";
-import { ImpowerObject } from "./ImpowerObject";
 import { NullException } from "./NullException";
 import { Path } from "./Path";
+import { RuntimeObject } from "./RuntimeObject";
 
-export class ChoicePoint extends ImpowerObject {
+export class ChoicePoint extends RuntimeObject {
   public _pathOnChoice: Path = null;
 
   public hasCondition = false;

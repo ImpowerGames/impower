@@ -1,10 +1,10 @@
 import { PushPopType } from "../types/PushPopType";
 import { Debug } from "./Debug";
-import { ImpowerObject } from "./ImpowerObject";
 import { JsonWriter } from "./JsonWriter";
 import { ListValue } from "./ListValue";
 import { NullException } from "./NullException";
 import { Pointer } from "./Pointer";
+import { RuntimeObject } from "./RuntimeObject";
 import { Story } from "./Story";
 import { StringBuilder } from "./StringBuilder";
 import { Thread } from "./Thread";
@@ -187,7 +187,7 @@ export class CallStack {
   public GetTemporaryVariableWithName(
     name: string,
     contextIndex = -1
-  ): ImpowerObject {
+  ): RuntimeObject {
     if (contextIndex === -1) {
       contextIndex = this.currentElementIndex + 1;
     }
@@ -203,7 +203,7 @@ export class CallStack {
 
   public SetTemporaryVariable(
     name: string,
-    value: ImpowerObject,
+    value: RuntimeObject,
     declareNew: boolean,
     contextIndex = -1
   ): void {
@@ -274,7 +274,7 @@ export class CallStack {
       }
     }
 
-    return sb.toString();
+    return sb.ToString();
   }
 
   public _threads!: Thread[]; // Banged because it's initialized in Reset().

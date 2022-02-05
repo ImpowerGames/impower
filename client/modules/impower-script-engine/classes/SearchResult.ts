@@ -1,12 +1,12 @@
 import { Container } from "./Container";
-import { ImpowerObject } from "./ImpowerObject";
+import { RuntimeObject } from "./RuntimeObject";
 
 export class SearchResult {
-  public obj: ImpowerObject = null;
+  public obj: RuntimeObject = null;
 
   public approximate = false;
 
-  get correctObj(): ImpowerObject {
+  get correctObj(): RuntimeObject {
     return this.approximate ? null : this.obj;
   }
 

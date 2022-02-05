@@ -1,6 +1,6 @@
 import { TryGetResult } from "../types/TryGetResult";
-import { ImpowerListItemFromSerializedKey } from "./ImpowerListItem";
 import { ListDefinition } from "./ListDefinition";
+import { ListItemFromSerializedKey } from "./ListItem";
 import { ListValue } from "./ListValue";
 import { NullException } from "./NullException";
 
@@ -17,7 +17,7 @@ export class ListDefinitionsOrigin {
       this._lists[list.name] = list;
 
       Object.entries(list.items).forEach(([key, val]) => {
-        const item = ImpowerListItemFromSerializedKey(key);
+        const item = ListItemFromSerializedKey(key);
         const listValue = new ListValue(item, val);
 
         if (!item.itemName) {

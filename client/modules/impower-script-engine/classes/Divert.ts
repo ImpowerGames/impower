@@ -1,12 +1,12 @@
 import { PushPopType } from "../types/PushPopType";
 import { Container } from "./Container";
-import { ImpowerObject } from "./ImpowerObject";
 import { NullException } from "./NullException";
 import { Path } from "./Path";
 import { Pointer } from "./Pointer";
+import { RuntimeObject } from "./RuntimeObject";
 import { StringBuilder } from "./StringBuilder";
 
-export class Divert extends ImpowerObject {
+export class Divert extends RuntimeObject {
   get targetPath(): Path {
     if (this._targetPath != null && this._targetPath.isRelative) {
       const targetObj = this.targetPointer.Resolve();
@@ -146,6 +146,6 @@ export class Divert extends ImpowerObject {
     sb.Append(targetStr);
     sb.Append(")");
 
-    return sb.toString();
+    return sb.ToString();
   }
 }

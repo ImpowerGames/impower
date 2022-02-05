@@ -1,8 +1,8 @@
 import { Container } from "./Container";
-import { ImpowerObject } from "./ImpowerObject";
 import { Path } from "./Path";
+import { RuntimeObject } from "./RuntimeObject";
 
-export class VariableReference extends ImpowerObject {
+export class VariableReference extends RuntimeObject {
   public name: string;
 
   public pathForCount: Path = null;

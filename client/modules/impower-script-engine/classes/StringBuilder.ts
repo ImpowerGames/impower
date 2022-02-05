@@ -28,7 +28,7 @@ export class StringBuilder {
     );
   }
 
-  public toString(): string {
+  public ToString(): string {
     return this.string;
   }
 }

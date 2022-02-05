@@ -1,9 +1,9 @@
-import { ImpowerObject } from "./ImpowerObject";
 import { NullException } from "./NullException";
 import { Path } from "./Path";
+import { RuntimeObject } from "./RuntimeObject";
 import { Thread } from "./Thread";
 
-export class Choice extends ImpowerObject {
+export class Choice extends RuntimeObject {
   public text = "";
 
   public index = 0;

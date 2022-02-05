@@ -1,9 +1,9 @@
 import { IValue } from "../types/IValue";
 import { ValueType } from "../types/ValueType";
-import { ImpowerObject } from "./ImpowerObject";
+import { RuntimeObject } from "./RuntimeObject";
 import { StoryException } from "./StoryException";
 
-export abstract class AbstractValue extends ImpowerObject implements IValue {
+export abstract class AbstractValue extends RuntimeObject implements IValue {
   public abstract get valueType(): ValueType;
 
   public abstract get isTruthy(): boolean;

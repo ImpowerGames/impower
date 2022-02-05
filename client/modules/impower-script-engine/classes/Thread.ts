@@ -1,10 +1,10 @@
 import { PushPopType } from "../types/PushPopType";
-import { ImpowerObject } from "./ImpowerObject";
 import { JsonSerialisation } from "./JsonSerialisation";
 import { JsonWriter } from "./JsonWriter";
 import { NullException } from "./NullException";
 import { Path } from "./Path";
 import { Pointer } from "./Pointer";
+import { RuntimeObject } from "./RuntimeObject";
 import { Story } from "./Story";
 import { ThreadElement } from "./ThreadElement";
 
@@ -30,7 +30,7 @@ export class Thread {
           idx?: number;
           exp?: boolean;
           temp?: Record<string, unknown>;
-          temporaryVariables?: Record<string, ImpowerObject>;
+          temporaryVariables?: Record<string, RuntimeObject>;
         }[];
         threadIndex?: number;
         previousContentObject?: string;

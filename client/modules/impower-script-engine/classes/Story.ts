@@ -9,18 +9,14 @@ import { ControlCommand } from "./ControlCommand";
 import { DebugMetadata } from "./DebugMetadata";
 import { Divert } from "./Divert";
 import { DivertTargetValue } from "./DivertTargetValue";
-import { ImpowerList, KeyValuePair } from "./ImpowerList";
-import {
-  ImpowerListItem,
-  ImpowerListItemFromSerializedKey,
-} from "./ImpowerListItem";
-import { ImpowerObject } from "./ImpowerObject";
 import { IntValue } from "./IntValue";
 import { JsonReader } from "./JsonReader";
 import { JsonSerialisation } from "./JsonSerialisation";
 import { JsonWriter } from "./JsonWriter";
+import { KeyValuePair, List } from "./List";
 import { ListDefinition } from "./ListDefinition";
 import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
+import { ListItem, ListItemFromSerializedKey } from "./ListItem";
 import { ListValue } from "./ListValue";
 import { NativeFunctionCall } from "./NativeFunctionCall";
 import { NullException } from "./NullException";
@@ -28,6 +24,7 @@ import { Path } from "./Path";
 import { Pointer } from "./Pointer";
 import { PRNG } from "./PRNG";
 import { Profiler } from "./Profiler";
+import { RuntimeObject } from "./RuntimeObject";
 import { SearchResult } from "./SearchResult";
 import { Stopwatch } from "./StopWatch";
 import { StoryException } from "./StoryException";
@@ -54,7 +51,7 @@ if (!Number.isInteger) {
   };
 }
 
-export class Story extends ImpowerObject {
+export class Story extends RuntimeObject {
   public static inkVersionCurrent = 20;
 
   public inkVersionMinimumCompatible = 18;
@@ -254,7 +251,7 @@ export class Story extends ImpowerObject {
         writer.WriteObjectStart();
 
         Object.entries(def.items).forEach(([key, value]) => {
-          const item = ImpowerListItemFromSerializedKey(key);
+          const item = ListItemFromSerializedKey(key);
           const val = value;
           writer.WriteIntProperty(item.itemName, val);
         });
@@ -507,7 +504,7 @@ export class Story extends ImpowerObject {
             : this.state.currentWarnings?.[0]
         );
 
-        throw new StoryException(sb.toString());
+        throw new StoryException(sb.ToString());
       }
     }
   }
@@ -624,7 +621,7 @@ export class Story extends ImpowerObject {
       sb.Append(this.Continue());
     }
 
-    return sb.toString();
+    return sb.ToString();
   }
 
   public ContentAtPath(path: Path): SearchResult {
@@ -954,7 +951,7 @@ export class Story extends ImpowerObject {
     return choice;
   }
 
-  public IsTruthy(obj: ImpowerObject): boolean {
+  public IsTruthy(obj: RuntimeObject): boolean {
     const truthy = false;
     if (obj instanceof Value) {
       const val = obj;
@@ -971,7 +968,7 @@ export class Story extends ImpowerObject {
     return truthy;
   }
 
-  public PerformLogicAndFlowControl(contentObj: ImpowerObject): boolean {
+  public PerformLogicAndFlowControl(contentObj: RuntimeObject): boolean {
     if (contentObj == null) {
       return false;
     }
@@ -1163,7 +1160,7 @@ export class Story extends ImpowerObject {
         }
 
         case "EndString": {
-          let contentStackForString: ImpowerObject[] = [];
+          let contentStackForString: RuntimeObject[] = [];
 
           let outputCountConsumed = 0;
           for (let i = this.state.outputStream.length - 1; i >= 0; i -= 1) {
@@ -1196,7 +1193,7 @@ export class Story extends ImpowerObject {
 
           // Return to expression evaluation (from content mode)
           this.state.inExpressionEvaluation = true;
-          this.state.PushEvaluationStack(new StringValue(sb.toString()));
+          this.state.PushEvaluationStack(new StringValue(sb.ToString()));
           break;
         }
 
@@ -1406,7 +1403,7 @@ export class Story extends ImpowerObject {
 
             const foundItem = foundListDef.result?.TryGetItemWithValue(
               intVal.value,
-              ImpowerListItem.Null
+              ListItem.Null
             );
             if (foundItem.exists) {
               generatedListValue = new ListValue(
@@ -1456,13 +1453,13 @@ export class Story extends ImpowerObject {
 
           const list = listVal.value;
 
-          let newList: ImpowerList = null;
+          let newList: List = null;
 
           if (list === null) {
             throw new NullException("list");
           }
           if (list.Count === 0) {
-            newList = new ImpowerList();
+            newList = new List();
           } else {
             // Generate a random index for the element to take
             const resultSeed = this.state.storySeed + this.state.previousRandom;
@@ -1481,8 +1478,8 @@ export class Story extends ImpowerObject {
               listEnumerator.next();
             }
             const { value } = listEnumerator.next();
-            const randomItem: KeyValuePair<ImpowerListItem, number> = {
-              Key: ImpowerListItemFromSerializedKey(value[0]),
+            const randomItem: KeyValuePair<ListItem, number> = {
+              Key: ListItemFromSerializedKey(value[0]),
               Value: value[1],
             };
 
@@ -1490,7 +1487,7 @@ export class Story extends ImpowerObject {
             if (randomItem.Key.originName === null) {
               throw new NullException("randomItem.Key.originName");
             }
-            newList = new ImpowerList(randomItem.Key.originName, this);
+            newList = new List(randomItem.Key.originName, this);
             newList.Add(randomItem.Key, randomItem.Value);
 
             this.state.previousRandom = nextRandom;
@@ -1663,7 +1660,7 @@ export class Story extends ImpowerObject {
       throw new Error(`Function doesn't exist: '${functionName}'`);
     }
 
-    const outputStreamBefore: ImpowerObject[] = [];
+    const outputStreamBefore: RuntimeObject[] = [];
     outputStreamBefore.push(...this.state.outputStream);
     this._state.ResetOutput();
 
@@ -1674,7 +1671,7 @@ export class Story extends ImpowerObject {
     while (this.canContinue) {
       stringOutput.Append(this.Continue());
     }
-    const textOutput = stringOutput.toString();
+    const textOutput = stringOutput.ToString();
 
     this._state.ResetOutput(outputStreamBefore);
 
@@ -1685,7 +1682,7 @@ export class Story extends ImpowerObject {
     return returnTextOutput ? { returned: result, output: textOutput } : result;
   }
 
-  public EvaluateExpression(exprContainer: Container): ImpowerObject {
+  public EvaluateExpression(exprContainer: Container): RuntimeObject {
     const startCallStackHeight = this.state.callStack.elements.length;
 
     this.state.callStack.Push("Tunnel");
@@ -1856,20 +1853,20 @@ export class Story extends ImpowerObject {
   ): void;
 
   public ValidateExternalBindings(
-    o: ImpowerObject,
+    o: RuntimeObject,
     missingExternals: Set<string>
   ): void;
 
   public ValidateExternalBindings(...args): void {
     let c: Container = null;
-    let o: ImpowerObject = null;
+    let o: RuntimeObject = null;
     const missingExternals: Set<string> = args[1] || new Set();
 
     if (args[0] instanceof Container) {
       [c] = args;
     }
 
-    if (args[0] instanceof ImpowerObject) {
+    if (args[0] instanceof RuntimeObject) {
       [o] = args;
     }
 
@@ -2010,7 +2007,7 @@ export class Story extends ImpowerObject {
 
   public VariableStateDidChangeEvent(
     variableName: string,
-    newValueObj: ImpowerObject
+    newValueObj: RuntimeObject
   ): void {
     if (this._variableObservers === null) return;
 
@@ -2047,7 +2044,7 @@ export class Story extends ImpowerObject {
       throw new NullException("flowContainer");
     }
     while (flowContainer) {
-      const firstContent: ImpowerObject = flowContainer.content[0];
+      const firstContent: RuntimeObject = flowContainer.content[0];
       if (firstContent instanceof Container) {
         flowContainer = firstContent;
       } else {
@@ -2082,7 +2079,7 @@ export class Story extends ImpowerObject {
       this.state.currentPointer.Resolve()
     );
 
-    return sb.toString();
+    return sb.ToString();
   }
 
   public BuildStringOfContainer(container: Container): string {
@@ -2092,7 +2089,7 @@ export class Story extends ImpowerObject {
       0,
       this.state.currentPointer.Resolve()
     );
-    return sb.toString();
+    return sb.ToString();
   }
 
   public NextContent(): void {

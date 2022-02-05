@@ -1,7 +1,7 @@
 import { CommandType } from "../types/CommandType";
-import { ImpowerObject } from "./ImpowerObject";
+import { RuntimeObject } from "./RuntimeObject";
 
-export class ControlCommand extends ImpowerObject {
+export class ControlCommand extends RuntimeObject {
   private _commandType: CommandType;
 
   get commandType(): CommandType {

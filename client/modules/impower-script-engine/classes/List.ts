@@ -1,33 +1,33 @@
-import {
-  ImpowerListItem,
-  ImpowerListItemFromSerializedKey,
-  SerializedImpowerListItem,
-} from "./ImpowerListItem";
 import { ListDefinition } from "./ListDefinition";
+import {
+  ListItem,
+  ListItemFromSerializedKey,
+  SerializedListItem,
+} from "./ListItem";
 import { NullException } from "./NullException";
 import { Story } from "./Story";
 import { StringBuilder } from "./StringBuilder";
 
-export class ImpowerList extends Map<SerializedImpowerListItem, number> {
+export class List extends Map<SerializedListItem, number> {
   public origins: ListDefinition[] = null;
 
   public _originNames: string[] = [];
 
   constructor();
 
-  constructor(otherList: ImpowerList);
+  constructor(otherList: List);
 
   constructor(singleOriginListName: string, originStory: Story);
 
-  constructor(singleElement: KeyValuePair<ImpowerListItem, number>);
+  constructor(singleElement: KeyValuePair<ListItem, number>);
 
   constructor(...args) {
     // Trying to be smart here, this emulates the constructor inheritance found
     // in the original code, but only if otherList is an InkList. IIFE FTW.
-    super(args[0] instanceof ImpowerList ? args[0] : []);
+    super(args[0] instanceof List ? args[0] : []);
 
-    if (args[0] instanceof ImpowerList) {
-      const otherList = args[0] as ImpowerList;
+    if (args[0] instanceof List) {
+      const otherList = args[0] as List;
 
       this._originNames = otherList.originNames;
       if (otherList.origins !== null) {
@@ -62,30 +62,27 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
       args[0].Key !== undefined &&
       args[0].Value !== undefined
     ) {
-      const singleElement = args[0] as KeyValuePair<ImpowerListItem, number>;
+      const singleElement = args[0] as KeyValuePair<ListItem, number>;
       this.Add(singleElement.Key, singleElement.Value);
     }
   }
 
-  public static FromString(
-    myListItem: string,
-    originStory: Story
-  ): ImpowerList {
+  public static FromString(myListItem: string, originStory: Story): List {
     const listValue =
       originStory.listDefinitions?.FindSingleItemListWithName(myListItem);
     if (listValue) {
       if (listValue.value === null) {
         throw new NullException("listValue.value");
       }
-      return new ImpowerList(listValue.value);
+      return new List(listValue.value);
     }
     throw new Error(
       `Could not find the InkListItem from the string '${myListItem}' to create an InkList because it doesn't exist in the original list definition in ink.`
     );
   }
 
-  public AddItem(itemOrItemName: ImpowerListItem | string): void {
-    if (itemOrItemName instanceof ImpowerListItem) {
+  public AddItem(itemOrItemName: ListItem | string): void {
+    if (itemOrItemName instanceof ListItem) {
       const item = itemOrItemName;
 
       if (item.originName == null) {
@@ -143,7 +140,7 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
           `Could not add the item ${itemName} to this list because it isn't known to any list definitions previously associated with this list.`
         );
 
-      const item = new ImpowerListItem(foundListDef.name, itemName);
+      const item = new ListItem(foundListDef.name, itemName);
       const itemVal = foundListDef.ValueForItem(item);
       this.Add(item, itemVal);
     }
@@ -153,7 +150,7 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     const keys = Array.from(this.keys());
     for (let i = 0; i < keys.length; i += 1) {
       const key = keys[i];
-      const item = ImpowerListItemFromSerializedKey(key);
+      const item = ListItemFromSerializedKey(key);
       if (item.itemName === itemName) {
         return true;
       }
@@ -162,11 +159,11 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return false;
   }
 
-  public ContainsKey(key: ImpowerListItem): boolean {
+  public ContainsKey(key: ListItem): boolean {
     return this.has(key.serialized());
   }
 
-  public Add(key: ImpowerListItem, value: number): void {
+  public Add(key: ListItem, value: number): void {
     const serializedKey = key.serialized();
     if (this.has(serializedKey)) {
       // Throw an exception to match the C# behavior.
@@ -175,7 +172,7 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     this.set(serializedKey, value);
   }
 
-  public Remove(key: ImpowerListItem): boolean {
+  public Remove(key: ListItem): boolean {
     return this.delete(key.serialized());
   }
 
@@ -208,7 +205,7 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
       }
 
       this.forEach((value, key) => {
-        const item = ImpowerListItemFromSerializedKey(key);
+        const item = ListItemFromSerializedKey(key);
         if (item.originName === null) {
           throw new NullException("item.originName");
         }
@@ -231,13 +228,13 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     }
   }
 
-  get maxItem(): KeyValuePair<ImpowerListItem, number> {
-    let max: KeyValuePair<ImpowerListItem, number> = {
-      Key: ImpowerListItem.Null,
+  get maxItem(): KeyValuePair<ListItem, number> {
+    let max: KeyValuePair<ListItem, number> = {
+      Key: ListItem.Null,
       Value: 0,
     };
     this.forEach((value, key) => {
-      const item = ImpowerListItemFromSerializedKey(key);
+      const item = ListItemFromSerializedKey(key);
       if (max.Key.isNull || value > max.Value) {
         max = { Key: item, Value: value };
       }
@@ -245,13 +242,13 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return max;
   }
 
-  get minItem(): KeyValuePair<ImpowerListItem, number> {
-    let min: KeyValuePair<ImpowerListItem, number> = {
-      Key: ImpowerListItem.Null,
+  get minItem(): KeyValuePair<ListItem, number> {
+    let min: KeyValuePair<ListItem, number> = {
+      Key: ListItem.Null,
       Value: 0,
     };
     this.forEach((value, key) => {
-      const item = ImpowerListItemFromSerializedKey(key);
+      const item = ListItemFromSerializedKey(key);
       if (min.Key.isNull || value < min.Value) {
         min = { Key: item, Value: value };
       }
@@ -259,12 +256,12 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return min;
   }
 
-  get inverse(): ImpowerList {
-    const list = new ImpowerList();
+  get inverse(): List {
+    const list = new List();
     if (this.origins != null) {
       this.origins.forEach((origin) => {
         Object.entries(origin.items).forEach(([key, value]) => {
-          const item = ImpowerListItemFromSerializedKey(key);
+          const item = ListItemFromSerializedKey(key);
           if (!this.ContainsKey(item)) list.Add(item, value);
         });
       });
@@ -272,12 +269,12 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return list;
   }
 
-  get all(): ImpowerList {
-    const list = new ImpowerList();
+  get all(): List {
+    const list = new List();
     if (this.origins != null) {
       this.origins.forEach((origin) => {
         Object.entries(origin.items).forEach(([key, value]) => {
-          const item = ImpowerListItemFromSerializedKey(key);
+          const item = ListItemFromSerializedKey(key);
           list.set(item.serialized(), value);
         });
       });
@@ -285,8 +282,8 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return list;
   }
 
-  public Union(otherList: ImpowerList): ImpowerList {
-    const union = new ImpowerList(this);
+  public Union(otherList: List): List {
+    const union = new List(this);
     otherList.forEach((value, key) => {
       union.set(key, value);
     });
@@ -294,8 +291,8 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return union;
   }
 
-  public Intersect(otherList: ImpowerList): ImpowerList {
-    const intersection = new ImpowerList();
+  public Intersect(otherList: List): List {
+    const intersection = new List();
     this.forEach((value, key) => {
       if (otherList.has(key)) {
         intersection.set(key, value);
@@ -305,8 +302,8 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return intersection;
   }
 
-  public Without(listToRemove: ImpowerList): ImpowerList {
-    const result = new ImpowerList(this);
+  public Without(listToRemove: List): List {
+    const result = new List(this);
     listToRemove.forEach((value, key) => {
       result.delete(key);
     });
@@ -314,7 +311,7 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return result;
   }
 
-  public Contains(otherList: ImpowerList): boolean {
+  public Contains(otherList: List): boolean {
     const keys = Array.from(otherList.keys());
     for (let i = 0; i < keys.length; i += 1) {
       const key = keys[i];
@@ -326,7 +323,7 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return true;
   }
 
-  public GreaterThan(otherList: ImpowerList): boolean {
+  public GreaterThan(otherList: List): boolean {
     if (this.Count === 0) {
       return false;
     }
@@ -337,7 +334,7 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return this.minItem.Value > otherList.maxItem.Value;
   }
 
-  public GreaterThanOrEquals(otherList: ImpowerList): boolean {
+  public GreaterThanOrEquals(otherList: List): boolean {
     if (this.Count === 0) {
       return false;
     }
@@ -351,7 +348,7 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     );
   }
 
-  public LessThan(otherList: ImpowerList): boolean {
+  public LessThan(otherList: List): boolean {
     if (otherList.Count === 0) {
       return false;
     }
@@ -362,7 +359,7 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return this.maxItem.Value < otherList.minItem.Value;
   }
 
-  public LessThanOrEquals(otherList: ImpowerList): boolean {
+  public LessThanOrEquals(otherList: List): boolean {
     if (otherList.Count === 0) {
       return false;
     }
@@ -376,23 +373,23 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     );
   }
 
-  public MaxAsList(): ImpowerList {
+  public MaxAsList(): List {
     if (this.Count > 0) {
-      return new ImpowerList(this.maxItem);
+      return new List(this.maxItem);
     }
-    return new ImpowerList();
+    return new List();
   }
 
-  public MinAsList(): ImpowerList {
+  public MinAsList(): List {
     if (this.Count > 0) {
-      return new ImpowerList(this.minItem);
+      return new List(this.minItem);
     }
-    return new ImpowerList();
+    return new List();
   }
 
-  public ListWithSubRange(minBound: unknown, maxBound: unknown): ImpowerList {
+  public ListWithSubRange(minBound: unknown, maxBound: unknown): List {
     if (this.Count === 0) {
-      return new ImpowerList();
+      return new List();
     }
 
     const ordered = this.orderedItems;
@@ -402,17 +399,17 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
 
     if (Number.isInteger(minBound) && typeof minBound === "number") {
       minValue = minBound;
-    } else if (minBound instanceof ImpowerList && minBound.Count > 0) {
+    } else if (minBound instanceof List && minBound.Count > 0) {
       minValue = minBound.minItem.Value;
     }
 
     if (Number.isInteger(maxBound) && typeof maxBound === "number") {
       maxValue = maxBound;
-    } else if (maxBound instanceof ImpowerList && maxBound.Count > 0) {
+    } else if (maxBound instanceof List && maxBound.Count > 0) {
       maxValue = maxBound.maxItem.Value;
     }
 
-    const subList = new ImpowerList();
+    const subList = new List();
     subList.SetInitialOriginNames(this.originNames);
     ordered.forEach((item) => {
       if (item.Value >= minValue && item.Value <= maxValue) {
@@ -423,8 +420,8 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
     return subList;
   }
 
-  public Equals(otherInkList: ImpowerList): boolean {
-    if (otherInkList instanceof ImpowerList === false) {
+  public Equals(otherInkList: List): boolean {
+    if (otherInkList instanceof List === false) {
       return false;
     }
     if (otherInkList.Count !== this.Count) {
@@ -443,12 +440,12 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
   }
 
   // GetHashCode not implemented
-  get orderedItems(): KeyValuePair<ImpowerListItem, number>[] {
+  get orderedItems(): KeyValuePair<ListItem, number>[] {
     // List<KeyValuePair<InkListItem, int>>
-    const ordered = new Array<KeyValuePair<ImpowerListItem, number>>();
+    const ordered = new Array<KeyValuePair<ListItem, number>>();
 
     this.forEach((value, key) => {
-      const item = ImpowerListItemFromSerializedKey(key);
+      const item = ListItemFromSerializedKey(key);
       ordered.push({ Key: item, Value: value });
     });
 
@@ -485,7 +482,7 @@ export class ImpowerList extends Map<SerializedImpowerListItem, number> {
       sb.Append(item.itemName);
     }
 
-    return sb.toString();
+    return sb.ToString();
   }
 
   // casting a InkList to a Number, for somereason, actually gives a number.

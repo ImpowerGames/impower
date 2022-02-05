@@ -1,3 +1,3 @@
-import { ImpowerObject } from "./ImpowerObject";
+import { RuntimeObject } from "./RuntimeObject";
 
-export class Void extends ImpowerObject {}
+export class Void extends RuntimeObject {}

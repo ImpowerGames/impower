@@ -1,10 +1,10 @@
 import { TryGetResult } from "../types/TryGetResult";
-import { ImpowerListItem, SerializedImpowerListItem } from "./ImpowerListItem";
+import { ListItem, SerializedListItem } from "./ListItem";
 
 export class ListDefinition {
   public _name: string;
 
-  public _items: Record<SerializedImpowerListItem, number>;
+  public _items: Record<SerializedListItem, number>;
 
   public _itemNameToValues: Record<string, number>;
 
@@ -22,7 +22,7 @@ export class ListDefinition {
     if (this._items == null) {
       this._items = {};
       Object.entries(this._itemNameToValues).forEach(([key, value]) => {
-        const item = new ImpowerListItem(this.name, key);
+        const item = new ListItem(this.name, key);
         this._items[item.serialized()] = value;
       });
     }
@@ -30,7 +30,7 @@ export class ListDefinition {
     return this._items;
   }
 
-  public ValueForItem(item: ImpowerListItem): number {
+  public ValueForItem(item: ListItem): number {
     if (!item.itemName) {
       return 0;
     }
@@ -42,7 +42,7 @@ export class ListDefinition {
     return 0;
   }
 
-  public ContainsItem(item: ImpowerListItem): boolean {
+  public ContainsItem(item: ListItem): boolean {
     if (!item.itemName) {
       return false;
     }
@@ -59,24 +59,24 @@ export class ListDefinition {
 
   public TryGetItemWithValue(
     val: number,
-    /* out */ item: ImpowerListItem
-  ): TryGetResult<ImpowerListItem> {
+    /* out */ item: ListItem
+  ): TryGetResult<ListItem> {
     const match = Object.entries(this._itemNameToValues).find(
       ([, value]) => value === val
     );
 
     if (match) {
       const [key] = match;
-      item = new ImpowerListItem(this.name, key);
+      item = new ListItem(this.name, key);
       return { result: item, exists: true };
     }
 
-    item = ImpowerListItem.Null;
+    item = ListItem.Null;
     return { result: item, exists: false };
   }
 
   public TryGetValueForItem(
-    item: ImpowerListItem,
+    item: ListItem,
     /* out */ intVal: number
   ): TryGetResult<number> {
     if (!item.itemName) {

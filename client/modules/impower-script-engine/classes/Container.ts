@@ -2,10 +2,10 @@ import { CountFlags } from "../types/CountFlags";
 import { IContainer } from "../types/IContainer";
 import { INamedContent, isNamedContent } from "../types/INamedContent";
 import { Debug } from "./Debug";
-import { ImpowerObject } from "./ImpowerObject";
 import { NullException } from "./NullException";
 import { Path } from "./Path";
 import { PathComponent } from "./PathComponent";
+import { RuntimeObject } from "./RuntimeObject";
 import { SearchResult } from "./SearchResult";
 import { StringBuilder } from "./StringBuilder";
 import { StringValue } from "./StringValue";
@@ -27,10 +27,10 @@ export const isContainer = (obj: unknown): obj is Container => {
   return true;
 };
 
-export class Container extends ImpowerObject implements IContainer {
+export class Container extends RuntimeObject implements IContainer {
   public name = "";
 
-  public _content: ImpowerObject[] = [];
+  public _content: RuntimeObject[] = [];
 
   public namedContent: Record<string, INamedContent> = {};
 
@@ -46,19 +46,19 @@ export class Container extends ImpowerObject implements IContainer {
     return this.name != null && this.name.length > 0;
   }
 
-  get content(): ImpowerObject[] {
+  get content(): RuntimeObject[] {
     return this._content;
   }
 
-  set content(value: ImpowerObject[]) {
+  set content(value: RuntimeObject[]) {
     this.AddContent(value);
   }
 
-  get namedOnlyContent(): Record<string, ImpowerObject> {
-    let namedOnlyContentDict: Record<string, ImpowerObject> = {};
+  get namedOnlyContent(): Record<string, RuntimeObject> {
+    let namedOnlyContentDict: Record<string, RuntimeObject> = {};
 
     Object.entries(this.namedContent).forEach(([key, value]) => {
-      const inkObject = value as unknown as ImpowerObject;
+      const inkObject = value as unknown as RuntimeObject;
       namedOnlyContentDict[key] = inkObject;
     });
 
@@ -75,7 +75,7 @@ export class Container extends ImpowerObject implements IContainer {
     return namedOnlyContentDict;
   }
 
-  set namedOnlyContent(value: Record<string, ImpowerObject>) {
+  set namedOnlyContent(value: Record<string, RuntimeObject>) {
     const existingNamedOnly = this.namedOnlyContent;
     if (existingNamedOnly != null) {
       Object.entries(existingNamedOnly).forEach(([key]) => {
@@ -144,15 +144,15 @@ export class Container extends ImpowerObject implements IContainer {
     return new Path(components);
   }
 
-  public AddContent(contentObjOrList: ImpowerObject | ImpowerObject[]): void {
+  public AddContent(contentObjOrList: RuntimeObject | RuntimeObject[]): void {
     if (contentObjOrList instanceof Array) {
-      const contentList = contentObjOrList as ImpowerObject[];
+      const contentList = contentObjOrList as RuntimeObject[];
 
       contentList.forEach((c) => {
         this.AddContent(c);
       });
     } else {
-      const contentObj = contentObjOrList as ImpowerObject;
+      const contentObj = contentObjOrList as RuntimeObject;
       this._content.push(contentObj);
 
       if (contentObj.parent) {
@@ -165,22 +165,23 @@ export class Container extends ImpowerObject implements IContainer {
     }
   }
 
-  public TryAddNamedContent(contentObj: ImpowerObject): void {
+  public TryAddNamedContent(contentObj: RuntimeObject): void {
     if (isNamedContent(contentObj) && contentObj.hasValidName) {
       this.AddToNamedContentOnly(contentObj);
     }
   }
 
-  public AddToNamedContentOnly(namedContentObj: INamedContent): void {
+  public AddToNamedContentOnly(namedContentObj: RuntimeObject): void {
     Debug.AssertType(
       namedContentObj,
-      ImpowerObject,
+      RuntimeObject,
       "Can only add Runtime.Objects to a Runtime.Container"
     );
-    const runtimeObj = namedContentObj as unknown as ImpowerObject;
-    runtimeObj.parent = this;
-
-    this.namedContent[namedContentObj.name] = namedContentObj;
+    if (isNamedContent(namedContentObj)) {
+      const runtimeObj = namedContentObj as unknown as RuntimeObject;
+      runtimeObj.parent = this;
+      this.namedContent[namedContentObj.name] = namedContentObj;
+    }
   }
 
   public ContentAtPath(
@@ -196,7 +197,7 @@ export class Container extends ImpowerObject implements IContainer {
     result.approximate = false;
 
     let currentContainer = this as Container;
-    let currentObj = this as ImpowerObject;
+    let currentObj = this as RuntimeObject;
 
     for (let i = partialPathStart; i < partialPathLength; i += 1) {
       const comp = path.GetComponent(i);
@@ -205,7 +206,7 @@ export class Container extends ImpowerObject implements IContainer {
         break;
       }
 
-      const foundObj: ImpowerObject =
+      const foundObj: RuntimeObject =
         currentContainer.ContentWithPathComponent(comp);
 
       if (foundObj == null) {
@@ -224,7 +225,7 @@ export class Container extends ImpowerObject implements IContainer {
     return result;
   }
 
-  public InsertContent(contentObj: ImpowerObject, index: number): void {
+  public InsertContent(contentObj: RuntimeObject, index: number): void {
     this.content[index] = contentObj;
 
     if (contentObj.parent) {
@@ -245,7 +246,7 @@ export class Container extends ImpowerObject implements IContainer {
     });
   }
 
-  public ContentWithPathComponent(component: PathComponent): ImpowerObject {
+  public ContentWithPathComponent(component: PathComponent): RuntimeObject {
     if (component.isIndex) {
       if (component.index >= 0 && component.index < this.content.length) {
         return this.content[component.index];
@@ -260,7 +261,7 @@ export class Container extends ImpowerObject implements IContainer {
     }
     const foundContent = this.namedContent[component.name];
     if (foundContent !== undefined) {
-      return foundContent as unknown as ImpowerObject;
+      return foundContent as unknown as RuntimeObject;
     }
     return null;
   }
@@ -268,12 +269,12 @@ export class Container extends ImpowerObject implements IContainer {
   public BuildStringOfHierarchy(
     sb?: StringBuilder,
     indentation?: number,
-    pointedObj?: ImpowerObject
+    pointedObj?: RuntimeObject
   ): string {
     if (!sb && !indentation && !pointedObj) {
       sb = new StringBuilder();
       this.BuildStringOfHierarchy(sb, 0, null);
-      return sb.toString();
+      return sb.ToString();
     }
 
     function appendIndentation(): void {
@@ -329,7 +330,7 @@ export class Container extends ImpowerObject implements IContainer {
     const onlyNamed: Record<string, INamedContent> = {};
 
     Object.entries(this.namedContent).forEach(([key, value]) => {
-      if (this.content.indexOf(value as unknown as ImpowerObject) < 0) {
+      if (this.content.indexOf(value as unknown as RuntimeObject) < 0) {
         onlyNamed[key] = value;
       }
     });
@@ -356,6 +357,6 @@ export class Container extends ImpowerObject implements IContainer {
     appendIndentation();
     sb.Append("]");
 
-    return sb.toString();
+    return sb.ToString();
   }
 }

@@ -1,6 +1,6 @@
-import { ImpowerObject } from "./ImpowerObject";
+import { RuntimeObject } from "./RuntimeObject";
 
-export class Glue extends ImpowerObject {
+export class Glue extends RuntimeObject {
   public toString(): "Glue" {
     return "Glue";
   }

@@ -3,7 +3,7 @@
  * properties. It's mainly used when deserializing a `ImpowerListItem` from its
  * key (`SerializedImpowerListItem`)
  */
-export interface IImpowerListItem {
+export interface IListItem {
   readonly originName: string;
   readonly itemName: string;
 }

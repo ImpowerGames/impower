@@ -1,6 +1,6 @@
-import { ImpowerObject } from "./ImpowerObject";
+import { RuntimeObject } from "./RuntimeObject";
 
-export class VariableAssignment extends ImpowerObject {
+export class VariableAssignment extends RuntimeObject {
   public readonly variableName: string;
 
   public readonly isNewDeclaration: boolean;
