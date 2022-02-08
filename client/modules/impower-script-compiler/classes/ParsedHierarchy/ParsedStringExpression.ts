@@ -47,16 +47,18 @@ export class ParsedStringExpression extends ParsedExpression {
   // Equals override necessary in order to check for CONST multiple definition equality
   override Equals(obj: unknown): boolean {
     const otherStr = obj as ParsedStringExpression;
-    if (otherStr == null) return false;
-
-    // Can only compare direct equality on single strings rather than
-    // complex string expressions that contain dynamic logic
-    if (!this.isSingleString || !otherStr.isSingleString) {
+    if (otherStr == null) {
       return false;
     }
 
-    const thisTxt = this.ToString();
-    const otherTxt = otherStr.ToString();
+    // Can only compare direct equality on single strings rather than
+    // complex string expressions that contain dynamic logic
+    if (!this?.isSingleString || !otherStr?.isSingleString) {
+      return false;
+    }
+
+    const thisTxt = this?.ToString?.();
+    const otherTxt = otherStr?.ToString?.();
     return thisTxt === otherTxt;
   }
 }

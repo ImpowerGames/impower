@@ -40,9 +40,9 @@ export class ParsedBinaryExpression extends ParsedExpression {
     //
     //    not (A ? B)
     if (this.NativeNameForOp(this.opName) === "?") {
-      const leftUnary = this.leftExpression as ParsedUnaryExpression;
+      const leftUnary = this.leftExpression;
       if (
-        leftUnary != null &&
+        leftUnary instanceof ParsedUnaryExpression &&
         (leftUnary.op === "not" || leftUnary.op === "!")
       ) {
         this.Error(

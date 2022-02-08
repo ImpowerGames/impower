@@ -4,6 +4,7 @@ import {
   DivertTargetValue,
 } from "../../../impower-script-engine";
 import { IDivert } from "../../types/IDivert";
+import { IDivertTarget } from "../../types/IDivertTarget";
 import { isFlowBase } from "../../types/IFlowBase";
 import { IStory } from "../../types/IStory";
 import { ParsedBinaryExpression } from "./ParsedBinaryExpression";
@@ -16,7 +17,10 @@ import { ParsedMultipleConditionExpression } from "./ParsedMultipleConditionExpr
 import { ParsedObject } from "./ParsedObject";
 import { ParsedVariableReference } from "./ParsedVariableReference";
 
-export class ParsedDivertTarget extends ParsedExpression {
+export class ParsedDivertTarget
+  extends ParsedExpression
+  implements IDivertTarget
+{
   divert: IDivert = null;
 
   private _runtimeDivertTargetValue: DivertTargetValue = null;
@@ -59,8 +63,9 @@ export class ParsedDivertTarget extends ParsedExpression {
       if (usageParent instanceof ParsedBinaryExpression) {
         // Only allowed to compare for equality
 
-        const binaryExprParent = usageParent as ParsedBinaryExpression;
+        const binaryExprParent = usageParent;
         if (
+          (binaryExprParent as ParsedBinaryExpression) &&
           binaryExprParent.opName !== "==" &&
           binaryExprParent.opName !== "!="
         ) {
@@ -86,7 +91,7 @@ export class ParsedDivertTarget extends ParsedExpression {
         }
         foundUsage = true;
       } else if (usageParent instanceof ParsedFunctionCall) {
-        const funcCall = usageParent as ParsedFunctionCall;
+        const funcCall = usageParent;
         if (!funcCall.isTurnsSince && !funcCall.isReadCount) {
           badUsage = true;
         }
@@ -147,8 +152,11 @@ export class ParsedDivertTarget extends ParsedExpression {
       const target = targetContent.containerForCounting;
       if (target != null) {
         // Purpose is known: used directly in TURNS_SINCE(-> divTarg)
-        const parentFunc = this.parent as ParsedFunctionCall;
-        if (parentFunc && parentFunc.isTurnsSince) {
+        const parentFunc = this.parent;
+        if (
+          parentFunc instanceof ParsedFunctionCall &&
+          parentFunc.isTurnsSince
+        ) {
           target.turnIndexShouldBeCounted = true;
         }
 
@@ -186,8 +194,8 @@ export class ParsedDivertTarget extends ParsedExpression {
 
   // Equals override necessary in order to check for CONST multiple definition equality
   override Equals(obj: unknown): boolean {
-    const otherDivTarget = obj as ParsedDivertTarget;
-    if (otherDivTarget == null) {
+    const otherDivTarget = obj;
+    if (!(otherDivTarget instanceof ParsedDivertTarget)) {
       return false;
     }
 

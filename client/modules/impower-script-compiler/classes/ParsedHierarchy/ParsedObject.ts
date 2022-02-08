@@ -236,7 +236,9 @@ export abstract class ParsedObject implements IObject {
       return tObj;
     }
 
-    if (this.content == null) return null;
+    if (this.content == null) {
+      return null;
+    }
 
     for (let i = 0; i < this.content.length; i += 1) {
       const obj = this.content[i];

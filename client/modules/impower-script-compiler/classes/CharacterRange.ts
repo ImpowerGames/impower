@@ -24,11 +24,15 @@ export class CharacterRange {
   }
 
   static Define(
-    start: number,
-    end: number,
-    excludes?: number[]
+    start: string,
+    end: string,
+    excludes?: CharacterSet
   ): CharacterRange {
-    return new CharacterRange(start, end, excludes);
+    return new CharacterRange(
+      start.charCodeAt(0),
+      end.charCodeAt(0),
+      excludes.map((x) => x.charCodeAt(0))
+    );
   }
 
   ToCharacterSet(): CharacterSet {

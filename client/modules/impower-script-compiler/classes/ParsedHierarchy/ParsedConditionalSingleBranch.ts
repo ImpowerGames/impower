@@ -78,8 +78,8 @@ export class ParsedConditionalSingleBranch extends ParsedObject {
     // Check for common mistake, of putting "else:" instead of "- else:"
     if (this._innerWeave) {
       this._innerWeave.content.forEach((c) => {
-        const text = c as ParsedText;
-        if (text) {
+        const text = c;
+        if (text instanceof ParsedText) {
           // Don't need to trim at the start since the parser handles that already
           if (text.text.startsWith("else:")) {
             this.Warning(

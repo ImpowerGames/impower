@@ -1,5 +1,5 @@
 export class CharacterSet extends Array<string> {
-  public static FromRange(start: number, end: number): CharacterSet {
+  public static FromRange(start: string, end: string): CharacterSet {
     return new CharacterSet().AddRange(start, end);
   }
 
@@ -8,8 +8,8 @@ export class CharacterSet extends Array<string> {
     this.AddCharacters(arg);
   }
 
-  public AddRange(start: number, end: number): CharacterSet {
-    for (let c = start; c <= end; c += 1) {
+  public AddRange(start: string, end: string): CharacterSet {
+    for (let c = start.charCodeAt(0); c <= end.charCodeAt(0); c += 1) {
       this.push(String.fromCharCode(c));
     }
     return this;

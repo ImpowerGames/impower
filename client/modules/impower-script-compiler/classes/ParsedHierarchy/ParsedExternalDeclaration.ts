@@ -15,7 +15,8 @@ export class ParsedExternalDeclaration
     return this.identifier?.name;
   }
 
-  ExternalDeclaration(identifier: Identifier, argumentNames: string[]): void {
+  constructor(identifier: Identifier, argumentNames: string[]) {
+    super();
     this.identifier = identifier;
     this.argumentNames = argumentNames;
   }

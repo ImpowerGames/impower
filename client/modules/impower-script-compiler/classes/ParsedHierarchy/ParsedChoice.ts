@@ -8,6 +8,7 @@ import {
   RuntimeObject,
   VariableAssignment,
 } from "../../../impower-script-engine";
+import { IChoice } from "../../types/IChoice";
 import { Identifier } from "../../types/Identifier";
 import { INamedContent } from "../../types/INamedContent";
 import { IStory } from "../../types/IStory";
@@ -19,7 +20,7 @@ import { ParsedObject } from "./ParsedObject";
 
 export class ParsedChoice
   extends ParsedObject
-  implements IWeavePoint, INamedContent
+  implements IWeavePoint, INamedContent, IChoice
 {
   startContent: ParsedContentList = null;
 

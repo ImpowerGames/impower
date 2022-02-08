@@ -148,7 +148,9 @@ export class ParsedStory extends ParsedFlowBase implements IStory {
     // Find all constants before main export begins, so that VariableReferences know
     // whether to generate a runtime variable reference or the literal value
     this.constants = {};
-    this.FindAll<ParsedConstantDeclaration>().forEach((constDecl) => {
+    this.FindAll<ParsedConstantDeclaration>(
+      (d) => d instanceof ParsedConstantDeclaration
+    ).forEach((constDecl) => {
       // Check for duplicate definitions
       const existingDefinition = this.constants[constDecl.constantName];
       if (existingDefinition !== undefined) {
@@ -164,7 +166,9 @@ export class ParsedStory extends ParsedFlowBase implements IStory {
     // List definitions are treated like constants too - they should be usable
     // from other variable declarations.
     this._listDefs = {};
-    this.FindAll<ParsedListDefinition>().forEach((listDef) => {
+    this.FindAll<ParsedListDefinition>(
+      (d) => d instanceof ParsedListDefinition
+    ).forEach((listDef) => {
       this._listDefs[listDef.identifier?.name] = listDef;
     });
 

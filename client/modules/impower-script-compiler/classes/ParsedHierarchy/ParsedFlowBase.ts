@@ -112,9 +112,11 @@ export abstract class ParsedFlowBase
     this._subFlowsByName = {};
 
     contentObjs.forEach((obj) => {
-      const subFlow = obj as ParsedFlowBase;
-      if (subFlow) {
-        if (this._firstChildFlow == null) this._firstChildFlow = subFlow;
+      const subFlow = obj;
+      if (subFlow instanceof ParsedFlowBase) {
+        if (this._firstChildFlow == null) {
+          this._firstChildFlow = subFlow;
+        }
 
         subFlowObjs.push(obj);
         this._subFlowsByName[subFlow.identifier?.name] = subFlow;
@@ -243,7 +245,7 @@ export abstract class ParsedFlowBase
       this.flowLevel === FlowLevel.Knot ||
       this.flowLevel === FlowLevel.Stitch
     ) {
-      foundReturn = this.Find<ParsedReturn>();
+      foundReturn = this.Find<ParsedReturn>((d) => d instanceof ParsedReturn);
       if (foundReturn != null) {
         this.Error(
           `Return statements can only be used in knots that are declared as functions: == function ${this.identifier} ==`,
@@ -480,7 +482,9 @@ export abstract class ParsedFlowBase
       );
     });
 
-    const allDiverts = this._rootWeave.FindAll<ParsedDivert>();
+    const allDiverts = this._rootWeave.FindAll<ParsedDivert>(
+      (d) => d instanceof ParsedDivert
+    );
     allDiverts.forEach((divert) => {
       if (
         !divert.isFunctionCall &&
@@ -493,7 +497,9 @@ export abstract class ParsedFlowBase
       }
     });
 
-    const allChoices = this._rootWeave.FindAll<ParsedChoice>();
+    const allChoices = this._rootWeave.FindAll<ParsedChoice>(
+      (d) => d instanceof ParsedChoice
+    );
     allChoices.forEach((choice) => {
       this.Error(
         `Functions may not contain choices, but saw '${choice.ToString()}'`,
@@ -509,8 +515,11 @@ export abstract class ParsedFlowBase
       message = `${message} Note that if you intend to enter '${this._firstChildFlow.identifier}' next, you need to divert to it explicitly.`;
     }
 
-    const terminatingDivert = terminatingObject as ParsedDivert;
-    if (terminatingDivert && terminatingDivert.isTunnel) {
+    const terminatingDivert = terminatingObject;
+    if (
+      terminatingDivert instanceof ParsedDivert &&
+      terminatingDivert.isTunnel
+    ) {
       message = `${message} When final tunnel to '${terminatingDivert.target} ->' returns it won't have anywhere to go.`;
     }
 

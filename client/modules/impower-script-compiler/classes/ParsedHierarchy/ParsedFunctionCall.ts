@@ -8,7 +8,9 @@ import {
   StringValue,
 } from "../../../impower-script-engine";
 import { Identifier } from "../../types/Identifier";
+import { isDivertTarget } from "../../types/IDivertTarget";
 import { IStory } from "../../types/IStory";
+import { isVariableReference } from "../../types/IVariableReference";
 import { ParsedDivert } from "./ParsedDivert";
 import { ParsedDivertTarget } from "./ParsedDivertTarget";
 import { ParsedExpression } from "./ParsedExpression";
@@ -100,8 +102,12 @@ export class ParsedFunctionCall extends ParsedExpression {
 
       container.AddContent(ControlCommand.Turns());
     } else if (this.isTurnsSince || this.isReadCount) {
-      const divertTarget = this.arguments[0] as ParsedDivertTarget;
-      const variableDivertTarget = this.arguments[0] as ParsedVariableReference;
+      const divertTarget = isDivertTarget(this.arguments[0])
+        ? this.arguments[0]
+        : null;
+      const variableDivertTarget = isVariableReference(this.arguments[0])
+        ? this.arguments[0]
+        : null;
 
       if (
         this.arguments.length !== 1 ||
@@ -114,12 +120,13 @@ export class ParsedFunctionCall extends ParsedExpression {
       }
 
       if (divertTarget) {
-        this._divertTargetToCount = divertTarget;
+        this._divertTargetToCount = divertTarget as ParsedDivertTarget;
         this.AddContent(this._divertTargetToCount);
 
         this._divertTargetToCount.GenerateIntoContainer(container);
       } else {
-        this._variableReferenceToCount = variableDivertTarget;
+        this._variableReferenceToCount =
+          variableDivertTarget as ParsedVariableReference;
         this.AddContent(this._variableReferenceToCount);
 
         this._variableReferenceToCount.GenerateIntoContainer(container);

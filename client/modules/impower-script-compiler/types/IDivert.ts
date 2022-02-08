@@ -15,3 +15,20 @@ export interface IDivert extends IObject {
   isEnd: boolean;
   isDone: boolean;
 }
+
+export const isDivert = (obj: unknown): obj is IDivert => {
+  const castObj = obj as IDivert;
+  if (typeof castObj !== "object") {
+    return false;
+  }
+  return (
+    castObj.target !== undefined &&
+    castObj.targetContent !== undefined &&
+    castObj.arguments !== undefined &&
+    castObj.runtimeDivert !== undefined &&
+    castObj.isFunctionCall !== undefined &&
+    castObj.isEmpty !== undefined &&
+    castObj.isTunnel !== undefined &&
+    castObj.isThread !== undefined
+  );
+};

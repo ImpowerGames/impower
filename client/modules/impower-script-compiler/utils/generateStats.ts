@@ -18,7 +18,7 @@ export const generateStats = (story: ParsedStory): Stats => {
     diverts: 0,
   };
 
-  const allText = story.FindAll<ParsedText>();
+  const allText = story.FindAll<ParsedText>((d) => d instanceof ParsedText);
 
   // Count all the words across all strings
   stats.words = 0;
@@ -38,7 +38,7 @@ export const generateStats = (story: ParsedStory): Stats => {
     stats.words += wordsInThisStr;
   });
 
-  const knots = story.FindAll<ParsedKnot>();
+  const knots = story.FindAll<ParsedKnot>((d) => d instanceof ParsedKnot);
   stats.knots = knots.length;
 
   stats.functions = 0;
@@ -48,15 +48,19 @@ export const generateStats = (story: ParsedStory): Stats => {
     }
   });
 
-  const stitches = story.FindAll<ParsedStitch>();
+  const stitches = story.FindAll<ParsedStitch>(
+    (d) => d instanceof ParsedStitch
+  );
   stats.stitches = stitches.length;
 
-  const choices = story.FindAll<ParsedChoice>();
+  const choices = story.FindAll<ParsedChoice>((d) => d instanceof ParsedChoice);
   stats.choices = choices.length;
 
   // Skip implicit gather that's generated at top of story
   // (we know which it is because it isn't assigned debug metadata)
-  const gathers = story.FindAll<ParsedGather>((g) => g.debugMetadata != null);
+  const gathers = story.FindAll<ParsedGather>(
+    (g) => g instanceof ParsedGather && g.debugMetadata != null
+  );
   stats.gathers = gathers.length;
 
   // May not be entirely what you expect.
@@ -67,7 +71,7 @@ export const generateStats = (story: ParsedStory): Stats => {
   //  - Some implicitly generated weave diverts
   // But we subtract one for the implicit DONE
   // at the end of the main flow outside of knots.
-  const diverts = story.FindAll<ParsedDivert>();
+  const diverts = story.FindAll<ParsedDivert>((d) => d instanceof ParsedDivert);
   stats.diverts = diverts.length - 1;
 
   return stats;

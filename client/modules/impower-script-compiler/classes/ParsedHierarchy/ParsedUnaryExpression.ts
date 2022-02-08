@@ -17,8 +17,8 @@ export class ParsedUnaryExpression extends ParsedExpression {
   // Attempt to flatten inner expression immediately
   // e.g. convert (-(5)) into (-5)
   static WithInner(inner: ParsedExpression, op: string): ParsedExpression {
-    const innerNumber = inner as ParsedNumber;
-    if (innerNumber.value !== undefined) {
+    const innerNumber = inner;
+    if (innerNumber instanceof ParsedNumber) {
       if (op === "-") {
         if (
           typeof innerNumber.value === "number" &&

@@ -4,14 +4,13 @@ import {
   ErrorType,
   Path,
   Story,
-  StringValue,
 } from "../../impower-script-engine";
 import { isStringValue } from "../../impower-script-engine/classes/StringValue";
 import { CommandLineInput } from "../types/CommandLineInput";
 import { CommandLineInputResult } from "../types/CommandLineInputResult";
 import { CompilerOptions } from "../types/CompilerOptions";
 import { DebugSourceRange } from "../types/DebugSourceRange";
-import { ImpowerParser } from "./ImpowerParser/ImpowerParser";
+import { ImpowerParser } from "./ImpowerParser";
 import { ParsedDivert } from "./ParsedHierarchy/ParsedDivert";
 import { ParsedExpression } from "./ParsedHierarchy/ParsedExpression";
 import { ParsedObject } from "./ParsedHierarchy/ParsedObject";
@@ -137,7 +136,7 @@ export class Compiler {
       outputObj_index_ += 1
     ) {
       const outputObj = outputObj_source_[outputObj_index_];
-      const textContent = outputObj as StringValue;
+      const textContent = outputObj;
       if (isStringValue(textContent)) {
         const range = {
           length: 0,

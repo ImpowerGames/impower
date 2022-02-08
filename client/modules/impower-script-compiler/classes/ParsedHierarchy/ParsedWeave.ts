@@ -7,10 +7,13 @@ import {
 } from "../../../impower-script-engine";
 import { BadTerminationHandler } from "../../types/BadTerminationHandler";
 import { GatherPointToResolve } from "../../types/GatherPointToResolve";
+import { isChoice } from "../../types/IChoice";
 import { isConstantDeclaration } from "../../types/IConstantDeclaration";
+import { isDivert } from "../../types/IDivert";
 import { IFlowBase, isFlowBase } from "../../types/IFlowBase";
 import { IObject } from "../../types/IObject";
 import { IStory } from "../../types/IStory";
+import { isText } from "../../types/IText";
 import { isVariableAssignment } from "../../types/IVariableAssignment";
 import { isWeave, IWeave } from "../../types/IWeave";
 import { isWeavePoint, IWeavePoint } from "../../types/IWeavePoint";
@@ -22,7 +25,6 @@ import { ParsedDivertTarget } from "./ParsedDivertTarget";
 import { ParsedGather } from "./ParsedGather";
 import { ParsedObject } from "./ParsedObject";
 import { ParsedSequence } from "./ParsedSequence";
-import { ParsedText } from "./ParsedText";
 import { ParsedTunnelOnwards } from "./ParsedTunnelOnwards";
 
 // a flat list of content objects.
@@ -83,9 +85,9 @@ export class ParsedWeave extends ParsedObject implements IWeave {
     for (let i = this.content.length - 1; i >= 0; i -= 1) {
       lastObject = this.content[i];
 
-      const lastText = lastObject as ParsedText;
+      const lastText = lastObject;
       if (
-        !lastText ||
+        !isText(lastText) ||
         lastText.text !== "\n" ||
         !this.IsGlobalDeclaration(lastObject)
       ) {
@@ -115,7 +117,9 @@ export class ParsedWeave extends ParsedObject implements IWeave {
   }
 
   ResolveWeavePointNaming(): void {
-    const namedWeavePoints = this.FindAll<IWeavePoint>((w) => !w.name);
+    const namedWeavePoints = this.FindAll<IWeavePoint>(
+      (w) => isWeavePoint(w) && !w.name
+    );
 
     this._namedWeavePoints = {};
 
@@ -155,8 +159,8 @@ export class ParsedWeave extends ParsedObject implements IWeave {
           // Step through content until indent jumps out again
           const innerWeaveStartIdx = contentIdx;
           while (contentIdx < this.content.length) {
-            const innerWeaveObj = this.content[contentIdx] as IWeavePoint;
-            if (innerWeaveObj != null) {
+            const innerWeaveObj = this.content[contentIdx];
+            if (isWeavePoint(innerWeaveObj)) {
               const innerIndentIdx = innerWeaveObj.indentationDepth - 1;
               if (innerIndentIdx <= this.baseIndentIndex) {
                 break;
@@ -337,8 +341,8 @@ export class ParsedWeave extends ParsedObject implements IWeave {
     if (this.WeavePointHasLooseEnd(weavePoint)) {
       this.looseEnds.push(weavePoint);
 
-      const looseChoice = weavePoint as ParsedChoice;
-      if (looseChoice) {
+      const looseChoice = weavePoint;
+      if (isChoice(looseChoice)) {
         this.addContentToPreviousWeavePoint = true;
       }
     }
@@ -418,14 +422,14 @@ export class ParsedWeave extends ParsedObject implements IWeave {
       ancestor = ancestor.parent
     ) {
       // Found ancestor?
-      const weaveAncestor = ancestor as ParsedWeave;
-      if (weaveAncestor != null) {
+      const weaveAncestor = ancestor;
+      if (isWeave(weaveAncestor)) {
         if (!nested && closestInnerWeaveAncestor == null) {
-          closestInnerWeaveAncestor = weaveAncestor;
+          closestInnerWeaveAncestor = weaveAncestor as ParsedWeave;
         }
 
         if (nested && closestOuterWeaveAncestor == null) {
-          closestOuterWeaveAncestor = weaveAncestor;
+          closestOuterWeaveAncestor = weaveAncestor as ParsedWeave;
         }
       }
 
@@ -675,7 +679,9 @@ export class ParsedWeave extends ParsedObject implements IWeave {
     //      * choice
     // }
     if (conditional != null) {
-      const numChoices = conditional.FindAll<ParsedChoice>().length;
+      const numChoices = conditional.FindAll<ParsedChoice>(
+        (d) => d instanceof ParsedChoice
+      ).length;
       if (numChoices === 1) {
         errorMsg = `Choices with conditions should be written: '* {condition} choice'. Otherwise, ${errorMsg.toLowerCase()}`;
       }
@@ -695,6 +701,7 @@ export class ParsedWeave extends ParsedObject implements IWeave {
       const flowObj = objFlow[i];
       const divert = flowObj.Find<ParsedDivert>(
         (d) =>
+          isDivert(d) &&
           !d.isThread &&
           !d.isTunnel &&
           !d.isFunctionCall &&
@@ -704,7 +711,11 @@ export class ParsedWeave extends ParsedObject implements IWeave {
         terminated = true;
       }
 
-      if (flowObj.Find<ParsedTunnelOnwards>() != null) {
+      if (
+        flowObj.Find<ParsedTunnelOnwards>(
+          (d) => d instanceof ParsedTunnelOnwards
+        ) != null
+      ) {
         terminated = true;
         break;
       }
@@ -735,8 +746,8 @@ export class ParsedWeave extends ParsedObject implements IWeave {
     // although it doesn't actually make a difference!
     // (content after a divert will simply be inaccessible)
     for (let i = weavePoint.content.length - 1; i >= 0; i -= 1) {
-      const innerDivert = weavePoint.content[i] as ParsedDivert;
-      if (innerDivert) {
+      const innerDivert = weavePoint.content[i];
+      if (isDivert(innerDivert)) {
         const willReturn =
           innerDivert.isThread ||
           innerDivert.isTunnel ||
