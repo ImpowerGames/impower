@@ -8,6 +8,11 @@ export class Tag extends RuntimeObject {
     this.text = tagText.toString() || "";
   }
 
+  override Copy(): Tag {
+    const obj = new Tag(this.text);
+    return obj;
+  }
+
   public toString(): string {
     return `# ${this.text}`;
   }

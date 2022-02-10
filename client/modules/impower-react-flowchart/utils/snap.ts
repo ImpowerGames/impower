@@ -12,11 +12,11 @@ export const getSnappedVector = (
 ): Vector2 => {
   return {
     x: Math.min(
-      chartSize.x - size.x,
+      chartSize.x - (size?.x || 0),
       Math.max(0, getSnappedValue(position.x, gridSize))
     ),
     y: Math.min(
-      chartSize.y - size.y,
+      chartSize.y - (size?.y || 0),
       Math.max(0, getSnappedValue(position.y, gridSize))
     ),
   };

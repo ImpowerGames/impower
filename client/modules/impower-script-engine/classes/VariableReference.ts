@@ -3,7 +3,7 @@ import { Path } from "./Path";
 import { RuntimeObject } from "./RuntimeObject";
 
 export class VariableReference extends RuntimeObject {
-  public name: string;
+  public name: string = null;
 
   public pathForCount: Path = null;
 
@@ -30,6 +30,13 @@ export class VariableReference extends RuntimeObject {
   constructor(name: string = null) {
     super();
     this.name = name;
+  }
+
+  override Copy(): VariableReference {
+    const obj = new VariableReference();
+    obj.name = this.name;
+    obj.pathForCount = this.pathForCount;
+    return obj;
   }
 
   public toString(): string {

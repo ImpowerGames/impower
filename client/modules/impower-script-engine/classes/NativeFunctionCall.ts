@@ -120,6 +120,11 @@ export class NativeFunctionCall extends RuntimeObject {
 
   public _numberOfParameters = 0;
 
+  override Copy(): NativeFunctionCall {
+    const obj = new NativeFunctionCall(this.name, this.numberOfParameters);
+    return obj;
+  }
+
   public Call(parameters: RuntimeObject[]): RuntimeObject {
     if (this._prototype) {
       return this._prototype.Call(parameters);

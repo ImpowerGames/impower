@@ -1,10 +1,11 @@
 import { CommandType } from "../types/CommandType";
+import { IContainer } from "../types/IContainer";
 import { PushPopType } from "../types/PushPopType";
 import { createValue } from "../utils/createValue";
 import { BoolValue } from "./BoolValue";
 import { Choice } from "./Choice";
 import { ChoicePoint } from "./ChoicePoint";
-import { Container, isContainer } from "./Container";
+import { Container } from "./Container";
 import { ControlCommand } from "./ControlCommand";
 import { Divert } from "./Divert";
 import { DivertTargetValue } from "./DivertTargetValue";
@@ -89,9 +90,8 @@ export class JsonSerialisation {
     writer: JsonWriter,
     obj: RuntimeObject
   ): void {
-    const container = isContainer(obj) ? obj : null;
-    if (container) {
-      this.WriteRuntimeContainer(writer, container);
+    if (obj instanceof Container) {
+      this.WriteRuntimeContainer(writer, obj);
       return;
     }
 
@@ -255,7 +255,9 @@ export class JsonSerialisation {
       return;
     }
 
-    throw new Error(`Failed to convert runtime object to Json token: ${obj}`);
+    const errMsg = "Failed to convert runtime object to Json token";
+    console.error(errMsg, obj);
+    throw new Error(errMsg);
   }
 
   public static JObjectToDictionaryRuntimeObjs(
@@ -497,7 +499,7 @@ export class JsonSerialisation {
 
     // Array is always a Runtime.Container
     if (Array.isArray(token)) {
-      return this.JArrayToContainer(token);
+      return this.JArrayToContainer(token) as Container;
     }
 
     if (token === null || token === undefined) return null;
@@ -509,20 +511,20 @@ export class JsonSerialisation {
 
   public static WriteRuntimeContainer(
     writer: JsonWriter,
-    container: Container,
+    container: IContainer,
     withoutName = false
   ): void {
     writer.WriteArrayStart();
     if (container === null) {
       throw new NullException("container");
     }
-    container.content.forEach((c) => {
-      this.WriteRuntimeObject(writer, c);
+    container.content?.forEach((c) => {
+      this.WriteRuntimeObject(writer, c as RuntimeObject);
     });
 
     const { namedOnlyContent } = container;
     const { countFlags } = container;
-    const hasNameProperty = container.name != null && !withoutName;
+    const hasNameProperty = container.name && !withoutName;
 
     const hasTerminator =
       namedOnlyContent != null || countFlags > 0 || hasNameProperty;
@@ -533,7 +535,7 @@ export class JsonSerialisation {
     if (namedOnlyContent != null) {
       Object.entries(namedOnlyContent).forEach(([key, value]) => {
         const name = key;
-        if (isContainer(value)) {
+        if (value instanceof Container) {
           const namedContainer = value;
           writer.WritePropertyStart(name);
           this.WriteRuntimeContainer(writer, namedContainer, true);
@@ -542,15 +544,24 @@ export class JsonSerialisation {
       });
     }
 
-    if (hasNameProperty) writer.WriteProperty("#n", container.name);
+    if (hasNameProperty) {
+      writer.WriteProperty("#n", container.name);
+    }
 
-    if (hasTerminator) writer.WriteObjectEnd();
-    else writer.WriteNull();
+    if (countFlags) {
+      writer.WriteIntProperty("#f", countFlags);
+    }
+
+    if (hasTerminator) {
+      writer.WriteObjectEnd();
+    } else {
+      writer.WriteNull();
+    }
 
     writer.WriteArrayEnd();
   }
 
-  public static JArrayToContainer(jArray: unknown[]): Container {
+  public static JArrayToContainer(jArray: unknown[]): IContainer {
     const container = new Container();
     container.content = this.JArrayToRuntimeObjList(jArray, true);
 
@@ -567,9 +578,8 @@ export class JsonSerialisation {
           const namedContentItem = this.JTokenToRuntimeObject(
             terminatingObj[key]
           );
-          const namedSubContainer = isContainer(namedContentItem)
-            ? namedContentItem
-            : null;
+          const namedSubContainer =
+            namedContentItem instanceof Container ? namedContentItem : null;
           if (namedSubContainer) namedSubContainer.name = key;
           namedOnlyContent[key] = namedContentItem;
         }

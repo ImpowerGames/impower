@@ -79,12 +79,16 @@ export class ParsedVariableAssignment
       newDeclScope = this.ClosestFlowBase();
     }
 
-    if (newDeclScope) newDeclScope.TryAddNewVariableDeclaration(this);
+    if (newDeclScope) {
+      newDeclScope.TryAddNewVariableDeclaration(this);
+    }
 
     // Global declarations don't generate actual procedural
     // runtime objects, but instead add a global variable to the story itself.
     // The story then initialises them all in one go at the start of the game.
-    if (this.isGlobalDeclaration) return null;
+    if (this.isGlobalDeclaration) {
+      return null;
+    }
 
     const container = new Container();
 

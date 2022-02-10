@@ -1,19 +1,19 @@
 import { IStringParserElement } from "../types/IStringParserElement";
 
 export class StringParserElement implements IStringParserElement {
-  static _uniqueIdCounter: number;
+  static _uniqueIdCounter = 0;
 
-  characterIndex: number;
+  characterIndex = 0;
 
-  characterInLineIndex: number;
+  characterInLineIndex = 0;
 
-  lineIndex: number;
+  lineIndex = 0;
 
-  reportedErrorInScope: boolean;
+  reportedErrorInScope = false;
 
-  uniqueId: number;
+  uniqueId = 0;
 
-  customFlags: number;
+  customFlags = 0;
 
   CopyFrom(fromElement: StringParserElement): void {
     StringParserElement._uniqueIdCounter += 1;

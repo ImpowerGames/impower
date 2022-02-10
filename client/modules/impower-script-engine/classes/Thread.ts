@@ -1,3 +1,4 @@
+import { IStory } from "../types/IStory";
 import { PushPopType } from "../types/PushPopType";
 import { JsonSerialisation } from "./JsonSerialisation";
 import { JsonWriter } from "./JsonWriter";
@@ -5,7 +6,6 @@ import { NullException } from "./NullException";
 import { Path } from "./Path";
 import { Pointer } from "./Pointer";
 import { RuntimeObject } from "./RuntimeObject";
-import { Story } from "./Story";
 import { ThreadElement } from "./ThreadElement";
 
 export class Thread {
@@ -17,7 +17,7 @@ export class Thread {
 
   constructor();
 
-  constructor(jThreadObj: unknown, storyContext: Story);
+  constructor(jThreadObj: unknown, storyContext: IStory);
 
   constructor(...args) {
     this.callstack = [];
@@ -110,7 +110,7 @@ export class Thread {
     this.callstack.forEach((e) => {
       copy.callstack.push(e.Copy());
     });
-    copy.previousPointer = this.previousPointer.copy();
+    copy.previousPointer = this.previousPointer.Copy();
     return copy;
   }
 

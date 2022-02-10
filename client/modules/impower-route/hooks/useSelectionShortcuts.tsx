@@ -6,16 +6,15 @@ preventDefault: Control if defaults should be prevented.  This can be disabled w
 enableShortcut: Since this hook can be shared across multiple files, check to make sure that this selection is happening on the expected panel.
 */
 export const useSelectionShortcuts = (
-  onSelectNone: () => void,
-  onSelectAll: () => void
+  onSelectNone: (event: KeyboardEvent) => void,
+  onSelectAll: (event: KeyboardEvent) => void
 ): void => {
   const onWindowKeyDown = (event: KeyboardEvent): void => {
     if (event.key === "Escape") {
-      onSelectNone();
+      onSelectNone(event);
     }
     if (isCtrlKeyPressed(event) && event.key === "a") {
-      event.preventDefault();
-      onSelectAll();
+      onSelectAll(event);
     }
   };
 

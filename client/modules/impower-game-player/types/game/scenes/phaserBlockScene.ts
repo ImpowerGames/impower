@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { ImpowerGame } from "../../../../impower-game/game";
-import { BlockRunner } from "../../../../impower-game/runner";
 import { ImpowerDataMap } from "../../../../impower-game/project";
+import { BlockRunner } from "../../../../impower-game/runner";
 
 export const BLOCK_SCENE_KEY = "PhaserBlockScene";
 

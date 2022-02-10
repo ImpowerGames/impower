@@ -24,6 +24,11 @@ export class BoolValue extends Value<boolean> {
     return "Bool";
   }
 
+  override Copy(): BoolValue {
+    const obj = new BoolValue(this.value);
+    return obj;
+  }
+
   public Cast(newType: ValueType): IValue {
     if (this.value === null) throw new NullException("Value.value");
 

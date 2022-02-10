@@ -17,7 +17,7 @@ export interface IWeave extends IObject {
 
 export const isWeave = (obj: unknown): obj is IWeave => {
   const castObj = obj as IWeave;
-  if (typeof castObj !== "object") {
+  if (!castObj) {
     return false;
   }
   return (

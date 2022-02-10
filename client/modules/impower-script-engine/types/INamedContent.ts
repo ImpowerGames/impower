@@ -4,14 +4,11 @@ export interface INamedContent {
 }
 
 export const isNamedContent = (obj: unknown): obj is INamedContent => {
-  const item = obj as INamedContent;
-  if (typeof item !== "object") {
+  const castObj = obj as INamedContent;
+  if (!castObj) {
     return false;
   }
-  if (item.name === undefined) {
-    return false;
-  }
-  if (typeof item.name !== "string") {
+  if (castObj.name === undefined) {
     return false;
   }
 

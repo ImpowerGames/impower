@@ -1,5 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
+import Input from "@material-ui/core/Input";
 import dynamic from "next/dynamic";
 import React, {
   CSSProperties,
@@ -17,12 +18,14 @@ import PencilRegularIcon from "../../../../resources/icons/regular/pencil.svg";
 import ScissorsRegularIcon from "../../../../resources/icons/regular/scissors.svg";
 import SquareRegularIcon from "../../../../resources/icons/regular/square.svg";
 import TrashCanRegularIcon from "../../../../resources/icons/regular/trash-can.svg";
+import ArrowsUpDownLeftRightSolidIcon from "../../../../resources/icons/solid/arrows-up-down-left-right.svg";
 import CrosshairsSolidIcon from "../../../../resources/icons/solid/crosshairs.svg";
 import ExclamationSolidIcon from "../../../../resources/icons/solid/exclamation.svg";
+import ListSolidIcon from "../../../../resources/icons/solid/list.svg";
 import PlusSolidIcon from "../../../../resources/icons/solid/plus.svg";
 import SitemapSolidIcon from "../../../../resources/icons/solid/sitemap.svg";
 import SquareCheckSolidIcon from "../../../../resources/icons/solid/square-check.svg";
-import TableListSolidIcon from "../../../../resources/icons/solid/table-list.svg";
+import TypewriterSolidIcon from "../../../../resources/icons/solid/typewriter.svg";
 import format from "../../../impower-config/utils/format";
 import {
   difference,
@@ -98,6 +101,7 @@ import {
   dataPanelSearch,
   dataPanelSetInteraction,
   dataPanelSetParentContainerArrangement,
+  dataPanelSetParentContainerScripting,
   dataPanelSetScrollX,
   dataPanelSetScrollY,
   dataPanelToggleInteraction,
@@ -289,6 +293,21 @@ const StyledList = styled.div`
   flex-direction: column;
 `;
 
+const StyledScriptArea = styled.div`
+  padding: ${(props): string => props.theme.spacing(2)};
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+`;
+
+const StyledInput = styled(Input)`
+  background-color: ${(props): string => props.theme.colors.black30};
+  padding: ${(props): string => props.theme.spacing(2)};
+  height: 100%;
+  align-items: flex-start;
+  color: white;
+`;
+
 const StyledEmptyPanelContentArea = styled.div`
   padding-right: ${(props): string =>
     props.theme.spacing(props.theme.space.panelLeft)};
@@ -306,9 +325,39 @@ const StyledChartEmptyPanelContentArea = styled(StyledEmptyPanelContentArea)`
   padding-top: ${(props): string => props.theme.spacing(2)};
 `;
 
+interface ScriptingPanelHeaderIconProps {
+  scripting: boolean;
+  onClick: (scripting: boolean) => void;
+}
+
+const ScriptingPanelHeaderIconButton = React.memo(
+  (props: ScriptingPanelHeaderIconProps): JSX.Element => {
+    const { scripting, onClick } = props;
+    const theme = useTheme();
+    return (
+      <PanelHeaderIconButton
+        aria-label={scripting ? "Scripting" : "Visual"}
+        icon={
+          scripting ? (
+            <TypewriterSolidIcon />
+          ) : (
+            <ArrowsUpDownLeftRightSolidIcon />
+          )
+        }
+        size={theme.fontSize.smallIcon}
+        style={{
+          backgroundColor: theme.colors.darkForeground,
+          marginRight: theme.spacing(2),
+        }}
+        onClick={(): void => onClick(!scripting)}
+      />
+    );
+  }
+);
+
 interface ArrangementPanelHeaderIconProps {
   containerArrangement: ContainerArrangement;
-  onClick: (showList: boolean) => void;
+  onClick: (arrangement: ContainerArrangement) => void;
 }
 
 const ArrangementPanelHeaderIconButton = React.memo(
@@ -316,7 +365,7 @@ const ArrangementPanelHeaderIconButton = React.memo(
     const { containerArrangement, onClick } = props;
     const theme = useTheme();
     switch (containerArrangement) {
-      case ContainerArrangement.List:
+      case ContainerArrangement.Chart:
         return (
           <PanelHeaderIconButton
             aria-label="View as Chart"
@@ -326,22 +375,24 @@ const ArrangementPanelHeaderIconButton = React.memo(
               backgroundColor: theme.colors.darkForeground,
               marginRight: theme.spacing(2),
             }}
-            onClick={(): void => onClick(false)}
+            onClick={(): void => onClick(ContainerArrangement.List)}
           />
         );
-      default:
+      case ContainerArrangement.List:
         return (
           <PanelHeaderIconButton
             aria-label="View as List"
-            icon={<TableListSolidIcon />}
+            icon={<ListSolidIcon />}
             size={theme.fontSize.smallIcon}
             style={{
               backgroundColor: theme.colors.darkForeground,
               marginRight: theme.spacing(2),
             }}
-            onClick={(): void => onClick(true)}
+            onClick={(): void => onClick(ContainerArrangement.Chart)}
           />
         );
+      default:
+        return null;
     }
   }
 );
@@ -357,7 +408,8 @@ interface ContainerPanelHeaderProps {
   scrollParent?: HTMLElement | null;
   onOpenSearch: () => void;
   onCloseSearch: () => void;
-  onArrangement: (showList: boolean) => void;
+  onArrangement: (arrangement: ContainerArrangement) => void;
+  onScripting: (scripting: boolean) => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onSearch: (value: string) => void;
   onBack?: (e: React.MouseEvent) => void;
@@ -381,6 +433,7 @@ const ContainerPanelHeader = React.memo(
       onOpenSearch,
       onCloseSearch,
       onArrangement,
+      onScripting,
       onContextMenu,
       onSearch,
       onBack,
@@ -455,6 +508,10 @@ const ContainerPanelHeader = React.memo(
         rightChildren={
           containerType === ContainerType.Block && (
             <>
+              <ScriptingPanelHeaderIconButton
+                scripting={containerPanelState.scripting}
+                onClick={onScripting}
+              />
               <ArrangementPanelHeaderIconButton
                 containerArrangement={containerPanelState.arrangement}
                 onClick={onArrangement}
@@ -503,6 +560,7 @@ interface ContainerPanelContentProps {
   onEdit: (refId: string, event: AccessibleEvent) => void;
   onChangeName: (refId: string, renamed: string) => void;
   onContextMenu?: (event: AccessibleEvent) => void;
+  onScriptChange?: (e: React.ChangeEvent) => void;
 }
 
 const ContainerPanelContent = React.memo(
@@ -536,6 +594,7 @@ const ContainerPanelContent = React.memo(
       onEdit,
       onChangeName,
       onContextMenu,
+      onScriptChange,
     } = props;
 
     const [list, setList] = useState<OrderedCollection<DataButtonInfo, string>>(
@@ -585,7 +644,7 @@ const ContainerPanelContent = React.memo(
             previousIndex={previousBreadcrumbIndex}
             style={{ display: "flex", flex: 1 }}
           >
-            <StyledChart className={StyledChart.displayName}>
+            <StyledChart>
               <DataChart
                 infos={list.data}
                 draggingIds={draggingIds}
@@ -639,7 +698,7 @@ const ContainerPanelContent = React.memo(
             </StyledChart>
           </PeerTransition>
         );
-      default:
+      case ContainerArrangement.List:
         return (
           <PeerTransition
             key={parentContainerId}
@@ -647,80 +706,96 @@ const ContainerPanelContent = React.memo(
             previousIndex={previousBreadcrumbIndex}
             style={{ display: "flex", flex: 1 }}
           >
-            <StyledList className={StyledList.displayName}>
-              {list.order.length === 0 && (
-                <>
-                  <StyledEmptyPanelContentArea
-                    className={StyledEmptyPanelContentArea.displayName}
+            {containerPanelState.scripting ? (
+              <StyledScriptArea>
+                <StyledInput
+                  value={
+                    project.instances?.blocks?.data?.[parentContainerId]
+                      ?.script || ""
+                  }
+                  size="small"
+                  multiline
+                  fullWidth
+                  disableUnderline
+                  onChange={onScriptChange}
+                />
+              </StyledScriptArea>
+            ) : (
+              <StyledList>
+                {list.order.length === 0 && (
+                  <>
+                    <StyledEmptyPanelContentArea>
+                      <EmptyPanelContent
+                        instruction={addInstruction}
+                        name={headerInfo.name}
+                        icon={<Icon />}
+                        onContextMenu={onContextMenu}
+                      />
+                    </StyledEmptyPanelContentArea>
+                  </>
+                )}
+                {list.order.length > 0 && (
+                  <EngineDataList
+                    list={list}
+                    itemSize={layout.size.minHeight.dataButton + 8}
+                    draggingIds={draggingIds}
+                    selectedIds={selectedIds}
+                    changeTargetId={changeNameTargetId}
+                    search={search}
+                    style={{
+                      paddingBottom: layout.size.minWidth.headerIcon + 16,
+                    }}
+                    scrollParent={scrollParent}
+                    onSetDragging={onSetDragging}
+                    onSetOrder={onSetOrder}
+                    onSetSelection={onSetSelection}
+                    getSearchTargets={getSearchTargets}
+                    onRef={onDataAreaRef}
                   >
-                    <EmptyPanelContent
-                      instruction={addInstruction}
-                      name={headerInfo.name}
-                      icon={<Icon />}
-                      onContextMenu={onContextMenu}
-                    />
-                  </StyledEmptyPanelContentArea>
-                </>
-              )}
-              {list.order.length > 0 && (
-                <EngineDataList
-                  list={list}
-                  itemSize={layout.size.minHeight.dataButton + 8}
-                  draggingIds={draggingIds}
-                  selectedIds={selectedIds}
-                  changeTargetId={changeNameTargetId}
-                  search={search}
-                  style={{
-                    paddingBottom: layout.size.minWidth.headerIcon + 16,
-                  }}
-                  scrollParent={scrollParent}
-                  onSetDragging={onSetDragging}
-                  onSetOrder={onSetOrder}
-                  onSetSelection={onSetSelection}
-                  getSearchTargets={getSearchTargets}
-                  onRef={onDataAreaRef}
-                >
-                  {({
-                    id,
-                    value,
-                    currentOrderedIds,
-                    currentSelectedIds,
-                    currentFocusedIds,
-                    currentDraggingIds,
-                    onDragHandleTrigger,
-                  }): JSX.Element => (
-                    <ContainerButton
-                      buttonShape={buttonShape}
-                      id={id}
-                      value={value as DataButtonInfo}
-                      currentOrderedIds={currentOrderedIds}
-                      currentSelectedIds={currentSelectedIds}
-                      currentDraggingIds={currentDraggingIds}
-                      currentGhostingIds={
-                        currentFocusedIds
-                          ? difference(currentOrderedIds, currentFocusedIds)
-                          : currentDraggingIds.length > 0
-                          ? difference(currentSelectedIds, currentDraggingIds)
-                          : []
-                      }
-                      changeNameTargetId={changeNameTargetId}
-                      onBreadcrumb={onBreadcrumb}
-                      onClick={onClick}
-                      onChangeSelection={onChangeSelection}
-                      onToggleSelection={onToggleSelection}
-                      onMultiSelection={onMultiSelection}
-                      onOpenContextMenu={onContextMenu}
-                      onEdit={onEdit}
-                      onChangeName={onChangeName}
-                      onDragHandleTrigger={onDragHandleTrigger}
-                      grow
-                    />
-                  )}
-                </EngineDataList>
-              )}
-            </StyledList>
+                    {({
+                      id,
+                      value,
+                      currentOrderedIds,
+                      currentSelectedIds,
+                      currentFocusedIds,
+                      currentDraggingIds,
+                      onDragHandleTrigger,
+                    }): JSX.Element => (
+                      <ContainerButton
+                        buttonShape={buttonShape}
+                        id={id}
+                        value={value as DataButtonInfo}
+                        currentOrderedIds={currentOrderedIds}
+                        currentSelectedIds={currentSelectedIds}
+                        currentDraggingIds={currentDraggingIds}
+                        currentGhostingIds={
+                          currentFocusedIds
+                            ? difference(currentOrderedIds, currentFocusedIds)
+                            : currentDraggingIds.length > 0
+                            ? difference(currentSelectedIds, currentDraggingIds)
+                            : []
+                        }
+                        changeNameTargetId={changeNameTargetId}
+                        onBreadcrumb={onBreadcrumb}
+                        onClick={onClick}
+                        onChangeSelection={onChangeSelection}
+                        onToggleSelection={onToggleSelection}
+                        onMultiSelection={onMultiSelection}
+                        onOpenContextMenu={onContextMenu}
+                        onEdit={onEdit}
+                        onChangeName={onChangeName}
+                        onDragHandleTrigger={onDragHandleTrigger}
+                        grow
+                      />
+                    )}
+                  </EngineDataList>
+                )}
+              </StyledList>
+            )}
           </PeerTransition>
         );
+      default:
+        return null;
     }
   }
 );
@@ -1299,12 +1374,28 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     }
     handleSetSelection([]);
   }, [openPanel, changeNameTargetId, handleSetSelection]);
-  const handleSelectAllShortcut = useCallback(() => {
-    if (openPanel !== DataPanelType.Container || changeNameTargetId !== "") {
-      return;
-    }
-    handleSetSelection(Object.keys(inspectedContainers));
-  }, [openPanel, changeNameTargetId, inspectedContainers, handleSetSelection]);
+  const handleSelectAllShortcut = useCallback(
+    (event: KeyboardEvent) => {
+      if (
+        openPanel !== DataPanelType.Container ||
+        changeNameTargetId !== "" ||
+        (containerPanelState.scripting &&
+          containerPanelState.arrangement === ContainerArrangement.List)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      handleSetSelection(Object.keys(inspectedContainers));
+    },
+    [
+      openPanel,
+      changeNameTargetId,
+      containerPanelState.scripting,
+      containerPanelState.arrangement,
+      handleSetSelection,
+      inspectedContainers,
+    ]
+  );
 
   const handleSetNodePositions = useCallback(
     (positions: { [refId: string]: Vector2 }): void => {
@@ -1558,8 +1649,8 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     setScrollParent(scrollParent);
   }, []);
 
-  const handleClickHeaderArrangementIcon = useCallback(
-    (showList: boolean) => {
+  const handleClickHeaderScriptingIcon = useCallback(
+    (scripting: boolean) => {
       dispatch(
         dataPanelSetScrollX(
           windowType,
@@ -1576,14 +1667,47 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
           getScrollY(scrollParent)
         )
       );
+      dispatch(dataPanelSetParentContainerScripting(windowType, scripting));
+    },
+    [dispatch, windowType, panelKey, scrollParent]
+  );
+
+  const handleClickHeaderArrangementIcon = useCallback(
+    (arrangement: ContainerArrangement) => {
       dispatch(
-        dataPanelSetParentContainerArrangement(
+        dataPanelSetScrollX(
           windowType,
-          showList ? ContainerArrangement.List : ContainerArrangement.Chart
+          DataPanelType.Container,
+          panelKey,
+          getScrollX(scrollParent)
+        )
+      );
+      dispatch(
+        dataPanelSetScrollY(
+          windowType,
+          DataPanelType.Container,
+          panelKey,
+          getScrollY(scrollParent)
+        )
+      );
+      dispatch(dataPanelSetParentContainerArrangement(windowType, arrangement));
+    },
+    [dispatch, windowType, panelKey, scrollParent]
+  );
+
+  const handleScriptChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const newValue = e.target.value;
+      dispatch(
+        projectUpdateData(
+          "Update Script",
+          [parentContainer?.reference],
+          "script",
+          newValue
         )
       );
     },
-    [dispatch, windowType, panelKey, scrollParent]
+    [dispatch, parentContainer?.reference]
   );
 
   const handleBrowserNavigation = useCallback(
@@ -1723,12 +1847,12 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       onScrollRef={handleScrollRef}
       onContextMenu={handleContextMenu}
       useWindowAsScrollContainer={
-        containerPanelState.arrangement === ContainerArrangement.List
+        containerPanelState.arrangement !== ContainerArrangement.Chart
       }
       backgroundStyle={backgroundStyle}
       overlayStyle={overlayStyle}
       topChildren={
-        containerPanelState.arrangement === ContainerArrangement.List ? (
+        containerPanelState.arrangement !== ContainerArrangement.Chart ? (
           <ContainerPanelHeader
             containerType={containerType}
             search={search}
@@ -1742,6 +1866,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
             onSearch={handleSearch}
             onBack={handleClickHeaderBackIcon}
             onBreadcrumb={handleClickHeaderBreadcrumb}
+            onScripting={handleClickHeaderScriptingIcon}
             onArrangement={handleClickHeaderArrangementIcon}
             onContextMenu={handleContextMenu}
           />
@@ -1763,6 +1888,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
               onSearch={handleSearch}
               onBack={handleClickHeaderBackIcon}
               onBreadcrumb={handleClickHeaderBreadcrumb}
+              onScripting={handleClickHeaderScriptingIcon}
               onArrangement={handleClickHeaderArrangementIcon}
               onContextMenu={handleContextMenu}
             />
@@ -1786,38 +1912,39 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
               </PanelBottomLeftOverlay>
             )}
 
-          <PanelBottomRightOverlay
-            style={{ opacity: mode === Mode.Test ? 0.5 : undefined }}
-          >
-            <CornerFab
-              scrollParent={scrollParent}
-              icon={
-                <FontIcon aria-label={fabLabel} size={15}>
-                  <PlusSolidIcon />
-                </FontIcon>
-              }
-              label={fabLabel}
-              color="secondary"
-              shrink={
-                containerPanelState.arrangement ===
-                  ContainerArrangement.Chart ||
-                searching ||
-                naming
-              }
-              onClick={handleAddData}
-              style={fabAreaStyle}
-            />
-            <InputBlocker
-              active={mode === Mode.Test}
-              tooltip={<EditGameTooltipContent />}
-            />
-          </PanelBottomRightOverlay>
+          {(!containerPanelState.scripting ||
+            containerPanelState.arrangement !== ContainerArrangement.List) && (
+            <PanelBottomRightOverlay
+              style={{ opacity: mode === Mode.Test ? 0.5 : undefined }}
+            >
+              <CornerFab
+                scrollParent={scrollParent}
+                icon={
+                  <FontIcon aria-label={fabLabel} size={15}>
+                    <PlusSolidIcon />
+                  </FontIcon>
+                }
+                label={fabLabel}
+                color="secondary"
+                shrink={
+                  containerPanelState.arrangement ===
+                    ContainerArrangement.Chart ||
+                  searching ||
+                  naming
+                }
+                onClick={handleAddData}
+                style={fabAreaStyle}
+              />
+              <InputBlocker
+                active={mode === Mode.Test}
+                tooltip={<EditGameTooltipContent />}
+              />
+            </PanelBottomRightOverlay>
+          )}
 
           {containerPanelState.arrangement === ContainerArrangement.Chart &&
             inspectedContainerReferences.length === 0 && (
-              <StyledChartEmptyPanelContentArea
-                className={StyledChartEmptyPanelContentArea.displayName}
-              >
+              <StyledChartEmptyPanelContentArea>
                 <EmptyPanelContent
                   instruction={addInstruction}
                   name={headerInfo.name}
@@ -1858,6 +1985,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         onPanCanvas={handlePanCanvas}
         onZoomCanvas={handleZoomCanvas}
         onContextMenu={handleContextMenu}
+        onScriptChange={handleScriptChange}
       />
       {optionsMenuOpen !== undefined && (
         <ContextMenu

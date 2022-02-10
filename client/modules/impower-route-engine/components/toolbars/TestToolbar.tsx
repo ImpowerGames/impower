@@ -134,7 +134,11 @@ const PlaybackControls = React.memo(
           </FontIcon>
         </IconButton>
         <IconButton onPointerDown={onRewindStart} onPointerUp={onRewindStop}>
-          <FontIcon aria-label="Rewind" size={theme.fontSize.smallIcon}>
+          <FontIcon
+            aria-label="Rewind"
+            size={theme.fontSize.smallIcon}
+            color={theme.colors.white40}
+          >
             <BackwardSolidIcon />
           </FontIcon>
         </IconButton>
@@ -142,6 +146,7 @@ const PlaybackControls = React.memo(
           <FontIcon
             aria-label={control === Control.Pause ? "Play" : "Pause"}
             size={24}
+            color={theme.colors.white40}
           >
             {control === Control.Pause ? <PlaySolidIcon /> : <PauseSolidIcon />}
           </FontIcon>
@@ -150,7 +155,11 @@ const PlaybackControls = React.memo(
           onPointerDown={onFastForwardStart}
           onPointerUp={onFastForwardStop}
         >
-          <FontIcon aria-label="Fast Forward" size={theme.fontSize.smallIcon}>
+          <FontIcon
+            aria-label="Fast Forward"
+            size={theme.fontSize.smallIcon}
+            color={theme.colors.white40}
+          >
             <ForwardSolidIcon />
           </FontIcon>
         </IconButton>

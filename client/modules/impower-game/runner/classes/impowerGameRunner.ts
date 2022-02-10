@@ -1,79 +1,79 @@
 import { OrderedCollection } from "../../../impower-core";
 import {
-  DataType,
-  ContainerType,
-  ItemType,
-  TypeLookup,
-  InstanceData,
-  ElementTypeId,
   CommandTypeId,
-  TriggerTypeId,
-  VariableTypeId,
-  ConfigTypeId,
   ConfigType,
+  ConfigTypeId,
+  ContainerType,
+  DataType,
+  ElementTypeId,
+  InstanceData,
+  ItemType,
+  TriggerTypeId,
+  TypeLookup,
+  VariableTypeId,
 } from "../../data";
-import { GroupElementRunner } from "../../project/classes/instances/items/elements/ui/groupElement/groupElementRunner";
-import { CloseElementRunner } from "../../project/classes/instances/items/elements/ui/closeElement/closeElementRunner";
-import { ComponentElementRunner } from "../../project/classes/instances/items/elements/ui/componentElement/componentElementRunner";
-import { TextElementRunner } from "../../project/classes/instances/items/elements/ui/textElement/textElementRunner";
-import { ImageElementRunner } from "../../project/classes/instances/items/elements/ui/imageElement/imageElementRunner";
-import { ShapeElementRunner } from "../../project/classes/instances/items/elements/ui/shapeElement/shapeElementRunner";
-import { ElementRunner } from "../../project/classes/instances/items/element/elementRunner";
-import { EnteredTriggerRunner } from "../../project/classes/instances/items/triggers/flow/enteredTrigger/enteredTriggerRunner";
-import { ReturnedTriggerRunner } from "../../project/classes/instances/items/triggers/flow/returnedTrigger/returnedTriggerRunner";
-import { PausedTriggerRunner } from "../../project/classes/instances/items/triggers/flow/pausedTrigger/pausedTriggerRunner";
-import { AllTriggerRunner } from "../../project/classes/instances/items/triggers/conditional/allTrigger/allTriggerRunner";
-import { AnyTriggerRunner } from "../../project/classes/instances/items/triggers/conditional/anyTrigger/anyTriggerRunner";
-import { CloseTriggerRunner } from "../../project/classes/instances/items/triggers/conditional/closeTrigger/closeTriggerRunner";
-import { PressedKeyTriggerRunner } from "../../project/classes/instances/items/triggers/input/pressedKey/pressedKeyTriggerRunner";
-import { TriggerRunner } from "../../project/classes/instances/items/trigger/triggerRunner";
-import { LogCommandRunner } from "../../project/classes/instances/items/commands/flow/logCommand/logCommandRunner";
-import { DoCommandRunner } from "../../project/classes/instances/items/commands/flow/doCommand/doCommandRunner";
-import { EnterCommandRunner } from "../../project/classes/instances/items/commands/flow/enterCommand/enterCommandRunner";
-import { ExitCommandRunner } from "../../project/classes/instances/items/commands/flow/exitCommand/exitCommandRunner";
-import { EndCommandRunner } from "../../project/classes/instances/items/commands/flow/endCommand/endCommandRunner";
-import { WaitCommandRunner } from "../../project/classes/instances/items/commands/flow/waitCommand/waitCommandRunner";
-import { IfCommandRunner } from "../../project/classes/instances/items/commands/conditonal/ifCommand/ifCommandRunner";
-import { ElseIfCommandRunner } from "../../project/classes/instances/items/commands/conditonal/elseIfCommand/elseIfCommandRunner";
-import { ElseCommandRunner } from "../../project/classes/instances/items/commands/conditonal/elseCommand/elseCommandRunner";
-import { SelectCommandRunner } from "../../project/classes/instances/items/commands/conditonal/selectCommand/selectCommandRunner";
+import { InstanceRunner } from "../../project/classes/instance/instanceRunner";
+import { ConfigRunner } from "../../project/classes/instances/config/configRunner";
+import { BlockRunner } from "../../project/classes/instances/containers/block/blockRunner";
+import { ConstructRunner } from "../../project/classes/instances/containers/construct/constructRunner";
+import { CommandRunner } from "../../project/classes/instances/items/command/commandRunner";
+import { PauseAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/pauseAudioCommand/pauseAudioCommandRunner";
+import { PlayAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/playAudioCommand/playAudioCommandRunner";
+import { ResumeAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/resumeAudioCommand/resumeAudioCommandRunner";
+import { StopAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/stopAudioCommand/stopAudioCommandRunner";
 import { CloseCommandRunner } from "../../project/classes/instances/items/commands/conditonal/closeCommand/closeCommandRunner";
+import { ElseCommandRunner } from "../../project/classes/instances/items/commands/conditonal/elseCommand/elseCommandRunner";
+import { ElseIfCommandRunner } from "../../project/classes/instances/items/commands/conditonal/elseIfCommand/elseIfCommandRunner";
+import { IfCommandRunner } from "../../project/classes/instances/items/commands/conditonal/ifCommand/ifCommandRunner";
+import { SelectCommandRunner } from "../../project/classes/instances/items/commands/conditonal/selectCommand/selectCommandRunner";
 import { SetCommandRunner } from "../../project/classes/instances/items/commands/data/setCommand/setCommandRunner";
 import { SayCommandRunner } from "../../project/classes/instances/items/commands/dialog/sayCommand/sayCommandRunner";
 import { CreateCommandRunner } from "../../project/classes/instances/items/commands/entity/createCommand/createCommandRunner";
 import { DestroyCommandRunner } from "../../project/classes/instances/items/commands/entity/destroyCommand/destroyCommandRunner";
-import { CommandRunner } from "../../project/classes/instances/items/command/commandRunner";
-import { BooleanVariableRunner } from "../../project/classes/instances/items/variables/booleanVariable/booleanVariableRunner";
-import { NumberVariableRunner } from "../../project/classes/instances/items/variables/numberVariable/numberVariableRunner";
-import { StringVariableRunner } from "../../project/classes/instances/items/variables/stringVariable/stringVariableRunner";
-import { ColorVariableRunner } from "../../project/classes/instances/items/variables/colorVariable/colorVariableRunner";
-import { ConstructVariableRunner } from "../../project/classes/instances/items/variables/constructVariable/constructVariableRunner";
-import { BlockVariableRunner } from "../../project/classes/instances/items/variables/blockVariable/blockVariableRunner";
-import { Vector2VariableRunner } from "../../project/classes/instances/items/variables/vector2Variable/vector2VariableRunner";
-import { ImageVariableRunner } from "../../project/classes/instances/items/variables/imageVariable/imageVariableRunner";
-import { AudioVariableRunner } from "../../project/classes/instances/items/variables/audioVariable/audioVariableRunner";
-import { VideoVariableRunner } from "../../project/classes/instances/items/variables/videoVariable/videoVariableRunner";
-import { TextVariableRunner } from "../../project/classes/instances/items/variables/textVariable/textVariableRunner";
-import { VariableRunner } from "../../project/classes/instances/items/variable/variableRunner";
-import { ConstructRunner } from "../../project/classes/instances/containers/construct/constructRunner";
-import { BlockRunner } from "../../project/classes/instances/containers/block/blockRunner";
-import { InstanceRunner } from "../../project/classes/instance/instanceRunner";
-import { ConfigRunner } from "../../project/classes/instances/config/configRunner";
 import { ShowPortraitCommandRunner } from "../../project/classes/instances/items/commands/entity/showPortraitCommand/showPortraitCommandRunner";
-import { ShowImageCommandRunner } from "../../project/classes/instances/items/commands/image/showImageCommand/showImageCommandRunner";
+import { DoCommandRunner } from "../../project/classes/instances/items/commands/flow/doCommand/doCommandRunner";
+import { EndCommandRunner } from "../../project/classes/instances/items/commands/flow/endCommand/endCommandRunner";
+import { EnterCommandRunner } from "../../project/classes/instances/items/commands/flow/enterCommand/enterCommandRunner";
+import { ExitCommandRunner } from "../../project/classes/instances/items/commands/flow/exitCommand/exitCommandRunner";
+import { LogCommandRunner } from "../../project/classes/instances/items/commands/flow/logCommand/logCommandRunner";
+import { WaitCommandRunner } from "../../project/classes/instances/items/commands/flow/waitCommand/waitCommandRunner";
 import { HideImageCommandRunner } from "../../project/classes/instances/items/commands/image/hideImageCommand/hideImageCommandRunner";
-import { PlayAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/playAudioCommand/playAudioCommandRunner";
-import { PauseAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/pauseAudioCommand/pauseAudioCommandRunner";
-import { StopAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/stopAudioCommand/stopAudioCommandRunner";
 import { MoveToImageCommandRunner } from "../../project/classes/instances/items/commands/image/moveToImageCommand/moveToImageCommandRunner";
 import { RotateToImageCommandRunner } from "../../project/classes/instances/items/commands/image/rotateImageCommand/rotateImageCommandRunner";
 import { ScaleToImageCommandRunner } from "../../project/classes/instances/items/commands/image/scaleImageCommand/scaleImageCommandRunner";
-import { ResumeAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/resumeAudioCommand/resumeAudioCommandRunner";
+import { ShowImageCommandRunner } from "../../project/classes/instances/items/commands/image/showImageCommand/showImageCommandRunner";
+import { ElementRunner } from "../../project/classes/instances/items/element/elementRunner";
+import { CloseElementRunner } from "../../project/classes/instances/items/elements/ui/closeElement/closeElementRunner";
+import { ComponentElementRunner } from "../../project/classes/instances/items/elements/ui/componentElement/componentElementRunner";
+import { GroupElementRunner } from "../../project/classes/instances/items/elements/ui/groupElement/groupElementRunner";
+import { ImageElementRunner } from "../../project/classes/instances/items/elements/ui/imageElement/imageElementRunner";
+import { ShapeElementRunner } from "../../project/classes/instances/items/elements/ui/shapeElement/shapeElementRunner";
+import { TextElementRunner } from "../../project/classes/instances/items/elements/ui/textElement/textElementRunner";
+import { TriggerRunner } from "../../project/classes/instances/items/trigger/triggerRunner";
+import { AllTriggerRunner } from "../../project/classes/instances/items/triggers/conditional/allTrigger/allTriggerRunner";
+import { AnyTriggerRunner } from "../../project/classes/instances/items/triggers/conditional/anyTrigger/anyTriggerRunner";
+import { CloseTriggerRunner } from "../../project/classes/instances/items/triggers/conditional/closeTrigger/closeTriggerRunner";
+import { EnteredTriggerRunner } from "../../project/classes/instances/items/triggers/flow/enteredTrigger/enteredTriggerRunner";
+import { PausedTriggerRunner } from "../../project/classes/instances/items/triggers/flow/pausedTrigger/pausedTriggerRunner";
+import { ReturnedTriggerRunner } from "../../project/classes/instances/items/triggers/flow/returnedTrigger/returnedTriggerRunner";
 import { ClickTriggerRunner } from "../../project/classes/instances/items/triggers/input/click/clickTriggerRunner";
-import { ImageHoverTriggerRunner } from "../../project/classes/instances/items/triggers/input/imageHover/imageHoverTriggerRunner";
 import { ImageClickTriggerRunner } from "../../project/classes/instances/items/triggers/input/imageClick/imageClickTriggerRunner";
 import { ImageDragTriggerRunner } from "../../project/classes/instances/items/triggers/input/imageDrag/imageDragTriggerRunner";
 import { ImageDropTriggerRunner } from "../../project/classes/instances/items/triggers/input/imageDrop/imageDropTriggerRunner";
+import { ImageHoverTriggerRunner } from "../../project/classes/instances/items/triggers/input/imageHover/imageHoverTriggerRunner";
+import { PressedKeyTriggerRunner } from "../../project/classes/instances/items/triggers/input/pressedKey/pressedKeyTriggerRunner";
+import { VariableRunner } from "../../project/classes/instances/items/variable/variableRunner";
+import { AudioVariableRunner } from "../../project/classes/instances/items/variables/audioVariable/audioVariableRunner";
+import { BlockVariableRunner } from "../../project/classes/instances/items/variables/blockVariable/blockVariableRunner";
+import { BooleanVariableRunner } from "../../project/classes/instances/items/variables/booleanVariable/booleanVariableRunner";
+import { ColorVariableRunner } from "../../project/classes/instances/items/variables/colorVariable/colorVariableRunner";
+import { ConstructVariableRunner } from "../../project/classes/instances/items/variables/constructVariable/constructVariableRunner";
+import { ImageVariableRunner } from "../../project/classes/instances/items/variables/imageVariable/imageVariableRunner";
+import { NumberVariableRunner } from "../../project/classes/instances/items/variables/numberVariable/numberVariableRunner";
+import { StringVariableRunner } from "../../project/classes/instances/items/variables/stringVariable/stringVariableRunner";
+import { TextVariableRunner } from "../../project/classes/instances/items/variables/textVariable/textVariableRunner";
+import { Vector2VariableRunner } from "../../project/classes/instances/items/variables/vector2Variable/vector2VariableRunner";
+import { VideoVariableRunner } from "../../project/classes/instances/items/variables/videoVariable/videoVariableRunner";
 
 export class ImpowerGameRunner {
   private static _instance: ImpowerGameRunner;
@@ -318,7 +318,7 @@ export class ImpowerGameRunner {
     const iterableRunners: { runner: R; data: D; level: number }[] = [];
     let currentLevel = 0;
     let group: InstanceData;
-    dataList.order.forEach((id) => {
+    dataList?.order?.forEach((id) => {
       const data = dataList.data[id];
       const runner = this.getRunner(data.reference) as R;
       let level = currentLevel;

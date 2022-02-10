@@ -39,7 +39,9 @@ export class ParsedContentList extends ParsedObject {
         const contentObjRuntime = obj.runtimeObject;
 
         // Some objects (e.g. author warnings) don't generate runtime objects
-        if (contentObjRuntime) container.AddContent(contentObjRuntime);
+        if (contentObjRuntime) {
+          container.AddContent(contentObjRuntime);
+        }
       });
     }
 

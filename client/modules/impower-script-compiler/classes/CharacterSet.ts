@@ -16,6 +16,9 @@ export class CharacterSet extends Array<string> {
   }
 
   public AddCharacters(str: string | CharacterSet): CharacterSet {
+    if (!str) {
+      return this;
+    }
     if (typeof str === "string") {
       for (let i = 0; i < str.length; i += 1) {
         const c = str[i];
@@ -31,11 +34,12 @@ export class CharacterSet extends Array<string> {
   }
 
   public UnionWith(otherSet: CharacterSet): CharacterSet {
-    const union = new CharacterSet(this);
-    otherSet.forEach((value, key) => {
-      union[key] = value;
+    otherSet.forEach((value) => {
+      if (!this.includes(value)) {
+        this.push(value);
+      }
     });
 
-    return union;
+    return new CharacterSet(this);
   }
 }

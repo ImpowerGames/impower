@@ -51,6 +51,7 @@ export interface PanelInteractionState {
 }
 
 export interface ContainerPanelState extends PanelInteractionState {
+  scripting: boolean;
   arrangement: ContainerArrangement;
 }
 
@@ -80,6 +81,7 @@ export const createDataPanelState = (): DataPanelState => ({
     Setup: {
       openPanel: DataPanelType.Setup,
       Container: {
+        scripting: false,
         arrangement: ContainerArrangement.List,
         interactions: {
           Selected: [],
@@ -112,6 +114,7 @@ export const createDataPanelState = (): DataPanelState => ({
     Assets: {
       openPanel: DataPanelType.Assets,
       Container: {
+        scripting: false,
         arrangement: ContainerArrangement.List,
         interactions: {
           Selected: [],
@@ -144,6 +147,7 @@ export const createDataPanelState = (): DataPanelState => ({
     Entities: {
       openPanel: DataPanelType.Container,
       Container: {
+        scripting: false,
         arrangement: ContainerArrangement.List,
         inspectedTargetId: ContainerType.Construct,
         interactions: {
@@ -177,6 +181,7 @@ export const createDataPanelState = (): DataPanelState => ({
     Logic: {
       openPanel: DataPanelType.Container,
       Container: {
+        scripting: false,
         arrangement: ContainerArrangement.Chart,
         inspectedTargetId: ContainerType.Block,
         interactions: {

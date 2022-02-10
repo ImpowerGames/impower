@@ -59,6 +59,11 @@ export class StringValue extends Value<string> {
     return !this.isNewline && !this.isInlineWhitespace;
   }
 
+  override Copy(): StringValue {
+    const obj = new StringValue(this.value);
+    return obj;
+  }
+
   public Cast(newType: ValueType): Value<unknown> {
     if (newType === this.valueType) {
       return this;

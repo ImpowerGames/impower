@@ -1,14 +1,14 @@
-import { isOrderedCollection, getValue, getUuid } from "../../../impower-core";
+import { getUuid, getValue, isOrderedCollection } from "../../../impower-core";
 import {
   InstanceData,
-  isInstanceData,
-  Reference,
-  isReference,
-  isContainerReference,
-  isItemReference,
   isContainerData,
+  isContainerReference,
+  isInstanceData,
   isItemData,
+  isItemReference,
+  isReference,
   ParentLookup,
+  Reference,
 } from "../../data";
 
 type Mutater = <T extends object>( // eslint-disable-line @typescript-eslint/ban-types
@@ -59,7 +59,7 @@ const remapDataInternal = <T extends object>( // eslint-disable-line @typescript
     const oldIds = [...data.childContainerIds];
     data.childContainerIds = [];
     oldIds.forEach((id) => {
-      data.childContainerIds.push(idMap[id] || id);
+      data.childContainerIds?.push(idMap[id] || id);
     });
   }
 
@@ -158,7 +158,7 @@ const cloneDataInternal = <T extends object>( // eslint-disable-line @typescript
   }
 
   if (isContainerData(data)) {
-    data.childContainerIds.forEach((id) => {
+    data.childContainerIds?.forEach((id) => {
       const childData = allData[id];
       if (isContainerData(childData)) {
         cloneDataInternal(

@@ -31,7 +31,7 @@ export class CharacterRange {
     return new CharacterRange(
       start.charCodeAt(0),
       end.charCodeAt(0),
-      excludes.map((x) => x.charCodeAt(0))
+      excludes?.map((x) => x.charCodeAt(0))
     );
   }
 

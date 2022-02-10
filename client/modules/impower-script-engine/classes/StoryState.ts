@@ -1,3 +1,4 @@
+import { IStory } from "../types/IStory";
 import { PushPopType } from "../types/PushPopType";
 import { createValue } from "../utils/createValue";
 import { CallStack } from "./CallStack";
@@ -17,8 +18,8 @@ import { Path } from "./Path";
 import { Pointer } from "./Pointer";
 import { PRNG } from "./PRNG";
 import { RuntimeObject } from "./RuntimeObject";
+import { ScriptVersion } from "./ScriptVersion";
 import { StatePatch } from "./StatePatch";
-import { Story } from "./Story";
 import { StringBuilder } from "./StringBuilder";
 import { StringValue } from "./StringValue";
 import { Tag } from "./Tag";
@@ -31,7 +32,154 @@ export class StoryState {
 
   public readonly kMinCompatibleLoadVersion = 8;
 
+  public storySeed = 0;
+
+  public previousRandom = 0;
+
+  public didSafeExit = false;
+
+  public story: IStory = null;
+
+  public divertedPointer: Pointer = Pointer.Null;
+
   public onDidLoadState: () => void = null;
+
+  private _currentErrors: string[] = null;
+
+  private _currentWarnings: string[] = null;
+
+  private _evaluationStack: RuntimeObject[];
+
+  private _currentTurnIndex = 0;
+
+  private _currentText: string = null;
+
+  private _visitCounts: Record<string, number> = null;
+
+  private _turnIndices: Record<string, number> = null;
+
+  private _outputStreamTextDirty = true;
+
+  private _outputStreamTagsDirty = true;
+
+  private _patch: StatePatch = null;
+
+  private _currentFlow: Flow = null;
+
+  private _namedFlows: Record<string, Flow> = null;
+
+  private readonly kDefaultFlowName = "DEFAULT_FLOW";
+
+  get callstackDepth(): number {
+    return this.callStack.depth;
+  }
+
+  get outputStream(): RuntimeObject[] {
+    return this._currentFlow.outputStream;
+  }
+
+  get currentChoices(): Choice[] {
+    // If we can continue generating text content rather than choices,
+    // then we reflect the choice list as being empty, since choices
+    // should always come at the end.
+    if (this.canContinue) return [];
+    return this._currentFlow.currentChoices;
+  }
+
+  get generatedChoices(): Choice[] {
+    return this._currentFlow.currentChoices;
+  }
+
+  get currentErrors(): string[] {
+    return this._currentErrors;
+  }
+
+  get currentWarnings(): string[] {
+    return this._currentWarnings;
+  }
+
+  get variablesState(): VariablesState {
+    return this._variablesState;
+  }
+
+  set variablesState(value) {
+    this._variablesState = value;
+  }
+
+  private _variablesState: VariablesState;
+
+  get callStack(): CallStack {
+    return this._currentFlow.callStack;
+  }
+
+  get evaluationStack(): RuntimeObject[] {
+    return this._evaluationStack;
+  }
+
+  get currentTurnIndex(): number {
+    return this._currentTurnIndex;
+  }
+
+  set currentTurnIndex(value) {
+    this._currentTurnIndex = value;
+  }
+
+  get currentPathString(): string {
+    const pointer = this.currentPointer;
+    if (pointer.isNull) {
+      return null;
+    }
+    if (pointer.path === null) {
+      throw new NullException("pointer.path");
+    }
+    return pointer.path.toString();
+  }
+
+  get currentPointer(): Pointer {
+    return this.callStack.currentElement?.currentPointer?.Copy?.() || null;
+  }
+
+  set currentPointer(value) {
+    this.callStack.currentElement.currentPointer = value.Copy();
+  }
+
+  get previousPointer(): Pointer {
+    return this.callStack.currentThread?.previousPointer?.Copy?.() || null;
+  }
+
+  set previousPointer(value) {
+    this.callStack.currentThread.previousPointer = value.Copy();
+  }
+
+  get canContinue(): boolean {
+    return !this.currentPointer?.isNull && !this.hasError;
+  }
+
+  get hasError(): boolean {
+    return this.currentErrors?.length > 0;
+  }
+
+  get hasWarning(): boolean {
+    return this.currentWarnings?.length > 0;
+  }
+
+  get currentText(): string {
+    if (this._outputStreamTextDirty) {
+      const sb = new StringBuilder();
+
+      this.outputStream.forEach((outputObj) => {
+        const textContent = outputObj as StringValue;
+        if (textContent !== null) {
+          sb.Append(textContent.value);
+        }
+      });
+
+      this._currentText = this.CleanOutputWhitespace(sb.ToString());
+      this._outputStreamTextDirty = false;
+    }
+
+    return this._currentText;
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public ToJson(indented = false): string {
@@ -148,137 +296,6 @@ export class StoryState {
     return -1;
   }
 
-  get callstackDepth(): number {
-    return this.callStack.depth;
-  }
-
-  get outputStream(): RuntimeObject[] {
-    return this._currentFlow.outputStream;
-  }
-
-  get currentChoices(): Choice[] {
-    // If we can continue generating text content rather than choices,
-    // then we reflect the choice list as being empty, since choices
-    // should always come at the end.
-    if (this.canContinue) return [];
-    return this._currentFlow.currentChoices;
-  }
-
-  get generatedChoices(): Choice[] {
-    return this._currentFlow.currentChoices;
-  }
-
-  get currentErrors(): string[] {
-    return this._currentErrors;
-  }
-
-  private _currentErrors: string[] = null;
-
-  get currentWarnings(): string[] {
-    return this._currentWarnings;
-  }
-
-  private _currentWarnings: string[] = null;
-
-  get variablesState(): VariablesState {
-    return this._variablesState;
-  }
-
-  set variablesState(value) {
-    this._variablesState = value;
-  }
-
-  private _variablesState: VariablesState;
-
-  get callStack(): CallStack {
-    return this._currentFlow.callStack;
-  }
-
-  get evaluationStack(): RuntimeObject[] {
-    return this._evaluationStack;
-  }
-
-  private _evaluationStack: RuntimeObject[];
-
-  public divertedPointer: Pointer = Pointer.Null;
-
-  get currentTurnIndex(): number {
-    return this._currentTurnIndex;
-  }
-
-  set currentTurnIndex(value) {
-    this._currentTurnIndex = value;
-  }
-
-  private _currentTurnIndex = 0;
-
-  public storySeed = 0;
-
-  public previousRandom = 0;
-
-  public didSafeExit = false;
-
-  public story: Story;
-
-  get currentPathString(): string {
-    const pointer = this.currentPointer;
-    if (pointer.isNull) {
-      return null;
-    }
-    if (pointer.path === null) {
-      throw new NullException("pointer.path");
-    }
-    return pointer.path.toString();
-  }
-
-  get currentPointer(): Pointer {
-    return this.callStack.currentElement.currentPointer.copy();
-  }
-
-  set currentPointer(value) {
-    this.callStack.currentElement.currentPointer = value.copy();
-  }
-
-  get previousPointer(): Pointer {
-    return this.callStack.currentThread.previousPointer.copy();
-  }
-
-  set previousPointer(value) {
-    this.callStack.currentThread.previousPointer = value.copy();
-  }
-
-  get canContinue(): boolean {
-    return !this.currentPointer.isNull && !this.hasError;
-  }
-
-  get hasError(): boolean {
-    return this.currentErrors != null && this.currentErrors.length > 0;
-  }
-
-  get hasWarning(): boolean {
-    return this.currentWarnings != null && this.currentWarnings.length > 0;
-  }
-
-  get currentText(): string {
-    if (this._outputStreamTextDirty) {
-      const sb = new StringBuilder();
-
-      this.outputStream.forEach((outputObj) => {
-        const textContent = outputObj as StringValue;
-        if (textContent !== null) {
-          sb.Append(textContent.value);
-        }
-      });
-
-      this._currentText = this.CleanOutputWhitespace(sb.ToString());
-      this._outputStreamTextDirty = false;
-    }
-
-    return this._currentText;
-  }
-
-  private _currentText: string = null;
-
   public CleanOutputWhitespace(str: string): string {
     const sb = new StringBuilder();
 
@@ -348,7 +365,7 @@ export class StoryState {
     this.callStack.currentElement.inExpressionEvaluation = value;
   }
 
-  constructor(story: Story) {
+  constructor(story: IStory) {
     this.story = story;
 
     this._currentFlow = new Flow(this.kDefaultFlowName, story);
@@ -465,9 +482,9 @@ export class StoryState {
     copy.evaluationStack.push(...this.evaluationStack);
 
     if (!this.divertedPointer.isNull)
-      copy.divertedPointer = this.divertedPointer.copy();
+      copy.divertedPointer = this.divertedPointer.Copy();
 
-    copy.previousPointer = this.previousPointer.copy();
+    copy.previousPointer = this.previousPointer.Copy();
 
     copy._visitCounts = this._visitCounts;
     copy._turnIndices = this._turnIndices;
@@ -569,9 +586,9 @@ export class StoryState {
     writer.WriteIntProperty("storySeed", this.storySeed);
     writer.WriteIntProperty("previousRandom", this.previousRandom);
 
-    writer.WriteIntProperty("inkSaveVersion", this.kSaveStateVersion);
+    writer.WriteIntProperty("scriptSaveVersion", this.kSaveStateVersion);
 
-    writer.WriteIntProperty("inkFormatVersion", Story.inkVersionCurrent);
+    writer.WriteIntProperty("scriptFormatVersion", ScriptVersion.current);
 
     writer.WriteObjectEnd();
   }
@@ -579,9 +596,9 @@ export class StoryState {
   public LoadJsonObj(value: Record<string, unknown>): void {
     const jObject = value;
 
-    const jSaveVersion = jObject.inkSaveVersion;
+    const jSaveVersion = jObject.scriptSaveVersion;
     if (jSaveVersion == null) {
-      throw new Error("ink save format incorrect, can't load.");
+      throw new Error("script save format incorrect, can't load.");
     } else if (Number(jSaveVersion) < this.kMinCompatibleLoadVersion) {
       throw new Error(
         `Save format isn't compatible with the current version (saw '${jSaveVersion}', but minimum is ${this.kMinCompatibleLoadVersion}), so can't load.`
@@ -1178,20 +1195,4 @@ export class StoryState {
     this._outputStreamTextDirty = true;
     this._outputStreamTagsDirty = true;
   }
-
-  private _visitCounts: Record<string, number>;
-
-  private _turnIndices: Record<string, number>;
-
-  private _outputStreamTextDirty = true;
-
-  private _outputStreamTagsDirty = true;
-
-  private _patch: StatePatch = null;
-
-  private _currentFlow: Flow;
-
-  private _namedFlows: Record<string, Flow> = null;
-
-  private readonly kDefaultFlowName = "DEFAULT_FLOW";
 }

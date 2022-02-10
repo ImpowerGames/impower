@@ -5,6 +5,7 @@ import UnmountAnimation from "./UnmountAnimation";
 interface PeerTransitionProps extends PeerAnimationProps {
   currentIndex: number;
   previousIndex: number;
+  reverseDirection?: boolean;
 }
 
 const PeerTransition = React.memo(

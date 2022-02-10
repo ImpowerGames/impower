@@ -2,10 +2,10 @@ import {
   Container,
   DebugMetadata,
   ErrorType,
+  isStringValue,
   Path,
   Story,
 } from "../../impower-script-engine";
-import { isStringValue } from "../../impower-script-engine/classes/StringValue";
 import { CommandLineInput } from "../types/CommandLineInput";
 import { CommandLineInputResult } from "../types/CommandLineInputResult";
 import { CompilerOptions } from "../types/CompilerOptions";
@@ -22,18 +22,17 @@ export class Compiler {
     return this._parsedStory;
   }
 
-  constructor(inkSource: string, options: CompilerOptions = null) {
-    this._inputString = inkSource;
+  constructor(options: CompilerOptions = null) {
     this._options = options || {
       sourceFilename: null,
-      countAllVisits: false,
+      countAllVisits: true,
       errorHandler: null,
     };
   }
 
-  public Parse(): ParsedStory {
+  public Parse(inputString: string): ParsedStory {
     this._parser = new ImpowerParser(
-      this._inputString,
+      inputString,
       this._options.sourceFilename,
       this.OnParseError
     );
@@ -41,8 +40,8 @@ export class Compiler {
     return this._parsedStory;
   }
 
-  public Compile(): Story {
-    this.Parse();
+  public Compile(inputString: string): Story {
+    this.Parse(inputString);
     if (this._parsedStory != null && !this._hadParseError) {
       this._parsedStory.countAllVisits = this._options.countAllVisits;
       this._runtimeStory = this._parsedStory.ExportRuntime(
@@ -180,8 +179,6 @@ export class Compiler {
       throw new Error(message);
     }
   }
-
-  _inputString: string;
 
   _options: CompilerOptions;
 

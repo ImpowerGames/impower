@@ -14,6 +14,14 @@ export class VariableAssignment extends RuntimeObject {
     this.isGlobal = false;
   }
 
+  override Copy(): VariableAssignment {
+    const obj = new VariableAssignment(
+      this.variableName,
+      this.isNewDeclaration
+    );
+    return obj;
+  }
+
   public toString(): string {
     return `VarAssign to ${this.variableName}`;
   }

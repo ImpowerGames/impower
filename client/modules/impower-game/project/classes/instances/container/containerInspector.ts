@@ -19,7 +19,7 @@ export abstract class ContainerInspector<
   }
 
   getSummary(data: T): string {
-    return data.childContainerIds && data.childContainerIds.length > 0
+    return data.childContainerIds && data.childContainerIds?.length > 0
       ? `(${data.childContainerIds.length})`
       : "";
   }

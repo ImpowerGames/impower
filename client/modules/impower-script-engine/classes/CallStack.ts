@@ -1,3 +1,4 @@
+import { IStory } from "../types/IStory";
 import { PushPopType } from "../types/PushPopType";
 import { Debug } from "./Debug";
 import { JsonWriter } from "./JsonWriter";
@@ -5,12 +6,17 @@ import { ListValue } from "./ListValue";
 import { NullException } from "./NullException";
 import { Pointer } from "./Pointer";
 import { RuntimeObject } from "./RuntimeObject";
-import { Story } from "./Story";
 import { StringBuilder } from "./StringBuilder";
 import { Thread } from "./Thread";
 import { ThreadElement } from "./ThreadElement";
 
 export class CallStack {
+  private _threads: Thread[] = [];
+
+  private _threadCounter = 0;
+
+  private _startOfRoot: Pointer = Pointer.Null;
+
   get elements(): ThreadElement[] {
     return this.callStack;
   }
@@ -21,8 +27,15 @@ export class CallStack {
 
   get currentElement(): ThreadElement {
     const thread = this._threads[this._threads.length - 1];
+    if (!thread) {
+      return null;
+    }
     const cs = thread.callstack;
-    return cs[cs.length - 1];
+    const element = cs[cs.length - 1];
+    if (!element) {
+      return null;
+    }
+    return element;
   }
 
   get currentElementIndex(): number {
@@ -47,25 +60,22 @@ export class CallStack {
     return this.callStack.length > 1;
   }
 
-  constructor(storyContext: Story);
+  constructor(storyContext: IStory);
 
   constructor(toCopy: CallStack);
 
   constructor(...args) {
-    if (args[0] instanceof Story) {
-      const storyContext = args[0] as Story;
-
-      this._startOfRoot = Pointer.StartOf(storyContext.rootContentContainer);
-      this.Reset();
-    } else {
-      const toCopy = args[0] as CallStack;
-
+    const arg = args[0];
+    if (arg instanceof CallStack) {
       this._threads = [];
-      toCopy._threads.forEach((otherThread) => {
+      arg._threads?.forEach((otherThread) => {
         this._threads.push(otherThread.Copy());
       });
-      this._threadCounter = toCopy._threadCounter;
-      this._startOfRoot = toCopy._startOfRoot.copy();
+      this._threadCounter = arg._threadCounter;
+      this._startOfRoot = arg._startOfRoot?.Copy?.();
+    } else {
+      this._startOfRoot = Pointer.StartOf(arg.rootContentContainer);
+      this.Reset();
     }
   }
 
@@ -80,7 +90,7 @@ export class CallStack {
 
   public SetJsonToken(
     jObject: Record<string, unknown>,
-    storyContext: Story
+    storyContext: IStory
   ): void {
     this._threads.length = 0;
 
@@ -144,7 +154,7 @@ export class CallStack {
   }
 
   get elementIsEvaluateFromGame(): boolean {
-    return this.currentElement.type === "FunctionEvaluationFromGame";
+    return this.currentElement?.type === "FunctionEvaluationFromGame";
   }
 
   public Push(
@@ -154,7 +164,7 @@ export class CallStack {
   ): void {
     const element = new ThreadElement(
       type,
-      this.currentElement.currentPointer,
+      this.currentElement?.currentPointer,
       false
     );
 
@@ -173,7 +183,7 @@ export class CallStack {
       return true;
     }
 
-    return this.currentElement.type === type;
+    return this.currentElement?.type === type;
   }
 
   public Pop(type: PushPopType = null): void {
@@ -226,7 +236,7 @@ export class CallStack {
   }
 
   public ContextForVariableNamed(name: string): number {
-    if (this.currentElement.temporaryVariables[name]) {
+    if (this.currentElement?.temporaryVariables?.[name]) {
       return this.currentElementIndex + 1;
     }
     return 0;
@@ -276,10 +286,4 @@ export class CallStack {
 
     return sb.ToString();
   }
-
-  public _threads!: Thread[]; // Banged because it's initialized in Reset().
-
-  public _threadCounter = 0;
-
-  public _startOfRoot: Pointer = Pointer.Null;
 }

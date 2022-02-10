@@ -28,7 +28,7 @@ export class Path {
       const tail = args[1] as Path;
       this._components.push(head);
       this._components = this._components.concat(tail._components);
-    } else if (args[0] instanceof Array) {
+    } else if (Array.isArray(args[0])) {
       const head = args[0] as PathComponent[];
       const relative = !!args[1] as boolean;
       this._components = this._components.concat(head);
@@ -88,6 +88,16 @@ export class Path {
     return path;
   }
 
+  public Copy(): Path {
+    const obj = new Path();
+    obj._isRelative = this._isRelative;
+    obj._components = this._components
+      ? [...this._components.map((x) => x.Copy())]
+      : this._components;
+    obj._componentsString = this._componentsString;
+    return obj;
+  }
+
   public GetComponent(index: number): PathComponent {
     return this._components[index];
   }
@@ -117,7 +127,9 @@ export class Path {
 
   get componentsString(): string {
     if (this._componentsString == null) {
-      this._componentsString = this._components.join(".");
+      this._componentsString = this._components
+        .map((x) => x.toString())
+        .join(".");
       if (this.isRelative) {
         this._componentsString = `.${this._componentsString}`;
       }

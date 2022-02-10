@@ -29,6 +29,11 @@ export class DivertTargetValue extends Value<Path> {
     throw new Error("Shouldn't be checking the truthiness of a divert target");
   }
 
+  override Copy(): DivertTargetValue {
+    const obj = new DivertTargetValue(this.value);
+    return obj;
+  }
+
   public Cast(newType: ValueType): IValue {
     if (newType === this.valueType) {
       return this;

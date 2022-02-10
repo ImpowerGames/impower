@@ -23,6 +23,11 @@ export class FloatValue extends Value<number> {
     return "Float";
   }
 
+  override Copy(): FloatValue {
+    const obj = new FloatValue(this.value);
+    return obj;
+  }
+
   public Cast(newType: ValueType): Value<unknown> {
     if (this.value === null) {
       throw new NullException("Value.value");

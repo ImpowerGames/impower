@@ -71,6 +71,19 @@ export class ChoicePoint extends RuntimeObject {
     this.onceOnly = (value & 16) > 0;
   }
 
+  override Copy(): ChoicePoint {
+    const obj = new ChoicePoint();
+    obj._pathOnChoice = this._pathOnChoice
+      ? this._pathOnChoice.Copy()
+      : this._pathOnChoice;
+    obj.hasCondition = this.hasCondition;
+    obj.hasStartContent = this.hasStartContent;
+    obj.hasChoiceOnlyContent = this.hasChoiceOnlyContent;
+    obj.isInvisibleDefault = this.isInvisibleDefault;
+    obj.onceOnly = this.onceOnly;
+    return obj;
+  }
+
   public toString(): string {
     if (this.pathOnChoice === null) {
       throw new NullException("ChoicePoint.pathOnChoice");

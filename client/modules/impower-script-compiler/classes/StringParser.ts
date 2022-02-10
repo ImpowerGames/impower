@@ -9,7 +9,7 @@ import { StringParserElement } from "./StringParserElement";
 import { StringParserState } from "./StringParserState";
 
 export class StringParser implements IStringParser {
-  static ParseSuccess: unknown = null;
+  static ParseSuccess = {};
 
   static numbersCharacterSet: CharacterSet = new CharacterSet("0123456789");
 
@@ -201,7 +201,9 @@ export class StringParser implements IStringParser {
   }
 
   LineRemainder(): string {
-    return String(this.Peek(() => this.ParseUntilCharactersFromString("\n\r")));
+    return this.Peek(() =>
+      this.ParseUntilCharactersFromString("\n\r")
+    ) as string;
   }
 
   SetFlag(flag: number, trueOrFalse: boolean): void {
@@ -231,7 +233,9 @@ export class StringParser implements IStringParser {
       throw new Error("Mismatched Begin/Fail/Succeed rules");
     }
 
-    if (result == null) return this.FailRule(ruleId);
+    if (result == null) {
+      return this.FailRule(ruleId);
+    }
 
     this.SucceedRule(ruleId, result);
     return result;
@@ -346,13 +350,14 @@ export class StringParser implements IStringParser {
   ): T[] {
     const ruleId = this.BeginRule();
 
-    const results = [];
-
     // First outer padding
     const firstA = this.ParseObject(ruleA);
     if (firstA == null) {
       return this.FailRule(ruleId) as T[];
     }
+
+    const results = [];
+
     this.TryAddResultToList(firstA, results, flatten);
 
     let lastMainResult = null;
@@ -438,9 +443,9 @@ export class StringParser implements IStringParser {
     this.lineIndex = li;
 
     if (success) {
-      return String(this.SucceedRule(ruleId, str));
+      return this.SucceedRule(ruleId, str) as string;
     }
-    return String(this.FailRule(ruleId));
+    return this.FailRule(ruleId) as string;
   }
 
   ParseSingleCharacter(): string {
@@ -592,9 +597,9 @@ export class StringParser implements IStringParser {
     } while (!this.endOfInput);
 
     if (parsedString.Length > 0) {
-      return String(this.SucceedRule(ruleId, parsedString.ToString()));
+      return this.SucceedRule(ruleId, parsedString.ToString()) as string;
     }
-    return String(this.FailRule(ruleId));
+    return this.FailRule(ruleId) as string;
   }
 
   // No need to Begin/End rule since we never parse a newline, so keeping oldIndex is good enough
@@ -658,8 +663,8 @@ export class StringParser implements IStringParser {
     this.ParseString("\r");
 
     if (this.ParseString("\n") == null) {
-      return String(this.FailRule(ruleId));
+      return this.FailRule(ruleId) as string;
     }
-    return String(this.SucceedRule(ruleId, "\n"));
+    return this.SucceedRule(ruleId, "\n") as string;
   }
 }

@@ -51,14 +51,11 @@ export abstract class ParsedObject implements IObject {
   }
 
   get story(): IStory {
-    let ancestor = this.parent;
-    while (ancestor.parent) {
+    let ancestor = this as IObject;
+    while (ancestor?.parent) {
       ancestor = ancestor.parent;
     }
-    if (isStory(ancestor)) {
-      return ancestor;
-    }
-    return null;
+    return ancestor as IStory;
   }
 
   get runtimeObject(): RuntimeObject {
@@ -225,7 +222,7 @@ export abstract class ParsedObject implements IObject {
     }
 
     subContent.parent = this;
-    this.content[index] = subContent;
+    this.content.splice(index, 0, subContent);
 
     return subContent;
   }
@@ -317,8 +314,10 @@ export abstract class ParsedObject implements IObject {
     }
 
     if (isWarning) {
+      console.warn(message, source);
       source.alreadyHadWarning = true;
     } else {
+      console.error(message, source);
       source.alreadyHadError = true;
     }
   }

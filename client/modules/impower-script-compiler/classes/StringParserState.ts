@@ -50,9 +50,9 @@ export class StringParserState implements IStringParserState {
     return this._numElements;
   }
 
-  StringParserState(): void {
+  constructor() {
     const kExpectedMaxStackDepth = 200;
-    this._stack = new StringParserElement[kExpectedMaxStackDepth]();
+    this._stack = [];
 
     for (let i = 0; i < kExpectedMaxStackDepth; i += 1) {
       this._stack[i] = new StringParserElement();

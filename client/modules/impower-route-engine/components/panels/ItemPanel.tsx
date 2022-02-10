@@ -1121,12 +1121,16 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
     }
     handleSetSelection([]);
   }, [openPanel, changeTypeTargetId, handleSetSelection]);
-  const handleSelectAllShortcut = useCallback(() => {
-    if (openPanel !== DataPanelType.Item || changeTypeTargetId !== "") {
-      return;
-    }
-    handleSetSelection(inspectedItemIds);
-  }, [openPanel, changeTypeTargetId, inspectedItemIds, handleSetSelection]);
+  const handleSelectAllShortcut = useCallback(
+    (event: KeyboardEvent) => {
+      if (openPanel !== DataPanelType.Item || changeTypeTargetId !== "") {
+        return;
+      }
+      event.preventDefault();
+      handleSetSelection(inspectedItemIds);
+    },
+    [openPanel, changeTypeTargetId, inspectedItemIds, handleSetSelection]
+  );
   const { onPreviousItem: selectPreviousItem, onNextItem: selectNextItem } =
     useItemNavigation(selectedItemIds, inspectedItems, onSelectItem);
   const handleSelectPreviousItemShortcut = (e: KeyboardEvent): void => {

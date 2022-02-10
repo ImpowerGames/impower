@@ -46,10 +46,10 @@ const doProjectValidate = (state: ProjectState): ProjectState => {
   // This is slow, only call before starting game
   const blocks = Object.values(project?.instances?.blocks?.data || {});
   const blockTriggers = blocks.flatMap((block) =>
-    Object.values(block.triggers?.data)
+    Object.values(block.triggers?.data || {})
   );
   const blockCommands = blocks.flatMap((block) =>
-    Object.values(block.commands?.data)
+    Object.values(block.commands?.data || {})
   );
   let newProject = { ...project };
   const validateData = (

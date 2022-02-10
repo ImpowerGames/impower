@@ -7,6 +7,22 @@ import { RuntimeObject } from "./RuntimeObject";
 import { StringBuilder } from "./StringBuilder";
 
 export class Divert extends RuntimeObject {
+  public _targetPath: Path = null;
+
+  public _targetPointer: Pointer = Pointer.Null;
+
+  public variableDivertName: string = null;
+
+  public pushesToStack = false;
+
+  public stackPushType: PushPopType;
+
+  public isExternal = false;
+
+  public externalArgs = 0;
+
+  public isConditional = false;
+
   get targetPath(): Path {
     if (this._targetPath != null && this._targetPath.isRelative) {
       const targetObj = this.targetPointer.Resolve();
@@ -22,8 +38,6 @@ export class Divert extends RuntimeObject {
     this._targetPath = value;
     this._targetPointer = Pointer.Null;
   }
-
-  public _targetPath: Path = null;
 
   get targetPointer(): Pointer {
     if (this._targetPointer.isNull) {
@@ -50,10 +64,8 @@ export class Divert extends RuntimeObject {
       }
     }
 
-    return this._targetPointer.copy();
+    return this._targetPointer.Copy();
   }
-
-  public _targetPointer: Pointer = Pointer.Null;
 
   get targetPathString(): string {
     if (this.targetPath == null) return null;
@@ -69,21 +81,9 @@ export class Divert extends RuntimeObject {
     }
   }
 
-  public variableDivertName: string = null;
-
   get hasVariableTarget(): boolean {
     return this.variableDivertName != null;
   }
-
-  public pushesToStack = false;
-
-  public stackPushType: PushPopType;
-
-  public isExternal = false;
-
-  public externalArgs = 0;
-
-  public isConditional = false;
 
   constructor(stackPushType?: PushPopType) {
     super();
@@ -93,6 +93,19 @@ export class Divert extends RuntimeObject {
       this.pushesToStack = true;
       this.stackPushType = stackPushType;
     }
+  }
+
+  override Copy(): Divert {
+    const obj = new Divert();
+    obj._targetPath = this._targetPath.Copy();
+    obj._targetPointer = this._targetPointer.Copy();
+    obj.variableDivertName = this.variableDivertName;
+    obj.pushesToStack = this.pushesToStack;
+    obj.stackPushType = this.stackPushType;
+    obj.isExternal = this.isExternal;
+    obj.externalArgs = this.externalArgs;
+    obj.isConditional = this.isConditional;
+    return obj;
   }
 
   public Equals(obj: Divert): boolean {

@@ -13,7 +13,7 @@ export class ControlCommand extends RuntimeObject {
     this._commandType = commandType;
   }
 
-  public Copy(): ControlCommand {
+  override Copy(): ControlCommand {
     return new ControlCommand(this.commandType);
   }
 

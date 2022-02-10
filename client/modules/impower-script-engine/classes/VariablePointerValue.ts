@@ -48,6 +48,10 @@ export class VariablePointerValue extends Value<string> {
     );
   }
 
+  override Copy(): VariablePointerValue {
+    return new VariablePointerValue(this.variableName, this.contextIndex);
+  }
+
   public Cast(newType: ValueType): IValue {
     if (newType === this.valueType) {
       return this;
@@ -58,9 +62,5 @@ export class VariablePointerValue extends Value<string> {
 
   public toString(): string {
     return `VariablePointerValue(${this.variableName})`;
-  }
-
-  public Copy(): VariablePointerValue {
-    return new VariablePointerValue(this.variableName, this.contextIndex);
   }
 }

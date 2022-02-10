@@ -1,3 +1,5 @@
+import { Compiler } from "../../../impower-script-compiler";
+import { Story } from "../../../impower-script-engine";
 import { BlockData, ConstructData } from "../../data";
 import { ImpowerGameRunner } from "../../runner/classes/impowerGameRunner";
 import { FileData } from "./instances/file/fileData";
@@ -10,6 +12,8 @@ import { VariableData } from "./instances/items/variable/variableData";
 import { GameProjectData } from "./project/gameProjectData";
 
 export class ImpowerDataMap {
+  private _compiler: Compiler = new Compiler();
+
   private _files: { [refId: string]: FileData };
 
   public get files(): { [refId: string]: FileData } {
@@ -72,6 +76,12 @@ export class ImpowerDataMap {
     return this._blockInternalRunners;
   }
 
+  private _blockParsedScript: Story;
+
+  public get blockParsedScript(): Story {
+    return this._blockParsedScript;
+  }
+
   constructor(project: GameProjectData, runner: ImpowerGameRunner) {
     this._files = { ...(project?.instances?.files?.data || {}) };
     this._constructs = {};
@@ -83,10 +93,10 @@ export class ImpowerDataMap {
     Object.values(project?.instances?.constructs?.data || {}).forEach(
       (construct) => {
         this._constructs[construct.reference.refId] = construct;
-        Object.values(construct.variables.data).forEach((variable) => {
+        Object.values(construct.variables?.data || {}).forEach((variable) => {
           this._variables[variable.reference.refId] = variable;
         });
-        Object.values(construct.elements.data).forEach((element) => {
+        Object.values(construct.elements?.data || {}).forEach((element) => {
           this._elements[element.reference.refId] = element;
         });
       }
@@ -98,9 +108,14 @@ export class ImpowerDataMap {
         triggers: runner.getIterableRunners(block.triggers),
         commands: runner.getIterableRunners(block.commands),
       };
-      Object.values(block.variables.data).forEach((variable) => {
+      Object.values(block.variables?.data || {}).forEach((variable) => {
         this._variables[variable.reference.refId] = variable;
       });
+      const { script } = block;
+      if (script) {
+        this._blockParsedScript[block.reference.refId] =
+          this._compiler.Compile(script);
+      }
     });
   }
 }

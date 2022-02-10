@@ -10,23 +10,6 @@ import { SearchResult } from "./SearchResult";
 import { StringBuilder } from "./StringBuilder";
 import { StringValue } from "./StringValue";
 
-export const isContainer = (obj: unknown): obj is Container => {
-  const item = obj as Container;
-  if (typeof item !== "object") {
-    return false;
-  }
-  if (
-    !isNamedContent(obj) ||
-    item.namedContent === undefined ||
-    item.visitsShouldBeCounted === undefined ||
-    item.turnIndexShouldBeCounted === undefined ||
-    item.countingAtStartOnly === undefined
-  ) {
-    return false;
-  }
-  return true;
-};
-
 export class Container extends RuntimeObject implements IContainer {
   public name = "";
 
@@ -96,9 +79,15 @@ export class Container extends RuntimeObject implements IContainer {
 
   get countFlags(): number {
     let flags: CountFlags = 0;
-    if (this.visitsShouldBeCounted) flags |= CountFlags.Visits;
-    if (this.turnIndexShouldBeCounted) flags |= CountFlags.Turns;
-    if (this.countingAtStartOnly) flags |= CountFlags.CountStartOnly;
+    if (this.visitsShouldBeCounted) {
+      flags |= CountFlags.Visits;
+    }
+    if (this.turnIndexShouldBeCounted) {
+      flags |= CountFlags.Turns;
+    }
+    if (this.countingAtStartOnly) {
+      flags |= CountFlags.CountStartOnly;
+    }
 
     if (flags === CountFlags.CountStartOnly) {
       flags = 0;
@@ -132,36 +121,47 @@ export class Container extends RuntimeObject implements IContainer {
 
   get internalPathToFirstLeafContent(): Path {
     const components: PathComponent[] = [];
-    let container = isContainer(this?.content?.[0]) ? this?.content?.[0] : null;
+    let container = this?.content?.[0];
     while (container instanceof Container) {
       if (container?.content?.length > 0) {
         components.push(new PathComponent(0));
-        container = isContainer(container?.content?.[0])
-          ? container?.content?.[0]
-          : null;
+        if (container?.content?.[0] instanceof Container) {
+          container = container?.content?.[0];
+        }
       }
     }
     return new Path(components);
   }
 
-  public AddContent(contentObjOrList: RuntimeObject | RuntimeObject[]): void {
-    if (contentObjOrList instanceof Array) {
-      const contentList = contentObjOrList as RuntimeObject[];
+  override Copy(): Container {
+    const obj = new Container();
+    obj.name = this.name;
+    obj._content = this._content ? [...this._content] : this._content;
+    obj.namedContent = this.namedContent
+      ? { ...this.namedContent }
+      : this.namedContent;
+    obj.visitsShouldBeCounted = this.visitsShouldBeCounted;
+    obj.turnIndexShouldBeCounted = this.turnIndexShouldBeCounted;
+    obj.countingAtStartOnly = this.countingAtStartOnly;
+    obj._pathToFirstLeafContent = this._pathToFirstLeafContent;
+    return obj;
+  }
 
-      contentList.forEach((c) => {
+  public AddContent(contentObjOrList: RuntimeObject | RuntimeObject[]): void {
+    if (Array.isArray(contentObjOrList)) {
+      contentObjOrList.forEach((c) => {
         this.AddContent(c);
       });
     } else {
-      const contentObj = contentObjOrList as RuntimeObject;
-      this._content.push(contentObj);
+      this._content.push(contentObjOrList);
 
-      if (contentObj.parent) {
-        throw new Error(`content is already in ${contentObj.parent}`);
+      if (contentObjOrList.parent) {
+        throw new Error(`content is already in ${contentObjOrList.parent}`);
       }
 
-      contentObj.parent = this;
+      contentObjOrList.parent = this;
 
-      this.TryAddNamedContent(contentObj);
+      this.TryAddNamedContent(contentObjOrList);
     }
   }
 
@@ -172,11 +172,6 @@ export class Container extends RuntimeObject implements IContainer {
   }
 
   public AddToNamedContentOnly(namedContentObj: RuntimeObject): void {
-    Debug.AssertType(
-      namedContentObj,
-      RuntimeObject,
-      "Can only add Runtime.Objects to a Runtime.Container"
-    );
     if (isNamedContent(namedContentObj)) {
       const runtimeObj = namedContentObj as unknown as RuntimeObject;
       runtimeObj.parent = this;
@@ -215,7 +210,7 @@ export class Container extends RuntimeObject implements IContainer {
       }
 
       currentObj = foundObj;
-      if (isContainer(foundObj)) {
+      if (foundObj instanceof Container) {
         currentContainer = foundObj;
       }
     }
@@ -226,7 +221,7 @@ export class Container extends RuntimeObject implements IContainer {
   }
 
   public InsertContent(contentObj: RuntimeObject, index: number): void {
-    this.content[index] = contentObj;
+    this.content.splice(index, 0, contentObj);
 
     if (contentObj.parent) {
       throw new Error(`content is already in ${contentObj.parent}`);
@@ -238,7 +233,10 @@ export class Container extends RuntimeObject implements IContainer {
   }
 
   public AddContentsOfContainer(otherContainer: Container): void {
-    this.content = this.content.concat(otherContainer.content);
+    otherContainer.content.forEach((obj) => {
+      obj.parent = null;
+    });
+    this.content = otherContainer.content;
 
     otherContainer.content.forEach((obj) => {
       obj.parent = this;
@@ -302,7 +300,7 @@ export class Container extends RuntimeObject implements IContainer {
     for (let i = 0; i < this.content.length; i += 1) {
       const obj = this.content[i];
 
-      const container = isContainer(obj) ? obj : null;
+      const container = obj;
       if (container instanceof Container) {
         container.BuildStringOfHierarchy(sb, indentation, pointedObj);
       } else {
@@ -346,7 +344,7 @@ export class Container extends RuntimeObject implements IContainer {
           Container,
           "Can only print out named Containers"
         );
-        const container = isContainer(value) ? value : null;
+        const container = value instanceof Container ? value : null;
         container.BuildStringOfHierarchy(sb, indentation, pointedObj);
         sb.AppendLine();
       });

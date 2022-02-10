@@ -123,7 +123,9 @@ export class ParsedDivertTarget
         );
       }
 
-      if (foundUsage) break;
+      if (foundUsage) {
+        break;
+      }
 
       usageContext = usageParent as ParsedObject;
     }
@@ -136,10 +138,11 @@ export class ParsedDivertTarget
     // than a variable name. We can't really intelligently recover from this (e.g. if blah happens to
     // contain a divert target itself) since really we should be generating a variable reference
     // rather than a concrete DivertTarget, so we list it as an error.
-    if (this._runtimeDivert.hasVariableTarget)
+    if (this._runtimeDivert.hasVariableTarget) {
       this.Error(
         `Since '${this.divert.target.dotSeparatedComponents}' is a variable, it shouldn't be preceded by '->' here.`
       );
+    }
 
     // Main resolve
     this._runtimeDivertTargetValue.targetPath = this._runtimeDivert.targetPath;
@@ -148,9 +151,9 @@ export class ParsedDivertTarget
     // TODO: Only detect DivertTargets that are values rather than being used directly for
     // read or turn counts. Should be able to detect this by looking for other uses of containerForCounting
     const { targetContent } = this.divert;
-    if (targetContent != null) {
+    if (targetContent) {
       const target = targetContent.containerForCounting;
-      if (target != null) {
+      if (target) {
         // Purpose is known: used directly in TURNS_SINCE(-> divTarg)
         const parentFunc = this.parent;
         if (

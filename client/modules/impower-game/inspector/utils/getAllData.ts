@@ -67,7 +67,7 @@ const getAllDataInternal = (
               `${lookup.parentContainerType} with id '${lookup.parentContainerId}' does not exist in project`
             );
           }
-          data.childContainerIds.forEach((id) => {
+          data.childContainerIds?.forEach((id) => {
             const childData = project?.instances?.constructs.data[id];
             if (childData) {
               dict[id] = {
@@ -98,7 +98,7 @@ const getAllDataInternal = (
               `${lookup.parentContainerType} with id '${lookup.parentContainerId}' does not exist in project`
             );
           }
-          data.childContainerIds.forEach((id) => {
+          data.childContainerIds?.forEach((id) => {
             const childData = project?.instances?.blocks.data[id];
             if (childData) {
               dict[id] = {

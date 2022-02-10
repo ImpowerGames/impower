@@ -20,7 +20,7 @@ export class ThreadElement {
     pointer: Pointer,
     inExpressionEvaluation = false
   ) {
-    this.currentPointer = pointer.copy();
+    this.currentPointer = pointer.Copy();
     this.inExpressionEvaluation = inExpressionEvaluation;
     this.temporaryVariables = {};
     this.type = type;

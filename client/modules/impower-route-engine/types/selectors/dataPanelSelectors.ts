@@ -27,7 +27,7 @@ const getChildConstructs = (
   if (!parentConstruct) {
     return childConstructs;
   }
-  parentConstruct.childContainerIds.forEach((refId) => {
+  parentConstruct.childContainerIds?.forEach((refId) => {
     const data = constructs[refId];
     if (data) {
       childConstructs[refId] = data;
@@ -44,7 +44,7 @@ const getChildBlocks = (
   if (!parentBlock) {
     return childBlocks;
   }
-  parentBlock.childContainerIds.forEach((refId) => {
+  parentBlock.childContainerIds?.forEach((refId) => {
     const data = blocks[refId];
     if (data) {
       childBlocks[refId] = data;

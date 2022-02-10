@@ -2,11 +2,11 @@ import { TryGetResult } from "../types/TryGetResult";
 import { ListItem, SerializedListItem } from "./ListItem";
 
 export class ListDefinition {
-  public _name: string;
+  public _name: string = null;
 
-  public _items: Record<SerializedListItem, number>;
+  public _items: Record<SerializedListItem, number> = null;
 
-  public _itemNameToValues: Record<string, number>;
+  public _itemNameToValues: Record<string, number> = null;
 
   constructor(name: string, items: Record<string, number>) {
     this._name = name || "";
@@ -28,6 +28,11 @@ export class ListDefinition {
     }
 
     return this._items;
+  }
+
+  public Copy(): ListDefinition {
+    const obj = new ListDefinition(this.name, this.items);
+    return obj;
   }
 
   public ValueForItem(item: ListItem): number {

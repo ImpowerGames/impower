@@ -1,15 +1,15 @@
 import {
-  ItemType,
-  ItemSectionType,
   ContainerReference,
   ItemReference,
+  ItemSectionType,
+  ItemType,
   SetupSectionType,
 } from "../../../impower-game/data";
 import {
   ContainerArrangement,
   DataInteractionType,
-  DataWindowType,
   DataPanelType,
+  DataWindowType,
 } from "../state/dataPanelState";
 
 export const DATA_PANEL_OPEN = "DATA_PANEL_OPEN";
@@ -206,6 +206,22 @@ export const dataPanelSetParentContainerArrangement = (
   return {
     type: DATA_PANEL_SET_PARENT_CONTAINER_ARRANGEMENT,
     payload: { windowType, arrangement },
+  };
+};
+
+export const DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING =
+  "DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING";
+export interface DataPanelSetParentContainerScriptingAction {
+  type: typeof DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING;
+  payload: { windowType: DataWindowType; scripting: boolean };
+}
+export const dataPanelSetParentContainerScripting = (
+  windowType: DataWindowType,
+  scripting: boolean
+): DataPanelSetParentContainerScriptingAction => {
+  return {
+    type: DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING,
+    payload: { windowType, scripting },
   };
 };
 
@@ -415,6 +431,7 @@ export type DataPanelAction =
   | DataPanelAddInteractionAction
   | DataPanelRemoveInteractionAction
   | DataPanelSetInteractionAction
+  | DataPanelSetParentContainerScriptingAction
   | DataPanelSetParentContainerArrangementAction
   | DataPanelChangeItemSectionAction
   | DataPanelSetLastAddedTypeIdAction

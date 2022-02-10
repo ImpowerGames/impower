@@ -49,7 +49,7 @@ export class ParsedStory extends ParsedFlowBase implements IStory {
 
   private _hadWarning = false;
 
-  private _dontFlattenContainers: Set<Container> = null;
+  private _dontFlattenContainers: Set<Container> = new Set();
 
   private _listDefs: Record<string, IListDefinition> = null;
 
@@ -148,6 +148,7 @@ export class ParsedStory extends ParsedFlowBase implements IStory {
     // Find all constants before main export begins, so that VariableReferences know
     // whether to generate a runtime variable reference or the literal value
     this.constants = {};
+
     this.FindAll<ParsedConstantDeclaration>(
       (d) => d instanceof ParsedConstantDeclaration
     ).forEach((constDecl) => {
@@ -233,7 +234,7 @@ export class ParsedStory extends ParsedFlowBase implements IStory {
     }
 
     // Optimisation step - inline containers that can be
-    this.FlattenContainersIn(rootContainer);
+    this.FlattenContainersIn(runtimeStory.mainContentContainer);
 
     // Now that the story has been fulled parsed into a hierarchy,
     // and the derived runtime hierarchy has been built, we can
@@ -306,10 +307,9 @@ export class ParsedStory extends ParsedFlowBase implements IStory {
     // because otherwise we'd end up modifying during iteration
     const innerContainers = new Set<Container>();
 
-    container.content.forEach((c) => {
-      const innerContainer = c as Container;
-      if (innerContainer) {
-        innerContainers.add(innerContainer);
+    container.content?.forEach((c) => {
+      if (c instanceof Container) {
+        innerContainers.add(c);
       }
     });
 
@@ -317,8 +317,8 @@ export class ParsedStory extends ParsedFlowBase implements IStory {
     // iterate through their children
     if (container.namedContent != null) {
       Object.values(container.namedContent).forEach((namedInnerContainer) => {
-        if (namedInnerContainer) {
-          innerContainers.add(namedInnerContainer as Container);
+        if (namedInnerContainer instanceof Container) {
+          innerContainers.add(namedInnerContainer);
         }
       });
     }
@@ -331,21 +331,22 @@ export class ParsedStory extends ParsedFlowBase implements IStory {
 
   TryFlattenContainer(container: Container): void {
     if (
-      Object.keys(container.namedContent).length > 0 ||
+      Object.keys(container.namedContent || {}).length > 0 ||
       container.hasValidName ||
       this._dontFlattenContainers.has(container)
-    )
+    ) {
       return;
+    }
 
     // Inline all the content in container into the parent
-    const parentContainer = container.parent as Container;
-    if (parentContainer) {
+    const parentContainer = container.parent;
+    if (parentContainer instanceof Container) {
       let contentIdx = parentContainer.content.indexOf(container);
       parentContainer.content.splice(contentIdx, 1);
 
       const dm = container.ownDebugMetadata;
 
-      container.content.forEach((innerContent) => {
+      container.content?.forEach((innerContent) => {
         innerContent.parent = null;
         if (dm != null && innerContent.ownDebugMetadata == null) {
           innerContent.debugMetadata = dm;

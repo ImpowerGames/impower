@@ -23,6 +23,11 @@ export class IntValue extends Value<number> {
     return "Int";
   }
 
+  override Copy(): IntValue {
+    const obj = new IntValue(this.value);
+    return obj;
+  }
+
   public Cast(newType: ValueType): Value<unknown> {
     if (this.value === null) {
       throw new NullException("Value.value");

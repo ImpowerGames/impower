@@ -225,7 +225,9 @@ export abstract class ParsedFlowBase
   ResolveWeavePointNaming(): void {
     // Find all weave points and organise them by name ready for
     // diverting. Also detect naming collisions.
-    if (this._rootWeave) this._rootWeave.ResolveWeavePointNaming();
+    if (this._rootWeave) {
+      this._rootWeave.ResolveWeavePointNaming();
+    }
 
     if (this._subFlowsByName != null) {
       Object.values(this._subFlowsByName).forEach((namedSubFlow) => {
@@ -255,7 +257,7 @@ export abstract class ParsedFlowBase
     }
 
     const container = new Container();
-    container.name = this.identifier?.name;
+    container.name = this.identifier?.name || null;
 
     if (this.story.countAllVisits) {
       container.visitsShouldBeCounted = true;

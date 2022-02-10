@@ -474,20 +474,18 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
         onInitialized={handlePlayerInitialized}
         onCreateGame={onCreateGame}
       >
-        <UnmountAnimation>
-          {mode === Mode.Edit && (
-            <PlayerPreview
-              doc={doc}
-              backgroundPosition={getBackgroundPosition(
-                project?.instances?.configs?.data?.ScaleConfig?.autoCenter
-              )}
-              backgroundSize={getBackgroundSize(
-                project?.instances?.configs?.data?.ScaleConfig?.mode
-              )}
-              onPlay={handleClickPlay}
-            />
-          )}
-        </UnmountAnimation>
+        {mode === Mode.Edit && (
+          <PlayerPreview
+            doc={doc}
+            backgroundPosition={getBackgroundPosition(
+              project?.instances?.configs?.data?.ScaleConfig?.autoCenter
+            )}
+            backgroundSize={getBackgroundSize(
+              project?.instances?.configs?.data?.ScaleConfig?.mode
+            )}
+            onPlay={handleClickPlay}
+          />
+        )}
       </Player>
       <TestOverlay debug={debug} logs={logs} onClickLog={handleClickLog} />
     </StyledTestPlayer>

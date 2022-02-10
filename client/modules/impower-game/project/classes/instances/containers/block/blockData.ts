@@ -1,16 +1,16 @@
 import { OrderedCollection } from "../../../../../../impower-core";
-import { Positionable } from "../../../../../data/interfaces/positionable";
-import { Disableable } from "../../../../../data/interfaces/disableable";
-import { VariableContainerData } from "../../container/variableContainerData";
-import { TriggerData } from "../../items/trigger/triggerData";
-import { CommandData } from "../../items/command/commandData";
-import { createContainerData } from "../../container/containerData";
 import { ContainerType } from "../../../../../data/enums/data";
+import { Disableable } from "../../../../../data/interfaces/disableable";
+import { Positionable } from "../../../../../data/interfaces/positionable";
 import {
   BlockReference,
   createBlockReference,
   isBlockReference,
 } from "../../../../../data/interfaces/references/blockReference";
+import { createContainerData } from "../../container/containerData";
+import { VariableContainerData } from "../../container/variableContainerData";
+import { CommandData } from "../../items/command/commandData";
+import { TriggerData } from "../../items/trigger/triggerData";
 
 export const defaultNodePosition = { x: 640, y: 640 };
 export const defaultNodeSize = { x: 144, y: 40 };
@@ -21,6 +21,7 @@ export interface BlockData
     Disableable {
   triggers: OrderedCollection<TriggerData>;
   commands: OrderedCollection<CommandData>;
+  script: string;
 }
 
 export const isBlockData = (obj: unknown): obj is BlockData => {
@@ -50,5 +51,6 @@ export const createBlockData = (obj?: Partial<BlockData>): BlockData => ({
   name: "NewBlock",
   nodePosition: defaultNodePosition,
   disabled: false,
+  script: "",
   ...obj,
 });

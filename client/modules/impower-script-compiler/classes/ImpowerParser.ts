@@ -10,7 +10,7 @@ import { Argument } from "../types/Argument";
 import { CommandLineInput } from "../types/CommandLineInput";
 import { CustomFlags } from "../types/CustomFlags";
 import { ErrorHandler } from "../types/ErrorHandler";
-import { Identifier } from "../types/Identifier";
+import { Identifier, isIdentifier } from "../types/Identifier";
 import { ParseRule } from "../types/ParseRule";
 import { SequenceType } from "../types/SequenceType";
 import { SpecificParseRule } from "../types/SpecificParseRule";
@@ -247,7 +247,8 @@ export class ImpowerParser extends StringParser {
   }
 
   protected override PreProcessInputString(str: string): string {
-    const inputWithCommentsRemoved = new CommentEliminator(str).Process();
+    const commentEliminator = new CommentEliminator(str);
+    const inputWithCommentsRemoved = commentEliminator.Process();
     return inputWithCommentsRemoved;
   }
 
@@ -271,18 +272,14 @@ export class ImpowerParser extends StringParser {
   ): void {
     // Apply DebugMetadata based on the state at the start of the rule
     // (i.e. use line number as it was at the start of the rule)
-    const parsedObj = result as ParsedObject;
-    if (parsedObj) {
-      parsedObj.debugMetadata = this.CreateDebugMetadata(
-        stateAtStart,
-        stateAtEnd
-      );
+    if (result instanceof ParsedObject) {
+      result.debugMetadata = this.CreateDebugMetadata(stateAtStart, stateAtEnd);
       return;
     }
 
     // A list of objects that doesn't already have metadata?
-    const parsedListObjs = result as ParsedObject[];
-    if (parsedListObjs != null) {
+    if (Array.isArray(result) && result?.[0] instanceof ParsedObject) {
+      const parsedListObjs = result as ParsedObject[];
       parsedListObjs.forEach((parsedListObj) => {
         if (!parsedListObj.hasOwnDebugMetadata) {
           parsedListObj.debugMetadata = this.CreateDebugMetadata(
@@ -293,9 +290,8 @@ export class ImpowerParser extends StringParser {
       });
     }
 
-    const id = result as Identifier;
-    if (id != null) {
-      id.debugMetadata = this.CreateDebugMetadata(stateAtStart, stateAtEnd);
+    if (isIdentifier(result)) {
+      result.debugMetadata = this.CreateDebugMetadata(stateAtStart, stateAtEnd);
     }
   }
 
@@ -329,7 +325,7 @@ export class ImpowerParser extends StringParser {
   protected AuthorWarning(): ParsedAuthorWarning {
     this.Whitespace();
 
-    const identifier = this.ParseRule(this.IdentifierWithMetadata);
+    const identifier = this.ParseRule(() => this.IdentifierWithMetadata());
     if (identifier == null || identifier.name !== "TODO") {
       return null;
     }
@@ -380,12 +376,12 @@ export class ImpowerParser extends StringParser {
   protected Choice(): ParsedChoice {
     let onceOnlyChoice = true;
     let bullets = this.Interleave<string>(
-      this.OptionalExclude(this.Whitespace),
+      this.OptionalExclude(() => this.Whitespace()),
       this.String("*")
     );
     if (bullets == null) {
       bullets = this.Interleave<string>(
-        this.OptionalExclude(this.Whitespace),
+        this.OptionalExclude(() => this.Whitespace()),
         this.String("+")
       );
       if (bullets == null) {
@@ -396,13 +392,13 @@ export class ImpowerParser extends StringParser {
     }
 
     // Optional name for the choice
-    const optionalName = this.ParseRule<Identifier>(this.BracketedName);
+    const optionalName = this.ParseRule<Identifier>(() => this.BracketedName());
 
     this.Whitespace();
 
     // Optional condition for whether the choice should be shown to the player
-    const conditionExpr = this.ParseRule<ParsedExpression>(
-      this.ChoiceCondition
+    const conditionExpr = this.ParseRule<ParsedExpression>(() =>
+      this.ChoiceCondition()
     );
 
     this.Whitespace();
@@ -417,7 +413,7 @@ export class ImpowerParser extends StringParser {
     this._parsingChoice = true;
 
     let startContent: ParsedContentList = null;
-    const startTextAndLogic = this.ParseRule(this.MixedTextAndLogic);
+    const startTextAndLogic = this.ParseRule(() => this.MixedTextAndLogic());
     if (startTextAndLogic != null) {
       startContent = new ParsedContentList(...startTextAndLogic);
     }
@@ -429,13 +425,15 @@ export class ImpowerParser extends StringParser {
     //   * "Hello[."]," he said.
     const hasWeaveStyleInlineBrackets = this.ParseString("[") != null;
     if (hasWeaveStyleInlineBrackets) {
-      const optionOnlyTextAndLogic = this.ParseRule(this.MixedTextAndLogic);
+      const optionOnlyTextAndLogic = this.ParseRule(() =>
+        this.MixedTextAndLogic()
+      );
       if (optionOnlyTextAndLogic != null)
         optionOnlyContent = new ParsedContentList(...optionOnlyTextAndLogic);
 
       this.Expect(this.String("]"), "closing ']' for weave-style option");
 
-      const innerTextAndLogic = this.ParseRule(this.MixedTextAndLogic);
+      const innerTextAndLogic = this.ParseRule(() => this.MixedTextAndLogic());
       if (innerTextAndLogic != null)
         innerContent = new ParsedContentList(...innerTextAndLogic);
     }
@@ -444,7 +442,7 @@ export class ImpowerParser extends StringParser {
 
     // Finally, now we know we're at the end of the main choice body, parse
     // any diverts separately.
-    const diverts = this.ParseRule(this.MultiDivert);
+    const diverts = this.ParseRule(() => this.MultiDivert());
 
     this._parsingChoice = false;
 
@@ -473,7 +471,7 @@ export class ImpowerParser extends StringParser {
       innerContent = new ParsedContentList();
     }
 
-    const tags = this.ParseRule<ParsedTag[]>(this.Tags);
+    const tags = this.ParseRule<ParsedTag[]>(() => this.Tags());
     if (tags != null) {
       innerContent.AddContent(tags);
     }
@@ -515,8 +513,8 @@ export class ImpowerParser extends StringParser {
 
   protected ChoiceCondition(): ParsedExpression {
     const conditions = this.Interleave<ParsedExpression>(
-      this.ChoiceSingleCondition,
-      this.ChoiceConditionsSpace
+      () => this.ChoiceSingleCondition(),
+      () => this.ChoiceConditionsSpace()
     );
     if (conditions == null) return null;
     if (conditions.length === 1) return conditions[0];
@@ -538,7 +536,7 @@ export class ImpowerParser extends StringParser {
     }
 
     const condExpr = this.Expect(
-      this.Expression,
+      () => this.Expression(),
       "choice condition inside { }"
     ) as ParsedExpression;
     this.DisallowIncrement(condExpr);
@@ -549,7 +547,7 @@ export class ImpowerParser extends StringParser {
   }
 
   protected Gather(): ParsedGather {
-    const gatherDashCountObj = this.ParseRule(this.GatherDashes);
+    const gatherDashCountObj = this.ParseRule(() => this.GatherDashes());
     if (gatherDashCountObj == null) {
       return null;
     }
@@ -557,7 +555,7 @@ export class ImpowerParser extends StringParser {
     const gatherDashCount = gatherDashCountObj as number;
 
     // Optional name for the gather
-    const optionalName = this.ParseRule<Identifier>(this.BracketedName);
+    const optionalName = this.ParseRule<Identifier>(() => this.BracketedName());
 
     const gather = new ParsedGather(optionalName, gatherDashCount);
 
@@ -594,12 +592,18 @@ export class ImpowerParser extends StringParser {
   }
 
   protected BracketedName(): Identifier {
-    if (this.ParseString("(") == null) return null;
+    if (this.ParseString("(") == null) {
+      return null;
+    }
 
     this.Whitespace();
 
-    const name = this.ParseRule<Identifier>(this.IdentifierWithMetadata);
-    if (name == null) return null;
+    const name = this.ParseRule<Identifier>(() =>
+      this.IdentifierWithMetadata()
+    );
+    if (name == null) {
+      return null;
+    }
 
     this.Whitespace();
 
@@ -639,10 +643,10 @@ export class ImpowerParser extends StringParser {
     }
 
     return this.OneOf(
-      this.DebugSource,
-      this.DebugPathLookup,
-      this.UserChoiceNumber,
-      this.UserImmediateModeStatement
+      () => this.DebugSource(),
+      () => this.DebugPathLookup(),
+      () => this.UserChoiceNumber(),
+      () => this.UserImmediateModeStatement()
     ) as CommandLineInput;
   }
 
@@ -695,7 +699,7 @@ export class ImpowerParser extends StringParser {
       return null;
     }
 
-    const pathStr = this.Expect(this.RuntimePath, "path") as string;
+    const pathStr = this.Expect(() => this.RuntimePath(), "path") as string;
 
     const inputStruct = {
       isHelp: false,
@@ -729,7 +733,7 @@ export class ImpowerParser extends StringParser {
 
     this.Whitespace();
 
-    if (this.ParseRule(this.EndOfLine) == null) {
+    if (this.ParseRule(() => this.EndOfLine()) == null) {
       return null;
     }
 
@@ -747,9 +751,9 @@ export class ImpowerParser extends StringParser {
 
   UserImmediateModeStatement(): CommandLineInput {
     const statement = this.OneOf(
-      this.SingleDivert,
-      this.TempDeclarationOrAssignment,
-      this.Expression
+      () => this.SingleDivert(),
+      () => this.TempDeclarationOrAssignment(),
+      () => this.Expression()
     );
 
     const inputStruct = {
@@ -768,13 +772,13 @@ export class ImpowerParser extends StringParser {
     initialQueryExpression?: ParsedExpression
   ): ParsedConditional {
     if (initialQueryExpression === undefined) {
-      initialQueryExpression = this.ParseRule(this.ConditionExpression);
+      initialQueryExpression = this.ParseRule(() => this.ConditionExpression());
     }
 
     let alternatives: ParsedConditionalSingleBranch[] = [];
 
     const canBeInline = initialQueryExpression != null;
-    const isInline = this.ParseRule(this.Newline) == null;
+    const isInline = this.ParseRule(() => this.Newline()) == null;
 
     if (isInline && !canBeInline) {
       return null;
@@ -801,7 +805,9 @@ export class ImpowerParser extends StringParser {
             alternatives.push(soleBranch);
 
             // Also allow a final "- else:" clause
-            const elseBranch = this.ParseRule(this.SingleMultilineCondition);
+            const elseBranch = this.ParseRule(() =>
+              this.SingleMultilineCondition()
+            );
             if (elseBranch) {
               if (!elseBranch.isElse) {
                 this.ErrorWithParsedObject(
@@ -943,7 +949,7 @@ export class ImpowerParser extends StringParser {
 
   protected InlineConditionalBranches(): ParsedConditionalSingleBranch[] {
     const listOfLists = this.Interleave<ParsedObject[]>(
-      this.MixedTextAndLogic,
+      () => this.MixedTextAndLogic(),
       this.Exclude(this.String("|")),
       null,
       false
@@ -976,7 +982,9 @@ export class ImpowerParser extends StringParser {
   protected MultilineConditionalBranches(): ParsedConditionalSingleBranch[] {
     this.MultilineWhitespace();
 
-    const multipleConditions = this.OneOrMore(this.SingleMultilineCondition);
+    const multipleConditions = this.OneOrMore(() =>
+      this.SingleMultilineCondition()
+    );
     if (multipleConditions == null) {
       return null;
     }
@@ -990,16 +998,20 @@ export class ImpowerParser extends StringParser {
     this.Whitespace();
 
     // Make sure we're not accidentally parsing a divert
-    if (this.ParseString("->") != null) return null;
+    if (this.ParseString("->") != null) {
+      return null;
+    }
 
-    if (this.ParseString("-") == null) return null;
+    if (this.ParseString("-") == null) {
+      return null;
+    }
 
     this.Whitespace();
 
     let expr = null;
-    const isElse = this.ParseRule(this.ElseExpression) != null;
+    const isElse = this.ParseRule(() => this.ElseExpression()) != null;
 
-    if (!isElse) expr = this.ParseRule(this.ConditionExpression);
+    if (!isElse) expr = this.ParseRule(() => this.ConditionExpression());
 
     let content = this.StatementsAtLevel(
       StatementLevel.InnerBlock
@@ -1028,7 +1040,7 @@ export class ImpowerParser extends StringParser {
   }
 
   protected ConditionExpression(): ParsedExpression {
-    const expr = this.ParseRule<ParsedExpression>(this.Expression);
+    const expr = this.ParseRule<ParsedExpression>(() => this.Expression());
     if (expr == null) {
       return null;
     }
@@ -1045,11 +1057,15 @@ export class ImpowerParser extends StringParser {
   }
 
   protected ElseExpression(): unknown {
-    if (this.ParseString("else") == null) return null;
+    if (this.ParseString("else") == null) {
+      return null;
+    }
 
     this.Whitespace();
 
-    if (this.ParseString(":") == null) return null;
+    if (this.ParseString(":") == null) {
+      return null;
+    }
 
     return StringParser.ParseSuccess;
   }
@@ -1084,13 +1100,13 @@ export class ImpowerParser extends StringParser {
   protected LineOfMixedTextAndLogic(): ParsedObject[] {
     // Consume any whitespace at the start of the line
     // (Except for escaped whitespace)
-    this.ParseRule(this.Whitespace);
+    this.ParseRule(() => this.Whitespace());
 
-    let result = this.ParseRule<ParsedObject[]>(this.MixedTextAndLogic);
+    let result = this.ParseRule<ParsedObject[]>(() => this.MixedTextAndLogic());
 
     // Terminating tag
     let onlyTags = false;
-    const tags = this.ParseRule<ParsedTag[]>(this.Tags);
+    const tags = this.ParseRule<ParsedTag[]>(() => this.Tags());
     if (tags != null) {
       if (result == null) {
         result = tags;
@@ -1122,9 +1138,15 @@ export class ImpowerParser extends StringParser {
 
     // Add newline since it's the end of the line
     // (so long as it's a line with only tags)
-    if (!onlyTags) result.push(new ParsedText("\n"));
+    if (!onlyTags) {
+      result.push(new ParsedText("\n"));
+    }
 
-    this.Expect(this.EndOfLine, "end of line", this.SkipToNextLine);
+    this.Expect(
+      () => this.EndOfLine(),
+      "end of line",
+      () => this.SkipToNextLine()
+    );
 
     return result;
   }
@@ -1140,15 +1162,15 @@ export class ImpowerParser extends StringParser {
 
     // Either, or both interleaved
     let results = this.Interleave<ParsedObject>(
-      this.Optional(this.ContentText),
-      this.Optional(this.InlineLogicOrGlue)
+      this.Optional(() => this.ContentText()),
+      this.Optional(() => this.InlineLogicOrGlue())
     );
 
     // Terminating divert?
     // (When parsing content for the text of a choice, diverts aren't allowed.
     //  The divert on the end of the body of a choice is handled specially.)
     if (!this._parsingChoice) {
-      const diverts = this.ParseRule(this.MultiDivert);
+      const diverts = this.ParseRule(() => this.MultiDivert());
       if (diverts != null) {
         // May not have had any results at all if there's *only* a divert!
         if (results == null) results = [];
@@ -1165,16 +1187,15 @@ export class ImpowerParser extends StringParser {
   }
 
   protected ContentText(): ParsedText {
-    return this.ContentTextAllowingEcapeChar();
+    return this.ContentTextAllowingEscapeChar();
   }
 
-  protected ContentTextAllowingEcapeChar(): ParsedText {
+  protected ContentTextAllowingEscapeChar(): ParsedText {
     let sb: StringBuilder = null;
 
     do {
-      const str = this.ParseRule(this.ContentTextNoEscape);
+      const str = this.ParseRule(() => this.ContentTextNoEscape());
       const gotEscapeChar = this.ParseString("\\") != null;
-
       if (gotEscapeChar || str != null) {
         if (sb == null) {
           sb = new StringBuilder();
@@ -1191,7 +1212,8 @@ export class ImpowerParser extends StringParser {
       } else {
         break;
       }
-    } while (sb);
+      // eslint-disable-next-line no-constant-condition
+    } while (true);
 
     if (sb != null) {
       return new ParsedText(sb.ToString());
@@ -1229,10 +1251,10 @@ export class ImpowerParser extends StringParser {
     // When the ParseUntil pauses, check these rules in case they evaluate successfully
     const nonTextRule = (): unknown =>
       this.OneOf(
-        this.ParseDivertArrow,
-        this.ParseThreadArrow,
-        this.EndOfLine,
-        this.Glue
+        () => this.ParseDivertArrow(),
+        () => this.ParseThreadArrow(),
+        () => this.EndOfLine(),
+        () => this.Glue()
       );
 
     let endChars: CharacterSet = null;
@@ -1261,7 +1283,7 @@ export class ImpowerParser extends StringParser {
     let diverts: ParsedObject[] = null;
 
     // Try single thread first
-    const threadDivert = this.ParseRule(this.StartThread);
+    const threadDivert = this.ParseRule(() => this.StartThread());
     if (threadDivert) {
       diverts = [];
       diverts.push(threadDivert);
@@ -1270,8 +1292,8 @@ export class ImpowerParser extends StringParser {
 
     // Normal diverts and tunnels
     const arrowsAndDiverts = this.Interleave<unknown>(
-      this.ParseDivertArrowOrTunnelOnwards,
-      this.DivertIdentifierWithArguments
+      () => this.ParseDivertArrowOrTunnelOnwards(),
+      () => this.DivertIdentifierWithArguments()
     );
 
     if (arrowsAndDiverts == null) {
@@ -1362,7 +1384,7 @@ export class ImpowerParser extends StringParser {
     this.Whitespace();
 
     const divert = this.Expect(
-      this.DivertIdentifierWithArguments,
+      () => this.DivertIdentifierWithArguments(),
       "target for new thread",
       () => new ParsedDivert(null)
     ) as ParsedDivert;
@@ -1374,8 +1396,8 @@ export class ImpowerParser extends StringParser {
   protected DivertIdentifierWithArguments(): ParsedDivert {
     this.Whitespace();
 
-    const targetComponents = this.ParseRule<Identifier[]>(
-      this.DotSeparatedDivertPathComponents
+    const targetComponents = this.ParseRule<Identifier[]>(() =>
+      this.DotSeparatedDivertPathComponents()
     );
     if (targetComponents == null) {
       return null;
@@ -1383,8 +1405,8 @@ export class ImpowerParser extends StringParser {
 
     this.Whitespace();
 
-    const optionalArguments = this.ParseRule<ParsedExpression[]>(
-      this.ExpressionFunctionCallArguments
+    const optionalArguments = this.ParseRule<ParsedExpression[]>(() =>
+      this.ExpressionFunctionCallArguments()
     );
 
     this.Whitespace();
@@ -1394,7 +1416,7 @@ export class ImpowerParser extends StringParser {
   }
 
   protected SingleDivert(): ParsedDivert {
-    const diverts = this.ParseRule(this.MultiDivert);
+    const diverts = this.ParseRule(() => this.MultiDivert());
     if (diverts == null) {
       return null;
     }
@@ -1430,7 +1452,7 @@ export class ImpowerParser extends StringParser {
 
   private DotSeparatedDivertPathComponents(): Identifier[] {
     return this.Interleave<Identifier>(
-      this.Spaced(this.IdentifierWithMetadata),
+      this.Spaced(() => this.IdentifierWithMetadata()),
       this.Exclude(this.String("."))
     );
   }
@@ -1474,11 +1496,11 @@ export class ImpowerParser extends StringParser {
     let varIdentifier: Identifier = null;
     if (isNewDeclaration) {
       varIdentifier = this.Expect(
-        this.IdentifierWithMetadata,
+        () => this.IdentifierWithMetadata(),
         "variable name"
       ) as Identifier;
     } else {
-      varIdentifier = this.ParseRule(this.IdentifierWithMetadata);
+      varIdentifier = this.ParseRule(() => this.IdentifierWithMetadata());
     }
 
     if (varIdentifier == null) {
@@ -1503,7 +1525,7 @@ export class ImpowerParser extends StringParser {
     }
 
     const assignedExpression = this.Expect(
-      this.Expression,
+      () => this.Expression(),
       "value expression to be assigned"
     ) as ParsedExpression;
 
@@ -1533,7 +1555,7 @@ export class ImpowerParser extends StringParser {
   protected ParseTempKeyword(): boolean {
     const ruleId = this.BeginRule();
 
-    if (this.ParseRule(this.Identifier) === "temp") {
+    if (this.ParseRule(() => this.Identifier()) === "temp") {
       this.SucceedRule(ruleId);
       return true;
     }
@@ -1544,14 +1566,14 @@ export class ImpowerParser extends StringParser {
   protected ReturnStatement(): ParsedReturn {
     this.Whitespace();
 
-    const returnOrDone = this.ParseRule(this.Identifier);
+    const returnOrDone = this.ParseRule(() => this.Identifier());
     if (returnOrDone !== "return") {
       return null;
     }
 
     this.Whitespace();
 
-    const expr = this.ParseRule(this.Expression);
+    const expr = this.ParseRule(() => this.Expression());
 
     const returnObj = new ParsedReturn(expr);
     return returnObj;
@@ -1616,7 +1638,7 @@ export class ImpowerParser extends StringParser {
     // Divert target is a special case - it can't have any other operators
     // applied to it, and we also want to check for it first so that we don't
     // confuse "->" for subtraction.
-    const divertTarget = this.ParseRule(this.ExpressionDivertTarget);
+    const divertTarget = this.ParseRule(() => this.ExpressionDivertTarget());
     if (divertTarget != null) {
       return divertTarget;
     }
@@ -1628,7 +1650,7 @@ export class ImpowerParser extends StringParser {
     // This rule uses the Identifier rule, which will scan as much text
     // as possible before returning.
     if (prefixOp == null) {
-      prefixOp = this.ParseRule(this.ExpressionNot);
+      prefixOp = this.ParseRule(() => this.ExpressionNot());
     }
 
     this.Whitespace();
@@ -1636,11 +1658,11 @@ export class ImpowerParser extends StringParser {
     // - Since we allow numbers at the start of variable names, variable names are checked before literals
     // - Function calls before variable names in case we see parentheses
     let expr = this.OneOf(
-      this.ExpressionList,
-      this.ExpressionParen,
-      this.ExpressionFunctionCall,
-      this.ExpressionVariableName,
-      this.ExpressionLiteral
+      () => this.ExpressionList(),
+      () => this.ExpressionParen(),
+      () => this.ExpressionFunctionCall(),
+      () => this.ExpressionVariableName(),
+      () => this.ExpressionLiteral()
     ) as ParsedExpression;
 
     // Only recurse immediately if we have one of the (usually optional) unary ops
@@ -1687,17 +1709,17 @@ export class ImpowerParser extends StringParser {
 
   protected ExpressionLiteral(): ParsedExpression {
     return this.OneOf(
-      this.ExpressionFloat,
-      this.ExpressionInt,
-      this.ExpressionBool,
-      this.ExpressionString
+      () => this.ExpressionFloat(),
+      () => this.ExpressionInt(),
+      () => this.ExpressionBool(),
+      () => this.ExpressionString()
     ) as ParsedExpression;
   }
 
   protected ExpressionDivertTarget(): ParsedExpression {
     this.Whitespace();
 
-    const divert = this.ParseRule(this.SingleDivert);
+    const divert = this.ParseRule(() => this.SingleDivert());
     if (divert == null) return null;
 
     if (divert.isThread) return null;
@@ -1733,7 +1755,9 @@ export class ImpowerParser extends StringParser {
     // it knows to treat the quote character (") as an end character
     this.parsingStringExpression = true;
 
-    let textAndLogic = this.ParseRule<ParsedObject[]>(this.MixedTextAndLogic);
+    let textAndLogic = this.ParseRule<ParsedObject[]>(() =>
+      this.MixedTextAndLogic()
+    );
 
     this.Expect(this.String('"'), "close quote for string expression");
 
@@ -1750,7 +1774,7 @@ export class ImpowerParser extends StringParser {
   }
 
   protected ExpressionBool(): ParsedNumber {
-    const id = this.ParseRule(this.Identifier);
+    const id = this.ParseRule(() => this.Identifier());
     if (id === "true") {
       return new ParsedNumber(true);
     }
@@ -1762,15 +1786,17 @@ export class ImpowerParser extends StringParser {
   }
 
   protected ExpressionFunctionCall(): ParsedExpression {
-    const iden = this.ParseRule<Identifier>(this.IdentifierWithMetadata);
+    const iden = this.ParseRule<Identifier>(() =>
+      this.IdentifierWithMetadata()
+    );
     if (iden == null) {
       return null;
     }
 
     this.Whitespace();
 
-    const args = this.ParseRule<ParsedExpression[]>(
-      this.ExpressionFunctionCallArguments
+    const args = this.ParseRule<ParsedExpression[]>(() =>
+      this.ExpressionFunctionCallArguments()
     );
     if (args == null) {
       return null;
@@ -1785,8 +1811,10 @@ export class ImpowerParser extends StringParser {
     }
 
     // "Exclude" requires the rule to succeed, but causes actual comma string to be excluded from the list of results
-    const commas = this.Exclude(this.String(","));
-    let args = this.Interleave<ParsedExpression>(this.Expression, commas);
+    let args = this.Interleave<ParsedExpression>(
+      () => this.Expression(),
+      this.Exclude(this.String(","))
+    );
     if (args == null) {
       args = [];
     }
@@ -1800,7 +1828,7 @@ export class ImpowerParser extends StringParser {
 
   protected ExpressionVariableName(): ParsedExpression {
     const path = this.Interleave<Identifier>(
-      this.IdentifierWithMetadata,
+      () => this.IdentifierWithMetadata(),
       this.Exclude(this.Spaced(this.String(".")))
     );
 
@@ -1815,7 +1843,7 @@ export class ImpowerParser extends StringParser {
       return null;
     }
 
-    const innerExpr = this.ParseRule(this.Expression);
+    const innerExpr = this.ParseRule(() => this.Expression());
     if (innerExpr == null) return null;
 
     this.Whitespace();
@@ -1902,13 +1930,15 @@ export class ImpowerParser extends StringParser {
   protected ListMember(): Identifier {
     this.Whitespace();
 
-    const identifier = this.ParseRule<Identifier>(this.IdentifierWithMetadata);
+    const identifier = this.ParseRule<Identifier>(() =>
+      this.IdentifierWithMetadata()
+    );
     if (identifier == null) return null;
 
     const dot = this.ParseString(".");
     if (dot != null) {
       const identifier2 = this.Expect(
-        this.IdentifierWithMetadata,
+        () => this.IdentifierWithMetadata(),
         `element name within the set ${identifier}`
       ) as Identifier;
       identifier.name = `${identifier.name}.${identifier2?.name}`;
@@ -1966,13 +1996,13 @@ export class ImpowerParser extends StringParser {
   }
 
   protected KnotDefinition(): ParsedKnot {
-    const knotDecl = this.ParseRule(this.KnotDeclaration);
+    const knotDecl = this.ParseRule(() => this.KnotDeclaration());
     if (knotDecl == null) return null;
 
     this.Expect(
-      this.EndOfLine,
+      () => this.EndOfLine(),
       "end of line after knot name definition",
-      this.SkipToNextLine
+      () => this.SkipToNextLine()
     );
 
     const innerKnotStatements = (): ParsedObject[] =>
@@ -1981,7 +2011,7 @@ export class ImpowerParser extends StringParser {
     const content = this.Expect(
       innerKnotStatements,
       "at least one line within the knot",
-      this.KnotStitchNoContentRecoveryRule
+      () => this.KnotStitchNoContentRecoveryRule()
     ) as ParsedObject[];
 
     return new ParsedKnot(
@@ -2001,13 +2031,16 @@ export class ImpowerParser extends StringParser {
 
     this.Whitespace();
 
-    const identifier = this.ParseRule(this.IdentifierWithMetadata);
+    const identifier = this.ParseRule(() => this.IdentifierWithMetadata());
     let knotName: Identifier;
 
     const isFunc = identifier?.name === "function";
     if (isFunc) {
-      this.Expect(this.Whitespace, "whitespace after the 'function' keyword");
-      knotName = this.ParseRule(this.IdentifierWithMetadata);
+      this.Expect(
+        () => this.Whitespace(),
+        "whitespace after the 'function' keyword"
+      );
+      knotName = this.ParseRule(() => this.IdentifierWithMetadata());
     } else {
       knotName = identifier;
     }
@@ -2019,12 +2052,14 @@ export class ImpowerParser extends StringParser {
 
     this.Whitespace();
 
-    const parameterNames = this.ParseRule(this.BracketedKnotDeclArguments);
+    const parameterNames = this.ParseRule(() =>
+      this.BracketedKnotDeclArguments()
+    );
 
     this.Whitespace();
 
     // Optional equals after name
-    this.ParseRule(this.KnotTitleEquals);
+    this.ParseRule(() => this.KnotTitleEquals());
 
     return { name: knotName, arguments: parameterNames, isFunction: isFunc };
   }
@@ -2039,15 +2074,15 @@ export class ImpowerParser extends StringParser {
   }
 
   protected StitchDefinition(): ParsedStitch {
-    const decl = this.ParseRule(this.StitchDeclaration);
+    const decl = this.ParseRule(() => this.StitchDeclaration());
     if (decl == null) {
       return null;
     }
 
     this.Expect(
-      this.EndOfLine,
+      () => this.EndOfLine(),
       "end of line after stitch name",
-      this.SkipToNextLine
+      () => this.SkipToNextLine()
     );
 
     const innerStitchStatements = (): ParsedObject[] =>
@@ -2056,7 +2091,7 @@ export class ImpowerParser extends StringParser {
     const content = this.Expect(
       innerStitchStatements,
       "at least one line within the stitch",
-      this.KnotStitchNoContentRecoveryRule
+      () => this.KnotStitchNoContentRecoveryRule()
     ) as ParsedObject[];
 
     return new ParsedStitch(
@@ -2084,15 +2119,15 @@ export class ImpowerParser extends StringParser {
       this.Whitespace();
     }
 
-    const stitchName = this.ParseRule(this.IdentifierWithMetadata);
+    const stitchName = this.ParseRule(() => this.IdentifierWithMetadata());
     if (stitchName == null) {
       return null;
     }
 
     this.Whitespace();
 
-    const flowArgs = this.ParseRule<Argument[]>(
-      this.BracketedKnotDeclArguments
+    const flowArgs = this.ParseRule<Argument[]>(() =>
+      this.BracketedKnotDeclArguments()
     );
 
     this.Whitespace();
@@ -2102,7 +2137,7 @@ export class ImpowerParser extends StringParser {
 
   protected KnotStitchNoContentRecoveryRule(): ParsedObject[] {
     // Jump ahead to the next knot or the end of the file
-    this.ParseUntil(this.KnotDeclaration, new CharacterSet("="), null);
+    this.ParseUntil(() => this.KnotDeclaration(), new CharacterSet("="), null);
 
     const recoveredFlowContent: ParsedObject[] = [];
     recoveredFlowContent.push(new ParsedText("<ERROR IN FLOW>"));
@@ -2115,7 +2150,7 @@ export class ImpowerParser extends StringParser {
     }
 
     let flowArguments = this.Interleave<Argument>(
-      this.Spaced(this.FlowDeclArgument),
+      this.Spaced(() => this.FlowDeclArgument()),
       this.Exclude(this.String(","))
     );
 
@@ -2136,11 +2171,11 @@ export class ImpowerParser extends StringParser {
     //  -> name      (variable divert target argument
     //  ref name
     //  ref -> name  (variable divert target by reference)
-    const firstIden = this.ParseRule(this.IdentifierWithMetadata);
+    const firstIden = this.ParseRule(() => this.IdentifierWithMetadata());
     this.Whitespace();
     const divertArrow = this.ParseDivertArrow();
     this.Whitespace();
-    const secondIden = this.ParseRule(this.IdentifierWithMetadata);
+    const secondIden = this.ParseRule(() => this.IdentifierWithMetadata());
 
     if (firstIden == null && secondIden == null) {
       return null;
@@ -2186,7 +2221,7 @@ export class ImpowerParser extends StringParser {
   protected ExternalDeclaration(): ParsedExternalDeclaration {
     this.Whitespace();
 
-    const external = this.ParseRule(this.IdentifierWithMetadata);
+    const external = this.ParseRule(() => this.IdentifierWithMetadata());
     if (external == null || external.name !== "EXTERNAL") {
       return null;
     }
@@ -2194,17 +2229,17 @@ export class ImpowerParser extends StringParser {
     this.Whitespace();
 
     const funcIdentifier = (this.Expect(
-      this.IdentifierWithMetadata,
+      () => this.IdentifierWithMetadata(),
       "name of external function"
     ) as Identifier) || { name: null, debugMetadata: null };
 
     this.Whitespace();
 
     let parameterNames = this.Expect(
-      this.BracketedKnotDeclArguments,
+      () => this.BracketedKnotDeclArguments(),
       `declaration of arguments for EXTERNAL, even if empty, i.e. 'EXTERNAL ${funcIdentifier}()'`
     ) as Argument[];
-    if (parameterNames == null) {
+    if (!parameterNames) {
       parameterNames = [];
     }
 
@@ -2232,15 +2267,13 @@ export class ImpowerParser extends StringParser {
     // to have a return value, or to be used in compound expressions.
     const afterTilda = (): unknown =>
       this.OneOf(
-        this.ReturnStatement,
-        this.TempDeclarationOrAssignment,
-        this.Expression
+        () => this.ReturnStatement(),
+        () => this.TempDeclarationOrAssignment(),
+        () => this.Expression()
       );
 
-    let result = this.Expect(
-      afterTilda,
-      "expression after '~'",
-      this.SkipToNextLine
+    let result = this.Expect(afterTilda, "expression after '~'", () =>
+      this.SkipToNextLine()
     ) as ParsedObject;
 
     // Prevent further errors, already reported expected expression and have skipped to next line.
@@ -2294,7 +2327,11 @@ export class ImpowerParser extends StringParser {
       result = new ParsedContentList(result, new ParsedText("\n"));
     }
 
-    this.Expect(this.EndOfLine, "end of line", this.SkipToNextLine);
+    this.Expect(
+      () => this.EndOfLine(),
+      "end of line",
+      () => this.SkipToNextLine()
+    );
 
     return result as ParsedObject;
   }
@@ -2302,7 +2339,7 @@ export class ImpowerParser extends StringParser {
   protected VariableDeclaration(): ParsedObject {
     this.Whitespace();
 
-    const id = this.ParseRule(this.Identifier);
+    const id = this.ParseRule(() => this.Identifier());
     if (id !== "VAR") {
       return null;
     }
@@ -2310,7 +2347,7 @@ export class ImpowerParser extends StringParser {
     this.Whitespace();
 
     const varName = this.Expect(
-      this.IdentifierWithMetadata,
+      () => this.IdentifierWithMetadata(),
       "variable name"
     ) as Identifier;
 
@@ -2323,7 +2360,10 @@ export class ImpowerParser extends StringParser {
 
     this.Whitespace();
 
-    const definition = this.Expect(this.Expression, "initial value for ");
+    const definition = this.Expect(
+      () => this.Expression(),
+      "initial value for "
+    );
 
     const expr = definition as ParsedExpression;
 
@@ -2342,7 +2382,7 @@ export class ImpowerParser extends StringParser {
         );
       }
 
-      if (this.ParseRule(this.ListElementDefinitionSeparator) != null) {
+      if (this.ParseRule(() => this.ListElementDefinitionSeparator()) != null) {
         this.Error(
           "Unexpected ','. If you're trying to declare a new list, use the LIST keyword, not VAR"
         );
@@ -2367,7 +2407,7 @@ export class ImpowerParser extends StringParser {
   protected ListDeclaration(): ParsedVariableAssignment {
     this.Whitespace();
 
-    const id = this.ParseRule(this.Identifier);
+    const id = this.ParseRule(() => this.Identifier());
     if (id !== "LIST") {
       return null;
     }
@@ -2375,7 +2415,7 @@ export class ImpowerParser extends StringParser {
     this.Whitespace();
 
     const varName = this.Expect(
-      this.IdentifierWithMetadata,
+      () => this.IdentifierWithMetadata(),
       "list name"
     ) as Identifier;
 
@@ -2389,7 +2429,7 @@ export class ImpowerParser extends StringParser {
     this.Whitespace();
 
     const definition = this.Expect(
-      this.ListDefinition,
+      () => this.ListDefinition(),
       "list item names"
     ) as ParsedListDefinition;
 
@@ -2434,7 +2474,7 @@ export class ImpowerParser extends StringParser {
 
     this.Whitespace();
 
-    const name = this.ParseRule(this.IdentifierWithMetadata);
+    const name = this.ParseRule(() => this.IdentifierWithMetadata());
     if (name == null) {
       return null;
     }
@@ -2453,7 +2493,7 @@ export class ImpowerParser extends StringParser {
       this.Whitespace();
 
       const elementValueNum = this.Expect(
-        this.ExpressionInt,
+        () => this.ExpressionInt(),
         "value to be assigned to list item"
       ) as ParsedNumber;
       if (elementValueNum != null) {
@@ -2463,7 +2503,9 @@ export class ImpowerParser extends StringParser {
       if (needsToCloseParen) {
         this.Whitespace();
 
-        if (this.ParseString(")") != null) needsToCloseParen = false;
+        if (this.ParseString(")") != null) {
+          needsToCloseParen = false;
+        }
       }
     }
 
@@ -2477,7 +2519,7 @@ export class ImpowerParser extends StringParser {
   protected ConstDeclaration(): ParsedObject {
     this.Whitespace();
 
-    const id = this.ParseRule(this.Identifier);
+    const id = this.ParseRule(() => this.Identifier());
     if (id !== "CONST") {
       return null;
     }
@@ -2485,7 +2527,7 @@ export class ImpowerParser extends StringParser {
     this.Whitespace();
 
     const varName = this.Expect(
-      this.IdentifierWithMetadata,
+      () => this.IdentifierWithMetadata(),
       "constant name"
     ) as Identifier;
 
@@ -2499,7 +2541,7 @@ export class ImpowerParser extends StringParser {
     this.Whitespace();
 
     const expr = this.Expect(
-      this.Expression,
+      () => this.Expression(),
       "initial value for "
     ) as ParsedExpression;
     if (
@@ -2527,7 +2569,10 @@ export class ImpowerParser extends StringParser {
   }
 
   protected InlineLogicOrGlue(): ParsedObject {
-    return this.OneOf(this.InlineLogic, this.Glue) as ParsedObject;
+    return this.OneOf(
+      () => this.InlineLogic(),
+      () => this.Glue()
+    ) as ParsedObject;
   }
 
   protected Glue(): ParsedGlue {
@@ -2548,10 +2593,12 @@ export class ImpowerParser extends StringParser {
     this.Whitespace();
 
     const logic = this.Expect(
-      this.InnerLogic,
+      () => this.InnerLogic(),
       "some kind of logic, conditional or sequence within braces: { ... }"
     ) as ParsedObject;
-    if (logic == null) return null;
+    if (logic == null) {
+      return null;
+    }
 
     this.DisallowIncrement(logic);
 
@@ -2579,7 +2626,7 @@ export class ImpowerParser extends StringParser {
     ) as SequenceType;
     if (explicitSeqType != null) {
       const contentLists = this.Expect(
-        this.InnerSequenceObjects,
+        () => this.InnerSequenceObjects(),
         "sequence elements (for cycle/stoping etc)"
       ) as ParsedContentList[];
       if (contentLists == null) {
@@ -2589,7 +2636,9 @@ export class ImpowerParser extends StringParser {
     }
 
     // Conditional with expression?
-    const initialQueryExpression = this.ParseRule(this.ConditionExpression);
+    const initialQueryExpression = this.ParseRule(() =>
+      this.ConditionExpression()
+    );
     if (initialQueryExpression) {
       const conditional = this.Expect(
         () => this.InnerConditionalContent(initialQueryExpression),
@@ -2641,7 +2690,7 @@ export class ImpowerParser extends StringParser {
   }
 
   protected InnerExpression(): ParsedObject {
-    const expr = this.ParseRule(this.Expression);
+    const expr = this.ParseRule(() => this.Expression());
     if (expr) {
       expr.outputWhenComplete = true;
     }
@@ -2690,12 +2739,12 @@ export class ImpowerParser extends StringParser {
     let seqType = SequenceType.Stopping;
 
     // Optional explicit sequence type
-    const parsedSeqType = this.ParseRule(this.SequenceTypeAnnotation);
+    const parsedSeqType = this.ParseRule(() => this.SequenceTypeAnnotation());
     if (parsedSeqType != null) {
       seqType = parsedSeqType as SequenceType;
     }
 
-    const contentLists = this.ParseRule(this.InnerSequenceObjects);
+    const contentLists = this.ParseRule(() => this.InnerSequenceObjects());
     if (contentLists == null || contentLists.length <= 1) {
       return null;
     }
@@ -2704,11 +2753,11 @@ export class ImpowerParser extends StringParser {
   }
 
   protected SequenceTypeAnnotation(): unknown {
-    let annotation = this.ParseRule(this.SequenceTypeSymbolAnnotation);
+    let annotation = this.ParseRule(() => this.SequenceTypeSymbolAnnotation());
 
     if (annotation == null) {
-      annotation = this.ParseRule<SequenceType>(
-        this.SequenceTypeWordAnnotation
+      annotation = this.ParseRule<SequenceType>(() =>
+        this.SequenceTypeWordAnnotation()
       );
     }
 
@@ -2775,8 +2824,8 @@ export class ImpowerParser extends StringParser {
 
   protected SequenceTypeWordAnnotation(): SequenceType {
     const sequenceTypes = this.Interleave<SequenceType>(
-      this.SequenceTypeSingleWord,
-      this.Exclude(this.Whitespace)
+      () => this.SequenceTypeSingleWord(),
+      this.Exclude(() => this.Whitespace())
     );
     if (sequenceTypes == null || sequenceTypes.length === 0) {
       return null;
@@ -2797,7 +2846,7 @@ export class ImpowerParser extends StringParser {
   protected SequenceTypeSingleWord(): unknown {
     let seqType = null;
 
-    const word = this.ParseRule(this.IdentifierWithMetadata);
+    const word = this.ParseRule(() => this.IdentifierWithMetadata());
     if (word != null) {
       switch (word.name) {
         case "once":
@@ -2823,13 +2872,13 @@ export class ImpowerParser extends StringParser {
   }
 
   protected InnerSequenceObjects(): ParsedContentList[] {
-    const multiline = this.ParseRule(this.Newline) != null;
+    const multiline = this.ParseRule(() => this.Newline()) != null;
 
     let result: ParsedContentList[] = null;
     if (multiline) {
-      result = this.ParseRule(this.InnerMultilineSequenceObjects);
+      result = this.ParseRule(() => this.InnerMultilineSequenceObjects());
     } else {
-      result = this.ParseRule(this.InnerInlineSequenceObjects);
+      result = this.ParseRule(() => this.InnerInlineSequenceObjects());
     }
 
     return result;
@@ -2837,7 +2886,7 @@ export class ImpowerParser extends StringParser {
 
   protected InnerInlineSequenceObjects(): ParsedContentList[] {
     const interleavedContentAndPipes = this.Interleave<ParsedObject | "|">(
-      this.Optional(this.MixedTextAndLogic),
+      this.Optional(() => this.MixedTextAndLogic()),
       this.String("|"),
       null,
       false
@@ -2885,7 +2934,9 @@ export class ImpowerParser extends StringParser {
   protected InnerMultilineSequenceObjects(): ParsedContentList[] {
     this.MultilineWhitespace();
 
-    const contentLists = this.OneOrMore(this.SingleMultilineSequenceElement);
+    const contentLists = this.OneOrMore(() =>
+      this.SingleMultilineSequenceElement()
+    );
     if (contentLists == null) {
       return null;
     }
@@ -2911,7 +2962,9 @@ export class ImpowerParser extends StringParser {
       StatementLevel.InnerBlock
     );
 
-    if (content == null) this.MultilineWhitespace();
+    if (content == null) {
+      this.MultilineWhitespace();
+    }
     // Add newline at the start of each branch
     else {
       content.splice(0, 0, new ParsedText("\n"));
@@ -2923,7 +2976,7 @@ export class ImpowerParser extends StringParser {
   protected StatementsAtLevel(level: StatementLevel): ParsedObject[] {
     // Check for error: Should not be allowed gather dashes within an inner block
     if (level === StatementLevel.InnerBlock) {
-      const badGatherDashCount = this.ParseRule(this.GatherDashes);
+      const badGatherDashCount = this.ParseRule(() => this.GatherDashes());
       if (badGatherDashCount != null) {
         this.Error(
           "You can't use a gather (the dashes) within the { curly braces } context. For multi-line sequences and conditions, you should only use one dash."
@@ -2932,7 +2985,7 @@ export class ImpowerParser extends StringParser {
     }
 
     return this.Interleave<ParsedObject>(
-      this.Optional(this.MultilineWhitespace),
+      this.Optional(() => this.MultilineWhitespace()),
       () => this.StatementAtLevel(level),
       () => this.StatementsBreakForLevel(level)
     );
@@ -2983,52 +3036,53 @@ export class ImpowerParser extends StringParser {
       const breakingRules: ParseRule[] = [];
 
       // Diverts can go anywhere
-      rulesAtLevel.push(this.Line(this.MultiDivert));
+      rulesAtLevel.push(this.Line(() => this.MultiDivert()));
 
       // Knots can only be parsed at Top/Global scope
-      if (level >= StatementLevel.Top) rulesAtLevel.push(this.KnotDefinition);
+      if (level >= StatementLevel.Top)
+        rulesAtLevel.push(() => this.KnotDefinition());
 
-      rulesAtLevel.push(this.Line(this.Choice));
+      rulesAtLevel.push(this.Line(() => this.Choice()));
 
-      rulesAtLevel.push(this.Line(this.AuthorWarning));
+      rulesAtLevel.push(this.Line(() => this.AuthorWarning()));
 
       // Gather lines would be confused with multi-line block separators, like
       // within a multi-line if statement
       if (level > StatementLevel.InnerBlock) {
-        rulesAtLevel.push(this.Gather);
+        rulesAtLevel.push(() => this.Gather());
       }
 
       // Stitches (and gathers) can (currently) only go in Knots and top level
       if (level >= StatementLevel.Knot) {
-        rulesAtLevel.push(this.StitchDefinition);
+        rulesAtLevel.push(() => this.StitchDefinition());
       }
 
       // Global variable declarations can go anywhere
-      rulesAtLevel.push(this.Line(this.ListDeclaration));
-      rulesAtLevel.push(this.Line(this.VariableDeclaration));
-      rulesAtLevel.push(this.Line(this.ConstDeclaration));
-      rulesAtLevel.push(this.Line(this.ExternalDeclaration));
+      rulesAtLevel.push(this.Line(() => this.ListDeclaration()));
+      rulesAtLevel.push(this.Line(() => this.VariableDeclaration()));
+      rulesAtLevel.push(this.Line(() => this.ConstDeclaration()));
+      rulesAtLevel.push(this.Line(() => this.ExternalDeclaration()));
 
       // Normal logic / text can go anywhere
-      rulesAtLevel.push(this.LogicLine);
-      rulesAtLevel.push(this.LineOfMixedTextAndLogic);
+      rulesAtLevel.push(() => this.LogicLine());
+      rulesAtLevel.push(() => this.LineOfMixedTextAndLogic());
 
       // --------
       // Breaking rules
 
       // Break current knot with a new knot
       if (level <= StatementLevel.Knot) {
-        breakingRules.push(this.KnotDeclaration);
+        breakingRules.push(() => this.KnotDeclaration());
       }
 
       // Break current stitch with a new stitch
       if (level <= StatementLevel.Stitch) {
-        breakingRules.push(this.StitchDeclaration);
+        breakingRules.push(() => this.StitchDeclaration());
       }
 
       // Breaking an inner block (like a multi-line condition statement)
       if (level <= StatementLevel.InnerBlock) {
-        breakingRules.push(this.ParseDashNotArrow);
+        breakingRules.push(() => this.ParseDashNotArrow());
         breakingRules.push(this.String("}"));
       }
 
@@ -3053,7 +3107,11 @@ export class ImpowerParser extends StringParser {
         return null;
       }
 
-      this.Expect(this.EndOfLine, "end of line", this.SkipToNextLine);
+      this.Expect(
+        () => this.EndOfLine(),
+        "end of line",
+        () => this.SkipToNextLine()
+      );
 
       return result;
     };
@@ -3093,7 +3151,7 @@ export class ImpowerParser extends StringParser {
   }
 
   protected Tags(): ParsedTag[] {
-    const tags = this.OneOrMore(this.Tag) as ParsedTag[];
+    const tags = this.OneOrMore(() => this.Tag()) as ParsedTag[];
     if (tags == null) {
       return null;
     }
@@ -3103,7 +3161,10 @@ export class ImpowerParser extends StringParser {
 
   // Handles both newline and endOfFile
   protected EndOfLine(): unknown {
-    return this.OneOf(this.Newline, this.EndOfFile);
+    return this.OneOf(
+      () => this.Newline(),
+      () => this.EndOfFile()
+    );
   }
 
   // Allow whitespace before the actual newline
@@ -3132,8 +3193,10 @@ export class ImpowerParser extends StringParser {
 
   // General purpose space, returns N-count newlines (fails if no newlines)
   protected MultilineWhitespace(): unknown {
-    const newlines = this.OneOrMore(this.Newline);
-    if (newlines == null) return null;
+    const newlines = this.OneOrMore(() => this.Newline());
+    if (newlines == null) {
+      return null;
+    }
 
     // Use content field of Token to say how many newlines there were
     // (in most circumstances it's unimportant)
@@ -3169,7 +3232,12 @@ export class ImpowerParser extends StringParser {
 
   protected AnyWhitespace(): unknown {
     let anyWhitespace = false;
-    while (this.OneOf(this.Whitespace, this.MultilineWhitespace) != null) {
+    while (
+      this.OneOf(
+        () => this.Whitespace(),
+        () => this.MultilineWhitespace()
+      ) != null
+    ) {
       anyWhitespace = true;
     }
     return anyWhitespace ? StringParser.ParseSuccess : null;

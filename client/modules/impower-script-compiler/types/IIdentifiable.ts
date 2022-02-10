@@ -6,7 +6,7 @@ export interface IIdentifiable {
 
 export const isIdentifiable = (obj: unknown): obj is IIdentifiable => {
   const castObj = obj as IIdentifiable;
-  if (typeof castObj !== "object") {
+  if (!castObj) {
     return false;
   }
   return castObj.identifier !== undefined;

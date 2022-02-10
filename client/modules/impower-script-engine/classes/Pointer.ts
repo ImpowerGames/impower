@@ -1,24 +1,19 @@
-import { Container } from "./Container";
+import { IContainer } from "../types/IContainer";
+import { IObject } from "../types/IObject";
 import { Path } from "./Path";
 import { PathComponent } from "./PathComponent";
-import { RuntimeObject } from "./RuntimeObject";
 
 export class Pointer {
-  public container: Container = null;
+  public container: IContainer = null;
 
   public index = -1;
 
-  constructor();
-
-  constructor(container: Container, index: number);
-
-  constructor(...args) {
-    if (args.length === 2) {
-      [this.container, this.index] = args;
-    }
+  constructor(container: IContainer = null, index = -1) {
+    this.container = container;
+    this.index = index;
   }
 
-  public Resolve(): RuntimeObject {
+  public Resolve(): IObject {
     if (this.index < 0) {
       return this.container;
     }
@@ -64,11 +59,11 @@ export class Pointer {
 
   // This method does not exist in the original C# code, but is here to maintain the
   // value semantics of Pointer.
-  public copy(): Pointer {
+  public Copy(): Pointer {
     return new Pointer(this.container, this.index);
   }
 
-  public static StartOf(container: Container): Pointer {
+  public static StartOf(container: IContainer): Pointer {
     return new Pointer(container, 0);
   }
 

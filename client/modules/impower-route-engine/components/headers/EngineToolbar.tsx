@@ -711,7 +711,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
         style={{
           position,
           paddingLeft: belowBreakpoint ? theme.spacing(0) : undefined,
-          paddingRight: belowBreakpoint ? theme.spacing(0) : undefined,
+          paddingRight: belowBreakpoint ? theme.spacing(1) : undefined,
           ...style,
         }}
       >

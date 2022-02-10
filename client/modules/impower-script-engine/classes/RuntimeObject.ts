@@ -1,5 +1,6 @@
+import { IContainer, isContainer } from "../types/IContainer";
 import { isNamedContent } from "../types/INamedContent";
-import { Container, isContainer } from "./Container";
+import { IObject } from "../types/IObject";
 import { Debug } from "./Debug";
 import { DebugMetadata } from "./DebugMetadata";
 import { NullException } from "./NullException";
@@ -7,8 +8,12 @@ import { Path } from "./Path";
 import { PathComponent } from "./PathComponent";
 import { SearchResult } from "./SearchResult";
 
-export class RuntimeObject {
+export abstract class RuntimeObject implements IObject {
   public parent: RuntimeObject = null;
+
+  private _debugMetadata: DebugMetadata = null;
+
+  private _path: Path = null;
 
   get debugMetadata(): DebugMetadata {
     if (this._debugMetadata === null) {
@@ -27,8 +32,6 @@ export class RuntimeObject {
   get ownDebugMetadata(): DebugMetadata {
     return this._debugMetadata;
   }
-
-  private _debugMetadata: DebugMetadata = null;
 
   public DebugLineNumberOfPath(path: Path): number {
     if (path === null) {
@@ -57,12 +60,11 @@ export class RuntimeObject {
       } else {
         const comps: PathComponent[] = [];
 
-        let container = isContainer(this.parent) ? this.parent : null;
-        let child: RuntimeObject = container;
+        let child = this as RuntimeObject;
+        let container = isContainer(child.parent) ? child.parent : null;
 
         while (container !== null) {
-          const namedChild =
-            isContainer(child) && isNamedContent(child) ? child : null;
+          const namedChild = isNamedContent(child) ? child : null;
           if (namedChild != null && namedChild.hasValidName) {
             comps.unshift(new PathComponent(namedChild.name));
           } else {
@@ -79,8 +81,6 @@ export class RuntimeObject {
 
     return this._path;
   }
-
-  private _path: Path = null;
 
   public ResolvePath(path: Path): SearchResult {
     if (path === null) {
@@ -175,17 +175,15 @@ export class RuntimeObject {
     return globalPathStr;
   }
 
-  get rootContentContainer(): Container {
-    let ancestor: RuntimeObject = this.parent;
+  get rootContentContainer(): IContainer {
+    let ancestor = this as IObject;
     while (ancestor.parent) {
       ancestor = ancestor.parent;
     }
     return isContainer(ancestor) ? ancestor : null;
   }
 
-  public Copy(): RuntimeObject {
-    throw Error("Not Implemented: Doesn't support copying");
-  }
+  public abstract Copy(): RuntimeObject;
 
   // SetChild works slightly differently in the js implementation.
   // Since we can't pass an objects property by reference, we instead pass

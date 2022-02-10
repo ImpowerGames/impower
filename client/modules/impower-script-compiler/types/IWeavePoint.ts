@@ -10,13 +10,8 @@ export interface IWeavePoint extends IIdentifiable, IObject {
 
 export const isWeavePoint = (obj: unknown): obj is IWeavePoint => {
   const castObj = obj as IWeavePoint;
-  if (typeof castObj !== "object") {
+  if (!castObj) {
     return false;
   }
-  return (
-    isIdentifiable(castObj) &&
-    castObj.indentationDepth !== undefined &&
-    castObj.runtimeContainer !== undefined &&
-    castObj.name !== undefined
-  );
+  return isIdentifiable(castObj) && castObj.indentationDepth !== undefined;
 };

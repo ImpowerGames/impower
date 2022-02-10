@@ -25,6 +25,11 @@ export class ListValue extends Value<List> {
     return "List";
   }
 
+  override Copy(): ListValue {
+    const obj = new ListValue(this.value);
+    return obj;
+  }
+
   public Cast(newType: ValueType): Value<unknown> {
     if (this.value === null) {
       throw new NullException("Value.value");

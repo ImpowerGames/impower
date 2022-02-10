@@ -1,10 +1,12 @@
 import { ErrorHandler } from "../types/ErrorHandler";
 import { ErrorType } from "../types/ErrorType";
+import { isContainer } from "../types/IContainer";
+import { IStory } from "../types/IStory";
 import { PushPopType } from "../types/PushPopType";
 import { createValue } from "../utils/createValue";
 import { Choice } from "./Choice";
 import { ChoicePoint } from "./ChoicePoint";
-import { Container, isContainer } from "./Container";
+import { Container } from "./Container";
 import { ControlCommand } from "./ControlCommand";
 import { DebugMetadata } from "./DebugMetadata";
 import { Divert } from "./Divert";
@@ -25,6 +27,7 @@ import { Pointer } from "./Pointer";
 import { PRNG } from "./PRNG";
 import { Profiler } from "./Profiler";
 import { RuntimeObject } from "./RuntimeObject";
+import { ScriptVersion } from "./ScriptVersion";
 import { SearchResult } from "./SearchResult";
 import { Stopwatch } from "./StopWatch";
 import { StoryException } from "./StoryException";
@@ -51,10 +54,43 @@ if (!Number.isInteger) {
   };
 }
 
-export class Story extends RuntimeObject {
-  public static inkVersionCurrent = 20;
+export class Story extends RuntimeObject implements IStory {
+  public minCompatibleVersion = 18;
 
-  public inkVersionMinimumCompatible = 18;
+  /**
+   * `_mainContentContainer` is almost guaranteed to be set in the
+   * constructor, unless the json is malformed.
+   */
+  private _mainContentContainer: Container = null;
+
+  private _listDefinitions: ListDefinitionsOrigin = null;
+
+  private _externals: Record<string, ExternalFunctionDef> = null;
+
+  private _variableObservers: Record<string, VariableObserver[]> = null;
+
+  private _hasValidatedExternals = false;
+
+  private _temporaryEvaluationContainer: Container = null;
+
+  /**
+   * `state` is almost guaranteed to be set in the constructor, unless
+   * using the compiler-specific constructor which will likely not be used in
+   * the real world.
+   */
+  private _state: StoryState = null;
+
+  private _asyncContinueActive = false;
+
+  private _stateSnapshotAtLastNewline: StoryState = null;
+
+  private _sawLookaheadUnsafeFunctionAfterNewline = false;
+
+  private _recursiveContinueCount = 0;
+
+  private _asyncSaving = false;
+
+  private _profiler: Profiler = null; // TODO: Profiler
 
   get currentChoices(): Choice[] {
     const choices: Choice[] = [];
@@ -74,44 +110,60 @@ export class Story extends RuntimeObject {
 
   get currentText(): string {
     this.IfAsyncWeCant("call currentText since it's a work in progress");
-    return this.state.currentText;
+    return this.state?.currentText;
   }
 
   get currentTags(): string[] {
     this.IfAsyncWeCant("call currentTags since it's a work in progress");
-    return this.state.currentTags;
+    return this.state?.currentTags;
   }
 
   get currentErrors(): string[] {
-    return this.state.currentErrors;
+    return this.state?.currentErrors || null;
   }
 
   get currentWarnings(): string[] {
-    return this.state.currentWarnings;
+    return this.state?.currentWarnings || null;
   }
 
   get currentFlowName(): string {
-    return this.state.currentFlowName;
+    return this.state?.currentFlowName || null;
   }
 
   get hasError(): boolean {
-    return this.state.hasError;
+    return this.state?.hasError || false;
   }
 
   get hasWarning(): boolean {
-    return this.state.hasWarning;
+    return this.state?.hasWarning || false;
   }
 
   get variablesState(): VariablesState {
-    return this.state.variablesState;
+    return this.state?.variablesState || null;
   }
 
   get listDefinitions(): ListDefinitionsOrigin {
-    return this._listDefinitions;
+    return this._listDefinitions || null;
   }
 
   get state(): StoryState {
-    return this._state;
+    return this._state || null;
+  }
+
+  get canContinue(): boolean {
+    return this.state?.canContinue || false;
+  }
+
+  get asyncContinueComplete(): boolean {
+    return !this._asyncContinueActive;
+  }
+
+  override Copy(): Story {
+    const obj = new Story(
+      this.mainContentContainer,
+      this.listDefinitions.lists
+    );
+    return obj;
   }
 
   public onError: ErrorHandler = null;
@@ -129,22 +181,9 @@ export class Story extends RuntimeObject {
     arg4: unknown
   ) => void = null;
 
-  public onChoosePathString: (arg1: string, arg2: unknown[]) => void = null;
-
-  // TODO: Implement Profiler
-  public StartProfiling(): void {
-    /* */
-  }
-
-  public EndProfiling(): void {
-    /* */
-  }
-
   constructor(contentContainer: Container, lists: ListDefinition[]);
 
   constructor(jsonString: string);
-
-  constructor(json: Record<string, unknown>);
 
   constructor(...args) {
     super();
@@ -154,25 +193,22 @@ export class Story extends RuntimeObject {
     let lists: ListDefinition[] = null;
     let json: Record<string, unknown> = null;
 
-    if (isContainer(args[0])) {
-      [contentContainer] = args;
+    if (typeof args[0] === "string") {
+      const jsonString = args[0] as string;
+      json = new JsonReader(jsonString).ToDictionary();
+    } else {
+      contentContainer = args?.[0];
 
-      if (typeof args[1] !== "undefined") {
-        lists = args[1] as ListDefinition[];
+      if (args?.[1]) {
+        lists = args?.[1] as ListDefinition[];
       }
 
       // ------ Story (Container contentContainer, List<Runtime.ListDefinition> lists = null)
       this._mainContentContainer = contentContainer;
-      // ------
-    } else if (typeof args[0] === "string") {
-      const jsonString = args[0] as string;
-      json = new JsonReader(jsonString).ToDictionary();
-    } else {
-      json = args[0] as Record<string, unknown>;
     }
 
     // ------ Story (Container contentContainer, List<Runtime.ListDefinition> lists = null)
-    if (lists != null) this._listDefinitions = new ListDefinitionsOrigin(lists);
+    this._listDefinitions = new ListDefinitionsOrigin(lists || []);
 
     this._externals = {};
     // ------
@@ -181,31 +217,31 @@ export class Story extends RuntimeObject {
     if (json !== null) {
       const rootObject: Record<string, unknown> = json;
 
-      const versionObj = rootObject.inkVersion;
+      const versionObj = rootObject.scriptVersion;
       if (versionObj == null)
         throw new Error(
-          "ink version number not found. Are you sure it's a valid .ink.json file?"
+          "script version number not found. Are you sure it's a valid .script.json file?"
         );
 
       const formatFromFile = Number(versionObj);
-      if (formatFromFile > Story.inkVersionCurrent) {
+      if (formatFromFile > ScriptVersion.current) {
         throw new Error(
-          "Version of ink used to build story was newer than the current version of the engine"
+          "Version of script used to build story was newer than the current version of the engine"
         );
-      } else if (formatFromFile < this.inkVersionMinimumCompatible) {
+      } else if (formatFromFile < this.minCompatibleVersion) {
         throw new Error(
-          "Version of ink used to build story is too old to be loaded by this version of the engine"
+          "Version of script used to build story is too old to be loaded by this version of the engine"
         );
-      } else if (formatFromFile !== Story.inkVersionCurrent) {
+      } else if (formatFromFile !== ScriptVersion.current) {
         console.warn(
-          "WARNING: Version of ink used to build story doesn't match current version of engine. Non-critical, but recommend synchronising."
+          "WARNING: Version of script used to build story doesn't match current version of engine. Non-critical, but recommend synchronising."
         );
       }
 
       const rootToken = rootObject.root;
       if (rootToken == null)
         throw new Error(
-          "Root node for ink not found. Are you sure it's a valid .ink.json file?"
+          "Root node for script not found. Are you sure it's a valid .script.json file?"
         );
 
       const listDefsObj = rootObject.listDefs as Record<string, unknown>;
@@ -216,12 +252,23 @@ export class Story extends RuntimeObject {
 
       const containerObj = JsonSerialisation.JTokenToRuntimeObject(rootToken);
       this._mainContentContainer = isContainer(containerObj)
-        ? containerObj
+        ? (containerObj as Container)
         : null;
 
       this.ResetState();
     }
     // ------
+  }
+
+  public onChoosePathString: (arg1: string, arg2: unknown[]) => void = null;
+
+  // TODO: Implement Profiler
+  public StartProfiling(): void {
+    /* */
+  }
+
+  public EndProfiling(): void {
+    /* */
   }
 
   // Merge together `public string ToJson()` and `void ToJson(SimpleJson.Writer writer)`.
@@ -236,7 +283,7 @@ export class Story extends RuntimeObject {
 
     writer.WriteObjectStart();
 
-    writer.WriteIntProperty("inkVersion", Story.inkVersionCurrent);
+    writer.WriteIntProperty("scriptVersion", ScriptVersion.current);
 
     writer.WriteProperty("root", (w) =>
       JsonSerialisation.WriteRuntimeContainer(w, this._mainContentContainer)
@@ -300,7 +347,7 @@ export class Story extends RuntimeObject {
 
   public ResetGlobals(): void {
     if (this._mainContentContainer.namedContent["global decl"]) {
-      const originalPointer = this.state.currentPointer.copy();
+      const originalPointer = this.state.currentPointer.Copy();
 
       this.ChoosePath(new Path("global decl"), false);
 
@@ -334,14 +381,6 @@ export class Story extends RuntimeObject {
   public Continue(): string {
     this.ContinueAsync(0);
     return this.currentText;
-  }
-
-  get canContinue(): boolean {
-    return this.state.canContinue;
-  }
-
-  get asyncContinueComplete(): boolean {
-    return !this._asyncContinueActive;
   }
 
   public ContinueAsync(millisecsLimitAsync: number): void {
@@ -728,13 +767,15 @@ export class Story extends RuntimeObject {
   public Step(): void {
     let shouldAddToStream = true;
 
-    let pointer = this.state.currentPointer.copy();
+    let pointer = this.state.currentPointer.Copy();
     if (pointer.isNull) {
       return;
     }
 
     const containerObj = pointer.Resolve();
-    let containerToEnter = isContainer(containerObj) ? containerObj : null;
+    let containerToEnter = isContainer(containerObj)
+      ? (containerObj as Container)
+      : null;
 
     while (containerToEnter) {
       this.VisitContainer(containerToEnter, true);
@@ -746,10 +787,12 @@ export class Story extends RuntimeObject {
 
       pointer = Pointer.StartOf(containerToEnter);
       const newContainerObj = pointer.Resolve();
-      containerToEnter = isContainer(newContainerObj) ? newContainerObj : null;
+      containerToEnter = isContainer(newContainerObj)
+        ? (newContainerObj as Container)
+        : null;
     }
 
-    this.state.currentPointer = pointer.copy();
+    this.state.currentPointer = pointer.Copy();
 
     if (this._profiler) {
       this._profiler.Step(this.state.callStack);
@@ -760,7 +803,7 @@ export class Story extends RuntimeObject {
     //  - Or a logic/flow statement - if so, do it
     // Stop flow if we hit a stack pop when we're unable to pop (e.g. return/done statement in knot
     // that was diverted to rather than called as a function)
-    let currentContentObj = pointer.Resolve();
+    let currentContentObj = pointer.Resolve() as RuntimeObject;
     const isLogicOrFlowControl =
       this.PerformLogicAndFlowControl(currentContentObj);
 
@@ -774,9 +817,8 @@ export class Story extends RuntimeObject {
     }
 
     // Choice with condition?
-    const choicePoint = currentContentObj as ChoicePoint;
-    if (choicePoint) {
-      const choice = this.ProcessChoice(choicePoint);
+    if (currentContentObj instanceof ChoicePoint) {
+      const choice = this.ProcessChoice(currentContentObj);
       if (choice) {
         this.state.generatedChoices.push(choice);
       }
@@ -842,8 +884,8 @@ export class Story extends RuntimeObject {
   private _prevContainers: Container[] = [];
 
   public VisitChangedContainersDueToDivert(): void {
-    const previousPointer = this.state.previousPointer.copy();
-    const pointer = this.state.currentPointer.copy();
+    const previousPointer = this.state.previousPointer.Copy();
+    const pointer = this.state.currentPointer.Copy();
 
     if (pointer.isNull || pointer.index === -1) return;
 
@@ -852,15 +894,15 @@ export class Story extends RuntimeObject {
       const resolvedPreviousAncestor = previousPointer.Resolve();
       let prevAncestor =
         (isContainer(resolvedPreviousAncestor)
-          ? resolvedPreviousAncestor
+          ? (resolvedPreviousAncestor as Container)
           : null) ||
         (isContainer(previousPointer.container)
-          ? previousPointer.container
+          ? (previousPointer.container as Container)
           : null);
       while (prevAncestor) {
         this._prevContainers.push(prevAncestor);
         prevAncestor = isContainer(prevAncestor.parent)
-          ? prevAncestor.parent
+          ? (prevAncestor.parent as Container)
           : null;
       }
     }
@@ -872,7 +914,7 @@ export class Story extends RuntimeObject {
     }
 
     let currentContainerAncestor = isContainer(currentChildOfContainer.parent)
-      ? currentChildOfContainer.parent
+      ? (currentChildOfContainer.parent as Container)
       : null;
     let allChildrenEnteredAtStart = true;
     while (
@@ -894,7 +936,7 @@ export class Story extends RuntimeObject {
 
       currentChildOfContainer = currentContainerAncestor;
       currentContainerAncestor = isContainer(currentContainerAncestor.parent)
-        ? currentContainerAncestor.parent
+        ? (currentContainerAncestor.parent as Container)
         : null;
     }
   }
@@ -1016,7 +1058,7 @@ export class Story extends RuntimeObject {
         );
         return true;
       } else {
-        this.state.divertedPointer = currentDivert.targetPointer.copy();
+        this.state.divertedPointer = currentDivert.targetPointer.Copy();
       }
 
       if (currentDivert.pushesToStack) {
@@ -1229,7 +1271,7 @@ export class Story extends RuntimeObject {
             divertTarget.targetPath
           ).correctObj;
           const container = isContainer(correctContainer)
-            ? correctContainer
+            ? (correctContainer as Container)
             : null;
 
           let eitherCount;
@@ -1333,7 +1375,7 @@ export class Story extends RuntimeObject {
         case "VisitIndex": {
           const count =
             this.state.VisitCountForContainer(
-              this.state.currentPointer.container
+              this.state.currentPointer.container as Container
             ) - 1; // index not count
           this.state.PushEvaluationStack(new IntValue(count));
           break;
@@ -1900,7 +1942,7 @@ export class Story extends RuntimeObject {
       });
       Object.entries(c.namedContent).forEach(([, value]) => {
         this.ValidateExternalBindings(
-          isContainer(value) ? value : null,
+          isContainer(value) ? (value as Container) : null,
           missingExternals
         );
       });
@@ -2076,7 +2118,7 @@ export class Story extends RuntimeObject {
     this.mainContentContainer.BuildStringOfHierarchy(
       sb,
       0,
-      this.state.currentPointer.Resolve()
+      this.state.currentPointer.Resolve() as Container
     );
 
     return sb.ToString();
@@ -2087,16 +2129,16 @@ export class Story extends RuntimeObject {
     container.BuildStringOfHierarchy(
       sb,
       0,
-      this.state.currentPointer.Resolve()
+      this.state.currentPointer.Resolve() as Container
     );
     return sb.ToString();
   }
 
   public NextContent(): void {
-    this.state.previousPointer = this.state.currentPointer.copy();
+    this.state.previousPointer = this.state.currentPointer.Copy();
 
     if (!this.state.divertedPointer.isNull) {
-      this.state.currentPointer = this.state.divertedPointer.copy();
+      this.state.currentPointer = this.state.divertedPointer.Copy();
       this.state.divertedPointer = Pointer.Null;
 
       this.VisitChangedContainersDueToDivert();
@@ -2136,7 +2178,7 @@ export class Story extends RuntimeObject {
   public IncrementContentPointer(): boolean {
     let successfulIncrement = true;
 
-    let pointer = this.state.callStack.currentElement.currentPointer.copy();
+    let pointer = this.state.callStack.currentElement.currentPointer.Copy();
     pointer.index += 1;
 
     if (pointer.container === null) {
@@ -2169,7 +2211,7 @@ export class Story extends RuntimeObject {
 
     if (!successfulIncrement) pointer = Pointer.Null;
 
-    this.state.callStack.currentElement.currentPointer = pointer.copy();
+    this.state.callStack.currentElement.currentPointer = pointer.Copy();
 
     return successfulIncrement;
   }
@@ -2341,41 +2383,6 @@ export class Story extends RuntimeObject {
     }
     return this._mainContentContainer;
   }
-
-  /**
-   * `_mainContentContainer` is almost guaranteed to be set in the
-   * constructor, unless the json is malformed.
-   */
-  private _mainContentContainer!: Container;
-
-  private _listDefinitions: ListDefinitionsOrigin = null;
-
-  private _externals: Record<string, ExternalFunctionDef>;
-
-  private _variableObservers: Record<string, VariableObserver[]> = null;
-
-  private _hasValidatedExternals = false;
-
-  private _temporaryEvaluationContainer: Container = null;
-
-  /**
-   * `state` is almost guaranteed to be set in the constructor, unless
-   * using the compiler-specific constructor which will likely not be used in
-   * the real world.
-   */
-  private _state!: StoryState;
-
-  private _asyncContinueActive = false;
-
-  private _stateSnapshotAtLastNewline: StoryState = null;
-
-  private _sawLookaheadUnsafeFunctionAfterNewline = false;
-
-  private _recursiveContinueCount = 0;
-
-  private _asyncSaving = false;
-
-  private _profiler: Profiler = null; // TODO: Profiler
 }
 
 export type OutputStateChange =

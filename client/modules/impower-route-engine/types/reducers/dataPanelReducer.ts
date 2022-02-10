@@ -1,45 +1,46 @@
 import {
-  ItemType,
   ItemSectionType,
-  SetupSectionType,
+  ItemType,
   Reference,
+  SetupSectionType,
 } from "../../../impower-game/data";
 import {
+  changeSelection,
   multiSelection,
   toggleSelection,
-  changeSelection,
 } from "../../../impower-route";
 import {
-  DataPanelState,
-  createDataPanelState,
-  ContainerArrangement,
-  DataInteractionType,
-  DataWindowType,
-  DataPanelType,
-} from "../state/dataPanelState";
-import {
   DataPanelAction,
-  DATA_PANEL_SET_PARENT_CONTAINER_ARRANGEMENT,
-  DATA_PANEL_CHANGE_INTERACTION,
-  DATA_PANEL_TOGGLE_INTERACTION,
-  DATA_PANEL_MULTI_INTERACTION,
-  DATA_PANEL_TOGGLE_ALL_INTERACTION,
   DATA_PANEL_ADD_INTERACTION,
-  DATA_PANEL_REMOVE_INTERACTION,
-  DATA_PANEL_SET_INTERACTION,
+  DATA_PANEL_CHANGE_INTERACTION,
   DATA_PANEL_CHANGE_ITEM_SECTION,
-  DATA_PANEL_SET_LAST_ADDED_TYPE_ID,
-  DATA_PANEL_SEARCH,
-  DATA_PANEL_SET_PANE_SIZE,
-  DATA_PANEL_SET_SCROLL_PARENT,
-  DATA_PANEL_SET_SCROLL_Y,
-  DATA_PANEL_SET_SCROLL_X,
   DATA_PANEL_INSPECT,
-  DATA_PANEL_SET_ERRORS,
-  DATA_PANEL_SUBMIT,
+  DATA_PANEL_MULTI_INTERACTION,
   DATA_PANEL_OPEN,
+  DATA_PANEL_REMOVE_INTERACTION,
+  DATA_PANEL_SEARCH,
+  DATA_PANEL_SET_ERRORS,
+  DATA_PANEL_SET_INTERACTION,
+  DATA_PANEL_SET_LAST_ADDED_TYPE_ID,
+  DATA_PANEL_SET_PANE_SIZE,
+  DATA_PANEL_SET_PARENT_CONTAINER_ARRANGEMENT,
+  DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING,
+  DATA_PANEL_SET_SCROLL_PARENT,
+  DATA_PANEL_SET_SCROLL_X,
+  DATA_PANEL_SET_SCROLL_Y,
+  DATA_PANEL_SUBMIT,
+  DATA_PANEL_TOGGLE_ALL_INTERACTION,
+  DATA_PANEL_TOGGLE_INTERACTION,
 } from "../actions/dataPanelActions";
 import { getInteractionsSelector } from "../selectors/dataPanelSelectors";
+import {
+  ContainerArrangement,
+  createDataPanelState,
+  DataInteractionType,
+  DataPanelState,
+  DataPanelType,
+  DataWindowType,
+} from "../state/dataPanelState";
 
 const doOpen = (
   state: DataPanelState,
@@ -309,6 +310,26 @@ export const doMultiInteraction = (
     panelType,
     references: combinedReferences,
   });
+};
+
+const doSetParentContainerScripting = (
+  state: DataPanelState,
+  payload: { windowType: DataWindowType; scripting: boolean }
+): DataPanelState => {
+  const { windowType, scripting } = payload;
+  return {
+    ...state,
+    panels: {
+      ...state.panels,
+      [windowType]: {
+        ...state.panels[windowType],
+        Container: {
+          ...state.panels[windowType].Container,
+          scripting,
+        },
+      },
+    },
+  };
 };
 
 const doSetParentContainerArrangement = (
@@ -589,6 +610,8 @@ export const dataPanelReducer = (
       return doMultiInteraction(state, action.payload);
     case DATA_PANEL_SET_PARENT_CONTAINER_ARRANGEMENT:
       return doSetParentContainerArrangement(state, action.payload);
+    case DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING:
+      return doSetParentContainerScripting(state, action.payload);
     case DATA_PANEL_CHANGE_ITEM_SECTION:
       return doChangeItemSection(state, action.payload);
     case DATA_PANEL_SET_LAST_ADDED_TYPE_ID:

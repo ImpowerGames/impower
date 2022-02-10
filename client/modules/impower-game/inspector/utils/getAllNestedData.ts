@@ -34,7 +34,7 @@ const getNestedDataInternal = (
       const construct = project?.instances?.constructs.data[reference.refId];
       if (construct) {
         dict[reference.refId] = construct;
-        construct.childContainerIds.forEach((childId) => {
+        construct.childContainerIds?.forEach((childId) => {
           getNestedDataInternal(
             dict,
             {
@@ -52,7 +52,7 @@ const getNestedDataInternal = (
       const block = project?.instances?.blocks.data[reference.refId];
       if (block) {
         dict[reference.refId] = block;
-        block.childContainerIds.forEach((childId) => {
+        block.childContainerIds?.forEach((childId) => {
           getNestedDataInternal(
             dict,
             {

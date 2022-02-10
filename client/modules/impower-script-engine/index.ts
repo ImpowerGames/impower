@@ -20,7 +20,7 @@ export { RuntimeObject } from "./classes/RuntimeObject";
 export { Story } from "./classes/Story";
 export { StoryState } from "./classes/StoryState";
 export { StringBuilder } from "./classes/StringBuilder";
-export { StringValue } from "./classes/StringValue";
+export { isStringValue, StringValue } from "./classes/StringValue";
 export { Tag } from "./classes/Tag";
 export { VariableAssignment } from "./classes/VariableAssignment";
 export { VariablePointerValue } from "./classes/VariablePointerValue";

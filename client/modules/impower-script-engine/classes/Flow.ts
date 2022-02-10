@@ -1,28 +1,28 @@
+import { IStory } from "../types/IStory";
 import { CallStack } from "./CallStack";
 import { Choice } from "./Choice";
 import { JsonSerialisation } from "./JsonSerialisation";
 import { JsonWriter } from "./JsonWriter";
 import { NullException } from "./NullException";
 import { RuntimeObject } from "./RuntimeObject";
-import { Story } from "./Story";
 import { Thread } from "./Thread";
 
 export class Flow {
-  public name: string;
+  public name: string = null;
 
-  public callStack: CallStack;
+  public callStack: CallStack = null;
 
-  public outputStream: RuntimeObject[];
+  public outputStream: RuntimeObject[] = null;
 
-  public currentChoices: Choice[];
+  public currentChoices: Choice[] = null;
 
-  constructor(name: string, story: Story);
+  constructor(name: string, story: IStory);
 
-  constructor(name: string, story: Story, jObject: Record<string, unknown>);
+  constructor(name: string, story: IStory, jObject: Record<string, unknown>);
 
   constructor(...args) {
     const name = args[0] as string;
-    const story = args[1] as Story;
+    const story = args[1] as IStory;
 
     this.name = name;
     this.callStack = new CallStack(story);
@@ -100,7 +100,7 @@ export class Flow {
 
   public LoadFlowChoiceThreads(
     jChoiceThreads: Record<string, unknown>,
-    story: Story
+    story: IStory
   ): void {
     this.currentChoices.forEach((choice) => {
       const foundActiveThread = this.callStack.ThreadWithIndex(

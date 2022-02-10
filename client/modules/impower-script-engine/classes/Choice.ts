@@ -18,6 +18,17 @@ export class Choice extends RuntimeObject {
 
   public originalThreadIndex = 0;
 
+  override Copy(): Choice {
+    const obj = new Choice();
+    obj.text = this.text;
+    obj.index = this.index;
+    obj.threadAtGeneration = this.threadAtGeneration;
+    obj.sourcePath = this.sourcePath;
+    obj.targetPath = this.targetPath;
+    obj.originalThreadIndex = this.originalThreadIndex;
+    return obj;
+  }
+
   get pathStringOnChoice(): string {
     if (this.targetPath === null) {
       throw new NullException("Choice.targetPath");

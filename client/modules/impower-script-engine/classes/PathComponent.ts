@@ -23,6 +23,11 @@ export class PathComponent {
     return this.name === PARENT_ID;
   }
 
+  public Copy(): PathComponent {
+    const obj = new PathComponent(this.name || this.index);
+    return obj;
+  }
+
   public static ToParent(): PathComponent {
     return new PathComponent(PARENT_ID);
   }

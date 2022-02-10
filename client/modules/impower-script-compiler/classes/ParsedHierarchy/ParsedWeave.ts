@@ -118,7 +118,7 @@ export class ParsedWeave extends ParsedObject implements IWeave {
 
   ResolveWeavePointNaming(): void {
     const namedWeavePoints = this.FindAll<IWeavePoint>(
-      (w) => isWeavePoint(w) && !w.name
+      (w) => isWeavePoint(w) && Boolean(w.name)
     );
 
     this._namedWeavePoints = {};
@@ -288,8 +288,7 @@ export class ParsedWeave extends ParsedObject implements IWeave {
           divert = looseEnd.runtimeObject as Divert;
         } else {
           divert = new Divert();
-          const looseWeavePoint = looseEnd as IWeavePoint;
-          looseWeavePoint.runtimeContainer.AddContent(divert);
+          looseEnd.runtimeContainer.AddContent(divert);
         }
 
         // Pass back knowledge of this loose end being diverted

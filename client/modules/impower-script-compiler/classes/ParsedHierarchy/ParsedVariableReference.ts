@@ -61,7 +61,7 @@ export class ParsedVariableReference
     super();
     this.pathIdentifiers = pathIdentifiers;
     this.path = pathIdentifiers.map((id) => id?.name);
-    this.name = pathIdentifiers.join(".");
+    this.name = pathIdentifiers.map((id) => id?.name).join(".");
   }
 
   override GenerateIntoContainer(container: Container): void {

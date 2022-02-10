@@ -1,3 +1,4 @@
+import { IStory } from "../types/IStory";
 import { ListDefinition } from "./ListDefinition";
 import {
   ListItem,
@@ -5,7 +6,6 @@ import {
   SerializedListItem,
 } from "./ListItem";
 import { NullException } from "./NullException";
-import { Story } from "./Story";
 import { StringBuilder } from "./StringBuilder";
 
 export class List extends Map<SerializedListItem, number> {
@@ -17,7 +17,7 @@ export class List extends Map<SerializedListItem, number> {
 
   constructor(otherList: List);
 
-  constructor(singleOriginListName: string, originStory: Story);
+  constructor(singleOriginListName: string, originStory: IStory);
 
   constructor(singleElement: KeyValuePair<ListItem, number>);
 
@@ -35,7 +35,7 @@ export class List extends Map<SerializedListItem, number> {
       }
     } else if (typeof args[0] === "string") {
       const singleOriginListName = args[0] as string;
-      const originStory = args[1] as Story;
+      const originStory = args[1] as IStory;
       this.SetInitialOriginName(singleOriginListName);
 
       if (originStory.listDefinitions === null) {
@@ -67,7 +67,7 @@ export class List extends Map<SerializedListItem, number> {
     }
   }
 
-  public static FromString(myListItem: string, originStory: Story): List {
+  public static FromString(myListItem: string, originStory: IStory): List {
     const listValue =
       originStory.listDefinitions?.FindSingleItemListWithName(myListItem);
     if (listValue) {
