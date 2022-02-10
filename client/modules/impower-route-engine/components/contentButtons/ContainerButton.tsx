@@ -149,6 +149,9 @@ const DataButtonRightChildren = React.memo(
     return (
       <PanelHeaderIconButton
         {...onTapButton(true, dragging, (e) => onClick(e, id))}
+        onPointerDown={(e): void => {
+          e.stopPropagation();
+        }}
         color={`${theme.colors.subtitle}${hasChildren ? "FF" : "40"}`}
         aria-label="Open"
         icon={<AngleRightSolidIcon />}

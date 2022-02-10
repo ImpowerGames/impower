@@ -28,6 +28,7 @@ import SquareCheckSolidIcon from "../../../../resources/icons/solid/square-check
 import TypewriterSolidIcon from "../../../../resources/icons/solid/typewriter.svg";
 import format from "../../../impower-config/utils/format";
 import {
+  debounce,
   difference,
   getAllVisiblePropertyPaths,
   getFirstError,
@@ -36,9 +37,12 @@ import {
 import { useDialogNavigation } from "../../../impower-dialog";
 import {
   BlockData,
+  BlockReference,
   ContainerData,
   ContainerReference,
   ContainerType,
+  createBlockData,
+  createBlockReference,
   defaultNodePosition,
   defaultNodeSize,
   GameProjectData,
@@ -1695,19 +1699,42 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     [dispatch, windowType, panelKey, scrollParent]
   );
 
+  const scriptValueRef = useRef<string>();
+
+  const handleSaveScriptChange = useCallback(() => {
+    const newValue = scriptValueRef.current;
+    const parentReference =
+      (parentContainer?.reference as BlockReference) ||
+      createBlockReference({
+        refId: ContainerType.Block,
+      });
+    if (!parentContainer?.reference) {
+      dispatch(
+        projectInsertData([
+          createBlockData({
+            reference: parentReference,
+            name: "Root",
+          }),
+        ])
+      );
+    }
+    dispatch(
+      projectUpdateData("Update Script", [parentReference], "script", newValue)
+    );
+  }, [dispatch, parentContainer?.reference]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleDebouncedScriptChange = useCallback(
+    debounce(handleSaveScriptChange, 200),
+    [handleSaveScriptChange]
+  );
+
   const handleScriptChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const newValue = e.target.value;
-      dispatch(
-        projectUpdateData(
-          "Update Script",
-          [parentContainer?.reference],
-          "script",
-          newValue
-        )
-      );
+      scriptValueRef.current = e.target.value;
+      handleDebouncedScriptChange();
     },
-    [dispatch, parentContainer?.reference]
+    [handleDebouncedScriptChange]
   );
 
   const handleBrowserNavigation = useCallback(

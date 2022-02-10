@@ -183,6 +183,7 @@ export const insertGameProjectData = (
                   reference: createBlockReference({
                     refId: parent.parentContainerId,
                   }),
+                  name: "ROOT",
                 }),
                 ...newProject?.instances?.blocks?.data[
                   parent.parentContainerId

@@ -14,6 +14,7 @@ interface PanelHeaderIconButtonProps {
   "aria-label"?: string;
   "onMouseDown"?: React.MouseEventHandler<HTMLButtonElement>;
   "onPointerUp"?: React.PointerEventHandler<HTMLButtonElement>;
+  "onPointerDown"?: React.PointerEventHandler<HTMLButtonElement>;
   "onClick"?: React.MouseEventHandler<HTMLButtonElement>;
 }
 
@@ -29,6 +30,7 @@ const PanelHeaderIconButton = (
     style,
     "aria-label": ariaLabel,
     onMouseDown,
+    onPointerDown,
     onPointerUp,
     onClick,
   } = props;
@@ -44,6 +46,7 @@ const PanelHeaderIconButton = (
           ...style,
         }}
         onMouseDown={onMouseDown}
+        onPointerDown={onPointerDown}
         onPointerUp={onPointerUp}
         onClick={onClick}
       >
