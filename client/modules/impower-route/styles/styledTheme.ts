@@ -55,7 +55,7 @@ export const styledTheme: StyledTheme = {
 
   fontFamily: {
     main: "Open Sans",
-    monospace: "Roboto Mono",
+    monospace: "Noto Sans Mono",
     title: "Roboto Slab",
   },
 

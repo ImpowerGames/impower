@@ -35,13 +35,14 @@
   src: local(""), url("/fonts/roboto-slab-v12-latin-700.woff2") format("woff2");
 }
 
-/* roboto-mono-400 - latin */
+/* noto-sans-mono-400 - latin */
 @font-face {
-  font-family: "Roboto Mono";
+  font-family: "Noto Sans Mono";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: local(""), url("/fonts/roboto-mono-v12-latin-400.woff2") format("woff2");
+  src: local(""),
+    url("/fonts/noto-sans-mono-v14-latin-regular.woff2") format("woff2");
 }
 
 /* WARNING: webkit-scrollbar is not supported in Firefox and IE */

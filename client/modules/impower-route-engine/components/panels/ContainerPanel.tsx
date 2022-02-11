@@ -311,6 +311,9 @@ const StyledInput = styled(Input)`
   min-height: 100%;
   align-items: flex-start;
   color: white;
+  font-family: ${(props): string => props.theme.fontFamily.monospace};
+  font-size: ${(props): string | number =>
+    props.theme.typography.body2.fontSize};
 
   & .MuiInputBase-root input {
     padding-top: 0;
@@ -1798,6 +1801,13 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
+      if (
+        openPanel !== DataPanelType.Container ||
+        (containerPanelState.scripting &&
+          containerPanelState.arrangement === ContainerArrangement.List)
+      ) {
+        return;
+      }
       e.stopPropagation();
       e.preventDefault();
       setOptionsMenuReference(e.button === 2 ? "anchorPosition" : "anchorEl");
@@ -1806,7 +1816,12 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       setOptionsMenuOpen(true);
       openMenuDialog("context");
     },
-    [openMenuDialog]
+    [
+      containerPanelState.arrangement,
+      containerPanelState.scripting,
+      openMenuDialog,
+      openPanel,
+    ]
   );
 
   const handleCloseOptionsMenu = useCallback(() => {
