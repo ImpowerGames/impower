@@ -377,12 +377,12 @@ export class ImpowerParser extends StringParser {
     let onceOnlyChoice = true;
     let bullets = this.Interleave<string>(
       this.OptionalExclude(() => this.Whitespace()),
-      this.String("*")
+      this.SpacedAfter(this.String("*"))
     );
     if (bullets == null) {
       bullets = this.Interleave<string>(
         this.OptionalExclude(() => this.Whitespace()),
-        this.String("+")
+        this.SpacedAfter(this.String("+"))
       );
       if (bullets == null) {
         return null;
@@ -1080,7 +1080,7 @@ export class ImpowerParser extends StringParser {
       const lastObj = mixedTextAndLogicResults[lastObjIdx];
       if (lastObj instanceof ParsedText) {
         const text = lastObj;
-        text.text = text.text.trimEnd();
+        text.text = text.text.replace(/[ \t]+$/g, "");
 
         if (terminateWithSpace) {
           text.text += " ";
@@ -1118,18 +1118,22 @@ export class ImpowerParser extends StringParser {
       }
     }
 
-    if (result == null || result.length === 0) return null;
+    if (result == null || result.length === 0) {
+      return null;
+    }
 
     // Warn about accidentally writing "return" without "~"
-    const firstText = result[0] as ParsedText;
-    if (firstText) {
+    const firstText = result?.[0];
+    if (firstText instanceof ParsedText) {
       if (firstText.text.startsWith("return")) {
         this.Warning(
           "Do you need a '~' before 'return'? If not, perhaps use a glue: <> (since it's lowercase) or rewrite somehow?"
         );
       }
     }
-    if (result.length === 0) return null;
+    if (result.length === 0) {
+      return null;
+    }
 
     const lastObj = result[result.length - 1];
     if (!(lastObj instanceof ParsedDivert)) {
@@ -1152,14 +1156,6 @@ export class ImpowerParser extends StringParser {
   }
 
   protected MixedTextAndLogic(): ParsedObject[] {
-    // Check for disallowed "~" within this context
-    const disallowedTilda = this.ParseObject(this.Spaced(this.String("~")));
-    if (disallowedTilda != null) {
-      this.Error(
-        "You shouldn't use a '~' here - tildas are for logic that's on its own line. To do inline logic, use { curly braces } instead"
-      );
-    }
-
     // Either, or both interleaved
     let results = this.Interleave<ParsedObject>(
       this.Optional(() => this.ContentText()),
@@ -2255,7 +2251,9 @@ export class ImpowerParser extends StringParser {
       return null;
     }
 
-    this.Whitespace();
+    if (this.Whitespace() == null) {
+      return null;
+    }
 
     // Some example lines we need to be able to distinguish between:
     // ~ temp x = 5  -- var decl + assign
@@ -3226,6 +3224,19 @@ export class ImpowerParser extends StringParser {
 
       this.Whitespace();
 
+      return result;
+    };
+  }
+
+  protected SpacedAfter(rule: ParseRule): ParseRule {
+    return (): unknown => {
+      const result = this.ParseObject(rule);
+
+      const whitespaceAfter = this.Whitespace();
+
+      if (!result || !whitespaceAfter) {
+        return null;
+      }
       return result;
     };
   }

@@ -29,7 +29,7 @@ export class FloatValue extends Value<number> {
   }
 
   public Cast(newType: ValueType): Value<unknown> {
-    if (this.value === null) {
+    if (this.value == null) {
       throw new NullException("Value.value");
     }
 

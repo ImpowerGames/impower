@@ -1,13 +1,13 @@
 import { GameConfig } from "../interfaces/gameConfig";
 import { SaveData } from "../interfaces/saveData";
-import { PhysicsManager } from "./managers/physicsManager";
+import { GameEvent } from "./events/gameEvent";
 import { AssetManager } from "./managers/assetManager";
+import { DebugManager } from "./managers/debugManager";
 import { EntityManager } from "./managers/entityManager";
 import { LogicManager } from "./managers/logicManager";
-import { DebugManager } from "./managers/debugManager";
-import { GameEvent } from "./events/gameEvent";
-import { RandomManager } from "./managers/randomManager";
 import { Manager } from "./managers/manager";
+import { PhysicsManager } from "./managers/physicsManager";
+import { RandomManager } from "./managers/randomManager";
 
 export interface GameEvents {
   onStart: GameEvent;

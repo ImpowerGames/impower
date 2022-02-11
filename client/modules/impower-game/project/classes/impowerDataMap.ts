@@ -1,94 +1,61 @@
 import { Compiler } from "../../../impower-script-compiler";
 import { Story } from "../../../impower-script-engine";
+import { parseFountain } from "../../../impower-script-parser";
 import { BlockData, ConstructData } from "../../data";
 import { ImpowerGameRunner } from "../../runner/classes/impowerGameRunner";
 import { FileData } from "./instances/file/fileData";
-import { CommandData } from "./instances/items/command/commandData";
-import { CommandRunner } from "./instances/items/command/commandRunner";
 import { ElementData } from "./instances/items/element/elementData";
-import { TriggerData } from "./instances/items/trigger/triggerData";
-import { TriggerRunner } from "./instances/items/trigger/triggerRunner";
 import { VariableData } from "./instances/items/variable/variableData";
 import { GameProjectData } from "./project/gameProjectData";
 
 export class ImpowerDataMap {
+  private _runner: ImpowerGameRunner;
+
   private _compiler: Compiler = new Compiler();
 
   private _files: { [refId: string]: FileData };
+
+  private _constructs: { [refId: string]: ConstructData };
+
+  private _blocks: { [refId: string]: BlockData };
+
+  private _elements: { [refId: string]: ElementData };
+
+  private _variables: { [refId: string]: VariableData };
+
+  private _scripts: Record<string, Story> = {};
 
   public get files(): { [refId: string]: FileData } {
     return this._files;
   }
 
-  private _constructs: { [refId: string]: ConstructData };
-
   public get constructs(): { [refId: string]: ConstructData } {
     return this._constructs;
   }
-
-  private _blocks: { [refId: string]: BlockData };
 
   public get blocks(): { [refId: string]: BlockData } {
     return this._blocks;
   }
 
-  private _elements: { [refId: string]: ElementData };
-
   public get elements(): { [refId: string]: ElementData } {
     return this._elements;
   }
-
-  private _variables: { [refId: string]: VariableData };
 
   public get variables(): { [refId: string]: VariableData } {
     return this._variables;
   }
 
-  private _blockInternalRunners: {
-    [refId: string]: {
-      triggers: {
-        runner: TriggerRunner;
-        data: TriggerData;
-        level: number;
-      }[];
-      commands: {
-        runner: CommandRunner;
-        data: CommandData;
-        level: number;
-      }[];
-    };
-  };
-
-  public get blockInternalRunners(): {
-    [refId: string]: {
-      triggers: {
-        runner: TriggerRunner;
-        data: TriggerData;
-        level: number;
-      }[];
-      commands: {
-        runner: CommandRunner;
-        data: CommandData;
-        level: number;
-      }[];
-    };
-  } {
-    return this._blockInternalRunners;
-  }
-
-  private _blockParsedScript: Story;
-
-  public get blockParsedScript(): Story {
-    return this._blockParsedScript;
+  public get scripts(): Record<string, Story> {
+    return this._scripts;
   }
 
   constructor(project: GameProjectData, runner: ImpowerGameRunner) {
+    this._runner = runner;
     this._files = { ...(project?.instances?.files?.data || {}) };
     this._constructs = {};
     this._variables = {};
     this._elements = {};
     this._blocks = {};
-    this._blockInternalRunners = {};
 
     Object.values(project?.instances?.constructs?.data || {}).forEach(
       (construct) => {
@@ -104,17 +71,14 @@ export class ImpowerDataMap {
 
     Object.values(project?.instances?.blocks?.data || {}).forEach((block) => {
       this._blocks[block.reference.refId] = block;
-      this._blockInternalRunners[block.reference.refId] = {
-        triggers: runner.getIterableRunners(block.triggers),
-        commands: runner.getIterableRunners(block.commands),
-      };
       Object.values(block.variables?.data || {}).forEach((variable) => {
         this._variables[variable.reference.refId] = variable;
       });
       const { script } = block;
       if (script) {
-        this._blockParsedScript[block.reference.refId] =
-          this._compiler.Compile(script);
+        console.log(parseFountain(script));
+        // const story = this._compiler.Compile(script);
+        // this._scripts[block.reference.refId] = story;
       }
     });
   }

@@ -1,9 +1,7 @@
 import Phaser from "phaser";
-import { FileExtension, FileType, Vector2 } from "../../../../impower-core";
-import { FileData } from "../../../../impower-game/data";
+import { Vector2 } from "../../../../impower-core";
 import { Ease } from "../../../../impower-game/data/enums/ease";
 import { GameTrigger } from "../../../../impower-game/data/enums/gameTrigger";
-import { isLoadableFile } from "../../../../impower-game/data/interfaces/loadableFile";
 import { AudioRequestProps } from "../../../../impower-game/data/interfaces/props/audioRequestProps";
 import { ImageRequestProps } from "../../../../impower-game/data/interfaces/props/imageRequestProps";
 import { MoveImageRequestProps } from "../../../../impower-game/data/interfaces/props/moveImageRequestProps";
@@ -157,59 +155,59 @@ export class PhaserPreloadingScene extends Phaser.Scene {
     );
 
     // Only load assets that are used in current commands
-    this.impowerGame.logic.state.activeBlockIds.forEach((id) => {
-      const { commands, triggers } =
-        this.impowerDataMap.blockInternalRunners[id];
-      const { variables } = this.impowerDataMap;
+    // this.impowerGame.logic.state.activeBlockIds.forEach((id) => {
+    //   const { commands, triggers } =
+    //     this.impowerDataMap.blockInternalRunners[id];
+    //   const { variables } = this.impowerDataMap;
 
-      let refId: string;
-      let refUrl: string;
-      let refType: FileType;
-      let refExt: FileExtension;
+    //   let refId: string;
+    //   let refUrl: string;
+    //   let refType: FileType;
+    //   let refExt: FileExtension;
 
-      triggers.forEach((element) => {
-        if (isLoadableFile(element.runner)) {
-          refId = element.runner.getFileId(
-            element.data,
-            variables,
-            this.impowerGame
-          );
-          const dataMapFiles: FileData = this.impowerDataMap.files[refId];
-          if (dataMapFiles) {
-            refUrl = dataMapFiles.fileUrl;
-            refType = dataMapFiles.fileType as FileType;
-            if (refType.toLowerCase().startsWith(this.refTypeImage)) {
-              this.load.image(refId, refUrl);
-            }
-          }
-        }
-      });
+    //   triggers.forEach((element) => {
+    //     if (isLoadableFile(element.runner)) {
+    //       refId = element.runner.getFileId(
+    //         element.data,
+    //         variables,
+    //         this.impowerGame
+    //       );
+    //       const dataMapFiles: FileData = this.impowerDataMap.files[refId];
+    //       if (dataMapFiles) {
+    //         refUrl = dataMapFiles.fileUrl;
+    //         refType = dataMapFiles.fileType as FileType;
+    //         if (refType.toLowerCase().startsWith(this.refTypeImage)) {
+    //           this.load.image(refId, refUrl);
+    //         }
+    //       }
+    //     }
+    //   });
 
-      commands.forEach((element) => {
-        if (isLoadableFile(element.runner)) {
-          refId = element.runner.getFileId(
-            element.data,
-            variables,
-            this.impowerGame
-          );
-          const dataMapFile = this.impowerDataMap.files[refId];
+    //   commands.forEach((element) => {
+    //     if (isLoadableFile(element.runner)) {
+    //       refId = element.runner.getFileId(
+    //         element.data,
+    //         variables,
+    //         this.impowerGame
+    //       );
+    //       const dataMapFile = this.impowerDataMap.files[refId];
 
-          if (dataMapFile) {
-            refUrl = dataMapFile.fileUrl;
-            refType = dataMapFile.fileType as FileType;
-            if (refType.toLowerCase().startsWith(this.refTypeImage)) {
-              this.load.image(refId, refUrl);
-            }
-            if (refType.toLowerCase().startsWith(this.refTypeAudio)) {
-              // Unlike images, Phaser cannot determine this is an audio file by the url.
-              // Force Phaser to treat it as an audio file by adding the audio file extension.
-              refExt = dataMapFile.fileExtension as FileExtension;
-              this.load.audio(refId, `${refUrl}.${refExt}`);
-            }
-          }
-        }
-      });
-    });
+    //       if (dataMapFile) {
+    //         refUrl = dataMapFile.fileUrl;
+    //         refType = dataMapFile.fileType as FileType;
+    //         if (refType.toLowerCase().startsWith(this.refTypeImage)) {
+    //           this.load.image(refId, refUrl);
+    //         }
+    //         if (refType.toLowerCase().startsWith(this.refTypeAudio)) {
+    //           // Unlike images, Phaser cannot determine this is an audio file by the url.
+    //           // Force Phaser to treat it as an audio file by adding the audio file extension.
+    //           refExt = dataMapFile.fileExtension as FileExtension;
+    //           this.load.audio(refId, `${refUrl}.${refExt}`);
+    //         }
+    //       }
+    //     }
+    //   });
+    // });
   }
 
   displayPreloading(): void {

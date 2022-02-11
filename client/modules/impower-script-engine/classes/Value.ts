@@ -21,7 +21,7 @@ export abstract class Value<
   }
 
   public toString(): string {
-    if (this.value === null) {
+    if (this.value == null) {
       throw new NullException("Value.value");
     }
     return this.value.toString();

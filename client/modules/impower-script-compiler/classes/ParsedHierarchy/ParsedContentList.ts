@@ -25,7 +25,7 @@ export class ParsedContentList extends ParsedObject {
         break;
       }
 
-      text.text = text.text.trimEnd();
+      text.text = text.text.replace(/[ \t]+$/g, "");
       if (text.text.length === 0) {
         this.content.splice(i, 1);
       } else break;

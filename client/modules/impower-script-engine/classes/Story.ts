@@ -838,14 +838,16 @@ export class Story extends RuntimeObject implements IStory {
       // If we're pushing a variable pointer onto the evaluation stack, ensure that it's specific
       // to our current (possibly temporary) context index. And make a copy of the pointer
       // so that we're not editing the original runtime object.
-      const varPointer = currentContentObj as VariablePointerValue;
-      if (varPointer && varPointer.contextIndex === -1) {
+      if (
+        currentContentObj instanceof VariablePointerValue &&
+        currentContentObj.contextIndex === -1
+      ) {
         // Create new object so we're not overwriting the story's own data
         const contextIdx = this.state.callStack.ContextForVariableNamed(
-          varPointer.variableName
+          currentContentObj.variableName
         );
         currentContentObj = new VariablePointerValue(
-          varPointer.variableName,
+          currentContentObj.variableName,
           contextIdx
         );
       }

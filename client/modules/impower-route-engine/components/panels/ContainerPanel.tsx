@@ -302,14 +302,26 @@ const StyledScriptArea = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
+  position: relative;
 `;
 
 const StyledInput = styled(Input)`
   background-color: ${(props): string => props.theme.colors.black30};
   padding: ${(props): string => props.theme.spacing(2)};
-  height: 100%;
+  min-height: 100%;
   align-items: flex-start;
   color: white;
+
+  & .MuiInputBase-root input {
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 100%;
+  }
+  & .MuiInputBase-root textarea {
+    padding-top: 0;
+    padding-bottom: 0;
+    height: 100%;
+  }
 `;
 
 const StyledEmptyPanelContentArea = styled.div`
@@ -328,6 +340,36 @@ const StyledChartEmptyPanelContentArea = styled(StyledEmptyPanelContentArea)`
     props.theme.spacing(props.theme.space.panelLeft)};
   padding-top: ${(props): string => props.theme.spacing(2)};
 `;
+
+interface ScriptTextFieldProps {
+  defaultValue: string;
+  onChange: (e: React.ChangeEvent) => void;
+}
+
+const ScriptTextField = React.memo((props: ScriptTextFieldProps) => {
+  const { defaultValue, onChange } = props;
+  const [state, setState] = useState(defaultValue);
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setState(e.target.value);
+      if (onChange) {
+        onChange(e);
+      }
+    },
+    [onChange]
+  );
+  return (
+    <StyledInput
+      defaultValue={defaultValue}
+      value={state}
+      size="small"
+      multiline
+      fullWidth
+      disableUnderline
+      onChange={handleChange}
+    />
+  );
+});
 
 interface ScriptingPanelHeaderIconProps {
   scripting: boolean;
@@ -712,15 +754,11 @@ const ContainerPanelContent = React.memo(
           >
             {containerPanelState.scripting ? (
               <StyledScriptArea>
-                <StyledInput
-                  value={
+                <ScriptTextField
+                  defaultValue={
                     project.instances?.blocks?.data?.[parentContainerId]
                       ?.script || ""
                   }
-                  size="small"
-                  multiline
-                  fullWidth
-                  disableUnderline
                   onChange={onScriptChange}
                 />
               </StyledScriptArea>
@@ -1495,14 +1533,22 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     onSelectContainer
   );
   const handleSelectPreviousContainerShortcut = (e: AccessibleEvent): void => {
-    if (openPanel !== DataPanelType.Container) {
+    if (
+      openPanel !== DataPanelType.Container ||
+      (containerPanelState.scripting &&
+        containerPanelState.arrangement === ContainerArrangement.List)
+    ) {
       return;
     }
     e.preventDefault();
     selectPreviousContainer();
   };
   const handleSelectNextContainerShortcut = (e: AccessibleEvent): void => {
-    if (openPanel !== DataPanelType.Container) {
+    if (
+      openPanel !== DataPanelType.Container ||
+      (containerPanelState.scripting &&
+        containerPanelState.arrangement === ContainerArrangement.List)
+    ) {
       return;
     }
     e.preventDefault();

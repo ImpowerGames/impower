@@ -20,7 +20,7 @@ export class StringValue extends Value<string> {
     this._isNewline = this.value === "\n";
     this._isInlineWhitespace = true;
 
-    if (this.value === null) {
+    if (this.value == null) {
       throw new NullException("Value.value");
     }
 
@@ -41,7 +41,7 @@ export class StringValue extends Value<string> {
   }
 
   public get isTruthy(): boolean {
-    if (this.value === null) {
+    if (this.value == null) {
       throw new NullException("Value.value");
     }
     return this.value.length > 0;

@@ -17,17 +17,31 @@ import { ParsedObject } from "./ParsedHierarchy/ParsedObject";
 import { ParsedStory } from "./ParsedHierarchy/ParsedStory";
 import { ParsedVariableAssignment } from "./ParsedHierarchy/ParsedVariableAssignment";
 
+const DEFAULT_COMPILER_OPTIONS: CompilerOptions = {
+  sourceFilename: null,
+  countAllVisits: true,
+  errorHandler: null,
+};
+
 export class Compiler {
+  _options: CompilerOptions = DEFAULT_COMPILER_OPTIONS;
+
+  _parser: ImpowerParser;
+
+  _parsedStory: ParsedStory;
+
+  _runtimeStory: Story;
+
+  _hadParseError = false;
+
+  _debugSourceRanges: Array<DebugSourceRange> = new Array<DebugSourceRange>();
+
   public get parsedStory(): ParsedStory {
     return this._parsedStory;
   }
 
-  constructor(options: CompilerOptions = null) {
-    this._options = options || {
-      sourceFilename: null,
-      countAllVisits: true,
-      errorHandler: null,
-    };
+  constructor(options: CompilerOptions = DEFAULT_COMPILER_OPTIONS) {
+    this._options = options;
   }
 
   public Parse(inputString: string): ParsedStory {
@@ -45,7 +59,7 @@ export class Compiler {
     if (this._parsedStory != null && !this._hadParseError) {
       this._parsedStory.countAllVisits = this._options.countAllVisits;
       this._runtimeStory = this._parsedStory.ExportRuntime(
-        this._options.errorHandler
+        this._options?.errorHandler
       );
     } else {
       this._runtimeStory = null;
@@ -173,22 +187,10 @@ export class Compiler {
     if (errorType === ErrorType.Error) {
       this._hadParseError = true;
     }
-    if (this._options.errorHandler != null) {
-      this._options.errorHandler(message, errorType);
+    if (this._options?.errorHandler != null) {
+      this._options?.errorHandler(message, errorType);
     } else {
-      throw new Error(message);
+      console.error(message);
     }
   }
-
-  _options: CompilerOptions;
-
-  _parser: ImpowerParser;
-
-  _parsedStory: ParsedStory;
-
-  _runtimeStory: Story;
-
-  _hadParseError = false;
-
-  _debugSourceRanges: Array<DebugSourceRange> = new Array<DebugSourceRange>();
 }

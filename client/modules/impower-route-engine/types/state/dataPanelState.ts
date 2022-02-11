@@ -181,8 +181,8 @@ export const createDataPanelState = (): DataPanelState => ({
     Logic: {
       openPanel: DataPanelType.Container,
       Container: {
-        scripting: false,
-        arrangement: ContainerArrangement.Chart,
+        scripting: true,
+        arrangement: ContainerArrangement.List,
         inspectedTargetId: ContainerType.Block,
         interactions: {
           Selected: [],

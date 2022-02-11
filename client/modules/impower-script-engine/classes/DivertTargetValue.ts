@@ -15,7 +15,7 @@ export class DivertTargetValue extends Value<Path> {
   }
 
   public get targetPath(): Path {
-    if (this.value === null) {
+    if (this.value == null) {
       throw new NullException("Value.value");
     }
     return this.value;

@@ -391,7 +391,7 @@ export class ParsedStory extends ParsedFlowBase implements IStory {
       this._hadWarning = errorType === ErrorType.Warning;
       this._errorHandler(message, errorType);
     } else {
-      throw new Error(message);
+      console.error(message);
     }
   }
 

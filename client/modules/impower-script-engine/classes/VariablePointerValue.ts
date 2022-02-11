@@ -28,7 +28,7 @@ export class VariablePointerValue extends Value<string> {
   }
 
   public get variableName(): string {
-    if (this.value === null) {
+    if (this.value == null) {
       throw new NullException("Value.value");
     }
     return this.value;

@@ -15,7 +15,7 @@ export const isListValue = (obj: unknown): obj is ListValue => {
 
 export class ListValue extends Value<List> {
   public get isTruthy(): boolean {
-    if (this.value === null) {
+    if (this.value == null) {
       throw new NullException("this.value");
     }
     return this.value.Count > 0;
@@ -31,7 +31,7 @@ export class ListValue extends Value<List> {
   }
 
   public Cast(newType: ValueType): Value<unknown> {
-    if (this.value === null) {
+    if (this.value == null) {
       throw new NullException("Value.value");
     }
 

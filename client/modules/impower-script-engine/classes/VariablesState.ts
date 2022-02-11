@@ -250,9 +250,8 @@ export class VariablesState {
   public GetVariableWithName(name: string, contextIndex = -1): RuntimeObject {
     let varValue = this.GetRawVariableWithName(name, contextIndex);
 
-    const varPointer = varValue as VariablePointerValue;
-    if (varPointer !== null) {
-      varValue = this.ValueAtVariablePointer(varPointer);
+    if (varValue instanceof VariablePointerValue) {
+      varValue = this.ValueAtVariablePointer(varValue);
     }
 
     return varValue;
@@ -333,20 +332,15 @@ export class VariablesState {
     }
 
     if (varAss.isNewDeclaration) {
-      const varPointer = value as VariablePointerValue;
-      if (varPointer !== null) {
-        const fullyResolvedVariablePointer =
-          this.ResolveVariablePointer(varPointer);
+      if (value instanceof VariablePointerValue) {
+        const fullyResolvedVariablePointer = this.ResolveVariablePointer(value);
         value = fullyResolvedVariablePointer;
       }
     } else {
       let existingPointer = null;
       do {
-        existingPointer = this.GetRawVariableWithName(
-          name,
-          contextIndex
-        ) as VariablePointerValue;
-        if (existingPointer != null) {
+        existingPointer = this.GetRawVariableWithName(name, contextIndex);
+        if (existingPointer instanceof VariablePointerValue) {
           name = existingPointer.variableName;
           contextIndex = existingPointer.contextIndex;
           setGlobal = contextIndex === 0;
@@ -446,10 +440,8 @@ export class VariablesState {
       contextIndex
     );
 
-    const doubleRedirectionPointer =
-      valueOfVariablePointedTo as VariablePointerValue;
-    if (doubleRedirectionPointer != null) {
-      return doubleRedirectionPointer;
+    if (valueOfVariablePointedTo instanceof VariablePointerValue) {
+      return valueOfVariablePointedTo;
     }
     return new VariablePointerValue(varPointer.variableName, contextIndex);
   }

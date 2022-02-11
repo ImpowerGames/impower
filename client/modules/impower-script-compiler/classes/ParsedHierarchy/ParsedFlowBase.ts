@@ -337,7 +337,9 @@ export abstract class ParsedFlowBase
       this._rootWeave != null &&
       foundReturn == null
     ) {
-      this._rootWeave.ValidateTermination(this.WarningInTermination);
+      this._rootWeave.ValidateTermination((terminatingObj: ParsedObject) =>
+        this.WarningInTermination(terminatingObj)
+      );
     }
 
     return container;

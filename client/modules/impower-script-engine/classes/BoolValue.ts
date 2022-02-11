@@ -30,7 +30,9 @@ export class BoolValue extends Value<boolean> {
   }
 
   public Cast(newType: ValueType): IValue {
-    if (this.value === null) throw new NullException("Value.value");
+    if (this.value == null) {
+      throw new NullException("Value.value");
+    }
 
     if (newType === this.valueType) {
       return this;

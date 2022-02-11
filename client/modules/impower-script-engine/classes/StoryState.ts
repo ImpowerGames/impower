@@ -82,7 +82,9 @@ export class StoryState {
     // If we can continue generating text content rather than choices,
     // then we reflect the choice list as being empty, since choices
     // should always come at the end.
-    if (this.canContinue) return [];
+    if (this.canContinue) {
+      return [];
+    }
     return this._currentFlow.currentChoices;
   }
 
@@ -168,9 +170,8 @@ export class StoryState {
       const sb = new StringBuilder();
 
       this.outputStream.forEach((outputObj) => {
-        const textContent = outputObj as StringValue;
-        if (textContent !== null) {
-          sb.Append(textContent.value);
+        if (outputObj instanceof StringValue) {
+          sb.Append(outputObj.value);
         }
       });
 
@@ -339,9 +340,8 @@ export class StoryState {
       this._currentTags = [];
 
       this.outputStream.forEach((outputObj) => {
-        const tag = outputObj as Tag;
-        if (tag !== null) {
-          this._currentTags.push(tag.text);
+        if (outputObj instanceof Tag) {
+          this._currentTags.push(outputObj.text);
         }
       });
 
@@ -707,9 +707,8 @@ export class StoryState {
   }
 
   public PushToOutputStream(obj: RuntimeObject): void {
-    const text = obj as StringValue;
-    if (text !== null) {
-      const listText = this.TrySplittingHeadTailWhitespace(text);
+    if (obj instanceof StringValue) {
+      const listText = this.TrySplittingHeadTailWhitespace(obj);
       if (listText !== null) {
         listText.forEach((textObj) => {
           this.PushToOutputStreamIndividual(textObj);
@@ -730,7 +729,7 @@ export class StoryState {
 
   public TrySplittingHeadTailWhitespace(single: StringValue): StringValue[] {
     const str = single.value;
-    if (str === null) {
+    if (str == null) {
       throw new NullException("single.value");
     }
 
@@ -807,15 +806,12 @@ export class StoryState {
   }
 
   public PushToOutputStreamIndividual(obj: RuntimeObject): void {
-    const glue = obj as Glue;
-    const text = obj as StringValue;
-
     let includeInOutput = true;
 
-    if (glue) {
+    if (obj instanceof Glue) {
       this.TrimNewlinesFromOutputStream();
       includeInOutput = true;
-    } else if (text) {
+    } else if (obj instanceof StringValue) {
       let functionTrimIndex = -1;
       const currEl = this.callStack.currentElement;
       if (currEl.type === "Function") {
@@ -825,13 +821,14 @@ export class StoryState {
       let glueTrimIndex = -1;
       for (let i = this.outputStream.length - 1; i >= 0; i -= 1) {
         const o = this.outputStream[i];
-        const c = o instanceof ControlCommand ? o : null;
-        const g = o instanceof Glue ? o : null;
 
-        if (g != null) {
+        if (o instanceof Glue) {
           glueTrimIndex = i;
           break;
-        } else if (c != null && c.commandType === "BeginString") {
+        } else if (
+          o instanceof ControlCommand &&
+          o.commandType === "BeginString"
+        ) {
           if (i >= functionTrimIndex) {
             functionTrimIndex = -1;
           }
@@ -849,10 +846,12 @@ export class StoryState {
       }
 
       if (trimIndex !== -1) {
-        if (text.isNewline) {
+        if (obj.isNewline) {
           includeInOutput = false;
-        } else if (text.isNonWhitespace) {
-          if (glueTrimIndex > -1) this.RemoveExistingGlue();
+        } else if (obj.isNonWhitespace) {
+          if (glueTrimIndex > -1) {
+            this.RemoveExistingGlue();
+          }
 
           if (functionTrimIndex > -1) {
             const callStackElements = this.callStack.elements;
@@ -866,9 +865,13 @@ export class StoryState {
             }
           }
         }
-      } else if (text.isNewline) {
-        if (this.outputStreamEndsInNewline || !this.outputStreamContainsContent)
+      } else if (obj.isNewline) {
+        if (
+          this.outputStreamEndsInNewline ||
+          !this.outputStreamContainsContent
+        ) {
           includeInOutput = false;
+        }
       }
     }
 
@@ -887,12 +890,13 @@ export class StoryState {
     let i = this.outputStream.length - 1;
     while (i >= 0) {
       const obj = this.outputStream[i];
-      const cmd = obj as ControlCommand;
-      const txt = obj as StringValue;
 
-      if (cmd != null || (txt != null && txt.isNonWhitespace)) {
+      if (
+        obj instanceof ControlCommand ||
+        (obj instanceof StringValue && obj.isNonWhitespace)
+      ) {
         break;
-      } else if (txt != null && txt.isNewline) {
+      } else if (obj instanceof StringValue && obj.isNewline) {
         removeWhitespaceFrom = i;
       }
       i -= 1;
@@ -902,8 +906,8 @@ export class StoryState {
     if (removeWhitespaceFrom >= 0) {
       i = removeWhitespaceFrom;
       while (i < this.outputStream.length) {
-        const text = this.outputStream[i] as StringValue;
-        if (text) {
+        const text = this.outputStream[i];
+        if (text instanceof StringValue) {
           this.outputStream.splice(i, 1);
         } else {
           i += 1;
@@ -931,11 +935,17 @@ export class StoryState {
     if (this.outputStream.length > 0) {
       for (let i = this.outputStream.length - 1; i >= 0; i -= 1) {
         const obj = this.outputStream[i];
-        if (obj instanceof ControlCommand) break;
+        if (obj instanceof ControlCommand) {
+          break;
+        }
         const text = this.outputStream[i];
         if (text instanceof StringValue) {
-          if (text.isNewline) return true;
-          if (text.isNonWhitespace) break;
+          if (text.isNewline) {
+            return true;
+          }
+          if (text.isNonWhitespace) {
+            break;
+          }
         }
       }
     }
@@ -955,7 +965,7 @@ export class StoryState {
 
   get inStringEvaluation(): boolean {
     for (let i = this.outputStream.length - 1; i >= 0; i -= 1) {
-      const cmd = this.outputStream[i] as ControlCommand;
+      const cmd = this.outputStream[i];
       if (cmd instanceof ControlCommand && cmd.commandType === "BeginString") {
         return true;
       }
@@ -965,8 +975,8 @@ export class StoryState {
   }
 
   public PushEvaluationStack(obj: RuntimeObject): void {
-    const listValue = obj as ListValue;
-    if (listValue) {
+    const listValue = obj;
+    if (listValue instanceof ListValue) {
       // Update origin when list is has something to indicate the list origin
       const rawList = listValue.value;
       if (rawList === null) {
@@ -1051,15 +1061,13 @@ export class StoryState {
       i -= 1
     ) {
       const obj = this.outputStream[i];
-      const txt = obj as StringValue;
-      const cmd = obj as ControlCommand;
 
-      if (txt !== null) {
-        if (cmd) {
+      if (obj instanceof StringValue) {
+        if (obj instanceof ControlCommand) {
           break;
         }
 
-        if (txt.isNewline || txt.isInlineWhitespace) {
+        if (obj.isNewline || obj.isInlineWhitespace) {
           this.outputStream.splice(i, 1);
           this.OutputStreamDirty();
         } else {
