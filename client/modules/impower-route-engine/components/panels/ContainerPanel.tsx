@@ -518,19 +518,17 @@ const ContainerPanelHeader = React.memo(
       [searching, style, theme.colors.darkForeground]
     );
 
-    const headerStyle =
-      containerPanelState.arrangement === ContainerArrangement.Chart
-        ? chartHeaderStyle
-        : listHeaderStyle;
+    const showChart =
+      !containerPanelState.scripting &&
+      containerPanelState.arrangement === ContainerArrangement.Chart;
+
+    const headerStyle = showChart ? chartHeaderStyle : listHeaderStyle;
 
     const headerStickyStyle = useMemo(
       () => ({
-        boxShadow:
-          containerPanelState.arrangement === ContainerArrangement.Chart
-            ? theme.shadows[0]
-            : theme.shadows[3],
+        boxShadow: showChart ? theme.shadows[0] : theme.shadows[3],
       }),
-      [containerPanelState.arrangement, theme.shadows]
+      [showChart, theme.shadows]
     );
 
     return (
@@ -683,6 +681,23 @@ const ContainerPanelContent = React.memo(
 
     const Icon = headerInfo.iconOn;
 
+    if (containerPanelState.scripting) {
+      return (
+        <PeerTransition
+          currentIndex={breadcrumbIndex}
+          previousIndex={previousBreadcrumbIndex}
+          style={{ display: "flex", flex: 1 }}
+        >
+          <StyledScriptArea>
+            <ScriptTextField
+              defaultValue={project.script || ""}
+              onChange={onScriptChange}
+            />
+          </StyledScriptArea>
+        </PeerTransition>
+      );
+    }
+
     switch (containerPanelState.arrangement) {
       case ContainerArrangement.Chart:
         return (
@@ -753,85 +768,76 @@ const ContainerPanelContent = React.memo(
             previousIndex={previousBreadcrumbIndex}
             style={{ display: "flex", flex: 1 }}
           >
-            {containerPanelState.scripting ? (
-              <StyledScriptArea>
-                <ScriptTextField
-                  defaultValue={project.script || ""}
-                  onChange={onScriptChange}
-                />
-              </StyledScriptArea>
-            ) : (
-              <StyledList>
-                {list.order.length === 0 && (
-                  <>
-                    <StyledEmptyPanelContentArea>
-                      <EmptyPanelContent
-                        instruction={addInstruction}
-                        name={headerInfo.name}
-                        icon={<Icon />}
-                        onContextMenu={onContextMenu}
-                      />
-                    </StyledEmptyPanelContentArea>
-                  </>
-                )}
-                {list.order.length > 0 && (
-                  <EngineDataList
-                    list={list}
-                    itemSize={layout.size.minHeight.dataButton + 8}
-                    draggingIds={draggingIds}
-                    selectedIds={selectedIds}
-                    changeTargetId={changeNameTargetId}
-                    search={search}
-                    style={{
-                      paddingBottom: layout.size.minWidth.headerIcon + 16,
-                    }}
-                    scrollParent={scrollParent}
-                    onSetDragging={onSetDragging}
-                    onSetOrder={onSetOrder}
-                    onSetSelection={onSetSelection}
-                    getSearchTargets={getSearchTargets}
-                    onRef={onDataAreaRef}
-                  >
-                    {({
-                      id,
-                      value,
-                      currentOrderedIds,
-                      currentSelectedIds,
-                      currentFocusedIds,
-                      currentDraggingIds,
-                      onDragHandleTrigger,
-                    }): JSX.Element => (
-                      <ContainerButton
-                        buttonShape={buttonShape}
-                        id={id}
-                        value={value as DataButtonInfo}
-                        currentOrderedIds={currentOrderedIds}
-                        currentSelectedIds={currentSelectedIds}
-                        currentDraggingIds={currentDraggingIds}
-                        currentGhostingIds={
-                          currentFocusedIds
-                            ? difference(currentOrderedIds, currentFocusedIds)
-                            : currentDraggingIds.length > 0
-                            ? difference(currentSelectedIds, currentDraggingIds)
-                            : []
-                        }
-                        changeNameTargetId={changeNameTargetId}
-                        onBreadcrumb={onBreadcrumb}
-                        onClick={onClick}
-                        onChangeSelection={onChangeSelection}
-                        onToggleSelection={onToggleSelection}
-                        onMultiSelection={onMultiSelection}
-                        onOpenContextMenu={onContextMenu}
-                        onEdit={onEdit}
-                        onChangeName={onChangeName}
-                        onDragHandleTrigger={onDragHandleTrigger}
-                        grow
-                      />
-                    )}
-                  </EngineDataList>
-                )}
-              </StyledList>
-            )}
+            <StyledList>
+              {list.order.length === 0 && (
+                <>
+                  <StyledEmptyPanelContentArea>
+                    <EmptyPanelContent
+                      instruction={addInstruction}
+                      name={headerInfo.name}
+                      icon={<Icon />}
+                      onContextMenu={onContextMenu}
+                    />
+                  </StyledEmptyPanelContentArea>
+                </>
+              )}
+              {list.order.length > 0 && (
+                <EngineDataList
+                  list={list}
+                  itemSize={layout.size.minHeight.dataButton + 8}
+                  draggingIds={draggingIds}
+                  selectedIds={selectedIds}
+                  changeTargetId={changeNameTargetId}
+                  search={search}
+                  style={{
+                    paddingBottom: layout.size.minWidth.headerIcon + 16,
+                  }}
+                  scrollParent={scrollParent}
+                  onSetDragging={onSetDragging}
+                  onSetOrder={onSetOrder}
+                  onSetSelection={onSetSelection}
+                  getSearchTargets={getSearchTargets}
+                  onRef={onDataAreaRef}
+                >
+                  {({
+                    id,
+                    value,
+                    currentOrderedIds,
+                    currentSelectedIds,
+                    currentFocusedIds,
+                    currentDraggingIds,
+                    onDragHandleTrigger,
+                  }): JSX.Element => (
+                    <ContainerButton
+                      buttonShape={buttonShape}
+                      id={id}
+                      value={value as DataButtonInfo}
+                      currentOrderedIds={currentOrderedIds}
+                      currentSelectedIds={currentSelectedIds}
+                      currentDraggingIds={currentDraggingIds}
+                      currentGhostingIds={
+                        currentFocusedIds
+                          ? difference(currentOrderedIds, currentFocusedIds)
+                          : currentDraggingIds.length > 0
+                          ? difference(currentSelectedIds, currentDraggingIds)
+                          : []
+                      }
+                      changeNameTargetId={changeNameTargetId}
+                      onBreadcrumb={onBreadcrumb}
+                      onClick={onClick}
+                      onChangeSelection={onChangeSelection}
+                      onToggleSelection={onToggleSelection}
+                      onMultiSelection={onMultiSelection}
+                      onOpenContextMenu={onContextMenu}
+                      onEdit={onEdit}
+                      onChangeName={onChangeName}
+                      onDragHandleTrigger={onDragHandleTrigger}
+                      grow
+                    />
+                  )}
+                </EngineDataList>
+              )}
+            </StyledList>
           </PeerTransition>
         );
       default:
@@ -1420,8 +1426,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       if (
         openPanel !== DataPanelType.Container ||
         changeNameTargetId !== "" ||
-        (containerPanelState.scripting &&
-          containerPanelState.arrangement === ContainerArrangement.List)
+        containerPanelState.scripting
       ) {
         return;
       }
@@ -1432,7 +1437,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       openPanel,
       changeNameTargetId,
       containerPanelState.scripting,
-      containerPanelState.arrangement,
       handleSetSelection,
       inspectedContainers,
     ]
@@ -1534,8 +1538,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const handleSelectPreviousContainerShortcut = (e: AccessibleEvent): void => {
     if (
       openPanel !== DataPanelType.Container ||
-      (containerPanelState.scripting &&
-        containerPanelState.arrangement === ContainerArrangement.List)
+      containerPanelState.scripting
     ) {
       return;
     }
@@ -1545,8 +1548,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const handleSelectNextContainerShortcut = (e: AccessibleEvent): void => {
     if (
       openPanel !== DataPanelType.Container ||
-      (containerPanelState.scripting &&
-        containerPanelState.arrangement === ContainerArrangement.List)
+      containerPanelState.scripting
     ) {
       return;
     }
@@ -1782,8 +1784,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     (e: React.MouseEvent) => {
       if (
         openPanel !== DataPanelType.Container ||
-        (containerPanelState.scripting &&
-          containerPanelState.arrangement === ContainerArrangement.List)
+        containerPanelState.scripting
       ) {
         return;
       }
@@ -1795,12 +1796,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       setOptionsMenuOpen(true);
       openMenuDialog("context");
     },
-    [
-      containerPanelState.arrangement,
-      containerPanelState.scripting,
-      openMenuDialog,
-      openPanel,
-    ]
+    [containerPanelState.scripting, openMenuDialog, openPanel]
   );
 
   const handleCloseOptionsMenu = useCallback(() => {
@@ -1870,22 +1866,17 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     [theme.minHeight.navigationBar]
   );
 
+  const showChart =
+    !containerPanelState.scripting &&
+    containerPanelState.arrangement === ContainerArrangement.Chart;
+
   const backgroundStyle: CSSProperties = useMemo(
     () => ({
-      overflowX:
-        containerPanelState.arrangement === ContainerArrangement.Chart
-          ? "scroll"
-          : undefined,
-      overflowY:
-        containerPanelState.arrangement === ContainerArrangement.Chart
-          ? "scroll"
-          : undefined,
-      ...(containerPanelState.arrangement === ContainerArrangement.Chart &&
-      portrait
-        ? fixedStyle
-        : {}),
+      overflowX: showChart ? "scroll" : undefined,
+      overflowY: showChart ? "scroll" : undefined,
+      ...(showChart && portrait ? fixedStyle : {}),
     }),
-    [containerPanelState.arrangement, fixedStyle, portrait]
+    [fixedStyle, portrait, showChart]
   );
 
   const overlayStyle: CSSProperties = useMemo(
@@ -1913,13 +1904,11 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       panelType={PanelType.Container}
       onScrollRef={handleScrollRef}
       onContextMenu={handleContextMenu}
-      useWindowAsScrollContainer={
-        containerPanelState.arrangement !== ContainerArrangement.Chart
-      }
+      useWindowAsScrollContainer={!showChart}
       backgroundStyle={backgroundStyle}
       overlayStyle={overlayStyle}
       topChildren={
-        containerPanelState.arrangement !== ContainerArrangement.Chart ? (
+        !showChart ? (
           <ContainerPanelHeader
             containerType={containerType}
             search={search}
@@ -1941,7 +1930,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       }
       overlay={
         <>
-          {containerPanelState.arrangement === ContainerArrangement.Chart && (
+          {showChart && (
             <ContainerPanelHeader
               containerType={containerType}
               search={search}
@@ -1961,26 +1950,24 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
             />
           )}
 
-          {containerPanelState.arrangement === ContainerArrangement.Chart &&
-            count > 0 && (
-              <PanelBottomLeftOverlay
-                style={{
-                  position: portrait ? "fixed" : "absolute",
-                  bottom: portrait ? theme.minHeight.navigationBar : undefined,
-                }}
-              >
-                <PanelHeaderIconButton
-                  aria-label="Center Nodes"
-                  icon={<CrosshairsSolidIcon />}
-                  size={theme.fontSize.smallIcon}
-                  onClick={handleCenterChart}
-                  style={centerNodesButtonStyle}
-                />
-              </PanelBottomLeftOverlay>
-            )}
+          {showChart && count > 0 && (
+            <PanelBottomLeftOverlay
+              style={{
+                position: portrait ? "fixed" : "absolute",
+                bottom: portrait ? theme.minHeight.navigationBar : undefined,
+              }}
+            >
+              <PanelHeaderIconButton
+                aria-label="Center Nodes"
+                icon={<CrosshairsSolidIcon />}
+                size={theme.fontSize.smallIcon}
+                onClick={handleCenterChart}
+                style={centerNodesButtonStyle}
+              />
+            </PanelBottomLeftOverlay>
+          )}
 
-          {(!containerPanelState.scripting ||
-            containerPanelState.arrangement !== ContainerArrangement.List) && (
+          {!containerPanelState.scripting && (
             <PanelBottomRightOverlay
               style={{ opacity: mode === Mode.Test ? 0.5 : undefined }}
             >
@@ -1993,12 +1980,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
                 }
                 label={fabLabel}
                 color="secondary"
-                shrink={
-                  containerPanelState.arrangement ===
-                    ContainerArrangement.Chart ||
-                  searching ||
-                  naming
-                }
+                shrink={showChart || searching || naming}
                 onClick={handleAddData}
                 style={fabAreaStyle}
               />
@@ -2009,17 +1991,16 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
             </PanelBottomRightOverlay>
           )}
 
-          {containerPanelState.arrangement === ContainerArrangement.Chart &&
-            inspectedContainerReferences.length === 0 && (
-              <StyledChartEmptyPanelContentArea>
-                <EmptyPanelContent
-                  instruction={addInstruction}
-                  name={headerInfo.name}
-                  icon={<Icon />}
-                  onContextMenu={handleContextMenu}
-                />
-              </StyledChartEmptyPanelContentArea>
-            )}
+          {showChart && inspectedContainerReferences.length === 0 && (
+            <StyledChartEmptyPanelContentArea>
+              <EmptyPanelContent
+                instruction={addInstruction}
+                name={headerInfo.name}
+                icon={<Icon />}
+                onContextMenu={handleContextMenu}
+              />
+            </StyledChartEmptyPanelContentArea>
+          )}
         </>
       }
     >
