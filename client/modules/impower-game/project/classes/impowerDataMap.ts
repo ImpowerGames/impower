@@ -1,29 +1,38 @@
-import { Compiler } from "../../../impower-script-compiler";
-import { Story } from "../../../impower-script-engine";
 import { parseFountain } from "../../../impower-script-parser";
 import { BlockData, ConstructData } from "../../data";
 import { ImpowerGameRunner } from "../../runner/classes/impowerGameRunner";
 import { FileData } from "./instances/file/fileData";
+import { CommandData } from "./instances/items/command/commandData";
+import { CommandRunner } from "./instances/items/command/commandRunner";
 import { ElementData } from "./instances/items/element/elementData";
+import { TriggerData } from "./instances/items/trigger/triggerData";
+import { TriggerRunner } from "./instances/items/trigger/triggerRunner";
 import { VariableData } from "./instances/items/variable/variableData";
 import { GameProjectData } from "./project/gameProjectData";
 
 export class ImpowerDataMap {
-  private _runner: ImpowerGameRunner;
-
-  private _compiler: Compiler = new Compiler();
-
   private _files: { [refId: string]: FileData };
 
   private _constructs: { [refId: string]: ConstructData };
-
-  private _blocks: { [refId: string]: BlockData };
 
   private _elements: { [refId: string]: ElementData };
 
   private _variables: { [refId: string]: VariableData };
 
-  private _scripts: Record<string, Story> = {};
+  private _blockInternalRunners: {
+    [refId: string]: {
+      triggers: {
+        runner: TriggerRunner;
+        data: TriggerData;
+        level: number;
+      }[];
+      commands: {
+        runner: CommandRunner;
+        data: CommandData;
+        level: number;
+      }[];
+    };
+  };
 
   public get files(): { [refId: string]: FileData } {
     return this._files;
@@ -31,10 +40,6 @@ export class ImpowerDataMap {
 
   public get constructs(): { [refId: string]: ConstructData } {
     return this._constructs;
-  }
-
-  public get blocks(): { [refId: string]: BlockData } {
-    return this._blocks;
   }
 
   public get elements(): { [refId: string]: ElementData } {
@@ -45,41 +50,62 @@ export class ImpowerDataMap {
     return this._variables;
   }
 
-  public get scripts(): Record<string, Story> {
-    return this._scripts;
+  public get blockInternalRunners(): {
+    [refId: string]: {
+      triggers: {
+        runner: TriggerRunner;
+        data: TriggerData;
+        level: number;
+      }[];
+      commands: {
+        runner: CommandRunner;
+        data: CommandData;
+        level: number;
+      }[];
+    };
+  } {
+    return this._blockInternalRunners;
   }
 
   constructor(project: GameProjectData, runner: ImpowerGameRunner) {
-    this._runner = runner;
     this._files = { ...(project?.instances?.files?.data || {}) };
     this._constructs = {};
     this._variables = {};
     this._elements = {};
-    this._blocks = {};
+    this._blockInternalRunners = {};
 
-    Object.values(project?.instances?.constructs?.data || {}).forEach(
-      (construct) => {
-        this._constructs[construct.reference.refId] = construct;
-        Object.values(construct.variables?.data || {}).forEach((variable) => {
-          this._variables[variable.reference.refId] = variable;
-        });
-        Object.values(construct.elements?.data || {}).forEach((element) => {
-          this._elements[element.reference.refId] = element;
-        });
+    const script = project?.script;
+    const constructs: { [refId: string]: ConstructData } = {};
+    const blocks: { [refId: string]: BlockData } = {};
+    if (script) {
+      const syntaxTree = parseFountain(script);
+      const tokens = syntaxTree.scriptTokens;
+      const startTokenIndex =
+        syntaxTree.scriptTokenLines[syntaxTree.properties.firstTokenLine];
+      console.log(syntaxTree);
+      for (let i = startTokenIndex; i < tokens.length; i += 1) {
+        const token = tokens[i];
       }
-    );
+    }
 
-    Object.values(project?.instances?.blocks?.data || {}).forEach((block) => {
-      this._blocks[block.reference.refId] = block;
+    Object.values(constructs).forEach((construct) => {
+      this._constructs[construct.reference.refId] = construct;
+      Object.values(construct.variables?.data || {}).forEach((variable) => {
+        this._variables[variable.reference.refId] = variable;
+      });
+      Object.values(construct.elements?.data || {}).forEach((element) => {
+        this._elements[element.reference.refId] = element;
+      });
+    });
+
+    Object.values(blocks).forEach((block) => {
+      this._blockInternalRunners[block.reference.refId] = {
+        triggers: runner.getIterableRunners(block.triggers),
+        commands: runner.getIterableRunners(block.commands),
+      };
       Object.values(block.variables?.data || {}).forEach((variable) => {
         this._variables[variable.reference.refId] = variable;
       });
-      const { script } = block;
-      if (script) {
-        console.log(parseFountain(script));
-        // const story = this._compiler.Compile(script);
-        // this._scripts[block.reference.refId] = story;
-      }
     });
   }
 }

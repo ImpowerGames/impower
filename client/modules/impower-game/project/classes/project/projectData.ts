@@ -6,6 +6,7 @@ import { InstanceData } from "../instance/instanceData";
 export interface ProjectData {
   doc?: ProjectDocument;
   members?: Collection<MemberData>;
+  script?: string;
   instances?: {
     [id: string]: Collection<InstanceData>;
   };
@@ -20,7 +21,5 @@ export const isProjectData = (obj: unknown): obj is ProjectData => {
     return false;
   }
   const projectData = obj as ProjectData;
-  return (
-    projectData.members !== undefined && projectData.instances !== undefined
-  );
+  return projectData.members !== undefined;
 };

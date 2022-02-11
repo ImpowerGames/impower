@@ -1,23 +1,24 @@
-import {
-  ProjectEngineState,
-  createProjectEngineState,
-} from "../state/projectEngineState";
-import { windowReducer } from "./windowReducer";
-import { dataPanelReducer } from "./dataPanelReducer";
-import { testReducer } from "./testReducer";
-import { projectReducer } from "./projectReducer";
+import { UndoRedoConfig } from "../../../impower-undo-redo";
+import { DataPanelAction } from "../actions/dataPanelActions";
 import {
   ProjectAction,
+  PROJECT_CHANGE_DOCUMENT,
+  PROJECT_CHANGE_INSTANCE_DATA,
+  PROJECT_CHANGE_SCRIPT,
   PROJECT_INSERT_DATA,
   PROJECT_REMOVE_DATA,
   PROJECT_UPDATE_DATA,
-  PROJECT_CHANGE_INSTANCE_DATA,
-  PROJECT_CHANGE_DOCUMENT,
 } from "../actions/projectActions";
-import { WindowAction } from "../actions/windowActions";
-import { DataPanelAction } from "../actions/dataPanelActions";
 import { TestAction } from "../actions/testActions";
-import { UndoRedoConfig } from "../../../impower-undo-redo";
+import { WindowAction } from "../actions/windowActions";
+import {
+  createProjectEngineState,
+  ProjectEngineState,
+} from "../state/projectEngineState";
+import { dataPanelReducer } from "./dataPanelReducer";
+import { projectReducer } from "./projectReducer";
+import { testReducer } from "./testReducer";
+import { windowReducer } from "./windowReducer";
 
 export type ProjectEngineAction =
   | WindowAction
@@ -62,6 +63,7 @@ export const projectEngineUndoRedoConfig: UndoRedoConfig = {
     PROJECT_UPDATE_DATA,
     PROJECT_INSERT_DATA,
     PROJECT_REMOVE_DATA,
+    PROJECT_CHANGE_SCRIPT,
     PROJECT_CHANGE_DOCUMENT,
     PROJECT_CHANGE_INSTANCE_DATA,
   ],

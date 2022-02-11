@@ -21,7 +21,6 @@ export interface BlockData
     Disableable {
   triggers: OrderedCollection<TriggerData>;
   commands: OrderedCollection<CommandData>;
-  script: string;
 }
 
 export const isBlockData = (obj: unknown): obj is BlockData => {
@@ -51,6 +50,5 @@ export const createBlockData = (obj?: Partial<BlockData>): BlockData => ({
   name: "NewBlock",
   nodePosition: defaultNodePosition,
   disabled: false,
-  script: "",
   ...obj,
 });

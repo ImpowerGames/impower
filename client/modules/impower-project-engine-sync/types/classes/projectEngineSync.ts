@@ -48,10 +48,12 @@ export class ProjectEngineSync {
     const docSnap = await new DataStateRead(...path, "doc").get();
     const membersSnap = await new DataStateRead(...path, "members").get();
     const instancesSnap = await new DataStateRead(...path, "instances").get();
+    const scriptSnap = await new DataStateRead(...path, "script").get();
     const projectData: ProjectData = {
       doc: docSnap.val(),
       members: membersSnap.val(),
       instances: instancesSnap.val(),
+      script: scriptSnap.val(),
     };
     this.onLoaded.emit();
     return { ...projectData } as T;
@@ -93,5 +95,21 @@ export class ProjectEngineSync {
 
   syncDoc(update: ProjectDocument, ...path: ProjectDocumentPath): void {
     this.updateDoc(update, ...path);
+  }
+
+  async updateScript(
+    update: string,
+    ...path: ProjectDocumentPath
+  ): Promise<void> {
+    this.onChange.emit();
+    const DataStateWrite = (
+      await import("../../../impower-data-state/classes/dataStateWrite")
+    ).default;
+    await new DataStateWrite(...path, "script").set(update);
+    this.onSync.emit();
+  }
+
+  syncScript(update: string, ...path: ProjectDocumentPath): void {
+    this.updateScript(update, ...path);
   }
 }

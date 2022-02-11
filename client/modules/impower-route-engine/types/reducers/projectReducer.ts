@@ -18,6 +18,7 @@ import {
   PROJECT_ACCESS,
   PROJECT_CHANGE_DOCUMENT,
   PROJECT_CHANGE_INSTANCE_DATA,
+  PROJECT_CHANGE_SCRIPT,
   PROJECT_INSERT_DATA,
   PROJECT_LOAD_DATA,
   PROJECT_REMOVE_DATA,
@@ -280,6 +281,32 @@ const doProjectChangeDocument = (
   return state;
 };
 
+const doProjectChangeScript = (
+  state: ProjectState,
+  payload: {
+    id: string;
+    script: string;
+    skipSync: boolean;
+  }
+): ProjectState => {
+  const { id, script, skipSync } = payload;
+
+  if (!skipSync && id) {
+    ProjectEngineSync.instance.syncScript(script, "projects", id);
+  }
+  return {
+    ...state,
+    id,
+    data: {
+      ...(state.data || {}),
+      script,
+    },
+    lastActionDescription: "Updated Details",
+    lastActionTargets: [`${id}`],
+  };
+  return state;
+};
+
 const doProjectChangeInstanceData = (
   state: ProjectState,
   payload: {
@@ -370,6 +397,8 @@ export const projectReducer = (
       return doProjectUpdateData(state, action.payload);
     case PROJECT_CHANGE_DOCUMENT:
       return doProjectChangeDocument(state, action.payload);
+    case PROJECT_CHANGE_SCRIPT:
+      return doProjectChangeScript(state, action.payload);
     case PROJECT_LOAD_DATA:
       return doProjectLoadData(state, action.payload);
     case PROJECT_CHANGE_INSTANCE_DATA:

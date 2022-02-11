@@ -123,6 +123,26 @@ export const projectUpdateData = (
   };
 };
 
+export const PROJECT_CHANGE_SCRIPT = "PROJECT_CHANGE_SCRIPT";
+export interface ProjectChangeScriptAction {
+  type: typeof PROJECT_CHANGE_SCRIPT;
+  payload: {
+    id: string;
+    script: string;
+    skipSync: boolean;
+  };
+}
+export const projectChangeScript = (
+  id: string,
+  script: string,
+  skipSync?: boolean
+): ProjectChangeScriptAction => {
+  return {
+    type: PROJECT_CHANGE_SCRIPT,
+    payload: { id, script, skipSync },
+  };
+};
+
 export const PROJECT_CHANGE_DOCUMENT = "PROJECT_CHANGE_DOCUMENT";
 export interface ProjectChangeDocumentAction {
   type: typeof PROJECT_CHANGE_DOCUMENT;
@@ -192,4 +212,5 @@ export type ProjectAction =
   | ProjectUpdateDataAction
   | ProjectChangeDocumentAction
   | ProjectLoadDataAction
-  | ProjectChangeInstanceDataAction;
+  | ProjectChangeInstanceDataAction
+  | ProjectChangeScriptAction;

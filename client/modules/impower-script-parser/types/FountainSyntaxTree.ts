@@ -1,13 +1,12 @@
 import { FountainTokenType } from "./FountainTokenType";
 
 export interface FountainContainer {
-  id: string;
-  section: boolean; // true->section, false->scene
-  level: number;
-  text: string;
-  synopses: { synopsis: string; line: number }[];
-  notes: { note: string; line: number }[];
-  children: FountainContainer[]; // Children of the section
+  id?: string;
+  level?: number;
+  text?: string;
+  synopses?: { synopsis: string; line: number }[];
+  notes?: { note: string; line: number }[];
+  children?: FountainContainer[]; // Children of the section
 }
 
 export interface ScreenplayProperties {
@@ -30,6 +29,8 @@ export interface FountainToken {
   character?: string; // Only populated when type === "dialogue"
   parenthetical?: string; // Only populated when type === "dialogue"
   dual?: "left" | "right"; // Only populated when type === "dialogue"
+
+  error?: string;
 
   order?: number;
   ignore?: boolean;

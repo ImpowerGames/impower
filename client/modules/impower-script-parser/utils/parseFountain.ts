@@ -1,4 +1,3 @@
-/* eslint-disable no-loop-func */
 /* eslint-disable no-cond-assign */
 /* eslint-disable prefer-destructuring */
 /* eslint-disable no-continue */
@@ -236,7 +235,7 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
     }
 
     const latestSection = (depth: number): FountainContainer =>
-      latestSectionOrScene(depth, (token) => token.section);
+      latestSectionOrScene(depth, (token) => token.level != null);
 
     if (state === "normal") {
       if (currentToken.text.match(fountainRegexes.line_break)) {
@@ -256,14 +255,10 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
           );
           currentToken.scene = Number(match[1]);
         }
+        // Scene Container
         const container: FountainContainer = {
           id: null,
-          section: null,
-          level: null,
           text: currentToken.text,
-          synopses: null,
-          notes: null,
-          children: null,
         };
 
         if (currentDepth === 0) {
@@ -276,6 +271,9 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
           const level = latestSection(currentDepth);
           if (level) {
             container.id = `${level.id}.${currentToken.line}`;
+            if (!level.children) {
+              level.children = [];
+            }
             level.children.push(container);
           } else {
             container.id = `.${currentToken.line}`;
@@ -327,22 +325,20 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
         currentToken.level = match[1].length;
         currentToken.text = match[2];
         currentToken.type = "section";
+        // Section Container
         const container: FountainContainer = {
           id: null,
-          section: true,
           level: currentToken.level,
           text: currentToken.text,
-          synopses: null,
-          notes: null,
-          children: [],
         };
         currentDepth = currentToken.level;
+        const tokenDepth = currentDepth;
 
         const level =
           currentDepth > 1 &&
           latestSectionOrScene(
             currentDepth,
-            (token) => token.section && token.level < currentDepth
+            (token) => token.level != null && token.level < tokenDepth
           );
         if (currentDepth === 1 || !level) {
           container.id = `.${currentToken.line}`;
@@ -352,6 +348,9 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
           result.properties.structure.push(container);
         } else {
           container.id = `${level.id}.${currentToken.line}`;
+          if (!level.children) {
+            level.children = [];
+          }
           level.children.push(container);
         }
       } else if (currentToken.text.match(fountainRegexes.page_break)) {

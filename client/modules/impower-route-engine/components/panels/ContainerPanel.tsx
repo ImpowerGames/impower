@@ -37,12 +37,9 @@ import {
 import { useDialogNavigation } from "../../../impower-dialog";
 import {
   BlockData,
-  BlockReference,
   ContainerData,
   ContainerReference,
   ContainerType,
-  createBlockData,
-  createBlockReference,
   defaultNodePosition,
   defaultNodeSize,
   GameProjectData,
@@ -111,6 +108,7 @@ import {
   dataPanelToggleInteraction,
 } from "../../types/actions/dataPanelActions";
 import {
+  projectChangeScript,
   projectInsertData,
   projectRemoveData,
   projectUpdateData,
@@ -758,10 +756,7 @@ const ContainerPanelContent = React.memo(
             {containerPanelState.scripting ? (
               <StyledScriptArea>
                 <ScriptTextField
-                  defaultValue={
-                    project.instances?.blocks?.data?.[parentContainerId]
-                      ?.script || ""
-                  }
+                  defaultValue={project.script || ""}
                   onChange={onScriptChange}
                 />
               </StyledScriptArea>
@@ -890,6 +885,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const { mode } = state.present.test;
   const project = state.present.project.data as GameProjectData;
+  const { id } = state.present.project;
   const projectContainers = projectContainersSelector(project, containerType);
 
   const openPanel = state.present.dataPanel.panels?.[windowType]?.openPanel;
@@ -1752,25 +1748,8 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const handleSaveScriptChange = useCallback(() => {
     const newValue = scriptValueRef.current;
-    const parentReference =
-      (parentContainer?.reference as BlockReference) ||
-      createBlockReference({
-        refId: ContainerType.Block,
-      });
-    if (!parentContainer?.reference) {
-      dispatch(
-        projectInsertData([
-          createBlockData({
-            reference: parentReference,
-            name: "Root",
-          }),
-        ])
-      );
-    }
-    dispatch(
-      projectUpdateData("Update Script", [parentReference], "script", newValue)
-    );
-  }, [dispatch, parentContainer?.reference]);
+    dispatch(projectChangeScript(id, newValue));
+  }, [dispatch, id]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleDebouncedScriptChange = useCallback(

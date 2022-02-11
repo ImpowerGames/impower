@@ -13,7 +13,7 @@ import {
 } from "../../../impower-game/runner";
 import { Control } from "../control";
 import { ASSET_SCENE_KEY, PhaserAssetScene } from "./scenes/phaserAssetScene";
-import { BLOCK_SCENE_KEY, PhaserBlockScene } from "./scenes/phaserBlockScene";
+import { LOGIC_SCENE_KEY, PhaserLogicScene } from "./scenes/phaserLogicScene";
 import { MAIN_SCENE_KEY, PhaserMainScene } from "./scenes/phaserMainScene";
 import {
   PhaserPreloadingScene,
@@ -61,9 +61,9 @@ export class PhaserGame extends Phaser.Game {
     return this._splashScene;
   }
 
-  private _blockScene: PhaserBlockScene | undefined;
+  private _blockScene: PhaserLogicScene | undefined;
 
-  public get blockScene(): PhaserBlockScene | undefined {
+  public get blockScene(): PhaserLogicScene | undefined {
     return this._blockScene;
   }
 
@@ -199,9 +199,9 @@ export class PhaserGame extends Phaser.Game {
     );
     const blockScene =
       impowerGame && impowerDataMap
-        ? new PhaserBlockScene(
+        ? new PhaserLogicScene(
             {
-              key: BLOCK_SCENE_KEY,
+              key: LOGIC_SCENE_KEY,
               active,
               visible: false,
             },
