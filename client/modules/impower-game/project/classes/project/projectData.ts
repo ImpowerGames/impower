@@ -6,7 +6,12 @@ import { InstanceData } from "../instance/instanceData";
 export interface ProjectData {
   doc?: ProjectDocument;
   members?: Collection<MemberData>;
-  script?: string;
+  scripts?: {
+    setup?: Collection<string>;
+    assets?: Collection<string>;
+    entities?: Collection<string>;
+    logic?: Collection<string>;
+  };
   instances?: {
     [id: string]: Collection<InstanceData>;
   };

@@ -128,18 +128,20 @@ export interface ProjectChangeScriptAction {
   type: typeof PROJECT_CHANGE_SCRIPT;
   payload: {
     id: string;
+    type: "setup" | "assets" | "entities" | "logic";
     script: string;
     skipSync: boolean;
   };
 }
 export const projectChangeScript = (
   id: string,
+  type: "setup" | "assets" | "entities" | "logic",
   script: string,
   skipSync?: boolean
 ): ProjectChangeScriptAction => {
   return {
     type: PROJECT_CHANGE_SCRIPT,
-    payload: { id, script, skipSync },
+    payload: { id, type, script, skipSync },
   };
 };
 

@@ -690,7 +690,7 @@ const ContainerPanelContent = React.memo(
         >
           <StyledScriptArea>
             <ScriptTextField
-              defaultValue={project.script || ""}
+              defaultValue={project.scripts?.logic?.data?.root || ""}
               onChange={onScriptChange}
             />
           </StyledScriptArea>
@@ -1750,7 +1750,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const handleSaveScriptChange = useCallback(() => {
     const newValue = scriptValueRef.current;
-    dispatch(projectChangeScript(id, newValue));
+    dispatch(projectChangeScript(id, "logic", newValue));
   }, [dispatch, id]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps

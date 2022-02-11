@@ -285,21 +285,39 @@ const doProjectChangeScript = (
   state: ProjectState,
   payload: {
     id: string;
+    type: "setup" | "assets" | "entities" | "logic";
     script: string;
     skipSync: boolean;
   }
 ): ProjectState => {
-  const { id, script, skipSync } = payload;
+  const { id, type, script, skipSync } = payload;
 
   if (!skipSync && id) {
-    ProjectEngineSync.instance.syncScript(script, "projects", id);
+    ProjectEngineSync.instance.syncScript(
+      script,
+      "projects",
+      id,
+      "scripts",
+      type,
+      "data",
+      "root"
+    );
   }
   return {
     ...state,
     id,
     data: {
-      ...(state.data || {}),
-      script,
+      ...(state?.data || {}),
+      scripts: {
+        ...(state?.data?.scripts || {}),
+        [type]: {
+          ...(state?.data?.scripts?.[type] || {}),
+          data: {
+            ...(state?.data?.scripts?.[type]?.data || {}),
+            root: script,
+          },
+        },
+      },
     },
     lastActionDescription: "Updated Details",
     lastActionTargets: [`${id}`],

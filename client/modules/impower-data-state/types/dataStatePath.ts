@@ -263,8 +263,17 @@ export type PageMemberReadPath = [
 export type PageMemberWritePath = PageMemberReadPath;
 export type PageMemberQueryPath = [...PageDocumentPath, "members", "data"];
 
-export type ProjectScriptReadPath = [...ProjectDocumentPath, "script"];
-export type ProjectScriptWritePath = ProjectScriptReadPath;
+export type ProjectScriptReadPath =
+  | [...ProjectDocumentPath, "scripts"]
+  | [...ProjectDocumentPath, "scripts", "setup"]
+  | [...ProjectDocumentPath, "scripts", "assets"]
+  | [...ProjectDocumentPath, "scripts", "entities"]
+  | [...ProjectDocumentPath, "scripts", "logic"];
+export type ProjectScriptWritePath =
+  | [...ProjectDocumentPath, "scripts", "setup", "data", string]
+  | [...ProjectDocumentPath, "scripts", "assets", "data", string]
+  | [...ProjectDocumentPath, "scripts", "entities", "data", string]
+  | [...ProjectDocumentPath, "scripts", "logic", "data", string];
 
 export type ProjectInstancesReadPath =
   | [...ProjectDocumentPath, "instances"]

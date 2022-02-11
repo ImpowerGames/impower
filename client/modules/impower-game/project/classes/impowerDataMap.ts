@@ -74,7 +74,7 @@ export class ImpowerDataMap {
     this._elements = {};
     this._blockInternalRunners = {};
 
-    const script = project?.script;
+    const script = project?.scripts?.logic?.data?.root;
     const constructs: { [refId: string]: ConstructData } = {};
     const blocks: { [refId: string]: BlockData } = {};
     if (script) {

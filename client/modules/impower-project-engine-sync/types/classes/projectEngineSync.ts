@@ -1,6 +1,9 @@
 import { ProjectDocumentPath } from "../../../impower-api";
 import { Event, RecursivePartial } from "../../../impower-core";
-import { getUpdatedFields } from "../../../impower-data-state";
+import {
+  getUpdatedFields,
+  ProjectScriptWritePath,
+} from "../../../impower-data-state";
 import { ProjectDocument } from "../../../impower-data-store";
 import { GameProjectData, ProjectData } from "../../../impower-game/data";
 
@@ -48,12 +51,12 @@ export class ProjectEngineSync {
     const docSnap = await new DataStateRead(...path, "doc").get();
     const membersSnap = await new DataStateRead(...path, "members").get();
     const instancesSnap = await new DataStateRead(...path, "instances").get();
-    const scriptSnap = await new DataStateRead(...path, "script").get();
+    const scriptsSnap = await new DataStateRead(...path, "scripts").get();
     const projectData: ProjectData = {
       doc: docSnap.val(),
       members: membersSnap.val(),
       instances: instancesSnap.val(),
-      script: scriptSnap.val(),
+      scripts: scriptsSnap.val(),
     };
     this.onLoaded.emit();
     return { ...projectData } as T;
@@ -99,17 +102,17 @@ export class ProjectEngineSync {
 
   async updateScript(
     update: string,
-    ...path: ProjectDocumentPath
+    ...path: ProjectScriptWritePath
   ): Promise<void> {
     this.onChange.emit();
     const DataStateWrite = (
       await import("../../../impower-data-state/classes/dataStateWrite")
     ).default;
-    await new DataStateWrite(...path, "script").set(update);
+    await new DataStateWrite(...path).set(update);
     this.onSync.emit();
   }
 
-  syncScript(update: string, ...path: ProjectDocumentPath): void {
+  syncScript(update: string, ...path: ProjectScriptWritePath): void {
     this.updateScript(update, ...path);
   }
 }
