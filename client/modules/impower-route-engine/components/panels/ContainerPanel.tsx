@@ -1,6 +1,5 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Input from "@material-ui/core/Input";
 import dynamic from "next/dynamic";
 import React, {
   CSSProperties,
@@ -154,6 +153,13 @@ const ContextMenu = dynamic(
   { ssr: false }
 );
 
+const ScriptEditorField = dynamic(
+  () => import("../../../impower-script-editor/components/ScriptEditorField"),
+  {
+    ssr: false,
+  }
+);
+
 const nodeStartOffset = { x: -80, y: -16 };
 const nodeNextOffset = { x: 0, y: 80 };
 
@@ -296,33 +302,10 @@ const StyledList = styled.div`
 `;
 
 const StyledScriptArea = styled.div`
-  padding: ${(props): string => props.theme.spacing(2)};
   flex: 1;
   display: flex;
   flex-direction: column;
   position: relative;
-`;
-
-const StyledInput = styled(Input)`
-  background-color: ${(props): string => props.theme.colors.black30};
-  padding: ${(props): string => props.theme.spacing(2)};
-  min-height: 100%;
-  align-items: flex-start;
-  color: white;
-  font-family: ${(props): string => props.theme.fontFamily.monospace};
-  font-size: ${(props): string | number =>
-    props.theme.typography.body2.fontSize};
-
-  & .MuiInputBase-root input {
-    padding-top: 0;
-    padding-bottom: 0;
-    height: 100%;
-  }
-  & .MuiInputBase-root textarea {
-    padding-top: 0;
-    padding-bottom: 0;
-    height: 100%;
-  }
 `;
 
 const StyledEmptyPanelContentArea = styled.div`
@@ -341,36 +324,6 @@ const StyledChartEmptyPanelContentArea = styled(StyledEmptyPanelContentArea)`
     props.theme.spacing(props.theme.space.panelLeft)};
   padding-top: ${(props): string => props.theme.spacing(2)};
 `;
-
-interface ScriptTextFieldProps {
-  defaultValue: string;
-  onChange: (e: React.ChangeEvent) => void;
-}
-
-const ScriptTextField = React.memo((props: ScriptTextFieldProps) => {
-  const { defaultValue, onChange } = props;
-  const [state, setState] = useState(defaultValue);
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setState(e.target.value);
-      if (onChange) {
-        onChange(e);
-      }
-    },
-    [onChange]
-  );
-  return (
-    <StyledInput
-      defaultValue={defaultValue}
-      value={state}
-      size="small"
-      multiline
-      fullWidth
-      disableUnderline
-      onChange={handleChange}
-    />
-  );
-});
 
 interface ScriptingPanelHeaderIconProps {
   scripting: boolean;
@@ -605,7 +558,7 @@ interface ContainerPanelContentProps {
   onEdit: (refId: string, event: AccessibleEvent) => void;
   onChangeName: (refId: string, renamed: string) => void;
   onContextMenu?: (event: AccessibleEvent) => void;
-  onScriptChange?: (e: React.ChangeEvent) => void;
+  onScriptChange?: (value: string) => void;
 }
 
 const ContainerPanelContent = React.memo(
@@ -689,7 +642,7 @@ const ContainerPanelContent = React.memo(
           style={{ display: "flex", flex: 1 }}
         >
           <StyledScriptArea>
-            <ScriptTextField
+            <ScriptEditorField
               defaultValue={project.scripts?.logic?.data?.root || ""}
               onChange={onScriptChange}
             />
@@ -1760,8 +1713,8 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   );
 
   const handleScriptChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      scriptValueRef.current = e.target.value;
+    (value: string) => {
+      scriptValueRef.current = value;
       handleDebouncedScriptChange();
     },
     [handleDebouncedScriptChange]
