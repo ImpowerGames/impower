@@ -171,11 +171,10 @@ export function isCentered(line: Line): number {
   if (line.next !== charCodeStart) {
     return -1;
   }
-  let size = 1;
+  console.log(line.text);
   let pos = line.pos + 1;
   while (pos < line.text.length && line.text.charCodeAt(pos) !== charCodeEnd) {
     pos += 1;
-    size += 1;
   }
   if (line.text.charCodeAt(pos) !== charCodeEnd) {
     return -1;
@@ -183,7 +182,7 @@ export function isCentered(line: Line): number {
   if (line.skipSpace(pos + 1) < line.text.length) {
     return -1;
   }
-  return size;
+  return 1;
 }
 
 export function isLyric(line: Line): number {

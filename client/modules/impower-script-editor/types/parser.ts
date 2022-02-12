@@ -123,21 +123,6 @@ export const DefaultBlockParsers: {
     return true;
   },
 
-  Centered(cx, line) {
-    const size = isCentered(line);
-    if (size < 0) {
-      return false;
-    }
-    cx.startContext(Type.Centered, line.pos);
-    cx.addNode(
-      Type.CenteredMark,
-      cx.lineStart + line.pos,
-      cx.lineStart + line.pos + 1
-    );
-    line.moveBase(line.pos + 1);
-    return null;
-  },
-
   Lyric(cx, line) {
     const size = isLyric(line);
     if (size < 0) {
@@ -203,6 +188,42 @@ export const DefaultBlockParsers: {
     );
     line.moveBaseColumn(newBase);
     return null;
+  },
+
+  Centered(cx, line) {
+    const size = isCentered(line);
+    if (size < 0) {
+      return false;
+    }
+    const charCodeEnd = "<".charCodeAt(0);
+    const off = line.pos;
+    const from = cx.lineStart + off;
+    const endOfSpace = skipSpaceBack(line.text, line.text.length, off);
+    let after = endOfSpace;
+    while (after > off && line.text.charCodeAt(after - 1) === charCodeEnd) {
+      after -= 1;
+    }
+    if (
+      after === endOfSpace ||
+      after === off ||
+      !space(line.text.charCodeAt(after - 1))
+    ) {
+      after = line.text.length;
+    }
+    const buf = cx.buffer
+      .write(Type.CenteredMark, 0, size)
+      .writeElements(
+        cx.parser.parseInline(
+          line.text.slice(off + size + 1, after),
+          from + size + 1
+        ),
+        -from
+      );
+    buf.write(Type.CenteredMark, after - off, endOfSpace - off);
+    const node = buf.finish(Type.Centered, line.text.length - off);
+    cx.nextLine();
+    cx.addNode(node, from);
+    return true;
   },
 
   ATXHeading(cx, line) {

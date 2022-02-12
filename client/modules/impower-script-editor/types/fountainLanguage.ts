@@ -38,9 +38,8 @@ const commonmark = baseParser.configure({
       "OrderedList/... BulletList/...": t.list,
       "InlineCode CodeText": t.monospace,
       "URL": t.url,
-      "HardBreak QuoteMark ListMark LinkMark EmphasisMark UnderlineMark CodeMark LyricMark":
+      "HardBreak QuoteMark ListMark LinkMark EmphasisMark UnderlineMark CodeMark LyricMark CenteredMark":
         t.processingInstruction,
-      "CenteredMark": t.quote,
       "HeaderMark ": t.heading,
       "SceneHeadingMark ": t.heading,
       "CodeInfo LinkLabel": t.labelName,
