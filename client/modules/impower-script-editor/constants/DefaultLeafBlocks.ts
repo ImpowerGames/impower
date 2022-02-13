@@ -1,4 +1,5 @@
 import { BlockContext } from "../classes/BlockContext";
+import { DialogueParser } from "../classes/DialogueParser";
 import { LeafBlock } from "../classes/LeafBlock";
 import { LinkReferenceParser } from "../classes/LinkReferenceParser";
 import { SetextHeadingParser } from "../classes/SetextHeadingParser";
@@ -14,5 +15,8 @@ export const DefaultLeafBlocks: {
   },
   SetextHeading() {
     return new SetextHeadingParser();
+  },
+  Dialogue() {
+    return new DialogueParser();
   },
 };

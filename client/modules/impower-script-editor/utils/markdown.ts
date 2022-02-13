@@ -105,8 +105,8 @@ export function isTransition(line: Line): number {
   }
   const currentText = line.text.slice(line.pos);
   if (
-    currentText.toUpperCase() === currentText &&
-    currentText.endsWith(" TO:")
+    currentText === "TO:" ||
+    (currentText.toUpperCase() === currentText && currentText.endsWith(" TO:"))
   ) {
     return 0;
   }

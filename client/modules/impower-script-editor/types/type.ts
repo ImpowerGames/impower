@@ -46,9 +46,9 @@ export enum Type {
   URL,
 
   // Fountain Inline
+  Parenthetical,
   Dialogue,
   Lyric,
-  Parenthetical,
   Underline,
 
   // Markdown Mark

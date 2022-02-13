@@ -20,7 +20,11 @@ const commonmark = baseParser.configure({
     styleTags({
       "Title/...": t.documentMeta,
       "TitleMark/...": t.meta,
-      "SceneHeading/...": t.className,
+      "Character/...": t.className,
+      "Parenthetical/...": t.tagName,
+      "Dialogue/...": t.typeName,
+      "DualDialogueMark/...": t.typeOperator,
+      "SceneHeading/...": t.propertyName,
       "Centered/...": t.quote,
       "Transition/...": t.controlKeyword,
       "Lyric/...": t.emphasis,

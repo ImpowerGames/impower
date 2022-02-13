@@ -353,4 +353,5 @@ export const DefaultBlockParsers: {
   },
 
   SetextHeading: undefined, // Specifies relative precedence for block-continue function
+  Dialogue: undefined, // Specifies relative precedence for block-continue function
 };
