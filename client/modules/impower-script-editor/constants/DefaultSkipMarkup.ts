@@ -2,7 +2,7 @@ import { BlockContext } from "../classes/BlockContext";
 import { CompositeBlock } from "../classes/CompositeBlock";
 import { Line } from "../classes/Line";
 import { Type } from "../types/type";
-import { isTitle, skipForList } from "../utils/markdown";
+import { isAtxHeading, isTitle, skipForList } from "../utils/markdown";
 
 export const DefaultSkipMarkup: {
   [type: number]: (bl: CompositeBlock, cx: BlockContext, line: Line) => boolean;
@@ -13,25 +13,24 @@ export const DefaultSkipMarkup: {
   [Type.Transition](_bl, _cx, _line) {
     return false;
   },
-  [Type.TitleEntry](bl, _cx, line) {
-    if (line.indent < line.baseIndent + bl.value && line.next > -1) {
-      return false;
-    }
-    line.moveBaseColumn(line.baseIndent + bl.value);
-    return true;
-  },
-  [Type.Title](bl, cx, line): boolean {
-    if (
-      line.pos === line.text.length ||
-      (bl !== cx.block &&
-        line.indent >= cx.stack[line.depth + 1].value + line.baseIndent)
-    ) {
+  [Type.Section](bl, cx, line): boolean {
+    const headingValue = isAtxHeading(line);
+    if (headingValue < 0 || headingValue > bl.value) {
+      // skip if not heading or lower level heading
       return true;
     }
-    if (line.indent >= line.baseIndent + 4) {
-      return false;
+    return false;
+  },
+  [Type.TitleEntry](_bl, _cx, _line) {
+    return false;
+  },
+  [Type.Title](_bl, cx, line): boolean {
+    const title = isTitle(line, cx, false) > 0;
+    if (title || line.indent >= line.baseIndent + 4) {
+      // skip if title or indented title value
+      return true;
     }
-    return isTitle(line, cx, false) > 0;
+    return false;
   },
   [Type.ListItem](bl, _cx, line) {
     if (line.indent < line.baseIndent + bl.value && line.next > -1) {
@@ -40,9 +39,13 @@ export const DefaultSkipMarkup: {
     line.moveBaseColumn(line.baseIndent + bl.value);
     return true;
   },
-  [Type.OrderedList]: skipForList,
-  [Type.BulletList]: skipForList,
-  [Type.Document]() {
+  [Type.OrderedList](bl, cx, line) {
+    return skipForList(bl, cx, line);
+  },
+  [Type.BulletList](bl, cx, line) {
+    return skipForList(bl, cx, line);
+  },
+  [Type.Document](_bl, _cx, _line) {
     return true;
   },
 };

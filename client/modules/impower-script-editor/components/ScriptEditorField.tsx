@@ -64,7 +64,7 @@ const myHighlightStyle = HighlightStyle.define([
     ],
     color: colors.operator,
   },
-  { tag: [t.meta, t.comment], color: colors.comment },
+  { tag: t.comment, color: colors.comment },
   { tag: t.quote, color: colors.variable },
   { tag: t.strong, color: colors.variable, fontWeight: "bold" },
   { tag: t.emphasis, color: colors.variable, fontStyle: "italic" },

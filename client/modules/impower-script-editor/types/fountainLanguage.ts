@@ -19,7 +19,6 @@ const commonmark = baseParser.configure({
   props: [
     styleTags({
       "Title/...": t.documentMeta,
-      "TitleEntry/...": t.documentMeta,
       "TitleMark/...": t.meta,
       "SceneHeading/...": t.className,
       "Centered/...": t.quote,
@@ -52,7 +51,9 @@ const commonmark = baseParser.configure({
       "Paragraph": t.content,
     }),
     foldNodeProp.add((type) => {
-      if (!type.is("Block") || type.is("Document")) return undefined;
+      if (!type.is("Section") && !type.is("Title")) {
+        return undefined;
+      }
       return (tree, state) => ({
         from: state.doc.lineAt(tree.from).to,
         to: tree.to,

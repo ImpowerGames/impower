@@ -245,11 +245,13 @@ export function isAtxHeading(line: Line): number {
   while (pos < line.text.length && line.text.charCodeAt(pos) === charCode) {
     pos += 1;
   }
-  if (pos < line.text.length && line.text.charCodeAt(pos) !== 32) {
+  if (
+    pos < line.text.length &&
+    line.text.charCodeAt(pos) !== " ".charCodeAt(0)
+  ) {
     return -1;
   }
-  const size = pos - line.pos;
-  return size > 6 ? -1 : size;
+  return pos - line.pos;
 }
 
 export function isSceneHeading(line: Line): number {

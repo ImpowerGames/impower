@@ -23,6 +23,7 @@ export enum Type {
   ProcessingInstructionBlock,
 
   // Fountain Block
+  Section,
   Title,
   SceneHeading,
   Transition,

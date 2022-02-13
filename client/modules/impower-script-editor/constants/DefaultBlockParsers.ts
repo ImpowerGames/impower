@@ -244,6 +244,7 @@ export const DefaultBlockParsers: {
     if (size < 0) {
       return false;
     }
+    cx.startContext(Type.Section, 0, size);
     const off = line.pos;
     const from = cx.lineStart + off;
     const endOfSpace = skipSpaceBack(line.text, line.text.length, off);
@@ -270,13 +271,11 @@ export const DefaultBlockParsers: {
     if (after < line.text.length) {
       buf.write(Type.HeaderMark, after - off, endOfSpace - off);
     }
-    const node = buf.finish(
-      Type.ATXHeading1 - 1 + size,
-      line.text.length - off
-    );
-    cx.nextLine();
+    const headingType = Type.ATXHeading1 - 1 + Math.min(6, size);
+    const node = buf.finish(headingType, line.text.length - off);
     cx.addNode(node, from);
-    return true;
+    line.moveBase(line.pos + 1);
+    return null;
   },
 
   SceneHeading(cx, line) {
