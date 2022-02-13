@@ -8,6 +8,7 @@ import {
   EmphasisAsterisk,
   ImageStart,
   LinkStart,
+  NoteBrackets,
   UnderlineUnderscore,
 } from "./delimiters";
 import { Escapable, Punctuation } from "./regexes";
@@ -177,6 +178,40 @@ export const DefaultInline: {
     return cx.append(
       new InlineDelimiter(
         UnderlineUnderscore,
+        start,
+        pos,
+        (canOpen ? Mark.Open : 0) | (canClose ? Mark.Close : 0)
+      )
+    );
+  },
+
+  Note(cx, next, start) {
+    const charCodeBefore = "[".charCodeAt(0);
+    const charCodeAfter = "]".charCodeAt(0);
+    const validStart = next === charCodeBefore;
+    const validEnd = next === charCodeAfter;
+    if (!validStart && !validEnd) {
+      return -1;
+    }
+    let pos = start + 1;
+    while (cx.char(pos) === next) {
+      pos += 1;
+    }
+    const before = cx.slice(start - 1, start);
+    const after = cx.slice(pos, pos + 1);
+    const pBefore = Punctuation.test(before);
+    const pAfter = Punctuation.test(after);
+    const sBefore = /\s|^$/.test(before);
+    const sAfter = /\s|^$/.test(after);
+    const leftFlanking = !sAfter && (!pAfter || sBefore || pBefore);
+    const rightFlanking = !sBefore && (!pBefore || sAfter || pAfter);
+    const canOpen =
+      leftFlanking && (next === charCodeBefore || !rightFlanking || pBefore);
+    const canClose =
+      rightFlanking && (next === charCodeAfter || !leftFlanking || pAfter);
+    return cx.append(
+      new InlineDelimiter(
+        NoteBrackets,
         start,
         pos,
         (canOpen ? Mark.Open : 0) | (canClose ? Mark.Close : 0)

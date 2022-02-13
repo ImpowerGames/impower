@@ -23,6 +23,7 @@ export enum Type {
   ProcessingInstructionBlock,
 
   // Fountain Block
+  Synopsis,
   Section,
   Title,
   SceneHeading,
@@ -46,6 +47,7 @@ export enum Type {
   URL,
 
   // Fountain Inline
+  Note,
   Parenthetical,
   Dialogue,
   Lyric,
@@ -64,6 +66,8 @@ export enum Type {
   LinkLabel,
 
   // Fountain Mark
+  NoteMark,
+  SynopsisMark,
   SceneHeadingMark,
   CharacterMark,
   DualDialogueMark,

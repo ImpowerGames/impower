@@ -10,12 +10,12 @@ import { fountainLanguage } from "../types/fountainLanguage";
 
 const colors = {
   invalid: "#FFFFFF",
-  comment: "#00E000",
   constant: "#FFFF00",
   keyword: "#00D0D0",
   parameter: "#BFA4A4",
   operator: "#D0D0D0",
 
+  comment: "#7FB347",
   heading: "#FF81FF",
   sceneHeading: "#FF8080",
   transition: "#BEA3A3",
@@ -49,7 +49,6 @@ const myHighlightStyle = HighlightStyle.define([
     color: colors.formatting,
     textDecoration: "line-through",
   },
-  { tag: t.comment, color: colors.comment },
   {
     tag: t.typeName,
     color: colors.dialogue,
@@ -85,6 +84,8 @@ const myHighlightStyle = HighlightStyle.define([
     color: colors.titleKey,
     fontWeight: 400,
   },
+  { tag: t.docComment, color: colors.comment, opacity: 0.5 },
+  { tag: t.comment, color: colors.comment },
   { tag: t.atom, color: colors.constant },
   {
     tag: t.string,

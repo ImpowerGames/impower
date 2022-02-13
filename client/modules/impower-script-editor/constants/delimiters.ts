@@ -8,5 +8,9 @@ export const EmphasisAsterisk: DelimiterType = {
   resolve: "Emphasis",
   mark: "EmphasisMark",
 };
+export const NoteBrackets: DelimiterType = {
+  resolve: "Note",
+  mark: "NoteMark",
+};
 export const LinkStart: DelimiterType = {};
 export const ImageStart: DelimiterType = {};

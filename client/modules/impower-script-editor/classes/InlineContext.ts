@@ -1,6 +1,10 @@
 /* eslint-disable no-continue */
 import { Tree } from "@lezer/common";
-import { EmphasisAsterisk, UnderlineUnderscore } from "../constants/delimiters";
+import {
+  EmphasisAsterisk,
+  NoteBrackets,
+  UnderlineUnderscore,
+} from "../constants/delimiters";
 import { DelimiterType } from "../types/delimiterType";
 import { Mark } from "../types/mark";
 import { skipSpace } from "../utils/skipSpace";
@@ -102,7 +106,9 @@ export class InlineContext {
       }
 
       const emp =
-        close.type === UnderlineUnderscore || close.type === EmphasisAsterisk;
+        close.type === UnderlineUnderscore ||
+        close.type === NoteBrackets ||
+        close.type === EmphasisAsterisk;
       const closeSize = close.to - close.from;
       let open: InlineDelimiter | undefined;
       let j = i - 1;
@@ -138,6 +144,12 @@ export class InlineContext {
         end = close.from + size;
         if (close.type === UnderlineUnderscore) {
           type = "Underline";
+        }
+        if (close.type === NoteBrackets) {
+          if (size < 2) {
+            continue;
+          }
+          type = "Note";
         } else {
           type = size === 1 ? "Emphasis" : "StrongEmphasis";
         }
