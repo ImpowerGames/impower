@@ -16,14 +16,14 @@ const colors = {
   parameter: "#BFA4A4",
   operator: "#D0D0D0",
 
-  heading: "#E774E7",
+  heading: "#FF81FF",
   sceneHeading: "#FF8080",
-  transition: "#AF9696",
+  transition: "#BEA3A3",
   titleKey: "#EFC090",
   titleValue: "#BFA4A4",
   character: "#4EC9B0",
   dialogue: "#CE9178",
-  parenthetical: "#D7BD79",
+  parenthetical: "#D7BA7D",
   pageBreak: "#606080",
   formatting: "#79ABFF",
 };
