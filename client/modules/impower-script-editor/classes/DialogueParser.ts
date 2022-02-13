@@ -73,6 +73,11 @@ export class DialogueParser implements LeafBlockParser {
             pos,
             type === Type.Parenthetical
               ? undefined
+              : type === Type.Lyric
+              ? [
+                  new Element(Type.LyricMark, startPos, startPos + 1),
+                  ...cx.parser.parseInline(text, startPos + 1),
+                ]
               : [...cx.parser.parseInline(text, startPos)]
           )
         );
