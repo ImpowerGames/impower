@@ -86,10 +86,9 @@ const PanelHeader = (
       position: portrait ? "fixed" : "absolute",
       zIndex: 2,
       boxShadow: theme.shadows[3],
-      paddingRight: style?.position !== "absolute" && !portrait ? 8 : undefined,
       ...stickyStyle,
     }),
-    [portrait, style?.position, theme, stickyStyle]
+    [portrait, theme, stickyStyle]
   );
 
   const titleStyle = {
@@ -173,7 +172,7 @@ const PanelHeader = (
           position: portrait ? "fixed" : "absolute",
           ...style,
         }}
-        belowBreakpoint
+        belowBreakpoint={portrait}
       />
       <StyledBottomButtonArea style={{ zIndex: style?.zIndex }}>
         <StyledBottomButtonContent>

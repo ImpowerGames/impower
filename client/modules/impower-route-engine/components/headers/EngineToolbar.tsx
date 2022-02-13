@@ -32,8 +32,8 @@ const StyledEngineToolbar = styled.div`
   white-space: nowrap;
   color: inherit;
   background-color: inherit;
-  padding: ${(props): string => props.theme.spacing(0, 2)};
   margin-bottom: ${(props): string => props.theme.spacing(1)};
+  margin-right: ${(props): string => props.theme.spacing(1)};
   top: 0;
   left: 0;
   right: 0;
@@ -69,7 +69,6 @@ const StyledFixableContent = styled.div`
   align-items: stretch;
   justify-content: center;
   position: relative;
-  padding: ${(props): string => props.theme.spacing(0, 1)};
 `;
 
 const StyledEngineConsoleToolbarContent = styled.div`
@@ -710,8 +709,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
         ref={handleHeaderAreaRef}
         style={{
           position,
-          paddingLeft: belowBreakpoint ? theme.spacing(0) : undefined,
-          paddingRight: belowBreakpoint ? theme.spacing(1) : undefined,
+          marginRight: belowBreakpoint ? 0 : theme.spacing(1),
           ...style,
         }}
       >
@@ -720,7 +718,6 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
             <StyledFixableArea elevation={0}>
               <StyledFixableContent
                 style={{
-                  padding: belowBreakpoint ? theme.spacing(0) : undefined,
                   ...fixableContentStyle,
                 }}
               >

@@ -37,7 +37,6 @@ export const useStickyStyle = (
 
     if (stickyElement) {
       stickyElement.style.willChange = "transform";
-      stickyElement.style.transition = `transform 0.2s`;
     }
 
     const handleScroll = (): void => {

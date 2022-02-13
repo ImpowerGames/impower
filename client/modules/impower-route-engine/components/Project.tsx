@@ -146,32 +146,9 @@ const StyledProjectContent = styled.div`
 const StyledSplitPane = styled(SplitPane)`
   .Resizer {
     z-index: 100;
-    box-sizing: border-box;
-    background-clip: padding-box;
     background-color: ${(props): string => props.theme.colors.white00};
     transition: all 0.2s ease;
-    border-radius: 8px;
     position: relative;
-  }
-
-  .Resizer.vertical:after {
-    content: "";
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 8px;
-    right: 7px;
-    background-color: ${(props): string => props.theme.colors.white05};
-  }
-
-  .Resizer.horizontal:after {
-    content: "";
-    position: absolute;
-    top: 8px;
-    bottom: 7px;
-    left: 0;
-    right: 0;
-    background-color: ${(props): string => props.theme.colors.white05};
   }
 
   @media (hover: hover) and (pointer: fine) {
@@ -181,8 +158,7 @@ const StyledSplitPane = styled(SplitPane)`
   }
 
   .Resizer.horizontal {
-    height: 16px;
-    margin: -8px 0;
+    height: 8px;
     cursor: row-resize;
     width: 100%;
   }
@@ -195,8 +171,9 @@ const StyledSplitPane = styled(SplitPane)`
 
   .Resizer.vertical {
     z-index: 100;
-    width: 16px;
-    margin: 0 -8px;
+    width: 8px;
+    left: 8px;
+    margin-left: -8px;
     cursor: col-resize;
   }
 
