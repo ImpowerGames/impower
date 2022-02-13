@@ -113,14 +113,6 @@ export function isTransition(line: Line): number {
   return -1;
 }
 
-export function isLyric(line: Line): number {
-  const charCode = "~".charCodeAt(0);
-  if (line.next !== charCode) {
-    return -1;
-  }
-  return 1;
-}
-
 export function isTitle(
   line: Line,
   cx: BlockContext,

@@ -13,9 +13,6 @@ export const DefaultSkipMarkup: {
   [Type.Transition](_bl, _cx, _line) {
     return false;
   },
-  [Type.Lyric](_bl, _cx, _line) {
-    return false;
-  },
   [Type.TitleEntry](bl, _cx, line) {
     if (line.indent < line.baseIndent + bl.value && line.next > -1) {
       return false;

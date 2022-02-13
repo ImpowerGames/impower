@@ -41,19 +41,23 @@ export const DefaultInline: {
   },
 
   InlineCode(cx, next, start) {
-    if (next !== 96 /* '`' */ || (start && cx.char(start - 1) === 96)) {
+    const charCode = "`".charCodeAt(0);
+    if (
+      next !== charCode /* '`' */ ||
+      (start && cx.char(start - 1) === charCode)
+    ) {
       return -1;
     }
     let pos = start + 1;
-    while (pos < cx.end && cx.char(pos) === 96) {
+    while (pos < cx.end && cx.char(pos) === charCode) {
       pos += 1;
     }
     const size = pos - start;
     let curSize = 0;
     for (; pos < cx.end; pos += 1) {
-      if (cx.char(pos) === 96) {
+      if (cx.char(pos) === charCode) {
         curSize += 1;
-        if (curSize === size && cx.char(pos + 1) !== 96) {
+        if (curSize === size && cx.char(pos + 1) !== charCode) {
           return cx.append(
             new Element(Type.InlineCode, start, pos + 1, [
               new Element(Type.CodeMark, start, start + size),
@@ -98,6 +102,24 @@ export const DefaultInline: {
       );
     if (!m) return -1;
     return cx.append(new Element(Type.HTMLTag, start, start + 1 + m[0].length));
+  },
+
+  Lyric(cx, next, start) {
+    const charCode = "~".charCodeAt(0);
+    if (next !== charCode || cx.char(start - 1) !== "\n".charCodeAt(0)) {
+      return -1;
+    }
+    let pos = start + 1;
+    for (; pos < cx.end; pos += 1) {
+      if (cx.char(pos) === "\n".charCodeAt(0) || pos === cx.end - 1) {
+        return cx.append(
+          new Element(Type.Lyric, start, pos + 1, [
+            new Element(Type.LyricMark, start, start + 1),
+          ])
+        );
+      }
+    }
+    return -1;
   },
 
   Emphasis(cx, next, start) {

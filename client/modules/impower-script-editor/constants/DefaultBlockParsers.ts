@@ -15,7 +15,6 @@ import {
   isFencedCode,
   isHorizontalRule,
   isHTMLBlock,
-  isLyric,
   isOrderedList,
   isSceneHeading,
   isTitle,
@@ -119,21 +118,6 @@ export const DefaultBlockParsers: {
         cx.lineStart + line.pos + 1
       );
     }
-    line.moveBase(line.pos + 1);
-    return null;
-  },
-
-  Lyric(cx, line) {
-    const size = isLyric(line);
-    if (size < 0) {
-      return false;
-    }
-    cx.startContext(Type.Lyric, line.pos);
-    cx.addNode(
-      Type.LyricMark,
-      cx.lineStart + line.pos,
-      cx.lineStart + line.pos + 1
-    );
     line.moveBase(line.pos + 1);
     return null;
   },

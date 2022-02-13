@@ -27,10 +27,8 @@ export enum Type {
   SceneHeading,
   Transition,
   Character,
-  Dialogue,
-  DualDialogue,
-  Lyric,
   Action,
+  Centered,
 
   // Markdown Inline
   Escape,
@@ -47,9 +45,10 @@ export enum Type {
   URL,
 
   // Fountain Inline
+  Dialogue,
+  Lyric,
   Parenthetical,
   Underline,
-  Centered,
 
   // Markdown Mark
   HeaderMark,
