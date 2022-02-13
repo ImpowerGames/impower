@@ -11,20 +11,22 @@ import React, {
   useState,
 } from "react";
 import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left.svg";
+import AnglesDownRegularIcon from "../../../../resources/icons/regular/angles-down.svg";
+import AnglesUpRegularIcon from "../../../../resources/icons/regular/angles-up.svg";
+import ArrowsUpDownLeftRightRegularIcon from "../../../../resources/icons/regular/arrows-up-down-left-right.svg";
 import CopyRegularIcon from "../../../../resources/icons/regular/copy.svg";
+import CrosshairsRegularIcon from "../../../../resources/icons/regular/crosshairs.svg";
+import ListRegularIcon from "../../../../resources/icons/regular/list.svg";
 import PasteRegularIcon from "../../../../resources/icons/regular/paste.svg";
 import PencilRegularIcon from "../../../../resources/icons/regular/pencil.svg";
 import ScissorsRegularIcon from "../../../../resources/icons/regular/scissors.svg";
+import SitemapRegularIcon from "../../../../resources/icons/regular/sitemap.svg";
 import SquareRegularIcon from "../../../../resources/icons/regular/square.svg";
 import TrashCanRegularIcon from "../../../../resources/icons/regular/trash-can.svg";
-import ArrowsUpDownLeftRightSolidIcon from "../../../../resources/icons/solid/arrows-up-down-left-right.svg";
-import CrosshairsSolidIcon from "../../../../resources/icons/solid/crosshairs.svg";
+import TypewriterRegularIcon from "../../../../resources/icons/regular/typewriter.svg";
 import ExclamationSolidIcon from "../../../../resources/icons/solid/exclamation.svg";
-import ListSolidIcon from "../../../../resources/icons/solid/list.svg";
 import PlusSolidIcon from "../../../../resources/icons/solid/plus.svg";
-import SitemapSolidIcon from "../../../../resources/icons/solid/sitemap.svg";
 import SquareCheckSolidIcon from "../../../../resources/icons/solid/square-check.svg";
-import TypewriterSolidIcon from "../../../../resources/icons/solid/typewriter.svg";
 import format from "../../../impower-config/utils/format";
 import {
   debounce,
@@ -339,9 +341,9 @@ const ScriptingPanelHeaderIconButton = React.memo(
         aria-label={scripting ? "Scripting" : "Visual"}
         icon={
           scripting ? (
-            <TypewriterSolidIcon />
+            <TypewriterRegularIcon />
           ) : (
-            <ArrowsUpDownLeftRightSolidIcon />
+            <ArrowsUpDownLeftRightRegularIcon />
           )
         }
         size={theme.fontSize.smallIcon}
@@ -350,6 +352,32 @@ const ScriptingPanelHeaderIconButton = React.memo(
           marginRight: theme.spacing(2),
         }}
         onClick={(): void => onClick(!scripting)}
+      />
+    );
+  }
+);
+
+interface ToggleFoldingPanelHeaderIconProps {
+  toggleFolding: boolean;
+  onClick: (toggleFolding: boolean) => void;
+}
+
+const ToggleFoldingPanelHeaderIconButton = React.memo(
+  (props: ToggleFoldingPanelHeaderIconProps): JSX.Element => {
+    const { toggleFolding, onClick } = props;
+    const theme = useTheme();
+    return (
+      <PanelHeaderIconButton
+        aria-label={toggleFolding ? "Unfold All" : "Fold All"}
+        icon={
+          toggleFolding ? <AnglesUpRegularIcon /> : <AnglesDownRegularIcon />
+        }
+        size={theme.fontSize.smallIcon}
+        style={{
+          backgroundColor: theme.colors.darkForeground,
+          marginRight: theme.spacing(2),
+        }}
+        onClick={(): void => onClick(!toggleFolding)}
       />
     );
   }
@@ -369,7 +397,7 @@ const ArrangementPanelHeaderIconButton = React.memo(
         return (
           <PanelHeaderIconButton
             aria-label="View as Chart"
-            icon={<SitemapSolidIcon />}
+            icon={<SitemapRegularIcon />}
             size={theme.fontSize.smallIcon}
             style={{
               backgroundColor: theme.colors.darkForeground,
@@ -382,7 +410,7 @@ const ArrangementPanelHeaderIconButton = React.memo(
         return (
           <PanelHeaderIconButton
             aria-label="View as List"
-            icon={<ListSolidIcon />}
+            icon={<ListRegularIcon />}
             size={theme.fontSize.smallIcon}
             style={{
               backgroundColor: theme.colors.darkForeground,
@@ -404,6 +432,7 @@ interface ContainerPanelHeaderProps {
   parentContainer: ContainerData;
   projectContainers: { [refId: string]: ContainerData };
   headerBreadcrumbs: BreadcrumbInfo[];
+  toggleFolding: boolean;
   style?: CSSProperties;
   scrollParent?: HTMLElement | null;
   onOpenSearch: () => void;
@@ -417,6 +446,7 @@ interface ContainerPanelHeaderProps {
     e: React.MouseEvent | React.ChangeEvent,
     refId: string
   ) => void;
+  onToggleFolding?: (toggleFolding: boolean) => void;
 }
 
 const ContainerPanelHeader = React.memo(
@@ -428,6 +458,7 @@ const ContainerPanelHeader = React.memo(
       parentContainer,
       projectContainers,
       headerBreadcrumbs,
+      toggleFolding,
       style,
       scrollParent,
       onOpenSearch,
@@ -438,6 +469,7 @@ const ContainerPanelHeader = React.memo(
       onSearch,
       onBack,
       onBreadcrumb,
+      onToggleFolding,
     } = props;
 
     const theme = useTheme();
@@ -510,10 +542,17 @@ const ContainerPanelHeader = React.memo(
                 scripting={containerPanelState.scripting}
                 onClick={onScripting}
               />
-              <ArrangementPanelHeaderIconButton
-                containerArrangement={containerPanelState.arrangement}
-                onClick={onArrangement}
-              />
+              {containerPanelState.scripting ? (
+                <ToggleFoldingPanelHeaderIconButton
+                  toggleFolding={toggleFolding}
+                  onClick={onToggleFolding}
+                />
+              ) : (
+                <ArrangementPanelHeaderIconButton
+                  containerArrangement={containerPanelState.arrangement}
+                  onClick={onArrangement}
+                />
+              )}
             </>
           )
         }
@@ -535,6 +574,7 @@ interface ContainerPanelContentProps {
   selectedIds: string[];
   breadcrumbIndex?: number;
   previousBreadcrumbIndex?: number;
+  toggleFolding: boolean;
   scrollParent?: HTMLElement | null;
   onBreadcrumb: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -576,6 +616,7 @@ const ContainerPanelContent = React.memo(
       selectedIds,
       breadcrumbIndex,
       previousBreadcrumbIndex,
+      toggleFolding,
       scrollParent,
       onBreadcrumb,
       onSetDragging,
@@ -643,6 +684,7 @@ const ContainerPanelContent = React.memo(
         >
           <StyledScriptArea>
             <ScriptEditorField
+              toggleFolding={toggleFolding}
               defaultValue={project.scripts?.logic?.data?.root || ""}
               onChange={onScriptChange}
             />
@@ -827,6 +869,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const [dataAreaElement, setDataAreaElement] = useState<HTMLDivElement>();
   const [changeNameTargetId, setChangeNameTargetId] = useState<string>("");
   const [wasCut, setWasCut] = useState<boolean>(false);
+  const [toggleFolding, setToggleFolding] = useState<boolean>(false);
   const [copiedReferences, setCopiedReferences] = useState<{
     [containerType in ContainerType]: Reference[];
   }>({ Construct: [], Block: [] });
@@ -1869,6 +1912,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
             parentContainer={parentContainer}
             projectContainers={projectContainers}
             headerBreadcrumbs={headerBreadcrumbs}
+            toggleFolding={toggleFolding}
             scrollParent={scrollParent}
             onOpenSearch={handleOpenSearch}
             onCloseSearch={handleCloseSearch}
@@ -1878,6 +1922,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
             onScripting={handleClickHeaderScriptingIcon}
             onArrangement={handleClickHeaderArrangementIcon}
             onContextMenu={handleContextMenu}
+            onToggleFolding={setToggleFolding}
           />
         ) : undefined
       }
@@ -1891,6 +1936,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
               parentContainer={parentContainer}
               projectContainers={projectContainers}
               headerBreadcrumbs={headerBreadcrumbs}
+              toggleFolding={toggleFolding}
               scrollParent={scrollParent}
               onOpenSearch={handleOpenSearch}
               onCloseSearch={handleCloseSearch}
@@ -1900,6 +1946,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
               onScripting={handleClickHeaderScriptingIcon}
               onArrangement={handleClickHeaderArrangementIcon}
               onContextMenu={handleContextMenu}
+              onToggleFolding={setToggleFolding}
             />
           )}
 
@@ -1912,7 +1959,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
             >
               <PanelHeaderIconButton
                 aria-label="Center Nodes"
-                icon={<CrosshairsSolidIcon />}
+                icon={<CrosshairsRegularIcon />}
                 size={theme.fontSize.smallIcon}
                 onClick={handleCenterChart}
                 style={centerNodesButtonStyle}
@@ -1971,6 +2018,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         selectedIds={selectedContainerIds}
         breadcrumbIndex={breadcrumbIndex}
         previousBreadcrumbIndex={previousBreadcrumbIndex}
+        toggleFolding={toggleFolding}
         onBreadcrumb={handleClickHeaderBreadcrumb}
         onSetDragging={handleSetDragging}
         onSetOrder={handleSetOrder}

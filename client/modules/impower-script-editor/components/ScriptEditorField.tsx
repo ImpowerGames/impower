@@ -1,5 +1,6 @@
 import { basicSetup, EditorState, EditorView } from "@codemirror/basic-setup";
 import { indentWithTab } from "@codemirror/commands";
+import { foldAll, unfoldAll } from "@codemirror/fold";
 import { HighlightStyle, tags as t } from "@codemirror/highlight";
 import { indentUnit } from "@codemirror/language";
 import { keymap } from "@codemirror/view";
@@ -118,13 +119,14 @@ const myHighlightStyle = HighlightStyle.define([
 
 interface ScriptEditorFieldProps {
   defaultValue: string;
+  toggleFolding: boolean;
   style?: React.CSSProperties;
   onChange: (value: string) => void;
 }
 
 const ScriptEditorField = React.memo(
   (props: ScriptEditorFieldProps): JSX.Element => {
-    const { defaultValue, style, onChange } = props;
+    const { defaultValue, style, toggleFolding, onChange } = props;
 
     const elementRef = useRef<HTMLDivElement>();
     const viewRef = useRef<EditorView>();
@@ -183,6 +185,14 @@ const ScriptEditorField = React.memo(
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [onChange]);
+
+    useEffect(() => {
+      if (toggleFolding) {
+        foldAll(viewRef.current);
+      } else {
+        unfoldAll(viewRef.current);
+      }
+    }, [toggleFolding]);
 
     return (
       <div
