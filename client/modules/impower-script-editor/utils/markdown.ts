@@ -76,6 +76,21 @@ export function inContext(cx: BlockContext, type: Type): boolean {
   return false;
 }
 
+export function isSynopses(line: Line): number {
+  const charCode = "=".charCodeAt(0);
+  if (line.next !== charCode) {
+    return -1;
+  }
+  const pos = line.pos + 1;
+  if (
+    pos < line.text.length &&
+    line.text.charCodeAt(pos) !== " ".charCodeAt(0)
+  ) {
+    return -1;
+  }
+  return pos - line.pos;
+}
+
 export function isCentered(line: Line): number {
   const charCodeStart = ">".charCodeAt(0);
   const charCodeEnd = "<".charCodeAt(0);

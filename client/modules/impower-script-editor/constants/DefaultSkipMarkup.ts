@@ -7,6 +7,9 @@ import { isAtxHeading, isTitle, skipForList } from "../utils/markdown";
 export const DefaultSkipMarkup: {
   [type: number]: (bl: CompositeBlock, cx: BlockContext, line: Line) => boolean;
 } = {
+  [Type.Synopses](_bl, _cx, _line) {
+    return false;
+  },
   [Type.Centered](_bl, _cx, _line) {
     return false;
   },

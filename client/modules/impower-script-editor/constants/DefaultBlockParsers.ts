@@ -17,6 +17,7 @@ import {
   isHTMLBlock,
   isOrderedList,
   isSceneHeading,
+  isSynopses,
   isTitle,
   isTransition,
 } from "../utils/markdown";
@@ -102,6 +103,24 @@ export const DefaultBlockParsers: {
         .finish(Type.FencedCode, cx.prevLineEnd() - from),
       from
     );
+    return true;
+  },
+
+  Synopses(cx, line) {
+    const size = isSynopses(line);
+    if (size < 0) {
+      return false;
+    }
+    const from = cx.lineStart + line.pos;
+    const buf = cx.buffer
+      .write(Type.SynopsesMark, 0, size)
+      .writeElements(
+        cx.parser.parseInline(line.text.slice(size), from + size),
+        -from
+      );
+    const node = buf.finish(Type.Synopses, line.text.length);
+    cx.nextLine();
+    cx.addNode(node, from);
     return true;
   },
 

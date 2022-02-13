@@ -23,7 +23,7 @@ export enum Type {
   ProcessingInstructionBlock,
 
   // Fountain Block
-  Synopsis,
+  Synopses,
   Section,
   Title,
   SceneHeading,
@@ -67,7 +67,7 @@ export enum Type {
 
   // Fountain Mark
   NoteMark,
-  SynopsisMark,
+  SynopsesMark,
   SceneHeadingMark,
   CharacterMark,
   DualDialogueMark,
