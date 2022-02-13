@@ -145,10 +145,12 @@ export const insertNewlineContinueMarkup: StateCommand = ({
           delTo = line.from + (next ? next.to : 0);
         }
         const changes: ChangeSpec[] = [{ from: delTo, to: pos, insert }];
-        if (inner.node.name === "OrderedList")
+        if (inner.node.name === "OrderedList") {
           renumberList(inner.item, doc, changes, -2);
-        if (next && next.node.name === "OrderedList")
+        }
+        if (next && next.node.name === "OrderedList") {
           renumberList(next.item, doc, changes);
+        }
         return {
           range: EditorSelection.cursor(delTo + insert.length),
           changes,
@@ -156,8 +158,9 @@ export const insertNewlineContinueMarkup: StateCommand = ({
       }
       // Move this line down
       let insert = "";
-      for (let i = 0, e = context.length - 2; i <= e; i += 1)
+      for (let i = 0, e = context.length - 2; i <= e; i += 1) {
         insert += context[i].blank(i < e);
+      }
       insert += state.lineBreak;
       return {
         range: EditorSelection.cursor(pos + insert.length),
@@ -166,8 +169,9 @@ export const insertNewlineContinueMarkup: StateCommand = ({
     }
 
     const changes: ChangeSpec[] = [];
-    if (inner.node.name === "OrderedList")
+    if (inner.node.name === "OrderedList") {
       renumberList(inner.item, doc, changes);
+    }
     let insert = state.lineBreak;
     const continued = inner.item && inner.item.from < line.from;
     // If not dedented
@@ -175,18 +179,20 @@ export const insertNewlineContinueMarkup: StateCommand = ({
       !continued ||
       /^[\s\d.)\-+*>]*/.exec(line.text)?.[0].length >= inner.to
     ) {
-      for (let i = 0, e = context.length - 1; i <= e; i += 1)
+      for (let i = 0, e = context.length - 1; i <= e; i += 1) {
         insert +=
           i === e && !continued
             ? context[i].marker(doc, 1)
             : context[i].blank();
+      }
     }
     let from = pos;
     while (
       from > line.from &&
       /\s/.test(line.text.charAt(from - line.from - 1))
-    )
+    ) {
       from -= 1;
+    }
     changes.push({ from, to: pos, insert });
     return { range: EditorSelection.cursor(from + insert.length), changes };
   });
@@ -281,7 +287,9 @@ export const deleteMarkupBackward: StateCommand = ({ state, dispatch }) => {
     }
     return (dont = { range });
   });
-  if (dont) return false;
+  if (dont) {
+    return false;
+  }
   dispatch(
     state.update(changes, { scrollIntoView: true, userEvent: "delete" })
   );

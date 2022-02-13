@@ -67,14 +67,12 @@ export class TableParser implements LeafBlockParser {
   }
 
   emit(cx: BlockContext, leaf: LeafBlock): void {
-    cx.addLeafElement(
-      leaf,
-      cx.elt(
-        "Table",
-        leaf.start,
-        leaf.start + leaf.content.length,
-        this.rows as readonly Element[]
-      )
+    const newElement = cx.elt(
+      "Table",
+      leaf.start,
+      leaf.start + leaf.content.length,
+      this.rows as readonly Element[]
     );
+    cx.addLeafElement(leaf, newElement);
   }
 }

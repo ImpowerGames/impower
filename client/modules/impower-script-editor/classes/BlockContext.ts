@@ -400,7 +400,7 @@ export class BlockContext implements PartialParse {
   /// Create an [`Element`](#Element) object to represent some syntax
   /// node.
   elt(
-    type: string,
+    type: string | number,
     from: number,
     to: number,
     children?: readonly Element[]
@@ -409,13 +409,17 @@ export class BlockContext implements PartialParse {
   elt(tree: Tree, at: number): Element;
 
   elt(
-    type: string | Tree,
+    type: string | Tree | number,
     from: number,
     to?: number,
     children?: Element[]
   ): Element {
-    if (typeof type === "string")
+    if (typeof type === "string") {
       return new Element(this.parser.getNodeType(type), from, to, children);
+    }
+    if (typeof type === "number") {
+      return new Element(type, from, to, children);
+    }
     return new TreeElement(type, from);
   }
 

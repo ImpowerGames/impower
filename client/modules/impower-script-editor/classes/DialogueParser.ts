@@ -12,7 +12,7 @@ export class DialogueParser implements LeafBlockParser {
     if (size < 0) {
       return false;
     }
-    const characterMark = new Element(
+    const mark = new Element(
       Type.CharacterMark,
       cx.lineStart + line.pos,
       cx.lineStart + size
@@ -22,7 +22,7 @@ export class DialogueParser implements LeafBlockParser {
       leaf,
       new Element(Type.Character, leaf.start, cx.prevLineEnd(), [
         ...cx.parser.parseInline(leaf.content, leaf.start),
-        characterMark,
+        mark,
       ])
     );
     return true;

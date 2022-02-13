@@ -68,12 +68,91 @@ export function isHorizontalRule(
   return count < 3 ? -1 : 1;
 }
 
-export function inList(cx: BlockContext, type: Type): boolean {
+export function inContext(cx: BlockContext, type: Type): boolean {
   for (let i = cx.stack.length - 1; i >= 0; i -= 1)
     if (cx.stack[i].type === type) {
       return true;
     }
   return false;
+}
+
+export function isCentered(line: Line): number {
+  const charCodeStart = ">".charCodeAt(0);
+  const charCodeEnd = "<".charCodeAt(0);
+  if (line.next !== charCodeStart) {
+    return -1;
+  }
+  let pos = line.pos + 1;
+  while (pos < line.text.length && line.text.charCodeAt(pos) !== charCodeEnd) {
+    pos += 1;
+  }
+  if (line.text.charCodeAt(pos) !== charCodeEnd) {
+    return -1;
+  }
+  if (line.skipSpace(pos + 1) < line.text.length) {
+    return -1;
+  }
+  return 1;
+}
+
+export function isTransition(line: Line): number {
+  if (isCentered(line) >= 0) {
+    return -1;
+  }
+  const charCodeStart = ">".charCodeAt(0);
+  if (line.next === charCodeStart) {
+    return 1;
+  }
+  const currentText = line.text.slice(line.pos);
+  if (
+    currentText.toUpperCase() === currentText &&
+    currentText.endsWith(" TO:")
+  ) {
+    return 0;
+  }
+  return -1;
+}
+
+export function isLyric(line: Line): number {
+  const charCode = "~".charCodeAt(0);
+  if (line.next !== charCode) {
+    return -1;
+  }
+  return 1;
+}
+
+export function isTitle(
+  line: Line,
+  cx: BlockContext,
+  breaking: boolean
+): number {
+  if (line.text.toUpperCase() === line.text && line.text.endsWith(" TO:")) {
+    return -1;
+  }
+  let { pos } = line;
+  let { next } = line;
+  for (;;) {
+    if (/[\w ]/.test(String.fromCharCode(next))) {
+      pos += 1;
+    } else {
+      break;
+    }
+    if (pos === line.text.length) {
+      return -1;
+    }
+    next = line.text.charCodeAt(pos);
+  }
+  if (breaking && inContext(cx, Type.Title)) {
+    return 1;
+  }
+  if (
+    pos === line.pos ||
+    next !== ":".charCodeAt(0) ||
+    (pos < line.text.length - 1 && !space(line.text.charCodeAt(pos + 1)))
+  ) {
+    return -1;
+  }
+  return pos + 1 - line.pos;
 }
 
 export function isBulletList(
@@ -87,7 +166,7 @@ export function isBulletList(
     (line.pos === line.text.length - 1 ||
       space(line.text.charCodeAt(line.pos + 1))) &&
     (!breaking ||
-      inList(cx, Type.BulletList) ||
+      inContext(cx, Type.BulletList) ||
       line.skipSpace(line.pos + 2) < line.text.length)
     ? 1
     : -1;
@@ -115,7 +194,7 @@ export function isOrderedList(
     (next !== 46 && next !== 41) /* '.)' */ ||
     (pos < line.text.length - 1 && !space(line.text.charCodeAt(pos + 1))) ||
     (breaking &&
-      !inList(cx, Type.OrderedList) &&
+      !inContext(cx, Type.OrderedList) &&
       (line.skipSpace(pos + 1) === line.text.length ||
         pos > line.pos + 1 ||
         line.next !== 49)) /* '1' */
@@ -144,11 +223,11 @@ export function skipForList(
     cx,
     false
   );
-  return (
+  const result =
     size > 0 &&
     (bl.type !== Type.BulletList || isHorizontalRule(line, cx, false) < 0) &&
-    line.text.charCodeAt(line.pos + size - 1) === bl.value
-  );
+    line.text.charCodeAt(line.pos + size - 1) === bl.value;
+  return result;
 }
 
 export function isFencedCode(line: Line): number {
@@ -161,38 +240,6 @@ export function isFencedCode(line: Line): number {
   }
   if (pos < line.pos + 3) {
     return -1;
-  }
-  return pos;
-}
-
-export function isCentered(line: Line): number {
-  const charCodeStart = ">".charCodeAt(0);
-  const charCodeEnd = "<".charCodeAt(0);
-  if (line.next !== charCodeStart) {
-    return -1;
-  }
-  console.log(line.text);
-  let pos = line.pos + 1;
-  while (pos < line.text.length && line.text.charCodeAt(pos) !== charCodeEnd) {
-    pos += 1;
-  }
-  if (line.text.charCodeAt(pos) !== charCodeEnd) {
-    return -1;
-  }
-  if (line.skipSpace(pos + 1) < line.text.length) {
-    return -1;
-  }
-  return 1;
-}
-
-export function isLyric(line: Line): number {
-  const charCode = "~".charCodeAt(0);
-  if (line.next !== charCode) {
-    return -1;
-  }
-  let pos = line.pos + 1;
-  while (pos < line.text.length) {
-    pos += 1;
   }
   return pos;
 }
@@ -214,15 +261,13 @@ export function isAtxHeading(line: Line): number {
 }
 
 export function isSceneHeading(line: Line): number {
-  const dotCharCode = ".".charCodeAt(0);
-  if (line.next === dotCharCode) {
+  const currentText = line.text.slice(line.pos).toLowerCase();
+  if (currentText[0] === "." && currentText[1] !== ".") {
     return 1;
   }
-  const firstLetter = String.fromCharCode(line.next).toLowerCase();
-  if (firstLetter !== "i" && firstLetter !== "e") {
+  if (currentText[0] !== "i" && currentText[0] !== "e") {
     return -1;
   }
-  const currentText = line.text.substring(line.pos).toLowerCase();
   if (
     currentText.startsWith("int ") ||
     currentText.startsWith("int.") ||
@@ -262,6 +307,12 @@ export function isHTMLBlock(
 }
 
 export function getListIndent(line: Line, pos: number): number {
+  const indentAfter = line.countIndent(pos, line.pos, line.indent);
+  const indented = line.countIndent(line.skipSpace(pos), pos, indentAfter);
+  return indented >= indentAfter + 5 ? indentAfter + 1 : indented;
+}
+
+export function getTitleIndent(line: Line, pos: number): number {
   const indentAfter = line.countIndent(pos, line.pos, line.indent);
   const indented = line.countIndent(line.skipSpace(pos), pos, indentAfter);
   return indented >= indentAfter + 5 ? indentAfter + 1 : indented;
@@ -498,4 +549,6 @@ export const NotLast = [
   Type.ListItem,
   Type.OrderedList,
   Type.BulletList,
+  Type.TitleEntry,
+  Type.Title,
 ];

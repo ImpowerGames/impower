@@ -18,8 +18,12 @@ const data = defineLanguageFacet({ block: { open: "<!--", close: "-->" } });
 const commonmark = baseParser.configure({
   props: [
     styleTags({
+      "Title/...": t.documentMeta,
+      "TitleEntry/...": t.documentMeta,
+      "TitleMark/...": t.meta,
       "SceneHeading/...": t.className,
       "Centered/...": t.quote,
+      "Transition/...": t.controlKeyword,
       "Lyric/...": t.emphasis,
       "Underline/...": t.link,
       "HorizontalRule": t.contentSeparator,
@@ -40,6 +44,7 @@ const commonmark = baseParser.configure({
       "URL": t.url,
       "HardBreak QuoteMark ListMark LinkMark EmphasisMark UnderlineMark CodeMark LyricMark CenteredMark":
         t.processingInstruction,
+      "TransitionMark": t.controlOperator,
       "HeaderMark ": t.heading,
       "SceneHeadingMark ": t.heading,
       "CodeInfo LinkLabel": t.labelName,

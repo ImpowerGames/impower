@@ -171,7 +171,9 @@ export class MarkdownParser extends Parser {
           leafBlockParsers.splice(pos, 0, spec.leaf);
           blockNames.splice(pos, 0, spec.name);
         }
-        if (spec.endLeaf) endLeafBlock.push(spec.endLeaf);
+        if (spec.endLeaf) {
+          endLeafBlock.push(spec.endLeaf);
+        }
       }
     }
 

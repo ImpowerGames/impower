@@ -20,15 +20,13 @@ export class SetextHeadingParser implements LeafBlockParser {
       cx.lineStart + underline
     );
     cx.nextLine();
-    cx.addLeafElement(
-      leaf,
-      new Element(
-        next === 61 ? Type.SetextHeading1 : Type.SetextHeading2,
-        leaf.start,
-        cx.prevLineEnd(),
-        [...cx.parser.parseInline(leaf.content, leaf.start), underlineMark]
-      )
+    const newElement = new Element(
+      next === 61 ? Type.SetextHeading1 : Type.SetextHeading2,
+      leaf.start,
+      cx.prevLineEnd(),
+      [...cx.parser.parseInline(leaf.content, leaf.start), underlineMark]
     );
+    cx.addLeafElement(leaf, newElement);
     return true;
   }
 

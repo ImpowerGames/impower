@@ -2,15 +2,14 @@ export const fountainRegexes = {
   title_page:
     /(title|credit|author[s]?|source|notes|draft date|date|watermark|contact( info)?|revision|copyright|font|tl|tc|tr|cc|br|bl):.*/i,
 
-  section: /^[ \t]*(#+)(?: *)(.*)/,
+  section: /^[ \t]*(#+)(?: +)(.*)/,
   synopsis: /^[ \t]*(?:=(?!=+) *)(.*)/,
 
   scene_heading:
     /^[ \t]*([.](?![.])|(?:[*]{0,3}_?)(?:int|ext|est|int[.]?\/ext|i[.]?\/e)[. ])(.+?)(#[-.0-9a-z]+#)?$/i,
   scene_number: /#(.+)#/,
 
-  transition:
-    /^[ \t]*((?:FADE (?:TO BLACK|OUT)|CUT TO BLACK)\.|.+ TO:|^TO:$)|^(?:> *)(.+)/,
+  transition: /^[ \t]*(.+ TO:|^TO:$)|^(?:> *)(.+)/,
 
   dialogue:
     /^[ \t]*([*_]+[^\p{Ll}\p{Lo}\p{So}\r\n]*)(\^?)?(?:\n(?!\n+))([\s\S]+)/u,
@@ -20,7 +19,7 @@ export const fountainRegexes = {
   parenthetical: /^[ \t]*(\(.+\))$/,
 
   action: /^(.+)/g,
-  centered: /^[ \t]*(?:> *)(.+)(?: *<)(\n.+)*/g,
+  centered: /^[ \t]*(?:> +)(.+)(?: +<)(\n.+)*/g,
 
   page_break: /^={3,}(.*)$/,
   line_break: /^ {2}$/,

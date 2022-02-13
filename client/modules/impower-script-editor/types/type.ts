@@ -22,6 +22,16 @@ export enum Type {
   CommentBlock,
   ProcessingInstructionBlock,
 
+  // Fountain Block
+  Title,
+  SceneHeading,
+  Transition,
+  Character,
+  Dialogue,
+  DualDialogue,
+  Lyric,
+  Action,
+
   // Markdown Inline
   Escape,
   Entity,
@@ -36,6 +46,11 @@ export enum Type {
   ProcessingInstruction,
   URL,
 
+  // Fountain Inline
+  Parenthetical,
+  Underline,
+  Centered,
+
   // Markdown Mark
   HeaderMark,
   QuoteMark,
@@ -48,29 +63,13 @@ export enum Type {
   LinkTitle,
   LinkLabel,
 
-  // --------------
-
-  // Fountain Block
-  Title,
-  SceneHeading,
-  Transition,
-  Character,
-  Dialogue,
-  DualDialogue,
-  Lyric,
-  Action,
-
-  // Fountain Inline
-  Parenthetical,
-  Underline,
-  Centered,
-
   // Fountain Mark
   SceneHeadingMark,
   CharacterMark,
   DualDialogueMark,
   ActionMark,
   TransitionMark,
+  TitleEntry,
   TitleMark,
   CenteredMark,
   LyricMark,

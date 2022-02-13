@@ -1,5 +1,8 @@
 import { basicSetup, EditorState, EditorView } from "@codemirror/basic-setup";
+import { indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, tags as t } from "@codemirror/highlight";
+import { indentUnit } from "@codemirror/language";
+import { keymap } from "@codemirror/view";
 import React, { useEffect, useRef } from "react";
 import { fountain } from "../types/fountain";
 import { fountainLanguage } from "../types/fountainLanguage";
@@ -88,6 +91,8 @@ const myHighlightStyle = HighlightStyle.define([
     color: colors.interface,
   },
   { tag: t.contentSeparator, color: colors.filter },
+  { tag: t.controlKeyword, color: colors.class },
+  { tag: t.controlOperator, color: colors.class, opacity: 0.5 },
   { tag: [t.atom, t.bool, t.special(t.variableName)], color: colors.constant },
   {
     tag: [t.string, t.inserted],
@@ -97,6 +102,15 @@ const myHighlightStyle = HighlightStyle.define([
     tag: t.processingInstruction,
     color: colors.variable,
     opacity: 0.5,
+    fontWeight: 400,
+  },
+  {
+    tag: t.documentMeta,
+    color: colors.parameter,
+  },
+  {
+    tag: t.meta,
+    color: colors.static,
     fontWeight: 400,
   },
   { tag: t.invalid, color: colors.invalid },
@@ -122,6 +136,8 @@ const ScriptEditorField = React.memo(
           basicSetup,
           fountain({ base: fountainLanguage }),
           myHighlightStyle,
+          keymap.of([indentWithTab]),
+          indentUnit.of("    "),
           EditorView.theme(
             {
               "&": {
@@ -139,6 +155,9 @@ const ScriptEditorField = React.memo(
                 backgroundColor: "#00000066",
                 color: "#ddd",
                 border: "none",
+              },
+              ".cm-activeLine": {
+                backgroundColor: "#FFFFFF0F",
               },
             },
             { dark: true }
