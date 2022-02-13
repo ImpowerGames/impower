@@ -145,12 +145,9 @@ export class InlineContext {
         if (close.type === UnderlineUnderscore) {
           type = "Underline";
         }
-        if (close.type === NoteBrackets) {
-          if (size < 2) {
-            continue;
-          }
+        if (close.type === NoteBrackets && size >= 2) {
           type = "Note";
-        } else {
+        } else if (close.type === EmphasisAsterisk) {
           type = size === 1 ? "Emphasis" : "StrongEmphasis";
         }
       }
