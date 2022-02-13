@@ -11,7 +11,7 @@ export class DialogueParser implements LeafBlockParser {
 
   inlineParenthetical: string = undefined;
 
-  lines: [boolean, string][] = undefined;
+  lines: [Type, string][] = undefined;
 
   nextLine(cx: BlockContext, line: Line, leaf: LeafBlock): boolean {
     if (this.character === undefined) {
@@ -39,7 +39,11 @@ export class DialogueParser implements LeafBlockParser {
     }
     if (this.lines) {
       this.lines.push([
-        Boolean(line.text.match(fountainRegexes.parenthetical)),
+        line.text.match(fountainRegexes.parenthetical)
+          ? Type.Parenthetical
+          : line.text.match(fountainRegexes.lyric)
+          ? Type.Lyric
+          : Type.Dialogue,
         line.text,
       ]);
     }
@@ -59,15 +63,15 @@ export class DialogueParser implements LeafBlockParser {
         pos += this.inlineParenthetical.length;
         children.push(cx.elt(Type.Parenthetical, startPos, pos));
       }
-      this.lines.forEach(([parenthetical, text]) => {
+      this.lines.forEach(([type, text]) => {
         startPos = pos;
         pos += text.length + 1;
         children.push(
           cx.elt(
-            parenthetical ? Type.Parenthetical : Type.Dialogue,
+            type,
             startPos,
             pos,
-            parenthetical
+            type === Type.Parenthetical
               ? undefined
               : [...cx.parser.parseInline(text, startPos)]
           )

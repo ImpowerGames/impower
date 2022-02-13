@@ -76,14 +76,15 @@ const myHighlightStyle = HighlightStyle.define([
   { tag: t.controlKeyword, color: colors.transition },
   { tag: t.controlOperator, color: colors.transition, opacity: 0.5 },
   {
-    tag: t.documentMeta,
+    tag: t.attributeValue,
     color: colors.titleValue,
   },
   {
-    tag: t.meta,
+    tag: t.attributeName,
     color: colors.titleKey,
     fontWeight: 400,
   },
+  { tag: t.annotation, fontStyle: "italic" },
   { tag: t.docComment, color: colors.comment, opacity: 0.5 },
   { tag: t.comment, color: colors.comment },
   { tag: t.atom, color: colors.constant },
