@@ -43,7 +43,7 @@ export function parseCode(config: {
   const { codeParser, htmlParser } = config;
   const wrap = parseMixed((node: TreeCursor, input: Input) => {
     const { id } = node.type;
-    if (codeParser && (id === Type.CodeBlock || id === Type.FencedCode)) {
+    if (codeParser && id === Type.FencedCode) {
       let info = "";
       if (id === Type.FencedCode) {
         const infoNode = node.node.getChild(Type.CodeInfo);

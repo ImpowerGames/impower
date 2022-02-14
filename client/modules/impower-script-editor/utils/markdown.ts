@@ -1,4 +1,5 @@
 import { PartialParse } from "@lezer/common";
+import { fountainRegexes } from "../../impower-script-parser/constants/fountainRegexes";
 import { BlockContext } from "../classes/BlockContext";
 import { CompositeBlock } from "../classes/CompositeBlock";
 import { Element } from "../classes/Element";
@@ -10,31 +11,7 @@ import { MarkdownExtension } from "../types/markdownExtension";
 import { Type } from "../types/type";
 import { space } from "./space";
 
-export function isSetextUnderline(line: Line): number {
-  const dashCharCode = "-".charCodeAt(0);
-  const equalCharCode = "=".charCodeAt(0);
-  if (
-    (line.next !== dashCharCode && line.next !== equalCharCode) ||
-    line.indent >= line.baseIndent + 4
-  ) {
-    return -1;
-  }
-  let pos = line.pos + 1;
-  while (pos < line.text.length && line.text.charCodeAt(pos) === line.next) {
-    pos += 1;
-  }
-  const end = pos;
-  while (pos < line.text.length && space(line.text.charCodeAt(pos))) {
-    pos += 1;
-  }
-  return pos === line.text.length ? end : -1;
-}
-
-export function isHorizontalRule(
-  line: Line,
-  cx: BlockContext,
-  breaking: boolean
-): number {
+export function isHorizontalRule(line: Line): number {
   const underscoreCharCode = "_".charCodeAt(0);
   const dashCharCode = "-".charCodeAt(0);
   const asteriskCharCode = "*".charCodeAt(0);
@@ -56,15 +33,6 @@ export function isHorizontalRule(
       return -1;
     }
   }
-  // Setext headers take precedence
-  if (
-    breaking &&
-    line.next === dashCharCode &&
-    isSetextUnderline(line) > -1 &&
-    line.depth === cx.stack.length
-  ) {
-    return -1;
-  }
   return count < 3 ? -1 : 1;
 }
 
@@ -82,10 +50,7 @@ export function isSynopses(line: Line): number {
     return -1;
   }
   const pos = line.pos + 1;
-  if (
-    pos < line.text.length &&
-    line.text.charCodeAt(pos) !== " ".charCodeAt(0)
-  ) {
+  if (!line.text.match(fountainRegexes.synopsis)) {
     return -1;
   }
   return pos - line.pos;
@@ -97,14 +62,7 @@ export function isCentered(line: Line): number {
   if (line.next !== charCodeStart) {
     return -1;
   }
-  let pos = line.pos + 1;
-  while (pos < line.text.length && line.text.charCodeAt(pos) !== charCodeEnd) {
-    pos += 1;
-  }
-  if (line.text.charCodeAt(pos) !== charCodeEnd) {
-    return -1;
-  }
-  if (line.skipSpace(pos + 1) < line.text.length) {
+  if (line.text.charCodeAt(line.text.length - 1) !== charCodeEnd) {
     return -1;
   }
   return 1;
@@ -232,7 +190,7 @@ export function skipForList(
   );
   const result =
     size > 0 &&
-    (bl.type !== Type.BulletList || isHorizontalRule(line, cx, false) < 0) &&
+    (bl.type !== Type.BulletList || isHorizontalRule(line) < 0) &&
     line.text.charCodeAt(line.pos + size - 1) === bl.value;
   return result;
 }
@@ -251,7 +209,7 @@ export function isFencedCode(line: Line): number {
   return pos;
 }
 
-export function isAtxHeading(line: Line): number {
+export function isSectionHeading(line: Line): number {
   const charCode = "#".charCodeAt(0);
   if (line.next !== charCode) {
     return -1;
@@ -260,10 +218,7 @@ export function isAtxHeading(line: Line): number {
   while (pos < line.text.length && line.text.charCodeAt(pos) === charCode) {
     pos += 1;
   }
-  if (
-    pos < line.text.length &&
-    line.text.charCodeAt(pos) !== " ".charCodeAt(0)
-  ) {
+  if (!line.text.match(fountainRegexes.section)) {
     return -1;
   }
   return pos - line.pos;
@@ -277,18 +232,7 @@ export function isSceneHeading(line: Line): number {
   if (currentText[0] !== "i" && currentText[0] !== "e") {
     return -1;
   }
-  if (
-    currentText.startsWith("int ") ||
-    currentText.startsWith("int.") ||
-    currentText.startsWith("ext ") ||
-    currentText.startsWith("ext.") ||
-    currentText.startsWith("est ") ||
-    currentText.startsWith("est.") ||
-    currentText.startsWith("int/ext ") ||
-    currentText.startsWith("int/ext.") ||
-    currentText.startsWith("i/e ") ||
-    currentText.startsWith("i/e.")
-  ) {
+  if (currentText.match(fountainRegexes.scene_heading)) {
     return 0;
   }
   return -1;
@@ -554,7 +498,6 @@ export function finishLink(
 // These are blocks that can span blank lines, and should thus only be
 // reused if their next sibling is also being reused.
 export const NotLast = [
-  Type.CodeBlock,
   Type.ListItem,
   Type.OrderedList,
   Type.BulletList,

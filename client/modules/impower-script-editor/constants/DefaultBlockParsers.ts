@@ -10,7 +10,6 @@ import {
   addCodeText,
   getListIndent,
   inContext,
-  isAtxHeading,
   isBulletList,
   isCentered,
   isFencedCode,
@@ -18,6 +17,7 @@ import {
   isHTMLBlock,
   isOrderedList,
   isSceneHeading,
+  isSectionHeading,
   isSynopses,
   isTitle,
   isTransition,
@@ -143,7 +143,7 @@ export const DefaultBlockParsers: {
   },
 
   HorizontalRule(cx, line) {
-    if (isHorizontalRule(line, cx, false) < 0) {
+    if (isHorizontalRule(line) < 0) {
       return false;
     }
     const from = cx.lineStart + line.pos;
@@ -246,21 +246,22 @@ export const DefaultBlockParsers: {
     const buf = cx.buffer
       .write(Type.CenteredMark, 0, size)
       .writeElements(
-        cx.parser.parseInline(
-          line.text.slice(off + size + 1, after),
-          from + size + 1
-        ),
+        cx.parser.parseInline(line.text.slice(off + size, after), from + size),
         -from
       );
-    buf.write(Type.CenteredMark, after - off, endOfSpace - off);
+    buf.write(
+      Type.CenteredMark,
+      line.text.length - off - 1,
+      line.text.length - off
+    );
     const node = buf.finish(Type.Centered, line.text.length - off);
     cx.nextLine();
     cx.addNode(node, from);
     return true;
   },
 
-  ATXHeading(cx, line) {
-    const size = isAtxHeading(line);
+  SectionHeading(cx, line) {
+    const size = isSectionHeading(line);
     if (size < 0) {
       return false;
     }
@@ -280,7 +281,7 @@ export const DefaultBlockParsers: {
       after = line.text.length;
     }
     const buf = cx.buffer
-      .write(Type.HeaderMark, 0, size)
+      .write(Type.SectionMark, 0, size)
       .writeElements(
         cx.parser.parseInline(
           line.text.slice(off + size + 1, after),
@@ -288,10 +289,7 @@ export const DefaultBlockParsers: {
         ),
         -from
       );
-    if (after < line.text.length) {
-      buf.write(Type.HeaderMark, after - off, endOfSpace - off);
-    }
-    const headingType = Type.ATXHeading1 - 1 + Math.min(6, size);
+    const headingType = Type.SectionHeading1 - 1 + Math.min(6, size);
     const node = buf.finish(headingType, line.text.length - off);
     cx.addNode(node, from);
     line.moveBase(line.pos + 1);
@@ -368,6 +366,5 @@ export const DefaultBlockParsers: {
     return true;
   },
 
-  SetextHeading: undefined, // Specifies relative precedence for block-continue function
   Dialogue: undefined, // Specifies relative precedence for block-continue function
 };

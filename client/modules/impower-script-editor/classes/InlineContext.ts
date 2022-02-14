@@ -145,8 +145,8 @@ export class InlineContext {
         if (close.type === UnderlineUnderscore) {
           type = "Underline";
         }
-        if (close.type === NoteBrackets && size >= 2) {
-          type = "Note";
+        if (close.type === NoteBrackets) {
+          type = size >= 2 ? "Note" : null;
         } else if (close.type === EmphasisAsterisk) {
           type = size === 1 ? "Emphasis" : "StrongEmphasis";
         }
@@ -163,20 +163,22 @@ export class InlineContext {
       if (close.type.mark) {
         content.push(this.elt(close.type.mark, close.from, end));
       }
-      const element = this.elt(type, start, end, content);
-      this.parts[j] =
-        emp && open.from !== start
-          ? new InlineDelimiter(open.type, open.from, start, open.side)
-          : null;
-      const keep =
-        emp && close.to !== end
-          ? new InlineDelimiter(close.type, end, close.to, close.side)
-          : null;
-      this.parts[i] = keep;
-      if (keep) {
-        this.parts.splice(i, 0, element);
-      } else {
-        this.parts[i] = element;
+      if (type) {
+        const element = this.elt(type, start, end, content);
+        this.parts[j] =
+          emp && open.from !== start
+            ? new InlineDelimiter(open.type, open.from, start, open.side)
+            : null;
+        const keep =
+          emp && close.to !== end
+            ? new InlineDelimiter(close.type, end, close.to, close.side)
+            : null;
+        this.parts[i] = keep;
+        if (keep) {
+          this.parts.splice(i, 0, element);
+        } else {
+          this.parts[i] = element;
+        }
       }
     }
 

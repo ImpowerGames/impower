@@ -121,7 +121,7 @@ export const Table: MarkdownConfig = {
       leaf(_, leaf): TableParser {
         return hasPipe(leaf.content, 0) ? new TableParser() : null;
       },
-      before: "SetextHeading",
+      before: "Dialogue",
     },
   ],
 };
@@ -141,7 +141,7 @@ export const TaskList: MarkdownConfig = {
           ? new TaskParser()
           : null;
       },
-      after: "SetextHeading",
+      after: "Dialogue",
     },
   ],
 };

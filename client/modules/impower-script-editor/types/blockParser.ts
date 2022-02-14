@@ -54,7 +54,7 @@ export interface BlockParser {
   /// block parser with the given name. The default configuration
   /// defines block parsers with names LinkReference,
   /// FencedCode, HorizontalRule, BulletList, OrderedList,
-  /// ATXHeading, HTMLBlock, and SetextHeading.
+  /// SectionHeading.
   before?: string;
   /// When given, the parser will be installed directly _after_ the
   /// parser with the given name.

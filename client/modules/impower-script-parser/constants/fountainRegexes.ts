@@ -2,7 +2,7 @@ export const fountainRegexes = {
   title_page:
     /(title|credit|author[s]?|source|notes|draft date|date|watermark|contact( info)?|revision|copyright|font|tl|tc|tr|cc|br|bl):.*/i,
 
-  section: /^[ \t]*(#+)(?: +)(.*)/,
+  section: /^[ \t]*(#+)(?: *)(\w*)$/,
   synopsis: /^[ \t]*(?:=(?!=+) *)(.*)/,
 
   scene_heading:
@@ -19,7 +19,7 @@ export const fountainRegexes = {
   parenthetical: /^[ \t]*(\(.+\))$/,
 
   action: /^(.+)/g,
-  centered: /^[ \t]*(?:> +)(.+)(?: +<)(\n.+)*/g,
+  centered: /^[ \t]*(?:> *)(.+)(?: *<)(\n.+)*/g,
 
   page_break: /^={3,}(.*)$/,
   line_break: /^ {2}$/,
