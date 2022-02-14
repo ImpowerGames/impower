@@ -52,6 +52,7 @@ export enum Type {
   Dialogue,
   Lyric,
   Underline,
+  SceneNumber,
 
   // Markdown Mark
   HeaderMark,

@@ -1,4 +1,5 @@
 /* eslint-disable no-cond-assign */
+import { fountainRegexes } from "../../impower-script-parser/constants/fountainRegexes";
 import { BlockContext } from "../classes/BlockContext";
 import { Element } from "../classes/Element";
 import { Line } from "../classes/Line";
@@ -304,32 +305,28 @@ export const DefaultBlockParsers: {
     }
     const off = line.pos;
     const from = cx.lineStart + off;
-    const endOfSpace = skipSpaceBack(line.text, line.text.length, off);
-    let after = endOfSpace;
-    while (after > off && line.text.charCodeAt(after - 1) === line.next) {
-      after -= 1;
-    }
-    if (
-      after === endOfSpace ||
-      after === off ||
-      !space(line.text.charCodeAt(after - 1))
-    ) {
-      after = line.text.length;
-    }
     let buf = cx.buffer;
 
     if (size > 0) {
       buf = buf.write(Type.SceneHeadingMark, 0, size);
     }
+    const fullSceneHeading = line.text.slice(off + size + 1);
+    let sceneName = fullSceneHeading;
+    const sceneNumberMatch = line.text.match(fountainRegexes.scene_number);
+    if (sceneNumberMatch) {
+      const sceneNumberLength = sceneNumberMatch[1].length + 2;
+      sceneName = sceneName.slice(0, -sceneNumberLength);
+    }
     buf = buf.writeElements(
-      cx.parser.parseInline(
-        line.text.slice(off + size + 1, after),
-        from + size + 1
-      ),
+      cx.parser.parseInline(sceneName, from + size + 1),
       -from
     );
-    if (after < line.text.length) {
-      buf.write(Type.SceneHeadingMark, after - off, endOfSpace - off);
+    if (sceneNumberMatch) {
+      buf.write(
+        Type.SceneNumber,
+        size + sceneName.length + 1,
+        line.text.length - off
+      );
     }
     const node = buf.finish(Type.SceneHeading, line.text.length - off);
     cx.nextLine();

@@ -25,6 +25,7 @@ const commonmark = baseParser.configure({
       "Dialogue/...": t.typeName,
       "DualDialogueMark/...": t.typeOperator,
       "SceneHeading/...": t.propertyName,
+      "SceneNumber/...": t.number,
       "Centered/...": t.quote,
       "Transition/...": t.controlKeyword,
       "Lyric/...": t.annotation,

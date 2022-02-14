@@ -72,6 +72,10 @@ const myHighlightStyle = HighlightStyle.define([
     tag: t.propertyName,
     color: colors.sceneHeading,
   },
+  {
+    tag: t.number,
+    opacity: 0.5,
+  },
   { tag: t.contentSeparator, color: colors.pageBreak },
   { tag: t.controlKeyword, color: colors.transition },
   { tag: t.controlOperator, color: colors.transition, opacity: 0.5 },
