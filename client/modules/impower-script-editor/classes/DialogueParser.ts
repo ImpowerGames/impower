@@ -7,35 +7,40 @@ import { LeafBlock } from "./LeafBlock";
 import { Line } from "./Line";
 
 export class DialogueParser implements LeafBlockParser {
-  character: string = undefined;
+  characterName: string = undefined;
 
   inlineParenthetical: string = undefined;
+
+  dual: boolean = undefined;
 
   lines: [Type, string][] = undefined;
 
   nextLine(cx: BlockContext, line: Line, leaf: LeafBlock): boolean {
-    if (this.character === undefined) {
-      const parentheticalStartIndex = leaf.content.indexOf("(");
-      if (parentheticalStartIndex >= 0) {
-        const character = leaf.content.slice(0, parentheticalStartIndex - 1);
-        const inlineParenthetical = leaf.content.slice(
-          parentheticalStartIndex - 1
-        );
-        const validCharacter = character.match(fountainRegexes.character);
-        this.character = validCharacter ? character : null;
-        this.inlineParenthetical = validCharacter ? inlineParenthetical : null;
-        if (validCharacter) {
-          this.lines = [];
-        }
-      } else {
-        const character = leaf.content;
-        const validCharacter = character.match(fountainRegexes.character);
-        this.character = validCharacter ? character : null;
-        this.inlineParenthetical = null;
-        if (validCharacter) {
-          this.lines = [];
-        }
+    if (this.characterName === undefined) {
+      const validCharacter = leaf.content.match(fountainRegexes.character);
+      if (!validCharacter) {
+        this.characterName = null;
+        return false;
       }
+      let character = leaf.content;
+      let dualLength = 0;
+      if (character[character.length - 1] === "^") {
+        this.dual = true;
+        character = character.slice(0, character.length - 1);
+        dualLength = 1;
+      }
+      const parentheticalStartIndex = leaf.content.indexOf("(");
+      const hasParenthetical = parentheticalStartIndex >= 0;
+      this.characterName = hasParenthetical
+        ? character.slice(0, parentheticalStartIndex - 1)
+        : character;
+      this.inlineParenthetical = hasParenthetical
+        ? character.slice(
+            parentheticalStartIndex - 1,
+            character.length - dualLength
+          )
+        : null;
+      this.lines = [];
     }
     if (this.lines) {
       this.lines.push([
@@ -56,12 +61,17 @@ export class DialogueParser implements LeafBlockParser {
       let startPos = leaf.start;
       let pos = leaf.start;
       startPos = pos;
-      pos += this.character.length + 1;
+      pos += this.characterName.length + 1;
       children.push(cx.elt(Type.Character, startPos, pos));
       if (this.inlineParenthetical) {
         startPos = pos;
         pos += this.inlineParenthetical.length;
         children.push(cx.elt(Type.Parenthetical, startPos, pos));
+      }
+      if (this.dual) {
+        startPos = pos;
+        pos += 1;
+        children.push(cx.elt(Type.DualDialogueMark, startPos, pos));
       }
       this.lines.forEach(([type, text]) => {
         startPos = pos;

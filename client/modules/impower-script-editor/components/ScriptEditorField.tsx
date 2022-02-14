@@ -23,6 +23,7 @@ const colors = {
   titleValue: "#BFA4A4",
   character: "#4EC9B0",
   dialogue: "#CE9178",
+  dual: "#79ABFF",
   parenthetical: "#D7BA7D",
   pageBreak: "#606080",
   formatting: "#79ABFF",
@@ -52,6 +53,10 @@ const myHighlightStyle = HighlightStyle.define([
   {
     tag: t.typeName,
     color: colors.dialogue,
+  },
+  {
+    tag: t.typeOperator,
+    color: colors.dual,
   },
   {
     tag: t.tagName,
