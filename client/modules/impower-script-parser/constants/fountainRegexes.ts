@@ -9,7 +9,7 @@ export const fountainRegexes = {
     /^[ \t]*([.](?![.])|(?:[*]{0,3}_?)(?:int|ext|est|int[.]?\/ext|i[.]?\/e)[. ])(.+?)(#[-.0-9a-z]+#)?$/i,
   scene_number: /#(.+)#/,
 
-  transition: /^[ \t]*(.+ TO:|^TO:$)|^(?:> *)(.+)/,
+  transition: /^[ \t]*(.+ TO:|^TO:$)/,
 
   dialogue:
     /^[ \t]*([*_]+[^\p{Ll}\p{Lo}\p{So}\r\n]*)(\^?)?(?:\n(?!\n+))([\s\S]+)/u,

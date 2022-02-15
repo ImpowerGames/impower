@@ -69,13 +69,6 @@ export function isCentered(line: Line): number {
 }
 
 export function isTransition(line: Line): number {
-  if (isCentered(line) >= 0) {
-    return -1;
-  }
-  const charCodeStart = ">".charCodeAt(0);
-  if (line.next === charCodeStart) {
-    return 1;
-  }
   const currentText = line.text.slice(line.pos);
   if (
     currentText === "TO:" ||
