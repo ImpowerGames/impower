@@ -47,6 +47,35 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
   let nestedComments = 0;
   let titlePageStarted = false;
 
+  const throwError = (currentToken: FountainToken, message: string): void => {
+    throw new SyntaxError(
+      `Error at line ${currentToken.line + 1} (${current - currentToken.end}-${
+        current - currentToken.start
+      }).\n${message}`
+    );
+  };
+
+  const addSection = (container: FountainContainer): void => {
+    if (container.level >= 0) {
+      if (!result.properties.sections) {
+        result.properties.sections = {};
+      }
+      const existingContainer = result.properties.sections[container.id];
+      if (existingContainer) {
+        throwError(
+          currentToken,
+          `A section with this name already exists at line ${
+            existingContainer.line + 1
+          }`
+        );
+      }
+      const copy = { ...container };
+      delete copy.id;
+      delete copy.children;
+      result.properties.sections[container.id] = copy;
+    }
+  };
+
   const pushToken = (token: FountainToken): void => {
     result.scriptTokens.push(token);
     if (currentToken.line) {
@@ -258,11 +287,13 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
         // Scene Container
         const container: FountainContainer = {
           id: null,
+          line: currentToken.line,
           text: currentToken.text,
         };
 
         if (currentDepth === 0) {
-          container.id = `.${currentToken.line}`;
+          container.id = `${currentToken.text}`;
+          addSection(container);
           if (!result.properties.structure) {
             result.properties.structure = [];
           }
@@ -270,13 +301,15 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
         } else {
           const level = latestSection(currentDepth);
           if (level) {
-            container.id = `${level.id}.${currentToken.line}`;
+            container.id = `${level.id}.${currentToken.text}`;
+            addSection(container);
             if (!level.children) {
               level.children = [];
             }
             level.children.push(container);
           } else {
-            container.id = `.${currentToken.line}`;
+            container.id = `${currentToken.text}`;
+            addSection(container);
             if (!result.properties.structure) {
               result.properties.structure = [];
             }
@@ -329,6 +362,7 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
         const container: FountainContainer = {
           id: null,
           level: currentToken.level,
+          line: currentToken.line,
           text: currentToken.text,
         };
         currentDepth = currentToken.level;
@@ -341,13 +375,15 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
             (token) => token.level != null && token.level < tokenDepth
           );
         if (currentDepth === 1 || !level) {
-          container.id = `.${currentToken.line}`;
+          container.id = `${currentToken.text}`;
+          addSection(container);
           if (!result.properties.structure) {
             result.properties.structure = [];
           }
           result.properties.structure.push(container);
         } else {
-          container.id = `${level.id}.${currentToken.line}`;
+          container.id = `${level.id}.${currentToken.text}`;
+          addSection(container);
           if (!level.children) {
             level.children = [];
           }

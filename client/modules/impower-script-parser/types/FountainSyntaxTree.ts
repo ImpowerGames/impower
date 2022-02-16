@@ -1,8 +1,10 @@
 import { FountainTokenType } from "./FountainTokenType";
 
 export interface FountainContainer {
+  path?: string[];
   id?: string;
   level?: number;
+  line?: number;
   text?: string;
   synopses?: { synopsis: string; line: number }[];
   notes?: { note: string; line: number }[];
@@ -18,6 +20,7 @@ export interface ScreenplayProperties {
   sceneNames?: string[];
   firstTokenLine?: number;
   characters?: Record<string, number[]>;
+  sections?: Record<string, FountainContainer>;
   structure?: FountainContainer[];
 }
 

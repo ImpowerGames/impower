@@ -3,10 +3,12 @@ import { indentWithTab } from "@codemirror/commands";
 import { foldAll, unfoldAll } from "@codemirror/fold";
 import { HighlightStyle, tags as t } from "@codemirror/highlight";
 import { indentUnit } from "@codemirror/language";
+import { linter } from "@codemirror/lint";
 import { keymap } from "@codemirror/view";
 import React, { useEffect, useRef } from "react";
 import { fountain } from "../types/fountain";
 import { fountainLanguage } from "../types/fountainLanguage";
+import { fountainParseLinter } from "../utils/lint";
 
 const colors = {
   invalid: "#FFFFFF",
@@ -136,6 +138,7 @@ const ScriptEditorField = React.memo(
         extensions: [
           basicSetup,
           fountain({ base: fountainLanguage }),
+          linter(fountainParseLinter),
           myHighlightStyle,
           keymap.of([indentWithTab]),
           indentUnit.of("    "),
