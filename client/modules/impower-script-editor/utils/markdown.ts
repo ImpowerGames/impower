@@ -218,11 +218,15 @@ export function isSectionHeading(line: Line): number {
 }
 
 export function isSceneHeading(line: Line): number {
-  const currentText = line.text.slice(line.pos).toLowerCase();
+  const currentText = line.text.slice(line.pos);
   if (currentText[0] === "." && currentText[1] !== ".") {
     return 1;
   }
-  if (currentText[0] !== "i" && currentText[0] !== "e") {
+  if (
+    currentText[0] !== "I" &&
+    currentText[0] !== "E" &&
+    currentText[0] !== "C"
+  ) {
     return -1;
   }
   if (currentText.match(fountainRegexes.scene_heading)) {

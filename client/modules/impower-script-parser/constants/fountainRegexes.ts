@@ -6,7 +6,7 @@ export const fountainRegexes = {
   synopsis: /^[ \t]*(?:=(?!=+) *)(.*)/,
 
   scene_heading:
-    /^[ \t]*([.](?![.])|(?:[*]{0,3}_?)(?:int|ext|est|int[.]?\/ext|i[.]?\/e)[. ])(.+?)(#[-.0-9a-z]+#)?$/i,
+    /^[ \t]*([.](?![.])|(?:[*]{0,3}_?)(?:CLOSEUP[.]|CLOSEUP[ ]-|INT|EXT|EST|INT[.]?\/EXT|I[.]?\/E)[. ])(.+?)(#[-.0-9a-z]+#)?$/,
   scene_number: /#(.+)#/,
 
   transition: /^[ \t]*(.+ TO:|^TO:$)/,
@@ -41,4 +41,6 @@ export const fountainRegexes = {
   lyric: /^(~.+)/g,
 
   link: /(\[?(\[)([^\][]*\[?[^\][]*\]?[^\][]*)(\])(\()(.+?)(?:\s+(["'])(.*?)\4)?(\)))/g,
+
+  jump: /([><^]+[><^\w\d ]*)/g,
 };
