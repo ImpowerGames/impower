@@ -1,5 +1,10 @@
 import { parseFountain } from "../../../impower-script-parser";
-import { BlockData, ConstructData } from "../../data";
+import {
+  BlockData,
+  ConstructData,
+  createBlockData,
+  createBlockReference,
+} from "../../data";
 import { ImpowerGameRunner } from "../../runner/classes/impowerGameRunner";
 import { FileData } from "./instances/file/fileData";
 import { CommandData } from "./instances/items/command/commandData";
@@ -79,13 +84,32 @@ export class ImpowerDataMap {
     const blocks: { [refId: string]: BlockData } = {};
     if (script) {
       const syntaxTree = parseFountain(script);
-      const tokens = syntaxTree.scriptTokens;
-      const startTokenIndex =
-        syntaxTree.scriptTokenLines[syntaxTree.properties.firstTokenLine];
       console.log(syntaxTree);
-      for (let i = startTokenIndex; i < tokens.length; i += 1) {
-        const token = tokens[i];
-      }
+      console.log(syntaxTree.properties.sections);
+      const sections = syntaxTree?.properties?.sections || {};
+      const rootChildrenIds: string[] = [];
+      Object.entries(sections).forEach(([key, section]) => {
+        blocks[key] = createBlockData({
+          reference: createBlockReference({
+            parentContainerId: key.split(".").slice(0, -1).join("."),
+            refId: key,
+          }),
+          name: section.text,
+          childContainerIds: section.children?.map((x) => x.id) || [],
+        });
+        if (!key.includes(".")) {
+          rootChildrenIds.push(key);
+        }
+      });
+      const rootKey = "";
+      blocks[rootKey] = createBlockData({
+        reference: createBlockReference({
+          refId: rootKey,
+        }),
+        name: "ROOT",
+        childContainerIds: rootChildrenIds,
+      });
+      console.log(blocks);
     }
 
     Object.values(constructs).forEach((construct) => {

@@ -60,6 +60,14 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
       if (!result.properties.sections) {
         result.properties.sections = {};
       }
+      const parentId = container.id.split(".").slice(0, -1).join(".");
+      const parent = result.properties.sections[parentId];
+      if (parent && parent.level >= 0) {
+        if (!parent.children) {
+          parent.children = [];
+        }
+        parent.children.push(container);
+      }
       const existingContainer = result.properties.sections[container.id];
       if (existingContainer) {
         throwError(
@@ -70,8 +78,6 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
         );
       }
       const copy = { ...container };
-      delete copy.id;
-      delete copy.children;
       result.properties.sections[container.id] = copy;
     }
   };
