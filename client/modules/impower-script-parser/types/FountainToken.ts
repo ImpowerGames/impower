@@ -51,7 +51,7 @@ export interface FountainSectionToken extends FountainLine {
 
 export interface FountainSceneToken extends FountainLine {
   type: FountainSceneType;
-  scene: number;
+  scene: string | number;
 }
 
 export interface FountainDialogueToken extends FountainLine {

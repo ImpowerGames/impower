@@ -3,13 +3,16 @@ import { indentWithTab } from "@codemirror/commands";
 import { foldAll, unfoldAll } from "@codemirror/fold";
 import { HighlightStyle } from "@codemirror/highlight";
 import { indentUnit } from "@codemirror/language";
-import { linter } from "@codemirror/lint";
+import { Diagnostic, linter } from "@codemirror/lint";
 import { tooltips } from "@codemirror/tooltip";
 import { keymap } from "@codemirror/view";
 import React, { useEffect, useRef } from "react";
+import {
+  FountainParseResult,
+  parseFountain,
+} from "../../impower-script-parser";
 import { fountain } from "../types/fountain";
 import { fountainLanguage, tags as t } from "../types/fountainLanguage";
-import { fountainParseLinter } from "../utils/lint";
 
 const colors = {
   invalid: "#FFFFFF",
@@ -128,17 +131,27 @@ interface ScriptEditorFieldProps {
   defaultValue: string;
   toggleFolding: boolean;
   style?: React.CSSProperties;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
+  onParse?: (result: FountainParseResult) => void;
+  onCursor?: (from: number, to: number) => void;
 }
 
 const ScriptEditorField = React.memo(
   (props: ScriptEditorFieldProps): JSX.Element => {
-    const { defaultValue, style, toggleFolding, onChange } = props;
+    const { defaultValue, style, toggleFolding, onChange, onParse, onCursor } =
+      props;
 
     const elementRef = useRef<HTMLDivElement>();
     const viewRef = useRef<EditorView>();
 
     useEffect(() => {
+      const fountainParseLinter = (view: EditorView): Diagnostic[] => {
+        const result = parseFountain(view.state.doc.toString());
+        if (onParse) {
+          onParse(result);
+        }
+        return result.diagnostics || [];
+      };
       const startState = EditorState.create({
         doc: defaultValue,
         extensions: [
@@ -180,6 +193,12 @@ const ScriptEditorField = React.memo(
                 onChange(viewRef.current.state.doc.toJSON().join("\n"));
               }
             }
+            if (onCursor) {
+              const cursorRange = v.state.selection.main;
+              const from = v.state.doc.lineAt(cursorRange.from)?.number;
+              const to = v.state.doc.lineAt(cursorRange.to)?.number;
+              onCursor(from, to);
+            }
           }),
         ],
       });
@@ -193,7 +212,7 @@ const ScriptEditorField = React.memo(
         }
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [onChange]);
+    }, [onChange, onCursor, onParse]);
 
     useEffect(() => {
       if (toggleFolding) {

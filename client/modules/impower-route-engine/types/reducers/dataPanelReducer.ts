@@ -9,6 +9,7 @@ import {
   multiSelection,
   toggleSelection,
 } from "../../../impower-route";
+import { FountainParseResult } from "../../../impower-script-parser";
 import {
   DataPanelAction,
   DATA_PANEL_ADD_INTERACTION,
@@ -19,12 +20,14 @@ import {
   DATA_PANEL_OPEN,
   DATA_PANEL_REMOVE_INTERACTION,
   DATA_PANEL_SEARCH,
+  DATA_PANEL_SET_CURSOR,
   DATA_PANEL_SET_ERRORS,
   DATA_PANEL_SET_INTERACTION,
   DATA_PANEL_SET_LAST_ADDED_TYPE_ID,
   DATA_PANEL_SET_PANE_SIZE,
   DATA_PANEL_SET_PARENT_CONTAINER_ARRANGEMENT,
-  DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING,
+  DATA_PANEL_SET_PARSE_RESULT,
+  DATA_PANEL_SET_SCRIPTING,
   DATA_PANEL_SET_SCROLL_PARENT,
   DATA_PANEL_SET_SCROLL_X,
   DATA_PANEL_SET_SCROLL_Y,
@@ -312,7 +315,7 @@ export const doMultiInteraction = (
   });
 };
 
-const doSetParentContainerScripting = (
+const doSetScripting = (
   state: DataPanelState,
   payload: { windowType: DataWindowType; scripting: boolean }
 ): DataPanelState => {
@@ -326,6 +329,52 @@ const doSetParentContainerScripting = (
         Container: {
           ...state.panels[windowType].Container,
           scripting,
+        },
+      },
+    },
+  };
+};
+
+const doSetCursor = (
+  state: DataPanelState,
+  payload: {
+    windowType: DataWindowType;
+    cursor: { from: number; to: number };
+  }
+): DataPanelState => {
+  const { windowType, cursor } = payload;
+  return {
+    ...state,
+    panels: {
+      ...state.panels,
+      [windowType]: {
+        ...state.panels[windowType],
+        Container: {
+          ...state.panels[windowType].Container,
+          cursor,
+        },
+      },
+    },
+  };
+};
+
+const doSetParseResult = (
+  state: DataPanelState,
+  payload: {
+    windowType: DataWindowType;
+    parseResult: FountainParseResult;
+  }
+): DataPanelState => {
+  const { windowType, parseResult } = payload;
+  return {
+    ...state,
+    panels: {
+      ...state.panels,
+      [windowType]: {
+        ...state.panels[windowType],
+        Container: {
+          ...state.panels[windowType].Container,
+          parseResult,
         },
       },
     },
@@ -610,8 +659,12 @@ export const dataPanelReducer = (
       return doMultiInteraction(state, action.payload);
     case DATA_PANEL_SET_PARENT_CONTAINER_ARRANGEMENT:
       return doSetParentContainerArrangement(state, action.payload);
-    case DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING:
-      return doSetParentContainerScripting(state, action.payload);
+    case DATA_PANEL_SET_SCRIPTING:
+      return doSetScripting(state, action.payload);
+    case DATA_PANEL_SET_CURSOR:
+      return doSetCursor(state, action.payload);
+    case DATA_PANEL_SET_PARSE_RESULT:
+      return doSetParseResult(state, action.payload);
     case DATA_PANEL_CHANGE_ITEM_SECTION:
       return doChangeItemSection(state, action.payload);
     case DATA_PANEL_SET_LAST_ADDED_TYPE_ID:

@@ -3,8 +3,8 @@
 /* eslint-disable no-continue */
 import { fountainRegexes } from "../constants/fountainRegexes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
+import { FountainParseResult } from "../types/FountainParseResult";
 import { FountainSection } from "../types/FountainSection";
-import { FountainSyntaxTree } from "../types/FountainSyntaxTree";
 import { FountainToken } from "../types/FountainToken";
 import { FountainTokenType } from "../types/FountainTokenType";
 import { FountainVariable } from "../types/FountainVariable";
@@ -12,10 +12,10 @@ import { createFountainToken } from "./createFountainToken";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
-export const parseFountain = (originalScript: string): FountainSyntaxTree => {
+export const parseFountain = (originalScript: string): FountainParseResult => {
   const script = originalScript;
 
-  const result: FountainSyntaxTree = {
+  const result: FountainParseResult = {
     scriptTokens: [],
     properties: {},
   };
@@ -415,19 +415,16 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
               fountainRegexes.scene_number,
               ""
             );
-            currentToken.scene = Number(match[1]);
+            currentToken.scene = match[1];
           }
           if (!result.properties.scenes) {
             result.properties.scenes = [];
           }
           result.properties.scenes.push({
+            name: currentToken.content,
             scene: currentToken.scene,
             line: currentToken.line,
           });
-          if (!result.properties.sceneLines) {
-            result.properties.sceneLines = [];
-          }
-          result.properties.sceneLines.push(currentToken.line);
           if (!result.properties.sceneNames) {
             result.properties.sceneNames = [];
           }

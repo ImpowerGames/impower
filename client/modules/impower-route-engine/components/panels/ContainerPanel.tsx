@@ -86,6 +86,7 @@ import {
 import PeerTransition from "../../../impower-route/components/animations/PeerTransition";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
+import { FountainParseResult } from "../../../impower-script-parser";
 import { DataContext } from "../../contexts/dataContext";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
@@ -101,9 +102,11 @@ import {
   dataPanelOpen,
   dataPanelRemoveInteraction,
   dataPanelSearch,
+  dataPanelSetCursor,
   dataPanelSetInteraction,
   dataPanelSetParentContainerArrangement,
-  dataPanelSetParentContainerScripting,
+  dataPanelSetParseResult,
+  dataPanelSetScripting,
   dataPanelSetScrollX,
   dataPanelSetScrollY,
   dataPanelToggleInteraction,
@@ -599,6 +602,8 @@ interface ContainerPanelContentProps {
   onChangeName: (refId: string, renamed: string) => void;
   onContextMenu?: (event: AccessibleEvent) => void;
   onScriptChange?: (value: string) => void;
+  onScriptParse?: (result: FountainParseResult) => void;
+  onScriptCursor?: (from: number, to: number) => void;
 }
 
 const ContainerPanelContent = React.memo(
@@ -634,6 +639,8 @@ const ContainerPanelContent = React.memo(
       onChangeName,
       onContextMenu,
       onScriptChange,
+      onScriptParse,
+      onScriptCursor,
     } = props;
 
     const [list, setList] = useState<OrderedCollection<DataButtonInfo, string>>(
@@ -687,6 +694,8 @@ const ContainerPanelContent = React.memo(
               toggleFolding={toggleFolding}
               defaultValue={project.scripts?.logic?.data?.root || ""}
               onChange={onScriptChange}
+              onParse={onScriptParse}
+              onCursor={onScriptCursor}
             />
           </StyledScriptArea>
         </PeerTransition>
@@ -1714,7 +1723,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
           getScrollY(scrollParent)
         )
       );
-      dispatch(dataPanelSetParentContainerScripting(windowType, scripting));
+      dispatch(dataPanelSetScripting(windowType, scripting));
     },
     [dispatch, windowType, panelKey, scrollParent]
   );
@@ -1742,6 +1751,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     [dispatch, windowType, panelKey, scrollParent]
   );
 
+  const scriptCursorFromRef = useRef<{ from: number; to: number }>();
   const scriptValueRef = useRef<string>();
 
   const handleSaveScriptChange = useCallback(() => {
@@ -1761,6 +1771,32 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       handleDebouncedScriptChange();
     },
     [handleDebouncedScriptChange]
+  );
+
+  const handleScriptParse = useCallback(
+    (result: FountainParseResult) => {
+      dispatch(dataPanelSetParseResult(windowType, result));
+    },
+    [dispatch, windowType]
+  );
+
+  const handleSaveScriptCursor = useCallback(() => {
+    const cursor = scriptCursorFromRef.current;
+    dispatch(dataPanelSetCursor(windowType, cursor));
+  }, [dispatch, windowType]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleDebouncedScriptCursor = useCallback(
+    debounce(handleSaveScriptCursor, 200),
+    [handleSaveScriptCursor]
+  );
+
+  const handleScriptCursor = useCallback(
+    (from: number, to: number) => {
+      scriptCursorFromRef.current = { from, to };
+      handleDebouncedScriptCursor();
+    },
+    [handleDebouncedScriptCursor]
   );
 
   const handleBrowserNavigation = useCallback(
@@ -2035,6 +2071,8 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         onZoomCanvas={handleZoomCanvas}
         onContextMenu={handleContextMenu}
         onScriptChange={handleScriptChange}
+        onScriptParse={handleScriptParse}
+        onScriptCursor={handleScriptCursor}
       />
       {optionsMenuOpen !== undefined && (
         <ContextMenu

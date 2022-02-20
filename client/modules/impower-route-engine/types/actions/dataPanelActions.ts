@@ -5,6 +5,7 @@ import {
   ItemType,
   SetupSectionType,
 } from "../../../impower-game/data";
+import { FountainParseResult } from "../../../impower-script-parser";
 import {
   ContainerArrangement,
   DataInteractionType,
@@ -209,19 +210,60 @@ export const dataPanelSetParentContainerArrangement = (
   };
 };
 
-export const DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING =
-  "DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING";
-export interface DataPanelSetParentContainerScriptingAction {
-  type: typeof DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING;
+export const DATA_PANEL_SET_SCRIPTING = "DATA_PANEL_SET_SCRIPTING";
+export interface DataPanelSetScriptingAction {
+  type: typeof DATA_PANEL_SET_SCRIPTING;
   payload: { windowType: DataWindowType; scripting: boolean };
 }
-export const dataPanelSetParentContainerScripting = (
+export const dataPanelSetScripting = (
   windowType: DataWindowType,
   scripting: boolean
-): DataPanelSetParentContainerScriptingAction => {
+): DataPanelSetScriptingAction => {
   return {
-    type: DATA_PANEL_SET_PARENT_CONTAINER_SCRIPTING,
+    type: DATA_PANEL_SET_SCRIPTING,
     payload: { windowType, scripting },
+  };
+};
+
+export const DATA_PANEL_SET_CURSOR = "DATA_PANEL_SET_CURSOR";
+export interface DataPanelSetCursorAction {
+  type: typeof DATA_PANEL_SET_CURSOR;
+  payload: {
+    windowType: DataWindowType;
+    cursor: {
+      from: number;
+      to: number;
+    };
+  };
+}
+export const dataPanelSetCursor = (
+  windowType: DataWindowType,
+  cursor: {
+    from: number;
+    to: number;
+  }
+): DataPanelSetCursorAction => {
+  return {
+    type: DATA_PANEL_SET_CURSOR,
+    payload: { windowType, cursor },
+  };
+};
+
+export const DATA_PANEL_SET_PARSE_RESULT = "DATA_PANEL_PARSE_RESULT";
+export interface DataPanelSetParseResultAction {
+  type: typeof DATA_PANEL_SET_PARSE_RESULT;
+  payload: {
+    windowType: DataWindowType;
+    parseResult: FountainParseResult;
+  };
+}
+export const dataPanelSetParseResult = (
+  windowType: DataWindowType,
+  parseResult: FountainParseResult
+): DataPanelSetParseResultAction => {
+  return {
+    type: DATA_PANEL_SET_PARSE_RESULT,
+    payload: { windowType, parseResult },
   };
 };
 
@@ -431,7 +473,9 @@ export type DataPanelAction =
   | DataPanelAddInteractionAction
   | DataPanelRemoveInteractionAction
   | DataPanelSetInteractionAction
-  | DataPanelSetParentContainerScriptingAction
+  | DataPanelSetScriptingAction
+  | DataPanelSetCursorAction
+  | DataPanelSetParseResultAction
   | DataPanelSetParentContainerArrangementAction
   | DataPanelChangeItemSectionAction
   | DataPanelSetLastAddedTypeIdAction

@@ -2,6 +2,7 @@ import React, {
   PropsWithChildren,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -72,9 +73,25 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   const [engineState] = useContext(ProjectEngineContext);
   const projectId = engineState.present.project.id;
-  const defaultStartBlockId =
-    engineState.present.dataPanel?.panels?.Logic.Container?.inspectedTargetId ||
-    "Block";
+  const cursorLine =
+    (engineState.present.dataPanel?.panels?.Logic?.Container?.cursor?.from ||
+      1) - 1;
+  const sections =
+    engineState.present.dataPanel?.panels?.Logic?.Container?.parseResult
+      ?.sections;
+  const defaultStartBlockId = useMemo(() => {
+    let selectedSectionId = "";
+    const sectionEntries = Object.entries(sections || {});
+    for (let i = 0; i < sectionEntries.length; i += 1) {
+      const [id, section] = sectionEntries[i];
+      if (section.line <= cursorLine) {
+        selectedSectionId = id;
+      } else {
+        break;
+      }
+    }
+    return selectedSectionId;
+  }, [cursorLine, sections]);
 
   useEffect(() => {
     const setMobile = (): void => {

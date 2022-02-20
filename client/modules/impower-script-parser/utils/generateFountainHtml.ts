@@ -1,11 +1,11 @@
 /* eslint-disable no-continue */
 import { htmlReplacements } from "../constants/htmlReplacements";
-import { FountainSyntaxTree } from "../types/FountainSyntaxTree";
+import { FountainParseResult } from "../types/FountainParseResult";
 import { FountainToken } from "../types/FountainToken";
 import { fountainLexer } from "./fountainLexer";
 
 export const generateFountainHtml = (
-  syntaxTree: FountainSyntaxTree
+  syntaxTree: FountainParseResult
 ): {
   scriptHtml?: string;
   titleHtml?: string;

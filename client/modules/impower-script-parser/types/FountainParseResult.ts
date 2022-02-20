@@ -4,7 +4,7 @@ import { FountainSection } from "./FountainSection";
 import { FountainToken } from "./FountainToken";
 import { ScreenplayProperties } from "./ScreenplayProperties";
 
-export interface FountainSyntaxTree {
+export interface FountainParseResult {
   titleTokens?: { [key: string]: FountainToken[] };
   scriptTokens: FountainToken[];
   scriptTokenLines?: { [line: number]: number };

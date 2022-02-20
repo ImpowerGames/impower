@@ -1,6 +1,6 @@
 export * from "./constants/fountainRegexes";
+export * from "./types/FountainParseResult";
 export * from "./types/FountainSection";
-export * from "./types/FountainSyntaxTree";
 export * from "./types/FountainTitleKeyword";
 export * from "./types/FountainTitlePosition";
 export * from "./types/FountainToken";
