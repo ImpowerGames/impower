@@ -17,7 +17,7 @@ export class ImageDropTriggerRunner
     return getRuntimeValue(data.image, variables, game).refId;
   }
 
-  initialize(
+  init(
     data: ImageDropTriggerData,
     variables: { [refId: string]: VariableData },
     game: ImpowerGame

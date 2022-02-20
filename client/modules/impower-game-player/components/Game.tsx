@@ -2,16 +2,17 @@ import React, {
   PropsWithChildren,
   useContext,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
 import Measure from "react-measure";
 import { getBlockTree } from "../../impower-game/data";
 import { ImpowerGame, SaveData } from "../../impower-game/game";
+import { getRuntimeBlocks } from "../../impower-game/parser";
 import { GameProjectData } from "../../impower-game/project/classes/project/gameProjectData";
 import { ImpowerGameRunner } from "../../impower-game/runner";
 import { ProjectEngineContext } from "../../impower-route-engine/contexts/projectEngineContext";
+import { parseFountain } from "../../impower-script-parser";
 import { useGameStyle } from "../hooks/gameHooks";
 import { Control } from "../types/control";
 import { PhaserGame } from "../types/game/phaserGame";
@@ -19,11 +20,27 @@ import UI from "./UI";
 
 const createGame = (
   project: GameProjectData,
-  defaultStartBlockId: string,
+  cursorLine: number,
   isMobile: boolean,
   saveData?: SaveData
 ): ImpowerGame => {
-  const blockTree = getBlockTree(project);
+  const script = project?.scripts?.logic?.data?.root;
+  const result = parseFountain(script);
+  const sections = result?.sections || {};
+  const runtimeBlocks = getRuntimeBlocks(sections);
+  const blockTree = getBlockTree(runtimeBlocks);
+  const sectionEntries = Object.entries(sections);
+  let defaultStartBlockId = sectionEntries[1]?.[0] || "";
+  for (let i = 1; i < sectionEntries.length; i += 1) {
+    const [id, section] = sectionEntries[i];
+    if (id) {
+      if (section.line <= cursorLine) {
+        defaultStartBlockId = id;
+      } else {
+        break;
+      }
+    }
+  }
   const game = new ImpowerGame(
     {
       defaultStartBlockId,
@@ -76,22 +93,6 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
   const cursorLine =
     (engineState.present.dataPanel?.panels?.Logic?.Container?.cursor?.from ||
       1) - 1;
-  const sections =
-    engineState.present.dataPanel?.panels?.Logic?.Container?.parseResult
-      ?.sections;
-  const defaultStartBlockId = useMemo(() => {
-    let selectedSectionId = "";
-    const sectionEntries = Object.entries(sections || {});
-    for (let i = 0; i < sectionEntries.length; i += 1) {
-      const [id, section] = sectionEntries[i];
-      if (section.line <= cursorLine) {
-        selectedSectionId = id;
-      } else {
-        break;
-      }
-    }
-    return selectedSectionId;
-  }, [cursorLine, sections]);
 
   useEffect(() => {
     const setMobile = (): void => {
@@ -135,7 +136,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   useEffect(() => {
     if (active) {
-      const g = createGame(project, defaultStartBlockId, isMobile, saveData);
+      const g = createGame(project, cursorLine, isMobile, saveData);
       onCreateGame(g);
     } else {
       onCreateGame();
@@ -158,7 +159,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   useEffect(() => {
     if (active) {
-      const g = createGame(project, defaultStartBlockId, isMobile, saveData);
+      const g = createGame(project, cursorLine, isMobile, saveData);
       onCreateGame(g);
     } else {
       onCreateGame();

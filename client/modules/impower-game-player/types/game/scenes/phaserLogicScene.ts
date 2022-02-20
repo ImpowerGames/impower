@@ -1,4 +1,4 @@
-import Phaser from "phaser";
+import Phaser, { GameObjects } from "phaser";
 import { ImpowerGame } from "../../../../impower-game/game";
 import { ImpowerDataMap } from "../../../../impower-game/project";
 import { BlockRunner } from "../../../../impower-game/runner";
@@ -28,6 +28,31 @@ export class PhaserLogicScene extends Phaser.Scene {
     this._impowerDataMap = impowerDataMap;
   }
 
+  preload(): void {
+    this.input.on("pointerdown", (e, g) => this.onPointerDown(e, g));
+    this.input.on("pointerup", (e, g) => this.onPointerUp(e, g));
+  }
+
+  onPointerDown(
+    event: PointerEvent,
+    gameObjects: GameObjects.GameObject[]
+  ): void {
+    this.impowerGame.input.pointerDown({
+      button: event.button,
+      targets: gameObjects.map((x) => x.name),
+    });
+  }
+
+  onPointerUp(
+    event: PointerEvent,
+    gameObjects: GameObjects.GameObject[]
+  ): void {
+    this.impowerGame.input.pointerUp({
+      button: event.button,
+      targets: gameObjects.map((x) => x.name),
+    });
+  }
+
   update(time: number, delta: number): void {
     this.impowerGame.logic.state.activeChildBlocks.forEach((id) => {
       const blockState = this.impowerGame.logic.state.blockStates[id];
@@ -55,7 +80,7 @@ export class PhaserLogicScene extends Phaser.Scene {
       const { triggers } = this.impowerDataMap.blockInternalRunners[id];
       const { variables } = this.impowerDataMap;
       if (blockState.active) {
-        BlockRunner.instance.initialize(triggers, variables, this.impowerGame);
+        BlockRunner.instance.init(triggers, variables, this.impowerGame);
       }
     });
   }

@@ -18,7 +18,7 @@ export class ImageClickTriggerRunner
     return getRuntimeValue(data.image, variables, game).refId;
   }
 
-  initialize(
+  init(
     data: ImageClickTriggerData,
     variables: { [refId: string]: VariableData },
     game: ImpowerGame
@@ -50,7 +50,7 @@ export class ImageClickTriggerRunner
       case InputCondition.Is:
         game.asset.events.onClickDownImage.addListener(onImageClick);
         game.asset.events.onClickUpImage.addListener(resetHeldEvent);
-        game.logic.events.onEmptyPhaserClickUp.addListener(resetHeldEvent);
+        game.input.events.onEmptyPhaserClickUp.addListener(resetHeldEvent);
         break;
       default:
         break;

@@ -4,6 +4,7 @@ import { GameEvent } from "./events/gameEvent";
 import { AssetManager } from "./managers/assetManager";
 import { DebugManager } from "./managers/debugManager";
 import { EntityManager } from "./managers/entityManager";
+import { InputManager } from "./managers/inputManager";
 import { LogicManager } from "./managers/logicManager";
 import { Manager } from "./managers/manager";
 import { PhysicsManager } from "./managers/physicsManager";
@@ -25,6 +26,12 @@ export class ImpowerGame {
 
   public get debug(): DebugManager {
     return this._debug;
+  }
+
+  private _input: InputManager;
+
+  public get input(): InputManager {
+    return this._input;
   }
 
   private _physics: PhysicsManager;
@@ -71,13 +78,16 @@ export class ImpowerGame {
 
   constructor(config: GameConfig, isMobile: boolean, saveData?: SaveData) {
     this._debug = new DebugManager();
+    this._input = new InputManager();
     this._physics = new PhysicsManager();
     this._asset = new AssetManager(saveData?.asset);
     this._entity = new EntityManager(saveData?.entity);
+    const activeParentBlock =
+      config.blockTree?.[config.defaultStartBlockId]?.parent || "";
     this._logic = new LogicManager(
       config.blockTree,
       saveData?.logic || {
-        activeParentBlock: config.defaultStartBlockId,
+        activeParentBlock,
         blockStates: {},
         variableStates: {},
         triggerStates: {},
@@ -99,17 +109,19 @@ export class ImpowerGame {
     this.logic.destroy();
     this.entity.destroy();
     this.asset.destroy();
+    this.input.destroy();
     this.physics.destroy();
     this.debug.destroy();
     this.random.destroy();
     Object.values(this.custom).forEach((manager) => {
       manager.destroy();
     });
-    this.events.onEnd.emit(null);
+    this.events.onEnd.emit();
   }
 
   start(): void {
     this.debug.start();
+    this.input.start();
     this.physics.start();
     this.asset.start();
     this.entity.start();
@@ -118,7 +130,7 @@ export class ImpowerGame {
     Object.values(this.custom).forEach((manager) => {
       manager.start();
     });
-    this.events.onStart.emit(null);
+    this.events.onStart.emit();
   }
 
   getSaveData(): SaveData {

@@ -44,8 +44,6 @@ export interface LogicEvents {
   onCommandJumpStackPop: GameEvent<{ blockId: string }>;
   onSetVariableValue: GameEvent<{ id: string; value: unknown }>;
   onSetTriggerValue: GameEvent<{ id: string; value: unknown }>;
-  onEmptyPhaserClickDown: GameEvent<{ event: unknown }>;
-  onEmptyPhaserClickUp: GameEvent<{ event: unknown }>;
 }
 
 export class LogicManager extends Manager<LogicState, LogicEvents> {
@@ -122,8 +120,6 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       }>(),
       onSetVariableValue: new GameEvent<{ id: string; value: unknown }>(),
       onSetTriggerValue: new GameEvent<{ id: string; value: unknown }>(),
-      onEmptyPhaserClickDown: new GameEvent<{ event: unknown }>(),
-      onEmptyPhaserClickUp: new GameEvent<{ event: unknown }>(),
     };
   }
 
@@ -141,6 +137,14 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
 
   start(): void {
     this.enterBlock({ id: this.state.activeParentBlock });
+    const firstChildBlockId =
+      this.blockTree?.[this.state.activeParentBlock]?.children?.[0];
+    if (firstChildBlockId) {
+      this.executeBlock({
+        id: firstChildBlockId,
+        executedByBlockId: this.state.activeParentBlock,
+      });
+    }
     super.start();
   }
 
@@ -333,13 +337,5 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     triggerState.executionCount += 1;
     this.state.triggerStates[data.id] = triggerState;
     this.events.onSetTriggerValue.emit({ ...data });
-  }
-
-  emptyPhaserClickDown(data: { event: unknown }): void {
-    this.events.onEmptyPhaserClickDown.emit({ ...data });
-  }
-
-  emptyPhaserClickUp(data: { event: unknown }): void {
-    this.events.onEmptyPhaserClickUp.emit({ ...data });
   }
 }

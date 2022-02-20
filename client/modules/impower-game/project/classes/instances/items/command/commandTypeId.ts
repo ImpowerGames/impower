@@ -11,7 +11,7 @@ export type CommandTypeId =
   | "SelectCommand"
   | "CloseCommand"
   | "SetCommand"
-  | "SayCommand"
+  | "DisplayCommand"
   | "CreateCommand"
   | "DestroyCommand"
   | "ShowImageCommand"

@@ -17,7 +17,7 @@ export interface BlockState {
   delta: number;
 }
 
-export const createBlockState = (): BlockState => ({
+export const createBlockState = (obj?: Partial<BlockState>): BlockState => ({
   active: true,
   executionCount: 0,
   commandExecutionCounts: [],
@@ -34,4 +34,5 @@ export const createBlockState = (): BlockState => ({
   lastExecutedAt: -1,
   time: -1,
   delta: -1,
+  ...(obj || {}),
 });

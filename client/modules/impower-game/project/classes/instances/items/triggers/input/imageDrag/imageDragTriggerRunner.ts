@@ -17,7 +17,7 @@ export class ImageDragTriggerRunner
     return getRuntimeValue(data.image, variables, game).refId;
   }
 
-  initialize(
+  init(
     data: ImageDragTriggerData,
     variables: { [refId: string]: VariableData },
     game: ImpowerGame

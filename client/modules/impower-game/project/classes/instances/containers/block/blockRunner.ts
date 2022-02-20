@@ -24,7 +24,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
    * Iterates over triggers performs their initializers.
    *
    */
-  initialize(
+  init(
     triggers: {
       runner: TriggerRunner;
       data: TriggerData;
@@ -34,7 +34,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     game: ImpowerGame
   ): void {
     triggers.forEach((trigger) => {
-      trigger.runner.initialize(trigger.data, variables, game);
+      trigger.runner.init(trigger.data, variables, game);
     });
   }
 

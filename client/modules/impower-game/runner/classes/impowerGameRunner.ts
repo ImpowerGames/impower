@@ -24,7 +24,7 @@ import { ElseIfCommandRunner } from "../../project/classes/instances/items/comma
 import { IfCommandRunner } from "../../project/classes/instances/items/commands/conditonal/ifCommand/ifCommandRunner";
 import { SelectCommandRunner } from "../../project/classes/instances/items/commands/conditonal/selectCommand/selectCommandRunner";
 import { SetCommandRunner } from "../../project/classes/instances/items/commands/data/setCommand/setCommandRunner";
-import { SayCommandRunner } from "../../project/classes/instances/items/commands/dialog/sayCommand/sayCommandRunner";
+import { DisplayCommandRunner } from "../../project/classes/instances/items/commands/dialog/displayCommand/displayCommandRunner";
 import { CreateCommandRunner } from "../../project/classes/instances/items/commands/entity/createCommand/createCommandRunner";
 import { DestroyCommandRunner } from "../../project/classes/instances/items/commands/entity/destroyCommand/destroyCommandRunner";
 import { ShowPortraitCommandRunner } from "../../project/classes/instances/items/commands/entity/showPortraitCommand/showPortraitCommandRunner";
@@ -154,7 +154,7 @@ export class ImpowerGameRunner {
     SelectCommand: new SelectCommandRunner(),
     CloseCommand: new CloseCommandRunner(),
     SetCommand: new SetCommandRunner(),
-    SayCommand: new SayCommandRunner(),
+    DisplayCommand: new DisplayCommandRunner(),
     ShowPortraitCommand: new ShowPortraitCommandRunner(),
     CreateCommand: new CreateCommandRunner(),
     DestroyCommand: new DestroyCommandRunner(),

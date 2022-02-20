@@ -1,12 +1,12 @@
-import { GameProjectData } from "../../project/classes/project/gameProjectData";
+import { BlockData } from "../../project/classes/instances/containers/block/blockData";
 
 export const getBlockTree = (
-  project: GameProjectData
+  blocks: Record<string, BlockData>
 ): { [blockId: string]: { parent: string; children: string[] } } => {
   const blockTree: {
     [blockId: string]: { parent: string; children: string[] };
   } = {};
-  Object.values(project?.instances?.blocks?.data || {}).forEach((block) => {
+  Object.values(blocks || {}).forEach((block) => {
     blockTree[block.reference.refId] = {
       parent: block.reference.parentContainerId,
       children: block.childContainerIds,

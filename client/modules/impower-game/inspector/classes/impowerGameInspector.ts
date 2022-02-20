@@ -50,7 +50,7 @@ import { ElseIfCommandInspector } from "../../project/classes/instances/items/co
 import { IfCommandInspector } from "../../project/classes/instances/items/commands/conditonal/ifCommand/ifCommandInspector";
 import { SelectCommandInspector } from "../../project/classes/instances/items/commands/conditonal/selectCommand/selectCommandInspector";
 import { SetCommandInspector } from "../../project/classes/instances/items/commands/data/setCommand/setCommandInspector";
-import { SayCommandInspector } from "../../project/classes/instances/items/commands/dialog/sayCommand/sayCommandInspector";
+import { DisplayCommandInspector } from "../../project/classes/instances/items/commands/dialog/displayCommand/displayCommandInspector";
 import { CreateCommandInspector } from "../../project/classes/instances/items/commands/entity/createCommand/createCommandInspector";
 import { DestroyCommandInspector } from "../../project/classes/instances/items/commands/entity/destroyCommand/destroyCommandInspector";
 import { ShowPortraitCommandInspector } from "../../project/classes/instances/items/commands/entity/showPortraitCommand/showPortraitCommandInspector";
@@ -182,7 +182,7 @@ export class ImpowerGameInspector {
     SelectCommand: new SelectCommandInspector(),
     CloseCommand: new CloseCommandInspector(),
     SetCommand: new SetCommandInspector(),
-    SayCommand: new SayCommandInspector(),
+    DisplayCommand: new DisplayCommandInspector(),
     CreateCommand: new CreateCommandInspector(),
     DestroyCommand: new DestroyCommandInspector(),
     ShowPortraitCommand: new ShowPortraitCommandInspector(),

@@ -1,10 +1,15 @@
-import { FountainSection, FountainToken } from "../../../impower-script-parser";
+import {
+  FountainDialogueToken,
+  FountainSection,
+  FountainToken,
+} from "../../../impower-script-parser";
 import { FountainVariable } from "../../../impower-script-parser/types/FountainVariable";
 import {
   BlockData,
   CommandTypeId,
   CompareOperator,
   CompareTriggerData,
+  createAudioFileReference,
   createBlockData,
   createBlockReference,
   createCommandData,
@@ -13,6 +18,9 @@ import {
   createTriggerReference,
   createVariableData,
   createVariableReference,
+  DisplayCommandData,
+  DisplayPosition,
+  DisplayType,
   DynamicData,
   SetCommandData,
   SetOperator,
@@ -23,23 +31,20 @@ import {
 export const getRuntimeBlocks = (
   sections: Record<string, FountainSection>
 ): Record<string, BlockData> => {
-  const getGlobalId = (sectionId: string, name: string | number): string => {
-    return `${sectionId}.${name}`;
-  };
   const getVariableReference = (
-    sectionId: string,
     variable: FountainVariable
   ): VariableReference => {
     return createVariableReference({
-      refId: getGlobalId(sectionId, variable.name),
+      parentContainerId: variable?.id?.split(".").slice(0, -1).join(".") || "",
+      refId: variable.id || "",
       refTypeId:
         variable.type === "number" ? "NumberVariable" : "StringVariable",
     });
   };
-  const getDynamicData = (
-    sectionId: string,
-    value: string | number | FountainVariable
-  ): DynamicData<string | number> => {
+
+  const getDynamicData = <T extends string | number>(
+    value: T | FountainVariable
+  ): DynamicData<T> => {
     const constant =
       typeof value === "string" || typeof value === "number"
         ? value
@@ -49,12 +54,40 @@ export const getRuntimeBlocks = (
     const dynamic =
       typeof value === "string" || typeof value === "number"
         ? null
-        : getVariableReference(sectionId, value);
+        : getVariableReference(value);
     return {
-      constant,
+      constant: constant as T,
       dynamic,
     };
   };
+
+  const getDisplayCommand = (
+    refId: string,
+    token: FountainToken,
+    character = "",
+    parenthetical = ""
+  ): DisplayCommandData => {
+    const dialogueToken = token as FountainDialogueToken;
+    const refTypeId: CommandTypeId = "DisplayCommand";
+    return {
+      ...createCommandData({
+        reference: createCommandReference({
+          parentContainerId: refId.split(".").slice(0, -1).join("."),
+          refId,
+          refTypeId,
+        }),
+      }),
+      type: dialogueToken.type as DisplayType,
+      position:
+        (dialogueToken.dual as DisplayPosition) || DisplayPosition.Default,
+      character,
+      parenthetical,
+      content: dialogueToken.content,
+      voice: createAudioFileReference(),
+      waitUntilFinished: dialogueToken.dual !== "left",
+    };
+  };
+
   const blocks: { [refId: string]: BlockData } = {};
   Object.entries(sections).forEach(([sectionId, section]) => {
     const block = createBlockData({
@@ -65,42 +98,49 @@ export const getRuntimeBlocks = (
       name: section.name,
       childContainerIds: section.children || [],
     });
+    let character: string;
+    let parenthetical: string;
     let previousToken: FountainToken;
     section.tokens.forEach((token) => {
       if (token.type === "declare") {
-        const refId = getGlobalId(sectionId, token.variable.name);
-        const name = token?.variable?.name;
+        const refId = token?.variable?.id;
+        const name = refId.split(".").slice(-1).join(".");
         const value = token?.value;
+        block.variables.order.push(refId);
         block.variables.data[refId] = createVariableData({
-          reference: getVariableReference(sectionId, token.variable),
+          reference: getVariableReference(token.variable),
           name,
           value,
         });
       } else if (token.type === "assign") {
-        const refId = getGlobalId(sectionId, token.start);
+        const refId = `${sectionId}.${token.start}`;
         const refTypeId: CommandTypeId = "SetCommand";
         const newCommand: SetCommandData = {
           ...createCommandData({
             reference: createCommandReference({
+              parentContainerId: sectionId,
               refId,
               refTypeId,
             }),
           }),
-          variable: getVariableReference(sectionId, token.variable),
+          variable: getVariableReference(token.variable),
           operator: token.operator as SetOperator,
-          value: getDynamicData(sectionId, token.value),
+          value: getDynamicData(token.value),
         };
+        block.commands.order.push(refId);
         block.commands.data[refId] = newCommand;
       } else if (token.type === "trigger") {
-        const refId = getGlobalId(sectionId, `trigger-${token.start}`);
+        const refId = `${sectionId}.${token.start}`;
         const refTypeId: TriggerTypeId =
           token.content === "all" ? "AllTrigger" : "AnyTrigger";
         const newTrigger = createTriggerData({
           reference: createTriggerReference({
+            parentContainerId: sectionId,
             refId,
             refTypeId,
           }),
         });
+        block.triggers.order.push(refId);
         block.triggers.data[refId] = newTrigger;
         if (
           (previousToken?.type === "trigger" ||
@@ -108,27 +148,31 @@ export const getRuntimeBlocks = (
           token.indent < previousToken.indent
         ) {
           const closeRefId = `${refId}-close`;
+          block.triggers.order.push(closeRefId);
           block.triggers.data[closeRefId] = createTriggerData({
             reference: createTriggerReference({
+              parentContainerId: sectionId,
               refId,
               refTypeId,
             }),
           });
         }
       } else if (token.type === "compare") {
-        const refId = getGlobalId(sectionId, `trigger-${token.start}`);
+        const refId = `${sectionId}.${token.start}`;
         const refTypeId = "CompareTrigger";
         const newTrigger: CompareTriggerData = {
           ...createTriggerData({
             reference: createTriggerReference({
+              parentContainerId: sectionId,
               refId,
               refTypeId,
             }),
           }),
-          variable: getVariableReference(sectionId, token.variable),
+          variable: getVariableReference(token.variable),
           operator: token.operator as CompareOperator,
-          value: getDynamicData(sectionId, token.value),
+          value: getDynamicData(token.value),
         };
+        block.triggers.order.push(refId);
         block.triggers.data[refId] = newTrigger;
         if (
           (previousToken?.type === "trigger" ||
@@ -136,13 +180,47 @@ export const getRuntimeBlocks = (
           token.indent < previousToken.indent
         ) {
           const closeRefId = `${refId}-close`;
+          block.triggers.order.push(closeRefId);
           block.triggers.data[closeRefId] = createTriggerData({
             reference: createTriggerReference({
+              parentContainerId: sectionId,
               refId,
               refTypeId,
             }),
           });
         }
+      } else if (token.type === "character") {
+        character = token.content;
+      } else if (token.type === "parenthetical") {
+        parenthetical = token.content;
+      } else if (token.type === "dialogue") {
+        const refId = `${sectionId}.${token.start}`;
+        block.commands.order.push(refId);
+        block.commands.data[refId] = getDisplayCommand(
+          refId,
+          token,
+          character,
+          parenthetical
+        );
+      } else if (token.type === "dialogue_end") {
+        character = undefined;
+        parenthetical = undefined;
+      } else if (token.type === "action") {
+        const refId = `${sectionId}.${token.start}`;
+        block.commands.order.push(refId);
+        block.commands.data[refId] = getDisplayCommand(refId, token);
+      } else if (token.type === "centered") {
+        const refId = `${sectionId}.${token.start}`;
+        block.commands.order.push(refId);
+        block.commands.data[refId] = getDisplayCommand(refId, token);
+      } else if (token.type === "transition") {
+        const refId = `${sectionId}.${token.start}`;
+        block.commands.order.push(refId);
+        block.commands.data[refId] = getDisplayCommand(refId, token);
+      } else if (token.type === "scene") {
+        const refId = `${sectionId}.${token.start}`;
+        block.commands.order.push(refId);
+        block.commands.data[refId] = getDisplayCommand(refId, token);
       }
       previousToken = token;
     });

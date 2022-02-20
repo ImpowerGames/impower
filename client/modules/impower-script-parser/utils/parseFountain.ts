@@ -42,8 +42,6 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
   let lastCharacterIndex;
   let dualRight;
   let state = "normal";
-  let previousCharacter;
-  let previousParenthetical;
   let cacheStateForComment;
   let nestedComments = 0;
   let titlePageStarted = false;
@@ -96,8 +94,8 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
     return group.length;
   };
 
-  const getGlobalId = (name: string): string => {
-    return `${currentSectionId}.${name}`;
+  const getGlobalId = (name: string, sectionId?: string): string => {
+    return `${sectionId == null ? currentSectionId : sectionId}.${name}`;
   };
 
   const addSection = (
@@ -156,7 +154,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       );
     }
     result.variables[id] = {
-      name,
+      id,
       type,
       line,
     };
@@ -167,8 +165,9 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
     match?: string[],
     index?: number
   ): FountainVariable => {
-    const id = getGlobalId(name);
-    const variable = result.variables?.[id];
+    const variable =
+      result.variables?.[getGlobalId(name)] ||
+      result.variables?.[getGlobalId(name, "")];
     if (variable) {
       const copy = { ...variable };
       delete copy.line;
@@ -403,8 +402,8 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         currentLevel = currentToken.level;
       }
       if (currentToken.content.match(fountainRegexes.scene_heading)) {
-        currentToken.type = "scene_heading";
-        if (currentToken.type === "scene_heading") {
+        currentToken.type = "scene";
+        if (currentToken.type === "scene") {
           currentToken.content = currentToken.content.replace(/^\./, "");
           currentToken.scene = sceneNumber;
           const match = currentToken.content.match(
@@ -481,8 +480,9 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
           currentToken.value = getValue(content, match, 8);
           const name = variable;
           const type = typeof currentToken.value as "string" | "number";
+          const id = getGlobalId(name);
           currentToken.variable = {
-            name,
+            id,
             type,
           };
           addVariable(name, type, currentToken.line, match, 4);
@@ -496,9 +496,12 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
           currentToken.operator = operator;
           currentToken.content = content;
           currentToken.value = getValue(currentToken.content, match, 8);
+          const name = variable;
+          const type = typeof currentToken.value as "string" | "number";
+          const id = getVariable(name, match, 4)?.id;
           currentToken.variable = {
-            name: variable,
-            type: typeof currentToken.value as "string" | "number",
+            id,
+            type,
           };
         }
       } else if (
@@ -585,17 +588,15 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         if (currentToken.content[currentToken.content.length - 1] === "^") {
           state = "dual_dialogue";
           // update last dialogue to be dual:left
-          const dialogue_tokens = ["dialogue", "character", "parenthetical"];
+          let lastCharacterToken = result.scriptTokens[lastCharacterIndex];
           while (
-            dialogue_tokens.indexOf(
-              result.scriptTokens[lastCharacterIndex].type
-            ) !== -1
+            lastCharacterToken.type === "character" ||
+            lastCharacterToken.type === "parenthetical" ||
+            lastCharacterToken.type === "dialogue"
           ) {
-            const lastCharacterToken = result.scriptTokens[lastCharacterIndex];
-            if (lastCharacterToken.type === "character") {
-              lastCharacterToken.dual = "left";
-            }
+            lastCharacterToken.dual = "left";
             lastCharacterIndex += 1;
+            lastCharacterToken = result.scriptTokens[lastCharacterIndex];
           }
           // update last dialogue_begin to be dual_dialogue_begin and remove last dialogue_end
           let foundMatch = false;
@@ -633,7 +634,6 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
           pushToken(createFountainToken("dialogue_begin"));
         }
         const character = trimCharacterExtension(currentToken.content).trim();
-        previousCharacter = character;
         if (result.properties.characters?.[character]) {
           const values = result.properties.characters[character];
           if (values.indexOf(sceneNumber) === -1) {
@@ -657,20 +657,17 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
     } else {
       if (currentToken.content.match(fountainRegexes.parenthetical)) {
         currentToken.type = "parenthetical";
-        previousParenthetical = currentToken.content;
       } else {
         currentToken.type = "dialogue";
         if (currentToken.type === "dialogue") {
           processDialogueBlock(currentToken);
-          currentToken.character = previousCharacter;
-          if (previousParenthetical) {
-            currentToken.parenthetical = previousParenthetical;
-          }
-          previousParenthetical = undefined;
         }
       }
       if (dualRight) {
-        if (currentToken.type === "dialogue") {
+        if (
+          currentToken.type === "dialogue" ||
+          currentToken.type === "parenthetical"
+        ) {
           currentToken.dual = "right";
         }
       }
@@ -684,7 +681,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
     }
 
     if (tokenCategory === "script" && state !== "ignore") {
-      if (["scene_heading", "transition"].includes(currentToken.type)) {
+      if (["scene", "transition"].includes(currentToken.type)) {
         currentToken.content = currentToken.content.toUpperCase();
         titlePageStarted = true; // ignore title tags after first heading
       }

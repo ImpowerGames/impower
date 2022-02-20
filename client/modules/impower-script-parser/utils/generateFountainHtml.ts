@@ -123,7 +123,7 @@ export const generateFountainHtml = (
         html.push("</p>");
       }
       switch (currentToken.type) {
-        case "scene_heading":
+        case "scene":
           html.push(
             `<h3 class="source" ${
               currentToken.scene ? `id="line_${currentToken.line}"` : ""

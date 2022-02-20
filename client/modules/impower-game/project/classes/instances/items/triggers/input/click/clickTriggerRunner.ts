@@ -11,7 +11,7 @@ export class ClickTriggerRunner extends TriggerRunner<ClickTriggerData> {
    * @param variables The run time variable data.
    * @param game The run time Impower Game.
    */
-  initialize(
+  init(
     data: ClickTriggerData,
     variables: { [refId: string]: VariableData },
     game: ImpowerGame
@@ -76,7 +76,7 @@ export class ClickTriggerRunner extends TriggerRunner<ClickTriggerData> {
       case InputCondition.Started:
         clickType = PointerEventType.PointerDown;
         if (game.isMobile) {
-          game.logic.events.onEmptyPhaserClickDown.addListener(
+          game.input.events.onEmptyPhaserClickDown.addListener(
             handleEmptyPhaserClickDown
           );
         }
@@ -84,7 +84,7 @@ export class ClickTriggerRunner extends TriggerRunner<ClickTriggerData> {
       case InputCondition.Stopped:
         clickType = PointerEventType.PointerUp;
         if (game.isMobile) {
-          game.logic.events.onEmptyPhaserClickUp.addListener(
+          game.input.events.onEmptyPhaserClickUp.addListener(
             handleEmptyPhaserClickUp
           );
         }
@@ -92,7 +92,7 @@ export class ClickTriggerRunner extends TriggerRunner<ClickTriggerData> {
       case InputCondition.Is:
         clickType = PointerEventType.PointerHeld;
         if (game.isMobile) {
-          game.logic.events.onEmptyPhaserClickDown.addListener(
+          game.input.events.onEmptyPhaserClickDown.addListener(
             handleEmptyPhaserClickDown
           );
         }

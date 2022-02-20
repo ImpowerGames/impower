@@ -19,7 +19,7 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
    * @param variables The run time variable data.
    * @param game The run time Impower Game.
    */
-  initialize(
+  init(
     data: PressedKeyTriggerData,
     variables: { [refId: string]: VariableData },
     game: ImpowerGame

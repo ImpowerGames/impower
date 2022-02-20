@@ -98,7 +98,7 @@ export class PhaserAssetScene extends Phaser.Scene {
         });
       }
     } else {
-      this.impowerGame.logic.emptyPhaserClickDown({
+      this.impowerGame.input.emptyPhaserClickDown({
         event,
       });
     }
@@ -121,7 +121,7 @@ export class PhaserAssetScene extends Phaser.Scene {
         });
       }
     } else {
-      this.impowerGame.logic.emptyPhaserClickUp({
+      this.impowerGame.input.emptyPhaserClickUp({
         event,
       });
     }

@@ -1,12 +1,12 @@
+import { getLabel } from "../../../../../../../../impower-config";
 import {
+  createDynamicData,
+  IterationMode,
   SelectCommandData,
   TypeInfo,
-  IterationMode,
-  createDynamicData,
 } from "../../../../../../../data";
-import { CommandInspector } from "../../../command/commandInspector";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
-import { getLabel } from "../../../../../../../../impower-config";
+import { CommandInspector } from "../../../command/commandInspector";
 
 export class SelectCommandInspector extends CommandInspector<SelectCommandData> {
   getTypeInfo(): TypeInfo {
@@ -41,7 +41,7 @@ export class SelectCommandInspector extends CommandInspector<SelectCommandData> 
     data?: SelectCommandData
   ): unknown[] {
     if (propertyPath === "mode") {
-      return Object.values(IterationMode);
+      return Object.keys(IterationMode);
     }
     return super.getPropertyOptions(propertyPath, data);
   }

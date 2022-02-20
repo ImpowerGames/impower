@@ -14,7 +14,7 @@ export class TriggerRunner<
     return this._instance;
   }
 
-  initialize(
+  init(
     _data: T,
     _variables: { [refId: string]: VariableData },
     _game: ImpowerGame

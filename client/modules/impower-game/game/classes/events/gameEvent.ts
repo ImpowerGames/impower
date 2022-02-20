@@ -13,7 +13,7 @@ export class GameEvent<T = null> {
     this.handlers = [];
   }
 
-  public emit(data: T): void {
+  public emit(data: T = null): void {
     this.handlers.slice(0).forEach((h) => h(data));
   }
 }

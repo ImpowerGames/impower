@@ -1,5 +1,5 @@
-import { Manager } from "./manager";
 import { GameEvent } from "../events/gameEvent";
+import { Manager } from "./manager";
 
 export interface EntityState {
   loadedConstructs: string[];
@@ -70,7 +70,7 @@ export class EntityManager extends Manager<EntityState, EntityEvents> {
   }
 
   clearPreviousConstructs(): void {
-    this.events.onClearPreviousConstructs.emit(null);
+    this.events.onClearPreviousConstructs.emit();
   }
 
   setElementImage(data: {

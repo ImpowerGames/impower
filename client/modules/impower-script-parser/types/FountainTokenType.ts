@@ -7,8 +7,12 @@ export type FountainReturnType = "return";
 export type FountainChoiceType = "choice";
 
 export type FountainSectionType = "section";
-export type FountainSceneType = "scene_heading";
-export type FountainDialogueType = "dialogue" | "dialogue_begin" | "character";
+export type FountainSceneType = "scene";
+export type FountainDialogueType =
+  | "dialogue_begin"
+  | "character"
+  | "dialogue"
+  | "parenthetical";
 
 export type FountainOtherType =
   | "title"
@@ -16,12 +20,10 @@ export type FountainOtherType =
   | "action"
   | "centered"
   | "transition"
-  | "close"
   | "synopsis"
   | "separator"
   | "page_break"
   | "action"
-  | "parenthetical"
   | "dialogue_end"
   | "dual_dialogue_begin"
   | "dual_dialogue_end"
