@@ -5,7 +5,7 @@ import { fountainRegexes } from "../constants/fountainRegexes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
 import { FountainSection } from "../types/FountainSection";
 import { FountainSyntaxTree } from "../types/FountainSyntaxTree";
-import { FountainLogicToken, FountainToken } from "../types/FountainToken";
+import { FountainToken } from "../types/FountainToken";
 import { FountainTokenType } from "../types/FountainTokenType";
 import { FountainVariable } from "../types/FountainVariable";
 import { createFountainToken } from "./createFountainToken";
@@ -132,11 +132,13 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
   };
 
   const addVariable = (
-    declareToken: FountainLogicToken,
+    name: string,
+    type: "string" | "number",
+    line: number,
     match: string[],
     index: number
   ): void => {
-    const id = getGlobalId(declareToken.variable.name);
+    const id = getGlobalId(name);
     if (!result.variables) {
       result.variables = {};
     }
@@ -144,23 +146,26 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
     if (existingVariable) {
       diagnostic(
         currentToken,
-        `A ${currentSectionId ? "local" : "global"} variable named '${
-          declareToken.variable.name
-        }' already exists at line ${existingVariable.line + 1}`,
+        `A ${
+          currentSectionId ? "local" : "global"
+        } variable named '${name}' already exists at line ${
+          existingVariable.line + 1
+        }`,
         getStart(match, index),
         getLength(match, index)
       );
     }
     result.variables[id] = {
-      ...declareToken.variable,
-      line: declareToken.line,
+      name,
+      type,
+      line,
     };
   };
 
   const getVariable = (
     name: string,
-    match: string[],
-    index: number
+    match?: string[],
+    index?: number
   ): FountainVariable => {
     const id = getGlobalId(name);
     const variable = result.variables?.[id];
@@ -180,8 +185,8 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
 
   const getValue = (
     content: string,
-    match: string[],
-    index: number
+    match?: string[],
+    index?: number
   ): string | number | FountainVariable => {
     if (content.match(fountainRegexes.string)) {
       return content.slice(1, -1);
@@ -198,7 +203,9 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
       return [];
     }
     const values = match[groupIndex] || "";
-    const parameterMatches = values.match(fountainRegexes.parameter_names);
+    const parameterMatches = values.match(
+      fountainRegexes.parameter_declarations
+    );
     if (!parameterMatches) {
       return [];
     }
@@ -206,17 +213,14 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
     allMatches.splice(groupIndex, 1, ...parameterMatches);
     const result: string[] = [];
     for (let i = groupIndex; i < groupIndex + parameterMatches.length; i += 1) {
-      const value = allMatches[i];
-      if (!value.match(fountainRegexes.separator)) {
-        if (result.includes(value)) {
-          diagnostic(
-            currentToken,
-            `A parameter named '${value}' already exists`,
-            getStart(allMatches, i),
-            getLength(allMatches, i)
-          );
-        }
-        result.push(value);
+      const declaration = allMatches[i];
+      if (!declaration.match(fountainRegexes.separator)) {
+        const [nameString, valueString] = declaration.split("=");
+        const name = nameString.trim();
+        const value = getValue(valueString.trim());
+        const type = typeof value as "string" | "number";
+        addVariable(name, type, currentToken.line, allMatches, i);
+        result.push(declaration);
       }
     }
     return result;
@@ -478,11 +482,13 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
           currentToken.operator = operator;
           currentToken.content = content;
           currentToken.value = getValue(content, match, 8);
+          const name = variable;
+          const type = typeof currentToken.value as "string" | "number";
           currentToken.variable = {
-            name: variable,
-            type: typeof currentToken.value as "string" | "number",
+            name,
+            type,
           };
-          addVariable(currentToken, match, 4);
+          addVariable(name, type, currentToken.line, match, 4);
         }
       } else if ((match = currentToken.content.match(fountainRegexes.assign))) {
         currentToken.type = "assign";
@@ -533,7 +539,6 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
         if (currentToken.type === "section") {
           currentToken.level = match[2].length;
           currentToken.content = match[4];
-          currentToken.parameters = getParameterNames(match, 8);
           if (currentToken.level === 0) {
             currentSectionId = currentToken.content;
           } else if (currentToken.level === 1) {
@@ -551,6 +556,7 @@ export const parseFountain = (originalScript: string): FountainSyntaxTree => {
             currentSectionId = `${parentId}.${currentToken.content}`;
           }
           currentSectionTokens = [];
+          currentToken.parameters = getParameterNames(match, 8);
           addSection(
             currentSectionId,
             {

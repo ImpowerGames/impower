@@ -3,7 +3,7 @@ export const fountainRegexes = {
     /(title|credit|author[s]?|source|notes|draft date|date|watermark|contact( info)?|revision|copyright|font|tl|tc|tr|cc|br|bl):.*/i,
 
   section:
-    /^([ \t]*)(#+)( *)([\w\d]*)([ ]*)(?:([(])([ ]*)((?:[ ]*[,][ ]*|[\w]+[\w\d]*)*)([ ]*)([)])){0,1}([ ]*)$/,
+    /^([ \t]*)(#+)( *)([\w\d]*)([ ]*)(?:([(])([ ]*)((?:[ ]*[,][ ]*|[\w]+[\w\d]*[ ]*[=][ ]*(?:[\d]+|[\d]*[.][\d]*|`[^`\n\r]*`|"[^"\n\r]*"|'[^'\n\r]*'))*)([ ]*)([)])){0,1}([ ]*)$/,
   synopsis: /^[ \t]*(?:=(?!=+) *)(.*)/,
 
   scene_heading:
@@ -59,7 +59,10 @@ export const fountainRegexes = {
 
   string: /^(`[^`\n\r]*`|"[^"\n\r]*"|'[^'\n\r]*')$/g,
   separator: /([ ]*[,][ ]*)/g,
-  parameter_names: /([ ]*[,][ ]*|[\w]+[\w\d]*)/g,
+  parameter_declarations:
+    /([ ]*[,][ ]*|[\w]+[\w\d]*[ ]*[=][ ]*(?:[\d]+|[\d]*[.][\d]*|`[^`\n\r]*`|"[^"\n\r]*"|'[^'\n\r]*'))/g,
+  parameter_declaration:
+    /([ ]*[=][ ]*|[\w]+[\w\d]*|(?:[\d]+|[\d]*[.][\d]*|`[^`\n\r]*`|"[^"\n\r]*"|'[^'\n\r]*'))/g,
   parameter_values:
     /([ ]*[,][ ]*|[\w]+[\w\d]*|[\d]+|[\d]*[.][\d]*|`[^`\n\r]*`|"[^"\n\r]*"|'[^'\n\r]*')/g,
 
