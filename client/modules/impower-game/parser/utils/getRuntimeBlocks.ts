@@ -77,7 +77,7 @@ export const getRuntimeBlocks = (
           value,
         });
       } else if (token.type === "assign") {
-        const refId = getGlobalId(sectionId, token.line);
+        const refId = getGlobalId(sectionId, token.start);
         const refTypeId: CommandTypeId = "SetCommand";
         const newCommand: SetCommandData = {
           ...createCommandData({
@@ -92,7 +92,7 @@ export const getRuntimeBlocks = (
         };
         block.commands.data[refId] = newCommand;
       } else if (token.type === "trigger") {
-        const refId = getGlobalId(sectionId, `trigger-${token.line}`);
+        const refId = getGlobalId(sectionId, `trigger-${token.start}`);
         const refTypeId: TriggerTypeId =
           token.content === "all" ? "AllTrigger" : "AnyTrigger";
         const newTrigger = createTriggerData({
@@ -116,7 +116,7 @@ export const getRuntimeBlocks = (
           });
         }
       } else if (token.type === "compare") {
-        const refId = getGlobalId(sectionId, `trigger-${token.line}`);
+        const refId = getGlobalId(sectionId, `trigger-${token.start}`);
         const refTypeId = "CompareTrigger";
         const newTrigger: CompareTriggerData = {
           ...createTriggerData({
