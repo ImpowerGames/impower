@@ -1,12 +1,11 @@
 import {
-  TypeInfo,
-  FileTypeId,
-  createTransitionConfig,
   createDynamicData,
-  StorageType,
+  createTransitionConfig,
+  FileTypeId,
+  TypeInfo,
 } from "../../../../../../../data";
-import { CommandInspector } from "../../../command/commandInspector";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { CommandInspector } from "../../../command/commandInspector";
 import { HideImageCommandData } from "./hideImageCommandData";
 
 export class HideImageCommandInspector extends CommandInspector<HideImageCommandData> {
@@ -31,7 +30,7 @@ export class HideImageCommandInspector extends CommandInspector<HideImageCommand
     return {
       ...super.createData(data),
       image: createDynamicData({
-        refType: StorageType.File,
+        refType: "File",
         refTypeId: FileTypeId.ImageFile,
         refId: "",
       }),

@@ -1,18 +1,14 @@
 import { orderBy } from "../../../impower-core";
 import {
   ConfigData,
-  ConfigType,
-  ContainerType,
   DataLookup,
   FileData,
   FolderData,
   GameProjectData,
   InstanceData,
   isContainerReference,
-  ItemType,
   Permission,
   Scope,
-  StorageType,
   VariableContainerData,
   VariableData,
   VariableLifetime,
@@ -34,7 +30,7 @@ const getAllDataInternal = (
   lookup: DataLookup
 ): void => {
   switch (lookup.refType) {
-    case ConfigType.Config: {
+    case "Config": {
       if (project?.instances?.configs) {
         Object.keys(project?.instances?.configs.data).forEach((id) => {
           const data: ConfigData = project?.instances?.configs.data[id];
@@ -45,7 +41,7 @@ const getAllDataInternal = (
       }
       break;
     }
-    case ContainerType.Construct: {
+    case "Construct": {
       if (project?.instances?.constructs) {
         if (
           !lookup.parentContainerId ||
@@ -81,7 +77,7 @@ const getAllDataInternal = (
       }
       break;
     }
-    case ContainerType.Block: {
+    case "Block": {
       if (project?.instances?.blocks) {
         if (!lookup.parentContainerId || permission === Permission.Runtime) {
           Object.keys(project?.instances?.blocks?.data || {}).forEach((id) => {
@@ -112,7 +108,7 @@ const getAllDataInternal = (
       }
       break;
     }
-    case ItemType.Element: {
+    case "Element": {
       if (project?.instances?.constructs) {
         if (
           !lookup.parentContainerId ||
@@ -145,7 +141,7 @@ const getAllDataInternal = (
       }
       break;
     }
-    case ItemType.Trigger: {
+    case "Trigger": {
       if (project?.instances?.blocks) {
         if (!lookup.parentContainerId || permission === Permission.Runtime) {
           const blocks = Object.values(project?.instances?.blocks?.data || {});
@@ -173,7 +169,7 @@ const getAllDataInternal = (
       }
       break;
     }
-    case ItemType.Command: {
+    case "Command": {
       if (project?.instances?.blocks) {
         if (!lookup.parentContainerId || permission === Permission.Runtime) {
           const blocks = Object.values(project?.instances?.blocks?.data || {});
@@ -201,7 +197,7 @@ const getAllDataInternal = (
       }
       break;
     }
-    case ItemType.Variable: {
+    case "Variable": {
       if (project?.instances?.blocks || project?.instances?.constructs) {
         if (
           !lookup.parentContainerType ||
@@ -248,7 +244,6 @@ const getAllDataInternal = (
                 (permission === Permission.Access ||
                   rootData.permission === permission) &&
                 (rootData.scope === Scope.Descendents ||
-                  (rootData.scope === Scope.Children && level <= 1) ||
                   (rootData.scope === Scope.Self &&
                     level <= 0 &&
                     data.overrideParentContainerId ===
@@ -279,7 +274,7 @@ const getAllDataInternal = (
       }
       break;
     }
-    case StorageType.File: {
+    case "File": {
       if (project?.instances?.files) {
         Object.keys(project?.instances?.files?.data || {}).forEach((id) => {
           const data = project?.instances?.files?.data?.[id];
@@ -290,7 +285,7 @@ const getAllDataInternal = (
       }
       break;
     }
-    case StorageType.Folder: {
+    case "Folder": {
       if (project?.instances?.folders) {
         Object.keys(project?.instances?.folders.data).forEach((id) => {
           const data = project?.instances?.folders.data[id];

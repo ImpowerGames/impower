@@ -1,12 +1,8 @@
-import {
-  UIElementData,
-  TypeInfo,
-  ElementTypeId,
-} from "../../../../../../../data";
-import { UIElementInspector } from "../../uiElement/uiElementInspector";
+import { TypeInfo, UIElementData } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { UIElementInspector } from "../../uiElement/uiElementInspector";
 
-export class GroupElementInspector extends UIElementInspector<ElementTypeId.GroupElement> {
+export class GroupElementInspector extends UIElementInspector<"GroupElement"> {
   getTypeInfo(): TypeInfo {
     return {
       category: "UI",
@@ -18,9 +14,9 @@ export class GroupElementInspector extends UIElementInspector<ElementTypeId.Grou
   }
 
   createData(
-    data?: Partial<UIElementData<ElementTypeId.GroupElement>> &
-      Pick<UIElementData<ElementTypeId.GroupElement>, "reference">
-  ): UIElementData<ElementTypeId.GroupElement> {
+    data?: Partial<UIElementData<"GroupElement">> &
+      Pick<UIElementData<"GroupElement">, "reference">
+  ): UIElementData<"GroupElement"> {
     const defaultData = super.createData(data);
     return {
       ...defaultData,

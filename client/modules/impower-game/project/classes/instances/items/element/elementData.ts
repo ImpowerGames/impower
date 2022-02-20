@@ -1,4 +1,4 @@
-import { ElementTypeId, ItemType } from "../../../../../data";
+import { ElementTypeId } from "../../../../../data";
 import { Disableable } from "../../../../../data/interfaces/disableable";
 import {
   createElementReference,
@@ -8,7 +8,7 @@ import {
 import { createItemData, ItemData } from "../../item/itemData";
 
 export interface ElementData<T extends ElementTypeId = ElementTypeId>
-  extends ItemData<ItemType.Element, ElementReference<T>>,
+  extends ItemData<"Element", ElementReference<T>>,
     Disableable {}
 
 export const createElementData = (obj?: Partial<ElementData>): ElementData => ({

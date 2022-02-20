@@ -1,12 +1,11 @@
 import {
-  TypeInfo,
-  FileTypeId,
-  createTransitionConfig,
   createDynamicData,
-  StorageType,
+  createTransitionConfig,
+  FileTypeId,
+  TypeInfo,
 } from "../../../../../../../data";
-import { CommandInspector } from "../../../command/commandInspector";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { CommandInspector } from "../../../command/commandInspector";
 import { StopAudioCommandData } from "./stopAudioCommandData";
 
 export class StopAudioCommandInspector extends CommandInspector<StopAudioCommandData> {
@@ -31,7 +30,7 @@ export class StopAudioCommandInspector extends CommandInspector<StopAudioCommand
     return {
       ...super.createData(data),
       audio: createDynamicData({
-        refType: StorageType.File,
+        refType: "File",
         refTypeId: FileTypeId.AudioFile,
         refId: "",
       }),

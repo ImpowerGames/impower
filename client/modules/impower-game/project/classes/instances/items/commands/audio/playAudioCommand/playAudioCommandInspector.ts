@@ -2,7 +2,6 @@ import {
   createDynamicData,
   createTransitionConfig,
   FileTypeId,
-  StorageType,
   TypeInfo,
 } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
@@ -31,7 +30,7 @@ export class PlayAudioCommandInspector extends CommandInspector<PlayAudioCommand
     return {
       ...super.createData(data),
       audio: createDynamicData({
-        refType: StorageType.File,
+        refType: "File",
         refTypeId: FileTypeId.AudioFile,
         refId: "",
       }),

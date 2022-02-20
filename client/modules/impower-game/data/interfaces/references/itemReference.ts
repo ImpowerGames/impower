@@ -1,5 +1,5 @@
-import { isReference, Reference } from "../reference";
 import { ContainerType, ItemType } from "../../enums/data";
+import { isReference, Reference } from "../reference";
 
 export interface ItemReference<D extends ItemType = ItemType>
   extends Reference<D> {
@@ -19,9 +19,9 @@ export const isItemReference = <D extends ItemType = ItemType>(
     isReference(obj) &&
     itemReference.parentContainerType !== undefined &&
     itemReference.parentContainerId !== undefined &&
-    (itemReference.refType === ItemType.Element ||
-      itemReference.refType === ItemType.Variable ||
-      itemReference.refType === ItemType.Trigger ||
-      itemReference.refType === ItemType.Command)
+    (itemReference.refType === "Element" ||
+      itemReference.refType === "Variable" ||
+      itemReference.refType === "Trigger" ||
+      itemReference.refType === "Command")
   );
 };

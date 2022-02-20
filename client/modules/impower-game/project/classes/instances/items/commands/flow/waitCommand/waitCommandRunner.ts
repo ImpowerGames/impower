@@ -1,11 +1,11 @@
 import {
-  WaitCommandData,
   CommandData,
   VariableData,
+  WaitCommandData,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
-import { CommandRunner } from "../../../command/commandRunner";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
+import { CommandRunner } from "../../../command/commandRunner";
 
 export class WaitCommandRunner extends CommandRunner<WaitCommandData> {
   onExecute(
@@ -37,8 +37,7 @@ export class WaitCommandRunner extends CommandRunner<WaitCommandData> {
     }
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
-    const timeSinceExecution =
-      blockState.time - blockState.timeOfLastCommandExecution;
+    const timeSinceExecution = blockState.time - blockState.lastExecutedAt;
     if (seconds < 0) {
       return false;
     }

@@ -1,4 +1,3 @@
-import { ItemType } from "../../../../../data/enums/data";
 import { Disableable } from "../../../../../data/interfaces/disableable";
 import {
   createTriggerReference,
@@ -9,7 +8,7 @@ import { createItemData, ItemData } from "../../item/itemData";
 import { TriggerTypeId } from "./triggerTypeId";
 
 export interface TriggerData<T extends TriggerTypeId = TriggerTypeId>
-  extends ItemData<ItemType.Trigger, TriggerReference<T>>,
+  extends ItemData<"Trigger", TriggerReference<T>>,
     Disableable {
   repeatable: boolean;
 }

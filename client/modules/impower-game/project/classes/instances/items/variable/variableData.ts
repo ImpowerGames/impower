@@ -1,5 +1,4 @@
 import { Nameable } from "../../../../../../impower-core";
-import { ContainerType, ItemType } from "../../../../../data/enums/data";
 import { Permission } from "../../../../../data/enums/permission";
 import { Scope } from "../../../../../data/enums/scope";
 import { VariableLifetime } from "../../../../../data/enums/variableLifetime";
@@ -15,7 +14,7 @@ import { VariableTypeId } from "./variableTypeId";
 export interface VariableData<
   T extends VariableTypeId = VariableTypeId,
   V = unknown
-> extends ItemData<ItemType.Variable, VariableReference<T>>,
+> extends ItemData<"Variable", VariableReference<T>>,
     Nameable,
     Scopable {
   lifetime: VariableLifetime;
@@ -48,7 +47,7 @@ export const createVariableData = <
   name: "NewVariable",
   scope: Scope.Self,
   permission:
-    obj?.reference?.parentContainerType === ContainerType.Construct
+    obj?.reference?.parentContainerType === "Construct"
       ? Permission.Inherit
       : Permission.Access,
   overrideParentContainerId: obj?.reference?.parentContainerId,

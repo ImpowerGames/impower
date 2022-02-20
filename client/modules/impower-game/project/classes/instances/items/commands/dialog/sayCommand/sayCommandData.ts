@@ -1,10 +1,9 @@
-import { AudioFileReference } from "../../../../../../../data/interfaces/references/audioFileReference";
 import { DynamicData } from "../../../../../../../data/interfaces/generics/dynamicData";
-import { CommandData } from "../../../command/commandData";
+import { AudioFileReference } from "../../../../../../../data/interfaces/references/audioFileReference";
 import { ConstructReference } from "../../../../../../../data/interfaces/references/constructReference";
-import { CommandTypeId } from "../../../command/commandTypeId";
+import { CommandData } from "../../../command/commandData";
 
-export interface SayCommandData extends CommandData<CommandTypeId.SayCommand> {
+export interface SayCommandData extends CommandData<"SayCommand"> {
   dialogUI: DynamicData<ConstructReference>;
   character: DynamicData<ConstructReference>;
   dialogText: DynamicData<string>;

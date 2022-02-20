@@ -10,7 +10,7 @@ import React, {
 import { debounce } from "../../impower-core";
 import { useAllDocs } from "../../impower-data-state";
 import { ProjectDocument } from "../../impower-data-store";
-import { GameProjectData, ItemType } from "../../impower-game/data";
+import { GameProjectData } from "../../impower-game/data";
 import { ImpowerGame } from "../../impower-game/game";
 import { ImpowerGameInspector } from "../../impower-game/inspector";
 import { ImpowerGameRunner } from "../../impower-game/runner";
@@ -239,7 +239,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
         dataPanelInspect(DataWindowType.Logic, DataPanelType.Container, data.id)
       );
       projectEngineDispatch(
-        dataPanelChangeItemSection(DataWindowType.Logic, ItemType.Command)
+        dataPanelChangeItemSection(DataWindowType.Logic, "Command")
       );
     }, debounceDelay);
     events.onOpenData.addListener(onOpenData);
@@ -286,7 +286,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
         );
       }
       projectEngineDispatch(
-        dataPanelChangeItemSection(DataWindowType.Logic, ItemType.Command)
+        dataPanelChangeItemSection(DataWindowType.Logic, "Command")
       );
       events.onFocusData.emit({ ids: [data.id] });
     }, debounceDelay);

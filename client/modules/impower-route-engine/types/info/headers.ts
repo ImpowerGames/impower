@@ -35,7 +35,7 @@ export interface HeaderInfo extends ButtonInfo {
 }
 
 export const constructHeader: HeaderInfo = {
-  type: ContainerType.Construct,
+  type: "Construct",
   name: "Construct",
   pluralName: "Constructs",
   iconOn: CubeSolidIcon,
@@ -43,7 +43,7 @@ export const constructHeader: HeaderInfo = {
 };
 
 export const blockHeader: HeaderInfo = {
-  type: ContainerType.Block,
+  type: "Block",
   name: "Block",
   pluralName: "Blocks",
   iconOn: SquareSolidIcon,
@@ -51,7 +51,7 @@ export const blockHeader: HeaderInfo = {
 };
 
 export const elementHeader: HeaderInfo = {
-  type: ItemType.Element,
+  type: "Element",
   name: "Element",
   pluralName: "Elements",
   iconOn: ShapesSolidIcon,
@@ -59,7 +59,7 @@ export const elementHeader: HeaderInfo = {
 };
 
 export const variableHeader: HeaderInfo = {
-  type: ItemType.Variable,
+  type: "Variable",
   name: "Variable",
   pluralName: "Variables",
   iconOn: SubscriptSolidIcon,
@@ -67,7 +67,7 @@ export const variableHeader: HeaderInfo = {
 };
 
 export const triggerHeader: HeaderInfo = {
-  type: ItemType.Trigger,
+  type: "Trigger",
   name: "Trigger",
   pluralName: "Triggers",
   iconOn: BoltSolidIcon,
@@ -75,7 +75,7 @@ export const triggerHeader: HeaderInfo = {
 };
 
 export const commandHeader: HeaderInfo = {
-  type: ItemType.Command,
+  type: "Command",
   name: "Command",
   pluralName: "Commands",
   iconOn: WandMagicSparklesSolidIcon,
@@ -83,7 +83,7 @@ export const commandHeader: HeaderInfo = {
 };
 
 export const previewHeader: HeaderInfo = {
-  type: ItemSectionType.Preview,
+  type: "Preview",
   name: "Canvas",
   pluralName: "Preview",
   iconOn: EyeSolidIcon,
@@ -91,7 +91,7 @@ export const previewHeader: HeaderInfo = {
 };
 
 export const gameSetupHeader: HeaderInfo = {
-  type: SetupSectionType.Details,
+  type: "Details",
   name: "Details",
   pluralName: "Details",
   iconOn: GearSolidIcon,
@@ -99,7 +99,7 @@ export const gameSetupHeader: HeaderInfo = {
 };
 
 export const projectSetupHeader: HeaderInfo = {
-  type: SetupSectionType.Configuration,
+  type: "Configuration",
   name: "Configuration",
   pluralName: "Configuration",
   iconOn: GearSolidIcon,
@@ -107,7 +107,7 @@ export const projectSetupHeader: HeaderInfo = {
 };
 
 export const accessSetupHeader: HeaderInfo = {
-  type: SetupSectionType.Access,
+  type: "Access",
   name: "Access",
   pluralName: "Access",
   iconOn: GearSolidIcon,
@@ -116,25 +116,25 @@ export const accessSetupHeader: HeaderInfo = {
 
 export const getHeader = (headerType: HeaderType): HeaderInfo => {
   switch (headerType) {
-    case ContainerType.Construct:
+    case "Construct":
       return constructHeader;
-    case ContainerType.Block:
+    case "Block":
       return blockHeader;
-    case ItemType.Element:
+    case "Element":
       return elementHeader;
-    case ItemType.Variable:
+    case "Variable":
       return variableHeader;
-    case ItemType.Trigger:
+    case "Trigger":
       return triggerHeader;
-    case ItemType.Command:
+    case "Command":
       return commandHeader;
-    case ItemSectionType.Preview:
+    case "Preview":
       return previewHeader;
-    case SetupSectionType.Details:
+    case "Details":
       return gameSetupHeader;
-    case SetupSectionType.Configuration:
+    case "Configuration":
       return projectSetupHeader;
-    case SetupSectionType.Access:
+    case "Access":
       return accessSetupHeader;
     default:
       throw new Error("HeaderType not recognized");

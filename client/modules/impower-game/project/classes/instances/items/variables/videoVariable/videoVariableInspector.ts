@@ -1,17 +1,16 @@
 import {
-  VideoFileReference,
-  VariableData,
-  VariableTypeId,
   TypeInfo,
+  VariableData,
+  VideoFileReference,
 } from "../../../../../../data";
 import { getProjectColor } from "../../../../../../inspector/utils/getProjectColor";
 import { VariableInspector } from "../../variable/variableInspector";
 
 export class VideoVariableInspector extends VariableInspector<
-  VariableData<VariableTypeId.VideoVariable, VideoFileReference>
+  VariableData<"VideoVariable", VideoFileReference>
 > {
   getTypeInfo(
-    data?: VariableData<VariableTypeId.VideoVariable, VideoFileReference>
+    data?: VariableData<"VideoVariable", VideoFileReference>
   ): TypeInfo {
     return {
       category: "Reference",

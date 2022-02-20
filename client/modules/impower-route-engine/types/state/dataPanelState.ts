@@ -1,13 +1,8 @@
 import {
-  CommandTypeId,
-  ContainerType,
-  ElementTypeId,
   ItemSectionType,
   ItemType,
   Reference,
   SetupSectionType,
-  TriggerTypeId,
-  VariableTypeId,
 } from "../../../impower-game/data";
 
 export enum DataWindowType {
@@ -90,17 +85,17 @@ export const createDataPanelState = (): DataPanelState => ({
         },
       },
       Item: {
-        section: SetupSectionType.Details,
+        section: "Details",
         interactions: {
           Selected: [],
           Dragging: [],
           Expanded: [],
         },
         lastAddedTypeIds: {
-          Trigger: TriggerTypeId.EnteredTrigger,
-          Command: CommandTypeId.DoCommand,
-          Variable: VariableTypeId.StringVariable,
-          Element: ElementTypeId.TextElement,
+          Trigger: "EnteredTrigger",
+          Command: "DoCommand",
+          Variable: "StringVariable",
+          Element: "TextElement",
         },
       },
       Detail: {
@@ -123,17 +118,17 @@ export const createDataPanelState = (): DataPanelState => ({
         },
       },
       Item: {
-        section: ItemType.Command,
+        section: "Command",
         interactions: {
           Selected: [],
           Dragging: [],
           Expanded: [],
         },
         lastAddedTypeIds: {
-          Trigger: TriggerTypeId.EnteredTrigger,
-          Command: CommandTypeId.DoCommand,
-          Variable: VariableTypeId.StringVariable,
-          Element: ElementTypeId.TextElement,
+          Trigger: "EnteredTrigger",
+          Command: "DoCommand",
+          Variable: "StringVariable",
+          Element: "TextElement",
         },
       },
       Detail: {
@@ -149,7 +144,7 @@ export const createDataPanelState = (): DataPanelState => ({
       Container: {
         scripting: false,
         arrangement: ContainerArrangement.List,
-        inspectedTargetId: ContainerType.Construct,
+        inspectedTargetId: "Construct",
         interactions: {
           Selected: [],
           Dragging: [],
@@ -157,17 +152,17 @@ export const createDataPanelState = (): DataPanelState => ({
         },
       },
       Item: {
-        section: ItemType.Element,
+        section: "Element",
         interactions: {
           Selected: [],
           Dragging: [],
           Expanded: [],
         },
         lastAddedTypeIds: {
-          Trigger: TriggerTypeId.EnteredTrigger,
-          Command: CommandTypeId.DoCommand,
-          Variable: VariableTypeId.StringVariable,
-          Element: ElementTypeId.TextElement,
+          Trigger: "EnteredTrigger",
+          Command: "DoCommand",
+          Variable: "StringVariable",
+          Element: "TextElement",
         },
       },
       Detail: {
@@ -183,7 +178,7 @@ export const createDataPanelState = (): DataPanelState => ({
       Container: {
         scripting: true,
         arrangement: ContainerArrangement.List,
-        inspectedTargetId: ContainerType.Block,
+        inspectedTargetId: "Block",
         interactions: {
           Selected: [],
           Dragging: [],
@@ -191,17 +186,17 @@ export const createDataPanelState = (): DataPanelState => ({
         },
       },
       Item: {
-        section: ItemType.Command,
+        section: "Command",
         interactions: {
           Selected: [],
           Dragging: [],
           Expanded: [],
         },
         lastAddedTypeIds: {
-          Trigger: TriggerTypeId.EnteredTrigger,
-          Command: CommandTypeId.DoCommand,
-          Variable: VariableTypeId.StringVariable,
-          Element: ElementTypeId.TextElement,
+          Trigger: "EnteredTrigger",
+          Command: "DoCommand",
+          Variable: "StringVariable",
+          Element: "TextElement",
         },
       },
       Detail: {

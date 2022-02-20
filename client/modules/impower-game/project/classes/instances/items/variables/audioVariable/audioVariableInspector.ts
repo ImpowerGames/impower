@@ -2,16 +2,15 @@ import {
   AudioFileReference,
   TypeInfo,
   VariableData,
-  VariableTypeId,
 } from "../../../../../../data";
 import { getProjectColor } from "../../../../../../inspector/utils/getProjectColor";
 import { VariableInspector } from "../../variable/variableInspector";
 
 export class AudioVariableInspector extends VariableInspector<
-  VariableData<VariableTypeId.AudioVariable, AudioFileReference>
+  VariableData<"AudioVariable", AudioFileReference>
 > {
   getTypeInfo(
-    data?: VariableData<VariableTypeId.AudioVariable, AudioFileReference>
+    data?: VariableData<"AudioVariable", AudioFileReference>
   ): TypeInfo {
     return {
       category: "Reference",

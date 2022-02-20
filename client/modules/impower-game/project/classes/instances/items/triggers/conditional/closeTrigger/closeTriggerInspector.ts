@@ -1,13 +1,9 @@
-import {
-  TriggerData,
-  TriggerTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
-import { TriggerInspector } from "../../../trigger/triggerInspector";
+import { TriggerData, TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { TriggerInspector } from "../../../trigger/triggerInspector";
 
 export class CloseTriggerInspector extends TriggerInspector<
-  TriggerData<TriggerTypeId.CloseTrigger>
+  TriggerData<"CloseTrigger">
 > {
   getTypeInfo(): TypeInfo {
     return {
@@ -21,7 +17,7 @@ export class CloseTriggerInspector extends TriggerInspector<
 
   isPropertyVisible(
     propertyPath: string,
-    data: TriggerData<TriggerTypeId.CloseTrigger>
+    data: TriggerData<"CloseTrigger">
   ): boolean {
     if (propertyPath === "repeatable") {
       return false;

@@ -18,7 +18,7 @@ const StyledBottomButtonContent = styled.div`
 interface PanelHeaderProps {
   scrollParent?: HTMLElement;
   type: "default" | "context" | "search";
-  title: string;
+  title: React.ReactNode;
   backIcon?: React.ReactNode;
   backLabel?: string;
   moreLabel?: string;

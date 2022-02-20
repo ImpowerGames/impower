@@ -1,5 +1,5 @@
 import { PartialParse } from "@lezer/common";
-import { fountainRegexes } from "../../impower-script-parser/constants/fountainRegexes";
+import { fountainRegexes } from "../../impower-script-parser";
 import { BlockContext } from "../classes/BlockContext";
 import { CompositeBlock } from "../classes/CompositeBlock";
 import { Element } from "../classes/Element";
@@ -118,9 +118,10 @@ export function isBulletList(
   cx: BlockContext,
   breaking: boolean
 ): number {
-  return (line.next === 45 ||
-    line.next === 43 ||
-    line.next === 42) /* '-+*' */ &&
+  return (line.next === "-".charCodeAt(0) ||
+    line.next === "+".charCodeAt(0) ||
+    line.next === "*".charCodeAt(0) ||
+    line.next === "?".charCodeAt(0)) &&
     (line.pos === line.text.length - 1 ||
       space(line.text.charCodeAt(line.pos + 1))) &&
     (!breaking ||
@@ -200,6 +201,83 @@ export function isFencedCode(line: Line): number {
     return -1;
   }
   return pos;
+}
+
+export function isGo(line: Line): number {
+  const charCodes = [">".charCodeAt(0)];
+  if (!charCodes.includes(line.next)) {
+    return -1;
+  }
+  if (!line.text.trim().match(fountainRegexes.go)) {
+    return -1;
+  }
+  return line.text.length;
+}
+
+export function isJump(line: Line): number {
+  const charCodes = [">".charCodeAt(0), "<".charCodeAt(0), "^".charCodeAt(0)];
+  if (!charCodes.includes(line.next)) {
+    return -1;
+  }
+  if (!line.text.trim().match(fountainRegexes.jump)) {
+    return -1;
+  }
+  return line.text.length;
+}
+
+export function isReturn(line: Line): number {
+  const charCode = "r".charCodeAt(0);
+  if (line.next !== charCode) {
+    return -1;
+  }
+  if (!line.text.trim().match(fountainRegexes.return)) {
+    return -1;
+  }
+  return line.text.length;
+}
+
+export function isDeclare(line: Line): number {
+  const charCode = "v".charCodeAt(0);
+  if (line.next !== charCode) {
+    return -1;
+  }
+  if (!line.text.trim().match(fountainRegexes.declare)) {
+    return -1;
+  }
+  return line.text.length;
+}
+
+export function isAssign(line: Line): number {
+  const charCode = "~".charCodeAt(0);
+  if (line.next !== charCode) {
+    return -1;
+  }
+  if (!line.text.trim().match(fountainRegexes.assign)) {
+    return -1;
+  }
+  return line.text.length;
+}
+
+export function isCompare(line: Line): number {
+  const charCode = "?".charCodeAt(0);
+  if (line.next !== charCode) {
+    return -1;
+  }
+  if (!line.text.trim().match(fountainRegexes.compare)) {
+    return -1;
+  }
+  return line.text.length;
+}
+
+export function isTrigger(line: Line): number {
+  const charCode = "?".charCodeAt(0);
+  if (line.next !== charCode) {
+    return -1;
+  }
+  if (!line.text.trim().match(fountainRegexes.trigger)) {
+    return -1;
+  }
+  return line.text.length;
 }
 
 export function isSectionHeading(line: Line): number {

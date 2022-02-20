@@ -61,12 +61,12 @@ export const getChildContainers = (
   const parentContainer = projectContainers[parentContainerId];
 
   switch (containerType) {
-    case ContainerType.Construct:
+    case "Construct":
       return getChildConstructs(
         parentContainer as ConstructData,
         projectContainers as { [refId: string]: ConstructData }
       );
-    case ContainerType.Block:
+    case "Block":
       return getChildBlocks(
         parentContainer as BlockData,
         projectContainers as { [refId: string]: BlockData }
@@ -82,9 +82,9 @@ export const getItems = (
 ): { [refId: string]: ItemData } => {
   if (isConstructData(container)) {
     switch (itemType) {
-      case ItemType.Variable:
+      case "Variable":
         return container?.variables?.data || {};
-      case ItemType.Element:
+      case "Element":
         return container?.elements?.data || {};
       default:
         return {};
@@ -92,11 +92,11 @@ export const getItems = (
   }
   if (isBlockData(container)) {
     switch (itemType) {
-      case ItemType.Trigger:
+      case "Trigger":
         return container?.triggers?.data || {};
-      case ItemType.Command:
+      case "Command":
         return container?.commands?.data || {};
-      case ItemType.Variable:
+      case "Variable":
         return container?.variables?.data || {};
       default:
         return {};

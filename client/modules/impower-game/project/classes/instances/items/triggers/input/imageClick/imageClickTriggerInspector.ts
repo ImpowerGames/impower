@@ -2,7 +2,6 @@ import {
   createDynamicData,
   FileTypeId,
   InputCondition,
-  StorageType,
   TypeInfo,
 } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
@@ -57,7 +56,7 @@ export class ImageClickTriggerInspector extends TriggerInspector<ImageClickTrigg
   ): ImageClickTriggerData {
     return {
       image: createDynamicData({
-        refType: StorageType.File,
+        refType: "File",
         refTypeId: FileTypeId.ImageFile,
         refId: "",
       }),

@@ -1,5 +1,5 @@
 /* eslint-disable no-cond-assign */
-import { fountainRegexes } from "../../impower-script-parser/constants/fountainRegexes";
+import { fountainRegexes } from "../../impower-script-parser";
 import { BlockContext } from "../classes/BlockContext";
 import { Element } from "../classes/Element";
 import { Line } from "../classes/Line";
@@ -10,12 +10,17 @@ import {
   addCodeText,
   getListIndent,
   inContext,
+  isAssign,
   isBulletList,
   isCentered,
+  isDeclare,
   isFencedCode,
+  isGo,
   isHorizontalRule,
   isHTMLBlock,
+  isJump,
   isOrderedList,
+  isReturn,
   isSceneHeading,
   isSectionHeading,
   isSynopses,
@@ -125,21 +130,70 @@ export const DefaultBlockParsers: {
     return true;
   },
 
+  Go(cx, line) {
+    const size = isGo(line);
+    if (size < 0) {
+      return false;
+    }
+    const from = cx.lineStart + line.pos;
+    cx.nextLine();
+    cx.addNode(Type.Go, from);
+    return true;
+  },
+
+  Jump(cx, line) {
+    const size = isJump(line);
+    if (size < 0) {
+      return false;
+    }
+    const from = cx.lineStart + line.pos;
+    cx.nextLine();
+    cx.addNode(Type.Jump, from);
+    return true;
+  },
+
+  Return(cx, line) {
+    const size = isReturn(line);
+    if (size < 0) {
+      return false;
+    }
+    const from = cx.lineStart + line.pos;
+    cx.nextLine();
+    cx.addNode(Type.Return, from);
+    return true;
+  },
+
+  Declare(cx, line) {
+    const size = isDeclare(line);
+    if (size < 0) {
+      return false;
+    }
+    const from = cx.lineStart + line.pos;
+    cx.nextLine();
+    cx.addNode(Type.Declare, from);
+    return true;
+  },
+
+  Assign(cx, line) {
+    const size = isAssign(line);
+    if (size < 0) {
+      return false;
+    }
+    const from = cx.lineStart + line.pos;
+    cx.nextLine();
+    cx.addNode(Type.Assign, from);
+    return true;
+  },
+
   Transition(cx, line) {
     const size = isTransition(line);
     if (size < 0) {
       return false;
     }
-    cx.startContext(Type.Transition, line.pos);
-    if (size > 0) {
-      cx.addNode(
-        Type.TransitionMark,
-        cx.lineStart + line.pos,
-        cx.lineStart + line.pos + 1
-      );
-    }
-    line.moveBase(line.pos + 1);
-    return null;
+    const from = cx.lineStart + line.pos;
+    cx.nextLine();
+    cx.addNode(Type.Transition, from);
+    return true;
   },
 
   HorizontalRule(cx, line) {
@@ -191,11 +245,19 @@ export const DefaultBlockParsers: {
     }
     const newBase = getListIndent(line, line.pos + 1);
     cx.startContext(Type.ListItem, line.basePos, newBase - line.baseIndent);
-    cx.addNode(
-      Type.ListMark,
-      cx.lineStart + line.pos,
-      cx.lineStart + line.pos + size
-    );
+    if (line.next === "?".charCodeAt(0)) {
+      cx.addNode(
+        Type.Trigger,
+        cx.lineStart + line.pos,
+        cx.lineStart + line.text.length
+      );
+    } else {
+      cx.addNode(
+        Type.ListMark,
+        cx.lineStart + line.pos,
+        cx.lineStart + line.pos + size
+      );
+    }
     line.moveBaseColumn(newBase);
     return null;
   },

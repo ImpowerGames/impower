@@ -1,10 +1,6 @@
 import { parseFountain } from "../../../impower-script-parser";
-import {
-  BlockData,
-  ConstructData,
-  createBlockData,
-  createBlockReference,
-} from "../../data";
+import { BlockData, ConstructData } from "../../data";
+import { getRuntimeBlocks } from "../../parser";
 import { ImpowerGameRunner } from "../../runner/classes/impowerGameRunner";
 import { FileData } from "./instances/file/fileData";
 import { CommandData } from "./instances/items/command/commandData";
@@ -73,44 +69,17 @@ export class ImpowerDataMap {
   }
 
   constructor(project: GameProjectData, runner: ImpowerGameRunner) {
+    const script = project?.scripts?.logic?.data?.root;
+    const sections = parseFountain(script)?.sections || {};
+    const runtimeBlocks = getRuntimeBlocks(sections);
+    const constructs: { [id: string]: ConstructData } = {};
+    const blocks: { [id: string]: BlockData } = { ...runtimeBlocks };
+
     this._files = { ...(project?.instances?.files?.data || {}) };
     this._constructs = {};
     this._variables = {};
     this._elements = {};
     this._blockInternalRunners = {};
-
-    const script = project?.scripts?.logic?.data?.root;
-    const constructs: { [refId: string]: ConstructData } = {};
-    const blocks: { [refId: string]: BlockData } = {};
-    if (script) {
-      const syntaxTree = parseFountain(script);
-      console.log(syntaxTree);
-      console.log(syntaxTree.properties.sections);
-      const sections = syntaxTree?.properties?.sections || {};
-      const rootChildrenIds: string[] = [];
-      Object.entries(sections).forEach(([key, section]) => {
-        blocks[key] = createBlockData({
-          reference: createBlockReference({
-            parentContainerId: key.split(".").slice(0, -1).join("."),
-            refId: key,
-          }),
-          name: section.text,
-          childContainerIds: section.children?.map((x) => x.id) || [],
-        });
-        if (!key.includes(".")) {
-          rootChildrenIds.push(key);
-        }
-      });
-      const rootKey = "";
-      blocks[rootKey] = createBlockData({
-        reference: createBlockReference({
-          refId: rootKey,
-        }),
-        name: "ROOT",
-        childContainerIds: rootChildrenIds,
-      });
-      console.log(blocks);
-    }
 
     Object.values(constructs).forEach((construct) => {
       this._constructs[construct.reference.refId] = construct;

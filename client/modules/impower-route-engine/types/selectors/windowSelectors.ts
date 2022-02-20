@@ -6,9 +6,9 @@ export const getContainerType = (
 ): ContainerType | undefined => {
   switch (windowType) {
     case DataWindowType.Entities:
-      return ContainerType.Construct;
+      return "Construct";
     case DataWindowType.Logic:
-      return ContainerType.Block;
+      return "Block";
     default:
       return undefined;
   }

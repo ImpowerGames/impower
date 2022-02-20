@@ -1,13 +1,9 @@
-import {
-  TriggerData,
-  TriggerTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
-import { TriggerInspector } from "../../../trigger/triggerInspector";
+import { TriggerData, TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { TriggerInspector } from "../../../trigger/triggerInspector";
 
 export class AnyTriggerInspector extends TriggerInspector<
-  TriggerData<TriggerTypeId.AnyTrigger>
+  TriggerData<"AnyTrigger">
 > {
   getTypeInfo(): TypeInfo {
     return {
@@ -19,13 +15,13 @@ export class AnyTriggerInspector extends TriggerInspector<
     };
   }
 
-  getSummary(_data: TriggerData<TriggerTypeId.AnyTrigger>): string {
+  getSummary(_data: TriggerData<"AnyTrigger">): string {
     return "{";
   }
 
   isPropertyVisible(
     propertyPath: string,
-    data: TriggerData<TriggerTypeId.AnyTrigger>
+    data: TriggerData<"AnyTrigger">
   ): boolean {
     if (propertyPath === "repeatable") {
       return false;

@@ -1,12 +1,11 @@
+import { useTheme } from "@emotion/react";
 import React, {
-  useState,
+  useCallback,
+  useContext,
   useEffect,
   useRef,
-  useContext,
-  useCallback,
+  useState,
 } from "react";
-
-import { useTheme } from "@emotion/react";
 import {
   LinkDefault,
   LinkDefaultProps,
@@ -36,9 +35,7 @@ export const DataLink = React.memo((props: LinkDefaultProps): JSX.Element => {
     if (!blockState) {
       return undefined;
     }
-    return (
-      blockState.isExecuting && blockState.executedByBlockId === fromNodeId
-    );
+    return blockState.isExecuting && blockState.executedBy === fromNodeId;
   }, [game, toNodeId, fromNodeId]);
 
   const [executing, setExecuting] = useState(isExecuting());

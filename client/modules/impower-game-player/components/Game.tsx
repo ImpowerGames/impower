@@ -6,7 +6,7 @@ import React, {
   useState,
 } from "react";
 import Measure from "react-measure";
-import { ContainerType, getBlockTree } from "../../impower-game/data";
+import { getBlockTree } from "../../impower-game/data";
 import { ImpowerGame, SaveData } from "../../impower-game/game";
 import { GameProjectData } from "../../impower-game/project/classes/project/gameProjectData";
 import { ImpowerGameRunner } from "../../impower-game/runner";
@@ -74,7 +74,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
   const projectId = engineState.present.project.id;
   const defaultStartBlockId =
     engineState.present.dataPanel?.panels?.Logic.Container?.inspectedTargetId ||
-    ContainerType.Block;
+    "Block";
 
   useEffect(() => {
     const setMobile = (): void => {

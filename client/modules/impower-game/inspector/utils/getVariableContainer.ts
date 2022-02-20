@@ -8,10 +8,10 @@ export const getVariableContainer = (
   containerId: string
 ): VariableContainerData => {
   switch (containerType) {
-    case ContainerType.Construct: {
+    case "Construct": {
       return project?.instances?.constructs.data[containerId];
     }
-    case ContainerType.Block: {
+    case "Block": {
       return project?.instances?.blocks.data[containerId];
     }
     default: {

@@ -52,7 +52,7 @@ function getContext(node: SyntaxNode, line: string, doc: Text) {
     } else if (
       node.name === "ListItem" &&
       node.parent.name === "BulletList" &&
-      (match = /^([ \t]*)([-+*])([ \t]+)/.exec(nodeStart(node, doc)))
+      (match = /^([ \t]*)([-+*?])([ \t]+)/.exec(nodeStart(node, doc)))
     ) {
       let after = match[3];
       let len = match[0].length;
@@ -177,7 +177,7 @@ export const insertNewlineContinueMarkup: StateCommand = ({
     // If not dedented
     if (
       !continued ||
-      /^[\s\d.)\-+*>]*/.exec(line.text)?.[0].length >= inner.to
+      /^[\s\d.)\-+*?>]*/.exec(line.text)?.[0].length >= inner.to
     ) {
       for (let i = 0, e = context.length - 1; i <= e; i += 1) {
         insert +=

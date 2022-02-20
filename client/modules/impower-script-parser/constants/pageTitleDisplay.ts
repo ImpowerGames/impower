@@ -1,5 +1,5 @@
+import { FountainTitleKeyword } from "../types/FountainTitleKeyword";
 import { FountainTitlePosition } from "../types/FountainTitlePosition";
-import { FountainTitleKeyword } from "../types/FountainTokenType";
 
 export const titlePageDisplay: {
   [key in FountainTitleKeyword | FountainTitlePosition]: {

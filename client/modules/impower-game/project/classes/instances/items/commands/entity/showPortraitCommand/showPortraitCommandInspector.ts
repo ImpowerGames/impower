@@ -1,14 +1,10 @@
 import {
-  ContainerType,
   createDynamicData,
-  ElementTypeId,
   FileTypeId,
-  ItemType,
-  StorageType,
   TypeInfo,
 } from "../../../../../../../data";
-import { CommandInspector } from "../../../command/commandInspector";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { CommandInspector } from "../../../command/commandInspector";
 import { ShowPortraitCommandData } from "./showPortraitCommandData";
 
 export class ShowPortraitCommandInspector extends CommandInspector<ShowPortraitCommandData> {
@@ -38,21 +34,21 @@ export class ShowPortraitCommandInspector extends CommandInspector<ShowPortraitC
       ...super.createData(data),
       name: `MyPortrait`,
       stage: createDynamicData({
-        parentContainerType: ContainerType.Construct,
+        parentContainerType: "Construct",
         parentContainerId: "",
-        refType: ContainerType.Construct,
-        refTypeId: ContainerType.Construct,
+        refType: "Construct",
+        refTypeId: "Construct",
         refId: "",
       }),
       position: createDynamicData({
-        parentContainerType: ContainerType.Construct,
+        parentContainerType: "Construct",
         parentContainerId: "",
-        refType: ItemType.Element,
-        refTypeId: ElementTypeId.ShapeElement,
+        refType: "Element",
+        refTypeId: "ShapeElement",
         refId: "",
       }),
       image: createDynamicData({
-        refType: StorageType.File,
+        refType: "File",
         refTypeId: FileTypeId.ImageFile,
         refId: "",
       }),

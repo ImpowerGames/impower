@@ -6,11 +6,8 @@ import {
 import {
   CompareOperator,
   Condition,
-  ContainerType,
   createDynamicData,
-  getCompareOperatorSymbol,
   IfCommandData,
-  ItemType,
   TypeInfo,
   VariableTypeId,
 } from "../../../../../../../data";
@@ -32,8 +29,9 @@ export class IfCommandInspector extends CommandInspector<IfCommandData> {
 
   getConditionSummary(condition: Condition, conditionKey: string): string {
     if (condition?.variable?.refId) {
-      const operatorSymbol = getCompareOperatorSymbol(condition.operator);
-      return `({conditions.data.${conditionKey}.variable} ${operatorSymbol} {conditions.data.${conditionKey}.value})`;
+      return `({conditions.data.${conditionKey}.variable} ${
+        CompareOperator[condition.operator]
+      } {conditions.data.${conditionKey}.value})`;
     }
     return "";
   }
@@ -69,9 +67,9 @@ export class IfCommandInspector extends CommandInspector<IfCommandData> {
       conditions: {
         default: {
           variable: {
-            parentContainerType: ContainerType.Block,
+            parentContainerType: "Block",
             parentContainerId: "",
-            refType: ItemType.Variable,
+            refType: "Variable",
             refTypeId: "" as VariableTypeId,
             refId: "",
           },
@@ -159,7 +157,7 @@ export class IfCommandInspector extends CommandInspector<IfCommandData> {
   ): string {
     if (propertyPath.endsWith(".operator")) {
       if (value !== undefined) {
-        return getCompareOperatorSymbol(value as CompareOperator);
+        return CompareOperator[value as CompareOperator];
       }
     }
     return super.getPropertyDisplayValue(propertyPath, data, value);

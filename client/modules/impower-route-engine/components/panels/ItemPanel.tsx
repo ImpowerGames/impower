@@ -140,7 +140,7 @@ const getList = async (
   errorColor: string
 ): Promise<OrderedCollection<DataButtonInfo>> => {
   switch (itemSectionType) {
-    case ItemSectionType.Preview:
+    case "Preview":
       return {
         order: [],
         data: {},
@@ -455,8 +455,7 @@ const ItemPanelContent = React.memo(
       theme.palette.error.main,
     ]);
 
-    const empty =
-      section !== ItemSectionType.Preview && list.order.length === 0;
+    const empty = section !== "Preview" && list.order.length === 0;
 
     const getSearchTargets = (refId: string): string[] => [
       list.data[refId].name,
@@ -625,7 +624,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
 
   const inspectedItems: { [refId: string]: ItemData } = useMemo(
     () =>
-      section === ItemSectionType.Preview
+      section === "Preview"
         ? {}
         : getItems(inspectedTargetContainer, section as ItemType),
     [inspectedTargetContainer, section]
@@ -640,17 +639,17 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   );
 
   const lastAddedItemTypeId =
-    section !== ItemSectionType.Preview
+    section !== "Preview"
       ? state.present.dataPanel.panels[windowType].Item.lastAddedTypeIds[
           section
         ]
       : undefined;
   const draggingItemReferences =
-    section !== ItemSectionType.Preview
+    section !== "Preview"
       ? state.present.dataPanel.panels[windowType].Item.interactions.Dragging
       : undefined;
   const allSelectedItemReferences =
-    section !== ItemSectionType.Preview
+    section !== "Preview"
       ? state.present.dataPanel.panels[windowType].Item.interactions.Selected
       : undefined;
   const selectedItemReferences = useMemo(
@@ -694,7 +693,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   }, [gameRunner, inspectedItems]);
 
   const onSelectItem = (reference: ItemReference): void => {
-    if (section === ItemSectionType.Preview) {
+    if (section === "Preview") {
       return;
     }
     dispatch(
@@ -717,7 +716,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   );
   const handleSetDragging = useCallback(
     (ids: string[]): void => {
-      if (section === ItemSectionType.Preview) {
+      if (section === "Preview") {
         return;
       }
       const references = inspectedItemReferences.filter((r) =>
@@ -740,7 +739,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
         mode === Mode.Test ||
         search ||
         !containerType ||
-        section === ItemSectionType.Preview
+        section === "Preview"
       ) {
         return;
       }
@@ -763,11 +762,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
     ]
   );
   const handleAddData = useCallback(() => {
-    if (
-      mode === Mode.Test ||
-      section === ItemSectionType.Preview ||
-      !lastAddedItemTypeId
-    ) {
+    if (mode === Mode.Test || section === "Preview" || !lastAddedItemTypeId) {
       return;
     }
     const refType = section as ItemType;
@@ -816,7 +811,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
 
   const handleDeleteData = useCallback(
     (references: Reference[], deleteDescription: string) => {
-      if (mode === Mode.Test || section === ItemSectionType.Preview) {
+      if (mode === Mode.Test || section === "Preview") {
         return;
       }
       if (!references || references.length === 0) {
@@ -907,7 +902,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   const handleCopyData = useCallback((): Reference[] => {
     if (
       mode === Mode.Test ||
-      section === ItemSectionType.Preview ||
+      section === "Preview" ||
       !selectedItemReferences
     ) {
       return [];
@@ -936,7 +931,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   const handlePasteData = useCallback(async () => {
     if (
       mode === Mode.Test ||
-      section === ItemSectionType.Preview ||
+      section === "Preview" ||
       !copiedReferences[section] ||
       copiedReferences[section].length === 0
     ) {
@@ -1021,7 +1016,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   }, [openPanel, changeTypeTargetId, handlePasteData]);
   const handleSetSelection = useCallback(
     (ids: string[]): void => {
-      if (section === ItemSectionType.Preview) {
+      if (section === "Preview") {
         return;
       }
       const references = inspectedItemReferences.filter((r) =>
@@ -1056,7 +1051,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   );
   const handleChangeSelection = useCallback(
     (refId: string): void => {
-      if (section === ItemSectionType.Preview) {
+      if (section === "Preview") {
         return;
       }
       const reference = inspectedItemReferences.find((r) => r.refId === refId);
@@ -1075,7 +1070,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   );
   const handleToggleSelection = useCallback(
     (refId: string): void => {
-      if (section === ItemSectionType.Preview) {
+      if (section === "Preview") {
         return;
       }
       const reference = inspectedItemReferences.find((r) => r.refId === refId);
@@ -1094,7 +1089,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   );
   const handleMultiSelection = useCallback(
     (refId: string, ids: string[]): void => {
-      if (section === ItemSectionType.Preview) {
+      if (section === "Preview") {
         return;
       }
       const reference = inspectedItemReferences.find((r) => r.refId === refId);
@@ -1152,7 +1147,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   useHTMLBackgroundColor(theme.colors.darkForeground);
 
   useEffect(() => {
-    if (inspectedItems && section !== ItemSectionType.Preview) {
+    if (inspectedItems && section !== "Preview") {
       if (mode === Mode.Edit) {
         // Validate data before inspecting it
         dispatch(projectValidateData(Object.values(inspectedItems)));
@@ -1270,9 +1265,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
     difference(inspectedItemIds, selectedItemIds).length === 0;
 
   const canPaste =
-    (section !== ItemSectionType.Preview &&
-      copiedReferences[section].length > 0) ||
-    false;
+    (section !== "Preview" && copiedReferences[section].length > 0) || false;
 
   const menuOptions = useMemo(
     () => [
@@ -1474,7 +1467,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
             scrollParent={scrollParent}
             icon={
               <FontIcon aria-label={fabLabel} size={15}>
-                {section === ItemSectionType.Preview ? (
+                {section === "Preview" ? (
                   <HammerSolidIcon />
                 ) : (
                   <PlusSolidIcon />

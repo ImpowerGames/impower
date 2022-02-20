@@ -1,4 +1,4 @@
-import { fountainRegexes } from "../../impower-script-parser/constants/fountainRegexes";
+import { fountainRegexes } from "../../impower-script-parser";
 import { LeafBlockParser } from "../types/leafBlockParser";
 import { Type } from "../types/type";
 import { BlockContext } from "./BlockContext";

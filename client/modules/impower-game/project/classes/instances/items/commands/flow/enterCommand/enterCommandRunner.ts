@@ -35,7 +35,7 @@ export class EnterCommandRunner extends CommandRunner<CommandData> {
     if (
       !blockState ||
       !blockState.hasReturned ||
-      blockState.returnedFromBlockId !== data.reference.parentContainerId
+      blockState.returnedFrom !== data.reference.parentContainerId
     ) {
       return false;
     }

@@ -1,17 +1,16 @@
 import {
-  VariableData,
-  TypeInfo,
   ConstructReference,
-  VariableTypeId,
+  TypeInfo,
+  VariableData,
 } from "../../../../../../data";
 import { getProjectColor } from "../../../../../../inspector/utils/getProjectColor";
 import { VariableInspector } from "../../variable/variableInspector";
 
 export class ConstructVariableInspector extends VariableInspector<
-  VariableData<VariableTypeId.ConstructVariable, ConstructReference>
+  VariableData<"ConstructVariable", ConstructReference>
 > {
   getTypeInfo(
-    data?: VariableData<VariableTypeId.ConstructVariable, ConstructReference>
+    data?: VariableData<"ConstructVariable", ConstructReference>
   ): TypeInfo {
     return {
       category: "Reference",

@@ -1,14 +1,13 @@
-import { DynamicData } from "../../../../../../../data/interfaces/generics/dynamicData";
-import { CommandData } from "../../../command/commandData";
-import { ConstructReference } from "../../../../../../../data/interfaces/references/constructReference";
-import { CommandTypeId } from "../../../command/commandTypeId";
 import {
   ElementReference,
   ImageFileReference,
 } from "../../../../../../../data";
+import { DynamicData } from "../../../../../../../data/interfaces/generics/dynamicData";
+import { ConstructReference } from "../../../../../../../data/interfaces/references/constructReference";
+import { CommandData } from "../../../command/commandData";
 
 export interface ShowPortraitCommandData
-  extends CommandData<CommandTypeId.ShowPortraitCommand> {
+  extends CommandData<"ShowPortraitCommand"> {
   stage: DynamicData<ConstructReference>;
   position: DynamicData<ElementReference>;
   image: DynamicData<ImageFileReference>;

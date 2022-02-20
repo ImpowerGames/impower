@@ -1,13 +1,11 @@
-import { VariableData, TypeInfo, VariableTypeId } from "../../../../../../data";
-import { VariableInspector } from "../../variable/variableInspector";
+import { TypeInfo, VariableData } from "../../../../../../data";
 import { getProjectColor } from "../../../../../../inspector/utils/getProjectColor";
+import { VariableInspector } from "../../variable/variableInspector";
 
 export class BooleanVariableInspector extends VariableInspector<
-  VariableData<VariableTypeId.BooleanVariable, boolean>
+  VariableData<"BooleanVariable", boolean>
 > {
-  getTypeInfo(
-    data?: VariableData<VariableTypeId.BooleanVariable, boolean>
-  ): TypeInfo {
+  getTypeInfo(data?: VariableData<"BooleanVariable", boolean>): TypeInfo {
     return {
       category: "Primitive",
       name: `${this.getTypePrefix(data)}Boolean`,

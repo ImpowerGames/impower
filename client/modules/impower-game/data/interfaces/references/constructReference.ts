@@ -1,11 +1,9 @@
-import { ContainerType } from "../../enums/data";
 import { ContainerReference, isContainerReference } from "./containerReference";
 
-export interface ConstructReference
-  extends ContainerReference<ContainerType.Construct> {
-  parentContainerType: ContainerType.Construct;
-  refType: ContainerType.Construct;
-  refTypeId: ContainerType.Construct;
+export interface ConstructReference extends ContainerReference<"Construct"> {
+  parentContainerType: "Construct";
+  refType: "Construct";
+  refTypeId: "Construct";
 }
 
 export const isConstructReference = (
@@ -17,19 +15,19 @@ export const isConstructReference = (
   const constructReference = obj as ConstructReference;
   return (
     isContainerReference(obj) &&
-    constructReference.parentContainerType === ContainerType.Construct &&
-    constructReference.refType === ContainerType.Construct &&
-    constructReference.refTypeId === ContainerType.Construct
+    constructReference.parentContainerType === "Construct" &&
+    constructReference.refType === "Construct" &&
+    constructReference.refTypeId === "Construct"
   );
 };
 
 export const createConstructReference = (
   obj?: Partial<ConstructReference>
 ): ConstructReference => ({
-  parentContainerType: ContainerType.Construct,
+  parentContainerType: "Construct",
   parentContainerId: "",
-  refType: ContainerType.Construct,
-  refTypeId: ContainerType.Construct,
+  refType: "Construct",
+  refTypeId: "Construct",
   refId: "",
   ...obj,
 });

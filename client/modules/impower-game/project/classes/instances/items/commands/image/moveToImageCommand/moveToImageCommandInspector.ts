@@ -1,14 +1,13 @@
 import {
-  TypeInfo,
-  FileTypeId,
-  createTransitionConfig,
   createDynamicData,
-  StorageType,
+  createTransitionConfig,
+  FileTypeId,
+  TypeInfo,
 } from "../../../../../../../data";
-import { CommandInspector } from "../../../command/commandInspector";
-import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
-import { MoveToImageCommandData } from "./moveToImageCommandData";
 import { createVectorConfig } from "../../../../../../../data/interfaces/configs/vectorConfig";
+import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { CommandInspector } from "../../../command/commandInspector";
+import { MoveToImageCommandData } from "./moveToImageCommandData";
 
 export class MoveToImageCommandInspector extends CommandInspector<MoveToImageCommandData> {
   getTypeInfo(): TypeInfo {
@@ -32,7 +31,7 @@ export class MoveToImageCommandInspector extends CommandInspector<MoveToImageCom
     return {
       ...super.createData(data),
       image: createDynamicData({
-        refType: StorageType.File,
+        refType: "File",
         refTypeId: FileTypeId.ImageFile,
         refId: "",
       }),

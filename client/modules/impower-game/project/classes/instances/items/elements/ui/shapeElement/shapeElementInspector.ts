@@ -1,12 +1,8 @@
-import {
-  UIElementData,
-  TypeInfo,
-  ElementTypeId,
-} from "../../../../../../../data";
-import { UIElementInspector } from "../../uiElement/uiElementInspector";
+import { TypeInfo, UIElementData } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { UIElementInspector } from "../../uiElement/uiElementInspector";
 
-export class ShapeElementInspector extends UIElementInspector<ElementTypeId.ShapeElement> {
+export class ShapeElementInspector extends UIElementInspector<"ShapeElement"> {
   getTypeInfo(): TypeInfo {
     return {
       category: "UI",
@@ -18,9 +14,9 @@ export class ShapeElementInspector extends UIElementInspector<ElementTypeId.Shap
   }
 
   createData(
-    data?: Partial<UIElementData<ElementTypeId.ShapeElement>> &
-      Pick<UIElementData<ElementTypeId.ShapeElement>, "reference">
-  ): UIElementData<ElementTypeId.ShapeElement> {
+    data?: Partial<UIElementData<"ShapeElement">> &
+      Pick<UIElementData<"ShapeElement">, "reference">
+  ): UIElementData<"ShapeElement"> {
     const defaultData = super.createData(data);
     return {
       ...defaultData,

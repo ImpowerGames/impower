@@ -1,8 +1,8 @@
-import { TriggerData, TriggerTypeId } from "../../../../../../../data";
+import { TriggerData } from "../../../../../../../data";
 import { TriggerRunner } from "../../../trigger/triggerRunner";
 
 export class CloseTriggerRunner extends TriggerRunner<
-  TriggerData<TriggerTypeId.CloseTrigger>
+  TriggerData<"CloseTrigger">
 > {
   closesGroup(): boolean {
     return true;

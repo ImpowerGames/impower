@@ -1,9 +1,9 @@
 import { CommandData, VariableData } from "../../../../../../../data";
-import { ImpowerGame } from "../../../../../../../game";
-import { CommandRunner } from "../../../command/commandRunner";
-import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
-import { RotateToImageCommandData } from "./rotateImageCommandData";
 import { LoadableFile } from "../../../../../../../data/interfaces/loadableFile";
+import { ImpowerGame } from "../../../../../../../game";
+import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
+import { CommandRunner } from "../../../command/commandRunner";
+import { RotateToImageCommandData } from "./rotateImageCommandData";
 
 export class RotateToImageCommandRunner
   extends CommandRunner<RotateToImageCommandData>
@@ -57,8 +57,7 @@ export class RotateToImageCommandRunner
     }
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
-    const timeSinceExecution =
-      blockState.time - blockState.timeOfLastCommandExecution;
+    const timeSinceExecution = blockState.time - blockState.lastExecutedAt;
     if (duration < 0) {
       return false;
     }

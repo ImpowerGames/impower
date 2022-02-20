@@ -1,14 +1,12 @@
 import { Color } from "../../../../../../../impower-core";
-import { VariableData, TypeInfo, VariableTypeId } from "../../../../../../data";
-import { VariableInspector } from "../../variable/variableInspector";
+import { TypeInfo, VariableData } from "../../../../../../data";
 import { getProjectColor } from "../../../../../../inspector/utils/getProjectColor";
+import { VariableInspector } from "../../variable/variableInspector";
 
 export class ColorVariableInspector extends VariableInspector<
-  VariableData<VariableTypeId.ColorVariable, Color>
+  VariableData<"ColorVariable", Color>
 > {
-  getTypeInfo(
-    data?: VariableData<VariableTypeId.ColorVariable, Color>
-  ): TypeInfo {
+  getTypeInfo(data?: VariableData<"ColorVariable", Color>): TypeInfo {
     return {
       category: "Structure",
       name: `${this.getTypePrefix(data)}Color`,

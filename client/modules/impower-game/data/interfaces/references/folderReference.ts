@@ -1,9 +1,8 @@
 import { isReference, Reference } from "../reference";
-import { StorageType } from "../../enums/data";
 
-export interface FolderReference extends Reference<StorageType.Folder> {
-  refType: StorageType.Folder;
-  refTypeId: StorageType.Folder;
+export interface FolderReference extends Reference<"Folder"> {
+  refType: "Folder";
+  refTypeId: "Folder";
 }
 
 export const isFolderReference = (obj: unknown): obj is FolderReference => {
@@ -11,14 +10,14 @@ export const isFolderReference = (obj: unknown): obj is FolderReference => {
     return false;
   }
   const folderReference = obj as FolderReference;
-  return isReference(obj) && folderReference.refType === StorageType.Folder;
+  return isReference(obj) && folderReference.refType === "Folder";
 };
 
 export const createFolderReference = (
   obj?: Partial<FolderReference>
 ): FolderReference => ({
-  refType: StorageType.Folder,
-  refTypeId: StorageType.Folder,
+  refType: "Folder",
+  refTypeId: "Folder",
   refId: "",
   ...obj,
 });

@@ -77,11 +77,11 @@ export class ImpowerGame {
     this._logic = new LogicManager(
       config.blockTree,
       saveData?.logic || {
-        activeParentBlockId: config.defaultStartBlockId,
+        activeParentBlock: config.defaultStartBlockId,
         blockStates: {},
         variableStates: {},
         triggerStates: {},
-        activeBlockIds: [],
+        activeChildBlocks: [],
       }
     );
     this._random = new RandomManager(saveData?.random || { seed: config.seed });

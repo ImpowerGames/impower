@@ -1,6 +1,7 @@
 /* eslint-disable no-continue */
 import { htmlReplacements } from "../constants/htmlReplacements";
-import { FountainSyntaxTree, FountainToken } from "../types/FountainSyntaxTree";
+import { FountainSyntaxTree } from "../types/FountainSyntaxTree";
+import { FountainToken } from "../types/FountainToken";
 import { fountainLexer } from "./fountainLexer";
 
 export const generateFountainHtml = (
@@ -36,9 +37,9 @@ export const generateFountainHtml = (
           currentIndex += 1;
           continue;
         }
-        if (currentToken.text !== "") {
+        if (currentToken.content !== "") {
           const html = fountainLexer(
-            currentToken.text,
+            currentToken.content,
             undefined,
             htmlReplacements,
             true
@@ -70,9 +71,9 @@ export const generateFountainHtml = (
   let isAction = false;
   while (currentIndex < syntaxTree.scriptTokens.length) {
     const currentToken: FountainToken = syntaxTree.scriptTokens[currentIndex];
-    if (currentToken.text !== "") {
+    if (currentToken.content !== "") {
       const html = fountainLexer(
-        currentToken.text,
+        currentToken.content,
         currentToken.type,
         htmlReplacements
       );
@@ -133,7 +134,7 @@ export const generateFountainHtml = (
           break;
         case "transition":
           html.push(
-            `<h2 class="source" id="line_${currentToken.line}">${currentToken.text}</h2>`
+            `<h2 class="source" id="line_${currentToken.line}">${currentToken.content}</h2>`
           );
           break;
 
@@ -157,7 +158,7 @@ export const generateFountainHtml = (
           }
 
           html.push(
-            `<h4 class="source" id="line_${currentToken.line}">${currentToken.text}</h4>`
+            `<h4 class="source" id="line_${currentToken.line}">${currentToken.content}</h4>`
           );
 
           break;
@@ -167,7 +168,7 @@ export const generateFountainHtml = (
           );
           break;
         case "dialogue":
-          if (currentToken.text === "  ") html.push("<br>");
+          if (currentToken.content === "  ") html.push("<br>");
           else
             html.push(
               `<p class="source" id="line_${currentToken.line}">${currentToken.html}</p>`
@@ -182,7 +183,7 @@ export const generateFountainHtml = (
 
         case "section":
           html.push(
-            `<p class="source section" id="line_${currentToken.line}" data-line="${currentToken.line}" data-level="${currentToken.level}">${currentToken.text}</p>`
+            `<p class="source section" id="line_${currentToken.line}" data-line="${currentToken.line}" data-level="${currentToken.level}">${currentToken.content}</p>`
           );
           break;
         case "synopsis":

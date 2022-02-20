@@ -13,7 +13,6 @@ import {
   isReference,
   isVariableData,
   ItemReference,
-  ItemType,
   Permission,
   Reference,
 } from "../../../impower-game/data";
@@ -190,7 +189,7 @@ const ReferenceInput = React.memo(
     const isUsingConstantValue =
       isReference(state) &&
       isReference(constantValue) &&
-      state.refType !== ItemType.Variable;
+      state.refType !== "Variable";
 
     const lookup = useMemo(
       () =>

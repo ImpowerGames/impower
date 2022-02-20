@@ -1,9 +1,7 @@
-import { TriggerData, TriggerTypeId } from "../../../../../../../data";
+import { TriggerData } from "../../../../../../../data";
 import { TriggerRunner } from "../../../trigger/triggerRunner";
 
-export class AnyTriggerRunner extends TriggerRunner<
-  TriggerData<TriggerTypeId.AnyTrigger>
-> {
+export class AnyTriggerRunner extends TriggerRunner<TriggerData<"AnyTrigger">> {
   opensGroup(): boolean {
     return true;
   }

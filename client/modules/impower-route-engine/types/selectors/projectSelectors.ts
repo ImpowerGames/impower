@@ -9,9 +9,9 @@ export const projectContainersSelector = (
   containerType: ContainerType
 ): { [refId: string]: ContainerData } => {
   switch (containerType) {
-    case ContainerType.Construct:
+    case "Construct":
       return project?.instances?.constructs?.data;
-    case ContainerType.Block:
+    case "Block":
       return project?.instances?.blocks?.data;
     default:
       return {};

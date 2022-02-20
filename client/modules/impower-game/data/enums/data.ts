@@ -1,51 +1,30 @@
-export enum ContainerType {
-  Construct = "Construct",
-  Block = "Block",
-}
+export type ContainerType = "Construct" | "Block";
 
-export enum ItemType {
-  Trigger = "Trigger",
-  Command = "Command",
-  Variable = "Variable",
-  Element = "Element",
-}
+export type ItemType = "Trigger" | "Command" | "Variable" | "Element";
 
-export enum ConfigType {
-  Config = "Config",
-}
+export type ConfigType = "Config";
 
-export enum StorageType {
-  Folder = "Folder",
-  File = "File",
-}
+export type StorageType = "Folder" | "File";
 
 export type DataType = ContainerType | ItemType | ConfigType | StorageType;
 
-export enum ValueType {
-  Unknown = "Unknown",
-  Reference = "Reference",
-  Color = "Color",
-  Vector2 = "Vector2",
-  Boolean = "Boolean",
-  Number = "Number",
-  String = "String",
-}
+export type ValueType =
+  | "Unknown"
+  | "Reference"
+  | "Color"
+  | "Vector2"
+  | "Boolean"
+  | "Number"
+  | "String";
 
-export enum ItemSectionType {
-  Preview = "Preview",
-}
+export type ItemSectionType = "Preview";
 
-export enum SetupSectionType {
-  Details = "Details",
-  Configuration = "Configuration",
-  Access = "Access",
-}
+export type SetupSectionType = "Details" | "Configuration" | "Access";
 
-export enum SetupSettingsType {
-  About = "About",
-  Branding = "Branding",
-  Page = "Page",
-  Screenshots = "Screenshots",
-  Status = "Status",
-  AdvancedSettings = "AdvancedSettings",
-}
+export type SetupSettingsType =
+  | "About"
+  | "Branding"
+  | "Page"
+  | "Screenshots"
+  | "Status"
+  | "AdvancedSettings";

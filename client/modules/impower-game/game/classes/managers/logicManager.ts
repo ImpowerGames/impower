@@ -1,15 +1,15 @@
-import { Manager } from "./manager";
-import { GameEvent } from "../events/gameEvent";
 import { BlockState, createBlockState } from "../../interfaces/blockState";
-import { VariableState } from "../../interfaces/variableState";
 import { TriggerState } from "../../interfaces/triggerState";
+import { VariableState } from "../../interfaces/variableState";
+import { GameEvent } from "../events/gameEvent";
+import { Manager } from "./manager";
 
 export interface LogicState {
   blockStates: { [blockId: string]: BlockState };
   variableStates: { [variableId: string]: VariableState };
   triggerStates: { [triggerId: string]: TriggerState };
-  activeParentBlockId: string;
-  activeBlockIds: string[];
+  activeParentBlock: string;
+  activeChildBlocks: string[];
 }
 
 export interface LogicEvents {
@@ -69,11 +69,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
 
   getInitialState(): LogicState {
     return {
-      activeParentBlockId: "",
+      activeParentBlock: "",
+      activeChildBlocks: [],
       blockStates: {},
       variableStates: {},
       triggerStates: {},
-      activeBlockIds: [],
     };
   }
 
@@ -140,13 +140,13 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   }
 
   start(): void {
-    this.enterBlock({ id: this.state.activeParentBlockId });
+    this.enterBlock({ id: this.state.activeParentBlock });
     super.start();
   }
 
   private changeActiveParentBlock(newParentBlockId: string): void {
     this.unloadAllBlocks();
-    this.state.activeParentBlockId = newParentBlockId;
+    this.state.activeParentBlock = newParentBlockId;
     const childIds = this.blockTree?.[newParentBlockId]?.children || [];
     this.loadBlocks({ ids: childIds });
     this.events.onChangeActiveParentBlock.emit({ id: newParentBlockId });
@@ -154,23 +154,23 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
 
   private resetBlockExecution(id: string): void {
     const blockState = this.state.blockStates[id] || createBlockState();
-    blockState.executedByBlockId = "";
+    blockState.executedBy = "";
     blockState.isExecuting = false;
     blockState.hasFinished = false;
-    blockState.previousCommandIndex = -1;
-    blockState.executingCommandIndex = 0;
+    blockState.previousIndex = -1;
+    blockState.executingIndex = 0;
     blockState.commandJumpStack = [];
-    blockState.timeOfLastCommandExecution = -1;
+    blockState.lastExecutedAt = -1;
     blockState.time = -1;
     blockState.delta = -1;
     this.state.blockStates[id] = blockState;
   }
 
   loadBlock(data: { id: string }): void {
-    if (this.state.activeBlockIds.includes(data.id)) {
+    if (this.state.activeChildBlocks.includes(data.id)) {
       return;
     }
-    this.state.activeBlockIds.push(data.id);
+    this.state.activeChildBlocks.push(data.id);
     const blockState = this.state.blockStates[data.id] || createBlockState();
     blockState.active = true;
     this.state.blockStates[data.id] = blockState;
@@ -184,10 +184,10 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   unloadBlock(data: { id: string }): void {
     const blockState = this.state.blockStates[data.id];
     blockState.active = false;
-    if (!this.state.activeBlockIds.includes(data.id)) {
+    if (!this.state.activeChildBlocks.includes(data.id)) {
       return;
     }
-    this.state.activeBlockIds = this.state.activeBlockIds.filter(
+    this.state.activeChildBlocks = this.state.activeChildBlocks.filter(
       (id) => id !== data.id
     );
     this.events.onUnloadBlock.emit({ ...data });
@@ -198,7 +198,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   }
 
   unloadAllBlocks(): void {
-    this.unloadBlocks({ ids: this.state.activeBlockIds.reverse() });
+    this.unloadBlocks({ ids: this.state.activeChildBlocks.reverse() });
   }
 
   updateBlock(data: { id: string; time: number; delta: number }): void {
@@ -212,7 +212,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     this.resetBlockExecution(data.id);
     const blockState = this.state.blockStates[data.id];
     blockState.executionCount += 1;
-    blockState.executedByBlockId = data.executedByBlockId;
+    blockState.executedBy = data.executedByBlockId;
     blockState.isExecuting = true;
     this.events.onExecuteBlock.emit({ ...data });
   }
@@ -223,15 +223,15 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     blockState.hasFinished = true;
     this.events.onFinishBlock.emit({
       ...data,
-      executedByBlockId: blockState.executedByBlockId,
+      executedByBlockId: blockState.executedBy,
     });
   }
 
   enterBlock(data: { id: string }): void {
-    const currentParentBlockId = this.state.activeParentBlockId;
+    const currentParentBlockId = this.state.activeParentBlock;
     const blockState =
       this.state.blockStates[currentParentBlockId] || createBlockState();
-    blockState.returnedFromBlockId = "";
+    blockState.returnedFrom = "";
     blockState.hasReturned = false;
     const newParentBlockId = data.id;
     this.state.blockStates[currentParentBlockId] = blockState;
@@ -240,13 +240,13 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   }
 
   exitBlock(): void {
-    const currentParentBlockId = this.state.activeParentBlockId;
+    const currentParentBlockId = this.state.activeParentBlock;
     const newParentBlockId = this.blockTree[currentParentBlockId].parent;
     if (!newParentBlockId) {
       return;
     }
     const newParentBlockState = this.state.blockStates[newParentBlockId];
-    newParentBlockState.returnedFromBlockId = currentParentBlockId;
+    newParentBlockState.returnedFrom = currentParentBlockId;
     newParentBlockState.hasReturned = true;
     this.changeActiveParentBlock(newParentBlockId);
     const childIds = this.blockTree[currentParentBlockId].children;
@@ -261,7 +261,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     time: number;
   }): void {
     const blockState = this.state.blockStates[data.blockId];
-    blockState.timeOfLastCommandExecution = data.time;
+    blockState.lastExecutedAt = data.time;
     const currentExecutionCount =
       blockState.commandExecutionCounts[data.commandIndex] || 0;
     blockState.commandExecutionCounts[data.commandIndex] =
@@ -276,8 +276,8 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     time: number;
   }): void {
     const blockState = this.state.blockStates[data.blockId];
-    blockState.timeOfLastCommandExecution = -1;
-    blockState.previousCommandIndex = data.commandIndex;
+    blockState.lastExecutedAt = -1;
+    blockState.previousIndex = data.commandIndex;
     const currentExecutionCount =
       blockState.commandExecutionCounts[data.commandIndex] || 0;
     blockState.commandExecutionCounts[data.commandIndex] =
@@ -299,7 +299,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
 
   goToCommandIndex(data: { blockId: string; index: number }): void {
     const blockState = this.state.blockStates[data.blockId];
-    blockState.executingCommandIndex = data.index;
+    blockState.executingIndex = data.index;
     this.events.onGoToCommandIndex.emit({ ...data });
   }
 

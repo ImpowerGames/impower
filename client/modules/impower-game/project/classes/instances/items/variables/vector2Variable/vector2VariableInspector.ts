@@ -1,14 +1,12 @@
-import { VariableData, TypeInfo, VariableTypeId } from "../../../../../../data";
-import { VariableInspector } from "../../variable/variableInspector";
-import { getProjectColor } from "../../../../../../inspector/utils/getProjectColor";
 import { Vector2 } from "../../../../../../../impower-core";
+import { TypeInfo, VariableData } from "../../../../../../data";
+import { getProjectColor } from "../../../../../../inspector/utils/getProjectColor";
+import { VariableInspector } from "../../variable/variableInspector";
 
 export class Vector2VariableInspector extends VariableInspector<
-  VariableData<VariableTypeId.Vector2Variable, Vector2>
+  VariableData<"Vector2Variable", Vector2>
 > {
-  getTypeInfo(
-    data?: VariableData<VariableTypeId.Vector2Variable, Vector2>
-  ): TypeInfo {
+  getTypeInfo(data?: VariableData<"Vector2Variable", Vector2>): TypeInfo {
     return {
       category: "Structure",
       name: `${this.getTypePrefix(data)}Vector2`,
@@ -20,7 +18,7 @@ export class Vector2VariableInspector extends VariableInspector<
 
   getPropertyDisplayValue(
     propertyPath: string,
-    data: VariableData<VariableTypeId.Vector2Variable, Vector2>,
+    data: VariableData<"Vector2Variable", Vector2>,
     value: Vector2
   ): string {
     if (propertyPath === "value") {

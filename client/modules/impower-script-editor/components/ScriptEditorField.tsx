@@ -1,13 +1,14 @@
 import { basicSetup, EditorState, EditorView } from "@codemirror/basic-setup";
 import { indentWithTab } from "@codemirror/commands";
 import { foldAll, unfoldAll } from "@codemirror/fold";
-import { HighlightStyle, tags as t } from "@codemirror/highlight";
+import { HighlightStyle } from "@codemirror/highlight";
 import { indentUnit } from "@codemirror/language";
 import { linter } from "@codemirror/lint";
+import { tooltips } from "@codemirror/tooltip";
 import { keymap } from "@codemirror/view";
 import React, { useEffect, useRef } from "react";
 import { fountain } from "../types/fountain";
-import { fountainLanguage } from "../types/fountainLanguage";
+import { fountainLanguage, tags as t } from "../types/fountainLanguage";
 import { fountainParseLinter } from "../utils/lint";
 
 const colors = {
@@ -17,15 +18,17 @@ const colors = {
   parameter: "#BFA4A4",
   operator: "#D0D0D0",
 
-  comment: "#7FB347",
-  heading: "#FF81FF",
+  comment: "#608B4E",
+  section: "#FF81FF",
   sceneHeading: "#FF8080",
   transition: "#BEA3A3",
+  logic: "#00FF00",
+  flow: "#FFFF00",
   titleKey: "#EFC090",
   titleValue: "#BFA4A4",
   character: "#4EC9B0",
   dialogue: "#CE9178",
-  dual: "#79ABFF",
+  dualDialogue: "#79ABFF",
   parenthetical: "#D7BA7D",
   pageBreak: "#606080",
   formatting: "#79ABFF",
@@ -33,12 +36,12 @@ const colors = {
 
 const myHighlightStyle = HighlightStyle.define([
   {
-    tag: t.processingInstruction,
+    tag: t.formatting,
     color: colors.formatting,
     opacity: 0.5,
     fontWeight: 400,
   },
-  { tag: t.quote, color: colors.formatting },
+  { tag: t.centered, color: colors.formatting },
   { tag: t.strong, color: colors.formatting, fontWeight: "bold" },
   { tag: t.emphasis, color: colors.formatting, fontStyle: "italic" },
   {
@@ -53,58 +56,61 @@ const myHighlightStyle = HighlightStyle.define([
     textDecoration: "line-through",
   },
   {
-    tag: t.typeName,
+    tag: t.dialogue,
     color: colors.dialogue,
   },
   {
-    tag: t.typeOperator,
-    color: colors.dual,
+    tag: t.dualDialogue,
+    color: colors.dualDialogue,
   },
   {
-    tag: t.tagName,
+    tag: t.parenthetical,
     color: colors.parenthetical,
   },
   {
-    tag: t.className,
+    tag: t.character,
     color: colors.character,
   },
-  { tag: t.heading, color: colors.heading, opacity: 0.5, fontWeight: 400 },
-  { tag: t.heading1, color: colors.heading },
-  { tag: t.heading2, color: colors.heading },
-  { tag: t.heading3, color: colors.heading },
-  { tag: t.heading4, color: colors.heading },
-  { tag: t.heading5, color: colors.heading },
-  { tag: t.heading6, color: colors.heading },
+  { tag: t.section, color: colors.section, opacity: 0.5, fontWeight: 400 },
+  { tag: t.sectionHeading1, color: colors.section },
+  { tag: t.sectionHeading2, color: colors.section },
+  { tag: t.sectionHeading3, color: colors.section },
+  { tag: t.sectionHeading4, color: colors.section },
+  { tag: t.sectionHeading5, color: colors.section },
+  { tag: t.sectionHeading6, color: colors.section },
   {
-    tag: t.propertyName,
+    tag: t.sceneHeading,
     color: colors.sceneHeading,
   },
   {
-    tag: t.number,
+    tag: t.sceneNumber,
     opacity: 0.5,
   },
-  { tag: t.contentSeparator, color: colors.pageBreak },
-  { tag: t.controlKeyword, color: colors.transition },
-  { tag: t.controlOperator, color: colors.transition, opacity: 0.5 },
+  { tag: t.pageBreak, color: colors.pageBreak },
+  { tag: t.transition, color: colors.transition },
+  { tag: t.logic, color: colors.logic },
+  { tag: t.flow, color: colors.flow },
   {
-    tag: t.attributeValue,
+    tag: t.titleValue,
     color: colors.titleValue,
   },
   {
-    tag: t.attributeName,
+    tag: t.titleKey,
     color: colors.titleKey,
     fontWeight: 400,
   },
-  { tag: t.annotation, fontStyle: "italic" },
-  { tag: t.docComment, color: colors.comment, opacity: 0.5 },
+  { tag: t.lyric, fontStyle: "italic" },
+  { tag: t.note, color: colors.comment },
+  { tag: t.noteMark, color: colors.comment, opacity: 0.5 },
+  { tag: t.synopses, color: colors.comment },
+  { tag: t.synopsesMark, color: colors.comment, opacity: 0.5 },
   { tag: t.comment, color: colors.comment },
-  { tag: t.atom, color: colors.constant },
   {
-    tag: t.string,
+    tag: t.linkTitle,
     color: colors.keyword,
   },
   {
-    tag: t.labelName,
+    tag: t.linkLabel,
     color: colors.parameter,
   },
   {
@@ -139,6 +145,7 @@ const ScriptEditorField = React.memo(
           basicSetup,
           fountain({ base: fountainLanguage }),
           linter(fountainParseLinter),
+          tooltips({ position: "absolute" }),
           myHighlightStyle,
           keymap.of([indentWithTab]),
           indentUnit.of("    "),

@@ -1,11 +1,4 @@
-import {
-  Reference,
-  GameProjectData,
-  ContainerType,
-  ItemType,
-  ConfigType,
-  InstanceData,
-} from "../../data";
+import { GameProjectData, InstanceData, Reference } from "../../data";
 
 export const getParentData = (
   reference: Reference,
@@ -24,23 +17,23 @@ export const getParentData = (
     return undefined;
   }
   switch (reference.refType) {
-    case ConfigType.Config:
+    case "Config":
       return project.instances.configs.data[reference.refId];
-    case ContainerType.Construct:
+    case "Construct":
       return project.instances.constructs.data[reference.refId];
-    case ContainerType.Block:
+    case "Block":
       return project.instances.blocks.data[reference.refId];
-    case ItemType.Element:
+    case "Element":
       return project.instances.constructs.data[reference.parentContainerId];
-    case ItemType.Trigger:
+    case "Trigger":
       return project.instances.blocks.data[reference.parentContainerId];
-    case ItemType.Command:
+    case "Command":
       return project.instances.blocks.data[reference.parentContainerId];
-    case ItemType.Variable: {
+    case "Variable": {
       switch (reference.parentContainerType) {
-        case ContainerType.Block:
+        case "Block":
           return project.instances.blocks.data[reference.refId];
-        case ContainerType.Construct:
+        case "Construct":
           return project.instances.constructs.data[reference.refId];
         default:
           return undefined;

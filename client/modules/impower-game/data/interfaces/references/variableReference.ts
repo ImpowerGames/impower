@@ -1,11 +1,10 @@
 import { VariableTypeId } from "../../../project/classes/instances/items/variable/variableTypeId";
-import { ContainerType, ItemType } from "../../enums/data";
 import { isItemReference, ItemReference } from "./itemReference";
 
 export interface VariableReference<T extends VariableTypeId = VariableTypeId>
-  extends ItemReference<ItemType.Variable> {
-  parentContainerType: ContainerType.Construct | ContainerType.Block;
-  refType: ItemType.Variable;
+  extends ItemReference<"Variable"> {
+  parentContainerType: "Construct" | "Block";
+  refType: "Variable";
   refTypeId: T;
 }
 
@@ -16,7 +15,7 @@ export const isVariableReference = <T extends VariableTypeId = VariableTypeId>(
     return false;
   }
   const itemReference = obj as VariableReference<T>;
-  return isItemReference(obj) && itemReference.refType === ItemType.Variable;
+  return isItemReference(obj) && itemReference.refType === "Variable";
 };
 
 export const createVariableReference = <
@@ -24,9 +23,9 @@ export const createVariableReference = <
 >(
   obj?: Partial<VariableReference<T>> & Pick<VariableReference<T>, "refTypeId">
 ): VariableReference => ({
-  parentContainerType: ContainerType.Block,
+  parentContainerType: "Block",
   parentContainerId: "",
-  refType: ItemType.Variable,
+  refType: "Variable",
   refTypeId: "",
   refId: "",
   ...obj,

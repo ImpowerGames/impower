@@ -1,13 +1,10 @@
 import { OrderedCollection } from "../../../impower-core";
 import {
   CommandTypeId,
-  ConfigType,
   ConfigTypeId,
-  ContainerType,
   DataType,
   ElementTypeId,
   InstanceData,
-  ItemType,
   TriggerTypeId,
   TypeLookup,
   VariableTypeId,
@@ -53,6 +50,7 @@ import { TriggerRunner } from "../../project/classes/instances/items/trigger/tri
 import { AllTriggerRunner } from "../../project/classes/instances/items/triggers/conditional/allTrigger/allTriggerRunner";
 import { AnyTriggerRunner } from "../../project/classes/instances/items/triggers/conditional/anyTrigger/anyTriggerRunner";
 import { CloseTriggerRunner } from "../../project/classes/instances/items/triggers/conditional/closeTrigger/closeTriggerRunner";
+import { CompareTriggerRunner } from "../../project/classes/instances/items/triggers/conditional/compareTrigger/compareTriggerRunner";
 import { EnteredTriggerRunner } from "../../project/classes/instances/items/triggers/flow/enteredTrigger/enteredTriggerRunner";
 import { PausedTriggerRunner } from "../../project/classes/instances/items/triggers/flow/pausedTrigger/pausedTriggerRunner";
 import { ReturnedTriggerRunner } from "../../project/classes/instances/items/triggers/flow/returnedTrigger/returnedTriggerRunner";
@@ -101,13 +99,13 @@ export class ImpowerGameRunner {
   };
 
   private _constructRunners: {
-    [refTypeId in ContainerType.Construct]: ConstructRunner;
+    [refTypeId in "Construct"]: ConstructRunner;
   } = {
     Construct: ConstructRunner.instance,
   };
 
   private _blockRunners: {
-    [refTypeId in ContainerType.Block]: BlockRunner;
+    [refTypeId in "Block"]: BlockRunner;
   } = {
     Block: BlockRunner.instance,
   };
@@ -132,6 +130,7 @@ export class ImpowerGameRunner {
     AllTrigger: new AllTriggerRunner(),
     AnyTrigger: new AnyTriggerRunner(),
     CloseTrigger: new CloseTriggerRunner(),
+    CompareTrigger: new CompareTriggerRunner(),
     PressedKeyTrigger: new PressedKeyTriggerRunner(),
     ClickTrigger: new ClickTriggerRunner(),
     ImageClickTrigger: new ImageClickTriggerRunner(),
@@ -253,25 +252,25 @@ export class ImpowerGameRunner {
     | { [refTypeId: string]: TriggerRunner }
     | { [refTypeId: string]: CommandRunner } {
     switch (type) {
-      case ConfigType.Config: {
+      case "Config": {
         return this._configRunners;
       }
-      case ContainerType.Construct: {
+      case "Construct": {
         return this._constructRunners;
       }
-      case ContainerType.Block: {
+      case "Block": {
         return this._blockRunners;
       }
-      case ItemType.Element: {
+      case "Element": {
         return this._elementRunners;
       }
-      case ItemType.Variable: {
+      case "Variable": {
         return this._variableRunners;
       }
-      case ItemType.Trigger: {
+      case "Trigger": {
         return this._triggerRunners;
       }
-      case ItemType.Command: {
+      case "Command": {
         return this._commandRunners;
       }
       default:
@@ -286,25 +285,25 @@ export class ImpowerGameRunner {
       return runner;
     }
     switch (refType) {
-      case ConfigType.Config: {
+      case "Config": {
         return ConfigRunner.instance;
       }
-      case ContainerType.Construct: {
+      case "Construct": {
         return ConstructRunner.instance;
       }
-      case ContainerType.Block: {
+      case "Block": {
         return BlockRunner.instance;
       }
-      case ItemType.Element: {
+      case "Element": {
         return ElementRunner.instance;
       }
-      case ItemType.Variable: {
+      case "Variable": {
         return VariableRunner.instance;
       }
-      case ItemType.Trigger: {
+      case "Trigger": {
         return TriggerRunner.instance;
       }
-      case ItemType.Command: {
+      case "Command": {
         return CommandRunner.instance;
       }
       default:

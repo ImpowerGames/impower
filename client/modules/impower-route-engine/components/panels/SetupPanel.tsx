@@ -466,8 +466,7 @@ const SetupPanel = React.memo((): JSX.Element => {
         ? editorSetupSections
         : [];
     return sections.filter(
-      (section) =>
-        isGameDocument(doc) || section.type !== SetupSectionType.Configuration
+      (section) => isGameDocument(doc) || section.type !== "Configuration"
     );
   }, [access, doc]);
 
@@ -621,7 +620,7 @@ const SetupPanel = React.memo((): JSX.Element => {
               style={{ display: "flex", flexDirection: "column" }}
             >
               <StyledSetupPanelContentArea>
-                {type === SetupSectionType.Details && (
+                {type === "Details" && (
                   <StyledSetupPanelContent>
                     <DetailsSetup />
                     <StyledPublishArea>
@@ -637,12 +636,12 @@ const SetupPanel = React.memo((): JSX.Element => {
                     </StyledPublishArea>
                   </StyledSetupPanelContent>
                 )}
-                {type === SetupSectionType.Configuration && (
+                {type === "Configuration" && (
                   <StyledSetupPanelContent>
                     <ConfigurationSetup />
                   </StyledSetupPanelContent>
                 )}
-                {type === SetupSectionType.Access && (
+                {type === "Access" && (
                   <StyledSetupPanelContent>
                     <AccessSetup
                       mode={mode}

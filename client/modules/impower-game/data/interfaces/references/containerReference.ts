@@ -1,5 +1,5 @@
-import { isReference, Reference } from "../reference";
 import { ContainerType } from "../../enums/data";
+import { isReference, Reference } from "../reference";
 
 export interface ContainerReference<D extends ContainerType = ContainerType>
   extends Reference<D> {
@@ -17,10 +17,10 @@ export const isContainerReference = <D extends ContainerType = ContainerType>(
   const containerReference = obj as ContainerReference<D>;
   return (
     isReference(obj) &&
-    (containerReference.parentContainerType === ContainerType.Construct ||
-      containerReference.parentContainerType === ContainerType.Block) &&
+    (containerReference.parentContainerType === "Construct" ||
+      containerReference.parentContainerType === "Block") &&
     containerReference.parentContainerId !== undefined &&
-    (containerReference.refType === ContainerType.Construct ||
-      containerReference.refType === ContainerType.Block)
+    (containerReference.refType === "Construct" ||
+      containerReference.refType === "Block")
   );
 };

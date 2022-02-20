@@ -1,12 +1,7 @@
-import {
-  createFolderReference,
-  FolderReference,
-  StorageType,
-} from "../../../../data";
+import { createFolderReference, FolderReference } from "../../../../data";
 import { InstanceData } from "../../instance/instanceData";
 
-export interface FolderData
-  extends InstanceData<StorageType.Folder, FolderReference> {
+export interface FolderData extends InstanceData<"Folder", FolderReference> {
   name: string;
   parent: string;
   children: string[];

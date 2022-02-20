@@ -1,16 +1,12 @@
-import {
-  TriggerData,
-  VariableData,
-  TriggerTypeId,
-} from "../../../../../../../data";
+import { TriggerData, VariableData } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { TriggerRunner } from "../../../trigger/triggerRunner";
 
 export class ReturnedTriggerRunner extends TriggerRunner<
-  TriggerData<TriggerTypeId.ReturnedTrigger>
+  TriggerData<"ReturnedTrigger">
 > {
   shouldExecute(
-    data: TriggerData<TriggerTypeId.ReturnedTrigger>,
+    data: TriggerData<"ReturnedTrigger">,
     variables: { [refId: string]: VariableData },
     game: ImpowerGame
   ): boolean {

@@ -1,20 +1,17 @@
 import {
+  groupBy,
   removeData,
   removeIds,
   removeOrderedCollectionData,
-  groupBy,
 } from "../../../impower-core";
 import {
+  ConfigDataCollection,
   GameProjectData,
+  InstanceData,
   isContainerReference,
   isItemReference,
-  Reference,
   ParentLookup,
-  ItemType,
-  ContainerType,
-  InstanceData,
-  ConfigType,
-  ConfigDataCollection,
+  Reference,
 } from "../../data";
 import { getAllNestedData } from "./getAllNestedData";
 
@@ -47,7 +44,7 @@ export const removeGameProjectData = (
     const ids = deletedReferencesList.map((r) => r.refId);
 
     switch (refType) {
-      case ConfigType.Config: {
+      case "Config": {
         newProject = {
           ...newProject,
           instances: {
@@ -60,7 +57,7 @@ export const removeGameProjectData = (
         };
         break;
       }
-      case ContainerType.Construct: {
+      case "Construct": {
         const newConstructDocs = removeData(
           newProject?.instances?.constructs?.data,
           ids
@@ -90,7 +87,7 @@ export const removeGameProjectData = (
           project?.instances?.constructs?.data[parent.parentContainerId];
         break;
       }
-      case ContainerType.Block: {
+      case "Block": {
         const newBlockDocs = removeData(
           newProject?.instances?.blocks?.data,
           ids
@@ -120,7 +117,7 @@ export const removeGameProjectData = (
           project?.instances?.blocks?.data[parent.parentContainerId];
         break;
       }
-      case ItemType.Element: {
+      case "Element": {
         newProject = {
           ...newProject,
           instances: {
@@ -150,7 +147,7 @@ export const removeGameProjectData = (
           project?.instances?.constructs?.data[parent.parentContainerId];
         break;
       }
-      case ItemType.Trigger: {
+      case "Trigger": {
         newProject = {
           ...newProject,
           instances: {
@@ -180,7 +177,7 @@ export const removeGameProjectData = (
           project?.instances?.blocks?.data[parent.parentContainerId];
         break;
       }
-      case ItemType.Command: {
+      case "Command": {
         newProject = {
           ...newProject,
           instances: {
@@ -210,9 +207,9 @@ export const removeGameProjectData = (
           project?.instances?.blocks?.data[parent.parentContainerId];
         break;
       }
-      case ItemType.Variable: {
+      case "Variable": {
         switch (parent.parentContainerType) {
-          case ContainerType.Construct: {
+          case "Construct": {
             newProject = {
               ...newProject,
               instances: {
@@ -242,7 +239,7 @@ export const removeGameProjectData = (
               project?.instances?.constructs?.data[parent.parentContainerId];
             break;
           }
-          case ContainerType.Block: {
+          case "Block": {
             newProject = {
               ...newProject,
               instances: {

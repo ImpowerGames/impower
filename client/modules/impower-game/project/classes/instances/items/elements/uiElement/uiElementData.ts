@@ -5,7 +5,6 @@ import {
   Optional,
   UnitNumberData,
 } from "../../../../../../../impower-core";
-import { StorageType } from "../../../../../../data";
 import {
   HorizontalAlignment,
   TextAlignment,
@@ -193,7 +192,7 @@ export const createUIElementProps = (): UIElementProps => ({
         } as { [refId: string]: { color: Color; position: UnitNumberData } },
       },
       image: {
-        refType: StorageType.File,
+        refType: "File",
         refTypeId: FileTypeId.ImageFile,
         refId: "",
       },

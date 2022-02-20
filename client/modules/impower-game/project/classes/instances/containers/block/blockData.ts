@@ -1,5 +1,4 @@
 import { OrderedCollection } from "../../../../../../impower-core";
-import { ContainerType } from "../../../../../data/enums/data";
 import { Disableable } from "../../../../../data/interfaces/disableable";
 import { Positionable } from "../../../../../data/interfaces/positionable";
 import {
@@ -16,7 +15,7 @@ export const defaultNodePosition = { x: 640, y: 640 };
 export const defaultNodeSize = { x: 144, y: 40 };
 
 export interface BlockData
-  extends VariableContainerData<ContainerType.Block, BlockReference>,
+  extends VariableContainerData<"Block", BlockReference>,
     Positionable,
     Disableable {
   triggers: OrderedCollection<TriggerData>;

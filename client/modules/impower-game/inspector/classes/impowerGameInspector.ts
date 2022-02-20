@@ -9,9 +9,7 @@ import {
 import setValue from "../../../impower-core/utils/setValue";
 import {
   CommandTypeId,
-  ConfigType,
   ConfigTypeId,
-  ContainerType,
   DataType,
   ElementTypeId,
   GameProjectData,
@@ -23,7 +21,6 @@ import {
   isReference,
   isScopable,
   isVariableReference,
-  ItemType,
   Permission,
   Reference,
   TriggerTypeId,
@@ -79,6 +76,7 @@ import { TriggerInspector } from "../../project/classes/instances/items/trigger/
 import { AllTriggerInspector } from "../../project/classes/instances/items/triggers/conditional/allTrigger/allTriggerInspector";
 import { AnyTriggerInspector } from "../../project/classes/instances/items/triggers/conditional/anyTrigger/anyTriggerInspector";
 import { CloseTriggerInspector } from "../../project/classes/instances/items/triggers/conditional/closeTrigger/closeTriggerInspector";
+import { CompareTriggerInspector } from "../../project/classes/instances/items/triggers/conditional/compareTrigger/compareTriggerInspector";
 import { EnteredTriggerInspector } from "../../project/classes/instances/items/triggers/flow/enteredTrigger/enteredTriggerInspector";
 import { PausedTriggerInspector } from "../../project/classes/instances/items/triggers/flow/pausedTrigger/pausedTriggerInspector";
 import { ReturnedTriggerInspector } from "../../project/classes/instances/items/triggers/flow/returnedTrigger/returnedTriggerInspector";
@@ -129,13 +127,13 @@ export class ImpowerGameInspector {
   };
 
   private _constructInspectors: {
-    [refTypeId in ContainerType.Construct]: ConstructInspector;
+    [refTypeId in "Construct"]: ConstructInspector;
   } = {
     Construct: ConstructInspector.instance,
   };
 
   private _blockInspectors: {
-    [refTypeId in ContainerType.Block]: BlockInspector;
+    [refTypeId in "Block"]: BlockInspector;
   } = {
     Block: BlockInspector.instance,
   };
@@ -160,6 +158,7 @@ export class ImpowerGameInspector {
     AllTrigger: new AllTriggerInspector(),
     AnyTrigger: new AnyTriggerInspector(),
     CloseTrigger: new CloseTriggerInspector(),
+    CompareTrigger: new CompareTriggerInspector(),
     PressedKeyTrigger: new PressedKeyTriggerInspector(),
     ClickTrigger: new ClickTriggerInspector(),
     ImageClickTrigger: new ImageClickTriggerInspector(),
@@ -295,35 +294,35 @@ export class ImpowerGameInspector {
       | CommandInspector
   >(type: DataType): { [refTypeId: string]: T } {
     switch (type) {
-      case ConfigType.Config: {
+      case "Config": {
         return this._configInspectors as unknown as {
           [refTypeId: string]: T;
         };
       }
-      case ContainerType.Construct: {
+      case "Construct": {
         return this._constructInspectors as unknown as {
           [refTypeId: string]: T;
         };
       }
-      case ContainerType.Block: {
+      case "Block": {
         return this._blockInspectors as unknown as { [refTypeId: string]: T };
       }
-      case ItemType.Element: {
+      case "Element": {
         return this._elementInspectors as unknown as {
           [refTypeId: string]: T;
         };
       }
-      case ItemType.Variable: {
+      case "Variable": {
         return this._variableInspectors as unknown as {
           [refTypeId: string]: T;
         };
       }
-      case ItemType.Trigger: {
+      case "Trigger": {
         return this._triggerInspectors as unknown as {
           [refTypeId: string]: T;
         };
       }
-      case ItemType.Command: {
+      case "Command": {
         return this._commandInspectors as unknown as {
           [refTypeId: string]: T;
         };
@@ -342,25 +341,25 @@ export class ImpowerGameInspector {
       }
     }
     switch (refType) {
-      case ConfigType.Config: {
+      case "Config": {
         return ConfigInspector.instance;
       }
-      case ContainerType.Construct: {
+      case "Construct": {
         return ConstructInspector.instance;
       }
-      case ContainerType.Block: {
+      case "Block": {
         return BlockInspector.instance;
       }
-      case ItemType.Element: {
+      case "Element": {
         return ElementInspector.instance;
       }
-      case ItemType.Variable: {
+      case "Variable": {
         return VariableInspector.instance;
       }
-      case ItemType.Trigger: {
+      case "Trigger": {
         return TriggerInspector.instance;
       }
-      case ItemType.Command: {
+      case "Command": {
         return CommandInspector.instance;
       }
       default:

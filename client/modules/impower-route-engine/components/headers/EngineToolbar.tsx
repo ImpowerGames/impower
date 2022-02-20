@@ -256,7 +256,7 @@ interface EngineToolbarContentProps {
   doneLabel: string;
   clearLabel: string;
   searchLabel: string;
-  title: string;
+  title: React.ReactNode;
   titleStyle?: React.CSSProperties;
   headerStyle?: React.CSSProperties;
   leftStyle?: React.CSSProperties;
@@ -520,12 +520,16 @@ const EngineToolbarContent = React.memo(
         middleChildren={
           title && (
             <StyledHeaderContent>
-              <StyledHeaderNameTypography
-                variant="h6"
-                style={{ fontSize: "1.375rem", ...titleStyle }}
-              >
-                {title}
-              </StyledHeaderNameTypography>
+              {typeof title === "string" ? (
+                <StyledHeaderNameTypography
+                  variant="h6"
+                  style={{ fontSize: "1.375rem", ...titleStyle }}
+                >
+                  {title}
+                </StyledHeaderNameTypography>
+              ) : (
+                title
+              )}
             </StyledHeaderContent>
           )
         }
@@ -591,7 +595,7 @@ interface EngineToolbarProps {
   doneLabel?: string;
   clearLabel?: string;
   searchLabel?: string;
-  title?: string;
+  title?: React.ReactNode;
   titleStyle?: React.CSSProperties;
   fixableContentStyle?: React.CSSProperties;
   headerStyle?: React.CSSProperties;

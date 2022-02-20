@@ -1,13 +1,9 @@
-import {
-  ElementData,
-  ElementTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
-import { ElementInspector } from "../../../element/elementInspector";
+import { ElementData, TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { ElementInspector } from "../../../element/elementInspector";
 
 export class CloseElementInspector extends ElementInspector<
-  ElementData<ElementTypeId.CloseElement>
+  ElementData<"CloseElement">
 > {
   getTypeInfo(): TypeInfo {
     return {

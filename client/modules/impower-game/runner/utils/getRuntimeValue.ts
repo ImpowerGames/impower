@@ -1,10 +1,9 @@
 import {
   DynamicData,
-  VariableData,
   getVariableValue,
-  ItemType,
-  Reference,
   isDynamicData,
+  Reference,
+  VariableData,
 } from "../../data";
 import { ImpowerGame } from "../../game";
 
@@ -16,7 +15,7 @@ export const getRuntimeValue = <T>(
   const reference = isDynamicData(data) ? data.dynamic : data;
   if (reference) {
     const { refId } = reference;
-    if (reference.refType === ItemType.Variable && variables) {
+    if (reference.refType === "Variable" && variables) {
       const variableState = game?.logic.state.variableStates[refId];
       if (variableState) {
         return variableState.value as T;

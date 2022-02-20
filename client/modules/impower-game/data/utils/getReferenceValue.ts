@@ -1,6 +1,5 @@
-import { Reference } from "../interfaces/reference";
 import { VariableData } from "../../project/classes/instances/items/variable/variableData";
-import { ItemType } from "../enums/data";
+import { Reference } from "../interfaces/reference";
 import { getVariableValue } from "./getVariableValue";
 
 export const getReferenceValue = <T>(
@@ -9,7 +8,7 @@ export const getReferenceValue = <T>(
 ): T | undefined => {
   if (reference !== null) {
     const { refId } = reference;
-    if (reference.refType === ItemType.Variable && variables) {
+    if (reference.refType === "Variable" && variables) {
       return getVariableValue<T>(refId, variables);
     }
   }

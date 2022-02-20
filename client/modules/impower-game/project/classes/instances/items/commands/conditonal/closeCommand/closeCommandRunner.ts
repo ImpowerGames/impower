@@ -1,8 +1,8 @@
-import { CommandData, CommandTypeId } from "../../../../../../../data";
+import { CommandData } from "../../../../../../../data";
 import { CommandRunner } from "../../../command/commandRunner";
 
 export class CloseCommandRunner extends CommandRunner<
-  CommandData<CommandTypeId.CloseCommand>
+  CommandData<"CloseCommand">
 > {
   closesGroup(_data: CommandData): boolean {
     return true;

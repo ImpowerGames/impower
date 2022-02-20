@@ -38,13 +38,13 @@ export const createContainerData = <
 });
 
 export const getItemsField = (itemType: ItemType): string => {
-  return itemType === ItemType.Element
+  return itemType === "Element"
     ? "elements"
-    : itemType === ItemType.Trigger
+    : itemType === "Trigger"
     ? "triggers"
-    : itemType === ItemType.Command
+    : itemType === "Command"
     ? "commands"
-    : itemType === ItemType.Variable
+    : itemType === "Variable"
     ? "variables"
     : "";
 };

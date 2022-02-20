@@ -14,7 +14,6 @@ import {
   isDynamicData,
   isInstanceData,
   isReference,
-  ItemType,
   Permission,
   TypeInfo,
 } from "../../../data";
@@ -75,7 +74,7 @@ export abstract class InstanceInspector<T extends InstanceData = InstanceData>
       const label = getLabel(targetProperty);
       const value = getValue(data, propertyPath);
       if (isDynamicData(value) && value.dynamic) {
-        if (value.dynamic.refType === ItemType.Variable) {
+        if (value.dynamic.refType === "Variable") {
           return `${label} (Variable)`;
         }
       }

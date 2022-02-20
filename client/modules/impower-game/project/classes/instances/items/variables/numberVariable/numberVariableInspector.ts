@@ -1,13 +1,11 @@
-import { VariableData, TypeInfo, VariableTypeId } from "../../../../../../data";
-import { VariableInspector } from "../../variable/variableInspector";
+import { TypeInfo, VariableData } from "../../../../../../data";
 import { getProjectColor } from "../../../../../../inspector/utils/getProjectColor";
+import { VariableInspector } from "../../variable/variableInspector";
 
 export class NumberVariableInspector extends VariableInspector<
-  VariableData<VariableTypeId.NumberVariable, number>
+  VariableData<"NumberVariable", number>
 > {
-  getTypeInfo(
-    data?: VariableData<VariableTypeId.NumberVariable, number>
-  ): TypeInfo {
+  getTypeInfo(data?: VariableData<"NumberVariable", number>): TypeInfo {
     return {
       category: "Primitive",
       name: `${this.getTypePrefix(data)}Number`,

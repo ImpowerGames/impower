@@ -1,14 +1,10 @@
 import {
-  ConfigType,
-  ContainerType,
   FileData,
   FolderData,
   GameProjectData,
   InstanceData,
   isItemReference,
-  ItemType,
   Reference,
-  StorageType,
 } from "../../data";
 import { getVariableContainer } from "./getVariableContainer";
 
@@ -26,14 +22,14 @@ export const getData = (
     return undefined;
   }
   switch (reference.refType) {
-    case ConfigType.Config: {
+    case "Config": {
       return project?.instances?.configs?.data[reference.refId];
     }
-    case ContainerType.Construct:
+    case "Construct":
       return project?.instances?.constructs?.data[reference.refId];
-    case ContainerType.Block:
+    case "Block":
       return project?.instances?.blocks?.data[reference.refId];
-    case ItemType.Element: {
+    case "Element": {
       if (isItemReference(reference)) {
         if (reference.parentContainerId) {
           const construct =
@@ -54,7 +50,7 @@ export const getData = (
       }
       return undefined;
     }
-    case ItemType.Trigger: {
+    case "Trigger": {
       if (isItemReference(reference)) {
         const block =
           project?.instances?.blocks?.data[reference.parentContainerId];
@@ -65,7 +61,7 @@ export const getData = (
       }
       return undefined;
     }
-    case ItemType.Command: {
+    case "Command": {
       if (isItemReference(reference)) {
         const block =
           project?.instances?.blocks?.data[reference.parentContainerId];
@@ -76,7 +72,7 @@ export const getData = (
       }
       return undefined;
     }
-    case ItemType.Variable: {
+    case "Variable": {
       if (isItemReference(reference)) {
         if (reference.parentContainerId) {
           const container = getVariableContainer(
@@ -89,7 +85,7 @@ export const getData = (
           }
           return container.variables?.data[reference.refId];
         }
-        if (reference.parentContainerType === ContainerType.Block) {
+        if (reference.parentContainerType === "Block") {
           const container = Object.values(
             project?.instances?.blocks?.data
           ).find((c) => {
@@ -99,7 +95,7 @@ export const getData = (
             return container.variables?.data[reference.refId];
           }
         }
-        if (reference.parentContainerType === ContainerType.Construct) {
+        if (reference.parentContainerType === "Construct") {
           const container = Object.values(
             project?.instances?.constructs?.data
           ).find((c) => {
@@ -112,13 +108,13 @@ export const getData = (
       }
       return undefined;
     }
-    case StorageType.File: {
+    case "File": {
       if (project?.instances?.files) {
         return project?.instances?.files?.data?.[reference.refId];
       }
       break;
     }
-    case StorageType.Folder: {
+    case "Folder": {
       if (project?.instances?.folders) {
         return project?.instances?.folders.data[reference.refId];
       }

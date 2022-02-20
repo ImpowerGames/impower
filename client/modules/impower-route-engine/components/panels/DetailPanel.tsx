@@ -35,8 +35,6 @@ import {
   ItemSectionType,
   ItemType,
   Reference,
-  SetupSectionType,
-  SetupSettingsType,
 } from "../../../impower-game/data";
 import { getData } from "../../../impower-game/inspector";
 import { InputBlocker } from "../../../impower-route";
@@ -382,14 +380,14 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     inspectedContainers?.[inspectedContainerTargetId];
   const inspectedItems: { [refId: string]: ItemData } = useMemo(
     () =>
-      section === ItemSectionType.Preview
+      section === "Preview"
         ? {}
         : getItems(inspectedTargetContainer, section as ItemType),
     [inspectedTargetContainer, section]
   );
 
   const allSelectedItemReferences =
-    section !== ItemSectionType.Preview
+    section !== "Preview"
       ? state.present.dataPanel.panels[windowType].Item.interactions.Selected
       : undefined;
   const selectedItemReferences = useMemo(
@@ -419,7 +417,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   );
   const selectedItems: { [refId: string]: ItemData } = useMemo(() => {
     const items: { [refId: string]: ItemData } = {};
-    if (section === ItemSectionType.Preview || !selectedItemReferences) {
+    if (section === "Preview" || !selectedItemReferences) {
       return items;
     }
     selectedItemReferences.forEach((reference: Reference) => {
@@ -432,7 +430,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   }, [section, selectedItemReferences, data]);
   const inspectedInstanceData: InstanceData[] = useMemo(() => {
     if (windowType === DataWindowType.Setup) {
-      if (section === SetupSectionType.Configuration) {
+      if (section === "Configuration") {
         const config =
           data?.instances?.configs?.data?.[inspectedTargetId as ConfigTypeId];
         if (config) {
@@ -503,7 +501,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const handleDebouncedInstancePropertyChange = useCallback(
     (references: Reference[], propertyPath: string, value: unknown) => {
       // Items are selected, so assume the user is editing the selected items
-      if (section !== ItemSectionType.Preview) {
+      if (section !== "Preview") {
         dispatch(projectUpdateData("Update", references, propertyPath, value));
       }
     },
@@ -533,7 +531,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
           );
         }
       } else {
-        if (section === ItemSectionType.Preview) {
+        if (section === "Preview") {
           return;
         }
         if (expanded) {
@@ -615,7 +613,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   useHTMLBackgroundColor(theme.colors.darkForeground);
 
   useEffect(() => {
-    if (selectedItems && section !== ItemSectionType.Preview) {
+    if (selectedItems && section !== "Preview") {
       if (mode === Mode.Edit) {
         // Validate data before inspecting it
         dispatch(projectValidateData(Object.values(selectedItems)));
@@ -625,7 +623,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
 
   const inspectedDataName = useMemo(() => {
     if (windowType === DataWindowType.Setup) {
-      if (section === SetupSectionType.Configuration) {
+      if (section === "Configuration") {
         const config =
           data?.instances?.configs?.data[inspectedTargetId as ConfigTypeId];
         if (config) {
@@ -686,9 +684,8 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
         }
       >
         <StyledList style={{ opacity: mode === Mode.Test ? 0.5 : undefined }}>
-          {windowType === DataWindowType.Setup &&
-          section === SetupSectionType.Details ? (
-            inspectedTargetId === SetupSettingsType.AdvancedSettings ? (
+          {windowType === DataWindowType.Setup && section === "Details" ? (
+            inspectedTargetId === "AdvancedSettings" ? (
               <SetupAdvanced id={id} doc={doc} />
             ) : (
               <SetupDetails

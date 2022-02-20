@@ -8,9 +8,7 @@ import {
   BlockData,
   CommandData,
   ConfigData,
-  ConfigType,
   ConstructData,
-  ContainerType,
   createBlockData,
   createBlockReference,
   createConstructData,
@@ -23,10 +21,8 @@ import {
   isConstructData,
   isContainerReference,
   isItemReference,
-  ItemType,
   ParentLookup,
   TriggerData,
-  TriggerTypeId,
   VariableData,
 } from "../../data";
 import { TriggerInspector } from "../../project/classes/instances/items/trigger/triggerInspector";
@@ -70,7 +66,7 @@ export const insertGameProjectData = (
     allOriginal = { ...allOriginal, ...original };
 
     switch (refType) {
-      case ConfigType.Config: {
+      case "Config": {
         const updatedData: { [refId: string]: ConfigData } = {};
         Object.entries(updated).forEach(([key, value]) => {
           if (isConfigData(value)) {
@@ -92,7 +88,7 @@ export const insertGameProjectData = (
         };
         break;
       }
-      case ContainerType.Construct: {
+      case "Construct": {
         const updatedParents: {
           [refId: string]: ConstructData;
         } = parent.parentContainerId
@@ -142,7 +138,7 @@ export const insertGameProjectData = (
           project?.instances?.constructs?.data[parent.parentContainerId];
         break;
       }
-      case ContainerType.Block: {
+      case "Block": {
         const isFirstBlock =
           parent.parentContainerId &&
           !newProject?.instances?.blocks?.data?.[parent.parentContainerId]
@@ -155,10 +151,10 @@ export const insertGameProjectData = (
               if (!firstBlock?.triggers?.order?.length) {
                 const newEnteredTrigger = TriggerInspector.instance.createData({
                   reference: {
-                    parentContainerType: ContainerType.Block,
+                    parentContainerType: "Block",
                     parentContainerId: firstBlock.reference.refId,
-                    refType: ItemType.Trigger,
-                    refTypeId: TriggerTypeId.EnteredTrigger,
+                    refType: "Trigger",
+                    refTypeId: "EnteredTrigger",
                     refId: getUuid(),
                   },
                 });
@@ -223,7 +219,7 @@ export const insertGameProjectData = (
           project?.instances?.blocks?.data[parent.parentContainerId];
         break;
       }
-      case ItemType.Element: {
+      case "Element": {
         newProject = {
           ...newProject,
           instances: {
@@ -254,7 +250,7 @@ export const insertGameProjectData = (
           project?.instances?.constructs?.data[parent.parentContainerId];
         break;
       }
-      case ItemType.Trigger: {
+      case "Trigger": {
         newProject = {
           ...newProject,
           instances: {
@@ -285,7 +281,7 @@ export const insertGameProjectData = (
           project?.instances?.blocks?.data[parent.parentContainerId];
         break;
       }
-      case ItemType.Command: {
+      case "Command": {
         newProject = {
           ...newProject,
           instances: {
@@ -316,9 +312,9 @@ export const insertGameProjectData = (
           project?.instances?.blocks?.data[parent.parentContainerId];
         break;
       }
-      case ItemType.Variable: {
+      case "Variable": {
         switch (parent.parentContainerType) {
-          case ContainerType.Construct: {
+          case "Construct": {
             newProject = {
               ...newProject,
               instances: {
@@ -349,7 +345,7 @@ export const insertGameProjectData = (
               project?.instances?.constructs?.data[parent.parentContainerId];
             break;
           }
-          case ContainerType.Block: {
+          case "Block": {
             newProject = {
               ...newProject,
               instances: {

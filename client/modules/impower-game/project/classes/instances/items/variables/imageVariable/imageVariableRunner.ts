@@ -1,10 +1,6 @@
-import {
-  ImageFileReference,
-  VariableData,
-  VariableTypeId,
-} from "../../../../../../data";
+import { ImageFileReference, VariableData } from "../../../../../../data";
 import { VariableRunner } from "../../variable/variableRunner";
 
 export class ImageVariableRunner extends VariableRunner<
-  VariableData<VariableTypeId.ImageVariable, ImageFileReference>
+  VariableData<"ImageVariable", ImageFileReference>
 > {}

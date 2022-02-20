@@ -1,12 +1,11 @@
 import {
-  DoCommandData,
-  ContainerType,
   Branchable,
-  TypeInfo,
   createDynamicData,
+  DoCommandData,
+  TypeInfo,
 } from "../../../../../../../data";
-import { CommandInspector } from "../../../command/commandInspector";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { CommandInspector } from "../../../command/commandInspector";
 
 export class DoCommandInspector
   extends CommandInspector<DoCommandData>
@@ -39,10 +38,10 @@ export class DoCommandInspector
     return {
       ...super.createData(data),
       block: createDynamicData({
-        parentContainerType: ContainerType.Block,
+        parentContainerType: "Block",
         parentContainerId: "",
-        refType: ContainerType.Block,
-        refTypeId: ContainerType.Block,
+        refType: "Block",
+        refTypeId: "Block",
         refId: "",
       }),
       ...data,

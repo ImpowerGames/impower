@@ -1,18 +1,16 @@
 import {
-  ContainerType,
-  ItemType,
-  SetOperator,
-  Permission,
-  TypeInfo,
-  getSetOperatorSymbol,
-  SetCommandData,
-  VariableTypeId,
   createDynamicData,
+  getSetOperatorSymbol,
+  Permission,
+  SetCommandData,
+  SetOperator,
+  TypeInfo,
+  VariableTypeId,
 } from "../../../../../../../data";
-import { CommandInspector } from "../../../command/commandInspector";
-import { getValidSetOperators } from "../../../../../../../inspector/utils/getValidSetOperators";
-import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { getDefaultVariableValue } from "../../../../../../../inspector";
+import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { getValidSetOperators } from "../../../../../../../inspector/utils/getValidSetOperators";
+import { CommandInspector } from "../../../command/commandInspector";
 
 export class SetCommandInspector extends CommandInspector<SetCommandData> {
   getTypeInfo(): TypeInfo {
@@ -35,9 +33,9 @@ export class SetCommandInspector extends CommandInspector<SetCommandData> {
     return {
       ...super.createData(data),
       variable: {
-        parentContainerType: ContainerType.Block,
+        parentContainerType: "Block",
         parentContainerId: "",
-        refType: ItemType.Variable,
+        refType: "Variable",
         refTypeId: "" as VariableTypeId,
         refId: "",
       },

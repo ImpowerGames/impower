@@ -1,13 +1,9 @@
-import {
-  TypeInfo,
-  CommandData,
-  CommandTypeId,
-} from "../../../../../../../data";
-import { CommandInspector } from "../../../command/commandInspector";
+import { CommandData, TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { CommandInspector } from "../../../command/commandInspector";
 
 export class EnterCommandInspector extends CommandInspector<
-  CommandData<CommandTypeId.EnterCommand>
+  CommandData<"EnterCommand">
 > {
   getTypeInfo(): TypeInfo {
     return {
@@ -21,7 +17,7 @@ export class EnterCommandInspector extends CommandInspector<
 
   isPropertyVisible(
     propertyPath: string,
-    data: CommandData<CommandTypeId.EnterCommand>
+    data: CommandData<"EnterCommand">
   ): boolean {
     if (propertyPath === "waitUntilFinished") {
       return true;

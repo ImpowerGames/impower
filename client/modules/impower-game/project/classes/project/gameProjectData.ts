@@ -1,5 +1,4 @@
 import { Collection } from "../../../../impower-core";
-import { ContainerType } from "../../../data/enums/data";
 import { createBlockReference } from "../../../data/interfaces/references/blockReference";
 import { createConstructReference } from "../../../data/interfaces/references/constructReference";
 import { ConfigData } from "../instances/config/configData";
@@ -67,6 +66,12 @@ export const createConfigDataCollection = (
 });
 
 export interface GameProjectData extends ProjectData {
+  scripts?: {
+    setup?: Collection<string>;
+    assets?: Collection<string>;
+    entities?: Collection<string>;
+    logic?: Collection<string>;
+  };
   instances?: {
     files: Collection<FileData>;
     folders: Collection<FolderData>;
@@ -89,7 +94,7 @@ export const createGameProjectData = (
         Construct: {
           ...createConstructData({
             reference: createConstructReference({
-              refId: ContainerType.Construct,
+              refId: "Construct",
             }),
             name: "Root",
           }),
@@ -101,7 +106,7 @@ export const createGameProjectData = (
         Block: {
           ...createBlockData({
             reference: createBlockReference({
-              refId: ContainerType.Block,
+              refId: "Block",
             }),
             name: "Root",
           }),

@@ -1,11 +1,10 @@
 import {
   createDynamicData,
   FileTypeId,
-  StorageType,
   TypeInfo,
 } from "../../../../../../../data";
-import { TriggerInspector } from "../../../trigger/triggerInspector";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { TriggerInspector } from "../../../trigger/triggerInspector";
 import { ImageDropTriggerData } from "./imageDropTriggerData";
 
 export class ImageDropTriggerInspector extends TriggerInspector<ImageDropTriggerData> {
@@ -29,7 +28,7 @@ export class ImageDropTriggerInspector extends TriggerInspector<ImageDropTrigger
   ): ImageDropTriggerData {
     return {
       image: createDynamicData({
-        refType: StorageType.File,
+        refType: "File",
         refTypeId: FileTypeId.ImageFile,
         refId: "",
       }),

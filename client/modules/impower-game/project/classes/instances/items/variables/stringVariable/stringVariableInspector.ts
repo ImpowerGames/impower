@@ -1,13 +1,11 @@
-import { VariableData, TypeInfo, VariableTypeId } from "../../../../../../data";
-import { VariableInspector } from "../../variable/variableInspector";
+import { TypeInfo, VariableData } from "../../../../../../data";
 import { getProjectColor } from "../../../../../../inspector/utils/getProjectColor";
+import { VariableInspector } from "../../variable/variableInspector";
 
 export class StringVariableInspector extends VariableInspector<
-  VariableData<VariableTypeId.StringVariable, string>
+  VariableData<"StringVariable", string>
 > {
-  getTypeInfo(
-    data?: VariableData<VariableTypeId.StringVariable, string>
-  ): TypeInfo {
+  getTypeInfo(data?: VariableData<"StringVariable", string>): TypeInfo {
     return {
       category: "Primitive",
       name: `${this.getTypePrefix(data)}String`,
@@ -19,7 +17,7 @@ export class StringVariableInspector extends VariableInspector<
 
   getPropertyDisplayValue(
     propertyPath: string,
-    data: VariableData<VariableTypeId.StringVariable, string>,
+    data: VariableData<"StringVariable", string>,
     value: unknown
   ): string {
     if (propertyPath === "value") {

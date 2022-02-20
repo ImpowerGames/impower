@@ -17,7 +17,6 @@ import {
   isDynamicData,
   isInstanceData,
   isReference,
-  ItemType,
   Reference,
   VariableReference,
 } from "../../../impower-game/data";
@@ -340,7 +339,7 @@ const InstanceInspectorForm = React.memo(
           dynamic: {
             parentContainerType: inspectedParentContainerType,
             parentContainerId: inspectedContainerRefId,
-            refType: ItemType.Variable,
+            refType: "Variable",
             refTypeId: inspector.getPropertyDynamicTypeId(propertyPath, data),
             refId: "",
           } as VariableReference,

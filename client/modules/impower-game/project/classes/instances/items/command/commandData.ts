@@ -1,15 +1,14 @@
-import { ItemType } from "../../../../../data/enums/data";
 import { Disableable } from "../../../../../data/interfaces/disableable";
 import {
   CommandReference,
   createCommandReference,
   isCommandReference,
 } from "../../../../../data/interfaces/references/commandReference";
-import { ItemData, createItemData } from "../../item/itemData";
+import { createItemData, ItemData } from "../../item/itemData";
 import { CommandTypeId } from "./commandTypeId";
 
 export interface CommandData<T extends CommandTypeId = CommandTypeId>
-  extends ItemData<ItemType.Command, CommandReference<T>>,
+  extends ItemData<"Command", CommandReference<T>>,
     Disableable {
   waitUntilFinished: boolean;
 }

@@ -14,7 +14,6 @@ import { getDataDisplayValue } from "../../../impower-core";
 import {
   GameProjectData,
   isReference,
-  ItemSectionType,
   ItemType,
 } from "../../../impower-game/data";
 import { FontIcon } from "../../../impower-icon";
@@ -49,7 +48,7 @@ const DataButtonLeftChildren = React.memo(
       if (!blockState) {
         return undefined;
       }
-      return blockState.executingCommandIndex === index;
+      return blockState.executingIndex === index;
     }, [game, targetContainerId, index]);
 
     const isTriggerSatisfied = useCallback((): boolean | undefined => {
@@ -159,13 +158,13 @@ const DataButtonLeftChildren = React.memo(
     const theme = useTheme();
 
     const showIcon =
-      itemPanelState.section === ItemType.Command
+      itemPanelState.section === "Command"
         ? executing
-        : itemPanelState.section === ItemType.Trigger
+        : itemPanelState.section === "Trigger"
         ? triggerSatisfied === undefined
           ? undefined
           : true
-        : itemPanelState.section === ItemType.Variable
+        : itemPanelState.section === "Variable"
         ? variableChanged
         : undefined;
 
@@ -180,11 +179,11 @@ const DataButtonLeftChildren = React.memo(
     };
 
     const iconColor =
-      itemPanelState.section === ItemType.Command
+      itemPanelState.section === "Command"
         ? theme.colors.executed
-        : itemPanelState.section === ItemType.Trigger
+        : itemPanelState.section === "Trigger"
         ? getTriggerIconColor(triggerSatisfied)
-        : itemPanelState.section === ItemType.Variable
+        : itemPanelState.section === "Variable"
         ? theme.colors.set
         : theme.colors.black50;
 
@@ -373,7 +372,7 @@ const ItemButton = React.memo((props: ItemButtonProps): JSX.Element => {
       onDoubleClick={onEdit}
       onDragHandleTrigger={handleDragHandleTrigger}
       inputChildren={
-        itemPanelState.section !== ItemSectionType.Preview ? (
+        itemPanelState.section !== "Preview" ? (
           <DataTypeInput
             label={format("Add {target}", {
               target: headerInfo.name,

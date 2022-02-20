@@ -16,6 +16,21 @@ export const DefaultSkipMarkup: {
   [Type.Transition](_bl, _cx, _line) {
     return false;
   },
+  [Type.Jump](_bl, _cx, _line) {
+    return false;
+  },
+  [Type.Return](_bl, _cx, _line) {
+    return false;
+  },
+  [Type.Declare](_bl, _cx, _line) {
+    return false;
+  },
+  [Type.Assign](_bl, _cx, _line) {
+    return false;
+  },
+  [Type.Trigger](_bl, _cx, _line) {
+    return false;
+  },
   [Type.Section](bl, cx, line): boolean {
     const headingValue = isSectionHeading(line);
     if (headingValue < 0 || headingValue > bl.value) {

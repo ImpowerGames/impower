@@ -519,7 +519,7 @@ const ContainerPanelHeader = React.memo(
     return (
       <PanelHeader
         type={search !== undefined ? "search" : "default"}
-        title={headerInfo.pluralName}
+        title={containerPanelState.scripting ? "Script" : headerInfo.pluralName}
         search={search}
         breadcrumbs={headerBreadcrumbs}
         style={headerStyle}
@@ -536,7 +536,7 @@ const ContainerPanelHeader = React.memo(
         onCloseSearch={onCloseSearch}
         onSearch={onSearch}
         rightChildren={
-          containerType === ContainerType.Block && (
+          containerType === "Block" && (
             <>
               <ScriptingPanelHeaderIconButton
                 scripting={containerPanelState.scripting}

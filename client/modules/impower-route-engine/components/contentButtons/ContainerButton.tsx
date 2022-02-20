@@ -51,7 +51,7 @@ const DataButtonLeftChildren = React.memo(
       if (!blockState) {
         return undefined;
       }
-      return blockState.executedByBlockId;
+      return blockState.executedBy;
     }, [game, id]);
 
     const [executing, setExecuting] = useState(isBlockExecuting());

@@ -1,2 +1,11 @@
+export * from "./constants/fountainRegexes";
+export * from "./types/FountainSection";
 export * from "./types/FountainSyntaxTree";
+export * from "./types/FountainTitleKeyword";
+export * from "./types/FountainTitlePosition";
+export * from "./types/FountainToken";
+export * from "./types/FountainTokenType";
+export * from "./types/FountainVariable";
+export * from "./types/LexerReplacements";
+export * from "./types/ScreenplayProperties";
 export { parseFountain } from "./utils/parseFountain";

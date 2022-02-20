@@ -1,27 +1,26 @@
-export enum CommandTypeId {
-  LogCommand = "LogCommand",
-  DoCommand = "DoCommand",
-  EnterCommand = "EnterCommand",
-  ExitCommand = "ExitCommand",
-  EndCommand = "EndCommand",
-  WaitCommand = "WaitCommand",
-  IfCommand = "IfCommand",
-  ElseIfCommand = "ElseIfCommand",
-  ElseCommand = "ElseCommand",
-  SelectCommand = "SelectCommand",
-  CloseCommand = "CloseCommand",
-  SetCommand = "SetCommand",
-  SayCommand = "SayCommand",
-  CreateCommand = "CreateCommand",
-  DestroyCommand = "DestroyCommand",
-  ShowImageCommand = "ShowImageCommand",
-  MoveToImageCommand = "MoveToImageCommand",
-  RotateToImageCommand = "RotateToImageCommand",
-  ScaleToImageCommand = "ScaleToImageCommand",
-  HideImageCommand = "HideImageCommand",
-  PlayAudioCommand = "PlayAudioCommand",
-  PauseAudioCommand = "PauseAudioCommand",
-  ResumeAudioCommand = "ResumeAudioCommand",
-  StopAudioCommand = "StopAudioCommand",
-  ShowPortraitCommand = "ShowPortraitCommand",
-}
+export type CommandTypeId =
+  | "LogCommand"
+  | "DoCommand"
+  | "EnterCommand"
+  | "ExitCommand"
+  | "EndCommand"
+  | "WaitCommand"
+  | "IfCommand"
+  | "ElseIfCommand"
+  | "ElseCommand"
+  | "SelectCommand"
+  | "CloseCommand"
+  | "SetCommand"
+  | "SayCommand"
+  | "CreateCommand"
+  | "DestroyCommand"
+  | "ShowImageCommand"
+  | "MoveToImageCommand"
+  | "RotateToImageCommand"
+  | "ScaleToImageCommand"
+  | "HideImageCommand"
+  | "PlayAudioCommand"
+  | "PauseAudioCommand"
+  | "ResumeAudioCommand"
+  | "StopAudioCommand"
+  | "ShowPortraitCommand";

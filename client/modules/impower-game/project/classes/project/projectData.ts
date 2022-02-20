@@ -7,10 +7,7 @@ export interface ProjectData {
   doc?: ProjectDocument;
   members?: Collection<MemberData>;
   scripts?: {
-    setup?: Collection<string>;
-    assets?: Collection<string>;
-    entities?: Collection<string>;
-    logic?: Collection<string>;
+    [id: string]: Collection<string>;
   };
   instances?: {
     [id: string]: Collection<InstanceData>;

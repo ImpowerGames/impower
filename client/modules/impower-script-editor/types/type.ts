@@ -28,6 +28,13 @@ export enum Type {
   Character,
   Action,
   Centered,
+  Go,
+  Jump,
+  Return,
+  Declare,
+  Assign,
+  Compare,
+  Trigger,
 
   // Markdown Inline
   Escape,
@@ -50,6 +57,7 @@ export enum Type {
   Lyric,
   Underline,
   SceneNumber,
+  Tag,
 
   // Markdown Mark
   SectionMark,
@@ -70,10 +78,10 @@ export enum Type {
   CharacterMark,
   DualDialogueMark,
   ActionMark,
-  TransitionMark,
   TitleEntry,
   TitleMark,
   CenteredMark,
   LyricMark,
   UnderlineMark,
+  TagMark,
 }

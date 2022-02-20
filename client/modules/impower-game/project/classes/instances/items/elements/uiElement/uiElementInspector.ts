@@ -4,7 +4,6 @@ import {
   ArrangementType,
   BlendMode,
   BorderPosition,
-  ContainerType,
   createDynamicData,
   createUIElementProps,
   ElementContentType,
@@ -91,8 +90,8 @@ export class UIElementInspector<
         type: ElementContentType.None,
         text: createDynamicData("Type Something"),
         component: createDynamicData({
-          refType: ContainerType.Construct,
-          refTypeId: ContainerType.Construct,
+          refType: "Construct",
+          refTypeId: "Construct",
           refId: "",
         }),
       },
@@ -104,14 +103,14 @@ export class UIElementInspector<
   validate(data: UIElementData<T>): UIElementData<T> {
     const refTypeId = (
       data.group
-        ? ElementTypeId.GroupElement
+        ? "GroupElement"
         : data.content?.type === ElementContentType.Component
-        ? ElementTypeId.ComponentElement
+        ? "ComponentElement"
         : data.content?.type === ElementContentType.Text
-        ? ElementTypeId.TextElement
+        ? "TextElement"
         : data.fill?.active && data.fill?.value.type === FillType.Image
-        ? ElementTypeId.ImageElement
-        : ElementTypeId.ShapeElement
+        ? "ImageElement"
+        : "ShapeElement"
     ) as T;
     if (data.reference.refTypeId !== refTypeId) {
       return {

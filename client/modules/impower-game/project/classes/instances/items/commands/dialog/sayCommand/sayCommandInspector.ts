@@ -1,9 +1,7 @@
 import {
-  ContainerType,
   createDynamicData,
   FileTypeId,
   SayCommandData,
-  StorageType,
   TypeInfo,
 } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
@@ -47,22 +45,22 @@ export class SayCommandInspector extends CommandInspector<SayCommandData> {
     return {
       ...super.createData(data),
       dialogUI: createDynamicData({
-        parentContainerType: ContainerType.Construct,
+        parentContainerType: "Construct",
         parentContainerId: "",
-        refType: ContainerType.Construct,
-        refTypeId: ContainerType.Construct,
+        refType: "Construct",
+        refTypeId: "Construct",
         refId: "",
       }),
       character: createDynamicData({
-        parentContainerType: ContainerType.Construct,
+        parentContainerType: "Construct",
         parentContainerId: "",
-        refType: ContainerType.Construct,
-        refTypeId: ContainerType.Construct,
+        refType: "Construct",
+        refTypeId: "Construct",
         refId: "",
       }),
       dialogText: createDynamicData(""),
       voiceOver: createDynamicData({
-        refType: StorageType.File,
+        refType: "File",
         refTypeId: FileTypeId.AudioFile,
         refId: "",
       }),

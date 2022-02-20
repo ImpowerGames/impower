@@ -1,14 +1,14 @@
 import {
   BlockData,
+  CommandData,
   InstanceData,
   TriggerData,
-  CommandData,
   VariableData,
 } from "../../../../../data";
-import { ImpowerGame, BlockState } from "../../../../../game";
-import { TriggerRunner } from "../../items/trigger/triggerRunner";
-import { CommandRunner } from "../../items/command/commandRunner";
+import { BlockState, ImpowerGame } from "../../../../../game";
 import { ContainerRunner } from "../../container/containerRunner";
+import { CommandRunner } from "../../items/command/commandRunner";
+import { TriggerRunner } from "../../items/trigger/triggerRunner";
 
 export class BlockRunner extends ContainerRunner<BlockData> {
   private static _instance: BlockRunner;
@@ -182,11 +182,11 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     time: number
   ): boolean {
     const blockId = id;
-    while (blockState.executingCommandIndex < commands.length) {
-      const command = commands[blockState.executingCommandIndex];
+    while (blockState.executingIndex < commands.length) {
+      const command = commands[blockState.executingIndex];
       const commandId = command.data.reference.refId;
-      const commandIndex = blockState.executingCommandIndex;
-      if (blockState.timeOfLastCommandExecution < 0) {
+      const commandIndex = blockState.executingIndex;
+      if (blockState.lastExecutedAt < 0) {
         game.logic.executeCommand({
           blockId,
           commandId,
@@ -197,13 +197,13 @@ export class BlockRunner extends ContainerRunner<BlockData> {
           command.data,
           variables,
           game,
-          blockState.executingCommandIndex,
+          blockState.executingIndex,
           commands
         );
         if (nextJumps.length > 0) {
           game.logic.commandJumpStackPush({ blockId, indices: nextJumps });
         }
-        if (blockState.timeOfLastCommandExecution < 0) {
+        if (blockState.lastExecutedAt < 0) {
           return false;
         }
       }
@@ -227,7 +227,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
           index: nextCommandIndex,
         });
       } else {
-        const nextCommandIndex = blockState.executingCommandIndex + 1;
+        const nextCommandIndex = blockState.executingIndex + 1;
         game.logic.goToCommandIndex({
           blockId,
           index: nextCommandIndex,

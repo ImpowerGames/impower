@@ -1,13 +1,9 @@
-import {
-  TriggerData,
-  TriggerTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
-import { TriggerInspector } from "../../../trigger/triggerInspector";
+import { TriggerData, TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { TriggerInspector } from "../../../trigger/triggerInspector";
 
 export class EnteredTriggerInspector extends TriggerInspector<
-  TriggerData<TriggerTypeId.EnteredTrigger>
+  TriggerData<"EnteredTrigger">
 > {
   getTypeInfo(): TypeInfo {
     return {

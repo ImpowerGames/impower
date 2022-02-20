@@ -1,11 +1,8 @@
 import {
   ConfigData,
-  ConfigType,
-  ContainerType,
   GameProjectData,
   InstanceData,
   isItemReference,
-  ItemType,
   Reference,
 } from "../../data";
 import { getVariableContainer } from "./getVariableContainer";
@@ -22,7 +19,7 @@ const getNestedDataInternal = (
     return;
   }
   switch (reference.refType) {
-    case ConfigType.Config: {
+    case "Config": {
       const config: ConfigData =
         project?.instances?.configs.data[reference.refId];
       if (config) {
@@ -30,7 +27,7 @@ const getNestedDataInternal = (
       }
       break;
     }
-    case ContainerType.Construct: {
+    case "Construct": {
       const construct = project?.instances?.constructs.data[reference.refId];
       if (construct) {
         dict[reference.refId] = construct;
@@ -48,7 +45,7 @@ const getNestedDataInternal = (
       }
       return;
     }
-    case ContainerType.Block: {
+    case "Block": {
       const block = project?.instances?.blocks.data[reference.refId];
       if (block) {
         dict[reference.refId] = block;
@@ -66,7 +63,7 @@ const getNestedDataInternal = (
       }
       return;
     }
-    case ItemType.Element: {
+    case "Element": {
       if (isItemReference(reference)) {
         if (reference.parentContainerId) {
           const construct =
@@ -89,7 +86,7 @@ const getNestedDataInternal = (
       }
       return;
     }
-    case ItemType.Trigger: {
+    case "Trigger": {
       if (isItemReference(reference)) {
         const block =
           project?.instances?.blocks.data[reference.parentContainerId];
@@ -102,7 +99,7 @@ const getNestedDataInternal = (
       }
       return;
     }
-    case ItemType.Command: {
+    case "Command": {
       if (isItemReference(reference)) {
         const block =
           project?.instances?.blocks.data[reference.parentContainerId];
@@ -115,7 +112,7 @@ const getNestedDataInternal = (
       }
       return;
     }
-    case ItemType.Variable: {
+    case "Variable": {
       if (isItemReference(reference)) {
         if (reference.parentContainerId) {
           const container = getVariableContainer(
@@ -130,7 +127,7 @@ const getNestedDataInternal = (
           }
           dict[reference.refId] = container.variables.data[reference.refId];
         }
-        if (reference.parentContainerType === ContainerType.Block) {
+        if (reference.parentContainerType === "Block") {
           const container = Object.values(
             project?.instances?.blocks?.data || {}
           ).find((c) => {
@@ -140,7 +137,7 @@ const getNestedDataInternal = (
             dict[reference.refId] = container.variables.data[reference.refId];
           }
         }
-        if (reference.parentContainerType === ContainerType.Construct) {
+        if (reference.parentContainerType === "Construct") {
           const container = Object.values(
             project?.instances?.constructs.data
           ).find((c) => {

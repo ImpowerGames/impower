@@ -1,13 +1,9 @@
-import {
-  CommandData,
-  CommandTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
-import { CommandInspector } from "../../../command/commandInspector";
+import { CommandData, TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
+import { CommandInspector } from "../../../command/commandInspector";
 
 export class CloseCommandInspector extends CommandInspector<
-  CommandData<CommandTypeId.CloseCommand>
+  CommandData<"CloseCommand">
 > {
   getTypeInfo(): TypeInfo {
     return {

@@ -2,7 +2,6 @@ import {
   createDynamicData,
   createTransitionConfig,
   FileTypeId,
-  StorageType,
   TypeInfo,
 } from "../../../../../../../data";
 import { createVectorConfig } from "../../../../../../../data/interfaces/configs/vectorConfig";
@@ -32,7 +31,7 @@ export class ShowImageCommandInspector extends CommandInspector<ShowImageCommand
     return {
       ...super.createData(data),
       image: createDynamicData({
-        refType: StorageType.File,
+        refType: "File",
         refTypeId: FileTypeId.ImageFile,
         refId: "",
       }),

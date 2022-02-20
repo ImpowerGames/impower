@@ -1,14 +1,13 @@
 import {
   CommandData,
-  CommandTypeId,
-  VariableData,
   IfCommandData,
   InstanceData,
+  VariableData,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
+import { getNextJumpIndex } from "../../../../../../../runner/utils/getNextJumpIndex";
 import { CommandRunner } from "../../../command/commandRunner";
 import { IfCommandRunner } from "../ifCommand/ifCommandRunner";
-import { getNextJumpIndex } from "../../../../../../../runner/utils/getNextJumpIndex";
 
 export class ElseIfCommandRunner extends IfCommandRunner {
   closesGroup(_data: IfCommandData, _group?: InstanceData): boolean {
@@ -29,10 +28,10 @@ export class ElseIfCommandRunner extends IfCommandRunner {
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
     const previousCommandTypeId =
-      blockCommands[blockState.previousCommandIndex].data.reference.refTypeId;
+      blockCommands[blockState.previousIndex].data.reference.refTypeId;
     if (
-      previousCommandTypeId === CommandTypeId.IfCommand ||
-      previousCommandTypeId === CommandTypeId.ElseIfCommand
+      previousCommandTypeId === "IfCommand" ||
+      previousCommandTypeId === "ElseIfCommand"
     ) {
       const executeChildren = this.areConditionsSatisfied(
         data.checkAll,
@@ -45,9 +44,9 @@ export class ElseIfCommandRunner extends IfCommandRunner {
         // skip to the command after the next "Else" or "Close" command
         const nextCommandIndex = getNextJumpIndex(
           [
-            { refTypeId: CommandTypeId.ElseIfCommand, indexOffset: 0 },
-            { refTypeId: CommandTypeId.ElseCommand, indexOffset: 1 },
-            { refTypeId: CommandTypeId.CloseCommand, indexOffset: 1 },
+            { refTypeId: "ElseIfCommand", indexOffset: 0 },
+            { refTypeId: "ElseCommand", indexOffset: 1 },
+            { refTypeId: "CloseCommand", indexOffset: 1 },
           ],
           index,
           blockCommands
@@ -57,7 +56,7 @@ export class ElseIfCommandRunner extends IfCommandRunner {
     } else {
       // Skip to the command after the next "Close" command
       const nextCommandIndex = getNextJumpIndex(
-        [{ refTypeId: CommandTypeId.CloseCommand, indexOffset: 1 }],
+        [{ refTypeId: "CloseCommand", indexOffset: 1 }],
         index,
         blockCommands
       );

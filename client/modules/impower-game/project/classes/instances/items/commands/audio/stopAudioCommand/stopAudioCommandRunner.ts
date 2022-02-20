@@ -1,7 +1,7 @@
 import { CommandData, VariableData } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
-import { CommandRunner } from "../../../command/commandRunner";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
+import { CommandRunner } from "../../../command/commandRunner";
 import { StopAudioCommandData } from "./stopAudioCommandData";
 
 export class StopAudioCommandRunner extends CommandRunner<StopAudioCommandData> {
@@ -42,8 +42,7 @@ export class StopAudioCommandRunner extends CommandRunner<StopAudioCommandData> 
     }
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
-    const timeSinceExecution =
-      blockState.time - blockState.timeOfLastCommandExecution;
+    const timeSinceExecution = blockState.time - blockState.lastExecutedAt;
     if (duration < 0) {
       return false;
     }

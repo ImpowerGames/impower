@@ -1,0 +1,15 @@
+export type FountainTitleKeyword =
+  | "title"
+  | "credit"
+  | "author"
+  | "authors"
+  | "source"
+  | "watermark"
+  | "font"
+  | "notes"
+  | "copyright"
+  | "revision"
+  | "date"
+  | "draft_date"
+  | "contact"
+  | "contact_info";

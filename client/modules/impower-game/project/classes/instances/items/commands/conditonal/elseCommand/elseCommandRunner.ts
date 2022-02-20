@@ -1,11 +1,7 @@
-import {
-  CommandData,
-  VariableData,
-  CommandTypeId,
-} from "../../../../../../../data";
+import { CommandData, VariableData } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
-import { CommandRunner } from "../../../command/commandRunner";
 import { getNextJumpIndex } from "../../../../../../../runner/utils/getNextJumpIndex";
+import { CommandRunner } from "../../../command/commandRunner";
 
 export class ElseCommandRunner extends CommandRunner<CommandData> {
   closesGroup(): boolean {
@@ -29,7 +25,7 @@ export class ElseCommandRunner extends CommandRunner<CommandData> {
   ): number[] {
     // Skip to the command after the next "Close" command
     const nextCommandIndex = getNextJumpIndex(
-      [{ refTypeId: CommandTypeId.CloseCommand, indexOffset: 1 }],
+      [{ refTypeId: "CloseCommand", indexOffset: 1 }],
       index,
       blockCommands
     );

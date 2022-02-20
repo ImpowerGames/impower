@@ -2,16 +2,15 @@ import {
   ImageFileReference,
   TypeInfo,
   VariableData,
-  VariableTypeId,
 } from "../../../../../../data";
 import { getProjectColor } from "../../../../../../inspector/utils/getProjectColor";
 import { VariableInspector } from "../../variable/variableInspector";
 
 export class ImageVariableInspector extends VariableInspector<
-  VariableData<VariableTypeId.ImageVariable, ImageFileReference>
+  VariableData<"ImageVariable", ImageFileReference>
 > {
   getTypeInfo(
-    data?: VariableData<VariableTypeId.ImageVariable, ImageFileReference>
+    data?: VariableData<"ImageVariable", ImageFileReference>
   ): TypeInfo {
     return {
       category: "Reference",

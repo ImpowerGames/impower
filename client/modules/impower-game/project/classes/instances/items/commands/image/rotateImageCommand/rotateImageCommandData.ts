@@ -1,10 +1,10 @@
-import { CommandTypeId, ImageFileReference } from "../../../../../../../data";
+import { ImageFileReference } from "../../../../../../../data";
+import { TransitionConfig } from "../../../../../../../data/interfaces/configs/transitionConfig";
 import { DynamicData } from "../../../../../../../data/interfaces/generics/dynamicData";
 import { CommandData } from "../../../command/commandData";
-import { TransitionConfig } from "../../../../../../../data/interfaces/configs/transitionConfig";
 
 export interface RotateToImageCommandData
-  extends CommandData<CommandTypeId.RotateToImageCommand> {
+  extends CommandData<"RotateToImageCommand"> {
   image: DynamicData<ImageFileReference>;
   transition: TransitionConfig;
   angle: DynamicData<number>;

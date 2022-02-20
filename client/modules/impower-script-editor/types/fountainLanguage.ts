@@ -20,6 +20,8 @@ export const tags = {
   sceneHeading: t.propertyName,
   sceneNumber: t.number,
   transition: t.controlKeyword,
+  logic: t.logicOperator,
+  flow: t.controlOperator,
   character: t.className,
   parenthetical: t.tagName,
   dialogue: t.typeName,
@@ -62,7 +64,6 @@ export const tags = {
   lyricMark: t.processingInstruction,
   noteMark: t.comment,
   synopsesMark: t.comment,
-  transitionMark: t.controlOperator,
   centeredMark: t.processingInstruction,
   emphasisMark: t.processingInstruction,
   underlineMark: t.processingInstruction,
@@ -70,6 +71,9 @@ export const tags = {
   quoteMark: t.processingInstruction,
   listMark: t.processingInstruction,
   linkMark: t.processingInstruction,
+  strikethrough: t.strikethrough,
+  formatting: t.processingInstruction,
+  invalid: t.invalid,
 };
 
 const data = defineLanguageFacet({ block: { open: "<!--", close: "-->" } });
@@ -83,7 +87,8 @@ const commonmark = baseParser.configure({
       "SceneHeadingMark ": tags.sceneHeadingMark,
       "SceneNumber/...": tags.sceneNumber,
       "Transition/...": tags.transition,
-      "TransitionMark": tags.transitionMark,
+      "Declare Assign Compare Trigger": tags.logic,
+      "Go Jump Return": tags.flow,
       "Character/...": tags.character,
       "Parenthetical/...": tags.parenthetical,
       "Dialogue/...": tags.dialogue,
@@ -130,6 +135,7 @@ const commonmark = baseParser.configure({
       "HardBreak": tags.hardBreak,
       "QuoteMark": tags.quoteMark,
       "Paragraph": tags.paragraph,
+      "Strikethrough/...": tags.strikethrough,
     }),
     foldNodeProp.add((type) => {
       if (!type.is("Section") && !type.is("Title")) {
