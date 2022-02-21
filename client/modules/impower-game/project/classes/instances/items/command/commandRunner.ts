@@ -1,4 +1,4 @@
-import { VariableData, CommandData } from "../../../../../data";
+import { CommandData, VariableData } from "../../../../../data";
 import { ImpowerGame } from "../../../../../game";
 import { ItemRunner } from "../../item/itemRunner";
 
@@ -12,6 +12,14 @@ export class CommandRunner<
       this._instance = new CommandRunner();
     }
     return this._instance;
+  }
+
+  init(
+    _data: T,
+    _variables: { [refId: string]: VariableData },
+    _game: ImpowerGame
+  ): void {
+    // NoOp
   }
 
   onExecute(

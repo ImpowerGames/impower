@@ -1,6 +1,6 @@
 import { CommandData, VariableData } from "../../../../../../../data";
-import { CommandRunner } from "../../../command/commandRunner";
 import { ImpowerGame } from "../../../../../../../game";
+import { CommandRunner } from "../../../command/commandRunner";
 
 export class EndCommandRunner extends CommandRunner<CommandData> {
   onExecute(

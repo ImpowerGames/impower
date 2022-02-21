@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ConstructData,
   FillType,
   UIElementData,
 } from "../../impower-game/data";
-import { ConstructComponent } from "./ConstructComponent";
-import { PhaserGame } from "../types/game/phaserGame";
 import { useGameStyle } from "../hooks/gameHooks";
+import { PhaserGame } from "../types/game/phaserGame";
+import { ConstructComponent } from "./ConstructComponent";
 
 interface UIProps {
   phaserGame: PhaserGame;
@@ -147,6 +147,62 @@ const UI = (props: UIProps): JSX.Element => {
               />
             )
         )}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <div style={{ flex: 1 }}></div>
+          <div
+            style={{
+              flex: 1,
+              backgroundColor: "white",
+              paddingTop: 32,
+              paddingBottom: 32,
+            }}
+          >
+            <div
+              className="dialogue"
+              style={{
+                marginLeft: "auto",
+                marginRight: "auto",
+                width: "68%",
+                fontFamily: "Courier Prime Sans",
+                fontSize: "1.375rem",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              <div
+                className="character"
+                style={{
+                  marginBottom: 0,
+                  marginLeft: "23%",
+                }}
+              />
+              <div
+                className="parenthetical"
+                style={{
+                  marginTop: 0,
+                  marginBottom: 0,
+                  marginLeft: "11%",
+                }}
+              />
+              <div
+                className="content"
+                style={{
+                  marginTop: 0,
+                  marginBottom: 0,
+                }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

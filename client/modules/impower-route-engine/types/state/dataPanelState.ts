@@ -48,10 +48,7 @@ export interface PanelInteractionState {
 
 export interface ContainerPanelState extends PanelInteractionState {
   scripting: boolean;
-  cursor?: {
-    from: number;
-    to: number;
-  };
+  activeLine?: number;
   parseResult?: FountainParseResult;
   arrangement: ContainerArrangement;
 }

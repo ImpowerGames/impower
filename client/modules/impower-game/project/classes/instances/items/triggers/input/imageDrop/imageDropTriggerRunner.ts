@@ -26,6 +26,7 @@ export class ImageDropTriggerRunner
       const { id } = gameData;
       if (id === getRuntimeValue(data.image, variables, game).refId) {
         game.logic.setTriggerValue({
+          line: data.line,
           id: data.reference.parentContainerId,
           value: id,
         });
@@ -50,7 +51,11 @@ export class ImageDropTriggerRunner
       if (!data.repeatable && triggerState.executionCount > 1) {
         return false;
       }
-      game.logic.setTriggerValue({ id: parentContainerId, value: null });
+      game.logic.setTriggerValue({
+        line: data.line,
+        id: parentContainerId,
+        value: null,
+      });
 
       return true;
     }

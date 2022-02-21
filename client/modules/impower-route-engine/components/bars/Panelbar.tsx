@@ -40,7 +40,6 @@ const StyledIcon = styled.div`
 export enum PanelbarPosition {
   None = "None",
   Top = "Top",
-  Bottom = "Bottom",
 }
 
 interface PanelbarProps {
@@ -66,8 +65,7 @@ const Panelbar = (props: PropsWithChildren<PanelbarProps>): JSX.Element => {
       openPanel === panelType ? theme.colors.white10 : "transparent",
     borderRightColor:
       openPanel === panelType ? theme.colors.white10 : "transparent",
-    borderTopColor:
-      panelbarPosition === PanelbarPosition.Bottom ? "transparent" : undefined,
+    borderTopColor: undefined,
     borderBottomColor:
       panelbarPosition === PanelbarPosition.Top ? "transparent" : undefined,
   });

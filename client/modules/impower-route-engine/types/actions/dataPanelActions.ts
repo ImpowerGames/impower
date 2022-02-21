@@ -225,27 +225,21 @@ export const dataPanelSetScripting = (
   };
 };
 
-export const DATA_PANEL_SET_CURSOR = "DATA_PANEL_SET_CURSOR";
-export interface DataPanelSetCursorAction {
-  type: typeof DATA_PANEL_SET_CURSOR;
+export const DATA_PANEL_SET_ACTIVE_LINE = "DATA_PANEL_SET_ACTIVE_LINE";
+export interface DataPanelSetActiveLineAction {
+  type: typeof DATA_PANEL_SET_ACTIVE_LINE;
   payload: {
     windowType: DataWindowType;
-    cursor: {
-      from: number;
-      to: number;
-    };
+    activeLine: number;
   };
 }
-export const dataPanelSetCursor = (
+export const dataPanelSetActiveLine = (
   windowType: DataWindowType,
-  cursor: {
-    from: number;
-    to: number;
-  }
-): DataPanelSetCursorAction => {
+  activeLine: number
+): DataPanelSetActiveLineAction => {
   return {
-    type: DATA_PANEL_SET_CURSOR,
-    payload: { windowType, cursor },
+    type: DATA_PANEL_SET_ACTIVE_LINE,
+    payload: { windowType, activeLine },
   };
 };
 
@@ -474,7 +468,7 @@ export type DataPanelAction =
   | DataPanelRemoveInteractionAction
   | DataPanelSetInteractionAction
   | DataPanelSetScriptingAction
-  | DataPanelSetCursorAction
+  | DataPanelSetActiveLineAction
   | DataPanelSetParseResultAction
   | DataPanelSetParentContainerArrangementAction
   | DataPanelChangeItemSectionAction

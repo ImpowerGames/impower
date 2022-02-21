@@ -1,6 +1,6 @@
 import {
-  IterationMode,
   CommandData,
+  IterationMode,
   SelectCommandData,
   VariableData,
 } from "../../../../../../../data";

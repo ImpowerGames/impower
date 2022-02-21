@@ -5,7 +5,11 @@ import { fountainRegexes } from "../constants/fountainRegexes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
 import { FountainParseResult } from "../types/FountainParseResult";
 import { FountainSection } from "../types/FountainSection";
-import { FountainToken } from "../types/FountainToken";
+import {
+  FountainDialogueToken,
+  FountainLogicToken,
+  FountainToken,
+} from "../types/FountainToken";
 import { FountainTokenType } from "../types/FountainTokenType";
 import { FountainVariable } from "../types/FountainVariable";
 import { createFountainToken } from "./createFountainToken";
@@ -17,6 +21,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
 
   const result: FountainParseResult = {
     scriptTokens: [],
+    scriptLines: {},
     properties: {},
   };
 
@@ -45,6 +50,9 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
   let cacheStateForComment;
   let nestedComments = 0;
   let titlePageStarted = false;
+  let previousToken: FountainToken;
+  let previousTriggerToken: FountainLogicToken;
+  let previousCharacterToken: FountainDialogueToken;
 
   const diagnostic = (
     currentToken: FountainToken,
@@ -61,7 +69,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
     const from = currentToken.start + validStart;
     const to = length >= 0 ? from + length : currentToken.end;
     const source = `${severity.toUpperCase()}: line ${
-      currentToken.line + 1
+      currentToken.line
     } column ${column}`;
     result.diagnostics.push({
       from,
@@ -119,9 +127,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
     if (existingContainer) {
       diagnostic(
         currentToken,
-        `A section named '${section.name}' already exists at line ${
-          existingContainer.line + 1
-        }`,
+        `A section named '${section.name}' already exists at line ${existingContainer.line}`,
         getStart(match, index),
         getLength(match, index)
       );
@@ -250,14 +256,11 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
   };
 
   const pushToken = (token: FountainToken): void => {
-    result.scriptTokens.push(token);
-    if (currentToken.line) {
-      if (!result.scriptTokenLines) {
-        result.scriptTokenLines = {};
-      }
-      result.scriptTokenLines[currentToken.line] =
-        result.scriptTokens.length - 1;
+    if (!result.scriptLines) {
+      result.scriptLines = {};
     }
+    result.scriptLines[token.line] = result.scriptTokens.length;
+    result.scriptTokens.push(token);
     currentSectionTokens.push(token);
   };
 
@@ -311,10 +314,11 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       state = cacheStateForComment;
     }
 
+    previousToken = currentToken;
     currentToken = createFountainToken(
       undefined,
       text,
-      i,
+      i + 1,
       current,
       newLineLength
     );
@@ -401,6 +405,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         });
         currentLevel = currentToken.level;
       }
+
       if (currentToken.content.match(fountainRegexes.scene_heading)) {
         currentToken.type = "scene";
         if (currentToken.type === "scene") {
@@ -507,10 +512,18 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       } else if (
         (match = currentToken.content.match(fountainRegexes.trigger))
       ) {
-        currentToken.type = "trigger";
-        if (currentToken.type === "trigger") {
+        currentToken.type = "trigger_group_begin";
+        if (currentToken.type === "trigger_group_begin") {
           currentToken.indent = (match[1] || "").length;
           currentToken.content = match[2]?.trim() || "";
+          if (
+            (previousTriggerToken?.type === "trigger_group_begin" ||
+              previousTriggerToken?.type === "compare") &&
+            currentToken.indent < previousTriggerToken.indent
+          ) {
+            pushToken(createFountainToken("trigger_group_end"));
+          }
+          previousTriggerToken = currentToken;
         }
       } else if (
         (match = currentToken.content.match(fountainRegexes.compare))
@@ -526,6 +539,14 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
           currentToken.operator = operator;
           currentToken.content = content;
           currentToken.value = getValue(content, match, 8);
+          if (
+            (previousTriggerToken?.type === "trigger_group_begin" ||
+              previousTriggerToken?.type === "compare") &&
+            currentToken.indent < previousTriggerToken.indent
+          ) {
+            pushToken(createFountainToken("trigger_group_end"));
+          }
+          previousTriggerToken = currentToken;
         }
       } else if (
         (match = currentToken.content.match(fountainRegexes.synopsis))
@@ -584,72 +605,75 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         // If the trimmed length is larger than zero, then it will be accepted as dialogue regardless
         state = "dialogue";
         currentToken.type = "character";
-        currentToken.content = trimCharacterForceSymbol(currentToken.content);
-        if (currentToken.content[currentToken.content.length - 1] === "^") {
-          state = "dual_dialogue";
-          // update last dialogue to be dual:left
-          let lastCharacterToken = result.scriptTokens[lastCharacterIndex];
-          while (
-            lastCharacterToken.type === "character" ||
-            lastCharacterToken.type === "parenthetical" ||
-            lastCharacterToken.type === "dialogue"
-          ) {
-            lastCharacterToken.dual = "left";
-            lastCharacterIndex += 1;
-            lastCharacterToken = result.scriptTokens[lastCharacterIndex];
-          }
-          // update last dialogue_begin to be dual_dialogue_begin and remove last dialogue_end
-          let foundMatch = false;
-          let temp_index = result.scriptTokens.length;
-          temp_index -= 1;
-          while (!foundMatch) {
-            temp_index -= 1;
-            switch (result.scriptTokens[temp_index].type) {
-              case "dialogue_end":
-                result.scriptTokens.splice(temp_index);
-                temp_index -= 1;
-                break;
-              case "separator":
-                break;
-              case "character":
-                break;
-              case "dialogue":
-                break;
-              case "parenthetical":
-                break;
-              case "dialogue_begin":
-                result.scriptTokens[temp_index].type = "dual_dialogue_begin";
-                foundMatch = true;
-                break;
-              default:
-                foundMatch = true;
+        if (currentToken.type === "character") {
+          currentToken.content = trimCharacterForceSymbol(currentToken.content);
+          if (currentToken.content[currentToken.content.length - 1] === "^") {
+            state = "dual_dialogue";
+            // update last dialogue to be dual:left
+            let index = lastCharacterIndex;
+            let lastCharacterToken = result.scriptTokens[index];
+            while (
+              lastCharacterToken.type === "character" ||
+              lastCharacterToken.type === "parenthetical" ||
+              lastCharacterToken.type === "dialogue"
+            ) {
+              lastCharacterToken.dual = "left";
+              index += 1;
+              lastCharacterToken = result.scriptTokens[index];
             }
-          }
-          dualRight = true;
-          if (currentToken.type === "character") {
+            // update last dialogue_begin to be dual_dialogue_begin and remove last dialogue_end
+            let foundMatch = false;
+            let temp_index = result.scriptTokens.length;
+            temp_index -= 1;
+            while (!foundMatch) {
+              temp_index -= 1;
+              switch (result.scriptTokens[temp_index].type) {
+                case "dialogue_end":
+                  result.scriptTokens.splice(temp_index);
+                  temp_index -= 1;
+                  break;
+                case "separator":
+                  break;
+                case "character":
+                  break;
+                case "dialogue":
+                  break;
+                case "parenthetical":
+                  break;
+                case "dialogue_begin":
+                  result.scriptTokens[temp_index].type = "dual_dialogue_begin";
+                  foundMatch = true;
+                  break;
+                default:
+                  foundMatch = true;
+              }
+            }
+            dualRight = true;
             currentToken.dual = "right";
+            currentToken.content = currentToken.content.replace(/\^$/, "");
+          } else {
+            pushToken(createFountainToken("dialogue_begin"));
           }
-          currentToken.content = currentToken.content.replace(/\^$/, "");
-        } else {
-          pushToken(createFountainToken("dialogue_begin"));
+          const character = trimCharacterExtension(currentToken.content).trim();
+          if (result.properties.characters?.[character]) {
+            const values = result.properties.characters[character];
+            if (values.indexOf(sceneNumber) === -1) {
+              values.push(sceneNumber);
+            }
+            if (!result.properties.characters) {
+              result.properties.characters = {};
+            }
+            result.properties.characters[character] = values;
+          } else {
+            if (!result.properties.characters) {
+              result.properties.characters = {};
+            }
+            result.properties.characters[character] = [sceneNumber];
+          }
+          currentToken.character = currentToken.content;
+          previousCharacterToken = currentToken;
+          lastCharacterIndex = result.scriptTokens.length;
         }
-        const character = trimCharacterExtension(currentToken.content).trim();
-        if (result.properties.characters?.[character]) {
-          const values = result.properties.characters[character];
-          if (values.indexOf(sceneNumber) === -1) {
-            values.push(sceneNumber);
-          }
-          if (!result.properties.characters) {
-            result.properties.characters = {};
-          }
-          result.properties.characters[character] = values;
-        } else {
-          if (!result.properties.characters) {
-            result.properties.characters = {};
-          }
-          result.properties.characters[character] = [sceneNumber];
-        }
-        lastCharacterIndex = result.scriptTokens.length;
       } else {
         currentToken.type = "action";
         processActionBlock(currentToken);
@@ -657,20 +681,55 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
     } else {
       if (currentToken.content.match(fountainRegexes.parenthetical)) {
         currentToken.type = "parenthetical";
+        if (currentToken.type === "parenthetical") {
+          if (previousCharacterToken) {
+            currentToken.character = previousCharacterToken.content;
+          }
+          currentToken.parenthetical = currentToken.content;
+
+          if (previousToken.type === "character") {
+            previousToken.parenthetical = currentToken.content;
+          }
+        }
       } else {
         currentToken.type = "dialogue";
         if (currentToken.type === "dialogue") {
+          if (previousCharacterToken) {
+            currentToken.character = previousCharacterToken.content;
+          }
+          if (previousToken.type === "parenthetical") {
+            currentToken.parenthetical = previousToken.content;
+          }
+          currentToken.dialogue = currentToken.content;
+
+          if (previousCharacterToken) {
+            previousCharacterToken.dialogue =
+              previousCharacterToken.dialogue || currentToken.content;
+          }
+          if (previousToken.type === "character") {
+            previousToken.dialogue = currentToken.content;
+          }
+          if (previousToken.type === "parenthetical") {
+            previousToken.dialogue = currentToken.content;
+          }
           processDialogueBlock(currentToken);
         }
       }
       if (dualRight) {
-        if (
-          currentToken.type === "dialogue" ||
-          currentToken.type === "parenthetical"
-        ) {
+        if (currentToken.type === "parenthetical") {
+          currentToken.dual = "right";
+        }
+        if (currentToken.type === "dialogue") {
           currentToken.dual = "right";
         }
       }
+    }
+
+    if (
+      currentToken.type !== "trigger_group_begin" &&
+      currentToken.type !== "compare"
+    ) {
+      previousTriggerToken = undefined;
     }
 
     if (
@@ -701,10 +760,12 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
   }
 
   if (state === "dialogue") {
+    previousCharacterToken = undefined;
     pushToken(createFountainToken("dialogue_end"));
   }
 
   if (state === "dual_dialogue") {
+    previousCharacterToken = undefined;
     pushToken(createFountainToken("dual_dialogue_end"));
   }
 

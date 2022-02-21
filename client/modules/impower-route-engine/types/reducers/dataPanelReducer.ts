@@ -20,7 +20,7 @@ import {
   DATA_PANEL_OPEN,
   DATA_PANEL_REMOVE_INTERACTION,
   DATA_PANEL_SEARCH,
-  DATA_PANEL_SET_CURSOR,
+  DATA_PANEL_SET_ACTIVE_LINE,
   DATA_PANEL_SET_ERRORS,
   DATA_PANEL_SET_INTERACTION,
   DATA_PANEL_SET_LAST_ADDED_TYPE_ID,
@@ -339,10 +339,10 @@ const doSetCursor = (
   state: DataPanelState,
   payload: {
     windowType: DataWindowType;
-    cursor: { from: number; to: number };
+    activeLine: number;
   }
 ): DataPanelState => {
-  const { windowType, cursor } = payload;
+  const { windowType, activeLine } = payload;
   return {
     ...state,
     panels: {
@@ -351,7 +351,7 @@ const doSetCursor = (
         ...state.panels[windowType],
         Container: {
           ...state.panels[windowType].Container,
-          cursor,
+          activeLine,
         },
       },
     },
@@ -661,7 +661,7 @@ export const dataPanelReducer = (
       return doSetParentContainerArrangement(state, action.payload);
     case DATA_PANEL_SET_SCRIPTING:
       return doSetScripting(state, action.payload);
-    case DATA_PANEL_SET_CURSOR:
+    case DATA_PANEL_SET_ACTIVE_LINE:
       return doSetCursor(state, action.payload);
     case DATA_PANEL_SET_PARSE_RESULT:
       return doSetParseResult(state, action.payload);

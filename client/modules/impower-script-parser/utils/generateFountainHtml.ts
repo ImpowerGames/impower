@@ -5,7 +5,7 @@ import { FountainToken } from "../types/FountainToken";
 import { fountainLexer } from "./fountainLexer";
 
 export const generateFountainHtml = (
-  syntaxTree: FountainParseResult
+  result: FountainParseResult
 ): {
   scriptHtml?: string;
   titleHtml?: string;
@@ -13,14 +13,14 @@ export const generateFountainHtml = (
   const html = [];
   const titleHtml = [];
   // Generate html for title page
-  if (syntaxTree.titleTokens) {
-    const sections = Object.keys(syntaxTree.titleTokens);
+  if (result.titleTokens) {
+    const sections = Object.keys(result.titleTokens);
     for (let i = 0; i < sections.length; i += 1) {
       const section = sections[i];
-      if (!syntaxTree.titleTokens) {
-        syntaxTree.titleTokens = {};
+      if (!result.titleTokens) {
+        result.titleTokens = {};
       }
-      const titlePageTokens = syntaxTree.titleTokens[section];
+      const titlePageTokens = result.titleTokens[section];
       if (titlePageTokens) {
         titlePageTokens.sort((a, b) => {
           if (a.order == null) {
@@ -69,8 +69,8 @@ export const generateFountainHtml = (
   // Generate html for script
   let currentIndex = 0;
   let isAction = false;
-  while (currentIndex < syntaxTree.scriptTokens.length) {
-    const currentToken: FountainToken = syntaxTree.scriptTokens[currentIndex];
+  while (currentIndex < result.scriptTokens.length) {
+    const currentToken: FountainToken = result.scriptTokens[currentIndex];
     if (currentToken.content !== "") {
       const html = fountainLexer(
         currentToken.content,
@@ -102,9 +102,9 @@ export const generateFountainHtml = (
 
       isAction = true;
     } else if (currentToken.type === "separator" && isAction) {
-      if (currentIndex + 1 < syntaxTree.scriptTokens.length - 1) {
+      if (currentIndex + 1 < result.scriptTokens.length - 1) {
         // we're not at the end
-        const next_type = syntaxTree.scriptTokens[currentIndex + 1].type;
+        const next_type = result.scriptTokens[currentIndex + 1].type;
         if (
           next_type === "action" ||
           next_type === "separator" ||
@@ -221,18 +221,18 @@ export const generateFountainHtml = (
     }
     currentIndex += 1;
   }
-  const result: { scriptHtml?: string; titleHtml?: string } = {};
+  const htmlResult: { scriptHtml?: string; titleHtml?: string } = {};
   if (html && html.length > 0) {
     const scriptHtmlString = html.join("");
     if (scriptHtmlString) {
-      result.scriptHtml = scriptHtmlString;
+      htmlResult.scriptHtml = scriptHtmlString;
     }
   }
   if (titleHtml && titleHtml.length > 0) {
     const titleHtmlString = titleHtml.join("");
     if (titleHtmlString) {
-      result.titleHtml = titleHtmlString;
+      htmlResult.titleHtml = titleHtmlString;
     }
   }
-  return result;
+  return htmlResult;
 };

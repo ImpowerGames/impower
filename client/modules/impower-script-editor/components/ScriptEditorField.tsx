@@ -130,19 +130,43 @@ const myHighlightStyle = HighlightStyle.define([
 interface ScriptEditorFieldProps {
   defaultValue: string;
   toggleFolding: boolean;
+  cursor?: {
+    fromPos?: number;
+    toPos?: number;
+    fromLine?: number;
+    toLine?: number;
+  };
   style?: React.CSSProperties;
   onChange?: (value: string) => void;
   onParse?: (result: FountainParseResult) => void;
-  onCursor?: (from: number, to: number) => void;
+  onCursor?: (range: {
+    fromPos: number;
+    toPos: number;
+    fromLine: number;
+    toLine: number;
+  }) => void;
 }
 
 const ScriptEditorField = React.memo(
   (props: ScriptEditorFieldProps): JSX.Element => {
-    const { defaultValue, style, toggleFolding, onChange, onParse, onCursor } =
-      props;
+    const {
+      defaultValue,
+      style,
+      toggleFolding,
+      cursor,
+      onChange,
+      onParse,
+      onCursor,
+    } = props;
 
     const elementRef = useRef<HTMLDivElement>();
     const viewRef = useRef<EditorView>();
+    const cursorRef = useRef<{
+      fromPos?: number;
+      toPos?: number;
+      fromLine?: number;
+      toLine?: number;
+    }>({});
 
     useEffect(() => {
       const fountainParseLinter = (view: EditorView): Diagnostic[] => {
@@ -172,6 +196,9 @@ const ScriptEditorField = React.memo(
               ".cm-content": {
                 caretColor: "white",
               },
+              ".cm-scroller": {
+                fontFamily: "Courier Prime Code",
+              },
               "&.cm-focused .cm-cursor": {
                 borderLeftColor: "white",
               },
@@ -193,12 +220,32 @@ const ScriptEditorField = React.memo(
                 onChange(viewRef.current.state.doc.toJSON().join("\n"));
               }
             }
-            if (onCursor) {
-              const cursorRange = v.state.selection.main;
-              const from = v.state.doc.lineAt(cursorRange.from)?.number;
-              const to = v.state.doc.lineAt(cursorRange.to)?.number;
-              onCursor(from, to);
+            const cursorRange = v.state.selection.main;
+            const fromPos = cursorRange.from;
+            const toPos = cursorRange.to;
+            const fromLine = v.state.doc.lineAt(fromPos)?.number;
+            const toLine = v.state.doc.lineAt(toPos)?.number;
+            if (
+              cursorRef.current.fromLine !== fromLine ||
+              cursorRef.current.toLine !== toLine ||
+              cursorRef.current.fromPos !== fromPos ||
+              cursorRef.current.toPos !== toPos
+            ) {
+              if (onCursor) {
+                onCursor({
+                  fromPos,
+                  toPos,
+                  fromLine,
+                  toLine,
+                });
+              }
             }
+            cursorRef.current = {
+              fromPos,
+              toPos,
+              fromLine,
+              toLine,
+            };
           }),
         ],
       });
@@ -221,6 +268,16 @@ const ScriptEditorField = React.memo(
         unfoldAll(viewRef.current);
       }
     }, [toggleFolding]);
+
+    useEffect(() => {
+      if (viewRef.current && cursor) {
+        const from = viewRef.current.state.doc.line(cursor.fromLine)?.from;
+        viewRef.current.dispatch({
+          selection: { anchor: from },
+          effects: EditorView.scrollIntoView(from, { y: "center" }),
+        });
+      }
+    }, [cursor]);
 
     return (
       <div

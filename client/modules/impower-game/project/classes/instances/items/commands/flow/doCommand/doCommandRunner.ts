@@ -1,11 +1,11 @@
 import {
-  DoCommandData,
   CommandData,
+  DoCommandData,
   VariableData,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
-import { CommandRunner } from "../../../command/commandRunner";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
+import { CommandRunner } from "../../../command/commandRunner";
 
 export class DoCommandRunner extends CommandRunner<DoCommandData> {
   onExecute(

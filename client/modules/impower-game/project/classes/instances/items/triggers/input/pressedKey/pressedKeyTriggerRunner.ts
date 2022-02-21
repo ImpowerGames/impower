@@ -32,6 +32,7 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
     function resetTrigger(event: KeyboardEvent, key: string): void {
       if (event.key === key) {
         game.logic.setTriggerValue({
+          line: data.line,
           id: data.reference.parentContainerId,
           value: null,
         });
@@ -61,13 +62,15 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
         break;
     }
 
+    const line = data?.line;
+
     // Since these are anon subscriptions, make sure they're unique.  This is accomplished by passing in the keyVal.
     document.addEventListener(keyEvent, (event) => {
-      this.handleEvent(event, keyVal, blockId);
+      this.handleEvent(event, keyVal, line, blockId);
     });
     game.events.onEnd.addListener(() => {
       document.removeEventListener(keyEvent, (event) => {
-        this.handleEvent(event, keyVal, blockId);
+        this.handleEvent(event, keyVal, line, blockId);
       });
     });
 
@@ -103,7 +106,12 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
    * @param key The target key for the trigger.
    * @param block The target blockId for the trigger.
    */
-  handleEvent(event: KeyboardEvent, key: string, blockId: string): void {
+  handleEvent(
+    event: KeyboardEvent,
+    key: string,
+    line: number,
+    blockId: string
+  ): void {
     if (event.key === key) {
       if (event.defaultPrevented) {
         return;
@@ -111,6 +119,7 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
       event.preventDefault();
 
       this._game.logic.setTriggerValue({
+        line,
         id: blockId,
         value: key,
       });
@@ -150,7 +159,11 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
 
       if (action !== InputCondition.Is) {
         // Reset the trigger.  Held actions are reset on a separate event.
-        game.logic.setTriggerValue({ id: parentContainerId, value: null });
+        game.logic.setTriggerValue({
+          line: data.line,
+          id: parentContainerId,
+          value: null,
+        });
 
         if (action === InputCondition.Started) {
           // For keydown events, set this variable to prevent additional key down events from occuring until a key up event is found.

@@ -4,9 +4,9 @@ import {
   VariableData,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
-import { CommandRunner } from "../../../command/commandRunner";
-import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
 import { changeValue } from "../../../../../../../runner/utils/changeValue";
+import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
+import { CommandRunner } from "../../../command/commandRunner";
 
 export class SetCommandRunner extends CommandRunner<SetCommandData> {
   onExecute(
@@ -28,7 +28,11 @@ export class SetCommandRunner extends CommandRunner<SetCommandData> {
     const lhs = getRuntimeValue(variable, variables, game);
     const rhs = getRuntimeValue(value, variables, game);
     const newValue = changeValue(lhs, operator, rhs);
-    game.logic.setVariableValue({ id: refId, value: newValue });
+    game.logic.setVariableValue({
+      line: data.line,
+      id: refId,
+      value: newValue,
+    });
     return super.onExecute(data, variables, game, index, blockCommands);
   }
 }

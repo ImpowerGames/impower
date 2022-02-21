@@ -55,7 +55,9 @@ export const styledTheme: StyledTheme = {
 
   fontFamily: {
     main: "Open Sans",
-    monospace: "Noto Sans Mono",
+    monospace: "Courier Prime",
+    monospaceSans: "Courier Prime Sans",
+    monospaceCode: "Courier Prime Code",
     title: "Roboto Slab",
   },
 

@@ -30,11 +30,19 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       data: TriggerData;
       level: number;
     }[],
+    commands: {
+      runner: CommandRunner;
+      data: CommandData;
+      level: number;
+    }[],
     variables: { [refId: string]: VariableData },
     game: ImpowerGame
   ): void {
     triggers.forEach((trigger) => {
       trigger.runner.init(trigger.data, variables, game);
+    });
+    commands.forEach((command) => {
+      command.runner.init(command.data, variables, game);
     });
   }
 
@@ -186,8 +194,10 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       const command = commands[blockState.executingIndex];
       const commandId = command.data.reference.refId;
       const commandIndex = blockState.executingIndex;
+      const line = command?.data?.line;
       if (blockState.lastExecutedAt < 0) {
         game.logic.executeCommand({
+          line,
           blockId,
           commandId,
           commandIndex,
@@ -201,7 +211,11 @@ export class BlockRunner extends ContainerRunner<BlockData> {
           commands
         );
         if (nextJumps.length > 0) {
-          game.logic.commandJumpStackPush({ blockId, indices: nextJumps });
+          game.logic.commandJumpStackPush({
+            line,
+            blockId,
+            indices: nextJumps,
+          });
         }
         if (blockState.lastExecutedAt < 0) {
           return false;
@@ -214,6 +228,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
         return false;
       }
       game.logic.finishCommand({
+        line,
         blockId,
         commandId,
         commandIndex,
@@ -221,14 +236,19 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       });
       if (blockState.commandJumpStack.length > 0) {
         const nextCommandIndex = blockState.commandJumpStack[0];
-        game.logic.commandJumpStackPop({ blockId });
+        game.logic.commandJumpStackPop({
+          line,
+          blockId,
+        });
         game.logic.goToCommandIndex({
+          line,
           blockId,
           index: nextCommandIndex,
         });
       } else {
         const nextCommandIndex = blockState.executingIndex + 1;
         game.logic.goToCommandIndex({
+          line,
           blockId,
           index: nextCommandIndex,
         });

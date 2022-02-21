@@ -46,6 +46,9 @@ export abstract class InstanceInspector<T extends InstanceData = InstanceData>
     if (propertyPath === "reference") {
       return false;
     }
+    if (propertyPath === "line") {
+      return false;
+    }
     if (propertyPath.endsWith(".reference")) {
       const parentPath = getParentPropertyPath(propertyPath);
       const parentValue = getValue(data, parentPath);
@@ -206,5 +209,9 @@ export abstract class InstanceInspector<T extends InstanceData = InstanceData>
     _docIds: string[]
   ): Promise<string | null> {
     return null;
+  }
+
+  onPreview(_data: T): void {
+    // NoOp
   }
 }

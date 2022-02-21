@@ -58,6 +58,7 @@ import {
   getAllNestedData,
   ImpowerGameInspector,
 } from "../../../impower-game/inspector";
+import { getRuntimeCommand } from "../../../impower-game/parser";
 import { DynamicIcon, FontIcon } from "../../../impower-icon";
 import {
   getCenteredPosition,
@@ -75,6 +76,7 @@ import {
 import {
   AccessibleEvent,
   ButtonShape,
+  FadeAnimation,
   InputBlocker,
   layout,
   useArrowShortcuts,
@@ -88,6 +90,7 @@ import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgrou
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
 import { FountainParseResult } from "../../../impower-script-parser";
 import { DataContext } from "../../contexts/dataContext";
+import { GameContext } from "../../contexts/gameContext";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
@@ -102,7 +105,7 @@ import {
   dataPanelOpen,
   dataPanelRemoveInteraction,
   dataPanelSearch,
-  dataPanelSetCursor,
+  dataPanelSetActiveLine,
   dataPanelSetInteraction,
   dataPanelSetParentContainerArrangement,
   dataPanelSetParseResult,
@@ -311,6 +314,7 @@ const StyledScriptArea = styled.div`
   display: flex;
   flex-direction: column;
   position: relative;
+  background-color: ${(props): string => props.theme.colors.black30};
 `;
 
 const StyledEmptyPanelContentArea = styled.div`
@@ -564,6 +568,94 @@ const ContainerPanelHeader = React.memo(
   }
 );
 
+interface ScriptAreaProps {
+  defaultValue: string;
+  toggleFolding: boolean;
+  onScriptChange?: (value: string) => void;
+  onScriptParse?: (result: FountainParseResult) => void;
+  onScriptCursor?: (range: {
+    fromPos: number;
+    toPos: number;
+    fromLine: number;
+    toLine: number;
+  }) => void;
+}
+
+const ScriptArea = React.memo((props: ScriptAreaProps): JSX.Element => {
+  const {
+    defaultValue,
+    toggleFolding,
+    onScriptChange,
+    onScriptParse,
+    onScriptCursor,
+  } = props;
+
+  const { transitionState } = useContext(WindowTransitionContext);
+  const { game } = useContext(GameContext);
+  const events = game?.logic?.events;
+  const initialRef = useRef(true);
+
+  const [cursor, setCursor] = useState<{
+    fromPos?: number;
+    toPos?: number;
+    fromLine?: number;
+    toLine?: number;
+  }>();
+
+  useEffect(() => {
+    const onExecuteBlock = (data: { line: number }): void => {
+      if (data.line >= 0) {
+        setCursor({ fromLine: data.line });
+      }
+    };
+    const onExecuteCommand = (data: { line: number }): void => {
+      if (data.line >= 0) {
+        setCursor({ fromLine: data.line });
+      }
+    };
+    if (events) {
+      events.onExecuteBlock.addListener(onExecuteBlock);
+      events.onExecuteCommand.addListener(onExecuteCommand);
+    }
+    return (): void => {
+      if (events) {
+        events.onExecuteBlock.removeListener(onExecuteBlock);
+        events.onExecuteCommand.removeListener(onExecuteCommand);
+      }
+    };
+  }, [events]);
+
+  const initial = initialRef.current;
+
+  initialRef.current = false;
+
+  const theme = useTheme();
+
+  const style = useMemo(
+    () => ({ backgroundColor: theme.colors.darkForeground }),
+    [theme]
+  );
+
+  return (
+    <StyledScriptArea>
+      {(transitionState === "idle" ||
+        (transitionState === "exit" && !initial)) && (
+        <FadeAnimation initial={0} animate={1}>
+          <ScriptEditorField
+            toggleFolding={toggleFolding}
+            cursor={cursor}
+            defaultValue={defaultValue}
+            style={style}
+            onChange={onScriptChange}
+            onParse={onScriptParse}
+            onCursor={onScriptCursor}
+          />
+        </FadeAnimation>
+      )}
+    </StyledScriptArea>
+  );
+});
+
 interface ContainerPanelContentProps {
   inspector: ImpowerGameInspector;
   parentContainer: ContainerData;
@@ -603,7 +695,12 @@ interface ContainerPanelContentProps {
   onContextMenu?: (event: AccessibleEvent) => void;
   onScriptChange?: (value: string) => void;
   onScriptParse?: (result: FountainParseResult) => void;
-  onScriptCursor?: (from: number, to: number) => void;
+  onScriptCursor?: (range: {
+    fromPos: number;
+    toPos: number;
+    fromLine: number;
+    toLine: number;
+  }) => void;
 }
 
 const ContainerPanelContent = React.memo(
@@ -684,21 +781,15 @@ const ContainerPanelContent = React.memo(
 
     if (containerPanelState.scripting) {
       return (
-        <PeerTransition
-          currentIndex={breadcrumbIndex}
-          previousIndex={previousBreadcrumbIndex}
-          style={{ display: "flex", flex: 1 }}
-        >
-          <StyledScriptArea>
-            <ScriptEditorField
-              toggleFolding={toggleFolding}
-              defaultValue={project.scripts?.logic?.data?.root || ""}
-              onChange={onScriptChange}
-              onParse={onScriptParse}
-              onCursor={onScriptCursor}
-            />
-          </StyledScriptArea>
-        </PeerTransition>
+        <>
+          <ScriptArea
+            toggleFolding={toggleFolding}
+            defaultValue={project.scripts?.logic?.data?.root || ""}
+            onScriptChange={onScriptChange}
+            onScriptParse={onScriptParse}
+            onScriptCursor={onScriptCursor}
+          />
+        </>
       );
     }
 
@@ -906,6 +997,10 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     state.present.dataPanel.panels[windowType].Container;
   const { scrollX, scrollY, scrollId } =
     state.present.dataPanel.panels[windowType].Container;
+  const parseResult =
+    state.present.dataPanel.panels[windowType].Container?.parseResult;
+  const activeLine =
+    state.present.dataPanel.panels[windowType].Container?.activeLine;
 
   const inspectedContainers = useInspectedContainers(state.present, windowType);
 
@@ -1751,8 +1846,34 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     [dispatch, windowType, panelKey, scrollParent]
   );
 
-  const scriptCursorFromRef = useRef<{ from: number; to: number }>();
+  const scriptActiveLineRef = useRef<number>();
   const scriptValueRef = useRef<string>();
+  const parseResultRef = useRef<FountainParseResult>();
+
+  const handlePreviewResult = useCallback(
+    (result: FountainParseResult, line: number) => {
+      const tokenIndex = result.scriptLines[line];
+      const token = result.scriptTokens[tokenIndex];
+      if (token) {
+        const runtimeCommand = getRuntimeCommand(token);
+        if (runtimeCommand) {
+          const commandInspector = gameInspector.getInspector(
+            runtimeCommand.reference
+          );
+          if (commandInspector) {
+            commandInspector.onPreview(runtimeCommand);
+          }
+        }
+      }
+    },
+    [gameInspector]
+  );
+
+  useEffect(() => {
+    if (mode === Mode.Edit && parseResult) {
+      handlePreviewResult(parseResult, activeLine);
+    }
+  }, [parseResult, activeLine, mode, handlePreviewResult]);
 
   const handleSaveScriptChange = useCallback(() => {
     const newValue = scriptValueRef.current;
@@ -1761,7 +1882,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleDebouncedScriptChange = useCallback(
-    debounce(handleSaveScriptChange, 200),
+    debounce(handleSaveScriptChange, 500),
     [handleSaveScriptChange]
   );
 
@@ -1775,14 +1896,15 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const handleScriptParse = useCallback(
     (result: FountainParseResult) => {
+      parseResultRef.current = result;
       dispatch(dataPanelSetParseResult(windowType, result));
     },
     [dispatch, windowType]
   );
 
   const handleSaveScriptCursor = useCallback(() => {
-    const cursor = scriptCursorFromRef.current;
-    dispatch(dataPanelSetCursor(windowType, cursor));
+    const activeLine = scriptActiveLineRef.current;
+    dispatch(dataPanelSetActiveLine(windowType, activeLine));
   }, [dispatch, windowType]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1792,11 +1914,21 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   );
 
   const handleScriptCursor = useCallback(
-    (from: number, to: number) => {
-      scriptCursorFromRef.current = { from, to };
-      handleDebouncedScriptCursor();
+    (range: {
+      fromPos: number;
+      toPos: number;
+      fromLine: number;
+      toLine: number;
+    }) => {
+      if (mode === Mode.Test) {
+        return;
+      }
+      if (scriptActiveLineRef.current !== range.fromLine) {
+        scriptActiveLineRef.current = range.fromLine;
+        handleDebouncedScriptCursor();
+      }
     },
-    [handleDebouncedScriptCursor]
+    [handleDebouncedScriptCursor, mode]
   );
 
   const handleBrowserNavigation = useCallback(

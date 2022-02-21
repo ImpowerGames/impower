@@ -1,3 +1,4 @@
+import { DisplayType } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { CommandData } from "../../../command/commandData";
 import { CommandRunner } from "../../../command/commandRunner";
@@ -19,6 +20,16 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     }[]
   ): number[] {
     this.down = game.input.state.pointer.down.includes(0);
+    const characterEl = document.querySelector(".dialogue .character");
+    const parentheticalEl = document.querySelector(".dialogue .parenthetical");
+    const contentEl = document.querySelector(".dialogue .content");
+    const character = data.type === DisplayType.Dialogue ? data.character : "";
+    const parenthetical =
+      data.type === DisplayType.Dialogue ? data.parenthetical : "";
+    const content = data?.content;
+    characterEl?.replaceChildren(character);
+    parentheticalEl?.replaceChildren(parenthetical);
+    contentEl?.replaceChildren(content);
     return super.onExecute(data, variables, game, index, blockCommands);
   }
 

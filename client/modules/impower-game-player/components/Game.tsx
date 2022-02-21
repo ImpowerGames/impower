@@ -20,7 +20,7 @@ import UI from "./UI";
 
 const createGame = (
   project: GameProjectData,
-  cursorLine: number,
+  activeLine: number,
   isMobile: boolean,
   saveData?: SaveData
 ): ImpowerGame => {
@@ -34,7 +34,7 @@ const createGame = (
   for (let i = 1; i < sectionEntries.length; i += 1) {
     const [id, section] = sectionEntries[i];
     if (id) {
-      if (section.line <= cursorLine) {
+      if (section.line <= activeLine) {
         defaultStartBlockId = id;
       } else {
         break;
@@ -90,9 +90,8 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   const [engineState] = useContext(ProjectEngineContext);
   const projectId = engineState.present.project.id;
-  const cursorLine =
-    (engineState.present.dataPanel?.panels?.Logic?.Container?.cursor?.from ||
-      1) - 1;
+  const activeLine =
+    engineState.present.dataPanel?.panels?.Logic?.Container?.activeLine || 1;
 
   useEffect(() => {
     const setMobile = (): void => {
@@ -136,7 +135,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   useEffect(() => {
     if (active) {
-      const g = createGame(project, cursorLine, isMobile, saveData);
+      const g = createGame(project, activeLine, isMobile, saveData);
       onCreateGame(g);
     } else {
       onCreateGame();
@@ -159,7 +158,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   useEffect(() => {
     if (active) {
-      const g = createGame(project, cursorLine, isMobile, saveData);
+      const g = createGame(project, activeLine, isMobile, saveData);
       onCreateGame(g);
     } else {
       onCreateGame();

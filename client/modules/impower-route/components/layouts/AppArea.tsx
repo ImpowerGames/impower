@@ -33,8 +33,8 @@ const StyledAreaBox = styled.div`
   }
 
   code {
-    font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
-      monospace;
+    font-family: "Courier Prime Code", source-code-pro, Menlo, Monaco, Consolas,
+      "Courier New", monospace;
   }
 
   *:focus {

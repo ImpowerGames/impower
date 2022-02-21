@@ -77,10 +77,16 @@ export class PhaserLogicScene extends Phaser.Scene {
   create(): void {
     this.impowerGame.logic.state.activeChildBlocks.forEach((id) => {
       const blockState = this.impowerGame.logic.state.blockStates[id];
-      const { triggers } = this.impowerDataMap.blockInternalRunners[id];
+      const { triggers, commands } =
+        this.impowerDataMap.blockInternalRunners[id];
       const { variables } = this.impowerDataMap;
       if (blockState.active) {
-        BlockRunner.instance.init(triggers, variables, this.impowerGame);
+        BlockRunner.instance.init(
+          triggers,
+          commands,
+          variables,
+          this.impowerGame
+        );
       }
     });
   }

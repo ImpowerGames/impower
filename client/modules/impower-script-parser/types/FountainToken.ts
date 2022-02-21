@@ -56,6 +56,9 @@ export interface FountainSceneToken extends FountainLine {
 
 export interface FountainDialogueToken extends FountainLine {
   type: FountainDialogueType;
+  character: string;
+  parenthetical: string;
+  dialogue: string;
   dual: "left" | "right";
 }
 

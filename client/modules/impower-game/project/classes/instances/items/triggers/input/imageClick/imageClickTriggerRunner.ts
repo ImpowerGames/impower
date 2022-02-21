@@ -27,6 +27,7 @@ export class ImageClickTriggerRunner
       const { id } = gameData;
       if (id === getRuntimeValue(data.image, variables, game).refId) {
         game.logic.setTriggerValue({
+          line: data.line,
           id: data.reference.parentContainerId,
           value: id,
         });
@@ -35,6 +36,7 @@ export class ImageClickTriggerRunner
 
     function resetHeldEvent(): void {
       game.logic.setTriggerValue({
+        line: data.line,
         id: data.reference.parentContainerId,
         value: null,
       });
@@ -76,7 +78,11 @@ export class ImageClickTriggerRunner
 
       if (data.action !== InputCondition.Is) {
         // Reset the trigger.  Held actions are reset on a separate event.
-        game.logic.setTriggerValue({ id: parentContainerId, value: null });
+        game.logic.setTriggerValue({
+          line: data.line,
+          id: parentContainerId,
+          value: null,
+        });
       }
 
       return true;

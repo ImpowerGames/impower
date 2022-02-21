@@ -95,4 +95,17 @@ export class DisplayCommandInspector extends CommandInspector<DisplayCommandData
       ...data,
     };
   }
+
+  onPreview(data: DisplayCommandData): void {
+    const characterEl = document.querySelector(".dialogue .character");
+    const parentheticalEl = document.querySelector(".dialogue .parenthetical");
+    const contentEl = document.querySelector(".dialogue .content");
+    const character = data.type === DisplayType.Dialogue ? data.character : "";
+    const parenthetical =
+      data.type === DisplayType.Dialogue ? data.parenthetical : "";
+    const content = data?.content;
+    characterEl?.replaceChildren(character);
+    parentheticalEl?.replaceChildren(parenthetical);
+    contentEl?.replaceChildren(content);
+  }
 }

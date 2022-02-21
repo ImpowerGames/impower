@@ -1,4 +1,3 @@
-export { default as DrawerTransition } from "./components/animations/DrawerTransition";
 export { default as FadeAnimation } from "./components/animations/FadeAnimation";
 export { default as HoverTapTransition } from "./components/animations/HoverTapTransition";
 export { default as MotionDiv } from "./components/animations/MotionDiv";

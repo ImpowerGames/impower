@@ -42,6 +42,8 @@ export interface StyledTheme {
   fontFamily: {
     main: string;
     monospace: string;
+    monospaceSans: string;
+    monospaceCode: string;
     title: string;
   };
 

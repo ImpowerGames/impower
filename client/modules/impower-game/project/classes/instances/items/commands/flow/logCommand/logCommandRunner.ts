@@ -1,13 +1,13 @@
 import { getUuid } from "../../../../../../../../impower-core";
 import {
-  LogCommandData,
   CommandData,
-  VariableData,
+  LogCommandData,
   Severity,
+  VariableData,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
-import { CommandRunner } from "../../../command/commandRunner";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
+import { CommandRunner } from "../../../command/commandRunner";
 
 export class LogCommandRunner extends CommandRunner<LogCommandData> {
   onExecute(

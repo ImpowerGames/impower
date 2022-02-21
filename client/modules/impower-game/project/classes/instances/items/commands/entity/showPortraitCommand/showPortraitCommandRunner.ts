@@ -1,4 +1,4 @@
-import { VariableData, CommandData } from "../../../../../../../data";
+import { CommandData, VariableData } from "../../../../../../../data";
 import { LoadableFile } from "../../../../../../../data/interfaces/loadableFile";
 import { ImpowerGame } from "../../../../../../../game";
 import { getRuntimeValue } from "../../../../../../../runner";

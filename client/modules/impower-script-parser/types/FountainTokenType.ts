@@ -1,6 +1,11 @@
 import { FountainTitleKeyword } from "./FountainTitleKeyword";
 
-export type FountainLogicType = "declare" | "assign" | "trigger" | "compare";
+export type FountainLogicType =
+  | "declare"
+  | "assign"
+  | "trigger_group_begin"
+  | "compare"
+  | "trigger_group_end";
 export type FountainGoType = "go";
 export type FountainJumpType = "jump";
 export type FountainReturnType = "return";

@@ -192,6 +192,22 @@ const StyledSplitPane = styled(SplitPane)`
   }
 `;
 
+const StyledMonospaceCodeFontLoader = styled.p`
+  font-family: ${(props): string => props.theme.fontFamily.monospaceCode};
+  top: -1000vh;
+  left: -1000vw;
+  position: absolute;
+  pointer-events: none;
+`;
+
+const StyledMonospaceSansFontLoader = styled.p`
+  font-family: ${(props): string => props.theme.fontFamily.monospaceSans};
+  top: -1000vh;
+  left: -1000vw;
+  position: absolute;
+  pointer-events: none;
+`;
+
 interface ProjectContentProps {
   windowType: WindowType;
 }
@@ -360,7 +376,6 @@ const Project = React.memo((): JSX.Element => {
     }
   }, [dispatch, isPlayable, portrait, windowType]);
   const handleComplete = useCallback(() => {
-    setWindowTransitionState(TransitionState.idle);
     if (isPlayable && !portrait && windowType === WindowType.Test) {
       dispatch(projectValidate());
       dispatch(testControlChange(Control.Play));
@@ -370,6 +385,9 @@ const Project = React.memo((): JSX.Element => {
       dispatch(testModeChange(Mode.Edit));
     }
     dispatch(testPlayerVisibility(true));
+    window.setTimeout(() => {
+      setWindowTransitionState(TransitionState.idle);
+    }, 150);
   }, [isPlayable, portrait, windowType, dispatch]);
 
   // Show a top level transition on window changes
@@ -404,7 +422,7 @@ const Project = React.memo((): JSX.Element => {
   }, []);
 
   const windowTransitionContext = useMemo(
-    () => ({ state: windowTransitionState, portrait }),
+    () => ({ transitionState: windowTransitionState, portrait }),
     [windowTransitionState, portrait]
   );
 
@@ -421,6 +439,8 @@ const Project = React.memo((): JSX.Element => {
 
   return (
     <WindowTransitionContext.Provider value={windowTransitionContext}>
+      <StyledMonospaceCodeFontLoader>.</StyledMonospaceCodeFontLoader>
+      <StyledMonospaceSansFontLoader>.</StyledMonospaceSansFontLoader>
       <StyledProject onContextMenu={handleContextMenu}>
         {!fullscreen && !portrait && (
           <>

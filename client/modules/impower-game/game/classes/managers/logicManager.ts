@@ -13,52 +13,78 @@ export interface LogicState {
 }
 
 export interface LogicEvents {
-  onLoadBlock: GameEvent<{ id: string }>;
-  onUnloadBlock: GameEvent<{ id: string }>;
-  onUpdateBlock: GameEvent<{ id: string; time: number; delta: number }>;
-  onChangeActiveParentBlock: GameEvent<{ id: string }>;
-  onExecuteBlock: GameEvent<{ id: string; executedByBlockId: string }>;
-  onFinishBlock: GameEvent<{ id: string; executedByBlockId: string }>;
-  onEnterBlock: GameEvent<{ id: string }>;
-  onExitBlock: GameEvent<{ id: string }>;
+  onLoadBlock: GameEvent<{ line: number; id: string }>;
+  onUnloadBlock: GameEvent<{ line: number; id: string }>;
+  onUpdateBlock: GameEvent<{
+    line: number;
+    id: string;
+    time: number;
+    delta: number;
+  }>;
+  onChangeActiveParentBlock: GameEvent<{ line: number; id: string }>;
+  onExecuteBlock: GameEvent<{
+    line: number;
+    id: string;
+    executedByBlockId: string;
+  }>;
+  onFinishBlock: GameEvent<{
+    line: number;
+    id: string;
+    executedByBlockId: string;
+  }>;
+  onEnterBlock: GameEvent<{ line: number; id: string }>;
+  onExitBlock: GameEvent<{ line: number; id: string }>;
   onCheckTriggers: GameEvent<{
+    line: number;
     blockId: string;
     shouldExecute: boolean;
     satisfiedTriggers: string[];
     unsatisfiedTriggers: string[];
   }>;
   onExecuteCommand: GameEvent<{
+    line: number;
     blockId: string;
     commandId: string;
     commandIndex: number;
     time: number;
   }>;
   onFinishCommand: GameEvent<{
+    line: number;
     blockId: string;
     commandId: string;
     commandIndex: number;
     time: number;
   }>;
-  onGoToCommandIndex: GameEvent<{ blockId: string; index: number }>;
-  onCommandJumpStackPush: GameEvent<{ blockId: string; indices: number[] }>;
-  onCommandJumpStackPop: GameEvent<{ blockId: string }>;
-  onSetVariableValue: GameEvent<{ id: string; value: unknown }>;
-  onSetTriggerValue: GameEvent<{ id: string; value: unknown }>;
+  onGoToCommandIndex: GameEvent<{
+    line: number;
+    blockId: string;
+    index: number;
+  }>;
+  onCommandJumpStackPush: GameEvent<{
+    line: number;
+    blockId: string;
+    indices: number[];
+  }>;
+  onCommandJumpStackPop: GameEvent<{ line: number; blockId: string }>;
+  onSetVariableValue: GameEvent<{ line: number; id: string; value: unknown }>;
+  onSetTriggerValue: GameEvent<{ line: number; id: string; value: unknown }>;
 }
 
 export class LogicManager extends Manager<LogicState, LogicEvents> {
   private _blockTree: {
-    [blockId: string]: { parent: string; children: string[] };
+    [blockId: string]: { line: number; parent: string; children: string[] };
   };
 
   public get blockTree(): {
-    [blockId: string]: { parent: string; children: string[] };
+    [blockId: string]: { line: number; parent: string; children: string[] };
   } {
     return this._blockTree;
   }
 
   constructor(
-    blockTree: { [blockId: string]: { parent: string; children: string[] } },
+    blockTree: {
+      [blockId: string]: { line: number; parent: string; children: string[] };
+    },
     state?: LogicState
   ) {
     super(state);
@@ -77,49 +103,69 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
 
   getInitialEvents(): LogicEvents {
     return {
-      onLoadBlock: new GameEvent<{ id: string }>(),
-      onUnloadBlock: new GameEvent<{ id: string }>(),
+      onLoadBlock: new GameEvent<{ line: number; id: string }>(),
+      onUnloadBlock: new GameEvent<{ line: number; id: string }>(),
       onUpdateBlock: new GameEvent<{
+        line: number;
         id: string;
         time: number;
         delta: number;
       }>(),
       onExecuteBlock: new GameEvent<{
+        line: number;
         id: string;
         executedByBlockId: string;
       }>(),
-      onFinishBlock: new GameEvent<{ id: string; executedByBlockId: string }>(),
-      onChangeActiveParentBlock: new GameEvent<{ id: string }>(),
-      onEnterBlock: new GameEvent<{ id: string }>(),
-      onExitBlock: new GameEvent<{ id: string }>(),
+      onFinishBlock: new GameEvent<{
+        line: number;
+        id: string;
+        executedByBlockId: string;
+      }>(),
+      onChangeActiveParentBlock: new GameEvent<{ line: number; id: string }>(),
+      onEnterBlock: new GameEvent<{ line: number; id: string }>(),
+      onExitBlock: new GameEvent<{ line: number; id: string }>(),
       onCheckTriggers: new GameEvent<{
+        line: number;
         blockId: string;
         shouldExecute: boolean;
         satisfiedTriggers: string[];
         unsatisfiedTriggers: string[];
       }>(),
       onExecuteCommand: new GameEvent<{
+        line: number;
         blockId: string;
         commandId: string;
         commandIndex: number;
         time: number;
       }>(),
       onFinishCommand: new GameEvent<{
+        line: number;
         blockId: string;
         commandId: string;
         commandIndex: number;
         time: number;
       }>(),
-      onGoToCommandIndex: new GameEvent<{ blockId: string; index: number }>(),
+      onGoToCommandIndex: new GameEvent<{
+        line: number;
+        blockId: string;
+        index: number;
+      }>(),
       onCommandJumpStackPush: new GameEvent<{
+        line: number;
         blockId: string;
         indices: number[];
       }>(),
-      onCommandJumpStackPop: new GameEvent<{
-        blockId: string;
+      onCommandJumpStackPop: new GameEvent<{ line: number; blockId: string }>(),
+      onSetVariableValue: new GameEvent<{
+        line: number;
+        id: string;
+        value: unknown;
       }>(),
-      onSetVariableValue: new GameEvent<{ id: string; value: unknown }>(),
-      onSetTriggerValue: new GameEvent<{ id: string; value: unknown }>(),
+      onSetTriggerValue: new GameEvent<{
+        line: number;
+        id: string;
+        value: unknown;
+      }>(),
     };
   }
 
@@ -151,9 +197,13 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   private changeActiveParentBlock(newParentBlockId: string): void {
     this.unloadAllBlocks();
     this.state.activeParentBlock = newParentBlockId;
-    const childIds = this.blockTree?.[newParentBlockId]?.children || [];
+    const parent = this.blockTree?.[newParentBlockId];
+    const childIds = parent?.children || [];
     this.loadBlocks({ ids: childIds });
-    this.events.onChangeActiveParentBlock.emit({ id: newParentBlockId });
+    this.events.onChangeActiveParentBlock.emit({
+      line: parent?.line,
+      id: newParentBlockId,
+    });
   }
 
   private resetBlockExecution(id: string): void {
@@ -178,7 +228,8 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const blockState = this.state.blockStates[data.id] || createBlockState();
     blockState.active = true;
     this.state.blockStates[data.id] = blockState;
-    this.events.onLoadBlock.emit({ ...data });
+    const block = this.blockTree[data.id];
+    this.events.onLoadBlock.emit({ line: block.line, ...data });
   }
 
   loadBlocks(data: { ids: string[] }): void {
@@ -194,7 +245,8 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     this.state.activeChildBlocks = this.state.activeChildBlocks.filter(
       (id) => id !== data.id
     );
-    this.events.onUnloadBlock.emit({ ...data });
+    const block = this.blockTree[data.id];
+    this.events.onUnloadBlock.emit({ line: block.line, ...data });
   }
 
   unloadBlocks(data: { ids: string[] }): void {
@@ -209,7 +261,8 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const blockState = this.state.blockStates[data.id];
     blockState.time = data.time;
     blockState.delta = data.delta;
-    this.events.onUpdateBlock.emit({ ...data });
+    const block = this.blockTree[data.id];
+    this.events.onUpdateBlock.emit({ line: block.line, ...data });
   }
 
   executeBlock(data: { id: string; executedByBlockId: string }): void {
@@ -218,16 +271,19 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     blockState.executionCount += 1;
     blockState.executedBy = data.executedByBlockId;
     blockState.isExecuting = true;
-    this.events.onExecuteBlock.emit({ ...data });
+    const block = this.blockTree[data.id];
+    this.events.onExecuteBlock.emit({ line: block.line, ...data });
   }
 
   finishBlock(data: { id: string }): void {
     const blockState = this.state.blockStates[data.id];
     blockState.isExecuting = false;
     blockState.hasFinished = true;
+    const block = this.blockTree[data.id];
     this.events.onFinishBlock.emit({
-      ...data,
+      line: block.line,
       executedByBlockId: blockState.executedBy,
+      ...data,
     });
   }
 
@@ -240,7 +296,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const newParentBlockId = data.id;
     this.state.blockStates[currentParentBlockId] = blockState;
     this.changeActiveParentBlock(newParentBlockId);
-    this.events.onEnterBlock.emit({ ...data });
+    const block = this.blockTree[data.id];
+    this.events.onEnterBlock.emit({
+      line: block.line,
+      ...data,
+    });
   }
 
   exitBlock(): void {
@@ -255,10 +315,15 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     this.changeActiveParentBlock(newParentBlockId);
     const childIds = this.blockTree[currentParentBlockId].children;
     childIds.map((id) => this.resetBlockExecution(id));
-    this.events.onExitBlock.emit({ id: currentParentBlockId });
+    const block = this.blockTree[currentParentBlockId];
+    this.events.onExitBlock.emit({
+      line: block.line,
+      id: currentParentBlockId,
+    });
   }
 
   executeCommand(data: {
+    line: number;
     blockId: string;
     commandId: string;
     commandIndex: number;
@@ -274,6 +339,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   }
 
   finishCommand(data: {
+    line: number;
     blockId: string;
     commandId: string;
     commandIndex: number;
@@ -298,28 +364,37 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const blockState = this.state.blockStates[data.blockId];
     blockState.satisfiedTriggers = data.satisfiedTriggers;
     blockState.unsatisfiedTriggers = data.unsatisfiedTriggers;
-    this.events.onCheckTriggers.emit({ ...data });
+    const block = this.blockTree[data.blockId];
+    this.events.onCheckTriggers.emit({ line: block.line, ...data });
   }
 
-  goToCommandIndex(data: { blockId: string; index: number }): void {
+  goToCommandIndex(data: {
+    line: number;
+    blockId: string;
+    index: number;
+  }): void {
     const blockState = this.state.blockStates[data.blockId];
     blockState.executingIndex = data.index;
     this.events.onGoToCommandIndex.emit({ ...data });
   }
 
-  commandJumpStackPush(data: { blockId: string; indices: number[] }): void {
+  commandJumpStackPush(data: {
+    line: number;
+    blockId: string;
+    indices: number[];
+  }): void {
     const blockState = this.state.blockStates[data.blockId];
     blockState.commandJumpStack.unshift(...data.indices);
     this.events.onCommandJumpStackPush.emit({ ...data });
   }
 
-  commandJumpStackPop(data: { blockId: string }): void {
+  commandJumpStackPop(data: { line: number; blockId: string }): void {
     const blockState = this.state.blockStates[data.blockId];
     blockState.commandJumpStack.shift();
     this.events.onCommandJumpStackPop.emit({ ...data });
   }
 
-  setVariableValue(data: { id: string; value: unknown }): void {
+  setVariableValue(data: { line: number; id: string; value: unknown }): void {
     const variableState = this.state.variableStates[data.id] || {
       value: data.value,
     };
@@ -328,7 +403,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     this.events.onSetVariableValue.emit({ ...data });
   }
 
-  setTriggerValue(data: { id: string; value: unknown }): void {
+  setTriggerValue(data: { line: number; id: string; value: unknown }): void {
     const triggerState = this.state.triggerStates[data.id] || {
       value: data.value,
       executionCount: 0,

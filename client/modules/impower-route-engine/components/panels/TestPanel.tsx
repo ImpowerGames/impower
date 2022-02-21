@@ -328,13 +328,14 @@ interface TestPlayerProps {
   doc: ProjectDocument;
   project: GameProjectData;
   startTime: number;
+  layout: Layout;
   mode: Mode;
   control: Control;
   debug: boolean;
 }
 
 const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
-  const { project, doc, startTime, mode, control, debug } = props;
+  const { project, doc, startTime, layout, mode, control, debug } = props;
   const [playerInitialized, setPlayerInitialized] = useState(false);
   const [state, dispatch] = useContext(ProjectEngineContext);
   const { events } = useContext(DataContext);
@@ -474,7 +475,7 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
         onInitialized={handlePlayerInitialized}
         onCreateGame={onCreateGame}
       >
-        {mode === Mode.Edit && (
+        {mode === Mode.Edit && layout === Layout.Page && (
           <PlayerPreview
             doc={doc}
             backgroundPosition={getBackgroundPosition(
@@ -498,6 +499,7 @@ interface TestPanelContentProps {
   doc: ProjectDocument;
   project: GameProjectData;
   startTime: number;
+  layout: Layout;
   mode: Mode;
   control: Control;
   debug: boolean;
@@ -512,6 +514,7 @@ const TestPanelContent = React.memo(
       doc,
       project,
       startTime,
+      layout,
       mode,
       control,
       debug,
@@ -554,6 +557,7 @@ const TestPanelContent = React.memo(
                 doc={doc}
                 project={project}
                 startTime={startTime}
+                layout={layout}
                 mode={mode}
                 control={control}
                 debug={debug}
@@ -597,6 +601,7 @@ const TestPanel = React.memo((): JSX.Element => {
         doc={doc}
         project={data}
         startTime={startTime}
+        layout={layout}
         mode={mode}
         control={control}
         debug={debug}

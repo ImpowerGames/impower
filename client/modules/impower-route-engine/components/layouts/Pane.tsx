@@ -1,7 +1,6 @@
 import styled from "@emotion/styled";
 import { AnimatePresence } from "framer-motion";
-import React, { useContext, useRef } from "react";
-import { DrawerTransition, ScreenContext } from "../../../impower-route";
+import React, { useRef } from "react";
 import OverlayTransition from "../../../impower-route/components/animations/OverlayTransition";
 import { panels } from "../../types/info/panels";
 import { DataWindowType } from "../../types/state/dataPanelState";
@@ -126,6 +125,7 @@ const PanelArea = React.memo((props: PanelAreaProps): JSX.Element | null => {
   previousZIndexRef.current = zIndex;
   const overlayDirection = zIndex - previousZIndex;
   const custom = { position: "static", overlayDirection, yDirection: 1 };
+
   return (
     <StyledPanelArea key={preservePane ? undefined : windowType} style={style}>
       <AnimatePresence initial={false} custom={custom} exitBeforeEnter>
@@ -157,8 +157,6 @@ const PaneContent = React.memo(
       preservePane,
     } = props;
 
-    const { onScreenKeyboard } = useContext(ScreenContext);
-
     const visiblePanelOrder = panelDisplayOrder.filter((panel) =>
       panelFocusOrder.includes(panel)
     );
@@ -182,26 +180,6 @@ const PaneContent = React.memo(
                 preservePane={preservePane}
               />
             </StyledPanelContent>
-          </>
-        );
-      case PanelbarPosition.Bottom:
-        return (
-          <>
-            <StyledPanelContent>
-              <PanelArea
-                windowType={windowType}
-                type={openPanel}
-                preservePane={preservePane}
-              />
-            </StyledPanelContent>
-            <DrawerTransition open={!onScreenKeyboard} height={0}>
-              <Panelbar
-                openPanel={openPanel}
-                panelbarPosition={panelbarPosition}
-              >
-                {panelbar}
-              </Panelbar>
-            </DrawerTransition>
           </>
         );
       default:
