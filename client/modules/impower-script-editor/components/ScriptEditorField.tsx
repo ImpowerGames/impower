@@ -1,8 +1,8 @@
 import { basicSetup, EditorState, EditorView } from "@codemirror/basic-setup";
 import { indentWithTab } from "@codemirror/commands";
-import { foldAll, unfoldAll } from "@codemirror/fold";
+import { foldEffect, unfoldAll } from "@codemirror/fold";
 import { HighlightStyle } from "@codemirror/highlight";
-import { indentUnit } from "@codemirror/language";
+import { foldable, indentUnit } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
 import { tooltips } from "@codemirror/tooltip";
 import { keymap } from "@codemirror/view";
@@ -210,6 +210,13 @@ const ScriptEditorField = React.memo(
               ".cm-activeLine": {
                 backgroundColor: "#FFFFFF0F",
               },
+              ".cm-foldPlaceholder": {
+                backgroundColor: "#00000080",
+                borderColor: "#00000080",
+                color: "#FFFFFF99",
+                margin: "0 4px",
+                padding: "0 8px",
+              },
             },
             { dark: true }
           ),
@@ -263,7 +270,20 @@ const ScriptEditorField = React.memo(
 
     useEffect(() => {
       if (toggleFolding) {
-        foldAll(viewRef.current);
+        const view = viewRef?.current;
+        const state = view?.state;
+        const effects = [];
+        for (let pos = 0; pos < state.doc.length; ) {
+          const line = view.lineBlockAt(pos);
+          const range = foldable(state, line.from, line.to);
+          if (range) {
+            effects.push(foldEffect.of(range));
+          }
+          pos = line.to + 1;
+        }
+        viewRef.current.dispatch({
+          effects,
+        });
       } else {
         unfoldAll(viewRef.current);
       }
