@@ -4,7 +4,6 @@ import {
   Reference,
   SetupSectionType,
 } from "../../../impower-game/data";
-import { FountainParseResult } from "../../../impower-script-parser";
 
 export enum DataWindowType {
   Setup = "Setup",
@@ -49,7 +48,6 @@ export interface PanelInteractionState {
 export interface ContainerPanelState extends PanelInteractionState {
   scripting: boolean;
   activeLine?: number;
-  parseResult?: FountainParseResult;
   arrangement: ContainerArrangement;
 }
 

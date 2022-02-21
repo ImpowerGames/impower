@@ -9,7 +9,6 @@ import {
   multiSelection,
   toggleSelection,
 } from "../../../impower-route";
-import { FountainParseResult } from "../../../impower-script-parser";
 import {
   DataPanelAction,
   DATA_PANEL_ADD_INTERACTION,
@@ -26,7 +25,6 @@ import {
   DATA_PANEL_SET_LAST_ADDED_TYPE_ID,
   DATA_PANEL_SET_PANE_SIZE,
   DATA_PANEL_SET_PARENT_CONTAINER_ARRANGEMENT,
-  DATA_PANEL_SET_PARSE_RESULT,
   DATA_PANEL_SET_SCRIPTING,
   DATA_PANEL_SET_SCROLL_PARENT,
   DATA_PANEL_SET_SCROLL_X,
@@ -358,29 +356,6 @@ const doSetCursor = (
   };
 };
 
-const doSetParseResult = (
-  state: DataPanelState,
-  payload: {
-    windowType: DataWindowType;
-    parseResult: FountainParseResult;
-  }
-): DataPanelState => {
-  const { windowType, parseResult } = payload;
-  return {
-    ...state,
-    panels: {
-      ...state.panels,
-      [windowType]: {
-        ...state.panels[windowType],
-        Container: {
-          ...state.panels[windowType].Container,
-          parseResult,
-        },
-      },
-    },
-  };
-};
-
 const doSetParentContainerArrangement = (
   state: DataPanelState,
   payload: { windowType: DataWindowType; arrangement: ContainerArrangement }
@@ -663,8 +638,6 @@ export const dataPanelReducer = (
       return doSetScripting(state, action.payload);
     case DATA_PANEL_SET_ACTIVE_LINE:
       return doSetCursor(state, action.payload);
-    case DATA_PANEL_SET_PARSE_RESULT:
-      return doSetParseResult(state, action.payload);
     case DATA_PANEL_CHANGE_ITEM_SECTION:
       return doChangeItemSection(state, action.payload);
     case DATA_PANEL_SET_LAST_ADDED_TYPE_ID:

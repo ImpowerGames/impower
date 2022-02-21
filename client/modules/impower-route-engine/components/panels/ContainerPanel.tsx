@@ -108,7 +108,6 @@ import {
   dataPanelSetActiveLine,
   dataPanelSetInteraction,
   dataPanelSetParentContainerArrangement,
-  dataPanelSetParseResult,
   dataPanelSetScripting,
   dataPanelSetScrollX,
   dataPanelSetScrollY,
@@ -571,30 +570,28 @@ const ContainerPanelHeader = React.memo(
 interface ScriptAreaProps {
   defaultValue: string;
   toggleFolding: boolean;
-  onScriptChange?: (value: string) => void;
-  onScriptParse?: (result: FountainParseResult) => void;
-  onScriptCursor?: (range: {
-    fromPos: number;
-    toPos: number;
-    fromLine: number;
-    toLine: number;
-  }) => void;
 }
 
 const ScriptArea = React.memo((props: ScriptAreaProps): JSX.Element => {
-  const {
-    defaultValue,
-    toggleFolding,
-    onScriptChange,
-    onScriptParse,
-    onScriptCursor,
-  } = props;
+  const { defaultValue, toggleFolding } = props;
 
+  const [state, dispatch] = useContext(ProjectEngineContext);
   const { transitionState } = useContext(WindowTransitionContext);
+  const { gameInspector } = useContext(GameInspectorContext);
   const { game } = useContext(GameContext);
-  const events = game?.logic?.events;
-  const initialRef = useRef(true);
 
+  const windowType = state?.present?.window?.type as unknown as DataWindowType;
+  const mode = state?.present?.test?.mode;
+  const id = state?.present?.project?.id;
+  const events = game?.logic?.events;
+
+  const initialRef = useRef(true);
+  const activeLineRef = useRef<number>();
+  const scriptValueRef = useRef<string>();
+
+  const [parseResultState, setParseResultState] =
+    useState<FountainParseResult>();
+  const [activeLineState, setActiveLineState] = useState<number>();
   const [cursor, setCursor] = useState<{
     fromPos?: number;
     toPos?: number;
@@ -625,6 +622,84 @@ const ScriptArea = React.memo((props: ScriptAreaProps): JSX.Element => {
     };
   }, [events]);
 
+  const handleScriptParse = useCallback((result: FountainParseResult) => {
+    setParseResultState(result);
+  }, []);
+
+  const handleSaveScriptChange = useCallback(() => {
+    const newValue = scriptValueRef.current;
+    dispatch(projectChangeScript(id, "logic", newValue));
+  }, [dispatch, id]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleDebouncedScriptChange = useCallback(
+    debounce(handleSaveScriptChange, 500),
+    [handleSaveScriptChange]
+  );
+
+  const handleScriptChange = useCallback(
+    (value: string) => {
+      scriptValueRef.current = value;
+      handleDebouncedScriptChange();
+    },
+    [handleDebouncedScriptChange]
+  );
+
+  const handleSaveScriptCursor = useCallback(() => {
+    const activeLine = activeLineRef.current;
+    dispatch(dataPanelSetActiveLine(windowType, activeLine));
+  }, [dispatch, windowType]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleDebouncedScriptCursor = useCallback(
+    debounce(handleSaveScriptCursor, 200),
+    [handleSaveScriptCursor]
+  );
+
+  const handleScriptCursor = useCallback(
+    (range: {
+      fromPos: number;
+      toPos: number;
+      fromLine: number;
+      toLine: number;
+    }) => {
+      if (mode === Mode.Test) {
+        return;
+      }
+      if (activeLineRef.current !== range.fromLine) {
+        activeLineRef.current = range.fromLine;
+        setActiveLineState(activeLineRef.current);
+        handleDebouncedScriptCursor();
+      }
+    },
+    [handleDebouncedScriptCursor, mode]
+  );
+
+  const handlePreviewResult = useCallback(
+    (result: FountainParseResult, line: number) => {
+      const tokenIndex = result.scriptLines[line];
+      const token = result.scriptTokens[tokenIndex];
+      if (token) {
+        const runtimeCommand = getRuntimeCommand(token);
+        if (runtimeCommand) {
+          const commandInspector = gameInspector.getInspector(
+            runtimeCommand.reference
+          );
+          if (commandInspector) {
+            commandInspector.onPreview(runtimeCommand);
+          }
+        }
+      }
+    },
+    [gameInspector]
+  );
+
+  useEffect(() => {
+    if (mode === Mode.Edit && parseResultState) {
+      handlePreviewResult(parseResultState, activeLineState);
+    }
+  }, [parseResultState, activeLineState, mode, handlePreviewResult]);
+
   const initial = initialRef.current;
 
   initialRef.current = false;
@@ -646,9 +721,9 @@ const ScriptArea = React.memo((props: ScriptAreaProps): JSX.Element => {
             cursor={cursor}
             defaultValue={defaultValue}
             style={style}
-            onChange={onScriptChange}
-            onParse={onScriptParse}
-            onCursor={onScriptCursor}
+            onChange={handleScriptChange}
+            onParse={handleScriptParse}
+            onCursor={handleScriptCursor}
           />
         </FadeAnimation>
       )}
@@ -693,14 +768,6 @@ interface ContainerPanelContentProps {
   onEdit: (refId: string, event: AccessibleEvent) => void;
   onChangeName: (refId: string, renamed: string) => void;
   onContextMenu?: (event: AccessibleEvent) => void;
-  onScriptChange?: (value: string) => void;
-  onScriptParse?: (result: FountainParseResult) => void;
-  onScriptCursor?: (range: {
-    fromPos: number;
-    toPos: number;
-    fromLine: number;
-    toLine: number;
-  }) => void;
 }
 
 const ContainerPanelContent = React.memo(
@@ -735,9 +802,6 @@ const ContainerPanelContent = React.memo(
       onEdit,
       onChangeName,
       onContextMenu,
-      onScriptChange,
-      onScriptParse,
-      onScriptCursor,
     } = props;
 
     const [list, setList] = useState<OrderedCollection<DataButtonInfo, string>>(
@@ -785,9 +849,6 @@ const ContainerPanelContent = React.memo(
           <ScriptArea
             toggleFolding={toggleFolding}
             defaultValue={project.scripts?.logic?.data?.root || ""}
-            onScriptChange={onScriptChange}
-            onScriptParse={onScriptParse}
-            onScriptCursor={onScriptCursor}
           />
         </>
       );
@@ -987,7 +1048,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const { mode } = state.present.test;
   const project = state.present.project.data as GameProjectData;
-  const { id } = state.present.project;
   const projectContainers = projectContainersSelector(project, containerType);
 
   const openPanel = state.present.dataPanel.panels?.[windowType]?.openPanel;
@@ -997,10 +1057,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     state.present.dataPanel.panels[windowType].Container;
   const { scrollX, scrollY, scrollId } =
     state.present.dataPanel.panels[windowType].Container;
-  const parseResult =
-    state.present.dataPanel.panels[windowType].Container?.parseResult;
-  const activeLine =
-    state.present.dataPanel.panels[windowType].Container?.activeLine;
 
   const inspectedContainers = useInspectedContainers(state.present, windowType);
 
@@ -1846,91 +1902,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     [dispatch, windowType, panelKey, scrollParent]
   );
 
-  const scriptActiveLineRef = useRef<number>();
-  const scriptValueRef = useRef<string>();
-  const parseResultRef = useRef<FountainParseResult>();
-
-  const handlePreviewResult = useCallback(
-    (result: FountainParseResult, line: number) => {
-      const tokenIndex = result.scriptLines[line];
-      const token = result.scriptTokens[tokenIndex];
-      if (token) {
-        const runtimeCommand = getRuntimeCommand(token);
-        if (runtimeCommand) {
-          const commandInspector = gameInspector.getInspector(
-            runtimeCommand.reference
-          );
-          if (commandInspector) {
-            commandInspector.onPreview(runtimeCommand);
-          }
-        }
-      }
-    },
-    [gameInspector]
-  );
-
-  useEffect(() => {
-    if (mode === Mode.Edit && parseResult) {
-      handlePreviewResult(parseResult, activeLine);
-    }
-  }, [parseResult, activeLine, mode, handlePreviewResult]);
-
-  const handleSaveScriptChange = useCallback(() => {
-    const newValue = scriptValueRef.current;
-    dispatch(projectChangeScript(id, "logic", newValue));
-  }, [dispatch, id]);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleDebouncedScriptChange = useCallback(
-    debounce(handleSaveScriptChange, 500),
-    [handleSaveScriptChange]
-  );
-
-  const handleScriptChange = useCallback(
-    (value: string) => {
-      scriptValueRef.current = value;
-      handleDebouncedScriptChange();
-    },
-    [handleDebouncedScriptChange]
-  );
-
-  const handleScriptParse = useCallback(
-    (result: FountainParseResult) => {
-      parseResultRef.current = result;
-      dispatch(dataPanelSetParseResult(windowType, result));
-    },
-    [dispatch, windowType]
-  );
-
-  const handleSaveScriptCursor = useCallback(() => {
-    const activeLine = scriptActiveLineRef.current;
-    dispatch(dataPanelSetActiveLine(windowType, activeLine));
-  }, [dispatch, windowType]);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleDebouncedScriptCursor = useCallback(
-    debounce(handleSaveScriptCursor, 200),
-    [handleSaveScriptCursor]
-  );
-
-  const handleScriptCursor = useCallback(
-    (range: {
-      fromPos: number;
-      toPos: number;
-      fromLine: number;
-      toLine: number;
-    }) => {
-      if (mode === Mode.Test) {
-        return;
-      }
-      if (scriptActiveLineRef.current !== range.fromLine) {
-        scriptActiveLineRef.current = range.fromLine;
-        handleDebouncedScriptCursor();
-      }
-    },
-    [handleDebouncedScriptCursor, mode]
-  );
-
   const handleBrowserNavigation = useCallback(
     (currState: Record<string, string>, prevState?: Record<string, string>) => {
       if (currState?.m !== prevState?.m) {
@@ -2202,9 +2173,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         onPanCanvas={handlePanCanvas}
         onZoomCanvas={handleZoomCanvas}
         onContextMenu={handleContextMenu}
-        onScriptChange={handleScriptChange}
-        onScriptParse={handleScriptParse}
-        onScriptCursor={handleScriptCursor}
       />
       {optionsMenuOpen !== undefined && (
         <ContextMenu

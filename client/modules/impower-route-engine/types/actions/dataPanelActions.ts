@@ -5,7 +5,6 @@ import {
   ItemType,
   SetupSectionType,
 } from "../../../impower-game/data";
-import { FountainParseResult } from "../../../impower-script-parser";
 import {
   ContainerArrangement,
   DataInteractionType,
@@ -243,24 +242,6 @@ export const dataPanelSetActiveLine = (
   };
 };
 
-export const DATA_PANEL_SET_PARSE_RESULT = "DATA_PANEL_PARSE_RESULT";
-export interface DataPanelSetParseResultAction {
-  type: typeof DATA_PANEL_SET_PARSE_RESULT;
-  payload: {
-    windowType: DataWindowType;
-    parseResult: FountainParseResult;
-  };
-}
-export const dataPanelSetParseResult = (
-  windowType: DataWindowType,
-  parseResult: FountainParseResult
-): DataPanelSetParseResultAction => {
-  return {
-    type: DATA_PANEL_SET_PARSE_RESULT,
-    payload: { windowType, parseResult },
-  };
-};
-
 export const DATA_PANEL_CHANGE_ITEM_SECTION = "DATA_PANEL_CHANGE_ITEM_SECTION";
 export interface DataPanelChangeItemSectionAction {
   type: typeof DATA_PANEL_CHANGE_ITEM_SECTION;
@@ -469,7 +450,6 @@ export type DataPanelAction =
   | DataPanelSetInteractionAction
   | DataPanelSetScriptingAction
   | DataPanelSetActiveLineAction
-  | DataPanelSetParseResultAction
   | DataPanelSetParentContainerArrangementAction
   | DataPanelChangeItemSectionAction
   | DataPanelSetLastAddedTypeIdAction

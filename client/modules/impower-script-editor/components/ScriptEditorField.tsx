@@ -181,7 +181,7 @@ const ScriptEditorField = React.memo(
         extensions: [
           basicSetup,
           fountain({ base: fountainLanguage }),
-          linter(fountainParseLinter),
+          linter(fountainParseLinter, { delay: 10 }),
           tooltips({ position: "absolute" }),
           myHighlightStyle,
           keymap.of([indentWithTab]),
