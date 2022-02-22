@@ -29,7 +29,6 @@ import PlusSolidIcon from "../../../../resources/icons/solid/plus.svg";
 import SquareCheckSolidIcon from "../../../../resources/icons/solid/square-check.svg";
 import format from "../../../impower-config/utils/format";
 import {
-  debounce,
   difference,
   getAllVisiblePropertyPaths,
   getFirstError,
@@ -58,7 +57,6 @@ import {
   getAllNestedData,
   ImpowerGameInspector,
 } from "../../../impower-game/inspector";
-import { getRuntimeCommand } from "../../../impower-game/parser";
 import { DynamicIcon, FontIcon } from "../../../impower-icon";
 import {
   getCenteredPosition,
@@ -67,16 +65,10 @@ import {
   OnZoomCanvas,
   Vector2,
 } from "../../../impower-react-flowchart";
-import {
-  getScrollX,
-  getScrollY,
-  setScrollX,
-  setScrollY,
-} from "../../../impower-react-virtualization";
+import { getScrollX, getScrollY } from "../../../impower-react-virtualization";
 import {
   AccessibleEvent,
   ButtonShape,
-  FadeAnimation,
   InputBlocker,
   layout,
   useArrowShortcuts,
@@ -88,9 +80,7 @@ import {
 import PeerTransition from "../../../impower-route/components/animations/PeerTransition";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
-import { FountainParseResult } from "../../../impower-script-parser";
 import { DataContext } from "../../contexts/dataContext";
-import { GameContext } from "../../contexts/gameContext";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
@@ -105,16 +95,13 @@ import {
   dataPanelOpen,
   dataPanelRemoveInteraction,
   dataPanelSearch,
-  dataPanelSetActiveLine,
   dataPanelSetInteraction,
   dataPanelSetParentContainerArrangement,
   dataPanelSetScripting,
-  dataPanelSetScrollX,
-  dataPanelSetScrollY,
+  dataPanelSetScrollPosition,
   dataPanelToggleInteraction,
 } from "../../types/actions/dataPanelActions";
 import {
-  projectChangeScript,
   projectInsertData,
   projectRemoveData,
   projectUpdateData,
@@ -147,6 +134,7 @@ import CornerFab from "../fabs/CornerFab";
 import PanelHeader from "../headers/PanelHeader";
 import PanelHeaderIconButton from "../iconButtons/PanelHeaderIconButton";
 import EngineDataList from "../inputs/EngineDataList";
+import LogicScriptEditor from "../inputs/LogicScriptEditor";
 import EditGameTooltipContent from "../instructions/EditGameTooltipContent";
 import DataChart from "../layouts/DataChart";
 import EmptyPanelContent from "../layouts/EmptyPanelContent";
@@ -158,13 +146,6 @@ import { BreadcrumbInfo } from "../layouts/PanelBreadcrumbs";
 const ContextMenu = dynamic(
   () => import("../../../impower-route/components/popups/ContextMenu"),
   { ssr: false }
-);
-
-const ScriptEditorField = dynamic(
-  () => import("../../../impower-script-editor/components/ScriptEditorField"),
-  {
-    ssr: false,
-  }
 );
 
 const nodeStartOffset = { x: -80, y: -16 };
@@ -308,14 +289,6 @@ const StyledList = styled.div`
   flex-direction: column;
 `;
 
-const StyledScriptArea = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  background-color: ${(props): string => props.theme.colors.black30};
-`;
-
 const StyledEmptyPanelContentArea = styled.div`
   padding-right: ${(props): string =>
     props.theme.spacing(props.theme.space.panelLeft)};
@@ -432,6 +405,7 @@ const ArrangementPanelHeaderIconButton = React.memo(
 );
 
 interface ContainerPanelHeaderProps {
+  title: string;
   containerType: ContainerType;
   containerPanelState: ContainerPanelState;
   search?: string;
@@ -458,6 +432,7 @@ interface ContainerPanelHeaderProps {
 const ContainerPanelHeader = React.memo(
   (props: ContainerPanelHeaderProps): JSX.Element => {
     const {
+      title,
       containerType,
       containerPanelState,
       search,
@@ -486,8 +461,6 @@ const ContainerPanelHeader = React.memo(
       () => isRoot(parentContainer, projectContainers),
       [parentContainer, projectContainers]
     );
-
-    const headerInfo = useMemo(() => getHeader(containerType), [containerType]);
 
     const listHeaderStyle: CSSProperties = useMemo(
       () => ({
@@ -525,7 +498,7 @@ const ContainerPanelHeader = React.memo(
     return (
       <PanelHeader
         type={search !== undefined ? "search" : "default"}
-        title={containerPanelState.scripting ? "Script" : headerInfo.pluralName}
+        title={title}
         search={search}
         breadcrumbs={headerBreadcrumbs}
         style={headerStyle}
@@ -567,170 +540,6 @@ const ContainerPanelHeader = React.memo(
   }
 );
 
-interface ScriptAreaProps {
-  defaultValue: string;
-  toggleFolding: boolean;
-}
-
-const ScriptArea = React.memo((props: ScriptAreaProps): JSX.Element => {
-  const { defaultValue, toggleFolding } = props;
-
-  const [state, dispatch] = useContext(ProjectEngineContext);
-  const { transitionState } = useContext(WindowTransitionContext);
-  const { gameInspector } = useContext(GameInspectorContext);
-  const { game } = useContext(GameContext);
-
-  const windowType = state?.present?.window?.type as unknown as DataWindowType;
-  const mode = state?.present?.test?.mode;
-  const id = state?.present?.project?.id;
-  const events = game?.logic?.events;
-
-  const initialRef = useRef(true);
-  const activeLineRef = useRef<number>();
-  const scriptValueRef = useRef<string>();
-
-  const [parseResultState, setParseResultState] =
-    useState<FountainParseResult>();
-  const [activeLineState, setActiveLineState] = useState<number>();
-  const [cursor, setCursor] = useState<{
-    fromPos?: number;
-    toPos?: number;
-    fromLine?: number;
-    toLine?: number;
-  }>();
-
-  useEffect(() => {
-    const onExecuteBlock = (data: { line: number }): void => {
-      if (data.line >= 0) {
-        setCursor({ fromLine: data.line });
-      }
-    };
-    const onExecuteCommand = (data: { line: number }): void => {
-      if (data.line >= 0) {
-        setCursor({ fromLine: data.line });
-      }
-    };
-    if (events) {
-      events.onExecuteBlock.addListener(onExecuteBlock);
-      events.onExecuteCommand.addListener(onExecuteCommand);
-    }
-    return (): void => {
-      if (events) {
-        events.onExecuteBlock.removeListener(onExecuteBlock);
-        events.onExecuteCommand.removeListener(onExecuteCommand);
-      }
-    };
-  }, [events]);
-
-  const handleScriptParse = useCallback((result: FountainParseResult) => {
-    setParseResultState(result);
-  }, []);
-
-  const handleSaveScriptChange = useCallback(() => {
-    const newValue = scriptValueRef.current;
-    dispatch(projectChangeScript(id, "logic", newValue));
-  }, [dispatch, id]);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleDebouncedScriptChange = useCallback(
-    debounce(handleSaveScriptChange, 500),
-    [handleSaveScriptChange]
-  );
-
-  const handleScriptChange = useCallback(
-    (value: string) => {
-      scriptValueRef.current = value;
-      handleDebouncedScriptChange();
-    },
-    [handleDebouncedScriptChange]
-  );
-
-  const handleSaveScriptCursor = useCallback(() => {
-    const activeLine = activeLineRef.current;
-    dispatch(dataPanelSetActiveLine(windowType, activeLine));
-  }, [dispatch, windowType]);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleDebouncedScriptCursor = useCallback(
-    debounce(handleSaveScriptCursor, 200),
-    [handleSaveScriptCursor]
-  );
-
-  const handleScriptCursor = useCallback(
-    (range: {
-      fromPos: number;
-      toPos: number;
-      fromLine: number;
-      toLine: number;
-    }) => {
-      if (mode === Mode.Test) {
-        return;
-      }
-      if (activeLineRef.current !== range.fromLine) {
-        activeLineRef.current = range.fromLine;
-        setActiveLineState(activeLineRef.current);
-        handleDebouncedScriptCursor();
-      }
-    },
-    [handleDebouncedScriptCursor, mode]
-  );
-
-  const handlePreviewResult = useCallback(
-    (result: FountainParseResult, line: number) => {
-      const tokenIndex = result.scriptLines[line];
-      const token = result.scriptTokens[tokenIndex];
-      if (token) {
-        const runtimeCommand = getRuntimeCommand(token);
-        if (runtimeCommand) {
-          const commandInspector = gameInspector.getInspector(
-            runtimeCommand.reference
-          );
-          if (commandInspector) {
-            commandInspector.onPreview(runtimeCommand);
-          }
-        }
-      }
-    },
-    [gameInspector]
-  );
-
-  useEffect(() => {
-    if (mode === Mode.Edit && parseResultState) {
-      handlePreviewResult(parseResultState, activeLineState);
-    }
-  }, [parseResultState, activeLineState, mode, handlePreviewResult]);
-
-  const initial = initialRef.current;
-
-  initialRef.current = false;
-
-  const theme = useTheme();
-
-  const style = useMemo(
-    () => ({ backgroundColor: theme.colors.darkForeground }),
-    [theme]
-  );
-
-  return (
-    <StyledScriptArea>
-      {(transitionState === "idle" ||
-        (transitionState === "exit" && !initial)) && (
-        <FadeAnimation initial={0} animate={1}>
-          <ScriptEditorField
-            toggleFolding={toggleFolding}
-            cursor={cursor}
-            defaultValue={defaultValue}
-            style={style}
-            onChange={handleScriptChange}
-            onParse={handleScriptParse}
-            onCursor={handleScriptCursor}
-          />
-        </FadeAnimation>
-      )}
-    </StyledScriptArea>
-  );
-});
-
 interface ContainerPanelContentProps {
   inspector: ImpowerGameInspector;
   parentContainer: ContainerData;
@@ -768,6 +577,7 @@ interface ContainerPanelContentProps {
   onEdit: (refId: string, event: AccessibleEvent) => void;
   onChangeName: (refId: string, renamed: string) => void;
   onContextMenu?: (event: AccessibleEvent) => void;
+  onSectionChange: (name: string) => void;
 }
 
 const ContainerPanelContent = React.memo(
@@ -802,6 +612,7 @@ const ContainerPanelContent = React.memo(
       onEdit,
       onChangeName,
       onContextMenu,
+      onSectionChange,
     } = props;
 
     const [list, setList] = useState<OrderedCollection<DataButtonInfo, string>>(
@@ -846,9 +657,9 @@ const ContainerPanelContent = React.memo(
     if (containerPanelState.scripting) {
       return (
         <>
-          <ScriptArea
+          <LogicScriptEditor
             toggleFolding={toggleFolding}
-            defaultValue={project.scripts?.logic?.data?.root || ""}
+            onSectionChange={onSectionChange}
           />
         </>
       );
@@ -1040,6 +851,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const [currentScale, setCurrentScale] = useState<number>(1);
   const [breadcrumbIndex, setBreadcrumbIndex] = useState(0);
   const [previousBreadcrumbIndex, setBreadcrumbPreviousIndex] = useState(-1);
+  const [headerName, setHeaderName] = useState("");
 
   const containerType = useMemo(
     () => getContainerType(windowType),
@@ -1055,17 +867,23 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     state.present.dataPanel.panels[windowType].Container.inspectedTargetId;
   const containerPanelState =
     state.present.dataPanel.panels[windowType].Container;
-  const { scrollX, scrollY, scrollId } =
-    state.present.dataPanel.panels[windowType].Container;
 
   const inspectedContainers = useInspectedContainers(state.present, windowType);
 
-  const panelKey = `${containerPanelState.arrangement}-${parentContainerId}`;
+  const panelKey = `${containerPanelState.scripting}-${containerPanelState.arrangement}-${parentContainerId}`;
 
-  const draggingContainerReferences =
-    state.present.dataPanel.panels[windowType].Container.interactions.Dragging;
-  const allSelectedContainerReferences =
-    state.present.dataPanel.panels[windowType].Container.interactions.Selected;
+  const draggingContainerReferences = useMemo(
+    () =>
+      state?.present?.dataPanel?.panels?.[windowType]?.Container?.interactions
+        ?.Dragging || [],
+    [state?.present?.dataPanel?.panels, windowType]
+  );
+  const allSelectedContainerReferences = useMemo(
+    () =>
+      state?.present?.dataPanel?.panels?.[windowType]?.Container?.interactions
+        ?.Selected || [],
+    [state?.present?.dataPanel?.panels, windowType]
+  );
   const selectedContainerReferences = useMemo(
     () =>
       allSelectedContainerReferences
@@ -1493,19 +1311,11 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     (refId: string, e: React.MouseEvent): void => {
       e.stopPropagation();
       dispatch(
-        dataPanelSetScrollX(
+        dataPanelSetScrollPosition(
           windowType,
           DataPanelType.Container,
           panelKey,
-          getScrollX(scrollParent)
-        )
-      );
-      dispatch(
-        dataPanelSetScrollY(
-          windowType,
-          DataPanelType.Container,
-          panelKey,
-          getScrollY(scrollParent)
+          { x: getScrollX(scrollParent), y: getScrollY(scrollParent) }
         )
       );
       dispatch(dataPanelInspect(windowType, DataPanelType.Item, refId));
@@ -1755,20 +1565,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     }
   }, [parentContainerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (
-      scrollId === panelKey &&
-      scrollParent &&
-      scrollX !== undefined &&
-      scrollY !== undefined
-    ) {
-      window.requestAnimationFrame(() => {
-        setScrollX(scrollParent, scrollX);
-        setScrollY(scrollParent, scrollY);
-      });
-    }
-  }, [panelKey, scrollId, scrollParent, scrollX, scrollY]);
-
   useSelectionShortcuts(handleSelectNoneShortcut, handleSelectAllShortcut);
   useDeleteShortcuts(handleRemoveDataShortcut);
   useClipboardShortcuts(
@@ -1859,19 +1655,11 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const handleClickHeaderScriptingIcon = useCallback(
     (scripting: boolean) => {
       dispatch(
-        dataPanelSetScrollX(
+        dataPanelSetScrollPosition(
           windowType,
           DataPanelType.Container,
           panelKey,
-          getScrollX(scrollParent)
-        )
-      );
-      dispatch(
-        dataPanelSetScrollY(
-          windowType,
-          DataPanelType.Container,
-          panelKey,
-          getScrollY(scrollParent)
+          { x: getScrollX(scrollParent), y: getScrollY(scrollParent) }
         )
       );
       dispatch(dataPanelSetScripting(windowType, scripting));
@@ -1882,19 +1670,11 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const handleClickHeaderArrangementIcon = useCallback(
     (arrangement: ContainerArrangement) => {
       dispatch(
-        dataPanelSetScrollX(
+        dataPanelSetScrollPosition(
           windowType,
           DataPanelType.Container,
           panelKey,
-          getScrollX(scrollParent)
-        )
-      );
-      dispatch(
-        dataPanelSetScrollY(
-          windowType,
-          DataPanelType.Container,
-          panelKey,
-          getScrollY(scrollParent)
+          { x: getScrollX(scrollParent), y: getScrollY(scrollParent) }
         )
       );
       dispatch(dataPanelSetParentContainerArrangement(windowType, arrangement));
@@ -1974,6 +1754,10 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     ]
   );
 
+  const handleSectionChange = useCallback((name: string) => {
+    setHeaderName(name);
+  }, []);
+
   const searching = Boolean(search) || search === "";
   const naming = Boolean(changeNameTargetId);
 
@@ -2033,6 +1817,10 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const Icon = headerInfo.iconOn;
 
+  const title = containerPanelState.scripting
+    ? headerName || "Script"
+    : headerInfo.pluralName;
+
   return (
     <Panel
       key={containerType}
@@ -2045,6 +1833,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       topChildren={
         !showChart ? (
           <ContainerPanelHeader
+            title={title}
             containerType={containerType}
             search={search}
             containerPanelState={containerPanelState}
@@ -2069,6 +1858,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         <>
           {showChart && (
             <ContainerPanelHeader
+              title={title}
               containerType={containerType}
               search={search}
               containerPanelState={containerPanelState}
@@ -2173,6 +1963,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         onPanCanvas={handlePanCanvas}
         onZoomCanvas={handleZoomCanvas}
         onContextMenu={handleContextMenu}
+        onSectionChange={handleSectionChange}
       />
       {optionsMenuOpen !== undefined && (
         <ContextMenu

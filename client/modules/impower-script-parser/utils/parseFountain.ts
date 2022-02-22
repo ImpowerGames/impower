@@ -399,6 +399,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         result.properties.firstTokenLine = currentToken.line;
         currentSectionTokens = [];
         addSection(currentSectionId, {
+          start: currentToken.start,
           line: currentToken.line,
           name: "",
           tokens: currentSectionTokens,
@@ -581,6 +582,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
           addSection(
             currentSectionId,
             {
+              start: currentToken.start,
               line: currentToken.line,
               name: currentToken.content,
               tokens: currentSectionTokens,

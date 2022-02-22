@@ -158,7 +158,7 @@ const UI = (props: UIProps): JSX.Element => {
             flexDirection: "column",
           }}
         >
-          <div style={{ flex: 1 }}></div>
+          <div style={{ flex: 3 }}></div>
           <div
             style={{
               flex: 1,
@@ -168,13 +168,13 @@ const UI = (props: UIProps): JSX.Element => {
             }}
           >
             <div
-              className="dialogue"
+              id="impower-ui-display"
               style={{
                 marginLeft: "auto",
                 marginRight: "auto",
                 width: "68%",
                 fontFamily: "Courier Prime Sans",
-                fontSize: "1.375rem",
+                fontSize: "1.25rem",
                 whiteSpace: "pre-wrap",
               }}
             >

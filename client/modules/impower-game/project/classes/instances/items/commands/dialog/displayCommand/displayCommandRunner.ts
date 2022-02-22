@@ -20,9 +20,10 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     }[]
   ): number[] {
     this.down = game.input.state.pointer.down.includes(0);
-    const characterEl = document.querySelector(".dialogue .character");
-    const parentheticalEl = document.querySelector(".dialogue .parenthetical");
-    const contentEl = document.querySelector(".dialogue .content");
+    const ui = data.ui || "impower-ui-display";
+    const characterEl = document.querySelector(`#${ui} .character`);
+    const parentheticalEl = document.querySelector(`#${ui} .parenthetical`);
+    const contentEl = document.querySelector(`#${ui} .content`);
     const character = data.type === DisplayType.Dialogue ? data.character : "";
     const parenthetical =
       data.type === DisplayType.Dialogue ? data.parenthetical : "";

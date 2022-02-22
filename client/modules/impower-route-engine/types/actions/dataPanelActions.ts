@@ -224,21 +224,49 @@ export const dataPanelSetScripting = (
   };
 };
 
-export const DATA_PANEL_SET_ACTIVE_LINE = "DATA_PANEL_SET_ACTIVE_LINE";
-export interface DataPanelSetActiveLineAction {
-  type: typeof DATA_PANEL_SET_ACTIVE_LINE;
+export const DATA_PANEL_SET_CURSOR = "DATA_PANEL_SET_CURSOR";
+export interface DataPanelSetCursorAction {
+  type: typeof DATA_PANEL_SET_CURSOR;
   payload: {
     windowType: DataWindowType;
-    activeLine: number;
+    cursor: {
+      anchor: number;
+      head: number;
+      fromLine: number;
+      toLine: number;
+    };
   };
 }
-export const dataPanelSetActiveLine = (
+export const dataPanelSetCursor = (
   windowType: DataWindowType,
-  activeLine: number
-): DataPanelSetActiveLineAction => {
+  cursor: {
+    anchor: number;
+    head: number;
+    fromLine: number;
+    toLine: number;
+  }
+): DataPanelSetCursorAction => {
   return {
-    type: DATA_PANEL_SET_ACTIVE_LINE,
-    payload: { windowType, activeLine },
+    type: DATA_PANEL_SET_CURSOR,
+    payload: { windowType, cursor },
+  };
+};
+
+export const DATA_PANEL_SET_SCROLL_TOP_LINE = "DATA_PANEL_SET_SCROLL_TOP_LINE";
+export interface DataPanelSetScrollTopLineAction {
+  type: typeof DATA_PANEL_SET_SCROLL_TOP_LINE;
+  payload: {
+    windowType: DataWindowType;
+    scrollTopLine: number;
+  };
+}
+export const dataPanelSetScrollTopLine = (
+  windowType: DataWindowType,
+  scrollTopLine: number
+): DataPanelSetScrollTopLineAction => {
+  return {
+    type: DATA_PANEL_SET_SCROLL_TOP_LINE,
+    payload: { windowType, scrollTopLine },
   };
 };
 
@@ -333,47 +361,25 @@ export const dataPanelSetScrollParent = (
   };
 };
 
-export const DATA_PANEL_SET_SCROLL_Y = "DATA_PANEL_SET_SCROLL_Y";
-export interface DataPanelSetScrollYAction {
-  type: typeof DATA_PANEL_SET_SCROLL_Y;
+export const DATA_PANEL_SET_SCROLL_POSITION = "DATA_PANEL_SET_SCROLL_POSITION";
+export interface DataPanelSetScrollPositionAction {
+  type: typeof DATA_PANEL_SET_SCROLL_POSITION;
   payload: {
     windowType: DataWindowType;
     panelType: DataPanelType;
     scrollId: string;
-    scrollY: number;
+    scrollPosition: { x?: number; y?: number };
   };
 }
-export const dataPanelSetScrollY = (
+export const dataPanelSetScrollPosition = (
   windowType: DataWindowType,
   panelType: DataPanelType,
   scrollId: string,
-  scrollY: number
-): DataPanelSetScrollYAction => {
+  scrollPosition: { x?: number; y?: number }
+): DataPanelSetScrollPositionAction => {
   return {
-    type: DATA_PANEL_SET_SCROLL_Y,
-    payload: { windowType, panelType, scrollId, scrollY },
-  };
-};
-
-export const DATA_PANEL_SET_SCROLL_X = "DATA_PANEL_SET_SCROLL_X";
-export interface DataPanelSetScrollXAction {
-  type: typeof DATA_PANEL_SET_SCROLL_X;
-  payload: {
-    windowType: DataWindowType;
-    panelType: DataPanelType;
-    scrollId: string;
-    scrollX: number;
-  };
-}
-export const dataPanelSetScrollX = (
-  windowType: DataWindowType,
-  panelType: DataPanelType,
-  scrollId: string,
-  scrollX: number
-): DataPanelSetScrollXAction => {
-  return {
-    type: DATA_PANEL_SET_SCROLL_X,
-    payload: { windowType, panelType, scrollId, scrollX },
+    type: DATA_PANEL_SET_SCROLL_POSITION,
+    payload: { windowType, panelType, scrollId, scrollPosition },
   };
 };
 
@@ -449,15 +455,15 @@ export type DataPanelAction =
   | DataPanelRemoveInteractionAction
   | DataPanelSetInteractionAction
   | DataPanelSetScriptingAction
-  | DataPanelSetActiveLineAction
+  | DataPanelSetCursorAction
+  | DataPanelSetScrollTopLineAction
   | DataPanelSetParentContainerArrangementAction
   | DataPanelChangeItemSectionAction
   | DataPanelSetLastAddedTypeIdAction
   | DataPanelSearchAction
   | DataPanelSetPaneSizeAction
   | DataPanelSetScrollParentAction
-  | DataPanelSetScrollYAction
-  | DataPanelSetScrollXAction
+  | DataPanelSetScrollPositionAction
   | DataPanelInspectAction
   | DataPanelSetErrorsAction
   | DataPanelSubmitAction;

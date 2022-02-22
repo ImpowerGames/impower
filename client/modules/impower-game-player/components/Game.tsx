@@ -91,7 +91,8 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
   const [engineState] = useContext(ProjectEngineContext);
   const projectId = engineState.present.project.id;
   const activeLine =
-    engineState.present.dataPanel?.panels?.Logic?.Container?.activeLine || 1;
+    engineState.present.dataPanel?.panels?.Logic?.Container?.cursor?.fromLine ||
+    1;
 
   useEffect(() => {
     const setMobile = (): void => {

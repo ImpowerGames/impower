@@ -9,6 +9,7 @@ export const getRuntimeVariable = (token: FountainToken): VariableData => {
     const value = token?.value;
     return createVariableData({
       reference: getRuntimeVariableReference(token.variable),
+      pos: token.start,
       line: token.line,
       name,
       value,

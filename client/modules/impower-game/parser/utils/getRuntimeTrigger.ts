@@ -23,6 +23,7 @@ export const getRuntimeTrigger = (
         refId,
         refTypeId,
       }),
+      pos: token.start,
       line: token.line,
     });
   }
@@ -36,6 +37,7 @@ export const getRuntimeTrigger = (
           refId,
           refTypeId,
         }),
+        pos: token.start,
         line: token.line,
       }),
       variable: getRuntimeVariableReference(token.variable),
@@ -52,6 +54,7 @@ export const getRuntimeTrigger = (
         refId,
         refTypeId,
       }),
+      pos: token.start,
       line: token.line,
     });
   }

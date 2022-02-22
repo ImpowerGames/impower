@@ -1,1 +1,1 @@
-export * from "./components/ScriptEditorField";
+export * from "./components/ScriptEditor";

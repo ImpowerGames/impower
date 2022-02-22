@@ -19,7 +19,7 @@ import {
   DATA_PANEL_OPEN,
   DATA_PANEL_REMOVE_INTERACTION,
   DATA_PANEL_SEARCH,
-  DATA_PANEL_SET_ACTIVE_LINE,
+  DATA_PANEL_SET_CURSOR,
   DATA_PANEL_SET_ERRORS,
   DATA_PANEL_SET_INTERACTION,
   DATA_PANEL_SET_LAST_ADDED_TYPE_ID,
@@ -27,8 +27,8 @@ import {
   DATA_PANEL_SET_PARENT_CONTAINER_ARRANGEMENT,
   DATA_PANEL_SET_SCRIPTING,
   DATA_PANEL_SET_SCROLL_PARENT,
-  DATA_PANEL_SET_SCROLL_X,
-  DATA_PANEL_SET_SCROLL_Y,
+  DATA_PANEL_SET_SCROLL_POSITION,
+  DATA_PANEL_SET_SCROLL_TOP_LINE,
   DATA_PANEL_SUBMIT,
   DATA_PANEL_TOGGLE_ALL_INTERACTION,
   DATA_PANEL_TOGGLE_INTERACTION,
@@ -76,13 +76,13 @@ const doSetInteraction = (
   return {
     ...state,
     panels: {
-      ...state.panels,
+      ...state?.panels,
       [windowType]: {
-        ...state.panels[windowType],
+        ...(state?.panels?.[windowType] || {}),
         [panelType]: {
-          ...state.panels[windowType][panelType],
+          ...(state?.panels?.[windowType]?.[panelType] || {}),
           interactions: {
-            ...state.panels[windowType][panelType].interactions,
+            ...(state?.panels?.[windowType]?.[panelType]?.interactions || {}),
             [interactionType]: [...references],
           },
         },
@@ -337,19 +337,47 @@ const doSetCursor = (
   state: DataPanelState,
   payload: {
     windowType: DataWindowType;
-    activeLine: number;
+    cursor: {
+      anchor: number;
+      head: number;
+      fromLine: number;
+      toLine: number;
+    };
   }
 ): DataPanelState => {
-  const { windowType, activeLine } = payload;
+  const { windowType, cursor } = payload;
   return {
     ...state,
     panels: {
-      ...state.panels,
+      ...state?.panels,
       [windowType]: {
-        ...state.panels[windowType],
+        ...(state?.panels?.[windowType] || {}),
         Container: {
-          ...state.panels[windowType].Container,
-          activeLine,
+          ...(state?.panels?.[windowType]?.Container || {}),
+          cursor,
+        },
+      },
+    },
+  };
+};
+
+const doSetScrollTopLine = (
+  state: DataPanelState,
+  payload: {
+    windowType: DataWindowType;
+    scrollTopLine: number;
+  }
+): DataPanelState => {
+  const { windowType, scrollTopLine } = payload;
+  return {
+    ...state,
+    panels: {
+      ...state?.panels,
+      [windowType]: {
+        ...(state?.panels?.[windowType] || {}),
+        Container: {
+          ...(state?.panels?.[windowType]?.Container || {}),
+          scrollTopLine,
         },
       },
     },
@@ -485,16 +513,16 @@ const doSetScrollParent = (
   };
 };
 
-const doSetScrollY = (
+const doSetScrollPosition = (
   state: DataPanelState,
   payload: {
     windowType: DataWindowType;
     panelType: DataPanelType;
     scrollId: string;
-    scrollY: number;
+    scrollPosition: { x?: number; y?: number };
   }
 ): DataPanelState => {
-  const { windowType, panelType, scrollId, scrollY } = payload;
+  const { windowType, panelType, scrollId, scrollPosition } = payload;
   return {
     ...state,
     panels: {
@@ -502,35 +530,17 @@ const doSetScrollY = (
       [windowType]: {
         ...state.panels[windowType],
         [panelType]: {
-          ...state.panels[windowType][panelType],
-          scrollId,
-          scrollY,
-        },
-      },
-    },
-  };
-};
-
-const doSetScrollX = (
-  state: DataPanelState,
-  payload: {
-    windowType: DataWindowType;
-    panelType: DataPanelType;
-    scrollId: string;
-    scrollX: number;
-  }
-): DataPanelState => {
-  const { windowType, panelType, scrollId, scrollX } = payload;
-  return {
-    ...state,
-    panels: {
-      ...state.panels,
-      [windowType]: {
-        ...state.panels[windowType],
-        [panelType]: {
-          ...state.panels[windowType][panelType],
-          scrollId,
-          scrollX,
+          ...(state?.panels?.[windowType]?.[panelType] || {}),
+          scrollPositions: {
+            ...(state?.panels?.[windowType]?.[panelType]?.scrollPositions ||
+              {}),
+            [scrollId]: {
+              ...(state?.panels?.[windowType]?.[panelType]?.scrollPositions?.[
+                scrollId
+              ] || {}),
+              ...scrollPosition,
+            },
+          },
         },
       },
     },
@@ -636,8 +646,10 @@ export const dataPanelReducer = (
       return doSetParentContainerArrangement(state, action.payload);
     case DATA_PANEL_SET_SCRIPTING:
       return doSetScripting(state, action.payload);
-    case DATA_PANEL_SET_ACTIVE_LINE:
+    case DATA_PANEL_SET_CURSOR:
       return doSetCursor(state, action.payload);
+    case DATA_PANEL_SET_SCROLL_TOP_LINE:
+      return doSetScrollTopLine(state, action.payload);
     case DATA_PANEL_CHANGE_ITEM_SECTION:
       return doChangeItemSection(state, action.payload);
     case DATA_PANEL_SET_LAST_ADDED_TYPE_ID:
@@ -648,10 +660,8 @@ export const dataPanelReducer = (
       return doSetPaneSize(state, action.payload);
     case DATA_PANEL_SET_SCROLL_PARENT:
       return doSetScrollParent(state, action.payload);
-    case DATA_PANEL_SET_SCROLL_Y:
-      return doSetScrollY(state, action.payload);
-    case DATA_PANEL_SET_SCROLL_X:
-      return doSetScrollX(state, action.payload);
+    case DATA_PANEL_SET_SCROLL_POSITION:
+      return doSetScrollPosition(state, action.payload);
     case DATA_PANEL_INSPECT:
       return doInspect(state, action.payload);
     case DATA_PANEL_SET_ERRORS:

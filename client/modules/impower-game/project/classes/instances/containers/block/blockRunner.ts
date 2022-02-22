@@ -194,9 +194,11 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       const command = commands[blockState.executingIndex];
       const commandId = command.data.reference.refId;
       const commandIndex = blockState.executingIndex;
+      const pos = command?.data?.pos;
       const line = command?.data?.line;
       if (blockState.lastExecutedAt < 0) {
         game.logic.executeCommand({
+          pos,
           line,
           blockId,
           commandId,
@@ -212,6 +214,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
         );
         if (nextJumps.length > 0) {
           game.logic.commandJumpStackPush({
+            pos,
             line,
             blockId,
             indices: nextJumps,
@@ -228,6 +231,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
         return false;
       }
       game.logic.finishCommand({
+        pos,
         line,
         blockId,
         commandId,
@@ -237,10 +241,12 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       if (blockState.commandJumpStack.length > 0) {
         const nextCommandIndex = blockState.commandJumpStack[0];
         game.logic.commandJumpStackPop({
+          pos,
           line,
           blockId,
         });
         game.logic.goToCommandIndex({
+          pos,
           line,
           blockId,
           index: nextCommandIndex,
@@ -248,6 +254,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       } else {
         const nextCommandIndex = blockState.executingIndex + 1;
         game.logic.goToCommandIndex({
+          pos,
           line,
           blockId,
           index: nextCommandIndex,

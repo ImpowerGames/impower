@@ -10,4 +10,5 @@ export interface DisplayCommandData extends CommandData<"DisplayCommand"> {
   parenthetical: string;
   content: string;
   voice: AudioFileReference;
+  ui: string;
 }

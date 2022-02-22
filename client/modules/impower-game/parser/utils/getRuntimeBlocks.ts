@@ -14,6 +14,7 @@ export const getRuntimeBlocks = (
         parentContainerId: sectionId.split(".").slice(0, -1).join("."),
         refId: sectionId,
       }),
+      pos: section.start,
       line: section.line,
       name: section.name,
       childContainerIds: section.children || [],

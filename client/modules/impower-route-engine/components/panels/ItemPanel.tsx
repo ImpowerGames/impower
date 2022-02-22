@@ -89,7 +89,7 @@ import {
   dataPanelRemoveInteraction,
   dataPanelSetInteraction,
   dataPanelSetLastAddedTypeId,
-  dataPanelSetScrollY,
+  dataPanelSetScrollPosition,
   dataPanelToggleInteraction,
 } from "../../types/actions/dataPanelActions";
 import {
@@ -608,7 +608,6 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   const project = state.present.project.data as GameProjectData;
   const openPanel = state.present.dataPanel.panels?.[windowType]?.openPanel;
   const { section } = state.present.dataPanel.panels[windowType].Item;
-  const { scrollY, scrollId } = state.present.dataPanel.panels[windowType].Item;
   const inspectedContainerTargetId =
     state.present.dataPanel.panels[windowType].Item.inspectedTargetId;
 
@@ -644,14 +643,22 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
           section
         ]
       : undefined;
-  const draggingItemReferences =
-    section !== "Preview"
-      ? state.present.dataPanel.panels[windowType].Item.interactions.Dragging
-      : undefined;
-  const allSelectedItemReferences =
-    section !== "Preview"
-      ? state.present.dataPanel.panels[windowType].Item.interactions.Selected
-      : undefined;
+  const draggingItemReferences = useMemo(
+    () =>
+      section !== "Preview"
+        ? state?.present?.dataPanel?.panels?.[windowType]?.Item?.interactions
+            ?.Dragging || []
+        : undefined,
+    [section, state?.present?.dataPanel?.panels, windowType]
+  );
+  const allSelectedItemReferences = useMemo(
+    () =>
+      section !== "Preview"
+        ? state?.present?.dataPanel?.panels?.[windowType]?.Item?.interactions
+            ?.Selected || []
+        : undefined,
+    [section, state?.present?.dataPanel?.panels, windowType]
+  );
   const selectedItemReferences = useMemo(
     () =>
       allSelectedItemReferences
@@ -681,6 +688,10 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   const { search } = state.present.dataPanel.panels[windowType].Item;
 
   const panelKey = `${inspectedTargetContainer}`;
+  const scrollPosition =
+    state.present.dataPanel.panels[windowType].Item?.scrollPositions?.[
+      panelKey
+    ];
 
   const headerInfo = useMemo(() => getHeader(section), [section]);
   const containerHeaderInfo = useMemo(
@@ -1037,12 +1048,9 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
     (refId: string, e: React.MouseEvent): void => {
       e.stopPropagation();
       dispatch(
-        dataPanelSetScrollY(
-          windowType,
-          DataPanelType.Item,
-          panelKey,
-          getScrollY(scrollParent)
-        )
+        dataPanelSetScrollPosition(windowType, DataPanelType.Item, panelKey, {
+          y: getScrollY(scrollParent),
+        })
       );
       dispatch(dataPanelInspect(windowType, DataPanelType.Detail, refId));
       dispatch(dataPanelOpen(windowType, DataPanelType.Detail));
@@ -1156,12 +1164,12 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   }, [inspectedItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (scrollParent && scrollId === panelKey && scrollY !== undefined) {
+    if (scrollParent && scrollPosition && scrollPosition?.y !== undefined) {
       window.requestAnimationFrame(() => {
-        setScrollY(scrollParent, scrollY);
+        setScrollY(scrollParent, scrollPosition?.y);
       });
     }
-  }, [panelKey, scrollId, scrollParent, scrollY]);
+  }, [scrollParent, scrollPosition]);
 
   const sections = getSections(windowType);
 
@@ -1238,7 +1246,12 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
       e.stopPropagation();
       handleSetSelection([]);
       dispatch(
-        dataPanelSetScrollY(windowType, DataPanelType.Item, panelKey, undefined)
+        dataPanelSetScrollPosition(
+          windowType,
+          DataPanelType.Item,
+          panelKey,
+          undefined
+        )
       );
       dispatch(dataPanelOpen(windowType, DataPanelType.Container));
     },
@@ -1391,7 +1404,12 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   const onInspectContainer = useCallback(
     (reference: ContainerReference): void => {
       dispatch(
-        dataPanelSetScrollY(windowType, DataPanelType.Item, panelKey, undefined)
+        dataPanelSetScrollPosition(
+          windowType,
+          DataPanelType.Item,
+          panelKey,
+          undefined
+        )
       );
       dispatch(
         dataPanelInspect(windowType, DataPanelType.Item, reference.refId)

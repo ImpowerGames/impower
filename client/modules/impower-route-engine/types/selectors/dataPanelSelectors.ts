@@ -16,7 +16,6 @@ import {
   DataPanelState,
   DataPanelType,
   DataWindowType,
-  PanelInteractionState,
 } from "../state/dataPanelState";
 
 const getChildConstructs = (
@@ -121,6 +120,9 @@ export const getInsertionIndex = (
   selectedIds: string[],
   dataIds: string[]
 ): number => {
+  if (!dataIds) {
+    return 0;
+  }
   const selectedIndices: number[] = [];
   dataIds.forEach((id, index) => {
     if (selectedIds.includes(id)) {
@@ -136,7 +138,8 @@ export const getInteractionsSelector = (
   interactionType: DataInteractionType,
   panelType: DataPanelType
 ): (Reference | string)[] => {
-  const panelInteractionState: PanelInteractionState =
-    state.panels[windowType][panelType];
-  return panelInteractionState.interactions[interactionType];
+  return (
+    state?.panels?.[windowType]?.[panelType]?.interactions?.[interactionType] ||
+    []
+  );
 };

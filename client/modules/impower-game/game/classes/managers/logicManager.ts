@@ -13,28 +13,36 @@ export interface LogicState {
 }
 
 export interface LogicEvents {
-  onLoadBlock: GameEvent<{ line: number; id: string }>;
-  onUnloadBlock: GameEvent<{ line: number; id: string }>;
+  onLoadBlock: GameEvent<{ pos: number; line: number; id: string }>;
+  onUnloadBlock: GameEvent<{ pos: number; line: number; id: string }>;
   onUpdateBlock: GameEvent<{
+    pos: number;
     line: number;
     id: string;
     time: number;
     delta: number;
   }>;
-  onChangeActiveParentBlock: GameEvent<{ line: number; id: string }>;
+  onChangeActiveParentBlock: GameEvent<{
+    pos: number;
+    line: number;
+    id: string;
+  }>;
   onExecuteBlock: GameEvent<{
+    pos: number;
     line: number;
     id: string;
     executedByBlockId: string;
   }>;
   onFinishBlock: GameEvent<{
+    pos: number;
     line: number;
     id: string;
     executedByBlockId: string;
   }>;
-  onEnterBlock: GameEvent<{ line: number; id: string }>;
-  onExitBlock: GameEvent<{ line: number; id: string }>;
+  onEnterBlock: GameEvent<{ pos: number; line: number; id: string }>;
+  onExitBlock: GameEvent<{ pos: number; line: number; id: string }>;
   onCheckTriggers: GameEvent<{
+    pos: number;
     line: number;
     blockId: string;
     shouldExecute: boolean;
@@ -42,6 +50,7 @@ export interface LogicEvents {
     unsatisfiedTriggers: string[];
   }>;
   onExecuteCommand: GameEvent<{
+    pos: number;
     line: number;
     blockId: string;
     commandId: string;
@@ -49,6 +58,7 @@ export interface LogicEvents {
     time: number;
   }>;
   onFinishCommand: GameEvent<{
+    pos: number;
     line: number;
     blockId: string;
     commandId: string;
@@ -56,34 +66,65 @@ export interface LogicEvents {
     time: number;
   }>;
   onGoToCommandIndex: GameEvent<{
+    pos: number;
     line: number;
     blockId: string;
     index: number;
   }>;
   onCommandJumpStackPush: GameEvent<{
+    pos: number;
     line: number;
     blockId: string;
     indices: number[];
   }>;
-  onCommandJumpStackPop: GameEvent<{ line: number; blockId: string }>;
-  onSetVariableValue: GameEvent<{ line: number; id: string; value: unknown }>;
-  onSetTriggerValue: GameEvent<{ line: number; id: string; value: unknown }>;
+  onCommandJumpStackPop: GameEvent<{
+    pos: number;
+    line: number;
+    blockId: string;
+  }>;
+  onSetVariableValue: GameEvent<{
+    pos: number;
+    line: number;
+    id: string;
+    value: unknown;
+  }>;
+  onSetTriggerValue: GameEvent<{
+    pos: number;
+    line: number;
+    id: string;
+    value: unknown;
+  }>;
 }
 
 export class LogicManager extends Manager<LogicState, LogicEvents> {
   private _blockTree: {
-    [blockId: string]: { line: number; parent: string; children: string[] };
+    [blockId: string]: {
+      pos: number;
+      line: number;
+      parent: string;
+      children: string[];
+    };
   };
 
   public get blockTree(): {
-    [blockId: string]: { line: number; parent: string; children: string[] };
+    [blockId: string]: {
+      pos: number;
+      line: number;
+      parent: string;
+      children: string[];
+    };
   } {
     return this._blockTree;
   }
 
   constructor(
     blockTree: {
-      [blockId: string]: { line: number; parent: string; children: string[] };
+      [blockId: string]: {
+        pos: number;
+        line: number;
+        parent: string;
+        children: string[];
+      };
     },
     state?: LogicState
   ) {
@@ -103,28 +144,48 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
 
   getInitialEvents(): LogicEvents {
     return {
-      onLoadBlock: new GameEvent<{ line: number; id: string }>(),
-      onUnloadBlock: new GameEvent<{ line: number; id: string }>(),
+      onLoadBlock: new GameEvent<{ id: string; pos: number; line: number }>(),
+      onUnloadBlock: new GameEvent<{
+        pos: number;
+        line: number;
+        id: string;
+      }>(),
       onUpdateBlock: new GameEvent<{
+        pos: number;
         line: number;
         id: string;
         time: number;
         delta: number;
       }>(),
       onExecuteBlock: new GameEvent<{
+        pos: number;
         line: number;
         id: string;
         executedByBlockId: string;
       }>(),
       onFinishBlock: new GameEvent<{
+        pos: number;
         line: number;
         id: string;
         executedByBlockId: string;
       }>(),
-      onChangeActiveParentBlock: new GameEvent<{ line: number; id: string }>(),
-      onEnterBlock: new GameEvent<{ line: number; id: string }>(),
-      onExitBlock: new GameEvent<{ line: number; id: string }>(),
+      onChangeActiveParentBlock: new GameEvent<{
+        pos: number;
+        line: number;
+        id: string;
+      }>(),
+      onEnterBlock: new GameEvent<{
+        pos: number;
+        line: number;
+        id: string;
+      }>(),
+      onExitBlock: new GameEvent<{
+        pos: number;
+        line: number;
+        id: string;
+      }>(),
       onCheckTriggers: new GameEvent<{
+        pos: number;
         line: number;
         blockId: string;
         shouldExecute: boolean;
@@ -132,6 +193,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
         unsatisfiedTriggers: string[];
       }>(),
       onExecuteCommand: new GameEvent<{
+        pos: number;
         line: number;
         blockId: string;
         commandId: string;
@@ -139,6 +201,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
         time: number;
       }>(),
       onFinishCommand: new GameEvent<{
+        pos: number;
         line: number;
         blockId: string;
         commandId: string;
@@ -146,22 +209,30 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
         time: number;
       }>(),
       onGoToCommandIndex: new GameEvent<{
+        pos: number;
         line: number;
         blockId: string;
         index: number;
       }>(),
       onCommandJumpStackPush: new GameEvent<{
+        pos: number;
         line: number;
         blockId: string;
         indices: number[];
       }>(),
-      onCommandJumpStackPop: new GameEvent<{ line: number; blockId: string }>(),
+      onCommandJumpStackPop: new GameEvent<{
+        pos: number;
+        line: number;
+        blockId: string;
+      }>(),
       onSetVariableValue: new GameEvent<{
+        pos: number;
         line: number;
         id: string;
         value: unknown;
       }>(),
       onSetTriggerValue: new GameEvent<{
+        pos: number;
         line: number;
         id: string;
         value: unknown;
@@ -201,6 +272,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const childIds = parent?.children || [];
     this.loadBlocks({ ids: childIds });
     this.events.onChangeActiveParentBlock.emit({
+      pos: parent?.pos,
       line: parent?.line,
       id: newParentBlockId,
     });
@@ -229,7 +301,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     blockState.active = true;
     this.state.blockStates[data.id] = blockState;
     const block = this.blockTree[data.id];
-    this.events.onLoadBlock.emit({ line: block.line, ...data });
+    this.events.onLoadBlock.emit({
+      pos: block.pos,
+      line: block.line,
+      ...data,
+    });
   }
 
   loadBlocks(data: { ids: string[] }): void {
@@ -246,7 +322,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       (id) => id !== data.id
     );
     const block = this.blockTree[data.id];
-    this.events.onUnloadBlock.emit({ line: block.line, ...data });
+    this.events.onUnloadBlock.emit({
+      pos: block.pos,
+      line: block.line,
+      ...data,
+    });
   }
 
   unloadBlocks(data: { ids: string[] }): void {
@@ -262,7 +342,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     blockState.time = data.time;
     blockState.delta = data.delta;
     const block = this.blockTree[data.id];
-    this.events.onUpdateBlock.emit({ line: block.line, ...data });
+    this.events.onUpdateBlock.emit({
+      pos: block.pos,
+      line: block.line,
+      ...data,
+    });
   }
 
   executeBlock(data: { id: string; executedByBlockId: string }): void {
@@ -272,7 +356,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     blockState.executedBy = data.executedByBlockId;
     blockState.isExecuting = true;
     const block = this.blockTree[data.id];
-    this.events.onExecuteBlock.emit({ line: block.line, ...data });
+    this.events.onExecuteBlock.emit({
+      pos: block.pos,
+      line: block.line,
+      ...data,
+    });
   }
 
   finishBlock(data: { id: string }): void {
@@ -281,6 +369,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     blockState.hasFinished = true;
     const block = this.blockTree[data.id];
     this.events.onFinishBlock.emit({
+      pos: block.pos,
       line: block.line,
       executedByBlockId: blockState.executedBy,
       ...data,
@@ -298,6 +387,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     this.changeActiveParentBlock(newParentBlockId);
     const block = this.blockTree[data.id];
     this.events.onEnterBlock.emit({
+      pos: block.pos,
       line: block.line,
       ...data,
     });
@@ -317,12 +407,14 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     childIds.map((id) => this.resetBlockExecution(id));
     const block = this.blockTree[currentParentBlockId];
     this.events.onExitBlock.emit({
+      pos: block.pos,
       line: block.line,
       id: currentParentBlockId,
     });
   }
 
   executeCommand(data: {
+    pos: number;
     line: number;
     blockId: string;
     commandId: string;
@@ -339,6 +431,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   }
 
   finishCommand(data: {
+    pos: number;
     line: number;
     blockId: string;
     commandId: string;
@@ -365,10 +458,15 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     blockState.satisfiedTriggers = data.satisfiedTriggers;
     blockState.unsatisfiedTriggers = data.unsatisfiedTriggers;
     const block = this.blockTree[data.blockId];
-    this.events.onCheckTriggers.emit({ line: block.line, ...data });
+    this.events.onCheckTriggers.emit({
+      pos: block.pos,
+      line: block.line,
+      ...data,
+    });
   }
 
   goToCommandIndex(data: {
+    pos: number;
     line: number;
     blockId: string;
     index: number;
@@ -379,6 +477,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   }
 
   commandJumpStackPush(data: {
+    pos: number;
     line: number;
     blockId: string;
     indices: number[];
@@ -388,13 +487,22 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     this.events.onCommandJumpStackPush.emit({ ...data });
   }
 
-  commandJumpStackPop(data: { line: number; blockId: string }): void {
+  commandJumpStackPop(data: {
+    pos: number;
+    line: number;
+    blockId: string;
+  }): void {
     const blockState = this.state.blockStates[data.blockId];
     blockState.commandJumpStack.shift();
     this.events.onCommandJumpStackPop.emit({ ...data });
   }
 
-  setVariableValue(data: { line: number; id: string; value: unknown }): void {
+  setVariableValue(data: {
+    pos: number;
+    line: number;
+    id: string;
+    value: unknown;
+  }): void {
     const variableState = this.state.variableStates[data.id] || {
       value: data.value,
     };
@@ -403,7 +511,12 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     this.events.onSetVariableValue.emit({ ...data });
   }
 
-  setTriggerValue(data: { line: number; id: string; value: unknown }): void {
+  setTriggerValue(data: {
+    pos: number;
+    line: number;
+    id: string;
+    value: unknown;
+  }): void {
     const triggerState = this.state.triggerStates[data.id] || {
       value: data.value,
       executionCount: 0,

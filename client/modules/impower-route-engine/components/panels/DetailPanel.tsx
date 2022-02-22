@@ -388,7 +388,8 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
 
   const allSelectedItemReferences =
     section !== "Preview"
-      ? state.present.dataPanel.panels[windowType].Item.interactions.Selected
+      ? state?.present?.dataPanel?.panels?.[windowType]?.Item?.interactions
+          ?.Selected || []
       : undefined;
   const selectedItemReferences = useMemo(
     () =>
@@ -400,8 +401,12 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [allSelectedItemReferences, JSON.stringify(Object.keys(inspectedItems))]
   );
-  const expandedDetailReferences =
-    state.present.dataPanel.panels[windowType].Detail.interactions.Expanded;
+  const expandedDetailReferences = useMemo(
+    () =>
+      state?.present?.dataPanel?.panels?.[windowType]?.Detail?.interactions
+        ?.Expanded || [],
+    [state?.present?.dataPanel?.panels, windowType]
+  );
 
   const expandedProperties = useMemo(
     () => expandedDetailReferences || [],

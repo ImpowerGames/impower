@@ -31,7 +31,9 @@ const getDisplayCommand = (
         refTypeId,
       }),
     }),
+    pos: token.start,
     line: token.line,
+    ui: "",
     type:
       dialogueToken.type === "character" ||
       dialogueToken.type === "parenthetical"
@@ -62,6 +64,7 @@ export const getRuntimeCommand = (
           refTypeId,
         }),
       }),
+      pos: token.start,
       line: token.line,
       variable: getRuntimeVariableReference(token.variable),
       operator: token.operator as SetOperator,

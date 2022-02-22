@@ -32,22 +32,32 @@ export enum DataInteractionType {
 }
 
 export interface PanelInteractionState {
-  scrollId?: string;
-  scrollX?: number;
-  scrollY?: number;
   search?: string;
   inspectedTargetId?: string;
   inspectedProperties?: string[];
   submitting?: boolean;
   errors?: { [propertyPath: string]: string };
-  interactions: {
+  scrollPositions?: {
+    [id: string]: {
+      x?: number;
+      y?: number;
+    };
+  };
+  interactions?: {
     [interactionType in DataInteractionType]: (Reference | string)[];
   };
 }
 
 export interface ContainerPanelState extends PanelInteractionState {
   scripting: boolean;
-  activeLine?: number;
+  cursor?: {
+    anchor: number;
+    head: number;
+    fromLine: number;
+    toLine: number;
+  };
+  scrollTopLine?: number;
+  foldedLines?: number[];
   arrangement: ContainerArrangement;
 }
 
@@ -79,19 +89,9 @@ export const createDataPanelState = (): DataPanelState => ({
       Container: {
         scripting: false,
         arrangement: ContainerArrangement.List,
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
       },
       Item: {
         section: "Details",
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
         lastAddedTypeIds: {
           Trigger: "EnteredTrigger",
           Command: "DoCommand",
@@ -99,32 +99,16 @@ export const createDataPanelState = (): DataPanelState => ({
           Element: "TextElement",
         },
       },
-      Detail: {
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
-      },
+      Detail: {},
     },
     Assets: {
       openPanel: DataPanelType.Assets,
       Container: {
         scripting: false,
         arrangement: ContainerArrangement.List,
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
       },
       Item: {
         section: "Command",
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
         lastAddedTypeIds: {
           Trigger: "EnteredTrigger",
           Command: "DoCommand",
@@ -132,13 +116,7 @@ export const createDataPanelState = (): DataPanelState => ({
           Element: "TextElement",
         },
       },
-      Detail: {
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
-      },
+      Detail: {},
     },
     Entities: {
       openPanel: DataPanelType.Container,
@@ -146,19 +124,9 @@ export const createDataPanelState = (): DataPanelState => ({
         scripting: false,
         arrangement: ContainerArrangement.List,
         inspectedTargetId: "Construct",
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
       },
       Item: {
         section: "Element",
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
         lastAddedTypeIds: {
           Trigger: "EnteredTrigger",
           Command: "DoCommand",
@@ -166,13 +134,7 @@ export const createDataPanelState = (): DataPanelState => ({
           Element: "TextElement",
         },
       },
-      Detail: {
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
-      },
+      Detail: {},
     },
     Logic: {
       openPanel: DataPanelType.Container,
@@ -180,19 +142,9 @@ export const createDataPanelState = (): DataPanelState => ({
         scripting: true,
         arrangement: ContainerArrangement.List,
         inspectedTargetId: "Block",
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
       },
       Item: {
         section: "Command",
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
         lastAddedTypeIds: {
           Trigger: "EnteredTrigger",
           Command: "DoCommand",
@@ -200,13 +152,7 @@ export const createDataPanelState = (): DataPanelState => ({
           Element: "TextElement",
         },
       },
-      Detail: {
-        interactions: {
-          Selected: [],
-          Dragging: [],
-          Expanded: [],
-        },
-      },
+      Detail: {},
     },
   },
 });

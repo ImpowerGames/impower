@@ -180,8 +180,8 @@ const ReferenceInput = React.memo(
     const inspectedContainerReference = useMemo(
       () =>
         containerType
-          ? gameEngineState.present.dataPanel.panels[windowType].Container
-              .interactions.Selected[0]
+          ? gameEngineState?.present?.dataPanel?.panels?.[windowType]?.Container
+              ?.interactions?.Selected?.[0]
           : undefined,
       [containerType, gameEngineState.present.dataPanel.panels, windowType]
     ) as Reference;

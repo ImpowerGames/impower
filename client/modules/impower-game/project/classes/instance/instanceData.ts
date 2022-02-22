@@ -6,6 +6,7 @@ export interface InstanceData<
   R extends Reference<D> = Reference<D>
 > extends Record<string, unknown> {
   reference: R;
+  pos: number;
   line: number;
 }
 
@@ -29,5 +30,6 @@ export const createInstanceData = <
   obj?: Partial<InstanceData<D, R>> & Pick<InstanceData<D, R>, "reference">
 ): InstanceData<D, R> => ({
   ...obj,
+  pos: -1,
   line: -1,
 });
