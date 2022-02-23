@@ -1667,7 +1667,6 @@ interface EngineConsoleListProps {
   upload?: boolean;
   belowBreakpoint?: boolean;
   sticky?: "always" | "collapsible" | "never";
-  stickyOffset?: number;
   headerStyle?: React.CSSProperties;
   leftStyle?: React.CSSProperties;
   rotateStyle?: React.CSSProperties;
@@ -1761,7 +1760,6 @@ export const EngineConsoleList = React.memo(
         boxShadow: theme.shadows[3],
       },
       sticky,
-      stickyOffset,
       upload,
       belowBreakpoint,
       headerStyle,
@@ -1809,7 +1807,18 @@ export const EngineConsoleList = React.memo(
       [key: string]: string;
     }>({});
     const [activeSearch, setActiveSearch] = useState("");
-    const [search, setSearch] = useState("");
+    const [searchQuery, setSearchQuery] = useState<{
+      search: string;
+      caseSensitive?: boolean;
+      regexp?: boolean;
+      replace?: string;
+      action?:
+        | "search"
+        | "find_next"
+        | "find_previous"
+        | "replace"
+        | "replace_all";
+    }>();
     const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
     const [sortOrder, setSortOrder] = useState<Order>(defaultSortOrder);
     const [sortKey, setSortKey] = useState<string>(
@@ -1981,7 +1990,9 @@ export const EngineConsoleList = React.memo(
               return false;
             }
             const displayValue = handleGetCellDisplayValue(path, key);
-            return displayValue.toLowerCase().includes(search.toLowerCase());
+            return displayValue
+              .toLowerCase()
+              .includes(searchQuery?.search?.toLowerCase());
           })
         ) {
           return;
@@ -2038,7 +2049,7 @@ export const EngineConsoleList = React.memo(
       cardDetails,
       activeFilters,
       handleGetCellDisplayValue,
-      search,
+      searchQuery,
       getCellSortValue,
       sortKey,
       loading,
@@ -2073,9 +2084,23 @@ export const EngineConsoleList = React.memo(
     );
 
     const handleSearch = useCallback(
-      (search?: string) => {
-        setSearch(search);
-        handleDebouncedSearch(search);
+      (
+        e: React.ChangeEvent<HTMLInputElement>,
+        searchQuery: {
+          search: string;
+          caseSensitive?: boolean;
+          regexp?: boolean;
+          replace?: string;
+          action?:
+            | "search"
+            | "find_next"
+            | "find_previous"
+            | "replace"
+            | "replace_all";
+        }
+      ) => {
+        setSearchQuery(searchQuery);
+        handleDebouncedSearch(searchQuery);
       },
       [handleDebouncedSearch]
     );
@@ -2092,12 +2117,8 @@ export const EngineConsoleList = React.memo(
       []
     );
 
-    const handleOpenSearch = useCallback((): void => {
-      setSearching(true);
-    }, []);
-
     const handleCloseSearch = useCallback((): void => {
-      handleSearch("");
+      handleSearch(undefined, null);
       setSearching(false);
     }, [handleSearch]);
 
@@ -2196,7 +2217,7 @@ export const EngineConsoleList = React.memo(
     );
 
     const handleDone = useCallback((): void => {
-      handleSearch("");
+      handleSearch(undefined, null);
       handleCloseSearch();
       handleCloseContextHeader();
     }, [handleCloseContextHeader, handleCloseSearch, handleSearch]);
@@ -2406,10 +2427,9 @@ export const EngineConsoleList = React.memo(
         {initialized && (upload || !empty) && (
           <EngineToolbar
             belowBreakpoint={belowBreakpoint}
-            scrollParent={scrollParent}
             type={toolbarType}
             minHeight={rowHeight}
-            search={search}
+            searchQuery={searchQuery}
             selectedPaths={selectedPaths}
             paths={orderedPaths}
             backLabel={backLabel}
@@ -2431,7 +2451,6 @@ export const EngineConsoleList = React.memo(
             sticky={
               sticky || (contextHeaderOpen || searching ? "always" : "never")
             }
-            stickyOffset={stickyOffset}
             fixableContentStyle={maxWidthStyle}
             rotateStyle={rotateStyle}
             isSelectAllowed={isContextAllowed}
@@ -2440,8 +2459,6 @@ export const EngineConsoleList = React.memo(
             onClickMoreOption={handleClickContextMenuOption}
             onDone={handleDone}
             onBack={parentPath ? handleBack : undefined}
-            onOpenSearch={searchable ? handleOpenSearch : undefined}
-            onCloseSearch={searchable ? handleCloseSearch : undefined}
             onSearch={searchable ? handleSearch : undefined}
             onMore={handleOpenContext}
           />

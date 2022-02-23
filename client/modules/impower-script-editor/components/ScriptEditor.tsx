@@ -4,8 +4,21 @@ import { foldEffect, unfoldAll } from "@codemirror/fold";
 import { HighlightStyle } from "@codemirror/highlight";
 import { foldable, indentUnit } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
+import { panels } from "@codemirror/panel";
+import {
+  closeSearchPanel,
+  findNext,
+  findPrevious,
+  getSearchQuery,
+  replaceAll,
+  replaceNext,
+  search,
+  SearchQuery,
+  selectMatches,
+  setSearchQuery,
+} from "@codemirror/search";
 import { tooltips } from "@codemirror/tooltip";
-import { keymap, ViewUpdate } from "@codemirror/view";
+import { keymap, PluginField, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import React, { useEffect, useRef } from "react";
 import {
   FountainParseResult,
@@ -13,6 +26,20 @@ import {
 } from "../../impower-script-parser";
 import { fountain } from "../types/fountain";
 import { fountainLanguage, tags as t } from "../types/fountainLanguage";
+import { SearchPanel } from "./SearchPanel";
+
+const marginPlugin = ViewPlugin.fromClass(
+  class {
+    margin: { top: number };
+
+    update(_update: ViewUpdate): void {
+      this.margin = { top: 104 };
+    }
+  },
+  {
+    provide: PluginField.scrollMargins.from((value) => value.margin),
+  }
+);
 
 const colors = {
   invalid: "#FFFFFF",
@@ -130,6 +157,18 @@ const myHighlightStyle = HighlightStyle.define([
 interface ScriptEditorProps {
   defaultValue: string;
   toggleFolding: boolean;
+  searchQuery?: {
+    search: string;
+    caseSensitive?: boolean;
+    regexp?: boolean;
+    replace?: string;
+    action?:
+      | "search"
+      | "find_next"
+      | "find_previous"
+      | "replace"
+      | "replace_all";
+  };
   defaultScrollTopLine?: number;
   defaultCursor?: {
     anchor: number;
@@ -145,6 +184,8 @@ interface ScriptEditorProps {
     fromLine: number;
     toLine: number;
   };
+  topPanelsContainer?: HTMLElement;
+  bottomPanelsContainer?: HTMLElement;
   style?: React.CSSProperties;
   onUpdate?: (update: ViewUpdate) => void;
   onChange?: (value: string) => void;
@@ -156,6 +197,21 @@ interface ScriptEditorProps {
     toLine: number;
   }) => void;
   onScrollLine?: (event: Event, firstVisibleLine: number) => void;
+  onSearch: (
+    e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
+    searchQuery?: {
+      search: string;
+      caseSensitive?: boolean;
+      regexp?: boolean;
+      replace?: string;
+      action?:
+        | "search"
+        | "find_next"
+        | "find_previous"
+        | "replace"
+        | "replace_all";
+    }
+  ) => void;
 }
 
 const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
@@ -163,16 +219,20 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     defaultValue,
     style,
     toggleFolding,
+    searchQuery,
     defaultScrollTopLine,
     defaultCursor,
     scrollTopLine,
     scrollTopLineOffset = 0,
     cursor,
+    topPanelsContainer,
+    bottomPanelsContainer,
     onUpdate,
     onChange,
     onParse,
     onCursor,
     onScrollLine,
+    onSearch,
   } = props;
 
   const elementRef = useRef<HTMLDivElement>();
@@ -200,6 +260,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   onScrollLineRef.current = onScrollLine;
   const onParseRef = useRef(onParse);
   onParseRef.current = onParse;
+  const onSearchRef = useRef(onSearch);
+  onSearchRef.current = onSearch;
 
   useEffect(() => {
     const fountainParseLinter = (view: EditorView): Diagnostic[] => {
@@ -209,12 +271,36 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
       }
       return result.diagnostics || [];
     };
+    const onOpenSearchPanel = (view: EditorView): void => {
+      if (onSearchRef.current) {
+        onSearchRef.current(undefined, getSearchQuery(view.state));
+      }
+    };
+    const onCloseSearchPanel = (): void => {
+      if (onSearchRef.current) {
+        onSearchRef.current(undefined, null);
+      }
+    };
     const selection = defaultCursorRef.current;
     const startState = EditorState.create({
       selection,
       doc: defaultValueRef.current,
       extensions: [
         basicSetup,
+        marginPlugin,
+        search({
+          top: true,
+          createPanel: (view: EditorView) => {
+            return new SearchPanel(view, {
+              onOpen: onOpenSearchPanel,
+              onClose: onCloseSearchPanel,
+            });
+          },
+        }),
+        panels({
+          topContainer: topPanelsContainer,
+          bottomContainer: bottomPanelsContainer,
+        }),
         fountain({ base: fountainLanguage }),
         linter(fountainParseLinter, { delay: 10 }),
         tooltips({ position: "absolute" }),
@@ -244,6 +330,11 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             },
             ".cm-activeLine": {
               backgroundColor: "#FFFFFF0F",
+            },
+            ".cm-search.cm-panel": {
+              left: 0,
+              right: 0,
+              padding: 0,
             },
             ".cm-foldPlaceholder": {
               backgroundColor: "#00000080",
@@ -325,7 +416,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         viewRef.current.destroy();
       }
     };
-  }, []);
+  }, [bottomPanelsContainer, topPanelsContainer]);
 
   useEffect(() => {
     if (toggleFolding) {
@@ -349,8 +440,40 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   }, [toggleFolding]);
 
   useEffect(() => {
+    if (searchQuery?.action) {
+      const view = viewRef.current;
+      if (searchQuery.action === "find_next") {
+        findNext(viewRef.current);
+      } else if (searchQuery.action === "find_previous") {
+        findPrevious(viewRef.current);
+      } else if (searchQuery.action === "replace") {
+        replaceNext(viewRef.current);
+      } else if (searchQuery.action === "replace_all") {
+        replaceAll(viewRef.current);
+      } else {
+        view.dispatch({
+          effects: [
+            setSearchQuery.of(
+              new SearchQuery({
+                search: searchQuery.search,
+                caseSensitive: searchQuery.caseSensitive,
+                regexp: searchQuery.regexp,
+                replace: searchQuery.replace,
+              })
+            ),
+          ],
+        });
+        selectMatches(viewRef.current);
+      }
+    } else {
+      closeSearchPanel(viewRef.current);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
     if (viewRef.current && cursor) {
-      const from = viewRef.current.state.doc.line(cursor.fromLine)?.from;
+      const line = Math.max(1, cursor.fromLine);
+      const from = viewRef.current.state.doc.line(line)?.from;
       viewRef.current.dispatch({
         selection: { anchor: from },
         effects: EditorView.scrollIntoView(from, { y: "center" }),
@@ -359,10 +482,12 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   }, [cursor]);
 
   useEffect(() => {
-    if (viewRef.current && defaultScrollTopLineRef.current) {
-      const from = viewRef.current.state.doc.line(
+    if (viewRef.current && defaultScrollTopLineRef.current >= 0) {
+      const line = Math.max(
+        1,
         defaultScrollTopLineRef.current + scrollTopLineOffsetRef.current
-      )?.from;
+      );
+      const from = viewRef.current.state.doc.line(line)?.from;
       viewRef.current.dispatch({
         effects: EditorView.scrollIntoView(from, { y: "start" }),
       });
@@ -370,10 +495,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   }, []);
 
   useEffect(() => {
-    if (viewRef.current && scrollTopLine) {
-      const from = viewRef.current.state.doc.line(
-        scrollTopLine + scrollTopLineOffsetRef.current
-      )?.from;
+    if (viewRef.current && scrollTopLine >= 0) {
+      const line = Math.max(1, scrollTopLine + scrollTopLineOffsetRef.current);
+      const from = viewRef.current.state.doc.line(line)?.from;
       viewRef.current.dispatch({
         effects: EditorView.scrollIntoView(from, { y: "start" }),
       });

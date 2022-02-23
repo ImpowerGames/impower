@@ -16,15 +16,26 @@ const StyledBottomButtonContent = styled.div`
 `;
 
 interface PanelHeaderProps {
-  scrollParent?: HTMLElement;
+  headerRef?: React.Ref<HTMLElement>;
   type: "default" | "context" | "search";
   title: React.ReactNode;
   backIcon?: React.ReactNode;
   backLabel?: string;
   moreLabel?: string;
   searchLabel?: string;
-  clearLabel?: string;
-  search?: string;
+  replaceLabel?: string;
+  searchQuery?: {
+    search: string;
+    caseSensitive?: boolean;
+    regexp?: boolean;
+    replace?: string;
+    action?:
+      | "search"
+      | "find_next"
+      | "find_previous"
+      | "replace"
+      | "replace_all";
+  };
   breadcrumbs?: BreadcrumbInfo[];
   rightChildren?: React.ReactNode;
   bottomChildren?: React.ReactNode;
@@ -44,9 +55,21 @@ interface PanelHeaderProps {
   };
   onBack?: (e: React.MouseEvent) => void;
   onBreadcrumb?: (e: React.MouseEvent | React.ChangeEvent, id: string) => void;
-  onOpenSearch?: (e: React.MouseEvent) => void;
-  onCloseSearch?: (e: React.MouseEvent) => void;
-  onSearch?: (value: string) => void;
+  onSearch?: (
+    e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
+    searchQuery?: {
+      search: string;
+      caseSensitive?: boolean;
+      regexp?: boolean;
+      replace?: string;
+      action?:
+        | "search"
+        | "find_next"
+        | "find_previous"
+        | "replace"
+        | "replace_all";
+    }
+  ) => void;
   onMore?: (e: React.MouseEvent) => void;
 }
 
@@ -54,25 +77,23 @@ const PanelHeader = (
   props: PropsWithChildren<PanelHeaderProps>
 ): JSX.Element => {
   const {
+    headerRef,
     type,
     title,
     backIcon,
     backLabel,
     moreLabel,
     searchLabel,
-    clearLabel,
-    search,
+    replaceLabel,
+    searchQuery,
     breadcrumbs,
     rightChildren,
     bottomChildren,
-    scrollParent,
     breadcrumbIndicatorColor,
     style,
     stickyStyle,
     onBack,
     onBreadcrumb,
-    onOpenSearch,
-    onCloseSearch,
     onSearch,
     onMore,
   } = props;
@@ -81,14 +102,16 @@ const PanelHeader = (
 
   const theme = useTheme();
 
+  const position = portrait ? "fixed" : "sticky";
+
   const headerStickyStyle = useMemo(
     () => ({
-      position: portrait ? "fixed" : "absolute",
+      position,
       zIndex: 2,
       boxShadow: theme.shadows[3],
       ...stickyStyle,
     }),
-    [portrait, theme, stickyStyle]
+    [position, theme.shadows, stickyStyle]
   );
 
   const titleStyle = {
@@ -114,8 +137,8 @@ const PanelHeader = (
   };
   const headerStyle: React.CSSProperties = {
     color: theme.colors.darkHeaderText,
-    paddingTop: theme.spacing(2),
-    paddingBottom: theme.spacing(1),
+    paddingTop: theme.spacing(1.5),
+    paddingBottom: theme.spacing(1.5),
   };
   const leftStyle = {
     minWidth: theme.spacing(theme.space.panelLeft),
@@ -139,17 +162,17 @@ const PanelHeader = (
   return (
     <>
       <EngineToolbar
-        scrollParent={scrollParent}
+        headerRef={headerRef}
         type={type}
         title={title}
         titleStyle={titleStyle}
         minHeight={layout.size.minWidth.headerIcon}
-        search={search}
+        searchQuery={searchQuery}
         backIcon={backIcon}
         backLabel={backLabel}
         moreLabel={moreLabel}
-        clearLabel={clearLabel}
         searchLabel={searchLabel}
+        replaceLabel={replaceLabel}
         headerStyle={headerStyle}
         leftStyle={leftStyle}
         backButtonStyle={backButtonStyle}
@@ -161,15 +184,12 @@ const PanelHeader = (
             ? "never"
             : "always"
         }
-        stickyOffset={0}
         rightChildren={rightChildren}
         onBack={onBack}
-        onOpenSearch={onOpenSearch}
-        onCloseSearch={onCloseSearch}
         onSearch={onSearch}
         onMore={onMore}
         style={{
-          position: portrait ? "fixed" : "absolute",
+          position,
           ...style,
         }}
         belowBreakpoint={portrait}

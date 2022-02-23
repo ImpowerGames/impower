@@ -276,7 +276,6 @@ interface ItemPanelHeaderProps {
   containerHeaderInfo: HeaderInfo;
   bottomChildren?: React.ReactNode;
   style?: CSSProperties;
-  scrollParent?: HTMLElement | null;
   inspectedTargetContainerId: string;
   inspectedTargetContainer: ContainerData;
   inspectedContainerIds: string[];
@@ -294,7 +293,6 @@ const ItemPanelHeader = React.memo(
       containerHeaderInfo,
       style,
       bottomChildren,
-      scrollParent,
       inspectedTargetContainerId,
       inspectedTargetContainer,
       inspectedContainerIds,
@@ -317,7 +315,6 @@ const ItemPanelHeader = React.memo(
       <PanelHeader
         type="default"
         title={selectedContainerName}
-        scrollParent={scrollParent}
         backIcon={<ArrowLeftRegularIcon />}
         backLabel={`Close`}
         moreLabel={`More Options`}
@@ -369,7 +366,18 @@ interface ItemPanelContentProps {
   items: { [refId: string]: ItemData };
   levels: { [refId: string]: number };
   changeTypeTargetId: string;
-  search?: string;
+  searchQuery?: {
+    search: string;
+    caseSensitive?: boolean;
+    regexp?: boolean;
+    replace?: string;
+    action?:
+      | "search"
+      | "find_next"
+      | "find_previous"
+      | "replace"
+      | "replace_all";
+  };
   draggingIds: string[];
   selectedIds: string[];
   scrollParent?: HTMLElement | null;
@@ -403,7 +411,7 @@ const ItemPanelContent = React.memo(
       items,
       levels,
       changeTypeTargetId,
-      search,
+      searchQuery,
       draggingIds,
       selectedIds,
       scrollParent,
@@ -489,7 +497,7 @@ const ItemPanelContent = React.memo(
         draggingIds={draggingIds}
         selectedIds={selectedIds}
         changeTargetId={changeTypeTargetId}
-        search={search}
+        search={searchQuery?.search}
         scrollParent={scrollParent}
         onSetDragging={onSetDragging}
         onSetOrder={onSetOrder}
@@ -685,7 +693,8 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
     [draggingItemReferences]
   );
 
-  const { search } = state.present.dataPanel.panels[windowType].Item;
+  const searchQuery =
+    state?.present?.dataPanel?.panels?.[windowType]?.Item?.searchQuery;
 
   const panelKey = `${inspectedTargetContainer}`;
   const scrollPosition =
@@ -748,7 +757,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
     (ids: string[]): void => {
       if (
         mode === Mode.Test ||
-        search ||
+        searchQuery ||
         !containerType ||
         section === "Preview"
       ) {
@@ -765,7 +774,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
     },
     [
       mode,
-      search,
+      searchQuery,
       containerType,
       section,
       dispatch,
@@ -1444,7 +1453,6 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
       topChildren={
         <ItemPanelHeader
           containerHeaderInfo={containerHeaderInfo}
-          scrollParent={scrollParent}
           inspectedTargetContainerId={inspectedContainerTargetId}
           inspectedTargetContainer={inspectedTargetContainer}
           inspectedContainerIds={inspectedContainerIds}
@@ -1494,7 +1502,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
             }
             label={fabLabel}
             color="secondary"
-            shrink={Boolean(search) || search === ""}
+            shrink={Boolean(searchQuery)}
             onClick={handleAddData}
             style={fabAreaStyle}
           />
@@ -1523,7 +1531,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
               levels={levels}
               itemPanelState={itemPanelState}
               changeTypeTargetId={changeTypeTargetId}
-              search={search}
+              searchQuery={searchQuery}
               draggingIds={draggingItemIds}
               selectedIds={selectedItemIds}
               scrollParent={scrollParent}

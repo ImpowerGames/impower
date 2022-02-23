@@ -315,17 +315,39 @@ export interface DataPanelSearchAction {
   payload: {
     windowType: DataWindowType;
     panelType: DataPanelType;
-    search?: string;
+    searchQuery?: {
+      search: string;
+      caseSensitive?: boolean;
+      regexp?: boolean;
+      replace?: string;
+      action?:
+        | "search"
+        | "find_next"
+        | "find_previous"
+        | "replace"
+        | "replace_all";
+    };
   };
 }
 export const dataPanelSearch = (
   windowType: DataWindowType,
   panelType: DataPanelType,
-  search?: string
+  searchQuery?: {
+    search: string;
+    caseSensitive?: boolean;
+    regexp?: boolean;
+    replace?: string;
+    action?:
+      | "search"
+      | "find_next"
+      | "find_previous"
+      | "replace"
+      | "replace_all";
+  }
 ): DataPanelSearchAction => {
   return {
     type: DATA_PANEL_SEARCH,
-    payload: { windowType, panelType, search },
+    payload: { windowType, panelType, searchQuery },
   };
 };
 

@@ -118,7 +118,6 @@ interface FilesConsoleContentProps {
   paperStyle?: React.CSSProperties;
   style?: React.CSSProperties;
   sticky?: "always" | "collapsible" | "never";
-  stickyOffset?: number;
   onChangeCurrentPath?: (path: string) => void;
   onClick?: (e: React.MouseEvent, path: string) => void;
   onUploadStart?: (path: string, file: FileData) => void;
@@ -174,7 +173,6 @@ const FilesConsoleContent = (
     paperStyle,
     style,
     sticky,
-    stickyOffset,
     onChangeCurrentPath,
     onClick,
     onUploadStart,
@@ -660,7 +658,6 @@ const FilesConsoleContent = (
         paperStyle={paperStyle}
         style={style}
         sticky={sticky}
-        stickyOffset={stickyOffset}
         upload
         belowBreakpoint
         onChangeCurrentPath={onChangeCurrentPath}
@@ -710,7 +707,6 @@ interface FilesConsoleProps {
   paperStyle?: React.CSSProperties;
   style?: React.CSSProperties;
   sticky?: "always" | "collapsible" | "never";
-  stickyOffset?: number;
 }
 
 const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
@@ -731,7 +727,6 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
     paperStyle,
     style,
     sticky,
-    stickyOffset,
   } = props;
 
   const studioId = projectDoc.studio;
@@ -1008,7 +1003,6 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
           paperStyle={paperStyle}
           style={style}
           sticky={sticky}
-          stickyOffset={stickyOffset}
           onChangeCurrentPath={setCurrentPath}
           onClick={handleClick}
           onUploadStart={handleUploadStart}

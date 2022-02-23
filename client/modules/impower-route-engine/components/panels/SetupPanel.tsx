@@ -37,6 +37,7 @@ import {
   Tabs,
 } from "../../../impower-route";
 import PeerTransition from "../../../impower-route/components/animations/PeerTransition";
+import NavigationBarSpacer from "../../../impower-route/components/elements/NavigationBarSpacer";
 import InspectorForm from "../../../impower-route/components/forms/InspectorForm";
 import AutocompleteInput from "../../../impower-route/components/inputs/AutocompleteInput";
 import BooleanInput from "../../../impower-route/components/inputs/BooleanInput";
@@ -581,6 +582,7 @@ const SetupPanel = React.memo((): JSX.Element => {
         topChildren={
           portrait ? (
             <>
+              <NavigationBarSpacer />
               <PageNavigationBar
                 title=""
                 secondaryTitle={navigationState.secondaryTitle}

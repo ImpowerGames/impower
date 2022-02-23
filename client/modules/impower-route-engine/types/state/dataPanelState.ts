@@ -32,7 +32,18 @@ export enum DataInteractionType {
 }
 
 export interface PanelInteractionState {
-  search?: string;
+  searchQuery?: {
+    search: string;
+    caseSensitive?: boolean;
+    regexp?: boolean;
+    replace?: string;
+    action?:
+      | "search"
+      | "find_next"
+      | "find_previous"
+      | "replace"
+      | "replace_all";
+  };
   inspectedTargetId?: string;
   inspectedProperties?: string[];
   submitting?: boolean;

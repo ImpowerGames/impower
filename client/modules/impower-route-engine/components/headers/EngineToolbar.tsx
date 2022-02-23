@@ -4,22 +4,22 @@ import Button from "@material-ui/core/Button";
 import Checkbox from "@material-ui/core/Checkbox";
 import IconButton from "@material-ui/core/IconButton";
 import Input from "@material-ui/core/Input";
-import Paper from "@material-ui/core/Paper";
 import Typography from "@material-ui/core/Typography";
-import React, {
-  PropsWithChildren,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { PropsWithChildren, useCallback, useMemo, useRef } from "react";
+import ArrowDownRegularIcon from "../../../../resources/icons/regular/arrow-down.svg";
 import ArrowLeftRegularIcon from "../../../../resources/icons/regular/arrow-left.svg";
+import ArrowUpRegularIcon from "../../../../resources/icons/regular/arrow-up.svg";
+import AsteriskRegularIcon from "../../../../resources/icons/regular/asterisk.svg";
 import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ellipsis-vertical.svg";
+import FontCaseRegularIcon from "../../../../resources/icons/regular/font-case.svg";
 import MagnifyingGlassRegularIcon from "../../../../resources/icons/regular/magnifying-glass.svg";
-import XmarkSolidIcon from "../../../../resources/icons/solid/xmark.svg";
+import ShareAllRegularIcon from "../../../../resources/icons/regular/share-all.svg";
+import ShareRegularIcon from "../../../../resources/icons/regular/share.svg";
+import XmarkRegularIcon from "../../../../resources/icons/regular/xmark.svg";
+import AsteriskSolidIcon from "../../../../resources/icons/solid/asterisk.svg";
+import FontCaseSolidIcon from "../../../../resources/icons/solid/font-case.svg";
 import format from "../../../impower-config/utils/format";
 import { FontIcon } from "../../../impower-icon";
-import { useStickyStyle } from "../../../impower-react-virtualization";
 import { TextField } from "../../../impower-route";
 
 const StyledFixedSpacer = styled.div`
@@ -32,7 +32,6 @@ const StyledEngineToolbar = styled.div`
   white-space: nowrap;
   color: inherit;
   background-color: inherit;
-  margin-bottom: ${(props): string => props.theme.spacing(1)};
   margin-right: ${(props): string => props.theme.spacing(1)};
   top: 0;
   left: 0;
@@ -50,7 +49,7 @@ const StyledTopArea = styled.div`
   z-index: 2;
 `;
 
-const StyledFixableArea = styled(Paper)`
+const StyledFixableArea = styled.div`
   min-height: ${(props): string => props.theme.minHeight.panelHeaderTitle};
   background-color: transparent;
   color: inherit;
@@ -58,8 +57,6 @@ const StyledFixableArea = styled(Paper)`
   display: flex;
   align-items: stretch;
   justify-content: center;
-  border-radius: 0;
-  box-shadow: ${(props): string => props.theme.shadows[0]};
   position: relative;
 `;
 
@@ -113,11 +110,47 @@ const StyledSearchTextField = styled(TextField)`
 
   & .MuiInput-underline:before {
     border-bottom-color: inherit;
-    right: -${(props): string => props.theme.spacing(8)};
+    right: -${(props): string => props.theme.spacing(10)};
   }
 
   & .MuiInput-underline:after {
-    right: -${(props): string => props.theme.spacing(8)};
+    right: -${(props): string => props.theme.spacing(10)};
+  }
+
+  & .MuiInput-underline:hover:not(.Mui-disabled):before {
+    border-bottom-color: inherit;
+  }
+
+  & input {
+    color: inherit;
+    caret-color: inherit;
+    padding-top: ${(props): string => props.theme.spacing(1)};
+    padding-bottom: ${(props): string => props.theme.spacing(1)};
+    padding-right: ${(props): string => props.theme.spacing(1)};
+  }
+`;
+
+const StyledReplaceTextField = styled(TextField)`
+  pointer-events: auto;
+  flex: 1;
+  border-bottom-color: inherit;
+  caret-color: inherit;
+
+  & .MuiFormLabel-root {
+    color: inherit;
+  }
+
+  & .MuiInputBase-root {
+    border-bottom-color: inherit;
+    color: inherit;
+    caret-color: inherit;
+  }
+
+  & .MuiInput-underline:before {
+    border-bottom-color: inherit;
+  }
+
+  & .MuiInput-underline:after {
   }
 
   & .MuiInput-underline:hover:not(.Mui-disabled):before {
@@ -138,6 +171,17 @@ const StyledHeaderMiddleArea = styled.div`
   position: relative;
   display: flex;
   align-items: center;
+`;
+
+const StyledSearchArea = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+`;
+
+const StyledSearchFieldArea = styled.div`
+  flex: 1;
+  display: flex;
 `;
 
 const StyledHeadCheckbox = styled(Checkbox)`
@@ -161,6 +205,20 @@ const StyledContextButton = styled(Button)`
 const StyledIconButton = styled(IconButton)`
   pointer-events: auto;
   color: inherit;
+  margin: ${(props): string => props.theme.spacing(0.5)};
+  padding: 0;
+  min-width: ${(props): string => props.theme.spacing(4)};
+  min-height: ${(props): string => props.theme.spacing(4)};
+`;
+
+const StyledToggleButton = styled(IconButton)`
+  pointer-events: auto;
+  color: inherit;
+  margin: ${(props): string => props.theme.spacing(0.5)};
+  padding: 0;
+  min-width: ${(props): string => props.theme.spacing(4)};
+  min-height: ${(props): string => props.theme.spacing(4)};
+  border-radius: ${(props): string => props.theme.spacing(1)};
 `;
 
 const StyledHeaderContent = styled.div`
@@ -246,7 +304,18 @@ interface EngineToolbarContentProps {
   moreIcon?: React.ReactNode;
   backIcon?: React.ReactNode;
   minHeight: number;
-  search?: string;
+  searchQuery?: {
+    search: string;
+    caseSensitive?: boolean;
+    regexp?: boolean;
+    replace?: string;
+    action?:
+      | "search"
+      | "find_next"
+      | "find_previous"
+      | "replace"
+      | "replace_all";
+  };
   selectedPaths?: string[];
   paths?: string[];
   backLabel: string;
@@ -256,6 +325,7 @@ interface EngineToolbarContentProps {
   doneLabel: string;
   clearLabel: string;
   searchLabel: string;
+  replaceLabel: string;
   title: React.ReactNode;
   titleStyle?: React.CSSProperties;
   headerStyle?: React.CSSProperties;
@@ -278,9 +348,21 @@ interface EngineToolbarContentProps {
   onClickMoreOption: (e: React.MouseEvent, option: string) => void;
   onBack?: (e: React.MouseEvent) => void;
   onDone: (e: React.MouseEvent) => void;
-  onCloseSearch: (e: React.MouseEvent) => void;
-  onOpenSearch: (e: React.MouseEvent) => void;
-  onSearch: (value: string) => void;
+  onSearch: (
+    e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
+    searchQuery?: {
+      search: string;
+      caseSensitive?: boolean;
+      regexp?: boolean;
+      replace?: string;
+      action?:
+        | "search"
+        | "find_next"
+        | "find_previous"
+        | "replace"
+        | "replace_all";
+    }
+  ) => void;
   onMore: (e: React.MouseEvent) => void;
 }
 
@@ -291,7 +373,7 @@ const EngineToolbarContent = React.memo(
       moreIcon = <EllipsisVerticalRegularIcon />,
       backIcon,
       minHeight,
-      search,
+      searchQuery,
       selectedPaths,
       paths,
       backLabel,
@@ -301,6 +383,7 @@ const EngineToolbarContent = React.memo(
       doneLabel,
       clearLabel,
       searchLabel,
+      replaceLabel,
       title,
       titleStyle,
       headerStyle,
@@ -319,19 +402,62 @@ const EngineToolbarContent = React.memo(
       onClickMoreOption,
       onBack,
       onDone,
-      onCloseSearch,
-      onOpenSearch,
       onSearch,
       onMore,
     } = props;
 
     const theme = useTheme();
     const searchInputRef = useRef<HTMLInputElement>();
+    const searchQueryRef = useRef(searchQuery);
+
+    const handleOpenSearch = useCallback(
+      (e: React.MouseEvent) => {
+        searchQueryRef.current = {
+          ...(searchQueryRef.current || {}),
+          search: "",
+          action: "search",
+        };
+        if (onSearch) {
+          onSearch(e, searchQueryRef.current);
+        }
+      },
+      [onSearch]
+    );
+
+    const handleCloseSearch = useCallback(
+      (e: React.MouseEvent) => {
+        searchQueryRef.current = null;
+        if (onSearch) {
+          onSearch(e, searchQueryRef.current);
+        }
+      },
+      [onSearch]
+    );
 
     const handleSearchChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        searchQueryRef.current = {
+          ...(searchQueryRef.current || {}),
+          search: e.target.value,
+          action: "search",
+        };
         if (onSearch) {
-          onSearch(e.target.value);
+          onSearch(e, searchQueryRef.current);
+        }
+      },
+      [onSearch]
+    );
+
+    const handleReplaceChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        searchQueryRef.current = {
+          search: "",
+          ...(searchQueryRef.current || {}),
+          replace: e.target.value,
+          action: "search",
+        };
+        if (onSearch) {
+          onSearch(e, searchQueryRef.current);
         }
       },
       [onSearch]
@@ -345,14 +471,108 @@ const EngineToolbarContent = React.memo(
       }
     }, []);
 
-    const handleSearchClear = useCallback(() => {
-      if (onSearch) {
-        onSearch("");
-      }
-      if (searchInputRef.current) {
-        searchInputRef.current.focus();
-      }
-    }, [onSearch]);
+    const handleSearchClear = useCallback(
+      (e: React.MouseEvent) => {
+        searchQueryRef.current = {
+          ...(searchQueryRef.current || {}),
+          search: "",
+          action: "search",
+        };
+        if (onSearch) {
+          onSearch(e, searchQueryRef.current);
+        }
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      },
+      [onSearch]
+    );
+
+    const handleChangeSearchCaseSensitive = useCallback(
+      (e: React.MouseEvent) => {
+        searchQueryRef.current = {
+          search: "",
+          ...(searchQueryRef.current || {}),
+          caseSensitive: !searchQueryRef.current?.caseSensitive,
+          action: "search",
+        };
+        if (onSearch) {
+          onSearch(e, searchQueryRef.current);
+        }
+      },
+      [onSearch]
+    );
+
+    const handleChangeSearchRegex = useCallback(
+      (e: React.MouseEvent) => {
+        searchQueryRef.current = {
+          search: "",
+          ...(searchQueryRef.current || {}),
+          regexp: !searchQueryRef.current?.regexp,
+          action: "search",
+        };
+        if (onSearch) {
+          onSearch(e, searchQueryRef.current);
+        }
+      },
+      [onSearch]
+    );
+
+    const handleFindPrevious = useCallback(
+      (e: React.MouseEvent) => {
+        searchQueryRef.current = {
+          search: "",
+          ...(searchQueryRef.current || {}),
+          action: "find_previous",
+        };
+        if (onSearch) {
+          onSearch(e, searchQueryRef.current);
+        }
+      },
+      [onSearch]
+    );
+
+    const handleFindNext = useCallback(
+      (e: React.MouseEvent) => {
+        searchQueryRef.current = {
+          search: "",
+          ...(searchQueryRef.current || {}),
+          action: "find_next",
+        };
+        if (onSearch) {
+          onSearch(e, searchQueryRef.current);
+        }
+      },
+      [onSearch]
+    );
+
+    const handleReplace = useCallback(
+      (e: React.MouseEvent) => {
+        searchQueryRef.current = {
+          search: "",
+          ...(searchQueryRef.current || {}),
+          action: "replace",
+        };
+        if (onSearch) {
+          onSearch(e, searchQueryRef.current);
+        }
+      },
+      [onSearch]
+    );
+
+    const handleReplaceAll = useCallback(
+      (e: React.MouseEvent) => {
+        searchQueryRef.current = {
+          search: "",
+          ...(searchQueryRef.current || {}),
+          action: "replace_all",
+        };
+        if (onSearch) {
+          onSearch(e, searchQueryRef.current);
+        }
+      },
+      [onSearch]
+    );
 
     const handleCheckboxChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
@@ -431,7 +651,7 @@ const EngineToolbarContent = React.memo(
                 size={theme.fontSize.smallIcon}
                 style={{ opacity: 0.5 }}
               >
-                <XmarkSolidIcon />
+                <XmarkRegularIcon />
               </FontIcon>
             </StyledIconButton>
           }
@@ -447,10 +667,10 @@ const EngineToolbarContent = React.memo(
         <EngineToolbarLayout
           minHeight={minHeight}
           leftChildren={
-            onCloseSearch ? (
+            onSearch ? (
               <StyledIconButton
                 color="inherit"
-                onClick={onCloseSearch}
+                onClick={handleCloseSearch}
                 style={{ ...backButtonStyle }}
               >
                 <FontIcon
@@ -464,31 +684,130 @@ const EngineToolbarContent = React.memo(
             ) : undefined
           }
           middleChildren={
-            <StyledSearchTextField
-              inputRef={handleSearchInputRef}
-              placeholder={searchLabel}
-              value={search}
-              variant="standard"
-              InputComponent={Input}
-              autoFocus
-              onChange={handleSearchChange}
-              fullWidth
-            />
-          }
-          rotateChildren={
-            <StyledIconButton
-              color="inherit"
-              onClick={handleSearchClear}
-              style={{ ...clearButtonStyle }}
-            >
-              <FontIcon
-                aria-label={clearLabel}
-                size={theme.fontSize.smallIcon}
-                style={{ opacity: 0.5 }}
-              >
-                <XmarkSolidIcon />
-              </FontIcon>
-            </StyledIconButton>
+            <StyledSearchArea>
+              <StyledSearchFieldArea>
+                <StyledSearchTextField
+                  inputRef={handleSearchInputRef}
+                  placeholder={searchLabel}
+                  value={searchQueryRef.current?.search}
+                  variant="standard"
+                  InputComponent={Input}
+                  name="search"
+                  autoComplete="off"
+                  autoFocus
+                  onChange={handleSearchChange}
+                  fullWidth
+                />
+                {clearLabel && (
+                  <StyledIconButton
+                    color="inherit"
+                    onClick={handleSearchClear}
+                    style={{ ...clearButtonStyle }}
+                  >
+                    <FontIcon
+                      aria-label={clearLabel}
+                      size={theme.fontSize.smallIcon}
+                      style={{ opacity: 0.5 }}
+                    >
+                      <XmarkRegularIcon />
+                    </FontIcon>
+                  </StyledIconButton>
+                )}
+                <StyledToggleButton
+                  color="inherit"
+                  onClick={handleChangeSearchCaseSensitive}
+                  style={{
+                    backgroundColor: searchQueryRef.current?.caseSensitive
+                      ? theme.colors.black50
+                      : undefined,
+                    opacity: searchQueryRef.current?.caseSensitive
+                      ? undefined
+                      : 0.5,
+                  }}
+                >
+                  <FontIcon
+                    aria-label={`Match Case`}
+                    size={theme.fontSize.smallIcon}
+                  >
+                    {searchQueryRef.current?.caseSensitive ? (
+                      <FontCaseSolidIcon />
+                    ) : (
+                      <FontCaseRegularIcon />
+                    )}
+                  </FontIcon>
+                </StyledToggleButton>
+                <StyledToggleButton
+                  color="inherit"
+                  onClick={handleChangeSearchRegex}
+                  style={{
+                    backgroundColor: searchQueryRef.current?.regexp
+                      ? theme.colors.black50
+                      : undefined,
+                    opacity: searchQueryRef.current?.regexp ? undefined : 0.5,
+                  }}
+                >
+                  <FontIcon
+                    aria-label={`Use Regular Expression`}
+                    size={theme.fontSize.smallIcon}
+                  >
+                    {searchQueryRef.current?.regexp ? (
+                      <AsteriskSolidIcon />
+                    ) : (
+                      <AsteriskRegularIcon />
+                    )}
+                  </FontIcon>
+                </StyledToggleButton>
+                <StyledIconButton color="inherit" onClick={handleFindPrevious}>
+                  <FontIcon
+                    aria-label={`Find Previous`}
+                    size={theme.fontSize.smallIcon}
+                    style={{ opacity: 0.5 }}
+                  >
+                    <ArrowUpRegularIcon />
+                  </FontIcon>
+                </StyledIconButton>
+                <StyledIconButton color="inherit" onClick={handleFindNext}>
+                  <FontIcon
+                    aria-label={`Find Next`}
+                    size={theme.fontSize.smallIcon}
+                    style={{ opacity: 0.5 }}
+                  >
+                    <ArrowDownRegularIcon />
+                  </FontIcon>
+                </StyledIconButton>
+              </StyledSearchFieldArea>
+              {replaceLabel && (
+                <StyledSearchFieldArea>
+                  <StyledReplaceTextField
+                    placeholder={replaceLabel}
+                    value={searchQueryRef.current?.replace}
+                    variant="standard"
+                    autoComplete="off"
+                    InputComponent={Input}
+                    fullWidth
+                    onChange={handleReplaceChange}
+                  />
+                  <StyledIconButton color="inherit" onClick={handleReplace}>
+                    <FontIcon
+                      aria-label={`Replace`}
+                      size={theme.fontSize.smallIcon}
+                      style={{ opacity: 0.5 }}
+                    >
+                      <ShareRegularIcon />
+                    </FontIcon>
+                  </StyledIconButton>
+                  <StyledIconButton color="inherit" onClick={handleReplaceAll}>
+                    <FontIcon
+                      aria-label={`Replace All`}
+                      size={theme.fontSize.smallIcon}
+                      style={{ opacity: 0.5 }}
+                    >
+                      <ShareAllRegularIcon />
+                    </FontIcon>
+                  </StyledIconButton>
+                </StyledSearchFieldArea>
+              )}
+            </StyledSearchArea>
           }
           headerStyle={headerStyle}
           leftStyle={leftStyle}
@@ -536,10 +855,10 @@ const EngineToolbarContent = React.memo(
         rightChildren={
           <>
             {children}
-            {onOpenSearch && (
+            {onSearch && (
               <StyledIconButton
                 color="inherit"
-                onClick={onOpenSearch}
+                onClick={handleOpenSearch}
                 style={{
                   opacity: 0.5,
                   ...searchButtonStyle,
@@ -580,12 +899,23 @@ const EngineToolbarContent = React.memo(
 );
 
 interface EngineToolbarProps {
-  scrollParent?: HTMLElement;
+  headerRef?: React.Ref<HTMLElement>;
   type: "default" | "context" | "search";
   moreIcon?: React.ReactNode;
   backIcon?: React.ReactNode;
   minHeight: number;
-  search?: string;
+  searchQuery?: {
+    search: string;
+    caseSensitive?: boolean;
+    regexp?: boolean;
+    replace?: string;
+    action?:
+      | "search"
+      | "find_next"
+      | "find_previous"
+      | "replace"
+      | "replace_all";
+  };
   selectedPaths?: string[];
   paths?: string[];
   backLabel?: string;
@@ -595,6 +925,7 @@ interface EngineToolbarProps {
   doneLabel?: string;
   clearLabel?: string;
   searchLabel?: string;
+  replaceLabel?: string;
   title?: React.ReactNode;
   titleStyle?: React.CSSProperties;
   fixableContentStyle?: React.CSSProperties;
@@ -620,7 +951,6 @@ interface EngineToolbarProps {
   };
   style?: React.CSSProperties;
   sticky?: "always" | "collapsible" | "never";
-  stickyOffset?: number;
   rightChildren?: React.ReactNode;
   belowBreakpoint?: boolean;
   isSelectAllowed?: (path: string) => boolean;
@@ -629,18 +959,30 @@ interface EngineToolbarProps {
   onClickMoreOption?: (e: React.MouseEvent, option: string) => void;
   onBack?: (e: React.MouseEvent) => void;
   onDone?: (e: React.MouseEvent) => void;
-  onOpenSearch?: (e: React.MouseEvent) => void;
-  onCloseSearch?: (e: React.MouseEvent) => void;
-  onSearch?: (value: string) => void;
+  onSearch: (
+    e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
+    searchQuery?: {
+      search: string;
+      caseSensitive?: boolean;
+      regexp?: boolean;
+      replace?: string;
+      action?:
+        | "search"
+        | "find_next"
+        | "find_previous"
+        | "replace"
+        | "replace_all";
+    }
+  ) => void;
   onMore?: (e: React.MouseEvent) => void;
 }
 
 const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
   const {
-    scrollParent,
+    headerRef,
     type,
     minHeight,
-    search,
+    searchQuery,
     selectedPaths,
     paths,
     moreIcon,
@@ -652,6 +994,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     doneLabel,
     clearLabel,
     searchLabel,
+    replaceLabel,
     title,
     fixableContentStyle,
     titleStyle,
@@ -667,7 +1010,6 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     stickyStyle,
     style,
     sticky,
-    stickyOffset,
     rightChildren,
     belowBreakpoint,
     isSelectAllowed,
@@ -676,21 +1018,22 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     onClickMoreOption,
     onBack,
     onDone,
-    onOpenSearch,
-    onCloseSearch,
     onSearch,
     onMore,
   } = props;
 
-  const [headerArea, setHeaderArea] = useState<HTMLDivElement>();
-
-  useStickyStyle(headerArea, scrollParent, stickyStyle, sticky, stickyOffset);
-
-  const handleHeaderAreaRef = useCallback((instance: HTMLDivElement): void => {
-    if (instance) {
-      setHeaderArea(instance);
-    }
-  }, []);
+  const handleHeaderAreaRef = useCallback(
+    (instance: HTMLDivElement): void => {
+      if (headerRef) {
+        if (typeof headerRef === "function") {
+          headerRef(instance);
+        } else {
+          (headerRef as { current: HTMLElement }).current = instance;
+        }
+      }
+    },
+    [headerRef]
+  );
 
   const theme = useTheme();
 
@@ -713,13 +1056,15 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
         ref={handleHeaderAreaRef}
         style={{
           position,
-          marginRight: belowBreakpoint ? 0 : theme.spacing(1),
+          marginRight:
+            belowBreakpoint || position === "sticky" ? 0 : theme.spacing(1),
           ...style,
+          ...(sticky ? (stickyStyle as React.CSSProperties) : {}),
         }}
       >
         <StyledEngineToolbarContent style={{ minHeight }}>
           <StyledTopArea>
-            <StyledFixableArea elevation={0}>
+            <StyledFixableArea>
               <StyledFixableContent
                 style={{
                   ...fixableContentStyle,
@@ -729,7 +1074,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                   key={type}
                   type={type}
                   minHeight={minHeight}
-                  search={search}
+                  searchQuery={searchQuery}
                   selectedPaths={selectedPaths}
                   paths={paths}
                   moreIcon={moreIcon}
@@ -741,6 +1086,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                   doneLabel={doneLabel}
                   clearLabel={clearLabel}
                   searchLabel={searchLabel}
+                  replaceLabel={replaceLabel}
                   title={title}
                   titleStyle={titleStyle}
                   headerStyle={headerStyle}
@@ -758,8 +1104,6 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                   onClickMoreOption={onClickMoreOption}
                   onBack={onBack}
                   onDone={onDone}
-                  onOpenSearch={onOpenSearch}
-                  onCloseSearch={onCloseSearch}
                   onSearch={onSearch}
                   onMore={onMore}
                 >

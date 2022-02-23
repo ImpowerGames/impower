@@ -9,7 +9,6 @@ import React, {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left.svg";
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
@@ -357,8 +356,6 @@ interface DetailPanelProps {
 const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const { windowType } = props;
 
-  const [scrollParent, setScrollParent] = useState<HTMLDivElement>();
-
   const [state, dispatch] = useContext(ProjectEngineContext);
   const gameInspector = useContext(GameInspectorContext)?.gameInspector;
 
@@ -651,17 +648,12 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     windowType,
   ]);
 
-  const handleScrollRef = useCallback((scrollParent: HTMLDivElement): void => {
-    setScrollParent(scrollParent);
-  }, []);
-
   return (
     <>
       <Panel
         key={panelKey}
         panelType={PanelType.Detail}
         useWindowAsScrollContainer
-        onScrollRef={handleScrollRef}
         topChildren={
           <PanelHeader
             type="default"
@@ -671,7 +663,6 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
             }
             backIcon={<ArrowLeftRegularIcon />}
             backLabel={`Close`}
-            scrollParent={scrollParent}
             onBack={handleClose}
             onBreadcrumb={handleClickHeaderBreadcrumb}
             nameStyle={{ opacity: mode === Mode.Test ? 0.5 : undefined }}

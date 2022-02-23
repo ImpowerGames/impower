@@ -91,7 +91,6 @@ const AssetsPanel = React.memo((): JSX.Element => {
         paperStyle={paperStyle}
         style={style}
         sticky="always"
-        stickyOffset={0}
       />
     </Panel>
   );

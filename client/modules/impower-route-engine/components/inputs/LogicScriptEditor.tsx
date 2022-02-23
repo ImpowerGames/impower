@@ -21,11 +21,15 @@ import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import {
+  dataPanelSearch,
   dataPanelSetCursor,
   dataPanelSetScrollTopLine,
 } from "../../types/actions/dataPanelActions";
 import { projectChangeScript } from "../../types/actions/projectActions";
-import { DataWindowType } from "../../types/state/dataPanelState";
+import {
+  DataPanelType,
+  DataWindowType,
+} from "../../types/state/dataPanelState";
 import { Mode } from "../../types/state/testState";
 
 const ScriptEditor = dynamic(
@@ -59,6 +63,8 @@ const LogicScriptEditor = React.memo(
 
     const windowType = state?.present?.window
       ?.type as unknown as DataWindowType;
+    const searchQuery =
+      state?.present?.dataPanel?.panels?.[windowType]?.Container?.searchQuery;
     const mode = state?.present?.test?.mode;
     const id = state?.present?.project?.id;
     const defaultValue =
@@ -128,6 +134,29 @@ const LogicScriptEditor = React.memo(
         }
       };
     }, [events]);
+
+    const handleSearch = useCallback(
+      (
+        e?: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
+        searchQuery?: {
+          search: string;
+          caseSensitive?: boolean;
+          regexp?: boolean;
+          replace?: string;
+          action?:
+            | "search"
+            | "find_next"
+            | "find_previous"
+            | "replace"
+            | "replace_all";
+        }
+      ) => {
+        dispatch(
+          dataPanelSearch(windowType, DataPanelType.Container, searchQuery)
+        );
+      },
+      [dispatch, windowType]
+    );
 
     const handleScriptParse = useCallback((result: FountainParseResult) => {
       parseResultRef.current = result;
@@ -265,6 +294,7 @@ const LogicScriptEditor = React.memo(
           <FadeAnimation initial={0} animate={1}>
             <ScriptEditor
               toggleFolding={toggleFolding}
+              searchQuery={searchQuery}
               defaultScrollTopLine={defaultScrollTopLine}
               defaultValue={defaultValue}
               scrollTopLineOffset={-3}
@@ -274,6 +304,7 @@ const LogicScriptEditor = React.memo(
               onParse={handleScriptParse}
               onCursor={handleScriptCursor}
               onScrollLine={handleScrollLine}
+              onSearch={handleSearch}
             />
           </FadeAnimation>
         )}

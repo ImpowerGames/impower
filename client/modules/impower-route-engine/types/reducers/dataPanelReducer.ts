@@ -465,10 +465,21 @@ const doSearch = (
   payload: {
     windowType: DataWindowType;
     panelType: DataPanelType;
-    search?: string;
+    searchQuery?: {
+      search: string;
+      caseSensitive?: boolean;
+      regexp?: boolean;
+      replace?: string;
+      action?:
+        | "search"
+        | "find_next"
+        | "find_previous"
+        | "replace"
+        | "replace_all";
+    };
   }
 ): DataPanelState => {
-  const { windowType, panelType, search } = payload;
+  const { windowType, panelType, searchQuery } = payload;
   if (!windowType) {
     return state;
   }
@@ -480,7 +491,12 @@ const doSearch = (
         ...state.panels[windowType],
         [panelType]: {
           ...state.panels[windowType][panelType],
-          search,
+          searchQuery: searchQuery
+            ? {
+                ...(state.panels[windowType][panelType]?.searchQuery || {}),
+                ...searchQuery,
+              }
+            : searchQuery,
         },
       },
     },

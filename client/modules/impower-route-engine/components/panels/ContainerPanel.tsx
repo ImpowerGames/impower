@@ -405,22 +405,19 @@ const ArrangementPanelHeaderIconButton = React.memo(
 );
 
 interface ContainerPanelHeaderProps {
+  windowType: DataWindowType;
+  headerRef?: React.Ref<HTMLElement>;
   title: string;
   containerType: ContainerType;
   containerPanelState: ContainerPanelState;
-  search?: string;
   parentContainer: ContainerData;
   projectContainers: { [refId: string]: ContainerData };
   headerBreadcrumbs: BreadcrumbInfo[];
   toggleFolding: boolean;
   style?: CSSProperties;
-  scrollParent?: HTMLElement | null;
-  onOpenSearch: () => void;
-  onCloseSearch: () => void;
   onArrangement: (arrangement: ContainerArrangement) => void;
   onScripting: (scripting: boolean) => void;
   onContextMenu: (e: React.MouseEvent) => void;
-  onSearch: (value: string) => void;
   onBack?: (e: React.MouseEvent) => void;
   onBreadcrumb: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -432,30 +429,31 @@ interface ContainerPanelHeaderProps {
 const ContainerPanelHeader = React.memo(
   (props: ContainerPanelHeaderProps): JSX.Element => {
     const {
+      windowType,
+      headerRef,
       title,
       containerType,
       containerPanelState,
-      search,
       parentContainer,
       projectContainers,
       headerBreadcrumbs,
       toggleFolding,
       style,
-      scrollParent,
-      onOpenSearch,
-      onCloseSearch,
       onArrangement,
       onScripting,
       onContextMenu,
-      onSearch,
       onBack,
       onBreadcrumb,
       onToggleFolding,
     } = props;
 
+    const [state, dispatch] = useContext(ProjectEngineContext);
+    const searchQuery =
+      state?.present?.dataPanel?.panels?.[windowType]?.Container?.searchQuery;
+
     const theme = useTheme();
 
-    const searching = Boolean(search) || search === "";
+    const searching = Boolean(searchQuery);
 
     const root = useMemo(
       () => isRoot(parentContainer, projectContainers),
@@ -495,25 +493,46 @@ const ContainerPanelHeader = React.memo(
       [showChart, theme.shadows]
     );
 
+    const handleSearch = useCallback(
+      (
+        e?: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
+        searchQuery?: {
+          search: string;
+          caseSensitive?: boolean;
+          regexp?: boolean;
+          replace?: string;
+          action?:
+            | "search"
+            | "find_next"
+            | "find_previous"
+            | "replace"
+            | "replace_all";
+        }
+      ) => {
+        dispatch(
+          dataPanelSearch(windowType, DataPanelType.Container, searchQuery)
+        );
+      },
+      [dispatch, windowType]
+    );
+
     return (
       <PanelHeader
-        type={search !== undefined ? "search" : "default"}
+        headerRef={headerRef}
+        type={searchQuery ? "search" : "default"}
         title={title}
-        search={search}
         breadcrumbs={headerBreadcrumbs}
         style={headerStyle}
         stickyStyle={headerStickyStyle}
-        scrollParent={scrollParent}
         backIcon={<AngleLeftRegularIcon />}
         backLabel={`Back`}
         moreLabel={`More Options`}
-        searchLabel={`Search...`}
+        searchLabel={`Find`}
+        replaceLabel={`Replace`}
         onBack={!root ? onBack : undefined}
         onBreadcrumb={onBreadcrumb}
         onMore={onContextMenu}
-        onOpenSearch={onOpenSearch}
-        onCloseSearch={onCloseSearch}
-        onSearch={onSearch}
+        onSearch={handleSearch}
         rightChildren={
           containerType === "Block" && (
             <>
@@ -548,7 +567,18 @@ interface ContainerPanelContentProps {
   headerInfo: HeaderInfo;
   childContainers: { [refId: string]: ContainerData };
   changeNameTargetId: string;
-  search?: string;
+  searchQuery?: {
+    search: string;
+    caseSensitive?: boolean;
+    regexp?: boolean;
+    replace?: string;
+    action?:
+      | "search"
+      | "find_next"
+      | "find_previous"
+      | "replace"
+      | "replace_all";
+  };
   draggingIds: string[];
   selectedIds: string[];
   breadcrumbIndex?: number;
@@ -590,7 +620,7 @@ const ContainerPanelContent = React.memo(
       headerInfo,
       childContainers,
       changeNameTargetId,
-      search,
+      searchQuery,
       draggingIds,
       selectedIds,
       breadcrumbIndex,
@@ -681,7 +711,7 @@ const ContainerPanelContent = React.memo(
                 changeTargetId={changeNameTargetId}
                 chart={chart}
                 shape={buttonShape}
-                search={search}
+                search={searchQuery?.search}
                 scrollParent={scrollParent}
                 chartAreaRef={onDataAreaRef}
                 onSetDragging={onSetDragging}
@@ -755,7 +785,7 @@ const ContainerPanelContent = React.memo(
                   draggingIds={draggingIds}
                   selectedIds={selectedIds}
                   changeTargetId={changeNameTargetId}
-                  search={search}
+                  search={searchQuery?.search}
                   style={{
                     paddingBottom: layout.size.minWidth.headerIcon + 16,
                   }}
@@ -852,6 +882,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const [breadcrumbIndex, setBreadcrumbIndex] = useState(0);
   const [previousBreadcrumbIndex, setBreadcrumbPreviousIndex] = useState(-1);
   const [headerName, setHeaderName] = useState("");
+  const headerRef = useRef<HTMLElement>();
 
   const containerType = useMemo(
     () => getContainerType(windowType),
@@ -898,7 +929,8 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       JSON.stringify(Object.keys(inspectedContainers)),
     ]
   );
-  const { search } = state.present.dataPanel.panels[windowType].Container;
+  const searchQuery =
+    state?.present?.dataPanel?.panels?.[windowType]?.Container?.searchQuery;
 
   const inspectedContainerReferences = useMemo(
     () =>
@@ -1531,18 +1563,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const handleZoomCanvas = useCallback(({ scale }) => {
     setCurrentScale(scale);
   }, []);
-  const handleOpenSearch = useCallback(() => {
-    dispatch(dataPanelSearch(windowType, DataPanelType.Container, ""));
-  }, [dispatch, windowType]);
-  const handleCloseSearch = useCallback(() => {
-    dispatch(dataPanelSearch(windowType, DataPanelType.Container));
-  }, [dispatch, windowType]);
-  const handleSearch = useCallback(
-    (value?: string) => {
-      dispatch(dataPanelSearch(windowType, DataPanelType.Container, value));
-    },
-    [windowType, dispatch]
-  );
   const handleCenterChart = useCallback(() => {
     events.onFocusData.emit({
       ids: Object.keys(inspectedContainers),
@@ -1560,8 +1580,8 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     }
 
     // Close context menu and search menu when user changes parent container id
-    if (search) {
-      handleSearch();
+    if (searchQuery?.search) {
+      dispatch(dataPanelSearch(windowType, DataPanelType.Container, null));
     }
   }, [parentContainerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1758,7 +1778,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     setHeaderName(name);
   }, []);
 
-  const searching = Boolean(search) || search === "";
+  const searching = Boolean(searchQuery);
   const naming = Boolean(changeNameTargetId);
 
   const buttonSpacing = theme.spacing(3);
@@ -1833,18 +1853,15 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       topChildren={
         !showChart ? (
           <ContainerPanelHeader
+            windowType={windowType}
+            headerRef={headerRef}
             title={title}
             containerType={containerType}
-            search={search}
             containerPanelState={containerPanelState}
             parentContainer={parentContainer}
             projectContainers={projectContainers}
             headerBreadcrumbs={headerBreadcrumbs}
             toggleFolding={toggleFolding}
-            scrollParent={scrollParent}
-            onOpenSearch={handleOpenSearch}
-            onCloseSearch={handleCloseSearch}
-            onSearch={handleSearch}
             onBack={handleClickHeaderBackIcon}
             onBreadcrumb={handleClickHeaderBreadcrumb}
             onScripting={handleClickHeaderScriptingIcon}
@@ -1858,18 +1875,15 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         <>
           {showChart && (
             <ContainerPanelHeader
+              windowType={windowType}
+              headerRef={headerRef}
               title={title}
               containerType={containerType}
-              search={search}
               containerPanelState={containerPanelState}
               parentContainer={parentContainer}
               projectContainers={projectContainers}
               headerBreadcrumbs={headerBreadcrumbs}
               toggleFolding={toggleFolding}
-              scrollParent={scrollParent}
-              onOpenSearch={handleOpenSearch}
-              onCloseSearch={handleCloseSearch}
-              onSearch={handleSearch}
               onBack={handleClickHeaderBackIcon}
               onBreadcrumb={handleClickHeaderBreadcrumb}
               onScripting={handleClickHeaderScriptingIcon}
@@ -1942,7 +1956,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         headerInfo={headerInfo}
         childContainers={inspectedContainers}
         changeNameTargetId={changeNameTargetId}
-        search={search}
+        searchQuery={searchQuery}
         draggingIds={draggingContainerIds}
         selectedIds={selectedContainerIds}
         breadcrumbIndex={breadcrumbIndex}

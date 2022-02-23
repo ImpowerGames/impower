@@ -141,7 +141,6 @@ const StyledSplitPane = styled(SplitPane)`
 `;
 
 interface EditFileFormProps {
-  scrollParent?: HTMLElement;
   name?: string;
   value: StorageFile;
   style?: React.CSSProperties;
@@ -151,15 +150,7 @@ interface EditFileFormProps {
 
 const FilePreviewOverlay = React.memo(
   (props: PropsWithChildren<EditFileFormProps>): JSX.Element | null => {
-    const {
-      scrollParent,
-      name,
-      value,
-      style,
-      children,
-      configurable,
-      onClose,
-    } = props;
+    const { name, value, style, children, configurable, onClose } = props;
 
     const { portrait } = useContext(WindowTransitionContext);
     const [configuring, setConfiguring] = useState(false);
@@ -256,7 +247,6 @@ const FilePreviewOverlay = React.memo(
           <StyledContentArea style={{ overflow: "hidden" }}>
             <StyledContainer>
               <EngineToolbar
-                scrollParent={scrollParent}
                 type="default"
                 title={name || value?.fileName}
                 minHeight={layout.size.minWidth.headerIcon}
@@ -274,7 +264,6 @@ const FilePreviewOverlay = React.memo(
                 moreButtonStyle={moreButtonStyle}
                 stickyStyle={stickyStyle}
                 sticky="always"
-                stickyOffset={0}
                 onBack={onClose}
                 onMore={configurable ? handleMore : undefined}
                 style={style}
