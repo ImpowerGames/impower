@@ -262,6 +262,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   onParseRef.current = onParse;
   const onSearchRef = useRef(onSearch);
   onSearchRef.current = onSearch;
+  const searchClearedRef = useRef(false);
 
   useEffect(() => {
     const fountainParseLinter = (view: EditorView): Diagnostic[] => {
@@ -444,13 +445,21 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     if (searchQuery) {
       const view = viewRef.current;
       if (searchQuery.action === "find_next") {
-        findNext(viewRef.current);
+        if (searchQuery.search) {
+          findNext(viewRef.current);
+        }
       } else if (searchQuery.action === "find_previous") {
-        findPrevious(viewRef.current);
+        if (searchQuery.search) {
+          findPrevious(viewRef.current);
+        }
       } else if (searchQuery.action === "replace") {
-        replaceNext(viewRef.current);
+        if (searchQuery.search) {
+          replaceNext(viewRef.current);
+        }
       } else if (searchQuery.action === "replace_all") {
-        replaceAll(viewRef.current);
+        if (searchQuery.search) {
+          replaceAll(viewRef.current);
+        }
       } else {
         openSearchPanel(viewRef.current);
         view.dispatch({
