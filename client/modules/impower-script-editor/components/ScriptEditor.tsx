@@ -10,11 +10,11 @@ import {
   findNext,
   findPrevious,
   getSearchQuery,
+  openSearchPanel,
   replaceAll,
   replaceNext,
   search,
   SearchQuery,
-  selectMatches,
   setSearchQuery,
 } from "@codemirror/search";
 import { tooltips } from "@codemirror/tooltip";
@@ -452,6 +452,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
       } else if (searchQuery.action === "replace_all") {
         replaceAll(viewRef.current);
       } else {
+        openSearchPanel(viewRef.current);
         view.dispatch({
           effects: [
             setSearchQuery.of(
@@ -464,7 +465,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ),
           ],
         });
-        selectMatches(viewRef.current);
       }
     } else {
       closeSearchPanel(viewRef.current);
