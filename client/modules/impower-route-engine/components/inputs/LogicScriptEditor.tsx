@@ -101,17 +101,6 @@ const LogicScriptEditor = React.memo(
     }>();
 
     useEffect(() => {
-      const onExecuteBlock = (data: { pos: number; line: number }): void => {
-        if (data.line >= 0) {
-          cursorRef.current = {
-            anchor: data.pos,
-            head: data.pos,
-            fromLine: data.line,
-            toLine: data.line,
-          };
-          setExecutingCursor(cursorRef.current);
-        }
-      };
       const onExecuteCommand = (data: { pos: number; line: number }): void => {
         if (data.line >= 0) {
           cursorRef.current = {
@@ -124,12 +113,10 @@ const LogicScriptEditor = React.memo(
         }
       };
       if (events) {
-        events.onExecuteBlock.addListener(onExecuteBlock);
         events.onExecuteCommand.addListener(onExecuteCommand);
       }
       return (): void => {
         if (events) {
-          events.onExecuteBlock.removeListener(onExecuteBlock);
           events.onExecuteCommand.removeListener(onExecuteCommand);
         }
       };

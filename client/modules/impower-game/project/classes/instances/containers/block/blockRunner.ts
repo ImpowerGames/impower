@@ -196,6 +196,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       const commandIndex = blockState.executingIndex;
       const pos = command?.data?.pos;
       const line = command?.data?.line;
+      const fastForward = blockState.startIndex > blockState.executingIndex;
       if (blockState.lastExecutedAt < 0) {
         game.logic.executeCommand({
           pos,
@@ -205,13 +206,19 @@ export class BlockRunner extends ContainerRunner<BlockData> {
           commandIndex,
           time,
         });
-        const nextJumps = command.runner.onExecute(
-          command.data,
-          variables,
-          game,
-          blockState.executingIndex,
-          commands
-        );
+        let nextJumps: number[] = [];
+        if (
+          !fastForward ||
+          !command.runner.isPure(command.data, variables, game)
+        ) {
+          nextJumps = command.runner.onExecute(
+            command.data,
+            variables,
+            game,
+            blockState.executingIndex,
+            commands
+          );
+        }
         if (nextJumps.length > 0) {
           game.logic.commandJumpStackPush({
             pos,
@@ -225,6 +232,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
         }
       }
       if (
+        !fastForward &&
         command.data.waitUntilFinished &&
         !command.runner.isFinished(command.data, variables, game)
       ) {

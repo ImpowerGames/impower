@@ -10,6 +10,7 @@ export interface LogicState {
   triggerStates: { [triggerId: string]: TriggerState };
   activeParentBlock: string;
   activeChildBlocks: string[];
+  activeCommandIndex: number;
 }
 
 export interface LogicEvents {
@@ -135,6 +136,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   getInitialState(): LogicState {
     return {
       activeParentBlock: "",
+      activeCommandIndex: 0,
       activeChildBlocks: [],
       blockStates: {},
       variableStates: {},
@@ -260,6 +262,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       this.executeBlock({
         id: firstChildBlockId,
         executedByBlockId: this.state.activeParentBlock,
+        startIndex: this.state.activeCommandIndex,
       });
     }
     super.start();
@@ -349,12 +352,19 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     });
   }
 
-  executeBlock(data: { id: string; executedByBlockId: string }): void {
+  executeBlock(data: {
+    id: string;
+    executedByBlockId: string;
+    startIndex?: number;
+  }): void {
     this.resetBlockExecution(data.id);
     const blockState = this.state.blockStates[data.id];
     blockState.executionCount += 1;
     blockState.executedBy = data.executedByBlockId;
     blockState.isExecuting = true;
+    if (data.startIndex != null) {
+      blockState.startIndex = data.startIndex;
+    }
     const block = this.blockTree[data.id];
     this.events.onExecuteBlock.emit({
       pos: block.pos,
@@ -428,6 +438,9 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     blockState.commandExecutionCounts[data.commandIndex] =
       currentExecutionCount;
     this.events.onExecuteCommand.emit({ ...data });
+    if (blockState.startIndex <= blockState.executingIndex) {
+      blockState.startIndex = 0;
+    }
   }
 
   finishCommand(data: {

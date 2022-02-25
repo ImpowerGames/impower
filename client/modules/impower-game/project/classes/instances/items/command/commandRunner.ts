@@ -43,4 +43,12 @@ export class CommandRunner<
   ): boolean {
     return true;
   }
+
+  isPure(
+    _data: T,
+    _variables: { [refId: string]: VariableData },
+    _game: ImpowerGame
+  ): boolean {
+    return true;
+  }
 }

@@ -2,6 +2,7 @@ import {
   CommandData,
   SetCommandData,
   VariableData,
+  VariableTypeId,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { changeValue } from "../../../../../../../runner/utils/changeValue";
@@ -35,5 +36,13 @@ export class SetCommandRunner extends CommandRunner<SetCommandData> {
       value: newValue,
     });
     return super.onExecute(data, variables, game, index, blockCommands);
+  }
+
+  isPure(
+    _data: SetCommandData,
+    _variables: { [refId: string]: VariableData<VariableTypeId, unknown> },
+    _game: ImpowerGame
+  ): boolean {
+    return false;
   }
 }

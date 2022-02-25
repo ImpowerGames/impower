@@ -82,12 +82,14 @@ export class ImpowerGame {
     this._physics = new PhysicsManager();
     this._asset = new AssetManager(saveData?.asset);
     this._entity = new EntityManager(saveData?.entity);
-    const activeParentBlock =
-      config.blockTree?.[config.defaultStartBlockId]?.parent || "";
+    const startBlockId = config.defaultStartBlockId;
+    const activeParentBlock = config.blockTree?.[startBlockId]?.parent || "";
+    const activeCommandIndex = config.defaultStartCommandIndex || 0;
     this._logic = new LogicManager(
       config.blockTree,
       saveData?.logic || {
         activeParentBlock,
+        activeCommandIndex,
         blockStates: {},
         variableStates: {},
         triggerStates: {},

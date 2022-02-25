@@ -41,9 +41,22 @@ const createGame = (
       }
     }
   }
+  const startRuntimeBlock = runtimeBlocks[defaultStartBlockId];
+  let defaultStartCommandIndex = 0;
+  for (let i = 1; i < startRuntimeBlock.commands.order.length; i += 1) {
+    const commandId = startRuntimeBlock.commands.order[i];
+    const command = startRuntimeBlock.commands.data[commandId];
+    if (command.line <= activeLine) {
+      defaultStartCommandIndex = i;
+    } else {
+      break;
+    }
+  }
+
   const game = new ImpowerGame(
     {
       defaultStartBlockId,
+      defaultStartCommandIndex,
       seed: project?.instances?.configs?.data?.DebugConfig?.randomizationSeed,
       blockTree,
     },

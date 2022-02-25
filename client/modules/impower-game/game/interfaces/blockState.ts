@@ -9,6 +9,7 @@ export interface BlockState {
   hasReturned: boolean;
   satisfiedTriggers: string[];
   unsatisfiedTriggers: string[];
+  startIndex: number;
   executingIndex: number;
   previousIndex: number;
   commandJumpStack: number[];
@@ -28,6 +29,7 @@ export const createBlockState = (obj?: Partial<BlockState>): BlockState => ({
   hasReturned: false,
   satisfiedTriggers: [],
   unsatisfiedTriggers: [],
+  startIndex: 0,
   executingIndex: 0,
   previousIndex: 0,
   commandJumpStack: [],
