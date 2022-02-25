@@ -274,6 +274,9 @@ const UI = (props: UIProps): JSX.Element => {
                 display: "flex",
                 flexDirection: "column",
                 alignContent: "center",
+                maxWidth: 600,
+                width: "100%",
+                margin: "0 auto",
               }}
             >
               <div
@@ -283,7 +286,6 @@ const UI = (props: UIProps): JSX.Element => {
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "center",
-                  maxWidth: 600,
                   fontFamily: "Courier Prime Sans",
                   fontSize: "1em",
                   whiteSpace: "pre-wrap",
@@ -298,38 +300,16 @@ const UI = (props: UIProps): JSX.Element => {
                     flex: 1,
                   }}
                 >
-                  <div
-                    className="character"
-                    style={{
-                      textAlign: "center",
-                    }}
-                  />
+                  <div className="character" style={{ textAlign: "center" }} />
                   <div
                     className="parenthetical"
-                    style={{
-                      textAlign: "center",
-                    }}
+                    style={{ textAlign: "center" }}
                   />
                   <div className="dialogue" />
                 </div>
-                <div
-                  className="action"
-                  style={{
-                    flex: 1,
-                  }}
-                />
-                <div
-                  className="centered"
-                  style={{
-                    textAlign: "center",
-                  }}
-                />
-                <div
-                  className="transition"
-                  style={{
-                    textAlign: "right",
-                  }}
-                />
+                <div className="action" style={{ flex: 1 }} />
+                <div className="centered" style={{ textAlign: "center" }} />
+                <div className="transition" style={{ textAlign: "right" }} />
                 <div
                   className="scene"
                   style={{
