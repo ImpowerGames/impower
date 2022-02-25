@@ -61,7 +61,7 @@ export class DialogueParser implements LeafBlockParser {
       let startPos = leaf.start;
       let pos = leaf.start;
       startPos = pos;
-      pos += this.characterName.length + 1;
+      pos += this.characterName.length;
       children.push(cx.elt(Type.Character, startPos, pos));
       if (this.inlineParenthetical) {
         startPos = pos;
