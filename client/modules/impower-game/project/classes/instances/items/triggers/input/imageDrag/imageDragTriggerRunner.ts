@@ -26,6 +26,7 @@ export class ImageDragTriggerRunner
       const { id } = gameData;
       if (id === getRuntimeValue(data.image, variables, game).refId) {
         game.logic.setTriggerValue({
+          pos: data.pos,
           line: data.line,
           id: data.reference.parentContainerId,
           value: id,
@@ -52,6 +53,7 @@ export class ImageDragTriggerRunner
         return false;
       }
       game.logic.setTriggerValue({
+        pos: data.pos,
         line: data.line,
         id: parentContainerId,
         value: null,

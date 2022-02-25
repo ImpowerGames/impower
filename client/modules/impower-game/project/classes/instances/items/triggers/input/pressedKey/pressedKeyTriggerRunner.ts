@@ -32,6 +32,7 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
     function resetTrigger(event: KeyboardEvent, key: string): void {
       if (event.key === key) {
         game.logic.setTriggerValue({
+          pos: data.pos,
           line: data.line,
           id: data.reference.parentContainerId,
           value: null,
@@ -62,15 +63,16 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
         break;
     }
 
+    const pos = data?.pos;
     const line = data?.line;
 
     // Since these are anon subscriptions, make sure they're unique.  This is accomplished by passing in the keyVal.
     document.addEventListener(keyEvent, (event) => {
-      this.handleEvent(event, keyVal, line, blockId);
+      this.handleEvent(event, keyVal, pos, line, blockId);
     });
     game.events.onEnd.addListener(() => {
       document.removeEventListener(keyEvent, (event) => {
-        this.handleEvent(event, keyVal, line, blockId);
+        this.handleEvent(event, keyVal, pos, line, blockId);
       });
     });
 
@@ -109,6 +111,7 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
   handleEvent(
     event: KeyboardEvent,
     key: string,
+    pos: number,
     line: number,
     blockId: string
   ): void {
@@ -119,6 +122,7 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
       event.preventDefault();
 
       this._game.logic.setTriggerValue({
+        pos,
         line,
         id: blockId,
         value: key,
@@ -160,6 +164,7 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
       if (action !== InputCondition.Is) {
         // Reset the trigger.  Held actions are reset on a separate event.
         game.logic.setTriggerValue({
+          pos: data.pos,
           line: data.line,
           id: parentContainerId,
           value: null,

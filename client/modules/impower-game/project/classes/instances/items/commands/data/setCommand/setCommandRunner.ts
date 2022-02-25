@@ -29,6 +29,7 @@ export class SetCommandRunner extends CommandRunner<SetCommandData> {
     const rhs = getRuntimeValue(value, variables, game);
     const newValue = changeValue(lhs, operator, rhs);
     game.logic.setVariableValue({
+      pos: data.pos,
       line: data.line,
       id: refId,
       value: newValue,

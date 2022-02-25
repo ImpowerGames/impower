@@ -23,6 +23,7 @@ export class ClickTriggerRunner extends TriggerRunner<ClickTriggerData> {
 
       if (mouseEvent) {
         game.logic.setTriggerValue({
+          pos: data.pos,
           line: data.line,
           id: data.reference.parentContainerId,
           value: mouseEvent.button.toString(),
@@ -33,12 +34,14 @@ export class ClickTriggerRunner extends TriggerRunner<ClickTriggerData> {
         touchEvent.touches.length === 1
       ) {
         game.logic.setTriggerValue({
+          pos: data.pos,
           line: data.line,
           id: data.reference.parentContainerId,
           value: touchEvent.touches[0],
         });
       } else if (pointerEvent) {
         game.logic.setTriggerValue({
+          pos: data.pos,
           line: data.line,
           id: data.reference.parentContainerId,
           value: pointerEvent.button.toString(),
@@ -48,6 +51,7 @@ export class ClickTriggerRunner extends TriggerRunner<ClickTriggerData> {
 
     function resetHeldEvent(): void {
       game.logic.setTriggerValue({
+        pos: data.pos,
         line: data.line,
         id: data.reference.parentContainerId,
         value: null,
@@ -144,6 +148,7 @@ export class ClickTriggerRunner extends TriggerRunner<ClickTriggerData> {
       if (data.action !== InputCondition.Is) {
         // Reset the trigger.  Held actions are reset on a separate event.
         game.logic.setTriggerValue({
+          pos: data.pos,
           line: data.line,
           id: parentContainerId,
           value: null,
