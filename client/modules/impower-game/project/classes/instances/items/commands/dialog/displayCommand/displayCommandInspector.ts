@@ -7,6 +7,7 @@ import {
 } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
+import { executeDisplayCommand } from "./executeDisplayCommand";
 
 export class DisplayCommandInspector extends CommandInspector<DisplayCommandData> {
   getTypeInfo(): TypeInfo {
@@ -97,16 +98,6 @@ export class DisplayCommandInspector extends CommandInspector<DisplayCommandData
   }
 
   onPreview(data: DisplayCommandData): void {
-    const ui = data.ui || "impower-ui-display";
-    const characterEl = document.querySelector(`#${ui} .character`);
-    const parentheticalEl = document.querySelector(`#${ui} .parenthetical`);
-    const contentEl = document.querySelector(`#${ui} .content`);
-    const character = data.type === DisplayType.Dialogue ? data.character : "";
-    const parenthetical =
-      data.type === DisplayType.Dialogue ? data.parenthetical : "";
-    const content = data?.content;
-    characterEl?.replaceChildren(character);
-    parentheticalEl?.replaceChildren(parenthetical);
-    contentEl?.replaceChildren(content);
+    executeDisplayCommand(data);
   }
 }

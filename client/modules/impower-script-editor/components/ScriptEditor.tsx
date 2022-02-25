@@ -262,7 +262,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   onParseRef.current = onParse;
   const onSearchRef = useRef(onSearch);
   onSearchRef.current = onSearch;
-  const searchClearedRef = useRef(false);
 
   useEffect(() => {
     const fountainParseLinter = (view: EditorView): Diagnostic[] => {

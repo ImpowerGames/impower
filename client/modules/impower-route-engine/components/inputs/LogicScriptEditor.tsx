@@ -253,16 +253,18 @@ const LogicScriptEditor = React.memo(
 
     const handlePreviewResult = useCallback(
       (result: FountainParseResult, line: number) => {
-        const tokenIndex = result.scriptLines[line];
-        const token = result.scriptTokens[tokenIndex];
-        if (token) {
-          const runtimeCommand = getRuntimeCommand(token);
-          if (runtimeCommand) {
-            const commandInspector = gameInspector.getInspector(
-              runtimeCommand.reference
-            );
-            if (commandInspector) {
-              commandInspector.onPreview(runtimeCommand);
+        if (line != null) {
+          const tokenIndex = result.scriptLines[line];
+          const token = result.scriptTokens[tokenIndex];
+          if (token) {
+            const runtimeCommand = getRuntimeCommand(token);
+            if (runtimeCommand) {
+              const commandInspector = gameInspector.getInspector(
+                runtimeCommand.reference
+              );
+              if (commandInspector) {
+                commandInspector.onPreview(runtimeCommand);
+              }
             }
           }
         }
@@ -271,7 +273,7 @@ const LogicScriptEditor = React.memo(
     );
 
     useEffect(() => {
-      if (mode === Mode.Edit && parseResultState) {
+      if (mode === Mode.Edit && parseResultState && previewCursor) {
         handlePreviewResult(parseResultState, previewCursor.fromLine);
       }
     }, [parseResultState, previewCursor, mode, handlePreviewResult]);

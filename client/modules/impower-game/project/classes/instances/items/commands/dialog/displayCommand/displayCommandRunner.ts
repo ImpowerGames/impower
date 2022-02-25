@@ -1,9 +1,9 @@
-import { DisplayType } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { CommandData } from "../../../command/commandData";
 import { CommandRunner } from "../../../command/commandRunner";
 import { VariableData } from "../../../variable/variableData";
 import { DisplayCommandData } from "./displayCommandData";
+import { executeDisplayCommand } from "./executeDisplayCommand";
 
 export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
   down = false;
@@ -20,17 +20,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     }[]
   ): number[] {
     this.down = game.input.state.pointer.down.includes(0);
-    const ui = data.ui || "impower-ui-display";
-    const characterEl = document.querySelector(`#${ui} .character`);
-    const parentheticalEl = document.querySelector(`#${ui} .parenthetical`);
-    const contentEl = document.querySelector(`#${ui} .content`);
-    const character = data.type === DisplayType.Dialogue ? data.character : "";
-    const parenthetical =
-      data.type === DisplayType.Dialogue ? data.parenthetical : "";
-    const content = data?.content;
-    characterEl?.replaceChildren(character);
-    parentheticalEl?.replaceChildren(parenthetical);
-    contentEl?.replaceChildren(content);
+    executeDisplayCommand(data);
     return super.onExecute(data, variables, game, index, blockCommands);
   }
 

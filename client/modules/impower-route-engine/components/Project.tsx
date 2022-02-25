@@ -439,8 +439,20 @@ const Project = React.memo((): JSX.Element => {
 
   return (
     <WindowTransitionContext.Provider value={windowTransitionContext}>
-      <StyledMonospaceCodeFontLoader>.</StyledMonospaceCodeFontLoader>
-      <StyledMonospaceSansFontLoader>.</StyledMonospaceSansFontLoader>
+      <StyledMonospaceCodeFontLoader>
+        .<b>.</b>
+        <i>.</i>
+        <b>
+          <i>.</i>
+        </b>
+      </StyledMonospaceCodeFontLoader>
+      <StyledMonospaceSansFontLoader>
+        .<b>.</b>
+        <i>.</i>
+        <b>
+          <i>.</i>
+        </b>
+      </StyledMonospaceSansFontLoader>
       <StyledProject onContextMenu={handleContextMenu}>
         {!fullscreen && !portrait && (
           <>
