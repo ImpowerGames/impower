@@ -73,6 +73,7 @@ export class DialogueParser implements LeafBlockParser {
         pos += 1;
         children.push(cx.elt(Type.DualDialogueMark, startPos, pos));
       }
+      pos += 1;
       this.lines.forEach(([type, text]) => {
         startPos = pos;
         pos += text.length + 1;
