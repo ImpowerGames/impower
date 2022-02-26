@@ -3,7 +3,7 @@ export const fountainRegexes = {
     /(title|credit|author[s]?|source|notes|draft date|date|watermark|contact( info)?|revision|copyright|font|tl|tc|tr|cc|br|bl):.*/i,
 
   section:
-    /^([ \t]*)(#+)( *)([\w\d]*)([ ]*)(?:([(])([ ]*)((?:[ ]*[,][ ]*|[\w]+[\w\d]*[ ]*[=][ ]*(?:[\d]+|[\d]*[.][\d]*|`[^`\n\r]*`|"[^"\n\r]*"|'[^'\n\r]*'))*)([ ]*)([)])){0,1}([ ]*)$/,
+    /^([ \t]*)(#+)( *)([?]{0,1})( *)([\w\d]*)([ ]*)(?:([(])([ ]*)((?:[ ]*[,][ ]*|[\w]+[\w\d]*[ ]*[=][ ]*(?:[\d]+|[\d]*[.][\d]*|`[^`\n\r]*`|"[^"\n\r]*"|'[^'\n\r]*'))*)([ ]*)([)])){0,1}([ ]*)$/,
   synopsis: /^[ \t]*(?:=(?!=+) *)(.*)/,
 
   scene_heading:

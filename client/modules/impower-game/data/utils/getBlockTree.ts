@@ -7,6 +7,7 @@ export const getBlockTree = (
     index: number;
     pos: number;
     line: number;
+    triggerable: boolean;
     parent: string;
     children: string[];
   };
@@ -16,6 +17,7 @@ export const getBlockTree = (
       index: number;
       pos: number;
       line: number;
+      triggerable: boolean;
       parent: string;
       children: string[];
     };
@@ -25,6 +27,7 @@ export const getBlockTree = (
       index,
       pos: block.pos,
       line: block.line,
+      triggerable: block.triggers?.order?.length > 0,
       parent: block.reference.parentContainerId,
       children: block.childContainerIds,
     };

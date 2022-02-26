@@ -103,6 +103,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       index: number;
       pos: number;
       line: number;
+      triggerable: boolean;
       parent: string;
       children: string[];
     };
@@ -113,6 +114,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       index: number;
       pos: number;
       line: number;
+      triggerable: boolean;
       parent: string;
       children: string[];
     };
@@ -126,6 +128,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
         index: number;
         pos: number;
         line: number;
+        triggerable: boolean;
         parent: string;
         children: string[];
       };
@@ -386,16 +389,17 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   continueToNextBlock(data: { id: string }): void {
     const blockId = data.id;
     const block = this.blockTree[blockId];
-    const blockList = Object.entries(this.blockTree);
-    const [nextBlockId, nextBlock] = blockList[block.index + 1] || [
-      undefined,
-      undefined,
-    ];
+    const blockList = Object.entries(this.blockTree).slice(block.index + 1);
+    const [nextBlockId, nextBlock] = blockList.find(
+      ([, v]) =>
+        !v.triggerable &&
+        (v.parent === blockId || this.blockTree[v.parent].index < block.index)
+    ) || [undefined, undefined];
     if (nextBlock) {
       if (nextBlock?.children?.length > 0) {
         this.enterBlock({ id: nextBlockId });
       } else {
-        this.enterBlock({ id: nextBlock.parent || "" });
+        this.enterBlock({ id: nextBlock.parent });
       }
       this.executeBlock({
         id: nextBlockId,

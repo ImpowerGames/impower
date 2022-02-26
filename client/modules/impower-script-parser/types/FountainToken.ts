@@ -46,6 +46,7 @@ export interface FountainChoiceToken extends FountainLine {
 
 export interface FountainSectionToken extends FountainLine {
   type: FountainSectionType;
+  operator: string;
   parameters: string[];
 }
 

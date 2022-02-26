@@ -1,5 +1,11 @@
 import { FountainSection } from "../../../impower-script-parser";
-import { BlockData, createBlockData, createBlockReference } from "../../data";
+import {
+  BlockData,
+  createBlockData,
+  createBlockReference,
+  createTriggerData,
+  createTriggerReference,
+} from "../../data";
 import { getRuntimeCommand } from "./getRuntimeCommand";
 import { getRuntimeTrigger } from "./getRuntimeTrigger";
 import { getRuntimeVariable } from "./getRuntimeVariable";
@@ -9,6 +15,7 @@ export const getRuntimeBlocks = (
 ): Record<string, BlockData> => {
   const blocks: { [refId: string]: BlockData } = {};
   Object.entries(sections).forEach(([sectionId, section]) => {
+    const defaultTriggerId = `${sectionId}.${section.start}-triggerable`;
     const block = createBlockData({
       reference: createBlockReference({
         parentContainerId: sectionId.split(".").slice(0, -1).join("."),
@@ -17,6 +24,25 @@ export const getRuntimeBlocks = (
       pos: section.start,
       line: section.line,
       name: section.name,
+      triggers: section.operator
+        ? {
+            order: [defaultTriggerId],
+            data: {
+              [defaultTriggerId]: createTriggerData({
+                reference: createTriggerReference({
+                  parentContainerId: sectionId,
+                  refId: defaultTriggerId,
+                  refTypeId: "AnyTrigger",
+                }),
+                pos: section.start,
+                line: section.line,
+              }),
+            },
+          }
+        : {
+            order: [],
+            data: {},
+          },
       childContainerIds: section.children || [],
     });
     const skip = ["character", "parenthetical"];

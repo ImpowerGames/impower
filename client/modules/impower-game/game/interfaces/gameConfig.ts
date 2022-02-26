@@ -4,6 +4,7 @@ export interface GameConfig {
       index: number;
       pos: number;
       line: number;
+      triggerable: boolean;
       parent: string;
       children: string[];
     };

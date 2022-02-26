@@ -401,6 +401,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         addSection(currentSectionId, {
           start: currentToken.start,
           line: currentToken.line,
+          operator: "",
           name: "",
           tokens: currentSectionTokens,
         });
@@ -560,7 +561,8 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         currentToken.type = "section";
         if (currentToken.type === "section") {
           currentToken.level = match[2].length;
-          currentToken.content = match[4];
+          currentToken.operator = match[4];
+          currentToken.content = match[6];
           if (currentToken.level === 0) {
             currentSectionId = currentToken.content;
           } else if (currentToken.level === 1) {
@@ -578,17 +580,18 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
             currentSectionId = `${parentId}.${currentToken.content}`;
           }
           currentSectionTokens = [];
-          currentToken.parameters = getParameterNames(match, 8);
+          currentToken.parameters = getParameterNames(match, 10);
           addSection(
             currentSectionId,
             {
               start: currentToken.start,
               line: currentToken.line,
+              operator: currentToken.operator,
               name: currentToken.content,
               tokens: currentSectionTokens,
             },
             match,
-            4
+            6
           );
           currentLevel = currentToken.level;
         }
