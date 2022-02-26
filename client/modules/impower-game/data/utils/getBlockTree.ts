@@ -4,6 +4,7 @@ export const getBlockTree = (
   blocks: Record<string, BlockData>
 ): {
   [blockId: string]: {
+    index: number;
     pos: number;
     line: number;
     parent: string;
@@ -12,14 +13,16 @@ export const getBlockTree = (
 } => {
   const blockTree: {
     [blockId: string]: {
+      index: number;
       pos: number;
       line: number;
       parent: string;
       children: string[];
     };
   } = {};
-  Object.values(blocks || {}).forEach((block) => {
+  Object.values(blocks || {}).forEach((block, index) => {
     blockTree[block.reference.refId] = {
+      index,
       pos: block.pos,
       line: block.line,
       parent: block.reference.parentContainerId,

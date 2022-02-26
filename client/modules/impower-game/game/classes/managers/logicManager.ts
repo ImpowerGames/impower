@@ -100,6 +100,7 @@ export interface LogicEvents {
 export class LogicManager extends Manager<LogicState, LogicEvents> {
   private _blockTree: {
     [blockId: string]: {
+      index: number;
       pos: number;
       line: number;
       parent: string;
@@ -109,6 +110,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
 
   public get blockTree(): {
     [blockId: string]: {
+      index: number;
       pos: number;
       line: number;
       parent: string;
@@ -121,6 +123,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   constructor(
     blockTree: {
       [blockId: string]: {
+        index: number;
         pos: number;
         line: number;
         parent: string;
@@ -256,15 +259,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
 
   start(): void {
     this.enterBlock({ id: this.state.activeParentBlock });
-    const firstChildBlockId =
-      this.blockTree?.[this.state.activeParentBlock]?.children?.[0];
-    if (firstChildBlockId) {
-      this.executeBlock({
-        id: firstChildBlockId,
-        executedByBlockId: this.state.activeParentBlock,
-        startIndex: this.state.activeCommandIndex,
-      });
-    }
+    this.executeBlock({
+      id: this.state.activeParentBlock,
+      executedByBlockId: null,
+      startIndex: this.state.activeCommandIndex,
+    });
     super.start();
   }
 
@@ -273,7 +272,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     this.state.activeParentBlock = newParentBlockId;
     const parent = this.blockTree?.[newParentBlockId];
     const childIds = parent?.children || [];
-    this.loadBlocks({ ids: childIds });
+    this.loadBlocks({ ids: [newParentBlockId, ...childIds] });
     this.events.onChangeActiveParentBlock.emit({
       pos: parent?.pos,
       line: parent?.line,
@@ -362,9 +361,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     blockState.executionCount += 1;
     blockState.executedBy = data.executedByBlockId;
     blockState.isExecuting = true;
-    if (data.startIndex != null) {
-      blockState.startIndex = data.startIndex;
-    }
+    blockState.startIndex = data.startIndex || 0;
     const block = this.blockTree[data.id];
     this.events.onExecuteBlock.emit({
       pos: block.pos,
@@ -384,6 +381,27 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       executedByBlockId: blockState.executedBy,
       ...data,
     });
+  }
+
+  continueToNextBlock(data: { id: string }): void {
+    const blockId = data.id;
+    const block = this.blockTree[blockId];
+    const blockList = Object.entries(this.blockTree);
+    const [nextBlockId, nextBlock] = blockList[block.index + 1] || [
+      undefined,
+      undefined,
+    ];
+    if (nextBlock) {
+      if (nextBlock?.children?.length > 0) {
+        this.enterBlock({ id: nextBlockId });
+      } else {
+        this.enterBlock({ id: nextBlock.parent || "" });
+      }
+      this.executeBlock({
+        id: nextBlockId,
+        executedByBlockId: data.id,
+      });
+    }
   }
 
   enterBlock(data: { id: string }): void {

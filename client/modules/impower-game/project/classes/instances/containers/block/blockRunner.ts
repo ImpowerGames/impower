@@ -93,6 +93,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     if (blockState.isExecuting) {
       if (this.runCommands(id, blockState, commands, variables, game, time)) {
         game.logic.finishBlock({ id });
+        game.logic.continueToNextBlock({ id });
       }
     }
   }
