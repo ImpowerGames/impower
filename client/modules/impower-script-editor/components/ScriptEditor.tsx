@@ -441,8 +441,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   }, [toggleFolding]);
 
   useEffect(() => {
+    const view = viewRef.current;
     if (searchQuery) {
-      const view = viewRef.current;
       if (searchQuery.action === "find_next") {
         if (searchQuery.search) {
           findNext(viewRef.current);
@@ -460,7 +460,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           replaceAll(viewRef.current);
         }
       } else {
-        openSearchPanel(viewRef.current);
+        openSearchPanel(view);
         view.dispatch({
           effects: [
             setSearchQuery.of(
@@ -475,7 +475,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         });
       }
     } else {
-      closeSearchPanel(viewRef.current);
+      closeSearchPanel(view);
     }
   }, [searchQuery]);
 

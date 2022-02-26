@@ -435,17 +435,45 @@ const EngineToolbarContent = React.memo(
     );
 
     const handleSearchChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>) => {
+      (e: React.ChangeEvent<HTMLInputElement>, action = "search") => {
         searchQueryRef.current = {
           ...(searchQueryRef.current || {}),
           search: e.target.value,
-          action: "search",
+          action,
         };
         if (onSearch) {
           onSearch(e, searchQueryRef.current);
         }
       },
       [onSearch]
+    );
+
+    const handleSearchFieldKeyUp = useCallback(
+      (e: React.KeyboardEvent) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const changeEvent =
+            e as unknown as React.ChangeEvent<HTMLInputElement>;
+          if (e.shiftKey) {
+            handleSearchChange(changeEvent, "find_previous");
+          } else {
+            handleSearchChange(changeEvent, "find_next");
+          }
+        }
+      },
+      [handleSearchChange]
+    );
+
+    const handleReplaceFieldKeyUp = useCallback(
+      (e: React.KeyboardEvent) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const changeEvent =
+            e as unknown as React.ChangeEvent<HTMLInputElement>;
+          handleSearchChange(changeEvent, "replace");
+        }
+      },
+      [handleSearchChange]
     );
 
     const handleReplaceChange = useCallback(
@@ -696,6 +724,7 @@ const EngineToolbarContent = React.memo(
                   autoComplete="off"
                   autoFocus
                   onChange={handleSearchChange}
+                  onKeyUp={handleSearchFieldKeyUp}
                   fullWidth
                 />
                 {clearLabel && (
@@ -786,6 +815,7 @@ const EngineToolbarContent = React.memo(
                     InputComponent={Input}
                     fullWidth
                     onChange={handleReplaceChange}
+                    onKeyUp={handleReplaceFieldKeyUp}
                   />
                   <StyledIconButton color="inherit" onClick={handleReplace}>
                     <FontIcon
