@@ -389,6 +389,9 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   continueToNextBlock(data: { id: string }): void {
     const blockId = data.id;
     const block = this.blockTree[blockId];
+    if (block.triggerable) {
+      return;
+    }
     const blockList = Object.entries(this.blockTree).slice(block.index + 1);
     const [nextBlockId, nextBlock] = blockList.find(
       ([, v]) =>
