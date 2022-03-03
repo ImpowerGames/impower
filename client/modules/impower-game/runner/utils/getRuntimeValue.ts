@@ -1,6 +1,5 @@
 import {
   DynamicData,
-  getVariableValue,
   isDynamicData,
   Reference,
   VariableData,
@@ -20,7 +19,7 @@ export const getRuntimeValue = <T>(
       if (variableState) {
         return variableState.value as T;
       }
-      return getVariableValue<T>(refId, variables);
+      return variables?.[refId]?.value as T;
     }
   }
   if (isDynamicData(data)) {

@@ -1,4 +1,8 @@
-import { FountainSection } from "../../../impower-script-parser";
+import {
+  FountainAsset,
+  FountainSection,
+  FountainVariable,
+} from "../../../impower-script-parser";
 import {
   BlockData,
   createBlockData,
@@ -11,9 +15,19 @@ import { getRuntimeTrigger } from "./getRuntimeTrigger";
 import { getRuntimeVariable } from "./getRuntimeVariable";
 
 export const getRuntimeBlocks = (
-  sections: Record<string, FountainSection>
+  sections: Record<string, FountainSection>,
+  variables: Record<string, FountainVariable>,
+  assets: {
+    image?: Record<string, FountainAsset>;
+    video?: Record<string, FountainAsset>;
+    audio?: Record<string, FountainAsset>;
+    text?: Record<string, FountainAsset>;
+  }
 ): Record<string, BlockData> => {
   const blocks: { [refId: string]: BlockData } = {};
+  if (!sections) {
+    return blocks;
+  }
   Object.entries(sections).forEach(([sectionId, section]) => {
     const defaultTriggerId = `${sectionId}.${section.start}-triggerable`;
     const block = createBlockData({
@@ -45,21 +59,26 @@ export const getRuntimeBlocks = (
           },
       childContainerIds: section.children || [],
     });
-    const skip = ["character", "parenthetical"];
+    const skip = ["character", "note", "parenthetical"];
     section.tokens.forEach((token) => {
       if (!skip.includes(token.type)) {
-        const runtimeVariable = getRuntimeVariable(token);
+        const runtimeVariable = getRuntimeVariable(token, sectionId, variables);
         if (runtimeVariable) {
           block.variables.order.push(runtimeVariable.reference.refId);
           block.variables.data[runtimeVariable.reference.refId] =
             runtimeVariable;
         }
-        const runtimeTrigger = getRuntimeTrigger(token, sectionId);
+        const runtimeTrigger = getRuntimeTrigger(token, sectionId, variables);
         if (runtimeTrigger) {
           block.triggers.order.push(runtimeTrigger.reference.refId);
           block.triggers.data[runtimeTrigger.reference.refId] = runtimeTrigger;
         }
-        const runtimeCommand = getRuntimeCommand(token, sectionId);
+        const runtimeCommand = getRuntimeCommand(
+          token,
+          sectionId,
+          variables,
+          assets
+        );
         if (runtimeCommand) {
           block.commands.order.push(runtimeCommand.reference.refId);
           block.commands.data[runtimeCommand.reference.refId] = runtimeCommand;

@@ -56,8 +56,8 @@ export class PhaserLogicScene extends Phaser.Scene {
   update(time: number, delta: number): void {
     this.impowerGame.logic.state.activeChildBlocks.forEach((id) => {
       const blockState = this.impowerGame.logic.state.blockStates[id];
-      const { triggers, commands } =
-        this.impowerDataMap.blockInternalRunners[id];
+      const triggers = this.impowerDataMap.blockTriggers[id];
+      const commands = this.impowerDataMap.blockCommands[id];
       const { variables } = this.impowerDataMap;
       if (blockState.active) {
         BlockRunner.instance.update(
@@ -77,8 +77,8 @@ export class PhaserLogicScene extends Phaser.Scene {
   create(): void {
     this.impowerGame.logic.state.activeChildBlocks.forEach((id) => {
       const blockState = this.impowerGame.logic.state.blockStates[id];
-      const { triggers, commands } =
-        this.impowerDataMap.blockInternalRunners[id];
+      const triggers = this.impowerDataMap.blockTriggers[id];
+      const commands = this.impowerDataMap.blockCommands[id];
       const { variables } = this.impowerDataMap;
       if (blockState.active) {
         BlockRunner.instance.init(

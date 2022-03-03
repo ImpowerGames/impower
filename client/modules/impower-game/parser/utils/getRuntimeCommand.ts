@@ -1,6 +1,8 @@
 import {
+  FountainAsset,
   FountainDialogueToken,
   FountainToken,
+  FountainVariable,
 } from "../../../impower-script-parser";
 import {
   CommandData,
@@ -14,15 +16,26 @@ import {
   SetCommandData,
   SetOperator,
 } from "../../data";
+import { getFountainAsset } from "./getFountainAsset";
 import { getRuntimeDynamicData } from "./getRuntimeDynamicData";
 import { getRuntimeVariableReference } from "./getRuntimeVariableReference";
 
 const getDisplayCommand = (
-  refId: string,
-  token: FountainToken
+  token: FountainToken,
+  sectionId = "",
+  assets: {
+    image?: Record<string, FountainAsset>;
+    video?: Record<string, FountainAsset>;
+    audio?: Record<string, FountainAsset>;
+    text?: Record<string, FountainAsset>;
+  }
 ): DisplayCommandData => {
+  const refId = `${sectionId}.${token.start}`;
   const dialogueToken = token as FountainDialogueToken;
   const refTypeId: CommandTypeId = "DisplayCommand";
+  const portrait = dialogueToken?.portrait;
+  const asset = getFountainAsset("image", portrait, sectionId, assets);
+  const portraitValue = asset?.value;
   return {
     ...createCommandData({
       reference: createCommandReference({
@@ -34,24 +47,28 @@ const getDisplayCommand = (
     pos: token.start,
     line: token.line,
     ui: "",
-    type:
-      dialogueToken.type === "character" ||
-      dialogueToken.type === "parenthetical"
-        ? DisplayType.Dialogue
-        : (dialogueToken.type as DisplayType),
+    type: dialogueToken.type as DisplayType,
     position:
-      (dialogueToken.dual as DisplayPosition) || DisplayPosition.Default,
+      (dialogueToken.position as DisplayPosition) || DisplayPosition.Default,
     character: dialogueToken.character || "",
+    portrait: portraitValue || "",
     parenthetical: dialogueToken.parenthetical || "",
-    content: dialogueToken.dialogue || dialogueToken.content,
+    content: dialogueToken.text || dialogueToken.content,
     voice: createAudioFileReference(),
-    waitUntilFinished: dialogueToken.dual !== "left",
+    waitUntilFinished: dialogueToken.position !== "left",
   };
 };
 
 export const getRuntimeCommand = (
   token: FountainToken,
-  sectionId = ""
+  sectionId = "",
+  variables: Record<string, FountainVariable>,
+  assets: {
+    image?: Record<string, FountainAsset>;
+    video?: Record<string, FountainAsset>;
+    audio?: Record<string, FountainAsset>;
+    text?: Record<string, FountainAsset>;
+  }
 ): CommandData => {
   if (token.type === "assign") {
     const refId = `${sectionId}.${token.start}`;
@@ -66,35 +83,24 @@ export const getRuntimeCommand = (
       }),
       pos: token.start,
       line: token.line,
-      variable: getRuntimeVariableReference(token.variable),
+      variable: getRuntimeVariableReference(
+        token.variable,
+        sectionId,
+        variables
+      ),
       operator: token.operator as SetOperator,
-      value: getRuntimeDynamicData(token.value),
+      value: getRuntimeDynamicData(token.value, sectionId, variables),
     };
     return newCommand;
   }
   if (
-    token.type === "character" ||
-    token.type === "parenthetical" ||
-    token.type === "dialogue"
+    token.type === "dialogue" ||
+    token.type === "action" ||
+    token.type === "centered" ||
+    token.type === "transition" ||
+    token.type === "scene"
   ) {
-    const refId = `${sectionId}.${token.start}`;
-    return getDisplayCommand(refId, token);
-  }
-  if (token.type === "action") {
-    const refId = `${sectionId}.${token.start}`;
-    return getDisplayCommand(refId, token);
-  }
-  if (token.type === "centered") {
-    const refId = `${sectionId}.${token.start}`;
-    return getDisplayCommand(refId, token);
-  }
-  if (token.type === "transition") {
-    const refId = `${sectionId}.${token.start}`;
-    return getDisplayCommand(refId, token);
-  }
-  if (token.type === "scene") {
-    const refId = `${sectionId}.${token.start}`;
-    return getDisplayCommand(refId, token);
+    return getDisplayCommand(token, sectionId, assets);
   }
 
   return null;

@@ -1,5 +1,6 @@
 import { FountainTitleKeyword } from "./FountainTitleKeyword";
 
+export type FountainAssetType = "image" | "audio" | "text" | "video";
 export type FountainLogicType =
   | "declare"
   | "assign"
@@ -13,10 +14,10 @@ export type FountainChoiceType = "choice";
 
 export type FountainSectionType = "section";
 export type FountainSceneType = "scene";
-export type FountainDialogueType =
+export type FountainDialogueType = "dialogue";
+export type FountainPositionType =
   | "dialogue_begin"
   | "character"
-  | "dialogue"
   | "parenthetical";
 
 export type FountainOtherType =
@@ -39,6 +40,7 @@ export type FountainOtherType =
   | FountainTitleKeyword;
 
 export type FountainTokenType =
+  | FountainAssetType
   | FountainLogicType
   | FountainGoType
   | FountainJumpType
@@ -47,4 +49,5 @@ export type FountainTokenType =
   | FountainSectionType
   | FountainSceneType
   | FountainDialogueType
+  | FountainPositionType
   | FountainOtherType;

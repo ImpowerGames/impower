@@ -1,4 +1,5 @@
 export interface FountainVariable {
-  id: string;
+  line: number;
   type: "string" | "number";
+  value: string | number;
 }

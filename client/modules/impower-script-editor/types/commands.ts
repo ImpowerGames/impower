@@ -17,7 +17,7 @@ function nodeStart(node: SyntaxNode, doc: Text) {
   return doc.sliceString(node.from, node.from + 50);
 }
 
-function getContext(node: SyntaxNode, line: string, doc: Text) {
+function getContext(node: SyntaxNode, line: string, doc: Text): Context[] {
   const nodes = [];
   for (
     let cur: SyntaxNode | null = node;
@@ -28,7 +28,7 @@ function getContext(node: SyntaxNode, line: string, doc: Text) {
       nodes.push(cur);
     }
   }
-  const context = [];
+  const context: Context[] = [];
   let pos = 0;
   for (let i = nodes.length - 1; i >= 0; i -= 1) {
     const node = nodes[i];

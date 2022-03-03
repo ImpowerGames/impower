@@ -1,4 +1,5 @@
 export * from "./constants/fountainRegexes";
+export * from "./types/FountainAsset";
 export * from "./types/FountainParseResult";
 export * from "./types/FountainSection";
 export * from "./types/FountainTitleKeyword";

@@ -3,7 +3,6 @@ import { indentWithTab } from "@codemirror/commands";
 import { foldEffect, unfoldAll } from "@codemirror/fold";
 import { HighlightStyle } from "@codemirror/highlight";
 import { foldable, indentUnit } from "@codemirror/language";
-import { Diagnostic, linter } from "@codemirror/lint";
 import { panels } from "@codemirror/panel";
 import {
   closeSearchPanel,
@@ -20,10 +19,7 @@ import {
 import { tooltips } from "@codemirror/tooltip";
 import { keymap, PluginField, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import React, { useEffect, useRef } from "react";
-import {
-  FountainParseResult,
-  parseFountain,
-} from "../../impower-script-parser";
+import { FountainParseResult } from "../../impower-script-parser";
 import { fountain } from "../types/fountain";
 import { fountainLanguage, tags as t } from "../types/fountainLanguage";
 import { SearchPanel } from "./SearchPanel";
@@ -52,6 +48,7 @@ const colors = {
   section: "#FF81FF",
   sceneHeading: "#FF8080",
   transition: "#BEA3A3",
+  asset: "#9CDCFE",
   logic: "#00FF00",
   flow: "#FFFF00",
   titleKey: "#EFC090",
@@ -118,6 +115,7 @@ const myHighlightStyle = HighlightStyle.define([
   },
   { tag: t.pageBreak, color: colors.pageBreak },
   { tag: t.transition, color: colors.transition },
+  { tag: t.asset, color: colors.asset },
   { tag: t.logic, color: colors.logic },
   { tag: t.flow, color: colors.flow },
   {
@@ -264,13 +262,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   onSearchRef.current = onSearch;
 
   useEffect(() => {
-    const fountainParseLinter = (view: EditorView): Diagnostic[] => {
-      const result = parseFountain(view.state.doc.toString());
-      if (onParseRef.current) {
-        onParseRef.current(result);
-      }
-      return result.diagnostics || [];
-    };
     const onOpenSearchPanel = (view: EditorView): void => {
       const searchQuery = getSearchQuery(view.state);
       if (onSearchRef.current) {
@@ -302,8 +293,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           topContainer: topPanelsContainer,
           bottomContainer: bottomPanelsContainer,
         }),
-        fountain({ base: fountainLanguage }),
-        linter(fountainParseLinter, { delay: 10 }),
+        fountain({ base: fountainLanguage, onParse: onParseRef.current }),
         tooltips({ position: "absolute" }),
         myHighlightStyle,
         keymap.of([indentWithTab]),
@@ -343,6 +333,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
               color: "#FFFFFF99",
               margin: "0 4px",
               padding: "0 8px",
+            },
+            ".cm-completionIcon": {
+              paddingRight: "1.25em",
             },
           },
           { dark: true }

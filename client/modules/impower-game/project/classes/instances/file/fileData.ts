@@ -18,6 +18,8 @@ export interface FileData
 
 export const createFileData = (doc?: Partial<FileData>): FileData => {
   return {
+    pos: -1,
+    line: -1,
     reference: createFileReference(),
     name: "",
     storageKey: "",

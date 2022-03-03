@@ -10,6 +10,7 @@ import {
   addCodeText,
   getListIndent,
   inContext,
+  isAsset,
   isAssign,
   isBulletList,
   isCentered,
@@ -163,25 +164,107 @@ export const DefaultBlockParsers: {
     return true;
   },
 
-  Declare(cx, line) {
-    const size = isDeclare(line);
-    if (size < 0) {
+  Asset(cx, line) {
+    const match = isAsset(line);
+    if (!match) {
       return false;
     }
+    const mark = match[2];
+    const markSpace = match[3];
+    const name = match[4];
+    const nameSpace = match[5];
+    const operator = match[6];
+    const operatorSpace = match[7];
+    const value = match[8];
     const from = cx.lineStart + line.pos;
+    const els: Element[] = [];
+    let posFrom = from;
+    let posTo = posFrom + mark.length;
+    els.push(new Element(Type.AssetMark, posFrom, posTo));
+    posFrom = posTo + markSpace.length;
+    posTo = posFrom + name.length;
+    els.push(new Element(Type.AssetName, posFrom, posTo));
+    posFrom = posTo + nameSpace.length;
+    posTo = posFrom + operator.length;
+    els.push(new Element(Type.AssetOperator, posFrom, posTo));
+    posFrom = posTo + operatorSpace.length;
+    posTo = posFrom + value.length;
+    els.push(new Element(Type.AssetValue, posFrom, posTo));
+    cx.addNode(
+      cx.buffer.writeElements(els, -from).finish(Type.Asset, line.text.length),
+      from
+    );
     cx.nextLine();
-    cx.addNode(Type.Declare, from);
+    return true;
+  },
+
+  Declare(cx, line) {
+    const match = isDeclare(line);
+    if (!match) {
+      return false;
+    }
+    const mark = match[2];
+    const markSpace = match[3];
+    const name = match[4];
+    const nameSpace = match[5];
+    const operator = match[6];
+    const operatorSpace = match[7];
+    const value = match[8];
+    const from = cx.lineStart + line.pos;
+    const els: Element[] = [];
+    let posFrom = from;
+    let posTo = posFrom + mark.length;
+    els.push(new Element(Type.DeclareMark, posFrom, posTo));
+    posFrom = posTo + markSpace.length;
+    posTo = posFrom + name.length;
+    els.push(new Element(Type.DeclareName, posFrom, posTo));
+    posFrom = posTo + nameSpace.length;
+    posTo = posFrom + operator.length;
+    els.push(new Element(Type.DeclareOperator, posFrom, posTo));
+    posFrom = posTo + operatorSpace.length;
+    posTo = posFrom + value.length;
+    els.push(new Element(Type.DeclareValue, posFrom, posTo));
+    cx.addNode(
+      cx.buffer
+        .writeElements(els, -from)
+        .finish(Type.Declare, line.text.length),
+      from
+    );
+    cx.nextLine();
     return true;
   },
 
   Assign(cx, line) {
-    const size = isAssign(line);
-    if (size < 0) {
+    const match = isAssign(line);
+    if (!match) {
       return false;
     }
+    const mark = match[2];
+    const markSpace = match[3];
+    const name = match[4];
+    const nameSpace = match[5];
+    const operator = match[6];
+    const operatorSpace = match[7];
+    const value = match[8];
     const from = cx.lineStart + line.pos;
+    const els: Element[] = [];
+    let posFrom = from;
+    let posTo = posFrom + mark.length;
+    els.push(new Element(Type.AssignMark, posFrom, posTo));
+    posFrom = posTo + markSpace.length;
+    posTo = posFrom + name.length;
+    els.push(new Element(Type.AssignName, posFrom, posTo));
+    posFrom = posTo + nameSpace.length;
+    posTo = posFrom + operator.length;
+    els.push(new Element(Type.AssignOperator, posFrom, posTo));
+    posFrom = posTo + operatorSpace.length;
+    posTo = posFrom + value.length;
+    els.push(new Element(Type.AssignValue, posFrom, posTo));
+    cx.addNode(
+      cx.buffer.writeElements(els, -from).finish(Type.Assign, line.text.length),
+      from
+    );
     cx.nextLine();
-    cx.addNode(Type.Assign, from);
     return true;
   },
 

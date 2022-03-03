@@ -1,18 +1,26 @@
-import { FountainToken } from "../../../impower-script-parser";
+import {
+  FountainToken,
+  FountainVariable,
+} from "../../../impower-script-parser";
 import { createVariableData, VariableData } from "../../data";
 import { getRuntimeVariableReference } from "./getRuntimeVariableReference";
 
-export const getRuntimeVariable = (token: FountainToken): VariableData => {
+export const getRuntimeVariable = (
+  token: FountainToken,
+  sectionId = "",
+  variables: Record<string, FountainVariable>
+): VariableData => {
   if (token.type === "declare") {
-    const refId = token?.variable?.id;
-    const name = refId.split(".").slice(-1).join(".");
-    const value = token?.value;
     return createVariableData({
-      reference: getRuntimeVariableReference(token.variable),
+      reference: getRuntimeVariableReference(
+        token.variable,
+        sectionId,
+        variables
+      ),
       pos: token.start,
       line: token.line,
-      name,
-      value,
+      name: token.variable,
+      value: token?.value,
     });
   }
 

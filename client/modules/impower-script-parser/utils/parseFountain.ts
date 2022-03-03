@@ -3,13 +3,10 @@
 /* eslint-disable no-continue */
 import { fountainRegexes } from "../constants/fountainRegexes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
+import { FountainAsset } from "../types/FountainAsset";
 import { FountainParseResult } from "../types/FountainParseResult";
 import { FountainSection } from "../types/FountainSection";
-import {
-  FountainDialogueToken,
-  FountainLogicToken,
-  FountainToken,
-} from "../types/FountainToken";
+import { FountainLogicToken, FountainToken } from "../types/FountainToken";
 import { FountainTokenType } from "../types/FountainTokenType";
 import { FountainVariable } from "../types/FountainVariable";
 import { createFountainToken } from "./createFountainToken";
@@ -50,9 +47,11 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
   let cacheStateForComment;
   let nestedComments = 0;
   let titlePageStarted = false;
-  let previousToken: FountainToken;
   let previousTriggerToken: FountainLogicToken;
-  let previousCharacterToken: FountainDialogueToken;
+  let previousCharacter: string;
+  let previousPortrait: string;
+  let previousParenthetical: string;
+  let notes: string[] = [];
 
   const diagnostic = (
     currentToken: FountainToken,
@@ -133,37 +132,33 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       );
     }
     result.sections[id] = section;
+    if (!result.sectionLines) {
+      result.sectionLines = {};
+    }
+    result.sectionLines[section.line] = id;
   };
 
-  const addVariable = (
+  const getAsset = (
+    type: "image" | "audio" | "video" | "text",
     name: string,
-    type: "string" | "number",
-    line: number,
-    match: string[],
-    index: number
-  ): void => {
-    const id = getGlobalId(name);
-    if (!result.variables) {
-      result.variables = {};
+    match?: string[],
+    index?: number
+  ): FountainAsset => {
+    const asset =
+      result.assets?.[type]?.[getGlobalId(name)] ||
+      result.assets?.[type]?.[getGlobalId(name, "")];
+    if (asset) {
+      const copy = { ...asset };
+      delete copy.line;
+      return copy;
     }
-    const existingVariable = result.variables[id];
-    if (existingVariable) {
-      diagnostic(
-        currentToken,
-        `A ${
-          currentSectionId ? "local" : "global"
-        } variable named '${name}' already exists at line ${
-          existingVariable.line + 1
-        }`,
-        getStart(match, index),
-        getLength(match, index)
-      );
-    }
-    result.variables[id] = {
-      id,
-      type,
-      line,
-    };
+    diagnostic(
+      currentToken,
+      `Could not find ${type} named '${name}'`,
+      getStart(match, index),
+      getLength(match, index)
+    );
+    return null;
   };
 
   const getVariable = (
@@ -188,11 +183,125 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
     return null;
   };
 
-  const getValue = (
+  const addAsset = (
+    type: "image" | "audio" | "video" | "text",
+    name: string,
+    value: string | { name: string },
+    line: number,
+    match: string[],
+    index: number
+  ): void => {
+    const id = getGlobalId(name);
+    if (!result.assets) {
+      result.assets = {};
+    }
+    if (!result.assets[type]) {
+      result.assets[type] = {};
+    }
+    const existingAsset = result.assets?.[type]?.[id];
+    if (existingAsset) {
+      diagnostic(
+        currentToken,
+        `A ${
+          currentSectionId ? "local" : "global"
+        } asset named '${name}' already exists at line ${
+          existingAsset.line + 1
+        }`,
+        getStart(match, index),
+        getLength(match, index)
+      );
+    }
+    const resolvedValue =
+      typeof value === "string"
+        ? value
+        : getAsset(type, value?.name, match, index)?.value;
+    const asset = {
+      line,
+      value: resolvedValue,
+      type,
+    };
+    result.assets[type][id] = asset;
+    const parentId = id.split(".").slice(0, -1).join(".") || "";
+    const parent = result.sections[parentId];
+    if (parent) {
+      if (!parent.assets) {
+        parent.assets = {};
+      }
+      if (!parent.assets[type]) {
+        parent.assets[type] = {};
+      }
+      parent.assets[type][id] = asset;
+    }
+  };
+
+  const addVariable = (
+    name: string,
+    value: string | number | { name: string },
+    line: number,
+    match: string[],
+    index: number
+  ): void => {
+    const type = typeof value as "string" | "number";
+    const id = getGlobalId(name);
+    if (!result.variables) {
+      result.variables = {};
+    }
+    const existingVariable = result.variables[id];
+    if (existingVariable) {
+      diagnostic(
+        currentToken,
+        `A ${
+          currentSectionId ? "local" : "global"
+        } variable named '${name}' already exists at line ${
+          existingVariable.line + 1
+        }`,
+        getStart(match, index),
+        getLength(match, index)
+      );
+    }
+    const resolvedValue =
+      typeof value === "string" || typeof value === "number"
+        ? value
+        : getVariable(value?.name, match, index)?.value;
+    const variable = {
+      line,
+      type,
+      value: resolvedValue,
+    };
+    result.variables[id] = variable;
+    const parentId = id.split(".").slice(0, -1).join(".") || "";
+    const parent = result.sections[parentId];
+    if (parent) {
+      if (!parent.variables) {
+        parent.variables = {};
+      }
+      parent.variables[id] = variable;
+    }
+  };
+
+  const getAssetValue = (
+    type: "image" | "audio" | "video" | "text",
     content: string,
     match?: string[],
     index?: number
-  ): string | number | FountainVariable => {
+  ): string | { name: string } => {
+    if (content.match(fountainRegexes.string)) {
+      return content.slice(1, -1);
+    }
+    const asset = getAsset(type, content, match, index);
+    if (asset) {
+      return {
+        name: content,
+      };
+    }
+    return undefined;
+  };
+
+  const getVariableValue = (
+    content: string,
+    match?: string[],
+    index?: number
+  ): string | number | { name: string } => {
     if (content.match(fountainRegexes.string)) {
       return content.slice(1, -1);
     }
@@ -200,7 +309,13 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
     if (!Number.isNaN(numValue)) {
       return numValue;
     }
-    return getVariable(content, match, index);
+    const variable = getVariable(content, match, index);
+    if (variable) {
+      return {
+        name: content,
+      };
+    }
+    return undefined;
   };
 
   const getParameterNames = (match: string[], groupIndex: number): string[] => {
@@ -222,9 +337,8 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       if (!declaration.match(fountainRegexes.separator)) {
         const [nameString, valueString] = declaration.split("=");
         const name = nameString.trim();
-        const value = getValue(valueString.trim());
-        const type = typeof value as "string" | "number";
-        addVariable(name, type, currentToken.line, allMatches, i);
+        const value = getVariableValue(valueString.trim());
+        addVariable(name, value, currentToken.line, allMatches, i);
         result.push(declaration);
       }
     }
@@ -234,7 +348,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
   const getParameterValues = (
     match: string[],
     groupIndex: number
-  ): (string | number | FountainVariable)[] => {
+  ): (string | number | { name: string })[] => {
     if (!match) {
       return [];
     }
@@ -245,11 +359,11 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
     }
     const allMatches = [...match];
     allMatches.splice(groupIndex, 1, ...parameterMatches);
-    const result: (string | number | FountainVariable)[] = [];
+    const result: (string | number | { name: string })[] = [];
     for (let i = groupIndex; i < groupIndex + parameterMatches.length; i += 1) {
       const value = allMatches[i];
       if (!value.match(fountainRegexes.separator)) {
-        result.push(getValue(value, allMatches, i));
+        result.push(getVariableValue(value, allMatches, i));
       }
     }
     return result;
@@ -264,6 +378,29 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
     currentSectionTokens.push(token);
   };
 
+  const pushNotes = (): boolean => {
+    const str = currentToken.content;
+    const noteMatches = str.match(fountainRegexes.note_inline);
+    if (noteMatches) {
+      for (let i = 0; i < noteMatches.length; i += 1) {
+        const noteMatch = noteMatches[i].trim();
+        notes.push(noteMatch.slice(2, noteMatch.length - 2));
+      }
+      currentToken.text = str;
+      currentToken.content = str.replace(fountainRegexes.note_inline, "");
+    }
+    return noteMatches && str === noteMatches[0];
+  };
+
+  const saveAndClearNotes = (): boolean => {
+    const save = notes.length > 0;
+    if (save) {
+      currentToken.notes = [...notes];
+    }
+    notes = [];
+    return save;
+  };
+
   const reduceComment = (prev: string, current: string): string => {
     if (current === "/*") {
       nestedComments += 1;
@@ -273,24 +410,6 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       prev += current;
     }
     return prev;
-  };
-
-  const processDialogueBlock = (token: FountainToken): void => {
-    const textWithoutNotes = token.content.replace(
-      fountainRegexes.note_inline,
-      ""
-    );
-    token.content = textWithoutNotes;
-    if (token.content.trim().length === 0) {
-      token.ignore = true;
-    }
-  };
-
-  const processActionBlock = (token: FountainToken): void => {
-    token.content = token.content.replace(fountainRegexes.note_inline, "");
-    if (token.content.trim().length === 0) {
-      token.ignore = true;
-    }
   };
 
   let ignoredLastToken = false;
@@ -314,7 +433,6 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       state = cacheStateForComment;
     }
 
-    previousToken = currentToken;
     currentToken = createFountainToken(
       undefined,
       text,
@@ -400,7 +518,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         currentSectionTokens = [];
         addSection(currentSectionId, {
           start: currentToken.start,
-          line: currentToken.line,
+          line: 1,
           operator: "",
           name: "",
           tokens: currentSectionTokens,
@@ -412,6 +530,8 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         currentToken.type = "scene";
         if (currentToken.type === "scene") {
           currentToken.content = currentToken.content.replace(/^\./, "");
+          pushNotes();
+          saveAndClearNotes();
           currentToken.scene = sceneNumber;
           const match = currentToken.content.match(
             fountainRegexes.scene_number
@@ -443,13 +563,19 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       ) {
         currentToken.type = "action";
         currentToken.content = currentToken.content.substring(1);
-        processActionBlock(currentToken);
+        pushNotes();
+        saveAndClearNotes();
+        notes = [];
       } else if (currentToken.content.match(fountainRegexes.centered)) {
         currentToken.type = "centered";
         currentToken.content = currentToken.content.replace(/>|</g, "").trim();
+        pushNotes();
+        saveAndClearNotes();
       } else if (currentToken.content.match(fountainRegexes.transition)) {
         currentToken.type = "transition";
         currentToken.content = currentToken.content.replace(/> ?/, "");
+        pushNotes();
+        saveAndClearNotes();
       } else if ((match = currentToken.content.match(fountainRegexes.go))) {
         currentToken.type = "go";
         if (currentToken.type === "go") {
@@ -474,6 +600,37 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
           currentToken.operator = match[2]?.trim();
           currentToken.content = match[3]?.trim() || "";
         }
+      } else if ((match = currentToken.content.match(fountainRegexes.asset))) {
+        currentToken.type = match[2]?.trim() as
+          | "image"
+          | "audio"
+          | "video"
+          | "text";
+        if (
+          currentToken.type === "image" ||
+          currentToken.type === "audio" ||
+          currentToken.type === "video" ||
+          currentToken.type === "text"
+        ) {
+          const image = match[4]?.trim() || "";
+          const content = match[8]?.trim() || "";
+          currentToken.content = content;
+          currentToken.value = getAssetValue(
+            currentToken.type,
+            content,
+            match,
+            8
+          );
+          const value = currentToken.value;
+          addAsset(
+            currentToken.type,
+            image,
+            value,
+            currentToken.line,
+            match,
+            4
+          );
+        }
       } else if (
         (match = currentToken.content.match(fountainRegexes.declare))
       ) {
@@ -482,17 +639,12 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
           const variable = match[4]?.trim() || "";
           const operator = match[6]?.trim() || "";
           const content = match[8]?.trim() || "";
+          currentToken.variable = variable;
           currentToken.operator = operator;
           currentToken.content = content;
-          currentToken.value = getValue(content, match, 8);
-          const name = variable;
-          const type = typeof currentToken.value as "string" | "number";
-          const id = getGlobalId(name);
-          currentToken.variable = {
-            id,
-            type,
-          };
-          addVariable(name, type, currentToken.line, match, 4);
+          currentToken.value = getVariableValue(content, match, 8);
+          const value = currentToken.value;
+          addVariable(variable, value, currentToken.line, match, 4);
         }
       } else if ((match = currentToken.content.match(fountainRegexes.assign))) {
         currentToken.type = "assign";
@@ -500,16 +652,13 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
           const variable = match[4]?.trim() || "";
           const operator = match[6]?.trim() || "";
           const content = match[8]?.trim() || "";
+          if (variable) {
+            getVariable(variable, match, 4);
+          }
+          currentToken.variable = variable;
           currentToken.operator = operator;
           currentToken.content = content;
-          currentToken.value = getValue(currentToken.content, match, 8);
-          const name = variable;
-          const type = typeof currentToken.value as "string" | "number";
-          const id = getVariable(name, match, 4)?.id;
-          currentToken.variable = {
-            id,
-            type,
-          };
+          currentToken.value = getVariableValue(currentToken.content, match, 8);
         }
       } else if (
         (match = currentToken.content.match(fountainRegexes.trigger))
@@ -536,11 +685,14 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
           const variable = match[4]?.trim() || "";
           const operator = match[6]?.trim() || "";
           const content = match[8]?.trim() || "";
+          if (variable) {
+            getVariable(variable, match, 4);
+          }
           currentToken.indent = indent.length;
-          currentToken.variable = getVariable(variable, match, 4);
+          currentToken.variable = variable;
           currentToken.operator = operator;
           currentToken.content = content;
-          currentToken.value = getValue(content, match, 8);
+          currentToken.value = getVariableValue(content, match, 8);
           if (
             (previousTriggerToken?.type === "trigger_group_begin" ||
               previousTriggerToken?.type === "compare") &&
@@ -610,6 +762,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         // If the trimmed length is larger than zero, then it will be accepted as dialogue regardless
         state = "dialogue";
         currentToken.type = "character";
+        pushNotes();
         if (currentToken.type === "character") {
           currentToken.content = trimCharacterForceSymbol(currentToken.content);
           if (currentToken.content[currentToken.content.length - 1] === "^") {
@@ -622,7 +775,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
               lastCharacterToken.type === "parenthetical" ||
               lastCharacterToken.type === "dialogue"
             ) {
-              lastCharacterToken.dual = "left";
+              lastCharacterToken.position = "left";
               index += 1;
               lastCharacterToken = result.scriptTokens[index];
             }
@@ -654,7 +807,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
               }
             }
             dualRight = true;
-            currentToken.dual = "right";
+            currentToken.position = "right";
             currentToken.content = currentToken.content.replace(/\^$/, "");
           } else {
             pushToken(createFountainToken("dialogue_begin"));
@@ -675,57 +828,51 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
             }
             result.properties.characters[character] = [sceneNumber];
           }
-          currentToken.character = currentToken.content;
-          previousCharacterToken = currentToken;
+          previousCharacter = currentToken.content;
           lastCharacterIndex = result.scriptTokens.length;
         }
       } else {
-        currentToken.type = "action";
-        processActionBlock(currentToken);
+        currentToken.type = pushNotes() ? "note" : "action";
+        saveAndClearNotes();
+        notes = [];
       }
     } else {
-      if (currentToken.content.match(fountainRegexes.parenthetical)) {
-        currentToken.type = "parenthetical";
-        if (currentToken.type === "parenthetical") {
-          if (previousCharacterToken) {
-            currentToken.character = previousCharacterToken.content;
-          }
-          currentToken.parenthetical = currentToken.content;
-
-          if (previousToken.type === "character") {
-            previousToken.parenthetical = currentToken.content;
-          }
+      if ((match = currentToken.content?.trim()?.match(fountainRegexes.note))) {
+        currentToken.type = "note";
+        const note = match[3];
+        currentToken.content = note;
+        if (note) {
+          getAsset("image", note, match, 3);
         }
+        previousPortrait = note;
+      } else if (currentToken.content.match(fountainRegexes.parenthetical)) {
+        pushNotes();
+        currentToken.type = "parenthetical";
+        previousParenthetical = currentToken.content;
       } else {
+        pushNotes();
         currentToken.type = "dialogue";
         if (currentToken.type === "dialogue") {
-          if (previousCharacterToken) {
-            currentToken.character = previousCharacterToken.content;
+          if (previousCharacter) {
+            currentToken.character = previousCharacter;
           }
-          if (previousToken.type === "parenthetical") {
-            currentToken.parenthetical = previousToken.content;
+          if (previousPortrait) {
+            currentToken.portrait = previousPortrait;
           }
-          currentToken.dialogue = currentToken.content;
-
-          if (previousCharacterToken) {
-            previousCharacterToken.dialogue =
-              previousCharacterToken.dialogue || currentToken.content;
+          if (previousParenthetical) {
+            currentToken.parenthetical = previousParenthetical;
           }
-          if (previousToken.type === "character") {
-            previousToken.dialogue = currentToken.content;
-          }
-          if (previousToken.type === "parenthetical") {
-            previousToken.dialogue = currentToken.content;
-          }
-          processDialogueBlock(currentToken);
         }
+        previousPortrait = null;
+        previousParenthetical = null;
+        saveAndClearNotes();
       }
       if (dualRight) {
         if (currentToken.type === "parenthetical") {
-          currentToken.dual = "right";
+          currentToken.position = "right";
         }
         if (currentToken.type === "dialogue") {
-          currentToken.dual = "right";
+          currentToken.position = "right";
         }
       }
     }
@@ -765,13 +912,17 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
   }
 
   if (state === "dialogue") {
-    previousCharacterToken = undefined;
     pushToken(createFountainToken("dialogue_end"));
+    previousCharacter = null;
+    previousPortrait = null;
+    previousParenthetical = null;
   }
 
   if (state === "dual_dialogue") {
-    previousCharacterToken = undefined;
     pushToken(createFountainToken("dual_dialogue_end"));
+    previousCharacter = null;
+    previousPortrait = null;
+    previousParenthetical = null;
   }
 
   // tidy up separators

@@ -123,7 +123,7 @@ const PlaybackControls = React.memo(
     const theme = useTheme();
 
     return (
-      <StyledPlaybackControls className={StyledPlaybackControls.displayName}>
+      <StyledPlaybackControls>
         <IconButton onClick={onSkipBackward}>
           <FontIcon
             aria-label="Skip Backward"
@@ -326,8 +326,12 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   const title = layout === Layout.Page ? "Page Preview" : "Game Preview";
 
   return (
-    <StyledToolbar className={StyledToolbar.displayName}>
-      <StyledLeftArea className={StyledLeftArea.displayName}>
+    <StyledToolbar
+      style={{
+        backgroundColor: mode === Mode.Test ? "black" : undefined,
+      }}
+    >
+      <StyledLeftArea>
         {isPlayable && windowType !== WindowType.Test && (
           <IconButton
             onClick={(): void =>
@@ -335,7 +339,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
             }
             style={{ color: theme.colors.white40 }}
           >
-            <StyledButtonContent className={StyledButtonContent.displayName}>
+            <StyledButtonContent>
               <FontIcon
                 aria-label={modeTooltip}
                 size={theme.fontSize.smallerIcon}
@@ -346,9 +350,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
                   <TrianglePersonDiggingRegularIcon />
                 )}
               </FontIcon>
-              <StyledButtonTypography
-                className={StyledButtonTypography.displayName}
-              >
+              <StyledButtonTypography>
                 {mode === Mode.Edit ? "TEST" : "EDIT"}
               </StyledButtonTypography>
             </StyledButtonContent>
@@ -369,9 +371,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
         )}
       </StyledLeftArea>
       {mode === Mode.Edit && (
-        <StyledTitleTypography className={StyledTitleTypography.displayName}>
-          {title}
-        </StyledTitleTypography>
+        <StyledTitleTypography>{title}</StyledTitleTypography>
       )}
       {mode === Mode.Test && (
         <PlaybackControls
@@ -386,7 +386,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
           onSkipForward={handleSkipForward}
         />
       )}
-      <StyledRightArea className={StyledRightArea.displayName}>
+      <StyledRightArea>
         {mode === Mode.Edit && <UndoRedoControl />}
         {menuItemKeys?.length > 0 && (
           <>

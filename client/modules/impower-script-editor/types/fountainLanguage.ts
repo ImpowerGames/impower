@@ -20,6 +20,7 @@ export const tags = {
   sceneHeading: t.propertyName,
   sceneNumber: t.number,
   transition: t.controlKeyword,
+  asset: t.definitionOperator,
   logic: t.logicOperator,
   flow: t.controlOperator,
   character: t.className,
@@ -87,7 +88,9 @@ const commonmark = baseParser.configure({
       "SceneHeadingMark ": tags.sceneHeadingMark,
       "SceneNumber/...": tags.sceneNumber,
       "Transition/...": tags.transition,
-      "Declare Assign Compare Trigger": tags.logic,
+      "Asset AssetMark AssetName AssetOperator AssetValue": tags.asset,
+      "Declare DeclareMark DeclareName DeclareOperator DeclareValue Assign AssignMark AssignName AssignOperator AssignValue Compare Trigger":
+        tags.logic,
       "Go Jump Return": tags.flow,
       "Character/...": tags.character,
       "Parenthetical/...": tags.parenthetical,

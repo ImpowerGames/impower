@@ -1,3 +1,4 @@
+import { FountainAssetType } from "..";
 import { FountainLine } from "./FountainLine";
 import {
   FountainChoiceType,
@@ -6,36 +7,42 @@ import {
   FountainJumpType,
   FountainLogicType,
   FountainOtherType,
+  FountainPositionType,
   FountainReturnType,
   FountainSceneType,
   FountainSectionType,
 } from "./FountainTokenType";
-import { FountainVariable } from "./FountainVariable";
+
+export interface FountainAssetToken extends FountainLine {
+  type: FountainAssetType;
+  asset: string;
+  value: string | { name: string };
+}
 
 export interface FountainLogicToken extends FountainLine {
   type: FountainLogicType;
   indent: number;
-  variable: FountainVariable;
+  variable: string;
   operator: string;
-  value: string | number | FountainVariable;
+  value: string | number | { name: string };
 }
 
 export interface FountainGoToken extends FountainLine {
   type: FountainGoType;
   operator: string;
-  values: (string | number | FountainVariable)[];
+  values: (string | number | { name: string })[];
 }
 
 export interface FountainJumpToken extends FountainLine {
   type: FountainJumpType;
   operator: string;
-  values: (string | number | FountainVariable)[];
+  values: (string | number | { name: string })[];
 }
 
 export interface FountainReturnToken extends FountainLine {
   type: FountainReturnType;
   operator: string;
-  values: (string | number | FountainVariable)[];
+  values: (string | number | { name: string })[];
 }
 
 export interface FountainChoiceToken extends FountainLine {
@@ -55,12 +62,17 @@ export interface FountainSceneToken extends FountainLine {
   scene: string | number;
 }
 
+export interface FountainPositionToken extends FountainLine {
+  type: FountainPositionType;
+  position: "left" | "right";
+}
+
 export interface FountainDialogueToken extends FountainLine {
   type: FountainDialogueType;
   character: string;
   parenthetical: string;
-  dialogue: string;
-  dual: "left" | "right";
+  portrait: string;
+  position: "left" | "right";
 }
 
 export interface FountainOtherToken extends FountainLine {
@@ -68,6 +80,7 @@ export interface FountainOtherToken extends FountainLine {
 }
 
 export type FountainToken =
+  | FountainAssetToken
   | FountainLogicToken
   | FountainGoToken
   | FountainJumpToken
@@ -75,5 +88,6 @@ export type FountainToken =
   | FountainChoiceToken
   | FountainSectionToken
   | FountainSceneToken
+  | FountainPositionToken
   | FountainDialogueToken
   | FountainOtherToken;

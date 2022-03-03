@@ -8,6 +8,14 @@ import { executeDisplayCommand } from "./executeDisplayCommand";
 export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
   down = false;
 
+  getVariableIds(data: DisplayCommandData): string[] {
+    const ids = [];
+    if (data.portrait) {
+      ids.push(data.portrait);
+    }
+    return [...super.getVariableIds(data), ...ids];
+  }
+
   onExecute(
     data: DisplayCommandData,
     variables: { [refId: string]: VariableData },

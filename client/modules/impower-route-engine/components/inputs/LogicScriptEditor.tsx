@@ -241,10 +241,33 @@ const LogicScriptEditor = React.memo(
     const handlePreviewResult = useCallback(
       (result: FountainParseResult, line: number) => {
         if (line != null) {
-          const tokenIndex = result.scriptLines[line];
-          const token = result.scriptTokens[tokenIndex];
+          let tokenIndex = result.scriptLines[line];
+          let token = result.scriptTokens[tokenIndex];
           if (token) {
-            const runtimeCommand = getRuntimeCommand(token);
+            const skip = ["character", "note", "parenthetical"];
+            while (
+              tokenIndex < result.scriptTokens.length &&
+              skip.includes(token.type)
+            ) {
+              tokenIndex += 1;
+              token = result.scriptTokens[tokenIndex];
+            }
+            const sectionEntries = Object.entries(result.sections || {});
+            let sectionId = "";
+            for (let i = 0; i < sectionEntries.length; i += 1) {
+              const [id, section] = sectionEntries[i];
+              if (section.line <= line) {
+                sectionId = id;
+              } else {
+                break;
+              }
+            }
+            const runtimeCommand = getRuntimeCommand(
+              token,
+              sectionId,
+              result.variables,
+              result.assets
+            );
             if (runtimeCommand) {
               const commandInspector = gameInspector.getInspector(
                 runtimeCommand.reference

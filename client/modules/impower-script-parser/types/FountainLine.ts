@@ -3,6 +3,8 @@ import { FountainTokenType } from "./FountainTokenType";
 export interface FountainLine {
   type: FountainTokenType;
   content?: string;
+  text?: string;
+  notes: string[];
 
   line?: number;
   level?: number;

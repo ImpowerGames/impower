@@ -1,10 +1,13 @@
 import { VariableData } from "../../project/classes/instances/items/variable/variableData";
 
 export const getVariableValue = <T>(
-  variableId: string,
-  variables: { [refId: string]: VariableData }
+  variables: { [refId: string]: VariableData },
+  variableName: string,
+  blockId?: string
 ): T | undefined => {
-  const data = variables[variableId];
+  const data =
+    variables[`${blockId || ""}.${variableName}`] ||
+    variables[`.${variableName}`];
   if (data) {
     return data.value as T;
   }

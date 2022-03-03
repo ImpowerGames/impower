@@ -1,5 +1,5 @@
 import { useTheme } from "@emotion/react";
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
 import { layout } from "../../../impower-route/styles/layout";
@@ -68,6 +68,11 @@ const AssetsPanel = React.memo((): JSX.Element => {
   useBodyBackgroundColor(theme.colors.darkForeground);
   useHTMLBackgroundColor(theme.colors.darkForeground);
 
+  const fileDocs = useMemo(
+    () => projectState?.data?.instances?.files?.data || {},
+    [projectState?.data?.instances?.files?.data]
+  );
+
   return (
     <Panel
       panelType={PanelType.Assets}
@@ -78,7 +83,7 @@ const AssetsPanel = React.memo((): JSX.Element => {
         scrollParent={scrollParent}
         projectDoc={projectState?.data?.doc}
         projectId={projectState?.id}
-        fileDocs={projectState?.data?.instances?.files?.data}
+        fileDocs={fileDocs}
         folderDocs={projectState?.data?.instances?.folders?.data}
         selectedColor={selectedColor}
         fixedStyle={fixedStyle}

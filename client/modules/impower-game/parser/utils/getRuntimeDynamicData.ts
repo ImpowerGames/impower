@@ -3,18 +3,23 @@ import { DynamicData } from "../../data";
 import { getRuntimeVariableReference } from "./getRuntimeVariableReference";
 
 export const getRuntimeDynamicData = <T extends string | number>(
-  value: T | FountainVariable
+  value: T | { name: string },
+  sectionId: string,
+  variables: Record<string, FountainVariable>
 ): DynamicData<T> => {
-  const constant =
+  const variableReference =
     typeof value === "string" || typeof value === "number"
-      ? value
-      : value?.type === "number"
+      ? undefined
+      : getRuntimeVariableReference(value?.name, sectionId, variables);
+  const constant =
+    typeof value === "number" ||
+    variableReference?.refTypeId === "NumberVariable"
       ? 0
       : "";
   const dynamic =
     typeof value === "string" || typeof value === "number"
       ? null
-      : getRuntimeVariableReference(value);
+      : variableReference;
   return {
     constant: constant as T,
     dynamic,

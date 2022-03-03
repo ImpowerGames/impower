@@ -1,13 +1,20 @@
+import { EditorView } from "@codemirror/basic-setup";
 import { html } from "@codemirror/lang-html";
 import {
   Language,
   LanguageDescription,
   LanguageSupport,
 } from "@codemirror/language";
+import { Diagnostic, linter } from "@codemirror/lint";
 import { Prec } from "@codemirror/state";
 import { KeyBinding, keymap } from "@codemirror/view";
+import {
+  FountainParseResult,
+  parseFountain,
+} from "../../impower-script-parser";
 import { MarkdownParser } from "../classes/MarkdownParser";
 import { parseCode } from "../utils/nest";
+import { autocomplete } from "./autocomplete";
 import { deleteMarkupBackward, insertNewlineContinueMarkup } from "./commands";
 import {
   commonmarkLanguage,
@@ -56,6 +63,8 @@ export function fountain(
     /// The base language to use. Defaults to
     /// [`commonmarkLanguage`](#lang-markdown.commonmarkLanguage).
     base?: Language;
+    /// Callback to execute when doc is parsed
+    onParse?: (result: FountainParseResult) => void;
   } = {}
 ): LanguageSupport {
   const {
@@ -63,13 +72,29 @@ export function fountain(
     defaultCodeLanguage,
     addKeymap = true,
     base: { parser } = commonmarkLanguage,
+    onParse,
   } = config;
-  if (!(parser instanceof MarkdownParser))
+  if (!(parser instanceof MarkdownParser)) {
     throw new RangeError(
       "Base parser provided to `markdown` should be a Markdown parser"
     );
+  }
+  const parseContext: { result: FountainParseResult } = { result: undefined };
+  const fountainParseLinter = (view: EditorView): Diagnostic[] => {
+    parseContext.result = parseFountain(view.state.doc.toString());
+    if (onParse) {
+      onParse(parseContext.result);
+    }
+    return parseContext.result.diagnostics || [];
+  };
   const extensions = config.extensions ? [config.extensions] : [];
-  const support = [htmlNoMatch.support];
+  const support = [
+    htmlNoMatch.support,
+    fountainLanguage.data.of({
+      autocomplete: (c) => autocomplete(c, parseContext),
+    }),
+    linter(fountainParseLinter, { delay: 10 }),
+  ];
   let defaultCode;
   if (defaultCodeLanguage instanceof LanguageSupport) {
     support.push(defaultCodeLanguage.support);
@@ -84,6 +109,7 @@ export function fountain(
   extensions.push(
     parseCode({ codeParser, htmlParser: htmlNoMatch.language.parser })
   );
+
   if (addKeymap) support.push(Prec.high(keymap.of(markdownKeymap)));
   return new LanguageSupport(mkLang(parser.configure(extensions)), support);
 }

@@ -22,6 +22,9 @@ export const DefaultSkipMarkup: {
   [Type.Return](_bl, _cx, _line) {
     return false;
   },
+  [Type.Asset](_bl, _cx, _line) {
+    return false;
+  },
   [Type.Declare](_bl, _cx, _line) {
     return false;
   },

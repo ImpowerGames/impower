@@ -446,6 +446,9 @@ const FilesConsoleContent = (
         const contentType = getFileContentType(ext);
         const currentDoc: FileData = docsByPath?.[filePath] as FileData;
         const fileName = currentDoc?.fileName || file.name;
+        const name =
+          currentDoc?.name ||
+          file.name.slice(0, file.name.length - ext.length + 1);
         const fileType = contentType;
         const fileExtension = ext;
         const newDoc = createFileData({
@@ -453,6 +456,7 @@ const FilesConsoleContent = (
           fileExtension,
           fileName,
           size: file.size,
+          name,
         });
         return {
           file,

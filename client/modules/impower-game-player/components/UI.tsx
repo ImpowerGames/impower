@@ -248,6 +248,7 @@ const UI = (props: UIProps): JSX.Element => {
             )
         )}
         <div
+          id="impower-ui-display"
           style={{
             position: "absolute",
             top: 0,
@@ -256,15 +257,35 @@ const UI = (props: UIProps): JSX.Element => {
             left: 0,
             display: "flex",
             flexDirection: "column",
+            backgroundColor: "white",
           }}
         >
-          <div style={{ flex: 7 }}></div>
+          <div
+            className="portrait"
+            style={{
+              position: "absolute",
+              top: "10%",
+              right: 0,
+              bottom: "10%",
+              left: 0,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          />
           <div
             style={{
+              position: "relative",
+              flex: 7,
+            }}
+          />
+          <div
+            style={{
+              position: "relative",
               flex: 3,
               display: "flex",
               flexDirection: "column",
               backgroundColor: "white",
+              boxShadow: "0 -2px 4px 0 #00000080",
             }}
           >
             <div
@@ -280,7 +301,6 @@ const UI = (props: UIProps): JSX.Element => {
               }}
             >
               <div
-                id="impower-ui-display"
                 style={{
                   flex: 1,
                   display: "flex",

@@ -236,26 +236,27 @@ export function isReturn(line: Line): number {
   return line.text.length;
 }
 
-export function isDeclare(line: Line): number {
-  const charCode = "v".charCodeAt(0);
-  if (line.next !== charCode) {
-    return -1;
+export function isAsset(line: Line): RegExpMatchArray {
+  if (!["i", "a", "v", "t"].map((x) => x.charCodeAt(0)).includes(line.next)) {
+    return null;
   }
-  if (!line.text.trim().match(fountainRegexes.declare)) {
-    return -1;
-  }
-  return line.text.length;
+  return line.text.trim().match(fountainRegexes.asset);
 }
 
-export function isAssign(line: Line): number {
+export function isDeclare(line: Line): RegExpMatchArray {
+  const charCode = "v".charCodeAt(0);
+  if (line.next !== charCode) {
+    return null;
+  }
+  return line.text.trim().match(fountainRegexes.declare);
+}
+
+export function isAssign(line: Line): RegExpMatchArray {
   const charCode = "~".charCodeAt(0);
   if (line.next !== charCode) {
-    return -1;
+    return null;
   }
-  if (!line.text.trim().match(fountainRegexes.assign)) {
-    return -1;
-  }
-  return line.text.length;
+  return line.text.trim().match(fountainRegexes.assign);
 }
 
 export function isCompare(line: Line): number {

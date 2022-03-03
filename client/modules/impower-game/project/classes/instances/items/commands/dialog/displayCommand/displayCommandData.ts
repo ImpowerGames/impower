@@ -7,6 +7,7 @@ export interface DisplayCommandData extends CommandData<"DisplayCommand"> {
   type: DisplayType;
   position: DisplayPosition;
   character: string;
+  portrait: string;
   parenthetical: string;
   content: string;
   voice: AudioFileReference;

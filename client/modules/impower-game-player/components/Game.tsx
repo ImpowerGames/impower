@@ -26,18 +26,21 @@ const createGame = (
 ): ImpowerGame => {
   const script = project?.scripts?.logic?.data?.root;
   const result = parseFountain(script);
-  const sections = result?.sections || {};
-  const runtimeBlocks = getRuntimeBlocks(sections);
+  const runtimeBlocks = getRuntimeBlocks(
+    result?.sections,
+    result?.variables,
+    result?.assets
+  );
   const blockTree = getBlockTree(runtimeBlocks);
-  const sectionEntries = Object.entries(sections);
-  let defaultStartBlockId = sectionEntries[1]?.[0] || "";
-  for (let i = 1; i < sectionEntries.length; i += 1) {
-    const [id, section] = sectionEntries[i];
+  const blockEntries = Object.entries(runtimeBlocks);
+  let defaultStartBlockId = blockEntries[1]?.[0] || "";
+  for (let i = 1; i < blockEntries.length; i += 1) {
+    const [id, block] = blockEntries[i];
     if (id) {
-      if (section.line <= activeLine) {
-        defaultStartBlockId = id;
-      } else {
+      if (block.line > activeLine) {
         break;
+      } else {
+        defaultStartBlockId = id;
       }
     }
   }
@@ -46,10 +49,10 @@ const createGame = (
   for (let i = 1; i < startRuntimeBlock.commands.order.length; i += 1) {
     const commandId = startRuntimeBlock.commands.order[i];
     const command = startRuntimeBlock.commands.data[commandId];
-    if (command.line <= activeLine) {
-      defaultStartCommandIndex = i;
-    } else {
+    if (command.line > activeLine) {
       break;
+    } else {
+      defaultStartCommandIndex = i;
     }
   }
 
@@ -168,7 +171,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
       }
       phaserGame.updateProject(project);
     }
-  }, [project, runner]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (active) {

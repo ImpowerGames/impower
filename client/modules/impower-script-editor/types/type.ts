@@ -31,10 +31,20 @@ export enum Type {
   Go,
   Jump,
   Return,
+  Asset,
   Declare,
   Assign,
   Compare,
   Trigger,
+  AssetName,
+  AssetOperator,
+  AssetValue,
+  DeclareName,
+  DeclareOperator,
+  DeclareValue,
+  AssignName,
+  AssignOperator,
+  AssignValue,
 
   // Markdown Inline
   Escape,
@@ -84,4 +94,7 @@ export enum Type {
   LyricMark,
   UnderlineMark,
   TagMark,
+  AssetMark,
+  DeclareMark,
+  AssignMark,
 }

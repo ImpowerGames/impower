@@ -1,4 +1,7 @@
-import { FountainToken } from "../../../impower-script-parser";
+import {
+  FountainToken,
+  FountainVariable,
+} from "../../../impower-script-parser";
 import {
   CompareOperator,
   createTriggerData,
@@ -11,7 +14,8 @@ import { getRuntimeVariableReference } from "./getRuntimeVariableReference";
 
 export const getRuntimeTrigger = (
   token: FountainToken,
-  sectionId = ""
+  sectionId = "",
+  variables: Record<string, FountainVariable>
 ): TriggerData => {
   if (token.type === "trigger_group_begin") {
     const refId = `${sectionId}.${token.start}`;
@@ -40,9 +44,13 @@ export const getRuntimeTrigger = (
         pos: token.start,
         line: token.line,
       }),
-      variable: getRuntimeVariableReference(token.variable),
+      variable: getRuntimeVariableReference(
+        token.variable,
+        sectionId,
+        variables
+      ),
       operator: token.operator as CompareOperator,
-      value: getRuntimeDynamicData(token.value),
+      value: getRuntimeDynamicData(token.value, sectionId, variables),
     };
   }
   if (token.type === "trigger_group_end") {

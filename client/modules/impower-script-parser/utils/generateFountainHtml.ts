@@ -145,15 +145,15 @@ export const generateFountainHtml = (
         case "dialogue_begin":
           html.push(
             `<div class="dialogue${
-              currentToken.dual ? ` ${currentToken.dual}` : ""
+              currentToken.position ? ` ${currentToken.position}` : ""
             }">`
           );
           break;
 
         case "character":
-          if (currentToken.dual === "left") {
+          if (currentToken.position === "left") {
             html.push('<div class="dialogue left">');
-          } else if (currentToken.dual === "right") {
+          } else if (currentToken.position === "right") {
             html.push('</div><div class="dialogue right">');
           }
 
