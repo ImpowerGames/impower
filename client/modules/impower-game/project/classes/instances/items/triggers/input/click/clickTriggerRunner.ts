@@ -1,4 +1,4 @@
-import { InputCondition, VariableData } from "../../../../../../../data";
+import { InputCondition, VariableValue } from "../../../../../../../data";
 import { PointerEventType } from "../../../../../../../data/enums/pointerEventType";
 import { ImpowerGame } from "../../../../../../../game";
 import { TriggerRunner } from "../../../trigger/triggerRunner";
@@ -13,7 +13,7 @@ export class ClickTriggerRunner extends TriggerRunner<ClickTriggerData> {
    */
   init(
     data: ClickTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): void {
     function handleEvent(event: MouseEvent | PointerEvent | TouchEvent): void {
@@ -130,7 +130,7 @@ export class ClickTriggerRunner extends TriggerRunner<ClickTriggerData> {
 
   shouldExecute(
     data: ClickTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const { parentContainerId } = data.reference;

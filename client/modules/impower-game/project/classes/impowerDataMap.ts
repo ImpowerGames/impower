@@ -8,7 +8,7 @@ import { CommandRunner } from "./instances/items/command/commandRunner";
 import { ElementData } from "./instances/items/element/elementData";
 import { TriggerData } from "./instances/items/trigger/triggerData";
 import { TriggerRunner } from "./instances/items/trigger/triggerRunner";
-import { VariableData } from "./instances/items/variable/variableData";
+import { VariableValue } from "./instances/items/variable/variableValue";
 import { GameProjectData } from "./project/gameProjectData";
 
 export class ImpowerDataMap {
@@ -18,7 +18,7 @@ export class ImpowerDataMap {
 
   private _elements: { [refId: string]: ElementData };
 
-  private _variables: { [refId: string]: VariableData };
+  private _variables: { [id: string]: VariableValue };
 
   private _blockTriggers: {
     [refId: string]: {
@@ -48,7 +48,7 @@ export class ImpowerDataMap {
     return this._elements;
   }
 
-  public get variables(): { [refId: string]: VariableData } {
+  public get variables(): { [id: string]: VariableValue } {
     return this._variables;
   }
 
@@ -75,11 +75,7 @@ export class ImpowerDataMap {
   constructor(project: GameProjectData, runner: ImpowerGameRunner) {
     const script = project?.scripts?.logic?.data?.root;
     const result = parseFountain(script);
-    const runtimeBlocks = getRuntimeBlocks(
-      result?.sections,
-      result?.variables,
-      result?.assets
-    );
+    const runtimeBlocks = getRuntimeBlocks(result?.sections, result?.variables);
     const runtimeFiles = project?.instances?.files?.data;
     const constructs: { [id: string]: ConstructData } = {};
 
@@ -93,7 +89,13 @@ export class ImpowerDataMap {
     Object.values(constructs).forEach((construct) => {
       this._constructs[construct.reference.refId] = construct;
       Object.values(construct.variables?.data || {}).forEach((variable) => {
-        this._variables[variable.reference.refId] = variable;
+        this._variables[variable.reference.refId] = {
+          type:
+            variable.reference.refTypeId === "NumberVariable"
+              ? "number"
+              : "string",
+          value: variable.value,
+        };
       });
       Object.values(construct.elements?.data || {}).forEach((element) => {
         this._elements[element.reference.refId] = element;
@@ -108,7 +110,13 @@ export class ImpowerDataMap {
         block.commands
       );
       Object.values(block.variables?.data || {}).forEach((variable) => {
-        this._variables[variable.reference.refId] = variable;
+        this._variables[variable.reference.refId] = {
+          type:
+            variable.reference.refTypeId === "NumberVariable"
+              ? "number"
+              : "string",
+          value: variable.value,
+        };
       });
     });
   }

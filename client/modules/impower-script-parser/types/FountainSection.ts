@@ -1,5 +1,7 @@
-import { FountainAsset, FountainVariable } from "..";
+import { FountainAsset } from "./FountainAsset";
+import { FountainTag } from "./FountainTag";
 import { FountainToken } from "./FountainToken";
+import { FountainVariable } from "./FountainVariable";
 
 export interface FountainSection {
   name?: string;
@@ -8,11 +10,7 @@ export interface FountainSection {
   operator?: string;
   tokens?: FountainToken[];
   children?: string[];
-  assets?: {
-    image?: Record<string, FountainAsset>;
-    video?: Record<string, FountainAsset>;
-    audio?: Record<string, FountainAsset>;
-    text?: Record<string, FountainAsset>;
-  };
   variables?: Record<string, FountainVariable>;
+  tags?: Record<string, FountainTag>;
+  assets?: Record<string, FountainAsset>;
 }

@@ -1,4 +1,4 @@
-import { CommandData, VariableData } from "../../../../../../../data";
+import { CommandData, VariableValue } from "../../../../../../../data";
 import { LoadableFile } from "../../../../../../../data/interfaces/loadableFile";
 import { ImpowerGame } from "../../../../../../../game";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
@@ -11,7 +11,7 @@ export class MoveToImageCommandRunner
 {
   getFileId(
     data: MoveToImageCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): string {
     return getRuntimeValue(data.image, variables, game).refId;
@@ -19,7 +19,7 @@ export class MoveToImageCommandRunner
 
   onExecute(
     data: MoveToImageCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {
@@ -49,7 +49,7 @@ export class MoveToImageCommandRunner
 
   isFinished(
     data: MoveToImageCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const duration = getRuntimeValue(data.transition.duration, variables, game);

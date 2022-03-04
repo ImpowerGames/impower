@@ -1,4 +1,4 @@
-import { TriggerData, VariableData } from "../../../../../../../data";
+import { TriggerData, VariableValue } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { TriggerRunner } from "../../../trigger/triggerRunner";
 
@@ -7,7 +7,7 @@ export class EnteredTriggerRunner extends TriggerRunner<
 > {
   shouldExecute(
     data: TriggerData<"EnteredTrigger">,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const { parentContainerId } = data.reference;

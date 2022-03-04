@@ -2,7 +2,7 @@ import {
   CommandData,
   IterationMode,
   SelectCommandData,
-  VariableData,
+  VariableValue,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { CommandRunner } from "../../../command/commandRunner";
@@ -14,7 +14,7 @@ export class SelectCommandRunner extends CommandRunner<SelectCommandData> {
 
   onExecute(
     data: SelectCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {

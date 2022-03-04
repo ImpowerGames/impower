@@ -1,4 +1,4 @@
-import { CommandData, VariableData } from "../../../../../../../data";
+import { CommandData, VariableValue } from "../../../../../../../data";
 import { LoadableFile } from "../../../../../../../data/interfaces/loadableFile";
 import { ImpowerGame } from "../../../../../../../game";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
@@ -11,7 +11,7 @@ export class PlayAudioCommandRunner
 {
   getFileId(
     data: PlayAudioCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): string {
     return getRuntimeValue(data.audio, variables, game).refId;
@@ -19,7 +19,7 @@ export class PlayAudioCommandRunner
 
   onExecute(
     data: PlayAudioCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {
@@ -47,7 +47,7 @@ export class PlayAudioCommandRunner
 
   isFinished(
     data: PlayAudioCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const duration = getRuntimeValue(data.transition.duration, variables, game);

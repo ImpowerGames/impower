@@ -5,13 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  ConstructData,
-  FillType,
-  UIElementData,
-} from "../../impower-game/data";
 import { PhaserGame } from "../types/game/phaserGame";
-import { ConstructComponent } from "./ConstructComponent";
 
 const responsiveBreakpoints: number[] = [400, 600, 960, 1280, 1920];
 const responsiveBaseFontSizes: Record<number, string> = {
@@ -40,24 +34,14 @@ interface UIProps {
   phaserGame: PhaserGame;
 }
 
-const UI = (props: UIProps): JSX.Element => {
+const UI = React.memo((props: UIProps): JSX.Element => {
   const { phaserGame } = props;
-
-  const [loadedConstructs, setLoadedConstructs] = useState<ConstructData[]>(
-    phaserGame.impowerGame
-      ? phaserGame.impowerGame.entity.state.loadedConstructs.map(
-          (id) => phaserGame.project?.instances?.constructs.data[id]
-        )
-      : []
-  );
 
   const [measureEl, setMeasureEl] = useState<HTMLElement>();
 
   const overlayRef = useRef<HTMLDivElement>();
   const paddingRef = useRef<HTMLDivElement>();
   const widthRef = useRef<HTMLDivElement>();
-
-  const impowerDataMap = useMemo(() => phaserGame.impowerDataMap, [phaserGame]);
 
   useEffect(() => {
     if (!measureEl) {
@@ -116,105 +100,16 @@ const UI = (props: UIProps): JSX.Element => {
     return undefined;
   }, [phaserGame]);
 
-  useEffect(() => {
-    // Clear the loadedConstructs from previous game runs
-    const onClearPreviousConstructs = (): void => {
-      if (phaserGame.impowerGame) {
-        setLoadedConstructs([]);
-      }
-    };
-
-    const onChangeLoadedConstructs = (): void => {
-      if (phaserGame.impowerGame) {
-        setLoadedConstructs(
-          phaserGame.impowerGame.entity.state.loadedConstructs.map(
-            (id) => phaserGame.project?.instances?.constructs.data[id]
-          )
-        );
-      }
-    };
-
-    const onSetElementImage = (data: {
-      imageRefId: string;
-      constructRefId: string;
-      elementRefId: string;
-    }): void => {
-      const { elementRefId, constructRefId, imageRefId } = data;
-
-      if (phaserGame.impowerGame) {
-        const element =
-          phaserGame.project?.instances?.constructs.data[constructRefId]
-            .elements.data[elementRefId];
-
-        const currentFill = (element as UIElementData).fill;
-        const newFill = {
-          ...currentFill,
-          value: {
-            ...currentFill.value,
-            type: FillType.Image,
-            image: {
-              ...currentFill.value.image,
-              refId: imageRefId,
-            },
-          },
-        };
-        const newConstruct = {
-          ...phaserGame.project?.instances?.constructs.data[constructRefId],
-          elements: {
-            ...phaserGame.project?.instances?.constructs.data[constructRefId]
-              .elements,
-            data: {
-              [elementRefId]: {
-                ...phaserGame.project?.instances?.constructs.data[
-                  constructRefId
-                ].elements.data[elementRefId],
-                fill: newFill,
-              },
-            },
-          },
-        };
-
-        setLoadedConstructs([newConstruct]);
-      }
-    };
-
-    if (phaserGame.impowerGame) {
-      phaserGame.impowerGame.entity.events.onLoadConstruct.addListener(
-        onChangeLoadedConstructs
-      );
-      phaserGame.impowerGame.entity.events.onSetElementImage.addListener(
-        onSetElementImage
-      );
-      phaserGame.impowerGame.entity.events.onUnloadConstruct.addListener(
-        onChangeLoadedConstructs
-      );
-      phaserGame.impowerGame.entity.events.onClearPreviousConstructs.addListener(
-        onClearPreviousConstructs
-      );
-    }
-    return (): void => {
-      if (phaserGame.impowerGame) {
-        phaserGame.impowerGame.entity.events.onLoadConstruct.removeListener(
-          onChangeLoadedConstructs
-        );
-        phaserGame.impowerGame.entity.events.onSetElementImage.removeListener(
-          onSetElementImage
-        );
-        phaserGame.impowerGame.entity.events.onUnloadConstruct.removeListener(
-          onChangeLoadedConstructs
-        );
-        phaserGame.impowerGame.entity.events.onClearPreviousConstructs.removeListener(
-          onClearPreviousConstructs
-        );
-      }
-    };
-  });
-
   const handleRef = useCallback((instance: HTMLElement) => {
     if (instance) {
       setMeasureEl(instance);
     }
   }, []);
+
+  const overlayStyle = useMemo(
+    () => ({ ...(phaserGame?.getUIStyle() || {}) }),
+    [phaserGame]
+  );
 
   return (
     <div
@@ -229,24 +124,7 @@ const UI = (props: UIProps): JSX.Element => {
         pointerEvents: "none",
       }}
     >
-      <div
-        ref={overlayRef}
-        id="ui-overlay"
-        style={{ ...phaserGame.getUIStyle() }}
-      >
-        {Object.values(loadedConstructs).map(
-          (construct) =>
-            phaserGame.impowerGame && (
-              <ConstructComponent
-                key={construct?.reference?.refId}
-                construct={construct}
-                variables={impowerDataMap?.variables}
-                constructs={impowerDataMap?.constructs}
-                files={impowerDataMap?.files}
-                game={phaserGame.impowerGame}
-              />
-            )
-        )}
+      <div ref={overlayRef} id="ui-overlay" style={overlayStyle}>
         <div
           id="impower-ui-display"
           style={{
@@ -344,6 +222,6 @@ const UI = (props: UIProps): JSX.Element => {
       </div>
     </div>
   );
-};
+});
 
 export default UI;

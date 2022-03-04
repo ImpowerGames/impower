@@ -2,7 +2,7 @@ import { LoadableFile } from "../../../../../../../data/interfaces/loadableFile"
 import { ImpowerGame } from "../../../../../../../game";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
 import { TriggerRunner } from "../../../trigger/triggerRunner";
-import { VariableData } from "../../../variable/variableData";
+import { VariableValue } from "../../../variable/variableValue";
 import { ImageHoverTriggerData } from "./imageHoverTriggerData";
 
 export class ImageHoverTriggerRunner
@@ -11,7 +11,7 @@ export class ImageHoverTriggerRunner
 {
   getFileId(
     data: ImageHoverTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): string {
     return getRuntimeValue(data.image, variables, game).refId;
@@ -19,7 +19,7 @@ export class ImageHoverTriggerRunner
 
   init(
     data: ImageHoverTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): void {
     function onImageHover(gameData: { id: string }): void {
@@ -42,7 +42,7 @@ export class ImageHoverTriggerRunner
 
   shouldExecute(
     data: ImageHoverTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const { parentContainerId } = data.reference;

@@ -3,7 +3,7 @@ import { LoadableFile } from "../../../../../../../data/interfaces/loadableFile"
 import { ImpowerGame } from "../../../../../../../game";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
 import { TriggerRunner } from "../../../trigger/triggerRunner";
-import { VariableData } from "../../../variable/variableData";
+import { VariableValue } from "../../../variable/variableValue";
 import { ImageClickTriggerData } from "./imageClickTriggerData";
 
 export class ImageClickTriggerRunner
@@ -12,7 +12,7 @@ export class ImageClickTriggerRunner
 {
   getFileId(
     data: ImageClickTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): string {
     return getRuntimeValue(data.image, variables, game).refId;
@@ -20,7 +20,7 @@ export class ImageClickTriggerRunner
 
   init(
     data: ImageClickTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): void {
     function onImageClick(gameData: { id: string }): void {
@@ -67,7 +67,7 @@ export class ImageClickTriggerRunner
 
   shouldExecute(
     data: ImageClickTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const { parentContainerId } = data.reference;

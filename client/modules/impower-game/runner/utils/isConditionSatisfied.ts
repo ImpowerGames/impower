@@ -1,10 +1,10 @@
-import { CompareOperator, Condition, VariableData } from "../../data";
+import { CompareOperator, Condition, VariableValue } from "../../data";
 import { ImpowerGame } from "../../game";
 import { getRuntimeValue } from "./getRuntimeValue";
 
 export const isConditionSatisfied = (
   condition: Condition,
-  variables: { [refId: string]: VariableData },
+  variables: { [id: string]: VariableValue },
   game: ImpowerGame
 ): boolean => {
   const lhs = getRuntimeValue(condition.variable, variables, game);

@@ -1,4 +1,4 @@
-import { CommandData, VariableData } from "../../../../../data";
+import { CommandData, VariableValue } from "../../../../../data";
 import { ImpowerGame } from "../../../../../game";
 import { ItemRunner } from "../../item/itemRunner";
 
@@ -16,7 +16,7 @@ export class CommandRunner<
 
   init(
     _data: T,
-    _variables: { [refId: string]: VariableData },
+    _variables: { [id: string]: VariableValue },
     _game: ImpowerGame
   ): void {
     // NoOp
@@ -24,7 +24,7 @@ export class CommandRunner<
 
   onExecute(
     _data: T,
-    _variables: { [refId: string]: VariableData },
+    _variables: { [id: string]: VariableValue },
     _game: ImpowerGame,
     _index: number,
     _blockCommands: {
@@ -38,7 +38,7 @@ export class CommandRunner<
 
   isFinished(
     _data: T,
-    _variables: { [refId: string]: VariableData },
+    _variables: { [id: string]: VariableValue },
     _game: ImpowerGame
   ): boolean {
     return true;
@@ -46,7 +46,7 @@ export class CommandRunner<
 
   isPure(
     _data: T,
-    _variables: { [refId: string]: VariableData },
+    _variables: { [id: string]: VariableValue },
     _game: ImpowerGame
   ): boolean {
     return true;

@@ -31,20 +31,24 @@ export enum Type {
   Go,
   Jump,
   Return,
+  Tag,
+  TagName,
+  TagOperator,
+  TagValue,
   Asset,
-  Declare,
-  Assign,
-  Compare,
-  Trigger,
   AssetName,
   AssetOperator,
   AssetValue,
+  Declare,
   DeclareName,
   DeclareOperator,
   DeclareValue,
+  Assign,
   AssignName,
   AssignOperator,
   AssignValue,
+  Compare,
+  Trigger,
 
   // Markdown Inline
   Escape,
@@ -61,13 +65,15 @@ export enum Type {
   URL,
 
   // Fountain Inline
-  Note,
+  ImageNote,
+  AudioNote,
+  DynamicTag,
+  DynamicText,
   Parenthetical,
   Dialogue,
   Lyric,
   Underline,
   SceneNumber,
-  Tag,
 
   // Markdown Mark
   SectionMark,
@@ -82,7 +88,10 @@ export enum Type {
   LinkLabel,
 
   // Fountain Mark
-  NoteMark,
+  ImageNoteMark,
+  AudioNoteMark,
+  DynamicTagMark,
+  DynamicTextMark,
   SynopsesMark,
   SceneHeadingMark,
   CharacterMark,

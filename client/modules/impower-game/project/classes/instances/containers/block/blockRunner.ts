@@ -3,7 +3,7 @@ import {
   CommandData,
   InstanceData,
   TriggerData,
-  VariableData,
+  VariableValue,
 } from "../../../../../data";
 import { BlockState, ImpowerGame } from "../../../../../game";
 import { ContainerRunner } from "../../container/containerRunner";
@@ -35,7 +35,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       data: CommandData;
       level: number;
     }[],
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): void {
     triggers.forEach((trigger) => {
@@ -64,7 +64,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       data: CommandData;
       level: number;
     }[],
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     time: number,
     delta: number
@@ -109,7 +109,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       data: TriggerData;
       level: number;
     }[],
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): {
     shouldExecute: boolean;
@@ -186,7 +186,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       data: CommandData;
       level: number;
     }[],
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     time: number
   ): boolean {

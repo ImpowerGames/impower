@@ -1,8 +1,7 @@
 import {
   CommandData,
   SetCommandData,
-  VariableData,
-  VariableTypeId,
+  VariableValue,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { changeValue } from "../../../../../../../runner/utils/changeValue";
@@ -12,7 +11,7 @@ import { CommandRunner } from "../../../command/commandRunner";
 export class SetCommandRunner extends CommandRunner<SetCommandData> {
   onExecute(
     data: SetCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {
@@ -40,7 +39,7 @@ export class SetCommandRunner extends CommandRunner<SetCommandData> {
 
   isPure(
     _data: SetCommandData,
-    _variables: { [refId: string]: VariableData<VariableTypeId, unknown> },
+    _variables: { [id: string]: VariableValue },
     _game: ImpowerGame
   ): boolean {
     return false;

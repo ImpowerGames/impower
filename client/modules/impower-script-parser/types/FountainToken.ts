@@ -1,6 +1,7 @@
-import { FountainAssetType } from "..";
+import { FountainAsset } from "./FountainAsset";
 import { FountainLine } from "./FountainLine";
 import {
+  FountainAssetType,
   FountainChoiceType,
   FountainDialogueType,
   FountainGoType,
@@ -11,18 +12,25 @@ import {
   FountainReturnType,
   FountainSceneType,
   FountainSectionType,
+  FountainTagType,
 } from "./FountainTokenType";
 
 export interface FountainAssetToken extends FountainLine {
   type: FountainAssetType;
-  asset: string;
+  name: string;
+  value: string | { name: string };
+}
+
+export interface FountainTagToken extends FountainLine {
+  type: FountainTagType;
+  name: string;
   value: string | { name: string };
 }
 
 export interface FountainLogicToken extends FountainLine {
   type: FountainLogicType;
   indent: number;
-  variable: string;
+  name: string;
   operator: string;
   value: string | number | { name: string };
 }
@@ -71,8 +79,8 @@ export interface FountainDialogueToken extends FountainLine {
   type: FountainDialogueType;
   character: string;
   parenthetical: string;
-  portrait: string;
   position: "left" | "right";
+  assets?: FountainAsset[];
 }
 
 export interface FountainOtherToken extends FountainLine {
@@ -81,6 +89,7 @@ export interface FountainOtherToken extends FountainLine {
 
 export type FountainToken =
   | FountainAssetToken
+  | FountainTagToken
   | FountainLogicToken
   | FountainGoToken
   | FountainJumpToken

@@ -5,10 +5,12 @@ import { Mark } from "../types/mark";
 import { Type } from "../types/type";
 import { finishLink } from "../utils/markdown";
 import {
+  AudioNoteParenthesis,
+  DynamicTagBrace,
   EmphasisAsterisk,
+  ImageNoteBracket,
   ImageStart,
   LinkStart,
-  NoteBrackets,
   UnderlineUnderscore,
 } from "./delimiters";
 import { Escapable, Punctuation } from "./regexes";
@@ -167,7 +169,7 @@ export const DefaultInline: {
     );
   },
 
-  Note(cx, next, start) {
+  ImageNote(cx, next, start) {
     const charCodeBefore = "[".charCodeAt(0);
     const charCodeAfter = "]".charCodeAt(0);
     const validStart = next === charCodeBefore;
@@ -193,7 +195,75 @@ export const DefaultInline: {
       rightFlanking && (next === charCodeAfter || !leftFlanking || pAfter);
     return cx.append(
       new InlineDelimiter(
-        NoteBrackets,
+        ImageNoteBracket,
+        start,
+        pos,
+        (canOpen ? Mark.Open : 0) | (canClose ? Mark.Close : 0)
+      )
+    );
+  },
+
+  AudioNote(cx, next, start) {
+    const charCodeBefore = "(".charCodeAt(0);
+    const charCodeAfter = ")".charCodeAt(0);
+    const validStart = next === charCodeBefore;
+    const validEnd = next === charCodeAfter;
+    if (!validStart && !validEnd) {
+      return -1;
+    }
+    let pos = start + 1;
+    while (cx.char(pos) === next) {
+      pos += 1;
+    }
+    const before = cx.slice(start - 1, start);
+    const after = cx.slice(pos, pos + 1);
+    const pBefore = Punctuation.test(before);
+    const pAfter = Punctuation.test(after);
+    const sBefore = /\s|^$/.test(before);
+    const sAfter = /\s|^$/.test(after);
+    const leftFlanking = !sAfter && (!pAfter || sBefore || pBefore);
+    const rightFlanking = !sBefore && (!pBefore || sAfter || pAfter);
+    const canOpen =
+      leftFlanking && (next === charCodeBefore || !rightFlanking || pBefore);
+    const canClose =
+      rightFlanking && (next === charCodeAfter || !leftFlanking || pAfter);
+    return cx.append(
+      new InlineDelimiter(
+        AudioNoteParenthesis,
+        start,
+        pos,
+        (canOpen ? Mark.Open : 0) | (canClose ? Mark.Close : 0)
+      )
+    );
+  },
+
+  DynamicTag(cx, next, start) {
+    const charCodeBefore = "{".charCodeAt(0);
+    const charCodeAfter = "}".charCodeAt(0);
+    const validStart = next === charCodeBefore;
+    const validEnd = next === charCodeAfter;
+    if (!validStart && !validEnd) {
+      return -1;
+    }
+    let pos = start + 1;
+    while (cx.char(pos) === next) {
+      pos += 1;
+    }
+    const before = cx.slice(start - 1, start);
+    const after = cx.slice(pos, pos + 1);
+    const pBefore = Punctuation.test(before);
+    const pAfter = Punctuation.test(after);
+    const sBefore = /\s|^$/.test(before);
+    const sAfter = /\s|^$/.test(after);
+    const leftFlanking = !sAfter && (!pAfter || sBefore || pBefore);
+    const rightFlanking = !sBefore && (!pBefore || sAfter || pAfter);
+    const canOpen =
+      leftFlanking && (next === charCodeBefore || !rightFlanking || pBefore);
+    const canClose =
+      rightFlanking && (next === charCodeAfter || !leftFlanking || pAfter);
+    return cx.append(
+      new InlineDelimiter(
+        DynamicTagBrace,
         start,
         pos,
         (canOpen ? Mark.Open : 0) | (canClose ? Mark.Close : 0)

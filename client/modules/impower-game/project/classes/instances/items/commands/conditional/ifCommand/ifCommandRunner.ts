@@ -4,7 +4,7 @@ import {
   Condition,
   IfCommandData,
   InstanceData,
-  VariableData,
+  VariableValue,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { getNextJumpIndex } from "../../../../../../../runner/utils/getNextJumpIndex";
@@ -27,7 +27,7 @@ export class IfCommandRunner extends CommandRunner<IfCommandData> {
   areConditionsSatisfied(
     checkAll: boolean,
     conditions: List<Condition>,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     return checkAll
@@ -41,7 +41,7 @@ export class IfCommandRunner extends CommandRunner<IfCommandData> {
 
   onExecute(
     data: IfCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {

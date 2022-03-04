@@ -44,11 +44,7 @@ export const getRuntimeTrigger = (
         pos: token.start,
         line: token.line,
       }),
-      variable: getRuntimeVariableReference(
-        token.variable,
-        sectionId,
-        variables
-      ),
+      variable: getRuntimeVariableReference(token.name, sectionId, variables),
       operator: token.operator as CompareOperator,
       value: getRuntimeDynamicData(token.value, sectionId, variables),
     };

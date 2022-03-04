@@ -14,7 +14,7 @@ export const executeDisplayCommand = (data: DisplayCommandData): void => {
     DisplayType
   ).map((x) => [x, document.querySelector(`#${ui} .${x}`)]);
   const character = data.type === DisplayType.Dialogue ? data.character : "";
-  const portrait = data.type === DisplayType.Dialogue ? data.portrait : "";
+  const assets = data.type === DisplayType.Dialogue ? data.assets : [];
   const parenthetical =
     data.type === DisplayType.Dialogue ? data.parenthetical : "";
   const content = data?.content
@@ -28,10 +28,10 @@ export const executeDisplayCommand = (data: DisplayCommandData): void => {
     characterEl.style.display = character ? null : "none";
   }
   if (portraitEl) {
-    portraitEl.style.backgroundImage = `url("${portrait}")`;
+    portraitEl.style.backgroundImage = `url("${assets?.[0]?.value}")`;
     portraitEl.style.backgroundRepeat = "no-repeat";
     portraitEl.style.backgroundPosition = "center";
-    portraitEl.style.display = portrait ? null : "none";
+    portraitEl.style.display = assets ? null : "none";
   }
   if (parentheticalEl) {
     parentheticalEl.replaceChildren(parenthetical);

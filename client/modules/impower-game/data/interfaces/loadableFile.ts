@@ -1,10 +1,10 @@
 import { ImpowerGame } from "../../game/classes/impowerGame";
-import { VariableData } from "../../project/classes/instances/items/variable/variableData";
+import { VariableValue } from "../../project/classes/instances/items/variable/variableValue";
 
 export interface LoadableFile<T> {
   getFileId(
     data: T,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): string;
 }

@@ -1,4 +1,4 @@
-import { CommandData, VariableData } from "../../../../../../../data";
+import { CommandData, VariableValue } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { getNextJumpIndex } from "../../../../../../../runner/utils/getNextJumpIndex";
 import { CommandRunner } from "../../../command/commandRunner";
@@ -14,7 +14,7 @@ export class ElseCommandRunner extends CommandRunner<CommandData> {
 
   onExecute(
     _data: CommandData,
-    _variables: { [refId: string]: VariableData },
+    _variables: { [id: string]: VariableValue },
     _game: ImpowerGame,
     index: number,
     blockCommands: {

@@ -243,6 +243,14 @@ export function isAsset(line: Line): RegExpMatchArray {
   return line.text.trim().match(fountainRegexes.asset);
 }
 
+export function isTag(line: Line): RegExpMatchArray {
+  const charCode = "t".charCodeAt(0);
+  if (line.next !== charCode) {
+    return null;
+  }
+  return line.text.trim().match(fountainRegexes.tag);
+}
+
 export function isDeclare(line: Line): RegExpMatchArray {
   const charCode = "v".charCodeAt(0);
   if (line.next !== charCode) {

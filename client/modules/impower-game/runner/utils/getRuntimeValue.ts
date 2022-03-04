@@ -2,13 +2,13 @@ import {
   DynamicData,
   isDynamicData,
   Reference,
-  VariableData,
+  VariableValue,
 } from "../../data";
 import { ImpowerGame } from "../../game";
 
 export const getRuntimeValue = <T>(
   data: DynamicData<T> | Reference,
-  variables?: { [refId: string]: VariableData },
+  variables?: { [id: string]: VariableValue },
   game?: ImpowerGame
 ): T | undefined => {
   const reference = isDynamicData(data) ? data.dynamic : data;

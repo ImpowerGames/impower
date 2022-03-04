@@ -244,7 +244,7 @@ const LogicScriptEditor = React.memo(
           let tokenIndex = result.scriptLines[line];
           let token = result.scriptTokens[tokenIndex];
           if (token) {
-            const skip = ["character", "note", "parenthetical"];
+            const skip = ["dialogue_asset", "character", "parenthetical"];
             while (
               tokenIndex < result.scriptTokens.length &&
               skip.includes(token.type)
@@ -265,8 +265,7 @@ const LogicScriptEditor = React.memo(
             const runtimeCommand = getRuntimeCommand(
               token,
               sectionId,
-              result.variables,
-              result.assets
+              result.variables
             );
             if (runtimeCommand) {
               const commandInspector = gameInspector.getInspector(

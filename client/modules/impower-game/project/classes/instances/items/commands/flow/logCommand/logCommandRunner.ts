@@ -3,7 +3,7 @@ import {
   CommandData,
   LogCommandData,
   Severity,
-  VariableData,
+  VariableValue,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
@@ -12,7 +12,7 @@ import { CommandRunner } from "../../../command/commandRunner";
 export class LogCommandRunner extends CommandRunner<LogCommandData> {
   onExecute(
     data: LogCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {

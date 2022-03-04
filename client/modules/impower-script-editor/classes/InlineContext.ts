@@ -1,8 +1,10 @@
 /* eslint-disable no-continue */
 import { Tree } from "@lezer/common";
 import {
+  AudioNoteParenthesis,
+  DynamicTagBrace,
   EmphasisAsterisk,
-  NoteBrackets,
+  ImageNoteBracket,
   UnderlineUnderscore,
 } from "../constants/delimiters";
 import { DelimiterType } from "../types/delimiterType";
@@ -107,8 +109,10 @@ export class InlineContext {
 
       const emp =
         close.type === UnderlineUnderscore ||
-        close.type === NoteBrackets ||
-        close.type === EmphasisAsterisk;
+        close.type === EmphasisAsterisk ||
+        close.type === ImageNoteBracket ||
+        close.type === AudioNoteParenthesis ||
+        close.type === DynamicTagBrace;
       const closeSize = close.to - close.from;
       let open: InlineDelimiter | undefined;
       let j = i - 1;
@@ -145,8 +149,12 @@ export class InlineContext {
         if (close.type === UnderlineUnderscore) {
           type = "Underline";
         }
-        if (close.type === NoteBrackets) {
-          type = size >= 2 ? "Note" : null;
+        if (close.type === ImageNoteBracket) {
+          type = size >= 2 ? "ImageNote" : null;
+        } else if (close.type === AudioNoteParenthesis) {
+          type = size >= 2 ? "AudioNote" : null;
+        } else if (close.type === DynamicTagBrace) {
+          type = size === 1 ? "DynamicText" : "DynamicTag";
         } else if (close.type === EmphasisAsterisk) {
           type = size === 1 ? "Emphasis" : "StrongEmphasis";
         }

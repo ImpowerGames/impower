@@ -2,7 +2,7 @@ import {
   CommandData,
   IfCommandData,
   InstanceData,
-  VariableData,
+  VariableValue,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { getNextJumpIndex } from "../../../../../../../runner/utils/getNextJumpIndex";
@@ -16,7 +16,7 @@ export class ElseIfCommandRunner extends IfCommandRunner {
 
   onExecute(
     data: IfCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {

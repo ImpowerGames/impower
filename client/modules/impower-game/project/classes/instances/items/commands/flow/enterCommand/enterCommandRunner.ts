@@ -1,11 +1,11 @@
-import { CommandData, VariableData } from "../../../../../../../data";
+import { CommandData, VariableValue } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { CommandRunner } from "../../../command/commandRunner";
 
 export class EnterCommandRunner extends CommandRunner<CommandData> {
   onExecute(
     data: CommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {
@@ -21,7 +21,7 @@ export class EnterCommandRunner extends CommandRunner<CommandData> {
 
   isFinished(
     data: CommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const { parentContainerId } = data.reference;

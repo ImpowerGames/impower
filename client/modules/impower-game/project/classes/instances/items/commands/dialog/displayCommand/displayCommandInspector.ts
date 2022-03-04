@@ -1,5 +1,4 @@
 import {
-  createAudioFileReference,
   DisplayCommandData,
   DisplayPosition,
   DisplayType,
@@ -92,7 +91,7 @@ export class DisplayCommandInspector extends CommandInspector<DisplayCommandData
       character: "",
       parenthetical: "",
       content: "",
-      voice: createAudioFileReference(),
+      assets: [],
       ...data,
     };
   }

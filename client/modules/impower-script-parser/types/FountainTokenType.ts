@@ -1,6 +1,7 @@
 import { FountainTitleKeyword } from "./FountainTitleKeyword";
 
 export type FountainAssetType = "image" | "audio" | "text" | "video";
+export type FountainTagType = "tag";
 export type FountainLogicType =
   | "declare"
   | "assign"
@@ -30,6 +31,8 @@ export type FountainOtherType =
   | "separator"
   | "page_break"
   | "action"
+  | "action_asset"
+  | "dialogue_asset"
   | "dialogue_end"
   | "dual_dialogue_begin"
   | "dual_dialogue_end"
@@ -41,6 +44,7 @@ export type FountainOtherType =
 
 export type FountainTokenType =
   | FountainAssetType
+  | FountainTagType
   | FountainLogicType
   | FountainGoType
   | FountainJumpType

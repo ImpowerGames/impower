@@ -1,4 +1,4 @@
-import { TriggerData, VariableData } from "../../../../../data";
+import { TriggerData, VariableValue } from "../../../../../data";
 import { ImpowerGame } from "../../../../../game";
 import { ItemRunner } from "../../item/itemRunner";
 
@@ -16,7 +16,7 @@ export class TriggerRunner<
 
   init(
     _data: T,
-    _variables: { [refId: string]: VariableData },
+    _variables: { [id: string]: VariableValue },
     _game: ImpowerGame
   ): void {
     // Must be overwritten
@@ -28,7 +28,7 @@ export class TriggerRunner<
 
   shouldExecute(
     _data: T,
-    _variables: { [refId: string]: VariableData },
+    _variables: { [id: string]: VariableValue },
     _game: ImpowerGame
   ): boolean {
     return false;
@@ -36,7 +36,7 @@ export class TriggerRunner<
 
   canExecute(
     data: T,
-    _variables: { [refId: string]: VariableData },
+    _variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const blockState =

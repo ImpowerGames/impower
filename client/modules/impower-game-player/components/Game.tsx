@@ -26,11 +26,7 @@ const createGame = (
 ): ImpowerGame => {
   const script = project?.scripts?.logic?.data?.root;
   const result = parseFountain(script);
-  const runtimeBlocks = getRuntimeBlocks(
-    result?.sections,
-    result?.variables,
-    result?.assets
-  );
+  const runtimeBlocks = getRuntimeBlocks(result?.sections, result?.variables);
   const blockTree = getBlockTree(runtimeBlocks);
   const blockEntries = Object.entries(runtimeBlocks);
   let defaultStartBlockId = blockEntries[1]?.[0] || "";
@@ -228,7 +224,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
               left: 0,
             }}
           />
-          {phaserGame && <UI phaserGame={phaserGame} />}
+          <UI phaserGame={phaserGame} />
           {children}
         </div>
       )}

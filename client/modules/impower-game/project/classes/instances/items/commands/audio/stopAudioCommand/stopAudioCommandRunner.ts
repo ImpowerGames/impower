@@ -1,4 +1,4 @@
-import { CommandData, VariableData } from "../../../../../../../data";
+import { CommandData, VariableValue } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
 import { CommandRunner } from "../../../command/commandRunner";
@@ -7,7 +7,7 @@ import { StopAudioCommandData } from "./stopAudioCommandData";
 export class StopAudioCommandRunner extends CommandRunner<StopAudioCommandData> {
   onExecute(
     data: StopAudioCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {
@@ -33,7 +33,7 @@ export class StopAudioCommandRunner extends CommandRunner<StopAudioCommandData> 
 
   isFinished(
     data: StopAudioCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const duration = getRuntimeValue(data.transition.duration, variables, game);

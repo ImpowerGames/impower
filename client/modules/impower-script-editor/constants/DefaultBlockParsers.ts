@@ -25,6 +25,7 @@ import {
   isSceneHeading,
   isSectionHeading,
   isSynopses,
+  isTag,
   isTitle,
   isTransition,
 } from "../utils/markdown";
@@ -192,6 +193,40 @@ export const DefaultBlockParsers: {
     els.push(new Element(Type.AssetValue, posFrom, posTo));
     cx.addNode(
       cx.buffer.writeElements(els, -from).finish(Type.Asset, line.text.length),
+      from
+    );
+    cx.nextLine();
+    return true;
+  },
+
+  Tag(cx, line) {
+    const match = isTag(line);
+    if (!match) {
+      return false;
+    }
+    const mark = match[2];
+    const markSpace = match[3];
+    const name = match[4];
+    const nameSpace = match[5];
+    const operator = match[6];
+    const operatorSpace = match[7];
+    const value = match[8];
+    const from = cx.lineStart + line.pos;
+    const els: Element[] = [];
+    let posFrom = from;
+    let posTo = posFrom + mark.length;
+    els.push(new Element(Type.TagMark, posFrom, posTo));
+    posFrom = posTo + markSpace.length;
+    posTo = posFrom + name.length;
+    els.push(new Element(Type.TagName, posFrom, posTo));
+    posFrom = posTo + nameSpace.length;
+    posTo = posFrom + operator.length;
+    els.push(new Element(Type.TagOperator, posFrom, posTo));
+    posFrom = posTo + operatorSpace.length;
+    posTo = posFrom + value.length;
+    els.push(new Element(Type.TagValue, posFrom, posTo));
+    cx.addNode(
+      cx.buffer.writeElements(els, -from).finish(Type.Tag, line.text.length),
       from
     );
     cx.nextLine();

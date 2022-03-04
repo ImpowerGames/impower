@@ -1,7 +1,7 @@
 import {
   CommandData,
   DestroyCommandData,
-  VariableData,
+  VariableValue,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
@@ -10,7 +10,7 @@ import { CommandRunner } from "../../../command/commandRunner";
 export class DestroyCommandRunner extends CommandRunner<DestroyCommandData> {
   onExecute(
     data: DestroyCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {

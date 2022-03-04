@@ -44,11 +44,11 @@ import { PauseAudioCommandInspector } from "../../project/classes/instances/item
 import { PlayAudioCommandInspector } from "../../project/classes/instances/items/commands/audio/playAudioCommand/playAudioCommandInspector";
 import { ResumeAudioCommandInspector } from "../../project/classes/instances/items/commands/audio/resumeAudioCommand/resumeAudioCommandInspector";
 import { StopAudioCommandInspector } from "../../project/classes/instances/items/commands/audio/stopAudioCommand/stopAudioCommandInspector";
-import { CloseCommandInspector } from "../../project/classes/instances/items/commands/conditonal/closeCommand/closeCommandInspector";
-import { ElseCommandInspector } from "../../project/classes/instances/items/commands/conditonal/elseCommand/elseCommandInspector";
-import { ElseIfCommandInspector } from "../../project/classes/instances/items/commands/conditonal/elseIfCommand/elseIfCommandInspector";
-import { IfCommandInspector } from "../../project/classes/instances/items/commands/conditonal/ifCommand/ifCommandInspector";
-import { SelectCommandInspector } from "../../project/classes/instances/items/commands/conditonal/selectCommand/selectCommandInspector";
+import { CloseCommandInspector } from "../../project/classes/instances/items/commands/conditional/closeCommand/closeCommandInspector";
+import { ElseCommandInspector } from "../../project/classes/instances/items/commands/conditional/elseCommand/elseCommandInspector";
+import { ElseIfCommandInspector } from "../../project/classes/instances/items/commands/conditional/elseIfCommand/elseIfCommandInspector";
+import { IfCommandInspector } from "../../project/classes/instances/items/commands/conditional/ifCommand/ifCommandInspector";
+import { SelectCommandInspector } from "../../project/classes/instances/items/commands/conditional/selectCommand/selectCommandInspector";
 import { SetCommandInspector } from "../../project/classes/instances/items/commands/data/setCommand/setCommandInspector";
 import { DisplayCommandInspector } from "../../project/classes/instances/items/commands/dialog/displayCommand/displayCommandInspector";
 import { CreateCommandInspector } from "../../project/classes/instances/items/commands/entity/createCommand/createCommandInspector";

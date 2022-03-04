@@ -1,5 +1,4 @@
 import {
-  FountainAsset,
   FountainDialogueToken,
   FountainToken,
   FountainVariable,
@@ -7,7 +6,6 @@ import {
 import {
   CommandData,
   CommandTypeId,
-  createAudioFileReference,
   createCommandData,
   createCommandReference,
   DisplayCommandData,
@@ -16,26 +14,16 @@ import {
   SetCommandData,
   SetOperator,
 } from "../../data";
-import { getFountainAsset } from "./getFountainAsset";
 import { getRuntimeDynamicData } from "./getRuntimeDynamicData";
 import { getRuntimeVariableReference } from "./getRuntimeVariableReference";
 
 const getDisplayCommand = (
   token: FountainToken,
-  sectionId = "",
-  assets: {
-    image?: Record<string, FountainAsset>;
-    video?: Record<string, FountainAsset>;
-    audio?: Record<string, FountainAsset>;
-    text?: Record<string, FountainAsset>;
-  }
+  sectionId = ""
 ): DisplayCommandData => {
   const refId = `${sectionId}.${token.start}`;
-  const dialogueToken = token as FountainDialogueToken;
   const refTypeId: CommandTypeId = "DisplayCommand";
-  const portrait = dialogueToken?.portrait;
-  const asset = getFountainAsset("image", portrait, sectionId, assets);
-  const portraitValue = asset?.value;
+  const dialogueToken = token as FountainDialogueToken;
   return {
     ...createCommandData({
       reference: createCommandReference({
@@ -47,14 +35,13 @@ const getDisplayCommand = (
     pos: token.start,
     line: token.line,
     ui: "",
-    type: dialogueToken.type as DisplayType,
+    type: token.type as DisplayType,
     position:
       (dialogueToken.position as DisplayPosition) || DisplayPosition.Default,
     character: dialogueToken.character || "",
-    portrait: portraitValue || "",
     parenthetical: dialogueToken.parenthetical || "",
     content: dialogueToken.text || dialogueToken.content,
-    voice: createAudioFileReference(),
+    assets: dialogueToken?.assets || [],
     waitUntilFinished: dialogueToken.position !== "left",
   };
 };
@@ -62,13 +49,7 @@ const getDisplayCommand = (
 export const getRuntimeCommand = (
   token: FountainToken,
   sectionId = "",
-  variables: Record<string, FountainVariable>,
-  assets: {
-    image?: Record<string, FountainAsset>;
-    video?: Record<string, FountainAsset>;
-    audio?: Record<string, FountainAsset>;
-    text?: Record<string, FountainAsset>;
-  }
+  variables: Record<string, FountainVariable>
 ): CommandData => {
   if (token.type === "assign") {
     const refId = `${sectionId}.${token.start}`;
@@ -83,11 +64,7 @@ export const getRuntimeCommand = (
       }),
       pos: token.start,
       line: token.line,
-      variable: getRuntimeVariableReference(
-        token.variable,
-        sectionId,
-        variables
-      ),
+      variable: getRuntimeVariableReference(token.name, sectionId, variables),
       operator: token.operator as SetOperator,
       value: getRuntimeDynamicData(token.value, sectionId, variables),
     };
@@ -100,7 +77,7 @@ export const getRuntimeCommand = (
     token.type === "transition" ||
     token.type === "scene"
   ) {
-    return getDisplayCommand(token, sectionId, assets);
+    return getDisplayCommand(token, sectionId);
   }
 
   return null;

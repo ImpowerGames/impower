@@ -1,6 +1,6 @@
 import {
   CommandData,
-  VariableData,
+  VariableValue,
   WaitCommandData,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
@@ -10,7 +10,7 @@ import { CommandRunner } from "../../../command/commandRunner";
 export class WaitCommandRunner extends CommandRunner<WaitCommandData> {
   onExecute(
     data: WaitCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {
@@ -28,7 +28,7 @@ export class WaitCommandRunner extends CommandRunner<WaitCommandData> {
 
   isFinished(
     data: WaitCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const seconds = getRuntimeValue(data.seconds, variables, game);

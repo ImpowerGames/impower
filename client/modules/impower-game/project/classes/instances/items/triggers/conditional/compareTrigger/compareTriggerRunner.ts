@@ -1,4 +1,4 @@
-import { VariableData } from "../../../../../../../data";
+import { VariableValue } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { isConditionSatisfied } from "../../../../../../../runner/utils/isConditionSatisfied";
 import { TriggerRunner } from "../../../trigger/triggerRunner";
@@ -7,7 +7,7 @@ import { CompareTriggerData } from "./compareTriggerData";
 export class CompareTriggerRunner extends TriggerRunner<CompareTriggerData> {
   shouldExecute(
     data: CompareTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     if (isConditionSatisfied(data, variables, game)) {

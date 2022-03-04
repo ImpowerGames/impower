@@ -1,24 +1,16 @@
 import { ImpowerGame } from "../../../../../../../game";
 import { CommandData } from "../../../command/commandData";
 import { CommandRunner } from "../../../command/commandRunner";
-import { VariableData } from "../../../variable/variableData";
+import { VariableValue } from "../../../variable/variableValue";
 import { DisplayCommandData } from "./displayCommandData";
 import { executeDisplayCommand } from "./executeDisplayCommand";
 
 export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
   down = false;
 
-  getVariableIds(data: DisplayCommandData): string[] {
-    const ids = [];
-    if (data.portrait) {
-      ids.push(data.portrait);
-    }
-    return [...super.getVariableIds(data), ...ids];
-  }
-
   onExecute(
     data: DisplayCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {
@@ -34,7 +26,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
 
   isFinished(
     data: DisplayCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const prevDown = this.down;

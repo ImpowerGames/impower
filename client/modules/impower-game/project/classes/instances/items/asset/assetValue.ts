@@ -1,5 +1,4 @@
-export interface FountainAsset {
-  line?: number;
+export interface AssetValue {
   type: "image" | "audio" | "video" | "text";
   value: string;
 }

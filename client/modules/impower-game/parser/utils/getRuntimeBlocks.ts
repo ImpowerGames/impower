@@ -1,5 +1,4 @@
 import {
-  FountainAsset,
   FountainSection,
   FountainVariable,
 } from "../../../impower-script-parser";
@@ -16,13 +15,7 @@ import { getRuntimeVariable } from "./getRuntimeVariable";
 
 export const getRuntimeBlocks = (
   sections: Record<string, FountainSection>,
-  variables: Record<string, FountainVariable>,
-  assets: {
-    image?: Record<string, FountainAsset>;
-    video?: Record<string, FountainAsset>;
-    audio?: Record<string, FountainAsset>;
-    text?: Record<string, FountainAsset>;
-  }
+  variables: Record<string, FountainVariable>
 ): Record<string, BlockData> => {
   const blocks: { [refId: string]: BlockData } = {};
   if (!sections) {
@@ -30,6 +23,25 @@ export const getRuntimeBlocks = (
   }
   Object.entries(sections).forEach(([sectionId, section]) => {
     const defaultTriggerId = `${sectionId}.${section.start}-triggerable`;
+    const defaultTriggers = section.operator
+      ? {
+          order: [defaultTriggerId],
+          data: {
+            [defaultTriggerId]: createTriggerData({
+              reference: createTriggerReference({
+                parentContainerId: sectionId,
+                refId: defaultTriggerId,
+                refTypeId: "AnyTrigger",
+              }),
+              pos: section.start,
+              line: section.line,
+            }),
+          },
+        }
+      : {
+          order: [],
+          data: {},
+        };
     const block = createBlockData({
       reference: createBlockReference({
         parentContainerId: sectionId.split(".").slice(0, -1).join("."),
@@ -38,51 +50,24 @@ export const getRuntimeBlocks = (
       pos: section.start,
       line: section.line,
       name: section.name,
-      triggers: section.operator
-        ? {
-            order: [defaultTriggerId],
-            data: {
-              [defaultTriggerId]: createTriggerData({
-                reference: createTriggerReference({
-                  parentContainerId: sectionId,
-                  refId: defaultTriggerId,
-                  refTypeId: "AnyTrigger",
-                }),
-                pos: section.start,
-                line: section.line,
-              }),
-            },
-          }
-        : {
-            order: [],
-            data: {},
-          },
+      triggers: defaultTriggers,
       childContainerIds: section.children || [],
     });
-    const skip = ["character", "note", "parenthetical"];
     section.tokens.forEach((token) => {
-      if (!skip.includes(token.type)) {
-        const runtimeVariable = getRuntimeVariable(token, sectionId, variables);
-        if (runtimeVariable) {
-          block.variables.order.push(runtimeVariable.reference.refId);
-          block.variables.data[runtimeVariable.reference.refId] =
-            runtimeVariable;
-        }
-        const runtimeTrigger = getRuntimeTrigger(token, sectionId, variables);
-        if (runtimeTrigger) {
-          block.triggers.order.push(runtimeTrigger.reference.refId);
-          block.triggers.data[runtimeTrigger.reference.refId] = runtimeTrigger;
-        }
-        const runtimeCommand = getRuntimeCommand(
-          token,
-          sectionId,
-          variables,
-          assets
-        );
-        if (runtimeCommand) {
-          block.commands.order.push(runtimeCommand.reference.refId);
-          block.commands.data[runtimeCommand.reference.refId] = runtimeCommand;
-        }
+      const runtimeVariable = getRuntimeVariable(token, sectionId, variables);
+      if (runtimeVariable) {
+        block.variables.order.push(runtimeVariable.reference.refId);
+        block.variables.data[runtimeVariable.reference.refId] = runtimeVariable;
+      }
+      const runtimeTrigger = getRuntimeTrigger(token, sectionId, variables);
+      if (runtimeTrigger) {
+        block.triggers.order.push(runtimeTrigger.reference.refId);
+        block.triggers.data[runtimeTrigger.reference.refId] = runtimeTrigger;
+      }
+      const runtimeCommand = getRuntimeCommand(token, sectionId, variables);
+      if (runtimeCommand) {
+        block.commands.order.push(runtimeCommand.reference.refId);
+        block.commands.data[runtimeCommand.reference.refId] = runtimeCommand;
       }
     });
     blocks[sectionId] = block;

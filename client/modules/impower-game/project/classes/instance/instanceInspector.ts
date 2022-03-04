@@ -16,6 +16,7 @@ import {
   isReference,
   Permission,
   TypeInfo,
+  VariableValue,
 } from "../../../data";
 
 export abstract class InstanceInspector<T extends InstanceData = InstanceData>
@@ -211,7 +212,7 @@ export abstract class InstanceInspector<T extends InstanceData = InstanceData>
     return null;
   }
 
-  onPreview(_data: T): void {
+  onPreview(_data: T, _variables?: { [id: string]: VariableValue }): void {
     // NoOp
   }
 }

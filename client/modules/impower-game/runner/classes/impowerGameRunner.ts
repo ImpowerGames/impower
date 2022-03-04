@@ -18,11 +18,11 @@ import { PauseAudioCommandRunner } from "../../project/classes/instances/items/c
 import { PlayAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/playAudioCommand/playAudioCommandRunner";
 import { ResumeAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/resumeAudioCommand/resumeAudioCommandRunner";
 import { StopAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/stopAudioCommand/stopAudioCommandRunner";
-import { CloseCommandRunner } from "../../project/classes/instances/items/commands/conditonal/closeCommand/closeCommandRunner";
-import { ElseCommandRunner } from "../../project/classes/instances/items/commands/conditonal/elseCommand/elseCommandRunner";
-import { ElseIfCommandRunner } from "../../project/classes/instances/items/commands/conditonal/elseIfCommand/elseIfCommandRunner";
-import { IfCommandRunner } from "../../project/classes/instances/items/commands/conditonal/ifCommand/ifCommandRunner";
-import { SelectCommandRunner } from "../../project/classes/instances/items/commands/conditonal/selectCommand/selectCommandRunner";
+import { CloseCommandRunner } from "../../project/classes/instances/items/commands/conditional/closeCommand/closeCommandRunner";
+import { ElseCommandRunner } from "../../project/classes/instances/items/commands/conditional/elseCommand/elseCommandRunner";
+import { ElseIfCommandRunner } from "../../project/classes/instances/items/commands/conditional/elseIfCommand/elseIfCommandRunner";
+import { IfCommandRunner } from "../../project/classes/instances/items/commands/conditional/ifCommand/ifCommandRunner";
+import { SelectCommandRunner } from "../../project/classes/instances/items/commands/conditional/selectCommand/selectCommandRunner";
 import { SetCommandRunner } from "../../project/classes/instances/items/commands/data/setCommand/setCommandRunner";
 import { DisplayCommandRunner } from "../../project/classes/instances/items/commands/dialog/displayCommand/displayCommandRunner";
 import { CreateCommandRunner } from "../../project/classes/instances/items/commands/entity/createCommand/createCommandRunner";

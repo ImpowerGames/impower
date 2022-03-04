@@ -1,7 +1,7 @@
 import {
   CommandData,
   DoCommandData,
-  VariableData,
+  VariableValue,
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
@@ -10,7 +10,7 @@ import { CommandRunner } from "../../../command/commandRunner";
 export class DoCommandRunner extends CommandRunner<DoCommandData> {
   onExecute(
     data: DoCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {
@@ -31,7 +31,7 @@ export class DoCommandRunner extends CommandRunner<DoCommandData> {
 
   isFinished(
     data: DoCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const blockReference = getRuntimeValue(data.block, variables, game);

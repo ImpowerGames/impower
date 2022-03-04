@@ -1,7 +1,7 @@
 import {
   InputCondition,
   PressedKeyTriggerData,
-  VariableData,
+  VariableValue,
 } from "../../../../../../../data";
 import { KeyEventType } from "../../../../../../../data/enums/keyEventType";
 import { ImpowerGame } from "../../../../../../../game";
@@ -21,7 +21,7 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
    */
   init(
     data: PressedKeyTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): void {
     /**
@@ -144,7 +144,7 @@ export class PressedKeyTriggerRunner extends TriggerRunner<PressedKeyTriggerData
 
   shouldExecute(
     data: PressedKeyTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const { action } = data;

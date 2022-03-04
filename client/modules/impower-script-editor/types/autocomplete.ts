@@ -10,9 +10,13 @@ import { syntaxTree } from "@codemirror/language";
 import { SyntaxNode } from "@lezer/common";
 import { FountainParseResult } from "../../impower-script-parser";
 
-export const snippets: readonly Completion[] = [
+export const paragraphSnippets: readonly Completion[] = [
   snip("var ${newVariable}", {
     label: "variable",
+    type: "keyword",
+  }),
+  snip("tag ${newTag}", {
+    label: "tag",
     type: "keyword",
   }),
   snip("image ${newImage}", {
@@ -30,6 +34,29 @@ export const snippets: readonly Completion[] = [
   snip("text ${newText}", {
     label: "text",
     type: "keyword",
+  }),
+];
+
+export const effectSnippets: readonly Completion[] = [
+  snip("shake", {
+    label: "shake",
+    type: "class",
+  }),
+  snip("shake-v", {
+    label: "shake-v",
+    type: "class",
+  }),
+  snip("shake-h", {
+    label: "shake-h",
+    type: "class",
+  }),
+  snip("color:${blue}", {
+    label: "color",
+    type: "class",
+  }),
+  snip("speed:${0.5}", {
+    label: "speed",
+    type: "class",
   }),
 ];
 
@@ -66,6 +93,15 @@ export const assetSnippets = (names: string[]): Completion[] => {
   );
 };
 
+export const tagSnippets = (names: string[]): Completion[] => {
+  return Array.from(new Set(names)).map((x) =>
+    snip(x, {
+      label: x,
+      type: "type",
+    })
+  );
+};
+
 const getSectionInfo = (node: SyntaxNode): { level: number; from: number } => {
   const positions = new Set<number>();
   let from = 0;
@@ -82,19 +118,6 @@ const getSectionInfo = (node: SyntaxNode): { level: number; from: number } => {
     }
   }
   return { level: positions.size, from };
-};
-
-const isDialogue = (node: SyntaxNode): boolean => {
-  for (
-    let cur: SyntaxNode | null = node;
-    cur && cur.name !== "Document";
-    cur = cur.parent
-  ) {
-    if (cur.name === "Dialogue") {
-      return true;
-    }
-  }
-  return false;
 };
 
 export const autocomplete = (
@@ -122,29 +145,42 @@ export const autocomplete = (
   const completions: Completion[] = [];
   if (node.name === "Paragraph") {
     if (isLowercase) {
-      completions.push(...snippets);
+      completions.push(...paragraphSnippets);
     }
     if (input.startsWith("#")) {
       completions.push(...sectionSnippets(sectionLevel));
     }
-  }
-  const variableNodeTypes = ["AssignName", "AssignValue", "DeclareValue"];
-  if (variableNodeTypes.includes(node.name)) {
+  } else if (node.name === "ImageNote") {
+    const assets = {
+      ...(section?.assets || {}),
+      ...(result.sections?.[""]?.assets || {}),
+    };
+    const names = Object.entries(assets)
+      .filter(([, v]) => v.type === "image")
+      .map(([k]) => k.split(".").slice(-1).join("."));
+    completions.push(...assetSnippets(names));
+  } else if (node.name === "AudioNote") {
+    const assets = {
+      ...(section?.assets || {}),
+      ...(result.sections?.[""]?.assets || {}),
+    };
+    const names = Object.entries(assets)
+      .filter(([, v]) => v.type === "audio")
+      .map(([k]) => k.split(".").slice(-1).join("."));
+    completions.push(...assetSnippets(names));
+  } else if (node.name === "DynamicTag") {
+    const tags = {
+      ...(section?.tags || {}),
+      ...(result.sections?.[""]?.tags || {}),
+    };
+    const tagNames = Object.entries(tags).map(([k]) =>
+      k.split(".").slice(-1).join(".")
+    );
+    completions.push(...tagSnippets(tagNames), ...effectSnippets);
+  } else if (
+    ["AssignName", "AssignValue", "DeclareValue"].includes(node.name)
+  ) {
     completions.push(...variableSnippets(variableNames));
-  }
-  const assetNodeTypes = ["Note"];
-  if (assetNodeTypes.includes(node.name)) {
-    if (isDialogue(node)) {
-      const type = "image";
-      const assets = {
-        ...(section?.assets?.[type] || {}),
-        ...(result.sections?.[""]?.assets?.[type] || {}),
-      };
-      const assetNames = Object.entries(assets).map(([k]) =>
-        k.split(".").slice(-1).join(".")
-      );
-      completions.push(...assetSnippets(assetNames));
-    }
   }
   const source = completeFromList(completions);
   return source(context);

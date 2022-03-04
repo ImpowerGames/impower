@@ -49,6 +49,7 @@ const colors = {
   sceneHeading: "#FF8080",
   transition: "#BEA3A3",
   asset: "#9CDCFE",
+  tag: "#D25252",
   logic: "#00FF00",
   flow: "#FFFF00",
   titleKey: "#EFC090",
@@ -116,6 +117,7 @@ const myHighlightStyle = HighlightStyle.define([
   { tag: t.pageBreak, color: colors.pageBreak },
   { tag: t.transition, color: colors.transition },
   { tag: t.asset, color: colors.asset },
+  { tag: t.tag, color: colors.tag },
   { tag: t.logic, color: colors.logic },
   { tag: t.flow, color: colors.flow },
   {

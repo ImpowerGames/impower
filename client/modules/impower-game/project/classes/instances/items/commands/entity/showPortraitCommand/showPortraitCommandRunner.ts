@@ -1,4 +1,4 @@
-import { CommandData, VariableData } from "../../../../../../../data";
+import { CommandData, VariableValue } from "../../../../../../../data";
 import { LoadableFile } from "../../../../../../../data/interfaces/loadableFile";
 import { ImpowerGame } from "../../../../../../../game";
 import { getRuntimeValue } from "../../../../../../../runner";
@@ -11,7 +11,7 @@ export class ShowPortraitCommandRunner
 {
   getFileId(
     data: ShowPortraitCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): string {
     return getRuntimeValue(data.image, variables, game).refId;
@@ -19,7 +19,7 @@ export class ShowPortraitCommandRunner
 
   onExecute(
     data: ShowPortraitCommandData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame,
     index: number,
     blockCommands: {

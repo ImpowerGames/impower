@@ -12,14 +12,10 @@ export const getRuntimeVariable = (
 ): VariableData => {
   if (token.type === "declare") {
     return createVariableData({
-      reference: getRuntimeVariableReference(
-        token.variable,
-        sectionId,
-        variables
-      ),
+      reference: getRuntimeVariableReference(token.name, sectionId, variables),
       pos: token.start,
       line: token.line,
-      name: token.variable,
+      name: token.name,
       value: token?.value,
     });
   }

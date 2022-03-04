@@ -2,7 +2,7 @@ import { LoadableFile } from "../../../../../../../data/interfaces/loadableFile"
 import { ImpowerGame } from "../../../../../../../game";
 import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
 import { TriggerRunner } from "../../../trigger/triggerRunner";
-import { VariableData } from "../../../variable/variableData";
+import { VariableValue } from "../../../variable/variableValue";
 import { ImageDropTriggerData } from "./imageDropTriggerData";
 
 export class ImageDropTriggerRunner
@@ -11,7 +11,7 @@ export class ImageDropTriggerRunner
 {
   getFileId(
     data: ImageDropTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): string {
     return getRuntimeValue(data.image, variables, game).refId;
@@ -19,7 +19,7 @@ export class ImageDropTriggerRunner
 
   init(
     data: ImageDropTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): void {
     function onImageDrop(gameData: { id: string }): void {
@@ -42,7 +42,7 @@ export class ImageDropTriggerRunner
 
   shouldExecute(
     data: ImageDropTriggerData,
-    variables: { [refId: string]: VariableData },
+    variables: { [id: string]: VariableValue },
     game: ImpowerGame
   ): boolean {
     const { parentContainerId } = data.reference;
