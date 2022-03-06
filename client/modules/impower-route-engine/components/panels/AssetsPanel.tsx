@@ -70,9 +70,9 @@ const AssetsPanel = React.memo((): JSX.Element => {
 
   const fileDocs = useMemo(
     () =>
-      projectState?.data?.instances === undefined
+      projectState?.data?.files === undefined
         ? undefined
-        : projectState?.data?.instances?.files?.data || {},
+        : projectState?.data?.files?.data || {},
     [projectState?.data]
   );
 
@@ -87,7 +87,6 @@ const AssetsPanel = React.memo((): JSX.Element => {
         projectDoc={projectState?.data?.doc}
         projectId={projectState?.id}
         fileDocs={fileDocs}
-        folderDocs={projectState?.data?.instances?.folders?.data}
         selectedColor={selectedColor}
         fixedStyle={fixedStyle}
         stickyStyle={stickyStyle}

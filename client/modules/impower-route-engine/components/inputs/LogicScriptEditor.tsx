@@ -10,7 +10,10 @@ import React, {
   useState,
 } from "react";
 import { debounce } from "../../../impower-core";
-import { getRuntimeCommand } from "../../../impower-game/parser";
+import {
+  getRuntimeCommand,
+  getScriptAugmentations,
+} from "../../../impower-game/parser";
 import { FadeAnimation } from "../../../impower-route";
 import {
   FountainParseResult,
@@ -67,11 +70,14 @@ const LogicScriptEditor = React.memo(
       state?.present?.dataPanel?.panels?.[windowType]?.Container?.searchQuery;
     const mode = state?.present?.test?.mode;
     const id = state?.present?.project?.id;
+    const files = state?.present?.project?.data?.files?.data;
     const defaultValue =
-      state?.present?.project?.data?.scripts?.logic?.data?.root || "";
+      state?.present?.project?.data?.scripts?.data?.logic || "";
     const events = game?.logic?.events;
     const defaultScrollTopLine =
       state?.present?.dataPanel?.panels?.Logic?.Container?.scrollTopLine;
+
+    const augmentations = useMemo(() => getScriptAugmentations(files), [files]);
 
     const initialRef = useRef(true);
     const cursorRef = useRef<{
@@ -212,7 +218,10 @@ const LogicScriptEditor = React.memo(
       (e: Event, firstVisibleLine: number) => {
         scrollTopLineRef.current = firstVisibleLine;
         if (!parseResultRef.current) {
-          parseResultRef.current = parseFountain(scriptValueRef.current);
+          parseResultRef.current = parseFountain(
+            scriptValueRef.current,
+            augmentations
+          );
         }
         const parseResult = parseResultRef.current;
         const firstVisibleTokenIndex =
@@ -235,7 +244,7 @@ const LogicScriptEditor = React.memo(
         }
         debouncedSaveScrollTopLineRef.current?.(firstVisibleLine);
       },
-      [onSectionChange]
+      [augmentations, onSectionChange]
     );
 
     const handlePreviewResult = useCallback(
@@ -265,7 +274,8 @@ const LogicScriptEditor = React.memo(
             const runtimeCommand = getRuntimeCommand(
               token,
               sectionId,
-              result.variables
+              result.variables,
+              result.assets
             );
             if (runtimeCommand) {
               const commandInspector = gameInspector.getInspector(
@@ -304,10 +314,11 @@ const LogicScriptEditor = React.memo(
           (transitionState === "exit" && !initial)) && (
           <FadeAnimation initial={0} animate={1}>
             <ScriptEditor
+              defaultValue={defaultValue}
+              augmentations={augmentations}
               toggleFolding={toggleFolding}
               searchQuery={searchQuery}
               defaultScrollTopLine={defaultScrollTopLine}
-              defaultValue={defaultValue}
               scrollTopLineOffset={-3}
               cursor={executingCursor}
               style={style}

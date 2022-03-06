@@ -1,6 +1,5 @@
-import { createTextConfig } from "../../../../../data";
 import { FileInspector } from "../../file/fileInspector";
-import { TextFileData, createTextFileData } from "./textFileData";
+import { TextFileData } from "./textFileData";
 
 export class TextFileInspector extends FileInspector {
   private static _instance: TextFileInspector;
@@ -13,6 +12,12 @@ export class TextFileInspector extends FileInspector {
   }
 
   createData(data?: Partial<TextFileData>): TextFileData {
-    return { ...createTextFileData(data), config: createTextConfig() };
+    return {
+      name: "",
+      storageKey: "",
+      fileId: "",
+      fileType: "text/*",
+      ...data,
+    };
   }
 }

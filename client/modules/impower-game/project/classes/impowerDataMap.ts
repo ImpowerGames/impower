@@ -1,6 +1,6 @@
 import { parseFountain } from "../../../impower-script-parser";
 import { ConstructData } from "../../data";
-import { getRuntimeBlocks } from "../../parser";
+import { getRuntimeBlocks, getScriptAugmentations } from "../../parser";
 import { ImpowerGameRunner } from "../../runner/classes/impowerGameRunner";
 import { FileData } from "./instances/file/fileData";
 import { CommandData } from "./instances/items/command/commandData";
@@ -73,10 +73,17 @@ export class ImpowerDataMap {
   }
 
   constructor(project: GameProjectData, runner: ImpowerGameRunner) {
-    const script = project?.scripts?.logic?.data?.root;
-    const result = parseFountain(script);
-    const runtimeBlocks = getRuntimeBlocks(result?.sections, result?.variables);
-    const runtimeFiles = project?.instances?.files?.data;
+    const script = project?.scripts?.data?.logic;
+    const result = parseFountain(
+      script,
+      getScriptAugmentations(project?.files?.data)
+    );
+    const runtimeBlocks = getRuntimeBlocks(
+      result?.sections,
+      result?.variables,
+      result?.assets
+    );
+    const runtimeFiles = project?.files?.data;
     const constructs: { [id: string]: ConstructData } = {};
 
     this._files = runtimeFiles;

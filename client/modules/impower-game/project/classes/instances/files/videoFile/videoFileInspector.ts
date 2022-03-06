@@ -1,6 +1,5 @@
-import { createVideoConfig } from "../../../../../data";
 import { FileInspector } from "../../file/fileInspector";
-import { VideoFileData, createVideoFileData } from "./videoFileData";
+import { VideoFileData } from "./videoFileData";
 
 export class VideoFileInspector extends FileInspector {
   private static _instance: VideoFileInspector;
@@ -13,6 +12,12 @@ export class VideoFileInspector extends FileInspector {
   }
 
   createData(data?: Partial<VideoFileData>): VideoFileData {
-    return { ...createVideoFileData(data), config: createVideoConfig() };
+    return {
+      name: "",
+      storageKey: "",
+      fileId: "",
+      fileType: "video/*",
+      ...data,
+    };
   }
 }

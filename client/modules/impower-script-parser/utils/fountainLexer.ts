@@ -28,7 +28,7 @@ export const fountainLexer = (
     s = s.replace(fountainRegexes.link, replacer.link);
   }
   s = s
-    .replace(fountainRegexes.image_note_inline, replacer.note)
+    .replace(fountainRegexes.note, replacer.note)
     .replace(/\\\*/g, "[star]")
     .replace(/\\_/g, "[underline]")
     .replace(/\n/g, replacer.line_break);

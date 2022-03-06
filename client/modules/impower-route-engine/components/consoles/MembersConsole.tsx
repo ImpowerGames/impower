@@ -61,17 +61,7 @@ interface MembersConsoleContentProps {
   deleteLabel?: string;
   emptyBackground: React.ReactNode;
   fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
   onAdd?: () => void;
   onDelete?: (ids: string[]) => void;
   onClick?: (e: React.MouseEvent, id: string) => void;
@@ -306,17 +296,7 @@ interface MembersConsoleProps {
   scrollParent?: HTMLElement;
   studioId: string;
   fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
 }
 
 const MembersConsole = (props: MembersConsoleProps): JSX.Element => {

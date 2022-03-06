@@ -1,6 +1,4 @@
 import {
-  FileData,
-  FolderData,
   GameProjectData,
   InstanceData,
   isItemReference,
@@ -11,7 +9,7 @@ import { getVariableContainer } from "./getVariableContainer";
 export const getData = (
   reference: Reference,
   project: GameProjectData
-): InstanceData | FileData | FolderData => {
+): InstanceData => {
   if (!project) {
     return undefined;
   }
@@ -107,18 +105,6 @@ export const getData = (
         }
       }
       return undefined;
-    }
-    case "File": {
-      if (project?.instances?.files) {
-        return project?.instances?.files?.data?.[reference.refId];
-      }
-      break;
-    }
-    case "Folder": {
-      if (project?.instances?.folders) {
-        return project?.instances?.folders.data[reference.refId];
-      }
-      break;
     }
     default:
       return undefined;

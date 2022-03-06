@@ -13,10 +13,6 @@ import {
   TextFileInspector,
   VideoFileInspector,
 } from "../../../impower-game/inspector";
-import { isAudioFileData } from "../../../impower-game/project/classes/instances/files/audioFile/audioFileData";
-import { isImageFileData } from "../../../impower-game/project/classes/instances/files/imageFile/imageFileData";
-import { isTextFileData } from "../../../impower-game/project/classes/instances/files/textFile/textFileData";
-import { isVideoFileData } from "../../../impower-game/project/classes/instances/files/videoFile/videoFileData";
 import InspectorForm from "../../../impower-route/components/forms/InspectorForm";
 import BooleanInput from "../../../impower-route/components/inputs/BooleanInput";
 import ColorInput from "../../../impower-route/components/inputs/ColorInput";
@@ -39,7 +35,6 @@ const StyledEditFileForm = styled.div`
 `;
 
 interface EditFileFormProps {
-  scrollParent?: HTMLElement;
   docId?: string;
   doc?: FileData;
   style?: React.CSSProperties;
@@ -49,26 +44,25 @@ interface EditFileFormProps {
 
 const EditFileForm = React.memo(
   (props: PropsWithChildren<EditFileFormProps>): JSX.Element | null => {
-    const { scrollParent, docId, doc, style, children, onClose, onChange } =
-      props;
+    const { docId, doc, style, children, onClose, onChange } = props;
     const [expandedProperties, setExpandedProperties] = useState<string[]>([]);
 
     const data = useMemo(() => [doc], [doc]);
 
     const handleGetDocumentInspector = useCallback((data: FileData) => {
-      if (isImageFileData(data)) {
+      if (data.fileType?.startsWith("image")) {
         return ImageFileInspector.instance;
       }
-      if (isAudioFileData(data)) {
+      if (data.fileType?.startsWith("audio")) {
         return AudioFileInspector.instance;
       }
-      if (isVideoFileData(data)) {
+      if (data.fileType?.startsWith("video")) {
         return VideoFileInspector.instance;
       }
-      if (isTextFileData(data)) {
+      if (data.fileType?.startsWith("text")) {
         return TextFileInspector.instance;
       }
-      return undefined;
+      return ImageFileInspector.instance;
     }, []);
     const handleExpandProperty = useCallback(
       (propertyPath, expanded): void => {
@@ -101,7 +95,6 @@ const EditFileForm = React.memo(
 
     return (
       <FilePreviewOverlay
-        scrollParent={scrollParent}
         name={doc?.name}
         value={doc}
         configurable
@@ -113,7 +106,6 @@ const EditFileForm = React.memo(
             getInspector={handleGetDocumentInspector}
             data={data}
             variant="filled"
-            inset
             InputComponent={FilledInput}
             StringInputComponent={StringInput}
             NumberInputComponent={NumberInput}

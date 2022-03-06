@@ -1,6 +1,5 @@
-import { createImageConfig } from "../../../../../data";
 import { FileInspector } from "../../file/fileInspector";
-import { createImageFileData, ImageFileData } from "./imageFileData";
+import { ImageFileData } from "./imageFileData";
 
 export class ImageFileInspector extends FileInspector {
   private static _instance: ImageFileInspector;
@@ -13,17 +12,23 @@ export class ImageFileInspector extends FileInspector {
   }
 
   createData(data?: Partial<ImageFileData>): ImageFileData {
-    return { ...createImageFileData(data), config: createImageConfig() };
+    return {
+      name: "",
+      storageKey: "",
+      fileId: "",
+      fileType: "image/*",
+      ...data,
+    };
   }
 
-  getPropertyLabel(propertyPath: string, data: ImageFileData): string {
+  getPropertyLabel(propertyPath: string, _data: ImageFileData): string {
     if (propertyPath === "config.frames.active") {
       return "Split Into Frames";
     }
     if (propertyPath === "config.frames.value.frameHeight.useDefault") {
       return "Same As Frame Width";
     }
-    return super.getPropertyLabel(propertyPath, data);
+    return undefined;
   }
 
   isPropertyCollapsible(propertyPath: string, data: ImageFileData): boolean {
@@ -73,6 +78,6 @@ export class ImageFileInspector extends FileInspector {
     if (propertyPath === "config.frames.value.endFrame" && value === -1) {
       return "Calculate Automatically";
     }
-    return super.getPropertyDisplayValue(propertyPath, data, value);
+    return undefined;
   }
 }

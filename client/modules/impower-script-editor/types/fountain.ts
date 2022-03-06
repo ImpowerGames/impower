@@ -64,15 +64,15 @@ export function fountain(
     /// [`commonmarkLanguage`](#lang-markdown.commonmarkLanguage).
     base?: Language;
     /// Callback to execute when doc is parsed
-    onParse?: (result: FountainParseResult) => void;
-  } = {}
+    parse: (script: string) => FountainParseResult;
+  } = { parse: parseFountain }
 ): LanguageSupport {
   const {
     codeLanguages,
     defaultCodeLanguage,
     addKeymap = true,
     base: { parser } = commonmarkLanguage,
-    onParse,
+    parse,
   } = config;
   if (!(parser instanceof MarkdownParser)) {
     throw new RangeError(
@@ -81,10 +81,7 @@ export function fountain(
   }
   const parseContext: { result: FountainParseResult } = { result: undefined };
   const fountainParseLinter = (view: EditorView): Diagnostic[] => {
-    parseContext.result = parseFountain(view.state.doc.toString());
-    if (onParse) {
-      onParse(parseContext.result);
-    }
+    parseContext.result = parse(view.state.doc.toString());
     return parseContext.result.diagnostics || [];
   };
   const extensions = config.extensions ? [config.extensions] : [];

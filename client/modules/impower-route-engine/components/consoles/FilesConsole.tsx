@@ -24,11 +24,7 @@ import format from "../../../impower-config/utils/format";
 import { FileExtension, getFileContentType } from "../../../impower-core";
 import { ProjectDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
-import {
-  createFileData,
-  FileData,
-  FolderData,
-} from "../../../impower-game/data";
+import { FileData } from "../../../impower-game/data";
 import { getProjectColor } from "../../../impower-game/inspector";
 import { FontIcon } from "../../../impower-icon";
 import EditDialog from "../../../impower-route/components/popups/EditDialog";
@@ -41,8 +37,6 @@ import {
   getFileSizeLimit,
 } from "../../../impower-storage";
 import { ToastContext, toastTop } from "../../../impower-toast";
-import { ProjectEngineContext } from "../../contexts/projectEngineContext";
-import { projectChangeInstanceData } from "../../types/actions/projectActions";
 import EditFileForm from "../forms/EditFileForm";
 import EngineConsoleList, { CardDetail } from "../lists/EngineConsoleList";
 
@@ -274,7 +268,6 @@ const FilesConsoleContent = (
           await new DataStateWrite(
             "projects",
             projectId,
-            "instances",
             "files",
             "data",
             doc?.fileId
@@ -393,7 +386,7 @@ const FilesConsoleContent = (
         const name = currentDoc?.name || newName;
         const fileExtension = ext;
         const fileType = getFileContentType(ext);
-        const newDoc = createFileData({
+        const newDoc = {
           fileType,
           fileExtension,
           fileName,
@@ -402,7 +395,7 @@ const FilesConsoleContent = (
           size: file.size,
           name,
           t: new Date().getTime(),
-        });
+        };
         return {
           file,
           currentDoc,
@@ -594,7 +587,6 @@ interface FilesConsoleProps {
   projectDoc: ProjectDocument;
   projectId: string;
   fileDocs: { [id: string]: FileData };
-  folderDocs: { [id: string]: FolderData };
   selectedColor?: string;
   fixedStyle?: React.CSSProperties;
   stickyStyle?: React.CSSProperties;
@@ -614,7 +606,6 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
     projectDoc,
     projectId,
     fileDocs,
-    folderDocs,
     selectedColor,
     stickyStyle,
     fixedStyle,
@@ -630,8 +621,6 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
 
   const studioId = projectDoc.studio;
 
-  const [, dispatch] = useContext(ProjectEngineContext);
-
   const uploadProgressRef = useRef<{
     [path: string]: {
       bytesTransferred: number;
@@ -644,7 +633,6 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
   }>({});
 
   const [editDialogOpen, setEditDialogOpen] = useState<boolean>();
-  const [dialogScrollElement, setDialogScrollElement] = useState<HTMLElement>();
   const [editIndex, setEditIndex] = useState<number>();
 
   const docsByPathRef = useRef<{
@@ -709,7 +697,7 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
     } else {
       setDocsByPath(undefined);
     }
-  }, [fileDocs, folderDocs]);
+  }, [fileDocs]);
 
   const cardDetails = useMemo(
     () => ({
@@ -798,28 +786,26 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
 
   const handleChangeEditDoc = useCallback(
     async (doc: FileData) => {
-      dispatch(
-        projectChangeInstanceData(projectId, "modified", {
-          [editDocId]: doc,
-        })
-      );
+      const DataStateWrite = (
+        await import("../../../impower-data-state/classes/dataStateWrite")
+      ).default;
+      if (doc?.fileId) {
+        await new DataStateWrite(
+          "projects",
+          projectId,
+          "files",
+          "data",
+          doc?.fileId
+        ).update(doc);
+      }
     },
-    [dispatch, editDocId, projectId]
+    [projectId]
   );
 
   const handleCloseEditDialog = useCallback(() => {
     setEditDialogOpen(false);
     closeEditDialog();
   }, [closeEditDialog]);
-
-  const handleDialogRef = useCallback((element: HTMLElement) => {
-    if (element) {
-      setDialogScrollElement(
-        element?.querySelector?.(".MuiDialog-scrollPaper")
-          ?.firstElementChild as HTMLElement
-      );
-    }
-  }, []);
 
   const handlePrevious = useCallback(() => {
     setEditIndex(editIndex - 1);
@@ -878,13 +864,11 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
         />
       </StyledConsoleContentArea>
       <EditDialog
-        ref={handleDialogRef}
         open={editDialogOpen}
         fullScreen
         onClose={handleCloseEditDialog}
       >
         <EditFileForm
-          scrollParent={dialogScrollElement}
           docId={editDocId}
           doc={editDoc}
           onClose={handleCloseEditDialog}

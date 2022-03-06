@@ -42,17 +42,7 @@ interface PanelHeaderProps {
   breadcrumbIndicatorColor?: string;
   nameStyle?: React.CSSProperties;
   style?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
   onBack?: (e: React.MouseEvent) => void;
   onBreadcrumb?: (e: React.MouseEvent | React.ChangeEvent, id: string) => void;
   onSearch?: (
@@ -104,7 +94,7 @@ const PanelHeader = (
 
   const position = portrait ? "fixed" : "sticky";
 
-  const headerStickyStyle = useMemo(
+  const headerStickyStyle: React.CSSProperties = useMemo(
     () => ({
       position,
       zIndex: 2,

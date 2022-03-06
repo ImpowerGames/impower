@@ -7,6 +7,7 @@ import {
 } from "../../../impower-data-state";
 import { ProjectDocument } from "../../../impower-data-store";
 import {
+  FilesCollection,
   GameInstancesCollection,
   GameProjectData,
   GameScriptsCollection,
@@ -58,13 +59,15 @@ export class ProjectEngineSync {
     ).default;
     const docSnap = await new DataStateRead(...path, "doc").get();
     const membersSnap = await new DataStateRead(...path, "members").get();
-    const instancesSnap = await new DataStateRead(...path, "instances").get();
+    const filesSnap = await new DataStateRead(...path, "files").get();
     const scriptsSnap = await new DataStateRead(...path, "scripts").get();
+    const instancesSnap = await new DataStateRead(...path, "instances").get();
     const projectData: ProjectData = {
       doc: docSnap.val(),
       members: membersSnap.val(),
-      instances: instancesSnap.val(),
+      files: filesSnap.val(),
       scripts: scriptsSnap.val(),
+      instances: instancesSnap.val(),
     };
     this.onLoaded.emit();
     return { ...projectData } as T;
@@ -94,6 +97,23 @@ export class ProjectEngineSync {
       await import("../../../impower-data-state/classes/dataStateRead")
     ).default;
     const unsubscribe = await new DataStateRead(...path, "members").observe(
+      (s) => {
+        onSnapshot(s.val());
+        this.onLoaded.emit();
+      }
+    );
+    return unsubscribe;
+  }
+
+  async observeFiles(
+    onSnapshot: (value: FilesCollection) => void,
+    ...path: ProjectDocumentPath
+  ): Promise<() => void> {
+    this.onLoad.emit();
+    const DataStateRead = (
+      await import("../../../impower-data-state/classes/dataStateRead")
+    ).default;
+    const unsubscribe = await new DataStateRead(...path, "files").observe(
       (s) => {
         onSnapshot(s.val());
         this.onLoaded.emit();

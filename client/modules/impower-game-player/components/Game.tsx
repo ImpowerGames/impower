@@ -8,7 +8,10 @@ import React, {
 import Measure from "react-measure";
 import { getBlockTree } from "../../impower-game/data";
 import { ImpowerGame, SaveData } from "../../impower-game/game";
-import { getRuntimeBlocks } from "../../impower-game/parser";
+import {
+  getRuntimeBlocks,
+  getScriptAugmentations,
+} from "../../impower-game/parser";
 import { GameProjectData } from "../../impower-game/project/classes/project/gameProjectData";
 import { ImpowerGameRunner } from "../../impower-game/runner";
 import { ProjectEngineContext } from "../../impower-route-engine/contexts/projectEngineContext";
@@ -24,9 +27,16 @@ const createGame = (
   isMobile: boolean,
   saveData?: SaveData
 ): ImpowerGame => {
-  const script = project?.scripts?.logic?.data?.root;
-  const result = parseFountain(script);
-  const runtimeBlocks = getRuntimeBlocks(result?.sections, result?.variables);
+  const script = project?.scripts?.data?.logic;
+  const result = parseFountain(
+    script,
+    getScriptAugmentations(project?.files?.data)
+  );
+  const runtimeBlocks = getRuntimeBlocks(
+    result?.sections,
+    result?.variables,
+    result?.assets
+  );
   const blockTree = getBlockTree(runtimeBlocks);
   const blockEntries = Object.entries(runtimeBlocks);
   let defaultStartBlockId = blockEntries[1]?.[0] || "";

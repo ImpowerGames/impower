@@ -1,6 +1,5 @@
-import { createAudioConfig } from "../../../../../data";
 import { FileInspector } from "../../file/fileInspector";
-import { AudioFileData, createAudioFileData } from "./audioFileData";
+import { AudioFileData } from "./audioFileData";
 
 export class AudioFileInspector extends FileInspector {
   private static _instance: AudioFileInspector;
@@ -13,6 +12,12 @@ export class AudioFileInspector extends FileInspector {
   }
 
   createData(data?: Partial<AudioFileData>): AudioFileData {
-    return { ...createAudioFileData(data), config: createAudioConfig() };
+    return {
+      name: "",
+      storageKey: "",
+      fileId: "",
+      fileType: "audio/*",
+      ...data,
+    };
   }
 }

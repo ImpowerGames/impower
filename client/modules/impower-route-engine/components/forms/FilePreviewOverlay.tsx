@@ -234,6 +234,15 @@ const FilePreviewOverlay = React.memo(
     const minPaneWidth = layout.size.minWidth.panel;
     const minPaneHeight = 8 * 8;
 
+    const previewStyle: React.CSSProperties = useMemo(
+      () => ({
+        objectFit: "contain",
+        maxWidth: "100%",
+        maxHeight: "100%",
+      }),
+      []
+    );
+
     if (!value) {
       return null;
     }
@@ -272,8 +281,8 @@ const FilePreviewOverlay = React.memo(
                 <StyledSplitPane
                   key={portrait?.toString()}
                   split={portrait ? "horizontal" : "vertical"}
-                  defaultSize={configurable ? "50%" : "100%"}
-                  size={configurable ? "50%" : "100%"}
+                  defaultSize="100%"
+                  size={configuring ? "50%" : "100%"}
                   minSize={
                     configuring ? (portrait ? minPaneHeight : minPaneWidth) : 0
                   }
@@ -288,7 +297,12 @@ const FilePreviewOverlay = React.memo(
                   onChange={handleSplitChange}
                 >
                   <StyledPane ref={firstPaneRef}>
-                    <FilePreview value={value} absolute zoomPan />
+                    <FilePreview
+                      value={value}
+                      absolute
+                      zoomPan
+                      style={previewStyle}
+                    />
                   </StyledPane>
                   <StyledPane>{children}</StyledPane>
                 </StyledSplitPane>

@@ -8,7 +8,6 @@ export * from "../project/classes/instances/files/audioFile/audioFileInspector";
 export * from "../project/classes/instances/files/imageFile/imageFileInspector";
 export * from "../project/classes/instances/files/textFile/textFileInspector";
 export * from "../project/classes/instances/files/videoFile/videoFileInspector";
-export * from "../project/classes/instances/folder/folderInspector";
 export * from "../project/classes/instances/item/itemInspector";
 export * from "../project/classes/instances/items/command/commandInspector";
 export * from "../project/classes/instances/items/commands/conditional/closeCommand/closeCommandInspector";

@@ -18,7 +18,6 @@ const PeerAnimation = React.forwardRef(
     ref: ForwardedRef<HTMLDivElement>
   ): JSX.Element => {
     const {
-      id,
       horizontal = true,
       vertical,
       animate = 0,

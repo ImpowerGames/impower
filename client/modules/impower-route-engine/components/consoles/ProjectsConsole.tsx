@@ -84,17 +84,7 @@ interface ProjectsConsoleContentProps {
   doneLabel?: string;
   emptyBackground: React.ReactNode;
   fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
   onAdd?: () => void;
   onClick?: (e: React.MouseEvent, path: string) => void;
 }
@@ -355,17 +345,7 @@ interface YourProjectsConsoleProps {
   projectMemberships: { [id: string]: MemberData };
   emptyLabel?: React.ReactNode;
   fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
 }
 
 const ProjectsConsole = (props: YourProjectsConsoleProps): JSX.Element => {

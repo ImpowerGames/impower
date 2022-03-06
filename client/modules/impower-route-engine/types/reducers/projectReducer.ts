@@ -2,6 +2,7 @@ import setValue from "../../../impower-core/utils/setValue";
 import { MemberAccess } from "../../../impower-data-state";
 import { ProjectDocument } from "../../../impower-data-store";
 import {
+  FilesCollection,
   GameInstancesCollection,
   GameProjectData,
   GameScriptsCollection,
@@ -24,6 +25,7 @@ import {
   PROJECT_CHANGE_SCRIPT,
   PROJECT_INSERT_DATA,
   PROJECT_LOAD_DOC,
+  PROJECT_LOAD_FILES,
   PROJECT_LOAD_INSTANCES,
   PROJECT_LOAD_MEMBERS,
   PROJECT_LOAD_SCRIPTS,
@@ -291,7 +293,7 @@ const doProjectChangeScript = (
   state: ProjectState,
   payload: {
     id: string;
-    type: "setup" | "assets" | "entities" | "logic";
+    type: "logic";
     script: string;
     skipSync: boolean;
   }
@@ -304,9 +306,8 @@ const doProjectChangeScript = (
       "projects",
       id,
       "scripts",
-      type,
       "data",
-      "root"
+      type
     );
   }
   return {
@@ -316,12 +317,9 @@ const doProjectChangeScript = (
       ...(state?.data || {}),
       scripts: {
         ...(state?.data?.scripts || {}),
-        [type]: {
-          ...(state?.data?.scripts?.[type] || {}),
-          data: {
-            ...(state?.data?.scripts?.[type]?.data || {}),
-            root: script,
-          },
+        data: {
+          ...(state?.data?.scripts?.data || {}),
+          [type]: script,
         },
       },
     },
@@ -423,6 +421,24 @@ const doProjectLoadMembers = (
   };
 };
 
+const doProjectLoadFiles = (
+  state: ProjectState,
+  payload: {
+    id: string;
+    files: FilesCollection;
+  }
+): ProjectState => {
+  const { id, files } = payload;
+  return {
+    ...state,
+    id,
+    data: {
+      ...state.data,
+      files,
+    },
+  };
+};
+
 const doProjectLoadScripts = (
   state: ProjectState,
   payload: {
@@ -484,6 +500,8 @@ export const projectReducer = (
       return doProjectLoadDoc(state, action.payload);
     case PROJECT_LOAD_MEMBERS:
       return doProjectLoadMembers(state, action.payload);
+    case PROJECT_LOAD_FILES:
+      return doProjectLoadFiles(state, action.payload);
     case PROJECT_LOAD_SCRIPTS:
       return doProjectLoadScripts(state, action.payload);
     case PROJECT_LOAD_INSTANCES:

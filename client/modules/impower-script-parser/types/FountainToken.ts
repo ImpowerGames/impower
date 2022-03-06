@@ -1,4 +1,3 @@
-import { FountainAsset } from "./FountainAsset";
 import { FountainLine } from "./FountainLine";
 import {
   FountainAssetType,
@@ -80,7 +79,7 @@ export interface FountainDialogueToken extends FountainLine {
   character: string;
   parenthetical: string;
   position: "left" | "right";
-  assets?: FountainAsset[];
+  assets?: { name: string }[];
 }
 
 export interface FountainOtherToken extends FountainLine {

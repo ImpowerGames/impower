@@ -1,34 +1,12 @@
-import { TypeInfo } from "../../../../data";
-import { getProjectColor } from "../../../../inspector";
-import { InstanceInspector } from "../../instance/instanceInspector";
-import { createFileData, FileData } from "./fileData";
+import { Inspector } from "../../../../../impower-core";
+import { FileData } from "./fileData";
 
-export abstract class FileInspector extends InstanceInspector<FileData> {
+export abstract class FileInspector implements Inspector<FileData> {
   createData(data?: Partial<FileData>): FileData {
-    return createFileData(data);
+    return { name: "", storageKey: "", fileId: "", ...data };
   }
 
-  getTypeInfo(data?: FileData): TypeInfo {
-    return {
-      category: "",
-      name: data
-        ? data.fileType.startsWith("audio/")
-          ? "Audio"
-          : data.fileType.startsWith("image/")
-          ? "Image"
-          : data.fileType.startsWith("video/")
-          ? "Video"
-          : data.fileType.startsWith("text/")
-          ? "Text"
-          : "File"
-        : "File",
-      icon: "config",
-      color: getProjectColor("pink", 5),
-      description: "An asset file",
-    };
-  }
-
-  isPropertyVisible(propertyPath: string, data: FileData): boolean {
+  isPropertyVisible(propertyPath: string, _data: FileData): boolean {
     if (propertyPath === "storageKey") {
       return false;
     }
@@ -38,13 +16,10 @@ export abstract class FileInspector extends InstanceInspector<FileData> {
     if (propertyPath === "blurUrl") {
       return false;
     }
+    if (propertyPath === "fileId") {
+      return false;
+    }
     if (propertyPath === "fileName") {
-      return false;
-    }
-    if (propertyPath === "firebaseStorageDownloadTokens") {
-      return false;
-    }
-    if (propertyPath === "size") {
       return false;
     }
     if (propertyPath === "fileExtension") {
@@ -53,13 +28,16 @@ export abstract class FileInspector extends InstanceInspector<FileData> {
     if (propertyPath === "fileType") {
       return false;
     }
-    if (propertyPath === "contentType") {
-      return false;
-    }
     if (propertyPath === "fileUrl") {
       return false;
     }
-    return super.isPropertyVisible(propertyPath, data);
+    if (propertyPath === "size") {
+      return false;
+    }
+    if (propertyPath === "contentType") {
+      return false;
+    }
+    return true;
   }
 
   getPropertyMenuItems(

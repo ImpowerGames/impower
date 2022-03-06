@@ -1,4 +1,5 @@
 import {
+  FountainAsset,
   FountainSection,
   FountainVariable,
 } from "../../../impower-script-parser";
@@ -15,7 +16,8 @@ import { getRuntimeVariable } from "./getRuntimeVariable";
 
 export const getRuntimeBlocks = (
   sections: Record<string, FountainSection>,
-  variables: Record<string, FountainVariable>
+  variables: Record<string, FountainVariable>,
+  assets: Record<string, FountainAsset>
 ): Record<string, BlockData> => {
   const blocks: { [refId: string]: BlockData } = {};
   if (!sections) {
@@ -64,7 +66,12 @@ export const getRuntimeBlocks = (
         block.triggers.order.push(runtimeTrigger.reference.refId);
         block.triggers.data[runtimeTrigger.reference.refId] = runtimeTrigger;
       }
-      const runtimeCommand = getRuntimeCommand(token, sectionId, variables);
+      const runtimeCommand = getRuntimeCommand(
+        token,
+        sectionId,
+        variables,
+        assets
+      );
       if (runtimeCommand) {
         block.commands.order.push(runtimeCommand.reference.refId);
         block.commands.data[runtimeCommand.reference.refId] = runtimeCommand;

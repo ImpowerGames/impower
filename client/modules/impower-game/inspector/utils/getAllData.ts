@@ -2,8 +2,6 @@ import { orderBy } from "../../../impower-core";
 import {
   ConfigData,
   DataLookup,
-  FileData,
-  FolderData,
   GameProjectData,
   InstanceData,
   isContainerReference,
@@ -20,7 +18,7 @@ const getAllDataInternal = (
   dict: {
     [refId: string]: {
       id: string;
-      data: InstanceData | FileData | FolderData;
+      data: InstanceData;
       level: number;
     };
   },
@@ -274,28 +272,6 @@ const getAllDataInternal = (
       }
       break;
     }
-    case "File": {
-      if (project?.instances?.files) {
-        Object.keys(project?.instances?.files?.data || {}).forEach((id) => {
-          const data = project?.instances?.files?.data?.[id];
-          if (data) {
-            dict[id] = { id, data, level };
-          }
-        });
-      }
-      break;
-    }
-    case "Folder": {
-      if (project?.instances?.folders) {
-        Object.keys(project?.instances?.folders.data).forEach((id) => {
-          const data = project?.instances?.folders.data[id];
-          if (data) {
-            dict[id] = { id, data, level };
-          }
-        });
-      }
-      break;
-    }
     default:
       break;
   }
@@ -305,21 +281,17 @@ export const getAllData = (
   permission: Permission,
   project: GameProjectData,
   lookup: DataLookup
-): { [refId: string]: InstanceData | FileData | FolderData } => {
+): { [refId: string]: InstanceData } => {
   const dict: {
     [refId: string]: { id: string; data: InstanceData; level: number };
   } = {};
   getAllDataInternal(dict, 0, permission, project, lookup);
   const sortedDictValues = orderBy(
     Object.values(dict),
-    (value: {
-      id: string;
-      data: InstanceData | FileData | FolderData;
-      level: number;
-    }) => value.level
+    (value: { id: string; data: InstanceData; level: number }) => value.level
   );
   const sortedDict: {
-    [refId: string]: InstanceData | FileData | FolderData;
+    [refId: string]: InstanceData;
   } = {};
   sortedDictValues.forEach((value) => {
     sortedDict[value.id] = value.data;

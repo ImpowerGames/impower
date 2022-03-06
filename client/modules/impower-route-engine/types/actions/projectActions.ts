@@ -1,6 +1,7 @@
 import { MemberAccess } from "../../../impower-data-state";
 import { ProjectDocument } from "../../../impower-data-store";
 import {
+  FilesCollection,
   GameInstancesCollection,
   GameScriptsCollection,
   InstanceData,
@@ -130,14 +131,14 @@ export interface ProjectChangeScriptAction {
   type: typeof PROJECT_CHANGE_SCRIPT;
   payload: {
     id: string;
-    type: "setup" | "assets" | "entities" | "logic";
+    type: "logic";
     script: string;
     skipSync: boolean;
   };
 }
 export const projectChangeScript = (
   id: string,
-  type: "setup" | "assets" | "entities" | "logic",
+  type: "logic",
   script: string,
   skipSync?: boolean
 ): ProjectChangeScriptAction => {
@@ -221,6 +222,24 @@ export const projectLoadScripts = (
   };
 };
 
+export const PROJECT_LOAD_FILES = "PROJECT_LOAD_FILES";
+export interface ProjectLoadFilesAction {
+  type: typeof PROJECT_LOAD_FILES;
+  payload: {
+    id: string;
+    files: FilesCollection;
+  };
+}
+export const projectLoadFiles = (
+  id: string,
+  files: FilesCollection
+): ProjectLoadFilesAction => {
+  return {
+    type: PROJECT_LOAD_FILES,
+    payload: { id, files },
+  };
+};
+
 export const PROJECT_LOAD_INSTANCES = "PROJECT_LOAD_INSTANCES";
 export interface ProjectLoadInstancesAction {
   type: typeof PROJECT_LOAD_INSTANCES;
@@ -271,6 +290,7 @@ export type ProjectAction =
   | ProjectChangeDocumentAction
   | ProjectLoadDocAction
   | ProjectLoadMembersAction
+  | ProjectLoadFilesAction
   | ProjectLoadScriptsAction
   | ProjectLoadInstancesAction
   | ProjectChangeInstanceDataAction

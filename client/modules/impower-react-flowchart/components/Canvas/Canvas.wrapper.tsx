@@ -85,8 +85,10 @@ const setScrollOffset = (
     return;
   }
   if (scrollParent === document.documentElement) {
-    window.scrollX = newOffset.x;
-    window.scrollY = newOffset.y;
+    window.scroll({
+      left: newOffset.x,
+      top: newOffset.y,
+    });
   }
   scrollParent.scrollLeft = newOffset.x;
   scrollParent.scrollTop = newOffset.y;

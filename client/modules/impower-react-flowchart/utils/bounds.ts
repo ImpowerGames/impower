@@ -2,22 +2,6 @@ const int = (a: string): number => {
   return parseInt(a, 10);
 };
 
-const innerWidth = (node: HTMLElement): number => {
-  let width = node.clientWidth;
-  const computedStyle = window.getComputedStyle(node);
-  width -= int(computedStyle.paddingLeft);
-  width -= int(computedStyle.paddingRight);
-  return width;
-};
-
-const innerHeight = (node: HTMLElement): number => {
-  let height = node.clientHeight;
-  const computedStyle = window.getComputedStyle(node);
-  height -= int(computedStyle.paddingTop);
-  height -= int(computedStyle.paddingBottom);
-  return height;
-};
-
 const outerWidth = (node: HTMLElement): number => {
   // This is deliberately excluding margin for our calculations, since we are using
   // offsetLeft which is including margin. See getBoundPosition

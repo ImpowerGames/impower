@@ -109,8 +109,9 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
     onResizerDoubleClick,
   } = props;
 
+  const initialSizeRef = useRef(size);
   const initialSize =
-    size !== undefined
+    defaultSize === undefined && initialSizeRef.current !== undefined
       ? size
       : getDefaultSize(defaultSize, minSize, maxSize, null);
   const initialPane1Size = primary === "first" ? initialSize : undefined;
@@ -338,7 +339,7 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
     () => ({
       position: "relative",
       outline: "none",
-      flex: size !== undefined ? "none" : 1,
+      flex: 1,
       width: split === "vertical" ? initialPane1Size : undefined,
       height: split === "horizontal" ? initialPane1Size : undefined,
       minWidth:
@@ -353,14 +354,14 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
       ...paneStyle,
       ...pane1Style,
     }),
-    [initialPane1Size, isPrimaryFirst, pane1Style, paneStyle, size, split]
+    [initialPane1Size, isPrimaryFirst, pane1Style, paneStyle, split]
   );
 
   const initialPane2Style: React.CSSProperties = useMemo(
     () => ({
       position: "relative",
       outline: "none",
-      flex: size !== undefined ? "none" : 1,
+      flex: 1,
       width: split === "vertical" ? initialPane2Size : undefined,
       height: split === "horizontal" ? initialPane2Size : undefined,
       minWidth:
@@ -379,7 +380,7 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
       ...paneStyle,
       ...pane2Style,
     }),
-    [initialPane2Size, isPrimaryFirst, pane2Style, paneStyle, size, split]
+    [initialPane2Size, isPrimaryFirst, pane2Style, paneStyle, split]
   );
 
   return (

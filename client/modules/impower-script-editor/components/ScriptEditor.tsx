@@ -19,7 +19,11 @@ import {
 import { tooltips } from "@codemirror/tooltip";
 import { keymap, PluginField, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import React, { useEffect, useRef } from "react";
-import { FountainParseResult } from "../../impower-script-parser";
+import {
+  FountainDeclarations,
+  FountainParseResult,
+  parseFountain,
+} from "../../impower-script-parser";
 import { fountain } from "../types/fountain";
 import { fountainLanguage, tags as t } from "../types/fountainLanguage";
 import { SearchPanel } from "./SearchPanel";
@@ -156,6 +160,7 @@ const myHighlightStyle = HighlightStyle.define([
 
 interface ScriptEditorProps {
   defaultValue: string;
+  augmentations?: FountainDeclarations;
   toggleFolding: boolean;
   searchQuery?: {
     search: string;
@@ -217,6 +222,7 @@ interface ScriptEditorProps {
 const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   const {
     defaultValue,
+    augmentations,
     style,
     toggleFolding,
     searchQuery,
@@ -262,6 +268,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   onParseRef.current = onParse;
   const onSearchRef = useRef(onSearch);
   onSearchRef.current = onSearch;
+  const augmentationsRef = useRef(augmentations);
+  augmentationsRef.current = augmentations;
 
   useEffect(() => {
     const onOpenSearchPanel = (view: EditorView): void => {
@@ -295,7 +303,16 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           topContainer: topPanelsContainer,
           bottomContainer: bottomPanelsContainer,
         }),
-        fountain({ base: fountainLanguage, onParse: onParseRef.current }),
+        fountain({
+          base: fountainLanguage,
+          parse: (script: string) => {
+            const result = parseFountain(script, augmentationsRef.current);
+            if (onParseRef.current) {
+              onParseRef.current(result);
+            }
+            return result;
+          },
+        }),
         tooltips({ position: "absolute" }),
         myHighlightStyle,
         keymap.of([indentWithTab]),

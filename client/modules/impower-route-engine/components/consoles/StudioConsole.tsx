@@ -46,17 +46,7 @@ interface StudioProjectsConsoleProps {
   scrollParent?: HTMLElement;
   studioId: string;
   fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
 }
 
 const StudioProjectsConsole = React.memo(
@@ -93,17 +83,7 @@ interface SharedProjectsConsoleProps {
   scrollParent?: HTMLElement;
   studioId: string;
   fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
 }
 
 const SharedProjectsConsole = React.memo(
@@ -145,17 +125,7 @@ interface ConsoleProps {
     [docId: string]: MemberData;
   };
   fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
   onDeleting?: () => void;
   onDeleted?: () => void;
   onDeletionFailed?: () => void;
@@ -330,7 +300,7 @@ const StudioConsole = React.memo((props: StudioConsoleProps) => {
     bottom: buttonSpacing,
   };
 
-  const consoleStickyStyle = useMemo(
+  const consoleStickyStyle: React.CSSProperties = useMemo(
     () => ({
       position: "sticky",
       zIndex: 3,

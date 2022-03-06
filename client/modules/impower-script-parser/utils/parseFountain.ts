@@ -1,6 +1,7 @@
 /* eslint-disable no-cond-assign */
 /* eslint-disable prefer-destructuring */
 /* eslint-disable no-continue */
+import { FountainDeclarations } from "..";
 import { fountainRegexes } from "../constants/fountainRegexes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
 import { FountainAsset } from "../types/FountainAsset";
@@ -14,14 +15,58 @@ import { createFountainToken } from "./createFountainToken";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
-export const parseFountain = (originalScript: string): FountainParseResult => {
+export const parseFountain = (
+  originalScript: string,
+  augmentations?: FountainDeclarations
+): FountainParseResult => {
   const script = originalScript;
 
   const result: FountainParseResult = {
     scriptTokens: [],
     scriptLines: {},
     properties: {},
+    ...augmentations,
   };
+
+  Object.entries(augmentations?.variables || {}).forEach(([id, d]) => {
+    const parentId = id.split(".").slice(0, -1).join(".") || "";
+    if (!result.sections) {
+      result.sections = {};
+    }
+    if (!result.sections[parentId]) {
+      result.sections[parentId] = {};
+    }
+    if (!result.sections[parentId].variables) {
+      result.sections[parentId].variables = {};
+    }
+    result.sections[parentId].variables[id] = d;
+  });
+  Object.entries(augmentations?.tags || {}).forEach(([id, d]) => {
+    const parentId = id.split(".").slice(0, -1).join(".") || "";
+    if (!result.sections) {
+      result.sections = {};
+    }
+    if (!result.sections[parentId]) {
+      result.sections[parentId] = {};
+    }
+    if (!result.sections[parentId].tags) {
+      result.sections[parentId].tags = {};
+    }
+    result.sections[parentId].tags[id] = d;
+  });
+  Object.entries(augmentations?.assets || {}).forEach(([id, d]) => {
+    const parentId = id.split(".").slice(0, -1).join(".") || "";
+    if (!result.sections) {
+      result.sections = {};
+    }
+    if (!result.sections[parentId]) {
+      result.sections[parentId] = {};
+    }
+    if (!result.sections[parentId].assets) {
+      result.sections[parentId].assets = {};
+    }
+    result.sections[parentId].assets[id] = d;
+  });
 
   if (!script) {
     return result;
@@ -51,7 +96,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
   let previousTriggerToken: FountainLogicToken;
   let previousCharacter: string;
   let previousParenthetical: string;
-  let previousAssets: FountainAsset[] = [];
+  let previousAssets: { name: string }[] = [];
   let notes: FountainAsset[] = [];
 
   const diagnostic = (
@@ -124,7 +169,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       parent.children.push(id);
     }
     const existingContainer = result.sections[id];
-    if (existingContainer) {
+    if (existingContainer?.line) {
       diagnostic(
         currentToken,
         `A section named '${section.name}' already exists at line ${existingContainer.line}`,
@@ -132,7 +177,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         getLength(match, index)
       );
     }
-    result.sections[id] = section;
+    result.sections[id] = { ...(existingContainer || {}), ...section };
     if (!result.sectionLines) {
       result.sectionLines = {};
     }
@@ -266,14 +311,12 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       result.assets = {};
     }
     const existingAsset = result.assets?.[id];
-    if (existingAsset) {
+    if (existingAsset?.line) {
       diagnostic(
         currentToken,
         `A ${
           currentSectionId ? "local" : "global"
-        } asset named '${name}' already exists at line ${
-          existingAsset.line + 1
-        }`,
+        } asset named '${name}' already exists at line ${existingAsset.line}`,
         getStart(match, index),
         getLength(match, index)
       );
@@ -283,6 +326,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         ? value
         : getAsset(type, value?.name, match, index)?.value;
     const asset = {
+      ...(existingAsset || {}),
       line,
       type,
       value: resolvedValue,
@@ -310,12 +354,12 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       result.tags = {};
     }
     const existingTag = result.tags[id];
-    if (existingTag) {
+    if (existingTag?.line) {
       diagnostic(
         currentToken,
         `A ${
           currentSectionId ? "local" : "global"
-        } tag named '${name}' already exists at line ${existingTag.line + 1}`,
+        } tag named '${name}' already exists at line ${existingTag.line}`,
         getStart(match, index),
         getLength(match, index)
       );
@@ -325,6 +369,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         ? value
         : getTag(value?.name, match, index)?.value;
     const tag = {
+      ...(existingTag || {}),
       line,
       value: resolvedValue,
     };
@@ -352,13 +397,13 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
       result.variables = {};
     }
     const existingVariable = result.variables[id];
-    if (existingVariable) {
+    if (existingVariable?.line) {
       diagnostic(
         currentToken,
         `A ${
           currentSectionId ? "local" : "global"
         } variable named '${name}' already exists at line ${
-          existingVariable.line + 1
+          existingVariable.line
         }`,
         getStart(match, index),
         getLength(match, index)
@@ -369,6 +414,7 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         ? value
         : getVariable(value?.name, match, index)?.value;
     const variable = {
+      ...(existingVariable || {}),
       line,
       type,
       value: resolvedValue,
@@ -545,17 +591,17 @@ export const parseFountain = (originalScript: string): FountainParseResult => {
         const type = noteMatch.startsWith("(") ? "audio" : "image";
         const name = noteMatch.slice(2, noteMatch.length - 2);
         startIndex = str.indexOf(noteMatch, startIndex) + 2;
-        const value = name
-          ? getAsset(
-              type,
-              name,
-              noteMatches,
-              i,
-              startIndex,
-              noteMatch.length - 4
-            )?.value
-          : undefined;
-        previousAssets.push({ type, value });
+        if (name) {
+          getAsset(
+            type,
+            name,
+            noteMatches,
+            i,
+            startIndex,
+            noteMatch.length - 4
+          );
+        }
+        previousAssets.push({ name });
       }
     }
   };

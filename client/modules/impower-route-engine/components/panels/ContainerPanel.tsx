@@ -464,7 +464,6 @@ const ContainerPanelHeader = React.memo(
       () => ({
         pointerEvents: "auto",
         backgroundColor: theme.colors.darkForeground,
-        boxShadow: `0 2px 8px 8px ${theme.colors.darkForeground}`,
         ...style,
       }),
       [style, theme.colors.darkForeground]

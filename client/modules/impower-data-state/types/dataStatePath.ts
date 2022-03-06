@@ -263,35 +263,29 @@ export type PageMemberReadPath = [
 export type PageMemberWritePath = PageMemberReadPath;
 export type PageMemberQueryPath = [...PageDocumentPath, "members", "data"];
 
-export type ProjectScriptReadPath =
-  | [...ProjectDocumentPath, "scripts"]
-  | [...ProjectDocumentPath, "scripts", "setup"]
-  | [...ProjectDocumentPath, "scripts", "assets"]
-  | [...ProjectDocumentPath, "scripts", "entities"]
-  | [...ProjectDocumentPath, "scripts", "logic"];
+export type ProjectFileReadPath = [...ProjectDocumentPath, "files"];
+export type ProjectFileWritePath = [
+  ...ProjectDocumentPath,
+  "files",
+  "data",
+  string
+];
+
+export type ProjectScriptReadPath = [...ProjectDocumentPath, "scripts"];
 export type ProjectScriptWritePath =
-  | [...ProjectDocumentPath, "scripts", "setup", "data", string]
-  | [...ProjectDocumentPath, "scripts", "assets", "data", string]
-  | [...ProjectDocumentPath, "scripts", "entities", "data", string]
-  | [...ProjectDocumentPath, "scripts", "logic", "data", string];
+  | [...ProjectDocumentPath, "scripts", "data", "logic"];
 
 export type ProjectInstancesReadPath =
   | [...ProjectDocumentPath, "instances"]
-  | [...ProjectDocumentPath, "instances", "files"]
-  | [...ProjectDocumentPath, "instances", "folders"]
   | [...ProjectDocumentPath, "instances", "configs"]
   | [...ProjectDocumentPath, "instances", "constructs"]
   | [...ProjectDocumentPath, "instances", "blocks"];
 export type ProjectInstanceReadPath =
-  | [...ProjectDocumentPath, "instances", "files", "data", string]
-  | [...ProjectDocumentPath, "instances", "folders", "data", string]
   | [...ProjectDocumentPath, "instances", "configs", "data", string]
   | [...ProjectDocumentPath, "instances", "constructs", "data", string]
   | [...ProjectDocumentPath, "instances", "blocks", "data", string];
 export type ProjectInstanceWritePath = ProjectInstanceReadPath;
 export type ProjectInstanceQueryPath =
-  | [...ProjectDocumentPath, "instances", "files", "data"]
-  | [...ProjectDocumentPath, "instances", "folders", "data"]
   | [...ProjectDocumentPath, "instances", "configs", "data"]
   | [...ProjectDocumentPath, "instances", "constructs", "data"]
   | [...ProjectDocumentPath, "instances", "blocks", "data"];
@@ -322,6 +316,7 @@ export type DataStateReadPath =
   | PageMembersReadPath
   | PageMemberReadPath
   | ProjectDocumentPath
+  | ProjectFileReadPath
   | ProjectScriptReadPath
   | ProjectInstancesReadPath
   | ProjectInstanceReadPath
@@ -341,6 +336,7 @@ export type DataStateWritePath =
   | UserChatWritePath
   | PhraseAggWritePath
   | PageMemberWritePath
+  | ProjectFileWritePath
   | ProjectScriptWritePath
   | ProjectInstanceWritePath
   | PublishedPageAggWritePath

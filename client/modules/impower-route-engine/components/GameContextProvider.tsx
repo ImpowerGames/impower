@@ -11,6 +11,7 @@ import { debounce } from "../../impower-core";
 import { useAllDocs } from "../../impower-data-state";
 import { ProjectDocument } from "../../impower-data-store";
 import {
+  FilesCollection,
   GameInstancesCollection,
   GameProjectData,
   GameScriptsCollection,
@@ -48,6 +49,7 @@ import {
 import {
   projectAccess,
   projectLoadDoc,
+  projectLoadFiles,
   projectLoadInstances,
   projectLoadMembers,
   projectLoadScripts,
@@ -153,6 +155,12 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     },
     [projectEngineDispatch, loadedProjectId]
   );
+  const handleLoadProjectFiles = useCallback(
+    (files: FilesCollection) => {
+      projectEngineDispatch(projectLoadFiles(loadedProjectId, files));
+    },
+    [projectEngineDispatch, loadedProjectId]
+  );
   const handleLoadProjectScripts = useCallback(
     (scripts: GameScriptsCollection) => {
       projectEngineDispatch(projectLoadScripts(loadedProjectId, scripts));
@@ -169,6 +177,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     loadedProjectId,
     handleLoadProjectDoc,
     handleLoadProjectMembers,
+    handleLoadProjectFiles,
     handleLoadProjectScripts,
     handleLoadProjectInstances
   );

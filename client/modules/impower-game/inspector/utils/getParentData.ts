@@ -1,19 +1,17 @@
-import { getData } from "./getData";
 import {
-  isScopable,
-  Reference,
-  isItemReference,
-  isContainerReference,
   GameProjectData,
   InstanceData,
-  FileData,
-  FolderData,
+  isContainerReference,
+  isItemReference,
+  isScopable,
+  Reference,
 } from "../../data";
+import { getData } from "./getData";
 
 export const getParentData = (
   reference: Reference,
   project: GameProjectData
-): InstanceData | FileData | FolderData | undefined => {
+): InstanceData | undefined => {
   const data = getData(reference, project);
   let parentReference: Reference = {
     ...reference,

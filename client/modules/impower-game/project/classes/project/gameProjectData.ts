@@ -9,8 +9,6 @@ import { SaveConfigData } from "../instances/configs/saveConfig/saveConfigData";
 import { ScaleConfigData } from "../instances/configs/scaleConfig/scaleConfigData";
 import { BlockData } from "../instances/containers/block/blockData";
 import { ConstructData } from "../instances/containers/construct/constructData";
-import { FileData } from "../instances/file/fileData";
-import { FolderData } from "../instances/folder/folderData";
 import {
   InstancesCollection,
   ProjectData,
@@ -37,8 +35,6 @@ export interface GameScriptsCollection extends ScriptsCollection {
 }
 
 export interface GameInstancesCollection extends InstancesCollection {
-  files: Collection<FileData>;
-  folders: Collection<FolderData>;
   configs: ConfigDataCollection;
   constructs: Collection<ConstructData>;
   blocks: Collection<BlockData>;

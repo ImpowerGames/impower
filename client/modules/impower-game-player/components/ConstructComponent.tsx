@@ -5,7 +5,7 @@ import {
   isUIElementData,
   UIElementComponentData,
   UIElementData,
-  VariableData,
+  VariableValue,
 } from "../../impower-game/data";
 import { ImpowerGame } from "../../impower-game/game";
 import { getRuntimeValue } from "../../impower-game/runner";
@@ -14,7 +14,7 @@ import { ElementComponent } from "./ElementComponent";
 const getElementComponentData = (
   data: UIElementData,
   game: ImpowerGame,
-  variables?: { [refId: string]: VariableData },
+  variables?: { [id: string]: VariableValue },
   constructs?: { [refId: string]: ConstructData }
 ): UIElementComponentData => {
   const text = getRuntimeValue(data.content.text, variables, game);
@@ -55,7 +55,7 @@ const getElementComponentData = (
 interface ConstructComponentProps {
   construct: ConstructData;
   game: ImpowerGame;
-  variables?: { [refId: string]: VariableData };
+  variables?: { [refId: string]: VariableValue };
   constructs?: { [refId: string]: ConstructData };
   files?: { [refId: string]: FileData };
 }

@@ -1,4 +1,5 @@
 import {
+  FountainAsset,
   FountainDialogueToken,
   FountainToken,
   FountainVariable,
@@ -14,12 +15,14 @@ import {
   SetCommandData,
   SetOperator,
 } from "../../data";
+import { getFountainAsset } from "./getFountainAsset";
 import { getRuntimeDynamicData } from "./getRuntimeDynamicData";
 import { getRuntimeVariableReference } from "./getRuntimeVariableReference";
 
 const getDisplayCommand = (
   token: FountainToken,
-  sectionId = ""
+  sectionId = "",
+  assets: Record<string, FountainAsset>
 ): DisplayCommandData => {
   const refId = `${sectionId}.${token.start}`;
   const refTypeId: CommandTypeId = "DisplayCommand";
@@ -41,7 +44,10 @@ const getDisplayCommand = (
     character: dialogueToken.character || "",
     parenthetical: dialogueToken.parenthetical || "",
     content: dialogueToken.text || dialogueToken.content,
-    assets: dialogueToken?.assets || [],
+    assets:
+      dialogueToken.assets?.map(({ name }) =>
+        getFountainAsset(name, sectionId, assets)
+      ) || [],
     waitUntilFinished: dialogueToken.position !== "left",
   };
 };
@@ -49,7 +55,8 @@ const getDisplayCommand = (
 export const getRuntimeCommand = (
   token: FountainToken,
   sectionId = "",
-  variables: Record<string, FountainVariable>
+  variables: Record<string, FountainVariable>,
+  assets: Record<string, FountainAsset>
 ): CommandData => {
   if (token.type === "assign") {
     const refId = `${sectionId}.${token.start}`;
@@ -77,7 +84,7 @@ export const getRuntimeCommand = (
     token.type === "transition" ||
     token.type === "scene"
   ) {
-    return getDisplayCommand(token, sectionId);
+    return getDisplayCommand(token, sectionId, assets);
   }
 
   return null;

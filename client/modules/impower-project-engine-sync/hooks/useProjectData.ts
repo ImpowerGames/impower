@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { ProjectDocument } from "../../impower-data-store";
 import {
+  FilesCollection,
   GameInstancesCollection,
   GameScriptsCollection,
   MembersCollection,
@@ -11,11 +12,13 @@ export const useProjectData = (
   projectId: string,
   onLoadDoc?: (doc: ProjectDocument) => void,
   onLoadMembers?: (doc: MembersCollection) => void,
+  onLoadFiles?: (doc: FilesCollection) => void,
   onLoadScripts?: (doc: GameScriptsCollection) => void,
   onLoadInstances?: (doc: GameInstancesCollection) => void
 ): void => {
   const unsubscribeDocRef = useRef<() => void>();
   const unsubscribeMembersRef = useRef<() => void>();
+  const unsubscribeFilesRef = useRef<() => void>();
   const unsubscribeScriptsRef = useRef<() => void>();
   const unsubscribeInstancesRef = useRef<() => void>();
 
@@ -55,6 +58,17 @@ export const useProjectData = (
         unsubscribeMembersRef.current = unsubscribe;
       });
     ProjectEngineSync.instance
+      .observeFiles(
+        (v) => {
+          onLoadFiles?.(v);
+        },
+        "projects",
+        projectId
+      )
+      .then((unsubscribe) => {
+        unsubscribeFilesRef.current = unsubscribe;
+      });
+    ProjectEngineSync.instance
       .observeScripts(
         (v) => {
           onLoadScripts?.(v);
@@ -83,6 +97,9 @@ export const useProjectData = (
       if (unsubscribeMembersRef.current) {
         unsubscribeMembersRef.current();
       }
+      if (unsubscribeFilesRef.current) {
+        unsubscribeFilesRef.current();
+      }
       if (unsubscribeScriptsRef.current) {
         unsubscribeScriptsRef.current();
       }
@@ -90,5 +107,12 @@ export const useProjectData = (
         unsubscribeInstancesRef.current();
       }
     };
-  }, [onLoadDoc, onLoadInstances, onLoadMembers, onLoadScripts, projectId]);
+  }, [
+    onLoadDoc,
+    onLoadFiles,
+    onLoadInstances,
+    onLoadMembers,
+    onLoadScripts,
+    projectId,
+  ]);
 };
