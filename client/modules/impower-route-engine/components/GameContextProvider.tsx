@@ -424,7 +424,6 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     !projectEngineState.present.project.id ||
     projectEngineState.present.project.data === undefined ||
     projectEngineState.present.project.data?.doc === undefined ||
-    projectEngineState.present.project.data?.members === undefined ||
     projectEngineState.present.project.data?.files === undefined ||
     projectEngineState.present.project.data?.scripts === undefined ||
     projectEngineState.present.project.data?.instances === undefined;

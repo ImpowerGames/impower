@@ -183,7 +183,8 @@ const ProjectsConsoleContent = (
           return data?.p?.n;
         }
         if (key === "modified") {
-          const accessedAt = new Date(data?.accessedAt || data?.t);
+          const modified = data?.accessedAt || data?.t;
+          const accessedAt = modified ? new Date(modified) : new Date();
           return format("Modified {date}", {
             date: abbreviateAge(accessedAt),
           });

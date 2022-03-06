@@ -253,6 +253,15 @@ export type PageAggQueryPath =
   | [...PageDocumentPath, "agg", "follows", "data"]
   | [...PageDocumentPath, "agg", "reports", "data"];
 
+export type PageProjectsReadPath = [...PageDocumentPath, "projects"];
+export type PageProjectReadPath = [
+  ...PageDocumentPath,
+  "projects",
+  "data",
+  string
+];
+export type PageProjectQueryPath = [...PageDocumentPath, "projects", "data"];
+
 export type PageMembersReadPath = [...PageDocumentPath, "members"];
 export type PageMemberReadPath = [
   ...PageDocumentPath,
@@ -313,6 +322,8 @@ export type DataStateReadPath =
   | PageDocReadPath
   | UserChatReadPath
   | PhraseAggReadPath
+  | PageProjectsReadPath
+  | PageProjectReadPath
   | PageMembersReadPath
   | PageMemberReadPath
   | ProjectDocumentPath
@@ -352,6 +363,7 @@ export type DataStateQueryPath =
   | UserAggQueryPath
   | UserNotificationsQueryPath
   | UserChatQueryPath
+  | PageProjectQueryPath
   | PageMemberQueryPath
   | PublishedPageAggQueryPath
   | PitchedProjectAggQueryPath

@@ -4,6 +4,7 @@ import { Typography, useMediaQuery } from "@material-ui/core";
 import { useRouter } from "next/router";
 import React, { useEffect, useMemo, useState } from "react";
 import { MemberAccess, MemberData } from "../../../impower-data-state";
+import { InfoAttributes } from "../../../impower-data-state/types/interfaces/infoAttributes";
 import { layout } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
@@ -124,6 +125,7 @@ interface ConsoleProps {
   projectMemberships: {
     [docId: string]: MemberData;
   };
+  studioProjects: { [id: string]: InfoAttributes };
   fixedStyle?: React.CSSProperties;
   stickyStyle?: React.CSSProperties;
   onDeleting?: () => void;
@@ -139,6 +141,7 @@ const Console = React.memo((props: ConsoleProps): JSX.Element | null => {
     studioId,
     studioMemberships,
     projectMemberships,
+    studioProjects,
     stickyStyle,
     fixedStyle,
     onDeleting,
@@ -147,20 +150,26 @@ const Console = React.memo((props: ConsoleProps): JSX.Element | null => {
   } = props;
 
   const studioProjectMemberships = useMemo(() => {
-    if (projectMemberships === undefined) {
+    if (studioProjects === undefined) {
       return undefined;
     }
-    if (projectMemberships === null) {
+    if (studioProjects === null) {
       return null;
     }
     const memberships = {};
-    Object.entries(projectMemberships).forEach(([id, data]) => {
-      if (data?.s?.id === studioId) {
-        memberships[id] = data;
+    Object.entries(projectMemberships).forEach(([id, member]) => {
+      if (member.s?.id === studioId) {
+        memberships[id] = member;
       }
     });
+    Object.entries(studioProjects).forEach(([id, p]) => {
+      memberships[id] = projectMemberships?.[id] || {
+        ...(studioMemberships?.[id] || {}),
+        p,
+      };
+    });
     return memberships;
-  }, [projectMemberships, studioId]);
+  }, [studioProjects, projectMemberships, studioId, studioMemberships]);
 
   const sharedProjectMemberships = useMemo(() => {
     if (projectMemberships === undefined) {
@@ -235,6 +244,7 @@ interface StudioConsoleProps {
   studioId: string;
   studioMemberships: { [id: string]: MemberData };
   projectMemberships: { [id: string]: MemberData };
+  studioProjects: { [id: string]: InfoAttributes };
   onDeleting?: () => void;
   onDeleted?: () => void;
   onDeletionFailed?: () => void;
@@ -246,6 +256,7 @@ const StudioConsole = React.memo((props: StudioConsoleProps) => {
     studioId,
     studioMemberships,
     projectMemberships,
+    studioProjects,
     onDeleting,
     onDeleted,
     onDeletionFailed,
@@ -328,6 +339,7 @@ const StudioConsole = React.memo((props: StudioConsoleProps) => {
         type={activeConsoleType}
         studioMemberships={studioMemberships}
         projectMemberships={projectMemberships}
+        studioProjects={studioProjects}
         uid={uid}
         scrollParent={scrollParent}
         studioId={studioId}

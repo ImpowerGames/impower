@@ -17,7 +17,10 @@ import getLocalizationConfigParameters from "../../../lib/getLocalizationConfigP
 import getTagConfigParameters from "../../../lib/getTagConfigParameters";
 import { ConfigParameters } from "../../../modules/impower-config";
 import ConfigCache from "../../../modules/impower-config/classes/configCache";
-import { MemberAccess } from "../../../modules/impower-data-state";
+import {
+  MemberAccess,
+  useCollectionData,
+} from "../../../modules/impower-data-state";
 import DataStoreCache from "../../../modules/impower-data-store/classes/dataStoreCache";
 import { FontIcon } from "../../../modules/impower-icon";
 import {
@@ -293,6 +296,15 @@ const StudioPageContent = React.memo((props: StudioPageContentProps) => {
 
   const studioData = my_studio_memberships?.[studioId];
   const loading = studioId?.toLowerCase() === "shared" ? false : !studioData;
+  const studioProjects = useCollectionData(
+    {
+      orderByChild: "t",
+    },
+    "studios",
+    studioId,
+    "projects",
+    "data"
+  );
 
   if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
     return null;
@@ -395,6 +407,7 @@ const StudioPageContent = React.memo((props: StudioPageContentProps) => {
             uid={uid}
             studioMemberships={my_studio_memberships}
             projectMemberships={my_project_memberships}
+            studioProjects={studioProjects}
             studioId={studioId}
             onDeleting={handleDeleting}
             onDeleted={handleDeleted}

@@ -483,7 +483,9 @@ const SetupPanel = React.memo((): JSX.Element => {
 
   const setupTabIndex = setupSections.findIndex((s) => s.type === section);
   const validSetupTabIndex =
-    setupTabIndex < setupSections.length ? setupTabIndex : 0;
+    setupTabIndex >= 0 && setupTabIndex < setupSections.length
+      ? setupTabIndex
+      : 0;
 
   const type = setupSections[validSetupTabIndex]?.type;
 
@@ -607,23 +609,25 @@ const SetupPanel = React.memo((): JSX.Element => {
         }
       >
         <StyledPanelContent>
-          <StyledHeaderArea>
-            <StyledTabsArea>
-              <StyledTabs
-                value={validSetupTabIndex}
-                indicatorColor="white"
-                onChange={handleTabChange}
-              >
-                {setupSections.map((section, index) => (
-                  <StyledTab
-                    key={section.type}
-                    value={index}
-                    label={section.name}
-                  />
-                ))}
-              </StyledTabs>
-            </StyledTabsArea>
-          </StyledHeaderArea>
+          {setupSections?.length > 1 && (
+            <StyledHeaderArea>
+              <StyledTabsArea>
+                <StyledTabs
+                  value={validSetupTabIndex}
+                  indicatorColor="white"
+                  onChange={handleTabChange}
+                >
+                  {setupSections.map((section, index) => (
+                    <StyledTab
+                      key={section.type}
+                      value={index}
+                      label={section.name}
+                    />
+                  ))}
+                </StyledTabs>
+              </StyledTabsArea>
+            </StyledHeaderArea>
+          )}
           <StyledSetupArea>
             <PeerTransition
               currentIndex={tabIndex}
