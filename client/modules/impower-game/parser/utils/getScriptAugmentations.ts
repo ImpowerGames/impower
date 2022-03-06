@@ -5,7 +5,7 @@ export const getScriptAugmentations = (
   files: Record<string, FileData>
 ): Partial<FountainParseResult> => {
   const assets = {};
-  Object.entries(files).forEach(([, { name, fileType, fileUrl }]) => {
+  Object.entries(files || {}).forEach(([, { name, fileType, fileUrl }]) => {
     const type = fileType?.startsWith("audio")
       ? "audio"
       : fileType?.startsWith("video")

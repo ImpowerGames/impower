@@ -156,7 +156,43 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     [projectEngineDispatch, loadedProjectId]
   );
   const handleLoadProjectFiles = useCallback(
-    (files: FilesCollection) => {
+    async (files: FilesCollection) => {
+      await Promise.all(
+        Object.entries(files?.data || {}).map(([, fileData]) => {
+          return new Promise((resolve) => {
+            if (fileData?.fileType?.startsWith("image") && fileData?.blurUrl) {
+              const img = new Image();
+              img.onload = resolve;
+              img.onerror = resolve;
+              img.src = fileData?.blurUrl;
+            }
+          });
+        })
+      );
+      await Promise.all(
+        Object.entries(files?.data || {}).map(([, fileData]) => {
+          return new Promise((resolve) => {
+            if (fileData?.fileType?.startsWith("image") && fileData?.thumbUrl) {
+              const img = new Image();
+              img.onload = resolve;
+              img.onerror = resolve;
+              img.src = fileData?.thumbUrl;
+            }
+          });
+        })
+      );
+      await Promise.all(
+        Object.entries(files?.data || {}).map(([, fileData]) => {
+          return new Promise((resolve) => {
+            if (fileData?.fileType?.startsWith("image") && fileData?.fileUrl) {
+              const img = new Image();
+              img.onload = resolve;
+              img.onerror = resolve;
+              img.src = fileData?.fileUrl;
+            }
+          });
+        })
+      );
       projectEngineDispatch(projectLoadFiles(loadedProjectId, files));
     },
     [projectEngineDispatch, loadedProjectId]
@@ -386,7 +422,12 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     !loadedStudioId ||
     !loadedProjectId ||
     !projectEngineState.present.project.id ||
-    projectEngineState.present.project.data === undefined;
+    projectEngineState.present.project.data === undefined ||
+    projectEngineState.present.project.data?.doc === undefined ||
+    projectEngineState.present.project.data?.members === undefined ||
+    projectEngineState.present.project.data?.files === undefined ||
+    projectEngineState.present.project.data?.scripts === undefined ||
+    projectEngineState.present.project.data?.instances === undefined;
 
   if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
     return null;

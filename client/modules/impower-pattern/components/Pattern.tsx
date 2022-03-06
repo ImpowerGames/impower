@@ -198,13 +198,15 @@ interface PatternProps {
 const Pattern = (props: PatternProps): JSX.Element => {
   const { pattern, color = "black", opacity = 0.25, size, style } = props;
 
-  const patternSvgComponent = PatternSvg({ pattern })();
+  const patternSvgComponent = PatternSvg?.({ pattern })?.();
 
-  const { width, height, viewBox } = patternSvgComponent.props;
+  const width = patternSvgComponent?.props?.width;
+  const height = patternSvgComponent?.props?.height;
+  const viewBox = patternSvgComponent?.props?.viewBox;
   const widthProperty = width ? `width='${width}'` : "";
   const heightProperty = height ? `height='${height}'` : "";
   const viewBoxProperty = viewBox ? `viewBox='${viewBox}'` : "";
-  const { d } = patternSvgComponent.props?.children?.props;
+  const d = patternSvgComponent?.props?.children?.props?.d;
   const dProperty = d ? `d='${d}'` : "";
 
   return (

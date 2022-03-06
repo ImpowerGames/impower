@@ -72,12 +72,14 @@ const EngineProjectPage = React.memo((props: GamePageProps) => {
   }
 
   return (
-    <GameContextProvider>
-      <StyledProjectPage>
-        <Project />
-      </StyledProjectPage>
+    <>
+      <GameContextProvider>
+        <StyledProjectPage>
+          <Project />
+        </StyledProjectPage>
+      </GameContextProvider>
       <TagIconLoader />
-    </GameContextProvider>
+    </>
   );
 });
 
