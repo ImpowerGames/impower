@@ -8,7 +8,10 @@ import {
 } from "@codemirror/autocomplete";
 import { syntaxTree } from "@codemirror/language";
 import { SyntaxNode } from "@lezer/common";
-import { FountainParseResult } from "../../impower-script-parser";
+import {
+  FountainAsset,
+  FountainParseResult,
+} from "../../impower-script-parser";
 
 export const paragraphSnippets: readonly Completion[] = [
   snip("var ${newVariable}", {
@@ -76,19 +79,46 @@ export const sectionSnippets = (level: number): Completion[] => {
 };
 
 export const variableSnippets = (names: string[]): Completion[] => {
-  return Array.from(new Set(names)).map((x) =>
-    snip(x, {
-      label: x,
+  return Array.from(new Set(names)).map((name) =>
+    snip(name, {
+      label: name,
       type: "variable",
     })
   );
 };
 
-export const assetSnippets = (names: string[]): Completion[] => {
-  return Array.from(new Set(names)).map((x) =>
-    snip(x, {
-      label: x,
+export const assetSnippets = (
+  assets: [string, FountainAsset][]
+): Completion[] => {
+  const map: { [name: string]: FountainAsset } = {};
+  assets.forEach(([id, asset]) => {
+    const name = id.split(".").slice(-1).join(".");
+    map[name] = asset;
+  });
+  return Object.entries(map).map(([name, asset]) =>
+    snip(name, {
+      label: name,
       type: "function",
+      info: () => {
+        const preview = document.createElement(
+          asset.type === "audio" ? "audio" : "img"
+        );
+        const fileUrl = asset.value;
+        const rgx = /%2F([0-9][0-9][0-9])[?]/;
+        const match = fileUrl.match(rgx);
+        const storageName = match?.[1];
+        const previewPrefix = "THUMB_";
+        const previewUrl =
+          match && asset.type === "image"
+            ? fileUrl.replace(rgx, `%2F${previewPrefix}${storageName}?`)
+            : undefined;
+        preview.src = previewUrl || fileUrl;
+        preview.style.width = "100px";
+        preview.style.height = "100px";
+        preview.style.objectFit = "contain";
+        preview.style.backgroundColor = "white";
+        return preview;
+      },
     })
   );
 };
@@ -120,7 +150,7 @@ const getSectionInfo = (node: SyntaxNode): { level: number; from: number } => {
   return { level: positions.size, from };
 };
 
-export const autocomplete = (
+export const fountainAutocomplete = (
   context: CompletionContext,
   parseContext: { result: FountainParseResult }
 ): CompletionResult | Promise<CompletionResult> => {
@@ -155,19 +185,19 @@ export const autocomplete = (
       ...(section?.assets || {}),
       ...(result.sections?.[""]?.assets || {}),
     };
-    const names = Object.entries(assets)
-      .filter(([, v]) => v.type === "image")
-      .map(([k]) => k.split(".").slice(-1).join("."));
-    completions.push(...assetSnippets(names));
+    const imageAssets = Object.entries(assets).filter(
+      ([, v]) => v.type === "image"
+    );
+    completions.push(...assetSnippets(imageAssets));
   } else if (node.name === "AudioNote") {
     const assets = {
       ...(section?.assets || {}),
       ...(result.sections?.[""]?.assets || {}),
     };
-    const names = Object.entries(assets)
-      .filter(([, v]) => v.type === "audio")
-      .map(([k]) => k.split(".").slice(-1).join("."));
-    completions.push(...assetSnippets(names));
+    const audioAssets = Object.entries(assets).filter(
+      ([, v]) => v.type === "audio"
+    );
+    completions.push(...assetSnippets(audioAssets));
   } else if (node.name === "DynamicTag") {
     const tags = {
       ...(section?.tags || {}),

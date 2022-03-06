@@ -1,3 +1,4 @@
+import { autocompletion } from "@codemirror/autocomplete";
 import { EditorView } from "@codemirror/basic-setup";
 import { html } from "@codemirror/lang-html";
 import {
@@ -14,8 +15,8 @@ import {
 } from "../../impower-script-parser";
 import { MarkdownParser } from "../classes/MarkdownParser";
 import { parseCode } from "../utils/nest";
-import { autocomplete } from "./autocomplete";
 import { deleteMarkupBackward, insertNewlineContinueMarkup } from "./commands";
+import { fountainAutocomplete } from "./fountainAutocomplete";
 import {
   commonmarkLanguage,
   fountainLanguage,
@@ -88,8 +89,9 @@ export function fountain(
   const support = [
     htmlNoMatch.support,
     fountainLanguage.data.of({
-      autocomplete: (c) => autocomplete(c, parseContext),
+      autocomplete: (c) => fountainAutocomplete(c, parseContext),
     }),
+    autocompletion({ aboveCursor: true }),
     linter(fountainParseLinter, { delay: 10 }),
   ];
   let defaultCode;
