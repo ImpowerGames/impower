@@ -389,8 +389,9 @@ export const userReducer = (
     case USER_CHANGE_MEMBER: {
       const { path, data, onFinished } = action.payload;
       const validUpdate: MemberData = {
-        ...(data?.access ? { access: data?.access } : {}),
-        ...(data?.role ? { role: data?.role } : {}),
+        ...(data?.access !== undefined ? { access: data?.access } : {}),
+        ...(data?.role !== undefined ? { role: data?.role } : {}),
+        ...(data?.g !== undefined ? { g: data?.g } : {}),
       };
       const setData = async (): Promise<void> => {
         const DataStateWrite = (
