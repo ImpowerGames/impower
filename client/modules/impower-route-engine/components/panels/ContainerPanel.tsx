@@ -583,6 +583,7 @@ interface ContainerPanelContentProps {
   breadcrumbIndex?: number;
   previousBreadcrumbIndex?: number;
   toggleFolding: boolean;
+  toggleLinting: boolean;
   scrollParent?: HTMLElement | null;
   onBreadcrumb: (
     e: React.MouseEvent | React.ChangeEvent,
@@ -625,6 +626,7 @@ const ContainerPanelContent = React.memo(
       breadcrumbIndex,
       previousBreadcrumbIndex,
       toggleFolding,
+      toggleLinting,
       scrollParent,
       onBreadcrumb,
       onSetDragging,
@@ -688,6 +690,7 @@ const ContainerPanelContent = React.memo(
         <>
           <LogicScriptEditor
             toggleFolding={toggleFolding}
+            toggleLinting={toggleLinting}
             onSectionChange={onSectionChange}
           />
         </>
@@ -1961,6 +1964,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         breadcrumbIndex={breadcrumbIndex}
         previousBreadcrumbIndex={previousBreadcrumbIndex}
         toggleFolding={toggleFolding}
+        toggleLinting={mode === Mode.Test}
         onBreadcrumb={handleClickHeaderBreadcrumb}
         onSetDragging={handleSetDragging}
         onSetOrder={handleSetOrder}

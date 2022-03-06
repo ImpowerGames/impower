@@ -52,12 +52,13 @@ const StyledLogicScriptEditor = styled.div`
 
 interface LogicScriptEditorProps {
   toggleFolding: boolean;
+  toggleLinting: boolean;
   onSectionChange: (name: string) => void;
 }
 
 const LogicScriptEditor = React.memo(
   (props: LogicScriptEditorProps): JSX.Element => {
-    const { toggleFolding, onSectionChange } = props;
+    const { toggleFolding, toggleLinting, onSectionChange } = props;
 
     const [state, dispatch] = useContext(ProjectEngineContext);
     const { transitionState } = useContext(WindowTransitionContext);
@@ -317,6 +318,7 @@ const LogicScriptEditor = React.memo(
               defaultValue={defaultValue}
               augmentations={augmentations}
               toggleFolding={toggleFolding}
+              toggleLinting={toggleLinting}
               searchQuery={searchQuery}
               defaultScrollTopLine={defaultScrollTopLine}
               scrollTopLineOffset={-3}

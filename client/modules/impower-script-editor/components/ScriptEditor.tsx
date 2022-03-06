@@ -3,6 +3,7 @@ import { indentWithTab } from "@codemirror/commands";
 import { foldEffect, unfoldAll } from "@codemirror/fold";
 import { HighlightStyle } from "@codemirror/highlight";
 import { foldable, indentUnit } from "@codemirror/language";
+import { closeLintPanel, openLintPanel } from "@codemirror/lint";
 import { panels } from "@codemirror/panel";
 import {
   closeSearchPanel,
@@ -162,6 +163,7 @@ interface ScriptEditorProps {
   defaultValue: string;
   augmentations?: FountainDeclarations;
   toggleFolding: boolean;
+  toggleLinting: boolean;
   searchQuery?: {
     search: string;
     caseSensitive?: boolean;
@@ -225,6 +227,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     augmentations,
     style,
     toggleFolding,
+    toggleLinting,
     searchQuery,
     defaultScrollTopLine,
     defaultCursor,
@@ -317,6 +320,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         myHighlightStyle,
         keymap.of([indentWithTab]),
         indentUnit.of("    "),
+        EditorState.phrases.of({ "No diagnostics": "Running..." }),
         EditorView.theme(
           {
             "&": {
@@ -355,6 +359,23 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             },
             ".cm-completionIcon": {
               paddingRight: "1.25em",
+            },
+            ".cm-panel.cm-panel-lint": {
+              "& ul": {
+                "& [aria-selected]": {
+                  background_fallback: "#bdf",
+                  backgroundColor: "Highlight",
+                  color_fallback: "white",
+                  color: "HighlightText",
+                },
+              },
+              "& button[name='close']": {
+                right: "16px",
+                color: "white",
+              },
+            },
+            ".cm-lintRange-active": {
+              backgroundColor: "#ffdd991a",
             },
           },
           { dark: true }
@@ -430,6 +451,14 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
       }
     };
   }, [bottomPanelsContainer, topPanelsContainer]);
+
+  useEffect(() => {
+    if (toggleLinting) {
+      openLintPanel(viewRef.current);
+    } else {
+      closeLintPanel(viewRef.current);
+    }
+  }, [toggleLinting]);
 
   useEffect(() => {
     if (toggleFolding) {
