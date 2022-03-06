@@ -1,14 +1,12 @@
 import { Color, hexToHsla } from "../../../../../../impower-core";
-import { ConfigData, createConfigData } from "../../config/configData";
 import {
   createDynamicData,
   DynamicData,
 } from "../../../../../data/interfaces/generics/dynamicData";
-import { ConfigTypeId } from "../../config/configTypeId";
 import { createConfigReference } from "../../../../../data/interfaces/references/configReference";
+import { ConfigData, createConfigData } from "../../config/configData";
 
-export interface BackgroundConfigData
-  extends ConfigData<ConfigTypeId.BackgroundConfig> {
+export interface BackgroundConfigData extends ConfigData<"BackgroundConfig"> {
   game: DynamicData<Color>;
   screen: DynamicData<Color>;
   ui: DynamicData<Color>;
@@ -19,8 +17,8 @@ export const createBackgroundConfigData = (
 ): BackgroundConfigData => ({
   ...createConfigData({
     reference: createConfigReference({
-      refTypeId: ConfigTypeId.BackgroundConfig,
-      refId: ConfigTypeId.BackgroundConfig,
+      refTypeId: "BackgroundConfig",
+      refId: "BackgroundConfig",
     }),
   }),
   game: createDynamicData(hexToHsla("#000000FF")),

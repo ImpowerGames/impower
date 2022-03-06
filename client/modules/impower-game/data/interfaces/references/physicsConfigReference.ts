@@ -1,4 +1,3 @@
-import { ConfigTypeId } from "../../../project/classes/instances/config/configTypeId";
 import {
   ConfigReference,
   createConfigReference,
@@ -6,9 +5,9 @@ import {
 } from "./configReference";
 
 export interface PhysicsConfigReference
-  extends ConfigReference<ConfigTypeId.PhysicsConfig> {
-  refTypeId: ConfigTypeId.PhysicsConfig;
-  refId: ConfigTypeId.PhysicsConfig;
+  extends ConfigReference<"PhysicsConfig"> {
+  refTypeId: "PhysicsConfig";
+  refId: "PhysicsConfig";
 }
 
 export const isPhysicsConfigReference = (
@@ -19,8 +18,7 @@ export const isPhysicsConfigReference = (
   }
   const physicsReference = obj as PhysicsConfigReference;
   return (
-    isConfigReference(obj) &&
-    physicsReference.refTypeId === ConfigTypeId.PhysicsConfig
+    isConfigReference(obj) && physicsReference.refTypeId === "PhysicsConfig"
   );
 };
 
@@ -28,11 +26,11 @@ export const createPhysicsConfigReference = (
   obj?: Partial<PhysicsConfigReference>
 ): PhysicsConfigReference => ({
   ...createConfigReference({
-    refTypeId: ConfigTypeId.PhysicsConfig,
-    refId: ConfigTypeId.PhysicsConfig,
+    refTypeId: "PhysicsConfig",
+    refId: "PhysicsConfig",
     ...obj,
   }),
-  refTypeId: ConfigTypeId.PhysicsConfig,
-  refId: ConfigTypeId.PhysicsConfig,
+  refTypeId: "PhysicsConfig",
+  refId: "PhysicsConfig",
   ...obj,
 });

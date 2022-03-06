@@ -25,7 +25,12 @@ import {
   ProjectDocumentInspector,
 } from "../../../impower-data-store";
 import {
-  createConfigDataCollection,
+  createAdvancedConfigData,
+  createBackgroundConfigData,
+  createDebugConfigData,
+  createPhysicsConfigData,
+  createSaveConfigData,
+  createScaleConfigData,
   GameProjectData,
   SetupSectionType,
   SetupSettingsType,
@@ -235,7 +240,12 @@ const ConfigurationSetup = React.memo(() => {
   const project = state.present.project.data as GameProjectData;
 
   const configs = {
-    ...createConfigDataCollection().data,
+    ScaleConfig: createScaleConfigData(),
+    BackgroundConfig: createBackgroundConfigData(),
+    SaveConfig: createSaveConfigData(),
+    PhysicsConfig: createPhysicsConfigData(),
+    DebugConfig: createDebugConfigData(),
+    AdvancedConfig: createAdvancedConfigData(),
     ...project?.instances?.configs?.data,
   };
 

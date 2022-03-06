@@ -30,7 +30,10 @@ const getCSSSize = (size: number | string): string => {
   if (typeof size === "string") {
     return size;
   }
-  return `${size}px`;
+  if (typeof size === "number") {
+    return `${size}px`;
+  }
+  return null;
 };
 
 const updateSize = (
@@ -260,9 +263,9 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
 
     if (isPrimaryFirst) {
       updateSize(pane1Ref.current, newSize, split, true);
-      updateSize(pane2Ref.current, "100%", split, false);
+      updateSize(pane2Ref.current, null, split, false);
     } else {
-      updateSize(pane1Ref.current, "100%", split, false);
+      updateSize(pane1Ref.current, null, split, false);
       updateSize(pane2Ref.current, newSize, split, true);
     }
 

@@ -2,10 +2,18 @@ import { ProjectDocumentPath } from "../../../impower-api";
 import { Event, RecursivePartial } from "../../../impower-core";
 import {
   getUpdatedFields,
+  ProjectInstanceWritePath,
   ProjectScriptWritePath,
 } from "../../../impower-data-state";
 import { ProjectDocument } from "../../../impower-data-store";
-import { GameProjectData, ProjectData } from "../../../impower-game/data";
+import {
+  GameInstancesCollection,
+  GameProjectData,
+  GameScriptsCollection,
+  InstanceData,
+  MembersCollection,
+  ProjectData,
+} from "../../../impower-game/data";
 
 export class ProjectEngineSync {
   private static _instance: ProjectEngineSync;
@@ -60,6 +68,84 @@ export class ProjectEngineSync {
     };
     this.onLoaded.emit();
     return { ...projectData } as T;
+  }
+
+  async observeDoc(
+    onSnapshot: (value: ProjectDocument) => void,
+    ...path: ProjectDocumentPath
+  ): Promise<() => void> {
+    this.onLoad.emit();
+    const DataStateRead = (
+      await import("../../../impower-data-state/classes/dataStateRead")
+    ).default;
+    const unsubscribe = await new DataStateRead(...path, "doc").observe((s) => {
+      onSnapshot(s.val());
+      this.onLoaded.emit();
+    });
+    return unsubscribe;
+  }
+
+  async observeMembers(
+    onSnapshot: (value: MembersCollection) => void,
+    ...path: ProjectDocumentPath
+  ): Promise<() => void> {
+    this.onLoad.emit();
+    const DataStateRead = (
+      await import("../../../impower-data-state/classes/dataStateRead")
+    ).default;
+    const unsubscribe = await new DataStateRead(...path, "members").observe(
+      (s) => {
+        onSnapshot(s.val());
+        this.onLoaded.emit();
+      }
+    );
+    return unsubscribe;
+  }
+
+  async observeScripts(
+    onSnapshot: (value: GameScriptsCollection) => void,
+    ...path: ProjectDocumentPath
+  ): Promise<() => void> {
+    this.onLoad.emit();
+    const DataStateRead = (
+      await import("../../../impower-data-state/classes/dataStateRead")
+    ).default;
+    const unsubscribe = await new DataStateRead(...path, "scripts").observe(
+      (s) => {
+        onSnapshot(s.val());
+        this.onLoaded.emit();
+      }
+    );
+    return unsubscribe;
+  }
+
+  async observeInstances(
+    onSnapshot: (value: GameInstancesCollection) => void,
+    ...path: ProjectDocumentPath
+  ): Promise<() => void> {
+    this.onLoad.emit();
+    const DataStateRead = (
+      await import("../../../impower-data-state/classes/dataStateRead")
+    ).default;
+    const unsubscribe = await new DataStateRead(...path, "instances").observe(
+      (s) => {
+        onSnapshot(s.val());
+        this.onLoaded.emit();
+      }
+    );
+    return unsubscribe;
+  }
+
+  async updateInstance<T extends InstanceData>(
+    value: T,
+    ...path: ProjectInstanceWritePath
+  ): Promise<void> {
+    this.onChange.emit();
+    const DataStateWrite = (
+      await import("../../../impower-data-state/classes/dataStateWrite")
+    ).default;
+    await new DataStateWrite(...path).update(value);
+    this.onSync.emit();
   }
 
   async updateData<T extends GameProjectData>(

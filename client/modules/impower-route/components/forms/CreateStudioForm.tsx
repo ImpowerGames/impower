@@ -180,7 +180,7 @@ const CreateStudioForm = React.memo(
           if (onSubmitted) {
             await onSubmitted(newDocId, newDoc, true);
           }
-          router.push(`/e/s/${newDocId}`);
+          await router.push(`/e/s/${newDocId}`);
           return true;
         } catch (error) {
           toastDispatch(toastTop(error.message, "error"));

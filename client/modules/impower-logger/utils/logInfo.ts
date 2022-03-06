@@ -22,6 +22,7 @@ const logInfo = (
         : message.includes("GET CACHED")
         ? `color:green;font-weight:bold;`
         : message.includes("GET") ||
+          message.includes("OBSERVE") ||
           message.includes("CREATE") ||
           message.includes("UPDATE") ||
           message.includes("DELETE") ||

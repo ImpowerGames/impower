@@ -10,7 +10,12 @@ import React, {
 import { debounce } from "../../impower-core";
 import { useAllDocs } from "../../impower-data-state";
 import { ProjectDocument } from "../../impower-data-store";
-import { GameProjectData } from "../../impower-game/data";
+import {
+  GameInstancesCollection,
+  GameProjectData,
+  GameScriptsCollection,
+  MembersCollection,
+} from "../../impower-game/data";
 import { ImpowerGame } from "../../impower-game/game";
 import { ImpowerGameInspector } from "../../impower-game/inspector";
 import { ImpowerGameRunner } from "../../impower-game/runner";
@@ -42,7 +47,10 @@ import {
 } from "../types/actions/dataPanelActions";
 import {
   projectAccess,
-  projectLoadData,
+  projectLoadDoc,
+  projectLoadInstances,
+  projectLoadMembers,
+  projectLoadScripts,
 } from "../types/actions/projectActions";
 import { testModeChange } from "../types/actions/testActions";
 import {
@@ -133,13 +141,37 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     recentlyAccessedGameIds
   );
 
-  const handleLoadProjectData = useCallback(
-    (data: GameProjectData) => {
-      projectEngineDispatch(projectLoadData(loadedProjectId, data));
+  const handleLoadProjectDoc = useCallback(
+    (doc: ProjectDocument) => {
+      projectEngineDispatch(projectLoadDoc(loadedProjectId, doc));
     },
     [projectEngineDispatch, loadedProjectId]
   );
-  useProjectData(loadedProjectId, handleLoadProjectData);
+  const handleLoadProjectMembers = useCallback(
+    (members: MembersCollection) => {
+      projectEngineDispatch(projectLoadMembers(loadedProjectId, members));
+    },
+    [projectEngineDispatch, loadedProjectId]
+  );
+  const handleLoadProjectScripts = useCallback(
+    (scripts: GameScriptsCollection) => {
+      projectEngineDispatch(projectLoadScripts(loadedProjectId, scripts));
+    },
+    [projectEngineDispatch, loadedProjectId]
+  );
+  const handleLoadProjectInstances = useCallback(
+    (instances: GameInstancesCollection) => {
+      projectEngineDispatch(projectLoadInstances(loadedProjectId, instances));
+    },
+    [projectEngineDispatch, loadedProjectId]
+  );
+  useProjectData(
+    loadedProjectId,
+    handleLoadProjectDoc,
+    handleLoadProjectMembers,
+    handleLoadProjectScripts,
+    handleLoadProjectInstances
+  );
 
   useEffect(() => {
     navigationDispatch(

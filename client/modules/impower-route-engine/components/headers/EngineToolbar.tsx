@@ -5,7 +5,14 @@ import Checkbox from "@material-ui/core/Checkbox";
 import IconButton from "@material-ui/core/IconButton";
 import Input from "@material-ui/core/Input";
 import Typography from "@material-ui/core/Typography";
-import React, { PropsWithChildren, useCallback, useMemo, useRef } from "react";
+import React, {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import ArrowDownRegularIcon from "../../../../resources/icons/regular/arrow-down.svg";
 import ArrowLeftRegularIcon from "../../../../resources/icons/regular/arrow-left.svg";
 import ArrowUpRegularIcon from "../../../../resources/icons/regular/arrow-up.svg";
@@ -20,6 +27,7 @@ import AsteriskSolidIcon from "../../../../resources/icons/solid/asterisk.svg";
 import FontCaseSolidIcon from "../../../../resources/icons/solid/font-case.svg";
 import format from "../../../impower-config/utils/format";
 import { FontIcon } from "../../../impower-icon";
+import { useScrollParent } from "../../../impower-react-virtualization";
 import { TextField } from "../../../impower-route";
 
 const StyledFixedSpacer = styled.div`
@@ -38,6 +46,7 @@ const StyledEngineToolbar = styled.div`
   right: 0;
 
   padding-top: env(safe-area-inset-top, 0);
+  transition: box-shadow 0.2s ease;
 `;
 
 const StyledEngineToolbarContent = styled.div``;
@@ -185,17 +194,18 @@ const StyledSearchFieldArea = styled.div`
 `;
 
 const StyledHeadCheckbox = styled(Checkbox)`
+  pointer-events: auto;
   margin: 0;
   padding: ${(props): string => props.theme.spacing(0.5)};
   color: inherit;
   opacity: 0.5;
-  pointer-events: auto;
   &.MuiCheckbox-colorSecondary.Mui-checked {
     color: inherit;
   }
 `;
 
 const StyledContextButton = styled(Button)`
+  pointer-events: auto;
   &.MuiButton-root.Mui-disabled {
     color: inherit;
     opacity: 0.2;
@@ -300,7 +310,7 @@ const EngineToolbarLayout = React.memo(
 );
 
 interface EngineToolbarContentProps {
-  type: "default" | "context" | "search";
+  type: "default" | "context" | "search" | "filter";
   moreIcon?: React.ReactNode;
   backIcon?: React.ReactNode;
   minHeight: number;
@@ -690,7 +700,7 @@ const EngineToolbarContent = React.memo(
       );
     }
 
-    if (type === "search") {
+    if (type === "search" || type === "filter") {
       return (
         <EngineToolbarLayout
           minHeight={minHeight}
@@ -786,24 +796,31 @@ const EngineToolbarContent = React.memo(
                     )}
                   </FontIcon>
                 </StyledToggleButton>
-                <StyledIconButton color="inherit" onClick={handleFindPrevious}>
-                  <FontIcon
-                    aria-label={`Find Previous`}
-                    size={theme.fontSize.smallIcon}
-                    style={{ opacity: 0.5 }}
-                  >
-                    <ArrowUpRegularIcon />
-                  </FontIcon>
-                </StyledIconButton>
-                <StyledIconButton color="inherit" onClick={handleFindNext}>
-                  <FontIcon
-                    aria-label={`Find Next`}
-                    size={theme.fontSize.smallIcon}
-                    style={{ opacity: 0.5 }}
-                  >
-                    <ArrowDownRegularIcon />
-                  </FontIcon>
-                </StyledIconButton>
+                {type !== "filter" && (
+                  <>
+                    <StyledIconButton
+                      color="inherit"
+                      onClick={handleFindPrevious}
+                    >
+                      <FontIcon
+                        aria-label={`Find Previous`}
+                        size={theme.fontSize.smallIcon}
+                        style={{ opacity: 0.5 }}
+                      >
+                        <ArrowUpRegularIcon />
+                      </FontIcon>
+                    </StyledIconButton>
+                    <StyledIconButton color="inherit" onClick={handleFindNext}>
+                      <FontIcon
+                        aria-label={`Find Next`}
+                        size={theme.fontSize.smallIcon}
+                        style={{ opacity: 0.5 }}
+                      >
+                        <ArrowDownRegularIcon />
+                      </FontIcon>
+                    </StyledIconButton>
+                  </>
+                )}
               </StyledSearchFieldArea>
               {replaceLabel && (
                 <StyledSearchFieldArea>
@@ -930,7 +947,7 @@ const EngineToolbarContent = React.memo(
 
 interface EngineToolbarProps {
   headerRef?: React.Ref<HTMLElement>;
-  type: "default" | "context" | "search";
+  type: "default" | "context" | "search" | "filter";
   moreIcon?: React.ReactNode;
   backIcon?: React.ReactNode;
   minHeight: number;
@@ -968,17 +985,7 @@ interface EngineToolbarProps {
   moreButtonStyle?: React.CSSProperties;
   clearButtonStyle?: React.CSSProperties;
   doneButtonStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
   style?: React.CSSProperties;
   sticky?: "always" | "collapsible" | "never";
   rightChildren?: React.ReactNode;
@@ -989,7 +996,7 @@ interface EngineToolbarProps {
   onClickMoreOption?: (e: React.MouseEvent, option: string) => void;
   onBack?: (e: React.MouseEvent) => void;
   onDone?: (e: React.MouseEvent) => void;
-  onSearch: (
+  onSearch?: (
     e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
     searchQuery?: {
       search: string;
@@ -1052,8 +1059,41 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     onMore,
   } = props;
 
+  const [headerArea, setHeaderArea] = useState<HTMLElement>();
+  const [scrolledDown, setScrolledDown] = useState(false);
+
+  const scrollParent = useScrollParent(headerArea);
+
+  useEffect(() => {
+    const onScroll = (): void => {
+      const scrollY =
+        scrollParent === document.documentElement
+          ? window.scrollY
+          : scrollParent.scrollTop;
+      setScrolledDown(scrollY > 0);
+    };
+    if (!scrollParent) {
+      return (): void => null;
+    }
+    if (scrollParent === document.documentElement) {
+      window.addEventListener("scroll", onScroll, { passive: true });
+    } else {
+      scrollParent.addEventListener("scroll", onScroll, { passive: true });
+    }
+    return (): void => {
+      if (scrollParent === document.documentElement) {
+        window.removeEventListener("scroll", onScroll);
+      } else {
+        scrollParent.removeEventListener("scroll", onScroll);
+      }
+    };
+  }, [scrollParent]);
+
   const handleHeaderAreaRef = useCallback(
     (instance: HTMLDivElement): void => {
+      if (instance) {
+        setHeaderArea(instance);
+      }
       if (headerRef) {
         if (typeof headerRef === "function") {
           headerRef(instance);
@@ -1089,7 +1129,17 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
           marginRight:
             belowBreakpoint || position === "sticky" ? 0 : theme.spacing(1),
           ...style,
-          ...(sticky ? (stickyStyle as React.CSSProperties) : {}),
+          ...(sticky === "always"
+            ? stickyStyle
+            : sticky === "collapsible" && scrolledDown
+            ? (stickyStyle as React.CSSProperties)
+            : {}),
+          boxShadow:
+            sticky === "always" || sticky === "collapsible"
+              ? scrolledDown
+                ? stickyStyle?.boxShadow || style?.boxShadow
+                : style?.boxShadow
+              : style?.boxShadow,
         }}
       >
         <StyledEngineToolbarContent style={{ minHeight }}>

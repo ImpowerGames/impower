@@ -1,9 +1,13 @@
 import { Activable, Vector2 } from "../../../../../../impower-core";
 import { Bounds, createBounds } from "../../../../../data/interfaces/bounds";
 import {
-  createTimeConfig,
-  TimeConfig,
-} from "../../../../../data/interfaces/configs/timeConfig";
+  CollisionBiasesConfig,
+  createCollisionBiasesConfig,
+} from "../../../../../data/interfaces/configs/collisionBiasesConfig";
+import {
+  CollisionCheckConfig,
+  createCollisionCheckConfig,
+} from "../../../../../data/interfaces/configs/collisionCheckConfig";
 import {
   createDebugDisplayConfig,
   DebugDisplayConfig,
@@ -13,16 +17,11 @@ import {
   DynamicBodiesTreeConfig,
 } from "../../../../../data/interfaces/configs/dynamicBodiesTreeConfig";
 import {
-  CollisionCheckConfig,
-  createCollisionCheckConfig,
-} from "../../../../../data/interfaces/configs/collisionCheckConfig";
-import {
-  CollisionBiasesConfig,
-  createCollisionBiasesConfig,
-} from "../../../../../data/interfaces/configs/collisionBiasesConfig";
-import { ConfigData, createConfigData } from "../../config/configData";
+  createTimeConfig,
+  TimeConfig,
+} from "../../../../../data/interfaces/configs/timeConfig";
 import { createConfigReference } from "../../../../../data/interfaces/references/configReference";
-import { ConfigTypeId } from "../../config/configTypeId";
+import { ConfigData, createConfigData } from "../../config/configData";
 
 export interface PhysicsConfigData extends ConfigData {
   /**
@@ -76,8 +75,8 @@ export const createPhysicsConfigData = (
 ): PhysicsConfigData => ({
   ...createConfigData({
     reference: createConfigReference({
-      refTypeId: ConfigTypeId.PhysicsConfig,
-      refId: ConfigTypeId.PhysicsConfig,
+      refTypeId: "PhysicsConfig",
+      refId: "PhysicsConfig",
     }),
   }),
   time: createTimeConfig(),

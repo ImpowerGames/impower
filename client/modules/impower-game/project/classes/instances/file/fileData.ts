@@ -33,5 +33,5 @@ export const isFileData = (obj: unknown): obj is FileData => {
     return false;
   }
   const data = obj as FileData;
-  return data.name !== undefined && data.folder !== undefined;
+  return data.storageKey !== undefined && data.contentType !== undefined;
 };

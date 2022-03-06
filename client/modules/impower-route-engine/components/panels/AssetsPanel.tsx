@@ -18,7 +18,7 @@ const AssetsPanel = React.memo((): JSX.Element => {
 
   const projectState = state?.present?.project;
 
-  const buttonSpacing = theme.spacing(3);
+  const buttonSpacing = 3 * 8;
   const fixedStyle: React.CSSProperties = {
     position: portrait ? "fixed" : "absolute",
     left: buttonSpacing,
@@ -27,14 +27,14 @@ const AssetsPanel = React.memo((): JSX.Element => {
       ? layout.size.minHeight.navigationBar + buttonSpacing
       : buttonSpacing,
   };
-  const stickyStyle = {
+  const stickyStyle: React.CSSProperties = {
     position: portrait ? "fixed" : "absolute",
     zIndex: 2,
     boxShadow: theme.shadows[3],
-    paddingLeft: 8,
     right: portrait ? undefined : 8,
   };
   const headerStyle: React.CSSProperties = {
+    paddingLeft: theme.spacing(2),
     paddingTop: theme.spacing(2),
     paddingBottom: theme.spacing(1),
   };
@@ -49,7 +49,7 @@ const AssetsPanel = React.memo((): JSX.Element => {
     opacity: 1,
     color: theme.palette.secondary.main,
   };
-  const dividerStyle = { backgroundColor: "transparent" };
+  const dividerStyle = { backgroundColor: "transparent", border: "none" };
   const paperStyle = {
     backgroundColor: theme.colors.darkForeground,
     color: "white",
@@ -69,8 +69,11 @@ const AssetsPanel = React.memo((): JSX.Element => {
   useHTMLBackgroundColor(theme.colors.darkForeground);
 
   const fileDocs = useMemo(
-    () => projectState?.data?.instances?.files?.data || {},
-    [projectState?.data?.instances?.files?.data]
+    () =>
+      projectState?.data?.instances === undefined
+        ? undefined
+        : projectState?.data?.instances?.files?.data || {},
+    [projectState?.data]
   );
 
   return (

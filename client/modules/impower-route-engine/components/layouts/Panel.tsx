@@ -54,7 +54,6 @@ const StyledPanelContent = styled.div`
 `;
 
 const StyledPanelArrangement = styled.div`
-  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;

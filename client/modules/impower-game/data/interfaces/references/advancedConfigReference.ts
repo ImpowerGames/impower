@@ -1,4 +1,3 @@
-import { ConfigTypeId } from "../../../project/classes/instances/config/configTypeId";
 import {
   ConfigReference,
   createConfigReference,
@@ -6,9 +5,9 @@ import {
 } from "./configReference";
 
 export interface AdvancedConfigReference
-  extends ConfigReference<ConfigTypeId.AdvancedConfig> {
-  refTypeId: ConfigTypeId.AdvancedConfig;
-  refId: ConfigTypeId.AdvancedConfig;
+  extends ConfigReference<"AdvancedConfig"> {
+  refTypeId: "AdvancedConfig";
+  refId: "AdvancedConfig";
 }
 
 export const isAdvancedConfigReference = (
@@ -19,8 +18,7 @@ export const isAdvancedConfigReference = (
   }
   const logicReference = obj as AdvancedConfigReference;
   return (
-    isConfigReference(obj) &&
-    logicReference.refTypeId === ConfigTypeId.AdvancedConfig
+    isConfigReference(obj) && logicReference.refTypeId === "AdvancedConfig"
   );
 };
 
@@ -28,11 +26,11 @@ export const createAdvancedConfigReference = (
   obj?: Partial<AdvancedConfigReference>
 ): AdvancedConfigReference => ({
   ...createConfigReference({
-    refTypeId: ConfigTypeId.AdvancedConfig,
-    refId: ConfigTypeId.AdvancedConfig,
+    refTypeId: "AdvancedConfig",
+    refId: "AdvancedConfig",
     ...obj,
   }),
-  refTypeId: ConfigTypeId.AdvancedConfig,
-  refId: ConfigTypeId.AdvancedConfig,
+  refTypeId: "AdvancedConfig",
+  refId: "AdvancedConfig",
   ...obj,
 });

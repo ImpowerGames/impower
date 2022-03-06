@@ -51,16 +51,19 @@ const StyledImage = styled.img`
   height: 100%;
   opacity: 0;
   border-radius: inherit;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
 `;
 
-const StyledPlaceholder = styled(StyledImage)`
+const StyledPlaceholder = styled.img`
   position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
   top: 0;
   bottom: 0;
   left: 0;
   right: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
 `;
 
 interface LazyImageProps {
@@ -93,7 +96,7 @@ export const LazyImage = (props: LazyImageProps): JSX.Element => {
     onError,
   } = props;
 
-  const [placeholderVisible, setPlaceholderVisible] = useState(false);
+  const [placeholderVisible, setPlaceholderVisible] = useState(true);
   const [imageVisible, setImageVisible] = useState(false);
   const startTouchCenter = useRef<{ x: number; y: number }>();
   const startTouchDistance = useRef<number>();

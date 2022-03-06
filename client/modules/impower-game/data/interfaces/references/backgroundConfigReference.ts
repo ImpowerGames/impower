@@ -1,4 +1,3 @@
-import { ConfigTypeId } from "../../../project/classes/instances/config/configTypeId";
 import {
   ConfigReference,
   createConfigReference,
@@ -6,9 +5,9 @@ import {
 } from "./configReference";
 
 export interface BackgroundConfigReference
-  extends ConfigReference<ConfigTypeId.BackgroundConfig> {
-  refTypeId: ConfigTypeId.BackgroundConfig;
-  refId: ConfigTypeId.BackgroundConfig;
+  extends ConfigReference<"BackgroundConfig"> {
+  refTypeId: "BackgroundConfig";
+  refId: "BackgroundConfig";
 }
 
 export const isBackgroundConfigReference = (
@@ -20,7 +19,7 @@ export const isBackgroundConfigReference = (
   const backgroundReference = obj as BackgroundConfigReference;
   return (
     isConfigReference(obj) &&
-    backgroundReference.refTypeId === ConfigTypeId.BackgroundConfig
+    backgroundReference.refTypeId === "BackgroundConfig"
   );
 };
 
@@ -28,11 +27,11 @@ export const createBackgroundConfigReference = (
   obj?: Partial<BackgroundConfigReference>
 ): BackgroundConfigReference => ({
   ...createConfigReference({
-    refTypeId: ConfigTypeId.BackgroundConfig,
-    refId: ConfigTypeId.BackgroundConfig,
+    refTypeId: "BackgroundConfig",
+    refId: "BackgroundConfig",
     ...obj,
   }),
-  refTypeId: ConfigTypeId.BackgroundConfig,
-  refId: ConfigTypeId.BackgroundConfig,
+  refTypeId: "BackgroundConfig",
+  refId: "BackgroundConfig",
   ...obj,
 });

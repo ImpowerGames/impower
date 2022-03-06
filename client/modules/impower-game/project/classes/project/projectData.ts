@@ -1,27 +1,19 @@
 import { Collection } from "../../../../impower-core";
 import { MemberData } from "../../../../impower-data-state";
 import { ProjectDocument } from "../../../../impower-data-store";
-import { InstanceData } from "../instance/instanceData";
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface MembersCollection extends Collection<MemberData> {}
+export interface ScriptsCollection {
+  [id: string]: Collection<string>;
+}
+export interface InstancesCollection {
+  [id: string]: Collection<Record<string, unknown>>;
+}
 
 export interface ProjectData {
   doc?: ProjectDocument;
-  members?: Collection<MemberData>;
-  scripts?: {
-    [id: string]: Collection<string>;
-  };
-  instances?: {
-    [id: string]: Collection<InstanceData>;
-  };
+  members?: MembersCollection;
+  scripts?: ScriptsCollection;
+  instances?: InstancesCollection;
 }
-
-export const createProjectData = (obj?: Partial<ProjectData>): ProjectData => ({
-  ...obj,
-});
-
-export const isProjectData = (obj: unknown): obj is ProjectData => {
-  if (!obj) {
-    return false;
-  }
-  const projectData = obj as ProjectData;
-  return projectData.members !== undefined;
-};

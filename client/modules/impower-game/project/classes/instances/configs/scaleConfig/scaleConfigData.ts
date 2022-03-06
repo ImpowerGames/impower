@@ -2,7 +2,6 @@ import { CenterType } from "../../../../../data/enums/centerType";
 import { ScaleModeType } from "../../../../../data/enums/scaleModeType";
 import { createConfigReference } from "../../../../../data/interfaces/references/configReference";
 import { ConfigData, createConfigData } from "../../config/configData";
-import { ConfigTypeId } from "../../config/configTypeId";
 
 export interface ScaleConfigData extends ConfigData {
   mode: ScaleModeType;
@@ -16,8 +15,8 @@ export const createScaleConfigData = (
 ): ScaleConfigData => ({
   ...createConfigData({
     reference: createConfigReference({
-      refTypeId: ConfigTypeId.ScaleConfig,
-      refId: ConfigTypeId.ScaleConfig,
+      refTypeId: "ScaleConfig",
+      refId: "ScaleConfig",
     }),
   }),
   mode: ScaleModeType.HeightControlsWidth,

@@ -1,14 +1,12 @@
-import { ConfigTypeId } from "../../../project/classes/instances/config/configTypeId";
 import {
   ConfigReference,
   createConfigReference,
   isConfigReference,
 } from "./configReference";
 
-export interface ScaleConfigReference
-  extends ConfigReference<ConfigTypeId.ScaleConfig> {
-  refTypeId: ConfigTypeId.ScaleConfig;
-  refId: ConfigTypeId.ScaleConfig;
+export interface ScaleConfigReference extends ConfigReference<"ScaleConfig"> {
+  refTypeId: "ScaleConfig";
+  refId: "ScaleConfig";
 }
 
 export const isScaleConfigReference = (
@@ -18,21 +16,18 @@ export const isScaleConfigReference = (
     return false;
   }
   const scaleReference = obj as ScaleConfigReference;
-  return (
-    isConfigReference(obj) &&
-    scaleReference.refTypeId === ConfigTypeId.ScaleConfig
-  );
+  return isConfigReference(obj) && scaleReference.refTypeId === "ScaleConfig";
 };
 
 export const createScaleConfigReference = (
   obj?: Partial<ScaleConfigReference>
 ): ScaleConfigReference => ({
   ...createConfigReference({
-    refTypeId: ConfigTypeId.ScaleConfig,
-    refId: ConfigTypeId.ScaleConfig,
+    refTypeId: "ScaleConfig",
+    refId: "ScaleConfig",
     ...obj,
   }),
-  refTypeId: ConfigTypeId.ScaleConfig,
-  refId: ConfigTypeId.ScaleConfig,
+  refTypeId: "ScaleConfig",
+  refId: "ScaleConfig",
   ...obj,
 });

@@ -164,7 +164,7 @@ const FilePreviewOverlay = React.memo(
 
     const theme = useTheme();
 
-    const stickyStyle = useMemo(
+    const stickyStyle: React.CSSProperties = useMemo(
       () => ({
         position: "absolute",
         zIndex: 2,
@@ -272,7 +272,8 @@ const FilePreviewOverlay = React.memo(
                 <StyledSplitPane
                   key={portrait?.toString()}
                   split={portrait ? "horizontal" : "vertical"}
-                  defaultSize="100%"
+                  defaultSize={configurable ? "50%" : "100%"}
+                  size={configurable ? "50%" : "100%"}
                   minSize={
                     configuring ? (portrait ? minPaneHeight : minPaneWidth) : 0
                   }

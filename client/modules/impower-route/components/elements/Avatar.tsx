@@ -167,9 +167,7 @@ const Avatar = React.memo(
           {src && (
             <LazyImage
               src={src}
-              placeholder={
-                getPlaceholderUrl ? getPlaceholderUrl(src) : undefined
-              }
+              placeholder={getPlaceholderUrl?.(src)}
               aria-label={ariaLabel}
               alt={alt}
               objectFit={objectFit}

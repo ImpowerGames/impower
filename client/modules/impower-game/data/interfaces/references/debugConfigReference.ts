@@ -1,14 +1,12 @@
-import { ConfigTypeId } from "../../../project/classes/instances/config/configTypeId";
 import {
   ConfigReference,
   createConfigReference,
   isConfigReference,
 } from "./configReference";
 
-export interface DebugConfigReference
-  extends ConfigReference<ConfigTypeId.DebugConfig> {
-  refTypeId: ConfigTypeId.DebugConfig;
-  refId: ConfigTypeId.DebugConfig;
+export interface DebugConfigReference extends ConfigReference<"DebugConfig"> {
+  refTypeId: "DebugConfig";
+  refId: "DebugConfig";
 }
 
 export const isDebugConfigReference = (
@@ -18,21 +16,18 @@ export const isDebugConfigReference = (
     return false;
   }
   const debugReference = obj as DebugConfigReference;
-  return (
-    isConfigReference(obj) &&
-    debugReference.refTypeId === ConfigTypeId.DebugConfig
-  );
+  return isConfigReference(obj) && debugReference.refTypeId === "DebugConfig";
 };
 
 export const createDebugConfigReference = (
   obj?: Partial<DebugConfigReference>
 ): DebugConfigReference => ({
   ...createConfigReference({
-    refTypeId: ConfigTypeId.DebugConfig,
-    refId: ConfigTypeId.DebugConfig,
+    refTypeId: "DebugConfig",
+    refId: "DebugConfig",
     ...obj,
   }),
-  refTypeId: ConfigTypeId.DebugConfig,
-  refId: ConfigTypeId.DebugConfig,
+  refTypeId: "DebugConfig",
+  refId: "DebugConfig",
   ...obj,
 });

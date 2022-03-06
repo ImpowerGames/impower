@@ -30,7 +30,7 @@ import FilterSolidIcon from "../../../../resources/icons/solid/filter.svg";
 import PlusSolidIcon from "../../../../resources/icons/solid/plus.svg";
 import SquareCheckSolidIcon from "../../../../resources/icons/solid/square-check.svg";
 import UploadSolidIcon from "../../../../resources/icons/solid/upload.svg";
-import { debounce, difference, orderBy } from "../../../impower-core";
+import { debounce, difference } from "../../../impower-core";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { FontIcon } from "../../../impower-icon";
 import { TransparencyPattern } from "../../../impower-react-color-picker";
@@ -45,6 +45,7 @@ import {
 import FadeAnimation from "../../../impower-route/components/animations/FadeAnimation";
 import PeerTransition from "../../../impower-route/components/animations/PeerTransition";
 import Avatar from "../../../impower-route/components/elements/Avatar";
+import { getPlaceholderUrl } from "../../../impower-storage";
 import CornerFab from "../fabs/CornerFab";
 import EngineToolbar from "../headers/EngineToolbar";
 
@@ -90,6 +91,7 @@ const StyledCheckbox = styled(Checkbox)`
 `;
 
 const StyledButton = styled(Button)`
+  pointer-events: auto;
   color: inherit;
   border-radius: inherit;
   border-radius: inherit;
@@ -97,6 +99,10 @@ const StyledButton = styled(Button)`
   display: flex;
   justify-content: center;
   align-items: center;
+`;
+
+const StyledIconButton = styled(IconButton)`
+  pointer-events: auto;
 `;
 
 const StyledMotionCardArea = styled(FadeAnimation)``;
@@ -374,6 +380,8 @@ const StyledInput = styled.input`
   left: 0;
   right: 0;
   display: none;
+  width: 100%;
+  height: 100%;
 `;
 
 const StyledLabel = styled.label`
@@ -384,6 +392,8 @@ const StyledLabel = styled.label`
   right: 0;
   cursor: pointer;
   border-radius: inherit;
+  width: 100%;
+  height: 100%;
   &:hover {
     background-color: rgba(48, 91, 128, 0.04);
   }
@@ -1239,6 +1249,7 @@ const EngineConsoleItemCardContent = React.memo(
                             />
                             <StyledProgressBar
                               style={{
+                                transformOrigin: "left center",
                                 transform: `scaleX(${percentage / 100})`,
                                 backgroundColor: "black",
                               }}
@@ -1275,6 +1286,7 @@ const EngineConsoleItemCardContent = React.memo(
                                     width: "100%",
                                     height: "100%",
                                   }}
+                                  getPlaceholderUrl={getPlaceholderUrl}
                                 />
                               </>
                             )}
@@ -1362,7 +1374,8 @@ const EngineConsoleItemCardContent = React.memo(
                 moreOptions.length > 0 &&
                 !selectedPaths.includes(rowPath) && (
                   <StyledCell>
-                    <IconButton
+                    <StyledIconButton
+                      color="inherit"
                       onMouseDown={(e): void => {
                         e.stopPropagation();
                       }}
@@ -1386,7 +1399,7 @@ const EngineConsoleItemCardContent = React.memo(
                       >
                         <EllipsisVerticalRegularIcon />
                       </FontIcon>
-                    </IconButton>
+                    </StyledIconButton>
                     {menuOpen !== undefined && (
                       <OptionMenu
                         anchorEl={menuAnchor}
@@ -1653,17 +1666,7 @@ interface EngineConsoleListProps {
   selectedColor?: string;
   updateInterval?: number;
   fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
   upload?: boolean;
   belowBreakpoint?: boolean;
   sticky?: "always" | "collapsible" | "never";
@@ -1806,8 +1809,7 @@ export const EngineConsoleList = React.memo(
     const [activeFilters, setActiveFilters] = useState<{
       [key: string]: string;
     }>({});
-    const [activeSearch, setActiveSearch] = useState("");
-    const [searchQuery, setSearchQuery] = useState<{
+    const searchQueryRef = useRef<{
       search: string;
       caseSensitive?: boolean;
       regexp?: boolean;
@@ -1819,13 +1821,13 @@ export const EngineConsoleList = React.memo(
         | "replace"
         | "replace_all";
     }>();
+    const [searchQuery, setSearchQuery] = useState(searchQueryRef.current);
     const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
     const [sortOrder, setSortOrder] = useState<Order>(defaultSortOrder);
     const [sortKey, setSortKey] = useState<string>(
       defaultSortKey || Object.keys(cardDetails)[0]
     );
     const [contextHeaderOpen, setContextHeaderOpen] = useState(false);
-    const [searching, setSearching] = useState(false);
     const [draggingFilePath, setDraggingFilePath] = useState<string>("");
     const [currentContainers, setCurrentContainers] = useState<{
       [path: string]: string[];
@@ -1854,8 +1856,8 @@ export const EngineConsoleList = React.memo(
     const addButtonLabel = empty ? createLabel : addLabel;
     const toolbarType = contextHeaderOpen
       ? "context"
-      : searching
-      ? "search"
+      : searchQuery
+      ? "filter"
       : "default";
     const addButtonAreaSpacing = theme.spacing(3);
 
@@ -1984,7 +1986,7 @@ export const EngineConsoleList = React.memo(
           return;
         }
         if (
-          activeSearch &&
+          searchQuery &&
           !Object.entries(cardDetails).some(([key, value]): boolean => {
             if (!value.searchable) {
               return false;
@@ -2025,14 +2027,17 @@ export const EngineConsoleList = React.memo(
       setInitialized(true);
       setCardDetailsState(cardDetails);
       setCurrentContainers(containers);
-      const newOrderedPaths = orderBy(
-        Object.keys(currentPaths),
-        (p) =>
+      const newOrderedPaths = Object.keys(currentPaths).sort((a, b) => {
+        const getSortValue = (p: string): string | number =>
           getCellSortValue
             ? getCellSortValue(p, sortKey)
-            : handleGetCellDisplayValue(p, sortKey),
-        sortOrder
-      );
+            : handleGetCellDisplayValue(p, sortKey);
+        const result = getSortValue(a) > getSortValue(b) ? 1 : -1;
+        if (sortOrder === "desc") {
+          return -result;
+        }
+        return result;
+      });
       setOrderedPaths(newOrderedPaths);
       if (onReorder) {
         onReorder(newOrderedPaths);
@@ -2045,11 +2050,10 @@ export const EngineConsoleList = React.memo(
       paths,
       sortOrder,
       currentPath,
-      activeSearch,
+      searchQuery,
       cardDetails,
       activeFilters,
       handleGetCellDisplayValue,
-      searchQuery,
       getCellSortValue,
       sortKey,
       loading,
@@ -2077,8 +2081,8 @@ export const EngineConsoleList = React.memo(
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedSearch = useCallback(
-      debounce((search?: string) => {
-        setActiveSearch(search);
+      debounce(() => {
+        setSearchQuery(searchQueryRef.current);
       }, 200),
       []
     );
@@ -2099,8 +2103,8 @@ export const EngineConsoleList = React.memo(
             | "replace_all";
         }
       ) => {
-        setSearchQuery(searchQuery);
-        handleDebouncedSearch(searchQuery);
+        searchQueryRef.current = searchQuery;
+        handleDebouncedSearch();
       },
       [handleDebouncedSearch]
     );
@@ -2119,7 +2123,6 @@ export const EngineConsoleList = React.memo(
 
     const handleCloseSearch = useCallback((): void => {
       handleSearch(undefined, null);
-      setSearching(false);
     }, [handleSearch]);
 
     const handleOpenContextHeader = useCallback(
@@ -2449,7 +2452,7 @@ export const EngineConsoleList = React.memo(
             doneButtonStyle={doneButtonStyle}
             stickyStyle={stickyStyle}
             sticky={
-              sticky || (contextHeaderOpen || searching ? "always" : "never")
+              sticky || (contextHeaderOpen || searchQuery ? "always" : "never")
             }
             fixableContentStyle={maxWidthStyle}
             rotateStyle={rotateStyle}
@@ -2658,7 +2661,7 @@ export const EngineConsoleList = React.memo(
                 buttonStyle={buttonStyle}
                 style={fabAreaStyle}
                 scrollParent={scrollParent}
-                shrink={searching}
+                shrink={Boolean(searchQuery)}
                 onClick={onAdd ? handleAdd : undefined}
                 onDragEnter={handleCurrentPathDragEnter}
                 onDragLeave={handleCurrentPathDragLeave}

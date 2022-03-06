@@ -1,14 +1,12 @@
-import { ConfigTypeId } from "../../../project/classes/instances/config/configTypeId";
 import {
   ConfigReference,
   createConfigReference,
   isConfigReference,
 } from "./configReference";
 
-export interface SaveConfigReference
-  extends ConfigReference<ConfigTypeId.SaveConfig> {
-  refTypeId: ConfigTypeId.SaveConfig;
-  refId: ConfigTypeId.SaveConfig;
+export interface SaveConfigReference extends ConfigReference<"SaveConfig"> {
+  refTypeId: "SaveConfig";
+  refId: "SaveConfig";
 }
 
 export const isSaveConfigReference = (
@@ -18,21 +16,18 @@ export const isSaveConfigReference = (
     return false;
   }
   const saveReference = obj as SaveConfigReference;
-  return (
-    isConfigReference(obj) &&
-    saveReference.refTypeId === ConfigTypeId.SaveConfig
-  );
+  return isConfigReference(obj) && saveReference.refTypeId === "SaveConfig";
 };
 
 export const createSaveConfigReference = (
   obj?: Partial<SaveConfigReference>
 ): SaveConfigReference => ({
   ...createConfigReference({
-    refTypeId: ConfigTypeId.SaveConfig,
-    refId: ConfigTypeId.SaveConfig,
+    refTypeId: "SaveConfig",
+    refId: "SaveConfig",
     ...obj,
   }),
-  refTypeId: ConfigTypeId.SaveConfig,
-  refId: ConfigTypeId.SaveConfig,
+  refTypeId: "SaveConfig",
+  refId: "SaveConfig",
   ...obj,
 });

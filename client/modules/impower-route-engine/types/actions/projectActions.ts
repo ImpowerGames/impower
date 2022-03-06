@@ -1,8 +1,10 @@
 import { MemberAccess } from "../../../impower-data-state";
 import { ProjectDocument } from "../../../impower-data-store";
 import {
-  GameProjectData,
+  GameInstancesCollection,
+  GameScriptsCollection,
   InstanceData,
+  MembersCollection,
   Reference,
 } from "../../../impower-game/data";
 
@@ -165,21 +167,75 @@ export const projectChangeDocument = (
   };
 };
 
-export const PROJECT_LOAD_DATA = "PROJECT_LOAD_DATA";
-export interface ProjectLoadDataAction {
-  type: typeof PROJECT_LOAD_DATA;
+export const PROJECT_LOAD_DOC = "PROJECT_LOAD_DOC";
+export interface ProjectLoadDocAction {
+  type: typeof PROJECT_LOAD_DOC;
   payload: {
     id: string;
-    data: GameProjectData;
+    doc: ProjectDocument;
   };
 }
-export const projectLoadData = (
+export const projectLoadDoc = (
   id: string,
-  data: GameProjectData
-): ProjectLoadDataAction => {
+  doc: ProjectDocument
+): ProjectLoadDocAction => {
   return {
-    type: PROJECT_LOAD_DATA,
-    payload: { id, data },
+    type: PROJECT_LOAD_DOC,
+    payload: { id, doc },
+  };
+};
+
+export const PROJECT_LOAD_MEMBERS = "PROJECT_LOAD_MEMBERS";
+export interface ProjectLoadMembersAction {
+  type: typeof PROJECT_LOAD_MEMBERS;
+  payload: {
+    id: string;
+    members: MembersCollection;
+  };
+}
+export const projectLoadMembers = (
+  id: string,
+  members: MembersCollection
+): ProjectLoadMembersAction => {
+  return {
+    type: PROJECT_LOAD_MEMBERS,
+    payload: { id, members },
+  };
+};
+
+export const PROJECT_LOAD_SCRIPTS = "PROJECT_LOAD_SCRIPTS";
+export interface ProjectLoadScriptsAction {
+  type: typeof PROJECT_LOAD_SCRIPTS;
+  payload: {
+    id: string;
+    scripts: GameScriptsCollection;
+  };
+}
+export const projectLoadScripts = (
+  id: string,
+  scripts: GameScriptsCollection
+): ProjectLoadScriptsAction => {
+  return {
+    type: PROJECT_LOAD_SCRIPTS,
+    payload: { id, scripts },
+  };
+};
+
+export const PROJECT_LOAD_INSTANCES = "PROJECT_LOAD_INSTANCES";
+export interface ProjectLoadInstancesAction {
+  type: typeof PROJECT_LOAD_INSTANCES;
+  payload: {
+    id: string;
+    instances: GameInstancesCollection;
+  };
+}
+export const projectLoadInstances = (
+  id: string,
+  instances: GameInstancesCollection
+): ProjectLoadInstancesAction => {
+  return {
+    type: PROJECT_LOAD_INSTANCES,
+    payload: { id, instances },
   };
 };
 
@@ -213,6 +269,9 @@ export type ProjectAction =
   | ProjectRemoveDataAction
   | ProjectUpdateDataAction
   | ProjectChangeDocumentAction
-  | ProjectLoadDataAction
+  | ProjectLoadDocAction
+  | ProjectLoadMembersAction
+  | ProjectLoadScriptsAction
+  | ProjectLoadInstancesAction
   | ProjectChangeInstanceDataAction
   | ProjectChangeScriptAction;

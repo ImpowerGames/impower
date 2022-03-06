@@ -1,8 +1,7 @@
-import { ConfigData, createConfigData } from "../../config/configData";
 import { createConfigReference } from "../../../../../data/interfaces/references/configReference";
-import { ConfigTypeId } from "../../config/configTypeId";
+import { ConfigData, createConfigData } from "../../config/configData";
 
-export interface DebugConfigData extends ConfigData<ConfigTypeId.DebugConfig> {
+export interface DebugConfigData extends ConfigData<"DebugConfig"> {
   randomizationSeed: string;
   logBlockExecutions: boolean;
 }
@@ -12,8 +11,8 @@ export const createDebugConfigData = (
 ): DebugConfigData => ({
   ...createConfigData({
     reference: createConfigReference({
-      refTypeId: ConfigTypeId.DebugConfig,
-      refId: ConfigTypeId.DebugConfig,
+      refTypeId: "DebugConfig",
+      refId: "DebugConfig",
     }),
   }),
   randomizationSeed: "",

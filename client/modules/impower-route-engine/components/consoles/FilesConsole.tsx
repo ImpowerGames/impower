@@ -21,20 +21,13 @@ import VideoRegularIcon from "../../../../resources/icons/regular/video.svg";
 import VolumeHighRegularIcon from "../../../../resources/icons/regular/volume-high.svg";
 import { abbreviateAge } from "../../../impower-config";
 import format from "../../../impower-config/utils/format";
-import {
-  FileContentType,
-  FileExtension,
-  getFileContentType,
-} from "../../../impower-core";
-import getDataStatePath from "../../../impower-data-state/utils/getDataStatePath";
+import { FileExtension, getFileContentType } from "../../../impower-core";
 import { ProjectDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
 import {
   createFileData,
   FileData,
   FolderData,
-  isFileData,
-  isFolderData,
 } from "../../../impower-game/data";
 import { getProjectColor } from "../../../impower-game/inspector";
 import { FontIcon } from "../../../impower-icon";
@@ -44,7 +37,6 @@ import {
   projectConsoles,
 } from "../../../impower-route/types/info/console";
 import {
-  getAbsoluteUrl,
   getFileSizeDisplayValue,
   getFileSizeLimit,
 } from "../../../impower-storage";
@@ -69,9 +61,7 @@ interface FilesConsoleContentProps {
   projectId: string;
   cardDetails: { [key: string]: CardDetail };
   currentPath: string;
-  idsByPath: { [path: string]: string };
-  docsByPath: { [path: string]: FileData | FolderData };
-  pathsByFolder: { [folder: string]: string[] };
+  docsByPath: { [path: string]: FileData };
   createLabel: string;
   title: string;
   addLabel: string;
@@ -99,17 +89,7 @@ interface FilesConsoleContentProps {
   selectedColor?: string;
   emptyBackground?: React.ReactNode;
   fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
   headerStyle?: React.CSSProperties;
   leftStyle?: React.CSSProperties;
   moreButtonStyle?: React.CSSProperties;
@@ -127,6 +107,7 @@ interface FilesConsoleContentProps {
     bytesTransferred: number,
     totalBytes: number
   ) => void;
+  onUploadFinished?: (path: string, file: FileData) => void;
   onReorder?: (paths: string[]) => void;
 }
 
@@ -138,14 +119,11 @@ const FilesConsoleContent = (
     projectId,
     cardDetails,
     currentPath,
-    idsByPath,
     docsByPath,
-    pathsByFolder,
     title,
     createLabel,
     addLabel,
     deleteLabel,
-    moveLabel,
     searchLabel,
     editMultipleLabel,
     selectedLabel,
@@ -177,6 +155,7 @@ const FilesConsoleContent = (
     onClick,
     onUploadStart,
     onUploadProgress,
+    onUploadFinished,
     onDelete,
     onReorder,
   } = props;
@@ -187,86 +166,63 @@ const FilesConsoleContent = (
     () => (docsByPath ? Object.keys(docsByPath) : undefined),
     [docsByPath]
   );
-  const getUploadLabel = useCallback(() => {
+  const handleGetUploadLabel = useCallback(() => {
     return "Upload Files";
   }, []);
-  const getRowImage = useCallback(
+  const handleGetRowImage = useCallback(
     (path: string) => {
       const doc = docsByPath?.[path];
-      if (isFileData(doc)) {
-        const { storageKey } = doc;
-        const { contentType } = doc;
-        if (contentType?.startsWith("image") && storageKey) {
-          if (doc.thumbUrl) {
-            return doc.thumbUrl;
-          }
-          if (doc.fileUrl) {
-            return doc.fileUrl;
-          }
-          if (doc.storageKey) {
-            return getAbsoluteUrl(`/${storageKey}`);
-          }
-        }
+      if (doc?.fileType?.startsWith("image") && doc?.storageKey) {
+        return doc?.thumbUrl || doc?.fileUrl || "";
       }
       return "";
     },
     [docsByPath]
   );
-  const getRowIcon = useCallback(
+  const handleGetRowIcon = useCallback(
     (path: string) => {
       const doc = docsByPath?.[path];
-      if (isFileData(doc)) {
-        const contentType = doc.contentType || doc.fileType?.toLowerCase();
-        if (contentType?.startsWith("image")) {
-          return <ImagePolaroidRegularIcon />;
-        }
-        if (contentType?.startsWith("audio")) {
-          return <VolumeHighRegularIcon />;
-        }
-        if (contentType?.startsWith("video")) {
-          return <VideoRegularIcon />;
-        }
-        if (contentType?.startsWith("text")) {
-          return <TextRegularIcon />;
-        }
+      const contentType = doc?.contentType || doc?.fileType?.toLowerCase();
+      if (contentType?.startsWith("image")) {
+        return <ImagePolaroidRegularIcon />;
+      }
+      if (contentType?.startsWith("audio")) {
+        return <VolumeHighRegularIcon />;
+      }
+      if (contentType?.startsWith("video")) {
+        return <VideoRegularIcon />;
+      }
+      if (contentType?.startsWith("text")) {
+        return <TextRegularIcon />;
       }
       return undefined;
     },
     [docsByPath]
   );
-  const getRowColor = useCallback(
+  const handleGetRowColor = useCallback(
     (path: string) => {
       const doc = docsByPath?.[path];
-      if (isFileData(doc)) {
-        const contentType = doc.contentType || doc.fileType?.toLowerCase();
-        if (contentType?.startsWith("image")) {
-          return "transparent";
-        }
-        if (contentType?.startsWith("audio")) {
-          return getProjectColor("red", 5);
-        }
-        if (contentType?.startsWith("video")) {
-          return getProjectColor("orange", 5);
-        }
-        if (contentType?.startsWith("text")) {
-          return getProjectColor("blue", 5);
-        }
+      const contentType = doc?.contentType || doc?.fileType?.toLowerCase();
+      if (contentType?.startsWith("image")) {
+        return "transparent";
+      }
+      if (contentType?.startsWith("audio")) {
+        return getProjectColor("red", 5);
+      }
+      if (contentType?.startsWith("video")) {
+        return getProjectColor("orange", 5);
+      }
+      if (contentType?.startsWith("text")) {
+        return getProjectColor("blue", 5);
       }
       return "";
     },
     [docsByPath]
   );
-  const getRowMoreOptions = useCallback(
-    (path: string) => {
-      const doc = docsByPath?.[path];
-      if (isFileData(doc)) {
-        return ["Replace", "Move", "---", "Delete"];
-      }
-      return ["Rename", "---", "Delete"];
-    },
-    [docsByPath]
-  );
-  const getOptionIcon = useCallback((option: string) => {
+  const handleGetRowMoreOptions = useCallback(() => {
+    return ["Replace", "---", "Delete"];
+  }, []);
+  const handleGetOptionIcon = useCallback((option: string) => {
     if (option === "Edit") {
       return <PencilRegularIcon />;
     }
@@ -287,13 +243,13 @@ const FilesConsoleContent = (
     }
     return undefined;
   }, []);
-  const isOptionUpload = useCallback((option: string): boolean => {
+  const handleIsOptionUpload = useCallback((option: string): boolean => {
     if (option === "Replace") {
       return true;
     }
     return false;
   }, []);
-  const isOptionDisabled = useCallback(
+  const handleIsOptionDisabled = useCallback(
     (paths: string[], option: string): boolean => {
       if (option === "Delete") {
         return !paths || paths.length === 0;
@@ -309,37 +265,20 @@ const FilesConsoleContent = (
   const handleDeleteFile = useCallback(
     async (path: string): Promise<void> => {
       const doc = docsByPath?.[path];
-      const id = idsByPath?.[path];
-      if (isFileData(doc)) {
-        const { storageKey } = doc;
-        if (storageKey) {
-          try {
-            onDelete(path);
-            const Storage = (
-              await import("../../../impower-storage/classes/storage")
-            ).default;
-            await Storage.instance.delete(storageKey);
-          } catch (error) {
-            toastDispatch(toastTop(error.message, "error"));
-            const logError = (
-              await import("../../../impower-logger/utils/logError")
-            ).default;
-            logError("Storage", error);
-          }
-        }
-      }
-      if (isFolderData(doc)) {
+      if (doc?.storageKey) {
         try {
-          onDelete(
-            getDataStatePath(
-              "projects",
-              projectId,
-              "instances",
-              "folders",
-              "data",
-              id
-            )
-          );
+          onDelete(path);
+          const DataStateWrite = (
+            await import("../../../impower-data-state/classes/dataStateWrite")
+          ).default;
+          await new DataStateWrite(
+            "projects",
+            projectId,
+            "instances",
+            "files",
+            "data",
+            doc?.fileId
+          ).set(null);
         } catch (error) {
           toastDispatch(toastTop(error.message, "error"));
           const logError = (
@@ -349,37 +288,29 @@ const FilesConsoleContent = (
         }
       }
     },
-    [docsByPath, idsByPath, onDelete, projectId, toastDispatch]
+    [docsByPath, onDelete, projectId, toastDispatch]
   );
 
   const handleDelete = useCallback(
     async (paths: string[]): Promise<void> => {
-      const nestedDeletedPaths = paths.flatMap(
-        (deletedPath) => pathsByFolder[deletedPath] || [deletedPath]
-      );
+      const nestedDeletedPaths = paths.flatMap((deletedPath) => [deletedPath]);
       await Promise.all(
         nestedDeletedPaths.map((path) => handleDeleteFile(path))
       );
     },
-    [handleDeleteFile, pathsByFolder]
+    [handleDeleteFile]
   );
 
   const handleUploadFile = useCallback(
     async (
       path: string,
-      replacing: boolean,
       fileInfo: {
         file: File;
-        fileId: string;
-        filePath: string;
-        fileName: string;
-        fileType: FileContentType;
-        fileExtension: FileExtension;
         newDoc: FileData;
       }
     ): Promise<void> => {
-      const { file, filePath, fileName, fileType, fileExtension, newDoc } =
-        fileInfo;
+      const { file, newDoc } = fileInfo;
+      const { fileExtension } = newDoc;
       try {
         const Storage = (
           await import("../../../impower-storage/classes/storage")
@@ -389,22 +320,20 @@ const FilesConsoleContent = (
           {
             contentType: getFileContentType(fileExtension),
             customMetadata: {
-              fileType,
-              fileExtension,
-              fileName,
+              fileType: newDoc.fileType,
+              fileExtension: newDoc.fileExtension,
+              fileName: newDoc.fileName,
+              fileId: newDoc.fileId,
+              project: newDoc.project,
+              name: newDoc.name,
             },
           },
           (snapshot) => {
-            if (onUploadProgress) {
-              onUploadProgress(
-                filePath,
-                snapshot.bytesTransferred,
-                snapshot.totalBytes
-              );
-            }
-          },
-          (storageKey) => {
-            onUploadStart(path, { ...newDoc, storageKey });
+            onUploadProgress?.(
+              path,
+              snapshot.bytesTransferred,
+              snapshot.totalBytes
+            );
           }
         );
         await new Promise((resolve) => {
@@ -418,12 +347,13 @@ const FilesConsoleContent = (
         ).default;
         logError("Storage", error);
       }
+      onUploadFinished?.(path, newDoc);
     },
-    [onUploadProgress, onUploadStart, toastDispatch]
+    [onUploadFinished, onUploadProgress, toastDispatch]
   );
 
   const handleUpload = useCallback(
-    async (files: FileList, path: string, replacing?: boolean) => {
+    async (files: FileList, path: string) => {
       const getUuid = (await import("../../../impower-core/utils/getUuid"))
         .default;
       const filesToUpload = !path || path.endsWith("/") ? files : [files[0]];
@@ -436,44 +366,59 @@ const FilesConsoleContent = (
         toastDispatch(toastTop(error, "error"));
         return;
       }
+      const isFolder = !path || path.endsWith("/");
+      const folderPath = isFolder
+        ? path
+        : `${path.split("/").slice(0, -1).join("/")}/`;
+
+      const docPathsByName: { [name: string]: string } = {};
+      Object.entries(docsByPath).forEach(([p, d]) => {
+        docPathsByName[d.name] = p;
+      });
       const fileInfos = filesArray.map((file) => {
-        const fileId =
-          !path || path.endsWith("/") ? getUuid() : idsByPath[path];
-        const filePath =
-          !path || path.endsWith("/") ? `${path || ""}${fileId}` : path;
-        const lastDotIndex = file.name.lastIndexOf(".");
-        const ext = file.name.substring(lastDotIndex + 1) as FileExtension;
-        const contentType = getFileContentType(ext);
-        const currentDoc: FileData = docsByPath?.[filePath] as FileData;
-        const fileName = currentDoc?.fileName || file.name;
-        const name =
-          currentDoc?.name ||
-          file.name.slice(0, file.name.length - ext.length + 1);
-        const fileType = contentType;
+        const newFileName = file.name;
+        const lastDotIndex = newFileName.lastIndexOf(".");
+        const ext = newFileName.substring(lastDotIndex + 1) as FileExtension;
+        const newName = newFileName.slice(
+          0,
+          newFileName.length - ext.length - 1
+        );
+        const existingDocPath = isFolder ? docPathsByName[newName] : path;
+        const fileId = existingDocPath
+          ? existingDocPath.split("/").slice(-1).join("")
+          : getUuid();
+        const newDocPath = folderPath + fileId;
+        const currentDoc: FileData = docsByPath?.[newDocPath] as FileData;
+        const fileName = currentDoc?.fileName || newFileName;
+        const name = currentDoc?.name || newName;
         const fileExtension = ext;
+        const fileType = getFileContentType(ext);
         const newDoc = createFileData({
           fileType,
           fileExtension,
           fileName,
+          fileId,
+          project: projectId,
           size: file.size,
           name,
+          t: new Date().getTime(),
         });
         return {
           file,
-          fileId,
-          filePath,
-          fileName,
-          fileType,
-          fileExtension,
           currentDoc,
           newDoc,
         };
       });
-      await Promise.all(
-        fileInfos.map((fileInfo) => handleUploadFile(path, replacing, fileInfo))
-      );
+      fileInfos.forEach(({ newDoc }) => {
+        onUploadStart?.(folderPath + newDoc.fileId, newDoc);
+      });
+      for (let i = 0; i < fileInfos.length; i += 1) {
+        const fileInfo = fileInfos[i];
+        // eslint-disable-next-line no-await-in-loop
+        await handleUploadFile(folderPath + fileInfo.newDoc.fileId, fileInfo);
+      }
     },
-    [toastDispatch, idsByPath, docsByPath, handleUploadFile]
+    [toastDispatch, docsByPath, projectId, onUploadStart, handleUploadFile]
   );
 
   const handleAdd = useCallback(
@@ -485,7 +430,7 @@ const FilesConsoleContent = (
       event.stopPropagation();
       const inputEvent = event as React.ChangeEvent<HTMLInputElement>;
       if (inputEvent?.target?.files?.length > 0) {
-        handleUpload(inputEvent?.target?.files, path, false);
+        handleUpload(inputEvent?.target?.files, path);
       }
     },
     [handleUpload]
@@ -511,7 +456,7 @@ const FilesConsoleContent = (
       if (option === "Replace") {
         const inputEvent = event as React.ChangeEvent<HTMLInputElement>;
         if (inputEvent?.target?.files?.length > 0) {
-          handleUpload(inputEvent.target.files, path, true);
+          handleUpload(inputEvent.target.files, path);
         }
       }
       if (option === "Delete") {
@@ -521,81 +466,44 @@ const FilesConsoleContent = (
     [handleDelete, handleUpload]
   );
 
-  const getCellDisplayValue = useCallback(
+  const handleGetCellDisplayValue = useCallback(
     (path: string, key: string): string => {
       const doc = docsByPath?.[path];
-      if (isFileData(doc)) {
-        if (key === "name") {
-          return doc.name || doc.fileName;
-        }
-        if (key === "type") {
-          return doc.contentType || doc.fileType?.toLowerCase();
-        }
-        if (key === "size") {
-          return getFileSizeDisplayValue(doc.size || 0) || "";
-        }
-        if (key === "modified") {
-          if (doc.updated) {
-            const updated =
-              typeof doc?.updated === "string"
-                ? new Date(doc?.updated)
-                : new Date();
-            return format("Modified {date}", {
-              date: abbreviateAge(updated),
-            });
-          }
-          return "";
-        }
-        return String(doc[key]);
+      if (key === "name") {
+        return doc?.name || doc?.fileName;
       }
-      if (isFolderData(doc)) {
-        if (key === "name") {
-          return doc.name;
-        }
-        if (key === "type") {
-          return "folder";
-        }
-        if (key === "size") {
-          return getFileSizeDisplayValue(doc.size) || "";
-        }
-        return String(doc[key]);
+      if (key === "type") {
+        return doc?.contentType || doc?.fileType?.toLowerCase();
       }
-      return "";
+      if (key === "size") {
+        return getFileSizeDisplayValue(doc?.size || 0) || "";
+      }
+      if (key === "modified") {
+        const updated =
+          typeof doc?.t === "string" ? new Date(doc?.t) : new Date();
+        return format("Modified {date}", {
+          date: abbreviateAge(updated),
+        });
+        return "";
+      }
+      return String(doc?.[key]);
     },
     [docsByPath]
   );
-  const getCellSortValue = useCallback(
+  const handleGetCellSortValue = useCallback(
     (path: string, key: string): string | number => {
       const doc = docsByPath?.[path];
-      if (isFileData(doc)) {
-        if (key === "size") {
-          return doc.size;
-        }
-        if (key === "modified") {
-          if (doc.updated) {
-            const updated =
-              typeof doc?.updated === "string"
-                ? new Date(doc?.updated)
-                : new Date();
-            return updated.toJSON();
-          }
-        }
+      if (key === "size") {
+        return doc?.size;
       }
-      if (isFolderData(doc)) {
-        if (key === "name") {
-          return doc.name;
-        }
-        if (key === "type") {
-          return "folder";
-        }
-        if (key === "size") {
-          return doc.size;
-        }
-        return String(doc[key]);
+      if (key === "modified") {
+        const updated =
+          typeof doc?.t === "string" ? new Date(doc?.t) : new Date();
+        return updated.toJSON();
       }
-      return getCellDisplayValue(path, key);
+      return handleGetCellDisplayValue(path, key);
     },
-    [docsByPath, getCellDisplayValue]
+    [docsByPath, handleGetCellDisplayValue]
   );
 
   const handleIsUploadAllowed = useCallback((): boolean => {
@@ -606,10 +514,7 @@ const FilesConsoleContent = (
     return true;
   }, []);
 
-  const contextOptions = useMemo(
-    () => [moveLabel, "---", deleteLabel],
-    [moveLabel, deleteLabel]
-  );
+  const contextOptions = useMemo(() => [deleteLabel], [deleteLabel]);
 
   return (
     <>
@@ -619,16 +524,16 @@ const FilesConsoleContent = (
         paths={paths}
         cardDetails={cardDetails}
         rowNameKey="name"
-        getUploadLabel={getUploadLabel}
-        getRowImage={getRowImage}
-        getRowIcon={getRowIcon}
-        getRowColor={getRowColor}
-        getRowMoreOptions={getRowMoreOptions}
-        getOptionIcon={getOptionIcon}
-        isOptionUpload={isOptionUpload}
-        isOptionDisabled={isOptionDisabled}
-        getCellDisplayValue={getCellDisplayValue}
-        getCellSortValue={getCellSortValue}
+        getUploadLabel={handleGetUploadLabel}
+        getRowImage={handleGetRowImage}
+        getRowIcon={handleGetRowIcon}
+        getRowColor={handleGetRowColor}
+        getRowMoreOptions={handleGetRowMoreOptions}
+        getOptionIcon={handleGetOptionIcon}
+        isOptionUpload={handleIsOptionUpload}
+        isOptionDisabled={handleIsOptionDisabled}
+        getCellDisplayValue={handleGetCellDisplayValue}
+        getCellSortValue={handleGetCellSortValue}
         defaultSortKey="name"
         defaultSortOrder="asc"
         title={title}
@@ -692,17 +597,7 @@ interface FilesConsoleProps {
   folderDocs: { [id: string]: FolderData };
   selectedColor?: string;
   fixedStyle?: React.CSSProperties;
-  stickyStyle?: {
-    position?: string;
-    zIndex?: number;
-    boxShadow?: string;
-    top?: number;
-    left?: number;
-    right?: number;
-    paddingBottom?: number;
-    paddingLeft?: number;
-    paddingRight?: number;
-  };
+  stickyStyle?: React.CSSProperties;
   headerStyle?: React.CSSProperties;
   leftStyle?: React.CSSProperties;
   moreButtonStyle?: React.CSSProperties;
@@ -753,26 +648,17 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
   const [editIndex, setEditIndex] = useState<number>();
 
   const docsByPathRef = useRef<{
-    [path: string]: FileData | FolderData;
+    [path: string]: FileData;
   }>({});
   const [docsByPath, setDocsByPath] = useState<{
-    [path: string]: FileData | FolderData;
+    [path: string]: FileData;
   }>();
-  const idsByPathRef = useRef<{
-    [path: string]: string;
-  }>({});
-  const [idsByPath, setIdsByPath] = useState<{
-    [path: string]: string;
-  }>({});
-  const [pathsByFolder, setPathsByFolder] = useState<{
-    [path: string]: string[];
-  }>({});
   const [visibleOrderedPaths, setVisibleOrderedPaths] = useState<string[]>();
 
   const [currentPath, setCurrentPath] = useState<string>("/");
 
   const editDocPath = visibleOrderedPaths?.[editIndex];
-  const editDocId = idsByPath?.[editDocPath];
+  const editDocId = docsByPath?.[editDocPath]?.fileId;
   const editDoc = docsByPath?.[editDocPath];
 
   const engineConsole = projectConsoles.find(
@@ -800,39 +686,26 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
 
   useEffect(() => {
     if (fileDocs) {
-      const idsByPath = {};
-      const docsByPath = {};
-      const pathsByFolder = {};
-      // Object.entries(folderDocs).forEach(([id, doc]) => {
-      //   const folderPath = doc.path;
-      //   const path = folderPath.split("/").reduce((prev, curr) => {
-      //     const partName = curr ? folderDocs[curr].name : curr;
-      //     return `${prev}${partName}/`;
-      //   });
-      //   idsByPath[path] = id;
-      //   docsByPath[path] = doc;
-      //   if (!pathsByFolder[path]) {
-      //     pathsByFolder[path] = [];
-      //   }
-      //   pathsByFolder[path].push(path);
-      // });
+      Object.keys(docsByPathRef.current).forEach((path) => {
+        const id = path.split("/").slice(-1).join("");
+        if (!fileDocs[id]) {
+          delete docsByPathRef.current[path];
+        }
+      });
       Object.entries(fileDocs).forEach(([id, doc]) => {
         const path = `/${id}`;
-        idsByPath[path] = id;
-        docsByPath[path] = doc;
+        docsByPathRef.current[path] = doc;
       });
       const currentUploadingProgress = { ...uploadProgressRef.current };
       Object.keys(currentUploadingProgress).forEach((path) => {
-        if (docsByPath[path]) {
+        if (docsByPathRef.current[path]) {
           delete uploadProgressRef.current[path];
         } else {
-          docsByPath[path] = uploadProgressRef.current[path].newDoc;
+          docsByPathRef.current[path] = uploadProgressRef.current[path].newDoc;
         }
       });
       setUploadProgress({ ...uploadProgressRef.current });
-      setIdsByPath(idsByPath);
-      setDocsByPath(docsByPath);
-      setPathsByFolder(pathsByFolder);
+      setDocsByPath({ ...docsByPathRef.current });
     } else {
       setDocsByPath(undefined);
     }
@@ -886,14 +759,11 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
 
   const handleClick = useCallback(
     async (e: React.MouseEvent, path: string) => {
-      const doc = docsByPath?.[path];
-      if (isFileData(doc)) {
-        setEditIndex(visibleOrderedPaths.indexOf(path));
-        setEditDialogOpen(true);
-        openEditDialog("file");
-      }
+      setEditIndex(visibleOrderedPaths.indexOf(path));
+      setEditDialogOpen(true);
+      openEditDialog("file");
     },
-    [docsByPath, visibleOrderedPaths, openEditDialog]
+    [visibleOrderedPaths, openEditDialog]
   );
   const handleUploadStart = useCallback((path: string, newDoc: FileData) => {
     uploadProgressRef.current[path] = {
@@ -906,9 +776,9 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
     setDocsByPath({ ...docsByPathRef.current });
   }, []);
   const handleUploadProgress = useCallback(
-    (filePath: string, bytesTransferred: number, totalBytes: number) => {
-      uploadProgressRef.current[filePath] = {
-        ...uploadProgressRef.current[filePath],
+    (path: string, bytesTransferred: number, totalBytes: number) => {
+      uploadProgressRef.current[path] = {
+        ...uploadProgressRef.current[path],
         bytesTransferred,
         totalBytes,
       };
@@ -918,14 +788,8 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
   );
   const handleDelete = useCallback((path: string) => {
     if (docsByPathRef.current[path]) {
-      const newDocsByPath = { ...docsByPathRef.current };
-      delete newDocsByPath[path];
-      setDocsByPath(newDocsByPath);
-    }
-    if (idsByPathRef.current[path]) {
-      const newIdsByPath = { ...idsByPathRef.current };
-      delete newIdsByPath[path];
-      setIdsByPath(newIdsByPath);
+      delete docsByPathRef.current[path];
+      setDocsByPath({ ...docsByPathRef.current });
     }
   }, []);
   const handleReorder = useCallback((paths: string[]) => {
@@ -974,9 +838,7 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
           projectId={projectId}
           cardDetails={cardDetails}
           currentPath={currentPath}
-          idsByPath={idsByPath}
           docsByPath={docsByPath}
-          pathsByFolder={pathsByFolder}
           createLabel={createLabel}
           title={name}
           addLabel={addLabel}
@@ -1021,15 +883,13 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
         fullScreen
         onClose={handleCloseEditDialog}
       >
-        {isFileData(editDoc) && (
-          <EditFileForm
-            scrollParent={dialogScrollElement}
-            docId={editDocId}
-            doc={editDoc}
-            onClose={handleCloseEditDialog}
-            onChange={handleChangeEditDoc}
-          />
-        )}
+        <EditFileForm
+          scrollParent={dialogScrollElement}
+          docId={editDocId}
+          doc={editDoc}
+          onClose={handleCloseEditDialog}
+          onChange={handleChangeEditDoc}
+        />
         <StyledMobileStepper
           steps={visibleOrderedPaths?.length}
           position="static"

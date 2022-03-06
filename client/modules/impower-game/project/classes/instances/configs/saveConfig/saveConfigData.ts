@@ -1,6 +1,5 @@
-import { ConfigData, createConfigData } from "../../config/configData";
 import { createConfigReference } from "../../../../../data/interfaces/references/configReference";
-import { ConfigTypeId } from "../../config/configTypeId";
+import { ConfigData, createConfigData } from "../../config/configData";
 
 export interface SaveConfigData extends ConfigData {
   /**
@@ -14,8 +13,8 @@ export const createSaveConfigData = (
 ): SaveConfigData => ({
   ...createConfigData({
     reference: createConfigReference({
-      refTypeId: ConfigTypeId.SaveConfig,
-      refId: ConfigTypeId.SaveConfig,
+      refTypeId: "SaveConfig",
+      refId: "SaveConfig",
     }),
   }),
   autoSaveOnEnter: true,

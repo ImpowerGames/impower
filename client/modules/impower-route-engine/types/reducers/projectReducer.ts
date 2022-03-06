@@ -2,8 +2,11 @@ import setValue from "../../../impower-core/utils/setValue";
 import { MemberAccess } from "../../../impower-data-state";
 import { ProjectDocument } from "../../../impower-data-store";
 import {
+  GameInstancesCollection,
   GameProjectData,
+  GameScriptsCollection,
   InstanceData,
+  MembersCollection,
   Reference,
 } from "../../../impower-game/data";
 import {
@@ -20,7 +23,10 @@ import {
   PROJECT_CHANGE_INSTANCE_DATA,
   PROJECT_CHANGE_SCRIPT,
   PROJECT_INSERT_DATA,
-  PROJECT_LOAD_DATA,
+  PROJECT_LOAD_DOC,
+  PROJECT_LOAD_INSTANCES,
+  PROJECT_LOAD_MEMBERS,
+  PROJECT_LOAD_SCRIPTS,
   PROJECT_REMOVE_DATA,
   PROJECT_UPDATE_DATA,
   PROJECT_VALIDATE,
@@ -381,18 +387,75 @@ const doProjectChangeInstanceData = (
   return state;
 };
 
-const doProjectLoadData = (
+const doProjectLoadDoc = (
   state: ProjectState,
   payload: {
     id: string;
-    data: GameProjectData;
+    doc: ProjectDocument;
   }
 ): ProjectState => {
-  const { id, data } = payload;
+  const { id, doc } = payload;
   return {
     ...state,
     id,
-    data,
+    data: {
+      ...state.data,
+      doc,
+    },
+  };
+};
+
+const doProjectLoadMembers = (
+  state: ProjectState,
+  payload: {
+    id: string;
+    members: MembersCollection;
+  }
+): ProjectState => {
+  const { id, members } = payload;
+  return {
+    ...state,
+    id,
+    data: {
+      ...state.data,
+      members,
+    },
+  };
+};
+
+const doProjectLoadScripts = (
+  state: ProjectState,
+  payload: {
+    id: string;
+    scripts: GameScriptsCollection;
+  }
+): ProjectState => {
+  const { id, scripts } = payload;
+  return {
+    ...state,
+    id,
+    data: {
+      ...state.data,
+      scripts,
+    },
+  };
+};
+
+const doProjectLoadInstances = (
+  state: ProjectState,
+  payload: {
+    id: string;
+    instances: GameInstancesCollection;
+  }
+): ProjectState => {
+  const { id, instances } = payload;
+  return {
+    ...state,
+    id,
+    data: {
+      ...state.data,
+      instances,
+    },
   };
 };
 
@@ -417,8 +480,14 @@ export const projectReducer = (
       return doProjectChangeDocument(state, action.payload);
     case PROJECT_CHANGE_SCRIPT:
       return doProjectChangeScript(state, action.payload);
-    case PROJECT_LOAD_DATA:
-      return doProjectLoadData(state, action.payload);
+    case PROJECT_LOAD_DOC:
+      return doProjectLoadDoc(state, action.payload);
+    case PROJECT_LOAD_MEMBERS:
+      return doProjectLoadMembers(state, action.payload);
+    case PROJECT_LOAD_SCRIPTS:
+      return doProjectLoadScripts(state, action.payload);
+    case PROJECT_LOAD_INSTANCES:
+      return doProjectLoadInstances(state, action.payload);
     case PROJECT_CHANGE_INSTANCE_DATA:
       return doProjectChangeInstanceData(state, action.payload);
     default:

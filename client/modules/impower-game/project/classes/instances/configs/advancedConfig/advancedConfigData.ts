@@ -1,6 +1,5 @@
-import { ConfigData, createConfigData } from "../../config/configData";
 import { createConfigReference } from "../../../../../data/interfaces/references/configReference";
-import { ConfigTypeId } from "../../config/configTypeId";
+import { ConfigData, createConfigData } from "../../config/configData";
 
 export interface AdvancedConfigData extends ConfigData {
   autoCreateConstructs: boolean;
@@ -11,8 +10,8 @@ export const createAdvancedConfigData = (
 ): AdvancedConfigData => ({
   ...createConfigData({
     reference: createConfigReference({
-      refTypeId: ConfigTypeId.AdvancedConfig,
-      refId: ConfigTypeId.AdvancedConfig,
+      refTypeId: "AdvancedConfig",
+      refId: "AdvancedConfig",
     }),
   }),
   autoCreateConstructs: true,

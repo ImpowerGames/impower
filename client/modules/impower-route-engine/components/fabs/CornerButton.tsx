@@ -22,6 +22,8 @@ const StyledInput = styled.input`
   pointer-events: inherit;
   touch-action: inherit;
   position: absolute;
+  width: 100%;
+  height: 100%;
   top: 0;
   bottom: 0;
   left: 0;
@@ -37,6 +39,8 @@ const StyledLabel = styled.label`
   bottom: 0;
   left: 0;
   right: 0;
+  width: 100%;
+  height: 100%;
   cursor: pointer;
   border-radius: inherit;
   &:hover {
@@ -179,23 +183,6 @@ const CornerButton = React.memo((props: CornerButtonProps): JSX.Element => {
         style={cornerButtonStyle}
       >
         <StyledCornerButtonContent ref={contentRef} style={contentStyle}>
-          {upload && (
-            <>
-              <StyledInput
-                id={`console-list-option-file-input`}
-                type="file"
-                multiple
-                onChange={onClick}
-              />
-              <StyledLabel
-                htmlFor={`console-list-option-file-input`}
-                onDragEnter={onDragEnter}
-                onDragLeave={onDragLeave}
-                onDragOver={onDragOver}
-                onDrop={onDrop}
-              />
-            </>
-          )}
           {icon && (
             <StyledCornerButtonIconArea ref={iconRef} style={iconAreaStyle}>
               {icon}
@@ -207,6 +194,23 @@ const CornerButton = React.memo((props: CornerButtonProps): JSX.Element => {
             </StyledCornerButtonTextArea>
           )}
         </StyledCornerButtonContent>
+        {upload && (
+          <>
+            <StyledInput
+              id={`console-list-option-file-input`}
+              type="file"
+              multiple
+              onChange={onClick}
+            />
+            <StyledLabel
+              htmlFor={`console-list-option-file-input`}
+              onDragEnter={onDragEnter}
+              onDragLeave={onDragLeave}
+              onDragOver={onDragOver}
+              onDrop={onDrop}
+            />
+          </>
+        )}
       </StyledButton>
       {children && (
         <StyledButtonChildrenArea style={childrenAreaStyle}>

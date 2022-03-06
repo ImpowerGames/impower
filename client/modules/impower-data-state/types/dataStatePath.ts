@@ -321,6 +321,7 @@ export type DataStateReadPath =
   | PhraseAggReadPath
   | PageMembersReadPath
   | PageMemberReadPath
+  | ProjectDocumentPath
   | ProjectScriptReadPath
   | ProjectInstancesReadPath
   | ProjectInstanceReadPath
