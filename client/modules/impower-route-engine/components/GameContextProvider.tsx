@@ -388,7 +388,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     !projectEngineState.present.project.id ||
     projectEngineState.present.project.data === undefined;
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT !== "development") {
+  if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
     return null;
   }
 

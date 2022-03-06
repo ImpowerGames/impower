@@ -34,11 +34,10 @@ import Avatar from "./Avatar";
 import Title from "./Title";
 
 export const unauthenticatedAccountPages: string[] = ["/signup", "/login"];
-export const navbarPages: string[] = process.env.NEXT_PUBLIC_ORIGIN?.includes(
-  "localhost"
-)
-  ? ["/", "/pitch/game", "/library", "/engine", "#donate"]
-  : ["/", "/pitch/game", "#donate"];
+export const navbarPages: string[] =
+  process.env.NEXT_PUBLIC_ENVIRONMENT === "production"
+    ? ["/", "/pitch/game", "#donate"]
+    : ["/", "/pitch/game", "/library", "/engine", "#donate"];
 export const install = "Install";
 
 const pageIcons: { [baseRoute: string]: React.ReactNode } = {

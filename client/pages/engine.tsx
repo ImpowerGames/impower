@@ -24,7 +24,7 @@ const DashboardPage = React.memo(() => {
   const theme = useTheme();
 
   const underConstruction =
-    !process.env.NEXT_PUBLIC_ORIGIN.includes("localhost");
+    process.env.NEXT_PUBLIC_ENVIRONMENT === "production";
 
   useBodyBackgroundColor(theme.palette.primary.main);
   useHTMLBackgroundColor(theme.palette.primary.main);
@@ -88,7 +88,7 @@ const DashboardPage = React.memo(() => {
     loaded,
   ]);
 
-  if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
+  if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
     return null;
   }
 

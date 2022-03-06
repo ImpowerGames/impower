@@ -294,7 +294,7 @@ const StudioPageContent = React.memo((props: StudioPageContentProps) => {
   const studioData = my_studio_memberships?.[studioId];
   const loading = studioId?.toLowerCase() === "shared" ? false : !studioData;
 
-  if (!process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
+  if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
     return null;
   }
 
@@ -433,7 +433,7 @@ const StudioPage = React.memo((props: StudioPageProps) => {
     navigationDispatch(navigationSetBackgroundColor());
   }
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT !== "development") {
+  if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
     return null;
   }
 

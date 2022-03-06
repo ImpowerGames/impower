@@ -92,7 +92,7 @@ const ProfilePage = React.memo(() => {
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
 
-  if (process.env.NEXT_PUBLIC_ENVIRONMENT !== "development") {
+  if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
     return null;
   }
 
