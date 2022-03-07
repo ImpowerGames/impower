@@ -351,7 +351,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
                 )}
               </FontIcon>
               <StyledButtonTypography>
-                {mode === Mode.Edit ? "TEST" : "EDIT"}
+                {mode === Mode.Edit ? "PLAY" : "EDIT"}
               </StyledButtonTypography>
             </StyledButtonContent>
           </IconButton>
