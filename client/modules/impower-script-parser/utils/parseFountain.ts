@@ -659,7 +659,7 @@ export const parseFountain = (
       const skip_separator =
         ignoredLastToken &&
         result.scriptTokens.length > 1 &&
-        result.scriptTokens[result.scriptTokens.length - 1].type ===
+        result.scriptTokens[result.scriptTokens.length - 1]?.type ===
           "separator";
 
       if (ignoredLastToken) {
@@ -986,9 +986,9 @@ export const parseFountain = (
             let index = lastCharacterIndex;
             let lastCharacterToken = result.scriptTokens[index];
             while (
-              lastCharacterToken.type === "character" ||
-              lastCharacterToken.type === "parenthetical" ||
-              lastCharacterToken.type === "dialogue"
+              lastCharacterToken?.type === "character" ||
+              lastCharacterToken?.type === "parenthetical" ||
+              lastCharacterToken?.type === "dialogue"
             ) {
               lastCharacterToken.position = "left";
               index += 1;
@@ -1000,7 +1000,7 @@ export const parseFountain = (
             temp_index -= 1;
             while (!foundMatch) {
               temp_index -= 1;
-              switch (result.scriptTokens[temp_index].type) {
+              switch (result.scriptTokens[temp_index]?.type) {
                 case "dialogue_end":
                   result.scriptTokens.splice(temp_index);
                   temp_index -= 1;
@@ -1028,23 +1028,31 @@ export const parseFountain = (
             pushToken(createFountainToken("dialogue_begin"));
           }
           const character = trimCharacterExtension(currentToken.content).trim();
-          if (result.properties.characters?.[character]) {
-            const values = result.properties.characters[character];
+          const characterName = character.replace(/\^$/, "").trim();
+          if (result.properties.characters?.[characterName]) {
+            const values = result.properties.characters[characterName];
             if (values.indexOf(sceneNumber) === -1) {
               values.push(sceneNumber);
             }
             if (!result.properties.characters) {
               result.properties.characters = {};
             }
-            result.properties.characters[character] = values;
+            result.properties.characters[characterName] = values;
           } else {
             if (!result.properties.characters) {
               result.properties.characters = {};
             }
-            result.properties.characters[character] = [sceneNumber];
+            result.properties.characters[characterName] = [sceneNumber];
           }
           previousCharacter = currentToken.content;
           lastCharacterIndex = result.scriptTokens.length;
+          if (!result.dialogueLines) {
+            result.dialogueLines = {};
+          }
+          result.dialogueLines[currentToken.line] = currentToken.content
+            .trim()
+            .replace(/\^$/, "")
+            .trim();
         }
       } else if (
         currentToken.content?.match(fountainRegexes.note) &&
@@ -1150,7 +1158,7 @@ export const parseFountain = (
   // clean separators at the end
   while (
     result.scriptTokens.length > 0 &&
-    result.scriptTokens[result.scriptTokens.length - 1].type === "separator"
+    result.scriptTokens[result.scriptTokens.length - 1]?.type === "separator"
   ) {
     result.scriptTokens.pop();
   }

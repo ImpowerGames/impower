@@ -78,6 +78,51 @@ export const sectionSnippets = (level: number): Completion[] => {
   return result;
 };
 
+export const characterSnippets = (
+  characters: string[],
+  dialogueLines: Record<number, string>,
+  line: number
+): Completion[] => {
+  const recentCharactersSet = new Set<string>();
+  if (dialogueLines) {
+    for (let i = line - 1; i >= 0; i -= 1) {
+      const dialogueLine = dialogueLines[i];
+      if (dialogueLine) {
+        recentCharactersSet.add(dialogueLine);
+        if (recentCharactersSet.size >= characters.length) {
+          break;
+        }
+      }
+    }
+  }
+  const recentCharacters = Array.from(recentCharactersSet);
+  if (recentCharacters.length > 1) {
+    const mostRecentCharacter = recentCharacters.shift();
+    recentCharacters.splice(1, 0, mostRecentCharacter);
+  }
+  const result: Completion[] = [];
+  recentCharacters.forEach((name, index) => {
+    result.push(
+      snip(`${name}\n`, {
+        label: name,
+        type: "constant",
+        boost: recentCharacters.length - index,
+      })
+    );
+  });
+  characters.forEach((name) => {
+    if (!recentCharactersSet.has(name)) {
+      result.push(
+        snip(`${name}\n`, {
+          label: name,
+          type: "constant",
+        })
+      );
+    }
+  });
+  return result;
+};
+
 export const variableSnippets = (names: string[]): Completion[] => {
   return Array.from(new Set(names)).map((name) =>
     snip(name, {
@@ -158,6 +203,7 @@ export const fountainAutocomplete = (
   const tree = syntaxTree(context.state);
   const node: SyntaxNode = tree.resolveInner(context.pos, -1);
   const input = context.state.sliceDoc(node.from, node.to);
+  const line = context.state.doc.lineAt(node.from).number;
   const sectionInfo = getSectionInfo(node);
   const sectionLevel = sectionInfo.level;
   const sectionFrom = sectionInfo.from;
@@ -180,6 +226,14 @@ export const fountainAutocomplete = (
     if (input.startsWith("#")) {
       completions.push(...sectionSnippets(sectionLevel));
     }
+  } else if (node.name === "CharacterName") {
+    completions.push(
+      ...characterSnippets(
+        Object.keys(result.properties.characters || {}),
+        result.dialogueLines,
+        line
+      )
+    );
   } else if (node.name === "ImageNote") {
     const assets = {
       ...(section?.assets || {}),

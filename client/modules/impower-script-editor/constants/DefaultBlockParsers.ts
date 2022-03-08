@@ -9,18 +9,21 @@ import { Type } from "../types/type";
 import {
   addCodeText,
   getListIndent,
-  inContext,
+  inBlockContext,
   isAsset,
   isAssign,
   isBulletList,
   isCentered,
+  isCharacter,
   isDeclare,
   isFencedCode,
   isGo,
   isHorizontalRule,
   isHTMLBlock,
   isJump,
+  isLyric,
   isOrderedList,
+  isParenthetical,
   isReturn,
   isSceneHeading,
   isSectionHeading,
@@ -324,6 +327,143 @@ export const DefaultBlockParsers: {
     return true;
   },
 
+  SceneHeading(cx, line) {
+    const size = isSceneHeading(line);
+    if (size < 0) {
+      return false;
+    }
+    const off = line.pos;
+    const from = cx.lineStart + off;
+    let buf = cx.buffer;
+
+    if (size > 0) {
+      buf = buf.write(Type.SceneHeadingMark, 0, size);
+    }
+    const fullSceneHeading = line.text.slice(off + size + 1);
+    let sceneName = fullSceneHeading;
+    const sceneNumberMatch = line.text.match(fountainRegexes.scene_number);
+    if (sceneNumberMatch) {
+      const sceneNumberLength = sceneNumberMatch[1].length + 2;
+      sceneName = sceneName.slice(0, -sceneNumberLength);
+    }
+    buf = buf.writeElements(
+      cx.parser.parseInline(sceneName, from + size + 1),
+      -from
+    );
+    if (sceneNumberMatch) {
+      buf.write(
+        Type.SceneNumber,
+        size + sceneName.length + 1,
+        line.text.length - off
+      );
+    }
+    const node = buf.finish(Type.SceneHeading, line.text.length - off);
+    cx.nextLine();
+    cx.addNode(node, from);
+    return true;
+  },
+
+  Character(cx, line) {
+    const match = isCharacter(line);
+    if (!match) {
+      return false;
+    }
+    if (inBlockContext(cx, Type.Dialogue)) {
+      return false;
+    }
+    cx.startContext(Type.Dialogue, line.basePos, line.next);
+    const off = line.pos;
+    const from = cx.lineStart + off;
+    let buf = cx.buffer;
+
+    let characterMark = "";
+    const character = match[1];
+    let characterName = character;
+    const parentheticalSpace = match[2];
+    const parenthetical = match[3];
+    const dualSpace = match[4];
+    const dual = match[5];
+    if (characterName.startsWith("@")) {
+      buf = buf.write(Type.CharacterMark, 0, 1);
+      characterName = characterName.slice(1);
+      characterMark = "@";
+    }
+    buf = buf.write(
+      Type.CharacterName,
+      characterMark.length,
+      characterMark.length + characterName.length
+    );
+    let startPos = character.length;
+    let endPos = startPos;
+    if (parenthetical) {
+      startPos = endPos + parentheticalSpace.length;
+      endPos = startPos + parenthetical.length;
+      buf.write(Type.CharacterParenthetical, startPos, endPos);
+    }
+    if (dual) {
+      startPos = endPos + dualSpace.length;
+      endPos = startPos + dual.length;
+      buf.write(Type.CharacterDual, startPos, endPos);
+    }
+    const node = buf.finish(Type.Character, line.text.length - off);
+    cx.addNode(node, from);
+    cx.nextLine();
+    return true;
+  },
+
+  Parenthetical(cx, line) {
+    if (!inBlockContext(cx, Type.Dialogue)) {
+      return false;
+    }
+    const match = isParenthetical(line);
+    if (!match) {
+      return false;
+    }
+    cx.addNode(
+      Type.ParentheticalLine,
+      cx.lineStart + line.pos,
+      cx.lineStart + line.pos + line.text.length
+    );
+    cx.nextLine();
+    return true;
+  },
+
+  Lyric(cx, line) {
+    if (!inBlockContext(cx, Type.Dialogue)) {
+      return false;
+    }
+    const match = isLyric(line);
+    if (!match) {
+      return false;
+    }
+    const size = 1;
+    const from = cx.lineStart + line.pos;
+    const buf = cx.buffer
+      .write(Type.LyricMark, 0, size)
+      .writeElements(
+        cx.parser.parseInline(line.text.slice(size), from + size),
+        -from
+      );
+    const node = buf.finish(Type.Lyric, line.text.length);
+    cx.nextLine();
+    cx.addNode(node, from);
+    return true;
+  },
+
+  Dialogue(cx, line) {
+    if (!inBlockContext(cx, Type.Dialogue)) {
+      return false;
+    }
+    const off = line.pos;
+    const from = cx.lineStart + off;
+    let buf = cx.buffer;
+    buf = buf.writeElements(cx.parser.parseInline(line.text, from), -from);
+    const node = buf.finish(Type.DialogueLine, line.text.length - off);
+    cx.addNode(node, from);
+    cx.nextLine();
+    return true;
+  },
+
   Title(cx, line) {
     const size = isTitle(line, cx, false);
     if (size < 0) {
@@ -339,7 +479,7 @@ export const DefaultBlockParsers: {
         line.text.charCodeAt(line.pos + size - 1)
       );
     }
-    if (!inContext(cx, Type.Title)) {
+    if (!inBlockContext(cx, Type.Title)) {
       return false;
     }
     const newBase = getListIndent(line, line.pos + size);
@@ -476,42 +616,6 @@ export const DefaultBlockParsers: {
     return null;
   },
 
-  SceneHeading(cx, line) {
-    const size = isSceneHeading(line);
-    if (size < 0) {
-      return false;
-    }
-    const off = line.pos;
-    const from = cx.lineStart + off;
-    let buf = cx.buffer;
-
-    if (size > 0) {
-      buf = buf.write(Type.SceneHeadingMark, 0, size);
-    }
-    const fullSceneHeading = line.text.slice(off + size + 1);
-    let sceneName = fullSceneHeading;
-    const sceneNumberMatch = line.text.match(fountainRegexes.scene_number);
-    if (sceneNumberMatch) {
-      const sceneNumberLength = sceneNumberMatch[1].length + 2;
-      sceneName = sceneName.slice(0, -sceneNumberLength);
-    }
-    buf = buf.writeElements(
-      cx.parser.parseInline(sceneName, from + size + 1),
-      -from
-    );
-    if (sceneNumberMatch) {
-      buf.write(
-        Type.SceneNumber,
-        size + sceneName.length + 1,
-        line.text.length - off
-      );
-    }
-    const node = buf.finish(Type.SceneHeading, line.text.length - off);
-    cx.nextLine();
-    cx.addNode(node, from);
-    return true;
-  },
-
   HTMLBlock(cx, line) {
     const type = isHTMLBlock(line, cx, false);
     if (type < 0) {
@@ -545,6 +649,4 @@ export const DefaultBlockParsers: {
     );
     return true;
   },
-
-  Dialogue: undefined, // Specifies relative precedence for block-continue function
 };

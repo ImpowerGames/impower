@@ -12,11 +12,10 @@ export const fountainRegexes = {
 
   transition: /^[ \t]*(.+ TO:|^TO:$)/,
 
-  dialogue:
-    /^[ \t]*([*_]+[^\p{Ll}\p{Lo}\p{So}\r\n]*)(\^?)?(?:\n(?!\n+))([\s\S]+)/u,
+  dialogue: /^[ \t]*(?!!)([^\r\n]+)$/,
 
   character:
-    /^[ \t]*(?![#!?]|(\[\[)|(SUPERIMPOSE:))(((?!@)[^\p{Ll}\r\n]*?\p{Lu}[^\p{Ll}\r\n]*?)|((@)[^\r\n]*?))(\(.*\))?(\s*\^)?$/u,
+    /^[ \t]*(?![#!?]|(?:\[\[)|(?:SUPERIMPOSE:))((?:(?!@)[^\p{Ll}\r\n]*?\p{Lu}[^\p{Ll}\r\n]*?)|(?:@[^\r\n]*?))([ \t]*)(\(.*\))?([ \t]*)(\^)?$/u,
   parenthetical: /^[ \t]*(\(.+\))$/,
 
   action: /^(.+)/g,

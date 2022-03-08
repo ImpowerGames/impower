@@ -104,7 +104,7 @@ export const generateFountainHtml = (
     } else if (currentToken.type === "separator" && isAction) {
       if (currentIndex + 1 < result.scriptTokens.length - 1) {
         // we're not at the end
-        const next_type = result.scriptTokens[currentIndex + 1].type;
+        const next_type = result.scriptTokens[currentIndex + 1]?.type;
         if (
           next_type === "action" ||
           next_type === "separator" ||

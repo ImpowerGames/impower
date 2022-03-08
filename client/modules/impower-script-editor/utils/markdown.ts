@@ -36,12 +36,36 @@ export function isHorizontalRule(line: Line): number {
   return count < 3 ? -1 : 1;
 }
 
-export function inContext(cx: BlockContext, type: Type): boolean {
+export function inBlockContext(cx: BlockContext, type: Type): boolean {
   for (let i = cx.stack.length - 1; i >= 0; i -= 1)
     if (cx.stack[i].type === type) {
       return true;
     }
   return false;
+}
+
+export function isCharacter(line: Line): RegExpMatchArray {
+  if (
+    line.next !== "@".charCodeAt(0) &&
+    !String.fromCharCode(line.next).match(/^[A-Z0-9_]$/)
+  ) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.character);
+}
+
+export function isParenthetical(line: Line): RegExpMatchArray {
+  if (line.next !== "(".charCodeAt(0)) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.parenthetical);
+}
+
+export function isLyric(line: Line): RegExpMatchArray {
+  if (line.next !== "~".charCodeAt(0)) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.lyric);
 }
 
 export function isSynopses(line: Line): number {
@@ -100,7 +124,7 @@ export function isTitle(
     }
     next = line.text.charCodeAt(pos);
   }
-  if (breaking && inContext(cx, Type.Title)) {
+  if (breaking && inBlockContext(cx, Type.Title)) {
     return 1;
   }
   if (
@@ -125,7 +149,7 @@ export function isBulletList(
     (line.pos === line.text.length - 1 ||
       space(line.text.charCodeAt(line.pos + 1))) &&
     (!breaking ||
-      inContext(cx, Type.BulletList) ||
+      inBlockContext(cx, Type.BulletList) ||
       line.skipSpace(line.pos + 2) < line.text.length)
     ? 1
     : -1;
@@ -153,7 +177,7 @@ export function isOrderedList(
     (next !== 46 && next !== 41) /* '.)' */ ||
     (pos < line.text.length - 1 && !space(line.text.charCodeAt(pos + 1))) ||
     (breaking &&
-      !inContext(cx, Type.OrderedList) &&
+      !inBlockContext(cx, Type.OrderedList) &&
       (line.skipSpace(pos + 1) === line.text.length ||
         pos > line.pos + 1 ||
         line.next !== 49)) /* '1' */

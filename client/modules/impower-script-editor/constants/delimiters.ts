@@ -8,6 +8,7 @@ export const EmphasisAsterisk: DelimiterType = {
   resolve: "Emphasis",
   mark: "EmphasisMark",
 };
+export const ParentheticalStart: DelimiterType = {};
 export const ImageNoteStart: DelimiterType = {};
 export const AudioNoteStart: DelimiterType = {};
 export const DynamicTagStart: DelimiterType = {};

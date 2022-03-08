@@ -9,6 +9,7 @@ export interface FountainParseResult extends FountainDeclarations {
   scriptTokens: FountainToken[];
   scriptLines: Record<number, number>;
   sectionLines?: Record<number, string>;
+  dialogueLines?: Record<number, string>;
   properties?: ScreenplayProperties;
   diagnostics?: FountainDiagnostic[];
   sections?: Record<string, FountainSection>;

@@ -96,16 +96,16 @@ const myHighlightStyle = HighlightStyle.define([
     color: colors.dialogue,
   },
   {
-    tag: t.dualDialogue,
-    color: colors.dualDialogue,
+    tag: t.character,
+    color: colors.character,
   },
   {
     tag: t.parenthetical,
     color: colors.parenthetical,
   },
   {
-    tag: t.character,
-    color: colors.character,
+    tag: t.dualDialogue,
+    color: colors.dualDialogue,
   },
   { tag: t.section, color: colors.section, opacity: 0.5, fontWeight: 400 },
   { tag: t.sectionHeading1, color: colors.section },
@@ -363,6 +363,12 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
               backgroundColor: "#00000066",
               color: "#ddd",
               border: "none",
+            },
+            ".cm-gutter.cm-lineNumbers": {
+              minWidth: "36px",
+            },
+            ".cm-lineNumbers .cm-gutterElement": {
+              padding: "0 2px",
             },
             ".cm-activeLine": {
               backgroundColor: "#FFFFFF0F",

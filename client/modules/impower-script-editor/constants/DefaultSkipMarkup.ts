@@ -37,6 +37,12 @@ export const DefaultSkipMarkup: {
   [Type.Trigger](_bl, _cx, _line) {
     return false;
   },
+  [Type.Dialogue](_bl, cx, line) {
+    if (line.text.trim().length === 0 && line.text.length < 2) {
+      return false;
+    }
+    return true;
+  },
   [Type.Section](bl, cx, line): boolean {
     const headingValue = isSectionHeading(line);
     if (headingValue < 0 || headingValue > bl.value) {

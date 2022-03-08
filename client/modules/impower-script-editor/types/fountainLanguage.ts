@@ -95,9 +95,10 @@ const commonmark = baseParser.configure({
         tags.logic,
       "Go Jump Return": tags.flow,
       "Character/...": tags.character,
-      "Parenthetical/...": tags.parenthetical,
+      "Parenthetical CharacterParenthetical ParentheticalLine":
+        tags.parenthetical,
+      "CharacterDual": tags.dualDialogue,
       "Dialogue/...": tags.dialogue,
-      "DualDialogueMark": tags.dualDialogue,
       "Lyric/...": tags.lyric,
       "LyricMark": tags.lyricMark,
       "SectionMark": tags.section,
