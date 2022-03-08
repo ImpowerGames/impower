@@ -1,21 +1,15 @@
 import {
-  TestState,
-  createTestState,
-  Control,
-  Playback,
-  Mode,
-  Layout,
-} from "../state/testState";
-import {
   TestAction,
+  TEST_CONTROL_CHANGE,
+  TEST_DEBUG,
+  TEST_LAYOUT_CHANGE,
   TEST_MODE_CHANGE,
   TEST_PLAYBACK_CHANGE,
-  TEST_DEBUG,
-  TEST_START_TIME_CHANGE,
   TEST_PLAYER_VISIBILITY,
-  TEST_CONTROL_CHANGE,
-  TEST_LAYOUT_CHANGE,
+  TEST_START_TIME_CHANGE,
 } from "../actions/testActions";
+import { Control, Layout, Mode, Playback, TestState } from "../state/testState";
+import { createTestState } from "../utils/createTestState";
 
 const doTestModeChange = (
   state: TestState,

@@ -5,7 +5,6 @@ import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgrou
 import { layout } from "../../../impower-route/styles/layout";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
-import { PanelType } from "../../types/state/windowState";
 import FilesConsole from "../consoles/FilesConsole";
 import Panel from "../layouts/Panel";
 
@@ -16,7 +15,7 @@ const AssetsPanel = React.memo((): JSX.Element => {
   const { portrait } = useContext(WindowTransitionContext);
   const theme = useTheme();
 
-  const projectState = state?.present?.project;
+  const projectState = state?.project;
 
   const buttonSpacing = 3 * 8;
   const fixedStyle: React.CSSProperties = {
@@ -78,7 +77,7 @@ const AssetsPanel = React.memo((): JSX.Element => {
 
   return (
     <Panel
-      panelType={PanelType.Assets}
+      panelType="Assets"
       onScrollRef={handleScrollRef}
       useWindowAsScrollContainer
     >

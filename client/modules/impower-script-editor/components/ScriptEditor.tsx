@@ -2,6 +2,7 @@ import { basicSetup, EditorState, EditorView } from "@codemirror/basic-setup";
 import { indentWithTab } from "@codemirror/commands";
 import { foldEffect, unfoldAll } from "@codemirror/fold";
 import { HighlightStyle } from "@codemirror/highlight";
+import { historyField, redo, undo } from "@codemirror/history";
 import { foldable, indentUnit } from "@codemirror/language";
 import { closeLintPanel, openLintPanel } from "@codemirror/lint";
 import { panels } from "@codemirror/panel";
@@ -17,6 +18,7 @@ import {
   SearchQuery,
   setSearchQuery,
 } from "@codemirror/search";
+import { EditorSelection } from "@codemirror/state";
 import { tooltips } from "@codemirror/tooltip";
 import { keymap, PluginField, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import React, { useEffect, useRef } from "react";
@@ -25,6 +27,7 @@ import {
   FountainParseResult,
   parseFountain,
 } from "../../impower-script-parser";
+import { SerializableEditorState } from "../types/editor";
 import { fountain } from "../types/fountain";
 import { fountainLanguage, tags as t } from "../types/fountainLanguage";
 import { SearchPanel } from "./SearchPanel";
@@ -176,13 +179,11 @@ interface ScriptEditorProps {
       | "replace"
       | "replace_all";
   };
-  defaultScrollTopLine?: number;
-  defaultCursor?: {
-    anchor: number;
-    head: number;
-    fromLine: number;
-    toLine: number;
+  editorAction?: {
+    action?: "undo" | "redo";
   };
+  defaultState?: SerializableEditorState;
+  defaultScrollTopLine?: number;
   scrollTopLine?: number;
   scrollTopLineOffset?: number;
   cursor?: {
@@ -195,7 +196,7 @@ interface ScriptEditorProps {
   bottomPanelsContainer?: HTMLElement;
   style?: React.CSSProperties;
   onUpdate?: (update: ViewUpdate) => void;
-  onChange?: (value: string) => void;
+  onChange?: (value: string, state?: SerializableEditorState) => void;
   onParse?: (result: FountainParseResult) => void;
   onCursor?: (range: {
     anchor: number;
@@ -229,8 +230,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     toggleFolding,
     toggleLinting,
     searchQuery,
+    editorAction,
+    defaultState,
     defaultScrollTopLine,
-    defaultCursor,
     scrollTopLine,
     scrollTopLineOffset = 0,
     cursor,
@@ -258,7 +260,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
 
   const defaultValueRef = useRef(defaultValue);
   const defaultScrollTopLineRef = useRef(defaultScrollTopLine);
-  const defaultCursorRef = useRef(defaultCursor);
+  const defaultStateRef = useRef(defaultState);
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
   const onChangeRef = useRef(onChange);
@@ -286,11 +288,31 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         onSearchRef.current(undefined, null);
       }
     };
-    const selection = defaultCursorRef.current;
+    const doc =
+      defaultStateRef.current?.doc != null
+        ? defaultStateRef.current?.doc
+        : defaultValueRef.current;
+    const selection =
+      defaultStateRef.current?.selection != null
+        ? EditorSelection.fromJSON(defaultStateRef.current?.selection)
+        : { anchor: 0, head: 0 };
+    let restoredState: EditorState;
+    if (defaultStateRef.current) {
+      const { doc, selection, history } = defaultStateRef.current;
+      restoredState = EditorState.fromJSON(
+        { doc, selection, history },
+        {},
+        { history: historyField }
+      );
+    }
+    const restoredExtensions = restoredState
+      ? [historyField.init(() => restoredState.field(historyField))]
+      : [];
     const startState = EditorState.create({
+      doc,
       selection,
-      doc: defaultValueRef.current,
       extensions: [
+        ...restoredExtensions,
         basicSetup,
         marginPlugin,
         search({
@@ -407,9 +429,22 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           }
           if (u.docChanged) {
             if (onChangeRef.current) {
-              onChangeRef.current(
-                viewRef.current.state.doc.toJSON().join("\n")
-              );
+              const json = u.state.toJSON({ history: historyField });
+              const doc = u.view.state.doc.toJSON().join("\n");
+              const selection = u.view.state.selection.toJSON();
+              const history = json?.history;
+              const transaction = u.transactions?.[0];
+              const userEvent = transaction?.isUserEvent("undo")
+                ? "undo"
+                : transaction?.isUserEvent("redo")
+                ? "redo"
+                : null;
+              onChangeRef.current(doc, {
+                doc,
+                selection,
+                history,
+                userEvent,
+              });
             }
           }
           const cursorRange = u.state.selection.main;
@@ -451,6 +486,15 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
       }
     };
   }, [bottomPanelsContainer, topPanelsContainer]);
+
+  useEffect(() => {
+    if (editorAction?.action === "undo") {
+      undo(viewRef.current);
+    }
+    if (editorAction?.action === "redo") {
+      redo(viewRef.current);
+    }
+  }, [editorAction]);
 
   useEffect(() => {
     if (toggleLinting) {

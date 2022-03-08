@@ -10,8 +10,8 @@ import React, {
 } from "react";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
-import { dataPanelSetScrollParent } from "../../types/actions/dataPanelActions";
-import { PanelType } from "../../types/state/windowState";
+import { panelSetScrollParent } from "../../types/actions/panelActions";
+import { PanelType } from "../../types/state/panelState";
 
 const StyledPanel = styled.div`
   min-width: ${(props): string => props.theme.minWidth.panel};
@@ -121,7 +121,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
       portrait && useWindowAsScrollContainer
         ? document.documentElement
         : scrollRef.current;
-    dispatch(dataPanelSetScrollParent(scrollEl));
+    dispatch(panelSetScrollParent(scrollEl));
     if (scrollEl) {
       if (onScrollRef) {
         onScrollRef(scrollEl);

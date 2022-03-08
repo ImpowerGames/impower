@@ -34,7 +34,8 @@ import {
   PROJECT_VALIDATE,
   PROJECT_VALIDATE_DATA,
 } from "../actions/projectActions";
-import { createProjectState, ProjectState } from "../state/projectState";
+import { ProjectState } from "../state/projectState";
+import { createProjectState } from "../utils/createProjectState";
 
 const doProjectAccess = (
   state: ProjectState,
@@ -134,13 +135,12 @@ const doProjectValidateData = (
 const doProjectInsertData = (
   state: ProjectState,
   payload: {
-    description?: string;
     newData: InstanceData[];
     index?: number;
     skipSync?: boolean;
   }
 ): ProjectState => {
-  const { description, newData, index, skipSync } = payload;
+  const { newData, index, skipSync } = payload;
 
   const firstData = newData[0];
   if (!firstData) {
@@ -161,16 +161,8 @@ const doProjectInsertData = (
     index
   );
 
-  const dataListSummary =
-    ImpowerGameInspector.instance.getDataListSummary(newData);
-
-  const lastActionDescription = description
-    ? `${description} ${dataListSummary}`
-    : undefined;
-
-  let lastActionTargets = [];
   if (!skipSync) {
-    lastActionTargets = ProjectEngineSync.instance.syncData(
+    ProjectEngineSync.instance.syncData(
       newProject,
       state.data,
       "projects",
@@ -180,8 +172,6 @@ const doProjectInsertData = (
 
   return {
     ...state,
-    lastActionDescription: lastActionDescription || state.lastActionDescription,
-    lastActionTargets,
     data: {
       ...state.data,
       ...newProject,
@@ -192,12 +182,11 @@ const doProjectInsertData = (
 const doProjectRemoveData = (
   state: ProjectState,
   payload: {
-    description?: string;
     references: Reference[];
     skipSync?: boolean;
   }
 ): ProjectState => {
-  const { description, references, skipSync } = payload;
+  const { references, skipSync } = payload;
 
   const firstReference = references[0];
   if (!firstReference) {
@@ -209,19 +198,10 @@ const doProjectRemoveData = (
     return state;
   }
 
-  const { newProject, deleted } = removeGameProjectData(state.data, references);
+  const { newProject } = removeGameProjectData(state.data, references);
 
-  const dataListSummary = ImpowerGameInspector.instance.getDataListSummary(
-    Object.values(deleted)
-  );
-
-  const lastActionDescription = description
-    ? `${description} ${dataListSummary}`
-    : undefined;
-
-  let lastActionTargets = [];
   if (!skipSync) {
-    lastActionTargets = ProjectEngineSync.instance.syncData(
+    ProjectEngineSync.instance.syncData(
       newProject,
       state.data,
       "projects",
@@ -231,8 +211,6 @@ const doProjectRemoveData = (
 
   return {
     ...state,
-    lastActionDescription: lastActionDescription || state.lastActionDescription,
-    lastActionTargets,
     data: {
       ...state.data,
       ...newProject,
@@ -243,13 +221,12 @@ const doProjectRemoveData = (
 const doProjectUpdateData = (
   state: ProjectState,
   payload: {
-    description: string;
     references: Reference[];
     propertyPath: string;
     value: unknown;
   }
 ): ProjectState => {
-  const { description, references, propertyPath, value } = payload;
+  const { references, propertyPath, value } = payload;
 
   const project = state.data;
   const newData = references.map((r) => {
@@ -260,7 +237,7 @@ const doProjectUpdateData = (
     return setValue(d, propertyPath, value);
   }) as InstanceData[];
 
-  return doProjectInsertData(state, { description, newData });
+  return doProjectInsertData(state, { newData });
 };
 
 const doProjectChangeDocument = (
@@ -283,8 +260,6 @@ const doProjectChangeDocument = (
       ...(state.data || {}),
       doc,
     },
-    lastActionDescription: "Updated Details",
-    lastActionTargets: [`${id}`],
   };
   return state;
 };
@@ -323,8 +298,6 @@ const doProjectChangeScript = (
         },
       },
     },
-    lastActionDescription: "Updated Details",
-    lastActionTargets: [`${id}`],
   };
   return state;
 };
@@ -348,7 +321,6 @@ const doProjectChangeInstanceData = (
     return doProjectRemoveData(
       { ...state, id },
       {
-        description: "Remove",
         references: Object.values(data).map((d) => d.reference),
         skipSync,
       }
@@ -358,7 +330,6 @@ const doProjectChangeInstanceData = (
     return doProjectInsertData(
       { ...state, id },
       {
-        description: "Add",
         newData: Object.values(data).map((d) => d),
         skipSync,
       }
@@ -368,7 +339,6 @@ const doProjectChangeInstanceData = (
     return doProjectInsertData(
       { ...state, id },
       {
-        description: "Update",
         newData: Object.values(data).map((d) => d),
         skipSync,
       }

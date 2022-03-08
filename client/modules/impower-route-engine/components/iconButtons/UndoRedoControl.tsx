@@ -5,18 +5,11 @@ import React, { useCallback, useContext } from "react";
 import RotateLeftRegularIcon from "../../../../resources/icons/regular/rotate-left.svg";
 import RotateRightRegularIcon from "../../../../resources/icons/regular/rotate-right.svg";
 import { FontIcon } from "../../../impower-icon";
-import { ProjectEngineSync } from "../../../impower-project-engine-sync";
 import FadeAnimation from "../../../impower-route/components/animations/FadeAnimation";
 import UnmountAnimation from "../../../impower-route/components/animations/UnmountAnimation";
-import { ToastContext, toastLeft } from "../../../impower-toast";
-import {
-  useRedoShortcuts,
-  useUndoRedo,
-  useUndoRedoAvailability,
-  useUndoShortcuts,
-} from "../../../impower-undo-redo";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
-import { ProjectState } from "../../types/state/projectState";
+import { panelChangeEditorState } from "../../types/actions/panelActions";
+import { WindowType } from "../../types/state/windowState";
 
 const StyledUndoRedoArea = styled(FadeAnimation)`
   display: flex;
@@ -34,116 +27,76 @@ const StyledRightButtonBackground = styled.div`
     ${(props): string => props.theme.spacing(2)} 0;
 `;
 
-const syncProjectHistoryChange = (
-  lastActionTargets: string[],
-  newProjectState: ProjectState,
-  currentProjectState: ProjectState
-): void => {
-  const id = newProjectState.id || currentProjectState.id;
-  const projectPath = `${id}`;
-  if (lastActionTargets.length === 1 && lastActionTargets[0] === projectPath) {
-    ProjectEngineSync.instance.syncDoc(
-      newProjectState?.data?.doc,
-      "projects",
-      id
-    );
-  } else {
-    ProjectEngineSync.instance.syncData(
-      newProjectState.data,
-      currentProjectState.data,
-      "projects",
-      id
-    );
+const StyledIconButton = styled(IconButton)`
+  pointer-events: auto;
+  color: inherit;
+  margin: ${(props): string => props.theme.spacing(0.5)};
+  padding: 0;
+  min-width: ${(props): string => props.theme.spacing(4)};
+  min-height: ${(props): string => props.theme.spacing(4)};
+`;
+
+interface UndoRedoControlProps {
+  type: WindowType;
+}
+
+const UndoRedoControl = React.memo(
+  (props: UndoRedoControlProps): JSX.Element | null => {
+    const { type } = props;
+    const [state, dispatch] = useContext(ProjectEngineContext);
+    const history =
+      state?.panel?.panels?.[type]?.Container?.editorState?.history;
+    const canUndo = history?.done?.length > 1;
+    const canRedo = history?.undone?.length > 0;
+    const handleUndo = useCallback(() => {
+      dispatch(panelChangeEditorState(type, { action: "undo" }));
+    }, [dispatch, type]);
+    const handleRedo = useCallback(() => {
+      dispatch(panelChangeEditorState(type, { action: "redo" }));
+    }, [dispatch, type]);
+
+    const theme = useTheme();
+
+    if (canUndo || canRedo) {
+      return (
+        <UnmountAnimation>
+          <StyledUndoRedoArea initial={0} animate={1} exit={0} duration={0.3}>
+            <StyledLeftButtonBackground>
+              <StyledIconButton
+                onClick={handleUndo}
+                style={{
+                  pointerEvents: canUndo ? "auto" : "none",
+                  color: canUndo
+                    ? theme.palette.secondary.main
+                    : theme.colors.white10,
+                }}
+              >
+                <FontIcon aria-label="Redo" size={18}>
+                  <RotateLeftRegularIcon />
+                </FontIcon>
+              </StyledIconButton>
+            </StyledLeftButtonBackground>
+            <StyledRightButtonBackground>
+              <StyledIconButton
+                onClick={handleRedo}
+                style={{
+                  pointerEvents: canRedo ? "auto" : "none",
+                  color: canRedo
+                    ? theme.palette.secondary.main
+                    : theme.colors.white10,
+                }}
+              >
+                <FontIcon aria-label="Undo" size={18}>
+                  <RotateRightRegularIcon />
+                </FontIcon>
+              </StyledIconButton>
+            </StyledRightButtonBackground>
+          </StyledUndoRedoArea>
+        </UnmountAnimation>
+      );
+    }
+    return null;
   }
-};
-
-const UndoRedoControl = React.memo((): JSX.Element | null => {
-  const [gameEngineState, gameEngineDispatch] =
-    useContext(ProjectEngineContext);
-  const [, toastDispatch] = useContext(ToastContext);
-  const { canUndo, canRedo } = useUndoRedoAvailability(gameEngineState);
-  const onUndo = useCallback(() => {
-    const currentState = gameEngineState.present;
-    const newState = gameEngineState.past[gameEngineState.past.length - 1];
-    syncProjectHistoryChange(
-      currentState.project.lastActionTargets,
-      newState.project,
-      currentState.project
-    );
-    const { lastActionDescription } = currentState.project;
-    toastDispatch(toastLeft(`UNDO: ${lastActionDescription}`));
-  }, [gameEngineState, toastDispatch]);
-  const onRedo = useCallback(() => {
-    const currentState = gameEngineState.present;
-    const newState = gameEngineState.future[0];
-    syncProjectHistoryChange(
-      newState.project.lastActionTargets,
-      newState.project,
-      currentState.project
-    );
-    const { lastActionDescription } = currentState.project;
-    toastDispatch(toastLeft(`UNDO: ${lastActionDescription}`));
-  }, [gameEngineState, toastDispatch]);
-  const { undo, redo } = useUndoRedo(
-    gameEngineState,
-    gameEngineDispatch,
-    onUndo,
-    onRedo
-  );
-  const theme = useTheme();
-
-  useUndoShortcuts(undo);
-  useRedoShortcuts(redo);
-
-  if (canUndo || canRedo) {
-    return (
-      <UnmountAnimation>
-        <StyledUndoRedoArea
-          className={StyledUndoRedoArea.displayName}
-          initial={0}
-          animate={1}
-          exit={0}
-          duration={0.3}
-        >
-          <StyledLeftButtonBackground
-            className={StyledLeftButtonBackground.displayName}
-          >
-            <IconButton
-              onClick={redo}
-              style={{
-                pointerEvents: canRedo ? "auto" : "none",
-                color: canRedo
-                  ? theme.palette.secondary.main
-                  : theme.colors.white10,
-              }}
-            >
-              <FontIcon aria-label="Redo" size={theme.fontSize.smallIcon}>
-                <RotateLeftRegularIcon />
-              </FontIcon>
-            </IconButton>
-          </StyledLeftButtonBackground>
-          <StyledRightButtonBackground
-            className={StyledRightButtonBackground.displayName}
-          >
-            <IconButton
-              onClick={undo}
-              style={{
-                pointerEvents: canUndo ? "auto" : "none",
-                color: canUndo
-                  ? theme.palette.secondary.main
-                  : theme.colors.white10,
-              }}
-            >
-              <FontIcon aria-label="Undo" size={theme.fontSize.smallIcon}>
-                <RotateRightRegularIcon />
-              </FontIcon>
-            </IconButton>
-          </StyledRightButtonBackground>
-        </StyledUndoRedoArea>
-      </UnmountAnimation>
-    );
-  }
-  return null;
-});
+);
 
 export default UndoRedoControl;

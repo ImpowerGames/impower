@@ -27,7 +27,7 @@ import {
   RotateAnimation,
   UnmountAnimation,
 } from "../../impower-route";
-import CornerButton from "../../impower-route-engine/components/fabs/CornerButton";
+import CornerButton from "../../impower-route/components/fabs/CornerButton";
 import { getFileSizeLimit } from "../../impower-storage";
 import { ToastContext, toastTop } from "../../impower-toast";
 import { UserContext } from "../../impower-user";

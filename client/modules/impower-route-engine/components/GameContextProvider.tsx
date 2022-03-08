@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useReducer,
   useState,
 } from "react";
 import { debounce } from "../../impower-core";
@@ -33,8 +34,6 @@ import {
 import { Fallback } from "../../impower-route";
 import PageNotFound from "../../impower-route/components/layouts/PageNotFound";
 import { useRouter } from "../../impower-router";
-import { useUndoRedo } from "../../impower-undo-redo";
-import { useUndoableReducer } from "../../impower-undo-redo/hooks/useUndoableReducer";
 import { UserContext } from "../../impower-user";
 import { createDataContextState, DataContext } from "../contexts/dataContext";
 import { GameContext } from "../contexts/gameContext";
@@ -42,10 +41,10 @@ import { GameInspectorContext } from "../contexts/gameInspectorContext";
 import { GameRunnerContext } from "../contexts/gameRunnerContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 import {
-  dataPanelChangeItemSection,
-  dataPanelInspect,
-  dataPanelSetInteraction,
-} from "../types/actions/dataPanelActions";
+  panelChangeItemSection,
+  panelInspect,
+  panelSetInteraction,
+} from "../types/actions/panelActions";
 import {
   projectAccess,
   projectLoadDoc,
@@ -55,17 +54,8 @@ import {
   projectLoadScripts,
 } from "../types/actions/projectActions";
 import { testModeChange } from "../types/actions/testActions";
-import {
-  projectEngineReducer,
-  projectEngineUndoRedoConfig,
-} from "../types/reducers/projectEngineReducer";
-import {
-  DataInteractionType,
-  DataPanelType,
-  DataWindowType,
-} from "../types/state/dataPanelState";
-import { createProjectEngineState } from "../types/state/projectEngineState";
-import { Mode } from "../types/state/testState";
+import { projectEngineReducer } from "../types/reducers/projectEngineReducer";
+import { createProjectEngineState } from "../types/utils/createProjectEngineState";
 
 const StyledProjectPage = styled.div`
   background-color: ${(props): string => props.theme.colors.darkForeground};
@@ -92,22 +82,19 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
 
   const loadedProjectId = Array.isArray(pid) ? pid[0] : pid;
 
-  const projectEngineContext = useUndoableReducer(
+  const projectEngineContext = useReducer(
     projectEngineReducer,
-    createProjectEngineState(),
-    projectEngineUndoRedoConfig
+    createProjectEngineState()
   );
   const [projectEngineState, projectEngineDispatch] = projectEngineContext;
-  useUndoRedo(projectEngineState, projectEngineDispatch);
   const projectEngineSyncContext = useProjectEngineSyncContextState(
-    Boolean(projectEngineState.present.project.id)
+    Boolean(projectEngineState.project.id)
   );
   const [projectEngineSyncState] = projectEngineSyncContext;
   const { syncStatusMessage } = projectEngineSyncState;
   const dataContext = useMemo(() => createDataContextState(), []);
 
-  const loadedStudioId =
-    projectEngineState?.present?.project?.data?.doc?.studio;
+  const loadedStudioId = projectEngineState?.project?.data?.doc?.studio;
 
   const memberDoc = useMemo(() => {
     if (my_project_memberships === undefined) {
@@ -222,8 +209,8 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     navigationDispatch(
       navigationSetText(
         "GAME",
-        projectEngineState.present.project.data?.doc
-          ? projectEngineState.present.project.data?.doc?.name
+        projectEngineState.project.data?.doc
+          ? projectEngineState.project.data?.doc?.name
           : "",
         syncStatusMessage
       )
@@ -231,7 +218,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   }, [
     navigationDispatch,
     syncStatusMessage,
-    projectEngineState.present.project.data?.doc,
+    projectEngineState.project.data?.doc,
   ]);
 
   useEffect(() => {
@@ -262,7 +249,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const handleCreateGame = useCallback(
     (g?: ImpowerGame) => {
       if (!g) {
-        projectEngineDispatch(testModeChange(Mode.Edit));
+        projectEngineDispatch(testModeChange("Edit"));
       }
       setGame(g);
     },
@@ -295,8 +282,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     () => ({ gameRunner, onCreateRunner: handleCreateRunner }),
     [gameRunner, handleCreateRunner]
   );
-  const gameProject = projectEngineState.present.project
-    .data as GameProjectData;
+  const gameProject = projectEngineState.project.data as GameProjectData;
   const projectBlocks = useMemo(
     () =>
       gameProject?.instances?.blocks?.data
@@ -312,12 +298,8 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   useEffect(() => {
     const debounceDelay = 200;
     const onOpenData = debounce((data: { id: string }): void => {
-      projectEngineDispatch(
-        dataPanelInspect(DataWindowType.Logic, DataPanelType.Container, data.id)
-      );
-      projectEngineDispatch(
-        dataPanelChangeItemSection(DataWindowType.Logic, "Command")
-      );
+      projectEngineDispatch(panelInspect("Logic", "Container", data.id));
+      projectEngineDispatch(panelChangeItemSection("Logic", "Command"));
     }, debounceDelay);
     events.onOpenData.addListener(onOpenData);
     return (): void => {
@@ -329,42 +311,25 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     const debounceDelay = 200;
     const onStart = debounce(() => {
       projectEngineDispatch(
-        dataPanelSetInteraction(
-          DataWindowType.Logic,
-          DataInteractionType.Selected,
-          DataPanelType.Container,
-          []
-        )
+        panelSetInteraction("Logic", "Selected", "Container", [])
       );
       projectEngineDispatch(
-        dataPanelSetInteraction(
-          DataWindowType.Logic,
-          DataInteractionType.Selected,
-          DataPanelType.Item,
-          []
-        )
+        panelSetInteraction("Logic", "Selected", "Item", [])
       );
     }, debounceDelay);
     const onChangeActiveParentBlock = debounce((data: { id: string }): void => {
-      projectEngineDispatch(
-        dataPanelInspect(DataWindowType.Logic, DataPanelType.Container, data.id)
-      );
+      projectEngineDispatch(panelInspect("Logic", "Container", data.id));
     }, debounceDelay);
     const onExecuteBlock = debounce((data: { id: string }): void => {
       const block = projectBlocks[data.id];
       if (block) {
         projectEngineDispatch(
-          dataPanelSetInteraction(
-            DataWindowType.Logic,
-            DataInteractionType.Selected,
-            DataPanelType.Container,
-            [block.reference]
-          )
+          panelSetInteraction("Logic", "Selected", "Container", [
+            block.reference,
+          ])
         );
       }
-      projectEngineDispatch(
-        dataPanelChangeItemSection(DataWindowType.Logic, "Command")
-      );
+      projectEngineDispatch(panelChangeItemSection("Logic", "Command"));
       events.onFocusData.emit({ ids: [data.id] });
     }, debounceDelay);
     const onExecuteCommand = debounce(
@@ -374,12 +339,9 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
           const command = block.commands.data[data.commandId];
           if (command) {
             projectEngineDispatch(
-              dataPanelSetInteraction(
-                DataWindowType.Logic,
-                DataInteractionType.Selected,
-                DataPanelType.Item,
-                [command.reference]
-              )
+              panelSetInteraction("Logic", "Selected", "Item", [
+                command.reference,
+              ])
             );
           }
         }
@@ -409,7 +371,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
 
   const access =
     memberDoc?.access ||
-    (!projectEngineState?.present?.project?.data?.doc?.restricted
+    (!projectEngineState?.project?.data?.doc?.restricted
       ? studioMemberDoc?.access
       : undefined);
 
@@ -421,20 +383,20 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     !access ||
     !loadedStudioId ||
     !loadedProjectId ||
-    !projectEngineState.present.project.id ||
-    projectEngineState.present.project.data === undefined ||
-    projectEngineState.present.project.data?.doc === undefined ||
-    projectEngineState.present.project.data?.files === undefined ||
-    projectEngineState.present.project.data?.scripts === undefined ||
-    projectEngineState.present.project.data?.instances === undefined;
+    !projectEngineState.project.id ||
+    projectEngineState.project.data === undefined ||
+    projectEngineState.project.data?.doc === undefined ||
+    projectEngineState.project.data?.files === undefined ||
+    projectEngineState.project.data?.scripts === undefined ||
+    projectEngineState.project.data?.instances === undefined;
 
   if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
     return null;
   }
 
   if (
-    projectEngineState.present.project.id === "" ||
-    projectEngineState.present.project.data === null
+    projectEngineState.project.id === "" ||
+    projectEngineState.project.data === null
   ) {
     return (
       <StyledProjectPage>

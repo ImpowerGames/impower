@@ -1,9 +1,6 @@
-import {
-  WindowState,
-  createWindowState,
-  WindowType,
-} from "../state/windowState";
 import { WindowAction, WINDOW_SWITCH } from "../actions/windowActions";
+import { WindowState, WindowType } from "../state/windowState";
+import { createWindowState } from "../utils/createWindowState";
 
 const doWindowSwitch = (
   state: WindowState,

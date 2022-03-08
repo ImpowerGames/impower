@@ -9,7 +9,7 @@ import GamepadModernSolidIcon from "../../../../resources/icons/solid/gamepad-mo
 import LayerGroupSolidIcon from "../../../../resources/icons/solid/layer-group.svg";
 import ListUlSolidIcon from "../../../../resources/icons/solid/list-ul.svg";
 import { ButtonInfo } from "../../../impower-route";
-import { PanelType } from "../state/windowState";
+import { PanelType } from "../state/panelState";
 
 export interface PanelInfo extends ButtonInfo {
   type: PanelType;
@@ -17,31 +17,31 @@ export interface PanelInfo extends ButtonInfo {
 
 export const panels: PanelInfo[] = [
   {
-    type: PanelType.Setup,
+    type: "Setup",
     name: "Project",
     iconOn: FloppyDiskSolidIcon,
     iconOff: FloppyDiskRegularIcon,
   },
   {
-    type: PanelType.Container,
+    type: "Container",
     name: "Container",
     iconOn: LayerGroupSolidIcon,
     iconOff: LayerGroupRegularIcon,
   },
   {
-    type: PanelType.Item,
+    type: "Item",
     name: "Item",
     iconOn: ListUlSolidIcon,
     iconOff: ListUlRegularIcon,
   },
   {
-    type: PanelType.Detail,
+    type: "Detail",
     name: "Detail",
     iconOn: CircleInfoSolidIcon,
     iconOff: CircleInfoRegularIcon,
   },
   {
-    type: PanelType.Test,
+    type: "Test",
     name: "Test",
     iconOn: GamepadModernSolidIcon,
     iconOff: GamepadModernRegularIcon,

@@ -21,7 +21,6 @@ import DataNameInput from "../../../impower-route/components/inputs/DataNameInpu
 import { GameContext } from "../../contexts/gameContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { DataButtonInfo } from "../../types/info/buttons";
-import { Mode } from "../../types/state/testState";
 import PanelHeaderIconButton from "../iconButtons/PanelHeaderIconButton";
 import DataButton from "./DataButton";
 
@@ -215,7 +214,7 @@ const ContainerButton = React.memo(
 
     const [state] = useContext(ProjectEngineContext);
 
-    const { mode } = state.present.test;
+    const { mode } = state.test;
 
     const handleNameBlur = useCallback(
       (e: React.FocusEvent, v: string) => {
@@ -226,7 +225,7 @@ const ContainerButton = React.memo(
 
     const handleDragHandleTrigger = useCallback(
       (event: PointerEvent | React.PointerEvent) => {
-        if (mode === Mode.Test || changeNameTargetId) {
+        if (mode === "Test" || changeNameTargetId) {
           return;
         }
         onDragHandleTrigger?.(event);
@@ -259,7 +258,7 @@ const ContainerButton = React.memo(
         draggingIds={currentDraggingIds}
         ghostingIds={currentGhostingIds}
         disabled={false}
-        showInput={mode === Mode.Edit && changeNameTargetId === id}
+        showInput={mode === "Edit" && changeNameTargetId === id}
         grow={grow}
         onClick={onClick}
         onChangeSelection={onChangeSelection}

@@ -1,18 +1,11 @@
-import { WindowState, createWindowState } from "./windowState";
-import { DataPanelState, createDataPanelState } from "./dataPanelState";
-import { TestState, createTestState } from "./testState";
-import { createProjectState, ProjectState } from "./projectState";
+import { PanelState } from "./panelState";
+import { ProjectState } from "./projectState";
+import { TestState } from "./testState";
+import { WindowState } from "./windowState";
 
 export interface ProjectEngineState {
   window: WindowState;
-  dataPanel: DataPanelState;
+  panel: PanelState;
   test: TestState;
   project: ProjectState;
 }
-
-export const createProjectEngineState = (): ProjectEngineState => ({
-  window: createWindowState(),
-  dataPanel: createDataPanelState(),
-  test: createTestState(),
-  project: createProjectState(),
-});

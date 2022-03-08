@@ -10,10 +10,9 @@ import React, {
   useRef,
   useState,
 } from "react";
+import AngleDownRegularIcon from "../../../../resources/icons/regular/angle-down.svg";
 import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left.svg";
-import AnglesDownRegularIcon from "../../../../resources/icons/regular/angles-down.svg";
-import AnglesUpRegularIcon from "../../../../resources/icons/regular/angles-up.svg";
-import ArrowsUpDownLeftRightRegularIcon from "../../../../resources/icons/regular/arrows-up-down-left-right.svg";
+import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
 import CopyRegularIcon from "../../../../resources/icons/regular/copy.svg";
 import CrosshairsRegularIcon from "../../../../resources/icons/regular/crosshairs.svg";
 import ListRegularIcon from "../../../../resources/icons/regular/list.svg";
@@ -23,7 +22,6 @@ import ScissorsRegularIcon from "../../../../resources/icons/regular/scissors.sv
 import SitemapRegularIcon from "../../../../resources/icons/regular/sitemap.svg";
 import SquareRegularIcon from "../../../../resources/icons/regular/square.svg";
 import TrashCanRegularIcon from "../../../../resources/icons/regular/trash-can.svg";
-import TypewriterRegularIcon from "../../../../resources/icons/regular/typewriter.svg";
 import ExclamationSolidIcon from "../../../../resources/icons/solid/exclamation.svg";
 import PlusSolidIcon from "../../../../resources/icons/solid/plus.svg";
 import SquareCheckSolidIcon from "../../../../resources/icons/solid/square-check.svg";
@@ -78,6 +76,7 @@ import {
   useSelectionShortcuts,
 } from "../../../impower-route";
 import PeerTransition from "../../../impower-route/components/animations/PeerTransition";
+import CornerFab from "../../../impower-route/components/fabs/CornerFab";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
 import { DataContext } from "../../contexts/dataContext";
@@ -89,18 +88,17 @@ import {
   useInspectedContainers,
 } from "../../hooks/dataHooks";
 import {
-  dataPanelChangeInteraction,
-  dataPanelInspect,
-  dataPanelMultiInteraction,
-  dataPanelOpen,
-  dataPanelRemoveInteraction,
-  dataPanelSearch,
-  dataPanelSetInteraction,
-  dataPanelSetParentContainerArrangement,
-  dataPanelSetScripting,
-  dataPanelSetScrollPosition,
-  dataPanelToggleInteraction,
-} from "../../types/actions/dataPanelActions";
+  panelChangeInteraction,
+  panelInspect,
+  panelMultiInteraction,
+  panelOpen,
+  panelRemoveInteraction,
+  panelSearch,
+  panelSetInteraction,
+  panelSetParentContainerArrangement,
+  panelSetScrollPosition,
+  panelToggleInteraction,
+} from "../../types/actions/panelActions";
 import {
   projectInsertData,
   projectRemoveData,
@@ -117,22 +115,18 @@ import { instructions, InstructionType } from "../../types/info/instructions";
 import {
   getInsertionIndex,
   getPositions,
-} from "../../types/selectors/dataPanelSelectors";
+} from "../../types/selectors/panelSelectors";
 import { projectContainersSelector } from "../../types/selectors/projectSelectors";
 import { getContainerType } from "../../types/selectors/windowSelectors";
 import {
   ContainerArrangement,
   ContainerPanelState,
-  DataInteractionType,
-  DataPanelType,
-  DataWindowType,
-} from "../../types/state/dataPanelState";
-import { Mode } from "../../types/state/testState";
-import { PanelType } from "../../types/state/windowState";
+} from "../../types/state/panelState";
+import { WindowType } from "../../types/state/windowState";
 import ContainerButton from "../contentButtons/ContainerButton";
-import CornerFab from "../fabs/CornerFab";
 import PanelHeader from "../headers/PanelHeader";
 import PanelHeaderIconButton from "../iconButtons/PanelHeaderIconButton";
+import UndoRedoControl from "../iconButtons/UndoRedoControl";
 import EngineDataList from "../inputs/EngineDataList";
 import LogicScriptEditor from "../inputs/LogicScriptEditor";
 import EditGameTooltipContent from "../instructions/EditGameTooltipContent";
@@ -306,36 +300,6 @@ const StyledChartEmptyPanelContentArea = styled(StyledEmptyPanelContentArea)`
   padding-top: ${(props): string => props.theme.spacing(2)};
 `;
 
-interface ScriptingPanelHeaderIconProps {
-  scripting: boolean;
-  onClick: (scripting: boolean) => void;
-}
-
-const ScriptingPanelHeaderIconButton = React.memo(
-  (props: ScriptingPanelHeaderIconProps): JSX.Element => {
-    const { scripting, onClick } = props;
-    const theme = useTheme();
-    return (
-      <PanelHeaderIconButton
-        aria-label={scripting ? "Scripting" : "Visual"}
-        icon={
-          scripting ? (
-            <TypewriterRegularIcon />
-          ) : (
-            <ArrowsUpDownLeftRightRegularIcon />
-          )
-        }
-        size={theme.fontSize.smallIcon}
-        style={{
-          backgroundColor: theme.colors.darkForeground,
-          marginRight: theme.spacing(2),
-        }}
-        onClick={(): void => onClick(!scripting)}
-      />
-    );
-  }
-);
-
 interface ToggleFoldingPanelHeaderIconProps {
   toggleFolding: boolean;
   onClick: (toggleFolding: boolean) => void;
@@ -349,12 +313,11 @@ const ToggleFoldingPanelHeaderIconButton = React.memo(
       <PanelHeaderIconButton
         aria-label={toggleFolding ? "Unfold All" : "Fold All"}
         icon={
-          toggleFolding ? <AnglesUpRegularIcon /> : <AnglesDownRegularIcon />
+          toggleFolding ? <AngleRightRegularIcon /> : <AngleDownRegularIcon />
         }
         size={theme.fontSize.smallIcon}
         style={{
           backgroundColor: theme.colors.darkForeground,
-          marginRight: theme.spacing(2),
         }}
         onClick={(): void => onClick(!toggleFolding)}
       />
@@ -372,7 +335,7 @@ const ArrangementPanelHeaderIconButton = React.memo(
     const { containerArrangement, onClick } = props;
     const theme = useTheme();
     switch (containerArrangement) {
-      case ContainerArrangement.Chart:
+      case "Chart":
         return (
           <PanelHeaderIconButton
             aria-label="View as Chart"
@@ -382,10 +345,10 @@ const ArrangementPanelHeaderIconButton = React.memo(
               backgroundColor: theme.colors.darkForeground,
               marginRight: theme.spacing(2),
             }}
-            onClick={(): void => onClick(ContainerArrangement.List)}
+            onClick={(): void => onClick("List")}
           />
         );
-      case ContainerArrangement.List:
+      case "List":
         return (
           <PanelHeaderIconButton
             aria-label="View as List"
@@ -395,7 +358,7 @@ const ArrangementPanelHeaderIconButton = React.memo(
               backgroundColor: theme.colors.darkForeground,
               marginRight: theme.spacing(2),
             }}
-            onClick={(): void => onClick(ContainerArrangement.Chart)}
+            onClick={(): void => onClick("Chart")}
           />
         );
       default:
@@ -405,7 +368,7 @@ const ArrangementPanelHeaderIconButton = React.memo(
 );
 
 interface ContainerPanelHeaderProps {
-  windowType: DataWindowType;
+  windowType: WindowType;
   headerRef?: React.Ref<HTMLElement>;
   title: string;
   containerType: ContainerType;
@@ -416,7 +379,6 @@ interface ContainerPanelHeaderProps {
   toggleFolding: boolean;
   style?: CSSProperties;
   onArrangement: (arrangement: ContainerArrangement) => void;
-  onScripting: (scripting: boolean) => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onBack?: (e: React.MouseEvent) => void;
   onBreadcrumb: (
@@ -440,7 +402,6 @@ const ContainerPanelHeader = React.memo(
       toggleFolding,
       style,
       onArrangement,
-      onScripting,
       onContextMenu,
       onBack,
       onBreadcrumb,
@@ -449,7 +410,7 @@ const ContainerPanelHeader = React.memo(
 
     const [state, dispatch] = useContext(ProjectEngineContext);
     const searchQuery =
-      state?.present?.dataPanel?.panels?.[windowType]?.Container?.searchQuery;
+      state?.panel?.panels?.[windowType]?.Container?.searchQuery;
 
     const theme = useTheme();
 
@@ -481,7 +442,7 @@ const ContainerPanelHeader = React.memo(
 
     const showChart =
       !containerPanelState.scripting &&
-      containerPanelState.arrangement === ContainerArrangement.Chart;
+      containerPanelState.arrangement === "Chart";
 
     const headerStyle = showChart ? chartHeaderStyle : listHeaderStyle;
 
@@ -508,9 +469,7 @@ const ContainerPanelHeader = React.memo(
             | "replace_all";
         }
       ) => {
-        dispatch(
-          dataPanelSearch(windowType, DataPanelType.Container, searchQuery)
-        );
+        dispatch(panelSearch(windowType, "Container", searchQuery));
       },
       [dispatch, windowType]
     );
@@ -532,19 +491,19 @@ const ContainerPanelHeader = React.memo(
         onBreadcrumb={onBreadcrumb}
         onMore={onContextMenu}
         onSearch={handleSearch}
+        leftChildren={
+          containerPanelState.scripting ? (
+            <ToggleFoldingPanelHeaderIconButton
+              toggleFolding={toggleFolding}
+              onClick={onToggleFolding}
+            />
+          ) : undefined
+        }
         rightChildren={
           containerType === "Block" && (
             <>
-              <ScriptingPanelHeaderIconButton
-                scripting={containerPanelState.scripting}
-                onClick={onScripting}
-              />
-              {containerPanelState.scripting ? (
-                <ToggleFoldingPanelHeaderIconButton
-                  toggleFolding={toggleFolding}
-                  onClick={onToggleFolding}
-                />
-              ) : (
+              <UndoRedoControl type="Logic" />
+              {!containerPanelState.scripting && (
                 <ArrangementPanelHeaderIconButton
                   containerArrangement={containerPanelState.arrangement}
                   onClick={onArrangement}
@@ -698,7 +657,7 @@ const ContainerPanelContent = React.memo(
     }
 
     switch (containerPanelState.arrangement) {
-      case ContainerArrangement.Chart:
+      case "Chart":
         return (
           <PeerTransition
             currentIndex={breadcrumbIndex}
@@ -759,7 +718,7 @@ const ContainerPanelContent = React.memo(
             </StyledChart>
           </PeerTransition>
         );
-      case ContainerArrangement.List:
+      case "List":
         return (
           <PeerTransition
             key={parentContainerId}
@@ -846,7 +805,7 @@ const ContainerPanelContent = React.memo(
 );
 
 interface ContainerPanelProps {
-  windowType: DataWindowType;
+  windowType: WindowType;
 }
 
 const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
@@ -891,31 +850,30 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     [windowType]
   );
 
-  const { mode } = state.present.test;
-  const project = state.present.project.data as GameProjectData;
+  const { mode } = state.test;
+  const project = state.project.data as GameProjectData;
   const projectContainers = projectContainersSelector(project, containerType);
 
-  const openPanel = state.present.dataPanel.panels?.[windowType]?.openPanel;
+  const openPanel = state.panel.panels?.[windowType]?.openPanel;
   const parentContainerId =
-    state.present.dataPanel.panels[windowType].Container.inspectedTargetId;
-  const containerPanelState =
-    state.present.dataPanel.panels[windowType].Container;
+    state.panel.panels[windowType].Container.inspectedTargetId;
+  const containerPanelState = state.panel.panels[windowType].Container;
 
-  const inspectedContainers = useInspectedContainers(state.present, windowType);
+  const inspectedContainers = useInspectedContainers(state, windowType);
 
   const panelKey = `${containerPanelState.scripting}-${containerPanelState.arrangement}-${parentContainerId}`;
 
   const draggingContainerReferences = useMemo(
     () =>
-      state?.present?.dataPanel?.panels?.[windowType]?.Container?.interactions
-        ?.Dragging || [],
-    [state?.present?.dataPanel?.panels, windowType]
+      state?.panel?.panels?.[windowType]?.Container?.interactions?.Dragging ||
+      [],
+    [state?.panel?.panels, windowType]
   );
   const allSelectedContainerReferences = useMemo(
     () =>
-      state?.present?.dataPanel?.panels?.[windowType]?.Container?.interactions
-        ?.Selected || [],
-    [state?.present?.dataPanel?.panels, windowType]
+      state?.panel?.panels?.[windowType]?.Container?.interactions?.Selected ||
+      [],
+    [state?.panel?.panels, windowType]
   );
   const selectedContainerReferences = useMemo(
     () =>
@@ -932,7 +890,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     ]
   );
   const searchQuery =
-    state?.present?.dataPanel?.panels?.[windowType]?.Container?.searchQuery;
+    state?.panel?.panels?.[windowType]?.Container?.searchQuery;
 
   const inspectedContainerReferences = useMemo(
     () =>
@@ -1012,7 +970,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   );
   const handleSetChangeNameTargetId = useCallback(
     (refId: string) => {
-      if (mode === Mode.Test) {
+      if (mode === "Test") {
         return;
       }
       setChangeNameTargetId(refId);
@@ -1021,9 +979,9 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   );
   const handleClickHeaderBackIcon = useCallback(() => {
     dispatch(
-      dataPanelInspect(
+      panelInspect(
         windowType,
-        DataPanelType.Container,
+        "Container",
         parentContainer?.reference?.parentContainerId
       )
     );
@@ -1048,7 +1006,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       setBreadcrumbPreviousIndex(
         headerBreadcrumbs.findIndex((x) => x.id === parentContainerId)
       );
-      dispatch(dataPanelInspect(windowType, DataPanelType.Container, refId));
+      dispatch(panelInspect(windowType, "Container", refId));
     },
     [headerBreadcrumbs, dispatch, windowType, parentContainerId]
   );
@@ -1058,19 +1016,14 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         ids.includes(r.refId)
       );
       dispatch(
-        dataPanelSetInteraction(
-          windowType,
-          DataInteractionType.Dragging,
-          DataPanelType.Container,
-          references
-        )
+        panelSetInteraction(windowType, "Dragging", "Container", references)
       );
     },
     [inspectedContainerReferences, dispatch, windowType]
   );
   const handleSetOrder = useCallback(
     (ids: string[], reorderedIds: string[]): void => {
-      if (mode === Mode.Test) {
+      if (mode === "Test") {
         return;
       }
       if (!containerType || reorderedIds.length === 0) {
@@ -1078,7 +1031,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       }
       dispatch(
         projectUpdateData(
-          "Reorder",
           [parentContainer?.reference],
           "childContainerIds",
           ids
@@ -1088,7 +1040,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     [mode, containerType, parentContainer, dispatch]
   );
   const handleAddData = useCallback(() => {
-    if (mode === Mode.Test) {
+    if (mode === "Test") {
       return;
     }
     const newData = gameInspector.createNewData({
@@ -1113,14 +1065,11 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       selectedContainerIds,
       inspectedContainerIds
     );
-    dispatch(projectInsertData([newData], "Add", insertIndex));
+    dispatch(projectInsertData([newData], insertIndex));
     dispatch(
-      dataPanelSetInteraction(
-        windowType,
-        DataInteractionType.Selected,
-        DataPanelType.Container,
-        [newData.reference]
-      )
+      panelSetInteraction(windowType, "Selected", "Container", [
+        newData.reference,
+      ])
     );
     handleSetChangeNameTargetId(newData.reference.refId);
   }, [
@@ -1138,8 +1087,8 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   ]);
 
   const handleDeleteData = useCallback(
-    (references: Reference[], deleteDescription: string) => {
-      if (mode === Mode.Test) {
+    (references: Reference[]) => {
+      if (mode === "Test") {
         return;
       }
       if (!references || references.length === 0) {
@@ -1150,26 +1099,26 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       ) as ContainerReference[];
       if (interactableReferences.length > 0) {
         dispatch(
-          dataPanelRemoveInteraction(
+          panelRemoveInteraction(
             windowType,
-            DataInteractionType.Selected,
-            DataPanelType.Container,
+            "Selected",
+            "Container",
             interactableReferences
           )
         );
         dispatch(
-          dataPanelRemoveInteraction(
+          panelRemoveInteraction(
             windowType,
-            DataInteractionType.Expanded,
-            DataPanelType.Container,
+            "Expanded",
+            "Container",
             interactableReferences
           )
         );
         dispatch(
-          dataPanelRemoveInteraction(
+          panelRemoveInteraction(
             windowType,
-            DataInteractionType.Dragging,
-            DataPanelType.Container,
+            "Dragging",
+            "Container",
             interactableReferences
           )
         );
@@ -1177,20 +1126,20 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       const removableReferences = references.filter(
         (r) => isContainerReference(r) || isItemReference(r)
       ) as (ContainerReference | ItemReference)[];
-      dispatch(projectRemoveData(removableReferences, deleteDescription));
+      dispatch(projectRemoveData(removableReferences));
     },
     [mode, dispatch, windowType]
   );
 
   const handleRemoveData = useCallback(() => {
-    if (mode === Mode.Test) {
+    if (mode === "Test") {
       return;
     }
-    handleDeleteData(selectedContainerReferences as Reference[], "Delete");
+    handleDeleteData(selectedContainerReferences as Reference[]);
   }, [mode, selectedContainerReferences, handleDeleteData]);
 
   const handleRemoveDataShortcut = useCallback(() => {
-    if (openPanel !== DataPanelType.Container || changeNameTargetId !== "") {
+    if (openPanel !== "Container" || changeNameTargetId !== "") {
       return;
     }
     handleRemoveData();
@@ -1222,32 +1171,32 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     ]
   );
   const handleCopyData = useCallback((): Reference[] => {
-    if (mode === Mode.Test) {
+    if (mode === "Test") {
       return [];
     }
     return copyData(false);
   }, [mode, copyData]);
   const handleCopyDataShortcut = useCallback(() => {
-    if (openPanel !== DataPanelType.Container || changeNameTargetId !== "") {
+    if (openPanel !== "Container" || changeNameTargetId !== "") {
       return;
     }
     handleCopyData();
   }, [openPanel, changeNameTargetId, handleCopyData]);
   const handleCutData = useCallback(() => {
-    if (mode === Mode.Test) {
+    if (mode === "Test") {
       return;
     }
-    handleDeleteData(copyData(true), "Cut");
+    handleDeleteData(copyData(true));
   }, [mode, copyData, handleDeleteData]);
   const handleCutDataShortcut = useCallback(() => {
-    if (openPanel !== DataPanelType.Container || changeNameTargetId !== "") {
+    if (openPanel !== "Container" || changeNameTargetId !== "") {
       return;
     }
     handleCutData();
   }, [openPanel, changeNameTargetId, handleCutData]);
 
   const handlePasteData = useCallback(async () => {
-    if (mode === Mode.Test) {
+    if (mode === "Test") {
       return;
     }
     if (copiedReferences && copiedReferences[containerType].length > 0) {
@@ -1283,15 +1232,15 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         }
       });
 
-      dispatch(projectInsertData(newDatas, "Paste", insertIndex));
+      dispatch(projectInsertData(newDatas, insertIndex));
       const interactableReferences = newSelectedReferences.filter(
         (r) => isContainerReference(r) || isItemReference(r)
       ) as (ContainerReference | ItemReference)[];
       dispatch(
-        dataPanelSetInteraction(
+        panelSetInteraction(
           windowType,
-          DataInteractionType.Selected,
-          DataPanelType.Container,
+          "Selected",
+          "Container",
           interactableReferences
         )
       );
@@ -1319,7 +1268,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     handleGenerateNewDataPosition,
   ]);
   const handlePasteDataShortcut = useCallback(() => {
-    if (openPanel !== DataPanelType.Container || changeNameTargetId !== "") {
+    if (openPanel !== "Container" || changeNameTargetId !== "") {
       return;
     }
     handlePasteData();
@@ -1330,12 +1279,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         ids.includes(r.refId)
       );
       dispatch(
-        dataPanelSetInteraction(
-          windowType,
-          DataInteractionType.Selected,
-          DataPanelType.Container,
-          references
-        )
+        panelSetInteraction(windowType, "Selected", "Container", references)
       );
     },
     [inspectedContainerReferences, dispatch, windowType]
@@ -1345,15 +1289,13 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     (refId: string, e: React.MouseEvent): void => {
       e.stopPropagation();
       dispatch(
-        dataPanelSetScrollPosition(
-          windowType,
-          DataPanelType.Container,
-          panelKey,
-          { x: getScrollX(scrollParent), y: getScrollY(scrollParent) }
-        )
+        panelSetScrollPosition(windowType, "Container", panelKey, {
+          x: getScrollX(scrollParent),
+          y: getScrollY(scrollParent),
+        })
       );
-      dispatch(dataPanelInspect(windowType, DataPanelType.Item, refId));
-      dispatch(dataPanelOpen(windowType, DataPanelType.Item));
+      dispatch(panelInspect(windowType, "Item", refId));
+      dispatch(panelOpen(windowType, "Item"));
     },
     [dispatch, windowType, panelKey, scrollParent]
   );
@@ -1364,12 +1306,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       );
       if (reference) {
         dispatch(
-          dataPanelChangeInteraction(
-            windowType,
-            DataInteractionType.Selected,
-            DataPanelType.Container,
-            reference
-          )
+          panelChangeInteraction(windowType, "Selected", "Container", reference)
         );
       }
     },
@@ -1382,12 +1319,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       );
       if (reference) {
         dispatch(
-          dataPanelToggleInteraction(
-            windowType,
-            DataInteractionType.Selected,
-            DataPanelType.Container,
-            reference
-          )
+          panelToggleInteraction(windowType, "Selected", "Container", reference)
         );
       }
     },
@@ -1403,10 +1335,10 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       );
       if (reference) {
         dispatch(
-          dataPanelMultiInteraction(
+          panelMultiInteraction(
             windowType,
-            DataInteractionType.Selected,
-            DataPanelType.Container,
+            "Selected",
+            "Container",
             references,
             reference
           )
@@ -1416,7 +1348,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     [inspectedContainerReferences, dispatch, windowType]
   );
   const handleSelectNoneShortcut = useCallback(() => {
-    if (openPanel !== DataPanelType.Container || changeNameTargetId !== "") {
+    if (openPanel !== "Container" || changeNameTargetId !== "") {
       return;
     }
     handleSetSelection([]);
@@ -1424,7 +1356,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const handleSelectAllShortcut = useCallback(
     (event: KeyboardEvent) => {
       if (
-        openPanel !== DataPanelType.Container ||
+        openPanel !== "Container" ||
         changeNameTargetId !== "" ||
         containerPanelState.scripting
       ) {
@@ -1444,7 +1376,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const handleSetNodePositions = useCallback(
     (positions: { [refId: string]: Vector2 }): void => {
-      if (mode === Mode.Test) {
+      if (mode === "Test") {
         return;
       }
       const newDatas = Object.keys(positions)
@@ -1461,7 +1393,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
           nodePosition: { ...positions[element] },
         }));
 
-      dispatch(projectInsertData(newDatas, "Move"));
+      dispatch(projectInsertData(newDatas));
     },
     [mode, inspectedContainers, dispatch]
   );
@@ -1481,12 +1413,9 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       handleSetChangeNameTargetId(firstSelectedReference.refId);
 
       dispatch(
-        dataPanelSetInteraction(
-          windowType,
-          DataInteractionType.Selected,
-          DataPanelType.Container,
-          [firstSelectedReference]
-        )
+        panelSetInteraction(windowType, "Selected", "Container", [
+          firstSelectedReference,
+        ])
       );
     }
   }, [
@@ -1504,7 +1433,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
             ...container,
             name,
           };
-          dispatch(projectInsertData([newData], "Rename"));
+          dispatch(projectInsertData([newData]));
         }
       }
       handleSetChangeNameTargetId("");
@@ -1515,12 +1444,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const onSelectContainer = useCallback(
     (reference: ContainerReference): void => {
       dispatch(
-        dataPanelSetInteraction(
-          windowType,
-          DataInteractionType.Selected,
-          DataPanelType.Container,
-          [reference]
-        )
+        panelSetInteraction(windowType, "Selected", "Container", [reference])
       );
     },
     [dispatch, windowType]
@@ -1530,26 +1454,20 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     onPreviousContainer: selectPreviousContainer,
     onNextContainer: selectNextContainer,
   } = useContainerNavigation(
-    state.present,
+    state,
     windowType,
     selectedContainerIds,
     onSelectContainer
   );
   const handleSelectPreviousContainerShortcut = (e: AccessibleEvent): void => {
-    if (
-      openPanel !== DataPanelType.Container ||
-      containerPanelState.scripting
-    ) {
+    if (openPanel !== "Container" || containerPanelState.scripting) {
       return;
     }
     e.preventDefault();
     selectPreviousContainer();
   };
   const handleSelectNextContainerShortcut = (e: AccessibleEvent): void => {
-    if (
-      openPanel !== DataPanelType.Container ||
-      containerPanelState.scripting
-    ) {
+    if (openPanel !== "Container" || containerPanelState.scripting) {
       return;
     }
     e.preventDefault();
@@ -1583,7 +1501,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
     // Close context menu and search menu when user changes parent container id
     if (searchQuery?.search) {
-      dispatch(dataPanelSearch(windowType, DataPanelType.Container, null));
+      dispatch(panelSearch(windowType, "Container", null));
     }
   }, [parentContainerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1674,32 +1592,15 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     setScrollParent(scrollParent);
   }, []);
 
-  const handleClickHeaderScriptingIcon = useCallback(
-    (scripting: boolean) => {
-      dispatch(
-        dataPanelSetScrollPosition(
-          windowType,
-          DataPanelType.Container,
-          panelKey,
-          { x: getScrollX(scrollParent), y: getScrollY(scrollParent) }
-        )
-      );
-      dispatch(dataPanelSetScripting(windowType, scripting));
-    },
-    [dispatch, windowType, panelKey, scrollParent]
-  );
-
   const handleClickHeaderArrangementIcon = useCallback(
     (arrangement: ContainerArrangement) => {
       dispatch(
-        dataPanelSetScrollPosition(
-          windowType,
-          DataPanelType.Container,
-          panelKey,
-          { x: getScrollX(scrollParent), y: getScrollY(scrollParent) }
-        )
+        panelSetScrollPosition(windowType, "Container", panelKey, {
+          x: getScrollX(scrollParent),
+          y: getScrollY(scrollParent),
+        })
       );
-      dispatch(dataPanelSetParentContainerArrangement(windowType, arrangement));
+      dispatch(panelSetParentContainerArrangement(windowType, arrangement));
     },
     [dispatch, windowType, panelKey, scrollParent]
   );
@@ -1719,10 +1620,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
-      if (
-        openPanel !== DataPanelType.Container ||
-        containerPanelState.scripting
-      ) {
+      if (openPanel !== "Container" || containerPanelState.scripting) {
         return;
       }
       e.stopPropagation();
@@ -1809,7 +1707,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const showChart =
     !containerPanelState.scripting &&
-    containerPanelState.arrangement === ContainerArrangement.Chart;
+    containerPanelState.arrangement === "Chart";
 
   const backgroundStyle: CSSProperties = useMemo(
     () => ({
@@ -1846,7 +1744,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   return (
     <Panel
       key={containerType}
-      panelType={PanelType.Container}
+      panelType="Container"
       onScrollRef={handleScrollRef}
       onContextMenu={handleContextMenu}
       useWindowAsScrollContainer={!showChart}
@@ -1866,7 +1764,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
             toggleFolding={toggleFolding}
             onBack={handleClickHeaderBackIcon}
             onBreadcrumb={handleClickHeaderBreadcrumb}
-            onScripting={handleClickHeaderScriptingIcon}
             onArrangement={handleClickHeaderArrangementIcon}
             onContextMenu={handleContextMenu}
             onToggleFolding={setToggleFolding}
@@ -1888,7 +1785,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
               toggleFolding={toggleFolding}
               onBack={handleClickHeaderBackIcon}
               onBreadcrumb={handleClickHeaderBreadcrumb}
-              onScripting={handleClickHeaderScriptingIcon}
               onArrangement={handleClickHeaderArrangementIcon}
               onContextMenu={handleContextMenu}
               onToggleFolding={setToggleFolding}
@@ -1914,7 +1810,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
           {!containerPanelState.scripting && (
             <PanelBottomRightOverlay
-              style={{ opacity: mode === Mode.Test ? 0.5 : undefined }}
+              style={{ opacity: mode === "Test" ? 0.5 : undefined }}
             >
               <CornerFab
                 scrollParent={scrollParent}
@@ -1930,7 +1826,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
                 style={fabAreaStyle}
               />
               <InputBlocker
-                active={mode === Mode.Test}
+                active={mode === "Test"}
                 tooltip={<EditGameTooltipContent />}
               />
             </PanelBottomRightOverlay>
@@ -1964,7 +1860,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         breadcrumbIndex={breadcrumbIndex}
         previousBreadcrumbIndex={previousBreadcrumbIndex}
         toggleFolding={toggleFolding}
-        toggleLinting={mode === Mode.Test}
+        toggleLinting={mode === "Test"}
         onBreadcrumb={handleClickHeaderBreadcrumb}
         onSetDragging={handleSetDragging}
         onSetOrder={handleSetOrder}

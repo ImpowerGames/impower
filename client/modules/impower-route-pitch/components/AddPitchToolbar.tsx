@@ -24,7 +24,7 @@ import WaveformSolidIcon from "../../../resources/icons/solid/waveform.svg";
 import { ProjectType } from "../../impower-data-store";
 import { FontIcon } from "../../impower-icon";
 import { PopAnimation, UnmountAnimation } from "../../impower-route";
-import CornerFab from "../../impower-route-engine/components/fabs/CornerFab";
+import CornerFab from "../../impower-route/components/fabs/CornerFab";
 
 const projectTypes: ProjectType[] = [
   "game",

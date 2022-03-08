@@ -23,8 +23,7 @@ import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { DataButtonInfo } from "../../types/info/buttons";
 import { getHeader } from "../../types/info/headers";
-import { ItemPanelState } from "../../types/state/dataPanelState";
-import { Mode } from "../../types/state/testState";
+import { ItemPanelState } from "../../types/state/panelState";
 import DataTypeInput from "../inputs/DataTypeInput";
 import DataButton from "./DataButton";
 
@@ -278,8 +277,8 @@ const ItemButton = React.memo((props: ItemButtonProps): JSX.Element => {
   const { gameInspector } = useContext(GameInspectorContext);
   const { game } = useContext(GameContext);
 
-  const { mode } = state.present.test;
-  const project = state.present.project.data as GameProjectData;
+  const { mode } = state.test;
+  const project = state.project.data as GameProjectData;
 
   const headerInfo = useMemo(
     () => getHeader(itemPanelState.section),
@@ -338,7 +337,7 @@ const ItemButton = React.memo((props: ItemButtonProps): JSX.Element => {
 
   const handleDragHandleTrigger = useCallback(
     (event: PointerEvent | React.PointerEvent) => {
-      if (mode === Mode.Test || changeTypeTargetId) {
+      if (mode === "Test" || changeTypeTargetId) {
         return;
       }
       onDragHandleTrigger(event);
@@ -361,7 +360,7 @@ const ItemButton = React.memo((props: ItemButtonProps): JSX.Element => {
       selectedIds={currentSelectedIds}
       draggingIds={currentDraggingIds}
       ghostingIds={currentGhostingIds}
-      showInput={mode === Mode.Edit && changeTypeTargetId === id}
+      showInput={mode === "Edit" && changeTypeTargetId === id}
       disabled={disabled}
       grow
       onClick={onClick}

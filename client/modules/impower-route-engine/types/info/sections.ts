@@ -1,17 +1,17 @@
 import { ButtonInfo } from "../../../impower-route";
+import { WindowType } from "../state/windowState";
 import {
-  previewHeader,
-  elementHeader,
-  variableHeader,
-  triggerHeader,
-  commandHeader,
-  HeaderType,
-  gameSetupHeader,
-  projectSetupHeader,
-  HeaderInfo,
   accessSetupHeader,
+  commandHeader,
+  elementHeader,
+  gameSetupHeader,
+  HeaderInfo,
+  HeaderType,
+  previewHeader,
+  projectSetupHeader,
+  triggerHeader,
+  variableHeader,
 } from "./headers";
-import { DataWindowType } from "../state/dataPanelState";
 
 export interface SectionInfo extends ButtonInfo {
   type: HeaderType;
@@ -49,13 +49,13 @@ export const logicSections: SectionInfo[] = [
   getSectionInfo(variableHeader),
 ];
 
-export const getSections = (windowType: DataWindowType): SectionInfo[] => {
+export const getSections = (windowType: WindowType): SectionInfo[] => {
   switch (windowType) {
-    case DataWindowType.Setup:
+    case "Setup":
       return ownerSetupSections;
-    case DataWindowType.Entities:
+    case "Entities":
       return entitySections;
-    case DataWindowType.Logic:
+    case "Logic":
       return logicSections;
     default:
       return [];

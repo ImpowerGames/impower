@@ -15,6 +15,7 @@ import {
   getScriptAugmentations,
 } from "../../../impower-game/parser";
 import { FadeAnimation } from "../../../impower-route";
+import { SerializableEditorState } from "../../../impower-script-editor";
 import {
   FountainParseResult,
   parseFountain,
@@ -24,16 +25,12 @@ import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import {
-  dataPanelSearch,
-  dataPanelSetCursor,
-  dataPanelSetScrollTopLine,
-} from "../../types/actions/dataPanelActions";
+  panelSaveEditorState,
+  panelSearch,
+  panelSetCursor,
+  panelSetScrollTopLine,
+} from "../../types/actions/panelActions";
 import { projectChangeScript } from "../../types/actions/projectActions";
-import {
-  DataPanelType,
-  DataWindowType,
-} from "../../types/state/dataPanelState";
-import { Mode } from "../../types/state/testState";
 
 const ScriptEditor = dynamic(
   () => import("../../../impower-script-editor/components/ScriptEditor"),
@@ -65,18 +62,18 @@ const LogicScriptEditor = React.memo(
     const { gameInspector } = useContext(GameInspectorContext);
     const { game } = useContext(GameContext);
 
-    const windowType = state?.present?.window
-      ?.type as unknown as DataWindowType;
-    const searchQuery =
-      state?.present?.dataPanel?.panels?.[windowType]?.Container?.searchQuery;
-    const mode = state?.present?.test?.mode;
-    const id = state?.present?.project?.id;
-    const files = state?.present?.project?.data?.files?.data;
-    const defaultValue =
-      state?.present?.project?.data?.scripts?.data?.logic || "";
     const events = game?.logic?.events;
+    const windowType = state?.window?.type;
+    const searchQuery =
+      state?.panel?.panels?.[windowType]?.Container?.searchQuery;
+    const mode = state?.test?.mode;
+    const id = state?.project?.id;
+    const files = state?.project?.data?.files?.data;
+    const defaultValue = state?.project?.data?.scripts?.data?.logic || "";
+    const editor = state?.panel?.panels?.Logic?.Container?.editorState;
     const defaultScrollTopLine =
-      state?.present?.dataPanel?.panels?.Logic?.Container?.scrollTopLine;
+      state?.panel?.panels?.Logic?.Container?.scrollTopLine;
+    const editorAction = state?.panel?.panels?.Logic?.Container?.editorAction;
 
     const augmentations = useMemo(() => getScriptAugmentations(files), [files]);
 
@@ -88,6 +85,7 @@ const LogicScriptEditor = React.memo(
       toLine: number;
     }>();
     const scriptValueRef = useRef<string>();
+    const editorStateRef = useRef<SerializableEditorState>();
     const scrollTopLineRef = useRef<number>();
     const parseResultRef = useRef<FountainParseResult>();
     const currentSectionNameRef = useRef<string>();
@@ -145,9 +143,7 @@ const LogicScriptEditor = React.memo(
             | "replace_all";
         }
       ) => {
-        dispatch(
-          dataPanelSearch(windowType, DataPanelType.Container, searchQuery)
-        );
+        dispatch(panelSearch(windowType, "Container", searchQuery));
       },
       [dispatch, windowType]
     );
@@ -169,16 +165,23 @@ const LogicScriptEditor = React.memo(
     );
 
     const handleScriptChange = useCallback(
-      (value: string) => {
+      (value: string, state: SerializableEditorState) => {
         scriptValueRef.current = value;
         handleDebouncedScriptChange();
+        if (
+          JSON.stringify(editorStateRef.current?.history) !==
+          JSON.stringify(state?.history)
+        ) {
+          editorStateRef.current = state;
+          dispatch(panelSaveEditorState("Logic", editorStateRef.current));
+        }
       },
-      [handleDebouncedScriptChange]
+      [dispatch, handleDebouncedScriptChange]
     );
 
     const handleSaveScriptCursor = useCallback(() => {
       const cursor = cursorRef.current;
-      dispatch(dataPanelSetCursor(windowType, cursor));
+      dispatch(panelSetCursor(windowType, cursor));
     }, [dispatch, windowType]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -194,7 +197,7 @@ const LogicScriptEditor = React.memo(
         fromLine: number;
         toLine: number;
       }) => {
-        if (mode === Mode.Test) {
+        if (mode === "Test") {
           return;
         }
         if (cursorRef.current?.fromLine !== range.fromLine) {
@@ -208,7 +211,7 @@ const LogicScriptEditor = React.memo(
 
     const handleSaveScrollTopLine = useCallback(() => {
       const scrollTopLine = scrollTopLineRef.current;
-      dispatch(dataPanelSetScrollTopLine(windowType, scrollTopLine));
+      dispatch(panelSetScrollTopLine(windowType, scrollTopLine));
     }, [dispatch, windowType]);
 
     const debouncedSaveScrollTopLineRef = useRef(
@@ -293,7 +296,7 @@ const LogicScriptEditor = React.memo(
     );
 
     useEffect(() => {
-      if (mode === Mode.Edit && parseResultState && previewCursor) {
+      if (mode === "Edit" && parseResultState && previewCursor) {
         handlePreviewResult(parseResultState, previewCursor.fromLine);
       }
     }, [parseResultState, previewCursor, mode, handlePreviewResult]);
@@ -316,9 +319,11 @@ const LogicScriptEditor = React.memo(
           <FadeAnimation initial={0} animate={1}>
             <ScriptEditor
               defaultValue={defaultValue}
+              defaultState={editor}
               augmentations={augmentations}
               toggleFolding={toggleFolding}
               toggleLinting={toggleLinting}
+              editorAction={editorAction}
               searchQuery={searchQuery}
               defaultScrollTopLine={defaultScrollTopLine}
               scrollTopLineOffset={-3}

@@ -1,8 +1,5 @@
-import { createUndoableContext } from "../../impower-undo-redo";
-import { ProjectEngineAction } from "../types/reducers/projectEngineReducer";
-import { ProjectEngineState } from "../types/state/projectEngineState";
+import React from "react";
+import { ProjectEngineContextState } from "./projectEngineContextState";
 
-export const ProjectEngineContext = createUndoableContext<
-  ProjectEngineState,
-  ProjectEngineAction
->();
+export const ProjectEngineContext =
+  React.createContext<ProjectEngineContextState>(undefined);

@@ -24,7 +24,7 @@ import {
 import NavigationBarSpacer from "../../impower-route/components/elements/NavigationBarSpacer";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../contexts/transitionContext";
-import { dataPanelSetPaneSize } from "../types/actions/dataPanelActions";
+import { panelSetPaneSize } from "../types/actions/panelActions";
 import { projectValidate } from "../types/actions/projectActions";
 import {
   testControlChange,
@@ -33,9 +33,9 @@ import {
   testPlayerVisibility,
 } from "../types/actions/testActions";
 import { windowSwitch } from "../types/actions/windowActions";
-import { gameWindows } from "../types/info/windows";
-import { Control, Layout, Mode } from "../types/state/testState";
-import { PanelType, WindowType } from "../types/state/windowState";
+import { windows } from "../types/info/windows";
+import { PanelType } from "../types/state/panelState";
+import { WindowType } from "../types/state/windowState";
 import { PanelbarPosition } from "./bars/Panelbar";
 import Pane from "./layouts/Pane";
 import SplitPane from "./layouts/SplitPane";
@@ -52,37 +52,31 @@ const getVisiblePanels = (
 ): PanelType[][] => {
   if (portrait) {
     switch (windowType) {
-      case WindowType.Setup:
-        return [[], [PanelType.Setup, PanelType.Detail]];
-      case WindowType.Assets:
-        return [[], [PanelType.Assets]];
-      case WindowType.Entities:
-        return [[], [PanelType.Container, PanelType.Item, PanelType.Detail]];
-      case WindowType.Logic:
-        return [[], [PanelType.Container, PanelType.Item, PanelType.Detail]];
-      case WindowType.Test:
-        return [[], [PanelType.Test]];
+      case "Setup":
+        return [[], ["Setup", "Detail"]];
+      case "Assets":
+        return [[], ["Assets"]];
+      case "Entities":
+        return [[], ["Container", "Item", "Detail"]];
+      case "Logic":
+        return [[], ["Container", "Item", "Detail"]];
+      case "Test":
+        return [[], ["Test"]];
       default:
         return [[], []];
     }
   }
   switch (windowType) {
-    case WindowType.Setup:
-      return [[PanelType.Setup, PanelType.Detail], [PanelType.Test]];
-    case WindowType.Assets:
-      return [[PanelType.Assets], [PanelType.Test]];
-    case WindowType.Entities:
-      return [
-        [PanelType.Container, PanelType.Item, PanelType.Detail],
-        [PanelType.Test],
-      ];
-    case WindowType.Logic:
-      return [
-        [PanelType.Container, PanelType.Item, PanelType.Detail],
-        [PanelType.Test],
-      ];
-    case WindowType.Test:
-      return [[], [PanelType.Test]];
+    case "Setup":
+      return [["Setup", "Detail"], ["Test"]];
+    case "Assets":
+      return [["Assets"], ["Test"]];
+    case "Entities":
+      return [["Container", "Item", "Detail"], ["Test"]];
+    case "Logic":
+      return [["Container", "Item", "Detail"], ["Test"]];
+    case "Test":
+      return [[], ["Test"]];
     default:
       return [[], []];
   }
@@ -92,14 +86,14 @@ const getPanelbar = (
   windowType: WindowType,
   visiblePanels: PanelType[]
 ): JSX.Element | null => {
-  if (visiblePanels && visiblePanels[0] === PanelType.Test) {
+  if (visiblePanels && visiblePanels[0] === "Test") {
     return <TestToolbar windowType={windowType} />;
   }
   return null;
 };
 
 const getPanelbarPosition = (visiblePanels: PanelType[]): PanelbarPosition => {
-  if (visiblePanels?.[0] === PanelType.Test) {
+  if (visiblePanels?.[0] === "Test") {
     return PanelbarPosition.Top;
   }
   return PanelbarPosition.None;
@@ -219,9 +213,8 @@ const ProjectContent = (props: ProjectContentProps): JSX.Element => {
   const { portrait } = useContext(WindowTransitionContext);
   const [state, dispatch] = useContext(ProjectEngineContext);
 
-  const savedPaneSize = state?.present?.dataPanel?.paneSize;
-  const openDataPanel =
-    state?.present?.dataPanel?.panels?.[windowType]?.openPanel;
+  const savedPaneSize = state?.panel?.paneSize;
+  const openDataPanel = state?.panel?.panels?.[windowType]?.openPanel;
 
   const ref = useRef<HTMLDivElement>();
   const leftPane = useRef<HTMLDivElement>(null);
@@ -272,7 +265,7 @@ const ProjectContent = (props: ProjectContentProps): JSX.Element => {
         animatingTimeoutHandle.current = window.setTimeout(() => {
           const paneSize = `${widthPercentage}%`;
           pane.style.width = paneSize;
-          dispatch(dataPanelSetPaneSize(paneSize));
+          dispatch(panelSetPaneSize(paneSize));
         }, 500);
       }
     },
@@ -334,10 +327,10 @@ const Project = React.memo((): JSX.Element => {
   const [state, dispatch] = useContext(ProjectEngineContext);
   const { fullscreen } = useContext(ScreenContext);
   const [navigationState] = useContext(NavigationContext);
-  const windowType = state.present.window.type;
-  const doc = state.present.project?.data?.doc;
+  const windowType = state.window.type;
+  const doc = state.project?.data?.doc;
 
-  const { access } = state.present.project;
+  const { access } = state.project;
 
   const [windowTransitionState, setWindowTransitionState] =
     useState<TransitionState>(TransitionState.initial);
@@ -369,20 +362,20 @@ const Project = React.memo((): JSX.Element => {
   }, [dispatch]);
   const handleEnter = useCallback(() => {
     setWindowTransitionState(TransitionState.enter);
-    if (!isPlayable || (!portrait && windowType === WindowType.Setup)) {
-      dispatch(testLayoutChange(Layout.Page));
+    if (!isPlayable || (!portrait && windowType === "Setup")) {
+      dispatch(testLayoutChange("Page"));
     } else {
-      dispatch(testLayoutChange(Layout.Game));
+      dispatch(testLayoutChange("Game"));
     }
   }, [dispatch, isPlayable, portrait, windowType]);
   const handleComplete = useCallback(() => {
-    if (isPlayable && !portrait && windowType === WindowType.Test) {
+    if (isPlayable && !portrait && windowType === "Test") {
       dispatch(projectValidate());
-      dispatch(testControlChange(Control.Play));
-      dispatch(testModeChange(Mode.Test));
+      dispatch(testControlChange("Play"));
+      dispatch(testModeChange("Test"));
     }
-    if (!isPlayable || (portrait && windowType !== WindowType.Test)) {
-      dispatch(testModeChange(Mode.Edit));
+    if (!isPlayable || (portrait && windowType !== "Test")) {
+      dispatch(testModeChange("Edit"));
     }
     dispatch(testPlayerVisibility(true));
     window.setTimeout(() => {
@@ -404,15 +397,15 @@ const Project = React.memo((): JSX.Element => {
     handleComplete
   );
 
-  const footerButtons = isGameDocument(state?.present?.project?.data?.doc)
+  const footerButtons = isGameDocument(state?.project?.data?.doc)
     ? access === MemberAccess.Viewer
-      ? gameWindows.filter((w) => w.type === WindowType.Test)
-      : gameWindows
+      ? windows.filter((w) => w.type === "Test")
+      : windows
     : [];
 
   useEffect(() => {
     if (access === MemberAccess.Viewer) {
-      dispatch(windowSwitch(WindowType.Test));
+      dispatch(windowSwitch("Test"));
     }
   }, [access, dispatch]);
 

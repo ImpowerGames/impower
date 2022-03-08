@@ -286,14 +286,12 @@ const EngineToolbarLayout = React.memo(
           ...headerStyle,
         }}
       >
-        <StyledHeaderLeftButtonArea style={{ ...leftStyle }}>
+        <StyledHeaderLeftButtonArea style={leftStyle}>
           {leftChildren}
         </StyledHeaderLeftButtonArea>
         <StyledHeaderMiddleArea>{middleChildren}</StyledHeaderMiddleArea>
         {rightChildren && (
-          <StyledHeaderRightButtonArea
-            style={{ minWidth: minHeight, ...rightStyle }}
-          >
+          <StyledHeaderRightButtonArea style={rightStyle}>
             {rightChildren}
           </StyledHeaderRightButtonArea>
         )}
@@ -337,6 +335,7 @@ interface EngineToolbarContentProps {
   searchLabel: string;
   replaceLabel: string;
   title: React.ReactNode;
+  leftChildren?: React.ReactNode;
   titleStyle?: React.CSSProperties;
   headerStyle?: React.CSSProperties;
   leftStyle?: React.CSSProperties;
@@ -395,6 +394,7 @@ const EngineToolbarContent = React.memo(
       searchLabel,
       replaceLabel,
       title,
+      leftChildren,
       titleStyle,
       headerStyle,
       leftStyle,
@@ -881,7 +881,9 @@ const EngineToolbarContent = React.memo(
                 {backIcon}
               </FontIcon>
             </StyledIconButton>
-          ) : undefined
+          ) : (
+            leftChildren
+          )
         }
         middleChildren={
           title && (
@@ -988,6 +990,7 @@ interface EngineToolbarProps {
   stickyStyle?: React.CSSProperties;
   style?: React.CSSProperties;
   sticky?: "always" | "collapsible" | "never";
+  leftChildren?: React.ReactNode;
   rightChildren?: React.ReactNode;
   belowBreakpoint?: boolean;
   isSelectAllowed?: (path: string) => boolean;
@@ -1047,6 +1050,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     stickyStyle,
     style,
     sticky,
+    leftChildren,
     rightChildren,
     belowBreakpoint,
     isSelectAllowed,
@@ -1178,6 +1182,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                   searchButtonStyle={searchButtonStyle}
                   clearButtonStyle={clearButtonStyle}
                   doneButtonStyle={doneButtonStyle}
+                  leftChildren={leftChildren}
                   isSelectAllowed={isSelectAllowed}
                   onSelectAll={onSelectAll}
                   onDeselectAll={onDeselectAll}

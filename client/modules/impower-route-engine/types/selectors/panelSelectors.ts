@@ -12,11 +12,11 @@ import {
   Reference,
 } from "../../../impower-game/data";
 import {
-  DataInteractionType,
-  DataPanelState,
-  DataPanelType,
-  DataWindowType,
-} from "../state/dataPanelState";
+  PanelInteractionType,
+  PanelState,
+  PanelType,
+} from "../state/panelState";
+import { WindowType } from "../state/windowState";
 
 const getChildConstructs = (
   parentConstruct: ConstructData,
@@ -133,10 +133,10 @@ export const getInsertionIndex = (
 };
 
 export const getInteractionsSelector = (
-  state: DataPanelState,
-  windowType: DataWindowType,
-  interactionType: DataInteractionType,
-  panelType: DataPanelType
+  state: PanelState,
+  windowType: WindowType,
+  interactionType: PanelInteractionType,
+  panelType: PanelType
 ): (Reference | string)[] => {
   return (
     state?.panels?.[windowType]?.[panelType]?.interactions?.[interactionType] ||

@@ -3,8 +3,8 @@ import { AnimatePresence } from "framer-motion";
 import React, { useRef } from "react";
 import OverlayTransition from "../../../impower-route/components/animations/OverlayTransition";
 import { panels } from "../../types/info/panels";
-import { DataWindowType } from "../../types/state/dataPanelState";
-import { PanelType, WindowType } from "../../types/state/windowState";
+import { PanelType } from "../../types/state/panelState";
+import { WindowType } from "../../types/state/windowState";
 import Panelbar, { PanelbarPosition } from "../bars/Panelbar";
 import AssetsPanel from "../panels/AssetsPanel";
 import ContainerPanel from "../panels/ContainerPanel";
@@ -51,52 +51,31 @@ const PanelContent = React.memo(
     }
 
     switch (type) {
-      case PanelType.Setup:
-        return <SetupPanel key={PanelType.Setup} />;
-      case PanelType.Container:
-        if (
-          windowType === WindowType.Entities ||
-          windowType === WindowType.Logic
-        ) {
-          return (
-            <ContainerPanel
-              key={PanelType.Container}
-              windowType={windowType as unknown as DataWindowType}
-            />
-          );
+      case "Setup":
+        return <SetupPanel key="Setup" />;
+      case "Container":
+        if (windowType === "Entities" || windowType === "Logic") {
+          return <ContainerPanel key={"Container"} windowType={windowType} />;
         }
         return null;
-      case PanelType.Item:
-        if (
-          windowType === WindowType.Entities ||
-          windowType === WindowType.Logic
-        ) {
-          return (
-            <ItemPanel
-              key={PanelType.Item}
-              windowType={windowType as unknown as DataWindowType}
-            />
-          );
+      case "Item":
+        if (windowType === "Entities" || windowType === "Logic") {
+          return <ItemPanel key={"Item"} windowType={windowType} />;
         }
         return null;
-      case PanelType.Detail:
+      case "Detail":
         if (
-          windowType === WindowType.Setup ||
-          windowType === WindowType.Entities ||
-          windowType === WindowType.Logic
+          windowType === "Setup" ||
+          windowType === "Entities" ||
+          windowType === "Logic"
         ) {
-          return (
-            <DetailPanel
-              key={PanelType.Detail}
-              windowType={windowType as unknown as DataWindowType}
-            />
-          );
+          return <DetailPanel key={"Detail"} windowType={windowType} />;
         }
         return null;
-      case PanelType.Test:
-        return <TestPanel key={PanelType.Test} />;
-      case PanelType.Assets:
-        return <AssetsPanel key={PanelType.Assets} />;
+      case "Test":
+        return <TestPanel key={"Test"} />;
+      case "Assets":
+        return <AssetsPanel key={"Assets"} />;
       default:
         return null;
     }
@@ -114,13 +93,7 @@ const PanelArea = React.memo((props: PanelAreaProps): JSX.Element | null => {
   const { type, windowType, preservePane, style } = props;
   const previousZIndexRef = useRef(0);
   const zIndex =
-    type === PanelType.Container
-      ? 0
-      : type === PanelType.Item
-      ? 1
-      : type === PanelType.Detail
-      ? 2
-      : 0;
+    type === "Container" ? 0 : type === "Item" ? 1 : type === "Detail" ? 2 : 0;
   const previousZIndex = previousZIndexRef.current;
   previousZIndexRef.current = zIndex;
   const overlayDirection = zIndex - previousZIndex;

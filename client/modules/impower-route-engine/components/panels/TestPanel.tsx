@@ -42,19 +42,14 @@ import { GameContext } from "../../contexts/gameContext";
 import { GameRunnerContext } from "../../contexts/gameRunnerContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import {
-  dataPanelOpen,
-  dataPanelSetInteraction,
-} from "../../types/actions/dataPanelActions";
+  panelOpen,
+  panelSetInteraction,
+} from "../../types/actions/panelActions";
 import { projectValidate } from "../../types/actions/projectActions";
 import {
   testControlChange,
   testModeChange,
 } from "../../types/actions/testActions";
-import {
-  DataInteractionType,
-  DataPanelType,
-  DataWindowType,
-} from "../../types/state/dataPanelState";
 import { Control, Layout, Mode } from "../../types/state/testState";
 
 const playerAnimationVariants = {
@@ -351,8 +346,8 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
   }, []);
   const handleClickPlay = useCallback(() => {
     dispatch(projectValidate());
-    dispatch(testControlChange(Control.Play));
-    dispatch(testModeChange(Mode.Test));
+    dispatch(testControlChange("Play"));
+    dispatch(testModeChange("Test"));
   }, [dispatch]);
 
   const getBackgroundPosition = (
@@ -405,27 +400,21 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
       e: AccessibleEvent
     ) => {
       e.stopPropagation();
-      dispatch(dataPanelOpen(DataWindowType.Logic, DataPanelType.Item));
+      dispatch(panelOpen("Logic", "Item"));
       events.onOpenData.emit({ id: parentBlockId });
       const block = project?.instances?.blocks?.data?.[blockId];
       if (block) {
         dispatch(
-          dataPanelSetInteraction(
-            DataWindowType.Logic,
-            DataInteractionType.Selected,
-            DataPanelType.Container,
-            [block.reference]
-          )
+          panelSetInteraction("Logic", "Selected", "Container", [
+            block.reference,
+          ])
         );
         const command = block.commands.data[commandId];
         if (command) {
           dispatch(
-            dataPanelSetInteraction(
-              DataWindowType.Logic,
-              DataInteractionType.Selected,
-              DataPanelType.Item,
-              [command.reference]
-            )
+            panelSetInteraction("Logic", "Selected", "Item", [
+              command.reference,
+            ])
           );
         }
       }
@@ -465,17 +454,17 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
       />
       <Player
         startTime={startTime}
-        active={mode === Mode.Test}
+        active={mode === "Test"}
         control={control}
         project={project}
         game={game}
-        gameBucketFolderId={state.present.project.id}
+        gameBucketFolderId={state.project.id}
         runner={gameRunner}
         logoSrc="/logo.png"
         onInitialized={handlePlayerInitialized}
         onCreateGame={onCreateGame}
       >
-        {mode === Mode.Edit && layout === Layout.Page && (
+        {mode === "Edit" && layout === "Page" && (
           <PlayerPreview
             doc={doc}
             backgroundPosition={getBackgroundPosition(
@@ -578,9 +567,9 @@ const TestPanel = React.memo((): JSX.Element => {
   const theme = useTheme();
 
   const { playerVisibility, startTime, mode, control, debug, layout } =
-    state.present.test;
-  const { id, data } = state.present.project;
-  const doc = state.present.project?.data?.doc;
+    state.test;
+  const { id, data } = state.project;
+  const doc = state.project?.data?.doc;
 
   const backgroundColor = doc.backgroundHex;
 
@@ -605,7 +594,7 @@ const TestPanel = React.memo((): JSX.Element => {
         mode={mode}
         control={control}
         debug={debug}
-        fullscreenPlayer={layout === Layout.Game}
+        fullscreenPlayer={layout === "Game"}
       />
     </StyledMotionTestPanel>
   );

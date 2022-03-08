@@ -45,8 +45,8 @@ import {
 import FadeAnimation from "../../../impower-route/components/animations/FadeAnimation";
 import PeerTransition from "../../../impower-route/components/animations/PeerTransition";
 import Avatar from "../../../impower-route/components/elements/Avatar";
+import CornerFab from "../../../impower-route/components/fabs/CornerFab";
 import { getPlaceholderUrl } from "../../../impower-storage";
-import CornerFab from "../fabs/CornerFab";
 import EngineToolbar from "../headers/EngineToolbar";
 
 const Skeleton = dynamic(() => import("@material-ui/core/Skeleton"), {

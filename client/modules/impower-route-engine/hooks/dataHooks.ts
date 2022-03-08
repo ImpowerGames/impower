@@ -6,22 +6,22 @@ import {
   ItemReference,
 } from "../../impower-game/data";
 import { DataContext } from "../contexts/dataContext";
-import { getChildContainers } from "../types/selectors/dataPanelSelectors";
+import { getChildContainers } from "../types/selectors/panelSelectors";
 import { projectContainersSelector } from "../types/selectors/projectSelectors";
 import { getContainerType } from "../types/selectors/windowSelectors";
-import { DataWindowType } from "../types/state/dataPanelState";
 import { ProjectEngineState } from "../types/state/projectEngineState";
+import { WindowType } from "../types/state/windowState";
 
 export const useInspectedContainers = (
   state: ProjectEngineState,
-  windowType: DataWindowType
+  windowType: WindowType
 ): { [refId: string]: ContainerData } => {
   const containerType = useMemo(
     () => getContainerType(windowType),
     [windowType]
   );
   const parentContainerId =
-    state.dataPanel.panels[windowType].Container.inspectedTargetId;
+    state.panel.panels[windowType].Container.inspectedTargetId;
   const projectContainers = useMemo(
     () => projectContainersSelector(state.project.data, containerType),
     [containerType, state.project.data]
@@ -49,7 +49,7 @@ export const useInspectedContainers = (
 
 export const useContainerNavigation = (
   state: ProjectEngineState,
-  windowType: DataWindowType,
+  windowType: WindowType,
   targetContainerIds: string[],
   onNavigate: (reference: ContainerReference) => void
 ): {
@@ -65,7 +65,7 @@ export const useContainerNavigation = (
     [windowType]
   );
   const parentContainerId =
-    state.dataPanel.panels[windowType].Container.inspectedTargetId;
+    state.panel.panels[windowType].Container.inspectedTargetId;
   const projectContainers = useMemo(
     () => projectContainersSelector(state.project.data, containerType),
     [containerType, state.project.data]

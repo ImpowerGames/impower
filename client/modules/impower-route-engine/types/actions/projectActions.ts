@@ -58,14 +58,12 @@ export interface ProjectInsertDataAction {
   type: typeof PROJECT_INSERT_DATA;
   payload: {
     newData: InstanceData[];
-    description?: string;
     index?: number;
     skipSync?: boolean;
   };
 }
 export const projectInsertData = (
   newData: InstanceData[],
-  description?: string,
   index?: number,
   skipSync?: boolean
 ): ProjectInsertDataAction => {
@@ -73,7 +71,6 @@ export const projectInsertData = (
     type: PROJECT_INSERT_DATA,
     payload: {
       newData,
-      description,
       index,
       skipSync,
     },
@@ -85,20 +82,17 @@ export interface ProjectRemoveDataAction {
   type: typeof PROJECT_REMOVE_DATA;
   payload: {
     references: Reference[];
-    description?: string;
     skipSync?: boolean;
   };
 }
 export const projectRemoveData = (
   references: Reference[],
-  description?: string,
   skipSync?: boolean
 ): ProjectRemoveDataAction => {
   return {
     type: PROJECT_REMOVE_DATA,
     payload: {
       references,
-      description,
       skipSync,
     },
   };
@@ -108,21 +102,19 @@ export const PROJECT_UPDATE_DATA = "PROJECT_UPDATE_DATA";
 export interface ProjectUpdateDataAction {
   type: typeof PROJECT_UPDATE_DATA;
   payload: {
-    description: string;
     references: Reference[];
     propertyPath: string;
     value: unknown;
   };
 }
 export const projectUpdateData = (
-  description: string,
   references: Reference[],
   propertyPath: string,
   value: unknown
 ): ProjectUpdateDataAction => {
   return {
     type: PROJECT_UPDATE_DATA,
-    payload: { description, references, propertyPath, value },
+    payload: { references, propertyPath, value },
   };
 };
 

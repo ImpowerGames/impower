@@ -9,47 +9,50 @@ import {
   multiSelection,
   toggleSelection,
 } from "../../../impower-route";
+import { SerializableEditorState } from "../../../impower-script-editor";
 import {
-  DataPanelAction,
-  DATA_PANEL_ADD_INTERACTION,
-  DATA_PANEL_CHANGE_INTERACTION,
-  DATA_PANEL_CHANGE_ITEM_SECTION,
-  DATA_PANEL_INSPECT,
-  DATA_PANEL_MULTI_INTERACTION,
-  DATA_PANEL_OPEN,
-  DATA_PANEL_REMOVE_INTERACTION,
-  DATA_PANEL_SEARCH,
-  DATA_PANEL_SET_CURSOR,
-  DATA_PANEL_SET_ERRORS,
-  DATA_PANEL_SET_INTERACTION,
-  DATA_PANEL_SET_LAST_ADDED_TYPE_ID,
-  DATA_PANEL_SET_PANE_SIZE,
-  DATA_PANEL_SET_PARENT_CONTAINER_ARRANGEMENT,
-  DATA_PANEL_SET_SCRIPTING,
-  DATA_PANEL_SET_SCROLL_PARENT,
-  DATA_PANEL_SET_SCROLL_POSITION,
-  DATA_PANEL_SET_SCROLL_TOP_LINE,
-  DATA_PANEL_SUBMIT,
-  DATA_PANEL_TOGGLE_ALL_INTERACTION,
-  DATA_PANEL_TOGGLE_INTERACTION,
-} from "../actions/dataPanelActions";
-import { getInteractionsSelector } from "../selectors/dataPanelSelectors";
+  PanelAction,
+  PANEL_ADD_INTERACTION,
+  PANEL_CHANGE_EDITOR_STATE,
+  PANEL_CHANGE_INTERACTION,
+  PANEL_CHANGE_ITEM_SECTION,
+  PANEL_INSPECT,
+  PANEL_MULTI_INTERACTION,
+  PANEL_OPEN,
+  PANEL_REMOVE_INTERACTION,
+  PANEL_SAVE_EDITOR_STATE,
+  PANEL_SEARCH,
+  PANEL_SET_CURSOR,
+  PANEL_SET_ERRORS,
+  PANEL_SET_INTERACTION,
+  PANEL_SET_LAST_ADDED_TYPE_ID,
+  PANEL_SET_PANE_SIZE,
+  PANEL_SET_PARENT_CONTAINER_ARRANGEMENT,
+  PANEL_SET_SCRIPTING,
+  PANEL_SET_SCROLL_PARENT,
+  PANEL_SET_SCROLL_POSITION,
+  PANEL_SET_SCROLL_TOP_LINE,
+  PANEL_SUBMIT,
+  PANEL_TOGGLE_ALL_INTERACTION,
+  PANEL_TOGGLE_INTERACTION,
+} from "../actions/panelActions";
+import { getInteractionsSelector } from "../selectors/panelSelectors";
 import {
   ContainerArrangement,
-  createDataPanelState,
-  DataInteractionType,
-  DataPanelState,
-  DataPanelType,
-  DataWindowType,
-} from "../state/dataPanelState";
+  PanelInteractionType,
+  PanelState,
+  PanelType,
+} from "../state/panelState";
+import { WindowType } from "../state/windowState";
+import { createPanelState } from "../utils/createPanelState";
 
 const doOpen = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    panelType: PanelType;
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, panelType } = payload;
   return {
     ...state,
@@ -64,14 +67,14 @@ const doOpen = (
 };
 
 const doSetInteraction = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    interactionType: DataInteractionType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    interactionType: PanelInteractionType;
+    panelType: PanelType;
     references: (Reference | string)[];
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, interactionType, panelType, references } = payload;
   return {
     ...state,
@@ -92,14 +95,14 @@ const doSetInteraction = (
 };
 
 const doChangeInteraction = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    interactionType: DataInteractionType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    interactionType: PanelInteractionType;
+    panelType: PanelType;
     reference: Reference | string;
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, interactionType, panelType, reference } = payload;
   const interactedReferences = getInteractionsSelector(
     state,
@@ -132,14 +135,14 @@ const doChangeInteraction = (
 };
 
 const doAddInteraction = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    interactionType: DataInteractionType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    interactionType: PanelInteractionType;
+    panelType: PanelType;
     references: (Reference | string)[];
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, interactionType, panelType, references } = payload;
   const interactedReferences = getInteractionsSelector(
     state,
@@ -161,14 +164,14 @@ const doAddInteraction = (
 };
 
 const doRemoveInteraction = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    interactionType: DataInteractionType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    interactionType: PanelInteractionType;
+    panelType: PanelType;
     references: (Reference | string)[];
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, interactionType, panelType, references } = payload;
   const interactedReferences = getInteractionsSelector(
     state,
@@ -191,14 +194,14 @@ const doRemoveInteraction = (
 };
 
 const doToggleInteraction = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    interactionType: DataInteractionType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    interactionType: PanelInteractionType;
+    panelType: PanelType;
     reference: Reference | string;
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, interactionType, panelType, reference } = payload;
   const interactedReferences = getInteractionsSelector(
     state,
@@ -231,14 +234,14 @@ const doToggleInteraction = (
 };
 
 const doToggleAllInteraction = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    interactionType: DataInteractionType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    interactionType: PanelInteractionType;
+    panelType: PanelType;
     references: (Reference | string)[];
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, interactionType, panelType, references } = payload;
   const interactedReferences = getInteractionsSelector(
     state,
@@ -263,15 +266,15 @@ const doToggleAllInteraction = (
 };
 
 export const doMultiInteraction = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    interactionType: DataInteractionType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    interactionType: PanelInteractionType;
+    panelType: PanelType;
     allReferences: (Reference | string)[];
     newReference: Reference | string;
   }
-): DataPanelState => {
+): PanelState => {
   const {
     windowType,
     interactionType,
@@ -314,9 +317,9 @@ export const doMultiInteraction = (
 };
 
 const doSetScripting = (
-  state: DataPanelState,
-  payload: { windowType: DataWindowType; scripting: boolean }
-): DataPanelState => {
+  state: PanelState,
+  payload: { windowType: WindowType; scripting: boolean }
+): PanelState => {
   const { windowType, scripting } = payload;
   return {
     ...state,
@@ -334,9 +337,9 @@ const doSetScripting = (
 };
 
 const doSetCursor = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
+    windowType: WindowType;
     cursor: {
       anchor: number;
       head: number;
@@ -344,7 +347,7 @@ const doSetCursor = (
       toLine: number;
     };
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, cursor } = payload;
   return {
     ...state,
@@ -362,12 +365,12 @@ const doSetCursor = (
 };
 
 const doSetScrollTopLine = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
+    windowType: WindowType;
     scrollTopLine: number;
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, scrollTopLine } = payload;
   return {
     ...state,
@@ -384,10 +387,56 @@ const doSetScrollTopLine = (
   };
 };
 
+const doSaveEditorState = (
+  state: PanelState,
+  payload: {
+    windowType: WindowType;
+    editorState: SerializableEditorState;
+  }
+): PanelState => {
+  const { windowType, editorState } = payload;
+  return {
+    ...state,
+    panels: {
+      ...state?.panels,
+      [windowType]: {
+        ...(state?.panels?.[windowType] || {}),
+        Container: {
+          ...(state?.panels?.[windowType]?.Container || {}),
+          editorState,
+        },
+      },
+    },
+  };
+};
+
+const doChangeEditorState = (
+  state: PanelState,
+  payload: {
+    windowType: WindowType;
+    editorAction: { action: "undo" | "redo" };
+  }
+): PanelState => {
+  const { windowType, editorAction } = payload;
+  return {
+    ...state,
+    panels: {
+      ...state?.panels,
+      [windowType]: {
+        ...(state?.panels?.[windowType] || {}),
+        Container: {
+          ...(state?.panels?.[windowType]?.Container || {}),
+          editorAction,
+        },
+      },
+    },
+  };
+};
+
 const doSetParentContainerArrangement = (
-  state: DataPanelState,
-  payload: { windowType: DataWindowType; arrangement: ContainerArrangement }
-): DataPanelState => {
+  state: PanelState,
+  payload: { windowType: WindowType; arrangement: ContainerArrangement }
+): PanelState => {
   const { windowType, arrangement } = payload;
   return {
     ...state,
@@ -405,12 +454,12 @@ const doSetParentContainerArrangement = (
 };
 
 const doChangeItemSection = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
+    windowType: WindowType;
     section: ItemType | ItemSectionType | SetupSectionType;
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, section } = payload;
   if (!windowType) {
     return state;
@@ -431,13 +480,13 @@ const doChangeItemSection = (
 };
 
 const doSetLastAddedTypeId = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
+    windowType: WindowType;
     refType: ItemType;
     refTypeId: string;
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, refType, refTypeId } = payload;
   if (!windowType) {
     return state;
@@ -447,11 +496,11 @@ const doSetLastAddedTypeId = (
     panels: {
       ...state.panels,
       [windowType]: {
-        ...state.panels[windowType],
+        ...(state?.panels?.[windowType] || {}),
         Item: {
-          ...state.panels[windowType].Item,
+          ...(state?.panels?.[windowType]?.Item || {}),
           lastAddedTypeIds: {
-            ...state.panels[windowType].Item.lastAddedTypeIds,
+            ...(state?.panels?.[windowType]?.Item?.lastAddedTypeIds || {}),
             [refType]: refTypeId,
           },
         },
@@ -461,10 +510,10 @@ const doSetLastAddedTypeId = (
 };
 
 const doSearch = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    panelType: PanelType;
     searchQuery?: {
       search: string;
       caseSensitive?: boolean;
@@ -478,7 +527,7 @@ const doSearch = (
         | "replace_all";
     };
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, panelType, searchQuery } = payload;
   if (!windowType) {
     return state;
@@ -504,11 +553,11 @@ const doSearch = (
 };
 
 const doSetPaneSize = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
     paneSize: number | string;
   }
-): DataPanelState => {
+): PanelState => {
   const { paneSize } = payload;
   return {
     ...state,
@@ -517,11 +566,11 @@ const doSetPaneSize = (
 };
 
 const doSetScrollParent = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
     scrollParent: HTMLElement;
   }
-): DataPanelState => {
+): PanelState => {
   const { scrollParent } = payload;
   return {
     ...state,
@@ -530,14 +579,14 @@ const doSetScrollParent = (
 };
 
 const doSetScrollPosition = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    panelType: PanelType;
     scrollId: string;
     scrollPosition: { x?: number; y?: number };
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, panelType, scrollId, scrollPosition } = payload;
   return {
     ...state,
@@ -564,14 +613,14 @@ const doSetScrollPosition = (
 };
 
 const doInspect = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    panelType: PanelType;
     targetId: string;
     propertyPaths?: string[];
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, panelType, targetId, propertyPaths } = payload;
   return {
     ...state,
@@ -590,13 +639,13 @@ const doInspect = (
 };
 
 const doSetErrors = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    panelType: PanelType;
     errors: { [propertyPath: string]: string };
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, panelType, errors } = payload;
   return {
     ...state,
@@ -614,13 +663,13 @@ const doSetErrors = (
 };
 
 const doSubmit = (
-  state: DataPanelState,
+  state: PanelState,
   payload: {
-    windowType: DataWindowType;
-    panelType: DataPanelType;
+    windowType: WindowType;
+    panelType: PanelType;
     submitting: boolean;
   }
-): DataPanelState => {
+): PanelState => {
   const { windowType, panelType, submitting } = payload;
   return {
     ...state,
@@ -637,52 +686,56 @@ const doSubmit = (
   };
 };
 
-export const dataPanelReducer = (
-  state = createDataPanelState(),
-  action: DataPanelAction
-): DataPanelState => {
+export const panelReducer = (
+  state = createPanelState(),
+  action: PanelAction
+): PanelState => {
   switch (action.type) {
-    case DATA_PANEL_OPEN:
+    case PANEL_OPEN:
       return doOpen(state, action.payload);
-    case DATA_PANEL_SET_INTERACTION:
+    case PANEL_SET_INTERACTION:
       return doSetInteraction(state, action.payload);
-    case DATA_PANEL_CHANGE_INTERACTION:
+    case PANEL_CHANGE_INTERACTION:
       return doChangeInteraction(state, action.payload);
-    case DATA_PANEL_ADD_INTERACTION:
+    case PANEL_ADD_INTERACTION:
       return doAddInteraction(state, action.payload);
-    case DATA_PANEL_REMOVE_INTERACTION:
+    case PANEL_REMOVE_INTERACTION:
       return doRemoveInteraction(state, action.payload);
-    case DATA_PANEL_TOGGLE_INTERACTION:
+    case PANEL_TOGGLE_INTERACTION:
       return doToggleInteraction(state, action.payload);
-    case DATA_PANEL_TOGGLE_ALL_INTERACTION:
+    case PANEL_TOGGLE_ALL_INTERACTION:
       return doToggleAllInteraction(state, action.payload);
-    case DATA_PANEL_MULTI_INTERACTION:
+    case PANEL_MULTI_INTERACTION:
       return doMultiInteraction(state, action.payload);
-    case DATA_PANEL_SET_PARENT_CONTAINER_ARRANGEMENT:
+    case PANEL_SET_PARENT_CONTAINER_ARRANGEMENT:
       return doSetParentContainerArrangement(state, action.payload);
-    case DATA_PANEL_SET_SCRIPTING:
+    case PANEL_SET_SCRIPTING:
       return doSetScripting(state, action.payload);
-    case DATA_PANEL_SET_CURSOR:
+    case PANEL_SET_CURSOR:
       return doSetCursor(state, action.payload);
-    case DATA_PANEL_SET_SCROLL_TOP_LINE:
+    case PANEL_SET_SCROLL_TOP_LINE:
       return doSetScrollTopLine(state, action.payload);
-    case DATA_PANEL_CHANGE_ITEM_SECTION:
+    case PANEL_SAVE_EDITOR_STATE:
+      return doSaveEditorState(state, action.payload);
+    case PANEL_CHANGE_EDITOR_STATE:
+      return doChangeEditorState(state, action.payload);
+    case PANEL_CHANGE_ITEM_SECTION:
       return doChangeItemSection(state, action.payload);
-    case DATA_PANEL_SET_LAST_ADDED_TYPE_ID:
+    case PANEL_SET_LAST_ADDED_TYPE_ID:
       return doSetLastAddedTypeId(state, action.payload);
-    case DATA_PANEL_SEARCH:
+    case PANEL_SEARCH:
       return doSearch(state, action.payload);
-    case DATA_PANEL_SET_PANE_SIZE:
+    case PANEL_SET_PANE_SIZE:
       return doSetPaneSize(state, action.payload);
-    case DATA_PANEL_SET_SCROLL_PARENT:
+    case PANEL_SET_SCROLL_PARENT:
       return doSetScrollParent(state, action.payload);
-    case DATA_PANEL_SET_SCROLL_POSITION:
+    case PANEL_SET_SCROLL_POSITION:
       return doSetScrollPosition(state, action.payload);
-    case DATA_PANEL_INSPECT:
+    case PANEL_INSPECT:
       return doInspect(state, action.payload);
-    case DATA_PANEL_SET_ERRORS:
+    case PANEL_SET_ERRORS:
       return doSetErrors(state, action.payload);
-    case DATA_PANEL_SUBMIT:
+    case PANEL_SUBMIT:
       return doSubmit(state, action.payload);
     default:
       return state;

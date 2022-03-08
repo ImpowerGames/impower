@@ -1,13 +1,13 @@
 import { ContainerType } from "../../../impower-game/data";
-import { DataWindowType } from "../state/dataPanelState";
+import { WindowType } from "../state/windowState";
 
 export const getContainerType = (
-  windowType: DataWindowType
+  windowType: WindowType
 ): ContainerType | undefined => {
   switch (windowType) {
-    case DataWindowType.Entities:
+    case "Entities":
       return "Construct";
-    case DataWindowType.Logic:
+    case "Logic":
       return "Block";
     default:
       return undefined;

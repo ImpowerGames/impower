@@ -1,25 +1,15 @@
-export enum Mode {
-  Edit = "Edit",
-  Test = "Test",
-}
+export type Mode = "Edit" | "Test";
 
-export enum Control {
-  Play = "Play",
-  Pause = "Pause",
-}
+export type Control = "Play" | "Pause";
 
-export enum Playback {
-  Default = "Default",
-  Forward = "Forward",
-  Backward = "Backward",
-  SkipForward = "SkipForward",
-  SkipBackward = "SkipBackward",
-}
+export type Playback =
+  | "Default"
+  | "Forward"
+  | "Backward"
+  | "SkipForward"
+  | "SkipBackward";
 
-export enum Layout {
-  Page = "Page",
-  Game = "Game",
-}
+export type Layout = "Page" | "Game";
 
 export interface TestState {
   mode: Mode;
@@ -30,13 +20,3 @@ export interface TestState {
   startTime: number;
   playerVisibility: boolean;
 }
-
-export const createTestState = (): TestState => ({
-  mode: Mode.Edit,
-  control: Control.Play,
-  playback: Playback.Default,
-  layout: Layout.Page,
-  debug: false,
-  startTime: 0,
-  playerVisibility: true,
-});

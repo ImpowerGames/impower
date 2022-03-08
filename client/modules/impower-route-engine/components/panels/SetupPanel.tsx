@@ -57,23 +57,18 @@ import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import {
-  dataPanelChangeItemSection,
-  dataPanelInspect,
-  dataPanelOpen,
-  dataPanelSetErrors,
-  dataPanelSubmit,
-} from "../../types/actions/dataPanelActions";
+  panelChangeItemSection,
+  panelInspect,
+  panelOpen,
+  panelSetErrors,
+  panelSubmit,
+} from "../../types/actions/panelActions";
 import { projectChangeDocument } from "../../types/actions/projectActions";
 import {
   editorSetupSections,
   ownerSetupSections,
 } from "../../types/info/sections";
-import {
-  DataPanelType,
-  DataWindowType,
-} from "../../types/state/dataPanelState";
 import { Mode } from "../../types/state/testState";
-import { PanelType } from "../../types/state/windowState";
 import Panel from "../layouts/Panel";
 
 const settings: { [name in SetupSettingsType]: string[] } = {
@@ -204,15 +199,8 @@ const DetailsSetup = React.memo(() => {
 
   const handleClick = useCallback(
     (type: string, propertyPaths: string[]) => {
-      dispatch(
-        dataPanelInspect(
-          DataWindowType.Setup,
-          DataPanelType.Detail,
-          type,
-          propertyPaths
-        )
-      );
-      dispatch(dataPanelOpen(DataWindowType.Setup, DataPanelType.Detail));
+      dispatch(panelInspect("Setup", "Detail", type, propertyPaths));
+      dispatch(panelOpen("Setup", "Detail"));
     },
     [dispatch]
   );
@@ -237,7 +225,7 @@ const ConfigurationSetup = React.memo(() => {
 
   const { gameInspector } = useContext(GameInspectorContext);
 
-  const project = state.present.project.data as GameProjectData;
+  const project = state.project.data as GameProjectData;
 
   const configs = {
     ScaleConfig: createScaleConfigData(),
@@ -251,10 +239,8 @@ const ConfigurationSetup = React.memo(() => {
 
   const handleClick = useCallback(
     (refId: string) => {
-      dispatch(
-        dataPanelInspect(DataWindowType.Setup, DataPanelType.Detail, refId)
-      );
-      dispatch(dataPanelOpen(DataWindowType.Setup, DataPanelType.Detail));
+      dispatch(panelInspect("Setup", "Detail", refId));
+      dispatch(panelOpen("Setup", "Detail"));
     },
     [dispatch]
   );
@@ -288,9 +274,9 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
   const { mode, submitting, onChange, onDebouncedChange } = props;
   const [, userDispatch] = useContext(UserContext);
   const [state] = useContext(ProjectEngineContext);
-  const { id } = state.present.project;
-  const doc = state.present.project?.data?.doc;
-  const memberDocs = state.present.project?.data?.members?.data;
+  const { id } = state.project;
+  const doc = state.project?.data?.doc;
+  const memberDocs = state.project?.data?.members?.data;
 
   const handleGetInspector = useCallback(() => {
     return ProjectDocumentInspector.instance;
@@ -438,7 +424,7 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
         backgroundColor="white"
         propertyPaths={propertyPaths}
         spacing={8}
-        disabled={mode === Mode.Test}
+        disabled={mode === "Test"}
         submitting={submitting}
         data={data}
         getPropertyDocPaths={handleGetPropertyDocIds}
@@ -455,9 +441,9 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
 const SetupPanel = React.memo((): JSX.Element => {
   const [state, dispatch] = useContext(ProjectEngineContext);
   const { portrait } = useContext(WindowTransitionContext);
-  const { id } = state.present.project;
-  const doc = state.present.project?.data?.doc;
-  const { mode } = state.present.test;
+  const { id } = state.project;
+  const doc = state.project?.data?.doc;
+  const { mode } = state.test;
   const [navigationState] = useContext(NavigationContext);
   const theme = useTheme();
   const [tabIndex, setTabIndex] = useState(0);
@@ -465,9 +451,9 @@ const SetupPanel = React.memo((): JSX.Element => {
 
   const stateRef = useRef<ProjectDocument>(doc);
 
-  const section = state?.present?.dataPanel?.panels?.Setup?.Item?.section;
-  const { submitting, errors } = state.present.dataPanel.panels.Setup.Detail;
-  const { access } = state.present.project;
+  const section = state?.panel?.panels?.Setup?.Item?.section;
+  const { submitting, errors } = state.panel.panels.Setup.Detail;
+  const { access } = state.project;
 
   const setupSections = useMemo(() => {
     const sections =
@@ -492,8 +478,8 @@ const SetupPanel = React.memo((): JSX.Element => {
   const handleTabChange = useCallback(
     (event: React.ChangeEvent, newValue: number): void => {
       dispatch(
-        dataPanelChangeItemSection(
-          DataWindowType.Setup,
+        panelChangeItemSection(
+          "Setup",
           setupSections[newValue]?.type as SetupSectionType
         )
       );
@@ -510,9 +496,7 @@ const SetupPanel = React.memo((): JSX.Element => {
     async (e: React.FormEvent | React.MouseEvent) => {
       const currentData = stateRef.current;
       e.preventDefault();
-      dispatch(
-        dataPanelSubmit(DataWindowType.Setup, DataPanelType.Detail, true)
-      );
+      dispatch(panelSubmit("Setup", "Detail", true));
       const createPageDocument = (
         await import("../../../impower-data-store/utils/createPageDocument")
       ).default;
@@ -537,9 +521,7 @@ const SetupPanel = React.memo((): JSX.Element => {
             new PageDocumentInspector<ProjectDocument>().getPropertyError,
             () => [id]
           );
-      dispatch(
-        dataPanelSetErrors(DataWindowType.Setup, DataPanelType.Detail, errors)
-      );
+      dispatch(panelSetErrors("Setup", "Detail", errors));
       if (Object.keys(errors).length === 0) {
         dispatch(
           projectChangeDocument(id, {
@@ -554,9 +536,7 @@ const SetupPanel = React.memo((): JSX.Element => {
           window.setTimeout(resolve, 2000);
         });
       }
-      dispatch(
-        dataPanelSubmit(DataWindowType.Setup, DataPanelType.Detail, false)
-      );
+      dispatch(panelSubmit("Setup", "Detail", false));
     },
     [dispatch, id]
   );
@@ -589,7 +569,7 @@ const SetupPanel = React.memo((): JSX.Element => {
   return (
     <>
       <Panel
-        panelType={PanelType.Setup}
+        panelType="Setup"
         useWindowAsScrollContainer
         topChildren={
           portrait ? (

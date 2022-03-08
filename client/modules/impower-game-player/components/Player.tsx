@@ -3,14 +3,13 @@ import React, { PropsWithChildren } from "react";
 import { GameProjectData } from "../../impower-game/data";
 import { ImpowerGame, SaveData } from "../../impower-game/game";
 import { ImpowerGameRunner } from "../../impower-game/runner";
-import { Control } from "../types/control";
 
 const Game = dynamic(() => import("./Game"), { ssr: false });
 
 interface PlayerProps {
   startTime: number;
   active: boolean;
-  control: Control;
+  control: "Play" | "Pause";
   project: GameProjectData;
   game?: ImpowerGame;
   runner?: ImpowerGameRunner;

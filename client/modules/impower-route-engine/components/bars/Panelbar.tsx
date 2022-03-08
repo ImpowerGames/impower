@@ -4,7 +4,7 @@ import React, { CSSProperties, PropsWithChildren, useContext } from "react";
 import { FontIcon } from "../../../impower-icon";
 import { ScreenContext } from "../../../impower-route";
 import { panels } from "../../types/info/panels";
-import { PanelType } from "../../types/state/windowState";
+import { PanelType } from "../../types/state/panelState";
 
 const StyledBackground = styled.div`
   flex: 1;

@@ -17,7 +17,6 @@ import { ImpowerGameRunner } from "../../impower-game/runner";
 import { ProjectEngineContext } from "../../impower-route-engine/contexts/projectEngineContext";
 import { parseFountain } from "../../impower-script-parser";
 import { useGameStyle } from "../hooks/gameHooks";
-import { Control } from "../types/control";
 import { PhaserGame } from "../types/game/phaserGame";
 import UI from "./UI";
 
@@ -78,7 +77,7 @@ const createGame = (
 interface GameProps {
   startTime: number;
   active: boolean;
-  control: Control;
+  control: "Play" | "Pause";
   project: GameProjectData;
   game?: ImpowerGame;
   runner?: ImpowerGameRunner;
@@ -111,10 +110,9 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
   const gameStyle = useGameStyle(phaserGame);
 
   const [engineState] = useContext(ProjectEngineContext);
-  const projectId = engineState.present.project.id;
+  const projectId = engineState.project.id;
   const activeLine =
-    engineState.present.dataPanel?.panels?.Logic?.Container?.cursor?.fromLine ||
-    1;
+    engineState.panel?.panels?.Logic?.Container?.cursor?.fromLine || 1;
 
   useEffect(() => {
     const setMobile = (): void => {

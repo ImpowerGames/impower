@@ -11,7 +11,6 @@ import {
   getRuntimeValue,
   ImpowerGameRunner,
 } from "../../../impower-game/runner";
-import { Control } from "../control";
 import { ASSET_SCENE_KEY, PhaserAssetScene } from "./scenes/phaserAssetScene";
 import { LOGIC_SCENE_KEY, PhaserLogicScene } from "./scenes/phaserLogicScene";
 import { MAIN_SCENE_KEY, PhaserMainScene } from "./scenes/phaserMainScene";
@@ -151,7 +150,7 @@ export class PhaserGame extends Phaser.Game {
     projectId: string,
     impowerGame?: ImpowerGame,
     impowerRunner?: ImpowerGameRunner,
-    control?: Control,
+    control?: "Play" | "Pause",
     logoUrl?: string
   ) {
     const active = impowerGame !== undefined;
@@ -310,17 +309,17 @@ export class PhaserGame extends Phaser.Game {
     this._project = project;
   }
 
-  controlScenes(control: Control): void {
+  controlScenes(control: "Play" | "Pause"): void {
     const scenes = this.scene.getScenes(false);
     scenes.forEach((scene) => {
       switch (control) {
-        case Control.Play: {
+        case "Play": {
           if (scene.scene.isPaused()) {
             scene.scene.resume();
           }
           break;
         }
-        case Control.Pause: {
+        case "Pause": {
           if (!scene.scene.isPaused()) {
             scene.scene.pause();
           }

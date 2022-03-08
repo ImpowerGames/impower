@@ -56,26 +56,20 @@ import {
   useItemNavigation,
 } from "../../hooks/dataHooks";
 import {
-  dataPanelAddInteraction,
-  dataPanelInspect,
-  dataPanelOpen,
-  dataPanelRemoveInteraction,
-  dataPanelSetErrors,
-} from "../../types/actions/dataPanelActions";
+  panelAddInteraction,
+  panelInspect,
+  panelOpen,
+  panelRemoveInteraction,
+  panelSetErrors,
+} from "../../types/actions/panelActions";
 import {
   projectChangeDocument,
   projectUpdateData,
   projectValidateData,
 } from "../../types/actions/projectActions";
 import { getHeader } from "../../types/info/headers";
-import { getItems } from "../../types/selectors/dataPanelSelectors";
-import {
-  DataInteractionType,
-  DataPanelType,
-  DataWindowType,
-} from "../../types/state/dataPanelState";
-import { Mode } from "../../types/state/testState";
-import { PanelType } from "../../types/state/windowState";
+import { getItems } from "../../types/selectors/panelSelectors";
+import { WindowType } from "../../types/state/windowState";
 import InstanceInspectorForm from "../forms/InstanceInspectorForm";
 import PanelHeader from "../headers/PanelHeader";
 import PanelHeaderIconButton from "../iconButtons/PanelHeaderIconButton";
@@ -349,7 +343,7 @@ const SetupAdvanced = React.memo((props: SetupAdvancedProps) => {
 });
 
 interface DetailPanelProps {
-  windowType: DataWindowType;
+  windowType: WindowType;
   open?: boolean;
 }
 
@@ -361,18 +355,18 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
 
   const theme = useTheme();
 
-  const { mode } = state.present.test;
-  const { data, id } = state.present.project;
-  const doc = state.present.project?.data?.doc;
-  const { section } = state.present.dataPanel.panels[windowType].Item;
+  const { mode } = state.test;
+  const { data, id } = state.project;
+  const doc = state.project?.data?.doc;
+  const { section } = state.panel.panels[windowType].Item;
   const inspectedContainerTargetId =
-    state.present.dataPanel.panels[windowType].Item.inspectedTargetId;
+    state.panel.panels[windowType].Item.inspectedTargetId;
   const { inspectedTargetId, inspectedProperties, submitting, errors } =
-    state.present.dataPanel.panels[windowType].Detail;
+    state.panel.panels[windowType].Detail;
 
   const stateRef = useRef<ProjectDocument>(doc);
 
-  const inspectedContainers = useInspectedContainers(state.present, windowType);
+  const inspectedContainers = useInspectedContainers(state, windowType);
   const inspectedTargetContainer =
     inspectedContainers?.[inspectedContainerTargetId];
   const inspectedItems: { [refId: string]: ItemData } = useMemo(
@@ -385,8 +379,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
 
   const allSelectedItemReferences =
     section !== "Preview"
-      ? state?.present?.dataPanel?.panels?.[windowType]?.Item?.interactions
-          ?.Selected || []
+      ? state?.panel?.panels?.[windowType]?.Item?.interactions?.Selected || []
       : undefined;
   const selectedItemReferences = useMemo(
     () =>
@@ -400,9 +393,8 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   );
   const expandedDetailReferences = useMemo(
     () =>
-      state?.present?.dataPanel?.panels?.[windowType]?.Detail?.interactions
-        ?.Expanded || [],
-    [state?.present?.dataPanel?.panels, windowType]
+      state?.panel?.panels?.[windowType]?.Detail?.interactions?.Expanded || [],
+    [state?.panel?.panels, windowType]
   );
 
   const expandedProperties = useMemo(
@@ -431,7 +423,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     return items;
   }, [section, selectedItemReferences, data]);
   const inspectedInstanceData: InstanceData[] = useMemo(() => {
-    if (windowType === DataWindowType.Setup) {
+    if (windowType === "Setup") {
       if (section === "Configuration") {
         const config =
           data?.instances?.configs?.data?.[inspectedTargetId as ConfigTypeId];
@@ -451,7 +443,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const panelKey = `${inspectedTargetId}`;
 
   const inspectedContainerId =
-    state.present.dataPanel.panels[windowType].Item.inspectedTargetId;
+    state.panel.panels[windowType].Item.inspectedTargetId;
 
   const itemHeaderInfo = useMemo(() => getHeader(section), [section]);
 
@@ -472,10 +464,10 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const handleClickHeaderBreadcrumb = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (windowType === DataWindowType.Setup) {
-        dispatch(dataPanelOpen(windowType, DataPanelType.Setup));
+      if (windowType === "Setup") {
+        dispatch(panelOpen(windowType, "Setup"));
       } else {
-        dispatch(dataPanelOpen(windowType, DataPanelType.Item));
+        dispatch(panelOpen(windowType, "Item"));
       }
     },
     [dispatch, windowType]
@@ -484,10 +476,10 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const handleClose = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (windowType === DataWindowType.Setup) {
-        dispatch(dataPanelOpen(windowType, DataPanelType.Setup));
+      if (windowType === "Setup") {
+        dispatch(panelOpen(windowType, "Setup"));
       } else {
-        dispatch(dataPanelOpen(windowType, DataPanelType.Item));
+        dispatch(panelOpen(windowType, "Item"));
       }
     },
     [dispatch, windowType]
@@ -495,7 +487,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
 
   const handleInspect = useCallback(
     (id: string) => {
-      dispatch(dataPanelInspect(windowType, DataPanelType.Detail, id));
+      dispatch(panelInspect(windowType, "Detail", id));
     },
     [dispatch, windowType]
   );
@@ -504,7 +496,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     (references: Reference[], propertyPath: string, value: unknown) => {
       // Items are selected, so assume the user is editing the selected items
       if (section !== "Preview") {
-        dispatch(projectUpdateData("Update", references, propertyPath, value));
+        dispatch(projectUpdateData(references, propertyPath, value));
       }
     },
     [section, dispatch]
@@ -512,24 +504,18 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
 
   const handleExpandProperty = useCallback(
     (propertyPath: string, expanded: boolean) => {
-      if (windowType === DataWindowType.Setup) {
+      if (windowType === "Setup") {
         if (expanded) {
           dispatch(
-            dataPanelAddInteraction(
-              windowType,
-              DataInteractionType.Expanded,
-              DataPanelType.Detail,
-              [propertyPath]
-            )
+            panelAddInteraction(windowType, "Expanded", "Detail", [
+              propertyPath,
+            ])
           );
         } else {
           dispatch(
-            dataPanelRemoveInteraction(
-              windowType,
-              DataInteractionType.Expanded,
-              DataPanelType.Detail,
-              [propertyPath]
-            )
+            panelRemoveInteraction(windowType, "Expanded", "Detail", [
+              propertyPath,
+            ])
           );
         }
       } else {
@@ -538,21 +524,15 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
         }
         if (expanded) {
           dispatch(
-            dataPanelAddInteraction(
-              windowType,
-              DataInteractionType.Expanded,
-              DataPanelType.Detail,
-              [propertyPath]
-            )
+            panelAddInteraction(windowType, "Expanded", "Detail", [
+              propertyPath,
+            ])
           );
         } else {
           dispatch(
-            dataPanelRemoveInteraction(
-              windowType,
-              DataInteractionType.Expanded,
-              DataPanelType.Detail,
-              [propertyPath]
-            )
+            panelRemoveInteraction(windowType, "Expanded", "Detail", [
+              propertyPath,
+            ])
           );
         }
       }
@@ -582,13 +562,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     (propertyPath: string, error: string) => {
       if (!errors[propertyPath]) {
         const newErrors = { ...errors, [propertyPath]: error };
-        dispatch(
-          dataPanelSetErrors(
-            DataWindowType.Setup,
-            DataPanelType.Detail,
-            newErrors
-          )
-        );
+        dispatch(panelSetErrors("Setup", "Detail", newErrors));
       }
     },
     [dispatch, errors]
@@ -599,13 +573,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
       if (errors[propertyPath]) {
         const newErrors = { ...errors };
         delete newErrors[propertyPath];
-        dispatch(
-          dataPanelSetErrors(
-            DataWindowType.Setup,
-            DataPanelType.Detail,
-            newErrors
-          )
-        );
+        dispatch(panelSetErrors("Setup", "Detail", newErrors));
       }
     },
     [dispatch, errors]
@@ -616,7 +584,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
 
   useEffect(() => {
     if (selectedItems && section !== "Preview") {
-      if (mode === Mode.Edit) {
+      if (mode === "Edit") {
         // Validate data before inspecting it
         dispatch(projectValidateData(Object.values(selectedItems)));
       }
@@ -624,7 +592,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   }, [selectedItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const inspectedDataName = useMemo(() => {
-    if (windowType === DataWindowType.Setup) {
+    if (windowType === "Setup") {
       if (section === "Configuration") {
         const config =
           data?.instances?.configs?.data[inspectedTargetId as ConfigTypeId];
@@ -652,22 +620,20 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     <>
       <Panel
         key={panelKey}
-        panelType={PanelType.Detail}
+        panelType="Detail"
         useWindowAsScrollContainer
         topChildren={
           <PanelHeader
             type="default"
             title={inspectedDataName}
-            breadcrumbs={
-              windowType === DataWindowType.Setup ? [] : itemHeaderBreadcrumbs
-            }
+            breadcrumbs={windowType === "Setup" ? [] : itemHeaderBreadcrumbs}
             backIcon={<ArrowLeftRegularIcon />}
             backLabel={`Close`}
             onBack={handleClose}
             onBreadcrumb={handleClickHeaderBreadcrumb}
-            nameStyle={{ opacity: mode === Mode.Test ? 0.5 : undefined }}
+            nameStyle={{ opacity: mode === "Test" ? 0.5 : undefined }}
             rightChildren={
-              windowType !== DataWindowType.Setup && selectedItemIds ? (
+              windowType !== "Setup" && selectedItemIds ? (
                 <ItemNavigator
                   itemSectionType={section as ItemType}
                   inspectedTargetId={inspectedTargetId}
@@ -679,13 +645,13 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
           />
         }
       >
-        <StyledList style={{ opacity: mode === Mode.Test ? 0.5 : undefined }}>
-          {windowType === DataWindowType.Setup && section === "Details" ? (
+        <StyledList style={{ opacity: mode === "Test" ? 0.5 : undefined }}>
+          {windowType === "Setup" && section === "Details" ? (
             inspectedTargetId === "AdvancedSettings" ? (
               <SetupAdvanced id={id} doc={doc} />
             ) : (
               <SetupDetails
-                disabled={mode === Mode.Test}
+                disabled={mode === "Test"}
                 id={id}
                 doc={doc}
                 submitting={submitting}
@@ -707,7 +673,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
               size="small"
               backgroundColor="white"
               data={inspectedInstanceData}
-              disabled={mode === Mode.Test}
+              disabled={mode === "Test"}
               expandedProperties={expandedProperties as string[]}
               inspectedContainerId={inspectedContainerId}
               onExpandProperty={handleExpandProperty}
@@ -715,7 +681,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
             />
           )}
           <InputBlocker
-            active={mode === Mode.Test}
+            active={mode === "Test"}
             tooltip={<EditGameTooltipContent />}
           />
         </StyledList>

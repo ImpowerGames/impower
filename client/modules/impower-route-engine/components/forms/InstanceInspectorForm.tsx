@@ -253,7 +253,7 @@ const InstanceInspectorForm = React.memo(
 
     const { gameInspector } = useContext(GameInspectorContext);
     const [state] = useContext(ProjectEngineContext);
-    const project = state.present.project.data as GameProjectData;
+    const project = state.project.data as GameProjectData;
 
     const handleGetFormattedSummary = useCallback(
       (summary: string, data: InstanceData) => {

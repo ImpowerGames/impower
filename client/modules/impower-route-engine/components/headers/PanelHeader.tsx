@@ -37,6 +37,7 @@ interface PanelHeaderProps {
       | "replace_all";
   };
   breadcrumbs?: BreadcrumbInfo[];
+  leftChildren?: React.ReactNode;
   rightChildren?: React.ReactNode;
   bottomChildren?: React.ReactNode;
   breadcrumbIndicatorColor?: string;
@@ -77,6 +78,7 @@ const PanelHeader = (
     replaceLabel,
     searchQuery,
     breadcrumbs,
+    leftChildren,
     rightChildren,
     bottomChildren,
     breadcrumbIndicatorColor,
@@ -174,6 +176,7 @@ const PanelHeader = (
             ? "never"
             : "always"
         }
+        leftChildren={leftChildren}
         rightChildren={rightChildren}
         onBack={onBack}
         onSearch={onSearch}

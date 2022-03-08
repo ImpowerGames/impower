@@ -29,7 +29,6 @@ import { StringInputProps } from "../../../impower-route/components/inputs/Strin
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { getContainerType } from "../../types/selectors/windowSelectors";
-import { DataWindowType } from "../../types/state/dataPanelState";
 
 const getOptions = (
   inspector: ImpowerGameInspector,
@@ -170,9 +169,8 @@ const ReferenceInput = React.memo(
 
     const { gameInspector } = useContext(GameInspectorContext);
     const [gameEngineState] = useContext(ProjectEngineContext);
-    const project = gameEngineState.present.project.data as GameProjectData;
-    const windowType = gameEngineState.present.window
-      .type as unknown as DataWindowType;
+    const project = gameEngineState.project.data as GameProjectData;
+    const windowType = gameEngineState.window.type;
     const containerType = useMemo(
       () => getContainerType(windowType),
       [windowType]
@@ -180,10 +178,10 @@ const ReferenceInput = React.memo(
     const inspectedContainerReference = useMemo(
       () =>
         containerType
-          ? gameEngineState?.present?.dataPanel?.panels?.[windowType]?.Container
+          ? gameEngineState?.panel?.panels?.[windowType]?.Container
               ?.interactions?.Selected?.[0]
           : undefined,
-      [containerType, gameEngineState.present.dataPanel.panels, windowType]
+      [containerType, gameEngineState.panel.panels, windowType]
     ) as Reference;
 
     const isUsingConstantValue =

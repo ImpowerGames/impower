@@ -31,9 +31,8 @@ import {
   gamePreviewMenuItems,
   GamePreviewMenuItemType,
 } from "../../types/info/menus";
-import { Control, Layout, Mode, Playback } from "../../types/state/testState";
+import { Control, Mode } from "../../types/state/testState";
 import { WindowType } from "../../types/state/windowState";
-import UndoRedoControl from "../iconButtons/UndoRedoControl";
 
 const DrawerMenu = dynamic(
   () => import("../../../impower-route/components/popups/DrawerMenu"),
@@ -142,13 +141,13 @@ const PlaybackControls = React.memo(
             <BackwardSolidIcon />
           </FontIcon>
         </IconButton>
-        <IconButton onClick={control === Control.Pause ? onPlay : onPause}>
+        <IconButton onClick={control === "Pause" ? onPlay : onPause}>
           <FontIcon
-            aria-label={control === Control.Pause ? "Play" : "Pause"}
+            aria-label={control === "Pause" ? "Play" : "Pause"}
             size={24}
             color={theme.colors.white40}
           >
-            {control === Control.Pause ? <PlaySolidIcon /> : <PauseSolidIcon />}
+            {control === "Pause" ? <PlaySolidIcon /> : <PauseSolidIcon />}
           </FontIcon>
         </IconButton>
         <IconButton
@@ -186,44 +185,44 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
 
   const [state, dispatch] = useContext(ProjectEngineContext);
   const { fullscreen, setFullscreen } = useContext(ScreenContext);
-  const doc = state.present.project?.data?.doc;
+  const doc = state.project?.data?.doc;
 
   const [menuOpen, setMenuOpen] = React.useState<boolean>();
   const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
 
-  const { mode, control, debug, layout } = state.present.test;
+  const { mode, control, debug, layout } = state.test;
 
   const theme = useTheme();
 
   const handlePlay = useCallback((): void => {
-    dispatch(testControlChange(Control.Play));
+    dispatch(testControlChange("Play"));
   }, [dispatch]);
   const handlePause = useCallback((): void => {
-    dispatch(testControlChange(Control.Pause));
+    dispatch(testControlChange("Pause"));
   }, [dispatch]);
   const handleSkipBackward = useCallback((): void => {
-    dispatch(testPlaybackChange(Playback.SkipBackward));
+    dispatch(testPlaybackChange("SkipBackward"));
   }, [dispatch]);
   const handleSkipForward = useCallback((): void => {
-    dispatch(testPlaybackChange(Playback.SkipForward));
+    dispatch(testPlaybackChange("SkipForward"));
   }, [dispatch]);
   const handleRewindStart = useCallback((): void => {
-    dispatch(testPlaybackChange(Playback.Backward));
+    dispatch(testPlaybackChange("Backward"));
   }, [dispatch]);
   const handleRewindStop = useCallback((): void => {
-    dispatch(testPlaybackChange(Playback.Default));
+    dispatch(testPlaybackChange("Default"));
   }, [dispatch]);
   const handleFastForwardStart = useCallback((): void => {
-    dispatch(testPlaybackChange(Playback.Forward));
+    dispatch(testPlaybackChange("Forward"));
   }, [dispatch]);
   const handleFastForwardStop = useCallback((): void => {
-    dispatch(testPlaybackChange(Playback.Default));
+    dispatch(testPlaybackChange("Default"));
   }, [dispatch]);
   const handleChangeTestMode = useCallback(
     (m: Mode): void => {
-      if (mode === Mode.Test) {
+      if (mode === "Test") {
         dispatch(projectValidate());
-        dispatch(testControlChange(Control.Play));
+        dispatch(testControlChange("Play"));
       }
       dispatch(testModeChange(m));
     },
@@ -242,10 +241,10 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
     [dispatch]
   );
   const handleViewGame = useCallback((): void => {
-    dispatch(testLayoutChange(Layout.Game));
+    dispatch(testLayoutChange("Game"));
   }, [dispatch]);
   const handleViewPage = useCallback((): void => {
-    dispatch(testLayoutChange(Layout.Page));
+    dispatch(testLayoutChange("Page"));
   }, [dispatch]);
 
   const handleBrowserNavigation = useCallback(
@@ -295,7 +294,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   );
 
   const isPlayable = isGameDocument(doc);
-  const modeTooltip = mode === Mode.Edit ? "Test Game" : "Edit Game";
+  const modeTooltip = mode === "Edit" ? "Test Game" : "Edit Game";
 
   const menuItemKeys: GamePreviewMenuItemType[] = useMemo(
     () =>
@@ -311,9 +310,9 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
             }
             if (
               (menuItemType === GamePreviewMenuItemType.ViewGame &&
-                layout === Layout.Game) ||
+                layout === "Game") ||
               (menuItemType === GamePreviewMenuItemType.ViewPage &&
-                layout === Layout.Page)
+                layout === "Page")
             ) {
               return false;
             }
@@ -323,19 +322,19 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
     [debug, isPlayable, layout]
   );
 
-  const title = layout === Layout.Page ? "Page Preview" : "Game Preview";
+  const title = layout === "Page" ? "Page Preview" : "Game Preview";
 
   return (
     <StyledToolbar
       style={{
-        backgroundColor: mode === Mode.Test ? "black" : undefined,
+        backgroundColor: mode === "Test" ? "black" : undefined,
       }}
     >
       <StyledLeftArea>
-        {isPlayable && windowType !== WindowType.Test && (
+        {isPlayable && windowType !== "Test" && (
           <IconButton
             onClick={(): void =>
-              handleChangeTestMode(mode === Mode.Edit ? Mode.Test : Mode.Edit)
+              handleChangeTestMode(mode === "Edit" ? "Test" : "Edit")
             }
             style={{ color: theme.colors.white40 }}
           >
@@ -344,19 +343,19 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
                 aria-label={modeTooltip}
                 size={theme.fontSize.smallerIcon}
               >
-                {mode === Mode.Edit ? (
+                {mode === "Edit" ? (
                   <RocketLaunchRegularIcon />
                 ) : (
                   <TrianglePersonDiggingRegularIcon />
                 )}
               </FontIcon>
               <StyledButtonTypography>
-                {mode === Mode.Edit ? "PLAY" : "EDIT"}
+                {mode === "Edit" ? "PLAY" : "EDIT"}
               </StyledButtonTypography>
             </StyledButtonContent>
           </IconButton>
         )}
-        {(!isPlayable || windowType === WindowType.Test) && (
+        {(!isPlayable || windowType === "Test") && (
           <IconButton
             onClick={(): void => handleFullscreen(!fullscreen)}
             style={{ color: theme.colors.white40 }}
@@ -370,10 +369,10 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
           </IconButton>
         )}
       </StyledLeftArea>
-      {mode === Mode.Edit && (
+      {mode === "Edit" && (
         <StyledTitleTypography>{title}</StyledTitleTypography>
       )}
-      {mode === Mode.Test && (
+      {mode === "Test" && (
         <PlaybackControls
           control={control}
           onSkipBackward={handleSkipBackward}
@@ -387,7 +386,6 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
         />
       )}
       <StyledRightArea>
-        {mode === Mode.Edit && <UndoRedoControl />}
         {menuItemKeys?.length > 0 && (
           <>
             <IconButton

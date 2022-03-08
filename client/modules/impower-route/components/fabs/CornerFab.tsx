@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useBodyPaddingCallback } from "../../../impower-route";
+import { useBodyPaddingCallback } from "../..";
 import CornerButton from "./CornerButton";
 import StyledButtonChildrenArea from "./StyledButtonChildrenArea";
 
