@@ -5,10 +5,10 @@ import { Mark } from "../types/mark";
 import { Type } from "../types/type";
 import { finishLink } from "../utils/markdown";
 import {
-  AudioNoteParenthesis,
-  DynamicTagBrace,
+  AudioNoteStart,
+  DynamicTagStart,
   EmphasisAsterisk,
-  ImageNoteBracket,
+  ImageNoteStart,
   ImageStart,
   LinkStart,
   UnderlineUnderscore,
@@ -169,108 +169,6 @@ export const DefaultInline: {
     );
   },
 
-  ImageNote(cx, next, start) {
-    const charCodeBefore = "[".charCodeAt(0);
-    const charCodeAfter = "]".charCodeAt(0);
-    const validStart = next === charCodeBefore;
-    const validEnd = next === charCodeAfter;
-    if (!validStart && !validEnd) {
-      return -1;
-    }
-    let pos = start + 1;
-    while (cx.char(pos) === next) {
-      pos += 1;
-    }
-    const before = cx.slice(start - 1, start);
-    const after = cx.slice(pos, pos + 1);
-    const pBefore = Punctuation.test(before);
-    const pAfter = Punctuation.test(after);
-    const sBefore = /\s|^$/.test(before);
-    const sAfter = /\s|^$/.test(after);
-    const leftFlanking = !sAfter && (!pAfter || sBefore || pBefore);
-    const rightFlanking = !sBefore && (!pBefore || sAfter || pAfter);
-    const canOpen =
-      leftFlanking && (next === charCodeBefore || !rightFlanking || pBefore);
-    const canClose =
-      rightFlanking && (next === charCodeAfter || !leftFlanking || pAfter);
-    return cx.append(
-      new InlineDelimiter(
-        ImageNoteBracket,
-        start,
-        pos,
-        (canOpen ? Mark.Open : 0) | (canClose ? Mark.Close : 0)
-      )
-    );
-  },
-
-  AudioNote(cx, next, start) {
-    const charCodeBefore = "(".charCodeAt(0);
-    const charCodeAfter = ")".charCodeAt(0);
-    const validStart = next === charCodeBefore;
-    const validEnd = next === charCodeAfter;
-    if (!validStart && !validEnd) {
-      return -1;
-    }
-    let pos = start + 1;
-    while (cx.char(pos) === next) {
-      pos += 1;
-    }
-    const before = cx.slice(start - 1, start);
-    const after = cx.slice(pos, pos + 1);
-    const pBefore = Punctuation.test(before);
-    const pAfter = Punctuation.test(after);
-    const sBefore = /\s|^$/.test(before);
-    const sAfter = /\s|^$/.test(after);
-    const leftFlanking = !sAfter && (!pAfter || sBefore || pBefore);
-    const rightFlanking = !sBefore && (!pBefore || sAfter || pAfter);
-    const canOpen =
-      leftFlanking && (next === charCodeBefore || !rightFlanking || pBefore);
-    const canClose =
-      rightFlanking && (next === charCodeAfter || !leftFlanking || pAfter);
-    return cx.append(
-      new InlineDelimiter(
-        AudioNoteParenthesis,
-        start,
-        pos,
-        (canOpen ? Mark.Open : 0) | (canClose ? Mark.Close : 0)
-      )
-    );
-  },
-
-  DynamicTag(cx, next, start) {
-    const charCodeBefore = "{".charCodeAt(0);
-    const charCodeAfter = "}".charCodeAt(0);
-    const validStart = next === charCodeBefore;
-    const validEnd = next === charCodeAfter;
-    if (!validStart && !validEnd) {
-      return -1;
-    }
-    let pos = start + 1;
-    while (cx.char(pos) === next) {
-      pos += 1;
-    }
-    const before = cx.slice(start - 1, start);
-    const after = cx.slice(pos, pos + 1);
-    const pBefore = Punctuation.test(before);
-    const pAfter = Punctuation.test(after);
-    const sBefore = /\s|^$/.test(before);
-    const sAfter = /\s|^$/.test(after);
-    const leftFlanking = !sAfter && (!pAfter || sBefore || pBefore);
-    const rightFlanking = !sBefore && (!pBefore || sAfter || pAfter);
-    const canOpen =
-      leftFlanking && (next === charCodeBefore || !rightFlanking || pBefore);
-    const canClose =
-      rightFlanking && (next === charCodeAfter || !leftFlanking || pAfter);
-    return cx.append(
-      new InlineDelimiter(
-        DynamicTagBrace,
-        start,
-        pos,
-        (canOpen ? Mark.Open : 0) | (canClose ? Mark.Close : 0)
-      )
-    );
-  },
-
   HardBreak(cx, next, start) {
     if (next === 92 /* '\\' */ && cx.char(start + 1) === 10 /* '\n' */) {
       return cx.append(new Element(Type.HardBreak, start, start + 2));
@@ -287,20 +185,112 @@ export const DefaultInline: {
     return -1;
   },
 
+  ImageNote(cx, next, start) {
+    const open = cx.slice(start, start + 2);
+    if (open !== "[[") {
+      return -1;
+    }
+    return cx.append(
+      new InlineDelimiter(ImageNoteStart, start, start + 2, Mark.Open)
+    );
+  },
+
+  AudioNote(cx, next, start) {
+    const open = cx.slice(start, start + 2);
+    if (open !== "((") {
+      return -1;
+    }
+    return cx.append(
+      new InlineDelimiter(AudioNoteStart, start, start + 2, Mark.Open)
+    );
+  },
+
+  DynamicTag(cx, next, start) {
+    const open = cx.slice(start, start + 2);
+    if (open !== "{{") {
+      return -1;
+    }
+    return cx.append(
+      new InlineDelimiter(DynamicTagStart, start, start + 2, Mark.Open)
+    );
+  },
+
+  TagEnd(cx, next, start) {
+    const close = cx.slice(start - 1, start + 1);
+    if (close !== "]]" && close !== "))" && close !== "}}") {
+      return -1;
+    }
+    // Scanning back to the start marker
+    for (let i = cx.parts.length - 1; i >= 0; i -= 1) {
+      const part = cx.parts[i];
+      if (
+        part instanceof InlineDelimiter &&
+        (part.type === ImageNoteStart ||
+          part.type === AudioNoteStart ||
+          part.type === DynamicTagStart)
+      ) {
+        // Finish the content and replace the entire range in
+        // this.parts with the link/image node.
+        const type =
+          part.type === ImageNoteStart
+            ? Type.ImageNote
+            : part.type === AudioNoteStart
+            ? Type.AudioNote
+            : Type.DynamicTag;
+        const mark =
+          type === Type.ImageNote
+            ? Type.ImageNoteMark
+            : type === Type.AudioNote
+            ? Type.AudioNoteMark
+            : Type.DynamicTagMark;
+        const startPos = part.from;
+        const endPos = start + 1;
+        const content = [];
+        content.unshift(new Element(mark, startPos, startPos + 2));
+        content.push(new Element(mark, endPos - 2, endPos));
+        const tag = new Element(type, startPos, endPos, content);
+        cx.parts[i] = tag;
+        // Set any open-link markers before this link to invalid.
+        if (
+          part.type === ImageNoteStart ||
+          part.type === AudioNoteStart ||
+          part.type === DynamicTagStart
+        )
+          for (let j = 0; j < i; j += 1) {
+            const p = cx.parts[j];
+            if (
+              p instanceof InlineDelimiter &&
+              (p.type === ImageNoteStart ||
+                p.type === AudioNoteStart ||
+                p.type === DynamicTagStart)
+            ) {
+              p.side = 0;
+            }
+          }
+        return tag.to;
+      }
+    }
+    return -1;
+  },
+
   Link(cx, next, start) {
-    return next === 91 /* '[' */
+    const charCodeOpen = "[".charCodeAt(0);
+    return next === charCodeOpen
       ? cx.append(new InlineDelimiter(LinkStart, start, start + 1, Mark.Open))
       : -1;
   },
 
   Image(cx, next, start) {
-    return next === 33 /* '!' */ && cx.char(start + 1) === 91 /* '[' */
+    const charCodeOpen = "[".charCodeAt(0);
+    const charCodeMark = "!".charCodeAt(0);
+    return next === charCodeMark && cx.char(start + 1) === charCodeOpen
       ? cx.append(new InlineDelimiter(ImageStart, start, start + 2, Mark.Open))
       : -1;
   },
 
   LinkEnd(cx, next, start) {
-    if (next !== 93 /* ']' */) {
+    const charCodeClose = "]".charCodeAt(0);
+    if (next !== charCodeClose) {
       return -1;
     }
     // Scanning back to the next link/image start marker
