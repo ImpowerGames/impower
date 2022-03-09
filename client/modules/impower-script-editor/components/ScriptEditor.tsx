@@ -27,6 +27,7 @@ import {
   FountainParseResult,
   parseFountain,
 } from "../../impower-script-parser";
+import { colors } from "../constants/colors";
 import { SearchAction, SerializableEditorState } from "../types/editor";
 import { fountain } from "../types/fountain";
 import { fountainLanguage, tags as t } from "../types/fountainLanguage";
@@ -44,31 +45,6 @@ const marginPlugin = ViewPlugin.fromClass(
     provide: PluginField.scrollMargins.from((value) => value.margin),
   }
 );
-
-const colors = {
-  invalid: "#FFFFFF",
-  constant: "#FFFF00",
-  keyword: "#00D0D0",
-  parameter: "#BFA4A4",
-  operator: "#D0D0D0",
-
-  comment: "#608B4E",
-  section: "#FF81FF",
-  sceneHeading: "#FF8080",
-  transition: "#BEA3A3",
-  asset: "#9CDCFE",
-  tag: "#D25252",
-  logic: "#00FF00",
-  flow: "#FFFF00",
-  titleKey: "#EFC090",
-  titleValue: "#BFA4A4",
-  character: "#4EC9B0",
-  dialogue: "#CE9178",
-  dualDialogue: "#79ABFF",
-  parenthetical: "#D7BA7D",
-  pageBreak: "#606080",
-  formatting: "#79ABFF",
-};
 
 const myHighlightStyle = HighlightStyle.define([
   {
@@ -324,8 +300,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         EditorView.theme(
           {
             "&": {
-              color: "white",
-              backgroundColor: "#0000004D",
+              fontSize: "0.9375rem",
+              color: colors.foreground,
+              backgroundColor: colors.background,
               flex: 1,
             },
             ".cm-content": {
@@ -339,7 +316,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             },
             ".cm-gutters": {
               backgroundColor: "#00000066",
-              color: "#ddd",
+              color: colors.lineNumber,
               border: "none",
             },
             ".cm-gutter.cm-lineNumbers": {

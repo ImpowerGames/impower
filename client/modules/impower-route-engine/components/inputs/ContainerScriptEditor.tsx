@@ -15,6 +15,7 @@ import {
   getScriptAugmentations,
 } from "../../../impower-game/parser";
 import { FadeAnimation } from "../../../impower-route";
+import { colors } from "../../../impower-script-editor";
 import {
   SearchAction,
   SerializableEditorState,
@@ -48,7 +49,6 @@ const StyledContainerScriptEditor = styled.div`
   display: flex;
   flex-direction: column;
   position: relative;
-  background-color: ${(props): string => props.theme.colors.black30};
 `;
 
 interface ContainerScriptEditorProps {
@@ -306,7 +306,9 @@ const ContainerScriptEditor = React.memo(
     );
 
     return (
-      <StyledContainerScriptEditor>
+      <StyledContainerScriptEditor
+        style={{ backgroundColor: colors.background }}
+      >
         {(transitionState === "idle" ||
           (transitionState === "exit" && !initial)) && (
           <FadeAnimation initial={0} animate={1}>
