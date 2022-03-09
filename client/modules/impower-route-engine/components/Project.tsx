@@ -299,6 +299,7 @@ const Project = React.memo((): JSX.Element => {
 
   const [windowTransitionState, setWindowTransitionState] =
     useState<TransitionState>(TransitionState.initial);
+  // Default to portrait mode to prevent flicker on mobile
   const [portrait, setPortrait] = useState<boolean>(true);
 
   const theme = useTheme();
