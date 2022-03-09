@@ -361,6 +361,7 @@ interface EngineToolbarContentProps {
     e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
     searchQuery?: SearchAction
   ) => void;
+  onOpenSearch: (e: React.MouseEvent) => void;
   onMore: (e: React.MouseEvent) => void;
 }
 
@@ -402,6 +403,7 @@ const EngineToolbarContent = React.memo(
       onBack,
       onDone,
       onSearch,
+      onOpenSearch,
       onMore,
     } = props;
 
@@ -416,19 +418,16 @@ const EngineToolbarContent = React.memo(
           search: "",
           action: "search",
         };
-        if (onSearch) {
-          onSearch(e, searchQueryRef.current);
-        }
+        onOpenSearch?.(e);
+        onSearch?.(e, searchQueryRef.current);
       },
-      [onSearch]
+      [onOpenSearch, onSearch]
     );
 
     const handleCloseSearch = useCallback(
       (e: React.MouseEvent) => {
         searchQueryRef.current = null;
-        if (onSearch) {
-          onSearch(e, searchQueryRef.current);
-        }
+        onSearch?.(e, searchQueryRef.current);
       },
       [onSearch]
     );
@@ -440,9 +439,7 @@ const EngineToolbarContent = React.memo(
           search: e.target.value,
           action,
         };
-        if (onSearch) {
-          onSearch(e, searchQueryRef.current);
-        }
+        onSearch?.(e, searchQueryRef.current);
       },
       [onSearch]
     );
@@ -483,9 +480,7 @@ const EngineToolbarContent = React.memo(
           replace: e.target.value,
           action: "search",
         };
-        if (onSearch) {
-          onSearch(e, searchQueryRef.current);
-        }
+        onSearch?.(e, searchQueryRef.current);
       },
       [onSearch]
     );
@@ -505,9 +500,7 @@ const EngineToolbarContent = React.memo(
           search: "",
           action: "search",
         };
-        if (onSearch) {
-          onSearch(e, searchQueryRef.current);
-        }
+        onSearch?.(e, searchQueryRef.current);
         if (searchInputRef.current) {
           searchInputRef.current.focus();
         }
@@ -523,9 +516,7 @@ const EngineToolbarContent = React.memo(
           caseSensitive: !searchQueryRef.current?.caseSensitive,
           action: "search",
         };
-        if (onSearch) {
-          onSearch(e, searchQueryRef.current);
-        }
+        onSearch?.(e, searchQueryRef.current);
       },
       [onSearch]
     );
@@ -538,9 +529,7 @@ const EngineToolbarContent = React.memo(
           regexp: !searchQueryRef.current?.regexp,
           action: "search",
         };
-        if (onSearch) {
-          onSearch(e, searchQueryRef.current);
-        }
+        onSearch?.(e, searchQueryRef.current);
       },
       [onSearch]
     );
@@ -552,9 +541,7 @@ const EngineToolbarContent = React.memo(
           ...(searchQueryRef.current || {}),
           action: "find_previous",
         };
-        if (onSearch) {
-          onSearch(e, searchQueryRef.current);
-        }
+        onSearch?.(e, searchQueryRef.current);
       },
       [onSearch]
     );
@@ -566,9 +553,7 @@ const EngineToolbarContent = React.memo(
           ...(searchQueryRef.current || {}),
           action: "find_next",
         };
-        if (onSearch) {
-          onSearch(e, searchQueryRef.current);
-        }
+        onSearch?.(e, searchQueryRef.current);
       },
       [onSearch]
     );
@@ -580,9 +565,7 @@ const EngineToolbarContent = React.memo(
           ...(searchQueryRef.current || {}),
           action: "replace",
         };
-        if (onSearch) {
-          onSearch(e, searchQueryRef.current);
-        }
+        onSearch?.(e, searchQueryRef.current);
       },
       [onSearch]
     );
@@ -594,9 +577,7 @@ const EngineToolbarContent = React.memo(
           ...(searchQueryRef.current || {}),
           action: "replace_all",
         };
-        if (onSearch) {
-          onSearch(e, searchQueryRef.current);
-        }
+        onSearch?.(e, searchQueryRef.current);
       },
       [onSearch]
     );
@@ -604,11 +585,9 @@ const EngineToolbarContent = React.memo(
     const handleCheckboxChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
         if (checked) {
-          if (onSelectAll) {
-            onSelectAll(e);
-          }
-        } else if (onDeselectAll) {
-          onDeselectAll(e);
+          onSelectAll?.(e);
+        } else {
+          onDeselectAll?.(e);
         }
       },
       [onDeselectAll, onSelectAll]
@@ -662,7 +641,7 @@ const EngineToolbarContent = React.memo(
               disabled={selectedPaths.length === 0}
               variant="text"
               color="secondary"
-              onClick={(e): void => onClickMoreOption(e, contextOptions[0])}
+              onClick={(e): void => onClickMoreOption?.(e, contextOptions[0])}
             >
               {contextOptions[0]}
             </StyledContextButton>
@@ -1077,11 +1056,8 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     [headerRef]
   );
 
-  const handleSearch = useCallback(
-    (
-      e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-      searchQuery?: SearchAction
-    ) => {
+  const handleOpenSearch = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent) => {
       if (e) {
         e.stopPropagation();
         e.preventDefault();
@@ -1089,9 +1065,8 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
       if (keyboardTriggerRef.current) {
         keyboardTriggerRef.current.focus();
       }
-      onSearch?.(e, searchQuery);
     },
-    [onSearch]
+    []
   );
 
   const theme = useTheme();
@@ -1175,7 +1150,8 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                   onClickMoreOption={onClickMoreOption}
                   onBack={onBack}
                   onDone={onDone}
-                  onSearch={handleSearch}
+                  onSearch={onSearch}
+                  onOpenSearch={handleOpenSearch}
                   onMore={onMore}
                 >
                   {rightChildren}
