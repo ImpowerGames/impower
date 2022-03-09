@@ -160,16 +160,6 @@ export default class MyDocument extends Document {
             as="font"
             crossOrigin="anonymous"
           />
-          <link
-            href="/fonts/courier-prime/Courier Prime Code.ttf"
-            as="font"
-            crossOrigin="anonymous"
-          />
-          <link
-            href="/fonts/courier-prime/Courier Prime Code Italic.ttf"
-            as="font"
-            crossOrigin="anonymous"
-          />
 
           <link rel="stylesheet" href="/style.css" />
 

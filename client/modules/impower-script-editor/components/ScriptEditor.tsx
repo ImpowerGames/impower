@@ -332,7 +332,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
               caretColor: "white",
             },
             ".cm-scroller": {
-              fontFamily: "Courier Prime Code",
+              fontFamily: "Courier Prime Sans",
             },
             "&.cm-focused .cm-cursor": {
               borderLeftColor: "white",

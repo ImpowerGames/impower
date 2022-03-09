@@ -43,7 +43,6 @@ export interface StyledTheme {
     main: string;
     monospace: string;
     monospaceSans: string;
-    monospaceCode: string;
     title: string;
   };
 

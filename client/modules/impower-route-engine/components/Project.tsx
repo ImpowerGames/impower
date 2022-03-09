@@ -177,14 +177,6 @@ const StyledSplitPane = styled(SplitPane)`
   }
 `;
 
-const StyledMonospaceCodeFontLoader = styled.p`
-  font-family: ${(props): string => props.theme.fontFamily.monospaceCode};
-  top: -1000vh;
-  left: -1000vw;
-  position: absolute;
-  pointer-events: none;
-`;
-
 const StyledMonospaceSansFontLoader = styled.p`
   font-family: ${(props): string => props.theme.fontFamily.monospaceSans};
   top: -1000vh;
@@ -412,13 +404,6 @@ const Project = React.memo((): JSX.Element => {
 
   return (
     <WindowTransitionContext.Provider value={windowTransitionContext}>
-      <StyledMonospaceCodeFontLoader>
-        .<b>.</b>
-        <i>.</i>
-        <b>
-          <i>.</i>
-        </b>
-      </StyledMonospaceCodeFontLoader>
       <StyledMonospaceSansFontLoader>
         .<b>.</b>
         <i>.</i>
