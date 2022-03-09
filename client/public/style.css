@@ -72,24 +72,21 @@
   font-style: normal;
   font-weight: 400;
   font-display: block;
-  src: local(""),
-    url("/fonts/courier-prime/Courier Prime Sans.ttf") format("truetype");
+  src: local(""), url("/fonts/courier-prime-sans.ttf") format("truetype");
 }
 @font-face {
   font-family: "Courier Prime Sans";
   font-style: italic;
   font-weight: 400;
   font-display: block;
-  src: local(""),
-    url("/fonts/courier-prime/Courier Prime Sans Italic.ttf") format("truetype");
+  src: local(""), url("/fonts/courier-prime-sans-italic.ttf") format("truetype");
 }
 @font-face {
   font-family: "Courier Prime Sans";
   font-style: normal;
   font-weight: 700;
   font-display: block;
-  src: local(""),
-    url("/fonts/courier-prime/Courier Prime Sans Bold.ttf") format("truetype");
+  src: local(""), url("/fonts/courier-prime-sans-bold.ttf") format("truetype");
 }
 @font-face {
   font-family: "Courier Prime Sans";
@@ -97,8 +94,7 @@
   font-weight: 700;
   font-display: block;
   src: local(""),
-    url("/fonts/courier-prime/Courier Prime Sans Bold Italic.ttf")
-      format("truetype");
+    url("/fonts/courier-prime-sans-bold-italic.ttf") format("truetype");
 }
 
 /* WARNING: webkit-scrollbar is not supported in Firefox and IE */

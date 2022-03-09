@@ -121,42 +121,42 @@ export default class MyDocument extends Document {
             crossOrigin="anonymous"
           />
           <link
-            href="../fonts/courier-prime-v5-latin-regular.woff2"
+            href="/fonts/courier-prime-v5-latin-regular.woff2"
             as="font"
             crossOrigin="anonymous"
           />
           <link
-            href="../fonts/courier-prime-v5-latin-italic.woff2"
+            href="/fonts/courier-prime-v5-latin-italic.woff2"
             as="font"
             crossOrigin="anonymous"
           />
           <link
-            href="../fonts/courier-prime-v5-latin-700.woff2"
+            href="/fonts/courier-prime-v5-latin-700.woff2"
             as="font"
             crossOrigin="anonymous"
           />
           <link
-            href="../fonts/courier-prime-v5-latin-700italic.woff2"
+            href="/fonts/courier-prime-v5-latin-700italic.woff2"
             as="font"
             crossOrigin="anonymous"
           />
           <link
-            href="/fonts/courier-prime/Courier Prime Sans.ttf"
+            href="/fonts/courier-prime-sans.ttf"
             as="font"
             crossOrigin="anonymous"
           />
           <link
-            href="/fonts/courier-prime/Courier Prime Sans Italic.ttf"
+            href="/fonts/courier-prime-sans-italic.ttf"
             as="font"
             crossOrigin="anonymous"
           />
           <link
-            href="/fonts/courier-prime/Courier Prime Sans Bold.ttf"
+            href="/fonts/courier-prime-sans-bold.ttf"
             as="font"
             crossOrigin="anonymous"
           />
           <link
-            href="/fonts/courier-prime/Courier Prime Sans Bold Italic.ttf"
+            href="/fonts/courier-prime-sans-bold-italic.ttf"
             as="font"
             crossOrigin="anonymous"
           />
