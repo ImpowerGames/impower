@@ -797,7 +797,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
   ]);
 
   const handleDeleteData = useCallback(
-    (references: Reference[], deleteDescription: string) => {
+    (references: Reference[]) => {
       if (mode === "Test" || section === "Preview") {
         return;
       }
@@ -852,7 +852,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
     const inspectedSelectedReferences = inspectedItemReferences.filter((r) =>
       inspectedSelectedIds.includes(r.refId)
     );
-    handleDeleteData(inspectedSelectedReferences, "Delete");
+    handleDeleteData(inspectedSelectedReferences);
   }, [
     mode,
     inspectedItemReferences,
@@ -903,7 +903,7 @@ const ItemPanel = React.memo((props: ItemPanelProps): JSX.Element => {
       return;
     }
     const ids = copyData(true);
-    handleDeleteData(ids, "Cut");
+    handleDeleteData(ids);
   }, [mode, copyData, handleDeleteData]);
   const handleCutDataShortcut = useCallback(() => {
     if (openPanel !== "Item" || changeTypeTargetId !== "") {
