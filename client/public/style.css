@@ -37,28 +37,29 @@
   font-style: normal;
   font-weight: normal;
   font-display: swap;
-  src: url("/fonts/courier-prime/Courier Prime.ttf");
+  src: url("/fonts/courier-prime/Courier Prime.ttf") format("truetype");
 }
 @font-face {
   font-family: "Courier Prime";
   font-style: italic;
   font-weight: normal;
   font-display: swap;
-  src: url("/fonts/courier-prime/Courier Prime Italic.ttf");
+  src: url("/fonts/courier-prime/Courier Prime Italic.ttf") format("truetype");
 }
 @font-face {
   font-family: "Courier Prime";
   font-style: normal;
   font-weight: bold;
   font-display: swap;
-  src: url("/fonts/courier-prime/Courier Prime Bold.ttf");
+  src: url("/fonts/courier-prime/Courier Prime Bold.ttf") format("truetype");
 }
 @font-face {
   font-family: "Courier Prime";
   font-style: italic;
   font-weight: bold;
   font-display: swap;
-  src: url("/fonts/courier-prime/Courier Prime Bold Italic.ttf");
+  src: url("/fonts/courier-prime/Courier Prime Bold Italic.ttf")
+    format("truetype");
 }
 
 @font-face {
@@ -66,28 +67,31 @@
   font-style: normal;
   font-weight: normal;
   font-display: swap;
-  src: url("/fonts/courier-prime/Courier Prime Sans.ttf");
+  src: url("/fonts/courier-prime/Courier Prime Sans.ttf") format("truetype");
 }
 @font-face {
   font-family: "Courier Prime Sans";
   font-style: italic;
   font-weight: normal;
   font-display: swap;
-  src: url("/fonts/courier-prime/Courier Prime Sans Italic.ttf");
+  src: url("/fonts/courier-prime/Courier Prime Sans Italic.ttf")
+    format("truetype");
 }
 @font-face {
   font-family: "Courier Prime Sans";
   font-style: normal;
   font-weight: bold;
   font-display: swap;
-  src: url("/fonts/courier-prime/Courier Prime Sans Bold.ttf");
+  src: url("/fonts/courier-prime/Courier Prime Sans Bold.ttf")
+    format("truetype");
 }
 @font-face {
   font-family: "Courier Prime Sans";
   font-style: italic;
   font-weight: bold;
   font-display: swap;
-  src: url("/fonts/courier-prime/Courier Prime Sans Bold Italic.ttf");
+  src: url("/fonts/courier-prime/Courier Prime Sans Bold Italic.ttf")
+    format("truetype");
 }
 
 @font-face {
@@ -95,14 +99,15 @@
   font-style: normal;
   font-weight: normal;
   font-display: swap;
-  src: url("/fonts/courier-prime/Courier Prime Code.ttf");
+  src: url("/fonts/courier-prime/Courier Prime Code.ttf") format("truetype");
 }
 @font-face {
   font-family: "Courier Prime Code";
   font-style: italic;
   font-weight: normal;
   font-display: swap;
-  src: url("/fonts/courier-prime/Courier Prime Code Italic.ttf");
+  src: url("/fonts/courier-prime/Courier Prime Code Italic.ttf")
+    format("truetype");
 }
 
 /* WARNING: webkit-scrollbar is not supported in Firefox and IE */
