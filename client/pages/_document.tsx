@@ -120,6 +120,56 @@ export default class MyDocument extends Document {
             as="font"
             crossOrigin="anonymous"
           />
+          <link
+            href="/fonts/courier-prime/Courier Prime.ttf"
+            as="font"
+            crossOrigin="anonymous"
+          />
+          <link
+            href="/fonts/courier-prime/Courier Prime Italic.ttf"
+            as="font"
+            crossOrigin="anonymous"
+          />
+          <link
+            href="/fonts/courier-prime/Courier Prime Bold.ttf"
+            as="font"
+            crossOrigin="anonymous"
+          />
+          <link
+            href="/fonts/courier-prime/Courier Prime Bold Italic.ttf"
+            as="font"
+            crossOrigin="anonymous"
+          />
+          <link
+            href="/fonts/courier-prime/Courier Prime Sans.ttf"
+            as="font"
+            crossOrigin="anonymous"
+          />
+          <link
+            href="/fonts/courier-prime/Courier Prime Sans Italic.ttf"
+            as="font"
+            crossOrigin="anonymous"
+          />
+          <link
+            href="/fonts/courier-prime/Courier Prime Sans Bold.ttf"
+            as="font"
+            crossOrigin="anonymous"
+          />
+          <link
+            href="/fonts/courier-prime/Courier Prime Sans Bold Italic.ttf"
+            as="font"
+            crossOrigin="anonymous"
+          />
+          <link
+            href="/fonts/courier-prime/Courier Prime Code.ttf"
+            as="font"
+            crossOrigin="anonymous"
+          />
+          <link
+            href="/fonts/courier-prime/Courier Prime Code Italic.ttf"
+            as="font"
+            crossOrigin="anonymous"
+          />
 
           <link rel="stylesheet" href="/style.css" />
 
