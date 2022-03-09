@@ -216,13 +216,15 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     [theme.minHeight.navigationBar]
   );
 
+  const showChart = windowType === "Logic" && !scripting;
+
   const backgroundStyle: CSSProperties = useMemo(
     () => ({
-      overflowX: scripting ? undefined : "scroll",
-      overflowY: scripting ? undefined : "scroll",
-      ...(!scripting && portrait ? fixedStyle : {}),
+      overflowX: showChart ? "scroll" : undefined,
+      overflowY: showChart ? "scroll" : undefined,
+      ...(showChart && portrait ? fixedStyle : {}),
     }),
-    [fixedStyle, portrait, scripting]
+    [fixedStyle, portrait, showChart]
   );
 
   const overlayStyle: CSSProperties = useMemo(

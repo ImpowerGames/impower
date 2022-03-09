@@ -362,6 +362,7 @@ interface EngineToolbarContentProps {
     searchQuery?: SearchAction
   ) => void;
   onOpenSearch: (e: React.MouseEvent) => void;
+  onCloseSearch: (e: React.MouseEvent) => void;
   onMore: (e: React.MouseEvent) => void;
 }
 
@@ -404,6 +405,7 @@ const EngineToolbarContent = React.memo(
       onDone,
       onSearch,
       onOpenSearch,
+      onCloseSearch,
       onMore,
     } = props;
 
@@ -427,9 +429,10 @@ const EngineToolbarContent = React.memo(
     const handleCloseSearch = useCallback(
       (e: React.MouseEvent) => {
         searchQueryRef.current = null;
+        onCloseSearch?.(e);
         onSearch?.(e, searchQueryRef.current);
       },
-      [onSearch]
+      [onCloseSearch, onSearch]
     );
 
     const handleSearchChange = useCallback(
@@ -1064,6 +1067,24 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     if (keyboardTriggerRef.current) {
       keyboardTriggerRef.current.focus();
     }
+    const bottomNavigationBars = document.querySelectorAll(
+      `.bottom-navigation-bar`
+    );
+    bottomNavigationBars.forEach((el: HTMLElement) => {
+      el.style.display = "none";
+    });
+  }, []);
+  const handleCloseSearch = useCallback((e: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    const bottomNavigationBars = document.querySelectorAll(
+      `.bottom-navigation-bar`
+    );
+    bottomNavigationBars.forEach((el: HTMLElement) => {
+      el.style.display = null;
+    });
   }, []);
 
   const theme = useTheme();
@@ -1149,6 +1170,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                   onDone={onDone}
                   onSearch={onSearch}
                   onOpenSearch={handleOpenSearch}
+                  onCloseSearch={handleCloseSearch}
                   onMore={onMore}
                 >
                   {rightChildren}
