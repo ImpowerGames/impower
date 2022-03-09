@@ -31,6 +31,16 @@ import { useScrollParent } from "../../../impower-react-virtualization";
 import { TextField } from "../../../impower-route";
 import { SearchAction } from "../../../impower-script-editor";
 
+const StyledKeyboardTrigger = styled.input`
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  pointer-events: none;
+`;
+
 const StyledFixedSpacer = styled.div`
   margin-top: env(safe-area-inset-top, 0);
 `;
@@ -1022,6 +1032,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
 
   const [headerArea, setHeaderArea] = useState<HTMLElement>();
   const [scrolledDown, setScrolledDown] = useState(false);
+  const keyboardTriggerRef = useRef<HTMLInputElement>();
 
   const scrollParent = useScrollParent(headerArea);
 
@@ -1066,6 +1077,23 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     [headerRef]
   );
 
+  const handleSearch = useCallback(
+    (
+      e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
+      searchQuery?: SearchAction
+    ) => {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      if (keyboardTriggerRef.current) {
+        keyboardTriggerRef.current.focus();
+      }
+      onSearch?.(e, searchQuery);
+    },
+    [onSearch]
+  );
+
   const theme = useTheme();
 
   const position =
@@ -1074,6 +1102,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
 
   return (
     <>
+      <StyledKeyboardTrigger aria-hidden="true" ref={keyboardTriggerRef} />
       <StyledFixedSpacer
         style={{
           display:
@@ -1146,7 +1175,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                   onClickMoreOption={onClickMoreOption}
                   onBack={onBack}
                   onDone={onDone}
-                  onSearch={onSearch}
+                  onSearch={handleSearch}
                   onMore={onMore}
                 >
                   {rightChildren}

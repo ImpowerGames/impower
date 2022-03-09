@@ -49,6 +49,9 @@ const StyledContainerScriptEditor = styled.div`
   display: flex;
   flex-direction: column;
   position: relative;
+  & * {
+    user-select: text;
+  }
 `;
 
 interface ContainerScriptEditorProps {

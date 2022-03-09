@@ -13,8 +13,8 @@ import { MemberAccess } from "../../impower-data-state";
 import { isGameDocument } from "../../impower-data-store";
 import { NavigationContext } from "../../impower-navigation";
 import {
+  BottomNavigationBar,
   layout,
-  Navbar,
   PageNavigationBar,
   ScreenContext,
   TopLevelTransition,
@@ -98,7 +98,7 @@ const StyledProject = styled.div`
   flex-direction: column;
   height: 100vh;
 
-  * {
+  & * {
     user-select: none;
     touch-callout: none;
   }
@@ -439,7 +439,7 @@ const Project = React.memo((): JSX.Element => {
           </StyledProjectContentArea>
         </StyledProjectTopArea>
         {!fullscreen && footerButtons?.length > 1 && (
-          <Navbar
+          <BottomNavigationBar
             buttons={footerButtons}
             value={windowType}
             onChange={handleChange}

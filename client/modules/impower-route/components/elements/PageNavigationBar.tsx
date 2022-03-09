@@ -167,6 +167,7 @@ const PageNavigationBar = (props: PageNavigationBarProps): JSX.Element => {
   return (
     <>
       <StyledAppBar
+        className="navigation-bar"
         key={appBarPosition}
         style={{
           color: "white",

@@ -8,6 +8,7 @@ import React, {
   useEffect,
   useRef,
 } from "react";
+import { BottomNavigationBarSpacer } from "../../../impower-route";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 
@@ -151,8 +152,6 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
         color: "white",
         ...panelStyle,
         ...style,
-        marginBottom: portrait ? undefined : theme.minHeight.navigationBar,
-        paddingBottom: portrait ? theme.minHeight.navigationBar : undefined,
       }}
     >
       <StyledBackground
@@ -173,6 +172,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
       <StyledOverlay ref={overlayRef} style={overlayStyle}>
         {overlay}
       </StyledOverlay>
+      <BottomNavigationBarSpacer />
     </StyledPanel>
   );
 };

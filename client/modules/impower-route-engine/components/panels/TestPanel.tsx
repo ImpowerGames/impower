@@ -25,7 +25,10 @@ import { LogData } from "../../../impower-game/game";
 import { FontIcon } from "../../../impower-icon";
 import { TransparencyPattern } from "../../../impower-react-color-picker";
 import { VirtualizedItem } from "../../../impower-react-virtualization";
-import { AccessibleEvent } from "../../../impower-route";
+import {
+  AccessibleEvent,
+  BottomNavigationBarSpacer,
+} from "../../../impower-route";
 import FadeAnimation from "../../../impower-route/components/animations/FadeAnimation";
 import UnmountAnimation from "../../../impower-route/components/animations/UnmountAnimation";
 import PlayerPreview from "../../../impower-route/components/elements/PlayerPreview";
@@ -77,6 +80,11 @@ const StyledTestPlayer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: stretch;
+`;
+
+const StyledTestPlayerContent = styled.div`
+  flex: 1;
+  position: relative;
 `;
 
 const StyledOverlay = styled.div`
@@ -400,32 +408,35 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
             : { backgroundColor: "black", backgroundImage: "none" }
         }
       />
-      <Player
-        startTime={startTime}
-        active={mode === "Test"}
-        control={control}
-        project={project}
-        game={game}
-        gameBucketFolderId={state?.project?.id}
-        runner={gameRunner}
-        logoSrc="/logo.png"
-        onInitialized={handlePlayerInitialized}
-        onCreateGame={onCreateGame}
-      >
-        {mode === "Edit" && layout === "Page" && (
-          <PlayerPreview
-            doc={doc}
-            backgroundPosition={getBackgroundPosition(
-              project?.instances?.configs?.data?.ScaleConfig?.autoCenter
-            )}
-            backgroundSize={getBackgroundSize(
-              project?.instances?.configs?.data?.ScaleConfig?.mode
-            )}
-            onPlay={handleClickPlay}
-          />
-        )}
-      </Player>
-      <TestOverlay debug={debug} logs={logs} onClickLog={handleClickLog} />
+      <StyledTestPlayerContent>
+        <Player
+          startTime={startTime}
+          active={mode === "Test"}
+          control={control}
+          project={project}
+          game={game}
+          gameBucketFolderId={state?.project?.id}
+          runner={gameRunner}
+          logoSrc="/logo.png"
+          onInitialized={handlePlayerInitialized}
+          onCreateGame={onCreateGame}
+        >
+          {mode === "Edit" && layout === "Page" && (
+            <PlayerPreview
+              doc={doc}
+              backgroundPosition={getBackgroundPosition(
+                project?.instances?.configs?.data?.ScaleConfig?.autoCenter
+              )}
+              backgroundSize={getBackgroundSize(
+                project?.instances?.configs?.data?.ScaleConfig?.mode
+              )}
+              onPlay={handleClickPlay}
+            />
+          )}
+        </Player>
+        <TestOverlay debug={debug} logs={logs} onClickLog={handleClickLog} />
+      </StyledTestPlayerContent>
+      <BottomNavigationBarSpacer />
     </StyledTestPlayer>
   );
 });
@@ -467,15 +478,8 @@ const TestPanelContent = React.memo(
     const width = project?.instances?.configs?.data?.ScaleConfig?.width;
     const height = project?.instances?.configs?.data?.ScaleConfig?.height;
 
-    const theme = useTheme();
-
     return (
-      <StyledTestPanelContent
-        ref={scrollParentRef}
-        style={{
-          marginBottom: theme.minHeight.navigationBar,
-        }}
-      >
+      <StyledTestPanelContent ref={scrollParentRef}>
         <Measure bounds onResize={handleResize}>
           {({ measureRef }): JSX.Element => (
             <Page

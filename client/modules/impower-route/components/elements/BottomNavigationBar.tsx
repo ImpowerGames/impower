@@ -63,49 +63,52 @@ const StyledIcon = styled.div`
   }
 `;
 
-interface NavToolbarProps {
+interface BottomNavigationBarProps {
   buttons: ButtonInfo[];
   value: string;
   onChange: (event: React.ChangeEvent<unknown>, key: string) => void;
 }
 
-const Navbar = React.memo((props: NavToolbarProps): JSX.Element => {
-  const { buttons, value, onChange } = props;
-  const theme = useTheme();
-  return (
-    <Portal>
-      <StyledFixedBottomArea>
-        <StyledBottomNavigation showLabels value={value} onChange={onChange}>
-          {buttons.map((window) => {
-            const Icon = value === window.type ? window.iconOn : window.iconOff;
-            return (
-              <StyledBottomNavigationAction
-                key={window.type as string}
-                label={
-                  <StyledBottomNavigationActionLabel>
-                    {window.name}
-                  </StyledBottomNavigationActionLabel>
-                }
-                value={window.type}
-                icon={
-                  <>
-                    <StyledIcon>
-                      <FontIcon
-                        aria-label={`${window.name} Window`}
-                        size={theme.fontSize.smallIcon}
-                      >
-                        <Icon />
-                      </FontIcon>
-                    </StyledIcon>
-                  </>
-                }
-              />
-            );
-          })}
-        </StyledBottomNavigation>
-      </StyledFixedBottomArea>
-    </Portal>
-  );
-});
+const BottomNavigationBar = React.memo(
+  (props: BottomNavigationBarProps): JSX.Element => {
+    const { buttons, value, onChange } = props;
+    const theme = useTheme();
+    return (
+      <Portal>
+        <StyledFixedBottomArea className="bottom-navigation-bar">
+          <StyledBottomNavigation showLabels value={value} onChange={onChange}>
+            {buttons.map((window) => {
+              const Icon =
+                value === window.type ? window.iconOn : window.iconOff;
+              return (
+                <StyledBottomNavigationAction
+                  key={window.type as string}
+                  label={
+                    <StyledBottomNavigationActionLabel>
+                      {window.name}
+                    </StyledBottomNavigationActionLabel>
+                  }
+                  value={window.type}
+                  icon={
+                    <>
+                      <StyledIcon>
+                        <FontIcon
+                          aria-label={`${window.name} Window`}
+                          size={theme.fontSize.smallIcon}
+                        >
+                          <Icon />
+                        </FontIcon>
+                      </StyledIcon>
+                    </>
+                  }
+                />
+              );
+            })}
+          </StyledBottomNavigation>
+        </StyledFixedBottomArea>
+      </Portal>
+    );
+  }
+);
 
-export default Navbar;
+export default BottomNavigationBar;

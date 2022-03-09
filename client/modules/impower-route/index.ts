@@ -11,9 +11,11 @@ export { default as ToastTransition } from "./components/animations/ToastTransit
 export { default as TopLevelTransition } from "./components/animations/TopLevelTransition";
 export { default as UnmountAnimation } from "./components/animations/UnmountAnimation";
 export { default as BetaBanner } from "./components/elements/BetaBanner";
+export { default as BottomNavigationBar } from "./components/elements/BottomNavigationBar";
+export { default as BottomNavigationBarSpacer } from "./components/elements/BottomNavigationBarSpacer";
 export { default as Captcha } from "./components/elements/Captcha";
 export { default as LegalNotice } from "./components/elements/LegalNotice";
-export { default as Navbar } from "./components/elements/Navbar";
+export { default as NavigationBarSpacer } from "./components/elements/NavigationBarSpacer";
 export { default as PageHead } from "./components/elements/PageHead";
 export { default as PageNavigationBar } from "./components/elements/PageNavigationBar";
 export { default as ScrollDebug } from "./components/elements/ScrollDebug";

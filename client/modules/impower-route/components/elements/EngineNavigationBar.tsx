@@ -189,11 +189,13 @@ const EngineNavigationBar = React.memo(
     return (
       <>
         <StyledFixedSpacer
+          className="navigation-bar"
           style={{
             display: position === "fixed" ? undefined : "none",
           }}
         />
         <StyledEngineNavigationBar
+          className="navigation-bar"
           style={{
             position,
           }}
