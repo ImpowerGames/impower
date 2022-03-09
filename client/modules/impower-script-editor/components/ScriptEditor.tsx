@@ -411,7 +411,10 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         EditorView.domEventHandlers({
           scroll: (e, v) => {
             const scrollEl = e.target as HTMLElement;
-            const scrollTop = scrollEl?.scrollTop;
+            const scrollTop =
+              scrollEl?.scrollTop != null
+                ? scrollEl?.scrollTop
+                : window.scrollY;
             let firstVisibleLine;
             for (let i = 0; i < v.viewportLineBlocks.length; i += 1) {
               const block = v.viewportLineBlocks[i];
