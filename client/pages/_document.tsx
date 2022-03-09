@@ -121,22 +121,22 @@ export default class MyDocument extends Document {
             crossOrigin="anonymous"
           />
           <link
-            href="/fonts/courier-prime/Courier Prime.ttf"
+            href="../fonts/courier-prime-v5-latin-regular.woff2"
             as="font"
             crossOrigin="anonymous"
           />
           <link
-            href="/fonts/courier-prime/Courier Prime Italic.ttf"
+            href="../fonts/courier-prime-v5-latin-italic.woff2"
             as="font"
             crossOrigin="anonymous"
           />
           <link
-            href="/fonts/courier-prime/Courier Prime Bold.ttf"
+            href="../fonts/courier-prime-v5-latin-700.woff2"
             as="font"
             crossOrigin="anonymous"
           />
           <link
-            href="/fonts/courier-prime/Courier Prime Bold Italic.ttf"
+            href="../fonts/courier-prime-v5-latin-700italic.woff2"
             as="font"
             crossOrigin="anonymous"
           />
