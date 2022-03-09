@@ -112,6 +112,7 @@ const StyledProject = styled.div`
     user-select: text;
   }
 
+  opacity: 0;
   transition: opacity 0.2s ease;
 `;
 
@@ -314,7 +315,9 @@ const Project = React.memo((): JSX.Element => {
 
   const theme = useTheme();
 
-  const belowBreakpoint = useMediaQuery(theme.breakpoints.down("md"));
+  const belowBreakpoint = useMediaQuery(theme.breakpoints.down("md"), {
+    noSsr: true,
+  });
 
   const isPlayable = isGameDocument(doc);
 
