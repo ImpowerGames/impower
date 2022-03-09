@@ -9,17 +9,12 @@ import React, {
 import AngleDownRegularIcon from "../../../../resources/icons/regular/angle-down.svg";
 import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left.svg";
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
-import SitemapRegularIcon from "../../../../resources/icons/regular/sitemap.svg";
-import TypewriterRegularIcon from "../../../../resources/icons/regular/typewriter.svg";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
 import { SearchAction } from "../../../impower-script-editor";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
-import {
-  panelSearch,
-  panelSetScripting,
-} from "../../types/actions/panelActions";
+import { panelSearch } from "../../types/actions/panelActions";
 import { WindowType } from "../../types/state/windowState";
 import PanelHeader from "../headers/PanelHeader";
 import PanelHeaderIconButton from "../iconButtons/PanelHeaderIconButton";
@@ -27,50 +22,28 @@ import UndoRedoControl from "../iconButtons/UndoRedoControl";
 import ContainerScriptEditor from "../inputs/ContainerScriptEditor";
 import Panel from "../layouts/Panel";
 
-interface ToggleFoldingPanelHeaderIconProps {
-  toggleFolding: boolean;
+interface TogglePanelHeaderIconProps {
+  value: boolean;
+  onLabel: string;
+  offLabel: string;
+  onIcon: React.ReactNode;
+  offIcon: React.ReactNode;
   onClick: (toggleFolding: boolean) => void;
 }
 
-const ToggleFoldingPanelHeaderIconButton = React.memo(
-  (props: ToggleFoldingPanelHeaderIconProps): JSX.Element => {
-    const { toggleFolding, onClick } = props;
+const TogglePanelHeaderIconButton = React.memo(
+  (props: TogglePanelHeaderIconProps): JSX.Element => {
+    const { value, onLabel, offLabel, onIcon, offIcon, onClick } = props;
     const theme = useTheme();
     return (
       <PanelHeaderIconButton
-        aria-label={toggleFolding ? "Unfold All" : "Fold All"}
-        icon={
-          toggleFolding ? <AngleRightRegularIcon /> : <AngleDownRegularIcon />
-        }
+        aria-label={value ? onLabel : offLabel}
+        icon={value ? onIcon : offIcon}
         size={theme.fontSize.smallIcon}
         style={{
           backgroundColor: theme.colors.darkForeground,
         }}
-        onClick={(): void => onClick(!toggleFolding)}
-      />
-    );
-  }
-);
-
-interface ScriptingPanelHeaderIconProps {
-  scripting: boolean;
-  onClick: (scripting: boolean) => void;
-}
-
-const ScriptingPanelHeaderIconButton = React.memo(
-  (props: ScriptingPanelHeaderIconProps): JSX.Element => {
-    const { scripting, onClick } = props;
-    const theme = useTheme();
-    return (
-      <PanelHeaderIconButton
-        aria-label={scripting ? "Scripting" : "Visual"}
-        icon={scripting ? <TypewriterRegularIcon /> : <SitemapRegularIcon />}
-        size={theme.fontSize.smallIcon}
-        style={{
-          backgroundColor: theme.colors.darkForeground,
-          marginRight: theme.spacing(2),
-        }}
-        onClick={(): void => onClick(!scripting)}
+        onClick={(): void => onClick(!value)}
       />
     );
   }
@@ -134,12 +107,13 @@ const ContainerPanelHeader = React.memo(
       [dispatch, windowType]
     );
 
-    const handleClickHeaderScriptingIcon = useCallback(
-      (scripting: boolean) => {
-        dispatch(panelSetScripting(windowType, scripting));
-      },
-      [dispatch, windowType]
-    );
+    // TODO: Allow viewing script as Flowchart
+    // const handleClickHeaderScriptingIcon = useCallback(
+    //   (scripting: boolean) => {
+    //     dispatch(panelSetScripting(windowType, scripting));
+    //   },
+    //   [dispatch, windowType]
+    // );
 
     const handleMore = useCallback(() => {
       // TODO: Allow exporting script as pdf or file
@@ -160,8 +134,12 @@ const ContainerPanelHeader = React.memo(
         onMore={handleMore}
         leftChildren={
           scripting ? (
-            <ToggleFoldingPanelHeaderIconButton
-              toggleFolding={toggleFolding}
+            <TogglePanelHeaderIconButton
+              value={toggleFolding}
+              onLabel={`Unfold All`}
+              offLabel={`Fold All`}
+              onIcon={<AngleRightRegularIcon />}
+              offIcon={<AngleDownRegularIcon />}
               onClick={onToggleFolding}
             />
           ) : undefined
@@ -169,10 +147,10 @@ const ContainerPanelHeader = React.memo(
         rightChildren={
           <>
             <UndoRedoControl type={windowType} />
-            <ScriptingPanelHeaderIconButton
+            {/* <ScriptingPanelHeaderIconButton
               scripting={scripting}
               onClick={handleClickHeaderScriptingIcon}
-            />
+            /> */}
           </>
         }
       />
