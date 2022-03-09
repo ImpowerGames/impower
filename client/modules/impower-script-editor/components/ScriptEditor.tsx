@@ -300,7 +300,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         EditorView.theme(
           {
             "&": {
-              fontSize: "0.9375rem",
               color: colors.foreground,
               backgroundColor: colors.background,
               flex: 1,

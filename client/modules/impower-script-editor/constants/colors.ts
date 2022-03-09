@@ -4,8 +4,8 @@ export const colors = {
   keyword: "#00D0D0",
   parameter: "#BFA4A4",
   operator: "#D0D0D0",
-  foreground: "#E6E6E6",
-  background: "#00000080",
+  foreground: "#D4D4D4",
+  background: "#00000040",
   lineNumber: "#2B83B7",
 
   comment: "#608B4E",

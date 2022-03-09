@@ -131,6 +131,7 @@ export interface StyledTheme {
     black04: string;
     black05: string;
     black10: string;
+    black15: string;
     black20: string;
     black25: string;
     black30: string;
@@ -150,6 +151,7 @@ export interface StyledTheme {
     white04: string;
     white05: string;
     white10: string;
+    white15: string;
     white20: string;
     white25: string;
     white30: string;
