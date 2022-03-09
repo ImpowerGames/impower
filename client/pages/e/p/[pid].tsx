@@ -27,6 +27,14 @@ const StyledProjectPage = styled.div`
   position: relative;
 `;
 
+const StyledMonospaceSansFontLoader = styled.p`
+  font-family: ${(props): string => props.theme.fontFamily.monospaceSans};
+  top: -1000vh;
+  left: -1000vw;
+  position: absolute;
+  pointer-events: none;
+`;
+
 const GameContextProvider = dynamic(
   () =>
     import(
@@ -79,6 +87,13 @@ const EngineProjectPage = React.memo((props: GamePageProps) => {
         </StyledProjectPage>
       </GameContextProvider>
       <TagIconLoader />
+      <StyledMonospaceSansFontLoader>
+        .<b>.</b>
+        <i>.</i>
+        <b>
+          <i>.</i>
+        </b>
+      </StyledMonospaceSansFontLoader>
     </>
   );
 });
