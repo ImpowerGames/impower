@@ -1,3 +1,4 @@
+import { createTestState } from "../../utils/createTestState";
 import {
   TestAction,
   TEST_CONTROL_CHANGE,
@@ -9,7 +10,6 @@ import {
   TEST_START_TIME_CHANGE,
 } from "../actions/testActions";
 import { Control, Layout, Mode, Playback, TestState } from "../state/testState";
-import { createTestState } from "../utils/createTestState";
 
 const doTestModeChange = (
   state: TestState,

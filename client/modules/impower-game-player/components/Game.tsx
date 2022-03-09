@@ -109,10 +109,9 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   const gameStyle = useGameStyle(phaserGame);
 
-  const [engineState] = useContext(ProjectEngineContext);
-  const projectId = engineState.project.id;
-  const activeLine =
-    engineState.panel?.panels?.Logic?.Container?.cursor?.fromLine || 1;
+  const [state] = useContext(ProjectEngineContext);
+  const projectId = state?.project?.id;
+  const activeLine = state?.panel?.panels?.Logic?.cursor?.fromLine || 1;
 
   useEffect(() => {
     const setMobile = (): void => {

@@ -15,7 +15,8 @@ export const useProjectEngineSyncContextState = (
 ): ProjectEngineSyncContextState => {
   const [, navigationDispatch] = useContext(NavigationContext);
   const [userState] = useContext(UserContext);
-  const { isSignedIn, isAnonymous } = userState;
+  const isSignedIn = userState?.isSignedIn;
+  const isAnonymous = userState?.isAnonymous;
   const router = useRouter();
 
   const [isSaving, setIsSaving] = useState(false);

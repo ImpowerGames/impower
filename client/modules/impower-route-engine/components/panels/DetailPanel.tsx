@@ -2,16 +2,7 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
 import FilledInput from "@material-ui/core/FilledInput";
-import Typography from "@material-ui/core/Typography";
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
-import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left.svg";
-import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
+import React, { useCallback, useContext, useMemo, useRef } from "react";
 import ArrowLeftRegularIcon from "../../../../resources/icons/regular/arrow-left.svg";
 import { getLabel } from "../../../impower-config";
 import format from "../../../impower-config/utils/format";
@@ -27,16 +18,9 @@ import {
 } from "../../../impower-data-store";
 import {
   ConfigTypeId,
-  GameProjectData,
   InstanceData,
-  ItemData,
-  ItemReference,
-  ItemSectionType,
-  ItemType,
   Reference,
 } from "../../../impower-game/data";
-import { getData } from "../../../impower-game/inspector";
-import { InputBlocker } from "../../../impower-route";
 import InspectorForm from "../../../impower-route/components/forms/InspectorForm";
 import AutocompleteInput from "../../../impower-route/components/inputs/AutocompleteInput";
 import BooleanInput from "../../../impower-route/components/inputs/BooleanInput";
@@ -52,12 +36,7 @@ import { UserContext, userOnDeleteSubmission } from "../../../impower-user";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import {
-  useInspectedContainers,
-  useItemNavigation,
-} from "../../hooks/dataHooks";
-import {
   panelAddInteraction,
-  panelInspect,
   panelOpen,
   panelRemoveInteraction,
   panelSetErrors,
@@ -65,15 +44,10 @@ import {
 import {
   projectChangeDocument,
   projectUpdateData,
-  projectValidateData,
 } from "../../types/actions/projectActions";
-import { getHeader } from "../../types/info/headers";
-import { getItems } from "../../types/selectors/panelSelectors";
 import { WindowType } from "../../types/state/windowState";
 import InstanceInspectorForm from "../forms/InstanceInspectorForm";
 import PanelHeader from "../headers/PanelHeader";
-import PanelHeaderIconButton from "../iconButtons/PanelHeaderIconButton";
-import EditGameTooltipContent from "../instructions/EditGameTooltipContent";
 import Panel from "../layouts/Panel";
 
 const deleteGameLabel = "Permanently Delete Game";
@@ -84,6 +58,24 @@ const deleteGameConfirmationInfo = {
     "Deleting {name} will delete the game project, all assets uploaded to the project, and the game's public page.\n\n*No one will be able to edit or play this game again.*\n\n**This action cannot be undone.**",
   agreeLabel: "Yes, Delete My Game",
   disagreeLabel: "Cancel",
+};
+
+export const detailsSetupHeader = {
+  type: "Details",
+  name: "Details",
+  pluralName: "Details",
+};
+
+export const configurationSetupHeader = {
+  type: "Configuration",
+  name: "Configuration",
+  pluralName: "Configuration",
+};
+
+export const accessSetupHeader = {
+  type: "Access",
+  name: "Access",
+  pluralName: "Access",
 };
 
 const StyledDeleteButtonArea = styled.div`
@@ -104,23 +96,6 @@ const StyledList = styled.div`
   color: ${(props): string => props.theme.colors.white80};
 `;
 
-const StyledPaginationArea = styled.div`
-  position: relative;
-  display: flex;
-  background-color: ${(props): string => props.theme.colors.darkForeground};
-`;
-
-const StyledTypography = styled(Typography)`
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
 const StyledRightPaddingArea = styled.div`
   padding-right: ${(props): string =>
     props.theme.spacing(props.theme.space.panelLeft)};
@@ -129,78 +104,6 @@ const StyledRightPaddingArea = styled.div`
 const StyledFilledInput = styled(FilledInput)`
   border-radius: ${(props): string => props.theme.spacing(1)};
 `;
-
-interface ItemNavigatorProps {
-  itemSectionType: ItemType | ItemSectionType;
-  inspectedTargetId: string;
-  inspectedItems: { [refId: string]: ItemData };
-  onInspect: (id: string) => void;
-}
-
-const ItemNavigator = React.memo((props: ItemNavigatorProps): JSX.Element => {
-  const { itemSectionType, inspectedTargetId, inspectedItems, onInspect } =
-    props;
-
-  const inspectedItemIds = useMemo(
-    () =>
-      inspectedItems
-        ? Object.values(inspectedItems).map((d) => d.reference.refId)
-        : [],
-    [inspectedItems]
-  );
-
-  const itemHeader = useMemo(
-    () => getHeader(itemSectionType),
-    [itemSectionType]
-  );
-
-  const theme = useTheme();
-
-  const inspectedTargetIds = useMemo(
-    () => [inspectedTargetId],
-    [inspectedTargetId]
-  );
-
-  const onInspectItem = useCallback(
-    (reference: ItemReference): void => {
-      if (onInspect) {
-        onInspect(reference.refId);
-      }
-    },
-    [onInspect]
-  );
-
-  const {
-    previousItemId,
-    nextItemId,
-    onPreviousItem: selectPreviousItem,
-    onNextItem: selectNextItem,
-  } = useItemNavigation(inspectedTargetIds, inspectedItems, onInspectItem);
-
-  return (
-    <StyledPaginationArea>
-      <StyledTypography variant="caption" style={{ opacity: 0.7 }}>
-        {`${inspectedItemIds.indexOf(inspectedTargetId) + 1}/${
-          inspectedItemIds.length
-        }`}
-      </StyledTypography>
-      <PanelHeaderIconButton
-        aria-label={`Previous ${itemHeader.name}`}
-        icon={<AngleLeftRegularIcon />}
-        size={theme.fontSize.smallIcon}
-        style={previousItemId ? undefined : { opacity: 0.5 }}
-        onClick={selectPreviousItem}
-      />
-      <PanelHeaderIconButton
-        aria-label={`Next ${itemHeader.name}`}
-        icon={<AngleRightRegularIcon />}
-        size={theme.fontSize.smallIcon}
-        style={nextItemId ? undefined : { opacity: 0.5 }}
-        onClick={selectNextItem}
-      />
-    </StyledPaginationArea>
-  );
-});
 
 interface SetupDetailsProps {
   disabled?: boolean;
@@ -355,120 +258,35 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
 
   const theme = useTheme();
 
-  const { mode } = state.test;
-  const { data, id } = state.project;
-  const doc = state.project?.data?.doc;
-  const { section } = state.panel.panels[windowType].Item;
-  const inspectedContainerTargetId =
-    state.panel.panels[windowType].Item.inspectedTargetId;
-  const { inspectedTargetId, inspectedProperties, submitting, errors } =
-    state.panel.panels[windowType].Detail;
+  const id = state?.project?.id;
+  const data = state?.project?.data;
+  const doc = state?.project?.data?.doc;
+  const mode = state?.test?.mode;
+  const panelState = state?.panel?.panels?.[windowType];
+  const inspectedTargetId = panelState?.inspectedTargetId;
+  const inspectedProperties = panelState?.inspectedProperties;
+  const submitting = panelState?.submitting;
+  const errors = panelState?.errors;
+  const section = panelState?.section;
+  const expandedProperties = panelState?.interactions?.Expanded;
 
   const stateRef = useRef<ProjectDocument>(doc);
 
-  const inspectedContainers = useInspectedContainers(state, windowType);
-  const inspectedTargetContainer =
-    inspectedContainers?.[inspectedContainerTargetId];
-  const inspectedItems: { [refId: string]: ItemData } = useMemo(
-    () =>
-      section === "Preview"
-        ? {}
-        : getItems(inspectedTargetContainer, section as ItemType),
-    [inspectedTargetContainer, section]
-  );
-
-  const allSelectedItemReferences =
-    section !== "Preview"
-      ? state?.panel?.panels?.[windowType]?.Item?.interactions?.Selected || []
-      : undefined;
-  const selectedItemReferences = useMemo(
-    () =>
-      allSelectedItemReferences
-        ? allSelectedItemReferences.filter(
-            (r: Reference) => inspectedItems[r.refId] !== undefined
-          )
-        : [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allSelectedItemReferences, JSON.stringify(Object.keys(inspectedItems))]
-  );
-  const expandedDetailReferences = useMemo(
-    () =>
-      state?.panel?.panels?.[windowType]?.Detail?.interactions?.Expanded || [],
-    [state?.panel?.panels, windowType]
-  );
-
-  const expandedProperties = useMemo(
-    () => expandedDetailReferences || [],
-    [expandedDetailReferences]
-  );
-
-  const selectedItemIds = useMemo(
-    () =>
-      selectedItemReferences
-        ? selectedItemReferences.map((r: Reference) => r.refId)
-        : [],
-    [selectedItemReferences]
-  );
-  const selectedItems: { [refId: string]: ItemData } = useMemo(() => {
-    const items: { [refId: string]: ItemData } = {};
-    if (section === "Preview" || !selectedItemReferences) {
-      return items;
-    }
-    selectedItemReferences.forEach((reference: Reference) => {
-      items[reference.refId] = getData(
-        reference,
-        data as GameProjectData
-      ) as ItemData;
-    });
-    return items;
-  }, [section, selectedItemReferences, data]);
   const inspectedInstanceData: InstanceData[] = useMemo(() => {
-    if (windowType === "Setup") {
-      if (section === "Configuration") {
-        const config =
-          data?.instances?.configs?.data?.[inspectedTargetId as ConfigTypeId];
-        if (config) {
-          return [config];
-        }
+    if (section === "Configuration") {
+      const config =
+        data?.instances?.configs?.data?.[inspectedTargetId as ConfigTypeId];
+      if (config) {
+        return [config];
       }
-      return [];
-    }
-    const item = inspectedItems?.[inspectedTargetId];
-    if (item) {
-      return [item];
     }
     return [];
-  }, [data, inspectedTargetId, inspectedItems, section, windowType]);
-
-  const panelKey = `${inspectedTargetId}`;
-
-  const inspectedContainerId =
-    state.panel.panels[windowType].Item.inspectedTargetId;
-
-  const itemHeaderInfo = useMemo(() => getHeader(section), [section]);
-
-  const itemHeaderBreadcrumbs = useMemo(() => {
-    return [
-      {
-        id: itemHeaderInfo.name,
-        name:
-          selectedItemIds.length > 1
-            ? `${itemHeaderInfo.pluralName} (${selectedItemIds.length})`
-            : itemHeaderInfo.name,
-        interactable: true,
-        separator: "|",
-      },
-    ];
-  }, [itemHeaderInfo.name, itemHeaderInfo.pluralName, selectedItemIds.length]);
+  }, [data, inspectedTargetId, section]);
 
   const handleClickHeaderBreadcrumb = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (windowType === "Setup") {
-        dispatch(panelOpen(windowType, "Setup"));
-      } else {
-        dispatch(panelOpen(windowType, "Item"));
-      }
+      dispatch(panelOpen(windowType, "Setup"));
     },
     [dispatch, windowType]
   );
@@ -476,18 +294,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const handleClose = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (windowType === "Setup") {
-        dispatch(panelOpen(windowType, "Setup"));
-      } else {
-        dispatch(panelOpen(windowType, "Item"));
-      }
-    },
-    [dispatch, windowType]
-  );
-
-  const handleInspect = useCallback(
-    (id: string) => {
-      dispatch(panelInspect(windowType, "Detail", id));
+      dispatch(panelOpen(windowType, "Setup"));
     },
     [dispatch, windowType]
   );
@@ -495,49 +302,22 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const handleDebouncedInstancePropertyChange = useCallback(
     (references: Reference[], propertyPath: string, value: unknown) => {
       // Items are selected, so assume the user is editing the selected items
-      if (section !== "Preview") {
-        dispatch(projectUpdateData(references, propertyPath, value));
-      }
+      dispatch(projectUpdateData(references, propertyPath, value));
     },
-    [section, dispatch]
+    [dispatch]
   );
 
   const handleExpandProperty = useCallback(
     (propertyPath: string, expanded: boolean) => {
-      if (windowType === "Setup") {
-        if (expanded) {
-          dispatch(
-            panelAddInteraction(windowType, "Expanded", "Detail", [
-              propertyPath,
-            ])
-          );
-        } else {
-          dispatch(
-            panelRemoveInteraction(windowType, "Expanded", "Detail", [
-              propertyPath,
-            ])
-          );
-        }
+      if (expanded) {
+        dispatch(panelAddInteraction(windowType, "Expanded", [propertyPath]));
       } else {
-        if (section === "Preview") {
-          return;
-        }
-        if (expanded) {
-          dispatch(
-            panelAddInteraction(windowType, "Expanded", "Detail", [
-              propertyPath,
-            ])
-          );
-        } else {
-          dispatch(
-            panelRemoveInteraction(windowType, "Expanded", "Detail", [
-              propertyPath,
-            ])
-          );
-        }
+        dispatch(
+          panelRemoveInteraction(windowType, "Expanded", [propertyPath])
+        );
       }
     },
-    [windowType, dispatch, section]
+    [windowType, dispatch]
   );
 
   const handleChange = useCallback((docs: ProjectDocument[]) => {
@@ -562,7 +342,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     (propertyPath: string, error: string) => {
       if (!errors[propertyPath]) {
         const newErrors = { ...errors, [propertyPath]: error };
-        dispatch(panelSetErrors("Setup", "Detail", newErrors));
+        dispatch(panelSetErrors("Setup", newErrors));
       }
     },
     [dispatch, errors]
@@ -573,7 +353,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
       if (errors[propertyPath]) {
         const newErrors = { ...errors };
         delete newErrors[propertyPath];
-        dispatch(panelSetErrors("Setup", "Detail", newErrors));
+        dispatch(panelSetErrors("Setup", newErrors));
       }
     },
     [dispatch, errors]
@@ -582,71 +362,36 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   useBodyBackgroundColor(theme.colors.darkForeground);
   useHTMLBackgroundColor(theme.colors.darkForeground);
 
-  useEffect(() => {
-    if (selectedItems && section !== "Preview") {
-      if (mode === "Edit") {
-        // Validate data before inspecting it
-        dispatch(projectValidateData(Object.values(selectedItems)));
-      }
-    }
-  }, [selectedItems]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const inspectedDataName = useMemo(() => {
-    if (windowType === "Setup") {
-      if (section === "Configuration") {
-        const config =
-          data?.instances?.configs?.data[inspectedTargetId as ConfigTypeId];
-        if (config) {
-          return gameInspector.getInspector(config.reference).getName(config);
-        }
+    if (section === "Configuration") {
+      const config =
+        data?.instances?.configs?.data[inspectedTargetId as ConfigTypeId];
+      if (config) {
+        return gameInspector.getInspector(config.reference).getName(config);
       }
-      return getLabel(inspectedTargetId);
     }
-    const item = inspectedItems[inspectedTargetId];
-    if (item) {
-      return gameInspector.getInspector(item.reference).getName(item);
-    }
-    return "";
-  }, [
-    data,
-    gameInspector,
-    inspectedItems,
-    inspectedTargetId,
-    section,
-    windowType,
-  ]);
+    return getLabel(inspectedTargetId);
+  }, [data, gameInspector, inspectedTargetId, section]);
 
   return (
     <>
       <Panel
-        key={panelKey}
-        panelType="Detail"
+        key={inspectedTargetId}
         useWindowAsScrollContainer
         topChildren={
           <PanelHeader
             type="default"
             title={inspectedDataName}
-            breadcrumbs={windowType === "Setup" ? [] : itemHeaderBreadcrumbs}
             backIcon={<ArrowLeftRegularIcon />}
             backLabel={`Close`}
             onBack={handleClose}
             onBreadcrumb={handleClickHeaderBreadcrumb}
             nameStyle={{ opacity: mode === "Test" ? 0.5 : undefined }}
-            rightChildren={
-              windowType !== "Setup" && selectedItemIds ? (
-                <ItemNavigator
-                  itemSectionType={section as ItemType}
-                  inspectedTargetId={inspectedTargetId}
-                  inspectedItems={inspectedItems}
-                  onInspect={handleInspect}
-                />
-              ) : undefined
-            }
           />
         }
       >
         <StyledList style={{ opacity: mode === "Test" ? 0.5 : undefined }}>
-          {windowType === "Setup" && section === "Details" ? (
+          {section === "Details" ? (
             inspectedTargetId === "AdvancedSettings" ? (
               <SetupAdvanced id={id} doc={doc} />
             ) : (
@@ -657,7 +402,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
                 submitting={submitting}
                 errors={errors}
                 propertyPaths={inspectedProperties}
-                expandedProperties={expandedProperties as string[]}
+                expandedProperties={expandedProperties}
                 onExpandProperty={handleExpandProperty}
                 onChange={handleChange}
                 onDebouncedChange={handleDebouncedChange}
@@ -674,16 +419,11 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
               backgroundColor="white"
               data={inspectedInstanceData}
               disabled={mode === "Test"}
-              expandedProperties={expandedProperties as string[]}
-              inspectedContainerId={inspectedContainerId}
+              expandedProperties={expandedProperties}
               onExpandProperty={handleExpandProperty}
               onDebouncedPropertyChange={handleDebouncedInstancePropertyChange}
             />
           )}
-          <InputBlocker
-            active={mode === "Test"}
-            tooltip={<EditGameTooltipContent />}
-          />
         </StyledList>
       </Panel>
     </>

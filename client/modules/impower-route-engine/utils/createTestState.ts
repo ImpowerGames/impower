@@ -1,4 +1,4 @@
-import { TestState } from "../state/testState";
+import { TestState } from "../types/state/testState";
 
 export const createTestState = (): TestState => ({
   mode: "Edit",

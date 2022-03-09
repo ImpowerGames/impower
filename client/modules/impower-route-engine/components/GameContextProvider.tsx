@@ -41,7 +41,6 @@ import { GameInspectorContext } from "../contexts/gameInspectorContext";
 import { GameRunnerContext } from "../contexts/gameRunnerContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 import {
-  panelChangeItemSection,
   panelInspect,
   panelSetInteraction,
 } from "../types/actions/panelActions";
@@ -55,7 +54,7 @@ import {
 } from "../types/actions/projectActions";
 import { testModeChange } from "../types/actions/testActions";
 import { projectEngineReducer } from "../types/reducers/projectEngineReducer";
-import { createProjectEngineState } from "../types/utils/createProjectEngineState";
+import { createProjectEngineState } from "../utils/createProjectEngineState";
 
 const StyledProjectPage = styled.div`
   background-color: ${(props): string => props.theme.colors.darkForeground};
@@ -72,29 +71,31 @@ interface GameContextProviderProps {
 const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const { children } = props;
 
-  const router = useRouter();
-  const { pid } = router.query;
-  const [, navigationDispatch] = useContext(NavigationContext);
-  const [userState] = useContext(UserContext);
-  const { my_studio_memberships, my_project_memberships } = userState;
-
   const theme = useTheme();
 
+  const router = useRouter();
+  const { pid } = router.query;
   const loadedProjectId = Array.isArray(pid) ? pid[0] : pid;
+
+  const [, navigationDispatch] = useContext(NavigationContext);
+  const [userState] = useContext(UserContext);
+  const my_studio_memberships = userState?.my_studio_memberships;
+  const my_project_memberships = userState?.my_project_memberships;
 
   const projectEngineContext = useReducer(
     projectEngineReducer,
     createProjectEngineState()
   );
-  const [projectEngineState, projectEngineDispatch] = projectEngineContext;
+  const [state, dispatch] = projectEngineContext;
+
+  const loadedStudioId = state?.project?.data?.doc?.studio;
+
   const projectEngineSyncContext = useProjectEngineSyncContextState(
-    Boolean(projectEngineState.project.id)
+    Boolean(state?.project?.id)
   );
   const [projectEngineSyncState] = projectEngineSyncContext;
   const { syncStatusMessage } = projectEngineSyncState;
   const dataContext = useMemo(() => createDataContextState(), []);
-
-  const loadedStudioId = projectEngineState?.project?.data?.doc?.studio;
 
   const memberDoc = useMemo(() => {
     if (my_project_memberships === undefined) {
@@ -116,6 +117,12 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     return my_studio_memberships[loadedStudioId];
   }, [loadedStudioId, my_studio_memberships]);
 
+  const access =
+    memberDoc?.access ||
+    (!state?.project?.data?.doc?.restricted
+      ? studioMemberDoc?.access
+      : undefined);
+
   const recentlyAccessedGameIds = useMemo(
     () =>
       my_project_memberships === undefined
@@ -132,15 +139,15 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
 
   const handleLoadProjectDoc = useCallback(
     (doc: ProjectDocument) => {
-      projectEngineDispatch(projectLoadDoc(loadedProjectId, doc));
+      dispatch(projectLoadDoc(loadedProjectId, doc));
     },
-    [projectEngineDispatch, loadedProjectId]
+    [dispatch, loadedProjectId]
   );
   const handleLoadProjectMembers = useCallback(
     (members: MembersCollection) => {
-      projectEngineDispatch(projectLoadMembers(loadedProjectId, members));
+      dispatch(projectLoadMembers(loadedProjectId, members));
     },
-    [projectEngineDispatch, loadedProjectId]
+    [dispatch, loadedProjectId]
   );
   const handleLoadProjectFiles = useCallback(
     async (files: FilesCollection) => {
@@ -180,21 +187,21 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
           });
         })
       );
-      projectEngineDispatch(projectLoadFiles(loadedProjectId, files));
+      dispatch(projectLoadFiles(loadedProjectId, files));
     },
-    [projectEngineDispatch, loadedProjectId]
+    [dispatch, loadedProjectId]
   );
   const handleLoadProjectScripts = useCallback(
     (scripts: GameScriptsCollection) => {
-      projectEngineDispatch(projectLoadScripts(loadedProjectId, scripts));
+      dispatch(projectLoadScripts(loadedProjectId, scripts));
     },
-    [projectEngineDispatch, loadedProjectId]
+    [dispatch, loadedProjectId]
   );
   const handleLoadProjectInstances = useCallback(
     (instances: GameInstancesCollection) => {
-      projectEngineDispatch(projectLoadInstances(loadedProjectId, instances));
+      dispatch(projectLoadInstances(loadedProjectId, instances));
     },
-    [projectEngineDispatch, loadedProjectId]
+    [dispatch, loadedProjectId]
   );
   useProjectData(
     loadedProjectId,
@@ -209,17 +216,11 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     navigationDispatch(
       navigationSetText(
         "GAME",
-        projectEngineState.project.data?.doc
-          ? projectEngineState.project.data?.doc?.name
-          : "",
+        state?.project?.data?.doc ? state?.project?.data?.doc?.name : "",
         syncStatusMessage
       )
     );
-  }, [
-    navigationDispatch,
-    syncStatusMessage,
-    projectEngineState.project.data?.doc,
-  ]);
+  }, [navigationDispatch, syncStatusMessage, state?.project?.data?.doc]);
 
   useEffect(() => {
     const gameLinks = recentGameDocs
@@ -249,11 +250,11 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const handleCreateGame = useCallback(
     (g?: ImpowerGame) => {
       if (!g) {
-        projectEngineDispatch(testModeChange("Edit"));
+        dispatch(testModeChange("Edit"));
       }
       setGame(g);
     },
-    [setGame, projectEngineDispatch]
+    [setGame, dispatch]
   );
   const handleCreateInspector = useCallback(
     (i: ImpowerGameInspector) => {
@@ -282,7 +283,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     () => ({ gameRunner, onCreateRunner: handleCreateRunner }),
     [gameRunner, handleCreateRunner]
   );
-  const gameProject = projectEngineState.project.data as GameProjectData;
+  const gameProject = state?.project?.data as GameProjectData;
   const projectBlocks = useMemo(
     () =>
       gameProject?.instances?.blocks?.data
@@ -298,53 +299,31 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   useEffect(() => {
     const debounceDelay = 200;
     const onOpenData = debounce((data: { id: string }): void => {
-      projectEngineDispatch(panelInspect("Logic", "Container", data.id));
-      projectEngineDispatch(panelChangeItemSection("Logic", "Command"));
+      dispatch(panelInspect("Logic", data.id));
     }, debounceDelay);
     events.onOpenData.addListener(onOpenData);
     return (): void => {
       events.onOpenData.removeListener(onOpenData);
     };
-  }, [events, projectEngineDispatch]);
+  }, [events, dispatch]);
 
   useEffect(() => {
     const debounceDelay = 200;
     const onStart = debounce(() => {
-      projectEngineDispatch(
-        panelSetInteraction("Logic", "Selected", "Container", [])
-      );
-      projectEngineDispatch(
-        panelSetInteraction("Logic", "Selected", "Item", [])
-      );
+      dispatch(panelSetInteraction("Logic", "Selected", []));
     }, debounceDelay);
     const onChangeActiveParentBlock = debounce((data: { id: string }): void => {
-      projectEngineDispatch(panelInspect("Logic", "Container", data.id));
+      dispatch(panelInspect("Logic", data.id));
     }, debounceDelay);
     const onExecuteBlock = debounce((data: { id: string }): void => {
       const block = projectBlocks[data.id];
       if (block) {
-        projectEngineDispatch(
-          panelSetInteraction("Logic", "Selected", "Container", [
-            block.reference,
-          ])
-        );
+        dispatch(panelSetInteraction("Logic", "Selected", [block.reference]));
       }
-      projectEngineDispatch(panelChangeItemSection("Logic", "Command"));
       events.onFocusData.emit({ ids: [data.id] });
     }, debounceDelay);
     const onExecuteCommand = debounce(
       (data: { blockId: string; commandId: string }): void => {
-        const block = projectBlocks[data.blockId];
-        if (block) {
-          const command = block.commands.data[data.commandId];
-          if (command) {
-            projectEngineDispatch(
-              panelSetInteraction("Logic", "Selected", "Item", [
-                command.reference,
-              ])
-            );
-          }
-        }
         events.onFocusData.emit({ ids: [data.commandId] });
       },
       debounceDelay
@@ -369,35 +348,26 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     };
   }, [game]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const access =
-    memberDoc?.access ||
-    (!projectEngineState?.project?.data?.doc?.restricted
-      ? studioMemberDoc?.access
-      : undefined);
-
   useEffect(() => {
-    projectEngineDispatch(projectAccess(access));
-  }, [access, projectEngineDispatch]);
+    dispatch(projectAccess(access));
+  }, [access, dispatch]);
 
   const loading =
     !access ||
     !loadedStudioId ||
     !loadedProjectId ||
-    !projectEngineState.project.id ||
-    projectEngineState.project.data === undefined ||
-    projectEngineState.project.data?.doc === undefined ||
-    projectEngineState.project.data?.files === undefined ||
-    projectEngineState.project.data?.scripts === undefined ||
-    projectEngineState.project.data?.instances === undefined;
+    !state?.project?.id ||
+    state?.project?.data === undefined ||
+    state?.project?.data?.doc === undefined ||
+    state?.project?.data?.files === undefined ||
+    state?.project?.data?.scripts === undefined ||
+    state?.project?.data?.instances === undefined;
 
   if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
     return null;
   }
 
-  if (
-    projectEngineState.project.id === "" ||
-    projectEngineState.project.data === null
-  ) {
+  if (state?.project?.id === "" || state?.project?.data === null) {
     return (
       <StyledProjectPage>
         <PageNotFound />

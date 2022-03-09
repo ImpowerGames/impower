@@ -47,3 +47,11 @@ export interface SerializableEditorState {
   readonly history: HistoryState;
   readonly userEvent?: string;
 }
+
+export interface SearchAction {
+  search: string;
+  caseSensitive?: boolean;
+  regexp?: boolean;
+  replace?: string;
+  action?: "search" | "find_next" | "find_previous" | "replace" | "replace_all";
+}

@@ -10,8 +10,6 @@ import React, {
 } from "react";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
-import { panelSetScrollParent } from "../../types/actions/panelActions";
-import { PanelType } from "../../types/state/panelState";
 
 const StyledPanel = styled.div`
   min-width: ${(props): string => props.theme.minWidth.panel};
@@ -60,7 +58,6 @@ const StyledPanelArrangement = styled.div`
 `;
 
 interface PanelProps {
-  panelType: PanelType;
   overlay?: ReactNode;
   topChildren?: ReactNode;
   style?: CSSProperties;
@@ -73,7 +70,6 @@ interface PanelProps {
 
 const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
   const {
-    panelType,
     overlay,
     topChildren,
     style,
@@ -121,7 +117,6 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
       portrait && useWindowAsScrollContainer
         ? document.documentElement
         : scrollRef.current;
-    dispatch(panelSetScrollParent(scrollEl));
     if (scrollEl) {
       if (onScrollRef) {
         onScrollRef(scrollEl);
@@ -150,7 +145,6 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
   return (
     <StyledPanel
       ref={ref}
-      id={panelType}
       onContextMenu={handleContextMenu}
       style={{
         backgroundColor: foregroundColor,

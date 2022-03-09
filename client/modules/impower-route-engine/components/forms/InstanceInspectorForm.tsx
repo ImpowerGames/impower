@@ -214,7 +214,6 @@ interface InstanceInspectorFormProps
     "onPropertyInputChange" | "onPropertyChange" | "onDebouncedPropertyChange"
   > {
   data: InstanceData[];
-  inspectedContainerId?: string;
   onPropertyInputChange?: (
     references: Reference[],
     propertyPath: string,
@@ -244,7 +243,6 @@ const InstanceInspectorForm = React.memo(
   ): JSX.Element | null => {
     const {
       data,
-      inspectedContainerId,
       onPropertyInputChange,
       onPropertyChange,
       onDebouncedPropertyChange,
@@ -253,7 +251,8 @@ const InstanceInspectorForm = React.memo(
 
     const { gameInspector } = useContext(GameInspectorContext);
     const [state] = useContext(ProjectEngineContext);
-    const project = state.project.data as GameProjectData;
+
+    const project = state?.project?.data as GameProjectData;
 
     const handleGetFormattedSummary = useCallback(
       (summary: string, data: InstanceData) => {
@@ -301,10 +300,8 @@ const InstanceInspectorForm = React.memo(
     );
 
     const handleGetPropertyDocPaths = useCallback(
-      () =>
-        [inspectedContainerId] ||
-        data.map((d) => d.reference.parentContainerId),
-      [inspectedContainerId, data]
+      () => data.map((d) => d.reference.parentContainerId),
+      [data]
     );
 
     const handleSetValueId = useCallback((value: unknown, id: string) => {

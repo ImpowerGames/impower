@@ -44,8 +44,7 @@ const UndoRedoControl = React.memo(
   (props: UndoRedoControlProps): JSX.Element | null => {
     const { type } = props;
     const [state, dispatch] = useContext(ProjectEngineContext);
-    const history =
-      state?.panel?.panels?.[type]?.Container?.editorState?.history;
+    const history = state?.panel?.panels?.[type]?.editorState?.history;
     const canUndo = history?.done?.length > 1;
     const canRedo = history?.undone?.length > 0;
     const handleUndo = useCallback(() => {

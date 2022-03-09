@@ -64,10 +64,6 @@ import {
   panelSubmit,
 } from "../../types/actions/panelActions";
 import { projectChangeDocument } from "../../types/actions/projectActions";
-import {
-  editorSetupSections,
-  ownerSetupSections,
-} from "../../types/info/sections";
 import { Mode } from "../../types/state/testState";
 import Panel from "../layouts/Panel";
 
@@ -88,6 +84,14 @@ const settings: { [name in SetupSettingsType]: string[] } = {
   Status: ["status", "statusInformation", "version"],
   AdvancedSettings: [],
 };
+
+export const editorSetupSections: SetupSectionType[] = ["Configuration"];
+
+export const ownerSetupSections: SetupSectionType[] = [
+  "Details",
+  "Access",
+  "Configuration",
+];
 
 const StyledSetupPanelContentArea = styled.div`
   display: flex;
@@ -199,7 +203,7 @@ const DetailsSetup = React.memo(() => {
 
   const handleClick = useCallback(
     (type: string, propertyPaths: string[]) => {
-      dispatch(panelInspect("Setup", "Detail", type, propertyPaths));
+      dispatch(panelInspect("Setup", type, propertyPaths));
       dispatch(panelOpen("Setup", "Detail"));
     },
     [dispatch]
@@ -239,7 +243,7 @@ const ConfigurationSetup = React.memo(() => {
 
   const handleClick = useCallback(
     (refId: string) => {
-      dispatch(panelInspect("Setup", "Detail", refId));
+      dispatch(panelInspect("Setup", refId));
       dispatch(panelOpen("Setup", "Detail"));
     },
     [dispatch]
@@ -272,11 +276,13 @@ interface AccessSetupProps {
 
 const AccessSetup = React.memo((props: AccessSetupProps) => {
   const { mode, submitting, onChange, onDebouncedChange } = props;
+
   const [, userDispatch] = useContext(UserContext);
   const [state] = useContext(ProjectEngineContext);
-  const { id } = state.project;
-  const doc = state.project?.data?.doc;
-  const memberDocs = state.project?.data?.members?.data;
+
+  const id = state?.project?.id;
+  const doc = state?.project?.data?.doc;
+  const memberDocs = state?.project?.data?.members?.data;
 
   const handleGetInspector = useCallback(() => {
     return ProjectDocumentInspector.instance;
@@ -441,19 +447,21 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
 const SetupPanel = React.memo((): JSX.Element => {
   const [state, dispatch] = useContext(ProjectEngineContext);
   const { portrait } = useContext(WindowTransitionContext);
-  const { id } = state.project;
+  const id = state.project?.id;
   const doc = state.project?.data?.doc;
-  const { mode } = state.test;
+  const access = state?.project?.access;
+  const mode = state.test?.mode;
+  const panelState = state?.panel?.panels?.Setup;
+  const submitting = panelState?.submitting;
+  const errors = panelState?.errors;
+  const section = panelState?.section;
+
   const [navigationState] = useContext(NavigationContext);
   const theme = useTheme();
   const [tabIndex, setTabIndex] = useState(0);
   const [previousTabIndex, setPreviousTabIndex] = useState(-1);
 
   const stateRef = useRef<ProjectDocument>(doc);
-
-  const section = state?.panel?.panels?.Setup?.Item?.section;
-  const { submitting, errors } = state.panel.panels.Setup.Detail;
-  const { access } = state.project;
 
   const setupSections = useMemo(() => {
     const sections =
@@ -463,26 +471,21 @@ const SetupPanel = React.memo((): JSX.Element => {
         ? editorSetupSections
         : [];
     return sections.filter(
-      (section) => isGameDocument(doc) || section.type !== "Configuration"
+      (section) => isGameDocument(doc) || section !== "Configuration"
     );
   }, [access, doc]);
 
-  const setupTabIndex = setupSections.findIndex((s) => s.type === section);
+  const setupTabIndex = setupSections.findIndex((s) => s === section);
   const validSetupTabIndex =
     setupTabIndex >= 0 && setupTabIndex < setupSections.length
       ? setupTabIndex
       : 0;
 
-  const type = setupSections[validSetupTabIndex]?.type;
+  const type = setupSections[validSetupTabIndex];
 
   const handleTabChange = useCallback(
     (event: React.ChangeEvent, newValue: number): void => {
-      dispatch(
-        panelChangeItemSection(
-          "Setup",
-          setupSections[newValue]?.type as SetupSectionType
-        )
-      );
+      dispatch(panelChangeItemSection("Setup", setupSections[newValue]));
       setTabIndex(newValue);
       setPreviousTabIndex(validSetupTabIndex);
     },
@@ -496,7 +499,7 @@ const SetupPanel = React.memo((): JSX.Element => {
     async (e: React.FormEvent | React.MouseEvent) => {
       const currentData = stateRef.current;
       e.preventDefault();
-      dispatch(panelSubmit("Setup", "Detail", true));
+      dispatch(panelSubmit("Setup", true));
       const createPageDocument = (
         await import("../../../impower-data-store/utils/createPageDocument")
       ).default;
@@ -521,7 +524,7 @@ const SetupPanel = React.memo((): JSX.Element => {
             new PageDocumentInspector<ProjectDocument>().getPropertyError,
             () => [id]
           );
-      dispatch(panelSetErrors("Setup", "Detail", errors));
+      dispatch(panelSetErrors("Setup", errors));
       if (Object.keys(errors).length === 0) {
         dispatch(
           projectChangeDocument(id, {
@@ -536,7 +539,7 @@ const SetupPanel = React.memo((): JSX.Element => {
           window.setTimeout(resolve, 2000);
         });
       }
-      dispatch(panelSubmit("Setup", "Detail", false));
+      dispatch(panelSubmit("Setup", false));
     },
     [dispatch, id]
   );
@@ -569,7 +572,6 @@ const SetupPanel = React.memo((): JSX.Element => {
   return (
     <>
       <Panel
-        panelType="Setup"
         useWindowAsScrollContainer
         topChildren={
           portrait ? (
@@ -598,11 +600,7 @@ const SetupPanel = React.memo((): JSX.Element => {
                   onChange={handleTabChange}
                 >
                   {setupSections.map((section, index) => (
-                    <StyledTab
-                      key={section.type}
-                      value={index}
-                      label={section.name}
-                    />
+                    <StyledTab key={section} value={index} label={section} />
                   ))}
                 </StyledTabs>
               </StyledTabsArea>

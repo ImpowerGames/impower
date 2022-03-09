@@ -19,7 +19,6 @@ import { useDialogNavigation } from "../../../impower-dialog";
 import { FontIcon } from "../../../impower-icon";
 import { ScreenContext } from "../../../impower-route";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
-import { projectValidate } from "../../types/actions/projectActions";
 import {
   testControlChange,
   testDebug,
@@ -183,8 +182,9 @@ interface TestToolbarProps {
 const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   const { windowType } = props;
 
-  const [state, dispatch] = useContext(ProjectEngineContext);
   const { fullscreen, setFullscreen } = useContext(ScreenContext);
+  const [state, dispatch] = useContext(ProjectEngineContext);
+
   const doc = state.project?.data?.doc;
 
   const [menuOpen, setMenuOpen] = React.useState<boolean>();
@@ -221,7 +221,6 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   const handleChangeTestMode = useCallback(
     (m: Mode): void => {
       if (mode === "Test") {
-        dispatch(projectValidate());
         dispatch(testControlChange("Play"));
       }
       dispatch(testModeChange(m));

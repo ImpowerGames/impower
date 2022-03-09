@@ -1,16 +1,9 @@
+import { SetupSectionType } from "../../../impower-game/data";
 import {
-  ContainerReference,
-  ItemReference,
-  ItemSectionType,
-  ItemType,
-  SetupSectionType,
-} from "../../../impower-game/data";
-import { SerializableEditorState } from "../../../impower-script-editor";
-import {
-  ContainerArrangement,
-  PanelInteractionType,
-  PanelType,
-} from "../state/panelState";
+  SearchAction,
+  SerializableEditorState,
+} from "../../../impower-script-editor";
+import { PanelInteractionType, PanelType } from "../state/panelState";
 import { WindowType } from "../state/windowState";
 
 export const PANEL_OPEN = "PANEL_OPEN";
@@ -37,19 +30,17 @@ export interface PanelChangeInteractionAction {
   payload: {
     windowType: WindowType;
     interactionType: PanelInteractionType;
-    panelType: PanelType;
-    reference: ContainerReference | ItemReference | string;
+    reference: string;
   };
 }
 export const panelChangeInteraction = (
   windowType: WindowType,
   interactionType: PanelInteractionType,
-  panelType: PanelType,
-  reference: ContainerReference | ItemReference | string
+  reference: string
 ): PanelChangeInteractionAction => {
   return {
     type: PANEL_CHANGE_INTERACTION,
-    payload: { windowType, interactionType, panelType, reference },
+    payload: { windowType, interactionType, reference },
   };
 };
 
@@ -59,19 +50,17 @@ export interface PanelToggleInteractionAction {
   payload: {
     windowType: WindowType;
     interactionType: PanelInteractionType;
-    panelType: PanelType;
-    reference: ContainerReference | ItemReference | string;
+    reference: string;
   };
 }
 export const panelToggleInteraction = (
   windowType: WindowType,
   interactionType: PanelInteractionType,
-  panelType: PanelType,
-  reference: ContainerReference | ItemReference | string
+  reference: string
 ): PanelToggleInteractionAction => {
   return {
     type: PANEL_TOGGLE_INTERACTION,
-    payload: { windowType, interactionType, panelType, reference },
+    payload: { windowType, interactionType, reference },
   };
 };
 
@@ -81,24 +70,21 @@ export interface PanelMultiInteractionAction {
   payload: {
     windowType: WindowType;
     interactionType: PanelInteractionType;
-    panelType: PanelType;
-    allReferences: (ContainerReference | ItemReference | string)[];
-    newReference: ContainerReference | ItemReference | string;
+    allReferences: string[];
+    newReference: string;
   };
 }
 export const panelMultiInteraction = (
   windowType: WindowType,
   interactionType: PanelInteractionType,
-  panelType: PanelType,
-  allReferences: (ContainerReference | ItemReference | string)[],
-  newReference: ContainerReference | ItemReference | string
+  allReferences: string[],
+  newReference: string
 ): PanelMultiInteractionAction => {
   return {
     type: PANEL_MULTI_INTERACTION,
     payload: {
       windowType,
       interactionType,
-      panelType,
       allReferences,
       newReference,
     },
@@ -111,19 +97,17 @@ export interface PanelToggleAllInteractionAction {
   payload: {
     windowType: WindowType;
     interactionType: PanelInteractionType;
-    panelType: PanelType;
-    references: (ContainerReference | ItemReference | string)[];
+    references: string[];
   };
 }
 export function panelToggleAllInteraction(
   windowType: WindowType,
   interactionType: PanelInteractionType,
-  panelType: PanelType,
-  references: (ContainerReference | ItemReference | string)[]
+  references: string[]
 ): PanelToggleAllInteractionAction {
   return {
     type: PANEL_TOGGLE_ALL_INTERACTION,
-    payload: { windowType, interactionType, panelType, references },
+    payload: { windowType, interactionType, references },
   };
 }
 
@@ -133,19 +117,17 @@ export interface PanelAddInteractionAction {
   payload: {
     windowType: WindowType;
     interactionType: PanelInteractionType;
-    panelType: PanelType;
-    references: (ContainerReference | ItemReference | string)[];
+    references: string[];
   };
 }
 export const panelAddInteraction = (
   windowType: WindowType,
   interactionType: PanelInteractionType,
-  panelType: PanelType,
-  references: (ContainerReference | ItemReference | string)[]
+  references: string[]
 ): PanelAddInteractionAction => {
   return {
     type: PANEL_ADD_INTERACTION,
-    payload: { windowType, interactionType, panelType, references },
+    payload: { windowType, interactionType, references },
   };
 };
 
@@ -155,19 +137,17 @@ export interface PanelRemoveInteractionAction {
   payload: {
     windowType: WindowType;
     interactionType: PanelInteractionType;
-    panelType: PanelType;
-    references: (ContainerReference | ItemReference | string)[];
+    references: string[];
   };
 }
 export const panelRemoveInteraction = (
   windowType: WindowType,
   interactionType: PanelInteractionType,
-  panelType: PanelType,
-  references: (ContainerReference | ItemReference | string)[]
+  references: string[]
 ): PanelRemoveInteractionAction => {
   return {
     type: PANEL_REMOVE_INTERACTION,
-    payload: { windowType, interactionType, panelType, references },
+    payload: { windowType, interactionType, references },
   };
 };
 
@@ -177,35 +157,17 @@ export interface PanelSetInteractionAction {
   payload: {
     windowType: WindowType;
     interactionType: PanelInteractionType;
-    panelType: PanelType;
-    references: (ContainerReference | ItemReference | string)[];
+    references: string[];
   };
 }
 export const panelSetInteraction = (
   windowType: WindowType,
   interactionType: PanelInteractionType,
-  panelType: PanelType,
-  references: (ContainerReference | ItemReference | string)[]
+  references: string[]
 ): PanelSetInteractionAction => {
   return {
     type: PANEL_SET_INTERACTION,
-    payload: { windowType, interactionType, panelType, references },
-  };
-};
-
-export const PANEL_SET_PARENT_CONTAINER_ARRANGEMENT =
-  "PANEL_SET_PARENT_CONTAINER_ARRANGEMENT";
-export interface PanelSetParentContainerArrangementAction {
-  type: typeof PANEL_SET_PARENT_CONTAINER_ARRANGEMENT;
-  payload: { windowType: WindowType; arrangement: ContainerArrangement };
-}
-export const panelSetParentContainerArrangement = (
-  windowType: WindowType,
-  arrangement: ContainerArrangement
-): PanelSetParentContainerArrangementAction => {
-  return {
-    type: PANEL_SET_PARENT_CONTAINER_ARRANGEMENT,
-    payload: { windowType, arrangement },
+    payload: { windowType, interactionType, references },
   };
 };
 
@@ -303,41 +265,21 @@ export const panelChangeEditorState = (
   };
 };
 
-export const PANEL_CHANGE_ITEM_SECTION = "PANEL_CHANGE_ITEM_SECTION";
-export interface PanelChangeItemSectionAction {
-  type: typeof PANEL_CHANGE_ITEM_SECTION;
+export const PANEL_CHANGE_DETAIL_SECTION = "PANEL_CHANGE_DETAIL_SECTION";
+export interface PanelChangeDetailSectionAction {
+  type: typeof PANEL_CHANGE_DETAIL_SECTION;
   payload: {
     windowType: WindowType;
-    section: ItemType | ItemSectionType | SetupSectionType;
+    section: SetupSectionType;
   };
 }
 export const panelChangeItemSection = (
   windowType: WindowType,
-  section: ItemType | ItemSectionType | SetupSectionType
-): PanelChangeItemSectionAction => {
+  section: SetupSectionType
+): PanelChangeDetailSectionAction => {
   return {
-    type: PANEL_CHANGE_ITEM_SECTION,
+    type: PANEL_CHANGE_DETAIL_SECTION,
     payload: { windowType, section },
-  };
-};
-
-export const PANEL_SET_LAST_ADDED_TYPE_ID = "PANEL_SET_LAST_ADDED_TYPE_ID";
-export interface PanelSetLastAddedTypeIdAction {
-  type: typeof PANEL_SET_LAST_ADDED_TYPE_ID;
-  payload: {
-    windowType: WindowType;
-    refType: ItemType;
-    refTypeId: string;
-  };
-}
-export const panelSetLastAddedTypeId = (
-  windowType: WindowType,
-  refType: ItemType,
-  refTypeId: string
-): PanelSetLastAddedTypeIdAction => {
-  return {
-    type: PANEL_SET_LAST_ADDED_TYPE_ID,
-    payload: { windowType, refType, refTypeId },
   };
 };
 
@@ -346,40 +288,16 @@ export interface PanelSearchAction {
   type: typeof PANEL_SEARCH;
   payload: {
     windowType: WindowType;
-    panelType: PanelType;
-    searchQuery?: {
-      search: string;
-      caseSensitive?: boolean;
-      regexp?: boolean;
-      replace?: string;
-      action?:
-        | "search"
-        | "find_next"
-        | "find_previous"
-        | "replace"
-        | "replace_all";
-    };
+    searchQuery?: SearchAction;
   };
 }
 export const panelSearch = (
   windowType: WindowType,
-  panelType: PanelType,
-  searchQuery?: {
-    search: string;
-    caseSensitive?: boolean;
-    regexp?: boolean;
-    replace?: string;
-    action?:
-      | "search"
-      | "find_next"
-      | "find_previous"
-      | "replace"
-      | "replace_all";
-  }
+  searchQuery?: SearchAction
 ): PanelSearchAction => {
   return {
     type: PANEL_SEARCH,
-    payload: { windowType, panelType, searchQuery },
+    payload: { windowType, searchQuery },
   };
 };
 
@@ -399,63 +317,23 @@ export const panelSetPaneSize = (
   };
 };
 
-export const PANEL_SET_SCROLL_PARENT = "PANEL_SET_SCROLL_PARENT";
-export interface PanelSetScrollParentAction {
-  type: typeof PANEL_SET_SCROLL_PARENT;
-  payload: {
-    scrollParent: HTMLElement;
-  };
-}
-export const panelSetScrollParent = (
-  scrollParent: HTMLElement
-): PanelSetScrollParentAction => {
-  return {
-    type: PANEL_SET_SCROLL_PARENT,
-    payload: { scrollParent },
-  };
-};
-
-export const PANEL_SET_SCROLL_POSITION = "PANEL_SET_SCROLL_POSITION";
-export interface PanelSetScrollPositionAction {
-  type: typeof PANEL_SET_SCROLL_POSITION;
-  payload: {
-    windowType: WindowType;
-    panelType: PanelType;
-    scrollId: string;
-    scrollPosition: { x?: number; y?: number };
-  };
-}
-export const panelSetScrollPosition = (
-  windowType: WindowType,
-  panelType: PanelType,
-  scrollId: string,
-  scrollPosition: { x?: number; y?: number }
-): PanelSetScrollPositionAction => {
-  return {
-    type: PANEL_SET_SCROLL_POSITION,
-    payload: { windowType, panelType, scrollId, scrollPosition },
-  };
-};
-
 export const PANEL_INSPECT = "PANEL_INSPECT";
 export interface PanelInspectAction {
   type: typeof PANEL_INSPECT;
   payload: {
     windowType: WindowType;
-    panelType: PanelType;
     targetId: string;
     propertyPaths?: string[];
   };
 }
 export const panelInspect = (
   windowType: WindowType,
-  panelType: PanelType,
   targetId: string,
   propertyPaths?: string[]
 ): PanelInspectAction => {
   return {
     type: PANEL_INSPECT,
-    payload: { windowType, panelType, targetId, propertyPaths },
+    payload: { windowType, targetId, propertyPaths },
   };
 };
 
@@ -464,18 +342,16 @@ export interface PanelSetErrorsAction {
   type: typeof PANEL_SET_ERRORS;
   payload: {
     windowType: WindowType;
-    panelType: PanelType;
     errors: { [propertyPath: string]: string };
   };
 }
 export const panelSetErrors = (
   windowType: WindowType,
-  panelType: PanelType,
   errors: { [propertyPath: string]: string }
 ): PanelSetErrorsAction => {
   return {
     type: PANEL_SET_ERRORS,
-    payload: { windowType, panelType, errors },
+    payload: { windowType, errors },
   };
 };
 
@@ -484,18 +360,16 @@ export interface PanelSubmitAction {
   type: typeof PANEL_SUBMIT;
   payload: {
     windowType: WindowType;
-    panelType: PanelType;
     submitting: boolean;
   };
 }
 export const panelSubmit = (
   windowType: WindowType,
-  panelType: PanelType,
   submitting: boolean
 ): PanelSubmitAction => {
   return {
     type: PANEL_SUBMIT,
-    payload: { windowType, panelType, submitting },
+    payload: { windowType, submitting },
   };
 };
 
@@ -511,13 +385,9 @@ export type PanelAction =
   | PanelSetScriptingAction
   | PanelSetCursorAction
   | PanelSetScrollTopLineAction
-  | PanelSetParentContainerArrangementAction
-  | PanelChangeItemSectionAction
-  | PanelSetLastAddedTypeIdAction
+  | PanelChangeDetailSectionAction
   | PanelSearchAction
   | PanelSetPaneSizeAction
-  | PanelSetScrollParentAction
-  | PanelSetScrollPositionAction
   | PanelInspectAction
   | PanelSetErrorsAction
   | PanelSubmitAction

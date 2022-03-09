@@ -46,6 +46,7 @@ import FadeAnimation from "../../../impower-route/components/animations/FadeAnim
 import PeerTransition from "../../../impower-route/components/animations/PeerTransition";
 import Avatar from "../../../impower-route/components/elements/Avatar";
 import CornerFab from "../../../impower-route/components/fabs/CornerFab";
+import { SearchAction } from "../../../impower-script-editor";
 import { getPlaceholderUrl } from "../../../impower-storage";
 import EngineToolbar from "../headers/EngineToolbar";
 
@@ -1809,18 +1810,7 @@ export const EngineConsoleList = React.memo(
     const [activeFilters, setActiveFilters] = useState<{
       [key: string]: string;
     }>({});
-    const searchQueryRef = useRef<{
-      search: string;
-      caseSensitive?: boolean;
-      regexp?: boolean;
-      replace?: string;
-      action?:
-        | "search"
-        | "find_next"
-        | "find_previous"
-        | "replace"
-        | "replace_all";
-    }>();
+    const searchQueryRef = useRef<SearchAction>();
     const [searchQuery, setSearchQuery] = useState(searchQueryRef.current);
     const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
     const [sortOrder, setSortOrder] = useState<Order>(defaultSortOrder);
@@ -2088,21 +2078,7 @@ export const EngineConsoleList = React.memo(
     );
 
     const handleSearch = useCallback(
-      (
-        e: React.ChangeEvent<HTMLInputElement>,
-        searchQuery: {
-          search: string;
-          caseSensitive?: boolean;
-          regexp?: boolean;
-          replace?: string;
-          action?:
-            | "search"
-            | "find_next"
-            | "find_previous"
-            | "replace"
-            | "replace_all";
-        }
-      ) => {
+      (e: React.ChangeEvent<HTMLInputElement>, searchQuery: SearchAction) => {
         searchQueryRef.current = searchQuery;
         handleDebouncedSearch();
       },

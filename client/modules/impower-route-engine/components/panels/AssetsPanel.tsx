@@ -9,13 +9,14 @@ import FilesConsole from "../consoles/FilesConsole";
 import Panel from "../layouts/Panel";
 
 const AssetsPanel = React.memo((): JSX.Element => {
-  const [scrollParent, setScrollParent] = useState<HTMLDivElement>();
-
-  const [state] = useContext(ProjectEngineContext);
   const { portrait } = useContext(WindowTransitionContext);
-  const theme = useTheme();
+  const [state] = useContext(ProjectEngineContext);
 
   const projectState = state?.project;
+
+  const [scrollParent, setScrollParent] = useState<HTMLDivElement>();
+
+  const theme = useTheme();
 
   const buttonSpacing = 3 * 8;
   const fixedStyle: React.CSSProperties = {
@@ -76,11 +77,7 @@ const AssetsPanel = React.memo((): JSX.Element => {
   );
 
   return (
-    <Panel
-      panelType="Assets"
-      onScrollRef={handleScrollRef}
-      useWindowAsScrollContainer
-    >
+    <Panel onScrollRef={handleScrollRef} useWindowAsScrollContainer>
       <FilesConsole
         scrollParent={scrollParent}
         projectDoc={projectState?.data?.doc}

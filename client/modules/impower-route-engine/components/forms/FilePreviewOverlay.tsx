@@ -1,12 +1,10 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { Container, Paper } from "@material-ui/core";
-import { useSpring } from "framer-motion";
 import React, {
   PropsWithChildren,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -157,11 +155,6 @@ const FilePreviewOverlay = React.memo(
     const firstPaneRef = useRef<HTMLDivElement>();
     const contentRef = useRef<HTMLDivElement>();
 
-    const splitPercentageSpring = useSpring(100, {
-      stiffness: 600,
-      damping: 1000,
-    });
-
     const theme = useTheme();
 
     const stickyStyle: React.CSSProperties = useMemo(
@@ -197,39 +190,7 @@ const FilePreviewOverlay = React.memo(
     const handleMore = useCallback(() => {
       const newConfiguring = !configuring;
       setConfiguring(newConfiguring);
-      const configurePercentage = portrait ? 20 : 50;
-      splitPercentageSpring.set(newConfiguring ? configurePercentage : 100);
-    }, [configuring, portrait, splitPercentageSpring]);
-
-    const handleSplitChange = useCallback(
-      (newSize: number) => {
-        const pane = firstPaneRef.current?.parentElement;
-        const splitPane = pane?.parentElement;
-        const splitPaneParent = splitPane?.parentElement;
-        const splitPaneParentParent = splitPaneParent?.parentElement;
-        if (splitPaneParent && splitPaneParentParent) {
-          const parentSize = portrait
-            ? splitPaneParentParent.offsetHeight
-            : splitPaneParentParent.offsetWidth;
-          const percentage = (newSize / parentSize) * 100;
-          splitPercentageSpring.set(percentage, false);
-        }
-      },
-      [portrait, splitPercentageSpring]
-    );
-
-    useEffect(() => {
-      const unsubscribe = splitPercentageSpring.onChange((v: number) => {
-        if (portrait) {
-          firstPaneRef.current.parentElement.style.height = `${v}%`;
-        } else {
-          firstPaneRef.current.parentElement.style.width = `${v}%`;
-        }
-      });
-      return (): void => {
-        unsubscribe();
-      };
-    }, [portrait, splitPercentageSpring]);
+    }, [configuring]);
 
     const minPaneWidth = layout.size.minWidth.panel;
     const minPaneHeight = 8 * 8;
@@ -294,7 +255,6 @@ const FilePreviewOverlay = React.memo(
                       : -0.01
                   }
                   allowResize={configuring}
-                  onChange={handleSplitChange}
                 >
                   <StyledPane ref={firstPaneRef}>
                     <FilePreview

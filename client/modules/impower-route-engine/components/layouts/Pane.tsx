@@ -2,16 +2,22 @@ import styled from "@emotion/styled";
 import { AnimatePresence } from "framer-motion";
 import React, { useRef } from "react";
 import OverlayTransition from "../../../impower-route/components/animations/OverlayTransition";
-import { panels } from "../../types/info/panels";
 import { PanelType } from "../../types/state/panelState";
 import { WindowType } from "../../types/state/windowState";
-import Panelbar, { PanelbarPosition } from "../bars/Panelbar";
+import Panelbar from "../bars/Panelbar";
 import AssetsPanel from "../panels/AssetsPanel";
 import ContainerPanel from "../panels/ContainerPanel";
 import DetailPanel from "../panels/DetailPanel";
-import ItemPanel from "../panels/ItemPanel";
 import SetupPanel from "../panels/SetupPanel";
 import TestPanel from "../panels/TestPanel";
+
+const panelDisplayOrder: PanelType[] = [
+  "Setup",
+  "Entities",
+  "Logic",
+  "Detail",
+  "Test",
+];
 
 const StyledPane = styled.div`
   flex: 1;
@@ -52,30 +58,24 @@ const PanelContent = React.memo(
 
     switch (type) {
       case "Setup":
-        return <SetupPanel key="Setup" />;
-      case "Container":
-        if (windowType === "Entities" || windowType === "Logic") {
-          return <ContainerPanel key={"Container"} windowType={windowType} />;
-        }
-        return null;
-      case "Item":
-        if (windowType === "Entities" || windowType === "Logic") {
-          return <ItemPanel key={"Item"} windowType={windowType} />;
-        }
-        return null;
+        return <SetupPanel key={type} />;
+      case "Entities":
+        return <ContainerPanel key={type} windowType={windowType} />;
+      case "Logic":
+        return <ContainerPanel key={type} windowType={windowType} />;
       case "Detail":
         if (
           windowType === "Setup" ||
           windowType === "Entities" ||
           windowType === "Logic"
         ) {
-          return <DetailPanel key={"Detail"} windowType={windowType} />;
+          return <DetailPanel key={type} windowType={windowType} />;
         }
         return null;
       case "Test":
-        return <TestPanel key={"Test"} />;
+        return <TestPanel key={type} />;
       case "Assets":
-        return <AssetsPanel key={"Assets"} />;
+        return <AssetsPanel key={type} />;
       default:
         return null;
     }
@@ -92,8 +92,7 @@ interface PanelAreaProps {
 const PanelArea = React.memo((props: PanelAreaProps): JSX.Element | null => {
   const { type, windowType, preservePane, style } = props;
   const previousZIndexRef = useRef(0);
-  const zIndex =
-    type === "Container" ? 0 : type === "Item" ? 1 : type === "Detail" ? 2 : 0;
+  const zIndex = type === "Detail" ? 2 : 0;
   const previousZIndex = previousZIndexRef.current;
   previousZIndexRef.current = zIndex;
   const overlayDirection = zIndex - previousZIndex;
@@ -110,25 +109,16 @@ const PanelArea = React.memo((props: PanelAreaProps): JSX.Element | null => {
   );
 });
 
-const panelDisplayOrder = panels.map((panel) => panel.type);
-
 interface PaneContentProps {
   windowType: WindowType;
   panelFocusOrder: PanelType[];
-  panelbarPosition: PanelbarPosition;
   panelbar?: React.ReactNode;
   preservePane: boolean;
 }
 
 const PaneContent = React.memo(
   (props: PaneContentProps): JSX.Element | null => {
-    const {
-      windowType,
-      panelFocusOrder,
-      panelbarPosition,
-      panelbar,
-      preservePane,
-    } = props;
+    const { windowType, panelFocusOrder, panelbar, preservePane } = props;
 
     const visiblePanelOrder = panelDisplayOrder.filter((panel) =>
       panelFocusOrder.includes(panel)
@@ -139,42 +129,36 @@ const PaneContent = React.memo(
       return null;
     }
 
-    switch (panelbarPosition) {
-      case PanelbarPosition.Top:
-        return (
-          <>
-            <Panelbar openPanel={openPanel} panelbarPosition={panelbarPosition}>
-              {panelbar}
-            </Panelbar>
-            <StyledPanelContent>
-              <PanelArea
-                windowType={windowType}
-                type={openPanel}
-                preservePane={preservePane}
-              />
-            </StyledPanelContent>
-          </>
-        );
-      default:
-        return (
-          <>
-            <StyledPanelContent>
-              <PanelArea
-                windowType={windowType}
-                type={openPanel}
-                preservePane={preservePane}
-              />
-            </StyledPanelContent>
-          </>
-        );
+    if (panelbar) {
+      return (
+        <>
+          <Panelbar openPanel={openPanel}>{panelbar}</Panelbar>
+          <StyledPanelContent>
+            <PanelArea
+              windowType={windowType}
+              type={openPanel}
+              preservePane={preservePane}
+            />
+          </StyledPanelContent>
+        </>
+      );
     }
+
+    return (
+      <StyledPanelContent>
+        <PanelArea
+          windowType={windowType}
+          type={openPanel}
+          preservePane={preservePane}
+        />
+      </StyledPanelContent>
+    );
   }
 );
 
 interface PaneProps {
   windowType: WindowType;
   panelFocusOrder: PanelType[];
-  panelbarPosition: PanelbarPosition;
   panelbar?: React.ReactNode;
   preservePane?: boolean;
   innerRef?: React.RefObject<HTMLDivElement>;
@@ -184,7 +168,6 @@ const Pane = React.memo((props: PaneProps): JSX.Element | null => {
   const {
     windowType,
     panelFocusOrder,
-    panelbarPosition,
     panelbar,
     preservePane = false,
     innerRef,
@@ -199,7 +182,6 @@ const Pane = React.memo((props: PaneProps): JSX.Element | null => {
       <PaneContent
         windowType={windowType}
         panelFocusOrder={panelFocusOrder}
-        panelbarPosition={panelbarPosition}
         panelbar={panelbar}
         preservePane={preservePane}
       />

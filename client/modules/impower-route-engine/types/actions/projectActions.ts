@@ -25,34 +25,6 @@ export const projectAccess = (access: MemberAccess): ProjectAccessAction => {
   };
 };
 
-export const PROJECT_VALIDATE = "PROJECT_VALIDATE";
-export interface ProjectValidateAction {
-  type: typeof PROJECT_VALIDATE;
-}
-export const projectValidate = (): ProjectValidateAction => {
-  return {
-    type: PROJECT_VALIDATE,
-  };
-};
-
-export const PROJECT_VALIDATE_DATA = "PROJECT_VALIDATE_DATA";
-export interface ProjectValidateDataAction {
-  type: typeof PROJECT_VALIDATE_DATA;
-  payload: {
-    newData: InstanceData[];
-  };
-}
-export const projectValidateData = (
-  newData: InstanceData[]
-): ProjectValidateDataAction => {
-  return {
-    type: PROJECT_VALIDATE_DATA,
-    payload: {
-      newData,
-    },
-  };
-};
-
 export const PROJECT_INSERT_DATA = "PROJECT_INSERT_DATA";
 export interface ProjectInsertDataAction {
   type: typeof PROJECT_INSERT_DATA;
@@ -123,14 +95,14 @@ export interface ProjectChangeScriptAction {
   type: typeof PROJECT_CHANGE_SCRIPT;
   payload: {
     id: string;
-    type: "logic";
+    type: string;
     script: string;
     skipSync: boolean;
   };
 }
 export const projectChangeScript = (
   id: string,
-  type: "logic",
+  type: string,
   script: string,
   skipSync?: boolean
 ): ProjectChangeScriptAction => {
@@ -274,8 +246,6 @@ export const projectChangeInstanceData = (
 
 export type ProjectAction =
   | ProjectAccessAction
-  | ProjectValidateAction
-  | ProjectValidateDataAction
   | ProjectInsertDataAction
   | ProjectRemoveDataAction
   | ProjectUpdateDataAction

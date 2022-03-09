@@ -2,6 +2,7 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import React, { PropsWithChildren, useContext, useMemo } from "react";
 import { layout } from "../../../impower-route";
+import { SearchAction } from "../../../impower-script-editor";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import PanelBreadcrumbs, { BreadcrumbInfo } from "../layouts/PanelBreadcrumbs";
 import EngineToolbar from "./EngineToolbar";
@@ -24,18 +25,7 @@ interface PanelHeaderProps {
   moreLabel?: string;
   searchLabel?: string;
   replaceLabel?: string;
-  searchQuery?: {
-    search: string;
-    caseSensitive?: boolean;
-    regexp?: boolean;
-    replace?: string;
-    action?:
-      | "search"
-      | "find_next"
-      | "find_previous"
-      | "replace"
-      | "replace_all";
-  };
+  searchQuery?: SearchAction;
   breadcrumbs?: BreadcrumbInfo[];
   leftChildren?: React.ReactNode;
   rightChildren?: React.ReactNode;
@@ -48,18 +38,7 @@ interface PanelHeaderProps {
   onBreadcrumb?: (e: React.MouseEvent | React.ChangeEvent, id: string) => void;
   onSearch?: (
     e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-    searchQuery?: {
-      search: string;
-      caseSensitive?: boolean;
-      regexp?: boolean;
-      replace?: string;
-      action?:
-        | "search"
-        | "find_next"
-        | "find_previous"
-        | "replace"
-        | "replace_all";
-    }
+    searchQuery?: SearchAction
   ) => void;
   onMore?: (e: React.MouseEvent) => void;
 }

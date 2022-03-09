@@ -17,6 +17,7 @@ import {
   removeGameProjectData,
 } from "../../../impower-game/inspector";
 import { ProjectEngineSync } from "../../../impower-project-engine-sync";
+import { createProjectState } from "../../utils/createProjectState";
 import {
   ProjectAction,
   PROJECT_ACCESS,
@@ -31,11 +32,8 @@ import {
   PROJECT_LOAD_SCRIPTS,
   PROJECT_REMOVE_DATA,
   PROJECT_UPDATE_DATA,
-  PROJECT_VALIDATE,
-  PROJECT_VALIDATE_DATA,
 } from "../actions/projectActions";
 import { ProjectState } from "../state/projectState";
-import { createProjectState } from "../utils/createProjectState";
 
 const doProjectAccess = (
   state: ProjectState,
@@ -48,88 +46,6 @@ const doProjectAccess = (
     ...state,
     access,
   };
-};
-
-const doProjectValidate = (state: ProjectState): ProjectState => {
-  const project = state.data;
-  // Validate the entire project
-  // This is slow, only call before starting game
-  const blocks = Object.values(project?.instances?.blocks?.data || {});
-  const blockTriggers = blocks.flatMap((block) =>
-    Object.values(block.triggers?.data || {})
-  );
-  const blockCommands = blocks.flatMap((block) =>
-    Object.values(block.commands?.data || {})
-  );
-  let newProject = { ...project };
-  const validateData = (
-    project: GameProjectData,
-    newData: InstanceData[]
-  ): {
-    updated: { [refId: string]: InstanceData };
-    original: { [refId: string]: InstanceData };
-  } => ImpowerGameInspector.instance.validateData(project, newData);
-  // Validate all triggers and commands
-  newProject = {
-    ...newProject,
-    ...insertGameProjectData(newProject, blockTriggers, validateData),
-  };
-  newProject = {
-    ...newProject,
-    ...insertGameProjectData(newProject, blockCommands, validateData),
-  };
-  if (JSON.stringify(newProject) !== JSON.stringify(state.data)) {
-    return {
-      ...state,
-      data: {
-        ...state.data,
-        ...newProject,
-      },
-    };
-  }
-  return state;
-};
-
-const doProjectValidateData = (
-  state: ProjectState,
-  payload: {
-    newData: InstanceData[];
-  }
-): ProjectState => {
-  const { newData } = payload;
-
-  const firstData = newData[0];
-  if (!firstData) {
-    return state;
-  }
-
-  const validateData = (
-    project: GameProjectData,
-    newData: InstanceData[]
-  ): {
-    updated: { [refId: string]: InstanceData };
-    original: { [refId: string]: InstanceData };
-  } => ImpowerGameInspector.instance.validateData(project, newData);
-
-  const { newProject } = insertGameProjectData(
-    state.data,
-    newData,
-    validateData
-  );
-
-  if (JSON.stringify(newProject) !== JSON.stringify(state.data)) {
-    // Inserting data automatically validates it
-    // But by making this a separate action,
-    // it can be ignored by the undo/redo tracking
-    return {
-      ...state,
-      data: {
-        ...state.data,
-        ...newProject,
-      },
-    };
-  }
-  return state;
 };
 
 const doProjectInsertData = (
@@ -268,7 +184,7 @@ const doProjectChangeScript = (
   state: ProjectState,
   payload: {
     id: string;
-    type: "logic";
+    type: string;
     script: string;
     skipSync: boolean;
   }
@@ -452,10 +368,6 @@ export const projectReducer = (
   switch (action.type) {
     case PROJECT_ACCESS:
       return doProjectAccess(state, action.payload);
-    case PROJECT_VALIDATE:
-      return doProjectValidate(state);
-    case PROJECT_VALIDATE_DATA:
-      return doProjectValidateData(state, action.payload);
     case PROJECT_INSERT_DATA:
       return doProjectInsertData(state, action.payload);
     case PROJECT_REMOVE_DATA:

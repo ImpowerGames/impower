@@ -27,7 +27,7 @@ import {
   FountainParseResult,
   parseFountain,
 } from "../../impower-script-parser";
-import { SerializableEditorState } from "../types/editor";
+import { SearchAction, SerializableEditorState } from "../types/editor";
 import { fountain } from "../types/fountain";
 import { fountainLanguage, tags as t } from "../types/fountainLanguage";
 import { SearchPanel } from "./SearchPanel";
@@ -167,18 +167,7 @@ interface ScriptEditorProps {
   augmentations?: FountainDeclarations;
   toggleFolding: boolean;
   toggleLinting: boolean;
-  searchQuery?: {
-    search: string;
-    caseSensitive?: boolean;
-    regexp?: boolean;
-    replace?: string;
-    action?:
-      | "search"
-      | "find_next"
-      | "find_previous"
-      | "replace"
-      | "replace_all";
-  };
+  searchQuery?: SearchAction;
   editorAction?: {
     action?: "undo" | "redo";
   };
@@ -207,18 +196,7 @@ interface ScriptEditorProps {
   onScrollLine?: (event: Event, firstVisibleLine: number) => void;
   onSearch: (
     e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-    searchQuery?: {
-      search: string;
-      caseSensitive?: boolean;
-      regexp?: boolean;
-      replace?: string;
-      action?:
-        | "search"
-        | "find_next"
-        | "find_previous"
-        | "replace"
-        | "replace_all";
-    }
+    searchQuery?: SearchAction
   ) => void;
 }
 

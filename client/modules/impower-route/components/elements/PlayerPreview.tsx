@@ -1,7 +1,6 @@
 import styled from "@emotion/styled";
 import { Typography } from "@material-ui/core";
 import Button from "@material-ui/core/Button";
-import { motion } from "framer-motion";
 import React from "react";
 import GamepadSolidIcon from "../../../../resources/icons/solid/gamepad.svg";
 import { ProjectDocument } from "../../../impower-data-store";
@@ -43,7 +42,7 @@ const StyledForeground = styled.div`
   z-index: 1;
 `;
 
-const StyledPlayerPreviewButtonContent = styled(motion.div)`
+const StyledPlayerPreviewButtonContent = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;

@@ -25,7 +25,6 @@ import NavigationBarSpacer from "../../impower-route/components/elements/Navigat
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../contexts/transitionContext";
 import { panelSetPaneSize } from "../types/actions/panelActions";
-import { projectValidate } from "../types/actions/projectActions";
 import {
   testControlChange,
   testLayoutChange,
@@ -36,7 +35,6 @@ import { windowSwitch } from "../types/actions/windowActions";
 import { windows } from "../types/info/windows";
 import { PanelType } from "../types/state/panelState";
 import { WindowType } from "../types/state/windowState";
-import { PanelbarPosition } from "./bars/Panelbar";
 import Pane from "./layouts/Pane";
 import SplitPane from "./layouts/SplitPane";
 import TestToolbar from "./toolbars/TestToolbar";
@@ -57,9 +55,9 @@ const getVisiblePanels = (
       case "Assets":
         return [[], ["Assets"]];
       case "Entities":
-        return [[], ["Container", "Item", "Detail"]];
+        return [[], ["Entities", "Detail"]];
       case "Logic":
-        return [[], ["Container", "Item", "Detail"]];
+        return [[], ["Logic", "Detail"]];
       case "Test":
         return [[], ["Test"]];
       default:
@@ -72,9 +70,9 @@ const getVisiblePanels = (
     case "Assets":
       return [["Assets"], ["Test"]];
     case "Entities":
-      return [["Container", "Item", "Detail"], ["Test"]];
+      return [["Entities", "Detail"], ["Test"]];
     case "Logic":
-      return [["Container", "Item", "Detail"], ["Test"]];
+      return [["Logic", "Detail"], ["Test"]];
     case "Test":
       return [[], ["Test"]];
     default:
@@ -90,13 +88,6 @@ const getPanelbar = (
     return <TestToolbar windowType={windowType} />;
   }
   return null;
-};
-
-const getPanelbarPosition = (visiblePanels: PanelType[]): PanelbarPosition => {
-  if (visiblePanels?.[0] === "Test") {
-    return PanelbarPosition.Top;
-  }
-  return PanelbarPosition.None;
 };
 
 const StyledProject = styled.div`
@@ -239,13 +230,6 @@ const ProjectContent = (props: ProjectContentProps): JSX.Element => {
 
   const allowVerticalResize = !fullscreen && !isLeftLayoutEmpty;
 
-  const leftPane1PanelbarPosition = getPanelbarPosition(
-    sortedPanelFocusOrder[0]
-  );
-  const rightPane2PanelbarPosition = getPanelbarPosition(
-    sortedPanelFocusOrder[1]
-  );
-
   const forcedVerticalSplitPercentage =
     fullscreen || isLeftLayoutEmpty ? 0 : isRightLayoutEmpty ? 100 : undefined;
 
@@ -279,7 +263,6 @@ const ProjectContent = (props: ProjectContentProps): JSX.Element => {
         windowType={windowType}
         panelFocusOrder={sortedPanelFocusOrder[1]}
         panelbar={getPanelbar(windowType, sortedPanelFocusOrder[1])}
-        panelbarPosition={rightPane2PanelbarPosition}
       />
     );
   }
@@ -308,14 +291,12 @@ const ProjectContent = (props: ProjectContentProps): JSX.Element => {
           windowType={windowType}
           panelFocusOrder={sortedPanelFocusOrder[0]}
           panelbar={getPanelbar(windowType, sortedPanelFocusOrder[0])}
-          panelbarPosition={leftPane1PanelbarPosition}
         />
         <Pane
           innerRef={rightPane}
           windowType={windowType}
           panelFocusOrder={sortedPanelFocusOrder[1]}
           panelbar={getPanelbar(windowType, sortedPanelFocusOrder[1])}
-          panelbarPosition={rightPane2PanelbarPosition}
           preservePane
         />
       </StyledSplitPane>
@@ -324,13 +305,13 @@ const ProjectContent = (props: ProjectContentProps): JSX.Element => {
 };
 
 const Project = React.memo((): JSX.Element => {
-  const [state, dispatch] = useContext(ProjectEngineContext);
   const { fullscreen } = useContext(ScreenContext);
   const [navigationState] = useContext(NavigationContext);
-  const windowType = state.window.type;
-  const doc = state.project?.data?.doc;
+  const [state, dispatch] = useContext(ProjectEngineContext);
 
-  const { access } = state.project;
+  const windowType = state?.window?.type;
+  const doc = state?.project?.data?.doc;
+  const access = state?.project?.access;
 
   const [windowTransitionState, setWindowTransitionState] =
     useState<TransitionState>(TransitionState.initial);
@@ -370,7 +351,6 @@ const Project = React.memo((): JSX.Element => {
   }, [dispatch, isPlayable, portrait, windowType]);
   const handleComplete = useCallback(() => {
     if (isPlayable && !portrait && windowType === "Test") {
-      dispatch(projectValidate());
       dispatch(testControlChange("Play"));
       dispatch(testModeChange("Test"));
     }

@@ -29,6 +29,7 @@ import format from "../../../impower-config/utils/format";
 import { FontIcon } from "../../../impower-icon";
 import { useScrollParent } from "../../../impower-react-virtualization";
 import { TextField } from "../../../impower-route";
+import { SearchAction } from "../../../impower-script-editor";
 
 const StyledFixedSpacer = styled.div`
   margin-top: env(safe-area-inset-top, 0);
@@ -312,18 +313,7 @@ interface EngineToolbarContentProps {
   moreIcon?: React.ReactNode;
   backIcon?: React.ReactNode;
   minHeight: number;
-  searchQuery?: {
-    search: string;
-    caseSensitive?: boolean;
-    regexp?: boolean;
-    replace?: string;
-    action?:
-      | "search"
-      | "find_next"
-      | "find_previous"
-      | "replace"
-      | "replace_all";
-  };
+  searchQuery?: SearchAction;
   selectedPaths?: string[];
   paths?: string[];
   backLabel: string;
@@ -359,18 +349,7 @@ interface EngineToolbarContentProps {
   onDone: (e: React.MouseEvent) => void;
   onSearch: (
     e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-    searchQuery?: {
-      search: string;
-      caseSensitive?: boolean;
-      regexp?: boolean;
-      replace?: string;
-      action?:
-        | "search"
-        | "find_next"
-        | "find_previous"
-        | "replace"
-        | "replace_all";
-    }
+    searchQuery?: SearchAction
   ) => void;
   onMore: (e: React.MouseEvent) => void;
 }
@@ -953,18 +932,7 @@ interface EngineToolbarProps {
   moreIcon?: React.ReactNode;
   backIcon?: React.ReactNode;
   minHeight: number;
-  searchQuery?: {
-    search: string;
-    caseSensitive?: boolean;
-    regexp?: boolean;
-    replace?: string;
-    action?:
-      | "search"
-      | "find_next"
-      | "find_previous"
-      | "replace"
-      | "replace_all";
-  };
+  searchQuery?: SearchAction;
   selectedPaths?: string[];
   paths?: string[];
   backLabel?: string;
@@ -1001,18 +969,7 @@ interface EngineToolbarProps {
   onDone?: (e: React.MouseEvent) => void;
   onSearch?: (
     e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-    searchQuery?: {
-      search: string;
-      caseSensitive?: boolean;
-      regexp?: boolean;
-      replace?: string;
-      action?:
-        | "search"
-        | "find_next"
-        | "find_previous"
-        | "replace"
-        | "replace_all";
-    }
+    searchQuery?: SearchAction
   ) => void;
   onMore?: (e: React.MouseEvent) => void;
 }

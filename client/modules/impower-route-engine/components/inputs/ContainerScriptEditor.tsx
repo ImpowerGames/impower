@@ -15,7 +15,10 @@ import {
   getScriptAugmentations,
 } from "../../../impower-game/parser";
 import { FadeAnimation } from "../../../impower-route";
-import { SerializableEditorState } from "../../../impower-script-editor/types/editor";
+import {
+  SearchAction,
+  SerializableEditorState,
+} from "../../../impower-script-editor/types/editor";
 import {
   FountainParseResult,
   parseFountain,
@@ -31,6 +34,7 @@ import {
   panelSetScrollTopLine,
 } from "../../types/actions/panelActions";
 import { projectChangeScript } from "../../types/actions/projectActions";
+import { WindowType } from "../../types/state/windowState";
 
 const ScriptEditor = dynamic(
   () => import("../../../impower-script-editor/components/ScriptEditor"),
@@ -39,7 +43,7 @@ const ScriptEditor = dynamic(
   }
 );
 
-const StyledLogicScriptEditor = styled.div`
+const StyledContainerScriptEditor = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -47,33 +51,33 @@ const StyledLogicScriptEditor = styled.div`
   background-color: ${(props): string => props.theme.colors.black30};
 `;
 
-interface LogicScriptEditorProps {
+interface ContainerScriptEditorProps {
+  windowType: WindowType;
   toggleFolding: boolean;
-  toggleLinting: boolean;
   onSectionChange: (name: string) => void;
 }
 
-const LogicScriptEditor = React.memo(
-  (props: LogicScriptEditorProps): JSX.Element => {
-    const { toggleFolding, toggleLinting, onSectionChange } = props;
+const ContainerScriptEditor = React.memo(
+  (props: ContainerScriptEditorProps): JSX.Element => {
+    const { windowType, toggleFolding, onSectionChange } = props;
 
-    const [state, dispatch] = useContext(ProjectEngineContext);
     const { transitionState } = useContext(WindowTransitionContext);
     const { gameInspector } = useContext(GameInspectorContext);
     const { game } = useContext(GameContext);
+    const [state, dispatch] = useContext(ProjectEngineContext);
 
-    const events = game?.logic?.events;
-    const windowType = state?.window?.type;
-    const searchQuery =
-      state?.panel?.panels?.[windowType]?.Container?.searchQuery;
+    const events = windowType === "Logic" ? game?.logic?.events : undefined;
+
+    const searchQuery = state?.panel?.panels?.[windowType]?.searchQuery;
     const mode = state?.test?.mode;
     const id = state?.project?.id;
     const files = state?.project?.data?.files?.data;
-    const defaultValue = state?.project?.data?.scripts?.data?.logic || "";
-    const editor = state?.panel?.panels?.Logic?.Container?.editorState;
+    const defaultValue =
+      state?.project?.data?.scripts?.data?.[windowType.toLowerCase()] || "";
+    const editor = state?.panel?.panels?.[windowType]?.editorState;
     const defaultScrollTopLine =
-      state?.panel?.panels?.Logic?.Container?.scrollTopLine;
-    const editorAction = state?.panel?.panels?.Logic?.Container?.editorAction;
+      state?.panel?.panels?.[windowType]?.scrollTopLine;
+    const editorAction = state?.panel?.panels?.[windowType]?.editorAction;
 
     const augmentations = useMemo(() => getScriptAugmentations(files), [files]);
 
@@ -130,20 +134,9 @@ const LogicScriptEditor = React.memo(
     const handleSearch = useCallback(
       (
         e?: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-        searchQuery?: {
-          search: string;
-          caseSensitive?: boolean;
-          regexp?: boolean;
-          replace?: string;
-          action?:
-            | "search"
-            | "find_next"
-            | "find_previous"
-            | "replace"
-            | "replace_all";
-        }
+        searchQuery?: SearchAction
       ) => {
-        dispatch(panelSearch(windowType, "Container", searchQuery));
+        dispatch(panelSearch(windowType, searchQuery));
       },
       [dispatch, windowType]
     );
@@ -154,9 +147,15 @@ const LogicScriptEditor = React.memo(
     }, []);
 
     const handleSaveScriptChange = useCallback(() => {
-      dispatch(projectChangeScript(id, "logic", scriptValueRef.current));
-      dispatch(panelSaveEditorState("Logic", editorStateRef.current));
-    }, [dispatch, id]);
+      dispatch(
+        projectChangeScript(
+          id,
+          windowType.toLowerCase(),
+          scriptValueRef.current
+        )
+      );
+      dispatch(panelSaveEditorState(windowType, editorStateRef.current));
+    }, [dispatch, id, windowType]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedScriptChange = useCallback(
@@ -307,7 +306,7 @@ const LogicScriptEditor = React.memo(
     );
 
     return (
-      <StyledLogicScriptEditor>
+      <StyledContainerScriptEditor>
         {(transitionState === "idle" ||
           (transitionState === "exit" && !initial)) && (
           <FadeAnimation initial={0} animate={1}>
@@ -316,7 +315,7 @@ const LogicScriptEditor = React.memo(
               defaultState={editor}
               augmentations={augmentations}
               toggleFolding={toggleFolding}
-              toggleLinting={toggleLinting}
+              toggleLinting={mode === "Test"}
               editorAction={editorAction}
               searchQuery={searchQuery}
               defaultScrollTopLine={defaultScrollTopLine}
@@ -331,9 +330,9 @@ const LogicScriptEditor = React.memo(
             />
           </FadeAnimation>
         )}
-      </StyledLogicScriptEditor>
+      </StyledContainerScriptEditor>
     );
   }
 );
 
-export default LogicScriptEditor;
+export default ContainerScriptEditor;

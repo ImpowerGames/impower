@@ -2,7 +2,6 @@ import React, { useCallback, useContext, useMemo, useState } from "react";
 import { difference, isColor, isNameable } from "../../../impower-core";
 import {
   ContainerReference,
-  ContainerType,
   DataLookup,
   FileData,
   GameProjectData,
@@ -28,7 +27,6 @@ import FileMiniPreview from "../../../impower-route/components/inputs/FileMiniPr
 import { StringInputProps } from "../../../impower-route/components/inputs/StringInput";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
-import { getContainerType } from "../../types/selectors/windowSelectors";
 
 const getOptions = (
   inspector: ImpowerGameInspector,
@@ -165,24 +163,12 @@ const ReferenceInput = React.memo(
       getInputError,
     } = props;
 
-    const [state, setState] = useState(value);
-
     const { gameInspector } = useContext(GameInspectorContext);
     const [gameEngineState] = useContext(ProjectEngineContext);
-    const project = gameEngineState.project.data as GameProjectData;
-    const windowType = gameEngineState.window.type;
-    const containerType = useMemo(
-      () => getContainerType(windowType),
-      [windowType]
-    );
-    const inspectedContainerReference = useMemo(
-      () =>
-        containerType
-          ? gameEngineState?.panel?.panels?.[windowType]?.Container
-              ?.interactions?.Selected?.[0]
-          : undefined,
-      [containerType, gameEngineState.panel.panels, windowType]
-    ) as Reference;
+
+    const project = gameEngineState?.project?.data as GameProjectData;
+
+    const [state, setState] = useState(value);
 
     const isUsingConstantValue =
       isReference(state) &&
@@ -191,28 +177,11 @@ const ReferenceInput = React.memo(
 
     const lookup = useMemo(
       () =>
-        inspectedContainerReference
-          ? isUsingConstantValue
-            ? ({
-                parentContainerType:
-                  inspectedContainerReference.parentContainerType as ContainerType,
-                parentContainerId:
-                  inspectedContainerReference.parentContainerId,
-                refType: state.refType,
-                refTypeId: state.refTypeId,
-              } as DataLookup)
-            : ({
-                parentContainerType:
-                  inspectedContainerReference.refType as ContainerType,
-                parentContainerId: inspectedContainerReference.refId,
-                refType: state.refType,
-                refTypeId: state.refTypeId,
-              } as DataLookup)
-          : ({
-              refType: state.refType,
-              refTypeId: state.refTypeId,
-            } as DataLookup),
-      [inspectedContainerReference, isUsingConstantValue, state]
+        ({
+          refType: state.refType,
+          refTypeId: state.refTypeId,
+        } as DataLookup),
+      [state]
     );
 
     const options: (Reference | ContainerReference | ItemReference)[] = useMemo(

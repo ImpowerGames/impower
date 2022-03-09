@@ -1,9 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import React, { CSSProperties, PropsWithChildren, useContext } from "react";
-import { FontIcon } from "../../../impower-icon";
 import { ScreenContext } from "../../../impower-route";
-import { panels } from "../../types/info/panels";
 import { PanelType } from "../../types/state/panelState";
 
 const StyledBackground = styled.div`
@@ -31,24 +29,12 @@ const StyledContent = styled.div`
   justify-content: center;
 `;
 
-const StyledIcon = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-`;
-
-export enum PanelbarPosition {
-  None = "None",
-  Top = "Top",
-}
-
 interface PanelbarProps {
   openPanel: PanelType;
-  panelbarPosition: PanelbarPosition;
 }
 
 const Panelbar = (props: PropsWithChildren<PanelbarProps>): JSX.Element => {
-  const { openPanel, panelbarPosition, children } = props;
+  const { openPanel, children } = props;
 
   const { fullscreen } = useContext(ScreenContext);
 
@@ -66,37 +52,12 @@ const Panelbar = (props: PropsWithChildren<PanelbarProps>): JSX.Element => {
     borderRightColor:
       openPanel === panelType ? theme.colors.white10 : "transparent",
     borderTopColor: undefined,
-    borderBottomColor:
-      panelbarPosition === PanelbarPosition.Top ? "transparent" : undefined,
+    borderBottomColor: "transparent",
   });
-
-  const panel = panels.find((p) => p.type === openPanel);
-
-  const PanelIcon = panel.iconOn;
-
-  if (children) {
-    return (
-      <StyledBackground style={getBackgroundStyle(openPanel)}>
-        <StyledContent>{children}</StyledContent>
-      </StyledBackground>
-    );
-  }
 
   return (
     <StyledBackground style={getBackgroundStyle(openPanel)}>
-      <StyledContent>
-        <StyledIcon
-          className={StyledIcon.displayName}
-          style={{ color: "white" }}
-        >
-          <FontIcon
-            aria-label={`${panel.name} Panel`}
-            size={theme.fontSize.smallIcon}
-          >
-            <PanelIcon />
-          </FontIcon>
-        </StyledIcon>
-      </StyledContent>
+      <StyledContent>{children}</StyledContent>
     </StyledBackground>
   );
 };

@@ -321,7 +321,8 @@ const MembersConsole = (props: MembersConsoleProps): JSX.Element => {
   } = engineConsole;
 
   const [userState, userDispatch] = useContext(UserContext);
-  const { uid, my_studio_memberships } = userState;
+  const uid = userState?.uid;
+  const my_studio_memberships = userState?.my_studio_memberships;
   const router = useRouter();
 
   const [editDialogOpenKey, setEditDialogOpenKey] = useState<

@@ -282,7 +282,7 @@ export type ProjectFileWritePath = [
 
 export type ProjectScriptReadPath = [...ProjectDocumentPath, "scripts"];
 export type ProjectScriptWritePath =
-  | [...ProjectDocumentPath, "scripts", "data", "logic"];
+  | [...ProjectDocumentPath, "scripts", "data", string];
 
 export type ProjectInstancesReadPath =
   | [...ProjectDocumentPath, "instances"]

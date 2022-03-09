@@ -1,6 +1,5 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { motion } from "framer-motion";
 import React, {
   useCallback,
   useContext,
@@ -15,6 +14,7 @@ import { FontIcon } from "../../../impower-icon";
 import {
   AccessibleEvent,
   ButtonShape,
+  FadeAnimation,
   onTapButton,
 } from "../../../impower-route";
 import DataNameInput from "../../../impower-route/components/inputs/DataNameInput";
@@ -24,7 +24,7 @@ import { DataButtonInfo } from "../../types/info/buttons";
 import PanelHeaderIconButton from "../iconButtons/PanelHeaderIconButton";
 import DataButton from "./DataButton";
 
-const StyledExecutionBackground = styled(motion.div)`
+const StyledExecutionBackground = styled(FadeAnimation)`
   color: ${(props): string => props.theme.colors.executed};
 `;
 
@@ -110,12 +110,7 @@ const DataButtonLeftChildren = React.memo(
     return (
       <>
         {game !== undefined && executing !== undefined && (
-          <StyledExecutionBackground
-            className={StyledExecutionBackground.displayName}
-            initial={false}
-            animate={executing ? { opacity: 1 } : { opacity: 0 }}
-            transition={{ type: "tween", duration: 0.3 }}
-          >
+          <StyledExecutionBackground initial={0} animate={executing ? 1 : 0}>
             <FontIcon aria-label="Executing" size={14}>
               {executedByBlockId ? (
                 <WandMagicSparklesSolidIcon />

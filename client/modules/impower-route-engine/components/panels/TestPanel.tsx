@@ -1,7 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { ButtonBase, Typography } from "@material-ui/core";
-import { motion } from "framer-motion";
 import React, {
   CSSProperties,
   useCallback,
@@ -41,35 +40,14 @@ import { DataContext } from "../../contexts/dataContext";
 import { GameContext } from "../../contexts/gameContext";
 import { GameRunnerContext } from "../../contexts/gameRunnerContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
-import {
-  panelOpen,
-  panelSetInteraction,
-} from "../../types/actions/panelActions";
-import { projectValidate } from "../../types/actions/projectActions";
+import { panelSetInteraction } from "../../types/actions/panelActions";
 import {
   testControlChange,
   testModeChange,
 } from "../../types/actions/testActions";
 import { Control, Layout, Mode } from "../../types/state/testState";
 
-const playerAnimationVariants = {
-  hidden: {
-    opacity: 0,
-    transition: {
-      type: "tween",
-      duration: 0.2,
-    },
-  },
-  visible: {
-    opacity: 1,
-    transition: {
-      type: "tween",
-      duration: 0.3,
-    },
-  },
-};
-
-const StyledMotionTestPanel = styled(motion.div)`
+const StyledMotionTestPanel = styled(FadeAnimation)`
   position: absolute;
   top: 0;
   right: 0;
@@ -141,7 +119,7 @@ const StyledDebugContent = styled.div`
   right: 0;
 `;
 
-const StyledLogLine = styled(motion.div)`
+const StyledLogLine = styled.div`
   display: flex;
   align-items: center;
   min-height: ${(props): string => props.theme.spacing(4)};
@@ -179,7 +157,7 @@ const LogIcon = React.memo((props: LogIconProps): JSX.Element | null => {
   switch (severity) {
     case "Info":
       return (
-        <StyledLogIcon className={StyledLogIcon.displayName}>
+        <StyledLogIcon>
           <FontIcon
             aria-label={severity}
             color={theme.palette.info.light}
@@ -191,7 +169,7 @@ const LogIcon = React.memo((props: LogIconProps): JSX.Element | null => {
       );
     case "Warning":
       return (
-        <StyledLogIcon className={StyledLogIcon.displayName}>
+        <StyledLogIcon>
           <FontIcon
             aria-label={severity}
             color={theme.palette.warning.light}
@@ -203,7 +181,7 @@ const LogIcon = React.memo((props: LogIconProps): JSX.Element | null => {
       );
     case "Error":
       return (
-        <StyledLogIcon className={StyledLogIcon.displayName}>
+        <StyledLogIcon>
           <FontIcon
             aria-label={severity}
             color={theme.palette.error.light}
@@ -244,22 +222,12 @@ const LogLine = React.memo((props: LogLineProps): JSX.Element => {
     onClick = (): void => null,
   } = props;
   return (
-    <StyledLogLine
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ type: "tween", duration: 0.2 }}
-      className={StyledLogLine.displayName}
-      style={style}
-    >
+    <StyledLogLine style={style}>
       <StyledLogButton
-        className={StyledLogButton.displayName}
         onClick={(e): void => onClick(parentBlockId, blockId, commandId, e)}
       >
         <LogIcon severity={severity} />
-        <StyledDebugTypography className={StyledDebugTypography.displayName}>
-          {message}
-        </StyledDebugTypography>
+        <StyledDebugTypography>{message}</StyledDebugTypography>
       </StyledLogButton>
     </StyledLogLine>
   );
@@ -279,20 +247,12 @@ interface TestOverlayProps {
 const TestOverlay = React.memo((props: TestOverlayProps): JSX.Element => {
   const { debug, logs, onClickLog } = props;
   return (
-    <StyledOverlay className={StyledOverlay.displayName}>
+    <StyledOverlay>
       <UnmountAnimation>
         {debug && (
-          <StyledDebugOverlay
-            className={StyledDebugOverlay.displayName}
-            initial={0}
-            animate={1}
-            exit={0}
-            duration={0.2}
-          >
-            <StyledDebugBackground
-              className={StyledDebugBackground.displayName}
-            >
-              <StyledDebugContent className={StyledDebugContent.displayName}>
+          <StyledDebugOverlay initial={0} animate={1} exit={0} duration={0.2}>
+            <StyledDebugBackground>
+              <StyledDebugContent>
                 {logs.map((log, index): JSX.Element => {
                   if (!log) {
                     return null;
@@ -345,7 +305,6 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
     setPlayerInitialized(true);
   }, []);
   const handleClickPlay = useCallback(() => {
-    dispatch(projectValidate());
     dispatch(testControlChange("Play"));
     dispatch(testModeChange("Test"));
   }, [dispatch]);
@@ -400,23 +359,12 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
       e: AccessibleEvent
     ) => {
       e.stopPropagation();
-      dispatch(panelOpen("Logic", "Item"));
       events.onOpenData.emit({ id: parentBlockId });
       const block = project?.instances?.blocks?.data?.[blockId];
       if (block) {
         dispatch(
-          panelSetInteraction("Logic", "Selected", "Container", [
-            block.reference,
-          ])
+          panelSetInteraction("Logic", "Selected", [block.reference.refId])
         );
-        const command = block.commands.data[commandId];
-        if (command) {
-          dispatch(
-            panelSetInteraction("Logic", "Selected", "Item", [
-              command.reference,
-            ])
-          );
-        }
       }
       window.setTimeout(
         () => events.onFocusData.emit({ ids: [blockId, commandId] }),
@@ -444,7 +392,7 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
   }, [game]);
 
   return (
-    <StyledTestPlayer className={StyledTestPlayer.displayName}>
+    <StyledTestPlayer>
       <TransparencyPattern
         style={
           playerInitialized
@@ -458,7 +406,7 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
         control={control}
         project={project}
         game={game}
-        gameBucketFolderId={state.project.id}
+        gameBucketFolderId={state?.project?.id}
         runner={gameRunner}
         logoSrc="/logo.png"
         onInitialized={handlePlayerInitialized}
@@ -523,7 +471,6 @@ const TestPanelContent = React.memo(
 
     return (
       <StyledTestPanelContent
-        className={StyledTestPanelContent.displayName}
         ref={scrollParentRef}
         style={{
           marginBottom: theme.minHeight.navigationBar,
@@ -560,16 +507,22 @@ const TestPanelContent = React.memo(
 );
 
 const TestPanel = React.memo((): JSX.Element => {
-  const [state] = useContext(ProjectEngineContext);
   const [userState] = useContext(UserContext);
-  const { uid } = userState;
+  const [state] = useContext(ProjectEngineContext);
+
+  const uid = userState?.uid;
+
+  const id = state.project?.id;
+  const data = state.project?.data;
+  const doc = state.project?.data?.doc;
+  const playerVisibility = state?.test?.playerVisibility;
+  const startTime = state?.test?.startTime;
+  const mode = state?.test?.mode;
+  const control = state?.test?.control;
+  const debug = state?.test?.debug;
+  const layout = state?.test?.layout;
 
   const theme = useTheme();
-
-  const { playerVisibility, startTime, mode, control, debug, layout } =
-    state.test;
-  const { id, data } = state.project;
-  const doc = state.project?.data?.doc;
 
   const backgroundColor = doc.backgroundHex;
 
@@ -578,10 +531,8 @@ const TestPanel = React.memo((): JSX.Element => {
 
   return (
     <StyledMotionTestPanel
-      className={StyledMotionTestPanel.displayName}
-      initial="visible"
-      animate={playerVisibility ? "visible" : "hidden"}
-      variants={playerAnimationVariants}
+      initial={1}
+      animate={playerVisibility ? 1 : 0}
       style={{ backgroundColor }}
     >
       <TestPanelContent

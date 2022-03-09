@@ -381,7 +381,7 @@ const ProjectsConsole = (props: YourProjectsConsoleProps): JSX.Element => {
   const [, toastDispatch] = useContext(ToastContext);
   const [, confirmDialogDispatch] = useContext(ConfirmDialogContext);
   const [userState] = useContext(UserContext);
-  const { uid } = userState;
+  const uid = userState?.uid;
 
   const [createDocId, setCreateDocId] = useState<string>();
   const [createDoc, setCreateDoc] = useState<ProjectDocument>();

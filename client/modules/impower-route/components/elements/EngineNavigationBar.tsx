@@ -4,13 +4,13 @@ import Divider from "@material-ui/core/Divider";
 import IconButton from "@material-ui/core/IconButton";
 import Tab from "@material-ui/core/Tab";
 import useMediaQuery from "@material-ui/core/useMediaQuery";
-import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import React, { PropsWithChildren, useCallback, useState } from "react";
 import BarsRegularIcon from "../../../../resources/icons/regular/bars.svg";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { FontIcon } from "../../../impower-icon";
 import { useRouter } from "../../../impower-router";
+import FadeAnimation from "../animations/FadeAnimation";
 import Tabs from "../layouts/Tabs";
 import Avatar from "./Avatar";
 
@@ -84,7 +84,7 @@ const ButtonArea = styled.div`
   }
 `;
 
-const StyledTabsArea = styled(motion.div)`
+const StyledTabsArea = styled(FadeAnimation)`
   flex: 1;
   position: relative;
   min-width: 0;
@@ -226,10 +226,7 @@ const EngineNavigationBar = React.memo(
                 orientation={dividerOrientation}
               />
             </StyledDividerArea>
-            <StyledTabsArea
-              initial={{ opacity: 0 }}
-              animate={{ opacity: links ? 1 : 0 }}
-            >
+            <StyledTabsArea initial={0} animate={links ? 1 : 0}>
               <StyledTabsContent>
                 <StyledTabs
                   value={tabValue}

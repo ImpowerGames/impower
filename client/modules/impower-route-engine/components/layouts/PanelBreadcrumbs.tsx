@@ -1,8 +1,7 @@
 import styled from "@emotion/styled";
 import Tab from "@material-ui/core/Tab";
-import { motion } from "framer-motion";
 import React, { useCallback } from "react";
-import { Tabs } from "../../../impower-route";
+import { FadeAnimation, Tabs } from "../../../impower-route";
 
 const StyledBreadcrumbs = styled.div`
   flex: 1;
@@ -49,7 +48,7 @@ const StyledTab = styled(Tab)`
   }
 `;
 
-const StyledMotionContent = styled(motion.div)``;
+const StyledMotionContent = styled(FadeAnimation)``;
 
 const StyledLabel = styled.div`
   background-color: ${(props): string => props.theme.colors.darkForeground};
@@ -119,12 +118,7 @@ const PanelBreadcrumbs = React.memo(
                 key={breadcrumb.id}
                 value={index}
                 label={
-                  <StyledMotionContent
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                  >
+                  <StyledMotionContent initial={0} animate={1} exit={0}>
                     {index > 0 && <StyledSeparator>/</StyledSeparator>}
                     <StyledLabel>{breadcrumb.name}</StyledLabel>
                   </StyledMotionContent>
