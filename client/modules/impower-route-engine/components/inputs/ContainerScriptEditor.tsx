@@ -93,6 +93,8 @@ const ContainerScriptEditor = React.memo(
     const scrollTopLineRef = useRef<number>();
     const parseResultRef = useRef<FountainParseResult>();
     const currentSectionNameRef = useRef<string>();
+    const canUndoRef = useRef<boolean>();
+    const canRedoRef = useRef<boolean>();
 
     const [parseResultState, setParseResultState] =
       useState<FountainParseResult>();
@@ -154,7 +156,6 @@ const ContainerScriptEditor = React.memo(
           scriptValueRef.current
         )
       );
-      dispatch(panelSaveEditorState(windowType, editorStateRef.current));
     }, [dispatch, id, windowType]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,13 +164,37 @@ const ContainerScriptEditor = React.memo(
       [handleSaveScriptChange]
     );
 
+    const handleSaveEditorChange = useCallback(() => {
+      dispatch(panelSaveEditorState(windowType, editorStateRef.current));
+    }, [dispatch, windowType]);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const handleDebouncedEditorChange = useCallback(
+      debounce(handleSaveEditorChange, 1000),
+      [handleSaveEditorChange]
+    );
+
     const handleScriptChange = useCallback(
       (value: string, state: SerializableEditorState) => {
         scriptValueRef.current = value;
         editorStateRef.current = state;
+        const canUndo = state?.history?.done?.length > 1;
+        const canRedo = state?.history?.undone?.length > 0;
+        if (canUndoRef.current !== canUndo || canRedoRef.current !== canRedo) {
+          // Save editor change immediately so undo/redo button reflects change.
+          canUndoRef.current = canUndo;
+          canRedoRef.current = canRedo;
+          handleSaveEditorChange();
+        } else {
+          handleDebouncedEditorChange();
+        }
         handleDebouncedScriptChange();
       },
-      [handleDebouncedScriptChange]
+      [
+        handleDebouncedEditorChange,
+        handleDebouncedScriptChange,
+        handleSaveEditorChange,
+      ]
     );
 
     const handleSaveScriptCursor = useCallback(() => {
