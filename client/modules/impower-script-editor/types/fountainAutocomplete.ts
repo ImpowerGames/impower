@@ -6,8 +6,8 @@ import {
   CompletionResult,
   snippetCompletion as snip,
 } from "@codemirror/autocomplete";
-import { syntaxTree } from "@codemirror/language";
-import { SyntaxNode } from "@lezer/common";
+import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
+import { SyntaxNode, Tree } from "@lezer/common";
 import {
   FountainAsset,
   FountainParseResult,
@@ -195,12 +195,31 @@ const getSectionInfo = (node: SyntaxNode): { level: number; from: number } => {
   return { level: positions.size, from };
 };
 
-export const fountainAutocomplete = (
+export const fountainAutocomplete = async (
   context: CompletionContext,
   parseContext: { result: FountainParseResult }
-): CompletionResult | Promise<CompletionResult> => {
+): Promise<CompletionResult> => {
   const { result } = parseContext;
-  const tree = syntaxTree(context.state);
+  const requestTree = (
+    onTreeReady: (value: Tree | PromiseLike<Tree>) => void
+  ): number => {
+    const t = ensureSyntaxTree(context.state, context.pos, 5000);
+    if (t) {
+      onTreeReady(t);
+    }
+    const loop = (): void => {
+      const ready = syntaxTreeAvailable(context.state, context.pos);
+      if (ready) {
+        onTreeReady(ensureSyntaxTree(context.state, context.pos));
+      } else {
+        window.requestAnimationFrame(loop);
+      }
+    };
+    return window.requestAnimationFrame(loop);
+  };
+  const tree = await new Promise<Tree>((resolve) => {
+    requestTree(resolve);
+  });
   const node: SyntaxNode = tree.resolveInner(context.pos, -1);
   const input = context.state.sliceDoc(node.from, node.to);
   const line = context.state.doc.lineAt(node.from).number;

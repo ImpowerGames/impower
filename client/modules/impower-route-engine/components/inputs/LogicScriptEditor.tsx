@@ -15,7 +15,7 @@ import {
   getScriptAugmentations,
 } from "../../../impower-game/parser";
 import { FadeAnimation } from "../../../impower-route";
-import { SerializableEditorState } from "../../../impower-script-editor";
+import { SerializableEditorState } from "../../../impower-script-editor/types/editor";
 import {
   FountainParseResult,
   parseFountain,
@@ -154,29 +154,23 @@ const LogicScriptEditor = React.memo(
     }, []);
 
     const handleSaveScriptChange = useCallback(() => {
-      const newValue = scriptValueRef.current;
-      dispatch(projectChangeScript(id, "logic", newValue));
+      dispatch(projectChangeScript(id, "logic", scriptValueRef.current));
+      dispatch(panelSaveEditorState("Logic", editorStateRef.current));
     }, [dispatch, id]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedScriptChange = useCallback(
-      debounce(handleSaveScriptChange, 500),
+      debounce(handleSaveScriptChange, 1000),
       [handleSaveScriptChange]
     );
 
     const handleScriptChange = useCallback(
       (value: string, state: SerializableEditorState) => {
         scriptValueRef.current = value;
+        editorStateRef.current = state;
         handleDebouncedScriptChange();
-        if (
-          JSON.stringify(editorStateRef.current?.history) !==
-          JSON.stringify(state?.history)
-        ) {
-          editorStateRef.current = state;
-          dispatch(panelSaveEditorState("Logic", editorStateRef.current));
-        }
       },
-      [dispatch, handleDebouncedScriptChange]
+      [handleDebouncedScriptChange]
     );
 
     const handleSaveScriptCursor = useCallback(() => {

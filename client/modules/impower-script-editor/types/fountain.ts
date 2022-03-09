@@ -89,10 +89,10 @@ export function fountain(
   const support = [
     htmlNoMatch.support,
     fountainLanguage.data.of({
-      autocomplete: (c) => fountainAutocomplete(c, parseContext),
+      autocomplete: async (c) => fountainAutocomplete(c, parseContext),
     }),
     autocompletion({ aboveCursor: true }),
-    linter(fountainParseLinter, { delay: 10 }),
+    linter(fountainParseLinter, { delay: 100 }),
   ];
   let defaultCode;
   if (defaultCodeLanguage instanceof LanguageSupport) {

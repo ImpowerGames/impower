@@ -30,9 +30,12 @@ export class FragmentCursor {
   }
 
   moveTo(pos: number, lineStart: number): boolean {
-    while (this.fragment && this.fragment.to <= pos) this.nextFragment();
-    if (!this.fragment || this.fragment.from > (pos ? pos - 1 : 0))
+    while (this.fragment && this.fragment.to <= pos) {
+      this.nextFragment();
+    }
+    if (!this.fragment || this.fragment.from > (pos ? pos - 1 : 0)) {
       return false;
+    }
     if (this.fragmentEnd < 0) {
       let end = this.fragment.to;
       while (end > 0 && this.input.read(end - 1, end) !== "\n") {
@@ -49,10 +52,18 @@ export class FragmentCursor {
     }
 
     const rPos = pos + this.fragment.offset;
-    while (c.to <= rPos) if (!c.parent()) return false;
+    while (c.to <= rPos) {
+      if (!c.parent()) {
+        return false;
+      }
+    }
     for (;;) {
-      if (c.from >= rPos) return this.fragment.from <= lineStart;
-      if (!c.childAfter(rPos)) return false;
+      if (c.from >= rPos) {
+        return this.fragment.from <= lineStart;
+      }
+      if (!c.childAfter(rPos)) {
+        return false;
+      }
     }
   }
 
@@ -86,14 +97,14 @@ export class FragmentCursor {
         // after an indented code block, since those can continue after
         // any number of blank lines.
         if (cur.type.is("Block")) {
-          if (NotLast.indexOf(cur.type.id) < 0) {
-            end = cur.to - off;
-            blockI = cx.block.children.length;
-          } else {
+          if (NotLast.includes(cur.type.id)) {
             end = prevEnd;
             blockI = prevI;
             prevEnd = cur.to - off;
             prevI = cx.block.children.length;
+          } else {
+            end = cur.to - off;
+            blockI = cx.block.children.length;
           }
         }
       }

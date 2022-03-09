@@ -100,9 +100,10 @@ export class BlockContext implements PartialParse {
       }
     }
 
-    if (this.fragments && this.reuseFragment(line.basePos)) {
-      return null;
-    }
+    // TODO: This optimization breaks syntax highlighting in long documents
+    // if (this.fragments && this.reuseFragment(line.basePos)) {
+    //   return null;
+    // }
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -189,10 +190,13 @@ export class BlockContext implements PartialParse {
         this.absoluteLineStart
       ) ||
       !this.fragments?.matches(this.block.hash)
-    )
+    ) {
       return false;
+    }
     const taken = this.fragments?.takeNodes(this);
-    if (!taken) return false;
+    if (!taken) {
+      return false;
+    }
     let withoutGaps = taken;
     const end = this.absoluteLineStart + taken;
     for (let i = 1; i < this.ranges.length; i += 1) {
