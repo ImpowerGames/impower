@@ -102,6 +102,7 @@ const StyledProject = styled.div`
     user-select: none;
     touch-callout: none;
   }
+  transition: opacity 0.2s ease;
 `;
 
 const StyledProjectTopArea = styled.div`
@@ -299,8 +300,7 @@ const Project = React.memo((): JSX.Element => {
 
   const [windowTransitionState, setWindowTransitionState] =
     useState<TransitionState>(TransitionState.initial);
-  // Default to portrait mode to prevent flicker on mobile
-  const [portrait, setPortrait] = useState<boolean>(true);
+  const [portrait, setPortrait] = useState<boolean>();
 
   const theme = useTheme();
 
@@ -397,7 +397,10 @@ const Project = React.memo((): JSX.Element => {
 
   return (
     <WindowTransitionContext.Provider value={windowTransitionContext}>
-      <StyledProject onContextMenu={handleContextMenu}>
+      <StyledProject
+        onContextMenu={handleContextMenu}
+        style={{ opacity: portrait === undefined ? 0 : 1 }}
+      >
         {!fullscreen && !portrait && (
           <>
             <NavigationBarSpacer />
@@ -414,6 +417,7 @@ const Project = React.memo((): JSX.Element => {
         <StyledProjectTopArea>
           <StyledProjectContentArea>
             <TopLevelTransition
+              initial={false}
               animate={animate}
               custom={{ position: "relative", exitPosition: "relative" }}
             >
