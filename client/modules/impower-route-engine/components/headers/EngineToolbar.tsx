@@ -1056,18 +1056,15 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     [headerRef]
   );
 
-  const handleOpenSearch = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent) => {
-      if (e) {
-        e.stopPropagation();
-        e.preventDefault();
-      }
-      if (keyboardTriggerRef.current) {
-        keyboardTriggerRef.current.focus();
-      }
-    },
-    []
-  );
+  const handleOpenSearch = useCallback((e: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    if (keyboardTriggerRef.current) {
+      keyboardTriggerRef.current.focus();
+    }
+  }, []);
 
   const theme = useTheme();
 
