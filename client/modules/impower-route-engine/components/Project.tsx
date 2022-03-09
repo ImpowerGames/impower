@@ -102,6 +102,16 @@ const StyledProject = styled.div`
     user-select: none;
     touch-callout: none;
   }
+  *[contenteditable="true"] {
+    user-select: text;
+  }
+  input {
+    user-select: text;
+  }
+  textarea {
+    user-select: text;
+  }
+
   transition: opacity 0.2s ease;
 `;
 
