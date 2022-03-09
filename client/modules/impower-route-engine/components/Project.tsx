@@ -299,7 +299,7 @@ const Project = React.memo((): JSX.Element => {
 
   const [windowTransitionState, setWindowTransitionState] =
     useState<TransitionState>(TransitionState.initial);
-  const [portrait, setPortrait] = useState<boolean>();
+  const [portrait, setPortrait] = useState<boolean>(true);
 
   const theme = useTheme();
 
