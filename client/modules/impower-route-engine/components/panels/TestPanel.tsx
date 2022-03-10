@@ -50,7 +50,7 @@ import {
 } from "../../types/actions/testActions";
 import { Control, Layout, Mode } from "../../types/state/testState";
 
-const StyledMotionTestPanel = styled(FadeAnimation)`
+const StyledMotionTestPanel = styled.div`
   position: absolute;
   top: 0;
   right: 0;
@@ -519,7 +519,6 @@ const TestPanel = React.memo((): JSX.Element => {
   const id = state.project?.id;
   const data = state.project?.data;
   const doc = state.project?.data?.doc;
-  const playerVisibility = state?.test?.playerVisibility;
   const startTime = state?.test?.startTime;
   const mode = state?.test?.mode;
   const control = state?.test?.control;
@@ -534,12 +533,7 @@ const TestPanel = React.memo((): JSX.Element => {
   useHTMLBackgroundColor(theme.colors.darkForeground);
 
   return (
-    <StyledMotionTestPanel
-      initial={1}
-      animate={playerVisibility ? 1 : 0}
-      style={{ backgroundColor }}
-      delay={0.3}
-    >
+    <StyledMotionTestPanel style={{ backgroundColor }}>
       <TestPanelContent
         uid={uid}
         docId={id}

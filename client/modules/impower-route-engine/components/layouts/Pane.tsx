@@ -132,7 +132,7 @@ const PaneContent = React.memo(
     if (panelbar) {
       return (
         <>
-          <Panelbar openPanel={openPanel}>{panelbar}</Panelbar>
+          <Panelbar>{panelbar}</Panelbar>
           <StyledPanelContent>
             <PanelArea
               windowType={windowType}

@@ -1,22 +1,18 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import React, { CSSProperties, PropsWithChildren, useContext } from "react";
+import React, { CSSProperties, useContext, useMemo } from "react";
 import { ScreenContext } from "../../../impower-route";
-import { PanelType } from "../../types/state/panelState";
 
 const StyledBackground = styled.div`
   flex: 1;
   position: relative;
-
-  min-height: ${(props): string => props.theme.minHeight.panel};
-  max-height: ${(props): string => props.theme.minHeight.panel};
+  min-height: ${(props): string => props.theme.minHeight.navigationBar};
+  max-height: ${(props): string => props.theme.minHeight.navigationBar};
   opacity: 1;
   line-height: 1;
   color: white;
   z-index: 1;
-  padding: 0;
-
-  border: ${(props): string => props.theme.border.tab};
+  box-shadow: ${(props): string => props.theme.boxShadow.bottom};
 `;
 
 const StyledContent = styled.div`
@@ -30,33 +26,24 @@ const StyledContent = styled.div`
 `;
 
 interface PanelbarProps {
-  openPanel: PanelType;
+  children?: React.ReactNode;
 }
 
-const Panelbar = (props: PropsWithChildren<PanelbarProps>): JSX.Element => {
-  const { openPanel, children } = props;
+const Panelbar = (props: PanelbarProps): JSX.Element => {
+  const { children } = props;
 
   const { fullscreen } = useContext(ScreenContext);
 
   const theme = useTheme();
-  const getBackgroundStyle = (panelType: PanelType): CSSProperties => ({
-    backgroundColor:
-      openPanel === panelType
-        ? fullscreen
-          ? "black"
-          : theme.colors.darkForeground
-        : undefined,
-    boxShadow: openPanel === panelType ? theme.boxShadow.bottom : undefined,
-    borderLeftColor:
-      openPanel === panelType ? theme.colors.white10 : "transparent",
-    borderRightColor:
-      openPanel === panelType ? theme.colors.white10 : "transparent",
-    borderTopColor: undefined,
-    borderBottomColor: "transparent",
-  });
+  const backgroundStyle = useMemo(
+    (): CSSProperties => ({
+      backgroundColor: fullscreen ? "black" : theme.colors.darkForeground,
+    }),
+    [fullscreen, theme.colors.darkForeground]
+  );
 
   return (
-    <StyledBackground style={getBackgroundStyle(openPanel)}>
+    <StyledBackground style={backgroundStyle}>
       <StyledContent>{children}</StyledContent>
     </StyledBackground>
   );
