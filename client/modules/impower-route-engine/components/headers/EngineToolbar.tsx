@@ -8,6 +8,7 @@ import Typography from "@material-ui/core/Typography";
 import React, {
   PropsWithChildren,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -30,6 +31,7 @@ import { FontIcon } from "../../../impower-icon";
 import { useScrollParent } from "../../../impower-react-virtualization";
 import { TextField } from "../../../impower-route";
 import { SearchAction } from "../../../impower-script-editor";
+import { WindowTransitionContext } from "../../contexts/transitionContext";
 
 const StyledKeyboardTrigger = styled.input`
   position: fixed;
@@ -1012,6 +1014,8 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     onMore,
   } = props;
 
+  const { portrait } = useContext(WindowTransitionContext);
+
   const [headerArea, setHeaderArea] = useState<HTMLElement>();
   const [scrolledDown, setScrolledDown] = useState(false);
   const keyboardTriggerRef = useRef<HTMLInputElement>();
@@ -1059,21 +1063,26 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     [headerRef]
   );
 
-  const handleOpenSearch = useCallback((e: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-    if (keyboardTriggerRef.current) {
-      keyboardTriggerRef.current.focus();
-    }
-    const bottomNavigationBars = document.querySelectorAll(
-      `.bottom-navigation-bar`
-    );
-    bottomNavigationBars.forEach((el: HTMLElement) => {
-      el.style.display = "none";
-    });
-  }, []);
+  const handleOpenSearch = useCallback(
+    (e: React.MouseEvent) => {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      if (keyboardTriggerRef.current) {
+        keyboardTriggerRef.current.focus();
+      }
+      if (portrait) {
+        const bottomNavigationBars = document.querySelectorAll(
+          `.bottom-navigation-bar`
+        );
+        bottomNavigationBars.forEach((el: HTMLElement) => {
+          el.style.display = "none";
+        });
+      }
+    },
+    [portrait]
+  );
   const handleCloseSearch = useCallback((e: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();

@@ -64,7 +64,7 @@ const ContainerScriptEditor = React.memo(
   (props: ContainerScriptEditorProps): JSX.Element => {
     const { windowType, toggleFolding, onSectionChange } = props;
 
-    const { transitionState } = useContext(WindowTransitionContext);
+    const { transitionState, portrait } = useContext(WindowTransitionContext);
     const { gameInspector } = useContext(GameInspectorContext);
     const { game } = useContext(GameContext);
     const [state, dispatch] = useContext(ProjectEngineContext);
@@ -273,13 +273,15 @@ const ContainerScriptEditor = React.memo(
     );
 
     const handleFocus = useCallback(() => {
-      const bottomNavigationBars = document.querySelectorAll(
-        `.bottom-navigation-bar`
-      );
-      bottomNavigationBars.forEach((el: HTMLElement) => {
-        el.style.display = "none";
-      });
-    }, []);
+      if (portrait) {
+        const bottomNavigationBars = document.querySelectorAll(
+          `.bottom-navigation-bar`
+        );
+        bottomNavigationBars.forEach((el: HTMLElement) => {
+          el.style.display = "none";
+        });
+      }
+    }, [portrait]);
 
     const handleBlur = useCallback(() => {
       const bottomNavigationBars = document.querySelectorAll(
