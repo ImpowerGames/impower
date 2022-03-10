@@ -33,9 +33,9 @@ const CircularProgress = dynamic(
 const StyledKeyboardTrigger = styled.input`
   position: fixed;
   top: 0;
-  bottom: 0;
   left: 0;
-  right: 0;
+  width: 1px;
+  height: 1px;
   opacity: 0;
   pointer-events: none;
 `;
