@@ -96,7 +96,6 @@ const StyledProject = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100vh;
 
   & * {
     user-select: none;

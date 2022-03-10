@@ -538,6 +538,7 @@ const TestPanel = React.memo((): JSX.Element => {
       initial={1}
       animate={playerVisibility ? 1 : 0}
       style={{ backgroundColor }}
+      delay={0.3}
     >
       <TestPanelContent
         uid={uid}
