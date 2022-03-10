@@ -36,6 +36,7 @@ const StyledKeyboardTrigger = styled.input`
   left: 0;
   width: 1px;
   height: 1px;
+  font-size: 16px;
   opacity: 0;
   pointer-events: none;
 `;
