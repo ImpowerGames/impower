@@ -272,6 +272,24 @@ const ContainerScriptEditor = React.memo(
       [augmentations, onSectionChange]
     );
 
+    const handleFocus = useCallback(() => {
+      const bottomNavigationBars = document.querySelectorAll(
+        `.bottom-navigation-bar`
+      );
+      bottomNavigationBars.forEach((el: HTMLElement) => {
+        el.style.display = "none";
+      });
+    }, []);
+
+    const handleBlur = useCallback(() => {
+      const bottomNavigationBars = document.querySelectorAll(
+        `.bottom-navigation-bar`
+      );
+      bottomNavigationBars.forEach((el: HTMLElement) => {
+        el.style.display = null;
+      });
+    }, []);
+
     const handlePreviewResult = useCallback(
       (result: FountainParseResult, line: number) => {
         if (line != null) {
@@ -357,6 +375,8 @@ const ContainerScriptEditor = React.memo(
               onCursor={handleScriptCursor}
               onScrollLine={handleScrollLine}
               onSearch={handleSearch}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
             />
           </FadeAnimation>
         )}

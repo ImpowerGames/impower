@@ -141,8 +141,8 @@ const myHighlightStyle = HighlightStyle.define([
 interface ScriptEditorProps {
   defaultValue: string;
   augmentations?: FountainDeclarations;
-  toggleFolding: boolean;
-  toggleLinting: boolean;
+  toggleFolding?: boolean;
+  toggleLinting?: boolean;
   searchQuery?: SearchAction;
   editorAction?: {
     action?: "undo" | "redo";
@@ -170,10 +170,12 @@ interface ScriptEditorProps {
     toLine: number;
   }) => void;
   onScrollLine?: (event: Event, firstVisibleLine: number) => void;
-  onSearch: (
+  onSearch?: (
     e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
     searchQuery?: SearchAction
   ) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
@@ -198,6 +200,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     onCursor,
     onScrollLine,
     onSearch,
+    onFocus,
+    onBlur,
   } = props;
 
   const elementRef = useRef<HTMLDivElement>();
@@ -227,6 +231,10 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   onParseRef.current = onParse;
   const onSearchRef = useRef(onSearch);
   onSearchRef.current = onSearch;
+  const onFocusRef = useRef(onFocus);
+  onFocusRef.current = onFocus;
+  const onBlurRef = useRef(onBlur);
+  onBlurRef.current = onBlur;
   const augmentationsRef = useRef(augmentations);
   augmentationsRef.current = augmentations;
 
@@ -389,6 +397,13 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         EditorView.updateListener.of((u) => {
           if (onUpdateRef.current) {
             onUpdateRef.current(u);
+          }
+          if (u.focusChanged) {
+            if (u.view.hasFocus) {
+              onFocusRef.current?.();
+            } else {
+              onBlurRef.current?.();
+            }
           }
           if (u.docChanged) {
             if (onChangeRef.current) {
