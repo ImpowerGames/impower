@@ -32,9 +32,7 @@ export interface PanelState {
       cursor?: PanelCursorState;
       searchQuery?: SearchAction;
       editorState?: SerializableEditorState;
-      editorAction?: {
-        action?: "undo" | "redo";
-      };
+      editorAction: { action?: string; focus?: boolean };
       scrollTopLine?: number;
       inspectedTargetId?: string;
       inspectedProperties?: string[];

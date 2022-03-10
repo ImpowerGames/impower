@@ -354,19 +354,19 @@ interface EngineToolbarContentProps {
   moreButtonBackgroundStyle?: React.CSSProperties;
   clearButtonBackgroundStyle?: React.CSSProperties;
   doneButtonBackgroundStyle?: React.CSSProperties;
-  isSelectAllowed: (path: string) => boolean;
+  isSelectAllowed?: (path: string) => boolean;
   onSelectAll?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDeselectAll?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClickMoreOption: (e: React.MouseEvent, option: string) => void;
   onBack?: (e: React.MouseEvent) => void;
-  onDone: (e: React.MouseEvent) => void;
-  onSearch: (
+  onDone?: (e: React.MouseEvent) => void;
+  onSearch?: (
     e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
     searchQuery?: SearchAction
   ) => void;
-  onOpenSearch: (e: React.MouseEvent) => void;
-  onCloseSearch: (e: React.MouseEvent) => void;
-  onMore: (e: React.MouseEvent) => void;
+  onOpenSearch?: (e: React.MouseEvent) => void;
+  onCloseSearch?: (e: React.MouseEvent) => void;
+  onMore?: (e: React.MouseEvent) => void;
 }
 
 const EngineToolbarContent = React.memo(
@@ -1064,37 +1064,14 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     [headerRef]
   );
 
-  const handleOpenSearch = useCallback(
-    (e: React.MouseEvent) => {
-      if (e) {
-        e.stopPropagation();
-        e.preventDefault();
-      }
-      if (keyboardTriggerRef.current) {
-        keyboardTriggerRef.current.focus();
-      }
-      if (portrait) {
-        const bottomNavigationBars = document.querySelectorAll(
-          `.bottom-navigation-bar`
-        );
-        bottomNavigationBars.forEach((el: HTMLElement) => {
-          el.style.display = "none";
-        });
-      }
-    },
-    [portrait]
-  );
-  const handleCloseSearch = useCallback((e: React.MouseEvent) => {
+  const handleOpenSearch = useCallback((e: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
       e.preventDefault();
     }
-    const bottomNavigationBars = document.querySelectorAll(
-      `.bottom-navigation-bar`
-    );
-    bottomNavigationBars.forEach((el: HTMLElement) => {
-      el.style.display = null;
-    });
+    if (keyboardTriggerRef.current) {
+      keyboardTriggerRef.current.focus();
+    }
   }, []);
 
   const theme = useTheme();
@@ -1180,7 +1157,6 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                   onDone={onDone}
                   onSearch={onSearch}
                   onOpenSearch={handleOpenSearch}
-                  onCloseSearch={handleCloseSearch}
                   onMore={onMore}
                 >
                   {rightChildren}

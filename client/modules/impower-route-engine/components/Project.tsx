@@ -16,12 +16,14 @@ import {
   BottomNavigationBar,
   layout,
   PageNavigationBar,
+  Portal,
   ScreenContext,
   TopLevelTransition,
   TransitionState,
   useTransitionAnimation,
 } from "../../impower-route";
 import NavigationBarSpacer from "../../impower-route/components/elements/NavigationBarSpacer";
+import useVisualViewport from "../../impower-route/hooks/useVisualViewport";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../contexts/transitionContext";
 import { panelSetPaneSize } from "../types/actions/panelActions";
@@ -35,6 +37,7 @@ import { windowSwitch } from "../types/actions/windowActions";
 import { windows } from "../types/info/windows";
 import { PanelType } from "../types/state/panelState";
 import { WindowType } from "../types/state/windowState";
+import SnippetToolbar from "./bars/SnippetToolbar";
 import Pane from "./layouts/Pane";
 import SplitPane from "./layouts/SplitPane";
 import TestToolbar from "./toolbars/TestToolbar";
@@ -188,6 +191,43 @@ const StyledSplitPane = styled(SplitPane)`
   }
 `;
 
+const StyledFixedViewport = styled.div`
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  z-index: 1;
+  transform: translateZ(0);
+  will-change: transform;
+`;
+
+const StyledViewportSpacer = styled.div`
+  flex: 1;
+  pointer-events: none;
+`;
+
+const StyledToolbarArea = styled.div`
+  pointer-events: none;
+  position: relative;
+  background-color: ${(props): string => props.theme.palette.primary.main};
+  min-height: ${(props): string => props.theme.minHeight.navigationBar};
+  max-height: ${(props): string => props.theme.minHeight.navigationBar};
+`;
+
+const StyledToolbarContent = styled.div`
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+`;
+
 interface ProjectContentProps {
   windowType: WindowType;
 }
@@ -307,10 +347,15 @@ const Project = React.memo((): JSX.Element => {
   const windowType = state?.window?.type;
   const doc = state?.project?.data?.doc;
   const access = state?.project?.access;
+  const searchQuery = state?.panel?.panels?.[windowType]?.searchQuery;
+  const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
 
   const [windowTransitionState, setWindowTransitionState] =
     useState<TransitionState>(TransitionState.initial);
   const [portrait, setPortrait] = useState<boolean>();
+  const [viewportEl, setViewportEl] = useState<HTMLElement>();
+
+  useVisualViewport(portrait ? viewportEl : null, 64);
 
   const theme = useTheme();
 
@@ -407,6 +452,12 @@ const Project = React.memo((): JSX.Element => {
     document.documentElement.style.overflowY = portrait ? "scroll" : "hidden";
   }, [portrait]);
 
+  const handleViewportRef = useCallback((instance: HTMLElement) => {
+    if (instance) {
+      setViewportEl(instance);
+    }
+  }, []);
+
   return (
     <WindowTransitionContext.Provider value={windowTransitionContext}>
       <StyledProject
@@ -437,12 +488,31 @@ const Project = React.memo((): JSX.Element => {
             </TopLevelTransition>
           </StyledProjectContentArea>
         </StyledProjectTopArea>
-        {!fullscreen && footerButtons?.length > 1 && (
-          <BottomNavigationBar
-            buttons={footerButtons}
-            value={windowType}
-            onChange={handleChange}
-          />
+        {!fullscreen && (
+          <Portal>
+            <StyledFixedViewport>
+              <StyledViewportSpacer ref={handleViewportRef} />
+              {(!portrait || !searchQuery) && (
+                <StyledToolbarArea>
+                  <StyledToolbarContent>
+                    {portrait && focused ? (
+                      <SnippetToolbar />
+                    ) : (
+                      <>
+                        {footerButtons?.length && (
+                          <BottomNavigationBar
+                            buttons={footerButtons}
+                            value={windowType}
+                            onChange={handleChange}
+                          />
+                        )}
+                      </>
+                    )}
+                  </StyledToolbarContent>
+                </StyledToolbarArea>
+              )}
+            </StyledFixedViewport>
+          </Portal>
         )}
       </StyledProject>
     </WindowTransitionContext.Provider>

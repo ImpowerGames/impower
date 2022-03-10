@@ -46,6 +46,7 @@ export interface SerializableEditorState {
   readonly selection: EditorSelection;
   readonly history: HistoryState;
   readonly userEvent?: string;
+  readonly focused?: boolean;
 }
 
 export interface SearchAction {

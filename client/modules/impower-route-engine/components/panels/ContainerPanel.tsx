@@ -9,6 +9,8 @@ import React, {
 import AngleDownRegularIcon from "../../../../resources/icons/regular/angle-down.svg";
 import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left.svg";
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
+import CheckRegularIcon from "../../../../resources/icons/regular/check.svg";
+import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ellipsis-vertical.svg";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
 import { SearchAction } from "../../../impower-script-editor";
@@ -61,9 +63,12 @@ const ContainerPanelHeader = React.memo(
   (props: ContainerPanelHeaderProps): JSX.Element => {
     const { windowType, title, toggleFolding, style, onToggleFolding } = props;
 
+    const { portrait } = useContext(WindowTransitionContext);
     const [state, dispatch] = useContext(ProjectEngineContext);
+
     const scripting = state?.panel?.panels?.[windowType]?.scripting;
     const searchQuery = state?.panel?.panels?.[windowType]?.searchQuery;
+    const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
 
     const theme = useTheme();
 
@@ -126,6 +131,19 @@ const ContainerPanelHeader = React.memo(
         style={headerStyle}
         stickyStyle={headerStickyStyle}
         backIcon={<AngleLeftRegularIcon />}
+        moreIcon={
+          portrait && focused ? (
+            <CheckRegularIcon />
+          ) : (
+            <EllipsisVerticalRegularIcon />
+          )
+        }
+        moreButtonStyle={{
+          color:
+            portrait && focused
+              ? theme.colors.selected
+              : theme.palette.secondary.main,
+        }}
         backLabel={`Back`}
         moreLabel={`More Options`}
         searchLabel={`Find`}
@@ -189,8 +207,8 @@ interface ContainerPanelProps {
 const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const { windowType } = props;
 
-  const [state] = useContext(ProjectEngineContext);
   const { portrait } = useContext(WindowTransitionContext);
+  const [state] = useContext(ProjectEngineContext);
 
   const [toggleFolding, setToggleFolding] = useState<boolean>(false);
   const [headerName, setHeaderName] = useState("");

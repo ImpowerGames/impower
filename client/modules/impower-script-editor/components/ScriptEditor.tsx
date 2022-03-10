@@ -144,9 +144,7 @@ interface ScriptEditorProps {
   toggleFolding?: boolean;
   toggleLinting?: boolean;
   searchQuery?: SearchAction;
-  editorAction?: {
-    action?: "undo" | "redo";
-  };
+  editorAction: { action?: string; focus?: boolean };
   defaultState?: SerializableEditorState;
   defaultScrollTopLine?: number;
   scrollTopLine?: number;
@@ -300,7 +298,22 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             return result;
           },
         }),
-        tooltips({ position: "absolute" }),
+        tooltips({
+          position: "absolute",
+          tooltipSpace: (): {
+            top: number;
+            left: number;
+            bottom: number;
+            right: number;
+          } => {
+            return {
+              top: 64,
+              left: 0,
+              bottom: window.innerHeight,
+              right: window.innerWidth,
+            };
+          },
+        }),
         myHighlightStyle,
         keymap.of([indentWithTab]),
         indentUnit.of("    "),
@@ -405,7 +418,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
               onBlurRef.current?.();
             }
           }
-          if (u.docChanged) {
+          if (u.docChanged || u.focusChanged) {
             if (onChangeRef.current) {
               const json = u.state.toJSON({ history: historyField });
               const doc = u.view.state.doc.toJSON().join("\n");
@@ -422,6 +435,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
                 selection,
                 history,
                 userEvent,
+                focused: u.view.hasFocus,
               });
             }
           }
@@ -466,11 +480,16 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   }, [bottomPanelsContainer, topPanelsContainer]);
 
   useEffect(() => {
-    if (editorAction?.action === "undo") {
-      undo(viewRef.current);
-    }
-    if (editorAction?.action === "redo") {
-      redo(viewRef.current);
+    if (viewRef.current) {
+      if (editorAction?.action === "undo") {
+        undo(viewRef.current);
+      }
+      if (editorAction?.action === "redo") {
+        redo(viewRef.current);
+      }
+      if (editorAction?.focus) {
+        viewRef.current.focus();
+      }
     }
   }, [editorAction]);
 

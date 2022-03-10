@@ -252,12 +252,12 @@ export interface PanelChangeEditorStateAction {
   type: typeof PANEL_CHANGE_EDITOR_STATE;
   payload: {
     windowType: WindowType;
-    editorAction: { action: "undo" | "redo" };
+    editorAction: { action?: string; focus?: boolean };
   };
 }
 export const panelChangeEditorState = (
   windowType: WindowType,
-  editorAction: { action: "undo" | "redo" }
+  editorAction: { action?: string; focus?: boolean }
 ): PanelChangeEditorStateAction => {
   return {
     type: PANEL_CHANGE_EDITOR_STATE,

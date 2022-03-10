@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
-const useVisualViewport = (viewport: HTMLElement): boolean => {
+const useVisualViewport = (viewport: HTMLElement, offset = 0): boolean => {
   const pendingViewportUpdate = useRef(false);
   const [visualViewportSupported, setVisualViewportSupported] =
     useState<boolean>();
+
+  const offsetRef = useRef(offset);
+  offsetRef.current = offset;
 
   useEffect(() => {
     setVisualViewportSupported(Boolean(window.visualViewport));
@@ -13,11 +16,13 @@ const useVisualViewport = (viewport: HTMLElement): boolean => {
         return;
       }
       pendingViewportUpdate.current = true;
-      requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
         pendingViewportUpdate.current = false;
         if (viewport) {
           const visualViewport = event.target;
-          viewport.style.maxHeight = `${visualViewport.height}px`;
+          viewport.style.maxHeight = `${
+            visualViewport.height - offsetRef.current
+          }px`;
         }
       });
     };

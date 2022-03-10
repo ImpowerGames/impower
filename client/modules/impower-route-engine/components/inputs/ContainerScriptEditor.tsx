@@ -14,7 +14,10 @@ import {
   getRuntimeCommand,
   getScriptAugmentations,
 } from "../../../impower-game/parser";
-import { FadeAnimation } from "../../../impower-route";
+import {
+  BottomNavigationBarSpacer,
+  FadeAnimation,
+} from "../../../impower-route";
 import { colors } from "../../../impower-script-editor";
 import {
   SearchAction,
@@ -96,8 +99,6 @@ const ContainerScriptEditor = React.memo(
     const scrollTopLineRef = useRef<number>();
     const parseResultRef = useRef<FountainParseResult>();
     const currentSectionNameRef = useRef<string>();
-    const canUndoRef = useRef<boolean>();
-    const canRedoRef = useRef<boolean>();
 
     const [parseResultState, setParseResultState] =
       useState<FountainParseResult>();
@@ -179,18 +180,29 @@ const ContainerScriptEditor = React.memo(
 
     const handleScriptChange = useCallback(
       (value: string, state: SerializableEditorState) => {
-        scriptValueRef.current = value;
-        editorStateRef.current = state;
         const canUndo = state?.history?.done?.length > 1;
         const canRedo = state?.history?.undone?.length > 0;
-        if (canUndoRef.current !== canUndo || canRedoRef.current !== canRedo) {
+        const focused = state?.focused;
+        const canUndoChanged =
+          editorStateRef.current?.history?.done?.length > 1 !== canUndo;
+        const canRedoChanged =
+          editorStateRef.current?.history?.undone?.length > 0 !== canRedo;
+        const focusChanged = editorStateRef.current?.focused !== focused;
+        if (canUndoChanged || canRedoChanged || focusChanged) {
           // Save editor change immediately so undo/redo button reflects change.
-          canUndoRef.current = canUndo;
-          canRedoRef.current = canRedo;
-          handleSaveEditorChange();
+          const focusedOtherInput =
+            focusChanged &&
+            !focused &&
+            document?.activeElement?.tagName?.toLowerCase() === "input";
+          if (!focusedOtherInput) {
+            editorStateRef.current = state;
+            handleSaveEditorChange();
+          }
         } else {
+          editorStateRef.current = state;
           handleDebouncedEditorChange();
         }
+        scriptValueRef.current = value;
         handleDebouncedScriptChange();
       },
       [
@@ -272,26 +284,6 @@ const ContainerScriptEditor = React.memo(
       [augmentations, onSectionChange]
     );
 
-    const handleFocus = useCallback(() => {
-      if (portrait) {
-        const bottomNavigationBars = document.querySelectorAll(
-          `.bottom-navigation-bar`
-        );
-        bottomNavigationBars.forEach((el: HTMLElement) => {
-          el.style.display = "none";
-        });
-      }
-    }, [portrait]);
-
-    const handleBlur = useCallback(() => {
-      const bottomNavigationBars = document.querySelectorAll(
-        `.bottom-navigation-bar`
-      );
-      bottomNavigationBars.forEach((el: HTMLElement) => {
-        el.style.display = null;
-      });
-    }, []);
-
     const handlePreviewResult = useCallback(
       (result: FountainParseResult, line: number) => {
         if (line != null) {
@@ -342,47 +334,50 @@ const ContainerScriptEditor = React.memo(
       }
     }, [parseResultState, previewCursor, mode, handlePreviewResult]);
 
-    const initial = initialRef.current;
-
-    initialRef.current = false;
-
     const theme = useTheme();
+
+    const backgroundStyle: React.CSSProperties = useMemo(
+      () => ({ backgroundColor: colors.background }),
+      []
+    );
 
     const style = useMemo(
       () => ({ backgroundColor: theme.colors.darkForeground }),
       [theme]
     );
 
+    const initial = initialRef.current;
+    initialRef.current = false;
+
     return (
-      <StyledContainerScriptEditor
-        style={{ backgroundColor: colors.background }}
-      >
-        {(transitionState === "idle" ||
-          (transitionState === "exit" && !initial)) && (
-          <FadeAnimation initial={0} animate={1}>
-            <ScriptEditor
-              defaultValue={defaultValue}
-              defaultState={editor}
-              augmentations={augmentations}
-              toggleFolding={toggleFolding}
-              toggleLinting={mode === "Test"}
-              editorAction={editorAction}
-              searchQuery={searchQuery}
-              defaultScrollTopLine={defaultScrollTopLine}
-              scrollTopLineOffset={-3}
-              cursor={executingCursor}
-              style={style}
-              onChange={handleScriptChange}
-              onParse={handleScriptParse}
-              onCursor={handleScriptCursor}
-              onScrollLine={handleScrollLine}
-              onSearch={handleSearch}
-              onFocus={handleFocus}
-              onBlur={handleBlur}
-            />
-          </FadeAnimation>
-        )}
-      </StyledContainerScriptEditor>
+      <>
+        <StyledContainerScriptEditor style={backgroundStyle}>
+          {(transitionState === "idle" ||
+            (transitionState === "exit" && !initial)) && (
+            <FadeAnimation initial={0} animate={1}>
+              <ScriptEditor
+                defaultValue={defaultValue}
+                defaultState={editor}
+                augmentations={augmentations}
+                toggleFolding={toggleFolding}
+                toggleLinting={mode === "Test"}
+                editorAction={editorAction}
+                searchQuery={searchQuery}
+                defaultScrollTopLine={defaultScrollTopLine}
+                scrollTopLineOffset={-3}
+                cursor={executingCursor}
+                style={style}
+                onChange={handleScriptChange}
+                onParse={handleScriptParse}
+                onCursor={handleScriptCursor}
+                onScrollLine={handleScrollLine}
+                onSearch={handleSearch}
+              />
+            </FadeAnimation>
+          )}
+          <BottomNavigationBarSpacer />
+        </StyledContainerScriptEditor>
+      </>
     );
   }
 );

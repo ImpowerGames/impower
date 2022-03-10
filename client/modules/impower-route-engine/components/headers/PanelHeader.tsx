@@ -21,6 +21,7 @@ interface PanelHeaderProps {
   type: "default" | "context" | "search";
   title: React.ReactNode;
   backIcon?: React.ReactNode;
+  moreIcon?: React.ReactNode;
   backLabel?: string;
   moreLabel?: string;
   searchLabel?: string;
@@ -32,6 +33,7 @@ interface PanelHeaderProps {
   bottomChildren?: React.ReactNode;
   breadcrumbIndicatorColor?: string;
   nameStyle?: React.CSSProperties;
+  moreButtonStyle?: React.CSSProperties;
   style?: React.CSSProperties;
   stickyStyle?: React.CSSProperties;
   onBack?: (e: React.MouseEvent) => void;
@@ -51,6 +53,7 @@ const PanelHeader = (
     type,
     title,
     backIcon,
+    moreIcon,
     backLabel,
     moreLabel,
     searchLabel,
@@ -61,6 +64,7 @@ const PanelHeader = (
     rightChildren,
     bottomChildren,
     breadcrumbIndicatorColor,
+    moreButtonStyle,
     style,
     stickyStyle,
     onBack,
@@ -124,10 +128,11 @@ const PanelHeader = (
     color: theme.palette.secondary.main,
     backgroundColor: theme.colors.darkForeground,
   };
-  const moreButtonStyle = {
+  const panelMoreButtonStyle = {
     opacity: 1,
     color: theme.palette.secondary.main,
     backgroundColor: theme.colors.darkForeground,
+    ...moreButtonStyle,
   };
 
   return (
@@ -140,6 +145,7 @@ const PanelHeader = (
         minHeight={layout.size.minWidth.headerIcon}
         searchQuery={searchQuery}
         backIcon={backIcon}
+        moreIcon={moreIcon}
         backLabel={backLabel}
         moreLabel={moreLabel}
         searchLabel={searchLabel}
@@ -148,7 +154,7 @@ const PanelHeader = (
         leftStyle={leftStyle}
         backButtonStyle={backButtonStyle}
         searchButtonStyle={searchButtonStyle}
-        moreButtonStyle={moreButtonStyle}
+        moreButtonStyle={panelMoreButtonStyle}
         stickyStyle={headerStickyStyle}
         sticky={
           style?.position === "absolute" || style?.position === "fixed"

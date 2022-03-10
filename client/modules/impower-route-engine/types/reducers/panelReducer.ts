@@ -347,7 +347,7 @@ const doChangeEditorState = (
   state: PanelState,
   payload: {
     windowType: WindowType;
-    editorAction: { action: "undo" | "redo" };
+    editorAction: { action?: string; focus?: boolean };
   }
 ): PanelState => {
   const { windowType, editorAction } = payload;
