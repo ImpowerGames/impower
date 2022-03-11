@@ -77,7 +77,7 @@ const AssetsPanel = React.memo((): JSX.Element => {
   );
 
   return (
-    <Panel onScrollRef={handleScrollRef} useWindowAsScrollContainer>
+    <Panel onScrollRef={handleScrollRef} useWindowAsScrollContainer={portrait}>
       <FilesConsole
         scrollParent={scrollParent}
         projectDoc={projectState?.data?.doc}

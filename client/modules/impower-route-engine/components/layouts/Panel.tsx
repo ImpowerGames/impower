@@ -10,7 +10,6 @@ import React, {
 } from "react";
 import { BottomNavigationBarSpacer } from "../../../impower-route";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
-import { WindowTransitionContext } from "../../contexts/transitionContext";
 
 const StyledPanel = styled.div`
   min-width: ${(props): string => props.theme.minWidth.panel};
@@ -87,7 +86,6 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
   const ref = useRef<HTMLDivElement>();
   const overlayRef = useRef<HTMLDivElement>();
   const [, dispatch] = useContext(ProjectEngineContext);
-  const { portrait } = useContext(WindowTransitionContext);
   const theme = useTheme();
 
   const handleContextMenu = useCallback(
@@ -104,7 +102,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
 
   const foregroundColor = theme.colors.darkForeground;
 
-  const panelStyle: React.CSSProperties = portrait
+  const panelStyle: React.CSSProperties = useWindowAsScrollContainer
     ? undefined
     : {
         position: "absolute",
@@ -115,25 +113,23 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
       };
 
   useEffect(() => {
-    const scrollEl =
-      portrait && useWindowAsScrollContainer
-        ? document.documentElement
-        : scrollRef.current;
+    const scrollEl = useWindowAsScrollContainer
+      ? document.documentElement
+      : scrollRef.current;
     if (scrollEl) {
       if (onScrollRef) {
         onScrollRef(scrollEl);
       }
     }
-  }, [dispatch, onScrollRef, portrait, useWindowAsScrollContainer]);
+  }, [dispatch, onScrollRef, useWindowAsScrollContainer]);
 
   const handleScrollRef = useCallback(
     (instance: HTMLDivElement): void => {
       if (instance) {
         scrollRef.current = instance;
-        const scrollEl =
-          portrait && useWindowAsScrollContainer
-            ? document.documentElement
-            : scrollRef.current;
+        const scrollEl = useWindowAsScrollContainer
+          ? document.documentElement
+          : scrollRef.current;
         if (scrollEl) {
           if (onScrollRef) {
             onScrollRef(scrollEl);
@@ -141,7 +137,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
         }
       }
     },
-    [onScrollRef, portrait, useWindowAsScrollContainer]
+    [onScrollRef, useWindowAsScrollContainer]
   );
 
   return (
@@ -160,7 +156,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
         style={{
           backgroundColor: foregroundColor,
           ...backgroundStyle,
-          overflowY: portrait ? undefined : "scroll",
+          overflowY: useWindowAsScrollContainer ? undefined : "scroll",
         }}
       >
         {topChildren}

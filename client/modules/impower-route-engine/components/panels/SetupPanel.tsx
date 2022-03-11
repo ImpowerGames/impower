@@ -572,7 +572,7 @@ const SetupPanel = React.memo((): JSX.Element => {
   return (
     <>
       <Panel
-        useWindowAsScrollContainer
+        useWindowAsScrollContainer={portrait}
         topChildren={
           portrait ? (
             <>

@@ -15,6 +15,7 @@ import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ell
 import { SlideAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
+import useIOS from "../../../impower-route/hooks/useIOS";
 import { SearchAction } from "../../../impower-script-editor";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
@@ -239,6 +240,10 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     setHeaderName(name);
   }, []);
 
+  const ios = useIOS();
+
+  const useWindowAsScrollContainer = portrait && !ios && scripting;
+
   const fixedStyle: CSSProperties = useMemo(
     () => ({
       position: "fixed",
@@ -256,9 +261,9 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
     () => ({
       overflowX: showChart ? "scroll" : undefined,
       overflowY: showChart ? "scroll" : undefined,
-      ...(showChart && portrait ? fixedStyle : {}),
+      ...(showChart && useWindowAsScrollContainer ? fixedStyle : {}),
     }),
-    [fixedStyle, portrait, showChart]
+    [fixedStyle, useWindowAsScrollContainer, showChart]
   );
 
   const overlayStyle: CSSProperties = useMemo(
@@ -276,7 +281,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   return (
     <Panel
-      useWindowAsScrollContainer={scripting}
+      useWindowAsScrollContainer={useWindowAsScrollContainer}
       backgroundStyle={backgroundStyle}
       overlayStyle={overlayStyle}
       topChildren={

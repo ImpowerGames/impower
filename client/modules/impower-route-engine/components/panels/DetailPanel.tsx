@@ -35,6 +35,7 @@ import { useRouter } from "../../../impower-router";
 import { UserContext, userOnDeleteSubmission } from "../../../impower-user";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
+import { WindowTransitionContext } from "../../contexts/transitionContext";
 import {
   panelAddInteraction,
   panelOpen,
@@ -253,6 +254,7 @@ interface DetailPanelProps {
 const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const { windowType } = props;
 
+  const { portrait } = useContext(WindowTransitionContext);
   const [state, dispatch] = useContext(ProjectEngineContext);
   const gameInspector = useContext(GameInspectorContext)?.gameInspector;
 
@@ -377,7 +379,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     <>
       <Panel
         key={inspectedTargetId}
-        useWindowAsScrollContainer
+        useWindowAsScrollContainer={portrait}
         topChildren={
           <PanelHeader
             type="default"
