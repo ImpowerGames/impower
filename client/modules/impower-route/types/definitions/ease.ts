@@ -6,4 +6,7 @@ export type Ease =
   | "ease-in-out"
   | "ease-in-back"
   | "ease-out-back"
-  | "ease-in-out-back";
+  | "ease-in-out-back"
+  | "ease-standard"
+  | "ease-decelerated"
+  | "ease-accelerated";

@@ -186,9 +186,8 @@ export const styledTheme: StyledTheme = {
     darkText: "#000000E6",
     lightText: "#798187",
 
-    selectedElement: "#FFFFFF",
-    selectedDarkText: "#06476A",
-    selectedLightText: "#497B97",
+    selectedDark: "#06476A",
+    selectedLight: "#497B97",
 
     navbar: "#053155",
     navbarOnContent: "#FFFFFF",

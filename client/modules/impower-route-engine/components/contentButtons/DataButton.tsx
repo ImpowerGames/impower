@@ -185,7 +185,7 @@ const StyledBar = styled.div`
 const StyledName = styled.div<{ selected: boolean }>`
   color: ${(props): string =>
     props.selected
-      ? props.theme.colors.selectedDarkText
+      ? props.theme.colors.selectedDark
       : props.theme.colors.darkText};
   font-size: ${(props): string => props.theme.fontSize.regular};
   font-family: ${(props): string => props.theme.typography.fontFamily};
@@ -214,7 +214,7 @@ const StyledName = styled.div<{ selected: boolean }>`
 const StyledSummary = styled.div<{ selected: boolean }>`
   color: ${(props): string =>
     props.selected
-      ? props.theme.colors.selectedLightText
+      ? props.theme.colors.selectedLight
       : props.theme.colors.lightText};
   font-size: ${(props): string => props.theme.fontSize.regular};
   font-weight: ${(props): React.ReactText =>
@@ -376,9 +376,7 @@ const StyledBarBackground = styled(StyledBackground)<{
   selected: boolean;
 }>`
   background-color: ${(props): string =>
-    props.selected
-      ? props.theme.colors.selectedElement
-      : props.theme.colors.container};
+    props.selected ? "white" : props.theme.colors.container};
 
   border-radius: ${(props): string =>
     props.shape === ButtonShape.Pill

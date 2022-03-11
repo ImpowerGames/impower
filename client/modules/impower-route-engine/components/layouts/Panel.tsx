@@ -40,10 +40,11 @@ const StyledOverlay = styled.div`
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: ${(props): string => props.theme.minHeight.navigationBar};
   pointer-events: none;
   display: flex;
   flex-direction: column;
+  z-index: 2;
 `;
 
 const StyledPanelContent = styled.div`
@@ -168,11 +169,11 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
             <StyledPanelArrangement>{children}</StyledPanelArrangement>
           </StyledPanelContent>
         </StyledForeground>
+        <BottomNavigationBarSpacer />
       </StyledBackground>
       <StyledOverlay ref={overlayRef} style={overlayStyle}>
         {overlay}
       </StyledOverlay>
-      <BottomNavigationBarSpacer />
     </StyledPanel>
   );
 };

@@ -1,4 +1,5 @@
 import { useTheme } from "@emotion/react";
+import styled from "@emotion/styled";
 import React, {
   CSSProperties,
   useCallback,
@@ -11,6 +12,7 @@ import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
 import CheckRegularIcon from "../../../../resources/icons/regular/check.svg";
 import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ellipsis-vertical.svg";
+import { SlideAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
 import { SearchAction } from "../../../impower-script-editor";
@@ -18,11 +20,24 @@ import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import { panelSearch } from "../../types/actions/panelActions";
 import { WindowType } from "../../types/state/windowState";
+import SnippetToolbar from "../bars/SnippetToolbar";
 import PanelHeader from "../headers/PanelHeader";
 import PanelHeaderIconButton from "../iconButtons/PanelHeaderIconButton";
 import UndoRedoControl from "../iconButtons/UndoRedoControl";
 import ContainerScriptEditor from "../inputs/ContainerScriptEditor";
 import Panel from "../layouts/Panel";
+
+const StyledToolbarArea = styled(SlideAnimation)`
+  pointer-events: none;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: ${(props): string => props.theme.colors.darkForeground};
+  min-height: ${(props): string => props.theme.minHeight.navigationBar};
+  max-height: ${(props): string => props.theme.minHeight.navigationBar};
+  box-shadow: ${(props): string => props.theme.shadows[2]};
+`;
 
 interface TogglePanelHeaderIconProps {
   value: boolean;
@@ -214,6 +229,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const [headerName, setHeaderName] = useState("");
 
   const scripting = state?.panel?.panels?.[windowType]?.scripting;
+  const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
   const theme = useTheme();
 
   useBodyBackgroundColor(theme.colors.darkForeground);
@@ -246,7 +262,13 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   );
 
   const overlayStyle: CSSProperties = useMemo(
-    () => (portrait ? { ...fixedStyle, zIndex: 2 } : undefined),
+    () =>
+      portrait
+        ? {
+            ...fixedStyle,
+            zIndex: 2,
+          }
+        : undefined,
     [portrait, fixedStyle]
   );
 
@@ -268,12 +290,22 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         ) : undefined
       }
       overlay={
-        <ContainerPanelHeader
-          windowType={windowType}
-          title={title}
-          toggleFolding={toggleFolding}
-          onToggleFolding={setToggleFolding}
-        />
+        !scripting ? (
+          <ContainerPanelHeader
+            windowType={windowType}
+            title={title}
+            toggleFolding={toggleFolding}
+            onToggleFolding={setToggleFolding}
+          />
+        ) : !portrait ? (
+          <StyledToolbarArea
+            animate={focused ? 0 : 64}
+            duration={0.1}
+            ease="ease-standard"
+          >
+            <SnippetToolbar />
+          </StyledToolbarArea>
+        ) : undefined
       }
     >
       <ContainerPanelContent

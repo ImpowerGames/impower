@@ -1,6 +1,7 @@
 import { SetupSectionType } from "../../../impower-game/data";
 import {
   SearchAction,
+  SerializableEditorSelection,
   SerializableEditorState,
 } from "../../../impower-script-editor";
 import { WindowType } from "./windowState";
@@ -22,6 +23,8 @@ export interface PanelCursorState {
   toLine: number;
 }
 
+export type SnippetCategoryType = "screenplay" | "world" | "flow" | "data";
+
 export interface PanelState {
   paneSize: number | string;
   panels: {
@@ -32,7 +35,13 @@ export interface PanelState {
       cursor?: PanelCursorState;
       searchQuery?: SearchAction;
       editorState?: SerializableEditorState;
-      editorAction: { action?: string; focus?: boolean };
+      editorChange?: {
+        category?: string;
+        action?: string;
+        focus?: boolean;
+        selection?: SerializableEditorSelection;
+      };
+      editorCategory?: string;
       scrollTopLine?: number;
       inspectedTargetId?: string;
       inspectedProperties?: string[];

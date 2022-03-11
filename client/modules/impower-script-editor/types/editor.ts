@@ -23,7 +23,7 @@ export interface SelectionRange {
   head: number;
 }
 
-export interface EditorSelection {
+export interface SerializableEditorSelection {
   ranges: SelectionRange[];
   main: number;
 }
@@ -32,21 +32,22 @@ export interface HistoryEvent {
   changes?: ChangeSet;
   effects: StateEffect<unknown>[];
   mapped?: ChangeDesc;
-  startSelection?: EditorSelection;
-  selectionsAfter: EditorSelection[];
+  startSelection?: SerializableEditorSelection;
+  selectionsAfter: SerializableEditorSelection[];
 }
 
-export interface HistoryState {
+export interface SerializableHistoryState {
   done: HistoryEvent[];
   undone: HistoryEvent[];
 }
 
 export interface SerializableEditorState {
   readonly doc: string;
-  readonly selection: EditorSelection;
-  readonly history: HistoryState;
+  readonly selection: SerializableEditorSelection;
+  readonly history: SerializableHistoryState;
   readonly userEvent?: string;
   readonly focused?: boolean;
+  readonly selected?: boolean;
 }
 
 export interface SearchAction {

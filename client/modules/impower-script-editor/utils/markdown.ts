@@ -74,7 +74,7 @@ export function isSynopses(line: Line): number {
     return -1;
   }
   const pos = line.pos + 1;
-  if (!line.text.match(fountainRegexes.synopsis)) {
+  if (!line.text.match(fountainRegexes.synopses)) {
     return -1;
   }
   return pos - line.pos;

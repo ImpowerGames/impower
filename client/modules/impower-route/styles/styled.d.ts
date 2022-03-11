@@ -178,9 +178,8 @@ export interface StyledTheme {
     darkText: string;
     lightText: string;
 
-    selectedElement: string;
-    selectedDarkText: string;
-    selectedLightText: string;
+    selectedDark: string;
+    selectedLight: string;
 
     panelbarOnIcon: string;
     panelbarOffIcon: string;

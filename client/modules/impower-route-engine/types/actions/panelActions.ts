@@ -1,6 +1,7 @@
 import { SetupSectionType } from "../../../impower-game/data";
 import {
   SearchAction,
+  SerializableEditorSelection,
   SerializableEditorState,
 } from "../../../impower-script-editor";
 import { PanelInteractionType, PanelType } from "../state/panelState";
@@ -252,16 +253,26 @@ export interface PanelChangeEditorStateAction {
   type: typeof PANEL_CHANGE_EDITOR_STATE;
   payload: {
     windowType: WindowType;
-    editorAction: { action?: string; focus?: boolean };
+    editorChange: {
+      category?: string;
+      action?: string;
+      focus?: boolean;
+      selection?: SerializableEditorSelection;
+    };
   };
 }
 export const panelChangeEditorState = (
   windowType: WindowType,
-  editorAction: { action?: string; focus?: boolean }
+  editorChange: {
+    category?: string;
+    action?: string;
+    focus?: boolean;
+    selection?: SerializableEditorSelection;
+  }
 ): PanelChangeEditorStateAction => {
   return {
     type: PANEL_CHANGE_EDITOR_STATE,
-    payload: { windowType, editorAction },
+    payload: { windowType, editorChange },
   };
 };
 

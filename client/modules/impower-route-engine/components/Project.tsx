@@ -214,7 +214,6 @@ const StyledViewportSpacer = styled.div`
 const StyledToolbarArea = styled.div`
   pointer-events: none;
   position: relative;
-  background-color: ${(props): string => props.theme.palette.primary.main};
   min-height: ${(props): string => props.theme.minHeight.navigationBar};
   max-height: ${(props): string => props.theme.minHeight.navigationBar};
 `;
@@ -371,7 +370,9 @@ const Project = React.memo((): JSX.Element => {
   }, [belowBreakpoint]);
 
   const handleChange = useCallback(
-    (_event: React.ChangeEvent<unknown>, key: string) => {
+    (e: React.ChangeEvent<unknown>, key: string) => {
+      e.stopPropagation();
+      e.preventDefault();
       if (windowType !== key) {
         dispatch(windowSwitch(key as WindowType));
       }
@@ -490,7 +491,7 @@ const Project = React.memo((): JSX.Element => {
         </StyledProjectTopArea>
         {!fullscreen && (
           <Portal>
-            <StyledFixedViewport>
+            <StyledFixedViewport className="mui-fixed">
               <StyledViewportSpacer ref={handleViewportRef} />
               {(!portrait || !searchQuery) && (
                 <StyledToolbarArea>

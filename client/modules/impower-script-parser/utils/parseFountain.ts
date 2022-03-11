@@ -918,9 +918,9 @@ export const parseFountain = (
           previousTriggerToken = currentToken;
         }
       } else if (
-        (match = currentToken.content.match(fountainRegexes.synopsis))
+        (match = currentToken.content.match(fountainRegexes.synopses))
       ) {
-        currentToken.type = currentToken.content ? "synopsis" : "separator";
+        currentToken.type = currentToken.content ? "synopses" : "separator";
         currentToken.content = match[1];
       } else if (
         (match = currentToken.content.match(fountainRegexes.section))

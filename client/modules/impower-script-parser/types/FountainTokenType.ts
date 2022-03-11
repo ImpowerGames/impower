@@ -27,7 +27,7 @@ export type FountainOtherType =
   | "action"
   | "centered"
   | "transition"
-  | "synopsis"
+  | "synopses"
   | "separator"
   | "page_break"
   | "action"

@@ -28,7 +28,11 @@ import {
   parseFountain,
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
-import { SearchAction, SerializableEditorState } from "../types/editor";
+import {
+  SearchAction,
+  SerializableEditorSelection,
+  SerializableEditorState,
+} from "../types/editor";
 import { fountain } from "../types/fountain";
 import { fountainLanguage, tags as t } from "../types/fountainLanguage";
 import { SearchPanel } from "./SearchPanel";
@@ -144,7 +148,12 @@ interface ScriptEditorProps {
   toggleFolding?: boolean;
   toggleLinting?: boolean;
   searchQuery?: SearchAction;
-  editorAction: { action?: string; focus?: boolean };
+  editorChange: {
+    category?: string;
+    action?: string;
+    focus?: boolean;
+    selection?: SerializableEditorSelection;
+  };
   defaultState?: SerializableEditorState;
   defaultScrollTopLine?: number;
   scrollTopLine?: number;
@@ -184,7 +193,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     toggleFolding,
     toggleLinting,
     searchQuery,
-    editorAction,
+    editorChange,
     defaultState,
     defaultScrollTopLine,
     scrollTopLine,
@@ -202,6 +211,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     onBlur,
   } = props;
 
+  const initialRef = useRef(true);
   const elementRef = useRef<HTMLDivElement>();
   const viewRef = useRef<EditorView>();
   const cursorRef = useRef<{
@@ -211,9 +221,10 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     toLine: number;
   }>();
   const firstVisibleLineRef = useRef<number>();
+  const editorStateRef = useRef<SerializableEditorState>();
+
   const scrollTopLineOffsetRef = useRef(scrollTopLineOffset);
   scrollTopLineOffsetRef.current = scrollTopLineOffset;
-
   const defaultValueRef = useRef(defaultValue);
   const defaultScrollTopLineRef = useRef(defaultScrollTopLine);
   const defaultStateRef = useRef(defaultState);
@@ -411,6 +422,37 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           if (onUpdateRef.current) {
             onUpdateRef.current(u);
           }
+          const json = u.state.toJSON({ history: historyField });
+          const doc = u.view.state.doc.toJSON().join("\n");
+          const selection =
+            u.view.state.selection.toJSON() as SerializableEditorSelection;
+          const history = json?.history;
+          const transaction = u.transactions?.[0];
+          const userEvent = transaction?.isUserEvent("undo")
+            ? "undo"
+            : transaction?.isUserEvent("redo")
+            ? "redo"
+            : null;
+          const focused = u.view.hasFocus;
+          const selected =
+            selection?.ranges?.[selection.main]?.head >
+            selection?.ranges?.[selection.main]?.anchor;
+          const editorState = {
+            doc,
+            selection,
+            history,
+            userEvent,
+            focused,
+            selected,
+          };
+          if (
+            JSON.stringify(editorStateRef.current || {}) !==
+            JSON.stringify(editorState)
+          ) {
+            if (onChangeRef.current) {
+              onChangeRef.current(doc, editorState);
+            }
+          }
           if (u.focusChanged) {
             if (u.view.hasFocus) {
               onFocusRef.current?.();
@@ -418,27 +460,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
               onBlurRef.current?.();
             }
           }
-          if (u.docChanged || u.focusChanged) {
-            if (onChangeRef.current) {
-              const json = u.state.toJSON({ history: historyField });
-              const doc = u.view.state.doc.toJSON().join("\n");
-              const selection = u.view.state.selection.toJSON();
-              const history = json?.history;
-              const transaction = u.transactions?.[0];
-              const userEvent = transaction?.isUserEvent("undo")
-                ? "undo"
-                : transaction?.isUserEvent("redo")
-                ? "redo"
-                : null;
-              onChangeRef.current(doc, {
-                doc,
-                selection,
-                history,
-                userEvent,
-                focused: u.view.hasFocus,
-              });
-            }
-          }
+          editorStateRef.current = editorState;
           const cursorRange = u.state.selection.main;
           const anchor = cursorRange?.anchor;
           const head = cursorRange?.head;
@@ -477,21 +499,42 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         viewRef.current.destroy();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bottomPanelsContainer, topPanelsContainer]);
 
   useEffect(() => {
-    if (viewRef.current) {
-      if (editorAction?.action === "undo") {
+    if (!initialRef.current && viewRef.current && editorChange) {
+      if (editorChange.action === "undo") {
         undo(viewRef.current);
       }
-      if (editorAction?.action === "redo") {
+      if (editorChange.action === "redo") {
         redo(viewRef.current);
       }
-      if (editorAction?.focus) {
-        viewRef.current.focus();
+      if (editorChange.focus) {
+        if (!viewRef.current.hasFocus) {
+          viewRef.current.focus();
+        }
+      }
+      if (editorChange.selection) {
+        const anchor =
+          editorChange.selection?.ranges?.[editorChange.selection?.main]
+            ?.anchor;
+        const changeSelection = (): void => {
+          viewRef.current.dispatch({
+            selection: {
+              anchor,
+            },
+          });
+        };
+        if (editorChange.focus) {
+          window.requestAnimationFrame(changeSelection);
+        } else {
+          changeSelection();
+        }
       }
     }
-  }, [editorAction]);
+    initialRef.current = false;
+  }, [editorChange]);
 
   useEffect(() => {
     if (toggleLinting) {

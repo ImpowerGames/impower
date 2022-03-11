@@ -8,5 +8,14 @@ export const bezier = (ease: string): string => {
   if (ease === "ease-in-out-back") {
     return `cubic-bezier(0.68, -0.6, 0.32, 1.6)`;
   }
+  if (ease === "ease-standard") {
+    return `cubic-bezier(0.4, 0.0, 0.2, 1)`;
+  }
+  if (ease === "ease-decelerated") {
+    return `cubic-bezier(0.0, 0.0, 0.2, 1)`;
+  }
+  if (ease === "ease-accelerated") {
+    return `cubic-bezier(0.4, 0.0, 1, 1)`;
+  }
   return ease;
 };

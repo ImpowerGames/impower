@@ -6,6 +6,7 @@ import {
 } from "../../../impower-route";
 import {
   SearchAction,
+  SerializableEditorSelection,
   SerializableEditorState,
 } from "../../../impower-script-editor";
 import { createPanelState } from "../../utils/createPanelState";
@@ -347,17 +348,28 @@ const doChangeEditorState = (
   state: PanelState,
   payload: {
     windowType: WindowType;
-    editorAction: { action?: string; focus?: boolean };
+    editorChange: {
+      category?: string;
+      action?: string;
+      focus?: boolean;
+      selection?: SerializableEditorSelection;
+    };
   }
 ): PanelState => {
-  const { windowType, editorAction } = payload;
+  const { windowType, editorChange } = payload;
+  let editorCategory = state?.panels?.[windowType]?.editorCategory;
+  const category = editorChange?.category;
+  if (category) {
+    editorCategory = category;
+  }
   return {
     ...state,
     panels: {
       ...state?.panels,
       [windowType]: {
         ...(state?.panels?.[windowType] || {}),
-        editorAction,
+        editorChange,
+        editorCategory,
       },
     },
   };

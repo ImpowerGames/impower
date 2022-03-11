@@ -67,7 +67,7 @@ const ContainerScriptEditor = React.memo(
   (props: ContainerScriptEditorProps): JSX.Element => {
     const { windowType, toggleFolding, onSectionChange } = props;
 
-    const { transitionState, portrait } = useContext(WindowTransitionContext);
+    const { transitionState } = useContext(WindowTransitionContext);
     const { gameInspector } = useContext(GameInspectorContext);
     const { game } = useContext(GameContext);
     const [state, dispatch] = useContext(ProjectEngineContext);
@@ -83,7 +83,7 @@ const ContainerScriptEditor = React.memo(
     const editor = state?.panel?.panels?.[windowType]?.editorState;
     const defaultScrollTopLine =
       state?.panel?.panels?.[windowType]?.scrollTopLine;
-    const editorAction = state?.panel?.panels?.[windowType]?.editorAction;
+    const editorChange = state?.panel?.panels?.[windowType]?.editorChange;
 
     const augmentations = useMemo(() => getScriptAugmentations(files), [files]);
 
@@ -95,7 +95,7 @@ const ContainerScriptEditor = React.memo(
       toLine: number;
     }>();
     const scriptValueRef = useRef<string>();
-    const editorStateRef = useRef<SerializableEditorState>();
+    const lastEditorStateRef = useRef<SerializableEditorState>();
     const scrollTopLineRef = useRef<number>();
     const parseResultRef = useRef<FountainParseResult>();
     const currentSectionNameRef = useRef<string>();
@@ -169,7 +169,7 @@ const ContainerScriptEditor = React.memo(
     );
 
     const handleSaveEditorChange = useCallback(() => {
-      dispatch(panelSaveEditorState(windowType, editorStateRef.current));
+      dispatch(panelSaveEditorState(windowType, lastEditorStateRef.current));
     }, [dispatch, windowType]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,23 +183,31 @@ const ContainerScriptEditor = React.memo(
         const canUndo = state?.history?.done?.length > 1;
         const canRedo = state?.history?.undone?.length > 0;
         const focused = state?.focused;
+        const selected = state?.selected;
         const canUndoChanged =
-          editorStateRef.current?.history?.done?.length > 1 !== canUndo;
+          lastEditorStateRef.current?.history?.done?.length > 1 !== canUndo;
         const canRedoChanged =
-          editorStateRef.current?.history?.undone?.length > 0 !== canRedo;
-        const focusChanged = editorStateRef.current?.focused !== focused;
-        if (canUndoChanged || canRedoChanged || focusChanged) {
+          lastEditorStateRef.current?.history?.undone?.length > 0 !== canRedo;
+        const focusChanged = lastEditorStateRef.current?.focused !== focused;
+        const selectedChanged =
+          lastEditorStateRef.current?.selected !== selected;
+        const focusedOtherInput =
+          focusChanged &&
+          !focused &&
+          document?.activeElement?.tagName?.toLowerCase() === "input";
+        if (
+          canUndoChanged ||
+          canRedoChanged ||
+          focusChanged ||
+          selectedChanged
+        ) {
           // Save editor change immediately so undo/redo button reflects change.
-          const focusedOtherInput =
-            focusChanged &&
-            !focused &&
-            document?.activeElement?.tagName?.toLowerCase() === "input";
           if (!focusedOtherInput) {
-            editorStateRef.current = state;
+            lastEditorStateRef.current = state;
             handleSaveEditorChange();
           }
         } else {
-          editorStateRef.current = state;
+          lastEditorStateRef.current = state;
           handleDebouncedEditorChange();
         }
         scriptValueRef.current = value;
@@ -361,7 +369,7 @@ const ContainerScriptEditor = React.memo(
                 augmentations={augmentations}
                 toggleFolding={toggleFolding}
                 toggleLinting={mode === "Test"}
-                editorAction={editorAction}
+                editorChange={editorChange}
                 searchQuery={searchQuery}
                 defaultScrollTopLine={defaultScrollTopLine}
                 scrollTopLineOffset={-3}

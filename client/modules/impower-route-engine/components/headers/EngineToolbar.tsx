@@ -1094,6 +1094,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
       />
       <StyledEngineToolbar
         ref={handleHeaderAreaRef}
+        className={position === "fixed" ? "mui-fixed" : undefined}
         style={{
           position,
           marginRight:
