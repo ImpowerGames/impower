@@ -21,7 +21,7 @@ const useVisualViewport = (viewport: HTMLElement, offset = 0): boolean => {
         if (viewport) {
           const visualViewport = event.target;
           viewport.style.maxHeight = `${
-            visualViewport.height - offsetRef.current
+            visualViewport.height + offsetRef.current
           }px`;
         }
       });
