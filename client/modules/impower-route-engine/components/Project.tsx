@@ -23,6 +23,7 @@ import {
   useTransitionAnimation,
 } from "../../impower-route";
 import NavigationBarSpacer from "../../impower-route/components/elements/NavigationBarSpacer";
+import useIOS from "../../impower-route/hooks/useIOS";
 import useVisualViewport from "../../impower-route/hooks/useVisualViewport";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../contexts/transitionContext";
@@ -353,8 +354,9 @@ const Project = React.memo((): JSX.Element => {
     useState<TransitionState>(TransitionState.initial);
   const [portrait, setPortrait] = useState<boolean>();
   const [viewportEl, setViewportEl] = useState<HTMLElement>();
+  const ios = useIOS();
 
-  useVisualViewport(portrait ? viewportEl : null, 64);
+  useVisualViewport(portrait && ios ? viewportEl : null, 64);
 
   const theme = useTheme();
 
