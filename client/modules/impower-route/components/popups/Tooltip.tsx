@@ -40,10 +40,10 @@ const StyledTooltip = styled(
   }
 `;
 
-interface TooltipProps {
-  title?: React.ReactNode;
+interface TooltipProps extends MUITooltipProps {
+  title: React.ReactNode;
   disableTouchListener?: boolean;
-  children?: React.ReactElement;
+  children: React.ReactElement;
   open?: boolean;
   placement?:
     | "right"
@@ -73,6 +73,7 @@ const Tooltip = (props: TooltipProps): JSX.Element => {
     style,
     onOpen,
     onClose,
+    ...other
   } = props;
   if (!title) {
     return children;
@@ -91,6 +92,7 @@ const Tooltip = (props: TooltipProps): JSX.Element => {
       onClose={onClose}
       disableTouchListener={disableTouchListener}
       placement={placement}
+      {...other}
     >
       {children}
     </StyledTooltip>

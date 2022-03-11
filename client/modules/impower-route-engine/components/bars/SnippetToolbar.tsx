@@ -8,15 +8,15 @@ import React, { useCallback, useContext, useRef, useState } from "react";
 import AlignCenterRegularIcon from "../../../../resources/icons/regular/align-center.svg";
 import ArrowRightToBracketRegularIcon from "../../../../resources/icons/regular/arrow-right-to-bracket.svg";
 import ArrowUpFromBracketRegularIcon from "../../../../resources/icons/regular/arrow-up-from-bracket.svg";
+import ArrowUpLeftFromCircleRegularIcon from "../../../../resources/icons/regular/arrow-up-left-from-circle.svg";
 import BinaryRegularIcon from "../../../../resources/icons/regular/binary.svg";
 import BoldRegularIcon from "../../../../resources/icons/regular/bold.svg";
 import BracketsCurlyRegularIcon from "../../../../resources/icons/regular/brackets-curly.svg";
-import CameraMovieRegularIcon from "../../../../resources/icons/regular/camera-movie.svg";
+import CirclePlusRegularIcon from "../../../../resources/icons/regular/circle-plus.svg";
+import CircleXRegularIcon from "../../../../resources/icons/regular/circle-x.svg";
 import ClapperboardRegularIcon from "../../../../resources/icons/regular/clapperboard.svg";
 import FileAudioRegularIcon from "../../../../resources/icons/regular/file-audio.svg";
 import FileImageRegularIcon from "../../../../resources/icons/regular/file-image.svg";
-import FileLinesRegularIcon from "../../../../resources/icons/regular/file-lines.svg";
-import FileVideoRegularIcon from "../../../../resources/icons/regular/file-video.svg";
 import FilmRegularIcon from "../../../../resources/icons/regular/film.svg";
 import HashtagRegularIcon from "../../../../resources/icons/regular/hashtag.svg";
 import HouseRegularIcon from "../../../../resources/icons/regular/house.svg";
@@ -33,6 +33,7 @@ import UnderlineRegularIcon from "../../../../resources/icons/regular/underline.
 import VolumeRegularIcon from "../../../../resources/icons/regular/volume.svg";
 import CaretDownSolidIcon from "../../../../resources/icons/solid/caret-down.svg";
 import { FontIcon } from "../../../impower-icon";
+import { Tooltip } from "../../../impower-route";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { panelChangeEditorState } from "../../types/actions/panelActions";
 import { SnippetCategoryType } from "../../types/state/panelState";
@@ -157,31 +158,41 @@ const FormattingToolbar = React.memo(
         onPointerDown={onPointerDown}
         onChange={onChange}
       >
-        <StyledMainToggleButton value="bold" aria-label="bold">
-          <FontIcon aria-label={`bold`}>
-            <BoldRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-        <StyledMainToggleButton value="italic" aria-label="italic">
-          <FontIcon aria-label={`italic`}>
-            <ItalicRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-        <StyledMainToggleButton value="underline" aria-label="underline">
-          <FontIcon aria-label={`underline`}>
-            <UnderlineRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-        <StyledMainToggleButton value="center" aria-label="center">
-          <FontIcon aria-label={`align-center`}>
-            <AlignCenterRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-        <StyledMainToggleButton value="dynamic" aria-label="dynamic">
-          <FontIcon aria-label={`dynamic`}>
-            <BracketsCurlyRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
+        <Tooltip title="bold" placement="top" arrow>
+          <StyledMainToggleButton value="bold" aria-label="bold">
+            <FontIcon aria-label={`bold`}>
+              <BoldRegularIcon />
+            </FontIcon>
+          </StyledMainToggleButton>
+        </Tooltip>
+        <Tooltip title="italic" placement="top" arrow>
+          <StyledMainToggleButton value="italic" aria-label="italic">
+            <FontIcon aria-label={`italic`}>
+              <ItalicRegularIcon />
+            </FontIcon>
+          </StyledMainToggleButton>
+        </Tooltip>
+        <Tooltip title="underline" placement="top" arrow>
+          <StyledMainToggleButton value="underline" aria-label="underline">
+            <FontIcon aria-label={`underline`}>
+              <UnderlineRegularIcon />
+            </FontIcon>
+          </StyledMainToggleButton>
+        </Tooltip>
+        <Tooltip title="center" placement="top" arrow>
+          <StyledMainToggleButton value="center" aria-label="center">
+            <FontIcon aria-label={`align-center`}>
+              <AlignCenterRegularIcon />
+            </FontIcon>
+          </StyledMainToggleButton>
+        </Tooltip>
+        <Tooltip title="dynamic" placement="top" arrow>
+          <StyledMainToggleButton value="dynamic" aria-label="dynamic">
+            <FontIcon aria-label={`dynamic`}>
+              <BracketsCurlyRegularIcon />
+            </FontIcon>
+          </StyledMainToggleButton>
+        </Tooltip>
       </StyledMainToggleButtonGroup>
     );
   }
@@ -202,31 +213,41 @@ const ScreenplayToolbar = React.memo(
         onPointerDown={onPointerDown}
         onChange={onChange}
       >
-        <StyledMainToggleButton value="section" aria-label="section">
-          <FontIcon aria-label={`section`}>
-            <HashtagRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-        <StyledMainToggleButton value="scene" aria-label="scene">
-          <FontIcon aria-label={`scene`}>
-            <HouseRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-        <StyledMainToggleButton value="dialogue" aria-label="dialogue">
-          <FontIcon aria-label={`dialogue`}>
-            <MessageDotsRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-        <StyledMainToggleButton value="action" aria-label="action">
-          <FontIcon aria-label={`action`}>
-            <PersonWalkingRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-        <StyledMainToggleButton value="transition" aria-label="transition">
-          <FontIcon aria-label={`transition`}>
-            <FilmRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
+        <Tooltip title="section" placement="top" arrow>
+          <StyledMainToggleButton value="section" aria-label="section">
+            <FontIcon aria-label={`section`}>
+              <HashtagRegularIcon />
+            </FontIcon>
+          </StyledMainToggleButton>
+        </Tooltip>
+        <Tooltip title="scene" placement="top" arrow>
+          <StyledMainToggleButton value="scene" aria-label="scene">
+            <FontIcon aria-label={`scene`}>
+              <HouseRegularIcon />
+            </FontIcon>
+          </StyledMainToggleButton>
+        </Tooltip>
+        <Tooltip title="dialogue" placement="top" arrow>
+          <StyledMainToggleButton value="dialogue" aria-label="dialogue">
+            <FontIcon aria-label={`dialogue`}>
+              <MessageDotsRegularIcon />
+            </FontIcon>
+          </StyledMainToggleButton>
+        </Tooltip>
+        <Tooltip title="action" placement="top" arrow>
+          <StyledMainToggleButton value="action" aria-label="action">
+            <FontIcon aria-label={`action`}>
+              <PersonWalkingRegularIcon />
+            </FontIcon>
+          </StyledMainToggleButton>
+        </Tooltip>
+        <Tooltip title="transition" placement="top" arrow>
+          <StyledMainToggleButton value="transition" aria-label="transition">
+            <FontIcon aria-label={`transition`}>
+              <FilmRegularIcon />
+            </FontIcon>
+          </StyledMainToggleButton>
+        </Tooltip>
       </StyledMainToggleButtonGroup>
     );
   }
@@ -246,21 +267,41 @@ const WorldToolbar = React.memo((props: WorldToolbarProps): JSX.Element => {
       onPointerDown={onPointerDown}
       onChange={onChange}
     >
-      <StyledMainToggleButton value="image" aria-label="image">
-        <FontIcon aria-label={`image`}>
-          <ImageUserRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="audio" aria-label="audio">
-        <FontIcon aria-label={`audio`}>
-          <VolumeRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="camera" aria-label="camera">
-        <FontIcon aria-label={`camera`}>
-          <CameraMovieRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
+      <Tooltip title="show image" placement="top" arrow>
+        <StyledMainToggleButton value="image" aria-label="image">
+          <FontIcon aria-label={`image`}>
+            <ImageUserRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="play audio" placement="top" arrow>
+        <StyledMainToggleButton value="audio" aria-label="audio">
+          <FontIcon aria-label={`audio`}>
+            <VolumeRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="spawn entity" placement="top" arrow>
+        <StyledMainToggleButton value="spawn" aria-label="spawn">
+          <FontIcon aria-label={`spawn`}>
+            <CirclePlusRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="move entity" placement="top" arrow>
+        <StyledMainToggleButton value="move" aria-label="move">
+          <FontIcon aria-label={`move`}>
+            <ArrowUpLeftFromCircleRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="destroy entity" placement="top" arrow>
+        <StyledMainToggleButton value="destroy" aria-label="destroy">
+          <FontIcon aria-label={`destroy`}>
+            <CircleXRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
     </StyledMainToggleButtonGroup>
   );
 });
@@ -279,31 +320,41 @@ const FlowToolbar = React.memo((props: FlowToolbarProps): JSX.Element => {
       onPointerDown={onPointerDown}
       onChange={onChange}
     >
-      <StyledMainToggleButton value="choice" aria-label="choice">
-        <FontIcon aria-label={`choice`}>
-          <ListUlRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="condition" aria-label="condition">
-        <FontIcon aria-label={`condition`}>
-          <ListCheckRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="go" aria-label="go">
-        <FontIcon aria-label={`go`}>
-          <ArrowRightToBracketRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="jump" aria-label="jump">
-        <FontIcon aria-label={`jump`}>
-          <ArrowUpFromBracketRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="return" aria-label="return">
-        <FontIcon aria-label={`return`} style={{ transform: "scaleX(-1)" }}>
-          <ShareFromSquareBracketRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
+      <Tooltip title="choice" placement="top" arrow>
+        <StyledMainToggleButton value="choice" aria-label="choice">
+          <FontIcon aria-label={`choice`}>
+            <ListUlRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="condition" placement="top" arrow>
+        <StyledMainToggleButton value="condition" aria-label="condition">
+          <FontIcon aria-label={`condition`}>
+            <ListCheckRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="go" placement="top" arrow>
+        <StyledMainToggleButton value="go" aria-label="go">
+          <FontIcon aria-label={`go`}>
+            <ArrowRightToBracketRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="jump" placement="top" arrow>
+        <StyledMainToggleButton value="jump" aria-label="jump">
+          <FontIcon aria-label={`jump`}>
+            <ArrowUpFromBracketRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="return" placement="top" arrow>
+        <StyledMainToggleButton value="return" aria-label="return">
+          <FontIcon aria-label={`return`} style={{ transform: "scaleX(-1)" }}>
+            <ShareFromSquareBracketRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
     </StyledMainToggleButtonGroup>
   );
 });
@@ -322,32 +373,35 @@ const DataToolbar = React.memo((props: DataToolbarProps): JSX.Element => {
       onPointerDown={onPointerDown}
       onChange={onChange}
     >
-      <StyledMainToggleButton value="variable" aria-label="variable">
-        <FontIcon aria-label={`variable`}>{`𝑥`}</FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="tag" aria-label="tag">
-        <FontIcon aria-label={`tag`}>{`𝑡`}</FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="image" aria-label="image">
-        <FontIcon aria-label={`image`}>
-          <FileImageRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="audio" aria-label="audio">
-        <FontIcon aria-label={`audio`}>
-          <FileAudioRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="video" aria-label="video">
-        <FontIcon aria-label={`video`}>
-          <FileVideoRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="text" aria-label="text">
-        <FontIcon aria-label={`text`}>
-          <FileLinesRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
+      <Tooltip title="declare variable" placement="top" arrow>
+        <StyledMainToggleButton value="variable" aria-label="variable">
+          <FontIcon aria-label={`variable`}>{`𝑥`}</FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="assign variable" placement="top" arrow>
+        <StyledMainToggleButton value="assign" aria-label="assign">
+          <FontIcon aria-label={`assign`}>{`=`}</FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="declare tag" placement="top" arrow>
+        <StyledMainToggleButton value="tag" aria-label="tag">
+          <FontIcon aria-label={`tag`}>{`𝑡`}</FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="declare image" placement="top" arrow>
+        <StyledMainToggleButton value="image" aria-label="image">
+          <FontIcon aria-label={`image`}>
+            <FileImageRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="declare audio" placement="top" arrow>
+        <StyledMainToggleButton value="audio" aria-label="audio">
+          <FontIcon aria-label={`audio`}>
+            <FileAudioRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
     </StyledMainToggleButtonGroup>
   );
 });
@@ -479,23 +533,25 @@ const SnippetToolbar = React.memo((): JSX.Element => {
       <StyledSnippetContent>
         {!selected && (
           <>
-            <StyledTypeToggleButton
-              value="category"
-              aria-label="category"
-              onPointerDown={handlePointerDownMenuButton}
-              onClick={handleClickMenuButton}
-            >
-              <FontIcon aria-label={`category`}>
-                {categories.find((x) => x.type === category)?.icon}
-              </FontIcon>
-              <FontIcon
-                aria-label={`dropdown`}
-                size={8}
-                style={{ marginLeft: 2 }}
+            <Tooltip title={`${category} snippets`} placement="top" arrow>
+              <StyledTypeToggleButton
+                value="category"
+                aria-label="category"
+                onPointerDown={handlePointerDownMenuButton}
+                onClick={handleClickMenuButton}
               >
-                <CaretDownSolidIcon />
-              </FontIcon>
-            </StyledTypeToggleButton>
+                <FontIcon aria-label={`category`}>
+                  {categories.find((x) => x.type === category)?.icon}
+                </FontIcon>
+                <FontIcon
+                  aria-label={`dropdown`}
+                  size={8}
+                  style={{ marginLeft: 2 }}
+                >
+                  <CaretDownSolidIcon />
+                </FontIcon>
+              </StyledTypeToggleButton>
+            </Tooltip>
             <Divider flexItem orientation="vertical" sx={{ mx: 0.5, my: 1 }} />
             <StyledMenu
               anchorEl={anchorEl}
