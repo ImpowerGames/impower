@@ -435,7 +435,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             : null;
           const focused = u.view.hasFocus;
           const selected =
-            selection?.ranges?.[selection.main]?.head >
+            selection?.ranges?.[selection.main]?.head !==
             selection?.ranges?.[selection.main]?.anchor;
           const editorState = {
             doc,
