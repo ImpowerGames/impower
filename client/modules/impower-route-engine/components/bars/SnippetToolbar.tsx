@@ -48,17 +48,6 @@ const categories: {
   { type: "data", name: "Data", icon: <BinaryRegularIcon /> },
 ];
 
-const StyledKeyboardTrigger = styled.input`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 1px;
-  height: 1px;
-  font-size: 16px;
-  opacity: 0;
-  pointer-events: none;
-`;
-
 const StyledSnippetToolbar = styled.div`
   width: 100%;
   height: ${(props): string => props.theme.minHeight.navigationBar};
@@ -153,73 +142,110 @@ const StyledMenuItem = styled(MenuItem)`
   }
 `;
 
-const FormattingToolbar = React.memo((): JSX.Element => {
-  return (
-    <>
-      <StyledMainToggleButton value="bold" aria-label="bold">
-        <FontIcon aria-label={`bold`}>
-          <BoldRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="italic" aria-label="italic">
-        <FontIcon aria-label={`italic`}>
-          <ItalicRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="underline" aria-label="underline">
-        <FontIcon aria-label={`underline`}>
-          <UnderlineRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="center" aria-label="center">
-        <FontIcon aria-label={`align-center`}>
-          <AlignCenterRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="dynamic" aria-label="dynamic">
-        <FontIcon aria-label={`dynamic`}>
-          <BracketsCurlyRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-    </>
-  );
-});
+interface FormattingToolbarProps {
+  onPointerDown?: (e: React.MouseEvent) => void;
+  onChange?: (e: React.MouseEvent, value: string) => void;
+}
 
-const ScreenplayToolbar = React.memo((): JSX.Element => {
-  return (
-    <>
-      <StyledMainToggleButton value="section" aria-label="section">
-        <FontIcon aria-label={`section`}>
-          <HashtagRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="scene" aria-label="scene">
-        <FontIcon aria-label={`scene`}>
-          <HouseRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="dialogue" aria-label="dialogue">
-        <FontIcon aria-label={`dialogue`}>
-          <MessageDotsRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="action" aria-label="action">
-        <FontIcon aria-label={`action`}>
-          <PersonWalkingRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-      <StyledMainToggleButton value="transition" aria-label="transition">
-        <FontIcon aria-label={`transition`}>
-          <FilmRegularIcon />
-        </FontIcon>
-      </StyledMainToggleButton>
-    </>
-  );
-});
+const FormattingToolbar = React.memo(
+  (props: FormattingToolbarProps): JSX.Element => {
+    const { onPointerDown, onChange } = props;
+    return (
+      <StyledMainToggleButtonGroup
+        size="small"
+        exclusive
+        onPointerDown={onPointerDown}
+        onChange={onChange}
+      >
+        <StyledMainToggleButton value="bold" aria-label="bold">
+          <FontIcon aria-label={`bold`}>
+            <BoldRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+        <StyledMainToggleButton value="italic" aria-label="italic">
+          <FontIcon aria-label={`italic`}>
+            <ItalicRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+        <StyledMainToggleButton value="underline" aria-label="underline">
+          <FontIcon aria-label={`underline`}>
+            <UnderlineRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+        <StyledMainToggleButton value="center" aria-label="center">
+          <FontIcon aria-label={`align-center`}>
+            <AlignCenterRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+        <StyledMainToggleButton value="dynamic" aria-label="dynamic">
+          <FontIcon aria-label={`dynamic`}>
+            <BracketsCurlyRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </StyledMainToggleButtonGroup>
+    );
+  }
+);
 
-const WorldToolbar = React.memo((): JSX.Element => {
+interface ScreenplayToolbarProps {
+  onPointerDown?: (e: React.MouseEvent) => void;
+  onChange?: (e: React.MouseEvent, value: string) => void;
+}
+
+const ScreenplayToolbar = React.memo(
+  (props: ScreenplayToolbarProps): JSX.Element => {
+    const { onPointerDown, onChange } = props;
+    return (
+      <StyledMainToggleButtonGroup
+        size="small"
+        exclusive
+        onPointerDown={onPointerDown}
+        onChange={onChange}
+      >
+        <StyledMainToggleButton value="section" aria-label="section">
+          <FontIcon aria-label={`section`}>
+            <HashtagRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+        <StyledMainToggleButton value="scene" aria-label="scene">
+          <FontIcon aria-label={`scene`}>
+            <HouseRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+        <StyledMainToggleButton value="dialogue" aria-label="dialogue">
+          <FontIcon aria-label={`dialogue`}>
+            <MessageDotsRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+        <StyledMainToggleButton value="action" aria-label="action">
+          <FontIcon aria-label={`action`}>
+            <PersonWalkingRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+        <StyledMainToggleButton value="transition" aria-label="transition">
+          <FontIcon aria-label={`transition`}>
+            <FilmRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </StyledMainToggleButtonGroup>
+    );
+  }
+);
+
+interface WorldToolbarProps {
+  onPointerDown?: (e: React.MouseEvent) => void;
+  onChange?: (e: React.MouseEvent, value: string) => void;
+}
+
+const WorldToolbar = React.memo((props: WorldToolbarProps): JSX.Element => {
+  const { onPointerDown, onChange } = props;
   return (
-    <>
+    <StyledMainToggleButtonGroup
+      size="small"
+      exclusive
+      onPointerDown={onPointerDown}
+      onChange={onChange}
+    >
       <StyledMainToggleButton value="image" aria-label="image">
         <FontIcon aria-label={`image`}>
           <ImageUserRegularIcon />
@@ -235,13 +261,24 @@ const WorldToolbar = React.memo((): JSX.Element => {
           <CameraMovieRegularIcon />
         </FontIcon>
       </StyledMainToggleButton>
-    </>
+    </StyledMainToggleButtonGroup>
   );
 });
 
-const FlowToolbar = React.memo((): JSX.Element => {
+interface FlowToolbarProps {
+  onPointerDown?: (e: React.MouseEvent) => void;
+  onChange?: (e: React.MouseEvent, value: string) => void;
+}
+
+const FlowToolbar = React.memo((props: FlowToolbarProps): JSX.Element => {
+  const { onPointerDown, onChange } = props;
   return (
-    <>
+    <StyledMainToggleButtonGroup
+      size="small"
+      exclusive
+      onPointerDown={onPointerDown}
+      onChange={onChange}
+    >
       <StyledMainToggleButton value="choice" aria-label="choice">
         <FontIcon aria-label={`choice`}>
           <ListUlRegularIcon />
@@ -267,13 +304,24 @@ const FlowToolbar = React.memo((): JSX.Element => {
           <ShareFromSquareBracketRegularIcon />
         </FontIcon>
       </StyledMainToggleButton>
-    </>
+    </StyledMainToggleButtonGroup>
   );
 });
 
-const DataToolbar = React.memo((): JSX.Element => {
+interface DataToolbarProps {
+  onPointerDown?: (e: React.MouseEvent) => void;
+  onChange?: (e: React.MouseEvent, value: string) => void;
+}
+
+const DataToolbar = React.memo((props: DataToolbarProps): JSX.Element => {
+  const { onPointerDown, onChange } = props;
   return (
-    <>
+    <StyledMainToggleButtonGroup
+      size="small"
+      exclusive
+      onPointerDown={onPointerDown}
+      onChange={onChange}
+    >
       <StyledMainToggleButton value="variable" aria-label="variable">
         <FontIcon aria-label={`variable`}>{`𝑥`}</FontIcon>
       </StyledMainToggleButton>
@@ -300,28 +348,32 @@ const DataToolbar = React.memo((): JSX.Element => {
           <FileLinesRegularIcon />
         </FontIcon>
       </StyledMainToggleButton>
-    </>
+    </StyledMainToggleButtonGroup>
   );
 });
 
 interface CategoryToolbarProps {
   type: string;
+  onPointerDown?: (e: React.MouseEvent) => void;
+  onChange?: (e: React.MouseEvent, value: string) => void;
 }
 
 const CategoryToolbar = React.memo(
   (props: CategoryToolbarProps): JSX.Element => {
-    const { type } = props;
+    const { type, onPointerDown, onChange } = props;
     if (type === "screenplay") {
-      return <ScreenplayToolbar />;
+      return (
+        <ScreenplayToolbar onPointerDown={onPointerDown} onChange={onChange} />
+      );
     }
     if (type === "world") {
-      return <WorldToolbar />;
+      return <WorldToolbar onPointerDown={onPointerDown} onChange={onChange} />;
     }
     if (type === "flow") {
-      return <FlowToolbar />;
+      return <FlowToolbar onPointerDown={onPointerDown} onChange={onChange} />;
     }
     if (type === "data") {
-      return <DataToolbar />;
+      return <DataToolbar onPointerDown={onPointerDown} onChange={onChange} />;
     }
     return null;
   }
@@ -335,111 +387,88 @@ const SnippetToolbar = React.memo((): JSX.Element => {
     state?.panel?.panels?.[windowType]?.editorCategory || "screenplay";
 
   const [anchorEl, setAnchorEl] = useState(null);
-
-  const keyboardTriggerRef = useRef<HTMLInputElement>();
+  const canCloseRef = useRef(false);
 
   const open = Boolean(anchorEl);
 
+  const handleRestoreFocus = useCallback((e: React.MouseEvent): void => {
+    e.preventDefault();
+    const editor = document.querySelector<HTMLElement>(".cm-content");
+    if (editor) {
+      editor.focus();
+    }
+  }, []);
   const handlePointerDownBackground = useCallback(
     (e: React.MouseEvent): void => {
-      e.stopPropagation();
-      e.preventDefault();
-      if (keyboardTriggerRef.current) {
-        keyboardTriggerRef.current.focus();
-      }
-      dispatch(
-        panelChangeEditorState(windowType, {
-          focus: true,
-        })
-      );
+      handleRestoreFocus(e);
     },
-    [dispatch, windowType]
+    [handleRestoreFocus]
   );
-  const handlePointerDownMenuBackground = useCallback(
+  const handlePointerDownMenuButton = useCallback(
     (e: React.MouseEvent): void => {
-      e.stopPropagation();
-      e.preventDefault();
-      if (keyboardTriggerRef.current) {
-        keyboardTriggerRef.current.focus();
-      }
-      dispatch(
-        panelChangeEditorState(windowType, {
-          focus: true,
-        })
-      );
+      canCloseRef.current = false;
+      handleRestoreFocus(e);
+      setAnchorEl(e.currentTarget);
+      window.setTimeout(() => {
+        canCloseRef.current = true;
+      }, 100);
     },
-    [dispatch, windowType]
+    [handleRestoreFocus]
   );
-  const handlePointerDownMenu = useCallback((e: React.MouseEvent): void => {
-    setAnchorEl(e.currentTarget);
-    e.preventDefault();
-    if (keyboardTriggerRef.current) {
-      keyboardTriggerRef.current.focus();
-    }
-  }, []);
+  const handleClickMenuButton = useCallback(
+    (e: React.MouseEvent): void => {
+      handleRestoreFocus(e);
+    },
+    [handleRestoreFocus]
+  );
+  const handlePointerDownMenu = useCallback(
+    (e: React.MouseEvent): void => {
+      handleRestoreFocus(e);
+    },
+    [handleRestoreFocus]
+  );
   const handleCloseMenu = useCallback(
     (e: React.MouseEvent): void => {
-      e.stopPropagation();
-      e.preventDefault();
-      if (keyboardTriggerRef.current) {
-        keyboardTriggerRef.current.focus();
+      if (canCloseRef.current) {
+        handleRestoreFocus(e);
+        setAnchorEl(null);
       }
-      setAnchorEl(null);
-      dispatch(
-        panelChangeEditorState(windowType, {
-          focus: true,
-        })
-      );
     },
-    [dispatch, windowType]
+    [handleRestoreFocus]
   );
-  const handlePointerDownMenuItem = useCallback((e: React.MouseEvent): void => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (keyboardTriggerRef.current) {
-      keyboardTriggerRef.current.focus();
-    }
-  }, []);
+  const handlePointerDownMenuItem = useCallback(
+    (e: React.MouseEvent): void => {
+      handleRestoreFocus(e);
+    },
+    [handleRestoreFocus]
+  );
   const handleClickMenuItem = useCallback(
     (e: React.MouseEvent, value: SnippetCategoryType): void => {
-      e.stopPropagation();
-      e.preventDefault();
-      if (keyboardTriggerRef.current) {
-        keyboardTriggerRef.current.focus();
-      }
+      handleRestoreFocus(e);
       setAnchorEl(null);
       const editorChange = {
         category: value,
-        focus: true,
       };
       dispatch(panelChangeEditorState(windowType, editorChange));
     },
-    [dispatch, windowType]
+    [dispatch, handleRestoreFocus, windowType]
   );
-  const handlePointerDownButton = useCallback((e: React.MouseEvent): void => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (keyboardTriggerRef.current) {
-      keyboardTriggerRef.current.focus();
-    }
-  }, []);
-  const handleClickButton = useCallback(
-    (e: React.MouseEvent, value: string): void => {
-      e.stopPropagation();
-      e.preventDefault();
-      if (keyboardTriggerRef.current) {
-        keyboardTriggerRef.current.focus();
-      }
-      if (value !== "category") {
-        const editorChange = {
-          category,
-          action: value,
-          focus: true,
-        };
-        dispatch(panelChangeEditorState(windowType, editorChange));
-      }
+  const handlePointerDownGroup = useCallback(
+    (e: React.MouseEvent): void => {
+      handleRestoreFocus(e);
     },
-    [category, dispatch, windowType]
+    [handleRestoreFocus]
+  );
+  const handleChangeGroup = useCallback(
+    (e: React.MouseEvent, value: string): void => {
+      handleRestoreFocus(e);
+      const editorChange = {
+        category,
+        action: value,
+      };
+      dispatch(panelChangeEditorState(windowType, editorChange));
+    },
+    [category, dispatch, handleRestoreFocus, windowType]
   );
 
   return (
@@ -447,79 +476,74 @@ const SnippetToolbar = React.memo((): JSX.Element => {
       className="snippet-toolbar"
       onPointerDown={handlePointerDownBackground}
     >
-      <StyledKeyboardTrigger aria-hidden="true" ref={keyboardTriggerRef} />
       <StyledSnippetContent>
-        <StyledMainToggleButtonGroup
-          size="small"
-          exclusive
-          onPointerDown={handlePointerDownButton}
-          onChange={handleClickButton}
-          aria-label="formatting"
-        >
-          {!selected && (
-            <>
-              <StyledTypeToggleButton
-                value="category"
-                aria-label="category"
-                onPointerDown={handlePointerDownMenu}
-              >
-                <FontIcon aria-label={`category`}>
-                  {categories.find((x) => x.type === category)?.icon}
-                </FontIcon>
-                <FontIcon
-                  aria-label={`dropdown`}
-                  size={8}
-                  style={{ marginLeft: 2 }}
-                >
-                  <CaretDownSolidIcon />
-                </FontIcon>
-              </StyledTypeToggleButton>
-              <Divider
-                flexItem
-                orientation="vertical"
-                sx={{ mx: 0.5, my: 1 }}
-              />
-              <StyledMenu
-                anchorEl={anchorEl}
-                open={open}
-                disableAutoFocus
-                disableAutoFocusItem
-                disableEnforceFocus
-                disableRestoreFocus
-                anchorOrigin={{
-                  vertical: "top",
-                  horizontal: "left",
-                }}
-                transformOrigin={{
-                  vertical: "bottom",
-                  horizontal: "left",
-                }}
-                marginThreshold={0}
-                onClose={handleCloseMenu}
-                onPointerDown={handlePointerDownMenuBackground}
-              >
-                {categories.map(({ type, name, icon }) => (
-                  <StyledMenuItem
-                    key={type}
-                    selected={category === type}
-                    onPointerDown={handlePointerDownMenuItem}
-                    onClick={(e): void => handleClickMenuItem(e, type)}
-                  >
-                    <FontIcon aria-label={type}>{icon}</FontIcon>
-                    <StyledMenuLabel>{name}</StyledMenuLabel>
-                  </StyledMenuItem>
-                ))}
-              </StyledMenu>
-            </>
-          )}
+        {!selected && (
           <>
-            {selected ? (
-              <FormattingToolbar />
-            ) : (
-              <CategoryToolbar type={category} />
-            )}
+            <StyledTypeToggleButton
+              value="category"
+              aria-label="category"
+              onPointerDown={handlePointerDownMenuButton}
+              onClick={handleClickMenuButton}
+            >
+              <FontIcon aria-label={`category`}>
+                {categories.find((x) => x.type === category)?.icon}
+              </FontIcon>
+              <FontIcon
+                aria-label={`dropdown`}
+                size={8}
+                style={{ marginLeft: 2 }}
+              >
+                <CaretDownSolidIcon />
+              </FontIcon>
+            </StyledTypeToggleButton>
+            <Divider flexItem orientation="vertical" sx={{ mx: 0.5, my: 1 }} />
+            <StyledMenu
+              anchorEl={anchorEl}
+              open={open}
+              disableAutoFocus
+              disableAutoFocusItem
+              disableEnforceFocus
+              disableRestoreFocus
+              anchorOrigin={{
+                vertical: "top",
+                horizontal: "left",
+              }}
+              transformOrigin={{
+                vertical: "bottom",
+                horizontal: "left",
+              }}
+              marginThreshold={0}
+              onClose={handleCloseMenu}
+              onPointerDown={handlePointerDownMenu}
+            >
+              {categories.map(({ type, name, icon }) => (
+                <StyledMenuItem
+                  key={type}
+                  selected={category === type}
+                  onPointerDown={handlePointerDownMenuItem}
+                  onClick={(e): void => handleClickMenuItem(e, type)}
+                >
+                  <FontIcon aria-label={type}>{icon}</FontIcon>
+                  <StyledMenuLabel>{name}</StyledMenuLabel>
+                </StyledMenuItem>
+              ))}
+            </StyledMenu>
           </>
-        </StyledMainToggleButtonGroup>
+        )}
+        <>
+          {selected ? (
+            <FormattingToolbar
+              onPointerDown={handlePointerDownGroup}
+              onChange={handleChangeGroup}
+            />
+          ) : (
+            <CategoryToolbar
+              type={category}
+              onPointerDown={handlePointerDownGroup}
+              onChange={handleChangeGroup}
+            />
+          )}
+        </>
       </StyledSnippetContent>
     </StyledSnippetToolbar>
   );
