@@ -194,7 +194,6 @@ const StyledSplitPane = styled(SplitPane)`
 
 const StyledFixedViewport = styled.div`
   position: fixed;
-  top: 0;
   bottom: 0;
   left: 0;
   right: 0;
@@ -205,6 +204,7 @@ const StyledFixedViewport = styled.div`
   z-index: 1;
   transform: translateZ(0);
   will-change: transform;
+  height: 100vh;
 `;
 
 const StyledViewportSpacer = styled.div`
