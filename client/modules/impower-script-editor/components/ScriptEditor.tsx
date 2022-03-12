@@ -35,6 +35,7 @@ import {
 } from "../types/editor";
 import { fountain } from "../types/fountain";
 import { fountainLanguage, tags as t } from "../types/fountainLanguage";
+import { quickSnippet } from "../utils/quickSnippet";
 import { SearchPanel } from "./SearchPanel";
 
 const marginPlugin = ViewPlugin.fromClass(
@@ -108,6 +109,8 @@ const myHighlightStyle = HighlightStyle.define([
   { tag: t.tag, color: colors.tag },
   { tag: t.logic, color: colors.logic },
   { tag: t.flow, color: colors.flow },
+  { tag: t.flowMark, color: colors.flow },
+  { tag: t.bulletList, color: colors.flow },
   {
     tag: t.titleValue,
     color: colors.titleValue,
@@ -212,7 +215,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   } = props;
 
   const initialRef = useRef(true);
-  const elementRef = useRef<HTMLDivElement>();
+  const parentElRef = useRef<HTMLDivElement>();
   const viewRef = useRef<EditorView>();
   const cursorRef = useRef<{
     anchor: number;
@@ -345,6 +348,12 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             "&.cm-focused .cm-cursor": {
               borderLeftColor: "white",
             },
+            "&.cm-snippet .cm-selectionMatch": {
+              backgroundColor: "transparent",
+            },
+            "&.cm-snippet .cm-selectionMatch-main": {
+              backgroundColor: "transparent",
+            },
             ".cm-gutters": {
               backgroundColor: "#00000066",
               color: colors.lineNumber,
@@ -391,6 +400,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ".cm-lintRange-active": {
               backgroundColor: "#ffdd991a",
             },
+            ".cm-completionIcon-tag": {
+              "&:after": { content: "'#'" },
+            },
           },
           { dark: true }
         ),
@@ -434,6 +446,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ? "redo"
             : null;
           const focused = u.view.hasFocus;
+          const rootEl = parentElRef.current.firstElementChild;
+          const snippet = Boolean(rootEl?.querySelector(".cm-snippetField"));
           const selected =
             selection?.ranges?.[selection.main]?.head !==
             selection?.ranges?.[selection.main]?.anchor;
@@ -444,7 +458,15 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             userEvent,
             focused,
             selected,
+            snippet,
           };
+          if (rootEl) {
+            if (snippet) {
+              rootEl.classList.add("cm-snippet");
+            } else {
+              rootEl.classList.remove("cm-snippet");
+            }
+          }
           if (
             JSON.stringify(editorStateRef.current || {}) !==
             JSON.stringify(editorState)
@@ -492,7 +514,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     });
     viewRef.current = new EditorView({
       state: startState,
-      parent: elementRef.current,
+      parent: parentElRef.current,
     });
     return (): void => {
       if (viewRef.current) {
@@ -506,9 +528,10 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     if (!initialRef.current && viewRef.current && editorChange) {
       if (editorChange.action === "undo") {
         undo(viewRef.current);
-      }
-      if (editorChange.action === "redo") {
+      } else if (editorChange.action === "redo") {
         redo(viewRef.current);
+      } else {
+        quickSnippet(viewRef.current, editorChange.action);
       }
       if (editorChange.focus) {
         if (!viewRef.current.hasFocus) {
@@ -640,7 +663,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
 
   return (
     <div
-      ref={elementRef}
+      ref={parentElRef}
       style={{ flex: 1, display: "flex", flexDirection: "column", ...style }}
     ></div>
   );
