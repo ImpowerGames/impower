@@ -5,6 +5,7 @@ import { FountainDeclarations } from "..";
 import { fountainRegexes } from "../constants/fountainRegexes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
 import { FountainAsset } from "../types/FountainAsset";
+import { FountainEntity } from "../types/FountainEntity";
 import { FountainParseResult } from "../types/FountainParseResult";
 import { FountainSection } from "../types/FountainSection";
 import { FountainTag } from "../types/FountainTag";
@@ -151,6 +152,10 @@ export const parseFountain = (
     return `${sectionId == null ? currentSectionId : sectionId}.${name}`;
   };
 
+  const prefixArticle = (str: string): string => {
+    return `${["a", "e", "i", "o", "u"].includes(str[0]) ? "an" : "a"} ${str}`;
+  };
+
   const addSection = (
     id: string,
     section: FountainSection,
@@ -184,6 +189,38 @@ export const parseFountain = (
     result.sectionLines[section.line] = id;
   };
 
+  const getSection = (
+    nameOrId: string,
+    match?: string[],
+    index?: number,
+    start?: number,
+    length?: number
+  ): FountainSection => {
+    if (!nameOrId) {
+      return undefined;
+    }
+    const global = nameOrId.startsWith(".");
+    const found = global
+      ? result.sections?.[nameOrId]
+      : result.sections?.[`${currentSectionId}.${nameOrId}`];
+    if (!found) {
+      diagnostic(
+        currentToken,
+        `Could not find ${
+          global
+            ? `section with id '${nameOrId}'`
+            : `child section named '${nameOrId}'`
+        }`,
+        start != null ? start : getStart(match, index),
+        length != null ? length : getLength(match, index)
+      );
+      return null;
+    }
+    const copy = { ...found };
+    delete copy.line;
+    return copy;
+  };
+
   const getAsset = (
     type: "image" | "audio" | "video" | "text",
     name: string,
@@ -195,42 +232,91 @@ export const parseFountain = (
     if (!name) {
       return undefined;
     }
+    const typeName = type || "asset";
     const numValue = Number(name);
     if (!Number.isNaN(numValue)) {
       diagnostic(
         currentToken,
-        `'${name}' is not a valid ${type} value`,
+        `'${name}' is not a valid ${typeName} value`,
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
       );
       return null;
     }
-    const asset =
+    const found =
       result.assets?.[getGlobalId(name)] ||
       result.assets?.[getGlobalId(name, "")];
-    if (!asset) {
+    if (!found) {
       diagnostic(
         currentToken,
-        `Could not find ${type} named '${name}'`,
+        `Could not find ${typeName} named '${name}'`,
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
       );
       return null;
     }
-    if (asset.type !== type) {
+    if (type && found.type !== type) {
       diagnostic(
         currentToken,
-        `${asset.type[0].toUpperCase()}${asset.type.slice(
+        `${found.type[0].toUpperCase()}${found.type.slice(
           1
-        )} '${name}' is not ${
-          ["a", "e", "i", "o", "u"].includes(type[0]) ? "an" : "a"
-        } ${type} asset`,
+        )} '${name}' is not ${prefixArticle(typeName)}`,
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
       );
       return null;
     }
-    const copy = { ...asset };
+    const copy = { ...found };
+    delete copy.line;
+    return copy;
+  };
+
+  const getEntity = (
+    type: "element" | "component",
+    name: string,
+    match?: string[],
+    index?: number,
+    start?: number,
+    length?: number
+  ): FountainEntity => {
+    if (!name) {
+      return undefined;
+    }
+    const typeName = type || "entity";
+    const numValue = Number(name);
+    if (!Number.isNaN(numValue)) {
+      diagnostic(
+        currentToken,
+        `'${name}' is not a valid ${typeName} value`,
+        start != null ? start : getStart(match, index),
+        length != null ? length : getLength(match, index)
+      );
+      return null;
+    }
+    const found =
+      result.entities?.[getGlobalId(name)] ||
+      result.entities?.[getGlobalId(name, "")];
+    if (!found) {
+      diagnostic(
+        currentToken,
+        `Could not find ${typeName} named '${name}'`,
+        start != null ? start : getStart(match, index),
+        length != null ? length : getLength(match, index)
+      );
+      return null;
+    }
+    if (type && found.type !== type) {
+      diagnostic(
+        currentToken,
+        `${found.type[0].toUpperCase()}${found.type.slice(
+          1
+        )} '${name}' is not ${prefixArticle(typeName)}`,
+        start != null ? start : getStart(match, index),
+        length != null ? length : getLength(match, index)
+      );
+      return null;
+    }
+    const copy = { ...found };
     delete copy.line;
     return copy;
   };
@@ -255,9 +341,9 @@ export const parseFountain = (
       );
       return null;
     }
-    const tag =
+    const found =
       result.tags?.[getGlobalId(name)] || result.tags?.[getGlobalId(name, "")];
-    if (!tag) {
+    if (!found) {
       diagnostic(
         currentToken,
         `Could not find tag named '${name}'`,
@@ -266,7 +352,7 @@ export const parseFountain = (
       );
       return null;
     }
-    const copy = { ...tag };
+    const copy = { ...found };
     delete copy.line;
     return copy;
   };
@@ -281,10 +367,10 @@ export const parseFountain = (
     if (!name) {
       return undefined;
     }
-    const variable =
+    const found =
       result.variables?.[getGlobalId(name)] ||
       result.variables?.[getGlobalId(name, "")];
-    if (!variable) {
+    if (!found) {
       diagnostic(
         currentToken,
         `Could not find variable named '${name}'`,
@@ -293,7 +379,7 @@ export const parseFountain = (
       );
       return null;
     }
-    const copy = { ...variable };
+    const copy = { ...found };
     delete copy.line;
     return copy;
   };
@@ -310,13 +396,13 @@ export const parseFountain = (
     if (!result.assets) {
       result.assets = {};
     }
-    const existingAsset = result.assets?.[id];
-    if (existingAsset?.line) {
+    const found = result.assets?.[id];
+    if (found && line !== found.line) {
       diagnostic(
         currentToken,
         `A ${
           currentSectionId ? "local" : "global"
-        } asset named '${name}' already exists at line ${existingAsset.line}`,
+        } asset named '${name}' already exists at line ${found.line}`,
         getStart(match, index),
         getLength(match, index)
       );
@@ -326,7 +412,7 @@ export const parseFountain = (
         ? value
         : getAsset(type, value?.name, match, index)?.value;
     const asset = {
-      ...(existingAsset || {}),
+      ...(found || {}),
       line,
       type,
       value: resolvedValue,
@@ -342,6 +428,50 @@ export const parseFountain = (
     }
   };
 
+  const addEntity = (
+    type: "element" | "component",
+    name: string,
+    value: string | { name: string },
+    line: number,
+    match: string[],
+    index: number
+  ): void => {
+    const id = getGlobalId(name);
+    if (!result.entities) {
+      result.entities = {};
+    }
+    const found = result.entities?.[id];
+    if (found && line !== found.line) {
+      diagnostic(
+        currentToken,
+        `A ${
+          currentSectionId ? "local" : "global"
+        } entity named '${name}' already exists at line ${found.line}`,
+        getStart(match, index),
+        getLength(match, index)
+      );
+    }
+    const resolvedValue =
+      typeof value === "string"
+        ? value
+        : getEntity(type, value?.name, match, index)?.value;
+    const asset = {
+      ...(found || {}),
+      line,
+      type,
+      value: resolvedValue,
+    };
+    result.entities[id] = asset;
+    const parentId = id.split(".").slice(0, -1).join(".") || "";
+    const parent = result.sections[parentId];
+    if (parent) {
+      if (!parent.entities) {
+        parent.entities = {};
+      }
+      parent.entities[id] = asset;
+    }
+  };
+
   const addTag = (
     name: string,
     value: string | { name: string },
@@ -353,13 +483,13 @@ export const parseFountain = (
     if (!result.tags) {
       result.tags = {};
     }
-    const existingTag = result.tags[id];
-    if (existingTag?.line) {
+    const found = result.tags[id];
+    if (found && line !== found.line) {
       diagnostic(
         currentToken,
         `A ${
           currentSectionId ? "local" : "global"
-        } tag named '${name}' already exists at line ${existingTag.line}`,
+        } tag named '${name}' already exists at line ${found.line}`,
         getStart(match, index),
         getLength(match, index)
       );
@@ -369,7 +499,7 @@ export const parseFountain = (
         ? value
         : getTag(value?.name, match, index)?.value;
     const tag = {
-      ...(existingTag || {}),
+      ...(found || {}),
       line,
       value: resolvedValue,
     };
@@ -396,15 +526,13 @@ export const parseFountain = (
     if (!result.variables) {
       result.variables = {};
     }
-    const existingVariable = result.variables[id];
-    if (existingVariable?.line) {
+    const found = result.variables[id];
+    if (found && line !== found.line) {
       diagnostic(
         currentToken,
         `A ${
           currentSectionId ? "local" : "global"
-        } variable named '${name}' already exists at line ${
-          existingVariable.line
-        }`,
+        } variable named '${name}' already exists at line ${found.line}`,
         getStart(match, index),
         getLength(match, index)
       );
@@ -414,7 +542,7 @@ export const parseFountain = (
         ? value
         : getVariable(value?.name, match, index)?.value;
     const variable = {
-      ...(existingVariable || {}),
+      ...(found || {}),
       line,
       type,
       value: resolvedValue,
@@ -439,8 +567,40 @@ export const parseFountain = (
     if (content.match(fountainRegexes.string)) {
       return content.slice(1, -1);
     }
-    const asset = getAsset(type, content, match, index);
-    if (asset) {
+    const found = getAsset(type, content, match, index);
+    if (found) {
+      return {
+        name: content,
+      };
+    }
+    return undefined;
+  };
+
+  const getEntityValue = (
+    type: "element" | "component",
+    content: string,
+    match?: string[],
+    index?: number
+  ): string | { name: string } => {
+    if (content.match(fountainRegexes.string)) {
+      return content.slice(1, -1);
+    }
+    const found = getEntity(type, content, match, index);
+    if (found) {
+      return {
+        name: content,
+      };
+    }
+    return undefined;
+  };
+
+  const getEntityReference = (
+    content: string,
+    match?: string[],
+    index?: number
+  ): { name: string } => {
+    const found = getEntity(undefined, content, match, index);
+    if (found) {
       return {
         name: content,
       };
@@ -456,8 +616,8 @@ export const parseFountain = (
     if (content.match(fountainRegexes.string)) {
       return content.slice(1, -1);
     }
-    const tag = getTag(content, match, index);
-    if (tag) {
+    const found = getTag(content, match, index);
+    if (found) {
       return {
         name: content,
       };
@@ -477,8 +637,8 @@ export const parseFountain = (
     if (!Number.isNaN(numValue)) {
       return numValue;
     }
-    const variable = getVariable(content, match, index);
-    if (variable) {
+    const found = getVariable(content, match, index);
+    if (found) {
       return {
         name: content,
       };
@@ -513,7 +673,7 @@ export const parseFountain = (
     return result;
   };
 
-  const getParameterValues = (
+  const getGoParameterValues = (
     match: string[],
     groupIndex: number
   ): (string | number | { name: string })[] => {
@@ -532,6 +692,34 @@ export const parseFountain = (
       const value = allMatches[i];
       if (!value.match(fountainRegexes.separator)) {
         result.push(getVariableValue(value, allMatches, i));
+      }
+    }
+    return result;
+  };
+
+  const getCallParameterValues = (
+    match: string[],
+    groupIndex: number
+  ): (string | number | { name: string })[] => {
+    if (!match) {
+      return [];
+    }
+    const values = match[groupIndex] || "";
+    const parameterMatches = values.match(fountainRegexes.parameter_values);
+    if (!parameterMatches) {
+      return [];
+    }
+    const allMatches = [...match];
+    allMatches.splice(groupIndex, 1, ...parameterMatches);
+    const result: (string | number | { name: string })[] = [];
+    for (let i = groupIndex; i < groupIndex + parameterMatches.length; i += 1) {
+      const value = allMatches[i];
+      if (!value.match(fountainRegexes.separator)) {
+        if (i === groupIndex) {
+          result.push(getEntityReference(value, allMatches, i));
+        } else {
+          result.push(getVariableValue(value, allMatches, i));
+        }
       }
     }
     return result;
@@ -791,9 +979,12 @@ export const parseFountain = (
       } else if ((match = currentToken.content.match(fountainRegexes.go))) {
         currentToken.type = "go";
         if (currentToken.type === "go") {
-          currentToken.operator = match[4]?.trim();
+          currentToken.operator = match[4]?.trim() || "";
           currentToken.content = match[5]?.trim() || "";
-          currentToken.values = getParameterValues(match, 9);
+          if (currentToken.content) {
+            getSection(currentToken.content, match, 5);
+          }
+          currentToken.values = getGoParameterValues(match, 9);
         }
       } else if ((match = currentToken.content.match(fountainRegexes.jump))) {
         currentToken.type = "jump";
@@ -805,12 +996,36 @@ export const parseFountain = (
         if (currentToken.type === "return") {
           currentToken.content = match[4]?.trim() || "";
         }
-      } else if ((match = currentToken.content.match(fountainRegexes.choice))) {
-        currentToken.type = "choice";
-        if (currentToken.type === "choice") {
-          currentToken.indent = (match[1] || "").length;
-          currentToken.operator = match[2]?.trim();
-          currentToken.content = match[3]?.trim() || "";
+      } else if (currentToken.content.match(fountainRegexes.condition)) {
+        currentToken.type = "condition";
+        if (currentToken.type === "condition") {
+          match = currentToken.content.match(fountainRegexes.condition_lint);
+          if (match) {
+            const indent = (match[1] || "").length;
+            const mark = match[2]?.trim() || "";
+            const variable = match[4]?.trim() || "";
+            const operator = match[6]?.trim() || "";
+            const value = match[8]?.trim() || "";
+            const content = match[13]?.trim() || "";
+            const section = match[18]?.trim() || "";
+            if (variable) {
+              getVariable(variable, match, 4);
+            }
+            if (section) {
+              getSection(section, match, 18);
+            }
+            currentToken.indent = indent;
+            currentToken.mark = mark;
+            currentToken.name = variable;
+            currentToken.operator = operator;
+            currentToken.value = value;
+            currentToken.content = content;
+            if (content) {
+              currentToken.section = section;
+            }
+          } else {
+            diagnostic(currentToken, `Invalid syntax`);
+          }
         }
       } else if ((match = currentToken.content.match(fountainRegexes.asset))) {
         currentToken.type = match[2]?.trim() as
@@ -835,6 +1050,31 @@ export const parseFountain = (
           );
           const value = currentToken.value;
           addAsset(currentToken.type, name, value, currentToken.line, match, 4);
+        }
+      } else if ((match = currentToken.content.match(fountainRegexes.entity))) {
+        currentToken.type = match[2]?.trim() as "element" | "component";
+        if (
+          currentToken.type === "element" ||
+          currentToken.type === "component"
+        ) {
+          const name = match[4]?.trim() || "";
+          const content = match[8]?.trim() || "";
+          currentToken.content = content;
+          currentToken.value = getEntityValue(
+            currentToken.type,
+            content,
+            match,
+            8
+          );
+          const value = currentToken.value;
+          addEntity(
+            currentToken.type,
+            name,
+            value,
+            currentToken.line,
+            match,
+            4
+          );
         }
       } else if ((match = currentToken.content.match(fountainRegexes.tag))) {
         currentToken.type = "tag";
@@ -874,6 +1114,13 @@ export const parseFountain = (
           currentToken.operator = operator;
           currentToken.content = content;
           currentToken.value = getVariableValue(currentToken.content, match, 8);
+        }
+      } else if ((match = currentToken.content.match(fountainRegexes.call))) {
+        currentToken.type = "call";
+        if (currentToken.type === "call") {
+          const content = match[4]?.trim() || "";
+          currentToken.content = content;
+          currentToken.values = getCallParameterValues(match, 8);
         }
       } else if (
         (match = currentToken.content.match(fountainRegexes.trigger))

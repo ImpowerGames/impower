@@ -12,6 +12,7 @@ import ArrowUpLeftFromCircleRegularIcon from "../../../../resources/icons/regula
 import BinaryRegularIcon from "../../../../resources/icons/regular/binary.svg";
 import BoldRegularIcon from "../../../../resources/icons/regular/bold.svg";
 import BracketsCurlyRegularIcon from "../../../../resources/icons/regular/brackets-curly.svg";
+import BracketsRoundRegularIcon from "../../../../resources/icons/regular/brackets-round.svg";
 import CirclePlusRegularIcon from "../../../../resources/icons/regular/circle-plus.svg";
 import CircleXRegularIcon from "../../../../resources/icons/regular/circle-x.svg";
 import ClapperboardRegularIcon from "../../../../resources/icons/regular/clapperboard.svg";
@@ -26,7 +27,6 @@ import ItalicRegularIcon from "../../../../resources/icons/regular/italic.svg";
 import ListCheckRegularIcon from "../../../../resources/icons/regular/list-check.svg";
 import ListUlRegularIcon from "../../../../resources/icons/regular/list-ul.svg";
 import MessageDotsRegularIcon from "../../../../resources/icons/regular/message-dots.svg";
-import PersonWalkingRegularIcon from "../../../../resources/icons/regular/person-walking.svg";
 import ShareFromSquareBracketRegularIcon from "../../../../resources/icons/regular/share-from-square.svg";
 import SplitRegularIcon from "../../../../resources/icons/regular/split.svg";
 import UnderlineRegularIcon from "../../../../resources/icons/regular/underline.svg";
@@ -234,10 +234,13 @@ const ScreenplayToolbar = React.memo(
             </FontIcon>
           </StyledMainToggleButton>
         </Tooltip>
-        <Tooltip title="action" placement="top" arrow>
-          <StyledMainToggleButton value="action" aria-label="action">
-            <FontIcon aria-label={`action`}>
-              <PersonWalkingRegularIcon />
+        <Tooltip title="parenthetical" placement="top" arrow>
+          <StyledMainToggleButton
+            value="parenthetical"
+            aria-label="parenthetical"
+          >
+            <FontIcon aria-label={`parenthetical`}>
+              <BracketsRoundRegularIcon />
             </FontIcon>
           </StyledMainToggleButton>
         </Tooltip>
@@ -374,30 +377,30 @@ const DataToolbar = React.memo((props: DataToolbarProps): JSX.Element => {
       onChange={onChange}
     >
       <Tooltip title="declare variable" placement="top" arrow>
-        <StyledMainToggleButton value="variable" aria-label="variable">
-          <FontIcon aria-label={`variable`}>{`𝑥`}</FontIcon>
+        <StyledMainToggleButton value="declare_variable" aria-label="variable">
+          <FontIcon aria-label={`declare variable`}>{`𝑥`}</FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="assign variable" placement="top" arrow>
-        <StyledMainToggleButton value="assign" aria-label="assign">
-          <FontIcon aria-label={`assign`}>{`=`}</FontIcon>
+        <StyledMainToggleButton value="assign_variable" aria-label="assign">
+          <FontIcon aria-label={`assign variable`}>{`=`}</FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="declare tag" placement="top" arrow>
-        <StyledMainToggleButton value="tag" aria-label="tag">
-          <FontIcon aria-label={`tag`}>{`𝑡`}</FontIcon>
+        <StyledMainToggleButton value="declare_tag" aria-label="tag">
+          <FontIcon aria-label={`declare tag`}>{`𝑡`}</FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="declare image" placement="top" arrow>
-        <StyledMainToggleButton value="image" aria-label="image">
-          <FontIcon aria-label={`image`}>
+        <StyledMainToggleButton value="declare_image" aria-label="image">
+          <FontIcon aria-label={`declare image`}>
             <FileImageRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="declare audio" placement="top" arrow>
-        <StyledMainToggleButton value="audio" aria-label="audio">
-          <FontIcon aria-label={`audio`}>
+        <StyledMainToggleButton value="declare_audio" aria-label="audio">
+          <FontIcon aria-label={`declare audio`}>
             <FileAudioRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
@@ -437,6 +440,7 @@ const SnippetToolbar = React.memo((): JSX.Element => {
   const [state, dispatch] = useContext(ProjectEngineContext);
   const windowType = state?.window?.type;
   const selected = state?.panel?.panels?.[windowType]?.editorState?.selected;
+  const snippet = state?.panel?.panels?.[windowType]?.editorState?.snippet;
   const category =
     state?.panel?.panels?.[windowType]?.editorCategory || "screenplay";
 
@@ -525,13 +529,15 @@ const SnippetToolbar = React.memo((): JSX.Element => {
     [category, dispatch, handleRestoreFocus, windowType]
   );
 
+  const inlineFormatting = !snippet && selected;
+
   return (
     <StyledSnippetToolbar
       className="snippet-toolbar"
       onPointerDown={handlePointerDownBackground}
     >
       <StyledSnippetContent>
-        {!selected && (
+        {!inlineFormatting && (
           <>
             <Tooltip title={`${category} snippets`} placement="top" arrow>
               <StyledTypeToggleButton
@@ -587,7 +593,7 @@ const SnippetToolbar = React.memo((): JSX.Element => {
           </>
         )}
         <>
-          {selected ? (
+          {inlineFormatting ? (
             <FormattingToolbar
               onPointerDown={handlePointerDownGroup}
               onChange={handleChangeGroup}

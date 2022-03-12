@@ -13,8 +13,10 @@ import {
   isAsset,
   isAssign,
   isBulletList,
+  isCall,
   isCentered,
   isCharacter,
+  isCondition,
   isDeclare,
   isFencedCode,
   isGo,
@@ -136,13 +138,35 @@ export const DefaultBlockParsers: {
   },
 
   Go(cx, line) {
-    const size = isGo(line);
-    if (size < 0) {
+    const match = isGo(line);
+    if (!match) {
       return false;
     }
-    const from = cx.lineStart + line.pos;
+
+    let buf = cx.buffer;
+
+    let from = 0;
+    let to = from;
+    if (match) {
+      const mark = match[2] || "";
+      const markSpace = match[3] || "";
+      const section = match[4] || "";
+      const sectionSpace = match[5] || "";
+
+      from = to;
+      to = from + mark.length + markSpace.length;
+      buf = buf.write(Type.GoMark, from, to);
+
+      from = to;
+      to = from + section.length + sectionSpace.length;
+      buf = buf.write(Type.GoSectionName, from, to);
+    }
+
+    const node = buf.finish(Type.Go, line.text.length - line.pos);
+
+    cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-    cx.addNode(Type.Go, from);
+
     return true;
   },
 
@@ -152,8 +176,15 @@ export const DefaultBlockParsers: {
       return false;
     }
     const from = cx.lineStart + line.pos;
+    const buf = cx.buffer
+      .write(Type.JumpMark, 0, size)
+      .writeElements(
+        cx.parser.parseInline(line.text.slice(size), from + size),
+        -from
+      );
+    const node = buf.finish(Type.Jump, line.text.length);
     cx.nextLine();
-    cx.addNode(Type.Jump, from);
+    cx.addNode(node, from);
     return true;
   },
 
@@ -163,8 +194,15 @@ export const DefaultBlockParsers: {
       return false;
     }
     const from = cx.lineStart + line.pos;
+    const buf = cx.buffer
+      .write(Type.ReturnMark, 0, size)
+      .writeElements(
+        cx.parser.parseInline(line.text.slice(size), from + size),
+        -from
+      );
+    const node = buf.finish(Type.Return, line.text.length);
     cx.nextLine();
-    cx.addNode(Type.Return, from);
+    cx.addNode(node, from);
     return true;
   },
 
@@ -288,16 +326,76 @@ export const DefaultBlockParsers: {
     const els: Element[] = [];
     let posFrom = from;
     let posTo = posFrom + mark.length;
-    els.push(new Element(Type.AssignMark, posFrom, posTo));
+    els.push(new Element(Type.LogicMark, posFrom, posTo));
     posFrom = posTo + markSpace.length;
     posTo = posFrom + name.length;
-    els.push(new Element(Type.AssignName, posFrom, posTo));
+    els.push(new Element(Type.LogicName, posFrom, posTo));
     posFrom = posTo + nameSpace.length;
     posTo = posFrom + operator.length;
     els.push(new Element(Type.AssignOperator, posFrom, posTo));
     posFrom = posTo + operatorSpace.length;
     posTo = posFrom + value.length;
     els.push(new Element(Type.AssignValue, posFrom, posTo));
+    cx.addNode(
+      cx.buffer.writeElements(els, -from).finish(Type.Assign, line.text.length),
+      from
+    );
+    cx.nextLine();
+    return true;
+  },
+
+  Call(cx, line) {
+    const match = isCall(line);
+    if (!match) {
+      return false;
+    }
+    const mark = match[2];
+    const markSpace = match[3];
+    const methodName = match[4];
+    const methodNameSpace = match[5];
+    const openMark = match[6];
+    const openMarkSpace = match[7];
+    const parameters = match[8];
+    const parametersSpace = match[9];
+    const closeMark = match[10];
+    const from = cx.lineStart + line.pos;
+    const els: Element[] = [];
+    let posFrom = from;
+    let posTo = posFrom + mark.length;
+    els.push(new Element(Type.LogicMark, posFrom, posTo));
+    posFrom = posTo + markSpace.length;
+    posTo = posFrom + methodName.length;
+    els.push(new Element(Type.LogicName, posFrom, posTo));
+    posFrom = posTo + methodNameSpace.length;
+    posTo = posFrom + openMark.length;
+    els.push(new Element(Type.CallOpenMark, posFrom, posTo));
+    posFrom = posTo + openMarkSpace.length;
+    posTo = posFrom + parameters.length;
+    const paramMatches = parameters.match(fountainRegexes.parameter_values);
+    if (paramMatches) {
+      let paramFrom = posFrom;
+      let paramTo = posFrom;
+      for (let i = 0; i < paramMatches.length; i += 1) {
+        const paramMatch = paramMatches[i];
+        const separatorMatch = paramMatch.match(fountainRegexes.separator);
+        if (separatorMatch) {
+          paramFrom = paramTo;
+          paramTo += paramMatch.length;
+          els.push(new Element(Type.CallSeparatorMark, paramFrom, paramTo));
+        } else if (i === 0) {
+          paramFrom = paramTo;
+          paramTo += paramMatch.length;
+          els.push(new Element(Type.CallEntityName, paramFrom, paramTo));
+        } else {
+          paramFrom = paramTo;
+          paramTo += paramMatch.length;
+          els.push(new Element(Type.CallValue, paramFrom, paramTo));
+        }
+      }
+    }
+    posFrom = posTo + parametersSpace.length;
+    posTo = posFrom + closeMark.length;
+    els.push(new Element(Type.CallCloseMark, posFrom, posTo));
     cx.addNode(
       cx.buffer.writeElements(els, -from).finish(Type.Assign, line.text.length),
       from
@@ -351,7 +449,7 @@ export const DefaultBlockParsers: {
       -from
     );
     if (sceneNumberMatch) {
-      buf.write(
+      buf = buf.write(
         Type.SceneNumber,
         size + sceneName.length + 1,
         line.text.length - off
@@ -503,21 +601,77 @@ export const DefaultBlockParsers: {
     }
     const newBase = getListIndent(line, line.pos + 1);
     cx.startContext(Type.ListItem, line.basePos, newBase - line.baseIndent);
-    if (line.next === "?".charCodeAt(0)) {
-      cx.addNode(
-        Type.Trigger,
-        cx.lineStart + line.pos,
-        cx.lineStart + line.text.length
-      );
-    } else {
-      cx.addNode(
-        Type.ListMark,
-        cx.lineStart + line.pos,
-        cx.lineStart + line.pos + size
-      );
+
+    let buf = cx.buffer;
+
+    let from = 0;
+    let to = from;
+    const match = isCondition(line);
+    if (match) {
+      const mark = match[2] || "";
+      const markSpace = match[3] || "";
+      const variable = match[4] || "";
+      const variableSpace = match[5] || "";
+      const operator = match[6] || "";
+      const operatorSpace = match[7] || "";
+      const value = match[8] || "";
+      const valueSpace = match[9] || "";
+      const colon = match[10] || "";
+      const colonSpace = match[11] || "";
+      const openBracket = match[12] || "";
+      const content = match[13] || "";
+      const closeBracket = match[14] || "";
+      const closeBracketSpace = match[15] || "";
+      const angle = match[16] || "";
+      const angleSpace = match[17] || "";
+
+      from = to;
+      to = from + mark.length + markSpace.length;
+      buf = buf.write(Type.ListMark, from, to);
+
+      from = to;
+      to = from + variable.length + variableSpace.length;
+      buf = buf.write(Type.ConditionName, from, to);
+
+      from = to;
+      to = from + operator.length + operatorSpace.length;
+      buf = buf.write(Type.ConditionOperator, from, to);
+
+      from = to;
+      to = from + value.length + valueSpace.length;
+      buf = buf.write(Type.ConditionValue, from, to);
+
+      from = to;
+      to = from + colon.length + colonSpace.length;
+      buf = buf.write(Type.ConditionColonMark, from, to);
+
+      from = to;
+      to = from + openBracket.length;
+      buf = buf.write(Type.ConditionOpenMark, from, to);
+
+      from = to;
+      to = from + content.length;
+      buf = buf.writeElements(cx.parser.parseInline(content, from));
+
+      from = to;
+      to = from + closeBracket.length + closeBracketSpace.length;
+      buf = buf.write(Type.ConditionCloseMark, from, to);
+
+      from = to;
+      to = from + angle.length + angleSpace.length;
+      buf = buf.write(Type.ConditionAngleMark, from, to);
+
+      from = to;
+      to = from + angle.length + angleSpace.length;
+      buf = buf.write(Type.ConditionSectionName, from, to);
     }
-    line.moveBaseColumn(newBase);
-    return null;
+
+    const node = buf.finish(Type.Condition, line.text.length - line.pos);
+
+    cx.addNode(node, cx.lineStart + line.pos);
+    cx.nextLine();
+
+    return true;
   },
 
   OrderedList(cx, line) {

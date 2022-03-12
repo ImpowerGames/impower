@@ -3,14 +3,11 @@ import { InlineContext } from "../classes/InlineContext";
 import { InlineDelimiter } from "../classes/InlineDelimeter";
 import { Mark } from "../types/mark";
 import { Type } from "../types/type";
-import { finishLink } from "../utils/markdown";
 import {
   AudioNoteStart,
   DynamicTagStart,
   EmphasisAsterisk,
   ImageNoteStart,
-  ImageStart,
-  LinkStart,
   UnderlineUnderscore,
 } from "./delimiters";
 import { Escapable, Punctuation } from "./regexes";
@@ -268,68 +265,6 @@ export const DefaultInline: {
             }
           }
         return tag.to;
-      }
-    }
-    return -1;
-  },
-
-  Link(cx, next, start) {
-    const charCodeOpen = "[".charCodeAt(0);
-    return next === charCodeOpen
-      ? cx.append(new InlineDelimiter(LinkStart, start, start + 1, Mark.Open))
-      : -1;
-  },
-
-  Image(cx, next, start) {
-    const charCodeOpen = "[".charCodeAt(0);
-    const charCodeMark = "!".charCodeAt(0);
-    return next === charCodeMark && cx.char(start + 1) === charCodeOpen
-      ? cx.append(new InlineDelimiter(ImageStart, start, start + 2, Mark.Open))
-      : -1;
-  },
-
-  LinkEnd(cx, next, start) {
-    const charCodeClose = "]".charCodeAt(0);
-    if (next !== charCodeClose) {
-      return -1;
-    }
-    // Scanning back to the next link/image start marker
-    for (let i = cx.parts.length - 1; i >= 0; i -= 1) {
-      const part = cx.parts[i];
-      if (
-        part instanceof InlineDelimiter &&
-        (part.type === LinkStart || part.type === ImageStart)
-      ) {
-        // If this one has been set invalid (because it would produce
-        // a nested link) or there's no valid link here ignore both.
-        if (
-          !part.side ||
-          (cx.skipSpace(part.to) === start &&
-            !/[([]/.test(cx.slice(start + 1, start + 2)))
-        ) {
-          cx.parts[i] = null;
-          return -1;
-        }
-        // Finish the content and replace the entire range in
-        // this.parts with the link/image node.
-        const content = cx.takeContent(i);
-        const link = finishLink(
-          cx,
-          content,
-          part.type === LinkStart ? Type.Link : Type.Image,
-          part.from,
-          start + 1
-        );
-        cx.parts[i] = link;
-        // Set any open-link markers before this link to invalid.
-        if (part.type === LinkStart)
-          for (let j = 0; j < i; j += 1) {
-            const p = cx.parts[j];
-            if (p instanceof InlineDelimiter && p.type === LinkStart) {
-              p.side = 0;
-            }
-          }
-        return link.to;
       }
     }
     return -1;

@@ -34,7 +34,10 @@ export const DefaultSkipMarkup: {
   [Type.Assign](_bl, _cx, _line) {
     return false;
   },
-  [Type.Trigger](_bl, _cx, _line) {
+  [Type.Call](_bl, _cx, _line) {
+    return false;
+  },
+  [Type.Condition](_bl, _cx, _line) {
     return false;
   },
   [Type.Dialogue](_bl, cx, line) {

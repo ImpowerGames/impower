@@ -4,7 +4,7 @@ import {
   Completion,
   CompletionContext,
   CompletionResult,
-  snippetCompletion as snip,
+  snippet,
 } from "@codemirror/autocomplete";
 import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
@@ -12,6 +12,25 @@ import {
   FountainAsset,
   FountainParseResult,
 } from "../../impower-script-parser";
+
+const snip = (template: string, completion: Completion): Completion => {
+  return { ...completion, apply: snippet(template) };
+};
+
+type CompletionType =
+  | "function"
+  | "method"
+  | "class"
+  | "interface"
+  | "variable"
+  | "constant"
+  | "type"
+  | "enum"
+  | "property"
+  | "keyword"
+  | "namespace"
+  | "text"
+  | "tag";
 
 export const paragraphSnippets: readonly Completion[] = [
   snip("var ${newVariable}", {
@@ -63,14 +82,43 @@ export const effectSnippets: readonly Completion[] = [
   }),
 ];
 
+export const callSnippets: readonly Completion[] = [
+  snip("spawn(${entityName})", {
+    label: "spawn",
+    type: "method",
+  }),
+  snip("move(${entityName}, ${x}, ${y})", {
+    label: "move",
+    type: "method",
+  }),
+  snip("destroy(${entityName})", {
+    label: "destroy",
+    type: "method",
+  }),
+];
+
+export const nameSnippets = (
+  names: string[],
+  type: CompletionType
+): Completion[] => {
+  return Array.from(new Set(names)).map((name) =>
+    snip(name, {
+      label: name,
+      type,
+    })
+  );
+};
+
 export const sectionSnippets = (level: number): Completion[] => {
   const result: Completion[] = [];
   for (let i = level + 1; i >= 0; i -= 1) {
+    const child = i === level + 1;
     const operator = "#".repeat(i);
     const name = "NewSection";
     result.push(
       snip(`${operator} \${${name}}`, {
-        label: `${operator} section`,
+        label: `${operator}`,
+        detail: `${child ? `child section` : ``}`,
         type: "keyword",
       })
     );
@@ -123,15 +171,6 @@ export const characterSnippets = (
   return result;
 };
 
-export const variableSnippets = (names: string[]): Completion[] => {
-  return Array.from(new Set(names)).map((name) =>
-    snip(name, {
-      label: name,
-      type: "variable",
-    })
-  );
-};
-
 export const assetSnippets = (
   assets: [string, FountainAsset][]
 ): Completion[] => {
@@ -164,15 +203,6 @@ export const assetSnippets = (
         preview.style.backgroundColor = "white";
         return preview;
       },
-    })
-  );
-};
-
-export const tagSnippets = (names: string[]): Completion[] => {
-  return Array.from(new Set(names)).map((x) =>
-    snip(x, {
-      label: x,
-      type: "type",
     })
   );
 };
@@ -229,11 +259,23 @@ export const fountainAutocomplete = async (
   const sectionLineNumber = context.state.doc.lineAt(sectionFrom).number;
   const sectionId = result.sectionLines?.[sectionLineNumber];
   const section = result.sections?.[sectionId];
+  const sectionNames = [
+    ...(section?.children || []).map((x) => x.split(".").slice(-1).join("")),
+    ...Object.keys(result.sections || {}),
+    "!END",
+  ];
   const variables = {
     ...(section?.variables || {}),
     ...(result.sections?.[""]?.variables || {}),
   };
   const variableNames = Object.keys(variables).map((x) =>
+    x.split(".").slice(-1).join(".")
+  );
+  const entities = {
+    ...(section?.entities || {}),
+    ...(result.sections?.[""]?.entities || {}),
+  };
+  const entityNames = Object.keys(entities).map((x) =>
     x.split(".").slice(-1).join(".")
   );
   const isLowercase = input.toLowerCase() === input;
@@ -279,11 +321,28 @@ export const fountainAutocomplete = async (
     const tagNames = Object.entries(tags).map(([k]) =>
       k.split(".").slice(-1).join(".")
     );
-    completions.push(...tagSnippets(tagNames), ...effectSnippets);
+    completions.push(...nameSnippets(tagNames, "type"), ...effectSnippets);
+  } else if (node.name === "LogicName") {
+    completions.push(
+      ...nameSnippets(variableNames, "variable"),
+      ...callSnippets
+    );
+  } else if (node.name === "CallEntityName") {
+    completions.push(...nameSnippets(entityNames, "class"));
+  } else if (["GoSectionName", "ConditionSectionName"].includes(node.name)) {
+    completions.push(...nameSnippets(sectionNames, "tag"));
   } else if (
-    ["AssignName", "AssignValue", "DeclareValue"].includes(node.name)
+    [
+      "ConditionName",
+      "AssignValue",
+      "DeclareValue",
+      "CompareValue",
+      "ConditionValue",
+      "CallValue",
+      "ConditionValue",
+    ].includes(node.name)
   ) {
-    completions.push(...variableSnippets(variableNames));
+    completions.push(...nameSnippets(variableNames, "variable"));
   }
   const source = completeFromList(completions);
   return source(context);

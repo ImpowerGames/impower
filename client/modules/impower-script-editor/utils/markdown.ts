@@ -3,7 +3,6 @@ import { fountainRegexes } from "../../impower-script-parser";
 import { BlockContext } from "../classes/BlockContext";
 import { CompositeBlock } from "../classes/CompositeBlock";
 import { Element } from "../classes/Element";
-import { InlineContext } from "../classes/InlineContext";
 import { Line } from "../classes/Line";
 import { HTMLBlockStyle } from "../constants/regexes";
 import { MarkdownConfig } from "../types/markdownConfig";
@@ -144,8 +143,7 @@ export function isBulletList(
 ): number {
   return (line.next === "-".charCodeAt(0) ||
     line.next === "+".charCodeAt(0) ||
-    line.next === "*".charCodeAt(0) ||
-    line.next === "?".charCodeAt(0)) &&
+    line.next === "*".charCodeAt(0)) &&
     (line.pos === line.text.length - 1 ||
       space(line.text.charCodeAt(line.pos + 1))) &&
     (!breaking ||
@@ -227,26 +225,21 @@ export function isFencedCode(line: Line): number {
   return pos;
 }
 
-export function isGo(line: Line): number {
-  const charCodes = [">".charCodeAt(0)];
-  if (!charCodes.includes(line.next)) {
-    return -1;
+export function isGo(line: Line): RegExpMatchArray {
+  if (line.next !== ">".charCodeAt(0)) {
+    return null;
   }
-  if (!line.text.trim().match(fountainRegexes.go)) {
-    return -1;
-  }
-  return line.text.length;
+  return line.text.match(fountainRegexes.go);
 }
 
 export function isJump(line: Line): number {
-  const charCodes = [">".charCodeAt(0), "<".charCodeAt(0), "^".charCodeAt(0)];
-  if (!charCodes.includes(line.next)) {
+  if (line.next !== "^".charCodeAt(0)) {
     return -1;
   }
   if (!line.text.trim().match(fountainRegexes.jump)) {
     return -1;
   }
-  return line.text.length;
+  return 1;
 }
 
 export function isReturn(line: Line): number {
@@ -257,7 +250,14 @@ export function isReturn(line: Line): number {
   if (!line.text.trim().match(fountainRegexes.return)) {
     return -1;
   }
-  return line.text.length;
+  return "return".length;
+}
+
+export function isCondition(line: Line): RegExpMatchArray {
+  if (!["-", "+", "*"].map((c) => c.charCodeAt(0)).includes(line.next)) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.condition_lint);
 }
 
 export function isAsset(line: Line): RegExpMatchArray {
@@ -291,26 +291,12 @@ export function isAssign(line: Line): RegExpMatchArray {
   return line.text.trim().match(fountainRegexes.assign);
 }
 
-export function isCompare(line: Line): number {
-  const charCode = "?".charCodeAt(0);
+export function isCall(line: Line): RegExpMatchArray {
+  const charCode = "~".charCodeAt(0);
   if (line.next !== charCode) {
-    return -1;
+    return null;
   }
-  if (!line.text.trim().match(fountainRegexes.compare)) {
-    return -1;
-  }
-  return line.text.length;
-}
-
-export function isTrigger(line: Line): number {
-  const charCode = "?".charCodeAt(0);
-  if (line.next !== charCode) {
-    return -1;
-  }
-  if (!line.text.trim().match(fountainRegexes.trigger)) {
-    return -1;
-  }
-  return line.text.length;
+  return line.text.trim().match(fountainRegexes.call);
 }
 
 export function isSectionHeading(line: Line): number {
@@ -503,104 +489,6 @@ export function parseURL(
     : pos === text.length
     ? null
     : false;
-}
-
-export function parseLinkTitle(
-  text: string,
-  start: number,
-  offset: number
-): null | false | Element {
-  const next = text.charCodeAt(start);
-  if (next !== 39 && next !== 34 && next !== 40 /* '"\'(' */) {
-    return false;
-  }
-  const end = next === 40 ? 41 : next;
-  for (let pos = start + 1, escaped = false; pos < text.length; pos += 1) {
-    const ch = text.charCodeAt(pos);
-    if (escaped) {
-      escaped = false;
-    } else if (ch === end) {
-      return new Element(Type.LinkTitle, start + offset, pos + 1 + offset);
-    } else if (ch === 92 /* '\\' */) {
-      escaped = true;
-    }
-  }
-  return null;
-}
-
-export function parseLinkLabel(
-  text: string,
-  start: number,
-  offset: number,
-  requireNonWS: boolean
-): null | false | Element {
-  for (
-    let escaped = false,
-      pos = start + 1,
-      end = Math.min(text.length, pos + 999);
-    pos < end;
-    pos += 1
-  ) {
-    const ch = text.charCodeAt(pos);
-    if (escaped) {
-      escaped = false;
-    } else if (ch === 93 /* ']' */) {
-      return requireNonWS
-        ? false
-        : new Element(Type.LinkLabel, start + offset, pos + 1 + offset);
-    } else {
-      if (requireNonWS && !space(ch)) {
-        requireNonWS = false;
-      }
-      if (ch === 91 /* '[' */) {
-        return false;
-      }
-      if (ch === 92 /* '\\' */) {
-        escaped = true;
-      }
-    }
-  }
-  return null;
-}
-
-export function finishLink(
-  cx: InlineContext,
-  content: Element[],
-  type: Type,
-  start: number,
-  startPos: number
-): Element {
-  const { text } = cx;
-  const next = cx.char(startPos);
-  let endPos = startPos;
-  content.unshift(
-    new Element(Type.LinkMark, start, start + (type === Type.Image ? 2 : 1))
-  );
-  content.push(new Element(Type.LinkMark, startPos - 1, startPos));
-  if (next === 40 /* '(' */) {
-    let pos = cx.skipSpace(startPos + 1);
-    const dest = parseURL(text, pos - cx.offset, cx.offset);
-    let title;
-    if (dest) {
-      pos = cx.skipSpace(dest.to);
-      title = parseLinkTitle(text, pos - cx.offset, cx.offset);
-      if (title) pos = cx.skipSpace(title.to);
-    }
-    if (cx.char(pos) === 41 /* ')' */) {
-      content.push(new Element(Type.LinkMark, startPos, startPos + 1));
-      endPos = pos + 1;
-      if (dest) content.push(dest);
-      if (title) content.push(title);
-      content.push(new Element(Type.LinkMark, pos, endPos));
-    }
-  } else if (next === 91 /* '[' */) {
-    const label = parseLinkLabel(text, startPos - cx.offset, cx.offset, false);
-    if (label) {
-      content.push(label);
-      endPos = label.to;
-    }
-  }
-  return new Element(type, start, endPos, content);
 }
 
 // These are blocks that can span blank lines, and should thus only be

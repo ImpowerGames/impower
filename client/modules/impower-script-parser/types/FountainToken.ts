@@ -1,7 +1,8 @@
+import { FountainCallType, FountainEntityType } from "..";
 import { FountainLine } from "./FountainLine";
 import {
   FountainAssetType,
-  FountainChoiceType,
+  FountainConditionType,
   FountainDialogueType,
   FountainGoType,
   FountainJumpType,
@@ -20,10 +21,21 @@ export interface FountainAssetToken extends FountainLine {
   value: string | { name: string };
 }
 
+export interface FountainEntityToken extends FountainLine {
+  type: FountainEntityType;
+  name: string;
+  value: string | { name: string };
+}
+
 export interface FountainTagToken extends FountainLine {
   type: FountainTagType;
   name: string;
   value: string | { name: string };
+}
+
+export interface FountainCallToken extends FountainLine {
+  type: FountainCallType;
+  values: (string | number | { name: string })[];
 }
 
 export interface FountainLogicToken extends FountainLine {
@@ -52,10 +64,14 @@ export interface FountainReturnToken extends FountainLine {
   values: (string | number | { name: string })[];
 }
 
-export interface FountainChoiceToken extends FountainLine {
-  type: FountainChoiceType;
+export interface FountainConditionToken extends FountainLine {
+  type: FountainConditionType;
   indent: number;
+  mark: string;
+  name: string;
   operator: string;
+  value: string | number | { name: string };
+  section: string;
 }
 
 export interface FountainSectionToken extends FountainLine {
@@ -88,12 +104,14 @@ export interface FountainOtherToken extends FountainLine {
 
 export type FountainToken =
   | FountainAssetToken
+  | FountainEntityToken
   | FountainTagToken
   | FountainLogicToken
+  | FountainCallToken
   | FountainGoToken
   | FountainJumpToken
   | FountainReturnToken
-  | FountainChoiceToken
+  | FountainConditionToken
   | FountainSectionToken
   | FountainSceneToken
   | FountainPositionToken
