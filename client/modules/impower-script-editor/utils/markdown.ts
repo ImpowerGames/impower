@@ -143,7 +143,8 @@ export function isBulletList(
 ): number {
   return (line.next === "-".charCodeAt(0) ||
     line.next === "+".charCodeAt(0) ||
-    line.next === "*".charCodeAt(0)) &&
+    line.next === "*".charCodeAt(0) ||
+    line.next === "~".charCodeAt(0)) &&
     (line.pos === line.text.length - 1 ||
       space(line.text.charCodeAt(line.pos + 1))) &&
     (!breaking ||
@@ -253,13 +254,6 @@ export function isReturn(line: Line): number {
   return "return".length;
 }
 
-export function isCondition(line: Line): RegExpMatchArray {
-  if (!["-", "+", "*"].map((c) => c.charCodeAt(0)).includes(line.next)) {
-    return null;
-  }
-  return line.text.match(fountainRegexes.condition_lint);
-}
-
 export function isAsset(line: Line): RegExpMatchArray {
   if (!["i", "a", "v", "t"].map((x) => x.charCodeAt(0)).includes(line.next)) {
     return null;
@@ -288,7 +282,12 @@ export function isAssign(line: Line): RegExpMatchArray {
   if (line.next !== charCode) {
     return null;
   }
-  return line.text.trim().match(fountainRegexes.assign);
+  const match = line.text.match(fountainRegexes.assign);
+  if (!match) {
+    return null;
+  }
+  match[0] = "assign";
+  return match;
 }
 
 export function isCall(line: Line): RegExpMatchArray {
@@ -296,7 +295,36 @@ export function isCall(line: Line): RegExpMatchArray {
   if (line.next !== charCode) {
     return null;
   }
-  return line.text.trim().match(fountainRegexes.call);
+  const match = line.text.match(fountainRegexes.call);
+  if (!match) {
+    return null;
+  }
+  match[0] = "call";
+  return match;
+}
+
+export function isCondition(line: Line): RegExpMatchArray {
+  if (line.next !== "~".charCodeAt(0)) {
+    return null;
+  }
+  const match = line.text.match(fountainRegexes.condition);
+  if (!match) {
+    return null;
+  }
+  match[0] = "condition";
+  return match;
+}
+
+export function isChoice(line: Line): RegExpMatchArray {
+  if (!["-", "+", "*"].map((c) => c.charCodeAt(0)).includes(line.next)) {
+    return null;
+  }
+  const match = line.text.match(fountainRegexes.choice);
+  if (!match) {
+    return null;
+  }
+  match[0] = "choice";
+  return match;
 }
 
 export function isSectionHeading(line: Line): number {

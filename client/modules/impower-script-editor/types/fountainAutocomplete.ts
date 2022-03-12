@@ -322,21 +322,21 @@ export const fountainAutocomplete = async (
       k.split(".").slice(-1).join(".")
     );
     completions.push(...nameSnippets(tagNames, "type"), ...effectSnippets);
-  } else if (node.name === "LogicName") {
-    completions.push(
-      ...nameSnippets(variableNames, "variable"),
-      ...callSnippets
-    );
+  } else if (["CallName"].includes(node.name)) {
+    completions.push(...callSnippets);
   } else if (node.name === "CallEntityName") {
     completions.push(...nameSnippets(entityNames, "class"));
-  } else if (["GoSectionName", "ConditionSectionName"].includes(node.name)) {
+  } else if (["GoSectionName", "ChoiceSectionName"].includes(node.name)) {
     completions.push(...nameSnippets(sectionNames, "tag"));
   } else if (
     [
+      "AssignName",
       "ConditionName",
+      "ChoiceName",
       "AssignValue",
       "DeclareValue",
       "CompareValue",
+      "ChoiceValue",
       "ConditionValue",
       "CallValue",
       "ConditionValue",

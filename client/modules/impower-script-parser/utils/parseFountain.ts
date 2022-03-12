@@ -9,7 +9,7 @@ import { FountainEntity } from "../types/FountainEntity";
 import { FountainParseResult } from "../types/FountainParseResult";
 import { FountainSection } from "../types/FountainSection";
 import { FountainTag } from "../types/FountainTag";
-import { FountainLogicToken, FountainToken } from "../types/FountainToken";
+import { FountainToken } from "../types/FountainToken";
 import { FountainTokenType } from "../types/FountainTokenType";
 import { FountainVariable } from "../types/FountainVariable";
 import { createFountainToken } from "./createFountainToken";
@@ -94,7 +94,6 @@ export const parseFountain = (
   let cacheStateForComment;
   let nestedComments = 0;
   let titlePageStarted = false;
-  let previousTriggerToken: FountainLogicToken;
   let previousCharacter: string;
   let previousParenthetical: string;
   let previousAssets: { name: string }[] = [];
@@ -154,6 +153,23 @@ export const parseFountain = (
 
   const prefixArticle = (str: string): string => {
     return `${["a", "e", "i", "o", "u"].includes(str[0]) ? "an" : "a"} ${str}`;
+  };
+
+  const lintDiagnostic = (): void => {
+    diagnostic(
+      currentToken,
+      `Invalid ${currentToken.type ? `${currentToken.type} ` : ""}syntax`
+    );
+  };
+
+  const lint = (regex: RegExp): RegExpMatchArray => {
+    const lintRegexSource = regex.source.replace(/[$][|]/g, "");
+    const lintRegex = new RegExp(lintRegexSource);
+    const lintedMatch = text.match(lintRegex);
+    if (!lintedMatch) {
+      lintDiagnostic();
+    }
+    return lintedMatch;
   };
 
   const addSection = (
@@ -930,33 +946,35 @@ export const parseFountain = (
       if (currentToken.content.match(fountainRegexes.scene_heading)) {
         currentToken.type = "scene";
         if (currentToken.type === "scene") {
-          pushNotes();
-          saveAndClearNotes();
-          currentToken.content = currentToken.content.replace(/^\./, "");
-          currentToken.scene = sceneNumber;
-          const match = currentToken.content.match(
-            fountainRegexes.scene_number
-          );
-          if (match) {
-            currentToken.content = currentToken.content.replace(
-              fountainRegexes.scene_number,
-              ""
+          if ((match = lint(fountainRegexes.scene_heading))) {
+            pushNotes();
+            saveAndClearNotes();
+            currentToken.content = currentToken.content.replace(/^\./, "");
+            currentToken.scene = sceneNumber;
+            const match = currentToken.content.match(
+              fountainRegexes.scene_number
             );
-            currentToken.scene = match[1];
+            if (match) {
+              currentToken.content = currentToken.content.replace(
+                fountainRegexes.scene_number,
+                ""
+              );
+              currentToken.scene = match[1];
+            }
+            if (!result.properties.scenes) {
+              result.properties.scenes = [];
+            }
+            result.properties.scenes.push({
+              name: currentToken.content,
+              scene: currentToken.scene,
+              line: currentToken.line,
+            });
+            if (!result.properties.sceneNames) {
+              result.properties.sceneNames = [];
+            }
+            result.properties.sceneNames.push(currentToken.content);
+            sceneNumber += 1;
           }
-          if (!result.properties.scenes) {
-            result.properties.scenes = [];
-          }
-          result.properties.scenes.push({
-            name: currentToken.content,
-            scene: currentToken.scene,
-            line: currentToken.line,
-          });
-          if (!result.properties.sceneNames) {
-            result.properties.sceneNames = [];
-          }
-          result.properties.sceneNames.push(currentToken.content);
-          sceneNumber += 1;
         }
       } else if (
         currentToken.content.length &&
@@ -968,63 +986,112 @@ export const parseFountain = (
         currentToken.content = currentToken.content.substring(1);
       } else if (currentToken.content.match(fountainRegexes.centered)) {
         currentToken.type = "centered";
-        pushNotes();
-        saveAndClearNotes();
-        currentToken.content = currentToken.content.replace(/>|</g, "").trim();
+        if ((match = lint(fountainRegexes.centered))) {
+          pushNotes();
+          saveAndClearNotes();
+          currentToken.content = currentToken.content
+            .replace(/>|</g, "")
+            .trim();
+        }
       } else if (currentToken.content.match(fountainRegexes.transition)) {
         currentToken.type = "transition";
-        pushNotes();
-        saveAndClearNotes();
-        currentToken.content = currentToken.content.replace(/> ?/, "");
+        if ((match = lint(fountainRegexes.transition))) {
+          pushNotes();
+          saveAndClearNotes();
+          currentToken.content = currentToken.content.replace(/> ?/, "");
+        }
       } else if ((match = currentToken.content.match(fountainRegexes.go))) {
         currentToken.type = "go";
         if (currentToken.type === "go") {
-          currentToken.operator = match[4]?.trim() || "";
-          currentToken.content = match[5]?.trim() || "";
-          if (currentToken.content) {
-            getSection(currentToken.content, match, 5);
+          if ((match = lint(fountainRegexes.go))) {
+            currentToken.operator = match[4]?.trim() || "";
+            currentToken.content = match[5]?.trim() || "";
+            if (currentToken.content) {
+              getSection(currentToken.content, match, 5);
+            }
+            currentToken.values = getGoParameterValues(match, 9);
           }
-          currentToken.values = getGoParameterValues(match, 9);
         }
       } else if ((match = currentToken.content.match(fountainRegexes.jump))) {
         currentToken.type = "jump";
         if (currentToken.type === "jump") {
-          currentToken.content = match[2]?.trim() || "";
+          if ((match = lint(fountainRegexes.jump))) {
+            currentToken.content = match[2]?.trim() || "";
+          }
         }
       } else if ((match = currentToken.content.match(fountainRegexes.return))) {
         currentToken.type = "return";
         if (currentToken.type === "return") {
-          currentToken.content = match[4]?.trim() || "";
+          if ((match = lint(fountainRegexes.return))) {
+            currentToken.content = match[4]?.trim() || "";
+          }
         }
-      } else if (currentToken.content.match(fountainRegexes.condition)) {
-        currentToken.type = "condition";
-        if (currentToken.type === "condition") {
-          match = currentToken.content.match(fountainRegexes.condition_lint);
-          if (match) {
+      } else if (currentToken.content.match(fountainRegexes.logic)) {
+        if ((match = currentToken.content.match(fountainRegexes.assign))) {
+          currentToken.type = "assign";
+          if (currentToken.type === "assign") {
+            if ((match = lint(fountainRegexes.assign))) {
+              const indent = (match[1] || "").length;
+              const name = match[4]?.trim() || "";
+              const operator = match[6]?.trim() || "";
+              const value = match[8]?.trim() || "";
+              if (name) {
+                getVariable(name, match, 4);
+              }
+              currentToken.indent = indent;
+              currentToken.name = name;
+              currentToken.operator = operator;
+              currentToken.value = value;
+            }
+          }
+        } else if ((match = currentToken.content.match(fountainRegexes.call))) {
+          currentToken.type = "call";
+          if (currentToken.type === "call") {
+            if ((match = lint(fountainRegexes.call))) {
+              const indent = (match[1] || "").length;
+              const name = match[4]?.trim() || "";
+              currentToken.indent = indent;
+              currentToken.name = name;
+              currentToken.values = getCallParameterValues(match, 8);
+            }
+          }
+        } else if (
+          (match = currentToken.content.match(fountainRegexes.condition))
+        ) {
+          currentToken.type = "condition";
+          if (currentToken.type === "condition") {
+            if ((match = lint(fountainRegexes.condition))) {
+              const indent = (match[1] || "").length;
+              const name = match[4]?.trim() || "";
+              const operator = match[6]?.trim() || "";
+              const value = match[8]?.trim() || "";
+              if (name) {
+                getVariable(name, match, 4);
+              }
+              currentToken.indent = indent;
+              currentToken.name = name;
+              currentToken.operator = operator;
+              currentToken.value = value;
+            }
+          }
+        } else {
+          lintDiagnostic();
+        }
+      } else if ((match = currentToken.content.match(fountainRegexes.choice))) {
+        currentToken.type = "choice";
+        if (currentToken.type === "choice") {
+          if ((match = lint(fountainRegexes.choice))) {
             const indent = (match[1] || "").length;
             const mark = match[2]?.trim() || "";
-            const variable = match[4]?.trim() || "";
-            const operator = match[6]?.trim() || "";
-            const value = match[8]?.trim() || "";
-            const content = match[13]?.trim() || "";
-            const section = match[18]?.trim() || "";
-            if (variable) {
-              getVariable(variable, match, 4);
-            }
+            const content = match[4]?.trim() || "";
+            const section = match[8]?.trim() || "";
             if (section) {
               getSection(section, match, 18);
             }
             currentToken.indent = indent;
             currentToken.mark = mark;
-            currentToken.name = variable;
-            currentToken.operator = operator;
-            currentToken.value = value;
             currentToken.content = content;
-            if (content) {
-              currentToken.section = section;
-            }
-          } else {
-            diagnostic(currentToken, `Invalid syntax`);
+            currentToken.section = section;
           }
         }
       } else if ((match = currentToken.content.match(fountainRegexes.asset))) {
@@ -1039,17 +1106,26 @@ export const parseFountain = (
           currentToken.type === "video" ||
           currentToken.type === "text"
         ) {
-          const name = match[4]?.trim() || "";
-          const content = match[8]?.trim() || "";
-          currentToken.content = content;
-          currentToken.value = getAssetValue(
-            currentToken.type,
-            content,
-            match,
-            8
-          );
-          const value = currentToken.value;
-          addAsset(currentToken.type, name, value, currentToken.line, match, 4);
+          if ((match = lint(fountainRegexes.asset))) {
+            const name = match[4]?.trim() || "";
+            const content = match[8]?.trim() || "";
+            currentToken.content = content;
+            currentToken.value = getAssetValue(
+              currentToken.type,
+              content,
+              match,
+              8
+            );
+            const value = currentToken.value;
+            addAsset(
+              currentToken.type,
+              name,
+              value,
+              currentToken.line,
+              match,
+              4
+            );
+          }
         }
       } else if ((match = currentToken.content.match(fountainRegexes.entity))) {
         currentToken.type = match[2]?.trim() as "element" | "component";
@@ -1057,161 +1133,113 @@ export const parseFountain = (
           currentToken.type === "element" ||
           currentToken.type === "component"
         ) {
-          const name = match[4]?.trim() || "";
-          const content = match[8]?.trim() || "";
-          currentToken.content = content;
-          currentToken.value = getEntityValue(
-            currentToken.type,
-            content,
-            match,
-            8
-          );
-          const value = currentToken.value;
-          addEntity(
-            currentToken.type,
-            name,
-            value,
-            currentToken.line,
-            match,
-            4
-          );
+          if ((match = lint(fountainRegexes.entity))) {
+            const name = match[4]?.trim() || "";
+            const content = match[8]?.trim() || "";
+            currentToken.content = content;
+            currentToken.value = getEntityValue(
+              currentToken.type,
+              content,
+              match,
+              8
+            );
+            const value = currentToken.value;
+            addEntity(
+              currentToken.type,
+              name,
+              value,
+              currentToken.line,
+              match,
+              4
+            );
+          }
         }
       } else if ((match = currentToken.content.match(fountainRegexes.tag))) {
         currentToken.type = "tag";
         if (currentToken.type === "tag") {
-          const name = match[4]?.trim() || "";
-          const content = match[8]?.trim() || "";
-          currentToken.content = content;
-          currentToken.value = getTagValue(content, match, 8);
-          const value = currentToken.value;
-          addTag(name, value, currentToken.line, match, 4);
+          if ((match = lint(fountainRegexes.tag))) {
+            const name = match[4]?.trim() || "";
+            const content = match[8]?.trim() || "";
+            currentToken.content = content;
+            currentToken.value = getTagValue(content, match, 8);
+            const value = currentToken.value;
+            addTag(name, value, currentToken.line, match, 4);
+          }
         }
       } else if (
         (match = currentToken.content.match(fountainRegexes.declare))
       ) {
         currentToken.type = "declare";
         if (currentToken.type === "declare") {
-          const variable = match[4]?.trim() || "";
-          const operator = match[6]?.trim() || "";
-          const content = match[8]?.trim() || "";
-          currentToken.name = variable;
-          currentToken.operator = operator;
-          currentToken.content = content;
-          currentToken.value = getVariableValue(content, match, 8);
-          const value = currentToken.value;
-          addVariable(variable, value, currentToken.line, match, 4);
-        }
-      } else if ((match = currentToken.content.match(fountainRegexes.assign))) {
-        currentToken.type = "assign";
-        if (currentToken.type === "assign") {
-          const variable = match[4]?.trim() || "";
-          const operator = match[6]?.trim() || "";
-          const content = match[8]?.trim() || "";
-          if (variable) {
-            getVariable(variable, match, 4);
+          if ((match = lint(fountainRegexes.declare))) {
+            const variable = match[4]?.trim() || "";
+            const operator = match[6]?.trim() || "";
+            const content = match[8]?.trim() || "";
+            currentToken.name = variable;
+            currentToken.operator = operator;
+            currentToken.content = content;
+            currentToken.value = getVariableValue(content, match, 8);
+            const value = currentToken.value;
+            addVariable(variable, value, currentToken.line, match, 4);
           }
-          currentToken.name = variable;
-          currentToken.operator = operator;
-          currentToken.content = content;
-          currentToken.value = getVariableValue(currentToken.content, match, 8);
-        }
-      } else if ((match = currentToken.content.match(fountainRegexes.call))) {
-        currentToken.type = "call";
-        if (currentToken.type === "call") {
-          const content = match[4]?.trim() || "";
-          currentToken.content = content;
-          currentToken.values = getCallParameterValues(match, 8);
-        }
-      } else if (
-        (match = currentToken.content.match(fountainRegexes.trigger))
-      ) {
-        currentToken.type = "trigger_group_begin";
-        if (currentToken.type === "trigger_group_begin") {
-          currentToken.indent = (match[1] || "").length;
-          currentToken.content = match[2]?.trim() || "";
-          if (
-            (previousTriggerToken?.type === "trigger_group_begin" ||
-              previousTriggerToken?.type === "compare") &&
-            currentToken.indent < previousTriggerToken.indent
-          ) {
-            pushToken(createFountainToken("trigger_group_end"));
-          }
-          previousTriggerToken = currentToken;
-        }
-      } else if (
-        (match = currentToken.content.match(fountainRegexes.compare))
-      ) {
-        currentToken.type = "compare";
-        if (currentToken.type === "compare") {
-          const indent = match[1]?.trim() || "";
-          const variable = match[4]?.trim() || "";
-          const operator = match[6]?.trim() || "";
-          const content = match[8]?.trim() || "";
-          if (variable) {
-            getVariable(variable, match, 4);
-          }
-          currentToken.indent = indent.length;
-          currentToken.name = variable;
-          currentToken.operator = operator;
-          currentToken.content = content;
-          currentToken.value = getVariableValue(content, match, 8);
-          if (
-            (previousTriggerToken?.type === "trigger_group_begin" ||
-              previousTriggerToken?.type === "compare") &&
-            currentToken.indent < previousTriggerToken.indent
-          ) {
-            pushToken(createFountainToken("trigger_group_end"));
-          }
-          previousTriggerToken = currentToken;
         }
       } else if (
         (match = currentToken.content.match(fountainRegexes.synopses))
       ) {
-        currentToken.type = currentToken.content ? "synopses" : "separator";
-        currentToken.content = match[1];
+        currentToken.type = "synopses";
+        if ((match = lint(fountainRegexes.synopses))) {
+          currentToken.content = match[1];
+        }
       } else if (
         (match = currentToken.content.match(fountainRegexes.section))
       ) {
         currentToken.type = "section";
         if (currentToken.type === "section") {
-          currentToken.level = match[2].length;
-          currentToken.operator = match[4];
-          currentToken.content = match[6];
-          if (currentToken.level === 0) {
-            currentSectionId = currentToken.content;
-          } else if (currentToken.level === 1) {
-            currentSectionId = `.${currentToken.content}`;
-          } else if (currentToken.level > currentLevel) {
-            currentSectionId += `.${currentToken.content}`;
-          } else if (currentToken.level < currentLevel) {
-            const grandparentId = currentSectionId
-              .split(".")
-              .slice(0, -2)
-              .join(".");
-            currentSectionId = `${grandparentId}.${currentToken.content}`;
-          } else {
-            const parentId = currentSectionId.split(".").slice(0, -1).join(".");
-            currentSectionId = `${parentId}.${currentToken.content}`;
+          if ((match = lint(fountainRegexes.section))) {
+            currentToken.level = match[2].length;
+            currentToken.operator = match[4];
+            currentToken.content = match[6];
+            if (currentToken.level === 0) {
+              currentSectionId = currentToken.content;
+            } else if (currentToken.level === 1) {
+              currentSectionId = `.${currentToken.content}`;
+            } else if (currentToken.level > currentLevel) {
+              currentSectionId += `.${currentToken.content}`;
+            } else if (currentToken.level < currentLevel) {
+              const grandparentId = currentSectionId
+                .split(".")
+                .slice(0, -2)
+                .join(".");
+              currentSectionId = `${grandparentId}.${currentToken.content}`;
+            } else {
+              const parentId = currentSectionId
+                .split(".")
+                .slice(0, -1)
+                .join(".");
+              currentSectionId = `${parentId}.${currentToken.content}`;
+            }
+            currentSectionTokens = [];
+            currentToken.parameters = getParameterNames(match, 10);
+            addSection(
+              currentSectionId,
+              {
+                start: currentToken.start,
+                line: currentToken.line,
+                operator: currentToken.operator,
+                name: currentToken.content,
+                tokens: currentSectionTokens,
+              },
+              match,
+              6
+            );
+            currentLevel = currentToken.level;
           }
-          currentSectionTokens = [];
-          currentToken.parameters = getParameterNames(match, 10);
-          addSection(
-            currentSectionId,
-            {
-              start: currentToken.start,
-              line: currentToken.line,
-              operator: currentToken.operator,
-              name: currentToken.content,
-              tokens: currentSectionTokens,
-            },
-            match,
-            6
-          );
-          currentLevel = currentToken.level;
         }
       } else if (currentToken.content.match(fountainRegexes.page_break)) {
         currentToken.type = "page_break";
-        currentToken.content = "";
+        if ((match = lint(fountainRegexes.page_break))) {
+          currentToken.content = "";
+        }
       } else if (
         currentToken.content.match(fountainRegexes.character) &&
         i !== linesLength &&
@@ -1348,13 +1376,6 @@ export const parseFountain = (
           currentToken.position = "right";
         }
       }
-    }
-
-    if (
-      currentToken.type !== "trigger_group_begin" &&
-      currentToken.type !== "compare"
-    ) {
-      previousTriggerToken = undefined;
     }
 
     if (

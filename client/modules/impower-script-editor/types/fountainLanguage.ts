@@ -91,7 +91,7 @@ const commonmark = baseParser.configure({
       "Transition/...": tags.transition,
       "Asset AssetMark AssetName AssetOperator AssetValue": tags.asset,
       "Tag TagMark TagName TagOperator TagValue": tags.tag,
-      "Declare DeclareMark DeclareName DeclareOperator DeclareValue Assign LogicMark LogicName AssignOperator AssignValue Compare Condition Call CallEntityName CallValue CallOpenMark CallCloseMark CallSeparatorMark":
+      "Declare DeclareMark DeclareName DeclareOperator DeclareValue Assign LogicMark LogicName AssignMark AssignName CallMark CallName AssignOperator AssignValue Compare Choice Condition Call CallEntityName CallValue CallOpenMark CallCloseMark CallSeparatorMark":
         tags.logic,
       "Go Jump Return GoSectionName": tags.flow,
       "GoMark JumpMark ReturnMark": tags.flowMark,

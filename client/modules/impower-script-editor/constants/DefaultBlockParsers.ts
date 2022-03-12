@@ -1,4 +1,5 @@
 /* eslint-disable no-cond-assign */
+import { Tree } from "@lezer/common";
 import { fountainRegexes } from "../../impower-script-parser";
 import { BlockContext } from "../classes/BlockContext";
 import { Element } from "../classes/Element";
@@ -16,6 +17,7 @@ import {
   isCall,
   isCentered,
   isCharacter,
+  isChoice,
   isCondition,
   isDeclare,
   isFencedCode,
@@ -310,100 +312,6 @@ export const DefaultBlockParsers: {
     return true;
   },
 
-  Assign(cx, line) {
-    const match = isAssign(line);
-    if (!match) {
-      return false;
-    }
-    const mark = match[2];
-    const markSpace = match[3];
-    const name = match[4];
-    const nameSpace = match[5];
-    const operator = match[6];
-    const operatorSpace = match[7];
-    const value = match[8];
-    const from = cx.lineStart + line.pos;
-    const els: Element[] = [];
-    let posFrom = from;
-    let posTo = posFrom + mark.length;
-    els.push(new Element(Type.LogicMark, posFrom, posTo));
-    posFrom = posTo + markSpace.length;
-    posTo = posFrom + name.length;
-    els.push(new Element(Type.LogicName, posFrom, posTo));
-    posFrom = posTo + nameSpace.length;
-    posTo = posFrom + operator.length;
-    els.push(new Element(Type.AssignOperator, posFrom, posTo));
-    posFrom = posTo + operatorSpace.length;
-    posTo = posFrom + value.length;
-    els.push(new Element(Type.AssignValue, posFrom, posTo));
-    cx.addNode(
-      cx.buffer.writeElements(els, -from).finish(Type.Assign, line.text.length),
-      from
-    );
-    cx.nextLine();
-    return true;
-  },
-
-  Call(cx, line) {
-    const match = isCall(line);
-    if (!match) {
-      return false;
-    }
-    const mark = match[2];
-    const markSpace = match[3];
-    const methodName = match[4];
-    const methodNameSpace = match[5];
-    const openMark = match[6];
-    const openMarkSpace = match[7];
-    const parameters = match[8];
-    const parametersSpace = match[9];
-    const closeMark = match[10];
-    const from = cx.lineStart + line.pos;
-    const els: Element[] = [];
-    let posFrom = from;
-    let posTo = posFrom + mark.length;
-    els.push(new Element(Type.LogicMark, posFrom, posTo));
-    posFrom = posTo + markSpace.length;
-    posTo = posFrom + methodName.length;
-    els.push(new Element(Type.LogicName, posFrom, posTo));
-    posFrom = posTo + methodNameSpace.length;
-    posTo = posFrom + openMark.length;
-    els.push(new Element(Type.CallOpenMark, posFrom, posTo));
-    posFrom = posTo + openMarkSpace.length;
-    posTo = posFrom + parameters.length;
-    const paramMatches = parameters.match(fountainRegexes.parameter_values);
-    if (paramMatches) {
-      let paramFrom = posFrom;
-      let paramTo = posFrom;
-      for (let i = 0; i < paramMatches.length; i += 1) {
-        const paramMatch = paramMatches[i];
-        const separatorMatch = paramMatch.match(fountainRegexes.separator);
-        if (separatorMatch) {
-          paramFrom = paramTo;
-          paramTo += paramMatch.length;
-          els.push(new Element(Type.CallSeparatorMark, paramFrom, paramTo));
-        } else if (i === 0) {
-          paramFrom = paramTo;
-          paramTo += paramMatch.length;
-          els.push(new Element(Type.CallEntityName, paramFrom, paramTo));
-        } else {
-          paramFrom = paramTo;
-          paramTo += paramMatch.length;
-          els.push(new Element(Type.CallValue, paramFrom, paramTo));
-        }
-      }
-    }
-    posFrom = posTo + parametersSpace.length;
-    posTo = posFrom + closeMark.length;
-    els.push(new Element(Type.CallCloseMark, posFrom, posTo));
-    cx.addNode(
-      cx.buffer.writeElements(els, -from).finish(Type.Assign, line.text.length),
-      from
-    );
-    cx.nextLine();
-    return true;
-  },
-
   Transition(cx, line) {
     const size = isTransition(line);
     if (size < 0) {
@@ -596,6 +504,14 @@ export const DefaultBlockParsers: {
     if (size < 0) {
       return false;
     }
+
+    const match =
+      isAssign(line) || isCall(line) || isCondition(line) || isChoice(line);
+
+    if (!match) {
+      return false;
+    }
+
     if (cx.block.type !== Type.BulletList) {
       cx.startContext(Type.BulletList, line.basePos, line.next);
     }
@@ -606,8 +522,117 @@ export const DefaultBlockParsers: {
 
     let from = 0;
     let to = from;
-    const match = isCondition(line);
-    if (match) {
+    let node: Tree;
+
+    if (match?.[0] === "assign") {
+      const mark = match[2] || "";
+      const markSpace = match[3] || "";
+      const name = match[4] || "";
+      const nameSpace = match[5] || "";
+      const operator = match[6] || "";
+      const operatorSpace = match[7] || "";
+      const value = match[8] || "";
+      const valueSpace = match[9] || "";
+
+      from = to;
+      to = from + mark.length + markSpace.length;
+      buf = buf.write(Type.AssignMark, from, to);
+
+      from = to;
+      to = from + name.length + nameSpace.length;
+      buf = buf.write(Type.AssignName, from, to);
+
+      from = to;
+      to = from + operator.length + operatorSpace.length;
+      buf = buf.write(Type.AssignOperator, from, to);
+
+      from = to;
+      to = from + value.length + valueSpace.length;
+      buf = buf.write(Type.AssignValue, from, to);
+
+      node = buf.finish(Type.Assign, line.text.length - line.pos);
+    } else if (match?.[0] === "call") {
+      const mark = match[2] || "";
+      const markSpace = match[3] || "";
+      const name = match[4] || "";
+      const nameSpace = match[5] || "";
+      const openMark = match[6] || "";
+      const openMarkSpace = match[7] || "";
+      const parameters = match[8] || "";
+      const parametersSpace = match[9] || "";
+      const closeMark = match[10] || "";
+      const closeMarkSpace = match[11] || "";
+
+      from = to;
+      to = from + mark.length + markSpace.length;
+      buf = buf.write(Type.CallMark, from, to);
+
+      from = to;
+      to = from + name.length + nameSpace.length;
+      buf = buf.write(Type.CallName, from, to);
+
+      from = to;
+      to = from + openMark.length + openMarkSpace.length;
+      buf = buf.write(Type.CallOpenMark, from, to);
+
+      const paramMatches = parameters.match(fountainRegexes.parameter_values);
+      if (paramMatches) {
+        for (let i = 0; i < paramMatches.length; i += 1) {
+          const paramMatch = paramMatches[i];
+          const separatorMatch = paramMatch.match(fountainRegexes.separator);
+          from = to;
+          to = from + paramMatch.length;
+          if (i === paramMatches.length - 1) {
+            to += parametersSpace.length;
+          }
+          if (separatorMatch) {
+            buf = buf.write(Type.CallSeparatorMark, from, to);
+          } else if (i === 0) {
+            buf = buf.write(Type.CallEntityName, from, to);
+          } else {
+            buf = buf.write(Type.CallValue, from, to);
+          }
+        }
+      }
+      from = to;
+      to = from + closeMark.length + closeMarkSpace.length;
+      buf = buf.write(Type.CallCloseMark, from, to);
+
+      node = buf.finish(Type.Call, line.text.length - line.pos);
+    } else if (match?.[0] === "condition") {
+      const mark = match[2] || "";
+      const markSpace = match[3] || "";
+      const variable = match[4] || "";
+      const variableSpace = match[5] || "";
+      const operator = match[6] || "";
+      const operatorSpace = match[7] || "";
+      const value = match[8] || "";
+      const valueSpace = match[9] || "";
+      const colon = match[10] || "";
+      const colonSpace = match[11] || "";
+
+      from = to;
+      to = from + mark.length + markSpace.length;
+      buf = buf.write(Type.ConditionMark, from, to);
+
+      from = to;
+      to = from + variable.length + variableSpace.length;
+      buf = buf.write(Type.ConditionName, from, to);
+
+      from = to;
+      to = from + operator.length + operatorSpace.length;
+      buf = buf.write(Type.ConditionOperator, from, to);
+
+      from = to;
+      to = from + value.length + valueSpace.length;
+      buf = buf.write(Type.ConditionValue, from, to);
+
+      from = to;
+      to = from + colon.length + colonSpace.length;
+      buf = buf.write(Type.ConditionColonMark, from, to);
+
+      node = buf.finish(Type.Condition, line.text.length - line.pos);
+    } else if (match?.[0] === "choice") {
       const mark = match[2] || "";
       const markSpace = match[3] || "";
       const variable = match[4] || "";
@@ -627,27 +652,27 @@ export const DefaultBlockParsers: {
 
       from = to;
       to = from + mark.length + markSpace.length;
-      buf = buf.write(Type.ListMark, from, to);
+      buf = buf.write(Type.ChoiceMark, from, to);
 
       from = to;
       to = from + variable.length + variableSpace.length;
-      buf = buf.write(Type.ConditionName, from, to);
+      buf = buf.write(Type.ChoiceName, from, to);
 
       from = to;
       to = from + operator.length + operatorSpace.length;
-      buf = buf.write(Type.ConditionOperator, from, to);
+      buf = buf.write(Type.ChoiceOperator, from, to);
 
       from = to;
       to = from + value.length + valueSpace.length;
-      buf = buf.write(Type.ConditionValue, from, to);
+      buf = buf.write(Type.ChoiceValue, from, to);
 
       from = to;
       to = from + colon.length + colonSpace.length;
-      buf = buf.write(Type.ConditionColonMark, from, to);
+      buf = buf.write(Type.ChoiceColonMark, from, to);
 
       from = to;
       to = from + openBracket.length;
-      buf = buf.write(Type.ConditionOpenMark, from, to);
+      buf = buf.write(Type.ChoiceOpenMark, from, to);
 
       from = to;
       to = from + content.length;
@@ -655,18 +680,18 @@ export const DefaultBlockParsers: {
 
       from = to;
       to = from + closeBracket.length + closeBracketSpace.length;
-      buf = buf.write(Type.ConditionCloseMark, from, to);
+      buf = buf.write(Type.ChoiceCloseMark, from, to);
 
       from = to;
       to = from + angle.length + angleSpace.length;
-      buf = buf.write(Type.ConditionAngleMark, from, to);
+      buf = buf.write(Type.ChoiceAngleMark, from, to);
 
       from = to;
       to = from + angle.length + angleSpace.length;
-      buf = buf.write(Type.ConditionSectionName, from, to);
+      buf = buf.write(Type.ChoiceSectionName, from, to);
+
+      node = buf.finish(Type.Choice, line.text.length - line.pos);
     }
-
-    const node = buf.finish(Type.Condition, line.text.length - line.pos);
 
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();

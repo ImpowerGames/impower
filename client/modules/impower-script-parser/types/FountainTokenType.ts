@@ -3,17 +3,14 @@ import { FountainTitleKeyword } from "./FountainTitleKeyword";
 export type FountainAssetType = "image" | "audio" | "text" | "video";
 export type FountainEntityType = "element" | "component";
 export type FountainTagType = "tag";
-export type FountainLogicType =
-  | "declare"
-  | "assign"
-  | "trigger_group_begin"
-  | "compare"
-  | "trigger_group_end";
+export type FountainDeclareType = "declare";
+export type FountainAssignType = "assign";
 export type FountainCallType = "call";
+export type FountainConditionType = "condition";
+export type FountainChoiceType = "choice";
 export type FountainGoType = "go";
 export type FountainJumpType = "jump";
 export type FountainReturnType = "return";
-export type FountainConditionType = "condition";
 
 export type FountainSectionType = "section";
 export type FountainSceneType = "scene";
@@ -48,12 +45,14 @@ export type FountainTokenType =
   | FountainAssetType
   | FountainEntityType
   | FountainTagType
-  | FountainLogicType
+  | FountainDeclareType
+  | FountainAssignType
   | FountainCallType
+  | FountainConditionType
+  | FountainChoiceType
   | FountainGoType
   | FountainJumpType
   | FountainReturnType
-  | FountainConditionType
   | FountainSectionType
   | FountainSceneType
   | FountainDialogueType

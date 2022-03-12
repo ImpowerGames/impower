@@ -28,6 +28,9 @@ export class CompositeBlock {
   }
 
   addChild(child: Tree, pos: number): void {
+    if (!child) {
+      return;
+    }
     if (child.prop(NodeProp.contextHash) !== this.hash) {
       child = new Tree(
         child.type,
