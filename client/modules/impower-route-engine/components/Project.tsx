@@ -95,26 +95,10 @@ const getPanelbar = (
 };
 
 const StyledProject = styled.div`
-  touch-action: pan-x pan-y;
   background-color: ${(props): string => props.theme.colors.darkForeground};
   flex: 1;
   display: flex;
   flex-direction: column;
-
-  & * {
-    user-select: none;
-    touch-callout: none;
-  }
-  *[contenteditable="true"] {
-    user-select: text;
-  }
-  input {
-    user-select: text;
-  }
-  textarea {
-    user-select: text;
-  }
-
   opacity: 0;
   transition: opacity 0.2s ease;
 `;

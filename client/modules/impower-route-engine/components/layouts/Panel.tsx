@@ -9,6 +9,7 @@ import React, {
   useRef,
 } from "react";
 import { BottomNavigationBarSpacer } from "../../../impower-route";
+import useIOS from "../../../impower-route/hooks/useIOS";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 
 const StyledPanel = styled.div`
@@ -26,6 +27,13 @@ const StyledBackground = styled.div`
   display: flex;
   flex-direction: column;
   z-index: 2;
+  overscroll-behavior: contain;
+  & {
+    touch-action: pan-y;
+  }
+  & * {
+    touch-action: pan-y;
+  }
 `;
 
 const StyledForeground = styled.div`
@@ -82,6 +90,10 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
     children,
   } = props;
 
+  const ios = useIOS();
+
+  const windowScrolling = useWindowAsScrollContainer && !ios;
+
   const scrollRef = useRef<HTMLDivElement>();
   const ref = useRef<HTMLDivElement>();
   const overlayRef = useRef<HTMLDivElement>();
@@ -102,7 +114,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
 
   const foregroundColor = theme.colors.darkForeground;
 
-  const panelStyle: React.CSSProperties = useWindowAsScrollContainer
+  const panelStyle: React.CSSProperties = windowScrolling
     ? undefined
     : {
         position: "absolute",
@@ -113,7 +125,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
       };
 
   useEffect(() => {
-    const scrollEl = useWindowAsScrollContainer
+    const scrollEl = windowScrolling
       ? document.documentElement
       : scrollRef.current;
     if (scrollEl) {
@@ -121,13 +133,13 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
         onScrollRef(scrollEl);
       }
     }
-  }, [dispatch, onScrollRef, useWindowAsScrollContainer]);
+  }, [dispatch, onScrollRef, windowScrolling]);
 
   const handleScrollRef = useCallback(
     (instance: HTMLDivElement): void => {
       if (instance) {
         scrollRef.current = instance;
-        const scrollEl = useWindowAsScrollContainer
+        const scrollEl = windowScrolling
           ? document.documentElement
           : scrollRef.current;
         if (scrollEl) {
@@ -137,7 +149,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
         }
       }
     },
-    [onScrollRef, useWindowAsScrollContainer]
+    [onScrollRef, windowScrolling]
   );
 
   return (
@@ -152,11 +164,12 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
       }}
     >
       <StyledBackground
+        className="panel-scroll"
         ref={handleScrollRef}
         style={{
           backgroundColor: foregroundColor,
           ...backgroundStyle,
-          overflowY: useWindowAsScrollContainer ? undefined : "scroll",
+          overflowY: windowScrolling ? undefined : "scroll",
         }}
       >
         {topChildren}

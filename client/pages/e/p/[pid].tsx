@@ -18,13 +18,31 @@ import {
 import TagIconLoader from "../../../modules/impower-route/components/elements/TagIconLoader";
 import useBodyBackgroundColor from "../../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useIOS from "../../../modules/impower-route/hooks/useIOS";
 
-const StyledProjectPage = styled.div`
+const StyledProjectPage = styled.div<{ ios?: boolean }>`
   background-color: ${(props): string => props.theme.colors.darkForeground};
   display: flex;
   flex-direction: column;
   flex: 1;
   position: relative;
+  & * {
+    touch-action: ${(props): string => (props.ios ? "none" : "pan-x pan-y")};
+  }
+
+  & * {
+    user-select: none;
+    touch-callout: none;
+  }
+  *[contenteditable="true"] {
+    user-select: text;
+  }
+  input {
+    user-select: text;
+  }
+  textarea {
+    user-select: text;
+  }
 `;
 
 const StyledMonospaceSansFontLoader = styled.p`
@@ -64,6 +82,10 @@ const EngineProjectPage = React.memo((props: GamePageProps) => {
   useBodyBackgroundColor(theme.colors.darkForeground);
   useHTMLBackgroundColor(theme.colors.darkForeground);
 
+  if (typeof window !== "undefined") {
+    document.documentElement.style.overscrollBehavior = "contain";
+  }
+
   useEffect(() => {
     DataStoreCache.instance.clear();
   }, []);
@@ -75,6 +97,8 @@ const EngineProjectPage = React.memo((props: GamePageProps) => {
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
 
+  const ios = useIOS();
+
   if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
     return null;
   }
@@ -82,7 +106,7 @@ const EngineProjectPage = React.memo((props: GamePageProps) => {
   return (
     <>
       <GameContextProvider>
-        <StyledProjectPage>
+        <StyledProjectPage ios={ios}>
           <Project />
         </StyledProjectPage>
       </GameContextProvider>

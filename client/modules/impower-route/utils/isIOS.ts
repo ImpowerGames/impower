@@ -1,4 +1,7 @@
 export const isIOS = (): boolean => {
+  if (typeof window === "undefined") {
+    return false;
+  }
   return (
     [
       "iPad Simulator",
