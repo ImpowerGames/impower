@@ -57,7 +57,6 @@ import { projectEngineReducer } from "../types/reducers/projectEngineReducer";
 import { createProjectEngineState } from "../utils/createProjectEngineState";
 
 const StyledProjectPage = styled.div`
-  background-color: ${(props): string => props.theme.colors.darkForeground};
   display: flex;
   flex-direction: column;
   flex: 1;

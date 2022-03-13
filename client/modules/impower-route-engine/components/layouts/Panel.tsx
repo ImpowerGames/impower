@@ -167,13 +167,12 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
         className="panel-scroll"
         ref={handleScrollRef}
         style={{
-          backgroundColor: foregroundColor,
           ...backgroundStyle,
           overflowY: windowScrolling ? undefined : "scroll",
         }}
       >
         {topChildren}
-        <StyledForeground style={{ backgroundColor: foregroundColor }}>
+        <StyledForeground>
           <StyledPanelContent>
             <StyledPanelArrangement>{children}</StyledPanelArrangement>
           </StyledPanelContent>

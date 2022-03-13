@@ -24,7 +24,6 @@ const StyledPane = styled.div`
   display: flex;
   flex-direction: column;
   border-radius: ${(props): string => props.theme.borderRadius.topTab};
-  background-color: ${(props): string => props.theme.colors.darkForeground};
   pointer-events: auto;
   max-width: 100%;
   height: 100%;

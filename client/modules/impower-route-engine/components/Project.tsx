@@ -95,7 +95,6 @@ const getPanelbar = (
 };
 
 const StyledProject = styled.div`
-  background-color: ${(props): string => props.theme.colors.darkForeground};
   flex: 1;
   display: flex;
   flex-direction: column;

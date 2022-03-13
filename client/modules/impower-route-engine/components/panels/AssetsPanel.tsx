@@ -24,9 +24,7 @@ const AssetsPanel = React.memo((): JSX.Element => {
     position: portrait ? "fixed" : "absolute",
     left: buttonSpacing,
     right: buttonSpacing,
-    bottom: portrait
-      ? layout.size.minHeight.navigationBar + buttonSpacing
-      : buttonSpacing,
+    bottom: layout.size.minHeight.navigationBar + buttonSpacing,
   };
   const stickyStyle: React.CSSProperties = {
     position: portrait ? "fixed" : "absolute",
