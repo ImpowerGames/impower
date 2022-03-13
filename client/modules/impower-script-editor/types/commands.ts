@@ -13,8 +13,8 @@ import { Context } from "../classes/Context";
 import { itemNumber } from "../utils/itemNumber";
 import { fountainLanguage } from "./fountainLanguage";
 
-const START_REGEX = /^[\s\d.)\-+*~>]*/;
-const CONTINUE_REGEX = /^([ \t]*)([-+*~])([ \t]+)/;
+const START_REGEX = /^[\s\d.)\-+*>]*/;
+const CONTINUE_REGEX = /^([ \t]*)([-+*])([ \t]+)/;
 
 function nodeStart(node: SyntaxNode, doc: Text) {
   return doc.sliceString(node.from, node.from + 50);

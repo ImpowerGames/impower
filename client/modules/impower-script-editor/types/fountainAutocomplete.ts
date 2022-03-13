@@ -290,7 +290,7 @@ export const fountainAutocomplete = async (
   const isLowercase = input.toLowerCase() === input;
   const completions: Completion[] = [];
   if (node.name === "Paragraph") {
-    if (isLowercase) {
+    if (isLowercase && input.match(/^[/w]+/)) {
       completions.push(...paragraphSnippets);
     }
     if (input.startsWith("#")) {

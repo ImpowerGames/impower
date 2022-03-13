@@ -866,41 +866,39 @@ export const parseFountain = (
     if ((match = currentToken.content.match(fountainRegexes.section))) {
       currentToken.type = "section";
       if (currentToken.type === "section") {
-        if ((match = lint(fountainRegexes.section))) {
-          const level = match[2].length;
-          const operator = match[4] || "";
-          const name = match[6] || "";
-          if (level === 0) {
-            currentSectionId = name;
-          } else if (level === 1) {
-            currentSectionId = `.${name}`;
-          } else if (level > currentLevel) {
-            currentSectionId += `.${name}`;
-          } else if (level < currentLevel) {
-            const grandparentId = currentSectionId
-              .split(".")
-              .slice(0, -2)
-              .join(".");
-            currentSectionId = `${grandparentId}.${name}`;
-          } else {
-            const parentId = currentSectionId.split(".").slice(0, -1).join(".");
-            currentSectionId = `${parentId}.${name}`;
-          }
-          currentSectionTokens = [];
-          addSection(
-            currentSectionId,
-            {
-              start: currentToken.start,
-              line: currentToken.line,
-              operator,
-              name,
-              tokens: currentSectionTokens,
-            },
-            match,
-            6
-          );
-          currentLevel = level;
+        const level = match[2].length;
+        const operator = match[4] || "";
+        const name = match[5] || "";
+        if (level === 0) {
+          currentSectionId = name;
+        } else if (level === 1) {
+          currentSectionId = `.${name}`;
+        } else if (level > currentLevel) {
+          currentSectionId += `.${name}`;
+        } else if (level < currentLevel) {
+          const grandparentId = currentSectionId
+            .split(".")
+            .slice(0, -2)
+            .join(".");
+          currentSectionId = `${grandparentId}.${name}`;
+        } else {
+          const parentId = currentSectionId.split(".").slice(0, -1).join(".");
+          currentSectionId = `${parentId}.${name}`;
         }
+        currentSectionTokens = [];
+        addSection(
+          currentSectionId,
+          {
+            start: currentToken.start,
+            line: currentToken.line,
+            operator,
+            name,
+            tokens: currentSectionTokens,
+          },
+          match,
+          5
+        );
+        currentLevel = level;
       }
     }
   }
@@ -1254,11 +1252,11 @@ export const parseFountain = (
           if ((match = lint(fountainRegexes.section))) {
             const level = match[2].length;
             const operator = match[4] || "";
-            const name = match[6] || "";
+            const name = match[5] || "";
             currentToken.level = level;
             currentToken.operator = operator;
             currentToken.content = name;
-            currentToken.parameters = getParameterNames(match, 10);
+            currentToken.parameters = getParameterNames(match, 9);
             if (level === 0) {
               currentSectionId = name;
             } else if (level === 1) {

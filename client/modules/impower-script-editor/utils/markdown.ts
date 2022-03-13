@@ -139,7 +139,7 @@ export function isVariable(line: Line): RegExpMatchArray {
 }
 
 export function isAssign(line: Line): RegExpMatchArray {
-  if (line.next !== "~".charCodeAt(0)) {
+  if (line.next !== "*".charCodeAt(0)) {
     return null;
   }
   const match = line.text.match(fountainRegexes.assign);
@@ -151,7 +151,7 @@ export function isAssign(line: Line): RegExpMatchArray {
 }
 
 export function isCall(line: Line): RegExpMatchArray {
-  if (line.next !== "~".charCodeAt(0)) {
+  if (line.next !== "*".charCodeAt(0)) {
     return null;
   }
   const match = line.text.match(fountainRegexes.call);
@@ -163,7 +163,7 @@ export function isCall(line: Line): RegExpMatchArray {
 }
 
 export function isCondition(line: Line): RegExpMatchArray {
-  if (line.next !== "~".charCodeAt(0)) {
+  if (line.next !== "*".charCodeAt(0)) {
     return null;
   }
   const match = line.text.match(fountainRegexes.condition);
@@ -227,8 +227,7 @@ export function isBulletList(
 ): number {
   return (line.next === "-".charCodeAt(0) ||
     line.next === "+".charCodeAt(0) ||
-    line.next === "*".charCodeAt(0) ||
-    line.next === "~".charCodeAt(0)) &&
+    line.next === "*".charCodeAt(0)) &&
     (line.pos === line.text.length - 1 ||
       space(line.text.charCodeAt(line.pos + 1))) &&
     (!breaking ||
