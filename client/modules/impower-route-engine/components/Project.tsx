@@ -188,6 +188,15 @@ const StyledFixedViewport = styled.div`
   transform: translateZ(0);
   will-change: transform;
   height: 100vh;
+
+  & {
+    touch-action: none;
+    overscroll-behavior: contain;
+  }
+  & * {
+    touch-action: none;
+    overscroll-behavior: contain;
+  }
 `;
 
 const StyledViewportSpacer = styled.div`
