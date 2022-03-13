@@ -10,7 +10,7 @@ export const getRuntimeVariable = (
   sectionId = "",
   variables: Record<string, FountainVariable>
 ): VariableData => {
-  if (token.type === "declare") {
+  if (token.type === "variable") {
     return createVariableData({
       reference: getRuntimeVariableReference(token.name, sectionId, variables),
       pos: token.start,
