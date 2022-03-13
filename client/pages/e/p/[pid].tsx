@@ -29,6 +29,7 @@ const StyledProjectPage = styled.div<{ ios?: boolean }>`
   position: relative;
   & * {
     touch-action: ${(props): string => (props.ios ? "none" : "pan-x pan-y")};
+    overscroll-behavior: contain;
   }
 
   & * {
