@@ -35,6 +35,7 @@ import PlayerPreview from "../../../impower-route/components/elements/PlayerPrev
 import Page from "../../../impower-route/components/layouts/Page";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../../impower-route/hooks/useHTMLOverscrollBehavior";
 import { Breakpoint } from "../../../impower-route/styles/breakpoint";
 import { getBreakpoint } from "../../../impower-route/utils/getBreakpoint";
 import { getPlaceholderUrl } from "../../../impower-storage";
@@ -531,6 +532,7 @@ const TestPanel = React.memo((): JSX.Element => {
 
   useBodyBackgroundColor(theme.colors.darkForeground);
   useHTMLBackgroundColor(theme.colors.darkForeground);
+  useHTMLOverscrollBehavior("contain");
 
   return (
     <StyledMotionTestPanel style={{ backgroundColor }}>

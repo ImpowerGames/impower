@@ -32,6 +32,7 @@ import {
 import { Fallback, Tabs } from "../../../modules/impower-route";
 import useBodyBackgroundColor from "../../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import {
   engineConsoles,
   EngineConsoleType,
@@ -439,6 +440,7 @@ const StudioPage = React.memo((props: StudioPageProps) => {
 
   useBodyBackgroundColor(theme.palette.primary.main);
   useHTMLBackgroundColor(theme.palette.primary.main);
+  useHTMLOverscrollBehavior("auto");
 
   if (type !== "studio") {
     navigationDispatch(navigationSetType("studio"));

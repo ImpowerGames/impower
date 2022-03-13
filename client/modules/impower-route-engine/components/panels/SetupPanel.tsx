@@ -52,6 +52,7 @@ import PageMembersField, {
 import Fallback from "../../../impower-route/components/layouts/Fallback";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../../impower-route/hooks/useHTMLOverscrollBehavior";
 import { UserContext, userOnChangeMember } from "../../../impower-user";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
@@ -494,6 +495,7 @@ const SetupPanel = React.memo((): JSX.Element => {
 
   useBodyBackgroundColor(theme.colors.darkForeground);
   useHTMLBackgroundColor(theme.colors.darkForeground);
+  useHTMLOverscrollBehavior("contain");
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent | React.MouseEvent) => {

@@ -33,6 +33,7 @@ import Pitch from "../../modules/impower-route-pitch/components/Pitch";
 import { ProjectTypeFilter } from "../../modules/impower-route-pitch/types/projectTypeFilter";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import { useRouter } from "../../modules/impower-router";
 
 const LOAD_INITIAL_LIMIT = 5;
@@ -60,6 +61,7 @@ const PitchPageContent = React.memo((props: PitchPageProps) => {
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

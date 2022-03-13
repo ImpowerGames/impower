@@ -19,6 +19,7 @@ import Library from "../modules/impower-route-library/components/Library";
 import NavigationBarSpacer from "../modules/impower-route/components/elements/NavigationBarSpacer";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 
 interface LibraryPageProps {
   config: ConfigParameters;
@@ -35,6 +36,7 @@ const LibraryPage = React.memo((props: LibraryPageProps) => {
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

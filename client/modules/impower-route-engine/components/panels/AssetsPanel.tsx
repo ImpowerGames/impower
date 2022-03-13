@@ -2,6 +2,7 @@ import { useTheme } from "@emotion/react";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../../impower-route/hooks/useHTMLOverscrollBehavior";
 import { layout } from "../../../impower-route/styles/layout";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
@@ -67,6 +68,7 @@ const AssetsPanel = React.memo((): JSX.Element => {
 
   useBodyBackgroundColor(theme.colors.darkForeground);
   useHTMLBackgroundColor(theme.colors.darkForeground);
+  useHTMLOverscrollBehavior("contain");
 
   const fileDocs = useMemo(
     () =>

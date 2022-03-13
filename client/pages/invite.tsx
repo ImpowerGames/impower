@@ -14,12 +14,14 @@ import Invite from "../modules/impower-route-invite/components/Invite";
 import NavigationBarSpacer from "../modules/impower-route/components/elements/NavigationBarSpacer";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 
 const InvitePage = React.memo(() => {
   const [, navigationDispatch] = useContext(NavigationContext);
 
   useBodyBackgroundColor("white");
   useHTMLBackgroundColor("white");
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

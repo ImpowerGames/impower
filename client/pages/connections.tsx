@@ -18,6 +18,7 @@ import { BetaBanner } from "../modules/impower-route";
 import Connections from "../modules/impower-route-account/components/Connections";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 
 const StyledConnectionsPage = styled.div`
   padding-top: ${(props): string => props.theme.minHeight.navigationBar};
@@ -44,6 +45,7 @@ const ConnectionsPage = React.memo((props: ConnectionsPageProps) => {
 
   useBodyBackgroundColor("white");
   useHTMLBackgroundColor("white");
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

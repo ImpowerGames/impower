@@ -17,6 +17,7 @@ import Home from "../modules/impower-route-home/components/Home";
 import ShareWebsiteHead from "../modules/impower-route/components/elements/ShareWebsiteHead";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 
 const HomePage = React.memo(() => {
   const { product } = brandingInfo;
@@ -26,6 +27,7 @@ const HomePage = React.memo(() => {
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

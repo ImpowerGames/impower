@@ -20,6 +20,7 @@ import Account from "../modules/impower-route-account/components/Account";
 import Footer from "../modules/impower-route-home/components/elements/Footer";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import { useRouter } from "../modules/impower-router";
 
 const StyledAccountPage = styled.div`
@@ -51,6 +52,7 @@ const AccountPage = React.memo((props: AccountPageProps) => {
 
   useBodyBackgroundColor("white");
   useHTMLBackgroundColor("white");
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

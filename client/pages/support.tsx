@@ -12,12 +12,14 @@ import {
 import Contact from "../modules/impower-route-contact/components/Contact";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 
 const SupportPage = React.memo(() => {
   const [, navigationDispatch] = useContext(NavigationContext);
 
   useBodyBackgroundColor("white");
   useHTMLBackgroundColor("white");
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

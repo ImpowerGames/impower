@@ -16,6 +16,7 @@ import SignUp from "../modules/impower-route-signup/components/SignUp";
 import NavigationBarSpacer from "../modules/impower-route/components/elements/NavigationBarSpacer";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import IllustrationImage from "../resources/illustrations/fogg-5.svg";
 
 const StyledSignUp = styled.div`
@@ -65,6 +66,7 @@ const SignupPage = React.memo(() => {
 
   useBodyBackgroundColor("white");
   useHTMLBackgroundColor("white");
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

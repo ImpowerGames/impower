@@ -8,6 +8,7 @@ import { InfoAttributes } from "../../../impower-data-state/types/interfaces/inf
 import { layout } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../../impower-route/hooks/useHTMLOverscrollBehavior";
 import {
   EngineConsoleType,
   studioConsoles,
@@ -191,6 +192,7 @@ const Console = React.memo((props: ConsoleProps): JSX.Element | null => {
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
+  useHTMLOverscrollBehavior("auto");
 
   if (type === EngineConsoleType.Projects) {
     if (studioId?.toLowerCase() === "shared") {

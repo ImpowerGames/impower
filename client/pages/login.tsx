@@ -16,6 +16,7 @@ import Login from "../modules/impower-route-login/components/Login";
 import NavigationBarSpacer from "../modules/impower-route/components/elements/NavigationBarSpacer";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import IllustrationImage from "../resources/illustrations/fogg-5.svg";
 
 const StyledLogin = styled.div`
@@ -65,6 +66,7 @@ const LoginPage = React.memo(() => {
 
   useBodyBackgroundColor("white");
   useHTMLBackgroundColor("white");
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

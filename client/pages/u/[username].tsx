@@ -24,6 +24,7 @@ import { BetaBanner } from "../../modules/impower-route";
 import Profile from "../../modules/impower-route-account/components/Profile";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import { useRouter } from "../../modules/impower-router";
 import { UserContext } from "../../modules/impower-user";
 
@@ -63,6 +64,7 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
+  useHTMLOverscrollBehavior("auto");
 
   useMemo(() => {
     navigationDispatch(navigationSetType("page"));

@@ -59,6 +59,7 @@ import PostLayout from "../../modules/impower-route-pitch/components/PostLayout"
 import PageNotFound from "../../modules/impower-route/components/layouts/PageNotFound";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import useThemeColor from "../../modules/impower-route/hooks/useThemeColor";
 import { useRouter } from "../../modules/impower-router";
 import { UserContext } from "../../modules/impower-user";
@@ -171,6 +172,7 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
+  useHTMLOverscrollBehavior("auto");
   useThemeColor(theme.palette.primary.main);
 
   useEffect(() => {

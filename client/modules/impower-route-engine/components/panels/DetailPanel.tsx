@@ -31,6 +31,7 @@ import ObjectField from "../../../impower-route/components/inputs/ObjectField";
 import StringInput from "../../../impower-route/components/inputs/StringInput";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../../impower-route/hooks/useHTMLOverscrollBehavior";
 import { useRouter } from "../../../impower-router";
 import { UserContext, userOnDeleteSubmission } from "../../../impower-user";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
@@ -363,6 +364,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
 
   useBodyBackgroundColor(theme.colors.darkForeground);
   useHTMLBackgroundColor(theme.colors.darkForeground);
+  useHTMLOverscrollBehavior("contain");
 
   const inspectedDataName = useMemo(() => {
     if (section === "Configuration") {

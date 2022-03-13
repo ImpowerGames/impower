@@ -13,6 +13,7 @@ import {
 import { Fallback, PageUnderConstruction } from "../modules/impower-route";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import { useRouter } from "../modules/impower-router";
 import { UserContext } from "../modules/impower-user";
 
@@ -28,6 +29,7 @@ const DashboardPage = React.memo(() => {
 
   useBodyBackgroundColor(theme.palette.primary.main);
   useHTMLBackgroundColor(theme.palette.primary.main);
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

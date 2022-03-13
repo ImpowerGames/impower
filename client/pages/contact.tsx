@@ -14,12 +14,14 @@ import Footer from "../modules/impower-route-home/components/elements/Footer";
 import NavigationBarSpacer from "../modules/impower-route/components/elements/NavigationBarSpacer";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 
 const ContactPage = React.memo(() => {
   const [, navigationDispatch] = useContext(NavigationContext);
 
   useBodyBackgroundColor("white");
   useHTMLBackgroundColor("white");
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

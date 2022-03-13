@@ -18,6 +18,7 @@ import {
 import TagIconLoader from "../../../modules/impower-route/components/elements/TagIconLoader";
 import useBodyBackgroundColor from "../../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import useIOS from "../../../modules/impower-route/hooks/useIOS";
 
 const StyledProjectPage = styled.div<{ ios?: boolean }>`
@@ -66,11 +67,11 @@ const Project = dynamic(
   { ssr: false }
 );
 
-interface GamePageProps {
+interface EngineProjectPageProps {
   config: ConfigParameters;
 }
 
-const EngineProjectPage = React.memo((props: GamePageProps) => {
+const EngineProjectPage = React.memo((props: EngineProjectPageProps) => {
   const { config } = props;
 
   const [, navigationDispatch] = useContext(NavigationContext);
@@ -81,10 +82,7 @@ const EngineProjectPage = React.memo((props: GamePageProps) => {
 
   useBodyBackgroundColor(theme.colors.darkForeground);
   useHTMLBackgroundColor(theme.colors.darkForeground);
-
-  if (typeof window !== "undefined") {
-    document.documentElement.style.overscrollBehavior = "contain";
-  }
+  useHTMLOverscrollBehavior("contain");
 
   useEffect(() => {
     DataStoreCache.instance.clear();
@@ -128,12 +126,13 @@ export const getStaticPaths: GetStaticPaths = async () => {
   return { paths: [], fallback: "blocking" };
 };
 
-export const getStaticProps: GetStaticProps<GamePageProps> = async () => {
-  const config = {
-    ...getLocalizationConfigParameters(),
-    ...getTagConfigParameters(),
+export const getStaticProps: GetStaticProps<EngineProjectPageProps> =
+  async () => {
+    const config = {
+      ...getLocalizationConfigParameters(),
+      ...getTagConfigParameters(),
+    };
+    return {
+      props: { config },
+    };
   };
-  return {
-    props: { config },
-  };
-};

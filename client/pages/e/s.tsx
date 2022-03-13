@@ -31,6 +31,7 @@ import Illustration from "../../modules/impower-route-home/components/elements/I
 import NavigationBarSpacer from "../../modules/impower-route/components/elements/NavigationBarSpacer";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import { useRouter } from "../../modules/impower-router";
 import { UserContext } from "../../modules/impower-user";
 import IllustrationImage from "../../resources/illustrations/clip-busy-day-at-the-office.svg";
@@ -107,6 +108,7 @@ const CreateStudioPage = React.memo((props: CreateStudioPageProps) => {
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
+  useHTMLOverscrollBehavior("auto");
 
   const username = userDoc?.username || "";
   const icon = userDoc?.icon?.fileUrl;

@@ -18,6 +18,7 @@ import { BetaBanner } from "../modules/impower-route";
 import Kudos from "../modules/impower-route-account/components/Kudos";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 
 const StyledKudosPage = styled.div`
   padding-top: ${(props): string => props.theme.minHeight.navigationBar};
@@ -44,6 +45,7 @@ const KudosPage = React.memo((props: KudosPageProps) => {
 
   useBodyBackgroundColor("white");
   useHTMLBackgroundColor("white");
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

@@ -13,6 +13,7 @@ import { FontIcon } from "../../impower-icon";
 import FadeAnimation from "../../impower-route/components/animations/FadeAnimation";
 import useBodyBackgroundColor from "../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../impower-route/hooks/useHTMLOverscrollBehavior";
 import AttributionFooter from "./elements/AttributionFooter";
 import Footer from "./elements/Footer";
 import SocialFooter from "./elements/SocialFooter";
@@ -202,6 +203,7 @@ const Home = React.memo((): JSX.Element => {
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     const handleScroll = (): void => {

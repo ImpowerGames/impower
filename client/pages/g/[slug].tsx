@@ -44,6 +44,7 @@ import PageFooter from "../../modules/impower-route-home/components/elements/Pag
 import PageNotFound from "../../modules/impower-route/components/layouts/PageNotFound";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import { Breakpoint } from "../../modules/impower-route/styles/breakpoint";
 import { getBreakpoint } from "../../modules/impower-route/utils/getBreakpoint";
 import { getPlaceholderUrl } from "../../modules/impower-storage";
@@ -133,6 +134,7 @@ const GamePage = React.memo((props: GamePageProps) => {
 
   useBodyBackgroundColor(backgroundColor);
   useHTMLBackgroundColor(backgroundColor);
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

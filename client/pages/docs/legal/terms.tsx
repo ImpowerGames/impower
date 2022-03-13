@@ -19,6 +19,7 @@ import Markdown from "../../../modules/impower-route/components/elements/Markdow
 import NavigationBarSpacer from "../../../modules/impower-route/components/elements/NavigationBarSpacer";
 import useBodyBackgroundColor from "../../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 
 const StyledTermsPage = styled.div`
   padding: ${(props): string => props.theme.spacing(4, 2)};
@@ -40,6 +41,7 @@ const TermsPage = React.memo((props: TermsPageProps) => {
 
   useBodyBackgroundColor("white");
   useHTMLBackgroundColor("white");
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     DataStoreCache.instance.clear();

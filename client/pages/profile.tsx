@@ -21,6 +21,7 @@ import Illustration from "../modules/impower-route-home/components/elements/Illu
 import CreateUserForm from "../modules/impower-route/components/forms/CreateUserForm";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import { UserContext } from "../modules/impower-user";
 import IllustrationImage from "../resources/illustrations/clip-busy-day-at-the-office.svg";
 
@@ -71,6 +72,7 @@ const ProfilePage = React.memo(() => {
 
   useBodyBackgroundColor(theme.colors.lightForeground);
   useHTMLBackgroundColor(theme.colors.lightForeground);
+  useHTMLOverscrollBehavior("auto");
 
   useEffect(() => {
     if (uid && userDoc) {

@@ -15,6 +15,7 @@ import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ell
 import { SlideAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
+import useHTMLOverscrollBehavior from "../../../impower-route/hooks/useHTMLOverscrollBehavior";
 import { SearchAction } from "../../../impower-script-editor";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
@@ -235,6 +236,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   useBodyBackgroundColor(theme.colors.darkForeground);
   useHTMLBackgroundColor(theme.colors.darkForeground);
+  useHTMLOverscrollBehavior("contain");
 
   const handleSectionChange = useCallback((name: string) => {
     setHeaderName(name);
