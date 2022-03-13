@@ -30,32 +30,41 @@ type CompletionType =
   | "keyword"
   | "namespace"
   | "text"
-  | "tag";
+  | "tag"
+  | "declaration";
 
 export const paragraphSnippets: readonly Completion[] = [
   snip("var ${newVariable}", {
     label: "variable",
-    type: "keyword",
+    type: "declaration",
   }),
   snip("tag ${newTag}", {
     label: "tag",
-    type: "keyword",
+    type: "declaration",
   }),
   snip("image ${newImage}", {
     label: "image",
-    type: "keyword",
+    type: "declaration",
   }),
   snip("audio ${newAudio}", {
     label: "audio",
-    type: "keyword",
+    type: "declaration",
   }),
   snip("video ${newVideo}", {
     label: "video",
-    type: "keyword",
+    type: "declaration",
   }),
   snip("text ${newText}", {
     label: "text",
-    type: "keyword",
+    type: "declaration",
+  }),
+  snip("element ${newElement}", {
+    label: "text",
+    type: "declaration",
+  }),
+  snip("component ${newComponent}", {
+    label: "text",
+    type: "declaration",
   }),
 ];
 
@@ -114,12 +123,12 @@ export const sectionSnippets = (level: number): Completion[] => {
   for (let i = level + 1; i >= 0; i -= 1) {
     const child = i === level + 1;
     const operator = "#".repeat(i);
-    const name = "NewSection";
+    const name = child ? `ChildSection` : `Section`;
     result.push(
       snip(`${operator} \${${name}}`, {
         label: `${operator}`,
-        detail: `${child ? `child section` : ``}`,
-        type: "keyword",
+        detail: `${name}`,
+        type: "declaration",
       })
     );
   }
@@ -334,12 +343,12 @@ export const fountainAutocomplete = async (
       "ConditionName",
       "ChoiceName",
       "AssignValue",
-      "DeclareValue",
+      "VariableValue",
       "CompareValue",
       "ChoiceValue",
       "ConditionValue",
       "CallValue",
-      "ConditionValue",
+      "ReturnValue",
     ].includes(node.name)
   ) {
     completions.push(...nameSnippets(variableNames, "variable"));

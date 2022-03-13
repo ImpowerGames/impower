@@ -40,10 +40,10 @@ import { SearchPanel } from "./SearchPanel";
 
 const marginPlugin = ViewPlugin.fromClass(
   class {
-    margin: { top: number };
+    margin: { top: number; bottom: number };
 
     update(_update: ViewUpdate): void {
-      this.margin = { top: 104 };
+      this.margin = { top: 104, bottom: 64 };
     }
   },
   {
@@ -96,7 +96,7 @@ const myHighlightStyle = HighlightStyle.define([
   { tag: t.sectionHeading5, color: colors.section },
   { tag: t.sectionHeading6, color: colors.section },
   {
-    tag: t.sceneHeading,
+    tag: t.scene,
     color: colors.sceneHeading,
   },
   {
@@ -323,14 +323,14 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             return {
               top: 64,
               left: 0,
-              bottom: window.innerHeight,
+              bottom: window.innerHeight - 64,
               right: window.innerWidth,
             };
           },
         }),
         myHighlightStyle,
         keymap.of([indentWithTab]),
-        indentUnit.of("    "),
+        indentUnit.of("  "),
         EditorState.phrases.of({ "No diagnostics": "Running..." }),
         EditorView.theme(
           {
@@ -402,6 +402,12 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             },
             ".cm-completionIcon-tag": {
               "&:after": { content: "'#'" },
+            },
+            ".cm-completionIcon-declaration": {
+              "&:after": { content: "'Ɗ'" },
+            },
+            ".cm-panel-lint": {
+              marginBottom: "64px",
             },
           },
           { dark: true }

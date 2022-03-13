@@ -3,13 +3,12 @@ import { FountainTitleKeyword } from "./FountainTitleKeyword";
 export type FountainAssetType = "image" | "audio" | "text" | "video";
 export type FountainEntityType = "element" | "component";
 export type FountainTagType = "tag";
-export type FountainDeclareType = "declare";
+export type FountainVariableType = "variable";
 export type FountainAssignType = "assign";
 export type FountainCallType = "call";
 export type FountainConditionType = "condition";
 export type FountainChoiceType = "choice";
 export type FountainGoType = "go";
-export type FountainJumpType = "jump";
 export type FountainReturnType = "return";
 
 export type FountainSectionType = "section";
@@ -39,19 +38,19 @@ export type FountainOtherType =
   | "note"
   | "boneyard_begin"
   | "boneyard_end"
+  | "repeat"
   | FountainTitleKeyword;
 
 export type FountainTokenType =
   | FountainAssetType
   | FountainEntityType
   | FountainTagType
-  | FountainDeclareType
+  | FountainVariableType
   | FountainAssignType
   | FountainCallType
   | FountainConditionType
   | FountainChoiceType
   | FountainGoType
-  | FountainJumpType
   | FountainReturnType
   | FountainSectionType
   | FountainSceneType

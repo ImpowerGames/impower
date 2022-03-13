@@ -52,9 +52,8 @@ export interface BlockParser {
   endLeaf?(cx: BlockContext, line: Line): boolean;
   /// When given, this parser will be installed directly before the
   /// block parser with the given name. The default configuration
-  /// defines block parsers with names LinkReference,
-  /// FencedCode, HorizontalRule, BulletList, OrderedList,
-  /// SectionHeading.
+  /// defines block parsers with names FencedCode, BulletList, OrderedList,
+  /// SectionHeading
   before?: string;
   /// When given, the parser will be installed directly _after_ the
   /// parser with the given name.

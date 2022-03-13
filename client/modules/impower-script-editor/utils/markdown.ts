@@ -10,31 +10,6 @@ import { MarkdownExtension } from "../types/markdownExtension";
 import { Type } from "../types/type";
 import { space } from "./space";
 
-export function isHorizontalRule(line: Line): number {
-  const underscoreCharCode = "_".charCodeAt(0);
-  const dashCharCode = "-".charCodeAt(0);
-  const asteriskCharCode = "*".charCodeAt(0);
-  const equalCharCode = "=".charCodeAt(0);
-  if (
-    line.next !== underscoreCharCode &&
-    line.next !== dashCharCode &&
-    line.next !== asteriskCharCode &&
-    line.next !== equalCharCode
-  ) {
-    return -1;
-  }
-  let count = 1;
-  for (let pos = line.pos + 1; pos < line.text.length; pos += 1) {
-    const ch = line.text.charCodeAt(pos);
-    if (ch === line.next) {
-      count += 1;
-    } else if (!space(ch)) {
-      return -1;
-    }
-  }
-  return count < 3 ? -1 : 1;
-}
-
 export function inBlockContext(cx: BlockContext, type: Type): boolean {
   for (let i = cx.stack.length - 1; i >= 0; i -= 1)
     if (cx.stack[i].type === type) {
@@ -43,10 +18,64 @@ export function inBlockContext(cx: BlockContext, type: Type): boolean {
   return false;
 }
 
+export function isSectionHeading(line: Line): RegExpMatchArray {
+  if (line.next !== "#".charCodeAt(0)) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.section);
+}
+
+export function isScene(line: Line): RegExpMatchArray {
+  if (line.next === ".".charCodeAt(0)) {
+    return line.text.match(fountainRegexes.scene);
+  }
+  if (
+    line.next !== "I".charCodeAt(0) &&
+    line.next !== "E".charCodeAt(0) &&
+    line.next !== "C".charCodeAt(0)
+  ) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.scene);
+}
+
+export function isPageBreak(line: Line): RegExpMatchArray {
+  if (line.next !== "=".charCodeAt(0)) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.page_break);
+}
+
+export function isSynopses(line: Line): RegExpMatchArray {
+  if (line.next !== "=".charCodeAt(0)) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.synopses);
+}
+
+export function isCentered(line: Line): RegExpMatchArray {
+  const charCodeStart = ">".charCodeAt(0);
+  if (line.next !== charCodeStart) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.centered);
+}
+
+export function isTransition(line: Line): RegExpMatchArray {
+  const currentText = line.text.slice(line.pos);
+  if (
+    currentText !== "TO:" &&
+    (currentText.toUpperCase() !== currentText || !currentText.endsWith(" TO:"))
+  ) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.transition);
+}
+
 export function isCharacter(line: Line): RegExpMatchArray {
   if (
     line.next !== "@".charCodeAt(0) &&
-    !String.fromCharCode(line.next).match(/^[A-Z0-9_]$/)
+    !String.fromCharCode(line.next).match(/^[^a-z*]$/)
   ) {
     return null;
   }
@@ -67,39 +96,94 @@ export function isLyric(line: Line): RegExpMatchArray {
   return line.text.match(fountainRegexes.lyric);
 }
 
-export function isSynopses(line: Line): number {
-  const charCode = "=".charCodeAt(0);
-  if (line.next !== charCode) {
-    return -1;
+export function isGo(line: Line): RegExpMatchArray {
+  if (line.next !== ">".charCodeAt(0)) {
+    return null;
   }
-  const pos = line.pos + 1;
-  if (!line.text.match(fountainRegexes.synopses)) {
-    return -1;
-  }
-  return pos - line.pos;
+  return line.text.match(fountainRegexes.go);
 }
 
-export function isCentered(line: Line): number {
-  const charCodeStart = ">".charCodeAt(0);
-  const charCodeEnd = "<".charCodeAt(0);
-  if (line.next !== charCodeStart) {
-    return -1;
+export function isRepeat(line: Line): RegExpMatchArray {
+  if (line.next !== "^".charCodeAt(0)) {
+    return null;
   }
-  if (line.text.charCodeAt(line.text.length - 1) !== charCodeEnd) {
-    return -1;
-  }
-  return 1;
+  return line.text.match(fountainRegexes.repeat);
 }
 
-export function isTransition(line: Line): number {
-  const currentText = line.text.slice(line.pos);
-  if (
-    currentText === "TO:" ||
-    (currentText.toUpperCase() === currentText && currentText.endsWith(" TO:"))
-  ) {
-    return 0;
+export function isReturn(line: Line): RegExpMatchArray {
+  if (line.next !== "<".charCodeAt(0)) {
+    return null;
   }
-  return -1;
+  return line.text.match(fountainRegexes.return);
+}
+
+export function isAsset(line: Line): RegExpMatchArray {
+  if (!["i", "a", "v", "t"].map((x) => x.charCodeAt(0)).includes(line.next)) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.asset);
+}
+
+export function isTag(line: Line): RegExpMatchArray {
+  if (line.next !== "t".charCodeAt(0)) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.tag);
+}
+
+export function isVariable(line: Line): RegExpMatchArray {
+  if (line.next !== "v".charCodeAt(0)) {
+    return null;
+  }
+  return line.text.match(fountainRegexes.variable);
+}
+
+export function isAssign(line: Line): RegExpMatchArray {
+  if (line.next !== "~".charCodeAt(0)) {
+    return null;
+  }
+  const match = line.text.match(fountainRegexes.assign);
+  if (!match) {
+    return null;
+  }
+  match[0] = "assign";
+  return match;
+}
+
+export function isCall(line: Line): RegExpMatchArray {
+  if (line.next !== "~".charCodeAt(0)) {
+    return null;
+  }
+  const match = line.text.match(fountainRegexes.call);
+  if (!match) {
+    return null;
+  }
+  match[0] = "call";
+  return match;
+}
+
+export function isCondition(line: Line): RegExpMatchArray {
+  if (line.next !== "~".charCodeAt(0)) {
+    return null;
+  }
+  const match = line.text.match(fountainRegexes.condition);
+  if (!match) {
+    return null;
+  }
+  match[0] = "condition";
+  return match;
+}
+
+export function isChoice(line: Line): RegExpMatchArray {
+  if (!["-", "+", "*"].map((c) => c.charCodeAt(0)).includes(line.next)) {
+    return null;
+  }
+  const match = line.text.match(fountainRegexes.choice);
+  if (!match) {
+    return null;
+  }
+  match[0] = "choice";
+  return match;
 }
 
 export function isTitle(
@@ -207,7 +291,7 @@ export function skipForList(
   );
   const result =
     size > 0 &&
-    (bl.type !== Type.BulletList || isHorizontalRule(line) < 0) &&
+    (bl.type !== Type.BulletList || !isPageBreak(line)) &&
     line.text.charCodeAt(line.pos + size - 1) === bl.value;
   return result;
 }
@@ -224,140 +308,6 @@ export function isFencedCode(line: Line): number {
     return -1;
   }
   return pos;
-}
-
-export function isGo(line: Line): RegExpMatchArray {
-  if (line.next !== ">".charCodeAt(0)) {
-    return null;
-  }
-  return line.text.match(fountainRegexes.go);
-}
-
-export function isJump(line: Line): number {
-  if (line.next !== "^".charCodeAt(0)) {
-    return -1;
-  }
-  if (!line.text.trim().match(fountainRegexes.jump)) {
-    return -1;
-  }
-  return 1;
-}
-
-export function isReturn(line: Line): number {
-  const charCode = "r".charCodeAt(0);
-  if (line.next !== charCode) {
-    return -1;
-  }
-  if (!line.text.trim().match(fountainRegexes.return)) {
-    return -1;
-  }
-  return "return".length;
-}
-
-export function isAsset(line: Line): RegExpMatchArray {
-  if (!["i", "a", "v", "t"].map((x) => x.charCodeAt(0)).includes(line.next)) {
-    return null;
-  }
-  return line.text.trim().match(fountainRegexes.asset);
-}
-
-export function isTag(line: Line): RegExpMatchArray {
-  const charCode = "t".charCodeAt(0);
-  if (line.next !== charCode) {
-    return null;
-  }
-  return line.text.trim().match(fountainRegexes.tag);
-}
-
-export function isDeclare(line: Line): RegExpMatchArray {
-  const charCode = "v".charCodeAt(0);
-  if (line.next !== charCode) {
-    return null;
-  }
-  return line.text.trim().match(fountainRegexes.declare);
-}
-
-export function isAssign(line: Line): RegExpMatchArray {
-  const charCode = "~".charCodeAt(0);
-  if (line.next !== charCode) {
-    return null;
-  }
-  const match = line.text.match(fountainRegexes.assign);
-  if (!match) {
-    return null;
-  }
-  match[0] = "assign";
-  return match;
-}
-
-export function isCall(line: Line): RegExpMatchArray {
-  const charCode = "~".charCodeAt(0);
-  if (line.next !== charCode) {
-    return null;
-  }
-  const match = line.text.match(fountainRegexes.call);
-  if (!match) {
-    return null;
-  }
-  match[0] = "call";
-  return match;
-}
-
-export function isCondition(line: Line): RegExpMatchArray {
-  if (line.next !== "~".charCodeAt(0)) {
-    return null;
-  }
-  const match = line.text.match(fountainRegexes.condition);
-  if (!match) {
-    return null;
-  }
-  match[0] = "condition";
-  return match;
-}
-
-export function isChoice(line: Line): RegExpMatchArray {
-  if (!["-", "+", "*"].map((c) => c.charCodeAt(0)).includes(line.next)) {
-    return null;
-  }
-  const match = line.text.match(fountainRegexes.choice);
-  if (!match) {
-    return null;
-  }
-  match[0] = "choice";
-  return match;
-}
-
-export function isSectionHeading(line: Line): number {
-  const charCode = "#".charCodeAt(0);
-  if (line.next !== charCode) {
-    return -1;
-  }
-  let pos = line.pos + 1;
-  while (pos < line.text.length && line.text.charCodeAt(pos) === charCode) {
-    pos += 1;
-  }
-  if (!line.text.match(fountainRegexes.section)) {
-    return -1;
-  }
-  return pos - line.pos;
-}
-
-export function isSceneHeading(line: Line): number {
-  const currentText = line.text.slice(line.pos);
-  if (currentText[0] === "." && currentText[1] !== ".") {
-    return 1;
-  }
-  if (
-    currentText[0] !== "I" &&
-    currentText[0] !== "E" &&
-    currentText[0] !== "C"
-  ) {
-    return -1;
-  }
-  if (currentText.match(fountainRegexes.scene_heading)) {
-    return 0;
-  }
-  return -1;
 }
 
 export function isHTMLBlock(

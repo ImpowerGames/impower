@@ -16,7 +16,7 @@ export const DefaultSkipMarkup: {
   [Type.Transition](_bl, _cx, _line) {
     return false;
   },
-  [Type.Jump](_bl, _cx, _line) {
+  [Type.Repeat](_bl, _cx, _line) {
     return false;
   },
   [Type.Return](_bl, _cx, _line) {
@@ -28,7 +28,7 @@ export const DefaultSkipMarkup: {
   [Type.Tag](_bl, _cx, _line) {
     return false;
   },
-  [Type.Declare](_bl, _cx, _line) {
+  [Type.Variable](_bl, _cx, _line) {
     return false;
   },
   [Type.Assign](_bl, _cx, _line) {
@@ -47,9 +47,14 @@ export const DefaultSkipMarkup: {
     return true;
   },
   [Type.Section](bl, cx, line): boolean {
-    const headingValue = isSectionHeading(line);
-    if (headingValue < 0 || headingValue > bl.value) {
-      // skip if not heading or lower level heading
+    const match = isSectionHeading(line);
+    if (!match) {
+      // skip if not heading
+      return true;
+    }
+    const level = (match[2] || "").length;
+    if (level > bl.value) {
+      // skip if lower level heading
       return true;
     }
     return false;

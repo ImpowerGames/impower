@@ -229,6 +229,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const [toggleFolding, setToggleFolding] = useState<boolean>(false);
   const [headerName, setHeaderName] = useState("");
 
+  const mode = state?.test?.mode;
   const scripting = state?.panel?.panels?.[windowType]?.scripting;
   const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
   const theme = useTheme();
@@ -279,6 +280,8 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
 
   const title = headerName || "Script";
 
+  const showSnippetToolbar = !portrait && focused && mode === "Edit";
+
   return (
     <Panel
       useWindowAsScrollContainer={useWindowAsScrollContainer}
@@ -302,7 +305,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
             toggleFolding={toggleFolding}
             onToggleFolding={setToggleFolding}
           />
-        ) : !portrait ? (
+        ) : showSnippetToolbar ? (
           <StyledToolbarArea
             animate={focused ? 0 : 64}
             duration={0.1}

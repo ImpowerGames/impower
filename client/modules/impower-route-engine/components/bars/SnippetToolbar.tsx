@@ -7,8 +7,8 @@ import ToggleButtonGroup from "@material-ui/core/ToggleButtonGroup";
 import React, { useCallback, useContext, useRef, useState } from "react";
 import AlignCenterRegularIcon from "../../../../resources/icons/regular/align-center.svg";
 import ArrowRightToBracketRegularIcon from "../../../../resources/icons/regular/arrow-right-to-bracket.svg";
-import ArrowUpFromBracketRegularIcon from "../../../../resources/icons/regular/arrow-up-from-bracket.svg";
 import ArrowUpLeftFromCircleRegularIcon from "../../../../resources/icons/regular/arrow-up-left-from-circle.svg";
+import ArrowUpToLineRegularIcon from "../../../../resources/icons/regular/arrow-up-to-line.svg";
 import BinaryRegularIcon from "../../../../resources/icons/regular/binary.svg";
 import BoldRegularIcon from "../../../../resources/icons/regular/bold.svg";
 import BracketsCurlyRegularIcon from "../../../../resources/icons/regular/brackets-curly.svg";
@@ -344,17 +344,17 @@ const FlowToolbar = React.memo((props: FlowToolbarProps): JSX.Element => {
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
-      <Tooltip title="jump" placement="top" arrow>
-        <StyledMainToggleButton value="jump" aria-label="jump">
-          <FontIcon aria-label={`jump`}>
-            <ArrowUpFromBracketRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-      </Tooltip>
       <Tooltip title="return" placement="top" arrow>
         <StyledMainToggleButton value="return" aria-label="return">
           <FontIcon aria-label={`return`} style={{ transform: "scaleX(-1)" }}>
             <ShareFromSquareBracketRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="repeat" placement="top" arrow>
+        <StyledMainToggleButton value="repeat" aria-label="repeat">
+          <FontIcon aria-label={`repeat`}>
+            <ArrowUpToLineRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>

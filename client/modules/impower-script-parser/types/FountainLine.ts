@@ -11,6 +11,7 @@ export interface FountainLine {
   level?: number;
   start?: number;
   end?: number;
+  indent?: number;
 
   order?: number;
   ignore?: boolean;

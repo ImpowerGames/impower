@@ -5,16 +5,15 @@ import {
   FountainAssignType,
   FountainChoiceType,
   FountainConditionType,
-  FountainDeclareType,
   FountainDialogueType,
   FountainGoType,
-  FountainJumpType,
   FountainOtherType,
   FountainPositionType,
   FountainReturnType,
   FountainSceneType,
   FountainSectionType,
   FountainTagType,
+  FountainVariableType,
 } from "./FountainTokenType";
 
 export interface FountainAssetToken extends FountainLine {
@@ -35,9 +34,8 @@ export interface FountainTagToken extends FountainLine {
   value: string | { name: string };
 }
 
-export interface FountainDeclareToken extends FountainLine {
-  type: FountainDeclareType;
-  indent: number;
+export interface FountainVariableToken extends FountainLine {
+  type: FountainVariableType;
   name: string;
   operator: string;
   value: string | number | { name: string };
@@ -45,7 +43,6 @@ export interface FountainDeclareToken extends FountainLine {
 
 export interface FountainAssignToken extends FountainLine {
   type: FountainAssignType;
-  indent: number;
   name: string;
   operator: string;
   value: string | number | { name: string };
@@ -53,14 +50,12 @@ export interface FountainAssignToken extends FountainLine {
 
 export interface FountainCallToken extends FountainLine {
   type: FountainCallType;
-  indent: number;
   name: string;
   values: (string | number | { name: string })[];
 }
 
 export interface FountainConditionToken extends FountainLine {
   type: FountainConditionType;
-  indent: number;
   name: string;
   operator: string;
   value: string | number | { name: string };
@@ -68,27 +63,19 @@ export interface FountainConditionToken extends FountainLine {
 
 export interface FountainChoiceToken extends FountainLine {
   type: FountainChoiceType;
-  indent: number;
   mark: string;
   section: string;
 }
 
 export interface FountainGoToken extends FountainLine {
   type: FountainGoType;
-  operator: string;
-  values: (string | number | { name: string })[];
-}
-
-export interface FountainJumpToken extends FountainLine {
-  type: FountainJumpType;
-  operator: string;
   values: (string | number | { name: string })[];
 }
 
 export interface FountainReturnToken extends FountainLine {
   type: FountainReturnType;
   operator: string;
-  values: (string | number | { name: string })[];
+  value: string | number | { name: string };
 }
 
 export interface FountainSectionToken extends FountainLine {
@@ -123,13 +110,12 @@ export type FountainToken =
   | FountainAssetToken
   | FountainEntityToken
   | FountainTagToken
-  | FountainDeclareToken
+  | FountainVariableToken
   | FountainAssignToken
   | FountainCallToken
   | FountainConditionToken
   | FountainChoiceToken
   | FountainGoToken
-  | FountainJumpToken
   | FountainReturnToken
   | FountainSectionToken
   | FountainSceneToken

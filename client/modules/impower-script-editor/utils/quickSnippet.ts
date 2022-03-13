@@ -26,8 +26,8 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   conditional_choice:
     "- ${variableName} == ${value}: [${option}] > ${SectionName}${}\n",
   go: "> ${SectionName}${}\n",
-  jump: "^${}\n",
-  return: "return ${value}${}\n",
+  repeat: "^${}\n",
+  return: "< ${}\n",
 
   declare_variable: "var ${newVariable} = ${value}${}\n",
   assign_variable: "~ ${variableName} = ${value}${}\n",
