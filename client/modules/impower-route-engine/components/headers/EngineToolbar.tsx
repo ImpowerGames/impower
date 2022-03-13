@@ -46,7 +46,9 @@ const StyledFixedSpacer = styled.div`
   margin-top: env(safe-area-inset-top, 0);
 `;
 
-const StyledEngineToolbar = styled.div`
+const StyledEngineToolbar = styled.div<{
+  sticky?: "always" | "collapsible" | "never";
+}>`
   pointer-events: none;
   min-width: 0;
   white-space: nowrap;
@@ -59,6 +61,19 @@ const StyledEngineToolbar = styled.div`
 
   padding-top: env(safe-area-inset-top, 0);
   transition: box-shadow 0.2s ease;
+
+  & {
+    touch-action: ${(props): string =>
+      props.sticky === "always" ? "none" : "auto"};
+    overscroll-behavior: ${(props): string =>
+      props.sticky === "always" ? "contain" : "auto"};
+  }
+  & * {
+    touch-action: ${(props): string =>
+      props.sticky === "always" ? "none" : "auto"};
+    overscroll-behavior: ${(props): string =>
+      props.sticky === "always" ? "contain" : "auto"};
+  }
 `;
 
 const StyledEngineToolbarContent = styled.div``;
@@ -1091,6 +1106,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
       <StyledEngineToolbar
         ref={handleHeaderAreaRef}
         className={position === "fixed" ? "mui-fixed" : undefined}
+        sticky={sticky}
         style={{
           position,
           marginRight:
