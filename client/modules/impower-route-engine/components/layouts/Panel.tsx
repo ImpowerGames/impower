@@ -28,12 +28,6 @@ const StyledBackground = styled.div`
   flex-direction: column;
   z-index: 2;
   overscroll-behavior: contain;
-  & {
-    touch-action: pan-y;
-  }
-  & * {
-    touch-action: pan-y;
-  }
 `;
 
 const StyledForeground = styled.div`
@@ -64,6 +58,12 @@ const StyledPanelArrangement = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
+  & {
+    touch-action: pan-y;
+  }
+  & * {
+    touch-action: pan-y;
+  }
 `;
 
 interface PanelProps {
