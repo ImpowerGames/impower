@@ -256,6 +256,7 @@ const ConnectionListItemButtons = React.memo(
                 onTouchStart={handleBlockRipplePropogation}
                 onClick={(e): void => {
                   handleIgnore(e, id);
+                  console.log(id);
                 }}
               >{`Ignore`}</StyledButton>
               <StyledButton
@@ -264,6 +265,7 @@ const ConnectionListItemButtons = React.memo(
                 onTouchStart={handleBlockRipplePropogation}
                 onClick={(e): void => {
                   handleDoConnect(e, id);
+                  console.log(id);
                 }}
               >{`Connect`}</StyledButton>
             </>
@@ -292,12 +294,20 @@ interface ConnectionListItemProps {
   data: AggData;
   connectStatus: "connected" | "incoming" | "outgoing";
   notificationStatus?: "read" | "unread";
+  displayReadStatus?: boolean;
   onLoading?: (isLoading: boolean) => void;
 }
 
 const ConnectionListItem = React.memo(
   (props: ConnectionListItemProps): JSX.Element | null => {
-    const { id, data, connectStatus, notificationStatus, onLoading } = props;
+    const {
+      id,
+      data,
+      connectStatus,
+      notificationStatus,
+      displayReadStatus,
+      onLoading,
+    } = props;
 
     const [, userDispatch] = useContext(UserContext);
 
@@ -315,8 +325,19 @@ const ConnectionListItem = React.memo(
       [notificationStatus, onLoading, router, userDispatch]
     );
 
+    const theme = useTheme();
+
     return (
-      <StyledListItem alignItems="flex-start" disablePadding>
+      <StyledListItem
+        style={{
+          backgroundColor:
+            displayReadStatus === true && notificationStatus === "read"
+              ? theme.palette.grey[100]
+              : undefined,
+        }}
+        alignItems="flex-start"
+        disablePadding
+      >
         <StyledListItemButton
           onClick={(e): void => {
             handleClick(e, id, data);

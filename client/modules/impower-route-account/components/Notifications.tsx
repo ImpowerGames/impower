@@ -1,23 +1,32 @@
 import styled from "@emotion/styled";
 import {
+  Button,
   CircularProgress,
   Divider,
   List,
   ListItem,
+  ListItemAvatar,
   ListItemButton,
+  ListItemText,
   Paper,
   Tab,
   Typography,
+  useMediaQuery,
 } from "@material-ui/core";
 import React, { useCallback, useContext, useMemo, useState } from "react";
+import { useTheme } from "@emotion/react";
 import { abbreviateAge, abbreviateCount } from "../../impower-config";
 import { Tabs } from "../../impower-route";
 import Avatar from "../../impower-route/components/elements/Avatar";
 import { useRouter } from "../../impower-router";
-import { UserContext } from "../../impower-user";
+import { UserContext, userReadNotification } from "../../impower-user";
 import BellSolidIcon from "../../../resources/icons/solid/bell.svg";
+import ExclamationSolidIcon from "../../../resources/icons/solid/exclamation.svg";
+import CircleExclamationSolidIcon from "../../../resources/icons/solid/circle-exclamation.svg";
 import { AggData } from "../../impower-data-state";
 import ConnectionListItem from "./ConnectionListItem";
+
+import { FontIcon } from "../../impower-icon";
 
 // const DataStateWrite = (
 //     await import("../../impower-data-state/classes/dataStateWrite")
@@ -35,12 +44,38 @@ import ConnectionListItem from "./ConnectionListItem";
 //     ),
 //   ]);
 
+const nsfwLabel = "18+";
+const removedLabel = "!";
+
 const StyledContainer = styled.div`
   flex: 1;
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
+`;
+
+const StyledDescriptionTextArea = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
+const StyledNotificationCircle = styled.div`
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-width: ${(props): string => props.theme.spacing(5)};
+  min-height: ${(props): string => props.theme.spacing(5)};
+  width: ${(props): string => props.theme.spacing(5)};
+  height: ${(props): string => props.theme.spacing(5)};
+  max-width: ${(props): string => props.theme.spacing(5)};
+  max-height: ${(props): string => props.theme.spacing(5)};
+  margin-right: ${(props): string => props.theme.spacing(2)};
+  color: white;
+  font-weight: 700;
 `;
 
 const StyledPaper = styled(Paper)`
@@ -114,9 +149,159 @@ const StyledListItemButton = styled(ListItemButton)`
 
 const StyledListItem = styled(ListItem)``;
 
+const StyledListItemText = styled(ListItemText)`
+  & .MuiTypography-root {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+`;
+
 const StyledItemDivider = styled(Divider)`
   width: calc(100% - 72px);
 `;
+
+const StyledButton = styled(Button)`
+  margin: ${(props): string => props.theme.spacing(0, 0.5)};
+  flex-shrink: 0;
+  min-width: 0;
+`;
+
+interface NotificationListItemIconProps {
+  notificationData: AggData;
+}
+
+const NotificationListItemIcon = React.memo(
+  (props: NotificationListItemIconProps): JSX.Element | null => {
+    const { notificationData } = props;
+    const theme = useTheme();
+    if (notificationData.type === "flagged") {
+      if (notificationData?.removed) {
+        return (
+          <StyledNotificationCircle
+            style={{
+              backgroundColor: "red",
+            }}
+          >
+            {removedLabel}
+          </StyledNotificationCircle>
+        );
+      }
+      if (notificationData?.nsfw) {
+        return (
+          <StyledNotificationCircle
+            style={{
+              backgroundColor: "black",
+            }}
+          >
+            {nsfwLabel}
+          </StyledNotificationCircle>
+        );
+      }
+      return (
+        <ListItemAvatar>
+          <Avatar backgroundColor={"black"} />
+        </ListItemAvatar>
+      );
+    }
+    return null;
+  }
+);
+
+interface NotificationListItemSecondaryTextProps {
+  notificationData: AggData;
+  notificationStatus: "read" | "unread";
+}
+
+const NotificationListItemSecondaryText = React.memo(
+  (props: NotificationListItemSecondaryTextProps): JSX.Element | null => {
+    const { notificationData, notificationStatus } = props;
+
+    const theme = useTheme();
+    const belowSmBreakpoint = useMediaQuery(theme.breakpoints.down("sm"));
+
+    if (notificationData?.type === "flagged" && notificationData?.removed) {
+      return (
+        <StyledDescriptionTextArea
+          style={{
+            color:
+              notificationStatus === "unread"
+                ? theme.palette.secondary.main
+                : undefined,
+            fontWeight: notificationStatus === "unread" ? 600 : undefined,
+          }}
+        >
+          {`${belowSmBreakpoint ? "" : "was removed — "}${abbreviateAge(
+            new Date(notificationData?.t)
+          )}`}
+        </StyledDescriptionTextArea>
+      );
+    }
+
+    if (notificationData?.type === "flagged" && notificationData?.nsfw) {
+      return (
+        <StyledDescriptionTextArea
+          style={{
+            color:
+              notificationStatus === "unread"
+                ? theme.palette.secondary.main
+                : undefined,
+            fontWeight: notificationStatus === "unread" ? 600 : undefined,
+          }}
+        >
+          {`${belowSmBreakpoint ? "" : "was marked NSFW — "}${abbreviateAge(
+            new Date(notificationData?.t)
+          )}`}
+        </StyledDescriptionTextArea>
+      );
+    }
+
+    return null;
+  }
+);
+
+interface NotificationListItemButtonProps {
+  notificationData: AggData;
+}
+
+const NotificationListItemButtons = React.memo(
+  (props: NotificationListItemButtonProps): JSX.Element | null => {
+    const { notificationData } = props;
+
+    const handleBlockRipplePropogation = useCallback(
+      (e: React.MouseEvent | React.TouchEvent): void => {
+        e.stopPropagation();
+      },
+      []
+    );
+
+    if (notificationData?.type === "flagged" && notificationData?.removed) {
+      return (
+        <StyledButton
+          variant="outlined"
+          onMouseDown={handleBlockRipplePropogation}
+          onTouchStart={handleBlockRipplePropogation}
+          onClick={handleBlockRipplePropogation}
+        >
+          {`WHY?`}
+        </StyledButton>
+      );
+    }
+    if (notificationData?.type === "flagged" && notificationData?.nsfw) {
+      return (
+        <StyledButton
+          variant="outlined"
+          onMouseDown={handleBlockRipplePropogation}
+          onTouchStart={handleBlockRipplePropogation}
+          onClick={handleBlockRipplePropogation}
+        >
+          {`WHY?`}
+        </StyledButton>
+      );
+    }
+    return null;
+  }
+);
 
 interface NotificationListItemProps {
   uid: string;
@@ -131,31 +316,71 @@ const NotificationListItem = React.memo(
     const { uid, notificationData, connectFromData, connectToData, onLoading } =
       props;
 
-    if (notificationData.type === "connects") {
+    const theme = useTheme();
+
+    const [, userDispatch] = useContext(UserContext);
+
+    const router = useRouter();
+
+    const handleClick = useCallback(
+      async (e: React.MouseEvent, id: string, data: AggData) => {
+        //if (data?.type === "flagged" && data?.r) {
+        //  userDispatch(userReadNotification("flagged", data?.id , uid));
+        //}
+        onLoading?.(true);
+        await router.push(`/p/${data?.id}`);
+        onLoading?.(false);
+      },
+      [onLoading, router]
+    );
+
+    if (notificationData?.type === "connects") {
       return (
         <ConnectionListItem
           id={uid}
           data={connectFromData}
           connectStatus={connectToData ? "connected" : "incoming"}
           notificationStatus={notificationData?.r ? "read" : "unread"}
+          displayReadStatus={true}
           onLoading={onLoading}
         />
       );
     }
-
+    if (notificationData?.type === "flagged") {
+      return (
+        <StyledListItem
+          style={{
+            backgroundColor: notificationData?.r
+              ? theme.palette.grey[100]
+              : undefined,
+          }}
+          alignItems="flex-start"
+          disablePadding
+        >
+          <StyledListItemButton
+            onClick={(e): void => {
+              handleClick(e, uid, notificationData);
+            }}
+          >
+            <NotificationListItemIcon notificationData={notificationData} />
+            <StyledListItemText
+              primary={`Your Pitch: ${notificationData?.n}`}
+              secondary={
+                <NotificationListItemSecondaryText
+                  notificationData={notificationData}
+                  notificationStatus={notificationData?.r ? "read" : "unread"}
+                />
+              }
+            />
+            <NotificationListItemButtons notificationData={notificationData} />
+          </StyledListItemButton>
+          <StyledItemDivider variant="inset" absolute />
+        </StyledListItem>
+      );
+    }
     return null;
   }
 );
-
-const getNotificationMessage = (type: string): string => {
-  if (type === "connects") {
-    return "wants to connect";
-  }
-  if (type === "follows") {
-    return "followed you";
-  }
-  return "";
-};
 
 // Looping though an array: .map(x => x)
 // Looping through an array of objects: .map((x) => '${x.variable1}, ${x.variable2}')
@@ -169,16 +394,6 @@ const Notifications = React.memo(() => {
   // This is called deconstructing an object, shorthand for const notifications = userState.notifications, and allows you to create variables based on the state of multiple properties of the same Object
 
   const [transitioning, setTransitioning] = useState(false);
-
-  const connections = useMemo(
-    () =>
-      connects !== undefined && my_connects !== undefined
-        ? Object.entries(connects || {}).filter(
-            ([id]) => my_connects?.[`users%${id}`]
-          )
-        : undefined,
-    [connects, my_connects]
-  );
 
   // Create array of notification entries so we can iterate over it
   const notificationEntries = Object.entries(notifications || {});
