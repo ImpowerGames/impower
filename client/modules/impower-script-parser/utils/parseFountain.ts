@@ -274,9 +274,7 @@ export const parseFountain = (
     if (type && found.type !== type) {
       diagnostic(
         currentToken,
-        `${found.type[0].toUpperCase()}${found.type.slice(
-          1
-        )} '${name}' is not ${prefixArticle(typeName)}`,
+        `'${name}' is not ${prefixArticle(typeName)} asset`,
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
       );
@@ -324,9 +322,7 @@ export const parseFountain = (
     if (type && found.type !== type) {
       diagnostic(
         currentToken,
-        `${found.type[0].toUpperCase()}${found.type.slice(
-          1
-        )} '${name}' is not ${prefixArticle(typeName)}`,
+        `'${name}' is not ${prefixArticle(typeName)} entity`,
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
       );
@@ -374,6 +370,7 @@ export const parseFountain = (
   };
 
   const getVariable = (
+    type: "string" | "number",
     name: string,
     match?: string[],
     index?: number,
@@ -383,6 +380,7 @@ export const parseFountain = (
     if (!name) {
       return undefined;
     }
+    const typeName = type || "variable";
     const found =
       result.variables?.[getGlobalId(name)] ||
       result.variables?.[getGlobalId(name, "")];
@@ -390,6 +388,15 @@ export const parseFountain = (
       diagnostic(
         currentToken,
         `Could not find variable named '${name}'`,
+        start != null ? start : getStart(match, index),
+        length != null ? length : getLength(match, index)
+      );
+      return null;
+    }
+    if (type && found.type !== type) {
+      diagnostic(
+        currentToken,
+        `'${name}' is not ${prefixArticle(typeName)} variable`,
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
       );
@@ -556,7 +563,7 @@ export const parseFountain = (
     const resolvedValue =
       typeof value === "string" || typeof value === "number"
         ? value
-        : getVariable(value?.name, match, index)?.value;
+        : getVariable(type, value?.name, match, index)?.value;
     const variable = {
       ...(found || {}),
       line,
@@ -641,19 +648,30 @@ export const parseFountain = (
     return undefined;
   };
 
+  const getValueType = (value: string): "string" | "number" => {
+    if (value.match(fountainRegexes.string)) {
+      return "string";
+    }
+    const numValue = Number(value);
+    if (!Number.isNaN(numValue)) {
+      return "number";
+    }
+    return undefined;
+  };
+
   const getVariableValue = (
     content: string,
     match?: string[],
     index?: number
   ): string | number | { name: string } => {
-    if (content.match(fountainRegexes.string)) {
+    const type = getValueType(content);
+    if (type === "string") {
       return content.slice(1, -1);
     }
-    const numValue = Number(content);
-    if (!Number.isNaN(numValue)) {
-      return numValue;
+    if (type === "number") {
+      return Number(content);
     }
-    const found = getVariable(content, match, index);
+    const found = getVariable(type, content, match, index);
     if (found) {
       return {
         name: content,
@@ -1096,7 +1114,7 @@ export const parseFountain = (
               const operator = match[6]?.trim() || "";
               const value = match[8]?.trim() || "";
               if (name) {
-                getVariable(name, match, 4);
+                getVariable(getValueType(value), name, match, 4);
               }
               currentToken.name = name;
               currentToken.operator = operator;
@@ -1122,7 +1140,7 @@ export const parseFountain = (
               const operator = match[6]?.trim() || "";
               const value = match[8]?.trim() || "";
               if (name) {
-                getVariable(name, match, 4);
+                getVariable(getValueType(value), name, match, 4);
               }
               currentToken.name = name;
               currentToken.operator = operator;
@@ -1171,11 +1189,10 @@ export const parseFountain = (
               match,
               8
             );
-            const value = currentToken.value;
             addAsset(
               currentToken.type,
               name,
-              value,
+              currentToken.value,
               currentToken.line,
               match,
               4
@@ -1189,11 +1206,16 @@ export const parseFountain = (
             const name = match[4]?.trim() || "";
             const content = match[8]?.trim() || "";
             currentToken.content = content;
-            const value = currentToken.value;
+            currentToken.value = getEntityValue(
+              currentToken.type,
+              content,
+              match,
+              8
+            );
             addEntity(
               currentToken.type,
               name,
-              value,
+              currentToken.value,
               currentToken.line,
               match,
               4
