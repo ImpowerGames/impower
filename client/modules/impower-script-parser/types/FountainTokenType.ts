@@ -1,7 +1,7 @@
 import { FountainTitleKeyword } from "./FountainTitleKeyword";
 
 export type FountainAssetType = "image" | "audio" | "text" | "video";
-export type FountainEntityType = "element" | "component";
+export type FountainEntityType = "element" | "object";
 export type FountainTagType = "tag";
 export type FountainVariableType = "variable";
 export type FountainAssignType = "assign";

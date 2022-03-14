@@ -1,5 +1,5 @@
 export interface FountainEntity {
   line?: number;
-  type: "element" | "component";
+  type: "element" | "object";
   value: string;
 }

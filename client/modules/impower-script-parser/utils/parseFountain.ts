@@ -288,7 +288,7 @@ export const parseFountain = (
   };
 
   const getEntity = (
-    type: "element" | "component",
+    type: "element" | "object",
     name: string,
     match?: string[],
     index?: number,
@@ -445,7 +445,7 @@ export const parseFountain = (
   };
 
   const addEntity = (
-    type: "element" | "component",
+    type: "element" | "object",
     name: string,
     value: string | { name: string },
     line: number,
@@ -593,7 +593,7 @@ export const parseFountain = (
   };
 
   const getEntityValue = (
-    type: "element" | "component",
+    type: "element" | "object",
     content: string,
     match?: string[],
     index?: number
@@ -1183,21 +1183,12 @@ export const parseFountain = (
           }
         }
       } else if ((match = currentToken.content.match(fountainRegexes.entity))) {
-        currentToken.type = match[2]?.trim() as "element" | "component";
-        if (
-          currentToken.type === "element" ||
-          currentToken.type === "component"
-        ) {
+        currentToken.type = match[2]?.trim() as "element" | "object";
+        if (currentToken.type === "element" || currentToken.type === "object") {
           if ((match = lint(fountainRegexes.entity))) {
             const name = match[4]?.trim() || "";
             const content = match[8]?.trim() || "";
             currentToken.content = content;
-            currentToken.value = getEntityValue(
-              currentToken.type,
-              content,
-              match,
-              8
-            );
             const value = currentToken.value;
             addEntity(
               currentToken.type,
