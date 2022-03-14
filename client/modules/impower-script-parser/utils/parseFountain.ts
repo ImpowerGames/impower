@@ -1278,6 +1278,10 @@ export const parseFountain = (
             }
             currentSectionTokens = [];
             currentLevel = level;
+            const section = result.sections[currentSectionId];
+            if (section) {
+              section.tokens = currentSectionTokens;
+            }
           }
         }
       } else if (currentToken.content.match(fountainRegexes.page_break)) {
