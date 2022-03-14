@@ -1,18 +1,21 @@
 /* eslint-disable no-cond-assign */
 /* eslint-disable prefer-destructuring */
 /* eslint-disable no-continue */
-import { FountainDeclarations } from "..";
 import { fountainRegexes } from "../constants/fountainRegexes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
 import { FountainAsset } from "../types/FountainAsset";
+import { FountainAssetType } from "../types/FountainAssetType";
+import { FountainDeclarations } from "../types/FountainDeclarations";
 import { FountainAction } from "../types/FountainDiagnostic";
 import { FountainEntity } from "../types/FountainEntity";
+import { FountainEntityType } from "../types/FountainEntityType";
 import { FountainParseResult } from "../types/FountainParseResult";
 import { FountainSection } from "../types/FountainSection";
 import { FountainTag } from "../types/FountainTag";
 import { FountainToken } from "../types/FountainToken";
 import { FountainTokenType } from "../types/FountainTokenType";
 import { FountainVariable } from "../types/FountainVariable";
+import { FountainVariableType } from "../types/FountainVariableType";
 import { createFountainToken } from "./createFountainToken";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
@@ -249,7 +252,7 @@ export const parseFountain = (
   };
 
   const getAsset = (
-    type: "image" | "audio" | "video" | "text",
+    type: FountainAssetType,
     name: string,
     match?: string[],
     index?: number,
@@ -298,7 +301,7 @@ export const parseFountain = (
   };
 
   const getEntity = (
-    type: "element" | "object",
+    type: FountainEntityType,
     name: string,
     match?: string[],
     index?: number,
@@ -383,7 +386,7 @@ export const parseFountain = (
   };
 
   const getVariable = (
-    type: "string" | "number",
+    type: FountainVariableType,
     name: string,
     match?: string[],
     index?: number,
@@ -421,7 +424,7 @@ export const parseFountain = (
   };
 
   const addAsset = (
-    type: "image" | "audio" | "video" | "text",
+    type: FountainAssetType,
     name: string,
     value: string | { name: string },
     start: number,
@@ -468,7 +471,7 @@ export const parseFountain = (
   };
 
   const addEntity = (
-    type: "element" | "object",
+    type: FountainEntityType,
     name: string,
     value: string | { name: string },
     start: number,
@@ -567,7 +570,7 @@ export const parseFountain = (
     match: string[],
     index: number
   ): void => {
-    const type = typeof value as "string" | "number";
+    const type = typeof value as FountainVariableType;
     const id = getGlobalId(name);
     if (!result.variables) {
       result.variables = {};
@@ -607,7 +610,7 @@ export const parseFountain = (
   };
 
   const getAssetValue = (
-    type: "image" | "audio" | "video" | "text",
+    type: FountainAssetType,
     content: string,
     match?: string[],
     index?: number
@@ -625,7 +628,7 @@ export const parseFountain = (
   };
 
   const getEntityValue = (
-    type: "element" | "object",
+    type: FountainEntityType,
     content: string,
     match?: string[],
     index?: number
@@ -673,7 +676,7 @@ export const parseFountain = (
     return undefined;
   };
 
-  const getValueType = (value: string): "string" | "number" => {
+  const getValueType = (value: string): FountainVariableType => {
     if (value.match(fountainRegexes.string)) {
       return "string";
     }
@@ -1200,11 +1203,7 @@ export const parseFountain = (
           lintDiagnostic();
         }
       } else if ((match = currentToken.content.match(fountainRegexes.asset))) {
-        currentToken.type = match[2]?.trim() as
-          | "image"
-          | "audio"
-          | "video"
-          | "text";
+        currentToken.type = match[2]?.trim() as FountainAssetType;
         if (
           currentToken.type === "image" ||
           currentToken.type === "audio" ||
@@ -1233,8 +1232,12 @@ export const parseFountain = (
           }
         }
       } else if ((match = currentToken.content.match(fountainRegexes.entity))) {
-        currentToken.type = match[2]?.trim() as "element" | "object";
-        if (currentToken.type === "element" || currentToken.type === "object") {
+        currentToken.type = match[2]?.trim() as FountainEntityType;
+        if (
+          currentToken.type === "element" ||
+          currentToken.type === "object" ||
+          currentToken.type === "enum"
+        ) {
           if ((match = lint(fountainRegexes.entity))) {
             const name = match[4]?.trim() || "";
             const content = match[8]?.trim() || "";

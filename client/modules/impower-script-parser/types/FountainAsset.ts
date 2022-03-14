@@ -1,6 +1,8 @@
+import { FountainAssetType } from "./FountainAssetType";
+
 export interface FountainAsset {
   start: number;
   line: number;
-  type: "image" | "audio" | "video" | "text";
+  type: FountainAssetType;
   value: string;
 }

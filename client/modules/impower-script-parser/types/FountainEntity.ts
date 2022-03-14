@@ -1,6 +1,8 @@
+import { FountainEntityType } from "./FountainEntityType";
+
 export interface FountainEntity {
   start: number;
   line: number;
-  type: "element" | "object";
+  type: FountainEntityType;
   value: string;
 }

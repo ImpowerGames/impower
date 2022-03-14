@@ -1,25 +1,27 @@
+import { FountainAssetType } from "./FountainAssetType";
+import { FountainEntityType } from "./FountainEntityType";
 import { FountainTitleKeyword } from "./FountainTitleKeyword";
 
-export type FountainAssetType = "image" | "audio" | "text" | "video";
-export type FountainEntityType = "element" | "object";
-export type FountainTagType = "tag";
-export type FountainVariableType = "variable";
-export type FountainAssignType = "assign";
-export type FountainCallType = "call";
-export type FountainConditionType = "condition";
-export type FountainChoiceType = "choice";
-export type FountainGoType = "go";
-export type FountainReturnType = "return";
+export type FountainAssetTokenType = FountainAssetType;
+export type FountainEntityTokenType = FountainEntityType;
+export type FountainTagTokenType = "tag";
+export type FountainVariableTokenType = "variable";
+export type FountainAssignTokenType = "assign";
+export type FountainCallTokenType = "call";
+export type FountainConditionTokenType = "condition";
+export type FountainChoiceTokenType = "choice";
+export type FountainGoTokenType = "go";
+export type FountainReturnTokenType = "return";
 
-export type FountainSectionType = "section";
-export type FountainSceneType = "scene";
-export type FountainDialogueType = "dialogue";
-export type FountainPositionType =
+export type FountainSectionTokenType = "section";
+export type FountainSceneTokenType = "scene";
+export type FountainDialogueTokenType = "dialogue";
+export type FountainPositionTokenType =
   | "dialogue_begin"
   | "character"
   | "parenthetical";
 
-export type FountainOtherType =
+export type FountainOtherTokenType =
   | "title"
   | "separator"
   | "action"
@@ -42,18 +44,18 @@ export type FountainOtherType =
   | FountainTitleKeyword;
 
 export type FountainTokenType =
-  | FountainAssetType
-  | FountainEntityType
-  | FountainTagType
-  | FountainVariableType
-  | FountainAssignType
-  | FountainCallType
-  | FountainConditionType
-  | FountainChoiceType
-  | FountainGoType
-  | FountainReturnType
-  | FountainSectionType
-  | FountainSceneType
-  | FountainDialogueType
-  | FountainPositionType
-  | FountainOtherType;
+  | FountainAssetTokenType
+  | FountainEntityTokenType
+  | FountainTagTokenType
+  | FountainVariableTokenType
+  | FountainAssignTokenType
+  | FountainCallTokenType
+  | FountainConditionTokenType
+  | FountainChoiceTokenType
+  | FountainGoTokenType
+  | FountainReturnTokenType
+  | FountainSectionTokenType
+  | FountainSceneTokenType
+  | FountainDialogueTokenType
+  | FountainPositionTokenType
+  | FountainOtherTokenType;

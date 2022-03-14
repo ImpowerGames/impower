@@ -1,101 +1,101 @@
-import { FountainCallType, FountainEntityType } from "..";
+import { FountainCallTokenType, FountainEntityTokenType } from "..";
 import { FountainLine } from "./FountainLine";
 import {
-  FountainAssetType,
-  FountainAssignType,
-  FountainChoiceType,
-  FountainConditionType,
-  FountainDialogueType,
-  FountainGoType,
-  FountainOtherType,
-  FountainPositionType,
-  FountainReturnType,
-  FountainSceneType,
-  FountainSectionType,
-  FountainTagType,
-  FountainVariableType,
+  FountainAssetTokenType,
+  FountainAssignTokenType,
+  FountainChoiceTokenType,
+  FountainConditionTokenType,
+  FountainDialogueTokenType,
+  FountainGoTokenType,
+  FountainOtherTokenType,
+  FountainPositionTokenType,
+  FountainReturnTokenType,
+  FountainSceneTokenType,
+  FountainSectionTokenType,
+  FountainTagTokenType,
+  FountainVariableTokenType,
 } from "./FountainTokenType";
 
 export interface FountainAssetToken extends FountainLine {
-  type: FountainAssetType;
+  type: FountainAssetTokenType;
   name: string;
   value: string | { name: string };
 }
 
 export interface FountainEntityToken extends FountainLine {
-  type: FountainEntityType;
+  type: FountainEntityTokenType;
   name: string;
   value: string | { name: string };
 }
 
 export interface FountainTagToken extends FountainLine {
-  type: FountainTagType;
+  type: FountainTagTokenType;
   name: string;
   value: string | { name: string };
 }
 
 export interface FountainVariableToken extends FountainLine {
-  type: FountainVariableType;
+  type: FountainVariableTokenType;
   name: string;
   operator: string;
   value: string | number | { name: string };
 }
 
 export interface FountainAssignToken extends FountainLine {
-  type: FountainAssignType;
+  type: FountainAssignTokenType;
   name: string;
   operator: string;
   value: string | number | { name: string };
 }
 
 export interface FountainCallToken extends FountainLine {
-  type: FountainCallType;
+  type: FountainCallTokenType;
   name: string;
   values: (string | number | { name: string })[];
 }
 
 export interface FountainConditionToken extends FountainLine {
-  type: FountainConditionType;
+  type: FountainConditionTokenType;
   name: string;
   operator: string;
   value: string | number | { name: string };
 }
 
 export interface FountainChoiceToken extends FountainLine {
-  type: FountainChoiceType;
+  type: FountainChoiceTokenType;
   mark: string;
   section: string;
 }
 
 export interface FountainGoToken extends FountainLine {
-  type: FountainGoType;
+  type: FountainGoTokenType;
   values: (string | number | { name: string })[];
 }
 
 export interface FountainReturnToken extends FountainLine {
-  type: FountainReturnType;
+  type: FountainReturnTokenType;
   operator: string;
   value: string | number | { name: string };
 }
 
 export interface FountainSectionToken extends FountainLine {
-  type: FountainSectionType;
+  type: FountainSectionTokenType;
   operator: string;
   parameters: string[];
 }
 
 export interface FountainSceneToken extends FountainLine {
-  type: FountainSceneType;
+  type: FountainSceneTokenType;
   scene: string | number;
 }
 
 export interface FountainPositionToken extends FountainLine {
-  type: FountainPositionType;
+  type: FountainPositionTokenType;
   position: "left" | "right";
 }
 
 export interface FountainDialogueToken extends FountainLine {
-  type: FountainDialogueType;
+  type: FountainDialogueTokenType;
   character: string;
   parenthetical: string;
   position: "left" | "right";
@@ -103,7 +103,7 @@ export interface FountainDialogueToken extends FountainLine {
 }
 
 export interface FountainOtherToken extends FountainLine {
-  type: FountainOtherType;
+  type: FountainOtherTokenType;
 }
 
 export type FountainToken =
