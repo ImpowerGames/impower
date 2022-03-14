@@ -3,12 +3,7 @@ export interface FountainAction {
     The label to show to the user. Should be relatively short.
     */
   name: string;
-  /**
-    The function to call when the user activates this action. Is
-    given the diagnostic's _current_ position, which may have
-    changed since the creation of the diagnostic due to editing.
-    */
-  apply: (view: unknown, from: number, to: number) => void;
+  focus?: number;
 }
 
 export interface FountainDiagnostic {

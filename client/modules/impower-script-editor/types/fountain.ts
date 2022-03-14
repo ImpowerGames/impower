@@ -83,7 +83,19 @@ export function fountain(
   const parseContext: { result: FountainParseResult } = { result: undefined };
   const fountainParseLinter = (view: EditorView): Diagnostic[] => {
     parseContext.result = parse(view.state.doc.toString());
-    return parseContext.result.diagnostics || [];
+    const diagnostics = parseContext.result?.diagnostics || [];
+    return diagnostics.map((d) => ({
+      ...d,
+      actions: d.actions.map((a) => ({
+        ...a,
+        apply: (view: EditorView, _from: number, _to: number): void => {
+          view.dispatch({
+            selection: { anchor: a.focus },
+            effects: EditorView.scrollIntoView(a.focus, { y: "center" }),
+          });
+        },
+      })),
+    }));
   };
   const extensions = config.extensions ? [config.extensions] : [];
   const support = [

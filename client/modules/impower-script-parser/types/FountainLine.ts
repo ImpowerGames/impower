@@ -5,7 +5,7 @@ export interface FountainLine {
   type: FountainTokenType;
   content?: string;
   text?: string;
-  notes?: FountainAsset[];
+  notes?: Partial<FountainAsset>[];
 
   line?: number;
   level?: number;

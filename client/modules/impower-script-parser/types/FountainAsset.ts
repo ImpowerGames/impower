@@ -1,5 +1,6 @@
 export interface FountainAsset {
-  line?: number;
+  start: number;
+  line: number;
   type: "image" | "audio" | "video" | "text";
   value: string;
 }

@@ -409,6 +409,16 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ".cm-panel-lint": {
               marginBottom: "64px",
             },
+            ".cm-diagnosticAction": {
+              backgroundColor: "transparent",
+              fontWeight: "600",
+              padding: "0",
+              color: "#9CDCFE",
+              textTransform: "uppercase",
+              fontSize: "0.9375rem",
+              marginLeft: "16px",
+              marginRight: "8px",
+            },
           },
           { dark: true }
         ),

@@ -172,3 +172,7 @@ body .dragging {
   cursor: auto !important;
   z-index: 100000 !important;
 }
+
+button {
+  cursor: pointer;
+}

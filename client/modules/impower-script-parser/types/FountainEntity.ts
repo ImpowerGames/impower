@@ -1,5 +1,6 @@
 export interface FountainEntity {
-  line?: number;
+  start: number;
+  line: number;
   type: "element" | "object";
   value: string;
 }
