@@ -51,7 +51,7 @@ const getAncestorIds = (sectionId: string): string[] => {
   return ids;
 };
 
-export const paragraphSnippets: readonly Completion[] = [
+export const lowercaseParagraphSnippets: readonly Completion[] = [
   snip("var ${}${newVariable} = ${value}${}", {
     label: "variable",
     type: "variable",
@@ -87,6 +87,88 @@ export const paragraphSnippets: readonly Completion[] = [
   snip("ui ${}${NewElement}:${}", {
     label: "ui",
     type: "entity",
+  }),
+];
+
+export const uppercaseParagraphSnippets: readonly Completion[] = [
+  snip("INT. ${}${LOCATION} - ${TIME}", {
+    label: "INT. LOCATION - TIME",
+    type: "scene",
+  }),
+  snip("EXT. ${}${LOCATION} - ${TIME}", {
+    label: "EXT. LOCATION - TIME",
+    type: "scene",
+  }),
+  snip("INT/EXT. ${}${LOCATION} - ${TIME}", {
+    label: "INT/EXT. LOCATION - TIME",
+    type: "scene",
+  }),
+  snip("CUT TO:", {
+    label: "CUT TO:",
+    type: "scene",
+  }),
+  snip("HARD CUT TO:", {
+    label: "HARD CUT TO:",
+    type: "transition",
+  }),
+  snip("SMASH CUT TO:", {
+    label: "SMASH CUT TO:",
+    type: "transition",
+  }),
+  snip("TIME CUT TO:", {
+    label: "TIME CUT TO:",
+    type: "transition",
+  }),
+  snip("MATCH CUT TO:", {
+    label: "MATCH CUT TO:",
+    type: "transition",
+  }),
+  snip("FLASH CUT TO:", {
+    label: "FLASH CUT TO:",
+    type: "transition",
+  }),
+  snip("FADE TO:", {
+    label: "FADE TO:",
+    type: "transition",
+  }),
+  snip("DISSOLVE TO:", {
+    label: "DISSOLVE TO:",
+    type: "transition",
+  }),
+];
+
+export const transitionSnippets: readonly Completion[] = [
+  snip("${}CUT", {
+    label: "CUT",
+    type: "transition",
+  }),
+  snip("${}HARD CUT", {
+    label: "HARD CUT",
+    type: "transition",
+  }),
+  snip("${}SMASH CUT", {
+    label: "SMASH CUT",
+    type: "transition",
+  }),
+  snip("${}TIME CUT", {
+    label: "TIME CUT",
+    type: "transition",
+  }),
+  snip("${}MATCH CUT", {
+    label: "MATCH CUT",
+    type: "transition",
+  }),
+  snip("${}FLASH CUT", {
+    label: "FLASH CUT",
+    type: "transition",
+  }),
+  snip("${}FADE", {
+    label: "FADE",
+    type: "transition",
+  }),
+  snip("${}DISSOLVE", {
+    label: "DISSOLVE",
+    type: "transition",
   }),
 ];
 
@@ -138,41 +220,6 @@ export const callSnippets: readonly Completion[] = [
     label: "* moveY",
     detail: "(e,y)",
     type: "method",
-  }),
-];
-
-export const transitionSnippets: readonly Completion[] = [
-  snip("${}CUT${}", {
-    label: "CUT",
-    type: "transition",
-  }),
-  snip("${}HARD CUT${}", {
-    label: "HARD CUT",
-    type: "transition",
-  }),
-  snip("${}SMASH CUT${}", {
-    label: "SMASH CUT",
-    type: "transition",
-  }),
-  snip("${}TIME CUT${}", {
-    label: "TIME CUT",
-    type: "transition",
-  }),
-  snip("${}MATCH CUT${}", {
-    label: "MATCH CUT",
-    type: "transition",
-  }),
-  snip("${}FLASH CUT${}", {
-    label: "FLASH CUT",
-    type: "transition",
-  }),
-  snip("${}FADE${}", {
-    label: "FADE",
-    type: "transition",
-  }),
-  snip("${}DISSOLVE${}", {
-    label: "DISSOLVE",
-    type: "transition",
   }),
 ];
 
@@ -459,13 +506,17 @@ export const fountainAutocomplete = async (
     })
   );
   const isLowercase = input.toLowerCase() === input;
+  const isUppercase = input.toUpperCase() === input;
   const completions: Completion[] = [];
   if (node.name === "Paragraph") {
     if (isLowercase && input.match(/^[\w]+/)) {
-      completions.push(...paragraphSnippets);
+      completions.push(...lowercaseParagraphSnippets);
     }
     if (input.startsWith("#")) {
       completions.push(...sectionHeaderSnippets(sectionLevel));
+    }
+    if (isUppercase) {
+      completions.push(...uppercaseParagraphSnippets);
     }
   } else if (node.name === "Transition") {
     completions.push(...transitionSnippets);
@@ -479,9 +530,17 @@ export const fountainAutocomplete = async (
     completions.push(
       ...nameSnippets(Object.keys(result.properties?.times || {}), "scene")
     );
-  } else if (
-    ["PossibleCharacter", "PossibleCharacterName"].includes(node.name)
-  ) {
+  } else if (node.name === "PossibleCharacter") {
+    completions.push(
+      ...characterSnippets(
+        Object.keys(result.properties.characters || {}),
+        result.dialogueLines,
+        line,
+        "\n"
+      )
+    );
+    completions.push(...uppercaseParagraphSnippets);
+  } else if (node.name === "PossibleCharacterName") {
     completions.push(
       ...characterSnippets(
         Object.keys(result.properties.characters || {}),

@@ -63,10 +63,13 @@ const snippetKeymap = [
       const accepted = acceptCompletion(target);
       const next = nextSnippetField(target);
       if (!next) {
+        const end = target.state.doc.lineAt(
+          target.state.selection.main.head
+        ).to;
         target.dispatch({
           selection: {
-            anchor: target.state.selection.main.head,
-            head: target.state.selection.main.head,
+            anchor: end,
+            head: end,
           },
         });
       }
