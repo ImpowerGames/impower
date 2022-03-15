@@ -25,6 +25,21 @@ export function isSectionHeading(line: Line): RegExpMatchArray {
   return line.text.match(fountainRegexes.section);
 }
 
+export function getSectionMatchLevel(match: RegExpMatchArray): number {
+  if (!match) {
+    return -1;
+  }
+  const mark = match[2] || "";
+  const markSpace = match[3] || "";
+  const level = mark.length;
+  return !markSpace ? 0 : level;
+}
+
+export function getSectionLevel(line: Line): number {
+  const match = isSectionHeading(line);
+  return getSectionMatchLevel(match);
+}
+
 export function isScene(line: Line): RegExpMatchArray {
   if (line.next === ".".charCodeAt(0)) {
     return line.text.match(fountainRegexes.scene);

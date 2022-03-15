@@ -143,10 +143,22 @@ export function fountain(
       actions: d.actions.map((a) => ({
         ...a,
         apply: (view: EditorView, _from: number, _to: number): void => {
-          view.dispatch({
-            selection: { anchor: a.focus },
-            effects: EditorView.scrollIntoView(a.focus, { y: "center" }),
-          });
+          if (a.focus) {
+            view.dispatch({
+              selection: { anchor: a.focus },
+              effects: EditorView.scrollIntoView(a.focus, { y: "center" }),
+            });
+          }
+          if (a.replace) {
+            view.dispatch({
+              changes: {
+                from: a.replace.from,
+                to: a.replace.to,
+                insert: a.replace.insert,
+              },
+              selection: { anchor: a.replace.to },
+            });
+          }
         },
       })),
     }));

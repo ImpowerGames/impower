@@ -100,7 +100,7 @@ const commonmark = baseParser.configure({
       "Dialogue/...": tags.dialogue,
       "Lyric/...": tags.lyric,
       "LyricMark": tags.lyricMark,
-      "SectionMark": tags.section,
+      "SectionMark PossibleSectionMark": tags.section,
       "SectionHeading1/...": tags.sectionHeading1,
       "SectionHeading2/...": tags.sectionHeading2,
       "SectionHeading3/...": tags.sectionHeading3,

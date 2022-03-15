@@ -10,4 +10,5 @@ export * from "./types/FountainTokenType";
 export * from "./types/FountainVariable";
 export * from "./types/LexerReplacements";
 export * from "./types/ScreenplayProperties";
+export * from "./utils/getAncestorIds";
 export { parseFountain } from "./utils/parseFountain";

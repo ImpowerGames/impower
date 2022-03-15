@@ -87,10 +87,22 @@ export const DefaultBlockParsers: {
       return false;
     }
 
-    const level = (match[2] || "").length;
-    cx.startContext(Type.Section, 0, level);
+    const mark = match[2] || "";
+    const markSpace = match[3] || "";
     const off = line.pos;
     const from = cx.lineStart + off;
+    const level = mark.length;
+
+    if (level <= 0 || !markSpace) {
+      let buf = cx.buffer;
+      buf = buf.write(Type.PossibleSectionMark, 0, mark.length);
+      const node = buf.finish(Type.PossibleSection, line.text.length - off);
+      cx.addNode(node, cx.lineStart + line.pos);
+      cx.nextLine();
+      return true;
+    }
+
+    cx.startContext(Type.Section, 0, level);
     const endOfSpace = skipSpaceBack(line.text, line.text.length, off);
     let after = endOfSpace;
     while (after > off && line.text.charCodeAt(after - 1) === line.next) {

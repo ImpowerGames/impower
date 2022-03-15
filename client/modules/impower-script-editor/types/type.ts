@@ -66,6 +66,7 @@ export enum Type {
   PageBreak,
   PossibleCharacterName,
   PossibleCharacter,
+  PossibleSection,
 
   // Markdown Inline
   Escape,
@@ -138,4 +139,5 @@ export enum Type {
   ChoiceCloseMark,
   ChoiceAngleMark,
   ConditionColonMark,
+  PossibleSectionMark,
 }

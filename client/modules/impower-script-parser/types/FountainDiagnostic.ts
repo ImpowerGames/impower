@@ -4,6 +4,7 @@ export interface FountainAction {
     */
   name: string;
   focus?: number;
+  replace?: { from: number; to: number; insert: string };
 }
 
 export interface FountainDiagnostic {

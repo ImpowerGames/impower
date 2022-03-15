@@ -8,7 +8,10 @@ import {
 } from "@codemirror/autocomplete";
 import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
-import { FountainParseResult } from "../../impower-script-parser";
+import {
+  FountainParseResult,
+  getAncestorIds,
+} from "../../impower-script-parser";
 import { colors } from "../constants/colors";
 
 const snip = (template: string, completion: Completion): Completion => {
@@ -39,17 +42,6 @@ type CompletionType =
   | "character"
   | "transition"
   | "scene";
-
-const getAncestorIds = (sectionId: string): string[] => {
-  const parts = sectionId.split(".");
-  const partsCount = parts.length - 1;
-  const ids: string[] = [sectionId];
-  for (let i = 0; i < partsCount; i += 1) {
-    parts.pop();
-    ids.push(parts.join("."));
-  }
-  return ids;
-};
 
 export const lowercaseParagraphSnippets: readonly Completion[] = [
   snip("var ${}${newVariable} = ${value}${}", {
@@ -328,6 +320,7 @@ export const sectionHeaderSnippets = (level: number): Completion[] => {
         label: `${operator}`,
         detail: `${name}`,
         type: child ? "child" : "parent",
+        boost: i - level,
       })
     );
   }
@@ -512,12 +505,18 @@ export const fountainAutocomplete = async (
     if (isLowercase && input.match(/^[\w]+/)) {
       completions.push(...lowercaseParagraphSnippets);
     }
-    if (input.startsWith("#")) {
-      completions.push(...sectionHeaderSnippets(sectionLevel));
-    }
     if (isUppercase) {
       completions.push(...uppercaseParagraphSnippets);
     }
+  } else if (
+    [
+      "Section",
+      "SectionMark",
+      "PossibleSection",
+      "PossibleSectionMark",
+    ].includes(node.name)
+  ) {
+    completions.push(...sectionHeaderSnippets(sectionLevel));
   } else if (node.name === "Transition") {
     completions.push(...transitionSnippets);
   } else if (node.name === "ScenePrefix") {

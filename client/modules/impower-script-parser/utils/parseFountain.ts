@@ -17,6 +17,7 @@ import { FountainTokenType } from "../types/FountainTokenType";
 import { FountainVariable } from "../types/FountainVariable";
 import { FountainVariableType } from "../types/FountainVariableType";
 import { createFountainToken } from "./createFountainToken";
+import { getAncestorIds } from "./getAncestorIds";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
@@ -150,17 +151,6 @@ export const parseFountain = (
       return -1;
     }
     return group.length;
-  };
-
-  const getAncestorIds = (sectionId: string): string[] => {
-    const parts = sectionId.split(".");
-    const partsCount = parts.length - 1;
-    const ids: string[] = [sectionId];
-    for (let i = 0; i < partsCount; i += 1) {
-      parts.pop();
-      ids.push(parts.join("."));
-    }
-    return ids;
   };
 
   const prefixArticle = (str: string): string => {
@@ -641,6 +631,7 @@ export const parseFountain = (
     name: string,
     valueText: string,
     value: string | number | { name: string },
+    parameter: boolean,
     start: number,
     line: number,
     match: string[],
@@ -651,11 +642,11 @@ export const parseFountain = (
       result.variables = {};
     }
     const ids = getAncestorIds(currentSectionId);
-    const foundSectionId = ids.find((x) =>
-      Boolean(result.variables?.[`${x}.${name}`])
-    );
-    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
-    const found = result.variables?.[foundId];
+    const foundSectionId =
+      ids.find((x) => Boolean(result.variables?.[`${x}.${name}`])) || "";
+    const found =
+      result.variables?.[`${currentSectionId}.param-${name}`] ||
+      result.variables?.[`${foundSectionId}.${name}`];
     if (found && line !== found.line) {
       diagnostic(
         currentToken,
@@ -681,7 +672,7 @@ export const parseFountain = (
       valueText,
     };
     const sectionId = ids?.[0] || "";
-    const id = `${sectionId}.${name}`;
+    const id = `${sectionId}.${parameter ? "param-" : ""}${name}`;
     result.variables[id] = variable;
     const parent = result.sections[sectionId];
     if (parent) {
@@ -784,6 +775,7 @@ export const parseFountain = (
           name,
           valueText,
           value,
+          true,
           currentToken.start,
           currentToken.line,
           allMatches,
@@ -933,6 +925,15 @@ export const parseFountain = (
       prev += current;
     }
     return prev;
+  };
+
+  const startNewSection = (level: number): void => {
+    currentSectionTokens = [];
+    currentLevel = level;
+    const section = result.sections[currentSectionId];
+    if (section) {
+      section.tokens = currentSectionTokens;
+    }
   };
 
   currentToken = createFountainToken(
@@ -1367,6 +1368,7 @@ export const parseFountain = (
               name,
               valueText,
               currentToken.value,
+              false,
               currentToken.start,
               currentToken.line,
               match,
@@ -1386,14 +1388,40 @@ export const parseFountain = (
       ) {
         currentToken.type = "section";
         if (currentToken.type === "section") {
-          if ((match = lint(fountainRegexes.section))) {
-            const level = match[2].length;
-            const operator = match[4] || "";
-            const name = match[5] || "";
-            currentToken.level = level;
-            currentToken.operator = operator;
-            currentToken.content = name;
-            currentToken.parameters = getParameterNames(match, 9);
+          const mark = match[2] || "";
+          const markSpace = match[3] || "";
+          const operator = match[4] || "";
+          const name = match[5] || "";
+          const level = mark.length;
+          currentToken.level = level;
+          currentToken.operator = operator;
+          currentToken.content = name;
+          currentToken.parameters = getParameterNames(match, 9);
+          if (level > currentLevel + 1) {
+            const from = currentToken.start + currentToken.indent;
+            const to = from + mark.length + markSpace.length;
+            const validMark = "#".repeat(currentLevel + 1);
+            diagnostic(
+              currentToken,
+              `Child Section must be max ${validMark.length} levels deep`,
+              [
+                {
+                  name: "Fix",
+                  replace: {
+                    from,
+                    to,
+                    insert: `${validMark}${" "}`,
+                  },
+                },
+              ],
+              currentToken.indent,
+              level
+            );
+            if (markSpace) {
+              currentSectionId += `.${name}`;
+              startNewSection(level);
+            }
+          } else if (lint(fountainRegexes.section)) {
             if (level === 0) {
               currentSectionId = name;
             } else if (level === 1) {
@@ -1413,12 +1441,7 @@ export const parseFountain = (
                 .join(".");
               currentSectionId = `${parentId}.${name}`;
             }
-            currentSectionTokens = [];
-            currentLevel = level;
-            const section = result.sections[currentSectionId];
-            if (section) {
-              section.tokens = currentSectionTokens;
-            }
+            startNewSection(level);
           }
         }
       } else if (currentToken.content.match(fountainRegexes.page_break)) {

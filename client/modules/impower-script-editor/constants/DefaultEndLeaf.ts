@@ -1,13 +1,13 @@
 import { BlockContext } from "../classes/BlockContext";
 import { Line } from "../classes/Line";
 import {
+  getSectionLevel,
   isBulletList,
   isFencedCode,
   isHTMLBlock,
   isOrderedList,
   isPageBreak,
   isScene,
-  isSectionHeading,
   isSynopses,
   isTitle,
   isTransition,
@@ -17,7 +17,7 @@ export const DefaultEndLeaf: readonly ((
   cx: BlockContext,
   line: Line
 ) => boolean)[] = [
-  (_, line): boolean => Boolean(isSectionHeading(line)),
+  (_, line): boolean => getSectionLevel(line) >= 1,
   (_, line): boolean => Boolean(isScene(line)),
   (_, line): boolean => Boolean(isSynopses(line)),
   (_, line): boolean => Boolean(isTransition(line)),

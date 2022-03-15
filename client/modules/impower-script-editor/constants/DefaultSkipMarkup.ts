@@ -2,7 +2,7 @@ import { BlockContext } from "../classes/BlockContext";
 import { CompositeBlock } from "../classes/CompositeBlock";
 import { Line } from "../classes/Line";
 import { Type } from "../types/type";
-import { isSectionHeading, isTitle, skipForList } from "../utils/markdown";
+import { getSectionLevel, isTitle, skipForList } from "../utils/markdown";
 
 export const DefaultSkipMarkup: {
   [type: number]: (bl: CompositeBlock, cx: BlockContext, line: Line) => boolean;
@@ -47,12 +47,11 @@ export const DefaultSkipMarkup: {
     return true;
   },
   [Type.Section](bl, cx, line): boolean {
-    const match = isSectionHeading(line);
-    if (!match) {
-      // skip if not heading
+    const level = getSectionLevel(line);
+    if (level <= 0) {
+      // skip if not valid heading
       return true;
     }
-    const level = (match[2] || "").length;
     if (level > bl.value) {
       // skip if lower level heading
       return true;

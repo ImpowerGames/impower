@@ -15,9 +15,9 @@ import {
   SetCommandData,
   SetOperator,
 } from "../../data";
-import { getFountainAsset } from "./getFountainAsset";
 import { getRuntimeDynamicData } from "./getRuntimeDynamicData";
 import { getRuntimeVariableReference } from "./getRuntimeVariableReference";
+import { getScopedItem } from "./getScopedItem";
 
 const getDisplayCommand = (
   token: FountainToken,
@@ -46,7 +46,7 @@ const getDisplayCommand = (
     content: dialogueToken.text || dialogueToken.content,
     assets:
       dialogueToken.assets?.map(({ name }) =>
-        getFountainAsset(name, sectionId, assets)
+        getScopedItem(name, sectionId, assets)
       ) || [],
     waitUntilFinished: dialogueToken.position !== "left",
   };
