@@ -64,8 +64,8 @@ export function isCentered(line: Line): RegExpMatchArray {
 export function isTransition(line: Line): RegExpMatchArray {
   const currentText = line.text.slice(line.pos);
   if (
-    currentText !== "TO:" &&
-    (currentText.toUpperCase() !== currentText || !currentText.endsWith(" TO:"))
+    currentText.toUpperCase() !== currentText ||
+    !String.fromCharCode(line.next).match(/^[A-Z]$/)
   ) {
     return null;
   }

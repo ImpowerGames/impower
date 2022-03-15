@@ -9,33 +9,31 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   center: "> {selection} <${}",
   dynamic: "{{selection}}${}",
 
-  section: "\n# ${NewSection}${}\n",
-  scene: "\n${INT.} ${LOCATION} - ${TIME}${}\n",
-  dialogue: "\n${CHARACTER}${}\n",
-  parenthetical: "(${})${}\n",
-  transition: "\n${CUT}${} TO:\n",
+  section: "\n# ${NewSection}\n${}",
+  scene: "\n${INT}. ${LOCATION} - ${TIME}\n${}",
+  dialogue: "\n${CHARACTER}\n${dialogue}\n${}",
+  parenthetical: "(${})\n${}",
+  transition: "\n${CUT} TO:\n${}",
 
-  image: "[[${imageName}]]${}\n",
-  audio: "((${audioName}))${}\n",
-  spawn: "~ spawn(${entityName})${}\n",
-  move: "~ move(${entityName}, ${x}, ${y})${}\n",
-  destroy: "~ destroy(${entityName})${}\n",
+  image: "[[${imageName}]]\n${}",
+  audio: "((${audioName}))\n${}",
+  spawn: "* spawn(${entityName})\n${}",
+  move: "* move(${entityName}, ${x}, ${y})\n${}",
+  destroy: "* destroy(${entityName})\n${}",
 
-  choice: "- [${option}] > ${SectionName}${}\n",
-  condition: "- ${variableName} == ${value}:${}\n",
-  conditional_choice:
-    "- ${variableName} == ${value}: [${option}] > ${SectionName}${}\n",
-  go: "> ${SectionName}${}\n",
-  repeat: "^${}\n",
-  return: "< ${}\n",
+  choice: "+ ${choice} > ${section}${}",
+  condition: "* ${variableName} == ${value}:${}",
+  go: "> ${section}${}",
+  repeat: "^${}",
+  return: "< ${}",
 
-  declare_variable: "var ${newVariable} = ${value}${}\n",
-  assign_variable: "~ ${variableName} = ${value}${}\n",
-  declare_tag: "tag ${newTag} = `${value}${}`\n",
-  declare_image: "image ${newImage} = `${value}${}`\n",
-  declare_audio: "audio ${newAudio} = `${value}${}`\n",
-  declare_video: "video ${newVideo} = `${value}${}`\n",
-  declare_text: "text ${newText} = `${value}${}`\n",
+  declare_variable: "var ${newVariable} = ${value}\n${}",
+  assign_variable: "* ${variableName} = ${value}\n${}",
+  declare_tag: "tag ${newTag} = `${value}`\n${}",
+  declare_image: "image ${newImage} = `${value}`\n${}",
+  declare_audio: "audio ${newAudio} = `${value}`\n${}",
+  declare_video: "video ${newVideo} = `${value}`\n${}",
+  declare_text: "text ${newText} = `${value}`\n${}",
 };
 
 export const quickSnippet = (view: EditorView, type: string): void => {
@@ -52,7 +50,7 @@ export const quickSnippet = (view: EditorView, type: string): void => {
   const to = Math.max(anchor, head);
   const doc = state?.doc;
   const selectedText = doc.sliceString(from, to);
-  const isInlineTemplate = !snippetTemplate.endsWith("\n");
+  const isInlineTemplate = !snippetTemplate.endsWith("\n${}");
   const fromLine = doc.lineAt(from);
   const nextLineFrom = fromLine.to + 1;
   const beforeLine = doc.lineAt(fromLine.from - 1);
@@ -75,7 +73,7 @@ export const quickSnippet = (view: EditorView, type: string): void => {
     }
     if (isLineEmpty && isLineAfterEmpty) {
       // Line after is already blank, so no need to end with newline
-      formattedTemplate = formattedTemplate.replace(/\n$/, "");
+      formattedTemplate = formattedTemplate.replace(/[\n][$][{][}]$/, "");
     }
   }
   const s = snippet(formattedTemplate);

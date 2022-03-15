@@ -1,4 +1,13 @@
-import { autocompletion } from "@codemirror/autocomplete";
+import {
+  acceptCompletion,
+  autocompletion,
+  clearSnippet,
+  closeCompletion,
+  moveCompletionSelection,
+  nextSnippetField,
+  prevSnippetField,
+  startCompletion,
+} from "@codemirror/autocomplete";
 import { EditorView } from "@codemirror/basic-setup";
 import { html } from "@codemirror/lang-html";
 import {
@@ -41,6 +50,48 @@ export const markdownKeymap: readonly KeyBinding[] = [
   { key: "Backspace", run: deleteMarkupBackward },
 ];
 
+const snippetKeymap = [
+  { key: "Escape", run: clearSnippet },
+  {
+    key: "Tab",
+    run: nextSnippetField,
+    shift: prevSnippetField,
+  },
+  {
+    key: "Enter",
+    run: (target: EditorView): boolean => {
+      const accepted = acceptCompletion(target);
+      const next = nextSnippetField(target);
+      if (!next) {
+        target.dispatch({
+          selection: {
+            anchor: target.state.selection.main.head,
+            head: target.state.selection.main.head,
+          },
+        });
+      }
+      return accepted || next;
+    },
+    shift: prevSnippetField,
+  },
+];
+
+export const completionKeymap: readonly KeyBinding[] = [
+  { key: "Ctrl-Space", run: startCompletion },
+  { key: "Escape", run: closeCompletion },
+  { key: "ArrowDown", run: moveCompletionSelection(true) },
+  { key: "ArrowUp", run: moveCompletionSelection(false) },
+  { key: "PageDown", run: moveCompletionSelection(true, "page") },
+  { key: "PageUp", run: moveCompletionSelection(false, "page") },
+  {
+    key: "Enter",
+    run: (target: EditorView): boolean => {
+      const accepted = acceptCompletion(target);
+      const next = nextSnippetField(target);
+      return accepted || next;
+    },
+  },
+];
 const htmlNoMatch = html({ matchClosingTags: false });
 
 /// Markdown language support.
@@ -103,7 +154,7 @@ export function fountain(
     fountainLanguage.data.of({
       autocomplete: async (c) => fountainAutocomplete(c, parseContext),
     }),
-    autocompletion({ aboveCursor: true }),
+    autocompletion({ aboveCursor: true, defaultKeymap: false }),
     linter(fountainParseLinter, { delay: 100 }),
   ];
   let defaultCode;
@@ -121,6 +172,10 @@ export function fountain(
     parseCode({ codeParser, htmlParser: htmlNoMatch.language.parser })
   );
 
-  if (addKeymap) support.push(Prec.high(keymap.of(markdownKeymap)));
+  if (addKeymap) {
+    support.push(Prec.high(keymap.of(markdownKeymap)));
+    support.push(Prec.highest(keymap.of(snippetKeymap)));
+    support.push(Prec.highest(keymap.of(completionKeymap)));
+  }
   return new LanguageSupport(mkLang(parser.configure(extensions)), support);
 }

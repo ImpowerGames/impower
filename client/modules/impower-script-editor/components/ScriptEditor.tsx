@@ -43,7 +43,7 @@ const marginPlugin = ViewPlugin.fromClass(
     margin: { top: number; bottom: number };
 
     update(_update: ViewUpdate): void {
-      this.margin = { top: 104, bottom: 64 };
+      this.margin = { top: 104, bottom: 128 };
     }
   },
   {
@@ -97,7 +97,7 @@ const myHighlightStyle = HighlightStyle.define([
   { tag: t.sectionHeading6, color: colors.section },
   {
     tag: t.scene,
-    color: colors.sceneHeading,
+    color: colors.scene,
   },
   {
     tag: t.sceneNumber,
@@ -107,7 +107,7 @@ const myHighlightStyle = HighlightStyle.define([
   { tag: t.transition, color: colors.transition },
   { tag: t.asset, color: colors.asset },
   { tag: t.tag, color: colors.tag },
-  { tag: t.logic, color: colors.logic },
+  { tag: t.variable, color: colors.variable },
   { tag: t.flow, color: colors.flow },
   { tag: t.flowMark, color: colors.flow },
   { tag: t.bulletList, color: colors.flow },
@@ -400,11 +400,68 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ".cm-lintRange-active": {
               backgroundColor: "#ffdd991a",
             },
-            ".cm-completionIcon-tag": {
-              "&:after": { content: "'#'" },
+            ".cm-completionInfo": {
+              fontFamily: "monospace",
+              fontStyle: "italic",
             },
-            ".cm-completionIcon-declaration": {
-              "&:after": { content: "'Ɗ'" },
+            ".cm-completionIcon-section": {
+              "&:after": { content: "'#'", color: colors.section },
+            },
+            ".cm-completionIcon-parent": {
+              "&:after": {
+                content: "'⤴'",
+                color: colors.section,
+                display: " inline-block",
+                transform: "scaleX(-1)",
+              },
+            },
+            ".cm-completionIcon-child": {
+              "&:after": {
+                content: "'⤵'",
+                color: colors.section,
+              },
+            },
+            ".cm-completionIcon-next": {
+              "&:after": {
+                content: "'⭳'",
+                color: colors.section,
+              },
+            },
+            ".cm-completionIcon-end": {
+              "&:after": { content: "'×'", color: colors.section },
+            },
+            ".cm-completionIcon-variable": {
+              "&:after": {
+                content: "'𝑥'",
+                color: colors.variable,
+              },
+            },
+            ".cm-completionIcon-asset": {
+              "&:after": { content: "'Ꭿ'", color: colors.asset },
+            },
+            ".cm-completionIcon-entity": {
+              "&:after": { content: "'ℰ'", color: colors.entity },
+            },
+            ".cm-completionIcon-tag": {
+              "&:after": { content: "'𝑡'", color: colors.tag },
+            },
+            ".cm-completionIcon-class": {
+              "&:after": { content: "'○'", color: colors.dialogue },
+            },
+            ".cm-completionIcon-method": {
+              "&:after": {
+                content: "'ƒ'",
+                color: colors.section,
+              },
+            },
+            ".cm-completionIcon-character": {
+              "&:after": { content: "'𝐶'", color: colors.character },
+            },
+            ".cm-completionIcon-transition": {
+              "&:after": { content: "'Ŧ'", color: colors.transition },
+            },
+            ".cm-completionIcon-scene": {
+              "&:after": { content: "'Տ'", color: colors.scene },
             },
             ".cm-panel-lint": {
               marginBottom: "64px",

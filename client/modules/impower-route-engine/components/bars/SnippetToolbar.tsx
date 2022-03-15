@@ -291,17 +291,17 @@ const WorldToolbar = React.memo((props: WorldToolbarProps): JSX.Element => {
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
-      <Tooltip title="move entity" placement="top" arrow>
-        <StyledMainToggleButton value="move" aria-label="move">
-          <FontIcon aria-label={`move`}>
-            <ArrowUpLeftFromCircleRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-      </Tooltip>
       <Tooltip title="destroy entity" placement="top" arrow>
         <StyledMainToggleButton value="destroy" aria-label="destroy">
           <FontIcon aria-label={`destroy`}>
             <CircleXRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="move entity" placement="top" arrow>
+        <StyledMainToggleButton value="move" aria-label="move">
+          <FontIcon aria-label={`move`}>
+            <ArrowUpLeftFromCircleRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>

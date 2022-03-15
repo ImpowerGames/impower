@@ -86,6 +86,7 @@ export const DefaultBlockParsers: {
     if (!match) {
       return false;
     }
+
     const level = (match[2] || "").length;
     cx.startContext(Type.Section, 0, level);
     const off = line.pos;
@@ -112,10 +113,13 @@ export const DefaultBlockParsers: {
         -from
       );
     const headingType = Type.SectionHeading1 - 1 + Math.min(6, level);
+
     const node = buf.finish(headingType, line.text.length - off);
-    cx.addNode(node, from);
-    line.moveBase(line.pos + 1);
-    return null;
+
+    cx.addNode(node, cx.lineStart + line.pos);
+    cx.nextLine();
+
+    return true;
   },
 
   Synopses(cx, line) {
@@ -718,19 +722,6 @@ export const DefaultBlockParsers: {
     if (inBlockContext(cx, Type.Dialogue)) {
       return false;
     }
-    const text = line?.text;
-    const off = line.pos;
-    const from = cx.lineStart + off;
-    const firstCharacterNextLine = cx.input.read(
-      from + text.length + 1,
-      from + text.length + 2
-    );
-    if (!firstCharacterNextLine.trim()) {
-      return false;
-    }
-
-    let buf = cx.buffer;
-    cx.startContext(Type.Dialogue, line.basePos, line.next);
 
     let characterMark = "";
     const character = match[1];
@@ -739,6 +730,31 @@ export const DefaultBlockParsers: {
     const parenthetical = match[3];
     const dualSpace = match[4];
     const dual = match[5];
+
+    const text = line?.text;
+    const off = line.pos;
+    const from = cx.lineStart + off;
+    const firstCharacterNextLine = cx.input.read(
+      from + text.length + 1,
+      from + text.length + 2
+    );
+
+    if (!characterName.startsWith("@") && !firstCharacterNextLine.trim()) {
+      let buf = cx.buffer;
+      buf = buf.write(
+        Type.PossibleCharacterName,
+        characterMark.length,
+        characterMark.length + characterName.length
+      );
+      const node = buf.finish(Type.PossibleCharacter, text.length - off);
+      cx.addNode(node, from);
+      cx.nextLine();
+      return true;
+    }
+
+    let buf = cx.buffer;
+    cx.startContext(Type.Dialogue, line.basePos, line.next);
+
     if (characterName.startsWith("@")) {
       buf = buf.write(Type.CharacterMark, 0, 1);
       characterName = characterName.slice(1);

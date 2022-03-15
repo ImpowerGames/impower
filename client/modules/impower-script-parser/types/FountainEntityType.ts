@@ -1,1 +1,1 @@
-export type FountainEntityType = "element" | "object" | "enum";
+export type FountainEntityType = "ui" | "object" | "enum";

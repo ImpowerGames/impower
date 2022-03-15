@@ -4,7 +4,8 @@ export interface ScreenplayProperties {
     scene: string | number;
     line: number;
   }[];
-  sceneNames?: string[];
   firstTokenLine?: number;
   characters?: Record<string, number[]>;
+  locations?: Record<string, number[]>;
+  times?: Record<string, number[]>;
 }

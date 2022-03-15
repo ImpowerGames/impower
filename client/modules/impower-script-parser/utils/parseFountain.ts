@@ -83,7 +83,6 @@ export const parseFountain = (
 
   const linesLength = lines.length;
   let current = 0;
-  let sceneNumber = 1;
   let currentLevel = 0;
   let currentSectionId = "";
   let match: string[];
@@ -139,7 +138,7 @@ export const parseFountain = (
     if (!group) {
       return -1;
     }
-    return match.slice(1, groupIndex).reduce((p, x) => p + x.length, 0);
+    return match.slice(1, groupIndex).reduce((p, x) => p + (x?.length || 0), 0);
   };
 
   const getLength = (match: string[], groupIndex: number): number => {
@@ -153,8 +152,15 @@ export const parseFountain = (
     return group.length;
   };
 
-  const getGlobalId = (name: string, sectionId?: string): string => {
-    return `${sectionId == null ? currentSectionId : sectionId}.${name}`;
+  const getAncestorIds = (sectionId: string): string[] => {
+    const parts = sectionId.split(".");
+    const partsCount = parts.length - 1;
+    const ids: string[] = [sectionId];
+    for (let i = 0; i < partsCount; i += 1) {
+      parts.pop();
+      ids.push(parts.join("."));
+    }
+    return ids;
   };
 
   const prefixArticle = (str: string): string => {
@@ -197,7 +203,7 @@ export const parseFountain = (
     }
     const parentId = id.split(".").slice(0, -1).join(".") || "";
     const parent = result.sections[parentId];
-    if (parent) {
+    if (parent && id) {
       if (!parent.children) {
         parent.children = [];
       }
@@ -274,9 +280,12 @@ export const parseFountain = (
       );
       return null;
     }
-    const found =
-      result.assets?.[getGlobalId(name)] ||
-      result.assets?.[getGlobalId(name, "")];
+    const ids = getAncestorIds(currentSectionId);
+    const foundSectionId = ids.find((x) =>
+      Boolean(result.assets?.[`${x}.${name}`])
+    );
+    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
+    const found = result.assets?.[foundId];
     if (!found) {
       diagnostic(
         currentToken,
@@ -323,9 +332,12 @@ export const parseFountain = (
       );
       return null;
     }
-    const found =
-      result.entities?.[getGlobalId(name)] ||
-      result.entities?.[getGlobalId(name, "")];
+    const ids = getAncestorIds(currentSectionId);
+    const foundSectionId = ids.find((x) =>
+      Boolean(result.entities?.[`${x}.${name}`])
+    );
+    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
+    const found = result.entities?.[foundId];
     if (!found) {
       diagnostic(
         currentToken,
@@ -370,8 +382,12 @@ export const parseFountain = (
       );
       return null;
     }
-    const found =
-      result.tags?.[getGlobalId(name)] || result.tags?.[getGlobalId(name, "")];
+    const ids = getAncestorIds(currentSectionId);
+    const foundSectionId = ids.find((x) =>
+      Boolean(result.tags?.[`${x}.${name}`])
+    );
+    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
+    const found = result.tags?.[foundId];
     if (!found) {
       diagnostic(
         currentToken,
@@ -397,9 +413,12 @@ export const parseFountain = (
       return undefined;
     }
     const typeName = type || "variable";
-    const found =
-      result.variables?.[getGlobalId(name)] ||
-      result.variables?.[getGlobalId(name, "")];
+    const ids = getAncestorIds(currentSectionId);
+    const foundSectionId = ids.find((x) =>
+      Boolean(result.variables?.[`${x}.${name}`])
+    );
+    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
+    const found = result.variables?.[foundId];
     if (!found) {
       diagnostic(
         currentToken,
@@ -423,20 +442,57 @@ export const parseFountain = (
     return found;
   };
 
+  const getValueType = (value: string): FountainVariableType => {
+    if (value.match(fountainRegexes.string)) {
+      return "string";
+    }
+    const numValue = Number(value);
+    if (!Number.isNaN(numValue)) {
+      return "number";
+    }
+    return undefined;
+  };
+
+  const getVariableValue = (
+    content: string,
+    match?: string[],
+    index?: number
+  ): string | number | { name: string } => {
+    const type = getValueType(content);
+    if (type === "string") {
+      return content.slice(1, -1);
+    }
+    if (type === "number") {
+      return Number(content);
+    }
+    const found = getVariable(type, content, match, index);
+    if (found) {
+      return {
+        name: content,
+      };
+    }
+    return undefined;
+  };
+
   const addAsset = (
     type: FountainAssetType,
     name: string,
+    valueText: string,
     value: string | { name: string },
     start: number,
     line: number,
     match: string[],
     index: number
   ): void => {
-    const id = getGlobalId(name);
     if (!result.assets) {
       result.assets = {};
     }
-    const found = result.assets?.[id];
+    const ids = getAncestorIds(currentSectionId);
+    const foundSectionId = ids.find((x) =>
+      Boolean(result.assets?.[`${x}.${name}`])
+    );
+    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
+    const found = result.assets?.[foundId];
     if (found && line !== found.line) {
       diagnostic(
         currentToken,
@@ -456,12 +512,15 @@ export const parseFountain = (
       ...(found || {}),
       start,
       line,
+      name,
       type,
       value: resolvedValue,
+      valueText,
     };
+    const sectionId = ids?.[0] || "";
+    const id = `${sectionId}.${name}`;
     result.assets[id] = asset;
-    const parentId = id.split(".").slice(0, -1).join(".") || "";
-    const parent = result.sections[parentId];
+    const parent = result.sections[sectionId];
     if (parent) {
       if (!parent.assets) {
         parent.assets = {};
@@ -473,17 +532,22 @@ export const parseFountain = (
   const addEntity = (
     type: FountainEntityType,
     name: string,
+    valueText: string,
     value: string | { name: string },
     start: number,
     line: number,
     match: string[],
     index: number
   ): void => {
-    const id = getGlobalId(name);
     if (!result.entities) {
       result.entities = {};
     }
-    const found = result.entities?.[id];
+    const ids = getAncestorIds(currentSectionId);
+    const foundSectionId = ids.find((x) =>
+      Boolean(result.entities?.[`${x}.${name}`])
+    );
+    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
+    const found = result.entities?.[foundId];
     if (found && line !== found.line) {
       diagnostic(
         currentToken,
@@ -503,12 +567,15 @@ export const parseFountain = (
       ...(found || {}),
       start,
       line,
+      name,
       type,
       value: resolvedValue,
+      valueText,
     };
+    const sectionId = ids?.[0] || "";
+    const id = `${sectionId}.${name}`;
     result.entities[id] = asset;
-    const parentId = id.split(".").slice(0, -1).join(".") || "";
-    const parent = result.sections[parentId];
+    const parent = result.sections[sectionId];
     if (parent) {
       if (!parent.entities) {
         parent.entities = {};
@@ -519,17 +586,22 @@ export const parseFountain = (
 
   const addTag = (
     name: string,
+    valueText: string,
     value: string | { name: string },
     start: number,
     line: number,
     match: string[],
     index: number
   ): void => {
-    const id = getGlobalId(name);
     if (!result.tags) {
       result.tags = {};
     }
-    const found = result.tags[id];
+    const ids = getAncestorIds(currentSectionId);
+    const foundSectionId = ids.find((x) =>
+      Boolean(result.tags?.[`${x}.${name}`])
+    );
+    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
+    const found = result.tags?.[foundId];
     if (found && line !== found.line) {
       diagnostic(
         currentToken,
@@ -548,12 +620,15 @@ export const parseFountain = (
     const tag = {
       ...(found || {}),
       start,
+      name,
       line,
       value: resolvedValue,
+      valueText,
     };
+    const sectionId = ids?.[0] || "";
+    const id = `${sectionId}.${name}`;
     result.tags[id] = tag;
-    const parentId = id.split(".").slice(0, -1).join(".") || "";
-    const parent = result.sections[parentId];
+    const parent = result.sections[sectionId];
     if (parent) {
       if (!parent.tags) {
         parent.tags = {};
@@ -564,6 +639,7 @@ export const parseFountain = (
 
   const addVariable = (
     name: string,
+    valueText: string,
     value: string | number | { name: string },
     start: number,
     line: number,
@@ -571,11 +647,15 @@ export const parseFountain = (
     index: number
   ): void => {
     const type = typeof value as FountainVariableType;
-    const id = getGlobalId(name);
     if (!result.variables) {
       result.variables = {};
     }
-    const found = result.variables[id];
+    const ids = getAncestorIds(currentSectionId);
+    const foundSectionId = ids.find((x) =>
+      Boolean(result.variables?.[`${x}.${name}`])
+    );
+    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
+    const found = result.variables?.[foundId];
     if (found && line !== found.line) {
       diagnostic(
         currentToken,
@@ -595,12 +675,15 @@ export const parseFountain = (
       ...(found || {}),
       start,
       line,
+      name,
       type,
       value: resolvedValue,
+      valueText,
     };
+    const sectionId = ids?.[0] || "";
+    const id = `${sectionId}.${name}`;
     result.variables[id] = variable;
-    const parentId = id.split(".").slice(0, -1).join(".") || "";
-    const parent = result.sections[parentId];
+    const parent = result.sections[sectionId];
     if (parent) {
       if (!parent.variables) {
         parent.variables = {};
@@ -676,38 +759,6 @@ export const parseFountain = (
     return undefined;
   };
 
-  const getValueType = (value: string): FountainVariableType => {
-    if (value.match(fountainRegexes.string)) {
-      return "string";
-    }
-    const numValue = Number(value);
-    if (!Number.isNaN(numValue)) {
-      return "number";
-    }
-    return undefined;
-  };
-
-  const getVariableValue = (
-    content: string,
-    match?: string[],
-    index?: number
-  ): string | number | { name: string } => {
-    const type = getValueType(content);
-    if (type === "string") {
-      return content.slice(1, -1);
-    }
-    if (type === "number") {
-      return Number(content);
-    }
-    const found = getVariable(type, content, match, index);
-    if (found) {
-      return {
-        name: content,
-      };
-    }
-    return undefined;
-  };
-
   const getParameterNames = (match: string[], groupIndex: number): string[] => {
     if (!match) {
       return [];
@@ -727,9 +778,11 @@ export const parseFountain = (
       if (!declaration.match(fountainRegexes.separator)) {
         const [nameString, valueString] = declaration.split("=");
         const name = nameString.trim();
-        const value = getVariableValue(valueString.trim());
+        const valueText = valueString.trim();
+        const value = getVariableValue(valueText, match, i);
         addVariable(
           name,
+          valueText,
           value,
           currentToken.start,
           currentToken.line,
@@ -1075,6 +1128,11 @@ export const parseFountain = (
           pushNotes();
           saveAndClearNotes();
           const scene = match[11] || "";
+          const locationText = match[4] || "";
+          const time = match[8] || "";
+          const location = locationText.startsWith(".")
+            ? locationText.substring(1)
+            : locationText;
           const content = match
             .slice(2, 10)
             .map((x) => x || "")
@@ -1091,11 +1149,22 @@ export const parseFountain = (
             scene: currentToken.scene,
             line: currentToken.line,
           });
-          if (!result.properties.sceneNames) {
-            result.properties.sceneNames = [];
+          if (!result.properties.locations) {
+            result.properties.locations = {};
           }
-          result.properties.sceneNames.push(currentToken.content);
-          sceneNumber += 1;
+          if (result.properties.locations[location]) {
+            result.properties.locations[location].push(currentToken.line);
+          } else {
+            result.properties.locations[location] = [currentToken.line];
+          }
+          if (!result.properties.times) {
+            result.properties.times = {};
+          }
+          if (result.properties.times[time]) {
+            result.properties.times[time].push(currentToken.line);
+          } else {
+            result.properties.times[time] = [currentToken.line];
+          }
         }
       } else if (
         currentToken.content.length &&
@@ -1212,17 +1281,18 @@ export const parseFountain = (
         ) {
           if ((match = lint(fountainRegexes.asset))) {
             const name = match[4]?.trim() || "";
-            const content = match[8]?.trim() || "";
-            currentToken.content = content;
+            const valueText = match[8]?.trim() || "";
+            currentToken.content = valueText;
             currentToken.value = getAssetValue(
               currentToken.type,
-              content,
+              valueText,
               match,
               8
             );
             addAsset(
               currentToken.type,
               name,
+              valueText,
               currentToken.value,
               currentToken.start,
               currentToken.line,
@@ -1234,23 +1304,24 @@ export const parseFountain = (
       } else if ((match = currentToken.content.match(fountainRegexes.entity))) {
         currentToken.type = match[2]?.trim() as FountainEntityType;
         if (
-          currentToken.type === "element" ||
+          currentToken.type === "ui" ||
           currentToken.type === "object" ||
           currentToken.type === "enum"
         ) {
           if ((match = lint(fountainRegexes.entity))) {
             const name = match[4]?.trim() || "";
-            const content = match[8]?.trim() || "";
-            currentToken.content = content;
+            const valueText = match[8]?.trim() || "";
+            currentToken.content = valueText;
             currentToken.value = getEntityValue(
               currentToken.type,
-              content,
+              valueText,
               match,
               8
             );
             addEntity(
               currentToken.type,
               name,
+              valueText,
               currentToken.value,
               currentToken.start,
               currentToken.line,
@@ -1264,12 +1335,13 @@ export const parseFountain = (
         if (currentToken.type === "tag") {
           if ((match = lint(fountainRegexes.tag))) {
             const name = match[4]?.trim() || "";
-            const content = match[8]?.trim() || "";
-            currentToken.content = content;
-            currentToken.value = getTagValue(content, match, 8);
+            const valueText = match[8]?.trim() || "";
+            currentToken.content = valueText;
+            currentToken.value = getTagValue(valueText, match, 8);
             const value = currentToken.value;
             addTag(
               name,
+              valueText,
               value,
               currentToken.start,
               currentToken.line,
@@ -1286,13 +1358,14 @@ export const parseFountain = (
           if ((match = lint(fountainRegexes.variable))) {
             const name = match[4]?.trim() || "";
             const operator = match[6]?.trim() || "";
-            const value = match[8]?.trim() || "";
+            const valueText = match[8]?.trim() || "";
             currentToken.name = name;
             currentToken.operator = operator;
-            currentToken.content = value;
-            currentToken.value = getVariableValue(value, match, 8);
+            currentToken.content = valueText;
+            currentToken.value = getVariableValue(valueText.trim(), match, 8);
             addVariable(
               name,
+              valueText,
               currentToken.value,
               currentToken.start,
               currentToken.line,
@@ -1417,20 +1490,13 @@ export const parseFountain = (
           }
           const character = trimCharacterExtension(currentToken.content).trim();
           const characterName = character.replace(/\^$/, "").trim();
-          if (result.properties.characters?.[characterName]) {
-            const values = result.properties.characters[characterName];
-            if (values.indexOf(sceneNumber) === -1) {
-              values.push(sceneNumber);
-            }
-            if (!result.properties.characters) {
-              result.properties.characters = {};
-            }
-            result.properties.characters[characterName] = values;
+          if (!result.properties.characters) {
+            result.properties.characters = {};
+          }
+          if (result.properties.characters[characterName]) {
+            result.properties.characters[characterName].push(currentToken.line);
           } else {
-            if (!result.properties.characters) {
-              result.properties.characters = {};
-            }
-            result.properties.characters[characterName] = [sceneNumber];
+            result.properties.characters[characterName] = [currentToken.line];
           }
           previousCharacter = currentToken.content;
           lastCharacterIndex = result.scriptTokens.length;

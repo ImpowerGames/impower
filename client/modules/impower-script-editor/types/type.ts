@@ -64,6 +64,8 @@ export enum Type {
   GoSectionName,
   ReturnValue,
   PageBreak,
+  PossibleCharacterName,
+  PossibleCharacter,
 
   // Markdown Inline
   Escape,
