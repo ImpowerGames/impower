@@ -400,10 +400,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ".cm-lintRange-active": {
               backgroundColor: "#ffdd991a",
             },
-            ".cm-completionInfo": {
-              fontFamily: "monospace",
-              fontStyle: "italic",
-            },
             ".cm-completionIcon-section": {
               "&:after": { content: "'#'", color: colors.section },
             },
@@ -436,6 +432,12 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
                 color: colors.variable,
               },
             },
+            ".cm-completionIcon-parameter": {
+              "&:after": {
+                content: "'ρ'",
+                color: colors.parameter,
+              },
+            },
             ".cm-completionIcon-asset": {
               "&:after": { content: "'Ꭿ'", color: colors.asset },
             },
@@ -449,6 +451,12 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
               "&:after": { content: "'○'", color: colors.dialogue },
             },
             ".cm-completionIcon-method": {
+              "&:after": {
+                content: "'m'",
+                color: colors.section,
+              },
+            },
+            ".cm-completionIcon-function": {
               "&:after": {
                 content: "'ƒ'",
                 color: colors.section,

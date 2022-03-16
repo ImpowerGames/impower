@@ -15,9 +15,9 @@ import {
   SetCommandData,
   SetOperator,
 } from "../../data";
+import { getScopedItem } from "../../data/utils/getScopedItem";
 import { getRuntimeDynamicData } from "./getRuntimeDynamicData";
 import { getRuntimeVariableReference } from "./getRuntimeVariableReference";
-import { getScopedItem } from "./getScopedItem";
 
 const getDisplayCommand = (
   token: FountainToken,
@@ -46,7 +46,7 @@ const getDisplayCommand = (
     content: dialogueToken.text || dialogueToken.content,
     assets:
       dialogueToken.assets?.map(({ name }) =>
-        getScopedItem(name, sectionId, assets)
+        getScopedItem(assets, sectionId, name)
       ) || [],
     waitUntilFinished: dialogueToken.position !== "left",
   };
@@ -71,7 +71,7 @@ export const getRuntimeCommand = (
       }),
       pos: token.start,
       line: token.line,
-      variable: getRuntimeVariableReference(token.name, sectionId, variables),
+      variable: getRuntimeVariableReference(variables, sectionId, token.name),
       operator: token.operator as SetOperator,
       value: getRuntimeDynamicData(token.value, sectionId, variables),
     };

@@ -17,7 +17,7 @@ import { FountainTokenType } from "../types/FountainTokenType";
 import { FountainVariable } from "../types/FountainVariable";
 import { FountainVariableType } from "../types/FountainVariableType";
 import { createFountainToken } from "./createFountainToken";
-import { getAncestorIds } from "./getAncestorIds";
+import { getScopedItem } from "./getScopedItem";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
@@ -136,7 +136,7 @@ export const parseFountain = (
       return -1;
     }
     const group = match[groupIndex];
-    if (!group) {
+    if (group == null) {
       return -1;
     }
     return match.slice(1, groupIndex).reduce((p, x) => p + (x?.length || 0), 0);
@@ -147,7 +147,7 @@ export const parseFountain = (
       return -1;
     }
     const group = match[groupIndex];
-    if (!group) {
+    if (group == null) {
       return -1;
     }
     return group.length;
@@ -182,6 +182,26 @@ export const parseFountain = (
     return lintedMatch;
   };
 
+  const findSection = (sectionId: string, name: string): FountainSection => {
+    return getScopedItem(result?.sections, sectionId, name);
+  };
+
+  const findVariable = (sectionId: string, name: string): FountainVariable => {
+    return getScopedItem(result?.variables, sectionId, name, "param-");
+  };
+
+  const findAsset = (sectionId: string, name: string): FountainAsset => {
+    return getScopedItem(result?.assets, sectionId, name);
+  };
+
+  const findEntity = (sectionId: string, name: string): FountainEntity => {
+    return getScopedItem(result?.entities, sectionId, name);
+  };
+
+  const findTag = (sectionId: string, name: string): FountainTag => {
+    return getScopedItem(result?.tags, sectionId, name);
+  };
+
   const addSection = (
     id: string,
     section: FountainSection,
@@ -199,17 +219,33 @@ export const parseFountain = (
       }
       parent.children.push(id);
     }
-    const existingContainer = result.sections[id];
-    if (existingContainer?.line) {
+    const existingChild = result.sections[id];
+    const sectionName = id.split(".").slice(-1).join("");
+    const existingAncestor = findSection(
+      currentSectionId.split(".").slice(0, -1).join("."),
+      sectionName
+    );
+    const found = existingChild || existingAncestor;
+    if (found?.name && found?.line !== section?.line) {
       diagnostic(
         currentToken,
-        `A section named '${section.name}' already exists at line ${existingContainer.line}`,
-        getActions(existingContainer.start),
+        `A section named '${section.name}' already exists at line ${found.line}`,
+        getActions(found.start),
         getStart(match, index),
         getLength(match, index)
       );
     }
-    result.sections[id] = { ...(existingContainer || {}), ...section };
+    const existingVariable = findVariable(currentSectionId, section.name);
+    if (existingVariable?.name) {
+      diagnostic(
+        currentToken,
+        `A variable named '${section.name}' already exists at line ${existingVariable.line}`,
+        getActions(existingVariable.start),
+        getStart(match, index),
+        getLength(match, index)
+      );
+    }
+    result.sections[id] = { ...(found || {}), ...section };
     if (!result.sectionLines) {
       result.sectionLines = {};
     }
@@ -229,14 +265,14 @@ export const parseFountain = (
     const global = nameOrId.startsWith(".");
     const found = global
       ? result.sections?.[nameOrId]
-      : result.sections?.[`${currentSectionId}.${nameOrId}`];
+      : findSection(currentSectionId, nameOrId);
     if (!found) {
       diagnostic(
         currentToken,
         `Could not find ${
           global
             ? `section with id '${nameOrId}'`
-            : `child section named '${nameOrId}'`
+            : `child or ancestor section named '${nameOrId}'`
         }`,
         getActions(),
         start != null ? start : getStart(match, index),
@@ -258,38 +294,33 @@ export const parseFountain = (
     if (!name) {
       return undefined;
     }
-    const typeName = type || "asset";
+    const validType = type || "image";
     const numValue = Number(name);
     if (!Number.isNaN(numValue)) {
       diagnostic(
         currentToken,
-        `'${name}' is not a valid ${typeName} value`,
+        `'${name}' is not a valid ${validType} value`,
         getActions(),
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
       );
       return null;
     }
-    const ids = getAncestorIds(currentSectionId);
-    const foundSectionId = ids.find((x) =>
-      Boolean(result.assets?.[`${x}.${name}`])
-    );
-    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
-    const found = result.assets?.[foundId];
+    const found = findAsset(currentSectionId, name);
     if (!found) {
       diagnostic(
         currentToken,
-        `Could not find ${typeName} named '${name}'`,
+        `Could not find ${validType} named '${name}'`,
         getActions(),
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
       );
       return null;
     }
-    if (type && found.type !== type) {
+    if (found.type !== validType) {
       diagnostic(
         currentToken,
-        `'${name}' is not ${prefixArticle(typeName)} asset`,
+        `'${name}' is not ${prefixArticle(validType)} asset`,
         getActions(found.line),
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
@@ -310,38 +341,33 @@ export const parseFountain = (
     if (!name) {
       return undefined;
     }
-    const typeName = type || "entity";
+    const validType = type || "enum";
     const numValue = Number(name);
     if (!Number.isNaN(numValue)) {
       diagnostic(
         currentToken,
-        `'${name}' is not a valid ${typeName} value`,
+        `'${name}' is not a valid ${validType} value`,
         getActions(),
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
       );
       return null;
     }
-    const ids = getAncestorIds(currentSectionId);
-    const foundSectionId = ids.find((x) =>
-      Boolean(result.entities?.[`${x}.${name}`])
-    );
-    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
-    const found = result.entities?.[foundId];
+    const found = findEntity(currentSectionId, name);
     if (!found) {
       diagnostic(
         currentToken,
-        `Could not find ${typeName} named '${name}'`,
+        `Could not find ${validType} named '${name}'`,
         getActions(),
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
       );
       return null;
     }
-    if (type && found.type !== type) {
+    if (found.type !== validType) {
       diagnostic(
         currentToken,
-        `'${name}' is not ${prefixArticle(typeName)} entity`,
+        `'${name}' is not ${prefixArticle(validType)} entity`,
         getActions(found.start),
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
@@ -372,12 +398,7 @@ export const parseFountain = (
       );
       return null;
     }
-    const ids = getAncestorIds(currentSectionId);
-    const foundSectionId = ids.find((x) =>
-      Boolean(result.tags?.[`${x}.${name}`])
-    );
-    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
-    const found = result.tags?.[foundId];
+    const found = findTag(currentSectionId, name);
     if (!found) {
       diagnostic(
         currentToken,
@@ -402,13 +423,8 @@ export const parseFountain = (
     if (!name) {
       return undefined;
     }
-    const typeName = type || "variable";
-    const ids = getAncestorIds(currentSectionId);
-    const foundSectionId = ids.find((x) =>
-      Boolean(result.variables?.[`${x}.${name}`])
-    );
-    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
-    const found = result.variables?.[foundId];
+    const validType = type || "string";
+    const found = findVariable(currentSectionId, name);
     if (!found) {
       diagnostic(
         currentToken,
@@ -419,10 +435,10 @@ export const parseFountain = (
       );
       return null;
     }
-    if (type && found.type !== type) {
+    if (found.type !== validType) {
       diagnostic(
         currentToken,
-        `'${name}' is not ${prefixArticle(typeName)} variable`,
+        `'${name}' is not ${prefixArticle(validType)} variable`,
         getActions(found.start),
         start != null ? start : getStart(match, index),
         length != null ? length : getLength(match, index)
@@ -433,6 +449,9 @@ export const parseFountain = (
   };
 
   const getValueType = (value: string): FountainVariableType => {
+    if (value == null || value === "") {
+      return null;
+    }
     if (value.match(fountainRegexes.string)) {
       return "string";
     }
@@ -443,11 +462,11 @@ export const parseFountain = (
     return undefined;
   };
 
-  const getVariableValue = (
+  const getValue = (
     content: string,
     match?: string[],
     index?: number
-  ): string | number | { name: string } => {
+  ): string | number | { name: string; type: "string" | "number" } => {
     const type = getValueType(content);
     if (type === "string") {
       return content.slice(1, -1);
@@ -459,6 +478,7 @@ export const parseFountain = (
     if (found) {
       return {
         name: content,
+        type: found.type,
       };
     }
     return undefined;
@@ -477,12 +497,7 @@ export const parseFountain = (
     if (!result.assets) {
       result.assets = {};
     }
-    const ids = getAncestorIds(currentSectionId);
-    const foundSectionId = ids.find((x) =>
-      Boolean(result.assets?.[`${x}.${name}`])
-    );
-    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
-    const found = result.assets?.[foundId];
+    const found = findAsset(currentSectionId, name);
     if (found && line !== found.line) {
       diagnostic(
         currentToken,
@@ -507,10 +522,9 @@ export const parseFountain = (
       value: resolvedValue,
       valueText,
     };
-    const sectionId = ids?.[0] || "";
-    const id = `${sectionId}.${name}`;
+    const id = `${currentSectionId}.${name}`;
     result.assets[id] = asset;
-    const parent = result.sections[sectionId];
+    const parent = result.sections[currentSectionId];
     if (parent) {
       if (!parent.assets) {
         parent.assets = {};
@@ -532,12 +546,7 @@ export const parseFountain = (
     if (!result.entities) {
       result.entities = {};
     }
-    const ids = getAncestorIds(currentSectionId);
-    const foundSectionId = ids.find((x) =>
-      Boolean(result.entities?.[`${x}.${name}`])
-    );
-    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
-    const found = result.entities?.[foundId];
+    const found = findEntity(currentSectionId, name);
     if (found && line !== found.line) {
       diagnostic(
         currentToken,
@@ -562,10 +571,9 @@ export const parseFountain = (
       value: resolvedValue,
       valueText,
     };
-    const sectionId = ids?.[0] || "";
-    const id = `${sectionId}.${name}`;
+    const id = `${currentSectionId}.${name}`;
     result.entities[id] = asset;
-    const parent = result.sections[sectionId];
+    const parent = result.sections[currentSectionId];
     if (parent) {
       if (!parent.entities) {
         parent.entities = {};
@@ -586,12 +594,7 @@ export const parseFountain = (
     if (!result.tags) {
       result.tags = {};
     }
-    const ids = getAncestorIds(currentSectionId);
-    const foundSectionId = ids.find((x) =>
-      Boolean(result.tags?.[`${x}.${name}`])
-    );
-    const foundId = foundSectionId != null ? `${foundSectionId}.${name}` : "";
-    const found = result.tags?.[foundId];
+    const found = findTag(currentSectionId, name);
     if (found && line !== found.line) {
       diagnostic(
         currentToken,
@@ -615,10 +618,9 @@ export const parseFountain = (
       value: resolvedValue,
       valueText,
     };
-    const sectionId = ids?.[0] || "";
-    const id = `${sectionId}.${name}`;
+    const id = `${currentSectionId}.${name}`;
     result.tags[id] = tag;
-    const parent = result.sections[sectionId];
+    const parent = result.sections[currentSectionId];
     if (parent) {
       if (!parent.tags) {
         parent.tags = {};
@@ -641,19 +643,27 @@ export const parseFountain = (
     if (!result.variables) {
       result.variables = {};
     }
-    const ids = getAncestorIds(currentSectionId);
-    const foundSectionId =
-      ids.find((x) => Boolean(result.variables?.[`${x}.${name}`])) || "";
-    const found =
-      result.variables?.[`${currentSectionId}.param-${name}`] ||
-      result.variables?.[`${foundSectionId}.${name}`];
-    if (found && line !== found.line) {
+    const found = findVariable(currentSectionId, name);
+    if (found?.name && line !== found.line) {
       diagnostic(
         currentToken,
         `A ${
           currentSectionId ? "local" : "global"
         } variable named '${name}' already exists at line ${found.line}`,
         getActions(found.start),
+        getStart(match, index),
+        getLength(match, index)
+      );
+    }
+    const existingSection = findSection(
+      currentSectionId.split(".").slice(0, -1).join("."),
+      name
+    );
+    if (existingSection?.name) {
+      diagnostic(
+        currentToken,
+        `A section named '${name}' already exists at line ${existingSection.line}`,
+        getActions(existingSection.start),
         getStart(match, index),
         getLength(match, index)
       );
@@ -671,10 +681,12 @@ export const parseFountain = (
       value: resolvedValue,
       valueText,
     };
-    const sectionId = ids?.[0] || "";
-    const id = `${sectionId}.${parameter ? "param-" : ""}${name}`;
+    if (parameter) {
+      variable.parameter = true;
+    }
+    const id = `${currentSectionId}.${parameter ? "param-" : ""}${name}`;
     result.variables[id] = variable;
-    const parent = result.sections[sectionId];
+    const parent = result.sections[currentSectionId];
     if (parent) {
       if (!parent.variables) {
         parent.variables = {};
@@ -719,20 +731,6 @@ export const parseFountain = (
     return undefined;
   };
 
-  const getEntityReference = (
-    content: string,
-    match?: string[],
-    index?: number
-  ): { name: string } => {
-    const found = getEntity(undefined, content, match, index);
-    if (found) {
-      return {
-        name: content,
-      };
-    }
-    return undefined;
-  };
-
   const getTagValue = (
     content: string,
     match?: string[],
@@ -750,90 +748,183 @@ export const parseFountain = (
     return undefined;
   };
 
-  const getParameterNames = (match: string[], groupIndex: number): string[] => {
+  const getParameterDeclarations = (
+    match: string[],
+    groupIndex: number
+  ): string[] => {
     if (!match) {
       return [];
     }
-    const values = match[groupIndex] || "";
-    const parameterMatches = values.match(
-      fountainRegexes.parameter_declarations
-    );
-    if (!parameterMatches) {
+    const parametersWithParenthesisString = match[groupIndex] || "";
+    if (!parametersWithParenthesisString) {
       return [];
     }
+    const parametersString = parametersWithParenthesisString.slice(1, -1);
+    const tokenMatches = parametersString.split(fountainRegexes.separator);
+    if (!tokenMatches) {
+      diagnostic(
+        currentToken,
+        "Invalid parameters syntax",
+        [],
+        getStart(match, groupIndex),
+        getLength(match, groupIndex) - 1
+      );
+      return [];
+    }
+    if (tokenMatches.length === 1 && tokenMatches[0] === "") {
+      return [];
+    }
+    const allTokenMatches = ["(", ...tokenMatches, ")"];
     const allMatches = [...match];
-    allMatches.splice(groupIndex, 1, ...parameterMatches);
+    allMatches.splice(groupIndex, 1, ...allTokenMatches);
     const result: string[] = [];
-    for (let i = groupIndex; i < groupIndex + parameterMatches.length; i += 1) {
+    const start = groupIndex + 1;
+    const end = groupIndex + allTokenMatches.length - 1;
+    for (let i = start; i < end; i += 1) {
       const declaration = allMatches[i];
-      if (!declaration.match(fountainRegexes.separator)) {
-        const [nameString, valueString] = declaration.split("=");
-        const name = nameString.trim();
-        const valueText = valueString.trim();
-        const value = getVariableValue(valueText, match, i);
-        addVariable(
-          name,
-          valueText,
-          value,
-          true,
-          currentToken.start,
-          currentToken.line,
-          allMatches,
-          i
+      let parameterMatch: RegExpMatchArray;
+      if (declaration.match(fountainRegexes.separator)) {
+        // NoOp
+      } else if (!declaration.trim()) {
+        const isStart = i === start;
+        const separatorGroupIndex = isStart ? i + 1 : i - 1;
+        const separator = allMatches[separatorGroupIndex];
+        const prefixLength =
+          separator.length - separator.trimStart().length + 1;
+        const emptyStart =
+          getStart(allMatches, separatorGroupIndex) +
+          (isStart ? 0 : prefixLength);
+        const emptyLength =
+          getLength(allMatches, separatorGroupIndex) -
+          (isStart ? prefixLength - 1 : prefixLength);
+        diagnostic(
+          currentToken,
+          "Empty parameter",
+          [],
+          emptyStart,
+          emptyLength
         );
-        result.push(declaration);
-      }
-    }
-    return result;
-  };
-
-  const getGoParameterValues = (
-    match: string[],
-    groupIndex: number
-  ): (string | number | { name: string })[] => {
-    if (!match) {
-      return [];
-    }
-    const values = match[groupIndex] || "";
-    const parameterMatches = values.match(fountainRegexes.parameter_values);
-    if (!parameterMatches) {
-      return [];
-    }
-    const allMatches = [...match];
-    allMatches.splice(groupIndex, 1, ...parameterMatches);
-    const result: (string | number | { name: string })[] = [];
-    for (let i = groupIndex; i < groupIndex + parameterMatches.length; i += 1) {
-      const value = allMatches[i];
-      if (!value.match(fountainRegexes.separator)) {
-        result.push(getVariableValue(value, allMatches, i));
-      }
-    }
-    return result;
-  };
-
-  const getCallParameterValues = (
-    match: string[],
-    groupIndex: number
-  ): (string | number | { name: string })[] => {
-    if (!match) {
-      return [];
-    }
-    const values = match[groupIndex] || "";
-    const parameterMatches = values.match(fountainRegexes.parameter_values);
-    if (!parameterMatches) {
-      return [];
-    }
-    const allMatches = [...match];
-    allMatches.splice(groupIndex, 1, ...parameterMatches);
-    const result: (string | number | { name: string })[] = [];
-    for (let i = groupIndex; i < groupIndex + parameterMatches.length; i += 1) {
-      const value = allMatches[i];
-      if (!value.match(fountainRegexes.separator)) {
-        if (i === groupIndex) {
-          result.push(getEntityReference(value, allMatches, i));
-        } else {
-          result.push(getVariableValue(value, allMatches, i));
+      } else if (
+        (parameterMatch = declaration.match(
+          fountainRegexes.parameter_declaration
+        ))
+      ) {
+        const name = parameterMatch[1] || "";
+        const valueText = parameterMatch[5] || "";
+        const value = valueText ? getValue(valueText, allMatches, i) : "";
+        if (name) {
+          addVariable(
+            name,
+            valueText,
+            value,
+            true,
+            currentToken.start,
+            currentToken.line,
+            allMatches,
+            i
+          );
         }
+        result.push(declaration);
+      } else {
+        diagnostic(
+          currentToken,
+          `Invalid parameter declaration:\nParameter must be initialized to a string (x = "") or number (x = 0)`,
+          [],
+          getStart(allMatches, i),
+          getLength(allMatches, i)
+        );
+      }
+    }
+    return result;
+  };
+
+  const getParameterValues = (
+    section: FountainSection,
+    match: string[],
+    groupIndex: number
+  ): (string | number | { name: string })[] => {
+    if (!section) {
+      return [];
+    }
+    const parameters = Object.values(section.variables || {}).filter(
+      (v) => v.parameter
+    );
+    if (!match) {
+      return [];
+    }
+    const parametersWithParenthesisString = match[groupIndex] || "";
+    if (!parametersWithParenthesisString) {
+      return [];
+    }
+    const parametersString = parametersWithParenthesisString.slice(1, -1);
+    const tokenMatches = parametersString.split(fountainRegexes.separator);
+    if (!tokenMatches) {
+      diagnostic(
+        currentToken,
+        "Invalid parameters syntax",
+        [],
+        getStart(match, groupIndex),
+        getLength(match, groupIndex) - 1
+      );
+      return [];
+    }
+    if (tokenMatches.length === 1 && tokenMatches[0] === "") {
+      return [];
+    }
+    const allTokenMatches = ["(", ...tokenMatches, ")"];
+    const allMatches = [...match];
+    allMatches.splice(groupIndex, 1, ...allTokenMatches);
+    const result: (
+      | string
+      | number
+      | {
+          name: string;
+          type: "string" | "number";
+        }
+    )[] = [];
+    const start = groupIndex + 1;
+    const end = groupIndex + allTokenMatches.length - 1;
+    let paramIndex = 0;
+    for (let i = start; i < end; i += 1) {
+      const parameterValue = allMatches[i];
+      const parameter = parameters?.[paramIndex];
+      let parameterMatch: RegExpMatchArray;
+      if (parameterValue.match(fountainRegexes.separator)) {
+        // NoOp
+      } else if (!parameterValue.trim()) {
+        result.push(parameter?.value);
+        paramIndex += 1;
+      } else if (
+        (parameterMatch = parameterValue.match(fountainRegexes.parameter_value))
+      ) {
+        const valueText = parameterMatch[1] || "";
+        const value = getValue(valueText, allMatches, i);
+        const type =
+          typeof value === "string" || typeof value === "number"
+            ? typeof value
+            : value?.type;
+        if (type && parameter?.type !== type) {
+          diagnostic(
+            currentToken,
+            `Parameter must be a ${parameter?.type}`,
+            [],
+            getStart(allMatches, i),
+            getLength(allMatches, i)
+          );
+        }
+        result.push(value);
+        paramIndex += 1;
+      } else {
+        diagnostic(
+          currentToken,
+          parameter?.type
+            ? `Parameter must be a ${parameter?.type}`
+            : `Invalid parameter value`,
+          [],
+          getStart(allMatches, i),
+          getLength(allMatches, i)
+        );
+        paramIndex += 1;
       }
     }
     return result;
@@ -976,23 +1067,23 @@ export const parseFountain = (
         const level = match[2].length;
         const operator = match[4] || "";
         const name = match[5] || "";
+        const id = `${operator}${name}`;
         if (level === 0) {
-          currentSectionId = name;
+          currentSectionId = id;
         } else if (level === 1) {
-          currentSectionId = `.${name}`;
+          currentSectionId = `.${id}`;
         } else if (level > currentLevel) {
-          currentSectionId += `.${name}`;
+          currentSectionId += `.${id}`;
         } else if (level < currentLevel) {
           const grandparentId = currentSectionId
             .split(".")
             .slice(0, -2)
             .join(".");
-          currentSectionId = `${grandparentId}.${name}`;
+          currentSectionId = `${grandparentId}.${id}`;
         } else {
           const parentId = currentSectionId.split(".").slice(0, -1).join(".");
-          currentSectionId = `${parentId}.${name}`;
+          currentSectionId = `${parentId}.${id}`;
         }
-        currentSectionTokens = [];
         addSection(
           currentSectionId,
           {
@@ -1005,7 +1096,27 @@ export const parseFountain = (
           match,
           5
         );
-        currentLevel = level;
+        startNewSection(level);
+        getParameterDeclarations(match, 7);
+      }
+    } else if ((match = currentToken.content.match(fountainRegexes.variable))) {
+      currentToken.type = "variable";
+      if (currentToken.type === "variable") {
+        const name = match[4]?.trim() || "";
+        const valueText = match[8]?.trim() || "";
+        const value = valueText ? getValue(valueText, match, 8) : "";
+        if (name) {
+          addVariable(
+            name,
+            valueText,
+            value,
+            false,
+            currentToken.start,
+            currentToken.line,
+            match,
+            4
+          );
+        }
       }
     }
   }
@@ -1193,11 +1304,11 @@ export const parseFountain = (
         currentToken.type = "go";
         if (currentToken.type === "go") {
           if ((match = lint(fountainRegexes.go))) {
-            currentToken.content = match[5]?.trim() || "";
-            if (currentToken.content) {
-              getSection(currentToken.content, match, 5);
-            }
-            currentToken.values = getGoParameterValues(match, 9);
+            const name = match[4]?.trim() || "";
+            const section =
+              name !== "!END" ? getSection(name, match, 4) : undefined;
+            currentToken.name = name;
+            currentToken.values = getParameterValues(section, match, 6);
           }
         }
       } else if ((match = currentToken.content.match(fountainRegexes.repeat))) {
@@ -1206,8 +1317,9 @@ export const parseFountain = (
         currentToken.type = "return";
         if (currentToken.type === "return") {
           if ((match = lint(fountainRegexes.return))) {
-            const value = match[4]?.trim() || "";
-            currentToken.value = getVariableValue(value, match, 4);
+            const valueText = match[4]?.trim() || "";
+            const value = valueText ? getValue(valueText, match, 4) : "";
+            currentToken.value = value;
           }
         }
       } else if (currentToken.content.match(fountainRegexes.list)) {
@@ -1232,7 +1344,8 @@ export const parseFountain = (
             if ((match = lint(fountainRegexes.call))) {
               const name = match[4]?.trim() || "";
               currentToken.name = name;
-              currentToken.values = getCallParameterValues(match, 8);
+              const section = getSection(`*${name}`, match, 4);
+              currentToken.values = getParameterValues(section, match, 6);
             }
           }
         } else if (
@@ -1363,17 +1476,8 @@ export const parseFountain = (
             currentToken.name = name;
             currentToken.operator = operator;
             currentToken.content = valueText;
-            currentToken.value = getVariableValue(valueText.trim(), match, 8);
-            addVariable(
-              name,
-              valueText,
-              currentToken.value,
-              false,
-              currentToken.start,
-              currentToken.line,
-              match,
-              4
-            );
+            const value = valueText ? getValue(valueText, match, 8) : "";
+            currentToken.value = value;
           }
         }
       } else if (
@@ -1392,11 +1496,11 @@ export const parseFountain = (
           const markSpace = match[3] || "";
           const operator = match[4] || "";
           const name = match[5] || "";
+          const id = `${operator}${name}`;
           const level = mark.length;
           currentToken.level = level;
           currentToken.operator = operator;
           currentToken.content = name;
-          currentToken.parameters = getParameterNames(match, 9);
           if (level > currentLevel + 1) {
             const from = currentToken.start + currentToken.indent;
             const to = from + mark.length + markSpace.length;
@@ -1418,30 +1522,32 @@ export const parseFountain = (
               level
             );
             if (markSpace) {
-              currentSectionId += `.${name}`;
+              currentSectionId += `.${id}`;
               startNewSection(level);
+              currentToken.parameters = getParameterDeclarations(match, 7);
             }
           } else if (lint(fountainRegexes.section)) {
             if (level === 0) {
-              currentSectionId = name;
+              currentSectionId = id;
             } else if (level === 1) {
-              currentSectionId = `.${name}`;
+              currentSectionId = `.${id}`;
             } else if (level > currentLevel) {
-              currentSectionId += `.${name}`;
+              currentSectionId += `.${id}`;
             } else if (level < currentLevel) {
               const grandparentId = currentSectionId
                 .split(".")
                 .slice(0, -2)
                 .join(".");
-              currentSectionId = `${grandparentId}.${name}`;
+              currentSectionId = `${grandparentId}.${id}`;
             } else {
               const parentId = currentSectionId
                 .split(".")
                 .slice(0, -1)
                 .join(".");
-              currentSectionId = `${parentId}.${name}`;
+              currentSectionId = `${parentId}.${id}`;
             }
             startNewSection(level);
+            currentToken.parameters = getParameterDeclarations(match, 7);
           }
         }
       } else if (currentToken.content.match(fountainRegexes.page_break)) {

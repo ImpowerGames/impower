@@ -1,13 +1,13 @@
 import { FountainVariable } from "../../../impower-script-parser";
 import { createVariableReference, VariableReference } from "../../data";
-import { getScopedItem } from "./getScopedItem";
+import { getScopedItem } from "../../data/utils/getScopedItem";
 
 export const getRuntimeVariableReference = (
-  name: string,
+  variables: Record<string, FountainVariable>,
   sectionId: string,
-  variables: Record<string, FountainVariable>
+  name: string
 ): VariableReference => {
-  const variable = getScopedItem(name, sectionId, variables);
+  const variable = getScopedItem(variables, sectionId, name, "param-");
   return createVariableReference({
     parentContainerId: sectionId || "",
     refId: `${sectionId}.${name}`,

@@ -7,4 +7,5 @@ export interface FountainVariable {
   type: FountainVariableType;
   value: string | number;
   valueText: string;
+  parameter?: boolean;
 }

@@ -10,7 +10,7 @@ export const getRuntimeDynamicData = <T extends string | number>(
   const variableReference =
     typeof value === "string" || typeof value === "number"
       ? undefined
-      : getRuntimeVariableReference(value?.name, sectionId, variables);
+      : getRuntimeVariableReference(variables, sectionId, value?.name);
   const constant =
     typeof value === "number" ||
     variableReference?.refTypeId === "NumberVariable"

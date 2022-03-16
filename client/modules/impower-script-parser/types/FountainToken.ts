@@ -69,6 +69,7 @@ export interface FountainChoiceToken extends FountainLine {
 
 export interface FountainGoToken extends FountainLine {
   type: FountainGoTokenType;
+  name: string;
   values: (string | number | { name: string })[];
 }
 

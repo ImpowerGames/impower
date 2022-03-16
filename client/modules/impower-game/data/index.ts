@@ -125,4 +125,3 @@ export * from "./utils/getReferenceValue";
 export * from "./utils/getSetOperatorSymbol";
 export * from "./utils/getUnitNumberCSS";
 export * from "./utils/getVariableLifetimeSymbol";
-export * from "./utils/getVariableValue";

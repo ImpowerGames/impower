@@ -10,9 +10,18 @@ import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
 import {
   FountainParseResult,
+  FountainSection,
   getAncestorIds,
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
+
+interface Option {
+  name: string;
+  type: string;
+  value: string;
+  infoColor?: string;
+  completionType?: CompletionType;
+}
 
 const snip = (template: string, completion: Completion): Completion => {
   return { ...completion, apply: snippet(template) };
@@ -23,6 +32,7 @@ type CompletionType =
   | "method"
   | "class"
   | "interface"
+  | "parameter"
   | "variable"
   | "constant"
   | "type"
@@ -43,8 +53,20 @@ type CompletionType =
   | "transition"
   | "scene";
 
+const getInfoNode = (info: string, color?: string): Node => {
+  const preview = document.createElement("div");
+  const content = document.createTextNode(info);
+  preview.appendChild(content);
+  if (color) {
+    preview.style.color = color;
+  }
+  preview.style.fontFamily = "monospace";
+  preview.style.fontStyle = "italic";
+  return preview;
+};
+
 export const lowercaseParagraphSnippets: readonly Completion[] = [
-  snip("var ${}${newVariable} = ${value}${}", {
+  snip("var ${}${newVariable}", {
     label: "variable",
     type: "variable",
   }),
@@ -169,19 +191,19 @@ export const effectSnippets: readonly Completion[] = [
     label: "shake",
     type: "class",
   }),
-  snip("shake-v${}", {
+  snip("shake-v", {
     label: "shake-v",
     type: "class",
   }),
-  snip("shake-h${}", {
+  snip("shake-h", {
     label: "shake-h",
     type: "class",
   }),
-  snip("color:${}${blue}${}", {
+  snip("color:${}${blue}", {
     label: "color",
     type: "class",
   }),
-  snip("speed:${}${0.5}${}", {
+  snip("speed:${}${0.5}", {
     label: "speed",
     type: "class",
   }),
@@ -190,27 +212,27 @@ export const effectSnippets: readonly Completion[] = [
 export const callSnippets: readonly Completion[] = [
   snip("* spawn(${}${entityName})${}", {
     label: "* spawn",
-    detail: "(e)",
+    info: (): Node => getInfoNode(`(string)`, colors.section),
     type: "method",
   }),
   snip("* destroy(${}${entityName})${}", {
     label: "* destroy",
-    detail: "(e)",
+    info: (): Node => getInfoNode(`(string)`, colors.section),
     type: "method",
   }),
   snip("* move(${}${entityName}, ${x}, ${y})${}", {
     label: "* move",
-    detail: "(e,x,y)",
+    info: (): Node => getInfoNode(`(string, number, number)`, colors.section),
     type: "method",
   }),
   snip("* moveX(${}${entityName}, ${x})${}", {
     label: "* moveX",
-    detail: "(e,x)",
+    info: (): Node => getInfoNode(`(string, number)`, colors.section),
     type: "method",
   }),
   snip("* moveY(${}${entityName}, ${y})${}", {
     label: "* moveY",
-    detail: "(e,y)",
+    info: (): Node => getInfoNode(`(string, number)`, colors.section),
     type: "method",
   }),
 ];
@@ -219,63 +241,104 @@ export const scenePrefixSnippets: readonly Completion[] = [
   snip("${}INT", {
     label: "INT",
     type: "scene",
-    info: "(interior scene)",
+    info: (): Node => getInfoNode(`(interior scene)`),
   }),
   snip("${}EXT", {
     label: "EXT",
     type: "scene",
-    info: "(exterior scene)",
+    info: (): Node => getInfoNode(`(exterior scene)`),
   }),
   snip("${}INT/EXT", {
     label: "INT/EXT",
     type: "scene",
-    info: "(intercut between interior and exterior)",
+    info: (): Node => getInfoNode(`(intercut between interior and exterior)`),
   }),
 ];
 
 export const nameSnippets = (
-  options: string[] | { name: string; type: string; value: string }[],
+  options: (string | Option)[],
   completionType: CompletionType,
   prefix = "",
   suffix = "",
-  color?: string
+  infoColor?: string
 ): Completion[] => {
   return options.map((option) => {
     const name = typeof option === "string" ? option : option.name;
+    const type =
+      typeof option === "string"
+        ? completionType
+        : option?.completionType || completionType;
+    const color = typeof option === "string" ? infoColor : option?.infoColor;
     const info =
       typeof option === "string"
         ? undefined
-        : (): Node => {
-            const preview = document.createElement("div");
-            const content = document.createTextNode(`${option.type}`);
-            preview.appendChild(content);
-            preview.style.color = color;
-            return preview;
-          };
+        : (): Node => getInfoNode(`= ${option.type}`, color);
     return snip(prefix + name + suffix, {
       label: prefix + name,
       info,
-      type: completionType,
+      type,
     });
   });
 };
 
-export const assignOrCallSnippets = (
-  variableOptions: { name: string; type: string; value: string }[]
-): Completion[] => {
-  const snippets = [
-    ...nameSnippets(variableOptions, "variable", "* ", " ${}", colors.variable),
-    ...callSnippets,
-  ];
-  return snippets.map((s, i) => ({ ...s, boost: snippets.length - i }));
+export const getFunctionIds = (
+  ancestorIds: string[],
+  children: string[]
+): string[] => {
+  const validChildrenIds = children.filter((id) =>
+    id.split(".").slice(-1).join("").startsWith("*")
+  );
+  const validAncestorIds = ancestorIds
+    .slice(0, -1)
+    .filter((id) => id.split(".").slice(-1).join("").startsWith("*"));
+  return [...validChildrenIds, ...validAncestorIds];
 };
 
 export const getSectionOptions = (
   ancestorIds: string[],
   children: string[]
 ): string[] => {
-  const childrenNames = children.map((id) => id.split(".").slice(-1).join(""));
-  return [...childrenNames, "", ...ancestorIds.slice(0, -1), "!END"];
+  const validChildrenNames = children
+    .map((id) => id.split(".").slice(-1).join(""))
+    .filter((id) => !id.startsWith("*"));
+  const validAncestorIds = ancestorIds
+    .slice(0, -1)
+    .filter((id) => !id.split(".").slice(-1).join("").startsWith("*"));
+  return [...validChildrenNames, "", ...validAncestorIds, "!END"];
+};
+
+export const assignOrCallSnippets = (
+  variableOptions: Option[],
+  ancestorIds: string[],
+  children: string[],
+  sections: Record<string, FountainSection>
+): Completion[] => {
+  const functionIds = getFunctionIds(ancestorIds, children);
+  const snippets = [
+    ...nameSnippets(
+      variableOptions,
+      "variable",
+      "* ",
+      " = ${}${value}",
+      colors.variable
+    ),
+    ...functionIds.map((id) => {
+      const section = sections[id];
+      const parameters = Object.values(section.variables || {}).filter(
+        (v) => v.parameter
+      );
+      const paramsTemplate = parameters.map((p) => `#{${p.name}}`).join(", ");
+      const paramsDetail = parameters.map((p) => `${p.type}`).join(", ");
+      const info = (): Node => getInfoNode(`(${paramsDetail})`, colors.section);
+      return snip(`* ${section.name}(#{}${paramsTemplate})#{}`, {
+        label: `* ${section.name}`,
+        info,
+        type: "function",
+      });
+    }),
+    ...callSnippets,
+  ];
+  return snippets.map((s, i) => ({ ...s, boost: snippets.length - i }));
 };
 
 export const sectionSnippets = (
@@ -458,17 +521,23 @@ export const fountainAutocomplete = async (
   const section = result.sections?.[sectionId];
   const children = section?.children || [];
   const ancestorIds = getAncestorIds(sectionId);
-  const variableOptions = ancestorIds.flatMap((ancestorId) =>
+  const variableOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
     Object.keys(result.sections[ancestorId].variables || {}).map((id) => {
       const found = result.sections[ancestorId].variables[id];
+      const completionType: CompletionType = found.parameter
+        ? "parameter"
+        : "variable";
+      const infoColor = found.parameter ? colors.parameter : colors.variable;
       return {
         name: found.name,
         type: found.type,
         value: found.valueText,
+        completionType,
+        infoColor,
       };
     })
   );
-  const entityOptions = ancestorIds.flatMap((ancestorId) =>
+  const entityOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
     Object.keys(result.sections[ancestorId].entities || {}).map((id) => {
       const found = result.sections[ancestorId].entities[id];
       return {
@@ -478,7 +547,7 @@ export const fountainAutocomplete = async (
       };
     })
   );
-  const assetOptions = ancestorIds.flatMap((ancestorId) =>
+  const assetOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
     Object.keys(result.sections[ancestorId].assets || {}).map((id) => {
       const found = result.sections[ancestorId].assets[id];
       return {
@@ -488,7 +557,7 @@ export const fountainAutocomplete = async (
       };
     })
   );
-  const tagOptions = ancestorIds.flatMap((ancestorId) =>
+  const tagOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
     Object.keys(result.sections[ancestorId].tags || {}).map((id) => {
       const found = result.sections[ancestorId].tags[id];
       return {
@@ -568,7 +637,14 @@ export const fountainAutocomplete = async (
       ...effectSnippets
     );
   } else if (["AssignMark", "CallMark"].includes(node.name)) {
-    completions.push(...assignOrCallSnippets(variableOptions));
+    completions.push(
+      ...assignOrCallSnippets(
+        variableOptions,
+        ancestorIds,
+        children,
+        result?.sections
+      )
+    );
   } else if (node.name === "CallEntityName") {
     completions.push(
       ...nameSnippets(entityOptions, "entity", "", "", colors.entity)

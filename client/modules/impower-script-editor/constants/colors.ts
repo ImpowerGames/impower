@@ -2,7 +2,7 @@ export const colors = {
   invalid: "#FFFFFF",
   constant: "#FFFF00",
   keyword: "#00D0D0",
-  parameter: "#BFA4A4",
+  parameter: "#FF81FF",
   operator: "#D0D0D0",
   foreground: "#D4D4D4",
   background: "#00000040",
