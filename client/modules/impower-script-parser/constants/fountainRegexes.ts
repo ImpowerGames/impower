@@ -49,7 +49,7 @@ export const fountainRegexes = {
   separator: /([ ]*[,][ ]*)/g,
   parameter_declaration:
     /^([\w]+[\w\d]*)(?:([ ]*)([=])([ ]*)((?:[\w]+[\w\d]|[\d]+|[\d]*[.][\d]*|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*')))?$/,
-  parameter_value:
+  argument_value:
     /^([\w]+[\w\d]|[\d]+|[\d]*[.][\d]*|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*')$/,
 
   emphasis: /(_|\*{1,3}|_\*{1,3}|\*{1,3}_)(.+)(_|\*{1,3}|_\*{1,3}|\*{1,3}_)/g,
