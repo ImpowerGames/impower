@@ -838,7 +838,7 @@ export const parseFountain = (
     return result;
   };
 
-  const getParameterValues = (
+  const getArgumentValues = (
     section: FountainSection,
     match: string[],
     groupIndex: number
@@ -852,13 +852,15 @@ export const parseFountain = (
     if (!match) {
       return [];
     }
-    const parametersWithParenthesisString = match[groupIndex] || "";
-    if (!parametersWithParenthesisString) {
+    const argumentsWithParenthesisString = match[groupIndex] || "";
+    if (!argumentsWithParenthesisString) {
       return [];
     }
-    const parametersString = parametersWithParenthesisString.slice(1, -1);
-    const tokenMatches = parametersString.split(fountainRegexes.separator);
-    if (!tokenMatches) {
+    const argumentsString = argumentsWithParenthesisString.slice(1, -1);
+    const argumentTokenMatches = argumentsString.split(
+      fountainRegexes.separator
+    );
+    if (!argumentTokenMatches) {
       diagnostic(
         currentToken,
         "Invalid parameters syntax",
@@ -868,10 +870,10 @@ export const parseFountain = (
       );
       return [];
     }
-    if (tokenMatches.length === 1 && tokenMatches[0] === "") {
+    if (argumentTokenMatches.length === 1 && argumentTokenMatches[0] === "") {
       return [];
     }
-    const allTokenMatches = ["(", ...tokenMatches, ")"];
+    const allTokenMatches = ["(", ...argumentTokenMatches, ")"];
     const allMatches = [...match];
     allMatches.splice(groupIndex, 1, ...allTokenMatches);
     const result: (
@@ -885,25 +887,32 @@ export const parseFountain = (
     const start = groupIndex + 1;
     const end = groupIndex + allTokenMatches.length - 1;
     let paramIndex = 0;
+    const extraArgIndices: number[] = [];
     for (let i = start; i < end; i += 1) {
-      const parameterValue = allMatches[i];
+      const argumentValue = allMatches[i];
       const parameter = parameters?.[paramIndex];
-      let parameterMatch: RegExpMatchArray;
-      if (parameterValue.match(fountainRegexes.separator)) {
+      let argumentMatch: RegExpMatchArray;
+      if (argumentValue.match(fountainRegexes.separator)) {
         // NoOp
-      } else if (!parameterValue.trim()) {
+      } else if (!argumentValue.trim()) {
+        if (!parameter) {
+          extraArgIndices.push(i);
+        }
         result.push(parameter?.value);
         paramIndex += 1;
       } else if (
-        (parameterMatch = parameterValue.match(fountainRegexes.parameter_value))
+        (argumentMatch = argumentValue.match(fountainRegexes.argument_value))
       ) {
-        const valueText = parameterMatch[1] || "";
+        if (!parameter) {
+          extraArgIndices.push(i);
+        }
+        const valueText = argumentMatch[1] || "";
         const value = getValue(valueText, allMatches, i);
         const type =
           typeof value === "string" || typeof value === "number"
             ? typeof value
             : value?.type;
-        if (type && parameter?.type !== type) {
+        if (parameter && type && parameter?.type !== type) {
           diagnostic(
             currentToken,
             `Parameter must be a ${parameter?.type}`,
@@ -926,6 +935,19 @@ export const parseFountain = (
         );
         paramIndex += 1;
       }
+    }
+    if (extraArgIndices?.length > 0) {
+      extraArgIndices.forEach((extraArgIndex) => {
+        diagnostic(
+          currentToken,
+          `Expected ${parameters.length} ${
+            parameters.length === 1 ? "argument" : "arguments"
+          } but got ${parameters.length + extraArgIndices.length}`,
+          [],
+          getStart(allMatches, extraArgIndex),
+          getLength(allMatches, extraArgIndex)
+        );
+      });
     }
     return result;
   };
@@ -1308,7 +1330,7 @@ export const parseFountain = (
             const section =
               name !== "!END" ? getSection(name, match, 4) : undefined;
             currentToken.name = name;
-            currentToken.values = getParameterValues(section, match, 6);
+            currentToken.values = getArgumentValues(section, match, 6);
           }
         }
       } else if ((match = currentToken.content.match(fountainRegexes.repeat))) {
@@ -1338,16 +1360,6 @@ export const parseFountain = (
               currentToken.value = value;
             }
           }
-        } else if ((match = currentToken.content.match(fountainRegexes.call))) {
-          currentToken.type = "call";
-          if (currentToken.type === "call") {
-            if ((match = lint(fountainRegexes.call))) {
-              const name = match[4]?.trim() || "";
-              currentToken.name = name;
-              const section = getSection(`*${name}`, match, 4);
-              currentToken.values = getParameterValues(section, match, 6);
-            }
-          }
         } else if (
           (match = currentToken.content.match(fountainRegexes.condition))
         ) {
@@ -1363,6 +1375,16 @@ export const parseFountain = (
               currentToken.name = name;
               currentToken.operator = operator;
               currentToken.value = value;
+            }
+          }
+        } else if ((match = currentToken.content.match(fountainRegexes.call))) {
+          currentToken.type = "call";
+          if (currentToken.type === "call") {
+            if ((match = lint(fountainRegexes.call))) {
+              const name = match[4]?.trim() || "";
+              currentToken.name = name;
+              const section = getSection(`*${name}`, match, 4);
+              currentToken.values = getArgumentValues(section, match, 6);
             }
           }
         } else if (

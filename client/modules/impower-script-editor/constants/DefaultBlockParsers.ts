@@ -175,6 +175,8 @@ export const DefaultBlockParsers: {
     const markSpace = match[3] || "";
     const sectionName = match[4] || "";
     const sectionNameSpace = match[5] || "";
+    const parameters = match[6] || "";
+    const parametersSpace = match[7] || "";
 
     if (mark || markSpace) {
       from = to;
@@ -185,6 +187,39 @@ export const DefaultBlockParsers: {
       from = to;
       to = from + sectionName.length + sectionNameSpace.length;
       buf = buf.write(Type.GoSectionName, from, to);
+    }
+    if (parameters || parametersSpace) {
+      const values = parameters.slice(1, -1);
+      const openMark = "(";
+      const closeMark = ")";
+      if (openMark) {
+        from = to;
+        to = from + openMark.length;
+        buf = buf.write(Type.GoOpenMark, from, to);
+      }
+      const parameterTokenMatches = values.split(fountainRegexes.separator);
+      if (parameterTokenMatches) {
+        const start = 0;
+        const end = parameterTokenMatches.length;
+        for (let i = start; i < end; i += 1) {
+          const parameterValue = parameterTokenMatches[i];
+          from = to;
+          to = from + parameterValue.length;
+          if (i === parameterTokenMatches.length - 1) {
+            to += parametersSpace.length;
+          }
+          if (parameterValue.match(fountainRegexes.separator)) {
+            buf = buf.write(Type.GoSeparatorMark, from, to);
+          } else if (!parameterValue.trim()) {
+            buf = buf.write(Type.GoValue, from, to);
+          }
+        }
+      }
+      if (closeMark) {
+        from = to;
+        to = from + closeMark.length;
+        buf = buf.write(Type.GoCloseMark, from, to);
+      }
     }
 
     const node = buf.finish(Type.Go, line.text.length - line.pos);
@@ -544,7 +579,7 @@ export const DefaultBlockParsers: {
     }
 
     const match =
-      isAssign(line) || isCall(line) || isCondition(line) || isChoice(line);
+      isAssign(line) || isCondition(line) || isCall(line) || isChoice(line);
 
     if (!match) {
       return false;
@@ -594,59 +629,6 @@ export const DefaultBlockParsers: {
       }
 
       node = buf.finish(Type.Assign, line.text.length - line.pos);
-    } else if (match?.[0] === "call") {
-      const mark = match[2] || "";
-      const markSpace = match[3] || "";
-      const name = match[4] || "";
-      const nameSpace = match[5] || "";
-      const openMark = match[6] || "";
-      const openMarkSpace = match[7] || "";
-      const parameters = match[8] || "";
-      const parametersSpace = match[9] || "";
-      const closeMark = match[10] || "";
-      const closeMarkSpace = match[11] || "";
-
-      if (mark || markSpace) {
-        from = to;
-        to = from + mark.length + markSpace.length;
-        buf = buf.write(Type.CallMark, from, to);
-      }
-      if (name || nameSpace) {
-        from = to;
-        to = from + name.length + nameSpace.length;
-        buf = buf.write(Type.CallName, from, to);
-      }
-      if (openMark || openMarkSpace) {
-        from = to;
-        to = from + openMark.length + openMarkSpace.length;
-        buf = buf.write(Type.CallOpenMark, from, to);
-      }
-      const paramMatches = parameters.match(fountainRegexes.parameter_values);
-      if (paramMatches) {
-        for (let i = 0; i < paramMatches.length; i += 1) {
-          const paramMatch = paramMatches[i];
-          const separatorMatch = paramMatch.match(fountainRegexes.separator);
-          from = to;
-          to = from + paramMatch.length;
-          if (i === paramMatches.length - 1) {
-            to += parametersSpace.length;
-          }
-          if (separatorMatch) {
-            buf = buf.write(Type.CallSeparatorMark, from, to);
-          } else if (i === 0) {
-            buf = buf.write(Type.CallEntityName, from, to);
-          } else {
-            buf = buf.write(Type.CallValue, from, to);
-          }
-        }
-      }
-      if (closeMark) {
-        from = to;
-        to = from + closeMark.length + closeMarkSpace.length;
-        buf = buf.write(Type.CallCloseMark, from, to);
-      }
-
-      node = buf.finish(Type.Call, line.text.length - line.pos);
     } else if (match?.[0] === "condition") {
       const mark = match[2] || "";
       const markSpace = match[3] || "";
@@ -686,6 +668,59 @@ export const DefaultBlockParsers: {
       }
 
       node = buf.finish(Type.Condition, line.text.length - line.pos);
+    } else if (match?.[0] === "call") {
+      const mark = match[2] || "";
+      const markSpace = match[3] || "";
+      const name = match[4] || "";
+      const nameSpace = match[5] || "";
+      const parameters = match[6] || "";
+      const parametersSpace = match[7] || "";
+
+      if (mark || markSpace) {
+        from = to;
+        to = from + mark.length + markSpace.length;
+        buf = buf.write(Type.CallMark, from, to);
+      }
+      if (name || nameSpace) {
+        from = to;
+        to = from + name.length + nameSpace.length;
+        buf = buf.write(Type.CallName, from, to);
+      }
+      if (parameters || parametersSpace) {
+        const values = parameters.slice(1, -1);
+        const openMark = "(";
+        const closeMark = ")";
+        if (openMark) {
+          from = to;
+          to = from + openMark.length;
+          buf = buf.write(Type.CallOpenMark, from, to);
+        }
+        const parameterTokenMatches = values.split(fountainRegexes.separator);
+        if (parameterTokenMatches) {
+          const start = 0;
+          const end = parameterTokenMatches.length;
+          for (let i = start; i < end; i += 1) {
+            const parameterValue = parameterTokenMatches[i];
+            from = to;
+            to = from + parameterValue.length;
+            if (i === parameterTokenMatches.length - 1) {
+              to += parametersSpace.length;
+            }
+            if (parameterValue.match(fountainRegexes.separator)) {
+              buf = buf.write(Type.CallSeparatorMark, from, to);
+            } else if (!parameterValue.trim()) {
+              buf = buf.write(Type.CallValue, from, to);
+            }
+          }
+        }
+        if (closeMark) {
+          from = to;
+          to = from + closeMark.length;
+          buf = buf.write(Type.CallCloseMark, from, to);
+        }
+      }
+
+      node = buf.finish(Type.Call, line.text.length - line.pos);
     } else if (match?.[0] === "choice") {
       const mark = match[2] || "";
       const markSpace = match[3] || "";

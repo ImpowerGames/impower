@@ -294,13 +294,13 @@ export const getFunctionIds = (
   return [...validChildrenIds, ...validAncestorIds];
 };
 
-export const getSectionOptions = (
+export const getSectionIds = (
   ancestorIds: string[],
   children: string[]
 ): string[] => {
-  const validChildrenNames = children
-    .map((id) => id.split(".").slice(-1).join(""))
-    .filter((id) => !id.startsWith("*"));
+  const validChildrenNames = children.filter(
+    (id) => !id.split(".").slice(-1).join("").startsWith("*")
+  );
   const validAncestorIds = ancestorIds
     .slice(0, -1)
     .filter((id) => !id.split(".").slice(-1).join("").startsWith("*"));
@@ -324,14 +324,15 @@ export const assignOrCallSnippets = (
     ),
     ...functionIds.map((id) => {
       const section = sections[id];
-      const parameters = Object.values(section.variables || {}).filter(
+      const name = section?.name;
+      const parameters = Object.values(section?.variables || {}).filter(
         (v) => v.parameter
       );
       const paramsTemplate = parameters.map((p) => `#{${p.name}}`).join(", ");
       const paramsDetail = parameters.map((p) => `${p.type}`).join(", ");
       const info = (): Node => getInfoNode(`(${paramsDetail})`, colors.section);
-      return snip(`* ${section.name}(#{}${paramsTemplate})#{}`, {
-        label: `* ${section.name}`,
+      return snip(`* ${name}(#{}${paramsTemplate})#{}`, {
+        label: `* ${name}`,
         info,
         type: "function",
       });
@@ -344,31 +345,48 @@ export const assignOrCallSnippets = (
 export const sectionSnippets = (
   ancestorIds: string[],
   children: string[],
+  sections: Record<string, FountainSection>,
   prefix: string | string[] = "",
   suffix: string | string[] = ""
 ): Completion[] => {
-  const options = getSectionOptions(ancestorIds, children);
+  const ids = getSectionIds(ancestorIds, children);
   const prefixes = typeof prefix === "string" ? [prefix] : prefix;
   const labelCleanupRegex = /[\n\r${}]/g;
   return prefixes.flatMap((prefix, prefixIndex) =>
-    options.map((option, optionIndex) =>
-      snip(prefix + option + suffix, {
-        label:
-          prefix.replace(labelCleanupRegex, "") +
-          option +
-          (typeof suffix === "string"
-            ? suffix.replace(labelCleanupRegex, "")
-            : suffix[prefixIndex].replace(labelCleanupRegex, "")),
-        type: option.includes("!END")
-          ? "end"
-          : option.includes(".")
-          ? "parent"
-          : !option
+    ids.map((id, optionIndex) => {
+      const section = sections[id];
+      const name = id === "!END" ? id : section?.name;
+      const parameters = Object.values(section?.variables || {}).filter(
+        (v) => v.parameter
+      );
+      const paramsTemplate = parameters.map((p) => `#{${p.name}}`).join(", ");
+      const paramsDetail = parameters.map((p) => `${p.type}`).join(", ");
+      const info =
+        parameters.length > 0
+          ? (): Node => getInfoNode(`(${paramsDetail})`, colors.section)
+          : undefined;
+      const template =
+        parameters.length > 0
+          ? `${prefix}${name}(#{}${paramsTemplate})#{}${suffix}`
+          : `${prefix}${name}${suffix}`;
+      const cleanedPrefix = prefix.replace(labelCleanupRegex, "");
+      const cleanedSuffix =
+        typeof suffix === "string"
+          ? suffix.replace(labelCleanupRegex, "")
+          : suffix[prefixIndex].replace(labelCleanupRegex, "");
+      return snip(template, {
+        label: cleanedPrefix + name + cleanedSuffix,
+        type: !id
           ? "next"
+          : id === "!END"
+          ? "end"
+          : ancestorIds.includes(id)
+          ? "parent"
           : "child",
-        boost: options.length - optionIndex,
-      })
-    )
+        info,
+        boost: ids.length - optionIndex,
+      });
+    })
   );
 };
 
@@ -650,18 +668,23 @@ export const fountainAutocomplete = async (
       ...nameSnippets(entityOptions, "entity", "", "", colors.entity)
     );
   } else if (node.name === "GoMark") {
-    completions.push(...sectionSnippets(ancestorIds, children, "> ", "${}"));
+    completions.push(
+      ...sectionSnippets(ancestorIds, children, result?.sections, "> ", "${}")
+    );
   } else if (node.name === "ChoiceMark") {
     completions.push(
       ...sectionSnippets(
         ancestorIds,
         children,
+        result?.sections,
         ["+ ${}${choice} > ", "- ${}${choice} > "],
         "${}"
       )
     );
   } else if (["GoSectionName", "ChoiceSectionName"].includes(node.name)) {
-    completions.push(...sectionSnippets(ancestorIds, children, "${}"));
+    completions.push(
+      ...sectionSnippets(ancestorIds, children, result?.sections, "${}")
+    );
   } else if (
     [
       "AssignName",
