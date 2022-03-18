@@ -564,7 +564,7 @@ export const parseFountain = (
         : getAsset(type, value?.name, from, to)?.value;
     const id = `${currentSectionId}.${name}`;
     const item = {
-      ...(result.assets[id] || {}),
+      ...(result?.assets?.[id] || {}),
       from,
       to,
       line,
@@ -604,7 +604,7 @@ export const parseFountain = (
         : getEntity(type, value?.name, from, to)?.value;
     const id = `${currentSectionId}.${name}`;
     const item = {
-      ...(result.entities[id] || {}),
+      ...(result?.entities?.[id] || {}),
       from,
       to,
       line,
@@ -645,7 +645,7 @@ export const parseFountain = (
         : getTag(value?.name, from, to)?.value;
     const id = `${currentSectionId}.${name}`;
     const item = {
-      ...(result.tags[id] || {}),
+      ...(result?.tags?.[id] || {}),
       from,
       to,
       name,
@@ -693,7 +693,7 @@ export const parseFountain = (
         : findVariable(currentSectionId, value?.name)?.value;
     const id = `${currentSectionId}.${parameter ? `parameter-` : ""}${name}`;
     const item = {
-      ...(result.variables[id] || {}),
+      ...(result?.variables?.[id] || {}),
       from: nameFrom,
       to: nameTo,
       line,
@@ -1101,7 +1101,7 @@ export const parseFountain = (
   );
 
   addSection({
-    ...(result?.sections[currentSectionId] || {}),
+    ...(result?.sections?.[currentSectionId] || {}),
     from: currentToken.from,
     to: currentToken.to,
     line: 1,
@@ -1153,7 +1153,7 @@ export const parseFountain = (
           currentSectionId = `${parentId}.${id}`;
         }
         const newSection: FountainSection = {
-          ...(result?.sections[currentSectionId] || {}),
+          ...(result?.sections?.[currentSectionId] || {}),
           from: currentToken.from,
           to: currentToken.to,
           line: currentToken.line,
