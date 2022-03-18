@@ -563,7 +563,8 @@ export const parseFountain = (
         ? value
         : getAsset(type, value?.name, from, to)?.value;
     const id = `${currentSectionId}.${name}`;
-    const asset = {
+    const item = {
+      ...(result.assets[id] || {}),
       from,
       to,
       line,
@@ -572,13 +573,13 @@ export const parseFountain = (
       value: resolvedValue,
       valueText,
     };
-    result.assets[id] = asset;
+    result.assets[id] = item;
     const parent = result.sections[currentSectionId];
     if (parent) {
       if (!parent.assets) {
         parent.assets = {};
       }
-      parent.assets[id] = asset;
+      parent.assets[id] = item;
     } else {
       console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
@@ -602,7 +603,8 @@ export const parseFountain = (
         ? value
         : getEntity(type, value?.name, from, to)?.value;
     const id = `${currentSectionId}.${name}`;
-    const asset = {
+    const item = {
+      ...(result.entities[id] || {}),
       from,
       to,
       line,
@@ -611,13 +613,13 @@ export const parseFountain = (
       value: resolvedValue,
       valueText,
     };
-    result.entities[id] = asset;
+    result.entities[id] = item;
     const parent = result.sections[currentSectionId];
     if (parent) {
       if (!parent.entities) {
         parent.entities = {};
       }
-      parent.entities[id] = asset;
+      parent.entities[id] = item;
     } else {
       console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
@@ -642,7 +644,8 @@ export const parseFountain = (
         ? value
         : getTag(value?.name, from, to)?.value;
     const id = `${currentSectionId}.${name}`;
-    const tag = {
+    const item = {
+      ...(result.tags[id] || {}),
       from,
       to,
       name,
@@ -650,13 +653,13 @@ export const parseFountain = (
       value: resolvedValue,
       valueText,
     };
-    result.tags[id] = tag;
+    result.tags[id] = item;
     const parent = result.sections[currentSectionId];
     if (parent) {
       if (!parent.tags) {
         parent.tags = {};
       }
-      parent.tags[id] = tag;
+      parent.tags[id] = item;
     } else {
       console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
@@ -716,7 +719,8 @@ export const parseFountain = (
         ? value
         : findVariable(currentSectionId, value?.name)?.value;
     const id = `${currentSectionId}.${parameter ? `parameter-` : ""}${name}`;
-    const variable = {
+    const item = {
+      ...(result.variables[id] || {}),
       from: nameFrom,
       to: nameTo,
       line,
@@ -726,13 +730,13 @@ export const parseFountain = (
       valueText,
       parameter,
     };
-    result.variables[id] = variable;
+    result.variables[id] = item;
     const parent = result.sections[currentSectionId];
     if (parent) {
       if (!parent.variables) {
         parent.variables = {};
       }
-      parent.variables[id] = variable;
+      parent.variables[id] = item;
     } else {
       console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
@@ -1126,6 +1130,7 @@ export const parseFountain = (
   );
 
   addSection({
+    ...(result?.sections[currentSectionId] || {}),
     from: currentToken.from,
     to: currentToken.to,
     line: 1,
@@ -1177,6 +1182,7 @@ export const parseFountain = (
           currentSectionId = `${parentId}.${id}`;
         }
         const newSection: FountainSection = {
+          ...(result?.sections[currentSectionId] || {}),
           from: currentToken.from,
           to: currentToken.to,
           line: currentToken.line,

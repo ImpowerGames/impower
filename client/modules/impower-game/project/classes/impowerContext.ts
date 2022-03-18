@@ -58,7 +58,6 @@ export class ImpowerContext {
     this._contexts = {};
 
     Object.entries(runtimeBlocks).forEach(([blockId, block]) => {
-      const valueMap: Record<string, string | number | boolean> = {};
       const [variableIds, variables] = getScopedContext(
         blockId,
         result?.sections,
@@ -90,6 +89,13 @@ export class ImpowerContext {
         ...entityIds,
         ...tagIds,
         ...sectionIds,
+      };
+      const valueMap = {
+        ...variables,
+        ...assets,
+        ...entities,
+        ...tags,
+        ...sections,
       };
       this._contexts[block.reference.refId] = {
         ids,

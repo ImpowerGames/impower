@@ -72,11 +72,21 @@ export class PhaserLogicScene extends Phaser.Scene {
         const blockState = blockStates[blockId];
         blocks[name] = blockState ? blockState.executionCount : v;
       });
+      const valueMap = {
+        ...(context?.valueMap || {}),
+        ...variables,
+        ...blocks,
+      };
       if (blockState.loaded) {
         BlockRunner.instance.update(
           blockId,
           blockState,
-          { ...context, variables, blocks },
+          {
+            ...context,
+            variables,
+            blocks,
+            valueMap,
+          },
           this.impowerGame,
           time,
           delta

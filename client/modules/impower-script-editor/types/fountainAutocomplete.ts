@@ -13,6 +13,7 @@ import {
   fountainRegexes,
   FountainSection,
   getAncestorIds,
+  getScopedContext,
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
 
@@ -462,17 +463,19 @@ export const characterSnippets = (
 };
 
 export const assetSnippets = (
-  assets: { name: string; type?: string; value?: string }[]
+  references: { name: string }[],
+  valueMap: Record<string, string>,
+  type: "image" | "audio" | "video" | "text"
 ): Completion[] => {
-  return assets.map(({ name, type, value }) =>
+  return references.map(({ name }) =>
     snip(name, {
       label: name,
       type: "function",
       info: () => {
+        const fileUrl = valueMap[name];
         const preview = document.createElement(
           type === "audio" ? "audio" : "img"
         );
-        const fileUrl = value;
         const rgx = /%2F([0-9][0-9][0-9])[?]/;
         const match = fileUrl.match(rgx);
         const storageName = match?.[1];
@@ -546,6 +549,11 @@ export const fountainAutocomplete = async (
   const section = result.sections?.[sectionId];
   const children = section?.children || [];
   const ancestorIds = getAncestorIds(sectionId);
+  const [, assets] = getScopedContext<string>(
+    sectionId,
+    result?.sections,
+    "assets"
+  );
   const variableOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
     Object.keys(result.sections[ancestorId].variables || {}).map((id) => {
       const found = result.sections[ancestorId].variables[id];
@@ -652,16 +660,16 @@ export const fountainAutocomplete = async (
     );
   } else if (["ImageNote", "AssetImageValue"].includes(node.name)) {
     const typeOptions = assetOptions.filter(({ type }) => type === "image");
-    completions.push(...assetSnippets(typeOptions));
+    completions.push(...assetSnippets(typeOptions, assets, "image"));
   } else if (["AudioNote", "AssetAudioValue"].includes(node.name)) {
     const typeOptions = assetOptions.filter(({ type }) => type === "audio");
-    completions.push(...assetSnippets(typeOptions));
+    completions.push(...assetSnippets(typeOptions, assets, "audio"));
   } else if (["VideoNote", "AssetVideoValue"].includes(node.name)) {
     const typeOptions = assetOptions.filter(({ type }) => type === "video");
-    completions.push(...assetSnippets(typeOptions));
+    completions.push(...assetSnippets(typeOptions, assets, "video"));
   } else if (["TextNote", "AssetTextValue"].includes(node.name)) {
     const typeOptions = assetOptions.filter(({ type }) => type === "text");
-    completions.push(...assetSnippets(typeOptions));
+    completions.push(...assetSnippets(typeOptions, assets, "text"));
   } else if (node.name === "DynamicTag") {
     completions.push(
       ...nameSnippets(tagOptions, "tag", "", "", colors.tag),

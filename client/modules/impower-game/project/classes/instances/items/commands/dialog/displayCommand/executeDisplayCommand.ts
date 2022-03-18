@@ -34,7 +34,8 @@ export const executeDisplayCommand = (
     characterEl.style.display = character ? null : "none";
   }
   if (portraitEl) {
-    portraitEl.style.backgroundImage = `url("${valueMap[assets?.[0]]}")`;
+    const portraitName = assets?.[0];
+    portraitEl.style.backgroundImage = `url("${valueMap[portraitName]}")`;
     portraitEl.style.backgroundRepeat = "no-repeat";
     portraitEl.style.backgroundPosition = "center";
     portraitEl.style.display = assets ? null : "none";

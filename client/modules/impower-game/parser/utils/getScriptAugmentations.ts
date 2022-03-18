@@ -14,6 +14,7 @@ export const getScriptAugmentations = (
       ? "text"
       : "image";
     assets[`.${name}`] = {
+      name,
       type,
       value: fileUrl,
     };
