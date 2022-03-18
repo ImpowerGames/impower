@@ -9,7 +9,7 @@ import {
   diagnosticCount,
   lintGutter,
   nextDiagnostic,
-  openLintPanel
+  openLintPanel,
 } from "@codemirror/lint";
 import { panels } from "@codemirror/panel";
 import {
@@ -22,7 +22,7 @@ import {
   replaceNext,
   search,
   SearchQuery,
-  setSearchQuery
+  setSearchQuery,
 } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import { tooltips } from "@codemirror/tooltip";
@@ -31,13 +31,13 @@ import React, { useEffect, useRef } from "react";
 import {
   FountainDeclarations,
   FountainParseResult,
-  parseFountain
+  parseFountain,
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
 import {
   SearchAction,
   SerializableEditorSelection,
-  SerializableEditorState
+  SerializableEditorState,
 } from "../types/editor";
 import { fountain } from "../types/fountain";
 import { fountainLanguage, tags as t } from "../types/fountainLanguage";
@@ -327,7 +327,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             right: number;
           } => {
             return {
-              top: 64,
+              top: 128,
               left: 0,
               bottom: window.innerHeight - 64,
               right: window.innerWidth,
