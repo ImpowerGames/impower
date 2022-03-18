@@ -45,9 +45,9 @@ const createGame = (
       }
     }
   }
-  const startRuntimeBlock = runtimeBlocks[defaultStartBlockId];
+  const startRuntimeBlock = runtimeBlocks?.[defaultStartBlockId];
   let defaultStartCommandIndex = 0;
-  for (let i = 1; i < startRuntimeBlock.commands.order.length; i += 1) {
+  for (let i = 1; i < startRuntimeBlock?.commands?.order?.length || 0; i += 1) {
     const commandId = startRuntimeBlock.commands.order[i];
     const command = startRuntimeBlock.commands.data[commandId];
     if (command.line > activeLine) {

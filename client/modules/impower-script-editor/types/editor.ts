@@ -49,6 +49,7 @@ export interface SerializableEditorState {
   readonly focused?: boolean;
   readonly selected?: boolean;
   readonly snippet?: boolean;
+  readonly hasError?: boolean;
 }
 
 export interface SearchAction {

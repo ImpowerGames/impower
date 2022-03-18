@@ -4,7 +4,13 @@ import { foldEffect, unfoldAll } from "@codemirror/fold";
 import { HighlightStyle } from "@codemirror/highlight";
 import { historyField, redo, undo } from "@codemirror/history";
 import { foldable, indentUnit } from "@codemirror/language";
-import { closeLintPanel, openLintPanel } from "@codemirror/lint";
+import {
+  closeLintPanel,
+  diagnosticCount,
+  lintGutter,
+  nextDiagnostic,
+  openLintPanel
+} from "@codemirror/lint";
 import { panels } from "@codemirror/panel";
 import {
   closeSearchPanel,
@@ -16,7 +22,7 @@ import {
   replaceNext,
   search,
   SearchQuery,
-  setSearchQuery,
+  setSearchQuery
 } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import { tooltips } from "@codemirror/tooltip";
@@ -25,13 +31,13 @@ import React, { useEffect, useRef } from "react";
 import {
   FountainDeclarations,
   FountainParseResult,
-  parseFountain,
+  parseFountain
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
 import {
   SearchAction,
   SerializableEditorSelection,
-  SerializableEditorState,
+  SerializableEditorState
 } from "../types/editor";
 import { fountain } from "../types/fountain";
 import { fountainLanguage, tags as t } from "../types/fountainLanguage";
@@ -328,10 +334,11 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             };
           },
         }),
+        lintGutter(),
         myHighlightStyle,
         keymap.of([indentWithTab]),
         indentUnit.of("  "),
-        EditorState.phrases.of({ "No diagnostics": "Running..." }),
+        EditorState.phrases.of({ "No diagnostics": "No errors" }),
         EditorView.theme(
           {
             "&": {
@@ -477,9 +484,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ".cm-completionIcon-scene": {
               "&:after": { content: "'Տ'", color: colors.scene },
             },
-            "&.cm-focused .cm-panel-lint": {
-              marginBottom: "128px",
-            },
             ".cm-panel-lint": {
               marginBottom: "64px",
             },
@@ -495,6 +499,16 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
               fontSize: "0.9375rem",
               marginLeft: "0",
               marginRight: "8px",
+            },
+            ".cm-lint-marker": {
+              display: "none",
+              width: "0.8em",
+              height: "0.8em",
+            },
+            "&.cm-lint .cm-lint-marker": {
+              display: "block",
+              width: "0.8em",
+              height: "0.8em",
             },
           },
           { dark: true }
@@ -541,9 +555,11 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           const focused = u.view.hasFocus;
           const rootEl = parentElRef.current.firstElementChild;
           const snippet = Boolean(rootEl?.querySelector(".cm-snippetField"));
+          const lint = Boolean(rootEl?.querySelector(".cm-panel-lint"));
           const selected =
             selection?.ranges?.[selection.main]?.head !==
             selection?.ranges?.[selection.main]?.anchor;
+          const hasError = diagnosticCount(u.view.state) > 0;
           const editorState = {
             doc,
             selection,
@@ -552,12 +568,18 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             focused,
             selected,
             snippet,
+            hasError,
           };
           if (rootEl) {
             if (snippet) {
               rootEl.classList.add("cm-snippet");
             } else {
               rootEl.classList.remove("cm-snippet");
+            }
+            if (lint) {
+              rootEl.classList.add("cm-lint");
+            } else {
+              rootEl.classList.remove("cm-lint");
             }
           }
           if (
@@ -654,6 +676,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
 
   useEffect(() => {
     if (toggleLinting) {
+      nextDiagnostic(viewRef.current);
       openLintPanel(viewRef.current);
     } else {
       closeLintPanel(viewRef.current);

@@ -8,7 +8,6 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import { BottomNavigationBarSpacer } from "../../../impower-route";
 import useIOS from "../../../impower-route/hooks/useIOS";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 
@@ -167,6 +166,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
         className="panel-scroll"
         ref={handleScrollRef}
         style={{
+          marginBottom: theme.minHeight.navigationBar,
           ...backgroundStyle,
           overflowY: windowScrolling ? undefined : "scroll",
         }}
@@ -177,7 +177,6 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
             <StyledPanelArrangement>{children}</StyledPanelArrangement>
           </StyledPanelContent>
         </StyledForeground>
-        <BottomNavigationBarSpacer />
       </StyledBackground>
       <StyledOverlay ref={overlayRef} style={overlayStyle}>
         {overlay}

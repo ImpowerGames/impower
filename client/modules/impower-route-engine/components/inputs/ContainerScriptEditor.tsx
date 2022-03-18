@@ -58,6 +58,12 @@ const StyledContainerScriptEditor = styled.div`
   }
 `;
 
+const StyledFadeAnimation = styled(FadeAnimation)`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+`;
+
 interface ContainerScriptEditorProps {
   windowType: WindowType;
   toggleFolding: boolean;
@@ -69,7 +75,7 @@ const ContainerScriptEditor = React.memo(
   (props: ContainerScriptEditorProps): JSX.Element => {
     const { windowType, toggleFolding, toggleLinting, onSectionChange } = props;
 
-    const { transitionState } = useContext(WindowTransitionContext);
+    const { portrait, transitionState } = useContext(WindowTransitionContext);
     const { gameInspector } = useContext(GameInspectorContext);
     const { game } = useContext(GameContext);
     const [state, dispatch] = useContext(ProjectEngineContext);
@@ -186,6 +192,7 @@ const ContainerScriptEditor = React.memo(
         const canRedo = state?.history?.undone?.length > 0;
         const focused = state?.focused;
         const selected = state?.selected;
+        const hasError = state?.hasError;
         const canUndoChanged =
           lastEditorStateRef.current?.history?.done?.length > 1 !== canUndo;
         const canRedoChanged =
@@ -193,6 +200,8 @@ const ContainerScriptEditor = React.memo(
         const focusChanged = lastEditorStateRef.current?.focused !== focused;
         const selectedChanged =
           lastEditorStateRef.current?.selected !== selected;
+        const hasErrorChanged =
+          lastEditorStateRef.current?.hasError !== hasError;
         const focusedOtherInput =
           focusChanged &&
           !focused &&
@@ -201,7 +210,8 @@ const ContainerScriptEditor = React.memo(
           canUndoChanged ||
           canRedoChanged ||
           focusChanged ||
-          selectedChanged
+          selectedChanged ||
+          hasErrorChanged
         ) {
           // Save editor change immediately so undo/redo button reflects change.
           if (!focusedOtherInput) {
@@ -364,7 +374,7 @@ const ContainerScriptEditor = React.memo(
         <StyledContainerScriptEditor style={backgroundStyle}>
           {(transitionState === "idle" ||
             (transitionState === "exit" && !initial)) && (
-            <FadeAnimation initial={0} animate={1}>
+            <StyledFadeAnimation initial={0} animate={1}>
               <ScriptEditor
                 defaultValue={defaultValue}
                 defaultState={editor}
@@ -383,9 +393,9 @@ const ContainerScriptEditor = React.memo(
                 onScrollLine={handleScrollLine}
                 onSearch={handleSearch}
               />
-            </FadeAnimation>
+            </StyledFadeAnimation>
           )}
-          <BottomNavigationBarSpacer />
+          {!portrait && <BottomNavigationBarSpacer />}
         </StyledContainerScriptEditor>
       </>
     );

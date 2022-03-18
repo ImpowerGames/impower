@@ -13,7 +13,8 @@ import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
 import CheckRegularIcon from "../../../../resources/icons/regular/check.svg";
 import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ellipsis-vertical.svg";
-import TriangleExclamationRegularIcon from "../../../../resources/icons/regular/triangle-exclamation.svg";
+import FileExclamationRegularIcon from "../../../../resources/icons/regular/file-exclamation.svg";
+import MemoCircleCheckRegularIcon from "../../../../resources/icons/regular/memo-circle-check.svg";
 import { SlideAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
@@ -97,6 +98,7 @@ const ContainerPanelHeader = React.memo(
     const scripting = state?.panel?.panels?.[windowType]?.scripting;
     const searchQuery = state?.panel?.panels?.[windowType]?.searchQuery;
     const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
+    const hasError = state?.panel?.panels?.[windowType]?.editorState?.hasError;
 
     const theme = useTheme();
 
@@ -197,8 +199,20 @@ const ContainerPanelHeader = React.memo(
               value={toggleLinting}
               onLabel={`Format and check for errors`}
               offLabel={`Hide error panel`}
-              onIcon={<TriangleExclamationRegularIcon />}
-              offIcon={<TriangleExclamationRegularIcon />}
+              onIcon={
+                hasError ? (
+                  <FileExclamationRegularIcon />
+                ) : (
+                  <MemoCircleCheckRegularIcon />
+                )
+              }
+              offIcon={
+                hasError ? (
+                  <FileExclamationRegularIcon />
+                ) : (
+                  <MemoCircleCheckRegularIcon />
+                )
+              }
               onClick={onToggleLinting}
             />
             {/* <ScriptingPanelHeaderIconButton
