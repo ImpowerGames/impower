@@ -64,7 +64,7 @@ const snippetKeymap = [
       const selected = selectedCompletion(target.state);
       const accepted = acceptCompletion(target);
       const next = nextSnippetField(target);
-      if (!next && !(selected as { inline?: boolean })?.inline) {
+      if (!next && selected && !(selected as { inline?: boolean })?.inline) {
         const end = target.state.doc.lineAt(
           target.state.selection.main.head
         ).to;
