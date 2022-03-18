@@ -1,6 +1,10 @@
 /* eslint-disable no-cond-assign */
 import { Tree } from "@lezer/common";
-import { fountainRegexes } from "../../impower-script-parser";
+import {
+  entityMethods,
+  fountainRegexes,
+  MethodType,
+} from "../../impower-script-parser";
 import { BlockContext } from "../classes/BlockContext";
 import { Element } from "../classes/Element";
 import { Line } from "../classes/Line";
@@ -197,20 +201,34 @@ export const DefaultBlockParsers: {
         to = from + openMark.length;
         buf = buf.write(Type.GoOpenMark, from, to);
       }
-      const parameterTokenMatches = values.split(fountainRegexes.separator);
-      if (parameterTokenMatches) {
+      const expressionListMatches = Array.from(
+        values.matchAll(fountainRegexes.expression_list)
+      );
+      const tokenMatches: string[] = [""];
+      expressionListMatches.forEach((m) => {
+        const text = m[0];
+        const separatorGroupMatch = m[2];
+        if (separatorGroupMatch) {
+          tokenMatches.push("");
+          tokenMatches[tokenMatches.length - 1] += text;
+          tokenMatches.push("");
+        } else {
+          tokenMatches[tokenMatches.length - 1] += text;
+        }
+      });
+      if (tokenMatches) {
         const start = 0;
-        const end = parameterTokenMatches.length;
+        const end = tokenMatches.length;
         for (let i = start; i < end; i += 1) {
-          const parameterValue = parameterTokenMatches[i];
+          const token = tokenMatches[i];
           from = to;
-          to = from + parameterValue.length;
-          if (i === parameterTokenMatches.length - 1) {
+          to = from + token.length;
+          if (i === tokenMatches.length - 1) {
             to += parametersSpace.length;
           }
-          if (parameterValue.match(fountainRegexes.separator)) {
+          if (token === ",") {
             buf = buf.write(Type.GoSeparatorMark, from, to);
-          } else if (!parameterValue.trim()) {
+          } else {
             buf = buf.write(Type.GoValue, from, to);
           }
         }
@@ -309,6 +327,16 @@ export const DefaultBlockParsers: {
     const operatorSpace = match[7] || "";
     const value = match[8] || "";
     const valueSpace = match[9] || "";
+    const valueTokenType =
+      mark === "image"
+        ? Type.AssetImageValue
+        : mark === "audio"
+        ? Type.AssetAudioValue
+        : mark === "video"
+        ? Type.AssetVideoValue
+        : mark === "text"
+        ? Type.AssetTextValue
+        : Type.AssetValue;
 
     if (mark || markSpace) {
       from = to;
@@ -328,7 +356,7 @@ export const DefaultBlockParsers: {
     if (value || valueSpace) {
       from = to;
       to = from + value.length + valueSpace.length;
-      buf = buf.write(Type.AssetValue, from, to);
+      buf = buf.write(valueTokenType, from, to);
     }
 
     const node = buf.finish(Type.Asset, line.text.length - line.pos);
@@ -579,7 +607,7 @@ export const DefaultBlockParsers: {
     }
 
     const match =
-      isAssign(line) || isCondition(line) || isCall(line) || isChoice(line);
+      isCall(line) || isCondition(line) || isAssign(line) || isChoice(line);
 
     if (!match) {
       return false;
@@ -632,29 +660,15 @@ export const DefaultBlockParsers: {
     } else if (match?.[0] === "condition") {
       const mark = match[2] || "";
       const markSpace = match[3] || "";
-      const variable = match[4] || "";
-      const variableSpace = match[5] || "";
-      const operator = match[6] || "";
-      const operatorSpace = match[7] || "";
-      const value = match[8] || "";
-      const valueSpace = match[9] || "";
-      const colon = match[10] || "";
-      const colonSpace = match[11] || "";
+      const value = match[4] || "";
+      const valueSpace = match[5] || "";
+      const colon = match[6] || "";
+      const colonSpace = match[7] || "";
 
       if (mark || markSpace) {
         from = to;
         to = from + mark.length + markSpace.length;
         buf = buf.write(Type.ConditionMark, from, to);
-      }
-      if (variable || variableSpace) {
-        from = to;
-        to = from + variable.length + variableSpace.length;
-        buf = buf.write(Type.ConditionName, from, to);
-      }
-      if (operator || operatorSpace) {
-        from = to;
-        to = from + operator.length + operatorSpace.length;
-        buf = buf.write(Type.ConditionOperator, from, to);
       }
       if (value || valueSpace) {
         from = to;
@@ -695,21 +709,43 @@ export const DefaultBlockParsers: {
           to = from + openMark.length;
           buf = buf.write(Type.CallOpenMark, from, to);
         }
-        const parameterTokenMatches = values.split(fountainRegexes.separator);
-        if (parameterTokenMatches) {
+        const expressionListMatches = Array.from(
+          values.matchAll(fountainRegexes.expression_list)
+        );
+        const tokenMatches: string[] = [""];
+        expressionListMatches.forEach((m) => {
+          const text = m[0];
+          const separatorGroupMatch = m[2];
+          if (separatorGroupMatch) {
+            tokenMatches.push("");
+            tokenMatches[tokenMatches.length - 1] += text;
+            tokenMatches.push("");
+          } else {
+            tokenMatches[tokenMatches.length - 1] += text;
+          }
+        });
+        if (tokenMatches) {
           const start = 0;
-          const end = parameterTokenMatches.length;
+          const end = tokenMatches.length;
+          let paramIndex = 0;
           for (let i = start; i < end; i += 1) {
-            const parameterValue = parameterTokenMatches[i];
+            const token = tokenMatches[i];
             from = to;
-            to = from + parameterValue.length;
-            if (i === parameterTokenMatches.length - 1) {
+            to = from + token.length;
+            if (i === tokenMatches.length - 1) {
               to += parametersSpace.length;
             }
-            if (parameterValue.match(fountainRegexes.separator)) {
+            if (token === ",") {
               buf = buf.write(Type.CallSeparatorMark, from, to);
-            } else if (!parameterValue.trim()) {
+            } else if (
+              entityMethods.includes(name as MethodType) &&
+              paramIndex === 0
+            ) {
+              buf = buf.write(Type.CallEntityName, from, to);
+              paramIndex += 1;
+            } else {
               buf = buf.write(Type.CallValue, from, to);
+              paramIndex += 1;
             }
           }
         }

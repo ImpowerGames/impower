@@ -1,6 +1,6 @@
 import Phaser, { GameObjects } from "phaser";
 import { ImpowerGame } from "../../../../impower-game/game";
-import { ImpowerDataMap } from "../../../../impower-game/project";
+import { ImpowerContext } from "../../../../impower-game/project";
 import { BlockRunner } from "../../../../impower-game/runner";
 
 export const LOGIC_SCENE_KEY = "PhaserLogicScene";
@@ -12,20 +12,20 @@ export class PhaserLogicScene extends Phaser.Scene {
     return this._impowerGame;
   }
 
-  private _impowerDataMap: ImpowerDataMap;
+  private _impowerContext: ImpowerContext;
 
-  public get impowerDataMap(): ImpowerDataMap {
-    return this._impowerDataMap;
+  public get impowerContext(): ImpowerContext {
+    return this._impowerContext;
   }
 
   constructor(
     config: string | Phaser.Types.Scenes.SettingsConfig,
     impowerGame: ImpowerGame,
-    impowerDataMap: ImpowerDataMap
+    impowerContext: ImpowerContext
   ) {
     super(config);
     this._impowerGame = impowerGame;
-    this._impowerDataMap = impowerDataMap;
+    this._impowerContext = impowerContext;
   }
 
   preload(): void {
@@ -54,18 +54,29 @@ export class PhaserLogicScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
-    this.impowerGame.logic.state.activeChildBlocks.forEach((id) => {
-      const blockState = this.impowerGame.logic.state.blockStates[id];
-      const triggers = this.impowerDataMap.blockTriggers[id];
-      const commands = this.impowerDataMap.blockCommands[id];
-      const { variables } = this.impowerDataMap;
-      if (blockState.active) {
+    this.impowerGame.logic.state.loadedBlockIds.forEach((blockId) => {
+      const blockStates = this.impowerGame.logic.state?.blockStates;
+      const variableStates = this.impowerGame.logic.state?.variableStates;
+      const blockState = blockStates[blockId];
+      const context = this.impowerContext?.contexts[blockId];
+      const ids = context?.ids;
+      const variables = { ...(context?.variables || {}) };
+      Object.entries(context?.variables).forEach(([name, v]) => {
+        const variableId = ids[name];
+        const variableState = variableStates[variableId];
+        variables[name] = variableState ? variableState.value : v;
+      });
+      const blocks = { ...(context?.blocks || {}) };
+      Object.entries(context?.blocks).forEach(([name, v]) => {
+        const blockId = ids[name];
+        const blockState = blockStates[blockId];
+        blocks[name] = blockState ? blockState.executionCount : v;
+      });
+      if (blockState.loaded) {
         BlockRunner.instance.update(
-          id,
+          blockId,
           blockState,
-          triggers,
-          commands,
-          variables,
+          { ...context, variables, blocks },
           this.impowerGame,
           time,
           delta
@@ -75,18 +86,11 @@ export class PhaserLogicScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.impowerGame.logic.state.activeChildBlocks.forEach((id) => {
+    this.impowerGame.logic.state.loadedBlockIds.forEach((id) => {
       const blockState = this.impowerGame.logic.state.blockStates[id];
-      const triggers = this.impowerDataMap.blockTriggers[id];
-      const commands = this.impowerDataMap.blockCommands[id];
-      const { variables } = this.impowerDataMap;
-      if (blockState.active) {
-        BlockRunner.instance.init(
-          triggers,
-          commands,
-          variables,
-          this.impowerGame
-        );
+      const context = this.impowerContext?.contexts[id];
+      if (blockState.loaded) {
+        BlockRunner.instance.init(context, this.impowerGame);
       }
     });
   }

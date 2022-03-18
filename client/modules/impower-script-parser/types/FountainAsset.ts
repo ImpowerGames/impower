@@ -1,7 +1,8 @@
 import { FountainAssetType } from "./FountainAssetType";
 
 export interface FountainAsset {
-  start: number;
+  from: number;
+  to: number;
   line: number;
   name: string;
   type: FountainAssetType;

@@ -3,6 +3,7 @@ export const colors = {
   constant: "#FFFF00",
   keyword: "#00D0D0",
   parameter: "#FF81FF",
+  trigger: "#FF81FF",
   operator: "#D0D0D0",
   foreground: "#D4D4D4",
   background: "#00000040",

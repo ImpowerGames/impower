@@ -1,44 +1,63 @@
-import { CommandData, VariableValue } from "../../../../../../../data";
+import { evaluate } from "../../../../../../../../impower-evaluate";
+import { EnterCommandData } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
-import { CommandRunner } from "../../../command/commandRunner";
+import { CommandContext, CommandRunner } from "../../../command/commandRunner";
 
-export class EnterCommandRunner extends CommandRunner<CommandData> {
+export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
   onExecute(
-    data: CommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame,
-    index: number,
-    blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
+    data: EnterCommandData,
+    context: CommandContext,
+    game: ImpowerGame
   ): number[] {
-    const id = data.reference.parentContainerId;
-    game.logic.enterBlock({ id });
-    return super.onExecute(data, variables, game, index, blockCommands);
+    const { name, values, returnWhenFinished } = data;
+    const { ids, valueMap, parameters } = context;
+
+    const blockId = ids[name];
+    if (!blockId) {
+      return super.onExecute(data, context, game);
+    }
+
+    const executedByBlockId = data.reference.parentContainerId;
+    const latestValues = values?.map((v) => evaluate(valueMap, v));
+
+    parameters?.forEach((parameterName, index) => {
+      const parameterId = ids[parameterName];
+      if (parameterId) {
+        game.logic.setVariableValue({
+          pos: data.pos,
+          line: data.line,
+          id: parameterId,
+          value: latestValues?.[index],
+        });
+      }
+    });
+    game.logic.enterBlock({
+      id: blockId,
+      executedByBlockId,
+      returnWhenFinished,
+    });
+
+    return super.onExecute(data, context, game);
   }
 
   isFinished(
-    data: CommandData,
-    variables: { [id: string]: VariableValue },
+    data: EnterCommandData,
+    context: CommandContext,
     game: ImpowerGame
   ): boolean {
-    const { parentContainerId } = data.reference;
-    const parentNode = game.logic.blockTree[parentContainerId];
-    const hasChildren = parentNode.children.length > 0;
-    if (!hasChildren) {
-      return super.isFinished(data, variables, game);
+    const { name } = data;
+    const { ids } = context;
+
+    const blockId = ids[name];
+    if (!blockId) {
+      return super.isFinished(data, context, game);
     }
-    const parentParentContainerId = parentNode?.parent;
-    const blockState = game.logic.state.blockStates[parentParentContainerId];
-    if (
-      !blockState ||
-      !blockState.hasReturned ||
-      blockState.returnedFrom !== data.reference.parentContainerId
-    ) {
+
+    const blockState = game.logic.state.blockStates[blockId];
+    if (!blockState.hasFinished) {
       return false;
     }
-    return super.isFinished(data, variables, game);
+
+    return super.isFinished(data, context, game);
   }
 }

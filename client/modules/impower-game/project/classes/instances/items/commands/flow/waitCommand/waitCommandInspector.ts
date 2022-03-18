@@ -1,8 +1,4 @@
-import {
-  createDynamicData,
-  TypeInfo,
-  WaitCommandData,
-} from "../../../../../../../data";
+import { TypeInfo, WaitCommandData } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
 
@@ -26,7 +22,7 @@ export class WaitCommandInspector extends CommandInspector<WaitCommandData> {
   ): WaitCommandData {
     return {
       ...super.createData(data),
-      seconds: createDynamicData(1),
+      seconds: 1,
       ...data,
     };
   }
@@ -36,7 +32,7 @@ export class WaitCommandInspector extends CommandInspector<WaitCommandData> {
     data: WaitCommandData,
     value: unknown
   ): string {
-    if (propertyPath === "seconds.constant") {
+    if (propertyPath === "seconds") {
       if (value < 0) {
         return "∞";
       }
@@ -54,7 +50,7 @@ export class WaitCommandInspector extends CommandInspector<WaitCommandData> {
     marks?: { value: number; label: string }[];
     force?: boolean;
   } {
-    if (propertyPath === "seconds.constant") {
+    if (propertyPath === "seconds") {
       return {
         min: -1,
       };

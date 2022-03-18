@@ -1,23 +1,12 @@
 import { getLabel } from "../../../../impower-config";
 import {
-  getParentPropertyPath,
   getValue,
   Inspector,
   isActivable,
-  isColor,
   isNameable,
   isOptional,
 } from "../../../../impower-core";
-import {
-  createInstanceData,
-  InstanceData,
-  isDynamicData,
-  isInstanceData,
-  isReference,
-  Permission,
-  TypeInfo,
-  VariableValue,
-} from "../../../data";
+import { createInstanceData, InstanceData, TypeInfo } from "../../../data";
 
 export abstract class InstanceInspector<T extends InstanceData = InstanceData>
   implements Inspector<T>
@@ -43,26 +32,12 @@ export abstract class InstanceInspector<T extends InstanceData = InstanceData>
     return "";
   }
 
-  isPropertyVisible(propertyPath: string, data: T): boolean {
+  isPropertyVisible(propertyPath: string, _data: T): boolean {
     if (propertyPath === "reference") {
       return false;
     }
     if (propertyPath === "line") {
       return false;
-    }
-    if (propertyPath.endsWith(".reference")) {
-      const parentPath = getParentPropertyPath(propertyPath);
-      const parentValue = getValue(data, parentPath);
-      if (isInstanceData(parentValue)) {
-        return false;
-      }
-    }
-    if (propertyPath.endsWith(".dynamic") && !getValue(data, propertyPath)) {
-      const parentPath = getParentPropertyPath(propertyPath);
-      const parentValue = getValue(data, parentPath);
-      if (isDynamicData(parentValue)) {
-        return false;
-      }
     }
     return undefined;
   }
@@ -71,17 +46,11 @@ export abstract class InstanceInspector<T extends InstanceData = InstanceData>
     return undefined;
   }
 
-  getPropertyLabel(propertyPath: string, data: T): string {
+  getPropertyLabel(propertyPath: string, _data: T): string {
     const properties = propertyPath.split(".");
     const targetProperty = properties[properties.length - 1];
     if (targetProperty) {
       const label = getLabel(targetProperty);
-      const value = getValue(data, propertyPath);
-      if (isDynamicData(value) && value.dynamic) {
-        if (value.dynamic.refType === "Variable") {
-          return `${label} (Variable)`;
-        }
-      }
       return label;
     }
     return "";
@@ -128,9 +97,6 @@ export abstract class InstanceInspector<T extends InstanceData = InstanceData>
         .map(([k]) => `{${propertyPath}.value.${k}}`)
         .join(", ")})`;
     }
-    if (isDynamicData(value)) {
-      return `{${propertyPath}}`;
-    }
     if (typeof value === "object") {
       return `(${Object.entries(value)
         .filter(
@@ -145,57 +111,17 @@ export abstract class InstanceInspector<T extends InstanceData = InstanceData>
     return undefined;
   }
 
-  getPropertyPermission(_propertyPath: string, _data: T): Permission {
-    return Permission.Access;
-  }
-
-  getPropertyDynamicTypeId(propertyPath: string, data: T): string {
-    const value = getValue(data, propertyPath);
-    if (isDynamicData(value)) {
-      if (typeof value.constant === "boolean") {
-        return "BooleanVariable";
-      }
-      if (typeof value.constant === "number") {
-        return "NumberVariable";
-      }
-      if (typeof value.constant === "string") {
-        return "StringVariable";
-      }
-      if (isColor(value.constant)) {
-        return "ColorVariable";
-      }
-      if (isReference(value.constant)) {
-        return `${value.constant.refTypeId}Variable`;
-      }
-    }
-    return "";
-  }
-
   getPropertyMoreIcon(propertyPath: string, data: T): string {
-    const value = getValue(data, propertyPath);
-    const isUsingDynamicValue = isDynamicData(value) && value.dynamic;
-    if (isUsingDynamicValue) {
-      return "atom";
-    }
-    return undefined;
+    return getValue(data, propertyPath);
   }
 
   getPropertyMenuItems(
-    propertyPath: string,
-    data: T
+    _propertyPath: string,
+    _data: T
   ): { [type: string]: string } {
-    const value = getValue(data, propertyPath);
     const menuItems: { [type: string]: string } = {
       Reset: "Reset",
     };
-    if (isDynamicData(value)) {
-      if (value.dynamic) {
-        menuItems.UseConstantValue = "Use Constant Value";
-      }
-      if (!value.dynamic) {
-        menuItems.UseVariableValue = "Use Variable Value";
-      }
-    }
     return menuItems;
   }
 
@@ -212,7 +138,12 @@ export abstract class InstanceInspector<T extends InstanceData = InstanceData>
     return null;
   }
 
-  onPreview(_data: T, _variables?: { [id: string]: VariableValue }): void {
+  onPreview(
+    _data: T,
+    _context: {
+      valueMap: Record<string, string | number | boolean>;
+    }
+  ): void {
     // NoOp
   }
 }

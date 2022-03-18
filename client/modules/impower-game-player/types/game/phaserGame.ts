@@ -6,11 +6,8 @@ import {
   ScaleModeType,
 } from "../../../impower-game/data";
 import { ImpowerGame } from "../../../impower-game/game";
-import { ImpowerDataMap } from "../../../impower-game/project";
-import {
-  getRuntimeValue,
-  ImpowerGameRunner,
-} from "../../../impower-game/runner";
+import { ImpowerContext } from "../../../impower-game/project";
+import { ImpowerGameRunner } from "../../../impower-game/runner";
 import { ASSET_SCENE_KEY, PhaserAssetScene } from "./scenes/phaserAssetScene";
 import { LOGIC_SCENE_KEY, PhaserLogicScene } from "./scenes/phaserLogicScene";
 import { MAIN_SCENE_KEY, PhaserMainScene } from "./scenes/phaserMainScene";
@@ -42,10 +39,10 @@ export class PhaserGame extends Phaser.Game {
     return this._impowerGame;
   }
 
-  private _impowerDataMap: ImpowerDataMap | undefined;
+  private _impowerContext: ImpowerContext | undefined;
 
-  public get impowerDataMap(): ImpowerDataMap | undefined {
-    return this._impowerDataMap;
+  public get impowerContext(): ImpowerContext | undefined {
+    return this._impowerContext;
   }
 
   private _mainScene: PhaserMainScene;
@@ -129,16 +126,9 @@ export class PhaserGame extends Phaser.Game {
     };
   }
 
-  static getBackgroundColor(
-    project: GameProjectData,
-    impowerProject: ImpowerDataMap,
-    game: ImpowerGame
-  ): string {
-    const gameColor: Color = getRuntimeValue(
-      project?.instances?.configs?.data?.BackgroundConfig?.game,
-      impowerProject?.variables,
-      game
-    );
+  static getBackgroundColor(project: GameProjectData): string {
+    const gameColor: Color =
+      project?.instances?.configs?.data?.BackgroundConfig?.game;
     if (gameColor) {
       return getColorRgbString(gameColor);
     }
@@ -167,8 +157,8 @@ export class PhaserGame extends Phaser.Game {
       },
       logoUrl
     );
-    const impowerDataMap = impowerRunner
-      ? new ImpowerDataMap(project, impowerRunner)
+    const impowerContext = impowerRunner
+      ? new ImpowerContext(project, impowerRunner)
       : undefined;
 
     const preloadingScene = new PhaserPreloadingScene(
@@ -178,7 +168,7 @@ export class PhaserGame extends Phaser.Game {
         visible: true,
       },
       impowerGame,
-      impowerDataMap
+      impowerContext
     );
 
     const assetScene = new PhaserAssetScene(
@@ -189,7 +179,7 @@ export class PhaserGame extends Phaser.Game {
       },
       projectId,
       impowerGame,
-      impowerDataMap,
+      impowerContext,
       preloadingScene.EarlyImageFileRequests,
       preloadingScene.EarlyMoveImageFileRequests,
       preloadingScene.EarlyRotateImageFileRequests,
@@ -197,7 +187,7 @@ export class PhaserGame extends Phaser.Game {
       preloadingScene.EarlyAudioFileRequests
     );
     const blockScene =
-      impowerGame && impowerDataMap
+      impowerGame && impowerContext
         ? new PhaserLogicScene(
             {
               key: LOGIC_SCENE_KEY,
@@ -205,7 +195,7 @@ export class PhaserGame extends Phaser.Game {
               visible: false,
             },
             impowerGame,
-            impowerDataMap
+            impowerContext
           )
         : undefined;
 
@@ -240,7 +230,7 @@ export class PhaserGame extends Phaser.Game {
     });
     this._project = project;
     this._impowerGame = impowerGame;
-    this._impowerDataMap = impowerDataMap;
+    this._impowerContext = impowerContext;
     if (this.impowerGame) {
       this.impowerGame.start();
     }
@@ -254,13 +244,10 @@ export class PhaserGame extends Phaser.Game {
   }
 
   getScreenStyle(): { backgroundColor: string } {
-    const { project, impowerDataMap: impowerProject, impowerGame } = this;
+    const { project } = this;
 
-    const color: Color = getRuntimeValue(
-      project?.instances?.configs?.data?.BackgroundConfig?.screen,
-      impowerProject?.variables,
-      impowerGame
-    );
+    const color: Color =
+      project?.instances?.configs?.data?.BackgroundConfig?.screen;
     if (color) {
       return {
         backgroundColor: getColorRgbString(color),
@@ -272,12 +259,9 @@ export class PhaserGame extends Phaser.Game {
   }
 
   getGameStyle(): { backgroundColor: string } {
-    const { project, impowerDataMap: impowerProject, impowerGame } = this;
-    const color: Color = getRuntimeValue(
-      project?.instances?.configs?.data?.BackgroundConfig?.game,
-      impowerProject?.variables,
-      impowerGame
-    );
+    const { project } = this;
+    const color: Color =
+      project?.instances?.configs?.data?.BackgroundConfig?.game;
     if (color) {
       return {
         backgroundColor: getColorRgbString(color),
@@ -289,12 +273,9 @@ export class PhaserGame extends Phaser.Game {
   }
 
   getUIStyle(): { backgroundColor: string } {
-    const { project, impowerDataMap: impowerProject, impowerGame } = this;
-    const color: Color = getRuntimeValue(
-      project?.instances?.configs?.data?.BackgroundConfig?.ui,
-      impowerProject?.variables,
-      impowerGame
-    );
+    const { project } = this;
+    const color: Color =
+      project?.instances?.configs?.data?.BackgroundConfig?.ui;
     if (color) {
       return {
         backgroundColor: getColorRgbString(color),

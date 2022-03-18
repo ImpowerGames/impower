@@ -1,15 +1,9 @@
 import { getLabel } from "../../../../../../impower-config";
-import { getParentPropertyPath } from "../../../../../../impower-core";
-import {
-  CommandData,
-  createCommandData,
-  isDynamicData,
-  isReference,
-  TypeInfo,
-} from "../../../../../data";
+import { CommandData, TypeInfo } from "../../../../../data";
 import { Ease } from "../../../../../data/enums/ease";
 import { getProjectColor } from "../../../../../inspector/utils/getProjectColor";
 import { ItemInspector } from "../../item/itemInspector";
+import { createCommandData } from "./createCommandData";
 
 export class CommandInspector<
   T extends CommandData = CommandData
@@ -73,7 +67,7 @@ export class CommandInspector<
     data: T,
     value: unknown
   ): string {
-    if (propertyPath === "transition.ease.constant") {
+    if (propertyPath === "ease") {
       if (value !== undefined) {
         const [easeName] = Object.entries(Ease).find(([, v]) => v === value);
         return getLabel(easeName);
@@ -83,29 +77,18 @@ export class CommandInspector<
   }
 
   getPropertyOptions(propertyPath: string, _data?: T): unknown[] {
-    if (propertyPath === "transition.ease.constant") {
+    if (propertyPath === "ease") {
       return Object.values(Ease);
     }
     return undefined;
   }
 
   async getPropertyError(
-    propertyPath: string,
-    data: T,
-    value: unknown,
+    _propertyPath: string,
+    _data: T,
+    _value: unknown,
     _docIds: string[]
   ): Promise<string | null> {
-    const checkValue = isDynamicData(value)
-      ? value.dynamic || value.constant
-      : value;
-    if (isReference(checkValue)) {
-      if (!checkValue.refId) {
-        return `No ${this.getPropertyLabel(
-          getParentPropertyPath(propertyPath),
-          data
-        )} selected`;
-      }
-    }
     return undefined;
   }
 }

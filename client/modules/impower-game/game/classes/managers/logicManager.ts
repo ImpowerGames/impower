@@ -1,16 +1,16 @@
+import { Block } from "../../interfaces/block";
 import { BlockState, createBlockState } from "../../interfaces/blockState";
-import { TriggerState } from "../../interfaces/triggerState";
 import { VariableState } from "../../interfaces/variableState";
 import { GameEvent } from "../events/gameEvent";
 import { Manager } from "./manager";
 
 export interface LogicState {
+  activeParentBlockId: string;
+  activeCommandIndex: number;
+  loadedBlockIds: string[];
+  loadedAssetIds: string[];
   blockStates: { [blockId: string]: BlockState };
   variableStates: { [variableId: string]: VariableState };
-  triggerStates: { [triggerId: string]: TriggerState };
-  activeParentBlock: string;
-  activeChildBlocks: string[];
-  activeCommandIndex: number;
 }
 
 export interface LogicEvents {
@@ -41,7 +41,7 @@ export interface LogicEvents {
     executedByBlockId: string;
   }>;
   onEnterBlock: GameEvent<{ pos: number; line: number; id: string }>;
-  onExitBlock: GameEvent<{ pos: number; line: number; id: string }>;
+  onReturnFromBlock: GameEvent<{ pos: number; line: number; id: string }>;
   onCheckTriggers: GameEvent<{
     pos: number;
     line: number;
@@ -89,64 +89,34 @@ export interface LogicEvents {
     id: string;
     value: unknown;
   }>;
-  onSetTriggerValue: GameEvent<{
-    pos: number;
-    line: number;
+  onLoadAsset: GameEvent<{
     id: string;
-    value: unknown;
+  }>;
+  onUnloadAsset: GameEvent<{
+    id: string;
   }>;
 }
 
 export class LogicManager extends Manager<LogicState, LogicEvents> {
-  private _blockTree: {
-    [blockId: string]: {
-      index: number;
-      pos: number;
-      line: number;
-      triggerable: boolean;
-      parent: string;
-      children: string[];
-    };
-  };
+  private _blockTree: Record<string, Block>;
 
-  public get blockTree(): {
-    [blockId: string]: {
-      index: number;
-      pos: number;
-      line: number;
-      triggerable: boolean;
-      parent: string;
-      children: string[];
-    };
-  } {
+  public get blockTree(): Record<string, Block> {
     return this._blockTree;
   }
 
-  constructor(
-    blockTree: {
-      [blockId: string]: {
-        index: number;
-        pos: number;
-        line: number;
-        triggerable: boolean;
-        parent: string;
-        children: string[];
-      };
-    },
-    state?: LogicState
-  ) {
+  constructor(blockTree: Record<string, Block>, state?: LogicState) {
     super(state);
     this._blockTree = blockTree;
   }
 
   getInitialState(): LogicState {
     return {
-      activeParentBlock: "",
+      activeParentBlockId: "",
       activeCommandIndex: 0,
-      activeChildBlocks: [],
+      loadedBlockIds: [],
+      loadedAssetIds: [],
       blockStates: {},
       variableStates: {},
-      triggerStates: {},
     };
   }
 
@@ -187,7 +157,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
         line: number;
         id: string;
       }>(),
-      onExitBlock: new GameEvent<{
+      onReturnFromBlock: new GameEvent<{
         pos: number;
         line: number;
         id: string;
@@ -239,11 +209,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
         id: string;
         value: unknown;
       }>(),
-      onSetTriggerValue: new GameEvent<{
-        pos: number;
-        line: number;
+      onLoadAsset: new GameEvent<{
         id: string;
-        value: unknown;
+      }>(),
+      onUnloadAsset: new GameEvent<{
+        id: string;
       }>(),
     };
   }
@@ -261,9 +231,9 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   }
 
   start(): void {
-    this.enterBlock({ id: this.state.activeParentBlock });
-    this.executeBlock({
-      id: this.state.activeParentBlock,
+    this.enterBlock({
+      id: this.state.activeParentBlockId,
+      returnWhenFinished: false,
       executedByBlockId: null,
       startIndex: this.state.activeCommandIndex,
     });
@@ -271,11 +241,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   }
 
   private changeActiveParentBlock(newParentBlockId: string): void {
-    this.unloadAllBlocks();
-    this.state.activeParentBlock = newParentBlockId;
+    if (this.state.activeParentBlockId === newParentBlockId) {
+      return;
+    }
+    this.state.activeParentBlockId = newParentBlockId;
     const parent = this.blockTree?.[newParentBlockId];
-    const childIds = parent?.children || [];
-    this.loadBlocks({ ids: [newParentBlockId, ...childIds] });
     this.events.onChangeActiveParentBlock.emit({
       pos: parent?.pos,
       line: parent?.line,
@@ -297,14 +267,62 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     this.state.blockStates[id] = blockState;
   }
 
-  loadBlock(data: { id: string }): void {
-    if (this.state.activeChildBlocks.includes(data.id)) {
+  private getReferencedAssets(): string[] {
+    const id = this.state.activeParentBlockId;
+    const referencedAssets = new Set<string>();
+    const block = this.blockTree[id];
+    block.children.forEach((childId) => {
+      const childBlock = this.blockTree[childId];
+      childBlock.assets.forEach((a) => {
+        referencedAssets.add(a);
+      });
+    });
+    this.blockTree[id].assets.forEach((a) => {
+      referencedAssets.add(a);
+    });
+    let blockId = id;
+    while (blockId) {
+      blockId = this.blockTree[blockId].parent;
+      this.blockTree[blockId].assets.forEach((a) => {
+        referencedAssets.add(a);
+      });
+    }
+    return Array.from(referencedAssets);
+  }
+
+  private loadAsset(data: { id: string }): void {
+    if (this.state.loadedAssetIds.includes(data.id)) {
       return;
     }
-    this.state.activeChildBlocks.push(data.id);
+    this.state.loadedAssetIds.push(data.id);
+
+    this.events.onLoadAsset.emit(data);
+  }
+
+  private unloadAsset(data: { id: string }): void {
+    if (!this.state.loadedAssetIds.includes(data.id)) {
+      return;
+    }
+    this.state.loadedAssetIds = this.state.loadedAssetIds.filter(
+      (id) => id !== data.id
+    );
+
+    this.events.onUnloadAsset.emit(data);
+  }
+
+  private loadBlock(data: { id: string }): void {
+    if (this.state.loadedBlockIds.includes(data.id)) {
+      return;
+    }
+    this.state.loadedBlockIds.push(data.id);
+
     const blockState = this.state.blockStates[data.id] || createBlockState();
-    blockState.active = true;
     this.state.blockStates[data.id] = blockState;
+    if (blockState.loaded) {
+      return;
+    }
+    blockState.loaded = true;
+
     const block = this.blockTree[data.id];
     this.events.onLoadBlock.emit({
       pos: block.pos,
@@ -313,33 +331,28 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     });
   }
 
-  loadBlocks(data: { ids: string[] }): void {
+  private loadBlocks(data: { ids: string[] }): void {
     data.ids.map((id) => this.loadBlock({ id }));
   }
 
-  unloadBlock(data: { id: string }): void {
-    const blockState = this.state.blockStates[data.id];
-    blockState.active = false;
-    if (!this.state.activeChildBlocks.includes(data.id)) {
+  private unloadBlock(data: { id: string }): void {
+    if (!this.state.loadedBlockIds.includes(data.id)) {
       return;
     }
-    this.state.activeChildBlocks = this.state.activeChildBlocks.filter(
+    this.state.loadedBlockIds = this.state.loadedBlockIds.filter(
       (id) => id !== data.id
     );
+    const blockState = this.state.blockStates[data.id];
+    if (!blockState?.loaded) {
+      return;
+    }
+    blockState.loaded = false;
     const block = this.blockTree[data.id];
     this.events.onUnloadBlock.emit({
       pos: block.pos,
       line: block.line,
       ...data,
     });
-  }
-
-  unloadBlocks(data: { ids: string[] }): void {
-    data.ids.map((id) => this.unloadBlock({ id }));
-  }
-
-  unloadAllBlocks(): void {
-    this.unloadBlocks({ ids: this.state.activeChildBlocks.reverse() });
   }
 
   updateBlock(data: { id: string; time: number; delta: number }): void {
@@ -373,6 +386,37 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     });
   }
 
+  private continueToNextBlock(data: { id: string }): void {
+    const blockId = data.id;
+    const block = this.blockTree[blockId];
+    if (block.operator) {
+      return;
+    }
+    const blockList = Object.entries(this.blockTree).slice(block.index + 1);
+    const [nextBlockId, nextBlock] = blockList.find(
+      ([, v]) =>
+        !v.operator &&
+        (v.parent === blockId || this.blockTree[v.parent].index < block.index)
+    ) || [undefined, undefined];
+    if (nextBlock) {
+      this.enterBlock({
+        id: nextBlockId,
+        returnWhenFinished: false,
+        executedByBlockId: data.id,
+      });
+    }
+  }
+
+  continue(data: { id: string }): void {
+    const blockId = data.id;
+    const blockState = this.state.blockStates[blockId];
+    if (blockState.returnWhenFinished) {
+      this.returnFromBlock({ ...data, value: "" });
+    } else {
+      this.continueToNextBlock(data);
+    }
+  }
+
   finishBlock(data: { id: string }): void {
     const blockState = this.state.blockStates[data.id];
     blockState.isExecuting = false;
@@ -386,40 +430,51 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     });
   }
 
-  continueToNextBlock(data: { id: string }): void {
-    const blockId = data.id;
-    const block = this.blockTree[blockId];
-    if (block.triggerable) {
-      return;
+  enterBlock(data: {
+    id: string;
+    returnWhenFinished: boolean;
+    executedByBlockId: string;
+    startIndex?: number;
+  }): void {
+    console.warn(data.id);
+    const blockState = this.state.blockStates[data.id] || createBlockState();
+    if (data.returnWhenFinished) {
+      blockState.hasReturned = false;
+      blockState.returnedFrom = "";
     }
-    const blockList = Object.entries(this.blockTree).slice(block.index + 1);
-    const [nextBlockId, nextBlock] = blockList.find(
-      ([, v]) =>
-        !v.triggerable &&
-        (v.parent === blockId || this.blockTree[v.parent].index < block.index)
-    ) || [undefined, undefined];
-    if (nextBlock) {
-      if (nextBlock?.children?.length > 0) {
-        this.enterBlock({ id: nextBlockId });
-      } else {
-        this.enterBlock({ id: nextBlock.parent });
-      }
-      this.executeBlock({
-        id: nextBlockId,
-        executedByBlockId: data.id,
-      });
-    }
-  }
+    this.state.blockStates[data.id] = blockState;
 
-  enterBlock(data: { id: string }): void {
-    const currentParentBlockId = this.state.activeParentBlock;
-    const blockState =
-      this.state.blockStates[currentParentBlockId] || createBlockState();
-    blockState.returnedFrom = "";
-    blockState.hasReturned = false;
-    const newParentBlockId = data.id;
-    this.state.blockStates[currentParentBlockId] = blockState;
-    this.changeActiveParentBlock(newParentBlockId);
+    // Change activeParent
+    const newActiveParent = this.blockTree[data.id].parent;
+    this.changeActiveParentBlock(newActiveParent);
+
+    // Unload all loaded blocks that are not an ancestor of activeParent
+    this.state.loadedBlockIds.forEach((loadedBlockId) => {
+      if (!newActiveParent.startsWith(loadedBlockId)) {
+        this.unloadBlock({ id: loadedBlockId });
+        this.resetBlockExecution(loadedBlockId);
+      }
+    });
+    const parent = this.blockTree?.[newActiveParent];
+    const childIds = parent?.children || [];
+    const referencedAssets = this.getReferencedAssets();
+    // Unload unreferenced assets
+    this.state.loadedAssetIds.forEach((loadedAssetId) => {
+      if (!referencedAssets.includes(loadedAssetId)) {
+        this.unloadAsset({ id: loadedAssetId });
+      }
+    });
+
+    // Load referenced assets
+    referencedAssets.forEach((assetId) => {
+      this.loadAsset({ id: assetId });
+    });
+    // Load activeParent and immediate child blocks
+    this.loadBlocks({ ids: [newActiveParent, ...childIds] });
+
+    // Execute activeParent
+    this.executeBlock(data);
+
     const block = this.blockTree[data.id];
     this.events.onEnterBlock.emit({
       pos: block.pos,
@@ -428,23 +483,38 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     });
   }
 
-  exitBlock(): void {
-    const currentParentBlockId = this.state.activeParentBlock;
-    const newParentBlockId = this.blockTree[currentParentBlockId].parent;
-    if (!newParentBlockId) {
+  returnFromBlock(data: {
+    id: string;
+    value: string | number | boolean;
+  }): void {
+    const executedByBlockId = this.state.blockStates[data.id]?.executedBy;
+    if (!executedByBlockId) {
       return;
     }
-    const newParentBlockState = this.state.blockStates[newParentBlockId];
-    newParentBlockState.returnedFrom = currentParentBlockId;
-    newParentBlockState.hasReturned = true;
-    this.changeActiveParentBlock(newParentBlockId);
-    const childIds = this.blockTree[currentParentBlockId].children;
-    childIds.map((id) => this.resetBlockExecution(id));
-    const block = this.blockTree[currentParentBlockId];
-    this.events.onExitBlock.emit({
+
+    const block = this.blockTree[data.id];
+    const variableId = `${data.id}.return`;
+    this.setVariableValue({
       pos: block.pos,
       line: block.line,
-      id: currentParentBlockId,
+      id: variableId,
+      value: data.value,
+    });
+
+    const executedByBlockState = this.state.blockStates[executedByBlockId];
+    this.enterBlock({
+      id: executedByBlockId,
+      returnWhenFinished: executedByBlockState.returnWhenFinished,
+      executedByBlockId: executedByBlockState.executedBy,
+      startIndex: executedByBlockState.executingIndex,
+    });
+    executedByBlockState.hasReturned = true;
+    executedByBlockState.returnedFrom = data.id;
+
+    this.events.onReturnFromBlock.emit({
+      pos: block.pos,
+      line: block.line,
+      id: data.id,
     });
   }
 
@@ -539,7 +609,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     pos: number;
     line: number;
     id: string;
-    value: unknown;
+    value: string | number | boolean;
   }): void {
     const variableState = this.state.variableStates[data.id] || {
       value: data.value,
@@ -547,21 +617,5 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     variableState.value = data.value;
     this.state.variableStates[data.id] = variableState;
     this.events.onSetVariableValue.emit({ ...data });
-  }
-
-  setTriggerValue(data: {
-    pos: number;
-    line: number;
-    id: string;
-    value: unknown;
-  }): void {
-    const triggerState = this.state.triggerStates[data.id] || {
-      value: data.value,
-      executionCount: 0,
-    };
-    triggerState.value = data.value;
-    triggerState.executionCount += 1;
-    this.state.triggerStates[data.id] = triggerState;
-    this.events.onSetTriggerValue.emit({ ...data });
   }
 }

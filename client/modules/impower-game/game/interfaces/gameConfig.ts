@@ -1,14 +1,7 @@
+import { Block } from "./block";
+
 export interface GameConfig {
-  blockTree: {
-    [blockId: string]: {
-      index: number;
-      pos: number;
-      line: number;
-      triggerable: boolean;
-      parent: string;
-      children: string[];
-    };
-  };
+  blockTree: Record<string, Block>;
   seed: string;
   defaultStartBlockId: string;
   defaultStartCommandIndex: number;

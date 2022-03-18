@@ -31,11 +31,7 @@ const createGame = (
     script,
     getScriptAugmentations(project?.files?.data)
   );
-  const runtimeBlocks = getRuntimeBlocks(
-    result?.sections,
-    result?.variables,
-    result?.assets
-  );
+  const runtimeBlocks = getRuntimeBlocks(result);
   const blockTree = getBlockTree(runtimeBlocks);
   const blockEntries = Object.entries(runtimeBlocks);
   let defaultStartBlockId = blockEntries[1]?.[0] || "";

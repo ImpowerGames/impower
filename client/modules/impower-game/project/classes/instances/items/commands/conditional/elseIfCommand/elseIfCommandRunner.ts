@@ -1,45 +1,33 @@
-import {
-  CommandData,
-  IfCommandData,
-  InstanceData,
-  VariableValue,
-} from "../../../../../../../data";
-import { ImpowerGame } from "../../../../../../../game";
+import { evaluate } from "../../../../../../../../impower-evaluate";
+import { IfCommandData } from "../../../../../../../data";
+import { ImpowerGame } from "../../../../../../../game/classes/impowerGame";
 import { getNextJumpIndex } from "../../../../../../../runner/utils/getNextJumpIndex";
-import { CommandRunner } from "../../../command/commandRunner";
+import { CommandContext } from "../../../command/commandRunner";
 import { IfCommandRunner } from "../ifCommand/ifCommandRunner";
 
 export class ElseIfCommandRunner extends IfCommandRunner {
-  closesGroup(_data: IfCommandData, _group?: InstanceData): boolean {
+  closesGroup(): boolean {
     return true;
   }
 
   onExecute(
     data: IfCommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame,
-    index: number,
-    blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
+    context: CommandContext,
+    game: ImpowerGame
   ): number[] {
+    const { value } = data;
+    const { valueMap, index, commands } = context;
+    const shouldExecute = evaluate(valueMap, value);
+
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
     const previousCommandTypeId =
-      blockCommands[blockState.previousIndex].data.reference.refTypeId;
+      commands[blockState.previousIndex].data.reference.refTypeId;
     if (
       previousCommandTypeId === "IfCommand" ||
       previousCommandTypeId === "ElseIfCommand"
     ) {
-      const executeChildren = this.areConditionsSatisfied(
-        data.checkAll,
-        data.conditions,
-        variables,
-        game
-      );
-      if (!executeChildren) {
+      if (!shouldExecute) {
         // Skip to the next "If" or "ElseIf" command or
         // skip to the command after the next "Else" or "Close" command
         const nextCommandIndex = getNextJumpIndex(
@@ -49,7 +37,7 @@ export class ElseIfCommandRunner extends IfCommandRunner {
             { refTypeId: "CloseCommand", indexOffset: 1 },
           ],
           index,
-          blockCommands
+          commands
         );
         return [nextCommandIndex];
       }
@@ -58,10 +46,10 @@ export class ElseIfCommandRunner extends IfCommandRunner {
       const nextCommandIndex = getNextJumpIndex(
         [{ refTypeId: "CloseCommand", indexOffset: 1 }],
         index,
-        blockCommands
+        commands
       );
       return [nextCommandIndex];
     }
-    return super.onExecute(data, variables, game, index, blockCommands);
+    return super.onExecute(data, context, game);
   }
 }

@@ -1,10 +1,4 @@
-import {
-  createDynamicData,
-  createTransitionConfig,
-  FileTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
-import { createVectorConfig } from "../../../../../../../data/interfaces/configs/vectorConfig";
+import { TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
 import { ShowImageCommandData } from "./showImageCommandData";
@@ -30,29 +24,12 @@ export class ShowImageCommandInspector extends CommandInspector<ShowImageCommand
   ): ShowImageCommandData {
     return {
       ...super.createData(data),
-      image: createDynamicData({
-        refType: "File",
-        refTypeId: FileTypeId.ImageFile,
-        refId: "",
-      }),
-      transition: createTransitionConfig(),
-      position: createVectorConfig(0, 0),
-      size: {
-        useDefault: true,
-        value: createVectorConfig(100, 100),
-      },
+      image: "",
+      duration: 0,
+      x: 0,
+      y: 0,
       ...data,
     };
-  }
-
-  getPropertyLabel(propertyPath: string, data: ShowImageCommandData): string {
-    if (propertyPath === "size.value.x") {
-      return "Width";
-    }
-    if (propertyPath === "size.value.y") {
-      return "Height";
-    }
-    return super.getPropertyLabel(propertyPath, data);
   }
 
   getPropertyBounds(
@@ -65,7 +42,7 @@ export class ShowImageCommandInspector extends CommandInspector<ShowImageCommand
     marks?: { value: number; label: string }[];
     force?: boolean;
   } {
-    if (propertyPath === "transition.duration.constant") {
+    if (propertyPath === "duration") {
       return {
         min: 0,
         force: true,

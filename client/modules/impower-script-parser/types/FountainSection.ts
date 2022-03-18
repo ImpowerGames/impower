@@ -6,11 +6,13 @@ import { FountainVariable } from "./FountainVariable";
 
 export interface FountainSection {
   name?: string;
-  start?: number;
+  from?: number;
+  to?: number;
   line?: number;
-  operator?: string;
+  operator?: "?" | "*" | "";
   tokens?: FountainToken[];
   children?: string[];
+  triggers?: string[];
   variables?: Record<string, FountainVariable>;
   entities?: Record<string, FountainEntity>;
   tags?: Record<string, FountainTag>;

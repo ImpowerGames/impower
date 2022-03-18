@@ -1,15 +1,8 @@
-import { List } from "../../../../../../../../impower-core";
-import {
-  CommandData,
-  Condition,
-  IfCommandData,
-  InstanceData,
-  VariableValue,
-} from "../../../../../../../data";
+import { evaluate } from "../../../../../../../../impower-evaluate";
+import { IfCommandData, InstanceData } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { getNextJumpIndex } from "../../../../../../../runner/utils/getNextJumpIndex";
-import { isConditionSatisfied } from "../../../../../../../runner/utils/isConditionSatisfied";
-import { CommandRunner } from "../../../command/commandRunner";
+import { CommandContext, CommandRunner } from "../../../command/commandRunner";
 
 export class IfCommandRunner extends CommandRunner<IfCommandData> {
   closesGroup(data: IfCommandData, group?: InstanceData): boolean {
@@ -24,39 +17,15 @@ export class IfCommandRunner extends CommandRunner<IfCommandData> {
     return true;
   }
 
-  areConditionsSatisfied(
-    checkAll: boolean,
-    conditions: List<Condition>,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame
-  ): boolean {
-    return checkAll
-      ? conditions.order.every((x) =>
-          isConditionSatisfied(conditions.data[x], variables, game)
-        )
-      : conditions.order.some((x) =>
-          isConditionSatisfied(conditions.data[x], variables, game)
-        );
-  }
-
   onExecute(
     data: IfCommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame,
-    index: number,
-    blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
+    context: CommandContext,
+    game: ImpowerGame
   ): number[] {
-    const executeChildren = this.areConditionsSatisfied(
-      data.checkAll,
-      data.conditions,
-      variables,
-      game
-    );
-    if (!executeChildren) {
+    const { value } = data;
+    const { valueMap, index, commands } = context;
+    const shouldExecute = evaluate(valueMap, value);
+    if (!shouldExecute) {
       // Skip to the next "ElseIf" command or
       // skip to the command after the next "Else" or "Close" command
       const nextCommandIndex = getNextJumpIndex(
@@ -66,10 +35,10 @@ export class IfCommandRunner extends CommandRunner<IfCommandData> {
           { refTypeId: "CloseCommand", indexOffset: 1 },
         ],
         index,
-        blockCommands
+        commands
       );
       return [nextCommandIndex];
     }
-    return super.onExecute(data, variables, game, index, blockCommands);
+    return super.onExecute(data, context, game);
   }
 }

@@ -4,6 +4,7 @@ import React, {
   CSSProperties,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -12,6 +13,7 @@ import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
 import CheckRegularIcon from "../../../../resources/icons/regular/check.svg";
 import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ellipsis-vertical.svg";
+import TriangleExclamationRegularIcon from "../../../../resources/icons/regular/triangle-exclamation.svg";
 import { SlideAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
@@ -71,13 +73,23 @@ interface ContainerPanelHeaderProps {
   windowType: WindowType;
   title: string;
   toggleFolding: boolean;
+  toggleLinting: boolean;
   style?: CSSProperties;
   onToggleFolding?: (toggleFolding: boolean) => void;
+  onToggleLinting?: (toggleLinting: boolean) => void;
 }
 
 const ContainerPanelHeader = React.memo(
   (props: ContainerPanelHeaderProps): JSX.Element => {
-    const { windowType, title, toggleFolding, style, onToggleFolding } = props;
+    const {
+      windowType,
+      title,
+      toggleFolding,
+      toggleLinting,
+      style,
+      onToggleFolding,
+      onToggleLinting,
+    } = props;
 
     const { portrait } = useContext(WindowTransitionContext);
     const [state, dispatch] = useContext(ProjectEngineContext);
@@ -181,6 +193,14 @@ const ContainerPanelHeader = React.memo(
         rightChildren={
           <>
             <UndoRedoControl type={windowType} />
+            <TogglePanelHeaderIconButton
+              value={toggleLinting}
+              onLabel={`Format and check for errors`}
+              offLabel={`Hide error panel`}
+              onIcon={<TriangleExclamationRegularIcon />}
+              offIcon={<TriangleExclamationRegularIcon />}
+              onClick={onToggleLinting}
+            />
             {/* <ScriptingPanelHeaderIconButton
               scripting={scripting}
               onClick={handleClickHeaderScriptingIcon}
@@ -196,18 +216,26 @@ interface ContainerPanelContentProps {
   windowType: WindowType;
   scripting: boolean;
   toggleFolding: boolean;
+  toggleLinting: boolean;
   onSectionChange: (name: string) => void;
 }
 
 const ContainerPanelContent = React.memo(
   (props: ContainerPanelContentProps): JSX.Element => {
-    const { windowType, scripting, toggleFolding, onSectionChange } = props;
+    const {
+      windowType,
+      scripting,
+      toggleFolding,
+      toggleLinting,
+      onSectionChange,
+    } = props;
 
     if (scripting) {
       return (
         <ContainerScriptEditor
           windowType={windowType}
           toggleFolding={toggleFolding}
+          toggleLinting={toggleLinting}
           onSectionChange={onSectionChange}
         />
       );
@@ -226,13 +254,14 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const { portrait } = useContext(WindowTransitionContext);
   const [state] = useContext(ProjectEngineContext);
 
-  const [toggleFolding, setToggleFolding] = useState<boolean>(false);
-  const [headerName, setHeaderName] = useState("");
-
   const mode = state?.test?.mode;
   const scripting = state?.panel?.panels?.[windowType]?.scripting;
   const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
   const theme = useTheme();
+
+  const [toggleFolding, setToggleFolding] = useState<boolean>(false);
+  const [toggleLinting, setToggleLinting] = useState(mode === "Test");
+  const [headerName, setHeaderName] = useState("");
 
   useBodyBackgroundColor(theme.colors.darkForeground);
   useHTMLBackgroundColor(theme.colors.darkForeground);
@@ -246,6 +275,12 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const showChart = windowType === "Logic" && !scripting;
   const showSnippetToolbar = !portrait && focused && mode === "Edit";
   const title = headerName || "Script";
+
+  useEffect((): void => {
+    if (mode === "Test") {
+      setToggleLinting(true);
+    }
+  }, [mode]);
 
   const fixedStyle: CSSProperties = useMemo(
     () => ({
@@ -287,7 +322,9 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
             windowType={windowType}
             title={title}
             toggleFolding={toggleFolding}
+            toggleLinting={toggleLinting}
             onToggleFolding={setToggleFolding}
+            onToggleLinting={setToggleLinting}
           />
         ) : undefined
       }
@@ -297,7 +334,9 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
             windowType={windowType}
             title={title}
             toggleFolding={toggleFolding}
+            toggleLinting={toggleLinting}
             onToggleFolding={setToggleFolding}
+            onToggleLinting={setToggleLinting}
           />
         ) : showSnippetToolbar ? (
           <StyledToolbarArea
@@ -314,6 +353,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
         windowType={windowType}
         scripting={scripting}
         toggleFolding={toggleFolding}
+        toggleLinting={toggleLinting}
         onSectionChange={handleSectionChange}
       />
     </Panel>

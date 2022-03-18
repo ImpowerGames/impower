@@ -1,7 +1,5 @@
 import { ImpowerGame } from "../../../../../../../game";
-import { CommandData } from "../../../command/commandData";
-import { CommandRunner } from "../../../command/commandRunner";
-import { VariableValue } from "../../../variable/variableValue";
+import { CommandContext, CommandRunner } from "../../../command/commandRunner";
 import { DisplayCommandData } from "./displayCommandData";
 import { executeDisplayCommand } from "./executeDisplayCommand";
 
@@ -10,23 +8,17 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
 
   onExecute(
     data: DisplayCommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame,
-    index: number,
-    blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
+    context: CommandContext,
+    game: ImpowerGame
   ): number[] {
     this.down = game.input.state.pointer.down.includes(0);
-    executeDisplayCommand(data);
-    return super.onExecute(data, variables, game, index, blockCommands);
+    executeDisplayCommand(data, context);
+    return super.onExecute(data, context, game);
   }
 
   isFinished(
     data: DisplayCommandData,
-    variables: { [id: string]: VariableValue },
+    context: CommandContext,
     game: ImpowerGame
   ): boolean {
     const prevDown = this.down;

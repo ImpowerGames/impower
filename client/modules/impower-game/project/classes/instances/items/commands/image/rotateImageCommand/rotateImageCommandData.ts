@@ -1,12 +1,11 @@
-import { ImageFileReference } from "../../../../../../../data";
-import { TransitionConfig } from "../../../../../../../data/interfaces/configs/transitionConfig";
-import { DynamicData } from "../../../../../../../data/interfaces/generics/dynamicData";
+import { Ease } from "../../../../../../../data/enums/ease";
 import { CommandData } from "../../../command/commandData";
 
 export interface RotateToImageCommandData
   extends CommandData<"RotateToImageCommand"> {
-  image: DynamicData<ImageFileReference>;
-  transition: TransitionConfig;
-  angle: DynamicData<number>;
-  additive: DynamicData<boolean>;
+  image: string;
+  angle: number;
+  duration: number;
+  ease: Ease;
+  additive: boolean;
 }

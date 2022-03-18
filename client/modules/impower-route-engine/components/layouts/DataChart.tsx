@@ -9,7 +9,6 @@ import React, {
   useState,
 } from "react";
 import { debounce, difference } from "../../../impower-core";
-import { defaultNodeSize } from "../../../impower-game/data";
 import {
   Chart,
   Flowchart,
@@ -37,6 +36,8 @@ import { WindowTransitionContext } from "../../contexts/transitionContext";
 import { DataButtonInfo } from "../../types/info/buttons";
 import { chartSize, containerChartConfig } from "../../types/info/charts";
 import { DataLink } from "./DataLink";
+
+const defaultNodeSize = { x: 144, y: 40 };
 
 const getInitialNodePositions = (
   newNodes: {

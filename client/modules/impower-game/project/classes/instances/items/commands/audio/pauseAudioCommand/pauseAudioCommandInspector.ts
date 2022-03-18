@@ -1,9 +1,4 @@
-import {
-  createDynamicData,
-  createTransitionConfig,
-  FileTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
+import { Ease, TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
 import { PauseAudioCommandData } from "./pauseAudioCommandData";
@@ -29,12 +24,9 @@ export class PauseAudioCommandInspector extends CommandInspector<PauseAudioComma
   ): PauseAudioCommandData {
     return {
       ...super.createData(data),
-      audio: createDynamicData({
-        refType: "File",
-        refTypeId: FileTypeId.AudioFile,
-        refId: "",
-      }),
-      transition: createTransitionConfig(),
+      audio: "",
+      duration: 0,
+      ease: Ease.Linear,
       ...data,
     };
   }

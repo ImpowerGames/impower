@@ -1,9 +1,4 @@
-import {
-  createDynamicData,
-  createTransitionConfig,
-  FileTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
+import { TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
 import { RotateToImageCommandData } from "./rotateImageCommandData";
@@ -29,14 +24,10 @@ export class RotateToImageCommandInspector extends CommandInspector<RotateToImag
   ): RotateToImageCommandData {
     return {
       ...super.createData(data),
-      image: createDynamicData({
-        refType: "File",
-        refTypeId: FileTypeId.ImageFile,
-        refId: "",
-      }),
-      angle: createDynamicData(0),
-      transition: createTransitionConfig(),
-      additive: createDynamicData(false),
+      image: "",
+      angle: 0,
+      duration: 0,
+      additive: false,
       ...data,
     };
   }

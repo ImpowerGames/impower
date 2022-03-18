@@ -1,48 +1,43 @@
-import { CommandData, VariableValue } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
-import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
-import { CommandRunner } from "../../../command/commandRunner";
+import { CommandContext, CommandRunner } from "../../../command/commandRunner";
 import { StopAudioCommandData } from "./stopAudioCommandData";
 
 export class StopAudioCommandRunner extends CommandRunner<StopAudioCommandData> {
   onExecute(
     data: StopAudioCommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame,
-    index: number,
-    blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
+    context: CommandContext,
+    game: ImpowerGame
   ): number[] {
-    const fileReference = getRuntimeValue(data.audio, variables, game);
-    if (!fileReference || !fileReference.refId) {
-      return super.onExecute(data, variables, game, index, blockCommands);
+    const { audio, duration } = data;
+    const { ids } = context;
+
+    const audioId = ids[audio];
+    if (!audioId) {
+      return super.onExecute(data, context, game);
     }
-    const { refId } = fileReference;
-    const { transition } = data;
 
     game.asset.stopAudioFile({
-      id: refId,
-      duration: getRuntimeValue(transition.duration, variables, game),
+      id: audioId,
+      duration,
     });
 
-    return super.onExecute(data, variables, game, index, blockCommands);
+    return super.onExecute(data, context, game);
   }
 
   isFinished(
     data: StopAudioCommandData,
-    variables: { [id: string]: VariableValue },
+    context: CommandContext,
     game: ImpowerGame
   ): boolean {
-    const duration = getRuntimeValue(data.transition.duration, variables, game);
+    const { duration } = data;
+
     if (duration === undefined || duration === 0) {
-      return super.isFinished(data, variables, game);
+      return super.isFinished(data, context, game);
     }
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
     const timeSinceExecution = blockState.time - blockState.lastExecutedAt;
+
     if (duration < 0) {
       return false;
     }
@@ -50,6 +45,6 @@ export class StopAudioCommandRunner extends CommandRunner<StopAudioCommandData> 
       return false;
     }
 
-    return super.isFinished(data, variables, game);
+    return super.isFinished(data, context, game);
   }
 }

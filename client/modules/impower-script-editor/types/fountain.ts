@@ -6,6 +6,7 @@ import {
   moveCompletionSelection,
   nextSnippetField,
   prevSnippetField,
+  selectedCompletion,
   startCompletion,
 } from "@codemirror/autocomplete";
 import { EditorView } from "@codemirror/basic-setup";
@@ -16,7 +17,7 @@ import {
   LanguageSupport,
 } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
-import { Prec } from "@codemirror/state";
+import { EditorSelection, Prec } from "@codemirror/state";
 import { KeyBinding, keymap } from "@codemirror/view";
 import {
   FountainParseResult,
@@ -60,9 +61,10 @@ const snippetKeymap = [
   {
     key: "Enter",
     run: (target: EditorView): boolean => {
+      const selected = selectedCompletion(target.state);
       const accepted = acceptCompletion(target);
       const next = nextSnippetField(target);
-      if (!next) {
+      if (!next && !(selected as { inline?: boolean })?.inline) {
         const end = target.state.doc.lineAt(
           target.state.selection.main.head
         ).to;
@@ -145,18 +147,22 @@ export function fountain(
         apply: (view: EditorView, _from: number, _to: number): void => {
           if (a.focus) {
             view.dispatch({
-              selection: { anchor: a.focus },
-              effects: EditorView.scrollIntoView(a.focus, { y: "center" }),
+              selection: { anchor: a.focus.from, head: a.focus.to },
+              effects: EditorView.scrollIntoView(
+                EditorSelection.range(a.focus.from, a.focus.to),
+                { y: "center" }
+              ),
             });
           }
-          if (a.replace) {
+          if (a.changes?.length > 0) {
+            const lastChange = a.changes[a.changes.length - 1];
+            const cursor =
+              lastChange.insert != null
+                ? lastChange.from + lastChange.insert.length
+                : lastChange.from;
             view.dispatch({
-              changes: {
-                from: a.replace.from,
-                to: a.replace.to,
-                insert: a.replace.insert,
-              },
-              selection: { anchor: a.replace.to },
+              changes: a.changes,
+              selection: { anchor: cursor, head: cursor },
             });
           }
         },

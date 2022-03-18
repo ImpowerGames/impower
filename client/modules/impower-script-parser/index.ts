@@ -1,4 +1,5 @@
 export * from "./constants/fountainRegexes";
+export * from "./constants/reservedKeywords";
 export * from "./types/FountainAsset";
 export * from "./types/FountainDeclarations";
 export * from "./types/FountainParseResult";
@@ -9,6 +10,11 @@ export * from "./types/FountainToken";
 export * from "./types/FountainTokenType";
 export * from "./types/FountainVariable";
 export * from "./types/LexerReplacements";
+export * from "./types/MethodType";
 export * from "./types/ScreenplayProperties";
 export * from "./utils/getAncestorIds";
+export * from "./utils/getScopedContext";
+export * from "./utils/getScopedIds";
+export * from "./utils/getScopedItem";
+export * from "./utils/getScopedItemId";
 export { parseFountain } from "./utils/parseFountain";

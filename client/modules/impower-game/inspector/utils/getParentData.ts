@@ -3,7 +3,6 @@ import {
   InstanceData,
   isContainerReference,
   isItemReference,
-  isScopable,
   Reference,
 } from "../../data";
 import { getData } from "./getData";
@@ -12,7 +11,6 @@ export const getParentData = (
   reference: Reference,
   project: GameProjectData
 ): InstanceData | undefined => {
-  const data = getData(reference, project);
   let parentReference: Reference = {
     ...reference,
   } as Reference;
@@ -28,9 +26,6 @@ export const getParentData = (
       refTypeId: "",
       refId: reference.parentContainerId,
     };
-  }
-  if (isScopable(data)) {
-    parentReference.refId = data.overrideParentContainerId;
   }
   return getData(parentReference, project);
 };

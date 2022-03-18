@@ -1,7 +1,8 @@
 import { FountainEntityType } from "./FountainEntityType";
 
 export interface FountainEntity {
-  start: number;
+  from: number;
+  to: number;
   line: number;
   name: string;
   type: FountainEntityType;

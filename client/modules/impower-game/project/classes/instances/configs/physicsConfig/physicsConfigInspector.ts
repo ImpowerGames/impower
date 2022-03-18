@@ -1,10 +1,6 @@
-import {
-  ConfigData,
-  createPhysicsConfigData,
-  PhysicsConfigData,
-  TypeInfo,
-} from "../../../../../data";
+import { ConfigData, PhysicsConfigData, TypeInfo } from "../../../../../data";
 import { ConfigInspector } from "../../config/configInspector";
+import { createPhysicsConfigData } from "./createPhysicsConfigData";
 
 export class PhysicsConfigInspector extends ConfigInspector<PhysicsConfigData> {
   getTypeInfo(data?: ConfigData): TypeInfo {

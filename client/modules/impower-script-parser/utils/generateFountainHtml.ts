@@ -183,7 +183,7 @@ export const generateFountainHtml = (
 
         case "section":
           html.push(
-            `<p class="source section" id="line_${currentToken.line}" data-line="${currentToken.line}" data-level="${currentToken.level}">${currentToken.content}</p>`
+            `<p class="source section" id="line_${currentToken.line}" data-line="${currentToken.line}">${currentToken.content}</p>`
           );
           break;
         case "synopses":

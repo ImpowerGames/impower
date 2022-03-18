@@ -1,5 +1,4 @@
 import {
-  getUuid,
   groupBy,
   insertIds,
   insertOrderedCollectionData,
@@ -8,24 +7,16 @@ import {
   BlockData,
   CommandData,
   ConfigData,
-  ConstructData,
   createBlockData,
   createBlockReference,
-  createConstructData,
-  createConstructReference,
-  ElementData,
   GameProjectData,
   InstanceData,
   isBlockData,
   isConfigData,
-  isConstructData,
   isContainerReference,
   isItemReference,
   ParentLookup,
-  TriggerData,
-  VariableData,
 } from "../../data";
-import { TriggerInspector } from "../../project/classes/instances/items/trigger/triggerInspector";
 
 export const insertGameProjectData = (
   project: GameProjectData,
@@ -88,88 +79,7 @@ export const insertGameProjectData = (
         };
         break;
       }
-      case "Construct": {
-        const updatedParents: {
-          [refId: string]: ConstructData;
-        } = parent.parentContainerId
-          ? {
-              [parent.parentContainerId]: {
-                ...createConstructData({
-                  reference: createConstructReference({
-                    refId: parent.parentContainerId,
-                  }),
-                }),
-                ...newProject?.instances?.constructs?.data[
-                  parent.parentContainerId
-                ],
-                childContainerIds: insertIds(
-                  newProject?.instances?.constructs?.data[
-                    parent.parentContainerId
-                  ].childContainerIds,
-                  Object.keys(updated),
-                  index
-                ),
-              },
-            }
-          : {};
-        const updatedData: { [refId: string]: ConstructData } = {};
-        Object.entries(updated).forEach(([key, value]) => {
-          if (isConstructData(value)) {
-            updatedData[key] = value;
-          }
-        });
-        newProject = {
-          ...newProject,
-          instances: {
-            ...newProject?.instances,
-            constructs: {
-              ...newProject?.instances?.constructs,
-              data: {
-                ...newProject?.instances?.constructs?.data,
-                ...updatedData,
-                ...updatedParents,
-              },
-            },
-          },
-        };
-        allUpdated[parent.parentContainerId] =
-          newProject?.instances?.constructs?.data[parent.parentContainerId];
-        allOriginal[parent.parentContainerId] =
-          project?.instances?.constructs?.data[parent.parentContainerId];
-        break;
-      }
       case "Block": {
-        const isFirstBlock =
-          parent.parentContainerId &&
-          !newProject?.instances?.blocks?.data?.[parent.parentContainerId]
-            ?.childContainerIds?.length;
-        if (isFirstBlock) {
-          const firstBlockId = Object.keys(updated)[0];
-          if (firstBlockId) {
-            const firstBlock = allUpdated?.[firstBlockId] as BlockData;
-            if (firstBlock) {
-              if (!firstBlock?.triggers?.order?.length) {
-                const newEnteredTrigger = TriggerInspector.instance.createData({
-                  reference: {
-                    parentContainerType: "Block",
-                    parentContainerId: firstBlock.reference.refId,
-                    refType: "Trigger",
-                    refTypeId: "EnteredTrigger",
-                    refId: getUuid(),
-                  },
-                });
-                firstBlock.triggers = insertOrderedCollectionData(
-                  firstBlock.triggers,
-                  {
-                    [newEnteredTrigger.reference.refId]: newEnteredTrigger,
-                  }
-                );
-                firstBlock.name = "START";
-                allUpdated[firstBlockId] = firstBlock;
-              }
-            }
-          }
-        }
         const updatedParents: {
           [refId: string]: BlockData;
         } = parent.parentContainerId
@@ -184,9 +94,9 @@ export const insertGameProjectData = (
                 ...newProject?.instances?.blocks?.data[
                   parent.parentContainerId
                 ],
-                childContainerIds: insertIds(
+                children: insertIds(
                   newProject?.instances?.blocks?.data[parent.parentContainerId]
-                    .childContainerIds,
+                    .children,
                   Object.keys(updated),
                   index
                 ),
@@ -209,68 +119,6 @@ export const insertGameProjectData = (
                 ...newProject?.instances?.blocks?.data,
                 ...updatedData,
                 ...updatedParents,
-              },
-            },
-          },
-        };
-        allUpdated[parent.parentContainerId] =
-          newProject?.instances?.blocks?.data[parent.parentContainerId];
-        allOriginal[parent.parentContainerId] =
-          project?.instances?.blocks?.data[parent.parentContainerId];
-        break;
-      }
-      case "Element": {
-        newProject = {
-          ...newProject,
-          instances: {
-            ...newProject?.instances,
-            constructs: {
-              ...newProject?.instances?.constructs,
-              data: {
-                ...newProject?.instances?.constructs?.data,
-                [parent.parentContainerId]: {
-                  ...newProject?.instances?.constructs?.data[
-                    parent.parentContainerId
-                  ],
-                  elements: insertOrderedCollectionData(
-                    newProject?.instances?.constructs?.data[
-                      parent.parentContainerId
-                    ].elements,
-                    updated as { [refId: string]: ElementData },
-                    index
-                  ),
-                },
-              },
-            },
-          },
-        };
-        allUpdated[parent.parentContainerId] =
-          newProject?.instances?.constructs?.data[parent.parentContainerId];
-        allOriginal[parent.parentContainerId] =
-          project?.instances?.constructs?.data[parent.parentContainerId];
-        break;
-      }
-      case "Trigger": {
-        newProject = {
-          ...newProject,
-          instances: {
-            ...newProject?.instances,
-            blocks: {
-              ...newProject?.instances?.blocks,
-              data: {
-                ...newProject?.instances?.blocks?.data,
-                [parent.parentContainerId]: {
-                  ...newProject?.instances?.blocks?.data[
-                    parent.parentContainerId
-                  ],
-                  triggers: insertOrderedCollectionData(
-                    newProject?.instances?.blocks?.data[
-                      parent.parentContainerId
-                    ].triggers,
-                    updated as { [refId: string]: TriggerData },
-                    index
-                  ),
-                },
               },
             },
           },
@@ -310,75 +158,6 @@ export const insertGameProjectData = (
           newProject?.instances?.blocks?.data[parent.parentContainerId];
         allOriginal[parent.parentContainerId] =
           project?.instances?.blocks?.data[parent.parentContainerId];
-        break;
-      }
-      case "Variable": {
-        switch (parent.parentContainerType) {
-          case "Construct": {
-            newProject = {
-              ...newProject,
-              instances: {
-                ...newProject?.instances,
-                constructs: {
-                  ...newProject?.instances?.constructs,
-                  data: {
-                    ...newProject?.instances?.constructs?.data,
-                    [parent.parentContainerId]: {
-                      ...newProject?.instances?.constructs?.data[
-                        parent.parentContainerId
-                      ],
-                      variables: insertOrderedCollectionData(
-                        newProject?.instances?.constructs?.data[
-                          parent.parentContainerId
-                        ].variables,
-                        updated as { [refId: string]: VariableData },
-                        index
-                      ),
-                    },
-                  },
-                },
-              },
-            };
-            allUpdated[parent.parentContainerId] =
-              newProject?.instances?.constructs?.data[parent.parentContainerId];
-            allOriginal[parent.parentContainerId] =
-              project?.instances?.constructs?.data[parent.parentContainerId];
-            break;
-          }
-          case "Block": {
-            newProject = {
-              ...newProject,
-              instances: {
-                ...newProject?.instances,
-                blocks: {
-                  ...newProject?.instances?.blocks,
-                  data: {
-                    ...newProject?.instances?.blocks?.data,
-                    [parent.parentContainerId]: {
-                      ...newProject?.instances?.blocks?.data[
-                        parent.parentContainerId
-                      ],
-                      variables: insertOrderedCollectionData(
-                        newProject?.instances?.blocks?.data[
-                          parent.parentContainerId
-                        ].variables,
-                        updated as { [refId: string]: VariableData },
-                        index
-                      ),
-                    },
-                  },
-                },
-              },
-            };
-            allUpdated[parent.parentContainerId] =
-              newProject?.instances?.blocks?.data[parent.parentContainerId];
-            allOriginal[parent.parentContainerId] =
-              project?.instances?.blocks?.data[parent.parentContainerId];
-            break;
-          }
-          default:
-            break;
-        }
         break;
       }
       default:

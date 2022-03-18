@@ -1,10 +1,4 @@
-import {
-  createDynamicData,
-  createTransitionConfig,
-  FileTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
-import { createVectorConfig } from "../../../../../../../data/interfaces/configs/vectorConfig";
+import { TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
 import { MoveToImageCommandData } from "./moveToImageCommandData";
@@ -30,14 +24,11 @@ export class MoveToImageCommandInspector extends CommandInspector<MoveToImageCom
   ): MoveToImageCommandData {
     return {
       ...super.createData(data),
-      image: createDynamicData({
-        refType: "File",
-        refTypeId: FileTypeId.ImageFile,
-        refId: "",
-      }),
-      position: createVectorConfig(0, 0),
-      transition: createTransitionConfig(),
-      additive: createDynamicData(false),
+      image: "",
+      x: 0,
+      y: 0,
+      duration: 0,
+      additive: false,
       ...data,
     };
   }

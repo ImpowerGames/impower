@@ -10,6 +10,7 @@ import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
 import {
   FountainParseResult,
+  fountainRegexes,
   FountainSection,
   getAncestorIds,
 } from "../../impower-script-parser";
@@ -33,6 +34,7 @@ type CompletionType =
   | "class"
   | "interface"
   | "parameter"
+  | "trigger"
   | "variable"
   | "constant"
   | "type"
@@ -71,8 +73,8 @@ export const lowercaseParagraphSnippets: readonly Completion[] = [
     type: "variable",
   }),
   snip("tag ${}${newTag} = `${value}`${}", {
-    label: "section",
-    type: "section",
+    label: "tag",
+    type: "tag",
   }),
   snip("image ${}${newImage} = `${url}`${}", {
     label: "image",
@@ -210,27 +212,27 @@ export const effectSnippets: readonly Completion[] = [
 ];
 
 export const callSnippets: readonly Completion[] = [
-  snip("* spawn(${}${entityName})${}", {
+  snip('* spawn(${}"${entityName}")${}', {
     label: "* spawn",
     info: (): Node => getInfoNode(`(string)`, colors.section),
     type: "method",
   }),
-  snip("* destroy(${}${entityName})${}", {
+  snip('* destroy(${}"${entityName}")${}', {
     label: "* destroy",
     info: (): Node => getInfoNode(`(string)`, colors.section),
     type: "method",
   }),
-  snip("* move(${}${entityName}, ${x}, ${y})${}", {
+  snip('* move(${}"${entityName}", ${x}, ${y})${}', {
     label: "* move",
     info: (): Node => getInfoNode(`(string, number, number)`, colors.section),
     type: "method",
   }),
-  snip("* moveX(${}${entityName}, ${x})${}", {
+  snip('* moveX(${}"${entityName}", ${x})${}', {
     label: "* moveX",
     info: (): Node => getInfoNode(`(string, number)`, colors.section),
     type: "method",
   }),
-  snip("* moveY(${}${entityName}, ${y})${}", {
+  snip('* moveY(${}"${entityName}", ${y})${}', {
     label: "* moveY",
     info: (): Node => getInfoNode(`(string, number)`, colors.section),
     type: "method",
@@ -262,6 +264,7 @@ export const nameSnippets = (
   suffix = "",
   infoColor?: string
 ): Completion[] => {
+  const labelCleanupRegex = /[\n\r${}]/g;
   return options.map((option) => {
     const name = typeof option === "string" ? option : option.name;
     const type =
@@ -273,11 +276,15 @@ export const nameSnippets = (
       typeof option === "string"
         ? undefined
         : (): Node => getInfoNode(`= ${option.type}`, color);
-    return snip(prefix + name + suffix, {
-      label: prefix + name,
-      info,
-      type,
-    });
+    const cleanedPrefix = prefix.replace(labelCleanupRegex, "");
+    return {
+      ...snip(prefix + name + suffix, {
+        label: cleanedPrefix + name,
+        info,
+        type,
+      }),
+      inline: true,
+    };
   });
 };
 
@@ -290,7 +297,7 @@ export const getFunctionIds = (
   );
   const validAncestorIds = ancestorIds
     .slice(0, -1)
-    .filter((id) => id.split(".").slice(-1).join("").startsWith("*"));
+    .filter((id) => id.split(".").slice(-1).join("").match(/^[*]/));
   return [...validChildrenIds, ...validAncestorIds];
 };
 
@@ -303,7 +310,7 @@ export const getSectionIds = (
   );
   const validAncestorIds = ancestorIds
     .slice(0, -1)
-    .filter((id) => !id.split(".").slice(-1).join("").startsWith("*"));
+    .filter((id) => !id.split(".").slice(-1).join("").match(/^[*?]/));
   return [...validChildrenNames, "", ...validAncestorIds, "!END"];
 };
 
@@ -643,12 +650,18 @@ export const fountainAutocomplete = async (
         line
       )
     );
-  } else if (node.name === "ImageNote") {
-    const imageOptions = assetOptions.filter(({ type }) => type === "audio");
-    completions.push(...assetSnippets(imageOptions));
-  } else if (node.name === "AudioNote") {
-    const audioOptions = assetOptions.filter(({ type }) => type === "audio");
-    completions.push(...assetSnippets(audioOptions));
+  } else if (["ImageNote", "AssetImageValue"].includes(node.name)) {
+    const typeOptions = assetOptions.filter(({ type }) => type === "image");
+    completions.push(...assetSnippets(typeOptions));
+  } else if (["AudioNote", "AssetAudioValue"].includes(node.name)) {
+    const typeOptions = assetOptions.filter(({ type }) => type === "audio");
+    completions.push(...assetSnippets(typeOptions));
+  } else if (["VideoNote", "AssetVideoValue"].includes(node.name)) {
+    const typeOptions = assetOptions.filter(({ type }) => type === "video");
+    completions.push(...assetSnippets(typeOptions));
+  } else if (["TextNote", "AssetTextValue"].includes(node.name)) {
+    const typeOptions = assetOptions.filter(({ type }) => type === "text");
+    completions.push(...assetSnippets(typeOptions));
   } else if (node.name === "DynamicTag") {
     completions.push(
       ...nameSnippets(tagOptions, "tag", "", "", colors.tag),
@@ -662,10 +675,6 @@ export const fountainAutocomplete = async (
         children,
         result?.sections
       )
-    );
-  } else if (node.name === "CallEntityName") {
-    completions.push(
-      ...nameSnippets(entityOptions, "entity", "", "", colors.entity)
     );
   } else if (node.name === "GoMark") {
     completions.push(
@@ -685,18 +694,21 @@ export const fountainAutocomplete = async (
     completions.push(
       ...sectionSnippets(ancestorIds, children, result?.sections, "${}")
     );
+  } else if (["CallEntityName"].includes(node.name)) {
+    const typeOptions = entityOptions.filter(({ type }) => type === "ui");
+    if (input.match(fountainRegexes.string)) {
+      completions.push(
+        ...nameSnippets(typeOptions, "entity", "", "", colors.entity)
+      );
+    }
   } else if (
     [
       "AssignName",
-      "ConditionName",
-      "ChoiceName",
       "AssignValue",
-      "VariableValue",
-      "CompareValue",
-      "ChoiceValue",
-      "ConditionValue",
       "CallValue",
+      "GoValue",
       "ReturnValue",
+      "ConditionValue",
     ].includes(node.name)
   ) {
     completions.push(

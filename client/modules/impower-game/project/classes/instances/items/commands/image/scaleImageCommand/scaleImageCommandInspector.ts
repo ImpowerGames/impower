@@ -1,10 +1,4 @@
-import {
-  createDynamicData,
-  createTransitionConfig,
-  FileTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
-import { createVectorConfig } from "../../../../../../../data/interfaces/configs/vectorConfig";
+import { TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
 import { ScaleToImageCommandData } from "./scaleImageCommandData";
@@ -30,14 +24,11 @@ export class ScaleToImageCommandInspector extends CommandInspector<ScaleToImageC
   ): ScaleToImageCommandData {
     return {
       ...super.createData(data),
-      image: createDynamicData({
-        refType: "File",
-        refTypeId: FileTypeId.ImageFile,
-        refId: "",
-      }),
-      scale: createVectorConfig(1, 1),
-      transition: createTransitionConfig(),
-      additive: createDynamicData(false),
+      image: "",
+      x: 1,
+      y: 1,
+      duration: 0,
+      additive: false,
       ...data,
     };
   }

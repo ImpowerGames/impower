@@ -1,8 +1,4 @@
-import {
-  CreateCommandData,
-  createDynamicData,
-  TypeInfo,
-} from "../../../../../../../data";
+import { CreateCommandData, TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
 
@@ -26,13 +22,7 @@ export class CreateCommandInspector extends CommandInspector<CreateCommandData> 
   ): CreateCommandData {
     return {
       ...super.createData(data),
-      construct: createDynamicData({
-        parentContainerType: "Construct",
-        parentContainerId: "",
-        refType: "Construct",
-        refTypeId: "Construct",
-        refId: "",
-      }),
+      entity: "",
       ...data,
     };
   }

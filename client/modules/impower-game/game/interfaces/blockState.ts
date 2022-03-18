@@ -1,8 +1,9 @@
 export interface BlockState {
-  active: boolean;
+  loaded: boolean;
   executionCount: number;
   commandExecutionCounts: number[];
   executedBy: string;
+  returnWhenFinished: boolean;
   returnedFrom: string;
   isExecuting: boolean;
   hasFinished: boolean;
@@ -19,10 +20,11 @@ export interface BlockState {
 }
 
 export const createBlockState = (obj?: Partial<BlockState>): BlockState => ({
-  active: true,
+  loaded: false,
   executionCount: 0,
   commandExecutionCounts: [],
   executedBy: "",
+  returnWhenFinished: false,
   returnedFrom: "",
   isExecuting: false,
   hasFinished: false,

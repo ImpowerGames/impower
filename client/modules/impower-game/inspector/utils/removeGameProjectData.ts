@@ -57,36 +57,6 @@ export const removeGameProjectData = (
         };
         break;
       }
-      case "Construct": {
-        const newConstructDocs = removeData(
-          newProject?.instances?.constructs?.data,
-          ids
-        );
-        if (newConstructDocs[parent.parentContainerId]) {
-          newConstructDocs[parent.parentContainerId] = {
-            ...newConstructDocs[parent.parentContainerId],
-            childContainerIds: removeIds(
-              newConstructDocs[parent.parentContainerId].childContainerIds,
-              ids
-            ),
-          };
-        }
-        newProject = {
-          ...newProject,
-          instances: {
-            ...newProject?.instances,
-            constructs: {
-              ...newProject?.instances?.constructs,
-              data: newConstructDocs,
-            },
-          },
-        };
-        updated[parent.parentContainerId] =
-          newProject?.instances?.constructs?.data[parent.parentContainerId];
-        original[parent.parentContainerId] =
-          project?.instances?.constructs?.data[parent.parentContainerId];
-        break;
-      }
       case "Block": {
         const newBlockDocs = removeData(
           newProject?.instances?.blocks?.data,
@@ -95,8 +65,8 @@ export const removeGameProjectData = (
         if (newBlockDocs[parent.parentContainerId]) {
           newBlockDocs[parent.parentContainerId] = {
             ...newBlockDocs[parent.parentContainerId],
-            childContainerIds: removeIds(
-              newBlockDocs[parent.parentContainerId].childContainerIds,
+            children: removeIds(
+              newBlockDocs[parent.parentContainerId].children,
               ids
             ),
           };
@@ -108,66 +78,6 @@ export const removeGameProjectData = (
             blocks: {
               ...newProject?.instances?.blocks,
               data: newBlockDocs,
-            },
-          },
-        };
-        updated[parent.parentContainerId] =
-          newProject?.instances?.blocks?.data[parent.parentContainerId];
-        original[parent.parentContainerId] =
-          project?.instances?.blocks?.data[parent.parentContainerId];
-        break;
-      }
-      case "Element": {
-        newProject = {
-          ...newProject,
-          instances: {
-            ...newProject?.instances,
-            constructs: {
-              ...newProject?.instances?.constructs,
-              data: {
-                ...newProject?.instances?.constructs?.data,
-                [parent.parentContainerId]: {
-                  ...newProject?.instances?.constructs?.data[
-                    parent.parentContainerId
-                  ],
-                  elements: removeOrderedCollectionData(
-                    newProject?.instances?.constructs?.data[
-                      parent.parentContainerId
-                    ].elements,
-                    ids
-                  ),
-                },
-              },
-            },
-          },
-        };
-        updated[parent.parentContainerId] =
-          newProject?.instances?.constructs?.data[parent.parentContainerId];
-        original[parent.parentContainerId] =
-          project?.instances?.constructs?.data[parent.parentContainerId];
-        break;
-      }
-      case "Trigger": {
-        newProject = {
-          ...newProject,
-          instances: {
-            ...newProject?.instances,
-            blocks: {
-              ...newProject?.instances?.blocks,
-              data: {
-                ...newProject?.instances?.blocks?.data,
-                [parent.parentContainerId]: {
-                  ...newProject?.instances?.blocks?.data[
-                    parent.parentContainerId
-                  ],
-                  triggers: removeOrderedCollectionData(
-                    newProject?.instances?.blocks?.data[
-                      parent.parentContainerId
-                    ].triggers,
-                    ids
-                  ),
-                },
-              },
             },
           },
         };
@@ -205,73 +115,6 @@ export const removeGameProjectData = (
           newProject?.instances?.blocks?.data[parent.parentContainerId];
         original[parent.parentContainerId] =
           project?.instances?.blocks?.data[parent.parentContainerId];
-        break;
-      }
-      case "Variable": {
-        switch (parent.parentContainerType) {
-          case "Construct": {
-            newProject = {
-              ...newProject,
-              instances: {
-                ...newProject?.instances,
-                constructs: {
-                  ...newProject?.instances?.constructs,
-                  data: {
-                    ...newProject?.instances?.constructs?.data,
-                    [parent.parentContainerId]: {
-                      ...newProject?.instances?.constructs?.data[
-                        parent.parentContainerId
-                      ],
-                      variables: removeOrderedCollectionData(
-                        newProject?.instances?.constructs?.data[
-                          parent.parentContainerId
-                        ]?.variables,
-                        ids
-                      ),
-                    },
-                  },
-                },
-              },
-            };
-            updated[parent.parentContainerId] =
-              newProject?.instances?.constructs?.data[parent.parentContainerId];
-            original[parent.parentContainerId] =
-              project?.instances?.constructs?.data[parent.parentContainerId];
-            break;
-          }
-          case "Block": {
-            newProject = {
-              ...newProject,
-              instances: {
-                ...newProject?.instances,
-                blocks: {
-                  ...newProject?.instances?.blocks,
-                  data: {
-                    ...newProject?.instances?.blocks?.data,
-                    [parent.parentContainerId]: {
-                      ...newProject?.instances?.blocks?.data[
-                        parent.parentContainerId
-                      ],
-                      variables: removeOrderedCollectionData(
-                        newProject?.instances?.blocks?.data[
-                          parent.parentContainerId
-                        ].variables,
-                        ids
-                      ),
-                    },
-                  },
-                },
-              },
-            };
-            updated[parent.parentContainerId] =
-              newProject?.instances?.blocks?.data[parent.parentContainerId];
-            original[parent.parentContainerId] =
-              project?.instances?.blocks?.data[parent.parentContainerId];
-            break;
-          }
-          default:
-            break;
-        }
         break;
       }
       default:

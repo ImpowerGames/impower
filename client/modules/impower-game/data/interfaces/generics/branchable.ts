@@ -1,5 +1,5 @@
 export interface Branchable<T> {
-  getContainerTargetIds(data: T): string[];
+  getContainerTargetNames(data: T): string[];
 }
 
 export const isBranchable = <T>(obj: unknown): obj is Branchable<T> => {
@@ -7,5 +7,5 @@ export const isBranchable = <T>(obj: unknown): obj is Branchable<T> => {
     return false;
   }
   const branchable = obj as Branchable<T>;
-  return branchable.getContainerTargetIds !== undefined;
+  return branchable.getContainerTargetNames !== undefined;
 };

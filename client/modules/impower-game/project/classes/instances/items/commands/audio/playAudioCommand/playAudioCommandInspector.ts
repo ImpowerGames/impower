@@ -1,9 +1,4 @@
-import {
-  createDynamicData,
-  createTransitionConfig,
-  FileTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
+import { Ease, TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
 import { PlayAudioCommandData } from "./playAudioCommandData";
@@ -29,14 +24,11 @@ export class PlayAudioCommandInspector extends CommandInspector<PlayAudioCommand
   ): PlayAudioCommandData {
     return {
       ...super.createData(data),
-      audio: createDynamicData({
-        refType: "File",
-        refTypeId: FileTypeId.AudioFile,
-        refId: "",
-      }),
-      volume: createDynamicData(1),
-      transition: createTransitionConfig(),
-      loop: createDynamicData(false),
+      audio: "",
+      volume: 1,
+      duration: 0,
+      ease: Ease.Linear,
+      loop: false,
       ...data,
     };
   }
@@ -51,7 +43,7 @@ export class PlayAudioCommandInspector extends CommandInspector<PlayAudioCommand
     marks?: { value: number; label: string }[];
     force?: boolean;
   } {
-    if (propertyPath === "volume.constant") {
+    if (propertyPath === "volume") {
       return {
         min: 0,
         max: 1,
@@ -59,7 +51,7 @@ export class PlayAudioCommandInspector extends CommandInspector<PlayAudioCommand
         force: true,
       };
     }
-    if (propertyPath === "transition.duration.constant") {
+    if (propertyPath === "duration") {
       return {
         min: 0,
       };

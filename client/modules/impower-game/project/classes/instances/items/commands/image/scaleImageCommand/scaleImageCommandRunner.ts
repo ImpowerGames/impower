@@ -1,60 +1,41 @@
-import { CommandData, VariableValue } from "../../../../../../../data";
-import { LoadableFile } from "../../../../../../../data/interfaces/loadableFile";
 import { ImpowerGame } from "../../../../../../../game";
-import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
-import { CommandRunner } from "../../../command/commandRunner";
+import { CommandContext, CommandRunner } from "../../../command/commandRunner";
 import { ScaleToImageCommandData } from "./scaleImageCommandData";
 
-export class ScaleToImageCommandRunner
-  extends CommandRunner<ScaleToImageCommandData>
-  implements LoadableFile<ScaleToImageCommandData>
-{
-  getFileId(
-    data: ScaleToImageCommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame
-  ): string {
-    return getRuntimeValue(data.image, variables, game).refId;
-  }
-
+export class ScaleToImageCommandRunner extends CommandRunner<ScaleToImageCommandData> {
   onExecute(
     data: ScaleToImageCommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame,
-    index: number,
-    blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
+    context: CommandContext,
+    game: ImpowerGame
   ): number[] {
-    const fileReference = getRuntimeValue(data.image, variables, game);
-    if (!fileReference || !fileReference.refId) {
-      return super.onExecute(data, variables, game, index, blockCommands);
+    const { image, x, y, duration, additive, ease } = data;
+    const { ids } = context;
+
+    const imageId = ids[image];
+    if (!imageId) {
+      return super.onExecute(data, context, game);
     }
-    const { refId } = fileReference;
-    const { scale, transition, additive } = data;
 
     game.asset.scaleImageFile({
-      id: refId,
-      x: getRuntimeValue(scale.x, variables, game),
-      y: getRuntimeValue(scale.y, variables, game),
-      additive: getRuntimeValue(additive, variables, game),
-      duration: getRuntimeValue(transition.duration, variables, game),
-      ease: getRuntimeValue(transition.ease, variables, game),
+      id: imageId,
+      x,
+      y,
+      additive,
+      duration,
+      ease,
     });
 
-    return super.onExecute(data, variables, game, index, blockCommands);
+    return super.onExecute(data, context, game);
   }
 
   isFinished(
     data: ScaleToImageCommandData,
-    variables: { [id: string]: VariableValue },
+    context: CommandContext,
     game: ImpowerGame
   ): boolean {
-    const duration = getRuntimeValue(data.transition.duration, variables, game);
+    const { duration } = data;
     if (duration === undefined || duration === 0) {
-      return super.isFinished(data, variables, game);
+      return super.isFinished(data, context, game);
     }
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
@@ -66,6 +47,6 @@ export class ScaleToImageCommandRunner
       return false;
     }
 
-    return super.isFinished(data, variables, game);
+    return super.isFinished(data, context, game);
   }
 }

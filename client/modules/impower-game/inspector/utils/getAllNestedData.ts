@@ -5,7 +5,6 @@ import {
   isItemReference,
   Reference,
 } from "../../data";
-import { getVariableContainer } from "./getVariableContainer";
 
 const getNestedDataInternal = (
   dict: { [refId: string]: InstanceData },
@@ -27,29 +26,11 @@ const getNestedDataInternal = (
       }
       break;
     }
-    case "Construct": {
-      const construct = project?.instances?.constructs.data[reference.refId];
-      if (construct) {
-        dict[reference.refId] = construct;
-        construct.childContainerIds?.forEach((childId) => {
-          getNestedDataInternal(
-            dict,
-            {
-              ...reference,
-              parentContainerId: reference.refId,
-              refId: childId,
-            },
-            project
-          );
-        });
-      }
-      return;
-    }
     case "Block": {
       const block = project?.instances?.blocks.data[reference.refId];
       if (block) {
         dict[reference.refId] = block;
-        block.childContainerIds?.forEach((childId) => {
+        block.children?.forEach((childId) => {
           getNestedDataInternal(
             dict,
             {
@@ -61,43 +42,7 @@ const getNestedDataInternal = (
           );
         });
       }
-      return;
-    }
-    case "Element": {
-      if (isItemReference(reference)) {
-        if (reference.parentContainerId) {
-          const construct =
-            project?.instances?.constructs.data[reference.parentContainerId];
-          if (!construct) {
-            throw new Error(
-              `${reference.parentContainerType} with id '${reference.parentContainerId}' does not exist in project`
-            );
-          }
-          dict[reference.refId] = construct.elements.data[reference.refId];
-        }
-        const construct = Object.values(
-          project?.instances?.constructs.data
-        ).find((c) => {
-          return c.elements.data[reference.refId];
-        });
-        if (construct) {
-          dict[reference.refId] = construct.elements.data[reference.refId];
-        }
-      }
-      return;
-    }
-    case "Trigger": {
-      if (isItemReference(reference)) {
-        const block =
-          project?.instances?.blocks.data[reference.parentContainerId];
-        if (!block) {
-          throw new Error(
-            `${reference.parentContainerType} with id '${reference.parentContainerId}' does not exist in project`
-          );
-        }
-        dict[reference.refId] = block.triggers.data[reference.refId];
-      }
-      return;
+      break;
     }
     case "Command": {
       if (isItemReference(reference)) {
@@ -109,44 +54,6 @@ const getNestedDataInternal = (
           );
         }
         dict[reference.refId] = block.commands.data[reference.refId];
-      }
-      return;
-    }
-    case "Variable": {
-      if (isItemReference(reference)) {
-        if (reference.parentContainerId) {
-          const container = getVariableContainer(
-            project,
-            reference.parentContainerType,
-            reference.parentContainerId
-          );
-          if (!container) {
-            throw new Error(
-              `${reference.parentContainerType} with id '${reference.parentContainerId}' does not exist in project`
-            );
-          }
-          dict[reference.refId] = container.variables.data[reference.refId];
-        }
-        if (reference.parentContainerType === "Block") {
-          const container = Object.values(
-            project?.instances?.blocks?.data || {}
-          ).find((c) => {
-            return c.variables.data[reference.refId];
-          });
-          if (container) {
-            dict[reference.refId] = container.variables.data[reference.refId];
-          }
-        }
-        if (reference.parentContainerType === "Construct") {
-          const container = Object.values(
-            project?.instances?.constructs.data
-          ).find((c) => {
-            return c.variables.data[reference.refId];
-          });
-          if (container) {
-            dict[reference.refId] = container.variables.data[reference.refId];
-          }
-        }
       }
       break;
     }

@@ -1,8 +1,8 @@
 export type CommandTypeId =
   | "LogCommand"
-  | "DoCommand"
   | "EnterCommand"
-  | "ExitCommand"
+  | "RepeatCommand"
+  | "ReturnCommand"
   | "EndCommand"
   | "WaitCommand"
   | "IfCommand"
@@ -10,7 +10,7 @@ export type CommandTypeId =
   | "ElseCommand"
   | "SelectCommand"
   | "CloseCommand"
-  | "SetCommand"
+  | "AssignCommand"
   | "DisplayCommand"
   | "CreateCommand"
   | "DestroyCommand"
@@ -22,5 +22,4 @@ export type CommandTypeId =
   | "PlayAudioCommand"
   | "PauseAudioCommand"
   | "ResumeAudioCommand"
-  | "StopAudioCommand"
-  | "ShowPortraitCommand";
+  | "StopAudioCommand";

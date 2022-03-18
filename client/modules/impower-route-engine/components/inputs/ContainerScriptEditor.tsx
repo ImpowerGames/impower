@@ -25,6 +25,7 @@ import {
 } from "../../../impower-script-editor/types/editor";
 import {
   FountainParseResult,
+  getScopedContext,
   parseFountain,
 } from "../../../impower-script-parser";
 import { GameContext } from "../../contexts/gameContext";
@@ -60,12 +61,13 @@ const StyledContainerScriptEditor = styled.div`
 interface ContainerScriptEditorProps {
   windowType: WindowType;
   toggleFolding: boolean;
+  toggleLinting: boolean;
   onSectionChange: (name: string) => void;
 }
 
 const ContainerScriptEditor = React.memo(
   (props: ContainerScriptEditorProps): JSX.Element => {
-    const { windowType, toggleFolding, onSectionChange } = props;
+    const { windowType, toggleFolding, toggleLinting, onSectionChange } = props;
 
     const { transitionState } = useContext(WindowTransitionContext);
     const { gameInspector } = useContext(GameInspectorContext);
@@ -316,18 +318,18 @@ const ContainerScriptEditor = React.memo(
                 break;
               }
             }
-            const runtimeCommand = getRuntimeCommand(
-              token,
-              sectionId,
-              result.variables,
-              result.assets
-            );
+            const runtimeCommand = getRuntimeCommand(token, sectionId);
             if (runtimeCommand) {
               const commandInspector = gameInspector.getInspector(
                 runtimeCommand.reference
               );
               if (commandInspector) {
-                commandInspector.onPreview(runtimeCommand);
+                const [, valueMap] = getScopedContext<string>(
+                  sectionId,
+                  result?.sections,
+                  "assets"
+                );
+                commandInspector.onPreview(runtimeCommand, { valueMap });
               }
             }
           }
@@ -368,7 +370,7 @@ const ContainerScriptEditor = React.memo(
                 defaultState={editor}
                 augmentations={augmentations}
                 toggleFolding={toggleFolding}
-                toggleLinting={mode === "Test"}
+                toggleLinting={toggleLinting}
                 editorChange={editorChange}
                 searchQuery={searchQuery}
                 defaultScrollTopLine={defaultScrollTopLine}

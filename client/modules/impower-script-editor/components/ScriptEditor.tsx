@@ -438,6 +438,12 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
                 color: colors.parameter,
               },
             },
+            ".cm-completionIcon-trigger": {
+              "&:after": {
+                content: "'𝑡'",
+                color: colors.trigger,
+              },
+            },
             ".cm-completionIcon-asset": {
               "&:after": { content: "'Ꭿ'", color: colors.asset },
             },
@@ -445,7 +451,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
               "&:after": { content: "'ℰ'", color: colors.entity },
             },
             ".cm-completionIcon-tag": {
-              "&:after": { content: "'𝑡'", color: colors.tag },
+              "&:after": { content: "'Ť'", color: colors.tag },
             },
             ".cm-completionIcon-class": {
               "&:after": { content: "'○'", color: colors.dialogue },
@@ -471,8 +477,14 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ".cm-completionIcon-scene": {
               "&:after": { content: "'Տ'", color: colors.scene },
             },
+            "&.cm-focused .cm-panel-lint": {
+              marginBottom: "128px",
+            },
             ".cm-panel-lint": {
               marginBottom: "64px",
+            },
+            ".cm-diagnosticText": {
+              marginRight: "16px",
             },
             ".cm-diagnosticAction": {
               backgroundColor: "transparent",
@@ -481,7 +493,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
               color: "#9CDCFE",
               textTransform: "uppercase",
               fontSize: "0.9375rem",
-              marginLeft: "16px",
+              marginLeft: "0",
               marginRight: "8px",
             },
           },

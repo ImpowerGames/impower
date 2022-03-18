@@ -1,27 +1,11 @@
 import { Activable, Vector2 } from "../../../../../../impower-core";
-import { Bounds, createBounds } from "../../../../../data/interfaces/bounds";
-import {
-  CollisionBiasesConfig,
-  createCollisionBiasesConfig,
-} from "../../../../../data/interfaces/configs/collisionBiasesConfig";
-import {
-  CollisionCheckConfig,
-  createCollisionCheckConfig,
-} from "../../../../../data/interfaces/configs/collisionCheckConfig";
-import {
-  createDebugDisplayConfig,
-  DebugDisplayConfig,
-} from "../../../../../data/interfaces/configs/debugDisplayConfig";
-import {
-  createDynamicBodiesTreeConfig,
-  DynamicBodiesTreeConfig,
-} from "../../../../../data/interfaces/configs/dynamicBodiesTreeConfig";
-import {
-  createTimeConfig,
-  TimeConfig,
-} from "../../../../../data/interfaces/configs/timeConfig";
-import { createConfigReference } from "../../../../../data/interfaces/references/configReference";
-import { ConfigData, createConfigData } from "../../config/configData";
+import { Bounds } from "../../../../../data/interfaces/bounds";
+import { CollisionBiasesConfig } from "../../../../../data/interfaces/configs/collisionBiasesConfig";
+import { CollisionCheckConfig } from "../../../../../data/interfaces/configs/collisionCheckConfig";
+import { DebugDisplayConfig } from "../../../../../data/interfaces/configs/debugDisplayConfig";
+import { DynamicBodiesTreeConfig } from "../../../../../data/interfaces/configs/dynamicBodiesTreeConfig";
+import { TimeConfig } from "../../../../../data/interfaces/configs/timeConfig";
+import { ConfigData } from "../../config/configData";
 
 export interface PhysicsConfigData extends ConfigData {
   /**
@@ -69,22 +53,3 @@ export interface PhysicsConfigData extends ConfigData {
    */
   dynamicBodiesTree: Activable<DynamicBodiesTreeConfig>;
 }
-
-export const createPhysicsConfigData = (
-  obj?: Partial<PhysicsConfigData>
-): PhysicsConfigData => ({
-  ...createConfigData({
-    reference: createConfigReference({
-      refTypeId: "PhysicsConfig",
-      refId: "PhysicsConfig",
-    }),
-  }),
-  time: createTimeConfig(),
-  gravity: { x: 0, y: 0 },
-  collisionBounds: { active: false, value: createBounds() },
-  checkCollision: createCollisionCheckConfig(),
-  collisionBiases: createCollisionBiasesConfig(),
-  debugDisplay: { active: false, value: createDebugDisplayConfig() },
-  dynamicBodiesTree: { active: true, value: createDynamicBodiesTreeConfig() },
-  ...obj,
-});

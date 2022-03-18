@@ -1,20 +1,14 @@
-import { CommandData, VariableValue } from "../../../../../../../data";
+import { CommandData } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
-import { CommandRunner } from "../../../command/commandRunner";
+import { CommandContext, CommandRunner } from "../../../command/commandRunner";
 
 export class EndCommandRunner extends CommandRunner<CommandData> {
   onExecute(
     data: CommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame,
-    index: number,
-    blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
+    context: CommandContext,
+    game: ImpowerGame
   ): number[] {
     game.end();
-    return super.onExecute(data, variables, game, index, blockCommands);
+    return super.onExecute(data, context, game);
   }
 }

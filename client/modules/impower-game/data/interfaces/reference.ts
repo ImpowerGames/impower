@@ -7,17 +7,3 @@ export interface Reference<D extends DataType = DataType> {
   parentContainerId?: string;
   parentContainerType?: ContainerType;
 }
-
-export const isReference = <D extends DataType>(
-  obj: unknown
-): obj is Reference<D> => {
-  if (!obj) {
-    return false;
-  }
-  const reference = obj as Reference<D>;
-  return (
-    reference.refId !== undefined &&
-    reference.refTypeId !== undefined &&
-    reference.refType !== undefined
-  );
-};

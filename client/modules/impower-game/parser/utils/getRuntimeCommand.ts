@@ -1,41 +1,43 @@
 import {
-  FountainAsset,
   FountainDialogueToken,
   FountainToken,
-  FountainVariable,
 } from "../../../impower-script-parser";
 import {
+  AssignCommandData,
   CommandData,
   CommandTypeId,
   createCommandData,
   createCommandReference,
+  createItemData,
   DisplayCommandData,
   DisplayPosition,
   DisplayType,
-  SetCommandData,
+  EnterCommandData,
+  IfCommandData,
   SetOperator,
 } from "../../data";
-import { getScopedItem } from "../../data/utils/getScopedItem";
-import { getRuntimeDynamicData } from "./getRuntimeDynamicData";
-import { getRuntimeVariableReference } from "./getRuntimeVariableReference";
 
 const getDisplayCommand = (
   token: FountainToken,
-  sectionId = "",
-  assets: Record<string, FountainAsset>
+  sectionId = ""
 ): DisplayCommandData => {
-  const refId = `${sectionId}.${token.start}`;
+  const refId = `${sectionId}.${token.from}`;
   const refTypeId: CommandTypeId = "DisplayCommand";
   const dialogueToken = token as FountainDialogueToken;
   return {
     ...createCommandData({
+      ...createItemData({
+        reference: createCommandReference(),
+      }),
+      waitUntilFinished: true,
+      disabled: false,
       reference: createCommandReference({
         parentContainerId: refId.split(".").slice(0, -1).join("."),
         refId,
         refTypeId,
       }),
     }),
-    pos: token.start,
+    pos: token.from,
     line: token.line,
     ui: "",
     type: token.type as DisplayType,
@@ -44,24 +46,19 @@ const getDisplayCommand = (
     character: dialogueToken.character || "",
     parenthetical: dialogueToken.parenthetical || "",
     content: dialogueToken.text || dialogueToken.content,
-    assets:
-      dialogueToken.assets?.map(({ name }) =>
-        getScopedItem(assets, sectionId, name)
-      ) || [],
+    assets: dialogueToken.assets?.map(({ name }) => name) || [],
     waitUntilFinished: dialogueToken.position !== "left",
   };
 };
 
 export const getRuntimeCommand = (
   token: FountainToken,
-  sectionId = "",
-  variables: Record<string, FountainVariable>,
-  assets: Record<string, FountainAsset>
+  sectionId = ""
 ): CommandData => {
   if (token.type === "assign") {
-    const refId = `${sectionId}.${token.start}`;
-    const refTypeId: CommandTypeId = "SetCommand";
-    const newCommand: SetCommandData = {
+    const refId = `${sectionId}.${token.from}`;
+    const refTypeId: CommandTypeId = "AssignCommand";
+    const newCommand: AssignCommandData = {
       ...createCommandData({
         reference: createCommandReference({
           parentContainerId: sectionId,
@@ -69,11 +66,80 @@ export const getRuntimeCommand = (
           refTypeId,
         }),
       }),
-      pos: token.start,
+      pos: token.from,
       line: token.line,
-      variable: getRuntimeVariableReference(variables, sectionId, token.name),
+      variable: token.name,
       operator: token.operator as SetOperator,
-      value: getRuntimeDynamicData(token.value, sectionId, variables),
+      value: token.value,
+    };
+    return newCommand;
+  }
+  if (token.type === "condition") {
+    const refId = `${sectionId}.${token.from}`;
+    const refTypeId: CommandTypeId = "IfCommand";
+    const newCommand: IfCommandData = {
+      ...createCommandData({
+        reference: createCommandReference({
+          parentContainerId: sectionId,
+          refId,
+          refTypeId,
+        }),
+      }),
+      pos: token.from,
+      line: token.line,
+      value: token.value,
+    };
+    return newCommand;
+  }
+  if (token.type === "call" || token.type === "go") {
+    const refId = `${sectionId}.${token.from}`;
+    const refTypeId: CommandTypeId = "EnterCommand";
+    const newCommand: EnterCommandData = {
+      ...createCommandData({
+        reference: createCommandReference({
+          parentContainerId: sectionId,
+          refId,
+          refTypeId,
+        }),
+      }),
+      pos: token.from,
+      line: token.line,
+      name: token.name,
+      values: token.values,
+      returnWhenFinished: token.type === "call",
+    };
+    return newCommand;
+  }
+  // if (token.type === "return") {
+  //   const refId = `${sectionId}.${token.from}`;
+  //   const refTypeId: CommandTypeId = "ReturnCommand";
+  //   const newCommand: ReturnCommandData = {
+  //     ...createCommandData({
+  //       reference: createCommandReference({
+  //         parentContainerId: sectionId,
+  //         refId,
+  //         refTypeId,
+  //       }),
+  //     }),
+  //     pos: token.from,
+  //     line: token.line,
+  //     value: token.value,
+  //   };
+  //   return newCommand;
+  // }
+  if (token.type === "repeat") {
+    const refId = `${sectionId}.${token.from}`;
+    const refTypeId: CommandTypeId = "RepeatCommand";
+    const newCommand: CommandData = {
+      ...createCommandData({
+        reference: createCommandReference({
+          parentContainerId: sectionId,
+          refId,
+          refTypeId,
+        }),
+      }),
+      pos: token.from,
+      line: token.line,
     };
     return newCommand;
   }
@@ -84,7 +150,7 @@ export const getRuntimeCommand = (
     token.type === "transition" ||
     token.type === "scene"
   ) {
-    return getDisplayCommand(token, sectionId, assets);
+    return getDisplayCommand(token, sectionId);
   }
 
   return null;

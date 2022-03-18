@@ -8,9 +8,7 @@ import { MoveImageRequestProps } from "../../../../impower-game/data/interfaces/
 import { RotateImageRequestProps } from "../../../../impower-game/data/interfaces/props/rotateImageRequestProps";
 import { ScaleImageRequestProps } from "../../../../impower-game/data/interfaces/props/scaleImageRequestProps";
 import { ImpowerGame } from "../../../../impower-game/game";
-import { ImpowerDataMap } from "../../../../impower-game/project";
-import { ElementData } from "../../../../impower-game/project/classes/instances/items/element/elementData";
-import { UIElementProps } from "../../../../impower-game/project/classes/instances/items/elements/uiElement/uiElementData";
+import { ImpowerContext } from "../../../../impower-game/project";
 import { ASSET_SCENE_KEY } from "./phaserAssetScene";
 
 export const PRELOADING_SCENE_KEY = "PhaserPreloadingScene";
@@ -28,10 +26,10 @@ export class PhaserPreloadingScene extends Phaser.Scene {
     return this._impowerGame;
   }
 
-  private _impowerDataMap: ImpowerDataMap;
+  private _impowerContext: ImpowerContext;
 
-  public get impowerDataMap(): ImpowerDataMap {
-    return this._impowerDataMap;
+  public get impowerContext(): ImpowerContext {
+    return this._impowerContext;
   }
 
   private earlyImageFileRequests: ImageRequestProps[];
@@ -111,11 +109,11 @@ export class PhaserPreloadingScene extends Phaser.Scene {
   constructor(
     config: string | Phaser.Types.Scenes.SettingsConfig,
     impowerGame: ImpowerGame,
-    impowerDataMap: ImpowerDataMap
+    impowerContext: ImpowerContext
   ) {
     super(config);
     this._impowerGame = impowerGame;
-    this._impowerDataMap = impowerDataMap;
+    this._impowerContext = impowerContext;
     this.earlyAudioFileRequests = [];
     this.earlyImageFileRequests = [];
     this.earlyMoveImageFileRequests = [];
@@ -153,61 +151,6 @@ export class PhaserPreloadingScene extends Phaser.Scene {
     this.impowerGame.asset.events.onMarkImageAsHoverTrigger.addListener(
       this.saveEarlyMarkImageAsHoverTrigger.bind(this)
     );
-
-    // Only load assets that are used in current commands
-    // this.impowerGame.logic.state.activeBlockIds.forEach((id) => {
-    //   const { commands, triggers } =
-    //     this.impowerDataMap.blockInternalRunners[id];
-    //   const { variables } = this.impowerDataMap;
-
-    //   let refId: string;
-    //   let refUrl: string;
-    //   let refType: FileType;
-    //   let refExt: FileExtension;
-
-    //   triggers.forEach((element) => {
-    //     if (isLoadableFile(element.runner)) {
-    //       refId = element.runner.getFileId(
-    //         element.data,
-    //         variables,
-    //         this.impowerGame
-    //       );
-    //       const dataMapFiles: FileData = this.impowerDataMap.files[refId];
-    //       if (dataMapFiles) {
-    //         refUrl = dataMapFiles.fileUrl;
-    //         refType = dataMapFiles.fileType as FileType;
-    //         if (refType.toLowerCase().startsWith(this.refTypeImage)) {
-    //           this.load.image(refId, refUrl);
-    //         }
-    //       }
-    //     }
-    //   });
-
-    //   commands.forEach((element) => {
-    //     if (isLoadableFile(element.runner)) {
-    //       refId = element.runner.getFileId(
-    //         element.data,
-    //         variables,
-    //         this.impowerGame
-    //       );
-    //       const dataMapFile = this.impowerDataMap.files[refId];
-
-    //       if (dataMapFile) {
-    //         refUrl = dataMapFile.fileUrl;
-    //         refType = dataMapFile.fileType as FileType;
-    //         if (refType.toLowerCase().startsWith(this.refTypeImage)) {
-    //           this.load.image(refId, refUrl);
-    //         }
-    //         if (refType.toLowerCase().startsWith(this.refTypeAudio)) {
-    //           // Unlike images, Phaser cannot determine this is an audio file by the url.
-    //           // Force Phaser to treat it as an audio file by adding the audio file extension.
-    //           refExt = dataMapFile.fileExtension as FileExtension;
-    //           this.load.audio(refId, `${refUrl}.${refExt}`);
-    //         }
-    //       }
-    //     }
-    //   });
-    // });
   }
 
   displayPreloading(): void {
@@ -382,37 +325,6 @@ export class PhaserPreloadingScene extends Phaser.Scene {
       ease,
       duration,
       additive,
-    });
-  }
-
-  saveEarlyCreateTriggers(data: {
-    imageRefId: string;
-    constructRefId: string;
-    elementRefId: string;
-    trigger: GameTrigger;
-  }): void {
-    const { imageRefId, elementRefId, trigger } = data;
-    const constructInfo = this.impowerGame.entity.state.loadedConstructs.map(
-      (id) => this.impowerDataMap.constructs[id]
-    );
-
-    const elementData: ElementData = constructInfo[0].data[elementRefId];
-    const { size, position } = elementData as unknown as UIElementProps;
-
-    const x = position.value.left.value as unknown as number;
-    const y = position.value.top.value as unknown as number;
-    const width = size.value.width.value as unknown as number;
-    const height = size.value.height.value as unknown as number;
-
-    // Create the debug image
-    this.earlyImageFileRequests.push({
-      id: imageRefId,
-      x,
-      y,
-      width,
-      height,
-      duration: 0,
-      trigger,
     });
   }
 

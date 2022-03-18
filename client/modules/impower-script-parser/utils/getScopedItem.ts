@@ -1,16 +1,14 @@
-import { getAncestorIds } from "./getAncestorIds";
+import { getScopedItemId } from "./getScopedItemId";
 
 export const getScopedItem = <T>(
   items: Record<string, T>,
   sectionId: string,
   name: string,
-  localOnlyPrefix: "" | "param-" = ""
+  localOnlyPrefixes: "parameter"[] = []
 ): T => {
-  const ids = getAncestorIds(sectionId);
-  const foundSectionId =
-    ids.find((x) => Boolean(items?.[`${x}.${name}`])) || "";
-  const found =
-    items?.[`${sectionId}.${localOnlyPrefix}${name}`] ||
-    items?.[`${foundSectionId}.${name}`];
-  return found;
+  const id = getScopedItemId(items, sectionId, name, localOnlyPrefixes);
+  if (id) {
+    return items[id];
+  }
+  return undefined;
 };

@@ -1,1 +1,1 @@
-export type FountainVariableType = "string" | "number";
+export type FountainVariableType = "string" | "number" | "boolean";

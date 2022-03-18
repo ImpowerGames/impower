@@ -1,6 +1,5 @@
 import { getLabel } from "../../../../../../../../impower-config";
 import {
-  createDynamicData,
   IterationMode,
   SelectCommandData,
   TypeInfo,
@@ -52,7 +51,7 @@ export class SelectCommandInspector extends CommandInspector<SelectCommandData> 
     return {
       ...super.createData(data),
       mode: IterationMode.Stopping,
-      randomized: createDynamicData(false),
+      randomized: false,
       ...data,
     };
   }

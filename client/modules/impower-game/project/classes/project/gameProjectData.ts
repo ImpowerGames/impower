@@ -8,7 +8,6 @@ import { PhysicsConfigData } from "../instances/configs/physicsConfig/physicsCon
 import { SaveConfigData } from "../instances/configs/saveConfig/saveConfigData";
 import { ScaleConfigData } from "../instances/configs/scaleConfig/scaleConfigData";
 import { BlockData } from "../instances/containers/block/blockData";
-import { ConstructData } from "../instances/containers/construct/constructData";
 import {
   InstancesCollection,
   ProjectData,
@@ -36,7 +35,6 @@ export interface GameScriptsCollection extends ScriptsCollection {
 
 export interface GameInstancesCollection extends InstancesCollection {
   configs: ConfigDataCollection;
-  constructs: Collection<ConstructData>;
   blocks: Collection<BlockData>;
 }
 

@@ -1,6 +1,24 @@
-import { CommandData, VariableValue } from "../../../../../data";
+import { CommandData } from "../../../../../data";
 import { ImpowerGame } from "../../../../../game";
 import { ItemRunner } from "../../item/itemRunner";
+
+export interface CommandContext {
+  ids: Record<string, string>;
+  valueMap: Record<string, string | number | boolean>;
+  variables: Record<string, string | number | boolean>;
+  assets: Record<string, string>;
+  entities: Record<string, string>;
+  tags: Record<string, string>;
+  blocks: Record<string, number>;
+  triggers: string[];
+  parameters: string[];
+  commands: {
+    runner: CommandRunner;
+    data: CommandData;
+    level: number;
+  }[];
+  index: number;
+}
 
 export class CommandRunner<
   T extends CommandData = CommandData
@@ -14,41 +32,27 @@ export class CommandRunner<
     return this._instance;
   }
 
-  init(
-    _data: T,
-    _variables: { [id: string]: VariableValue },
-    _game: ImpowerGame
-  ): void {
+  init(_data: T, _context: CommandContext, _game: ImpowerGame): void {
     // NoOp
   }
 
-  onExecute(
-    _data: T,
-    _variables: { [id: string]: VariableValue },
-    _game: ImpowerGame,
-    _index: number,
-    _blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
-  ): number[] {
+  onExecute(_data: T, _context: CommandContext, _game: ImpowerGame): number[] {
     return [];
   }
 
-  isFinished(
-    _data: T,
-    _variables: { [id: string]: VariableValue },
-    _game: ImpowerGame
-  ): boolean {
+  isFinished(_data: T, _context: CommandContext, _game: ImpowerGame): boolean {
     return true;
   }
 
-  isPure(
-    _data: T,
-    _variables: { [id: string]: VariableValue },
-    _game: ImpowerGame
-  ): boolean {
+  isPure(_data: T, _context: CommandContext, _game: ImpowerGame): boolean {
     return true;
+  }
+
+  getAssetIds(
+    _data: T,
+    _context: CommandContext,
+    _game: ImpowerGame
+  ): string[] {
+    return [];
   }
 }

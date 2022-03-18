@@ -7,9 +7,10 @@ export const getBlockTree = (
     index: number;
     pos: number;
     line: number;
-    triggerable: boolean;
+    operator: "?" | "*" | "";
     parent: string;
     children: string[];
+    assets: string[];
   };
 } => {
   const blockTree: {
@@ -17,19 +18,29 @@ export const getBlockTree = (
       index: number;
       pos: number;
       line: number;
-      triggerable: boolean;
+      operator: "?" | "*" | "";
       parent: string;
       children: string[];
+      assets: string[];
     };
   } = {};
   Object.values(blocks || {}).forEach((block, index) => {
+    const assetSet = new Set<string>();
+    Object.values(block.commands.data).forEach((command) => {
+      if (command.assets) {
+        command.assets.forEach((a) => {
+          assetSet.add(a);
+        });
+      }
+    });
     blockTree[block.reference.refId] = {
       index,
       pos: block.pos,
       line: block.line,
-      triggerable: block.triggers?.order?.length > 0,
+      operator: block.operator,
       parent: block.reference.parentContainerId,
-      children: block.childContainerIds,
+      children: block.children,
+      assets: Array.from(assetSet),
     };
   });
   return blockTree;

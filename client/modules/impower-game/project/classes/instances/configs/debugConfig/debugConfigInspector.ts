@@ -1,10 +1,6 @@
-import {
-  ConfigData,
-  createDebugConfigData,
-  DebugConfigData,
-  TypeInfo,
-} from "../../../../../data";
+import { ConfigData, DebugConfigData, TypeInfo } from "../../../../../data";
 import { ConfigInspector } from "../../config/configInspector";
+import { createDebugConfigData } from "./createDebugConfigData";
 
 export class DebugConfigInspector extends ConfigInspector<DebugConfigData> {
   getTypeInfo(data?: ConfigData): TypeInfo {

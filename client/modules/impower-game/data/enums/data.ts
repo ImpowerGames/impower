@@ -1,6 +1,6 @@
-export type ContainerType = "Construct" | "Block";
+export type ContainerType = "Block";
 
-export type ItemType = "Trigger" | "Command" | "Variable" | "Element";
+export type ItemType = "Command";
 
 export type ConfigType = "Config";
 

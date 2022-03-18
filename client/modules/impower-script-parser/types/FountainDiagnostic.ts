@@ -3,8 +3,8 @@ export interface FountainAction {
     The label to show to the user. Should be relatively short.
     */
   name: string;
-  focus?: number;
-  replace?: { from: number; to: number; insert: string };
+  focus?: { from: number; to: number };
+  changes?: { from: number; to?: number; insert?: string }[];
 }
 
 export interface FountainDiagnostic {

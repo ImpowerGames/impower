@@ -1,8 +1,4 @@
-import {
-  createDynamicData,
-  DestroyCommandData,
-  TypeInfo,
-} from "../../../../../../../data";
+import { DestroyCommandData, TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
 
@@ -26,13 +22,7 @@ export class DestroyCommandInspector extends CommandInspector<DestroyCommandData
   ): DestroyCommandData {
     return {
       ...super.createData(data),
-      construct: createDynamicData({
-        parentContainerType: "Construct",
-        parentContainerId: "",
-        refType: "Construct",
-        refTypeId: "Construct",
-        refId: "",
-      }),
+      entity: "",
       ...data,
     };
   }

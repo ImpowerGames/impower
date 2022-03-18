@@ -1,44 +1,38 @@
-import { CommandData, VariableValue } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
-import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
-import { CommandRunner } from "../../../command/commandRunner";
+import { CommandContext, CommandRunner } from "../../../command/commandRunner";
 import { HideImageCommandData } from "./hideImageCommandData";
 
 export class HideImageCommandRunner extends CommandRunner<HideImageCommandData> {
   onExecute(
     data: HideImageCommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame,
-    index: number,
-    blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
+    context: CommandContext,
+    game: ImpowerGame
   ): number[] {
-    const fileReference = getRuntimeValue(data.image, variables, game);
-    if (!fileReference || !fileReference.refId) {
-      return super.onExecute(data, variables, game, index, blockCommands);
+    const { image, duration, ease } = data;
+    const { ids } = context;
+
+    const imageId = ids[image];
+    if (!imageId) {
+      return super.onExecute(data, context, game);
     }
-    const { refId } = fileReference;
-    const { transition } = data;
 
     game.asset.hideImageFile({
-      id: refId,
-      duration: getRuntimeValue(transition.duration, variables, game),
+      id: imageId,
+      duration,
+      ease,
     });
 
-    return super.onExecute(data, variables, game, index, blockCommands);
+    return super.onExecute(data, context, game);
   }
 
   isFinished(
     data: HideImageCommandData,
-    variables: { [id: string]: VariableValue },
+    context: CommandContext,
     game: ImpowerGame
   ): boolean {
-    const duration = getRuntimeValue(data.transition.duration, variables, game);
+    const { duration } = data;
     if (duration === undefined || duration === 0) {
-      return super.isFinished(data, variables, game);
+      return super.isFinished(data, context, game);
     }
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
@@ -50,6 +44,6 @@ export class HideImageCommandRunner extends CommandRunner<HideImageCommandData> 
       return false;
     }
 
-    return super.isFinished(data, variables, game);
+    return super.isFinished(data, context, game);
   }
 }

@@ -96,7 +96,12 @@ export class DisplayCommandInspector extends CommandInspector<DisplayCommandData
     };
   }
 
-  onPreview(data: DisplayCommandData): void {
-    executeDisplayCommand(data);
+  onPreview(
+    data: DisplayCommandData,
+    context: {
+      valueMap: Record<string, string | number | boolean>;
+    }
+  ): void {
+    executeDisplayCommand(data, context);
   }
 }

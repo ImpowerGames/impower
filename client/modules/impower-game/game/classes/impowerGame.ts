@@ -83,17 +83,17 @@ export class ImpowerGame {
     this._asset = new AssetManager(saveData?.asset);
     this._entity = new EntityManager(saveData?.entity);
     const startBlockId = config.defaultStartBlockId;
-    const activeParentBlock = startBlockId || "";
+    const activeParentBlockId = startBlockId || "";
     const activeCommandIndex = config.defaultStartCommandIndex || 0;
     this._logic = new LogicManager(
       config.blockTree,
       saveData?.logic || {
-        activeParentBlock,
+        activeParentBlockId,
         activeCommandIndex,
+        loadedBlockIds: [],
+        loadedAssetIds: [],
         blockStates: {},
         variableStates: {},
-        triggerStates: {},
-        activeChildBlocks: [],
       }
     );
     this._random = new RandomManager(saveData?.random || { seed: config.seed });

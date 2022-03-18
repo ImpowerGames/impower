@@ -1,59 +1,40 @@
-import { CommandData, VariableValue } from "../../../../../../../data";
-import { LoadableFile } from "../../../../../../../data/interfaces/loadableFile";
 import { ImpowerGame } from "../../../../../../../game";
-import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
-import { CommandRunner } from "../../../command/commandRunner";
+import { CommandContext, CommandRunner } from "../../../command/commandRunner";
 import { RotateToImageCommandData } from "./rotateImageCommandData";
 
-export class RotateToImageCommandRunner
-  extends CommandRunner<RotateToImageCommandData>
-  implements LoadableFile<RotateToImageCommandData>
-{
-  getFileId(
-    data: RotateToImageCommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame
-  ): string {
-    return getRuntimeValue(data.image, variables, game).refId;
-  }
-
+export class RotateToImageCommandRunner extends CommandRunner<RotateToImageCommandData> {
   onExecute(
     data: RotateToImageCommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame,
-    index: number,
-    blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
+    context: CommandContext,
+    game: ImpowerGame
   ): number[] {
-    const fileReference = getRuntimeValue(data.image, variables, game);
-    if (!fileReference || !fileReference.refId) {
-      return super.onExecute(data, variables, game, index, blockCommands);
+    const { image, angle, duration, additive, ease } = data;
+    const { ids } = context;
+
+    const imageId = ids[image];
+    if (!imageId) {
+      return super.onExecute(data, context, game);
     }
-    const { refId } = fileReference;
-    const { angle, transition, additive } = data;
 
     game.asset.rotateImageFile({
-      id: refId,
-      angle: getRuntimeValue(angle, variables, game),
-      additive: getRuntimeValue(additive, variables, game),
-      duration: getRuntimeValue(transition.duration, variables, game),
-      ease: getRuntimeValue(transition.ease, variables, game),
+      id: imageId,
+      angle,
+      additive,
+      duration,
+      ease,
     });
 
-    return super.onExecute(data, variables, game, index, blockCommands);
+    return super.onExecute(data, context, game);
   }
 
   isFinished(
     data: RotateToImageCommandData,
-    variables: { [id: string]: VariableValue },
+    context: CommandContext,
     game: ImpowerGame
   ): boolean {
-    const duration = getRuntimeValue(data.transition.duration, variables, game);
+    const { duration } = data;
     if (duration === undefined || duration === 0) {
-      return super.isFinished(data, variables, game);
+      return super.isFinished(data, context, game);
     }
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
@@ -65,6 +46,6 @@ export class RotateToImageCommandRunner
       return false;
     }
 
-    return super.isFinished(data, variables, game);
+    return super.isFinished(data, context, game);
   }
 }

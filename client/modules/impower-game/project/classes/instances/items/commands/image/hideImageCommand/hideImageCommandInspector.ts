@@ -1,9 +1,4 @@
-import {
-  createDynamicData,
-  createTransitionConfig,
-  FileTypeId,
-  TypeInfo,
-} from "../../../../../../../data";
+import { TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
 import { HideImageCommandData } from "./hideImageCommandData";
@@ -29,12 +24,8 @@ export class HideImageCommandInspector extends CommandInspector<HideImageCommand
   ): HideImageCommandData {
     return {
       ...super.createData(data),
-      image: createDynamicData({
-        refType: "File",
-        refTypeId: FileTypeId.ImageFile,
-        refId: "",
-      }),
-      transition: createTransitionConfig(),
+      image: "",
+      duration: 0,
       ...data,
     };
   }

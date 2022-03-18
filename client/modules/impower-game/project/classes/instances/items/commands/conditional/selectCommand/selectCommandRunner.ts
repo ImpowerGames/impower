@@ -1,10 +1,6 @@
-import {
-  CommandData,
-  IterationMode,
-  SelectCommandData,
-  VariableValue,
-} from "../../../../../../../data";
+import { IterationMode, SelectCommandData } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
+import { CommandContext } from "../../../../../../../runner";
 import { CommandRunner } from "../../../command/commandRunner";
 
 export class SelectCommandRunner extends CommandRunner<SelectCommandData> {
@@ -14,29 +10,24 @@ export class SelectCommandRunner extends CommandRunner<SelectCommandData> {
 
   onExecute(
     data: SelectCommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame,
-    index: number,
-    blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
+    context: CommandContext,
+    game: ImpowerGame
   ): number[] {
     const { mode, randomized } = data;
+    const { commands, index } = context;
 
     // Gather list of valid jump points
-    const currentLevel = blockCommands[index].level;
+    const currentLevel = commands[index].level;
     let validJumpIndices: number[] = [];
     const startIndex = index + 1;
 
-    if (startIndex >= blockCommands.length) {
-      return super.onExecute(data, variables, game, index, blockCommands);
+    if (startIndex >= commands.length) {
+      return super.onExecute(data, context, game);
     }
 
     let closeIndex;
-    for (let i = startIndex; i < blockCommands.length; i += 1) {
-      const c = blockCommands[i];
+    for (let i = startIndex; i < commands.length; i += 1) {
+      const c = commands[i];
       if (c.level < currentLevel + 1) {
         closeIndex = i;
         break;
@@ -97,13 +88,13 @@ export class SelectCommandRunner extends CommandRunner<SelectCommandData> {
 
     const jumpStack: number[] = [];
 
-    if (jumpIndex !== undefined && jumpIndex < blockCommands.length) {
+    if (jumpIndex !== undefined && jumpIndex < commands.length) {
       jumpStack.push(jumpIndex);
     }
     if (closeIndex !== undefined) {
       jumpStack.push(closeIndex);
     } else {
-      jumpStack.push(blockCommands.length);
+      jumpStack.push(commands.length);
     }
 
     return jumpStack;

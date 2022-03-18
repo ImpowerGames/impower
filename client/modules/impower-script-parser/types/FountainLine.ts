@@ -8,10 +8,9 @@ export interface FountainLine {
   notes?: Partial<FountainAsset>[];
 
   line?: number;
-  level?: number;
-  start?: number;
-  end?: number;
-  indent?: number;
+  from?: number;
+  to?: number;
+  offset?: number;
 
   order?: number;
   ignore?: boolean;

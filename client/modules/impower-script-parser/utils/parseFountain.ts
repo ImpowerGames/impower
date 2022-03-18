@@ -1,8 +1,10 @@
 /* eslint-disable no-cond-assign */
 /* eslint-disable prefer-destructuring */
 /* eslint-disable no-continue */
+import { compile } from "../../impower-evaluate";
 import { fountainRegexes } from "../constants/fountainRegexes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
+import { reservedKeywords } from "../constants/reservedKeywords";
 import { FountainAsset } from "../types/FountainAsset";
 import { FountainAssetType } from "../types/FountainAssetType";
 import { FountainDeclarations } from "../types/FountainDeclarations";
@@ -17,6 +19,7 @@ import { FountainTokenType } from "../types/FountainTokenType";
 import { FountainVariable } from "../types/FountainVariable";
 import { FountainVariableType } from "../types/FountainVariableType";
 import { createFountainToken } from "./createFountainToken";
+import { getScopedContext } from "./getScopedContext";
 import { getScopedItem } from "./getScopedItem";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
@@ -107,28 +110,30 @@ export const parseFountain = (
     currentToken: FountainToken,
     message: string,
     actions: FountainAction[] = [],
-    start = -1,
-    length = -1,
+    from = -1,
+    to = -1,
     severity: "error" | "warning" | "info" = "error"
   ): void => {
     if (!result.diagnostics) {
       result.diagnostics = [];
     }
-    const validStart = start >= 0 ? start : currentToken.indent;
-    const column = current - currentToken.end + validStart;
-    const from = currentToken.start + validStart;
-    const to = length >= 0 ? from + length : currentToken.end;
     const source = `${severity.toUpperCase()}: line ${
       currentToken.line
-    } column ${column}`;
-    result.diagnostics.push({
-      from,
-      to,
-      severity,
-      source,
-      message,
-      actions,
-    });
+    } column ${from - currentToken.from}`;
+    const validFrom = from >= 0 ? from : currentToken.from;
+    const validTo = to >= 0 ? to : currentToken.to;
+    if (validTo > validFrom) {
+      result.diagnostics.push({
+        from: validFrom,
+        to: validTo,
+        severity,
+        source,
+        message,
+        actions,
+      });
+    } else {
+      console.error(`Invalid Diagnostic Range: ${validFrom}-${validTo}`);
+    }
   };
 
   const getStart = (match: string[], groupIndex: number): number => {
@@ -153,16 +158,11 @@ export const parseFountain = (
     return group.length;
   };
 
-  const prefixArticle = (str: string): string => {
-    return `${["a", "e", "i", "o", "u"].includes(str[0]) ? "an" : "a"} ${str}`;
-  };
-
-  const getActions = (focus?: number): FountainAction[] => {
-    const actions = [];
-    if (focus) {
-      actions.push({ name: "Focus", focus });
-    }
-    return actions;
+  const prefixArticle = (str: string, capitalize?: boolean): string => {
+    const articles = capitalize ? ["An", "A"] : ["an", "a"];
+    return `${
+      ["a", "e", "i", "o", "u"].includes(str[0]) ? articles[0] : articles[1]
+    } ${str}`;
   };
 
   const lintDiagnostic = (): void => {
@@ -187,7 +187,7 @@ export const parseFountain = (
   };
 
   const findVariable = (sectionId: string, name: string): FountainVariable => {
-    return getScopedItem(result?.variables, sectionId, name, "param-");
+    return getScopedItem(result?.variables, sectionId, name, ["parameter"]);
   };
 
   const findAsset = (sectionId: string, name: string): FountainAsset => {
@@ -202,62 +202,155 @@ export const parseFountain = (
     return getScopedItem(result?.tags, sectionId, name);
   };
 
-  const addSection = (
-    id: string,
-    section: FountainSection,
-    match?: string[],
-    index?: number
+  const lintNameUnique = <
+    T extends
+      | FountainSection
+      | FountainVariable
+      | FountainAsset
+      | FountainEntity
+      | FountainTag
+  >(
+    type: "section" | "variable" | "asset" | "entity" | "tag",
+    found: T,
+    from: number,
+    to: number
+  ): T => {
+    if (found?.name && found.from !== from) {
+      const prefix = prefixArticle(type, true);
+      const name = found?.name;
+      const existingLine = found.line;
+      const location = existingLine !== null ? ` at line ${existingLine}` : "";
+      diagnostic(
+        currentToken,
+        `${prefix} named '${name}' already exists${location}`,
+        [{ name: "FOCUS", focus: { from: found.from, to: found.to } }],
+        from,
+        to
+      );
+      return found;
+    }
+    return undefined;
+  };
+
+  const lintName = <
+    T extends
+      | FountainSection
+      | FountainVariable
+      | FountainAsset
+      | FountainEntity
+      | FountainTag
+  >(
+    name: string,
+    from: number,
+    to: number
   ): void => {
+    if (reservedKeywords.includes(name)) {
+      diagnostic(
+        currentToken,
+        `'${name}' is a reserved keyword.`,
+        [],
+        from,
+        to
+      );
+      return;
+    }
+    if (
+      lintNameUnique<T>(
+        "section",
+        findSection(
+          currentSectionId.split(".").slice(0, -1).join("."),
+          name
+        ) as T,
+        from,
+        to
+      )
+    ) {
+      return;
+    }
+    if (
+      lintNameUnique<T>(
+        "variable",
+        findVariable(currentSectionId, name) as T,
+        from,
+        to
+      )
+    ) {
+      return;
+    }
+    if (
+      lintNameUnique<T>(
+        "asset",
+        findAsset(currentSectionId, name) as T,
+        from,
+        to
+      )
+    ) {
+      return;
+    }
+    if (
+      lintNameUnique<T>(
+        "entity",
+        findEntity(currentSectionId, name) as T,
+        from,
+        to
+      )
+    ) {
+      return;
+    }
+    lintNameUnique<T>("tag", findTag(currentSectionId, name) as T, from, to);
+  };
+
+  const getEvaluationContext = (
+    sectionId: string
+  ): Record<string, string | number | boolean> => {
+    const [, sections] = getScopedContext(
+      sectionId,
+      result?.sections,
+      "sections"
+    );
+    const [, tags] = getScopedContext(sectionId, result?.sections, "tags");
+    const [, assets] = getScopedContext(sectionId, result?.sections, "assets");
+    const [, entities] = getScopedContext(
+      sectionId,
+      result?.sections,
+      "entities"
+    );
+    const [, variables] = getScopedContext(
+      sectionId,
+      result?.sections,
+      "variables"
+    );
+    return { ...sections, ...tags, ...assets, ...entities, ...variables };
+  };
+
+  const addSection = (section: FountainSection): void => {
     if (!result.sections) {
       result.sections = {};
     }
-    const parentId = id.split(".").slice(0, -1).join(".") || "";
+    const parentId = currentSectionId.split(".").slice(0, -1).join(".") || "";
     const parent = result.sections[parentId];
-    if (parent && id) {
-      if (!parent.children) {
-        parent.children = [];
+    if (parent) {
+      if (currentSectionId) {
+        if (!parent.children) {
+          parent.children = [];
+        }
+        parent.children.push(currentSectionId);
       }
-      parent.children.push(id);
+    } else {
+      console.error("SECTION DOES NOT EXIST", parentId);
     }
-    const existingChild = result.sections[id];
-    const sectionName = id.split(".").slice(-1).join("");
-    const existingAncestor = findSection(
-      currentSectionId.split(".").slice(0, -1).join("."),
-      sectionName
-    );
-    const found = existingChild || existingAncestor;
-    if (found?.name && found?.line !== section?.line) {
-      diagnostic(
-        currentToken,
-        `A section named '${section.name}' already exists at line ${found.line}`,
-        getActions(found.start),
-        getStart(match, index),
-        getLength(match, index)
-      );
-    }
-    const existingVariable = findVariable(currentSectionId, section.name);
-    if (existingVariable?.name) {
-      diagnostic(
-        currentToken,
-        `A variable named '${section.name}' already exists at line ${existingVariable.line}`,
-        getActions(existingVariable.start),
-        getStart(match, index),
-        getLength(match, index)
-      );
-    }
-    result.sections[id] = { ...(found || {}), ...section };
+    lintName(section.name, section.from, section.to);
+    result.sections[currentSectionId] = section;
     if (!result.sectionLines) {
       result.sectionLines = {};
     }
-    result.sectionLines[section.line] = id;
+    result.sectionLines[section.line] = currentSectionId;
   };
 
   const getSection = (
     nameOrId: string,
-    match?: string[],
-    index?: number,
-    start?: number,
-    length?: number
+    from?: number,
+    to?: number
   ): FountainSection => {
     if (!nameOrId) {
       return undefined;
@@ -269,14 +362,14 @@ export const parseFountain = (
     if (!found) {
       diagnostic(
         currentToken,
-        `Could not find ${
+        `Cannot find ${
           global
             ? `section with id '${nameOrId}'`
             : `child or ancestor section named '${nameOrId}'`
         }`,
-        getActions(),
-        start != null ? start : getStart(match, index),
-        length != null ? length : getLength(match, index)
+        [],
+        from,
+        to
       );
       return null;
     }
@@ -286,10 +379,8 @@ export const parseFountain = (
   const getAsset = (
     type: FountainAssetType,
     name: string,
-    match?: string[],
-    index?: number,
-    start?: number,
-    length?: number
+    from: number,
+    to: number
   ): FountainAsset => {
     if (!name) {
       return undefined;
@@ -300,9 +391,9 @@ export const parseFountain = (
       diagnostic(
         currentToken,
         `'${name}' is not a valid ${validType} value`,
-        getActions(),
-        start != null ? start : getStart(match, index),
-        length != null ? length : getLength(match, index)
+        [],
+        from,
+        to
       );
       return null;
     }
@@ -311,9 +402,9 @@ export const parseFountain = (
       diagnostic(
         currentToken,
         `Could not find ${validType} named '${name}'`,
-        getActions(),
-        start != null ? start : getStart(match, index),
-        length != null ? length : getLength(match, index)
+        [],
+        from,
+        to
       );
       return null;
     }
@@ -321,9 +412,9 @@ export const parseFountain = (
       diagnostic(
         currentToken,
         `'${name}' is not ${prefixArticle(validType)} asset`,
-        getActions(found.line),
-        start != null ? start : getStart(match, index),
-        length != null ? length : getLength(match, index)
+        [{ name: "FOCUS", focus: { from: found.from, to: found.to } }],
+        from,
+        to
       );
       return null;
     }
@@ -333,10 +424,8 @@ export const parseFountain = (
   const getEntity = (
     type: FountainEntityType,
     name: string,
-    match?: string[],
-    index?: number,
-    start?: number,
-    length?: number
+    from: number,
+    to: number
   ): FountainEntity => {
     if (!name) {
       return undefined;
@@ -347,9 +436,9 @@ export const parseFountain = (
       diagnostic(
         currentToken,
         `'${name}' is not a valid ${validType} value`,
-        getActions(),
-        start != null ? start : getStart(match, index),
-        length != null ? length : getLength(match, index)
+        [],
+        from,
+        to
       );
       return null;
     }
@@ -358,9 +447,9 @@ export const parseFountain = (
       diagnostic(
         currentToken,
         `Could not find ${validType} named '${name}'`,
-        getActions(),
-        start != null ? start : getStart(match, index),
-        length != null ? length : getLength(match, index)
+        [],
+        from,
+        to
       );
       return null;
     }
@@ -368,22 +457,16 @@ export const parseFountain = (
       diagnostic(
         currentToken,
         `'${name}' is not ${prefixArticle(validType)} entity`,
-        getActions(found.start),
-        start != null ? start : getStart(match, index),
-        length != null ? length : getLength(match, index)
+        [{ name: "FOCUS", focus: { from: found.from, to: found.to } }],
+        from,
+        to
       );
       return null;
     }
     return found;
   };
 
-  const getTag = (
-    name: string,
-    match?: string[],
-    index?: number,
-    start?: number,
-    length?: number
-  ): FountainTag => {
+  const getTag = (name: string, from: number, to: number): FountainTag => {
     if (!name) {
       return undefined;
     }
@@ -392,9 +475,9 @@ export const parseFountain = (
       diagnostic(
         currentToken,
         `'${name}' is not a valid tag value`,
-        getActions(),
-        start != null ? start : getStart(match, index),
-        length != null ? length : getLength(match, index)
+        [],
+        from,
+        to
       );
       return null;
     }
@@ -403,9 +486,9 @@ export const parseFountain = (
       diagnostic(
         currentToken,
         `Could not find tag named '${name}'`,
-        getActions(),
-        start != null ? start : getStart(match, index),
-        length != null ? length : getLength(match, index)
+        [],
+        from,
+        to
       );
       return null;
     }
@@ -415,10 +498,8 @@ export const parseFountain = (
   const getVariable = (
     type: FountainVariableType,
     name: string,
-    match?: string[],
-    index?: number,
-    start?: number,
-    length?: number
+    from: number,
+    to: number
   ): FountainVariable => {
     if (!name) {
       return undefined;
@@ -428,58 +509,38 @@ export const parseFountain = (
     if (!found) {
       diagnostic(
         currentToken,
-        `Could not find variable named '${name}'`,
-        getActions(),
-        start != null ? start : getStart(match, index),
-        length != null ? length : getLength(match, index)
+        `Cannot find variable named '${name}'`,
+        [],
+        from,
+        to
       );
       return null;
     }
-    if (found.type !== validType) {
+    if (type !== undefined && found.type !== validType) {
       diagnostic(
         currentToken,
         `'${name}' is not ${prefixArticle(validType)} variable`,
-        getActions(found.start),
-        start != null ? start : getStart(match, index),
-        length != null ? length : getLength(match, index)
+        [{ name: "FOCUS", focus: { from: found.from, to: found.to } }],
+        from,
+        to
       );
       return null;
     }
     return found;
   };
 
-  const getValueType = (value: string): FountainVariableType => {
-    if (value == null || value === "") {
+  const getValueType = (valueText: string): FountainVariableType => {
+    if (valueText == null || valueText === "") {
       return null;
     }
-    if (value.match(fountainRegexes.string)) {
+    if (valueText.match(fountainRegexes.string)) {
       return "string";
     }
-    const numValue = Number(value);
-    if (!Number.isNaN(numValue)) {
+    if (valueText.match(fountainRegexes.number)) {
       return "number";
     }
-    return undefined;
-  };
-
-  const getValue = (
-    content: string,
-    match?: string[],
-    index?: number
-  ): string | number | { name: string; type: "string" | "number" } => {
-    const type = getValueType(content);
-    if (type === "string") {
-      return content.slice(1, -1);
-    }
-    if (type === "number") {
-      return Number(content);
-    }
-    const found = getVariable(type, content, match, index);
-    if (found) {
-      return {
-        name: content,
-        type: found.type,
-      };
+    if (valueText.match(fountainRegexes.boolean)) {
+      return "boolean";
     }
     return undefined;
   };
@@ -489,40 +550,28 @@ export const parseFountain = (
     name: string,
     valueText: string,
     value: string | { name: string },
-    start: number,
     line: number,
-    match: string[],
-    index: number
+    from: number,
+    to: number
   ): void => {
     if (!result.assets) {
       result.assets = {};
     }
-    const found = findAsset(currentSectionId, name);
-    if (found && line !== found.line) {
-      diagnostic(
-        currentToken,
-        `A ${
-          currentSectionId ? "local" : "global"
-        } asset named '${name}' already exists at line ${found.line}`,
-        getActions(found.start),
-        getStart(match, index),
-        getLength(match, index)
-      );
-    }
+    lintName(name, from, to);
     const resolvedValue =
       typeof value === "string"
         ? value
-        : getAsset(type, value?.name, match, index)?.value;
+        : getAsset(type, value?.name, from, to)?.value;
+    const id = `${currentSectionId}.${name}`;
     const asset = {
-      ...(found || {}),
-      start,
+      from,
+      to,
       line,
       name,
       type,
       value: resolvedValue,
       valueText,
     };
-    const id = `${currentSectionId}.${name}`;
     result.assets[id] = asset;
     const parent = result.sections[currentSectionId];
     if (parent) {
@@ -530,6 +579,8 @@ export const parseFountain = (
         parent.assets = {};
       }
       parent.assets[id] = asset;
+    } else {
+      console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
   };
 
@@ -538,40 +589,28 @@ export const parseFountain = (
     name: string,
     valueText: string,
     value: string | { name: string },
-    start: number,
     line: number,
-    match: string[],
-    index: number
+    from: number,
+    to: number
   ): void => {
     if (!result.entities) {
       result.entities = {};
     }
-    const found = findEntity(currentSectionId, name);
-    if (found && line !== found.line) {
-      diagnostic(
-        currentToken,
-        `A ${
-          currentSectionId ? "local" : "global"
-        } entity named '${name}' already exists at line ${found.line}`,
-        getActions(found.start),
-        getStart(match, index),
-        getLength(match, index)
-      );
-    }
+    lintName(name, from, to);
     const resolvedValue =
       typeof value === "string"
         ? value
-        : getEntity(type, value?.name, match, index)?.value;
+        : getEntity(type, value?.name, from, to)?.value;
+    const id = `${currentSectionId}.${name}`;
     const asset = {
-      ...(found || {}),
-      start,
+      from,
+      to,
       line,
       name,
       type,
       value: resolvedValue,
       valueText,
     };
-    const id = `${currentSectionId}.${name}`;
     result.entities[id] = asset;
     const parent = result.sections[currentSectionId];
     if (parent) {
@@ -579,6 +618,8 @@ export const parseFountain = (
         parent.entities = {};
       }
       parent.entities[id] = asset;
+    } else {
+      console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
   };
 
@@ -586,39 +627,29 @@ export const parseFountain = (
     name: string,
     valueText: string,
     value: string | { name: string },
-    start: number,
     line: number,
-    match: string[],
-    index: number
+    from: number,
+    to: number
   ): void => {
     if (!result.tags) {
       result.tags = {};
     }
-    const found = findTag(currentSectionId, name);
-    if (found && line !== found.line) {
-      diagnostic(
-        currentToken,
-        `A ${
-          currentSectionId ? "local" : "global"
-        } tag named '${name}' already exists at line ${found.line}`,
-        getActions(found.start),
-        getStart(match, index),
-        getLength(match, index)
-      );
-    }
+    lintName(name, from, to);
     const resolvedValue =
-      typeof value === "string" || typeof value === "number"
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
         ? value
-        : getTag(value?.name, match, index)?.value;
+        : getTag(value?.name, from, to)?.value;
+    const id = `${currentSectionId}.${name}`;
     const tag = {
-      ...(found || {}),
-      start,
+      from,
+      to,
       name,
       line,
       value: resolvedValue,
       valueText,
     };
-    const id = `${currentSectionId}.${name}`;
     result.tags[id] = tag;
     const parent = result.sections[currentSectionId];
     if (parent) {
@@ -626,65 +657,75 @@ export const parseFountain = (
         parent.tags = {};
       }
       parent.tags[id] = tag;
+    } else {
+      console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
   };
 
   const addVariable = (
     name: string,
     valueText: string,
-    value: string | number | { name: string },
+    value: string | number | boolean | { name: string },
     parameter: boolean,
-    start: number,
     line: number,
-    match: string[],
-    index: number
+    nameFrom: number,
+    nameTo: number,
+    valueFrom: number,
+    valueTo: number
   ): void => {
-    const type = typeof value as FountainVariableType;
+    const valueVariable =
+      typeof value === "object"
+        ? findVariable(currentSectionId, value.name)
+        : undefined;
+    if (typeof value === "object") {
+      const insert = valueVariable.valueText || '""';
+      diagnostic(
+        currentToken,
+        "Must be initialized to a constant string, number, or boolean",
+        [
+          {
+            name: "FIX",
+            changes: [
+              {
+                from: valueFrom,
+                to: valueTo,
+                insert: "",
+              },
+              {
+                from: valueFrom,
+                insert,
+              },
+            ],
+          },
+        ],
+        valueFrom,
+        valueTo
+      );
+    }
+    const type = valueVariable
+      ? valueVariable.type
+      : (typeof value as FountainVariableType);
     if (!result.variables) {
       result.variables = {};
     }
-    const found = findVariable(currentSectionId, name);
-    if (found?.name && line !== found.line) {
-      diagnostic(
-        currentToken,
-        `A ${
-          currentSectionId ? "local" : "global"
-        } variable named '${name}' already exists at line ${found.line}`,
-        getActions(found.start),
-        getStart(match, index),
-        getLength(match, index)
-      );
-    }
-    const existingSection = findSection(
-      currentSectionId.split(".").slice(0, -1).join("."),
-      name
-    );
-    if (existingSection?.name) {
-      diagnostic(
-        currentToken,
-        `A section named '${name}' already exists at line ${existingSection.line}`,
-        getActions(existingSection.start),
-        getStart(match, index),
-        getLength(match, index)
-      );
-    }
+    lintName(name, nameFrom, nameTo);
     const resolvedValue =
-      typeof value === "string" || typeof value === "number"
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
         ? value
-        : getVariable(type, value?.name, match, index)?.value;
+        : findVariable(currentSectionId, value?.name)?.value;
+    const id = `${currentSectionId}.${parameter ? `parameter-` : ""}${name}`;
     const variable = {
-      ...(found || {}),
-      start,
+      from: nameFrom,
+      to: nameTo,
       line,
       name,
       type,
       value: resolvedValue,
       valueText,
+      parameter,
     };
-    if (parameter) {
-      variable.parameter = true;
-    }
-    const id = `${currentSectionId}.${parameter ? "param-" : ""}${name}`;
     result.variables[id] = variable;
     const parent = result.sections[currentSectionId];
     if (parent) {
@@ -692,19 +733,50 @@ export const parseFountain = (
         parent.variables = {};
       }
       parent.variables[id] = variable;
+    } else {
+      console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
   };
 
-  const getAssetValue = (
+  const getVariableValueOrReference = (
+    content: string,
+    from: number,
+    to: number
+  ):
+    | string
+    | number
+    | boolean
+    | { name: string; type: FountainVariableType } => {
+    const type = getValueType(content);
+    if (type === "string") {
+      return content.slice(1, -1);
+    }
+    if (type === "number") {
+      return Number(content);
+    }
+    if (type === "boolean") {
+      return Boolean(content);
+    }
+    const found = getVariable(undefined, content, from, to);
+    if (found) {
+      return {
+        name: content,
+        type: found.type,
+      };
+    }
+    return undefined;
+  };
+
+  const getAssetValueOrReference = (
     type: FountainAssetType,
     content: string,
-    match?: string[],
-    index?: number
+    from: number,
+    to: number
   ): string | { name: string } => {
     if (content.match(fountainRegexes.string)) {
       return content.slice(1, -1);
     }
-    const found = getAsset(type, content, match, index);
+    const found = getAsset(type, content, from, to);
     if (found) {
       return {
         name: content,
@@ -713,16 +785,16 @@ export const parseFountain = (
     return undefined;
   };
 
-  const getEntityValue = (
+  const getEntityValueOrReference = (
     type: FountainEntityType,
     content: string,
-    match?: string[],
-    index?: number
+    from: number,
+    to: number
   ): string | { name: string } => {
     if (content.match(fountainRegexes.string)) {
       return content.slice(1, -1);
     }
-    const found = getEntity(type, content, match, index);
+    const found = getEntity(type, content, from, to);
     if (found) {
       return {
         name: content,
@@ -731,15 +803,15 @@ export const parseFountain = (
     return undefined;
   };
 
-  const getTagValue = (
+  const getTagValueOrReference = (
     content: string,
-    match?: string[],
-    index?: number
+    from: number,
+    to: number
   ): string | { name: string } => {
     if (content.match(fountainRegexes.string)) {
       return content.slice(1, -1);
     }
-    const found = getTag(content, match, index);
+    const found = getTag(content, from, to);
     if (found) {
       return {
         name: content,
@@ -748,7 +820,8 @@ export const parseFountain = (
     return undefined;
   };
 
-  const getParameterDeclarations = (
+  const getParameterNames = (
+    operator: string,
     match: string[],
     groupIndex: number
   ): string[] => {
@@ -760,89 +833,93 @@ export const parseFountain = (
       return [];
     }
     const parametersString = parametersWithParenthesisString.slice(1, -1);
-    const tokenMatches = parametersString.split(fountainRegexes.separator);
-    if (!tokenMatches) {
-      diagnostic(
-        currentToken,
-        "Invalid parameters syntax",
-        [],
-        getStart(match, groupIndex),
-        getLength(match, groupIndex) - 1
-      );
-      return [];
-    }
+    const expressionListMatches = Array.from(
+      parametersString.matchAll(fountainRegexes.expression_list)
+    );
+    const tokenMatches: string[] = [""];
+    expressionListMatches.forEach((m) => {
+      const text = m[0];
+      const separatorGroupMatch = m[2];
+      if (separatorGroupMatch) {
+        tokenMatches.push("");
+        tokenMatches[tokenMatches.length - 1] += text;
+        tokenMatches.push("");
+      } else {
+        tokenMatches[tokenMatches.length - 1] += text;
+      }
+    });
     if (tokenMatches.length === 1 && tokenMatches[0] === "") {
       return [];
     }
     const allTokenMatches = ["(", ...tokenMatches, ")"];
     const allMatches = [...match];
     allMatches.splice(groupIndex, 1, ...allTokenMatches);
-    const result: string[] = [];
-    const start = groupIndex + 1;
-    const end = groupIndex + allTokenMatches.length - 1;
-    for (let i = start; i < end; i += 1) {
-      const declaration = allMatches[i];
+    const parameterNames: string[] = [];
+    const startIndex = groupIndex + 1;
+    const endIndex = groupIndex + allTokenMatches.length - 1;
+    for (let index = startIndex; index < endIndex; index += 1) {
+      const declaration = allMatches[index];
+      const from = currentToken.from + getStart(allMatches, index);
+      const to = from + declaration.length;
       let parameterMatch: RegExpMatchArray;
-      if (declaration.match(fountainRegexes.separator)) {
-        // NoOp
+      if (declaration === ",") {
+        // Separator
       } else if (!declaration.trim()) {
-        const isStart = i === start;
-        const separatorGroupIndex = isStart ? i + 1 : i - 1;
-        const separator = allMatches[separatorGroupIndex];
-        const prefixLength =
-          separator.length - separator.trimStart().length + 1;
-        const emptyStart =
-          getStart(allMatches, separatorGroupIndex) +
-          (isStart ? 0 : prefixLength);
-        const emptyLength =
-          getLength(allMatches, separatorGroupIndex) -
-          (isStart ? prefixLength - 1 : prefixLength);
-        diagnostic(
-          currentToken,
-          "Empty parameter",
-          [],
-          emptyStart,
-          emptyLength
-        );
+        diagnostic(currentToken, "Empty parameter", [], from, to);
       } else if (
         (parameterMatch = declaration.match(
           fountainRegexes.parameter_declaration
         ))
       ) {
-        const name = parameterMatch[1] || "";
-        const valueText = parameterMatch[5] || "";
-        const value = valueText ? getValue(valueText, allMatches, i) : "";
+        const name = parameterMatch[2] || "";
+        const valueText = parameterMatch[6] || "";
+        const nameFrom = from + getStart(parameterMatch, 2);
+        const nameTo = nameFrom + name.length;
+        const valueFrom = from + getStart(parameterMatch, 6);
+        const valueTo = valueFrom + valueText.length;
         if (name) {
-          addVariable(
-            name,
-            valueText,
-            value,
-            true,
-            currentToken.start,
-            currentToken.line,
-            allMatches,
-            i
-          );
+          if (operator === "?") {
+            getVariable(undefined, name, nameFrom, nameTo);
+          } else {
+            const value = valueText
+              ? getVariableValueOrReference(valueText, valueFrom, valueTo)
+              : "";
+            addVariable(
+              name,
+              valueText,
+              value,
+              true,
+              currentToken.line,
+              nameFrom,
+              nameTo,
+              valueFrom,
+              valueTo
+            );
+          }
         }
-        result.push(declaration);
+        parameterNames.push(name);
       } else {
+        const trimmedStartWhitespaceLength =
+          declaration.length - declaration.trimStart().length;
+        const trimmedEndWhitespaceLength =
+          declaration.length - declaration.trimEnd().length;
         diagnostic(
           currentToken,
           `Invalid parameter declaration:\nParameter must be initialized to a string (x = "") or number (x = 0)`,
           [],
-          getStart(allMatches, i),
-          getLength(allMatches, i)
+          from + trimmedStartWhitespaceLength,
+          to - trimmedEndWhitespaceLength
         );
       }
     }
-    return result;
+    return parameterNames;
   };
 
   const getArgumentValues = (
     section: FountainSection,
     match: string[],
     groupIndex: number
-  ): (string | number | { name: string })[] => {
+  ): string[] => {
     if (!section) {
       return [];
     }
@@ -857,99 +934,102 @@ export const parseFountain = (
       return [];
     }
     const argumentsString = argumentsWithParenthesisString.slice(1, -1);
-    const argumentTokenMatches = argumentsString.split(
-      fountainRegexes.separator
+    const expressionListMatches = Array.from(
+      argumentsString.matchAll(fountainRegexes.expression_list)
     );
-    if (!argumentTokenMatches) {
-      diagnostic(
-        currentToken,
-        "Invalid parameters syntax",
-        [],
-        getStart(match, groupIndex),
-        getLength(match, groupIndex) - 1
-      );
+    const tokenMatches: string[] = [""];
+    expressionListMatches.forEach((m) => {
+      const text = m[0];
+      const separatorGroupMatch = m[2];
+      if (separatorGroupMatch) {
+        tokenMatches.push("");
+        tokenMatches[tokenMatches.length - 1] += text;
+        tokenMatches.push("");
+      } else {
+        tokenMatches[tokenMatches.length - 1] += text;
+      }
+    });
+    if (tokenMatches.length === 1 && tokenMatches[0] === "") {
       return [];
     }
-    if (argumentTokenMatches.length === 1 && argumentTokenMatches[0] === "") {
-      return [];
-    }
-    const allTokenMatches = ["(", ...argumentTokenMatches, ")"];
+    const allTokenMatches = ["(", ...tokenMatches, ")"];
     const allMatches = [...match];
     allMatches.splice(groupIndex, 1, ...allTokenMatches);
-    const result: (
-      | string
-      | number
-      | {
-          name: string;
-          type: "string" | "number";
-        }
-    )[] = [];
-    const start = groupIndex + 1;
-    const end = groupIndex + allTokenMatches.length - 1;
+    const argumentExpressions: string[] = [];
+    const startIndex = groupIndex + 1;
+    const endIndex = groupIndex + allTokenMatches.length - 1;
     let paramIndex = 0;
     const extraArgIndices: number[] = [];
-    for (let i = start; i < end; i += 1) {
-      const argumentValue = allMatches[i];
+    for (let index = startIndex; index < endIndex; index += 1) {
+      const expression = allMatches[index];
+      const expressionFrom = currentToken.from + getStart(allMatches, index);
+      const expressionTo = expressionFrom + expression.length;
       const parameter = parameters?.[paramIndex];
-      let argumentMatch: RegExpMatchArray;
-      if (argumentValue.match(fountainRegexes.separator)) {
-        // NoOp
-      } else if (!argumentValue.trim()) {
+      if (expression === ",") {
+        // Separator
+      } else if (!expression.trim()) {
         if (!parameter) {
-          extraArgIndices.push(i);
+          extraArgIndices.push(index);
         }
-        result.push(parameter?.value);
-        paramIndex += 1;
-      } else if (
-        (argumentMatch = argumentValue.match(fountainRegexes.argument_value))
-      ) {
-        if (!parameter) {
-          extraArgIndices.push(i);
-        }
-        const valueText = argumentMatch[1] || "";
-        const value = getValue(valueText, allMatches, i);
-        const type =
-          typeof value === "string" || typeof value === "number"
-            ? typeof value
-            : value?.type;
-        if (parameter && type && parameter?.type !== type) {
-          diagnostic(
-            currentToken,
-            `Parameter must be a ${parameter?.type}`,
-            [],
-            getStart(allMatches, i),
-            getLength(allMatches, i)
-          );
-        }
-        result.push(value);
+        argumentExpressions.push(parameter.name);
         paramIndex += 1;
       } else {
-        diagnostic(
-          currentToken,
-          parameter?.type
-            ? `Parameter must be a ${parameter?.type}`
-            : `Invalid parameter value`,
-          [],
-          getStart(allMatches, i),
-          getLength(allMatches, i)
-        );
+        if (!parameter) {
+          extraArgIndices.push(index);
+        }
+        if (expression) {
+          const context = getEvaluationContext(currentSectionId);
+          const { result, diagnostics } = compile(context, expression);
+          if (diagnostics?.length > 0) {
+            for (let i = 0; i < diagnostics.length; i += 1) {
+              const d = diagnostics[i];
+              const from = expressionFrom + d.from;
+              const to = expressionFrom + d.to;
+              diagnostic(currentToken, d.message, [], from, to);
+            }
+          } else if (parameter) {
+            const trimmedStartWhitespaceLength =
+              expression.length - expression.trimStart().length;
+            const trimmedEndWhitespaceLength =
+              expression.length - expression.trimEnd().length;
+            const evaluatedType = typeof result;
+            const expectedType = parameter?.type;
+            if (evaluatedType !== expectedType) {
+              diagnostic(
+                currentToken,
+                `Parameter '${parameter.name}' expects ${prefixArticle(
+                  expectedType
+                )} value.`,
+                [
+                  {
+                    name: "FOCUS",
+                    focus: { from: parameter.from, to: parameter.to },
+                  },
+                ],
+                expressionFrom + trimmedStartWhitespaceLength,
+                expressionTo - trimmedEndWhitespaceLength
+              );
+            }
+          }
+        }
+        argumentExpressions.push(expression);
         paramIndex += 1;
       }
     }
     if (extraArgIndices?.length > 0) {
-      extraArgIndices.forEach((extraArgIndex) => {
-        diagnostic(
-          currentToken,
-          `Expected ${parameters.length} ${
-            parameters.length === 1 ? "argument" : "arguments"
-          } but got ${parameters.length + extraArgIndices.length}`,
-          [],
-          getStart(allMatches, extraArgIndex),
-          getLength(allMatches, extraArgIndex)
-        );
-      });
+      const from = currentToken.from + getStart(allMatches, startIndex);
+      const to = from + getLength(allMatches, endIndex);
+      diagnostic(
+        currentToken,
+        `Expected ${parameters.length} ${
+          parameters.length === 1 ? "argument" : "arguments"
+        } but got ${parameters.length + extraArgIndices.length}`,
+        [],
+        from,
+        to
+      );
     }
-    return result;
+    return argumentExpressions;
   };
 
   const pushToken = (token: FountainToken): void => {
@@ -971,16 +1051,9 @@ export const parseFountain = (
         const type = noteMatch.startsWith("(") ? "audio" : "image";
         const name = noteMatch.slice(2, noteMatch.length - 2);
         startIndex = str.indexOf(noteMatch, startIndex) + 2;
-        const value = name
-          ? getAsset(
-              type,
-              name,
-              noteMatches,
-              i,
-              startIndex,
-              noteMatch.length - 4
-            )?.value
-          : undefined;
+        const from = currentToken.from + startIndex;
+        const to = from + noteMatch.length - 4;
+        const value = name ? getAsset(type, name, from, to)?.value : undefined;
         notes.push({ type, value });
       }
       currentToken.text = str;
@@ -1006,15 +1079,10 @@ export const parseFountain = (
         const type = noteMatch.startsWith("(") ? "audio" : "image";
         const name = noteMatch.slice(2, noteMatch.length - 2);
         startIndex = str.indexOf(noteMatch, startIndex) + 2;
+        const from = currentToken.from + startIndex;
+        const to = from + noteMatch.length - 4;
         if (name) {
-          getAsset(
-            type,
-            name,
-            noteMatches,
-            i,
-            startIndex,
-            noteMatch.length - 4
-          );
+          getAsset(type, name, from, to);
         }
         previousAssets.push({ name });
       }
@@ -1057,11 +1125,13 @@ export const parseFountain = (
     newLineLength
   );
 
-  addSection(currentSectionId, {
-    start: currentToken.start,
+  addSection({
+    from: currentToken.from,
+    to: currentToken.to,
     line: 1,
     operator: "",
     name: "",
+    triggers: [],
     tokens: currentSectionTokens,
   });
 
@@ -1081,13 +1151,13 @@ export const parseFountain = (
       current,
       newLineLength
     );
-    current = currentToken.end + 1;
+    current = currentToken.to + 1;
 
     if ((match = currentToken.content.match(fountainRegexes.section))) {
       currentToken.type = "section";
       if (currentToken.type === "section") {
         const level = match[2].length;
-        const operator = match[4] || "";
+        const operator = (match[4] as "?" | "*") || "";
         const name = match[5] || "";
         const id = `${operator}${name}`;
         if (level === 0) {
@@ -1106,38 +1176,110 @@ export const parseFountain = (
           const parentId = currentSectionId.split(".").slice(0, -1).join(".");
           currentSectionId = `${parentId}.${id}`;
         }
-        addSection(
-          currentSectionId,
-          {
-            start: currentToken.start,
-            line: currentToken.line,
-            operator,
-            name,
-            tokens: currentSectionTokens,
-          },
-          match,
-          5
-        );
+        const newSection: FountainSection = {
+          from: currentToken.from,
+          to: currentToken.to,
+          line: currentToken.line,
+          operator,
+          name,
+          tokens: currentSectionTokens,
+        };
+        addSection(newSection);
+        const parameters = getParameterNames(operator, match, 7);
+        newSection.triggers = operator === "?" ? parameters : [];
         startNewSection(level);
-        getParameterDeclarations(match, 7);
       }
     } else if ((match = currentToken.content.match(fountainRegexes.variable))) {
       currentToken.type = "variable";
       if (currentToken.type === "variable") {
         const name = match[4]?.trim() || "";
         const valueText = match[8]?.trim() || "";
-        const value = valueText ? getValue(valueText, match, 8) : "";
+        const nameFrom = currentToken.from + getStart(match, 4);
+        const nameTo = nameFrom + name.length;
+        const valueFrom = currentToken.from + getStart(match, 8);
+        const valueTo = valueFrom + valueText.length;
+        const value = valueText
+          ? getVariableValueOrReference(valueText, valueFrom, valueTo)
+          : "";
         if (name) {
           addVariable(
             name,
             valueText,
             value,
-            false,
-            currentToken.start,
+            undefined,
             currentToken.line,
-            match,
-            4
+            nameFrom,
+            nameTo,
+            valueFrom,
+            valueTo
           );
+        }
+      }
+    } else if ((match = currentToken.content.match(fountainRegexes.asset))) {
+      const type = match[2]?.trim() as FountainAssetType;
+      currentToken.type = type;
+      if (currentToken.type === type) {
+        const name = match[4]?.trim() || "";
+        const valueText = match[8]?.trim() || "";
+        const nameFrom = currentToken.from + getStart(match, 4);
+        const nameTo = nameFrom + name.length;
+        const valueFrom = currentToken.from + getStart(match, 8);
+        const valueTo = valueFrom + valueText.length;
+        const value = valueText
+          ? getAssetValueOrReference(type, valueText, valueFrom, valueTo)
+          : "";
+        if (name) {
+          addAsset(
+            type,
+            name,
+            valueText,
+            value,
+            currentToken.line,
+            nameFrom,
+            nameTo
+          );
+        }
+      }
+    } else if ((match = currentToken.content.match(fountainRegexes.entity))) {
+      const type = match[2]?.trim() as FountainEntityType;
+      currentToken.type = type;
+      if (currentToken.type === type) {
+        const name = match[4]?.trim() || "";
+        const valueText = match[8]?.trim() || "";
+        const nameFrom = currentToken.from + getStart(match, 4);
+        const nameTo = nameFrom + name.length;
+        const valueFrom = currentToken.from + getStart(match, 8);
+        const valueTo = valueFrom + valueText.length;
+        const value = valueText
+          ? getEntityValueOrReference(type, valueText, valueFrom, valueTo)
+          : "";
+        if (name) {
+          addEntity(
+            type,
+            name,
+            valueText,
+            value,
+            currentToken.line,
+            nameFrom,
+            nameTo
+          );
+        }
+      }
+    } else if ((match = currentToken.content.match(fountainRegexes.tag))) {
+      const type = "tag";
+      currentToken.type = type;
+      if (currentToken.type === type) {
+        const name = match[4]?.trim() || "";
+        const valueText = match[8]?.trim() || "";
+        const nameFrom = currentToken.from + getStart(match, 4);
+        const nameTo = nameFrom + name.length;
+        const valueFrom = currentToken.from + getStart(match, 8);
+        const valueTo = valueFrom + valueText.length;
+        const value = valueText
+          ? getTagValueOrReference(valueText, valueFrom, valueTo)
+          : "";
+        if (name) {
+          addTag(name, valueText, value, currentToken.line, nameFrom, nameTo);
         }
       }
     }
@@ -1177,7 +1319,7 @@ export const parseFountain = (
       current,
       newLineLength
     );
-    current = currentToken.end + 1;
+    current = currentToken.to + 1;
 
     if (text.trim().length === 0 && text !== "  ") {
       const skip_separator =
@@ -1327,8 +1469,10 @@ export const parseFountain = (
         if (currentToken.type === "go") {
           if ((match = lint(fountainRegexes.go))) {
             const name = match[4]?.trim() || "";
+            const nameFrom = currentToken.from + getStart(match, 4);
+            const nameTo = nameFrom + name.length;
             const section =
-              name !== "!END" ? getSection(name, match, 4) : undefined;
+              name !== "!END" ? getSection(name, nameFrom, nameTo) : undefined;
             currentToken.name = name;
             currentToken.values = getArgumentValues(section, match, 6);
           }
@@ -1339,25 +1483,34 @@ export const parseFountain = (
         currentToken.type = "return";
         if (currentToken.type === "return") {
           if ((match = lint(fountainRegexes.return))) {
-            const valueText = match[4]?.trim() || "";
-            const value = valueText ? getValue(valueText, match, 4) : "";
-            currentToken.value = value;
+            const expression = match[4]?.trim() || "";
+            const expressionFrom = currentToken.from + getStart(match, 4);
+            currentToken.value = expression;
+            if (expression) {
+              const context = getEvaluationContext(currentSectionId);
+              const { diagnostics } = compile(context, expression);
+              if (diagnostics?.length > 0) {
+                for (let i = 0; i < diagnostics.length; i += 1) {
+                  const d = diagnostics[i];
+                  const from = expressionFrom + d.from;
+                  const to = expressionFrom + d.to;
+                  diagnostic(currentToken, d.message, [], from, to);
+                }
+              }
+            }
           }
         }
       } else if (currentToken.content.match(fountainRegexes.list)) {
-        if ((match = currentToken.content.match(fountainRegexes.assign))) {
-          currentToken.type = "assign";
-          if (currentToken.type === "assign") {
-            if ((match = lint(fountainRegexes.assign))) {
+        if ((match = currentToken.content.match(fountainRegexes.call))) {
+          currentToken.type = "call";
+          if (currentToken.type === "call") {
+            if ((match = lint(fountainRegexes.call))) {
               const name = match[4]?.trim() || "";
-              const operator = match[6]?.trim() || "";
-              const value = match[8]?.trim() || "";
-              if (name) {
-                getVariable(getValueType(value), name, match, 4);
-              }
+              const nameFrom = currentToken.from + getStart(match, 4);
+              const nameTo = nameFrom + name.length;
               currentToken.name = name;
-              currentToken.operator = operator;
-              currentToken.value = value;
+              const section = getSection(`*${name}`, nameFrom, nameTo);
+              currentToken.values = getArgumentValues(section, match, 6);
             }
           }
         } else if (
@@ -1366,25 +1519,72 @@ export const parseFountain = (
           currentToken.type = "condition";
           if (currentToken.type === "condition") {
             if ((match = lint(fountainRegexes.condition))) {
-              const name = match[4]?.trim() || "";
-              const operator = match[6]?.trim() || "";
-              const value = match[8]?.trim() || "";
-              if (name) {
-                getVariable(getValueType(value), name, match, 4);
+              const expression = match[4]?.trim() || "";
+              const expressionFrom = currentToken.from + getStart(match, 4);
+              currentToken.value = expression;
+              if (expression) {
+                const context = getEvaluationContext(currentSectionId);
+                const { diagnostics } = compile(context, expression);
+                if (diagnostics?.length > 0) {
+                  for (let i = 0; i < diagnostics.length; i += 1) {
+                    const d = diagnostics[i];
+                    const from = expressionFrom + d.from;
+                    const to = expressionFrom + d.to;
+                    diagnostic(currentToken, d.message, [], from, to);
+                  }
+                }
               }
-              currentToken.name = name;
-              currentToken.operator = operator;
-              currentToken.value = value;
             }
           }
-        } else if ((match = currentToken.content.match(fountainRegexes.call))) {
-          currentToken.type = "call";
-          if (currentToken.type === "call") {
-            if ((match = lint(fountainRegexes.call))) {
+        } else if (
+          (match = currentToken.content.match(fountainRegexes.assign))
+        ) {
+          currentToken.type = "assign";
+          if (currentToken.type === "assign") {
+            if ((match = lint(fountainRegexes.assign))) {
               const name = match[4]?.trim() || "";
+              const operator = match[6]?.trim() || "";
+              const expression = match[8]?.trim() || "";
+              const nameFrom = currentToken.from + getStart(match, 4);
+              const nameTo = nameFrom + name.length;
+              const expressionFrom = currentToken.from + getStart(match, 8);
               currentToken.name = name;
-              const section = getSection(`*${name}`, match, 4);
-              currentToken.values = getArgumentValues(section, match, 6);
+              currentToken.operator = operator;
+              currentToken.value = expression;
+              const variableValue = name
+                ? getVariableValueOrReference(name, nameFrom, nameTo)
+                : undefined;
+              if (expression) {
+                const context = getEvaluationContext(currentSectionId);
+                const { result, diagnostics } = compile(context, expression);
+                const expectedType =
+                  typeof variableValue === "string" ||
+                  typeof variableValue === "number" ||
+                  typeof variableValue === "boolean"
+                    ? typeof variableValue
+                    : variableValue.type;
+                if (diagnostics?.length > 0) {
+                  for (let i = 0; i < diagnostics.length; i += 1) {
+                    const d = diagnostics[i];
+                    const from = expressionFrom + d.from;
+                    const to = expressionFrom + d.to;
+                    diagnostic(currentToken, d.message, [], from, to);
+                  }
+                } else {
+                  const evaluatedType = typeof result;
+                  if (evaluatedType !== expectedType) {
+                    diagnostic(
+                      currentToken,
+                      `'${name}' is not ${prefixArticle(
+                        evaluatedType
+                      )} variable`,
+                      [],
+                      nameFrom,
+                      nameTo
+                    );
+                  }
+                }
+              }
             }
           }
         } else if (
@@ -1396,8 +1596,10 @@ export const parseFountain = (
               const mark = match[2]?.trim() || "";
               const content = match[4]?.trim() || "";
               const section = match[8]?.trim() || "";
+              const sectionFrom = currentToken.from + getStart(match, 8);
+              const sectionTo = sectionFrom + section.length;
               if (section) {
-                getSection(section, match, 8);
+                getSection(section, sectionFrom, sectionTo);
               }
               currentToken.mark = mark;
               currentToken.content = content;
@@ -1407,101 +1609,22 @@ export const parseFountain = (
         } else {
           lintDiagnostic();
         }
-      } else if ((match = currentToken.content.match(fountainRegexes.asset))) {
-        currentToken.type = match[2]?.trim() as FountainAssetType;
-        if (
-          currentToken.type === "image" ||
-          currentToken.type === "audio" ||
-          currentToken.type === "video" ||
-          currentToken.type === "text"
-        ) {
-          if ((match = lint(fountainRegexes.asset))) {
-            const name = match[4]?.trim() || "";
-            const valueText = match[8]?.trim() || "";
-            currentToken.content = valueText;
-            currentToken.value = getAssetValue(
-              currentToken.type,
-              valueText,
-              match,
-              8
-            );
-            addAsset(
-              currentToken.type,
-              name,
-              valueText,
-              currentToken.value,
-              currentToken.start,
-              currentToken.line,
-              match,
-              4
-            );
-          }
-        }
-      } else if ((match = currentToken.content.match(fountainRegexes.entity))) {
-        currentToken.type = match[2]?.trim() as FountainEntityType;
-        if (
-          currentToken.type === "ui" ||
-          currentToken.type === "object" ||
-          currentToken.type === "enum"
-        ) {
-          if ((match = lint(fountainRegexes.entity))) {
-            const name = match[4]?.trim() || "";
-            const valueText = match[8]?.trim() || "";
-            currentToken.content = valueText;
-            currentToken.value = getEntityValue(
-              currentToken.type,
-              valueText,
-              match,
-              8
-            );
-            addEntity(
-              currentToken.type,
-              name,
-              valueText,
-              currentToken.value,
-              currentToken.start,
-              currentToken.line,
-              match,
-              4
-            );
-          }
-        }
-      } else if ((match = currentToken.content.match(fountainRegexes.tag))) {
-        currentToken.type = "tag";
-        if (currentToken.type === "tag") {
-          if ((match = lint(fountainRegexes.tag))) {
-            const name = match[4]?.trim() || "";
-            const valueText = match[8]?.trim() || "";
-            currentToken.content = valueText;
-            currentToken.value = getTagValue(valueText, match, 8);
-            const value = currentToken.value;
-            addTag(
-              name,
-              valueText,
-              value,
-              currentToken.start,
-              currentToken.line,
-              match,
-              4
-            );
-          }
-        }
       } else if (
         (match = currentToken.content.match(fountainRegexes.variable))
       ) {
         currentToken.type = "variable";
-        if (currentToken.type === "variable") {
-          if ((match = lint(fountainRegexes.variable))) {
-            const name = match[4]?.trim() || "";
-            const operator = match[6]?.trim() || "";
-            const valueText = match[8]?.trim() || "";
-            currentToken.name = name;
-            currentToken.operator = operator;
-            currentToken.content = valueText;
-            const value = valueText ? getValue(valueText, match, 8) : "";
-            currentToken.value = value;
-          }
-        }
+        lint(fountainRegexes.variable);
+      } else if ((match = currentToken.content.match(fountainRegexes.asset))) {
+        const type = match[2]?.trim() as FountainAssetType;
+        currentToken.type = type;
+        lint(fountainRegexes.asset);
+      } else if ((match = currentToken.content.match(fountainRegexes.entity))) {
+        const type = match[2]?.trim() as FountainEntityType;
+        currentToken.type = type;
+        lint(fountainRegexes.entity);
+      } else if ((match = currentToken.content.match(fountainRegexes.tag))) {
+        currentToken.type = "tag";
+        lint(fountainRegexes.tag);
       } else if (
         (match = currentToken.content.match(fountainRegexes.synopses))
       ) {
@@ -1520,33 +1643,37 @@ export const parseFountain = (
           const name = match[5] || "";
           const id = `${operator}${name}`;
           const level = mark.length;
-          currentToken.level = level;
-          currentToken.operator = operator;
+          const markFrom = currentToken.from + getStart(match, 2);
+          const markTo = markFrom + mark.length;
           currentToken.content = name;
           if (level > currentLevel + 1) {
-            const from = currentToken.start + currentToken.indent;
-            const to = from + mark.length + markSpace.length;
             const validMark = "#".repeat(currentLevel + 1);
+            const insert = `${validMark}`;
             diagnostic(
               currentToken,
               `Child Section must be max ${validMark.length} levels deep`,
               [
                 {
-                  name: "Fix",
-                  replace: {
-                    from,
-                    to,
-                    insert: `${validMark}${" "}`,
-                  },
+                  name: "FIX",
+                  changes: [
+                    {
+                      from: markFrom,
+                      to: markTo,
+                      insert: "",
+                    },
+                    {
+                      from: markFrom,
+                      insert,
+                    },
+                  ],
                 },
               ],
-              currentToken.indent,
-              level
+              markFrom,
+              markTo
             );
             if (markSpace) {
               currentSectionId += `.${id}`;
               startNewSection(level);
-              currentToken.parameters = getParameterDeclarations(match, 7);
             }
           } else if (lint(fountainRegexes.section)) {
             if (level === 0) {
@@ -1569,7 +1696,6 @@ export const parseFountain = (
               currentSectionId = `${parentId}.${id}`;
             }
             startNewSection(level);
-            currentToken.parameters = getParameterDeclarations(match, 7);
           }
         }
       } else if (currentToken.content.match(fountainRegexes.page_break)) {

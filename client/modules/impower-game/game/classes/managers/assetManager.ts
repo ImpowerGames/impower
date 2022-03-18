@@ -1,7 +1,6 @@
-import { Manager } from "./manager";
-import { GameEvent } from "../events/gameEvent";
 import { Ease } from "../../../data/enums/ease";
-import { GameTrigger } from "../../../data/enums/gameTrigger";
+import { GameEvent } from "../events/gameEvent";
+import { Manager } from "./manager";
 
 export interface AssetState {
   loadedFileIds: string[];
@@ -12,10 +11,8 @@ export interface AssetEvents {
     id: string;
     x: number;
     y: number;
-    width: number;
-    height: number;
     duration: number;
-    trigger?: GameTrigger;
+    ease: Ease;
   }>;
   onMoveImageFile: GameEvent<{
     id: string;
@@ -43,6 +40,7 @@ export interface AssetEvents {
   onHideImageFile: GameEvent<{
     id: string;
     duration: number;
+    ease: Ease;
   }>;
   onPlayAudioFile: GameEvent<{
     id: string;
@@ -90,10 +88,8 @@ export class AssetManager extends Manager<AssetState, AssetEvents> {
         id: string;
         x: number;
         y: number;
-        width: number;
-        height: number;
         duration: number;
-        trigger?: GameTrigger;
+        ease: Ease;
       }>(),
       onMoveImageFile: new GameEvent<{
         id: string;
@@ -121,6 +117,7 @@ export class AssetManager extends Manager<AssetState, AssetEvents> {
       onHideImageFile: new GameEvent<{
         id: string;
         duration: number;
+        ease: Ease;
       }>(),
       onPlayAudioFile: new GameEvent<{
         id: string;
@@ -159,8 +156,8 @@ export class AssetManager extends Manager<AssetState, AssetEvents> {
     return this.deepCopyState(this.state);
   }
 
-  loadDefaultImage(data: { id: string; trigger?: GameTrigger }): void {
-    const { id, trigger } = data;
+  loadDefaultImage(data: { id: string }): void {
+    const { id } = data;
     if (!this.doesFileExist(id)) {
       this.state.loadedFileIds.push(id);
 
@@ -168,10 +165,8 @@ export class AssetManager extends Manager<AssetState, AssetEvents> {
         id,
         x: 128,
         y: 128,
-        width: 256,
-        height: 256,
         duration: 0,
-        trigger,
+        ease: Ease.Linear,
       });
     }
   }
@@ -196,10 +191,8 @@ export class AssetManager extends Manager<AssetState, AssetEvents> {
     id: string;
     x: number;
     y: number;
-    width: number;
-    height: number;
     duration: number;
-    trigger?: GameTrigger;
+    ease: Ease;
   }): void {
     const { id } = data;
 
@@ -244,7 +237,7 @@ export class AssetManager extends Manager<AssetState, AssetEvents> {
     this.events.onScaleImageFile.emit({ ...data });
   }
 
-  hideImageFile(data: { id: string; duration: number }): void {
+  hideImageFile(data: { id: string; duration: number; ease: Ease }): void {
     const { id } = data;
 
     if (!this.doesFileExist(id)) {
@@ -294,22 +287,22 @@ export class AssetManager extends Manager<AssetState, AssetEvents> {
 
   markImageAsClickTrigger(data: { id: string }): void {
     this.events.onMarkImageAsClickTrigger.emit({ ...data });
-    this.loadDefaultImage({ id: data.id, trigger: GameTrigger.Click });
+    this.loadDefaultImage({ id: data.id });
   }
 
   markImageAsHoverTrigger(data: { id: string }): void {
     this.events.onMarkImageAsHoverTrigger.emit({ ...data });
-    this.loadDefaultImage({ id: data.id, trigger: GameTrigger.Hover });
+    this.loadDefaultImage({ id: data.id });
   }
 
   markImageAsDragTrigger(data: { id: string }): void {
     this.events.onMarkImageAsDragTrigger.emit({ ...data });
-    this.loadDefaultImage({ id: data.id, trigger: GameTrigger.Drag });
+    this.loadDefaultImage({ id: data.id });
   }
 
   markImageAsDropTrigger(data: { id: string }): void {
     this.events.onMarkImageAsDropTrigger.emit({ ...data });
-    this.loadDefaultImage({ id: data.id, trigger: GameTrigger.Drop });
+    this.loadDefaultImage({ id: data.id });
   }
 
   clickDownImage(data: { id: string }): void {

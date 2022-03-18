@@ -1,14 +1,24 @@
-import {
-  BlockData,
-  CommandData,
-  InstanceData,
-  TriggerData,
-  VariableValue,
-} from "../../../../../data";
+import { BlockData, CommandData } from "../../../../../data";
 import { BlockState, ImpowerGame } from "../../../../../game";
 import { ContainerRunner } from "../../container/containerRunner";
 import { CommandRunner } from "../../items/command/commandRunner";
-import { TriggerRunner } from "../../items/trigger/triggerRunner";
+
+export interface BlockContext {
+  ids: Record<string, string>;
+  valueMap: Record<string, string | number | boolean>;
+  variables: Record<string, string | number | boolean>;
+  assets: Record<string, string>;
+  entities: Record<string, string>;
+  tags: Record<string, string>;
+  blocks: Record<string, number>;
+  triggers: string[];
+  parameters: string[];
+  commands: {
+    runner: CommandRunner;
+    data: CommandData;
+    level: number;
+  }[];
+}
 
 export class BlockRunner extends ContainerRunner<BlockData> {
   private static _instance: BlockRunner;
@@ -20,29 +30,20 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     return this._instance;
   }
 
+  triggerDependencies: Record<string, string | number | boolean> = {};
+
   /**
    * Iterates over triggers performs their initializers.
    *
    */
-  init(
-    triggers: {
-      runner: TriggerRunner;
-      data: TriggerData;
-      level: number;
-    }[],
-    commands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[],
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame
-  ): void {
-    triggers.forEach((trigger) => {
-      trigger.runner.init(trigger.data, variables, game);
+  init(context: BlockContext, game: ImpowerGame): void {
+    const { variables, commands, triggers } = context;
+    triggers.forEach((variableName) => {
+      const value = variables[variableName];
+      this.triggerDependencies[variableName] = value;
     });
     commands.forEach((command) => {
-      command.runner.init(command.data, variables, game);
+      command.runner.init(command.data, { ...context, index: -1 }, game);
     });
   }
 
@@ -54,26 +55,29 @@ export class BlockRunner extends ContainerRunner<BlockData> {
   update(
     id: string,
     blockState: BlockState,
-    triggers: {
-      runner: TriggerRunner;
-      data: TriggerData;
-      level: number;
-    }[],
-    commands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[],
-    variables: { [id: string]: VariableValue },
+    context: BlockContext,
     game: ImpowerGame,
     time: number,
     delta: number
   ): void {
+    const { triggers, variables } = context;
+
     game.logic.updateBlock({ id, time, delta });
 
     if (!blockState.isExecuting) {
-      const { shouldExecute, satisfiedTriggers, unsatisfiedTriggers } =
-        this.checkTriggers(triggers, variables, game);
+      let shouldExecute = false;
+      const satisfiedTriggers: string[] = [];
+      const unsatisfiedTriggers: string[] = [];
+      triggers.forEach((variableName) => {
+        const value = variables[variableName];
+        if (this.triggerDependencies[variableName] !== value) {
+          this.triggerDependencies[variableName] = value;
+          satisfiedTriggers.push(variableName);
+          shouldExecute = true;
+        } else {
+          unsatisfiedTriggers.push(variableName);
+        }
+      });
 
       game.logic.checkTriggers({
         blockId: id,
@@ -91,86 +95,11 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     }
 
     if (blockState.isExecuting) {
-      if (this.runCommands(id, blockState, commands, variables, game, time)) {
+      if (this.runCommands(id, blockState, context, game, time)) {
         game.logic.finishBlock({ id });
-        game.logic.continueToNextBlock({ id });
+        game.logic.continue({ id });
       }
     }
-  }
-
-  /**
-   * Iterates over triggers and checks if the block should be executed.
-   *
-   * @return {boolean} True if the block should be executed this frame. Otherwise, false.
-   */
-  private checkTriggers(
-    triggers: {
-      runner: TriggerRunner;
-      data: TriggerData;
-      level: number;
-    }[],
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame
-  ): {
-    shouldExecute: boolean;
-    satisfiedTriggers: string[];
-    unsatisfiedTriggers: string[];
-  } {
-    const calculate = (t: boolean[], all: boolean): boolean => {
-      if (all) {
-        return t.every((x) => x);
-      }
-      return t.some((x) => x);
-    };
-
-    const satisfiedTriggers: string[] = [];
-    const unsatisfiedTriggers: string[] = [];
-
-    const array: boolean[][] = [[]];
-    let level = 0;
-    const checkAll: boolean[] = [];
-    let group: InstanceData;
-    triggers.forEach((trigger) => {
-      if (trigger.runner.opensGroup(trigger.data)) {
-        group = trigger.data;
-        level += 1;
-        array[level] = [];
-        checkAll.push(trigger.runner.shouldCheckAllChildren(trigger.data));
-        return;
-      }
-      if (trigger.runner.closesGroup(trigger.data, group)) {
-        level -= 1;
-        array[level].push(
-          calculate(array[level + 1], checkAll[checkAll.length - 1])
-        );
-        checkAll.pop();
-        return;
-      }
-      const satisfied = trigger.runner.shouldExecute(
-        trigger.data,
-        variables,
-        game
-      );
-      const canExecute = trigger.runner.canExecute(
-        trigger.data,
-        variables,
-        game
-      );
-      if (canExecute) {
-        if (satisfied) {
-          satisfiedTriggers.push(trigger.data.reference.refId);
-        } else {
-          unsatisfiedTriggers.push(trigger.data.reference.refId);
-        }
-      }
-      array[level].push(canExecute && satisfied);
-    });
-
-    return {
-      shouldExecute: calculate(array[0], false),
-      satisfiedTriggers,
-      unsatisfiedTriggers,
-    };
   }
 
   /**
@@ -181,15 +110,11 @@ export class BlockRunner extends ContainerRunner<BlockData> {
   private runCommands(
     id: string,
     blockState: BlockState,
-    commands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[],
-    variables: { [id: string]: VariableValue },
+    context: BlockContext,
     game: ImpowerGame,
     time: number
   ): boolean {
+    const { commands } = context;
     const blockId = id;
     while (blockState.executingIndex < commands.length) {
       const command = commands[blockState.executingIndex];
@@ -210,14 +135,16 @@ export class BlockRunner extends ContainerRunner<BlockData> {
         let nextJumps: number[] = [];
         if (
           !fastForward ||
-          !command.runner.isPure(command.data, variables, game)
+          !command.runner.isPure(
+            command.data,
+            { ...context, index: blockState.executingIndex },
+            game
+          )
         ) {
           nextJumps = command.runner.onExecute(
             command.data,
-            variables,
-            game,
-            blockState.executingIndex,
-            commands
+            { ...context, index: blockState.executingIndex },
+            game
           );
         }
         if (nextJumps.length > 0) {
@@ -235,7 +162,11 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       if (
         !fastForward &&
         command.data.waitUntilFinished &&
-        !command.runner.isFinished(command.data, variables, game)
+        !command.runner.isFinished(
+          command.data,
+          { ...context, index: blockState.executingIndex },
+          game
+        )
       ) {
         return false;
       }

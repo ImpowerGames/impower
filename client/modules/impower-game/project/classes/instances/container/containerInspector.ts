@@ -19,13 +19,13 @@ export abstract class ContainerInspector<
   }
 
   getSummary(data: T): string {
-    return data.childContainerIds && data.childContainerIds?.length > 0
-      ? `(${data.childContainerIds.length})`
+    return data.children && data.children?.length > 0
+      ? `(${data.children.length})`
       : "";
   }
 
   isPropertyVisible(propertyPath: string, data: T): boolean {
-    if (propertyPath === "childContainerIds") {
+    if (propertyPath === "children") {
       return false;
     }
     return super.isPropertyVisible(propertyPath, data);

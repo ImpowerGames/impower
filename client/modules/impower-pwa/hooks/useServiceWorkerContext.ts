@@ -1,13 +1,13 @@
-import React, { useCallback, useMemo, useState, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Workbox } from "workbox-window";
 import { useRouter } from "../../impower-router";
+import { ServiceWorkerContextState } from "../contexts/serviceWorkerContext";
 import {
   BeforeInstallPromptEvent,
   isBeforeInstallPromptEvent,
 } from "../types/beforeInstallPromptEvent";
-import { ServiceWorkerContextState } from "../contexts/serviceWorkerContext";
-import { isAppInstalled } from "../utils/isAppInstalled";
 import { isWorkerWindow } from "../types/workerWindow";
+import { isAppInstalled } from "../utils/isAppInstalled";
 
 let deferredPrompt: BeforeInstallPromptEvent;
 

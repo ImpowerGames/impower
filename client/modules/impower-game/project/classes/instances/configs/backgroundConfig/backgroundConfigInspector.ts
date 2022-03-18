@@ -1,10 +1,10 @@
 import {
-  createBackgroundConfigData,
   BackgroundConfigData,
   ConfigData,
   TypeInfo,
 } from "../../../../../data";
 import { ConfigInspector } from "../../config/configInspector";
+import { createBackgroundConfigData } from "./createBackgroundConfigData";
 
 export class BackgroundConfigInspector extends ConfigInspector<BackgroundConfigData> {
   getTypeInfo(data?: ConfigData): TypeInfo {

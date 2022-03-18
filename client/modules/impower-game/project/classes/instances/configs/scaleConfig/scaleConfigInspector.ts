@@ -2,12 +2,12 @@ import { getLabel } from "../../../../../../impower-config";
 import {
   CenterType,
   ConfigData,
-  createScaleConfigData,
   ScaleConfigData,
   ScaleModeType,
   TypeInfo,
 } from "../../../../../data";
 import { ConfigInspector } from "../../config/configInspector";
+import { createScaleConfigData } from "./createScaleConfigData";
 
 export class ScaleConfigInspector extends ConfigInspector<ScaleConfigData> {
   getTypeInfo(data?: ConfigData): TypeInfo {

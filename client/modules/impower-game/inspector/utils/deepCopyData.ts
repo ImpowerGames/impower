@@ -56,10 +56,10 @@ const remapDataInternal = <T extends object>( // eslint-disable-line @typescript
   }
 
   if (isContainerData(data)) {
-    const oldIds = [...data.childContainerIds];
-    data.childContainerIds = [];
+    const oldIds = [...data.children];
+    data.children = [];
     oldIds.forEach((id) => {
-      data.childContainerIds?.push(idMap[id] || id);
+      data.children?.push(idMap[id] || id);
     });
   }
 
@@ -158,7 +158,7 @@ const cloneDataInternal = <T extends object>( // eslint-disable-line @typescript
   }
 
   if (isContainerData(data)) {
-    data.childContainerIds?.forEach((id) => {
+    data.children?.forEach((id) => {
       const childData = allData[id];
       if (isContainerData(childData)) {
         cloneDataInternal(

@@ -1,6 +1,12 @@
 import { DisplayCommandData, DisplayType } from "../../../../../../../data";
 
-export const executeDisplayCommand = (data: DisplayCommandData): void => {
+export const executeDisplayCommand = (
+  data: DisplayCommandData,
+  context: {
+    valueMap: Record<string, string | number | boolean>;
+  }
+): void => {
+  const { valueMap } = context;
   const ui = data.ui || "impower-ui-display";
   const dialogueGroupEl: HTMLElement = document.querySelector(
     `#${ui} .dialogue-group`
@@ -28,7 +34,7 @@ export const executeDisplayCommand = (data: DisplayCommandData): void => {
     characterEl.style.display = character ? null : "none";
   }
   if (portraitEl) {
-    portraitEl.style.backgroundImage = `url("${assets?.[0]?.value}")`;
+    portraitEl.style.backgroundImage = `url("${valueMap[assets?.[0]]}")`;
     portraitEl.style.backgroundRepeat = "no-repeat";
     portraitEl.style.backgroundPosition = "center";
     portraitEl.style.display = assets ? null : "none";

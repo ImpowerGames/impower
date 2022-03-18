@@ -1,33 +1,20 @@
 import { getUuid } from "../../../../../../../../impower-core";
-import {
-  CommandData,
-  LogCommandData,
-  Severity,
-  VariableValue,
-} from "../../../../../../../data";
+import { LogCommandData, Severity } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
-import { getRuntimeValue } from "../../../../../../../runner/utils/getRuntimeValue";
-import { CommandRunner } from "../../../command/commandRunner";
+import { CommandContext, CommandRunner } from "../../../command/commandRunner";
 
 export class LogCommandRunner extends CommandRunner<LogCommandData> {
   onExecute(
     data: LogCommandData,
-    variables: { [id: string]: VariableValue },
-    game: ImpowerGame,
-    index: number,
-    blockCommands: {
-      runner: CommandRunner;
-      data: CommandData;
-      level: number;
-    }[]
+    context: CommandContext,
+    game: ImpowerGame
   ): number[] {
-    const { severity } = data;
-    const message = getRuntimeValue(data.message, variables, game);
+    const { severity, message } = data;
     if (severity === undefined) {
-      return super.onExecute(data, variables, game, index, blockCommands);
+      return super.onExecute(data, context, game);
     }
     if (message === undefined) {
-      return super.onExecute(data, variables, game, index, blockCommands);
+      return super.onExecute(data, context, game);
     }
     const { parentContainerId, refId } = data.reference;
     const parentNode = game.logic.blockTree[parentContainerId];
@@ -42,6 +29,6 @@ export class LogCommandRunner extends CommandRunner<LogCommandData> {
       message,
     });
     console.log(`${Severity[severity].toUpperCase()}: ${message}`); // eslint-disable-line no-console
-    return super.onExecute(data, variables, game, index, blockCommands);
+    return super.onExecute(data, context, game);
   }
 }

@@ -1,9 +1,4 @@
-import {
-  createDynamicData,
-  LogCommandData,
-  Severity,
-  TypeInfo,
-} from "../../../../../../../data";
+import { LogCommandData, Severity, TypeInfo } from "../../../../../../../data";
 import { getProjectColor } from "../../../../../../../inspector/utils/getProjectColor";
 import { CommandInspector } from "../../../command/commandInspector";
 
@@ -28,7 +23,7 @@ export class LogCommandInspector extends CommandInspector<LogCommandData> {
     return {
       ...super.createData(data),
       severity: Severity.Info,
-      message: createDynamicData(""),
+      message: "",
       ...data,
     };
   }
@@ -51,13 +46,6 @@ export class LogCommandInspector extends CommandInspector<LogCommandData> {
       return Object.values(Severity);
     }
     return super.getPropertyOptions(propertyPath, data);
-  }
-
-  getPropertyDynamicTypeId(propertyPath: string, data: LogCommandData): string {
-    if (propertyPath === "severity") {
-      return "SeverityVariable";
-    }
-    return super.getPropertyDynamicTypeId(propertyPath, data);
   }
 
   isPropertyMultiline(propertyPath: string, _data: LogCommandData): boolean {

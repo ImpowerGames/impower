@@ -7,7 +7,7 @@ import { MoveImageRequestProps } from "../../../../impower-game/data/interfaces/
 import { RotateImageRequestProps } from "../../../../impower-game/data/interfaces/props/rotateImageRequestProps";
 import { ScaleImageRequestProps } from "../../../../impower-game/data/interfaces/props/scaleImageRequestProps";
 import { ImpowerGame } from "../../../../impower-game/game";
-import { ImpowerDataMap } from "../../../../impower-game/project/classes/impowerDataMap";
+import { ImpowerContext } from "../../../../impower-game/project/classes/impowerContext";
 
 export const ASSET_SCENE_KEY = "PhaserAssetScene";
 
@@ -18,10 +18,10 @@ export class PhaserAssetScene extends Phaser.Scene {
     return this._impowerGame;
   }
 
-  private _impowerDataMap: ImpowerDataMap;
+  private _impowerContext: ImpowerContext;
 
-  public get impowerDataMap(): ImpowerDataMap {
-    return this._impowerDataMap;
+  public get impowerContext(): ImpowerContext {
+    return this._impowerContext;
   }
 
   private _projectId: string;
@@ -58,7 +58,7 @@ export class PhaserAssetScene extends Phaser.Scene {
     config: string | Phaser.Types.Scenes.SettingsConfig,
     projectId: string,
     impowerGame: ImpowerGame,
-    impowerDataMap: ImpowerDataMap,
+    impowerContext: ImpowerContext,
     imageFilesFromPreloading: ImageRequestProps[],
     moveImageFilesFromPreloading: MoveImageRequestProps[],
     rotateImageFilesFromPreloading: RotateImageRequestProps[],
@@ -68,7 +68,7 @@ export class PhaserAssetScene extends Phaser.Scene {
     super(config);
     this._projectId = projectId;
     this._impowerGame = impowerGame;
-    this._impowerDataMap = impowerDataMap;
+    this._impowerContext = impowerContext;
     this.imageFilesFromPreloading = imageFilesFromPreloading;
     this.moveImageFilesFromPreloading = moveImageFilesFromPreloading;
     this.rotateImageFilesFromPreloading = rotateImageFilesFromPreloading;

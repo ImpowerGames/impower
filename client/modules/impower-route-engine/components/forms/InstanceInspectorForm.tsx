@@ -5,208 +5,23 @@ import React, {
   useContext,
   useMemo,
 } from "react";
+import { getValue, validatePropertyPath } from "../../../impower-core";
 import {
-  getValue,
-  removeDuplicates,
-  validatePropertyPath,
-} from "../../../impower-core";
-import {
-  DynamicData,
-  GameProjectData,
   InstanceData,
-  isDynamicData,
   isInstanceData,
-  isReference,
   Reference,
-  VariableReference,
 } from "../../../impower-game/data";
-import { InstanceInspector } from "../../../impower-game/inspector";
 import InspectorForm, {
   InspectorFormProps,
 } from "../../../impower-route/components/forms/InspectorForm";
 import AutocompleteInput from "../../../impower-route/components/inputs/AutocompleteInput";
 import BooleanInput from "../../../impower-route/components/inputs/BooleanInput";
 import ColorInput from "../../../impower-route/components/inputs/ColorInput";
-import DataField, {
-  RenderPropertyProps,
-} from "../../../impower-route/components/inputs/DataField";
 import FileInput from "../../../impower-route/components/inputs/FileInput";
 import NumberInput from "../../../impower-route/components/inputs/NumberInput";
-import ObjectField, {
-  getInheritedProps,
-} from "../../../impower-route/components/inputs/ObjectField";
+import ObjectField from "../../../impower-route/components/inputs/ObjectField";
 import StringInput from "../../../impower-route/components/inputs/StringInput";
-import ValueFieldArea from "../../../impower-route/components/inputs/ValueFieldArea";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
-import { ProjectEngineContext } from "../../contexts/projectEngineContext";
-import ReferenceInput from "../inputs/ReferenceInput";
-
-interface EngineRenderPropertyProps extends RenderPropertyProps {
-  data: InstanceData[];
-  constantValue: unknown;
-}
-
-const InstanceRenderProperty = (
-  props: EngineRenderPropertyProps
-): JSX.Element | null => {
-  const {
-    constantValue,
-    variant,
-    InputComponent,
-    size,
-    backgroundColor,
-    data,
-    propertyPath,
-    indent,
-    indentAmount,
-    moreIcon,
-    moreTooltip,
-    moreIconSize,
-    label,
-    placeholder,
-    tooltip,
-    showError,
-    disabled,
-    required,
-    autoFocus,
-    options,
-    characterCountLimit,
-    spacing,
-    InputProps,
-    helperText,
-    moreInfoPopup,
-    loading,
-    onPropertyInputChange,
-    onPropertyChange,
-    onDebouncedPropertyChange,
-    onMore,
-    getDocPaths,
-    getInputError,
-    getInspector,
-  } = props;
-
-  const paddingLeft = indent * indentAmount;
-  const inspectedData = data[0];
-  const propertyValues = data.map((d) => getValue(d, propertyPath));
-  const propertyValue = propertyValues[0];
-
-  const inspector = getInspector(inspectedData) as InstanceInspector;
-  const permission = inspector.getPropertyPermission(
-    propertyPath,
-    inspectedData
-  );
-
-  const handleGetInputError = useCallback(
-    async (value: unknown): Promise<string | null> =>
-      getInputError
-        ? getInputError(
-            propertyPath,
-            inspectedData,
-            value,
-            getDocPaths(propertyPath, inspectedData)
-          )
-        : null,
-    [getDocPaths, getInputError, inspectedData, propertyPath]
-  );
-
-  const handleInputChange = useCallback(
-    (value: unknown): void => onPropertyInputChange(propertyPath, value),
-    [onPropertyInputChange, propertyPath]
-  );
-
-  const handleChange = useCallback(
-    (value: unknown): void => onPropertyChange(propertyPath, value),
-    [onPropertyChange, propertyPath]
-  );
-
-  const handleDebouncedChange = useCallback(
-    (value: unknown): void => onDebouncedPropertyChange(propertyPath, value),
-    [onDebouncedPropertyChange, propertyPath]
-  );
-
-  const renderPropertyProps = useMemo(
-    () => ({
-      constantValue: getValue(data[0], `${propertyPath}.constant`),
-    }),
-    [data, propertyPath]
-  );
-
-  if (isDynamicData(propertyValue)) {
-    const objectProperty = propertyValue.dynamic ? "dynamic" : "constant";
-    const inheritedProps = getInheritedProps(props);
-    return (
-      <ValueFieldArea
-        propertyPath={propertyPath}
-        moreIcon={moreIcon}
-        moreTooltip={moreTooltip}
-        moreIconSize={moreIconSize}
-        spacing={0}
-        style={{ paddingLeft }}
-        onMore={onMore}
-      >
-        <DataField
-          {...inheritedProps}
-          label={label}
-          getInspector={getInspector}
-          propertyPath={`${propertyPath}.${objectProperty}`}
-          data={data}
-          moreIcon={null}
-          renderProperty={InstanceRenderProperty}
-          renderPropertyProps={renderPropertyProps}
-        />
-      </ValueFieldArea>
-    );
-  }
-
-  if (isReference(propertyValue)) {
-    const mixed =
-      removeDuplicates(
-        data.map((d) => JSON.stringify(getValue(d, propertyPath)))
-      ).length > 1;
-    return (
-      <ValueFieldArea
-        propertyPath={propertyPath}
-        moreIcon={moreIcon}
-        moreTooltip={moreTooltip}
-        moreIconSize={moreIconSize}
-        spacing={spacing}
-        style={{ paddingLeft }}
-        onMore={onMore}
-      >
-        <ReferenceInput
-          variant={variant}
-          InputComponent={InputComponent}
-          size={size}
-          backgroundColor={backgroundColor}
-          label={label}
-          placeholder={placeholder}
-          tooltip={tooltip}
-          showError={showError}
-          disabled={disabled}
-          required={required}
-          autoFocus={autoFocus}
-          value={propertyValue}
-          mixed={mixed}
-          constantValue={constantValue}
-          possibleValues={options}
-          permission={permission}
-          characterCountLimit={characterCountLimit}
-          InputProps={InputProps}
-          helperText={helperText}
-          moreInfoPopup={moreInfoPopup}
-          loading={loading}
-          endAdornmentPosition="replace"
-          getInputError={handleGetInputError}
-          onInputChange={handleInputChange}
-          onChange={handleChange}
-          onDebouncedChange={handleDebouncedChange}
-        />
-      </ValueFieldArea>
-    );
-  }
-
-  return null;
-};
 
 interface InstanceInspectorFormProps
   extends Omit<
@@ -250,15 +65,12 @@ const InstanceInspectorForm = React.memo(
     } = props;
 
     const { gameInspector } = useContext(GameInspectorContext);
-    const [state] = useContext(ProjectEngineContext);
-
-    const project = state?.project?.data as GameProjectData;
 
     const handleGetFormattedSummary = useCallback(
       (summary: string, data: InstanceData) => {
-        return gameInspector.getFormattedSummary(summary, data, project);
+        return gameInspector.getFormattedSummary(summary, data);
       },
-      [gameInspector, project]
+      [gameInspector]
     );
     const handleGetInspector = useCallback(
       (data: InstanceData) => {
@@ -318,8 +130,6 @@ const InstanceInspectorForm = React.memo(
         propertyPath: string,
         data: InstanceData
       ) => {
-        const inspectedParentContainerType = data.reference.parentContainerType;
-        const inspectedContainerRefId = data.reference.parentContainerId;
         const inspector = handleGetInspector(data);
 
         const defaultData = validatePropertyPath(
@@ -327,35 +137,10 @@ const InstanceInspectorForm = React.memo(
           inspector.createData({ reference: data.reference })
         );
         const propertyDefaultValue = getValue(defaultData, propertyPath);
-        const defaultConstantValue: DynamicData = {
-          ...(propertyDefaultValue as DynamicData),
-          dynamic: null,
-        };
-        const defaultDynamicVariableValue: DynamicData = {
-          ...(propertyDefaultValue as DynamicData),
-          dynamic: {
-            parentContainerType: inspectedParentContainerType,
-            parentContainerId: inspectedContainerRefId,
-            refType: "Variable",
-            refTypeId: inspector.getPropertyDynamicTypeId(propertyPath, data),
-            refId: "",
-          } as VariableReference,
-        };
 
         switch (type) {
           case "Reset": {
             handleDebouncedPropertyChange(propertyPath, propertyDefaultValue);
-            break;
-          }
-          case "UseVariableValue": {
-            handleDebouncedPropertyChange(
-              propertyPath,
-              defaultDynamicVariableValue
-            );
-            break;
-          }
-          case "UseConstantValue": {
-            handleDebouncedPropertyChange(propertyPath, defaultConstantValue);
             break;
           }
           default:
@@ -377,7 +162,6 @@ const InstanceInspectorForm = React.memo(
         onPropertyInputChange={handlePropertyInputChange}
         onPropertyChange={handlePropertyChange}
         onDebouncedPropertyChange={handleDebouncedPropertyChange}
-        renderProperty={InstanceRenderProperty}
         InputComponent={FilledInput}
         ColorInputComponent={ColorInput}
         AutocompleteInputComponent={AutocompleteInput}

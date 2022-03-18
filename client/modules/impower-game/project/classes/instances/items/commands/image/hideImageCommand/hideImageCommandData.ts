@@ -1,9 +1,8 @@
-import { ImageFileReference } from "../../../../../../../data";
-import { TransitionConfig } from "../../../../../../../data/interfaces/configs/transitionConfig";
-import { DynamicData } from "../../../../../../../data/interfaces/generics/dynamicData";
+import { Ease } from "../../../../../../../data/enums/ease";
 import { CommandData } from "../../../command/commandData";
 
 export interface HideImageCommandData extends CommandData<"HideImageCommand"> {
-  image: DynamicData<ImageFileReference>;
-  transition: TransitionConfig;
+  image: string;
+  duration: number;
+  ease: Ease;
 }

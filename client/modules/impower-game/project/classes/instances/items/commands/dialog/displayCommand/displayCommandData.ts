@@ -6,7 +6,6 @@ export interface DisplayCommandData extends CommandData<"DisplayCommand"> {
   type: DisplayType;
   position: DisplayPosition;
   character: string;
-  assets: { value: string; type: "image" | "audio" | "video" | "text" }[];
   parenthetical: string;
   content: string;
   ui: string;
