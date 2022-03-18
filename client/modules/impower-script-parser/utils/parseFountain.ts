@@ -672,39 +672,12 @@ export const parseFountain = (
     parameter: boolean,
     line: number,
     nameFrom: number,
-    nameTo: number,
-    valueFrom: number,
-    valueTo: number
+    nameTo: number
   ): void => {
     const valueVariable =
       typeof value === "object"
         ? findVariable(currentSectionId, value.name)
         : undefined;
-    if (typeof value === "object") {
-      const insert = valueVariable.valueText || '""';
-      diagnostic(
-        currentToken,
-        "Must be initialized to a constant string, number, or boolean",
-        [
-          {
-            name: "FIX",
-            changes: [
-              {
-                from: valueFrom,
-                to: valueTo,
-                insert: "",
-              },
-              {
-                from: valueFrom,
-                insert,
-              },
-            ],
-          },
-        ],
-        valueFrom,
-        valueTo
-      );
-    }
     const type = valueVariable
       ? valueVariable.type
       : (typeof value as FountainVariableType);
@@ -895,9 +868,7 @@ export const parseFountain = (
               true,
               currentToken.line,
               nameFrom,
-              nameTo,
-              valueFrom,
-              valueTo
+              nameTo
             );
           }
         }
@@ -1215,9 +1186,7 @@ export const parseFountain = (
             undefined,
             currentToken.line,
             nameFrom,
-            nameTo,
-            valueFrom,
-            valueTo
+            nameTo
           );
         }
       }
