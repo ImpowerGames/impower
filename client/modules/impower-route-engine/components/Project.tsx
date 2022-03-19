@@ -340,7 +340,7 @@ const Project = React.memo((): JSX.Element => {
   const doc = state?.project?.data?.doc;
   const access = state?.project?.access;
   const mode = state?.test?.mode;
-  const searchQuery = state?.panel?.panels?.[windowType]?.searchQuery;
+  const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
   const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
 
   const [windowTransitionState, setWindowTransitionState] =
@@ -490,7 +490,7 @@ const Project = React.memo((): JSX.Element => {
           <Portal>
             <StyledFixedViewport className="mui-fixed">
               <StyledViewportSpacer ref={handleViewportRef} />
-              {(!portrait || !searchQuery) && (
+              {(!portrait || !searchTextQuery) && (
                 <StyledToolbarArea>
                   <StyledToolbarContent>
                     {showSnippetToolbar ? (

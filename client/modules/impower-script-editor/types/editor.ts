@@ -51,11 +51,3 @@ export interface SerializableEditorState {
   readonly snippet?: boolean;
   readonly hasError?: boolean;
 }
-
-export interface SearchAction {
-  search: string;
-  caseSensitive?: boolean;
-  regexp?: boolean;
-  replace?: string;
-  action?: "search" | "find_next" | "find_previous" | "replace" | "replace_all";
-}

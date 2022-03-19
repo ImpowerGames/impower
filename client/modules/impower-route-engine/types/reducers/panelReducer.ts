@@ -5,7 +5,8 @@ import {
   toggleSelection,
 } from "../../../impower-route";
 import {
-  SearchAction,
+  SearchLineQuery,
+  SearchTextQuery,
   SerializableEditorSelection,
   SerializableEditorState,
 } from "../../../impower-script-editor";
@@ -21,7 +22,8 @@ import {
   PANEL_OPEN,
   PANEL_REMOVE_INTERACTION,
   PANEL_SAVE_EDITOR_STATE,
-  PANEL_SEARCH,
+  PANEL_SEARCH_LINE,
+  PANEL_SEARCH_TEXT,
   PANEL_SET_CURSOR,
   PANEL_SET_ERRORS,
   PANEL_SET_INTERACTION,
@@ -398,14 +400,14 @@ const doChangeSection = (
   };
 };
 
-const doSearch = (
+const doSearchText = (
   state: PanelState,
   payload: {
     windowType: WindowType;
-    searchQuery?: SearchAction;
+    searchTextQuery?: SearchTextQuery;
   }
 ): PanelState => {
-  const { windowType, searchQuery } = payload;
+  const { windowType, searchTextQuery } = payload;
   if (!windowType) {
     return state;
   }
@@ -415,12 +417,40 @@ const doSearch = (
       ...state.panels,
       [windowType]: {
         ...state.panels[windowType],
-        searchQuery: searchQuery
+        searchTextQuery: searchTextQuery
           ? {
-              ...(state.panels[windowType]?.searchQuery || {}),
-              ...searchQuery,
+              ...(state.panels[windowType]?.searchTextQuery || {}),
+              ...searchTextQuery,
             }
-          : searchQuery,
+          : searchTextQuery,
+      },
+    },
+  };
+};
+
+const doSearchLine = (
+  state: PanelState,
+  payload: {
+    windowType: WindowType;
+    searchLineQuery?: SearchLineQuery;
+  }
+): PanelState => {
+  const { windowType, searchLineQuery } = payload;
+  if (!windowType) {
+    return state;
+  }
+  return {
+    ...state,
+    panels: {
+      ...state.panels,
+      [windowType]: {
+        ...state.panels[windowType],
+        searchLineQuery: searchLineQuery
+          ? {
+              ...(state.panels[windowType]?.searchLineQuery || {}),
+              ...searchLineQuery,
+            }
+          : searchLineQuery,
       },
     },
   };
@@ -534,8 +564,10 @@ export const panelReducer = (
       return doChangeEditorState(state, action.payload);
     case PANEL_CHANGE_DETAIL_SECTION:
       return doChangeSection(state, action.payload);
-    case PANEL_SEARCH:
-      return doSearch(state, action.payload);
+    case PANEL_SEARCH_TEXT:
+      return doSearchText(state, action.payload);
+    case PANEL_SEARCH_LINE:
+      return doSearchLine(state, action.payload);
     case PANEL_SET_PANE_SIZE:
       return doSetPaneSize(state, action.payload);
     case PANEL_INSPECT:

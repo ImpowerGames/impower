@@ -4,8 +4,8 @@ import { Element } from "../classes/Element";
 import { InlineContext } from "../classes/InlineContext";
 import { TableParser } from "../classes/TableParser";
 import { TaskParser } from "../classes/TaskParser";
+import { MarkdownConfig } from "../types/markdownConfig";
 import { space } from "../utils/space";
-import { MarkdownConfig } from "./markdownConfig";
 
 const StrikethroughDelim = {
   resolve: "Strikethrough",

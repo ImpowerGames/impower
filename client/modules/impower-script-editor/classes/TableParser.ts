@@ -1,5 +1,5 @@
 /* eslint-disable no-cond-assign */
-import { parseRow } from "../types/extension";
+import { parseRow } from "../constants/extension";
 import { LeafBlockParser } from "../types/leafBlockParser";
 import { BlockContext } from "./BlockContext";
 import { Element } from "./Element";

@@ -2,7 +2,10 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import React, { PropsWithChildren, useContext, useMemo } from "react";
 import { layout } from "../../../impower-route";
-import { SearchAction } from "../../../impower-script-editor";
+import {
+  SearchLineQuery,
+  SearchTextQuery,
+} from "../../../impower-script-editor";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import PanelBreadcrumbs, { BreadcrumbInfo } from "../layouts/PanelBreadcrumbs";
 import EngineToolbar from "./EngineToolbar";
@@ -18,7 +21,7 @@ const StyledBottomButtonContent = styled.div`
 
 interface PanelHeaderProps {
   headerRef?: React.Ref<HTMLElement>;
-  type: "default" | "context" | "search";
+  type: "default" | "context" | "search_text" | "search_line";
   title: React.ReactNode;
   backIcon?: React.ReactNode;
   moreIcon?: React.ReactNode;
@@ -26,7 +29,7 @@ interface PanelHeaderProps {
   moreLabel?: string;
   searchLabel?: string;
   replaceLabel?: string;
-  searchQuery?: SearchAction;
+  searchTextQuery?: SearchTextQuery;
   breadcrumbs?: BreadcrumbInfo[];
   leftChildren?: React.ReactNode;
   rightChildren?: React.ReactNode;
@@ -38,9 +41,13 @@ interface PanelHeaderProps {
   stickyStyle?: React.CSSProperties;
   onBack?: (e: React.MouseEvent) => void;
   onBreadcrumb?: (e: React.MouseEvent | React.ChangeEvent, id: string) => void;
-  onSearch?: (
+  onSearchText?: (
     e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-    searchQuery?: SearchAction
+    query?: SearchTextQuery
+  ) => void;
+  onSearchLine?: (
+    e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
+    query?: SearchLineQuery
   ) => void;
   onMore?: (e: React.MouseEvent) => void;
 }
@@ -58,7 +65,7 @@ const PanelHeader = (
     moreLabel,
     searchLabel,
     replaceLabel,
-    searchQuery,
+    searchTextQuery,
     breadcrumbs,
     leftChildren,
     rightChildren,
@@ -69,7 +76,8 @@ const PanelHeader = (
     stickyStyle,
     onBack,
     onBreadcrumb,
-    onSearch,
+    onSearchText,
+    onSearchLine,
     onMore,
   } = props;
 
@@ -143,7 +151,7 @@ const PanelHeader = (
         title={title}
         titleStyle={titleStyle}
         minHeight={layout.size.minWidth.headerIcon}
-        searchQuery={searchQuery}
+        searchTextQuery={searchTextQuery}
         backIcon={backIcon}
         moreIcon={moreIcon}
         backLabel={backLabel}
@@ -164,7 +172,8 @@ const PanelHeader = (
         leftChildren={leftChildren}
         rightChildren={rightChildren}
         onBack={onBack}
-        onSearch={onSearch}
+        onSearchText={onSearchText}
+        onSearchLine={onSearchLine}
         onMore={onMore}
         style={{
           position,

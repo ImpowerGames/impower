@@ -10,8 +10,8 @@ import {
 } from "@codemirror/state";
 import { SyntaxNode, Tree } from "@lezer/common";
 import { Context } from "../classes/Context";
+import { fountainLanguage } from "../utils/fountainLanguage";
 import { itemNumber } from "../utils/itemNumber";
-import { fountainLanguage } from "./fountainLanguage";
 
 const START_REGEX = /^[\s\d.)\-+*>]*/;
 const CONTINUE_REGEX = /^([ \t]*)([-+*])([ \t]+)/;

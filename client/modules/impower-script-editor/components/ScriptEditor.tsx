@@ -22,6 +22,7 @@ import {
   replaceNext,
   search,
   SearchQuery,
+  selectMatches,
   setSearchQuery,
 } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
@@ -35,14 +36,22 @@ import {
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
 import {
-  SearchAction,
   SerializableEditorSelection,
   SerializableEditorState,
 } from "../types/editor";
-import { fountain } from "../types/fountain";
-import { fountainLanguage, tags as t } from "../types/fountainLanguage";
+import { fountain } from "../utils/fountain";
+import { fountainLanguage, tags as t } from "../utils/fountainLanguage";
 import { quickSnippet } from "../utils/quickSnippet";
-import { SearchPanel } from "./SearchPanel";
+import {
+  closeSearchLinePanel,
+  getSearchLineQuery,
+  openSearchLinePanel,
+  searchLine,
+  searchLinePanel,
+  SearchLineQuery,
+  setSearchLineQuery,
+} from "./SearchLinePanel";
+import { SearchPanel, SearchTextQuery } from "./SearchPanel";
 
 const marginPlugin = ViewPlugin.fromClass(
   class {
@@ -156,7 +165,9 @@ interface ScriptEditorProps {
   augmentations?: FountainDeclarations;
   toggleFolding?: boolean;
   toggleLinting?: boolean;
-  searchQuery?: SearchAction;
+  toggleGotoLine?: boolean;
+  searchTextQuery?: SearchTextQuery;
+  searchLineQuery?: SearchLineQuery;
   editorChange: {
     category?: string;
     action?: string;
@@ -186,10 +197,10 @@ interface ScriptEditorProps {
     toLine: number;
   }) => void;
   onScrollLine?: (event: Event, firstVisibleLine: number) => void;
-  onSearch?: (
-    e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-    searchQuery?: SearchAction
-  ) => void;
+  onOpenSearchTextPanel?: (query?: SearchTextQuery) => void;
+  onCloseSearchTextPanel?: (query?: SearchTextQuery) => void;
+  onOpenSearchLinePanel?: (query?: SearchLineQuery) => void;
+  onCloseSearchLinePanel?: (query?: SearchLineQuery) => void;
   onFocus?: () => void;
   onBlur?: () => void;
 }
@@ -201,7 +212,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     style,
     toggleFolding,
     toggleLinting,
-    searchQuery,
+    toggleGotoLine,
+    searchTextQuery,
+    searchLineQuery,
     editorChange,
     defaultState,
     defaultScrollTopLine,
@@ -215,12 +228,16 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     onParse,
     onCursor,
     onScrollLine,
-    onSearch,
+    onOpenSearchTextPanel,
+    onCloseSearchTextPanel,
+    onOpenSearchLinePanel,
+    onCloseSearchLinePanel,
     onFocus,
     onBlur,
   } = props;
 
   const initialRef = useRef(true);
+  const firstMatchFromRef = useRef<number>();
   const parentElRef = useRef<HTMLDivElement>();
   const viewRef = useRef<EditorView>();
   const cursorRef = useRef<{
@@ -231,6 +248,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   }>();
   const firstVisibleLineRef = useRef<number>();
   const editorStateRef = useRef<SerializableEditorState>();
+  const searchLineQueryRef = useRef(searchLineQuery);
 
   const scrollTopLineOffsetRef = useRef(scrollTopLineOffset);
   scrollTopLineOffsetRef.current = scrollTopLineOffset;
@@ -247,8 +265,14 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   onScrollLineRef.current = onScrollLine;
   const onParseRef = useRef(onParse);
   onParseRef.current = onParse;
-  const onSearchRef = useRef(onSearch);
-  onSearchRef.current = onSearch;
+  const onOpenSearchTextPanelRef = useRef(onOpenSearchTextPanel);
+  onOpenSearchTextPanelRef.current = onOpenSearchTextPanel;
+  const onCloseSearchTextPanelRef = useRef(onCloseSearchTextPanel);
+  onCloseSearchTextPanelRef.current = onCloseSearchTextPanel;
+  const onOpenSearchLinePanelRef = useRef(onOpenSearchLinePanel);
+  onOpenSearchLinePanelRef.current = onOpenSearchLinePanel;
+  const onCloseSearchLinePanelRef = useRef(onCloseSearchLinePanel);
+  onCloseSearchLinePanelRef.current = onCloseSearchLinePanel;
   const onFocusRef = useRef(onFocus);
   onFocusRef.current = onFocus;
   const onBlurRef = useRef(onBlur);
@@ -257,15 +281,28 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   augmentationsRef.current = augmentations;
 
   useEffect(() => {
-    const onOpenSearchPanel = (view: EditorView): void => {
-      const searchQuery = getSearchQuery(view.state);
-      if (onSearchRef.current) {
-        onSearchRef.current(undefined, searchQuery);
+    const onOpenSearchTextPanel = (view: EditorView): void => {
+      const query = getSearchQuery(view.state);
+      if (onOpenSearchTextPanelRef.current) {
+        onOpenSearchTextPanelRef.current(query);
       }
     };
-    const onCloseSearchPanel = (): void => {
-      if (onSearchRef.current) {
-        onSearchRef.current(undefined, null);
+    const onCloseSearchTextPanel = (view: EditorView): void => {
+      const query = getSearchQuery(view.state);
+      if (onCloseSearchTextPanelRef.current) {
+        onCloseSearchTextPanelRef.current(query);
+      }
+    };
+    const onOpenSearchLinePanel = (view: EditorView): void => {
+      const query = getSearchLineQuery(view.state);
+      if (onOpenSearchLinePanelRef.current) {
+        onOpenSearchLinePanelRef.current(query);
+      }
+    };
+    const onCloseSearchLinePanel = (view: EditorView): void => {
+      const query = getSearchLineQuery(view.state);
+      if (onCloseSearchLinePanelRef.current) {
+        onCloseSearchLinePanelRef.current(query);
       }
     };
     const doc =
@@ -293,14 +330,18 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
       selection,
       extensions: [
         ...restoredExtensions,
-        basicSetup,
+        keymap.of([indentWithTab]),
         marginPlugin,
+        searchLinePanel({
+          onOpen: onOpenSearchLinePanel,
+          onClose: onCloseSearchLinePanel,
+        }),
         search({
           top: true,
           createPanel: (view: EditorView) => {
             return new SearchPanel(view, {
-              onOpen: onOpenSearchPanel,
-              onClose: onCloseSearchPanel,
+              onOpen: onOpenSearchTextPanel,
+              onClose: onCloseSearchTextPanel,
             });
           },
         }),
@@ -336,8 +377,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         }),
         lintGutter(),
         myHighlightStyle,
-        keymap.of([indentWithTab]),
         indentUnit.of("  "),
+        basicSetup,
         EditorState.phrases.of({ "No diagnostics": "No errors" }),
         EditorView.theme(
           {
@@ -484,8 +525,10 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ".cm-completionIcon-scene": {
               "&:after": { content: "'Տ'", color: colors.scene },
             },
-            ".cm-panel-lint": {
-              marginBottom: "64px",
+            ".cm-panels": {
+              ...(style?.backgroundColor
+                ? { backgroundColor: style?.backgroundColor }
+                : {}),
             },
             ".cm-diagnosticText": {
               marginRight: "16px",
@@ -706,22 +749,47 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
 
   useEffect(() => {
     const view = viewRef.current;
-    if (searchQuery) {
-      if (searchQuery.action === "find_next") {
-        if (searchQuery.search) {
-          findNext(viewRef.current);
+    if (toggleGotoLine) {
+      openSearchLinePanel(view);
+    } else {
+      closeSearchLinePanel(view);
+    }
+  }, [toggleGotoLine]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (searchLineQuery) {
+      if (searchLineQueryRef.current?.search !== searchLineQuery?.search) {
+        openSearchLinePanel(view);
+        view.dispatch({
+          effects: [setSearchLineQuery.of(searchLineQuery)],
+        });
+        searchLine(view);
+      }
+    } else {
+      closeSearchLinePanel(view);
+    }
+    searchLineQueryRef.current = searchLineQuery;
+  }, [searchLineQuery]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (searchTextQuery) {
+      if (searchTextQuery.action === "find_next") {
+        if (searchTextQuery.search) {
+          findNext(view);
         }
-      } else if (searchQuery.action === "find_previous") {
-        if (searchQuery.search) {
-          findPrevious(viewRef.current);
+      } else if (searchTextQuery.action === "find_previous") {
+        if (searchTextQuery.search) {
+          findPrevious(view);
         }
-      } else if (searchQuery.action === "replace") {
-        if (searchQuery.search) {
-          replaceNext(viewRef.current);
+      } else if (searchTextQuery.action === "replace") {
+        if (searchTextQuery.search) {
+          replaceNext(view);
         }
-      } else if (searchQuery.action === "replace_all") {
-        if (searchQuery.search) {
-          replaceAll(viewRef.current);
+      } else if (searchTextQuery.action === "replace_all") {
+        if (searchTextQuery.search) {
+          replaceAll(view);
         }
       } else {
         openSearchPanel(view);
@@ -729,19 +797,36 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           effects: [
             setSearchQuery.of(
               new SearchQuery({
-                search: searchQuery.search,
-                caseSensitive: searchQuery.caseSensitive,
-                regexp: searchQuery.regexp,
-                replace: searchQuery.replace,
+                search: searchTextQuery.search,
+                caseSensitive: searchTextQuery.caseSensitive,
+                regexp: searchTextQuery.regexp,
+                replace: searchTextQuery.replace,
               })
             ),
           ],
         });
+        if (searchTextQuery.search) {
+          const matchFound = selectMatches(view);
+          if (matchFound) {
+            const firstMatchFrom = Math.min(
+              ...(view.state?.selection?.ranges?.map((r) => r.from) || [])
+            );
+            if (firstMatchFromRef.current !== firstMatchFrom) {
+              firstMatchFromRef.current = firstMatchFrom;
+              viewRef.current.dispatch({
+                selection: { anchor: firstMatchFrom },
+                effects: EditorView.scrollIntoView(firstMatchFrom, {
+                  y: "center",
+                }),
+              });
+            }
+          }
+        }
       }
     } else {
       closeSearchPanel(view);
     }
-  }, [searchQuery]);
+  }, [searchTextQuery]);
 
   useEffect(() => {
     if (viewRef.current && cursor) {

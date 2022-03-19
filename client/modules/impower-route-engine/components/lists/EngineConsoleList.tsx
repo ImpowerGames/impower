@@ -46,7 +46,7 @@ import FadeAnimation from "../../../impower-route/components/animations/FadeAnim
 import PeerTransition from "../../../impower-route/components/animations/PeerTransition";
 import Avatar from "../../../impower-route/components/elements/Avatar";
 import CornerFab from "../../../impower-route/components/fabs/CornerFab";
-import { SearchAction } from "../../../impower-script-editor";
+import { SearchTextQuery } from "../../../impower-script-editor";
 import { getPlaceholderUrl } from "../../../impower-storage";
 import EngineToolbar from "../headers/EngineToolbar";
 
@@ -1810,8 +1810,10 @@ export const EngineConsoleList = React.memo(
     const [activeFilters, setActiveFilters] = useState<{
       [key: string]: string;
     }>({});
-    const searchQueryRef = useRef<SearchAction>();
-    const [searchQuery, setSearchQuery] = useState(searchQueryRef.current);
+    const searchTextQueryRef = useRef<SearchTextQuery>();
+    const [searchTextQuery, setSearchTextQuery] = useState(
+      searchTextQueryRef.current
+    );
     const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
     const [sortOrder, setSortOrder] = useState<Order>(defaultSortOrder);
     const [sortKey, setSortKey] = useState<string>(
@@ -1846,8 +1848,8 @@ export const EngineConsoleList = React.memo(
     const addButtonLabel = empty ? createLabel : addLabel;
     const toolbarType = contextHeaderOpen
       ? "context"
-      : searchQuery
-      ? "filter"
+      : searchTextQuery
+      ? "filter_text"
       : "default";
     const addButtonAreaSpacing = theme.spacing(3);
 
@@ -1976,7 +1978,7 @@ export const EngineConsoleList = React.memo(
           return;
         }
         if (
-          searchQuery &&
+          searchTextQuery &&
           !Object.entries(cardDetails).some(([key, value]): boolean => {
             if (!value.searchable) {
               return false;
@@ -1984,7 +1986,7 @@ export const EngineConsoleList = React.memo(
             const displayValue = handleGetCellDisplayValue(path, key);
             return displayValue
               .toLowerCase()
-              .includes(searchQuery?.search?.toLowerCase());
+              .includes(searchTextQuery?.search?.toLowerCase());
           })
         ) {
           return;
@@ -2040,7 +2042,7 @@ export const EngineConsoleList = React.memo(
       paths,
       sortOrder,
       currentPath,
-      searchQuery,
+      searchTextQuery,
       cardDetails,
       activeFilters,
       handleGetCellDisplayValue,
@@ -2072,14 +2074,17 @@ export const EngineConsoleList = React.memo(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const handleDebouncedSearch = useCallback(
       debounce(() => {
-        setSearchQuery(searchQueryRef.current);
+        setSearchTextQuery(searchTextQueryRef.current);
       }, 200),
       []
     );
 
     const handleSearch = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>, searchQuery: SearchAction) => {
-        searchQueryRef.current = searchQuery;
+      (
+        e: React.ChangeEvent<HTMLInputElement>,
+        searchTextQuery: SearchTextQuery
+      ) => {
+        searchTextQueryRef.current = searchTextQuery;
         handleDebouncedSearch();
       },
       [handleDebouncedSearch]
@@ -2408,7 +2413,7 @@ export const EngineConsoleList = React.memo(
             belowBreakpoint={belowBreakpoint}
             type={toolbarType}
             minHeight={rowHeight}
-            searchQuery={searchQuery}
+            searchTextQuery={searchTextQuery}
             selectedPaths={selectedPaths}
             paths={orderedPaths}
             backLabel={backLabel}
@@ -2428,7 +2433,8 @@ export const EngineConsoleList = React.memo(
             doneButtonStyle={doneButtonStyle}
             stickyStyle={stickyStyle}
             sticky={
-              sticky || (contextHeaderOpen || searchQuery ? "always" : "never")
+              sticky ||
+              (contextHeaderOpen || searchTextQuery ? "always" : "never")
             }
             fixableContentStyle={maxWidthStyle}
             rotateStyle={rotateStyle}
@@ -2438,7 +2444,7 @@ export const EngineConsoleList = React.memo(
             onClickMoreOption={handleClickContextMenuOption}
             onDone={handleDone}
             onBack={parentPath ? handleBack : undefined}
-            onSearch={searchable ? handleSearch : undefined}
+            onSearchText={searchable ? handleSearch : undefined}
             onMore={handleOpenContext}
           />
         )}
@@ -2637,7 +2643,7 @@ export const EngineConsoleList = React.memo(
                 buttonStyle={buttonStyle}
                 style={fabAreaStyle}
                 scrollParent={scrollParent}
-                shrink={Boolean(searchQuery)}
+                shrink={Boolean(searchTextQuery)}
                 onClick={onAdd ? handleAdd : undefined}
                 onDragEnter={handleCurrentPathDragEnter}
                 onDragLeave={handleCurrentPathDragLeave}

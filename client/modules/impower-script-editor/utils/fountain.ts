@@ -24,8 +24,11 @@ import {
   parseFountain,
 } from "../../impower-script-parser";
 import { MarkdownParser } from "../classes/MarkdownParser";
-import { parseCode } from "../utils/nest";
-import { deleteMarkupBackward, insertNewlineContinueMarkup } from "./commands";
+import {
+  deleteMarkupBackward,
+  insertNewlineContinueMarkup,
+} from "../constants/commands";
+import { MarkdownExtension } from "../types/markdownExtension";
 import { fountainAutocomplete } from "./fountainAutocomplete";
 import {
   commonmarkLanguage,
@@ -33,7 +36,7 @@ import {
   getCodeParser,
   mkLang,
 } from "./fountainLanguage";
-import { MarkdownExtension } from "./markdownExtension";
+import { parseCode } from "./nest";
 
 export {
   commonmarkLanguage,

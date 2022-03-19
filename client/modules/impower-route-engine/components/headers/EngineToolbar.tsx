@@ -29,7 +29,10 @@ import format from "../../../impower-config/utils/format";
 import { FontIcon } from "../../../impower-icon";
 import { useScrollParent } from "../../../impower-react-virtualization";
 import { TextField } from "../../../impower-route";
-import { SearchAction } from "../../../impower-script-editor";
+import {
+  SearchLineQuery,
+  SearchTextQuery,
+} from "../../../impower-script-editor";
 
 const StyledKeyboardTrigger = styled.input`
   position: fixed;
@@ -335,11 +338,12 @@ const EngineToolbarLayout = React.memo(
 );
 
 interface EngineToolbarContentProps {
-  type: "default" | "context" | "search" | "filter";
+  type: "default" | "context" | "search_text" | "search_line" | "filter_text";
   moreIcon?: React.ReactNode;
   backIcon?: React.ReactNode;
   minHeight: number;
-  searchQuery?: SearchAction;
+  searchTextQuery?: SearchTextQuery;
+  searchLineQuery?: SearchTextQuery;
   selectedPaths?: string[];
   paths?: string[];
   backLabel: string;
@@ -373,12 +377,15 @@ interface EngineToolbarContentProps {
   onClickMoreOption: (e: React.MouseEvent, option: string) => void;
   onBack?: (e: React.MouseEvent) => void;
   onDone?: (e: React.MouseEvent) => void;
-  onSearch?: (
+  onSearchText?: (
     e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-    searchQuery?: SearchAction
+    query?: SearchTextQuery
   ) => void;
-  onOpenSearch?: (e: React.MouseEvent) => void;
-  onCloseSearch?: (e: React.MouseEvent) => void;
+  onSearchLine?: (
+    e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
+    query?: SearchLineQuery
+  ) => void;
+  onClickSearchButton?: (e: React.MouseEvent) => void;
   onMore?: (e: React.MouseEvent) => void;
 }
 
@@ -389,7 +396,8 @@ const EngineToolbarContent = React.memo(
       moreIcon = <EllipsisVerticalRegularIcon />,
       backIcon,
       minHeight,
-      searchQuery,
+      searchTextQuery,
+      searchLineQuery,
       selectedPaths,
       paths,
       backLabel,
@@ -419,89 +427,89 @@ const EngineToolbarContent = React.memo(
       onClickMoreOption,
       onBack,
       onDone,
-      onSearch,
-      onOpenSearch,
-      onCloseSearch,
+      onSearchText,
+      onSearchLine,
+      onClickSearchButton,
       onMore,
     } = props;
 
     const theme = useTheme();
     const searchInputRef = useRef<HTMLInputElement>();
-    const searchQueryRef = useRef(searchQuery);
+    const searchTextQueryRef = useRef(searchTextQuery);
+    const searchLineQueryRef = useRef(searchLineQuery);
 
-    const handleOpenSearch = useCallback(
+    const handleOpenSearchText = useCallback(
       (e: React.MouseEvent) => {
-        searchQueryRef.current = {
-          ...(searchQueryRef.current || {}),
+        onClickSearchButton?.(e);
+        searchTextQueryRef.current = {
+          ...(searchTextQueryRef.current || {}),
           search: "",
           action: "search",
         };
-        onOpenSearch?.(e);
-        onSearch?.(e, searchQueryRef.current);
+        onSearchText?.(e, searchTextQueryRef.current);
       },
-      [onOpenSearch, onSearch]
+      [onClickSearchButton, onSearchText]
     );
 
-    const handleCloseSearch = useCallback(
+    const handleCloseSearchText = useCallback(
       (e: React.MouseEvent) => {
-        searchQueryRef.current = null;
-        onCloseSearch?.(e);
-        onSearch?.(e, searchQueryRef.current);
+        searchTextQueryRef.current = null;
+        onSearchText?.(e, searchTextQueryRef.current);
       },
-      [onCloseSearch, onSearch]
+      [onSearchText]
     );
 
-    const handleSearchChange = useCallback(
+    const handleSearchTextChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>, action = "search") => {
-        searchQueryRef.current = {
-          ...(searchQueryRef.current || {}),
+        searchTextQueryRef.current = {
+          ...(searchTextQueryRef.current || {}),
           search: e.target.value,
           action,
         };
-        onSearch?.(e, searchQueryRef.current);
+        onSearchText?.(e, searchTextQueryRef.current);
       },
-      [onSearch]
+      [onSearchText]
     );
 
-    const handleSearchFieldKeyUp = useCallback(
+    const handleSearchTextFieldKeyUp = useCallback(
       (e: React.KeyboardEvent) => {
         if (e.key === "Enter") {
           e.preventDefault();
           const changeEvent =
             e as unknown as React.ChangeEvent<HTMLInputElement>;
           if (e.shiftKey) {
-            handleSearchChange(changeEvent, "find_previous");
+            handleSearchTextChange(changeEvent, "find_previous");
           } else {
-            handleSearchChange(changeEvent, "find_next");
+            handleSearchTextChange(changeEvent, "find_next");
           }
         }
       },
-      [handleSearchChange]
+      [handleSearchTextChange]
     );
 
-    const handleReplaceFieldKeyUp = useCallback(
+    const handleReplaceTextFieldKeyUp = useCallback(
       (e: React.KeyboardEvent) => {
         if (e.key === "Enter") {
           e.preventDefault();
           const changeEvent =
             e as unknown as React.ChangeEvent<HTMLInputElement>;
-          handleSearchChange(changeEvent, "replace");
+          handleSearchTextChange(changeEvent, "replace");
         }
       },
-      [handleSearchChange]
+      [handleSearchTextChange]
     );
 
     const handleReplaceChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
-        searchQueryRef.current = {
+        searchTextQueryRef.current = {
           search: "",
-          ...(searchQueryRef.current || {}),
+          ...(searchTextQueryRef.current || {}),
           replace: e.target.value,
           action: "search",
         };
-        onSearch?.(e, searchQueryRef.current);
+        onSearchText?.(e, searchTextQueryRef.current);
       },
-      [onSearch]
+      [onSearchText]
     );
 
     const handleSearchInputRef = useCallback((instance: HTMLInputElement) => {
@@ -512,93 +520,137 @@ const EngineToolbarContent = React.memo(
       }
     }, []);
 
-    const handleSearchClear = useCallback(
+    const handleSearchTextClear = useCallback(
       (e: React.MouseEvent) => {
-        searchQueryRef.current = {
-          ...(searchQueryRef.current || {}),
+        searchTextQueryRef.current = {
+          ...(searchTextQueryRef.current || {}),
           search: "",
           action: "search",
         };
-        onSearch?.(e, searchQueryRef.current);
+        onSearchText?.(e, searchTextQueryRef.current);
         if (searchInputRef.current) {
           searchInputRef.current.focus();
         }
       },
-      [onSearch]
+      [onSearchText]
     );
 
     const handleChangeSearchCaseSensitive = useCallback(
       (e: React.MouseEvent) => {
-        searchQueryRef.current = {
+        searchTextQueryRef.current = {
           search: "",
-          ...(searchQueryRef.current || {}),
-          caseSensitive: !searchQueryRef.current?.caseSensitive,
+          ...(searchTextQueryRef.current || {}),
+          caseSensitive: !searchTextQueryRef.current?.caseSensitive,
           action: "search",
         };
-        onSearch?.(e, searchQueryRef.current);
+        onSearchText?.(e, searchTextQueryRef.current);
       },
-      [onSearch]
+      [onSearchText]
     );
 
     const handleChangeSearchRegex = useCallback(
       (e: React.MouseEvent) => {
-        searchQueryRef.current = {
+        searchTextQueryRef.current = {
           search: "",
-          ...(searchQueryRef.current || {}),
-          regexp: !searchQueryRef.current?.regexp,
+          ...(searchTextQueryRef.current || {}),
+          regexp: !searchTextQueryRef.current?.regexp,
           action: "search",
         };
-        onSearch?.(e, searchQueryRef.current);
+        onSearchText?.(e, searchTextQueryRef.current);
       },
-      [onSearch]
+      [onSearchText]
     );
 
     const handleFindPrevious = useCallback(
       (e: React.MouseEvent) => {
-        searchQueryRef.current = {
+        searchTextQueryRef.current = {
           search: "",
-          ...(searchQueryRef.current || {}),
+          ...(searchTextQueryRef.current || {}),
           action: "find_previous",
         };
-        onSearch?.(e, searchQueryRef.current);
+        onSearchText?.(e, searchTextQueryRef.current);
       },
-      [onSearch]
+      [onSearchText]
     );
 
     const handleFindNext = useCallback(
       (e: React.MouseEvent) => {
-        searchQueryRef.current = {
+        searchTextQueryRef.current = {
           search: "",
-          ...(searchQueryRef.current || {}),
+          ...(searchTextQueryRef.current || {}),
           action: "find_next",
         };
-        onSearch?.(e, searchQueryRef.current);
+        onSearchText?.(e, searchTextQueryRef.current);
       },
-      [onSearch]
+      [onSearchText]
     );
 
     const handleReplace = useCallback(
       (e: React.MouseEvent) => {
-        searchQueryRef.current = {
+        searchTextQueryRef.current = {
           search: "",
-          ...(searchQueryRef.current || {}),
+          ...(searchTextQueryRef.current || {}),
           action: "replace",
         };
-        onSearch?.(e, searchQueryRef.current);
+        onSearchText?.(e, searchTextQueryRef.current);
       },
-      [onSearch]
+      [onSearchText]
     );
 
     const handleReplaceAll = useCallback(
       (e: React.MouseEvent) => {
-        searchQueryRef.current = {
+        searchTextQueryRef.current = {
           search: "",
-          ...(searchQueryRef.current || {}),
+          ...(searchTextQueryRef.current || {}),
           action: "replace_all",
         };
-        onSearch?.(e, searchQueryRef.current);
+        onSearchText?.(e, searchTextQueryRef.current);
       },
-      [onSearch]
+      [onSearchText]
+    );
+
+    const handleSearchLineClear = useCallback(
+      (e: React.MouseEvent) => {
+        searchLineQueryRef.current = {
+          ...(searchLineQueryRef.current || {}),
+          search: "",
+        };
+        onSearchLine?.(e, searchLineQueryRef.current);
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      },
+      [onSearchLine]
+    );
+
+    const handleCloseSearchLine = useCallback(
+      (e: React.MouseEvent) => {
+        searchLineQueryRef.current = null;
+        onSearchLine?.(e, searchLineQueryRef.current);
+      },
+      [onSearchLine]
+    );
+
+    const handleSearchLineChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        searchLineQueryRef.current = {
+          ...(searchLineQueryRef.current || {}),
+          search: e.target.value,
+        };
+        onSearchLine?.(e, searchLineQueryRef.current);
+      },
+      [onSearchLine]
+    );
+
+    const handleSearchLineFieldKeyUp = useCallback(
+      (e: React.KeyboardEvent) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const event = e as unknown as React.MouseEvent<HTMLInputElement>;
+          handleCloseSearchLine(event);
+        }
+      },
+      [handleCloseSearchLine]
     );
 
     const handleCheckboxChange = useCallback(
@@ -687,15 +739,25 @@ const EngineToolbarContent = React.memo(
       );
     }
 
-    if (type === "search" || type === "filter") {
+    if (
+      type === "search_text" ||
+      type === "search_line" ||
+      type === "filter_text"
+    ) {
       return (
         <EngineToolbarLayout
           minHeight={minHeight}
           leftChildren={
-            onSearch ? (
+            onSearchText ? (
               <StyledIconButton
                 color="inherit"
-                onClick={handleCloseSearch}
+                onClick={
+                  type === "search_text"
+                    ? handleCloseSearchText
+                    : type === "search_line"
+                    ? handleCloseSearchLine
+                    : undefined
+                }
                 style={{ ...backButtonStyle }}
               >
                 <FontIcon
@@ -714,20 +776,44 @@ const EngineToolbarContent = React.memo(
                 <StyledSearchTextField
                   inputRef={handleSearchInputRef}
                   placeholder={searchLabel}
-                  value={searchQueryRef.current?.search}
+                  value={
+                    type === "search_text"
+                      ? searchTextQueryRef.current?.search
+                      : type === "search_line"
+                      ? searchLineQueryRef.current?.search
+                      : undefined
+                  }
                   variant="standard"
                   InputComponent={Input}
                   name="search"
                   autoComplete="off"
                   autoFocus
-                  onChange={handleSearchChange}
-                  onKeyUp={handleSearchFieldKeyUp}
+                  onChange={
+                    type === "search_text"
+                      ? handleSearchTextChange
+                      : type === "search_line"
+                      ? handleSearchLineChange
+                      : undefined
+                  }
+                  onKeyUp={
+                    type === "search_text"
+                      ? handleSearchTextFieldKeyUp
+                      : type === "search_line"
+                      ? handleSearchLineFieldKeyUp
+                      : undefined
+                  }
                   fullWidth
                 />
                 {clearLabel && (
                   <StyledIconButton
                     color="inherit"
-                    onClick={handleSearchClear}
+                    onClick={
+                      type === "search_text"
+                        ? handleSearchTextClear
+                        : type === "search_line"
+                        ? handleSearchLineClear
+                        : undefined
+                    }
                     style={{ ...clearButtonStyle }}
                   >
                     <FontIcon
@@ -739,51 +825,58 @@ const EngineToolbarContent = React.memo(
                     </FontIcon>
                   </StyledIconButton>
                 )}
-                <StyledToggleButton
-                  color="inherit"
-                  onClick={handleChangeSearchCaseSensitive}
-                  style={{
-                    backgroundColor: searchQueryRef.current?.caseSensitive
-                      ? theme.colors.black50
-                      : undefined,
-                    opacity: searchQueryRef.current?.caseSensitive
-                      ? undefined
-                      : 0.5,
-                  }}
-                >
-                  <FontIcon
-                    aria-label={`Match Case`}
-                    size={theme.fontSize.smallIcon}
-                  >
-                    {searchQueryRef.current?.caseSensitive ? (
-                      <FontCaseSolidIcon />
-                    ) : (
-                      <FontCaseRegularIcon />
-                    )}
-                  </FontIcon>
-                </StyledToggleButton>
-                <StyledToggleButton
-                  color="inherit"
-                  onClick={handleChangeSearchRegex}
-                  style={{
-                    backgroundColor: searchQueryRef.current?.regexp
-                      ? theme.colors.black50
-                      : undefined,
-                    opacity: searchQueryRef.current?.regexp ? undefined : 0.5,
-                  }}
-                >
-                  <FontIcon
-                    aria-label={`Use Regular Expression`}
-                    size={theme.fontSize.smallIcon}
-                  >
-                    {searchQueryRef.current?.regexp ? (
-                      <AsteriskSolidIcon />
-                    ) : (
-                      <AsteriskRegularIcon />
-                    )}
-                  </FontIcon>
-                </StyledToggleButton>
-                {type !== "filter" && (
+                {(type === "search_text" || type === "filter_text") && (
+                  <>
+                    <StyledToggleButton
+                      color="inherit"
+                      onClick={handleChangeSearchCaseSensitive}
+                      style={{
+                        backgroundColor: searchTextQueryRef.current
+                          ?.caseSensitive
+                          ? theme.colors.black50
+                          : undefined,
+                        opacity: searchTextQueryRef.current?.caseSensitive
+                          ? undefined
+                          : 0.5,
+                      }}
+                    >
+                      <FontIcon
+                        aria-label={`Match Case`}
+                        size={theme.fontSize.smallIcon}
+                      >
+                        {searchTextQueryRef.current?.caseSensitive ? (
+                          <FontCaseSolidIcon />
+                        ) : (
+                          <FontCaseRegularIcon />
+                        )}
+                      </FontIcon>
+                    </StyledToggleButton>
+                    <StyledToggleButton
+                      color="inherit"
+                      onClick={handleChangeSearchRegex}
+                      style={{
+                        backgroundColor: searchTextQueryRef.current?.regexp
+                          ? theme.colors.black50
+                          : undefined,
+                        opacity: searchTextQueryRef.current?.regexp
+                          ? undefined
+                          : 0.5,
+                      }}
+                    >
+                      <FontIcon
+                        aria-label={`Use Regular Expression`}
+                        size={theme.fontSize.smallIcon}
+                      >
+                        {searchTextQueryRef.current?.regexp ? (
+                          <AsteriskSolidIcon />
+                        ) : (
+                          <AsteriskRegularIcon />
+                        )}
+                      </FontIcon>
+                    </StyledToggleButton>
+                  </>
+                )}
+                {type === "search_text" && (
                   <>
                     <StyledIconButton
                       color="inherit"
@@ -809,17 +902,17 @@ const EngineToolbarContent = React.memo(
                   </>
                 )}
               </StyledSearchFieldArea>
-              {replaceLabel && (
+              {type === "search_text" && replaceLabel && (
                 <StyledSearchFieldArea>
                   <StyledReplaceTextField
                     placeholder={replaceLabel}
-                    value={searchQueryRef.current?.replace}
+                    value={searchTextQueryRef.current?.replace}
                     variant="standard"
                     autoComplete="off"
                     InputComponent={Input}
                     fullWidth
                     onChange={handleReplaceChange}
-                    onKeyUp={handleReplaceFieldKeyUp}
+                    onKeyUp={handleReplaceTextFieldKeyUp}
                   />
                   <StyledIconButton color="inherit" onClick={handleReplace}>
                     <FontIcon
@@ -891,10 +984,10 @@ const EngineToolbarContent = React.memo(
         rightChildren={
           <>
             {children}
-            {onSearch && (
+            {(onSearchText || onSearchLine) && (
               <StyledIconButton
                 color="inherit"
-                onClick={handleOpenSearch}
+                onClick={handleOpenSearchText}
                 style={{
                   opacity: 0.5,
                   ...searchButtonStyle,
@@ -936,11 +1029,11 @@ const EngineToolbarContent = React.memo(
 
 interface EngineToolbarProps {
   headerRef?: React.Ref<HTMLElement>;
-  type: "default" | "context" | "search" | "filter";
+  type: "default" | "context" | "search_text" | "search_line" | "filter_text";
   moreIcon?: React.ReactNode;
   backIcon?: React.ReactNode;
   minHeight: number;
-  searchQuery?: SearchAction;
+  searchTextQuery?: SearchTextQuery;
   selectedPaths?: string[];
   paths?: string[];
   backLabel?: string;
@@ -975,9 +1068,13 @@ interface EngineToolbarProps {
   onClickMoreOption?: (e: React.MouseEvent, option: string) => void;
   onBack?: (e: React.MouseEvent) => void;
   onDone?: (e: React.MouseEvent) => void;
-  onSearch?: (
+  onSearchText?: (
     e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-    searchQuery?: SearchAction
+    query?: SearchTextQuery
+  ) => void;
+  onSearchLine?: (
+    e: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
+    query?: SearchLineQuery
   ) => void;
   onMore?: (e: React.MouseEvent) => void;
 }
@@ -987,7 +1084,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     headerRef,
     type,
     minHeight,
-    searchQuery,
+    searchTextQuery,
     selectedPaths,
     paths,
     moreIcon,
@@ -1024,7 +1121,8 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     onClickMoreOption,
     onBack,
     onDone,
-    onSearch,
+    onSearchText,
+    onSearchLine,
     onMore,
   } = props;
 
@@ -1075,7 +1173,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     [headerRef]
   );
 
-  const handleOpenSearch = useCallback((e: React.MouseEvent) => {
+  const handleClickSearchButton = useCallback((e: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
       e.preventDefault();
@@ -1137,7 +1235,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                   key={type}
                   type={type}
                   minHeight={minHeight}
-                  searchQuery={searchQuery}
+                  searchTextQuery={searchTextQuery}
                   selectedPaths={selectedPaths}
                   paths={paths}
                   moreIcon={moreIcon}
@@ -1168,8 +1266,9 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                   onClickMoreOption={onClickMoreOption}
                   onBack={onBack}
                   onDone={onDone}
-                  onSearch={onSearch}
-                  onOpenSearch={handleOpenSearch}
+                  onSearchText={onSearchText}
+                  onSearchLine={onSearchLine}
+                  onClickSearchButton={handleClickSearchButton}
                   onMore={onMore}
                 >
                   {rightChildren}

@@ -1,6 +1,7 @@
 import { SetupSectionType } from "../../../impower-game/data";
 import {
-  SearchAction,
+  SearchLineQuery,
+  SearchTextQuery,
   SerializableEditorSelection,
   SerializableEditorState,
 } from "../../../impower-script-editor";
@@ -294,21 +295,39 @@ export const panelChangeItemSection = (
   };
 };
 
-export const PANEL_SEARCH = "PANEL_SEARCH";
-export interface PanelSearchAction {
-  type: typeof PANEL_SEARCH;
+export const PANEL_SEARCH_TEXT = "PANEL_SEARCH";
+export interface PanelSearchTextAction {
+  type: typeof PANEL_SEARCH_TEXT;
   payload: {
     windowType: WindowType;
-    searchQuery?: SearchAction;
+    searchTextQuery?: SearchTextQuery;
   };
 }
-export const panelSearch = (
+export const panelSearchText = (
   windowType: WindowType,
-  searchQuery?: SearchAction
-): PanelSearchAction => {
+  searchTextQuery?: SearchTextQuery
+): PanelSearchTextAction => {
   return {
-    type: PANEL_SEARCH,
-    payload: { windowType, searchQuery },
+    type: PANEL_SEARCH_TEXT,
+    payload: { windowType, searchTextQuery },
+  };
+};
+
+export const PANEL_SEARCH_LINE = "PANEL_SEARCH_LINE";
+export interface PanelSearchLineAction {
+  type: typeof PANEL_SEARCH_LINE;
+  payload: {
+    windowType: WindowType;
+    searchLineQuery?: SearchLineQuery;
+  };
+}
+export const panelSearchLine = (
+  windowType: WindowType,
+  searchLineQuery?: SearchLineQuery
+): PanelSearchLineAction => {
+  return {
+    type: PANEL_SEARCH_LINE,
+    payload: { windowType, searchLineQuery },
   };
 };
 
@@ -397,7 +416,8 @@ export type PanelAction =
   | PanelSetCursorAction
   | PanelSetScrollTopLineAction
   | PanelChangeDetailSectionAction
-  | PanelSearchAction
+  | PanelSearchTextAction
+  | PanelSearchLineAction
   | PanelSetPaneSizeAction
   | PanelInspectAction
   | PanelSetErrorsAction

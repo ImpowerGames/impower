@@ -19,10 +19,16 @@ import { SlideAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
 import useHTMLOverscrollBehavior from "../../../impower-route/hooks/useHTMLOverscrollBehavior";
-import { SearchAction } from "../../../impower-script-editor";
+import {
+  SearchLineQuery,
+  SearchTextQuery,
+} from "../../../impower-script-editor";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
-import { panelSearch } from "../../types/actions/panelActions";
+import {
+  panelSearchLine,
+  panelSearchText,
+} from "../../types/actions/panelActions";
 import { WindowType } from "../../types/state/windowState";
 import SnippetToolbar from "../bars/SnippetToolbar";
 import PanelHeader from "../headers/PanelHeader";
@@ -96,13 +102,14 @@ const ContainerPanelHeader = React.memo(
     const [state, dispatch] = useContext(ProjectEngineContext);
 
     const scripting = state?.panel?.panels?.[windowType]?.scripting;
-    const searchQuery = state?.panel?.panels?.[windowType]?.searchQuery;
+    const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
+    const searchLineQuery = state?.panel?.panels?.[windowType]?.searchLineQuery;
     const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
     const hasError = state?.panel?.panels?.[windowType]?.editorState?.hasError;
 
     const theme = useTheme();
 
-    const searching = Boolean(searchQuery);
+    const searchingText = Boolean(searchTextQuery);
 
     const listHeaderStyle: CSSProperties = useMemo(
       () => ({
@@ -117,10 +124,12 @@ const ContainerPanelHeader = React.memo(
       () => ({
         pointerEvents: "none",
         zIndex: 2,
-        backgroundColor: searching ? theme.colors.darkForeground : undefined,
+        backgroundColor: searchingText
+          ? theme.colors.darkForeground
+          : undefined,
         ...style,
       }),
-      [searching, style, theme.colors.darkForeground]
+      [searchingText, style, theme.colors.darkForeground]
     );
 
     const headerStyle = scripting ? listHeaderStyle : chartHeaderStyle;
@@ -132,12 +141,24 @@ const ContainerPanelHeader = React.memo(
       [scripting, theme.shadows]
     );
 
-    const handleSearch = useCallback(
+    const handleSearchText = useCallback(
       (
         e?: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-        searchQuery?: SearchAction
+        query?: SearchTextQuery
       ) => {
-        dispatch(panelSearch(windowType, searchQuery));
+        dispatch(panelSearchText(windowType, query));
+        dispatch(panelSearchLine(windowType, null));
+      },
+      [dispatch, windowType]
+    );
+
+    const handleSearchLine = useCallback(
+      (
+        e?: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
+        query?: SearchLineQuery
+      ) => {
+        dispatch(panelSearchLine(windowType, query));
+        dispatch(panelSearchText(windowType, null));
       },
       [dispatch, windowType]
     );
@@ -154,9 +175,20 @@ const ContainerPanelHeader = React.memo(
       // TODO: Allow exporting script as pdf or file
     }, []);
 
+    const headerType = searchTextQuery
+      ? "search_text"
+      : searchLineQuery
+      ? "search_line"
+      : "default";
+    const searchLabel = searchTextQuery
+      ? `Find`
+      : searchLineQuery
+      ? `Go To Line`
+      : `Find`;
+
     return (
       <PanelHeader
-        type={searchQuery ? "search" : "default"}
+        type={headerType}
         title={title}
         style={headerStyle}
         stickyStyle={headerStickyStyle}
@@ -176,9 +208,10 @@ const ContainerPanelHeader = React.memo(
         }}
         backLabel={`Back`}
         moreLabel={`More Options`}
-        searchLabel={`Find`}
+        searchLabel={searchLabel}
         replaceLabel={`Replace`}
-        onSearch={handleSearch}
+        onSearchText={handleSearchText}
+        onSearchLine={handleSearchLine}
         onMore={handleMore}
         leftChildren={
           scripting ? (

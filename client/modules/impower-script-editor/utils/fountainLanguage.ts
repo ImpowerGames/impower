@@ -10,8 +10,8 @@ import {
   ParseContext,
 } from "@codemirror/language";
 import { MarkdownParser } from "../classes/MarkdownParser";
-import { GFM, Subscript, Superscript } from "./extension";
-import { parser as baseParser } from "./parser";
+import { GFM, Subscript, Superscript } from "../constants/extension";
+import { parser as baseParser } from "../constants/parser";
 
 export const tags = {
   titleKey: t.attributeName,

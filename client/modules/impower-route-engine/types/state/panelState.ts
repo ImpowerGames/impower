@@ -1,6 +1,7 @@
 import { SetupSectionType } from "../../../impower-game/data";
 import {
-  SearchAction,
+  SearchLineQuery,
+  SearchTextQuery,
   SerializableEditorSelection,
   SerializableEditorState,
 } from "../../../impower-script-editor";
@@ -33,7 +34,8 @@ export interface PanelState {
       section?: SetupSectionType;
       scripting?: boolean;
       cursor?: PanelCursorState;
-      searchQuery?: SearchAction;
+      searchTextQuery?: SearchTextQuery;
+      searchLineQuery?: SearchLineQuery;
       editorState?: SerializableEditorState;
       editorChange?: {
         category?: string;

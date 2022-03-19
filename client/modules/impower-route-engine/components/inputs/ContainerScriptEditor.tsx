@@ -18,11 +18,12 @@ import {
   BottomNavigationBarSpacer,
   FadeAnimation,
 } from "../../../impower-route";
-import { colors } from "../../../impower-script-editor";
 import {
-  SearchAction,
-  SerializableEditorState,
-} from "../../../impower-script-editor/types/editor";
+  colors,
+  SearchLineQuery,
+  SearchTextQuery,
+} from "../../../impower-script-editor";
+import { SerializableEditorState } from "../../../impower-script-editor/types/editor";
 import {
   FountainParseResult,
   getScopedContext,
@@ -34,7 +35,8 @@ import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import {
   panelSaveEditorState,
-  panelSearch,
+  panelSearchLine,
+  panelSearchText,
   panelSetCursor,
   panelSetScrollTopLine,
 } from "../../types/actions/panelActions";
@@ -82,7 +84,8 @@ const ContainerScriptEditor = React.memo(
 
     const events = windowType === "Logic" ? game?.logic?.events : undefined;
 
-    const searchQuery = state?.panel?.panels?.[windowType]?.searchQuery;
+    const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
+    const searchLineQuery = state?.panel?.panels?.[windowType]?.searchLineQuery;
     const mode = state?.test?.mode;
     const id = state?.project?.id;
     const files = state?.project?.data?.files?.data;
@@ -145,15 +148,27 @@ const ContainerScriptEditor = React.memo(
       };
     }, [events]);
 
-    const handleSearch = useCallback(
-      (
-        e?: React.ChangeEvent<HTMLInputElement> | React.MouseEvent,
-        searchQuery?: SearchAction
-      ) => {
-        dispatch(panelSearch(windowType, searchQuery));
+    const handleOpenSearchTextPanel = useCallback(
+      (query?: SearchTextQuery) => {
+        dispatch(panelSearchText(windowType, query));
       },
       [dispatch, windowType]
     );
+
+    const handleCloseSearchTextPanel = useCallback(() => {
+      dispatch(panelSearchText(windowType, null));
+    }, [dispatch, windowType]);
+
+    const handleOpenSearchLinePanel = useCallback(
+      (query?: SearchLineQuery) => {
+        dispatch(panelSearchLine(windowType, query));
+      },
+      [dispatch, windowType]
+    );
+
+    const handleCloseSearchLinePanel = useCallback(() => {
+      dispatch(panelSearchLine(windowType, null));
+    }, [dispatch, windowType]);
 
     const handleScriptParse = useCallback((result: FountainParseResult) => {
       parseResultRef.current = result;
@@ -382,7 +397,8 @@ const ContainerScriptEditor = React.memo(
                 toggleFolding={toggleFolding}
                 toggleLinting={toggleLinting}
                 editorChange={editorChange}
-                searchQuery={searchQuery}
+                searchTextQuery={searchTextQuery}
+                searchLineQuery={searchLineQuery}
                 defaultScrollTopLine={defaultScrollTopLine}
                 scrollTopLineOffset={-3}
                 cursor={executingCursor}
@@ -391,7 +407,10 @@ const ContainerScriptEditor = React.memo(
                 onParse={handleScriptParse}
                 onCursor={handleScriptCursor}
                 onScrollLine={handleScrollLine}
-                onSearch={handleSearch}
+                onOpenSearchTextPanel={handleOpenSearchTextPanel}
+                onCloseSearchTextPanel={handleCloseSearchTextPanel}
+                onOpenSearchLinePanel={handleOpenSearchLinePanel}
+                onCloseSearchLinePanel={handleCloseSearchLinePanel}
               />
             </StyledFadeAnimation>
           )}

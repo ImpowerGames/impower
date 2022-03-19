@@ -327,17 +327,17 @@ export const parseFountain = (
     if (!result.sections) {
       result.sections = {};
     }
-    const parentId = currentSectionId.split(".").slice(0, -1).join(".") || "";
-    const parent = result.sections[parentId];
-    if (parent) {
-      if (currentSectionId) {
+    if (currentSectionId) {
+      const parentId = currentSectionId.split(".").slice(0, -1).join(".") || "";
+      const parent = result.sections[parentId];
+      if (parent) {
         if (!parent.children) {
           parent.children = [];
         }
         parent.children.push(currentSectionId);
+      } else {
+        console.error("SECTION DOES NOT EXIST", parentId);
       }
-    } else {
-      console.error("SECTION DOES NOT EXIST", parentId);
     }
     lintName(section.name, section.from, section.to);
     result.sections[currentSectionId] = section;

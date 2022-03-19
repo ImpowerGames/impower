@@ -1,12 +1,12 @@
 /* eslint-disable no-cond-assign */
 import { NodeProp, NodeSet, NodeType } from "@lezer/common";
 import { MarkdownParser } from "../classes/MarkdownParser";
-import { DefaultBlockParsers } from "../constants/DefaultBlockParsers";
-import { DefaultEndLeaf } from "../constants/DefaultEndLeaf";
-import { DefaultInline } from "../constants/DefaultInline";
-import { DefaultLeafBlocks } from "../constants/DefaultLeafBlocks";
-import { DefaultSkipMarkup } from "../constants/DefaultSkipMarkup";
-import { Type } from "./type";
+import { Type } from "../types/type";
+import { DefaultBlockParsers } from "./DefaultBlockParsers";
+import { DefaultEndLeaf } from "./DefaultEndLeaf";
+import { DefaultInline } from "./DefaultInline";
+import { DefaultLeafBlocks } from "./DefaultLeafBlocks";
+import { DefaultSkipMarkup } from "./DefaultSkipMarkup";
 
 const nodeTypes = [NodeType.none];
 for (let i = 1, name; (name = Type[i]); i += 1) {

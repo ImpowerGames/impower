@@ -6,10 +6,12 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 import useIOS from "../../../impower-route/hooks/useIOS";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
+import { WindowTransitionContext } from "../../contexts/transitionContext";
 
 const StyledPanel = styled.div`
   min-width: ${(props): string => props.theme.minWidth.panel};
@@ -96,7 +98,12 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
   const scrollRef = useRef<HTMLDivElement>();
   const ref = useRef<HTMLDivElement>();
   const overlayRef = useRef<HTMLDivElement>();
-  const [, dispatch] = useContext(ProjectEngineContext);
+  const [state, dispatch] = useContext(ProjectEngineContext);
+  const { portrait } = useContext(WindowTransitionContext);
+  const windowType = state?.window?.type;
+  const mode = state?.test?.mode;
+  const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
+
   const theme = useTheme();
 
   const handleContextMenu = useCallback(
@@ -151,6 +158,17 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
     [onScrollRef, windowScrolling]
   );
 
+  const showSnippetToolbar = !portrait && focused && mode === "Edit";
+
+  const scrollMargins = useMemo(
+    () => ({
+      marginBottom: showSnippetToolbar
+        ? `calc(${theme.minHeight.navigationBar} * 2)`
+        : theme.minHeight.navigationBar,
+    }),
+    [showSnippetToolbar, theme.minHeight.navigationBar]
+  );
+
   return (
     <StyledPanel
       ref={ref}
@@ -166,7 +184,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
         className="panel-scroll"
         ref={handleScrollRef}
         style={{
-          marginBottom: theme.minHeight.navigationBar,
+          ...scrollMargins,
           ...backgroundStyle,
           overflowY: windowScrolling ? undefined : "scroll",
         }}

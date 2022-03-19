@@ -7,6 +7,14 @@ import {
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import elt from "crelt";
 
+export interface SearchTextQuery {
+  search: string;
+  caseSensitive?: boolean;
+  regexp?: boolean;
+  replace?: string;
+  action?: "search" | "find_next" | "find_previous" | "replace" | "replace_all";
+}
+
 export class SearchPanel implements Panel {
   dom: HTMLElement;
 
