@@ -14,8 +14,8 @@ import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-rig
 import CheckRegularIcon from "../../../../resources/icons/regular/check.svg";
 import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ellipsis-vertical.svg";
 import FileCircleCheckRegularIcon from "../../../../resources/icons/regular/file-circle-check.svg";
-import FileCircleExclamationRegularIcon from "../../../../resources/icons/regular/file-circle-exclamation.svg";
 import FileCircleQuestionRegularIcon from "../../../../resources/icons/regular/file-circle-question.svg";
+import FileCircleXmarkRegularIcon from "../../../../resources/icons/regular/file-circle-xmark.svg";
 import { SlideAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
@@ -196,7 +196,7 @@ const ContainerPanelHeader = React.memo(
         hasError === undefined ? (
           <FileCircleQuestionRegularIcon />
         ) : hasError ? (
-          <FileCircleExclamationRegularIcon />
+          <FileCircleXmarkRegularIcon />
         ) : (
           <FileCircleCheckRegularIcon />
         ),
