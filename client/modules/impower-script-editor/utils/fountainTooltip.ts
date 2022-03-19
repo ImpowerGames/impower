@@ -90,16 +90,19 @@ export const fountainTooltip = (
           dom.appendChild(document.createTextNode("`"));
         }
       } else if (item?.valueText) {
-        if (item?.type === "image") {
+        if (item?.type === "image" || item?.type === "audio") {
           const fileUrl = item?.value;
-          const preview = document.createElement("img");
+          const preview = document.createElement(
+            item?.type === "audio" ? "audio" : "img"
+          );
           const rgx = /%2F([0-9][0-9][0-9])[?]/;
           const match = fileUrl.match(rgx);
           const storageName = match?.[1];
           const previewPrefix = "THUMB_";
-          const previewUrl = match
-            ? fileUrl.replace(rgx, `%2F${previewPrefix}${storageName}?`)
-            : undefined;
+          const previewUrl =
+            match && item?.type === "image"
+              ? fileUrl.replace(rgx, `%2F${previewPrefix}${storageName}?`)
+              : undefined;
           preview.src = previewUrl || fileUrl;
           preview.style.width = "100px";
           preview.style.height = "100px";
