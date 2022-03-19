@@ -45,6 +45,7 @@ export const fountainTooltip = (
     return null;
   }
   const context = {
+    ...result.sections,
     ...result.tags,
     ...result.entities,
     ...result.assets,
@@ -108,10 +109,12 @@ export const fountainTooltip = (
         } else {
           const typeText = document.createTextNode(item?.type);
           dom.appendChild(typeText);
-          const separator = document.createTextNode(` : `);
-          dom.appendChild(separator);
-          const valueText = document.createTextNode(item?.valueText);
-          dom.appendChild(valueText);
+          if (item?.valueText) {
+            const separator = document.createTextNode(` : `);
+            dom.appendChild(separator);
+            const valueText = document.createTextNode(item?.valueText);
+            dom.appendChild(valueText);
+          }
         }
       } else {
         return { dom: document.createElement("div") };

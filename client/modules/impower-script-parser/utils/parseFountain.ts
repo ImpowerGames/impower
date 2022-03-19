@@ -749,13 +749,13 @@ export const parseFountain = (
     );
     const validValue = value != null ? value : "";
     const validValueText = found?.valueText || valueText || `""`;
-    const item = {
+    const item: FountainTag = {
       ...(parsed?.tags?.[id] || {}),
       from: nameFrom,
       to: nameTo,
       line,
       name,
-      type: "",
+      type: "tag",
       value: validValue,
       valueText: validValueText.trim(),
     };
@@ -1154,10 +1154,13 @@ export const parseFountain = (
     from: currentToken.from,
     to: currentToken.to,
     line: 1,
+    type: "section",
     operator: "",
     name: "",
     triggers: [],
     tokens: currentSectionTokens,
+    value: 0,
+    valueText: "0",
   });
 
   for (let i = 0; i < linesLength; i += 1) {
@@ -1206,12 +1209,25 @@ export const parseFountain = (
           from: currentToken.from,
           to: currentToken.to,
           line: currentToken.line,
+          type: "section",
           operator,
           name,
           tokens: currentSectionTokens,
         };
         addSection(newSection);
         const parameters = getParameterNames(operator, match, 7);
+        newSection.type =
+          parameters?.length > 0 && operator === "*"
+            ? "function"
+            : parameters?.length > 0 && operator === "?"
+            ? "detector"
+            : parameters?.length > 0
+            ? "method"
+            : "section";
+        if (newSection.type !== "function" && newSection.type !== "detector") {
+          newSection.value = 0;
+          newSection.valueText = "0";
+        }
         newSection.triggers = operator === "?" ? parameters : [];
         startNewSection(level);
       }

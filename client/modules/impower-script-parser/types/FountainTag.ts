@@ -1,5 +1,5 @@
 export interface FountainTag {
-  type: string;
+  type: "tag";
   from: number;
   to: number;
   line: number;
