@@ -207,7 +207,7 @@ const ContainerScriptEditor = React.memo(
         const canRedo = state?.history?.undone?.length > 0;
         const focused = state?.focused;
         const selected = state?.selected;
-        const hasError = state?.hasError;
+        const diagnostics = state?.diagnostics;
         const canUndoChanged =
           lastEditorStateRef.current?.history?.done?.length > 1 !== canUndo;
         const canRedoChanged =
@@ -215,8 +215,9 @@ const ContainerScriptEditor = React.memo(
         const focusChanged = lastEditorStateRef.current?.focused !== focused;
         const selectedChanged =
           lastEditorStateRef.current?.selected !== selected;
-        const hasErrorChanged =
-          lastEditorStateRef.current?.hasError !== hasError;
+        const diagnosticsChanged =
+          JSON.stringify(lastEditorStateRef.current?.diagnostics || []) !==
+          JSON.stringify(diagnostics || []);
         const focusedOtherInput =
           focusChanged &&
           !focused &&
@@ -226,7 +227,7 @@ const ContainerScriptEditor = React.memo(
           canRedoChanged ||
           focusChanged ||
           selectedChanged ||
-          hasErrorChanged
+          diagnosticsChanged
         ) {
           // Save editor change immediately so undo/redo button reflects change.
           if (!focusedOtherInput) {

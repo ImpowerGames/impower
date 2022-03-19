@@ -4,13 +4,7 @@ import { foldEffect, unfoldAll } from "@codemirror/fold";
 import { HighlightStyle } from "@codemirror/highlight";
 import { historyField, redo, undo } from "@codemirror/history";
 import { foldable, indentUnit } from "@codemirror/language";
-import {
-  closeLintPanel,
-  diagnosticCount,
-  lintGutter,
-  nextDiagnostic,
-  openLintPanel,
-} from "@codemirror/lint";
+import { closeLintPanel, lintGutter, openLintPanel } from "@codemirror/lint";
 import { panels } from "@codemirror/panel";
 import {
   closeSearchPanel,
@@ -248,6 +242,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   }>();
   const firstVisibleLineRef = useRef<number>();
   const editorStateRef = useRef<SerializableEditorState>();
+  const parseResultRef = useRef<FountainParseResult>();
   const searchLineQueryRef = useRef(searchLineQuery);
 
   const scrollTopLineOffsetRef = useRef(scrollTopLineOffset);
@@ -353,6 +348,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           base: fountainLanguage,
           parse: (script: string) => {
             const result = parseFountain(script, augmentationsRef.current);
+            parseResultRef.current = { ...result };
             if (onParseRef.current) {
               onParseRef.current(result);
             }
@@ -602,7 +598,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           const selected =
             selection?.ranges?.[selection.main]?.head !==
             selection?.ranges?.[selection.main]?.anchor;
-          const hasError = diagnosticCount(u.view.state) > 0;
+          const diagnostics = parseResultRef.current?.diagnostics;
           const editorState = {
             doc,
             selection,
@@ -611,7 +607,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             focused,
             selected,
             snippet,
-            hasError,
+            diagnostics,
           };
           if (rootEl) {
             if (snippet) {
@@ -719,8 +715,19 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
 
   useEffect(() => {
     if (toggleLinting) {
-      nextDiagnostic(viewRef.current);
       openLintPanel(viewRef.current);
+      const firstError = parseResultRef.current?.diagnostics?.[0];
+      if (firstError) {
+        viewRef.current.dispatch({
+          selection: { anchor: firstError.from, head: firstError.to },
+          effects: EditorView.scrollIntoView(
+            EditorSelection.range(firstError.from, firstError.to),
+            {
+              y: "center",
+            }
+          ),
+        });
+      }
     } else {
       closeLintPanel(viewRef.current);
     }

@@ -15,6 +15,7 @@ import CheckRegularIcon from "../../../../resources/icons/regular/check.svg";
 import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ellipsis-vertical.svg";
 import FileExclamationRegularIcon from "../../../../resources/icons/regular/file-exclamation.svg";
 import MemoCircleCheckRegularIcon from "../../../../resources/icons/regular/memo-circle-check.svg";
+import MemoRegularIcon from "../../../../resources/icons/regular/memo.svg";
 import { SlideAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
@@ -51,6 +52,7 @@ const StyledToolbarArea = styled(SlideAnimation)`
 
 interface TogglePanelHeaderIconProps {
   value: boolean;
+  color?: string;
   onLabel: string;
   offLabel: string;
   onIcon: React.ReactNode;
@@ -60,13 +62,14 @@ interface TogglePanelHeaderIconProps {
 
 const TogglePanelHeaderIconButton = React.memo(
   (props: TogglePanelHeaderIconProps): JSX.Element => {
-    const { value, onLabel, offLabel, onIcon, offIcon, onClick } = props;
+    const { value, color, onLabel, offLabel, onIcon, offIcon, onClick } = props;
     const theme = useTheme();
     return (
       <PanelHeaderIconButton
         aria-label={value ? onLabel : offLabel}
         icon={value ? onIcon : offIcon}
         size={theme.fontSize.smallIcon}
+        color={color}
         style={{
           backgroundColor: theme.colors.darkForeground,
         }}
@@ -105,7 +108,8 @@ const ContainerPanelHeader = React.memo(
     const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
     const searchLineQuery = state?.panel?.panels?.[windowType]?.searchLineQuery;
     const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
-    const hasError = state?.panel?.panels?.[windowType]?.editorState?.hasError;
+    const diagnostics =
+      state?.panel?.panels?.[windowType]?.editorState?.diagnostics;
 
     const theme = useTheme();
 
@@ -186,6 +190,19 @@ const ContainerPanelHeader = React.memo(
       ? `Go To Line`
       : `Find`;
 
+    const hasError = !diagnostics ? undefined : diagnostics.length > 0;
+    const lintIcon = useMemo(
+      () =>
+        hasError === undefined ? (
+          <MemoRegularIcon />
+        ) : hasError ? (
+          <FileExclamationRegularIcon />
+        ) : (
+          <MemoCircleCheckRegularIcon />
+        ),
+      [hasError]
+    );
+
     return (
       <PanelHeader
         type={headerType}
@@ -232,20 +249,9 @@ const ContainerPanelHeader = React.memo(
               value={toggleLinting}
               onLabel={`Format and check for errors`}
               offLabel={`Hide error panel`}
-              onIcon={
-                hasError ? (
-                  <FileExclamationRegularIcon />
-                ) : (
-                  <MemoCircleCheckRegularIcon />
-                )
-              }
-              offIcon={
-                hasError ? (
-                  <FileExclamationRegularIcon />
-                ) : (
-                  <MemoCircleCheckRegularIcon />
-                )
-              }
+              onIcon={lintIcon}
+              offIcon={lintIcon}
+              color={hasError ? theme.palette.error.light : undefined}
               onClick={onToggleLinting}
             />
             {/* <ScriptingPanelHeaderIconButton

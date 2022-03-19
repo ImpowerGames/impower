@@ -28,6 +28,14 @@ export interface SerializableEditorSelection {
   main: number;
 }
 
+export interface SerializableDiagnostic {
+  from: number;
+  to: number;
+  severity: "info" | "warning" | "error";
+  source?: string;
+  message: string;
+}
+
 export interface HistoryEvent {
   changes?: ChangeSet;
   effects: StateEffect<unknown>[];
@@ -49,5 +57,5 @@ export interface SerializableEditorState {
   readonly focused?: boolean;
   readonly selected?: boolean;
   readonly snippet?: boolean;
-  readonly hasError?: boolean;
+  readonly diagnostics?: SerializableDiagnostic[];
 }
