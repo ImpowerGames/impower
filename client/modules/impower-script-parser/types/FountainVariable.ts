@@ -9,4 +9,5 @@ export interface FountainVariable {
   value: string | number | boolean;
   valueText: string;
   parameter: boolean;
+  scope: "public" | "protected" | "private";
 }

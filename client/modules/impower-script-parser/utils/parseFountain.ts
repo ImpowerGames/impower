@@ -19,7 +19,7 @@ import { FountainTokenType } from "../types/FountainTokenType";
 import { FountainVariable } from "../types/FountainVariable";
 import { FountainVariableType } from "../types/FountainVariableType";
 import { createFountainToken } from "./createFountainToken";
-import { getScopedContext } from "./getScopedContext";
+import { getScopedEvaluationContext } from "./getScopedEvaluationContext";
 import { getScopedItem } from "./getScopedItem";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
@@ -30,56 +30,57 @@ export const parseFountain = (
 ): FountainParseResult => {
   const script = originalScript;
 
-  const result: FountainParseResult = {
+  const parsed: FountainParseResult = {
     scriptTokens: [],
     scriptLines: {},
     properties: {},
     diagnostics: [],
+    references: [],
     ...augmentations,
   };
 
   Object.entries(augmentations?.variables || {}).forEach(([id, d]) => {
     const parentId = id.split(".").slice(0, -1).join(".") || "";
-    if (!result.sections) {
-      result.sections = {};
+    if (!parsed.sections) {
+      parsed.sections = {};
     }
-    if (!result.sections[parentId]) {
-      result.sections[parentId] = {};
+    if (!parsed.sections[parentId]) {
+      parsed.sections[parentId] = {};
     }
-    if (!result.sections[parentId].variables) {
-      result.sections[parentId].variables = {};
+    if (!parsed.sections[parentId].variables) {
+      parsed.sections[parentId].variables = {};
     }
-    result.sections[parentId].variables[id] = d;
+    parsed.sections[parentId].variables[id] = d;
   });
   Object.entries(augmentations?.tags || {}).forEach(([id, d]) => {
     const parentId = id.split(".").slice(0, -1).join(".") || "";
-    if (!result.sections) {
-      result.sections = {};
+    if (!parsed.sections) {
+      parsed.sections = {};
     }
-    if (!result.sections[parentId]) {
-      result.sections[parentId] = {};
+    if (!parsed.sections[parentId]) {
+      parsed.sections[parentId] = {};
     }
-    if (!result.sections[parentId].tags) {
-      result.sections[parentId].tags = {};
+    if (!parsed.sections[parentId].tags) {
+      parsed.sections[parentId].tags = {};
     }
-    result.sections[parentId].tags[id] = d;
+    parsed.sections[parentId].tags[id] = d;
   });
   Object.entries(augmentations?.assets || {}).forEach(([id, d]) => {
     const parentId = id.split(".").slice(0, -1).join(".") || "";
-    if (!result.sections) {
-      result.sections = {};
+    if (!parsed.sections) {
+      parsed.sections = {};
     }
-    if (!result.sections[parentId]) {
-      result.sections[parentId] = {};
+    if (!parsed.sections[parentId]) {
+      parsed.sections[parentId] = {};
     }
-    if (!result.sections[parentId].assets) {
-      result.sections[parentId].assets = {};
+    if (!parsed.sections[parentId].assets) {
+      parsed.sections[parentId].assets = {};
     }
-    result.sections[parentId].assets[id] = d;
+    parsed.sections[parentId].assets[id] = d;
   });
 
   if (!script) {
-    return result;
+    return parsed;
   }
 
   const newLineLength = script.match(/\r\n/) ? 2 : 1;
@@ -105,7 +106,7 @@ export const parseFountain = (
   let previousCharacter: string;
   let previousParenthetical: string;
   let previousAssets: { name: string }[] = [];
-  let notes: Partial<FountainAsset>[] = [];
+  let notes: { type: FountainAssetType; name: string }[] = [];
 
   const diagnostic = (
     currentToken: FountainToken,
@@ -115,8 +116,8 @@ export const parseFountain = (
     to = -1,
     severity: "error" | "warning" | "info" = "error"
   ): void => {
-    if (!result.diagnostics) {
-      result.diagnostics = [];
+    if (!parsed.diagnostics) {
+      parsed.diagnostics = [];
     }
     const source = `${severity.toUpperCase()}: line ${
       currentToken.line
@@ -124,7 +125,7 @@ export const parseFountain = (
     const validFrom = from >= 0 ? from : currentToken.from;
     const validTo = to >= 0 ? to : currentToken.to;
     if (validTo > validFrom) {
-      result.diagnostics.push({
+      parsed.diagnostics.push({
         from: validFrom,
         to: validTo,
         severity,
@@ -183,24 +184,36 @@ export const parseFountain = (
     return lintedMatch;
   };
 
-  const findSection = (sectionId: string, name: string): FountainSection => {
-    return getScopedItem(result?.sections, sectionId, name);
+  const findSection = (
+    sectionId: string,
+    name: string
+  ): [string, FountainSection] => {
+    return getScopedItem(parsed?.sections, sectionId, name);
   };
 
-  const findVariable = (sectionId: string, name: string): FountainVariable => {
-    return getScopedItem(result?.variables, sectionId, name, ["parameter"]);
+  const findVariable = (
+    sectionId: string,
+    name: string
+  ): [string, FountainVariable] => {
+    return getScopedItem(parsed?.variables, sectionId, name);
   };
 
-  const findAsset = (sectionId: string, name: string): FountainAsset => {
-    return getScopedItem(result?.assets, sectionId, name);
+  const findAsset = (
+    sectionId: string,
+    name: string
+  ): [string, FountainAsset] => {
+    return getScopedItem(parsed?.assets, sectionId, name);
   };
 
-  const findEntity = (sectionId: string, name: string): FountainEntity => {
-    return getScopedItem(result?.entities, sectionId, name);
+  const findEntity = (
+    sectionId: string,
+    name: string
+  ): [string, FountainEntity] => {
+    return getScopedItem(parsed?.entities, sectionId, name);
   };
 
-  const findTag = (sectionId: string, name: string): FountainTag => {
-    return getScopedItem(result?.tags, sectionId, name);
+  const findTag = (sectionId: string, name: string): [string, FountainTag] => {
+    return getScopedItem(parsed?.tags, sectionId, name);
   };
 
   const lintNameUnique = <
@@ -261,7 +274,7 @@ export const parseFountain = (
         findSection(
           currentSectionId.split(".").slice(0, -1).join("."),
           name
-        ) as T,
+        )[1] as T,
         from,
         to
       )
@@ -271,7 +284,7 @@ export const parseFountain = (
     if (
       lintNameUnique<T>(
         "variable",
-        findVariable(currentSectionId, name) as T,
+        findVariable(currentSectionId, name)[1] as T,
         from,
         to
       )
@@ -281,7 +294,7 @@ export const parseFountain = (
     if (
       lintNameUnique<T>(
         "asset",
-        findAsset(currentSectionId, name) as T,
+        findAsset(currentSectionId, name)[1] as T,
         from,
         to
       )
@@ -291,83 +304,61 @@ export const parseFountain = (
     if (
       lintNameUnique<T>(
         "entity",
-        findEntity(currentSectionId, name) as T,
+        findEntity(currentSectionId, name)[1] as T,
         from,
         to
       )
     ) {
       return;
     }
-    lintNameUnique<T>("tag", findTag(currentSectionId, name) as T, from, to);
-  };
-
-  const getEvaluationContext = (
-    sectionId: string
-  ): Record<string, string | number | boolean> => {
-    const [, sections] = getScopedContext(
-      sectionId,
-      result?.sections,
-      "sections"
-    );
-    const [, tags] = getScopedContext(sectionId, result?.sections, "tags");
-    const [, assets] = getScopedContext(sectionId, result?.sections, "assets");
-    const [, entities] = getScopedContext(
-      sectionId,
-      result?.sections,
-      "entities"
-    );
-    const [, variables] = getScopedContext(
-      sectionId,
-      result?.sections,
-      "variables"
-    );
-    return { ...sections, ...tags, ...assets, ...entities, ...variables };
+    lintNameUnique<T>("tag", findTag(currentSectionId, name)[1] as T, from, to);
   };
 
   const addSection = (section: FountainSection): void => {
-    if (!result.sections) {
-      result.sections = {};
+    if (!parsed.sections) {
+      parsed.sections = {};
     }
+    parsed.references.push({
+      from: section.from,
+      to: section.to,
+      name: section.name,
+      id: currentSectionId,
+      declaration: true,
+    });
     if (currentSectionId) {
       const parentId = currentSectionId.split(".").slice(0, -1).join(".") || "";
-      const parent = result.sections[parentId];
-      if (parent) {
-        if (!parent.children) {
-          parent.children = [];
+      const parentSection = parsed.sections[parentId];
+      if (parentSection) {
+        if (!parentSection.children) {
+          parentSection.children = [];
         }
-        parent.children.push(currentSectionId);
+        parentSection.children.push(currentSectionId);
       } else {
         console.error("SECTION DOES NOT EXIST", parentId);
       }
     }
     lintName(section.name, section.from, section.to);
-    result.sections[currentSectionId] = section;
-    if (!result.sectionLines) {
-      result.sectionLines = {};
+    parsed.sections[currentSectionId] = section;
+    if (!parsed.sectionLines) {
+      parsed.sectionLines = {};
     }
-    result.sectionLines[section.line] = currentSectionId;
+    parsed.sectionLines[section.line] = currentSectionId;
   };
 
   const getSection = (
-    nameOrId: string,
+    name: string,
     from?: number,
     to?: number
   ): FountainSection => {
-    if (!nameOrId) {
+    if (!name) {
       return undefined;
     }
-    const global = nameOrId.startsWith(".");
-    const found = global
-      ? result.sections?.[nameOrId]
-      : findSection(currentSectionId, nameOrId);
+    const [id, found] = findSection(currentSectionId, name);
+    parsed.references.push({ from, to, name, id });
     if (!found) {
       diagnostic(
         currentToken,
-        `Cannot find ${
-          global
-            ? `section with id '${nameOrId}'`
-            : `child or ancestor section named '${nameOrId}'`
-        }`,
+        `Cannot find section named '${name}'`,
         [],
         from,
         to
@@ -398,11 +389,12 @@ export const parseFountain = (
       );
       return null;
     }
-    const found = findAsset(currentSectionId, name);
+    const [id, found] = findAsset(currentSectionId, name);
+    parsed.references.push({ from, to, name, id });
     if (!found) {
       diagnostic(
         currentToken,
-        `Could not find ${validType} named '${name}'`,
+        `Cannot find ${validType} named '${name}'`,
         [],
         from,
         to
@@ -443,11 +435,12 @@ export const parseFountain = (
       );
       return null;
     }
-    const found = findEntity(currentSectionId, name);
+    const [id, found] = findEntity(currentSectionId, name);
+    parsed.references.push({ from, to, name, id });
     if (!found) {
       diagnostic(
         currentToken,
-        `Could not find ${validType} named '${name}'`,
+        `Cannot find ${validType} named '${name}'`,
         [],
         from,
         to
@@ -482,15 +475,10 @@ export const parseFountain = (
       );
       return null;
     }
-    const found = findTag(currentSectionId, name);
+    const [id, found] = findTag(currentSectionId, name);
+    parsed.references.push({ from, to, name, id });
     if (!found) {
-      diagnostic(
-        currentToken,
-        `Could not find tag named '${name}'`,
-        [],
-        from,
-        to
-      );
+      diagnostic(currentToken, `Cannot find tag named '${name}'`, [], from, to);
       return null;
     }
     return found;
@@ -505,8 +493,8 @@ export const parseFountain = (
     if (!name) {
       return undefined;
     }
-    const validType = type || "string";
-    const found = findVariable(currentSectionId, name);
+    const [id, found] = findVariable(currentSectionId, name);
+    parsed.references.push({ from, to, name, id });
     if (!found) {
       diagnostic(
         currentToken,
@@ -517,10 +505,10 @@ export const parseFountain = (
       );
       return null;
     }
-    if (type !== undefined && found.type !== validType) {
+    if (type && found.type !== type) {
       diagnostic(
         currentToken,
-        `'${name}' is not ${prefixArticle(validType)} variable`,
+        `'${name}' is not ${prefixArticle(type)} variable`,
         [{ name: "FOCUS", focus: { from: found.from, to: found.to } }],
         from,
         to
@@ -546,41 +534,135 @@ export const parseFountain = (
     return undefined;
   };
 
+  const getVariableValueOrReference = (
+    content: string,
+    from: number,
+    to: number
+  ): [string | number | boolean, FountainVariable] => {
+    if (!content) {
+      return [undefined, undefined];
+    }
+    const type = getValueType(content);
+    if (type === "string") {
+      return [content.slice(1, -1), null];
+    }
+    if (type === "number") {
+      return [Number(content), null];
+    }
+    if (type === "boolean") {
+      return [Boolean(content), null];
+    }
+    const found = getVariable(undefined, content, from, to);
+    if (found) {
+      return [found.value, found];
+    }
+    return [undefined, undefined];
+  };
+
+  const getAssetValueOrReference = (
+    type: FountainAssetType,
+    content: string,
+    from: number,
+    to: number
+  ): [string, FountainAsset] => {
+    if (!content) {
+      return [undefined, undefined];
+    }
+    if (content.match(fountainRegexes.string)) {
+      return [content.slice(1, -1), null];
+    }
+    const found = getAsset(type, content, from, to);
+    if (found) {
+      return [found.value, found];
+    }
+    return [undefined, undefined];
+  };
+
+  const getEntityValueOrReference = (
+    type: FountainEntityType,
+    content: string,
+    from: number,
+    to: number
+  ): [string, FountainEntity] => {
+    if (!content) {
+      return [undefined, undefined];
+    }
+    if (content.match(fountainRegexes.string)) {
+      return [content.slice(1, -1), null];
+    }
+    const found = getEntity(type, content, from, to);
+    if (found) {
+      return [found.value, found];
+    }
+    return [undefined, undefined];
+  };
+
+  const getTagValueOrReference = (
+    content: string,
+    from: number,
+    to: number
+  ): [string, FountainTag] => {
+    if (!content) {
+      return [undefined, undefined];
+    }
+    if (content.match(fountainRegexes.string)) {
+      return [content.slice(1, -1), null];
+    }
+    const found = getTag(content, from, to);
+    if (found) {
+      return [found.value, found];
+    }
+    return [undefined, undefined];
+  };
+
   const addAsset = (
     type: FountainAssetType,
     name: string,
     valueText: string,
-    value: string | { name: string },
     line: number,
-    from: number,
-    to: number
+    nameFrom: number,
+    nameTo: number,
+    valueFrom: number,
+    valueTo: number
   ): void => {
-    if (!result.assets) {
-      result.assets = {};
+    if (!parsed.assets) {
+      parsed.assets = {};
     }
-    lintName(name, from, to);
-    const resolvedValue =
-      typeof value === "string"
-        ? value
-        : getAsset(type, value?.name, from, to)?.value;
     const id = `${currentSectionId}.${name}`;
+    lintName(name, nameFrom, nameTo);
+    parsed.references.push({
+      from: nameFrom,
+      to: nameTo,
+      name,
+      id,
+      declaration: true,
+    });
+    const [value, found] = getAssetValueOrReference(
+      type,
+      valueText,
+      valueFrom,
+      valueTo
+    );
+    const validType = type || "image";
+    const validValue = value != null ? value : "";
+    const validValueText = found?.valueText || valueText || `""`;
     const item = {
-      ...(result?.assets?.[id] || {}),
-      from,
-      to,
+      ...(parsed?.assets?.[id] || {}),
+      from: nameFrom,
+      to: nameTo,
       line,
       name,
-      type,
-      value: resolvedValue,
-      valueText,
+      type: validType,
+      value: validValue,
+      valueText: validValueText.trim(),
     };
-    result.assets[id] = item;
-    const parent = result.sections[currentSectionId];
-    if (parent) {
-      if (!parent.assets) {
-        parent.assets = {};
+    parsed.assets[id] = item;
+    const parentSection = parsed.sections[currentSectionId];
+    if (parentSection) {
+      if (!parentSection.assets) {
+        parentSection.assets = {};
       }
-      parent.assets[id] = item;
+      parentSection.assets[id] = item;
     } else {
       console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
@@ -590,37 +672,50 @@ export const parseFountain = (
     type: FountainEntityType,
     name: string,
     valueText: string,
-    value: string | { name: string },
     line: number,
-    from: number,
-    to: number
+    nameFrom: number,
+    nameTo: number,
+    valueFrom: number,
+    valueTo: number
   ): void => {
-    if (!result.entities) {
-      result.entities = {};
+    if (!parsed.entities) {
+      parsed.entities = {};
     }
-    lintName(name, from, to);
-    const resolvedValue =
-      typeof value === "string"
-        ? value
-        : getEntity(type, value?.name, from, to)?.value;
     const id = `${currentSectionId}.${name}`;
+    lintName(name, nameFrom, nameTo);
+    parsed.references.push({
+      from: nameFrom,
+      to: nameTo,
+      name,
+      id,
+      declaration: true,
+    });
+    const [value, found] = getEntityValueOrReference(
+      type,
+      valueText,
+      valueFrom,
+      valueTo
+    );
+    const validType = type || "ui";
+    const validValue = value != null ? value : "";
+    const validValueText = found?.valueText || valueText || `""`;
     const item = {
-      ...(result?.entities?.[id] || {}),
-      from,
-      to,
+      ...(parsed?.entities?.[id] || {}),
+      from: nameFrom,
+      to: nameTo,
       line,
       name,
-      type,
-      value: resolvedValue,
-      valueText,
+      type: validType,
+      value: validValue,
+      valueText: validValueText.trim(),
     };
-    result.entities[id] = item;
-    const parent = result.sections[currentSectionId];
-    if (parent) {
-      if (!parent.entities) {
-        parent.entities = {};
+    parsed.entities[id] = item;
+    const parentSection = parsed.sections[currentSectionId];
+    if (parentSection) {
+      if (!parentSection.entities) {
+        parentSection.entities = {};
       }
-      parent.entities[id] = item;
+      parentSection.entities[id] = item;
     } else {
       console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
@@ -629,38 +724,48 @@ export const parseFountain = (
   const addTag = (
     name: string,
     valueText: string,
-    value: string | { name: string },
     line: number,
-    from: number,
-    to: number
+    nameFrom: number,
+    nameTo: number,
+    valueFrom: number,
+    valueTo: number
   ): void => {
-    if (!result.tags) {
-      result.tags = {};
+    if (!parsed.tags) {
+      parsed.tags = {};
     }
-    lintName(name, from, to);
-    const resolvedValue =
-      typeof value === "string" ||
-      typeof value === "number" ||
-      typeof value === "boolean"
-        ? value
-        : getTag(value?.name, from, to)?.value;
     const id = `${currentSectionId}.${name}`;
-    const item = {
-      ...(result?.tags?.[id] || {}),
-      from,
-      to,
+    lintName(name, nameFrom, nameTo);
+    parsed.references.push({
+      from: nameFrom,
+      to: nameTo,
       name,
-      line,
-      value: resolvedValue,
+      id,
+      declaration: true,
+    });
+    const [value, found] = getTagValueOrReference(
       valueText,
+      valueFrom,
+      valueTo
+    );
+    const validValue = value != null ? value : "";
+    const validValueText = found?.valueText || valueText || `""`;
+    const item = {
+      ...(parsed?.tags?.[id] || {}),
+      from: nameFrom,
+      to: nameTo,
+      line,
+      name,
+      type: "",
+      value: validValue,
+      valueText: validValueText.trim(),
     };
-    result.tags[id] = item;
-    const parent = result.sections[currentSectionId];
-    if (parent) {
-      if (!parent.tags) {
-        parent.tags = {};
+    parsed.tags[id] = item;
+    const parentSection = parsed.sections[currentSectionId];
+    if (parentSection) {
+      if (!parentSection.tags) {
+        parentSection.tags = {};
       }
-      parent.tags[id] = item;
+      parentSection.tags[id] = item;
     } else {
       console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
@@ -669,133 +774,57 @@ export const parseFountain = (
   const addVariable = (
     name: string,
     valueText: string,
-    value: string | number | boolean | { name: string },
+    scope: "public" | "protected" | "private",
     parameter: boolean,
     line: number,
     nameFrom: number,
-    nameTo: number
+    nameTo: number,
+    valueFrom: number,
+    valueTo: number
   ): void => {
-    const valueVariable =
-      typeof value === "object"
-        ? findVariable(currentSectionId, value.name)
-        : undefined;
-    const type = valueVariable
-      ? valueVariable.type
-      : (typeof value as FountainVariableType);
-    if (!result.variables) {
-      result.variables = {};
+    if (!parsed.variables) {
+      parsed.variables = {};
     }
+    const prefix = scope === "private" ? "private-" : "";
+    const id = `${currentSectionId}.${prefix}${name}`;
     lintName(name, nameFrom, nameTo);
-    const resolvedValue =
-      typeof value === "string" ||
-      typeof value === "number" ||
-      typeof value === "boolean"
-        ? value
-        : findVariable(currentSectionId, value?.name)?.value;
-    const id = `${currentSectionId}.${parameter ? `parameter-` : ""}${name}`;
-    const item = {
-      ...(result?.variables?.[id] || {}),
+    parsed.references.push({
+      from: nameFrom,
+      to: nameTo,
+      name,
+      id,
+      declaration: true,
+    });
+    const [value, found] = getVariableValueOrReference(
+      valueText,
+      valueFrom,
+      valueTo
+    );
+    const validValue = value != null ? value : "";
+    const validValueText = found?.valueText || valueText || `""`;
+    const validType = typeof validValue as FountainVariableType;
+    const item: FountainVariable = {
+      ...(parsed?.variables?.[id] || {}),
       from: nameFrom,
       to: nameTo,
       line,
       name,
-      type,
-      value: resolvedValue,
-      valueText,
+      type: validType,
+      value: validValue,
+      valueText: validValueText.trim(),
       parameter,
+      scope,
     };
-    result.variables[id] = item;
-    const parent = result.sections[currentSectionId];
-    if (parent) {
-      if (!parent.variables) {
-        parent.variables = {};
+    parsed.variables[id] = item;
+    const parentSection = parsed.sections[currentSectionId];
+    if (parentSection) {
+      if (!parentSection.variables) {
+        parentSection.variables = {};
       }
-      parent.variables[id] = item;
+      parentSection.variables[id] = item;
     } else {
       console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
-  };
-
-  const getVariableValueOrReference = (
-    content: string,
-    from: number,
-    to: number
-  ):
-    | string
-    | number
-    | boolean
-    | { name: string; type: FountainVariableType } => {
-    const type = getValueType(content);
-    if (type === "string") {
-      return content.slice(1, -1);
-    }
-    if (type === "number") {
-      return Number(content);
-    }
-    if (type === "boolean") {
-      return Boolean(content);
-    }
-    const found = getVariable(undefined, content, from, to);
-    if (found) {
-      return {
-        name: content,
-        type: found.type,
-      };
-    }
-    return undefined;
-  };
-
-  const getAssetValueOrReference = (
-    type: FountainAssetType,
-    content: string,
-    from: number,
-    to: number
-  ): string | { name: string } => {
-    if (content.match(fountainRegexes.string)) {
-      return content.slice(1, -1);
-    }
-    const found = getAsset(type, content, from, to);
-    if (found) {
-      return {
-        name: content,
-      };
-    }
-    return undefined;
-  };
-
-  const getEntityValueOrReference = (
-    type: FountainEntityType,
-    content: string,
-    from: number,
-    to: number
-  ): string | { name: string } => {
-    if (content.match(fountainRegexes.string)) {
-      return content.slice(1, -1);
-    }
-    const found = getEntity(type, content, from, to);
-    if (found) {
-      return {
-        name: content,
-      };
-    }
-    return undefined;
-  };
-
-  const getTagValueOrReference = (
-    content: string,
-    from: number,
-    to: number
-  ): string | { name: string } => {
-    if (content.match(fountainRegexes.string)) {
-      return content.slice(1, -1);
-    }
-    const found = getTag(content, from, to);
-    if (found) {
-      return {
-        name: content,
-      };
-    }
-    return undefined;
   };
 
   const getParameterNames = (
@@ -859,17 +888,16 @@ export const parseFountain = (
           if (operator === "?") {
             getVariable(undefined, name, nameFrom, nameTo);
           } else {
-            const value = valueText
-              ? getVariableValueOrReference(valueText, valueFrom, valueTo)
-              : "";
             addVariable(
               name,
               valueText,
-              value,
+              "private",
               true,
               currentToken.line,
               nameFrom,
-              nameTo
+              nameTo,
+              valueFrom,
+              valueTo
             );
           }
         }
@@ -954,8 +982,26 @@ export const parseFountain = (
           extraArgIndices.push(index);
         }
         if (expression) {
-          const context = getEvaluationContext(currentSectionId);
-          const { result, diagnostics } = compile(context, expression);
+          const [ids, context] = getScopedEvaluationContext(
+            currentSectionId,
+            parsed.sections
+          );
+          const { result, references, diagnostics } = compile(
+            context,
+            expression
+          );
+          if (references?.length > 0) {
+            references.forEach((r) => {
+              const from = expressionFrom + r.from;
+              const to = expressionFrom + r.to;
+              parsed.references.push({
+                from,
+                to,
+                name: r.name,
+                id: ids[r.name],
+              });
+            });
+          }
           if (diagnostics?.length > 0) {
             for (let i = 0; i < diagnostics.length; i += 1) {
               const d = diagnostics[i];
@@ -1009,11 +1055,11 @@ export const parseFountain = (
   };
 
   const pushToken = (token: FountainToken): void => {
-    if (!result.scriptLines) {
-      result.scriptLines = {};
+    if (!parsed.scriptLines) {
+      parsed.scriptLines = {};
     }
-    result.scriptLines[token.line] = result.scriptTokens.length;
-    result.scriptTokens.push(token);
+    parsed.scriptLines[token.line] = parsed.scriptTokens.length;
+    parsed.scriptTokens.push(token);
     currentSectionTokens.push(token);
   };
 
@@ -1029,8 +1075,10 @@ export const parseFountain = (
         startIndex = str.indexOf(noteMatch, startIndex) + 2;
         const from = currentToken.from + startIndex;
         const to = from + noteMatch.length - 4;
-        const value = name ? getAsset(type, name, from, to)?.value : undefined;
-        notes.push({ type, value });
+        if (name) {
+          getAsset(type, name, from, to);
+        }
+        notes.push({ type, name });
       }
       currentToken.text = str;
       currentToken.content = str.replace(fountainRegexes.note, "");
@@ -1087,7 +1135,7 @@ export const parseFountain = (
   const startNewSection = (level: number): void => {
     currentSectionTokens = [];
     currentLevel = level;
-    const section = result.sections[currentSectionId];
+    const section = parsed.sections[currentSectionId];
     if (section) {
       section.tokens = currentSectionTokens;
     }
@@ -1102,7 +1150,7 @@ export const parseFountain = (
   );
 
   addSection({
-    ...(result?.sections?.[currentSectionId] || {}),
+    ...(parsed?.sections?.[currentSectionId] || {}),
     from: currentToken.from,
     to: currentToken.to,
     line: 1,
@@ -1154,7 +1202,7 @@ export const parseFountain = (
           currentSectionId = `${parentId}.${id}`;
         }
         const newSection: FountainSection = {
-          ...(result?.sections?.[currentSectionId] || {}),
+          ...(parsed?.sections?.[currentSectionId] || {}),
           from: currentToken.from,
           to: currentToken.to,
           line: currentToken.line,
@@ -1170,24 +1218,25 @@ export const parseFountain = (
     } else if ((match = currentToken.content.match(fountainRegexes.variable))) {
       currentToken.type = "variable";
       if (currentToken.type === "variable") {
+        const mark = match[2]?.trim() || "";
         const name = match[4]?.trim() || "";
         const valueText = match[8]?.trim() || "";
         const nameFrom = currentToken.from + getStart(match, 4);
         const nameTo = nameFrom + name.length;
         const valueFrom = currentToken.from + getStart(match, 8);
         const valueTo = valueFrom + valueText.length;
-        const value = valueText
-          ? getVariableValueOrReference(valueText, valueFrom, valueTo)
-          : "";
+        const scope = mark === "temp" ? "private" : "protected";
         if (name) {
           addVariable(
             name,
             valueText,
-            value,
-            undefined,
+            scope,
+            false,
             currentToken.line,
             nameFrom,
-            nameTo
+            nameTo,
+            valueFrom,
+            valueTo
           );
         }
       }
@@ -1201,18 +1250,16 @@ export const parseFountain = (
         const nameTo = nameFrom + name.length;
         const valueFrom = currentToken.from + getStart(match, 8);
         const valueTo = valueFrom + valueText.length;
-        const value = valueText
-          ? getAssetValueOrReference(type, valueText, valueFrom, valueTo)
-          : "";
         if (name) {
           addAsset(
             type,
             name,
             valueText,
-            value,
             currentToken.line,
             nameFrom,
-            nameTo
+            nameTo,
+            valueFrom,
+            valueTo
           );
         }
       }
@@ -1226,18 +1273,16 @@ export const parseFountain = (
         const nameTo = nameFrom + name.length;
         const valueFrom = currentToken.from + getStart(match, 8);
         const valueTo = valueFrom + valueText.length;
-        const value = valueText
-          ? getEntityValueOrReference(type, valueText, valueFrom, valueTo)
-          : "";
         if (name) {
           addEntity(
             type,
             name,
             valueText,
-            value,
             currentToken.line,
             nameFrom,
-            nameTo
+            nameTo,
+            valueFrom,
+            valueTo
           );
         }
       }
@@ -1251,11 +1296,16 @@ export const parseFountain = (
         const nameTo = nameFrom + name.length;
         const valueFrom = currentToken.from + getStart(match, 8);
         const valueTo = valueFrom + valueText.length;
-        const value = valueText
-          ? getTagValueOrReference(valueText, valueFrom, valueTo)
-          : "";
         if (name) {
-          addTag(name, valueText, value, currentToken.line, nameFrom, nameTo);
+          addTag(
+            name,
+            valueText,
+            currentToken.line,
+            nameFrom,
+            nameTo,
+            valueFrom,
+            valueTo
+          );
         }
       }
     }
@@ -1300,8 +1350,8 @@ export const parseFountain = (
     if (text.trim().length === 0 && text !== "  ") {
       const skip_separator =
         ignoredLastToken &&
-        result.scriptTokens.length > 1 &&
-        result.scriptTokens[result.scriptTokens.length - 1]?.type ===
+        parsed.scriptTokens.length > 1 &&
+        parsed.scriptTokens[parsed.scriptTokens.length - 1]?.type ===
           "separator";
 
       if (ignoredLastToken) {
@@ -1348,13 +1398,13 @@ export const parseFountain = (
         const keyFormat = titlePageDisplay[currentToken.type];
         if (keyFormat) {
           currentToken.order = keyFormat.order;
-          if (!result.titleTokens) {
-            result.titleTokens = {};
+          if (!parsed.titleTokens) {
+            parsed.titleTokens = {};
           }
-          if (!result.titleTokens[keyFormat.position]) {
-            result.titleTokens[keyFormat.position] = [];
+          if (!parsed.titleTokens[keyFormat.position]) {
+            parsed.titleTokens[keyFormat.position] = [];
           }
-          result.titleTokens[keyFormat.position].push(currentToken);
+          parsed.titleTokens[keyFormat.position].push(currentToken);
         }
         titlePageStarted = true;
         continue;
@@ -1368,8 +1418,8 @@ export const parseFountain = (
     if (state === "normal") {
       if (currentToken.content.match(fountainRegexes.line_break)) {
         tokenCategory = "none";
-      } else if (result.properties.firstTokenLine === undefined) {
-        result.properties.firstTokenLine = currentToken.line;
+      } else if (parsed.properties.firstTokenLine === undefined) {
+        parsed.properties.firstTokenLine = currentToken.line;
         currentSectionTokens = [];
         currentLevel = 0;
       }
@@ -1393,29 +1443,29 @@ export const parseFountain = (
             ? content.substring(1)
             : content;
           currentToken.scene = scene;
-          if (!result.properties.scenes) {
-            result.properties.scenes = [];
+          if (!parsed.properties.scenes) {
+            parsed.properties.scenes = [];
           }
-          result.properties.scenes.push({
+          parsed.properties.scenes.push({
             name: currentToken.content,
             scene: currentToken.scene,
             line: currentToken.line,
           });
-          if (!result.properties.locations) {
-            result.properties.locations = {};
+          if (!parsed.properties.locations) {
+            parsed.properties.locations = {};
           }
-          if (result.properties.locations[location]) {
-            result.properties.locations[location].push(currentToken.line);
+          if (parsed.properties.locations[location]) {
+            parsed.properties.locations[location].push(currentToken.line);
           } else {
-            result.properties.locations[location] = [currentToken.line];
+            parsed.properties.locations[location] = [currentToken.line];
           }
-          if (!result.properties.times) {
-            result.properties.times = {};
+          if (!parsed.properties.times) {
+            parsed.properties.times = {};
           }
-          if (result.properties.times[time]) {
-            result.properties.times[time].push(currentToken.line);
+          if (parsed.properties.times[time]) {
+            parsed.properties.times[time].push(currentToken.line);
           } else {
-            result.properties.times[time] = [currentToken.line];
+            parsed.properties.times[time] = [currentToken.line];
           }
         }
       } else if (
@@ -1463,8 +1513,23 @@ export const parseFountain = (
             const expressionFrom = currentToken.from + getStart(match, 4);
             currentToken.value = expression;
             if (expression) {
-              const context = getEvaluationContext(currentSectionId);
-              const { diagnostics } = compile(context, expression);
+              const [ids, context] = getScopedEvaluationContext(
+                currentSectionId,
+                parsed.sections
+              );
+              const { references, diagnostics } = compile(context, expression);
+              if (references?.length > 0) {
+                references.forEach((r) => {
+                  const from = expressionFrom + r.from;
+                  const to = expressionFrom + r.to;
+                  parsed.references.push({
+                    from,
+                    to,
+                    name: r.name,
+                    id: ids[r.name],
+                  });
+                });
+              }
               if (diagnostics?.length > 0) {
                 for (let i = 0; i < diagnostics.length; i += 1) {
                   const d = diagnostics[i];
@@ -1499,8 +1564,26 @@ export const parseFountain = (
               const expressionFrom = currentToken.from + getStart(match, 4);
               currentToken.value = expression;
               if (expression) {
-                const context = getEvaluationContext(currentSectionId);
-                const { diagnostics } = compile(context, expression);
+                const [ids, context] = getScopedEvaluationContext(
+                  currentSectionId,
+                  parsed.sections
+                );
+                const { references, diagnostics } = compile(
+                  context,
+                  expression
+                );
+                if (references?.length > 0) {
+                  references.forEach((r) => {
+                    const from = expressionFrom + r.from;
+                    const to = expressionFrom + r.to;
+                    parsed.references.push({
+                      from,
+                      to,
+                      name: r.name,
+                      id: ids[r.name],
+                    });
+                  });
+                }
                 if (diagnostics?.length > 0) {
                   for (let i = 0; i < diagnostics.length; i += 1) {
                     const d = diagnostics[i];
@@ -1527,18 +1610,32 @@ export const parseFountain = (
               currentToken.name = name;
               currentToken.operator = operator;
               currentToken.value = expression;
-              const variableValue = name
-                ? getVariableValueOrReference(name, nameFrom, nameTo)
-                : undefined;
+              const [value] = getVariableValueOrReference(
+                name,
+                nameFrom,
+                nameTo
+              );
               if (expression) {
-                const context = getEvaluationContext(currentSectionId);
-                const { result, diagnostics } = compile(context, expression);
-                const expectedType =
-                  typeof variableValue === "string" ||
-                  typeof variableValue === "number" ||
-                  typeof variableValue === "boolean"
-                    ? typeof variableValue
-                    : variableValue.type;
+                const [ids, context] = getScopedEvaluationContext(
+                  currentSectionId,
+                  parsed.sections
+                );
+                const { result, references, diagnostics } = compile(
+                  context,
+                  expression
+                );
+                if (references?.length > 0) {
+                  references.forEach((r) => {
+                    const from = expressionFrom + r.from;
+                    const to = expressionFrom + r.to;
+                    parsed.references.push({
+                      from,
+                      to,
+                      name: r.name,
+                      id: ids[r.name],
+                    });
+                  });
+                }
                 if (diagnostics?.length > 0) {
                   for (let i = 0; i < diagnostics.length; i += 1) {
                     const d = diagnostics[i];
@@ -1548,7 +1645,12 @@ export const parseFountain = (
                   }
                 } else {
                   const evaluatedType = typeof result;
-                  if (evaluatedType !== expectedType) {
+                  const expectedType = typeof value;
+                  if (
+                    result != null &&
+                    value != null &&
+                    evaluatedType !== expectedType
+                  ) {
                     diagnostic(
                       currentToken,
                       `'${name}' is not ${prefixArticle(
@@ -1698,7 +1800,7 @@ export const parseFountain = (
             state = "dual_dialogue";
             // update last dialogue to be dual:left
             let index = lastCharacterIndex;
-            let lastCharacterToken = result.scriptTokens[index];
+            let lastCharacterToken = parsed.scriptTokens[index];
             while (
               lastCharacterToken?.type === "character" ||
               lastCharacterToken?.type === "parenthetical" ||
@@ -1706,17 +1808,17 @@ export const parseFountain = (
             ) {
               lastCharacterToken.position = "left";
               index += 1;
-              lastCharacterToken = result.scriptTokens[index];
+              lastCharacterToken = parsed.scriptTokens[index];
             }
             // update last dialogue_begin to be dual_dialogue_begin and remove last dialogue_end
             let foundMatch = false;
-            let temp_index = result.scriptTokens.length;
+            let temp_index = parsed.scriptTokens.length;
             temp_index -= 1;
             while (!foundMatch) {
               temp_index -= 1;
-              switch (result.scriptTokens[temp_index]?.type) {
+              switch (parsed.scriptTokens[temp_index]?.type) {
                 case "dialogue_end":
-                  result.scriptTokens.splice(temp_index);
+                  parsed.scriptTokens.splice(temp_index);
                   temp_index -= 1;
                   break;
                 case "separator":
@@ -1728,7 +1830,7 @@ export const parseFountain = (
                 case "parenthetical":
                   break;
                 case "dialogue_begin":
-                  result.scriptTokens[temp_index].type = "dual_dialogue_begin";
+                  parsed.scriptTokens[temp_index].type = "dual_dialogue_begin";
                   foundMatch = true;
                   break;
                 default:
@@ -1743,20 +1845,20 @@ export const parseFountain = (
           }
           const character = trimCharacterExtension(currentToken.content).trim();
           const characterName = character.replace(/\^$/, "").trim();
-          if (!result.properties.characters) {
-            result.properties.characters = {};
+          if (!parsed.properties.characters) {
+            parsed.properties.characters = {};
           }
-          if (result.properties.characters[characterName]) {
-            result.properties.characters[characterName].push(currentToken.line);
+          if (parsed.properties.characters[characterName]) {
+            parsed.properties.characters[characterName].push(currentToken.line);
           } else {
-            result.properties.characters[characterName] = [currentToken.line];
+            parsed.properties.characters[characterName] = [currentToken.line];
           }
           previousCharacter = currentToken.content;
-          lastCharacterIndex = result.scriptTokens.length;
-          if (!result.dialogueLines) {
-            result.dialogueLines = {};
+          lastCharacterIndex = parsed.scriptTokens.length;
+          if (!parsed.dialogueLines) {
+            parsed.dialogueLines = {};
           }
-          result.dialogueLines[currentToken.line] = currentToken.content
+          parsed.dialogueLines[currentToken.line] = currentToken.content
             .trim()
             .replace(/\^$/, "")
             .trim();
@@ -1852,16 +1954,16 @@ export const parseFountain = (
   // tidy up separators
 
   if (!titlePageStarted) {
-    result.titleTokens = undefined;
+    parsed.titleTokens = undefined;
   }
 
   // clean separators at the end
   while (
-    result.scriptTokens.length > 0 &&
-    result.scriptTokens[result.scriptTokens.length - 1]?.type === "separator"
+    parsed.scriptTokens.length > 0 &&
+    parsed.scriptTokens[parsed.scriptTokens.length - 1]?.type === "separator"
   ) {
-    result.scriptTokens.pop();
+    parsed.scriptTokens.pop();
   }
 
-  return result;
+  return parsed;
 };

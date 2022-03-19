@@ -147,7 +147,7 @@ export function isTag(line: Line): RegExpMatchArray {
 }
 
 export function isVariable(line: Line): RegExpMatchArray {
-  if (line.next !== "v".charCodeAt(0)) {
+  if (line.next !== "v".charCodeAt(0) && line.next !== "t".charCodeAt(0)) {
     return null;
   }
   return line.text.match(fountainRegexes.variable);

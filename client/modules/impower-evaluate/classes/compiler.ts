@@ -1,6 +1,7 @@
 import { OPERATION } from "../constants/operation";
 import { CompilerDiagnostic } from "../types/compilerDiagnostic";
 import { CompilerNode } from "../types/compilerNode";
+import { CompilerReference } from "../types/compilerReference";
 import { CompilerToken } from "../types/compilerToken";
 import { evaluate } from "../utils/evaluate";
 import { get } from "../utils/get";
@@ -14,8 +15,14 @@ export class Compiler {
 
   private _diagnostics: CompilerDiagnostic[] = [];
 
+  private _references: CompilerReference[] = [];
+
   public get diagnostics(): CompilerDiagnostic[] {
     return this._diagnostics.map((x) => ({ ...x }));
+  }
+
+  public get references(): CompilerReference[] {
+    return this._references.map((x) => ({ ...x }));
   }
 
   constructor(tokens: CompilerToken[]) {
@@ -315,6 +322,7 @@ export class Compiler {
       Record<string, string | number | boolean>,
       string | number | boolean
     >(context, val.content);
+    this._references.push({ from: val.from, to: val.to, name: val.content });
     if (found === undefined) {
       this._diagnostics.push({
         content: val.content,

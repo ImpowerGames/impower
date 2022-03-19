@@ -18,6 +18,7 @@ import {
 } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
 import { EditorSelection, Prec } from "@codemirror/state";
+import { hoverTooltip } from "@codemirror/tooltip";
 import { KeyBinding, keymap } from "@codemirror/view";
 import {
   FountainParseResult,
@@ -36,6 +37,7 @@ import {
   getCodeParser,
   mkLang,
 } from "./fountainLanguage";
+import { fountainTooltip } from "./fountainTooltip";
 import { parseCode } from "./nest";
 
 export {
@@ -125,6 +127,8 @@ export function fountain(
     base?: Language;
     /// Callback to execute when doc is parsed
     parse: (script: string) => FountainParseResult;
+    getRuntimeValue?: (id: string) => string | number | boolean;
+    setRuntimeValue?: (id: string, expression: string) => void;
   } = { parse: parseFountain }
 ): LanguageSupport {
   const {
@@ -133,13 +137,17 @@ export function fountain(
     addKeymap = true,
     base: { parser } = commonmarkLanguage,
     parse,
+    getRuntimeValue,
+    setRuntimeValue,
   } = config;
   if (!(parser instanceof MarkdownParser)) {
     throw new RangeError(
       "Base parser provided to `markdown` should be a Markdown parser"
     );
   }
-  const parseContext: { result: FountainParseResult } = { result: undefined };
+  const parseContext: {
+    result: FountainParseResult;
+  } = { result: undefined };
   const fountainParseLinter = (view: EditorView): Diagnostic[] => {
     parseContext.result = parse(view.state.doc.toString());
     const diagnostics = parseContext.result?.diagnostics || [];
@@ -179,6 +187,9 @@ export function fountain(
       autocomplete: async (c) => fountainAutocomplete(c, parseContext),
     }),
     autocompletion({ aboveCursor: true, defaultKeymap: false }),
+    hoverTooltip((v, p, s) =>
+      fountainTooltip(v, p, s, parseContext, getRuntimeValue, setRuntimeValue)
+    ),
     linter(fountainParseLinter, { delay: 100 }),
   ];
   let defaultCode;

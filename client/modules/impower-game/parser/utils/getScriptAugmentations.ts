@@ -17,6 +17,7 @@ export const getScriptAugmentations = (
       name,
       type,
       value: fileUrl,
+      valueText: `"${fileUrl}"`,
     };
   });
   return { assets };

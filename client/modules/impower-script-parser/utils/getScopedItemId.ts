@@ -3,26 +3,19 @@ import { getAncestorIds } from "./getAncestorIds";
 export const getScopedItemId = <T>(
   items: Record<string, T>,
   sectionId: string,
-  name: string,
-  localOnlyPrefixes: "parameter"[] = []
+  name: string
 ): string => {
-  if (localOnlyPrefixes?.length > 0) {
-    for (let i = 0; i < localOnlyPrefixes.length; i += 1) {
-      const localOnlyPrefix = localOnlyPrefixes[i];
-      const prefix = localOnlyPrefix ? `${localOnlyPrefix}-` : "";
-      const foundId = `${sectionId}.${prefix}${name}`;
-      const localFound = items?.[foundId];
-      if (localFound) {
-        return foundId;
-      }
-    }
+  const foundPrivateId = `${sectionId}.private-${name}`;
+  const localFound = items?.[foundPrivateId];
+  if (localFound) {
+    return foundPrivateId;
   }
   const ids = getAncestorIds(sectionId);
   const foundSectionId =
     ids.find((x) => Boolean(items?.[`${x}.${name}`])) || "";
-  const foundId = `${foundSectionId}.${name}`;
-  if (items?.[foundId]) {
-    return foundId;
+  const foundProtectedId = `${foundSectionId}.${name}`;
+  if (items?.[foundProtectedId]) {
+    return foundProtectedId;
   }
   return undefined;
 };

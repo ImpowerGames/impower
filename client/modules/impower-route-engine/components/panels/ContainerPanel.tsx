@@ -13,9 +13,9 @@ import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
 import CheckRegularIcon from "../../../../resources/icons/regular/check.svg";
 import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ellipsis-vertical.svg";
-import FileExclamationRegularIcon from "../../../../resources/icons/regular/file-exclamation.svg";
-import MemoCircleCheckRegularIcon from "../../../../resources/icons/regular/memo-circle-check.svg";
-import MemoRegularIcon from "../../../../resources/icons/regular/memo.svg";
+import FileCircleCheckRegularIcon from "../../../../resources/icons/regular/file-circle-check.svg";
+import FileCircleExclamationRegularIcon from "../../../../resources/icons/regular/file-circle-exclamation.svg";
+import FileCircleQuestionRegularIcon from "../../../../resources/icons/regular/file-circle-question.svg";
 import { SlideAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
@@ -194,11 +194,11 @@ const ContainerPanelHeader = React.memo(
     const lintIcon = useMemo(
       () =>
         hasError === undefined ? (
-          <MemoRegularIcon />
+          <FileCircleQuestionRegularIcon />
         ) : hasError ? (
-          <FileExclamationRegularIcon />
+          <FileCircleExclamationRegularIcon />
         ) : (
-          <MemoCircleCheckRegularIcon />
+          <FileCircleCheckRegularIcon />
         ),
       [hasError]
     );
@@ -251,7 +251,6 @@ const ContainerPanelHeader = React.memo(
               offLabel={`Hide error panel`}
               onIcon={lintIcon}
               offIcon={lintIcon}
-              color={hasError ? theme.palette.error.light : undefined}
               onClick={onToggleLinting}
             />
             {/* <ScriptingPanelHeaderIconButton
@@ -330,9 +329,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const title = headerName || "Script";
 
   useEffect((): void => {
-    if (mode === "Test") {
-      setToggleLinting(true);
-    }
+    setToggleLinting(mode === "Test");
   }, [mode]);
 
   const fixedStyle: CSSProperties = useMemo(

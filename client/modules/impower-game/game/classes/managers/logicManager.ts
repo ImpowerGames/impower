@@ -436,7 +436,6 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     executedByBlockId: string;
     startIndex?: number;
   }): void {
-    console.warn(data.id);
     const blockState = this.state.blockStates[data.id] || createBlockState();
     if (data.returnWhenFinished) {
       blockState.hasReturned = false;

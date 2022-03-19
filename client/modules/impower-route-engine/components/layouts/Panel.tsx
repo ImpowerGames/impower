@@ -24,6 +24,7 @@ const StyledPanel = styled.div`
 `;
 
 const StyledBackground = styled.div`
+  overflow-x: hidden;
   flex: 1;
   display: flex;
   flex-direction: column;

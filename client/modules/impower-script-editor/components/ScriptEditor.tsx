@@ -30,13 +30,6 @@ import {
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
 import {
-  SerializableEditorSelection,
-  SerializableEditorState,
-} from "../types/editor";
-import { fountain } from "../utils/fountain";
-import { fountainLanguage, tags as t } from "../utils/fountainLanguage";
-import { quickSnippet } from "../utils/quickSnippet";
-import {
   closeSearchLinePanel,
   getSearchLineQuery,
   openSearchLinePanel,
@@ -44,8 +37,15 @@ import {
   searchLinePanel,
   SearchLineQuery,
   setSearchLineQuery,
-} from "./SearchLinePanel";
-import { SearchPanel, SearchTextQuery } from "./SearchPanel";
+} from "../extensions/searchLinePanel";
+import {
+  SerializableEditorSelection,
+  SerializableEditorState,
+} from "../types/editor";
+import { fountain } from "../utils/fountain";
+import { fountainLanguage, tags as t } from "../utils/fountainLanguage";
+import { quickSnippet } from "../utils/quickSnippet";
+import { SearchPanel, SearchTextQuery } from "./SearchTextPanel";
 
 const marginPlugin = ViewPlugin.fromClass(
   class {
@@ -190,6 +190,8 @@ interface ScriptEditorProps {
     fromLine: number;
     toLine: number;
   }) => void;
+  getRuntimeValue?: (id: string) => string | number | boolean;
+  setRuntimeValue?: (id: string, expression: string) => void;
   onScrollLine?: (event: Event, firstVisibleLine: number) => void;
   onOpenSearchTextPanel?: (query?: SearchTextQuery) => void;
   onCloseSearchTextPanel?: (query?: SearchTextQuery) => void;
@@ -222,6 +224,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     onParse,
     onCursor,
     onScrollLine,
+    getRuntimeValue,
+    setRuntimeValue,
     onOpenSearchTextPanel,
     onCloseSearchTextPanel,
     onOpenSearchLinePanel,
@@ -260,6 +264,10 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   onScrollLineRef.current = onScrollLine;
   const onParseRef = useRef(onParse);
   onParseRef.current = onParse;
+  const getRuntimeValueRef = useRef(getRuntimeValue);
+  getRuntimeValueRef.current = getRuntimeValue;
+  const setRuntimeValueRef = useRef(setRuntimeValue);
+  setRuntimeValueRef.current = setRuntimeValue;
   const onOpenSearchTextPanelRef = useRef(onOpenSearchTextPanel);
   onOpenSearchTextPanelRef.current = onOpenSearchTextPanel;
   const onCloseSearchTextPanelRef = useRef(onCloseSearchTextPanel);
@@ -354,6 +362,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             }
             return result;
           },
+          getRuntimeValue: getRuntimeValueRef.current,
+          setRuntimeValue: setRuntimeValueRef.current,
         }),
         tooltips({
           position: "absolute",
@@ -388,6 +398,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             },
             ".cm-scroller": {
               fontFamily: "Courier Prime Sans",
+              overflowX: "hidden",
             },
             "&.cm-focused .cm-cursor": {
               borderLeftColor: "white",
@@ -548,6 +559,12 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
               display: "block",
               width: "0.8em",
               height: "0.8em",
+            },
+            ".cm-completionInfo": {
+              fontFamily: "monospace",
+            },
+            ".cm-valueInfo": {
+              fontFamily: "monospace",
             },
           },
           { dark: true }

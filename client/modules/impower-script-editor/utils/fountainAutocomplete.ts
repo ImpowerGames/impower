@@ -73,6 +73,10 @@ export const lowercaseParagraphSnippets: readonly Completion[] = [
     label: "variable",
     type: "variable",
   }),
+  snip("temp ${}${newVariable}", {
+    label: "temp variable",
+    type: "variable",
+  }),
   snip("tag ${}${newTag} = `${value}`${}", {
     label: "tag",
     type: "tag",

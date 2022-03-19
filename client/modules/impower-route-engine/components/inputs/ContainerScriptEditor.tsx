@@ -10,6 +10,7 @@ import React, {
   useState,
 } from "react";
 import { debounce } from "../../../impower-core";
+import { evaluate } from "../../../impower-evaluate";
 import {
   getRuntimeCommand,
   getScriptAugmentations,
@@ -26,6 +27,7 @@ import {
 import { SerializableEditorState } from "../../../impower-script-editor/types/editor";
 import {
   FountainParseResult,
+  getGlobalEvaluationContext,
   getScopedContext,
   parseFountain,
 } from "../../../impower-script-parser";
@@ -110,6 +112,8 @@ const ContainerScriptEditor = React.memo(
     const scrollTopLineRef = useRef<number>();
     const parseResultRef = useRef<FountainParseResult>();
     const currentSectionNameRef = useRef<string>();
+    const gameRef = useRef(game);
+    gameRef.current = game;
 
     const [parseResultState, setParseResultState] =
       useState<FountainParseResult>();
@@ -238,8 +242,10 @@ const ContainerScriptEditor = React.memo(
           lastEditorStateRef.current = state;
           handleDebouncedEditorChange();
         }
-        scriptValueRef.current = value;
-        handleDebouncedScriptChange();
+        if (scriptValueRef.current !== value) {
+          scriptValueRef.current = value;
+          handleDebouncedScriptChange();
+        }
       },
       [
         handleDebouncedEditorChange,
@@ -364,6 +370,31 @@ const ContainerScriptEditor = React.memo(
       [gameInspector]
     );
 
+    const handleGetRuntimeValue = useCallback(
+      (id: string): string | number | boolean => {
+        if (!gameRef.current) {
+          return undefined;
+        }
+        const result = parseResultRef.current;
+        const runtimeValue = gameRef.current.getRuntimeValue(id);
+        const context = getGlobalEvaluationContext(result);
+        const initialValue = context?.[id];
+        return runtimeValue != null ? runtimeValue : initialValue;
+      },
+      []
+    );
+
+    const handleSetRuntimeValue = useCallback(
+      (id: string, expression: string): void => {
+        if (!gameRef.current) {
+          return;
+        }
+        const value = evaluate({}, expression);
+        gameRef.current.setRuntimeValue(id, value);
+      },
+      []
+    );
+
     useEffect(() => {
       if (mode === "Edit" && parseResultState && previewCursor) {
         handlePreviewResult(parseResultState, previewCursor.fromLine);
@@ -412,6 +443,8 @@ const ContainerScriptEditor = React.memo(
                 onCloseSearchTextPanel={handleCloseSearchTextPanel}
                 onOpenSearchLinePanel={handleOpenSearchLinePanel}
                 onCloseSearchLinePanel={handleCloseSearchLinePanel}
+                getRuntimeValue={handleGetRuntimeValue}
+                setRuntimeValue={handleSetRuntimeValue}
               />
             </StyledFadeAnimation>
           )}

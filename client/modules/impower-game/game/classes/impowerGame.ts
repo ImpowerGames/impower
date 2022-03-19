@@ -152,4 +152,21 @@ export class ImpowerGame {
       custom,
     };
   }
+
+  getRuntimeValue?(id: string): string | number | boolean {
+    const variableState = this.logic.state?.variableStates?.[id];
+    if (variableState) {
+      return variableState.value;
+    }
+    return undefined;
+  }
+
+  setRuntimeValue?(id: string, value: string | number | boolean): void {
+    const variableState = this.logic.state?.variableStates?.[id];
+    if (variableState) {
+      variableState.value = value;
+    } else {
+      this.logic.state.variableStates[id] = { value };
+    }
+  }
 }
