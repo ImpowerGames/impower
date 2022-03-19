@@ -34,6 +34,7 @@ export const parseFountain = (
     scriptTokens: [],
     scriptLines: {},
     properties: {},
+    diagnostics: [],
     ...augmentations,
   };
 
