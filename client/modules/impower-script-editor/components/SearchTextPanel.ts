@@ -2,7 +2,7 @@ import { Panel } from "@codemirror/panel";
 import {
   getSearchQuery,
   SearchQuery,
-  setSearchQuery
+  setSearchQuery,
 } from "@codemirror/search";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import elt from "crelt";
