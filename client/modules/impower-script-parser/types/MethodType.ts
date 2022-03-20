@@ -9,6 +9,6 @@ export type MethodType =
   | "load"
   | "preload"
   | "unload"
-  | "String"
-  | "Boolean"
-  | "Number";
+  | "string"
+  | "boolean"
+  | "number";

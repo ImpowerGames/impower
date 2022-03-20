@@ -12,7 +12,7 @@ export const entityMethods: MethodType[] = [
 
 export const assetMethods: MethodType[] = ["preload", "unload"];
 
-export const castMethods: MethodType[] = ["String", "Boolean", "Number"];
+export const castMethods: MethodType[] = ["string", "boolean", "number"];
 
 export const reservedMethods: MethodType[] = [
   "log",
