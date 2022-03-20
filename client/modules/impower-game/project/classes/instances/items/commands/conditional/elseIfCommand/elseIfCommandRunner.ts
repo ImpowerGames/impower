@@ -28,7 +28,7 @@ export class ElseIfCommandRunner extends IfCommandRunner {
       previousCommandTypeId === "ElseIfCommand"
     ) {
       if (!shouldExecute) {
-        // Skip to the next "If" or "ElseIf" command or
+        // Skip to the next "ElseIf" command or
         // skip to the command after the next "Else" or "Close" command
         const nextCommandIndex = getNextJumpIndex(
           [

@@ -321,7 +321,7 @@ export const getSectionIds = (
       (id) =>
         sections?.[id]?.type === "section" || sections?.[id]?.type === "method"
     );
-  return [...validChildrenNames, "", ...validAncestorIds, "!END"];
+  return [...validChildrenNames, "]", "[", "", ...validAncestorIds, "!END"];
 };
 
 export const assignOrCallSnippets = (
@@ -372,7 +372,10 @@ export const sectionSnippets = (
   return prefixes.flatMap((prefix, prefixIndex) =>
     ids.map((id, optionIndex) => {
       const section = sections[id];
-      const name = id?.toLowerCase() === "!end" ? id : section?.name;
+      const name =
+        id === "]" || id === "[" || id?.toLowerCase() === "!end"
+          ? id
+          : section?.name;
       const parameters = Object.values(section?.variables || {}).filter(
         (v) => v.parameter
       );
@@ -395,6 +398,10 @@ export const sectionSnippets = (
         label: cleanedPrefix + name + cleanedSuffix,
         type: !id
           ? "next"
+          : id === "["
+          ? "first_sibling"
+          : id === "]"
+          ? "last_sibling"
           : id?.toLowerCase() === "!end"
           ? "end"
           : ancestorIds.includes(id)
@@ -614,6 +621,9 @@ export const fountainAutocomplete = async (
     }
     if (isUppercase) {
       completions.push(...uppercaseParagraphSnippets);
+    }
+    if (input.startsWith("#")) {
+      completions.push(...sectionHeaderSnippets(sectionLevel));
     }
   } else if (
     [

@@ -55,6 +55,7 @@ export interface FountainConditionToken extends FountainLine {
   type: FountainConditionTokenType;
   check: "if" | "elif" | "else" | "";
   value: string;
+  skipToLine: number;
 }
 
 export interface FountainAssignToken extends FountainLine {

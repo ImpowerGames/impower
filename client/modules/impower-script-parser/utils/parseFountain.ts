@@ -1753,6 +1753,91 @@ export const parseFountain = (
             }
           }
         }
+      } else if (
+        (match = currentToken.content.match(fountainRegexes.condition))
+      ) {
+        currentToken.type = "condition";
+        if (currentToken.type === "condition") {
+          if ((match = lint(fountainRegexes.condition))) {
+            const check = (match[4]?.trim() as "if" | "elif" | "else") || "";
+            const expression = match[6]?.trim() || "";
+            const checkFrom = currentToken.from + getStart(match, 4);
+            const checkTo = checkFrom + check.length;
+            const expressionFrom = currentToken.from + getStart(match, 6);
+            currentToken.check = check;
+            currentToken.value = expression;
+            let index = parsed.scriptTokens.length - 1;
+            let lastToken = parsed.scriptTokens[index - 1];
+            if (check === "elif" || check === "else") {
+              while (
+                lastToken?.type === "assign" ||
+                lastToken?.type === "call" ||
+                lastToken?.type === "choice" ||
+                lastToken?.type === "condition" ||
+                lastToken?.type === "go"
+              ) {
+                if (
+                  lastToken?.type === "condition" &&
+                  lastToken?.offset === currentToken.offset
+                ) {
+                  if (lastToken?.check === "else") {
+                    diagnostic(
+                      currentToken,
+                      "'else' must be preceded by an 'if' or 'elif' on the same indent level",
+                      [],
+                      checkFrom,
+                      checkTo
+                    );
+                    break;
+                  } else if (
+                    lastToken?.check === "elif" ||
+                    lastToken?.check === "if"
+                  ) {
+                    lastToken.skipToLine = currentToken.line;
+                    break;
+                  }
+                }
+                index -= 1;
+                lastToken = parsed.scriptTokens[index];
+              }
+            }
+            if (check === "else" && expression) {
+              diagnostic(
+                currentToken,
+                "'else' cannot have a condition. Use elif instead.",
+                [],
+                checkFrom,
+                checkTo
+              );
+            } else if (expression) {
+              const [ids, context] = getScopedEvaluationContext(
+                currentSectionId,
+                parsed.sections
+              );
+              const { references, diagnostics } = compile(context, expression);
+              if (references?.length > 0) {
+                references.forEach((r) => {
+                  const from = expressionFrom + r.from;
+                  const to = expressionFrom + r.to;
+                  parsed.references.push({
+                    from,
+                    to,
+                    name: r.name,
+                    id: ids[r.name],
+                  });
+                });
+              }
+              if (diagnostics?.length > 0) {
+                for (let i = 0; i < diagnostics.length; i += 1) {
+                  const d = diagnostics[i];
+                  const from = expressionFrom + d.from;
+                  const to = expressionFrom + d.to;
+                  diagnostic(currentToken, d.message, [], from, to);
+                }
+              }
+            }
+          }
+        }
       } else if (currentToken.content.match(fountainRegexes.list)) {
         if ((match = currentToken.content.match(fountainRegexes.call))) {
           currentToken.type = "call";
@@ -1773,49 +1858,6 @@ export const parseFountain = (
                 methodArgsFrom,
                 methodArgsTo
               );
-            }
-          }
-        } else if (
-          (match = currentToken.content.match(fountainRegexes.condition))
-        ) {
-          currentToken.type = "condition";
-          if (currentToken.type === "condition") {
-            if ((match = lint(fountainRegexes.condition))) {
-              const check = (match[4]?.trim() as "if" | "elif" | "else") || "";
-              const expression = match[6]?.trim() || "";
-              const expressionFrom = currentToken.from + getStart(match, 6);
-              currentToken.check = check;
-              currentToken.value = expression;
-              if (expression) {
-                const [ids, context] = getScopedEvaluationContext(
-                  currentSectionId,
-                  parsed.sections
-                );
-                const { references, diagnostics } = compile(
-                  context,
-                  expression
-                );
-                if (references?.length > 0) {
-                  references.forEach((r) => {
-                    const from = expressionFrom + r.from;
-                    const to = expressionFrom + r.to;
-                    parsed.references.push({
-                      from,
-                      to,
-                      name: r.name,
-                      id: ids[r.name],
-                    });
-                  });
-                }
-                if (diagnostics?.length > 0) {
-                  for (let i = 0; i < diagnostics.length; i += 1) {
-                    const d = diagnostics[i];
-                    const from = expressionFrom + d.from;
-                    const to = expressionFrom + d.to;
-                    diagnostic(currentToken, d.message, [], from, to);
-                  }
-                }
-              }
             }
           }
         } else if (

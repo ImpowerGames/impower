@@ -472,6 +472,18 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
                 color: colors.section,
               },
             },
+            ".cm-completionIcon-first_sibling": {
+              "&:after": {
+                content: "'⥜'",
+                color: colors.section,
+              },
+            },
+            ".cm-completionIcon-last_sibling": {
+              "&:after": {
+                content: "'⥝'",
+                color: colors.section,
+              },
+            },
             ".cm-completionIcon-next": {
               "&:after": {
                 content: "'⭳'",

@@ -619,7 +619,7 @@ export const DefaultBlockParsers: {
     let node: Tree;
 
     const match =
-      isCall(line) || isCondition(line) || isAssign(line) || isChoice(line);
+      isCondition(line) || isCall(line) || isAssign(line) || isChoice(line);
 
     if (!match) {
       node = buf.finish(Type.PossibleLogic, line.text.length - line.pos);
