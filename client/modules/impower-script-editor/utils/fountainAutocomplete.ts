@@ -20,7 +20,6 @@ import { colors } from "../constants/colors";
 interface Option {
   name: string;
   type: string;
-  value: string;
   infoColor?: string;
   completionType?: CompletionType;
 }
@@ -295,27 +294,33 @@ export const nameSnippets = (
 
 export const getFunctionIds = (
   ancestorIds: string[],
-  children: string[]
+  children: string[],
+  sections: Record<string, FountainSection>
 ): string[] => {
-  const validChildrenIds = children.filter((id) =>
-    id.split(".").slice(-1).join("").startsWith("*")
+  const validChildrenIds = children.filter(
+    (id) => sections?.[id]?.type === "function"
   );
   const validAncestorIds = ancestorIds
     .slice(0, -1)
-    .filter((id) => id.split(".").slice(-1).join("").match(/^[*]/));
+    .filter((id) => sections?.[id]?.type === "function");
   return [...validChildrenIds, ...validAncestorIds];
 };
 
 export const getSectionIds = (
   ancestorIds: string[],
-  children: string[]
+  children: string[],
+  sections: Record<string, FountainSection>
 ): string[] => {
   const validChildrenNames = children.filter(
-    (id) => !id.split(".").slice(-1).join("").startsWith("*")
+    (id) =>
+      sections?.[id]?.type === "section" || sections?.[id]?.type === "method"
   );
   const validAncestorIds = ancestorIds
     .slice(0, -1)
-    .filter((id) => !id.split(".").slice(-1).join("").match(/^[*?]/));
+    .filter(
+      (id) =>
+        sections?.[id]?.type === "section" || sections?.[id]?.type === "method"
+    );
   return [...validChildrenNames, "", ...validAncestorIds, "!END"];
 };
 
@@ -325,7 +330,7 @@ export const assignOrCallSnippets = (
   children: string[],
   sections: Record<string, FountainSection>
 ): Completion[] => {
-  const functionIds = getFunctionIds(ancestorIds, children);
+  const functionIds = getFunctionIds(ancestorIds, children, sections);
   const snippets = [
     ...nameSnippets(
       variableOptions,
@@ -361,7 +366,7 @@ export const sectionSnippets = (
   prefix: string | string[] = "",
   suffix: string | string[] = ""
 ): Completion[] => {
-  const ids = getSectionIds(ancestorIds, children);
+  const ids = getSectionIds(ancestorIds, children, sections);
   const prefixes = typeof prefix === "string" ? [prefix] : prefix;
   const labelCleanupRegex = /[\n\r${}]/g;
   return prefixes.flatMap((prefix, prefixIndex) =>
@@ -568,7 +573,6 @@ export const fountainAutocomplete = async (
       return {
         name: found.name,
         type: found.type,
-        value: found.valueText,
         completionType,
         infoColor,
       };
@@ -580,7 +584,6 @@ export const fountainAutocomplete = async (
       return {
         name: found.name,
         type: found.type,
-        value: found.valueText,
       };
     })
   );
@@ -590,7 +593,6 @@ export const fountainAutocomplete = async (
       return {
         name: found.name,
         type: found.type,
-        value: found.valueText,
       };
     })
   );
@@ -600,7 +602,6 @@ export const fountainAutocomplete = async (
       return {
         name: found.name,
         type: "tag",
-        value: found.valueText,
       };
     })
   );

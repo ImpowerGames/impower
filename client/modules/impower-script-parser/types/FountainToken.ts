@@ -39,13 +39,13 @@ export interface FountainTagToken extends FountainLine {
 export interface FountainGoToken extends FountainLine {
   type: FountainGoTokenType;
   name: string;
-  values: string[];
+  methodArgs: string[];
 }
 
 export interface FountainCallToken extends FountainLine {
   type: FountainCallTokenType;
   name: string;
-  values: string[];
+  methodArgs: string[];
 }
 
 export interface FountainConditionToken extends FountainLine {
@@ -57,7 +57,9 @@ export interface FountainAssignToken extends FountainLine {
   type: FountainAssignTokenType;
   name: string;
   operator: string;
-  value: string;
+  value?: string;
+  methodName?: string;
+  methodArgs?: string[];
 }
 
 export interface FountainChoiceToken extends FountainLine {

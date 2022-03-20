@@ -7,7 +7,7 @@ export const getBlockTree = (
     index: number;
     pos: number;
     line: number;
-    operator: "?" | "*" | "";
+    type?: "section" | "function" | "method" | "detector";
     parent: string;
     children: string[];
     assets: string[];
@@ -18,7 +18,7 @@ export const getBlockTree = (
       index: number;
       pos: number;
       line: number;
-      operator: "?" | "*" | "";
+      type?: "section" | "function" | "method" | "detector";
       parent: string;
       children: string[];
       assets: string[];
@@ -37,7 +37,7 @@ export const getBlockTree = (
       index,
       pos: block.pos,
       line: block.line,
-      operator: block.operator,
+      type: block.type,
       parent: block.reference.parentContainerId,
       children: block.children,
       assets: Array.from(assetSet),

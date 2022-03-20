@@ -5,5 +5,4 @@ export interface FountainTag {
   line: number;
   name: string;
   value: string;
-  valueText: string;
 }

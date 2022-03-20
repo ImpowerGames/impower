@@ -7,7 +7,7 @@ import { CommandData } from "../../items/command/commandData";
 export interface BlockData
   extends ContainerData<"Block", BlockReference>,
     Positionable {
-  operator: "*" | "?" | "";
+  type: "section" | "function" | "method" | "detector";
   ids: Record<string, string>;
   triggers: string[];
   parameters: string[];

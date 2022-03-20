@@ -7,5 +7,4 @@ export interface FountainEntity {
   name: string;
   type: FountainEntityType;
   value: string;
-  valueText: string;
 }

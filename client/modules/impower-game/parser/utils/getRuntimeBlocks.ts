@@ -22,7 +22,7 @@ export const getRuntimeBlocks = (
       pos: section.from,
       line: section.line,
       name: section.name,
-      operator: section.operator,
+      type: section.type,
       parameters:
         Object.values(section.variables || {})
           .filter((v) => v.parameter)

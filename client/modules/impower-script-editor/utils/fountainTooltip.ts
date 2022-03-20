@@ -12,19 +12,11 @@ const getFountainReferenceAt = (
   if (!result?.references) {
     return undefined;
   }
-  let hovered: FountainReference;
   for (let i = 0; i < result?.references.length; i += 1) {
     const found = result?.references[i];
-    if (found.from > pos) {
-      if (hovered && hovered.to > pos) {
-        return hovered;
-      }
-      return null;
+    if (pos >= found.from && pos <= found.to) {
+      return found;
     }
-    hovered = found;
-  }
-  if (hovered && hovered.to > pos) {
-    return hovered;
   }
   return null;
 };
@@ -39,26 +31,25 @@ export const fountainTooltip = (
   getRuntimeValue?: (id: string) => string | number | boolean,
   setRuntimeValue?: (id: string, expression: string) => void
 ): Tooltip | Promise<Tooltip> => {
-  const result = parseContext?.result;
-  const token = getFountainReferenceAt(pos, result);
+  const token = getFountainReferenceAt(pos, parseContext?.result);
   if (!token) {
     return null;
   }
-  const context = {
-    ...result.sections,
-    ...result.tags,
-    ...result.entities,
-    ...result.assets,
-    ...result.variables,
-  };
-  const item = token.id ? context[token.id] : undefined;
-  const isString = typeof item?.value === "string";
-  const runtimeValue = getRuntimeValue?.(token.id);
   return {
     pos: token?.from,
     end: token?.to,
     above: true,
     create: (): { dom: HTMLDivElement } => {
+      const context = {
+        ...(parseContext?.result?.sections || {}),
+        ...(parseContext?.result?.tags || {}),
+        ...(parseContext?.result?.entities || {}),
+        ...(parseContext?.result?.assets || {}),
+        ...(parseContext?.result?.variables || {}),
+      };
+      const item = token.id ? context[token.id] : undefined;
+      const isString = typeof item?.value === "string";
+      const runtimeValue = getRuntimeValue?.(token.id);
       const dom = document.createElement("div");
       dom.className = "cm-valueInfo";
       dom.style.padding = "4px 8px";
@@ -89,7 +80,7 @@ export const fountainTooltip = (
         if (isString) {
           dom.appendChild(document.createTextNode("`"));
         }
-      } else if (item?.valueText) {
+      } else if (item?.type) {
         if (item?.type === "image" || item?.type === "audio") {
           const fileUrl = item?.value;
           const preview = document.createElement(
@@ -110,14 +101,12 @@ export const fountainTooltip = (
           preview.style.backgroundColor = "white";
           dom.appendChild(preview);
         } else {
-          const typeText = document.createTextNode(item?.type);
+          const typeText = document.createTextNode(
+            item?.type === "function"
+              ? `${item?.returnType} ${item?.type}`
+              : item?.type
+          );
           dom.appendChild(typeText);
-          if (item?.valueText) {
-            const separator = document.createTextNode(` : `);
-            dom.appendChild(separator);
-            const valueText = document.createTextNode(item?.valueText);
-            dom.appendChild(valueText);
-          }
         }
       } else {
         return { dom: document.createElement("div") };

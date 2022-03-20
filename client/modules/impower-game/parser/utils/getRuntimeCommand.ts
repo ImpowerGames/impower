@@ -105,7 +105,7 @@ export const getRuntimeCommand = (
       pos: token.from,
       line: token.line,
       name: token.name,
-      values: token.values,
+      values: token.methodArgs,
       returnWhenFinished: token.type === "call",
     };
     return newCommand;

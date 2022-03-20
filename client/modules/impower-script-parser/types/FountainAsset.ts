@@ -7,5 +7,4 @@ export interface FountainAsset {
   name: string;
   type: FountainAssetType;
   value: string;
-  valueText: string;
 }

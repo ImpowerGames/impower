@@ -164,6 +164,7 @@ export function fountain(
                 { y: "center" }
               ),
             });
+            view.focus();
           }
           if (a.changes?.length > 0) {
             const lastChange = a.changes[a.changes.length - 1];

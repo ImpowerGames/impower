@@ -10,7 +10,7 @@ export interface FountainSection {
   from?: number;
   to?: number;
   line?: number;
-  operator?: "?" | "*" | "";
+  returnType?: "string" | "number" | "boolean" | "";
   tokens?: FountainToken[];
   children?: string[];
   triggers?: string[];
@@ -19,5 +19,4 @@ export interface FountainSection {
   tags?: Record<string, FountainTag>;
   assets?: Record<string, FountainAsset>;
   value?: number;
-  valueText?: string;
 }

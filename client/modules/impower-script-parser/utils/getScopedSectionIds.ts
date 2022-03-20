@@ -6,15 +6,19 @@ export const getScopedSectionIds = (
   sections: Record<string, FountainSection>
 ): Record<string, string> => {
   const result: Record<string, string> = {};
-  const childrenIds = sections[sectionId].children || [];
+  const childrenIds = sections?.[sectionId]?.children || [];
   childrenIds.forEach((id) => {
     const section = sections?.[id];
-    result[section.name] = id;
+    if (section) {
+      result[section.name] = id;
+    }
   });
   const ancestorIds = getAncestorIds(sectionId);
   ancestorIds.forEach((id) => {
     const section = sections?.[id];
-    result[section.name] = id;
+    if (section) {
+      result[section.name] = id;
+    }
   });
   return result;
 };

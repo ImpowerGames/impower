@@ -7,7 +7,6 @@ export interface FountainVariable {
   name: string;
   type: FountainVariableType;
   value: string | number | boolean;
-  valueText: string;
   parameter: boolean;
   scope: "public" | "protected" | "private";
 }
