@@ -1688,12 +1688,12 @@ export const parseFountain = (
             const expressionFrom = currentToken.from + getStart(match, 4);
             const expressionTo = expressionFrom + expression.length;
             const expectedType = parsed?.sections[currentSectionId]?.returnType;
-            const validExpression = expression;
             if (expectedType && (!expression || expression === "^")) {
               const message = `Function expects to return a '${expectedType}' but returns nothing`;
               diagnostic(currentToken, message, [], markFrom, markTo);
             }
-            currentToken.value = validExpression;
+            currentToken.value = expression === "^" ? "" : expression;
+            currentToken.returnToTop = expression === "^";
             if (expression && expression !== "^") {
               const [ids, context] = getScopedEvaluationContext(
                 currentSectionId,

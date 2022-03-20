@@ -14,6 +14,7 @@ import {
   DisplayType,
   EnterCommandData,
   IfCommandData,
+  ReturnCommandData,
   SetOperator,
 } from "../../data";
 
@@ -110,23 +111,24 @@ export const getRuntimeCommand = (
     };
     return newCommand;
   }
-  // if (token.type === "return") {
-  //   const refId = `${sectionId}.${token.from}`;
-  //   const refTypeId: CommandTypeId = "ReturnCommand";
-  //   const newCommand: ReturnCommandData = {
-  //     ...createCommandData({
-  //       reference: createCommandReference({
-  //         parentContainerId: sectionId,
-  //         refId,
-  //         refTypeId,
-  //       }),
-  //     }),
-  //     pos: token.from,
-  //     line: token.line,
-  //     value: token.value,
-  //   };
-  //   return newCommand;
-  // }
+  if (token.type === "return") {
+    const refId = `${sectionId}.${token.from}`;
+    const refTypeId: CommandTypeId = "ReturnCommand";
+    const newCommand: ReturnCommandData = {
+      ...createCommandData({
+        reference: createCommandReference({
+          parentContainerId: sectionId,
+          refId,
+          refTypeId,
+        }),
+      }),
+      pos: token.from,
+      line: token.line,
+      value: token.value,
+      returnToTop: token.returnToTop,
+    };
+    return newCommand;
+  }
   if (token.type === "repeat") {
     const refId = `${sectionId}.${token.from}`;
     const refTypeId: CommandTypeId = "RepeatCommand";

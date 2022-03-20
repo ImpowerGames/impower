@@ -72,6 +72,7 @@ export interface FountainReturnToken extends FountainLine {
   type: FountainReturnTokenType;
   operator: string;
   value: string;
+  returnToTop: boolean;
 }
 
 export interface FountainSceneToken extends FountainLine {

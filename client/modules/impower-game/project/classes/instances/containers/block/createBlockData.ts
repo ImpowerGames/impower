@@ -6,7 +6,7 @@ export const createBlockData = (obj?: Partial<BlockData>): BlockData => ({
   ...createContainerData({
     reference: createBlockReference(),
   }),
-  operator: "",
+  type: "section",
   commands: {
     order: [],
     data: {},

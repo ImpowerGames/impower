@@ -389,13 +389,13 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   private continueToNextBlock(data: { id: string }): void {
     const blockId = data.id;
     const block = this.blockTree[blockId];
-    if (block.operator) {
+    if (block.type !== "section") {
       return;
     }
     const blockList = Object.entries(this.blockTree).slice(block.index + 1);
     const [nextBlockId, nextBlock] = blockList.find(
       ([, v]) =>
-        !v.operator &&
+        v.type === "section" &&
         (v.parent === blockId || this.blockTree[v.parent].index < block.index)
     ) || [undefined, undefined];
     if (nextBlock) {
