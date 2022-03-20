@@ -53,11 +53,13 @@ export const quickSnippet = (view: EditorView, type: string): void => {
   const isInlineTemplate = !snippetTemplate.endsWith("\n${}");
   const fromLine = doc.lineAt(from);
   const nextLineFrom = fromLine.to + 1;
-  const beforeLine = doc.lineAt(fromLine.from - 1);
-  const afterLine = doc.lineAt(fromLine.to + 1);
+  const beforeLine =
+    fromLine.from > 0 ? doc.lineAt(fromLine.from - 1) : undefined;
+  const afterLine =
+    fromLine.to < doc.length - 1 ? doc.lineAt(fromLine.to + 1) : undefined;
   const isLineEmpty = !fromLine.text.trim();
-  const isLineBeforeEmpty = !beforeLine.text.trim();
-  const isLineAfterEmpty = !afterLine.text.trim();
+  const isLineBeforeEmpty = !beforeLine?.text?.trim();
+  const isLineAfterEmpty = !afterLine?.text?.trim();
   const snippetFrom = isInlineTemplate || isLineEmpty ? from : nextLineFrom;
   const snippetTo = isInlineTemplate || isLineEmpty ? to : nextLineFrom;
   // Insert selected text if necessary
