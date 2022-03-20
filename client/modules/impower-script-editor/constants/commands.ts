@@ -14,7 +14,6 @@ import { fountainLanguage } from "../utils/fountainLanguage";
 import { itemNumber } from "../utils/itemNumber";
 
 const START_REGEX = /^[\s\d.)\-+*>]*/;
-const CONTINUE_REGEX = /^([ \t]*)([-+*])([ \t]+)/;
 
 function nodeStart(node: SyntaxNode, doc: Text) {
   return doc.sliceString(node.from, node.from + 50);
@@ -45,21 +44,6 @@ function getContext(node: SyntaxNode, line: string, doc: Text): Context[] {
       let after = match[3];
       let len = match[0].length;
       if (after.length >= 4) {
-        after = after.slice(0, after.length - 4);
-        len -= 4;
-      }
-      pos += len;
-      context.push(
-        new Context(node.parent, start, pos, match[1], after, match[2], node)
-      );
-    } else if (
-      node.name === "ListItem" &&
-      node.parent.name === "BulletList" &&
-      (match = CONTINUE_REGEX.exec(nodeStart(node, doc)))
-    ) {
-      let after = match[3];
-      let len = match[0].length;
-      if (after.length > 4) {
         after = after.slice(0, after.length - 4);
         len -= 4;
       }
@@ -215,7 +199,7 @@ function contextNodeForDelete(tree: Tree, pos: number) {
   for (let prev; (prev = node.childBefore(scan)); ) {
     if (isMark(prev)) {
       scan = prev.from;
-    } else if (prev.name === "OrderedList" || prev.name === "BulletList") {
+    } else if (prev.name === "OrderedList") {
       node = prev.lastChild;
       scan = node.to;
     } else {
