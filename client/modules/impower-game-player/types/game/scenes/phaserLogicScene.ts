@@ -78,7 +78,7 @@ export class PhaserLogicScene extends Phaser.Scene {
         ...blocks,
       };
       if (blockState.loaded) {
-        BlockRunner.instance.update(
+        const running = BlockRunner.instance.update(
           blockId,
           blockState,
           {
@@ -91,6 +91,9 @@ export class PhaserLogicScene extends Phaser.Scene {
           time,
           delta
         );
+        if (running === null) {
+          this.game.destroy(true);
+        }
       }
     });
   }

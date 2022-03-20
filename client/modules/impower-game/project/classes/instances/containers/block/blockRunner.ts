@@ -59,7 +59,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     game: ImpowerGame,
     time: number,
     delta: number
-  ): void {
+  ): boolean {
     const { triggers, variables } = context;
 
     game.logic.updateBlock({ id, time, delta });
@@ -95,11 +95,19 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     }
 
     if (blockState.isExecuting) {
-      if (this.runCommands(id, blockState, context, game, time)) {
+      const run = this.runCommands(id, blockState, context, game, time);
+      if (run === null) {
+        return null;
+      }
+      if (run) {
         game.logic.finishBlock({ id });
-        game.logic.continue({ id });
+        const canContinue = game.logic.continue({ id });
+        if (!canContinue) {
+          return null;
+        }
       }
     }
+    return true;
   }
 
   /**
@@ -139,6 +147,9 @@ export class BlockRunner extends ContainerRunner<BlockData> {
             { ...context, index: blockState.executingIndex },
             game
           );
+          if (nextJumps === null) {
+            return null;
+          }
         }
         if (nextJumps.length > 0) {
           game.logic.commandJumpStackPush({

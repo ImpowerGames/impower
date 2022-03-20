@@ -19,6 +19,8 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
     let blockId = "";
     if (name === "") {
       blockId = game.logic.getNextBlockId(executedByBlockId);
+    } else if (name?.toLowerCase() === "!end") {
+      return null;
     } else if (name === "[") {
       blockId = siblingIds?.[0];
     } else if (name === "]") {

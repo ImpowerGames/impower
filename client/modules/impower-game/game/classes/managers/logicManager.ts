@@ -400,25 +400,26 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     return nextBlockId;
   }
 
-  private continueToNextBlock(data: { id: string }): void {
+  private continueToNextBlock(data: { id: string }): boolean {
     const nextBlockId = this.getNextBlockId(data.id);
-    if (nextBlockId) {
-      this.enterBlock({
-        id: nextBlockId,
-        returnWhenFinished: false,
-        executedByBlockId: data.id,
-      });
+    if (!nextBlockId) {
+      return false;
     }
+    this.enterBlock({
+      id: nextBlockId,
+      returnWhenFinished: false,
+      executedByBlockId: data.id,
+    });
+    return true;
   }
 
-  continue(data: { id: string }): void {
+  continue(data: { id: string }): boolean {
     const blockId = data.id;
     const blockState = this.state.blockStates[blockId];
     if (blockState.returnWhenFinished) {
-      this.returnFromBlock({ ...data, value: "", returnToTop: false });
-    } else {
-      this.continueToNextBlock(data);
+      return this.returnFromBlock({ ...data, value: "", returnToTop: false });
     }
+    return this.continueToNextBlock(data);
   }
 
   finishBlock(data: { id: string }): void {
@@ -494,10 +495,10 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     id: string;
     value: string | number | boolean;
     returnToTop: boolean;
-  }): void {
+  }): boolean {
     const executedByBlockId = this.state.blockStates[data.id]?.executedBy;
     if (!executedByBlockId) {
-      return;
+      return false;
     }
 
     const block = this.blockTree[data.id];
@@ -526,6 +527,8 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       line: block.line,
       id: data.id,
     });
+
+    return true;
   }
 
   executeCommand(data: {

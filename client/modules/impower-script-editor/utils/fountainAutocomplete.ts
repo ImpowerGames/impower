@@ -372,7 +372,7 @@ export const sectionSnippets = (
   return prefixes.flatMap((prefix, prefixIndex) =>
     ids.map((id, optionIndex) => {
       const section = sections[id];
-      const name = id === "!END" ? id : section?.name;
+      const name = id?.toLowerCase() === "!end" ? id : section?.name;
       const parameters = Object.values(section?.variables || {}).filter(
         (v) => v.parameter
       );
@@ -395,7 +395,7 @@ export const sectionSnippets = (
         label: cleanedPrefix + name + cleanedSuffix,
         type: !id
           ? "next"
-          : id === "!END"
+          : id?.toLowerCase() === "!end"
           ? "end"
           : ancestorIds.includes(id)
           ? "parent"
