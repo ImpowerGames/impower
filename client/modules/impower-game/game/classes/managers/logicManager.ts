@@ -386,19 +386,23 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     });
   }
 
-  private continueToNextBlock(data: { id: string }): void {
-    const blockId = data.id;
-    const block = this.blockTree[blockId];
+  getNextBlockId(id: string): string {
+    const block = this.blockTree[id];
     if (block.type !== "section") {
-      return;
+      return null;
     }
     const blockList = Object.entries(this.blockTree).slice(block.index + 1);
-    const [nextBlockId, nextBlock] = blockList.find(
+    const [nextBlockId] = blockList.find(
       ([, v]) =>
         v.type === "section" &&
-        (v.parent === blockId || this.blockTree[v.parent].index < block.index)
+        (v.parent === id || this.blockTree[v.parent].index < block.index)
     ) || [undefined, undefined];
-    if (nextBlock) {
+    return nextBlockId;
+  }
+
+  private continueToNextBlock(data: { id: string }): void {
+    const nextBlockId = this.getNextBlockId(data.id);
+    if (nextBlockId) {
       this.enterBlock({
         id: nextBlockId,
         returnWhenFinished: false,
@@ -411,7 +415,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const blockId = data.id;
     const blockState = this.state.blockStates[blockId];
     if (blockState.returnWhenFinished) {
-      this.returnFromBlock({ ...data, value: "" });
+      this.returnFromBlock({ ...data, value: "", returnToTop: false });
     } else {
       this.continueToNextBlock(data);
     }
@@ -489,6 +493,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   returnFromBlock(data: {
     id: string;
     value: string | number | boolean;
+    returnToTop: boolean;
   }): void {
     const executedByBlockId = this.state.blockStates[data.id]?.executedBy;
     if (!executedByBlockId) {
@@ -509,7 +514,9 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       id: executedByBlockId,
       returnWhenFinished: executedByBlockState.returnWhenFinished,
       executedByBlockId: executedByBlockState.executedBy,
-      startIndex: executedByBlockState.executingIndex + 1,
+      startIndex: data.returnToTop
+        ? 0
+        : executedByBlockState.executingIndex + 1,
     });
     executedByBlockState.hasReturned = true;
     executedByBlockState.returnedFrom = data.id;

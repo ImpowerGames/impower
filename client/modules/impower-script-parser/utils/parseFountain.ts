@@ -1675,7 +1675,8 @@ export const parseFountain = (
             const methodArgsFrom = currentToken.from + getStart(match, 6);
             const methodArgsTo = methodArgsFrom + methodArgs.length;
             currentToken.name = name;
-            if (name !== "!END") {
+            const isSectionName = /^[\w]+$/.test(name);
+            if (isSectionName) {
               currentToken.methodArgs = getArgumentValues(
                 name,
                 methodArgs,
@@ -1704,9 +1705,10 @@ export const parseFountain = (
               const message = `Function expects to return a '${expectedType}' but returns nothing`;
               diagnostic(currentToken, message, [], markFrom, markTo);
             }
-            currentToken.value = expression === "^" ? "" : expression;
+            const isSectionName = /^[\w]+$/.test(expression);
+            currentToken.value = isSectionName ? expression : "";
             currentToken.returnToTop = expression === "^";
-            if (expression && expression !== "^") {
+            if (expression && isSectionName) {
               const [ids, context] = getScopedEvaluationContext(
                 currentSectionId,
                 parsed.sections

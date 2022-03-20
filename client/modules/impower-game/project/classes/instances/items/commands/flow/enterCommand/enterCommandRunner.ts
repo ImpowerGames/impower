@@ -12,12 +12,25 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
     const { name, values, returnWhenFinished } = data;
     const { ids, valueMap, parameters } = context;
 
-    const blockId = ids[name];
+    const executedByBlockId = data.reference.parentContainerId;
+    const parentId = game.logic.blockTree[executedByBlockId].parent;
+    const siblingIds = game.logic.blockTree[parentId].children;
+
+    let blockId = "";
+    if (name === "") {
+      blockId = game.logic.getNextBlockId(executedByBlockId);
+    } else if (name === "[") {
+      blockId = siblingIds?.[0];
+    } else if (name === "]") {
+      blockId = siblingIds?.[siblingIds.length - 1];
+    } else {
+      blockId = ids?.[name];
+    }
+
     if (!blockId) {
       return super.onExecute(data, context, game);
     }
 
-    const executedByBlockId = data.reference.parentContainerId;
     const latestValues = values?.map((v) => evaluate(valueMap, v));
 
     parameters?.forEach((parameterName, index) => {
