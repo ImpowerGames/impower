@@ -1,3 +1,4 @@
+import { CompilerDiagnostic } from "..";
 import { CompilerToken } from "../types/compilerToken";
 import { OperationType } from "../types/operationType";
 
@@ -7,6 +8,9 @@ export class Lexer {
 
   // result token list
   private tokenList: CompilerToken[] = [];
+
+  // result diagnostics
+  private diagnostics: CompilerDiagnostic[] = [];
 
   // input string
   private input = "";
@@ -42,8 +46,8 @@ export class Lexer {
     this.input = expression;
   }
 
-  getTokens(): CompilerToken[] {
-    let tok;
+  getTokens(): [CompilerToken[], CompilerDiagnostic[]] {
+    let tok: string;
     do {
       // read current token, so step should be -1
       tok = this.pickNext(-1);
@@ -72,17 +76,21 @@ export class Lexer {
 
       // if the pos not changed, this loop will go into a infinite loop, every step of while loop,
       // we must move the pos forward
-      // so here we should throw error, for example `1 & 2`
+      // so here we should log error, for example `1 & 2`
       if (pos === this.currentIndex && tok !== undefined) {
-        const err = new Error(
-          `unknown token ${tok} from input string ${this.input}`
-        );
-        err.name = "UnknownToken";
-        throw err;
+        this.diagnostics.push({
+          content: "",
+          from: 0,
+          to: tok.length,
+          severity: "error",
+          type: "unknown-token",
+          message: `unknown token ${tok} from input string ${this.input}`,
+        });
+        break;
       }
     } while (tok !== undefined);
 
-    return this.tokenList;
+    return [this.tokenList, this.diagnostics];
   }
 
   /**

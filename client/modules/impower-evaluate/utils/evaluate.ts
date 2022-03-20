@@ -2,10 +2,10 @@ import { Compiler } from "../classes/compiler";
 import { tokenize } from "./tokenize";
 
 export const evaluate = (
-  context: Record<string, string | number | boolean>,
-  expr: string
+  expr: string,
+  context: Record<string, string | number | boolean> = {}
 ): string | number | boolean => {
-  const tokenList = tokenize(expr);
+  const [tokenList] = tokenize(expr);
   const compiler = new Compiler(tokenList);
   const astTree = compiler.parse();
   if (astTree == null) {

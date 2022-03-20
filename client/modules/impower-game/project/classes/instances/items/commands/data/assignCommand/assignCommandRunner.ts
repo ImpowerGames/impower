@@ -19,7 +19,7 @@ export class AssignCommandRunner extends CommandRunner<AssignCommandData> {
     }
 
     const lhs = valueMap[variable];
-    const rhs = evaluate(valueMap, expression);
+    const rhs = evaluate(expression, valueMap);
     const newValue = modifyValue(lhs, operator, rhs);
 
     game.logic.setVariableValue({

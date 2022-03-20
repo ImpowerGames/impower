@@ -1,5 +1,6 @@
 /* eslint-disable no-cond-assign */
 import { Tree } from "@lezer/common";
+import { tokenize } from "../../impower-evaluate";
 import {
   entityMethods,
   fountainRegexes,
@@ -230,6 +231,33 @@ export const DefaultBlockParsers: {
             buf = buf.write(Type.GoSeparatorMark, from, to);
           } else {
             buf = buf.write(Type.GoValue, from, to);
+            const expression = line.text.slice(line.pos + from, line.pos + to);
+            const [tokens] = tokenize(expression);
+            const exprFrom = from;
+            for (let ti = 0; ti < tokens.length; ti += 1) {
+              const t = tokens[ti];
+              if (!Number.isNaN(Number(t.content))) {
+                buf = buf.write(
+                  Type.Number,
+                  exprFrom + t.from,
+                  exprFrom + t.to
+                );
+              }
+              if (fountainRegexes.string.test(t.content)) {
+                buf = buf.write(
+                  Type.String,
+                  exprFrom + t.from,
+                  exprFrom + t.to
+                );
+              }
+              if (fountainRegexes.variableName.test(t.content)) {
+                buf = buf.write(
+                  Type.VariableName,
+                  exprFrom + t.from,
+                  exprFrom + t.to
+                );
+              }
+            }
           }
         }
       }
@@ -272,6 +300,24 @@ export const DefaultBlockParsers: {
       from = to;
       to = from + value.length + valueSpace.length;
       buf = buf.write(Type.ReturnValue, from, to);
+      const expression = line.text.slice(line.pos + from, line.pos + to);
+      const [tokens] = tokenize(expression);
+      const exprFrom = from;
+      tokens.forEach((t) => {
+        if (!Number.isNaN(Number(t.content))) {
+          buf = buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
+        }
+        if (fountainRegexes.string.test(t.content)) {
+          buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
+        }
+        if (fountainRegexes.variableName.test(t.content)) {
+          buf = buf.write(
+            Type.VariableName,
+            exprFrom + t.from,
+            exprFrom + t.to
+          );
+        }
+      });
     }
 
     const node = buf.finish(Type.Return, line.text.length - line.pos);
@@ -357,6 +403,24 @@ export const DefaultBlockParsers: {
       from = to;
       to = from + value.length + valueSpace.length;
       buf = buf.write(valueTokenType, from, to);
+      const expression = line.text.slice(line.pos + from, line.pos + to);
+      const [tokens] = tokenize(expression);
+      const exprFrom = from;
+      tokens.forEach((t) => {
+        if (!Number.isNaN(Number(t.content))) {
+          buf = buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
+        }
+        if (fountainRegexes.string.test(t.content)) {
+          buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
+        }
+        if (fountainRegexes.variableName.test(t.content)) {
+          buf = buf.write(
+            Type.VariableName,
+            exprFrom + t.from,
+            exprFrom + t.to
+          );
+        }
+      });
     }
 
     const node = buf.finish(Type.Asset, line.text.length - line.pos);
@@ -405,6 +469,24 @@ export const DefaultBlockParsers: {
       from = to;
       to = from + value.length + valueSpace.length;
       buf = buf.write(Type.TagValue, from, to);
+      const expression = line.text.slice(line.pos + from, line.pos + to);
+      const [tokens] = tokenize(expression);
+      const exprFrom = from;
+      tokens.forEach((t) => {
+        if (!Number.isNaN(Number(t.content))) {
+          buf = buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
+        }
+        if (fountainRegexes.string.test(t.content)) {
+          buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
+        }
+        if (fountainRegexes.variableName.test(t.content)) {
+          buf = buf.write(
+            Type.VariableName,
+            exprFrom + t.from,
+            exprFrom + t.to
+          );
+        }
+      });
     }
 
     const node = buf.finish(Type.Tag, line.text.length - line.pos);
@@ -453,6 +535,24 @@ export const DefaultBlockParsers: {
       from = to;
       to = from + value.length + valueSpace.length;
       buf = buf.write(Type.VariableValue, from, to);
+      const expression = line.text.slice(line.pos + from, line.pos + to);
+      const [tokens] = tokenize(expression);
+      const exprFrom = from;
+      tokens.forEach((t) => {
+        if (!Number.isNaN(Number(t.content))) {
+          buf = buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
+        }
+        if (fountainRegexes.string.test(t.content)) {
+          buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
+        }
+        if (fountainRegexes.variableName.test(t.content)) {
+          buf = buf.write(
+            Type.VariableName,
+            exprFrom + t.from,
+            exprFrom + t.to
+          );
+        }
+      });
     }
 
     const node = buf.finish(Type.Variable, line.text.length - line.pos);
@@ -659,6 +759,20 @@ export const DefaultBlockParsers: {
         from = to;
         to = from + value.length + valueSpace.length;
         buf = buf.write(Type.AssignValue, from, to);
+        const expression = line.text.slice(line.pos + from, line.pos + to);
+        const [tokens] = tokenize(expression);
+        const exprFrom = from;
+        tokens.forEach((t) => {
+          if (!Number.isNaN(Number(t.content))) {
+            buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
+          }
+          if (fountainRegexes.string.test(t.content)) {
+            buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
+          }
+          if (fountainRegexes.variableName.test(t.content)) {
+            buf.write(Type.VariableName, exprFrom + t.from, exprFrom + t.to);
+          }
+        });
       }
 
       node = buf.finish(Type.Assign, line.text.length - line.pos);
@@ -686,6 +800,20 @@ export const DefaultBlockParsers: {
         from = to;
         to = from + value.length + valueSpace.length;
         buf = buf.write(Type.ConditionValue, from, to);
+        const expression = line.text.slice(line.pos + from, line.pos + to);
+        const [tokens] = tokenize(expression);
+        const exprFrom = from;
+        tokens.forEach((t) => {
+          if (!Number.isNaN(Number(t.content))) {
+            buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
+          }
+          if (fountainRegexes.string.test(t.content)) {
+            buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
+          }
+          if (fountainRegexes.variableName.test(t.content)) {
+            buf.write(Type.VariableName, exprFrom + t.from, exprFrom + t.to);
+          }
+        });
       }
       if (colon || colonSpace) {
         from = to;
@@ -758,6 +886,36 @@ export const DefaultBlockParsers: {
             } else {
               buf = buf.write(Type.CallValue, from, to);
               paramIndex += 1;
+              const expression = line.text.slice(
+                line.pos + from,
+                line.pos + to
+              );
+              const [tokens] = tokenize(expression);
+              const exprFrom = from;
+              for (let ti = 0; ti < tokens.length; ti += 1) {
+                const t = tokens[ti];
+                if (!Number.isNaN(Number(t.content))) {
+                  buf = buf.write(
+                    Type.Number,
+                    exprFrom + t.from,
+                    exprFrom + t.to
+                  );
+                }
+                if (fountainRegexes.string.test(t.content)) {
+                  buf = buf.write(
+                    Type.String,
+                    exprFrom + t.from,
+                    exprFrom + t.to
+                  );
+                }
+                if (fountainRegexes.variableName.test(t.content)) {
+                  buf = buf.write(
+                    Type.VariableName,
+                    exprFrom + t.from,
+                    exprFrom + t.to
+                  );
+                }
+              }
             }
           }
         }

@@ -3,4 +3,5 @@ export type CompilerDiagnosticType =
   | "unknown-operation"
   | "unsupported-operation"
   | "reserved-keyword"
-  | "parse-error";
+  | "parse-error"
+  | "unknown-token";

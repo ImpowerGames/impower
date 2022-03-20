@@ -53,7 +53,8 @@ type CompletionType =
   | "tag"
   | "character"
   | "transition"
-  | "scene";
+  | "scene"
+  | "condition";
 
 const getInfoNode = (info: string, color?: string): Node => {
   const preview = document.createElement("div");
@@ -215,6 +216,21 @@ export const effectSnippets: readonly Completion[] = [
   }),
 ];
 
+export const conditionSnippets: readonly Completion[] = [
+  snip("* if (${}${condition}):", {
+    label: "* if",
+    type: "condition",
+  }),
+  snip("* elif (${}${condition}):", {
+    label: "* elif",
+    type: "condition",
+  }),
+  snip("* else:", {
+    label: "* else",
+    type: "condition",
+  }),
+];
+
 export const callSnippets: readonly Completion[] = [
   snip('* spawn(${}"${entityName}")${}', {
     label: "* spawn",
@@ -332,12 +348,13 @@ export const assignOrCallSnippets = (
 ): Completion[] => {
   const functionIds = getFunctionIds(ancestorIds, children, sections);
   const snippets = [
+    ...conditionSnippets,
     ...nameSnippets(
       variableOptions,
       "variable",
       "* ",
       " = ${}${value}",
-      colors.variable
+      colors.variableName
     ),
     ...functionIds.map((id) => {
       const section = sections[id];
@@ -576,7 +593,9 @@ export const fountainAutocomplete = async (
       const completionType: CompletionType = found.parameter
         ? "parameter"
         : "variable";
-      const infoColor = found.parameter ? colors.parameter : colors.variable;
+      const infoColor = found.parameter
+        ? colors.parameter
+        : colors.variableName;
       return {
         name: found.name,
         type: found.type,
@@ -725,7 +744,7 @@ export const fountainAutocomplete = async (
     ].includes(node.name)
   ) {
     completions.push(
-      ...nameSnippets(variableOptions, "variable", "", "", colors.variable)
+      ...nameSnippets(variableOptions, "variable", "", "", colors.variableName)
     );
   }
   const source = completeFromList(completions);

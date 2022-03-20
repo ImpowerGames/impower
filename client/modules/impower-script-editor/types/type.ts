@@ -99,6 +99,10 @@ export enum Type {
   Underline,
   SceneNumber,
 
+  // Keywords
+  Number,
+  String,
+
   // Markdown Mark
   SectionMark,
   QuoteMark,

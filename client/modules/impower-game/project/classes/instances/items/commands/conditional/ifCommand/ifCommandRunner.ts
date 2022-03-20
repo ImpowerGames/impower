@@ -24,7 +24,7 @@ export class IfCommandRunner extends CommandRunner<IfCommandData> {
   ): number[] {
     const { value } = data;
     const { valueMap, index, commands } = context;
-    const shouldExecute = evaluate(valueMap, value);
+    const shouldExecute = evaluate(value, valueMap);
     if (!shouldExecute) {
       // Skip to the next "ElseIf" command or
       // skip to the command after the next "Else" or "Close" command

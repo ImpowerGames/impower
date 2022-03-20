@@ -388,7 +388,7 @@ const ContainerScriptEditor = React.memo(
         if (!gameRef.current) {
           return;
         }
-        const value = evaluate({}, expression);
+        const value = evaluate(expression);
         gameRef.current.setRuntimeValue(id, value);
       },
       []

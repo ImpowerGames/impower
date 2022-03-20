@@ -4,21 +4,27 @@ import { CompilerReference } from "../types/compilerReference";
 import { tokenize } from "./tokenize";
 
 export const compile = (
-  context: Record<string, string | number | boolean>,
-  expr: string
+  expr: string,
+  context: Record<string, string | number | boolean> = {}
 ): {
   result: string | number | boolean;
   diagnostics: CompilerDiagnostic[];
   references: CompilerReference[];
 } => {
+  if (!expr) {
+    return { result: undefined, diagnostics: [], references: [] };
+  }
   let diagnostics: CompilerDiagnostic[] = [];
   let references: CompilerReference[] = [];
   try {
-    const tokenList = tokenize(expr);
+    const [tokenList, tokenDiagnostics] = tokenize(expr);
     const compiler = new Compiler(tokenList);
     const astTree = compiler.parse();
     diagnostics = compiler.diagnostics;
     references = compiler.references;
+    tokenDiagnostics?.forEach((d) => {
+      diagnostics.push(d);
+    });
     if (!astTree) {
       if (diagnostics.length === 0) {
         diagnostics.push({

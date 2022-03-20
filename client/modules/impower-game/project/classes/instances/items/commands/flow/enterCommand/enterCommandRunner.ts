@@ -33,7 +33,7 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
       return super.onExecute(data, context, game);
     }
 
-    const latestValues = values?.map((v) => evaluate(valueMap, v));
+    const latestValues = values?.map((v) => evaluate(v, valueMap));
 
     parameters?.forEach((parameterName, index) => {
       const parameterId = ids[parameterName];

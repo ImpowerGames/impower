@@ -341,7 +341,7 @@ export class Compiler {
     context: Record<string, string | number | boolean>
   ): string {
     return input.replace(/\${(.*?)}/g, (_a, b) => {
-      return String(evaluate(context, b));
+      return String(evaluate(b, context));
     });
   }
 

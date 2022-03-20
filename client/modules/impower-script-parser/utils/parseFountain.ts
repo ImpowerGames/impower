@@ -431,8 +431,8 @@ export const parseFountain = (
             parsed.sections
           );
           const { result, references, diagnostics } = compile(
-            context,
-            expression
+            expression,
+            context
           );
           if (references?.length > 0) {
             references.forEach((r) => {
@@ -582,8 +582,8 @@ export const parseFountain = (
           parsed.sections
         );
         const { result, references, diagnostics } = compile(
-          context,
-          expression
+          expression,
+          context
         );
         expressionValue.value = result;
         if (references?.length > 0) {
@@ -1714,8 +1714,8 @@ export const parseFountain = (
                 parsed.sections
               );
               const { result, references, diagnostics } = compile(
-                context,
-                expression
+                expression,
+                context
               );
               if (references?.length > 0) {
                 references.forEach((r) => {
@@ -1769,13 +1769,7 @@ export const parseFountain = (
             let index = parsed.scriptTokens.length - 1;
             let lastToken = parsed.scriptTokens[index - 1];
             if (check === "elif" || check === "else") {
-              while (
-                lastToken?.type === "assign" ||
-                lastToken?.type === "call" ||
-                lastToken?.type === "choice" ||
-                lastToken?.type === "condition" ||
-                lastToken?.type === "go"
-              ) {
+              while (lastToken?.type !== "separator") {
                 if (
                   lastToken?.type === "condition" &&
                   lastToken?.offset === currentToken.offset
@@ -1814,7 +1808,7 @@ export const parseFountain = (
                 currentSectionId,
                 parsed.sections
               );
-              const { references, diagnostics } = compile(context, expression);
+              const { references, diagnostics } = compile(expression, context);
               if (references?.length > 0) {
                 references.forEach((r) => {
                   const from = expressionFrom + r.from;

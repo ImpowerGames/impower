@@ -114,12 +114,9 @@ const myHighlightStyle = HighlightStyle.define([
   },
   { tag: t.pageBreak, color: colors.pageBreak },
   { tag: t.transition, color: colors.transition },
-  { tag: t.asset, color: colors.asset },
-  { tag: t.tag, color: colors.tag },
-  { tag: t.variable, color: colors.variable },
-  { tag: t.flow, color: colors.flow },
-  { tag: t.flowMark, color: colors.flow },
-  { tag: t.bulletList, color: colors.flow },
+  { tag: t.assetName, color: colors.asset },
+  { tag: t.tagName, color: colors.tag },
+  { tag: t.conditionCheck, color: colors.condition },
   {
     tag: t.titleValue,
     color: colors.titleValue,
@@ -136,14 +133,6 @@ const myHighlightStyle = HighlightStyle.define([
   { tag: t.synopsesMark, color: colors.comment, opacity: 0.5 },
   { tag: t.comment, color: colors.comment },
   {
-    tag: t.linkTitle,
-    color: colors.keyword,
-  },
-  {
-    tag: t.linkLabel,
-    color: colors.parameter,
-  },
-  {
     tag: t.url,
     color: colors.operator,
   },
@@ -151,6 +140,20 @@ const myHighlightStyle = HighlightStyle.define([
     tag: t.escape,
     color: colors.operator,
   },
+
+  { tag: t.keyword, color: colors.keyword },
+  { tag: t.sectionName, color: colors.sectionName },
+  { tag: t.variableName, color: colors.variableName },
+  { tag: t.parameter, color: colors.parameter },
+  {
+    tag: t.string,
+    color: colors.string,
+  },
+  {
+    tag: t.number,
+    color: colors.number,
+  },
+
   { tag: t.invalid, color: colors.invalid },
 ]);
 
@@ -496,7 +499,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ".cm-completionIcon-variable": {
               "&:after": {
                 content: "'𝑥'",
-                color: colors.variable,
+                color: colors.variableName,
               },
             },
             ".cm-completionIcon-parameter": {
@@ -543,6 +546,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             },
             ".cm-completionIcon-scene": {
               "&:after": { content: "'Տ'", color: colors.scene },
+            },
+            ".cm-completionIcon-condition": {
+              "&:after": { content: "'?'", color: colors.condition },
             },
             ".cm-panels": {
               ...(style?.backgroundColor

@@ -17,7 +17,7 @@ export class ElseIfCommandRunner extends IfCommandRunner {
   ): number[] {
     const { value } = data;
     const { valueMap, index, commands } = context;
-    const shouldExecute = evaluate(valueMap, value);
+    const shouldExecute = evaluate(value, valueMap);
 
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
