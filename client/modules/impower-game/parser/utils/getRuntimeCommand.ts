@@ -1,9 +1,11 @@
 import {
   FountainDialogueToken,
+  FountainDisplayToken,
   FountainToken,
 } from "../../../impower-script-parser";
 import {
   AssignCommandData,
+  ChoiceCommandData,
   CommandData,
   CommandTypeId,
   createCommandData,
@@ -19,10 +21,10 @@ import {
 } from "../../data";
 
 const getDisplayCommand = (
-  token: FountainToken,
+  token: FountainDisplayToken,
   sectionId = ""
 ): DisplayCommandData => {
-  const refId = `${sectionId}.${token.from}`;
+  const refId = `${sectionId}.${token.line}`;
   const refTypeId: CommandTypeId = "DisplayCommand";
   const dialogueToken = token as FountainDialogueToken;
   return {
@@ -30,7 +32,6 @@ const getDisplayCommand = (
       ...createItemData({
         reference: createCommandReference(),
       }),
-      waitUntilFinished: true,
       disabled: false,
       reference: createCommandReference({
         parentContainerId: refId.split(".").slice(0, -1).join("."),
@@ -48,7 +49,7 @@ const getDisplayCommand = (
     parenthetical: dialogueToken.parenthetical || "",
     content: dialogueToken.text || dialogueToken.content,
     assets: dialogueToken.assets?.map(({ name }) => name) || [],
-    waitUntilFinished: dialogueToken.position !== "left",
+    waitUntilFinished: token.wait,
   };
 };
 
@@ -57,7 +58,7 @@ export const getRuntimeCommand = (
   sectionId = ""
 ): CommandData => {
   if (token.type === "assign") {
-    const refId = `${sectionId}.${token.from}`;
+    const refId = `${sectionId}.${token.line}`;
     const refTypeId: CommandTypeId = "AssignCommand";
     const newCommand: AssignCommandData = {
       ...createCommandData({
@@ -76,7 +77,7 @@ export const getRuntimeCommand = (
     return newCommand;
   }
   if (token.type === "condition") {
-    const refId = `${sectionId}.${token.from}`;
+    const refId = `${sectionId}.${token.line}`;
     const refTypeId: CommandTypeId = "IfCommand";
     const newCommand: IfCommandData = {
       ...createCommandData({
@@ -93,7 +94,7 @@ export const getRuntimeCommand = (
     return newCommand;
   }
   if (token.type === "call" || token.type === "go") {
-    const refId = `${sectionId}.${token.from}`;
+    const refId = `${sectionId}.${token.line}`;
     const refTypeId: CommandTypeId = "EnterCommand";
     const newCommand: EnterCommandData = {
       ...createCommandData({
@@ -112,7 +113,7 @@ export const getRuntimeCommand = (
     return newCommand;
   }
   if (token.type === "return") {
-    const refId = `${sectionId}.${token.from}`;
+    const refId = `${sectionId}.${token.line}`;
     const refTypeId: CommandTypeId = "ReturnCommand";
     const newCommand: ReturnCommandData = {
       ...createCommandData({
@@ -130,7 +131,7 @@ export const getRuntimeCommand = (
     return newCommand;
   }
   if (token.type === "repeat") {
-    const refId = `${sectionId}.${token.from}`;
+    const refId = `${sectionId}.${token.line}`;
     const refTypeId: CommandTypeId = "RepeatCommand";
     const newCommand: CommandData = {
       ...createCommandData({
@@ -145,13 +146,41 @@ export const getRuntimeCommand = (
     };
     return newCommand;
   }
-  if (
-    token.type === "dialogue" ||
-    token.type === "action" ||
-    token.type === "centered" ||
-    token.type === "transition" ||
-    token.type === "scene"
-  ) {
+  if (token.type === "choice") {
+    const refId = `${sectionId}.${token.line}`;
+    const refTypeId: CommandTypeId = "ChoiceCommand";
+    const newCommand: ChoiceCommandData = {
+      ...createCommandData({
+        reference: createCommandReference({
+          parentContainerId: sectionId,
+          refId,
+          refTypeId,
+        }),
+      }),
+      pos: token.from,
+      line: token.line,
+      name: token.name,
+      values: token.methodArgs,
+      content: token.content,
+      index: token.index,
+      count: token.count,
+      waitUntilFinished: token.index === token.count - 1,
+    };
+    return newCommand;
+  }
+  if (token.type === "dialogue") {
+    return getDisplayCommand(token, sectionId);
+  }
+  if (token.type === "action") {
+    return getDisplayCommand(token, sectionId);
+  }
+  if (token.type === "centered") {
+    return getDisplayCommand(token, sectionId);
+  }
+  if (token.type === "transition") {
+    return getDisplayCommand(token, sectionId);
+  }
+  if (token.type === "scene") {
     return getDisplayCommand(token, sectionId);
   }
 

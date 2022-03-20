@@ -15,10 +15,7 @@ import {
   getRuntimeCommand,
   getScriptAugmentations,
 } from "../../../impower-game/parser";
-import {
-  BottomNavigationBarSpacer,
-  FadeAnimation,
-} from "../../../impower-route";
+import { FadeAnimation } from "../../../impower-route";
 import {
   colors,
   SearchLineQuery,
@@ -79,7 +76,7 @@ const ContainerScriptEditor = React.memo(
   (props: ContainerScriptEditorProps): JSX.Element => {
     const { windowType, toggleFolding, toggleLinting, onSectionChange } = props;
 
-    const { portrait, transitionState } = useContext(WindowTransitionContext);
+    const { transitionState } = useContext(WindowTransitionContext);
     const { gameInspector } = useContext(GameInspectorContext);
     const { game } = useContext(GameContext);
     const [state, dispatch] = useContext(ProjectEngineContext);
@@ -180,13 +177,15 @@ const ContainerScriptEditor = React.memo(
     }, []);
 
     const handleSaveScriptChange = useCallback(() => {
-      dispatch(
-        projectChangeScript(
-          id,
-          windowType.toLowerCase(),
-          scriptValueRef.current
-        )
-      );
+      if (!gameRef.current) {
+        dispatch(
+          projectChangeScript(
+            id,
+            windowType.toLowerCase(),
+            scriptValueRef.current
+          )
+        );
+      }
     }, [dispatch, id, windowType]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -448,7 +447,6 @@ const ContainerScriptEditor = React.memo(
               />
             </StyledFadeAnimation>
           )}
-          {!portrait && <BottomNavigationBarSpacer />}
         </StyledContainerScriptEditor>
       </>
     );

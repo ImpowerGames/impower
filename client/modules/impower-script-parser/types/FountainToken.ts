@@ -1,8 +1,10 @@
 import { FountainCallTokenType, FountainEntityTokenType } from "..";
 import { FountainLine } from "./FountainLine";
 import {
+  FountainActionTokenType,
   FountainAssetTokenType,
   FountainAssignTokenType,
+  FountainCenteredTokenType,
   FountainChoiceTokenType,
   FountainConditionTokenType,
   FountainDialogueTokenType,
@@ -13,6 +15,7 @@ import {
   FountainSceneTokenType,
   FountainSectionTokenType,
   FountainTagTokenType,
+  FountainTransitionTokenType,
   FountainVariableTokenType,
 } from "./FountainTokenType";
 
@@ -50,6 +53,7 @@ export interface FountainCallToken extends FountainLine {
 
 export interface FountainConditionToken extends FountainLine {
   type: FountainConditionTokenType;
+  check: "if" | "elif" | "else" | "";
   value: string;
 }
 
@@ -65,7 +69,10 @@ export interface FountainAssignToken extends FountainLine {
 export interface FountainChoiceToken extends FountainLine {
   type: FountainChoiceTokenType;
   mark: string;
-  section: string;
+  name: string;
+  methodArgs: string[];
+  index: number;
+  count: number;
 }
 
 export interface FountainReturnToken extends FountainLine {
@@ -78,11 +85,13 @@ export interface FountainReturnToken extends FountainLine {
 export interface FountainSceneToken extends FountainLine {
   type: FountainSceneTokenType;
   scene: string | number;
+  wait: boolean;
 }
 
 export interface FountainPositionToken extends FountainLine {
   type: FountainPositionTokenType;
   position: "left" | "right";
+  wait: boolean;
 }
 
 export interface FountainDialogueToken extends FountainLine {
@@ -91,11 +100,34 @@ export interface FountainDialogueToken extends FountainLine {
   parenthetical: string;
   position: "left" | "right";
   assets?: { name: string }[];
+  wait: boolean;
+}
+
+export interface FountainActionToken extends FountainLine {
+  type: FountainActionTokenType;
+  wait: boolean;
+}
+
+export interface FountainTransitionToken extends FountainLine {
+  type: FountainTransitionTokenType;
+  wait: boolean;
+}
+
+export interface FountainCenteredToken extends FountainLine {
+  type: FountainCenteredTokenType;
+  wait: boolean;
 }
 
 export interface FountainOtherToken extends FountainLine {
   type: FountainOtherTokenType;
 }
+
+export type FountainDisplayToken =
+  | FountainSceneToken
+  | FountainDialogueToken
+  | FountainActionToken
+  | FountainTransitionToken
+  | FountainCenteredToken;
 
 export type FountainToken =
   | FountainAssetToken
@@ -112,4 +144,7 @@ export type FountainToken =
   | FountainSceneToken
   | FountainPositionToken
   | FountainDialogueToken
+  | FountainActionToken
+  | FountainTransitionToken
+  | FountainCenteredToken
   | FountainOtherToken;

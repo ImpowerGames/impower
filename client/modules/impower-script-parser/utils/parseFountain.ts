@@ -14,7 +14,7 @@ import { FountainEntityType } from "../types/FountainEntityType";
 import { FountainParseResult } from "../types/FountainParseResult";
 import { FountainSection } from "../types/FountainSection";
 import { FountainTag } from "../types/FountainTag";
-import { FountainToken } from "../types/FountainToken";
+import { FountainChoiceToken, FountainToken } from "../types/FountainToken";
 import { FountainTokenType } from "../types/FountainTokenType";
 import { FountainVariable } from "../types/FountainVariable";
 import { FountainVariableType } from "../types/FountainVariableType";
@@ -95,6 +95,7 @@ export const parseFountain = (
   let text = "";
   let lastTitlePageToken;
   let currentToken: FountainToken;
+  let previousToken: FountainToken;
   let currentSectionTokens: FountainToken[] = [];
   let tokenCategory = "none";
   let lastCharacterIndex;
@@ -107,6 +108,7 @@ export const parseFountain = (
   let previousParenthetical: string;
   let previousAssets: { name: string }[] = [];
   let notes: { type: FountainAssetType; name: string }[] = [];
+  let currentChoiceTokens: FountainChoiceToken[] = [];
 
   const diagnostic = (
     currentToken: FountainToken,
@@ -1605,6 +1607,7 @@ export const parseFountain = (
             ? content.substring(1)
             : content;
           currentToken.scene = scene;
+          currentToken.wait = true;
           if (!parsed.properties.scenes) {
             parsed.properties.scenes = [];
           }
@@ -1635,22 +1638,31 @@ export const parseFountain = (
         currentToken.content[0] === "!"
       ) {
         currentToken.type = "action";
-        pushNotes();
-        saveAndClearNotes();
-        currentToken.content = currentToken.content.substring(1);
-      } else if (currentToken.content.match(fountainRegexes.centered)) {
-        currentToken.type = "centered";
-        if ((match = lint(fountainRegexes.centered))) {
+        if (currentToken.type === "action") {
+          currentToken.wait = true;
           pushNotes();
           saveAndClearNotes();
-          currentToken.content = match[4] || "";
+          currentToken.content = currentToken.content.substring(1);
+        }
+      } else if (currentToken.content.match(fountainRegexes.centered)) {
+        currentToken.type = "centered";
+        if (currentToken.type === "centered") {
+          if ((match = lint(fountainRegexes.centered))) {
+            currentToken.wait = true;
+            pushNotes();
+            saveAndClearNotes();
+            currentToken.content = match[4] || "";
+          }
         }
       } else if (currentToken.content.match(fountainRegexes.transition)) {
         currentToken.type = "transition";
-        if ((match = lint(fountainRegexes.transition))) {
-          pushNotes();
-          saveAndClearNotes();
-          currentToken.content = match[2] || "";
+        if (currentToken.type === "transition") {
+          currentToken.wait = true;
+          if ((match = lint(fountainRegexes.transition))) {
+            pushNotes();
+            saveAndClearNotes();
+            currentToken.content = match[2] || "";
+          }
         }
       } else if ((match = currentToken.content.match(fountainRegexes.go))) {
         currentToken.type = "go";
@@ -1767,8 +1779,10 @@ export const parseFountain = (
           currentToken.type = "condition";
           if (currentToken.type === "condition") {
             if ((match = lint(fountainRegexes.condition))) {
-              const expression = match[4]?.trim() || "";
-              const expressionFrom = currentToken.from + getStart(match, 4);
+              const check = (match[4]?.trim() as "if" | "elif" | "else") || "";
+              const expression = match[6]?.trim() || "";
+              const expressionFrom = currentToken.from + getStart(match, 6);
+              currentToken.check = check;
               currentToken.value = expression;
               if (expression) {
                 const [ids, context] = getScopedEvaluationContext(
@@ -1846,15 +1860,36 @@ export const parseFountain = (
             if ((match = lint(fountainRegexes.choice))) {
               const mark = match[2]?.trim() || "";
               const content = match[4]?.trim() || "";
-              const section = match[8]?.trim() || "";
-              const sectionFrom = currentToken.from + getStart(match, 8);
-              const sectionTo = sectionFrom + section.length;
-              if (section) {
-                getSection(section, sectionFrom, sectionTo);
-              }
+              const name = match[8]?.trim() || "";
+              const methodArgs = match[10]?.trim() || "";
+              const nameFrom = currentToken.from + getStart(match, 8);
+              const nameTo = nameFrom + name.length;
+              const methodArgsFrom = currentToken.from + getStart(match, 10);
+              const methodArgsTo = methodArgsFrom + methodArgs.length;
               currentToken.mark = mark;
               currentToken.content = content;
-              currentToken.section = section;
+              currentToken.name = name;
+              if (name !== "!END") {
+                currentToken.methodArgs = getArgumentValues(
+                  name,
+                  methodArgs,
+                  nameFrom,
+                  nameTo,
+                  methodArgsFrom,
+                  methodArgsTo
+                );
+              }
+              currentToken.index = currentChoiceTokens?.length || 0;
+              if (
+                previousToken.type === "dialogue" ||
+                previousToken.type === "action" ||
+                previousToken.type === "centered" ||
+                previousToken.type === "transition" ||
+                previousToken.type === "scene"
+              ) {
+                previousToken.wait = false;
+              }
+              currentChoiceTokens.push(currentToken);
             }
           }
         } else {
@@ -1978,6 +2013,7 @@ export const parseFountain = (
               lastCharacterToken?.type === "dialogue"
             ) {
               lastCharacterToken.position = "left";
+              lastCharacterToken.wait = false;
               index += 1;
               lastCharacterToken = parsed.scriptTokens[index];
             }
@@ -2042,9 +2078,12 @@ export const parseFountain = (
         pushAssets();
       } else {
         currentToken.type = "action";
-        pushNotes();
-        saveAndClearNotes();
-        saveAndClearAssets();
+        if (currentToken.type === "action") {
+          currentToken.wait = true;
+          pushNotes();
+          saveAndClearNotes();
+          saveAndClearAssets();
+        }
       }
     } else {
       if (
@@ -2064,6 +2103,7 @@ export const parseFountain = (
         saveAndClearNotes();
         saveAndClearAssets();
         if (currentToken.type === "dialogue") {
+          currentToken.wait = true;
           if (previousCharacter) {
             currentToken.character = previousCharacter;
           }
@@ -2079,6 +2119,7 @@ export const parseFountain = (
         }
         if (currentToken.type === "dialogue") {
           currentToken.position = "right";
+          currentToken.wait = true;
         }
       }
     }
@@ -2088,6 +2129,16 @@ export const parseFountain = (
       !(currentToken.type === "dialogue" && currentToken.content === "  ")
     ) {
       currentToken.content = currentToken.content.trim();
+    }
+
+    if (currentToken.type !== "choice") {
+      if (currentChoiceTokens) {
+        const count = currentChoiceTokens.length;
+        currentChoiceTokens.forEach((t) => {
+          t.count = count;
+        });
+      }
+      currentChoiceTokens = [];
     }
 
     if (tokenCategory === "script" && state !== "ignore") {
@@ -2106,6 +2157,9 @@ export const parseFountain = (
       } else {
         ignoredLastToken = false;
         pushToken(currentToken);
+        if (currentToken.type !== "separator") {
+          previousToken = currentToken;
+        }
       }
     }
   }

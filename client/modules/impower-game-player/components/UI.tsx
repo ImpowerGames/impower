@@ -106,9 +106,22 @@ const UI = React.memo((props: UIProps): JSX.Element => {
     }
   }, []);
 
-  const overlayStyle = useMemo(
+  const overlayStyle: React.CSSProperties = useMemo(
     () => ({ ...(phaserGame?.getUIStyle() || {}) }),
     [phaserGame]
+  );
+
+  const choiceStyle: React.CSSProperties = useMemo(
+    () => ({
+      pointerEvents: "auto",
+      margin: 8,
+      width: 600,
+      maxWidth: "100%",
+      fontFamily: "Courier Prime Sans",
+      fontSize: "1em",
+      display: "none",
+    }),
+    []
   );
 
   return (
@@ -126,7 +139,7 @@ const UI = React.memo((props: UIProps): JSX.Element => {
     >
       <div ref={overlayRef} id="ui-overlay" style={overlayStyle}>
         <div
-          id="impower-ui-display"
+          id="impower-ui"
           style={{
             position: "absolute",
             top: 0,
@@ -154,8 +167,19 @@ const UI = React.memo((props: UIProps): JSX.Element => {
             style={{
               position: "relative",
               flex: 7,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 8,
             }}
-          />
+          >
+            <button className="choice" style={choiceStyle}></button>
+            <button className="choice" style={choiceStyle}></button>
+            <button className="choice" style={choiceStyle}></button>
+            <button className="choice" style={choiceStyle}></button>
+            <button className="choice" style={choiceStyle}></button>
+          </div>
           <div
             style={{
               position: "relative",

@@ -606,13 +606,6 @@ export const DefaultBlockParsers: {
       return false;
     }
 
-    const match =
-      isCall(line) || isCondition(line) || isAssign(line) || isChoice(line);
-
-    if (!match) {
-      return false;
-    }
-
     if (cx.block.type !== Type.BulletList) {
       cx.startContext(Type.BulletList, line.basePos, line.next);
     }
@@ -624,6 +617,18 @@ export const DefaultBlockParsers: {
     let from = 0;
     let to = from;
     let node: Tree;
+
+    const match =
+      isCall(line) || isCondition(line) || isAssign(line) || isChoice(line);
+
+    if (!match) {
+      node = buf.finish(Type.PossibleLogic, line.text.length - line.pos);
+
+      cx.addNode(node, cx.lineStart + line.pos);
+      cx.nextLine();
+
+      return true;
+    }
 
     if (match?.[0] === "assign") {
       const mark = match[2] || "";
@@ -660,15 +665,22 @@ export const DefaultBlockParsers: {
     } else if (match?.[0] === "condition") {
       const mark = match[2] || "";
       const markSpace = match[3] || "";
-      const value = match[4] || "";
-      const valueSpace = match[5] || "";
-      const colon = match[6] || "";
-      const colonSpace = match[7] || "";
+      const check = match[4] || "";
+      const checkSpace = match[5] || "";
+      const value = match[6] || "";
+      const valueSpace = match[7] || "";
+      const colon = match[8] || "";
+      const colonSpace = match[9] || "";
 
       if (mark || markSpace) {
         from = to;
         to = from + mark.length + markSpace.length;
         buf = buf.write(Type.ConditionMark, from, to);
+      }
+      if (check || checkSpace) {
+        from = to;
+        to = from + check.length + checkSpace.length;
+        buf = buf.write(Type.ConditionCheck, from, to);
       }
       if (value || valueSpace) {
         from = to;

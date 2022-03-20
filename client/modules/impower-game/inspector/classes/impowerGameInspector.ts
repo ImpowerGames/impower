@@ -40,6 +40,7 @@ import { ElseIfCommandInspector } from "../../project/classes/instances/items/co
 import { IfCommandInspector } from "../../project/classes/instances/items/commands/conditional/ifCommand/ifCommandInspector";
 import { SelectCommandInspector } from "../../project/classes/instances/items/commands/conditional/selectCommand/selectCommandInspector";
 import { AssignCommandInspector } from "../../project/classes/instances/items/commands/data/assignCommand/assignCommandInspector";
+import { ChoiceCommandInspector } from "../../project/classes/instances/items/commands/dialog/choiceCommand/choiceCommandInspector";
 import { DisplayCommandInspector } from "../../project/classes/instances/items/commands/dialog/displayCommand/displayCommandInspector";
 import { CreateCommandInspector } from "../../project/classes/instances/items/commands/entity/createCommand/createCommandInspector";
 import { DestroyCommandInspector } from "../../project/classes/instances/items/commands/entity/destroyCommand/destroyCommandInspector";
@@ -104,6 +105,7 @@ export class ImpowerGameInspector {
     CloseCommand: new CloseCommandInspector(),
     AssignCommand: new AssignCommandInspector(),
     DisplayCommand: new DisplayCommandInspector(),
+    ChoiceCommand: new ChoiceCommandInspector(),
     CreateCommand: new CreateCommandInspector(),
     DestroyCommand: new DestroyCommandInspector(),
     ShowImageCommand: new ShowImageCommandInspector(),

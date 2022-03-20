@@ -133,14 +133,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
           time,
         });
         let nextJumps: number[] = [];
-        if (
-          !fastForward ||
-          !command.runner.isPure(
-            command.data,
-            { ...context, index: blockState.executingIndex },
-            game
-          )
-        ) {
+        if (!fastForward) {
           nextJumps = command.runner.onExecute(
             command.data,
             { ...context, index: blockState.executingIndex },

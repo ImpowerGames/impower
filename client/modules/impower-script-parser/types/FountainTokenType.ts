@@ -16,6 +16,9 @@ export type FountainReturnTokenType = "return";
 export type FountainSectionTokenType = "section";
 export type FountainSceneTokenType = "scene";
 export type FountainDialogueTokenType = "dialogue";
+export type FountainActionTokenType = "action";
+export type FountainTransitionTokenType = "transition";
+export type FountainCenteredTokenType = "centered";
 export type FountainPositionTokenType =
   | "dialogue_begin"
   | "character"
@@ -24,13 +27,9 @@ export type FountainPositionTokenType =
 export type FountainOtherTokenType =
   | "title"
   | "separator"
-  | "action"
-  | "centered"
-  | "transition"
   | "synopses"
   | "separator"
   | "page_break"
-  | "action"
   | "action_asset"
   | "dialogue_asset"
   | "dialogue_end"
@@ -57,5 +56,8 @@ export type FountainTokenType =
   | FountainSectionTokenType
   | FountainSceneTokenType
   | FountainDialogueTokenType
+  | FountainActionTokenType
+  | FountainTransitionTokenType
+  | FountainCenteredTokenType
   | FountainPositionTokenType
   | FountainOtherTokenType;

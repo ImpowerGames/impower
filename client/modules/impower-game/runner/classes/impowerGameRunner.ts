@@ -20,6 +20,7 @@ import { ElseIfCommandRunner } from "../../project/classes/instances/items/comma
 import { IfCommandRunner } from "../../project/classes/instances/items/commands/conditional/ifCommand/ifCommandRunner";
 import { SelectCommandRunner } from "../../project/classes/instances/items/commands/conditional/selectCommand/selectCommandRunner";
 import { AssignCommandRunner } from "../../project/classes/instances/items/commands/data/assignCommand/assignCommandRunner";
+import { ChoiceCommandRunner } from "../../project/classes/instances/items/commands/dialog/choiceCommand/choiceCommandRunner";
 import { DisplayCommandRunner } from "../../project/classes/instances/items/commands/dialog/displayCommand/displayCommandRunner";
 import { CreateCommandRunner } from "../../project/classes/instances/items/commands/entity/createCommand/createCommandRunner";
 import { DestroyCommandRunner } from "../../project/classes/instances/items/commands/entity/destroyCommand/destroyCommandRunner";
@@ -82,6 +83,7 @@ export class ImpowerGameRunner {
     CloseCommand: new CloseCommandRunner(),
     AssignCommand: new AssignCommandRunner(),
     DisplayCommand: new DisplayCommandRunner(),
+    ChoiceCommand: new ChoiceCommandRunner(),
     CreateCommand: new CreateCommandRunner(),
     DestroyCommand: new DestroyCommandRunner(),
     ShowImageCommand: new ShowImageCommandRunner(),

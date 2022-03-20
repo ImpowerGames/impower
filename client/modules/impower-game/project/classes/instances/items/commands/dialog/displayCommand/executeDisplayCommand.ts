@@ -7,7 +7,7 @@ export const executeDisplayCommand = (
   }
 ): void => {
   const { valueMap } = context;
-  const ui = data.ui || "impower-ui-display";
+  const ui = data.ui || "impower-ui";
   const dialogueGroupEl: HTMLElement = document.querySelector(
     `#${ui} .dialogue-group`
   );
@@ -48,6 +48,15 @@ export const executeDisplayCommand = (
     if (el) {
       el.replaceChildren(type === data?.type ? content : "");
       el.style.display = type === data?.type ? null : "none";
+    }
+  });
+  const contentEls = document.querySelectorAll<HTMLButtonElement>(
+    `#${ui} .choice`
+  );
+  contentEls.forEach((el) => {
+    if (el) {
+      el.replaceChildren("");
+      el.style.display = "none";
     }
   });
 };

@@ -447,9 +447,13 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const newActiveParent = this.blockTree[data.id].parent;
     this.changeActiveParentBlock(newActiveParent);
 
-    // Unload all loaded blocks that are not an ancestor of activeParent
+    // Unload all loaded blocks that are not an ancestor or direct child of new activeParent
     this.state.loadedBlockIds.forEach((loadedBlockId) => {
-      if (!newActiveParent.startsWith(loadedBlockId)) {
+      const loadedBlockParent = loadedBlockId.split(".").slice(0, -1).join(".");
+      if (
+        !newActiveParent.startsWith(loadedBlockId) &&
+        newActiveParent !== loadedBlockParent
+      ) {
         this.unloadBlock({ id: loadedBlockId });
         this.resetBlockExecution(loadedBlockId);
       }
@@ -505,7 +509,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       id: executedByBlockId,
       returnWhenFinished: executedByBlockState.returnWhenFinished,
       executedByBlockId: executedByBlockState.executedBy,
-      startIndex: executedByBlockState.executingIndex,
+      startIndex: executedByBlockState.executingIndex + 1,
     });
     executedByBlockState.hasReturned = true;
     executedByBlockState.returnedFrom = data.id;

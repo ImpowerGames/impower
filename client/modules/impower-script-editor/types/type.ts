@@ -62,6 +62,7 @@ export enum Type {
   Choice,
   ChoiceSectionName,
   Condition,
+  ConditionCheck,
   ConditionValue,
   GoSectionName,
   GoSeparatorMark,
@@ -71,6 +72,7 @@ export enum Type {
   PossibleCharacterName,
   PossibleCharacter,
   PossibleSection,
+  PossibleLogic,
 
   // Markdown Inline
   Escape,
