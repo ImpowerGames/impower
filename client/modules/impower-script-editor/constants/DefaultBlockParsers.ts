@@ -760,12 +760,12 @@ export const DefaultBlockParsers: {
     } else if (match?.[0] === "choice") {
       const mark = match[2] || "";
       const markSpace = match[3] || "";
-      const content = match[4]?.trim() || "";
-      const contentSpace = match[5]?.trim() || "";
-      const angle = match[6]?.trim() || "";
-      const angleSpace = match[7]?.trim() || "";
-      const section = match[8]?.trim() || "";
-      const sectionSpace = match[9]?.trim() || "";
+      const content = match[4] || "";
+      const contentSpace = match[5] || "";
+      const angle = match[6] || "";
+      const angleSpace = match[7] || "";
+      const section = match[8] || "";
+      const sectionSpace = match[9] || "";
 
       if (mark || markSpace) {
         from = to;

@@ -693,16 +693,6 @@ export const fountainAutocomplete = async (
     completions.push(
       ...sectionSnippets(ancestorIds, children, result?.sections, "> ", "${}")
     );
-  } else if (node.name === "ChoiceMark") {
-    completions.push(
-      ...sectionSnippets(
-        ancestorIds,
-        children,
-        result?.sections,
-        ["+ ${}${choice} > ", "- ${}${choice} > "],
-        "${}"
-      )
-    );
   } else if (["GoSectionName", "ChoiceSectionName"].includes(node.name)) {
     completions.push(
       ...sectionSnippets(ancestorIds, children, result?.sections, "${}")
