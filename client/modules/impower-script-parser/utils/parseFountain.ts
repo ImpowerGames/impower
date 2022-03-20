@@ -1352,13 +1352,23 @@ export const parseFountain = (
           );
         }
         addSection(newSection, nameFrom, nameTo);
-        const type = returnType
-          ? "function"
-          : parametersString.startsWith("[") && parametersString.endsWith("]")
-          ? "detector"
-          : parametersString.startsWith("(") && parametersString.endsWith(")")
-          ? "method"
-          : "section";
+        const type =
+          parametersString.startsWith("[") && parametersString.endsWith("]")
+            ? "detector"
+            : returnType
+            ? "function"
+            : parametersString.startsWith("(") && parametersString.endsWith(")")
+            ? "method"
+            : "section";
+        if (type === "detector" && returnType) {
+          diagnostic(
+            currentToken,
+            `Detectors cannot return a value`,
+            [],
+            returnTypeFrom,
+            returnTypeTo
+          );
+        }
         const parameters = getParameterNames(match, 8);
         newSection.type = type;
         if (newSection.type !== "function" && newSection.type !== "detector") {
