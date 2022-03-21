@@ -164,17 +164,6 @@ const Avatar = React.memo(
     return (
       <StyledAvatar className={animationClass} style={avatarStyle}>
         <StyledDarkOverlay className={StyledDarkOverlay.displayName}>
-          {src && (
-            <LazyImage
-              src={src}
-              placeholder={getPlaceholderUrl?.(src)}
-              aria-label={ariaLabel}
-              alt={alt}
-              objectFit={objectFit}
-              style={lazyImageStyle}
-              onError={handleError}
-            />
-          )}
           <StyledButtonContent style={contentButtonStyle}>
             {alt === "[deleted]" ? null : icon ? (
               <FontIcon aria-label={alt} color={iconColor} size={iconSize}>
@@ -204,6 +193,17 @@ const Avatar = React.memo(
               />
             )}
           </StyledButtonContent>
+          {src && (
+            <LazyImage
+              src={src}
+              placeholder={getPlaceholderUrl?.(src)}
+              aria-label={ariaLabel}
+              alt={alt}
+              objectFit={objectFit}
+              style={lazyImageStyle}
+              onError={handleError}
+            />
+          )}
           {children}
         </StyledDarkOverlay>
       </StyledAvatar>

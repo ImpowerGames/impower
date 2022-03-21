@@ -684,11 +684,14 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
         const path = `/${id}`;
         docsByPathRef.current[path] = doc;
       });
-      const currentUploadingProgress = { ...uploadProgressRef.current };
-      Object.keys(currentUploadingProgress).forEach((path) => {
+      Object.keys(docsByPathRef.current).forEach((path) => {
         if (docsByPathRef.current[path]) {
           delete uploadProgressRef.current[path];
-        } else {
+        }
+      });
+      const currentUploadingProgress = { ...uploadProgressRef.current };
+      Object.keys(currentUploadingProgress).forEach((path) => {
+        if (!docsByPathRef.current[path]) {
           docsByPathRef.current[path] = uploadProgressRef.current[path].newDoc;
         }
       });

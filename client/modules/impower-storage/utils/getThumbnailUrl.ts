@@ -7,5 +7,5 @@ export const getThumbnailUrl = (fileUrl: string): string => {
   if (replacedPrefixUrl !== fileUrl) {
     return replacedPrefixUrl;
   }
-  return getPrefixedUrl(fileUrl, "", THUMB_PREFIX);
+  return getPrefixedUrl(fileUrl, THUMB_PREFIX);
 };

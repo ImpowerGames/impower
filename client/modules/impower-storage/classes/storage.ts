@@ -79,8 +79,7 @@ class Storage {
     onStart?: (storageKey: string) => void
   ): Promise<StorageFile> {
     const internal = await this.internal();
-    const claims = await API.instance.verifyUploadClaim();
-    const storageKey = claims?.storage?.key;
+    const storageKey = await API.instance.verifyUploadClaim();
     if (onStart) {
       onStart(storageKey);
     }

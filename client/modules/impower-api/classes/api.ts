@@ -1,6 +1,7 @@
 import { FirebaseApp, getApp, initializeApp } from "firebase/app";
 import { CustomProvider, initializeAppCheck } from "firebase/app-check";
 import { UserClaims, UserCredential } from "../../impower-auth";
+import { MemberData } from "../../impower-data-state";
 import { InternalAppCheck } from "../types/aliases";
 import { getClientCredentials } from "../utils/getClientCredentials";
 import { getToken } from "../utils/getToken";
@@ -73,28 +74,57 @@ class API {
     }
   }
 
-  async verifyUploadClaim(): Promise<UserClaims> {
+  async verifyUploadClaim(): Promise<string> {
     try {
       const Auth = (await import("../../impower-auth/classes/auth")).default;
       const token = await Auth.instance.currentUser.getIdToken(true);
       const response = await fetch("/api/verifyUploadClaim", {
         method: "POST",
-        body: JSON.stringify({ token, now: Date.now() }),
+        body: JSON.stringify({ token }),
         headers: { "Content-Type": "application/json" },
       });
       const result = (await response.json()) as {
         message?: string;
+        storageKey?: string;
       };
       if (!response.ok) {
         throw new Error(result.message);
       }
+      const logInfo = (await import("../../impower-logger/utils/logInfo"))
+        .default;
       const getClaims = (await import("../../impower-auth/utils/getClaims"))
         .default;
       const claims = await getClaims(true);
+      logInfo("API", "VERIFIED UPLOAD CLAIM", claims);
+      return result?.storageKey;
+    } catch (error) {
+      const logError = (await import("../../impower-logger/utils/logError"))
+        .default;
+      logError("API", error);
+      throw error;
+    }
+  }
+
+  async verifyProjectClaim(project: string): Promise<MemberData> {
+    try {
+      const Auth = (await import("../../impower-auth/classes/auth")).default;
+      const token = await Auth.instance.currentUser.getIdToken(true);
+      const response = await fetch("/api/verifyProjectClaim", {
+        method: "POST",
+        body: JSON.stringify({ token, project }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const result = (await response.json()) as {
+        message?: string;
+        member?: MemberData;
+      };
+      if (!response.ok) {
+        throw new Error(result.message);
+      }
       const logInfo = (await import("../../impower-logger/utils/logInfo"))
         .default;
-      logInfo("API", "VERIFIED UPLOAD CLAIM", claims);
-      return claims;
+      logInfo("API", "VERIFIED PROJECT CLAIM");
+      return result.member;
     } catch (error) {
       const logError = (await import("../../impower-logger/utils/logError"))
         .default;

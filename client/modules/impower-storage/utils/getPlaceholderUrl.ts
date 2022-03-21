@@ -7,5 +7,6 @@ export const getPlaceholderUrl = (fileUrl: string): string => {
   if (replacedPrefixUrl !== fileUrl) {
     return replacedPrefixUrl;
   }
-  return getPrefixedUrl(fileUrl, "", BLUR_PREFIX);
+  const result = getPrefixedUrl(fileUrl, BLUR_PREFIX);
+  return result;
 };

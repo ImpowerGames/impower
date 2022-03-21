@@ -20,6 +20,7 @@ export const initAdminApp = async () => {
     return admin.initializeApp({
       projectId: "impowergames-dev",
       storageBucket: "default-bucket",
+      databaseURL: "https://impowergames-dev.firebase.io",
     });
   }
   const adminCredentials = {

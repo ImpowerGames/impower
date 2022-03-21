@@ -115,7 +115,7 @@ export class ProjectEngineSync {
     ).default;
     const unsubscribe = await new DataStateRead(...path, "files").observe(
       (s) => {
-        onSnapshot(s.val());
+        onSnapshot?.(s.val());
         this.onLoaded.emit();
       }
     );

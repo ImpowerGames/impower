@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
 } from "react";
 import { debounce } from "../../impower-core";
@@ -27,8 +28,8 @@ import {
   navigationSetText,
 } from "../../impower-navigation";
 import {
+  ProjectEngineSync,
   ProjectEngineSyncContext,
-  useProjectData,
   useProjectEngineSyncContextState,
 } from "../../impower-project-engine-sync";
 import { Fallback } from "../../impower-route";
@@ -136,22 +137,18 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     recentlyAccessedGameIds
   );
 
-  const handleLoadProjectDoc = useCallback(
-    (doc: ProjectDocument) => {
+  const firstLoadFiles = useRef(true);
+
+  useEffect(() => {
+    const onLoadDoc = (doc: ProjectDocument): void => {
       dispatch(projectLoadDoc(loadedProjectId, doc));
-    },
-    [dispatch, loadedProjectId]
-  );
-  const handleLoadProjectMembers = useCallback(
-    (members: MembersCollection) => {
+    };
+    const onLoadMembers = (members: MembersCollection): void => {
       dispatch(projectLoadMembers(loadedProjectId, members));
-    },
-    [dispatch, loadedProjectId]
-  );
-  const handleLoadProjectFiles = useCallback(
-    async (files: FilesCollection) => {
-      await Promise.all(
-        Object.entries(files?.data || {}).map(([, fileData]) => {
+    };
+    const cacheFiles = async (files: FilesCollection): Promise<void> => {
+      await Promise.all([
+        ...Object.entries(files?.data || {}).map(([, fileData]) => {
           return new Promise((resolve) => {
             if (fileData?.fileType?.startsWith("image") && fileData?.blurUrl) {
               const img = new Image();
@@ -160,10 +157,8 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
               img.src = fileData?.blurUrl;
             }
           });
-        })
-      );
-      await Promise.all(
-        Object.entries(files?.data || {}).map(([, fileData]) => {
+        }),
+        ...Object.entries(files?.data || {}).map(([, fileData]) => {
           return new Promise((resolve) => {
             if (fileData?.fileType?.startsWith("image") && fileData?.thumbUrl) {
               const img = new Image();
@@ -172,10 +167,8 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
               img.src = fileData?.thumbUrl;
             }
           });
-        })
-      );
-      await Promise.all(
-        Object.entries(files?.data || {}).map(([, fileData]) => {
+        }),
+        ...Object.entries(files?.data || {}).map(([, fileData]) => {
           return new Promise((resolve) => {
             if (fileData?.fileType?.startsWith("image") && fileData?.fileUrl) {
               const img = new Image();
@@ -184,32 +177,85 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
               img.src = fileData?.fileUrl;
             }
           });
-        })
-      );
+        }),
+      ]);
+    };
+    const onLoadFiles = (files: FilesCollection): void => {
       dispatch(projectLoadFiles(loadedProjectId, files));
-    },
-    [dispatch, loadedProjectId]
-  );
-  const handleLoadProjectScripts = useCallback(
-    (scripts: GameScriptsCollection) => {
+      if (firstLoadFiles.current) {
+        firstLoadFiles.current = false;
+        cacheFiles(files);
+      }
+    };
+    const onLoadScripts = (scripts: GameScriptsCollection): void => {
       dispatch(projectLoadScripts(loadedProjectId, scripts));
-    },
-    [dispatch, loadedProjectId]
-  );
-  const handleLoadProjectInstances = useCallback(
-    (instances: GameInstancesCollection) => {
+    };
+    const onLoadInstances = (instances: GameInstancesCollection): void => {
       dispatch(projectLoadInstances(loadedProjectId, instances));
-    },
-    [dispatch, loadedProjectId]
-  );
-  useProjectData(
-    loadedProjectId,
-    handleLoadProjectDoc,
-    handleLoadProjectMembers,
-    handleLoadProjectFiles,
-    handleLoadProjectScripts,
-    handleLoadProjectInstances
-  );
+    };
+
+    if (loadedProjectId === undefined) {
+      return (): void => null;
+    }
+
+    if (!loadedProjectId) {
+      onLoadDoc(null);
+      onLoadMembers(null);
+      onLoadFiles(null);
+      onLoadScripts(null);
+      onLoadInstances(null);
+      return (): void => null;
+    }
+
+    let unsubscribeDoc: () => void;
+    let unsubscribeMembers: () => void;
+    let unsubscribeFiles: () => void;
+    let unsubscribeScripts: () => void;
+    let unsubscribeInstances: () => void;
+
+    ProjectEngineSync.instance
+      .observeDoc(onLoadDoc, "projects", loadedProjectId)
+      .then((unsubscribe) => {
+        unsubscribeDoc = unsubscribe;
+      });
+    ProjectEngineSync.instance
+      .observeMembers(onLoadMembers, "projects", loadedProjectId)
+      .then((unsubscribe) => {
+        unsubscribeMembers = unsubscribe;
+      });
+    ProjectEngineSync.instance
+      .observeFiles(onLoadFiles, "projects", loadedProjectId)
+      .then((unsubscribe) => {
+        unsubscribeFiles = unsubscribe;
+      });
+    ProjectEngineSync.instance
+      .observeScripts(onLoadScripts, "projects", loadedProjectId)
+      .then((unsubscribe) => {
+        unsubscribeScripts = unsubscribe;
+      });
+    ProjectEngineSync.instance
+      .observeInstances(onLoadInstances, "projects", loadedProjectId)
+      .then((unsubscribe) => {
+        unsubscribeInstances = unsubscribe;
+      });
+    return (): void => {
+      if (unsubscribeDoc) {
+        unsubscribeDoc();
+      }
+      if (unsubscribeMembers) {
+        unsubscribeMembers();
+      }
+      if (unsubscribeFiles) {
+        unsubscribeFiles();
+      }
+      if (unsubscribeScripts) {
+        unsubscribeScripts();
+      }
+      if (unsubscribeInstances) {
+        unsubscribeInstances();
+      }
+    };
+  }, [dispatch, loadedProjectId]);
 
   useEffect(() => {
     navigationDispatch(
