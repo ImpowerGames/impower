@@ -40,7 +40,7 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
 
       const blockId = ids[this.name];
       const executedByBlockId = data.reference.parentContainerId;
-      const latestValues = this.values?.map((v) => evaluate(valueMap, v));
+      const latestValues = this.values?.map((v) => evaluate(v, valueMap));
 
       this.name = null;
       this.values = null;
