@@ -89,7 +89,6 @@ const AssetsPanel = React.memo((): JSX.Element => {
         : projectState?.data?.files?.data || {},
     [projectState?.data]
   );
-  console.log(fileDocs);
 
   const initialRef = useRef(true);
   const initial = initialRef.current;
