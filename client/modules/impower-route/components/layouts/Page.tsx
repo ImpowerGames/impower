@@ -1686,7 +1686,7 @@ const Page = React.memo((props: PropsWithChildren<PageProps>): JSX.Element => {
                     onClick={handleOpenStatusDialog}
                   >{`More Info`}</StyledBannerButton>
                   <StyledStatusDialog
-                    open={dialogOpen}
+                    open={dialogOpen || false}
                     onClose={handleCloseStatusDialog}
                     bgcolor={readableBackgroundMainColor}
                   >
