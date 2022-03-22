@@ -572,9 +572,19 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
   const [editDialogOpen, setEditDialogOpen] = useState<boolean>();
   const [editIndex, setEditIndex] = useState<number>();
 
-  const docsByPathRef = useRef<{
+  const initialDocsByPath = useMemo<{
     [path: string]: FileData;
-  }>({});
+  }>(() => {
+    const docs = {};
+    if (fileDocs) {
+      Object.entries(fileDocs).forEach(([id, doc]) => {
+        const path = `/${id}`;
+        docs[path] = doc;
+      });
+    }
+    return docs;
+  }, [fileDocs]);
+  const docsByPathRef = useRef(initialDocsByPath);
   const [docsByPath, setDocsByPath] = useState(docsByPathRef.current);
   const [visibleOrderedPaths, setVisibleOrderedPaths] = useState<string[]>();
 

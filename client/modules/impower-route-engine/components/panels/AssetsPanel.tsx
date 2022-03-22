@@ -1,5 +1,13 @@
 import { useTheme } from "@emotion/react";
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import styled from "@emotion/styled";
+import React, {
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { FadeAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
 import useHTMLOverscrollBehavior from "../../../impower-route/hooks/useHTMLOverscrollBehavior";
@@ -9,8 +17,14 @@ import { WindowTransitionContext } from "../../contexts/transitionContext";
 import FilesConsole from "../consoles/FilesConsole";
 import Panel from "../layouts/Panel";
 
+const StyledFadeAnimation = styled(FadeAnimation)`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+`;
+
 const AssetsPanel = React.memo((): JSX.Element => {
-  const { portrait } = useContext(WindowTransitionContext);
+  const { portrait, transitionState } = useContext(WindowTransitionContext);
   const [state] = useContext(ProjectEngineContext);
 
   const projectState = state?.project;
@@ -75,26 +89,36 @@ const AssetsPanel = React.memo((): JSX.Element => {
         : projectState?.data?.files?.data || {},
     [projectState?.data]
   );
+  console.log(fileDocs);
+
+  const initialRef = useRef(true);
+  const initial = initialRef.current;
+  initialRef.current = false;
 
   return (
     <Panel onScrollRef={handleScrollRef} useWindowAsScrollContainer={portrait}>
-      <FilesConsole
-        scrollParent={scrollParent}
-        projectDoc={projectState?.data?.doc}
-        projectId={projectState?.id}
-        fileDocs={fileDocs}
-        selectedColor={selectedColor}
-        fixedStyle={fixedStyle}
-        stickyStyle={stickyStyle}
-        headerStyle={headerStyle}
-        leftStyle={leftStyle}
-        searchButtonStyle={searchButtonStyle}
-        moreButtonStyle={moreButtonStyle}
-        dividerStyle={dividerStyle}
-        paperStyle={paperStyle}
-        style={style}
-        sticky="always"
-      />
+      {(transitionState === "idle" ||
+        (transitionState === "exit" && !initial)) && (
+        <StyledFadeAnimation initial={0} animate={1}>
+          <FilesConsole
+            scrollParent={scrollParent}
+            projectDoc={projectState?.data?.doc}
+            projectId={projectState?.id}
+            fileDocs={fileDocs}
+            selectedColor={selectedColor}
+            fixedStyle={fixedStyle}
+            stickyStyle={stickyStyle}
+            headerStyle={headerStyle}
+            leftStyle={leftStyle}
+            searchButtonStyle={searchButtonStyle}
+            moreButtonStyle={moreButtonStyle}
+            dividerStyle={dividerStyle}
+            paperStyle={paperStyle}
+            style={style}
+            sticky="always"
+          />
+        </StyledFadeAnimation>
+      )}
     </Panel>
   );
 });
