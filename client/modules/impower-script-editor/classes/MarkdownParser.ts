@@ -123,7 +123,7 @@ export class MarkdownParser extends Parser {
           ? ["Block", "BlockContext"]
           : !block
           ? undefined
-          : id >= Type.SectionHeading1 && id <= Type.SectionHeading6
+          : id === Type.Section
           ? ["Block", "LeafBlock", "Heading"]
           : ["Block", "LeafBlock"];
         nodeTypes.push(
