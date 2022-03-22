@@ -158,6 +158,10 @@ export class ImpowerGame {
     if (variableState) {
       return variableState.value;
     }
+    const blockState = this.logic.state?.blockStates?.[id];
+    if (blockState) {
+      return blockState.executionCount;
+    }
     return undefined;
   }
 

@@ -427,6 +427,7 @@ const ContainerScriptEditor = React.memo(
                 augmentations={augmentations}
                 toggleFolding={toggleFolding}
                 toggleLinting={toggleLinting}
+                focusFirstError={mode === "Edit"}
                 editorChange={editorChange}
                 searchTextQuery={searchTextQuery}
                 searchLineQuery={searchLineQuery}

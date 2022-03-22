@@ -6,16 +6,20 @@ import {
 } from "../../impower-script-parser";
 
 const getFountainReferenceAt = (
+  lineNumber: number,
   pos: number,
   result: FountainParseResult
 ): FountainReference => {
   if (!result?.references) {
     return undefined;
   }
-  for (let i = 0; i < result?.references.length; i += 1) {
-    const found = result?.references[i];
-    if (pos >= found.from && pos <= found.to) {
-      return found;
+  const lineReferences = result?.references[lineNumber];
+  if (lineReferences) {
+    for (let i = 0; i < lineReferences.length; i += 1) {
+      const found = lineReferences[i];
+      if (pos >= found.from && pos <= found.to) {
+        return found;
+      }
     }
   }
   return null;
@@ -31,7 +35,8 @@ export const fountainTooltip = (
   getRuntimeValue?: (id: string) => string | number | boolean,
   setRuntimeValue?: (id: string, expression: string) => void
 ): Tooltip | Promise<Tooltip> => {
-  const token = getFountainReferenceAt(pos, parseContext?.result);
+  const line = view.state.doc.lineAt(pos);
+  const token = getFountainReferenceAt(line.number, pos, parseContext?.result);
   if (!token) {
     return null;
   }
@@ -63,6 +68,15 @@ export const fountainTooltip = (
         input.style.color = "white";
         input.style.padding = "2px 4px";
         input.value = String(runtimeValue);
+        input.readOnly =
+          item?.type !== "string" &&
+          item?.type !== "number" &&
+          item?.type !== "boolean" &&
+          item?.type !== "object" &&
+          item?.type !== "enum";
+        if (input.readOnly) {
+          input.style.opacity = "0.5";
+        }
         input.onchange = (e): void => {
           const target = e.target as HTMLInputElement;
           const expression = target.value;

@@ -42,7 +42,6 @@ import {
   isVariable,
 } from "../utils/markdown";
 import { skipSpaceBack } from "../utils/skipSpaceBack";
-import { space } from "../utils/space";
 import {
   CommentEnd,
   EmptyLine,
@@ -92,46 +91,178 @@ export const DefaultBlockParsers: {
       return false;
     }
 
+    let buf = cx.buffer;
+    let from = 0;
+    let to = from;
+
     const mark = match[2] || "";
     const markSpace = match[3] || "";
-    const off = line.pos;
-    const from = cx.lineStart + off;
+    const returnType = match[4] || "";
+    const returnTypeSpace = match[5] || "";
+    const name = match[6] || "";
+    const nameSpace = match[7] || "";
+    const parameters = match[8] || "";
+    const parametersSpace = match[9] || "";
     const level = mark.length;
 
     if (level <= 0 || !markSpace) {
       let buf = cx.buffer;
       buf = buf.write(Type.PossibleSectionMark, 0, mark.length);
-      const node = buf.finish(Type.PossibleSection, line.text.length - off);
+      const node = buf.finish(
+        Type.PossibleSection,
+        line.text.length - line.pos
+      );
       cx.addNode(node, cx.lineStart + line.pos);
       cx.nextLine();
       return true;
     }
 
     cx.startContext(Type.Section, 0, level);
-    const endOfSpace = skipSpaceBack(line.text, line.text.length, off);
-    let after = endOfSpace;
-    while (after > off && line.text.charCodeAt(after - 1) === line.next) {
-      after -= 1;
-    }
-    if (
-      after === endOfSpace ||
-      after === off ||
-      !space(line.text.charCodeAt(after - 1))
-    ) {
-      after = line.text.length;
-    }
-    const buf = cx.buffer
-      .write(Type.SectionMark, 0, level)
-      .writeElements(
-        cx.parser.parseInline(
-          line.text.slice(off + level + 1, after),
-          from + level + 1
-        ),
-        -from
-      );
-    const headingType = Type.SectionHeading1 - 1 + Math.min(6, level);
 
-    const node = buf.finish(headingType, line.text.length - off);
+    if (mark || markSpace) {
+      from = to;
+      to = from + mark.length + markSpace.length;
+      buf = buf.write(Type.SectionMark, from, to);
+    }
+    if (returnType || returnTypeSpace) {
+      from = to;
+      to = from + returnType.length + returnTypeSpace.length;
+      buf = buf.write(Type.SectionReturnType, from, to);
+    }
+    if (name || nameSpace) {
+      from = to;
+      to = from + name.length + nameSpace.length;
+      buf = buf.write(Type.SectionName, from, to);
+    }
+    if (parameters || parametersSpace) {
+      const hasOpenMark =
+        parameters.startsWith("(") || parameters.startsWith("[");
+      const hasCloseMark = parameters.endsWith(")") || parameters.endsWith("]");
+      const values =
+        hasOpenMark && hasCloseMark
+          ? parameters.slice(1, -1)
+          : hasOpenMark
+          ? parameters.slice(1)
+          : hasCloseMark
+          ? parameters.slice(0, -1)
+          : parameters;
+      const openMark = hasOpenMark ? parameters.slice(0, 1) : "";
+      const closeMark = hasCloseMark ? parameters.slice(-1) : "";
+      if (openMark) {
+        from = to;
+        to = from + openMark.length;
+        buf = buf.write(Type.SectionOpenMark, from, to);
+      }
+      const expressionListMatches = Array.from(
+        values.matchAll(fountainRegexes.expression_list)
+      );
+      const tokenMatches: string[] = [""];
+      expressionListMatches.forEach((m) => {
+        const text = m[0];
+        const separatorGroupMatch = m[2];
+        if (separatorGroupMatch) {
+          tokenMatches.push("");
+          tokenMatches[tokenMatches.length - 1] += text;
+          tokenMatches.push("");
+        } else {
+          tokenMatches[tokenMatches.length - 1] += text;
+        }
+      });
+      if (tokenMatches) {
+        const start = 0;
+        const end = tokenMatches.length;
+        for (let i = start; i < end; i += 1) {
+          const token = tokenMatches[i];
+          from = to;
+          to = from + token.length;
+          if (i === tokenMatches.length - 1) {
+            to += parametersSpace.length;
+          }
+          let parameterMatch: RegExpMatchArray;
+          if (token === ",") {
+            buf = buf.write(Type.SectionSeparatorMark, from, to);
+          } else if (!token.trim()) {
+            // empty
+          } else if (
+            (parameterMatch = token.match(
+              fountainRegexes.parameter_declaration
+            ))
+          ) {
+            const name = parameterMatch[2] || "";
+            const nameSpace = parameterMatch[3] || "";
+            const operator = parameterMatch[4] || "";
+            const operatorSpace = parameterMatch[5] || "";
+            const value = parameterMatch[6] || "";
+            const valueSpace = parameterMatch[7] || "";
+
+            if (name || nameSpace) {
+              to = from + name.length + nameSpace.length;
+              buf = buf.write(
+                openMark === "["
+                  ? Type.SectionVariableName
+                  : Type.SectionParameterName,
+                from,
+                to
+              );
+            }
+            if (operator || operatorSpace) {
+              from = to;
+              to = from + operator.length + operatorSpace.length;
+              buf = buf.write(Type.SectionParameterOperator, from, to);
+            }
+            if (value || valueSpace) {
+              from = to;
+              to = from + value.length + valueSpace.length;
+              buf = buf.write(Type.SectionParameterValue, from, to);
+              const expression = line.text.slice(
+                line.pos + from,
+                line.pos + to
+              );
+              const [tokens] = tokenize(expression);
+              const exprFrom = from;
+              for (let ti = 0; ti < tokens.length; ti += 1) {
+                const t = tokens[ti];
+                if (!Number.isNaN(Number(t.content))) {
+                  buf = buf.write(
+                    Type.Number,
+                    exprFrom + t.from,
+                    exprFrom + t.to
+                  );
+                }
+                if (fountainRegexes.string.test(t.content)) {
+                  buf = buf.write(
+                    Type.String,
+                    exprFrom + t.from,
+                    exprFrom + t.to
+                  );
+                }
+                if (fountainRegexes.boolean.test(t.content)) {
+                  buf = buf.write(
+                    Type.Boolean,
+                    exprFrom + t.from,
+                    exprFrom + t.to
+                  );
+                }
+                if (fountainRegexes.variableName.test(t.content)) {
+                  buf = buf.write(
+                    Type.VariableName,
+                    exprFrom + t.from,
+                    exprFrom + t.to
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+      if (closeMark) {
+        from = to;
+        to = from + closeMark.length;
+        buf = buf.write(Type.SectionCloseMark, from, to);
+      }
+    }
+
+    const node = buf.finish(Type.Section, line.text.length - line.pos);
 
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
@@ -194,9 +325,19 @@ export const DefaultBlockParsers: {
       buf = buf.write(Type.GoSectionName, from, to);
     }
     if (parameters || parametersSpace) {
-      const values = parameters.slice(1, -1);
-      const openMark = "(";
-      const closeMark = ")";
+      const hasOpenMark =
+        parameters.startsWith("(") || parameters.startsWith("[");
+      const hasCloseMark = parameters.endsWith(")") || parameters.endsWith("]");
+      const values =
+        hasOpenMark && hasCloseMark
+          ? parameters.slice(1, -1)
+          : hasOpenMark
+          ? parameters.slice(1)
+          : hasCloseMark
+          ? parameters.slice(0, -1)
+          : parameters;
+      const openMark = hasOpenMark ? parameters.slice(0, 1) : "";
+      const closeMark = hasCloseMark ? parameters.slice(-1) : "";
       if (openMark) {
         from = to;
         to = from + openMark.length;
@@ -246,6 +387,13 @@ export const DefaultBlockParsers: {
               if (fountainRegexes.string.test(t.content)) {
                 buf = buf.write(
                   Type.String,
+                  exprFrom + t.from,
+                  exprFrom + t.to
+                );
+              }
+              if (fountainRegexes.boolean.test(t.content)) {
+                buf = buf.write(
+                  Type.Boolean,
                   exprFrom + t.from,
                   exprFrom + t.to
                 );
@@ -309,6 +457,9 @@ export const DefaultBlockParsers: {
         }
         if (fountainRegexes.string.test(t.content)) {
           buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
+        }
+        if (fountainRegexes.boolean.test(t.content)) {
+          buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
         }
         if (fountainRegexes.variableName.test(t.content)) {
           buf = buf.write(
@@ -413,6 +564,9 @@ export const DefaultBlockParsers: {
         if (fountainRegexes.string.test(t.content)) {
           buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
         }
+        if (fountainRegexes.boolean.test(t.content)) {
+          buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
+        }
         if (fountainRegexes.variableName.test(t.content)) {
           buf = buf.write(
             Type.VariableName,
@@ -479,6 +633,9 @@ export const DefaultBlockParsers: {
         if (fountainRegexes.string.test(t.content)) {
           buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
         }
+        if (fountainRegexes.boolean.test(t.content)) {
+          buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
+        }
         if (fountainRegexes.variableName.test(t.content)) {
           buf = buf.write(
             Type.VariableName,
@@ -544,6 +701,9 @@ export const DefaultBlockParsers: {
         }
         if (fountainRegexes.string.test(t.content)) {
           buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
+        }
+        if (fountainRegexes.boolean.test(t.content)) {
+          buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
         }
         if (fountainRegexes.variableName.test(t.content)) {
           buf = buf.write(
@@ -769,6 +929,9 @@ export const DefaultBlockParsers: {
           if (fountainRegexes.string.test(t.content)) {
             buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
           }
+          if (fountainRegexes.boolean.test(t.content)) {
+            buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
+          }
           if (fountainRegexes.variableName.test(t.content)) {
             buf.write(Type.VariableName, exprFrom + t.from, exprFrom + t.to);
           }
@@ -810,6 +973,9 @@ export const DefaultBlockParsers: {
           if (fountainRegexes.string.test(t.content)) {
             buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
           }
+          if (fountainRegexes.boolean.test(t.content)) {
+            buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
+          }
           if (fountainRegexes.variableName.test(t.content)) {
             buf.write(Type.VariableName, exprFrom + t.from, exprFrom + t.to);
           }
@@ -841,9 +1007,20 @@ export const DefaultBlockParsers: {
         buf = buf.write(Type.CallName, from, to);
       }
       if (parameters || parametersSpace) {
-        const values = parameters.slice(1, -1);
-        const openMark = "(";
-        const closeMark = ")";
+        const hasOpenMark =
+          parameters.startsWith("(") || parameters.startsWith("[");
+        const hasCloseMark =
+          parameters.endsWith(")") || parameters.endsWith("]");
+        const values =
+          hasOpenMark && hasCloseMark
+            ? parameters.slice(1, -1)
+            : hasOpenMark
+            ? parameters.slice(1)
+            : hasCloseMark
+            ? parameters.slice(0, -1)
+            : parameters;
+        const openMark = hasOpenMark ? parameters.slice(0, 1) : "";
+        const closeMark = hasCloseMark ? parameters.slice(-1) : "";
         if (openMark) {
           from = to;
           to = from + openMark.length;
@@ -904,6 +1081,13 @@ export const DefaultBlockParsers: {
                 if (fountainRegexes.string.test(t.content)) {
                   buf = buf.write(
                     Type.String,
+                    exprFrom + t.from,
+                    exprFrom + t.to
+                  );
+                }
+                if (fountainRegexes.boolean.test(t.content)) {
+                  buf = buf.write(
+                    Type.Boolean,
                     exprFrom + t.from,
                     exprFrom + t.to
                   );

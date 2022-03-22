@@ -15,7 +15,6 @@ import { ProjectDocument } from "../../impower-data-store";
 import {
   FilesCollection,
   GameInstancesCollection,
-  GameProjectData,
   GameScriptsCollection,
   MembersCollection,
 } from "../../impower-game/data";
@@ -41,10 +40,7 @@ import { GameContext } from "../contexts/gameContext";
 import { GameInspectorContext } from "../contexts/gameInspectorContext";
 import { GameRunnerContext } from "../contexts/gameRunnerContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
-import {
-  panelInspect,
-  panelSetInteraction,
-} from "../types/actions/panelActions";
+import { panelInspect } from "../types/actions/panelActions";
 import {
   projectAccess,
   projectLoadDoc,
@@ -328,16 +324,6 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     () => ({ gameRunner, onCreateRunner: handleCreateRunner }),
     [gameRunner, handleCreateRunner]
   );
-  const gameProject = state?.project?.data as GameProjectData;
-  const projectBlocks = useMemo(
-    () =>
-      gameProject?.instances?.blocks?.data
-        ? Object.values(gameProject?.instances?.blocks?.data || {}).map(
-            (doc) => doc
-          )
-        : [],
-    [gameProject?.instances?.blocks?.data]
-  );
 
   const { events } = dataContext;
 
@@ -351,47 +337,6 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
       events.onOpenData.removeListener(onOpenData);
     };
   }, [events, dispatch]);
-
-  useEffect(() => {
-    const debounceDelay = 200;
-    const onStart = debounce(() => {
-      dispatch(panelSetInteraction("Logic", "Selected", []));
-    }, debounceDelay);
-    const onChangeActiveParentBlock = debounce((data: { id: string }): void => {
-      dispatch(panelInspect("Logic", data.id));
-    }, debounceDelay);
-    const onExecuteBlock = debounce((data: { id: string }): void => {
-      const block = projectBlocks[data.id];
-      if (block) {
-        dispatch(panelSetInteraction("Logic", "Selected", [block.reference]));
-      }
-      events.onFocusData.emit({ ids: [data.id] });
-    }, debounceDelay);
-    const onExecuteCommand = debounce(
-      (data: { blockId: string; commandId: string }): void => {
-        events.onFocusData.emit({ ids: [data.commandId] });
-      },
-      debounceDelay
-    );
-    if (game) {
-      game.events.onStart.addListener(onStart);
-      game.logic.events.onChangeActiveParentBlock.addListener(
-        onChangeActiveParentBlock
-      );
-      game.logic.events.onExecuteBlock.addListener(onExecuteBlock);
-      game.logic.events.onExecuteCommand.addListener(onExecuteCommand);
-    }
-    return (): void => {
-      if (game) {
-        game.events.onStart.removeListener(onStart);
-        game.logic.events.onChangeActiveParentBlock.removeListener(
-          onChangeActiveParentBlock
-        );
-        game.logic.events.onExecuteBlock.removeListener(onExecuteBlock);
-        game.logic.events.onExecuteCommand.removeListener(onExecuteCommand);
-      }
-    };
-  }, [game]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     dispatch(projectAccess(access));

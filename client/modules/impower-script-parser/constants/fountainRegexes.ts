@@ -50,9 +50,11 @@ export const fountainRegexes = {
   string: /^(`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*')$/,
   boolean: /^(true|false)$/,
   number: /^([\d]*[.][\d]*|[\d]+)$/,
-  variableName: /^([a-zA-Z]+[\w]*)$/,
+  variableName: /^(?!true$|false$)([a-zA-Z]+[\w]*)$/,
   method: /^([a-zA-Z]+[\w]*)([ ]*)([(][^\n\r]*[)])([ ]*)$/,
   parameter_declaration:
+    /^([ ]*)([a-zA-Z]+[\w]*)(?:([ ]*)($|[=])([ ]*)($|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[\d]*[.][\d]+|[\d]+|true|false|[a-zA-Z]+[\w]*))?([ ]*)$/,
+  parameter_declaration_lint:
     /^([ ]*)([a-zA-Z]+[\w]*)(?:([ ]*)([=])([ ]*)(`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[\d]*[.][\d]+|[\d]+|true|false|[a-zA-Z]+[\w]*))?([ ]*)$/,
   expression_list: /(`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[^, ]|[\t ]+)|([,])/g,
 

@@ -30,18 +30,12 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     return this._instance;
   }
 
-  triggerDependencies: Record<string, string | number | boolean> = {};
-
   /**
    * Iterates over triggers performs their initializers.
    *
    */
   init(context: BlockContext, game: ImpowerGame): void {
-    const { variables, commands, triggers } = context;
-    triggers.forEach((variableName) => {
-      const value = variables[variableName];
-      this.triggerDependencies[variableName] = value;
-    });
+    const { commands } = context;
     commands.forEach((command) => {
       command.runner.init(command.data, { ...context, index: -1 }, game);
     });
@@ -59,25 +53,24 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     game: ImpowerGame,
     time: number,
     delta: number
-  ): boolean {
+  ): void {
     const { triggers, variables } = context;
 
     game.logic.updateBlock({ id, time, delta });
 
     if (!blockState.isExecuting) {
-      let shouldExecute = false;
       const satisfiedTriggers: string[] = [];
       const unsatisfiedTriggers: string[] = [];
       triggers.forEach((variableName) => {
         const value = variables[variableName];
-        if (this.triggerDependencies[variableName] !== value) {
-          this.triggerDependencies[variableName] = value;
+        if (value) {
           satisfiedTriggers.push(variableName);
-          shouldExecute = true;
         } else {
           unsatisfiedTriggers.push(variableName);
         }
       });
+
+      const shouldExecute = satisfiedTriggers?.length > 0;
 
       game.logic.checkTriggers({
         blockId: id,
@@ -89,25 +82,17 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       if (shouldExecute) {
         game.logic.executeBlock({
           id,
-          executedByBlockId: "",
+          executedByBlockId: game.logic.blockTree[id].parent,
         });
       }
     }
 
     if (blockState.isExecuting) {
-      const run = this.runCommands(id, blockState, context, game, time);
-      if (run === null) {
-        return null;
-      }
-      if (run) {
+      if (this.runCommands(id, blockState, context, game, time)) {
         game.logic.finishBlock({ id });
-        const canContinue = game.logic.continue({ id });
-        if (!canContinue) {
-          return null;
-        }
+        game.logic.continue({ id });
       }
     }
-    return true;
   }
 
   /**
@@ -147,9 +132,6 @@ export class BlockRunner extends ContainerRunner<BlockData> {
             { ...context, index: blockState.executingIndex },
             game
           );
-          if (nextJumps === null) {
-            return null;
-          }
         }
         if (nextJumps.length > 0) {
           game.logic.commandJumpStackPush({

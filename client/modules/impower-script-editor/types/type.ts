@@ -6,12 +6,6 @@ export enum Type {
   BulletList,
   OrderedList,
   ListItem,
-  SectionHeading1,
-  SectionHeading2,
-  SectionHeading3,
-  SectionHeading4,
-  SectionHeading5,
-  SectionHeading6,
   HTMLBlock,
   Paragraph,
   CommentBlock,
@@ -20,6 +14,16 @@ export enum Type {
   // Fountain Block
   Synopses,
   Section,
+  SectionReturnType,
+  SectionName,
+  SectionOpenMark,
+  SectionSeparatorMark,
+  SectionParameter,
+  SectionVariableName,
+  SectionParameterName,
+  SectionParameterOperator,
+  SectionParameterValue,
+  SectionCloseMark,
   Title,
   Scene,
   ScenePrefix,
@@ -102,6 +106,7 @@ export enum Type {
   // Keywords
   Number,
   String,
+  Boolean,
 
   // Markdown Mark
   SectionMark,

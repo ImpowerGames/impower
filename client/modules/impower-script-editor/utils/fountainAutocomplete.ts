@@ -72,11 +72,11 @@ const getInfoNode = (info: string, color?: string): Node => {
 };
 
 export const lowercaseParagraphSnippets: readonly Completion[] = [
-  snip("var ${}${newVariable}", {
-    label: "variable",
+  snip("var ${}${newVariable} = ${value}", {
+    label: "var variable",
     type: "variable",
   }),
-  snip("temp ${}${newVariable}", {
+  snip("temp ${}${newVariable} = ${value}", {
     label: "temp variable",
     type: "variable",
   }),
@@ -716,7 +716,7 @@ export const fountainAutocomplete = async (
         ? "parameter"
         : "variable";
       const infoColor = found.parameter
-        ? colors.parameter
+        ? colors.parameterName
         : colors.variableName;
       return {
         name: found.name,
@@ -868,6 +868,8 @@ export const fountainAutocomplete = async (
       "GoValue",
       "ReturnValue",
       "ConditionValue",
+      "SectionParameterValue",
+      "SectionVariableName",
     ].includes(node.name)
   ) {
     completions.push(

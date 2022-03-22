@@ -16,7 +16,9 @@ export const getRuntimeBlocks = (
   Object.entries(sections).forEach(([sectionId, section]) => {
     const block = createBlockData({
       reference: createBlockReference({
-        parentContainerId: sectionId.split(".").slice(0, -1).join("."),
+        parentContainerId: sectionId
+          ? sectionId.split(".").slice(0, -1).join(".")
+          : null,
         refId: sectionId,
       }),
       pos: section.from,

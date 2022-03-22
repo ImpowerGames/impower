@@ -96,7 +96,6 @@ export const parseFountain = (
   let lastTitlePageToken;
   let currentToken: FountainToken;
   let previousToken: FountainToken;
-  let currentSectionTokens: FountainToken[] = [];
   let tokenCategory = "none";
   let lastCharacterIndex;
   let dualRight;
@@ -121,11 +120,11 @@ export const parseFountain = (
     if (!parsed.diagnostics) {
       parsed.diagnostics = [];
     }
-    const source = `${severity.toUpperCase()}: line ${
-      currentToken.line
-    } column ${from - currentToken.from}`;
     const validFrom = from >= 0 ? from : currentToken.from;
     const validTo = to >= 0 ? to : currentToken.to;
+    const source = `${severity.toUpperCase()}: line ${
+      currentToken.line
+    } column ${validFrom - currentToken.from}`;
     if (validTo > validFrom) {
       parsed.diagnostics.push({
         from: validFrom,
@@ -313,7 +312,10 @@ export const parseFountain = (
     if (!parsed.sections) {
       parsed.sections = {};
     }
-    parsed.references.push({
+    if (!parsed.references[currentToken.line]) {
+      parsed.references[currentToken.line] = [];
+    }
+    parsed.references[currentToken.line].push({
       from: nameFrom,
       to: nameTo,
       name: section.name,
@@ -349,7 +351,10 @@ export const parseFountain = (
       return undefined;
     }
     const [id, found] = findSection(currentSectionId, name);
-    parsed.references.push({ from, to, name, id });
+    if (!parsed.references[currentToken.line]) {
+      parsed.references[currentToken.line] = [];
+    }
+    parsed.references[currentToken.line].push({ from, to, name, id });
     if (!found) {
       diagnostic(
         currentToken,
@@ -435,16 +440,20 @@ export const parseFountain = (
             context
           );
           if (references?.length > 0) {
-            references.forEach((r) => {
+            for (let i = 0; i < references.length; i += 1) {
+              const r = references[i];
               const from = expressionFrom + r.from;
               const to = expressionFrom + r.to;
-              parsed.references.push({
+              if (!parsed.references[currentToken.line]) {
+                parsed.references[currentToken.line] = [];
+              }
+              parsed.references[currentToken.line].push({
                 from,
                 to,
                 name: r.name,
                 id: ids[r.name],
               });
-            });
+            }
           }
           if (diagnostics?.length > 0) {
             for (let i = 0; i < diagnostics.length; i += 1) {
@@ -587,16 +596,20 @@ export const parseFountain = (
         );
         expressionValue.value = result;
         if (references?.length > 0) {
-          references.forEach((r) => {
+          for (let i = 0; i < references.length; i += 1) {
+            const r = references[i];
             const from = expressionFrom + r.from;
             const to = expressionFrom + r.to;
-            parsed.references.push({
+            if (!parsed.references[currentToken.line]) {
+              parsed.references[currentToken.line] = [];
+            }
+            parsed.references[currentToken.line].push({
               from,
               to,
               name: r.name,
               id: ids[r.name],
             });
-          });
+          }
         }
         if (diagnostics?.length > 0) {
           for (let i = 0; i < diagnostics.length; i += 1) {
@@ -644,7 +657,10 @@ export const parseFountain = (
       return null;
     }
     const [id, found] = findAsset(currentSectionId, name);
-    parsed.references.push({ from, to, name, id });
+    if (!parsed.references[currentToken.line]) {
+      parsed.references[currentToken.line] = [];
+    }
+    parsed.references[currentToken.line].push({ from, to, name, id });
     if (!found) {
       diagnostic(
         currentToken,
@@ -690,7 +706,10 @@ export const parseFountain = (
       return null;
     }
     const [id, found] = findEntity(currentSectionId, name);
-    parsed.references.push({ from, to, name, id });
+    if (!parsed.references[currentToken.line]) {
+      parsed.references[currentToken.line] = [];
+    }
+    parsed.references[currentToken.line].push({ from, to, name, id });
     if (!found) {
       diagnostic(
         currentToken,
@@ -730,7 +749,10 @@ export const parseFountain = (
       return null;
     }
     const [id, found] = findTag(currentSectionId, name);
-    parsed.references.push({ from, to, name, id });
+    if (!parsed.references[currentToken.line]) {
+      parsed.references[currentToken.line] = [];
+    }
+    parsed.references[currentToken.line].push({ from, to, name, id });
     if (!found) {
       diagnostic(currentToken, `Cannot find tag named '${name}'`, [], from, to);
       return null;
@@ -748,7 +770,10 @@ export const parseFountain = (
       return undefined;
     }
     const [id, found] = findVariable(currentSectionId, name);
-    parsed.references.push({ from, to, name, id });
+    if (!parsed.references[currentToken.line]) {
+      parsed.references[currentToken.line] = [];
+    }
+    parsed.references[currentToken.line].push({ from, to, name, id });
     if (!found) {
       diagnostic(
         currentToken,
@@ -884,7 +909,10 @@ export const parseFountain = (
     }
     const id = `${currentSectionId}.${name}`;
     lintName(name, nameFrom, nameTo);
-    parsed.references.push({
+    if (!parsed.references[currentToken.line]) {
+      parsed.references[currentToken.line] = [];
+    }
+    parsed.references[currentToken.line].push({
       from: nameFrom,
       to: nameTo,
       name,
@@ -935,7 +963,10 @@ export const parseFountain = (
     }
     const id = `${currentSectionId}.${name}`;
     lintName(name, nameFrom, nameTo);
-    parsed.references.push({
+    if (!parsed.references[currentToken.line]) {
+      parsed.references[currentToken.line] = [];
+    }
+    parsed.references[currentToken.line].push({
       from: nameFrom,
       to: nameTo,
       name,
@@ -985,7 +1016,10 @@ export const parseFountain = (
     }
     const id = `${currentSectionId}.${name}`;
     lintName(name, nameFrom, nameTo);
-    parsed.references.push({
+    if (!parsed.references[currentToken.line]) {
+      parsed.references[currentToken.line] = [];
+    }
+    parsed.references[currentToken.line].push({
       from: nameFrom,
       to: nameTo,
       name,
@@ -1032,7 +1066,10 @@ export const parseFountain = (
     const prefix = scope === "private" ? "private-" : "";
     const id = `${currentSectionId}.${prefix}${name}`;
     lintName(name, nameFrom, nameTo);
-    parsed.references.push({
+    if (!parsed.references[currentToken.line]) {
+      parsed.references[currentToken.line] = [];
+    }
+    parsed.references[currentToken.line].push({
       from: nameFrom,
       to: nameTo,
       name,
@@ -1126,18 +1163,28 @@ export const parseFountain = (
         diagnostic(currentToken, "Empty parameter", [], from, to);
       } else if (
         (parameterMatch = declaration.match(
-          fountainRegexes.parameter_declaration
+          fountainRegexes.parameter_declaration_lint
         ))
       ) {
         const name = parameterMatch[2] || "";
+        const operator = parameterMatch[4] || "";
         const valueText = parameterMatch[6] || "";
         const nameFrom = from + getStart(parameterMatch, 2);
         const nameTo = nameFrom + name.length;
+        const operatorFrom = from + getStart(parameterMatch, 4);
+        const operatorTo = operatorFrom + operator.length;
         const valueFrom = from + getStart(parameterMatch, 6);
         const valueTo = valueFrom + valueText.length;
         if (name) {
           if (detector) {
             getVariable(undefined, name, nameFrom, nameTo);
+            if (valueText) {
+              const error = `Detector dependencies should not be initialized`;
+              diagnostic(currentToken, error, [], valueFrom, valueTo);
+            } else if (operator) {
+              const error = `Detector dependencies should not be initialized`;
+              diagnostic(currentToken, error, [], operatorFrom, operatorTo);
+            }
           } else {
             addVariable(
               name,
@@ -1158,9 +1205,12 @@ export const parseFountain = (
           declaration.length - declaration.trimStart().length;
         const trimmedEndWhitespaceLength =
           declaration.length - declaration.trimEnd().length;
+        const error = detector
+          ? `Invalid variable dependency`
+          : `Invalid parameter declaration`;
         diagnostic(
           currentToken,
-          `Invalid parameter declaration:\nParameter must be initialized to a string (x = "") or number (x = 0)`,
+          error,
           [],
           from + trimmedStartWhitespaceLength,
           to - trimmedEndWhitespaceLength
@@ -1176,7 +1226,10 @@ export const parseFountain = (
     }
     parsed.scriptLines[token.line] = parsed.scriptTokens.length;
     parsed.scriptTokens.push(token);
-    currentSectionTokens.push(token);
+    if (!parsed.sections[currentSectionId].tokens) {
+      parsed.sections[currentSectionId].tokens = [];
+    }
+    parsed?.sections?.[currentSectionId].tokens.push(token);
   };
 
   const pushNotes = (): void => {
@@ -1249,12 +1302,7 @@ export const parseFountain = (
   };
 
   const startNewSection = (level: number): void => {
-    currentSectionTokens = [];
     currentLevel = level;
-    const section = parsed.sections[currentSectionId];
-    if (section) {
-      section.tokens = currentSectionTokens;
-    }
   };
 
   currentToken = createFountainToken(
@@ -1275,7 +1323,7 @@ export const parseFountain = (
       returnType: "",
       name: "",
       triggers: [],
-      tokens: currentSectionTokens,
+      tokens: [],
       value: 0,
     },
     0,
@@ -1335,7 +1383,7 @@ export const parseFountain = (
           type: "section",
           returnType: "",
           name,
-          tokens: currentSectionTokens,
+          tokens: [],
         };
         if (
           returnType === "" ||
@@ -1478,7 +1526,8 @@ export const parseFountain = (
   current = 0;
   currentLevel = 0;
   currentSectionId = "";
-  currentSectionTokens = [];
+
+  startNewSection(0);
 
   let ignoredLastToken = false;
 
@@ -1584,7 +1633,6 @@ export const parseFountain = (
         tokenCategory = "none";
       } else if (parsed.properties.firstTokenLine === undefined) {
         parsed.properties.firstTokenLine = currentToken.line;
-        currentSectionTokens = [];
         currentLevel = 0;
       }
 
@@ -1718,16 +1766,20 @@ export const parseFountain = (
                 context
               );
               if (references?.length > 0) {
-                references.forEach((r) => {
+                for (let i = 0; i < references.length; i += 1) {
+                  const r = references[i];
                   const from = expressionFrom + r.from;
                   const to = expressionFrom + r.to;
-                  parsed.references.push({
+                  if (!parsed.references[currentToken.line]) {
+                    parsed.references[currentToken.line] = [];
+                  }
+                  parsed.references[currentToken.line].push({
                     from,
                     to,
                     name: r.name,
                     id: ids[r.name],
                   });
-                });
+                }
               }
               if (diagnostics?.length > 0) {
                 for (let i = 0; i < diagnostics.length; i += 1) {
@@ -1810,16 +1862,20 @@ export const parseFountain = (
               );
               const { references, diagnostics } = compile(expression, context);
               if (references?.length > 0) {
-                references.forEach((r) => {
+                for (let i = 0; i < references.length; i += 1) {
+                  const r = references[i];
                   const from = expressionFrom + r.from;
                   const to = expressionFrom + r.to;
-                  parsed.references.push({
+                  if (!parsed.references[currentToken.line]) {
+                    parsed.references[currentToken.line] = [];
+                  }
+                  parsed.references[currentToken.line].push({
                     from,
                     to,
                     name: r.name,
                     id: ids[r.name],
                   });
-                });
+                }
               }
               if (diagnostics?.length > 0) {
                 for (let i = 0; i < diagnostics.length; i += 1) {

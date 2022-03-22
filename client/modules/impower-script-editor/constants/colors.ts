@@ -25,13 +25,15 @@ export const colors = {
   tag: "#9CDCFE",
 
   keyword: "#569CD6",
-  variableName: "#FfC1FF",
+  typeName: "#00D0D0",
+  variableName: "#9CDCFE",
   sectionName: "#FFBFFF",
-  parameter: "#9CDCFE",
+  parameterName: "#4FC1FF",
   string: "#CE9178",
   number: "#D9E577",
+  boolean: "#569CD6",
 
-  tooltip: "#252526",
+  tooltip: "#313133",
   match: "#18A3FF",
   selected: "#094771",
 };

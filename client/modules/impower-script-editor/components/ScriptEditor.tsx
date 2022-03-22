@@ -97,13 +97,8 @@ const myHighlightStyle = HighlightStyle.define([
     tag: t.dualDialogue,
     color: colors.dualDialogue,
   },
-  { tag: t.section, color: colors.section, opacity: 0.5, fontWeight: 400 },
-  { tag: t.sectionHeading1, color: colors.section },
-  { tag: t.sectionHeading2, color: colors.section },
-  { tag: t.sectionHeading3, color: colors.section },
-  { tag: t.sectionHeading4, color: colors.section },
-  { tag: t.sectionHeading5, color: colors.section },
-  { tag: t.sectionHeading6, color: colors.section },
+  { tag: t.section, color: colors.section },
+  { tag: t.sectionMark, color: colors.section, opacity: 0.5 },
   {
     tag: t.scene,
     color: colors.scene,
@@ -142,9 +137,10 @@ const myHighlightStyle = HighlightStyle.define([
   },
 
   { tag: t.keyword, color: colors.keyword },
+  { tag: t.typeName, color: colors.typeName },
   { tag: t.sectionName, color: colors.sectionName },
   { tag: t.variableName, color: colors.variableName },
-  { tag: t.parameter, color: colors.parameter },
+  { tag: t.parameterName, color: colors.parameterName },
   {
     tag: t.string,
     color: colors.string,
@@ -152,6 +148,10 @@ const myHighlightStyle = HighlightStyle.define([
   {
     tag: t.number,
     color: colors.number,
+  },
+  {
+    tag: t.boolean,
+    color: colors.boolean,
   },
 
   { tag: t.invalid, color: colors.invalid },
@@ -163,6 +163,7 @@ interface ScriptEditorProps {
   toggleFolding?: boolean;
   toggleLinting?: boolean;
   toggleGotoLine?: boolean;
+  focusFirstError?: boolean;
   searchTextQuery?: SearchTextQuery;
   searchLineQuery?: SearchLineQuery;
   editorChange: {
@@ -212,6 +213,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     toggleFolding,
     toggleLinting,
     toggleGotoLine,
+    focusFirstError,
     searchTextQuery,
     searchLineQuery,
     editorChange,
@@ -530,7 +532,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ".cm-completionIcon-parameter": {
               "&:after": {
                 content: "'ρ'",
-                color: colors.parameter,
+                color: colors.parameterName,
               },
             },
             ".cm-completionIcon-trigger": {
@@ -773,11 +775,14 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     initialRef.current = false;
   }, [editorChange]);
 
+  const focusFirstErrorRef = useRef(focusFirstError);
+  focusFirstErrorRef.current = focusFirstError;
+
   useEffect(() => {
     if (toggleLinting) {
       openLintPanel(viewRef.current);
       const firstError = parseResultRef.current?.diagnostics?.[0];
-      if (firstError) {
+      if (focusFirstErrorRef.current && firstError) {
         viewRef.current.dispatch({
           selection: { anchor: firstError.from, head: firstError.to },
           effects: EditorView.scrollIntoView(
