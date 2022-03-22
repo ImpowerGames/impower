@@ -4,7 +4,7 @@ import {
   SubmissionType,
 } from "../../impower-api";
 import { UserAttributes, UserClaims } from "../../impower-auth";
-import { DataDocument } from "../../impower-core";
+import { DataDocument, StorageFile } from "../../impower-core";
 import { AggData, MemberData } from "../../impower-data-state";
 import {
   CommentDocument,
@@ -15,6 +15,7 @@ import {
   SettingsDocument,
   UserDocument,
 } from "../../impower-data-store";
+import { UploadTask } from "../../impower-storage";
 
 export interface UserState extends UserAttributes {
   uid?: string;
@@ -86,5 +87,22 @@ export interface UserState extends UserAttributes {
   };
   notifications?: {
     [key: string]: AggData;
+  };
+  uploads?: {
+    [key: string]: {
+      path: string;
+      file: File;
+      metadata: StorageFile;
+      state:
+        | "pending"
+        | "running"
+        | "paused"
+        | "success"
+        | "canceled"
+        | "error"
+        | "ready";
+      bytesTransferred: number;
+      task?: UploadTask;
+    };
   };
 }

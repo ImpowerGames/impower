@@ -11,6 +11,7 @@ import {
   FileMetadata,
   InternalStorage,
   SettableFileMetadata,
+  UploadTask,
   UploadTaskSnapshot,
 } from "../types/aliases";
 
@@ -72,12 +73,11 @@ class Storage {
     return this._internal;
   }
 
-  async put(
+  async upload(
     object: Blob | Uint8Array | ArrayBuffer,
     metadata?: Partial<FileMetadata>,
-    onProgress?: (snapshot: UploadTaskSnapshot) => void,
     onStart?: (storageKey: string) => void
-  ): Promise<StorageFile> {
+  ): Promise<[UploadTask, string]> {
     const internal = await this.internal();
     const storageKey = await API.instance.verifyUploadClaim();
     if (onStart) {
@@ -85,7 +85,7 @@ class Storage {
     }
     const logInfo = (await import("../../impower-logger/utils/logInfo"))
       .default;
-    logInfo("Storage", "PUT FILE", storageKey, metadata);
+    logInfo("Storage", "UPLOAD FILE", storageKey, metadata);
     const newMetadata: SettableFileMetadata = {
       ...metadata,
       cacheControl: "public,max-age=31536000",
@@ -96,6 +96,20 @@ class Storage {
     };
     const ref = _ref(internal, storageKey);
     const uploadTask = _uploadBytesResumable(ref, object, newMetadata);
+    return [uploadTask, storageKey];
+  }
+
+  async put(
+    object: Blob | Uint8Array | ArrayBuffer,
+    metadata?: Partial<FileMetadata>,
+    onProgress?: (snapshot: UploadTaskSnapshot) => void,
+    onStart?: (storageKey: string) => void
+  ): Promise<StorageFile> {
+    const [uploadTask, storageKey] = await this.upload(
+      object,
+      metadata,
+      onStart
+    );
     return new Promise<StorageFile>((resolve, reject): void => {
       const onComplete = async (): Promise<void> => {
         const { ref } = uploadTask.snapshot;

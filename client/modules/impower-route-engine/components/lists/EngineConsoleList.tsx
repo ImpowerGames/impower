@@ -14,6 +14,7 @@ import {
 import dynamic from "next/dynamic";
 import React, {
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -30,7 +31,7 @@ import FilterSolidIcon from "../../../../resources/icons/solid/filter.svg";
 import PlusSolidIcon from "../../../../resources/icons/solid/plus.svg";
 import SquareCheckSolidIcon from "../../../../resources/icons/solid/square-check.svg";
 import UploadSolidIcon from "../../../../resources/icons/solid/upload.svg";
-import { debounce, difference } from "../../../impower-core";
+import { debounce, difference, StorageFile } from "../../../impower-core";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { FontIcon } from "../../../impower-icon";
 import { TransparencyPattern } from "../../../impower-react-color-picker";
@@ -47,7 +48,8 @@ import PeerTransition from "../../../impower-route/components/animations/PeerTra
 import Avatar from "../../../impower-route/components/elements/Avatar";
 import CornerFab from "../../../impower-route/components/fabs/CornerFab";
 import { SearchTextQuery } from "../../../impower-script-editor";
-import { getPlaceholderUrl } from "../../../impower-storage";
+import { getPlaceholderUrl, UploadTask } from "../../../impower-storage";
+import { UserContext } from "../../../impower-user";
 import EngineToolbar from "../headers/EngineToolbar";
 
 const Skeleton = dynamic(() => import("@material-ui/core/Skeleton"), {
@@ -933,10 +935,16 @@ interface EngineConsoleCardItemContentProps {
   contextHeaderOpen?: boolean;
   paths?: string[];
   draggingFile?: boolean;
+  uploadState?:
+    | "pending"
+    | "running"
+    | "paused"
+    | "success"
+    | "canceled"
+    | "error"
+    | "ready";
   uploadBytesTransferred?: number;
   uploadTotalBytes?: number;
-  deleteAmount?: number;
-  deleteTotal?: number;
   selectedColor: string;
   loadingAnimation?: "fade" | "pulse" | "wave" | false;
   dividerStyle?: React.CSSProperties;
@@ -979,10 +987,9 @@ const EngineConsoleItemCardContent = React.memo(
       contextHeaderOpen,
       paths,
       draggingFile,
+      uploadState,
       uploadBytesTransferred,
       uploadTotalBytes,
-      deleteAmount,
-      deleteTotal,
       selectedColor,
       loadingAnimation,
       dividerStyle,
@@ -1154,20 +1161,17 @@ const EngineConsoleItemCardContent = React.memo(
       [onSelect, paths, rowPath, selectedPaths]
     );
 
-    const uploadPercentage = uploadTotalBytes
-      ? Math.max(0, (uploadBytesTransferred / uploadTotalBytes) * 100)
-      : undefined;
-
-    const contextPercentage = deleteTotal
-      ? Math.max(0, (deleteAmount / deleteTotal) * 100)
-      : undefined;
+    const uploadPercentage =
+      uploadTotalBytes &&
+      (uploadState === "pending" ||
+        uploadState === "running" ||
+        uploadState === "paused" ||
+        uploadState === "success")
+        ? Math.max(0, (uploadBytesTransferred / uploadTotalBytes) * 100)
+        : undefined;
 
     const percentage =
-      uploadPercentage !== undefined
-        ? uploadPercentage
-        : contextPercentage !== undefined
-        ? contextPercentage
-        : undefined;
+      uploadPercentage !== undefined ? uploadPercentage : undefined;
 
     const rowName = rowDisplayValues?.[rowNameKey] || "";
 
@@ -1439,10 +1443,6 @@ interface EngineConsoleCardItemCardProps {
   selectedPaths?: string[];
   contextOptions?: string[];
   contextHeaderOpen?: boolean;
-  uploadProgress?: {
-    [path: string]: { bytesTransferred: number; totalBytes: number };
-  };
-  deleteProgress?: { [path: string]: boolean };
   selectedColor?: string;
   loadingAnimation?: "fade" | "pulse" | "wave" | false;
   dividerStyle?: React.CSSProperties;
@@ -1485,8 +1485,6 @@ const EngineConsoleItemCard = React.memo(
       selectedPaths,
       contextOptions,
       contextHeaderOpen,
-      uploadProgress,
-      deleteProgress,
       selectedColor,
       loadingAnimation,
       dividerStyle,
@@ -1515,49 +1513,63 @@ const EngineConsoleItemCard = React.memo(
 
     const containerItemPaths = containers?.[path];
 
+    const [userState] = useContext(UserContext);
+
+    const allPaths = useMemo(() => {
+      return containerItemPaths || [path];
+    }, [containerItemPaths, path]);
+
+    const uploadProgressRef = useRef<
+      {
+        path: string;
+        file: File;
+        metadata: StorageFile;
+        state:
+          | "pending"
+          | "running"
+          | "paused"
+          | "success"
+          | "canceled"
+          | "error"
+          | "ready";
+        bytesTransferred?: number;
+        task?: UploadTask;
+      }[]
+    >();
+    const uploadProgress = useMemo(() => {
+      const newPathUploads = allPaths.map((p) => userState?.uploads?.[p]);
+      if (
+        Object.values(uploadProgressRef.current || [])
+          .map((x) => JSON.stringify([x?.path, x?.state, x?.bytesTransferred]))
+          .join(",") !==
+        Object.values(newPathUploads || [])
+          .map((x) => JSON.stringify([x?.path, x?.state, x?.bytesTransferred]))
+          .join(",")
+      ) {
+        uploadProgressRef.current = newPathUploads;
+      }
+      return uploadProgressRef.current;
+    }, [allPaths, userState?.uploads]);
+
+    const uploadState = useMemo(
+      () => uploadProgress?.[uploadProgress?.length - 1]?.state,
+      [uploadProgress]
+    );
+
     const uploadBytesTransferred = useMemo(
       () =>
-        containerItemPaths
-          ? containerItemPaths
-              .map(
-                (itemPath) => uploadProgress?.[itemPath]?.bytesTransferred || 0
-              )
-              .reduce((a, b) => a + b, 0)
-          : uploadProgress?.[path]?.bytesTransferred,
-      [containerItemPaths, path, uploadProgress]
+        uploadProgress
+          .map((x) => x?.bytesTransferred || 0)
+          .reduce((a, b) => a + b, 0),
+      [uploadProgress]
     );
 
     const uploadTotalBytes = useMemo(
       () =>
-        containerItemPaths
-          ? containerItemPaths
-              .map((itemPath) => uploadProgress?.[itemPath]?.totalBytes || 0)
-              .reduce((a, b) => a + b, 0)
-          : uploadProgress?.[path]?.totalBytes,
-      [containerItemPaths, path, uploadProgress]
-    );
-
-    const deleteAmount = useMemo(
-      () =>
-        containerItemPaths
-          ? containerItemPaths.filter((itemPath) => deleteProgress?.[itemPath])
-              .length
-          : deleteProgress?.[path]
-          ? 1
-          : 0,
-      [containerItemPaths, path, deleteProgress]
-    );
-
-    const deleteTotal = useMemo(
-      () =>
-        containerItemPaths
-          ? containerItemPaths.filter(
-              (itemPath) => deleteProgress?.[itemPath] !== undefined
-            ).length
-          : deleteProgress?.[path] !== undefined
-          ? 1
-          : 0,
-      [containerItemPaths, path, deleteProgress]
+        uploadProgress
+          .map((x) => x?.file?.size || 0)
+          .reduce((a, b) => a + b, 0),
+      [uploadProgress]
     );
 
     const rowDisplayValues: { [key: string]: string } = useMemo(() => {
@@ -1602,10 +1614,9 @@ const EngineConsoleItemCard = React.memo(
         paths={paths}
         cardDetails={cardDetails}
         draggingFile={draggingFile}
+        uploadState={uploadState}
         uploadBytesTransferred={uploadBytesTransferred}
         uploadTotalBytes={uploadTotalBytes}
-        deleteAmount={deleteAmount}
-        deleteTotal={deleteTotal}
         selectedColor={selectedColor}
         loadingAnimation={loadingAnimation}
         dividerStyle={dividerStyle}
@@ -1657,10 +1668,6 @@ interface EngineConsoleListProps {
   currentPath?: string;
   loading?: boolean;
   createDisabled?: boolean;
-  uploadProgress?: {
-    [path: string]: { bytesTransferred: number; totalBytes: number };
-  };
-  deleteProgress?: { [path: string]: boolean };
   maxWidth?: number;
   emptyBackground?: React.ReactNode;
   rowHeight?: number;
@@ -1745,8 +1752,6 @@ export const EngineConsoleList = React.memo(
       defaultSortOrder = "asc",
       rowNameKey = "name",
       loading,
-      uploadProgress,
-      deleteProgress,
       title,
       createLabel,
       addLabel,
@@ -2557,8 +2562,6 @@ export const EngineConsoleList = React.memo(
                               selectedPaths={selectedPaths}
                               contextOptions={contextOptions}
                               contextHeaderOpen={contextHeaderOpen}
-                              uploadProgress={uploadProgress}
-                              deleteProgress={deleteProgress}
                               selectedColor={selectedColor}
                               loading={loadingState}
                               loadingAnimation="fade"

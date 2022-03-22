@@ -33,12 +33,15 @@ import { USER_LOAD_NOTIFICATIONS } from "./actions/userLoadNotificationsAction";
 import { USER_LOAD_SETTINGS } from "./actions/userLoadSettingsAction";
 import { USER_LOAD_SUBMISSIONS } from "./actions/userLoadSubmissionsAction";
 import { USER_LOAD_USER_DOC } from "./actions/userLoadUserDocAction";
+import { USER_QUEUE_FILE_UPLOAD } from "./actions/userQueueFileUploadAction";
 import { USER_REJECT_CONNECT } from "./actions/userRejectConnectAction";
 import { USER_SET_CUSTOMIZATION } from "./actions/userSetCustomizationAction";
 import { USER_SET_SETTING } from "./actions/userSetSettingAction";
 import { USER_SET_TEMP_EMAIL } from "./actions/userSetTempEmailAction";
 import { USER_SET_TEMP_USERNAME } from "./actions/userSetTempUsernameAction";
+import { USER_START_FILE_UPLOAD_TASK } from "./actions/userStartFileUploadTaskAction";
 import { USER_UNDO_ACTIVITY } from "./actions/userUndoActivityAction";
+import { USER_UPDATE_FILE_UPLOAD_STATE } from "./actions/userUpdateFileUploadStateAction";
 import { USER_UPDATE_SUBMISSION } from "./actions/userUpdateSubmissionAction";
 import { UserAction } from "./userActions";
 import { UserState } from "./userState";
@@ -57,6 +60,67 @@ export const userReducer = (
   errorHandler?: (error: string) => void
 ): UserState => {
   switch (action.type) {
+    case USER_QUEUE_FILE_UPLOAD: {
+      const { uploads } = action.payload;
+      const newUploads = { ...(state?.uploads || {}) };
+      uploads.forEach((upload) => {
+        if (upload.path) {
+          newUploads[upload.path] = {
+            ...upload,
+            bytesTransferred: 0,
+            state: "pending",
+          };
+        }
+      });
+      return {
+        ...state,
+        uploads: newUploads,
+      };
+    }
+    case USER_START_FILE_UPLOAD_TASK: {
+      const { path, task } = action.payload;
+      return {
+        ...state,
+        uploads: {
+          ...(state.uploads || {}),
+          [path]: {
+            path,
+            file: undefined,
+            metadata: undefined,
+            bytesTransferred: 0,
+            ...(state.uploads?.[path] || {}),
+            state: "running",
+            task,
+          },
+        },
+      };
+    }
+    case USER_UPDATE_FILE_UPLOAD_STATE: {
+      const { path, state: uploadState, bytesTransferred } = action.payload;
+      if (
+        state?.uploads?.[path]?.state === uploadState &&
+        state?.uploads?.[path]?.bytesTransferred === bytesTransferred
+      ) {
+        return state;
+      }
+      return {
+        ...state,
+        uploads: {
+          ...(state.uploads || {}),
+          [path]: {
+            path,
+            file: undefined,
+            metadata: undefined,
+            ...(state.uploads?.[path] || {}),
+            state: uploadState,
+            bytesTransferred:
+              bytesTransferred === undefined
+                ? state?.uploads?.[path]?.bytesTransferred
+                : bytesTransferred,
+          },
+        },
+      };
+    }
     case USER_SET_TEMP_EMAIL: {
       const { tempEmail } = action.payload;
       const setData = async (): Promise<void> => {

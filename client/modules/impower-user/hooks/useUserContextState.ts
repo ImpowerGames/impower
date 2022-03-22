@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import {
   CustomizationType,
   SettingsType,
@@ -9,6 +16,7 @@ import getUserAttributes from "../../impower-auth/utils/getUserAttributes";
 import getUserClaims from "../../impower-auth/utils/getUserClaims";
 import onAuthStateChanged from "../../impower-auth/utils/onAuthStateChanged";
 import onIdTokenChanged from "../../impower-auth/utils/onIdTokenChanged";
+import { getFileContentType, StorageFile } from "../../impower-core";
 import {
   AggData,
   MemberData,
@@ -50,6 +58,8 @@ import userLoadNotifications from "../utils/userLoadNotifications";
 import userLoadSettings from "../utils/userLoadSettings";
 import userLoadSubmissions from "../utils/userLoadSubmissions";
 import userLoadUserDoc from "../utils/userLoadUserDoc";
+import userStartFileUploadTask from "../utils/userStartFileUploadTask";
+import userUpdateFileUploadState from "../utils/userUpdateFileUploadState";
 
 export const useUserContextState = (
   toastContext: ToastContextState
@@ -478,6 +488,88 @@ export const useUserContextState = (
       unsubscribeTokenChanged?.();
     };
   }, []);
+
+  const firstPendingUpload = Object.values(state?.uploads || {})?.find(
+    (x) => x.state === "pending"
+  );
+  const currentUploadRef = useRef<{
+    file: File;
+    metadata: StorageFile;
+  }>();
+  const uploadUnsubscribesRef = useRef<Record<string, () => void>>({});
+
+  const handleUploadFile = useCallback(
+    async (path: string, file: File, metadata: StorageFile): Promise<void> => {
+      try {
+        const Storage = (await import("../../impower-storage/classes/storage"))
+          .default;
+        const [uploadTask] = await Storage.instance.upload(file, {
+          contentType: getFileContentType(metadata.fileExtension),
+          customMetadata: {
+            fileType: metadata.fileType,
+            fileExtension: metadata.fileExtension,
+            fileName: metadata.fileName,
+            fileId: metadata.fileId,
+            project: metadata.project,
+            name: metadata.name,
+          },
+        });
+        dispatch(userStartFileUploadTask(path, uploadTask));
+        if (!uploadUnsubscribesRef.current[path]) {
+          uploadUnsubscribesRef.current[path] = uploadTask.on(
+            "state_changed",
+            (snapshot) => {
+              dispatch(
+                userUpdateFileUploadState(
+                  path,
+                  "running",
+                  snapshot.bytesTransferred
+                )
+              );
+            },
+            () => {
+              dispatch(userUpdateFileUploadState(path, "error"));
+            },
+            () => {
+              dispatch(userUpdateFileUploadState(path, "success", file.size));
+            }
+          );
+        }
+        await new Promise((resolve) => {
+          // Wait a second for upload
+          window.setTimeout(resolve, 1000);
+        });
+      } catch (error) {
+        toastDispatch(toastTop(error.message, "error"));
+        const logError = (await import("../../impower-logger/utils/logError"))
+          .default;
+        logError("Storage", error);
+      }
+    },
+    [toastDispatch]
+  );
+
+  useEffect(() => {
+    const unsubscribes = uploadUnsubscribesRef.current;
+    return (): void => {
+      Object.entries(unsubscribes).forEach(([, unsubscribe]) => {
+        unsubscribe();
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    if (currentUploadRef.current !== firstPendingUpload) {
+      currentUploadRef.current = firstPendingUpload;
+      if (firstPendingUpload) {
+        handleUploadFile(
+          firstPendingUpload.path,
+          firstPendingUpload.file,
+          firstPendingUpload.metadata
+        );
+      }
+    }
+  }, [firstPendingUpload, handleUploadFile]);
 
   return useMemo(
     () => [

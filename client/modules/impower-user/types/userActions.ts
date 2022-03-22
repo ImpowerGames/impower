@@ -17,12 +17,15 @@ import { UserLoadNotificationsAction } from "./actions/userLoadNotificationsActi
 import { UserLoadSettingsAction } from "./actions/userLoadSettingsAction";
 import { UserLoadSubmissionsAction } from "./actions/userLoadSubmissionsAction";
 import { UserLoadUserDocAction } from "./actions/userLoadUserDocAction";
+import { UserQueueFileUploadAction } from "./actions/userQueueFileUploadAction";
 import { UserRejectConnectAction } from "./actions/userRejectConnectAction";
 import { UserSetCustomizationAction } from "./actions/userSetCustomizationAction";
 import { UserSetSettingAction } from "./actions/userSetSettingAction";
 import { UserSetTempEmailAction } from "./actions/userSetTempEmailAction";
 import { UserSetTempUsernameAction } from "./actions/userSetTempUsernameAction";
+import { UserStartFileUploadTaskAction } from "./actions/userStartFileUploadTaskAction";
 import { UserUndoActivityAction } from "./actions/userUndoActivityAction";
+import { UserUpdateFileUploadStateAction } from "./actions/userUpdateFileUploadStateAction";
 import { UserUpdateSubmissionAction } from "./actions/userUpdateSubmissionAction";
 
 export type UserAction =
@@ -51,4 +54,7 @@ export type UserAction =
   | UserSetCustomizationAction
   | UserSetSettingAction
   | UserSetTempEmailAction
-  | UserSetTempUsernameAction;
+  | UserSetTempUsernameAction
+  | UserQueueFileUploadAction
+  | UserStartFileUploadTaskAction
+  | UserUpdateFileUploadStateAction;

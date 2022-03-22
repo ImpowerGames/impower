@@ -37,6 +37,9 @@ import {
   getFileSizeLimit,
 } from "../../../impower-storage";
 import { ToastContext, toastTop } from "../../../impower-toast";
+import { UserContext } from "../../../impower-user";
+import userQueueFileUpload from "../../../impower-user/utils/userQueueFileUpload";
+import userUpdateFileUploadState from "../../../impower-user/utils/userUpdateFileUploadState";
 import EditFileForm from "../forms/EditFileForm";
 import EngineConsoleList, { CardDetail } from "../lists/EngineConsoleList";
 
@@ -77,9 +80,6 @@ interface FilesConsoleContentProps {
   loading: boolean;
   addDisabled?: boolean;
   upload?: boolean;
-  uploadProgress?: {
-    [path: string]: { bytesTransferred: number; totalBytes: number };
-  };
   selectedColor?: string;
   emptyBackground?: React.ReactNode;
   fixedStyle?: React.CSSProperties;
@@ -96,12 +96,6 @@ interface FilesConsoleContentProps {
   onClick?: (e: React.MouseEvent, path: string) => void;
   onUploadStart?: (path: string, file: FileData) => void;
   onDelete?: (path: string) => void;
-  onUploadProgress?: (
-    path: string,
-    bytesTransferred: number,
-    totalBytes: number
-  ) => void;
-  onUploadFinished?: (path: string, file: FileData) => void;
   onReorder?: (paths: string[]) => void;
 }
 
@@ -134,7 +128,6 @@ const FilesConsoleContent = (
     addDisabled,
     selectedColor,
     emptyBackground,
-    uploadProgress,
     stickyStyle,
     fixedStyle,
     headerStyle,
@@ -148,12 +141,11 @@ const FilesConsoleContent = (
     onChangeCurrentPath,
     onClick,
     onUploadStart,
-    onUploadProgress,
-    onUploadFinished,
     onDelete,
     onReorder,
   } = props;
 
+  const [, userDispatch] = useContext(UserContext);
   const [, toastDispatch] = useContext(ToastContext);
 
   const paths = useMemo(
@@ -294,57 +286,6 @@ const FilesConsoleContent = (
     [handleDeleteFile]
   );
 
-  const handleUploadFile = useCallback(
-    async (
-      path: string,
-      fileInfo: {
-        file: File;
-        newDoc: FileData;
-      }
-    ): Promise<void> => {
-      const { file, newDoc } = fileInfo;
-      const { fileExtension } = newDoc;
-      try {
-        const Storage = (
-          await import("../../../impower-storage/classes/storage")
-        ).default;
-        await Storage.instance.put(
-          file,
-          {
-            contentType: getFileContentType(fileExtension),
-            customMetadata: {
-              fileType: newDoc.fileType,
-              fileExtension: newDoc.fileExtension,
-              fileName: newDoc.fileName,
-              fileId: newDoc.fileId,
-              project: newDoc.project,
-              name: newDoc.name,
-            },
-          },
-          (snapshot) => {
-            onUploadProgress?.(
-              path,
-              snapshot.bytesTransferred,
-              snapshot.totalBytes
-            );
-          }
-        );
-        await new Promise((resolve) => {
-          // Wait a second for upload
-          window.setTimeout(resolve, 1000);
-        });
-      } catch (error) {
-        toastDispatch(toastTop(error.message, "error"));
-        const logError = (
-          await import("../../../impower-logger/utils/logError")
-        ).default;
-        logError("Storage", error);
-      }
-      onUploadFinished?.(path, newDoc);
-    },
-    [onUploadFinished, onUploadProgress, toastDispatch]
-  );
-
   const handleUpload = useCallback(
     async (files: FileList, path: string) => {
       const getUuid = (await import("../../../impower-core/utils/getUuid"))
@@ -407,11 +348,17 @@ const FilesConsoleContent = (
       });
       for (let i = 0; i < fileInfos.length; i += 1) {
         const fileInfo = fileInfos[i];
-        // eslint-disable-next-line no-await-in-loop
-        await handleUploadFile(folderPath + fileInfo.newDoc.fileId, fileInfo);
+        const path = folderPath + fileInfo.newDoc.fileId;
+        userDispatch(
+          userQueueFileUpload({
+            path,
+            file: fileInfo.file,
+            metadata: fileInfo.newDoc,
+          })
+        );
       }
     },
-    [toastDispatch, docsByPath, projectId, onUploadStart, handleUploadFile]
+    [docsByPath, toastDispatch, projectId, onUploadStart, userDispatch]
   );
 
   const handleAdd = useCallback(
@@ -548,7 +495,6 @@ const FilesConsoleContent = (
         currentPath={currentPath}
         createDisabled={addDisabled}
         emptyBackground={emptyBackground}
-        uploadProgress={uploadProgress}
         selectedColor={selectedColor}
         stickyStyle={stickyStyle}
         fixedStyle={fixedStyle}
@@ -619,18 +565,9 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
     sticky,
   } = props;
 
-  const studioId = projectDoc.studio;
+  const [userState, userDispatch] = useContext(UserContext);
 
-  const uploadProgressRef = useRef<{
-    [path: string]: {
-      bytesTransferred: number;
-      totalBytes: number;
-      newDoc: FileData;
-    };
-  }>({});
-  const [uploadProgress, setUploadProgress] = useState<{
-    [path: string]: { bytesTransferred: number; totalBytes: number };
-  }>({});
+  const studioId = projectDoc.studio;
 
   const [editDialogOpen, setEditDialogOpen] = useState<boolean>();
   const [editIndex, setEditIndex] = useState<number>();
@@ -638,9 +575,7 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
   const docsByPathRef = useRef<{
     [path: string]: FileData;
   }>({});
-  const [docsByPath, setDocsByPath] = useState<{
-    [path: string]: FileData;
-  }>();
+  const [docsByPath, setDocsByPath] = useState(docsByPathRef.current);
   const [visibleOrderedPaths, setVisibleOrderedPaths] = useState<string[]>();
 
   const [currentPath, setCurrentPath] = useState<string>("/");
@@ -683,24 +618,13 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
       Object.entries(fileDocs).forEach(([id, doc]) => {
         const path = `/${id}`;
         docsByPathRef.current[path] = doc;
+        userDispatch(userUpdateFileUploadState(path, "ready"));
       });
-      Object.keys(docsByPathRef.current).forEach((path) => {
-        if (docsByPathRef.current[path]) {
-          delete uploadProgressRef.current[path];
-        }
-      });
-      const currentUploadingProgress = { ...uploadProgressRef.current };
-      Object.keys(currentUploadingProgress).forEach((path) => {
-        if (!docsByPathRef.current[path]) {
-          docsByPathRef.current[path] = uploadProgressRef.current[path].newDoc;
-        }
-      });
-      setUploadProgress({ ...uploadProgressRef.current });
       setDocsByPath({ ...docsByPathRef.current });
     } else {
       setDocsByPath(undefined);
     }
-  }, [fileDocs]);
+  }, [fileDocs, userDispatch]);
 
   const cardDetails = useMemo(
     () => ({
@@ -756,27 +680,6 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
     },
     [visibleOrderedPaths, openEditDialog]
   );
-  const handleUploadStart = useCallback((path: string, newDoc: FileData) => {
-    uploadProgressRef.current[path] = {
-      bytesTransferred: 0,
-      totalBytes: newDoc.size,
-      newDoc,
-    };
-    docsByPathRef.current[path] = newDoc;
-    setUploadProgress({ ...uploadProgressRef.current });
-    setDocsByPath({ ...docsByPathRef.current });
-  }, []);
-  const handleUploadProgress = useCallback(
-    (path: string, bytesTransferred: number, totalBytes: number) => {
-      uploadProgressRef.current[path] = {
-        ...uploadProgressRef.current[path],
-        bytesTransferred,
-        totalBytes,
-      };
-      setUploadProgress({ ...uploadProgressRef.current });
-    },
-    []
-  );
   const handleDelete = useCallback((path: string) => {
     if (docsByPathRef.current[path]) {
       delete docsByPathRef.current[path];
@@ -818,6 +721,25 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
     setEditIndex(editIndex + 1);
   }, [editIndex]);
 
+  const uploadingDocs = useMemo(() => {
+    const uploading: Record<string, FileData> = {};
+    Object.entries(userState?.uploads || {}).forEach(([path, upload]) => {
+      if (upload?.metadata?.project === projectId) {
+        uploading[path] = upload.metadata as FileData;
+      }
+    });
+    return uploading;
+  }, [projectId, userState?.uploads]);
+
+  const allDocsByPath = useMemo(
+    () => ({
+      ...docsByPath,
+      ...uploadingDocs,
+      ...docsByPath,
+    }),
+    [docsByPath, uploadingDocs]
+  );
+
   return (
     <>
       <StyledConsoleContentArea>
@@ -827,7 +749,7 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
           projectId={projectId}
           cardDetails={cardDetails}
           currentPath={currentPath}
-          docsByPath={docsByPath}
+          docsByPath={allDocsByPath}
           createLabel={createLabel}
           title={name}
           addLabel={addLabel}
@@ -845,8 +767,7 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
           sortLabel={sortLabel}
           filterLabel={filterLabel}
           copyLabel={copyLabel}
-          loading={!docsByPath}
-          uploadProgress={uploadProgress}
+          loading={!fileDocs}
           selectedColor={selectedColor}
           stickyStyle={stickyStyle}
           fixedStyle={fixedStyle}
@@ -860,8 +781,6 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
           sticky={sticky}
           onChangeCurrentPath={setCurrentPath}
           onClick={handleClick}
-          onUploadStart={handleUploadStart}
-          onUploadProgress={handleUploadProgress}
           onDelete={handleDelete}
           onReorder={handleReorder}
         />
@@ -873,7 +792,7 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
       >
         <EditFileForm
           docId={editDocId}
-          doc={editDoc}
+          doc={editDoc as FileData}
           onClose={handleCloseEditDialog}
           onChange={handleChangeEditDoc}
         />

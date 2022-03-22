@@ -1,5 +1,6 @@
 import {
   FirebaseStorage,
+  UploadTask as _UploadTask,
   UploadTaskSnapshot as _UploadTaskSnapshot,
 } from "firebase/storage";
 import { CustomFileMetadata } from "../../impower-core";
@@ -7,6 +8,8 @@ import { CustomFileMetadata } from "../../impower-core";
 export type InternalStorage = FirebaseStorage;
 
 export type UploadTaskSnapshot = _UploadTaskSnapshot;
+
+export type UploadTask = _UploadTask;
 
 export interface StorageError {
   code: string;
