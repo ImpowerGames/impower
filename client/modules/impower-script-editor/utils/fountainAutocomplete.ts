@@ -44,9 +44,10 @@ type CompletionType =
   | "namespace"
   | "text"
   | "section"
+  | "ancestor"
   | "parent"
   | "child"
-  | "end"
+  | "quit"
   | "next"
   | "asset"
   | "entity"
@@ -54,7 +55,9 @@ type CompletionType =
   | "character"
   | "transition"
   | "scene"
-  | "condition";
+  | "condition"
+  | "first_sibling"
+  | "last_sibling";
 
 const getInfoNode = (info: string, color?: string): Node => {
   const preview = document.createElement("div");
@@ -155,6 +158,14 @@ export const uppercaseParagraphSnippets: readonly Completion[] = [
   snip("DISSOLVE TO:", {
     label: "DISSOLVE TO:",
     type: "transition",
+  }),
+];
+
+export const repeatSnippets: readonly Completion[] = [
+  snip("^", {
+    label: "^",
+    detail: "(repeat this section)",
+    type: "top",
   }),
 ];
 
@@ -322,12 +333,20 @@ export const getFunctionIds = (
   return [...validChildrenIds, ...validAncestorIds];
 };
 
-export const getSectionIds = (
+export const getSectionOptions = (
   ancestorIds: string[],
   children: string[],
-  sections: Record<string, FountainSection>
-): string[] => {
-  const validChildrenNames = children.filter(
+  sections: Record<string, FountainSection>,
+  prefix: string,
+  suffix: string
+): {
+  template: string;
+  label: string;
+  type: CompletionType;
+  detail?: string;
+  info?: string | ((completion: Completion) => Node | Promise<Node>);
+}[] => {
+  const validChildrenIds = children.filter(
     (id) =>
       sections?.[id]?.type === "section" || sections?.[id]?.type === "method"
   );
@@ -337,7 +356,140 @@ export const getSectionIds = (
       (id) =>
         sections?.[id]?.type === "section" || sections?.[id]?.type === "method"
     );
-  return [...validChildrenNames, "]", "[", "", ...validAncestorIds, "!END"];
+  const sectionId = ancestorIds?.[0];
+  const parentId = ancestorIds?.[1];
+  const parentName = sections?.[parentId]?.name;
+  const siblings = sections?.[parentId]?.children || [];
+  const firstSiblingId = siblings.find(
+    (id) => sections?.[id]?.type === "section"
+  );
+  const firstSiblingName = sections?.[firstSiblingId]?.name;
+  const lastSiblingId = [...siblings]
+    .reverse()
+    .find((id) => sections?.[id]?.type === "section");
+  const lastSiblingName = sections?.[lastSiblingId]?.name;
+  const sectionIds = Object.keys(sections || {});
+  const sectionIndex = sectionIds.indexOf(sectionId);
+  const nextId = sectionIds
+    .slice(sectionIndex + 1)
+    ?.find((id) => sections?.[id]?.type === "section");
+  const nextName = sections?.[nextId]?.name;
+
+  const labelCleanupRegex = /[\n\r${}]/g;
+  const cleanedPrefix = prefix.replace(labelCleanupRegex, "");
+  const cleanedSuffix = suffix.replace(labelCleanupRegex, "");
+
+  const result: {
+    template: string;
+    label: string;
+    type: CompletionType;
+    detail?: string;
+    info?: string | ((completion: Completion) => Node | Promise<Node>);
+  }[] = [];
+
+  if (lastSiblingName) {
+    const label = "]";
+    result.push({
+      template: prefix + label + suffix,
+      label: cleanedPrefix + label + cleanedSuffix,
+      detail: "(last sibling)",
+      info: (): Node => getInfoNode(`= ${lastSiblingName}`, colors.section),
+      type: "last_sibling",
+    });
+  }
+  if (firstSiblingName) {
+    const label = "[";
+    result.push({
+      template: prefix + label + suffix,
+      label: cleanedPrefix + label + cleanedSuffix,
+      detail: "(first sibling)",
+      info: (): Node => getInfoNode(`= ${firstSiblingName}`, colors.section),
+      type: "first_sibling",
+    });
+  }
+  if (parentName) {
+    const label = "^";
+    result.push({
+      template: prefix + label + suffix,
+      label: cleanedPrefix + label + cleanedSuffix,
+      detail: "(parent section)",
+      info: (): Node => getInfoNode(`= ${parentName}`, colors.section),
+      type: "parent",
+    });
+  }
+  if (nextName) {
+    const label = "";
+    result.push({
+      template: prefix + label + suffix,
+      label: cleanedPrefix + label + cleanedSuffix,
+      detail: " (next section)",
+      info: (): Node => getInfoNode(`= ${nextName}`, colors.section),
+      type: "next",
+    });
+  }
+  const getSectionOption = (
+    id: string
+  ): {
+    template: string;
+    label: string;
+    info: string | ((completion: Completion) => Node | Promise<Node>);
+  } => {
+    const section = sections?.[id];
+    const label = section?.name;
+    const parameters = Object.values(section?.variables || {}).filter(
+      (v) => v.parameter
+    );
+    const paramsTemplate = parameters.map((p) => `#{${p.name}}`).join(", ");
+    const paramsDetail = parameters.map((p) => `${p.type}`).join(", ");
+    const template =
+      section.type === "method"
+        ? `${prefix}${label}(#{}${paramsTemplate})#{}${suffix}`
+        : section.type === "function"
+        ? `${prefix}${label}(#{}${paramsTemplate})#{}${suffix}`
+        : section.type === "detector"
+        ? `${prefix}${label}[#{}${paramsTemplate}]#{}${suffix}`
+        : prefix + label + suffix;
+    const infoLabel =
+      section.type === "function"
+        ? `(${paramsDetail}): ${section.returnType}`
+        : section.type === "method"
+        ? `(${paramsDetail})`
+        : "";
+    return {
+      template,
+      label: cleanedPrefix + label + cleanedSuffix,
+      info: infoLabel
+        ? (): Node => getInfoNode(infoLabel, colors.section)
+        : undefined,
+    };
+  };
+  validChildrenIds.forEach((id) => {
+    const { template, label, info } = getSectionOption(id);
+    result.push({
+      template,
+      label,
+      info,
+      type: "child",
+    });
+  });
+  validAncestorIds.forEach((id) => {
+    const { template, label, info } = getSectionOption(id);
+    result.push({
+      template,
+      label,
+      info,
+      type: "ancestor",
+    });
+  });
+  const quitLabel = "!QUIT";
+  result.push({
+    template: prefix + quitLabel + suffix,
+    label: cleanedPrefix + quitLabel + cleanedSuffix,
+    detail: "(quit game)",
+    type: "quit",
+  });
+
+  return result;
 };
 
 export const assignOrCallSnippets = (
@@ -380,55 +532,25 @@ export const sectionSnippets = (
   ancestorIds: string[],
   children: string[],
   sections: Record<string, FountainSection>,
-  prefix: string | string[] = "",
-  suffix: string | string[] = ""
+  prefix = "",
+  suffix = ""
 ): Completion[] => {
-  const ids = getSectionIds(ancestorIds, children, sections);
-  const prefixes = typeof prefix === "string" ? [prefix] : prefix;
-  const labelCleanupRegex = /[\n\r${}]/g;
-  return prefixes.flatMap((prefix, prefixIndex) =>
-    ids.map((id, optionIndex) => {
-      const section = sections[id];
-      const name =
-        id === "]" || id === "[" || id?.toLowerCase() === "!end"
-          ? id
-          : section?.name;
-      const parameters = Object.values(section?.variables || {}).filter(
-        (v) => v.parameter
-      );
-      const paramsTemplate = parameters.map((p) => `#{${p.name}}`).join(", ");
-      const paramsDetail = parameters.map((p) => `${p.type}`).join(", ");
-      const info =
-        parameters.length > 0
-          ? (): Node => getInfoNode(`(${paramsDetail})`, colors.section)
-          : undefined;
-      const template =
-        parameters.length > 0
-          ? `${prefix}${name}(#{}${paramsTemplate})#{}${suffix}`
-          : `${prefix}${name}${suffix}`;
-      const cleanedPrefix = prefix.replace(labelCleanupRegex, "");
-      const cleanedSuffix =
-        typeof suffix === "string"
-          ? suffix.replace(labelCleanupRegex, "")
-          : suffix[prefixIndex].replace(labelCleanupRegex, "");
-      return snip(template, {
-        label: cleanedPrefix + name + cleanedSuffix,
-        type: !id
-          ? "next"
-          : id === "["
-          ? "first_sibling"
-          : id === "]"
-          ? "last_sibling"
-          : id?.toLowerCase() === "!end"
-          ? "end"
-          : ancestorIds.includes(id)
-          ? "parent"
-          : "child",
-        info,
-        boost: ids.length - optionIndex,
-      });
-    })
+  const options = getSectionOptions(
+    ancestorIds,
+    children,
+    sections,
+    prefix,
+    suffix
   );
+  return options.map(({ template, label, type, detail, info }, optionIndex) => {
+    return snip(template, {
+      label,
+      type,
+      detail,
+      info,
+      boost: options.length - optionIndex,
+    });
+  });
 };
 
 export const sectionHeaderSnippets = (level: number): Completion[] => {
@@ -441,7 +563,7 @@ export const sectionHeaderSnippets = (level: number): Completion[] => {
       snip(`${operator} \${${name}}`, {
         label: `${operator}`,
         detail: `${name}`,
-        type: child ? "child" : "parent",
+        type: child ? "child" : "ancestor",
         boost: i - level,
       })
     );
@@ -634,12 +756,17 @@ export const fountainAutocomplete = async (
   const isLowercase = input.toLowerCase() === input;
   const isUppercase = input.toUpperCase() === input;
   const completions: Completion[] = [];
+  if (node.name === "RepeatMark") {
+    completions.push(...repeatSnippets);
+  }
   if (node.name === "Paragraph") {
-    if (isLowercase && input.match(/^[\w]+/)) {
-      completions.push(...lowercaseParagraphSnippets);
-    }
-    if (isUppercase) {
-      completions.push(...uppercaseParagraphSnippets);
+    if (input.match(/^[\w]+/)) {
+      if (isLowercase) {
+        completions.push(...lowercaseParagraphSnippets);
+      }
+      if (isUppercase) {
+        completions.push(...uppercaseParagraphSnippets);
+      }
     }
     if (input.startsWith("#")) {
       completions.push(...sectionHeaderSnippets(sectionLevel));

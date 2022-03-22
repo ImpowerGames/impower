@@ -19,12 +19,18 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
     let blockId = "";
     if (name === "") {
       blockId = game.logic.getNextBlockId(executedByBlockId);
-    } else if (name?.toLowerCase() === "!end") {
+    } else if (name?.toLowerCase() === "!quit") {
       return null;
     } else if (name === "[") {
-      blockId = siblingIds?.[0];
+      blockId = siblingIds.find(
+        (x) => game.logic.blockTree[x].type === "section"
+      );
     } else if (name === "]") {
-      blockId = siblingIds?.[siblingIds.length - 1];
+      blockId = [...siblingIds]
+        ?.reverse()
+        .find((x) => game.logic.blockTree[x].type === "section");
+    } else if (name === "^") {
+      blockId = parentId;
     } else {
       blockId = ids?.[name];
     }

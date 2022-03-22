@@ -458,15 +458,34 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ".cm-lintRange-active": {
               backgroundColor: "#ffdd991a",
             },
+            ".cm-tooltip": {
+              backgroundColor: colors.tooltip,
+            },
+            ".cm-tooltip-autocomplete ul li[aria-selected]": {
+              background: colors.selected,
+            },
+            ".cm-completionMatchedText": {
+              textDecoration: "none",
+              color: colors.match,
+            },
+            ".cm-completionDetail": {
+              opacity: 0.55,
+              fontStyle: "normal",
+              whiteSpace: "pre-wrap",
+            },
             ".cm-completionIcon-section": {
               "&:after": { content: "'#'", color: colors.section },
             },
+            ".cm-completionIcon-ancestor": {
+              "&:after": {
+                content: "'⮤'",
+                color: colors.section,
+              },
+            },
             ".cm-completionIcon-parent": {
               "&:after": {
-                content: "'⤴'",
+                content: "'⬑'",
                 color: colors.section,
-                display: " inline-block",
-                transform: "scaleX(-1)",
               },
             },
             ".cm-completionIcon-child": {
@@ -477,13 +496,13 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             },
             ".cm-completionIcon-first_sibling": {
               "&:after": {
-                content: "'⥜'",
+                content: "'↱'",
                 color: colors.section,
               },
             },
             ".cm-completionIcon-last_sibling": {
               "&:after": {
-                content: "'⥝'",
+                content: "'↳'",
                 color: colors.section,
               },
             },
@@ -493,7 +512,13 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
                 color: colors.section,
               },
             },
-            ".cm-completionIcon-end": {
+            ".cm-completionIcon-top": {
+              "&:after": {
+                content: "'⭱'",
+                color: colors.section,
+              },
+            },
+            ".cm-completionIcon-quit": {
               "&:after": { content: "'×'", color: colors.section },
             },
             ".cm-completionIcon-variable": {

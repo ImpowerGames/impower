@@ -1907,7 +1907,7 @@ export const parseFountain = (
               currentToken.mark = mark;
               currentToken.content = content;
               currentToken.name = name;
-              if (name?.toLowerCase() !== "!end") {
+              if (fountainRegexes.variableName.test(name)) {
                 currentToken.methodArgs = getArgumentValues(
                   name,
                   methodArgs,
