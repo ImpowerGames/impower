@@ -54,11 +54,6 @@ export const verifyUploadClaim = async (
         }
         const id = getUuid();
         const storageKey = `users/${uid}/${id}`;
-        await adminApp
-          .storage()
-          .bucket()
-          .file(storageKey)
-          .save(Buffer.allocUnsafe(0));
         const user = await adminApp.auth().getUser(uid);
         const claims = user.customClaims || {};
         const newClaims = {
