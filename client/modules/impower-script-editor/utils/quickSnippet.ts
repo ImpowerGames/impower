@@ -9,7 +9,7 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   center: "> {selection} <${}",
   dynamic: "{{selection}}${}",
 
-  section: "\n# ${NewSection}\n${}",
+  section: "\n# ${SectionName}\n${}",
   scene: "\n${INT}. ${LOCATION} - ${TIME}\n${}",
   dialogue: "\n${CHARACTER}\n${dialogue}\n${}",
   parenthetical: "(${tone})\n${}",
@@ -21,19 +21,19 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   move: "* move(${entityName}, ${x}, ${y})\n${}",
   destroy: "* destroy(${entityName})\n${}",
 
-  choice: "+ ${choice} > ${section}\n${}",
+  choice: "+ ${choice} > ${SectionName}\n${}",
   condition: "* if (${variableName} == ${value}):\n${}",
-  go: "> ${section}\n${}",
+  go: "> ${SectionName}\n${}",
   repeat: "^${}\n${}",
   return: "< ${}\n${}",
 
-  declare_variable: "var ${newVariable} = ${value}\n${}",
+  declare_variable: "var ${variableName} = ${value}\n${}",
   assign_variable: "* ${variableName} = ${value}\n${}",
-  declare_tag: "tag ${newTag} = `${value}`\n${}",
-  declare_image: "image ${newImage} = `${value}`\n${}",
-  declare_audio: "audio ${newAudio} = `${value}`\n${}",
-  declare_video: "video ${newVideo} = `${value}`\n${}",
-  declare_text: "text ${newText} = `${value}`\n${}",
+  declare_tag: "tag ${tagName} = `${value}`\n${}",
+  declare_image: "image ${imageName} = `${value}`\n${}",
+  declare_audio: "audio ${audioName} = `${value}`\n${}",
+  declare_video: "video ${videoName} = `${value}`\n${}",
+  declare_text: "text ${textName} = `${value}`\n${}",
 };
 
 export const getQuickSnippetTemplate = (

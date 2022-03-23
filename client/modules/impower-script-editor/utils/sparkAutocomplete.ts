@@ -74,43 +74,43 @@ const getInfoNode = (info: string, color?: string): Node => {
 };
 
 export const lowercaseParagraphSnippets: readonly Completion[] = [
-  snip("var ${}${newVariable} = ${value}", {
+  snip("var ${}${variableName} = ${value}", {
     label: "var variable",
     type: "variable",
   }),
-  snip("temp ${}${newVariable} = ${value}", {
+  snip("temp ${}${variableName} = ${value}", {
     label: "temp variable",
     type: "variable",
   }),
-  snip("tag ${}${newTag} = `${value}`${}", {
+  snip("tag ${}${tagName} = `${value}`${}", {
     label: "tag",
     type: "tag",
   }),
-  snip("image ${}${newImage} = `${url}`${}", {
+  snip("image ${}${imageName} = `${url}`${}", {
     label: "image",
     type: "asset",
   }),
-  snip("audio ${}${newAudio} = `${url}`${}", {
+  snip("audio ${}${audioName} = `${url}`${}", {
     label: "audio",
     type: "asset",
   }),
-  snip("video ${}${newVideo} = `${url}`${}", {
+  snip("video ${}${videoName} = `${url}`${}", {
     label: "video",
     type: "asset",
   }),
-  snip("text ${}${newText} = `${url}`${}", {
+  snip("text ${}${textName} = `${url}`${}", {
     label: "text",
     type: "asset",
   }),
-  snip("enum ${}${NewElement}:${}", {
+  snip("enum ${}${ElementName}:${}", {
     label: "enum",
     type: "entity",
   }),
-  snip("object ${}${NewComponent}:${}", {
+  snip("object ${}${ComponentName}:${}", {
     label: "object",
     type: "entity",
   }),
-  snip("ui ${}${NewElement}:${}", {
+  snip("ui ${}${ElementName}:${}", {
     label: "ui",
     type: "entity",
   }),
@@ -550,12 +550,12 @@ export const sectionHeaderSnippets = (level: number): Completion[] => {
   for (let i = level + 1; i >= 0; i -= 1) {
     const child = i === level + 1;
     const operator = "#".repeat(i);
-    const name =
-      level === 0 ? `NewSection` : child ? `ChildSection` : `NewSection`;
+    const detail =
+      level === 0 ? `RootSection` : child ? `ChildSection` : `NewSection`;
     result.push(
-      snip(`${operator} \${${name}}`, {
+      snip(`${operator} \${${detail}}`, {
         label: `${operator}`,
-        detail: `${name}`,
+        detail: `${detail}`,
         type: child ? "child" : "ancestor",
         boost: i - level,
       })
