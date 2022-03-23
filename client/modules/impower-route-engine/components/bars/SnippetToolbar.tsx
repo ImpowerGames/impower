@@ -32,10 +32,14 @@ import SplitRegularIcon from "../../../../resources/icons/regular/split.svg";
 import UnderlineRegularIcon from "../../../../resources/icons/regular/underline.svg";
 import VolumeRegularIcon from "../../../../resources/icons/regular/volume.svg";
 import CaretDownSolidIcon from "../../../../resources/icons/solid/caret-down.svg";
+import { debounce } from "../../../impower-core";
 import { FontIcon } from "../../../impower-icon";
 import { Tooltip } from "../../../impower-route";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
-import { panelChangeEditorState } from "../../types/actions/panelActions";
+import {
+  panelChangeEditorState,
+  panelSnippetPreview,
+} from "../../types/actions/panelActions";
 import { SnippetCategoryType } from "../../types/state/panelState";
 
 const categories: {
@@ -144,13 +148,15 @@ const StyledMenuItem = styled(MenuItem)`
 `;
 
 interface FormattingToolbarProps {
+  onPointerEnter?: (e: React.MouseEvent, value: string) => void;
+  onPointerLeave?: (e: React.MouseEvent, value: string) => void;
   onPointerDown?: (e: React.MouseEvent) => void;
   onChange?: (e: React.MouseEvent, value: string) => void;
 }
 
 const FormattingToolbar = React.memo(
   (props: FormattingToolbarProps): JSX.Element => {
-    const { onPointerDown, onChange } = props;
+    const { onPointerEnter, onPointerLeave, onPointerDown, onChange } = props;
     return (
       <StyledMainToggleButtonGroup
         size="small"
@@ -159,35 +165,60 @@ const FormattingToolbar = React.memo(
         onChange={onChange}
       >
         <Tooltip title="bold" placement="top" arrow>
-          <StyledMainToggleButton value="bold" aria-label="bold">
+          <StyledMainToggleButton
+            value="bold"
+            aria-label="bold"
+            onPointerEnter={(e): void => onPointerEnter?.(e, "bold")}
+            onPointerLeave={(e): void => onPointerLeave?.(e, "bold")}
+          >
             <FontIcon aria-label={`bold`}>
               <BoldRegularIcon />
             </FontIcon>
           </StyledMainToggleButton>
         </Tooltip>
         <Tooltip title="italic" placement="top" arrow>
-          <StyledMainToggleButton value="italic" aria-label="italic">
+          <StyledMainToggleButton
+            value="italic"
+            aria-label="italic"
+            onPointerEnter={(e): void => onPointerEnter?.(e, "italic")}
+            onPointerLeave={(e): void => onPointerLeave?.(e, "italic")}
+          >
             <FontIcon aria-label={`italic`}>
               <ItalicRegularIcon />
             </FontIcon>
           </StyledMainToggleButton>
         </Tooltip>
         <Tooltip title="underline" placement="top" arrow>
-          <StyledMainToggleButton value="underline" aria-label="underline">
+          <StyledMainToggleButton
+            value="underline"
+            aria-label="underline"
+            onPointerEnter={(e): void => onPointerEnter?.(e, "underline")}
+            onPointerLeave={(e): void => onPointerLeave?.(e, "underline")}
+          >
             <FontIcon aria-label={`underline`}>
               <UnderlineRegularIcon />
             </FontIcon>
           </StyledMainToggleButton>
         </Tooltip>
         <Tooltip title="center" placement="top" arrow>
-          <StyledMainToggleButton value="center" aria-label="center">
+          <StyledMainToggleButton
+            value="center"
+            aria-label="center"
+            onPointerEnter={(e): void => onPointerEnter?.(e, "center")}
+            onPointerLeave={(e): void => onPointerLeave?.(e, "center")}
+          >
             <FontIcon aria-label={`align-center`}>
               <AlignCenterRegularIcon />
             </FontIcon>
           </StyledMainToggleButton>
         </Tooltip>
         <Tooltip title="dynamic" placement="top" arrow>
-          <StyledMainToggleButton value="dynamic" aria-label="dynamic">
+          <StyledMainToggleButton
+            value="dynamic"
+            aria-label="dynamic"
+            onPointerEnter={(e): void => onPointerEnter?.(e, "dynamic")}
+            onPointerLeave={(e): void => onPointerLeave?.(e, "dynamic")}
+          >
             <FontIcon aria-label={`dynamic`}>
               <BracketsCurlyRegularIcon />
             </FontIcon>
@@ -199,13 +230,15 @@ const FormattingToolbar = React.memo(
 );
 
 interface ScreenplayToolbarProps {
+  onPointerEnter?: (e: React.MouseEvent, value: string) => void;
+  onPointerLeave?: (e: React.MouseEvent, value: string) => void;
   onPointerDown?: (e: React.MouseEvent) => void;
   onChange?: (e: React.MouseEvent, value: string) => void;
 }
 
 const ScreenplayToolbar = React.memo(
   (props: ScreenplayToolbarProps): JSX.Element => {
-    const { onPointerDown, onChange } = props;
+    const { onPointerEnter, onPointerLeave, onPointerDown, onChange } = props;
     return (
       <StyledMainToggleButtonGroup
         size="small"
@@ -214,21 +247,36 @@ const ScreenplayToolbar = React.memo(
         onChange={onChange}
       >
         <Tooltip title="section" placement="top" arrow>
-          <StyledMainToggleButton value="section" aria-label="section">
+          <StyledMainToggleButton
+            value="section"
+            aria-label="section"
+            onPointerEnter={(e): void => onPointerEnter?.(e, "section")}
+            onPointerLeave={(e): void => onPointerLeave?.(e, "section")}
+          >
             <FontIcon aria-label={`section`}>
               <HashtagRegularIcon />
             </FontIcon>
           </StyledMainToggleButton>
         </Tooltip>
         <Tooltip title="scene" placement="top" arrow>
-          <StyledMainToggleButton value="scene" aria-label="scene">
+          <StyledMainToggleButton
+            value="scene"
+            aria-label="scene"
+            onPointerEnter={(e): void => onPointerEnter?.(e, "scene")}
+            onPointerLeave={(e): void => onPointerLeave?.(e, "scene")}
+          >
             <FontIcon aria-label={`scene`}>
               <HouseRegularIcon />
             </FontIcon>
           </StyledMainToggleButton>
         </Tooltip>
         <Tooltip title="dialogue" placement="top" arrow>
-          <StyledMainToggleButton value="dialogue" aria-label="dialogue">
+          <StyledMainToggleButton
+            value="dialogue"
+            aria-label="dialogue"
+            onPointerEnter={(e): void => onPointerEnter?.(e, "dialogue")}
+            onPointerLeave={(e): void => onPointerLeave?.(e, "dialogue")}
+          >
             <FontIcon aria-label={`dialogue`}>
               <MessageDotsRegularIcon />
             </FontIcon>
@@ -238,6 +286,8 @@ const ScreenplayToolbar = React.memo(
           <StyledMainToggleButton
             value="parenthetical"
             aria-label="parenthetical"
+            onPointerEnter={(e): void => onPointerEnter?.(e, "parenthetical")}
+            onPointerLeave={(e): void => onPointerLeave?.(e, "parenthetical")}
           >
             <FontIcon aria-label={`parenthetical`}>
               <BracketsRoundRegularIcon />
@@ -245,7 +295,12 @@ const ScreenplayToolbar = React.memo(
           </StyledMainToggleButton>
         </Tooltip>
         <Tooltip title="transition" placement="top" arrow>
-          <StyledMainToggleButton value="transition" aria-label="transition">
+          <StyledMainToggleButton
+            value="transition"
+            aria-label="transition"
+            onPointerEnter={(e): void => onPointerEnter?.(e, "transition")}
+            onPointerLeave={(e): void => onPointerLeave?.(e, "transition")}
+          >
             <FontIcon aria-label={`transition`}>
               <FilmRegularIcon />
             </FontIcon>
@@ -257,12 +312,14 @@ const ScreenplayToolbar = React.memo(
 );
 
 interface WorldToolbarProps {
+  onPointerEnter?: (e: React.MouseEvent, value: string) => void;
+  onPointerLeave?: (e: React.MouseEvent, value: string) => void;
   onPointerDown?: (e: React.MouseEvent) => void;
   onChange?: (e: React.MouseEvent, value: string) => void;
 }
 
 const WorldToolbar = React.memo((props: WorldToolbarProps): JSX.Element => {
-  const { onPointerDown, onChange } = props;
+  const { onPointerEnter, onPointerLeave, onPointerDown, onChange } = props;
   return (
     <StyledMainToggleButtonGroup
       size="small"
@@ -271,35 +328,60 @@ const WorldToolbar = React.memo((props: WorldToolbarProps): JSX.Element => {
       onChange={onChange}
     >
       <Tooltip title="show image" placement="top" arrow>
-        <StyledMainToggleButton value="image" aria-label="image">
+        <StyledMainToggleButton
+          value="image"
+          aria-label="image"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "image")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "image")}
+        >
           <FontIcon aria-label={`image`}>
             <ImageUserRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="play audio" placement="top" arrow>
-        <StyledMainToggleButton value="audio" aria-label="audio">
+        <StyledMainToggleButton
+          value="audio"
+          aria-label="audio"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "audio")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "audio")}
+        >
           <FontIcon aria-label={`audio`}>
             <VolumeRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="spawn entity" placement="top" arrow>
-        <StyledMainToggleButton value="spawn" aria-label="spawn">
+        <StyledMainToggleButton
+          value="spawn"
+          aria-label="spawn"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "spawn")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "spawn")}
+        >
           <FontIcon aria-label={`spawn`}>
             <CirclePlusRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="destroy entity" placement="top" arrow>
-        <StyledMainToggleButton value="destroy" aria-label="destroy">
+        <StyledMainToggleButton
+          value="destroy"
+          aria-label="destroy"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "destroy")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "destroy")}
+        >
           <FontIcon aria-label={`destroy`}>
             <CircleXRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="move entity" placement="top" arrow>
-        <StyledMainToggleButton value="move" aria-label="move">
+        <StyledMainToggleButton
+          value="move"
+          aria-label="move"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "move")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "move")}
+        >
           <FontIcon aria-label={`move`}>
             <ArrowUpLeftFromCircleRegularIcon />
           </FontIcon>
@@ -310,12 +392,14 @@ const WorldToolbar = React.memo((props: WorldToolbarProps): JSX.Element => {
 });
 
 interface FlowToolbarProps {
+  onPointerEnter?: (e: React.MouseEvent, value: string) => void;
+  onPointerLeave?: (e: React.MouseEvent, value: string) => void;
   onPointerDown?: (e: React.MouseEvent) => void;
   onChange?: (e: React.MouseEvent, value: string) => void;
 }
 
 const FlowToolbar = React.memo((props: FlowToolbarProps): JSX.Element => {
-  const { onPointerDown, onChange } = props;
+  const { onPointerEnter, onPointerLeave, onPointerDown, onChange } = props;
   return (
     <StyledMainToggleButtonGroup
       size="small"
@@ -324,35 +408,60 @@ const FlowToolbar = React.memo((props: FlowToolbarProps): JSX.Element => {
       onChange={onChange}
     >
       <Tooltip title="choice" placement="top" arrow>
-        <StyledMainToggleButton value="choice" aria-label="choice">
+        <StyledMainToggleButton
+          value="choice"
+          aria-label="choice"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "choice")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "choice")}
+        >
           <FontIcon aria-label={`choice`}>
             <ListUlRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="condition" placement="top" arrow>
-        <StyledMainToggleButton value="condition" aria-label="condition">
+        <StyledMainToggleButton
+          value="condition"
+          aria-label="condition"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "condition")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "condition")}
+        >
           <FontIcon aria-label={`condition`}>
             <ListCheckRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="go" placement="top" arrow>
-        <StyledMainToggleButton value="go" aria-label="go">
+        <StyledMainToggleButton
+          value="go"
+          aria-label="go"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "go")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "go")}
+        >
           <FontIcon aria-label={`go`}>
             <ArrowRightToBracketRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="return" placement="top" arrow>
-        <StyledMainToggleButton value="return" aria-label="return">
+        <StyledMainToggleButton
+          value="return"
+          aria-label="return"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "return")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "return")}
+        >
           <FontIcon aria-label={`return`} style={{ transform: "scaleX(-1)" }}>
             <ShareFromSquareBracketRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="repeat" placement="top" arrow>
-        <StyledMainToggleButton value="repeat" aria-label="repeat">
+        <StyledMainToggleButton
+          value="repeat"
+          aria-label="repeat"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "repeat")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "repeat")}
+        >
           <FontIcon aria-label={`repeat`}>
             <ArrowUpToLineRegularIcon />
           </FontIcon>
@@ -363,12 +472,14 @@ const FlowToolbar = React.memo((props: FlowToolbarProps): JSX.Element => {
 });
 
 interface DataToolbarProps {
+  onPointerEnter?: (e: React.MouseEvent, value: string) => void;
+  onPointerLeave?: (e: React.MouseEvent, value: string) => void;
   onPointerDown?: (e: React.MouseEvent) => void;
   onChange?: (e: React.MouseEvent, value: string) => void;
 }
 
 const DataToolbar = React.memo((props: DataToolbarProps): JSX.Element => {
-  const { onPointerDown, onChange } = props;
+  const { onPointerEnter, onPointerLeave, onPointerDown, onChange } = props;
   return (
     <StyledMainToggleButtonGroup
       size="small"
@@ -377,29 +488,54 @@ const DataToolbar = React.memo((props: DataToolbarProps): JSX.Element => {
       onChange={onChange}
     >
       <Tooltip title="declare variable" placement="top" arrow>
-        <StyledMainToggleButton value="declare_variable" aria-label="variable">
+        <StyledMainToggleButton
+          value="declare_variable"
+          aria-label="variable"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "declare_variable")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "declare_variable")}
+        >
           <FontIcon aria-label={`declare variable`}>{`𝑥`}</FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="assign variable" placement="top" arrow>
-        <StyledMainToggleButton value="assign_variable" aria-label="assign">
+        <StyledMainToggleButton
+          value="assign_variable"
+          aria-label="assign"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "assign_variable")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "assign_variable")}
+        >
           <FontIcon aria-label={`assign variable`}>{`=`}</FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="declare tag" placement="top" arrow>
-        <StyledMainToggleButton value="declare_tag" aria-label="tag">
+        <StyledMainToggleButton
+          value="declare_tag"
+          aria-label="tag"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "declare_tag")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "declare_tag")}
+        >
           <FontIcon aria-label={`declare tag`}>{`𝑡`}</FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="declare image" placement="top" arrow>
-        <StyledMainToggleButton value="declare_image" aria-label="image">
+        <StyledMainToggleButton
+          value="declare_image"
+          aria-label="image"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "declare_image")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "declare_image")}
+        >
           <FontIcon aria-label={`declare image`}>
             <FileImageRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
       <Tooltip title="declare audio" placement="top" arrow>
-        <StyledMainToggleButton value="declare_audio" aria-label="audio">
+        <StyledMainToggleButton
+          value="declare_audio"
+          aria-label="audio"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "declare_audio")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "declare_audio")}
+        >
           <FontIcon aria-label={`declare audio`}>
             <FileAudioRegularIcon />
           </FontIcon>
@@ -411,26 +547,55 @@ const DataToolbar = React.memo((props: DataToolbarProps): JSX.Element => {
 
 interface CategoryToolbarProps {
   type: string;
+  onPointerEnter?: (e: React.MouseEvent, value: string) => void;
+  onPointerLeave?: (e: React.MouseEvent, value: string) => void;
   onPointerDown?: (e: React.MouseEvent) => void;
   onChange?: (e: React.MouseEvent, value: string) => void;
 }
 
 const CategoryToolbar = React.memo(
   (props: CategoryToolbarProps): JSX.Element => {
-    const { type, onPointerDown, onChange } = props;
+    const { type, onPointerEnter, onPointerLeave, onPointerDown, onChange } =
+      props;
     if (type === "screenplay") {
       return (
-        <ScreenplayToolbar onPointerDown={onPointerDown} onChange={onChange} />
+        <ScreenplayToolbar
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+          onPointerDown={onPointerDown}
+          onChange={onChange}
+        />
       );
     }
     if (type === "world") {
-      return <WorldToolbar onPointerDown={onPointerDown} onChange={onChange} />;
+      return (
+        <WorldToolbar
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+          onPointerDown={onPointerDown}
+          onChange={onChange}
+        />
+      );
     }
     if (type === "flow") {
-      return <FlowToolbar onPointerDown={onPointerDown} onChange={onChange} />;
+      return (
+        <FlowToolbar
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+          onPointerDown={onPointerDown}
+          onChange={onChange}
+        />
+      );
     }
     if (type === "data") {
-      return <DataToolbar onPointerDown={onPointerDown} onChange={onChange} />;
+      return (
+        <DataToolbar
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+          onPointerDown={onPointerDown}
+          onChange={onChange}
+        />
+      );
     }
     return null;
   }
@@ -446,6 +611,7 @@ const SnippetToolbar = React.memo((): JSX.Element => {
 
   const [anchorEl, setAnchorEl] = useState(null);
   const canCloseRef = useRef(false);
+  const snippetPreviewRef = useRef("");
 
   const open = Boolean(anchorEl);
 
@@ -511,6 +677,24 @@ const SnippetToolbar = React.memo((): JSX.Element => {
     },
     [dispatch, handleRestoreFocus, windowType]
   );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleDebouncedSnippetPreview = useCallback(
+    debounce(() => {
+      dispatch(panelSnippetPreview(windowType, snippetPreviewRef.current));
+    }, 1),
+    [windowType]
+  );
+  const handlePointerEnterGroup = useCallback(
+    (e: React.MouseEvent, value: string): void => {
+      snippetPreviewRef.current = value;
+      handleDebouncedSnippetPreview();
+    },
+    [handleDebouncedSnippetPreview]
+  );
+  const handlePointerLeaveGroup = useCallback((): void => {
+    snippetPreviewRef.current = "";
+    handleDebouncedSnippetPreview();
+  }, [handleDebouncedSnippetPreview]);
   const handlePointerDownGroup = useCallback(
     (e: React.MouseEvent): void => {
       handleRestoreFocus(e);
@@ -519,6 +703,8 @@ const SnippetToolbar = React.memo((): JSX.Element => {
   );
   const handleChangeGroup = useCallback(
     (e: React.MouseEvent, value: string): void => {
+      snippetPreviewRef.current = "";
+      dispatch(panelSnippetPreview(windowType, snippetPreviewRef.current));
       handleRestoreFocus(e);
       const editorChange = {
         category,
@@ -601,6 +787,8 @@ const SnippetToolbar = React.memo((): JSX.Element => {
           ) : (
             <CategoryToolbar
               type={category}
+              onPointerEnter={handlePointerEnterGroup}
+              onPointerLeave={handlePointerLeaveGroup}
               onPointerDown={handlePointerDownGroup}
               onChange={handleChangeGroup}
             />

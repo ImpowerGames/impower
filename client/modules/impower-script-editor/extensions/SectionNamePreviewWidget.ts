@@ -24,8 +24,4 @@ export class SectionNamePreviewWidget extends WidgetType {
     wrap.style.color = colors.sectionName;
     return wrap;
   }
-
-  ignoreEvent(): boolean {
-    return false;
-  }
 }

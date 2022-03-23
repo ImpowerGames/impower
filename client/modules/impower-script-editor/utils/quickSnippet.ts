@@ -21,11 +21,11 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   move: "* move(${entityName}, ${x}, ${y})\n${}",
   destroy: "* destroy(${entityName})\n${}",
 
-  choice: "+ ${choice} > ${section}${}",
-  condition: "* ${variableName} == ${value}:${}",
-  go: "> ${section}${}",
-  repeat: "^${}",
-  return: "< ${}",
+  choice: "+ ${choice} > ${section}\n${}",
+  condition: "* if (${variableName} == ${value}):\n${}",
+  go: "> ${section}\n${}",
+  repeat: "^${}\n${}",
+  return: "< ${}\n${}",
 
   declare_variable: "var ${newVariable} = ${value}\n${}",
   assign_variable: "* ${variableName} = ${value}\n${}",
@@ -90,7 +90,7 @@ export const getQuickSnippetTemplate = (
     if (isLineEmpty) {
       if (isLineAfterEmpty) {
         // Line after is already blank, so no need to end with newline
-        formattedTemplate = formattedTemplate.replace(/[\n][$][{][}]$/, "");
+        formattedTemplate = formattedTemplate.replace(/[\n][$][{][}]$/, "${}");
       }
     }
   }

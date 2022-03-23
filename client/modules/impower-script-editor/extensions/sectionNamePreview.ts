@@ -49,7 +49,7 @@ const sectionNameDecorations = (view: EditorView): DecorationSet => {
   return Decoration.set(widgets);
 };
 
-export const sectionPlugin = ViewPlugin.fromClass(
+export const sectionNamePlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
 
@@ -75,5 +75,5 @@ export const sectionNamePreview = (
     };
   } = {}
 ): Extension => {
-  return [parseContextState.of(options.parseContext), sectionPlugin];
+  return [parseContextState.of(options.parseContext), sectionNamePlugin];
 };

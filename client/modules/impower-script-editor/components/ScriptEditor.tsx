@@ -38,6 +38,7 @@ import {
   SearchLineQuery,
   setSearchLineQuery,
 } from "../extensions/searchLinePanel";
+import { setSnippetPreview } from "../extensions/snippetPreview";
 import {
   SerializableEditorSelection,
   SerializableEditorState,
@@ -164,6 +165,7 @@ interface ScriptEditorProps {
   toggleLinting?: boolean;
   toggleGotoLine?: boolean;
   focusFirstError?: boolean;
+  snippetPreview?: string;
   searchTextQuery?: SearchTextQuery;
   searchLineQuery?: SearchLineQuery;
   editorChange: {
@@ -214,6 +216,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     toggleLinting,
     toggleGotoLine,
     focusFirstError,
+    snippetPreview,
     searchTextQuery,
     searchLineQuery,
     editorChange,
@@ -934,6 +937,14 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
       });
     }
   }, [scrollTopLine]);
+
+  useEffect(() => {
+    if (viewRef.current && snippetPreview != null) {
+      viewRef.current.dispatch({
+        effects: [setSnippetPreview.of(snippetPreview)],
+      });
+    }
+  }, [snippetPreview]);
 
   return (
     <div

@@ -277,6 +277,24 @@ export const panelChangeEditorState = (
   };
 };
 
+export const PANEL_SNIPPET_PREVIEW = "PANEL_SNIPPET_PREVIEW";
+export interface PanelSnippetPreviewAction {
+  type: typeof PANEL_SNIPPET_PREVIEW;
+  payload: {
+    windowType: WindowType;
+    snippetPreview: string;
+  };
+}
+export const panelSnippetPreview = (
+  windowType: WindowType,
+  snippetPreview: string
+): PanelSnippetPreviewAction => {
+  return {
+    type: PANEL_SNIPPET_PREVIEW,
+    payload: { windowType, snippetPreview },
+  };
+};
+
 export const PANEL_CHANGE_DETAIL_SECTION = "PANEL_CHANGE_DETAIL_SECTION";
 export interface PanelChangeDetailSectionAction {
   type: typeof PANEL_CHANGE_DETAIL_SECTION;
@@ -423,4 +441,5 @@ export type PanelAction =
   | PanelSetErrorsAction
   | PanelSubmitAction
   | PanelSaveEditorStateAction
-  | PanelChangeEditorStateAction;
+  | PanelChangeEditorStateAction
+  | PanelSnippetPreviewAction;

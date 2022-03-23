@@ -30,6 +30,7 @@ import {
   PANEL_SET_PANE_SIZE,
   PANEL_SET_SCRIPTING,
   PANEL_SET_SCROLL_TOP_LINE,
+  PANEL_SNIPPET_PREVIEW,
   PANEL_SUBMIT,
   PANEL_TOGGLE_ALL_INTERACTION,
   PANEL_TOGGLE_INTERACTION,
@@ -377,6 +378,26 @@ const doChangeEditorState = (
   };
 };
 
+const doSnippetPreview = (
+  state: PanelState,
+  payload: {
+    windowType: WindowType;
+    snippetPreview: string;
+  }
+): PanelState => {
+  const { windowType, snippetPreview } = payload;
+  return {
+    ...state,
+    panels: {
+      ...state?.panels,
+      [windowType]: {
+        ...(state?.panels?.[windowType] || {}),
+        snippetPreview,
+      },
+    },
+  };
+};
+
 const doChangeSection = (
   state: PanelState,
   payload: {
@@ -562,6 +583,8 @@ export const panelReducer = (
       return doSaveEditorState(state, action.payload);
     case PANEL_CHANGE_EDITOR_STATE:
       return doChangeEditorState(state, action.payload);
+    case PANEL_SNIPPET_PREVIEW:
+      return doSnippetPreview(state, action.payload);
     case PANEL_CHANGE_DETAIL_SECTION:
       return doChangeSection(state, action.payload);
     case PANEL_SEARCH_TEXT:

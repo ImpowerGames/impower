@@ -85,6 +85,7 @@ const ContainerScriptEditor = React.memo(
 
     const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
     const searchLineQuery = state?.panel?.panels?.[windowType]?.searchLineQuery;
+    const snippetPreview = state?.panel?.panels?.[windowType]?.snippetPreview;
     const mode = state?.test?.mode;
     const id = state?.project?.id;
     const files = state?.project?.data?.files?.data;
@@ -428,6 +429,7 @@ const ContainerScriptEditor = React.memo(
                 toggleFolding={toggleFolding}
                 toggleLinting={toggleLinting}
                 focusFirstError={mode === "Edit"}
+                snippetPreview={snippetPreview}
                 editorChange={editorChange}
                 searchTextQuery={searchTextQuery}
                 searchLineQuery={searchLineQuery}

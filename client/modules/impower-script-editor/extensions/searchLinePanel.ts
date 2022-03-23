@@ -150,6 +150,6 @@ export const searchLineKeymap = [
 export const searchLinePanel = (config?: SearchLineConfig): Extension => {
   const searchExtensions = [searchLineField, keymap.of(searchLineKeymap)];
   return config
-    ? [searchLineConfigFacet.of(config), searchExtensions]
+    ? [searchLineConfigFacet.of(config), ...searchExtensions]
     : searchExtensions;
 };

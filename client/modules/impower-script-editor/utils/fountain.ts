@@ -30,6 +30,7 @@ import {
   insertNewlineContinueMarkup,
 } from "../constants/commands";
 import { sectionNamePreview } from "../extensions/sectionNamePreview";
+import { snippetPreview } from "../extensions/snippetPreview";
 import { MarkdownExtension } from "../types/markdownExtension";
 import { fountainAutocomplete } from "./fountainAutocomplete";
 import {
@@ -195,6 +196,7 @@ export function fountain(
       fountainTooltip(v, p, s, parseContext, getRuntimeValue, setRuntimeValue)
     ),
     sectionNamePreview({ parseContext }),
+    snippetPreview(),
     linter(fountainParseLinter, { delay: 100 }),
   ];
   let defaultCode;

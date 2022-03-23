@@ -1976,13 +1976,15 @@ export const parseFountain = (
               }
               currentToken.index = currentChoiceTokens?.length || 0;
               if (
-                previousToken.type === "dialogue" ||
-                previousToken.type === "action" ||
-                previousToken.type === "centered" ||
-                previousToken.type === "transition" ||
-                previousToken.type === "scene"
+                previousToken?.type === "dialogue" ||
+                previousToken?.type === "action" ||
+                previousToken?.type === "centered" ||
+                previousToken?.type === "transition" ||
+                previousToken?.type === "scene"
               ) {
-                previousToken.wait = false;
+                if (previousToken) {
+                  previousToken.wait = false;
+                }
               }
               currentChoiceTokens.push(currentToken);
             }
