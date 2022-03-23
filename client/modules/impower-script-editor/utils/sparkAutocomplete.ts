@@ -550,7 +550,8 @@ export const sectionHeaderSnippets = (level: number): Completion[] => {
   for (let i = level + 1; i >= 0; i -= 1) {
     const child = i === level + 1;
     const operator = "#".repeat(i);
-    const name = child ? `ChildSection` : `Section`;
+    const name =
+      level === 0 ? `NewSection` : child ? `ChildSection` : `NewSection`;
     result.push(
       snip(`${operator} \${${name}}`, {
         label: `${operator}`,
@@ -671,7 +672,7 @@ export const sparkAutocomplete = async (
   const input = context.state.sliceDoc(node.from, node.to);
   const line = context.state.doc.lineAt(node.from).number;
   const [sectionId, section] = getSectionAt(node.from, result);
-  const sectionLevel = section.level;
+  const sectionLevel = section?.level || 0;
   const children = section?.children || [];
   const ancestorIds = getAncestorIds(sectionId);
   const [, assets] = getScopedContext<string>(
