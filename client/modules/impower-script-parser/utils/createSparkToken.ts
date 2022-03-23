@@ -1,19 +1,19 @@
-import { FountainToken } from "../types/FountainToken";
-import { FountainTokenType } from "../types/FountainTokenType";
+import { SparkToken } from "../types/SparkToken";
+import { SparkTokenType } from "../types/SparkTokenType";
 
-export const createFountainToken = (
-  type?: FountainTokenType,
+export const createSparkToken = (
+  type?: SparkTokenType,
   text?: string,
   line?: number,
   cursor?: number,
   newLineLength?: number
-): FountainToken => {
-  const t: FountainToken = {
+): SparkToken => {
+  const t: SparkToken = {
     type,
     ...(text !== undefined ? { content: text } : {}),
     ...(line !== undefined ? { line } : {}),
     ...(cursor !== undefined ? { offset: 0, from: cursor, to: cursor } : {}),
-  } as FountainToken;
+  } as SparkToken;
   if (text) {
     const indentMatch = text.match(/^([ \t]*)/);
     const indent = indentMatch[0] || "";

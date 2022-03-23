@@ -1,9 +1,9 @@
-import { FountainTitleKeyword } from "../types/FountainTitleKeyword";
-import { FountainTitlePosition } from "../types/FountainTitlePosition";
+import { SparkTitleKeyword } from "../types/SparkTitleKeyword";
+import { SparkTitlePosition } from "../types/SparkTitlePosition";
 
 export const titlePageDisplay: {
-  [key in FountainTitleKeyword | FountainTitlePosition]: {
-    position: FountainTitlePosition;
+  [key in SparkTitleKeyword | SparkTitlePosition]: {
+    position: SparkTitlePosition;
     order: number;
   };
 } = {

@@ -1,7 +1,7 @@
-import { fountainRegexes } from "../constants/fountainRegexes";
+import { sparkRegexes } from "../constants/sparkRegexes";
 import { LexerReplacements } from "../types/LexerReplacements";
 
-export const fountainLexer = (
+export const sparkLexer = (
   s: string,
   type: string,
   replacer: LexerReplacements,
@@ -25,17 +25,17 @@ export const fountainLexer = (
   let match;
 
   if (titlePage) {
-    s = s.replace(fountainRegexes.link, replacer.link);
+    s = s.replace(sparkRegexes.link, replacer.link);
   }
   s = s
-    .replace(fountainRegexes.note, replacer.note)
+    .replace(sparkRegexes.note, replacer.note)
     .replace(/\\\*/g, "[star]")
     .replace(/\\_/g, "[underline]")
     .replace(/\n/g, replacer.line_break);
 
   while (i) {
     style = styles[i];
-    match = fountainRegexes[style];
+    match = sparkRegexes[style];
 
     if (match && match.test(s)) {
       s = s.replace(match, replacer[style]);

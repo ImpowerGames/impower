@@ -1,7 +1,7 @@
-import { FountainParseResult } from "../types/FountainParseResult";
+import { SparkParseResult } from "../types/SparkParseResult";
 
 export const getGlobalEvaluationContext = (
-  result: FountainParseResult
+  result: SparkParseResult
 ): Record<string, string | number | boolean> => {
   const sectionValues: Record<string, number> = {};
   Object.keys(result?.sections || {}).forEach((id) => {

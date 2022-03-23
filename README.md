@@ -1,6 +1,6 @@
 # Impower App
 
-This is a React [Next.js](https://nextjs.org/) app bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+This is a React [Next.js](https://nextjs.org/) app.
 
 It has been configured with:
 
@@ -11,7 +11,7 @@ It has been configured with:
 - UI built with [Material UI](https://mui.com)
 - Styling with [Emotion](https://emotion.sh)
 - "Progressive Web App (PWA)" functionality using [next-pwa](https://github.com/shadowwalker/next-pwa) and [Google Workbox](https://developers.google.com/web/tools/workbox)
-- Backend API is built and managed with [Firebase](https://firebase.google.com)
+- Backend API is managed with [Firebase](https://firebase.google.com)
 - Deployment with [Vercel](https://vercel.com)
 
 ## Application Architecture
@@ -32,20 +32,23 @@ The frontend and backend communicate through api calls provided by [Firebase](ht
 
 ## Game Architecture
 
-Impower games are built ontop of the [Phaser](http://phaser.io) game framework.
+Impower games are built on top of the [Phaser](http://phaser.io) game framework.
 
-The user can build their game using Impower Engine's visual drag-and-drop interface, or script it using Impower Script, a simple scripting language based on [Ink](https://www.inklestudios.com/ink) and [Fountain](https://fountain.io/)
+The user can build their game using Impower Engine's visual drag-and-drop interface, or script it using Spark (aka "Sparkdown"), a simple markup syntax for writing, editing, and sharing games in plain, human-readable text.
+
+Spark is inspired by [Markdown](https://www.markdownguide.org), [Fountain](https://fountain.io), and [Ink](https://www.inklestudios.com/ink)
 
 The Impower Engine can export:
 
-- Games as PWAs that the user can post on the website's "Play" page or host on their own website.
+- Games as PWAs that the user can list on the website's "Play" page or host on their own website.
 - Games as APK packages that the user can upload to the [Google Play Store](https://play.google.com/store).
+- Screenplay PDFs in industry-standard screenplay format.
 
 ## Getting Started
 
 1. Install Package Manager: [NodeJS](https://nodejs.org)
 2. Install IDE: [VSCode](https://code.visualstudio.com)
-3. Install Source Control GUI: [SourceTree](https://www.sourcetreeapp.com)
+3. Install Source Control GUI: [GitHub Desktop](https://desktop.github.com)
 
 ## The Client:
 

@@ -1,7 +1,4 @@
-import {
-  getScopedContext,
-  parseFountain,
-} from "../../../impower-script-parser";
+import { getScopedContext, parseSpark } from "../../../impower-script-parser";
 import { getRuntimeBlocks, getScriptAugmentations } from "../../parser";
 import { ImpowerGameRunner } from "../../runner/classes/impowerGameRunner";
 import { CommandData } from "./instances/items/command/commandData";
@@ -49,7 +46,7 @@ export class ImpowerContext {
 
   constructor(project: GameProjectData, runner: ImpowerGameRunner) {
     const script = project?.scripts?.data?.logic;
-    const result = parseFountain(
+    const result = parseSpark(
       script,
       getScriptAugmentations(project?.files?.data)
     );

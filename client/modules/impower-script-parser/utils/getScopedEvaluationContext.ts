@@ -1,9 +1,9 @@
-import { FountainSection } from "../types/FountainSection";
+import { SparkSection } from "../types/SparkSection";
 import { getScopedContext } from "./getScopedContext";
 
 export const getScopedEvaluationContext = (
   sectionId: string,
-  sections: Record<string, FountainSection>
+  sections: Record<string, SparkSection>
 ): [Record<string, string>, Record<string, string | number | boolean>] => {
   const [sectionIds, sectionValues] = getScopedContext(
     sectionId,

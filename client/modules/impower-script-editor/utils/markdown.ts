@@ -1,5 +1,5 @@
 import { PartialParse } from "@lezer/common";
-import { fountainRegexes } from "../../impower-script-parser";
+import { sparkRegexes } from "../../impower-script-parser";
 import { BlockContext } from "../classes/BlockContext";
 import { CompositeBlock } from "../classes/CompositeBlock";
 import { Element } from "../classes/Element";
@@ -22,7 +22,7 @@ export function isSectionHeading(line: Line): RegExpMatchArray {
   if (line.next !== "#".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(fountainRegexes.section);
+  return line.text.match(sparkRegexes.section);
 }
 
 export function getSectionMatchLevel(match: RegExpMatchArray): number {
@@ -42,7 +42,7 @@ export function getSectionLevel(line: Line): number {
 
 export function isScene(line: Line): RegExpMatchArray {
   if (line.next === ".".charCodeAt(0)) {
-    return line.text.match(fountainRegexes.scene);
+    return line.text.match(sparkRegexes.scene);
   }
   if (
     line.next !== "I".charCodeAt(0) &&
@@ -51,21 +51,21 @@ export function isScene(line: Line): RegExpMatchArray {
   ) {
     return null;
   }
-  return line.text.match(fountainRegexes.scene);
+  return line.text.match(sparkRegexes.scene);
 }
 
 export function isPageBreak(line: Line): RegExpMatchArray {
   if (line.next !== "=".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(fountainRegexes.page_break);
+  return line.text.match(sparkRegexes.page_break);
 }
 
 export function isSynopses(line: Line): RegExpMatchArray {
   if (line.next !== "=".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(fountainRegexes.synopses);
+  return line.text.match(sparkRegexes.synopses);
 }
 
 export function isCentered(line: Line): RegExpMatchArray {
@@ -73,7 +73,7 @@ export function isCentered(line: Line): RegExpMatchArray {
   if (line.next !== charCodeStart) {
     return null;
   }
-  return line.text.match(fountainRegexes.centered);
+  return line.text.match(sparkRegexes.centered);
 }
 
 export function isTransition(line: Line): RegExpMatchArray {
@@ -84,7 +84,7 @@ export function isTransition(line: Line): RegExpMatchArray {
   ) {
     return null;
   }
-  return line.text.match(fountainRegexes.transition);
+  return line.text.match(sparkRegexes.transition);
 }
 
 export function isCharacter(line: Line): RegExpMatchArray {
@@ -94,70 +94,70 @@ export function isCharacter(line: Line): RegExpMatchArray {
   ) {
     return null;
   }
-  return line.text.match(fountainRegexes.character);
+  return line.text.match(sparkRegexes.character);
 }
 
 export function isParenthetical(line: Line): RegExpMatchArray {
   if (line.next !== "(".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(fountainRegexes.parenthetical);
+  return line.text.match(sparkRegexes.parenthetical);
 }
 
 export function isLyric(line: Line): RegExpMatchArray {
   if (line.next !== "~".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(fountainRegexes.lyric);
+  return line.text.match(sparkRegexes.lyric);
 }
 
 export function isGo(line: Line): RegExpMatchArray {
   if (line.next !== ">".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(fountainRegexes.go);
+  return line.text.match(sparkRegexes.go);
 }
 
 export function isRepeat(line: Line): RegExpMatchArray {
   if (line.next !== "^".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(fountainRegexes.repeat);
+  return line.text.match(sparkRegexes.repeat);
 }
 
 export function isReturn(line: Line): RegExpMatchArray {
   if (line.next !== "<".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(fountainRegexes.return);
+  return line.text.match(sparkRegexes.return);
 }
 
 export function isAsset(line: Line): RegExpMatchArray {
   if (!["i", "a", "v", "t"].map((x) => x.charCodeAt(0)).includes(line.next)) {
     return null;
   }
-  return line.text.match(fountainRegexes.asset);
+  return line.text.match(sparkRegexes.asset);
 }
 
 export function isTag(line: Line): RegExpMatchArray {
   if (line.next !== "t".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(fountainRegexes.tag);
+  return line.text.match(sparkRegexes.tag);
 }
 
 export function isVariable(line: Line): RegExpMatchArray {
   if (line.next !== "v".charCodeAt(0) && line.next !== "t".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(fountainRegexes.variable);
+  return line.text.match(sparkRegexes.variable);
 }
 
 export function isAssign(line: Line): RegExpMatchArray {
   if (line.next !== "*".charCodeAt(0)) {
     return null;
   }
-  const match = line.text.match(fountainRegexes.assign);
+  const match = line.text.match(sparkRegexes.assign);
   if (!match) {
     return null;
   }
@@ -169,7 +169,7 @@ export function isCall(line: Line): RegExpMatchArray {
   if (line.next !== "*".charCodeAt(0)) {
     return null;
   }
-  const match = line.text.match(fountainRegexes.call);
+  const match = line.text.match(sparkRegexes.call);
   if (!match) {
     return null;
   }
@@ -181,7 +181,7 @@ export function isCondition(line: Line): RegExpMatchArray {
   if (line.next !== "*".charCodeAt(0)) {
     return null;
   }
-  const match = line.text.match(fountainRegexes.condition);
+  const match = line.text.match(sparkRegexes.condition);
   if (!match) {
     return null;
   }
@@ -193,7 +193,7 @@ export function isChoice(line: Line): RegExpMatchArray {
   if (!["-", "+", "*"].map((c) => c.charCodeAt(0)).includes(line.next)) {
     return null;
   }
-  const match = line.text.match(fountainRegexes.choice);
+  const match = line.text.match(sparkRegexes.choice);
   if (!match) {
     return null;
   }

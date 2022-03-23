@@ -1,10 +1,10 @@
-import { FountainSection } from "../types/FountainSection";
+import { SparkSection } from "../types/SparkSection";
 
 export const getRelativeSection = (
   ancestorIds: string[],
-  sections: Record<string, FountainSection>,
+  sections: Record<string, SparkSection>,
   operator: "" | "]" | "[" | "^"
-): [string, FountainSection] => {
+): [string, SparkSection] => {
   const sectionId = ancestorIds?.[0];
   const parentId = ancestorIds?.[1];
 

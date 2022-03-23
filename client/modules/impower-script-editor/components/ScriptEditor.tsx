@@ -24,9 +24,9 @@ import { tooltips } from "@codemirror/tooltip";
 import { keymap, PluginField, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import React, { useEffect, useRef } from "react";
 import {
-  FountainDeclarations,
-  FountainParseResult,
-  parseFountain,
+  parseSpark,
+  SparkDeclarations,
+  SparkParseResult,
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
 import {
@@ -43,9 +43,9 @@ import {
   SerializableEditorSelection,
   SerializableEditorState,
 } from "../types/editor";
-import { fountain } from "../utils/fountain";
-import { fountainLanguage, tags as t } from "../utils/fountainLanguage";
 import { quickSnippet } from "../utils/quickSnippet";
+import { spark } from "../utils/spark";
+import { sparkLanguage, tags as t } from "../utils/sparkLanguage";
 import { SearchPanel, SearchTextQuery } from "./SearchTextPanel";
 
 const marginPlugin = ViewPlugin.fromClass(
@@ -160,7 +160,7 @@ const myHighlightStyle = HighlightStyle.define([
 
 interface ScriptEditorProps {
   defaultValue: string;
-  augmentations?: FountainDeclarations;
+  augmentations?: SparkDeclarations;
   toggleFolding?: boolean;
   toggleLinting?: boolean;
   toggleGotoLine?: boolean;
@@ -189,7 +189,7 @@ interface ScriptEditorProps {
   style?: React.CSSProperties;
   onUpdate?: (update: ViewUpdate) => void;
   onChange?: (value: string, state?: SerializableEditorState) => void;
-  onParse?: (result: FountainParseResult) => void;
+  onParse?: (result: SparkParseResult) => void;
   onCursor?: (range: {
     anchor: number;
     head: number;
@@ -254,7 +254,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   }>();
   const firstVisibleLineRef = useRef<number>();
   const editorStateRef = useRef<SerializableEditorState>();
-  const parseResultRef = useRef<FountainParseResult>();
+  const parseResultRef = useRef<SparkParseResult>();
   const searchLineQueryRef = useRef(searchLineQuery);
 
   const scrollTopLineOffsetRef = useRef(scrollTopLineOffset);
@@ -360,11 +360,11 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           topContainer: topPanelsContainer,
           bottomContainer: bottomPanelsContainer,
         }),
-        fountain({
-          base: fountainLanguage,
-          initialParseResult: parseFountain(doc, augmentationsRef.current),
+        spark({
+          base: sparkLanguage,
+          initialParseResult: parseSpark(doc, augmentationsRef.current),
           parse: (script: string) => {
-            const result = parseFountain(script, augmentationsRef.current);
+            const result = parseSpark(script, augmentationsRef.current);
             parseResultRef.current = { ...result };
             if (onParseRef.current) {
               onParseRef.current(result);

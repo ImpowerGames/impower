@@ -11,7 +11,7 @@ export enum Type {
   CommentBlock,
   ProcessingInstructionBlock,
 
-  // Fountain Block
+  // Spark Block
   Synopses,
   Section,
   SectionReturnType,
@@ -90,7 +90,7 @@ export enum Type {
   ProcessingInstruction,
   URL,
 
-  // Fountain Inline
+  // Spark Inline
   ImageNote,
   AudioNote,
   DynamicTag,
@@ -120,7 +120,7 @@ export enum Type {
   LinkTitle,
   LinkLabel,
 
-  // Fountain Mark
+  // Spark Mark
   ImageNoteMark,
   AudioNoteMark,
   DynamicTagMark,

@@ -15,7 +15,7 @@ import {
 import { GameProjectData } from "../../impower-game/project/classes/project/gameProjectData";
 import { ImpowerGameRunner } from "../../impower-game/runner";
 import { ProjectEngineContext } from "../../impower-route-engine/contexts/projectEngineContext";
-import { parseFountain } from "../../impower-script-parser";
+import { parseSpark } from "../../impower-script-parser";
 import { useGameStyle } from "../hooks/gameHooks";
 import { PhaserGame } from "../types/game/phaserGame";
 import UI from "./UI";
@@ -27,7 +27,7 @@ const createGame = (
   saveData?: SaveData
 ): ImpowerGame => {
   const script = project?.scripts?.data?.logic;
-  const result = parseFountain(
+  const result = parseSpark(
     script,
     getScriptAugmentations(project?.files?.data)
   );

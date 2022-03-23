@@ -9,13 +9,13 @@ import {
 import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
 import {
-  FountainParseResult,
-  fountainRegexes,
-  FountainSection,
   getAncestorIds,
   getRelativeSection,
   getScopedContext,
   getSectionAt,
+  SparkParseResult,
+  sparkRegexes,
+  SparkSection,
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
 
@@ -324,7 +324,7 @@ export const nameSnippets = (
 export const getFunctionIds = (
   ancestorIds: string[],
   children: string[],
-  sections: Record<string, FountainSection>
+  sections: Record<string, SparkSection>
 ): string[] => {
   const validChildrenIds = children.filter(
     (id) => sections?.[id]?.type === "function"
@@ -338,7 +338,7 @@ export const getFunctionIds = (
 export const getSectionOptions = (
   ancestorIds: string[],
   children: string[],
-  sections: Record<string, FountainSection>,
+  sections: Record<string, SparkSection>,
   prefix: string,
   suffix: string
 ): {
@@ -488,7 +488,7 @@ export const assignOrCallSnippets = (
   variableOptions: Option[],
   ancestorIds: string[],
   children: string[],
-  sections: Record<string, FountainSection>
+  sections: Record<string, SparkSection>
 ): Completion[] => {
   const functionIds = getFunctionIds(ancestorIds, children, sections);
   const snippets = [
@@ -523,7 +523,7 @@ export const assignOrCallSnippets = (
 export const sectionSnippets = (
   ancestorIds: string[],
   children: string[],
-  sections: Record<string, FountainSection>,
+  sections: Record<string, SparkSection>,
   prefix = "",
   suffix = ""
 ): Completion[] => {
@@ -642,9 +642,9 @@ export const assetSnippets = (
   );
 };
 
-export const fountainAutocomplete = async (
+export const sparkAutocomplete = async (
   context: CompletionContext,
-  parseContext: { result: FountainParseResult }
+  parseContext: { result: SparkParseResult }
 ): Promise<CompletionResult> => {
   const { result } = parseContext;
   const requestTree = (
@@ -825,7 +825,7 @@ export const fountainAutocomplete = async (
     );
   } else if (["CallEntityName"].includes(node.name)) {
     const typeOptions = entityOptions.filter(({ type }) => type === "ui");
-    if (input.match(fountainRegexes.string)) {
+    if (input.match(sparkRegexes.string)) {
       completions.push(
         ...nameSnippets(typeOptions, "entity", "", "", colors.entity)
       );

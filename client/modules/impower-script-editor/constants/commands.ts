@@ -10,8 +10,8 @@ import {
 } from "@codemirror/state";
 import { SyntaxNode, Tree } from "@lezer/common";
 import { Context } from "../classes/Context";
-import { fountainLanguage } from "../utils/fountainLanguage";
 import { itemNumber } from "../utils/itemNumber";
+import { sparkLanguage } from "../utils/sparkLanguage";
 
 const START_REGEX = /^[\s\d.)\-+*>]*/;
 
@@ -99,7 +99,7 @@ export const insertNewlineContinueMarkup: StateCommand = ({
   const { doc } = state;
   let dont = null;
   const changes = state.changeByRange((range) => {
-    if (!range.empty || !fountainLanguage.isActiveAt(state, range.from))
+    if (!range.empty || !sparkLanguage.isActiveAt(state, range.from))
       return (dont = { range });
     const pos = range.from;
     const line = doc.lineAt(pos);
@@ -224,7 +224,7 @@ export const deleteMarkupBackward: StateCommand = ({ state, dispatch }) => {
   const changes = state.changeByRange((range) => {
     const pos = range.from;
     const { doc } = state;
-    if (range.empty && fountainLanguage.isActiveAt(state, range.from)) {
+    if (range.empty && sparkLanguage.isActiveAt(state, range.from)) {
       const line = doc.lineAt(pos);
       const context = getContext(
         contextNodeForDelete(tree, pos),

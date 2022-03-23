@@ -1,11 +1,11 @@
-import { FountainVariableType } from "./FountainVariableType";
+import { SparkVariableType } from "./SparkVariableType";
 
-export interface FountainVariable {
+export interface SparkVariable {
   from: number;
   to: number;
   line: number;
   name: string;
-  type: FountainVariableType;
+  type: SparkVariableType;
   value: string | number | boolean;
   parameter: boolean;
   scope: "public" | "protected" | "private";

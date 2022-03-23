@@ -1,4 +1,4 @@
-export interface FountainAction {
+export interface SparkAction {
   /**
     The label to show to the user. Should be relatively short.
     */
@@ -7,7 +7,7 @@ export interface FountainAction {
   changes?: { from: number; to?: number; insert?: string }[];
 }
 
-export interface FountainDiagnostic {
+export interface SparkDiagnostic {
   /**
     The start position of the relevant text.
     */
@@ -36,5 +36,5 @@ export interface FountainDiagnostic {
     An optional array of actions that can be taken on this
     diagnostic.
     */
-  actions?: readonly FountainAction[];
+  actions?: readonly SparkAction[];
 }

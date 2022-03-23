@@ -1,11 +1,11 @@
 /* eslint-disable no-continue */
 import { htmlReplacements } from "../constants/htmlReplacements";
-import { FountainParseResult } from "../types/FountainParseResult";
-import { FountainToken } from "../types/FountainToken";
-import { fountainLexer } from "./fountainLexer";
+import { SparkParseResult } from "../types/SparkParseResult";
+import { SparkToken } from "../types/SparkToken";
+import { sparkLexer } from "./sparkLexer";
 
-export const generateFountainHtml = (
-  result: FountainParseResult
+export const generateSparkHtml = (
+  result: SparkParseResult
 ): {
   scriptHtml?: string;
   titleHtml?: string;
@@ -32,13 +32,13 @@ export const generateFountainHtml = (
       titleHtml.push(`<div class="title-page-section" data-line="${section}">`);
       let currentIndex = 0; /* , previous_type = null */
       while (titlePageTokens && currentIndex < titlePageTokens.length) {
-        const currentToken: FountainToken = titlePageTokens[currentIndex];
+        const currentToken: SparkToken = titlePageTokens[currentIndex];
         if (currentToken.ignore) {
           currentIndex += 1;
           continue;
         }
         if (currentToken.content !== "") {
-          const html = fountainLexer(
+          const html = sparkLexer(
             currentToken.content,
             undefined,
             htmlReplacements,
@@ -70,9 +70,9 @@ export const generateFountainHtml = (
   let currentIndex = 0;
   let isAction = false;
   while (currentIndex < result.scriptTokens.length) {
-    const currentToken: FountainToken = result.scriptTokens[currentIndex];
+    const currentToken: SparkToken = result.scriptTokens[currentIndex];
     if (currentToken.content !== "") {
-      const html = fountainLexer(
+      const html = sparkLexer(
         currentToken.content,
         currentToken.type,
         htmlReplacements

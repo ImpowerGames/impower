@@ -20,10 +20,7 @@ import { Diagnostic, linter } from "@codemirror/lint";
 import { EditorSelection, Prec } from "@codemirror/state";
 import { hoverTooltip } from "@codemirror/tooltip";
 import { KeyBinding, keymap } from "@codemirror/view";
-import {
-  FountainParseResult,
-  parseFountain,
-} from "../../impower-script-parser";
+import { parseSpark, SparkParseResult } from "../../impower-script-parser";
 import { MarkdownParser } from "../classes/MarkdownParser";
 import {
   deleteMarkupBackward,
@@ -32,19 +29,19 @@ import {
 import { sectionNamePreview } from "../extensions/sectionNamePreview";
 import { snippetPreview } from "../extensions/snippetPreview";
 import { MarkdownExtension } from "../types/markdownExtension";
-import { fountainAutocomplete } from "./fountainAutocomplete";
+import { parseCode } from "./nest";
+import { sparkAutocomplete } from "./sparkAutocomplete";
 import {
   commonmarkLanguage,
-  fountainLanguage,
   getCodeParser,
   mkLang,
-} from "./fountainLanguage";
-import { fountainTooltip } from "./fountainTooltip";
-import { parseCode } from "./nest";
+  sparkLanguage,
+} from "./sparkLanguage";
+import { sparkTooltip } from "./sparkTooltip";
 
 export {
   commonmarkLanguage,
-  fountainLanguage,
+  sparkLanguage,
   insertNewlineContinueMarkup,
   deleteMarkupBackward,
 };
@@ -107,7 +104,7 @@ export const completionKeymap: readonly KeyBinding[] = [
 const htmlNoMatch = html({ matchClosingTags: false });
 
 /// Markdown language support.
-export function fountain(
+export function spark(
   config: {
     /// When given, this language will be used by default to parse code
     /// blocks.
@@ -127,12 +124,12 @@ export function fountain(
     /// The base language to use. Defaults to
     /// [`commonmarkLanguage`](#lang-markdown.commonmarkLanguage).
     base?: Language;
-    initialParseResult?: FountainParseResult;
+    initialParseResult?: SparkParseResult;
     /// Callback to execute when doc is parsed
-    parse: (script: string) => FountainParseResult;
+    parse: (script: string) => SparkParseResult;
     getRuntimeValue?: (id: string) => string | number | boolean;
     setRuntimeValue?: (id: string, expression: string) => void;
-  } = { parse: parseFountain }
+  } = { parse: parseSpark }
 ): LanguageSupport {
   const {
     codeLanguages,
@@ -150,9 +147,9 @@ export function fountain(
     );
   }
   const parseContext: {
-    result: FountainParseResult;
+    result: SparkParseResult;
   } = { result: initialParseResult };
-  const fountainParseLinter = (view: EditorView): Diagnostic[] => {
+  const sparkParseLinter = (view: EditorView): Diagnostic[] => {
     parseContext.result = parse(view.state.doc.toString());
     const diagnostics = parseContext.result?.diagnostics || [];
     return diagnostics.map((d) => ({
@@ -188,16 +185,16 @@ export function fountain(
   const extensions = config.extensions ? [config.extensions] : [];
   const support = [
     htmlNoMatch.support,
-    fountainLanguage.data.of({
-      autocomplete: async (c) => fountainAutocomplete(c, parseContext),
+    sparkLanguage.data.of({
+      autocomplete: async (c) => sparkAutocomplete(c, parseContext),
     }),
     autocompletion({ aboveCursor: true, defaultKeymap: false }),
     hoverTooltip((v, p, s) =>
-      fountainTooltip(v, p, s, parseContext, getRuntimeValue, setRuntimeValue)
+      sparkTooltip(v, p, s, parseContext, getRuntimeValue, setRuntimeValue)
     ),
     sectionNamePreview({ parseContext }),
     snippetPreview(),
-    linter(fountainParseLinter, { delay: 100 }),
+    linter(sparkParseLinter, { delay: 100 }),
   ];
   let defaultCode;
   if (defaultCodeLanguage instanceof LanguageSupport) {

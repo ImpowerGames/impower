@@ -1,4 +1,4 @@
-export const fountainRegexes = {
+export const sparkRegexes = {
   title_page:
     /^([ \t]*)(title|credit|author[s]?|source|notes|draft date|date|watermark|contact(?: info)?|revision|copyright|font|tl|tc|tr|cc|br|bl)(:)(.*)?$/i,
 

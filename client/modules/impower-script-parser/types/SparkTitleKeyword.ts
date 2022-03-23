@@ -1,4 +1,4 @@
-export type FountainTitleKeyword =
+export type SparkTitleKeyword =
   | "title"
   | "credit"
   | "author"

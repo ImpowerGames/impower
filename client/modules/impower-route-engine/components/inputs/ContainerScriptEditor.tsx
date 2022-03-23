@@ -23,10 +23,10 @@ import {
 } from "../../../impower-script-editor";
 import { SerializableEditorState } from "../../../impower-script-editor/types/editor";
 import {
-  FountainParseResult,
   getGlobalEvaluationContext,
   getScopedContext,
-  parseFountain,
+  parseSpark,
+  SparkParseResult,
 } from "../../../impower-script-parser";
 import { GameContext } from "../../contexts/gameContext";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
@@ -108,13 +108,13 @@ const ContainerScriptEditor = React.memo(
     const scriptValueRef = useRef<string>();
     const lastEditorStateRef = useRef<SerializableEditorState>();
     const scrollTopLineRef = useRef<number>();
-    const parseResultRef = useRef<FountainParseResult>();
+    const parseResultRef = useRef<SparkParseResult>();
     const currentSectionNameRef = useRef<string>();
     const gameRef = useRef(game);
     gameRef.current = game;
 
     const [parseResultState, setParseResultState] =
-      useState<FountainParseResult>();
+      useState<SparkParseResult>();
     const [executingCursor, setExecutingCursor] = useState<{
       anchor: number;
       head: number;
@@ -172,7 +172,7 @@ const ContainerScriptEditor = React.memo(
       dispatch(panelSearchLine(windowType, null));
     }, [dispatch, windowType]);
 
-    const handleScriptParse = useCallback((result: FountainParseResult) => {
+    const handleScriptParse = useCallback((result: SparkParseResult) => {
       parseResultRef.current = result;
       setParseResultState(parseResultRef.current);
     }, []);
@@ -297,7 +297,7 @@ const ContainerScriptEditor = React.memo(
       (e: Event, firstVisibleLine: number) => {
         scrollTopLineRef.current = firstVisibleLine;
         if (!parseResultRef.current) {
-          parseResultRef.current = parseFountain(
+          parseResultRef.current = parseSpark(
             scriptValueRef.current,
             augmentations
           );
@@ -327,7 +327,7 @@ const ContainerScriptEditor = React.memo(
     );
 
     const handlePreviewResult = useCallback(
-      (result: FountainParseResult, line: number) => {
+      (result: SparkParseResult, line: number) => {
         if (line != null) {
           let tokenIndex = result.scriptLines[line];
           let token = result.scriptTokens[tokenIndex];

@@ -1,15 +1,12 @@
 import { EditorView } from "@codemirror/basic-setup";
 import { Tooltip } from "@codemirror/tooltip";
-import {
-  FountainParseResult,
-  FountainReference,
-} from "../../impower-script-parser";
+import { SparkParseResult, SparkReference } from "../../impower-script-parser";
 
-const getFountainReferenceAt = (
+const getSparkReferenceAt = (
   lineNumber: number,
   pos: number,
-  result: FountainParseResult
-): FountainReference => {
+  result: SparkParseResult
+): SparkReference => {
   if (!result?.references) {
     return undefined;
   }
@@ -25,18 +22,18 @@ const getFountainReferenceAt = (
   return null;
 };
 
-export const fountainTooltip = (
+export const sparkTooltip = (
   view: EditorView,
   pos: number,
   side: 1 | -1,
   parseContext: {
-    result: FountainParseResult;
+    result: SparkParseResult;
   },
   getRuntimeValue?: (id: string) => string | number | boolean,
   setRuntimeValue?: (id: string, expression: string) => void
 ): Tooltip | Promise<Tooltip> => {
   const line = view.state.doc.lineAt(pos);
-  const token = getFountainReferenceAt(line.number, pos, parseContext?.result);
+  const token = getSparkReferenceAt(line.number, pos, parseContext?.result);
   if (!token) {
     return null;
   }

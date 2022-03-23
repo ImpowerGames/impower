@@ -1,9 +1,9 @@
-import { FountainSection } from "../types/FountainSection";
+import { SparkSection } from "../types/SparkSection";
 import { getAncestorIds } from "./getAncestorIds";
 
 export const getScopedSectionIds = (
   sectionId: string,
-  sections: Record<string, FountainSection>
+  sections: Record<string, SparkSection>
 ): Record<string, string> => {
   const result: Record<string, string> = {};
   const childrenIds = sections?.[sectionId]?.children || [];

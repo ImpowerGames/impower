@@ -1,9 +1,9 @@
-import { FountainParseResult } from "../../../impower-script-parser";
+import { SparkParseResult } from "../../../impower-script-parser";
 import { FileData } from "../../data";
 
 export const getScriptAugmentations = (
   files: Record<string, FileData>
-): Partial<FountainParseResult> => {
+): Partial<SparkParseResult> => {
   const assets = {};
   Object.entries(files || {}).forEach(([, { name, fileType, fileUrl }]) => {
     const type = fileType?.startsWith("audio")

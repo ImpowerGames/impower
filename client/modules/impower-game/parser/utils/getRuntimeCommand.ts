@@ -1,7 +1,7 @@
 import {
-  FountainDialogueToken,
-  FountainDisplayToken,
-  FountainToken,
+  SparkDialogueToken,
+  SparkDisplayToken,
+  SparkToken,
 } from "../../../impower-script-parser";
 import {
   AssignCommandData,
@@ -21,12 +21,12 @@ import {
 } from "../../data";
 
 const getDisplayCommand = (
-  token: FountainDisplayToken,
+  token: SparkDisplayToken,
   sectionId = ""
 ): DisplayCommandData => {
   const refId = `${sectionId}.${token.line}`;
   const refTypeId: CommandTypeId = "DisplayCommand";
-  const dialogueToken = token as FountainDialogueToken;
+  const dialogueToken = token as SparkDialogueToken;
   return {
     ...createCommandData({
       ...createItemData({
@@ -54,7 +54,7 @@ const getDisplayCommand = (
 };
 
 export const getRuntimeCommand = (
-  token: FountainToken,
+  token: SparkToken,
   sectionId = ""
 ): CommandData => {
   if (token.type === "assign") {

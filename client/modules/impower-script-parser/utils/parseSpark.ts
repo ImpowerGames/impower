@@ -2,35 +2,35 @@
 /* eslint-disable prefer-destructuring */
 /* eslint-disable no-continue */
 import { compile } from "../../impower-evaluate";
-import { fountainRegexes } from "../constants/fountainRegexes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
 import { reservedKeywords } from "../constants/reservedKeywords";
-import { FountainAsset } from "../types/FountainAsset";
-import { FountainAssetType } from "../types/FountainAssetType";
-import { FountainDeclarations } from "../types/FountainDeclarations";
-import { FountainAction } from "../types/FountainDiagnostic";
-import { FountainEntity } from "../types/FountainEntity";
-import { FountainEntityType } from "../types/FountainEntityType";
-import { FountainParseResult } from "../types/FountainParseResult";
-import { FountainSection } from "../types/FountainSection";
-import { FountainTag } from "../types/FountainTag";
-import { FountainChoiceToken, FountainToken } from "../types/FountainToken";
-import { FountainTokenType } from "../types/FountainTokenType";
-import { FountainVariable } from "../types/FountainVariable";
-import { FountainVariableType } from "../types/FountainVariableType";
-import { createFountainToken } from "./createFountainToken";
+import { sparkRegexes } from "../constants/sparkRegexes";
+import { SparkAsset } from "../types/SparkAsset";
+import { SparkAssetType } from "../types/SparkAssetType";
+import { SparkDeclarations } from "../types/SparkDeclarations";
+import { SparkAction } from "../types/SparkDiagnostic";
+import { SparkEntity } from "../types/SparkEntity";
+import { SparkEntityType } from "../types/SparkEntityType";
+import { SparkParseResult } from "../types/SparkParseResult";
+import { SparkSection } from "../types/SparkSection";
+import { SparkTag } from "../types/SparkTag";
+import { SparkChoiceToken, SparkToken } from "../types/SparkToken";
+import { SparkTokenType } from "../types/SparkTokenType";
+import { SparkVariable } from "../types/SparkVariable";
+import { SparkVariableType } from "../types/SparkVariableType";
+import { createSparkToken } from "./createSparkToken";
 import { getScopedEvaluationContext } from "./getScopedEvaluationContext";
 import { getScopedItem } from "./getScopedItem";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
-export const parseFountain = (
+export const parseSpark = (
   originalScript: string,
-  augmentations?: FountainDeclarations
-): FountainParseResult => {
+  augmentations?: SparkDeclarations
+): SparkParseResult => {
   const script = originalScript;
 
-  const parsed: FountainParseResult = {
+  const parsed: SparkParseResult = {
     scriptTokens: [],
     scriptLines: {},
     properties: {},
@@ -94,8 +94,8 @@ export const parseFountain = (
   let match: string[];
   let text = "";
   let lastTitlePageToken;
-  let currentToken: FountainToken;
-  let previousToken: FountainToken;
+  let currentToken: SparkToken;
+  let previousToken: SparkToken;
   let tokenCategory = "none";
   let lastCharacterIndex;
   let dualRight;
@@ -106,13 +106,13 @@ export const parseFountain = (
   let previousCharacter: string;
   let previousParenthetical: string;
   let previousAssets: { name: string }[] = [];
-  let notes: { type: FountainAssetType; name: string }[] = [];
-  let currentChoiceTokens: FountainChoiceToken[] = [];
+  let notes: { type: SparkAssetType; name: string }[] = [];
+  let currentChoiceTokens: SparkChoiceToken[] = [];
 
   const diagnostic = (
-    currentToken: FountainToken,
+    currentToken: SparkToken,
     message: string,
-    actions: FountainAction[] = [],
+    actions: SparkAction[] = [],
     from = -1,
     to = -1,
     severity: "error" | "warning" | "info" = "error"
@@ -177,42 +177,34 @@ export const parseFountain = (
   const findSection = (
     sectionId: string,
     name: string
-  ): [string, FountainSection] => {
+  ): [string, SparkSection] => {
     return getScopedItem(parsed?.sections, sectionId, name);
   };
 
   const findVariable = (
     sectionId: string,
     name: string
-  ): [string, FountainVariable] => {
+  ): [string, SparkVariable] => {
     return getScopedItem(parsed?.variables, sectionId, name);
   };
 
-  const findAsset = (
-    sectionId: string,
-    name: string
-  ): [string, FountainAsset] => {
+  const findAsset = (sectionId: string, name: string): [string, SparkAsset] => {
     return getScopedItem(parsed?.assets, sectionId, name);
   };
 
   const findEntity = (
     sectionId: string,
     name: string
-  ): [string, FountainEntity] => {
+  ): [string, SparkEntity] => {
     return getScopedItem(parsed?.entities, sectionId, name);
   };
 
-  const findTag = (sectionId: string, name: string): [string, FountainTag] => {
+  const findTag = (sectionId: string, name: string): [string, SparkTag] => {
     return getScopedItem(parsed?.tags, sectionId, name);
   };
 
   const lintNameUnique = <
-    T extends
-      | FountainSection
-      | FountainVariable
-      | FountainAsset
-      | FountainEntity
-      | FountainTag
+    T extends SparkSection | SparkVariable | SparkAsset | SparkEntity | SparkTag
   >(
     type: "section" | "variable" | "asset" | "entity" | "tag",
     found: T,
@@ -237,12 +229,7 @@ export const parseFountain = (
   };
 
   const lintName = <
-    T extends
-      | FountainSection
-      | FountainVariable
-      | FountainAsset
-      | FountainEntity
-      | FountainTag
+    T extends SparkSection | SparkVariable | SparkAsset | SparkEntity | SparkTag
   >(
     name: string,
     from: number,
@@ -305,7 +292,7 @@ export const parseFountain = (
   };
 
   const addSection = (
-    section: FountainSection,
+    section: SparkSection,
     nameFrom: number,
     nameTo: number
   ): void => {
@@ -346,7 +333,7 @@ export const parseFountain = (
     name: string,
     from?: number,
     to?: number
-  ): FountainSection => {
+  ): SparkSection => {
     if (!name) {
       return undefined;
     }
@@ -391,7 +378,7 @@ export const parseFountain = (
     }
     const argumentsString = methodArgs.slice(1, -1);
     const expressionListMatches = Array.from(
-      argumentsString.matchAll(fountainRegexes.expression_list)
+      argumentsString.matchAll(sparkRegexes.expression_list)
     );
     const tokenMatches: string[] = [""];
     expressionListMatches.forEach((m) => {
@@ -509,7 +496,7 @@ export const parseFountain = (
     expression: string,
     expressionFrom: number,
     expressionTo: number,
-    found?: FountainVariable,
+    found?: SparkVariable,
     nameFrom?: number,
     nameTo?: number
   ): {
@@ -523,7 +510,7 @@ export const parseFountain = (
       methodArgs?: string[];
     } = {};
     if (expression) {
-      const methodMatch = expression.match(fountainRegexes.method);
+      const methodMatch = expression.match(sparkRegexes.method);
       if (methodMatch) {
         if (found) {
           const methodName = methodMatch[1]?.trim() || "";
@@ -636,11 +623,11 @@ export const parseFountain = (
   };
 
   const getAsset = (
-    type: FountainAssetType,
+    type: SparkAssetType,
     name: string,
     from: number,
     to: number
-  ): FountainAsset => {
+  ): SparkAsset => {
     if (!name) {
       return undefined;
     }
@@ -685,11 +672,11 @@ export const parseFountain = (
   };
 
   const getEntity = (
-    type: FountainEntityType,
+    type: SparkEntityType,
     name: string,
     from: number,
     to: number
-  ): FountainEntity => {
+  ): SparkEntity => {
     if (!name) {
       return undefined;
     }
@@ -733,7 +720,7 @@ export const parseFountain = (
     return found;
   };
 
-  const getTag = (name: string, from: number, to: number): FountainTag => {
+  const getTag = (name: string, from: number, to: number): SparkTag => {
     if (!name) {
       return undefined;
     }
@@ -761,11 +748,11 @@ export const parseFountain = (
   };
 
   const getVariable = (
-    type: FountainVariableType,
+    type: SparkVariableType,
     name: string,
     from: number,
     to: number
-  ): FountainVariable => {
+  ): SparkVariable => {
     if (!name) {
       return undefined;
     }
@@ -797,17 +784,17 @@ export const parseFountain = (
     return found;
   };
 
-  const getValueType = (valueText: string): FountainVariableType => {
+  const getValueType = (valueText: string): SparkVariableType => {
     if (valueText == null || valueText === "") {
       return null;
     }
-    if (valueText.match(fountainRegexes.string)) {
+    if (valueText.match(sparkRegexes.string)) {
       return "string";
     }
-    if (valueText.match(fountainRegexes.number)) {
+    if (valueText.match(sparkRegexes.number)) {
       return "number";
     }
-    if (valueText.match(fountainRegexes.boolean)) {
+    if (valueText.match(sparkRegexes.boolean)) {
       return "boolean";
     }
     return undefined;
@@ -817,7 +804,7 @@ export const parseFountain = (
     content: string,
     from: number,
     to: number
-  ): [string | number | boolean, FountainVariable] => {
+  ): [string | number | boolean, SparkVariable] => {
     if (!content) {
       return [undefined, undefined];
     }
@@ -839,15 +826,15 @@ export const parseFountain = (
   };
 
   const getAssetValueOrReference = (
-    type: FountainAssetType,
+    type: SparkAssetType,
     content: string,
     from: number,
     to: number
-  ): [string, FountainAsset] => {
+  ): [string, SparkAsset] => {
     if (!content) {
       return [undefined, undefined];
     }
-    if (content.match(fountainRegexes.string)) {
+    if (content.match(sparkRegexes.string)) {
       return [content.slice(1, -1), null];
     }
     const found = getAsset(type, content, from, to);
@@ -858,15 +845,15 @@ export const parseFountain = (
   };
 
   const getEntityValueOrReference = (
-    type: FountainEntityType,
+    type: SparkEntityType,
     content: string,
     from: number,
     to: number
-  ): [string, FountainEntity] => {
+  ): [string, SparkEntity] => {
     if (!content) {
       return [undefined, undefined];
     }
-    if (content.match(fountainRegexes.string)) {
+    if (content.match(sparkRegexes.string)) {
       return [content.slice(1, -1), null];
     }
     const found = getEntity(type, content, from, to);
@@ -880,11 +867,11 @@ export const parseFountain = (
     content: string,
     from: number,
     to: number
-  ): [string, FountainTag] => {
+  ): [string, SparkTag] => {
     if (!content) {
       return [undefined, undefined];
     }
-    if (content.match(fountainRegexes.string)) {
+    if (content.match(sparkRegexes.string)) {
       return [content.slice(1, -1), null];
     }
     const found = getTag(content, from, to);
@@ -895,7 +882,7 @@ export const parseFountain = (
   };
 
   const addAsset = (
-    type: FountainAssetType,
+    type: SparkAssetType,
     name: string,
     valueText: string,
     line: number,
@@ -949,7 +936,7 @@ export const parseFountain = (
   };
 
   const addEntity = (
-    type: FountainEntityType,
+    type: SparkEntityType,
     name: string,
     valueText: string,
     line: number,
@@ -1028,7 +1015,7 @@ export const parseFountain = (
     });
     const [value] = getTagValueOrReference(valueText, valueFrom, valueTo);
     const validValue = value != null ? value : "";
-    const item: FountainTag = {
+    const item: SparkTag = {
       ...(parsed?.tags?.[id] || {}),
       from: nameFrom,
       to: nameTo,
@@ -1078,8 +1065,8 @@ export const parseFountain = (
     });
     const { value } = getExpressionValue(valueText, valueFrom, valueTo);
     const validValue = value != null ? value : "";
-    const validType = typeof validValue as FountainVariableType;
-    const item: FountainVariable = {
+    const validType = typeof validValue as SparkVariableType;
+    const item: SparkVariable = {
       ...(parsed?.variables?.[id] || {}),
       from: nameFrom,
       to: nameTo,
@@ -1115,7 +1102,7 @@ export const parseFountain = (
     const closeMark = parametersWithParenthesisString.slice(-1);
     const detector = openMark === "[" && closeMark === "]";
     const expressionListMatches = Array.from(
-      parametersString.matchAll(fountainRegexes.expression_list)
+      parametersString.matchAll(sparkRegexes.expression_list)
     );
     const tokenMatches: string[] = [""];
     expressionListMatches.forEach((m) => {
@@ -1163,7 +1150,7 @@ export const parseFountain = (
         diagnostic(currentToken, "Empty parameter", [], from, to);
       } else if (
         (parameterMatch = declaration.match(
-          fountainRegexes.parameter_declaration_lint
+          sparkRegexes.parameter_declaration_lint
         ))
       ) {
         const name = parameterMatch[2] || "";
@@ -1220,7 +1207,7 @@ export const parseFountain = (
     return parameterNames;
   };
 
-  const pushToken = (token: FountainToken): void => {
+  const pushToken = (token: SparkToken): void => {
     if (!parsed.scriptLines) {
       parsed.scriptLines = {};
     }
@@ -1237,7 +1224,7 @@ export const parseFountain = (
 
   const pushNotes = (): void => {
     const str = currentToken.content;
-    const noteMatches = str.match(fountainRegexes.note);
+    const noteMatches = str.match(sparkRegexes.note);
     let startIndex = -1;
     if (noteMatches) {
       for (let i = 0; i < noteMatches.length; i += 1) {
@@ -1253,7 +1240,7 @@ export const parseFountain = (
         notes.push({ type, name });
       }
       currentToken.text = str;
-      currentToken.content = str.replace(fountainRegexes.note, "");
+      currentToken.content = str.replace(sparkRegexes.note, "");
     }
   };
 
@@ -1267,7 +1254,7 @@ export const parseFountain = (
 
   const pushAssets = (): void => {
     const str = currentToken.content;
-    const noteMatches = str.match(fountainRegexes.note);
+    const noteMatches = str.match(sparkRegexes.note);
     let startIndex = -1;
     if (noteMatches) {
       for (let i = 0; i < noteMatches.length; i += 1) {
@@ -1304,13 +1291,7 @@ export const parseFountain = (
     return prev;
   };
 
-  currentToken = createFountainToken(
-    undefined,
-    text,
-    1,
-    current,
-    newLineLength
-  );
+  currentToken = createSparkToken(undefined, text, 1, current, newLineLength);
 
   addSection(
     {
@@ -1339,7 +1320,7 @@ export const parseFountain = (
       .filter((x) => Boolean(x))
       .reduce(reduceComment, "");
 
-    currentToken = createFountainToken(
+    currentToken = createSparkToken(
       undefined,
       text,
       i + 1,
@@ -1348,7 +1329,7 @@ export const parseFountain = (
     );
     current = currentToken.to + 1;
 
-    if ((match = currentToken.content.match(fountainRegexes.section))) {
+    if ((match = currentToken.content.match(sparkRegexes.section))) {
       currentToken.type = "section";
       if (currentToken.type === "section") {
         const level = match[2].length;
@@ -1376,7 +1357,7 @@ export const parseFountain = (
           currentSectionId = `${parentId}.${name}`;
         }
         currentLevel = level;
-        const newSection: FountainSection = {
+        const newSection: SparkSection = {
           ...(parsed?.sections?.[currentSectionId] || {}),
           level: currentLevel,
           from: currentToken.from,
@@ -1428,7 +1409,7 @@ export const parseFountain = (
         }
         newSection.triggers = type === "detector" ? parameters : [];
       }
-    } else if ((match = currentToken.content.match(fountainRegexes.variable))) {
+    } else if ((match = currentToken.content.match(sparkRegexes.variable))) {
       currentToken.type = "variable";
       if (currentToken.type === "variable") {
         const mark = match[2]?.trim() || "";
@@ -1453,8 +1434,8 @@ export const parseFountain = (
           );
         }
       }
-    } else if ((match = currentToken.content.match(fountainRegexes.asset))) {
-      const type = match[2]?.trim() as FountainAssetType;
+    } else if ((match = currentToken.content.match(sparkRegexes.asset))) {
+      const type = match[2]?.trim() as SparkAssetType;
       currentToken.type = type;
       if (currentToken.type === type) {
         const name = match[4]?.trim() || "";
@@ -1476,8 +1457,8 @@ export const parseFountain = (
           );
         }
       }
-    } else if ((match = currentToken.content.match(fountainRegexes.entity))) {
-      const type = match[2]?.trim() as FountainEntityType;
+    } else if ((match = currentToken.content.match(sparkRegexes.entity))) {
+      const type = match[2]?.trim() as SparkEntityType;
       currentToken.type = type;
       if (currentToken.type === type) {
         const name = match[4]?.trim() || "";
@@ -1499,7 +1480,7 @@ export const parseFountain = (
           );
         }
       }
-    } else if ((match = currentToken.content.match(fountainRegexes.tag))) {
+    } else if ((match = currentToken.content.match(sparkRegexes.tag))) {
       const type = "tag";
       currentToken.type = type;
       if (currentToken.type === type) {
@@ -1552,7 +1533,7 @@ export const parseFountain = (
       state = cacheStateForComment;
     }
 
-    currentToken = createFountainToken(
+    currentToken = createSparkToken(
       undefined,
       text,
       i + 1,
@@ -1573,10 +1554,10 @@ export const parseFountain = (
       }
 
       if (state === "dialogue") {
-        pushToken(createFountainToken("dialogue_end"));
+        pushToken(createSparkToken("dialogue_end"));
       }
       if (state === "dual_dialogue") {
-        pushToken(createFountainToken("dual_dialogue_end"));
+        pushToken(createSparkToken("dual_dialogue_end"));
       }
       state = "normal";
 
@@ -1595,18 +1576,18 @@ export const parseFountain = (
 
     if (
       !titlePageStarted &&
-      fountainRegexes.title_page.test(currentToken.content)
+      sparkRegexes.title_page.test(currentToken.content)
     ) {
       state = "title_page";
     }
 
     if (state === "title_page") {
-      if ((match = currentToken.content.match(fountainRegexes.title_page))) {
+      if ((match = currentToken.content.match(sparkRegexes.title_page))) {
         const key = match[2] || "";
         const entry = match[5] || "";
         currentToken.type = key
           .toLowerCase()
-          .replace(" ", "_") as FountainTokenType;
+          .replace(" ", "_") as SparkTokenType;
         currentToken.content = entry.trim();
         lastTitlePageToken = currentToken;
         const keyFormat = titlePageDisplay[currentToken.type];
@@ -1630,14 +1611,14 @@ export const parseFountain = (
     }
 
     if (state === "normal") {
-      if (currentToken.content.match(fountainRegexes.line_break)) {
+      if (currentToken.content.match(sparkRegexes.line_break)) {
         tokenCategory = "none";
       } else if (parsed.properties.firstTokenLine === undefined) {
         parsed.properties.firstTokenLine = currentToken.line;
         currentLevel = 0;
       }
 
-      if ((match = currentToken.content.match(fountainRegexes.scene))) {
+      if ((match = currentToken.content.match(sparkRegexes.scene))) {
         currentToken.type = "scene";
         if (currentToken.type === "scene") {
           pushNotes();
@@ -1693,30 +1674,30 @@ export const parseFountain = (
           saveAndClearNotes();
           currentToken.content = currentToken.content.substring(1);
         }
-      } else if (currentToken.content.match(fountainRegexes.centered)) {
+      } else if (currentToken.content.match(sparkRegexes.centered)) {
         currentToken.type = "centered";
         if (currentToken.type === "centered") {
-          if ((match = lint(fountainRegexes.centered))) {
+          if ((match = lint(sparkRegexes.centered))) {
             currentToken.wait = true;
             pushNotes();
             saveAndClearNotes();
             currentToken.content = match[4] || "";
           }
         }
-      } else if (currentToken.content.match(fountainRegexes.transition)) {
+      } else if (currentToken.content.match(sparkRegexes.transition)) {
         currentToken.type = "transition";
         if (currentToken.type === "transition") {
           currentToken.wait = true;
-          if ((match = lint(fountainRegexes.transition))) {
+          if ((match = lint(sparkRegexes.transition))) {
             pushNotes();
             saveAndClearNotes();
             currentToken.content = match[2] || "";
           }
         }
-      } else if ((match = currentToken.content.match(fountainRegexes.go))) {
+      } else if ((match = currentToken.content.match(sparkRegexes.go))) {
         currentToken.type = "go";
         if (currentToken.type === "go") {
-          if ((match = lint(fountainRegexes.go))) {
+          if ((match = lint(sparkRegexes.go))) {
             const name = match[4]?.trim() || "";
             const nameFrom = currentToken.from + getStart(match, 4);
             const nameTo = nameFrom + name.length;
@@ -1737,12 +1718,12 @@ export const parseFountain = (
             }
           }
         }
-      } else if ((match = currentToken.content.match(fountainRegexes.repeat))) {
+      } else if ((match = currentToken.content.match(sparkRegexes.repeat))) {
         currentToken.type = "repeat";
-      } else if ((match = currentToken.content.match(fountainRegexes.return))) {
+      } else if ((match = currentToken.content.match(sparkRegexes.return))) {
         currentToken.type = "return";
         if (currentToken.type === "return") {
-          if ((match = lint(fountainRegexes.return))) {
+          if ((match = lint(sparkRegexes.return))) {
             const mark = match[2]?.trim() || "";
             const expression = match[4]?.trim() || "";
             const markFrom = currentToken.from + getStart(match, 2);
@@ -1806,12 +1787,10 @@ export const parseFountain = (
             }
           }
         }
-      } else if (
-        (match = currentToken.content.match(fountainRegexes.condition))
-      ) {
+      } else if ((match = currentToken.content.match(sparkRegexes.condition))) {
         currentToken.type = "condition";
         if (currentToken.type === "condition") {
-          if ((match = lint(fountainRegexes.condition))) {
+          if ((match = lint(sparkRegexes.condition))) {
             const check = (match[4]?.trim() as "if" | "elif" | "else") || "";
             const expression = match[6]?.trim() || "";
             const checkFrom = currentToken.from + getStart(match, 4);
@@ -1889,11 +1868,11 @@ export const parseFountain = (
             }
           }
         }
-      } else if (currentToken.content.match(fountainRegexes.list)) {
-        if ((match = currentToken.content.match(fountainRegexes.call))) {
+      } else if (currentToken.content.match(sparkRegexes.list)) {
+        if ((match = currentToken.content.match(sparkRegexes.call))) {
           currentToken.type = "call";
           if (currentToken.type === "call") {
-            if ((match = lint(fountainRegexes.call))) {
+            if ((match = lint(sparkRegexes.call))) {
               const name = match[4]?.trim() || "";
               const nameFrom = currentToken.from + getStart(match, 4);
               const nameTo = nameFrom + name.length;
@@ -1911,12 +1890,10 @@ export const parseFountain = (
               );
             }
           }
-        } else if (
-          (match = currentToken.content.match(fountainRegexes.assign))
-        ) {
+        } else if ((match = currentToken.content.match(sparkRegexes.assign))) {
           currentToken.type = "assign";
           if (currentToken.type === "assign") {
-            if ((match = lint(fountainRegexes.assign))) {
+            if ((match = lint(sparkRegexes.assign))) {
               const name = match[4]?.trim() || "";
               const operator = match[6]?.trim() || "";
               const expression = match[8]?.trim() || "";
@@ -1947,12 +1924,10 @@ export const parseFountain = (
               }
             }
           }
-        } else if (
-          (match = currentToken.content.match(fountainRegexes.choice))
-        ) {
+        } else if ((match = currentToken.content.match(sparkRegexes.choice))) {
           currentToken.type = "choice";
           if (currentToken.type === "choice") {
-            if ((match = lint(fountainRegexes.choice))) {
+            if ((match = lint(sparkRegexes.choice))) {
               const mark = match[2]?.trim() || "";
               const content = match[4]?.trim() || "";
               const name = match[8]?.trim() || "";
@@ -1964,7 +1939,7 @@ export const parseFountain = (
               currentToken.mark = mark;
               currentToken.content = content;
               currentToken.name = name;
-              if (fountainRegexes.variableName.test(name)) {
+              if (sparkRegexes.variableName.test(name)) {
                 currentToken.methodArgs = getArgumentValues(
                   name,
                   methodArgs,
@@ -1992,32 +1967,26 @@ export const parseFountain = (
         } else {
           lintDiagnostic();
         }
-      } else if (
-        (match = currentToken.content.match(fountainRegexes.variable))
-      ) {
+      } else if ((match = currentToken.content.match(sparkRegexes.variable))) {
         currentToken.type = "variable";
-        lint(fountainRegexes.variable);
-      } else if ((match = currentToken.content.match(fountainRegexes.asset))) {
-        const type = match[2]?.trim() as FountainAssetType;
+        lint(sparkRegexes.variable);
+      } else if ((match = currentToken.content.match(sparkRegexes.asset))) {
+        const type = match[2]?.trim() as SparkAssetType;
         currentToken.type = type;
-        lint(fountainRegexes.asset);
-      } else if ((match = currentToken.content.match(fountainRegexes.entity))) {
-        const type = match[2]?.trim() as FountainEntityType;
+        lint(sparkRegexes.asset);
+      } else if ((match = currentToken.content.match(sparkRegexes.entity))) {
+        const type = match[2]?.trim() as SparkEntityType;
         currentToken.type = type;
-        lint(fountainRegexes.entity);
-      } else if ((match = currentToken.content.match(fountainRegexes.tag))) {
+        lint(sparkRegexes.entity);
+      } else if ((match = currentToken.content.match(sparkRegexes.tag))) {
         currentToken.type = "tag";
-        lint(fountainRegexes.tag);
-      } else if (
-        (match = currentToken.content.match(fountainRegexes.synopses))
-      ) {
+        lint(sparkRegexes.tag);
+      } else if ((match = currentToken.content.match(sparkRegexes.synopses))) {
         currentToken.type = "synopses";
-        if ((match = lint(fountainRegexes.synopses))) {
+        if ((match = lint(sparkRegexes.synopses))) {
           currentToken.content = match[4];
         }
-      } else if (
-        (match = currentToken.content.match(fountainRegexes.section))
-      ) {
+      } else if ((match = currentToken.content.match(sparkRegexes.section))) {
         currentToken.type = "section";
         if (currentToken.type === "section") {
           const mark = match[2] || "";
@@ -2056,7 +2025,7 @@ export const parseFountain = (
               currentSectionId += `.${name}`;
               currentLevel = level;
             }
-          } else if (lint(fountainRegexes.section)) {
+          } else if (lint(sparkRegexes.section)) {
             if (level === 0) {
               currentSectionId = name;
             } else if (level === 1) {
@@ -2079,13 +2048,13 @@ export const parseFountain = (
             currentLevel = level;
           }
         }
-      } else if (currentToken.content.match(fountainRegexes.page_break)) {
+      } else if (currentToken.content.match(sparkRegexes.page_break)) {
         currentToken.type = "page_break";
-        if ((match = lint(fountainRegexes.page_break))) {
+        if ((match = lint(sparkRegexes.page_break))) {
           currentToken.content = match[3] || "";
         }
       } else if (
-        currentToken.content.match(fountainRegexes.character) &&
+        currentToken.content.match(sparkRegexes.character) &&
         i !== linesLength &&
         i !== linesLength - 1 &&
         (lines[i + 1].trim().length === 0 ? lines[i + 1] === "  " : true)
@@ -2145,7 +2114,7 @@ export const parseFountain = (
             currentToken.position = "right";
             currentToken.content = currentToken.content.replace(/\^$/, "");
           } else {
-            pushToken(createFountainToken("dialogue_begin"));
+            pushToken(createSparkToken("dialogue_begin"));
           }
           const character = trimCharacterExtension(currentToken.content).trim();
           const characterName = character.replace(/\^$/, "").trim();
@@ -2168,8 +2137,8 @@ export const parseFountain = (
             .trim();
         }
       } else if (
-        currentToken.content?.match(fountainRegexes.note) &&
-        !currentToken.content?.replace(fountainRegexes.note, "")?.trim()
+        currentToken.content?.match(sparkRegexes.note) &&
+        !currentToken.content?.replace(sparkRegexes.note, "")?.trim()
       ) {
         currentToken.type = "action_asset";
         pushAssets();
@@ -2184,12 +2153,12 @@ export const parseFountain = (
       }
     } else {
       if (
-        currentToken.content?.match(fountainRegexes.note) &&
-        !currentToken.content?.replace(fountainRegexes.note, "")?.trim()
+        currentToken.content?.match(sparkRegexes.note) &&
+        !currentToken.content?.replace(sparkRegexes.note, "")?.trim()
       ) {
         currentToken.type = "dialogue_asset";
         pushAssets();
-      } else if (currentToken.content.match(fountainRegexes.parenthetical)) {
+      } else if (currentToken.content.match(sparkRegexes.parenthetical)) {
         currentToken.type = "parenthetical";
         pushNotes();
         saveAndClearNotes();
@@ -2262,13 +2231,13 @@ export const parseFountain = (
   }
 
   if (state === "dialogue") {
-    pushToken(createFountainToken("dialogue_end"));
+    pushToken(createSparkToken("dialogue_end"));
     previousCharacter = null;
     previousParenthetical = null;
   }
 
   if (state === "dual_dialogue") {
-    pushToken(createFountainToken("dual_dialogue_end"));
+    pushToken(createSparkToken("dual_dialogue_end"));
     previousCharacter = null;
     previousParenthetical = null;
   }

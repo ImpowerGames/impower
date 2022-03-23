@@ -8,14 +8,14 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import {
-  FountainParseResult,
   getAncestorIds,
   getRelativeSection,
   getSectionAt,
+  SparkParseResult,
 } from "../../impower-script-parser";
 import { SectionNamePreviewWidget } from "./SectionNamePreviewWidget";
 
-const parseContextState = Facet.define<{ result?: FountainParseResult }>({});
+const parseContextState = Facet.define<{ result?: SparkParseResult }>({});
 
 const sectionNameDecorations = (view: EditorView): DecorationSet => {
   const widgets = [];
@@ -71,7 +71,7 @@ export const sectionNamePlugin = ViewPlugin.fromClass(
 export const sectionNamePreview = (
   options: {
     parseContext?: {
-      result: FountainParseResult;
+      result: SparkParseResult;
     };
   } = {}
 ): Extension => {

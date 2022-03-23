@@ -1,4 +1,4 @@
-export interface FountainTag {
+export interface SparkTag {
   type: "tag";
   from: number;
   to: number;

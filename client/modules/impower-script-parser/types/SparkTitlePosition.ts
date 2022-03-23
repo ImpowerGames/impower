@@ -1,4 +1,4 @@
-export type FountainTitlePosition =
+export type SparkTitlePosition =
   | "tc"
   | "tr"
   | "tl"

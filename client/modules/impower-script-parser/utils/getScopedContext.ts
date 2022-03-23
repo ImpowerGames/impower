@@ -1,10 +1,10 @@
-import { FountainSection } from "../types/FountainSection";
+import { SparkSection } from "../types/SparkSection";
 import { getScopedIds } from "./getScopedIds";
 import { getScopedSectionIds } from "./getScopedSectionIds";
 
 export const getScopedContext = <T extends string | number | boolean>(
   sectionId: string,
-  sections: Record<string, FountainSection>,
+  sections: Record<string, SparkSection>,
   itemsProp: "variables" | "assets" | "entities" | "tags" | "sections"
 ): [Record<string, string>, Record<string, T>] => {
   const valueMap: Record<string, T> = {};

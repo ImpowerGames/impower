@@ -3,8 +3,8 @@ import { Tree } from "@lezer/common";
 import { tokenize } from "../../impower-evaluate";
 import {
   entityMethods,
-  fountainRegexes,
   MethodType,
+  sparkRegexes,
 } from "../../impower-script-parser";
 import { BlockContext } from "../classes/BlockContext";
 import { Element } from "../classes/Element";
@@ -154,7 +154,7 @@ export const DefaultBlockParsers: {
         buf = buf.write(Type.SectionOpenMark, from, to);
       }
       const expressionListMatches = Array.from(
-        values.matchAll(fountainRegexes.expression_list)
+        values.matchAll(sparkRegexes.expression_list)
       );
       const tokenMatches: string[] = [""];
       expressionListMatches.forEach((m) => {
@@ -184,9 +184,7 @@ export const DefaultBlockParsers: {
           } else if (!token.trim()) {
             // empty
           } else if (
-            (parameterMatch = token.match(
-              fountainRegexes.parameter_declaration
-            ))
+            (parameterMatch = token.match(sparkRegexes.parameter_declaration))
           ) {
             const name = parameterMatch[2] || "";
             const nameSpace = parameterMatch[3] || "";
@@ -229,21 +227,21 @@ export const DefaultBlockParsers: {
                     exprFrom + t.to
                   );
                 }
-                if (fountainRegexes.string.test(t.content)) {
+                if (sparkRegexes.string.test(t.content)) {
                   buf = buf.write(
                     Type.String,
                     exprFrom + t.from,
                     exprFrom + t.to
                   );
                 }
-                if (fountainRegexes.boolean.test(t.content)) {
+                if (sparkRegexes.boolean.test(t.content)) {
                   buf = buf.write(
                     Type.Boolean,
                     exprFrom + t.from,
                     exprFrom + t.to
                   );
                 }
-                if (fountainRegexes.variableName.test(t.content)) {
+                if (sparkRegexes.variableName.test(t.content)) {
                   buf = buf.write(
                     Type.VariableName,
                     exprFrom + t.from,
@@ -344,7 +342,7 @@ export const DefaultBlockParsers: {
         buf = buf.write(Type.GoOpenMark, from, to);
       }
       const expressionListMatches = Array.from(
-        values.matchAll(fountainRegexes.expression_list)
+        values.matchAll(sparkRegexes.expression_list)
       );
       const tokenMatches: string[] = [""];
       expressionListMatches.forEach((m) => {
@@ -384,21 +382,21 @@ export const DefaultBlockParsers: {
                   exprFrom + t.to
                 );
               }
-              if (fountainRegexes.string.test(t.content)) {
+              if (sparkRegexes.string.test(t.content)) {
                 buf = buf.write(
                   Type.String,
                   exprFrom + t.from,
                   exprFrom + t.to
                 );
               }
-              if (fountainRegexes.boolean.test(t.content)) {
+              if (sparkRegexes.boolean.test(t.content)) {
                 buf = buf.write(
                   Type.Boolean,
                   exprFrom + t.from,
                   exprFrom + t.to
                 );
               }
-              if (fountainRegexes.variableName.test(t.content)) {
+              if (sparkRegexes.variableName.test(t.content)) {
                 buf = buf.write(
                   Type.VariableName,
                   exprFrom + t.from,
@@ -455,13 +453,13 @@ export const DefaultBlockParsers: {
         if (!Number.isNaN(Number(t.content))) {
           buf = buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.string.test(t.content)) {
+        if (sparkRegexes.string.test(t.content)) {
           buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.boolean.test(t.content)) {
+        if (sparkRegexes.boolean.test(t.content)) {
           buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.variableName.test(t.content)) {
+        if (sparkRegexes.variableName.test(t.content)) {
           buf = buf.write(
             Type.VariableName,
             exprFrom + t.from,
@@ -561,13 +559,13 @@ export const DefaultBlockParsers: {
         if (!Number.isNaN(Number(t.content))) {
           buf = buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.string.test(t.content)) {
+        if (sparkRegexes.string.test(t.content)) {
           buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.boolean.test(t.content)) {
+        if (sparkRegexes.boolean.test(t.content)) {
           buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.variableName.test(t.content)) {
+        if (sparkRegexes.variableName.test(t.content)) {
           buf = buf.write(
             Type.VariableName,
             exprFrom + t.from,
@@ -630,13 +628,13 @@ export const DefaultBlockParsers: {
         if (!Number.isNaN(Number(t.content))) {
           buf = buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.string.test(t.content)) {
+        if (sparkRegexes.string.test(t.content)) {
           buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.boolean.test(t.content)) {
+        if (sparkRegexes.boolean.test(t.content)) {
           buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.variableName.test(t.content)) {
+        if (sparkRegexes.variableName.test(t.content)) {
           buf = buf.write(
             Type.VariableName,
             exprFrom + t.from,
@@ -699,13 +697,13 @@ export const DefaultBlockParsers: {
         if (!Number.isNaN(Number(t.content))) {
           buf = buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.string.test(t.content)) {
+        if (sparkRegexes.string.test(t.content)) {
           buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.boolean.test(t.content)) {
+        if (sparkRegexes.boolean.test(t.content)) {
           buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
         }
-        if (fountainRegexes.variableName.test(t.content)) {
+        if (sparkRegexes.variableName.test(t.content)) {
           buf = buf.write(
             Type.VariableName,
             exprFrom + t.from,
@@ -926,13 +924,13 @@ export const DefaultBlockParsers: {
           if (!Number.isNaN(Number(t.content))) {
             buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
           }
-          if (fountainRegexes.string.test(t.content)) {
+          if (sparkRegexes.string.test(t.content)) {
             buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
           }
-          if (fountainRegexes.boolean.test(t.content)) {
+          if (sparkRegexes.boolean.test(t.content)) {
             buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
           }
-          if (fountainRegexes.variableName.test(t.content)) {
+          if (sparkRegexes.variableName.test(t.content)) {
             buf.write(Type.VariableName, exprFrom + t.from, exprFrom + t.to);
           }
         });
@@ -970,13 +968,13 @@ export const DefaultBlockParsers: {
           if (!Number.isNaN(Number(t.content))) {
             buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
           }
-          if (fountainRegexes.string.test(t.content)) {
+          if (sparkRegexes.string.test(t.content)) {
             buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
           }
-          if (fountainRegexes.boolean.test(t.content)) {
+          if (sparkRegexes.boolean.test(t.content)) {
             buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
           }
-          if (fountainRegexes.variableName.test(t.content)) {
+          if (sparkRegexes.variableName.test(t.content)) {
             buf.write(Type.VariableName, exprFrom + t.from, exprFrom + t.to);
           }
         });
@@ -1027,7 +1025,7 @@ export const DefaultBlockParsers: {
           buf = buf.write(Type.CallOpenMark, from, to);
         }
         const expressionListMatches = Array.from(
-          values.matchAll(fountainRegexes.expression_list)
+          values.matchAll(sparkRegexes.expression_list)
         );
         const tokenMatches: string[] = [""];
         expressionListMatches.forEach((m) => {
@@ -1078,21 +1076,21 @@ export const DefaultBlockParsers: {
                     exprFrom + t.to
                   );
                 }
-                if (fountainRegexes.string.test(t.content)) {
+                if (sparkRegexes.string.test(t.content)) {
                   buf = buf.write(
                     Type.String,
                     exprFrom + t.from,
                     exprFrom + t.to
                   );
                 }
-                if (fountainRegexes.boolean.test(t.content)) {
+                if (sparkRegexes.boolean.test(t.content)) {
                   buf = buf.write(
                     Type.Boolean,
                     exprFrom + t.from,
                     exprFrom + t.to
                   );
                 }
-                if (fountainRegexes.variableName.test(t.content)) {
+                if (sparkRegexes.variableName.test(t.content)) {
                   buf = buf.write(
                     Type.VariableName,
                     exprFrom + t.from,

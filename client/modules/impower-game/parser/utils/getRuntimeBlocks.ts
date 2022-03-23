@@ -1,9 +1,9 @@
-import { FountainParseResult } from "../../../impower-script-parser";
+import { SparkParseResult } from "../../../impower-script-parser";
 import { BlockData, createBlockData, createBlockReference } from "../../data";
 import { getRuntimeCommand } from "./getRuntimeCommand";
 
 export const getRuntimeBlocks = (
-  result: FountainParseResult
+  result: SparkParseResult
 ): Record<string, BlockData> => {
   const blocks: { [refId: string]: BlockData } = {};
   if (!result) {

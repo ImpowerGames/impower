@@ -1,4 +1,4 @@
-export interface FountainReference {
+export interface SparkReference {
   from: number;
   to: number;
   name: string;

@@ -192,7 +192,7 @@ const extended = commonmark.configure([
 
 /// Language support for [GFM](https://github.github.com/gfm/) plus
 /// subscript, superscript, and emoji syntax.
-export const fountainLanguage = mkLang(extended);
+export const sparkLanguage = mkLang(extended);
 
 export function getCodeParser(
   languages: readonly LanguageDescription[],
