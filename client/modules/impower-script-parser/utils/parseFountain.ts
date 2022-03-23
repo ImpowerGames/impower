@@ -1226,6 +1226,9 @@ export const parseFountain = (
     }
     parsed.scriptLines[token.line] = parsed.scriptTokens.length;
     parsed.scriptTokens.push(token);
+    if (!parsed.sections[currentSectionId]) {
+      parsed.sections[currentSectionId] = {};
+    }
     if (!parsed.sections[currentSectionId].tokens) {
       parsed.sections[currentSectionId].tokens = [];
     }
@@ -1301,10 +1304,6 @@ export const parseFountain = (
     return prev;
   };
 
-  const startNewSection = (level: number): void => {
-    currentLevel = level;
-  };
-
   currentToken = createFountainToken(
     undefined,
     text,
@@ -1316,6 +1315,7 @@ export const parseFountain = (
   addSection(
     {
       ...(parsed?.sections?.[currentSectionId] || {}),
+      level: currentLevel,
       from: currentToken.from,
       to: currentToken.to,
       line: 1,
@@ -1375,8 +1375,10 @@ export const parseFountain = (
           const parentId = currentSectionId.split(".").slice(0, -1).join(".");
           currentSectionId = `${parentId}.${name}`;
         }
+        currentLevel = level;
         const newSection: FountainSection = {
           ...(parsed?.sections?.[currentSectionId] || {}),
+          level: currentLevel,
           from: currentToken.from,
           to: currentToken.to,
           line: currentToken.line,
@@ -1425,7 +1427,6 @@ export const parseFountain = (
           newSection.value = 0;
         }
         newSection.triggers = type === "detector" ? parameters : [];
-        startNewSection(level);
       }
     } else if ((match = currentToken.content.match(fountainRegexes.variable))) {
       currentToken.type = "variable";
@@ -1527,7 +1528,7 @@ export const parseFountain = (
   currentLevel = 0;
   currentSectionId = "";
 
-  startNewSection(0);
+  currentLevel = 0;
 
   let ignoredLastToken = false;
 
@@ -2051,7 +2052,7 @@ export const parseFountain = (
             );
             if (markSpace) {
               currentSectionId += `.${name}`;
-              startNewSection(level);
+              currentLevel = level;
             }
           } else if (lint(fountainRegexes.section)) {
             if (level === 0) {
@@ -2073,7 +2074,7 @@ export const parseFountain = (
                 .join(".");
               currentSectionId = `${parentId}.${name}`;
             }
-            startNewSection(level);
+            currentLevel = level;
           }
         }
       } else if (currentToken.content.match(fountainRegexes.page_break)) {

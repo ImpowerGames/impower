@@ -1134,7 +1134,7 @@ export const DefaultBlockParsers: {
       if (angle || angleSpace) {
         from = to;
         to = from + angle.length + angleSpace.length;
-        buf = buf.write(Type.ChoiceAngleMark, from, to);
+        buf = buf.write(Type.ChoiceGoMark, from, to);
       }
       if (section || sectionSpace) {
         from = to;

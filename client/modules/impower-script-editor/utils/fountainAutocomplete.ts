@@ -13,7 +13,9 @@ import {
   fountainRegexes,
   FountainSection,
   getAncestorIds,
+  getRelativeSection,
   getScopedContext,
+  getSectionAt,
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
 
@@ -351,29 +353,19 @@ export const getSectionOptions = (
       sections?.[id]?.type === "section" || sections?.[id]?.type === "method"
   );
   const validAncestorIds = ancestorIds
-    .slice(0, -1)
+    .slice(1, -1)
     .filter(
       (id) =>
         sections?.[id]?.type === "section" || sections?.[id]?.type === "method"
     );
-  const sectionId = ancestorIds?.[0];
-  const parentId = ancestorIds?.[1];
-  const parentName = sections?.[parentId]?.name;
-  const siblings = sections?.[parentId]?.children || [];
-  const firstSiblingId = siblings.find(
-    (id) => sections?.[id]?.type === "section"
-  );
-  const firstSiblingName = sections?.[firstSiblingId]?.name;
-  const lastSiblingId = [...siblings]
-    .reverse()
-    .find((id) => sections?.[id]?.type === "section");
-  const lastSiblingName = sections?.[lastSiblingId]?.name;
-  const sectionIds = Object.keys(sections || {});
-  const sectionIndex = sectionIds.indexOf(sectionId);
-  const nextId = sectionIds
-    .slice(sectionIndex + 1)
-    ?.find((id) => sections?.[id]?.type === "section");
-  const nextName = sections?.[nextId]?.name;
+  const [, parent] = getRelativeSection(ancestorIds, sections, "^");
+  const parentName = parent?.name;
+  const [, firstSibling] = getRelativeSection(ancestorIds, sections, "[");
+  const firstSiblingName = firstSibling?.name;
+  const [, lastSibling] = getRelativeSection(ancestorIds, sections, "]");
+  const lastSiblingName = lastSibling?.name;
+  const [, next] = getRelativeSection(ancestorIds, sections, "");
+  const nextName = next?.name;
 
   const labelCleanupRegex = /[\n\r${}]/g;
   const cleanedPrefix = prefix.replace(labelCleanupRegex, "");
@@ -650,24 +642,6 @@ export const assetSnippets = (
   );
 };
 
-const getSectionInfo = (node: SyntaxNode): { level: number; from: number } => {
-  const positions = new Set<number>();
-  let from = 0;
-  for (
-    let cur: SyntaxNode | null = node;
-    cur && cur.name !== "Document";
-    cur = cur.parent
-  ) {
-    if (cur.name === "Section") {
-      positions.add(cur.from);
-      if (cur.from > from) {
-        from = cur.from;
-      }
-    }
-  }
-  return { level: positions.size, from };
-};
-
 export const fountainAutocomplete = async (
   context: CompletionContext,
   parseContext: { result: FountainParseResult }
@@ -696,12 +670,8 @@ export const fountainAutocomplete = async (
   const node: SyntaxNode = tree.resolveInner(context.pos, -1);
   const input = context.state.sliceDoc(node.from, node.to);
   const line = context.state.doc.lineAt(node.from).number;
-  const sectionInfo = getSectionInfo(node);
-  const sectionLevel = sectionInfo.level;
-  const sectionFrom = sectionInfo.from;
-  const sectionLineNumber = context.state.doc.lineAt(sectionFrom).number;
-  const sectionId = result.sectionLines?.[sectionLineNumber];
-  const section = result.sections?.[sectionId];
+  const [sectionId, section] = getSectionAt(node.from, result);
+  const sectionLevel = section.level;
   const children = section?.children || [];
   const ancestorIds = getAncestorIds(sectionId);
   const [, assets] = getScopedContext<string>(
@@ -845,7 +815,7 @@ export const fountainAutocomplete = async (
         result?.sections
       )
     );
-  } else if (node.name === "GoMark") {
+  } else if (["GoMark", "ChoiceGoMark"].includes(node.name)) {
     completions.push(
       ...sectionSnippets(ancestorIds, children, result?.sections, "> ", "${}")
     );

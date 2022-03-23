@@ -154,7 +154,7 @@ export enum Type {
   ChoiceColonMark,
   ChoiceOpenMark,
   ChoiceCloseMark,
-  ChoiceAngleMark,
+  ChoiceGoMark,
   ConditionColonMark,
   PossibleSectionMark,
 }

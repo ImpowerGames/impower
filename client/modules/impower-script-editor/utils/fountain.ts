@@ -29,6 +29,7 @@ import {
   deleteMarkupBackward,
   insertNewlineContinueMarkup,
 } from "../constants/commands";
+import { sectionNamePreview } from "../extensions/sectionNamePreview";
 import { MarkdownExtension } from "../types/markdownExtension";
 import { fountainAutocomplete } from "./fountainAutocomplete";
 import {
@@ -125,6 +126,7 @@ export function fountain(
     /// The base language to use. Defaults to
     /// [`commonmarkLanguage`](#lang-markdown.commonmarkLanguage).
     base?: Language;
+    initialParseResult?: FountainParseResult;
     /// Callback to execute when doc is parsed
     parse: (script: string) => FountainParseResult;
     getRuntimeValue?: (id: string) => string | number | boolean;
@@ -139,6 +141,7 @@ export function fountain(
     parse,
     getRuntimeValue,
     setRuntimeValue,
+    initialParseResult,
   } = config;
   if (!(parser instanceof MarkdownParser)) {
     throw new RangeError(
@@ -147,7 +150,7 @@ export function fountain(
   }
   const parseContext: {
     result: FountainParseResult;
-  } = { result: undefined };
+  } = { result: initialParseResult };
   const fountainParseLinter = (view: EditorView): Diagnostic[] => {
     parseContext.result = parse(view.state.doc.toString());
     const diagnostics = parseContext.result?.diagnostics || [];
@@ -191,6 +194,7 @@ export function fountain(
     hoverTooltip((v, p, s) =>
       fountainTooltip(v, p, s, parseContext, getRuntimeValue, setRuntimeValue)
     ),
+    sectionNamePreview({ parseContext }),
     linter(fountainParseLinter, { delay: 100 }),
   ];
   let defaultCode;

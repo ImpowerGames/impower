@@ -359,6 +359,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         }),
         fountain({
           base: fountainLanguage,
+          initialParseResult: parseFountain(doc, augmentationsRef.current),
           parse: (script: string) => {
             const result = parseFountain(script, augmentationsRef.current);
             parseResultRef.current = { ...result };

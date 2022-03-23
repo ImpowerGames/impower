@@ -10,6 +10,7 @@ export interface FountainSection {
   from?: number;
   to?: number;
   line?: number;
+  level?: number;
   returnType?: "string" | "number" | "boolean" | "";
   tokens?: FountainToken[];
   children?: string[];
