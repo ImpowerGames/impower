@@ -12,7 +12,7 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   section: "\n# ${NewSection}\n${}",
   scene: "\n${INT}. ${LOCATION} - ${TIME}\n${}",
   dialogue: "\n${CHARACTER}\n${dialogue}\n${}",
-  parenthetical: "(${})\n${}",
+  parenthetical: "(${tone})\n${}",
   transition: "\n${CUT} TO:\n${}",
 
   image: "[[${imageName}]]\n${}",
