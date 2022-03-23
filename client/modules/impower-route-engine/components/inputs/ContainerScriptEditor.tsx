@@ -178,15 +178,13 @@ const ContainerScriptEditor = React.memo(
     }, []);
 
     const handleSaveScriptChange = useCallback(() => {
-      if (!gameRef.current) {
-        dispatch(
-          projectChangeScript(
-            id,
-            windowType.toLowerCase(),
-            scriptValueRef.current
-          )
-        );
-      }
+      dispatch(
+        projectChangeScript(
+          id,
+          windowType.toLowerCase(),
+          scriptValueRef.current
+        )
+      );
     }, [dispatch, id, windowType]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -205,7 +203,7 @@ const ContainerScriptEditor = React.memo(
       [handleSaveEditorChange]
     );
 
-    const handleScriptChange = useCallback(
+    const handleEditorUpdate = useCallback(
       (value: string, state: SerializableEditorState) => {
         const canUndo = state?.history?.done?.length > 1;
         const canRedo = state?.history?.undone?.length > 0;
@@ -242,16 +240,18 @@ const ContainerScriptEditor = React.memo(
           lastEditorStateRef.current = state;
           handleDebouncedEditorChange();
         }
+      },
+      [handleDebouncedEditorChange, handleSaveEditorChange]
+    );
+
+    const handleDocChange = useCallback(
+      (value: string) => {
         if (scriptValueRef.current !== value) {
           scriptValueRef.current = value;
           handleDebouncedScriptChange();
         }
       },
-      [
-        handleDebouncedEditorChange,
-        handleDebouncedScriptChange,
-        handleSaveEditorChange,
-      ]
+      [handleDebouncedScriptChange]
     );
 
     const handleSaveScriptCursor = useCallback(() => {
@@ -437,7 +437,8 @@ const ContainerScriptEditor = React.memo(
                 scrollTopLineOffset={-3}
                 cursor={executingCursor}
                 style={style}
-                onChange={handleScriptChange}
+                onEditorUpdate={handleEditorUpdate}
+                onDocChange={handleDocChange}
                 onParse={handleScriptParse}
                 onCursor={handleScriptCursor}
                 onScrollLine={handleScrollLine}

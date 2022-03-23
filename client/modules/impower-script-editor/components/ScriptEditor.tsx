@@ -188,7 +188,8 @@ interface ScriptEditorProps {
   bottomPanelsContainer?: HTMLElement;
   style?: React.CSSProperties;
   onUpdate?: (update: ViewUpdate) => void;
-  onChange?: (value: string, state?: SerializableEditorState) => void;
+  onEditorUpdate?: (value: string, state?: SerializableEditorState) => void;
+  onDocChange?: (value: string) => void;
   onParse?: (result: SparkParseResult) => void;
   onCursor?: (range: {
     anchor: number;
@@ -228,7 +229,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     topPanelsContainer,
     bottomPanelsContainer,
     onUpdate,
-    onChange,
+    onEditorUpdate,
+    onDocChange,
     onParse,
     onCursor,
     onScrollLine,
@@ -264,8 +266,10 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   const defaultStateRef = useRef(defaultState);
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  const onEditorUpdateRef = useRef(onEditorUpdate);
+  onEditorUpdateRef.current = onEditorUpdate;
+  const onDocChangeRef = useRef(onDocChange);
+  onDocChangeRef.current = onDocChange;
   const onCursorRef = useRef(onCursor);
   onCursorRef.current = onCursor;
   const onScrollLineRef = useRef(onScrollLine);
@@ -691,8 +695,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             JSON.stringify(editorStateRef.current || {}) !==
             JSON.stringify(editorState)
           ) {
-            if (onChangeRef.current) {
-              onChangeRef.current(doc, editorState);
+            if (onEditorUpdateRef.current) {
+              onEditorUpdateRef.current(doc, editorState);
             }
           }
           if (u.focusChanged) {
@@ -701,6 +705,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             } else {
               onBlurRef.current?.();
             }
+          }
+          if (u.docChanged) {
+            onDocChangeRef.current?.(doc);
           }
           editorStateRef.current = editorState;
           const cursorRange = u.state.selection.main;
