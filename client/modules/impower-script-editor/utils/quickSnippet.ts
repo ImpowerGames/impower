@@ -50,32 +50,48 @@ export const quickSnippet = (view: EditorView, type: string): void => {
   const to = Math.max(anchor, head);
   const doc = state?.doc;
   const selectedText = doc.sliceString(from, to);
-  const isInlineTemplate = !snippetTemplate.endsWith("\n${}");
+  const endsWithNewline = snippetTemplate.endsWith("\n${}");
+  const startsWithNewline = snippetTemplate.startsWith("\n");
   const fromLine = doc.lineAt(from);
-  const nextLineFrom = fromLine.to + 1;
+  const beforeLineFrom = fromLine.from - 1;
+  const afterLineFrom = fromLine.to + 1;
   const beforeLine =
-    fromLine.from > 0 ? doc.lineAt(fromLine.from - 1) : undefined;
+    beforeLineFrom >= 0 ? doc.lineAt(beforeLineFrom) : undefined;
   const afterLine =
-    fromLine.to < doc.length - 1 ? doc.lineAt(fromLine.to + 1) : undefined;
+    afterLineFrom <= doc.length - 1 ? doc.lineAt(afterLineFrom) : undefined;
   const isLineEmpty = !fromLine.text.trim();
   const isLineBeforeEmpty = !beforeLine?.text?.trim();
   const isLineAfterEmpty = !afterLine?.text?.trim();
-  const snippetFrom = isInlineTemplate || isLineEmpty ? from : nextLineFrom;
-  const snippetTo = isInlineTemplate || isLineEmpty ? to : nextLineFrom;
+  const snippetFrom = Math.min(
+    state.doc.length,
+    !endsWithNewline || isLineEmpty ? from : afterLineFrom
+  );
+  const snippetTo = Math.min(
+    state.doc.length,
+    !endsWithNewline || isLineEmpty ? to : afterLineFrom
+  );
   // Insert selected text if necessary
   let formattedTemplate = snippetTemplate.replace("{selection}", selectedText);
-  if (!isInlineTemplate) {
-    if (!isLineEmpty && !isLineAfterEmpty) {
+  if (startsWithNewline) {
+    if (isLineEmpty) {
+      if (isLineBeforeEmpty) {
+        // Line before is already blank, so no need to start with newline
+        formattedTemplate = formattedTemplate.replace(/^[\n]*/, "");
+      }
+    } else {
+      // Needs to start with additional newline
+      formattedTemplate = `\n${formattedTemplate}`;
+    }
+  }
+  if (endsWithNewline) {
+    if (isLineEmpty) {
+      if (isLineAfterEmpty) {
+        // Line after is already blank, so no need to end with newline
+        formattedTemplate = formattedTemplate.replace(/[\n][$][{][}]$/, "");
+      }
+    } else {
       // Needs to end with additional newline
       formattedTemplate += "\n";
-    }
-    if (isLineEmpty && isLineBeforeEmpty) {
-      // Line before is already blank, so no need to start with newline
-      formattedTemplate = formattedTemplate.replace(/^\n/, "");
-    }
-    if (isLineEmpty && isLineAfterEmpty) {
-      // Line after is already blank, so no need to end with newline
-      formattedTemplate = formattedTemplate.replace(/[\n][$][{][}]$/, "");
     }
   }
   const s = snippet(formattedTemplate);
