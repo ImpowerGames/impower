@@ -79,6 +79,9 @@ export const getQuickSnippetTemplate = (
   // Insert selected text if necessary
   let formattedTemplate = snippetTemplate.replace("{selection}", selectedText);
   if (startsWithNewline) {
+    if (!isLineEmpty && afterLineFrom > doc.length - 1) {
+      formattedTemplate = `\n${formattedTemplate}`;
+    }
     if (isLineEmpty) {
       if (isLineBeforeEmpty) {
         // Line before is already blank, so no need to start with newline

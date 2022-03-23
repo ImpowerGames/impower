@@ -19,7 +19,7 @@ export class SnippetPreviewWidget extends WidgetType {
     textDiv.style.whiteSpace = "pre-wrap";
     textDiv.style.opacity = "0.5";
     const text = document.createTextNode(
-      this.content.replace(/[$#][{]|[}]/g, "")
+      this.content.replace(/^[\n][\n]/, "\n").replace(/[$#][{]|[}]/g, "")
     );
     textDiv.appendChild(text);
     wrap.appendChild(textDiv);
