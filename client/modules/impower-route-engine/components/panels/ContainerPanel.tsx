@@ -71,7 +71,7 @@ const TogglePanelHeaderIconButton = React.memo(
         size={theme.fontSize.smallIcon}
         color={color}
         style={{
-          backgroundColor: theme.colors.darkForeground,
+          backgroundColor: "inherit",
         }}
         onClick={(): void => onClick(!value)}
       />
@@ -108,6 +108,7 @@ const ContainerPanelHeader = React.memo(
     const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
     const searchLineQuery = state?.panel?.panels?.[windowType]?.searchLineQuery;
     const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
+    const mode = state?.test?.mode;
     const diagnostics =
       state?.panel?.panels?.[windowType]?.editorState?.diagnostics;
 
@@ -118,10 +119,11 @@ const ContainerPanelHeader = React.memo(
     const listHeaderStyle: CSSProperties = useMemo(
       () => ({
         pointerEvents: "auto",
-        backgroundColor: theme.colors.darkForeground,
+        backgroundColor:
+          mode === "Edit" ? theme.colors.darkForeground : "black",
         ...style,
       }),
-      [style, theme.colors.darkForeground]
+      [mode, style, theme.colors.darkForeground]
     );
 
     const chartHeaderStyle: CSSProperties = useMemo(
@@ -129,11 +131,13 @@ const ContainerPanelHeader = React.memo(
         pointerEvents: "none",
         zIndex: 2,
         backgroundColor: searchingText
-          ? theme.colors.darkForeground
+          ? mode === "Edit"
+            ? theme.colors.darkForeground
+            : "black"
           : undefined,
         ...style,
       }),
-      [searchingText, style, theme.colors.darkForeground]
+      [mode, searchingText, style, theme.colors.darkForeground]
     );
 
     const headerStyle = scripting ? listHeaderStyle : chartHeaderStyle;
