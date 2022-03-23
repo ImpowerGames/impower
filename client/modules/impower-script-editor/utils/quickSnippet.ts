@@ -36,13 +36,19 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   declare_text: "text ${newText} = `${value}`\n${}",
 };
 
-export const quickSnippet = (view: EditorView, type: string): void => {
+export const getQuickSnippetTemplate = (
+  view: EditorView,
+  type: string
+): {
+  template: string;
+  from: number;
+  to: number;
+} => {
   const snippetTemplate = quickSnippetTemplates[type || ""];
   if (!view || !type || !snippetTemplate) {
-    return;
+    return { template: undefined, from: undefined, to: undefined };
   }
   const state = view?.state;
-  const dispatch = view?.dispatch;
   const mainSelection = state.selection.main;
   const anchor = mainSelection?.anchor;
   const head = mainSelection?.head;
@@ -78,9 +84,6 @@ export const quickSnippet = (view: EditorView, type: string): void => {
         // Line before is already blank, so no need to start with newline
         formattedTemplate = formattedTemplate.replace(/^[\n]*/, "");
       }
-    } else {
-      // Needs to start with additional newline
-      formattedTemplate = `\n${formattedTemplate}`;
     }
   }
   if (endsWithNewline) {
@@ -89,11 +92,19 @@ export const quickSnippet = (view: EditorView, type: string): void => {
         // Line after is already blank, so no need to end with newline
         formattedTemplate = formattedTemplate.replace(/[\n][$][{][}]$/, "");
       }
-    } else {
-      // Needs to end with additional newline
-      formattedTemplate += "\n";
     }
   }
-  const s = snippet(formattedTemplate);
-  s({ state, dispatch }, undefined, snippetFrom, snippetTo);
+  return { template: formattedTemplate, from: snippetFrom, to: snippetTo };
+};
+
+export const quickSnippet = (view: EditorView, type: string): void => {
+  const snippetTemplate = quickSnippetTemplates[type || ""];
+  if (!view || !type || !snippetTemplate) {
+    return;
+  }
+  const state = view?.state;
+  const { template, from, to } = getQuickSnippetTemplate(view, type);
+  const dispatch = view?.dispatch;
+  const s = snippet(template);
+  s({ state, dispatch }, undefined, from, to);
 };
