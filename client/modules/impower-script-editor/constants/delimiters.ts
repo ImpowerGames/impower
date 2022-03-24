@@ -12,5 +12,6 @@ export const ParentheticalStart: DelimiterType = {};
 export const ImageNoteStart: DelimiterType = {};
 export const AudioNoteStart: DelimiterType = {};
 export const DynamicTagStart: DelimiterType = {};
+export const VariableTagStart: DelimiterType = {};
 export const LinkStart: DelimiterType = {};
 export const ImageStart: DelimiterType = {};

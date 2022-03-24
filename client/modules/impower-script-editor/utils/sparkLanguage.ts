@@ -127,13 +127,14 @@ const commonmark = baseParser.configure({
       "Paragraph": tags.paragraph,
       "Strikethrough/...": tags.strikethrough,
 
-      "SectionVariableName VariableName AssignName": tags.variableName,
+      "SectionVariableName VariableName AssignName InterpolationVariableName":
+        tags.variableName,
       "AssetName": tags.assetName,
       "EntityName": tags.entityName,
       "TagName": tags.tagName,
       "GoSectionName ChoiceSectionName": tags.sectionName,
       "SectionParameterName": tags.parameterName,
-      "ListMark ConditionMark CallMark AssignMark ChoiceMark VariableMark AssetMark TagMark EntityMark GoMark ChoiceGoMark RepeatMark ReturnMark":
+      "ListMark ConditionMark CallMark AssignMark ChoiceMark VariableMark AssetMark TagMark EntityMark GoMark ChoiceGoMark RepeatMark ReturnMark InterpolationOpenMark InterpolationCloseMark":
         tags.keyword,
       "SectionReturnType": tags.typeName,
       "String": tags.string,

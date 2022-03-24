@@ -1,3 +1,4 @@
+import { sparkRegexes } from "../../impower-script-parser";
 import { Element } from "../classes/Element";
 import { InlineContext } from "../classes/InlineContext";
 import { InlineDelimiter } from "../classes/InlineDelimeter";
@@ -9,6 +10,7 @@ import {
   EmphasisAsterisk,
   ImageNoteStart,
   UnderlineUnderscore,
+  VariableTagStart,
 } from "./delimiters";
 import { Escapable, Punctuation } from "./regexes";
 
@@ -212,7 +214,7 @@ export const DefaultInline: {
     );
   },
 
-  TagEnd(cx, next, start) {
+  DoubleTagEnd(cx, next, start) {
     const close = cx.slice(start - 1, start + 1);
     if (close !== "]]" && close !== "))" && close !== "}}") {
       return -1;
@@ -261,6 +263,83 @@ export const DefaultInline: {
                 p.type === AudioNoteStart ||
                 p.type === DynamicTagStart)
             ) {
+              p.side = 0;
+            }
+          }
+        return tag.to;
+      }
+    }
+    return -1;
+  },
+
+  VariableTag(cx, next, start) {
+    const open = cx.slice(start, start + 2);
+    if (next !== "{".charCodeAt(0) || open === "{{") {
+      return -1;
+    }
+    return cx.append(
+      new InlineDelimiter(VariableTagStart, start, start + 1, Mark.Open)
+    );
+  },
+
+  VariableTagEnd(cx, next, start) {
+    const close = cx.slice(start - 1, start + 1);
+    if (next !== "}".charCodeAt(0) || close === "}}") {
+      return -1;
+    }
+    // Scanning back to the start marker
+    for (let i = cx.parts.length - 1; i >= 0; i -= 1) {
+      const part = cx.parts[i];
+      if (part instanceof InlineDelimiter && part.type === VariableTagStart) {
+        // Finish the content and replace the entire range in
+        // this.parts with the link/image node.
+        const tagFrom = part?.from;
+        const tagTo = start + 1;
+        const content = [];
+        const expression = cx.slice(tagFrom, tagTo);
+        const stringArr = expression.split(sparkRegexes.interpolation_splitter);
+        let from = tagFrom;
+        let to = tagFrom;
+        for (let t = 0; t < stringArr.length; t += 1) {
+          const m = stringArr[t];
+          const interpolationTokenMatch = m.match(
+            sparkRegexes.interpolation_token
+          );
+          if (interpolationTokenMatch) {
+            const interpolationOpenMark = interpolationTokenMatch[1] || "";
+            const interpolationOpenMarkSpace = interpolationTokenMatch[2] || "";
+            const interpolationVariableName = interpolationTokenMatch[3] || "";
+            const interpolationVariableNameSpace =
+              interpolationTokenMatch[4] || "";
+            const interpolationCloseMark = interpolationTokenMatch[5] || "";
+            from = to;
+            to =
+              from +
+              interpolationOpenMark.length +
+              interpolationOpenMarkSpace.length;
+            content.push(new Element(Type.InterpolationOpenMark, from, to));
+            from = to;
+            to =
+              from +
+              interpolationVariableName.length +
+              interpolationVariableNameSpace.length;
+            content.push(new Element(Type.InterpolationVariableName, from, to));
+            from = to;
+            to = from + interpolationCloseMark.length;
+            content.push(new Element(Type.InterpolationCloseMark, from, to));
+          } else {
+            from = to;
+            to = from + m.length;
+            content.push(new Element(Type.String, from, to));
+          }
+        }
+        const tag = new Element(Type.Interpolation, tagFrom, tagTo, content);
+        cx.parts[i] = tag;
+        // Set any open-link markers before this link to invalid.
+        if (part.type === VariableTagStart)
+          for (let j = 0; j < i; j += 1) {
+            const p = cx.parts[j];
+            if (p instanceof InlineDelimiter && p.type === VariableTagStart) {
               p.side = 0;
             }
           }

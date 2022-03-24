@@ -24,7 +24,8 @@ import {
 import { SerializableEditorState } from "../../../impower-script-editor/types/editor";
 import {
   getGlobalEvaluationContext,
-  getScopedContext,
+  getScopedEvaluationContext,
+  getSectionAt,
   parseSpark,
   SparkParseResult,
 } from "../../../impower-script-parser";
@@ -327,7 +328,7 @@ const ContainerScriptEditor = React.memo(
     );
 
     const handlePreviewResult = useCallback(
-      (result: SparkParseResult, line: number) => {
+      (result: SparkParseResult, pos: number, line: number) => {
         if (line != null) {
           let tokenIndex = result.scriptLines[line];
           let token = result.scriptTokens[tokenIndex];
@@ -340,26 +341,16 @@ const ContainerScriptEditor = React.memo(
               tokenIndex += 1;
               token = result.scriptTokens[tokenIndex];
             }
-            const sectionEntries = Object.entries(result.sections || {});
-            let sectionId = "";
-            for (let i = 0; i < sectionEntries.length; i += 1) {
-              const [id, section] = sectionEntries[i];
-              if (section.line <= line) {
-                sectionId = id;
-              } else {
-                break;
-              }
-            }
+            const [sectionId] = getSectionAt(pos, result);
             const runtimeCommand = getRuntimeCommand(token, sectionId);
             if (runtimeCommand) {
               const commandInspector = gameInspector.getInspector(
                 runtimeCommand.reference
               );
               if (commandInspector) {
-                const [, valueMap] = getScopedContext<string>(
+                const [, valueMap] = getScopedEvaluationContext(
                   sectionId,
-                  result?.sections,
-                  "assets"
+                  result?.sections
                 );
                 commandInspector.onPreview(runtimeCommand, { valueMap });
               }
@@ -397,7 +388,11 @@ const ContainerScriptEditor = React.memo(
 
     useEffect(() => {
       if (mode === "Edit" && parseResultState && previewCursor) {
-        handlePreviewResult(parseResultState, previewCursor.fromLine);
+        handlePreviewResult(
+          parseResultState,
+          previewCursor.anchor,
+          previewCursor.fromLine
+        );
       }
     }, [parseResultState, previewCursor, mode, handlePreviewResult]);
 

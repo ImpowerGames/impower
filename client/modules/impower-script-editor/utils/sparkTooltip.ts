@@ -50,7 +50,6 @@ export const sparkTooltip = (
         ...(parseContext?.result?.variables || {}),
       };
       const item = token.id ? context[token.id] : undefined;
-      const isString = typeof item?.value === "string";
       const runtimeValue = getRuntimeValue?.(token.id);
       const dom = document.createElement("div");
       dom.className = "cm-valueInfo";
@@ -60,6 +59,7 @@ export const sparkTooltip = (
 
       if (runtimeValue != null) {
         const input = document.createElement("input");
+        const isString = typeof item?.value === "string";
         input.style.maxWidth = isString ? undefined : "48px";
         input.style.backgroundColor = "transparent";
         input.style.color = "white";
@@ -84,13 +84,7 @@ export const sparkTooltip = (
         const separator = document.createElement("div");
         separator.style.minWidth = "8px";
         dom.appendChild(separator);
-        if (isString) {
-          dom.appendChild(document.createTextNode("`"));
-        }
         dom.appendChild(input);
-        if (isString) {
-          dom.appendChild(document.createTextNode("`"));
-        }
       } else if (item?.type) {
         if (item?.type === "image" || item?.type === "audio") {
           const fileUrl = item?.value;

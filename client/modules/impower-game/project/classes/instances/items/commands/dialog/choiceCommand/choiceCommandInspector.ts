@@ -45,7 +45,12 @@ export class ChoiceCommandInspector extends CommandInspector<ChoiceCommandData> 
     };
   }
 
-  onPreview(data: ChoiceCommandData): void {
-    executeChoiceCommand(data);
+  onPreview(
+    data: ChoiceCommandData,
+    context: {
+      valueMap: Record<string, string | number | boolean>;
+    }
+  ): void {
+    executeChoiceCommand(data, context);
   }
 }

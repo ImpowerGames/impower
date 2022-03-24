@@ -18,7 +18,7 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     if (index === 0) {
       this.name = null;
     }
-    executeChoiceCommand(data, () => {
+    executeChoiceCommand(data, context, () => {
       this.name = name;
       this.values = values;
     });

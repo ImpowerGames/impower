@@ -24,6 +24,7 @@ export const reservedMethods: MethodType[] = [
 ];
 
 export const reservedKeywords = [
+  "locale",
   "any",
   "as",
   "boolean",

@@ -77,6 +77,8 @@ export enum Type {
   PossibleCharacter,
   PossibleSection,
   PossibleLogic,
+  Interpolation,
+  InterpolationVariableName,
 
   // Markdown Inline
   Escape,
@@ -94,7 +96,6 @@ export enum Type {
   ImageNote,
   AudioNote,
   DynamicTag,
-  DynamicText,
   CharacterParenthetical,
   ParentheticalLine,
   Dialogue,
@@ -124,7 +125,6 @@ export enum Type {
   ImageNoteMark,
   AudioNoteMark,
   DynamicTagMark,
-  DynamicTextMark,
   SynopsesMark,
   SceneMark,
   SceneSeparatorMark,
@@ -157,4 +157,6 @@ export enum Type {
   ChoiceGoMark,
   ConditionColonMark,
   PossibleSectionMark,
+  InterpolationOpenMark,
+  InterpolationCloseMark,
 }

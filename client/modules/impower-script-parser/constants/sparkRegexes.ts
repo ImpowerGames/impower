@@ -48,9 +48,12 @@ export const sparkRegexes = {
   note: /(?:\[{2}(?!\[+))([\s\S]+?)(?:\]{2}(?!\[+))|(?:\({2}(?!\(+))([\s\S]+?)(?:\){2}(?!\(+))/g,
 
   string: /^(`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*')$/,
+  string_template: /^(`[^\n\r`]*`)$/,
   boolean: /^(true|false)$/,
   number: /^([\d]*[.][\d]*|[\d]+)$/,
   variableName: /^(?!true$|false$)([a-zA-Z]+[\w]*)$/,
+  interpolation_splitter: /([$]?[{][ ]*[^\n\r{}]*[ ]*[}])/g,
+  interpolation_token: /^([$]?[{])([ ]*)([^\n\r{}]*)([ ]*)([}])$/,
   method: /^([a-zA-Z]+[\w]*)([ ]*)([(][^\n\r]*[)])([ ]*)$/,
   parameter_declaration:
     /^([ ]*)([a-zA-Z]+[\w]*)(?:([ ]*)($|[=])([ ]*)($|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[\d]*[.][\d]+|[\d]+|true|false|[a-zA-Z]+[\w]*))?([ ]*)$/,

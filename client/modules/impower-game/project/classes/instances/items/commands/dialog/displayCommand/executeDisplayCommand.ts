@@ -1,3 +1,4 @@
+import { format } from "../../../../../../../../impower-evaluate";
 import { DisplayCommandData, DisplayType } from "../../../../../../../data";
 
 export const executeDisplayCommand = (
@@ -26,6 +27,8 @@ export const executeDisplayCommand = (
   const content = data?.content
     .replace(/(?:\[{2}(?!\[+))([\s\S]+?)(?:\]{2}(?!\[+)) ?/g, "") // Replace [[image]]
     .replace(/(?:\({2}(?!\(+))([\s\S]+?)(?:\){2}(?!\(+)) ?/g, ""); // Replace ((audio))
+  const [replaceTagsResult] = format(content, valueMap);
+  const [evaluatedContent] = format(replaceTagsResult, valueMap);
   if (dialogueGroupEl) {
     dialogueGroupEl.style.display = data?.type === "dialogue" ? null : "none";
   }
@@ -46,7 +49,7 @@ export const executeDisplayCommand = (
   }
   contentElEntries.forEach(([type, el]) => {
     if (el) {
-      el.replaceChildren(type === data?.type ? content : "");
+      el.replaceChildren(type === data?.type ? evaluatedContent : "");
       el.style.display = type === data?.type ? null : "none";
     }
   });

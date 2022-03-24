@@ -1291,6 +1291,41 @@ export const parseSpark = (
     return prev;
   };
 
+  const checkExpression = (
+    expression: string,
+    expressionFrom: number
+  ): void => {
+    const [ids, context] = getScopedEvaluationContext(
+      currentSectionId,
+      parsed.sections
+    );
+    const { references, diagnostics } = compile(expression, context);
+    if (references?.length > 0) {
+      for (let i = 0; i < references.length; i += 1) {
+        const r = references[i];
+        const from = expressionFrom + r.from;
+        const to = expressionFrom + r.to;
+        if (!parsed.references[currentToken.line]) {
+          parsed.references[currentToken.line] = [];
+        }
+        parsed.references[currentToken.line].push({
+          from,
+          to,
+          name: r.name,
+          id: ids[r.name],
+        });
+      }
+    }
+    if (diagnostics?.length > 0) {
+      for (let i = 0; i < diagnostics.length; i += 1) {
+        const d = diagnostics[i];
+        const from = expressionFrom + d.from;
+        const to = expressionFrom + d.to;
+        diagnostic(currentToken, d.message, [], from, to);
+      }
+    }
+  };
+
   currentToken = createSparkToken(undefined, text, 1, current, newLineLength);
 
   addSection(
@@ -1673,6 +1708,9 @@ export const parseSpark = (
           pushNotes();
           saveAndClearNotes();
           currentToken.content = currentToken.content.substring(1);
+          const expression = `\`${currentToken.content}\``;
+          const expressionFrom = currentToken.from - 1;
+          checkExpression(expression, expressionFrom);
         }
       } else if (currentToken.content.match(sparkRegexes.centered)) {
         currentToken.type = "centered";
@@ -1682,6 +1720,9 @@ export const parseSpark = (
             pushNotes();
             saveAndClearNotes();
             currentToken.content = match[4] || "";
+            const expression = `\`${currentToken.content}\``;
+            const expressionFrom = currentToken.from - 1;
+            checkExpression(expression, expressionFrom);
           }
         }
       } else if (currentToken.content.match(sparkRegexes.transition)) {
@@ -1836,35 +1877,7 @@ export const parseSpark = (
                 checkTo
               );
             } else if (expression) {
-              const [ids, context] = getScopedEvaluationContext(
-                currentSectionId,
-                parsed.sections
-              );
-              const { references, diagnostics } = compile(expression, context);
-              if (references?.length > 0) {
-                for (let i = 0; i < references.length; i += 1) {
-                  const r = references[i];
-                  const from = expressionFrom + r.from;
-                  const to = expressionFrom + r.to;
-                  if (!parsed.references[currentToken.line]) {
-                    parsed.references[currentToken.line] = [];
-                  }
-                  parsed.references[currentToken.line].push({
-                    from,
-                    to,
-                    name: r.name,
-                    id: ids[r.name],
-                  });
-                }
-              }
-              if (diagnostics?.length > 0) {
-                for (let i = 0; i < diagnostics.length; i += 1) {
-                  const d = diagnostics[i];
-                  const from = expressionFrom + d.from;
-                  const to = expressionFrom + d.to;
-                  diagnostic(currentToken, d.message, [], from, to);
-                }
-              }
+              checkExpression(expression, expressionFrom);
             }
           }
         }
@@ -1934,6 +1947,7 @@ export const parseSpark = (
               const methodArgs = match[10]?.trim() || "";
               const nameFrom = currentToken.from + getStart(match, 8);
               const nameTo = nameFrom + name.length;
+              const contentFrom = currentToken.from + getStart(match, 4);
               const methodArgsFrom = currentToken.from + getStart(match, 10);
               const methodArgsTo = methodArgsFrom + methodArgs.length;
               currentToken.mark = mark;
@@ -1961,6 +1975,9 @@ export const parseSpark = (
                   previousToken.wait = false;
                 }
               }
+              const expression = `\`${currentToken.content}\``;
+              const expressionFrom = contentFrom - 1;
+              checkExpression(expression, expressionFrom);
               currentChoiceTokens.push(currentToken);
             }
           }
@@ -2149,6 +2166,9 @@ export const parseSpark = (
           pushNotes();
           saveAndClearNotes();
           saveAndClearAssets();
+          const expression = `\`${currentToken.content}\``;
+          const expressionFrom = currentToken.from - 1;
+          checkExpression(expression, expressionFrom);
         }
       }
     } else {
@@ -2176,6 +2196,9 @@ export const parseSpark = (
           if (previousParenthetical) {
             currentToken.parenthetical = previousParenthetical;
           }
+          const expression = `\`${currentToken.content}\``;
+          const expressionFrom = currentToken.from - 1;
+          checkExpression(expression, expressionFrom);
         }
         previousParenthetical = null;
       }

@@ -20,6 +20,7 @@ import {
 import { colors } from "../constants/colors";
 
 interface Option {
+  line: number;
   name: string;
   type: string;
   infoColor?: string;
@@ -690,6 +691,7 @@ export const sparkAutocomplete = async (
         ? colors.parameterName
         : colors.variableName;
       return {
+        line: found.line,
         name: found.name,
         type: found.type,
         completionType,
@@ -701,6 +703,7 @@ export const sparkAutocomplete = async (
     Object.keys(result.sections[ancestorId].entities || {}).map((id) => {
       const found = result.sections[ancestorId].entities[id];
       return {
+        line: found.line,
         name: found.name,
         type: found.type,
       };
@@ -710,6 +713,7 @@ export const sparkAutocomplete = async (
     Object.keys(result.sections[ancestorId].assets || {}).map((id) => {
       const found = result.sections[ancestorId].assets[id];
       return {
+        line: found.line,
         name: found.name,
         type: found.type,
       };
@@ -719,6 +723,7 @@ export const sparkAutocomplete = async (
     Object.keys(result.sections[ancestorId].tags || {}).map((id) => {
       const found = result.sections[ancestorId].tags[id];
       return {
+        line: found.line,
         name: found.name,
         type: "tag",
       };
@@ -727,10 +732,10 @@ export const sparkAutocomplete = async (
   const isLowercase = input.toLowerCase() === input;
   const isUppercase = input.toUpperCase() === input;
   const completions: Completion[] = [];
-  if (node.name === "RepeatMark") {
+  if (["RepeatMark"].includes(node.name)) {
     completions.push(...repeatSnippets);
   }
-  if (node.name === "Paragraph") {
+  if (["Paragraph"].includes(node.name)) {
     if (input.match(/^[\w]+/)) {
       if (isLowercase) {
         completions.push(...lowercaseParagraphSnippets);
@@ -751,19 +756,19 @@ export const sparkAutocomplete = async (
     ].includes(node.name)
   ) {
     completions.push(...sectionHeaderSnippets(sectionLevel));
-  } else if (node.name === "Transition") {
+  } else if (["Transition"].includes(node.name)) {
     completions.push(...transitionSnippets);
-  } else if (node.name === "ScenePrefix") {
+  } else if (["ScenePrefix"].includes(node.name)) {
     completions.push(...scenePrefixSnippets);
-  } else if (node.name === "SceneLocation") {
+  } else if (["SceneLocation"].includes(node.name)) {
     completions.push(
       ...nameSnippets(Object.keys(result.properties?.locations || {}), "scene")
     );
-  } else if (node.name === "SceneTime") {
+  } else if (["SceneTime"].includes(node.name)) {
     completions.push(
       ...nameSnippets(Object.keys(result.properties?.times || {}), "scene")
     );
-  } else if (node.name === "PossibleCharacter") {
+  } else if (["PossibleCharacter"].includes(node.name)) {
     completions.push(
       ...characterSnippets(
         Object.keys(result.properties.characters || {}),
@@ -773,7 +778,7 @@ export const sparkAutocomplete = async (
       )
     );
     completions.push(...uppercaseParagraphSnippets);
-  } else if (node.name === "PossibleCharacterName") {
+  } else if (["PossibleCharacterName"].includes(node.name)) {
     completions.push(
       ...characterSnippets(
         Object.keys(result.properties.characters || {}),
@@ -790,18 +795,38 @@ export const sparkAutocomplete = async (
         line
       )
     );
-  } else if (["ImageNote", "AssetImageValue"].includes(node.name)) {
-    const typeOptions = assetOptions.filter(({ type }) => type === "image");
-    completions.push(...assetSnippets(typeOptions, assets, "image"));
-  } else if (["AudioNote", "AssetAudioValue"].includes(node.name)) {
-    const typeOptions = assetOptions.filter(({ type }) => type === "audio");
-    completions.push(...assetSnippets(typeOptions, assets, "audio"));
-  } else if (["VideoNote", "AssetVideoValue"].includes(node.name)) {
-    const typeOptions = assetOptions.filter(({ type }) => type === "video");
-    completions.push(...assetSnippets(typeOptions, assets, "video"));
-  } else if (["TextNote", "AssetTextValue"].includes(node.name)) {
-    const typeOptions = assetOptions.filter(({ type }) => type === "text");
-    completions.push(...assetSnippets(typeOptions, assets, "text"));
+  } else if (["AssetImageValue"].includes(node.name)) {
+    const validOptions = assetOptions.filter(
+      (x) => x.type === "image" && x.line !== line
+    );
+    completions.push(...assetSnippets(validOptions, assets, "image"));
+  } else if (["AssetAudioValue"].includes(node.name)) {
+    const validOptions = assetOptions.filter(
+      (x) => x.type === "audio" && x.line !== line
+    );
+    completions.push(...assetSnippets(validOptions, assets, "audio"));
+  } else if (["AssetVideoValue"].includes(node.name)) {
+    const validOptions = assetOptions.filter(
+      (x) => x.type === "video" && x.line !== line
+    );
+    completions.push(...assetSnippets(validOptions, assets, "video"));
+  } else if (["AssetTextValue"].includes(node.name)) {
+    const validOptions = assetOptions.filter(
+      (x) => x.type === "text" && x.line !== line
+    );
+    completions.push(...assetSnippets(validOptions, assets, "text"));
+  } else if (["ImageNote"].includes(node.name)) {
+    const validOptions = assetOptions.filter((x) => x.type === "image");
+    completions.push(...assetSnippets(validOptions, assets, "image"));
+  } else if (["AudioNote"].includes(node.name)) {
+    const validOptions = assetOptions.filter((x) => x.type === "audio");
+    completions.push(...assetSnippets(validOptions, assets, "audio"));
+  } else if (["VideoNote"].includes(node.name)) {
+    const validOptions = assetOptions.filter((x) => x.type === "video");
+    completions.push(...assetSnippets(validOptions, assets, "video"));
+  } else if (["TextNote"].includes(node.name)) {
+    const validOptions = assetOptions.filter((x) => x.type === "text");
+    completions.push(...assetSnippets(validOptions, assets, "text"));
   } else if (node.name === "DynamicTag") {
     completions.push(
       ...nameSnippets(tagOptions, "tag", "", "", colors.tag),
@@ -825,12 +850,29 @@ export const sparkAutocomplete = async (
       ...sectionSnippets(ancestorIds, children, result?.sections, "${}")
     );
   } else if (["CallEntityName"].includes(node.name)) {
-    const typeOptions = entityOptions.filter(({ type }) => type === "ui");
+    const validOptions = entityOptions.filter(({ type }) => type === "ui");
     if (input.match(sparkRegexes.string)) {
       completions.push(
-        ...nameSnippets(typeOptions, "entity", "", "", colors.entity)
+        ...nameSnippets(validOptions, "entity", "", "", colors.entity)
       );
     }
+  } else if (["TagValue"].includes(node.name)) {
+    const validOptions = tagOptions.filter((x) => x.line !== line);
+    completions.push(
+      ...nameSnippets(validOptions, "tag", "", "", colors.tag),
+      ...nameSnippets(variableOptions, "variable", "", "", colors.variableName)
+    );
+  } else if (["VariableValue"].includes(node.name)) {
+    const validVariableOptions = variableOptions.filter((x) => x.line !== line);
+    completions.push(
+      ...nameSnippets(
+        validVariableOptions,
+        "variable",
+        "",
+        "",
+        colors.variableName
+      )
+    );
   } else if (
     [
       "AssignName",
@@ -841,6 +883,7 @@ export const sparkAutocomplete = async (
       "ConditionValue",
       "SectionParameterValue",
       "SectionVariableName",
+      "InterpolationVariableName",
     ].includes(node.name)
   ) {
     completions.push(

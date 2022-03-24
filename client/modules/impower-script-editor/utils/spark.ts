@@ -187,6 +187,9 @@ export function spark(
     htmlNoMatch.support,
     sparkLanguage.data.of({
       autocomplete: async (c) => sparkAutocomplete(c, parseContext),
+      closeBrackets: {
+        brackets: ["(", "[", "{", "'", '"', "`"],
+      },
     }),
     autocompletion({ aboveCursor: true, defaultKeymap: false }),
     hoverTooltip((v, p, s) =>

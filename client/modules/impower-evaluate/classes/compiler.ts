@@ -3,7 +3,7 @@ import { CompilerDiagnostic } from "../types/compilerDiagnostic";
 import { CompilerNode } from "../types/compilerNode";
 import { CompilerReference } from "../types/compilerReference";
 import { CompilerToken } from "../types/compilerToken";
-import { evaluate } from "../utils/evaluate";
+import { format } from "../utils/format";
 import { get } from "../utils/get";
 
 export class Compiler {
@@ -300,7 +300,7 @@ export class Compiler {
     }
 
     if (val.content[0] === "`") {
-      return this.parseTemplateString(val.content.slice(1, -1), context);
+      return this.parseTemplateString(val, context);
     }
 
     // 布尔
@@ -337,12 +337,19 @@ export class Compiler {
   }
 
   private parseTemplateString(
-    input: string,
+    val: CompilerToken,
     context: Record<string, string | number | boolean>
   ): string {
-    return input.replace(/\${(.*?)}/g, (_a, b) => {
-      return String(evaluate(b, context));
+    const input = val.content.slice(1, -1);
+    const [result, diagnostics] = format(input, context);
+    diagnostics.forEach((d) => {
+      this._diagnostics.push({
+        ...d,
+        from: val.from + 1 + d.from,
+        to: val.from + 1 + d.to,
+      });
     });
+    return result;
   }
 
   private parseStatement(): CompilerToken | CompilerNode | null {
