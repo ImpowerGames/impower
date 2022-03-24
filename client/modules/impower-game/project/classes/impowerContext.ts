@@ -15,7 +15,7 @@ export class ImpowerContext {
   private _contexts: {
     [id: string]: {
       ids: Record<string, string>;
-      valueMap: Record<string, string | number | boolean>;
+      valueMap: Record<string, unknown>;
       variables: Record<string, string | number | boolean>;
       assets: Record<string, string>;
       entities: Record<string, string>;
@@ -30,7 +30,7 @@ export class ImpowerContext {
   public get contexts(): {
     [id: string]: {
       ids: Record<string, string>;
-      valueMap: Record<string, string | number | boolean>;
+      valueMap: Record<string, unknown>;
       variables: Record<string, string | number | boolean>;
       assets: Record<string, string>;
       entities: Record<string, string>;

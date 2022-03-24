@@ -14,6 +14,8 @@ export const getScopedContext = <T extends string | number | boolean>(
       const v = sections[id];
       valueMap[v.name] = 0 as T;
     });
+    ids["#"] = sectionId;
+    valueMap["#"] = [0, ""] as unknown as T;
     return [ids, valueMap];
   }
   const ids = getScopedIds(sectionId, sections, itemsProp);

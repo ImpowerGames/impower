@@ -4,7 +4,7 @@ import { DisplayCommandData, DisplayType } from "../../../../../../../data";
 export const executeDisplayCommand = (
   data: DisplayCommandData,
   context: {
-    valueMap: Record<string, string | number | boolean>;
+    valueMap: Record<string, unknown>;
   }
 ): void => {
   const { valueMap } = context;

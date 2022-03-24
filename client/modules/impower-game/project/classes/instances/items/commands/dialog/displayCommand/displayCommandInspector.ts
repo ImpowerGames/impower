@@ -99,7 +99,7 @@ export class DisplayCommandInspector extends CommandInspector<DisplayCommandData
   onPreview(
     data: DisplayCommandData,
     context: {
-      valueMap: Record<string, string | number | boolean>;
+      valueMap: Record<string, unknown>;
     }
   ): void {
     executeDisplayCommand(data, context);

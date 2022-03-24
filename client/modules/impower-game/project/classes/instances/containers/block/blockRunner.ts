@@ -5,7 +5,7 @@ import { CommandRunner } from "../../items/command/commandRunner";
 
 export interface BlockContext {
   ids: Record<string, string>;
-  valueMap: Record<string, string | number | boolean>;
+  valueMap: Record<string, unknown>;
   variables: Record<string, string | number | boolean>;
   assets: Record<string, string>;
   entities: Record<string, string>;
@@ -113,10 +113,16 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       const command = commands[blockState.executingIndex];
       const commandId = command.data.reference.refId;
       const commandIndex = blockState.executingIndex;
+      const executionCount =
+        blockState.commandExecutionCounts[blockState.executingIndex];
       const pos = command?.data?.pos;
       const line = command?.data?.line;
       const fastForward = blockState.startIndex > blockState.executingIndex;
       if (blockState.lastExecutedAt < 0) {
+        context.valueMap["#"] = [
+          executionCount,
+          game.random.state.seed + commandId,
+        ];
         game.logic.executeCommand({
           pos,
           line,

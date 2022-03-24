@@ -1,4 +1,4 @@
-import { CompilerDiagnostic } from "..";
+import { CompilerDiagnostic } from "../types/compilerDiagnostic";
 import { choose } from "./formatters/choose";
 import { pluralize } from "./formatters/pluralize";
 
@@ -62,12 +62,31 @@ export const format = (
   let to = 0;
   const replacer = (match: string, inner: string): string => {
     const needsTrim = inner.startsWith("{") && inner.endsWith("}");
+    from = str.indexOf(match, to) + (needsTrim ? 2 : 1);
     const trimmedInner = needsTrim ? inner.slice(1, -1) : inner;
+    const validLocale = locale || (args?.locale as string);
+    const chooseVal = args["#"];
+    if (
+      !trimmedInner.includes(":") &&
+      trimmedInner.includes("|") &&
+      chooseVal !== undefined
+    ) {
+      const params = trimmedInner.split("|");
+      const matchSeed: string =
+        typeof chooseVal === "number"
+          ? String(from)
+          : (chooseVal[1] || "") + String(from);
+      const validChooseVal: [number, string] =
+        typeof chooseVal === "number"
+          ? [chooseVal, matchSeed]
+          : [chooseVal[0], matchSeed];
+      const [formatterResult] = choose(validChooseVal, validLocale, ...params);
+      return formatterResult;
+    }
     const [tagKey, formatterKey, param] = trimmedInner.split(":");
     if (!tagKey) {
       return match;
     }
-    from = str.indexOf(match, to) + (needsTrim ? 2 : 1);
     to = from + tagKey.length;
     const val = args[tagKey];
     if (val === undefined) {
@@ -83,7 +102,6 @@ export const format = (
     if (!formatterKey) {
       return String(val);
     }
-    const validLocale = locale || (args?.locale as string);
     const formatter = formatters[formatterKey];
     if (formatter && param) {
       const params = param.split("|");
@@ -100,6 +118,14 @@ export const format = (
           to: paramsFrom + d.to,
         });
       });
+      return formatterResult;
+    }
+    if (!formatter && !param && Array.isArray(val)) {
+      const params = formatterKey.split("|");
+      const chooseVal = val;
+      const matchSeed: string = (chooseVal[1] || "") + String(from);
+      const validChooseVal: [number, string] = [chooseVal[0], matchSeed];
+      const [formatterResult] = choose(validChooseVal, validLocale, ...params);
       return formatterResult;
     }
     if (!formatter && !param && typeof val === "boolean") {

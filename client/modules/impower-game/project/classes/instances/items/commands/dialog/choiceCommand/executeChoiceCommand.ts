@@ -4,7 +4,7 @@ import { ChoiceCommandData } from "../../../../../../../data";
 export const executeChoiceCommand = (
   data: ChoiceCommandData,
   context: {
-    valueMap: Record<string, string | number | boolean>;
+    valueMap: Record<string, unknown>;
   },
   onClick?: () => void
 ): void => {

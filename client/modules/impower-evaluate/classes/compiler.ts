@@ -69,8 +69,8 @@ export class Compiler {
 
   private _calc(
     node: CompilerNode | CompilerToken,
-    context: Record<string, string | number | boolean>
-  ): string | number | boolean {
+    context: Record<string, unknown>
+  ): unknown {
     if (node.type === "token") {
       return this.getValue(node, context);
     }
@@ -184,8 +184,8 @@ export class Compiler {
 
   calc(
     node: CompilerNode | CompilerToken,
-    context: Record<string, string | number | boolean>
-  ): string | number | boolean {
+    context: Record<string, unknown>
+  ): unknown {
     this._diagnostics = [];
     return this._calc(node, context);
   }
@@ -265,8 +265,8 @@ export class Compiler {
 
   private getValue(
     val: CompilerToken | CompilerNode | null,
-    context: Record<string, string | number | boolean>
-  ): string | number | boolean {
+    context: Record<string, unknown>
+  ): unknown {
     if (val === null) {
       const message = `Unknown value`;
       throw new Error(message);
@@ -318,10 +318,7 @@ export class Compiler {
     }
 
     // all other lookup from context
-    const found = get<
-      Record<string, string | number | boolean>,
-      string | number | boolean
-    >(context, val.content);
+    const found = get<Record<string, unknown>, unknown>(context, val.content);
     this._references.push({ from: val.from, to: val.to, name: val.content });
     if (found === undefined) {
       this._diagnostics.push({
@@ -338,7 +335,7 @@ export class Compiler {
 
   private parseTemplateString(
     val: CompilerToken,
-    context: Record<string, string | number | boolean>
+    context: Record<string, unknown>
   ): string {
     const input = val.content.slice(1, -1);
     const [result, diagnostics] = format(input, context);

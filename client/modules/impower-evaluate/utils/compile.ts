@@ -5,9 +5,9 @@ import { tokenize } from "./tokenize";
 
 export const compile = (
   expr: string,
-  context: Record<string, string | number | boolean> = {}
+  context: Record<string, unknown> = {}
 ): {
-  result: string | number | boolean;
+  result: unknown;
   diagnostics: CompilerDiagnostic[];
   references: CompilerReference[];
 } => {

@@ -3,8 +3,8 @@ import { tokenize } from "./tokenize";
 
 export const evaluate = (
   expr: string,
-  context: Record<string, string | number | boolean> = {}
-): string | number | boolean => {
+  context: Record<string, unknown> = {}
+): unknown => {
   const [tokenList] = tokenize(expr);
   const compiler = new Compiler(tokenList);
   const astTree = compiler.parse();
