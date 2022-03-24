@@ -500,12 +500,12 @@ export const parseSpark = (
     nameFrom?: number,
     nameTo?: number
   ): {
-    value?: string | number | boolean;
+    value?: unknown;
     methodName?: string;
     methodArgs?: string[];
   } => {
     const expressionValue: {
-      value?: string | number | boolean;
+      value?: unknown;
       methodName?: string;
       methodArgs?: string[];
     } = {};
@@ -804,7 +804,7 @@ export const parseSpark = (
     content: string,
     from: number,
     to: number
-  ): [string | number | boolean, SparkVariable] => {
+  ): [unknown, SparkVariable] => {
     if (!content) {
       return [undefined, undefined];
     }

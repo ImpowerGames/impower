@@ -2,7 +2,7 @@ import { SparkParseResult } from "../types/SparkParseResult";
 
 export const getGlobalEvaluationContext = (
   result: SparkParseResult
-): Record<string, string | number | boolean> => {
+): Record<string, unknown> => {
   const sectionValues: Record<string, number> = {};
   Object.keys(result?.sections || {}).forEach((id) => {
     sectionValues[id] = 0;
@@ -19,7 +19,7 @@ export const getGlobalEvaluationContext = (
   Object.entries(result?.entities || {}).forEach(([id, v]) => {
     entityValues[id] = v.value;
   });
-  const variableValues: Record<string, string | number | boolean> = {};
+  const variableValues: Record<string, unknown> = {};
   Object.entries(result?.variables || {}).forEach(([id, v]) => {
     variableValues[id] = v.value;
   });

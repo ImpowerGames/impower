@@ -6,7 +6,7 @@ import { CommandRunner } from "../../items/command/commandRunner";
 export interface BlockContext {
   ids: Record<string, string>;
   valueMap: Record<string, unknown>;
-  variables: Record<string, string | number | boolean>;
+  variables: Record<string, unknown>;
   assets: Record<string, string>;
   entities: Record<string, string>;
   tags: Record<string, string>;

@@ -361,19 +361,16 @@ const ContainerScriptEditor = React.memo(
       [gameInspector]
     );
 
-    const handleGetRuntimeValue = useCallback(
-      (id: string): string | number | boolean => {
-        if (!gameRef.current) {
-          return undefined;
-        }
-        const result = parseResultRef.current;
-        const runtimeValue = gameRef.current.getRuntimeValue(id);
-        const context = getGlobalEvaluationContext(result);
-        const initialValue = context?.[id];
-        return runtimeValue != null ? runtimeValue : initialValue;
-      },
-      []
-    );
+    const handleGetRuntimeValue = useCallback((id: string): unknown => {
+      if (!gameRef.current) {
+        return undefined;
+      }
+      const result = parseResultRef.current;
+      const runtimeValue = gameRef.current.getRuntimeValue(id);
+      const context = getGlobalEvaluationContext(result);
+      const initialValue = context?.[id];
+      return runtimeValue != null ? runtimeValue : initialValue;
+    }, []);
 
     const handleSetRuntimeValue = useCallback(
       (id: string, expression: string): void => {

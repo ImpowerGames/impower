@@ -2,7 +2,7 @@ import { SparkSection } from "../types/SparkSection";
 import { getScopedIds } from "./getScopedIds";
 import { getScopedSectionIds } from "./getScopedSectionIds";
 
-export const getScopedContext = <T extends string | number | boolean>(
+export const getScopedContext = <T extends unknown>(
   sectionId: string,
   sections: Record<string, SparkSection>,
   itemsProp: "variables" | "assets" | "entities" | "tags" | "sections"

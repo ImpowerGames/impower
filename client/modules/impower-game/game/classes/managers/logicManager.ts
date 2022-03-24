@@ -493,7 +493,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
 
   returnFromBlock(data: {
     id: string;
-    value: string | number | boolean;
+    value: unknown;
     returnToTop: boolean;
   }): boolean {
     const blockState = this.state.blockStates[data.id];

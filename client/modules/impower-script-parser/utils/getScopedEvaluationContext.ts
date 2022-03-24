@@ -4,7 +4,7 @@ import { getScopedContext } from "./getScopedContext";
 export const getScopedEvaluationContext = (
   sectionId: string,
   sections: Record<string, SparkSection>
-): [Record<string, string>, Record<string, string | number | boolean>] => {
+): [Record<string, string>, Record<string, unknown>] => {
   const [sectionIds, sectionValues] = getScopedContext(
     sectionId,
     sections,

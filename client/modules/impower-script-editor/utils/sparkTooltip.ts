@@ -29,7 +29,7 @@ export const sparkTooltip = (
   parseContext: {
     result: SparkParseResult;
   },
-  getRuntimeValue?: (id: string) => string | number | boolean,
+  getRuntimeValue?: (id: string) => unknown,
   setRuntimeValue?: (id: string, expression: string) => void
 ): Tooltip | Promise<Tooltip> => {
   const line = view.state.doc.lineAt(pos);

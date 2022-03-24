@@ -127,7 +127,7 @@ export function spark(
     initialParseResult?: SparkParseResult;
     /// Callback to execute when doc is parsed
     parse: (script: string) => SparkParseResult;
-    getRuntimeValue?: (id: string) => string | number | boolean;
+    getRuntimeValue?: (id: string) => unknown;
     setRuntimeValue?: (id: string, expression: string) => void;
   } = { parse: parseSpark }
 ): LanguageSupport {

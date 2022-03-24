@@ -198,7 +198,7 @@ interface ScriptEditorProps {
     fromLine: number;
     toLine: number;
   }) => void;
-  getRuntimeValue?: (id: string) => string | number | boolean;
+  getRuntimeValue?: (id: string) => unknown;
   setRuntimeValue?: (id: string, expression: string) => void;
   onScrollLine?: (event: Event, firstVisibleLine: number) => void;
   onOpenSearchTextPanel?: (query?: SearchTextQuery) => void;

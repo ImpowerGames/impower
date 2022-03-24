@@ -153,7 +153,7 @@ export class ImpowerGame {
     };
   }
 
-  getRuntimeValue?(id: string): string | number | boolean {
+  getRuntimeValue?(id: string): unknown {
     const variableState = this.logic.state?.variableStates?.[id];
     if (variableState) {
       return variableState.value;
@@ -165,7 +165,7 @@ export class ImpowerGame {
     return undefined;
   }
 
-  setRuntimeValue?(id: string, value: string | number | boolean): void {
+  setRuntimeValue?(id: string, value: unknown): void {
     const variableState = this.logic.state?.variableStates?.[id];
     if (variableState) {
       variableState.value = value;

@@ -16,7 +16,7 @@ export class ImpowerContext {
     [id: string]: {
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
-      variables: Record<string, string | number | boolean>;
+      variables: Record<string, unknown>;
       assets: Record<string, string>;
       entities: Record<string, string>;
       tags: Record<string, string>;
@@ -31,7 +31,7 @@ export class ImpowerContext {
     [id: string]: {
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
-      variables: Record<string, string | number | boolean>;
+      variables: Record<string, unknown>;
       assets: Record<string, string>;
       entities: Record<string, string>;
       tags: Record<string, string>;
