@@ -626,7 +626,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     pos: number;
     line: number;
     id: string;
-    value: string | number | boolean;
+    value: unknown;
   }): void {
     const variableState = this.state.variableStates[data.id] || {
       value: data.value,
