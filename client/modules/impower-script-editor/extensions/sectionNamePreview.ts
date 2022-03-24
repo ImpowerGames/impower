@@ -58,9 +58,7 @@ export const sectionNamePlugin = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate): void {
-      if (update.docChanged || update.viewportChanged) {
-        this.decorations = sectionNameDecorations(update.view);
-      }
+      this.decorations = sectionNameDecorations(update.view);
     }
   },
   {
