@@ -25,6 +25,7 @@ import { MarkdownParser } from "../classes/MarkdownParser";
 import {
   deleteMarkupBackward,
   insertNewlineContinueMarkup,
+  toggleComment,
 } from "../constants/commands";
 import { sectionNamePreview } from "../extensions/sectionNamePreview";
 import { snippetPreview } from "../extensions/snippetPreview";
@@ -53,6 +54,7 @@ export {
 export const markdownKeymap: readonly KeyBinding[] = [
   { key: "Enter", run: insertNewlineContinueMarkup },
   { key: "Backspace", run: deleteMarkupBackward },
+  { key: "Ctrl-/", run: toggleComment },
 ];
 
 const snippetKeymap = [

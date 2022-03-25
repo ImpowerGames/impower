@@ -25,6 +25,7 @@ export type SparkPositionTokenType =
   | "parenthetical";
 
 export type SparkOtherTokenType =
+  | "comment"
   | "title"
   | "separator"
   | "synopses"

@@ -18,6 +18,13 @@ export function inBlockContext(cx: BlockContext, type: Type): boolean {
   return false;
 }
 
+export function isComment(line: Line): RegExpMatchArray {
+  if (line.next !== "/".charCodeAt(0)) {
+    return null;
+  }
+  return line.text.match(sparkRegexes.comment);
+}
+
 export function isSectionHeading(line: Line): RegExpMatchArray {
   if (line.next !== "#".charCodeAt(0)) {
     return null;

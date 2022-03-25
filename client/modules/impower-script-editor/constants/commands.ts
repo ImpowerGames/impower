@@ -1,14 +1,18 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable no-cond-assign */
 /* eslint-disable no-return-assign */
+import { EditorState } from "@codemirror/basic-setup";
 import { syntaxTree } from "@codemirror/language";
 import {
   ChangeSpec,
   EditorSelection,
+  SelectionRange,
   StateCommand,
   Text,
 } from "@codemirror/state";
+import { Line } from "@codemirror/text";
 import { SyntaxNode, Tree } from "@lezer/common";
+import { sparkRegexes } from "../../impower-script-parser";
 import { Context } from "../classes/Context";
 import { itemNumber } from "../utils/itemNumber";
 import { sparkLanguage } from "../utils/sparkLanguage";
@@ -276,6 +280,89 @@ export const deleteMarkupBackward: StateCommand = ({ state, dispatch }) => {
   }
   dispatch(
     state.update(changes, { scrollIntoView: true, userEvent: "delete" })
+  );
+  return true;
+};
+
+const changeBySelectedLine = (
+  state: EditorState,
+  f: (
+    line: Line,
+    changes: ChangeSpec[],
+    range: SelectionRange,
+    minOffset: number,
+    action: "comment" | "uncomment",
+    commmentMatch: RegExpMatchArray
+  ) => void
+) => {
+  let atLine = -1;
+  return state.changeByRange((range) => {
+    const changes: ChangeSpec[] = [];
+    let minOffset = Number.MAX_SAFE_INTEGER;
+    let action: "comment" | "uncomment" = "uncomment";
+    const commentMatches: RegExpMatchArray[] = [];
+    for (let pos = range.from; pos <= range.to; ) {
+      const line = state.doc.lineAt(pos);
+      const indentMatch = line.text.match(sparkRegexes.indent);
+      const indentText = indentMatch[1] || "";
+      if (indentText.length < minOffset) {
+        minOffset = indentText.length;
+      }
+      const commentMatch = line.text.match(sparkRegexes.comment_inline);
+      commentMatches.push(commentMatch);
+      if (line.text.trim() && !commentMatch) {
+        action = "comment";
+      }
+      pos = line.to + 1;
+    }
+    let index = 0;
+    for (let pos = range.from; pos <= range.to; ) {
+      const line = state.doc.lineAt(pos);
+      if (line.number > atLine && (range.empty || range.to > line.from)) {
+        f(line, changes, range, minOffset, action, commentMatches[index]);
+        atLine = line.number;
+      }
+      pos = line.to + 1;
+      index += 1;
+    }
+    const changeSet = state.changes(changes);
+    return {
+      changes,
+      range: EditorSelection.range(
+        changeSet.mapPos(range.anchor, 1),
+        changeSet.mapPos(range.head, 1)
+      ),
+    };
+  });
+};
+
+/// This command, when invoked with cursor selection(s),
+/// will comment out the current selected uncommented lines
+/// or uncomment the current selected commented out lines
+export const toggleComment: StateCommand = ({ state, dispatch }) => {
+  if (state.readOnly) return false;
+  dispatch(
+    state.update(
+      changeBySelectedLine(
+        state,
+        (line, changes, range, minOffset, action, commentMatch) => {
+          if (action === "comment") {
+            if (line.text.trim()) {
+              const markAndSpace = "// ";
+              const from = line.from + minOffset;
+              changes.push({ from, insert: markAndSpace });
+            }
+          } else if (commentMatch) {
+            const mark = commentMatch[0] || "";
+            const commentIndex = line.text.indexOf(mark);
+            const from = line.from + commentIndex;
+            const to = from + mark.length;
+            changes.push({ from, to, insert: "" });
+          }
+        }
+      ),
+      { userEvent: "input.comment" }
+    )
   );
   return true;
 };

@@ -104,7 +104,7 @@ export const parseSpark = (
   let lastCharacterIndex;
   let dualRight;
   let state = "normal";
-  let cacheStateForComment;
+  let cacheStateForComment: string;
   let nestedComments = 0;
   let titlePageStarted = false;
   let previousCharacter: string;
@@ -1297,7 +1297,7 @@ export const parseSpark = (
     previousAssets = [];
   };
 
-  const reduceComment = (prev: string, current: string): string => {
+  const reduceBlockComment = (prev: string, current: string): string => {
     if (current === "/*") {
       nestedComments += 1;
     } else if (current === "*/") {
@@ -1306,6 +1306,22 @@ export const parseSpark = (
       prev += current;
     }
     return prev;
+  };
+
+  const removeBlockComments = (str: string): string => {
+    str = str
+      .split(sparkRegexes.comment_block)
+      .filter((x) => Boolean(x))
+      .reduce(reduceBlockComment, "");
+    return str;
+  };
+
+  const removeInlineComments = (str: string): string => {
+    const inlineCommentIndex = str.indexOf("//");
+    if (inlineCommentIndex >= 0) {
+      str = str.slice(0, inlineCommentIndex);
+    }
+    return str;
   };
 
   const checkExpression = (
@@ -1366,11 +1382,8 @@ export const parseSpark = (
   for (let i = 0; i < linesLength; i += 1) {
     text = lines[i];
 
-    // replace inline comments
-    text = text
-      .split(/(\/\*){1}|(\*\/){1}|([^/*]+)/g)
-      .filter((x) => Boolean(x))
-      .reduce(reduceComment, "");
+    text = removeBlockComments(text);
+    text = removeInlineComments(text);
 
     currentToken = createSparkToken(
       undefined,
@@ -1568,11 +1581,8 @@ export const parseSpark = (
   for (let i = 0; i < linesLength; i += 1) {
     text = lines[i];
 
-    // replace inline comments
-    text = text
-      .split(/(\/\*){1}|(\*\/){1}|([^/*]+)/g)
-      .filter((x) => Boolean(x))
-      .reduce(reduceComment, "");
+    text = removeBlockComments(text);
+    text = removeInlineComments(text);
 
     if (nestedComments && state !== "ignore") {
       cacheStateForComment = state;
@@ -1586,7 +1596,7 @@ export const parseSpark = (
     }
 
     currentToken = createSparkToken(
-      undefined,
+      "comment",
       text,
       i + 1,
       current,

@@ -24,6 +24,7 @@ import {
   isCentered,
   isCharacter,
   isChoice,
+  isComment,
   isCondition,
   isFencedCode,
   isGo,
@@ -124,6 +125,19 @@ export const parseExpression = (
 export const DefaultBlockParsers: {
   [name: string]: ((cx: BlockContext, line: Line) => BlockResult) | undefined;
 } = {
+  Comment(cx, line) {
+    const match = isComment(line);
+    if (!match) {
+      return false;
+    }
+    const from = cx.lineStart + line.pos;
+    const buf = cx.buffer;
+    const node = buf.finish(Type.Comment, line.text.length);
+    cx.nextLine();
+    cx.addNode(node, from);
+    return true;
+  },
+
   Title(cx, line) {
     const size = isTitle(line, cx, false);
     if (size < 0) {

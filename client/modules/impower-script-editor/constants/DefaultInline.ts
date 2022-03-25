@@ -4,6 +4,7 @@ import { InlineContext } from "../classes/InlineContext";
 import { InlineDelimiter } from "../classes/InlineDelimeter";
 import { Mark } from "../types/mark";
 import { Type } from "../types/type";
+import { newline } from "../utils/newline";
 import {
   AudioNoteStart,
   DynamicTagStart,
@@ -17,6 +18,18 @@ import { Escapable, Punctuation } from "./regexes";
 export const DefaultInline: {
   [name: string]: (cx: InlineContext, next: number, pos: number) => number;
 } = {
+  Comment(cx, next, start) {
+    const open = cx.slice(start, start + 2);
+    if (open !== "//") {
+      return -1;
+    }
+    let to = start;
+    while (to < cx.end && !newline(cx.char(to))) {
+      to += 1;
+    }
+    return cx.append(new Element(Type.Comment, start, to));
+  },
+
   Escape(cx, next, start) {
     if (next !== 92 /* '\\' */ || start === cx.end - 1) {
       return -1;

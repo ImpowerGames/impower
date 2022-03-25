@@ -31,8 +31,8 @@ export const tags = {
   dualDialogue: t.typeOperator,
   lyric: t.annotation,
   pageBreak: t.contentSeparator,
-  note: t.comment,
-  synopses: t.comment,
+  note: t.special(t.comment),
+  synopses: t.local(t.comment),
   centered: t.quote,
   underline: t.link,
   emphasis: t.emphasis,
@@ -56,8 +56,8 @@ export const tags = {
   sectionMark: t.heading1,
   sceneMark: t.heading2,
   lyricMark: t.processingInstruction,
-  noteMark: t.comment,
-  synopsesMark: t.comment,
+  noteMark: t.special(t.comment),
+  synopsesMark: t.local(t.comment),
   centeredMark: t.processingInstruction,
   emphasisMark: t.processingInstruction,
   underlineMark: t.processingInstruction,
@@ -81,6 +81,7 @@ const data = defineLanguageFacet({ block: { open: "<!--", close: "-->" } });
 const commonmark = baseParser.configure({
   props: [
     styleTags({
+      "Comment/...": tags.comment,
       "Title/...": tags.titleValue,
       "TitleMark": tags.titleKey,
       "Scene/...": tags.scene,
