@@ -20,9 +20,10 @@ export const colors = {
   pageBreak: "#606080",
   formatting: "#79ABFF",
   condition: "#D197D9",
-  asset: "#9CDCFE",
-  entity: "#9CDCFE",
-  tag: "#9CDCFE",
+  note: "#79ABFF",
+  asset: "#79ABFF",
+  entity: "#79ABFF",
+  tag: "#79ABFF",
 
   keyword: "#569CD6",
   typeName: "#00D0D0",
