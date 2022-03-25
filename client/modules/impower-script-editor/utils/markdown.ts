@@ -22,7 +22,7 @@ export function isComment(line: Line): RegExpMatchArray {
   if (line.next !== "/".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(sparkRegexes.comment);
+  return line.text.match(sparkRegexes.comment_inline);
 }
 
 export function isSectionHeading(line: Line): RegExpMatchArray {
