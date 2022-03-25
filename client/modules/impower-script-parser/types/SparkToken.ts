@@ -85,13 +85,11 @@ export interface SparkReturnToken extends SparkLine {
 export interface SparkSceneToken extends SparkLine {
   type: SparkSceneTokenType;
   scene: string | number;
-  wait: boolean;
 }
 
 export interface SparkPositionToken extends SparkLine {
   type: SparkPositionTokenType;
   position: "left" | "right";
-  wait: boolean;
 }
 
 export interface SparkDialogueToken extends SparkLine {
@@ -100,22 +98,18 @@ export interface SparkDialogueToken extends SparkLine {
   parenthetical: string;
   position: "left" | "right";
   assets?: { name: string }[];
-  wait: boolean;
 }
 
 export interface SparkActionToken extends SparkLine {
   type: SparkActionTokenType;
-  wait: boolean;
 }
 
 export interface SparkTransitionToken extends SparkLine {
   type: SparkTransitionTokenType;
-  wait: boolean;
 }
 
 export interface SparkCenteredToken extends SparkLine {
   type: SparkCenteredTokenType;
-  wait: boolean;
 }
 
 export interface SparkOtherToken extends SparkLine {

@@ -1699,7 +1699,7 @@ export const parseSpark = (
             ? content.substring(1)?.trim()
             : content?.trim();
           currentToken.scene = scene;
-          currentToken.wait = true;
+          currentToken.wait = "input";
           if (!parsed.properties.scenes) {
             parsed.properties.scenes = [];
           }
@@ -1731,7 +1731,7 @@ export const parseSpark = (
       ) {
         currentToken.type = "action";
         if (currentToken.type === "action") {
-          currentToken.wait = true;
+          currentToken.wait = "input";
           pushNotes();
           saveAndClearNotes();
           currentToken.content = currentToken.content.substring(1)?.trim();
@@ -1744,7 +1744,7 @@ export const parseSpark = (
         if (currentToken.type === "centered") {
           if ((match = lint(sparkRegexes.centered))) {
             const content = match[4] || "";
-            currentToken.wait = true;
+            currentToken.wait = "input";
             pushNotes();
             saveAndClearNotes();
             currentToken.content = content?.trim();
@@ -1753,12 +1753,14 @@ export const parseSpark = (
             checkExpression(expression, expressionFrom);
           }
         }
-      } else if (currentToken.content.match(sparkRegexes.transition)) {
+      } else if (
+        (match = currentToken.content.match(sparkRegexes.transition))
+      ) {
         currentToken.type = "transition";
         if (currentToken.type === "transition") {
-          const content = match[2] || "";
-          currentToken.wait = true;
+          currentToken.wait = "input";
           if ((match = lint(sparkRegexes.transition))) {
+            const content = match[2] || "";
             pushNotes();
             saveAndClearNotes();
             currentToken.content = content.trim();
@@ -2203,7 +2205,7 @@ export const parseSpark = (
         currentToken.type = "action";
         if (currentToken.type === "action") {
           currentToken.content = currentToken.content?.trim();
-          currentToken.wait = true;
+          currentToken.wait = "input";
           pushNotes();
           saveAndClearNotes();
           saveAndClearAssets();
@@ -2232,7 +2234,7 @@ export const parseSpark = (
         saveAndClearNotes();
         saveAndClearAssets();
         if (currentToken.type === "dialogue") {
-          currentToken.wait = true;
+          currentToken.wait = "input";
           if (previousCharacter) {
             currentToken.character = previousCharacter;
           }
@@ -2251,7 +2253,7 @@ export const parseSpark = (
         }
         if (currentToken.type === "dialogue") {
           currentToken.position = "right";
-          currentToken.wait = true;
+          currentToken.wait = "input";
         }
       }
     }

@@ -12,6 +12,7 @@ export interface SparkLine {
   to?: number;
   offset?: number;
   indent?: number;
+  wait?: "input" | number | boolean;
 
   order?: number;
   ignore?: boolean;

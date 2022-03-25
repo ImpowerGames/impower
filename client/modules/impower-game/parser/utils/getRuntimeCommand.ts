@@ -54,7 +54,7 @@ const getDisplayCommand = (
     parenthetical: dialogueToken.parenthetical || "",
     content: dialogueToken.text || dialogueToken.content,
     assets: dialogueToken.assets?.map(({ name }) => name) || [],
-    waitUntilFinished: token.wait,
+    waitUntilFinished: Boolean(token.wait),
   };
 };
 
