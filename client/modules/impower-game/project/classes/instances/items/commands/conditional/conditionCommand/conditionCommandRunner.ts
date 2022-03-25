@@ -20,11 +20,9 @@ export class ConditionCommandRunner extends CommandRunner<ConditionCommandData> 
   ): number[] {
     const { check, value } = data;
     const { valueMap, index, commands } = context;
-    if (check === "if") {
+    if (check === "if" || check === "elif") {
       const shouldExecute = evaluate(value, valueMap);
       if (!shouldExecute) {
-        // Skip to the next "elif" condition or
-        // skip to the command after the next "else" or "close" condition
         const nextCommandIndex = getNextJumpIndex(
           [
             { check: (c): boolean => c === "elif", offset: 0 },
@@ -36,50 +34,9 @@ export class ConditionCommandRunner extends CommandRunner<ConditionCommandData> 
         );
         return [nextCommandIndex];
       }
-    } else if (check === "elif") {
-      const shouldExecute = evaluate(value, valueMap);
-      const blockState =
-        game.logic.state.blockStates[data.reference.parentContainerId];
-      const prevCheck = commands?.[blockState.previousIndex]?.data?.check;
-      if (prevCheck === "if" || prevCheck === "elif") {
-        if (!shouldExecute) {
-          // Skip to the next "elif" condition or
-          // skip to the condition after the next "else" or "close" condition
-          const nextCommandIndex = getNextJumpIndex(
-            [
-              { check: (c): boolean => c === "elif", offset: 0 },
-              { check: (c): boolean => c === "else", offset: 1 },
-              { check: (c): boolean => c === "close", offset: 1 },
-            ],
-            index,
-            commands
-          );
-          return [nextCommandIndex];
-        }
-      } else {
-        // Skip to the command after the next "close" condition
-        const nextCommandIndex = getNextJumpIndex(
-          [{ check: (c): boolean => c === "close", offset: 1 }],
-          index,
-          commands
-        );
-        return [nextCommandIndex];
-      }
     } else if (check === "else") {
-      // Skip to the command after the next "close" condition
       const nextCommandIndex = getNextJumpIndex(
         [{ check: (c): boolean => c === "close", offset: 1 }],
-        index,
-        commands
-      );
-      return [nextCommandIndex];
-    } else if (check === "close") {
-      // Skip to the next command on the same or higher level that is not an else or elif
-      const nextCommandIndex = getNextJumpIndex(
-        [
-          { check: (c): boolean => c === "close", offset: 1 },
-          { check: (c): boolean => c !== "elif" && c !== "else", offset: 0 },
-        ],
         index,
         commands
       );

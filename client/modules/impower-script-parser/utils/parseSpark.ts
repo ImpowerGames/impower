@@ -1858,23 +1858,21 @@ export const parseSpark = (
             currentToken.check = (check as "if" | "elif" | "else") || "close";
             currentToken.value = expression;
             if (check === "elif" || check === "else") {
-              const startIndex = parsed.scriptTokens.length - 1;
+              const startIndex = parsed.scriptTokens.length;
               let index = startIndex;
               let lastToken = parsed.scriptTokens[index - 1];
               let valid = false;
               while (lastToken && lastToken?.type !== "section") {
                 if (
+                  lastToken?.type !== "condition" &&
+                  lastToken?.indent <= currentToken.indent
+                ) {
+                  break;
+                } else if (
                   lastToken?.type === "condition" &&
                   lastToken?.indent === currentToken.indent
                 ) {
                   if (lastToken?.check === "else") {
-                    diagnostic(
-                      currentToken,
-                      "'else' must be preceded by an 'if' or 'elif' on the same indent level",
-                      [],
-                      checkFrom,
-                      checkTo
-                    );
                     break;
                   } else if (
                     lastToken?.check === "elif" ||
