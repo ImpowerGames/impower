@@ -124,7 +124,8 @@ export const parseSpark = (
     if (!parsed.diagnostics) {
       parsed.diagnostics = [];
     }
-    const validFrom = from >= 0 ? from : currentToken.from;
+    const validFrom =
+      from >= 0 ? from : currentToken.from + currentToken.offset;
     const validTo = to >= 0 ? to : currentToken.to;
     const source = `${severity.toUpperCase()}: line ${
       currentToken.line
@@ -2274,6 +2275,29 @@ export const parseSpark = (
         closeCondition.to = currentToken.from;
         pushToken(closeCondition);
         indent -= 1;
+      }
+    }
+    if (
+      currentToken.indent > previousToken?.indent &&
+      previousToken.type !== "condition" &&
+      currentToken.type === "condition"
+    ) {
+      let lineIndex = i;
+      let from = currentToken.from;
+      let to = currentToken.from;
+      while (lineIndex < linesLength) {
+        const line = lines[lineIndex];
+        const indentMatch = line.match(/^([ \t]*)/);
+        const indentText = indentMatch[0] || "";
+        const offset = indentText.length;
+        const indent = Math.floor(offset / 2);
+        if (indent <= previousToken.indent) {
+          break;
+        }
+        from = to + offset;
+        to = from + line.length - offset + 1;
+        diagnostic(currentToken, `Unreachable Code`, [], from, to, "warning");
+        lineIndex += 1;
       }
     }
 
