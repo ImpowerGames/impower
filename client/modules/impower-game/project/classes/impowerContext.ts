@@ -5,10 +5,9 @@ import { CommandData } from "./instances/items/command/commandData";
 import { CommandRunner } from "./instances/items/command/commandRunner";
 import { GameProjectData } from "./project/gameProjectData";
 
-interface CommandContextData {
+interface CommandRuntimeData {
   runner: CommandRunner;
   data: CommandData;
-  level: number;
 }
 
 export class ImpowerContext {
@@ -23,7 +22,7 @@ export class ImpowerContext {
       blocks: Record<string, number>;
       triggers: string[];
       parameters: string[];
-      commands: CommandContextData[];
+      commands: CommandRuntimeData[];
     };
   };
 
@@ -38,7 +37,7 @@ export class ImpowerContext {
       blocks: Record<string, number>;
       triggers: string[];
       parameters: string[];
-      commands: CommandContextData[];
+      commands: CommandRuntimeData[];
     };
   } {
     return this._contexts;
@@ -104,7 +103,7 @@ export class ImpowerContext {
         blocks: sections,
         triggers: block.triggers,
         parameters: block.parameters,
-        commands: runner.getIterableRunners(block.commands),
+        commands: runner.getRuntimeData(block.commands),
       };
     });
   }

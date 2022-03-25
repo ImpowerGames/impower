@@ -616,10 +616,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     pos: number;
     line: number;
     blockId: string;
-  }): void {
+  }): number {
     const blockState = this.state.blockStates[data.blockId];
-    blockState.commandJumpStack.shift();
+    const index = blockState.commandJumpStack.shift();
     this.events.onCommandJumpStackPop.emit({ ...data });
+    return index;
   }
 
   setVariableValue(data: {

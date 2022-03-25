@@ -34,11 +34,7 @@ import { PauseAudioCommandInspector } from "../../project/classes/instances/item
 import { PlayAudioCommandInspector } from "../../project/classes/instances/items/commands/audio/playAudioCommand/playAudioCommandInspector";
 import { ResumeAudioCommandInspector } from "../../project/classes/instances/items/commands/audio/resumeAudioCommand/resumeAudioCommandInspector";
 import { StopAudioCommandInspector } from "../../project/classes/instances/items/commands/audio/stopAudioCommand/stopAudioCommandInspector";
-import { CloseCommandInspector } from "../../project/classes/instances/items/commands/conditional/closeCommand/closeCommandInspector";
-import { ElseCommandInspector } from "../../project/classes/instances/items/commands/conditional/elseCommand/elseCommandInspector";
-import { ElseIfCommandInspector } from "../../project/classes/instances/items/commands/conditional/elseIfCommand/elseIfCommandInspector";
-import { IfCommandInspector } from "../../project/classes/instances/items/commands/conditional/ifCommand/ifCommandInspector";
-import { SelectCommandInspector } from "../../project/classes/instances/items/commands/conditional/selectCommand/selectCommandInspector";
+import { ConditionCommandInspector } from "../../project/classes/instances/items/commands/conditional/conditionCommand/conditionCommandInspector";
 import { AssignCommandInspector } from "../../project/classes/instances/items/commands/data/assignCommand/assignCommandInspector";
 import { ChoiceCommandInspector } from "../../project/classes/instances/items/commands/dialog/choiceCommand/choiceCommandInspector";
 import { DisplayCommandInspector } from "../../project/classes/instances/items/commands/dialog/displayCommand/displayCommandInspector";
@@ -98,11 +94,7 @@ export class ImpowerGameInspector {
     RepeatCommand: new RepeatCommandInspector(),
     EndCommand: new EndCommandInspector(),
     WaitCommand: new WaitCommandInspector(),
-    IfCommand: new IfCommandInspector(),
-    ElseIfCommand: new ElseIfCommandInspector(),
-    ElseCommand: new ElseCommandInspector(),
-    SelectCommand: new SelectCommandInspector(),
-    CloseCommand: new CloseCommandInspector(),
+    ConditionCommand: new ConditionCommandInspector(),
     AssignCommand: new AssignCommandInspector(),
     DisplayCommand: new DisplayCommandInspector(),
     ChoiceCommand: new ChoiceCommandInspector(),

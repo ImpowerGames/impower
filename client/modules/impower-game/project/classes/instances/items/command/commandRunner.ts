@@ -12,12 +12,11 @@ export interface CommandContext {
   blocks: Record<string, number>;
   triggers: string[];
   parameters: string[];
+  index: number;
   commands: {
     runner: CommandRunner;
     data: CommandData;
-    level: number;
   }[];
-  index: number;
 }
 
 export class CommandRunner<

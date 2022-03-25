@@ -8,4 +8,5 @@ export interface InstanceData<
   reference: R;
   pos: number;
   line: number;
+  indent: number;
 }

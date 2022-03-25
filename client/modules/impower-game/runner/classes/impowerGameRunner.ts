@@ -14,11 +14,7 @@ import { PauseAudioCommandRunner } from "../../project/classes/instances/items/c
 import { PlayAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/playAudioCommand/playAudioCommandRunner";
 import { ResumeAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/resumeAudioCommand/resumeAudioCommandRunner";
 import { StopAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/stopAudioCommand/stopAudioCommandRunner";
-import { CloseCommandRunner } from "../../project/classes/instances/items/commands/conditional/closeCommand/closeCommandRunner";
-import { ElseCommandRunner } from "../../project/classes/instances/items/commands/conditional/elseCommand/elseCommandRunner";
-import { ElseIfCommandRunner } from "../../project/classes/instances/items/commands/conditional/elseIfCommand/elseIfCommandRunner";
-import { IfCommandRunner } from "../../project/classes/instances/items/commands/conditional/ifCommand/ifCommandRunner";
-import { SelectCommandRunner } from "../../project/classes/instances/items/commands/conditional/selectCommand/selectCommandRunner";
+import { ConditionCommandRunner } from "../../project/classes/instances/items/commands/conditional/conditionCommand/conditionCommandRunner";
 import { AssignCommandRunner } from "../../project/classes/instances/items/commands/data/assignCommand/assignCommandRunner";
 import { ChoiceCommandRunner } from "../../project/classes/instances/items/commands/dialog/choiceCommand/choiceCommandRunner";
 import { DisplayCommandRunner } from "../../project/classes/instances/items/commands/dialog/displayCommand/displayCommandRunner";
@@ -35,6 +31,14 @@ import { MoveToImageCommandRunner } from "../../project/classes/instances/items/
 import { RotateToImageCommandRunner } from "../../project/classes/instances/items/commands/image/rotateImageCommand/rotateImageCommandRunner";
 import { ScaleToImageCommandRunner } from "../../project/classes/instances/items/commands/image/scaleImageCommand/scaleImageCommandRunner";
 import { ShowImageCommandRunner } from "../../project/classes/instances/items/commands/image/showImageCommand/showImageCommandRunner";
+
+interface InstanceContextData<
+  D extends InstanceData,
+  R extends InstanceRunner<D>
+> {
+  runner: R;
+  data: D;
+}
 
 export class ImpowerGameRunner {
   private static _instance: ImpowerGameRunner;
@@ -76,11 +80,7 @@ export class ImpowerGameRunner {
     RepeatCommand: new RepeatCommandRunner(),
     EndCommand: new EndCommandRunner(),
     WaitCommand: new WaitCommandRunner(),
-    IfCommand: new IfCommandRunner(),
-    ElseIfCommand: new ElseIfCommandRunner(),
-    ElseCommand: new ElseCommandRunner(),
-    SelectCommand: new SelectCommandRunner(),
-    CloseCommand: new CloseCommandRunner(),
+    ConditionCommand: new ConditionCommandRunner(),
     AssignCommand: new AssignCommandRunner(),
     DisplayCommand: new DisplayCommandRunner(),
     ChoiceCommand: new ChoiceCommandRunner(),
@@ -121,7 +121,7 @@ export class ImpowerGameRunner {
     delete this._commandRunners[refTypeId];
   }
 
-  getRunners(
+  findRunners(
     type: DataType
   ):
     | { [refTypeId: string]: ConfigRunner }
@@ -142,9 +142,9 @@ export class ImpowerGameRunner {
     }
   }
 
-  getRunner(typeLookup: TypeLookup): InstanceRunner {
+  findRunner(typeLookup: TypeLookup): InstanceRunner {
     const { refType, refTypeId } = typeLookup;
-    const runner = this.getRunners(refType)[refTypeId];
+    const runner = this.findRunners(refType)[refTypeId];
     if (runner) {
       return runner;
     }
@@ -163,28 +163,16 @@ export class ImpowerGameRunner {
     }
   }
 
-  getIterableRunners<D extends InstanceData, R extends InstanceRunner<D>>(
+  getRuntimeData<D extends InstanceData, R extends InstanceRunner<D>>(
     dataList: OrderedCollection<D>
-  ): { runner: R; data: D; level: number }[] {
-    const iterableRunners: { runner: R; data: D; level: number }[] = [];
-    let currentLevel = 0;
-    let group: InstanceData;
+  ): InstanceContextData<D, R>[] {
+    const runners: { runner: R; data: D }[] = [];
     dataList?.order?.forEach((id) => {
       const data = dataList.data[id];
-      const runner = this.getRunner(data.reference) as R;
-      let level = currentLevel;
-      if (runner.closesGroup(data, group)) {
-        currentLevel -= 1;
-        level = currentLevel;
-      }
-      if (runner.opensGroup(data)) {
-        group = data;
-        level = currentLevel;
-        currentLevel += 1;
-      }
-      iterableRunners.push({ runner, data, level });
+      const runner = this.findRunner(data.reference) as R;
+      runners.push({ runner, data });
     });
-    return iterableRunners;
+    return runners;
   }
 
   getLevels(instances: InstanceData[]): { [refId: string]: number } {
@@ -194,7 +182,7 @@ export class ImpowerGameRunner {
     instances.forEach((item) => {
       const { refId } = item.reference;
       const data = item;
-      const runner = this.getRunner(data.reference);
+      const runner = this.findRunner(data.reference);
       if (runner.closesGroup(data, group)) {
         group = undefined;
         level -= 1;

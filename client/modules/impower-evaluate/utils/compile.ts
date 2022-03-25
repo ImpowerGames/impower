@@ -44,7 +44,8 @@ export const compile = (
       diagnostics: compiler.diagnostics,
       references: compiler.references,
     };
-  } catch {
+  } catch (e) {
+    console.error(e);
     if (diagnostics.length === 0) {
       diagnostics.push({
         content: "",

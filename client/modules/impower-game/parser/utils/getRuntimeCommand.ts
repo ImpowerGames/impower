@@ -8,6 +8,7 @@ import {
   ChoiceCommandData,
   CommandData,
   CommandTypeId,
+  ConditionCommandData,
   createCommandData,
   createCommandReference,
   createItemData,
@@ -15,16 +16,19 @@ import {
   DisplayPosition,
   DisplayType,
   EnterCommandData,
-  IfCommandData,
   ReturnCommandData,
   SetOperator,
 } from "../../data";
+
+const getCommandId = (token: SparkToken, sectionId = ""): string => {
+  return `${sectionId}.${token.line}_${token.from}-${token.to}_${token.indent}`;
+};
 
 const getDisplayCommand = (
   token: SparkDisplayToken,
   sectionId = ""
 ): DisplayCommandData => {
-  const refId = `${sectionId}.${token.line}`;
+  const refId = getCommandId(token, sectionId);
   const refTypeId: CommandTypeId = "DisplayCommand";
   const dialogueToken = token as SparkDialogueToken;
   return {
@@ -41,6 +45,7 @@ const getDisplayCommand = (
     }),
     pos: token.from,
     line: token.line,
+    indent: token.indent,
     ui: "",
     type: token.type as DisplayType,
     position:
@@ -58,7 +63,7 @@ export const getRuntimeCommand = (
   sectionId = ""
 ): CommandData => {
   if (token.type === "assign") {
-    const refId = `${sectionId}.${token.line}`;
+    const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "AssignCommand";
     const newCommand: AssignCommandData = {
       ...createCommandData({
@@ -70,6 +75,7 @@ export const getRuntimeCommand = (
       }),
       pos: token.from,
       line: token.line,
+      indent: token.indent,
       variable: token.name,
       operator: token.operator as SetOperator,
       value: token.value,
@@ -77,9 +83,9 @@ export const getRuntimeCommand = (
     return newCommand;
   }
   if (token.type === "condition") {
-    const refId = `${sectionId}.${token.line}`;
-    const refTypeId: CommandTypeId = "IfCommand";
-    const newCommand: IfCommandData = {
+    const refId = getCommandId(token, sectionId);
+    const refTypeId: CommandTypeId = "ConditionCommand";
+    const newCommand: ConditionCommandData = {
       ...createCommandData({
         reference: createCommandReference({
           parentContainerId: sectionId,
@@ -89,12 +95,14 @@ export const getRuntimeCommand = (
       }),
       pos: token.from,
       line: token.line,
+      indent: token.indent,
       value: token.value,
+      check: token.check,
     };
     return newCommand;
   }
   if (token.type === "call" || token.type === "go") {
-    const refId = `${sectionId}.${token.line}`;
+    const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "EnterCommand";
     const newCommand: EnterCommandData = {
       ...createCommandData({
@@ -106,6 +114,7 @@ export const getRuntimeCommand = (
       }),
       pos: token.from,
       line: token.line,
+      indent: token.indent,
       name: token.name,
       values: token.methodArgs,
       returnWhenFinished: token.type === "call",
@@ -113,7 +122,7 @@ export const getRuntimeCommand = (
     return newCommand;
   }
   if (token.type === "return") {
-    const refId = `${sectionId}.${token.line}`;
+    const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "ReturnCommand";
     const newCommand: ReturnCommandData = {
       ...createCommandData({
@@ -125,13 +134,14 @@ export const getRuntimeCommand = (
       }),
       pos: token.from,
       line: token.line,
+      indent: token.indent,
       value: token.value,
       returnToTop: token.returnToTop,
     };
     return newCommand;
   }
   if (token.type === "repeat") {
-    const refId = `${sectionId}.${token.line}`;
+    const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "RepeatCommand";
     const newCommand: CommandData = {
       ...createCommandData({
@@ -143,11 +153,12 @@ export const getRuntimeCommand = (
       }),
       pos: token.from,
       line: token.line,
+      indent: token.indent,
     };
     return newCommand;
   }
   if (token.type === "choice") {
-    const refId = `${sectionId}.${token.line}`;
+    const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "ChoiceCommand";
     const newCommand: ChoiceCommandData = {
       ...createCommandData({
@@ -159,6 +170,7 @@ export const getRuntimeCommand = (
       }),
       pos: token.from,
       line: token.line,
+      indent: token.indent,
       name: token.name,
       values: token.methodArgs,
       content: token.content,

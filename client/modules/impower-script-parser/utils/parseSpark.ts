@@ -14,7 +14,11 @@ import { SparkEntityType } from "../types/SparkEntityType";
 import { SparkParseResult } from "../types/SparkParseResult";
 import { SparkSection } from "../types/SparkSection";
 import { SparkTag } from "../types/SparkTag";
-import { SparkChoiceToken, SparkToken } from "../types/SparkToken";
+import {
+  SparkChoiceToken,
+  SparkConditionToken,
+  SparkToken,
+} from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
 import { SparkVariableType } from "../types/SparkVariableType";
@@ -330,6 +334,7 @@ export const parseSpark = (
   };
 
   const getSection = (
+    type: "section" | "method" | "function" | "detector",
     name: string,
     from?: number,
     to?: number
@@ -345,17 +350,22 @@ export const parseSpark = (
     if (!found) {
       diagnostic(
         currentToken,
-        `Cannot find section named '${name}'`,
+        `Cannot find ${type} named '${name}'`,
         [],
         from,
         to
       );
       return null;
     }
+    if (found.type !== type) {
+      diagnostic(currentToken, `'${name}' is not a ${type}`, [], from, to);
+      return null;
+    }
     return found;
   };
 
   const getArgumentValues = (
+    type: "section" | "method" | "function" | "detector",
     methodName: string,
     methodArgs: string,
     methodNameFrom: number,
@@ -363,14 +373,16 @@ export const parseSpark = (
     methodArgsFrom: number,
     methodArgsTo: number
   ): string[] => {
-    const section = getSection(methodName, methodNameFrom, methodNameTo);
-    if (!section) {
+    if (!match) {
       return [];
     }
-    const parameters = Object.values(section.variables || {}).filter(
-      (v) => v.parameter
+    const section = getSection(
+      methodArgs ? type : "section",
+      methodName,
+      methodNameFrom,
+      methodNameTo
     );
-    if (!match) {
+    if (!section) {
       return [];
     }
     if (!methodArgs) {
@@ -395,6 +407,9 @@ export const parseSpark = (
     if (tokenMatches.length === 1 && tokenMatches[0] === "") {
       return [];
     }
+    const parameters = Object.values(section.variables || {}).filter(
+      (v) => v.parameter
+    );
     const argumentExpressions: string[] = [];
     let paramIndex = 0;
     const extraArgIndices: number[] = [];
@@ -513,15 +528,16 @@ export const parseSpark = (
       const methodMatch = expression.match(sparkRegexes.method);
       if (methodMatch) {
         if (found) {
-          const methodName = methodMatch[1]?.trim() || "";
-          const methodNameSpace = methodMatch[2]?.trim() || "";
-          const methodArgs = methodMatch[3]?.trim() || "";
+          const methodName = methodMatch[1] || "";
+          const methodNameSpace = methodMatch[2] || "";
+          const methodArgs = methodMatch[3] || "";
           const methodNameFrom = expressionFrom;
           const methodNameTo = methodNameFrom + methodName.length;
           const methodArgsFrom = methodNameTo + methodNameSpace.length;
           const methodArgsTo = methodArgsFrom + methodArgs.length;
           expressionValue.methodName = methodName;
           expressionValue.methodArgs = getArgumentValues(
+            "function",
             methodName,
             methodArgs,
             methodNameFrom,
@@ -1447,9 +1463,9 @@ export const parseSpark = (
     } else if ((match = currentToken.content.match(sparkRegexes.variable))) {
       currentToken.type = "variable";
       if (currentToken.type === "variable") {
-        const mark = match[2]?.trim() || "";
-        const name = match[4]?.trim() || "";
-        const valueText = match[8]?.trim() || "";
+        const mark = match[2] || "";
+        const name = match[4] || "";
+        const valueText = match[8] || "";
         const nameFrom = currentToken.from + getStart(match, 4);
         const nameTo = nameFrom + name.length;
         const valueFrom = currentToken.from + getStart(match, 8);
@@ -1470,11 +1486,11 @@ export const parseSpark = (
         }
       }
     } else if ((match = currentToken.content.match(sparkRegexes.asset))) {
-      const type = match[2]?.trim() as SparkAssetType;
+      const type = match[2] as SparkAssetType;
       currentToken.type = type;
       if (currentToken.type === type) {
-        const name = match[4]?.trim() || "";
-        const valueText = match[8]?.trim() || "";
+        const name = match[4] || "";
+        const valueText = match[8] || "";
         const nameFrom = currentToken.from + getStart(match, 4);
         const nameTo = nameFrom + name.length;
         const valueFrom = currentToken.from + getStart(match, 8);
@@ -1493,11 +1509,11 @@ export const parseSpark = (
         }
       }
     } else if ((match = currentToken.content.match(sparkRegexes.entity))) {
-      const type = match[2]?.trim() as SparkEntityType;
+      const type = match[2] as SparkEntityType;
       currentToken.type = type;
       if (currentToken.type === type) {
-        const name = match[4]?.trim() || "";
-        const valueText = match[8]?.trim() || "";
+        const name = match[4] || "";
+        const valueText = match[8] || "";
         const nameFrom = currentToken.from + getStart(match, 4);
         const nameTo = nameFrom + name.length;
         const valueFrom = currentToken.from + getStart(match, 8);
@@ -1519,8 +1535,8 @@ export const parseSpark = (
       const type = "tag";
       currentToken.type = type;
       if (currentToken.type === type) {
-        const name = match[4]?.trim() || "";
-        const valueText = match[8]?.trim() || "";
+        const name = match[4] || "";
+        const valueText = match[8] || "";
         const nameFrom = currentToken.from + getStart(match, 4);
         const nameTo = nameFrom + name.length;
         const valueFrom = currentToken.from + getStart(match, 8);
@@ -1640,7 +1656,7 @@ export const parseSpark = (
         continue;
       } else if (titlePageStarted) {
         lastTitlePageToken.text +=
-          (lastTitlePageToken.text ? "\n" : "") + currentToken.content.trim();
+          (lastTitlePageToken.text ? "\n" : "") + currentToken.content?.trim();
         continue;
       }
     }
@@ -1669,8 +1685,8 @@ export const parseSpark = (
             .map((x) => x || "")
             .join("");
           currentToken.content = content.startsWith(".")
-            ? content.substring(1)
-            : content;
+            ? content.substring(1)?.trim()
+            : content?.trim();
           currentToken.scene = scene;
           currentToken.wait = true;
           if (!parsed.properties.scenes) {
@@ -1707,7 +1723,7 @@ export const parseSpark = (
           currentToken.wait = true;
           pushNotes();
           saveAndClearNotes();
-          currentToken.content = currentToken.content.substring(1);
+          currentToken.content = currentToken.content.substring(1)?.trim();
           const expression = `\`${currentToken.content}\``;
           const expressionFrom = currentToken.from - 1;
           checkExpression(expression, expressionFrom);
@@ -1716,10 +1732,11 @@ export const parseSpark = (
         currentToken.type = "centered";
         if (currentToken.type === "centered") {
           if ((match = lint(sparkRegexes.centered))) {
+            const content = match[4] || "";
             currentToken.wait = true;
             pushNotes();
             saveAndClearNotes();
-            currentToken.content = match[4] || "";
+            currentToken.content = content?.trim();
             const expression = `\`${currentToken.content}\``;
             const expressionFrom = currentToken.from - 1;
             checkExpression(expression, expressionFrom);
@@ -1728,27 +1745,28 @@ export const parseSpark = (
       } else if (currentToken.content.match(sparkRegexes.transition)) {
         currentToken.type = "transition";
         if (currentToken.type === "transition") {
+          const content = match[2] || "";
           currentToken.wait = true;
           if ((match = lint(sparkRegexes.transition))) {
             pushNotes();
             saveAndClearNotes();
-            currentToken.content = match[2] || "";
+            currentToken.content = content.trim();
           }
         }
       } else if ((match = currentToken.content.match(sparkRegexes.go))) {
         currentToken.type = "go";
         if (currentToken.type === "go") {
           if ((match = lint(sparkRegexes.go))) {
-            const name = match[4]?.trim() || "";
+            const name = match[4] || "";
             const nameFrom = currentToken.from + getStart(match, 4);
             const nameTo = nameFrom + name.length;
-            const methodArgs = match[6]?.trim() || "";
+            const methodArgs = match[6] || "";
             const methodArgsFrom = currentToken.from + getStart(match, 6);
             const methodArgsTo = methodArgsFrom + methodArgs.length;
             currentToken.name = name;
-            const isSectionName = /^[\w]+$/.test(name);
-            if (isSectionName) {
+            if (sparkRegexes.variableName.test(name)) {
               currentToken.methodArgs = getArgumentValues(
+                "method",
                 name,
                 methodArgs,
                 nameFrom,
@@ -1765,8 +1783,8 @@ export const parseSpark = (
         currentToken.type = "return";
         if (currentToken.type === "return") {
           if ((match = lint(sparkRegexes.return))) {
-            const mark = match[2]?.trim() || "";
-            const expression = match[4]?.trim() || "";
+            const mark = match[2] || "";
+            const expression = match[4] || "";
             const markFrom = currentToken.from + getStart(match, 2);
             const markTo = markFrom + mark.length;
             const expressionFrom = currentToken.from + getStart(match, 4);
@@ -1832,20 +1850,22 @@ export const parseSpark = (
         currentToken.type = "condition";
         if (currentToken.type === "condition") {
           if ((match = lint(sparkRegexes.condition))) {
-            const check = (match[4]?.trim() as "if" | "elif" | "else") || "";
-            const expression = match[6]?.trim() || "";
+            const check = match[4] || "";
+            const expression = match[6] || "";
             const checkFrom = currentToken.from + getStart(match, 4);
             const checkTo = checkFrom + check.length;
             const expressionFrom = currentToken.from + getStart(match, 6);
-            currentToken.check = check;
+            currentToken.check = (check as "if" | "elif" | "else") || "close";
             currentToken.value = expression;
-            let index = parsed.scriptTokens.length - 1;
-            let lastToken = parsed.scriptTokens[index - 1];
             if (check === "elif" || check === "else") {
-              while (lastToken?.type !== "separator") {
+              const startIndex = parsed.scriptTokens.length - 1;
+              let index = startIndex;
+              let lastToken = parsed.scriptTokens[index - 1];
+              let valid = false;
+              while (lastToken && lastToken?.type !== "section") {
                 if (
                   lastToken?.type === "condition" &&
-                  lastToken?.offset === currentToken.offset
+                  lastToken?.indent === currentToken.indent
                 ) {
                   if (lastToken?.check === "else") {
                     diagnostic(
@@ -1860,12 +1880,21 @@ export const parseSpark = (
                     lastToken?.check === "elif" ||
                     lastToken?.check === "if"
                   ) {
-                    lastToken.skipToLine = currentToken.line;
+                    valid = true;
                     break;
                   }
                 }
                 index -= 1;
                 lastToken = parsed.scriptTokens[index];
+              }
+              if (!valid) {
+                diagnostic(
+                  currentToken,
+                  `'${check}' must be preceded by an 'if' on the same indent level`,
+                  [],
+                  checkFrom,
+                  checkTo
+                );
               }
             }
             if (check === "else" && expression) {
@@ -1886,14 +1915,15 @@ export const parseSpark = (
           currentToken.type = "call";
           if (currentToken.type === "call") {
             if ((match = lint(sparkRegexes.call))) {
-              const name = match[4]?.trim() || "";
+              const name = match[4] || "";
               const nameFrom = currentToken.from + getStart(match, 4);
               const nameTo = nameFrom + name.length;
-              const methodArgs = match[6]?.trim() || "";
+              const methodArgs = match[6] || "";
               const methodArgsFrom = currentToken.from + getStart(match, 6);
               const methodArgsTo = methodArgsFrom + methodArgs.length;
               currentToken.name = name;
               currentToken.methodArgs = getArgumentValues(
+                "function",
                 name,
                 methodArgs,
                 nameFrom,
@@ -1907,9 +1937,9 @@ export const parseSpark = (
           currentToken.type = "assign";
           if (currentToken.type === "assign") {
             if ((match = lint(sparkRegexes.assign))) {
-              const name = match[4]?.trim() || "";
-              const operator = match[6]?.trim() || "";
-              const expression = match[8]?.trim() || "";
+              const name = match[4] || "";
+              const operator = match[6] || "";
+              const expression = match[8] || "";
               const nameFrom = currentToken.from + getStart(match, 4);
               const nameTo = nameFrom + name.length;
               const expressionFrom = currentToken.from + getStart(match, 8);
@@ -1941,10 +1971,10 @@ export const parseSpark = (
           currentToken.type = "choice";
           if (currentToken.type === "choice") {
             if ((match = lint(sparkRegexes.choice))) {
-              const mark = match[2]?.trim() || "";
-              const content = match[4]?.trim() || "";
-              const name = match[8]?.trim() || "";
-              const methodArgs = match[10]?.trim() || "";
+              const mark = match[2] || "";
+              const content = match[4] || "";
+              const name = match[8] || "";
+              const methodArgs = match[10] || "";
               const nameFrom = currentToken.from + getStart(match, 8);
               const nameTo = nameFrom + name.length;
               const contentFrom = currentToken.from + getStart(match, 4);
@@ -1955,6 +1985,7 @@ export const parseSpark = (
               currentToken.name = name;
               if (sparkRegexes.variableName.test(name)) {
                 currentToken.methodArgs = getArgumentValues(
+                  "method",
                   name,
                   methodArgs,
                   nameFrom,
@@ -1988,11 +2019,11 @@ export const parseSpark = (
         currentToken.type = "variable";
         lint(sparkRegexes.variable);
       } else if ((match = currentToken.content.match(sparkRegexes.asset))) {
-        const type = match[2]?.trim() as SparkAssetType;
+        const type = match[2] as SparkAssetType;
         currentToken.type = type;
         lint(sparkRegexes.asset);
       } else if ((match = currentToken.content.match(sparkRegexes.entity))) {
-        const type = match[2]?.trim() as SparkEntityType;
+        const type = match[2] as SparkEntityType;
         currentToken.type = type;
         lint(sparkRegexes.entity);
       } else if ((match = currentToken.content.match(sparkRegexes.tag))) {
@@ -2162,6 +2193,7 @@ export const parseSpark = (
       } else {
         currentToken.type = "action";
         if (currentToken.type === "action") {
+          currentToken.content = currentToken.content?.trim();
           currentToken.wait = true;
           pushNotes();
           saveAndClearNotes();
@@ -2180,11 +2212,13 @@ export const parseSpark = (
         pushAssets();
       } else if (currentToken.content.match(sparkRegexes.parenthetical)) {
         currentToken.type = "parenthetical";
+        currentToken.content = currentToken.content?.trim();
         pushNotes();
         saveAndClearNotes();
         previousParenthetical = currentToken.content;
       } else {
         currentToken.type = "dialogue";
+        currentToken.content = currentToken.content?.trim();
         pushNotes();
         saveAndClearNotes();
         saveAndClearAssets();
@@ -2217,7 +2251,7 @@ export const parseSpark = (
       currentToken.type !== "action" &&
       !(currentToken.type === "dialogue" && currentToken.content === "  ")
     ) {
-      currentToken.content = currentToken.content.trim();
+      currentToken.content = currentToken.content?.trim();
     }
 
     if (currentToken.type !== "choice") {
@@ -2230,6 +2264,21 @@ export const parseSpark = (
       currentChoiceTokens = [];
     }
 
+    if (currentToken.indent < previousToken?.indent) {
+      let indent = previousToken?.indent - 1;
+      while (currentToken.indent <= indent) {
+        const closeCondition =
+          createSparkToken<SparkConditionToken>("condition");
+        closeCondition.check = "close";
+        closeCondition.indent = indent;
+        closeCondition.line = currentToken.line;
+        closeCondition.from = currentToken.from;
+        closeCondition.to = currentToken.from;
+        pushToken(closeCondition);
+        indent -= 1;
+      }
+    }
+
     if (tokenCategory === "script" && state !== "ignore") {
       if (["scene", "transition"].includes(currentToken.type)) {
         currentToken.content = currentToken.content.toUpperCase();
@@ -2239,7 +2288,7 @@ export const parseSpark = (
         currentToken.content = `*${currentToken.content.substring(1)}*`;
       }
       if (currentToken.type !== "action" && currentToken.type !== "dialogue")
-        currentToken.content = currentToken.content.trim();
+        currentToken.content = currentToken.content?.trim();
 
       if (currentToken.ignore) {
         ignoredLastToken = true;

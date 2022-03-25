@@ -49,7 +49,7 @@ export class Compiler {
         root.left = tok;
         const nextTok = this.nextToken();
         // 只有一个左节点 !!$foo
-        if (!nextTok) {
+        if (!nextTok || nextTok.content === ")") {
           return tok;
         }
         root.operation = nextTok;
@@ -76,6 +76,18 @@ export class Compiler {
     }
 
     // 不支持的运算符号
+    if (!node.operation) {
+      const message = `Invalid operation`;
+      this._diagnostics.push({
+        content: "",
+        from: 0,
+        to: 0,
+        severity: "error",
+        type: "unknown-operation",
+        message,
+      });
+      throw new Error(message);
+    }
     if (!OPERATION[node.operation.content]) {
       const message = `Unknown operation ${node.operation.content}`;
       this._diagnostics.push({
@@ -209,7 +221,7 @@ export class Compiler {
     if (this.compare(pre.operation, operation) < 0 && !pre.grouped) {
       // 依次找到最右一个节点
       while (
-        pre.right !== null &&
+        pre.right != null &&
         pre.right.type === "node" &&
         this.compare(pre.right.operation, operation) < 0 &&
         !pre.right.grouped
@@ -383,8 +395,7 @@ export class Compiler {
     // 3 > -12 or -12 + 10
     if (
       token.content === "-" &&
-      (OPERATION[this.prevToken().content] > 0 ||
-        this.prevToken().content === undefined)
+      (!this.prevToken() || OPERATION[this.prevToken().content] > 0)
     ) {
       return {
         type: "node",

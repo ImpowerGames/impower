@@ -16,7 +16,6 @@ export interface BlockContext {
   commands: {
     runner: CommandRunner;
     data: CommandData;
-    level: number;
   }[];
 }
 
@@ -171,8 +170,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
         time,
       });
       if (blockState.commandJumpStack.length > 0) {
-        const nextCommandIndex = blockState.commandJumpStack[0];
-        game.logic.commandJumpStackPop({
+        const nextCommandIndex = game.logic.commandJumpStackPop({
           pos,
           line,
           blockId,

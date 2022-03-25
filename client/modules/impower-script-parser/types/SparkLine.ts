@@ -11,6 +11,7 @@ export interface SparkLine {
   from?: number;
   to?: number;
   offset?: number;
+  indent?: number;
 
   order?: number;
   ignore?: boolean;

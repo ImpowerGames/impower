@@ -53,9 +53,8 @@ export interface SparkCallToken extends SparkLine {
 
 export interface SparkConditionToken extends SparkLine {
   type: SparkConditionTokenType;
-  check: "if" | "elif" | "else" | "";
+  check: "if" | "elif" | "else" | "close";
   value: string;
-  skipToLine: number;
 }
 
 export interface SparkAssignToken extends SparkLine {
