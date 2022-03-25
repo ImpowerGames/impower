@@ -16,6 +16,7 @@ import { GameProjectData } from "../../impower-game/project/classes/project/game
 import { ImpowerGameRunner } from "../../impower-game/runner";
 import { ProjectEngineContext } from "../../impower-route-engine/contexts/projectEngineContext";
 import { parseSpark } from "../../impower-script-parser";
+import { getSectionAtLine } from "../../impower-script-parser/utils/getSectionAtLine";
 import { useGameStyle } from "../hooks/gameHooks";
 import { PhaserGame } from "../types/game/phaserGame";
 import UI from "./UI";
@@ -33,18 +34,7 @@ const createGame = (
   );
   const runtimeBlocks = getRuntimeBlocks(result);
   const blockTree = getBlockTree(runtimeBlocks);
-  const blockEntries = Object.entries(runtimeBlocks);
-  let defaultStartBlockId = blockEntries[1]?.[0] || "";
-  for (let i = 1; i < blockEntries.length; i += 1) {
-    const [id, block] = blockEntries[i];
-    if (id) {
-      if (block.line > activeLine) {
-        break;
-      } else {
-        defaultStartBlockId = id;
-      }
-    }
-  }
+  const [defaultStartBlockId] = getSectionAtLine(activeLine, result);
   const startRuntimeBlock = runtimeBlocks?.[defaultStartBlockId];
   let defaultStartCommandIndex = 0;
   for (let i = 1; i < startRuntimeBlock?.commands?.order?.length || 0; i += 1) {
