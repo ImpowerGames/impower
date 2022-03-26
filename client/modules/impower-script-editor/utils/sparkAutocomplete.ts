@@ -543,13 +543,16 @@ export const sectionSnippets = (
     suffix
   );
   return options.map(({ template, label, type, detail, info }, optionIndex) => {
-    return snip(template, {
-      label,
-      type,
-      detail,
-      info,
-      boost: options.length - optionIndex,
-    });
+    return {
+      ...snip(template, {
+        label,
+        type,
+        detail,
+        info,
+        boost: options.length - optionIndex,
+      }),
+      inline: true,
+    };
   });
 };
 
@@ -850,11 +853,11 @@ export const sparkAutocomplete = async (
     );
   } else if (["GoMark", "ChoiceGoMark"].includes(node.name)) {
     completions.push(
-      ...sectionSnippets(ancestorIds, children, result?.sections, "> ", "${}")
+      ...sectionSnippets(ancestorIds, children, result?.sections, "> ")
     );
   } else if (["GoSectionName", "ChoiceSectionName"].includes(node.name)) {
     completions.push(
-      ...sectionSnippets(ancestorIds, children, result?.sections, "${}")
+      ...sectionSnippets(ancestorIds, children, result?.sections)
     );
   } else if (["CallEntityName"].includes(node.name)) {
     const validOptions = entityOptions.filter(({ type }) => type === "ui");

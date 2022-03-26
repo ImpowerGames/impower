@@ -112,16 +112,15 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       const command = commands[blockState.executingIndex];
       const commandId = command.data.reference.refId;
       const commandIndex = blockState.executingIndex;
-      const executionCount =
-        blockState.commandExecutionCounts[blockState.executingIndex];
+      const executionCount = blockState.commandExecutionCounts[commandId];
       const pos = command?.data?.pos;
       const line = command?.data?.line;
       const fastForward = blockState.startIndex > blockState.executingIndex;
+      context.valueMap["#"] = [
+        executionCount,
+        game.random.state.seed + commandId,
+      ];
       if (blockState.lastExecutedAt < 0) {
-        context.valueMap["#"] = [
-          executionCount,
-          game.random.state.seed + commandId,
-        ];
         game.logic.executeCommand({
           pos,
           line,

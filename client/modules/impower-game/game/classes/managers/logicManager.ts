@@ -58,6 +58,13 @@ export interface LogicEvents {
     commandIndex: number;
     time: number;
   }>;
+  onChooseChoice: GameEvent<{
+    pos: number;
+    line: number;
+    blockId: string;
+    commandId: string;
+    commandIndex: number;
+  }>;
   onFinishCommand: GameEvent<{
     pos: number;
     line: number;
@@ -177,6 +184,13 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
         commandId: string;
         commandIndex: number;
         time: number;
+      }>(),
+      onChooseChoice: new GameEvent<{
+        pos: number;
+        line: number;
+        blockId: string;
+        commandId: string;
+        commandIndex: number;
       }>(),
       onFinishCommand: new GameEvent<{
         pos: number;
@@ -535,6 +549,21 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     return true;
   }
 
+  chooseChoice(data: {
+    pos: number;
+    line: number;
+    blockId: string;
+    commandId: string;
+    commandIndex: number;
+  }): number {
+    const blockState = this.state.blockStates[data.blockId];
+    const currentCount = blockState.choiceChosenCounts[data.commandId] || 0;
+    const newCount = currentCount + 1;
+    blockState.choiceChosenCounts[data.commandId] = newCount;
+    this.events.onChooseChoice.emit({ ...data });
+    return newCount;
+  }
+
   executeCommand(data: {
     pos: number;
     line: number;
@@ -545,10 +574,8 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   }): void {
     const blockState = this.state.blockStates[data.blockId];
     blockState.lastExecutedAt = data.time;
-    const currentExecutionCount =
-      blockState.commandExecutionCounts[data.commandIndex] || 0;
-    blockState.commandExecutionCounts[data.commandIndex] =
-      currentExecutionCount;
+    const currentCount = blockState.commandExecutionCounts[data.commandId] || 0;
+    blockState.commandExecutionCounts[data.commandId] = currentCount;
     this.events.onExecuteCommand.emit({ ...data });
     if (blockState.startIndex <= blockState.executingIndex) {
       blockState.startIndex = 0;
@@ -566,10 +593,8 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const blockState = this.state.blockStates[data.blockId];
     blockState.lastExecutedAt = -1;
     blockState.previousIndex = data.commandIndex;
-    const currentExecutionCount =
-      blockState.commandExecutionCounts[data.commandIndex] || 0;
-    blockState.commandExecutionCounts[data.commandIndex] =
-      currentExecutionCount + 1;
+    const currentCount = blockState.commandExecutionCounts[data.commandId] || 0;
+    blockState.commandExecutionCounts[data.commandId] = currentCount + 1;
     this.events.onFinishCommand.emit({ ...data });
   }
 

@@ -5,6 +5,10 @@ import { ChoiceCommandData } from "./choiceCommandData";
 import { executeChoiceCommand } from "./executeChoiceCommand";
 
 export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
+  seed: string;
+
+  chosenCount: number;
+
   value: string;
 
   calls: Record<string, { name: string; values: string[] }>;
@@ -16,12 +20,26 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
   ): number[] {
     const { index, value, calls } = data;
 
+    const pos = data?.pos;
+    const line = data?.line;
+    const blockId = data.reference.parentContainerId;
+    const commandId = data.reference.refId;
+    const commandIndex = index;
+
     if (index === 0) {
       this.value = null;
       this.calls = null;
     }
 
     executeChoiceCommand(data, context, () => {
+      this.seed = game.random.state.seed + commandId;
+      this.chosenCount = game.logic.chooseChoice({
+        pos,
+        line,
+        blockId,
+        commandId,
+        commandIndex,
+      });
       this.value = value || "";
       this.calls = calls;
     });
@@ -45,6 +63,8 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
       if (value === "") {
         return true;
       }
+
+      valueMap["#"] = [this.chosenCount - 1, this.seed];
 
       let id = "#";
       let values: string[] = [];

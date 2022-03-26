@@ -1,7 +1,8 @@
 export interface BlockState {
   loaded: boolean;
   executionCount: number;
-  commandExecutionCounts: number[];
+  commandExecutionCounts: Record<string, number>;
+  choiceChosenCounts: Record<string, number>;
   executedBy: string;
   returnWhenFinished: boolean;
   returnedFrom: string;
@@ -22,7 +23,8 @@ export interface BlockState {
 export const createBlockState = (obj?: Partial<BlockState>): BlockState => ({
   loaded: false,
   executionCount: 0,
-  commandExecutionCounts: [],
+  commandExecutionCounts: {},
+  choiceChosenCounts: {},
   executedBy: "",
   returnWhenFinished: false,
   returnedFrom: "",
