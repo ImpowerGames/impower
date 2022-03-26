@@ -34,10 +34,12 @@ export class BlockRunner extends ContainerRunner<BlockData> {
    *
    */
   init(context: BlockContext, game: ImpowerGame): void {
-    const { commands } = context;
-    commands.forEach((command) => {
-      command.runner.init(command.data, { ...context, index: -1 }, game);
-    });
+    const commands = context?.commands;
+    if (commands) {
+      commands.forEach((command) => {
+        command.runner.init(command.data, { ...context, index: -1 }, game);
+      });
+    }
   }
 
   /**
