@@ -10,7 +10,7 @@ export class AssignCommandRunner extends CommandRunner<AssignCommandData> {
     context: CommandContext,
     game: ImpowerGame
   ): number[] {
-    const { variable, operator, value: expression } = data;
+    const { variable, operator, value } = data;
     const { ids, valueMap } = context;
 
     const variableId = ids[variable];
@@ -19,7 +19,7 @@ export class AssignCommandRunner extends CommandRunner<AssignCommandData> {
     }
 
     const lhs = valueMap[variable];
-    const rhs = evaluate(expression, valueMap);
+    const rhs = evaluate(value, valueMap);
     const newValue = modifyValue(lhs, operator, rhs);
 
     game.logic.setVariableValue({

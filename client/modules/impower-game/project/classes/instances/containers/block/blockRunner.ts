@@ -116,6 +116,17 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       const pos = command?.data?.pos;
       const line = command?.data?.line;
       const fastForward = blockState.startIndex > blockState.executingIndex;
+      const ids = context?.ids;
+      Object.entries(context?.variables).forEach(([name, v]) => {
+        const variableId = ids[name];
+        const variableState = game?.logic?.state?.variableStates?.[variableId];
+        context.valueMap[name] = variableState ? variableState.value : v;
+      });
+      Object.entries(context?.blocks).forEach(([name, v]) => {
+        const blockId = ids[name];
+        const blockState = game?.logic?.state?.blockStates?.[blockId];
+        context.valueMap[name] = blockState ? blockState.executionCount : v;
+      });
       context.valueMap["#"] = [
         executionCount,
         game.random.state.seed + commandId,
