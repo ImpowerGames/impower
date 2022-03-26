@@ -325,17 +325,19 @@ export const nameSnippets = (
 };
 
 export const getFunctionIds = (
-  ancestorIds: string[],
-  children: string[],
+  sectionId: string,
   sections: Record<string, SparkSection>
 ): string[] => {
-  const validChildrenIds = children.filter(
+  const validChildrenIds = getChildrenIds(sectionId, sections).filter(
     (id) => sections?.[id]?.type === "function"
   );
-  const validAncestorIds = ancestorIds
-    .slice(0, -1)
-    .filter((id) => sections?.[id]?.type === "function");
-  return [...validChildrenIds, ...validAncestorIds];
+  const validSiblingIds = getSiblingIds(sectionId, sections).filter(
+    (id) => sections?.[id]?.type === "function"
+  );
+  const validRootIds = getChildrenIds("", sections).filter(
+    (id) => sections?.[id]?.type === "function"
+  );
+  return [...validChildrenIds, ...validSiblingIds, ...validRootIds];
 };
 
 export const getSectionOptions = (
@@ -518,11 +520,10 @@ export const getSectionOptions = (
 
 export const assignOrCallSnippets = (
   variableOptions: Option[],
-  ancestorIds: string[],
-  children: string[],
+  sectionId: string,
   sections: Record<string, SparkSection>
 ): Completion[] => {
-  const functionIds = getFunctionIds(ancestorIds, children, sections);
+  const functionIds = getFunctionIds(sectionId, sections);
   const snippets = [
     ...conditionSnippets,
     ...nameSnippets(
@@ -701,7 +702,6 @@ export const sparkAutocomplete = async (
   const line = context.state.doc.lineAt(node.from).number;
   const [sectionId, section] = getSectionAt(node.from, result);
   const sectionLevel = section?.level || 0;
-  const children = section?.children || [];
   const ancestorIds = getAncestorIds(sectionId);
   const [, assets] = getScopedContext<string>(
     sectionId,
@@ -861,12 +861,7 @@ export const sparkAutocomplete = async (
     );
   } else if (["AssignMark", "CallMark"].includes(node.name)) {
     completions.push(
-      ...assignOrCallSnippets(
-        variableOptions,
-        ancestorIds,
-        children,
-        result?.sections
-      )
+      ...assignOrCallSnippets(variableOptions, sectionId, result?.sections)
     );
   } else if (["GoMark", "ChoiceGoMark"].includes(node.name)) {
     completions.push(...sectionSnippets(sectionId, result?.sections, "> "));

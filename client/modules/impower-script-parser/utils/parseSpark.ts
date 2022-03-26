@@ -2,6 +2,8 @@
 /* eslint-disable prefer-destructuring */
 /* eslint-disable no-continue */
 import { compile, format } from "../../impower-evaluate";
+import { displayTokenTypes } from "../constants/displayTokenTypes";
+import { flowTokenTypes } from "../constants/flowTokenTypes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
 import { reservedKeywords } from "../constants/reservedKeywords";
 import { sparkRegexes } from "../constants/sparkRegexes";
@@ -167,6 +169,10 @@ export const parseSpark = (
       return -1;
     }
     return match.slice(1, groupIndex).reduce((p, x) => p + (x?.length || 0), 0);
+  };
+
+  const capitalize = (str: string): string => {
+    return `${str[0].toUpperCase()}${str.slice(1)}`;
   };
 
   const prefixArticle = (str: string, capitalize?: boolean): string => {
@@ -337,6 +343,19 @@ export const parseSpark = (
           parentSection.children = [];
         }
         parentSection.children.push(currentSectionId);
+        if (
+          section.type !== "function" &&
+          ["detector", "function"].includes(parentSection.type)
+        ) {
+          diagnostic(
+            currentToken,
+            `'${section.name}' cannot be a child of ${parentSection.type} '${
+              parentSection.name
+            }'.\n${capitalize(
+              parentSection.type
+            )}s can only have function children.`
+          );
+        }
       } else {
         console.error("SECTION DOES NOT EXIST", parentId);
       }
@@ -395,12 +414,7 @@ export const parseSpark = (
     methodArgsFrom: number,
     methodArgsTo: number
   ): string[] => {
-    const section = getSection(
-      methodArgs ? type : "section",
-      methodName,
-      methodNameFrom,
-      methodNameTo
-    );
+    const section = getSection(type, methodName, methodNameFrom, methodNameTo);
     if (!section) {
       return [];
     }
@@ -675,6 +689,7 @@ export const parseSpark = (
   };
 
   const getSectionCalls = (
+    type: "method" | "function",
     expression: string,
     expressionFrom: number
   ): Record<string, { name: string; values: string[] }> => {
@@ -682,7 +697,7 @@ export const parseSpark = (
       return undefined;
     }
     const { name, values } = getExpressionCallNameAndValues(
-      "method",
+      type,
       expression,
       expressionFrom
     );
@@ -698,7 +713,7 @@ export const parseSpark = (
     const calls: Record<string, { name: string; values: string[] }> = {};
     possibleSectionExpressions.forEach(({ content, from }) => {
       const { name, values } = getExpressionCallNameAndValues(
-        "method",
+        type,
         content,
         expressionFrom + from
       );
@@ -1943,7 +1958,11 @@ export const parseSpark = (
             const valueText = match[4] || "";
             const valueFrom = currentToken.from + getStart(match, 4);
             currentToken.value = valueText;
-            currentToken.calls = getSectionCalls(valueText, valueFrom);
+            currentToken.calls = getSectionCalls(
+              "method",
+              valueText,
+              valueFrom
+            );
           }
         }
       } else if ((match = currentToken.content.match(sparkRegexes.repeat))) {
@@ -1952,22 +1971,12 @@ export const parseSpark = (
         currentToken.type = "return";
         if (currentToken.type === "return") {
           if ((match = lint(sparkRegexes.return))) {
-            const mark = match[2] || "";
             const expression = match[4] || "";
-            const markFrom = currentToken.from + getStart(match, 2);
-            const markTo = markFrom + mark.length;
             const expressionFrom = currentToken.from + getStart(match, 4);
             const expressionTo = expressionFrom + expression.length;
+            currentToken.value = expression;
             const currentSection = parsed?.sections[currentSectionId];
             const expectedType = currentSection?.returnType;
-            if (expectedType && !expression) {
-              const message = `Function expects to return a '${expectedType}' but returns nothing`;
-              diagnostic(currentToken, message, [], markFrom, markTo);
-            }
-            if (!expectedType) {
-              diagnostic(currentToken, `Methods cannot return a value`);
-            }
-            currentToken.value = expression;
             if (expression) {
               const [ids, context] = getScopedEvaluationContext(
                 currentSectionId,
@@ -2002,14 +2011,10 @@ export const parseSpark = (
                 }
               }
               const resultType = typeof result;
-              if (
-                result != null &&
-                expectedType != null &&
-                resultType !== expectedType
-              ) {
+              if (result != null && resultType !== expectedType) {
                 const message = expectedType
                   ? `Function expects to return a '${expectedType}' but returns a '${resultType}'`
-                  : `Methods cannot return a value`;
+                  : `${capitalize(currentSection.type)} cannot return a value`;
                 diagnostic(
                   currentToken,
                   message,
@@ -2018,6 +2023,14 @@ export const parseSpark = (
                   expressionTo
                 );
               }
+            } else if (expectedType) {
+              const message = `Function expects to return a '${expectedType}' but returns nothing`;
+              diagnostic(currentToken, message);
+            } else if (!expectedType) {
+              const message = `${capitalize(
+                currentSection.type
+              )}s cannot return`;
+              diagnostic(currentToken, message);
             }
           }
         }
@@ -2091,7 +2104,11 @@ export const parseSpark = (
               const expression = match.slice(4, 6).join("");
               const expressionFrom = currentToken.from + getStart(match, 4);
               currentToken.value = expression;
-              currentToken.calls = getSectionCalls(expression, expressionFrom);
+              currentToken.calls = getSectionCalls(
+                "function",
+                expression,
+                expressionFrom
+              );
             }
           }
         } else if ((match = currentToken.content.match(sparkRegexes.assign))) {
@@ -2138,7 +2155,11 @@ export const parseSpark = (
               currentToken.operator = mark;
               currentToken.content = content;
               currentToken.value = valueText;
-              currentToken.calls = getSectionCalls(valueText, valueFrom);
+              currentToken.calls = getSectionCalls(
+                "method",
+                valueText,
+                valueFrom
+              );
               currentToken.index = currentChoiceTokens?.length || 0;
               if (
                 previousToken?.type === "dialogue" ||
@@ -2453,6 +2474,25 @@ export const parseSpark = (
         to = from + line.length - offset + 1;
         diagnostic(currentToken, `Unreachable Code`, [], from, to, "warning");
         lineIndex += 1;
+      }
+    }
+
+    const currentSection = parsed?.sections?.[currentSectionId];
+    if (
+      currentSection?.type === "function" ||
+      currentSection?.type === "detector"
+    ) {
+      if (displayTokenTypes.includes(currentToken.type)) {
+        diagnostic(
+          currentToken,
+          `Display commands are not allowed in ${currentSection.type}s`
+        );
+      }
+      if (flowTokenTypes.includes(currentToken.type)) {
+        diagnostic(
+          currentToken,
+          `Flow commands are not allowed in ${currentSection.type}s`
+        );
       }
     }
 
