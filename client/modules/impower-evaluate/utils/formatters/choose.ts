@@ -28,18 +28,22 @@ export const choose = (
   value: number | [number] | [number, string],
   locale?: string,
   ...args: string[]
-): [string, CompilerDiagnostic[]] => {
+): [string, CompilerDiagnostic[], number[]] => {
   const diagnostics: CompilerDiagnostic[] = [];
   const v = (Array.isArray(value) ? value[0] : value) || 0;
   const seed = Array.isArray(value) ? value[1] : undefined;
-  const firstParam = args[0];
-  const lastParam = args[args.length - 1];
+  const firstParamIndex = 0;
+  const lastParamIndex = args.length - 1;
+  const firstParam = args[firstParamIndex];
+  const lastParam = args[lastParamIndex];
+  const ignoreArgs = [];
   if (firstParam === "~") {
+    ignoreArgs.push(firstParamIndex);
     args.shift();
     const loopIndex = Math.floor(v / args.length);
     // We seed the "random" order so that
     // each is selected only once per loop
-    if (lastParam === "]") {
+    if (lastParam === ")") {
       // Shuffle all except last two
       const cycleMark = args.pop();
       const last = args.pop();
@@ -50,7 +54,7 @@ export const choose = (
       if (cycleMark !== undefined) {
         args.push(cycleMark);
       }
-    } else if (lastParam === "[") {
+    } else if (lastParam === "(") {
       // Shuffle all except last
       const cycleMark = args.pop();
       args = shuffle(args, seed + loopIndex);
@@ -66,21 +70,24 @@ export const choose = (
     // Fully randomize all
     args = shuffle(args);
   }
-  if (lastParam === "]") {
+  if (lastParam === ")") {
+    ignoreArgs.push(lastParamIndex);
     args.pop();
     const iterationIndex = v % args.length;
     const loopIndex = Math.floor(v / args.length);
     return [
       loopIndex < 1 ? args[iterationIndex] : args[args.length - 1],
       diagnostics,
+      ignoreArgs,
     ];
   }
-  if (lastParam === "[") {
+  if (lastParam === "(") {
+    ignoreArgs.push(lastParamIndex);
     args.pop();
     const iterationIndex = v % args.length;
-    return [args[iterationIndex], diagnostics];
+    return [args[iterationIndex], diagnostics, ignoreArgs];
   }
   const iterationIndex = v % args.length;
   const loopIndex = Math.floor(v / args.length);
-  return [loopIndex < 1 ? args[iterationIndex] : "", diagnostics];
+  return [loopIndex < 1 ? args[iterationIndex] : "", diagnostics, ignoreArgs];
 };

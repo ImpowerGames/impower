@@ -1,44 +1,52 @@
-import { evaluate } from "../../../../../../../../impower-evaluate";
+import { evaluate, format } from "../../../../../../../../impower-evaluate";
 import { EnterCommandData } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/commandRunner";
 
 export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
+  id: string;
+
   onExecute(
     data: EnterCommandData,
     context: CommandContext,
     game: ImpowerGame
   ): number[] {
-    const { name, values, returnWhenFinished } = data;
+    const { value, calls, returnWhenFinished } = data;
     const { ids, valueMap, parameters } = context;
 
-    const executedByBlockId = data.reference.parentContainerId;
-    const parentId = game.logic.blockTree[executedByBlockId].parent;
-    const siblingIds = game.logic.blockTree[parentId].children;
-
-    let blockId = "";
-    if (name === "") {
-      blockId = game.logic.getNextBlockId(executedByBlockId);
-    } else if (name?.toLowerCase() === "!quit") {
-      return null;
-    } else if (name === "[") {
-      blockId = siblingIds.find(
-        (x) => game.logic.blockTree[x].type === "section"
-      );
-    } else if (name === "]") {
-      blockId = [...siblingIds]
-        ?.reverse()
-        .find((x) => game.logic.blockTree[x].type === "section");
-    } else if (name === "^") {
-      blockId = parentId;
-    } else {
-      blockId = ids?.[name];
-    }
-
-    if (!blockId) {
+    if (!value) {
       return super.onExecute(data, context, game);
     }
 
+    let id = "#";
+    let values: string[] = [];
+
+    const constantCall = calls[""];
+    if (constantCall) {
+      if (constantCall?.name === "!") {
+        id = constantCall.name;
+      } else if (constantCall?.name) {
+        id = ids?.[constantCall.name];
+        values = constantCall.values;
+      }
+    } else {
+      const [sectionExpression] = format(value, valueMap);
+      const dynamicCall = calls[sectionExpression];
+      if (dynamicCall?.name === "!") {
+        id = dynamicCall.name;
+      } else if (dynamicCall?.name) {
+        id = ids?.[dynamicCall.name];
+        values = dynamicCall.values;
+      }
+    }
+
+    this.id = id;
+
+    if (id == null) {
+      return super.onExecute(data, context, game);
+    }
+
+    const executedByBlockId = data.reference.parentContainerId;
     const latestValues = values?.map((v) => evaluate(v, valueMap));
 
     parameters?.forEach((parameterName, index) => {
@@ -52,8 +60,9 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
         });
       }
     });
+
     game.logic.enterBlock({
-      id: blockId,
+      id,
       executedByBlockId,
       returnWhenFinished,
     });
@@ -66,19 +75,23 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
     context: CommandContext,
     game: ImpowerGame
   ): boolean {
-    const { name } = data;
-    const { ids } = context;
-
-    const blockId = ids[name];
-    if (!blockId) {
+    const { returnWhenFinished } = data;
+    if (this.id === "#") {
+      this.id = null;
+      return true;
+    }
+    if (this.id === "!") {
+      this.id = null;
+      return null;
+    }
+    if (this.id != null && returnWhenFinished) {
+      const blockState = game.logic.state.blockStates[this.id];
+      if (!blockState.hasFinished) {
+        return false;
+      }
+      this.id = null;
       return super.isFinished(data, context, game);
     }
-
-    const blockState = game.logic.state.blockStates[blockId];
-    if (!blockState.hasFinished) {
-      return false;
-    }
-
-    return super.isFinished(data, context, game);
+    return false;
   }
 }

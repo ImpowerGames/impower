@@ -32,7 +32,7 @@ const sectionNameDecorations = (view: EditorView): DecorationSet => {
           const [, relativeSection] = getRelativeSection(
             ancestorIds,
             parseContext.result?.sections,
-            sectionText as "" | "]" | "[" | "^"
+            sectionText as ">" | "]" | "[" | "^"
           );
           const name = relativeSection?.name;
           if (name != null) {

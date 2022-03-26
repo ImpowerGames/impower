@@ -4,7 +4,7 @@ export const pluralize = (
   value: number,
   locale?: string,
   ...args: string[]
-): [string, CompilerDiagnostic[]] => {
+): [string, CompilerDiagnostic[], number[]] => {
   const diagnostics: CompilerDiagnostic[] = [];
   const pluralRules = new Intl.PluralRules(locale);
   const selectedCategory = pluralRules.select(value);
@@ -24,5 +24,5 @@ export const pluralize = (
       )}`,
     });
   }
-  return [result, diagnostics];
+  return [result, diagnostics, []];
 };

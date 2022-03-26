@@ -43,10 +43,6 @@ export class CommandRunner<
     return true;
   }
 
-  isPure(_data: T, _context: CommandContext, _game: ImpowerGame): boolean {
-    return true;
-  }
-
   getAssetIds(
     _data: T,
     _context: CommandContext,

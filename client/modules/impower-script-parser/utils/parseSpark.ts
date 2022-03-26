@@ -1,7 +1,7 @@
 /* eslint-disable no-cond-assign */
 /* eslint-disable prefer-destructuring */
 /* eslint-disable no-continue */
-import { compile } from "../../impower-evaluate";
+import { compile, format } from "../../impower-evaluate";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
 import { reservedKeywords } from "../constants/reservedKeywords";
 import { sparkRegexes } from "../constants/sparkRegexes";
@@ -23,6 +23,8 @@ import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
 import { SparkVariableType } from "../types/SparkVariableType";
 import { createSparkToken } from "./createSparkToken";
+import { getExpressionCallMatch } from "./getExpressionCallMatch";
+import { getScopedContext } from "./getScopedContext";
 import { getScopedEvaluationContext } from "./getScopedEvaluationContext";
 import { getScopedItem } from "./getScopedItem";
 import { trimCharacterExtension } from "./trimCharacterExtension";
@@ -316,6 +318,7 @@ export const parseSpark = (
     });
     if (currentSectionId) {
       const parentId = currentSectionId.split(".").slice(0, -1).join(".") || "";
+      section.parent = parentId;
       const parentSection = parsed.sections[parentId];
       if (parentSection) {
         if (!parentSection.children) {
@@ -327,7 +330,10 @@ export const parseSpark = (
       }
     }
     lintName(section.name, nameFrom, nameTo);
-    parsed.sections[currentSectionId] = section;
+    if (!parsed.sections[currentSectionId]) {
+      section.index = Object.keys(parsed.sections).length;
+      parsed.sections[currentSectionId] = section;
+    }
     if (!parsed.sectionLines) {
       parsed.sectionLines = {};
     }
@@ -358,6 +364,9 @@ export const parseSpark = (
       );
       return null;
     }
+    if (found.type === "section" && type === "method") {
+      return found;
+    }
     if (found.type !== type) {
       diagnostic(currentToken, `'${name}' is not a ${type}`, [], from, to);
       return null;
@@ -374,9 +383,6 @@ export const parseSpark = (
     methodArgsFrom: number,
     methodArgsTo: number
   ): string[] => {
-    if (!match) {
-      return [];
-    }
     const section = getSection(
       methodArgs ? type : "section",
       methodName,
@@ -508,62 +514,238 @@ export const parseSpark = (
     return argumentExpressions;
   };
 
-  const getExpressionValue = (
+  const getExpressionCallNameAndValues = (
+    type: "method" | "function",
+    expression: string,
+    expressionFrom: number
+  ): { name: string; values: string[] } => {
+    if (expression === "!" || expression?.toLowerCase() === "!quit") {
+      return { name: "!", values: [] };
+    }
+    if (expression === ">") {
+      const block = parsed?.sections?.[currentSectionId];
+      const blockList = Object.entries(parsed?.sections).slice(block.index + 1);
+      const [id] = blockList.find(
+        ([, v]) =>
+          v.type === "section" &&
+          (v.parent === currentSectionId ||
+            parsed?.sections?.[v.parent]?.index < block.index)
+      ) || [undefined, undefined];
+      if (id == null || id === currentSectionId) {
+        diagnostic(
+          currentToken,
+          "There are no sections after this section",
+          [],
+          expressionFrom,
+          expressionFrom + expression.length,
+          "warning"
+        );
+        return { name: expression, values: [] };
+      }
+      const name = parsed?.sections?.[id]?.name;
+      return { name, values: [] };
+    }
+    if (expression === "[") {
+      const parentId = parsed?.sections?.[currentSectionId]?.parent;
+      if (parentId != null) {
+        const siblingIds = parsed?.sections?.[parentId]?.children || [];
+        const id = siblingIds.find(
+          (x) => parsed?.sections?.[x]?.type === "section"
+        );
+        if (id != null && id !== currentSectionId) {
+          const name = parsed?.sections?.[id]?.name;
+          return { name, values: [] };
+        }
+      }
+      diagnostic(
+        currentToken,
+        "There are no sibling sections before this section",
+        [],
+        expressionFrom,
+        expressionFrom + expression.length,
+        "warning"
+      );
+      return { name: expression, values: [] };
+    }
+    if (expression === "]") {
+      const parentId = parsed?.sections?.[currentSectionId]?.parent;
+      if (parentId != null) {
+        const siblingIds = parsed?.sections?.[parentId]?.children || [];
+        const id = [...siblingIds]
+          ?.reverse()
+          .find((x) => parsed?.sections?.[x]?.type === "section");
+        if (id != null && id !== currentSectionId) {
+          const name = parsed?.sections?.[id]?.name;
+          return { name, values: [] };
+        }
+      }
+      diagnostic(
+        currentToken,
+        "There are no sibling sections after this section",
+        [],
+        expressionFrom,
+        expressionFrom + expression.length,
+        "warning"
+      );
+      return { name: expression, values: [] };
+    }
+    if (expression === "^") {
+      const id = parsed?.sections?.[currentSectionId]?.parent;
+      if (id != null) {
+        const name = parsed?.sections?.[id]?.name;
+        return { name, values: [] };
+      }
+      diagnostic(
+        currentToken,
+        "This section does not have a parent",
+        [],
+        expressionFrom,
+        expressionFrom + expression.length
+      );
+      return { name: expression, values: [] };
+    }
+    const match = getExpressionCallMatch("method", expression);
+    if (match) {
+      const name = match[2] || "";
+      const nameSpace = match[3] || "";
+      const args = match[4] || "";
+      const nameFrom = expressionFrom + getStart(match, 2);
+      const nameTo = nameFrom + name.length;
+      const argsFrom = nameTo + nameSpace.length;
+      const argsTo = argsFrom + args.length;
+      const values = getArgumentValues(
+        type,
+        name,
+        args,
+        nameFrom,
+        nameTo,
+        argsFrom,
+        argsTo
+      );
+      return { name, values };
+    }
+    return { name: undefined, values: [] };
+  };
+
+  const checkExpressionValue = (
+    expression: string,
+    expressionFrom: number
+  ): void => {
+    const [ids, context] = getScopedEvaluationContext(
+      currentSectionId,
+      parsed.sections
+    );
+    const { references, diagnostics } = compile(expression, context);
+    if (references?.length > 0) {
+      for (let i = 0; i < references.length; i += 1) {
+        const r = references[i];
+        const from = expressionFrom + r.from;
+        const to = expressionFrom + r.to;
+        if (!parsed.references[currentToken.line]) {
+          parsed.references[currentToken.line] = [];
+        }
+        parsed.references[currentToken.line].push({
+          from,
+          to,
+          name: r.name,
+          id: ids[r.name],
+        });
+      }
+    }
+    if (diagnostics?.length > 0) {
+      for (let i = 0; i < diagnostics.length; i += 1) {
+        const d = diagnostics[i];
+        const from = expressionFrom + d.from;
+        const to = expressionFrom + d.to;
+        diagnostic(currentToken, d.message, [], from, to);
+      }
+    }
+  };
+
+  const getSectionCalls = (
+    expression: string,
+    expressionFrom: number
+  ): Record<string, { name: string; values: string[] }> => {
+    if (!expression) {
+      return undefined;
+    }
+    const { name, values } = getExpressionCallNameAndValues(
+      "method",
+      expression,
+      expressionFrom
+    );
+    if (name !== undefined) {
+      return { "": { name, values } };
+    }
+    const [, context] = getScopedContext(
+      currentSectionId,
+      parsed.sections,
+      "sections"
+    );
+    const [, possibleSectionExpressions] = format(expression, context);
+    const calls: Record<string, { name: string; values: string[] }> = {};
+    possibleSectionExpressions.forEach(({ content, from }) => {
+      const { name, values } = getExpressionCallNameAndValues(
+        "method",
+        content,
+        expressionFrom + from
+      );
+      if (name !== undefined) {
+        calls[content] = { name, values };
+      } else {
+        const trimmedStart = content.trimStart();
+        const trimmedEnd = content.trimEnd();
+        const trimmedStartLength = content.length - trimmedStart.length;
+        const trimmedEndLength = content.length - trimmedEnd.length;
+        diagnostic(
+          currentToken,
+          "Invalid section syntax",
+          [],
+          expressionFrom + from + trimmedStartLength,
+          expressionFrom + from + content.length - trimmedEndLength
+        );
+      }
+    });
+    return calls;
+  };
+
+  const getVariableExpressionValue = (
     expression: string,
     expressionFrom: number,
     expressionTo: number,
-    found?: SparkVariable,
-    nameFrom?: number,
-    nameTo?: number
-  ): {
-    value?: unknown;
-    methodName?: string;
-    methodArgs?: string[];
-  } => {
-    const expressionValue: {
-      value?: unknown;
-      methodName?: string;
-      methodArgs?: string[];
-    } = {};
+    variable?: SparkVariable,
+    variableNameFrom?: number,
+    variableNameTo?: number
+  ): unknown => {
     if (expression) {
-      const methodMatch = expression.match(sparkRegexes.method);
-      if (methodMatch) {
-        if (found) {
-          const methodName = methodMatch[1] || "";
-          const methodNameSpace = methodMatch[2] || "";
-          const methodArgs = methodMatch[3] || "";
-          const methodNameFrom = expressionFrom;
-          const methodNameTo = methodNameFrom + methodName.length;
-          const methodArgsFrom = methodNameTo + methodNameSpace.length;
-          const methodArgsTo = methodArgsFrom + methodArgs.length;
-          expressionValue.methodName = methodName;
-          expressionValue.methodArgs = getArgumentValues(
-            "function",
-            methodName,
-            methodArgs,
-            methodNameFrom,
-            methodNameTo,
-            methodArgsFrom,
-            methodArgsTo
-          );
-          const [, section] = findSection(currentSectionId, methodName);
+      const { name } = getExpressionCallNameAndValues(
+        "function",
+        expression,
+        expressionFrom
+      );
+      if (name !== undefined) {
+        if (variable) {
+          const [, section] = findSection(currentSectionId, name);
           if (
             section != null &&
-            found.type &&
-            section.returnType !== found.type
+            variable.type &&
+            section.returnType !== variable.type
           ) {
             if (section.returnType) {
               diagnostic(
                 currentToken,
-                `Cannot assign the result of a '${section.returnType}' function to a '${found.type}' variable`,
+                `Cannot assign the result of a '${section.returnType}' function to a '${variable.type}' variable`,
                 [
                   {
                     name: "FOCUS",
-                    focus: { from: found.from, to: found.from },
+                    focus: {
+                      from: variable.from,
+                      to: variable.from,
+                    },
                   },
                 ],
-                nameFrom,
-                nameTo
+                variableNameFrom,
+                variableNameTo
               );
             } else {
               diagnostic(
@@ -572,11 +754,14 @@ export const parseSpark = (
                 [
                   {
                     name: "FOCUS",
-                    focus: { from: found.from, to: found.from },
+                    focus: {
+                      from: variable.from,
+                      to: variable.from,
+                    },
                   },
                 ],
-                nameFrom,
-                nameTo
+                variableNameFrom,
+                variableNameTo
               );
             }
           }
@@ -598,7 +783,6 @@ export const parseSpark = (
           expression,
           context
         );
-        expressionValue.value = result;
         if (references?.length > 0) {
           for (let i = 0; i < references.length; i += 1) {
             const r = references[i];
@@ -622,21 +806,30 @@ export const parseSpark = (
             const to = expressionFrom + d.to;
             diagnostic(currentToken, d.message, [], from, to);
           }
-        } else if (found) {
+        } else if (variable) {
           const resultType = typeof result;
-          if (result != null && found.type && resultType !== found.type) {
+          if (result != null && variable.type && resultType !== variable.type) {
             diagnostic(
               currentToken,
-              `Cannot assign a '${resultType}' to a '${found.type}' variable`,
-              [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
-              nameFrom,
-              nameTo
+              `Cannot assign a '${resultType}' to a '${variable.type}' variable`,
+              [
+                {
+                  name: "FOCUS",
+                  focus: {
+                    from: variable.from,
+                    to: variable.from,
+                  },
+                },
+              ],
+              variableNameFrom,
+              variableNameTo
             );
           }
         }
+        return result;
       }
     }
-    return expressionValue;
+    return undefined;
   };
 
   const getAsset = (
@@ -1080,7 +1273,7 @@ export const parseSpark = (
       id,
       declaration: true,
     });
-    const { value } = getExpressionValue(valueText, valueFrom, valueTo);
+    const value = getVariableExpressionValue(valueText, valueFrom, valueTo);
     const validValue = value != null ? value : "";
     const validType = typeof validValue as SparkVariableType;
     const item: SparkVariable = {
@@ -1322,41 +1515,6 @@ export const parseSpark = (
       str = str.slice(0, inlineCommentIndex);
     }
     return str;
-  };
-
-  const checkExpression = (
-    expression: string,
-    expressionFrom: number
-  ): void => {
-    const [ids, context] = getScopedEvaluationContext(
-      currentSectionId,
-      parsed.sections
-    );
-    const { references, diagnostics } = compile(expression, context);
-    if (references?.length > 0) {
-      for (let i = 0; i < references.length; i += 1) {
-        const r = references[i];
-        const from = expressionFrom + r.from;
-        const to = expressionFrom + r.to;
-        if (!parsed.references[currentToken.line]) {
-          parsed.references[currentToken.line] = [];
-        }
-        parsed.references[currentToken.line].push({
-          from,
-          to,
-          name: r.name,
-          id: ids[r.name],
-        });
-      }
-    }
-    if (diagnostics?.length > 0) {
-      for (let i = 0; i < diagnostics.length; i += 1) {
-        const d = diagnostics[i];
-        const from = expressionFrom + d.from;
-        const to = expressionFrom + d.to;
-        diagnostic(currentToken, d.message, [], from, to);
-      }
-    }
   };
 
   currentToken = createSparkToken(undefined, text, 1, current, newLineLength);
@@ -1699,7 +1857,7 @@ export const parseSpark = (
             ? content.substring(1)?.trim()
             : content?.trim();
           currentToken.scene = scene;
-          currentToken.wait = "input";
+          currentToken.wait = true;
           if (!parsed.properties.scenes) {
             parsed.properties.scenes = [];
           }
@@ -1731,26 +1889,26 @@ export const parseSpark = (
       ) {
         currentToken.type = "action";
         if (currentToken.type === "action") {
-          currentToken.wait = "input";
+          currentToken.wait = true;
           pushNotes();
           saveAndClearNotes();
           currentToken.content = currentToken.content.substring(1)?.trim();
           const expression = `\`${currentToken.content}\``;
           const expressionFrom = currentToken.from - 1;
-          checkExpression(expression, expressionFrom);
+          checkExpressionValue(expression, expressionFrom);
         }
       } else if (currentToken.content.match(sparkRegexes.centered)) {
         currentToken.type = "centered";
         if (currentToken.type === "centered") {
           if ((match = lint(sparkRegexes.centered))) {
             const content = match[4] || "";
-            currentToken.wait = "input";
+            currentToken.wait = true;
             pushNotes();
             saveAndClearNotes();
             currentToken.content = content?.trim();
             const expression = `\`${currentToken.content}\``;
             const expressionFrom = currentToken.from - 1;
-            checkExpression(expression, expressionFrom);
+            checkExpressionValue(expression, expressionFrom);
           }
         }
       } else if (
@@ -1758,7 +1916,7 @@ export const parseSpark = (
       ) {
         currentToken.type = "transition";
         if (currentToken.type === "transition") {
-          currentToken.wait = "input";
+          currentToken.wait = true;
           if ((match = lint(sparkRegexes.transition))) {
             const content = match[2] || "";
             pushNotes();
@@ -1770,24 +1928,10 @@ export const parseSpark = (
         currentToken.type = "go";
         if (currentToken.type === "go") {
           if ((match = lint(sparkRegexes.go))) {
-            const name = match[4] || "";
-            const nameFrom = currentToken.from + getStart(match, 4);
-            const nameTo = nameFrom + name.length;
-            const methodArgs = match[6] || "";
-            const methodArgsFrom = currentToken.from + getStart(match, 6);
-            const methodArgsTo = methodArgsFrom + methodArgs.length;
-            currentToken.name = name;
-            if (sparkRegexes.variableName.test(name)) {
-              currentToken.methodArgs = getArgumentValues(
-                "method",
-                name,
-                methodArgs,
-                nameFrom,
-                nameTo,
-                methodArgsFrom,
-                methodArgsTo
-              );
-            }
+            const valueText = match[4] || "";
+            const valueFrom = currentToken.from + getStart(match, 4);
+            currentToken.value = valueText;
+            currentToken.calls = getSectionCalls(valueText, valueFrom);
           }
         }
       } else if ((match = currentToken.content.match(sparkRegexes.repeat))) {
@@ -1917,7 +2061,7 @@ export const parseSpark = (
                 checkTo
               );
             } else if (expression) {
-              checkExpression(expression, expressionFrom);
+              checkExpressionValue(expression, expressionFrom);
             }
           }
         }
@@ -1926,22 +2070,10 @@ export const parseSpark = (
           currentToken.type = "call";
           if (currentToken.type === "call") {
             if ((match = lint(sparkRegexes.call))) {
-              const name = match[4] || "";
-              const nameFrom = currentToken.from + getStart(match, 4);
-              const nameTo = nameFrom + name.length;
-              const methodArgs = match[6] || "";
-              const methodArgsFrom = currentToken.from + getStart(match, 6);
-              const methodArgsTo = methodArgsFrom + methodArgs.length;
-              currentToken.name = name;
-              currentToken.methodArgs = getArgumentValues(
-                "function",
-                name,
-                methodArgs,
-                nameFrom,
-                nameTo,
-                methodArgsFrom,
-                methodArgsTo
-              );
+              const expression = match.slice(4, 6).join("");
+              const expressionFrom = currentToken.from + getStart(match, 4);
+              currentToken.value = expression;
+              currentToken.calls = getSectionCalls(expression, expressionFrom);
             }
           }
         } else if ((match = currentToken.content.match(sparkRegexes.assign))) {
@@ -1964,7 +2096,7 @@ export const parseSpark = (
                 nameTo
               );
               if (found) {
-                const { methodName, methodArgs } = getExpressionValue(
+                getVariableExpressionValue(
                   expression,
                   expressionFrom,
                   expressionTo,
@@ -1973,8 +2105,6 @@ export const parseSpark = (
                   nameTo
                 );
                 currentToken.value = expression;
-                currentToken.methodName = methodName;
-                currentToken.methodArgs = methodArgs;
               }
             }
           }
@@ -1984,27 +2114,13 @@ export const parseSpark = (
             if ((match = lint(sparkRegexes.choice))) {
               const mark = match[2] || "";
               const content = match[4] || "";
-              const name = match[8] || "";
-              const methodArgs = match[10] || "";
-              const nameFrom = currentToken.from + getStart(match, 8);
-              const nameTo = nameFrom + name.length;
+              const valueText = match[8] || "";
               const contentFrom = currentToken.from + getStart(match, 4);
-              const methodArgsFrom = currentToken.from + getStart(match, 10);
-              const methodArgsTo = methodArgsFrom + methodArgs.length;
+              const valueFrom = currentToken.from + getStart(match, 8);
               currentToken.mark = mark;
               currentToken.content = content;
-              currentToken.name = name;
-              if (sparkRegexes.variableName.test(name)) {
-                currentToken.methodArgs = getArgumentValues(
-                  "method",
-                  name,
-                  methodArgs,
-                  nameFrom,
-                  nameTo,
-                  methodArgsFrom,
-                  methodArgsTo
-                );
-              }
+              currentToken.value = valueText;
+              currentToken.calls = getSectionCalls(valueText, valueFrom);
               currentToken.index = currentChoiceTokens?.length || 0;
               if (
                 previousToken?.type === "dialogue" ||
@@ -2019,7 +2135,7 @@ export const parseSpark = (
               }
               const expression = `\`${currentToken.content}\``;
               const expressionFrom = contentFrom - 1;
-              checkExpression(expression, expressionFrom);
+              checkExpressionValue(expression, expressionFrom);
               currentChoiceTokens.push(currentToken);
             }
           }
@@ -2205,13 +2321,13 @@ export const parseSpark = (
         currentToken.type = "action";
         if (currentToken.type === "action") {
           currentToken.content = currentToken.content?.trim();
-          currentToken.wait = "input";
+          currentToken.wait = true;
           pushNotes();
           saveAndClearNotes();
           saveAndClearAssets();
           const expression = `\`${currentToken.content}\``;
           const expressionFrom = currentToken.from - 1;
-          checkExpression(expression, expressionFrom);
+          checkExpressionValue(expression, expressionFrom);
         }
       }
     } else {
@@ -2234,7 +2350,7 @@ export const parseSpark = (
         saveAndClearNotes();
         saveAndClearAssets();
         if (currentToken.type === "dialogue") {
-          currentToken.wait = "input";
+          currentToken.wait = true;
           if (previousCharacter) {
             currentToken.character = previousCharacter;
           }
@@ -2243,7 +2359,7 @@ export const parseSpark = (
           }
           const expression = `\`${currentToken.content}\``;
           const expressionFrom = currentToken.from - 1;
-          checkExpression(expression, expressionFrom);
+          checkExpressionValue(expression, expressionFrom);
         }
         previousParenthetical = null;
       }
@@ -2253,7 +2369,7 @@ export const parseSpark = (
         }
         if (currentToken.type === "dialogue") {
           currentToken.position = "right";
-          currentToken.wait = "input";
+          currentToken.wait = true;
         }
       }
     }

@@ -115,8 +115,8 @@ export const getRuntimeCommand = (
       pos: token.from,
       line: token.line,
       indent: token.indent,
-      name: token.name,
-      values: token.methodArgs,
+      value: token.value,
+      calls: token.calls,
       returnWhenFinished: token.type === "call",
     };
     return newCommand;
@@ -171,8 +171,8 @@ export const getRuntimeCommand = (
       pos: token.from,
       line: token.line,
       indent: token.indent,
-      name: token.name,
-      values: token.methodArgs,
+      value: token.value,
+      calls: token.calls,
       content: token.content,
       index: token.index,
       count: token.count,

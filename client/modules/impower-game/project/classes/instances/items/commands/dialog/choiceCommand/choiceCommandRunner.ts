@@ -1,26 +1,29 @@
-import { evaluate } from "../../../../../../../../impower-evaluate";
+import { evaluate, format } from "../../../../../../../../impower-evaluate";
 import { ImpowerGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/commandRunner";
 import { ChoiceCommandData } from "./choiceCommandData";
 import { executeChoiceCommand } from "./executeChoiceCommand";
 
 export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
-  name: string;
+  value: string;
 
-  values: string[];
+  calls: Record<string, { name: string; values: string[] }>;
 
   onExecute(
     data: ChoiceCommandData,
     context: CommandContext,
     game: ImpowerGame
   ): number[] {
-    const { index, name, values } = data;
+    const { index, value, calls } = data;
+
     if (index === 0) {
-      this.name = null;
+      this.value = null;
+      this.calls = null;
     }
+
     executeChoiceCommand(data, context, () => {
-      this.name = name;
-      this.values = values;
+      this.value = value || "";
+      this.calls = calls;
     });
 
     return super.onExecute(data, context, game);
@@ -31,19 +34,50 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     context: CommandContext,
     game: ImpowerGame
   ): boolean {
-    if (this.name) {
+    if (this.value != null) {
       const { ids, valueMap, parameters } = context;
 
-      if (!this.name) {
-        return super.isFinished(data, context, game);
+      const value = this?.value;
+      const calls = this?.calls;
+      this.value = null;
+      this.calls = null;
+
+      if (value === "") {
+        return true;
       }
 
-      const blockId = ids[this.name];
-      const executedByBlockId = data.reference.parentContainerId;
-      const latestValues = this.values?.map((v) => evaluate(v, valueMap));
+      let id = "#";
+      let values: string[] = [];
 
-      this.name = null;
-      this.values = null;
+      const constantCall = calls[""];
+      if (constantCall) {
+        if (constantCall?.name === "!") {
+          id = constantCall.name;
+        } else if (constantCall?.name) {
+          id = ids?.[constantCall.name];
+          values = constantCall.values;
+        }
+      } else {
+        const [sectionExpression] = format(value, valueMap);
+        const dynamicCall = calls[sectionExpression];
+        if (dynamicCall?.name === "!") {
+          id = dynamicCall.name;
+        } else if (dynamicCall?.name) {
+          id = ids?.[dynamicCall.name];
+          values = dynamicCall.values;
+        }
+      }
+
+      if (id === "#") {
+        return true;
+      }
+
+      if (id === "!") {
+        return null;
+      }
+
+      const executedByBlockId = data.reference.parentContainerId;
+      const latestValues = values?.map((v) => evaluate(v, valueMap));
 
       parameters?.forEach((parameterName, index) => {
         const parameterId = ids[parameterName];
@@ -56,8 +90,9 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
           });
         }
       });
+
       game.logic.enterBlock({
-        id: blockId,
+        id,
         executedByBlockId,
         returnWhenFinished: false,
       });

@@ -31,8 +31,4 @@ export class AssignCommandRunner extends CommandRunner<AssignCommandData> {
 
     return super.onExecute(data, context, game);
   }
-
-  isPure(): boolean {
-    return false;
-  }
 }

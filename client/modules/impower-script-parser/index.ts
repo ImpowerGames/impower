@@ -14,6 +14,7 @@ export * from "./types/SparkToken";
 export * from "./types/SparkTokenType";
 export * from "./types/SparkVariable";
 export * from "./utils/getAncestorIds";
+export * from "./utils/getExpressionCallMatch";
 export * from "./utils/getGlobalEvaluationContext";
 export * from "./utils/getRelativeSection";
 export * from "./utils/getScopedContext";

@@ -3,7 +3,7 @@ import { SparkSection } from "../types/SparkSection";
 export const getRelativeSection = (
   ancestorIds: string[],
   sections: Record<string, SparkSection>,
-  operator: "" | "]" | "[" | "^"
+  operator: ">" | "]" | "[" | "^"
 ): [string, SparkSection] => {
   const sectionId = ancestorIds?.[0];
   const parentId = ancestorIds?.[1];
@@ -29,7 +29,7 @@ export const getRelativeSection = (
       return [parentId, sections?.[parentId]];
     }
   }
-  if (operator === "") {
+  if (operator === ">") {
     const sectionIds = Object.keys(sections || {});
     const sectionIndex = sectionIds.indexOf(sectionId);
     const id = sectionIds

@@ -350,7 +350,7 @@ export class Compiler {
     context: Record<string, unknown>
   ): string {
     const input = val.content.slice(1, -1);
-    const [result, diagnostics] = format(input, context);
+    const [result, , diagnostics] = format(input, context);
     diagnostics.forEach((d) => {
       this._diagnostics.push({
         ...d,

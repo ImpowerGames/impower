@@ -43,8 +43,9 @@ export class EnterCommandInspector
   }
 
   getContainerTargetNames(data: EnterCommandData): string[] {
-    if (data.name) {
-      return [data.name];
+    const name = data?.calls?.[""]?.name;
+    if (name) {
+      return [name];
     }
     return [];
   }

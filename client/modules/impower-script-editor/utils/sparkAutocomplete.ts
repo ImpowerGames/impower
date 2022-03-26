@@ -365,7 +365,7 @@ export const getSectionOptions = (
   const firstSiblingName = firstSibling?.name;
   const [, lastSibling] = getRelativeSection(ancestorIds, sections, "]");
   const lastSiblingName = lastSibling?.name;
-  const [, next] = getRelativeSection(ancestorIds, sections, "");
+  const [, next] = getRelativeSection(ancestorIds, sections, ">");
   const nextName = next?.name;
 
   const labelCleanupRegex = /[\n\r${}]/g;
@@ -400,6 +400,16 @@ export const getSectionOptions = (
       type: "first_sibling",
     });
   }
+  if (nextName) {
+    const label = ">";
+    result.push({
+      template: prefix + label + suffix,
+      label: cleanedPrefix + label + cleanedSuffix,
+      detail: "(next section)",
+      info: (): Node => getInfoNode(`= ${nextName}`, colors.section),
+      type: "next",
+    });
+  }
   if (parentName) {
     const label = "^";
     result.push({
@@ -410,16 +420,13 @@ export const getSectionOptions = (
       type: "parent",
     });
   }
-  if (nextName) {
-    const label = "";
-    result.push({
-      template: prefix + label + suffix,
-      label: cleanedPrefix + label + cleanedSuffix,
-      detail: " (next section)",
-      info: (): Node => getInfoNode(`= ${nextName}`, colors.section),
-      type: "next",
-    });
-  }
+  const label = "";
+  result.push({
+    template: prefix + label + suffix,
+    label: cleanedPrefix + label + cleanedSuffix,
+    detail: " (continue)",
+    type: "next",
+  });
   const getSectionOption = (
     id: string
   ): {

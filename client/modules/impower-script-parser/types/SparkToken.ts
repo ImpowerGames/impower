@@ -41,14 +41,23 @@ export interface SparkTagToken extends SparkLine {
 
 export interface SparkGoToken extends SparkLine {
   type: SparkGoTokenType;
-  name: string;
-  methodArgs: string[];
+  value: string;
+  calls: Record<string, { name: string; values: string[] }>;
 }
 
 export interface SparkCallToken extends SparkLine {
   type: SparkCallTokenType;
-  name: string;
-  methodArgs: string[];
+  value: string;
+  calls: Record<string, { name: string; values: string[] }>;
+}
+
+export interface SparkChoiceToken extends SparkLine {
+  type: SparkChoiceTokenType;
+  mark: string;
+  value: string;
+  calls: Record<string, { name: string; values: string[] }>;
+  index: number;
+  count: number;
 }
 
 export interface SparkConditionToken extends SparkLine {
@@ -61,18 +70,7 @@ export interface SparkAssignToken extends SparkLine {
   type: SparkAssignTokenType;
   name: string;
   operator: string;
-  value?: string;
-  methodName?: string;
-  methodArgs?: string[];
-}
-
-export interface SparkChoiceToken extends SparkLine {
-  type: SparkChoiceTokenType;
-  mark: string;
-  name: string;
-  methodArgs: string[];
-  index: number;
-  count: number;
+  value: string;
 }
 
 export interface SparkReturnToken extends SparkLine {

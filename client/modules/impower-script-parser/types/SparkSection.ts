@@ -11,8 +11,10 @@ export interface SparkSection {
   to?: number;
   line?: number;
   level?: number;
+  index?: number;
   returnType?: "string" | "number" | "boolean" | "";
   tokens?: SparkToken[];
+  parent?: string;
   children?: string[];
   triggers?: string[];
   variables?: Record<string, SparkVariable>;

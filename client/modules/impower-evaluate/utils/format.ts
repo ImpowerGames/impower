@@ -17,7 +17,7 @@ export type Formatter = (
   value: unknown,
   locale: string,
   ...args: string[]
-) => [string, CompilerDiagnostic[]];
+) => [string, CompilerDiagnostic[], number[]];
 
 export type Formatters = { [formatter: string]: Formatter };
 
@@ -25,18 +25,18 @@ const regex = (
   value: string,
   _locale: string,
   arg: string
-): [string, CompilerDiagnostic[]] => {
+): [string, CompilerDiagnostic[], number[]] => {
   const configRegexes = regexes;
   const varRegexes: { [regex: string]: string } = configRegexes?.[arg] || {};
   const varRegexEntries = Object.entries(varRegexes);
   for (let i = 0; i < varRegexEntries.length; i += 1) {
     const [regex, replacement] = varRegexEntries[i];
     if (new RegExp(regex).test(value)) {
-      return [replacement, []];
+      return [replacement, [], []];
     }
   }
   const result = varRegexes[""];
-  return [result, []];
+  return [result, [], []];
 };
 
 const customFormatters: Formatters = {
@@ -53,10 +53,15 @@ export const format = (
   args: Record<string, unknown>,
   locale?: string,
   formatters: Formatters = customFormatters
-): [string, CompilerDiagnostic[]] => {
+): [
+  string,
+  { content: string; from: number; to: number }[],
+  CompilerDiagnostic[]
+] => {
+  const possibleValues: { content: string; from: number; to: number }[] = [];
   const diagnostics: CompilerDiagnostic[] = [];
   if (!str) {
-    return [str, diagnostics];
+    return [str, possibleValues, diagnostics];
   }
   let from = 0;
   let to = 0;
@@ -80,7 +85,31 @@ export const format = (
         typeof chooseVal === "number"
           ? [chooseVal, matchSeed]
           : [chooseVal[0], matchSeed];
-      const [formatterResult] = choose(validChooseVal, validLocale, ...params);
+      const [formatterResult, formatterDiagnostics, ignoreArgs] = choose(
+        validChooseVal,
+        validLocale,
+        ...params
+      );
+      let paramsFrom = to;
+      let paramsTo = paramsFrom;
+      formatterDiagnostics.forEach((d) => {
+        diagnostics.push({
+          ...d,
+          from: paramsFrom + 1 + d.from,
+          to: paramsFrom + 1 + d.to,
+        });
+      });
+      params.forEach((content, index) => {
+        paramsFrom = paramsTo + 1;
+        paramsTo = paramsFrom + content.length;
+        if (!ignoreArgs?.includes(index)) {
+          possibleValues.push({
+            content,
+            from: paramsFrom,
+            to: paramsTo,
+          });
+        }
+      });
       return formatterResult;
     }
     const [tagKey, formatterKey, param] = trimmedInner.split(":");
@@ -105,18 +134,30 @@ export const format = (
     const formatter = formatters[formatterKey];
     if (formatter && param) {
       const params = param.split("|");
-      const [formatterResult, formatterDiagnostics] = formatter(
+      const [formatterResult, formatterDiagnostics, ignoreArgs] = formatter(
         val,
         validLocale,
         ...params
       );
-      const paramsFrom = to + 1;
+      let paramsFrom = to;
+      let paramsTo = paramsFrom;
       formatterDiagnostics.forEach((d) => {
         diagnostics.push({
           ...d,
-          from: paramsFrom + d.from,
-          to: paramsFrom + d.to,
+          from: paramsFrom + 1 + d.from,
+          to: paramsFrom + 1 + d.to,
         });
+      });
+      params.forEach((content, index) => {
+        paramsFrom = paramsTo + 1;
+        paramsTo = paramsFrom + content.length;
+        if (!ignoreArgs?.includes(index)) {
+          possibleValues.push({
+            content,
+            from: paramsFrom,
+            to: paramsTo,
+          });
+        }
       });
       return formatterResult;
     }
@@ -125,12 +166,40 @@ export const format = (
       const chooseVal = val;
       const matchSeed: string = (chooseVal[1] || "") + String(from);
       const validChooseVal: [number, string] = [chooseVal[0], matchSeed];
-      const [formatterResult] = choose(validChooseVal, validLocale, ...params);
+      const [formatterResult, formatterDiagnostics, ignoreArgs] = choose(
+        validChooseVal,
+        validLocale,
+        ...params
+      );
+      let paramsFrom = to;
+      let paramsTo = paramsFrom;
+      formatterDiagnostics.forEach((d) => {
+        diagnostics.push({
+          ...d,
+          from: paramsFrom + 1 + d.from,
+          to: paramsFrom + 1 + d.to,
+        });
+      });
+      params.forEach((content, index) => {
+        paramsFrom = paramsTo + 1;
+        paramsTo = paramsFrom + content.length;
+        if (!ignoreArgs?.includes(index)) {
+          possibleValues.push({
+            content,
+            from: paramsFrom,
+            to: paramsTo,
+          });
+        }
+      });
       return formatterResult;
     }
     if (!formatter && !param && typeof val === "boolean") {
       const params = formatterKey.split("|");
-      const [formatterResult] = choose(val ? 1 : 0, validLocale, ...params);
+      const [formatterResult, formatterDiagnostics, ignoreArgs] = choose(
+        val ? 1 : 0,
+        validLocale,
+        ...params
+      );
       if (params.length < 2) {
         diagnostics.push({
           content: formatterKey,
@@ -141,27 +210,60 @@ export const format = (
           message: `Both options must be specified: false|true`,
         });
       }
+      let paramsFrom = to;
+      let paramsTo = paramsFrom;
+      formatterDiagnostics.forEach((d) => {
+        diagnostics.push({
+          ...d,
+          from: paramsFrom + 1 + d.from,
+          to: paramsFrom + 1 + d.to,
+        });
+      });
+      params.forEach((content, index) => {
+        paramsFrom = paramsTo + 1;
+        paramsTo = paramsFrom + content.length;
+        if (!ignoreArgs?.includes(index)) {
+          possibleValues.push({
+            content,
+            from: paramsFrom,
+            to: paramsTo,
+          });
+        }
+      });
       return formatterResult;
     }
     if (!formatter && !param && typeof val === "number") {
       const params = formatterKey.split("|");
-      const [formatterResult, formatterDiagnostics] = pluralize(
+      const [formatterResult, formatterDiagnostics, ignoreArgs] = pluralize(
         val,
         validLocale,
         ...params
       );
-      const paramsFrom = to + 1;
+      let paramsFrom = to;
+      let paramsTo = paramsFrom;
       formatterDiagnostics.forEach((d) => {
         diagnostics.push({
           ...d,
-          from: paramsFrom + d.from,
-          to: paramsFrom + d.to,
+          from: paramsFrom + 1 + d.from,
+          to: paramsFrom + 1 + d.to,
         });
+      });
+      params.forEach((content, index) => {
+        paramsFrom = paramsTo + 1;
+        paramsTo = paramsFrom + content.length;
+        if (!ignoreArgs?.includes(index)) {
+          possibleValues.push({
+            content,
+            from: paramsFrom,
+            to: paramsTo,
+          });
+        }
       });
       return formatterResult;
     }
     return String(val);
   };
-  const result = str.replace(/[{]([{][^\n\r{}]*[}]|[^\n\r{}]*)[}]/g, replacer);
-  return [result, diagnostics];
+  const regex = /[{]([{][^\n\r{}]*[}]|[^\n\r{}]*)[}]/g;
+  const result = str.replace(regex, replacer);
+  return [result, possibleValues, diagnostics];
 };

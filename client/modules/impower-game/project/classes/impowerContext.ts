@@ -1,9 +1,7 @@
 import { getScopedContext, parseSpark } from "../../../impower-script-parser";
+import { CommandData, GameProjectData } from "../../data";
 import { getRuntimeBlocks, getScriptAugmentations } from "../../parser";
-import { ImpowerGameRunner } from "../../runner/classes/impowerGameRunner";
-import { CommandData } from "./instances/items/command/commandData";
-import { CommandRunner } from "./instances/items/command/commandRunner";
-import { GameProjectData } from "./project/gameProjectData";
+import { CommandRunner, ImpowerGameRunner } from "../../runner";
 
 interface CommandRuntimeData {
   runner: CommandRunner;
