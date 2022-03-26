@@ -1812,7 +1812,7 @@ export const parseSpark = (
       if (state === "dual_dialogue") {
         pushToken(createSparkToken("dual_dialogue_end"));
       }
-      if (previousToken.type === "action_asset") {
+      if (previousToken?.type === "action_asset") {
         saveAndClearAssetsToken(
           createSparkToken("assets", "", i + 1, current, newLineLength)
         );
@@ -1825,7 +1825,7 @@ export const parseSpark = (
       if (state === "dual_dialogue") {
         pushToken(createSparkToken("dual_dialogue_end"));
       }
-      if (previousToken.type === "action_asset") {
+      if (previousToken?.type === "action_asset") {
         saveAndClearAssetsToken(
           createSparkToken("assets", "", i + 1, current, newLineLength)
         );
@@ -1848,7 +1848,7 @@ export const parseSpark = (
       if (state === "dual_dialogue") {
         pushToken(createSparkToken("dual_dialogue_end"));
       }
-      if (previousToken.type === "action_asset") {
+      if (previousToken?.type === "action_asset") {
         saveAndClearAssetsToken(
           createSparkToken("assets", "", i + 1, current, newLineLength)
         );
