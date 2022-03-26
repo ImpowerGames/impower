@@ -431,7 +431,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const blockId = data.id;
     const blockState = this.state.blockStates[blockId];
     if (blockState.returnWhenFinished) {
-      return this.returnFromBlock({ ...data, value: "", returnToTop: false });
+      return this.returnFromBlock({ ...data, value: "" });
     }
     return this.continueToNextBlock(data);
   }
@@ -508,11 +508,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     });
   }
 
-  returnFromBlock(data: {
-    id: string;
-    value: unknown;
-    returnToTop: boolean;
-  }): boolean {
+  returnFromBlock(data: { id: string; value: unknown }): boolean {
     const blockState = this.state.blockStates[data.id];
     blockState.isExecuting = false;
     blockState.hasFinished = true;
@@ -536,9 +532,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       id: executedByBlockId,
       returnWhenFinished: executedByBlockState.returnWhenFinished,
       executedByBlockId: executedByBlockState.executedBy,
-      startIndex: data.returnToTop
-        ? 0
-        : executedByBlockState.executingIndex + 1,
+      startIndex: executedByBlockState.executingIndex + 1,
     });
     executedByBlockState.hasReturned = true;
     executedByBlockState.returnedFrom = data.id;

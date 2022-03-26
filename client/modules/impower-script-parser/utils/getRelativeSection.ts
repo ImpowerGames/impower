@@ -1,12 +1,11 @@
 import { SparkSection } from "../types/SparkSection";
 
 export const getRelativeSection = (
-  ancestorIds: string[],
+  sectionId: string,
   sections: Record<string, SparkSection>,
   operator: ">" | "]" | "[" | "^"
 ): [string, SparkSection] => {
-  const sectionId = ancestorIds?.[0];
-  const parentId = ancestorIds?.[1];
+  const parentId = sections?.[sectionId]?.parent;
 
   if (operator === "]") {
     const siblings = sections?.[parentId]?.children || [];

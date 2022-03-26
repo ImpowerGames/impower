@@ -1958,15 +1958,17 @@ export const parseSpark = (
             const markTo = markFrom + mark.length;
             const expressionFrom = currentToken.from + getStart(match, 4);
             const expressionTo = expressionFrom + expression.length;
-            const expectedType = parsed?.sections[currentSectionId]?.returnType;
-            if (expectedType && (!expression || expression === "^")) {
+            const currentSection = parsed?.sections[currentSectionId];
+            const expectedType = currentSection?.returnType;
+            if (expectedType && !expression) {
               const message = `Function expects to return a '${expectedType}' but returns nothing`;
               diagnostic(currentToken, message, [], markFrom, markTo);
             }
-            const isSectionName = /^[\w]+$/.test(expression);
-            currentToken.value = isSectionName ? expression : "";
-            currentToken.returnToTop = expression === "^";
-            if (expression && isSectionName) {
+            if (!expectedType) {
+              diagnostic(currentToken, `Methods cannot return a value`);
+            }
+            currentToken.value = expression;
+            if (expression) {
               const [ids, context] = getScopedEvaluationContext(
                 currentSectionId,
                 parsed.sections
@@ -2000,7 +2002,11 @@ export const parseSpark = (
                 }
               }
               const resultType = typeof result;
-              if (result != null && resultType !== expectedType) {
+              if (
+                result != null &&
+                expectedType != null &&
+                resultType !== expectedType
+              ) {
                 const message = expectedType
                   ? `Function expects to return a '${expectedType}' but returns a '${resultType}'`
                   : `Methods cannot return a value`;

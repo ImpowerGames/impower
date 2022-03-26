@@ -80,7 +80,6 @@ export interface SparkReturnToken extends SparkLine {
   type: SparkReturnTokenType;
   operator: string;
   value: string;
-  returnToTop: boolean;
 }
 
 export interface SparkSceneToken extends SparkLine {

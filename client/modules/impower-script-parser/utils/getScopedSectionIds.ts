@@ -1,5 +1,7 @@
 import { SparkSection } from "../types/SparkSection";
 import { getAncestorIds } from "./getAncestorIds";
+import { getChildrenIds } from "./getChildrenIds";
+import { getSiblingIds } from "./getSiblingIds";
 
 export const getScopedSectionIds = (
   sectionId: string,
@@ -7,30 +9,26 @@ export const getScopedSectionIds = (
 ): Record<string, string> => {
   const validSectionId = sectionId || "";
   const result: Record<string, string> = {};
-  const section = sections?.[validSectionId];
-  const childrenIds = section?.children || [];
-  childrenIds.forEach((id) => {
+  const childrenIds = getChildrenIds(sectionId, sections);
+  childrenIds?.forEach((id) => {
+    const section = sections?.[id];
+    if (section) {
+      result[section.name] = id;
+    }
+  });
+  const siblingIds = getSiblingIds(sectionId, sections);
+  siblingIds?.forEach((id) => {
     const section = sections?.[id];
     if (section) {
       result[section.name] = id;
     }
   });
   const ancestorIds = getAncestorIds(validSectionId);
-  ancestorIds.forEach((id) => {
+  ancestorIds?.forEach((id) => {
     const section = sections?.[id];
     if (section) {
       result[section.name] = id;
     }
   });
-  const parentId = section?.parent;
-  if (parentId != null) {
-    const siblingIds = sections?.[parentId]?.children || [];
-    siblingIds.forEach((id) => {
-      const section = sections?.[id];
-      if (section) {
-        result[section.name] = id;
-      }
-    });
-  }
   return result;
 };

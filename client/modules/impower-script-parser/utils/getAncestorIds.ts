@@ -9,5 +9,5 @@ export const getAncestorIds = (sectionId: string): string[] => {
     parts.pop();
     ids.push(parts.join("."));
   }
-  return ids;
+  return ids || [];
 };

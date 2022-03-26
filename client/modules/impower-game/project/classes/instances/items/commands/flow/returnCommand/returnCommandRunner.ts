@@ -9,7 +9,7 @@ export class ReturnCommandRunner extends CommandRunner<ReturnCommandData> {
     context: CommandContext,
     game: ImpowerGame
   ): number[] {
-    const { value, returnToTop } = data;
+    const { value } = data;
     const { valueMap } = context;
 
     const returnValue =
@@ -19,7 +19,6 @@ export class ReturnCommandRunner extends CommandRunner<ReturnCommandData> {
     game.logic.returnFromBlock({
       id,
       value: returnValue,
-      returnToTop,
     });
 
     return super.onExecute(data, context, game);

@@ -10,9 +10,11 @@ import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
 import {
   getAncestorIds,
+  getChildrenIds,
   getRelativeSection,
   getScopedContext,
   getSectionAt,
+  getSiblingIds,
   SparkParseResult,
   sparkRegexes,
   SparkSection,
@@ -337,8 +339,7 @@ export const getFunctionIds = (
 };
 
 export const getSectionOptions = (
-  ancestorIds: string[],
-  children: string[],
+  sectionId: string,
   sections: Record<string, SparkSection>,
   prefix: string,
   suffix: string
@@ -349,23 +350,28 @@ export const getSectionOptions = (
   detail?: string;
   info?: string | ((completion: Completion) => Node | Promise<Node>);
 }[] => {
-  const validChildrenIds = children.filter(
+  const validChildrenIds = getChildrenIds(sectionId, sections).filter(
     (id) =>
-      sections?.[id]?.type === "section" || sections?.[id]?.type === "method"
+      sections?.parent === sectionId &&
+      ["section", "method"].includes(sections?.[id]?.type)
   );
-  const validAncestorIds = ancestorIds
-    .slice(1, -1)
-    .filter(
-      (id) =>
-        sections?.[id]?.type === "section" || sections?.[id]?.type === "method"
-    );
-  const [, parent] = getRelativeSection(ancestorIds, sections, "^");
+  const validSiblingIds = getSiblingIds(sectionId, sections).filter(
+    (id) =>
+      sections?.parent !== sectionId &&
+      ["section", "method"].includes(sections?.[id]?.type)
+  );
+  const validAncestorIds = getAncestorIds(sectionId).filter(
+    (id) =>
+      sections?.parent !== sectionId &&
+      ["section", "method"].includes(sections?.[id]?.type)
+  );
+  const [, parent] = getRelativeSection(sectionId, sections, "^");
   const parentName = parent?.name;
-  const [, firstSibling] = getRelativeSection(ancestorIds, sections, "[");
+  const [, firstSibling] = getRelativeSection(sectionId, sections, "[");
   const firstSiblingName = firstSibling?.name;
-  const [, lastSibling] = getRelativeSection(ancestorIds, sections, "]");
+  const [, lastSibling] = getRelativeSection(sectionId, sections, "]");
   const lastSiblingName = lastSibling?.name;
-  const [, next] = getRelativeSection(ancestorIds, sections, ">");
+  const [, next] = getRelativeSection(sectionId, sections, ">");
   const nextName = next?.name;
 
   const labelCleanupRegex = /[\n\r${}]/g;
@@ -464,22 +470,40 @@ export const getSectionOptions = (
     };
   };
   validChildrenIds.forEach((id) => {
-    const { template, label, info } = getSectionOption(id);
-    result.push({
-      template,
-      label,
-      info,
-      type: "child",
-    });
+    if (id && id !== sectionId) {
+      const { template, label, info } = getSectionOption(id);
+      result.push({
+        template,
+        label,
+        info,
+        type: "child",
+      });
+    }
+  });
+  validSiblingIds.forEach((id) => {
+    if (id && id !== sectionId) {
+      const { template, label, info } = getSectionOption(id);
+      result.push({
+        template,
+        label,
+        info,
+        type:
+          validSiblingIds.indexOf(id) > validSiblingIds.indexOf(sectionId)
+            ? "last_sibling"
+            : "first_sibling",
+      });
+    }
   });
   validAncestorIds.forEach((id) => {
-    const { template, label, info } = getSectionOption(id);
-    result.push({
-      template,
-      label,
-      info,
-      type: "ancestor",
-    });
+    if (id && id !== sectionId) {
+      const { template, label, info } = getSectionOption(id);
+      result.push({
+        template,
+        label,
+        info,
+        type: "ancestor",
+      });
+    }
   });
   const quitLabel = "!QUIT";
   result.push({
@@ -529,19 +553,12 @@ export const assignOrCallSnippets = (
 };
 
 export const sectionSnippets = (
-  ancestorIds: string[],
-  children: string[],
+  sectionId: string,
   sections: Record<string, SparkSection>,
   prefix = "",
   suffix = ""
 ): Completion[] => {
-  const options = getSectionOptions(
-    ancestorIds,
-    children,
-    sections,
-    prefix,
-    suffix
-  );
+  const options = getSectionOptions(sectionId, sections, prefix, suffix);
   return options.map(({ template, label, type, detail, info }, optionIndex) => {
     return {
       ...snip(template, {
@@ -852,13 +869,9 @@ export const sparkAutocomplete = async (
       )
     );
   } else if (["GoMark", "ChoiceGoMark"].includes(node.name)) {
-    completions.push(
-      ...sectionSnippets(ancestorIds, children, result?.sections, "> ")
-    );
+    completions.push(...sectionSnippets(sectionId, result?.sections, "> "));
   } else if (["GoSectionName", "ChoiceSectionName"].includes(node.name)) {
-    completions.push(
-      ...sectionSnippets(ancestorIds, children, result?.sections)
-    );
+    completions.push(...sectionSnippets(sectionId, result?.sections));
   } else if (["CallEntityName"].includes(node.name)) {
     const validOptions = entityOptions.filter(({ type }) => type === "ui");
     if (input.match(sparkRegexes.string)) {

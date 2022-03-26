@@ -8,7 +8,6 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import {
-  getAncestorIds,
   getRelativeSection,
   getSectionAt,
   SparkParseResult,
@@ -28,9 +27,8 @@ const sectionNameDecorations = (view: EditorView): DecorationSet => {
         if (type.name === "GoSectionName" || type.name === "ChoiceGoName") {
           const sectionText = view.state.doc.sliceString(from, to);
           const [sectionId] = getSectionAt(from, parseContext.result);
-          const ancestorIds = getAncestorIds(sectionId);
           const [, relativeSection] = getRelativeSection(
-            ancestorIds,
+            sectionId,
             parseContext.result?.sections,
             sectionText as ">" | "]" | "[" | "^"
           );

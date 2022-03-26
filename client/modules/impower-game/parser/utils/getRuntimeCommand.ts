@@ -136,7 +136,6 @@ export const getRuntimeCommand = (
       line: token.line,
       indent: token.indent,
       value: token.value,
-      returnToTop: token.returnToTop,
     };
     return newCommand;
   }
