@@ -1,4 +1,4 @@
-export type WindowType = "Setup" | "Assets" | "Entities" | "Logic" | "Test";
+export type WindowType = "setup" | "assets" | "entities" | "logic" | "test";
 
 export interface WindowState {
   type: WindowType;

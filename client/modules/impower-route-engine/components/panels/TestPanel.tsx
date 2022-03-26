@@ -372,7 +372,7 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
       const block = project?.instances?.blocks?.data?.[blockId];
       if (block) {
         dispatch(
-          panelSetInteraction("Logic", "Selected", [block.reference.refId])
+          panelSetInteraction("logic", "Selected", [block.reference.refId])
         );
       }
       window.setTimeout(

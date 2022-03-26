@@ -7,6 +7,7 @@ import {
   TEST_MODE_CHANGE,
   TEST_PLAYBACK_CHANGE,
   TEST_PLAYER_VISIBILITY,
+  TEST_SET_COMPILING,
   TEST_START_TIME_CHANGE,
 } from "../actions/testActions";
 import { Control, Layout, Mode, Playback, TestState } from "../state/testState";
@@ -95,6 +96,24 @@ const doPlayerVisibility = (
   };
 };
 
+const doSetCompiling = (
+  state: TestState,
+  payload: { id: string; compiling: boolean }
+): TestState => {
+  const { id, compiling } = payload;
+
+  if (state?.compiling?.[id] === compiling) {
+    return state;
+  }
+  return {
+    ...state,
+    compiling: {
+      ...(state?.compiling || {}),
+      [id]: compiling,
+    },
+  };
+};
+
 export const testReducer = (
   state = createTestState(),
   action: TestAction
@@ -114,6 +133,8 @@ export const testReducer = (
       return doTestDebug(state, action.payload);
     case TEST_PLAYER_VISIBILITY:
       return doPlayerVisibility(state, action.payload);
+    case TEST_SET_COMPILING:
+      return doSetCompiling(state, action.payload);
     default:
       return state;
   }

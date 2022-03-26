@@ -41,6 +41,7 @@ import {
   panelSetScrollTopLine,
 } from "../../types/actions/panelActions";
 import { projectChangeScript } from "../../types/actions/projectActions";
+import { testSetCompiling } from "../../types/actions/testActions";
 import { WindowType } from "../../types/state/windowState";
 
 const ScriptEditor = dynamic(
@@ -82,7 +83,7 @@ const ContainerScriptEditor = React.memo(
     const { game } = useContext(GameContext);
     const [state, dispatch] = useContext(ProjectEngineContext);
 
-    const events = windowType === "Logic" ? game?.logic?.events : undefined;
+    const events = windowType === "logic" ? game?.logic?.events : undefined;
 
     const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
     const searchLineQuery = state?.panel?.panels?.[windowType]?.searchLineQuery;
@@ -186,6 +187,7 @@ const ContainerScriptEditor = React.memo(
           scriptValueRef.current
         )
       );
+      dispatch(testSetCompiling(windowType, false));
     }, [dispatch, id, windowType]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -247,12 +249,13 @@ const ContainerScriptEditor = React.memo(
 
     const handleDocChange = useCallback(
       (value: string) => {
+        dispatch(testSetCompiling(windowType, true));
         if (scriptValueRef.current !== value) {
           scriptValueRef.current = value;
           handleDebouncedScriptChange();
         }
       },
-      [handleDebouncedScriptChange]
+      [dispatch, handleDebouncedScriptChange, windowType]
     );
 
     const handleSaveScriptCursor = useCallback(() => {

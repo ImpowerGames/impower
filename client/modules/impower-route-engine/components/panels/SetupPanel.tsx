@@ -68,6 +68,12 @@ import { projectChangeDocument } from "../../types/actions/projectActions";
 import { Mode } from "../../types/state/testState";
 import Panel from "../layouts/Panel";
 
+export const sectionLabels: Record<SetupSectionType, string> = {
+  details: "Details",
+  access: "Access",
+  configuration: "Configuration",
+};
+
 const settings: { [name in SetupSettingsType]: string[] } = {
   About: ["name", "tags", "summary"],
   Branding: [
@@ -86,12 +92,12 @@ const settings: { [name in SetupSettingsType]: string[] } = {
   AdvancedSettings: [],
 };
 
-export const editorSetupSections: SetupSectionType[] = ["Configuration"];
+export const editorSetupSections: SetupSectionType[] = ["configuration"];
 
 export const ownerSetupSections: SetupSectionType[] = [
-  "Details",
-  "Access",
-  "Configuration",
+  "details",
+  "access",
+  "configuration",
 ];
 
 const StyledSetupPanelContentArea = styled.div`
@@ -204,8 +210,8 @@ const DetailsSetup = React.memo(() => {
 
   const handleClick = useCallback(
     (type: string, propertyPaths: string[]) => {
-      dispatch(panelInspect("Setup", type, propertyPaths));
-      dispatch(panelOpen("Setup", "Detail"));
+      dispatch(panelInspect("setup", type, propertyPaths));
+      dispatch(panelOpen("setup", "detail"));
     },
     [dispatch]
   );
@@ -244,8 +250,8 @@ const ConfigurationSetup = React.memo(() => {
 
   const handleClick = useCallback(
     (refId: string) => {
-      dispatch(panelInspect("Setup", refId));
-      dispatch(panelOpen("Setup", "Detail"));
+      dispatch(panelInspect("setup", refId));
+      dispatch(panelOpen("setup", "detail"));
     },
     [dispatch]
   );
@@ -452,7 +458,7 @@ const SetupPanel = React.memo((): JSX.Element => {
   const doc = state.project?.data?.doc;
   const access = state?.project?.access;
   const mode = state.test?.mode;
-  const panelState = state?.panel?.panels?.Setup;
+  const panelState = state?.panel?.panels?.setup;
   const submitting = panelState?.submitting;
   const errors = panelState?.errors;
   const section = panelState?.section;
@@ -472,7 +478,7 @@ const SetupPanel = React.memo((): JSX.Element => {
         ? editorSetupSections
         : [];
     return sections.filter(
-      (section) => isGameDocument(doc) || section !== "Configuration"
+      (section) => isGameDocument(doc) || section !== "configuration"
     );
   }, [access, doc]);
 
@@ -486,7 +492,7 @@ const SetupPanel = React.memo((): JSX.Element => {
 
   const handleTabChange = useCallback(
     (event: React.ChangeEvent, newValue: number): void => {
-      dispatch(panelChangeItemSection("Setup", setupSections[newValue]));
+      dispatch(panelChangeItemSection("setup", setupSections[newValue]));
       setTabIndex(newValue);
       setPreviousTabIndex(validSetupTabIndex);
     },
@@ -501,7 +507,7 @@ const SetupPanel = React.memo((): JSX.Element => {
     async (e: React.FormEvent | React.MouseEvent) => {
       const currentData = stateRef.current;
       e.preventDefault();
-      dispatch(panelSubmit("Setup", true));
+      dispatch(panelSubmit("setup", true));
       const createPageDocument = (
         await import("../../../impower-data-store/utils/createPageDocument")
       ).default;
@@ -526,7 +532,7 @@ const SetupPanel = React.memo((): JSX.Element => {
             new PageDocumentInspector<ProjectDocument>().getPropertyError,
             () => [id]
           );
-      dispatch(panelSetErrors("Setup", errors));
+      dispatch(panelSetErrors("setup", errors));
       if (Object.keys(errors).length === 0) {
         dispatch(
           projectChangeDocument(id, {
@@ -541,7 +547,7 @@ const SetupPanel = React.memo((): JSX.Element => {
           window.setTimeout(resolve, 2000);
         });
       }
-      dispatch(panelSubmit("Setup", false));
+      dispatch(panelSubmit("setup", false));
     },
     [dispatch, id]
   );
@@ -602,7 +608,11 @@ const SetupPanel = React.memo((): JSX.Element => {
                   onChange={handleTabChange}
                 >
                   {setupSections.map((section, index) => (
-                    <StyledTab key={section} value={index} label={section} />
+                    <StyledTab
+                      key={section}
+                      value={index}
+                      label={sectionLabels[section]}
+                    />
                   ))}
                 </StyledTabs>
               </StyledTabsArea>
@@ -616,7 +626,7 @@ const SetupPanel = React.memo((): JSX.Element => {
               style={{ display: "flex", flexDirection: "column" }}
             >
               <StyledSetupPanelContentArea>
-                {type === "Details" && (
+                {type === "details" && (
                   <StyledSetupPanelContent>
                     <DetailsSetup />
                     <StyledPublishArea>
@@ -632,12 +642,12 @@ const SetupPanel = React.memo((): JSX.Element => {
                     </StyledPublishArea>
                   </StyledSetupPanelContent>
                 )}
-                {type === "Configuration" && (
+                {type === "configuration" && (
                   <StyledSetupPanelContent>
                     <ConfigurationSetup />
                   </StyledSetupPanelContent>
                 )}
-                {type === "Access" && (
+                {type === "access" && (
                   <StyledSetupPanelContent>
                     <AccessSetup
                       mode={mode}

@@ -26,19 +26,12 @@ export interface ConfigDataCollection
   };
 }
 
-export interface GameScriptsCollection extends ScriptsCollection {
-  setup?: Collection<string>;
-  assets?: Collection<string>;
-  entities?: Collection<string>;
-  logic?: Collection<string>;
-}
-
 export interface GameInstancesCollection extends InstancesCollection {
   configs: ConfigDataCollection;
   blocks: Collection<BlockData>;
 }
 
 export interface GameProjectData extends ProjectData {
-  scripts?: GameScriptsCollection;
+  scripts?: ScriptsCollection;
   instances?: GameInstancesCollection;
 }

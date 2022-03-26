@@ -109,6 +109,7 @@ const ContainerPanelHeader = React.memo(
     const searchLineQuery = state?.panel?.panels?.[windowType]?.searchLineQuery;
     const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
     const mode = state?.test?.mode;
+    const compiling = state?.test?.compiling?.[windowType];
     const diagnostics =
       state?.panel?.panels?.[windowType]?.editorState?.diagnostics;
 
@@ -197,14 +198,14 @@ const ContainerPanelHeader = React.memo(
     const hasError = !diagnostics ? undefined : diagnostics.length > 0;
     const lintIcon = useMemo(
       () =>
-        hasError === undefined ? (
+        hasError === undefined || compiling ? (
           <FileCircleQuestionRegularIcon />
         ) : hasError ? (
           <FileCircleXmarkRegularIcon />
         ) : (
           <FileCircleCheckRegularIcon />
         ),
-      [hasError]
+      [compiling, hasError]
     );
 
     return (
@@ -328,7 +329,7 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   }, []);
 
   const useWindowAsScrollContainer = portrait && scripting;
-  const showChart = windowType === "Logic" && !scripting;
+  const showChart = windowType === "logic" && !scripting;
   const showSnippetToolbar = !portrait && focused && mode === "Edit";
   const title = headerName || "Script";
 

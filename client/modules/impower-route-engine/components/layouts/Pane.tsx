@@ -12,11 +12,11 @@ import SetupPanel from "../panels/SetupPanel";
 import TestPanel from "../panels/TestPanel";
 
 const panelDisplayOrder: PanelType[] = [
-  "Setup",
-  "Entities",
-  "Logic",
-  "Detail",
-  "Test",
+  "setup",
+  "entities",
+  "logic",
+  "detail",
+  "test",
 ];
 
 const StyledPane = styled.div`
@@ -56,24 +56,24 @@ const PanelContent = React.memo(
     }
 
     switch (type) {
-      case "Setup":
+      case "setup":
         return <SetupPanel key={type} />;
-      case "Entities":
+      case "entities":
         return <ContainerPanel key={type} windowType={windowType} />;
-      case "Logic":
+      case "logic":
         return <ContainerPanel key={type} windowType={windowType} />;
-      case "Detail":
+      case "detail":
         if (
-          windowType === "Setup" ||
-          windowType === "Entities" ||
-          windowType === "Logic"
+          windowType === "setup" ||
+          windowType === "entities" ||
+          windowType === "logic"
         ) {
           return <DetailPanel key={type} windowType={windowType} />;
         }
         return null;
-      case "Test":
+      case "test":
         return <TestPanel key={type} />;
-      case "Assets":
+      case "assets":
         return <AssetsPanel key={type} />;
       default:
         return null;
@@ -91,7 +91,7 @@ interface PanelAreaProps {
 const PanelArea = React.memo((props: PanelAreaProps): JSX.Element | null => {
   const { type, windowType, preservePane, style } = props;
   const previousZIndexRef = useRef(0);
-  const zIndex = type === "Detail" ? 2 : 0;
+  const zIndex = type === "detail" ? 2 : 0;
   const previousZIndex = previousZIndexRef.current;
   previousZIndexRef.current = zIndex;
   const overlayDirection = zIndex - previousZIndex;

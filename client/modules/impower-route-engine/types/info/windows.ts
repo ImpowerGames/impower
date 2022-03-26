@@ -17,31 +17,31 @@ export interface WindowInfo extends ButtonInfo {
 
 export const windows: WindowInfo[] = [
   {
-    type: "Setup",
+    type: "setup",
     name: "Setup",
     iconOn: GearSolidIcon,
     iconOff: GearRegularIcon,
   },
   {
-    type: "Assets",
+    type: "assets",
     name: "Assets",
     iconOn: PhotoFilmSolidIcon,
     iconOff: PhotoFilmRegularIcon,
   },
   {
-    type: "Entities",
+    type: "entities",
     name: "Entities",
     iconOn: Alien8bitSolidIcon,
     iconOff: Alien8bitRegularIcon,
   },
   {
-    type: "Logic",
+    type: "logic",
     name: "Logic",
     iconOn: HeadSideBrainSolidIcon,
     iconOff: HeadSideBrainRegularIcon,
   },
   {
-    type: "Test",
+    type: "test",
     name: "Test",
     iconOn: GamepadModernSolidIcon,
     iconOff: GamepadModernRegularIcon,

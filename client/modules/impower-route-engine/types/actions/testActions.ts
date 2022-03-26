@@ -1,4 +1,4 @@
-import { Control, Playback, Mode, Layout } from "../state/testState";
+import { Control, Layout, Mode, Playback } from "../state/testState";
 
 export const TEST_MODE_CHANGE = "TEST_MODE_CHANGE";
 export interface TestModeChangeAction {
@@ -71,6 +71,21 @@ export const testPlayerVisibility = (
   return { type: TEST_PLAYER_VISIBILITY, payload: { playerVisibility } };
 };
 
+export const TEST_SET_COMPILING = "TEST_SET_COMPILING";
+export interface TestSetCompilingAction {
+  type: typeof TEST_SET_COMPILING;
+  payload: {
+    id: string;
+    compiling: boolean;
+  };
+}
+export const testSetCompiling = (
+  id: string,
+  compiling: boolean
+): TestSetCompilingAction => {
+  return { type: TEST_SET_COMPILING, payload: { id, compiling } };
+};
+
 export type TestAction =
   | TestModeChangeAction
   | TestControlChangeAction
@@ -78,4 +93,5 @@ export type TestAction =
   | TestStartTimeChangeAction
   | TestLayoutChangeAction
   | TestDebugAction
-  | TestPlayerVisibilityAction;
+  | TestPlayerVisibilityAction
+  | TestSetCompilingAction;

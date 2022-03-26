@@ -19,7 +19,7 @@ export type ValueType =
 
 export type ItemSectionType = "Preview";
 
-export type SetupSectionType = "Details" | "Configuration" | "Access";
+export type SetupSectionType = "details" | "configuration" | "access";
 
 export type SetupSettingsType =
   | "About"

@@ -54,31 +54,31 @@ const getVisiblePanels = (
 ): PanelType[][] => {
   if (portrait) {
     switch (windowType) {
-      case "Setup":
-        return [[], ["Setup", "Detail"]];
-      case "Assets":
-        return [[], ["Assets"]];
-      case "Entities":
-        return [[], ["Entities", "Detail"]];
-      case "Logic":
-        return [[], ["Logic", "Detail"]];
-      case "Test":
-        return [[], ["Test"]];
+      case "setup":
+        return [[], ["setup", "detail"]];
+      case "assets":
+        return [[], ["assets"]];
+      case "entities":
+        return [[], ["entities", "detail"]];
+      case "logic":
+        return [[], ["logic", "detail"]];
+      case "test":
+        return [[], ["test"]];
       default:
         return [[], []];
     }
   }
   switch (windowType) {
-    case "Setup":
-      return [["Setup", "Detail"], ["Test"]];
-    case "Assets":
-      return [["Assets"], ["Test"]];
-    case "Entities":
-      return [["Entities", "Detail"], ["Test"]];
-    case "Logic":
-      return [["Logic", "Detail"], ["Test"]];
-    case "Test":
-      return [[], ["Test"]];
+    case "setup":
+      return [["setup", "detail"], ["test"]];
+    case "assets":
+      return [["assets"], ["test"]];
+    case "entities":
+      return [["entities", "detail"], ["test"]];
+    case "logic":
+      return [["logic", "detail"], ["test"]];
+    case "test":
+      return [[], ["test"]];
     default:
       return [[], []];
   }
@@ -88,7 +88,7 @@ const getPanelbar = (
   windowType: WindowType,
   visiblePanels: PanelType[]
 ): JSX.Element | null => {
-  if (visiblePanels && visiblePanels[0] === "Test") {
+  if (visiblePanels && visiblePanels[0] === "test") {
     return <TestToolbar windowType={windowType} />;
   }
   return null;
@@ -381,18 +381,18 @@ const Project = React.memo((): JSX.Element => {
   }, [dispatch]);
   const handleEnter = useCallback(() => {
     setWindowTransitionState(TransitionState.enter);
-    if (!isPlayable || (!portrait && windowType === "Setup")) {
+    if (!isPlayable || (!portrait && windowType === "setup")) {
       dispatch(testLayoutChange("Page"));
     } else {
       dispatch(testLayoutChange("Game"));
     }
   }, [dispatch, isPlayable, portrait, windowType]);
   const handleComplete = useCallback(() => {
-    if (isPlayable && !portrait && windowType === "Test") {
+    if (isPlayable && !portrait && windowType === "test") {
       dispatch(testControlChange("Play"));
       dispatch(testModeChange("Test"));
     }
-    if (!isPlayable || (portrait && windowType !== "Test")) {
+    if (!isPlayable || (portrait && windowType !== "test")) {
       dispatch(testModeChange("Edit"));
     }
     dispatch(testPlayerVisibility(true));
@@ -417,13 +417,13 @@ const Project = React.memo((): JSX.Element => {
 
   const footerButtons = isGameDocument(state?.project?.data?.doc)
     ? access === MemberAccess.Viewer
-      ? windows.filter((w) => w.type === "Test")
+      ? windows.filter((w) => w.type === "test")
       : windows
     : [];
 
   useEffect(() => {
     if (access === MemberAccess.Viewer) {
-      dispatch(windowSwitch("Test"));
+      dispatch(windowSwitch("test"));
     }
   }, [access, dispatch]);
 

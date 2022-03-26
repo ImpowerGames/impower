@@ -3,22 +3,22 @@ import { PanelState } from "../types/state/panelState";
 export const createPanelState = (): PanelState => ({
   paneSize: "50%",
   panels: {
-    Setup: {
-      openPanel: "Setup",
-      section: "Details",
+    setup: {
+      openPanel: "setup",
+      section: "details",
     },
-    Assets: {
-      openPanel: "Assets",
+    assets: {
+      openPanel: "assets",
       scripting: false,
     },
-    Entities: {
-      openPanel: "Entities",
+    entities: {
+      openPanel: "entities",
       scripting: false,
     },
-    Logic: {
-      openPanel: "Logic",
+    logic: {
+      openPanel: "logic",
       scripting: true,
     },
-    Test: { openPanel: "Test" },
+    test: { openPanel: "test" },
   },
 });

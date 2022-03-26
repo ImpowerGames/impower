@@ -5,10 +5,10 @@ import {
   FilesCollection,
   GameInstancesCollection,
   GameProjectData,
-  GameScriptsCollection,
   InstanceData,
   MembersCollection,
   Reference,
+  ScriptsCollection,
 } from "../../../impower-game/data";
 import {
   getData,
@@ -329,7 +329,7 @@ const doProjectLoadScripts = (
   state: ProjectState,
   payload: {
     id: string;
-    scripts: GameScriptsCollection;
+    scripts: ScriptsCollection;
   }
 ): ProjectState => {
   const { id, scripts } = payload;

@@ -19,4 +19,5 @@ export interface TestState {
   debug: boolean;
   startTime: number;
   playerVisibility: boolean;
+  compiling: Record<string, boolean>;
 }

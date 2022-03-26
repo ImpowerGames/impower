@@ -10,10 +10,10 @@ import {
   FilesCollection,
   GameInstancesCollection,
   GameProjectData,
-  GameScriptsCollection,
   InstanceData,
   MembersCollection,
   ProjectData,
+  ScriptsCollection,
 } from "../../../impower-game/data";
 
 export class ProjectEngineSync {
@@ -123,7 +123,7 @@ export class ProjectEngineSync {
   }
 
   async observeScripts(
-    onSnapshot: (value: GameScriptsCollection) => void,
+    onSnapshot: (value: ScriptsCollection) => void,
     ...path: ProjectDocumentPath
   ): Promise<() => void> {
     this.onLoad.emit();

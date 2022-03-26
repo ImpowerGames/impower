@@ -276,7 +276,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const stateRef = useRef<ProjectDocument>(doc);
 
   const inspectedInstanceData: InstanceData[] = useMemo(() => {
-    if (section === "Configuration") {
+    if (section === "configuration") {
       const config =
         data?.instances?.configs?.data?.[inspectedTargetId as ConfigTypeId];
       if (config) {
@@ -289,7 +289,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const handleClickHeaderBreadcrumb = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      dispatch(panelOpen(windowType, "Setup"));
+      dispatch(panelOpen(windowType, "setup"));
     },
     [dispatch, windowType]
   );
@@ -297,7 +297,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   const handleClose = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      dispatch(panelOpen(windowType, "Setup"));
+      dispatch(panelOpen(windowType, "setup"));
     },
     [dispatch, windowType]
   );
@@ -345,7 +345,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
     (propertyPath: string, error: string) => {
       if (!errors[propertyPath]) {
         const newErrors = { ...errors, [propertyPath]: error };
-        dispatch(panelSetErrors("Setup", newErrors));
+        dispatch(panelSetErrors("setup", newErrors));
       }
     },
     [dispatch, errors]
@@ -356,7 +356,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
       if (errors[propertyPath]) {
         const newErrors = { ...errors };
         delete newErrors[propertyPath];
-        dispatch(panelSetErrors("Setup", newErrors));
+        dispatch(panelSetErrors("setup", newErrors));
       }
     },
     [dispatch, errors]
@@ -367,7 +367,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
   useHTMLOverscrollBehavior("contain");
 
   const inspectedDataName = useMemo(() => {
-    if (section === "Configuration") {
+    if (section === "configuration") {
       const config =
         data?.instances?.configs?.data[inspectedTargetId as ConfigTypeId];
       if (config) {
@@ -395,7 +395,7 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
         }
       >
         <StyledList style={{ opacity: mode === "Test" ? 0.5 : undefined }}>
-          {section === "Details" ? (
+          {section === "details" ? (
             inspectedTargetId === "AdvancedSettings" ? (
               <SetupAdvanced id={id} doc={doc} />
             ) : (

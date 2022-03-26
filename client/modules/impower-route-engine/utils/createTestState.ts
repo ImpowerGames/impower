@@ -8,4 +8,5 @@ export const createTestState = (): TestState => ({
   debug: false,
   startTime: 0,
   playerVisibility: true,
+  compiling: {},
 });

@@ -3,10 +3,11 @@ import styled from "@emotion/styled";
 import { IconButton, MenuItem, Typography } from "@material-ui/core";
 import dynamic from "next/dynamic";
 import React, { useCallback, useContext, useMemo } from "react";
+import CirclePlayRegularIcon from "../../../../resources/icons/regular/circle-play.svg";
+import CircleQuestionRegularIcon from "../../../../resources/icons/regular/circle-question.svg";
 import CompressRegularIcon from "../../../../resources/icons/regular/compress.svg";
 import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ellipsis-vertical.svg";
 import ExpandRegularIcon from "../../../../resources/icons/regular/expand.svg";
-import RocketLaunchRegularIcon from "../../../../resources/icons/regular/rocket-launch.svg";
 import TrianglePersonDiggingRegularIcon from "../../../../resources/icons/regular/triangle-person-digging.svg";
 import BackwardStepSolidIcon from "../../../../resources/icons/solid/backward-step.svg";
 import BackwardSolidIcon from "../../../../resources/icons/solid/backward.svg";
@@ -190,7 +191,9 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   const [menuOpen, setMenuOpen] = React.useState<boolean>();
   const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
 
-  const { mode, control, debug, layout } = state.test;
+  const { mode, control, debug, layout, compiling } = state.test;
+
+  const isCompiling = compiling[windowType];
 
   const theme = useTheme();
 
@@ -330,12 +333,15 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
       }}
     >
       <StyledLeftArea>
-        {isPlayable && windowType !== "Test" && (
+        {isPlayable && windowType !== "test" && (
           <IconButton
             onClick={(): void =>
               handleChangeTestMode(mode === "Edit" ? "Test" : "Edit")
             }
-            style={{ color: theme.colors.white40 }}
+            disabled={isCompiling}
+            style={{
+              color: theme.colors.white40,
+            }}
           >
             <StyledButtonContent>
               <FontIcon
@@ -343,7 +349,11 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
                 size={theme.fontSize.smallerIcon}
               >
                 {mode === "Edit" ? (
-                  <RocketLaunchRegularIcon />
+                  isCompiling ? (
+                    <CircleQuestionRegularIcon />
+                  ) : (
+                    <CirclePlayRegularIcon />
+                  )
                 ) : (
                   <TrianglePersonDiggingRegularIcon />
                 )}
@@ -354,7 +364,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
             </StyledButtonContent>
           </IconButton>
         )}
-        {(!isPlayable || windowType === "Test") && (
+        {(!isPlayable || windowType === "test") && (
           <IconButton
             onClick={(): void => handleFullscreen(!fullscreen)}
             style={{ color: theme.colors.white40 }}

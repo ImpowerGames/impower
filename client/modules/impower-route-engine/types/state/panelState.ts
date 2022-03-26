@@ -8,12 +8,12 @@ import {
 import { WindowType } from "./windowState";
 
 export type PanelType =
-  | "Setup"
-  | "Assets"
-  | "Entities"
-  | "Logic"
-  | "Detail"
-  | "Test";
+  | "setup"
+  | "assets"
+  | "entities"
+  | "logic"
+  | "detail"
+  | "test";
 
 export type PanelInteractionType = "Selected" | "Expanded";
 

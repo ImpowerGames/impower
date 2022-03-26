@@ -15,8 +15,8 @@ import { ProjectDocument } from "../../impower-data-store";
 import {
   FilesCollection,
   GameInstancesCollection,
-  GameScriptsCollection,
   MembersCollection,
+  ScriptsCollection,
 } from "../../impower-game/data";
 import { ImpowerGame } from "../../impower-game/game";
 import { ImpowerGameInspector } from "../../impower-game/inspector";
@@ -183,7 +183,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
         cacheFiles(files);
       }
     };
-    const onLoadScripts = (scripts: GameScriptsCollection): void => {
+    const onLoadScripts = (scripts: ScriptsCollection): void => {
       dispatch(projectLoadScripts(loadedProjectId, scripts));
     };
     const onLoadInstances = (instances: GameInstancesCollection): void => {
@@ -330,7 +330,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   useEffect(() => {
     const debounceDelay = 200;
     const onOpenData = debounce((data: { id: string }): void => {
-      dispatch(panelInspect("Logic", data.id));
+      dispatch(panelInspect("logic", data.id));
     }, debounceDelay);
     events.onOpenData.addListener(onOpenData);
     return (): void => {

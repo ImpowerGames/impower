@@ -3,10 +3,10 @@ import { ProjectDocument } from "../../../impower-data-store";
 import {
   FilesCollection,
   GameInstancesCollection,
-  GameScriptsCollection,
   InstanceData,
   MembersCollection,
   Reference,
+  ScriptsCollection,
 } from "../../../impower-game/data";
 
 export const PROJECT_ACCESS = "PROJECT_ACCESS";
@@ -173,12 +173,12 @@ export interface ProjectLoadScriptsAction {
   type: typeof PROJECT_LOAD_SCRIPTS;
   payload: {
     id: string;
-    scripts: GameScriptsCollection;
+    scripts: ScriptsCollection;
   };
 }
 export const projectLoadScripts = (
   id: string,
-  scripts: GameScriptsCollection
+  scripts: ScriptsCollection
 ): ProjectLoadScriptsAction => {
   return {
     type: PROJECT_LOAD_SCRIPTS,
