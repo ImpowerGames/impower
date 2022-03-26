@@ -116,6 +116,7 @@ export const parseSpark = (
   let lastTitlePageToken;
   let currentToken: SparkToken;
   let previousToken: SparkToken;
+  let previousNonSeparatorToken: SparkToken;
   let tokenCategory = "none";
   let lastCharacterIndex;
   let dualRight;
@@ -1789,7 +1790,27 @@ export const parseSpark = (
     );
     current = currentToken.to + 1;
 
-    if (text.trim().length === 0 && text !== "  ") {
+    const isChoiceOrLogic = text.match(/^[\t ]*[*+-]/);
+    if (isChoiceOrLogic) {
+      if (displayTokenTypes.includes(previousToken?.type)) {
+        previousToken.wait = false;
+      }
+      if (state === "dialogue") {
+        pushToken(createSparkToken("dialogue_end"));
+      }
+      if (state === "dual_dialogue") {
+        pushToken(createSparkToken("dual_dialogue_end"));
+      }
+      state = "normal";
+    } else if (text.trim() === "_") {
+      if (state === "dialogue") {
+        pushToken(createSparkToken("dialogue_end"));
+      }
+      if (state === "dual_dialogue") {
+        pushToken(createSparkToken("dual_dialogue_end"));
+      }
+      state = "normal";
+    } else if (text.trim().length === 0 && text.length < 2) {
       const skip_separator =
         ignoredLastToken &&
         parsed.scriptTokens.length > 1 &&
@@ -1815,6 +1836,7 @@ export const parseSpark = (
       currentToken.type = "separator";
       saveAndClearAssets();
       pushToken(currentToken);
+      previousToken = currentToken;
       continue;
     }
 
@@ -2161,17 +2183,6 @@ export const parseSpark = (
                 valueFrom
               );
               currentToken.index = currentChoiceTokens?.length || 0;
-              if (
-                previousToken?.type === "dialogue" ||
-                previousToken?.type === "action" ||
-                previousToken?.type === "centered" ||
-                previousToken?.type === "transition" ||
-                previousToken?.type === "scene"
-              ) {
-                if (previousToken) {
-                  previousToken.wait = false;
-                }
-              }
               const expression = `\`${currentToken.content}\``;
               const expressionFrom = contentFrom - 1;
               checkExpressionValue(expression, expressionFrom);
@@ -2439,8 +2450,8 @@ export const parseSpark = (
       currentChoiceTokens = [];
     }
 
-    if (currentToken.indent < previousToken?.indent) {
-      let indent = previousToken?.indent - 1;
+    if (currentToken.indent < previousNonSeparatorToken?.indent) {
+      let indent = previousNonSeparatorToken?.indent - 1;
       while (currentToken.indent <= indent) {
         const closeCondition =
           createSparkToken<SparkConditionToken>("condition");
@@ -2454,8 +2465,8 @@ export const parseSpark = (
       }
     }
     if (
-      currentToken.indent > previousToken?.indent &&
-      previousToken.type !== "condition" &&
+      currentToken.indent > previousNonSeparatorToken?.indent &&
+      previousNonSeparatorToken.type !== "condition" &&
       currentToken.type === "condition"
     ) {
       let lineIndex = i;
@@ -2467,7 +2478,7 @@ export const parseSpark = (
         const indentText = indentMatch[0] || "";
         const offset = indentText.length;
         const indent = Math.floor(offset / 2);
-        if (indent <= previousToken.indent) {
+        if (indent <= previousNonSeparatorToken.indent) {
           break;
         }
         from = to + offset;
@@ -2512,9 +2523,8 @@ export const parseSpark = (
       } else {
         ignoredLastToken = false;
         pushToken(currentToken);
-        if (currentToken.type !== "separator") {
-          previousToken = currentToken;
-        }
+        previousToken = currentToken;
+        previousNonSeparatorToken = currentToken;
       }
     }
   }

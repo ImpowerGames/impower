@@ -24,9 +24,12 @@ export const executeDisplayCommand = (
   const assets = data?.type === DisplayType.Dialogue ? data?.assets : [];
   const parenthetical =
     data?.type === DisplayType.Dialogue ? data?.parenthetical : "";
-  const content = (data?.content || "")
-    .replace(/(?:\[{2}(?!\[+))([\s\S]+?)(?:\]{2}(?!\[+)) ?/g, "") // Replace [[image]]
-    .replace(/(?:\({2}(?!\(+))([\s\S]+?)(?:\){2}(?!\(+)) ?/g, ""); // Replace ((audio))
+  const content =
+    data?.content?.trim() === "_"
+      ? ""
+      : (data?.content || "")
+          .replace(/(?:\[{2}(?!\[+))([\s\S]+?)(?:\]{2}(?!\[+)) ?/g, "") // Replace [[image]]
+          .replace(/(?:\({2}(?!\(+))([\s\S]+?)(?:\){2}(?!\(+)) ?/g, ""); // Replace ((audio))
   const [replaceTagsResult] = format(content, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
   if (dialogueGroupEl) {

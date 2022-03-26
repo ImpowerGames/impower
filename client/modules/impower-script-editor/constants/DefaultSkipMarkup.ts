@@ -41,7 +41,12 @@ export const DefaultSkipMarkup: {
     return false;
   },
   [Type.Dialogue](_bl, cx, line) {
-    if (line.text.trim().length === 0 && line.text.length < 2) {
+    const isChoiceOrLogic = line.text.match(/^[\t ]*[*+-]/);
+    if (
+      isChoiceOrLogic ||
+      line.text.trim() === "_" ||
+      (line.text.trim().length === 0 && line.text.length < 2)
+    ) {
       return false;
     }
     return true;
