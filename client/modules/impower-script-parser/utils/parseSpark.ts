@@ -604,7 +604,7 @@ export const parseSpark = (
       );
       return { name: expression, values: [] };
     }
-    const match = getExpressionCallMatch("method", expression);
+    const match = getExpressionCallMatch(type, expression);
     if (match) {
       const name = match[2] || "";
       const nameSpace = match[3] || "";
