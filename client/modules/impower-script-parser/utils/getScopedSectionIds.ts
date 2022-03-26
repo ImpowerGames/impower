@@ -5,8 +5,9 @@ export const getScopedSectionIds = (
   sectionId: string,
   sections: Record<string, SparkSection>
 ): Record<string, string> => {
+  const validSectionId = sectionId || "";
   const result: Record<string, string> = {};
-  const section = sections?.[sectionId || ""];
+  const section = sections?.[validSectionId];
   const childrenIds = section?.children || [];
   childrenIds.forEach((id) => {
     const section = sections?.[id];
@@ -14,7 +15,7 @@ export const getScopedSectionIds = (
       result[section.name] = id;
     }
   });
-  const ancestorIds = getAncestorIds(sectionId);
+  const ancestorIds = getAncestorIds(validSectionId);
   ancestorIds.forEach((id) => {
     const section = sections?.[id];
     if (section) {
