@@ -23,21 +23,19 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
 
     const constantCall = calls[""];
     if (constantCall) {
-      if (constantCall?.name === "!") {
+      id = ids?.[constantCall.name];
+      if (id == null) {
         id = constantCall.name;
-      } else if (constantCall?.name) {
-        id = ids?.[constantCall.name];
-        values = constantCall.values;
       }
+      values = constantCall.values;
     } else {
       const [sectionExpression] = format(value, valueMap);
       const dynamicCall = calls[sectionExpression];
-      if (dynamicCall?.name === "!") {
+      id = ids?.[dynamicCall.name];
+      if (id == null) {
         id = dynamicCall.name;
-      } else if (dynamicCall?.name) {
-        id = ids?.[dynamicCall.name];
-        values = dynamicCall.values;
       }
+      values = dynamicCall.values;
     }
 
     this.id = id;

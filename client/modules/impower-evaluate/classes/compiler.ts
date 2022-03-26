@@ -86,7 +86,7 @@ export class Compiler {
         type: "unknown-operation",
         message,
       });
-      throw new Error(message);
+      return undefined;
     }
     if (!OPERATION[node.operation.content]) {
       const message = `Unknown operation ${node.operation.content}`;
@@ -98,7 +98,7 @@ export class Compiler {
         type: "unknown-operation",
         message,
       });
-      throw new Error(message);
+      return undefined;
     }
 
     if (node.operation.content === "!" && node.right) {

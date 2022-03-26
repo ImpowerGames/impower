@@ -455,6 +455,9 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     executedByBlockId: string;
     startIndex?: number;
   }): void {
+    if (!this.blockTree[data.id]) {
+      return;
+    }
     const blockState = this.state.blockStates[data.id] || createBlockState();
     if (data.returnWhenFinished) {
       blockState.hasReturned = false;
