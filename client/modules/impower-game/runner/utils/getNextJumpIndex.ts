@@ -5,15 +5,15 @@ export const getNextJumpIndex = <
   D extends InstanceData,
   R extends InstanceRunner<D>
 >(
+  index: number,
+  iterableRunners: { runner: R; data: D }[],
   validJumps: {
     check: (c: "if" | "elif" | "else" | "close") => boolean;
     offset: number;
-  }[],
-  index: number,
-  iterableRunners: { runner: R; data: D }[]
+  }[] = []
 ): number => {
   const currentLevel = iterableRunners[index].data.indent;
-  if (validJumps.length > 0) {
+  if (validJumps?.length > 0) {
     // Skip to the next instance that matches any of the specified jump points
     for (let i = index + 1; i < iterableRunners.length; i += 1) {
       const c = iterableRunners[i];

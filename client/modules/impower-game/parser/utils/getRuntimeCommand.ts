@@ -62,7 +62,7 @@ export const getRuntimeCommand = (
   token: SparkToken,
   sectionId = ""
 ): CommandData => {
-  if (token.type === "assign") {
+  if (token.type === "assign" || token.type === "variable") {
     const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "AssignCommand";
     const newCommand: AssignCommandData = {

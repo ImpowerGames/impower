@@ -2144,7 +2144,16 @@ export const parseSpark = (
         }
       } else if ((match = currentToken.content.match(sparkRegexes.variable))) {
         currentToken.type = "variable";
-        lint(sparkRegexes.variable);
+        if (currentToken.type === "variable") {
+          if (lint(sparkRegexes.variable)) {
+            const name = match[4] || "";
+            const operator = (match[6] || "") as "=";
+            const expression = match[8] || "";
+            currentToken.name = name;
+            currentToken.operator = operator;
+            currentToken.value = expression;
+          }
+        }
       } else if ((match = currentToken.content.match(sparkRegexes.asset))) {
         const type = match[2] as SparkAssetType;
         currentToken.type = type;

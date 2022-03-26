@@ -25,6 +25,9 @@ export interface SparkSectionToken extends SparkLine {
 
 export interface SparkVariableToken extends SparkLine {
   type: SparkVariableTokenType;
+  name: string;
+  operator: "=";
+  value: string;
 }
 
 export interface SparkAssetToken extends SparkLine {

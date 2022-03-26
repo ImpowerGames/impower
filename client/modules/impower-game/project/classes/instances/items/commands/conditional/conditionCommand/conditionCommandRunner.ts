@@ -24,14 +24,10 @@ export class ConditionCommandRunner extends CommandRunner<ConditionCommandData> 
     if (check === "if") {
       const shouldExecute = evaluate(value, valueMap);
       if (!shouldExecute) {
-        const nextCommandIndex = getNextJumpIndex(
-          [
-            { check: (c): boolean => c === "elif", offset: 0 },
-            { check: (c): boolean => c === "else", offset: 1 },
-          ],
-          index,
-          commands
-        );
+        const nextCommandIndex = getNextJumpIndex(index, commands, [
+          { check: (c): boolean => c === "elif", offset: 0 },
+          { check: (c): boolean => c === "else", offset: 1 },
+        ]);
         return [nextCommandIndex];
       }
     } else if (check === "elif") {
@@ -41,29 +37,20 @@ export class ConditionCommandRunner extends CommandRunner<ConditionCommandData> 
           game.logic.state.blockStates[data.reference.parentContainerId];
         const prevCheck = commands?.[blockState.previousIndex]?.data?.check;
         if (prevCheck === "close") {
-          const nextCommandIndex = getNextJumpIndex(
-            [{ check: (c): boolean => c === "close", offset: 1 }],
-            index,
-            commands
-          );
+          const nextCommandIndex = getNextJumpIndex(index, commands, [
+            { check: (c): boolean => c === "else", offset: 0 },
+          ]);
           return [nextCommandIndex];
         }
-        const nextCommandIndex = getNextJumpIndex(
-          [
-            { check: (c): boolean => c === "elif", offset: 0 },
-            { check: (c): boolean => c === "else", offset: 1 },
-          ],
-          index,
-          commands
-        );
+        const nextCommandIndex = getNextJumpIndex(index, commands, [
+          { check: (c): boolean => c === "elif", offset: 0 },
+          { check: (c): boolean => c === "else", offset: 1 },
+        ]);
         return [nextCommandIndex];
       }
     } else if (check === "else") {
-      const nextCommandIndex = getNextJumpIndex(
-        [{ check: (c): boolean => c === "close", offset: 1 }],
-        index,
-        commands
-      );
+      // Fell through to else from prev scope, so skip over else scope
+      const nextCommandIndex = getNextJumpIndex(index, commands);
       return [nextCommandIndex];
     }
     return super.onExecute(data, context, game);
