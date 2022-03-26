@@ -279,7 +279,7 @@ export class Compiler {
     val: CompilerToken | CompilerNode | null,
     context: Record<string, unknown>
   ): unknown {
-    if (val === null) {
+    if (val == null) {
       const message = `Unknown value`;
       throw new Error(message);
     }
