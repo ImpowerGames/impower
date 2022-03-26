@@ -1,3 +1,4 @@
+/* eslint-disable no-cond-assign */
 /* eslint-disable no-template-curly-in-string */
 import {
   completeFromList,
@@ -62,7 +63,9 @@ type CompletionType =
   | "scene"
   | "condition"
   | "first_sibling"
-  | "last_sibling";
+  | "last_sibling"
+  | "choice_plus"
+  | "choice_minus";
 
 const getInfoNode = (info: string, color?: string): Node => {
   const preview = document.createElement("div");
@@ -290,6 +293,19 @@ export const scenePrefixSnippets: readonly Completion[] = [
     label: "INT/EXT",
     type: "scene",
     info: (): Node => getInfoNode(`(intercut between interior and exterior)`),
+  }),
+];
+
+export const choiceSnippets: readonly Completion[] = [
+  snip("+ ${}${choice} > ${SectionName}", {
+    label: "+ choice",
+    info: (): Node => getInfoNode(`(always shown)`),
+    type: "choice_plus",
+  }),
+  snip("- ${}${choice} > ${SectionName}", {
+    label: "- choice",
+    info: (): Node => getInfoNode(`(if chosen, won't be shown again)`),
+    type: "choice_minus",
   }),
 ];
 
@@ -783,6 +799,8 @@ export const sparkAutocomplete = async (
     ].includes(node.name)
   ) {
     completions.push(...sectionHeaderSnippets(sectionLevel));
+  } else if (["ChoiceMark"].includes(node.name)) {
+    completions.push(...choiceSnippets);
   } else if (["Transition"].includes(node.name)) {
     completions.push(...transitionSnippets);
   } else if (["ScenePrefix"].includes(node.name)) {

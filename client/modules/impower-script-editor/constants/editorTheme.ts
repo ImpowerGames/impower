@@ -82,6 +82,18 @@ export const editorTheme: {
     fontStyle: "normal",
     whiteSpace: "pre-wrap",
   },
+  ".cm-completionIcon-choice_plus": {
+    "&:after": {
+      content: "'⊕'",
+      color: colors.variableName,
+    },
+  },
+  ".cm-completionIcon-choice_minus": {
+    "&:after": {
+      content: "'⊖'",
+      color: colors.variableName,
+    },
+  },
   ".cm-completionIcon-section": {
     "&:after": { content: "'#'", color: colors.section },
   },
@@ -209,6 +221,9 @@ export const editorTheme: {
   },
   ".cm-completionInfo": {
     fontFamily: "monospace",
+  },
+  ".cm-tooltip.cm-completionInfo": {
+    maxWidth: "320px",
   },
   ".cm-valueInfo": {
     fontFamily: "monospace",

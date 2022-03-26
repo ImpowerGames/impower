@@ -197,7 +197,7 @@ export function isCondition(line: Line): RegExpMatchArray {
 }
 
 export function isChoice(line: Line): RegExpMatchArray {
-  if (!["-", "+", "*"].map((c) => c.charCodeAt(0)).includes(line.next)) {
+  if (!["-", "+"].map((c) => c.charCodeAt(0)).includes(line.next)) {
     return null;
   }
   const match = line.text.match(sparkRegexes.choice);
