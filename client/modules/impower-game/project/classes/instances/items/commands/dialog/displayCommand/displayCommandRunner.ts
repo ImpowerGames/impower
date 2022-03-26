@@ -6,6 +6,10 @@ import { executeDisplayCommand } from "./executeDisplayCommand";
 export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
   down = false;
 
+  init(): void {
+    executeDisplayCommand();
+  }
+
   onExecute(
     data: DisplayCommandData,
     context: CommandContext,

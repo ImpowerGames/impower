@@ -30,19 +30,6 @@ export class BlockRunner extends ContainerRunner<BlockData> {
   }
 
   /**
-   * Iterates over triggers performs their initializers.
-   *
-   */
-  init(context: BlockContext, game: ImpowerGame): void {
-    const commands = context?.commands;
-    if (commands) {
-      commands.forEach((command) => {
-        command.runner.init(command.data, { ...context, index: -1 }, game);
-      });
-    }
-  }
-
-  /**
    * This method is called once per game step while the scene is running.
    * @param time The current time. Either a High Resolution Timer value if it comes from Request Animation Frame, or Date.now if using SetTimeout.
    * @param delta The delta time in ms since the last frame. This is a smoothed and capped value based on the FPS rate.

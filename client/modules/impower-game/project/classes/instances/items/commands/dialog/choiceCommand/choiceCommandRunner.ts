@@ -13,6 +13,10 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
 
   calls: Record<string, { name: string; values: string[] }>;
 
+  init(): void {
+    executeChoiceCommand();
+  }
+
   onExecute(
     data: ChoiceCommandData,
     context: CommandContext,

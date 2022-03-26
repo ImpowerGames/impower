@@ -7,5 +7,4 @@ export interface ChoiceCommandData extends CommandData<"ChoiceCommand"> {
   content: string;
   index: number;
   count: number;
-  ui?: string;
 }

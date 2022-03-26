@@ -8,5 +8,4 @@ export interface DisplayCommandData extends CommandData<"DisplayCommand"> {
   character: string;
   parenthetical: string;
   content: string;
-  ui: string;
 }

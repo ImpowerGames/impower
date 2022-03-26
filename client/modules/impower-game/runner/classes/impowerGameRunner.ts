@@ -65,11 +65,23 @@ export class ImpowerGameRunner {
     AdvancedConfig: new ConfigRunner(),
   };
 
+  public get configRunners(): {
+    [refTypeId in ConfigTypeId]: ConfigRunner;
+  } {
+    return { ...this._configRunners };
+  }
+
   private _blockRunners: {
     [refTypeId in "Block"]: BlockRunner;
   } = {
     Block: BlockRunner.instance,
   };
+
+  public get blockRunners(): {
+    [refTypeId in "Block"]: BlockRunner;
+  } {
+    return { ...this._blockRunners };
+  }
 
   private _commandRunners: {
     [refTypeId in CommandTypeId]: CommandRunner;
@@ -96,6 +108,12 @@ export class ImpowerGameRunner {
     ResumeAudioCommand: new ResumeAudioCommandRunner(),
     StopAudioCommand: new StopAudioCommandRunner(),
   };
+
+  public get commandRunners(): {
+    [refTypeId in CommandTypeId]: CommandRunner;
+  } {
+    return { ...this._commandRunners };
+  }
 
   registerConfigRunner(refTypeId: string, inspector: ConfigRunner): void {
     this._configRunners[refTypeId] = inspector;

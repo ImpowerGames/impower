@@ -31,7 +31,7 @@ export class CommandRunner<
     return this._instance;
   }
 
-  init(_data: T, _context: CommandContext, _game: ImpowerGame): void {
+  init(): void {
     // NoOp
   }
 

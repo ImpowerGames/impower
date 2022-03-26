@@ -160,6 +160,9 @@ export class PhaserGame extends Phaser.Game {
     const impowerContext = impowerRunner
       ? new ImpowerContext(project, impowerRunner)
       : undefined;
+    Object.values(impowerRunner.commandRunners || {}).forEach((r) => {
+      r.init();
+    });
 
     const preloadingScene = new PhaserPreloadingScene(
       {

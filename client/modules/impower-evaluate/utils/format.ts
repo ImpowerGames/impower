@@ -50,7 +50,7 @@ const customFormatters: Formatters = {
 
 export const format = (
   str: string,
-  args: Record<string, unknown>,
+  args: Record<string, unknown> = {},
   locale?: string,
   formatters: Formatters = customFormatters
 ): [
@@ -70,7 +70,7 @@ export const format = (
     from = str.indexOf(match, to) + (needsTrim ? 2 : 1);
     const trimmedInner = needsTrim ? inner.slice(1, -1) : inner;
     const validLocale = locale || (args?.locale as string);
-    const chooseVal = args["#"];
+    const chooseVal = args?.["#"];
     if (
       !trimmedInner.includes(":") &&
       trimmedInner.includes("|") &&
@@ -117,7 +117,7 @@ export const format = (
       return match;
     }
     to = from + tagKey.length;
-    const val = args[tagKey];
+    const val = args?.[tagKey];
     if (val === undefined) {
       diagnostics.push({
         content: str,

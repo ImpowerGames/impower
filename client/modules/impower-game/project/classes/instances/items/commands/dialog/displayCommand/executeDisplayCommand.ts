@@ -2,13 +2,13 @@ import { format } from "../../../../../../../../impower-evaluate";
 import { DisplayCommandData, DisplayType } from "../../../../../../../data";
 
 export const executeDisplayCommand = (
-  data: DisplayCommandData,
-  context: {
+  data?: DisplayCommandData,
+  context?: {
     valueMap: Record<string, unknown>;
   }
 ): void => {
-  const { valueMap } = context;
-  const ui = data.ui || "impower-ui";
+  const valueMap = context?.valueMap;
+  const ui = "impower-ui";
   const dialogueGroupEl: HTMLElement = document.querySelector(
     `#${ui} .dialogue-group`
   );
@@ -20,11 +20,11 @@ export const executeDisplayCommand = (
   const contentElEntries: [DisplayType, HTMLElement][] = Object.values(
     DisplayType
   ).map((x) => [x, document.querySelector(`#${ui} .${x}`)]);
-  const character = data.type === DisplayType.Dialogue ? data.character : "";
-  const assets = data.type === DisplayType.Dialogue ? data.assets : [];
+  const character = data?.type === DisplayType.Dialogue ? data?.character : "";
+  const assets = data?.type === DisplayType.Dialogue ? data?.assets : [];
   const parenthetical =
-    data.type === DisplayType.Dialogue ? data.parenthetical : "";
-  const content = data?.content
+    data?.type === DisplayType.Dialogue ? data?.parenthetical : "";
+  const content = (data?.content || "")
     .replace(/(?:\[{2}(?!\[+))([\s\S]+?)(?:\]{2}(?!\[+)) ?/g, "") // Replace [[image]]
     .replace(/(?:\({2}(?!\(+))([\s\S]+?)(?:\){2}(?!\(+)) ?/g, ""); // Replace ((audio))
   const [replaceTagsResult] = format(content, valueMap);
@@ -38,10 +38,15 @@ export const executeDisplayCommand = (
   }
   if (portraitEl) {
     const portraitName = assets?.[0];
-    portraitEl.style.backgroundImage = `url("${valueMap[portraitName]}")`;
-    portraitEl.style.backgroundRepeat = "no-repeat";
-    portraitEl.style.backgroundPosition = "center";
-    portraitEl.style.display = assets ? null : "none";
+    const portraitUrl = valueMap?.[portraitName];
+    if (portraitUrl) {
+      portraitEl.style.backgroundImage = `url("${portraitUrl}")`;
+      portraitEl.style.backgroundRepeat = "no-repeat";
+      portraitEl.style.backgroundPosition = "center";
+      portraitEl.style.display = null;
+    } else {
+      portraitEl.style.display = "none";
+    }
   }
   if (parentheticalEl) {
     parentheticalEl.replaceChildren(parenthetical);
