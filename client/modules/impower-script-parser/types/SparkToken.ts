@@ -2,6 +2,7 @@ import { SparkCallTokenType, SparkEntityTokenType } from "..";
 import { SparkLine } from "./SparkLine";
 import {
   SparkActionTokenType,
+  SparkAssetsTokenType,
   SparkAssetTokenType,
   SparkAssignTokenType,
   SparkCenteredTokenType,
@@ -102,6 +103,12 @@ export interface SparkDialogueToken extends SparkLine {
 
 export interface SparkActionToken extends SparkLine {
   type: SparkActionTokenType;
+  assets?: { name: string }[];
+}
+
+export interface SparkAssetsToken extends SparkLine {
+  type: SparkAssetsTokenType;
+  assets?: { name: string }[];
 }
 
 export interface SparkTransitionToken extends SparkLine {
@@ -121,7 +128,8 @@ export type SparkDisplayToken =
   | SparkDialogueToken
   | SparkActionToken
   | SparkTransitionToken
-  | SparkCenteredToken;
+  | SparkCenteredToken
+  | SparkAssetsToken;
 
 export type SparkToken =
   | SparkAssetToken
@@ -141,4 +149,5 @@ export type SparkToken =
   | SparkActionToken
   | SparkTransitionToken
   | SparkCenteredToken
+  | SparkAssetsToken
   | SparkOtherToken;

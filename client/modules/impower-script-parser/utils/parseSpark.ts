@@ -17,6 +17,7 @@ import { SparkParseResult } from "../types/SparkParseResult";
 import { SparkSection } from "../types/SparkSection";
 import { SparkTag } from "../types/SparkTag";
 import {
+  SparkAssetsToken,
   SparkChoiceToken,
   SparkConditionToken,
   SparkToken,
@@ -1510,12 +1511,23 @@ export const parseSpark = (
     }
   };
 
-  const saveAndClearAssets = (): void => {
+  const saveAndClearDialogueOrActionAssets = (): void => {
     const save = previousAssets.length > 0;
-    if (save && currentToken.type === "dialogue") {
+    if (
+      save &&
+      (currentToken.type === "dialogue" || currentToken.type === "action")
+    ) {
       currentToken.assets = [...previousAssets];
     }
     previousAssets = [];
+  };
+
+  const saveAndClearAssetsToken = (assetsToken: SparkAssetsToken): void => {
+    if (assetsToken.type === "assets") {
+      assetsToken.assets = [...previousAssets];
+      previousAssets = [];
+      pushToken(assetsToken);
+    }
   };
 
   const reduceBlockComment = (prev: string, current: string): string => {
@@ -1790,8 +1802,7 @@ export const parseSpark = (
     );
     current = currentToken.to + 1;
 
-    const isChoiceOrLogic = text.match(/^[\t ]*[*+-]/);
-    if (isChoiceOrLogic) {
+    if (text.match(sparkRegexes.dialogue_terminator)) {
       if (displayTokenTypes.includes(previousToken?.type)) {
         previousToken.wait = false;
       }
@@ -1801,6 +1812,11 @@ export const parseSpark = (
       if (state === "dual_dialogue") {
         pushToken(createSparkToken("dual_dialogue_end"));
       }
+      if (previousToken.type === "action_asset") {
+        saveAndClearAssetsToken(
+          createSparkToken("assets", "", i + 1, current, newLineLength)
+        );
+      }
       state = "normal";
     } else if (text.trim() === "_") {
       if (state === "dialogue") {
@@ -1808,6 +1824,11 @@ export const parseSpark = (
       }
       if (state === "dual_dialogue") {
         pushToken(createSparkToken("dual_dialogue_end"));
+      }
+      if (previousToken.type === "action_asset") {
+        saveAndClearAssetsToken(
+          createSparkToken("assets", "", i + 1, current, newLineLength)
+        );
       }
       state = "normal";
     } else if (text.trim().length === 0 && text.length < 2) {
@@ -1827,6 +1848,11 @@ export const parseSpark = (
       if (state === "dual_dialogue") {
         pushToken(createSparkToken("dual_dialogue_end"));
       }
+      if (previousToken.type === "action_asset") {
+        saveAndClearAssetsToken(
+          createSparkToken("assets", "", i + 1, current, newLineLength)
+        );
+      }
       state = "normal";
 
       if (skip_separator || state === "title_page") {
@@ -1834,7 +1860,7 @@ export const parseSpark = (
       }
       dualRight = false;
       currentToken.type = "separator";
-      saveAndClearAssets();
+      saveAndClearDialogueOrActionAssets();
       pushToken(currentToken);
       previousToken = currentToken;
       continue;
@@ -2383,7 +2409,7 @@ export const parseSpark = (
           currentToken.wait = true;
           pushNotes();
           saveAndClearNotes();
-          saveAndClearAssets();
+          saveAndClearDialogueOrActionAssets();
           const expression = `\`${currentToken.content}\``;
           const expressionFrom = currentToken.from - 1;
           checkExpressionValue(expression, expressionFrom);
@@ -2407,7 +2433,7 @@ export const parseSpark = (
         currentToken.content = currentToken.content?.trim();
         pushNotes();
         saveAndClearNotes();
-        saveAndClearAssets();
+        saveAndClearDialogueOrActionAssets();
         if (currentToken.type === "dialogue") {
           currentToken.wait = true;
           if (previousCharacter) {

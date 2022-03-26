@@ -17,6 +17,7 @@ export type SparkSectionTokenType = "section";
 export type SparkSceneTokenType = "scene";
 export type SparkDialogueTokenType = "dialogue";
 export type SparkActionTokenType = "action";
+export type SparkAssetsTokenType = "assets";
 export type SparkTransitionTokenType = "transition";
 export type SparkCenteredTokenType = "centered";
 export type SparkPositionTokenType =
@@ -31,8 +32,8 @@ export type SparkOtherTokenType =
   | "synopses"
   | "separator"
   | "page_break"
-  | "action_asset"
   | "dialogue_asset"
+  | "action_asset"
   | "dialogue_end"
   | "dual_dialogue_begin"
   | "dual_dialogue_end"
@@ -60,5 +61,6 @@ export type SparkTokenType =
   | SparkActionTokenType
   | SparkTransitionTokenType
   | SparkCenteredTokenType
+  | SparkAssetsTokenType
   | SparkPositionTokenType
   | SparkOtherTokenType;

@@ -155,6 +155,13 @@ export const DefaultInline: {
     if (next !== charCode) {
       return -1;
     }
+    let newlinePos = start + 1;
+    while (newlinePos < cx.end) {
+      if (newline(cx.char(newlinePos))) {
+        return -1;
+      }
+      newlinePos += 1;
+    }
     let pos = start + 1;
     while (cx.char(pos) === next) {
       pos += 1;

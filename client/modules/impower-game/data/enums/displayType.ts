@@ -4,5 +4,5 @@ export enum DisplayType {
   Centered = "centered",
   Transition = "transition",
   Scene = "scene",
-  Asset = "asset",
+  Assets = "assets",
 }

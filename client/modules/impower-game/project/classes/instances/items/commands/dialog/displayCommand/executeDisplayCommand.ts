@@ -21,7 +21,7 @@ export const executeDisplayCommand = (
     DisplayType
   ).map((x) => [x, document.querySelector(`#${ui} .${x}`)]);
   const character = data?.type === DisplayType.Dialogue ? data?.character : "";
-  const assets = data?.type === DisplayType.Dialogue ? data?.assets : [];
+  const assets = data?.assets;
   const parenthetical =
     data?.type === DisplayType.Dialogue ? data?.parenthetical : "";
   const content =
@@ -32,42 +32,47 @@ export const executeDisplayCommand = (
           .replace(/(?:\({2}(?!\(+))([\s\S]+?)(?:\){2}(?!\(+)) ?/g, ""); // Replace ((audio))
   const [replaceTagsResult] = format(content, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
-  if (dialogueGroupEl) {
-    dialogueGroupEl.style.display = data?.type === "dialogue" ? null : "none";
-  }
-  if (characterEl) {
-    characterEl.replaceChildren(character);
-    characterEl.style.display = character ? null : "none";
-  }
+  const assetsOnly = data?.type === DisplayType.Assets;
   if (portraitEl) {
-    const portraitName = assets?.[0];
-    const portraitUrl = valueMap?.[portraitName];
-    if (portraitUrl) {
-      portraitEl.style.backgroundImage = `url("${portraitUrl}")`;
-      portraitEl.style.backgroundRepeat = "no-repeat";
-      portraitEl.style.backgroundPosition = "center";
-      portraitEl.style.display = null;
-    } else {
-      portraitEl.style.display = "none";
+    if (assets) {
+      const portraitName = assets?.[0];
+      const portraitUrl = valueMap?.[portraitName];
+      if (portraitUrl) {
+        portraitEl.style.backgroundImage = `url("${portraitUrl}")`;
+        portraitEl.style.backgroundRepeat = "no-repeat";
+        portraitEl.style.backgroundPosition = "center";
+        portraitEl.style.display = null;
+      } else {
+        portraitEl.style.display = "none";
+      }
     }
   }
-  if (parentheticalEl) {
-    parentheticalEl.replaceChildren(parenthetical);
-    parentheticalEl.style.display = parenthetical ? null : "none";
+  if (!assetsOnly) {
+    if (dialogueGroupEl) {
+      dialogueGroupEl.style.display = data?.type === "dialogue" ? null : "none";
+    }
+    if (characterEl) {
+      characterEl.replaceChildren(character);
+      characterEl.style.display = character ? null : "none";
+    }
+    if (parentheticalEl) {
+      parentheticalEl.replaceChildren(parenthetical);
+      parentheticalEl.style.display = parenthetical ? null : "none";
+    }
+    contentElEntries.forEach(([type, el]) => {
+      if (el) {
+        el.replaceChildren(type === data?.type ? evaluatedContent : "");
+        el.style.display = type === data?.type ? null : "none";
+      }
+    });
+    const contentEls = document.querySelectorAll<HTMLButtonElement>(
+      `#${ui} .choice`
+    );
+    contentEls.forEach((el) => {
+      if (el) {
+        el.replaceChildren("");
+        el.style.display = "none";
+      }
+    });
   }
-  contentElEntries.forEach(([type, el]) => {
-    if (el) {
-      el.replaceChildren(type === data?.type ? evaluatedContent : "");
-      el.style.display = type === data?.type ? null : "none";
-    }
-  });
-  const contentEls = document.querySelectorAll<HTMLButtonElement>(
-    `#${ui} .choice`
-  );
-  contentEls.forEach((el) => {
-    if (el) {
-      el.replaceChildren("");
-      el.style.display = "none";
-    }
-  });
 };

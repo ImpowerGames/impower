@@ -46,14 +46,13 @@ const getDisplayCommand = (
     pos: token.from,
     line: token.line,
     indent: token.indent,
-    ui: "",
     type: token.type as DisplayType,
     position:
       (dialogueToken.position as DisplayPosition) || DisplayPosition.Default,
     character: dialogueToken.character || "",
     parenthetical: dialogueToken.parenthetical || "",
     content: dialogueToken.text || dialogueToken.content,
-    assets: dialogueToken.assets?.map(({ name }) => name) || [],
+    assets: dialogueToken.assets?.map(({ name }) => name),
     waitUntilFinished: Boolean(token.wait),
   };
 };
@@ -193,6 +192,9 @@ export const getRuntimeCommand = (
     return getDisplayCommand(token, sectionId);
   }
   if (token.type === "scene") {
+    return getDisplayCommand(token, sectionId);
+  }
+  if (token.type === "assets") {
     return getDisplayCommand(token, sectionId);
   }
 

@@ -1,3 +1,4 @@
+import { sparkRegexes } from "../../impower-script-parser";
 import { BlockContext } from "../classes/BlockContext";
 import { CompositeBlock } from "../classes/CompositeBlock";
 import { Line } from "../classes/Line";
@@ -41,9 +42,8 @@ export const DefaultSkipMarkup: {
     return false;
   },
   [Type.Dialogue](_bl, cx, line) {
-    const isChoiceOrLogic = line.text.match(/^[\t ]*[*+-]/);
     if (
-      isChoiceOrLogic ||
+      line.text.match(sparkRegexes.dialogue_terminator) ||
       line.text.trim() === "_" ||
       (line.text.trim().length === 0 && line.text.length < 2)
     ) {
