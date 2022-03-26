@@ -1,6 +1,6 @@
 export const getAncestorIds = (sectionId: string): string[] => {
-  if (sectionId == null) {
-    return [];
+  if (!sectionId) {
+    return [""];
   }
   const parts = sectionId.split(".");
   const partsCount = parts.length - 1;

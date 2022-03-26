@@ -46,6 +46,10 @@ export const parseSpark = (
   };
 
   Object.entries(augmentations?.variables || {}).forEach(([id, d]) => {
+    if (!parsed.variables) {
+      parsed.variables = {};
+    }
+    parsed.variables[id] = d;
     const parentId = id.split(".").slice(0, -1).join(".") || "";
     if (!parsed.sections) {
       parsed.sections = {};
@@ -59,6 +63,10 @@ export const parseSpark = (
     parsed.sections[parentId].variables[id] = d;
   });
   Object.entries(augmentations?.tags || {}).forEach(([id, d]) => {
+    if (!parsed.tags) {
+      parsed.tags = {};
+    }
+    parsed.tags[id] = d;
     const parentId = id.split(".").slice(0, -1).join(".") || "";
     if (!parsed.sections) {
       parsed.sections = {};
@@ -72,6 +80,10 @@ export const parseSpark = (
     parsed.sections[parentId].tags[id] = d;
   });
   Object.entries(augmentations?.assets || {}).forEach(([id, d]) => {
+    if (!parsed.assets) {
+      parsed.assets = {};
+    }
+    parsed.assets[id] = d;
     const parentId = id.split(".").slice(0, -1).join(".") || "";
     if (!parsed.sections) {
       parsed.sections = {};
