@@ -171,6 +171,7 @@ export const getRuntimeCommand = (
       pos: token.from,
       line: token.line,
       indent: token.indent,
+      operator: token.operator,
       value: token.value,
       calls: token.calls,
       content: token.content,

@@ -2112,12 +2112,12 @@ export const parseSpark = (
           currentToken.type = "choice";
           if (currentToken.type === "choice") {
             if ((match = lint(sparkRegexes.choice))) {
-              const mark = match[2] || "";
+              const mark = (match[2] || "") as "+" | "-";
               const content = match[4] || "";
               const valueText = match[8] || "";
               const contentFrom = currentToken.from + getStart(match, 4);
               const valueFrom = currentToken.from + getStart(match, 8);
-              currentToken.mark = mark;
+              currentToken.operator = mark;
               currentToken.content = content;
               currentToken.value = valueText;
               currentToken.calls = getSectionCalls(valueText, valueFrom);

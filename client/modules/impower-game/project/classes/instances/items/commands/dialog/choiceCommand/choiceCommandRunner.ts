@@ -18,7 +18,12 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     context: CommandContext,
     game: ImpowerGame
   ): number[] {
-    const { index, value, calls } = data;
+    const { index, value, calls, operator } = data;
+
+    if (index === 0) {
+      this.value = null;
+      this.calls = null;
+    }
 
     const pos = data?.pos;
     const line = data?.line;
@@ -26,9 +31,11 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     const commandId = data.reference.refId;
     const commandIndex = index;
 
-    if (index === 0) {
-      this.value = null;
-      this.calls = null;
+    const blockState = game?.logic?.state?.blockStates?.[blockId];
+    const currentCount = blockState?.choiceChosenCounts?.[commandId] || 0;
+
+    if (operator === "-" && currentCount > 0) {
+      return super.onExecute(data, context, game);
     }
 
     executeChoiceCommand(data, context, () => {
