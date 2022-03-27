@@ -32,7 +32,7 @@ export const getRuntimeBlocks = (
       triggers: section.triggers || [],
       children: section.children || [],
     });
-    section.tokens.forEach((token) => {
+    section.tokens?.forEach((token) => {
       const runtimeCommand = getRuntimeCommand(token, sectionId);
       if (runtimeCommand) {
         block.commands.order.push(runtimeCommand.reference.refId);
