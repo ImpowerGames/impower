@@ -3,7 +3,6 @@ export interface DisplayCommandConfig {
   letterFadeDuration: number;
   letterDelay: number;
   punctuationDelay: number;
-  ellipsisDelay: number;
   indicatorFadeDuration: number;
   indicatorAnimationName: string;
   indicatorAnimationDuration: number;

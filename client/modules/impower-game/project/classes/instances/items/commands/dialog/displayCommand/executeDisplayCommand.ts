@@ -1,3 +1,4 @@
+/* eslint-disable no-continue */
 import { format } from "../../../../../../../../impower-evaluate";
 import {
   DisplayCommandConfig,
@@ -8,9 +9,8 @@ import {
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   ui: "impower_ui",
   letterFadeDuration: 0,
-  letterDelay: 0.05,
-  punctuationDelay: 0.25,
-  ellipsisDelay: 0.5,
+  letterDelay: 0.02,
+  punctuationDelay: 0.2,
   indicatorFadeDuration: 0.15,
   indicatorAnimationName: "bounce",
   indicatorAnimationDuration: 0.5,
@@ -116,17 +116,17 @@ const getAnimatedSpanElements = (
   const letterFadeDuration = config?.letterFadeDuration || 0;
   const letterDelay = config?.letterDelay || 0;
   const punctuationDelay = config?.punctuationDelay || 0;
-  const ellipsisDelay = config?.ellipsisDelay || 0;
   const punctuationRegex = displayCommandRegexes?.punctuation;
   const ellipsisPartRegex = displayCommandRegexes?.ellipsisPart;
   const afterPunctuationSpaceSplitter =
     displayCommandRegexes?.spaceAfterSplitter;
-  const partEls: HTMLSpanElement[] = [];
+  const partEls: HTMLSpanElement[][] = [];
+  const flatPartEls: HTMLSpanElement[] = [];
   const createCharSpan = (
     part: string,
     totalDelay: number,
     style?: Partial<CSSStyleDeclaration>
-  ): void => {
+  ): HTMLSpanElement => {
     const partTextEl = document.createTextNode(part);
     const partWrapperEl = document.createElement("span");
     partWrapperEl.style.opacity = instant ? "1" : "0";
@@ -137,45 +137,114 @@ const getAnimatedSpanElements = (
       partWrapperEl.style[k] = v;
     });
     partWrapperEl.appendChild(partTextEl);
-    partEls.push(partWrapperEl);
+    return partWrapperEl;
   };
   let totalDelay = 0;
   const splitContent = content
     .split(punctuationRegex)
     .flatMap((s) => (s.match(punctuationRegex) ? s : s.split("")));
-  for (let i = 0; i < splitContent.length; i += 1) {
+  const marks: [string, number][] = [];
+  for (let i = 0; i < splitContent.length; ) {
     const part = splitContent[i];
+    const lastMark = marks[marks.length - 1]?.[0];
+    if (splitContent.slice(i, i + 3).join("") === "***") {
+      if (lastMark === "***") {
+        marks.pop();
+      } else {
+        marks.push(["***", i]);
+      }
+      i += 3;
+      continue;
+    }
+    if (splitContent.slice(i, i + 2).join("") === "**") {
+      if (lastMark === "**") {
+        marks.pop();
+      } else {
+        marks.push(["**", i]);
+      }
+      i += 2;
+      continue;
+    }
+    if (part === "*") {
+      if (lastMark === "*") {
+        marks.pop();
+      } else {
+        marks.push([part, i]);
+      }
+      i += 1;
+      continue;
+    }
+    if (part === "_") {
+      if (lastMark === "_") {
+        marks.pop();
+      } else {
+        marks.push([part, i]);
+      }
+      i += 1;
+      continue;
+    }
+    const markers = marks.map((x) => x[0]);
+    const isUnderline = markers.includes("_");
+    const isBoldAndItalic = markers.includes("***");
+    const isBold = markers.includes("**");
+    const isItalic = markers.includes("*");
+    const style: Partial<CSSStyleDeclaration> = {
+      textDecoration: isUnderline ? "underline" : null,
+      fontStyle: isItalic || isBoldAndItalic ? "italic" : null,
+      fontWeight: isBold || isBoldAndItalic ? "bold" : null,
+    };
     if (part.length > 1) {
       const isEllipsis = ellipsisPartRegex.test(part);
       const splitPunctuation = isEllipsis
         ? part.split("")
         : part.split(afterPunctuationSpaceSplitter);
+      const spans: HTMLSpanElement[] = [];
       for (let p = 0; p < splitPunctuation.length; p += 1) {
         const punctuation = splitPunctuation[p];
-        const charDelay = isEllipsis
-          ? ellipsisDelay
-          : punctuation === " "
-          ? punctuationDelay
-          : letterDelay;
-        const styleDebug = debug
-          ? {
-              backgroundColor:
-                charDelay === ellipsisDelay
-                  ? displayCommandDebugColors.ellipsis
-                  : charDelay === punctuationDelay
-                  ? displayCommandDebugColors.spaceAfter
-                  : displayCommandDebugColors.punctuation,
-            }
+        const charDelay =
+          isEllipsis || punctuation === " " ? punctuationDelay : letterDelay;
+        style.backgroundColor = debug
+          ? charDelay === punctuationDelay
+            ? displayCommandDebugColors.spaceAfter
+            : displayCommandDebugColors.punctuation
           : undefined;
-        createCharSpan(punctuation, totalDelay, styleDebug);
+        spans.push(createCharSpan(punctuation, totalDelay, style));
         totalDelay += charDelay;
       }
+      partEls[i] = spans;
+      flatPartEls.push(...spans);
     } else {
-      createCharSpan(part, totalDelay);
+      const span = createCharSpan(part, totalDelay, style);
+      partEls[i] = [span];
+      flatPartEls.push(span);
       totalDelay += letterDelay;
     }
+    i += 1;
   }
-  return [partEls, totalDelay];
+  // Invalidate any leftover open markers
+  if (marks.length > 0) {
+    while (marks.length > 0) {
+      const [lastMark, lastMarkIndex] = marks[marks.length - 1];
+      const invalidStyleEls = partEls.slice(lastMarkIndex).flatMap((x) => x);
+      invalidStyleEls.forEach((e) => {
+        if (lastMark === "***") {
+          e.style.fontWeight = null;
+          e.style.fontStyle = null;
+        }
+        if (lastMark === "**") {
+          e.style.fontWeight = null;
+        }
+        if (lastMark === "*") {
+          e.style.fontStyle = null;
+        }
+        if (lastMark === "_") {
+          e.style.textDecoration = null;
+        }
+      });
+      marks.pop();
+    }
+  }
+  return [flatPartEls, totalDelay];
 };
 
 export const executeDisplayCommand = (
@@ -224,22 +293,20 @@ export const executeDisplayCommand = (
           .replace(/(?:\({2}(?!\(+))([\s\S]+?)(?:\){2}(?!\(+)) ?/g, ""); // Replace ((audio))
   const [replaceTagsResult] = format(content, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
-  const assetsOnly = data?.type === DisplayType.Assets;
   if (portraitEl) {
-    if (assets) {
-      const portraitName = assets?.[0];
-      const portraitUrl = valueMap?.[portraitName];
-      if (portraitUrl) {
-        portraitEl.style.backgroundImage = `url("${portraitUrl}")`;
-        portraitEl.style.backgroundRepeat = "no-repeat";
-        portraitEl.style.backgroundPosition = "center";
-        portraitEl.style.display = null;
-      } else {
-        portraitEl.style.display = "none";
-      }
+    const portraitName = assets?.[0];
+    const portraitUrl = valueMap?.[portraitName];
+    if (portraitUrl) {
+      portraitEl.style.backgroundImage = `url("${portraitUrl}")`;
+      portraitEl.style.backgroundRepeat = "no-repeat";
+      portraitEl.style.backgroundPosition = "center";
+      portraitEl.style.display = null;
+    } else {
+      portraitEl.style.display = "none";
     }
   }
 
+  const assetsOnly = data?.type === DisplayType.Assets;
   if (assetsOnly) {
     return 0;
   }
