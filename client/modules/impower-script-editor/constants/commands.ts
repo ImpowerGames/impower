@@ -18,6 +18,7 @@ import { itemNumber } from "../utils/itemNumber";
 import { sparkLanguage } from "../utils/sparkLanguage";
 
 const START_REGEX = /^[\s\d.)\-+*>]*/;
+const CONTINUE_REGEX = /^([ \t]*)([-+*])([ \t]+)/;
 
 function nodeStart(node: SyntaxNode, doc: Text) {
   return doc.sliceString(node.from, node.from + 50);
@@ -48,6 +49,21 @@ function getContext(node: SyntaxNode, line: string, doc: Text): Context[] {
       let after = match[3];
       let len = match[0].length;
       if (after.length >= 4) {
+        after = after.slice(0, after.length - 4);
+        len -= 4;
+      }
+      pos += len;
+      context.push(
+        new Context(node.parent, start, pos, match[1], after, match[2], node)
+      );
+    } else if (
+      node.name === "ListItem" &&
+      node.parent.name === "BulletList" &&
+      (match = CONTINUE_REGEX.exec(nodeStart(node, doc)))
+    ) {
+      let after = match[3];
+      let len = match[0].length;
+      if (after.length > 4) {
         after = after.slice(0, after.length - 4);
         len -= 4;
       }
@@ -103,17 +119,25 @@ export const insertNewlineContinueMarkup: StateCommand = ({
   const { doc } = state;
   let dont = null;
   const changes = state.changeByRange((range) => {
-    if (!range.empty || !sparkLanguage.isActiveAt(state, range.from))
+    if (!range.empty || !sparkLanguage.isActiveAt(state, range.from)) {
       return (dont = { range });
+    }
     const pos = range.from;
     const line = doc.lineAt(pos);
     const context = getContext(tree.resolveInner(pos, -1), line.text, doc);
-    while (context.length && context[context.length - 1].from > pos - line.from)
+    while (
+      context.length &&
+      context[context.length - 1].from > pos - line.from
+    ) {
       context.pop();
-    if (!context.length) return (dont = { range });
-    const inner = context[context.length - 1];
-    if (inner.to - inner.spaceAfter.length > pos - line.from)
+    }
+    if (!context.length) {
       return (dont = { range });
+    }
+    const inner = context[context.length - 1];
+    if (inner.to - inner.spaceAfter.length > pos - line.from) {
+      return (dont = { range });
+    }
 
     const emptyLine =
       pos >= inner.to - inner.spaceAfter.length &&
@@ -121,10 +145,7 @@ export const insertNewlineContinueMarkup: StateCommand = ({
     // Empty line in list
     if (inner.item && emptyLine) {
       // First list item or blank line before: delete a level of markup
-      if (
-        inner.node.firstChild?.to >= pos ||
-        (line.from > 0 && !/[^\s>]/.test(doc.lineAt(line.from - 1).text))
-      ) {
+      if (inner.node.firstChild?.to >= pos || line.from > 0) {
         const next = context.length > 1 ? context[context.length - 2] : null;
         let delTo;
         let insert = "";
@@ -148,15 +169,16 @@ export const insertNewlineContinueMarkup: StateCommand = ({
         };
       }
       // Move this line down
-      let insert = "";
-      for (let i = 0, e = context.length - 2; i <= e; i += 1) {
-        insert += context[i].blank(i < e);
-      }
-      insert += state.lineBreak;
-      return {
-        range: EditorSelection.cursor(pos + insert.length),
-        changes: { from: line.from, insert },
-      };
+      // let insert = "";
+      // for (let i = 0, e = context.length - 2; i <= e; i += 1) {
+      //   insert += context[i].blank(i < e);
+      // }
+      // insert += state.lineBreak;
+      // console.log("here2");
+      // return {
+      //   range: EditorSelection.cursor(pos + insert.length),
+      //   changes: { from: line.from, insert },
+      // };
     }
 
     const changes: ChangeSpec[] = [];
@@ -169,7 +191,7 @@ export const insertNewlineContinueMarkup: StateCommand = ({
     if (!continued || START_REGEX.exec(line.text)?.[0].length >= inner.to) {
       for (let i = 0, e = context.length - 1; i <= e; i += 1) {
         insert +=
-          i === e && !continued
+          i === e && !continued && !line.text.match(sparkRegexes.condition)
             ? context[i].marker(doc, 1)
             : context[i].blank();
       }
@@ -184,7 +206,9 @@ export const insertNewlineContinueMarkup: StateCommand = ({
     changes.push({ from, to: pos, insert });
     return { range: EditorSelection.cursor(from + insert.length), changes };
   });
-  if (dont) return false;
+  if (dont) {
+    return false;
+  }
   dispatch(state.update(changes, { scrollIntoView: true, userEvent: "input" }));
   return true;
 };
@@ -203,7 +227,7 @@ function contextNodeForDelete(tree: Tree, pos: number) {
   for (let prev; (prev = node.childBefore(scan)); ) {
     if (isMark(prev)) {
       scan = prev.from;
-    } else if (prev.name === "OrderedList") {
+    } else if (prev.name === "OrderedList" || prev.name === "BulletList") {
       node = prev.lastChild;
       scan = node.to;
     } else {
@@ -243,19 +267,21 @@ export const deleteMarkupBackward: StateCommand = ({ state, dispatch }) => {
         if (
           pos - line.from > spaceEnd &&
           !/\S/.test(line.text.slice(spaceEnd, pos - line.from))
-        )
+        ) {
           return {
             range: EditorSelection.cursor(line.from + spaceEnd),
             changes: { from: line.from + spaceEnd, to: pos },
           };
+        }
         if (pos - line.from === spaceEnd) {
           const start = line.from + inner.from;
           // Replace a list item marker with blank space
           if (
             inner.item &&
             inner.node.from < inner.item.from &&
-            /\S/.test(line.text.slice(inner.from, inner.to))
-          )
+            /\S/.test(line.text.slice(inner.from, inner.to)) &&
+            inner.node.name !== "BulletList"
+          ) {
             return {
               range,
               changes: {
@@ -264,12 +290,14 @@ export const deleteMarkupBackward: StateCommand = ({ state, dispatch }) => {
                 insert: inner.blank(),
               },
             };
+          }
           // Delete one level of indentation
-          if (start < pos)
+          if (start < pos) {
             return {
               range: EditorSelection.cursor(start),
               changes: { from: start, to: pos },
             };
+          }
         }
       }
     }

@@ -297,12 +297,12 @@ export const scenePrefixSnippets: readonly Completion[] = [
 ];
 
 export const choiceSnippets: readonly Completion[] = [
-  snip("+ ${}${choice} > ${SectionName}", {
+  snip("+ ${}${choice}${}", {
     label: "+ choice",
     info: (): Node => getInfoNode(`(always shown)`),
     type: "choice_plus",
   }),
-  snip("- ${}${choice} > ${SectionName}", {
+  snip("- ${}${choice}${}", {
     label: "- choice",
     info: (): Node => getInfoNode(`(if chosen, won't be shown again)`),
     type: "choice_minus",
@@ -541,7 +541,6 @@ export const assignOrCallSnippets = (
 ): Completion[] => {
   const functionIds = getFunctionIds(sectionId, sections);
   const snippets = [
-    ...conditionSnippets,
     ...nameSnippets(
       variableOptions,
       "variable",
@@ -549,6 +548,7 @@ export const assignOrCallSnippets = (
       " = ${}${value}",
       colors.variableName
     ),
+    ...conditionSnippets,
     ...functionIds.map((id) => {
       const section = sections[id];
       const name = section?.name;
