@@ -112,6 +112,8 @@ const ContainerScriptEditor = React.memo(
     const scrollTopLineRef = useRef<number>();
     const parseResultRef = useRef<SparkParseResult>();
     const currentSectionNameRef = useRef<string>();
+    const variableValueListenerRef =
+      useRef<(data: { id: string; value: unknown }) => void>();
     const gameRef = useRef(game);
     gameRef.current = game;
 
@@ -391,6 +393,47 @@ const ContainerScriptEditor = React.memo(
       []
     );
 
+    const handleObserveRuntimeValue = useCallback(
+      (listener: (id: string, value: unknown) => void): void => {
+        if (!gameRef.current) {
+          return;
+        }
+        if (variableValueListenerRef.current) {
+          gameRef.current.logic.events.onSetVariableValue.removeListener(
+            variableValueListenerRef.current
+          );
+          gameRef.current.logic.events.onExecuteBlock.removeListener(
+            variableValueListenerRef.current
+          );
+        }
+        const onSetVariableValue = ({ id, value }): void => {
+          listener(id, value);
+        };
+        variableValueListenerRef.current = onSetVariableValue;
+        gameRef.current.logic.events.onSetVariableValue.addListener(
+          variableValueListenerRef.current
+        );
+        gameRef.current.logic.events.onExecuteBlock.addListener(
+          variableValueListenerRef.current
+        );
+      },
+      []
+    );
+
+    useEffect(() => {
+      const variableListener = variableValueListenerRef.current;
+      return (): void => {
+        if (variableListener) {
+          gameRef.current.logic.events.onSetVariableValue.removeListener(
+            variableListener
+          );
+          gameRef.current.logic.events.onExecuteBlock.removeListener(
+            variableListener
+          );
+        }
+      };
+    }, []);
+
     useEffect(() => {
       if (mode === "Edit" && parseResultState && previewCursor) {
         handlePreviewResult(
@@ -448,6 +491,7 @@ const ContainerScriptEditor = React.memo(
                 onCloseSearchLinePanel={handleCloseSearchLinePanel}
                 getRuntimeValue={handleGetRuntimeValue}
                 setRuntimeValue={handleSetRuntimeValue}
+                observeRuntimeValue={handleObserveRuntimeValue}
               />
             </StyledFadeAnimation>
           )}

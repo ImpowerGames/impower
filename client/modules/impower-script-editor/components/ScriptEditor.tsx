@@ -200,6 +200,9 @@ interface ScriptEditorProps {
   }) => void;
   getRuntimeValue?: (id: string) => unknown;
   setRuntimeValue?: (id: string, expression: string) => void;
+  observeRuntimeValue?: (
+    listener: (id: string, value: unknown) => void
+  ) => void;
   onScrollLine?: (event: Event, firstVisibleLine: number) => void;
   onOpenSearchTextPanel?: (query?: SearchTextQuery) => void;
   onCloseSearchTextPanel?: (query?: SearchTextQuery) => void;
@@ -237,6 +240,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     onScrollLine,
     getRuntimeValue,
     setRuntimeValue,
+    observeRuntimeValue,
     onOpenSearchTextPanel,
     onCloseSearchTextPanel,
     onOpenSearchLinePanel,
@@ -281,6 +285,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   getRuntimeValueRef.current = getRuntimeValue;
   const setRuntimeValueRef = useRef(setRuntimeValue);
   setRuntimeValueRef.current = setRuntimeValue;
+  const observeRuntimeValueRef = useRef(observeRuntimeValue);
+  observeRuntimeValueRef.current = observeRuntimeValue;
   const onOpenSearchTextPanelRef = useRef(onOpenSearchTextPanel);
   onOpenSearchTextPanelRef.current = onOpenSearchTextPanel;
   const onCloseSearchTextPanelRef = useRef(onCloseSearchTextPanel);
@@ -378,6 +384,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           },
           getRuntimeValue: getRuntimeValueRef.current,
           setRuntimeValue: setRuntimeValueRef.current,
+          observeRuntimeValue: observeRuntimeValueRef.current,
         }),
         tooltips({
           position: "absolute",

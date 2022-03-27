@@ -33,6 +33,7 @@ export interface LogicEvents {
     line: number;
     id: string;
     executedByBlockId: string;
+    value: number;
   }>;
   onFinishBlock: GameEvent<{
     pos: number;
@@ -147,6 +148,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
         line: number;
         id: string;
         executedByBlockId: string;
+        value: number;
       }>(),
       onFinishBlock: new GameEvent<{
         pos: number;
@@ -396,6 +398,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     this.events.onExecuteBlock.emit({
       pos: block.pos,
       line: block.line,
+      value: blockState.executionCount,
       ...data,
     });
   }

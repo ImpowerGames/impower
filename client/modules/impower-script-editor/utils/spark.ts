@@ -131,6 +131,9 @@ export function spark(
     parse: (script: string) => SparkParseResult;
     getRuntimeValue?: (id: string) => unknown;
     setRuntimeValue?: (id: string, expression: string) => void;
+    observeRuntimeValue?: (
+      listener: (id: string, value: unknown) => void
+    ) => void;
   } = { parse: parseSpark }
 ): LanguageSupport {
   const {
@@ -141,6 +144,7 @@ export function spark(
     parse,
     getRuntimeValue,
     setRuntimeValue,
+    observeRuntimeValue,
     initialParseResult,
   } = config;
   if (!(parser instanceof MarkdownParser)) {
@@ -195,7 +199,15 @@ export function spark(
     }),
     autocompletion({ aboveCursor: true, defaultKeymap: false }),
     hoverTooltip((v, p, s) =>
-      sparkTooltip(v, p, s, parseContext, getRuntimeValue, setRuntimeValue)
+      sparkTooltip(
+        v,
+        p,
+        s,
+        parseContext,
+        getRuntimeValue,
+        setRuntimeValue,
+        observeRuntimeValue
+      )
     ),
     sectionNamePreview({ parseContext }),
     snippetPreview(),

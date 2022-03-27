@@ -30,7 +30,8 @@ export const sparkTooltip = (
     result: SparkParseResult;
   },
   getRuntimeValue?: (id: string) => unknown,
-  setRuntimeValue?: (id: string, expression: string) => void
+  setRuntimeValue?: (id: string, expression: string) => void,
+  observeRuntimeValue?: (listener: (id: string, value: unknown) => void) => void
 ): Tooltip | Promise<Tooltip> => {
   const line = view.state.doc.lineAt(pos);
   const token = getSparkReferenceAt(line.number, pos, parseContext?.result);
@@ -79,6 +80,14 @@ export const sparkTooltip = (
           const expression = target.value;
           setRuntimeValue?.(token.id, expression);
         };
+        const onRuntimeValueChange = (id: string, value: unknown): void => {
+          if (id === token?.id) {
+            if (input) {
+              input.value = String(value);
+            }
+          }
+        };
+        observeRuntimeValue(onRuntimeValueChange);
         const typeText = document.createTextNode(item?.type);
         dom.appendChild(typeText);
         const separator = document.createElement("div");
