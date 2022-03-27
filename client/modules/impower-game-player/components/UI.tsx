@@ -243,18 +243,18 @@ const UI = React.memo((props: UIProps): JSX.Element => {
                       fontWeight: "bold",
                     }}
                   />
-                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <div
-                      className="indicator"
-                      style={{
-                        width: 0,
-                        height: 0,
-                        borderLeft: "8px solid transparent",
-                        borderRight: "8px solid transparent",
-                        borderTop: "8px solid #315881",
-                      }}
-                    />
-                  </div>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <div
+                    className="indicator"
+                    style={{
+                      width: 0,
+                      height: 0,
+                      borderLeft: "8px solid transparent",
+                      borderRight: "8px solid transparent",
+                      borderTop: "8px solid #315881",
+                    }}
+                  />
                 </div>
               </div>
             </div>
