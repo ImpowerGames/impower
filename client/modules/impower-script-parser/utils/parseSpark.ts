@@ -142,9 +142,11 @@ export const parseSpark = (
     if (!parsed.diagnostics) {
       parsed.diagnostics = [];
     }
-    const validFrom =
-      from >= 0 ? from : currentToken.from + currentToken.offset;
-    const validTo = to >= 0 ? to : currentToken.to;
+    const validFrom = Math.max(
+      0,
+      from >= 0 ? from : currentToken.from + currentToken.offset
+    );
+    const validTo = Math.min(script.length, to >= 0 ? to : currentToken.to);
     const source = `${severity.toUpperCase()}: line ${
       currentToken.line
     } column ${validFrom - currentToken.from}`;
@@ -157,8 +159,20 @@ export const parseSpark = (
         message,
         actions,
       });
+    } else if (currentToken.to > currentToken.from) {
+      parsed.diagnostics.push({
+        from: currentToken.from,
+        to: currentToken.to,
+        severity,
+        source,
+        message,
+        actions,
+      });
     } else {
-      console.error(`Invalid Diagnostic Range: ${validFrom}-${validTo}`);
+      console.error(
+        `Invalid Diagnostic Range: ${validFrom}-${validTo}`,
+        message
+      );
     }
   };
 
