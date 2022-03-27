@@ -1995,7 +1995,8 @@ export const parseSpark = (
           saveAndClearNotes();
           currentToken.content = currentToken.content.substring(1)?.trim();
           const expression = `\`${currentToken.content}\``;
-          const expressionFrom = currentToken.from - 1;
+          const expressionFrom =
+            currentToken.offset + currentToken.from - 1 + 1;
           checkExpressionValue(expression, expressionFrom);
         }
       } else if (currentToken.content.match(sparkRegexes.centered)) {
@@ -2003,12 +2004,13 @@ export const parseSpark = (
         if (currentToken.type === "centered") {
           if ((match = lint(sparkRegexes.centered))) {
             const content = match[4] || "";
+            const contentFrom = currentToken.from + getStart(match, 4);
             currentToken.wait = true;
             pushNotes();
             saveAndClearNotes();
             currentToken.content = content?.trim();
             const expression = `\`${currentToken.content}\``;
-            const expressionFrom = currentToken.from - 1;
+            const expressionFrom = contentFrom - 1;
             checkExpressionValue(expression, expressionFrom);
           }
         }
@@ -2224,7 +2226,6 @@ export const parseSpark = (
               const mark = (match[2] || "") as "+" | "-";
               const content = match[4] || "";
               const valueText = match[8] || "";
-              const contentFrom = currentToken.from + getStart(match, 4);
               const valueFrom = currentToken.from + getStart(match, 8);
               currentToken.operator = mark;
               currentToken.content = content;
@@ -2236,7 +2237,7 @@ export const parseSpark = (
               );
               currentToken.index = currentChoiceTokens?.length || 0;
               const expression = `\`${currentToken.content}\``;
-              const expressionFrom = contentFrom - 1;
+              const expressionFrom = valueFrom - 1;
               checkExpressionValue(expression, expressionFrom);
               currentChoiceTokens.push(currentToken);
             }
@@ -2437,7 +2438,7 @@ export const parseSpark = (
           saveAndClearNotes();
           saveAndClearDialogueOrActionAssets();
           const expression = `\`${currentToken.content}\``;
-          const expressionFrom = currentToken.from - 1;
+          const expressionFrom = currentToken.offset + currentToken.from - 1;
           checkExpressionValue(expression, expressionFrom);
         }
       }
@@ -2469,7 +2470,7 @@ export const parseSpark = (
             currentToken.parenthetical = previousParenthetical;
           }
           const expression = `\`${currentToken.content}\``;
-          const expressionFrom = currentToken.from - 1;
+          const expressionFrom = currentToken.offset + currentToken.from - 1;
           checkExpressionValue(expression, expressionFrom);
         }
         previousParenthetical = null;

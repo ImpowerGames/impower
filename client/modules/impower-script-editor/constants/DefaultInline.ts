@@ -239,6 +239,9 @@ export const DefaultInline: {
     if (close !== "]]" && close !== "))" && close !== "}}") {
       return -1;
     }
+    const trimmedStart = cx.text.trimStart();
+    const spaceLength = cx.text.length - trimmedStart.length;
+    const endPos = start + 2 - spaceLength;
     // Scanning back to the start marker
     for (let i = cx.parts.length - 1; i >= 0; i -= 1) {
       const part = cx.parts[i];
@@ -262,11 +265,10 @@ export const DefaultInline: {
             : type === Type.AudioNote
             ? Type.AudioNoteMark
             : Type.DynamicTagMark;
-        const startPos = part.from;
-        const endPos = start + 1;
+        const startPos = part.from - spaceLength;
         const content = [];
         content.unshift(new Element(mark, startPos, startPos + 2));
-        content.push(new Element(mark, endPos - 2, endPos));
+        content.push(new Element(mark, endPos - 3, endPos - 1));
         const tag = new Element(type, startPos, endPos, content);
         cx.parts[i] = tag;
         // Set any open-link markers before this link to invalid.
@@ -274,7 +276,7 @@ export const DefaultInline: {
           part.type === ImageNoteStart ||
           part.type === AudioNoteStart ||
           part.type === DynamicTagStart
-        )
+        ) {
           for (let j = 0; j < i; j += 1) {
             const p = cx.parts[j];
             if (
@@ -286,7 +288,8 @@ export const DefaultInline: {
               p.side = 0;
             }
           }
-        return tag.to;
+        }
+        return tag.to + spaceLength;
       }
     }
     return -1;
