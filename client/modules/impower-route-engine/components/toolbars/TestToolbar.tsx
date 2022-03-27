@@ -1,8 +1,15 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { IconButton, MenuItem, Typography } from "@material-ui/core";
+import {
+  IconButton,
+  ListItemIcon,
+  ListItemText,
+  MenuItem,
+  Typography,
+} from "@material-ui/core";
 import dynamic from "next/dynamic";
 import React, { useCallback, useContext, useMemo } from "react";
+import CheckRegularIcon from "../../../../resources/icons/regular/check.svg";
 import CirclePlayRegularIcon from "../../../../resources/icons/regular/circle-play.svg";
 import CircleQuestionRegularIcon from "../../../../resources/icons/regular/circle-question.svg";
 import CompressRegularIcon from "../../../../resources/icons/regular/compress.svg";
@@ -27,12 +34,24 @@ import {
   testModeChange,
   testPlaybackChange,
 } from "../../types/actions/testActions";
-import {
-  gamePreviewMenuItems,
-  GamePreviewMenuItemType,
-} from "../../types/info/menus";
 import { Control, Mode } from "../../types/state/testState";
 import { WindowType } from "../../types/state/windowState";
+
+export enum GamePreviewMenuItemType {
+  Page = "Page",
+  Debug = "Debug",
+  SaveGameState = "SaveGameState",
+  LoadGameState = "LoadGameState",
+}
+
+export const gamePreviewMenuItems: {
+  [type in GamePreviewMenuItemType]: string;
+} = {
+  Page: "Page Preview",
+  Debug: "Debug",
+  SaveGameState: "Save Game",
+  LoadGameState: "Load Game",
+};
 
 const DrawerMenu = dynamic(
   () => import("../../../impower-route/components/popups/DrawerMenu"),
@@ -242,12 +261,12 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
     },
     [dispatch]
   );
-  const handleViewGame = useCallback((): void => {
-    dispatch(testLayoutChange("Game"));
-  }, [dispatch]);
-  const handleViewPage = useCallback((): void => {
-    dispatch(testLayoutChange("Page"));
-  }, [dispatch]);
+  const handleView = useCallback(
+    (layout: "Page" | "Game"): void => {
+      dispatch(testLayoutChange(layout));
+    },
+    [dispatch]
+  );
 
   const handleBrowserNavigation = useCallback(
     (currState: Record<string, string>, prevState?: Record<string, string>) => {
@@ -279,20 +298,14 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
 
   const handleClickMenu = useCallback(
     (type: GamePreviewMenuItemType) => {
-      if (type === GamePreviewMenuItemType.ViewGame) {
-        handleViewGame();
+      if (type === GamePreviewMenuItemType.Page) {
+        handleView(layout === "Page" ? "Game" : "Page");
       }
-      if (type === GamePreviewMenuItemType.ViewPage) {
-        handleViewPage();
-      }
-      if (type === GamePreviewMenuItemType.ShowDebugOverlay) {
-        handleDebug(true);
-      }
-      if (type === GamePreviewMenuItemType.HideDebugOverlay) {
-        handleDebug(false);
+      if (type === GamePreviewMenuItemType.Debug) {
+        handleDebug(!debug);
       }
     },
-    [handleDebug, handleViewGame, handleViewPage]
+    [debug, handleDebug, handleView, layout]
   );
 
   const isPlayable = isGameDocument(doc);
@@ -301,27 +314,9 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   const menuItemKeys: GamePreviewMenuItemType[] = useMemo(
     () =>
       isPlayable
-        ? (Object.keys(gamePreviewMenuItems).filter((menuItemType) => {
-            if (
-              (menuItemType === GamePreviewMenuItemType.ShowDebugOverlay &&
-                debug) ||
-              (menuItemType === GamePreviewMenuItemType.HideDebugOverlay &&
-                !debug)
-            ) {
-              return false;
-            }
-            if (
-              (menuItemType === GamePreviewMenuItemType.ViewGame &&
-                layout === "Game") ||
-              (menuItemType === GamePreviewMenuItemType.ViewPage &&
-                layout === "Page")
-            ) {
-              return false;
-            }
-            return true;
-          }) as GamePreviewMenuItemType[])
+        ? (Object.keys(gamePreviewMenuItems) as GamePreviewMenuItemType[])
         : [],
-    [debug, isPlayable, layout]
+    [isPlayable]
   );
 
   const title = layout === "Page" ? "Page Preview" : "Game Preview";
@@ -425,7 +420,19 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
                       );
                     }}
                   >
-                    {gamePreviewMenuItems[menuItemType]}
+                    <ListItemIcon>
+                      {((menuItemType === GamePreviewMenuItemType.Debug &&
+                        debug) ||
+                        (menuItemType === GamePreviewMenuItemType.Page &&
+                          layout === "Page")) && (
+                        <FontIcon aria-label="check">
+                          <CheckRegularIcon />
+                        </FontIcon>
+                      )}
+                    </ListItemIcon>
+                    <ListItemText>
+                      {gamePreviewMenuItems[menuItemType]}
+                    </ListItemText>
                   </MenuItem>
                 ))}
               </DrawerMenu>

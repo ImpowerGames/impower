@@ -89,6 +89,7 @@ const ContainerScriptEditor = React.memo(
     const searchLineQuery = state?.panel?.panels?.[windowType]?.searchLineQuery;
     const snippetPreview = state?.panel?.panels?.[windowType]?.snippetPreview;
     const mode = state?.test?.mode;
+    const debug = state?.test?.debug;
     const id = state?.project?.id;
     const files = state?.project?.data?.files?.data;
     const defaultValue =
@@ -125,12 +126,15 @@ const ContainerScriptEditor = React.memo(
       fromLine: number;
       toLine: number;
     }>();
-    const [previewCursor, setPreviewCursor] = useState<{
+    const previewCursorRef = useRef<{
       anchor: number;
       head: number;
       fromLine: number;
       toLine: number;
     }>();
+    const [previewCursor, setPreviewCursor] = useState(
+      previewCursorRef.current
+    );
 
     useEffect(() => {
       const onExecuteCommand = (data: { pos: number; line: number }): void => {
@@ -283,7 +287,8 @@ const ContainerScriptEditor = React.memo(
         }
         if (cursorRef.current?.fromLine !== range.fromLine) {
           cursorRef.current = range;
-          setPreviewCursor(cursorRef.current);
+          previewCursorRef.current = range;
+          setPreviewCursor(previewCursorRef.current);
           handleDebouncedScriptCursor();
         }
       },
@@ -333,42 +338,59 @@ const ContainerScriptEditor = React.memo(
     );
 
     const handlePreviewResult = useCallback(
-      (result: SparkParseResult, pos: number, line: number) => {
-        if (line != null) {
-          let tokenIndex = result.scriptLines[line];
-          let token = result.scriptTokens[tokenIndex];
-          if (token) {
-            const skip = [
-              "dialogue_asset",
-              "action_asset",
-              "character",
-              "parenthetical",
-            ];
-            while (
-              tokenIndex < result.scriptTokens.length &&
-              skip.includes(token.type)
-            ) {
-              tokenIndex += 1;
-              token = result.scriptTokens[tokenIndex];
-            }
-            const [sectionId] = getSectionAt(pos, result);
-            const runtimeCommand = getRuntimeCommand(token, sectionId);
-            if (runtimeCommand) {
-              const commandInspector = gameInspector.getInspector(
-                runtimeCommand.reference
+      (
+        result: SparkParseResult,
+        pos: number,
+        line: number,
+        instant: boolean,
+        debug: boolean
+      ) => {
+        if (mode !== "Edit") {
+          return;
+        }
+        if (!result) {
+          return;
+        }
+        if (!line) {
+          return;
+        }
+        let tokenIndex = result.scriptLines[line];
+        let token = result.scriptTokens[tokenIndex];
+        if (token) {
+          const skip = [
+            "dialogue_asset",
+            "action_asset",
+            "character",
+            "parenthetical",
+          ];
+          while (
+            tokenIndex < result.scriptTokens.length &&
+            skip.includes(token.type)
+          ) {
+            tokenIndex += 1;
+            token = result.scriptTokens[tokenIndex];
+          }
+          const [sectionId] = getSectionAt(pos, result);
+          const runtimeCommand = getRuntimeCommand(token, sectionId);
+          if (runtimeCommand) {
+            const commandInspector = gameInspector.getInspector(
+              runtimeCommand.reference
+            );
+            if (commandInspector) {
+              const [, valueMap] = getScopedEvaluationContext(
+                sectionId,
+                result?.sections
               );
-              if (commandInspector) {
-                const [, valueMap] = getScopedEvaluationContext(
-                  sectionId,
-                  result?.sections
-                );
-                commandInspector.onPreview(runtimeCommand, { valueMap });
-              }
+              commandInspector.onPreview(runtimeCommand, {
+                valueMap,
+                instant,
+                debug,
+              });
             }
           }
         }
       },
-      [gameInspector]
+      [gameInspector, mode]
     );
 
     const handleGetRuntimeValue = useCallback((id: string): unknown => {
@@ -435,14 +457,16 @@ const ContainerScriptEditor = React.memo(
     }, []);
 
     useEffect(() => {
-      if (mode === "Edit" && parseResultState && previewCursor) {
+      if (parseResultState && previewCursor) {
         handlePreviewResult(
           parseResultState,
           previewCursor.anchor,
-          previewCursor.fromLine
+          previewCursor.fromLine,
+          true,
+          debug
         );
       }
-    }, [parseResultState, previewCursor, mode, handlePreviewResult]);
+    }, [previewCursor, debug, handlePreviewResult, parseResultState]);
 
     const theme = useTheme();
 

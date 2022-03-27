@@ -30,7 +30,6 @@ import {
   BottomNavigationBarSpacer,
 } from "../../../impower-route";
 import FadeAnimation from "../../../impower-route/components/animations/FadeAnimation";
-import UnmountAnimation from "../../../impower-route/components/animations/UnmountAnimation";
 import PlayerPreview from "../../../impower-route/components/elements/PlayerPreview";
 import Page from "../../../impower-route/components/layouts/Page";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
@@ -91,27 +90,22 @@ const StyledTestPlayerContent = styled.div`
 const StyledOverlay = styled.div`
   pointer-events: none;
   position: absolute;
-  top: 50%;
+  top: 0;
   right: 0;
-  bottom: 0;
+  bottom: 50%;
   left: 0;
+  margin: ${(props): string => props.theme.spacing(1)};
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  color: white;
 `;
 
 const StyledDebugOverlay = styled(FadeAnimation)`
-  position: absolute;
-  top: ${(props): string => props.theme.spacing(1)};
-  right: ${(props): string => props.theme.spacing(1)};
-  bottom: ${(props): string => props.theme.spacing(1)};
-  left: ${(props): string => props.theme.spacing(1)};
-
-  overflow: auto;
-
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   border-radius: ${(props): string => props.theme.spacing(1)};
-
   background-color: ${(props): string => props.theme.colors.black85};
-  color: white;
 `;
 
 const StyledDebugBackground = styled.div`
@@ -257,33 +251,31 @@ const TestOverlay = React.memo((props: TestOverlayProps): JSX.Element => {
   const { debug, logs, onClickLog } = props;
   return (
     <StyledOverlay>
-      <UnmountAnimation>
-        {debug && (
-          <StyledDebugOverlay initial={0} animate={1} exit={0} duration={0.2}>
-            <StyledDebugBackground>
-              <StyledDebugContent>
-                {logs.map((log, index): JSX.Element => {
-                  if (!log) {
-                    return null;
-                  }
-                  return (
-                    <VirtualizedItem key={log.id} index={index} minHeight={32}>
-                      <LogLine
-                        parentBlockId={log.parentBlockId}
-                        blockId={log.blockId}
-                        commandId={log.commandId}
-                        severity={log.severity}
-                        message={log.message}
-                        onClick={onClickLog}
-                      />
-                    </VirtualizedItem>
-                  );
-                })}
-              </StyledDebugContent>
-            </StyledDebugBackground>
-          </StyledDebugOverlay>
-        )}
-      </UnmountAnimation>
+      {debug && (
+        <StyledDebugOverlay initial={0} animate={1} exit={0} duration={0.2}>
+          <StyledDebugBackground>
+            <StyledDebugContent>
+              {logs.map((log, index): JSX.Element => {
+                if (!log) {
+                  return null;
+                }
+                return (
+                  <VirtualizedItem key={log.id} index={index} minHeight={32}>
+                    <LogLine
+                      parentBlockId={log.parentBlockId}
+                      blockId={log.blockId}
+                      commandId={log.commandId}
+                      severity={log.severity}
+                      message={log.message}
+                      onClick={onClickLog}
+                    />
+                  </VirtualizedItem>
+                );
+              })}
+            </StyledDebugContent>
+          </StyledDebugBackground>
+        </StyledDebugOverlay>
+      )}
     </StyledOverlay>
   );
 });

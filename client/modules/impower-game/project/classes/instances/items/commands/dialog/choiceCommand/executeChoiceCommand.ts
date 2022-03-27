@@ -9,7 +9,7 @@ export const executeChoiceCommand = (
   onClick?: () => void
 ): void => {
   const valueMap = context?.valueMap;
-  const ui = "impower-ui";
+  const ui = "impower_ui";
   const contentEls = document.querySelectorAll<HTMLButtonElement>(
     `#${ui} .choice`
   );

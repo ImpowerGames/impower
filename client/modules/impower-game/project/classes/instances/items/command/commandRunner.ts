@@ -17,6 +17,8 @@ export interface CommandContext {
     runner: CommandRunner;
     data: CommandData;
   }[];
+  instant?: boolean;
+  debug?: boolean;
 }
 
 export class CommandRunner<

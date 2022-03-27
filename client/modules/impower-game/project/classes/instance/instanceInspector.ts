@@ -142,6 +142,8 @@ export abstract class InstanceInspector<T extends InstanceData = InstanceData>
     _data: T,
     _context: {
       valueMap: Record<string, unknown>;
+      instant?: boolean;
+      debug?: boolean;
     }
   ): void {
     // NoOp
