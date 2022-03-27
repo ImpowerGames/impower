@@ -404,6 +404,13 @@ export const getSectionOptions = (
     info?: string | ((completion: Completion) => Node | Promise<Node>);
   }[] = [];
 
+  const label = "";
+  result.push({
+    template: prefix + label + suffix,
+    label: cleanedPrefix + label + cleanedSuffix,
+    detail: " (continue)",
+    type: "next",
+  });
   if (lastSiblingName) {
     const label = "]";
     result.push({
@@ -424,16 +431,6 @@ export const getSectionOptions = (
       type: "first_sibling",
     });
   }
-  if (nextName) {
-    const label = ">";
-    result.push({
-      template: prefix + label + suffix,
-      label: cleanedPrefix + label + cleanedSuffix,
-      detail: "(next section)",
-      info: (): Node => getInfoNode(`= ${nextName}`, colors.section),
-      type: "next",
-    });
-  }
   if (parentName) {
     const label = "^";
     result.push({
@@ -444,13 +441,16 @@ export const getSectionOptions = (
       type: "parent",
     });
   }
-  const label = "";
-  result.push({
-    template: prefix + label + suffix,
-    label: cleanedPrefix + label + cleanedSuffix,
-    detail: " (continue)",
-    type: "next",
-  });
+  if (nextName) {
+    const label = ">";
+    result.push({
+      template: prefix + label + suffix,
+      label: cleanedPrefix + label + cleanedSuffix,
+      detail: "(next section)",
+      info: (): Node => getInfoNode(`= ${nextName}`, colors.section),
+      type: "next",
+    });
+  }
   const getSectionOption = (
     id: string
   ): {
