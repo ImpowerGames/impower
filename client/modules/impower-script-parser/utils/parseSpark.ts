@@ -20,6 +20,7 @@ import {
   SparkAssetsToken,
   SparkChoiceToken,
   SparkConditionToken,
+  SparkDialogueToken,
   SparkToken,
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
@@ -1537,11 +1538,20 @@ export const parseSpark = (
   };
 
   const saveAndClearAssetsToken = (assetsToken: SparkAssetsToken): void => {
-    if (assetsToken.type === "assets") {
-      assetsToken.assets = [...previousAssets];
-      previousAssets = [];
-      pushToken(assetsToken);
-    }
+    assetsToken.assets = [...previousAssets];
+    previousAssets = [];
+    pushToken(assetsToken);
+  };
+
+  const saveAndClearDialogueToken = (
+    dialogueToken: SparkDialogueToken
+  ): void => {
+    dialogueToken.character = previousCharacter;
+    dialogueToken.parenthetical = previousParenthetical;
+    pushToken(dialogueToken);
+    saveAndClearDialogueOrActionAssets();
+    previousCharacter = null;
+    previousParenthetical = null;
   };
 
   const reduceBlockComment = (prev: string, current: string): string => {
@@ -1820,42 +1830,31 @@ export const parseSpark = (
       if (displayTokenTypes.includes(previousToken?.type)) {
         previousToken.wait = false;
       }
-      if (state === "dialogue") {
-        pushToken(createSparkToken("dialogue_end"));
-      }
-      if (state === "dual_dialogue") {
-        pushToken(createSparkToken("dual_dialogue_end"));
-      }
-      if (previousToken?.type === "action_asset") {
-        saveAndClearAssetsToken(
-          createSparkToken("assets", "", i + 1, current, newLineLength)
-        );
-      }
-      state = "normal";
-    } else if (text.trim() === "_") {
-      if (state === "dialogue") {
-        pushToken(createSparkToken("dialogue_end"));
-      }
-      if (state === "dual_dialogue") {
-        pushToken(createSparkToken("dual_dialogue_end"));
-      }
-      if (previousToken?.type === "action_asset") {
-        saveAndClearAssetsToken(
-          createSparkToken("assets", "", i + 1, current, newLineLength)
-        );
-      }
-      state = "normal";
-    } else if (text.trim().length === 0 && text.length < 2) {
-      const skip_separator =
-        ignoredLastToken &&
-        parsed.scriptTokens.length > 1 &&
-        parsed.scriptTokens[parsed.scriptTokens.length - 1]?.type ===
-          "separator";
+    }
 
-      if (ignoredLastToken) {
-        ignoredLastToken = false;
+    const isSeparator = text.trim().length === 0 && text.length < 2;
+    if (
+      text.match(sparkRegexes.dialogue_terminator) ||
+      text.trim() === "_" ||
+      isSeparator
+    ) {
+      if (state === "dialogue" || state === "dual_dialogue") {
+        if (
+          previousToken?.type === "parenthetical" ||
+          previousToken?.type === "dialogue_asset"
+        ) {
+          const dialogueToken = createSparkToken(
+            "dialogue",
+            "",
+            previousToken.line,
+            current,
+            newLineLength
+          );
+          if (dialogueToken.type === "dialogue") {
+            saveAndClearDialogueToken(dialogueToken);
+          }
+        }
       }
-
       if (state === "dialogue") {
         pushToken(createSparkToken("dialogue_end"));
       }
@@ -1869,15 +1868,28 @@ export const parseSpark = (
       }
       state = "normal";
 
-      if (skip_separator || state === "title_page") {
+      if (isSeparator) {
+        const skip_separator =
+          ignoredLastToken &&
+          parsed.scriptTokens.length > 1 &&
+          parsed.scriptTokens[parsed.scriptTokens.length - 1]?.type ===
+            "separator";
+
+        if (ignoredLastToken) {
+          ignoredLastToken = false;
+        }
+
+        if (skip_separator || state === "title_page") {
+          continue;
+        }
+
+        dualRight = false;
+        currentToken.type = "separator";
+        saveAndClearDialogueOrActionAssets();
+        pushToken(currentToken);
+        previousToken = currentToken;
         continue;
       }
-      dualRight = false;
-      currentToken.type = "separator";
-      saveAndClearDialogueOrActionAssets();
-      pushToken(currentToken);
-      previousToken = currentToken;
-      continue;
     }
 
     // top_or_separated = last_was_separator || i === 0;
@@ -2565,6 +2577,24 @@ export const parseSpark = (
         pushToken(currentToken);
         previousToken = currentToken;
         previousNonSeparatorToken = currentToken;
+      }
+    }
+  }
+
+  if (state === "dialogue" || state === "dual_dialogue") {
+    if (
+      previousToken?.type === "parenthetical" ||
+      previousToken?.type === "dialogue_asset"
+    ) {
+      const dialogueToken = createSparkToken(
+        "dialogue",
+        "",
+        previousToken.line,
+        current,
+        newLineLength
+      );
+      if (dialogueToken.type === "dialogue") {
+        saveAndClearDialogueToken(dialogueToken);
       }
     }
   }
