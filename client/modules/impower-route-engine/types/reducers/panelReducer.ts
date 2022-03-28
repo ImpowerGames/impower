@@ -386,6 +386,9 @@ const doSnippetPreview = (
   }
 ): PanelState => {
   const { windowType, snippetPreview } = payload;
+  if (state?.panels?.[windowType]?.snippetPreview === snippetPreview) {
+    return state;
+  }
   return {
     ...state,
     panels: {

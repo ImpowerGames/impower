@@ -4,7 +4,13 @@ import Menu from "@material-ui/core/Menu";
 import MenuItem from "@material-ui/core/MenuItem";
 import ToggleButton from "@material-ui/core/ToggleButton";
 import ToggleButtonGroup from "@material-ui/core/ToggleButtonGroup";
-import React, { useCallback, useContext, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import AlignCenterRegularIcon from "../../../../resources/icons/regular/align-center.svg";
 import ArrowRightToBracketRegularIcon from "../../../../resources/icons/regular/arrow-right-to-bracket.svg";
 import ArrowUpLeftFromCircleRegularIcon from "../../../../resources/icons/regular/arrow-up-left-from-circle.svg";
@@ -32,7 +38,6 @@ import SplitRegularIcon from "../../../../resources/icons/regular/split.svg";
 import UnderlineRegularIcon from "../../../../resources/icons/regular/underline.svg";
 import VolumeRegularIcon from "../../../../resources/icons/regular/volume.svg";
 import CaretDownSolidIcon from "../../../../resources/icons/solid/caret-down.svg";
-import { debounce } from "../../../impower-core";
 import { FontIcon } from "../../../impower-icon";
 import { Tooltip } from "../../../impower-route";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
@@ -70,6 +75,11 @@ const StyledSnippetContent = styled.div`
   width: 100%;
   height: 100%;
   color: white;
+`;
+
+const StyledButtonArea = styled.div`
+  flex: 1;
+  display: flex;
 `;
 
 const StyledToggleButton = styled(ToggleButton)`
@@ -611,7 +621,7 @@ const SnippetToolbar = React.memo((): JSX.Element => {
 
   const [anchorEl, setAnchorEl] = useState(null);
   const canCloseRef = useRef(false);
-  const snippetPreviewRef = useRef("");
+  const buttonAreaRef = useRef<HTMLDivElement>();
 
   const open = Boolean(anchorEl);
 
@@ -677,24 +687,12 @@ const SnippetToolbar = React.memo((): JSX.Element => {
     },
     [dispatch, handleRestoreFocus, windowType]
   );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleDebouncedSnippetPreview = useCallback(
-    debounce(() => {
-      dispatch(panelSnippetPreview(windowType, snippetPreviewRef.current));
-    }, 1),
-    [windowType]
-  );
   const handlePointerEnterGroup = useCallback(
     (e: React.MouseEvent, value: string): void => {
-      snippetPreviewRef.current = value;
-      handleDebouncedSnippetPreview();
+      dispatch(panelSnippetPreview(windowType, value));
     },
-    [handleDebouncedSnippetPreview]
+    [dispatch, windowType]
   );
-  const handlePointerLeaveGroup = useCallback((): void => {
-    snippetPreviewRef.current = "";
-    handleDebouncedSnippetPreview();
-  }, [handleDebouncedSnippetPreview]);
   const handlePointerDownGroup = useCallback(
     (e: React.MouseEvent): void => {
       handleRestoreFocus(e);
@@ -703,8 +701,7 @@ const SnippetToolbar = React.memo((): JSX.Element => {
   );
   const handleChangeGroup = useCallback(
     (e: React.MouseEvent, value: string): void => {
-      snippetPreviewRef.current = "";
-      dispatch(panelSnippetPreview(windowType, snippetPreviewRef.current));
+      dispatch(panelSnippetPreview(windowType, ""));
       handleRestoreFocus(e);
       const editorChange = {
         category,
@@ -716,6 +713,27 @@ const SnippetToolbar = React.memo((): JSX.Element => {
   );
 
   const inlineFormatting = !snippet && selected;
+
+  useEffect(() => {
+    const onPointerOver = (e: PointerEvent): void => {
+      const isDescendant = (el: HTMLElement, target: HTMLElement): boolean => {
+        if (target !== null) {
+          return el === target || isDescendant(el, target.parentElement);
+        }
+        return false;
+      };
+      if (!isDescendant(buttonAreaRef.current, e.target as HTMLElement)) {
+        dispatch(panelSnippetPreview(windowType, ""));
+      }
+    };
+    document.documentElement.addEventListener("pointerover", onPointerOver);
+    return (): void => {
+      document.documentElement.removeEventListener(
+        "pointerover",
+        onPointerOver
+      );
+    };
+  }, [dispatch, windowType]);
 
   return (
     <StyledSnippetToolbar
@@ -778,7 +796,7 @@ const SnippetToolbar = React.memo((): JSX.Element => {
             </StyledMenu>
           </>
         )}
-        <>
+        <StyledButtonArea ref={buttonAreaRef}>
           {inlineFormatting ? (
             <FormattingToolbar
               onPointerDown={handlePointerDownGroup}
@@ -788,12 +806,11 @@ const SnippetToolbar = React.memo((): JSX.Element => {
             <CategoryToolbar
               type={category}
               onPointerEnter={handlePointerEnterGroup}
-              onPointerLeave={handlePointerLeaveGroup}
               onPointerDown={handlePointerDownGroup}
               onChange={handleChangeGroup}
             />
           )}
-        </>
+        </StyledButtonArea>
       </StyledSnippetContent>
     </StyledSnippetToolbar>
   );
