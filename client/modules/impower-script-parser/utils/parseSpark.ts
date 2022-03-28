@@ -407,7 +407,7 @@ export const parseSpark = (
     if (!found) {
       diagnostic(
         currentToken,
-        `Cannot find ${type} named '${name}'`,
+        `Cannot find ${type === "method" ? "section" : type} named '${name}'`,
         [],
         from,
         to
