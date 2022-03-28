@@ -31,6 +31,7 @@ export const getRuntimeBlocks = (
           .map((p) => p.name) || [],
       triggers: section.triggers || [],
       children: section.children || [],
+      assets: section.assets || [],
     });
     section.tokens?.forEach((token) => {
       const runtimeCommand = getRuntimeCommand(token, sectionId);

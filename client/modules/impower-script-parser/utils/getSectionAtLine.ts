@@ -12,5 +12,5 @@ export const getSectionAtLine = (
       return [id, section];
     }
   }
-  return [undefined, undefined];
+  return ["", result?.sections[""]];
 };

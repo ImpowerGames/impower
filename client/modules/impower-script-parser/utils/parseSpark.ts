@@ -59,7 +59,7 @@ export const parseSpark = (
       parsed.sections = {};
     }
     if (!parsed.sections[parentId]) {
-      parsed.sections[parentId] = {};
+      parsed.sections[parentId] = { type: "section" };
     }
     if (!parsed.sections[parentId].variables) {
       parsed.sections[parentId].variables = {};
@@ -76,7 +76,7 @@ export const parseSpark = (
       parsed.sections = {};
     }
     if (!parsed.sections[parentId]) {
-      parsed.sections[parentId] = {};
+      parsed.sections[parentId] = { type: "section" };
     }
     if (!parsed.sections[parentId].tags) {
       parsed.sections[parentId].tags = {};
@@ -93,7 +93,7 @@ export const parseSpark = (
       parsed.sections = {};
     }
     if (!parsed.sections[parentId]) {
-      parsed.sections[parentId] = {};
+      parsed.sections[parentId] = { type: "section" };
     }
     if (!parsed.sections[parentId].assets) {
       parsed.sections[parentId].assets = {};
@@ -380,7 +380,10 @@ export const parseSpark = (
     lintName(section.name, nameFrom, nameTo);
     if (!parsed.sections[currentSectionId]) {
       section.index = Object.keys(parsed.sections).length;
-      parsed.sections[currentSectionId] = section;
+      parsed.sections[currentSectionId] = {
+        ...(parsed?.sections?.[currentSectionId] || {}),
+        ...section,
+      };
     }
     if (!parsed.sectionLines) {
       parsed.sectionLines = {};
