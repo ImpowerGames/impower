@@ -1554,6 +1554,16 @@ export const parseSpark = (
     previousParenthetical = null;
   };
 
+  const saveAndClearChoices = (): void => {
+    if (currentChoiceTokens) {
+      const count = currentChoiceTokens.length;
+      currentChoiceTokens.forEach((t) => {
+        t.count = count;
+      });
+    }
+    currentChoiceTokens = [];
+  };
+
   const reduceBlockComment = (prev: string, current: string): string => {
     if (current === "/*") {
       nestedComments += 1;
@@ -1886,6 +1896,7 @@ export const parseSpark = (
         dualRight = false;
         currentToken.type = "separator";
         saveAndClearDialogueOrActionAssets();
+        saveAndClearChoices();
         pushToken(currentToken);
         previousToken = currentToken;
         continue;
@@ -2491,16 +2502,6 @@ export const parseSpark = (
       !(currentToken.type === "dialogue" && currentToken.content === "  ")
     ) {
       currentToken.content = currentToken.content?.trim();
-    }
-
-    if (currentToken.type !== "choice") {
-      if (currentChoiceTokens) {
-        const count = currentChoiceTokens.length;
-        currentChoiceTokens.forEach((t) => {
-          t.count = count;
-        });
-      }
-      currentChoiceTokens = [];
     }
 
     if (currentToken.indent < previousNonSeparatorToken?.indent) {
