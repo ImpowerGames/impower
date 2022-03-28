@@ -6,14 +6,16 @@ export const executeChoiceCommand = (
   context?: {
     valueMap: Record<string, unknown>;
   },
+  index?: number,
+  count?: number,
   onClick?: () => void
 ): void => {
+  const content = data?.content || "";
   const valueMap = context?.valueMap;
   const ui = "impower_ui";
   const contentEls = document.querySelectorAll<HTMLButtonElement>(
     `#${ui} .choice`
   );
-  const content = data?.content || "";
   const [replaceTagsResult] = format(content, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
   const handleClick = (e: MouseEvent): void => {
@@ -26,14 +28,14 @@ export const executeChoiceCommand = (
     });
     onClick?.();
   };
-  contentEls.forEach((el, index) => {
+  contentEls.forEach((el, i) => {
     if (el) {
-      if (index === data?.index) {
+      if (i === index) {
         el.onclick = handleClick;
         el.replaceChildren(evaluatedContent);
         el.style.display = "block";
       }
-      if (index >= data?.count) {
+      if (i >= count) {
         el.replaceChildren("");
         el.style.display = "none";
       }

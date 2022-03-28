@@ -138,11 +138,11 @@ export const generateSparkHtml = (
           );
           break;
 
-        case "dual_dialogue_begin":
+        case "dual_dialogue_start":
           html.push('<div class="dual-dialogue">');
           break;
 
-        case "dialogue_begin":
+        case "dialogue_start":
           html.push(
             `<div class="dialogue${
               currentToken.position ? ` ${currentToken.position}` : ""
@@ -202,7 +202,7 @@ export const generateSparkHtml = (
             `<p class="source note" id="line_${currentToken.line}">${currentToken.html}</p>`
           );
           break;
-        case "boneyard_begin":
+        case "boneyard_start":
           html.push("<!-- ");
           break;
         case "boneyard_end":

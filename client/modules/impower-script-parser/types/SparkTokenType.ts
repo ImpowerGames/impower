@@ -21,7 +21,7 @@ export type SparkAssetsTokenType = "assets";
 export type SparkTransitionTokenType = "transition";
 export type SparkCenteredTokenType = "centered";
 export type SparkPositionTokenType =
-  | "dialogue_begin"
+  | "dialogue_start"
   | "character"
   | "parenthetical";
 
@@ -35,11 +35,11 @@ export type SparkOtherTokenType =
   | "dialogue_asset"
   | "action_asset"
   | "dialogue_end"
-  | "dual_dialogue_begin"
+  | "dual_dialogue_start"
   | "dual_dialogue_end"
   | "lyric"
   | "note"
-  | "boneyard_begin"
+  | "boneyard_start"
   | "boneyard_end"
   | "repeat"
   | SparkTitleKeyword;

@@ -5,6 +5,8 @@ import { ChoiceCommandData } from "./choiceCommandData";
 import { executeChoiceCommand } from "./executeChoiceCommand";
 
 export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
+  choiceIndex: number;
+
   seed: string;
 
   chosenCount: number;
@@ -22,11 +24,19 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     context: CommandContext,
     game: ImpowerGame
   ): number[] {
-    const { index, value, calls, operator } = data;
+    const { value, calls, operator } = data;
+    const { index } = context;
 
-    if (index === 0) {
+    if (operator === "start") {
+      this.choiceIndex = 0;
       this.value = null;
       this.calls = null;
+      return super.onExecute(data, context, game);
+    }
+
+    if (operator === "end") {
+      executeChoiceCommand(data, context, undefined, this.choiceIndex);
+      return super.onExecute(data, context, game);
     }
 
     const pos = data?.pos;
@@ -42,7 +52,7 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
       return super.onExecute(data, context, game);
     }
 
-    executeChoiceCommand(data, context, () => {
+    executeChoiceCommand(data, context, this.choiceIndex, undefined, () => {
       this.seed = game.random.state.seed + commandId;
       this.chosenCount = game.logic.chooseChoice({
         pos,
@@ -54,6 +64,8 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
       this.value = value || "";
       this.calls = calls;
     });
+
+    this.choiceIndex += 1;
 
     return super.onExecute(data, context, game);
   }

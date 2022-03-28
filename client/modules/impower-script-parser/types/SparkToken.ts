@@ -57,11 +57,9 @@ export interface SparkCallToken extends SparkLine {
 
 export interface SparkChoiceToken extends SparkLine {
   type: SparkChoiceTokenType;
-  operator: "+" | "-";
+  operator: "+" | "-" | "start" | "end";
   value: string;
   calls: Record<string, { name: string; values: string[] }>;
-  index: number;
-  count: number;
 }
 
 export interface SparkConditionToken extends SparkLine {

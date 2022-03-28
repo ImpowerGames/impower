@@ -173,9 +173,7 @@ export const getRuntimeCommand = (
       value: token.value,
       calls: token.calls,
       content: token.content,
-      index: token.index,
-      count: token.count,
-      waitUntilFinished: token.index === token.count - 1,
+      waitUntilFinished: token.operator === "end",
     };
     return newCommand;
   }
