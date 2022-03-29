@@ -283,6 +283,7 @@ const ContainerScriptEditor = React.memo(
         toLine: number;
       }) => {
         if (mode === "Test") {
+          dispatch(panelSetCursor(windowType, cursorRef.current));
           return;
         }
         if (cursorRef.current?.fromLine !== range.fromLine) {
@@ -292,7 +293,7 @@ const ContainerScriptEditor = React.memo(
           handleDebouncedScriptCursor();
         }
       },
-      [handleDebouncedScriptCursor, mode]
+      [dispatch, handleDebouncedScriptCursor, mode, windowType]
     );
 
     const handleSaveScrollTopLine = useCallback(() => {
