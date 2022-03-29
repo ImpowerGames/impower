@@ -10,7 +10,7 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   ui: "impower_ui",
   letterFadeDuration: 0,
   letterDelay: 0.02,
-  punctuationDelay: 0.2,
+  pauseDelay: 0.3,
   indicatorFadeDuration: 0.15,
   indicatorAnimationName: "bounce",
   indicatorAnimationDuration: 0.5,
@@ -43,23 +43,7 @@ export const displayCommandClassNames = {
   assets: "assets",
 };
 
-const regexes = {
-  ellipsis: /[.][.][.]+(?:$|[ ]+)/,
-  endPunctuation: /[.!?]+[ ][ ]+/,
-  midPunctuation: /[:;,]+[ ]+/,
-  longPause: /[ ]+[-][-]+[ ]+/,
-  shortPause: /[-][-]+[ ]+/,
-};
-const punctuationRegexes = [
-  regexes?.ellipsis.source,
-  regexes?.endPunctuation.source,
-  regexes?.midPunctuation.source,
-  regexes?.longPause.source,
-  regexes?.shortPause.source,
-];
 export const displayCommandRegexes = {
-  punctuation: new RegExp(`(${punctuationRegexes.join("|")})`, "g"),
-  ellipsisPart: new RegExp(`^${regexes?.ellipsis.source}$`),
   spaceAfterSplitter: /([ ](?![-]))/g,
 };
 
@@ -107,6 +91,26 @@ const hideChoices = (
   });
 };
 
+const createCharSpan = (
+  part: string,
+  letterFadeDuration: number,
+  totalDelay: number,
+  style?: Partial<CSSStyleDeclaration>
+): HTMLSpanElement => {
+  const textEl = document.createTextNode(part);
+  const spanEl = document.createElement("span");
+  spanEl.style.opacity = totalDelay > 0 ? "0" : "1";
+  spanEl.style.transition =
+    totalDelay > 0
+      ? `opacity ${letterFadeDuration}s linear ${totalDelay}s`
+      : null;
+  Object.entries(style || {}).forEach(([k, v]) => {
+    spanEl.style[k] = v;
+  });
+  spanEl.appendChild(textEl);
+  return spanEl;
+};
+
 const getAnimatedSpanElements = (
   content: string,
   config: DisplayCommandConfig = defaultDisplayCommandConfig,
@@ -114,36 +118,15 @@ const getAnimatedSpanElements = (
   debug?: boolean
 ): [HTMLSpanElement[], number] => {
   const letterFadeDuration = config?.letterFadeDuration || 0;
+  const pauseDelay = config?.pauseDelay || 0;
   const letterDelay = config?.letterDelay || 0;
-  const punctuationDelay = config?.punctuationDelay || 0;
-  const punctuationRegex = displayCommandRegexes?.punctuation;
-  const ellipsisPartRegex = displayCommandRegexes?.ellipsisPart;
-  const afterPunctuationSpaceSplitter =
-    displayCommandRegexes?.spaceAfterSplitter;
   const partEls: HTMLSpanElement[][] = [];
-  const flatPartEls: HTMLSpanElement[] = [];
-  const createCharSpan = (
-    part: string,
-    totalDelay: number,
-    style?: Partial<CSSStyleDeclaration>
-  ): HTMLSpanElement => {
-    const partTextEl = document.createTextNode(part);
-    const partWrapperEl = document.createElement("span");
-    partWrapperEl.style.opacity = instant ? "1" : "0";
-    partWrapperEl.style.transition = instant
-      ? null
-      : `opacity ${letterFadeDuration}s linear ${totalDelay}s`;
-    Object.entries(style || {}).forEach(([k, v]) => {
-      partWrapperEl.style[k] = v;
-    });
-    partWrapperEl.appendChild(partTextEl);
-    return partWrapperEl;
-  };
+  const contentEls: HTMLSpanElement[] = [];
   let totalDelay = 0;
-  const splitContent = content
-    .split(punctuationRegex)
-    .flatMap((s) => (s.match(punctuationRegex) ? s : s.split("")));
+  const splitContent = content.split("");
   const marks: [string, number][] = [];
+  let pauseLength = 0;
+  let pauseSpan: HTMLSpanElement;
   for (let i = 0; i < splitContent.length; ) {
     const part = splitContent[i];
     const lastMark = marks[marks.length - 1]?.[0];
@@ -183,41 +166,35 @@ const getAnimatedSpanElements = (
       i += 1;
       continue;
     }
+    if (part === " ") {
+      pauseLength += 1;
+    } else {
+      pauseLength = 0;
+    }
     const markers = marks.map((x) => x[0]);
     const isUnderline = markers.includes("_");
     const isBoldAndItalic = markers.includes("***");
     const isBold = markers.includes("**");
     const isItalic = markers.includes("*");
+    const isPause = pauseLength > 1;
     const style: Partial<CSSStyleDeclaration> = {
       textDecoration: isUnderline ? "underline" : null,
       fontStyle: isItalic || isBoldAndItalic ? "italic" : null,
       fontWeight: isBold || isBoldAndItalic ? "bold" : null,
     };
-    if (part.length > 1) {
-      const isEllipsis = ellipsisPartRegex.test(part);
-      const splitPunctuation = isEllipsis
-        ? part.split("")
-        : part.split(afterPunctuationSpaceSplitter);
-      const spans: HTMLSpanElement[] = [];
-      for (let p = 0; p < splitPunctuation.length; p += 1) {
-        const punctuation = splitPunctuation[p];
-        const charDelay =
-          isEllipsis || punctuation === " " ? punctuationDelay : letterDelay;
-        style.backgroundColor = debug
-          ? charDelay === punctuationDelay
-            ? displayCommandDebugColors.spaceAfter
-            : displayCommandDebugColors.punctuation
-          : undefined;
-        spans.push(createCharSpan(punctuation, totalDelay, style));
-        totalDelay += charDelay;
-      }
-      partEls[i] = spans;
-      flatPartEls.push(...spans);
-    } else {
-      const span = createCharSpan(part, totalDelay, style);
-      partEls[i] = [span];
-      flatPartEls.push(span);
-      totalDelay += letterDelay;
+    const span = createCharSpan(part, letterFadeDuration, totalDelay, style);
+    partEls[i] = [span];
+    contentEls.push(span);
+    if (pauseLength === 1) {
+      pauseSpan = span;
+    }
+    if (isPause && pauseSpan && debug) {
+      pauseSpan.style.backgroundColor = `hsla(0, 100%, 50%, ${
+        (pauseLength - 1) / 5
+      })`;
+    }
+    if (!instant) {
+      totalDelay += isPause ? pauseDelay : letterDelay;
     }
     i += 1;
   }
@@ -244,7 +221,7 @@ const getAnimatedSpanElements = (
       marks.pop();
     }
   }
-  return [flatPartEls, totalDelay];
+  return [contentEls, totalDelay];
 };
 
 export const executeDisplayCommand = (

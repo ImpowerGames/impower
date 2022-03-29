@@ -407,6 +407,7 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
           active={mode === "Test"}
           control={control}
           project={project}
+          debugging={debug}
           game={game}
           gameBucketFolderId={state?.project?.id}
           runner={gameRunner}

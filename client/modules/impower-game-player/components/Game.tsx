@@ -24,6 +24,7 @@ import UI from "./UI";
 const createGame = (
   project: GameProjectData,
   activeLine: number,
+  debugging: boolean,
   isMobile: boolean,
   saveData?: SaveData
 ): ImpowerGame => {
@@ -53,6 +54,7 @@ const createGame = (
       defaultStartCommandIndex,
       seed: project?.instances?.configs?.data?.DebugConfig?.randomizationSeed,
       blockTree,
+      debugging,
     },
     isMobile,
     saveData
@@ -65,6 +67,7 @@ interface GameProps {
   active: boolean;
   control: "Play" | "Pause";
   project: GameProjectData;
+  debugging?: boolean;
   game?: ImpowerGame;
   runner?: ImpowerGameRunner;
   saveData?: SaveData;
@@ -79,6 +82,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
     active,
     control,
     project,
+    debugging,
     game,
     runner,
     saveData,
@@ -88,7 +92,8 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
     onCreateGame,
   } = props;
 
-  const [phaserGame, setPhaserGame] = useState<PhaserGame>();
+  const phaserGameRef = useRef<PhaserGame>();
+  const [phaserGame, setPhaserGame] = useState(phaserGameRef.current);
   const [isMobile, setIsMobile] = useState<boolean>(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const gameDivRef = useRef<HTMLDivElement>(null);
@@ -98,6 +103,16 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
   const [state] = useContext(ProjectEngineContext);
   const projectId = state?.project?.id;
   const activeLine = state?.panel?.panels?.logic?.cursor?.fromLine || 1;
+
+  useEffect(() => {
+    if (phaserGameRef.current) {
+      if (debugging) {
+        phaserGameRef.current.impowerGame.debug.startDebugging();
+      } else {
+        phaserGameRef.current.impowerGame.debug.stopDebugging();
+      }
+    }
+  }, [debugging]);
 
   useEffect(() => {
     const setMobile = (): void => {
@@ -120,9 +135,15 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
       onCreateGame();
     };
     if (active) {
-      setPhaserGame(
-        new PhaserGame(project, projectId, game, runner, control, logoSrc)
+      phaserGameRef.current = new PhaserGame(
+        project,
+        projectId,
+        game,
+        runner,
+        control,
+        logoSrc
       );
+      setPhaserGame(phaserGameRef.current);
       onInitialized();
       if (game) {
         game.events.onEnd.addListener(onEnd);
@@ -141,7 +162,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   useEffect(() => {
     if (active) {
-      const g = createGame(project, activeLine, isMobile, saveData);
+      const g = createGame(project, activeLine, debugging, isMobile, saveData);
       onCreateGame(g);
     } else {
       onCreateGame();
@@ -153,9 +174,15 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
         ) !== JSON.stringify(project?.instances?.configs?.data?.ScaleConfig)
       ) {
         phaserGame.destroy(true);
-        setPhaserGame(
-          new PhaserGame(project, projectId, game, runner, control, logoSrc)
+        phaserGameRef.current = new PhaserGame(
+          project,
+          projectId,
+          game,
+          runner,
+          control,
+          logoSrc
         );
+        setPhaserGame(phaserGameRef.current);
         onInitialized();
       }
       phaserGame.updateProject(project);
@@ -164,7 +191,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   useEffect(() => {
     if (active) {
-      const g = createGame(project, activeLine, isMobile, saveData);
+      const g = createGame(project, activeLine, debugging, isMobile, saveData);
       onCreateGame(g);
     } else {
       onCreateGame();

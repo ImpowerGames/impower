@@ -17,6 +17,7 @@ export interface BlockContext {
     runner: CommandRunner;
     data: CommandData;
   }[];
+  debug?: boolean;
 }
 
 export class BlockRunner extends ContainerRunner<BlockData> {
@@ -120,6 +121,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
         executionCount,
         game.random.state.seed + commandId,
       ];
+      context.debug = game?.debug?.state?.debugging;
       if (blockState.lastExecutedAt < 0) {
         game.logic.executeCommand({
           pos,

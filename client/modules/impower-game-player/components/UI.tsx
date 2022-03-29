@@ -211,7 +211,6 @@ const UI = React.memo((props: UIProps): JSX.Element => {
                     justifyContent: "center",
                     fontFamily: "Courier Prime Sans",
                     fontSize: "1em",
-                    whiteSpace: "pre-wrap",
                   }}
                 >
                   <div

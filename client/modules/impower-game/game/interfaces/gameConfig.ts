@@ -5,4 +5,5 @@ export interface GameConfig {
   seed: string;
   defaultStartBlockId: string;
   defaultStartCommandIndex: number;
+  debugging: boolean;
 }

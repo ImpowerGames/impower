@@ -54,7 +54,10 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
           this.wasTyped = false;
           return true;
         }
-        executeDisplayCommand(data, { ...context, instant: true });
+        executeDisplayCommand(data, {
+          ...context,
+          instant: true,
+        });
         this.wasTyped = true;
       }
     }

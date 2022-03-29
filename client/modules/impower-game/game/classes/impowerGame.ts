@@ -77,7 +77,10 @@ export class ImpowerGame {
   }
 
   constructor(config: GameConfig, isMobile: boolean, saveData?: SaveData) {
-    this._debug = new DebugManager();
+    this._debug = new DebugManager({
+      debugging: config.debugging,
+      currentLogs: [],
+    });
     this._input = new InputManager();
     this._physics = new PhysicsManager();
     this._asset = new AssetManager(saveData?.asset);

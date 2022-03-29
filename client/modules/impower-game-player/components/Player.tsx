@@ -11,6 +11,7 @@ interface PlayerProps {
   active: boolean;
   control: "Play" | "Pause";
   project: GameProjectData;
+  debugging?: boolean;
   game?: ImpowerGame;
   runner?: ImpowerGameRunner;
   saveData?: SaveData;
@@ -26,6 +27,7 @@ export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {
     active,
     control,
     project,
+    debugging,
     game,
     runner,
     saveData,
@@ -41,6 +43,7 @@ export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {
       active={active}
       control={control}
       project={project}
+      debugging={debugging}
       game={game}
       runner={runner}
       saveData={saveData}
