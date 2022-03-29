@@ -156,6 +156,20 @@ const myHighlightStyle = HighlightStyle.define([
     tag: t.boolean,
     color: colors.boolean,
   },
+  {
+    "tag": t.pause,
+    "position": "relative",
+    "&:after": {
+      content: "'·'",
+      opacity: "0.25",
+      position: "absolute",
+      top: "1px",
+      bottom: "0",
+      left: "0",
+      right: "0",
+      textAlign: "center",
+    },
+  },
 
   { tag: t.invalid, color: colors.invalid },
 ]);

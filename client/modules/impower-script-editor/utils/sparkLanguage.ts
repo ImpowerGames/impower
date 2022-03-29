@@ -52,6 +52,7 @@ export const tags = {
   url: t.url,
   paragraph: t.content,
   hardBreak: t.processingInstruction,
+  pause: t.punctuation,
 
   sectionMark: t.heading1,
   sceneMark: t.heading2,
@@ -126,6 +127,7 @@ const commonmark = baseParser.configure({
       "QuoteMark": tags.quoteMark,
       "Paragraph": tags.paragraph,
       "Strikethrough/...": tags.strikethrough,
+      "Pause": tags.pause,
 
       "SectionVariableName VariableName AssignName InterpolationVariableName":
         tags.variableName,

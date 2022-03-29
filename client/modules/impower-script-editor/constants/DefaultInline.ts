@@ -371,4 +371,11 @@ export const DefaultInline: {
     }
     return -1;
   },
+  Pause(cx, next, start) {
+    const close = cx.slice(start - 1, start + 1);
+    if (next !== " ".charCodeAt(0) || close !== "  ") {
+      return -1;
+    }
+    return cx.append(new Element(Type.Pause, start, start + 1));
+  },
 };

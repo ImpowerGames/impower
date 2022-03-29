@@ -103,6 +103,7 @@ export enum Type {
   Lyric,
   Underline,
   SceneNumber,
+  Pause,
 
   // Keywords
   Number,
