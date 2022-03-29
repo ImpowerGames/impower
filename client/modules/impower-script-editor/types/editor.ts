@@ -3,7 +3,7 @@ export interface Text {
   lines: number;
 }
 
-export type ChangeSet = number | [number, string];
+export type SerializableChangeSet = [number, [number, ...string[]], number];
 
 export interface ChangeDesc {
   sections: number[];
@@ -37,7 +37,7 @@ export interface SerializableDiagnostic {
 }
 
 export interface HistoryEvent {
-  changes?: ChangeSet;
+  changes?: SerializableChangeSet;
   effects: StateEffect<unknown>[];
   mapped?: ChangeDesc;
   startSelection?: SerializableEditorSelection;

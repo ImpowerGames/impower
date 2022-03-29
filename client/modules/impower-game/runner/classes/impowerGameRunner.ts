@@ -109,9 +109,7 @@ export class ImpowerGameRunner {
     StopAudioCommand: new StopAudioCommandRunner(),
   };
 
-  public get commandRunners(): {
-    [refTypeId in CommandTypeId]: CommandRunner;
-  } {
+  public get commandRunners(): Record<string, CommandRunner> {
     return { ...this._commandRunners };
   }
 

@@ -41,6 +41,7 @@ import {
 } from "../extensions/searchLinePanel";
 import { setSnippetPreview } from "../extensions/snippetPreview";
 import {
+  SerializableChangeSet,
   SerializableEditorSelection,
   SerializableEditorState,
 } from "../types/editor";
@@ -190,7 +191,7 @@ interface ScriptEditorProps {
   style?: React.CSSProperties;
   onUpdate?: (update: ViewUpdate) => void;
   onEditorUpdate?: (value: string, state?: SerializableEditorState) => void;
-  onDocChange?: (value: string) => void;
+  onDocChange?: (value: string, changes: SerializableChangeSet) => void;
   onParse?: (result: SparkParseResult) => void;
   onCursor?: (range: {
     anchor: number;
@@ -507,7 +508,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             }
           }
           if (u.docChanged) {
-            onDocChangeRef.current?.(doc);
+            onDocChangeRef.current?.(doc, u.changes.toJSON());
           }
           editorStateRef.current = editorState;
           const cursorRange = u.state.selection.main;

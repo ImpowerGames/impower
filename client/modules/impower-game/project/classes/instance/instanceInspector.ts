@@ -140,12 +140,13 @@ export abstract class InstanceInspector<T extends InstanceData = InstanceData>
 
   onPreview(
     _data: T,
-    _context: {
+    _context?: {
       valueMap: Record<string, unknown>;
       instant?: boolean;
       debug?: boolean;
     }
-  ): void {
+  ): boolean {
     // NoOp
+    return false;
   }
 }

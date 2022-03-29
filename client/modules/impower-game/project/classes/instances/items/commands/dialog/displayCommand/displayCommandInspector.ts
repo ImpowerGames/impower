@@ -98,12 +98,13 @@ export class DisplayCommandInspector extends CommandInspector<DisplayCommandData
 
   onPreview(
     data: DisplayCommandData,
-    context: {
+    context?: {
       valueMap: Record<string, unknown>;
       instant?: boolean;
       debug?: boolean;
     }
-  ): void {
+  ): boolean {
     executeDisplayCommand(data, context);
+    return true;
   }
 }
