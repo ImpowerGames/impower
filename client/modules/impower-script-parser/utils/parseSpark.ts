@@ -1896,9 +1896,9 @@ export const parseSpark = (
           })
         );
       }
-      state = "normal";
 
       if (isSeparator) {
+        state = "normal";
         const skip_separator =
           ignoredLastToken &&
           parsed.scriptTokens.length > 1 &&
