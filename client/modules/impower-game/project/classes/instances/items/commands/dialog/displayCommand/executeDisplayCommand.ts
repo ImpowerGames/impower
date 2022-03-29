@@ -9,8 +9,8 @@ import {
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   ui: "impower_ui",
   letterFadeDuration: 0,
-  letterDelay: 0.02,
-  pauseDelay: 0.3,
+  letterDelay: 0.03,
+  pauseDelay: 0.15,
   indicatorFadeDuration: 0.15,
   indicatorAnimationName: "bounce",
   indicatorAnimationDuration: 0.5,
