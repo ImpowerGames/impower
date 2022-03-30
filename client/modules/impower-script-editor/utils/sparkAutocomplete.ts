@@ -297,12 +297,12 @@ export const scenePrefixSnippets: readonly Completion[] = [
 ];
 
 export const choiceSnippets: readonly Completion[] = [
-  snip("+ ${}${choice}${}", {
+  snip("+ ${}", {
     label: "+ choice",
     info: (): Node => getInfoNode(`(always shown)`),
     type: "choice_plus",
   }),
-  snip("- ${}${choice}${}", {
+  snip("- ${}", {
     label: "- choice",
     info: (): Node => getInfoNode(`(if chosen, won't be shown again)`),
     type: "choice_minus",
