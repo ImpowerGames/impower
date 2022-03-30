@@ -10,8 +10,10 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import { EditorView } from "@codemirror/basic-setup";
+import { indentWithTab } from "@codemirror/commands";
 import { html } from "@codemirror/lang-html";
 import {
+  indentUnit,
   Language,
   LanguageDescription,
   LanguageSupport,
@@ -27,6 +29,7 @@ import {
   insertNewlineContinueMarkup,
   toggleComment,
 } from "../constants/commands";
+import { indentationGuides } from "../extensions/indentationGuides";
 import { sectionNamePreview } from "../extensions/sectionNamePreview";
 import { snippetPreview } from "../extensions/snippetPreview";
 import { MarkdownExtension } from "../types/markdownExtension";
@@ -197,6 +200,9 @@ export function spark(
         brackets: ["(", "[", "{", "'", '"', "`"],
       },
     }),
+    indentUnit.of("  "),
+    keymap.of([indentWithTab]),
+    indentationGuides(),
     autocompletion({ aboveCursor: true, defaultKeymap: false }),
     hoverTooltip((v, p, s) =>
       sparkTooltip(

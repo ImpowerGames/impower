@@ -1,5 +1,4 @@
 import { basicSetup, EditorState, EditorView } from "@codemirror/basic-setup";
-import { indentWithTab } from "@codemirror/commands";
 import { foldEffect, unfoldAll } from "@codemirror/fold";
 import { HighlightStyle } from "@codemirror/highlight";
 import { historyField, redo, undo } from "@codemirror/history";
@@ -21,7 +20,7 @@ import {
 } from "@codemirror/search";
 import { EditorSelection } from "@codemirror/state";
 import { tooltips } from "@codemirror/tooltip";
-import { keymap, PluginField, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import { PluginField, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import React, { useEffect, useRef } from "react";
 import {
   parseSpark,
@@ -161,13 +160,14 @@ const myHighlightStyle = HighlightStyle.define([
     "position": "relative",
     "&:after": {
       content: "'·'",
-      opacity: "0.25",
+      opacity: "0.4",
       position: "absolute",
       top: "1px",
       bottom: "0",
       left: "0",
       right: "0",
       textAlign: "center",
+      color: colors.keyword,
     },
   },
 
@@ -367,7 +367,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
       selection,
       extensions: [
         ...restoredExtensions,
-        keymap.of([indentWithTab]),
         marginPlugin,
         searchLinePanel({
           onOpen: onOpenSearchLinePanel,

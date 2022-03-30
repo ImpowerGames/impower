@@ -29,19 +29,44 @@ export const DefaultInline: {
     if (!space(next)) {
       return -1;
     }
-    if (block.absoluteLineEnd - cx.end > 1) {
-      return -1;
+    if (newline(cx.char(start - 1))) {
+      let pos = start + 1;
+      while (pos < cx.end && space(cx.char(pos))) {
+        pos += 1;
+      }
+      return pos;
     }
-    const open = cx.slice(start, start + 2);
-    const close = cx.slice(start - 1, start + 1);
-    const spaceBefore = close === "  ";
-    const spaceAfter = open === "  ";
-    const newlineAfter = open === " \n" || start + 1 === cx.end;
-    const extraSpace = spaceBefore || spaceAfter || newlineAfter;
-    if (!extraSpace) {
-      return -1;
+    let pauseLength = 0;
+    let prevHadExtraSpace = false;
+    const els: Element[] = [];
+    const text = cx.slice(start, cx.end);
+    const chars = text.split("");
+    for (let i = 0; i < chars.length; ) {
+      const c = chars[i];
+      if (c === " ") {
+        pauseLength += 1;
+      } else {
+        break;
+      }
+      const hasExtraSpace = pauseLength > 1;
+      if (!prevHadExtraSpace && hasExtraSpace) {
+        els.push(new Element(Type.Pause, start + i - 1, start + i));
+      }
+      if (
+        hasExtraSpace ||
+        (pauseLength === 1 && (chars[i + 1] == null || chars[i + 1] === "\n"))
+      ) {
+        els.push(new Element(Type.Pause, start + i, start + i + 1));
+      }
+      prevHadExtraSpace = hasExtraSpace;
+      i += 1;
     }
-    return cx.append(new Element(Type.Pause, start, start + 1));
+    if (els.length > 0) {
+      return cx.append(
+        new Element(Type.Spaces, start, start + els.length, [...els])
+      );
+    }
+    return -1;
   },
 
   Comment(cx, next, start) {
