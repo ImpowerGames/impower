@@ -37,40 +37,41 @@ export const choose = (
   const firstParam = args[firstParamIndex];
   const lastParam = args[lastParamIndex];
   const ignoreArgs = [];
-  if (firstParam === "~") {
+  const shuffled = firstParam?.trim() === "~";
+  const randomized = firstParam?.trim() === "~*";
+  const repeatLast = lastParam?.trim() === ")";
+  const repeatCycle = lastParam?.trim() === "(";
+  if (shuffled || randomized) {
     ignoreArgs.push(firstParamIndex);
     args.shift();
-    const loopIndex = Math.floor(v / args.length);
+    const cycleIndex = Math.floor(v / args.length);
+    const cycleSeed = randomized ? undefined : seed + cycleIndex;
     // We seed the "random" order so that
     // each is selected only once per loop
-    if (lastParam === ")") {
+    if (repeatLast) {
       // Shuffle all except last two
       const cycleMark = args.pop();
       const last = args.pop();
-      args = shuffle(args, seed + loopIndex);
+      args = shuffle(args, cycleSeed);
       if (last !== undefined) {
         args.push(last);
       }
       if (cycleMark !== undefined) {
         args.push(cycleMark);
       }
-    } else if (lastParam === "(") {
+    } else if (repeatCycle) {
       // Shuffle all except last
       const cycleMark = args.pop();
-      args = shuffle(args, seed + loopIndex);
+      args = shuffle(args, cycleSeed);
       if (cycleMark !== undefined) {
         args.push(cycleMark);
       }
     } else {
       // Shuffle all possible
-      args = shuffle(args, seed + loopIndex);
+      args = shuffle(args, cycleSeed);
     }
-  } else if (firstParam === "~*") {
-    args.shift();
-    // Fully randomize all
-    args = shuffle(args);
   }
-  if (lastParam === ")") {
+  if (repeatLast) {
     ignoreArgs.push(lastParamIndex);
     args.pop();
     const iterationIndex = v % args.length;
@@ -81,7 +82,7 @@ export const choose = (
       ignoreArgs,
     ];
   }
-  if (lastParam === "(") {
+  if (repeatCycle) {
     ignoreArgs.push(lastParamIndex);
     args.pop();
     const iterationIndex = v % args.length;
