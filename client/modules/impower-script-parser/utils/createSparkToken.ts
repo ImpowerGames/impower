@@ -1,11 +1,13 @@
 import { SparkTokenTypeMap } from "../types/SparkTokenTypeMap";
+import { createSparkLine } from "./createSparkLine";
 
-export const createSparkToken = <K extends keyof SparkTokenTypeMap>(
+export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
   type?: K,
   newLineLength?: number,
   obj?: Partial<SparkTokenTypeMap[K]>
 ): SparkTokenTypeMap[K] => {
-  const t: SparkTokenTypeMap[K] = {
+  const t = {
+    ...createSparkLine(obj),
     type,
     offset: 0,
     indent: 0,

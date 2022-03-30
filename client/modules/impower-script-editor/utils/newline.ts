@@ -1,3 +1,3 @@
-export function newline(ch: number): boolean {
-  return ch === "\n".charCodeAt(0) || ch === "\r".charCodeAt(0);
-}
+export const newline = (ch: number): boolean => {
+  return ch === 10 || ch === 13;
+};

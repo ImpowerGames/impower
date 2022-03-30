@@ -43,16 +43,6 @@ export const displayCommandClassNames = {
   assets: "assets",
 };
 
-export const displayCommandRegexes = {
-  spaceAfterSplitter: /([ ](?![-]))/g,
-};
-
-export const displayCommandDebugColors = {
-  punctuation: "yellow",
-  spaceAfter: "orange",
-  ellipsis: "red",
-};
-
 const getElementSelector = (ui: string, className: string): string =>
   `#${ui} .${className}`;
 
@@ -113,24 +103,32 @@ const createCharSpan = (
 
 const getAnimatedSpanElements = (
   content: string,
+  portraitEl?: HTMLElement,
+  valueMap?: Record<string, unknown>,
   config: DisplayCommandConfig = defaultDisplayCommandConfig,
   instant?: boolean,
   debug?: boolean
-): [HTMLSpanElement[], number] => {
+): [HTMLSpanElement[], HTMLImageElement[], number] => {
   const letterFadeDuration = config?.letterFadeDuration || 0;
   const pauseDelay = config?.pauseDelay || 0;
   const letterDelay = config?.letterDelay || 0;
-  const partEls: HTMLSpanElement[][] = [];
+
+  const partEls: HTMLSpanElement[] = [];
   const contentEls: HTMLSpanElement[] = [];
+  const imageEls: HTMLImageElement[] = [];
   let totalDelay = 0;
   const splitContent = content.split("");
   const marks: [string, number][] = [];
   let pauseLength = 0;
   let pauseSpan: HTMLSpanElement;
+  const imageUrls = new Set<string>();
+  const audioUrls = new Set<string>();
   for (let i = 0; i < splitContent.length; ) {
     const part = splitContent[i];
     const lastMark = marks[marks.length - 1]?.[0];
-    if (splitContent.slice(i, i + 3).join("") === "***") {
+    const tripleMark = splitContent.slice(i, i + 3).join("");
+    const doubleMark = splitContent.slice(i, i + 2).join("");
+    if (tripleMark === "***") {
       if (lastMark === "***") {
         marks.pop();
       } else {
@@ -139,11 +137,47 @@ const getAnimatedSpanElements = (
       i += 3;
       continue;
     }
-    if (splitContent.slice(i, i + 2).join("") === "**") {
+    if (doubleMark === "**") {
       if (lastMark === "**") {
         marks.pop();
       } else {
         marks.push(["**", i]);
+      }
+      i += 2;
+      continue;
+    }
+    if (doubleMark === "[[") {
+      i += 2;
+      const from = i;
+      while (
+        i < splitContent.length &&
+        splitContent.slice(i, i + 2).join("") !== "]]"
+      ) {
+        i += 1;
+      }
+      const to = i;
+      const portraitName = splitContent.slice(from, to).join("");
+      const portraitUrl = valueMap?.[portraitName] as string;
+      if (portraitUrl) {
+        imageUrls.add(portraitUrl);
+      }
+      i += 2;
+      continue;
+    }
+    if (doubleMark === "((") {
+      i += 2;
+      const from = i;
+      while (
+        i < splitContent.length &&
+        splitContent.slice(i, i + 2).join("") !== "))"
+      ) {
+        i += 1;
+      }
+      const to = i;
+      const audioName = splitContent.slice(from, to).join("");
+      const audioUrl = valueMap?.[audioName] as string;
+      if (audioUrl) {
+        audioUrls.add(audioUrl);
       }
       i += 2;
       continue;
@@ -181,9 +215,10 @@ const getAnimatedSpanElements = (
       textDecoration: isUnderline ? "underline" : null,
       fontStyle: isItalic || isBoldAndItalic ? "italic" : null,
       fontWeight: isBold || isBoldAndItalic ? "bold" : null,
+      whiteSpace: part === "\n" ? "pre-wrap" : null,
     };
     const span = createCharSpan(part, letterFadeDuration, totalDelay, style);
-    partEls[i] = [span];
+    partEls[i] = span;
     contentEls.push(span);
     if (pauseLength === 1) {
       pauseSpan = span;
@@ -202,7 +237,7 @@ const getAnimatedSpanElements = (
   if (marks.length > 0) {
     while (marks.length > 0) {
       const [lastMark, lastMarkIndex] = marks[marks.length - 1];
-      const invalidStyleEls = partEls.slice(lastMarkIndex).flatMap((x) => x);
+      const invalidStyleEls = partEls.slice(lastMarkIndex).map((x) => x);
       invalidStyleEls.forEach((e) => {
         if (lastMark === "***") {
           e.style.fontWeight = null;
@@ -221,7 +256,7 @@ const getAnimatedSpanElements = (
       marks.pop();
     }
   }
-  return [contentEls, totalDelay];
+  return [contentEls, imageEls, totalDelay];
 };
 
 export const executeDisplayCommand = (
@@ -233,9 +268,18 @@ export const executeDisplayCommand = (
   },
   config: DisplayCommandConfig = defaultDisplayCommandConfig
 ): number => {
+  const type = data?.type;
+  const character = data?.character;
+  const parenthetical = data?.parenthetical;
+  const content = data?.content;
+  const assets = data?.assets;
+  const autoAdvance = data?.autoAdvance;
+  const continuePrevious = data?.continuePrevious;
+
   const valueMap = context?.valueMap;
   const instant = context?.instant;
   const debug = context?.debug;
+
   const ui = config?.ui;
   const css = config?.css;
   const indicatorFadeDuration = config?.indicatorFadeDuration || 0;
@@ -258,17 +302,10 @@ export const executeDisplayCommand = (
   const contentElEntries: [DisplayType, HTMLElement][] = Object.values(
     DisplayType
   ).map((x) => [x, getElement(ui, x)]);
-  const character = data?.type === DisplayType.Dialogue ? data?.character : "";
-  const assets = data?.assets;
-  const parenthetical =
-    data?.type === DisplayType.Dialogue ? data?.parenthetical : "";
-  const content =
-    data?.content?.trim() === "_"
-      ? ""
-      : (data?.content || "")
-          .replace(/(?:\[{2}(?!\[+))([\s\S]+?)(?:\]{2}(?!\[+)) ?/g, "") // Replace [[image]]
-          .replace(/(?:\({2}(?!\(+))([\s\S]+?)(?:\){2}(?!\(+)) ?/g, ""); // Replace ((audio))
-  const [replaceTagsResult] = format(content, valueMap);
+  const validCharacter = type === DisplayType.Dialogue ? character : "";
+  const validParenthetical = type === DisplayType.Dialogue ? parenthetical : "";
+  const trimmedContent = content?.trim() === "_" ? "" : content || "";
+  const [replaceTagsResult] = format(trimmedContent, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
   if (portraitEl) {
     const portraitName = assets?.[0];
@@ -283,7 +320,7 @@ export const executeDisplayCommand = (
     }
   }
 
-  const assetsOnly = data?.type === DisplayType.Assets;
+  const assetsOnly = type === DisplayType.Assets;
   if (assetsOnly) {
     return 0;
   }
@@ -291,26 +328,32 @@ export const executeDisplayCommand = (
   hideChoices();
 
   if (dialogueGroupEl) {
-    dialogueGroupEl.style.display = data?.type === "dialogue" ? null : "none";
+    dialogueGroupEl.style.display = type === "dialogue" ? null : "none";
   }
   if (characterEl) {
-    characterEl.replaceChildren(character);
-    characterEl.style.display = character ? null : "none";
+    characterEl.replaceChildren(validCharacter);
+    characterEl.style.display = validCharacter ? null : "none";
   }
   if (parentheticalEl) {
-    parentheticalEl.replaceChildren(parenthetical);
-    parentheticalEl.style.display = parenthetical ? null : "none";
+    parentheticalEl.replaceChildren(validParenthetical);
+    parentheticalEl.style.display = validParenthetical ? null : "none";
   }
-  const [partEls, totalDelay] = getAnimatedSpanElements(
+  const [spanEls, , totalDelay] = getAnimatedSpanElements(
     evaluatedContent,
+    portraitEl,
+    valueMap,
     config,
     instant,
     debug
   );
-  contentElEntries.forEach(([type, el]) => {
+  contentElEntries.forEach(([t, el]) => {
     if (el) {
-      if (type === data?.type) {
-        el.replaceChildren(...partEls);
+      if (t === type) {
+        if (continuePrevious) {
+          spanEls.forEach((p) => el.appendChild(p));
+        } else {
+          el.replaceChildren(...spanEls);
+        }
         el.style.display = null;
       } else {
         el.replaceChildren("");
@@ -319,7 +362,7 @@ export const executeDisplayCommand = (
     }
   });
   if (indicatorEl) {
-    if (data) {
+    if (data && !autoAdvance) {
       indicatorEl.style.transition = null;
       indicatorEl.style.animation = null;
       indicatorEl.style.opacity = instant ? "1" : "0";
@@ -330,7 +373,7 @@ export const executeDisplayCommand = (
   }
   if (data) {
     window.requestAnimationFrame(() => {
-      partEls.forEach((charEl) => {
+      spanEls.forEach((charEl) => {
         charEl.style.opacity = "1";
       });
       if (indicatorEl) {

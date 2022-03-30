@@ -20,16 +20,19 @@ import {
   SparkAssetsToken,
   SparkChoiceToken,
   SparkDialogueToken,
+  SparkDisplayToken,
   SparkToken,
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
 import { SparkVariableType } from "../types/SparkVariableType";
+import { createSparkLine } from "./createSparkLine";
 import { createSparkToken } from "./createSparkToken";
 import { getExpressionCallMatch } from "./getExpressionCallMatch";
 import { getScopedContext } from "./getScopedContext";
 import { getScopedEvaluationContext } from "./getScopedEvaluationContext";
 import { getScopedItem } from "./getScopedItem";
+import { isSparkDisplayToken } from "./isSparkDisplayToken";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
@@ -128,8 +131,9 @@ export const parseSpark = (
   let previousCharacter: string;
   let previousParenthetical: string;
   let previousAssets: { name: string }[] = [];
-  let notes: { type: SparkAssetType; name: string }[] = [];
+  let previousDisplayToken: SparkDisplayToken;
   let currentChoiceTokens: SparkChoiceToken[] = [];
+  let prependNext = false;
 
   const diagnostic = (
     currentToken: SparkToken,
@@ -705,6 +709,12 @@ export const parseSpark = (
         diagnostic(currentToken, d.message, [], from, to);
       }
     }
+  };
+
+  const checkTextExpression = (content: string, contentFrom: number): void => {
+    const expression = `\`${content}\``;
+    const expressionFrom = contentFrom - 1;
+    checkExpressionValue(expression, expressionFrom);
   };
 
   const getSectionCalls = (
@@ -1478,7 +1488,7 @@ export const parseSpark = (
     parsed?.sections?.[currentSectionId].tokens.push(token);
   };
 
-  const pushNotes = (): void => {
+  const checkNotes = (): void => {
     const str = currentToken.content;
     const noteMatches = str.match(sparkRegexes.note);
     let startIndex = -1;
@@ -1493,19 +1503,8 @@ export const parseSpark = (
         if (name) {
           getAsset(type, name, from, to);
         }
-        notes.push({ type, name });
       }
-      currentToken.text = str;
-      currentToken.content = str.replace(sparkRegexes.note, "");
     }
-  };
-
-  const saveAndClearNotes = (): void => {
-    const save = notes.length > 0;
-    if (save) {
-      currentToken.notes = [...notes];
-    }
-    notes = [];
   };
 
   const pushAssets = (): void => {
@@ -1534,13 +1533,13 @@ export const parseSpark = (
       save &&
       (currentToken.type === "dialogue" || currentToken.type === "action")
     ) {
-      currentToken.assets = [...previousAssets];
+      currentToken.assets = [...(currentToken.assets || []), ...previousAssets];
     }
     previousAssets = [];
   };
 
   const saveAndClearAssetsToken = (assetsToken: SparkAssetsToken): void => {
-    assetsToken.assets = [...previousAssets];
+    assetsToken.assets = [...(assetsToken.assets || []), ...previousAssets];
     previousAssets = [];
     pushToken(assetsToken);
   };
@@ -1560,9 +1559,9 @@ export const parseSpark = (
     if (!currentChoiceTokens?.length) {
       pushToken(
         createSparkToken("choice", newLineLength, {
-          line: currentToken.line,
           from: currentToken.from,
           operator: "start",
+          skipPreview: true,
         })
       );
     }
@@ -1573,9 +1572,9 @@ export const parseSpark = (
     if (currentChoiceTokens?.length > 0) {
       pushToken(
         createSparkToken("choice", newLineLength, {
-          line: currentToken.line,
-          from: currentToken.from,
+          from: currentToken.to,
           operator: "end",
+          skipPreview: true,
         })
       );
     }
@@ -1609,7 +1608,67 @@ export const parseSpark = (
     return str;
   };
 
-  currentToken = createSparkToken(undefined, newLineLength, {
+  const processDisplayedContent = (
+    token: SparkDisplayToken,
+    contentFrom?: number
+  ): void => {
+    if (token.type === "assets") {
+      return;
+    }
+    token.content = token.content?.trimStart();
+    if (
+      prependNext &&
+      previousDisplayToken &&
+      (previousDisplayToken.type === token.type ||
+        (["dialogue", "dialogue_asset"].includes(previousDisplayToken.type) &&
+          ["dialogue", "dialogue_asset"].includes(token.type)) ||
+        (["action", "action_asset"].includes(previousDisplayToken.type) &&
+          ["action", "action_asset"].includes(token.type)))
+    ) {
+      token.text = token.content;
+      const sparkLine = createSparkLine();
+      Object.entries(previousDisplayToken).forEach(([k, v]) => {
+        if (!Object.keys(sparkLine).includes(k)) {
+          token[k] = v;
+        }
+      });
+      token.content = `${previousDisplayToken.content}${token.content}`;
+      previousDisplayToken.ignore = true;
+      previousDisplayToken.skipPreview = true;
+    }
+    previousDisplayToken = token;
+    if (token.type === "dialogue_asset" || token.type === "action_asset") {
+      token.autoAdvance = true;
+      token.continuePrevious = true;
+      token.wait = false;
+      return;
+    }
+    const contentMatch = token.content.match(sparkRegexes.content_continuation);
+    if (contentMatch) {
+      const continuePrevious = Boolean(contentMatch[1] || "");
+      const validContent = contentMatch[2] || "";
+      const endSpaces = contentMatch[3] || "";
+      token.content = validContent + endSpaces;
+      token.autoAdvance = Boolean(endSpaces);
+      token.continuePrevious = continuePrevious;
+    } else {
+      token.autoAdvance = false;
+      token.continuePrevious = false;
+    }
+    token.wait = true;
+    token.ignore = false;
+    token.skipPreview = false;
+    prependNext = token.content.endsWith(" ");
+    if (prependNext) {
+      token.content += "\n";
+    }
+    const validContentFrom =
+      contentFrom != null ? contentFrom : token.from + token.offset;
+    checkTextExpression(token.text, validContentFrom);
+    checkNotes();
+  };
+
+  currentToken = createSparkToken("", newLineLength, {
     content: text,
     line: 1,
     from: current,
@@ -1639,7 +1698,7 @@ export const parseSpark = (
     text = removeBlockComments(text);
     text = removeInlineComments(text);
 
-    currentToken = createSparkToken(undefined, newLineLength, {
+    currentToken = createSparkToken("", newLineLength, {
       content: text,
       line: i + 1,
       from: current,
@@ -1854,16 +1913,19 @@ export const parseSpark = (
     });
     current = currentToken.to + 1;
 
-    if (text.match(sparkRegexes.dialogue_terminator)) {
-      if (displayTokenTypes.includes(previousToken?.type)) {
-        previousToken.wait = false;
-      }
+    if (
+      text.match(sparkRegexes.dialogue_terminator) &&
+      isSparkDisplayToken(previousToken)
+    ) {
+      previousToken.wait = false;
     }
 
     const isSeparator = text.trim().length === 0 && text.length < 2;
     if (isSeparator || text.trim() === "_") {
+      prependNext = false;
       saveAndClearChoices();
     }
+
     if (
       isSeparator ||
       text.trim() === "_" ||
@@ -1972,8 +2034,6 @@ export const parseSpark = (
       if ((match = currentToken.content.match(sparkRegexes.scene))) {
         currentToken.type = "scene";
         if (currentToken.type === "scene") {
-          pushNotes();
-          saveAndClearNotes();
           const scene = match[11] || "";
           const locationText = match[4] || "";
           const time = match[8] || "";
@@ -1984,11 +2044,13 @@ export const parseSpark = (
             .slice(2, 10)
             .map((x) => x || "")
             .join("");
-          currentToken.content = content.startsWith(".")
-            ? content.substring(1)?.trim()
-            : content?.trim();
+          const extraOffset = content.startsWith(".") ? 1 : 0;
+          currentToken.content = content.substring(extraOffset)?.trimStart();
+          processDisplayedContent(
+            currentToken,
+            currentToken.from + currentToken.offset + extraOffset
+          );
           currentToken.scene = scene;
-          currentToken.wait = true;
           if (!parsed.properties.scenes) {
             parsed.properties.scenes = [];
           }
@@ -2020,14 +2082,13 @@ export const parseSpark = (
       ) {
         currentToken.type = "action";
         if (currentToken.type === "action") {
-          currentToken.wait = true;
-          pushNotes();
-          saveAndClearNotes();
-          currentToken.content = currentToken.content.substring(1)?.trim();
-          const expression = `\`${currentToken.content}\``;
-          const expressionFrom =
-            currentToken.offset + currentToken.from - 1 + 1;
-          checkExpressionValue(expression, expressionFrom);
+          const content = currentToken.content;
+          const extraOffset = content.startsWith(".") ? 1 : 0;
+          currentToken.content = content.substring(extraOffset)?.trimStart();
+          processDisplayedContent(
+            currentToken,
+            currentToken.from + currentToken.offset + extraOffset
+          );
         }
       } else if (currentToken.content.match(sparkRegexes.centered)) {
         currentToken.type = "centered";
@@ -2035,13 +2096,9 @@ export const parseSpark = (
           if ((match = lint(sparkRegexes.centered))) {
             const content = match[4] || "";
             const contentFrom = currentToken.from + getStart(match, 4);
-            currentToken.wait = true;
-            pushNotes();
-            saveAndClearNotes();
-            currentToken.content = content?.trim();
-            const expression = `\`${currentToken.content}\``;
-            const expressionFrom = contentFrom - 1;
-            checkExpressionValue(expression, expressionFrom);
+            const endSpaces = match[7] || "";
+            currentToken.content = content?.trimStart() + endSpaces;
+            processDisplayedContent(currentToken, contentFrom);
           }
         }
       } else if (
@@ -2049,12 +2106,8 @@ export const parseSpark = (
       ) {
         currentToken.type = "transition";
         if (currentToken.type === "transition") {
-          currentToken.wait = true;
           if ((match = lint(sparkRegexes.transition))) {
-            const content = match[2] || "";
-            pushNotes();
-            saveAndClearNotes();
-            currentToken.content = content.trim();
+            processDisplayedContent(currentToken);
           }
         }
       } else if ((match = currentToken.content.match(sparkRegexes.go))) {
@@ -2265,6 +2318,7 @@ export const parseSpark = (
                 valueText,
                 valueFrom
               );
+              currentToken.order = currentChoiceTokens.length;
               const expression = `\`${currentToken.content}\``;
               const expressionFrom = valueFrom - 1;
               checkExpressionValue(expression, expressionFrom);
@@ -2381,9 +2435,9 @@ export const parseSpark = (
         // If the trimmed length is larger than zero, then it will be accepted as dialogue regardless
         state = "dialogue";
         currentToken.type = "character";
-        pushNotes();
         if (currentToken.type === "character") {
           currentToken.content = trimCharacterForceSymbol(currentToken.content);
+          currentToken.skipPreview = true;
           if (currentToken.content[currentToken.content.length - 1] === "^") {
             state = "dual_dialogue";
             // update last dialogue to be dual:left
@@ -2448,27 +2502,25 @@ export const parseSpark = (
             parsed.dialogueLines = {};
           }
           parsed.dialogueLines[currentToken.line] = currentToken.content
-            .trim()
+            ?.trimStart()
             .replace(/\^$/, "")
-            .trim();
+            ?.trimStart();
         }
       } else if (
         currentToken.content?.match(sparkRegexes.note) &&
         !currentToken.content?.replace(sparkRegexes.note, "")?.trim()
       ) {
         currentToken.type = "action_asset";
-        pushAssets();
+        if (currentToken.type === "action_asset") {
+          currentToken.skipPreview = false;
+          pushAssets();
+          processDisplayedContent(currentToken);
+        }
       } else {
         currentToken.type = "action";
         if (currentToken.type === "action") {
-          currentToken.content = currentToken.content?.trim();
-          currentToken.wait = true;
-          pushNotes();
-          saveAndClearNotes();
+          processDisplayedContent(currentToken);
           saveAndClearDialogueOrActionAssets();
-          const expression = `\`${currentToken.content}\``;
-          const expressionFrom = currentToken.offset + currentToken.from - 1;
-          checkExpressionValue(expression, expressionFrom);
         }
       }
     } else {
@@ -2477,32 +2529,29 @@ export const parseSpark = (
         !currentToken.content?.replace(sparkRegexes.note, "")?.trim()
       ) {
         currentToken.type = "dialogue_asset";
-        pushAssets();
+        if (currentToken.type === "dialogue_asset") {
+          currentToken.skipPreview = true;
+          pushAssets();
+          processDisplayedContent(currentToken);
+        }
       } else if (currentToken.content.match(sparkRegexes.parenthetical)) {
         currentToken.type = "parenthetical";
         currentToken.content = currentToken.content?.trim();
-        pushNotes();
-        saveAndClearNotes();
+        currentToken.skipPreview = true;
         previousParenthetical = currentToken.content;
       } else {
         currentToken.type = "dialogue";
-        currentToken.content = currentToken.content?.trim();
-        pushNotes();
-        saveAndClearNotes();
-        saveAndClearDialogueOrActionAssets();
         if (currentToken.type === "dialogue") {
-          currentToken.wait = true;
+          processDisplayedContent(currentToken);
+          saveAndClearDialogueOrActionAssets();
           if (previousCharacter) {
             currentToken.character = previousCharacter;
           }
           if (previousParenthetical) {
             currentToken.parenthetical = previousParenthetical;
           }
-          const expression = `\`${currentToken.content}\``;
-          const expressionFrom = currentToken.offset + currentToken.from - 1;
-          checkExpressionValue(expression, expressionFrom);
+          previousParenthetical = null;
         }
-        previousParenthetical = null;
       }
       if (dualRight) {
         if (currentToken.type === "parenthetical") {
@@ -2519,7 +2568,7 @@ export const parseSpark = (
       currentToken.type !== "action" &&
       !(currentToken.type === "dialogue" && currentToken.content === "  ")
     ) {
-      currentToken.content = currentToken.content?.trim();
+      currentToken.content = currentToken.content?.trimStart();
     }
 
     if (currentToken.indent < previousNonSeparatorToken?.indent) {
@@ -2529,7 +2578,6 @@ export const parseSpark = (
           createSparkToken("condition", newLineLength, {
             check: "close",
             indent,
-            line: currentToken.line,
             from: currentToken.from,
             to: currentToken.from,
           })
@@ -2589,7 +2637,7 @@ export const parseSpark = (
         currentToken.content = `*${currentToken.content.substring(1)}*`;
       }
       if (currentToken.type !== "action" && currentToken.type !== "dialogue")
-        currentToken.content = currentToken.content?.trim();
+        currentToken.content = currentToken.content?.trimStart();
 
       if (currentToken.ignore) {
         ignoredLastToken = true;

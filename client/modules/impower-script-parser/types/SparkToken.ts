@@ -1,6 +1,7 @@
 import { SparkCallTokenType, SparkEntityTokenType } from "..";
 import { SparkLine } from "./SparkLine";
 import {
+  SparkActionAssetTokenType,
   SparkActionTokenType,
   SparkAssetsTokenType,
   SparkAssetTokenType,
@@ -8,6 +9,7 @@ import {
   SparkCenteredTokenType,
   SparkChoiceTokenType,
   SparkConditionTokenType,
+  SparkDialogueAssetTokenType,
   SparkDialogueTokenType,
   SparkGoTokenType,
   SparkOtherTokenType,
@@ -84,11 +86,31 @@ export interface SparkReturnToken extends SparkLine {
 export interface SparkSceneToken extends SparkLine {
   type: SparkSceneTokenType;
   scene: string | number;
+  wait: boolean;
+  continuePrevious: boolean;
+  autoAdvance: boolean;
 }
 
-export interface SparkPositionToken extends SparkLine {
-  type: SparkPositionTokenType;
-  position: "left" | "right";
+export interface SparkTransitionToken extends SparkLine {
+  type: SparkTransitionTokenType;
+  wait: boolean;
+  continuePrevious: boolean;
+  autoAdvance: boolean;
+}
+
+export interface SparkCenteredToken extends SparkLine {
+  type: SparkCenteredTokenType;
+  wait: boolean;
+  continuePrevious: boolean;
+  autoAdvance: boolean;
+}
+
+export interface SparkActionToken extends SparkLine {
+  type: SparkActionTokenType;
+  wait: boolean;
+  continuePrevious: boolean;
+  autoAdvance: boolean;
+  assets?: { name: string }[];
 }
 
 export interface SparkDialogueToken extends SparkLine {
@@ -96,25 +118,42 @@ export interface SparkDialogueToken extends SparkLine {
   character: string;
   parenthetical: string;
   position: "left" | "right";
-  assets?: { name: string }[];
-}
-
-export interface SparkActionToken extends SparkLine {
-  type: SparkActionTokenType;
+  wait: boolean;
+  continuePrevious: boolean;
+  autoAdvance: boolean;
   assets?: { name: string }[];
 }
 
 export interface SparkAssetsToken extends SparkLine {
   type: SparkAssetsTokenType;
+  wait: boolean;
+  continuePrevious: boolean;
+  autoAdvance: boolean;
   assets?: { name: string }[];
 }
 
-export interface SparkTransitionToken extends SparkLine {
-  type: SparkTransitionTokenType;
+export interface SparkActionAssetToken extends SparkLine {
+  type: SparkActionAssetTokenType;
+  wait: boolean;
+  continuePrevious: boolean;
+  autoAdvance: boolean;
+  assets?: { name: string }[];
 }
 
-export interface SparkCenteredToken extends SparkLine {
-  type: SparkCenteredTokenType;
+export interface SparkDialogueAssetToken extends SparkLine {
+  type: SparkDialogueAssetTokenType;
+  wait: boolean;
+  continuePrevious: boolean;
+  autoAdvance: boolean;
+  assets?: { name: string }[];
+}
+
+export interface SparkPositionToken extends SparkLine {
+  type: SparkPositionTokenType;
+  position: "left" | "right";
+  wait: boolean;
+  continuePrevious: boolean;
+  autoAdvance: boolean;
 }
 
 export interface SparkOtherToken extends SparkLine {
@@ -127,7 +166,9 @@ export type SparkDisplayToken =
   | SparkActionToken
   | SparkTransitionToken
   | SparkCenteredToken
-  | SparkAssetsToken;
+  | SparkAssetsToken
+  | SparkActionAssetToken
+  | SparkDialogueAssetToken;
 
 export type SparkToken =
   | SparkAssetToken
@@ -148,4 +189,6 @@ export type SparkToken =
   | SparkTransitionToken
   | SparkCenteredToken
   | SparkAssetsToken
+  | SparkActionAssetToken
+  | SparkDialogueAssetToken
   | SparkOtherToken;

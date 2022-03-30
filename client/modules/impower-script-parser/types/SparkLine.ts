@@ -12,10 +12,10 @@ export interface SparkLine {
   to?: number;
   offset?: number;
   indent?: number;
-  wait?: boolean;
 
   order?: number;
   ignore?: boolean;
+  skipPreview?: boolean;
 
   html?: string;
 }

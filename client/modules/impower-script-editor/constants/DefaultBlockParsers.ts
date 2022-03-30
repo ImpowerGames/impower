@@ -668,9 +668,34 @@ export const DefaultBlockParsers: {
     if (!match) {
       return false;
     }
-    const node = cx.buffer.finish(Type.Transition, line.text.length - line.pos);
+
+    let buf = cx.buffer;
+    let from = 0;
+    let to = from;
+
+    const content = match[2] || "";
+    const contentSpace = match[3] || "";
+
+    if (content) {
+      from = to;
+      to = from + content.length;
+      buf = buf.write(Type.Transition, from, to);
+    }
+    if (contentSpace) {
+      from = to;
+      to = from;
+      for (let i = 0; i < contentSpace.length; i += 1) {
+        from = to;
+        to = from + 1;
+        buf = buf.write(Type.Pause, from, to);
+      }
+    }
+
+    const node = buf.finish(Type.Transition, line.text.length - line.pos);
+
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
+
     return true;
   },
 
@@ -706,6 +731,7 @@ export const DefaultBlockParsers: {
     const numberOpenMark = match[10] || "";
     const number = match[11] || "";
     const numberCloseMark = match[12] || "";
+    const numberCloseMarkSpace = match[13] || "";
 
     if (prefix || prefixSpace) {
       if (prefix.startsWith(".")) {
@@ -713,28 +739,76 @@ export const DefaultBlockParsers: {
         to = from + 1;
         buf = buf.write(Type.SceneMark, from, to);
         from = to;
-        to = from + prefix.length + prefixSpace.length - 1;
+        to = from + prefix.length - 1;
         buf = buf.write(Type.ScenePrefix, from, to);
       } else {
         from = to;
-        to = from + prefix.length + prefixSpace.length;
+        to = from + prefix.length;
         buf = buf.write(Type.ScenePrefix, from, to);
       }
     }
-    if (location || locationSpace) {
+    if (prefixSpace) {
       from = to;
-      to = from + location.length + locationSpace.length;
+      to = from + prefixSpace.length;
+      if (!match.slice(4).join("")) {
+        to = from;
+        for (let i = 0; i < prefixSpace.length; i += 1) {
+          from = to;
+          to = from + 1;
+          buf = buf.write(Type.Pause, from, to);
+        }
+      }
+    }
+    if (location) {
+      from = to;
+      to = from + location.length;
       buf = buf.write(Type.SceneLocation, from, to);
     }
-    if (separator || separatorSpace) {
+    if (locationSpace) {
       from = to;
-      to = from + separator.length + separatorSpace.length;
+      to = from + locationSpace.length;
+      if (!match.slice(6).join("")) {
+        to = from;
+        for (let i = 0; i < locationSpace.length; i += 1) {
+          from = to;
+          to = from + 1;
+          buf = buf.write(Type.Pause, from, to);
+        }
+      }
+    }
+    if (separator) {
+      from = to;
+      to = from + separator.length;
       buf = buf.write(Type.SceneSeparatorMark, from, to);
     }
-    if (time || timeSpace) {
+    if (separatorSpace) {
       from = to;
-      to = from + time.length + timeSpace.length;
+      to = from + separatorSpace.length;
+      if (!match.slice(8).join("")) {
+        to = from;
+        for (let i = 0; i < separatorSpace.length; i += 1) {
+          from = to;
+          to = from + 1;
+          buf = buf.write(Type.Pause, from, to);
+        }
+      }
+    }
+    if (time) {
+      from = to;
+      to = from + time.length;
       buf = buf.write(Type.SceneTime, from, to);
+    }
+    if (timeSpace) {
+      from = to;
+      to = from + timeSpace.length;
+      if (!match.slice(10).join("")) {
+        to = from;
+        for (let i = 0; i < timeSpace.length; i += 1) {
+          from = to;
+          to = from + 1;
+          buf = buf.write(Type.Pause, from, to);
+        }
+      }
     }
     if (numberOpenMark) {
       from = to;
@@ -750,6 +824,15 @@ export const DefaultBlockParsers: {
       from = to;
       to = from + numberCloseMark.length;
       buf = buf.write(Type.SceneNumberMark, from, to);
+    }
+    if (numberCloseMarkSpace) {
+      from = to;
+      to = from;
+      for (let i = 0; i < numberCloseMarkSpace.length; i += 1) {
+        from = to;
+        to = from + 1;
+        buf = buf.write(Type.Pause, from, to);
+      }
     }
 
     const node = buf.finish(Type.Scene, line.text.length - line.pos);
@@ -786,10 +869,19 @@ export const DefaultBlockParsers: {
       from = to;
       to = from + content.length + contentSpace.length;
     }
-    if (closeMark || closeMarkSpace) {
+    if (closeMark) {
       from = to;
-      to = from + closeMark.length + closeMarkSpace.length;
+      to = from + closeMark.length;
       buf = buf.write(Type.CenteredMark, from, to);
+    }
+    if (closeMarkSpace) {
+      from = to;
+      to = from;
+      for (let i = 0; i < closeMarkSpace.length; i += 1) {
+        from = to;
+        to = from + 1;
+        buf = buf.write(Type.Pause, from, to);
+      }
     }
 
     const node = buf.finish(Type.Centered, line.text.length - line.pos);
@@ -1007,7 +1099,7 @@ export const DefaultBlockParsers: {
       if (content || contentSpace) {
         from = to;
         to = from + content.length + contentSpace.length;
-        buf = buf.writeElements(cx.parser.parseInline(content, from));
+        buf = buf.writeElements(cx.parser.parseInline(content, from, cx));
       }
       if (angle || angleSpace) {
         from = to;
@@ -1128,7 +1220,7 @@ export const DefaultBlockParsers: {
     const buf = cx.buffer
       .write(Type.LyricMark, 0, size)
       .writeElements(
-        cx.parser.parseInline(line.text.slice(size), from + size),
+        cx.parser.parseInline(line.text.slice(size), from + size, cx),
         -from
       );
     const node = buf.finish(Type.Lyric, line.text.length);
@@ -1144,7 +1236,7 @@ export const DefaultBlockParsers: {
     const off = line.pos;
     const from = cx.lineStart + off;
     let buf = cx.buffer;
-    buf = buf.writeElements(cx.parser.parseInline(line.text, from), -from);
+    buf = buf.writeElements(cx.parser.parseInline(line.text, from, cx), -from);
     const node = buf.finish(Type.DialogueLine, line.text.length - off);
     cx.addNode(node, from);
     cx.nextLine();

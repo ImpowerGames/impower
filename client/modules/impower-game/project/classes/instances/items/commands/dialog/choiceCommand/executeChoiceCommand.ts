@@ -11,7 +11,9 @@ export const executeChoiceCommand = (
   onClick?: () => void
 ): void => {
   const content = data?.content || "";
+  const order = data?.order || 0;
   const valueMap = context?.valueMap;
+  const validIndex = index != null ? index : order;
   const ui = "impower_ui";
   const contentEls = document.querySelectorAll<HTMLButtonElement>(
     `#${ui} .choice`
@@ -28,17 +30,33 @@ export const executeChoiceCommand = (
     });
     onClick?.();
   };
-  contentEls.forEach((el, i) => {
+  if (!data) {
+    contentEls.forEach((el) => {
+      if (el) {
+        el.replaceChildren("");
+        el.style.display = "none";
+      }
+    });
+    return;
+  }
+  const lastContentEl = contentEls?.[contentEls.length - 1];
+  const parentEl = lastContentEl?.parentElement;
+  for (let i = 0; i < validIndex + 1; i += 1) {
+    const el =
+      contentEls?.[i] ||
+      parentEl.appendChild(lastContentEl?.cloneNode(true) as HTMLElement);
     if (el) {
-      if (i === index) {
+      if (validIndex === i) {
         el.onclick = handleClick;
         el.replaceChildren(evaluatedContent);
         el.style.display = "block";
       }
-      if (i >= count) {
-        el.replaceChildren("");
-        el.style.display = "none";
+      if (count != null) {
+        if (i >= count) {
+          el.replaceChildren("");
+          el.style.display = "none";
+        }
       }
     }
-  });
+  }
 };

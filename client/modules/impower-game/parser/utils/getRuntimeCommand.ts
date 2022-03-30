@@ -51,8 +51,10 @@ const getDisplayCommand = (
       (dialogueToken.position as DisplayPosition) || DisplayPosition.Default,
     character: dialogueToken.character || "",
     parenthetical: dialogueToken.parenthetical || "",
-    content: dialogueToken.text || dialogueToken.content,
+    content: dialogueToken.content,
     assets: dialogueToken.assets?.map(({ name }) => name),
+    autoAdvance: dialogueToken.autoAdvance,
+    continuePrevious: dialogueToken.continuePrevious,
     waitUntilFinished: Boolean(token.wait),
   };
 };
@@ -61,6 +63,9 @@ export const getRuntimeCommand = (
   token: SparkToken,
   sectionId = ""
 ): CommandData => {
+  if (!token) {
+    return null;
+  }
   if (token.type === "assign" || token.type === "variable") {
     const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "AssignCommand";
@@ -173,6 +178,7 @@ export const getRuntimeCommand = (
       value: token.value,
       calls: token.calls,
       content: token.content,
+      order: token.order,
       waitUntilFinished: token.operator === "end",
     };
     return newCommand;

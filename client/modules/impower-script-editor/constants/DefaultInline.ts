@@ -1,10 +1,12 @@
 import { sparkRegexes } from "../../impower-script-parser";
+import { BlockContext } from "../classes/BlockContext";
 import { Element } from "../classes/Element";
 import { InlineContext } from "../classes/InlineContext";
 import { InlineDelimiter } from "../classes/InlineDelimeter";
 import { Mark } from "../types/mark";
 import { Type } from "../types/type";
 import { newline } from "../utils/newline";
+import { space } from "../utils/space";
 import {
   AudioNoteStart,
   DynamicTagStart,
@@ -16,8 +18,32 @@ import {
 import { Escapable, Punctuation } from "./regexes";
 
 export const DefaultInline: {
-  [name: string]: (cx: InlineContext, next: number, pos: number) => number;
+  [name: string]: (
+    cx: InlineContext,
+    next: number,
+    pos: number,
+    block: BlockContext
+  ) => number;
 } = {
+  Pause(cx, next, start, block) {
+    if (!space(next)) {
+      return -1;
+    }
+    if (block.absoluteLineEnd - cx.end > 1) {
+      return -1;
+    }
+    const open = cx.slice(start, start + 2);
+    const close = cx.slice(start - 1, start + 1);
+    const spaceBefore = close === "  ";
+    const spaceAfter = open === "  ";
+    const newlineAfter = open === " \n" || start + 1 === cx.end;
+    const extraSpace = spaceBefore || spaceAfter || newlineAfter;
+    if (!extraSpace) {
+      return -1;
+    }
+    return cx.append(new Element(Type.Pause, start, start + 1));
+  },
+
   Comment(cx, next, start) {
     const open = cx.slice(start, start + 2);
     if (open !== "//") {
@@ -269,7 +295,7 @@ export const DefaultInline: {
         const content = [];
         content.unshift(new Element(mark, startPos, startPos + 2));
         content.push(new Element(mark, endPos - 3, endPos - 1));
-        const tag = new Element(type, startPos, endPos, content);
+        const tag = new Element(type, startPos, endPos - 1, content);
         cx.parts[i] = tag;
         // Set any open-link markers before this link to invalid.
         if (
@@ -289,7 +315,7 @@ export const DefaultInline: {
             }
           }
         }
-        return tag.to + spaceLength;
+        return tag.to + spaceLength + 1;
       }
     }
     return -1;
@@ -370,12 +396,5 @@ export const DefaultInline: {
       }
     }
     return -1;
-  },
-  Pause(cx, next, start) {
-    const close = cx.slice(start - 1, start + 1);
-    if (next !== " ".charCodeAt(0) || close !== "  ") {
-      return -1;
-    }
-    return cx.append(new Element(Type.Pause, start, start + 1));
   },
 };

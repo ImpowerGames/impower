@@ -4,6 +4,7 @@ import { EmphasisAsterisk, UnderlineUnderscore } from "../constants/delimiters";
 import { DelimiterType } from "../types/delimiterType";
 import { Mark } from "../types/mark";
 import { skipSpace } from "../utils/skipSpace";
+import { BlockContext } from "./BlockContext";
 import { Element } from "./Element";
 import { InlineDelimiter } from "./InlineDelimeter";
 import { MarkdownParser } from "./MarkdownParser";
@@ -24,6 +25,9 @@ export class InlineContext {
   /// The starting offset of the section in the document.
   readonly offset: number;
 
+  /// The starting offset of the section in the document.
+  readonly block: BlockContext;
+
   /// @internal
   constructor(
     /// The parser that is being used.
@@ -31,11 +35,14 @@ export class InlineContext {
     /// The text of this inline section.
     text: string,
     /// The starting offset of the section in the document.
-    offset: number
+    offset: number,
+    /// The block context.
+    block: BlockContext
   ) {
     this.parser = parser;
     this.text = text;
     this.offset = offset;
+    this.block = block;
   }
 
   /// Get the character code at the given (document-relative)

@@ -5,7 +5,7 @@ import { InlineContext } from "../classes/InlineContext";
 import { TableParser } from "../classes/TableParser";
 import { TaskParser } from "../classes/TaskParser";
 import { MarkdownConfig } from "../types/markdownConfig";
-import { space } from "../utils/space";
+import { whitespace } from "../utils/whitespace";
 
 const StrikethroughDelim = {
   resolve: "Strikethrough",
@@ -51,7 +51,8 @@ export function parseRow(
         offset + cellEnd,
         cx.parser.parseInline(
           line.slice(cellStart, cellEnd),
-          offset + cellStart
+          offset + cellStart,
+          cx
         )
       )
     );
@@ -166,7 +167,7 @@ function parseSubSuper(ch: number, node: string, mark: string) {
       if (next === 92 /* '\\' */) {
         elts.push(cx.elt("Escape", i, (i += 1) + 2));
       }
-      if (space(next)) {
+      if (whitespace(next)) {
         break;
       }
     }

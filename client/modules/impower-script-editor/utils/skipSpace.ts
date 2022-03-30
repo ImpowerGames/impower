@@ -1,8 +1,8 @@
-import { space } from "./space";
+import { whitespace } from "./whitespace";
 
-export function skipSpace(line: string, i = 0): number {
-  while (i < line.length && space(line.charCodeAt(i))) {
+export const skipSpace = (line: string, i = 0): number => {
+  while (i < line.length && whitespace(line.charCodeAt(i))) {
     i += 1;
   }
   return i;
-}
+};

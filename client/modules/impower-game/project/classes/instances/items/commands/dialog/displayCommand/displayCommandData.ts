@@ -8,4 +8,6 @@ export interface DisplayCommandData extends CommandData<"DisplayCommand"> {
   character: string;
   parenthetical: string;
   content: string;
+  autoAdvance: boolean;
+  continuePrevious: boolean;
 }

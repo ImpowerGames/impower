@@ -390,7 +390,7 @@ export class BlockContext implements PartialParse {
       }
     }
     const inline = injectMarks(
-      this.parser.parseInline(leaf.content, leaf.start),
+      this.parser.parseInline(leaf.content, leaf.start, this),
       leaf.marks
     );
     this.addNode(

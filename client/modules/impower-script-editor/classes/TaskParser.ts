@@ -12,7 +12,7 @@ export class TaskParser implements LeafBlockParser {
       leaf,
       cx.elt("Task", leaf.start, leaf.start + leaf.content.length, [
         cx.elt("TaskMarker", leaf.start, leaf.start + 3),
-        ...cx.parser.parseInline(leaf.content.slice(3), leaf.start + 3),
+        ...cx.parser.parseInline(leaf.content.slice(3), leaf.start + 3, cx),
       ])
     );
     return true;

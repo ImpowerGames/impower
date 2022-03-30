@@ -358,16 +358,7 @@ const ContainerScriptEditor = React.memo(
         let tokenIndex = result.scriptLines[line];
         let token = result.scriptTokens[tokenIndex];
         if (token) {
-          const skip = [
-            "dialogue_asset",
-            "action_asset",
-            "character",
-            "parenthetical",
-          ];
-          while (
-            tokenIndex < result.scriptTokens.length &&
-            skip.includes(token.type)
-          ) {
+          while (tokenIndex < result.scriptTokens.length && token.skipPreview) {
             tokenIndex += 1;
             token = result.scriptTokens[tokenIndex];
           }

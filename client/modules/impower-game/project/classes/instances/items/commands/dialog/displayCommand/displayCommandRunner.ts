@@ -12,6 +12,8 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
 
   wasTyped = false;
 
+  autoAdvance = false;
+
   init(): void {
     executeDisplayCommand();
   }
@@ -23,6 +25,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
   ): number[] {
     this.wasPressed = false;
     this.wasTyped = false;
+    this.autoAdvance = data?.autoAdvance;
     this.down = game.input.state.pointer.down.includes(0);
     this.delay = executeDisplayCommand(data, context);
     return super.onExecute(data, context, game);
@@ -42,6 +45,9 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     if (this.delay != null) {
       if (secondsSinceExecution > this.delay) {
         this.wasTyped = true;
+      }
+      if (this.wasTyped && this.autoAdvance === true) {
+        return true;
       }
       if (!prevDown && this.down) {
         this.wasPressed = true;

@@ -6,5 +6,7 @@ export const displayTokenTypes: SparkTokenType[] = [
   "centered",
   "transition",
   "scene",
+  "assets",
   "action_asset",
+  "dialogue_asset",
 ];

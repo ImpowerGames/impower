@@ -59,7 +59,12 @@ export class MarkdownParser extends Parser {
     },
     /// @internal
     readonly inlineParsers: readonly (
-      | ((cx: InlineContext, next: number, pos: number) => number)
+      | ((
+          cx: InlineContext,
+          next: number,
+          pos: number,
+          block: BlockContext
+        ) => number)
       | undefined
     )[],
     /// @internal
@@ -224,8 +229,8 @@ export class MarkdownParser extends Parser {
   /// Parse the given piece of inline text at the given offset,
   /// returning an array of [`Element`](#Element) objects representing
   /// the inline content.
-  parseInline(text: string, offset: number): Element[] {
-    const cx = new InlineContext(this, text, offset);
+  parseInline(text: string, offset: number, block: BlockContext): Element[] {
+    const cx = new InlineContext(this, text, offset, block);
     let pos = offset;
     while (pos < cx.end) {
       const next = cx.char(pos);
@@ -233,7 +238,7 @@ export class MarkdownParser extends Parser {
       for (let i = 0; i < this.inlineParsers.length; i += 1) {
         const token = this.inlineParsers[i];
         if (token) {
-          const result = token(cx, next, pos);
+          const result = token(cx, next, pos, block);
           if (result >= 0) {
             pos = result;
             skipIncrement = true;

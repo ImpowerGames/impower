@@ -8,7 +8,7 @@ import { HTMLBlockStyle } from "../constants/regexes";
 import { MarkdownConfig } from "../types/markdownConfig";
 import { MarkdownExtension } from "../types/markdownExtension";
 import { Type } from "../types/type";
-import { space } from "./space";
+import { whitespace } from "./whitespace";
 
 export function inBlockContext(cx: BlockContext, type: Type): boolean {
   for (let i = cx.stack.length - 1; i >= 0; i -= 1)
@@ -235,7 +235,7 @@ export function isTitle(
   if (
     pos === line.pos ||
     next !== ":".charCodeAt(0) ||
-    (pos < line.text.length - 1 && !space(line.text.charCodeAt(pos + 1)))
+    (pos < line.text.length - 1 && !whitespace(line.text.charCodeAt(pos + 1)))
   ) {
     return -1;
   }
@@ -251,7 +251,7 @@ export function isBulletList(
     line.next === "+".charCodeAt(0) ||
     line.next === "*".charCodeAt(0)) &&
     (line.pos === line.text.length - 1 ||
-      space(line.text.charCodeAt(line.pos + 1))) &&
+      whitespace(line.text.charCodeAt(line.pos + 1))) &&
     (!breaking ||
       inBlockContext(cx, Type.BulletList) ||
       line.skipSpace(line.pos + 2) < line.text.length)
@@ -279,7 +279,8 @@ export function isOrderedList(
     pos === line.pos ||
     pos > line.pos + 9 ||
     (next !== 46 && next !== 41) /* '.)' */ ||
-    (pos < line.text.length - 1 && !space(line.text.charCodeAt(pos + 1))) ||
+    (pos < line.text.length - 1 &&
+      !whitespace(line.text.charCodeAt(pos + 1))) ||
     (breaking &&
       !inBlockContext(cx, Type.OrderedList) &&
       (line.skipSpace(pos + 1) === line.text.length ||
@@ -383,7 +384,7 @@ export function lineEnd(text: string, pos: number): number {
     if (next === 10) {
       break;
     }
-    if (!space(next)) {
+    if (!whitespace(next)) {
       return -1;
     }
   }
@@ -470,7 +471,7 @@ export function parseURL(
   let pos = start;
   for (let escaped = false; pos < text.length; pos += 1) {
     const ch = text.charCodeAt(pos);
-    if (space(ch)) {
+    if (whitespace(ch)) {
       break;
     } else if (escaped) {
       escaped = false;
