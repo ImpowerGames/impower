@@ -66,6 +66,9 @@ export const getRuntimeCommand = (
   if (!token) {
     return null;
   }
+  if (token.ignore) {
+    return null;
+  }
   if (token.type === "assign" || token.type === "variable") {
     const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "AssignCommand";
