@@ -1,6 +1,7 @@
 import {
   SparkDialogueToken,
   SparkDisplayToken,
+  SparkLine,
   SparkToken,
 } from "../../../impower-script-parser";
 import {
@@ -20,7 +21,7 @@ import {
   SetOperator,
 } from "../../data";
 
-const getCommandId = (token: SparkToken, sectionId = ""): string => {
+const getCommandId = (token: SparkLine, sectionId = ""): string => {
   return `${sectionId}.${token.line}_${token.from}-${token.to}_${token.indent}`;
 };
 
@@ -54,7 +55,8 @@ const getDisplayCommand = (
     content: dialogueToken.content,
     assets: dialogueToken.assets?.map(({ name }) => name),
     autoAdvance: dialogueToken.autoAdvance,
-    continuePrevious: dialogueToken.continuePrevious,
+    clearPreviousText: dialogueToken.clearPreviousText,
+    clearPreviousAssets: dialogueToken.clearPreviousAssets,
     waitUntilFinished: Boolean(token.wait),
   };
 };

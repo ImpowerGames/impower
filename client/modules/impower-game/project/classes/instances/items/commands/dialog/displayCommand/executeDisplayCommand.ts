@@ -274,7 +274,8 @@ export const executeDisplayCommand = (
   const content = data?.content;
   const assets = data?.assets;
   const autoAdvance = data?.autoAdvance;
-  const continuePrevious = data?.continuePrevious;
+  const clearPreviousText = data?.clearPreviousText;
+  const clearPreviousAssets = data?.clearPreviousAssets;
 
   const valueMap = context?.valueMap;
   const instant = context?.instant;
@@ -315,7 +316,7 @@ export const executeDisplayCommand = (
       portraitEl.style.backgroundRepeat = "no-repeat";
       portraitEl.style.backgroundPosition = "center";
       portraitEl.style.display = null;
-    } else {
+    } else if (clearPreviousAssets) {
       portraitEl.style.display = "none";
     }
   }
@@ -349,10 +350,10 @@ export const executeDisplayCommand = (
   contentElEntries.forEach(([t, el]) => {
     if (el) {
       if (t === type) {
-        if (continuePrevious) {
-          spanEls.forEach((p) => el.appendChild(p));
-        } else {
+        if (clearPreviousText) {
           el.replaceChildren(...spanEls);
+        } else {
+          spanEls.forEach((p) => el.appendChild(p));
         }
         el.style.display = null;
       } else {

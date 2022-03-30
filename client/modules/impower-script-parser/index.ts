@@ -5,6 +5,7 @@ export * from "./types/MethodType";
 export * from "./types/ScreenplayProperties";
 export * from "./types/SparkAsset";
 export * from "./types/SparkDeclarations";
+export * from "./types/SparkLine";
 export * from "./types/SparkParseResult";
 export * from "./types/SparkReference";
 export * from "./types/SparkSection";

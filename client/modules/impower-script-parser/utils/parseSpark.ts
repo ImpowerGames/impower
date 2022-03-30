@@ -1636,10 +1636,15 @@ export const parseSpark = (
       previousDisplayToken.ignore = true;
       previousDisplayToken.skipPreview = true;
     }
+    if (previousDisplayToken?.type === token.type) {
+      token.clearPreviousAssets = false;
+    } else {
+      token.clearPreviousAssets = true;
+    }
     previousDisplayToken = token;
     if (token.type === "dialogue_asset" || token.type === "action_asset") {
       token.autoAdvance = true;
-      token.continuePrevious = true;
+      token.clearPreviousText = false;
       token.wait = false;
       return;
     }
@@ -1650,10 +1655,10 @@ export const parseSpark = (
       const endSpaces = contentMatch[3] || "";
       token.content = validContent + endSpaces;
       token.autoAdvance = Boolean(endSpaces);
-      token.continuePrevious = continuePrevious;
+      token.clearPreviousText = !continuePrevious;
     } else {
       token.autoAdvance = false;
-      token.continuePrevious = false;
+      token.clearPreviousText = true;
     }
     token.wait = true;
     token.ignore = false;
@@ -1980,6 +1985,7 @@ export const parseSpark = (
         saveAndClearDialogueOrActionAssets();
         pushToken(currentToken);
         previousToken = currentToken;
+        previousDisplayToken = null;
         continue;
       }
     }
