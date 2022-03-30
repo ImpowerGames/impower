@@ -45,9 +45,10 @@ export const choose = (
     ignoreArgs.push(firstParamIndex);
     args.shift();
     const cycleIndex = Math.floor(v / args.length);
-    const cycleSeed = randomized ? undefined : seed + cycleIndex;
-    // We seed the "random" order so that
-    // each is selected only once per loop
+    // When shuffling, we seed the "random" order so that
+    // each option is selected only once per cycle.
+    // When randomizing, we don't seed, so that it can be truly random.
+    const cycleSeed = shuffled ? seed + cycleIndex : undefined;
     if (repeatLast) {
       // Shuffle all except last two
       const cycleMark = args.pop();
