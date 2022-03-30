@@ -733,7 +733,7 @@ export const DefaultBlockParsers: {
     const numberCloseMark = match[12] || "";
     const numberCloseMarkSpace = match[13] || "";
 
-    if (prefix || prefixSpace) {
+    if (prefix) {
       if (prefix.startsWith(".")) {
         from = to;
         to = from + 1;
@@ -1130,63 +1130,72 @@ export const DefaultBlockParsers: {
       return false;
     }
 
-    let characterMark = "";
-    const character = match[1];
-    let characterName = character;
-    const parentheticalSpace = match[2];
-    const parenthetical = match[3];
-    const dualSpace = match[4];
-    const dual = match[5];
+    const character = match[2] || "";
+    const characterSpace = match[3] || "";
+    const parenthetical = match[4] || "";
+    const parentheticalSpace = match[5] || "";
+    const dual = match[6] || "";
 
-    const text = line?.text;
-    const off = line.pos;
-    const from = cx.lineStart + off;
     const firstCharacterNextLine = cx.input.read(
-      from + text.length + 1,
-      from + text.length + 2
+      cx.lineStart + line.pos + line.text.length + 1,
+      cx.lineStart + line.pos + line.text.length + 2
     );
 
-    if (!characterName.startsWith("@") && !firstCharacterNextLine.trim()) {
-      let buf = cx.buffer;
-      buf = buf.write(
-        Type.PossibleCharacterName,
-        characterMark.length,
-        characterMark.length + characterName.length
+    let buf = cx.buffer;
+    let from = 0;
+    let to = from;
+
+    if (!character.startsWith("@") && !firstCharacterNextLine.trim()) {
+      from = to;
+      to = from + character.length;
+      buf = buf.write(Type.PossibleCharacterName, from, to);
+      const node = buf.finish(
+        Type.PossibleCharacter,
+        line.text.length - line.pos
       );
-      const node = buf.finish(Type.PossibleCharacter, text.length - off);
-      cx.addNode(node, from);
+      cx.addNode(node, cx.lineStart + line.pos);
       cx.nextLine();
       return true;
     }
 
-    let buf = cx.buffer;
     cx.startContext(Type.Dialogue, line.basePos, line.next);
 
+    let characterName = character;
     if (characterName.startsWith("@")) {
-      buf = buf.write(Type.CharacterMark, 0, 1);
+      from = to;
+      to = from + 1;
+      buf = buf.write(Type.CharacterMark, from, to);
       characterName = characterName.slice(1);
-      characterMark = "@";
     }
-    buf = buf.write(
-      Type.CharacterName,
-      characterMark.length,
-      characterMark.length + characterName.length
-    );
-    let startPos = character.length;
-    let endPos = startPos;
+    if (characterName) {
+      from = to;
+      to = from + characterName.length;
+      buf = buf.write(Type.CharacterName, from, to);
+    }
+    if (characterSpace) {
+      from = to;
+      to = from + characterSpace.length;
+    }
     if (parenthetical) {
-      startPos = endPos + parentheticalSpace.length;
-      endPos = startPos + parenthetical.length;
-      buf.write(Type.CharacterParenthetical, startPos, endPos);
+      from = to;
+      to = from + parenthetical.length;
+      buf.write(Type.CharacterParenthetical, from, to);
+    }
+    if (parentheticalSpace) {
+      from = to;
+      to = from + parentheticalSpace.length;
     }
     if (dual) {
-      startPos = endPos + dualSpace.length;
-      endPos = startPos + dual.length;
-      buf.write(Type.CharacterDual, startPos, endPos);
+      from = to;
+      to = from + dual.length;
+      buf.write(Type.CharacterDual, from, to);
     }
-    const node = buf.finish(Type.Character, text.length - off);
-    cx.addNode(node, from);
+
+    const node = buf.finish(Type.Character, line.text.length - line.pos);
+
+    cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
+
     return true;
   },
 
