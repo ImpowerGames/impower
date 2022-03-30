@@ -10,6 +10,7 @@ export enum Type {
   Paragraph,
   CommentBlock,
   ProcessingInstructionBlock,
+  SignificantWhitespace,
 
   // Spark Block
   Synopses,
@@ -98,6 +99,7 @@ export enum Type {
   DynamicTag,
   CharacterParenthetical,
   ParentheticalLine,
+  Display,
   Dialogue,
   DialogueLine,
   Lyric,

@@ -41,6 +41,16 @@ export const DefaultSkipMarkup: {
   [Type.Condition](_bl, _cx, _line) {
     return false;
   },
+  [Type.Display](_bl, cx, line) {
+    if (
+      line.text.match(sparkRegexes.dialogue_terminator) ||
+      line.text.trim() === "_" ||
+      (line.text.trim().length === 0 && line.text.length < 2)
+    ) {
+      return false;
+    }
+    return true;
+  },
   [Type.Dialogue](_bl, cx, line) {
     if (
       line.text.match(sparkRegexes.dialogue_terminator) ||

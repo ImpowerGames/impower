@@ -676,10 +676,12 @@ export const DefaultBlockParsers: {
     const content = match[2] || "";
     const contentSpace = match[3] || "";
 
+    cx.startContext(Type.Display, line.basePos, line.next);
+
     if (content) {
       from = to;
       to = from + content.length;
-      buf = buf.write(Type.Transition, from, to);
+      buf = buf.writeElements(cx.parser.parseInline(content, from, cx));
     }
     if (contentSpace) {
       from = to;
@@ -732,6 +734,8 @@ export const DefaultBlockParsers: {
     const number = match[11] || "";
     const numberCloseMark = match[12] || "";
     const numberCloseMarkSpace = match[13] || "";
+
+    cx.startContext(Type.Display, line.basePos, line.next);
 
     if (prefix) {
       if (prefix.startsWith(".")) {
@@ -848,8 +852,8 @@ export const DefaultBlockParsers: {
     if (!match) {
       return false;
     }
-    let buf = cx.buffer;
 
+    let buf = cx.buffer;
     let from = 0;
     let to = from;
 
@@ -860,6 +864,8 @@ export const DefaultBlockParsers: {
     const closeMark = match[6] || "";
     const closeMarkSpace = match[7] || "";
 
+    cx.startContext(Type.Display, line.basePos, line.next);
+
     if (openMark || openMarkSpace) {
       from = to;
       to = from + openMark.length + openMarkSpace.length;
@@ -868,6 +874,7 @@ export const DefaultBlockParsers: {
     if (content || contentSpace) {
       from = to;
       to = from + content.length + contentSpace.length;
+      buf = buf.writeElements(cx.parser.parseInline(content, from, cx));
     }
     if (closeMark) {
       from = to;
@@ -1158,6 +1165,7 @@ export const DefaultBlockParsers: {
       return true;
     }
 
+    cx.startContext(Type.Display, line.basePos, line.next);
     cx.startContext(Type.Dialogue, line.basePos, line.next);
 
     let characterName = character;

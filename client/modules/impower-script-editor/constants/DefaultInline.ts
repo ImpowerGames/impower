@@ -1,3 +1,4 @@
+/* eslint-disable no-continue */
 import { sparkRegexes } from "../../impower-script-parser";
 import { BlockContext } from "../classes/BlockContext";
 import { Element } from "../classes/Element";
@@ -5,6 +6,7 @@ import { InlineContext } from "../classes/InlineContext";
 import { InlineDelimiter } from "../classes/InlineDelimeter";
 import { Mark } from "../types/mark";
 import { Type } from "../types/type";
+import { inBlockContext } from "../utils/markdown";
 import { newline } from "../utils/newline";
 import { space } from "../utils/space";
 import {
@@ -36,7 +38,10 @@ export const DefaultInline: {
       }
       return pos;
     }
-    if (block.absoluteLineEnd - cx.end > 1) {
+    const isDisplay = inBlockContext(block, Type.Display);
+    const isAction =
+      block.stack?.length === 1 && block.stack?.[0]?.type === Type.Document;
+    if (!isDisplay && !isAction) {
       return -1;
     }
     let pauseLength = 0;
@@ -44,30 +49,38 @@ export const DefaultInline: {
     const els: Element[] = [];
     const text = cx.slice(start, cx.end);
     const chars = text.split("");
-    for (let i = 0; i < chars.length; ) {
+    const from = cx.from(start);
+    for (let i = cx.indent; i < chars.length; ) {
       const c = chars[i];
       if (c === " ") {
         pauseLength += 1;
+      } else if (c === "\n") {
+        i += 1;
+        while (i < chars.length && chars[i] === " ") {
+          i += 1;
+        }
+        continue;
       } else {
-        break;
+        pauseLength = 0;
       }
       const hasExtraSpace = pauseLength > 1;
       if (!prevHadExtraSpace && hasExtraSpace) {
-        els.push(new Element(Type.Pause, start + i - 1, start + i));
+        els.push(new Element(Type.Pause, from + i - 1, from + i));
       }
       if (
         hasExtraSpace ||
         (pauseLength === 1 && (chars[i + 1] == null || chars[i + 1] === "\n"))
       ) {
-        els.push(new Element(Type.Pause, start + i, start + i + 1));
+        els.push(new Element(Type.Pause, from + i, from + i + 1));
       }
       prevHadExtraSpace = hasExtraSpace;
       i += 1;
     }
     if (els.length > 0) {
-      return cx.append(
-        new Element(Type.Spaces, start, start + els.length, [...els])
+      const end = cx.append(
+        new Element(Type.Spaces, from, from + els.length, [...els])
       );
+      return cx.to(end);
     }
     return -1;
   },
@@ -293,8 +306,7 @@ export const DefaultInline: {
     if (close !== "]]" && close !== "))" && close !== "}}") {
       return -1;
     }
-    const trimmedStart = cx.text.trimStart();
-    const spaceLength = cx.text.length - trimmedStart.length;
+    const spaceLength = cx.indent;
     const endPos = start + 2 - spaceLength;
     // Scanning back to the start marker
     for (let i = cx.parts.length - 1; i >= 0; i -= 1) {

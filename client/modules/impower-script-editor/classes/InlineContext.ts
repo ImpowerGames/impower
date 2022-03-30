@@ -25,7 +25,7 @@ export class InlineContext {
   /// The starting offset of the section in the document.
   readonly offset: number;
 
-  /// The starting offset of the section in the document.
+  /// The block context.
   readonly block: BlockContext;
 
   /// @internal
@@ -51,9 +51,23 @@ export class InlineContext {
     return pos >= this.end ? -1 : this.text.charCodeAt(pos - this.offset);
   }
 
+  from(pos: number): number {
+    return pos - this.indent;
+  }
+
+  to(pos: number): number {
+    return pos + this.indent;
+  }
+
   /// The position of the end of this inline section.
   get end(): number {
     return this.offset + this.text.length;
+  }
+
+  /// The indent of this inline section.
+  get indent(): number {
+    const trimmedStart = this.text.trimStart();
+    return this.text.length - trimmedStart.length;
   }
 
   /// Get a substring of this inline section. Again uses
