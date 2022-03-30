@@ -36,6 +36,9 @@ export const DefaultInline: {
       }
       return pos;
     }
+    if (block.absoluteLineEnd - cx.end > 1) {
+      return -1;
+    }
     let pauseLength = 0;
     let prevHadExtraSpace = false;
     const els: Element[] = [];
