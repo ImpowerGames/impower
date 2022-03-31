@@ -10,7 +10,7 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import { IndentationWidget } from "./IndentationWidget";
+import { colors } from "../constants/colors";
 
 // markers can be used at positions on a line over a range
 const indentationMark = Decoration.mark({ class: "cm-indentation-guide" });
@@ -25,52 +25,26 @@ function makeIndentationMark(
   from: number,
   to: number,
   indent: number,
-  tabSize: number,
-  builder: RangeSetBuilder<Decoration>
-): void {
+  tabSize: number
+): [number, number, Decoration][] {
   let indentFrom = from;
   let indentTo = from;
   const indentEnd = from + indent - tabSize * 2;
+  const decos: [number, number, Decoration][] = [];
 
   if (indentFrom - indentEnd === tabSize) {
     indentFrom = indentTo - tabSize;
     indentTo = indentFrom + tabSize;
     if (indentFrom > from) {
-      builder.add(indentFrom, indentTo, indentationMark);
+      decos.push([indentFrom, indentTo, indentationMark]);
     }
   }
   while (indentFrom <= indentEnd) {
     indentFrom = indentTo;
     indentTo = indentFrom + tabSize;
-    builder.add(indentFrom, indentTo, indentationMark);
+    decos.push([indentFrom, indentTo, indentationMark]);
   }
-}
-
-function makeIndentationWidget(
-  from: number,
-  to: number,
-  indent: number,
-  tabSize: number,
-  builder: RangeSetBuilder<Decoration>
-): void {
-  const length = to - from;
-  if (indent <= length) {
-    // we only add widgets when the line length is less than the indentation guide
-    // if the indent <= length we just use the indentationMark
-    return;
-  }
-  const indents = [];
-  const toFill = indent - length;
-  let initialFill = toFill % tabSize;
-  if (length < tabSize) {
-    initialFill += length ? tabSize : 2 * tabSize;
-  }
-  if (initialFill) {
-    indents.push(initialFill);
-  }
-  const quotient = (toFill - initialFill) / tabSize;
-  indents.push(...Array(quotient).fill(tabSize));
-  builder.add(to, to, IndentationWidget.create(indents));
+  return decos;
 }
 
 function makeIndentationDecorators(view: EditorView): RangeSet<Decoration> {
@@ -78,38 +52,31 @@ function makeIndentationDecorators(view: EditorView): RangeSet<Decoration> {
   const builder = new RangeSetBuilder<Decoration>();
   const { doc } = view.state;
   const spaceOnlyLines = [];
-  let currentIndent = 0;
   view.visibleRanges.forEach((range) => {
     const visibleFrom = range?.from;
     const visibleTo = range?.to;
     let to = visibleFrom - 1;
     let pos;
     let from;
-    let length;
     let text;
     while ((pos = to + 1) <= visibleTo) {
-      ({ from, to, length, text } = doc.lineAt(pos));
+      ({ from, to, text } = doc.lineAt(pos));
       const codeStartsAt = getCodeStart(text);
-      const isAllSpaces = codeStartsAt === length;
-      // we don't have indentation guides for the zero/first indentation level
-      const isComment = text.slice(codeStartsAt, codeStartsAt + 2) === "//";
-      if (isAllSpaces) {
-        spaceOnlyLines.push({ from, to });
-        continue;
-      }
       // we have a valid indentation that needs guiding!
       // fill all space only lines that we've kept track of
       const indent = codeStartsAt - (codeStartsAt % tabSize);
-      if (!isComment) {
-        currentIndent = indent;
-      }
-      for (let i = 0; i < spaceOnlyLines.length; i += 1) {
-        const { from, to } = spaceOnlyLines[i];
-        makeIndentationMark(from, to, currentIndent, tabSize, builder);
-        makeIndentationWidget(from, to, currentIndent, tabSize, builder);
-      }
+      const decos: Map<number, [number, number, Decoration]> = new Map();
       spaceOnlyLines.length = 0;
-      makeIndentationMark(from, to, indent, tabSize, builder);
+      makeIndentationMark(from, to, indent, tabSize).forEach(
+        ([from, to, deco]) => {
+          decos[from] = [from, to, deco];
+        }
+      );
+      Object.values(decos)
+        .sort((a, b) => a[0] - b[0])
+        .forEach(([from, to, mark]) => {
+          builder.add(from, to, mark);
+        });
     }
   });
   return builder.finish();
@@ -124,8 +91,9 @@ const showIndentations = ViewPlugin.fromClass(
     }
 
     update(update: ViewUpdate): void {
-      if (update.docChanged || update.viewportChanged)
+      if (update.docChanged || update.viewportChanged) {
         this.decorations = makeIndentationDecorators(update.view);
+      }
     }
   },
   {
@@ -146,9 +114,10 @@ const indentationTheme = EditorView.baseTheme({
     position: "absolute",
     content: "''",
     top: "-4px",
-    left: "2px",
+    left: "0",
     height: "100%",
-    borderLeft: "1px solid rgba(193, 199, 249, 0.4)",
+    opacity: 0.25,
+    borderLeft: `1px solid ${colors.keyword}`,
   },
 });
 
