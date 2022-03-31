@@ -32,7 +32,8 @@ export const displayCommandClassNames = {
   character: "character",
   portrait: "portrait",
   parenthetical: "parenthetical",
-  dialogue_group: "dialogue_group",
+  dialogue_area: "dialogue_area",
+  dialogue_content: "dialogue_content",
   indicator: "indicator",
   choice: "choice",
   dialogue: "dialogue",
@@ -43,17 +44,21 @@ export const displayCommandClassNames = {
   assets: "assets",
 };
 
-const getElementSelector = (ui: string, className: string): string =>
-  `#${ui} .${className}`;
+const getElementSelector = (ui: string, ...classNames: string[]): string =>
+  `#${ui} .${classNames.join(" .")}`;
 
-const getElement = <T extends HTMLElement>(ui: string, className: string): T =>
-  document.querySelector<T>(getElementSelector(ui, className));
+const getElement = <T extends HTMLElement>(
+  ui: string,
+  ...classNames: string[]
+): T => document.querySelector<T>(getElementSelector(ui, ...classNames));
 
 const getElements = <T extends HTMLElement>(
   ui: string,
-  className: string
-): NodeListOf<T> =>
-  document.querySelectorAll<T>(getElementSelector(ui, className));
+  ...classNames: string[]
+): T[] =>
+  Array.from(
+    document.querySelectorAll<T>(getElementSelector(ui, ...classNames))
+  );
 
 const getStyleId = (ui: string): string => `${ui}-style`;
 
@@ -303,20 +308,13 @@ export const executeDisplayCommand = (
   const indicatorAnimationEase = config?.indicatorAnimationEase;
 
   setupStyle(ui, css);
-  const dialogueGroupEl = getElement(
+  const dialogueAreaEl = getElement(ui, displayCommandClassNames.dialogue_area);
+  const dialogueContentEls = getElements(
     ui,
-    displayCommandClassNames.dialogue_group
+    displayCommandClassNames.dialogue_content
   );
-  const characterEl = getElement(ui, displayCommandClassNames.character);
   const portraitEl = getElement(ui, displayCommandClassNames.portrait);
-  const parentheticalEl = getElement(
-    ui,
-    displayCommandClassNames.parenthetical
-  );
   const indicatorEl = getElement(ui, displayCommandClassNames.indicator);
-  const contentElEntries: [DisplayType, HTMLElement][] = Object.values(
-    DisplayType
-  ).map((x) => [x, getElement(ui, x)]);
   const validCharacter = type === DisplayType.Dialogue ? character : "";
   const validParenthetical = type === DisplayType.Dialogue ? parenthetical : "";
   const trimmedContent = content?.trim() === "_" ? "" : content || "";
@@ -342,9 +340,86 @@ export const executeDisplayCommand = (
 
   hideChoices();
 
-  if (dialogueGroupEl) {
-    dialogueGroupEl.style.display = type === "dialogue" ? null : "none";
+  if (dialogueAreaEl) {
+    dialogueAreaEl.style.display = type === "dialogue" ? null : "none";
   }
+
+  const positions = ["default", "left", "right"];
+  const validPosition = data?.position || "default";
+  const lastContentEl = dialogueContentEls?.[dialogueContentEls.length - 1];
+  const parentEl = lastContentEl?.parentElement;
+  for (let i = 0; i < positions.length; i += 1) {
+    const el =
+      dialogueContentEls?.[i] ||
+      parentEl.appendChild(lastContentEl?.cloneNode(true) as HTMLElement);
+    el.classList.add(positions[i]);
+    el.style.visibility = "hidden";
+    el.style.display = "none";
+  }
+
+  const characterEl = getElement(
+    ui,
+    validPosition,
+    displayCommandClassNames.character
+  );
+  const parentheticalEl = getElement(
+    ui,
+    validPosition,
+    displayCommandClassNames.parenthetical
+  );
+  const contentElEntries: [DisplayType, HTMLElement][] = Object.values(
+    DisplayType
+  ).map((x) => [
+    x,
+    x === DisplayType.Dialogue
+      ? getElement(ui, validPosition, x)
+      : getElement(ui, x),
+  ]);
+  const [defaultEl, leftEl, rightEl] = dialogueContentEls;
+  if (type !== DisplayType.Dialogue) {
+    dialogueContentEls.forEach((el) => {
+      el.style.display = "none";
+    });
+  } else if (validPosition === "default") {
+    if (defaultEl) {
+      defaultEl.style.display = null;
+      defaultEl.style.visibility = null;
+    }
+    if (leftEl) {
+      leftEl.style.display = "none";
+      leftEl.style.visibility = "hidden";
+    }
+    if (rightEl) {
+      rightEl.style.display = "none";
+      rightEl.style.visibility = "hidden";
+    }
+  } else if (validPosition === "left") {
+    if (defaultEl) {
+      defaultEl.style.display = "none";
+      defaultEl.style.visibility = "hidden";
+    }
+    if (leftEl) {
+      leftEl.style.display = null;
+      leftEl.style.visibility = null;
+    }
+    if (rightEl) {
+      rightEl.style.display = null;
+      rightEl.style.visibility = "hidden";
+    }
+  } else if (validPosition === "right") {
+    if (defaultEl) {
+      defaultEl.style.display = "none";
+    }
+    if (leftEl) {
+      leftEl.style.display = null;
+      leftEl.style.visibility = null;
+    }
+    if (rightEl) {
+      rightEl.style.display = null;
+      rightEl.style.visibility = null;
+    }
+  }
+
   if (characterEl) {
     characterEl.replaceChildren(validCharacter);
     characterEl.style.display = validCharacter ? null : "none";

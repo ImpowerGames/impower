@@ -215,7 +215,7 @@ const UI = React.memo((props: UIProps): JSX.Element => {
                 >
                   <div
                     ref={widthRef}
-                    className="dialogue_group"
+                    className="dialogue_area"
                     style={{
                       width: "90%",
                       margin: "0 auto",
@@ -223,14 +223,24 @@ const UI = React.memo((props: UIProps): JSX.Element => {
                     }}
                   >
                     <div
-                      className="character"
-                      style={{ textAlign: "center" }}
-                    />
-                    <div
-                      className="parenthetical"
-                      style={{ textAlign: "center" }}
-                    />
-                    <div className="dialogue" style={{ flex: 1 }} />
+                      className="dialogue_group"
+                      style={{ display: "flex", flex: 1 }}
+                    >
+                      <div
+                        className="dialogue_content"
+                        style={{ flex: 1, padding: "0 8px" }}
+                      >
+                        <div
+                          className="character"
+                          style={{ textAlign: "center" }}
+                        />
+                        <div
+                          className="parenthetical"
+                          style={{ textAlign: "center" }}
+                        />
+                        <div className="dialogue" style={{ flex: 1 }} />
+                      </div>
+                    </div>
                   </div>
                   <div className="action" style={{ flex: 1 }} />
                   <div className="centered" style={{ textAlign: "center" }} />

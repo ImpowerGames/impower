@@ -2455,7 +2455,7 @@ export const parseSpark = (
               lastCharacterToken?.type === "dialogue"
             ) {
               lastCharacterToken.position = "left";
-              lastCharacterToken.wait = false;
+              lastCharacterToken.autoAdvance = true;
               index += 1;
               lastCharacterToken = parsed.scriptTokens[index];
             }
