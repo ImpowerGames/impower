@@ -123,6 +123,7 @@ const getAnimatedSpanElements = (
   let pauseSpan: HTMLSpanElement;
   const imageUrls = new Set<string>();
   const audioUrls = new Set<string>();
+  let hideSpace = false;
   for (let i = 0; i < splitContent.length; ) {
     const part = splitContent[i];
     const lastMark = marks[marks.length - 1]?.[0];
@@ -182,6 +183,11 @@ const getAnimatedSpanElements = (
       i += 2;
       continue;
     }
+    if (part === "|") {
+      i += 1;
+      hideSpace = true;
+      continue;
+    }
     if (part === "*") {
       if (lastMark === "*") {
         marks.pop();
@@ -227,6 +233,14 @@ const getAnimatedSpanElements = (
       pauseSpan.style.backgroundColor = `hsla(0, 100%, 50%, ${
         (pauseLength - 1) / 5
       })`;
+    }
+    if (pauseLength > 0) {
+      if (hideSpace) {
+        pauseSpan.textContent = "";
+        span.textContent = "";
+      }
+    } else {
+      hideSpace = false;
     }
     if (!instant) {
       totalDelay += isPause ? pauseDelay : letterDelay;
