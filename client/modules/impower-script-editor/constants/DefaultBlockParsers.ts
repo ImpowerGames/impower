@@ -1384,21 +1384,8 @@ export const DefaultBlockParsers: {
     return true;
   },
   Action(cx, line) {
-    let buf = cx.buffer;
-    let from = 0;
-    let to = from;
-
     cx.startContext(Type.Display, line.basePos, line.next);
 
-    from = to;
-    to = from + line.text.length;
-    buf = buf.writeElements(cx.parser.parseInline(line.text, from, cx));
-
-    const node = buf.finish(Type.Action, line.text.length - line.pos);
-
-    cx.addNode(node, cx.lineStart + line.pos);
-    cx.nextLine();
-
-    return true;
+    return false;
   },
 };
