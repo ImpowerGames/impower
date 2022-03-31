@@ -2089,7 +2089,7 @@ export const parseSpark = (
         currentToken.type = "action";
         if (currentToken.type === "action") {
           const content = currentToken.content;
-          const extraOffset = content.startsWith(".") ? 1 : 0;
+          const extraOffset = 1;
           currentToken.content = content.substring(extraOffset)?.trimStart();
           processDisplayedContent(
             currentToken,
