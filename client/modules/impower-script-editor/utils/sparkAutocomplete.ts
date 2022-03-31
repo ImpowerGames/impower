@@ -778,7 +778,7 @@ export const sparkAutocomplete = async (
   if (["RepeatMark"].includes(node.name)) {
     completions.push(...repeatSnippets);
   }
-  if (["Paragraph"].includes(node.name)) {
+  if (["Paragraph", "Action"].includes(node.name)) {
     if (input.match(/^[\w]+/)) {
       if (isLowercase) {
         completions.push(...lowercaseParagraphSnippets);

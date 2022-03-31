@@ -39,9 +39,7 @@ export const DefaultInline: {
       return pos;
     }
     const isDisplay = inBlockContext(block, Type.Display);
-    const isAction =
-      block.stack?.length === 1 && block.stack?.[0]?.type === Type.Document;
-    if (!isDisplay && !isAction) {
+    if (!isDisplay) {
       return -1;
     }
     let pauseLength = 0;
