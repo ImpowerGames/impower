@@ -344,81 +344,14 @@ export const executeDisplayCommand = (
     dialogueAreaEl.style.display = type === "dialogue" ? null : "none";
   }
 
-  const positions = ["default", "left", "right"];
-  const validPosition = data?.position || "default";
-  const lastContentEl = dialogueContentEls?.[dialogueContentEls.length - 1];
-  const parentEl = lastContentEl?.parentElement;
-  for (let i = 0; i < positions.length; i += 1) {
-    const el =
-      dialogueContentEls?.[i] ||
-      parentEl.appendChild(lastContentEl?.cloneNode(true) as HTMLElement);
-    el.classList.add(positions[i]);
-    el.style.visibility = "hidden";
-    el.style.display = "none";
-  }
-
-  const characterEl = getElement(
-    ui,
-    validPosition,
-    displayCommandClassNames.character
-  );
+  const characterEl = getElement(ui, displayCommandClassNames.character);
   const parentheticalEl = getElement(
     ui,
-    validPosition,
     displayCommandClassNames.parenthetical
   );
   const contentElEntries: [DisplayType, HTMLElement][] = Object.values(
     DisplayType
-  ).map((x) => [
-    x,
-    x === DisplayType.Dialogue
-      ? getElement(ui, validPosition, x)
-      : getElement(ui, x),
-  ]);
-  const [defaultEl, leftEl, rightEl] = dialogueContentEls;
-  if (type !== DisplayType.Dialogue) {
-    dialogueContentEls.forEach((el) => {
-      el.style.display = "none";
-    });
-  } else if (validPosition === "default") {
-    if (defaultEl) {
-      defaultEl.style.display = null;
-      defaultEl.style.visibility = null;
-    }
-    if (leftEl) {
-      leftEl.style.display = "none";
-      leftEl.style.visibility = "hidden";
-    }
-    if (rightEl) {
-      rightEl.style.display = "none";
-      rightEl.style.visibility = "hidden";
-    }
-  } else if (validPosition === "left") {
-    if (defaultEl) {
-      defaultEl.style.display = "none";
-      defaultEl.style.visibility = "hidden";
-    }
-    if (leftEl) {
-      leftEl.style.display = null;
-      leftEl.style.visibility = null;
-    }
-    if (rightEl) {
-      rightEl.style.display = null;
-      rightEl.style.visibility = "hidden";
-    }
-  } else if (validPosition === "right") {
-    if (defaultEl) {
-      defaultEl.style.display = "none";
-    }
-    if (leftEl) {
-      leftEl.style.display = null;
-      leftEl.style.visibility = null;
-    }
-    if (rightEl) {
-      rightEl.style.display = null;
-      rightEl.style.visibility = null;
-    }
-  }
+  ).map((x) => [x, getElement(ui, x)]);
 
   if (characterEl) {
     characterEl.replaceChildren(validCharacter);
