@@ -1559,7 +1559,8 @@ export const parseSpark = (
     if (!currentChoiceTokens?.length) {
       pushToken(
         createSparkToken("choice", newLineLength, {
-          from: currentToken.from,
+          indent: currentToken?.indent,
+          from: currentToken?.from,
           operator: "start",
           skipPreview: true,
         })
@@ -1572,7 +1573,8 @@ export const parseSpark = (
     if (currentChoiceTokens?.length > 0) {
       pushToken(
         createSparkToken("choice", newLineLength, {
-          from: currentToken.to,
+          indent: currentToken?.indent,
+          from: currentToken?.to,
           operator: "end",
           skipPreview: true,
         })
@@ -1619,6 +1621,7 @@ export const parseSpark = (
     if (
       prependNext &&
       previousDisplayToken &&
+      token.line - previousDisplayToken.line <= 1 &&
       (previousDisplayToken.type === token.type ||
         (["dialogue", "dialogue_asset"].includes(previousDisplayToken.type) &&
           ["dialogue", "dialogue_asset"].includes(token.type)) ||
@@ -1654,12 +1657,11 @@ export const parseSpark = (
       const validContent = contentMatch[2] || "";
       const endSpaces = contentMatch[3] || "";
       token.content = validContent + endSpaces;
-      token.autoAdvance = Boolean(endSpaces);
       token.clearPreviousText = !continuePrevious;
     } else {
-      token.autoAdvance = false;
       token.clearPreviousText = true;
     }
+    token.autoAdvance = false;
     token.wait = true;
     token.ignore = false;
     token.skipPreview = false;
@@ -1943,29 +1945,39 @@ export const parseSpark = (
         ) {
           saveAndClearDialogueToken(
             createSparkToken("dialogue", newLineLength, {
-              line: previousToken.line,
+              line: previousToken?.line,
+              indent: previousToken?.indent,
               from: current,
             })
           );
         }
       }
       if (state === "dialogue") {
-        pushToken(createSparkToken("dialogue_end"));
+        pushToken(
+          createSparkToken("dialogue_end", newLineLength, {
+            indent: previousToken?.indent,
+          })
+        );
       }
       if (state === "dual_dialogue") {
-        pushToken(createSparkToken("dual_dialogue_end"));
+        pushToken(
+          createSparkToken("dual_dialogue_end", newLineLength, {
+            indent: previousToken?.indent,
+          })
+        );
       }
       if (previousToken?.type === "action_asset") {
         saveAndClearAssetsToken(
           createSparkToken("assets", newLineLength, {
             line: i + 1,
+            indent: previousToken?.indent,
             from: current,
           })
         );
       }
+      state = "normal";
 
       if (isSeparator) {
-        state = "normal";
         const skip_separator =
           ignoredLastToken &&
           parsed.scriptTokens.length > 1 &&
@@ -2218,6 +2230,7 @@ export const parseSpark = (
               while (lastToken && lastToken?.type !== "section") {
                 if (
                   lastToken?.type !== "condition" &&
+                  lastToken?.type !== "separator" &&
                   lastToken?.indent <= currentToken.indent
                 ) {
                   break;
@@ -2490,7 +2503,11 @@ export const parseSpark = (
             currentToken.position = "right";
             currentToken.content = currentToken.content.replace(/\^$/, "");
           } else {
-            pushToken(createSparkToken("dialogue_start"));
+            pushToken(
+              createSparkToken("dialogue_start", newLineLength, {
+                indent: currentToken?.indent,
+              })
+            );
           }
           const character = trimCharacterExtension(currentToken.content).trim();
           const characterName = character.replace(/\^$/, "").trim();
@@ -2663,7 +2680,8 @@ export const parseSpark = (
     ) {
       saveAndClearDialogueToken(
         createSparkToken("dialogue", newLineLength, {
-          line: previousToken.line,
+          line: previousToken?.line,
+          indent: previousToken?.indent,
           from: current,
         })
       );
@@ -2673,13 +2691,21 @@ export const parseSpark = (
   saveAndClearChoices();
 
   if (state === "dialogue") {
-    pushToken(createSparkToken("dialogue_end"));
+    pushToken(
+      createSparkToken("dialogue_end", newLineLength, {
+        indent: currentToken?.indent,
+      })
+    );
     previousCharacter = null;
     previousParenthetical = null;
   }
 
   if (state === "dual_dialogue") {
-    pushToken(createSparkToken("dual_dialogue_end"));
+    pushToken(
+      createSparkToken("dual_dialogue_end", newLineLength, {
+        indent: currentToken?.indent,
+      })
+    );
     previousCharacter = null;
     previousParenthetical = null;
   }
