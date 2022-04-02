@@ -33,7 +33,6 @@ export const displayCommandClassNames = {
   portrait: "portrait",
   parenthetical: "parenthetical",
   dialogue_area: "dialogue_area",
-  dialogue_content: "dialogue_content",
   indicator: "indicator",
   choice: "choice",
   dialogue: "dialogue",
@@ -309,10 +308,6 @@ export const executeDisplayCommand = (
 
   setupStyle(ui, css);
   const dialogueAreaEl = getElement(ui, displayCommandClassNames.dialogue_area);
-  const dialogueContentEls = getElements(
-    ui,
-    displayCommandClassNames.dialogue_content
-  );
   const portraitEl = getElement(ui, displayCommandClassNames.portrait);
   const indicatorEl = getElement(ui, displayCommandClassNames.indicator);
   const validCharacter = type === DisplayType.Dialogue ? character : "";
