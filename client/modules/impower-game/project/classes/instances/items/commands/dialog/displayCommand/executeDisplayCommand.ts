@@ -301,7 +301,6 @@ export const executeDisplayCommand = (
 
   const assetsOnly = type === DisplayType.Assets;
 
-  console.log(assetsOnly, backgroundEl, assets, valueMap);
   if (assetsOnly) {
     if (backgroundEl) {
       const imageName = assets?.[0];
