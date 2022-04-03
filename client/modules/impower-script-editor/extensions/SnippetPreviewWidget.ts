@@ -3,9 +3,12 @@ import { WidgetType } from "@codemirror/view";
 export class SnippetPreviewWidget extends WidgetType {
   content: string;
 
-  constructor(name: string) {
+  indentText: string;
+
+  constructor(name: string, indentText: string) {
     super();
     this.content = name;
+    this.indentText = indentText;
   }
 
   eq(other: SnippetPreviewWidget): boolean {
@@ -13,14 +16,17 @@ export class SnippetPreviewWidget extends WidgetType {
   }
 
   toDOM(): HTMLElement {
-    const wrap = document.createElement("div");
+    const wrap = document.createElement("span");
     wrap.setAttribute("aria-hidden", "true");
-    const textDiv = document.createElement("div");
+    const textDiv = document.createElement("span");
     textDiv.style.whiteSpace = "pre-wrap";
     textDiv.style.opacity = "0.5";
-    const text = document.createTextNode(
-      this.content.replace(/^[\n][\n]/, "\n").replace(/[$#][{]|[}]/g, "")
-    );
+    const trimmedContent = this.content.replace(/[$#][{]|[}]/g, "");
+    const indentedContent = `${trimmedContent.replace(
+      /[\n]/g,
+      `\n${this.indentText}`
+    )}`;
+    const text = document.createTextNode(indentedContent);
     textDiv.appendChild(text);
     wrap.appendChild(textDiv);
     wrap.className = "cm-quick-snippet-preview";

@@ -32,8 +32,11 @@ const snippetPreviewDecorations = (view: EditorView): DecorationSet => {
     const { template, from } = getQuickSnippetTemplate(view, snippetType);
     if (template) {
       const endsWithNewline = template.endsWith("\n${}");
+      const text = view?.state?.doc?.lineAt(from)?.text;
+      const indentMatch = text.match(/^([ \t]*)/);
+      const indentText = indentMatch[0] || "";
       const deco = Decoration.widget({
-        widget: new SnippetPreviewWidget(template),
+        widget: new SnippetPreviewWidget(template, indentText),
         side: endsWithNewline ? -1 : 0,
       });
       widgets.push(deco.range(from));

@@ -56,45 +56,55 @@ export const getQuickSnippetTemplate = (
   const to = Math.max(anchor, head);
   const doc = state?.doc;
   const selectedText = doc.sliceString(from, to);
-  const endsWithNewline = snippetTemplate.endsWith("\n${}");
+  const newlineEnd = "\n${}";
+  const endsWithNewline = snippetTemplate.endsWith(newlineEnd);
   const startsWithNewline = snippetTemplate.startsWith("\n");
   const fromLine = doc.lineAt(from);
   const beforeLineFrom = fromLine.from - 1;
   const afterLineFrom = fromLine.to + 1;
+  const text = fromLine?.text;
+  const indentMatch = text.match(/^([ \t]*)/);
+  const indentText = indentMatch[0] || "";
   const beforeLine =
     beforeLineFrom >= 0 ? doc.lineAt(beforeLineFrom) : undefined;
   const afterLine =
     afterLineFrom <= doc.length - 1 ? doc.lineAt(afterLineFrom) : undefined;
-  const isLineEmpty = !fromLine.text.trim();
-  const isLineBeforeEmpty = !beforeLine?.text?.trim();
-  const isLineAfterEmpty = !afterLine?.text?.trim();
+  const isLineBlank = !fromLine.text?.trim();
+  const isLineBeforeBlank = !beforeLine?.text?.trim();
+  const isLineAfterBlank = !afterLine?.text?.trim();
   const snippetFrom = Math.min(
     state.doc.length,
-    !endsWithNewline || isLineEmpty ? from : afterLineFrom
+    !endsWithNewline || isLineBlank ? from : afterLineFrom
   );
   const snippetTo = Math.min(
     state.doc.length,
-    !endsWithNewline || isLineEmpty ? to : afterLineFrom
+    !endsWithNewline || isLineBlank ? to : afterLineFrom
   );
   // Insert selected text if necessary
   let formattedTemplate = snippetTemplate.replace("{selection}", selectedText);
+  if (!isLineBlank) {
+    if (!startsWithNewline) {
+      formattedTemplate = indentText + formattedTemplate;
+    } else if (endsWithNewline) {
+      formattedTemplate =
+        formattedTemplate
+          .slice(0, -newlineEnd.length)
+          .replace(/[\n]/g, `\n${indentText}`) + newlineEnd;
+    }
+  }
   if (startsWithNewline) {
-    if (!isLineEmpty && afterLineFrom > doc.length - 1) {
+    if (!isLineBlank && afterLineFrom > doc.length - 1) {
       formattedTemplate = `\n${formattedTemplate}`;
     }
-    if (isLineEmpty) {
-      if (isLineBeforeEmpty) {
-        // Line before is already blank, so no need to start with newline
-        formattedTemplate = formattedTemplate.replace(/^[\n]*/, "");
-      }
+    if (isLineBlank && isLineBeforeBlank) {
+      // Line before is already blank, so no need to start with newline
+      formattedTemplate = formattedTemplate.replace(/^[ \t]*[\n]*/, "");
     }
   }
   if (endsWithNewline) {
-    if (isLineEmpty) {
-      if (isLineAfterEmpty) {
-        // Line after is already blank, so no need to end with newline
-        formattedTemplate = formattedTemplate.replace(/[\n][$][{][}]$/, "${}");
-      }
+    if (isLineBlank && isLineAfterBlank) {
+      // Line after is already blank, so no need to end with newline
+      formattedTemplate = formattedTemplate.replace(/[\n][$][{][}]$/, "${}");
     }
   }
   return { template: formattedTemplate, from: snippetFrom, to: snippetTo };
