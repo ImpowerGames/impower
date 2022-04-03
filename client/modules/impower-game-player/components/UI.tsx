@@ -153,6 +153,16 @@ const UI = React.memo((props: UIProps): JSX.Element => {
             }}
           >
             <div
+              className="background"
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+              }}
+            />
+            <div
               className="portrait"
               style={{
                 position: "absolute",

@@ -30,6 +30,7 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
 
 export const displayCommandClassNames = {
   character: "character",
+  background: "background",
   portrait: "portrait",
   parenthetical: "parenthetical",
   dialogue_area: "dialogue_area",
@@ -287,26 +288,50 @@ export const executeDisplayCommand = (
   config: DisplayCommandConfig = defaultDisplayCommandConfig
 ): number => {
   const type = data?.type;
+  const assets = data?.assets;
+
+  const valueMap = context?.valueMap;
+
+  const ui = config?.ui;
+  const css = config?.css;
+
+  const backgroundEl = getElement(ui, displayCommandClassNames.background);
+
+  setupStyle(ui, css);
+
+  const assetsOnly = type === DisplayType.Assets;
+
+  console.log(assetsOnly, backgroundEl, assets, valueMap);
+  if (assetsOnly) {
+    if (backgroundEl) {
+      const imageName = assets?.[0];
+      const imageUrl = valueMap?.[imageName];
+      if (imageName && imageUrl) {
+        backgroundEl.style.backgroundImage = `url("${imageUrl}")`;
+        backgroundEl.style.backgroundRepeat = "no-repeat";
+        backgroundEl.style.backgroundPosition = "center";
+        backgroundEl.style.display = null;
+      } else {
+        backgroundEl.style.display = "none";
+      }
+    }
+    return 0;
+  }
+
   const character = data?.character;
   const parenthetical = data?.parenthetical;
   const content = data?.content;
-  const assets = data?.assets;
   const autoAdvance = data?.autoAdvance;
   const clearPreviousText = data?.clearPreviousText;
   const clearPreviousAssets = data?.clearPreviousAssets;
 
-  const valueMap = context?.valueMap;
   const instant = context?.instant;
   const debug = context?.debug;
-
-  const ui = config?.ui;
-  const css = config?.css;
   const indicatorFadeDuration = config?.indicatorFadeDuration || 0;
   const indicatorAnimationName = config?.indicatorAnimationName;
   const indicatorAnimationDuration = config?.indicatorAnimationDuration;
   const indicatorAnimationEase = config?.indicatorAnimationEase;
 
-  setupStyle(ui, css);
   const dialogueAreaEl = getElement(ui, displayCommandClassNames.dialogue_area);
   const portraitEl = getElement(ui, displayCommandClassNames.portrait);
   const indicatorEl = getElement(ui, displayCommandClassNames.indicator);
@@ -315,22 +340,18 @@ export const executeDisplayCommand = (
   const trimmedContent = content?.trim() === "_" ? "" : content || "";
   const [replaceTagsResult] = format(trimmedContent, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
+
   if (portraitEl) {
-    const portraitName = assets?.[0];
-    const portraitUrl = valueMap?.[portraitName];
-    if (portraitUrl) {
-      portraitEl.style.backgroundImage = `url("${portraitUrl}")`;
+    const imageName = assets?.[0];
+    const imageUrl = valueMap?.[imageName];
+    if (imageName && imageUrl) {
+      portraitEl.style.backgroundImage = `url("${imageUrl}")`;
       portraitEl.style.backgroundRepeat = "no-repeat";
       portraitEl.style.backgroundPosition = "center";
       portraitEl.style.display = null;
     } else if (clearPreviousAssets) {
       portraitEl.style.display = "none";
     }
-  }
-
-  const assetsOnly = type === DisplayType.Assets;
-  if (assetsOnly) {
-    return 0;
   }
 
   hideChoices();
