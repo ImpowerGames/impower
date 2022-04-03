@@ -739,28 +739,38 @@ export const parseSpark = (
     );
     const [, possibleSectionExpressions] = format(expression, context);
     const calls: Record<string, { name: string; values: string[] }> = {};
-    possibleSectionExpressions.forEach(({ content, from }) => {
-      const { name, values } = getExpressionCallNameAndValues(
-        type,
-        content,
-        expressionFrom + from
-      );
-      if (name !== undefined) {
-        calls[content] = { name, values };
-      } else {
-        const trimmedStart = content.trimStart();
-        const trimmedEnd = content.trimEnd();
-        const trimmedStartLength = content.length - trimmedStart.length;
-        const trimmedEndLength = content.length - trimmedEnd.length;
-        diagnostic(
-          currentToken,
-          "Invalid section syntax",
-          [],
-          expressionFrom + from + trimmedStartLength,
-          expressionFrom + from + content.length - trimmedEndLength
+    if (possibleSectionExpressions?.length > 0) {
+      possibleSectionExpressions.forEach(({ content, from }) => {
+        const { name, values } = getExpressionCallNameAndValues(
+          type,
+          content,
+          expressionFrom + from
         );
-      }
-    });
+        if (name !== undefined) {
+          calls[content] = { name, values };
+        } else {
+          const trimmedStart = content.trimStart();
+          const trimmedEnd = content.trimEnd();
+          const trimmedStartLength = content.length - trimmedStart.length;
+          const trimmedEndLength = content.length - trimmedEnd.length;
+          diagnostic(
+            currentToken,
+            "Invalid section syntax",
+            [],
+            expressionFrom + from + trimmedStartLength,
+            expressionFrom + from + content.length - trimmedEndLength
+          );
+        }
+      });
+    } else {
+      diagnostic(
+        currentToken,
+        "Dynamic sections must be separated by '|'.\n{FirstTime|SecondTime|ThirdTime}",
+        [],
+        expressionFrom,
+        expressionFrom + expression.length
+      );
+    }
     return calls;
   };
 

@@ -109,7 +109,7 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
       } else {
         const [sectionExpression] = format(value, valueMap);
         const dynamicCall = calls[sectionExpression];
-        if (dynamicCall.name) {
+        if (dynamicCall?.name) {
           id = ids?.[dynamicCall.name];
           if (id == null) {
             id = dynamicCall.name;
