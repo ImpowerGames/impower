@@ -41,7 +41,7 @@ export const executeChoiceCommand = (
   }
   const lastContentEl = contentEls?.[contentEls.length - 1];
   const parentEl = lastContentEl?.parentElement;
-  for (let i = 0; i < validIndex + 1; i += 1) {
+  for (let i = 0; i < Math.max(contentEls.length, validIndex + 1); i += 1) {
     const el =
       contentEls?.[i] ||
       parentEl.appendChild(lastContentEl?.cloneNode(true) as HTMLElement);

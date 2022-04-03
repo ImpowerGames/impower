@@ -42,6 +42,7 @@ export interface LogicEvents {
     executedByBlockId: string;
   }>;
   onEnterBlock: GameEvent<{ pos: number; line: number; id: string }>;
+  onStopBlock: GameEvent<{ pos: number; line: number; id: string }>;
   onReturnFromBlock: GameEvent<{ pos: number; line: number; id: string }>;
   onCheckTriggers: GameEvent<{
     pos: number;
@@ -162,6 +163,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
         id: string;
       }>(),
       onEnterBlock: new GameEvent<{
+        pos: number;
+        line: number;
+        id: string;
+      }>(),
+      onStopBlock: new GameEvent<{
         pos: number;
         line: number;
         id: string;
@@ -509,6 +515,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       line: block.line,
       ...data,
     });
+  }
+
+  stopBlock(data: { id: string }): void {
+    const blockState = this.state.blockStates[data.id];
+    blockState.isExecuting = false;
   }
 
   returnFromBlock(data: { id: string; value: unknown }): boolean {

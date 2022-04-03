@@ -27,10 +27,11 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     const { value, calls, operator } = data;
     const { index } = context;
 
+    this.value = null;
+    this.calls = null;
+
     if (operator === "start") {
       this.choiceIndex = 0;
-      this.value = null;
-      this.calls = null;
       return super.onExecute(data, context, game);
     }
 
@@ -75,6 +76,10 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     context: CommandContext,
     game: ImpowerGame
   ): boolean {
+    const { operator } = data;
+    if (operator !== "end") {
+      return true;
+    }
     if (this.value != null) {
       const { ids, valueMap, parameters } = context;
 
@@ -94,19 +99,23 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
 
       const constantCall = calls[""];
       if (constantCall) {
-        id = ids?.[constantCall.name];
-        if (id == null) {
-          id = constantCall.name;
+        if (constantCall.name) {
+          id = ids?.[constantCall.name];
+          if (id == null) {
+            id = constantCall.name;
+          }
+          values = constantCall.values;
         }
-        values = constantCall.values;
       } else {
         const [sectionExpression] = format(value, valueMap);
         const dynamicCall = calls[sectionExpression];
-        id = ids?.[dynamicCall.name];
-        if (id == null) {
-          id = dynamicCall.name;
+        if (dynamicCall.name) {
+          id = ids?.[dynamicCall.name];
+          if (id == null) {
+            id = dynamicCall.name;
+          }
+          values = dynamicCall.values;
         }
-        values = dynamicCall.values;
       }
 
       if (id === "#") {
@@ -132,6 +141,10 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
         }
       });
 
+      const parentId = data?.reference?.parentContainerId;
+      game.logic.stopBlock({
+        id: parentId,
+      });
       game.logic.enterBlock({
         id,
         executedByBlockId,
