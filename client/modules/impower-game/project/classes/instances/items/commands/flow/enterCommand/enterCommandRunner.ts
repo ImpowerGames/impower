@@ -48,7 +48,7 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
       return super.onExecute(data, context, game);
     }
 
-    const executedByBlockId = data.reference.parentContainerId;
+    const parentId = data.reference.parentContainerId;
     const latestValues = values?.map((v) => evaluate(v, valueMap));
 
     parameters?.forEach((parameterName, index) => {
@@ -63,9 +63,10 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
       }
     });
 
+    game.logic.stopBlock({ id: parentId });
     game.logic.enterBlock({
       id,
-      executedByBlockId,
+      executedByBlockId: parentId,
       returnWhenFinished,
     });
 
