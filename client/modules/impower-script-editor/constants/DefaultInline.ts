@@ -38,8 +38,9 @@ export const DefaultInline: {
       }
       return pos;
     }
+    const isTitle = inBlockContext(block, Type.Title);
     const isDisplay = inBlockContext(block, Type.Display);
-    if (!isDisplay) {
+    if (isTitle || !isDisplay) {
       return -1;
     }
     let pauseLength = 0;
