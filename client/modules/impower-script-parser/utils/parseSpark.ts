@@ -1915,15 +1915,6 @@ export const parseSpark = (
   for (let i = 0; i < linesLength; i += 1) {
     text = lines[i];
 
-    currentToken = createSparkToken("comment", newLineLength, {
-      content: text,
-      line: i + 1,
-      from: current,
-    });
-    text = removeBlockComments(text);
-    text = removeInlineComments(text);
-    currentToken.content = text;
-
     if (nestedComments && state !== "ignore") {
       cacheStateForComment = state;
       state = "ignore";
@@ -1934,6 +1925,15 @@ export const parseSpark = (
     if (nestedComments === 0 && state === "ignore") {
       state = cacheStateForComment;
     }
+
+    currentToken = createSparkToken("comment", newLineLength, {
+      content: text,
+      line: i + 1,
+      from: current,
+    });
+    text = removeBlockComments(text);
+    text = removeInlineComments(text);
+    currentToken.content = text;
     current = currentToken.to + 1;
 
     if (
@@ -1986,9 +1986,12 @@ export const parseSpark = (
           false
         );
       }
-      state = "normal";
+      if (state !== "title_page") {
+        state = "normal";
+      }
 
       if (isSeparator) {
+        state = "normal";
         const skip_separator =
           ignoredLastToken &&
           parsed.scriptTokens.length > 1 &&
