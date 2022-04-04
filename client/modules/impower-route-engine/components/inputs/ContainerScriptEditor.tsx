@@ -487,6 +487,7 @@ const ContainerScriptEditor = React.memo(
                 augmentations={augmentations}
                 toggleFolding={toggleFolding}
                 toggleLinting={toggleLinting}
+                runningLine={mode === "Edit" ? null : executingCursor?.fromLine}
                 focusFirstError={mode === "Edit"}
                 snippetPreview={snippetPreview}
                 editorChange={editorChange}

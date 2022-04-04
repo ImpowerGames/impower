@@ -6,6 +6,7 @@ export const colors = {
   foreground: "#D4D4D4",
   background: "#00000040",
   lineNumber: "#2B83B7",
+  lineMark: "#66c7ff",
 
   comment: "#608B4E",
   section: "#FF81FF",

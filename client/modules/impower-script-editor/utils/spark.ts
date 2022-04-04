@@ -19,7 +19,7 @@ import {
   LanguageSupport,
 } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
-import { EditorSelection, Prec } from "@codemirror/state";
+import { Prec } from "@codemirror/state";
 import { hoverTooltip } from "@codemirror/tooltip";
 import { KeyBinding, keymap } from "@codemirror/view";
 import { parseSpark, SparkParseResult } from "../../impower-script-parser";
@@ -33,6 +33,7 @@ import { indentationGuides } from "../extensions/indentationGuides";
 import { sectionNamePreview } from "../extensions/sectionNamePreview";
 import { snippetPreview } from "../extensions/snippetPreview";
 import { MarkdownExtension } from "../types/markdownExtension";
+import { getDiagnostics } from "./getDiagnostics";
 import { parseCode } from "./nest";
 import { sparkAutocomplete } from "./sparkAutocomplete";
 import {
@@ -161,35 +162,7 @@ export function spark(
   const sparkParseLinter = (view: EditorView): Diagnostic[] => {
     parseContext.result = parse(view.state.doc.toString());
     const diagnostics = parseContext.result?.diagnostics || [];
-    return diagnostics.map((d) => ({
-      ...d,
-      actions: d.actions.map((a) => ({
-        ...a,
-        apply: (view: EditorView, _from: number, _to: number): void => {
-          if (a.focus) {
-            view.dispatch({
-              selection: { anchor: a.focus.from, head: a.focus.to },
-              effects: EditorView.scrollIntoView(
-                EditorSelection.range(a.focus.from, a.focus.to),
-                { y: "center" }
-              ),
-            });
-            view.focus();
-          }
-          if (a.changes?.length > 0) {
-            const lastChange = a.changes[a.changes.length - 1];
-            const cursor =
-              lastChange.insert != null
-                ? lastChange.from + lastChange.insert.length
-                : lastChange.from;
-            view.dispatch({
-              changes: a.changes,
-              selection: { anchor: cursor, head: cursor },
-            });
-          }
-        },
-      })),
-    }));
+    return getDiagnostics(diagnostics);
   };
   const extensions = config.extensions ? [config.extensions] : [];
   const support = [

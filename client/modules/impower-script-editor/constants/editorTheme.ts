@@ -15,10 +15,10 @@ export const editorTheme: {
   "&.cm-focused .cm-cursor": {
     borderLeftColor: "white",
   },
-  "&.cm-snippet .cm-selectionMatch": {
+  ".cm-snippet & .cm-selectionMatch": {
     backgroundColor: "transparent",
   },
-  "&.cm-snippet .cm-selectionMatch-main": {
+  ".cm-snippet & .cm-selectionMatch-main": {
     backgroundColor: "transparent",
   },
   ".cm-gutters": {
@@ -214,7 +214,7 @@ export const editorTheme: {
     width: "0.8em",
     height: "0.8em",
   },
-  "&.cm-lint .cm-lint-marker": {
+  ".cm-lint & .cm-lint-marker": {
     display: "block",
     width: "0.8em",
     height: "0.8em",

@@ -1,9 +1,15 @@
 import { basicSetup, EditorState, EditorView } from "@codemirror/basic-setup";
 import { foldEffect, unfoldAll } from "@codemirror/fold";
+import { highlightActiveLineGutter } from "@codemirror/gutter";
 import { HighlightStyle } from "@codemirror/highlight";
 import { historyField, redo, undo } from "@codemirror/history";
 import { foldable, indentUnit } from "@codemirror/language";
-import { closeLintPanel, lintGutter, openLintPanel } from "@codemirror/lint";
+import {
+  closeLintPanel,
+  lintGutter,
+  openLintPanel,
+  setDiagnosticsEffect,
+} from "@codemirror/lint";
 import { panels } from "@codemirror/panel";
 import {
   closeSearchPanel,
@@ -18,7 +24,7 @@ import {
   selectMatches,
   setSearchQuery,
 } from "@codemirror/search";
-import { EditorSelection } from "@codemirror/state";
+import { Compartment, EditorSelection } from "@codemirror/state";
 import { tooltips } from "@codemirror/tooltip";
 import { PluginField, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import React, { useEffect, useRef } from "react";
@@ -29,6 +35,10 @@ import {
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
 import { editorTheme } from "../constants/editorTheme";
+import {
+  highlightRunningLineGutter,
+  setRunningLinePosition,
+} from "../extensions/runningLineGutter";
 import {
   closeSearchLinePanel,
   getSearchLineQuery,
@@ -44,10 +54,13 @@ import {
   SerializableEditorSelection,
   SerializableEditorState,
 } from "../types/editor";
+import { getDiagnostics } from "../utils/getDiagnostics";
 import { quickSnippet } from "../utils/quickSnippet";
 import { spark } from "../utils/spark";
 import { sparkLanguage, tags as t } from "../utils/sparkLanguage";
 import { SearchPanel, SearchTextQuery } from "./SearchTextPanel";
+
+const gutterCompartment = new Compartment();
 
 const marginPlugin = ViewPlugin.fromClass(
   class {
@@ -177,6 +190,7 @@ const myHighlightStyle = HighlightStyle.define([
 interface ScriptEditorProps {
   defaultValue: string;
   augmentations?: SparkDeclarations;
+  runningLine?: number;
   toggleFolding?: boolean;
   toggleLinting?: boolean;
   toggleGotoLine?: boolean;
@@ -232,6 +246,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     defaultValue,
     augmentations,
     style,
+    runningLine,
     toggleFolding,
     toggleLinting,
     toggleGotoLine,
@@ -416,7 +431,8 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             };
           },
         }),
-        lintGutter(),
+        gutterCompartment.of(lintGutter()),
+        highlightActiveLineGutter(),
         myHighlightStyle,
         indentUnit.of("  "),
         basicSetup,
@@ -476,9 +492,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             ? "redo"
             : null;
           const focused = u.view.hasFocus;
-          const rootEl = parentElRef.current.firstElementChild;
-          const snippet = Boolean(rootEl?.querySelector(".cm-snippetField"));
-          const lint = Boolean(rootEl?.querySelector(".cm-panel-lint"));
+          const parentEl = parentElRef.current;
+          const snippet = Boolean(parentEl?.querySelector(".cm-snippetField"));
+          const lint = Boolean(parentEl?.querySelector(".cm-panel-lint"));
           const selected =
             selection?.ranges?.[selection.main]?.head !==
             selection?.ranges?.[selection.main]?.anchor;
@@ -493,16 +509,16 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             snippet,
             diagnostics,
           };
-          if (rootEl) {
+          if (parentEl) {
             if (snippet) {
-              rootEl.classList.add("cm-snippet");
+              parentEl.classList.add("cm-snippet");
             } else {
-              rootEl.classList.remove("cm-snippet");
+              parentEl.classList.remove("cm-snippet");
             }
             if (lint) {
-              rootEl.classList.add("cm-lint");
+              parentEl.classList.add("cm-lint");
             } else {
-              rootEl.classList.remove("cm-lint");
+              parentEl.classList.remove("cm-lint");
             }
           }
           if (
@@ -563,7 +579,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bottomPanelsContainer, topPanelsContainer]);
+  }, []);
 
   useEffect(() => {
     if (!initialRef.current && viewRef.current && editorChange) {
@@ -604,11 +620,19 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   focusFirstErrorRef.current = focusFirstError;
 
   useEffect(() => {
+    const view = viewRef.current;
     if (toggleLinting) {
-      openLintPanel(viewRef.current);
+      view.dispatch({
+        effects: [
+          setDiagnosticsEffect.of(
+            getDiagnostics(parseResultRef.current?.diagnostics)
+          ),
+        ],
+      });
+      openLintPanel(view);
       const firstError = parseResultRef.current?.diagnostics?.[0];
       if (focusFirstErrorRef.current && firstError) {
-        viewRef.current.dispatch({
+        view.dispatch({
           selection: { anchor: firstError.from, head: firstError.to },
           effects: EditorView.scrollIntoView(
             EditorSelection.range(firstError.from, firstError.to),
@@ -619,7 +643,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         });
       }
     } else {
-      closeLintPanel(viewRef.current);
+      closeLintPanel(view);
     }
   }, [toggleLinting]);
 
@@ -724,6 +748,44 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
       closeSearchPanel(view);
     }
   }, [searchTextQuery]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view) {
+      if (runningLine > 0) {
+        view.dispatch({
+          effects: gutterCompartment.reconfigure(highlightRunningLineGutter()),
+        });
+      } else {
+        view.dispatch({
+          effects: gutterCompartment.reconfigure(lintGutter()),
+        });
+      }
+      view.dispatch({
+        effects: [
+          setRunningLinePosition.of(
+            runningLine > 0
+              ? { from: view?.state?.doc?.line(runningLine)?.from }
+              : undefined
+          ),
+        ],
+      });
+    }
+  }, [runningLine]);
+
+  const isRunning = runningLine != null;
+  useEffect(() => {
+    const view = viewRef.current;
+    if (isRunning) {
+      view.dispatch({
+        effects: [
+          setDiagnosticsEffect.of(
+            getDiagnostics(parseResultRef.current?.diagnostics)
+          ),
+        ],
+      });
+    }
+  }, [isRunning]);
 
   useEffect(() => {
     if (viewRef.current && cursor) {
