@@ -520,6 +520,12 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   stopBlock(data: { id: string }): void {
     const blockState = this.state.blockStates[data.id];
     blockState.isExecuting = false;
+    const block = this.blockTree[data.id];
+    this.events.onStopBlock.emit({
+      pos: block.pos,
+      line: block.line,
+      ...data,
+    });
   }
 
   returnFromBlock(data: { id: string; value: unknown }): boolean {
