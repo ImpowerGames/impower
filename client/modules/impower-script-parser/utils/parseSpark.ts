@@ -1717,14 +1717,15 @@ export const parseSpark = (
   for (let i = 0; i < linesLength; i += 1) {
     text = lines[i];
 
-    text = removeBlockComments(text);
-    text = removeInlineComments(text);
-
     currentToken = createSparkToken("", newLineLength, {
       content: text,
       line: i + 1,
       from: current,
     });
+    text = removeBlockComments(text);
+    text = removeInlineComments(text);
+    currentToken.content = text;
+
     current = currentToken.to + 1;
 
     if ((match = currentToken.content.match(sparkRegexes.section))) {
@@ -1914,8 +1915,14 @@ export const parseSpark = (
   for (let i = 0; i < linesLength; i += 1) {
     text = lines[i];
 
+    currentToken = createSparkToken("comment", newLineLength, {
+      content: text,
+      line: i + 1,
+      from: current,
+    });
     text = removeBlockComments(text);
     text = removeInlineComments(text);
+    currentToken.content = text;
 
     if (nestedComments && state !== "ignore") {
       cacheStateForComment = state;
@@ -1927,12 +1934,6 @@ export const parseSpark = (
     if (nestedComments === 0 && state === "ignore") {
       state = cacheStateForComment;
     }
-
-    currentToken = createSparkToken("comment", newLineLength, {
-      content: text,
-      line: i + 1,
-      from: current,
-    });
     current = currentToken.to + 1;
 
     if (
