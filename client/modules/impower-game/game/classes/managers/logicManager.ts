@@ -586,7 +586,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const blockState = this.state.blockStates[data.blockId];
     blockState.lastExecutedAt = data.time;
     const currentCount = blockState.commandExecutionCounts[data.commandId] || 0;
-    blockState.commandExecutionCounts[data.commandId] = currentCount;
+    blockState.commandExecutionCounts[data.commandId] = currentCount + 1;
     this.events.onExecuteCommand.emit({ ...data });
     if (blockState.startIndex <= blockState.executingIndex) {
       blockState.startIndex = 0;
@@ -604,8 +604,6 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const blockState = this.state.blockStates[data.blockId];
     blockState.lastExecutedAt = -1;
     blockState.previousIndex = data.commandIndex;
-    const currentCount = blockState.commandExecutionCounts[data.commandId] || 0;
-    blockState.commandExecutionCounts[data.commandId] = currentCount + 1;
     this.events.onFinishCommand.emit({ ...data });
   }
 
