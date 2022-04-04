@@ -1939,7 +1939,7 @@ export const parseSpark = (
       text.match(sparkRegexes.dialogue_terminator) &&
       isSparkDisplayToken(previousToken)
     ) {
-      previousToken.wait = false;
+      previousToken.autoAdvance = true;
     }
 
     const isSeparator = text.trim().length === 0 && text.length < 2;
