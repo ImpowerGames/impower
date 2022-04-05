@@ -2460,7 +2460,9 @@ export const parseSpark = (
         currentToken.content.match(sparkRegexes.character) &&
         i !== linesLength &&
         i !== linesLength - 1 &&
-        (lines[i + 1].trim().length === 0 ? lines[i + 1] === "  " : true)
+        (lines[i + 1].trim().length === 0 ? lines[i + 1] === "  " : true) &&
+        lines[i].match(/^([ \t]*)/)[0]?.length ===
+          lines[i + 1].match(/^([ \t]*)/)[0]?.length
       ) {
         // The last part of the above statement ('(lines[i + 1].trim().length == 0) ? (lines[i+1] == "  ") : false)')
         // means that if the trimmed length of the following line (i+1) is equal to zero, the statement will only return 'true',
