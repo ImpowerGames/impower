@@ -460,6 +460,12 @@ const ContainerScriptEditor = React.memo(
       }
     }, [previewCursor, debug, handlePreviewResult, parseResultState]);
 
+    useEffect(() => {
+      if (mode === "Edit") {
+        setExecutingCursor(null);
+      }
+    }, [mode]);
+
     const theme = useTheme();
 
     const backgroundStyle: React.CSSProperties = useMemo(
