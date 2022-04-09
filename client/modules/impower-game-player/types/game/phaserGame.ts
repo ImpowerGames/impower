@@ -226,17 +226,21 @@ export class PhaserGame extends Phaser.Game {
     this._blockScene = blockScene;
     this._assetScene = assetScene;
     this.canvas.id = "game-canvas";
-    this.events.on("start", () => {
-      if (control) {
-        this.controlScenes(control);
-      }
-    });
     this._project = project;
     this._impowerGame = impowerGame;
     this._impowerContext = impowerContext;
     if (this.impowerGame) {
-      this.impowerGame.start();
+      this.impowerGame.init();
     }
+    const onStart = async (): Promise<void> => {
+      if (this.impowerGame) {
+        await this.impowerGame.start();
+      }
+      if (control) {
+        this.controlScenes(control);
+      }
+    };
+    this.events.on("start", onStart);
   }
 
   destroy(removeCanvas: boolean, noReturn?: boolean): void {

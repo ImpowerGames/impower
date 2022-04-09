@@ -4,8 +4,6 @@ import { DisplayCommandData } from "./displayCommandData";
 import { executeDisplayCommand } from "./executeDisplayCommand";
 
 export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
-  delay: number;
-
   down = false;
 
   wasPressed = false;
@@ -27,7 +25,9 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     this.wasTyped = false;
     this.autoAdvance = data?.autoAdvance;
     this.down = game.input.state.pointer.down.includes(0);
-    this.delay = executeDisplayCommand(data, context);
+    executeDisplayCommand(data, context, game, undefined, () => {
+      this.wasTyped = true;
+    });
     return super.onExecute(data, context, game);
   }
 
@@ -38,34 +38,28 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
   ): boolean {
     const prevDown = this.down;
     this.down = game.input.state.pointer.down.includes(0);
-    const blockId = data.reference.parentContainerId;
-    const blockState = game.logic.state.blockStates[blockId];
-    const timeSinceExecution = blockState.time - blockState.lastExecutedAt;
-    const secondsSinceExecution = timeSinceExecution / 1000;
-    if (this.delay != null) {
-      if (secondsSinceExecution > this.delay) {
-        this.wasTyped = true;
-      }
-      if (this.wasTyped && this.autoAdvance === true) {
+    if (this.wasTyped && this.autoAdvance === true) {
+      return true;
+    }
+    if (!prevDown && this.down) {
+      this.wasPressed = true;
+    }
+    if (this.wasPressed) {
+      this.wasPressed = false;
+      if (this.wasTyped) {
+        this.wasPressed = false;
+        this.wasTyped = false;
         return true;
       }
-      if (!prevDown && this.down) {
-        this.wasPressed = true;
-      }
-      if (this.wasPressed) {
-        this.wasPressed = false;
-        if (this.wasTyped) {
-          this.delay = null;
-          this.wasPressed = false;
-          this.wasTyped = false;
-          return true;
-        }
-        executeDisplayCommand(data, {
+      executeDisplayCommand(
+        data,
+        {
           ...context,
           instant: true,
-        });
-        this.wasTyped = true;
-      }
+        },
+        game
+      );
+      this.wasTyped = true;
     }
     return false;
   }

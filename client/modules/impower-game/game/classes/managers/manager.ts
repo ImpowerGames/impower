@@ -1,6 +1,12 @@
 import { isGameEvent } from "../events/gameEvent";
 
 export abstract class Manager<S = unknown, E = unknown> {
+  private _ready: boolean;
+
+  public get ready(): boolean {
+    return this._ready;
+  }
+
   private _started: boolean;
 
   public get started(): boolean {
@@ -38,7 +44,11 @@ export abstract class Manager<S = unknown, E = unknown> {
     this._state = state;
   }
 
-  start(): void {
+  init(): void {
+    this._ready = true;
+  }
+
+  async start(): Promise<void> {
     this._started = true;
   }
 

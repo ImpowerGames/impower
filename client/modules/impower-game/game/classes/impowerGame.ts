@@ -2,6 +2,7 @@ import { GameConfig } from "../interfaces/gameConfig";
 import { SaveData } from "../interfaces/saveData";
 import { GameEvent } from "./events/gameEvent";
 import { AssetManager } from "./managers/assetManager";
+import { AudioManager } from "./managers/audioManager";
 import { DebugManager } from "./managers/debugManager";
 import { EntityManager } from "./managers/entityManager";
 import { InputManager } from "./managers/inputManager";
@@ -46,6 +47,12 @@ export class ImpowerGame {
     return this._asset;
   }
 
+  private _audio: AudioManager;
+
+  public get audio(): AudioManager {
+    return this._audio;
+  }
+
   private _entity: EntityManager;
 
   public get entity(): EntityManager {
@@ -84,6 +91,7 @@ export class ImpowerGame {
     this._input = new InputManager();
     this._physics = new PhysicsManager();
     this._asset = new AssetManager(saveData?.asset);
+    this._audio = new AudioManager(saveData?.audio);
     this._entity = new EntityManager(saveData?.entity);
     const startBlockId = config.defaultStartBlockId;
     const activeParentBlockId = startBlockId || "";
@@ -108,12 +116,36 @@ export class ImpowerGame {
     this._isMobile = isMobile;
   }
 
+  init(): void {
+    this.debug.init();
+    this.input.init();
+    this.physics.init();
+    this.asset.init();
+    this.audio.init();
+    this.entity.init();
+    this.logic.init();
+    this.random.init();
+    Object.values(this.custom).forEach((manager) => {
+      manager.init();
+    });
+    this.events.onStart.emit();
+  }
+
+  async start(): Promise<void> {
+    const promises = [
+      this.audio.start(),
+      ...Object.values(this.custom).map((manager) => manager.start()),
+    ];
+    await Promise.all(promises);
+  }
+
   end(): void {
     this.entity.clearPreviousConstructs();
 
     this.logic.destroy();
     this.entity.destroy();
     this.asset.destroy();
+    this.audio.destroy();
     this.input.destroy();
     this.physics.destroy();
     this.debug.destroy();
@@ -124,22 +156,9 @@ export class ImpowerGame {
     this.events.onEnd.emit();
   }
 
-  start(): void {
-    this.debug.start();
-    this.input.start();
-    this.physics.start();
-    this.asset.start();
-    this.entity.start();
-    this.logic.start();
-    this.random.start();
-    Object.values(this.custom).forEach((manager) => {
-      manager.start();
-    });
-    this.events.onStart.emit();
-  }
-
   getSaveData(): SaveData {
     const asset = this.asset.getSaveData();
+    const audio = this.audio.getSaveData();
     const entity = this.entity.getSaveData();
     const logic = this.logic.getSaveData();
     const random = this.random.getSaveData();
@@ -149,6 +168,7 @@ export class ImpowerGame {
     });
     return {
       asset,
+      audio,
       entity,
       logic,
       random,

@@ -2,7 +2,9 @@ export interface DisplayCommandConfig {
   ui: string;
   letterFadeDuration: number;
   letterDelay: number;
-  pauseDelay: number;
+  pauseScale: number;
+  beepDuration: number;
+  averageSyllableLength: number;
   indicatorFadeDuration: number;
   indicatorAnimationName: string;
   indicatorAnimationDuration: number;

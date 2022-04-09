@@ -1,16 +1,47 @@
 /* eslint-disable no-continue */
+import { SynthOptions } from "tone";
+import { RecursivePartial } from "../../../../../../../../impower-core";
 import { format } from "../../../../../../../../impower-evaluate";
 import {
   DisplayCommandConfig,
   DisplayCommandData,
   DisplayType,
 } from "../../../../../../../data";
+import { ImpowerGame } from "../../../../../../../game";
+
+const dialoguePitches: [string, number][] = [
+  ["D#5", 1],
+  ["D#6", 0.5],
+  ["B6", 0.5],
+];
+
+export const dialogueInstrumentOptions: RecursivePartial<SynthOptions> = {
+  detune: 0,
+  portamento: 0,
+  volume: 0,
+  envelope: {
+    attack: 0.005,
+    attackCurve: "cosine",
+    decay: 0,
+    decayCurve: "linear",
+    release: 0.005,
+    releaseCurve: "cosine",
+    sustain: 1,
+  },
+  oscillator: {
+    partialCount: 0,
+    phase: 0,
+    type: "triangle",
+  },
+};
 
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   ui: "impower_ui",
   letterFadeDuration: 0,
-  letterDelay: 0.03,
-  pauseDelay: 0.15,
+  letterDelay: 0.025,
+  pauseScale: 6,
+  beepDuration: 0.04,
+  averageSyllableLength: 3,
   indicatorFadeDuration: 0.15,
   indicatorAnimationName: "bounce",
   indicatorAnimationDuration: 0.5,
@@ -89,16 +120,16 @@ const hideChoices = (
 const createCharSpan = (
   part: string,
   letterFadeDuration: number,
+  instant: boolean,
   totalDelay: number,
   style?: Partial<CSSStyleDeclaration>
 ): HTMLSpanElement => {
   const textEl = document.createTextNode(part);
   const spanEl = document.createElement("span");
-  spanEl.style.opacity = totalDelay > 0 ? "0" : "1";
-  spanEl.style.transition =
-    totalDelay > 0
-      ? `opacity ${letterFadeDuration}s linear ${totalDelay}s`
-      : null;
+  spanEl.style.opacity = instant ? "1" : "0";
+  spanEl.style.transition = instant
+    ? null
+    : `opacity ${letterFadeDuration}s linear ${totalDelay}s`;
   Object.entries(style || {}).forEach(([k, v]) => {
     spanEl.style[k] = v;
   });
@@ -108,23 +139,33 @@ const createCharSpan = (
 
 const getAnimatedSpanElements = (
   content: string,
-  portraitEl?: HTMLElement,
   valueMap?: Record<string, unknown>,
   config: DisplayCommandConfig = defaultDisplayCommandConfig,
   instant?: boolean,
   debug?: boolean
-): [HTMLSpanElement[], HTMLImageElement[], number] => {
+): [HTMLSpanElement[], [number, HTMLSpanElement[]][], [number, number][]] => {
   const letterFadeDuration = config?.letterFadeDuration || 0;
-  const pauseDelay = config?.pauseDelay || 0;
   const letterDelay = config?.letterDelay || 0;
+  const pauseScale = config?.pauseScale != null ? config?.pauseScale : 1;
+  const pauseDelay = letterDelay * pauseScale;
+  const averageSyllableLength = config?.averageSyllableLength;
+  const beepDuration =
+    config?.beepDuration != null ? config?.beepDuration : letterDelay;
 
   const partEls: HTMLSpanElement[] = [];
-  const contentEls: HTMLSpanElement[] = [];
-  const imageEls: HTMLImageElement[] = [];
+  const spanEls: HTMLSpanElement[] = [];
+  const chunkEls: [number, HTMLSpanElement[]][] = [];
+  const beeps: [number, number][] = [];
+  let prevBeep: [number, number];
+  let wordLength = 0;
+  let syllableLength = 0;
   let totalDelay = 0;
+  let chunkDelay = 0;
   const splitContent = content.split("");
   const marks: [string, number][] = [];
+  let spaceLength = 0;
   let pauseLength = 0;
+  let unpauseLength = 0;
   let pauseSpan: HTMLSpanElement;
   const imageUrls = new Set<string>();
   const audioUrls = new Set<string>();
@@ -211,35 +252,87 @@ const getAnimatedSpanElements = (
       i += 1;
       continue;
     }
-    if (part === " ") {
-      pauseLength += 1;
-    } else {
-      pauseLength = 0;
-    }
     const markers = marks.map((x) => x[0]);
     const isUnderline = markers.includes("_");
     const isBoldAndItalic = markers.includes("***");
     const isBold = markers.includes("**");
     const isItalic = markers.includes("*");
-    const isPause = pauseLength > 1;
     const style: Partial<CSSStyleDeclaration> = {
       textDecoration: isUnderline ? "underline" : null,
       fontStyle: isItalic || isBoldAndItalic ? "italic" : null,
       fontWeight: isBold || isBoldAndItalic ? "bold" : null,
       whiteSpace: part === "\n" ? "pre-wrap" : null,
     };
-    const span = createCharSpan(part, letterFadeDuration, totalDelay, style);
+    const span = createCharSpan(
+      part,
+      letterFadeDuration,
+      instant,
+      chunkDelay,
+      style
+    );
+    if (part === " ") {
+      spaceLength += 1;
+      wordLength = 0;
+    } else {
+      spaceLength = 0;
+      wordLength += 1;
+    }
+    const isPause = spaceLength > 1;
+    if (isPause) {
+      pauseLength += 1;
+      unpauseLength = 0;
+      if (pauseLength === 1) {
+        // start pause chunk
+        chunkEls.push([totalDelay, [span]]);
+      } else {
+        // continue pause chunk
+        chunkEls[chunkEls.length - 1][1].push(span);
+      }
+      chunkDelay = 0;
+    } else {
+      pauseLength = 0;
+      unpauseLength += 1;
+      if (unpauseLength === 1) {
+        // start letter chunk
+        chunkEls.push([totalDelay, [span]]);
+      } else {
+        // continue letter chunk
+        chunkEls[chunkEls.length - 1][1].push(span);
+      }
+      chunkDelay += letterDelay;
+    }
+    spanEls.push(span);
     partEls[i] = span;
-    contentEls.push(span);
-    if (pauseLength === 1) {
+    const charIndex = wordLength - 1;
+    const shouldBeep = part !== "-" && charIndex % averageSyllableLength === 0;
+    if (prevBeep && syllableLength > 0) {
+      prevBeep[1] = syllableLength + 1;
+    }
+    if (charIndex < 0) {
+      // whitespace
+      syllableLength = 0;
+      beeps.push([totalDelay, null]);
+    } else if (shouldBeep) {
+      const beep: [number, number] = [totalDelay, 1];
+      syllableLength = 0;
+      beeps.push(beep);
+      prevBeep = beep;
+      if (debug) {
+        span.style.backgroundColor = `hsl(185, 100%, 50%)`;
+      }
+    } else {
+      beeps.push([totalDelay, null]);
+      syllableLength += 1;
+    }
+    if (spaceLength === 1) {
       pauseSpan = span;
     }
     if (isPause && pauseSpan && debug) {
       pauseSpan.style.backgroundColor = `hsla(0, 100%, 50%, ${
-        (pauseLength - 1) / 5
+        (spaceLength - 1) / 5
       })`;
     }
-    if (pauseLength > 0) {
+    if (spaceLength > 0) {
       if (hideSpace) {
         pauseSpan.textContent = "";
         span.textContent = "";
@@ -247,9 +340,7 @@ const getAnimatedSpanElements = (
     } else {
       hideSpace = false;
     }
-    if (!instant) {
-      totalDelay += isPause ? pauseDelay : letterDelay;
-    }
+    totalDelay += isPause ? pauseDelay : letterDelay;
     i += 1;
   }
   // Invalidate any leftover open markers
@@ -275,7 +366,13 @@ const getAnimatedSpanElements = (
       marks.pop();
     }
   }
-  return [contentEls, imageEls, totalDelay];
+  const validBeeps: [number, number][] = beeps.map(([time, duration]) => {
+    if (!duration) {
+      return [time, duration];
+    }
+    return [time, beepDuration];
+  });
+  return [spanEls, chunkEls, validBeeps];
 };
 
 export const executeDisplayCommand = (
@@ -285,8 +382,11 @@ export const executeDisplayCommand = (
     instant?: boolean;
     debug?: boolean;
   },
-  config: DisplayCommandConfig = defaultDisplayCommandConfig
-): number => {
+  game?: ImpowerGame,
+  config: DisplayCommandConfig = defaultDisplayCommandConfig,
+  onFinished?: () => void
+): void => {
+  const id = data?.reference?.refId;
   const type = data?.type;
   const assets = data?.assets;
 
@@ -314,7 +414,7 @@ export const executeDisplayCommand = (
         backgroundEl.style.display = "none";
       }
     }
-    return 0;
+    return;
   }
 
   const character = data?.character;
@@ -376,9 +476,8 @@ export const executeDisplayCommand = (
     parentheticalEl.replaceChildren(validParenthetical);
     parentheticalEl.style.display = validParenthetical ? null : "none";
   }
-  const [spanEls, , totalDelay] = getAnimatedSpanElements(
+  const [spanEls, chunkEls, beeps] = getAnimatedSpanElements(
     evaluatedContent,
-    portraitEl,
     valueMap,
     config,
     instant,
@@ -409,22 +508,84 @@ export const executeDisplayCommand = (
       indicatorEl.style.display = "none";
     }
   }
-  if (data) {
-    window.requestAnimationFrame(() => {
-      spanEls.forEach((charEl) => {
-        charEl.style.opacity = "1";
-      });
-      if (indicatorEl) {
-        indicatorEl.style.transition = instant
-          ? null
-          : `opacity ${indicatorFadeDuration}s linear ${totalDelay}s`;
-        indicatorEl.style.opacity = "1";
-        indicatorEl.style.animation = instant
-          ? null
-          : `${indicatorAnimationName} ${indicatorAnimationDuration}s ${indicatorAnimationEase} ${totalDelay}s infinite`;
+  const handleFinished = (): void => {
+    for (let i = 0; i < spanEls.length; i += 1) {
+      const spanEl = spanEls[i];
+      if (spanEl && spanEl.style.opacity !== "1") {
+        spanEl.style.opacity = "1";
       }
-    });
+    }
+    if (indicatorEl) {
+      indicatorEl.style.transition = `opacity ${indicatorFadeDuration}s linear`;
+      indicatorEl.style.opacity = "1";
+      indicatorEl.style.animation = `${indicatorAnimationName} ${indicatorAnimationDuration}s ${indicatorAnimationEase} infinite`;
+    }
+    onFinished?.();
+  };
+  if (game) {
+    if (instant) {
+      game.audio.stopNotes();
+      handleFinished();
+    } else {
+      const handleDraw = (time: number): void => {
+        for (let i = 0; i < chunkEls.length; i += 1) {
+          const [chunkTime, chunk] = chunkEls[i];
+          if (chunkTime < time) {
+            chunk.forEach((c) => {
+              if (c.style.opacity !== "1") {
+                c.style.opacity = "1";
+              }
+            });
+          } else {
+            break;
+          }
+        }
+      };
+      const notes: {
+        time: number;
+        note: string[];
+        duration: number[];
+        velocity?: number[];
+        offset?: number[];
+      }[] = beeps.map(([time, duration]) => {
+        if (!duration) {
+          return {
+            time,
+            note: null,
+            duration: null,
+            velocity: null,
+            offset: null,
+          };
+        }
+        const noteDuration = duration / dialoguePitches.length;
+        return {
+          time,
+          note: dialoguePitches.map(([p]) => p),
+          duration: dialoguePitches.map(() => noteDuration),
+          velocity: dialoguePitches.map(([, v]) => v),
+          offset: dialoguePitches.map((p, index) => noteDuration * index),
+        };
+      });
+      game.audio.configureInstrument({
+        instrument: "default",
+        options: dialogueInstrumentOptions,
+      });
+      game.audio.playNotes({
+        id,
+        instrument: "default",
+        notes,
+        onDraw: handleDraw,
+        onFinished: handleFinished,
+      });
+    }
   }
-
-  return totalDelay;
+  if (data) {
+    if (indicatorEl && (!game || instant)) {
+      window.requestAnimationFrame(() => {
+        indicatorEl.style.transition = null;
+        indicatorEl.style.opacity = "1";
+        indicatorEl.style.animation = null;
+      });
+    }
+  }
 };

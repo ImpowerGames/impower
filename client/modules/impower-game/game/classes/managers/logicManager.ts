@@ -252,14 +252,14 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     return saveState;
   }
 
-  start(): void {
+  init(): void {
     this.enterBlock({
       id: this.state.activeParentBlockId,
       returnWhenFinished: false,
       executedByBlockId: null,
       startIndex: this.state.activeCommandIndex,
     });
-    super.start();
+    super.init();
   }
 
   private changeActiveParentBlock(newParentBlockId: string): void {
