@@ -12,7 +12,7 @@ import { ImpowerGame } from "../../../../../../../game";
 const dialoguePitches: [string, number][] = [
   ["D#5", 1],
   ["D#6", 0.5],
-  ["B6", 0.5],
+  ["B5", 0.25],
 ];
 
 export const dialogueInstrumentOptions: RecursivePartial<SynthOptions> = {
@@ -566,13 +566,16 @@ export const executeDisplayCommand = (
           offset: dialoguePitches.map((p, index) => noteDuration * index),
         };
       });
+      const instrumentId = data.reference.refTypeId;
       game.audio.configureInstrument({
-        instrument: "default",
+        instrumentId,
+        instrumentType: "default",
         options: dialogueInstrumentOptions,
       });
       game.audio.playNotes({
-        id,
-        instrument: "default",
+        instrumentId,
+        instrumentType: "default",
+        partId: id,
         notes,
         onDraw: handleDraw,
         onFinished: handleFinished,

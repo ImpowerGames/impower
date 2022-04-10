@@ -15,40 +15,32 @@ export type InstrumentType =
   | "pluck"
   | "sampler";
 
-export interface InstrumentTypeMap {
-  default: Tone.PolySynth<Tone.Synth>;
-  am: Tone.PolySynth<Tone.AMSynth>;
-  fm: Tone.PolySynth<Tone.FMSynth>;
-  membrane: Tone.PolySynth<Tone.MembraneSynth>;
-  metal: Tone.PolySynth<Tone.MetalSynth>;
-  mono: Tone.PolySynth<Tone.MonoSynth>;
-  noise: Tone.NoiseSynth;
-  pluck: Tone.PluckSynth;
-  duo: Tone.DuoSynth;
-  sampler: Tone.Sampler;
-}
-
 export interface AudioState {
   playing: string[];
 }
 
 export interface AudioEvents {
   onConfigureInstrument: GameEvent<{
-    instrument: InstrumentType;
+    instrumentId: string;
+    instrumentType: InstrumentType;
     options: RecursivePartial<Tone.SynthOptions>;
   }>;
   onAttackNote: GameEvent<{
-    instrument: InstrumentType;
+    instrumentId: string;
+    instrumentType: InstrumentType;
     note: Tone.Unit.Frequency | Tone.FrequencyClass<number>;
     time?: number;
     velocity?: number;
   }>;
   onReleaseNote: GameEvent<{
-    instrument: InstrumentType;
+    instrumentId: string;
+    instrumentType: InstrumentType;
     time?: number;
   }>;
   onPlayNotes: GameEvent<{
-    instrument: InstrumentType;
+    instrumentId: string;
+    instrumentType: InstrumentType;
+    partId: string;
     notes: {
       note: Tone.Unit.Frequency[];
       time: number;
@@ -58,21 +50,18 @@ export interface AudioEvents {
   }>;
 }
 
-const instruments: InstrumentTypeMap = {
-  default: undefined,
-  am: undefined,
-  fm: undefined,
-  membrane: undefined,
-  metal: undefined,
-  mono: undefined,
-  noise: undefined,
-  pluck: undefined,
-  duo: undefined,
-  sampler: undefined,
-};
+type Instrument =
+  | Tone.PolySynth<Tone.MetalSynth>
+  | Tone.PolySynth
+  | Tone.NoiseSynth
+  | Tone.PluckSynth
+  | Tone.DuoSynth
+  | Tone.Sampler;
 
 export class AudioManager extends Manager<AudioState, AudioEvents> {
   private parts: Record<string, Tone.Part> = {};
+
+  instruments: Record<string, Instrument> = {};
 
   getInitialState(): AudioState {
     return {
@@ -83,21 +72,26 @@ export class AudioManager extends Manager<AudioState, AudioEvents> {
   getInitialEvents(): AudioEvents {
     return {
       onConfigureInstrument: new GameEvent<{
-        instrument: InstrumentType;
+        instrumentId: string;
+        instrumentType: InstrumentType;
         options: RecursivePartial<Tone.SynthOptions>;
       }>(),
       onAttackNote: new GameEvent<{
-        instrument: InstrumentType;
+        instrumentId: string;
+        instrumentType: InstrumentType;
         note: Tone.Unit.Frequency | Tone.FrequencyClass<number>;
         time?: number;
         velocity?: number;
       }>(),
       onReleaseNote: new GameEvent<{
-        instrument: InstrumentType;
+        instrumentId: string;
+        instrumentType: InstrumentType;
         time?: number;
       }>(),
       onPlayNotes: new GameEvent<{
-        instrument: InstrumentType;
+        instrumentId: string;
+        instrumentType: InstrumentType;
+        partId: string;
         notes: {
           note: Tone.Unit.Frequency[];
           time: number;
@@ -118,72 +112,96 @@ export class AudioManager extends Manager<AudioState, AudioEvents> {
   }
 
   destroy(): void {
+    Tone.Transport.cancel();
     Tone.Transport.stop();
+    window.setTimeout(() => {
+      Object.values(this.instruments).forEach((instrument) =>
+        instrument.dispose()
+      );
+    }, 100);
   }
 
-  getInstrument<K extends keyof InstrumentTypeMap>(
-    type?: K
-  ): InstrumentTypeMap[K] {
-    if (instruments[type]) {
-      return instruments[type];
+  getInstrument<K extends InstrumentType>(id: string, type?: K): Instrument {
+    const key = `${id}/${type}`;
+    if (this.instruments[key]) {
+      return this.instruments[key];
     }
     if (type === "default") {
-      instruments.default = new Tone.PolySynth().toDestination();
+      this.instruments[key] = new Tone.PolySynth().toDestination();
     }
     if (type === "am") {
-      instruments.am = new Tone.PolySynth(Tone.AMSynth).toDestination();
+      this.instruments[key] = new Tone.PolySynth(Tone.AMSynth).toDestination();
     }
     if (type === "fm") {
-      instruments.fm = new Tone.PolySynth(Tone.FMSynth).toDestination();
+      this.instruments[key] = new Tone.PolySynth(Tone.FMSynth).toDestination();
     }
     if (type === "membrane") {
-      instruments.membrane = new Tone.PolySynth(
+      this.instruments[key] = new Tone.PolySynth(
         Tone.MembraneSynth
       ).toDestination();
     }
     if (type === "metal") {
-      instruments.metal = new Tone.PolySynth(Tone.MetalSynth).toDestination();
+      this.instruments[key] = new Tone.PolySynth(
+        Tone.MetalSynth
+      ).toDestination();
     }
     if (type === "mono") {
-      instruments.mono = new Tone.PolySynth(Tone.MonoSynth).toDestination();
+      this.instruments[key] = new Tone.PolySynth(
+        Tone.MonoSynth
+      ).toDestination();
     }
     if (type === "noise") {
-      instruments.noise = new Tone.NoiseSynth().toDestination();
+      this.instruments[key] = new Tone.NoiseSynth().toDestination();
     }
     if (type === "pluck") {
-      instruments.pluck = new Tone.PluckSynth().toDestination();
+      this.instruments[key] = new Tone.PluckSynth().toDestination();
     }
     if (type === "duo") {
-      instruments.duo = new Tone.DuoSynth().toDestination();
+      this.instruments[key] = new Tone.DuoSynth().toDestination();
     }
     if (type === "sampler") {
-      instruments.sampler = new Tone.Sampler().toDestination();
+      this.instruments[key] = new Tone.Sampler().toDestination();
     }
-    return instruments[type];
+    return this.instruments[key];
   }
 
   configureInstrument(data: {
-    instrument: InstrumentType;
+    instrumentId: string;
+    instrumentType: InstrumentType;
     options: RecursivePartial<Tone.SynthOptions>;
   }): void {
-    const instrument = this.getInstrument(data.instrument);
+    const instrument = this.getInstrument(
+      data.instrumentId,
+      data.instrumentType
+    );
     instrument.set(data.options);
     this.events.onConfigureInstrument.emit(data);
   }
 
   attackNote(data: {
-    instrument: InstrumentType;
+    instrumentId: string;
+    instrumentType: InstrumentType;
     note: Tone.Unit.Frequency;
     time?: number;
     velocity?: number;
   }): void {
-    const instrument = this.getInstrument(data.instrument);
+    const instrument = this.getInstrument(
+      data.instrumentId,
+      data.instrumentType
+    );
     instrument.triggerAttack(data.note, data.time, data.velocity);
     this.events.onAttackNote.emit(data);
   }
 
-  releaseNote(data: { instrument: InstrumentType; time?: number }): void {
-    const instrument = this.getInstrument(data.instrument);
+  releaseNote(data: {
+    instrumentId: string;
+    instrumentType: InstrumentType;
+    time?: number;
+  }): void {
+    const instrument = this.getInstrument(
+      data.instrumentId,
+      data.instrumentType
+    );
     instrument.triggerRelease(data.time);
     this.events.onReleaseNote.emit(data);
   }
@@ -197,8 +215,9 @@ export class AudioManager extends Manager<AudioState, AudioEvents> {
   }
 
   playNotes(data: {
-    id: string;
-    instrument: InstrumentType;
+    partId: string;
+    instrumentId: string;
+    instrumentType: InstrumentType;
     notes: {
       note: Tone.Unit.Frequency[];
       time: number;
@@ -210,7 +229,10 @@ export class AudioManager extends Manager<AudioState, AudioEvents> {
     onStart?: (time: number) => void;
     onFinished?: (time: number) => void;
   }): void {
-    const instrument = this.getInstrument(data.instrument);
+    const instrument = this.getInstrument(
+      data.instrumentId,
+      data.instrumentType
+    );
 
     this.stopNotes();
 
@@ -238,7 +260,9 @@ export class AudioManager extends Manager<AudioState, AudioEvents> {
       }
       Tone.Draw.schedule(() => data.onDraw?.(relativeTime), time);
       if (index === data.notes.length - 1) {
-        this.state.playing = this.state.playing.filter((x) => x !== data.id);
+        this.state.playing = this.state.playing.filter(
+          (x) => x !== data.partId
+        );
         Tone.Draw.schedule(() => data.onFinished?.(relativeTime), time);
       }
       index += 1;
@@ -246,8 +270,8 @@ export class AudioManager extends Manager<AudioState, AudioEvents> {
 
     Tone.Transport.start("+0.1");
 
-    this.parts[data.id] = part;
-    this.state.playing.push(data.id);
+    this.parts[data.partId] = part;
+    this.state.playing.push(data.partId);
     this.events.onPlayNotes.emit(data);
   }
 }
