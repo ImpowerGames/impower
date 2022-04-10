@@ -10,7 +10,7 @@ import {
 import { ImpowerGame } from "../../../../../../../game";
 
 const dialoguePitches: [string, number][] = [
-  ["D#5", 1],
+  ["D#5", 0.5],
   ["D#6", 0.5],
   ["B5", 0.25],
 ];
@@ -20,11 +20,11 @@ export const dialogueInstrumentOptions: RecursivePartial<SynthOptions> = {
   portamento: 0,
   volume: 0,
   envelope: {
-    attack: 0.005,
+    attack: 0.0025,
     attackCurve: "cosine",
     decay: 0,
     decayCurve: "linear",
-    release: 0.005,
+    release: 0.0025,
     releaseCurve: "cosine",
     sustain: 1,
   },
@@ -40,7 +40,7 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   letterFadeDuration: 0,
   letterDelay: 0.025,
   pauseScale: 6,
-  beepDuration: 0.04,
+  beepDuration: 0.03,
   averageSyllableLength: 3,
   indicatorFadeDuration: 0.15,
   indicatorAnimationName: "bounce",
