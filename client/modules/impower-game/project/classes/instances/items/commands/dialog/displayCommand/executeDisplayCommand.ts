@@ -36,16 +36,34 @@ export const dialogueInstrumentOptions: RecursivePartial<SynthOptions> = {
 };
 
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
-  ui: "impower_ui",
-  letterFadeDuration: 0,
-  letterDelay: 0.025,
-  pauseScale: 6,
-  beepDuration: 0.03,
-  averageSyllableLength: 3,
-  indicatorFadeDuration: 0.15,
-  indicatorAnimationName: "bounce",
-  indicatorAnimationDuration: 0.5,
-  indicatorAnimationEase: "ease",
+  ui: {
+    root: "impower_ui",
+    character: "character",
+    background: "background",
+    portrait: "portrait",
+    parenthetical: "parenthetical",
+    dialogue_group: "dialogue_group",
+    indicator: "indicator",
+    choice: "choice",
+    dialogue: "dialogue",
+    action: "action",
+    centered: "centered",
+    transition: "transition",
+    scene: "scene",
+  },
+  typing: {
+    fadeDuration: 0,
+    delay: 0.025,
+    pauseScale: 6,
+    beepDuration: 0.03,
+    syllableLength: 3,
+  },
+  indicator: {
+    fadeDuration: 0.15,
+    animationName: "bounce",
+    animationDuration: 0.5,
+    animationEase: "ease",
+  },
   css: `
   @keyframes bounce {
     0%,
@@ -57,22 +75,6 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
     }
   }
   `,
-};
-
-export const displayCommandClassNames = {
-  character: "character",
-  background: "background",
-  portrait: "portrait",
-  parenthetical: "parenthetical",
-  dialogue_area: "dialogue_area",
-  indicator: "indicator",
-  choice: "choice",
-  dialogue: "dialogue",
-  action: "action",
-  centered: "centered",
-  transition: "transition",
-  scene: "scene",
-  assets: "assets",
 };
 
 const getElementSelector = (ui: string, ...classNames: string[]): string =>
@@ -108,7 +110,7 @@ const hideChoices = (
   config: DisplayCommandConfig = defaultDisplayCommandConfig
 ): void => {
   const ui = config?.ui;
-  const choiceEls = getElements(ui, displayCommandClassNames.choice);
+  const choiceEls = getElements(ui?.root, ui?.choice);
   choiceEls.forEach((el) => {
     if (el) {
       el.replaceChildren("");
@@ -144,13 +146,16 @@ const getAnimatedSpanElements = (
   instant?: boolean,
   debug?: boolean
 ): [HTMLSpanElement[], [number, HTMLSpanElement[]][], [number, number][]] => {
-  const letterFadeDuration = config?.letterFadeDuration || 0;
-  const letterDelay = config?.letterDelay || 0;
-  const pauseScale = config?.pauseScale != null ? config?.pauseScale : 1;
+  const letterFadeDuration = config?.typing?.fadeDuration || 0;
+  const letterDelay = config?.typing?.delay || 0;
+  const pauseScale =
+    config?.typing?.pauseScale != null ? config?.typing?.pauseScale : 1;
   const pauseDelay = letterDelay * pauseScale;
-  const averageSyllableLength = config?.averageSyllableLength;
+  const averageSyllableLength = config?.typing?.syllableLength;
   const beepDuration =
-    config?.beepDuration != null ? config?.beepDuration : letterDelay;
+    config?.typing?.beepDuration != null
+      ? config?.typing?.beepDuration
+      : letterDelay;
 
   const partEls: HTMLSpanElement[] = [];
   const spanEls: HTMLSpanElement[] = [];
@@ -395,9 +400,9 @@ export const executeDisplayCommand = (
   const ui = config?.ui;
   const css = config?.css;
 
-  const backgroundEl = getElement(ui, displayCommandClassNames.background);
+  const backgroundEl = getElement(ui?.root, ui?.background);
 
-  setupStyle(ui, css);
+  setupStyle(ui?.root, css);
 
   const assetsOnly = type === DisplayType.Assets;
 
@@ -426,14 +431,14 @@ export const executeDisplayCommand = (
 
   const instant = context?.instant;
   const debug = context?.debug;
-  const indicatorFadeDuration = config?.indicatorFadeDuration || 0;
-  const indicatorAnimationName = config?.indicatorAnimationName;
-  const indicatorAnimationDuration = config?.indicatorAnimationDuration;
-  const indicatorAnimationEase = config?.indicatorAnimationEase;
+  const indicatorFadeDuration = config?.indicator?.fadeDuration || 0;
+  const indicatorAnimationName = config?.indicator?.animationName;
+  const indicatorAnimationDuration = config?.indicator?.animationDuration;
+  const indicatorAnimationEase = config?.indicator?.animationEase;
 
-  const dialogueAreaEl = getElement(ui, displayCommandClassNames.dialogue_area);
-  const portraitEl = getElement(ui, displayCommandClassNames.portrait);
-  const indicatorEl = getElement(ui, displayCommandClassNames.indicator);
+  const dialogueAreaEl = getElement(ui?.root, ui?.dialogue_group);
+  const portraitEl = getElement(ui?.root, ui?.portrait);
+  const indicatorEl = getElement(ui?.root, ui?.indicator);
   const validCharacter = type === DisplayType.Dialogue ? character : "";
   const validParenthetical = type === DisplayType.Dialogue ? parenthetical : "";
   const trimmedContent = content?.trim() === "_" ? "" : content || "";
@@ -459,14 +464,15 @@ export const executeDisplayCommand = (
     dialogueAreaEl.style.display = type === "dialogue" ? null : "none";
   }
 
-  const characterEl = getElement(ui, displayCommandClassNames.character);
-  const parentheticalEl = getElement(
-    ui,
-    displayCommandClassNames.parenthetical
-  );
-  const contentElEntries: [DisplayType, HTMLElement][] = Object.values(
-    DisplayType
-  ).map((x) => [x, getElement(ui, x)]);
+  const characterEl = getElement(ui?.root, ui?.character);
+  const parentheticalEl = getElement(ui?.root, ui?.parenthetical);
+  const contentElEntries: [DisplayType, HTMLElement][] = [
+    [DisplayType.Dialogue, getElement(ui?.root, ui?.dialogue)],
+    [DisplayType.Action, getElement(ui?.root, ui?.action)],
+    [DisplayType.Centered, getElement(ui?.root, ui?.centered)],
+    [DisplayType.Scene, getElement(ui?.root, ui?.scene)],
+    [DisplayType.Transition, getElement(ui?.root, ui?.transition)],
+  ];
 
   if (characterEl) {
     characterEl.replaceChildren(validCharacter);

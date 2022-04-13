@@ -225,7 +225,7 @@ const UI = React.memo((props: UIProps): JSX.Element => {
                 >
                   <div
                     ref={widthRef}
-                    className="dialogue_area"
+                    className="dialogue_group"
                     style={{
                       width: "90%",
                       margin: "0 auto",
@@ -233,7 +233,7 @@ const UI = React.memo((props: UIProps): JSX.Element => {
                     }}
                   >
                     <div
-                      className="dialogue_group"
+                      className="dialogue_area"
                       style={{ display: "flex", flex: 1 }}
                     >
                       <div

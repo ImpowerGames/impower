@@ -2,7 +2,7 @@
 /* eslint-disable no-cond-assign */
 /* eslint-disable no-return-assign */
 import { EditorState } from "@codemirror/basic-setup";
-import { syntaxTree } from "@codemirror/language";
+import { getIndentUnit, syntaxTree } from "@codemirror/language";
 import {
   ChangeSpec,
   EditorSelection,
@@ -19,6 +19,7 @@ import { sparkLanguage } from "../utils/sparkLanguage";
 
 const START_REGEX = /^[\s\d.)\-+*>]*/;
 const CONTINUE_REGEX = /^([ \t]*)([-+*])([ \t]+)/;
+const INDENT_REGEX = /^([ \t]*)/;
 
 function nodeStart(node: SyntaxNode, doc: Text) {
   return doc.sliceString(node.from, node.from + 50);
@@ -122,93 +123,112 @@ export const insertNewlineContinueMarkup: StateCommand = ({
     if (!range.empty || !sparkLanguage.isActiveAt(state, range.from)) {
       return (dont = { range });
     }
+
     const pos = range.from;
     const line = doc.lineAt(pos);
     const context = getContext(tree.resolveInner(pos, -1), line.text, doc);
+    const trimmedEndText = line.text.trimEnd();
+    const endsWithColon =
+      trimmedEndText !== "TO:" &&
+      !trimmedEndText.endsWith(" TO:") &&
+      trimmedEndText.endsWith(":");
     while (
       context.length &&
       context[context.length - 1].from > pos - line.from
     ) {
       context.pop();
     }
-    if (!context.length) {
-      return (dont = { range });
-    }
-    const inner = context[context.length - 1];
-    if (inner.to - inner.spaceAfter.length > pos - line.from) {
+    const inner = context?.[context.length - 1];
+    if (inner && inner.to - inner.spaceAfter.length > pos - line.from) {
       return (dont = { range });
     }
 
-    const emptyLine =
-      pos >= inner.to - inner.spaceAfter.length &&
-      !/\S/.test(line.text.slice(inner.to));
-    // Empty line in list
-    if (inner.item && emptyLine) {
-      // First list item or blank line before: delete a level of markup
-      if (inner.node.firstChild?.to >= pos || line.from > 0) {
-        const next = context.length > 1 ? context[context.length - 2] : null;
-        let delTo;
-        let insert = "";
-        if (next && next.item) {
-          // Re-add marker for the list at the next level
-          delTo = line.from + next.from;
-          insert = next.marker(doc, 1);
-        } else {
-          delTo = line.from + (next ? next.to : 0);
+    if (inner && inner.item) {
+      const emptyLine =
+        pos >= inner.to - inner.spaceAfter.length &&
+        !/\S/.test(line.text.slice(inner.to));
+      // Empty line in list
+      if (emptyLine) {
+        // First list item or blank line before: delete a level of markup
+        if (inner.node.firstChild?.to >= pos || line.from > 0) {
+          const next = context.length > 1 ? context[context.length - 2] : null;
+          let delFrom;
+          let insert = "";
+          if (next && next.item) {
+            // Re-add marker for the list at the next level
+            delFrom = line.from + next.from;
+            insert = next.marker(doc, 1);
+          } else {
+            delFrom = line.from + (next ? next.to : 0);
+          }
+          const changes: ChangeSpec[] = [{ from: delFrom, to: pos, insert }];
+          if (inner.node.name === "OrderedList") {
+            renumberList(inner.item, doc, changes, -2);
+          }
+          if (next && next.node.name === "OrderedList") {
+            renumberList(next.item, doc, changes);
+          }
+          return {
+            range: EditorSelection.cursor(delFrom + insert.length),
+            changes,
+          };
         }
-        const changes: ChangeSpec[] = [{ from: delTo, to: pos, insert }];
-        if (inner.node.name === "OrderedList") {
-          renumberList(inner.item, doc, changes, -2);
-        }
-        if (next && next.node.name === "OrderedList") {
-          renumberList(next.item, doc, changes);
-        }
-        return {
-          range: EditorSelection.cursor(delTo + insert.length),
-          changes,
-        };
       }
-      // Move this line down
-      // let insert = "";
-      // for (let i = 0, e = context.length - 2; i <= e; i += 1) {
-      //   insert += context[i].blank(i < e);
-      // }
-      // insert += state.lineBreak;
-      // console.log("here2");
-      // return {
-      //   range: EditorSelection.cursor(pos + insert.length),
-      //   changes: { from: line.from, insert },
-      // };
+    }
+
+    const indentUnit = getIndentUnit(state);
+    const indentMatch = line.text.match(INDENT_REGEX);
+    const indentText = indentMatch?.[1] || "";
+
+    const indentedEmptyLine = line.text && !line.text.trim();
+    // Indented empty line
+    if (indentedEmptyLine && pos > line.from) {
+      // delete a level of indent
+      const delFrom = line.from;
+      const delTo = delFrom + indentUnit;
+      const insert = "";
+      const changes: ChangeSpec[] = [{ from: delFrom, to: delTo, insert }];
+      return {
+        range: EditorSelection.cursor(pos - indentUnit),
+        changes,
+      };
     }
 
     const changes: ChangeSpec[] = [];
-    if (inner.node.name === "OrderedList") {
-      renumberList(inner.item, doc, changes);
-    }
     let insert = state.lineBreak;
-    const continued = inner.item && inner.item.from < line.from;
-    // If not dedented
-    if (!continued || START_REGEX.exec(line.text)?.[0].length >= inner.to) {
-      for (let i = 0, e = context.length - 1; i <= e; i += 1) {
-        insert +=
-          i === e && !continued && !line.text.match(sparkRegexes.condition)
-            ? context[i].marker(doc, 1)
-            : context[i].blank();
+    if (inner) {
+      if (inner.node.name === "OrderedList") {
+        renumberList(inner.item, doc, changes);
       }
+      const continued = inner.item && inner.item.from < line.from;
+      // If not dedented
+      if (!continued || START_REGEX.exec(line.text)?.[0].length >= inner.to) {
+        for (let i = 0, e = context.length - 1; i <= e; i += 1) {
+          insert +=
+            i === e && !continued && !line.text.match(sparkRegexes.condition)
+              ? context[i].marker(doc, 1)
+              : context[i].blank();
+        }
+      }
+    } else if (endsWithColon) {
+      insert += indentText;
+      if (pos > line.from + indentText.length) {
+        for (let i = 0; i < indentUnit; i += 1) {
+          insert += " ";
+        }
+      }
+    } else {
+      insert += indentText;
     }
-    let from = pos;
-    while (
-      from > line.from &&
-      /\s/.test(line.text.charAt(from - line.from - 1))
-    ) {
-      from -= 1;
-    }
+    const from = pos;
     changes.push({ from, to: pos, insert });
     return { range: EditorSelection.cursor(from + insert.length), changes };
   });
+
   if (dont) {
     return false;
   }
+
   dispatch(state.update(changes, { scrollIntoView: true, userEvent: "input" }));
   return true;
 };
@@ -336,7 +356,7 @@ const changeBySelectedLine = (
       if (indentText.length < minOffset) {
         minOffset = indentText.length;
       }
-      const commentMatch = line.text.match(sparkRegexes.comment_inline);
+      const commentMatch = line.text.match(sparkRegexes.comment_mark);
       commentMatches.push(commentMatch);
       if (line.text.trim() && !commentMatch) {
         action = "comment";

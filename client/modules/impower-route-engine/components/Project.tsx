@@ -45,7 +45,6 @@ import TestToolbar from "./toolbars/TestToolbar";
 
 /**
  * Gets all panel types that should be visible in the current layout according to pane count, window type, and data selection counts.
- * NOTE: This method will not return panels that have empty content (if inspected data selection count === 0).
  * @returns [[...LeftPanels], [...RightPanels]]
  */
 const getVisiblePanels = (
@@ -58,10 +57,8 @@ const getVisiblePanels = (
         return [[], ["setup", "detail"]];
       case "assets":
         return [[], ["assets"]];
-      case "entities":
-        return [[], ["entities", "detail"]];
       case "logic":
-        return [[], ["logic", "detail"]];
+        return [[], ["logic"]];
       case "test":
         return [[], ["test"]];
       default:
@@ -73,10 +70,8 @@ const getVisiblePanels = (
       return [["setup", "detail"], ["test"]];
     case "assets":
       return [["assets"], ["test"]];
-    case "entities":
-      return [["entities", "detail"], ["test"]];
     case "logic":
-      return [["logic", "detail"], ["test"]];
+      return [["logic"], ["test"]];
     case "test":
       return [[], ["test"]];
     default:

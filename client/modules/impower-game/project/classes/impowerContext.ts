@@ -1,4 +1,7 @@
-import { getScopedContext, parseSpark } from "../../../impower-script-parser";
+import {
+  getScopedEvaluationContext,
+  parseSpark,
+} from "../../../impower-script-parser";
 import { CommandData, GameProjectData } from "../../data";
 import { getRuntimeBlocks, getScriptAugmentations } from "../../parser";
 import { CommandRunner, ImpowerGameRunner } from "../../runner";
@@ -13,11 +16,6 @@ export class ImpowerContext {
     [id: string]: {
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
-      variables: Record<string, unknown>;
-      assets: Record<string, string>;
-      entities: Record<string, string>;
-      tags: Record<string, string>;
-      blocks: Record<string, number>;
       triggers: string[];
       parameters: string[];
       commands: CommandRuntimeData[];
@@ -28,11 +26,6 @@ export class ImpowerContext {
     [id: string]: {
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
-      variables: Record<string, unknown>;
-      assets: Record<string, string>;
-      entities: Record<string, string>;
-      tags: Record<string, string>;
-      blocks: Record<string, number>;
       triggers: string[];
       parameters: string[];
       commands: CommandRuntimeData[];
@@ -52,53 +45,14 @@ export class ImpowerContext {
     this._contexts = {};
 
     Object.entries(runtimeBlocks).forEach(([blockId, block]) => {
-      const [variableIds, variables] = getScopedContext(
+      const [ids, valueMap] = getScopedEvaluationContext(
         blockId,
         result?.sections,
-        "variables"
+        result?.entities
       );
-      const [assetIds, assets] = getScopedContext<string>(
-        blockId,
-        result?.sections,
-        "assets"
-      );
-      const [entityIds, entities] = getScopedContext<string>(
-        blockId,
-        result?.sections,
-        "entities"
-      );
-      const [tagIds, tags] = getScopedContext<string>(
-        blockId,
-        result?.sections,
-        "tags"
-      );
-      const [sectionIds, sections] = getScopedContext<number>(
-        blockId,
-        result?.sections,
-        "sections"
-      );
-      const ids = {
-        ...variableIds,
-        ...assetIds,
-        ...entityIds,
-        ...tagIds,
-        ...sectionIds,
-      };
-      const valueMap = {
-        ...variables,
-        ...assets,
-        ...entities,
-        ...tags,
-        ...sections,
-      };
       this._contexts[block.reference.refId] = {
         ids,
         valueMap,
-        variables,
-        assets,
-        entities,
-        tags,
-        blocks: sections,
         triggers: block.triggers,
         parameters: block.parameters,
         commands: runner.getRuntimeData(block.commands),

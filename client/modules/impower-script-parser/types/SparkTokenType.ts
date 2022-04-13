@@ -42,6 +42,8 @@ export type SparkOtherTokenType =
   | "boneyard_start"
   | "boneyard_end"
   | "repeat"
+  | "entity_object_field"
+  | "entity_value_field"
   | SparkTitleKeyword;
 
 export type SparkTokenType =

@@ -42,7 +42,6 @@ import {
 } from "../../types/actions/panelActions";
 import { projectChangeScript } from "../../types/actions/projectActions";
 import { testSetCompiling } from "../../types/actions/testActions";
-import { WindowType } from "../../types/state/windowState";
 
 const ScriptEditor = dynamic(
   () => import("../../../impower-script-editor/components/ScriptEditor"),
@@ -67,24 +66,24 @@ const StyledFadeAnimation = styled(FadeAnimation)`
   flex-direction: column;
 `;
 
-interface ContainerScriptEditorProps {
-  windowType: WindowType;
+interface LogicScriptEditorProps {
   toggleFolding: boolean;
   toggleLinting: boolean;
   onSectionChange: (name: string) => void;
 }
 
-const ContainerScriptEditor = React.memo(
-  (props: ContainerScriptEditorProps): JSX.Element => {
-    const { windowType, toggleFolding, toggleLinting, onSectionChange } = props;
+const LogicScriptEditor = React.memo(
+  (props: LogicScriptEditorProps): JSX.Element => {
+    const { toggleFolding, toggleLinting, onSectionChange } = props;
 
     const { transitionState } = useContext(WindowTransitionContext);
     const { gameInspector } = useContext(GameInspectorContext);
     const { game } = useContext(GameContext);
     const [state, dispatch] = useContext(ProjectEngineContext);
 
-    const events = windowType === "logic" ? game?.logic?.events : undefined;
+    const windowType = "logic";
 
+    const events = game?.[windowType]?.events;
     const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
     const searchLineQuery = state?.panel?.panels?.[windowType]?.searchLineQuery;
     const snippetPreview = state?.panel?.panels?.[windowType]?.snippetPreview;
@@ -118,6 +117,7 @@ const ContainerScriptEditor = React.memo(
     const gameRef = useRef(game);
     gameRef.current = game;
 
+    const [ready, setReady] = useState(false);
     const [parseResultState, setParseResultState] =
       useState<SparkParseResult>();
     const [executingCursor, setExecutingCursor] = useState<{
@@ -212,6 +212,10 @@ const ContainerScriptEditor = React.memo(
       [handleSaveEditorChange]
     );
 
+    const handleReady = useCallback(() => {
+      setReady(true);
+    }, []);
+
     const handleEditorUpdate = useCallback(
       (value: string, state: SerializableEditorState) => {
         const canUndo = state?.history?.done?.length > 1;
@@ -219,6 +223,7 @@ const ContainerScriptEditor = React.memo(
         const focused = state?.focused;
         const selected = state?.selected;
         const diagnostics = state?.diagnostics;
+        const folded = state?.folded;
         const canUndoChanged =
           lastEditorStateRef.current?.history?.done?.length > 1 !== canUndo;
         const canRedoChanged =
@@ -229,6 +234,9 @@ const ContainerScriptEditor = React.memo(
         const diagnosticsChanged =
           JSON.stringify(lastEditorStateRef.current?.diagnostics || []) !==
           JSON.stringify(diagnostics || []);
+        const foldedChanged =
+          JSON.stringify(lastEditorStateRef.current?.folded) !==
+          JSON.stringify(folded);
         const focusedOtherInput =
           focusChanged &&
           !focused &&
@@ -238,9 +246,10 @@ const ContainerScriptEditor = React.memo(
           canRedoChanged ||
           focusChanged ||
           selectedChanged ||
-          diagnosticsChanged
+          diagnosticsChanged ||
+          foldedChanged
         ) {
-          // Save editor change immediately so undo/redo button reflects change.
+          // Save editor change immediately so ui reflects change.
           if (!focusedOtherInput) {
             lastEditorStateRef.current = state;
             handleSaveEditorChange();
@@ -371,7 +380,8 @@ const ContainerScriptEditor = React.memo(
             if (commandInspector) {
               const [, valueMap] = getScopedEvaluationContext(
                 sectionId,
-                result?.sections
+                result?.sections,
+                result?.entities
               );
               commandInspector.onPreview(runtimeCommand, {
                 valueMap,
@@ -486,7 +496,7 @@ const ContainerScriptEditor = React.memo(
         <StyledContainerScriptEditor style={backgroundStyle}>
           {(transitionState === "idle" ||
             (transitionState === "exit" && !initial)) && (
-            <StyledFadeAnimation initial={0} animate={1}>
+            <StyledFadeAnimation initial={0} animate={ready ? 1 : 0}>
               <ScriptEditor
                 defaultValue={defaultValue}
                 defaultState={editor}
@@ -503,6 +513,7 @@ const ContainerScriptEditor = React.memo(
                 scrollTopLineOffset={-3}
                 cursor={executingCursor}
                 style={style}
+                onReady={handleReady}
                 onEditorUpdate={handleEditorUpdate}
                 onDocChange={handleDocChange}
                 onParse={handleScriptParse}
@@ -524,4 +535,4 @@ const ContainerScriptEditor = React.memo(
   }
 );
 
-export default ContainerScriptEditor;
+export default LogicScriptEditor;

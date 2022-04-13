@@ -13,6 +13,7 @@ import { SparkDeclarations } from "../types/SparkDeclarations";
 import { SparkAction } from "../types/SparkDiagnostic";
 import { SparkEntity } from "../types/SparkEntity";
 import { SparkEntityType } from "../types/SparkEntityType";
+import { SparkField } from "../types/SparkField";
 import { SparkParseResult } from "../types/SparkParseResult";
 import { SparkSection } from "../types/SparkSection";
 import { SparkTag } from "../types/SparkTag";
@@ -114,6 +115,7 @@ export const parseSpark = (
   let current = 0;
   let currentLevel = 0;
   let currentSectionId = "";
+  let currentEntityFieldId = "";
   let match: string[];
   let text = "";
   let lastTitlePageToken;
@@ -145,15 +147,16 @@ export const parseSpark = (
     if (!parsed.diagnostics) {
       parsed.diagnostics = [];
     }
-    const validFrom = Math.max(
-      0,
-      from >= 0 ? from : currentToken.from + currentToken.offset
-    );
+    const lineStart = currentToken.from + currentToken.offset;
+    let validFrom = Math.max(0, from >= 0 ? from : lineStart);
     const validTo = Math.min(script.length, to >= 0 ? to : currentToken.to);
+    if (validFrom === validTo && lineStart < validTo) {
+      validFrom = lineStart;
+    }
     const source = `${severity.toUpperCase()}: line ${
       currentToken.line
     } column ${validFrom - currentToken.from}`;
-    if (validTo > validFrom) {
+    if (validFrom < validTo) {
       parsed.diagnostics.push({
         from: validFrom,
         to: validTo,
@@ -162,7 +165,7 @@ export const parseSpark = (
         message,
         actions,
       });
-    } else if (currentToken.to > currentToken.from) {
+    } else if (currentToken.from < currentToken.to) {
       parsed.diagnostics.push({
         from: currentToken.from,
         to: currentToken.to,
@@ -204,7 +207,9 @@ export const parseSpark = (
   const lintDiagnostic = (): void => {
     diagnostic(
       currentToken,
-      `Invalid ${currentToken.type ? `${currentToken.type} ` : ""}syntax`
+      `Invalid ${
+        currentToken.type ? `${currentToken.type.split("_").join(" ")} ` : ""
+      }syntax`
     );
   };
 
@@ -236,11 +241,12 @@ export const parseSpark = (
     return getScopedItem(parsed?.assets, sectionId, name);
   };
 
-  const findEntity = (
-    sectionId: string,
-    name: string
-  ): [string, SparkEntity] => {
-    return getScopedItem(parsed?.entities, sectionId, name);
+  const findEntity = (name: string): [string, SparkEntity] => {
+    const found = parsed?.entities?.[name];
+    if (found) {
+      return [name, found];
+    }
+    return [undefined, undefined];
   };
 
   const findTag = (sectionId: string, name: string): [string, SparkTag] => {
@@ -248,9 +254,15 @@ export const parseSpark = (
   };
 
   const lintNameUnique = <
-    T extends SparkSection | SparkVariable | SparkAsset | SparkEntity | SparkTag
+    T extends
+      | SparkSection
+      | SparkVariable
+      | SparkAsset
+      | SparkEntity
+      | SparkTag
+      | SparkField
   >(
-    type: "section" | "variable" | "asset" | "entity" | "tag",
+    type: "section" | "variable" | "asset" | "entity" | "tag" | "field",
     found: T,
     from: number,
     to: number
@@ -277,8 +289,10 @@ export const parseSpark = (
   >(
     name: string,
     from: number,
-    to: number
+    to: number,
+    sectionId?: string
   ): void => {
+    const validSectionId = sectionId != null ? sectionId : currentSectionId;
     if (reservedKeywords.includes(name)) {
       diagnostic(
         currentToken,
@@ -289,11 +303,14 @@ export const parseSpark = (
       );
       return;
     }
+    if (lintNameUnique<T>("entity", findEntity(name)[1] as T, from, to)) {
+      return;
+    }
     if (
       lintNameUnique<T>(
         "section",
         findSection(
-          currentSectionId.split(".").slice(0, -1).join("."),
+          validSectionId.split(".").slice(0, -1).join("."),
           name
         )[1] as T,
         from,
@@ -305,7 +322,7 @@ export const parseSpark = (
     if (
       lintNameUnique<T>(
         "variable",
-        findVariable(currentSectionId, name)[1] as T,
+        findVariable(validSectionId, name)[1] as T,
         from,
         to
       )
@@ -315,24 +332,14 @@ export const parseSpark = (
     if (
       lintNameUnique<T>(
         "asset",
-        findAsset(currentSectionId, name)[1] as T,
+        findAsset(validSectionId, name)[1] as T,
         from,
         to
       )
     ) {
       return;
     }
-    if (
-      lintNameUnique<T>(
-        "entity",
-        findEntity(currentSectionId, name)[1] as T,
-        from,
-        to
-      )
-    ) {
-      return;
-    }
-    lintNameUnique<T>("tag", findTag(currentSectionId, name)[1] as T, from, to);
+    lintNameUnique<T>("tag", findTag(validSectionId, name)[1] as T, from, to);
   };
 
   const addSection = (
@@ -340,6 +347,7 @@ export const parseSpark = (
     nameFrom: number,
     nameTo: number
   ): void => {
+    const id = currentSectionId;
     if (!parsed.sections) {
       parsed.sections = {};
     }
@@ -350,18 +358,18 @@ export const parseSpark = (
       from: nameFrom,
       to: nameTo,
       name: section.name,
-      id: currentSectionId,
+      id,
       declaration: true,
     });
-    if (currentSectionId) {
-      const parentId = currentSectionId.split(".").slice(0, -1).join(".") || "";
+    if (id) {
+      const parentId = id.split(".").slice(0, -1).join(".") || "";
       section.parent = parentId;
       const parentSection = parsed.sections[parentId];
       if (parentSection) {
         if (!parentSection.children) {
           parentSection.children = [];
         }
-        parentSection.children.push(currentSectionId);
+        parentSection.children.push(id);
         if (
           section.type !== "function" &&
           ["detector", "function"].includes(parentSection.type)
@@ -380,17 +388,27 @@ export const parseSpark = (
       }
     }
     lintName(section.name, nameFrom, nameTo);
-    if (!parsed.sections[currentSectionId]) {
-      section.index = Object.keys(parsed.sections).length;
-      parsed.sections[currentSectionId] = {
-        ...(parsed?.sections?.[currentSectionId] || {}),
-        ...section,
-      };
-    }
+    section.index = Object.keys(parsed.sections).length;
+    const existing = parsed?.sections?.[id];
+    parsed.sections[id] = {
+      ...(existing || {}),
+      ...section,
+      triggers: [...(existing?.triggers || []), ...(section?.triggers || [])],
+      children: [...(existing?.children || []), ...(section?.children || [])],
+      tokens: [...(existing?.tokens || []), ...(section?.tokens || [])],
+      variables: {
+        ...(existing?.variables || {}),
+        ...(section?.variables || {}),
+      },
+      tags: { ...(existing?.tags || {}), ...(section?.tags || {}) },
+      assets: { ...(existing?.assets || {}), ...(section?.assets || {}) },
+    };
     if (!parsed.sectionLines) {
       parsed.sectionLines = {};
     }
-    parsed.sectionLines[section.line] = currentSectionId;
+    if (!parsed.sectionLines[section.line]) {
+      parsed.sectionLines[section.line] = id;
+    }
   };
 
   const getSection = (
@@ -490,7 +508,8 @@ export const parseSpark = (
         if (expression) {
           const [ids, context] = getScopedEvaluationContext(
             currentSectionId,
-            parsed.sections
+            parsed.sections,
+            parsed.entities
           );
           const { result, references, diagnostics } = compile(
             expression,
@@ -681,7 +700,8 @@ export const parseSpark = (
   ): void => {
     const [ids, context] = getScopedEvaluationContext(
       currentSectionId,
-      parsed.sections
+      parsed.sections,
+      parsed.entities
     );
     const { references, diagnostics } = compile(expression, context);
     if (references?.length > 0) {
@@ -781,102 +801,43 @@ export const parseSpark = (
     variable?: SparkVariable,
     variableNameFrom?: number,
     variableNameTo?: number
-  ): unknown => {
-    if (expression) {
-      const { name } = getExpressionCallNameAndValues(
-        "function",
-        expression,
-        expressionFrom
-      );
-      if (name !== undefined) {
-        if (variable) {
-          const [, section] = findSection(currentSectionId, name);
-          if (
-            section != null &&
-            variable.type &&
-            section.returnType !== variable.type
-          ) {
-            if (section.returnType) {
-              diagnostic(
-                currentToken,
-                `Cannot assign the result of a '${section.returnType}' function to a '${variable.type}' variable`,
-                [
-                  {
-                    name: "FOCUS",
-                    focus: {
-                      from: variable.from,
-                      to: variable.from,
-                    },
-                  },
-                ],
-                variableNameFrom,
-                variableNameTo
-              );
-            } else {
-              diagnostic(
-                currentToken,
-                `'${section.name}' is a method that does not return a value`,
-                [
-                  {
-                    name: "FOCUS",
-                    focus: {
-                      from: variable.from,
-                      to: variable.from,
-                    },
-                  },
-                ],
-                variableNameFrom,
-                variableNameTo
-              );
-            }
-          }
-        } else {
-          diagnostic(
-            currentToken,
-            `Must be initialized to a constant value or expression`,
-            [],
-            expressionFrom,
-            expressionTo
-          );
-        }
-      } else {
-        const [ids, context] = getScopedEvaluationContext(
-          currentSectionId,
-          parsed.sections
-        );
-        const { result, references, diagnostics } = compile(
-          expression,
-          context
-        );
-        if (references?.length > 0) {
-          for (let i = 0; i < references.length; i += 1) {
-            const r = references[i];
-            const from = expressionFrom + r.from;
-            const to = expressionFrom + r.to;
-            if (!parsed.references[currentToken.line]) {
-              parsed.references[currentToken.line] = [];
-            }
-            parsed.references[currentToken.line].push({
-              from,
-              to,
-              name: r.name,
-              id: ids[r.name],
-            });
-          }
-        }
-        if (diagnostics?.length > 0) {
-          for (let i = 0; i < diagnostics.length; i += 1) {
-            const d = diagnostics[i];
-            const from = expressionFrom + d.from;
-            const to = expressionFrom + d.to;
-            diagnostic(currentToken, d.message, [], from, to);
-          }
-        } else if (variable) {
-          const resultType = typeof result;
-          if (result != null && variable.type && resultType !== variable.type) {
+  ): [unknown, boolean] => {
+    if (!expression) {
+      return [undefined, undefined];
+    }
+    const { name } = getExpressionCallNameAndValues(
+      "function",
+      expression,
+      expressionFrom
+    );
+    if (name !== undefined) {
+      if (variable) {
+        const [, section] = findSection(currentSectionId, name);
+        if (
+          section != null &&
+          variable.type &&
+          section.returnType !== variable.type
+        ) {
+          if (section.returnType) {
             diagnostic(
               currentToken,
-              `Cannot assign a '${resultType}' to a '${variable.type}' variable`,
+              `Cannot assign the result of a '${section.returnType}' function to a '${variable.type}' variable`,
+              [
+                {
+                  name: "FOCUS",
+                  focus: {
+                    from: variable.from,
+                    to: variable.from,
+                  },
+                },
+              ],
+              variableNameFrom,
+              variableNameTo
+            );
+          } else {
+            diagnostic(
+              currentToken,
+              `'${section.name}' is a method that does not return a value`,
               [
                 {
                   name: "FOCUS",
@@ -891,10 +852,104 @@ export const parseSpark = (
             );
           }
         }
-        return result;
+      } else {
+        diagnostic(
+          currentToken,
+          `Must be initialized to a constant value or expression`,
+          [],
+          expressionFrom,
+          expressionTo
+        );
+      }
+      return [undefined, false];
+    }
+    const [ids, context] = getScopedEvaluationContext(
+      currentSectionId,
+      parsed.sections,
+      parsed.entities
+    );
+    const { result, references, diagnostics } = compile(expression, context);
+    if (references?.length > 0) {
+      for (let i = 0; i < references.length; i += 1) {
+        const r = references[i];
+        const from = expressionFrom + r.from;
+        const to = expressionFrom + r.to;
+        if (!parsed.references[currentToken.line]) {
+          parsed.references[currentToken.line] = [];
+        }
+        parsed.references[currentToken.line].push({
+          from,
+          to,
+          name: r.name,
+          id: ids[r.name],
+        });
       }
     }
-    return undefined;
+    if (diagnostics?.length > 0) {
+      for (let i = 0; i < diagnostics.length; i += 1) {
+        const d = diagnostics[i];
+        const from = expressionFrom + d.from;
+        const to = expressionFrom + d.to;
+        diagnostic(currentToken, d.message, [], from, to);
+      }
+    } else if (variable) {
+      const resultType = typeof result;
+      if (result != null && variable.type && resultType !== variable.type) {
+        diagnostic(
+          currentToken,
+          `Cannot assign a '${resultType}' to a '${variable.type}' variable`,
+          [
+            {
+              name: "FOCUS",
+              focus: {
+                from: variable.from,
+                to: variable.from,
+              },
+            },
+          ],
+          variableNameFrom,
+          variableNameTo
+        );
+      }
+    }
+    return [result, diagnostics?.length === 0];
+  };
+
+  const getEntity = (
+    type: SparkEntityType,
+    name: string,
+    from: number,
+    to: number
+  ): SparkEntity => {
+    if (!name) {
+      return undefined;
+    }
+    const [id, found] = findEntity(name);
+    if (!parsed.references[currentToken.line]) {
+      parsed.references[currentToken.line] = [];
+    }
+    parsed.references[currentToken.line].push({ from, to, name, id });
+    if (!found) {
+      diagnostic(
+        currentToken,
+        `Cannot find ${type || "entity"} named '${name}'`,
+        [],
+        from,
+        to
+      );
+      return null;
+    }
+    if (type && found.type !== type) {
+      diagnostic(
+        currentToken,
+        `'${name}' is not ${prefixArticle(type)}`,
+        [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
+        from,
+        to
+      );
+      return null;
+    }
+    return found;
   };
 
   const getAsset = (
@@ -937,55 +992,6 @@ export const parseSpark = (
       diagnostic(
         currentToken,
         `'${name}' is not ${prefixArticle(validType)} asset`,
-        [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
-        from,
-        to
-      );
-      return null;
-    }
-    return found;
-  };
-
-  const getEntity = (
-    type: SparkEntityType,
-    name: string,
-    from: number,
-    to: number
-  ): SparkEntity => {
-    if (!name) {
-      return undefined;
-    }
-    const validType = type || "enum";
-    const numValue = Number(name);
-    if (!Number.isNaN(numValue)) {
-      diagnostic(
-        currentToken,
-        `'${name}' is not a valid ${validType} value`,
-        [],
-        from,
-        to
-      );
-      return null;
-    }
-    const [id, found] = findEntity(currentSectionId, name);
-    if (!parsed.references[currentToken.line]) {
-      parsed.references[currentToken.line] = [];
-    }
-    parsed.references[currentToken.line].push({ from, to, name, id });
-    if (!found) {
-      diagnostic(
-        currentToken,
-        `Cannot find ${validType} named '${name}'`,
-        [],
-        from,
-        to
-      );
-      return null;
-    }
-    if (found.type !== validType) {
-      diagnostic(
-        currentToken,
-        `'${name}' is not ${prefixArticle(validType)} entity`,
         [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
         from,
         to
@@ -1119,25 +1125,6 @@ export const parseSpark = (
     return [undefined, undefined];
   };
 
-  const getEntityValueOrReference = (
-    type: SparkEntityType,
-    content: string,
-    from: number,
-    to: number
-  ): [string, SparkEntity] => {
-    if (!content) {
-      return [undefined, undefined];
-    }
-    if (content.match(sparkRegexes.string)) {
-      return [content.slice(1, -1), null];
-    }
-    const found = getEntity(type, content, from, to);
-    if (found) {
-      return [found.value, found];
-    }
-    return [undefined, undefined];
-  };
-
   const getTagValueOrReference = (
     content: string,
     from: number,
@@ -1213,17 +1200,17 @@ export const parseSpark = (
   const addEntity = (
     type: SparkEntityType,
     name: string,
-    valueText: string,
+    base: string,
     line: number,
     nameFrom: number,
     nameTo: number,
-    valueFrom: number,
-    valueTo: number
+    baseFrom: number,
+    baseTo: number
   ): void => {
     if (!parsed.entities) {
       parsed.entities = {};
     }
-    const id = `${currentSectionId}.${name}`;
+    const id = name;
     lintName(name, nameFrom, nameTo);
     if (!parsed.references[currentToken.line]) {
       parsed.references[currentToken.line] = [];
@@ -1235,33 +1222,20 @@ export const parseSpark = (
       id,
       declaration: true,
     });
-    const [value] = getEntityValueOrReference(
-      type,
-      valueText,
-      valueFrom,
-      valueTo
-    );
-    const validType = type || "ui";
-    const validValue = value != null ? value : "";
-    const item = {
+    if (base) {
+      getEntity(type, base, baseFrom, baseTo);
+    }
+    const item: SparkEntity = {
       ...(parsed?.entities?.[id] || {}),
       from: nameFrom,
       to: nameTo,
       line,
       name,
-      type: validType,
-      value: validValue,
+      base,
+      type,
+      fields: {},
     };
     parsed.entities[id] = item;
-    const parentSection = parsed.sections[currentSectionId];
-    if (parentSection) {
-      if (!parentSection.entities) {
-        parentSection.entities = {};
-      }
-      parentSection.entities[id] = item;
-    } else {
-      console.error("SECTION DOES NOT EXIST", currentSectionId);
-    }
   };
 
   const addTag = (
@@ -1338,7 +1312,7 @@ export const parseSpark = (
       id,
       declaration: true,
     });
-    const value = getVariableExpressionValue(valueText, valueFrom, valueTo);
+    const [value] = getVariableExpressionValue(valueText, valueFrom, valueTo);
     const validValue = value != null ? value : "";
     const validType = typeof validValue as SparkVariableType;
     const item: SparkVariable = {
@@ -1361,6 +1335,121 @@ export const parseSpark = (
       parentSection.variables[id] = item;
     } else {
       console.error("SECTION DOES NOT EXIST", currentSectionId);
+    }
+  };
+
+  const addField = (
+    name: string,
+    valueText: string,
+    line: number,
+    indent: number,
+    nameFrom: number,
+    nameTo: number,
+    valueFrom: number,
+    valueTo: number
+  ): void => {
+    if (!parsed.entities) {
+      parsed.entities = {};
+    }
+    const fieldId = `${currentEntityFieldId
+      .split(".")
+      .slice(0, indent)
+      .join(".")}.${name}`;
+    const parts = fieldId.split(".");
+    const entityName = parts.shift();
+    const id = `.${parts.join(".")}`;
+
+    lintName(name, nameFrom, nameTo);
+    if (!parsed.references[line]) {
+      parsed.references[line] = [];
+    }
+    parsed.references[line].push({
+      from: nameFrom,
+      to: nameTo,
+      name,
+      id,
+      declaration: true,
+    });
+    const entity = parsed.entities[entityName];
+    if (entity) {
+      if (!entity.fields) {
+        entity.fields = {};
+      }
+      const found = entity.fields[id];
+      if (found) {
+        lintNameUnique("field", found, nameFrom, nameTo);
+      } else {
+        const [value, valid] = getVariableExpressionValue(
+          valueText,
+          valueFrom,
+          valueTo
+        );
+        const hasValueText = Boolean(valueText?.trim());
+        const isValid = !hasValueText || valid;
+        if (!isValid) {
+          return;
+        }
+        const defaultValue = entity?.type === "enum" ? name : "";
+        const validValue = value != null ? value : defaultValue;
+        const validType = typeof validValue as SparkVariableType;
+        const item: SparkField = {
+          ...(parsed?.entities?.[entityName]?.fields?.[id] || {}),
+          from: nameFrom,
+          to: nameTo,
+          line,
+          name,
+          type: validType,
+          value: validValue,
+        };
+        let curr =
+          entity?.type === "enum" ? entity : parsed.entities[entity.base];
+        if (curr) {
+          let baseField: SparkField;
+          while (curr) {
+            const fieldIds =
+              entity?.type === "enum"
+                ? Object.keys(curr.fields).reverse()
+                : [id];
+            for (let i = 0; i < fieldIds.length; i += 1) {
+              const f = fieldIds[i];
+              baseField = curr?.fields?.[f];
+              if (baseField) {
+                break;
+              }
+            }
+            if (baseField) {
+              break;
+            }
+            curr = parsed.entities[curr.base];
+          }
+          if (
+            valid !== false &&
+            baseField?.type &&
+            validType !== baseField?.type
+          ) {
+            diagnostic(
+              currentToken,
+              entity?.type === "enum"
+                ? `All enum fields must be the same type`
+                : `Cannot assign a '${validType}' to a '${baseField?.type}' field`,
+              [
+                {
+                  name: "FOCUS",
+                  focus: {
+                    from: baseField.from,
+                    to: baseField.from,
+                  },
+                },
+              ],
+              hasValueText ? valueFrom : nameFrom,
+              hasValueText ? valueTo : nameTo
+            );
+          }
+        }
+        entity.fields[id] = item;
+      }
+    } else {
+      console.error("ENTITY DOES NOT EXIST", entityName);
     }
   };
 
@@ -1698,7 +1787,7 @@ export const parseSpark = (
 
   addSection(
     {
-      ...(parsed?.sections?.[currentSectionId] || {}),
+      ...(parsed?.sections?.[""] || {}),
       level: currentLevel,
       from: currentToken.from,
       to: currentToken.to,
@@ -1706,9 +1795,9 @@ export const parseSpark = (
       type: "section",
       returnType: "",
       name: "",
+      value: 0,
       triggers: [],
       tokens: [],
-      value: 0,
     },
     0,
     1
@@ -1739,21 +1828,24 @@ export const parseSpark = (
         const nameTo = nameFrom + name.length;
         const returnTypeFrom = currentToken.from + getStart(match, 4);
         const returnTypeTo = returnTypeFrom + returnType.length;
-        if (level === 0) {
-          currentSectionId = name;
-        } else if (level === 1) {
-          currentSectionId = `.${name}`;
-        } else if (level > currentLevel) {
-          currentSectionId += `.${name}`;
-        } else if (level < currentLevel) {
-          const grandparentId = currentSectionId
-            .split(".")
-            .slice(0, -2)
-            .join(".");
-          currentSectionId = `${grandparentId}.${name}`;
-        } else {
-          const parentId = currentSectionId.split(".").slice(0, -1).join(".");
-          currentSectionId = `${parentId}.${name}`;
+        const trimmedName = name.trim();
+        if (trimmedName) {
+          if (level === 0) {
+            currentSectionId = trimmedName;
+          } else if (level === 1) {
+            currentSectionId = `.${trimmedName}`;
+          } else if (level > currentLevel) {
+            currentSectionId += `.${trimmedName}`;
+          } else if (level < currentLevel) {
+            const grandparentId = currentSectionId
+              .split(".")
+              .slice(0, -2)
+              .join(".");
+            currentSectionId = `${grandparentId}.${trimmedName}`;
+          } else {
+            const parentId = currentSectionId.split(".").slice(0, -1).join(".");
+            currentSectionId = `${parentId}.${trimmedName}`;
+          }
         }
         currentLevel = level;
         const newSection: SparkSection = {
@@ -1764,7 +1856,7 @@ export const parseSpark = (
           line: currentToken.line,
           type: "section",
           returnType: "",
-          name,
+          name: trimmedName,
           tokens: [],
         };
         if (
@@ -1783,7 +1875,9 @@ export const parseSpark = (
             returnTypeTo
           );
         }
-        addSection(newSection, nameFrom, nameTo);
+        if (newSection.name) {
+          addSection(newSection, nameFrom, nameTo);
+        }
         const type =
           parametersString.startsWith("[") && parametersString.endsWith("]")
             ? "detector"
@@ -1858,25 +1952,65 @@ export const parseSpark = (
       }
     } else if ((match = currentToken.content.match(sparkRegexes.entity))) {
       const type = match[2] as SparkEntityType;
+      state = type;
       currentToken.type = type;
       if (currentToken.type === type) {
         const name = match[4] || "";
-        const valueText = match[8] || "";
+        const base = match[8] || "";
         const nameFrom = currentToken.from + getStart(match, 4);
         const nameTo = nameFrom + name.length;
-        const valueFrom = currentToken.from + getStart(match, 8);
-        const valueTo = valueFrom + valueText.length;
+        const baseFrom = currentToken.from + getStart(match, 8);
+        const baseTo = baseFrom + base.length;
         if (name) {
           addEntity(
             type,
             name,
+            base,
+            currentToken.line,
+            nameFrom,
+            nameTo,
+            baseFrom,
+            baseTo
+          );
+        }
+        currentEntityFieldId = name;
+      }
+    } else if (
+      (state === "enum" || state === "struct" || state === "config") &&
+      currentToken.content?.trim()
+    ) {
+      if (
+        (match = currentToken.content.match(sparkRegexes.entity_value_field))
+      ) {
+        currentToken.type = "entity_value_field";
+        if (currentToken.type === "entity_value_field") {
+          const name = match[2] || "";
+          const valueText = match[6] || "";
+          const nameFrom = currentToken.from + getStart(match, 2);
+          const nameTo = nameFrom + name.length;
+          const valueFrom = currentToken.from + getStart(match, 6);
+          const valueTo = valueFrom + valueText.length;
+          addField(
+            name,
             valueText,
             currentToken.line,
+            currentToken.indent,
             nameFrom,
             nameTo,
             valueFrom,
             valueTo
           );
+        }
+      } else if (
+        (match = currentToken.content.match(sparkRegexes.entity_object_field))
+      ) {
+        currentToken.type = "entity_object_field";
+        if (currentToken.type === "entity_object_field") {
+          const name = match[2] || "";
+          currentEntityFieldId = `${currentEntityFieldId
+            .split(".")
+            .slice(0, currentToken.indent)
+            .join(".")}.${name}`;
         }
       }
     } else if ((match = currentToken.content.match(sparkRegexes.tag))) {
@@ -1902,13 +2036,18 @@ export const parseSpark = (
         }
       }
     }
+
+    const isSeparator = !text.trim() && text.length < 2;
+    if (isSeparator) {
+      state = "normal";
+    }
   }
 
+  state = "normal";
+  currentEntityFieldId = "";
   current = 0;
   currentLevel = 0;
   currentSectionId = "";
-
-  currentLevel = 0;
 
   let ignoredLastToken = false;
 
@@ -1943,7 +2082,7 @@ export const parseSpark = (
       previousToken.autoAdvance = true;
     }
 
-    const isSeparator = text.trim().length === 0 && text.length < 2;
+    const isSeparator = !text.trim() && text.length < 2;
     if (isSeparator || text.trim() === "_") {
       prependNext = false;
       saveAndClearChoices();
@@ -1986,7 +2125,7 @@ export const parseSpark = (
           false
         );
       }
-      if (state !== "title_page") {
+      if (state === "dialogue" || state === "dual_dialogue") {
         state = "normal";
       }
 
@@ -2171,7 +2310,8 @@ export const parseSpark = (
             if (expression) {
               const [ids, context] = getScopedEvaluationContext(
                 currentSectionId,
-                parsed.sections
+                parsed.sections,
+                parsed.entities
               );
               const { result, references, diagnostics } = compile(
                 expression,
@@ -2381,6 +2521,7 @@ export const parseSpark = (
         const type = match[2] as SparkEntityType;
         currentToken.type = type;
         lint(sparkRegexes.entity);
+        state = type;
       } else if ((match = currentToken.content.match(sparkRegexes.tag))) {
         currentToken.type = "tag";
         lint(sparkRegexes.tag);
@@ -2398,7 +2539,8 @@ export const parseSpark = (
           const level = mark.length;
           const markFrom = currentToken.from + getStart(match, 2);
           const markTo = markFrom + mark.length;
-          currentToken.content = name;
+          const trimmedName = name.trim();
+          currentToken.content = trimmedName;
           if (level > currentLevel + 1) {
             const validMark = "#".repeat(currentLevel + 1);
             const insert = `${validMark}`;
@@ -2425,28 +2567,30 @@ export const parseSpark = (
               markTo
             );
             if (markSpace) {
-              currentSectionId += `.${name}`;
+              currentSectionId += `.${trimmedName}`;
               currentLevel = level;
             }
           } else if (lint(sparkRegexes.section)) {
-            if (level === 0) {
-              currentSectionId = name;
-            } else if (level === 1) {
-              currentSectionId = `.${name}`;
-            } else if (level > currentLevel) {
-              currentSectionId += `.${name}`;
-            } else if (level < currentLevel) {
-              const grandparentId = currentSectionId
-                .split(".")
-                .slice(0, -2)
-                .join(".");
-              currentSectionId = `${grandparentId}.${name}`;
-            } else {
-              const parentId = currentSectionId
-                .split(".")
-                .slice(0, -1)
-                .join(".");
-              currentSectionId = `${parentId}.${name}`;
+            if (trimmedName) {
+              if (level === 0) {
+                currentSectionId = trimmedName;
+              } else if (level === 1) {
+                currentSectionId = `.${trimmedName}`;
+              } else if (level > currentLevel) {
+                currentSectionId += `.${trimmedName}`;
+              } else if (level < currentLevel) {
+                const grandparentId = currentSectionId
+                  .split(".")
+                  .slice(0, -2)
+                  .join(".");
+                currentSectionId = `${grandparentId}.${trimmedName}`;
+              } else {
+                const parentId = currentSectionId
+                  .split(".")
+                  .slice(0, -1)
+                  .join(".");
+                currentSectionId = `${parentId}.${trimmedName}`;
+              }
             }
             currentLevel = level;
           }
@@ -2457,6 +2601,7 @@ export const parseSpark = (
           currentToken.content = match[3] || "";
         }
       } else if (
+        state === "normal" &&
         currentToken.content.match(sparkRegexes.character) &&
         i !== linesLength &&
         i !== linesLength - 1 &&
@@ -2568,7 +2713,7 @@ export const parseSpark = (
           previousToken.type = "action_asset" as "assets";
         }
       }
-    } else {
+    } else if (state === "dialogue") {
       if (
         currentToken.content?.match(sparkRegexes.note) &&
         !currentToken.content?.replace(sparkRegexes.note, "")?.trim()
@@ -2606,6 +2751,29 @@ export const parseSpark = (
           currentToken.position = "right";
           currentToken.wait = true;
         }
+      }
+    } else if (
+      (state === "enum" || state === "struct" || state === "config") &&
+      currentToken.content?.trim()
+    ) {
+      if (
+        (match = currentToken.content.match(sparkRegexes.entity_value_field))
+      ) {
+        currentToken.type = "entity_value_field";
+        if (currentToken.type === "entity_value_field") {
+          lint(sparkRegexes.entity_value_field);
+        }
+      } else if (
+        (match = currentToken.content.match(sparkRegexes.entity_object_field))
+      ) {
+        if (state === "enum") {
+          diagnostic(currentToken, "Cannot declare object field in enum");
+        } else {
+          currentToken.type = "entity_object_field";
+          lint(sparkRegexes.entity_object_field);
+        }
+      } else {
+        diagnostic(currentToken, `Invalid ${state} syntax`);
       }
     }
 
@@ -2751,6 +2919,5 @@ export const parseSpark = (
   ) {
     parsed.scriptTokens.pop();
   }
-
   return parsed;
 };

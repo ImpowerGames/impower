@@ -3,7 +3,7 @@ export const sparkRegexes = {
     /^([ \t]*)(title|credit|author[s]?|source|notes|draft date|date|watermark|contact(?: info)?|revision|copyright|font|tl|tc|tr|cc|br|bl)(:)(.*)?$/i,
 
   section:
-    /^([ \t]*)(#+)($|[ ]+)(?:$|([\w]+)([ ]+)(?!$))?($|[a-zA-Z]+[\w]*)([ ]*)([([][^\n\r]*(?:$|[\])]))?([ ]*)$/,
+    /^([ \t]*)(#+)($|[ ]+)(?:$|([\w]+)([ ]+)(?!$))?($|[a-zA-Z]*[\w]*)([ ]*)([([][^\n\r]*(?:$|[\])]))?([ ]*)$/,
   scene:
     /^([ \t]*)([.][^\n\r. ]+|[.][^\n\r. ]+[ ]+[-]|CLOSEUP[.]|CLOSEUP[ ]+[-]|INT[.]|EXT[.]|EST[.]|INT[.]?\/EXT[.]|I[.]?\/E[.]|I[.]|E[.])($|[ ]+)($|[^\n\r-]+[^\s])($|[ ]+)($|[-])($|[ ]+)($|[^\n\r#]+[^\s])($|[ ]+)($|[#])($|[^\n\r#]+)($|[#])?([ ]*)$/,
 
@@ -43,7 +43,7 @@ export const sparkRegexes = {
     /^([ \t]*)(image|audio|video|text)($|[ ]+)($|[a-zA-Z]+[\w]*)([ ]*)(?:($|[=])($|[ ]*)($|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[a-zA-Z]+[\w]*))?([ ]*)$/,
   tag: /^([ \t]*)(tag)($|[ ]+)($|[a-zA-Z]+[\w]*)([ ]*)(?:($|[=])($|[ ]*)($|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[a-zA-Z]+[\w]*))?([ ]*)$/,
   entity:
-    /^([ \t]*)(object|enum|ui)($|[ ]+)($|[a-zA-Z]+[\w]*)([ ]*)(?:([(])([ ]*)($|[a-zA-Z]+[\w]*)([ ]*)($|[)]))?([ ]*)($|[:])([ ]*)$/,
+    /^([ \t]*)(enum|struct|config)($|[ ]+)($|[a-zA-Z]+[\w]*)([ ]*)(?:([(])([ ]*)($|[a-zA-Z]+[\w]*)([ ]*)($|[)]))?([ ]*)($|[:])([ ]*)$/,
 
   synopses: /^([ \t]*)(?![=]{3,})([=])([ ]*)(.*)([ ]*)$/,
 
@@ -53,7 +53,11 @@ export const sparkRegexes = {
   string_template: /^(`[^\n\r`]*`)$/,
   boolean: /^(true|false)$/,
   number: /^([\d]*[.][\d]*|[\d]+)$/,
-  variableName: /^(?!true$|false$)([a-zA-Z]+[\w]*)$/,
+  variableAccess:
+    /^(?!true$|false$)([a-zA-Z]+[\w]*)((?:[.](?:$|[a-zA-Z]+[\w]*))*)$/,
+  entity_object_field: /^([ \t]*)($|[a-zA-Z]+[\w]*)([ ]*)($|[:])([ ]*)$/,
+  entity_value_field:
+    /^([ \t]*)($|[a-zA-Z]+[\w]*)([ ]*)(?:$|($|[=])([ ]*)($|[^\n\r]+)([ ]*))?$/,
   interpolation_splitter: /([$]?[{][ ]*[^\n\r{}]*[ ]*[}])/g,
   interpolation_token: /^([$]?[{])([ ]*)([^\n\r{}]*)([ ]*)([}])$/,
   parameter_declaration:
@@ -74,8 +78,9 @@ export const sparkRegexes = {
   italic: /(\*{1}(?=.+\*{1}))(.+?)(\*{1})/g,
   underline: /(_{1}(?=.+_{1}))(.+?)(_{1})/g,
 
+  comment_inline: /([/][/][ ]?.*)$/,
   comment_block: /(\/\*){1}|(\*\/){1}|([^/*]+)/g,
-  comment_inline: /([/][/][ ]?)/g,
+  comment_mark: /([/][/][ ]?)/g,
   indent: /^([ \t]*)/,
 
   link: /(\[?(\[)([^\][]*\[?[^\][]*\]?[^\][]*)(\])(\()(.+?)(?:\s+(["'])(.*?)\4)?(\)))/g,

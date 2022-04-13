@@ -29,6 +29,9 @@ export const editorTheme: {
   ".cm-gutter.cm-lineNumbers": {
     minWidth: "36px",
   },
+  ".cm-gutterElement": {
+    userSelect: "none",
+  },
   ".cm-lineNumbers .cm-gutterElement": {
     padding: "0 2px",
   },

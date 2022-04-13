@@ -35,7 +35,7 @@ import SnippetToolbar from "../bars/SnippetToolbar";
 import PanelHeader from "../headers/PanelHeader";
 import PanelHeaderIconButton from "../iconButtons/PanelHeaderIconButton";
 import UndoRedoControl from "../iconButtons/UndoRedoControl";
-import ContainerScriptEditor from "../inputs/ContainerScriptEditor";
+import LogicScriptEditor from "../inputs/LogicScriptEditor";
 import Panel from "../layouts/Panel";
 
 const StyledToolbarArea = styled(SlideAnimation)`
@@ -82,7 +82,6 @@ const TogglePanelHeaderIconButton = React.memo(
 interface ContainerPanelHeaderProps {
   windowType: WindowType;
   title: string;
-  toggleFolding: boolean;
   toggleLinting: boolean;
   style?: CSSProperties;
   onToggleFolding?: (toggleFolding: boolean) => void;
@@ -94,7 +93,6 @@ const ContainerPanelHeader = React.memo(
     const {
       windowType,
       title,
-      toggleFolding,
       toggleLinting,
       style,
       onToggleFolding,
@@ -108,6 +106,7 @@ const ContainerPanelHeader = React.memo(
     const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
     const searchLineQuery = state?.panel?.panels?.[windowType]?.searchLineQuery;
     const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
+    const folded = state?.panel?.panels?.[windowType]?.editorState?.folded;
     const mode = state?.test?.mode;
     const compiling = state?.test?.compiling?.[windowType];
     const diagnostics =
@@ -238,7 +237,7 @@ const ContainerPanelHeader = React.memo(
         leftChildren={
           scripting ? (
             <TogglePanelHeaderIconButton
-              value={toggleFolding}
+              value={folded?.length > 0}
               onLabel={`Unfold All`}
               offLabel={`Fold All`}
               onIcon={<AngleRightRegularIcon />}
@@ -270,7 +269,6 @@ const ContainerPanelHeader = React.memo(
 );
 
 interface ContainerPanelContentProps {
-  windowType: WindowType;
   scripting: boolean;
   toggleFolding: boolean;
   toggleLinting: boolean;
@@ -279,18 +277,11 @@ interface ContainerPanelContentProps {
 
 const ContainerPanelContent = React.memo(
   (props: ContainerPanelContentProps): JSX.Element => {
-    const {
-      windowType,
-      scripting,
-      toggleFolding,
-      toggleLinting,
-      onSectionChange,
-    } = props;
+    const { scripting, toggleFolding, toggleLinting, onSectionChange } = props;
 
     if (scripting) {
       return (
-        <ContainerScriptEditor
-          windowType={windowType}
+        <LogicScriptEditor
           toggleFolding={toggleFolding}
           toggleLinting={toggleLinting}
           onSectionChange={onSectionChange}
@@ -301,22 +292,18 @@ const ContainerPanelContent = React.memo(
   }
 );
 
-interface ContainerPanelProps {
-  windowType: WindowType;
-}
-
-const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
-  const { windowType } = props;
-
+const LogicPanel = React.memo((): JSX.Element => {
   const { portrait } = useContext(WindowTransitionContext);
   const [state] = useContext(ProjectEngineContext);
+
+  const windowType = "logic";
 
   const mode = state?.test?.mode;
   const scripting = state?.panel?.panels?.[windowType]?.scripting;
   const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
   const theme = useTheme();
 
-  const [toggleFolding, setToggleFolding] = useState<boolean>(false);
+  const [toggleFolding, setToggleFolding] = useState<boolean>();
   const [toggleLinting, setToggleLinting] = useState(mode === "Test");
   const [headerName, setHeaderName] = useState("");
 
@@ -331,7 +318,8 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   const useWindowAsScrollContainer = portrait && scripting;
   const showChart = windowType === "logic" && !scripting;
   const showSnippetToolbar = !portrait && focused && mode === "Edit";
-  const title = headerName || "Script";
+  const defaultTitle = windowType === "logic" ? "Script" : "Declarations";
+  const title = headerName || defaultTitle;
 
   useEffect((): void => {
     setToggleLinting(mode === "Test");
@@ -376,7 +364,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
           <ContainerPanelHeader
             windowType={windowType}
             title={title}
-            toggleFolding={toggleFolding}
             toggleLinting={toggleLinting}
             onToggleFolding={setToggleFolding}
             onToggleLinting={setToggleLinting}
@@ -388,7 +375,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
           <ContainerPanelHeader
             windowType={windowType}
             title={title}
-            toggleFolding={toggleFolding}
             toggleLinting={toggleLinting}
             onToggleFolding={setToggleFolding}
             onToggleLinting={setToggleLinting}
@@ -405,7 +391,6 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
       }
     >
       <ContainerPanelContent
-        windowType={windowType}
         scripting={scripting}
         toggleFolding={toggleFolding}
         toggleLinting={toggleLinting}
@@ -415,4 +400,4 @@ const ContainerPanel = React.memo((props: ContainerPanelProps): JSX.Element => {
   );
 });
 
-export default ContainerPanel;
+export default LogicPanel;

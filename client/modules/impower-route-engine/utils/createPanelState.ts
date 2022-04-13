@@ -9,15 +9,13 @@ export const createPanelState = (): PanelState => ({
     },
     assets: {
       openPanel: "assets",
-      scripting: false,
-    },
-    entities: {
-      openPanel: "entities",
-      scripting: false,
     },
     logic: {
       openPanel: "logic",
       scripting: true,
+      editorState: {
+        folded: null,
+      },
     },
     test: { openPanel: "test" },
   },

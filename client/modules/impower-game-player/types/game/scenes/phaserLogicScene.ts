@@ -59,34 +59,19 @@ export class PhaserLogicScene extends Phaser.Scene {
       const variableStates = this.impowerGame.logic.state?.variableStates;
       const blockState = blockStates[blockId];
       const context = this.impowerContext?.contexts[blockId];
-      const ids = context?.ids;
-      const variables = { ...(context?.variables || {}) };
-      Object.entries(context?.variables).forEach(([name, v]) => {
-        const variableId = ids[name];
-        const variableState = variableStates[variableId];
-        variables[name] = variableState ? variableState.value : v;
+      Object.entries(variableStates).forEach(([id, state]) => {
+        const name = id.split(".").slice(-1).join("");
+        context.valueMap[name] = state.value;
       });
-      const blocks = { ...(context?.blocks || {}) };
-      Object.entries(context?.blocks).forEach(([name, v]) => {
-        const blockId = ids[name];
-        const blockState = blockStates[blockId];
-        blocks[name] = blockState ? blockState.executionCount : v;
+      Object.entries(blockStates).forEach(([id, state]) => {
+        const name = id.split(".").slice(-1).join("");
+        context.valueMap[name] = state.executionCount;
       });
-      const valueMap = {
-        ...(context?.valueMap || {}),
-        ...variables,
-        ...blocks,
-      };
       if (blockState.loaded) {
         const running = BlockRunner.instance.update(
           blockId,
           blockState,
-          {
-            ...context,
-            variables,
-            blocks,
-            valueMap,
-          },
+          context,
           this.impowerGame,
           time,
           delta

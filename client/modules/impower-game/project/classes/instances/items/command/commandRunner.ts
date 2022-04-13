@@ -5,11 +5,6 @@ import { ItemRunner } from "../../item/itemRunner";
 export interface CommandContext {
   ids: Record<string, string>;
   valueMap: Record<string, unknown>;
-  variables: Record<string, unknown>;
-  assets: Record<string, string>;
-  entities: Record<string, string>;
-  tags: Record<string, string>;
-  blocks: Record<string, number>;
   triggers: string[];
   parameters: string[];
   index: number;

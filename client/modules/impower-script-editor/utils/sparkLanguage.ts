@@ -43,6 +43,8 @@ export const tags = {
   commentBlock: t.comment,
   escape: t.escape,
   entityName: t.character,
+  entityBase: t.special(t.character),
+  entityFieldName: t.special(t.propertyName),
   link: t.link,
   image: t.link,
   orderedList: t.list,
@@ -133,10 +135,13 @@ const commonmark = baseParser.configure({
         tags.variableName,
       "AssetName": tags.assetName,
       "EntityName": tags.entityName,
+      "EntityBase": tags.entityBase,
+      "EntityFieldName": tags.entityFieldName,
+      "EntityFieldAccess": tags.variableName,
       "TagName": tags.tagName,
       "GoSectionName ChoiceSectionName CallName": tags.sectionName,
       "SectionParameterName": tags.parameterName,
-      "ListMark ConditionMark CallMark AssignMark ChoiceMark VariableMark AssetMark TagMark EntityMark GoMark ChoiceGoMark RepeatMark ReturnMark InterpolationOpenMark InterpolationCloseMark ImageNoteMark AudioNoteMark DynamicTagMark":
+      "ListMark ConditionMark CallMark AssignMark ChoiceMark VariableMark EntityMark AssetMark TagMark EntityMark GoMark ChoiceGoMark RepeatMark ReturnMark InterpolationOpenMark InterpolationCloseMark ImageNoteMark AudioNoteMark DynamicTagMark":
         tags.keyword,
       "SectionReturnType": tags.typeName,
       "String": tags.string,

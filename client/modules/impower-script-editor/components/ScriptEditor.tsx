@@ -3,7 +3,11 @@ import { foldEffect, unfoldAll } from "@codemirror/fold";
 import { highlightActiveLineGutter } from "@codemirror/gutter";
 import { HighlightStyle } from "@codemirror/highlight";
 import { historyField, redo, undo } from "@codemirror/history";
-import { foldable, indentUnit } from "@codemirror/language";
+import {
+  foldable,
+  indentUnit,
+  syntaxTreeAvailable,
+} from "@codemirror/language";
 import {
   closeLintPanel,
   lintGutter,
@@ -27,7 +31,7 @@ import {
 import { Compartment, EditorSelection } from "@codemirror/state";
 import { tooltips } from "@codemirror/tooltip";
 import { PluginField, ViewPlugin, ViewUpdate } from "@codemirror/view";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   parseSpark,
   SparkDeclarations,
@@ -35,6 +39,7 @@ import {
 } from "../../impower-script-parser";
 import { colors } from "../constants/colors";
 import { editorTheme } from "../constants/editorTheme";
+import { foldedField } from "../extensions/foldedField";
 import {
   highlightRunningLineGutter,
   setRunningLinePosition,
@@ -53,6 +58,8 @@ import {
   SerializableChangeSet,
   SerializableEditorSelection,
   SerializableEditorState,
+  SerializableFoldedState,
+  SerializableHistoryState,
 } from "../types/editor";
 import { getDiagnostics } from "../utils/getDiagnostics";
 import { quickSnippet } from "../utils/quickSnippet";
@@ -155,6 +162,9 @@ const myHighlightStyle = HighlightStyle.define([
   { tag: t.typeName, color: colors.typeName },
   { tag: t.sectionName, color: colors.sectionName },
   { tag: t.variableName, color: colors.variableName },
+  { tag: t.entityName, color: colors.entityName },
+  { tag: t.entityBase, color: colors.entityBase },
+  { tag: t.entityFieldName, color: colors.entityField },
   { tag: t.parameterName, color: colors.parameterName },
   {
     tag: t.string,
@@ -217,6 +227,7 @@ interface ScriptEditorProps {
   topPanelsContainer?: HTMLElement;
   bottomPanelsContainer?: HTMLElement;
   style?: React.CSSProperties;
+  onReady?: (update: ViewUpdate) => void;
   onUpdate?: (update: ViewUpdate) => void;
   onEditorUpdate?: (value: string, state?: SerializableEditorState) => void;
   onDocChange?: (value: string, changes: SerializableChangeSet) => void;
@@ -262,6 +273,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     cursor,
     topPanelsContainer,
     bottomPanelsContainer,
+    onReady,
     onUpdate,
     onEditorUpdate,
     onDocChange,
@@ -282,7 +294,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   const initialRef = useRef(true);
   const firstMatchFromRef = useRef<number>();
   const parentElRef = useRef<HTMLDivElement>();
-  const viewRef = useRef<EditorView>();
   const cursorRef = useRef<{
     anchor: number;
     head: number;
@@ -292,6 +303,11 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   const firstVisibleLineRef = useRef<number>();
   const editorStateRef = useRef<SerializableEditorState>();
   const parseResultRef = useRef<SparkParseResult>();
+  const readyRef = useRef(false);
+
+  const [view, setView] = useState<EditorView>();
+  const [ready, setReady] = useState(readyRef.current);
+
   const searchLineQueryRef = useRef(searchLineQuery);
 
   const scrollTopLineOffsetRef = useRef(scrollTopLineOffset);
@@ -299,6 +315,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   const defaultValueRef = useRef(defaultValue);
   const defaultScrollTopLineRef = useRef(defaultScrollTopLine);
   const defaultStateRef = useRef(defaultState);
+  defaultStateRef.current = defaultState;
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
   const onEditorUpdateRef = useRef(onEditorUpdate);
@@ -366,16 +385,26 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         ? EditorSelection.fromJSON(defaultStateRef.current?.selection)
         : { anchor: 0, head: 0 };
     let restoredState: EditorState;
-    if (defaultStateRef.current) {
-      const { doc, selection, history } = defaultStateRef.current;
+    if (defaultStateRef.current?.selection) {
+      const selection = defaultStateRef.current?.selection;
+      const history = defaultStateRef.current?.history;
+      const folded = defaultStateRef.current?.folded;
       restoredState = EditorState.fromJSON(
-        { doc, selection, history },
+        {
+          doc,
+          selection,
+          history,
+          folded,
+        },
         {},
-        { history: historyField }
+        { history: historyField, folded: foldedField }
       );
     }
     const restoredExtensions = restoredState
-      ? [historyField.init(() => restoredState.field(historyField))]
+      ? [
+          historyField.init(() => restoredState.field(historyField)),
+          foldedField.init(() => restoredState.field(foldedField)),
+        ]
       : [];
     const startState = EditorState.create({
       doc,
@@ -477,14 +506,30 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         }),
         EditorView.lineWrapping,
         EditorView.updateListener.of((u) => {
+          const parsed = syntaxTreeAvailable(u.state);
+          if (!parsed) {
+            return;
+          }
+          if (!readyRef.current) {
+            readyRef.current = true;
+            onReadyRef.current?.(u);
+            setReady(readyRef.current);
+          }
           if (onUpdateRef.current) {
             onUpdateRef.current(u);
           }
-          const json = u.state.toJSON({ history: historyField });
+          const json: {
+            history: SerializableHistoryState;
+            folded: SerializableFoldedState;
+          } = u.state.toJSON({
+            history: historyField,
+            folded: foldedField,
+          });
           const doc = u.view.state.doc.toJSON().join("\n");
           const selection =
             u.view.state.selection.toJSON() as SerializableEditorSelection;
           const history = json?.history;
+          const folded = json?.folded;
           const transaction = u.transactions?.[0];
           const userEvent = transaction?.isUserEvent("undo")
             ? "undo"
@@ -508,6 +553,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
             selected,
             snippet,
             diagnostics,
+            folded,
           };
           if (parentEl) {
             if (snippet) {
@@ -569,188 +615,195 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         }),
       ],
     });
-    viewRef.current = new EditorView({
+    const view = new EditorView({
       state: startState,
       parent: parentElRef.current,
     });
+    setView(view);
     return (): void => {
-      if (viewRef.current) {
-        viewRef.current.destroy();
+      if (view) {
+        view.destroy();
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!initialRef.current && viewRef.current && editorChange) {
-      if (editorChange.action === "undo") {
-        undo(viewRef.current);
-      } else if (editorChange.action === "redo") {
-        redo(viewRef.current);
-      } else {
-        quickSnippet(viewRef.current, editorChange.action);
-      }
-      if (editorChange.focus) {
-        if (!viewRef.current.hasFocus) {
-          viewRef.current.focus();
-        }
-      }
-      if (editorChange.selection) {
-        const anchor =
-          editorChange.selection?.ranges?.[editorChange.selection?.main]
-            ?.anchor;
-        const changeSelection = (): void => {
-          viewRef.current.dispatch({
-            selection: {
-              anchor,
-            },
-          });
-        };
-        if (editorChange.focus) {
-          window.requestAnimationFrame(changeSelection);
+    if (view) {
+      if (!initialRef.current && editorChange) {
+        if (editorChange.action === "undo") {
+          undo(view);
+        } else if (editorChange.action === "redo") {
+          redo(view);
         } else {
-          changeSelection();
+          quickSnippet(view, editorChange.action);
+        }
+        if (editorChange.focus) {
+          if (!view.hasFocus) {
+            view.focus();
+          }
+        }
+        if (editorChange.selection) {
+          const anchor =
+            editorChange.selection?.ranges?.[editorChange.selection?.main]
+              ?.anchor;
+          const changeSelection = (): void => {
+            view.dispatch({
+              selection: {
+                anchor,
+              },
+            });
+          };
+          if (editorChange.focus) {
+            window.requestAnimationFrame(changeSelection);
+          } else {
+            changeSelection();
+          }
         }
       }
+      initialRef.current = false;
     }
-    initialRef.current = false;
-  }, [editorChange]);
+  }, [editorChange, view]);
 
   const focusFirstErrorRef = useRef(focusFirstError);
   focusFirstErrorRef.current = focusFirstError;
 
   useEffect(() => {
-    const view = viewRef.current;
-    if (toggleLinting) {
-      view.dispatch({
-        effects: [
-          setDiagnosticsEffect.of(
-            getDiagnostics(parseResultRef.current?.diagnostics)
-          ),
-        ],
-      });
-      openLintPanel(view);
-      const firstError = parseResultRef.current?.diagnostics?.[0];
-      if (focusFirstErrorRef.current && firstError) {
+    if (view && ready && toggleFolding != null) {
+      if (toggleFolding) {
+        const state = view?.state;
+        const effects = [];
+        for (let pos = 0; pos < state.doc.length; ) {
+          const line = view.lineBlockAt(pos);
+          const range = foldable(state, line.from, line.to);
+          if (range) {
+            effects.push(foldEffect.of(range));
+          }
+          pos = line.to + 1;
+        }
         view.dispatch({
-          selection: { anchor: firstError.from, head: firstError.to },
-          effects: EditorView.scrollIntoView(
-            EditorSelection.range(firstError.from, firstError.to),
-            {
-              y: "center",
-            }
-          ),
+          effects,
         });
-      }
-    } else {
-      closeLintPanel(view);
-    }
-  }, [toggleLinting]);
-
-  useEffect(() => {
-    if (toggleFolding) {
-      const view = viewRef?.current;
-      const state = view?.state;
-      const effects = [];
-      for (let pos = 0; pos < state.doc.length; ) {
-        const line = view.lineBlockAt(pos);
-        const range = foldable(state, line.from, line.to);
-        if (range) {
-          effects.push(foldEffect.of(range));
-        }
-        pos = line.to + 1;
-      }
-      viewRef.current.dispatch({
-        effects,
-      });
-    } else {
-      unfoldAll(viewRef.current);
-    }
-  }, [toggleFolding]);
-
-  useEffect(() => {
-    const view = viewRef.current;
-    if (toggleGotoLine) {
-      openSearchLinePanel(view);
-    } else {
-      closeSearchLinePanel(view);
-    }
-  }, [toggleGotoLine]);
-
-  useEffect(() => {
-    const view = viewRef.current;
-    if (searchLineQuery) {
-      if (searchLineQueryRef.current?.search !== searchLineQuery?.search) {
-        openSearchLinePanel(view);
-        view.dispatch({
-          effects: [setSearchLineQuery.of(searchLineQuery)],
-        });
-        searchLine(view);
-      }
-    } else {
-      closeSearchLinePanel(view);
-    }
-    searchLineQueryRef.current = searchLineQuery;
-  }, [searchLineQuery]);
-
-  useEffect(() => {
-    const view = viewRef.current;
-    if (searchTextQuery) {
-      if (searchTextQuery.action === "find_next") {
-        if (searchTextQuery.search) {
-          findNext(view);
-        }
-      } else if (searchTextQuery.action === "find_previous") {
-        if (searchTextQuery.search) {
-          findPrevious(view);
-        }
-      } else if (searchTextQuery.action === "replace") {
-        if (searchTextQuery.search) {
-          replaceNext(view);
-        }
-      } else if (searchTextQuery.action === "replace_all") {
-        if (searchTextQuery.search) {
-          replaceAll(view);
-        }
       } else {
-        openSearchPanel(view);
+        unfoldAll(view);
+      }
+    }
+  }, [ready, toggleFolding, view]);
+
+  useEffect(() => {
+    if (view) {
+      if (toggleLinting) {
         view.dispatch({
           effects: [
-            setSearchQuery.of(
-              new SearchQuery({
-                search: searchTextQuery.search,
-                caseSensitive: searchTextQuery.caseSensitive,
-                regexp: searchTextQuery.regexp,
-                replace: searchTextQuery.replace,
-              })
+            setDiagnosticsEffect.of(
+              getDiagnostics(parseResultRef.current?.diagnostics)
             ),
           ],
         });
-        if (searchTextQuery.search) {
-          const matchFound = selectMatches(view);
-          if (matchFound) {
-            const firstMatchFrom = Math.min(
-              ...(view.state?.selection?.ranges?.map((r) => r.from) || [])
-            );
-            if (firstMatchFromRef.current !== firstMatchFrom) {
-              firstMatchFromRef.current = firstMatchFrom;
-              viewRef.current.dispatch({
-                selection: { anchor: firstMatchFrom },
-                effects: EditorView.scrollIntoView(firstMatchFrom, {
-                  y: "center",
-                }),
-              });
+        openLintPanel(view);
+        const firstError = parseResultRef.current?.diagnostics?.[0];
+        if (focusFirstErrorRef.current && firstError) {
+          view.dispatch({
+            selection: { anchor: firstError.from, head: firstError.to },
+            effects: EditorView.scrollIntoView(
+              EditorSelection.range(firstError.from, firstError.to),
+              {
+                y: "center",
+              }
+            ),
+          });
+        }
+      } else {
+        closeLintPanel(view);
+      }
+    }
+  }, [toggleLinting, view]);
+
+  useEffect(() => {
+    if (view) {
+      if (toggleGotoLine) {
+        openSearchLinePanel(view);
+      } else {
+        closeSearchLinePanel(view);
+      }
+    }
+  }, [toggleGotoLine, view]);
+
+  useEffect(() => {
+    if (view) {
+      if (searchLineQuery) {
+        if (searchLineQueryRef.current?.search !== searchLineQuery?.search) {
+          openSearchLinePanel(view);
+          view.dispatch({
+            effects: [setSearchLineQuery.of(searchLineQuery)],
+          });
+          searchLine(view);
+        }
+      } else {
+        closeSearchLinePanel(view);
+      }
+      searchLineQueryRef.current = searchLineQuery;
+    }
+  }, [searchLineQuery, view]);
+
+  useEffect(() => {
+    if (view) {
+      if (searchTextQuery) {
+        if (searchTextQuery.action === "find_next") {
+          if (searchTextQuery.search) {
+            findNext(view);
+          }
+        } else if (searchTextQuery.action === "find_previous") {
+          if (searchTextQuery.search) {
+            findPrevious(view);
+          }
+        } else if (searchTextQuery.action === "replace") {
+          if (searchTextQuery.search) {
+            replaceNext(view);
+          }
+        } else if (searchTextQuery.action === "replace_all") {
+          if (searchTextQuery.search) {
+            replaceAll(view);
+          }
+        } else {
+          openSearchPanel(view);
+          view.dispatch({
+            effects: [
+              setSearchQuery.of(
+                new SearchQuery({
+                  search: searchTextQuery.search,
+                  caseSensitive: searchTextQuery.caseSensitive,
+                  regexp: searchTextQuery.regexp,
+                  replace: searchTextQuery.replace,
+                })
+              ),
+            ],
+          });
+          if (searchTextQuery.search) {
+            const matchFound = selectMatches(view);
+            if (matchFound) {
+              const firstMatchFrom = Math.min(
+                ...(view.state?.selection?.ranges?.map((r) => r.from) || [])
+              );
+              if (firstMatchFromRef.current !== firstMatchFrom) {
+                firstMatchFromRef.current = firstMatchFrom;
+                view.dispatch({
+                  selection: { anchor: firstMatchFrom },
+                  effects: EditorView.scrollIntoView(firstMatchFrom, {
+                    y: "center",
+                  }),
+                });
+              }
             }
           }
         }
+      } else {
+        closeSearchPanel(view);
       }
-    } else {
-      closeSearchPanel(view);
     }
-  }, [searchTextQuery]);
+  }, [searchTextQuery, view]);
 
   useEffect(() => {
-    const view = viewRef.current;
     if (view) {
       if (runningLine > 0) {
         view.dispatch({
@@ -771,63 +824,75 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         ],
       });
     }
-  }, [runningLine]);
+  }, [runningLine, view]);
 
   const isRunning = runningLine != null;
   useEffect(() => {
-    const view = viewRef.current;
-    if (isRunning) {
-      view.dispatch({
-        effects: [
-          setDiagnosticsEffect.of(
-            getDiagnostics(parseResultRef.current?.diagnostics)
-          ),
-        ],
-      });
+    if (view) {
+      if (isRunning) {
+        view.dispatch({
+          effects: [
+            setDiagnosticsEffect.of(
+              getDiagnostics(parseResultRef.current?.diagnostics)
+            ),
+          ],
+        });
+      }
     }
-  }, [isRunning]);
+  }, [isRunning, view]);
 
   useEffect(() => {
-    if (viewRef.current && cursor) {
-      const line = Math.max(1, cursor.fromLine);
-      const from = viewRef.current.state.doc.line(line)?.from;
-      viewRef.current.dispatch({
-        selection: { anchor: from },
-        effects: EditorView.scrollIntoView(from, { y: "center" }),
-      });
+    if (view) {
+      if (cursor) {
+        const line = Math.max(1, cursor.fromLine);
+        const from = view.state.doc.line(line)?.from;
+        view.dispatch({
+          selection: { anchor: from },
+          effects: EditorView.scrollIntoView(from, { y: "center" }),
+        });
+      }
     }
-  }, [cursor]);
+  }, [cursor, view]);
 
   useEffect(() => {
-    if (viewRef.current && defaultScrollTopLineRef.current >= 0) {
-      const line = Math.max(
-        1,
-        defaultScrollTopLineRef.current + scrollTopLineOffsetRef.current
-      );
-      const from = viewRef.current.state.doc.line(line)?.from;
-      viewRef.current.dispatch({
-        effects: EditorView.scrollIntoView(from, { y: "start" }),
-      });
+    if (view) {
+      if (defaultScrollTopLineRef.current >= 0) {
+        const line = Math.max(
+          1,
+          defaultScrollTopLineRef.current + scrollTopLineOffsetRef.current
+        );
+        const from = view.state.doc.line(line)?.from;
+        view.dispatch({
+          effects: EditorView.scrollIntoView(from, { y: "start" }),
+        });
+      }
     }
-  }, []);
+  }, [view]);
 
   useEffect(() => {
-    if (viewRef.current && scrollTopLine >= 0) {
-      const line = Math.max(1, scrollTopLine + scrollTopLineOffsetRef.current);
-      const from = viewRef.current.state.doc.line(line)?.from;
-      viewRef.current.dispatch({
-        effects: EditorView.scrollIntoView(from, { y: "start" }),
-      });
+    if (view) {
+      if (scrollTopLine >= 0) {
+        const line = Math.max(
+          1,
+          scrollTopLine + scrollTopLineOffsetRef.current
+        );
+        const from = view.state.doc.line(line)?.from;
+        view.dispatch({
+          effects: EditorView.scrollIntoView(from, { y: "start" }),
+        });
+      }
     }
-  }, [scrollTopLine]);
+  }, [scrollTopLine, view]);
 
   useEffect(() => {
-    if (viewRef.current && snippetPreview != null) {
-      viewRef.current.dispatch({
-        effects: [setSnippetPreview.of(snippetPreview)],
-      });
+    if (view) {
+      if (snippetPreview != null) {
+        view.dispatch({
+          effects: [setSnippetPreview.of(snippetPreview)],
+        });
+      }
     }
-  }, [snippetPreview]);
+  }, [snippetPreview, view]);
 
   return (
     <div

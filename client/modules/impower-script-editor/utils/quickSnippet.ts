@@ -15,6 +15,10 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   parenthetical: "(${tone})\n${}",
   transition: "\n${CUT} TO:\n${}",
 
+  enum: "\nenum ${EnumName}:\n  ${}",
+  struct: "\nstruct ${StructName}:\n  ${}",
+  config: "\nconfig ${ConfigName}:\n  ${}",
+
   image: "[[${imageName}]]\n${}",
   audio: "((${audioName}))\n${}",
   spawn: "* spawn(${entityName})\n${}",
@@ -22,7 +26,7 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   destroy: "* destroy(${entityName})\n${}",
 
   choice: "+ ${choice} > ${SectionName}\n${}",
-  condition: "* if (${variableName} == ${value}):\n${}",
+  condition: "* if (${variableName} == ${value}):\n  ${}",
   go: "> ${SectionName}\n${}",
   repeat: "^${}\n${}",
   return: "< ${}\n${}",

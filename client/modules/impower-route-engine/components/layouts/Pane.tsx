@@ -6,18 +6,12 @@ import { PanelType } from "../../types/state/panelState";
 import { WindowType } from "../../types/state/windowState";
 import Panelbar from "../bars/Panelbar";
 import AssetsPanel from "../panels/AssetsPanel";
-import ContainerPanel from "../panels/ContainerPanel";
 import DetailPanel from "../panels/DetailPanel";
+import LogicPanel from "../panels/LogicPanel";
 import SetupPanel from "../panels/SetupPanel";
 import TestPanel from "../panels/TestPanel";
 
-const panelDisplayOrder: PanelType[] = [
-  "setup",
-  "entities",
-  "logic",
-  "detail",
-  "test",
-];
+const panelDisplayOrder: PanelType[] = ["setup", "logic", "detail", "test"];
 
 const StyledPane = styled.div`
   flex: 1;
@@ -58,19 +52,10 @@ const PanelContent = React.memo(
     switch (type) {
       case "setup":
         return <SetupPanel key={type} />;
-      case "entities":
-        return <ContainerPanel key={type} windowType={windowType} />;
       case "logic":
-        return <ContainerPanel key={type} windowType={windowType} />;
+        return <LogicPanel key={type} />;
       case "detail":
-        if (
-          windowType === "setup" ||
-          windowType === "entities" ||
-          windowType === "logic"
-        ) {
-          return <DetailPanel key={type} windowType={windowType} />;
-        }
-        return null;
+        return <DetailPanel key={type} windowType={windowType} />;
       case "test":
         return <TestPanel key={type} />;
       case "assets":

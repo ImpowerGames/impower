@@ -26,6 +26,9 @@ import {
   isChoice,
   isComment,
   isCondition,
+  isEntity,
+  isEntityObjectField,
+  isEntityValueField,
   isFencedCode,
   isGo,
   isHTMLBlock,
@@ -111,8 +114,24 @@ export const parseExpression = (
     if (sparkRegexes.boolean.test(t.content)) {
       buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
     }
-    if (sparkRegexes.variableName.test(t.content)) {
-      buf = buf.write(Type.VariableName, exprFrom + t.from, exprFrom + t.to);
+    const variableMatch = t.content.match(sparkRegexes.variableAccess);
+    if (variableMatch) {
+      const name = variableMatch[1] || "";
+      const fieldAccess = variableMatch[2] || "";
+      if (fieldAccess) {
+        from = exprFrom + t.from;
+        to = exprFrom + name.length;
+        buf = buf.write(Type.EntityName, from, to);
+        fieldAccess.split(/([.])/).forEach((f) => {
+          from = to;
+          to = from + f.length;
+          if (f !== ".") {
+            buf = buf.write(Type.EntityFieldAccess, from, to);
+          }
+        });
+      } else {
+        buf = buf.write(Type.VariableName, exprFrom + t.from, exprFrom + t.to);
+      }
     }
   });
   return buf;
@@ -136,6 +155,150 @@ export const DefaultBlockParsers: {
     cx.nextLine();
     cx.addNode(node, from);
     return true;
+  },
+
+  Entity(cx, line) {
+    const match = isEntity(line);
+    if (!match) {
+      return false;
+    }
+
+    let buf = cx.buffer;
+    let from = 0;
+    let to = from;
+
+    const mark = match[2] || "";
+    const markSpace = match[3] || "";
+    const name = match[4] || "";
+    const nameSpace = match[5] || "";
+    const openMark = match[6] || "";
+    const openMarkSpace = match[7] || "";
+    const base = match[8] || "";
+    const baseSpace = match[9] || "";
+    const closeMark = match[10] || "";
+    const closeMarkSpace = match[11] || "";
+    const colon = match[12] || "";
+    const colonSpace = match[13] || "";
+
+    cx.startContext(Type.Entity, line.basePos, line.next);
+
+    if (mark || markSpace) {
+      from = to;
+      to = from + mark.length + markSpace.length;
+      buf = buf.write(Type.EntityMark, from, to);
+    }
+    if (name || nameSpace) {
+      from = to;
+      to = from + name.length + nameSpace.length;
+      buf = buf.write(Type.EntityName, from, to);
+    }
+    if (openMark || openMarkSpace) {
+      from = to;
+      to = from + openMark.length + openMarkSpace.length;
+      buf = buf.write(Type.EntityOpenMark, from, to);
+    }
+    if (base || baseSpace) {
+      from = to;
+      to = from + base.length + baseSpace.length;
+      buf = buf.write(Type.EntityBase, from, to);
+    }
+    if (closeMark || closeMarkSpace) {
+      from = to;
+      to = from + closeMark.length + closeMarkSpace.length;
+      buf = buf.write(Type.EntityCloseMark, from, to);
+    }
+    if (colon || colonSpace) {
+      from = to;
+      to = from + colon.length + colonSpace.length;
+      buf = buf.write(Type.EntityColon, from, to);
+    }
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
+    const node = buf.finish(Type.Entity, line.text.length - line.pos);
+    cx.addNode(node, cx.lineStart + line.pos);
+    cx.nextLine();
+    return true;
+  },
+
+  Field(cx, line) {
+    if (!inBlockContext(cx, Type.Entity)) {
+      return false;
+    }
+
+    let buf = cx.buffer;
+    let from = 0;
+    let to = from;
+
+    const valueFieldMatch = isEntityValueField(line);
+    if (valueFieldMatch) {
+      const name = valueFieldMatch[2] || "";
+      const nameSpace = valueFieldMatch[3] || "";
+      const operator = valueFieldMatch[4] || "";
+      const operatorSpace = valueFieldMatch[5] || "";
+      const value = valueFieldMatch[6] || "";
+      if (name) {
+        from = to;
+        to = from + name.length;
+        buf = buf.write(Type.EntityFieldName, from, to);
+      }
+      if (nameSpace) {
+        from = to;
+        to = from + nameSpace.length;
+      }
+      if (operator) {
+        from = to;
+        to = from + operator.length;
+        buf = buf.write(Type.EntityOperator, from, to);
+      }
+      if (operatorSpace) {
+        from = to;
+        to = from + operatorSpace.length;
+      }
+      if (value) {
+        from = to;
+        to = from + value.length;
+        buf = buf.write(Type.EntityFieldValue, from, to);
+        const expression = line.text.slice(line.pos + from, line.pos + to);
+        buf = parseExpression(buf, expression, from, to);
+      }
+      from = to;
+      to = line.text.length - line.pos;
+      if (to > from) {
+        buf = buf.write(Type.Comment, from, to);
+      }
+      const node = buf.finish(Type.EntityField, line.text.length - line.pos);
+      cx.addNode(node, cx.lineStart + line.pos);
+      cx.nextLine();
+      return true;
+    }
+    const objectFieldMatch = isEntityObjectField(line);
+    if (objectFieldMatch) {
+      const name = objectFieldMatch[2] || "";
+      const nameSpace = objectFieldMatch[3] || "";
+      const colon = objectFieldMatch[4] || "";
+      if (name) {
+        from = to;
+        to = from + name.length;
+        buf = buf.write(Type.EntityFieldName, from, to);
+      }
+      if (nameSpace) {
+        from = to;
+        to = from + nameSpace.length;
+      }
+      if (colon) {
+        from = to;
+        to = from + name.length;
+        buf = buf.write(Type.EntityColon, from, to);
+      }
+      const node = buf.finish(Type.EntityField, line.text.length - line.pos);
+      cx.addNode(node, cx.lineStart + line.pos);
+      cx.nextLine();
+      return true;
+    }
+    return false;
   },
 
   Title(cx, line) {
@@ -190,6 +353,11 @@ export const DefaultBlockParsers: {
     if (level <= 0 || !markSpace) {
       let buf = cx.buffer;
       buf = buf.write(Type.PossibleSectionMark, 0, mark.length);
+      from = to;
+      to = line.text.length - line.pos;
+      if (to > from) {
+        buf = buf.write(Type.Comment, from, to);
+      }
       const node = buf.finish(
         Type.PossibleSection,
         line.text.length - line.pos
@@ -309,12 +477,14 @@ export const DefaultBlockParsers: {
         buf = buf.write(Type.SectionCloseMark, from, to);
       }
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Section, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -336,12 +506,14 @@ export const DefaultBlockParsers: {
       to = from + mark.length + markSpace.length;
       buf = buf.write(Type.SynopsesMark, from, to);
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Synopses, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -431,12 +603,14 @@ export const DefaultBlockParsers: {
         buf = buf.write(Type.GoCloseMark, from, to);
       }
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Go, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -467,12 +641,14 @@ export const DefaultBlockParsers: {
       const expression = line.text.slice(line.pos + from, line.pos + to);
       buf = parseExpression(buf, expression, from, to);
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Return, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -494,12 +670,14 @@ export const DefaultBlockParsers: {
       to = from + mark.length + markSpace.length;
       buf = buf.write(Type.RepeatMark, from, to);
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Repeat, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -554,12 +732,14 @@ export const DefaultBlockParsers: {
       const expression = line.text.slice(line.pos + from, line.pos + to);
       buf = parseExpression(buf, expression, from, to);
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Asset, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -604,12 +784,14 @@ export const DefaultBlockParsers: {
       const expression = line.text.slice(line.pos + from, line.pos + to);
       buf = parseExpression(buf, expression, from, to);
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Tag, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -654,12 +836,14 @@ export const DefaultBlockParsers: {
       const expression = line.text.slice(line.pos + from, line.pos + to);
       buf = parseExpression(buf, expression, from, to);
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Variable, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -692,12 +876,14 @@ export const DefaultBlockParsers: {
         buf = buf.write(Type.Pause, from, to);
       }
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Transition, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -838,12 +1024,14 @@ export const DefaultBlockParsers: {
         buf = buf.write(Type.Pause, from, to);
       }
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Scene, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -890,12 +1078,14 @@ export const DefaultBlockParsers: {
         buf = buf.write(Type.Pause, from, to);
       }
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Centered, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -921,11 +1111,14 @@ export const DefaultBlockParsers: {
       isCondition(line) || isCall(line) || isAssign(line) || isChoice(line);
 
     if (!match) {
+      from = to;
+      to = line.text.length - line.pos;
+      if (to > from) {
+        buf = buf.write(Type.Comment, from, to);
+      }
       node = buf.finish(Type.PossibleLogic, line.text.length - line.pos);
-
       cx.addNode(node, cx.lineStart + line.pos);
       cx.nextLine();
-
       return true;
     }
 
@@ -961,7 +1154,11 @@ export const DefaultBlockParsers: {
         const expression = line.text.slice(line.pos + from, line.pos + to);
         buf = parseExpression(buf, expression, from, to);
       }
-
+      from = to;
+      to = line.text.length - line.pos;
+      if (to > from) {
+        buf = buf.write(Type.Comment, from, to);
+      }
       node = buf.finish(Type.Assign, line.text.length - line.pos);
     } else if (match?.[0] === "condition") {
       const mark = match[2] || "";
@@ -995,7 +1192,11 @@ export const DefaultBlockParsers: {
         to = from + colon.length + colonSpace.length;
         buf = buf.write(Type.ConditionColonMark, from, to);
       }
-
+      from = to;
+      to = line.text.length - line.pos;
+      if (to > from) {
+        buf = buf.write(Type.Comment, from, to);
+      }
       node = buf.finish(Type.Condition, line.text.length - line.pos);
     } else if (match?.[0] === "call") {
       const mark = match[2] || "";
@@ -1086,7 +1287,11 @@ export const DefaultBlockParsers: {
           buf = buf.write(Type.CallCloseMark, from, to);
         }
       }
-
+      from = to;
+      to = line.text.length - line.pos;
+      if (to > from) {
+        buf = buf.write(Type.Comment, from, to);
+      }
       node = buf.finish(Type.Call, line.text.length - line.pos);
     } else if (match?.[0] === "choice") {
       const mark = match[2] || "";
@@ -1118,13 +1323,15 @@ export const DefaultBlockParsers: {
         to = from + section.length + sectionSpace.length;
         buf = buf.write(Type.ChoiceSectionName, from, to);
       }
-
+      from = to;
+      to = line.text.length - line.pos;
+      if (to > from) {
+        buf = buf.write(Type.Comment, from, to);
+      }
       node = buf.finish(Type.Choice, line.text.length - line.pos);
     }
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -1156,6 +1363,11 @@ export const DefaultBlockParsers: {
       from = to;
       to = from + character.length;
       buf = buf.write(Type.PossibleCharacterName, from, to);
+      from = to;
+      to = line.text.length - line.pos;
+      if (to > from) {
+        buf = buf.write(Type.Comment, from, to);
+      }
       const node = buf.finish(
         Type.PossibleCharacter,
         line.text.length - line.pos
@@ -1198,12 +1410,14 @@ export const DefaultBlockParsers: {
       to = from + dual.length;
       buf.write(Type.CharacterDual, from, to);
     }
-
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
     const node = buf.finish(Type.Character, line.text.length - line.pos);
-
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-
     return true;
   },
 
@@ -1232,17 +1446,27 @@ export const DefaultBlockParsers: {
     if (!match) {
       return false;
     }
-    const size = 1;
-    const from = cx.lineStart + line.pos;
-    const buf = cx.buffer
-      .write(Type.LyricMark, 0, size)
-      .writeElements(
-        cx.parser.parseInline(line.text.slice(size), from + size, cx),
-        -from
-      );
-    const node = buf.finish(Type.Lyric, line.text.length);
+
+    let buf = cx.buffer;
+    let from = 0;
+    let to = from;
+
+    const mark = match[2] || "";
+    const content = match[3] || "";
+
+    if (mark) {
+      from = to;
+      to = from + mark.length;
+      buf = buf.write(Type.LyricMark, from, to);
+    }
+    if (content) {
+      from = to;
+      to = from + content.length;
+      buf = buf.writeElements(cx.parser.parseInline(content, from, cx));
+    }
+    const node = buf.finish(Type.Lyric, line.text.length - line.pos);
+    cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
-    cx.addNode(node, from);
     return true;
   },
 
@@ -1250,12 +1474,20 @@ export const DefaultBlockParsers: {
     if (!inBlockContext(cx, Type.Dialogue)) {
       return false;
     }
-    const off = line.pos;
-    const from = cx.lineStart + off;
+
     let buf = cx.buffer;
-    buf = buf.writeElements(cx.parser.parseInline(line.text, from, cx), -from);
-    const node = buf.finish(Type.DialogueLine, line.text.length - off);
-    cx.addNode(node, from);
+    let from = 0;
+    let to = from;
+
+    const content = line.text;
+
+    if (content) {
+      from = to;
+      to = from + line.text.length;
+      buf = buf.writeElements(cx.parser.parseInline(content, from, cx));
+    }
+    const node = buf.finish(Type.DialogueLine, content.length - line.pos);
+    cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
     return true;
   },

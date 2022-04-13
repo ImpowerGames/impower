@@ -1,6 +1,15 @@
 import { MethodType } from "../types/MethodType";
 
-export const types = ["audio", "image", "text", "video", "tag", "ui"];
+export const types = [
+  "audio",
+  "image",
+  "text",
+  "video",
+  "tag",
+  "enum",
+  "struct",
+  "config",
+];
 
 export const entityMethods: MethodType[] = [
   "spawn",
@@ -81,7 +90,6 @@ export const reservedKeywords = [
   "throw",
   "true",
   "try",
-  "type",
   "typeof",
   "var",
   "void",

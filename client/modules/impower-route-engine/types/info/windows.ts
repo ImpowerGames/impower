@@ -1,9 +1,7 @@
-import Alien8bitRegularIcon from "../../../../resources/icons/regular/alien-8bit.svg";
 import GamepadModernRegularIcon from "../../../../resources/icons/regular/gamepad-modern.svg";
 import GearRegularIcon from "../../../../resources/icons/regular/gear.svg";
 import HeadSideBrainRegularIcon from "../../../../resources/icons/regular/head-side-brain.svg";
 import PhotoFilmRegularIcon from "../../../../resources/icons/regular/photo-film.svg";
-import Alien8bitSolidIcon from "../../../../resources/icons/solid/alien-8bit.svg";
 import GamepadModernSolidIcon from "../../../../resources/icons/solid/gamepad-modern.svg";
 import GearSolidIcon from "../../../../resources/icons/solid/gear.svg";
 import HeadSideBrainSolidIcon from "../../../../resources/icons/solid/head-side-brain.svg";
@@ -27,12 +25,6 @@ export const windows: WindowInfo[] = [
     name: "Assets",
     iconOn: PhotoFilmSolidIcon,
     iconOff: PhotoFilmRegularIcon,
-  },
-  {
-    type: "entities",
-    name: "Entities",
-    iconOn: Alien8bitSolidIcon,
-    iconOff: Alien8bitRegularIcon,
   },
   {
     type: "logic",

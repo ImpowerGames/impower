@@ -3,7 +3,12 @@ import { BlockContext } from "../classes/BlockContext";
 import { CompositeBlock } from "../classes/CompositeBlock";
 import { Line } from "../classes/Line";
 import { Type } from "../types/type";
-import { getSectionLevel, isTitle, skipForList } from "../utils/markdown";
+import {
+  getSectionLevel,
+  isEntity,
+  isTitle,
+  skipForList,
+} from "../utils/markdown";
 
 export const DefaultSkipMarkup: {
   [type: number]: (bl: CompositeBlock, cx: BlockContext, line: Line) => boolean;
@@ -78,11 +83,17 @@ export const DefaultSkipMarkup: {
   },
   [Type.Title](_bl, cx, line): boolean {
     const title = isTitle(line, cx, false) > 0;
-    if (title || line.indent >= line.baseIndent + 4) {
-      // skip if title or indented title value
-      return true;
+    if (!title && line.indent < line.baseIndent + 2) {
+      return false;
     }
-    return false;
+    return true;
+  },
+  [Type.Entity](_bl, cx, line): boolean {
+    const entity = isEntity(line);
+    if (!entity && line.indent < line.baseIndent + 2) {
+      return false;
+    }
+    return true;
   },
   [Type.ListItem](bl, _cx, line) {
     if (line.indent < line.baseIndent + bl.value && line.next > -1) {

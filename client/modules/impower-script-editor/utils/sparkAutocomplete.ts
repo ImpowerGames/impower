@@ -108,15 +108,15 @@ export const lowercaseParagraphSnippets: readonly Completion[] = [
     label: "text",
     type: "asset",
   }),
-  snip("enum ${}${ElementName}:${}", {
+  snip("enum ${}${EnumName}:${}", {
     label: "enum",
     type: "entity",
   }),
-  snip("object ${}${ComponentName}:${}", {
+  snip("object ${}${ObjectName}:${}", {
     label: "object",
     type: "entity",
   }),
-  snip("ui ${}${ElementName}:${}", {
+  snip("ui ${}${UiName}:${}", {
     label: "ui",
     type: "entity",
   }),
@@ -454,6 +454,7 @@ export const getSectionOptions = (
   const getSectionOption = (
     id: string
   ): {
+    name: string;
     template: string;
     label: string;
     info: string | ((completion: Completion) => Node | Promise<Node>);
@@ -480,6 +481,7 @@ export const getSectionOptions = (
         ? `(${paramsDetail})`
         : "";
     return {
+      name: section?.name,
       template,
       label: cleanedPrefix + label + cleanedSuffix,
       info: infoLabel
@@ -489,38 +491,44 @@ export const getSectionOptions = (
   };
   validChildrenIds.forEach((id) => {
     if (id && id !== sectionId) {
-      const { template, label, info } = getSectionOption(id);
-      result.push({
-        template,
-        label,
-        info,
-        type: "child",
-      });
+      const { name, template, label, info } = getSectionOption(id);
+      if (name) {
+        result.push({
+          template,
+          label,
+          info,
+          type: "child",
+        });
+      }
     }
   });
   validSiblingIds.forEach((id) => {
     if (id && id !== sectionId) {
-      const { template, label, info } = getSectionOption(id);
-      result.push({
-        template,
-        label,
-        info,
-        type:
-          validSiblingIds.indexOf(id) > validSiblingIds.indexOf(sectionId)
-            ? "last_sibling"
-            : "first_sibling",
-      });
+      const { name, template, label, info } = getSectionOption(id);
+      if (name) {
+        result.push({
+          template,
+          label,
+          info,
+          type:
+            validSiblingIds.indexOf(id) > validSiblingIds.indexOf(sectionId)
+              ? "last_sibling"
+              : "first_sibling",
+        });
+      }
     }
   });
   validAncestorIds.forEach((id) => {
     if (id && id !== sectionId) {
-      const { template, label, info } = getSectionOption(id);
-      result.push({
-        template,
-        label,
-        info,
-        type: "ancestor",
-      });
+      const { name, template, label, info } = getSectionOption(id);
+      if (name) {
+        result.push({
+          template,
+          label,
+          info,
+          type: "ancestor",
+        });
+      }
     }
   });
   const quitLabel = "!QUIT";
@@ -530,7 +538,6 @@ export const getSectionOptions = (
     detail: "(quit game)",
     type: "quit",
   });
-
   return result;
 };
 
@@ -742,15 +749,15 @@ export const sparkAutocomplete = async (
       };
     })
   );
-  const entityOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
-    Object.keys(result.sections[ancestorId].entities || {}).map((id) => {
-      const found = result.sections[ancestorId].entities[id];
+  const entityOptions: Option[] = Object.keys(result.entities || {}).map(
+    (id) => {
+      const found = result.entities[id];
       return {
         line: found.line,
         name: found.name,
         type: found.type,
       };
-    })
+    }
   );
   const assetOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
     Object.keys(result.sections[ancestorId].assets || {}).map((id) => {
@@ -886,7 +893,7 @@ export const sparkAutocomplete = async (
   } else if (["GoSectionName", "ChoiceSectionName"].includes(node.name)) {
     completions.push(...sectionSnippets(sectionId, result?.sections));
   } else if (["CallEntityName"].includes(node.name)) {
-    const validOptions = entityOptions.filter(({ type }) => type === "ui");
+    const validOptions = entityOptions.filter(({ type }) => type === "struct");
     if (input.match(sparkRegexes.string)) {
       completions.push(
         ...nameSnippets(validOptions, "entity", "", "", colors.entity)

@@ -7,13 +7,7 @@ import {
 } from "../../../impower-script-editor";
 import { WindowType } from "./windowState";
 
-export type PanelType =
-  | "setup"
-  | "assets"
-  | "entities"
-  | "logic"
-  | "detail"
-  | "test";
+export type PanelType = "setup" | "assets" | "logic" | "detail" | "test";
 
 export type PanelInteractionType = "Selected" | "Expanded";
 
@@ -24,7 +18,12 @@ export interface PanelCursorState {
   toLine: number;
 }
 
-export type SnippetCategoryType = "screenplay" | "world" | "flow" | "data";
+export type SnippetCategoryType =
+  | "screenplay"
+  | "world"
+  | "flow"
+  | "data"
+  | "entity";
 
 export interface PanelState {
   paneSize: number | string;

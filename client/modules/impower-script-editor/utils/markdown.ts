@@ -25,11 +25,16 @@ export function isComment(line: Line): RegExpMatchArray {
   return line.text.match(sparkRegexes.comment_inline);
 }
 
+export function stripComments(text: string): string {
+  return text.replace(sparkRegexes.comment_inline, "");
+}
+
 export function isSectionHeading(line: Line): RegExpMatchArray {
   if (line.next !== "#".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(sparkRegexes.section);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.section);
 }
 
 export function getSectionMatchLevel(match: RegExpMatchArray): number {
@@ -49,7 +54,8 @@ export function getSectionLevel(line: Line): number {
 
 export function isScene(line: Line): RegExpMatchArray {
   if (line.next === ".".charCodeAt(0)) {
-    return line.text.match(sparkRegexes.scene);
+    const text = stripComments(line.text);
+    return text.match(sparkRegexes.scene);
   }
   if (
     line.next !== "I".charCodeAt(0) &&
@@ -58,21 +64,24 @@ export function isScene(line: Line): RegExpMatchArray {
   ) {
     return null;
   }
-  return line.text.match(sparkRegexes.scene);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.scene);
 }
 
 export function isPageBreak(line: Line): RegExpMatchArray {
   if (line.next !== "=".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(sparkRegexes.page_break);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.page_break);
 }
 
 export function isSynopses(line: Line): RegExpMatchArray {
   if (line.next !== "=".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(sparkRegexes.synopses);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.synopses);
 }
 
 export function isCentered(line: Line): RegExpMatchArray {
@@ -80,18 +89,20 @@ export function isCentered(line: Line): RegExpMatchArray {
   if (line.next !== charCodeStart) {
     return null;
   }
-  return line.text.match(sparkRegexes.centered);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.centered);
 }
 
 export function isTransition(line: Line): RegExpMatchArray {
-  const currentText = line.text.slice(line.pos);
+  const text = stripComments(line.text);
+  const currentText = text.slice(line.pos);
   if (
     currentText.toUpperCase() !== currentText ||
     !String.fromCharCode(line.next).match(/^[A-Z]$/)
   ) {
     return null;
   }
-  return line.text.match(sparkRegexes.transition);
+  return text.match(sparkRegexes.transition);
 }
 
 export function isCharacter(line: Line): RegExpMatchArray {
@@ -101,70 +112,102 @@ export function isCharacter(line: Line): RegExpMatchArray {
   ) {
     return null;
   }
-  return line.text.match(sparkRegexes.character);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.character);
 }
 
 export function isParenthetical(line: Line): RegExpMatchArray {
   if (line.next !== "(".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(sparkRegexes.parenthetical);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.parenthetical);
 }
 
 export function isLyric(line: Line): RegExpMatchArray {
   if (line.next !== "~".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(sparkRegexes.lyric);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.lyric);
 }
 
 export function isGo(line: Line): RegExpMatchArray {
   if (line.next !== ">".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(sparkRegexes.go);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.go);
 }
 
 export function isRepeat(line: Line): RegExpMatchArray {
   if (line.next !== "^".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(sparkRegexes.repeat);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.repeat);
 }
 
 export function isReturn(line: Line): RegExpMatchArray {
   if (line.next !== "<".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(sparkRegexes.return);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.return);
 }
 
 export function isAsset(line: Line): RegExpMatchArray {
   if (!["i", "a", "v", "t"].map((x) => x.charCodeAt(0)).includes(line.next)) {
     return null;
   }
-  return line.text.match(sparkRegexes.asset);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.asset);
 }
 
 export function isTag(line: Line): RegExpMatchArray {
   if (line.next !== "t".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(sparkRegexes.tag);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.tag);
+}
+
+export function isEntity(line: Line): RegExpMatchArray {
+  if (
+    line.next !== "e".charCodeAt(0) &&
+    line.next !== "s".charCodeAt(0) &&
+    line.next !== "c".charCodeAt(0)
+  ) {
+    return null;
+  }
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.entity);
+}
+
+export function isEntityObjectField(line: Line): RegExpMatchArray {
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.entity_object_field);
+}
+
+export function isEntityValueField(line: Line): RegExpMatchArray {
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.entity_value_field);
 }
 
 export function isVariable(line: Line): RegExpMatchArray {
   if (line.next !== "v".charCodeAt(0) && line.next !== "t".charCodeAt(0)) {
     return null;
   }
-  return line.text.match(sparkRegexes.variable);
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.variable);
 }
 
 export function isAssign(line: Line): RegExpMatchArray {
   if (line.next !== "*".charCodeAt(0)) {
     return null;
   }
-  const match = line.text.match(sparkRegexes.assign);
+  const text = stripComments(line.text);
+  const match = text.match(sparkRegexes.assign);
   if (!match) {
     return null;
   }
@@ -176,7 +219,8 @@ export function isCall(line: Line): RegExpMatchArray {
   if (line.next !== "*".charCodeAt(0)) {
     return null;
   }
-  const match = line.text.match(sparkRegexes.call);
+  const text = stripComments(line.text);
+  const match = text.match(sparkRegexes.call);
   if (!match) {
     return null;
   }
@@ -188,7 +232,8 @@ export function isCondition(line: Line): RegExpMatchArray {
   if (line.next !== "*".charCodeAt(0)) {
     return null;
   }
-  const match = line.text.match(sparkRegexes.condition);
+  const text = stripComments(line.text);
+  const match = text.match(sparkRegexes.condition);
   if (!match) {
     return null;
   }
@@ -200,7 +245,8 @@ export function isChoice(line: Line): RegExpMatchArray {
   if (!["-", "+"].map((c) => c.charCodeAt(0)).includes(line.next)) {
     return null;
   }
-  const match = line.text.match(sparkRegexes.choice);
+  const text = stripComments(line.text);
+  const match = text.match(sparkRegexes.choice);
   if (!match) {
     return null;
   }
@@ -213,7 +259,11 @@ export function isTitle(
   cx: BlockContext,
   breaking: boolean
 ): number {
-  if (line.text.toUpperCase() === line.text && line.text.endsWith(" TO:")) {
+  const text = stripComments(line.text);
+  if (/[\t ]/.test(text[0])) {
+    return -1;
+  }
+  if (text.toUpperCase() === text && text.endsWith(" TO:")) {
     return -1;
   }
   let { pos } = line;
@@ -224,10 +274,10 @@ export function isTitle(
     } else {
       break;
     }
-    if (pos === line.text.length) {
+    if (pos === text.length) {
       return -1;
     }
-    next = line.text.charCodeAt(pos);
+    next = text.charCodeAt(pos);
   }
   if (breaking && inBlockContext(cx, Type.Title)) {
     return 1;
@@ -235,7 +285,7 @@ export function isTitle(
   if (
     pos === line.pos ||
     next !== ":".charCodeAt(0) ||
-    (pos < line.text.length - 1 && !whitespace(line.text.charCodeAt(pos + 1)))
+    (pos < text.length - 1 && !whitespace(text.charCodeAt(pos + 1)))
   ) {
     return -1;
   }
@@ -247,14 +297,15 @@ export function isBulletList(
   cx: BlockContext,
   breaking: boolean
 ): number {
+  const text = stripComments(line.text);
   return (line.next === "-".charCodeAt(0) ||
     line.next === "+".charCodeAt(0) ||
     line.next === "*".charCodeAt(0)) &&
-    (line.pos === line.text.length - 1 ||
-      whitespace(line.text.charCodeAt(line.pos + 1))) &&
+    (line.pos === text.length - 1 ||
+      whitespace(text.charCodeAt(line.pos + 1))) &&
     (!breaking ||
       inBlockContext(cx, Type.BulletList) ||
-      line.skipSpace(line.pos + 2) < line.text.length)
+      line.skipSpace(line.pos + 2) < text.length)
     ? 1
     : -1;
 }
@@ -264,26 +315,26 @@ export function isOrderedList(
   cx: BlockContext,
   breaking: boolean
 ): number {
+  const text = stripComments(line.text);
   let { pos } = line;
   let { next } = line;
   for (;;) {
     if (next >= 48 && next <= 57 /* '0-9' */) {
       pos += 1;
     } else break;
-    if (pos === line.text.length) {
+    if (pos === text.length) {
       return -1;
     }
-    next = line.text.charCodeAt(pos);
+    next = text.charCodeAt(pos);
   }
   if (
     pos === line.pos ||
     pos > line.pos + 9 ||
     (next !== 46 && next !== 41) /* '.)' */ ||
-    (pos < line.text.length - 1 &&
-      !whitespace(line.text.charCodeAt(pos + 1))) ||
+    (pos < text.length - 1 && !whitespace(text.charCodeAt(pos + 1))) ||
     (breaking &&
       !inBlockContext(cx, Type.OrderedList) &&
-      (line.skipSpace(pos + 1) === line.text.length ||
+      (line.skipSpace(pos + 1) === text.length ||
         pos > line.pos + 1 ||
         line.next !== 49)) /* '1' */
   )
@@ -296,8 +347,9 @@ export function skipForList(
   cx: BlockContext,
   line: Line
 ): boolean {
+  const text = stripComments(line.text);
   if (
-    line.pos === line.text.length ||
+    line.pos === text.length ||
     (bl !== cx.block &&
       line.indent >= cx.stack[line.depth + 1].value + line.baseIndent)
   ) {
@@ -314,16 +366,17 @@ export function skipForList(
   const result =
     size > 0 &&
     (bl.type !== Type.BulletList || !isPageBreak(line)) &&
-    line.text.charCodeAt(line.pos + size - 1) === bl.value;
+    text.charCodeAt(line.pos + size - 1) === bl.value;
   return result;
 }
 
 export function isFencedCode(line: Line): number {
+  const text = stripComments(line.text);
   if (line.next !== "`".charCodeAt(0) && line.next !== "~".charCodeAt(0)) {
     return -1;
   }
   let pos = line.pos + 1;
-  while (pos < line.text.length && line.text.charCodeAt(pos) === line.next) {
+  while (pos < text.length && text.charCodeAt(pos) === line.next) {
     pos += 1;
   }
   if (pos < line.pos + 3) {
@@ -340,7 +393,8 @@ export function isHTMLBlock(
   if (line.next !== 60 /* '<' */) {
     return -1;
   }
-  const rest = line.text.slice(line.pos);
+  const text = stripComments(line.text);
+  const rest = text.slice(line.pos);
   for (
     let i = 0, e = HTMLBlockStyle.length - (breaking ? 1 : 0);
     i < e;

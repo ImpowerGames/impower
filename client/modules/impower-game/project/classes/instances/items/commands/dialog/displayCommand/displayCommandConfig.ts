@@ -1,13 +1,31 @@
 export interface DisplayCommandConfig {
-  ui: string;
-  letterFadeDuration: number;
-  letterDelay: number;
-  pauseScale: number;
-  beepDuration: number;
-  averageSyllableLength: number;
-  indicatorFadeDuration: number;
-  indicatorAnimationName: string;
-  indicatorAnimationDuration: number;
-  indicatorAnimationEase: string;
+  ui: {
+    root: string;
+    character: string;
+    background: string;
+    portrait: string;
+    parenthetical: string;
+    dialogue_group: string;
+    indicator: string;
+    choice: string;
+    dialogue: string;
+    action: string;
+    centered: string;
+    transition: string;
+    scene: string;
+  };
+  typing: {
+    fadeDuration: number;
+    delay: number;
+    pauseScale: number;
+    beepDuration: number;
+    syllableLength: number;
+  };
+  indicator: {
+    fadeDuration: number;
+    animationName: string;
+    animationDuration: number;
+    animationEase: string;
+  };
   css: string;
 }

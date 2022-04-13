@@ -6,11 +6,6 @@ import { CommandRunner } from "../../items/command/commandRunner";
 export interface BlockContext {
   ids: Record<string, string>;
   valueMap: Record<string, unknown>;
-  variables: Record<string, unknown>;
-  assets: Record<string, string>;
-  entities: Record<string, string>;
-  tags: Record<string, string>;
-  blocks: Record<string, number>;
   triggers: string[];
   parameters: string[];
   commands: {
@@ -43,7 +38,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     time: number,
     delta: number
   ): void {
-    const { triggers, variables } = context;
+    const { triggers, valueMap } = context;
 
     game.logic.updateBlock({ id, time, delta });
 
@@ -51,7 +46,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       const satisfiedTriggers: string[] = [];
       const unsatisfiedTriggers: string[] = [];
       triggers.forEach((variableName) => {
-        const value = variables[variableName];
+        const value = valueMap[variableName];
         if (value) {
           satisfiedTriggers.push(variableName);
         } else {
@@ -96,7 +91,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     game: ImpowerGame,
     time: number
   ): boolean {
-    const { commands } = context;
+    const commands = context?.commands;
     const blockId = id;
     while (blockState.executingIndex < commands.length) {
       const command = commands[blockState.executingIndex];
@@ -106,16 +101,15 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       const pos = command?.data?.pos;
       const line = command?.data?.line;
       const fastForward = blockState.startIndex > blockState.executingIndex;
-      const ids = context?.ids;
-      Object.entries(context?.variables).forEach(([name, v]) => {
-        const variableId = ids[name];
-        const variableState = game?.logic?.state?.variableStates?.[variableId];
-        context.valueMap[name] = variableState ? variableState.value : v;
+      const variableStates = game?.logic?.state?.variableStates;
+      const blockStates = game?.logic?.state?.blockStates;
+      Object.entries(variableStates).forEach(([id, state]) => {
+        const name = id.split(".").slice(-1).join("");
+        context.valueMap[name] = state.value;
       });
-      Object.entries(context?.blocks).forEach(([name, v]) => {
-        const blockId = ids[name];
-        const blockState = game?.logic?.state?.blockStates?.[blockId];
-        context.valueMap[name] = blockState ? blockState.executionCount : v;
+      Object.entries(blockStates).forEach(([id, state]) => {
+        const name = id.split(".").slice(-1).join("");
+        context.valueMap[name] = state.executionCount;
       });
       context.valueMap["#"] = [
         executionCount,

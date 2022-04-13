@@ -49,13 +49,16 @@ export interface SerializableHistoryState {
   undone: HistoryEvent[];
 }
 
+export type SerializableFoldedState = { from: number; to: number }[];
+
 export interface SerializableEditorState {
-  readonly doc: string;
-  readonly selection: SerializableEditorSelection;
-  readonly history: SerializableHistoryState;
+  readonly doc?: string;
+  readonly selection?: SerializableEditorSelection;
+  readonly history?: SerializableHistoryState;
   readonly userEvent?: string;
   readonly focused?: boolean;
   readonly selected?: boolean;
   readonly snippet?: boolean;
   readonly diagnostics?: SerializableDiagnostic[];
+  readonly folded?: SerializableFoldedState;
 }

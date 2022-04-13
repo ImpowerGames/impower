@@ -12,5 +12,5 @@ export const getSectionAt = (
       return [id, section];
     }
   }
-  return ["", result?.sections[""]];
+  return ["", result?.sections?.[""]];
 };

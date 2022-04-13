@@ -1,10 +1,12 @@
 import { SparkEntityType } from "./SparkEntityType";
+import { SparkField } from "./SparkField";
 
 export interface SparkEntity {
   from: number;
   to: number;
   line: number;
   name: string;
+  base: string;
   type: SparkEntityType;
-  value: string;
+  fields: Record<string, SparkField>;
 }

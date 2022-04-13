@@ -1,1 +1,1 @@
-export type SparkEntityType = "ui" | "object" | "enum";
+export type SparkEntityType = "enum" | "struct" | "config";
