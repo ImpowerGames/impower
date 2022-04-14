@@ -507,10 +507,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         EditorView.lineWrapping,
         EditorView.updateListener.of((u) => {
           const parsed = syntaxTreeAvailable(u.state);
-          if (!parsed) {
-            return;
-          }
-          if (!readyRef.current) {
+          if (parsed && !readyRef.current) {
             readyRef.current = true;
             onReadyRef.current?.(u);
             setReady(readyRef.current);
