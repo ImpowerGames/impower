@@ -324,9 +324,15 @@ const NotificationListItem = React.memo(
 
     const handleClick = useCallback(
       async (e: React.MouseEvent, id: string, data: AggData) => {
-        //if (data?.type === "flagged" && data?.r) {
-        //  userDispatch(userReadNotification("flagged", data?.id , uid));
-        //}
+        if (data?.type === "flagged" && !data?.r) {
+          userDispatch(
+            userReadNotification(
+              "flagged",
+              "users",
+              `${data?.nsfw}%${data?.removed}%${data?.violation}%${id}`
+            )
+          );
+        }
         onLoading?.(true);
         await router.push(`/p/${data?.id}`);
         onLoading?.(false);

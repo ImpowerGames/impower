@@ -429,7 +429,10 @@ export const userReducer = (
       const parentColId = path[0];
       let notifications = state?.notifications;
       // Currently only handles connection notifications
-      if (parentColId === "users" && type === "connects") {
+      if (
+        parentColId === "users" &&
+        (type === "connects" || type === "flagged")
+      ) {
         notifications = {
           ...notifications,
           [notificationId]: { ...notifications[notificationId], r: true },
