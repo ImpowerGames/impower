@@ -25,6 +25,7 @@ import ExclamationSolidIcon from "../../../resources/icons/solid/exclamation.svg
 import CircleExclamationSolidIcon from "../../../resources/icons/solid/circle-exclamation.svg";
 import { AggData } from "../../impower-data-state";
 import ConnectionListItem from "./ConnectionListItem";
+import FlaggedContentDialog from "./ViewFlaggedContentWindow";
 
 import { FontIcon } from "../../impower-icon";
 
@@ -261,12 +262,15 @@ const NotificationListItemSecondaryText = React.memo(
 );
 
 interface NotificationListItemButtonProps {
+  uid: string;
   notificationData: AggData;
+  open: boolean;
+  setOpen: (openValue: boolean) => void;
 }
 
 const NotificationListItemButtons = React.memo(
   (props: NotificationListItemButtonProps): JSX.Element | null => {
-    const { notificationData } = props;
+    const { uid, notificationData, open, setOpen } = props;
 
     const handleBlockRipplePropogation = useCallback(
       (e: React.MouseEvent | React.TouchEvent): void => {
@@ -275,28 +279,70 @@ const NotificationListItemButtons = React.memo(
       []
     );
 
+    const [, userDispatch] = useContext(UserContext);
+
+    const handleReadNotification = useCallback(
+      async (e: React.MouseEvent, id: string, data: AggData) => {
+        if (data?.type === "flagged" && !data?.r) {
+          userDispatch(
+            userReadNotification(
+              "flagged",
+              "users",
+              `${data?.nsfw}%${data?.removed}%${data?.violation}%${id}`
+            )
+          );
+        }
+      },
+      [userDispatch]
+    );
+
+    const handleClose = (): void => {
+      setOpen(false);
+    };
+
+    const handleButtonClick = useCallback(
+      async (e: React.MouseEvent) => {
+        handleBlockRipplePropogation(e);
+        handleReadNotification(e, uid, notificationData);
+        setOpen(true);
+      },
+      [
+        handleBlockRipplePropogation,
+        handleReadNotification,
+        notificationData,
+        setOpen,
+        uid,
+      ]
+    );
+
     if (notificationData?.type === "flagged" && notificationData?.removed) {
       return (
-        <StyledButton
-          variant="outlined"
-          onMouseDown={handleBlockRipplePropogation}
-          onTouchStart={handleBlockRipplePropogation}
-          onClick={handleBlockRipplePropogation}
-        >
-          {`WHY?`}
-        </StyledButton>
+        <>
+          <StyledButton
+            variant="outlined"
+            onMouseDown={handleBlockRipplePropogation}
+            onTouchStart={handleBlockRipplePropogation}
+            onClick={handleButtonClick}
+          >
+            {`WHY?`}
+          </StyledButton>
+          <FlaggedContentDialog open={open} onClose={handleClose} />
+        </>
       );
     }
     if (notificationData?.type === "flagged" && notificationData?.nsfw) {
       return (
-        <StyledButton
-          variant="outlined"
-          onMouseDown={handleBlockRipplePropogation}
-          onTouchStart={handleBlockRipplePropogation}
-          onClick={handleBlockRipplePropogation}
-        >
-          {`WHY?`}
-        </StyledButton>
+        <>
+          <StyledButton
+            variant="outlined"
+            onMouseDown={handleBlockRipplePropogation}
+            onTouchStart={handleBlockRipplePropogation}
+            onClick={handleButtonClick}
+          >
+            {`WHY?`}
+          </StyledButton>
+          <FlaggedContentDialog open={open} onClose={handleClose} />
+        </>
       );
     }
     return null;
@@ -309,12 +355,21 @@ interface NotificationListItemProps {
   connectFromData: AggData;
   connectToData: AggData;
   onLoading?: (isLoading: boolean) => void;
+  open: boolean;
+  setOpen: (openValue: boolean) => void;
 }
 
 const NotificationListItem = React.memo(
   (props: NotificationListItemProps): JSX.Element | null => {
-    const { uid, notificationData, connectFromData, connectToData, onLoading } =
-      props;
+    const {
+      uid,
+      notificationData,
+      connectFromData,
+      connectToData,
+      onLoading,
+      open,
+      setOpen,
+    } = props;
 
     const theme = useTheme();
 
@@ -337,7 +392,7 @@ const NotificationListItem = React.memo(
         await router.push(`/p/${data?.id}`);
         onLoading?.(false);
       },
-      [onLoading, router]
+      [onLoading, router, userDispatch]
     );
 
     if (notificationData?.type === "connects") {
@@ -378,7 +433,12 @@ const NotificationListItem = React.memo(
                 />
               }
             />
-            <NotificationListItemButtons notificationData={notificationData} />
+            <NotificationListItemButtons
+              uid={uid}
+              notificationData={notificationData}
+              open={open}
+              setOpen={setOpen}
+            />
           </StyledListItemButton>
           <StyledItemDivider variant="inset" absolute />
         </StyledListItem>
@@ -400,7 +460,7 @@ const Notifications = React.memo(() => {
   // This is called deconstructing an object, shorthand for const notifications = userState.notifications, and allows you to create variables based on the state of multiple properties of the same Object
 
   const [transitioning, setTransitioning] = useState(false);
-
+  const [open, setOpen] = useState(false);
   // Create array of notification entries so we can iterate over it
   const notificationEntries = Object.entries(notifications || {});
 
@@ -475,6 +535,8 @@ const Notifications = React.memo(() => {
                             connectFromData={connects?.[uid]}
                             connectToData={my_connects?.[connectToID]}
                             onLoading={setTransitioning}
+                            open={open}
+                            setOpen={setOpen}
                           />
                         );
                       })}
@@ -501,6 +563,8 @@ const Notifications = React.memo(() => {
                             connectFromData={connects?.[uid]}
                             connectToData={my_connects?.[connectToID]}
                             onLoading={setTransitioning}
+                            open={open}
+                            setOpen={setOpen}
                           />
                         );
                       })}
