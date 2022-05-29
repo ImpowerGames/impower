@@ -5,4 +5,5 @@ export type NotificationType =
   | "banned"
   | "muted"
   | "suspended"
-  | "flagged";
+  | "flagged"
+  | "unflagged";

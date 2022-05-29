@@ -25,7 +25,7 @@ import ExclamationSolidIcon from "../../../resources/icons/solid/exclamation.svg
 import CircleExclamationSolidIcon from "../../../resources/icons/solid/circle-exclamation.svg";
 import { AggData } from "../../impower-data-state";
 import ConnectionListItem from "./ConnectionListItem";
-import FlaggedContentDialog from "./ViewFlaggedContentWindow";
+import FlaggedContentDialog from "./ViewFlaggedContentWIndow";
 
 import { FontIcon } from "../../impower-icon";
 
@@ -205,6 +205,20 @@ const NotificationListItemIcon = React.memo(
         </ListItemAvatar>
       );
     }
+    if (notificationData.type === "unflagged") {
+      return (
+        <StyledNotificationCircle
+          style={{
+            backgroundColor: "green",
+          }}
+        >
+          <FontIcon>
+            {" "}
+            <BellSolidIcon />{" "}
+          </FontIcon>
+        </StyledNotificationCircle>
+      );
+    }
     return null;
   }
 );
@@ -251,6 +265,42 @@ const NotificationListItemSecondaryText = React.memo(
           }}
         >
           {`${belowSmBreakpoint ? "" : "was marked NSFW — "}${abbreviateAge(
+            new Date(notificationData?.t)
+          )}`}
+        </StyledDescriptionTextArea>
+      );
+    }
+
+    if (notificationData?.type === "unflagged" && notificationData?.removed) {
+      return (
+        <StyledDescriptionTextArea
+          style={{
+            color:
+              notificationStatus === "unread"
+                ? theme.palette.secondary.main
+                : undefined,
+            fontWeight: notificationStatus === "unread" ? 600 : undefined,
+          }}
+        >
+          {`${
+            belowSmBreakpoint ? "" : "is no longer removed — "
+          }${abbreviateAge(new Date(notificationData?.t))}`}
+        </StyledDescriptionTextArea>
+      );
+    }
+
+    if (notificationData?.type === "unflagged" && notificationData?.nsfw) {
+      return (
+        <StyledDescriptionTextArea
+          style={{
+            color:
+              notificationStatus === "unread"
+                ? theme.palette.secondary.main
+                : undefined,
+            fontWeight: notificationStatus === "unread" ? 600 : undefined,
+          }}
+        >
+          {`${belowSmBreakpoint ? "" : "is no longer NSFW — "}${abbreviateAge(
             new Date(notificationData?.t)
           )}`}
         </StyledDescriptionTextArea>
@@ -326,7 +376,12 @@ const NotificationListItemButtons = React.memo(
           >
             {`WHY?`}
           </StyledButton>
-          <FlaggedContentDialog open={open} onClose={handleClose} />
+          <FlaggedContentDialog
+            open={open}
+            onClose={handleClose}
+            nsfw={true}
+            removed={true}
+          />
         </>
       );
     }
@@ -341,7 +396,12 @@ const NotificationListItemButtons = React.memo(
           >
             {`WHY?`}
           </StyledButton>
-          <FlaggedContentDialog open={open} onClose={handleClose} />
+          <FlaggedContentDialog
+            open={open}
+            onClose={handleClose}
+            nsfw={true}
+            removed={false}
+          />
         </>
       );
     }
@@ -407,7 +467,10 @@ const NotificationListItem = React.memo(
         />
       );
     }
-    if (notificationData?.type === "flagged") {
+    if (
+      notificationData?.type === "flagged" ||
+      notificationData?.type === "unflagged"
+    ) {
       return (
         <StyledListItem
           style={{
@@ -433,12 +496,14 @@ const NotificationListItem = React.memo(
                 />
               }
             />
-            <NotificationListItemButtons
-              uid={uid}
-              notificationData={notificationData}
-              open={open}
-              setOpen={setOpen}
-            />
+            {notificationData?.type === "flagged" && (
+              <NotificationListItemButtons
+                uid={uid}
+                notificationData={notificationData}
+                open={open}
+                setOpen={setOpen}
+              />
+            )}
           </StyledListItemButton>
           <StyledItemDivider variant="inset" absolute />
         </StyledListItem>
