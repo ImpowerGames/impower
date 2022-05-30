@@ -23,6 +23,7 @@ import { UserContext, userReadNotification } from "../../impower-user";
 import BellSolidIcon from "../../../resources/icons/solid/bell.svg";
 import ExclamationSolidIcon from "../../../resources/icons/solid/exclamation.svg";
 import CircleExclamationSolidIcon from "../../../resources/icons/solid/circle-exclamation.svg";
+import CheckSolidIcon from "../../../resources/icons/solid/check.svg";
 import { AggData } from "../../impower-data-state";
 import ConnectionListItem from "./ConnectionListItem";
 import FlaggedContentDialog from "./ViewFlaggedContentWIndow";
@@ -214,7 +215,7 @@ const NotificationListItemIcon = React.memo(
         >
           <FontIcon>
             {" "}
-            <BellSolidIcon />{" "}
+            <CheckSolidIcon />{" "}
           </FontIcon>
         </StyledNotificationCircle>
       );
@@ -443,6 +444,15 @@ const NotificationListItem = React.memo(
           userDispatch(
             userReadNotification(
               "flagged",
+              "users",
+              `${data?.nsfw}%${data?.removed}%${data?.violation}%${id}`
+            )
+          );
+        }
+        if (data?.type === "unflagged" && !data?.r) {
+          userDispatch(
+            userReadNotification(
+              "unflagged",
               "users",
               `${data?.nsfw}%${data?.removed}%${data?.violation}%${id}`
             )
