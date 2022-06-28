@@ -117,6 +117,7 @@ const LogicScriptEditor = React.memo(
     const gameRef = useRef(game);
     gameRef.current = game;
 
+    const [ready, setReady] = useState(false);
     const [parseResultState, setParseResultState] =
       useState<SparkParseResult>();
     const [executingCursor, setExecutingCursor] = useState<{
@@ -210,6 +211,10 @@ const LogicScriptEditor = React.memo(
       debounce(handleSaveEditorChange, 1000),
       [handleSaveEditorChange]
     );
+
+    const handleUpdate = useCallback(() => {
+      setReady(true);
+    }, []);
 
     const handleEditorUpdate = useCallback(
       (value: string, state: SerializableEditorState) => {
@@ -491,7 +496,7 @@ const LogicScriptEditor = React.memo(
         <StyledContainerScriptEditor style={backgroundStyle}>
           {(transitionState === "idle" ||
             (transitionState === "exit" && !initial)) && (
-            <StyledFadeAnimation initial={0} animate={1}>
+            <StyledFadeAnimation initial={0} animate={ready ? 1 : 0}>
               <ScriptEditor
                 defaultValue={defaultValue}
                 defaultState={editor}
@@ -508,6 +513,7 @@ const LogicScriptEditor = React.memo(
                 scrollTopLineOffset={-3}
                 cursor={executingCursor}
                 style={style}
+                onUpdate={handleUpdate}
                 onEditorUpdate={handleEditorUpdate}
                 onDocChange={handleDocChange}
                 onParse={handleScriptParse}
