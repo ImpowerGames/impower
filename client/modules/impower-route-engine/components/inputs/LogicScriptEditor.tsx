@@ -212,7 +212,7 @@ const LogicScriptEditor = React.memo(
       [handleSaveEditorChange]
     );
 
-    const handleReady = useCallback(() => {
+    const handleUpdate = useCallback(() => {
       setReady(true);
     }, []);
 
@@ -513,7 +513,7 @@ const LogicScriptEditor = React.memo(
                 scrollTopLineOffset={-3}
                 cursor={executingCursor}
                 style={style}
-                onReady={handleReady}
+                onUpdate={handleUpdate}
                 onEditorUpdate={handleEditorUpdate}
                 onDocChange={handleDocChange}
                 onParse={handleScriptParse}

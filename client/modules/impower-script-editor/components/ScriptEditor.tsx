@@ -227,7 +227,6 @@ interface ScriptEditorProps {
   topPanelsContainer?: HTMLElement;
   bottomPanelsContainer?: HTMLElement;
   style?: React.CSSProperties;
-  onReady?: (update: ViewUpdate) => void;
   onUpdate?: (update: ViewUpdate) => void;
   onEditorUpdate?: (value: string, state?: SerializableEditorState) => void;
   onDocChange?: (value: string, changes: SerializableChangeSet) => void;
@@ -273,7 +272,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     cursor,
     topPanelsContainer,
     bottomPanelsContainer,
-    onReady,
     onUpdate,
     onEditorUpdate,
     onDocChange,
@@ -316,8 +314,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
   const defaultScrollTopLineRef = useRef(defaultScrollTopLine);
   const defaultStateRef = useRef(defaultState);
   defaultStateRef.current = defaultState;
-  const onReadyRef = useRef(onReady);
-  onReadyRef.current = onReady;
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
   const onEditorUpdateRef = useRef(onEditorUpdate);
@@ -509,12 +505,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           const parsed = syntaxTreeAvailable(u.state);
           if (parsed) {
             readyRef.current = true;
-            onReadyRef.current?.(u);
             setReady(readyRef.current);
           }
-          if (onUpdateRef.current) {
-            onUpdateRef.current(u);
-          }
+          onUpdateRef.current?.(u);
           const json: {
             history: SerializableHistoryState;
             folded: SerializableFoldedState;
