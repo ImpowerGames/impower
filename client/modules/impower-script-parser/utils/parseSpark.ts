@@ -2744,11 +2744,13 @@ export const parseSpark = (
       } else {
         currentToken.type = "action";
         if (currentToken.type === "action") {
+          if (previousToken?.type === "assets") {
+            previousToken.type = "action_asset" as "assets";
+            previousToken.skipPreview = true;
+            currentToken.assets = [...previousToken.assets];
+          }
           processDisplayedContent(currentToken);
           saveAndClearAssets();
-        }
-        if (previousToken?.type === "assets") {
-          previousToken.type = "action_asset" as "assets";
         }
       }
     } else if (state === "dialogue") {
