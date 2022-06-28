@@ -57,9 +57,10 @@ export interface SparkTokenTypeMap {
   "video": SparkAssetToken;
   "text": SparkAssetToken;
 
-  "ui": SparkEntityToken;
-  "object": SparkEntityToken;
-  "enum": SparkEntityToken;
+  "list": SparkEntityToken;
+  "map": SparkEntityToken;
+  "struct": SparkEntityToken;
+  "config": SparkEntityToken;
 
   "centered": SparkCenteredToken;
   "tag": SparkTagToken;

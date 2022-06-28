@@ -108,16 +108,20 @@ export const lowercaseParagraphSnippets: readonly Completion[] = [
     label: "text",
     type: "asset",
   }),
-  snip("enum ${}${EnumName}:${}", {
-    label: "enum",
+  snip("list ${}${ListName}:${}", {
+    label: "list",
     type: "entity",
   }),
-  snip("object ${}${ObjectName}:${}", {
-    label: "object",
+  snip("map ${}${MapName}:${}", {
+    label: "map",
     type: "entity",
   }),
-  snip("ui ${}${UiName}:${}", {
-    label: "ui",
+  snip("struct ${}${StructName}:${}", {
+    label: "struct",
+    type: "entity",
+  }),
+  snip("config ${}${ConfigName}:${}", {
+    label: "config",
     type: "entity",
   }),
 ];

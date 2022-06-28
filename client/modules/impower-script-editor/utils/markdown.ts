@@ -174,7 +174,8 @@ export function isTag(line: Line): RegExpMatchArray {
 
 export function isEntity(line: Line): RegExpMatchArray {
   if (
-    line.next !== "e".charCodeAt(0) &&
+    line.next !== "l".charCodeAt(0) &&
+    line.next !== "m".charCodeAt(0) &&
     line.next !== "s".charCodeAt(0) &&
     line.next !== "c".charCodeAt(0)
   ) {
@@ -192,6 +193,11 @@ export function isEntityObjectField(line: Line): RegExpMatchArray {
 export function isEntityValueField(line: Line): RegExpMatchArray {
   const text = stripComments(line.text);
   return text.match(sparkRegexes.entity_value_field);
+}
+
+export function isEntityListValue(line: Line): RegExpMatchArray {
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.entity_list_value);
 }
 
 export function isVariable(line: Line): RegExpMatchArray {

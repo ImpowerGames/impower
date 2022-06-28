@@ -95,6 +95,20 @@ export const DefaultSkipMarkup: {
     }
     return true;
   },
+  [Type.Entity](_bl, cx, line): boolean {
+    const entity = isEntity(line);
+    if (!entity && line.indent < line.baseIndent + 2) {
+      return false;
+    }
+    return true;
+  },
+  [Type.EntityList](_bl, cx, line): boolean {
+    const entity = isEntity(line);
+    if (!entity && line.indent < line.baseIndent + 2) {
+      return false;
+    }
+    return true;
+  },
   [Type.ListItem](bl, _cx, line) {
     if (line.indent < line.baseIndent + bl.value && line.next > -1) {
       return false;

@@ -1,22 +1,10 @@
 import { SparkParseResult } from "../types/SparkParseResult";
+import { getEntityContext } from "./getEntityContext";
 
 export const getGlobalEvaluationContext = (
   result: SparkParseResult
 ): Record<string, unknown> => {
-  const entityValues: Record<string, unknown> = {};
-  Object.values(result?.entities || {}).forEach((e) => {
-    let curr = e;
-    while (curr) {
-      const name = curr?.name;
-      Object.entries(curr.fields).forEach(([k, v]) => {
-        const id = name + k;
-        if (entityValues[id] === undefined) {
-          entityValues[id] = v.value;
-        }
-      });
-      curr = result?.entities?.[curr.base];
-    }
-  });
+  const [, entityValues] = getEntityContext(result?.entities);
   const sectionValues: Record<string, number> = {};
   Object.keys(result?.sections || {}).forEach((id) => {
     sectionValues[id] = 0;

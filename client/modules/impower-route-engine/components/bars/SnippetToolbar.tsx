@@ -15,10 +15,12 @@ import AlignCenterRegularIcon from "../../../../resources/icons/regular/align-ce
 import ArrowRightToBracketRegularIcon from "../../../../resources/icons/regular/arrow-right-to-bracket.svg";
 import ArrowUpLeftFromCircleRegularIcon from "../../../../resources/icons/regular/arrow-up-left-from-circle.svg";
 import ArrowUpToLineRegularIcon from "../../../../resources/icons/regular/arrow-up-to-line.svg";
+import BarsStaggeredRegularIcon from "../../../../resources/icons/regular/bars-staggered.svg";
 import BinaryRegularIcon from "../../../../resources/icons/regular/binary.svg";
 import BoldRegularIcon from "../../../../resources/icons/regular/bold.svg";
 import BracketsCurlyRegularIcon from "../../../../resources/icons/regular/brackets-curly.svg";
 import BracketsRoundRegularIcon from "../../../../resources/icons/regular/brackets-round.svg";
+import CircleERegularIcon from "../../../../resources/icons/regular/circle-e.svg";
 import CirclePlusRegularIcon from "../../../../resources/icons/regular/circle-plus.svg";
 import CircleXRegularIcon from "../../../../resources/icons/regular/circle-x.svg";
 import ClapperboardRegularIcon from "../../../../resources/icons/regular/clapperboard.svg";
@@ -32,14 +34,13 @@ import IslandTropicalRegularIcon from "../../../../resources/icons/regular/islan
 import ItalicRegularIcon from "../../../../resources/icons/regular/italic.svg";
 import ListCheckRegularIcon from "../../../../resources/icons/regular/list-check.svg";
 import ListOlRegularIcon from "../../../../resources/icons/regular/list-ol.svg";
-import ListRadioRegularIcon from "../../../../resources/icons/regular/list-radio.svg";
-import ListTimelineRegularIcon from "../../../../resources/icons/regular/list-timeline.svg";
 import ListTreeRegularIcon from "../../../../resources/icons/regular/list-tree.svg";
+import ListUlRegularIcon from "../../../../resources/icons/regular/list-ul.svg";
 import MessageDotsRegularIcon from "../../../../resources/icons/regular/message-dots.svg";
 import ShareFromSquareBracketRegularIcon from "../../../../resources/icons/regular/share-from-square.svg";
 import SplitRegularIcon from "../../../../resources/icons/regular/split.svg";
+import TableListRegularIcon from "../../../../resources/icons/regular/table-list.svg";
 import UnderlineRegularIcon from "../../../../resources/icons/regular/underline.svg";
-import UserRegularIcon from "../../../../resources/icons/regular/user.svg";
 import VolumeRegularIcon from "../../../../resources/icons/regular/volume.svg";
 import CaretDownSolidIcon from "../../../../resources/icons/solid/caret-down.svg";
 import { FontIcon } from "../../../impower-icon";
@@ -57,7 +58,7 @@ const categories: {
   icon: React.ReactNode;
 }[] = [
   { type: "screenplay", name: "Screenplay", icon: <ClapperboardRegularIcon /> },
-  { type: "entity", name: "Entity", icon: <UserRegularIcon /> },
+  { type: "entity", name: "Entity", icon: <CircleERegularIcon /> },
   { type: "world", name: "World", icon: <IslandTropicalRegularIcon /> },
   { type: "flow", name: "Flow", icon: <SplitRegularIcon /> },
   { type: "data", name: "Data", icon: <BinaryRegularIcon /> },
@@ -405,7 +406,7 @@ const FlowToolbar = React.memo((props: ToolbarProps): JSX.Element => {
           onPointerLeave={(e): void => onPointerLeave?.(e, "choice")}
         >
           <FontIcon aria-label={`choice`}>
-            <ListOlRegularIcon />
+            <TableListRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
@@ -537,15 +538,27 @@ const EntityToolbar = React.memo((props: ToolbarProps): JSX.Element => {
       onPointerDown={onPointerDown}
       onChange={onChange}
     >
-      <Tooltip title="enum" placement="top" arrow>
+      <Tooltip title="list" placement="top" arrow>
         <StyledMainToggleButton
-          value="enum"
-          aria-label="enum"
-          onPointerEnter={(e): void => onPointerEnter?.(e, "enum")}
-          onPointerLeave={(e): void => onPointerLeave?.(e, "enum")}
+          value="list"
+          aria-label="list"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "list")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "list")}
         >
-          <FontIcon aria-label={`enum`}>
-            <ListRadioRegularIcon />
+          <FontIcon aria-label={`list`}>
+            <ListOlRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="map" placement="top" arrow>
+        <StyledMainToggleButton
+          value="map"
+          aria-label="map"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "map")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "map")}
+        >
+          <FontIcon aria-label={`map`}>
+            <ListUlRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
@@ -569,7 +582,7 @@ const EntityToolbar = React.memo((props: ToolbarProps): JSX.Element => {
           onPointerLeave={(e): void => onPointerLeave?.(e, "config")}
         >
           <FontIcon aria-label={`config`}>
-            <ListTimelineRegularIcon />
+            <BarsStaggeredRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>

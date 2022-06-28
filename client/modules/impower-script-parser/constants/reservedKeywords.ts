@@ -6,7 +6,8 @@ export const types = [
   "text",
   "video",
   "tag",
-  "enum",
+  "list",
+  "map",
   "struct",
   "config",
 ];

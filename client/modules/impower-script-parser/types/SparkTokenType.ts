@@ -44,6 +44,7 @@ export type SparkOtherTokenType =
   | "repeat"
   | "entity_object_field"
   | "entity_value_field"
+  | "entity_list_value"
   | SparkTitleKeyword;
 
 export type SparkTokenType =

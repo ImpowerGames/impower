@@ -3,6 +3,7 @@
 /* eslint-disable no-continue */
 import { compile, format } from "../../impower-evaluate";
 import { displayTokenTypes } from "../constants/displayTokenTypes";
+import { entityTypes } from "../constants/entityTypes";
 import { flowTokenTypes } from "../constants/flowTokenTypes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
 import { reservedKeywords } from "../constants/reservedKeywords";
@@ -805,6 +806,10 @@ export const parseSpark = (
     if (!expression) {
       return [undefined, undefined];
     }
+    const [, entity] = findEntity(expression);
+    if (entity) {
+      return [{ name: entity.name, type: entity.type }, true];
+    }
     const { name } = getExpressionCallNameAndValues(
       "function",
       expression,
@@ -1314,7 +1319,10 @@ export const parseSpark = (
     });
     const [value] = getVariableExpressionValue(valueText, valueFrom, valueTo);
     const validValue = value != null ? value : "";
-    const validType = typeof validValue as SparkVariableType;
+    const validType =
+      typeof validValue === "object"
+        ? (validValue as { type: SparkEntityType })?.type
+        : (typeof validValue as SparkVariableType);
     const item: SparkVariable = {
       ...(parsed?.variables?.[id] || {}),
       from: nameFrom,
@@ -1351,45 +1359,45 @@ export const parseSpark = (
     if (!parsed.entities) {
       parsed.entities = {};
     }
-    const fieldId = `${currentEntityFieldId
-      .split(".")
-      .slice(0, indent)
-      .join(".")}.${name}`;
-    const parts = fieldId.split(".");
-    const entityName = parts.shift();
-    const id = `.${parts.join(".")}`;
-
-    lintName(name, nameFrom, nameTo);
-    if (!parsed.references[line]) {
-      parsed.references[line] = [];
-    }
-    parsed.references[line].push({
-      from: nameFrom,
-      to: nameTo,
-      name,
-      id,
-      declaration: true,
-    });
+    const entityName = currentEntityFieldId.split(".")[0];
     const entity = parsed.entities[entityName];
     if (entity) {
       if (!entity.fields) {
         entity.fields = {};
       }
+      const index = Object.keys(entity.fields).length;
+      const validName = name || String(index);
+      const fieldId = `${currentEntityFieldId
+        .split(".")
+        .slice(0, indent)
+        .join(".")}.${validName}`;
+      const parts = fieldId.split(".");
+      parts.shift();
+      const id = `.${parts.join(".")}`;
+
+      lintName(validName, nameFrom, nameTo);
+      if (!parsed.references[line]) {
+        parsed.references[line] = [];
+      }
+      parsed.references[line].push({
+        from: nameFrom,
+        to: nameTo,
+        name,
+        id,
+        declaration: true,
+      });
       const found = entity.fields[id];
       if (found) {
         lintNameUnique("field", found, nameFrom, nameTo);
       } else {
+        const defaultValue =
+          entity?.type === "list" || entity?.type === "map" ? validName : "";
         const [value, valid] = getVariableExpressionValue(
           valueText,
           valueFrom,
           valueTo
         );
         const hasValueText = Boolean(valueText?.trim());
-        const isValid = !hasValueText || valid;
-        if (!isValid) {
-          return;
-        }
-        const defaultValue = entity?.type === "enum" ? name : "";
         const validValue = value != null ? value : defaultValue;
         const validType = typeof validValue as SparkVariableType;
         const item: SparkField = {
@@ -1397,17 +1405,19 @@ export const parseSpark = (
           from: nameFrom,
           to: nameTo,
           line,
-          name,
+          name: validName,
           type: validType,
           value: validValue,
         };
         let curr =
-          entity?.type === "enum" ? entity : parsed.entities[entity.base];
+          entity?.type === "list" || entity?.type === "map"
+            ? entity
+            : parsed.entities[entity.base];
         if (curr) {
           let baseField: SparkField;
           while (curr) {
             const fieldIds =
-              entity?.type === "enum"
+              entity?.type === "list" || entity?.type === "map"
                 ? Object.keys(curr.fields).reverse()
                 : [id];
             for (let i = 0; i < fieldIds.length; i += 1) {
@@ -1422,15 +1432,17 @@ export const parseSpark = (
             }
             curr = parsed.entities[curr.base];
           }
+          const isValid = !hasValueText || valid;
           if (
-            valid !== false &&
+            isValid &&
+            validType &&
             baseField?.type &&
             validType !== baseField?.type
           ) {
             diagnostic(
               currentToken,
-              entity?.type === "enum"
-                ? `All enum fields must be the same type`
+              entity?.type === "list"
+                ? `All list values must be the same type`
                 : `Cannot assign a '${validType}' to a '${baseField?.type}' field`,
               [
                 {
@@ -1952,7 +1964,10 @@ export const parseSpark = (
       }
     } else if ((match = currentToken.content.match(sparkRegexes.entity))) {
       const type = match[2] as SparkEntityType;
-      state = type;
+      const colon = match[12] || "";
+      if (colon) {
+        state = type;
+      }
       currentToken.type = type;
       if (currentToken.type === type) {
         const name = match[4] || "";
@@ -1975,11 +1990,20 @@ export const parseSpark = (
         }
         currentEntityFieldId = name;
       }
-    } else if (
-      (state === "enum" || state === "struct" || state === "config") &&
-      currentToken.content?.trim()
-    ) {
+    } else if (entityTypes.includes(state) && currentToken.content?.trim()) {
       if (
+        (match = currentToken.content.match(sparkRegexes.entity_object_field))
+      ) {
+        currentToken.type = "entity_object_field";
+        if (currentToken.type === "entity_object_field") {
+          const name = match[2] || "";
+          currentEntityFieldId = `${currentEntityFieldId
+            .split(".")
+            .slice(0, currentToken.indent)
+            .join(".")}.${name}`;
+        }
+      } else if (
+        state !== "list" &&
         (match = currentToken.content.match(sparkRegexes.entity_value_field))
       ) {
         currentToken.type = "entity_value_field";
@@ -2002,15 +2026,26 @@ export const parseSpark = (
           );
         }
       } else if (
-        (match = currentToken.content.match(sparkRegexes.entity_object_field))
+        state === "list" &&
+        (match = currentToken.content.match(sparkRegexes.entity_list_value))
       ) {
-        currentToken.type = "entity_object_field";
-        if (currentToken.type === "entity_object_field") {
-          const name = match[2] || "";
-          currentEntityFieldId = `${currentEntityFieldId
-            .split(".")
-            .slice(0, currentToken.indent)
-            .join(".")}.${name}`;
+        if (state === "list") {
+          currentToken.type = "entity_list_value";
+          if (currentToken.type === "entity_list_value") {
+            const valueText = match[2] || "";
+            const valueFrom = currentToken.from + getStart(match, 2);
+            const valueTo = valueFrom + valueText.length;
+            addField(
+              undefined,
+              valueText,
+              currentToken.line,
+              currentToken.indent,
+              valueFrom,
+              valueTo,
+              valueFrom,
+              valueTo
+            );
+          }
         }
       }
     } else if ((match = currentToken.content.match(sparkRegexes.tag))) {
@@ -2519,9 +2554,12 @@ export const parseSpark = (
         lint(sparkRegexes.asset);
       } else if ((match = currentToken.content.match(sparkRegexes.entity))) {
         const type = match[2] as SparkEntityType;
+        const colon = match[12] || "";
+        if (colon) {
+          state = type;
+        }
         currentToken.type = type;
         lint(sparkRegexes.entity);
-        state = type;
       } else if ((match = currentToken.content.match(sparkRegexes.tag))) {
         currentToken.type = "tag";
         lint(sparkRegexes.tag);
@@ -2752,11 +2790,18 @@ export const parseSpark = (
           currentToken.wait = true;
         }
       }
-    } else if (
-      (state === "enum" || state === "struct" || state === "config") &&
-      currentToken.content?.trim()
-    ) {
+    } else if (entityTypes.includes(state) && currentToken.content?.trim()) {
       if (
+        (match = currentToken.content.match(sparkRegexes.entity_object_field))
+      ) {
+        if (state === "list" || state === "map") {
+          diagnostic(currentToken, `Cannot declare object field in ${state}`);
+        } else {
+          currentToken.type = "entity_object_field";
+          lint(sparkRegexes.entity_object_field);
+        }
+      } else if (
+        state !== "list" &&
         (match = currentToken.content.match(sparkRegexes.entity_value_field))
       ) {
         currentToken.type = "entity_value_field";
@@ -2764,16 +2809,15 @@ export const parseSpark = (
           lint(sparkRegexes.entity_value_field);
         }
       } else if (
-        (match = currentToken.content.match(sparkRegexes.entity_object_field))
+        state === "list" &&
+        (match = currentToken.content.match(sparkRegexes.entity_list_value))
       ) {
-        if (state === "enum") {
-          diagnostic(currentToken, "Cannot declare object field in enum");
-        } else {
-          currentToken.type = "entity_object_field";
-          lint(sparkRegexes.entity_object_field);
+        currentToken.type = "entity_list_value";
+        if (currentToken.type === "entity_list_value") {
+          lint(sparkRegexes.entity_list_value);
         }
       } else {
-        diagnostic(currentToken, `Invalid ${state} syntax`);
+        diagnostic(currentToken, `Invalid ${state} field syntax`);
       }
     }
 
@@ -2919,5 +2963,6 @@ export const parseSpark = (
   ) {
     parsed.scriptTokens.pop();
   }
+  // console.log(parsed);
   return parsed;
 };

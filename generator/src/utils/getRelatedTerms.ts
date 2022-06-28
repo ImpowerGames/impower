@@ -42,7 +42,9 @@ export const getRelatedTerms = async (
 
   const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
 
-  const targetTags = tags?.length > 0 ? tags : Object.keys(tagTerms);
+  const targetTags = tags?.length > 0 ? ["<>"] : Object.keys(tagTerms);
+  const targetTagTerms =
+    tags?.length > 0 ? { "<>": tags, ...tagTerms } : tagTerms;
 
   bar.start(targetTags.length * 2 + words.length);
 
@@ -51,7 +53,7 @@ export const getRelatedTerms = async (
     bar.update(index);
     // Get all existing related terms to this tag,
     // making sure to unpack any referential tags (i.e. tags that start with ">")
-    conceptVecs[tag] = vectorizeTag(tag, tagTerms, wordVecs);
+    conceptVecs[tag] = vectorizeTag(tag, targetTagTerms, wordVecs);
   });
 
   const unpackedTagTerms: { [tag: string]: string[] } = {};
@@ -59,7 +61,7 @@ export const getRelatedTerms = async (
     bar.update(targetTags.length + index);
     // Get all existing related terms to this tag in all it's possible forms
     // (past/present/future tenses, possessive, negated, etc.)
-    unpackedTagTerms[tag] = unpackTag(tag, tagTerms, true);
+    unpackedTagTerms[tag] = unpackTag(tag, targetTagTerms, true);
   });
 
   words.forEach((word, index) => {
@@ -109,7 +111,7 @@ export const getRelatedTerms = async (
   bar.stop();
 
   const getReferencesCount = (tag) =>
-    tagTerms[tag].filter((term) => term.startsWith(">")).length;
+    targetTagTerms[tag]?.filter((term) => term.startsWith(">")).length || 0;
 
   const suggestedTagTerms = getReversedOccuranceMap(termTags);
 

@@ -60,8 +60,8 @@ export const sparkTooltip = (
 
       if (runtimeValue != null) {
         const input = document.createElement("input");
-        const isString =
-          typeof (item as { value: unknown })?.value === "string";
+        const itemValue = (item as { value: unknown })?.value;
+        const isString = typeof itemValue === "string";
         input.style.maxWidth = isString ? undefined : "48px";
         input.style.backgroundColor = "transparent";
         input.style.color = "white";
@@ -71,7 +71,8 @@ export const sparkTooltip = (
           item?.type !== "string" &&
           item?.type !== "number" &&
           item?.type !== "boolean" &&
-          item?.type !== "enum" &&
+          item?.type !== "list" &&
+          item?.type !== "map" &&
           item?.type !== "struct" &&
           item?.type !== "config";
         if (input.readOnly) {

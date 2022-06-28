@@ -15,7 +15,8 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   parenthetical: "(${tone})\n${}",
   transition: "\n${CUT} TO:\n${}",
 
-  enum: "\nenum ${EnumName}:\n  ${}",
+  list: "\nlist ${ListName}:\n  ${}",
+  map: "\nmap ${MapName}:\n  ${}",
   struct: "\nstruct ${StructName}:\n  ${}",
   config: "\nconfig ${ConfigName}:\n  ${}",
 

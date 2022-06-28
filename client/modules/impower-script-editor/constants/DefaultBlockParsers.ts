@@ -27,6 +27,7 @@ import {
   isComment,
   isCondition,
   isEntity,
+  isEntityListValue,
   isEntityObjectField,
   isEntityValueField,
   isFencedCode,
@@ -167,8 +168,8 @@ export const DefaultBlockParsers: {
     let from = 0;
     let to = from;
 
-    const mark = match[2] || "";
-    const markSpace = match[3] || "";
+    const type = match[2] || "";
+    const typeSpace = match[3] || "";
     const name = match[4] || "";
     const nameSpace = match[5] || "";
     const openMark = match[6] || "";
@@ -179,12 +180,16 @@ export const DefaultBlockParsers: {
     const closeMarkSpace = match[11] || "";
     const colon = match[12] || "";
     const colonSpace = match[13] || "";
+    if (colon) {
+      cx.startContext(Type.Entity, line.basePos, line.next);
+      if (type === "list") {
+        cx.startContext(Type.EntityList, line.basePos, line.next);
+      }
+    }
 
-    cx.startContext(Type.Entity, line.basePos, line.next);
-
-    if (mark || markSpace) {
+    if (type || typeSpace) {
       from = to;
-      to = from + mark.length + markSpace.length;
+      to = from + type.length + typeSpace.length;
       buf = buf.write(Type.EntityMark, from, to);
     }
     if (name || nameSpace) {
@@ -223,7 +228,7 @@ export const DefaultBlockParsers: {
     return true;
   },
 
-  Field(cx, line) {
+  EntityListValue(cx, line) {
     if (!inBlockContext(cx, Type.Entity)) {
       return false;
     }
@@ -232,6 +237,45 @@ export const DefaultBlockParsers: {
     let from = 0;
     let to = from;
 
+    if (inBlockContext(cx, Type.EntityList)) {
+      const listValueMatch = isEntityListValue(line);
+      if (listValueMatch) {
+        const value = listValueMatch[2] || "";
+        const valueSpace = listValueMatch[3] || "";
+        const operator = listValueMatch[4] || "";
+        const operatorSpace = listValueMatch[5] || "";
+        if (value) {
+          from = to;
+          to = from + value.length;
+          buf = buf.write(Type.EntityFieldValue, from, to);
+          const expression = line.text.slice(line.pos + from, line.pos + to);
+          buf = parseExpression(buf, expression, from, to);
+        }
+        if (valueSpace) {
+          from = to;
+          to = from + valueSpace.length;
+        }
+        if (operator) {
+          from = to;
+          to = from + operator.length;
+          buf = buf.write(Type.EntityOperator, from, to);
+        }
+        if (operatorSpace) {
+          from = to;
+          to = from + operatorSpace.length;
+        }
+        from = to;
+        to = line.text.length - line.pos;
+        if (to > from) {
+          buf = buf.write(Type.Comment, from, to);
+        }
+        const node = buf.finish(Type.EntityField, line.text.length - line.pos);
+        cx.addNode(node, cx.lineStart + line.pos);
+        cx.nextLine();
+        return true;
+      }
+      return false;
+    }
     const valueFieldMatch = isEntityValueField(line);
     if (valueFieldMatch) {
       const name = valueFieldMatch[2] || "";

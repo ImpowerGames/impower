@@ -43,7 +43,7 @@ export const sparkRegexes = {
     /^([ \t]*)(image|audio|video|text)($|[ ]+)($|[a-zA-Z]+[\w]*)([ ]*)(?:($|[=])($|[ ]*)($|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[a-zA-Z]+[\w]*))?([ ]*)$/,
   tag: /^([ \t]*)(tag)($|[ ]+)($|[a-zA-Z]+[\w]*)([ ]*)(?:($|[=])($|[ ]*)($|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[a-zA-Z]+[\w]*))?([ ]*)$/,
   entity:
-    /^([ \t]*)(enum|struct|config)($|[ ]+)($|[a-zA-Z]+[\w]*)([ ]*)(?:([(])([ ]*)($|[a-zA-Z]+[\w]*)([ ]*)($|[)]))?([ ]*)($|[:])([ ]*)$/,
+    /^([ \t]*)(list|map|struct|config)($|[ ]+)($|[a-zA-Z]+[\w]*)([ ]*)(?:([(])([ ]*)($|[a-zA-Z]+[\w]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$/,
 
   synopses: /^([ \t]*)(?![=]{3,})([=])([ ]*)(.*)([ ]*)$/,
 
@@ -55,9 +55,10 @@ export const sparkRegexes = {
   number: /^([\d]*[.][\d]*|[\d]+)$/,
   variableAccess:
     /^(?!true$|false$)([a-zA-Z]+[\w]*)((?:[.](?:$|[a-zA-Z]+[\w]*))*)$/,
-  entity_object_field: /^([ \t]*)($|[a-zA-Z]+[\w]*)([ ]*)($|[:])([ ]*)$/,
+  entity_object_field: /^([ \t]*)([a-zA-Z]+[\w]*)([ ]*)([:])([ ]*)$/,
   entity_value_field:
     /^([ \t]*)($|[a-zA-Z]+[\w]*)([ ]*)(?:$|($|[=])([ ]*)($|[^\n\r]+)([ ]*))?$/,
+  entity_list_value: /^([ \t]*)($|[^\n\r]+)([ ]*)$/,
   interpolation_splitter: /([$]?[{][ ]*[^\n\r{}]*[ ]*[}])/g,
   interpolation_token: /^([$]?[{])([ ]*)([^\n\r{}]*)([ ]*)([}])$/,
   parameter_declaration:

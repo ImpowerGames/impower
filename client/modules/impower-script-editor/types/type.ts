@@ -51,6 +51,7 @@ export enum Type {
   AssetVideoValue,
   AssetTextValue,
   Entity,
+  EntityList,
   EntityName,
   EntityColon,
   EntityOperator,
