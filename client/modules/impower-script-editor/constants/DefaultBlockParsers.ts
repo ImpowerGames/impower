@@ -953,17 +953,16 @@ export const DefaultBlockParsers: {
     let to = from;
 
     const prefix = match[2] || "";
-    const prefixSpace = match[3] || "";
-    const location = match[4] || "";
-    const locationSpace = match[5] || "";
-    const separator = match[6] || "";
-    const separatorSpace = match[7] || "";
-    const time = match[8] || "";
-    const timeSpace = match[9] || "";
-    const numberOpenMark = match[10] || "";
-    const number = match[11] || "";
-    const numberCloseMark = match[12] || "";
-    const numberCloseMarkSpace = match[13] || "";
+    const location = match[3] || "";
+    const locationSpace = match[4] || "";
+    const separator = match[5] || "";
+    const separatorSpace = match[6] || "";
+    const time = match[7] || "";
+    const timeSpace = match[8] || "";
+    const numberOpenMark = match[9] || "";
+    const number = match[10] || "";
+    const numberCloseMark = match[11] || "";
+    const numberCloseMarkSpace = match[12] || "";
 
     cx.startContext(Type.Display, line.basePos, line.next);
 
@@ -979,18 +978,6 @@ export const DefaultBlockParsers: {
         from = to;
         to = from + prefix.length;
         buf = buf.write(Type.ScenePrefix, from, to);
-      }
-    }
-    if (prefixSpace) {
-      from = to;
-      to = from + prefixSpace.length;
-      if (!match.slice(4).join("")) {
-        to = from;
-        for (let i = 0; i < prefixSpace.length; i += 1) {
-          from = to;
-          to = from + 1;
-          buf = buf.write(Type.Pause, from, to);
-        }
       }
     }
     if (location) {

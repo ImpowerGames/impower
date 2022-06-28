@@ -2240,14 +2240,14 @@ export const parseSpark = (
       if ((match = currentToken.content.match(sparkRegexes.scene))) {
         currentToken.type = "scene";
         if (currentToken.type === "scene") {
-          const scene = match[11] || "";
-          const locationText = match[4] || "";
-          const time = match[8] || "";
+          const scene = match[10] || "";
+          const locationText = match[3] || "";
+          const time = match[7] || "";
           const location = locationText.startsWith(".")
             ? locationText.substring(1)
             : locationText;
           const content = match
-            .slice(2, 10)
+            .slice(2, 9)
             .map((x) => x || "")
             .join("");
           const extraOffset = content.startsWith(".") ? 1 : 0;
