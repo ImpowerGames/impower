@@ -125,6 +125,7 @@ export interface SparkActionAssetToken extends SparkDisplayToken {
 
 export interface SparkDialogueAssetToken extends SparkDisplayToken {
   type: SparkDialogueAssetTokenType;
+  position: "left" | "right";
 }
 
 export interface SparkPositionToken extends SparkDisplayToken {

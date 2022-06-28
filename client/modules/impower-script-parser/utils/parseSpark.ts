@@ -2664,7 +2664,8 @@ export const parseSpark = (
             while (
               lastCharacterToken?.type === "character" ||
               lastCharacterToken?.type === "parenthetical" ||
-              lastCharacterToken?.type === "dialogue"
+              lastCharacterToken?.type === "dialogue" ||
+              lastCharacterToken?.type === "dialogue_asset"
             ) {
               lastCharacterToken.position = "left";
               lastCharacterToken.autoAdvance = true;
@@ -2753,7 +2754,7 @@ export const parseSpark = (
           saveAndClearAssets();
         }
       }
-    } else if (state === "dialogue") {
+    } else if (state === "dialogue" || state === "dual_dialogue") {
       if (
         currentToken.content?.match(sparkRegexes.note) &&
         !currentToken.content?.replace(sparkRegexes.note, "")?.trim()

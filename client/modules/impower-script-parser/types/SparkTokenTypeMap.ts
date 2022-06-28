@@ -1,4 +1,5 @@
 import {
+  SparkActionAssetToken,
   SparkActionToken,
   SparkAssetsToken,
   SparkAssetToken,
@@ -6,6 +7,7 @@ import {
   SparkCenteredToken,
   SparkChoiceToken,
   SparkConditionToken,
+  SparkDialogueAssetToken,
   SparkDialogueToken,
   SparkEntityToken,
   SparkGoToken,
@@ -25,8 +27,8 @@ export interface SparkTokenTypeMap {
   "separator": SparkToken;
   "synopses": SparkToken;
   "page_break": SparkToken;
-  "dialogue_asset": SparkToken;
-  "action_asset": SparkToken;
+  "dialogue_asset": SparkDialogueAssetToken;
+  "action_asset": SparkActionAssetToken;
   "dialogue_end": SparkToken;
   "dual_dialogue_start": SparkToken;
   "dual_dialogue_end": SparkToken;

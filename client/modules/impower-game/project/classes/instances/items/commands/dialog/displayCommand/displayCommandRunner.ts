@@ -10,7 +10,9 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
 
   wasTyped = false;
 
-  autoAdvance = false;
+  timeTyped = -1;
+
+  AUTO_DELAY = 0.5;
 
   init(): void {
     executeDisplayCommand();
@@ -23,7 +25,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
   ): number[] {
     this.wasPressed = false;
     this.wasTyped = false;
-    this.autoAdvance = data?.autoAdvance;
+    this.timeTyped = -1;
     this.down = game.input.state.pointer.down.includes(0);
     executeDisplayCommand(data, context, game, undefined, () => {
       this.wasTyped = true;
@@ -38,7 +40,17 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
   ): boolean {
     const prevDown = this.down;
     this.down = game.input.state.pointer.down.includes(0);
-    if (this.wasTyped && this.autoAdvance === true) {
+    const blockState =
+      game.logic.state.blockStates[data.reference.parentContainerId];
+    if (this.wasTyped && this.timeTyped < 0) {
+      this.timeTyped = blockState.time;
+    }
+    const timeSinceTyped = blockState.time - this.timeTyped;
+    if (
+      data.autoAdvance &&
+      this.wasTyped &&
+      timeSinceTyped / 1000 >= this.AUTO_DELAY
+    ) {
       return true;
     }
     if (!prevDown && this.down) {
