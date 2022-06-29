@@ -51,6 +51,10 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
     transition: "transition",
     scene: "scene",
   },
+  hidden: {
+    character: undefined,
+    parenthetical: "beat",
+  },
   typing: {
     fadeDuration: 0,
     delay: 0.025,
@@ -380,6 +384,13 @@ const getAnimatedSpanElements = (
   return [spanEls, chunkEls, validBeeps];
 };
 
+const isHidden = (content, hiddenRegex): boolean => {
+  if (!hiddenRegex) {
+    return false;
+  }
+  return new RegExp(`^${hiddenRegex}$`).test(content);
+};
+
 export const executeDisplayCommand = (
   data?: DisplayCommandData,
   context?: {
@@ -399,6 +410,7 @@ export const executeDisplayCommand = (
 
   const ui = config?.ui;
   const css = config?.css;
+  const hidden = config?.hidden;
 
   const backgroundEl = getElement(ui?.root, ui?.background);
 
@@ -439,8 +451,15 @@ export const executeDisplayCommand = (
   const dialogueAreaEl = getElement(ui?.root, ui?.dialogue_group);
   const portraitEl = getElement(ui?.root, ui?.portrait);
   const indicatorEl = getElement(ui?.root, ui?.indicator);
-  const validCharacter = type === DisplayType.Dialogue ? character : "";
-  const validParenthetical = type === DisplayType.Dialogue ? parenthetical : "";
+  const validCharacter =
+    type === DisplayType.Dialogue && !isHidden(character, hidden?.character)
+      ? character
+      : "";
+  const validParenthetical =
+    type === DisplayType.Dialogue &&
+    !isHidden(parenthetical, hidden?.parenthetical)
+      ? parenthetical
+      : "";
   const trimmedContent = content?.trim() === "_" ? "" : content || "";
   const [replaceTagsResult] = format(trimmedContent, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
@@ -479,7 +498,7 @@ export const executeDisplayCommand = (
     characterEl.style.display = validCharacter ? null : "none";
   }
   if (parentheticalEl) {
-    parentheticalEl.replaceChildren(validParenthetical);
+    parentheticalEl.replaceChildren(`(${validParenthetical})`);
     parentheticalEl.style.display = validParenthetical ? null : "none";
   }
   const [spanEls, chunkEls, beeps] = getAnimatedSpanElements(

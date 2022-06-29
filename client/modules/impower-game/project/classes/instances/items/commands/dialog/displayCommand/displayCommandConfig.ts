@@ -14,6 +14,10 @@ export interface DisplayCommandConfig {
     transition: string;
     scene: string;
   };
+  hidden: {
+    character: string;
+    parenthetical: string;
+  };
   typing: {
     fadeDuration: number;
     delay: number;

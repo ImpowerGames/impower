@@ -2774,9 +2774,12 @@ export const parseSpark = (
           pushAssets();
           processDisplayedContent(currentToken);
         }
-      } else if (currentToken.content.match(sparkRegexes.parenthetical)) {
+      } else if (
+        (match = currentToken.content.match(sparkRegexes.parenthetical))
+      ) {
         currentToken.type = "parenthetical";
-        currentToken.content = currentToken.content?.trim();
+        const content = match[3] || "";
+        currentToken.content = content;
         currentToken.skipToNextPreview = true;
         previousParenthetical = currentToken.content;
       } else {

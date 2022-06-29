@@ -12,7 +12,7 @@ export const sparkRegexes = {
 
   character:
     /^([ \t]*)(?![#!?]|(?:\[\[)|(?:SUPERIMPOSE:))((?:(?!@)[^\p{Ll}\r\n]*?\p{Lu}[^\p{Ll}\r\n]*?)|(?:@[^\r\n]*?))([ \t]*)(\(.*\))?([ \t]*)(\^)?([ ]*)$/u,
-  parenthetical: /^[ \t]*(\(.+\))$/,
+  parenthetical: /^([ \t]*)([(])(.+)([)])([ ]*)$/,
   dialogue: /^([ \t]*)(?!!)([^\r\n]+)$/,
   action: /^([ \t]*)(.+)$/,
 
