@@ -138,6 +138,8 @@ export function spark(
     observeRuntimeValue?: (
       listener: (id: string, value: unknown) => void
     ) => void;
+    onNavigateUp?: (view: EditorView) => boolean;
+    onNavigateDown?: (view: EditorView) => boolean;
   } = { parse: parseSpark }
 ): LanguageSupport {
   const {
@@ -149,6 +151,8 @@ export function spark(
     getRuntimeValue,
     setRuntimeValue,
     observeRuntimeValue,
+    onNavigateUp,
+    onNavigateDown,
     initialParseResult,
   } = config;
   if (!(parser instanceof MarkdownParser)) {
@@ -211,6 +215,14 @@ export function spark(
     support.push(Prec.high(keymap.of(markdownKeymap)));
     support.push(Prec.highest(keymap.of(snippetKeymap)));
     support.push(Prec.highest(keymap.of(completionKeymap)));
+    support.push(
+      Prec.highest(
+        keymap.of([
+          { key: "PageUp", run: onNavigateUp },
+          { key: "PageDown", run: onNavigateDown },
+        ])
+      )
+    );
   }
   return new LanguageSupport(mkLang(parser.configure(extensions)), support);
 }

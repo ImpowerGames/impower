@@ -11,6 +11,7 @@ import React, {
 } from "react";
 import { debounce } from "../../../impower-core";
 import { evaluate } from "../../../impower-evaluate";
+import { CommandData } from "../../../impower-game/data";
 import {
   getRuntimeCommand,
   getScriptAugmentations,
@@ -25,10 +26,10 @@ import { SerializableEditorState } from "../../../impower-script-editor/types/ed
 import {
   getGlobalEvaluationContext,
   getScopedEvaluationContext,
-  getSectionAt,
   parseSpark,
   SparkParseResult,
 } from "../../../impower-script-parser";
+import { getSectionAtLine } from "../../../impower-script-parser/utils/getSectionAtLine";
 import { GameContext } from "../../contexts/gameContext";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
@@ -126,6 +127,12 @@ const LogicScriptEditor = React.memo(
       fromLine: number;
       toLine: number;
     }>();
+    const [cursor, setCursor] = useState<{
+      anchor: number;
+      head: number;
+      fromLine: number;
+      toLine: number;
+    }>();
     const previewCursorRef = useRef<{
       anchor: number;
       head: number;
@@ -146,6 +153,7 @@ const LogicScriptEditor = React.memo(
             toLine: data.line,
           };
           setExecutingCursor(cursorRef.current);
+          setCursor(cursorRef.current);
         }
       };
       if (events) {
@@ -347,6 +355,30 @@ const LogicScriptEditor = React.memo(
       [augmentations, onSectionChange]
     );
 
+    const getPreviewCommand = useCallback(
+      (result: SparkParseResult, line: number): CommandData => {
+        if (!result) {
+          return undefined;
+        }
+        if (!line) {
+          return undefined;
+        }
+        let tokenIndex = result.scriptLines[line];
+        let token = result.scriptTokens[tokenIndex];
+        if (token) {
+          while (tokenIndex < result.scriptTokens.length && token.skipPreview) {
+            tokenIndex += 1;
+            token = result.scriptTokens[tokenIndex];
+          }
+          const [sectionId] = getSectionAtLine(line, result);
+          const runtimeCommand = getRuntimeCommand(token, sectionId);
+          return runtimeCommand;
+        }
+        return null;
+      },
+      []
+    );
+
     const handlePreviewResult = useCallback(
       (
         result: SparkParseResult,
@@ -358,41 +390,27 @@ const LogicScriptEditor = React.memo(
         if (mode !== "Edit") {
           return;
         }
-        if (!result) {
-          return;
-        }
-        if (!line) {
-          return;
-        }
-        let tokenIndex = result.scriptLines[line];
-        let token = result.scriptTokens[tokenIndex];
-        if (token) {
-          while (tokenIndex < result.scriptTokens.length && token.skipPreview) {
-            tokenIndex += 1;
-            token = result.scriptTokens[tokenIndex];
-          }
-          const [sectionId] = getSectionAt(pos, result);
-          const runtimeCommand = getRuntimeCommand(token, sectionId);
-          if (runtimeCommand) {
-            const commandInspector = gameInspector.getInspector(
-              runtimeCommand.reference
+        const runtimeCommand = getPreviewCommand(result, line);
+        if (runtimeCommand) {
+          const commandInspector = gameInspector.getInspector(
+            runtimeCommand.reference
+          );
+          if (commandInspector) {
+            const [sectionId] = getSectionAtLine(line, result);
+            const [, valueMap] = getScopedEvaluationContext(
+              sectionId,
+              result?.sections,
+              result?.entities
             );
-            if (commandInspector) {
-              const [, valueMap] = getScopedEvaluationContext(
-                sectionId,
-                result?.sections,
-                result?.entities
-              );
-              commandInspector.onPreview(runtimeCommand, {
-                valueMap,
-                instant,
-                debug,
-              });
-            }
+            commandInspector.onPreview(runtimeCommand, {
+              valueMap,
+              instant,
+              debug,
+            });
           }
         }
       },
-      [gameInspector, mode]
+      [gameInspector, getPreviewCommand, mode]
     );
 
     const handleGetRuntimeValue = useCallback((id: string): unknown => {
@@ -443,6 +461,66 @@ const LogicScriptEditor = React.memo(
       },
       []
     );
+
+    const handleNavigateUp = useCallback((): boolean => {
+      const result = parseResultRef.current;
+      const currentPreviewCommand = getPreviewCommand(
+        result,
+        cursorRef.current.fromLine
+      );
+      const currentLine = currentPreviewCommand
+        ? currentPreviewCommand.line
+        : cursorRef.current.fromLine;
+      for (let i = currentLine; i >= 0; i -= 1) {
+        const prevPreviewCommand = getPreviewCommand(result, i);
+        if (
+          prevPreviewCommand &&
+          prevPreviewCommand.line !== currentPreviewCommand?.line
+        ) {
+          cursorRef.current = {
+            anchor: prevPreviewCommand.pos,
+            head: prevPreviewCommand.pos,
+            fromLine: prevPreviewCommand.line,
+            toLine: prevPreviewCommand.line,
+          };
+          setCursor(cursorRef.current);
+          setPreviewCursor(cursorRef.current);
+          return true;
+        }
+      }
+      return true;
+    }, [getPreviewCommand]);
+
+    const handleNavigateDown = useCallback((): boolean => {
+      const result = parseResultRef.current;
+      const currentPreviewCommand = getPreviewCommand(
+        result,
+        cursorRef.current.fromLine
+      );
+      const currentLine = currentPreviewCommand
+        ? currentPreviewCommand.line
+        : cursorRef.current.fromLine;
+      const lastTokenLine =
+        result.scriptTokens[result.scriptTokens.length - 1].line;
+      for (let i = currentLine; i < lastTokenLine; i += 1) {
+        const nextPreviewCommand = getPreviewCommand(result, i);
+        if (
+          nextPreviewCommand &&
+          nextPreviewCommand.line !== currentPreviewCommand?.line
+        ) {
+          cursorRef.current = {
+            anchor: nextPreviewCommand.pos,
+            head: nextPreviewCommand.pos,
+            fromLine: nextPreviewCommand.line,
+            toLine: nextPreviewCommand.line,
+          };
+          setCursor(cursorRef.current);
+          setPreviewCursor(cursorRef.current);
+          return true;
+        }
+      }
+      return true;
+    }, [getPreviewCommand]);
 
     useEffect(() => {
       const variableListener = variableValueListenerRef.current;
@@ -511,7 +589,7 @@ const LogicScriptEditor = React.memo(
                 searchLineQuery={searchLineQuery}
                 defaultScrollTopLine={defaultScrollTopLine}
                 scrollTopLineOffset={-3}
-                cursor={executingCursor}
+                cursor={cursor}
                 style={style}
                 onUpdate={handleUpdate}
                 onEditorUpdate={handleEditorUpdate}
@@ -526,6 +604,8 @@ const LogicScriptEditor = React.memo(
                 getRuntimeValue={handleGetRuntimeValue}
                 setRuntimeValue={handleSetRuntimeValue}
                 observeRuntimeValue={handleObserveRuntimeValue}
+                onNavigateUp={handleNavigateUp}
+                onNavigateDown={handleNavigateDown}
               />
             </StyledFadeAnimation>
           )}
