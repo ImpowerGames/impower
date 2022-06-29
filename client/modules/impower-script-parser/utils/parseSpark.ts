@@ -1671,7 +1671,7 @@ export const parseSpark = (
           indent: choiceToken?.indent,
           from: choiceToken?.from,
           operator: "start",
-          skipPreview: true,
+          skipToNextPreview: true,
         }),
         false
       );
@@ -1687,7 +1687,7 @@ export const parseSpark = (
           indent: currentToken?.indent,
           from: currentToken?.to,
           operator: "end",
-          skipPreview: true,
+          skipToNextPreview: true,
         }),
         false
       );
@@ -1755,7 +1755,7 @@ export const parseSpark = (
       });
       token.content = `${previousDisplayToken.content}${token.content}`;
       previousDisplayToken.ignore = true;
-      previousDisplayToken.skipPreview = true;
+      previousDisplayToken.skipToNextPreview = true;
     }
     if (matchingType && matchingCharacter) {
       token.clearPreviousAssets = false;
@@ -1782,7 +1782,7 @@ export const parseSpark = (
     token.autoAdvance = false;
     token.wait = true;
     token.ignore = false;
-    token.skipPreview = false;
+    token.skipToNextPreview = false;
     prependNext = token.content.endsWith(" ");
     if (prependNext) {
       token.content += "\n";
@@ -2657,7 +2657,7 @@ export const parseSpark = (
         currentToken.type = "character";
         if (currentToken.type === "character") {
           currentToken.content = trimCharacterForceSymbol(currentToken.content);
-          currentToken.skipPreview = true;
+          currentToken.skipToNextPreview = true;
           if (currentToken.content[currentToken.content.length - 1] === "^") {
             state = "dual_dialogue";
             // update last dialogue to be dual:left
@@ -2739,7 +2739,7 @@ export const parseSpark = (
       ) {
         currentToken.type = "assets";
         if (currentToken.type === "assets") {
-          currentToken.skipPreview = false;
+          currentToken.skipToNextPreview = false;
           pushAssets();
           processDisplayedContent(currentToken);
           saveAndClearAssets();
@@ -2749,7 +2749,7 @@ export const parseSpark = (
         if (currentToken.type === "action") {
           if (previousToken?.type === "assets") {
             previousToken.type = "action_asset" as "assets";
-            previousToken.skipPreview = true;
+            previousToken.skipToNextPreview = true;
             currentToken.assets = [...previousToken.assets];
           }
           processDisplayedContent(currentToken);
@@ -2763,14 +2763,14 @@ export const parseSpark = (
       ) {
         currentToken.type = "dialogue_asset";
         if (currentToken.type === "dialogue_asset") {
-          currentToken.skipPreview = true;
+          currentToken.skipToNextPreview = true;
           pushAssets();
           processDisplayedContent(currentToken);
         }
       } else if (currentToken.content.match(sparkRegexes.parenthetical)) {
         currentToken.type = "parenthetical";
         currentToken.content = currentToken.content?.trim();
-        currentToken.skipPreview = true;
+        currentToken.skipToNextPreview = true;
         previousParenthetical = currentToken.content;
       } else {
         currentToken.type = "dialogue";

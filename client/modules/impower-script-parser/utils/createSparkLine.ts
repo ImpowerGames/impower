@@ -13,7 +13,7 @@ export const createSparkLine = (obj?: Partial<SparkLine>): SparkLine => {
     indent: -1,
     order: -1,
     ignore: false,
-    skipPreview: false,
+    skipToNextPreview: false,
     html: "",
     ...obj,
   };

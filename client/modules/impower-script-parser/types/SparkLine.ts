@@ -15,7 +15,7 @@ export interface SparkLine {
 
   order?: number;
   ignore?: boolean;
-  skipPreview?: boolean;
+  skipToNextPreview?: boolean;
 
   html?: string;
 }

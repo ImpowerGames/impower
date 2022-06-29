@@ -366,7 +366,10 @@ const LogicScriptEditor = React.memo(
         let tokenIndex = result.scriptLines[line];
         let token = result.scriptTokens[tokenIndex];
         if (token) {
-          while (tokenIndex < result.scriptTokens.length && token.skipPreview) {
+          while (
+            tokenIndex < result.scriptTokens.length &&
+            token.skipToNextPreview
+          ) {
             tokenIndex += 1;
             token = result.scriptTokens[tokenIndex];
           }
@@ -502,7 +505,7 @@ const LogicScriptEditor = React.memo(
         : cursorRef.current.fromLine;
       const lastTokenLine =
         result.scriptTokens[result.scriptTokens.length - 1].line;
-      for (let i = currentLine; i < lastTokenLine; i += 1) {
+      for (let i = currentLine; i <= lastTokenLine; i += 1) {
         const nextPreviewCommand = getPreviewCommand(result, i);
         if (
           nextPreviewCommand &&
