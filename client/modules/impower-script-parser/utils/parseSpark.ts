@@ -1732,6 +1732,13 @@ export const parseSpark = (
     const dialogueOrAssetTypes = ["dialogue", "dialogue_asset"];
     const actionOrAssetTypes = ["action", "action_asset"];
     token.content = token.content?.trimStart();
+    if (token.content[0] === "~") {
+      const trimmedEndContent = token.content?.trimEnd();
+      const trimmedEndLength = token.content.length - trimmedEndContent.length;
+      const endSpaces =
+        trimmedEndLength > 0 ? token.content.slice(-trimmedEndLength) : "";
+      token.content = `*${trimmedEndContent.substring(1)}*${endSpaces}`;
+    }
     const matchingType =
       previousDisplayToken?.type === token?.type ||
       (dialogueOrAssetTypes.includes(previousDisplayToken?.type) &&
