@@ -1738,6 +1738,8 @@ export const parseSpark = (
         dialogueOrAssetTypes.includes(token?.type)) ||
       (actionOrAssetTypes.includes(previousDisplayToken?.type) &&
         actionOrAssetTypes.includes(token?.type));
+    const matchingCharacter =
+      token?.character === previousDisplayToken?.character;
     if (
       prependNext &&
       previousDisplayToken &&
@@ -1755,7 +1757,7 @@ export const parseSpark = (
       previousDisplayToken.ignore = true;
       previousDisplayToken.skipPreview = true;
     }
-    if (matchingType) {
+    if (matchingType && matchingCharacter) {
       token.clearPreviousAssets = false;
     } else {
       token.clearPreviousAssets = true;

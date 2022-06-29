@@ -84,6 +84,7 @@ export interface SparkReturnToken extends SparkLine {
 }
 
 export interface SparkDisplayToken extends SparkLine {
+  character: string;
   wait: boolean;
   autoAdvance: boolean;
   clearPreviousText: boolean;
