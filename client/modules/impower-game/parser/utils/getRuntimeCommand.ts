@@ -56,7 +56,6 @@ const getDisplayCommand = (
     assets: dialogueToken.assets?.map(({ name }) => name),
     autoAdvance: dialogueToken.autoAdvance,
     clearPreviousText: dialogueToken.clearPreviousText,
-    clearPreviousAssets: dialogueToken.clearPreviousAssets,
     waitUntilFinished: Boolean(token.wait),
   };
 };

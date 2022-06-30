@@ -439,7 +439,6 @@ export const executeDisplayCommand = (
   const content = data?.content;
   const autoAdvance = data?.autoAdvance;
   const clearPreviousText = data?.clearPreviousText;
-  const clearPreviousAssets = data?.clearPreviousAssets;
 
   const instant = context?.instant;
   const debug = context?.debug;
@@ -472,7 +471,7 @@ export const executeDisplayCommand = (
       portraitEl.style.backgroundRepeat = "no-repeat";
       portraitEl.style.backgroundPosition = "center";
       portraitEl.style.display = null;
-    } else if (clearPreviousAssets) {
+    } else {
       portraitEl.style.display = "none";
     }
   }

@@ -10,5 +10,4 @@ export interface DisplayCommandData extends CommandData<"DisplayCommand"> {
   content: string;
   autoAdvance: boolean;
   clearPreviousText: boolean;
-  clearPreviousAssets: boolean;
 }

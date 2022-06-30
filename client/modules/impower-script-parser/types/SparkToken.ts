@@ -88,7 +88,6 @@ export interface SparkDisplayToken extends SparkLine {
   wait: boolean;
   autoAdvance: boolean;
   clearPreviousText: boolean;
-  clearPreviousAssets: boolean;
   assets?: { name: string }[];
 }
 
