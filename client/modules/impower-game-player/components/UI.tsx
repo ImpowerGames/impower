@@ -26,8 +26,8 @@ const responsiveWidth: Record<number, string> = {
   400: "90%",
   600: "90%",
   960: "80%",
-  1280: "70%",
-  1920: "70%",
+  1280: "80%",
+  1920: "80%",
 };
 
 interface UIProps {
