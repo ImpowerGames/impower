@@ -1,35 +1,36 @@
-export interface DisplayCommandConfig {
-  ui: {
-    root: string;
-    character: string;
-    background: string;
-    portrait: string;
-    parenthetical: string;
-    dialogue_group: string;
-    indicator: string;
-    choice: string;
-    dialogue: string;
-    action: string;
-    centered: string;
-    transition: string;
-    scene: string;
+export interface DisplayProperties {
+  id: string;
+  hidden?: string;
+  css?: string;
+  typing?: {
+    fadeDuration?: number;
+    delay?: number;
+    pauseScale?: number;
+    beepDuration?: number;
+    syllableLength?: number;
   };
-  hidden: {
-    character: string;
-    parenthetical: string;
+  indicator?: {
+    id: string;
+    fadeDuration?: number;
+    animationName?: string;
+    animationDuration?: number;
+    animationEase?: string;
   };
-  typing: {
-    fadeDuration: number;
-    delay: number;
-    pauseScale: number;
-    beepDuration: number;
-    syllableLength: number;
-  };
-  indicator: {
-    fadeDuration: number;
-    animationName: string;
-    animationDuration: number;
-    animationEase: string;
-  };
-  css: string;
+}
+
+export interface DisplayCommandConfig
+  extends Record<string, DisplayProperties> {
+  root: DisplayProperties;
+  background: DisplayProperties;
+  portrait: DisplayProperties;
+  description_group: DisplayProperties;
+  dialogue_group: DisplayProperties;
+  choice?: DisplayProperties;
+  character?: DisplayProperties;
+  parenthetical?: DisplayProperties;
+  dialogue?: DisplayProperties;
+  action?: DisplayProperties;
+  centered?: DisplayProperties;
+  transition?: DisplayProperties;
+  scene?: DisplayProperties;
 }

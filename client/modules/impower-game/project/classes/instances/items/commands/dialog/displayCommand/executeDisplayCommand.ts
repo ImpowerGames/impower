@@ -36,49 +36,56 @@ export const dialogueInstrumentOptions: RecursivePartial<SynthOptions> = {
 };
 
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
-  ui: {
-    root: "impower_ui",
-    character: "character",
-    background: "background",
-    portrait: "portrait",
-    parenthetical: "parenthetical",
-    dialogue_group: "dialogue_group",
-    indicator: "indicator",
-    choice: "choice",
-    dialogue: "dialogue",
-    action: "action",
-    centered: "centered",
-    transition: "transition",
-    scene: "scene",
-  },
-  hidden: {
-    character: undefined,
-    parenthetical: "beat",
-  },
-  typing: {
-    fadeDuration: 0,
-    delay: 0.025,
-    pauseScale: 6,
-    beepDuration: 0.03,
-    syllableLength: 3,
-  },
-  indicator: {
-    fadeDuration: 0.15,
-    animationName: "bounce",
-    animationDuration: 0.5,
-    animationEase: "ease",
-  },
-  css: `
-  @keyframes bounce {
-    0%,
-    100% {
-      transform: translateY(0);
+  root: {
+    id: "impower_ui",
+    typing: {
+      delay: 0,
+      pauseScale: 0,
+      beepDuration: 0,
+      syllableLength: 0,
+    },
+    indicator: {
+      id: "indicator",
+      fadeDuration: 0.15,
+      animationName: "bounce",
+      animationDuration: 0.5,
+      animationEase: "ease",
+    },
+    css: `
+    @keyframes bounce {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(4px);
+      }
     }
-    50% {
-      transform: translateY(4px);
-    }
-  }
-  `,
+    `,
+  },
+  background: { id: "character" },
+  portrait: { id: "portrait" },
+  choice: { id: "choice" },
+  action: {
+    id: "action",
+  },
+  centered: { id: "centered" },
+  transition: { id: "transition" },
+  scene: { id: "scene" },
+  description_group: { id: "description_group" },
+  dialogue_group: { id: "dialogue_group" },
+  character: { id: "character" },
+  parenthetical: { id: "parenthetical", hidden: "beat" },
+  dialogue: {
+    id: "dialogue",
+    typing: {
+      fadeDuration: 0,
+      delay: 0.025,
+      pauseScale: 6,
+      beepDuration: 0.03,
+      syllableLength: 3,
+    },
+  },
 };
 
 const getElementSelector = (ui: string, ...classNames: string[]): string =>
@@ -113,8 +120,7 @@ const setupStyle = (ui: string, css: string): HTMLStyleElement => {
 const hideChoices = (
   config: DisplayCommandConfig = defaultDisplayCommandConfig
 ): void => {
-  const ui = config?.ui;
-  const choiceEls = getElements(ui?.root, ui?.choice);
+  const choiceEls = getElements(config?.root?.id, config?.choice?.id);
   choiceEls.forEach((el) => {
     if (el) {
       el.replaceChildren("");
@@ -143,23 +149,49 @@ const createCharSpan = (
   return spanEl;
 };
 
+const get = <T>(...vals: T[]): T => {
+  for (let i = 0; i < vals.length; i += 1) {
+    const val = vals[i];
+    if (val != null) {
+      return val;
+    }
+  }
+  return vals[vals.length - 1];
+};
+
 const getAnimatedSpanElements = (
+  type: string,
   content: string,
   valueMap?: Record<string, unknown>,
   config: DisplayCommandConfig = defaultDisplayCommandConfig,
   instant?: boolean,
   debug?: boolean
 ): [HTMLSpanElement[], [number, HTMLSpanElement[]][], [number, number][]] => {
-  const letterFadeDuration = config?.typing?.fadeDuration || 0;
-  const letterDelay = config?.typing?.delay || 0;
-  const pauseScale =
-    config?.typing?.pauseScale != null ? config?.typing?.pauseScale : 1;
+  const letterFadeDuration = get(
+    config[type]?.typing?.fadeDuration,
+    config?.root?.typing?.fadeDuration,
+    0
+  );
+  const letterDelay = get(
+    config[type]?.typing?.delay,
+    config?.root?.typing?.delay,
+    0
+  );
+  const pauseScale = get(
+    config[type]?.typing?.delay,
+    config?.root?.typing?.pauseScale,
+    1
+  );
   const pauseDelay = letterDelay * pauseScale;
-  const averageSyllableLength = config?.typing?.syllableLength;
-  const beepDuration =
-    config?.typing?.beepDuration != null
-      ? config?.typing?.beepDuration
-      : letterDelay;
+  const averageSyllableLength = get(
+    config[type]?.typing?.syllableLength,
+    config?.root?.typing?.syllableLength
+  );
+  const beepDuration = get(
+    config[type]?.typing?.beepDuration,
+    config?.root?.typing?.beepDuration,
+    letterDelay
+  );
 
   const partEls: HTMLSpanElement[] = [];
   const spanEls: HTMLSpanElement[] = [];
@@ -408,13 +440,11 @@ export const executeDisplayCommand = (
 
   const valueMap = context?.valueMap;
 
-  const ui = config?.ui;
-  const css = config?.css;
-  const hidden = config?.hidden;
+  const css = config?.root?.css;
 
-  const backgroundEl = getElement(ui?.root, ui?.background);
+  const backgroundEl = getElement(config?.root?.id, config?.background?.id);
 
-  setupStyle(ui?.root, css);
+  setupStyle(config?.root?.id, css);
 
   const assetsOnly = type === DisplayType.Assets;
 
@@ -440,23 +470,33 @@ export const executeDisplayCommand = (
   const autoAdvance = data?.autoAdvance;
   const clearPreviousText = data?.clearPreviousText;
 
-  const instant = context?.instant;
+  const instant =
+    context?.instant ||
+    !get(config?.[type]?.typing?.delay, config?.root?.typing?.delay);
   const debug = context?.debug;
-  const indicatorFadeDuration = config?.indicator?.fadeDuration || 0;
-  const indicatorAnimationName = config?.indicator?.animationName;
-  const indicatorAnimationDuration = config?.indicator?.animationDuration;
-  const indicatorAnimationEase = config?.indicator?.animationEase;
+  const indicatorFadeDuration = config?.root?.indicator?.fadeDuration || 0;
+  const indicatorAnimationName = config?.root?.indicator?.animationName;
+  const indicatorAnimationDuration = config?.root?.indicator?.animationDuration;
+  const indicatorAnimationEase = config?.root?.indicator?.animationEase;
 
-  const dialogueAreaEl = getElement(ui?.root, ui?.dialogue_group);
-  const portraitEl = getElement(ui?.root, ui?.portrait);
-  const indicatorEl = getElement(ui?.root, ui?.indicator);
+  const descriptionGroupEl = getElement(
+    config?.root?.id,
+    config?.description_group?.id
+  );
+  const dialogueGroupEl = getElement(
+    config?.root?.id,
+    config?.dialogue_group?.id
+  );
+  const portraitEl = getElement(config?.root?.id, config?.portrait?.id);
+  const indicatorEl = getElement(config?.root?.id, config?.root?.indicator?.id);
   const validCharacter =
-    type === DisplayType.Dialogue && !isHidden(character, hidden?.character)
+    type === DisplayType.Dialogue &&
+    !isHidden(character, config?.character?.hidden)
       ? character
       : "";
   const validParenthetical =
     type === DisplayType.Dialogue &&
-    !isHidden(parenthetical, hidden?.parenthetical)
+    !isHidden(parenthetical, config?.parenthetical?.hidden)
       ? parenthetical
       : "";
   const trimmedContent = content?.trim() === "_" ? "" : content || "";
@@ -478,18 +518,27 @@ export const executeDisplayCommand = (
 
   hideChoices();
 
-  if (dialogueAreaEl) {
-    dialogueAreaEl.style.display = type === "dialogue" ? null : "none";
+  if (dialogueGroupEl) {
+    dialogueGroupEl.style.display = type === "dialogue" ? null : "none";
+  }
+  if (descriptionGroupEl) {
+    descriptionGroupEl.style.display = type !== "dialogue" ? null : "none";
   }
 
-  const characterEl = getElement(ui?.root, ui?.character);
-  const parentheticalEl = getElement(ui?.root, ui?.parenthetical);
+  const characterEl = getElement(config?.root?.id, config?.character?.id);
+  const parentheticalEl = getElement(
+    config?.root?.id,
+    config?.parenthetical?.id
+  );
   const contentElEntries: [DisplayType, HTMLElement][] = [
-    [DisplayType.Dialogue, getElement(ui?.root, ui?.dialogue)],
-    [DisplayType.Action, getElement(ui?.root, ui?.action)],
-    [DisplayType.Centered, getElement(ui?.root, ui?.centered)],
-    [DisplayType.Scene, getElement(ui?.root, ui?.scene)],
-    [DisplayType.Transition, getElement(ui?.root, ui?.transition)],
+    [DisplayType.Dialogue, getElement(config?.root?.id, config?.dialogue?.id)],
+    [DisplayType.Action, getElement(config?.root?.id, config?.action?.id)],
+    [DisplayType.Centered, getElement(config?.root?.id, config?.centered?.id)],
+    [DisplayType.Scene, getElement(config?.root?.id, config?.scene?.id)],
+    [
+      DisplayType.Transition,
+      getElement(config?.root?.id, config?.transition?.id),
+    ],
   ];
 
   if (characterEl) {
@@ -501,6 +550,7 @@ export const executeDisplayCommand = (
     parentheticalEl.style.display = validParenthetical ? null : "none";
   }
   const [spanEls, chunkEls, beeps] = getAnimatedSpanElements(
+    type,
     evaluatedContent,
     valueMap,
     config,

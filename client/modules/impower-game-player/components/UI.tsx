@@ -163,6 +163,17 @@ const UI = React.memo((props: UIProps): JSX.Element => {
               }}
             />
             <div
+              className="overlay"
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+                // TODO: backgroundColor: "rgba(0,0,0,0.8)",
+              }}
+            />
+            <div
               className="portrait"
               style={{
                 position: "absolute",
@@ -182,21 +193,21 @@ const UI = React.memo((props: UIProps): JSX.Element => {
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: 8,
               }}
             >
               <div
-                className="description"
+                className="description_group"
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  fontFamily: "Courier Prime Sans",
-                  fontSize: "1em",
-                  paddingLeft: "10%",
-                  paddingRight: "10%",
                   minHeight: 88,
                   width: "100%",
-                  maxWidth: 960,
+                  height: "100%",
+                  paddingLeft: "10%",
+                  paddingRight: "10%",
+                  paddingTop: 8,
+                  paddingBottom: 8,
+                  fontFamily: "Courier Prime Sans",
+                  fontSize: "1em",
+                  // TODO: color: "white",
                 }}
               >
                 <div
@@ -205,19 +216,35 @@ const UI = React.memo((props: UIProps): JSX.Element => {
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
+                    height: "100%",
+                    width: "100%",
                   }}
                 >
-                  <div className="action" style={{ flex: 1 }} />
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      width: "100%",
+                      maxWidth: 640,
+                      minHeight: 88,
+                    }}
+                  >
+                    <div className="action" />
+                    <div className="centered" style={{ textAlign: "center" }} />
+                    <div
+                      className="transition"
+                      style={{ width: "100%", textAlign: "right" }}
+                    />
+                    <div
+                      className="scene"
+                      style={{
+                        textAlign: "center",
+                        fontWeight: "bold",
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="centered" style={{ textAlign: "center" }} />
-                <div className="transition" style={{ textAlign: "right" }} />
-                <div
-                  className="scene"
-                  style={{
-                    textAlign: "center",
-                    fontWeight: "bold",
-                  }}
-                />
               </div>
               <div
                 className="choices"
