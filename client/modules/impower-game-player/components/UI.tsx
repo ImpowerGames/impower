@@ -185,11 +185,57 @@ const UI = React.memo((props: UIProps): JSX.Element => {
                 padding: 8,
               }}
             >
-              <button className="choice" style={choiceStyle}></button>
-              <button className="choice" style={choiceStyle}></button>
-              <button className="choice" style={choiceStyle}></button>
-              <button className="choice" style={choiceStyle}></button>
-              <button className="choice" style={choiceStyle}></button>
+              <div
+                className="description"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  fontFamily: "Courier Prime Sans",
+                  fontSize: "1em",
+                  paddingLeft: "10%",
+                  paddingRight: "10%",
+                  minHeight: 88,
+                  width: "100%",
+                  maxWidth: 960,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <div className="action" style={{ flex: 1 }} />
+                </div>
+                <div className="centered" style={{ textAlign: "center" }} />
+                <div className="transition" style={{ textAlign: "right" }} />
+                <div
+                  className="scene"
+                  style={{
+                    textAlign: "center",
+                    fontWeight: "bold",
+                  }}
+                />
+              </div>
+              <div
+                className="choices"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  fontFamily: "Courier Prime Sans",
+                  fontSize: "1em",
+                  paddingLeft: "10%",
+                  paddingRight: "10%",
+                }}
+              >
+                <button className="choice" style={choiceStyle}></button>
+                <button className="choice" style={choiceStyle}></button>
+                <button className="choice" style={choiceStyle}></button>
+                <button className="choice" style={choiceStyle}></button>
+                <button className="choice" style={choiceStyle}></button>
+              </div>
             </div>
             <div
               style={{
@@ -252,16 +298,6 @@ const UI = React.memo((props: UIProps): JSX.Element => {
                       </div>
                     </div>
                   </div>
-                  <div className="action" style={{ flex: 1 }} />
-                  <div className="centered" style={{ textAlign: "center" }} />
-                  <div className="transition" style={{ textAlign: "right" }} />
-                  <div
-                    className="scene"
-                    style={{
-                      textAlign: "center",
-                      fontWeight: "bold",
-                    }}
-                  />
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
                   <div
