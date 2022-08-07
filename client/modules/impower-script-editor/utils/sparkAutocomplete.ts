@@ -736,8 +736,8 @@ export const sparkAutocomplete = async (
     "assets"
   );
   const variableOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
-    Object.keys(result.sections[ancestorId].variables || {}).map((id) => {
-      const found = result.sections[ancestorId].variables[id];
+    Object.keys(result?.sections?.[ancestorId]?.variables || {}).map((id) => {
+      const found = result?.sections?.[ancestorId]?.variables?.[id];
       const completionType: CompletionType = found.parameter
         ? "parameter"
         : "variable";
@@ -753,9 +753,9 @@ export const sparkAutocomplete = async (
       };
     })
   );
-  const entityOptions: Option[] = Object.keys(result.entities || {}).map(
+  const entityOptions: Option[] = Object.keys(result?.entities || {}).map(
     (id) => {
-      const found = result.entities[id];
+      const found = result?.entities?.[id];
       return {
         line: found.line,
         name: found.name,
@@ -764,8 +764,8 @@ export const sparkAutocomplete = async (
     }
   );
   const assetOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
-    Object.keys(result.sections[ancestorId].assets || {}).map((id) => {
-      const found = result.sections[ancestorId].assets[id];
+    Object.keys(result?.sections?.[ancestorId]?.assets || {}).map((id) => {
+      const found = result?.sections?.[ancestorId]?.assets?.[id];
       return {
         line: found.line,
         name: found.name,
@@ -774,8 +774,8 @@ export const sparkAutocomplete = async (
     })
   );
   const tagOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
-    Object.keys(result.sections[ancestorId].tags || {}).map((id) => {
-      const found = result.sections[ancestorId].tags[id];
+    Object.keys(result?.sections?.[ancestorId]?.tags || {}).map((id) => {
+      const found = result?.sections?.[ancestorId]?.tags?.[id];
       return {
         line: found.line,
         name: found.name,
@@ -818,17 +818,17 @@ export const sparkAutocomplete = async (
     completions.push(...scenePrefixSnippets);
   } else if (["SceneLocation"].includes(node.name)) {
     completions.push(
-      ...nameSnippets(Object.keys(result.properties?.locations || {}), "scene")
+      ...nameSnippets(Object.keys(result?.properties?.locations || {}), "scene")
     );
   } else if (["SceneTime"].includes(node.name)) {
     completions.push(
-      ...nameSnippets(Object.keys(result.properties?.times || {}), "scene")
+      ...nameSnippets(Object.keys(result?.properties?.times || {}), "scene")
     );
   } else if (["PossibleCharacter"].includes(node.name)) {
     completions.push(
       ...characterSnippets(
-        Object.keys(result.properties.characters || {}),
-        result.dialogueLines,
+        Object.keys(result?.properties?.characters || {}),
+        result?.dialogueLines,
         line,
         "\n"
       )
@@ -837,8 +837,8 @@ export const sparkAutocomplete = async (
   } else if (["PossibleCharacterName"].includes(node.name)) {
     completions.push(
       ...characterSnippets(
-        Object.keys(result.properties.characters || {}),
-        result.dialogueLines,
+        Object.keys(result?.properties?.characters || {}),
+        result?.dialogueLines,
         line,
         "\n"
       )
@@ -846,8 +846,8 @@ export const sparkAutocomplete = async (
   } else if (["Character", "CharacterName"].includes(node.name)) {
     completions.push(
       ...characterSnippets(
-        Object.keys(result.properties.characters || {}),
-        result.dialogueLines,
+        Object.keys(result?.properties?.characters || {}),
+        result?.dialogueLines,
         line
       )
     );
