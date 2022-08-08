@@ -1,5 +1,4 @@
 import styled from "@emotion/styled";
-import { AnimatePresence } from "framer-motion";
 import React, {
   useCallback,
   useContext,
@@ -409,7 +408,7 @@ const DataChart = (props: DataChartProps): JSX.Element => {
         onNodeSizeChanged={handleNodeSizeChanged}
       >
         {(provided): JSX.Element => (
-          <AnimatePresence>
+          <>
             {nodes.map((node, index) => {
               const value = infos[node.id];
               if (value === undefined) {
@@ -451,7 +450,7 @@ const DataChart = (props: DataChartProps): JSX.Element => {
                 </DataTransition>
               );
             })}
-          </AnimatePresence>
+          </>
         )}
       </Flowchart>
     </StyledFlowchart>
