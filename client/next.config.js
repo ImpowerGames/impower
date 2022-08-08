@@ -24,7 +24,11 @@ module.exports = withBundleAnalyzer(
           test: /\.md$/,
           loader: "raw-loader",
         });
-        if (!isServer && config.optimization.splitChunks.cacheGroups) {
+        if (
+          !isServer &&
+          config.optimization.splitChunks.cacheGroups &&
+          config.optimization.splitChunks.cacheGroups.commons
+        ) {
           config.optimization.splitChunks.cacheGroups.commons.minChunks = 60;
         }
         return config;
