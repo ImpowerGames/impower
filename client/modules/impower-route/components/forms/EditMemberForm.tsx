@@ -195,7 +195,7 @@ const EditMemberForm = React.memo(
 
         const group = claimableCollection;
 
-        await new Promise<void>((resolve) =>
+        await new Promise<void>((resolve) => {
           userDispatch(
             userOnChangeMember(
               resolve,
@@ -210,8 +210,8 @@ const EditMemberForm = React.memo(
               "data",
               docId
             )
-          )
-        );
+          );
+        });
 
         if (onSubmit) {
           onSubmit();
@@ -236,7 +236,7 @@ const EditMemberForm = React.memo(
         e.preventDefault();
         setEditing(true);
 
-        await new Promise<void>((resolve) =>
+        await new Promise<void>((resolve) => {
           userDispatch(
             userOnChangeMember(
               resolve,
@@ -247,8 +247,8 @@ const EditMemberForm = React.memo(
               "data",
               docId
             )
-          )
-        );
+          );
+        });
 
         if (onDelete) {
           onDelete();

@@ -3,7 +3,7 @@ const getUniqueSlug = async (
   slugCollection: "handles" | "slugs",
   slug: string,
   maxLength = 50,
-  suffix?: number
+  suffix: number = undefined
 ): Promise<string> => {
   const suffixString = suffix !== undefined ? suffix.toString() : "";
   const validSlug = slug

@@ -1,5 +1,4 @@
-import { EditorView } from "@codemirror/basic-setup";
-import { Tooltip } from "@codemirror/tooltip";
+import { EditorView, Tooltip } from "@codemirror/view";
 import { SparkParseResult, SparkReference } from "../../impower-script-parser";
 
 const getSparkReferenceAt = (

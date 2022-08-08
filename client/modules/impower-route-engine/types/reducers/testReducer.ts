@@ -116,7 +116,7 @@ const doSetCompiling = (
 
 export const testReducer = (
   state = createTestState(),
-  action: TestAction
+  action: TestAction = undefined
 ): TestState => {
   switch (action.type) {
     case TEST_MODE_CHANGE:

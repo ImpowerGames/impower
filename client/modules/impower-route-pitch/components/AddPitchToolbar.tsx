@@ -289,7 +289,9 @@ const AddPitchToolbar = React.memo(
     const handleAddType = useCallback(
       async (e: React.MouseEvent, newType: ProjectType) => {
         setDialOpen(false);
-        await new Promise((resolve) => setTimeout(resolve, 1));
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 1);
+        });
         handleAdd(e, newType);
       },
       [handleAdd]

@@ -501,7 +501,9 @@ const ContributionList = React.memo(
         loadingElRef.current.classList.add("animate");
         loadingElRef.current.style.visibility = "visible";
       }
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      await new Promise((resolve) => {
+        window.requestAnimationFrame(resolve);
+      });
       setReloading(true);
     }, []);
 
@@ -706,7 +708,9 @@ const ContributionList = React.memo(
         }
         confirmDialogDispatch(confirmDialogClose());
         // Wait a bit for dialog to close
-        await new Promise((resolve) => setTimeout(resolve, 1));
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 1);
+        });
         await router.replace(`/p/${pitchId}/c/${contributionId}`);
         if (onDeleteContribution) {
           onDeleteContribution(e, pitchId, contributionId);

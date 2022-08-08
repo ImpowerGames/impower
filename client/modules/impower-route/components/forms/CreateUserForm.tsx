@@ -162,11 +162,11 @@ const CreateUserForm = React.memo(
         }
 
         try {
-          await new Promise<void>((resolve) =>
+          await new Promise<void>((resolve) => {
             userDispatch(
               userOnUpdateSubmission(resolve, newDoc, "users", newDocId)
-            )
-          );
+            );
+          });
           await router.push(`/u/${newDoc.username}`);
           if (onSubmitted) {
             await onSubmitted(newDoc, true);

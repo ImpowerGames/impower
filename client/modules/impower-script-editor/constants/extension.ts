@@ -35,7 +35,7 @@ export function parseRow(
   cx: BlockContext,
   line: string,
   startI = 0,
-  elts?: Element[],
+  elts: Element[] = undefined,
   offset = 0
 ): number {
   let count = 0;

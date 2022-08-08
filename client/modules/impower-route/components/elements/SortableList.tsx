@@ -232,7 +232,7 @@ const SortableList = React.memo((props: SortableListProps): JSX.Element => {
     (event: DragStartEvent) => {
       draggedRef.current = false;
       movingRef.current = false;
-      setActive(event.active.id);
+      setActive(event.active.id as string);
       if (overlayRef.current) {
         overlayRef.current.style.opacity = "1";
         if (overlayRef.current.parentElement) {
@@ -251,7 +251,7 @@ const SortableList = React.memo((props: SortableListProps): JSX.Element => {
       if (Math.abs(event.delta.x) > 10 || Math.abs(event.delta.y) > 10) {
         draggedRef.current = true;
       }
-      draggingRef.current = event.active.id;
+      draggingRef.current = event.active.id as string;
       if (!movingRef.current) {
         movingRef.current = true;
         const activeRef = elRefs.current[draggingRef.current];
@@ -288,13 +288,13 @@ const SortableList = React.memo((props: SortableListProps): JSX.Element => {
 
       if (!draggedRef.current) {
         if (onClick) {
-          onClick(active.id);
+          onClick(active.id as string);
         }
       }
 
       if (active.id !== over.id) {
-        const oldIndex = items.indexOf(active.id);
-        const newIndex = items.indexOf(over.id);
+        const oldIndex = items.indexOf(active.id as string);
+        const newIndex = items.indexOf(over.id as string);
         if (onReorder) {
           onReorder(event, arrayMove(items, oldIndex, newIndex));
         }

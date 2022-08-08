@@ -22,7 +22,10 @@ const sectionNameDecorations = (view: EditorView): DecorationSet => {
     syntaxTree(view.state).iterate({
       from,
       to,
-      enter: (type, from, to) => {
+      enter: (node) => {
+        const type = node?.type;
+        const from = node?.from;
+        const to = node?.to;
         const [parseContext] = view.state.facet(parseContextState);
         if (type.name === "GoSectionName" || type.name === "ChoiceGoName") {
           const sectionText = view.state.doc.sliceString(from, to);

@@ -1,4 +1,4 @@
-import { GutterMarker } from "@codemirror/gutter";
+import { GutterMarker } from "@codemirror/view";
 
 export class RunningLineGutterMarker extends GutterMarker {
   elementClass = "cm-runningGutterMark";

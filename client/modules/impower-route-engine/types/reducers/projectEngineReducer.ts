@@ -12,7 +12,7 @@ import { windowReducer } from "./windowReducer";
 
 export const projectEngineReducer = (
   state = createProjectEngineState(),
-  action: ProjectEngineAction
+  action: ProjectEngineAction = undefined
 ): ProjectEngineState => {
   const window = windowReducer(state.window, action as WindowAction);
   const panel = panelReducer(state.panel, action as PanelAction);

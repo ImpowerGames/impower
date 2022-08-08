@@ -172,11 +172,11 @@ const CreateStudioForm = React.memo(
           owners: [Auth.instance.uid],
         };
         try {
-          await new Promise<void>((resolve) =>
+          await new Promise<void>((resolve) => {
             userDispatch(
               userOnCreateSubmission(resolve, claimedDoc, "studios", newDocId)
-            )
-          );
+            );
+          });
           if (onSubmitted) {
             await onSubmitted(newDocId, newDoc, true);
           }

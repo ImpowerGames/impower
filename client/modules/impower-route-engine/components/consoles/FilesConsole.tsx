@@ -820,7 +820,7 @@ const FilesConsole = (props: FilesConsoleProps): JSX.Element => {
           }
           nextButton={
             <StyledButton
-              disabled={editIndex === visibleOrderedPaths?.length - 1}
+              disabled={editIndex === (visibleOrderedPaths?.length || 0) - 1}
               onClick={handleNext}
             >
               <FontIcon aria-label="Next" size={16}>

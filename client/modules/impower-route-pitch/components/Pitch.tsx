@@ -172,7 +172,9 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
       loadingElRef.current.classList.add("animate");
       loadingElRef.current.style.visibility = "visible";
     }
-    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    await new Promise((resolve) => {
+      window.requestAnimationFrame(resolve);
+    });
   }, []);
 
   const router = useRouter();
@@ -307,7 +309,9 @@ const Pitch = React.memo((props: PitchProps): JSX.Element => {
     async (e: React.MouseEvent, value: ProjectType) => {
       setTypeFilter(value);
       // Wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1);
+      });
       const link = `/pitch/${value}?t=${activeTab.toLowerCase()}`;
       window.history.replaceState(window.history.state, "", link);
       router.replace(link);

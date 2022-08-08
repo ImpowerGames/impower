@@ -215,7 +215,7 @@ const ManageAccessForm = React.memo(
           return;
         }
         if (memberDoc) {
-          await new Promise<void>((resolve) =>
+          await new Promise<void>((resolve) => {
             userDispatch(
               userOnChangeMember(
                 resolve,
@@ -226,10 +226,10 @@ const ManageAccessForm = React.memo(
                 "data",
                 memberId
               )
-            )
-          );
+            );
+          });
         } else {
-          await new Promise<void>((resolve) =>
+          await new Promise<void>((resolve) => {
             userDispatch(
               userOnChangeMember(
                 resolve,
@@ -240,8 +240,8 @@ const ManageAccessForm = React.memo(
                 "data",
                 memberId
               )
-            )
-          );
+            );
+          });
         }
       },
       [claimableCollection, userDispatch]
@@ -263,7 +263,7 @@ const ManageAccessForm = React.memo(
           newAccessDoc.restricted !== undefined &&
           typeof newAccessDoc.restricted === "boolean"
         ) {
-          await new Promise<void>((resolve) =>
+          await new Promise<void>((resolve) => {
             userDispatch(
               userOnUpdateSubmission(
                 resolve,
@@ -274,8 +274,8 @@ const ManageAccessForm = React.memo(
                 claimableCollection,
                 docId
               )
-            )
-          );
+            );
+          });
         }
       },
       [claimableCollection, doChangeMember, doc, userDispatch]

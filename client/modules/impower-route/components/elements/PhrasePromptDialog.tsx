@@ -856,7 +856,7 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
             "../../../impower-data-store/utils/createSuggestionDocument"
           )
         ).default;
-        await new Promise<void>((resolve) =>
+        await new Promise<void>((resolve) => {
           userDispatch(
             userOnCreateSubmission(
               resolve,
@@ -870,8 +870,8 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
               "suggestions",
               uid
             )
-          )
-        );
+          );
+        });
         handleCloseReportDialog();
         if (personalize) {
           if (onDeletePhrase) {
@@ -934,7 +934,7 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
                 "../../../impower-data-store/utils/createPhraseDocument"
               )
             ).default;
-            await new Promise<void>((resolve) =>
+            await new Promise<void>((resolve) => {
               userDispatch(
                 userOnCreateSubmission(
                   resolve,
@@ -942,8 +942,8 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
                   "phrases",
                   suggestedPhrase
                 )
-              )
-            );
+              );
+            });
           }
         }
         const phraseSuggestionSnapshot = await new DataStoreRead(
@@ -958,7 +958,7 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
               "../../../impower-data-store/utils/createSuggestionDocument"
             )
           ).default;
-          await new Promise<void>((resolve) =>
+          await new Promise<void>((resolve) => {
             userDispatch(
               userOnUpdateSubmission(
                 resolve,
@@ -972,15 +972,15 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
                 "suggestions",
                 uid
               )
-            )
-          );
+            );
+          });
         } else {
           const createSuggestionDocument = (
             await import(
               "../../../impower-data-store/utils/createSuggestionDocument"
             )
           ).default;
-          await new Promise<void>((resolve) =>
+          await new Promise<void>((resolve) => {
             userDispatch(
               userOnCreateSubmission(
                 resolve,
@@ -994,8 +994,8 @@ const PhrasePromptDialog = React.memo((props: PhrasePromptDialogProps) => {
                 "suggestions",
                 uid
               )
-            )
-          );
+            );
+          });
         }
         handleCloseSuggestionDialog();
         if (personalize) {

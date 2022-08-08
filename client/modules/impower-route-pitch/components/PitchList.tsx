@@ -388,7 +388,9 @@ const PitchList = React.memo(
         loadingElRef.current.classList.add("animate");
         loadingElRef.current.style.visibility = "visible";
       }
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+      await new Promise((resolve) => {
+        window.requestAnimationFrame(resolve);
+      });
       setReloadingState(true);
     }, [contentElRef, listElRef, loadingElRef]);
 
@@ -892,7 +894,9 @@ const PitchList = React.memo(
         setReloadingState(true);
         confirmDialogDispatch(confirmDialogClose());
         // Wait a bit for dialog to close
-        await new Promise((resolve) => setTimeout(resolve, 1));
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 1);
+        });
         await router.replace(`/p/${pitchId}`);
       },
       [confirmDialogDispatch, router]
@@ -929,7 +933,9 @@ const PitchList = React.memo(
         setLoadedPitchDocs({ ...loadedPitchDocsRef.current });
         confirmDialogDispatch(confirmDialogClose());
         // Wait a bit for dialog to close
-        await new Promise((resolve) => setTimeout(resolve, 1));
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 1);
+        });
         await router.replace(`/p/${pitchId}/c/${contributionId}`);
       },
       [confirmDialogDispatch, router]

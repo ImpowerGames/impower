@@ -226,7 +226,9 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
     async (e: React.MouseEvent): Promise<void> => {
       handleClose(e);
       // wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1);
+      });
       openAccountDialog("signup");
     },
     [handleClose, openAccountDialog]
@@ -235,7 +237,9 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
     async (e: React.MouseEvent): Promise<void> => {
       handleClose(e);
       // wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1);
+      });
       openAccountDialog("login");
     },
     [handleClose, openAccountDialog]
@@ -252,7 +256,9 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
         if (href) {
           navigationDispatch(navigationSetTransitioning(true));
           // wait a bit for dialog to close
-          await new Promise((resolve) => window.setTimeout(resolve, 1));
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, 1);
+          });
           router.push(href);
         }
       }
@@ -263,7 +269,9 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
     async (e: React.MouseEvent): Promise<void> => {
       handleClose(e);
       // wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1);
+      });
       router.push("/");
     },
     [handleClose, router]
@@ -273,7 +281,9 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
     async (e: React.MouseEvent): Promise<void> => {
       handleClose(e);
       // wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1);
+      });
     },
     [handleClose]
   );

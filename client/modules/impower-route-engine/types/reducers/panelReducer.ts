@@ -557,7 +557,7 @@ const doSubmit = (
 
 export const panelReducer = (
   state = createPanelState(),
-  action: PanelAction
+  action: PanelAction = undefined
 ): PanelState => {
   switch (action.type) {
     case PANEL_OPEN:

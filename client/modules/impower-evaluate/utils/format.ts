@@ -51,7 +51,7 @@ const customFormatters: Formatters = {
 export const format = (
   str: string,
   args: Record<string, unknown> = {},
-  locale?: string,
+  locale: string = undefined,
   formatters: Formatters = customFormatters
 ): [
   string,

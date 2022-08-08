@@ -151,11 +151,11 @@ const SettingsConsole = (props: SettingsConsoleProps): JSX.Element => {
         ? { ...doc, republishedAt: new Timestamp() }
         : doc;
       if (doc) {
-        await new Promise<void>((resolve) =>
+        await new Promise<void>((resolve) => {
           userDispatch(
             userOnUpdateSubmission(resolve, newDoc, "studios", studioId)
-          )
-        );
+          );
+        });
       }
     },
     [studioId, userDispatch]
@@ -169,9 +169,9 @@ const SettingsConsole = (props: SettingsConsoleProps): JSX.Element => {
           if (onDeleting) {
             onDeleting();
           }
-          await new Promise<void>((resolve) =>
-            userDispatch(userOnDeleteSubmission(resolve, "studios", studioId))
-          );
+          await new Promise<void>((resolve) => {
+            userDispatch(userOnDeleteSubmission(resolve, "studios", studioId));
+          });
           if (onDeleted) {
             onDeleted();
           }

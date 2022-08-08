@@ -666,7 +666,6 @@ const SignUp = React.memo((props: SignUpProps): JSX.Element => {
                     <DateAutocomplete
                       label={`Month`}
                       error={dobError !== undefined}
-                      disabled={progress}
                       value={dobMonth}
                       options={monthOptions}
                       getOptionLabel={handleGetMonthLabel}
@@ -680,7 +679,6 @@ const SignUp = React.memo((props: SignUpProps): JSX.Element => {
                     <DateAutocomplete
                       label={`Day`}
                       error={dobError !== undefined}
-                      disabled={progress}
                       value={dobDate}
                       options={dateOptions}
                       getOptionLabel={handleGetNumberLabel}
@@ -694,7 +692,6 @@ const SignUp = React.memo((props: SignUpProps): JSX.Element => {
                     <DateAutocomplete
                       label={`Year`}
                       error={dobError !== undefined}
-                      disabled={progress}
                       value={dobYear}
                       options={yearOptions}
                       getOptionLabel={handleGetNumberLabel}

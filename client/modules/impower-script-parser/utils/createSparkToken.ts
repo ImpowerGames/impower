@@ -20,12 +20,12 @@ export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
       : {}),
   } as SparkTokenTypeMap[K];
   if (obj?.content) {
-    const indentMatch = obj?.content.match(/^([ \t]*)/);
+    const indentMatch = obj.content.match(/^([ \t]*)/);
     const indent = indentMatch[0] || "";
     const offset = indent.length;
     t.offset = offset;
     t.indent = Math.floor(offset / 2);
-    t.to = obj?.from + obj?.content.length - 1 + newLineLength;
+    t.to = obj.from + obj.content.length - 1 + newLineLength;
   }
   return t;
 };

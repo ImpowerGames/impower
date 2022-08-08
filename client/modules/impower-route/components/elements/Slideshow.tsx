@@ -2,7 +2,7 @@ import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
 import IconButton from "@material-ui/core/IconButton";
 import MobileStepper from "@material-ui/core/MobileStepper";
-import React, { CSSProperties, useCallback, useEffect, useState } from "react";
+import { CSSProperties, useCallback, useEffect, useState } from "react";
 import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left.svg";
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
 import { FontIcon } from "../../../impower-icon";
@@ -96,7 +96,8 @@ export const Slideshow = (props: SlideshowProps): JSX.Element => {
   }, [indexState, onSetIndex]);
 
   const handleNextImage = useCallback((): void => {
-    const newIndex = indexState < images?.length - 1 ? indexState + 1 : 0;
+    const newIndex =
+      indexState < (images?.length || 0) - 1 ? indexState + 1 : 0;
     setIndexState(newIndex);
     onSetIndex(newIndex);
   }, [indexState, images?.length, onSetIndex]);

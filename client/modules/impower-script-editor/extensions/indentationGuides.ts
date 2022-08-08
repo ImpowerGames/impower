@@ -1,8 +1,7 @@
 /* eslint-disable no-cond-assign */
 /* eslint-disable no-continue */
 import { getIndentUnit } from "@codemirror/language";
-import { RangeSet, RangeSetBuilder } from "@codemirror/rangeset";
-import { Extension } from "@codemirror/state";
+import { Extension, RangeSet, RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
   DecorationSet,

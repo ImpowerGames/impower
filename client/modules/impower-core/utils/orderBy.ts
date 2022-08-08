@@ -1,4 +1,4 @@
-const orderBy = <T, K extends string | number | symbol>(
+const orderBy = <T, K extends string | number>(
   collection: T[],
   iteratee: (item: T) => K,
   order: "asc" | "desc" = "asc"

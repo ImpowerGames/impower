@@ -29,7 +29,9 @@ export const useDialogNavigation = (
         title
       );
       // wait a bit for popstate listeners to trigger
-      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1);
+      });
       HistoryState.instance.opening = false;
       HistoryState.instance.closing = false;
     },
@@ -45,7 +47,9 @@ export const useDialogNavigation = (
     HistoryState.instance.closing = true;
     window.history.back();
     // wait a bit for popstate listeners to trigger
-    await new Promise((resolve) => window.setTimeout(resolve, 1));
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, 1);
+    });
     const newQuery = { ...query };
     delete newQuery[memoizedParam];
     HistoryState.instance.queryListeners.forEach((listener) =>

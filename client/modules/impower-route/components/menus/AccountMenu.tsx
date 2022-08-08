@@ -76,7 +76,9 @@ const AccountMenu = React.memo((props: PropsWithChildren<AccountMenuProps>) => {
         onClose(e);
       }
       // wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1);
+      });
       if (onClick) {
         await onClick(e, menuItem);
       }

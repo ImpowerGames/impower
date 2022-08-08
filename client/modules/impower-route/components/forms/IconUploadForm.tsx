@@ -94,7 +94,7 @@ const IconUploadForm = React.memo(
             ).default;
             await Storage.instance.delete(doc?.icon?.storageKey);
           }
-          await new Promise<void>((resolve) =>
+          await new Promise<void>((resolve) => {
             userDispatch(
               userOnUpdateSubmission(
                 resolve,
@@ -105,8 +105,8 @@ const IconUploadForm = React.memo(
                 collection,
                 docId
               )
-            )
-          );
+            );
+          });
           if (onUploadIcon) {
             onUploadIcon(icon);
           }

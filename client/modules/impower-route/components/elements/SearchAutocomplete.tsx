@@ -535,7 +535,9 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
       setState(stateRef.current);
       setInputValue(inputValueRef.current);
       // wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 100));
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 100);
+      });
       closingRef.current = false;
       const urlParts = window.location.pathname.split("/");
       const link =

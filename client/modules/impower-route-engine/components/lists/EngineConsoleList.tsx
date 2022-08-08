@@ -1552,7 +1552,7 @@ const EngineConsoleItemCard = React.memo(
     }, [allPaths, userState?.uploads]);
 
     const uploadState = useMemo(
-      () => uploadProgress?.[uploadProgress?.length - 1]?.state,
+      () => uploadProgress?.[(uploadProgress?.length || 0) - 1]?.state,
       [uploadProgress]
     );
 

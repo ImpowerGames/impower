@@ -126,13 +126,14 @@ export const getStaticPaths: GetStaticPaths = async () => {
   return { paths: [], fallback: "blocking" };
 };
 
-export const getStaticProps: GetStaticProps<EngineProjectPageProps> =
-  async () => {
-    const config = {
-      ...getLocalizationConfigParameters(),
-      ...getTagConfigParameters(),
-    };
-    return {
-      props: { config },
-    };
+export const getStaticProps: GetStaticProps<
+  EngineProjectPageProps
+> = async () => {
+  const config = {
+    ...getLocalizationConfigParameters(),
+    ...getTagConfigParameters(),
   };
+  return {
+    props: { config },
+  };
+};

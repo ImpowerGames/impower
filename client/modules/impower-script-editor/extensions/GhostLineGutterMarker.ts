@@ -1,4 +1,4 @@
-import { GutterMarker } from "@codemirror/gutter";
+import { GutterMarker } from "@codemirror/view";
 
 export class GhostLineGutterMarker extends GutterMarker {
   elementClass = "cm-ghostGutterMark";

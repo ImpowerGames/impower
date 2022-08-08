@@ -22,7 +22,5 @@ export const HTMLBlockStyle = [
 
 export const Escapable = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
 
-export const Punctuation = new RegExp(
-  "[\\p{Pc}|\\p{Pd}|\\p{Pe}|\\p{Pf}|\\p{Pi}|\\p{Po}|\\p{Ps}]",
-  "u"
-);
+export const Punctuation =
+  /[\p{Pc}|\p{Pd}|\p{Pe}|\p{Pf}|\p{Pi}|\p{Po}|\p{Ps}]/u;

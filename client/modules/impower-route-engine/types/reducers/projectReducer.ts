@@ -363,7 +363,7 @@ const doProjectLoadInstances = (
 
 export const projectReducer = (
   state = createProjectState(),
-  action: ProjectAction
+  action: ProjectAction = undefined
 ): ProjectState => {
   switch (action.type) {
     case PROJECT_ACCESS:

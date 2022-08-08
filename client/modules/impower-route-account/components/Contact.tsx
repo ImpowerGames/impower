@@ -135,13 +135,13 @@ const Contact = React.memo((props: ContactProps): JSX.Element => {
       if (onProcessing) {
         onProcessing(true);
       }
-      await new Promise<void>((resolve) =>
-        userDispatch(userOnSetSetting(resolve, newSettingsDoc, "account"))
-      );
+      await new Promise<void>((resolve) => {
+        userDispatch(userOnSetSetting(resolve, newSettingsDoc, "account"));
+      });
       if (id) {
-        await new Promise<void>((resolve) =>
-          userDispatch(userOnDoConnect(resolve, "users", id))
-        );
+        await new Promise<void>((resolve) => {
+          userDispatch(userOnDoConnect(resolve, "users", id));
+        });
       }
       closeAccountDialog();
       if (onProcessing) {

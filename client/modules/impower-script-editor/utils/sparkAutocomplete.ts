@@ -318,7 +318,7 @@ export const nameSnippets = (
   completionType: CompletionType,
   prefix = "",
   suffix = "",
-  infoColor?: string
+  infoColor: string = undefined
 ): Completion[] => {
   const labelCleanupRegex = /[\n\r${}]/g;
   return options.map((option) => {

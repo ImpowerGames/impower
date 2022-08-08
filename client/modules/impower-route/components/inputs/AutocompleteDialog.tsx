@@ -681,7 +681,12 @@ const AutocompleteDialog = React.memo(
       return (
         <>
           <Divider style={{ marginTop: -1, zIndex: 1 }} />
-          <StyledFullscreenList {...props} />
+          <StyledFullscreenList
+            {...(props as React.DetailedHTMLProps<
+              React.HTMLAttributes<HTMLDivElement>,
+              HTMLDivElement
+            >)}
+          />
         </>
       );
     }, []);

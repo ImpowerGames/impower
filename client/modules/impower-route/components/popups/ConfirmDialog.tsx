@@ -205,7 +205,9 @@ export const ConfirmDialog = (
               if (!asynchronous) {
                 handleClose();
               }
-              await new Promise((resolve) => setTimeout(resolve, 1));
+              await new Promise((resolve) => {
+                window.setTimeout(resolve, 1);
+              });
               if (onAgree) {
                 onAgree();
               }

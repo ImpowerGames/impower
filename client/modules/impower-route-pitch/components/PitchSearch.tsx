@@ -144,7 +144,9 @@ const PitchSearch = React.memo((props: PitchSearchPageProps): JSX.Element => {
     async (e: React.MouseEvent, value: ProjectType) => {
       setTypeFilter(value);
       // Wait a bit for dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1);
+      });
       const link = `/pitch/${value}/${escapeURI(search)}`;
       window.history.replaceState(window.history.state, "", link);
       router.replace(link);

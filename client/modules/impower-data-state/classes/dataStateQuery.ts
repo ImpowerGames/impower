@@ -72,12 +72,13 @@ class DataStateQuery<T extends DataStateQueryPath = DataStateQueryPath> {
       if (checkCacheFirst) {
         logInfo("DataState", `GET CACHED (${this.path})`, contraintsSummary);
         const result = new Promise(
-          (resolve: (snapshot: DataSnapshot) => unknown) =>
+          (resolve: (snapshot: DataSnapshot) => unknown) => {
             _onValue(
               _query(_ref(internal, this.path), ...this._constraints),
               resolve,
               { onlyOnce: true }
-            )
+            );
+          }
         );
         logInfoEnd("DataState", `GET CACHED (${this.path})`, contraintsSummary);
         return result;
@@ -92,10 +93,11 @@ class DataStateQuery<T extends DataStateQueryPath = DataStateQueryPath> {
     if (checkCacheFirst) {
       logInfo("DataState", `GET CACHED (${this.path})`, contraintsSummary);
       const result = new Promise(
-        (resolve: (snapshot: DataSnapshot) => unknown) =>
+        (resolve: (snapshot: DataSnapshot) => unknown) => {
           _onValue(_ref(internal, this.path), resolve, {
             onlyOnce: true,
-          })
+          });
+        }
       );
       logInfoEnd("DataState", `GET CACHED (${this.path})`, contraintsSummary);
       return result;

@@ -9,7 +9,6 @@ import {
   selectedCompletion,
   startCompletion,
 } from "@codemirror/autocomplete";
-import { EditorView } from "@codemirror/basic-setup";
 import { indentWithTab } from "@codemirror/commands";
 import { html } from "@codemirror/lang-html";
 import {
@@ -20,8 +19,8 @@ import {
 } from "@codemirror/language";
 import { Diagnostic, linter } from "@codemirror/lint";
 import { Prec } from "@codemirror/state";
-import { hoverTooltip } from "@codemirror/tooltip";
-import { KeyBinding, keymap } from "@codemirror/view";
+import { EditorView, hoverTooltip, KeyBinding, keymap } from "@codemirror/view";
+
 import { parseSpark, SparkParseResult } from "../../impower-script-parser";
 import { MarkdownParser } from "../classes/MarkdownParser";
 import {

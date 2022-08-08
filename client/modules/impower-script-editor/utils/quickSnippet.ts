@@ -1,6 +1,6 @@
 /* eslint-disable no-template-curly-in-string */
 import { snippet } from "@codemirror/autocomplete";
-import { EditorView } from "@codemirror/basic-setup";
+import { EditorView } from "@codemirror/view";
 
 export const quickSnippetTemplates: { [id: string]: string } = {
   bold: "**{selection}**${}",

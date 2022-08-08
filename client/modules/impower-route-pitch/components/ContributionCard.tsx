@@ -210,7 +210,7 @@ const ContributionCard = React.memo(
 
     const handleDelete = useCallback(
       async (e: React.MouseEvent): Promise<void> => {
-        await new Promise<void>((resolve) =>
+        await new Promise<void>((resolve) => {
           userDispatch(
             userOnUpdateSubmission(
               resolve,
@@ -224,8 +224,8 @@ const ContributionCard = React.memo(
               "contributions",
               id
             )
-          )
-        );
+          );
+        });
         if (onDelete) {
           onDelete(e);
         }
@@ -317,7 +317,9 @@ const ContributionCard = React.memo(
         return;
       }
       // wait a bit for post dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1);
+      });
       navigationDispatch(navigationSetTransitioning(true));
       const router = (await import("next/router")).default;
       router.push(`/report?url=${escapeURI(url)}`);
@@ -325,7 +327,9 @@ const ContributionCard = React.memo(
 
     const handleOpenPitchPage = useCallback(async (): Promise<void> => {
       // wait a bit for post dialog to close
-      await new Promise((resolve) => window.setTimeout(resolve, 1));
+      await new Promise((resolve) => {
+        window.setTimeout(resolve, 1);
+      });
       const router = (await import("next/router")).default;
       navigationDispatch(navigationSetTransitioning(true));
       await router.push(`/p/${pitchId}`);

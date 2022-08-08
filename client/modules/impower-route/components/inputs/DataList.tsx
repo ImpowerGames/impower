@@ -234,7 +234,7 @@ const VirtualSortableList = (props: VirtualSortableListProps): JSX.Element => {
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
-      setActive(event.active.id);
+      setActive(event.active.id as string);
       if (onDragStart) {
         onDragStart(event);
       }
@@ -244,7 +244,7 @@ const VirtualSortableList = (props: VirtualSortableListProps): JSX.Element => {
 
   const handleDragMove = useCallback(
     (event: DragMoveEvent) => {
-      setDragging(event.active.id);
+      setDragging(event.active.id as string);
       if (onDragMove) {
         onDragMove(event);
       }
@@ -256,8 +256,8 @@ const VirtualSortableList = (props: VirtualSortableListProps): JSX.Element => {
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (active.id !== over.id) {
-        const oldIndex = items.indexOf(active.id);
-        const newIndex = items.indexOf(over.id);
+        const oldIndex = items.indexOf(active.id as string);
+        const newIndex = items.indexOf(over.id as string);
         if (onDragEnd) {
           onDragEnd(event, { oldIndex, newIndex });
         }
@@ -420,7 +420,7 @@ const SortableList = (props: SortableListProps): JSX.Element => {
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
-      setActive(event.active.id);
+      setActive(event.active.id as string);
       if (onDragStart) {
         onDragStart(event);
       }
@@ -430,7 +430,7 @@ const SortableList = (props: SortableListProps): JSX.Element => {
 
   const handleDragMove = useCallback(
     (event: DragMoveEvent) => {
-      setDragging(event.active.id);
+      setDragging(event.active.id as string);
       if (onDragMove) {
         onDragMove(event);
       }
@@ -442,8 +442,8 @@ const SortableList = (props: SortableListProps): JSX.Element => {
     (event: DragEndEvent) => {
       const { active, over } = event;
       if (active.id !== over.id) {
-        const oldIndex = items.indexOf(active.id);
-        const newIndex = items.indexOf(over.id);
+        const oldIndex = items.indexOf(active.id as string);
+        const newIndex = items.indexOf(over.id as string);
         if (onDragEnd) {
           onDragEnd(event, { oldIndex, newIndex });
         }
@@ -466,11 +466,11 @@ const SortableList = (props: SortableListProps): JSX.Element => {
     >
       <SortableContext items={items} strategy={strategy}>
         <div ref={onRef}>
-          {({ index, style }): JSX.Element => {
-            const id = currentOrderedIds[index];
+          {items.map((id: string): React.ReactNode => {
             if (!id) {
               return null;
             }
+            const index = currentOrderedIds.indexOf(id);
             const value = values[id];
             const level = levels?.[id] || 0;
             if (value === undefined) {
@@ -484,7 +484,6 @@ const SortableList = (props: SortableListProps): JSX.Element => {
                 index={index}
                 level={level}
                 levelIndent={levelIndent}
-                style={style}
                 id={id}
                 value={value}
                 currentOrderedIds={currentOrderedIds}
@@ -497,7 +496,7 @@ const SortableList = (props: SortableListProps): JSX.Element => {
                 {children}
               </SortableItem>
             );
-          }}
+          })}
         </div>
       </SortableContext>
       <Portal>
@@ -621,7 +620,7 @@ const DataList = (props: DataListProps): JSX.Element => {
 
   const handleSortStart = useCallback(
     (event: DragStartEvent): void => {
-      const { id } = event.active;
+      const id = event.active.id as string;
       const allIds = currentOrderedIds;
       const newSelection = select(
         event as unknown as AccessibleEvent,
@@ -635,7 +634,7 @@ const DataList = (props: DataListProps): JSX.Element => {
         onSetDragging([id]);
       }
       startClientX.current =
-        event?.active?.rect?.current?.translated?.offsetLeft || 0;
+        event?.active?.rect?.current?.translated?.left || 0;
       if (window.navigator.vibrate) {
         window.navigator.vibrate(10);
       }
@@ -650,8 +649,7 @@ const DataList = (props: DataListProps): JSX.Element => {
   );
 
   const handleSortMove = useCallback((event: DragMoveEvent): void => {
-    endClientX.current =
-      event?.active?.rect?.current?.translated?.offsetLeft || 0;
+    endClientX.current = event?.active?.rect?.current?.translated?.left || 0;
   }, []);
 
   const handleSortEnd = useCallback(

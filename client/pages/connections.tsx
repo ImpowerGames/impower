@@ -72,16 +72,17 @@ const ConnectionsPage = React.memo((props: ConnectionsPageProps) => {
 
 export default ConnectionsPage;
 
-export const getStaticProps: GetStaticProps<ConnectionsPageProps> =
-  async () => {
-    const getLocalizationConfigParameters = (
-      await import("../lib/getLocalizationConfigParameters")
-    ).default;
-    const config = {
-      ...getLocalizationConfigParameters(),
-      ...getTagConfigParameters(),
-    };
-    return {
-      props: { config },
-    };
+export const getStaticProps: GetStaticProps<
+  ConnectionsPageProps
+> = async () => {
+  const getLocalizationConfigParameters = (
+    await import("../lib/getLocalizationConfigParameters")
+  ).default;
+  const config = {
+    ...getLocalizationConfigParameters(),
+    ...getTagConfigParameters(),
   };
+  return {
+    props: { config },
+  };
+};

@@ -164,8 +164,8 @@ const getAnimatedSpanElements = (
   content: string,
   valueMap?: Record<string, unknown>,
   config: DisplayCommandConfig = defaultDisplayCommandConfig,
-  instant?: boolean,
-  debug?: boolean
+  instant: boolean = undefined,
+  debug: boolean = undefined
 ): [HTMLSpanElement[], [number, HTMLSpanElement[]][], [number, number][]] => {
   const letterFadeDuration = get(
     config[type]?.typing?.fadeDuration,
@@ -432,7 +432,7 @@ export const executeDisplayCommand = (
   },
   game?: ImpowerGame,
   config: DisplayCommandConfig = defaultDisplayCommandConfig,
-  onFinished?: () => void
+  onFinished: () => void = undefined
 ): void => {
   const id = data?.reference?.refId;
   const type = data?.type;

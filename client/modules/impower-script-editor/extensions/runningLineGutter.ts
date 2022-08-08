@@ -1,7 +1,10 @@
-import { gutter, GutterMarker } from "@codemirror/gutter";
-import { RangeSet } from "@codemirror/rangeset";
-import { Extension, StateEffect, StateField } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
+import {
+  Extension,
+  RangeSet,
+  StateEffect,
+  StateField,
+} from "@codemirror/state";
+import { EditorView, gutter, GutterMarker } from "@codemirror/view";
 import { colors } from "../constants/colors";
 import { GhostLineGutterMarker } from "./GhostLineGutterMarker";
 import { RunningLineGutterMarker } from "./RunningLineGutterMarker";

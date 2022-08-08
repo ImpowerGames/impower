@@ -115,7 +115,9 @@ const NoteCardAction = React.memo((props: NoteCardActionProps): JSX.Element => {
     }
     const router = (await import("next/router")).default;
     // wait a bit for post dialog to close
-    await new Promise((resolve) => window.setTimeout(resolve, 1));
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, 1);
+    });
     router.push(`/report?url=${escapeURI(url)}`);
   }, [isSignedIn, openAccountDialog, url]);
 

@@ -13,7 +13,7 @@ const SERVER_EPOCH = new Date(2021, 1, 1);
 const getAge = (
   date: Date,
   unit: "ms" | "s" | "m" | "h" | "d" | "w" | "mo" | "yr" = "ms",
-  round?: boolean,
+  round: boolean = undefined,
   epoch = SERVER_EPOCH
 ): number => {
   const ms = date.getTime() - epoch.getTime();

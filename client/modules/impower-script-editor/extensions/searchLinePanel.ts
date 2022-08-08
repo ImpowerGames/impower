@@ -1,6 +1,6 @@
-import { EditorState } from "@codemirror/basic-setup";
 import {
   EditorSelection,
+  EditorState,
   Extension,
   Facet,
   StateEffect,

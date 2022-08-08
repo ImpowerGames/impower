@@ -20,7 +20,7 @@ const doWindowSwitch = (
 
 export const windowReducer = (
   state = createWindowState(),
-  action: WindowAction
+  action: WindowAction = undefined
 ): WindowState => {
   switch (action.type) {
     case WINDOW_SWITCH:

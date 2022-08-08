@@ -687,8 +687,7 @@ const CreateContributionForm = React.memo(
         const setup = async (): Promise<void> => {
           const fileUrl = URL.createObjectURL(fileState);
           if (fileUrl && type === "image") {
-            const FastAverageColor = (await import("fast-average-color"))
-              .default;
+            const { FastAverageColor } = await import("fast-average-color");
             const fac = new FastAverageColor();
             const { hex } = await fac.getColorAsync(fileUrl, {
               ignoredColor: [255, 255, 255, 255], // white
@@ -802,8 +801,7 @@ const CreateContributionForm = React.memo(
           newDoc.square = squareState;
           newDoc.crop = cropState;
           if (fileType === "image/*") {
-            const FastAverageColor = (await import("fast-average-color"))
-              .default;
+            const { FastAverageColor } = await import("fast-average-color");
             const fac = new FastAverageColor();
             const { hex } = await fac.getColorAsync(uploadedFile?.fileUrl, {
               ignoredColor: [255, 255, 255, 255], // white
@@ -827,7 +825,7 @@ const CreateContributionForm = React.memo(
           }
         }
         if (editing || newDoc.deleted) {
-          await new Promise<void>((resolve) =>
+          await new Promise<void>((resolve) => {
             userDispatch(
               userOnUpdateSubmission(
                 resolve,
@@ -837,10 +835,10 @@ const CreateContributionForm = React.memo(
                 "contributions",
                 contributionId
               )
-            )
-          );
+            );
+          });
         } else {
-          await new Promise<void>((resolve) =>
+          await new Promise<void>((resolve) => {
             userDispatch(
               userOnCreateSubmission(
                 resolve,
@@ -850,8 +848,8 @@ const CreateContributionForm = React.memo(
                 "contributions",
                 contributionId
               )
-            )
-          );
+            );
+          });
         }
         savedRef.current = true;
         if (onSubmit) {

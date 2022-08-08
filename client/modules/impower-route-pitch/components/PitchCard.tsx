@@ -237,7 +237,7 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
     async (e: React.MouseEvent): Promise<void> => {
       const onYes = async (): Promise<void> => {
         navigationDispatch(navigationSetTransitioning(true));
-        await new Promise<void>((resolve) =>
+        await new Promise<void>((resolve) => {
           userDispatch(
             userOnUpdateSubmission(
               resolve,
@@ -249,8 +249,8 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
               "projects",
               id
             )
-          )
-        );
+          );
+        });
         if (onDelete) {
           onDelete(e);
         }
@@ -334,7 +334,9 @@ const PitchCard = React.memo((props: PitchCardProps): JSX.Element => {
     }
     const router = (await import("next/router")).default;
     // wait a bit for post dialog to close
-    await new Promise((resolve) => window.setTimeout(resolve, 1));
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, 1);
+    });
     router.push(`/report?url=${escapeURI(url)}`);
   }, [authenticated, openAccountDialog, url]);
 

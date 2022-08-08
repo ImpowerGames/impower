@@ -32,13 +32,6 @@ const AccountMenu = dynamic(() => import("../menus/AccountMenu"), {
   ssr: false,
 });
 
-const HoverTapTransition = dynamic(
-  () => import("../animations/HoverTapTransition")
-);
-
-const hoverVariant = { y: -4 };
-const tapVariant = { y: 0 };
-
 const StyledPageNavigationLinks = styled.div`
   line-height: 1.5em;
   margin: 0;
@@ -168,7 +161,9 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
       } else if (href) {
         navigationDispatch(navigationSetTransitioning(true));
         // wait a bit for dialog to close
-        await new Promise((resolve) => window.setTimeout(resolve, 1));
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 1);
+        });
         router.push(href);
       }
     },
@@ -195,20 +190,15 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
               delay={0 * stagger}
             >
               <FadeAnimation initial={0} animate={1} delay={0 * stagger}>
-                <HoverTapTransition
-                  whileHover={hoverVariant}
-                  whileTap={tapVariant}
+                <StyledInstallButton
+                  aria-label="Install"
+                  variant="outlined"
+                  color="inherit"
+                  style={{ borderRadius: 16 }}
+                  onClick={onInstall}
                 >
-                  <StyledInstallButton
-                    aria-label="Install"
-                    variant="outlined"
-                    color="inherit"
-                    style={{ borderRadius: 16 }}
-                    onClick={onInstall}
-                  >
-                    {install}
-                  </StyledInstallButton>
-                </HoverTapTransition>
+                  {install}
+                </StyledInstallButton>
               </FadeAnimation>
             </StyledMotionListItem>
           )}
@@ -225,28 +215,23 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
                 animate={1}
                 delay={(index + 1) * stagger}
               >
-                <HoverTapTransition
-                  whileHover={hoverVariant}
-                  whileTap={tapVariant}
-                >
-                  {link === "#donate" ? (
-                    <StyledButton
-                      href={`https://www.patreon.com/impowergames`}
-                      aria-label={pageNames[link]}
-                      color="inherit"
-                    >
-                      {pageNames[link]}
-                    </StyledButton>
-                  ) : (
-                    <StyledButton
-                      aria-label={pageNames[link]}
-                      color="inherit"
-                      onClick={(e): Promise<void> => handleClick(e, link)}
-                    >
-                      {pageNames[link]}
-                    </StyledButton>
-                  )}
-                </HoverTapTransition>
+                {link === "#donate" ? (
+                  <StyledButton
+                    href={`https://www.patreon.com/impowergames`}
+                    aria-label={pageNames[link]}
+                    color="inherit"
+                  >
+                    {pageNames[link]}
+                  </StyledButton>
+                ) : (
+                  <StyledButton
+                    aria-label={pageNames[link]}
+                    color="inherit"
+                    onClick={(e): Promise<void> => handleClick(e, link)}
+                  >
+                    {pageNames[link]}
+                  </StyledButton>
+                )}
               </FadeAnimation>
             </StyledMotionListItem>
           ))}
@@ -265,11 +250,7 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
               <StyledAccountArea>
                 {!isAuthenticated &&
                   unauthenticatedAccountPages.map((link) => (
-                    <HoverTapTransition
-                      key={pageNames[link]}
-                      whileHover={hoverVariant}
-                      whileTap={tapVariant}
-                    >
+                    <>
                       {useAccountDialog ? (
                         <StyledAccountButton
                           variant={link === "/login" ? "contained" : "outlined"}
@@ -316,14 +297,10 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
                           </StyledAccountButton>
                         </NextLink>
                       )}
-                    </HoverTapTransition>
+                    </>
                   ))}
                 {isAuthenticated && (
-                  <HoverTapTransition
-                    key={accountLabel}
-                    whileHover={hoverVariant}
-                    whileTap={tapVariant}
-                  >
+                  <>
                     <StyledIconButton
                       onClick={handleOpenAccountMenu}
                       size="large"
@@ -362,7 +339,7 @@ const PageNavigationLinks = React.memo((props: NavigationLinksProps) => {
                       </StyledAccountInfoArea>
                       <StyledDivider />
                     </AccountMenu>
-                  </HoverTapTransition>
+                  </>
                 )}
               </StyledAccountArea>
             </FadeAnimation>

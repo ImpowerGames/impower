@@ -40,6 +40,7 @@ import { GameContext } from "../contexts/gameContext";
 import { GameInspectorContext } from "../contexts/gameInspectorContext";
 import { GameRunnerContext } from "../contexts/gameRunnerContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
+import { ProjectEngineAction } from "../contexts/projectEngineContextState";
 import { panelInspect } from "../types/actions/panelActions";
 import {
   projectAccess,
@@ -51,6 +52,7 @@ import {
 } from "../types/actions/projectActions";
 import { testModeChange } from "../types/actions/testActions";
 import { projectEngineReducer } from "../types/reducers/projectEngineReducer";
+import { ProjectEngineState } from "../types/state/projectEngineState";
 import { createProjectEngineState } from "../utils/createProjectEngineState";
 
 const StyledProjectPage = styled.div`
@@ -78,10 +80,10 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const my_studio_memberships = userState?.my_studio_memberships;
   const my_project_memberships = userState?.my_project_memberships;
 
-  const projectEngineContext = useReducer(
-    projectEngineReducer,
-    createProjectEngineState()
-  );
+  const projectEngineContext: [
+    ProjectEngineState,
+    React.Dispatch<ProjectEngineAction>
+  ] = useReducer(projectEngineReducer, createProjectEngineState());
   const [state, dispatch] = projectEngineContext;
 
   const loadedStudioId = state?.project?.data?.doc?.studio;

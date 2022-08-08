@@ -671,7 +671,7 @@ const Comments = React.memo((props: CommentsProps): JSX.Element => {
 
   const theme = useTheme();
   const handleClickFilter = useCallback((): void => {
-    if (filterIndex < filterLabels?.length - 1) {
+    if (filterIndex < (filterLabels?.length || 0) - 1) {
       setFilterIndex(filterIndex + 1);
     } else {
       setFilterIndex(0);
@@ -679,7 +679,7 @@ const Comments = React.memo((props: CommentsProps): JSX.Element => {
   }, [filterIndex]);
 
   const handleClickSort = useCallback((): void => {
-    if (sortIndex < sortLabels?.length - 1) {
+    if (sortIndex < (sortLabels?.length || 0) - 1) {
       setSortIndex(sortIndex + 1);
     } else {
       setSortIndex(0);

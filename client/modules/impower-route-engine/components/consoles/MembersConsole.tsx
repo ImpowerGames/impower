@@ -509,7 +509,7 @@ const MembersConsole = (props: MembersConsoleProps): JSX.Element => {
       await Promise.all(
         ids.map(
           (memberId) =>
-            new Promise<void>((resolve) =>
+            new Promise<void>((resolve) => {
               userDispatch(
                 userOnChangeMember(
                   resolve,
@@ -520,8 +520,8 @@ const MembersConsole = (props: MembersConsoleProps): JSX.Element => {
                   "data",
                   memberId
                 )
-              )
-            )
+              );
+            })
         )
       );
     },

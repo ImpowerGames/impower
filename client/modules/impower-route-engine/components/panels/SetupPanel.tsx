@@ -310,7 +310,7 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
         switch (action) {
           case "create":
             if (isProjectDocument(doc)) {
-              await new Promise<void>((resolve) =>
+              await new Promise<void>((resolve) => {
                 userDispatch(
                   userOnChangeMember(
                     resolve,
@@ -326,13 +326,13 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
                     "data",
                     uid
                   )
-                )
-              );
+                );
+              });
             }
             break;
           case "update":
             if (isProjectDocument(doc)) {
-              await new Promise<void>((resolve) =>
+              await new Promise<void>((resolve) => {
                 userDispatch(
                   userOnChangeMember(
                     resolve,
@@ -347,13 +347,13 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
                     "data",
                     uid
                   )
-                )
-              );
+                );
+              });
             }
             break;
           case "delete":
             if (isProjectDocument(doc)) {
-              await new Promise<void>((resolve) =>
+              await new Promise<void>((resolve) => {
                 userDispatch(
                   userOnChangeMember(
                     resolve,
@@ -364,8 +364,8 @@ const AccessSetup = React.memo((props: AccessSetupProps) => {
                     "data",
                     uid
                   )
-                )
-              );
+                );
+              });
             }
             break;
           default:

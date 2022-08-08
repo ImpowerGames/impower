@@ -11,7 +11,7 @@ export type OnTapNode = (input: OnTapNodeInput) => void;
 export interface OnDragNodeInput {
   id: string;
   event?: PointerEvent | React.PointerEvent;
-  position: Vector2;
+  position?: Vector2;
 }
 export type OnDragNode = (input: OnDragNodeInput) => void;
 

@@ -2226,7 +2226,8 @@ export const parseSpark = (
         continue;
       } else if (titlePageStarted) {
         lastTitlePageToken.text +=
-          (lastTitlePageToken.text ? "\n" : "") + currentToken.content?.trim();
+          (lastTitlePageToken.text ? "\n" : "") +
+          (currentToken.content?.trim() || "");
         continue;
       }
     }
@@ -2305,7 +2306,7 @@ export const parseSpark = (
             const content = match[4] || "";
             const contentFrom = currentToken.from + getStart(match, 4);
             const endSpaces = match[7] || "";
-            currentToken.content = content?.trimStart() + endSpaces;
+            currentToken.content = (content?.trimStart() || "") + endSpaces;
             processDisplayedContent(currentToken, contentFrom);
           }
         }
@@ -2837,7 +2838,7 @@ export const parseSpark = (
     }
 
     if (currentToken.indent < previousNonSeparatorToken?.indent) {
-      let indent = previousNonSeparatorToken?.indent - 1;
+      let indent = (previousNonSeparatorToken?.indent || 0) - 1;
       while (currentToken.indent <= indent) {
         pushToken(
           createSparkToken("condition", newLineLength, {

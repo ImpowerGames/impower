@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable no-cond-assign */
 /* eslint-disable no-return-assign */
-import { EditorState } from "@codemirror/basic-setup";
 import { getIndentUnit, syntaxTree } from "@codemirror/language";
 import {
   ChangeSpec,
   EditorSelection,
+  EditorState,
+  Line,
   SelectionRange,
   StateCommand,
   Text,
 } from "@codemirror/state";
-import { Line } from "@codemirror/text";
 import { SyntaxNode, Tree } from "@lezer/common";
 import { sparkRegexes } from "../../impower-script-parser";
 import { Context } from "../classes/Context";

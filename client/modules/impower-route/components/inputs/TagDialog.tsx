@@ -677,7 +677,7 @@ const TagDialog = React.memo((props: TagDialogProps): JSX.Element => {
         {...provided}
         style={{ ...provided?.style, width: undefined, minHeight: listHeight }}
       >
-        {children}
+        {children as React.ReactNode}
       </StyledDialogList>
     );
   }, []);

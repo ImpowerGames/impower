@@ -17,8 +17,8 @@ export const useStickyStyle = (
     paddingRight?: number;
   } = { position: "fixed", zIndex: 2 },
   sticky: "always" | "collapsible" | "never" = "never",
-  stickyOffset?: number,
-  onScrollPast?: (scrolledPast: boolean) => void
+  stickyOffset: number = undefined,
+  onScrollPast: (scrolledPast: boolean) => void = undefined
 ): void => {
   const scrollY = useRef<number>();
   const lastCollapsedScrollY = useRef<number>(0);

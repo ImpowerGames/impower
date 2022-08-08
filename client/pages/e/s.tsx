@@ -2,7 +2,6 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import Paper from "@material-ui/core/Paper";
 import { GetStaticProps } from "next";
-import dynamic from "next/dynamic";
 import React, {
   useCallback,
   useContext,
@@ -16,6 +15,7 @@ import { ConfigParameters } from "../../modules/impower-config";
 import ConfigCache from "../../modules/impower-config/classes/configCache";
 import { StudioDocument } from "../../modules/impower-data-store";
 import DataStoreCache from "../../modules/impower-data-store/classes/dataStoreCache";
+import createStudioDocument from "../../modules/impower-data-store/utils/createStudioDocument";
 import {
   NavigationContext,
   navigationSetBackgroundColor,
@@ -29,17 +29,13 @@ import { Fallback } from "../../modules/impower-route";
 import Footer from "../../modules/impower-route-home/components/elements/Footer";
 import Illustration from "../../modules/impower-route-home/components/elements/Illustration";
 import NavigationBarSpacer from "../../modules/impower-route/components/elements/NavigationBarSpacer";
+import CreateStudioForm from "../../modules/impower-route/components/forms/CreateStudioForm";
 import useBodyBackgroundColor from "../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../modules/impower-route/hooks/useHTMLBackgroundColor";
 import useHTMLOverscrollBehavior from "../../modules/impower-route/hooks/useHTMLOverscrollBehavior";
 import { useRouter } from "../../modules/impower-router";
 import { UserContext } from "../../modules/impower-user";
 import IllustrationImage from "../../resources/illustrations/clip-busy-day-at-the-office.svg";
-
-const CreateStudioForm = dynamic(
-  () => import("../../modules/impower-route/components/forms/CreateStudioForm"),
-  { loading: () => <Fallback color="primary" /> }
-);
 
 const StyledPage = styled.div`
   flex: 1;
@@ -118,27 +114,19 @@ const CreateStudioPage = React.memo((props: CreateStudioPageProps) => {
 
   useEffect(() => {
     if (uid) {
-      const setup = async (): Promise<void> => {
-        const createStudioDocument = (
-          await import(
-            "../../modules/impower-data-store/utils/createStudioDocument"
-          )
-        ).default;
-        setCreateDoc(
-          createStudioDocument({
-            _createdBy: uid,
-            _author: {
-              u: username,
-              i: icon,
-              h: hex,
-            },
-            name: `${username}'s studio`,
-            handle: "",
-            owners: [uid],
-          })
-        );
-      };
-      setup();
+      setCreateDoc(
+        createStudioDocument({
+          _createdBy: uid,
+          _author: {
+            u: username,
+            i: icon,
+            h: hex,
+          },
+          name: `${username}'s studio`,
+          handle: "",
+          owners: [uid],
+        })
+      );
     } else if (uid === null) {
       router.push(`/signup`);
     }
@@ -204,13 +192,14 @@ const CreateStudioPage = React.memo((props: CreateStudioPageProps) => {
 
 export default CreateStudioPage;
 
-export const getStaticProps: GetStaticProps<CreateStudioPageProps> =
-  async () => {
-    const config = {
-      ...getLocalizationConfigParameters(),
-      ...getTagConfigParameters(),
-    };
-    return {
-      props: { config },
-    };
+export const getStaticProps: GetStaticProps<
+  CreateStudioPageProps
+> = async () => {
+  const config = {
+    ...getLocalizationConfigParameters(),
+    ...getTagConfigParameters(),
   };
+  return {
+    props: { config },
+  };
+};

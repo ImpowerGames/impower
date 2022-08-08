@@ -201,9 +201,9 @@ const SetupAdvanced = React.memo((props: SetupAdvancedProps) => {
       const onAgree = async (): Promise<void> => {
         const studioId = doc?.studio;
         if (isGameDocument(doc)) {
-          await new Promise<void>((resolve) =>
-            userDispatch(userOnDeleteSubmission(resolve, "projects", id))
-          );
+          await new Promise<void>((resolve) => {
+            userDispatch(userOnDeleteSubmission(resolve, "projects", id));
+          });
           if (studioId) {
             router.push(`/e/s/${studioId}?t=games`);
           } else {

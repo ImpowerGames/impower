@@ -201,7 +201,9 @@ const CreateProjectForm = React.memo(
         },
         limit?: number
       ): Promise<[string, number][]> => {
-        await new Promise((resolve) => window.requestAnimationFrame(resolve));
+        await new Promise((resolve) => {
+          window.requestAnimationFrame(resolve);
+        });
         const relevantTags = specificitySortedTags.filter(
           (tag) => !(filteredTags || []).includes(tag)
         );
@@ -501,7 +503,7 @@ const CreateProjectForm = React.memo(
             owners: [Auth.instance.uid],
           };
           if (claimedDoc._createdAt) {
-            await new Promise<void>((resolve) =>
+            await new Promise<void>((resolve) => {
               userDispatch(
                 userOnUpdateSubmission(
                   resolve,
@@ -509,10 +511,10 @@ const CreateProjectForm = React.memo(
                   "projects",
                   newDocId
                 )
-              )
-            );
+              );
+            });
           } else {
-            await new Promise<void>((resolve) =>
+            await new Promise<void>((resolve) => {
               userDispatch(
                 userOnCreateSubmission(
                   resolve,
@@ -520,8 +522,8 @@ const CreateProjectForm = React.memo(
                   "projects",
                   newDocId
                 )
-              )
-            );
+              );
+            });
           }
           if (onSubmitted) {
             await onSubmitted(newDocId, claimedDoc, true);

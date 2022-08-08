@@ -41,8 +41,9 @@ class DataStateRead<T extends DataStateReadPath = DataStateReadPath> {
     if (checkCacheFirst) {
       logInfo("DataState", `GET (cached) ${this.path}`);
       const result = new Promise(
-        (resolve: (snapshot: DataSnapshot) => unknown) =>
-          _onValue(_ref(internal, this.path), resolve, { onlyOnce: true })
+        (resolve: (snapshot: DataSnapshot) => unknown) => {
+          _onValue(_ref(internal, this.path), resolve, { onlyOnce: true });
+        }
       );
       logInfoEnd("DataState", `GET (cached) ${this.path}`);
       return result;

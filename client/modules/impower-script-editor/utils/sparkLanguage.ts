@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { styleTags, tags as t } from "@codemirror/highlight";
 import {
   defineLanguageFacet,
   foldNodeProp,
@@ -9,6 +8,7 @@ import {
   LanguageDescription,
   ParseContext,
 } from "@codemirror/language";
+import { styleTags, tags as t } from "@lezer/highlight";
 import { MarkdownParser } from "../classes/MarkdownParser";
 import { GFM, Subscript, Superscript } from "../constants/extension";
 import { parser as baseParser } from "../constants/parser";
@@ -167,11 +167,7 @@ const commonmark = baseParser.configure({
 });
 
 export function mkLang(parser: MarkdownParser): Language {
-  return new Language(
-    data,
-    parser,
-    parser.nodeSet.types.find((t) => t.name === "Document")
-  );
+  return new Language(data, parser);
 }
 
 /// Language support for strict CommonMark.

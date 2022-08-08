@@ -460,7 +460,15 @@ const EngineToolbarContent = React.memo(
     );
 
     const handleSearchTextChange = useCallback(
-      (e: React.ChangeEvent<HTMLInputElement>, action = "search") => {
+      (
+        e: React.ChangeEvent<HTMLInputElement>,
+        action:
+          | "replace"
+          | "search"
+          | "find_next"
+          | "find_previous"
+          | "replace_all" = "search"
+      ) => {
         searchTextQueryRef.current = {
           ...(searchTextQueryRef.current || {}),
           search: e.target.value,

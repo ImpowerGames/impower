@@ -1,36 +1,75 @@
-import { basicSetup, EditorState, EditorView } from "@codemirror/basic-setup";
-import { foldEffect, unfoldAll } from "@codemirror/fold";
-import { highlightActiveLineGutter } from "@codemirror/gutter";
-import { HighlightStyle } from "@codemirror/highlight";
-import { historyField, redo, undo } from "@codemirror/history";
 import {
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+} from "@codemirror/autocomplete";
+import {
+  defaultKeymap,
+  history,
+  historyField,
+  historyKeymap,
+  redo,
+  undo,
+} from "@codemirror/commands";
+import {
+  bracketMatching,
+  defaultHighlightStyle,
   foldable,
+  foldEffect,
+  foldGutter,
+  foldKeymap,
+  HighlightStyle,
+  indentOnInput,
   indentUnit,
+  syntaxHighlighting,
   syntaxTreeAvailable,
+  unfoldAll,
 } from "@codemirror/language";
 import {
   closeLintPanel,
   lintGutter,
+  lintKeymap,
   openLintPanel,
   setDiagnosticsEffect,
 } from "@codemirror/lint";
-import { panels } from "@codemirror/panel";
 import {
   closeSearchPanel,
   findNext,
   findPrevious,
   getSearchQuery,
+  highlightSelectionMatches,
   openSearchPanel,
   replaceAll,
   replaceNext,
   search,
+  searchKeymap,
   SearchQuery,
   selectMatches,
   setSearchQuery,
 } from "@codemirror/search";
-import { Compartment, EditorSelection } from "@codemirror/state";
-import { tooltips } from "@codemirror/tooltip";
-import { PluginField, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import {
+  Compartment,
+  EditorSelection,
+  EditorState,
+  Extension,
+} from "@codemirror/state";
+import {
+  crosshairCursor,
+  drawSelection,
+  dropCursor,
+  EditorView,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+  panels,
+  rectangularSelection,
+  tooltips,
+  ViewPlugin,
+  ViewUpdate,
+} from "@codemirror/view";
 import React, { useEffect, useRef, useState } from "react";
 import {
   parseSpark,
@@ -69,7 +108,7 @@ import { SearchPanel, SearchTextQuery } from "./SearchTextPanel";
 
 const gutterCompartment = new Compartment();
 
-const marginPlugin = ViewPlugin.fromClass(
+const marginPlugin: Extension = ViewPlugin.fromClass(
   class {
     margin: { top: number; bottom: number };
 
@@ -78,7 +117,11 @@ const marginPlugin = ViewPlugin.fromClass(
     }
   },
   {
-    provide: PluginField.scrollMargins.from((value) => value.margin),
+    provide: (plugin) =>
+      EditorView.scrollMargins.of((view) => {
+        const value = view.plugin(plugin);
+        return value.margin;
+      }),
   }
 );
 
@@ -196,6 +239,35 @@ const myHighlightStyle = HighlightStyle.define([
 
   { tag: t.invalid, color: colors.invalid },
 ]);
+
+export const basicSetup: Extension = ((): Extension[] => [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  highlightSpecialChars(),
+  history(),
+  foldGutter(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentOnInput(),
+  syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+  bracketMatching(),
+  closeBrackets(),
+  autocompletion(),
+  rectangularSelection(),
+  crosshairCursor(),
+  highlightActiveLine(),
+  highlightSelectionMatches(),
+  keymap.of([
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+    ...searchKeymap,
+    ...historyKeymap,
+    ...foldKeymap,
+    ...completionKeymap,
+    ...lintKeymap,
+  ]),
+])();
 
 interface ScriptEditorProps {
   defaultValue: string;
@@ -410,6 +482,26 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           foldedField.init(() => restoredState.field(foldedField)),
         ]
       : [];
+    const languageSetup: Extension[] = [
+      spark({
+        base: sparkLanguage,
+        initialParseResult: parseSpark(doc, augmentationsRef.current),
+        parse: (script: string) => {
+          const result = parseSpark(script, augmentationsRef.current);
+          parseResultRef.current = { ...result };
+          if (onParseRef.current) {
+            onParseRef.current(result);
+          }
+          return result;
+        },
+        getRuntimeValue: getRuntimeValueRef.current,
+        setRuntimeValue: setRuntimeValueRef.current,
+        observeRuntimeValue: observeRuntimeValueRef.current,
+        onNavigateUp: onNavigateUpRef.current,
+        onNavigateDown: onNavigateDownRef.current,
+      }),
+      syntaxHighlighting(myHighlightStyle),
+    ];
     const startState = EditorState.create({
       doc,
       selection,
@@ -433,23 +525,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           topContainer: topPanelsContainer,
           bottomContainer: bottomPanelsContainer,
         }),
-        spark({
-          base: sparkLanguage,
-          initialParseResult: parseSpark(doc, augmentationsRef.current),
-          parse: (script: string) => {
-            const result = parseSpark(script, augmentationsRef.current);
-            parseResultRef.current = { ...result };
-            if (onParseRef.current) {
-              onParseRef.current(result);
-            }
-            return result;
-          },
-          getRuntimeValue: getRuntimeValueRef.current,
-          setRuntimeValue: setRuntimeValueRef.current,
-          observeRuntimeValue: observeRuntimeValueRef.current,
-          onNavigateUp: onNavigateUpRef.current,
-          onNavigateDown: onNavigateDownRef.current,
-        }),
+        languageSetup,
         tooltips({
           position: "absolute",
           tooltipSpace: (): {
@@ -468,7 +544,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         }),
         gutterCompartment.of(lintGutter()),
         highlightActiveLineGutter(),
-        myHighlightStyle,
         indentUnit.of("  "),
         basicSetup,
         EditorState.phrases.of({ "No diagnostics": "No errors" }),

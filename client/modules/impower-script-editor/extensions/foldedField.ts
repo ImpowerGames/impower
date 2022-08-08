@@ -1,9 +1,16 @@
-import { EditorView } from "@codemirror/basic-setup";
-import { codeFolding, foldedRanges, unfoldEffect } from "@codemirror/fold";
-import { foldable } from "@codemirror/language";
-import { Range } from "@codemirror/rangeset";
+import {
+  codeFolding,
+  foldable,
+  foldedRanges,
+  unfoldEffect,
+} from "@codemirror/language";
 import { EditorState, StateField } from "@codemirror/state";
-import { Decoration, DecorationSet, WidgetType } from "@codemirror/view";
+import {
+  Decoration,
+  DecorationSet,
+  EditorView,
+  WidgetType,
+} from "@codemirror/view";
 
 const foldExtension = codeFolding();
 
@@ -86,11 +93,7 @@ const fromJSON = (json: { from: number; to: number }[]): DecorationSet => {
   if (json) {
     return Decoration.set(
       json.map(({ from, to }) => {
-        const range = new Range<Decoration>();
-        (range as { from: number }).from = from;
-        (range as { to: number }).to = to;
-        (range as { value: Decoration }).value = foldWidget;
-        return range;
+        return { from, to, value: foldWidget };
       }),
       true
     );

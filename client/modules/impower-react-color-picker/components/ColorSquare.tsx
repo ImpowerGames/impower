@@ -86,8 +86,10 @@ export const ColorSquare = React.memo(
       [crossSize, h, squareSize]
     );
 
-    const [cursorPosition, setCursorPosition] =
-      useState<{ x: number; y: number }>();
+    const [cursorPosition, setCursorPosition] = useState<{
+      x: number;
+      y: number;
+    }>();
 
     const pointerDown = useRef(false);
     const squareRef = useRef<HTMLDivElement | null>(null);
