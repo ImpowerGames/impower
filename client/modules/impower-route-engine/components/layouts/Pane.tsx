@@ -1,5 +1,4 @@
 import styled from "@emotion/styled";
-import { AnimatePresence } from "framer-motion";
 import React, { useRef } from "react";
 import OverlayTransition from "../../../impower-route/components/animations/OverlayTransition";
 import { PanelType } from "../../types/state/panelState";
@@ -84,11 +83,9 @@ const PanelArea = React.memo((props: PanelAreaProps): JSX.Element | null => {
 
   return (
     <StyledPanelArea key={preservePane ? undefined : windowType} style={style}>
-      <AnimatePresence initial={false} custom={custom} exitBeforeEnter>
-        <OverlayTransition key={type} style={{ zIndex }} custom={custom}>
-          <PanelContent type={type} windowType={windowType} />
-        </OverlayTransition>
-      </AnimatePresence>
+      <OverlayTransition key={type} style={{ zIndex }} custom={custom}>
+        <PanelContent type={type} windowType={windowType} />
+      </OverlayTransition>
     </StyledPanelArea>
   );
 });
