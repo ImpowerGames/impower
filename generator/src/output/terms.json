@@ -545,6 +545,7 @@
   "to try us": ["dystopian"],
   "glare": ["dystopian"],
   "tow": ["driving"],
+  "right of way": ["driving"],
   "kerb": ["driving"],
   "curb": ["driving"],
   "cabbie": ["driving"],
@@ -941,6 +942,8 @@
   "prey": ["animal"],
   "worship": ["angel"],
   "virgin": ["angel"],
+  "there be light": ["angel"],
+  "the word": ["angel"],
   "televangelist": ["angel"],
   "sistine": ["angel"],
   "sacred": ["angel"],
@@ -958,6 +961,7 @@
   "parish": ["angel"],
   "papal": ["angel"],
   "mohammed": ["angel"],
+  "man of the cloth": ["angel"],
   "luke": ["angel"],
   "johnny": ["angel"],
   "john": ["angel"],
@@ -967,12 +971,15 @@
   "gospel": ["angel"],
   "god's": ["angel"],
   "god": ["angel"],
+  "fruitful and multiply": ["angel"],
+  "forbidden fruit": ["angel"],
   "faithful": ["angel"],
   "faith": ["angel"],
   "eye of a needle": ["angel"],
   "evangelist": ["angel"],
   "eden": ["angel"],
   "deacon": ["angel"],
+  "coat of many colors": ["angel"],
   "clergyman": ["angel"],
   "catholic": ["angel"],
   "bishop": ["angel"],
@@ -1235,6 +1242,7 @@
   "heals": ["medical", "rehabilitation"],
   "healing": ["medical", "rehabilitation"],
   "heal": ["medical", "rehabilitation"],
+  "doctors": ["medical", "rehabilitation"],
   "doctor's": ["medical", "rehabilitation"],
   "doctor": ["medical", "rehabilitation"],
   "doc": ["medical", "rehabilitation"],
@@ -1338,6 +1346,7 @@
   "enthusiast": ["fame", "retro"],
   "commentator's": ["fame", "sports"],
   "woolf": ["fairy tale", "fantasy"],
+  "thorns": ["fairy tale", "fantasy"],
   "thorn": ["fairy tale", "fantasy"],
   "teacup": ["fairy tale", "fantasy"],
   "robin": ["fairy tale", "fantasy"],
@@ -1588,6 +1597,7 @@
   "candy": ["cooking", "cute"],
   "calories": ["cooking", "medical"],
   "calorie": ["cooking", "medical"],
+  "burnout": ["cooking", "demon"],
   "breast": ["cooking", "medical"],
   "bottles": ["cooking", "liquor"],
   "bottle": ["cooking", "liquor"],
@@ -3004,6 +3014,7 @@
   "spanner": ["endless", "immortality", "teleportation", "time travel"],
   "span": ["endless", "immortality", "teleportation", "time travel"],
   "lasting": ["endless", "immortality", "multiplayer", "multiple endings"],
+  "outrage": ["emotional", "lgbt+", "rebellion", "rival"],
   "visionary": ["educational", "fame", "genius", "talent"],
   "talent": ["educational", "fame", "genius", "talent"],
   "savant": ["educational", "fame", "genius", "talent"],
@@ -3363,6 +3374,7 @@
   "pay": ["business", "greed", "shop", "wealth"],
   "paid": ["business", "greed", "shop", "wealth"],
   "overworked": ["business", "office", "shop", "simulator"],
+  "one percent": ["business", "greed", "shop", "wealth"],
   "occupational": ["business", "extraterrestrial", "invasion", "office"],
   "moneylender": ["business", "greed", "shop", "wealth"],
   "loan": ["business", "greed", "shop", "wealth"],
@@ -3573,7 +3585,6 @@
     "post apocalyptic",
     "rebellion"
   ],
-  "armageddon": ["apocalyptic", "demon", "eldritch", "post apocalyptic"],
   "apocalypse": ["apocalyptic", "demon", "eldritch", "post apocalyptic"],
   "anarchy": ["apocalyptic", "demon", "post apocalyptic", "rebellion"],
   "anarchist": ["apocalyptic", "demon", "post apocalyptic", "rebellion"],
@@ -4685,6 +4696,13 @@
     "redemption",
     "rival"
   ],
+  "thank": [
+    "communication",
+    "conversation",
+    "disillusionment",
+    "redemption",
+    "rival"
+  ],
   "song": ["communication", "fame", "musical", "myth", "rhythm"],
   "sentence": [
     "communication",
@@ -5678,6 +5696,13 @@
     "walking simulator"
   ],
   "compassion": ["angel", "emotional", "redemption", "relaxing", "utopian"],
+  "armageddon": [
+    "angel",
+    "apocalyptic",
+    "demon",
+    "eldritch",
+    "post apocalyptic"
+  ],
   "above": ["angel", "flight", "mecha", "platformer", "side scroller"],
   "year's": [
     "alternate history",
@@ -14711,6 +14736,16 @@
     "meta",
     "mystery",
     "noir"
+  ],
+  "babbling": [
+    "communication",
+    "conversation",
+    "creepy",
+    "horror",
+    "psychic",
+    "psychological",
+    "suspense",
+    "weird"
   ],
   "traumatic": [
     "comics",
@@ -28866,20 +28901,6 @@
     "police",
     "thriller",
     "tracking"
-  ],
-  "thrust": [
-    "action",
-    "extraterrestrial",
-    "fairy tale",
-    "fantasy",
-    "futuristic",
-    "hack & slash",
-    "mecha",
-    "physics",
-    "role playing",
-    "sci-fi",
-    "space",
-    "sword & sorcery"
   ],
   "slam": [
     "action",
