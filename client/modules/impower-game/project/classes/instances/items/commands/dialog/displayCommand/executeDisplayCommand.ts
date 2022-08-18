@@ -9,6 +9,10 @@ import {
 } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 
+const UI_ID = "impower_ui";
+
+const STYLE_CLASS = "UI-Style";
+
 const dialoguePitches: [string, number][] = [
   ["D#5", 0.5],
   ["D#6", 0.5],
@@ -37,7 +41,7 @@ export const dialogueInstrumentOptions: RecursivePartial<SynthOptions> = {
 
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   root: {
-    id: "impower_ui",
+    id: "Display",
     typing: {
       delay: 0,
       pauseScale: 0,
@@ -45,39 +49,28 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
       syllableLength: 0,
     },
     indicator: {
-      id: "indicator",
+      id: "Indicator",
       fadeDuration: 0.15,
       animationName: "bounce",
       animationDuration: 0.5,
       animationEase: "ease",
     },
-    css: `
-    @keyframes bounce {
-      0%,
-      100% {
-        transform: translateY(0);
-      }
-      50% {
-        transform: translateY(4px);
-      }
-    }
-    `,
   },
-  background: { id: "character" },
-  portrait: { id: "portrait" },
-  choice: { id: "choice" },
+  background: { id: "Background" },
+  portrait: { id: "Portrait" },
+  choice: { id: "Choice" },
   action: {
-    id: "action",
+    id: "Action",
   },
-  centered: { id: "centered" },
-  transition: { id: "transition" },
-  scene: { id: "scene" },
-  description_group: { id: "description_group" },
-  dialogue_group: { id: "dialogue_group" },
-  character: { id: "character" },
-  parenthetical: { id: "parenthetical", hidden: "beat" },
+  centered: { id: "Centered" },
+  transition: { id: "Transition" },
+  scene: { id: "Scene" },
+  description_group: { id: "DescriptionGroup" },
+  dialogue_group: { id: "DialogueGroup" },
+  character: { id: "Character" },
+  parenthetical: { id: "Parenthetical", hidden: "beat" },
   dialogue: {
-    id: "dialogue",
+    id: "Dialogue",
     typing: {
       fadeDuration: 0,
       delay: 0.025,
@@ -89,7 +82,7 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
 };
 
 const getElementSelector = (ui: string, ...classNames: string[]): string =>
-  `#${ui} .${classNames.join(" .")}`;
+  classNames?.length > 0 ? `#${ui} .${classNames.join(" .")}` : `#${ui}`;
 
 const getElement = <T extends HTMLElement>(
   ui: string,
@@ -104,23 +97,105 @@ const getElements = <T extends HTMLElement>(
     document.querySelectorAll<T>(getElementSelector(ui, ...classNames))
   );
 
-const getStyleId = (ui: string): string => `${ui}-style`;
+export const getCSSPropertyName = (name: string, separator = "-"): string => {
+  return name.replace(/([a-z](?=[A-Z]))/g, `$1${separator}`).toLowerCase();
+};
 
-const setupStyle = (ui: string, css: string): HTMLStyleElement => {
-  const styleId = getStyleId(ui);
+const setupStyle = (
+  ui: string,
+  objectMap: Record<string, Record<string, unknown>>
+): HTMLStyleElement => {
+  const rootEl = getElement(ui);
+  if (!rootEl) {
+    return null;
+  }
+  const styleObjectKeys = Object.keys(objectMap.style);
+  let content = "";
+  styleObjectKeys.forEach((k) => {
+    const styleFields = objectMap[k];
+    let c = "";
+    Object.entries(styleFields).forEach(([fk, fv]) => {
+      if (c) {
+        c += "\n";
+      }
+      c += `  ${getCSSPropertyName(fk)}: ${fv};`;
+    });
+    if (content) {
+      content += "\n";
+    }
+    content += `#${ui} .${k} {\n${c}\n}`;
+  });
   const styleEl =
-    (document.getElementById(styleId) as HTMLStyleElement) ||
+    (getElement(ui, STYLE_CLASS) as HTMLStyleElement) ||
     document.createElement("style");
-  styleEl.id = styleId;
-  styleEl.textContent = css;
-  document.body.appendChild(styleEl);
+  styleEl.className = STYLE_CLASS;
+  styleEl.textContent = content;
+  if (styleEl.parentElement !== rootEl) {
+    rootEl.appendChild(styleEl);
+  }
   return styleEl;
+};
+
+const setupDisplay = (
+  ui: string,
+  className: string,
+  objectMap: Record<string, Record<string, unknown>>
+): HTMLDivElement => {
+  const rootEl = getElement(ui);
+  if (!rootEl) {
+    return null;
+  }
+  const displayEl =
+    (getElement(ui, className) as HTMLDivElement) ||
+    document.createElement("div");
+  displayEl.className = className;
+  displayEl.style.position = "absolute";
+  displayEl.style.top = "0";
+  displayEl.style.bottom = "0";
+  displayEl.style.left = "0";
+  displayEl.style.right = "0";
+  displayEl.style.display = "flex";
+  displayEl.style.flexDirection = "column";
+  if (displayEl.parentElement !== rootEl) {
+    rootEl.appendChild(displayEl);
+  }
+  const elements: Record<string, HTMLElement> = {};
+  let childPath = "";
+  elements[childPath] = displayEl;
+  const displayFields = objectMap[className];
+  if (!displayFields) {
+    return displayEl;
+  }
+  Object.entries(displayFields).forEach(([k, v]) => {
+    childPath = "";
+    k.split(".").forEach((n) => {
+      if (n) {
+        const parentPath = childPath;
+        childPath += ` .${n}`;
+        const parentEl = elements[parentPath];
+        if (!elements[childPath]) {
+          const selector = `#${ui} ${childPath}`;
+          let childEl = document.querySelector(selector) as HTMLDivElement;
+          if (!childEl) {
+            childEl = document.createElement("div");
+            childEl.className = n;
+            parentEl.appendChild(childEl);
+          }
+          elements[childPath] = childEl;
+        }
+      }
+    });
+    if (v && typeof v === "string") {
+      elements[childPath].textContent = v;
+    }
+  });
+  return displayEl;
 };
 
 const hideChoices = (
   config: DisplayCommandConfig = defaultDisplayCommandConfig
 ): void => {
-  const choiceEls = getElements(config?.root?.id, config?.choice?.id);
+  const choiceEls = getElements(UI_ID, config?.choice?.id);
   choiceEls.forEach((el) => {
     if (el) {
       el.replaceChildren("");
@@ -427,6 +502,7 @@ export const executeDisplayCommand = (
   data?: DisplayCommandData,
   context?: {
     valueMap: Record<string, unknown>;
+    objectMap: Record<string, Record<string, unknown>>;
     instant?: boolean;
     debug?: boolean;
   },
@@ -439,23 +515,25 @@ export const executeDisplayCommand = (
   const assets = data?.assets;
 
   const valueMap = context?.valueMap;
+  const objectMap = context?.objectMap;
 
-  const css = config?.root?.css;
-
-  const backgroundEl = getElement(config?.root?.id, config?.background?.id);
-
-  setupStyle(config?.root?.id, css);
+  setupStyle(UI_ID, objectMap);
+  const displayEl = setupDisplay(UI_ID, config?.root?.id, objectMap);
 
   const assetsOnly = type === DisplayType.Assets;
 
   if (assetsOnly) {
+    const backgroundEl = getElement(
+      UI_ID,
+      config?.root?.id,
+      config?.background?.id
+    );
     if (backgroundEl) {
       const imageName = assets?.[0];
       const imageUrl = valueMap?.[imageName];
       if (imageName && imageUrl) {
         backgroundEl.style.backgroundImage = `url("${imageUrl}")`;
         backgroundEl.style.backgroundRepeat = "no-repeat";
-        backgroundEl.style.backgroundPosition = "center";
         backgroundEl.style.display = null;
       } else {
         backgroundEl.style.display = "none";
@@ -480,15 +558,21 @@ export const executeDisplayCommand = (
   const indicatorAnimationEase = config?.root?.indicator?.animationEase;
 
   const descriptionGroupEl = getElement(
+    UI_ID,
     config?.root?.id,
     config?.description_group?.id
   );
   const dialogueGroupEl = getElement(
+    UI_ID,
     config?.root?.id,
     config?.dialogue_group?.id
   );
-  const portraitEl = getElement(config?.root?.id, config?.portrait?.id);
-  const indicatorEl = getElement(config?.root?.id, config?.root?.indicator?.id);
+  const portraitEl = getElement(UI_ID, config?.root?.id, config?.portrait?.id);
+  const indicatorEl = getElement(
+    UI_ID,
+    config?.root?.id,
+    config?.root?.indicator?.id
+  );
   const validCharacter =
     type === DisplayType.Dialogue &&
     !isHidden(character, config?.character?.hidden)
@@ -525,19 +609,33 @@ export const executeDisplayCommand = (
     descriptionGroupEl.style.display = type !== "dialogue" ? null : "none";
   }
 
-  const characterEl = getElement(config?.root?.id, config?.character?.id);
+  const characterEl = getElement(
+    UI_ID,
+    config?.root?.id,
+    config?.character?.id
+  );
   const parentheticalEl = getElement(
+    UI_ID,
     config?.root?.id,
     config?.parenthetical?.id
   );
   const contentElEntries: [DisplayType, HTMLElement][] = [
-    [DisplayType.Dialogue, getElement(config?.root?.id, config?.dialogue?.id)],
-    [DisplayType.Action, getElement(config?.root?.id, config?.action?.id)],
-    [DisplayType.Centered, getElement(config?.root?.id, config?.centered?.id)],
-    [DisplayType.Scene, getElement(config?.root?.id, config?.scene?.id)],
+    [
+      DisplayType.Dialogue,
+      getElement(UI_ID, config?.root?.id, config?.dialogue?.id),
+    ],
+    [
+      DisplayType.Action,
+      getElement(UI_ID, config?.root?.id, config?.action?.id),
+    ],
+    [
+      DisplayType.Centered,
+      getElement(UI_ID, config?.root?.id, config?.centered?.id),
+    ],
+    [DisplayType.Scene, getElement(UI_ID, config?.root?.id, config?.scene?.id)],
     [
       DisplayType.Transition,
-      getElement(config?.root?.id, config?.transition?.id),
+      getElement(UI_ID, config?.root?.id, config?.transition?.id),
     ],
   ];
 

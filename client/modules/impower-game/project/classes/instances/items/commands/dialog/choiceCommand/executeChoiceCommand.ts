@@ -5,6 +5,7 @@ export const executeChoiceCommand = (
   data?: ChoiceCommandData,
   context?: {
     valueMap: Record<string, unknown>;
+    objectMap: Record<string, Record<string, unknown>>;
   },
   index?: number,
   count?: number,

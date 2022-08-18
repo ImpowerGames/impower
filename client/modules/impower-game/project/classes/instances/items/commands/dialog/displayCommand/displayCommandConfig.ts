@@ -1,7 +1,6 @@
 export interface DisplayProperties {
   id: string;
   hidden?: string;
-  css?: string;
   typing?: {
     fadeDuration?: number;
     delay?: number;

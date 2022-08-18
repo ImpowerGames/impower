@@ -1,5 +1,6 @@
 import {
-  getScopedEvaluationContext,
+  getEntityObjects,
+  getScopedValueContext,
   parseSpark,
 } from "../../../impower-script-parser";
 import { CommandData, GameProjectData } from "../../data";
@@ -16,6 +17,7 @@ export class ImpowerContext {
     [id: string]: {
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
+      objectMap: Record<string, Record<string, unknown>>;
       triggers: string[];
       parameters: string[];
       commands: CommandRuntimeData[];
@@ -26,6 +28,7 @@ export class ImpowerContext {
     [id: string]: {
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
+      objectMap: Record<string, Record<string, unknown>>;
       triggers: string[];
       parameters: string[];
       commands: CommandRuntimeData[];
@@ -45,14 +48,12 @@ export class ImpowerContext {
     this._contexts = {};
 
     Object.entries(runtimeBlocks).forEach(([blockId, block]) => {
-      const [ids, valueMap] = getScopedEvaluationContext(
-        blockId,
-        result?.sections,
-        result?.entities
-      );
+      const [ids, valueMap] = getScopedValueContext(blockId, result?.sections);
+      const objectMap = getEntityObjects(result?.entities);
       this._contexts[block.reference.refId] = {
         ids,
         valueMap,
+        objectMap,
         triggers: block.triggers,
         parameters: block.parameters,
         commands: runner.getRuntimeData(block.commands),

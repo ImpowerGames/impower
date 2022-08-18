@@ -116,8 +116,12 @@ export const lowercaseParagraphSnippets: readonly Completion[] = [
     label: "map",
     type: "entity",
   }),
-  snip("struct ${}${StructName}:${}", {
-    label: "struct",
+  snip("ui ${}${UIName}:${}", {
+    label: "ui",
+    type: "entity",
+  }),
+  snip("style ${}${StyleName}:${}", {
+    label: "style",
     type: "entity",
   }),
   snip("config ${}${ConfigName}:${}", {
@@ -897,7 +901,7 @@ export const sparkAutocomplete = async (
   } else if (["GoSectionName", "ChoiceSectionName"].includes(node.name)) {
     completions.push(...sectionSnippets(sectionId, result?.sections));
   } else if (["CallEntityName"].includes(node.name)) {
-    const validOptions = entityOptions.filter(({ type }) => type === "struct");
+    const validOptions = entityOptions.filter(({ type }) => type === "ui");
     if (input.match(sparkRegexes.string)) {
       completions.push(
         ...nameSnippets(validOptions, "entity", "", "", colors.entity)

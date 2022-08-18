@@ -1,1 +1,1 @@
-export const entityTypes = ["list", "map", "struct", "config"];
+export const entityTypes = ["list", "map", "ui", "style", "config"];

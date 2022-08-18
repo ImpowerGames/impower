@@ -72,7 +72,8 @@ export const sparkTooltip = (
           item?.type !== "boolean" &&
           item?.type !== "list" &&
           item?.type !== "map" &&
-          item?.type !== "struct" &&
+          item?.type !== "ui" &&
+          item?.type !== "style" &&
           item?.type !== "config";
         if (input.readOnly) {
           input.style.opacity = "0.5";

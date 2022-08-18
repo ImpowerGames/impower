@@ -562,15 +562,27 @@ const EntityToolbar = React.memo((props: ToolbarProps): JSX.Element => {
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
-      <Tooltip title="struct" placement="top" arrow>
+      <Tooltip title="ui" placement="top" arrow>
         <StyledMainToggleButton
-          value="struct"
-          aria-label="struct"
-          onPointerEnter={(e): void => onPointerEnter?.(e, "struct")}
-          onPointerLeave={(e): void => onPointerLeave?.(e, "struct")}
+          value="ui"
+          aria-label="ui"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "ui")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "ui")}
         >
-          <FontIcon aria-label={`struct`}>
+          <FontIcon aria-label={`ui`}>
             <ListTreeRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="style" placement="top" arrow>
+        <StyledMainToggleButton
+          value="style"
+          aria-label="style"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "style")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "style")}
+        >
+          <FontIcon aria-label={`style`}>
+            <ListUlRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>

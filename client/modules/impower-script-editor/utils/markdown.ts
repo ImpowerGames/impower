@@ -176,6 +176,7 @@ export function isEntity(line: Line): RegExpMatchArray {
   if (
     line.next !== "l".charCodeAt(0) &&
     line.next !== "m".charCodeAt(0) &&
+    line.next !== "u".charCodeAt(0) &&
     line.next !== "s".charCodeAt(0) &&
     line.next !== "c".charCodeAt(0)
   ) {

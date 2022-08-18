@@ -31,8 +31,8 @@ import { createSparkLine } from "./createSparkLine";
 import { createSparkToken } from "./createSparkToken";
 import { getExpressionCallMatch } from "./getExpressionCallMatch";
 import { getScopedContext } from "./getScopedContext";
-import { getScopedEvaluationContext } from "./getScopedEvaluationContext";
 import { getScopedItem } from "./getScopedItem";
+import { getScopedValueContext } from "./getScopedValueContext";
 import { isSparkDisplayToken } from "./isSparkDisplayToken";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
@@ -507,10 +507,9 @@ export const parseSpark = (
           extraArgIndices.push(index);
         }
         if (expression) {
-          const [ids, context] = getScopedEvaluationContext(
+          const [ids, context] = getScopedValueContext(
             currentSectionId,
-            parsed.sections,
-            parsed.entities
+            parsed.sections
           );
           const { result, references, diagnostics } = compile(
             expression,
@@ -699,10 +698,9 @@ export const parseSpark = (
     expression: string,
     expressionFrom: number
   ): void => {
-    const [ids, context] = getScopedEvaluationContext(
+    const [ids, context] = getScopedValueContext(
       currentSectionId,
-      parsed.sections,
-      parsed.entities
+      parsed.sections
     );
     const { references, diagnostics } = compile(expression, context);
     if (references?.length > 0) {
@@ -868,10 +866,9 @@ export const parseSpark = (
       }
       return [undefined, false];
     }
-    const [ids, context] = getScopedEvaluationContext(
+    const [ids, context] = getScopedValueContext(
       currentSectionId,
-      parsed.sections,
-      parsed.entities
+      parsed.sections
     );
     const { result, references, diagnostics } = compile(expression, context);
     if (references?.length > 0) {
@@ -1373,9 +1370,9 @@ export const parseSpark = (
         .join(".")}.${validName}`;
       const parts = fieldId.split(".");
       parts.shift();
-      const id = `.${parts.join(".")}`;
+      const id = `${parts.join(".")}`;
 
-      lintName(validName, nameFrom, nameTo);
+      lintName(id, nameFrom, nameTo);
       if (!parsed.references[line]) {
         parsed.references[line] = [];
       }
@@ -2346,10 +2343,9 @@ export const parseSpark = (
             const currentSection = parsed?.sections[currentSectionId];
             const expectedType = currentSection?.returnType;
             if (expression) {
-              const [ids, context] = getScopedEvaluationContext(
+              const [ids, context] = getScopedValueContext(
                 currentSectionId,
-                parsed.sections,
-                parsed.entities
+                parsed.sections
               );
               const { result, references, diagnostics } = compile(
                 expression,

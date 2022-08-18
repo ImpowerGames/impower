@@ -24,8 +24,9 @@ import {
 } from "../../../impower-script-editor";
 import { SerializableEditorState } from "../../../impower-script-editor/types/editor";
 import {
-  getGlobalEvaluationContext,
-  getScopedEvaluationContext,
+  getEntityObjects,
+  getGlobalValueContext,
+  getScopedValueContext,
   parseSpark,
   SparkParseResult,
 } from "../../../impower-script-parser";
@@ -400,13 +401,14 @@ const LogicScriptEditor = React.memo(
           );
           if (commandInspector) {
             const [sectionId] = getSectionAtLine(line, result);
-            const [, valueMap] = getScopedEvaluationContext(
+            const [, valueMap] = getScopedValueContext(
               sectionId,
-              result?.sections,
-              result?.entities
+              result?.sections
             );
+            const objectMap = getEntityObjects(result?.entities);
             commandInspector.onPreview(runtimeCommand, {
               valueMap,
+              objectMap,
               instant,
               debug,
             });
@@ -422,7 +424,7 @@ const LogicScriptEditor = React.memo(
       }
       const result = parseResultRef.current;
       const runtimeValue = gameRef.current.getRuntimeValue(id);
-      const context = getGlobalEvaluationContext(result);
+      const context = getGlobalValueContext(result);
       const initialValue = context?.[id];
       return runtimeValue != null ? runtimeValue : initialValue;
     }, []);

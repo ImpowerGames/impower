@@ -1,10 +1,8 @@
 import { SparkParseResult } from "../types/SparkParseResult";
-import { getEntityContext } from "./getEntityContext";
 
-export const getGlobalEvaluationContext = (
+export const getGlobalValueContext = (
   result: SparkParseResult
 ): Record<string, unknown> => {
-  const [, entityValues] = getEntityContext(result?.entities);
   const sectionValues: Record<string, number> = {};
   Object.keys(result?.sections || {}).forEach((id) => {
     sectionValues[id] = 0;
@@ -22,7 +20,6 @@ export const getGlobalEvaluationContext = (
     variableValues[id] = v.value;
   });
   return {
-    ...entityValues,
     ...sectionValues,
     ...tagValues,
     ...assetValues,

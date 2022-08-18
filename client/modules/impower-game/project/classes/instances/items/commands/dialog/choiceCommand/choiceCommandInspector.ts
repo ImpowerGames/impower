@@ -49,6 +49,7 @@ export class ChoiceCommandInspector extends CommandInspector<ChoiceCommandData> 
     data: ChoiceCommandData,
     context?: {
       valueMap: Record<string, unknown>;
+      objectMap: Record<string, Record<string, unknown>>;
     }
   ): boolean {
     executeChoiceCommand(data, context);

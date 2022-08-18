@@ -61,7 +61,8 @@ export interface SparkTokenTypeMap {
 
   "list": SparkEntityToken;
   "map": SparkEntityToken;
-  "struct": SparkEntityToken;
+  "ui": SparkEntityToken;
+  "style": SparkEntityToken;
   "config": SparkEntityToken;
 
   "centered": SparkCenteredToken;

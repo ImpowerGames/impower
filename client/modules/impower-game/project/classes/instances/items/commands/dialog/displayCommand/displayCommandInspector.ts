@@ -100,6 +100,7 @@ export class DisplayCommandInspector extends CommandInspector<DisplayCommandData
     data: DisplayCommandData,
     context?: {
       valueMap: Record<string, unknown>;
+      objectMap: Record<string, Record<string, unknown>>;
       instant?: boolean;
       debug?: boolean;
     }

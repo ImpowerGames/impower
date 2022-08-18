@@ -17,7 +17,8 @@ export const quickSnippetTemplates: { [id: string]: string } = {
 
   list: "\nlist ${ListName}:\n  ${}",
   map: "\nmap ${MapName}:\n  ${}",
-  struct: "\nstruct ${StructName}:\n  ${}",
+  ui: "\nui ${UIName}:\n  ${}",
+  style: "\nstyle ${StyleName}:\n  ${}",
   config: "\nconfig ${ConfigName}:\n  ${}",
 
   image: "[[${imageName}]]\n${}",
