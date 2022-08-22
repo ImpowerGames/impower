@@ -2,16 +2,16 @@ import * as React from "react";
 import styled from "@emotion/styled";
 import { DialogTitle, Dialog } from "@material-ui/core";
 
-const ifNsfw = "Your pitch was marked NSFW";
-const ifRemoved = "Your pitch was removed";
+const ifNsfw = "Your post was marked NSFW";
+const ifRemoved = "Your post was removed";
 const ifSomethingWentWrong = "Something went wrong";
 
 const nsfwDescription =
-  "Your pitch will still be visable to users who have enabled NSFW content.";
+  "Your post will still be visable to users who have enabled NSFW content.";
 const removedDescription =
   "We detected spam, hateful, or otherwise innappropriate content.";
 const generalSupport =
-  "If you believe your pitch was catagorized in error, you can send us an email at support@impower.games";
+  "If you believe your post was catagorized in error, you can send us an email at support@impower.games";
 const bugSupport =
   "We're not sure how you got this notification, if you'd like us to look into it you can send us an email at support@impower.games";
 

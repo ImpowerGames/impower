@@ -213,7 +213,7 @@ const NotificationListItemIcon = React.memo(
             backgroundColor: "green",
           }}
         >
-          <FontIcon>
+          <FontIcon aria-label={"checkmark"}>
             {" "}
             <CheckSolidIcon />{" "}
           </FontIcon>
@@ -301,9 +301,9 @@ const NotificationListItemSecondaryText = React.memo(
             fontWeight: notificationStatus === "unread" ? 600 : undefined,
           }}
         >
-          {`${belowSmBreakpoint ? "" : "is no longer NSFW — "}${abbreviateAge(
-            new Date(notificationData?.t)
-          )}`}
+          {`${
+            belowSmBreakpoint ? "" : "is no longer marked NSFW — "
+          }${abbreviateAge(new Date(notificationData?.t))}`}
         </StyledDescriptionTextArea>
       );
     }
@@ -459,7 +459,12 @@ const NotificationListItem = React.memo(
           );
         }
         onLoading?.(true);
-        await router.push(`/p/${data?.id}`);
+        if (data?.g === "pitched_projects") {
+          await router.push(`/p/${data?.id}`);
+        }
+        if (data?.g === "contributions") {
+          router.push(`/p/${data?.path}/c/${data?.id}`);
+        }
         onLoading?.(false);
       },
       [onLoading, router, userDispatch]
@@ -498,7 +503,11 @@ const NotificationListItem = React.memo(
           >
             <NotificationListItemIcon notificationData={notificationData} />
             <StyledListItemText
-              primary={`Your Pitch: ${notificationData?.n}`}
+              primary={
+                notificationData?.g === "contributions"
+                  ? `Your Contribution to: "${notificationData?.n}"`
+                  : `Your Pitch: "${notificationData?.n}"`
+              }
               secondary={
                 <NotificationListItemSecondaryText
                   notificationData={notificationData}
