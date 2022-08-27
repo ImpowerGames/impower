@@ -27,7 +27,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     this.wasTyped = false;
     this.timeTyped = -1;
     this.down = game.input.state.pointer.down.includes(0);
-    executeDisplayCommand(data, context, game, undefined, () => {
+    executeDisplayCommand(data, context, game, () => {
       this.wasTyped = true;
     });
     return super.onExecute(data, context, game);

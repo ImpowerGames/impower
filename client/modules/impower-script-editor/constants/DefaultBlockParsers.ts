@@ -33,6 +33,7 @@ import {
   isFencedCode,
   isGo,
   isHTMLBlock,
+  isImport,
   isLyric,
   isOrderedList,
   isPageBreak,
@@ -834,6 +835,44 @@ export const DefaultBlockParsers: {
       buf = buf.write(Type.Comment, from, to);
     }
     const node = buf.finish(Type.Tag, line.text.length - line.pos);
+    cx.addNode(node, cx.lineStart + line.pos);
+    cx.nextLine();
+    return true;
+  },
+
+  Import(cx, line) {
+    const match = isImport(line);
+    if (!match) {
+      return false;
+    }
+
+    let buf = cx.buffer;
+    let from = 0;
+    let to = from;
+
+    const mark = match[2] || "";
+    const markSpace = match[3] || "";
+    const value = match[4] || "";
+    const valueSpace = match[5] || "";
+
+    if (mark || markSpace) {
+      from = to;
+      to = from + mark.length + markSpace.length;
+      buf = buf.write(Type.ImportMark, from, to);
+    }
+    if (value || valueSpace) {
+      from = to;
+      to = from + value.length + valueSpace.length;
+      buf = buf.write(Type.ImportValue, from, to);
+      const expression = line.text.slice(line.pos + from, line.pos + to);
+      buf = parseExpression(buf, expression, from, to);
+    }
+    from = to;
+    to = line.text.length - line.pos;
+    if (to > from) {
+      buf = buf.write(Type.Comment, from, to);
+    }
+    const node = buf.finish(Type.Import, line.text.length - line.pos);
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
     return true;

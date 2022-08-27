@@ -1,5 +1,18 @@
 import { format } from "../../../../../../../../impower-evaluate";
 import { ChoiceCommandData } from "../../../../../../../data";
+import {
+  getElements,
+  getUIElementId,
+  loadStyles,
+  loadUI,
+} from "../../../../../../../dom";
+import { ChoiceCommandConfig } from "./choiceCommandConfig";
+
+export const defaultChoiceCommandConfig: ChoiceCommandConfig = {
+  choice: {
+    id: "Choice",
+  },
+};
 
 export const executeChoiceCommand = (
   data?: ChoiceCommandData,
@@ -11,14 +24,20 @@ export const executeChoiceCommand = (
   count?: number,
   onClick?: () => void
 ): void => {
+  const ui = getUIElementId();
   const content = data?.content || "";
   const order = data?.order || 0;
+
   const valueMap = context?.valueMap;
+  const config =
+    (context?.objectMap?.ChoiceCommand as ChoiceCommandConfig) ||
+    defaultChoiceCommandConfig;
+
+  loadStyles(context?.objectMap, ...Object.keys(context?.objectMap?.style));
+  loadUI(context?.objectMap, "Display");
+
   const validIndex = index != null ? index : order;
-  const ui = "impower_ui";
-  const contentEls = document.querySelectorAll<HTMLButtonElement>(
-    `#${ui} .choice`
-  );
+  const contentEls = getElements(ui, config?.choice?.id);
   const [replaceTagsResult] = format(content, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
   const handleClick = (e: MouseEvent): void => {

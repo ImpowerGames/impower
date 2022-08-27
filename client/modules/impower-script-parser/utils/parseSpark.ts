@@ -34,6 +34,7 @@ import { getScopedContext } from "./getScopedContext";
 import { getScopedItem } from "./getScopedItem";
 import { getScopedValueContext } from "./getScopedValueContext";
 import { isSparkDisplayToken } from "./isSparkDisplayToken";
+import { stripInlineComments } from "./stripInlineComments";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
@@ -116,6 +117,7 @@ export const parseSpark = (
   let current = 0;
   let currentLevel = 0;
   let currentSectionId = "";
+  let currentEntityName = "";
   let currentEntityFieldId = "";
   let match: string[];
   let text = "";
@@ -1145,6 +1147,16 @@ export const parseSpark = (
     return [undefined, undefined];
   };
 
+  const getImportValue = (content: string): string => {
+    if (!content) {
+      return undefined;
+    }
+    if (content.match(sparkRegexes.string)) {
+      return content.slice(1, -1);
+    }
+    return undefined;
+  };
+
   const addAsset = (
     type: SparkAssetType,
     name: string,
@@ -1285,6 +1297,40 @@ export const parseSpark = (
     } else {
       console.error("SECTION DOES NOT EXIST", currentSectionId);
     }
+  };
+
+  const addImport = (
+    valueText: string,
+    line: number,
+    valueFrom: number,
+    valueTo: number
+  ): void => {
+    if (!parsed.entities) {
+      parsed.entities = {};
+    }
+    const value = getImportValue(valueText);
+    const validValue = value != null ? value : "";
+    const name = "import";
+    const existingEntity = parsed?.entities?.[name];
+    const existingFieldIds = Object.keys(existingEntity?.fields || {});
+    const fieldId = existingFieldIds.length?.toString();
+    const item: SparkEntity = {
+      ...(existingEntity || {}),
+      from: valueFrom,
+      to: valueTo,
+      line,
+      base: "",
+      type: "list",
+      name,
+      fields: {
+        ...existingEntity?.fields,
+        [fieldId]: {
+          type: "string",
+          value: validValue,
+        },
+      },
+    };
+    parsed.entities[name] = item;
   };
 
   const addVariable = (
@@ -1711,14 +1757,6 @@ export const parseSpark = (
     return str;
   };
 
-  const removeInlineComments = (str: string): string => {
-    const inlineCommentIndex = str.indexOf("//");
-    if (inlineCommentIndex >= 0) {
-      str = str.slice(0, inlineCommentIndex);
-    }
-    return str;
-  };
-
   const processDisplayedContent = (
     token: SparkDisplayToken,
     contentFrom?: number
@@ -1823,7 +1861,7 @@ export const parseSpark = (
       from: current,
     });
     text = removeBlockComments(text);
-    text = removeInlineComments(text);
+    text = stripInlineComments(text);
     currentToken.content = text;
 
     current = currentToken.to + 1;
@@ -1975,6 +2013,7 @@ export const parseSpark = (
         const nameTo = nameFrom + name.length;
         const baseFrom = currentToken.from + getStart(match, 8);
         const baseTo = baseFrom + base.length;
+        currentToken.name = name;
         if (name) {
           addEntity(
             type,
@@ -1987,6 +2026,7 @@ export const parseSpark = (
             baseTo
           );
         }
+        currentEntityName = name;
         currentEntityFieldId = name;
       }
     } else if (entityTypes.includes(state) && currentToken.content?.trim()) {
@@ -2069,6 +2109,16 @@ export const parseSpark = (
           );
         }
       }
+    } else if ((match = currentToken.content.match(sparkRegexes.import))) {
+      const type = "import";
+      currentToken.type = type;
+      if (currentToken.type === type) {
+        const valueText = match[4] || "";
+        currentToken.content = getImportValue(valueText);
+        const valueFrom = currentToken.from + getStart(match, 4);
+        const valueTo = valueFrom + valueText.length;
+        addImport(valueText, currentToken.line, valueFrom, valueTo);
+      }
     }
 
     const isSeparator = !text.trim() && text.length < 2;
@@ -2078,6 +2128,7 @@ export const parseSpark = (
   }
 
   state = "normal";
+  currentEntityName = "";
   currentEntityFieldId = "";
   current = 0;
   currentLevel = 0;
@@ -2105,7 +2156,7 @@ export const parseSpark = (
       from: current,
     });
     text = removeBlockComments(text);
-    text = removeInlineComments(text);
+    text = stripInlineComments(text);
     currentToken.content = text;
     current = currentToken.to + 1;
 
@@ -2553,15 +2604,27 @@ export const parseSpark = (
         lint(sparkRegexes.asset);
       } else if ((match = currentToken.content.match(sparkRegexes.entity))) {
         const type = match[2] as SparkEntityType;
+        const name = match[4] || "";
         const colon = match[12] || "";
         if (colon) {
           state = type;
         }
         currentToken.type = type;
+        if (currentToken.type === type) {
+          currentToken.name = name;
+        }
+        currentEntityName = name;
         lint(sparkRegexes.entity);
       } else if ((match = currentToken.content.match(sparkRegexes.tag))) {
         currentToken.type = "tag";
         lint(sparkRegexes.tag);
+      } else if ((match = currentToken.content.match(sparkRegexes.import))) {
+        const type = "import";
+        currentToken.type = type;
+        if (currentToken.type === type) {
+          const valueText = match[4] || "";
+          currentToken.content = getImportValue(valueText);
+        }
       } else if ((match = currentToken.content.match(sparkRegexes.synopses))) {
         currentToken.type = "synopses";
         if ((match = lint(sparkRegexes.synopses))) {
@@ -2803,7 +2866,10 @@ export const parseSpark = (
           diagnostic(currentToken, `Cannot declare object field in ${state}`);
         } else {
           currentToken.type = "entity_object_field";
-          lint(sparkRegexes.entity_object_field);
+          if (currentToken.type === "entity_object_field") {
+            currentToken.entity = currentEntityName;
+            lint(sparkRegexes.entity_object_field);
+          }
         }
       } else if (
         state !== "list" &&
@@ -2811,6 +2877,7 @@ export const parseSpark = (
       ) {
         currentToken.type = "entity_value_field";
         if (currentToken.type === "entity_value_field") {
+          currentToken.entity = currentEntityName;
           lint(sparkRegexes.entity_value_field);
         }
       } else if (

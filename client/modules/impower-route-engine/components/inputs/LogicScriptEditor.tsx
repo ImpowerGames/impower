@@ -12,8 +12,11 @@ import React, {
 import { debounce } from "../../../impower-core";
 import { evaluate } from "../../../impower-evaluate";
 import { CommandData } from "../../../impower-game/data";
+import { loadStyles } from "../../../impower-game/dom";
+import { loadUI } from "../../../impower-game/dom/loadUI";
 import {
   getRuntimeCommand,
+  getRuntimeEntity,
   getScriptAugmentations,
 } from "../../../impower-game/parser";
 import { FadeAnimation } from "../../../impower-route";
@@ -30,6 +33,7 @@ import {
   parseSpark,
   SparkParseResult,
 } from "../../../impower-script-parser";
+import { SparkEntity } from "../../../impower-script-parser/types/SparkEntity";
 import { getSectionAtLine } from "../../../impower-script-parser/utils/getSectionAtLine";
 import { GameContext } from "../../contexts/gameContext";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
@@ -356,6 +360,32 @@ const LogicScriptEditor = React.memo(
       [augmentations, onSectionChange]
     );
 
+    const getPreviewEntity = useCallback(
+      (result: SparkParseResult, line: number): SparkEntity => {
+        if (!result) {
+          return undefined;
+        }
+        if (!line) {
+          return undefined;
+        }
+        let tokenIndex = result.scriptLines[line];
+        let token = result.scriptTokens[tokenIndex];
+        if (token) {
+          while (
+            tokenIndex < result.scriptTokens.length &&
+            token.skipToNextPreview
+          ) {
+            tokenIndex += 1;
+            token = result.scriptTokens[tokenIndex];
+          }
+          const runtimeEntity = getRuntimeEntity(token, result?.entities);
+          return runtimeEntity;
+        }
+        return null;
+      },
+      []
+    );
+
     const getPreviewCommand = useCallback(
       (result: SparkParseResult, line: number): CommandData => {
         if (!result) {
@@ -413,9 +443,19 @@ const LogicScriptEditor = React.memo(
               debug,
             });
           }
+        } else {
+          const previewEntity = getPreviewEntity(result, line);
+          if (previewEntity?.type === "style") {
+            const objectMap = getEntityObjects(result?.entities);
+            loadStyles(objectMap, ...Object.keys(objectMap?.style));
+          }
+          if (previewEntity?.type === "ui") {
+            const objectMap = getEntityObjects(result?.entities);
+            loadUI(objectMap, previewEntity.name);
+          }
         }
       },
-      [gameInspector, getPreviewCommand, mode]
+      [gameInspector, getPreviewCommand, getPreviewEntity, mode]
     );
 
     const handleGetRuntimeValue = useCallback((id: string): unknown => {

@@ -26,6 +26,9 @@ export type SparkPositionTokenType =
   | "dialogue_start"
   | "character"
   | "parenthetical";
+export type SparkEntityFieldTokenType =
+  | "entity_object_field"
+  | "entity_value_field";
 
 export type SparkOtherTokenType =
   | "comment"
@@ -42,9 +45,8 @@ export type SparkOtherTokenType =
   | "boneyard_start"
   | "boneyard_end"
   | "repeat"
-  | "entity_object_field"
-  | "entity_value_field"
   | "entity_list_value"
+  | "import"
   | SparkTitleKeyword;
 
 export type SparkTokenType =
@@ -68,4 +70,5 @@ export type SparkTokenType =
   | SparkActionAssetTokenType
   | SparkDialogueAssetTokenType
   | SparkPositionTokenType
+  | SparkEntityFieldTokenType
   | SparkOtherTokenType;

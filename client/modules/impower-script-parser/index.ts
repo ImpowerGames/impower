@@ -28,3 +28,4 @@ export * from "./utils/getScopedValueContext";
 export * from "./utils/getSectionAt";
 export * from "./utils/getSiblingIds";
 export { parseSpark } from "./utils/parseSpark";
+export * from "./utils/stripInlineComments";

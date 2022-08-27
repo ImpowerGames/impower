@@ -5,29 +5,15 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { getRootElementId } from "../../impower-game/dom";
 import { PhaserGame } from "../types/game/phaserGame";
 
-const responsiveBreakpoints: number[] = [400, 600, 960, 1280, 1920];
-const responsiveBaseFontSizes: Record<number, string> = {
-  400: "16px",
-  600: "16px",
-  960: "18px",
-  1280: "18px",
-  1920: "18px",
-};
-const responsivePadding: Record<number, string> = {
-  400: "16px",
-  600: "16px",
-  960: "32px",
-  1280: "32px",
-  1920: "32px",
-};
-const responsiveWidth: Record<number, string> = {
-  400: "90%",
-  600: "90%",
-  960: "80%",
-  1280: "80%",
-  1920: "80%",
+const responsiveBreakpoints: Record<string, number> = {
+  xs: 400,
+  sm: 600,
+  md: 960,
+  lg: 1280,
+  xl: 1920,
 };
 
 interface UIProps {
@@ -40,8 +26,6 @@ const UI = React.memo((props: UIProps): JSX.Element => {
   const [measureEl, setMeasureEl] = useState<HTMLElement>();
 
   const overlayRef = useRef<HTMLDivElement>();
-  const paddingRef = useRef<HTMLDivElement>();
-  const widthRef = useRef<HTMLDivElement>();
 
   useEffect(() => {
     if (!measureEl) {
@@ -50,18 +34,11 @@ const UI = React.memo((props: UIProps): JSX.Element => {
     const onResize = (entry: ResizeObserverEntry): void => {
       if (entry) {
         const width = entry.contentRect?.width;
-        const breakpoint = responsiveBreakpoints.find((x) => x > width);
-        if (overlayRef.current) {
-          const baseFontSize = responsiveBaseFontSizes[breakpoint];
-          overlayRef.current.style.fontSize = baseFontSize;
-        }
-        if (paddingRef.current) {
-          const padding = responsivePadding[breakpoint];
-          paddingRef.current.style.padding = padding;
-        }
-        if (widthRef.current) {
-          const width = responsiveWidth[breakpoint];
-          widthRef.current.style.width = width;
+        const breakpoint = Object.keys(responsiveBreakpoints).find(
+          (k) => responsiveBreakpoints[k] > width
+        );
+        if (overlayRef.current.className !== breakpoint) {
+          overlayRef.current.className = breakpoint;
         }
       }
     };
@@ -127,7 +104,7 @@ const UI = React.memo((props: UIProps): JSX.Element => {
       >
         <div ref={overlayRef} id="ui-overlay" style={overlayStyle}>
           <div
-            id="impower_ui"
+            id={getRootElementId()}
             style={{
               position: "absolute",
               top: 0,

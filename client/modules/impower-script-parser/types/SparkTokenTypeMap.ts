@@ -53,6 +53,7 @@ export interface SparkTokenTypeMap {
   "dialogue_start": SparkToken;
   "character": SparkToken;
   "parenthetical": SparkToken;
+  "import": SparkToken;
 
   "image": SparkAssetToken;
   "audio": SparkAssetToken;

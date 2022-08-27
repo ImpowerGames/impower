@@ -11,6 +11,7 @@ import {
   SparkConditionTokenType,
   SparkDialogueAssetTokenType,
   SparkDialogueTokenType,
+  SparkEntityFieldTokenType,
   SparkGoTokenType,
   SparkOtherTokenType,
   SparkPositionTokenType,
@@ -39,6 +40,12 @@ export interface SparkAssetToken extends SparkLine {
 
 export interface SparkEntityToken extends SparkLine {
   type: SparkEntityTokenType;
+  name: string;
+}
+
+export interface SparkEntityFieldToken extends SparkLine {
+  type: SparkEntityFieldTokenType;
+  entity: string;
 }
 
 export interface SparkTagToken extends SparkLine {
@@ -158,4 +165,5 @@ export type SparkToken =
   | SparkAssetsToken
   | SparkActionAssetToken
   | SparkDialogueAssetToken
+  | SparkEntityFieldToken
   | SparkOtherToken;

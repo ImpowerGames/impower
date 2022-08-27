@@ -1,5 +1,5 @@
 import { PartialParse } from "@lezer/common";
-import { sparkRegexes } from "../../impower-script-parser";
+import { sparkRegexes, stripInlineComments } from "../../impower-script-parser";
 import { BlockContext } from "../classes/BlockContext";
 import { CompositeBlock } from "../classes/CompositeBlock";
 import { Element } from "../classes/Element";
@@ -26,7 +26,7 @@ export function isComment(line: Line): RegExpMatchArray {
 }
 
 export function stripComments(text: string): string {
-  return text.replace(sparkRegexes.comment_inline, "");
+  return stripInlineComments(text);
 }
 
 export function isSectionHeading(line: Line): RegExpMatchArray {
@@ -170,6 +170,14 @@ export function isTag(line: Line): RegExpMatchArray {
   }
   const text = stripComments(line.text);
   return text.match(sparkRegexes.tag);
+}
+
+export function isImport(line: Line): RegExpMatchArray {
+  if (line.next !== "i".charCodeAt(0)) {
+    return null;
+  }
+  const text = stripComments(line.text);
+  return text.match(sparkRegexes.import);
 }
 
 export function isEntity(line: Line): RegExpMatchArray {
