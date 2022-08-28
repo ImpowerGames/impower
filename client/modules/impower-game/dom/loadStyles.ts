@@ -34,7 +34,7 @@ export const loadStyles = (
     }
     const styleEntity = objectMap[k];
     const breakpointMap: Record<string, string[]> = {};
-    Object.entries(styleEntity).forEach(([fk, fv]) => {
+    Object.entries(styleEntity || {}).forEach(([fk, fv]) => {
       if (fk.includes(".")) {
         const [breakpoint, propName] = fk.split(".");
         if (!breakpointMap[breakpoint]) {
@@ -50,7 +50,7 @@ export const loadStyles = (
         breakpointMap[""].push(`${cssProp}: ${cssValue};`);
       }
     });
-    Object.entries(breakpointMap).forEach(([breakpoint, fields]) => {
+    Object.entries(breakpointMap || {}).forEach(([breakpoint, fields]) => {
       const fieldsContent = `{\n${fields.join(`\n  `)}\n}`;
       if (content) {
         content += "\n";

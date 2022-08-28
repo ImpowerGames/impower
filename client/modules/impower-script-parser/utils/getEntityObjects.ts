@@ -4,15 +4,15 @@ export const getEntityObjects = (
   entities: Record<string, SparkEntity>
 ): Record<string, Record<string, unknown>> => {
   const objects: Record<string, Record<string, unknown>> = {};
-  Object.entries(entities).forEach(([k, v]) => {
+  Object.entries(entities || {}).forEach(([k, v]) => {
     const values: Record<string, unknown> = {};
-    Object.entries(v.fields).forEach(([fk, fv]) => {
+    Object.entries(v?.fields || {}).forEach(([fk, fv]) => {
       values[fk] = fv.value;
     });
     let base = v?.base;
     while (base) {
       const baseEntity = entities[base];
-      Object.entries(baseEntity.fields).forEach(([fk, fv]) => {
+      Object.entries(baseEntity?.fields || {}).forEach(([fk, fv]) => {
         if (values[fk] === undefined) {
           values[fk] = fv.value;
         }
