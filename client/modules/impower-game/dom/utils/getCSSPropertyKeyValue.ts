@@ -34,6 +34,7 @@ export const getCSSPropertyKeyValue = (
     return [cssProp, String(value)];
   }
   if (
+    cssProp === "padding" ||
     cssProp === "width" ||
     cssProp === "height" ||
     cssProp === "top" ||
