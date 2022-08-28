@@ -33,7 +33,10 @@ export const executeChoiceCommand = (
     (context?.objectMap?.ChoiceCommand as ChoiceCommandConfig) ||
     defaultChoiceCommandConfig;
 
-  loadStyles(context?.objectMap, ...Object.keys(context?.objectMap?.style));
+  loadStyles(
+    context?.objectMap,
+    ...Object.keys(context?.objectMap?.style || {})
+  );
   loadUI(context?.objectMap, "Display");
 
   const validIndex = index != null ? index : order;

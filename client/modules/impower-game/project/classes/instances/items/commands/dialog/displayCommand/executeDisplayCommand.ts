@@ -409,7 +409,10 @@ export const executeDisplayCommand = (
     (context?.objectMap?.DisplayCommand as DisplayCommandConfig) ||
     defaultDisplayCommandConfig;
 
-  loadStyles(context?.objectMap, ...Object.keys(context?.objectMap?.style));
+  loadStyles(
+    context?.objectMap,
+    ...Object.keys(context?.objectMap?.style || {})
+  );
   loadUI(context?.objectMap, "Display");
 
   const assetsOnly = type === DisplayType.Assets;

@@ -13,38 +13,57 @@ export const loadStyles = (
   if (!rootEl) {
     return null;
   }
-  const imports = Object.values(objectMap?.import || {});
-  let content = `${imports.map((x) => `\n@import url("${x}");`)}`;
-  styleEntityNames.forEach((k) => {
-    const styleEntity = objectMap[k];
-    let c = "";
-    Object.entries(styleEntity).forEach(([fk, fv]) => {
-      if (c) {
-        c += "\n";
-      }
-      if (typeof fv === "object") {
-        // TODO
-      } else {
-        const [cssProp, cssValue] = getCSSPropertyKeyValue(fk, fv);
-        c += `  ${cssProp}: ${cssValue};`;
-      }
-    });
-    if (content) {
-      content += "\n";
-    }
-    content += `#${rootElementId} .${k} {\n${c}\n}`;
-  });
   const styleEl =
     (getElement(styleElementId) as HTMLStyleElement) ||
     document.createElement("style");
   if (styleEl.id !== styleElementId) {
     styleEl.id = styleElementId;
   }
-  if (styleEl.textContent !== content) {
-    styleEl.textContent = content;
-  }
   if (styleEl.parentElement !== rootEl) {
     rootEl.appendChild(styleEl);
+  }
+  if (!objectMap) {
+    return null;
+  }
+  const imports = Object.values(objectMap?.import || {});
+  let content = "";
+  content += `${imports.map((x) => `\n@import url("${x}");`)}`;
+  styleEntityNames.forEach((k) => {
+    if (content) {
+      content += "\n";
+    }
+    const styleEntity = objectMap[k];
+    const breakpointMap: Record<string, string[]> = {};
+    Object.entries(styleEntity).forEach(([fk, fv]) => {
+      if (fk.includes(".")) {
+        const [breakpoint, propName] = fk.split(".");
+        if (!breakpointMap[breakpoint]) {
+          breakpointMap[breakpoint] = [];
+        }
+        const [cssProp, cssValue] = getCSSPropertyKeyValue(propName, fv);
+        breakpointMap[breakpoint].push(`${cssProp}: ${cssValue};`);
+      } else {
+        if (!breakpointMap[""]) {
+          breakpointMap[""] = [];
+        }
+        const [cssProp, cssValue] = getCSSPropertyKeyValue(fk, fv);
+        breakpointMap[""].push(`${cssProp}: ${cssValue};`);
+      }
+    });
+    Object.entries(breakpointMap).forEach(([breakpoint, fields]) => {
+      const fieldsContent = `{\n${fields.join(`\n  `)}\n}`;
+      if (content) {
+        content += "\n";
+      }
+      if (breakpoint) {
+        content += `.${breakpoint} #${rootElementId} .${k} ${fieldsContent}`;
+      } else {
+        content += `#${rootElementId} .${k} ${fieldsContent}`;
+      }
+    });
+  });
+  if (styleEl.textContent !== content) {
+    styleEl.textContent = content;
   }
   return styleEl;
 };

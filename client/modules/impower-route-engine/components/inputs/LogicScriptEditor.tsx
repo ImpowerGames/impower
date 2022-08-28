@@ -447,7 +447,7 @@ const LogicScriptEditor = React.memo(
           const previewEntity = getPreviewEntity(result, line);
           if (previewEntity?.type === "style") {
             const objectMap = getEntityObjects(result?.entities);
-            loadStyles(objectMap, ...Object.keys(objectMap?.style));
+            loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));
           }
           if (previewEntity?.type === "ui") {
             const objectMap = getEntityObjects(result?.entities);

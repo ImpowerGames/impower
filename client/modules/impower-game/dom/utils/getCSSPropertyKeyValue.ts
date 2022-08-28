@@ -20,6 +20,19 @@ export const getCSSPropertyKeyValue = (
   if (cssProp === "background-image") {
     return [cssProp, `url('${value}')`];
   }
+  if (cssProp === "text-stroke") {
+    if (typeof value === "number") {
+      return ["text-shadow", getTextShadow(value)];
+    }
+    if (typeof value === "string") {
+      const parts = value.split(" ");
+      const r = parts[0].replace(/[^0-9.]+/g, "");
+      return ["text-shadow", getTextShadow(Number.parseInt(r, 16), parts[1])];
+    }
+  }
+  if (cssProp === "line-height") {
+    return [cssProp, String(value)];
+  }
   if (
     cssProp === "width" ||
     cssProp === "height" ||
@@ -36,16 +49,6 @@ export const getCSSPropertyKeyValue = (
   ) {
     if (typeof value === "number") {
       return [cssProp, `${value}px`];
-    }
-  }
-  if (cssProp === "text-stroke") {
-    if (typeof value === "number") {
-      return ["text-shadow", getTextShadow(value)];
-    }
-    if (typeof value === "string") {
-      const parts = value.split(" ");
-      const r = parts[0].replace(/[^0-9.]+/g, "");
-      return ["text-shadow", getTextShadow(Number.parseInt(r, 16), parts[1])];
     }
   }
   return [cssProp, String(value)];

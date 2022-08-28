@@ -5,23 +5,10 @@ export const stripInlineComments = (str: string): string => {
     const c = str[i];
     if (!lastStringMark && c === "/" && str[i + 1] === "/") {
       inlineCommentIndex = i;
+      break;
     }
-    if (c === `"`) {
-      if (lastStringMark === `"`) {
-        lastStringMark = "";
-      } else if (!lastStringMark) {
-        lastStringMark = c;
-      }
-    }
-    if (c === "'") {
-      if (lastStringMark === "'") {
-        lastStringMark = "";
-      } else if (!lastStringMark) {
-        lastStringMark = c;
-      }
-    }
-    if (c === "`") {
-      if (lastStringMark === "`") {
+    if (c === `"` || c === "'" || c === "`") {
+      if (lastStringMark === c) {
         lastStringMark = "";
       } else if (!lastStringMark) {
         lastStringMark = c;

@@ -34,11 +34,18 @@ const UI = React.memo((props: UIProps): JSX.Element => {
     const onResize = (entry: ResizeObserverEntry): void => {
       if (entry) {
         const width = entry.contentRect?.width;
-        const breakpoint = Object.keys(responsiveBreakpoints).find(
-          (k) => responsiveBreakpoints[k] > width
-        );
-        if (overlayRef.current.className !== breakpoint) {
-          overlayRef.current.className = breakpoint;
+        const keys = Object.keys(responsiveBreakpoints);
+        let className = "";
+        for (let i = 0; i < keys.length; i += 1) {
+          const k = keys[i];
+          className += `${k} `;
+          if (responsiveBreakpoints[k] > width) {
+            break;
+          }
+        }
+        className = className.trim();
+        if (overlayRef.current.className !== className) {
+          overlayRef.current.className = className;
         }
       }
     };

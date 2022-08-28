@@ -28,7 +28,15 @@ export const loadUI = (
     document.createElement("div");
   if (uiEl.className !== uiElementId) {
     uiEl.id = uiElementId;
+    uiEl.style.fontFamily = "Courier Prime Sans";
+    uiEl.style.fontSize = "1em";
     setupDiv(uiEl);
+  }
+  if (uiEl.parentElement !== rootEl) {
+    rootEl.appendChild(uiEl);
+  }
+  if (!objectMap) {
+    return null;
   }
   uiEntityNames.forEach((name) => {
     const obj = objectMap[name];
@@ -73,8 +81,5 @@ export const loadUI = (
       }
     });
   });
-  if (uiEl.parentElement !== rootEl) {
-    rootEl.appendChild(uiEl);
-  }
   return uiEl;
 };
