@@ -398,7 +398,7 @@ export const userReducer = (
     case USER_READ_NOTIFICATION: {
       const { path, type, onFinished } = action.payload;
       const id = path?.[path.length - 1];
-      const notificationId = `${type}%${id}`;
+      const notificationId = id === "" ? `${type}` : `${type}%${id}`;
       const setData = async (): Promise<void> => {
         const Auth = (await import("../../impower-auth/classes/auth")).default;
         const DataStateWrite = (
@@ -431,7 +431,17 @@ export const userReducer = (
 
       if (
         parentColId === "users" &&
-        (type === "connects" || type === "flagged" || type === "unflagged")
+        [
+          "connects",
+          "flagged",
+          "unflagged",
+          "muted",
+          "unmuted",
+          "suspended",
+          "unsuspended",
+          "banned",
+          "unbanned",
+        ].includes(type)
       ) {
         notifications = {
           ...notifications,

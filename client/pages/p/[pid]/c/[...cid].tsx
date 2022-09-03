@@ -129,7 +129,7 @@ const ContributionPostPageContent = React.memo(
       _createdAt,
       _updatedAt,
       contributionType,
-    } = contributionDocState;
+    } = contributionDocState || {};
     const hasUnsavedChangesRef = useRef(false);
 
     const createdAtISO =
@@ -233,8 +233,8 @@ const ContributionPostPageContent = React.memo(
       ): void => {
         if (pitchId === pid && contributionId === cid) {
           const kudos = kudoed
-            ? (contributionDocRef.current.kudos || 0) + 1
-            : (contributionDocRef.current.kudos || 0) - 1;
+            ? (contributionDocRef.current?.kudos || 0) + 1
+            : (contributionDocRef.current?.kudos || 0) - 1;
           const currentDoc = contributionDocRef.current;
           const newDoc = { ...currentDoc, kudos };
           contributionDocRef.current = newDoc;

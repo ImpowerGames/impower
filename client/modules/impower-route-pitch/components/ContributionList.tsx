@@ -742,8 +742,8 @@ const ContributionList = React.memo(
         const key = `${pitchId}/${contributionId}`;
         if (contributionId) {
           const kudos = kudoed
-            ? (contributionDocsRef.current[key].kudos || 0) + 1
-            : (contributionDocsRef.current[key].kudos || 0) - 1;
+            ? (contributionDocsRef.current[key]?.kudos || 0) + 1
+            : (contributionDocsRef.current[key]?.kudos || 0) - 1;
           const currentDoc = contributionDocsRef.current[key];
           const newDoc = { ...currentDoc, kudos };
           contributionDocsRef.current[key] = newDoc;

@@ -363,8 +363,8 @@ const PitchPostPageContent = React.memo((props: PitchPostPageProps) => {
     ): void => {
       if (pitchId === pid && !contributionId) {
         const kudos = kudoed
-          ? (pitchDocRef.current.kudos || 0) + 1
-          : (pitchDocRef.current.kudos || 0) - 1;
+          ? (pitchDocRef.current?.kudos || 0) + 1
+          : (pitchDocRef.current?.kudos || 0) - 1;
         const currentDoc = pitchDocRef.current;
         const newDoc = { ...currentDoc, kudos };
         pitchDocRef.current = newDoc;

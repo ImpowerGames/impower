@@ -864,8 +864,8 @@ const PitchList = React.memo(
       ): void => {
         if (!contributionId && loadedPitchDocsRef.current[pitchId]) {
           const kudos = kudoed
-            ? (loadedPitchDocsRef.current[pitchId].kudos || 0) + 1
-            : (loadedPitchDocsRef.current[pitchId].kudos || 0) - 1;
+            ? (loadedPitchDocsRef.current[pitchId]?.kudos || 0) + 1
+            : (loadedPitchDocsRef.current[pitchId]?.kudos || 0) - 1;
           const currentDoc = loadedPitchDocsRef.current[pitchId];
           const newDoc = { ...currentDoc, kudos };
           loadedPitchDocsRef.current[pitchId] = newDoc;

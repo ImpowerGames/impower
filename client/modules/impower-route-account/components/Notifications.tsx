@@ -23,12 +23,16 @@ import { UserContext, userReadNotification } from "../../impower-user";
 import BellSolidIcon from "../../../resources/icons/solid/bell.svg";
 import ExclamationSolidIcon from "../../../resources/icons/solid/exclamation.svg";
 import CircleExclamationSolidIcon from "../../../resources/icons/solid/circle-exclamation.svg";
+import XmarkSolidIcon from "../../../resources/icons/solid/xmark.svg";
+import FlagPennantSolidIcon from "../../../resources/icons/solid/flag-pennant.svg";
+import FaceZipperSolidIcon from "../../../resources/icons/solid/face-zipper.svg";
 import CheckSolidIcon from "../../../resources/icons/solid/check.svg";
 import { AggData } from "../../impower-data-state";
 import ConnectionListItem from "./ConnectionListItem";
 import FlaggedContentDialog from "./ViewFlaggedContentWIndow";
 
 import { FontIcon } from "../../impower-icon";
+import { NotificationType } from "../../impower-api/types/enums/notificationType";
 
 // const DataStateWrite = (
 //     await import("../../impower-data-state/classes/dataStateWrite")
@@ -220,6 +224,90 @@ const NotificationListItemIcon = React.memo(
         </StyledNotificationCircle>
       );
     }
+    if (notificationData.type === "muted") {
+      return (
+        <StyledNotificationCircle
+          style={{
+            backgroundColor: "red",
+          }}
+        >
+          <FontIcon aria-label={"xmark-large"}>
+            {" "}
+            <XmarkSolidIcon />{" "}
+          </FontIcon>
+        </StyledNotificationCircle>
+      );
+    }
+    if (notificationData.type === "unmuted") {
+      return (
+        <StyledNotificationCircle
+          style={{
+            backgroundColor: "green",
+          }}
+        >
+          <FontIcon aria-label={"checkmark"}>
+            {" "}
+            <CheckSolidIcon />{" "}
+          </FontIcon>
+        </StyledNotificationCircle>
+      );
+    }
+    if (notificationData.type === "banned") {
+      return (
+        <StyledNotificationCircle
+          style={{
+            backgroundColor: "black",
+          }}
+        >
+          <FontIcon aria-label={"xmark-large"}>
+            {" "}
+            <XmarkSolidIcon />{" "}
+          </FontIcon>
+        </StyledNotificationCircle>
+      );
+    }
+    if (notificationData.type === "unbanned") {
+      return (
+        <StyledNotificationCircle
+          style={{
+            backgroundColor: "green",
+          }}
+        >
+          <FontIcon aria-label={"checkmark"}>
+            {" "}
+            <CheckSolidIcon />{" "}
+          </FontIcon>
+        </StyledNotificationCircle>
+      );
+    }
+    if (notificationData.type === "suspended") {
+      return (
+        <StyledNotificationCircle
+          style={{
+            backgroundColor: "black",
+          }}
+        >
+          <FontIcon aria-label={"xmark-large"}>
+            {" "}
+            <XmarkSolidIcon />{" "}
+          </FontIcon>
+        </StyledNotificationCircle>
+      );
+    }
+    if (notificationData.type === "unsuspended") {
+      return (
+        <StyledNotificationCircle
+          style={{
+            backgroundColor: "green",
+          }}
+        >
+          <FontIcon aria-label={"checkmark"}>
+            {" "}
+            <CheckSolidIcon />{" "}
+          </FontIcon>
+        </StyledNotificationCircle>
+      );
+    }
     return null;
   }
 );
@@ -304,6 +392,32 @@ const NotificationListItemSecondaryText = React.memo(
           {`${
             belowSmBreakpoint ? "" : "is no longer marked NSFW — "
           }${abbreviateAge(new Date(notificationData?.t))}`}
+        </StyledDescriptionTextArea>
+      );
+    }
+    if (
+      [
+        "suspended",
+        "unsuspended",
+        "muted",
+        "unmuted",
+        "banned",
+        "unbanned",
+      ].includes(notificationData?.type)
+    ) {
+      return (
+        <StyledDescriptionTextArea
+          style={{
+            color:
+              notificationStatus === "unread"
+                ? theme.palette.secondary.main
+                : undefined,
+            fontWeight: notificationStatus === "unread" ? 600 : undefined,
+          }}
+        >
+          {`${belowSmBreakpoint ? "" : "at "}${abbreviateAge(
+            new Date(notificationData?.t)
+          )}`}
         </StyledDescriptionTextArea>
       );
     }
@@ -440,6 +554,17 @@ const NotificationListItem = React.memo(
 
     const handleClick = useCallback(
       async (e: React.MouseEvent, id: string, data: AggData) => {
+        onLoading?.(true);
+        if (data?.g === "pitched_projects") {
+          await router.push(`/p/${data?.id}`);
+        }
+        if (data?.g === "notes") {
+          await router.push(`/p/${data?.path}`);
+        }
+        if (data?.g === "contributions" || data?.g === "contributions-notes") {
+          await router.push(`/p/${data?.path}/c/${data?.id}`);
+        }
+        onLoading?.(false);
         if (data?.type === "flagged" && !data?.r) {
           userDispatch(
             userReadNotification(
@@ -458,14 +583,21 @@ const NotificationListItem = React.memo(
             )
           );
         }
-        onLoading?.(true);
-        if (data?.g === "pitched_projects") {
-          await router.push(`/p/${data?.id}`);
+        if (
+          [
+            "banned",
+            "unbanned",
+            "suspended",
+            "unsuspended",
+            "muted",
+            "unmuted",
+          ].includes(data?.type) &&
+          !data?.r
+        ) {
+          userDispatch(
+            userReadNotification(data?.type as NotificationType, "users", "")
+          );
         }
-        if (data?.g === "contributions") {
-          router.push(`/p/${data?.path}/c/${data?.id}`);
-        }
-        onLoading?.(false);
       },
       [onLoading, router, userDispatch]
     );
@@ -484,7 +616,13 @@ const NotificationListItem = React.memo(
     }
     if (
       notificationData?.type === "flagged" ||
-      notificationData?.type === "unflagged"
+      notificationData?.type === "unflagged" ||
+      notificationData?.type === "banned" ||
+      notificationData?.type === "unbanned" ||
+      notificationData?.type === "muted" ||
+      notificationData?.type === "unmuted" ||
+      notificationData?.type === "suspended" ||
+      notificationData?.type === "unsuspended"
     ) {
       return (
         <StyledListItem
@@ -504,7 +642,24 @@ const NotificationListItem = React.memo(
             <NotificationListItemIcon notificationData={notificationData} />
             <StyledListItemText
               primary={
-                notificationData?.g === "contributions"
+                notificationData?.g === "users"
+                  ? notificationData?.type === "banned"
+                    ? `You have been banned`
+                    : notificationData?.type === "unbanned"
+                    ? `You have been unbanned`
+                    : notificationData?.type === "suspended"
+                    ? `You have been suspended`
+                    : notificationData?.type === "unsuspended"
+                    ? `You have been unsuspended`
+                    : notificationData?.type === "muted"
+                    ? `You have been muted`
+                    : notificationData?.type === "unmuted"
+                    ? `You have been unmuted`
+                    : ``
+                  : notificationData?.g === "notes" ||
+                    notificationData?.g === "contributions-notes"
+                  ? `Your Kudo on: "${notificationData?.n}"`
+                  : notificationData?.g === "contributions"
                   ? `Your Contribution to: "${notificationData?.n}"`
                   : `Your Pitch: "${notificationData?.n}"`
               }
