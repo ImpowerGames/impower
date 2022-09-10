@@ -48,6 +48,7 @@ export const executeChoiceCommand = (
     contentEls.forEach((el) => {
       if (el) {
         el.replaceChildren("");
+        el.style.pointerEvents = null;
         el.style.display = "none";
       }
     });
@@ -57,6 +58,7 @@ export const executeChoiceCommand = (
     contentEls.forEach((el) => {
       if (el) {
         el.replaceChildren("");
+        el.style.pointerEvents = null;
         el.style.display = "none";
       }
     });
@@ -72,11 +74,13 @@ export const executeChoiceCommand = (
       if (validIndex === i) {
         el.onclick = handleClick;
         el.replaceChildren(evaluatedContent);
+        el.style.pointerEvents = "auto";
         el.style.display = "block";
       }
       if (count != null) {
         if (i >= count) {
           el.replaceChildren("");
+          el.style.pointerEvents = null;
           el.style.display = "none";
         }
       }
