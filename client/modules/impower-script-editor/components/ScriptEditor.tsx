@@ -42,7 +42,6 @@ import {
   openSearchPanel,
   replaceAll,
   replaceNext,
-  search,
   searchKeymap,
   SearchQuery,
   selectMatches,
@@ -92,6 +91,7 @@ import {
   SearchLineQuery,
   setSearchLineQuery,
 } from "../extensions/searchLinePanel";
+import { searchTextPanel } from "../extensions/searchTextPanel";
 import { setSnippetPreview } from "../extensions/snippetPreview";
 import {
   SerializableChangeSet,
@@ -104,7 +104,7 @@ import { getDiagnostics } from "../utils/getDiagnostics";
 import { quickSnippet } from "../utils/quickSnippet";
 import { spark } from "../utils/spark";
 import { sparkLanguage, tags as t } from "../utils/sparkLanguage";
-import { SearchPanel, SearchTextQuery } from "./SearchTextPanel";
+import { SearchTextQuery } from "./SearchTextPanel";
 
 const gutterCompartment = new Compartment();
 
@@ -429,6 +429,13 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
 
   useEffect(() => {
     const onOpenSearchTextPanel = (view: EditorView): void => {
+      const searchInput = document.querySelector<HTMLInputElement>(
+        "input[name='search']"
+      );
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.select();
+      }
       const query = getSearchQuery(view.state);
       if (onOpenSearchTextPanelRef.current) {
         onOpenSearchTextPanelRef.current(query);
@@ -441,6 +448,13 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
       }
     };
     const onOpenSearchLinePanel = (view: EditorView): void => {
+      const searchInput = document.querySelector<HTMLInputElement>(
+        "input[name='search']"
+      );
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.select();
+      }
       const query = getSearchLineQuery(view.state);
       if (onOpenSearchLinePanelRef.current) {
         onOpenSearchLinePanelRef.current(query);
@@ -512,14 +526,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           onOpen: onOpenSearchLinePanel,
           onClose: onCloseSearchLinePanel,
         }),
-        search({
-          top: true,
-          createPanel: (view: EditorView) => {
-            return new SearchPanel(view, {
-              onOpen: onOpenSearchTextPanel,
-              onClose: onCloseSearchTextPanel,
-            });
-          },
+        searchTextPanel({
+          onOpen: onOpenSearchTextPanel,
+          onClose: onCloseSearchTextPanel,
         }),
         panels({
           topContainer: topPanelsContainer,
@@ -702,6 +711,52 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const onWindowKeyDown = (e: KeyboardEvent): void => {
+      if (e.defaultPrevented) {
+        return;
+      }
+      const onOpenSearchTextPanel = (view: EditorView): void => {
+        const searchInput = document.querySelector<HTMLInputElement>(
+          "input[name='search']"
+        );
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+        const query = getSearchQuery(view.state);
+        if (onOpenSearchTextPanelRef.current) {
+          onOpenSearchTextPanelRef.current(query);
+        }
+      };
+      const onOpenSearchLinePanel = (view: EditorView): void => {
+        const searchInput = document.querySelector<HTMLInputElement>(
+          "input[name='search']"
+        );
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select();
+        }
+        const query = getSearchLineQuery(view.state);
+        if (onOpenSearchLinePanelRef.current) {
+          onOpenSearchLinePanelRef.current(query);
+        }
+      };
+      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+        onOpenSearchTextPanel(view);
+        e.preventDefault();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "g") {
+        onOpenSearchLinePanel(view);
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", onWindowKeyDown);
+    return (): void => {
+      window.removeEventListener("keydown", onWindowKeyDown);
+    };
+  }, [onOpenSearchTextPanel, view]);
 
   useEffect(() => {
     if (view) {

@@ -142,12 +142,16 @@ export const searchLine = searchLineCommand((view, { search }) => {
   return true;
 });
 
-export const searchLineKeymap = [
-  { key: "Alt-g", run: openSearchLinePanel },
-  { key: "Ctrl-g", run: openSearchLinePanel },
-];
-
 export const searchLinePanel = (config?: SearchLineConfig): Extension => {
+  const { onOpen } = config;
+  const onShortcut = (view: EditorView): boolean => {
+    onOpen(view);
+    return openSearchLinePanel(view);
+  };
+  const searchLineKeymap = [
+    { key: "Alt-g", run: onShortcut },
+    { key: "Ctrl-g", run: onShortcut },
+  ];
   const searchExtensions = [searchLineField, keymap.of(searchLineKeymap)];
   return config
     ? [searchLineConfigFacet.of(config), ...searchExtensions]
