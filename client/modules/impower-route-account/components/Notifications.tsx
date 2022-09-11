@@ -180,7 +180,6 @@ interface NotificationListItemIconProps {
 const NotificationListItemIcon = React.memo(
   (props: NotificationListItemIconProps): JSX.Element | null => {
     const { notificationData } = props;
-    const theme = useTheme();
     if (notificationData.type === "flagged") {
       if (notificationData?.removed) {
         return (
@@ -210,7 +209,7 @@ const NotificationListItemIcon = React.memo(
         </ListItemAvatar>
       );
     }
-    if (notificationData.type === "unflagged") {
+    if (notificationData?.type === "unflagged") {
       return (
         <StyledNotificationCircle
           style={{
@@ -224,7 +223,7 @@ const NotificationListItemIcon = React.memo(
         </StyledNotificationCircle>
       );
     }
-    if (notificationData.type === "muted") {
+    if (notificationData?.type === "muted") {
       return (
         <StyledNotificationCircle
           style={{
@@ -238,7 +237,7 @@ const NotificationListItemIcon = React.memo(
         </StyledNotificationCircle>
       );
     }
-    if (notificationData.type === "unmuted") {
+    if (notificationData?.type === "unmuted") {
       return (
         <StyledNotificationCircle
           style={{
@@ -252,7 +251,7 @@ const NotificationListItemIcon = React.memo(
         </StyledNotificationCircle>
       );
     }
-    if (notificationData.type === "banned") {
+    if (notificationData?.type === "banned") {
       return (
         <StyledNotificationCircle
           style={{
@@ -266,7 +265,7 @@ const NotificationListItemIcon = React.memo(
         </StyledNotificationCircle>
       );
     }
-    if (notificationData.type === "unbanned") {
+    if (notificationData?.type === "unbanned") {
       return (
         <StyledNotificationCircle
           style={{
@@ -280,7 +279,7 @@ const NotificationListItemIcon = React.memo(
         </StyledNotificationCircle>
       );
     }
-    if (notificationData.type === "suspended") {
+    if (notificationData?.type === "suspended") {
       return (
         <StyledNotificationCircle
           style={{
@@ -294,7 +293,7 @@ const NotificationListItemIcon = React.memo(
         </StyledNotificationCircle>
       );
     }
-    if (notificationData.type === "unsuspended") {
+    if (notificationData?.type === "unsuspended") {
       return (
         <StyledNotificationCircle
           style={{
@@ -306,6 +305,17 @@ const NotificationListItemIcon = React.memo(
             <CheckSolidIcon />{" "}
           </FontIcon>
         </StyledNotificationCircle>
+      );
+    }
+    if (notificationData?.type === "pitchChildCollections") {
+      return (
+        <ListItemAvatar>
+          <Avatar
+            alt={notificationData?.a?.u}
+            src={notificationData?.a?.i}
+            backgroundColor={notificationData?.a?.h}
+          />
+        </ListItemAvatar>
       );
     }
     return null;
@@ -403,6 +413,7 @@ const NotificationListItemSecondaryText = React.memo(
         "unmuted",
         "banned",
         "unbanned",
+        "pitchChildCollections",
       ].includes(notificationData?.type)
     ) {
       return (
@@ -415,9 +426,9 @@ const NotificationListItemSecondaryText = React.memo(
             fontWeight: notificationStatus === "unread" ? 600 : undefined,
           }}
         >
-          {`${belowSmBreakpoint ? "" : "at "}${abbreviateAge(
-            new Date(notificationData?.t)
-          )}`}
+          {`${abbreviateAge(new Date(notificationData?.t))}${
+            belowSmBreakpoint ? "" : " ago"
+          }`}
         </StyledDescriptionTextArea>
       );
     }
@@ -614,15 +625,19 @@ const NotificationListItem = React.memo(
         />
       );
     }
+    const userStatusChanges = [
+      "banned",
+      "unbanned",
+      "muted",
+      "unmuted",
+      "suspended",
+      "unsuspended",
+    ];
     if (
       notificationData?.type === "flagged" ||
       notificationData?.type === "unflagged" ||
-      notificationData?.type === "banned" ||
-      notificationData?.type === "unbanned" ||
-      notificationData?.type === "muted" ||
-      notificationData?.type === "unmuted" ||
-      notificationData?.type === "suspended" ||
-      notificationData?.type === "unsuspended"
+      userStatusChanges.includes(notificationData?.type) ||
+      notificationData?.type === "pitchChildCollections"
     ) {
       return (
         <StyledListItem
@@ -643,25 +658,32 @@ const NotificationListItem = React.memo(
             <StyledListItemText
               primary={
                 notificationData?.g === "users"
-                  ? notificationData?.type === "banned"
-                    ? `You have been banned`
-                    : notificationData?.type === "unbanned"
-                    ? `You have been unbanned`
-                    : notificationData?.type === "suspended"
-                    ? `You have been suspended`
-                    : notificationData?.type === "unsuspended"
-                    ? `You have been unsuspended`
-                    : notificationData?.type === "muted"
-                    ? `You have been muted`
-                    : notificationData?.type === "unmuted"
-                    ? `You have been unmuted`
+                  ? userStatusChanges.includes(notificationData?.type)
+                    ? `You have been ${notificationData?.type}`
                     : ``
-                  : notificationData?.g === "notes" ||
+                  : notificationData?.type === "flagged" ||
+                    notificationData?.type === "unflagged"
+                  ? notificationData?.g === "notes" ||
                     notificationData?.g === "contributions-notes"
-                  ? `Your Kudo on: "${notificationData?.n}"`
-                  : notificationData?.g === "contributions"
-                  ? `Your Contribution to: "${notificationData?.n}"`
-                  : `Your Pitch: "${notificationData?.n}"`
+                    ? `Your Kudo on: "${notificationData?.n}"`
+                    : notificationData?.g === "contributions"
+                    ? `Your Contribution to: "${notificationData?.n}"`
+                    : `Your Pitch: "${notificationData?.n}"`
+                  : notificationData?.type === "pitchChildCollections"
+                  ? notificationData?.g === "notes"
+                    ? notificationData?.count > 1
+                      ? `${notificationData?.a.u} and ${notificationData?.count} others kudoed: "${notificationData?.n}"`
+                      : `${notificationData?.a.u} kudoed: "${notificationData?.n}"`
+                    : notificationData?.g === "contributions-notes"
+                    ? notificationData?.count > 1
+                      ? `${notificationData?.a.u} and ${notificationData?.count} others liked your contribution to: "${notificationData?.n}"`
+                      : `${notificationData?.a.u} liked your contribution to: "${notificationData?.n}"`
+                    : notificationData?.g === "contributions"
+                    ? notificationData?.count > 1
+                      ? `${notificationData?.a.u} and ${notificationData?.count} others contributed to: "${notificationData?.n}"`
+                      : `${notificationData?.a.u} contributed to: "${notificationData?.n}"`
+                    : ``
+                  : ``
               }
               secondary={
                 <NotificationListItemSecondaryText
