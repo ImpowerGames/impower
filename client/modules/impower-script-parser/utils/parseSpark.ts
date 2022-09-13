@@ -129,8 +129,6 @@ export const parseSpark = (
   let lastCharacterIndex;
   let dualRight;
   let state = "normal";
-  let cacheStateForComment: string;
-  let nestedComments = 0;
   let titlePageStarted = false;
   let previousCharacter: string;
   let previousParenthetical: string;
@@ -1738,25 +1736,6 @@ export const parseSpark = (
     currentChoiceTokens = [];
   };
 
-  const reduceBlockComment = (prev: string, current: string): string => {
-    if (current === "/*") {
-      nestedComments += 1;
-    } else if (current === "*/") {
-      nestedComments -= 1;
-    } else if (!nestedComments) {
-      prev += current;
-    }
-    return prev;
-  };
-
-  const removeBlockComments = (str: string): string => {
-    str = str
-      .split(sparkRegexes.comment_block)
-      .filter((x) => Boolean(x))
-      .reduce(reduceBlockComment, "");
-    return str;
-  };
-
   const processDisplayedContent = (
     token: SparkDisplayToken,
     contentFrom?: number
@@ -1860,7 +1839,6 @@ export const parseSpark = (
       line: i + 1,
       from: current,
     });
-    text = removeBlockComments(text);
     text = stripInlineComments(text);
     currentToken.content = text;
 
@@ -2139,15 +2117,8 @@ export const parseSpark = (
   for (let i = 0; i < linesLength; i += 1) {
     text = lines[i];
 
-    if (nestedComments && state !== "ignore") {
-      cacheStateForComment = state;
-      state = "ignore";
-    } else if (state === "ignore") {
-      state = cacheStateForComment;
-    }
-
-    if (nestedComments === 0 && state === "ignore") {
-      state = cacheStateForComment;
+    if (state === "ignore") {
+      state = undefined;
     }
 
     currentToken = createSparkToken("comment", newLineLength, {
@@ -2155,7 +2126,6 @@ export const parseSpark = (
       line: i + 1,
       from: current,
     });
-    text = removeBlockComments(text);
     text = stripInlineComments(text);
     currentToken.content = text;
     current = currentToken.to + 1;
