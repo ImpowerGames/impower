@@ -1,4 +1,3 @@
-import React from "react";
 import InputHelperText from "./InputHelperText";
 import { StringInputProps } from "./StringInput";
 import TextField from "./TextField";

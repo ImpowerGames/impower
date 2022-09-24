@@ -6,6 +6,11 @@ import {
   useState,
 } from "react";
 import Measure from "react-measure";
+import {
+  getEntityObjects,
+  getSectionAtLine,
+  parseSpark,
+} from "../../../../sparkdown";
 import { getBlockTree } from "../../impower-game/data";
 import { loadStyles, loadUI } from "../../impower-game/dom";
 import { ImpowerGame, SaveData } from "../../impower-game/game";
@@ -16,8 +21,6 @@ import {
 import { GameProjectData } from "../../impower-game/project/classes/project/gameProjectData";
 import { ImpowerGameRunner } from "../../impower-game/runner";
 import { ProjectEngineContext } from "../../impower-route-engine/contexts/projectEngineContext";
-import { getEntityObjects, parseSpark } from "../../impower-script-parser";
-import { getSectionAtLine } from "../../impower-script-parser/utils/getSectionAtLine";
 import { useGameStyle } from "../hooks/gameHooks";
 import { PhaserGame } from "../types/game/phaserGame";
 import UI from "./UI";

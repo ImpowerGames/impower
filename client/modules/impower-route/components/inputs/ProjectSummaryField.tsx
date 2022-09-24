@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { InputProps } from "@material-ui/core/Input";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ProjectDocument } from "../../../impower-data-store";
 import DataField, { RenderPropertyProps } from "./DataField";
 import ProjectMainTagSelector from "./ProjectMainTagSelector";

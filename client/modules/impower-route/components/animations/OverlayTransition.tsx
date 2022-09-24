@@ -1,7 +1,7 @@
-import React, { PropsWithChildren, CSSProperties } from "react";
 import { Transition, Variants } from "framer-motion";
-import MotionDiv from "./MotionDiv";
+import { CSSProperties, PropsWithChildren } from "react";
 import { TransitionState } from "../../hooks/useTransitionAnimation";
+import MotionDiv from "./MotionDiv";
 
 const defaultMoveDistance = 300;
 const initialPosition = 0;

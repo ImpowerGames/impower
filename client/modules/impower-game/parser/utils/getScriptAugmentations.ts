@@ -1,4 +1,4 @@
-import { SparkParseResult } from "../../../impower-script-parser";
+import { SparkParseResult } from "../../../../../sparkdown";
 import { FileData } from "../../data";
 
 export const getScriptAugmentations = (

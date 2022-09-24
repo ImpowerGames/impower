@@ -67,7 +67,7 @@ class DataStoreCache {
         };
         docs[index] = s as QueryDocumentSnapshot;
       });
-      this.cache[key] = { ...snapshot, docs } as QuerySnapshot;
+      this.cache[key] = { ...snapshot, docs } as unknown as QuerySnapshot;
       return;
     }
     const result = snapshot.data();

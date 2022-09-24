@@ -19,7 +19,7 @@ import {
   SparkParseResult,
   sparkRegexes,
   SparkSection,
-} from "../../impower-script-parser";
+} from "../../../../sparkdown";
 import { colors } from "../constants/colors";
 
 interface Option {
@@ -378,17 +378,17 @@ export const getSectionOptions = (
 }[] => {
   const validChildrenIds = getChildrenIds(sectionId, sections).filter(
     (id) =>
-      sections?.parent === sectionId &&
+      sections?.[id]?.parent === sectionId &&
       ["section", "method"].includes(sections?.[id]?.type)
   );
   const validSiblingIds = getSiblingIds(sectionId, sections).filter(
     (id) =>
-      sections?.parent !== sectionId &&
+      sections?.[id]?.parent !== sectionId &&
       ["section", "method"].includes(sections?.[id]?.type)
   );
   const validAncestorIds = getAncestorIds(sectionId).filter(
     (id) =>
-      sections?.parent !== sectionId &&
+      sections?.[id]?.parent !== sectionId &&
       ["section", "method"].includes(sections?.[id]?.type)
   );
   const [, parent] = getRelativeSection(sectionId, sections, "^");

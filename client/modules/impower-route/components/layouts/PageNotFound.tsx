@@ -1,6 +1,5 @@
 import styled from "@emotion/styled";
 import dynamic from "next/dynamic";
-import React from "react";
 import Fallback from "./Fallback";
 
 const AnimatedErrorMascotIllustration = dynamic(

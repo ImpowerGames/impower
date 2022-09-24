@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 import ExclamationSolidIcon from "../../../../resources/icons/solid/exclamation.svg";
 import { FontIcon } from "../../../impower-icon";
 

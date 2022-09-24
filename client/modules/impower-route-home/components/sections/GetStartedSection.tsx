@@ -2,7 +2,6 @@ import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
 import dynamic from "next/dynamic";
 import NextLink from "next/link";
-import React from "react";
 import IllustrationImage from "../../../../resources/illustrations/fogg-premium-upgrade-1.svg";
 import { PopAnimation } from "../../../impower-route";
 import { getStartedInfo } from "../../types/info/getStarted";

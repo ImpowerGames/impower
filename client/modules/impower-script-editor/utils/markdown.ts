@@ -1,5 +1,5 @@
 import { PartialParse } from "@lezer/common";
-import { sparkRegexes, stripInlineComments } from "../../impower-script-parser";
+import { sparkRegexes, stripInlineComments } from "../../../../sparkdown";
 import { BlockContext } from "../classes/BlockContext";
 import { CompositeBlock } from "../classes/CompositeBlock";
 import { Element } from "../classes/Element";
@@ -76,12 +76,12 @@ export function isPageBreak(line: Line): RegExpMatchArray {
   return text.match(sparkRegexes.page_break);
 }
 
-export function isSynopses(line: Line): RegExpMatchArray {
+export function isSynopsis(line: Line): RegExpMatchArray {
   if (line.next !== "=".charCodeAt(0)) {
     return null;
   }
   const text = stripComments(line.text);
-  return text.match(sparkRegexes.synopses);
+  return text.match(sparkRegexes.synopsis);
 }
 
 export function isCentered(line: Line): RegExpMatchArray {

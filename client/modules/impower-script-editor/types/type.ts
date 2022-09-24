@@ -13,9 +13,8 @@ export enum Type {
   SignificantWhitespace,
 
   // Spark Block
-  Synopses,
+  Synopsis,
   Section,
-  SectionReturnType,
   SectionName,
   SectionOpenMark,
   SectionSeparatorMark,
@@ -25,6 +24,8 @@ export enum Type {
   SectionParameterOperator,
   SectionParameterValue,
   SectionCloseMark,
+  SectionColonMark,
+  SectionReturnType,
   Title,
   Scene,
   ScenePrefix,
@@ -140,7 +141,7 @@ export enum Type {
   ImageNoteMark,
   AudioNoteMark,
   DynamicTagMark,
-  SynopsesMark,
+  SynopsisMark,
   SceneMark,
   SceneSeparatorMark,
   SceneNumberMark,

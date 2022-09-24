@@ -1,7 +1,7 @@
 import Button from "@material-ui/core/Button";
 import { LoadingButtonProps } from "@material-ui/lab";
 import dynamic from "next/dynamic";
-import React, { createContext, useContext } from "react";
+import { createContext, useContext } from "react";
 
 const LoadingContext = createContext<LoadingButtonProps>({});
 

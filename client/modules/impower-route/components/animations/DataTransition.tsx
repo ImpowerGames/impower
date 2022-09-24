@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { motion } from "framer-motion";
-import React, { CSSProperties, PropsWithChildren } from "react";
+import { CSSProperties, PropsWithChildren } from "react";
 import { TransitionState } from "../../hooks/useTransitionAnimation";
 
 const popAnimationVariants = {

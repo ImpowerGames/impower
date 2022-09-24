@@ -1,5 +1,4 @@
-import { SparkToken } from "../../../impower-script-parser";
-import { SparkEntity } from "../../../impower-script-parser/types/SparkEntity";
+import { SparkEntity, SparkToken } from "../../../../../sparkdown";
 
 export const getRuntimeEntity = (
   token: SparkToken,

@@ -1,4 +1,4 @@
-import { evaluate } from "../../../../../../../../impower-evaluate";
+import { evaluate } from "../../../../../../../../../../evaluate";
 import { ConditionCommandData, InstanceData } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { getNextJumpIndex } from "../../../../../../../runner";

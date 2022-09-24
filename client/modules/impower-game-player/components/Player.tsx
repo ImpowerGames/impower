@@ -1,5 +1,5 @@
 import dynamic from "next/dynamic";
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 import { GameProjectData } from "../../impower-game/data";
 import { ImpowerGame, SaveData } from "../../impower-game/game";
 import { ImpowerGameRunner } from "../../impower-game/runner";

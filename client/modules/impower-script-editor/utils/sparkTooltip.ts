@@ -1,5 +1,5 @@
 import { EditorView, Tooltip } from "@codemirror/view";
-import { SparkParseResult, SparkReference } from "../../impower-script-parser";
+import { SparkParseResult, SparkReference } from "../../../../sparkdown";
 
 const getSparkReferenceAt = (
   lineNumber: number,

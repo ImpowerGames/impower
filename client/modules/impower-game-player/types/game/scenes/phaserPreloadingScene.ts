@@ -96,10 +96,6 @@ export class PhaserPreloadingScene extends Phaser.Scene {
 
   private assetTextFont = "arial";
 
-  private refTypeImage = "image";
-
-  private refTypeAudio = "audio";
-
   private loadingTextPos: Vector2 = { x: 0, y: -110 };
 
   private percentTextPos: Vector2 = { x: 0, y: -60 };

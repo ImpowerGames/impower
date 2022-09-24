@@ -2,7 +2,7 @@ import {
   getEntityObjects,
   getScopedValueContext,
   parseSpark,
-} from "../../../impower-script-parser";
+} from "../../../../../sparkdown";
 import { CommandData, GameProjectData } from "../../data";
 import { getRuntimeBlocks, getScriptAugmentations } from "../../parser";
 import { CommandRunner, ImpowerGameRunner } from "../../runner";

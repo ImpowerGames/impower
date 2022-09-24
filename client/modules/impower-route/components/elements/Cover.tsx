@@ -2,7 +2,7 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { Typography } from "@material-ui/core";
 import Button from "@material-ui/core/Button";
-import React, { PropsWithChildren, useCallback, useState } from "react";
+import { PropsWithChildren, useCallback, useState } from "react";
 import CheckSolidIcon from "../../../../resources/icons/solid/check.svg";
 import PlusSolidIcon from "../../../../resources/icons/solid/plus.svg";
 import { hexToHsla, hslaToHex } from "../../../impower-core";

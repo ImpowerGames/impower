@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 
 const StyledDescription = styled.div`
   padding: ${(props): string => props.theme.spacing(4)}

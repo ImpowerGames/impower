@@ -1,7 +1,7 @@
-import React, { PropsWithChildren } from "react";
 import { Transition } from "framer-motion";
-import MotionDiv from "./MotionDiv";
+import { PropsWithChildren } from "react";
 import { TransitionState } from "../../hooks/useTransitionAnimation";
+import MotionDiv from "./MotionDiv";
 
 const defaultPosition = "absolute";
 const defaultAmount = 0.97;

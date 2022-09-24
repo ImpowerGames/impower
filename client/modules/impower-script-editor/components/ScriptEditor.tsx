@@ -74,7 +74,7 @@ import {
   parseSpark,
   SparkDeclarations,
   SparkParseResult,
-} from "../../impower-script-parser";
+} from "../../../../sparkdown";
 import { colors } from "../constants/colors";
 import { editorTheme } from "../constants/editorTheme";
 import { foldedField } from "../extensions/foldedField";
@@ -189,8 +189,8 @@ const myHighlightStyle = HighlightStyle.define([
   { tag: t.lyric, fontStyle: "italic" },
   { tag: t.note, color: colors.note },
   { tag: t.noteMark, color: colors.note, opacity: 0.5 },
-  { tag: t.synopses, color: colors.comment },
-  { tag: t.synopsesMark, color: colors.comment, opacity: 0.5 },
+  { tag: t.synopsis, color: colors.comment },
+  { tag: t.synopsisMark, color: colors.comment, opacity: 0.5 },
   { tag: t.comment, color: colors.comment },
   {
     tag: t.url,

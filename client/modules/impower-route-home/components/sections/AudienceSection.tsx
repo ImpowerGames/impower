@@ -2,7 +2,6 @@ import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
 import dynamic from "next/dynamic";
 import NextLink from "next/link";
-import React from "react";
 import IllustrationImage from "../../../../resources/illustrations/clip-1-diverse.svg";
 import { FontIcon } from "../../../impower-icon";
 import PopAnimation from "../../../impower-route/components/animations/PopAnimation";

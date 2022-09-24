@@ -1,4 +1,4 @@
-import { evaluate } from "../../../../../../../../impower-evaluate";
+import { evaluate } from "../../../../../../../../../../evaluate";
 import { ReturnCommandData } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/commandRunner";

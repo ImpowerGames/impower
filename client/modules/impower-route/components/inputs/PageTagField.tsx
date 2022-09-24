@@ -5,7 +5,7 @@ import {
   FilterOptionsState,
 } from "@material-ui/core";
 import dynamic from "next/dynamic";
-import React, { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { ConfigContext } from "../../../impower-config";
 import ConfigCache from "../../../impower-config/classes/configCache";
 import { DynamicIcon, FontIcon } from "../../../impower-icon";

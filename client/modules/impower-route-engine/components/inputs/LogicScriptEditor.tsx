@@ -9,8 +9,17 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { evaluate } from "../../../../../evaluate";
+import {
+  getEntityObjects,
+  getGlobalValueContext,
+  getScopedValueContext,
+  getSectionAtLine,
+  parseSpark,
+  SparkEntity,
+  SparkParseResult,
+} from "../../../../../sparkdown";
 import { debounce } from "../../../impower-core";
-import { evaluate } from "../../../impower-evaluate";
 import { CommandData } from "../../../impower-game/data";
 import { loadStyles } from "../../../impower-game/dom";
 import { loadUI } from "../../../impower-game/dom/loadUI";
@@ -26,15 +35,6 @@ import {
   SearchTextQuery,
 } from "../../../impower-script-editor";
 import { SerializableEditorState } from "../../../impower-script-editor/types/editor";
-import {
-  getEntityObjects,
-  getGlobalValueContext,
-  getScopedValueContext,
-  parseSpark,
-  SparkParseResult,
-} from "../../../impower-script-parser";
-import { SparkEntity } from "../../../impower-script-parser/types/SparkEntity";
-import { getSectionAtLine } from "../../../impower-script-parser/utils/getSectionAtLine";
 import { GameContext } from "../../contexts/gameContext";
 import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
@@ -338,11 +338,11 @@ const LogicScriptEditor = React.memo(
         }
         const parseResult = parseResultRef.current;
         const firstVisibleTokenIndex =
-          parseResult?.scriptLines?.[firstVisibleLine];
+          parseResult?.tokenLines?.[firstVisibleLine];
         if (firstVisibleTokenIndex >= 0) {
           let lastSectionName = "";
           for (let i = firstVisibleTokenIndex - 2; i >= 0; i -= 1) {
-            const token = parseResult?.scriptTokens?.[i];
+            const token = parseResult?.tokens?.[i];
             if (token?.type === "section") {
               lastSectionName = token.content;
               break;
@@ -368,15 +368,12 @@ const LogicScriptEditor = React.memo(
         if (!line) {
           return undefined;
         }
-        let tokenIndex = result.scriptLines[line];
-        let token = result.scriptTokens[tokenIndex];
+        let tokenIndex = result.tokenLines[line];
+        let token = result.tokens[tokenIndex];
         if (token) {
-          while (
-            tokenIndex < result.scriptTokens.length &&
-            token.skipToNextPreview
-          ) {
+          while (tokenIndex < result.tokens.length && token.skipToNextPreview) {
             tokenIndex += 1;
-            token = result.scriptTokens[tokenIndex];
+            token = result.tokens[tokenIndex];
           }
           const runtimeEntity = getRuntimeEntity(token, result?.entities);
           return runtimeEntity;
@@ -394,15 +391,12 @@ const LogicScriptEditor = React.memo(
         if (!line) {
           return undefined;
         }
-        let tokenIndex = result.scriptLines[line];
-        let token = result.scriptTokens[tokenIndex];
+        let tokenIndex = result.tokenLines[line];
+        let token = result.tokens[tokenIndex];
         if (token) {
-          while (
-            tokenIndex < result.scriptTokens.length &&
-            token.skipToNextPreview
-          ) {
+          while (tokenIndex < result.tokens.length && token.skipToNextPreview) {
             tokenIndex += 1;
-            token = result.scriptTokens[tokenIndex];
+            token = result.tokens[tokenIndex];
           }
           const [sectionId] = getSectionAtLine(line, result);
           const runtimeCommand = getRuntimeCommand(token, sectionId);
@@ -545,8 +539,7 @@ const LogicScriptEditor = React.memo(
       const currentLine = currentPreviewCommand
         ? currentPreviewCommand.line
         : cursorRef.current.fromLine;
-      const lastTokenLine =
-        result.scriptTokens[result.scriptTokens.length - 1].line;
+      const lastTokenLine = result.tokens[result.tokens.length - 1].line;
       for (let i = currentLine; i <= lastTokenLine; i += 1) {
         const nextPreviewCommand = getPreviewCommand(result, i);
         if (

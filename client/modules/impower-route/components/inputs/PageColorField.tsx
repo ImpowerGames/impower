@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import { useCallback } from "react";
 import { debounce } from "../../../impower-core";
 import DataField, { RenderPropertyProps } from "./DataField";
 import RandomizeButton from "./RandomizeButton";

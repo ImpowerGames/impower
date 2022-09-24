@@ -1,5 +1,5 @@
 /* eslint-disable no-continue */
-import { sparkRegexes } from "../../impower-script-parser";
+import { sparkRegexes } from "../../../../sparkdown";
 import { BlockContext } from "../classes/BlockContext";
 import { Element } from "../classes/Element";
 import { InlineContext } from "../classes/InlineContext";

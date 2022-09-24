@@ -1,4 +1,4 @@
-import { SparkParseResult } from "../../../impower-script-parser";
+import { SparkParseResult } from "../../../../../sparkdown";
 import { BlockData, createBlockData, createBlockReference } from "../../data";
 import { getRuntimeCommand } from "./getRuntimeCommand";
 

@@ -21,7 +21,7 @@ import { Diagnostic, linter } from "@codemirror/lint";
 import { Prec } from "@codemirror/state";
 import { EditorView, hoverTooltip, KeyBinding, keymap } from "@codemirror/view";
 
-import { parseSpark, SparkParseResult } from "../../impower-script-parser";
+import { parseSpark, SparkParseResult } from "../../../../sparkdown";
 import { MarkdownParser } from "../classes/MarkdownParser";
 import {
   deleteMarkupBackward,

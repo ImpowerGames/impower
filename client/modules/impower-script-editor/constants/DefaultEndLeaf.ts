@@ -8,7 +8,7 @@ import {
   isOrderedList,
   isPageBreak,
   isScene,
-  isSynopses,
+  isSynopsis,
   isTitle,
   isTransition,
 } from "../utils/markdown";
@@ -19,7 +19,7 @@ export const DefaultEndLeaf: readonly ((
 ) => boolean)[] = [
   (_, line): boolean => getSectionLevel(line) >= 1,
   (_, line): boolean => Boolean(isScene(line)),
-  (_, line): boolean => Boolean(isSynopses(line)),
+  (_, line): boolean => Boolean(isSynopsis(line)),
   (_, line): boolean => Boolean(isTransition(line)),
   (_, line): boolean => Boolean(isPageBreak(line)),
   (p, line): boolean => isTitle(line, p, true) >= 0,

@@ -1,7 +1,7 @@
 import { Diagnostic } from "@codemirror/lint";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { SparkDiagnostic } from "../../impower-script-parser/types/SparkDiagnostic";
+import { SparkDiagnostic } from "../../../../sparkdown";
 
 export const getDiagnostics = (
   diagnostics: SparkDiagnostic[]

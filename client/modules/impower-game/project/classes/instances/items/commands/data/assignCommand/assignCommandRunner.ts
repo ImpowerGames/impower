@@ -1,4 +1,4 @@
-import { evaluate } from "../../../../../../../../impower-evaluate";
+import { evaluate } from "../../../../../../../../../../evaluate";
 import { AssignCommandData } from "../../../../../../../data";
 import { ImpowerGame } from "../../../../../../../game";
 import { modifyValue } from "../../../../../../../runner/utils/modifyValue";

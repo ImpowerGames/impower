@@ -1,6 +1,5 @@
 import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
-import React from "react";
 
 const attributionButtons = [
   {

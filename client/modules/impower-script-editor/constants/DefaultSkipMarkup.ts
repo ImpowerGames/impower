@@ -1,4 +1,4 @@
-import { sparkRegexes } from "../../impower-script-parser";
+import { sparkRegexes } from "../../../../sparkdown";
 import { BlockContext } from "../classes/BlockContext";
 import { CompositeBlock } from "../classes/CompositeBlock";
 import { Line } from "../classes/Line";
@@ -13,7 +13,7 @@ import {
 export const DefaultSkipMarkup: {
   [type: number]: (bl: CompositeBlock, cx: BlockContext, line: Line) => boolean;
 } = {
-  [Type.Synopses](_bl, _cx, _line) {
+  [Type.Synopsis](_bl, _cx, _line) {
     return false;
   },
   [Type.Centered](_bl, _cx, _line) {

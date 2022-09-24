@@ -11,7 +11,7 @@ import {
   getRelativeSection,
   getSectionAt,
   SparkParseResult,
-} from "../../impower-script-parser";
+} from "../../../../sparkdown";
 import { SectionNamePreviewWidget } from "./SectionNamePreviewWidget";
 
 const parseContextState = Facet.define<{ result?: SparkParseResult }>({});

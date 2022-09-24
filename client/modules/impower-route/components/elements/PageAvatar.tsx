@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import { useContext } from "react";
 import { ConfigContext } from "../../../impower-config";
 import ConfigCache from "../../../impower-config/classes/configCache";
 import { PageDocument } from "../../../impower-data-store";

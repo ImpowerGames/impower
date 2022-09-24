@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import dynamic from "next/dynamic";
-import React, { CSSProperties } from "react";
+import { CSSProperties } from "react";
 
 const CircularProgress = dynamic(
   () => import("@material-ui/core/CircularProgress"),

@@ -1,6 +1,5 @@
 import styled from "@emotion/styled";
 import { Typography } from "@material-ui/core";
-import React from "react";
 import MascotRelaxed01 from "../../../../resources/mascot/professor-relaxed-01.svg";
 import Markdown from "../elements/Markdown";
 import MascotIllustration from "../illustrations/MascotIllustration";

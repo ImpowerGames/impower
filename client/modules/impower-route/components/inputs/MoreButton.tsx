@@ -1,6 +1,5 @@
 import { useTheme } from "@emotion/react";
 import IconButton from "@material-ui/core/IconButton";
-import React from "react";
 import { DynamicIcon, FontIcon } from "../../../impower-icon";
 
 interface MoreButtonProps {

@@ -1,7 +1,7 @@
 /* eslint-disable no-continue */
 import { SynthOptions } from "tone";
+import { format } from "../../../../../../../../../../evaluate";
 import { RecursivePartial } from "../../../../../../../../impower-core";
-import { format } from "../../../../../../../../impower-evaluate";
 import {
   DisplayCommandConfig,
   DisplayCommandData,
@@ -385,7 +385,7 @@ const isHidden = (content, hiddenRegex): boolean => {
   if (!hiddenRegex) {
     return false;
   }
-  return new RegExp(`^${hiddenRegex}$`).test(content);
+  return new RegExp(`^[(]${hiddenRegex}[)]$`).test(content);
 };
 
 export const executeDisplayCommand = (
@@ -531,12 +531,12 @@ export const executeDisplayCommand = (
     characterEl.style.display = validCharacter ? null : "none";
   }
   if (parentheticalEl) {
-    parentheticalEl.replaceChildren(`(${validParenthetical})`);
+    parentheticalEl.replaceChildren(validParenthetical);
     parentheticalEl.style.display = validParenthetical ? null : "none";
   }
   const [spanEls, chunkEls, beeps] = getAnimatedSpanElements(
     type,
-    evaluatedContent,
+    evaluatedContent?.trimStart(),
     valueMap,
     config,
     instant,

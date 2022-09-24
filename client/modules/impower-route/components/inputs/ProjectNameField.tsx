@@ -1,5 +1,4 @@
 import dynamic from "next/dynamic";
-import React from "react";
 import DataField, { RenderPropertyProps } from "./DataField";
 
 const GamePromptButton = dynamic(() => import("../elements/GamePromptButton"), {

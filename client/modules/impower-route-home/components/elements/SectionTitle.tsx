@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { Typography } from "@material-ui/core";
-import React, { PropsWithChildren } from "react";
+import { PropsWithChildren } from "react";
 
 const StyledSectionTitle = styled(Typography)`
   padding: 0 ${(props): string => props.theme.spacing(8)};

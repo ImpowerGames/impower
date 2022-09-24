@@ -3,7 +3,7 @@ import {
   SparkDisplayToken,
   SparkLine,
   SparkToken,
-} from "../../../impower-script-parser";
+} from "../../../../../sparkdown";
 import {
   AssignCommandData,
   ChoiceCommandData,

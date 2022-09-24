@@ -1,5 +1,4 @@
 import styled from "@emotion/styled";
-import React from "react";
 import IllustrationImage from "../../../../resources/illustrations/clip-diverse.svg";
 import Markdown from "../../../impower-route/components/elements/Markdown";
 import { aboutInfo } from "../../types/info/about";

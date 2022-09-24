@@ -12,7 +12,7 @@ import {
   Text,
 } from "@codemirror/state";
 import { SyntaxNode, Tree } from "@lezer/common";
-import { sparkRegexes } from "../../impower-script-parser";
+import { sparkRegexes } from "../../../../sparkdown";
 import { Context } from "../classes/Context";
 import { itemNumber } from "../utils/itemNumber";
 import { sparkLanguage } from "../utils/sparkLanguage";

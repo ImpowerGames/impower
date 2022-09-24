@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { motion, TargetAndTransition } from "framer-motion";
-import React, { CSSProperties, PropsWithChildren } from "react";
+import { CSSProperties, PropsWithChildren } from "react";
 
 const StyledHoverTapTransition = styled(motion.div)`
   border-radius: inherit;

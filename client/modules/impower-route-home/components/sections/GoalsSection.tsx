@@ -5,7 +5,6 @@ import {
   AccordionSummary,
   Typography,
 } from "@material-ui/core";
-import React from "react";
 import AngleDownRegularIcon from "../../../../resources/icons/regular/angle-down.svg";
 import IllustrationImage from "../../../../resources/illustrations/fogg-coffee-break.svg";
 import { FontIcon } from "../../../impower-icon";

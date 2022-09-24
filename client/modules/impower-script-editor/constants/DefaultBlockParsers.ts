@@ -1,11 +1,7 @@
 /* eslint-disable no-cond-assign */
 import { Tree } from "@lezer/common";
-import { tokenize } from "../../impower-evaluate";
-import {
-  entityMethods,
-  MethodType,
-  sparkRegexes,
-} from "../../impower-script-parser";
+import { tokenize } from "../../../../evaluate";
+import { entityMethods, MethodType, sparkRegexes } from "../../../../sparkdown";
 import { BlockContext } from "../classes/BlockContext";
 import { Buffer } from "../classes/Buffer";
 import { Element } from "../classes/Element";
@@ -42,7 +38,7 @@ import {
   isReturn,
   isScene,
   isSectionHeading,
-  isSynopses,
+  isSynopsis,
   isTag,
   isTitle,
   isTransition,
@@ -387,12 +383,13 @@ export const DefaultBlockParsers: {
 
     const mark = match[2] || "";
     const markSpace = match[3] || "";
-    const returnType = match[4] || "";
-    const returnTypeSpace = match[5] || "";
-    const name = match[6] || "";
-    const nameSpace = match[7] || "";
-    const parameters = match[8] || "";
-    const parametersSpace = match[9] || "";
+    const name = match[4] || "";
+    const nameSpace = match[5] || "";
+    const parameters = match[6] || "";
+    const colon = match[7] || "";
+    const colonSpace = match[8] || "";
+    const returnType = match[9] || "";
+    const returnTypeSpace = match[10] || "";
     const level = mark.length;
 
     if (level <= 0 || !markSpace) {
@@ -419,30 +416,29 @@ export const DefaultBlockParsers: {
       to = from + mark.length + markSpace.length;
       buf = buf.write(Type.SectionMark, from, to);
     }
-    if (returnType || returnTypeSpace) {
-      from = to;
-      to = from + returnType.length + returnTypeSpace.length;
-      buf = buf.write(Type.SectionReturnType, from, to);
-    }
     if (name || nameSpace) {
       from = to;
       to = from + name.length + nameSpace.length;
       buf = buf.write(Type.SectionName, from, to);
     }
-    if (parameters || parametersSpace) {
-      const hasOpenMark =
-        parameters.startsWith("(") || parameters.startsWith("[");
-      const hasCloseMark = parameters.endsWith(")") || parameters.endsWith("]");
+    if (parameters) {
+      const hasOpenMark = parameters[0] === "(" || parameters[0] === "[";
+      const expectedCloseMark =
+        parameters[0] === "(" ? ")" : parameters[0] === "[" ? "]" : "";
+      const closeIndex = expectedCloseMark
+        ? parameters.lastIndexOf(expectedCloseMark)
+        : -1;
+      const hasCloseMark = closeIndex >= 0;
       const values =
         hasOpenMark && hasCloseMark
-          ? parameters.slice(1, -1)
+          ? parameters.slice(1, closeIndex)
           : hasOpenMark
           ? parameters.slice(1)
           : hasCloseMark
-          ? parameters.slice(0, -1)
+          ? parameters.slice(0, closeIndex)
           : parameters;
-      const openMark = hasOpenMark ? parameters.slice(0, 1) : "";
-      const closeMark = hasCloseMark ? parameters.slice(-1) : "";
+      const openMark = hasOpenMark ? parameters[0] : "";
+      const closeMark = hasCloseMark ? parameters[closeIndex] : "";
       if (openMark) {
         from = to;
         to = from + openMark.length;
@@ -470,9 +466,6 @@ export const DefaultBlockParsers: {
           const token = tokenMatches[i];
           from = to;
           to = from + token.length;
-          if (i === tokenMatches.length - 1) {
-            to += parametersSpace.length;
-          }
           let parameterMatch: RegExpMatchArray;
           if (token === ",") {
             buf = buf.write(Type.SectionSeparatorMark, from, to);
@@ -515,12 +508,25 @@ export const DefaultBlockParsers: {
             }
           }
         }
+        const parametersSpaceLength =
+          parameters.length - parameters.trimEnd().length;
+        to += parametersSpaceLength;
       }
       if (closeMark) {
         from = to;
         to = from + closeMark.length;
         buf = buf.write(Type.SectionCloseMark, from, to);
       }
+    }
+    if (colon || colonSpace) {
+      from = to;
+      to = from + colon.length + colonSpace.length;
+      buf = buf.write(Type.SectionColonMark, from, to);
+    }
+    if (returnType || returnTypeSpace) {
+      from = to;
+      to = from + returnType.length + returnTypeSpace.length;
+      buf = buf.write(Type.SectionReturnType, from, to);
     }
     from = to;
     to = line.text.length - line.pos;
@@ -533,8 +539,8 @@ export const DefaultBlockParsers: {
     return true;
   },
 
-  Synopses(cx, line) {
-    const match = isSynopses(line);
+  Synopsis(cx, line) {
+    const match = isSynopsis(line);
     if (!match) {
       return false;
     }
@@ -549,14 +555,14 @@ export const DefaultBlockParsers: {
     if (mark || markSpace) {
       from = to;
       to = from + mark.length + markSpace.length;
-      buf = buf.write(Type.SynopsesMark, from, to);
+      buf = buf.write(Type.SynopsisMark, from, to);
     }
     from = to;
     to = line.text.length - line.pos;
     if (to > from) {
       buf = buf.write(Type.Comment, from, to);
     }
-    const node = buf.finish(Type.Synopses, line.text.length - line.pos);
+    const node = buf.finish(Type.Synopsis, line.text.length - line.pos);
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
     return true;

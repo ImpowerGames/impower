@@ -183,7 +183,7 @@ export class BlockContext implements PartialParse {
     this.stoppedAt = pos;
   }
 
-  private reuseFragment(start: number): boolean {
+  reuseFragment(start: number): boolean {
     if (
       !this.fragments?.moveTo(
         this.absoluteLineStart + start,

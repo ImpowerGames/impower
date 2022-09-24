@@ -1,0 +1,428 @@
+{
+  "name": "sparkdown",
+  "displayName": "Sparkdown",
+  "description": "Sparkdown autocomplete, syntax highlighting, and export to PDF",
+  "publisher": "impowergames",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.71.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:sparkdown",
+    "onCommand:sparkdown.livepreview",
+    "onCommand:sparkdown.exportpdf",
+    "onCommand:sparkdown:exporthtml",
+    "onCommand:sparkdown.exportpdfdebug",
+    "onView:sparkdown-cheatsheet",
+    "onWebviewPanel:sparkdownPreview"
+  ],
+  "main": "./out/extension.js",
+  "browser": "./out/extension.js",
+  "contributes": {
+    "configurationDefaults": {
+      "[sparkdown]": {
+        "editor.wordWrap": "on",
+        "editor.wordBasedSuggestions": false,
+        "editor.suggestSelection": "first"
+      }
+    },
+    "languages": [
+      {
+        "id": "sparkdown",
+        "aliases": [
+          "Sparkdown",
+          "sparkdown"
+        ],
+        "extensions": [
+          ".sparkdown",
+          ".spark",
+          ".sd"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "sparkdown",
+        "scopeName": "text.source.sparkdown",
+        "path": "./syntaxes/sparkdown.tmLanguage.json"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sparkdown-view",
+          "icon": "flaticon.svg",
+          "title": "Sparkdown"
+        }
+      ]
+    },
+    "views": {
+      "sparkdown-view": [
+        {
+          "id": "sparkdown-outline",
+          "name": "Outline"
+        },
+        {
+          "id": "sparkdown-commands",
+          "name": "Commands"
+        },
+        {
+          "id": "sparkdown-cheatsheet",
+          "name": "Cheat Sheet",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "sparkdown.outline.visibleitems",
+        "title": "Change items visible in the outline",
+        "icon": "$(eye)",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.outline.reveal",
+        "title": "Reveal cursor position",
+        "category": "Sparkdown",
+        "icon": "$(remote)"
+      },
+      {
+        "command": "sparkdown.livepreview",
+        "title": "Show screenplay preview (Dynamic switching)",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.livepreviewstatic",
+        "title": "Show screenplay preview (For the current document only)",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.exportpdf",
+        "title": "Export screenplay PDF",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.exporthtml",
+        "title": "Export screenplay HTML",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.exportpdfdebug",
+        "title": "Export screenplay PDF with default name and open it",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.jumpto",
+        "title": "Jump to line",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.overwriteSceneNumbers",
+        "title": "Number all scenes (overwrites existing scene numbers)",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.updateSceneNumbers",
+        "title": "Number all scenes (keep existing scene numbers, insert missing ones)",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.statistics",
+        "title": "Show screenplay statistics",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.debugtokens",
+        "title": "Debug parsed output",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.shiftScenesUp",
+        "title": "Shift Scenes Up",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.shiftScenesDown",
+        "title": "Shift Scenes Down",
+        "category": "Sparkdown"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "sparkdown.livepreview",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v",
+        "when": "editorLangId == sparkdown"
+      },
+      {
+        "command": "sparkdown.exportpdf",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b",
+        "when": "editorLangId == sparkdown"
+      },
+      {
+        "command": "sparkdown.exportpdfdebug",
+        "key": "f5",
+        "mac": "f5",
+        "when": "editorLangId == sparkdown"
+      },
+      {
+        "command": "sparkdown.shiftScenesUp",
+        "key": "alt+up",
+        "mac": "alt+up",
+        "when": "editorLangId == sparkdown"
+      },
+      {
+        "command": "sparkdown.shiftScenesDown",
+        "key": "alt+down",
+        "mac": "alt+down",
+        "when": "editorLangId == sparkdown"
+      }
+    ],
+    "configuration": [
+      {
+        "title": "Sparkdown General Settings",
+        "type": "object",
+        "properties": {
+          "sparkdown.general.refreshStatisticsOnSave": {
+            "type": "boolean",
+            "default": false,
+            "description": "Automatically refresh the statistics panel each time you save the document"
+          },
+          "sparkdown.general.numberScenesOnSave": {
+            "type": "boolean",
+            "default": false,
+            "description": "Automatically number the scenes each time you save the document"
+          },
+          "sparkdown.general.synchronizedMarkupAndPreview": {
+            "type": "boolean",
+            "default": true,
+            "description": "Automatically synchronize preview and text editor position"
+          },
+          "sparkdown.general.parentheticalNewLineHelper": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Automatically skip to the next line if the caret is just before the last parenthesis within a parenthetical (as such❚). If you are using a vim emulator, you should disable this setting - an [issue with vscode](https://github.com/Microsoft/vscode/issues/13441) means it is impossible for two extensions to simultaneously intercept typing."
+          },
+          "sparkdown.general.previewTheme": {
+            "type": "string",
+            "enum": [
+              "vscode",
+              "paper"
+            ],
+            "description": "The theme to be used in the live preview",
+            "default": "paper"
+          },
+          "sparkdown.general.previewTexture": {
+            "type": "boolean",
+            "default": true,
+            "description": "Noise texture on the live preview (absent from PDF)"
+          }
+        }
+      },
+      {
+        "title": "Sparkdown PDF Export",
+        "type": "object",
+        "properties": {
+          "sparkdown.pdf.emboldenSceneHeaders": {
+            "type": "boolean",
+            "default": true,
+            "description": "Make scene headers bold"
+          },
+          "sparkdown.pdf.emboldenCharacterNames": {
+            "type": "boolean",
+            "default": false,
+            "description": "Make character names bold"
+          },
+          "sparkdown.pdf.showPageNumbers": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show page numbers"
+          },
+          "sparkdown.pdf.showDialogueNumbers": {
+            "type": "boolean",
+            "default": false,
+            "description": "Show dialogue numbers in preview and PDF"
+          },
+          "sparkdown.pdf.splitDialog": {
+            "type": "boolean",
+            "default": true,
+            "description": "Split dialog between pages"
+          },
+          "sparkdown.pdf.printTitlePage": {
+            "type": "boolean",
+            "default": true,
+            "description": "Print the title page"
+          },
+          "sparkdown.pdf.printProfile": {
+            "type": "string",
+            "description": "The printing dimensions",
+            "enum": [
+              "a4",
+              "usletter"
+            ],
+            "default": "a4"
+          },
+          "sparkdown.pdf.doubleSpaceBetweenScenes": {
+            "type": "boolean",
+            "default": false,
+            "description": "Double the space between scenes"
+          },
+          "sparkdown.pdf.printSections": {
+            "type": "boolean",
+            "default": false,
+            "description": "Print sections (marked with #)"
+          },
+          "sparkdown.pdf.printSynopsis": {
+            "type": "boolean",
+            "default": false,
+            "description": "Print synopsis (marked with =)"
+          },
+          "sparkdown.pdf.printActions": {
+            "type": "boolean",
+            "default": true,
+            "description": "Print action blocks"
+          },
+          "sparkdown.pdf.printHeaders": {
+            "type": "boolean",
+            "default": true,
+            "description": "Print scene headers"
+          },
+          "sparkdown.pdf.printDialogues": {
+            "type": "boolean",
+            "default": true,
+            "description": "Print dialogue"
+          },
+          "sparkdown.pdf.numberSections": {
+            "type": "boolean",
+            "default": false,
+            "description": "Automatically number sections"
+          },
+          "sparkdown.pdf.useDualDialogue": {
+            "type": "boolean",
+            "default": true,
+            "description": "Print dual dialogue in two columns"
+          },
+          "sparkdown.pdf.printNotes": {
+            "type": "boolean",
+            "default": false,
+            "description": "Print notes (text enclosed between [[two brackets]])"
+          },
+          "sparkdown.pdf.pageHeader": {
+            "type": "string",
+            "default": "",
+            "description": "Text to be inserted at the top of each page"
+          },
+          "sparkdown.pdf.pageFooter": {
+            "type": "string",
+            "default": "",
+            "description": "Text to be inserted at the bottom of each page"
+          },
+          "sparkdown.pdf.watermark": {
+            "type": "string",
+            "default": "",
+            "description": "Watermark displayed across each page"
+          },
+          "sparkdown.pdf.sceneNumbers": {
+            "type": "string",
+            "enum": [
+              "none",
+              "left",
+              "right",
+              "both"
+            ],
+            "default": "none",
+            "description": "Location of scene numbers"
+          },
+          "sparkdown.pdf.eachSceneOnNewPage": {
+            "type": "boolean",
+            "default": false,
+            "description": "Systematically break page after a scene"
+          },
+          "sparkdown.pdf.mergeEmptyLines": {
+            "type": "boolean",
+            "default": true,
+            "description": "Merge multiple empty lines"
+          },
+          "sparkdown.pdf.createBookmarks": {
+            "type": "boolean",
+            "default": true,
+            "description": "Create bookmarks for each section/scene"
+          },
+          "sparkdown.pdf.invisibleSectionBookmarks": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "If `#sparkdown.pdf.printSections#` is false, add a bookmark for the section to the following scene header instead"
+          },
+          "sparkdown.pdf.textMORE": {
+            "type": "string",
+            "default": "(MORE)",
+            "description": "Text to print when dialogue is cut before a page break - \"(MORE)\" in English."
+          },
+          "sparkdown.pdf.textCONTD": {
+            "type": "string",
+            "default": "(CONT'D)",
+            "description": "Text to print by a character's name when continuing dialogue after a page break - \"(CONT'D)\" in English."
+          },
+          "sparkdown.pdf.textSceneContinued": {
+            "type": "string",
+            "default": "CONTINUED",
+            "markdownDescription": "Text to print if `#sparkdown.pdf.sceneContinuationTop#` or `#sparkdown.pdf.sceneContinuationBottom#` are enabled - `CONTINUED` in English."
+          },
+          "sparkdown.pdf.sceneContinuationTop": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "Display `CONTINUED:` at the top of pages where a scene is split by a page break. If `#sparkdown.pdf.sceneNumbers#` is enabled, the scene number will be included (eg `12A CONTINUED:)`"
+          },
+          "sparkdown.pdf.sceneContinuationBottom": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "Display `(CONTINUED)` at the bottom of pages where a scene is cut by a page break."
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "test": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. --extensionTestsPath=out/test/suite/index.js",
+    "pretest": "npm run compile-web",
+    "vscode:prepublish": "npm run package-web",
+    "dev": "webpack",
+    "compile-web": "webpack",
+    "watch-web": "webpack --watch",
+    "package-web": "webpack --mode production --devtool hidden-source-map",
+    "lint": "eslint src --ext ts",
+    "run-in-browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. ."
+  },
+  "devDependencies": {
+    "@types/mocha": "^9.1.1",
+    "@types/pdfkit": "^0.12.6",
+    "@types/vscode": "^1.71.0",
+    "@types/webpack-env": "^1.18.0",
+    "@typescript-eslint/eslint-plugin": "^5.38.0",
+    "@typescript-eslint/parser": "^5.38.0",
+    "@vscode/test-web": "^0.0.30",
+    "assert": "^2.0.0",
+    "copy-webpack-plugin": "^11.0.0",
+    "eslint": "^8.23.1",
+    "mocha": "^10.0.0",
+    "process": "^0.11.10",
+    "ts-loader": "^9.4.1",
+    "typescript": "^4.8.3",
+    "webpack": "^5.74.0",
+    "webpack-cli": "^4.10.0"
+  },
+  "dependencies": {
+    "font-finder": "^1.1.0",
+    "html-entities": "^2.3.3",
+    "iconv-lite": "^0.6.3",
+    "pdfkit": "^0.13.0",
+    "textbox-for-pdfkit": "^0.2.1",
+    "vscode-codicons": "0.0.17"
+  }
+}
