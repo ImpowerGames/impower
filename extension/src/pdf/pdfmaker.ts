@@ -410,7 +410,7 @@ const initDoc = async (opts: PdfOptions) => {
   };
   doc.text2 = (text: string, x: number, y: number, options?: TextOptions) => {
     options = options || {};
-    const color = options.color || doc.formatState?.overrideColor || "black";
+    const color = options.color || doc.formatState?.overrideColor || "#000000";
 
     doc.fill(color);
 
@@ -493,8 +493,7 @@ const initDoc = async (opts: PdfOptions) => {
       } else if (elem === "_") {
         doc.formatState.underline = !doc.formatState.underline;
       } else if (elem === "[[") {
-        doc.formatState.overrideColor =
-          (print.note && print.note.color) || "#000000";
+        doc.formatState.overrideColor = print?.note?.color || "#000000";
       } else if (elem === "]]") {
         doc.formatState.overrideColor = undefined;
       } else {
@@ -523,9 +522,7 @@ const initDoc = async (opts: PdfOptions) => {
           link: linkUrl,
           font: font,
           underline: linkUrl || doc.formatState.underline,
-          color: doc.formatState.overrideColor
-            ? doc.formatState.overrideColor
-            : "black",
+          color: doc.formatState.overrideColor || "#000000",
         });
       }
       currentIndex += elem.length;
@@ -977,16 +974,11 @@ async function generate(
       // formatting not supported yet
       text = line.text;
 
-      const color =
-        (print[line.type as PrintableTokenType] &&
-          print[line.type as PrintableTokenType].color) ||
-        "#000000";
-
       const textProperties: TextOptions = {
-        color: color,
+        color: print?.[line.type as PrintableTokenType]?.color || "#000000",
         highlight: false,
         bold: false,
-        highlightColor: "black",
+        highlightColor: "#000000",
       };
 
       if (line.type === "parenthetical" && !text.startsWith("(")) {
