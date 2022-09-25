@@ -102,6 +102,7 @@ export interface SparkDisplayToken extends SparkLine {
 export interface SparkSceneToken extends SparkDisplayToken {
   type: SparkSceneTokenType;
   scene: string | number;
+  environment?: "int" | "ext" | "int-ext" | "other";
 }
 
 export interface SparkTransitionToken extends SparkDisplayToken {

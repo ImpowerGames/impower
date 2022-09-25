@@ -29,6 +29,7 @@ import {
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
 import { SparkVariableType } from "../types/SparkVariableType";
+import { StructureItem } from "../types/StructureItem";
 import { calculateSpeechDuration } from "./calculateSpeechDuration";
 import { createSparkLine } from "./createSparkLine";
 import { createSparkSection } from "./createSparkSection";
@@ -2341,6 +2342,51 @@ export const parseSpark = (
       }
     }
 
+    const last = <T>(array: T[]): T => {
+      return array[array.length - 1];
+    };
+
+    const getLatestSectionOrScene = (
+      depth: number,
+      condition: (token: StructureItem) => boolean = () => true
+    ): StructureItem | null => {
+      try {
+        if (depth <= 0) {
+          return null;
+        } else if (depth == 1) {
+          if (!parsed.properties) {
+            parsed.properties = {};
+          }
+          if (!parsed.properties.structure) {
+            parsed.properties.structure = [];
+          }
+          const lastItem: StructureItem | null = last(
+            parsed.properties.structure.filter(condition)
+          );
+          return lastItem;
+        } else {
+          let prevSection = getLatestSectionOrScene(depth - 1, condition);
+          if (prevSection?.children) {
+            const lastChild = last(prevSection.children.filter(condition));
+            if (lastChild) {
+              return lastChild;
+            }
+          }
+          // nest ###xyz inside #abc if there's no ##ijk to nest within
+          return prevSection;
+        }
+      } catch {
+        let section: StructureItem | null = null;
+        while (!section && depth > 0) {
+          section = getLatestSectionOrScene(--depth, condition);
+        }
+        return section;
+      }
+    };
+
+    const getLatestSection = (depth: number): StructureItem | null =>
+      getLatestSectionOrScene(depth, (t) => t.type === "section");
+
     if (state === "normal") {
       if (currentToken.content.match(sparkRegexes.line_break)) {
         tokenCategory = "none";
@@ -2356,6 +2402,7 @@ export const parseSpark = (
         currentToken.type = "scene";
         if (currentToken.type === "scene") {
           const scene = match[10] || "";
+          const environmentText = match[2] || "";
           const locationText = match[3] || "";
           const time = match[7] || "";
           const location = locationText.startsWith(".")
@@ -2379,6 +2426,16 @@ export const parseSpark = (
           }
           currentSceneIndex = parsed.properties.scenes.length || 0;
           currentToken.scene = scene || currentSceneIndex + 1;
+          const environmentTrimmed = environmentText?.toLowerCase()?.trim();
+          currentToken.environment =
+            environmentTrimmed?.startsWith("int./ext.") ||
+            environmentTrimmed?.startsWith("int/ext.")
+              ? "int-ext"
+              : environmentTrimmed?.startsWith("int.")
+              ? "int"
+              : environmentTrimmed?.startsWith("ext.")
+              ? "ext"
+              : "other";
           parsed.properties.scenes.push({
             name: currentToken.content,
             scene: currentToken.scene,
@@ -2407,6 +2464,40 @@ export const parseSpark = (
             parsed.properties.times[time].push(currentToken.line);
           } else {
             parsed.properties.times[time] = [currentToken.line];
+          }
+
+          const struct: StructureItem = {
+            type: "scene",
+            info: currentToken.environment,
+            text: currentToken.content,
+            id: `${currentToken.line}`,
+            range: {
+              start: { line: currentToken.line, character: 0 },
+              end: {
+                line: currentToken.line,
+                character: currentToken.content.length,
+              },
+            },
+            children: [],
+          };
+          if (currentLevel == 0) {
+            struct.id = "/" + currentToken.line;
+            if (!parsed.properties.structure) {
+              parsed.properties.structure = [];
+            }
+            parsed.properties.structure.push(struct);
+          } else {
+            var level = getLatestSection(currentLevel);
+            if (level) {
+              struct.id = level.id + "/" + currentToken.line;
+              level.children.push(struct);
+            } else {
+              struct.id = "/" + currentToken.line;
+              if (!parsed.properties.structure) {
+                parsed.properties.structure = [];
+              }
+              parsed.properties.structure.push(struct);
+            }
           }
         }
       } else if (
@@ -2707,6 +2798,15 @@ export const parseSpark = (
         currentToken.type = "synopsis";
         if ((match = lint(sparkRegexes.synopsis))) {
           currentToken.content = match[4];
+          const struct = getLatestSectionOrScene(currentLevel);
+          if (struct) {
+            if (struct.tooltip) {
+              struct.tooltip += "\n";
+            } else {
+              struct.tooltip = "";
+            }
+            struct.tooltip += currentToken.content;
+          }
         }
       } else if ((match = currentToken.content.match(sparkRegexes.section))) {
         currentToken.type = "section";
@@ -2771,6 +2871,44 @@ export const parseSpark = (
               }
             }
             currentLevel = level;
+            currentToken.level = level;
+          }
+
+          let struct: StructureItem = {
+            type: "section",
+            level: currentToken.level,
+            text: currentToken.content,
+            id: `${currentToken.line}`,
+            range: {
+              start: { line: currentToken.line, character: 0 },
+              end: {
+                line: currentToken.line,
+                character: currentToken.content.length,
+              },
+            },
+            children: [],
+          };
+          const levelStruct =
+            currentLevel > 1 &&
+            getLatestSectionOrScene(
+              currentLevel,
+              (token) =>
+                token.type === "section" &&
+                token.level !== undefined &&
+                token.level < currentLevel
+            );
+          if (currentLevel == 1 || !levelStruct) {
+            struct.id = "/" + currentToken.line;
+            if (!parsed.properties) {
+              parsed.properties = {};
+            }
+            if (!parsed.properties.structure) {
+              parsed.properties.structure = [];
+            }
+            parsed.properties.structure.push(struct);
+          } else {
+            struct.id = levelStruct.id + "/" + currentToken.line;
+            levelStruct.children.push(struct);
           }
         }
       } else if (currentToken.content.match(sparkRegexes.page_break)) {

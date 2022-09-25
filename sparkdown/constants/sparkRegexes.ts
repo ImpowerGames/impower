@@ -69,7 +69,7 @@ export const sparkRegexes: SparkRegexes = {
   section:
     /^([ \t]*)(#+)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[^\n\r:]+)?([:])?([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)?([ ]*)$/,
   scene:
-    /^([ \t]*)([.](?![. ])|INT[.][ ]+|EXT[.][ ]+|EST[.][ ]+|INT[.]?\/EXT[.][ ]+|I[.]?\/E[.][ ]+|I[.][ ]+|E[.][ ]+)($|(?:[^\n\r-]|[^ \t\n\r][-])*[^ \t\n\r])($|[ ]+)($|[-])($|[ ]+)($|[^\n\r#]*[^ \t\n\r])($|[ ]+)($|[#])($|[^\n\r#]+)($|[#])?([ ]*)$/,
+    /^([ \t]*)([.](?![. ])|INT[.][ ]+|EXT[.][ ]+|INT[.]?\/EXT[.][ ]+)($|(?:[^\n\r-]|[^ \t\n\r][-])*[^ \t\n\r])($|[ ]+)($|[-])($|[ ]+)($|[^\n\r#]*[^ \t\n\r])($|[ ]+)($|[#])($|[^\n\r#]+)($|[#])?([ ]*)$/,
   title_page:
     /^([ \t]*)(title|credit|author[s]?|source|notes|draft date|date|watermark|contact(?: info)?|revision|copyright|font|tl|tc|tr|cc|br|bl)(:)(.*)?$/i,
 

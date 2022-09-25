@@ -42,8 +42,8 @@ export class SparkdownSymbolProvider implements vscode.DocumentSymbolProvider {
         sceneCounter++;
       }
       let symbolName = " ";
-      if (token.content !== "") {
-        symbolName = token.content;
+      if (token.text !== "") {
+        symbolName = token.text;
       }
       const range = new vscode.Range(
         new vscode.Position(start.line, start.character),

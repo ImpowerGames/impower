@@ -410,15 +410,10 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
       `<span class='action'>You rolled a {~~|one|two|three|four|five|six} on the dice.</span>`
     ),
     new CheatsheetItem(
-      "> {FirstTime|SecondTime|ThirdTime}",
-      "You can use dynamic sequences in jumps",
-      `<span class='action'>> {FirstTime|SecondTime|ThirdTime}</span>`
-    ),
-    new CheatsheetItem(
-      "+ Let's try that again... > {FirstTime|SecondTime|ThirdTime}",
-      "You can use dynamic sequences in choices",
+      "> {first|second|third}",
+      "You can use dynamic sequences in jumps and choices",
       `<span class='action'>Are you sure you want to try again?</span>
-<span class='action'>+ Just one more time... > {FirstTime|SecondTime|ThirdTime}</span>
+<span class='action'>+ Just one more time... > {first|second|third}</span>
 <span class='action'>+ I give up! > GoHome</span>`
     ),
   ];

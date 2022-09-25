@@ -1,5 +1,7 @@
+import * as path from "path";
 import * as vscode from "vscode";
 import { StructureItem } from "../../../sparkdown";
+import { getDirectoryPath } from "../getDirectoryPath";
 import { getActiveParsedDocument } from "../utils/getActiveParsedDocument";
 import { getActiveSparkdownDocument } from "../utils/getActiveSparkdownDocument";
 import { getEditor } from "../utils/getEditor";
@@ -124,21 +126,6 @@ const makeTreeItem = (
     }
   }
 
-  /* notes and synopses get pushed to this item, or to it's parent if it's a scene */
-  {
-    if (token.synopses && uiPersistence.outline_visibleSynopses) {
-      if (token.type === "section" && uiPersistence.outline_visibleSections) {
-        item.children.push(
-          ...token.synopses.map((syn) => new SynopsisTreeItem(syn, item))
-        );
-      } else {
-        parent.children.push(
-          ...token.synopses.map((syn) => new SynopsisTreeItem(syn, parent))
-        );
-      }
-    }
-  }
-
   if (item.children.length > 0) {
     item.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
   }
@@ -192,37 +179,19 @@ class OutlineTreeItem extends vscode.TreeItem {
 
 class SectionTreeItem extends OutlineTreeItem {
   constructor(token: StructureItem, parent: OutlineTreeItem) {
-    super(token.content, token.id, parent);
-
+    super(token.text, token.id, parent);
     const sectionDepth = Math.min((token.id.match(/\//g) || []).length, 5); //maximum depth is 5 - anything deeper is the same color as 5
-    this.iconPath =
-      __filename + "/../../../data/section" + sectionDepth + ".svg";
-    if (token.synopses && token.synopses.length > 0) {
-      this.tooltip = token.synopses.map((s) => s.synopsis).join("\n");
-    }
+    const iconFileName = `section${sectionDepth}.svg`;
+    this.iconPath = path.join(getDirectoryPath(), "data", iconFileName);
+    this.tooltip = token.tooltip;
   }
 }
 
 class SceneTreeItem extends OutlineTreeItem {
   constructor(token: StructureItem, parent: OutlineTreeItem) {
-    super(token.content, token.id, parent);
-
-    this.iconPath = __filename + "/../../../data/scene.svg";
-    if (token.synopses && token.synopses.length > 0) {
-      this.tooltip = token.synopses.map((s) => s.synopsis).join("\n");
-    }
-  }
-}
-
-class SynopsisTreeItem extends OutlineTreeItem {
-  constructor(
-    token: { synopsis: string; line: number },
-    parent: OutlineTreeItem
-  ) {
-    super("", String(token.line), parent);
-
-    this.iconPath = __filename + "/../../../../data/synopse_offset.svg";
-    this.description = token.synopsis;
-    this.tooltip = this.description;
+    super(token.text, token.id, parent);
+    const iconName = "debug-stackframe-dot";
+    this.iconPath = new vscode.ThemeIcon(iconName);
+    this.tooltip = token.tooltip;
   }
 }

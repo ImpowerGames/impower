@@ -5,13 +5,14 @@ interface Position {
 
 export interface StructureItem {
   type: "section" | "scene";
-  content: string;
+  info?: string;
+  level?: number;
+  text: string;
+  tooltip?: string;
   id: string;
-  level: number;
   range: {
     start: Position;
     end: Position;
   };
-  synopses: { synopsis: string; line: number }[];
   children: StructureItem[];
 }
