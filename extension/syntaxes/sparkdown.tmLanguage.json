@@ -50,7 +50,7 @@
       "include": "#entity"
     },
     {
-      "include": "#go"
+      "include": "#jump"
     },
     {
       "include": "#repeat"
@@ -881,9 +881,6 @@
               "include": "#raw"
             },
             {
-              "include": "#underline"
-            },
-            {
               "include": "#bold"
             },
             {
@@ -956,9 +953,6 @@
         },
         {
           "include": "#underline"
-        },
-        {
-          "include": "#bold"
         },
         {
           "include": "#italic"
@@ -1083,7 +1077,7 @@
       "name": "meta.image.reference.markdown"
     },
     "italic": {
-      "begin": "(?x) (?<open>(\\*(?=\\w)|(?<!\\w)\\*|(?<!\\w)\\b_))(?=\\S)                # Open\n  (?=\n    (\n      <[^>]*+>              # HTML tags\n      | (?<raw>`+)([^`]|(?!(?<!`)\\k<raw>(?!`))`)*+\\k<raw>\n                        # Raw\n      | \\\\[\\\\`*_{}\\[\\]()#.!+\\->]?+      # Escapes\n      | \\[\n      (\n          (?<square>          # Named group\n            [^\\[\\]\\\\]        # Match most chars\n            | \\\\.            # Escaped chars\n            | \\[ \\g<square>*+ \\]    # Nested brackets\n          )*+\n        \\]\n        (\n          (              # Reference Link\n            [ ]?          # Optional space\n            \\[[^\\]]*+\\]        # Ref name\n          )\n          | (              # Inline Link\n            \\(            # Opening paren\n              [ \\t]*+        # Optional whtiespace\n              <?(.*?)>?      # URL\n              [ \\t]*+        # Optional whtiespace\n              (          # Optional Title\n                (?<title>['\"])\n                (.*?)\n                \\k<title>\n              )?\n            \\)\n          )\n        )\n      )\n      | \\k<open>\\k<open>                   # Must be bold closer\n      | (?!(?<=\\S)\\k<open>).            # Everything besides\n                        # style closer\n    )++\n    (?<=\\S)(?=_\\b|\\*)\\k<open>                # Close\n  )\n",
+      "begin": "(?x) (?<open>(\\*(?=\\w)|(?<!\\w)\\*))(?=\\S)                # Open\n  (?=\n    (\n      <[^>]*+>              # HTML tags\n      | (?<raw>`+)([^`]|(?!(?<!`)\\k<raw>(?!`))`)*+\\k<raw>\n                        # Raw\n      | \\\\[\\\\`*{}\\[\\]()#.!+\\->]?+      # Escapes\n      | \\[\n      (\n          (?<square>          # Named group\n            [^\\[\\]\\\\]        # Match most chars\n            | \\\\.            # Escaped chars\n            | \\[ \\g<square>*+ \\]    # Nested brackets\n          )*+\n        \\]\n        (\n          (              # Reference Link\n            [ ]?          # Optional space\n            \\[[^\\]]*+\\]        # Ref name\n          )\n          | (              # Inline Link\n            \\(            # Opening paren\n              [ \\t]*+        # Optional whtiespace\n              <?(.*?)>?      # URL\n              [ \\t]*+        # Optional whtiespace\n              (          # Optional Title\n                (?<title>['\"])\n                (.*?)\n                \\k<title>\n              )?\n            \\)\n          )\n        )\n      )\n      | \\k<open>\\k<open>                   # Must be bold closer\n      | (?!(?<=\\S)\\k<open>).            # Everything besides\n                        # style closer\n    )++\n    (?<=\\S)(?=\\*)\\k<open>                # Close\n  )\n",
       "captures": {
         "1": {
           "name": "punctuation.definition.italic.markdown"
@@ -1471,6 +1465,9 @@
               "include": "#comment"
             },
             {
+              "include": "#note"
+            },
+            {
               "include": "#inline"
             }
           ]
@@ -1642,11 +1639,11 @@
         }
       ]
     },
-    "go": {
+    "jump": {
       "match": "^([ \t]*)([>])([ ]*)([^\n\r<]+)?([ ]*)(?!<[ ]*)",
       "captures": {
         "2": {
-          "name": "keyword.other.go.sd"
+          "name": "keyword.other.jump.sd"
         },
         "4": {
           "name": "keyword.control.export.sd",
@@ -1848,6 +1845,9 @@
           "include": "#comment"
         },
         {
+          "include": "#note"
+        },
+        {
           "include": "#inline"
         },
         {
@@ -1877,6 +1877,9 @@
           "include": "#comment"
         },
         {
+          "include": "#note"
+        },
+        {
           "include": "#inline"
         },
         {
@@ -1901,6 +1904,9 @@
               "include": "#comment"
             },
             {
+              "include": "#note"
+            },
+            {
               "include": "#inline"
             },
             {
@@ -1912,6 +1918,9 @@
       "patterns": [
         {
           "include": "#comment"
+        },
+        {
+          "include": "#note"
         },
         {
           "include": "#inline"

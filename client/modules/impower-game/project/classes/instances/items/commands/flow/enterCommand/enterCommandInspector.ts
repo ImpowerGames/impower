@@ -13,7 +13,7 @@ export class EnterCommandInspector
   getTypeInfo(): TypeInfo {
     return {
       category: "Flow",
-      name: "Go",
+      name: "Jump",
       icon: "arrow-right",
       color: getProjectColor("red", 5),
       description: "Executes another block",

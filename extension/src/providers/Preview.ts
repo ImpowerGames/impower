@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { directoryPath } from "../directoryPath";
+import { getDirectoryPath } from "../getDirectoryPath";
 import { diagnosticState } from "../state/diagnosticState";
 import { editorState } from "../state/editorState";
 import { getEditor } from "../utils/getEditor";
@@ -91,7 +91,7 @@ export const createPreviewPanel = (
 };
 
 const webviewHtml = fs.readFileSync(
-  directoryPath() + path.sep + "webviews" + path.sep + "preview.html",
+  path.join(getDirectoryPath(), "webviews", "preview.html"),
   "utf8"
 );
 
@@ -205,7 +205,7 @@ function loadWebView(
 
   preview.webview.html = webviewHtml.replace(
     /\$ROOTDIR\$/g,
-    preview.webview.asWebviewUri(vscode.Uri.file(directoryPath())).toString()
+    preview.webview.asWebviewUri(vscode.Uri.file(getDirectoryPath())).toString()
   );
   preview.webview.postMessage({
     command: "setstate",

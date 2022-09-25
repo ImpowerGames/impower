@@ -67,7 +67,7 @@ const webExtensionConfig = {
     }),
     new CopyPlugin({
       patterns: [
-        { from: "src/assets", to: "assets" },
+        { from: "src/data", to: "data" },
         { from: "src/webviews", to: "webviews" },
       ],
     }),

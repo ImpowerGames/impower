@@ -10,7 +10,7 @@ import {
   SparkDialogueAssetToken,
   SparkDialogueToken,
   SparkEntityToken,
-  SparkGoToken,
+  SparkJumpToken,
   SparkReturnToken,
   SparkSceneToken,
   SparkSectionToken,
@@ -73,7 +73,7 @@ export interface SparkTokenTypeMap {
   call: SparkCallToken;
   condition: SparkConditionToken;
   choice: SparkChoiceToken;
-  go: SparkGoToken;
+  jump: SparkJumpToken;
   return: SparkReturnToken;
   section: SparkSectionToken;
   scene: SparkSceneToken;

@@ -422,14 +422,14 @@ const FlowToolbar = React.memo((props: ToolbarProps): JSX.Element => {
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
-      <Tooltip title="go" placement="top" arrow>
+      <Tooltip title="jump" placement="top" arrow>
         <StyledMainToggleButton
-          value="go"
-          aria-label="go"
-          onPointerEnter={(e): void => onPointerEnter?.(e, "go")}
-          onPointerLeave={(e): void => onPointerLeave?.(e, "go")}
+          value="jump"
+          aria-label="jump"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "jump")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "jump")}
         >
-          <FontIcon aria-label={`go`}>
+          <FontIcon aria-label={`jump`}>
             <ArrowRightToBracketRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>

@@ -2424,10 +2424,10 @@ export const parseSpark = (
             processDisplayedContent(currentToken);
           }
         }
-      } else if ((match = currentToken.content.match(sparkRegexes.go))) {
-        currentToken.type = "go";
-        if (currentToken.type === "go") {
-          if ((match = lint(sparkRegexes.go))) {
+      } else if ((match = currentToken.content.match(sparkRegexes.jump))) {
+        currentToken.type = "jump";
+        if (currentToken.type === "jump") {
+          if ((match = lint(sparkRegexes.jump))) {
             const valueText = match[4] || "";
             const valueFrom = currentToken.from + getStart(match, 4);
             currentToken.value = valueText;

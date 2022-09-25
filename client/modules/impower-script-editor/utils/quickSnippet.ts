@@ -29,7 +29,7 @@ export const quickSnippetTemplates: { [id: string]: string } = {
 
   choice: "+ ${choice} > ${SectionName}\n${}",
   condition: "* if (${variableName} == ${value}):\n  ${}",
-  go: "> ${SectionName}\n${}",
+  jump: "> ${SectionName}\n${}",
   repeat: "^${}\n${}",
   return: "< ${}\n${}",
 

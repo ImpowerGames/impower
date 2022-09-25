@@ -132,12 +132,12 @@ export function isLyric(line: Line): RegExpMatchArray {
   return text.match(sparkRegexes.lyric);
 }
 
-export function isGo(line: Line): RegExpMatchArray {
+export function isJump(line: Line): RegExpMatchArray {
   if (line.next !== ">".charCodeAt(0)) {
     return null;
   }
   const text = stripComments(line.text);
-  return text.match(sparkRegexes.go);
+  return text.match(sparkRegexes.jump);
 }
 
 export function isRepeat(line: Line): RegExpMatchArray {

@@ -18,7 +18,7 @@ export type SparkRegexType =
   | "condition"
   | "assign"
   | "choice"
-  | "go"
+  | "jump"
   | "repeat"
   | "return"
   | "dialogue_terminator"
@@ -88,7 +88,7 @@ export const sparkRegexes: SparkRegexes = {
   choice:
     /^([ \t]*)([-+])($|[ ]+)(?:([^\n\r>]+))?([ ]*)(?:([>])([ ]*)([^\n\r<]+)?([ ]*))?(?!<[ ]*)$/,
 
-  go: /^([ \t]*)([>])([ ]*)([^\n\r<]+)?([ ]*)(?!<[ ]*)$/,
+  jump: /^([ \t]*)([>])([ ]*)([^\n\r<]+)?([ ]*)(?!<[ ]*)$/,
   repeat: /^([ \t]*)([\^])([ ]*)$/,
   return: /^([ \t]*)([<])([ ]*)([^\n\r]*)([ ]*)$/,
 

@@ -2,7 +2,7 @@ import {
   SparkDialogueToken,
   SparkDisplayToken,
   SparkLine,
-  SparkToken,
+  SparkToken
 } from "../../../../../sparkdown";
 import {
   AssignCommandData,
@@ -18,7 +18,7 @@ import {
   DisplayType,
   EnterCommandData,
   ReturnCommandData,
-  SetOperator,
+  SetOperator
 } from "../../data";
 
 const getCommandId = (token: SparkLine, sectionId = ""): string => {
@@ -109,7 +109,7 @@ export const getRuntimeCommand = (
     };
     return newCommand;
   }
-  if (token.type === "call" || token.type === "go") {
+  if (token.type === "call" || token.type === "jump") {
     const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "EnterCommand";
     const newCommand: EnterCommandData = {

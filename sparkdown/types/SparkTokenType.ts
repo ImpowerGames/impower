@@ -10,7 +10,7 @@ export type SparkAssignTokenType = "assign";
 export type SparkCallTokenType = "call";
 export type SparkConditionTokenType = "condition";
 export type SparkChoiceTokenType = "choice";
-export type SparkGoTokenType = "go";
+export type SparkJumpTokenType = "jump";
 export type SparkReturnTokenType = "return";
 
 export type SparkSectionTokenType = "section";
@@ -60,7 +60,7 @@ export type SparkTokenType =
   | SparkCallTokenType
   | SparkConditionTokenType
   | SparkChoiceTokenType
-  | SparkGoTokenType
+  | SparkJumpTokenType
   | SparkReturnTokenType
   | SparkSectionTokenType
   | SparkSceneTokenType

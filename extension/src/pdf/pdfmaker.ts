@@ -4,7 +4,6 @@ import * as fs from "fs";
 import { encode } from "html-entities";
 import * as path from "path";
 import pdfkit from "pdfkit";
-import * as addTextBox from "textbox-for-pdfkit";
 import * as vscode from "vscode";
 import {
   PrintableTokenType,
@@ -16,14 +15,12 @@ import {
   sparkRegexes,
   SparkSectionToken,
   SparkToken,
-  trimCharacterExtension,
 } from "../../../sparkdown";
-import { ExportConfig } from "../types/ExportConfig";
+import { getDirectoryPath } from "../getDirectoryPath";
 import { openFile } from "../utils/openFile";
 import { revealFile } from "../utils/revealFile";
-import { rgbToHex } from "../utils/rgbToHex";
-import { wordToColor } from "../utils/wordToColor";
 import { LineItem } from "./liner";
+const addTextbox = require("textbox-for-pdfkit");
 
 export interface OutlineItem {
   children: OutlineItem[];
@@ -77,7 +74,6 @@ export interface PdfOptions {
   font: string;
   sceneInvisibleSections: Record<string | number, SparkSectionToken[]>;
   screenplayConfig?: SparkScreenplayConfig;
-  exportConfig?: ExportConfig;
   hooks?: {
     beforeScript: (doc: PdfDocument) => void;
   };
@@ -355,17 +351,22 @@ const initDoc = async (opts: PdfOptions) => {
   const doc: PdfDocument = new pdfkit(options);
 
   //Load Courier Prime by default, and replace the variants if requested and available
-  const fp =
-    __dirname.slice(0, __dirname.lastIndexOf(path.sep)) +
-    path.sep +
-    "assets" +
-    path.sep +
-    "fonts" +
-    path.sep;
-  doc.registerFont("ScriptNormal", fp + "courier-prime.ttf");
-  doc.registerFont("ScriptBold", fp + "courier-prime-bold.ttf");
-  doc.registerFont("ScriptBoldOblique", fp + "courier-prime-bold-italic.ttf");
-  doc.registerFont("ScriptOblique", fp + "courier-prime-italic.ttf");
+  doc.registerFont(
+    "ScriptNormal",
+    path.join(getDirectoryPath(), "data", "courier-prime.ttf")
+  );
+  doc.registerFont(
+    "ScriptBold",
+    path.join(getDirectoryPath(), "data", "courier-prime-bold.ttf")
+  );
+  doc.registerFont(
+    "ScriptBoldOblique",
+    path.join(getDirectoryPath(), "data", "courier-prime-bold-italic.ttf")
+  );
+  doc.registerFont(
+    "ScriptOblique",
+    path.join(getDirectoryPath(), "data", "courier-prime-italic.ttf")
+  );
   if (opts.font !== "Courier Prime") {
     const variants = await listVariants(opts.font);
     variants.forEach((variant: { style: string; path: string }) => {
@@ -531,7 +532,7 @@ const initDoc = async (opts: PdfOptions) => {
     }
     const width =
       options.width !== undefined ? options.width : print.page_width;
-    addTextBox(textObjects, doc, x * 72, y * 72, width * 72, {
+    addTextbox(textObjects, doc, x * 72, y * 72, width * 72, {
       lineBreak: options.lineBreak,
       align: options.align,
       baseline: "top",
@@ -637,7 +638,6 @@ async function generate(
   const lines = opts.lines;
   const print = opts.print;
   const screenplayCfg = opts.screenplayConfig;
-  const exportCfg = opts.exportConfig;
 
   const titleToken = getTitleToken(parsed, "title");
   let authorToken = getTitleToken(parsed, "author");
@@ -668,10 +668,11 @@ async function generate(
     const innerWidthHalf = innerWidth / 2;
     const joinChar = "\n\n";
     //top left
-    const tlText = parsed.titleTokens?.["tl"]
-      .sort(sortByOrder)
-      .map((x: SparkToken) => x.content)
-      .join(joinChar);
+    const tlText =
+      parsed.titleTokens?.["tl"]
+        ?.sort(sortByOrder)
+        ?.map((x: SparkToken) => x.content)
+        ?.join(joinChar) || "";
     const tlTextHeight = doc.heightOfString(tlText, {
       width: innerWidthThird * 72,
       align: "left",
@@ -684,10 +685,11 @@ async function generate(
     });
 
     //top center
-    const tcText = parsed.titleTokens?.["tc"]
-      .sort(sortByOrder)
-      .map((x: SparkToken) => x.content)
-      .join(joinChar);
+    const tcText =
+      parsed.titleTokens?.["tc"]
+        ?.sort(sortByOrder)
+        ?.map((x: SparkToken) => x.content)
+        ?.join(joinChar) || "";
     const tcTextHeight = doc.heightOfString(tcText, {
       width: innerWidthThird * 72,
       align: "center",
@@ -704,10 +706,11 @@ async function generate(
     );
 
     //top right
-    const trText = parsed.titleTokens?.["tr"]
-      .sort(sortByOrder)
-      .map((x: SparkToken) => x.content)
-      .join(joinChar);
+    const trText =
+      parsed.titleTokens?.["tr"]
+        ?.sort(sortByOrder)
+        ?.map((x: SparkToken) => x.content)
+        ?.join(joinChar) || "";
     const trTextHeight = doc.heightOfString(trText, {
       width: innerWidthThird * 72,
       align: "right",
@@ -724,10 +727,11 @@ async function generate(
     );
 
     //bottom left
-    const blText = parsed.titleTokens?.["bl"]
-      .sort(sortByOrder)
-      .map((x: SparkToken) => x.content)
-      .join(joinChar);
+    const blText =
+      parsed.titleTokens?.["bl"]
+        ?.sort(sortByOrder)
+        ?.map((x: SparkToken) => x.content)
+        ?.join(joinChar) || "";
     const blTextHeight = doc.heightOfString(blText, {
       width: innerWidthHalf * 72,
       align: "left",
@@ -739,10 +743,11 @@ async function generate(
     });
 
     //bottom right
-    const brText = parsed.titleTokens?.["br"]
-      .sort(sortByOrder)
-      .map((x: SparkToken) => x.content)
-      .join(joinChar);
+    const brText =
+      parsed.titleTokens?.["br"]
+        ?.sort(sortByOrder)
+        ?.map((x: SparkToken) => x.content)
+        ?.join(joinChar) || "";
     const brTextHeight = doc.heightOfString(brText, {
       width: innerWidthHalf * 72,
       align: "right",
@@ -762,10 +767,11 @@ async function generate(
     const topHeight = Math.max(tlTextHeight, tcTextHeight, trTextHeight, 0);
     const bottomHeight = Math.max(blTextHeight, brTextHeight, 0);
 
-    const ccText = parsed.titleTokens?.["cc"]
-      .sort(sortByOrder)
-      .map((x: SparkToken) => x.content)
-      .join(joinChar);
+    const ccText =
+      parsed.titleTokens?.["cc"]
+        ?.sort(sortByOrder)
+        ?.map((x: SparkToken) => x.content)
+        ?.join(joinChar) || "";
     const ccTextHeight = doc.heightOfString(ccText, {
       width: innerWidth * 72,
       align: "center",
@@ -978,38 +984,12 @@ async function generate(
           print[line.type as PrintableTokenType].color) ||
         "#000000";
 
-      const generalTextProperties = {
+      const textProperties: TextOptions = {
         color: color,
         highlight: false,
         bold: false,
         highlightColor: "black",
       };
-
-      const getTextProperties = (
-        lineArg = line,
-        exportCfgArg = exportCfg,
-        oldTextProperties = generalTextProperties
-      ) => {
-        const newTextProperties = Object.assign({}, oldTextProperties);
-        if (!!exportCfgArg && lineArg.type === "character") {
-          let character = trimCharacterExtension(lineArg.content);
-          // refer to Liner in ./liner.ts
-          character = character.replace(/([0-9]* - )/, "");
-          if (
-            !!exportCfgArg?.highlighted_characters &&
-            exportCfgArg?.highlighted_characters.includes(character)
-          ) {
-            newTextProperties.highlight = true;
-            newTextProperties.highlightColor = rgbToHex(wordToColor(character));
-          }
-          if (screenplayCfg?.embolden_character_names) {
-            newTextProperties.bold = true;
-          }
-        }
-        return newTextProperties;
-      };
-
-      const textProperties: TextOptions = getTextProperties();
 
       if (line.type === "parenthetical" && !text.startsWith("(")) {
         text = " " + text;
@@ -1035,7 +1015,7 @@ async function generate(
         const processSection = (sectionToken: LineItem) => {
           let sectionText = sectionToken.content;
           currentSectionLevel = sectionToken.level || 0;
-          currentSections.length = (sectionToken.level || 0) - 1;
+          currentSections.length = Math.max(0, (sectionToken.level || 0) - 1);
 
           currentSections.push(encode(sectionText));
           if (!hasInvisibleSection) {
@@ -1126,7 +1106,7 @@ async function generate(
               feedRight -= (feedRight - print.left_margin) / 2;
               feedRight +=
                 (print.page_width - print.right_margin - print.left_margin) / 2;
-              const right_text_properties = getTextProperties(rightLine);
+              const right_text_properties = { ...textProperties };
               doc.text2?.(
                 rightLine.content,
                 feedRight,

@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import { printProfiles, SparkScreenplayConfig } from "../../../screenplay";
 import { SparkParseResult, SparkSectionToken } from "../../../sparkdown";
-import { ExportConfig } from "../types/ExportConfig";
 import { createSeparator, Liner } from "./liner";
 import {
   generatePdf,
@@ -14,7 +13,6 @@ import {
 export const createPdf = async (
   outputPath: string,
   screenplayConfig: SparkScreenplayConfig,
-  exportConfig: ExportConfig | undefined,
   parsedDocument: SparkParseResult,
   progress?: vscode.Progress<{ message?: string; increment?: number }>
 ): Promise<PdfStats | void> => {
@@ -30,22 +28,19 @@ export const createPdf = async (
   let footer = undefined;
   let font = "Courier Prime";
   if (parsedDocument.titleTokens) {
-    for (
-      let index = 0;
-      index < parsedDocument.titleTokens["hidden"].length;
-      index++
-    ) {
-      if (parsedDocument.titleTokens["hidden"][index].type === "watermark") {
-        watermark = parsedDocument.titleTokens["hidden"][index].content;
+    const hiddenTitleTokens = parsedDocument.titleTokens["hidden"] || [];
+    for (let index = 0; index < hiddenTitleTokens.length; index++) {
+      if (hiddenTitleTokens[index].type === "watermark") {
+        watermark = hiddenTitleTokens[index].content;
       }
-      if (parsedDocument.titleTokens["hidden"][index].type === "header") {
-        header = parsedDocument.titleTokens["hidden"][index].content;
+      if (hiddenTitleTokens[index].type === "header") {
+        header = hiddenTitleTokens[index].content;
       }
-      if (parsedDocument.titleTokens["hidden"][index].type === "footer") {
-        footer = parsedDocument.titleTokens["hidden"][index].content;
+      if (hiddenTitleTokens[index].type === "footer") {
+        footer = hiddenTitleTokens[index].content;
       }
-      if (parsedDocument.titleTokens["hidden"][index].type === "font") {
-        font = parsedDocument.titleTokens["hidden"][index].content;
+      if (hiddenTitleTokens[index].type === "font") {
+        font = hiddenTitleTokens[index].content;
       }
     }
   }
@@ -143,7 +138,6 @@ export const createPdf = async (
     print: printProfiles[screenplayConfig.print_profile],
     screenplayConfig: screenplayConfig,
     font: font,
-    exportConfig: exportConfig,
     sceneInvisibleSections,
   };
 

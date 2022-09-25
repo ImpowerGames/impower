@@ -12,7 +12,7 @@ import {
   SparkDialogueAssetTokenType,
   SparkDialogueTokenType,
   SparkEntityFieldTokenType,
-  SparkGoTokenType,
+  SparkJumpTokenType,
   SparkOtherTokenType,
   SparkPositionTokenType,
   SparkReturnTokenType,
@@ -53,8 +53,8 @@ export interface SparkTagToken extends SparkLine {
   type: SparkTagTokenType;
 }
 
-export interface SparkGoToken extends SparkLine {
-  type: SparkGoTokenType;
+export interface SparkJumpToken extends SparkLine {
+  type: SparkJumpTokenType;
   value: string;
   calls: Record<string, { name: string; values: string[] }>;
 }
@@ -154,7 +154,7 @@ export type SparkToken =
   | SparkCallToken
   | SparkConditionToken
   | SparkChoiceToken
-  | SparkGoToken
+  | SparkJumpToken
   | SparkReturnToken
   | SparkSectionToken
   | SparkSceneToken

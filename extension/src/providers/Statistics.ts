@@ -3,7 +3,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { SparkScreenplayConfig } from "../../../screenplay";
 import { parseSpark } from "../../../sparkdown";
-import { directoryPath } from "../directoryPath";
+import { getDirectoryPath } from "../getDirectoryPath";
 import { getActiveSparkdownDocument } from "../utils/getActiveSparkdownDocument";
 import { getEditor } from "../utils/getEditor";
 import { getSparkdownConfig } from "../utils/getSparkdownConfig";
@@ -61,8 +61,7 @@ export async function refreshPanel(
   const stats = await retrieveScreenPlayStatistics(
     document.getText(),
     parsed,
-    config,
-    undefined
+    config
   );
   statspanel.webview.postMessage({
     command: "updateStats",
@@ -107,7 +106,7 @@ export function createStatisticsPanel(
 }
 
 const statsHtml = fs.readFileSync(
-  directoryPath() + path.sep + "webviews" + path.sep + "stats.html",
+  path.join(getDirectoryPath(), "webviews", "stats.html"),
   "utf8"
 );
 
@@ -135,7 +134,7 @@ async function loadWebView(
     )
   );
   const jsDiskPath = vscode.Uri.file(
-    path.join(directoryPath(), "webviews", "stats.bundle.js")
+    path.join(getDirectoryPath(), "webviews", "stats.bundle.js")
   );
 
   statspanel.webview.html = statsHtml

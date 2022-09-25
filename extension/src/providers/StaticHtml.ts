@@ -6,7 +6,7 @@ import {
   generateSparkTitleHtml,
 } from "../../../screenplay";
 import { parseSpark } from "../../../sparkdown";
-import { directoryPath } from "../directoryPath";
+import { getDirectoryPath } from "../getDirectoryPath";
 import { fileToBase64 } from "../utils/fileToBase64";
 import { getActiveSparkdownDocument } from "../utils/getActiveSparkdownDocument";
 import { getEditor } from "../utils/getEditor";
@@ -35,7 +35,7 @@ export async function exportHtml() {
   const sparkdownConfig = getSparkdownConfig(editor.document.uri);
   const output = parseSpark(editor.document.getText());
 
-  const htmlPath = path.join(directoryPath(), "assets", "staticexport.html");
+  const htmlPath = path.join(getDirectoryPath(), "data", "staticexport.html");
   let rawHtml = fs.readFileSync(htmlPath, "utf8");
 
   if (process.platform !== "win32") {
@@ -54,21 +54,16 @@ export async function exportHtml() {
   rawHtml = rawHtml.replace("$SCRIPTCLASS$", pageClasses);
 
   const courierPrimeB64 = fileToBase64(
-    path.join(directoryPath(), "assets", "fonts", "courier-prime.ttf")
+    path.join(getDirectoryPath(), "data", "courier-prime.ttf")
   );
   const courierPrimeB64_bold = fileToBase64(
-    path.join(directoryPath(), "assets", "fonts", "courier-prime-bold.ttf")
+    path.join(getDirectoryPath(), "data", "courier-prime-bold.ttf")
   );
   const courierPrimeB64_italic = fileToBase64(
-    path.join(directoryPath(), "assets", "fonts", "courier-prime-italic.ttf")
+    path.join(getDirectoryPath(), "data", "courier-prime-italic.ttf")
   );
   const courierPrimeB64_bolditalic = fileToBase64(
-    path.join(
-      directoryPath(),
-      "assets",
-      "fonts",
-      "courier-prime-bold-italic.ttf"
-    )
+    path.join(getDirectoryPath(), "data", "courier-prime-bold-italic.ttf")
   );
 
   rawHtml = rawHtml

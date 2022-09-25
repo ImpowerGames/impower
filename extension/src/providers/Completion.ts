@@ -591,15 +591,6 @@ export class SparkdownCompletionProvider
           title: "triggersuggest",
         },
       });
-      completes.push({
-        label: "EST. ",
-        documentation: "Establishing",
-        sortText: "1E",
-        command: {
-          command: "editor.action.triggerSuggest",
-          title: "triggersuggest",
-        },
-      });
 
       if (hasCharacters) {
         let sortText = "2"; // Add all characters, but after the "INT/EXT" suggestions

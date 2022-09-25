@@ -196,7 +196,7 @@ class SectionTreeItem extends OutlineTreeItem {
 
     const sectionDepth = Math.min((token.id.match(/\//g) || []).length, 5); //maximum depth is 5 - anything deeper is the same color as 5
     this.iconPath =
-      __filename + "/../../../assets/images/section" + sectionDepth + ".svg";
+      __filename + "/../../../data/section" + sectionDepth + ".svg";
     if (token.synopses && token.synopses.length > 0) {
       this.tooltip = token.synopses.map((s) => s.synopsis).join("\n");
     }
@@ -207,7 +207,7 @@ class SceneTreeItem extends OutlineTreeItem {
   constructor(token: StructureItem, parent: OutlineTreeItem) {
     super(token.content, token.id, parent);
 
-    this.iconPath = __filename + "/../../../assets/images/scene.svg";
+    this.iconPath = __filename + "/../../../data/scene.svg";
     if (token.synopses && token.synopses.length > 0) {
       this.tooltip = token.synopses.map((s) => s.synopsis).join("\n");
     }
@@ -221,8 +221,7 @@ class SynopsisTreeItem extends OutlineTreeItem {
   ) {
     super("", String(token.line), parent);
 
-    this.iconPath =
-      __filename + "/../../../../assets/images/synopse_offset.svg";
+    this.iconPath = __filename + "/../../../../data/synopse_offset.svg";
     this.description = token.synopsis;
     this.tooltip = this.description;
   }

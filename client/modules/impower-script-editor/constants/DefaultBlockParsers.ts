@@ -27,9 +27,9 @@ import {
   isEntityObjectField,
   isEntityValueField,
   isFencedCode,
-  isGo,
   isHTMLBlock,
   isImport,
+  isJump,
   isLyric,
   isOrderedList,
   isPageBreak,
@@ -568,8 +568,8 @@ export const DefaultBlockParsers: {
     return true;
   },
 
-  Go(cx, line) {
-    const match = isGo(line);
+  Jump(cx, line) {
+    const match = isJump(line);
     if (!match) {
       return false;
     }
@@ -588,12 +588,12 @@ export const DefaultBlockParsers: {
     if (mark || markSpace) {
       from = to;
       to = from + mark.length + markSpace.length;
-      buf = buf.write(Type.GoMark, from, to);
+      buf = buf.write(Type.JumpMark, from, to);
     }
     if (sectionName || sectionNameSpace) {
       from = to;
       to = from + sectionName.length + sectionNameSpace.length;
-      buf = buf.write(Type.GoSectionName, from, to);
+      buf = buf.write(Type.JumpSectionName, from, to);
     }
     if (parameters || parametersSpace) {
       const hasOpenMark =
@@ -612,7 +612,7 @@ export const DefaultBlockParsers: {
       if (openMark) {
         from = to;
         to = from + openMark.length;
-        buf = buf.write(Type.GoOpenMark, from, to);
+        buf = buf.write(Type.JumpOpenMark, from, to);
       }
       const expressionListMatches = Array.from(
         values.matchAll(sparkRegexes.expression_list)
@@ -640,9 +640,9 @@ export const DefaultBlockParsers: {
             to += parametersSpace.length;
           }
           if (token === ",") {
-            buf = buf.write(Type.GoSeparatorMark, from, to);
+            buf = buf.write(Type.JumpSeparatorMark, from, to);
           } else {
-            buf = buf.write(Type.GoValue, from, to);
+            buf = buf.write(Type.JumpValue, from, to);
             const expression = line.text.slice(line.pos + from, line.pos + to);
             buf = parseExpression(buf, expression, from, to);
           }
@@ -651,7 +651,7 @@ export const DefaultBlockParsers: {
       if (closeMark) {
         from = to;
         to = from + closeMark.length;
-        buf = buf.write(Type.GoCloseMark, from, to);
+        buf = buf.write(Type.JumpCloseMark, from, to);
       }
     }
     from = to;
@@ -659,7 +659,7 @@ export const DefaultBlockParsers: {
     if (to > from) {
       buf = buf.write(Type.Comment, from, to);
     }
-    const node = buf.finish(Type.Go, line.text.length - line.pos);
+    const node = buf.finish(Type.Jump, line.text.length - line.pos);
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
     return true;

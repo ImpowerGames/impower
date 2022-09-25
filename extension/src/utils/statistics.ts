@@ -8,7 +8,6 @@ import {
 } from "../../../sparkdown";
 import { createPdf } from "../pdf/pdf";
 import { PdfStats } from "../pdf/pdfmaker";
-import { ExportConfig } from "../types/ExportConfig";
 import { getCharacterName } from "./getCharacterName";
 import { rgbToHex } from "./rgbToHex";
 import { wordToColor } from "./wordToColor";
@@ -423,13 +422,11 @@ const createDurationStatistics = (
 export const retrieveScreenPlayStatistics = async (
   script: string,
   parsed: SparkParseResult,
-  screenplayConfig: SparkScreenplayConfig,
-  exportConfig?: ExportConfig
+  screenplayConfig: SparkScreenplayConfig
 ): Promise<ScreenPlayStatistics> => {
   const pdfStats = (await createPdf(
     "$STATS$",
     screenplayConfig,
-    exportConfig,
     parsed,
     undefined
   )) as PdfStats;
