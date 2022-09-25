@@ -7,6 +7,7 @@ import { activateCommandView } from "./utils/activateCommandView";
 import { activateDurationStatus } from "./utils/activateDurationStatus";
 import { activateLanguageAssistance } from "./utils/activateLanguageAssistance";
 import { activateOutlineView } from "./utils/activateOutlineView";
+import { activatePreviewPanel } from "./utils/activatePreviewPanel";
 import { getActiveSparkdownDocument } from "./utils/getActiveSparkdownDocument";
 import { getSparkdownConfig } from "./utils/getSparkdownConfig";
 import { parseDocument } from "./utils/parseDocument";
@@ -19,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
   activateOutlineView(context);
   activateCommandView(context);
   activateCheatSheetView(context);
-  // activatePreviewPanel(context);
+  activatePreviewPanel(context);
   // activateStatisticsPanel(context);
   activateDurationStatus(context);
   activateLanguageAssistance();

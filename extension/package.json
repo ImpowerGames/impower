@@ -78,6 +78,15 @@
         }
       ]
     },
+    "menus": {
+      "editor/title": [
+        {
+          "when": "editorLangId == sparkdown",
+          "command": "sparkdown.livepreview",
+          "group": "navigation@1"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "sparkdown.outline.visibleitems",
@@ -93,13 +102,9 @@
       },
       {
         "command": "sparkdown.livepreview",
-        "title": "Show screenplay preview (Dynamic switching)",
-        "category": "Sparkdown"
-      },
-      {
-        "command": "sparkdown.livepreviewstatic",
-        "title": "Show screenplay preview (For the current document only)",
-        "category": "Sparkdown"
+        "title": "Show screenplay preview",
+        "category": "Sparkdown",
+        "icon": "$(open-preview)"
       },
       {
         "command": "sparkdown.exportpdf",
@@ -249,11 +254,6 @@
             "default": true,
             "description": "Split dialog between pages"
           },
-          "sparkdown.pdf.printTitlePage": {
-            "type": "boolean",
-            "default": true,
-            "description": "Print the title page"
-          },
           "sparkdown.pdf.printProfile": {
             "type": "string",
             "description": "The printing dimensions",
@@ -268,6 +268,21 @@
             "default": false,
             "description": "Double the space between scenes"
           },
+          "sparkdown.pdf.numberSections": {
+            "type": "boolean",
+            "default": false,
+            "description": "Automatically number sections"
+          },
+          "sparkdown.pdf.useDualDialogue": {
+            "type": "boolean",
+            "default": true,
+            "description": "Print dual dialogue in two columns"
+          },
+          "sparkdown.pdf.printTitlePage": {
+            "type": "boolean",
+            "default": true,
+            "description": "Print the title page"
+          },
           "sparkdown.pdf.printSections": {
             "type": "boolean",
             "default": false,
@@ -278,30 +293,10 @@
             "default": true,
             "description": "Print synopsis (marked with =)"
           },
-          "sparkdown.pdf.printActions": {
-            "type": "boolean",
-            "default": true,
-            "description": "Print action blocks"
-          },
           "sparkdown.pdf.printHeaders": {
             "type": "boolean",
             "default": true,
             "description": "Print scene headers"
-          },
-          "sparkdown.pdf.printDialogues": {
-            "type": "boolean",
-            "default": true,
-            "description": "Print dialogue"
-          },
-          "sparkdown.pdf.numberSections": {
-            "type": "boolean",
-            "default": false,
-            "description": "Automatically number sections"
-          },
-          "sparkdown.pdf.useDualDialogue": {
-            "type": "boolean",
-            "default": true,
-            "description": "Print dual dialogue in two columns"
           },
           "sparkdown.pdf.printNotes": {
             "type": "boolean",

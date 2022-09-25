@@ -8,6 +8,10 @@ export const generateSparkTitleHtml = (
   result: SparkParseResult,
   config: SparkScreenplayConfig
 ): string => {
+  if (!config.print_title_page) {
+    return "";
+  }
+
   if (!result.titleTokens) {
     return "";
   }

@@ -38,10 +38,6 @@ export class SparkdownCommandTreeDataProvider
       command: "sparkdown.livepreview",
       title: "",
     };
-    treeLivePreview.command = {
-      command: "sparkdown.livepreviewstatic",
-      title: "",
-    };
     elements.push(treeLivePreview);
 
     // Show Screenplay Statistics Command

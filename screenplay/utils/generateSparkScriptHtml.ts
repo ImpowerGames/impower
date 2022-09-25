@@ -152,26 +152,30 @@ export const generateSparkScriptHtml = (
           break;
 
         case "section":
-          html.push(
-            '<p class="haseditorline section" id="sourceline_' +
-              line +
-              '" data-position="' +
-              line +
-              '" data-depth="' +
-              currentToken.level +
-              '">' +
-              text +
-              "</p>"
-          );
+          if (config.print_sections) {
+            html.push(
+              '<p class="haseditorline section" id="sourceline_' +
+                line +
+                '" data-position="' +
+                line +
+                '" data-depth="' +
+                currentToken.level +
+                '">' +
+                text +
+                "</p>"
+            );
+          }
           break;
         case "synopsis":
-          html.push(
-            '<p class="haseditorline synopsis" id="sourceline_' +
-              line +
-              '" >' +
-              currentToken.html +
-              "</p>"
-          );
+          if (config.print_synopsis) {
+            html.push(
+              '<p class="haseditorline synopsis" id="sourceline_' +
+                line +
+                '" >' +
+                currentToken.html +
+                "</p>"
+            );
+          }
           break;
         case "lyric":
           html.push(
@@ -184,13 +188,15 @@ export const generateSparkScriptHtml = (
           break;
 
         case "note":
-          html.push(
-            '<p class="haseditorline note" id="sourceline_' +
-              line +
-              '">' +
-              currentToken.html +
-              "</p>"
-          );
+          if (config.print_notes) {
+            html.push(
+              '<p class="haseditorline note" id="sourceline_' +
+                line +
+                '">' +
+                currentToken.html +
+                "</p>"
+            );
+          }
           break;
 
         case "page_break":

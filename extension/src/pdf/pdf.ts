@@ -61,10 +61,6 @@ export const createPdf = async (
       currentToken.type === "dialogue_start" ||
       currentToken.type === "dialogue_end" ||
       currentToken.type === "dual_dialogue_end" ||
-      (!screenplayConfig.print_actions &&
-        ["action", "transition", "centered", "shot"].includes(
-          currentToken.type
-        )) ||
       (!screenplayConfig.print_notes &&
         (currentToken.type === "note" ||
           currentToken.type === "assets" ||
@@ -73,10 +69,6 @@ export const createPdf = async (
       (!screenplayConfig.print_headers && currentToken.type === "scene") ||
       (!screenplayConfig.print_sections && currentToken.type === "section") ||
       (!screenplayConfig.print_synopsis && currentToken.type === "synopsis") ||
-      (!screenplayConfig.print_dialogues &&
-        ["character", "parenthetical", "dialogue"].includes(
-          currentToken.type
-        )) ||
       (screenplayConfig.merge_empty_lines &&
         currentToken.type === "separator" &&
         previousType === "separator")
@@ -136,8 +128,6 @@ export const createPdf = async (
     text_contd: screenplayConfig.text_contd,
     split_dialogue: true,
   });
-
-  console.log(lines);
 
   const pdfOptions: PdfOptions = {
     filepath: outputPath,

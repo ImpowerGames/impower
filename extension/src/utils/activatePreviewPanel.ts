@@ -7,21 +7,12 @@ import {
 export const activatePreviewPanel = (
   context: vscode.ExtensionContext
 ): void => {
-  // Register live preview (dynamic)
+  // Register live preview
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.livepreview", () => {
       if (vscode.window.activeTextEditor) {
         // Create and show a new dynamic webview for the active text editor
         createPreviewPanel(vscode.window.activeTextEditor, true);
-      }
-    })
-  );
-  // Register live preview (static)
-  context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.livepreviewstatic", () => {
-      if (vscode.window.activeTextEditor) {
-        // Create and show a new dynamic webview for the active text editor
-        createPreviewPanel(vscode.window.activeTextEditor, false);
       }
     })
   );

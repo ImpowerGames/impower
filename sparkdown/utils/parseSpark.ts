@@ -3130,6 +3130,6 @@ export const parseSpark = (
     parsed.tokens.pop();
   }
   parsed.parseTime = new Date().getTime();
-  console.log(parsed);
+  // console.log(parsed);
   return parsed;
 };
