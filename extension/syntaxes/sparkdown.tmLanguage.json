@@ -1436,7 +1436,7 @@
     },
     "synopsis": {
       "name": "comment.block.sd.synopsis",
-      "match": "^([ \t]*)(={1})([^<>=][^<>]+?)",
+      "match": "^([ \t]*)(?![=]{3,})([=])([ ]*)(.*)([ ]*)",
       "patterns": [
         {
           "include": "#comment"
