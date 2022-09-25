@@ -81,7 +81,7 @@
     "menus": {
       "editor/title": [
         {
-          "when": "editorLangId == sparkdown",
+          "when": "resourceLangId == sparkdown",
           "command": "sparkdown.livepreview",
           "group": "navigation@1"
         }
