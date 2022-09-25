@@ -499,9 +499,13 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     const languageSetup: Extension[] = [
       spark({
         base: sparkLanguage,
-        initialParseResult: parseSpark(doc, augmentationsRef.current),
+        initialParseResult: parseSpark(doc, augmentationsRef.current, {
+          lineOffset: 1,
+        }),
         parse: (script: string) => {
-          const result = parseSpark(script, augmentationsRef.current);
+          const result = parseSpark(script, augmentationsRef.current, {
+            lineOffset: 1,
+          });
           parseResultRef.current = { ...result };
           if (onParseRef.current) {
             onParseRef.current(result);

@@ -57,7 +57,10 @@ export async function refreshPanel(
     version: document.version,
     loading: true,
   });
-  const parsed = parseSpark(document.getText());
+  const parsed = parseSpark(document.getText(), undefined, {
+    removeBlockComments: true,
+    skipTokens: ["condition"],
+  });
   const stats = await retrieveScreenPlayStatistics(
     document.getText(),
     parsed,

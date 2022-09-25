@@ -33,7 +33,10 @@ export async function exportHtml() {
     defaultUri: saveUri,
   });
   const sparkdownConfig = getSparkdownConfig(editor.document.uri);
-  const output = parseSpark(editor.document.getText());
+  const output = parseSpark(editor.document.getText(), undefined, {
+    removeBlockComments: true,
+    skipTokens: ["condition"],
+  });
 
   const htmlPath = path.join(getDirectoryPath(), "data", "staticexport.html");
   let rawHtml = fs.readFileSync(htmlPath, "utf8");

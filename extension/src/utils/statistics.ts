@@ -128,11 +128,11 @@ const createCharacterStatistics = (
   const dialoguePieces: DialoguePiece[] = [];
   for (let i = 0; i < parsed.tokens.length; i++) {
     while (i < parsed.tokens.length && parsed.tokens[i].type === "character") {
-      const character = getCharacterName(parsed.tokens[i]?.content);
+      const character = getCharacterName(parsed.tokens[i]?.text);
       let speech = "";
       while (i++ && i < parsed.tokens.length) {
         if (parsed.tokens[i].type === "dialogue") {
-          speech += parsed.tokens[i].content + " ";
+          speech += parsed.tokens[i].text + " ";
         } else if (parsed.tokens[i].type === "character") {
           break;
         }
@@ -217,7 +217,7 @@ const createSceneStatistics = (parsed: SparkParseResult): SceneStatistics => {
   parsed.tokens.forEach((tok) => {
     if (tok.type === "scene") {
       sceneStats.push({
-        title: tok.content,
+        title: tok.text,
       });
     }
   });
@@ -306,7 +306,7 @@ const getLengthChart = (
         const currentCharacter = characters[element.character];
         let dialogueLength = 0;
         let wordsLength = 0;
-        const wordCount = getWordCount(element.content);
+        const wordCount = getWordCount(element.text);
         const time = Number(element.duration);
         if (!currentCharacter) {
           characters[element.character] = [];

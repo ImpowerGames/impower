@@ -51,7 +51,7 @@ const a4: PrintProfile = {
     max: 36,
   },
   transition: {
-    feed: 0.0,
+    feed: 0,
     max: A4_DEFAULT_MAX,
   },
   centered: {
@@ -74,7 +74,7 @@ const a4: PrintProfile = {
     level_indent: 0.2,
   },
   note: {
-    feed: 0.5,
+    feed: 1.5,
     max: A4_DEFAULT_MAX,
     color: "#888888",
     italic: true,

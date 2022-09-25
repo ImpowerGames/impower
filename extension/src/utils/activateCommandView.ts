@@ -79,7 +79,14 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
           const editBuilder = (textEdit: vscode.TextEditorEdit) => {
             textEdit.insert(
               new vscode.Position(0, 0),
-              JSON.stringify(parseSpark(sparkdown), null, 4)
+              JSON.stringify(
+                parseSpark(sparkdown, undefined, {
+                  removeBlockComments: true,
+                  skipTokens: ["condition"],
+                }),
+                null,
+                4
+              )
             );
           };
           return editor.edit(editBuilder, {

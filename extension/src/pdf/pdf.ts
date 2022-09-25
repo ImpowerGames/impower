@@ -30,17 +30,19 @@ export const createPdf = async (
   if (parsedDocument.titleTokens) {
     const hiddenTitleTokens = parsedDocument.titleTokens["hidden"] || [];
     for (let index = 0; index < hiddenTitleTokens.length; index++) {
-      if (hiddenTitleTokens[index].type === "watermark") {
-        watermark = hiddenTitleTokens[index].content;
+      const titleToken = hiddenTitleTokens[index];
+      const text = titleToken.text?.trimEnd();
+      if (titleToken.type === "watermark") {
+        watermark = text;
       }
-      if (hiddenTitleTokens[index].type === "header") {
-        header = hiddenTitleTokens[index].content;
+      if (titleToken.type === "header") {
+        header = text;
       }
-      if (hiddenTitleTokens[index].type === "footer") {
-        footer = hiddenTitleTokens[index].content;
+      if (titleToken.type === "footer") {
+        footer = text;
       }
-      if (hiddenTitleTokens[index].type === "font") {
-        font = hiddenTitleTokens[index].content;
+      if (titleToken.type === "font") {
+        font = text;
       }
     }
   }
@@ -63,7 +65,11 @@ export const createPdf = async (
         ["action", "transition", "centered", "shot"].includes(
           currentToken.type
         )) ||
-      (!screenplayConfig.print_notes && currentToken.type === "note") ||
+      (!screenplayConfig.print_notes &&
+        (currentToken.type === "note" ||
+          currentToken.type === "assets" ||
+          currentToken.type === "dialogue_asset" ||
+          currentToken.type === "action_asset")) ||
       (!screenplayConfig.print_headers && currentToken.type === "scene") ||
       (!screenplayConfig.print_sections && currentToken.type === "section") ||
       (!screenplayConfig.print_synopsis && currentToken.type === "synopsis") ||
@@ -130,6 +136,8 @@ export const createPdf = async (
     text_contd: screenplayConfig.text_contd,
     split_dialogue: true,
   });
+
+  console.log(lines);
 
   const pdfOptions: PdfOptions = {
     filepath: outputPath,

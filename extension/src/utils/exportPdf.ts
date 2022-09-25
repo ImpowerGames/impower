@@ -24,7 +24,10 @@ export async function exportPdf(showSaveDialog = true, openFileOnSave = false) {
 
   const config = getSparkdownConfig(uri);
 
-  const parsed = parseSpark(editor.document.getText());
+  const parsed = parseSpark(editor.document.getText(), undefined, {
+    removeBlockComments: true,
+    skipTokens: ["condition"],
+  });
 
   let filename = editor.document.fileName.replace(
     /(\.(sparkdown|sd|md|txt))$/,

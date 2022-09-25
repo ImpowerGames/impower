@@ -2,7 +2,7 @@ import {
   SparkDialogueToken,
   SparkDisplayToken,
   SparkLine,
-  SparkToken
+  SparkToken,
 } from "../../../../../sparkdown";
 import {
   AssignCommandData,
@@ -18,7 +18,7 @@ import {
   DisplayType,
   EnterCommandData,
   ReturnCommandData,
-  SetOperator
+  SetOperator,
 } from "../../data";
 
 const getCommandId = (token: SparkLine, sectionId = ""): string => {

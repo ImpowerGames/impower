@@ -333,7 +333,8 @@ const LogicScriptEditor = React.memo(
         if (!parseResultRef.current) {
           parseResultRef.current = parseSpark(
             scriptValueRef.current,
-            augmentations
+            augmentations,
+            { lineOffset: 1 }
           );
         }
         const parseResult = parseResultRef.current;

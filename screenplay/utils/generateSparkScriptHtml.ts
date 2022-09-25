@@ -13,8 +13,8 @@ export const generateSparkScriptHtml = (
 
   while (currentIndex < result.tokens.length) {
     const currentToken: SparkToken = result.tokens[currentIndex];
-    const text = (currentToken.text || currentToken.content)?.trimEnd();
-    const line = currentToken.line - 1;
+    const text = currentToken.text?.trimEnd();
+    const line = currentToken.line;
     if (text) {
       currentToken.html = sparkLexer(text, currentToken.type, htmlReplacements);
     } else {

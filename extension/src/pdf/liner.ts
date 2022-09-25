@@ -31,9 +31,10 @@ export const createLine = (token: Partial<LineItem>): LineItem => {
     ...token,
     type: token.type || "unknown",
     content: token.content || "",
+    text: token.text || "",
     from: token.from || 0,
     to: token.to || 0,
-    line: token.line || -1,
+    line: token.line || 0,
     duration: token.duration || 0,
     offset: token.offset || 0,
     indent: token.indent || 0,
@@ -47,7 +48,7 @@ export const createLine = (token: Partial<LineItem>): LineItem => {
 };
 
 export const createSeparator = (from: number, to: number): SparkToken => {
-  return createSparkToken("separator", undefined, { from, to, content: "" });
+  return createSparkToken("separator", undefined, { from, to, text: "" });
 };
 
 export class Liner {
@@ -63,7 +64,7 @@ export class Liner {
       return [
         createLine({
           type: token.type,
-          content: text,
+          text: text,
           from: index,
           to: index + text.length - 1,
           token: token,
@@ -79,7 +80,7 @@ export class Liner {
     return [
       createLine({
         type: token.type,
-        content: text.substring(0, pointer),
+        text: text.substring(0, pointer),
         from: index,
         to: index + pointer,
         token: token,
@@ -90,7 +91,7 @@ export class Liner {
   };
 
   splitToken = (token: LineItem, max: number): void => {
-    token.lines = this.splitText(token.content || "", max, token.from, token);
+    token.lines = this.splitText(token.text || "", max, token.from, token);
   };
 
   breaker = (index: number, lines: LineItem[], cfg: LinerConfig): boolean => {
@@ -98,12 +99,12 @@ export class Liner {
     const MORE = cfg.text_more || "(MORE)";
 
     let before = index - 1;
-    while (before && !lines[before].content) {
+    while (before && !lines[before].text) {
       before--;
     }
 
     let after = index + 1;
-    while (after < lines.length && !lines[after].content) {
+    while (after < lines.length && !lines[after].text) {
       after++;
     }
 
@@ -171,11 +172,12 @@ export class Liner {
       }
       let characterName = "";
       if (lines[character]) {
-        characterName = lines[character].content;
+        characterName = lines[character].text;
       }
 
       const moreItem: LineItem = {
         type: "more",
+        text: MORE,
         content: MORE,
         from: tokenOnBreak.from,
         to: tokenOnBreak.to,
@@ -186,16 +188,18 @@ export class Liner {
         indent: 0,
         order: 0,
       };
+      const contdText =
+        characterName.trim() +
+        " " +
+        (characterName.indexOf(CONTD) !== -1 ? "" : CONTD);
       lines.splice(
         index,
         0,
         createLine(moreItem),
         (newPageCharacter = createLine({
           type: "character",
-          content:
-            characterName.trim() +
-            " " +
-            (characterName.indexOf(CONTD) !== -1 ? "" : CONTD),
+          text: contdText,
+          content: contdText,
           from: tokenAfter.from,
           to: tokenAfter.to,
           token: tokenOnBreak.token,
@@ -205,32 +209,33 @@ export class Liner {
       if (lines[character] && lines[character].rightColumn) {
         const dialogueOnPageLength = index - character;
         const rightLinesOnThisPage = (lines[character].rightColumn || [])
-            .slice(0, dialogueOnPageLength)
-            .concat([
-              createLine({
-                type: "more",
-                content: MORE,
-                from: tokenOnBreak.from,
-                to: tokenOnBreak.to,
-                token: tokenOnBreak.token,
-              }),
-            ]),
-          rightLinesForNextPage = [
+          .slice(0, dialogueOnPageLength)
+          .concat([
             createLine({
-              type: "character",
-              content:
-                rightLinesOnThisPage[0].content.trim() +
-                " " +
-                (rightLinesOnThisPage[0].content.indexOf(CONTD) !== -1
-                  ? ""
-                  : CONTD),
-              from: tokenAfter.from,
-              to: tokenAfter.to,
+              type: "more",
+              text: MORE,
+              content: MORE,
+              from: tokenOnBreak.from,
+              to: tokenOnBreak.to,
               token: tokenOnBreak.token,
             }),
-          ].concat(
-            (lines[character].rightColumn || []).slice(dialogueOnPageLength)
-          );
+          ]);
+        const rightText =
+          rightLinesOnThisPage[0].text.trim() +
+          " " +
+          (rightLinesOnThisPage[0].text.indexOf(CONTD) !== -1 ? "" : CONTD);
+        const rightLinesForNextPage = [
+          createLine({
+            type: "character",
+            text: rightText,
+            content: rightText,
+            from: tokenAfter.from,
+            to: tokenAfter.to,
+            token: tokenOnBreak.token,
+          }),
+        ].concat(
+          (lines[character].rightColumn || []).slice(dialogueOnPageLength)
+        );
 
         lines[character].rightColumn = rightLinesOnThisPage;
         if (rightLinesForNextPage.length > 1) {
@@ -255,7 +260,7 @@ export class Liner {
     breaker: (index: number, lines: LineItem[], cfg: LinerConfig) => boolean,
     cfg: LinerConfig
   ): LineItem[] => {
-    while (lines.length && !lines[0].content) {
+    while (lines.length && !lines[0].text) {
       lines.shift();
     }
 
@@ -274,7 +279,7 @@ export class Liner {
         return lines;
       }
       do {
-        for (p = s - 1; p && !lines[p].content; p--) {
+        for (p = s - 1; p && !lines[p].text; p--) {
           // loop
         }
         s = p;
@@ -375,6 +380,7 @@ export class Liner {
           insertArray.push(
             createLine({
               type: lines[leftIndex + leftTokens].type,
+              text: "",
               content: "",
               from: lines[leftIndex + leftTokens].from,
               to: lines[leftIndex + leftTokens].to,
@@ -413,8 +419,8 @@ export class Liner {
           ).max || cfg.print.action.max;
 
         //Replace tabs with 4 spaces
-        if (token.content) {
-          token.content = token.content.replace("\t", "    ");
+        if (token.text) {
+          token.text = token.text.replace("\t", "    ");
         }
 
         if (token.position) {

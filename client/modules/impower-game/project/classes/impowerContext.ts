@@ -41,7 +41,8 @@ export class ImpowerContext {
     const script = project?.scripts?.data?.logic;
     const result = parseSpark(
       script,
-      getScriptAugmentations(project?.files?.data)
+      getScriptAugmentations(project?.files?.data),
+      { lineOffset: 1 }
     );
     const runtimeBlocks = getRuntimeBlocks(result);
 

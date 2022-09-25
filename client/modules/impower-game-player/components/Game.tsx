@@ -35,7 +35,8 @@ const createGame = (
   const script = project?.scripts?.data?.logic;
   const result = parseSpark(
     script,
-    getScriptAugmentations(project?.files?.data)
+    getScriptAugmentations(project?.files?.data),
+    { lineOffset: 1 }
   );
   const runtimeBlocks = getRuntimeBlocks(result);
   const blockTree = getBlockTree(runtimeBlocks);
@@ -170,7 +171,9 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
   useEffect(() => {
     if (script && isFirstUILoad.current) {
       isFirstUILoad.current = false;
-      const result = parseSpark(script, getScriptAugmentations(files));
+      const result = parseSpark(script, getScriptAugmentations(files), {
+        lineOffset: 1,
+      });
       const objectMap = getEntityObjects(result?.entities);
       loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));
       loadUI(objectMap, ...Object.keys(objectMap?.ui || {}));

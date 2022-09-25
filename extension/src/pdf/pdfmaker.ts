@@ -645,11 +645,9 @@ async function generate(
     authorToken = getTitleToken(parsed, "authors");
   }
 
-  doc.info.Title = titleToken
-    ? clearFormatting(inline(titleToken.content))
-    : "";
+  doc.info.Title = titleToken ? clearFormatting(inline(titleToken.text)) : "";
   doc.info.Author = authorToken
-    ? clearFormatting(inline(authorToken.content))
+    ? clearFormatting(inline(authorToken.text))
     : "";
   doc.info.Creator = "sparkdown";
 
@@ -671,7 +669,7 @@ async function generate(
     const tlText =
       parsed.titleTokens?.["tl"]
         ?.sort(sortByOrder)
-        ?.map((x: SparkToken) => x.content)
+        ?.map((x: SparkToken) => x.text)
         ?.join(joinChar) || "";
     const tlTextHeight = doc.heightOfString(tlText, {
       width: innerWidthThird * 72,
@@ -688,7 +686,7 @@ async function generate(
     const tcText =
       parsed.titleTokens?.["tc"]
         ?.sort(sortByOrder)
-        ?.map((x: SparkToken) => x.content)
+        ?.map((x: SparkToken) => x.text)
         ?.join(joinChar) || "";
     const tcTextHeight = doc.heightOfString(tcText, {
       width: innerWidthThird * 72,
@@ -709,7 +707,7 @@ async function generate(
     const trText =
       parsed.titleTokens?.["tr"]
         ?.sort(sortByOrder)
-        ?.map((x: SparkToken) => x.content)
+        ?.map((x: SparkToken) => x.text)
         ?.join(joinChar) || "";
     const trTextHeight = doc.heightOfString(trText, {
       width: innerWidthThird * 72,
@@ -730,7 +728,7 @@ async function generate(
     const blText =
       parsed.titleTokens?.["bl"]
         ?.sort(sortByOrder)
-        ?.map((x: SparkToken) => x.content)
+        ?.map((x: SparkToken) => x.text)
         ?.join(joinChar) || "";
     const blTextHeight = doc.heightOfString(blText, {
       width: innerWidthHalf * 72,
@@ -746,7 +744,7 @@ async function generate(
     const brText =
       parsed.titleTokens?.["br"]
         ?.sort(sortByOrder)
-        ?.map((x: SparkToken) => x.content)
+        ?.map((x: SparkToken) => x.text)
         ?.join(joinChar) || "";
     const brTextHeight = doc.heightOfString(brText, {
       width: innerWidthHalf * 72,
@@ -770,7 +768,7 @@ async function generate(
     const ccText =
       parsed.titleTokens?.["cc"]
         ?.sort(sortByOrder)
-        ?.map((x: SparkToken) => x.content)
+        ?.map((x: SparkToken) => x.text)
         ?.join(joinChar) || "";
     const ccTextHeight = doc.heightOfString(ccText, {
       width: innerWidth * 72,
@@ -977,7 +975,7 @@ async function generate(
       }
     } else {
       // formatting not supported yet
-      text = line.content;
+      text = line.text;
 
       const color =
         (print[line.type as PrintableTokenType] &&
@@ -1005,7 +1003,7 @@ async function generate(
           feed =
             print.action.feed +
             print.action.max * print.font_width -
-            line.content.length * print.font_width;
+            line.text.length * print.font_width;
         }
 
         const invisibleSections =
@@ -1013,7 +1011,7 @@ async function generate(
         const hasInvisibleSection =
           line.type === "scene" && invisibleSections !== undefined;
         const processSection = (sectionToken: LineItem) => {
-          let sectionText = sectionToken.content;
+          let sectionText = sectionToken.text;
           currentSectionLevel = sectionToken.level || 0;
           currentSections.length = Math.max(0, (sectionToken.level || 0) - 1);
 
@@ -1108,7 +1106,7 @@ async function generate(
                 (print.page_width - print.right_margin - print.left_margin) / 2;
               const right_text_properties = { ...textProperties };
               doc.text2?.(
-                rightLine.content,
+                rightLine.text,
                 feedRight,
                 print.top_margin + print.font_height * yRight++,
                 right_text_properties

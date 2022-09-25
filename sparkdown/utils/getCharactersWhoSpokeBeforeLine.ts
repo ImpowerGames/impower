@@ -17,7 +17,7 @@ export const getCharactersWhoSpokeBeforeLine = (
     const token = result.tokens[searchIndex - 1];
     if (token.type === "character") {
       const name = trimCharacterForceSymbol(
-        trimCharacterExtension(token.content || "")
+        trimCharacterExtension(token.text || "")
       ).trim();
       if (!lastCharacter) {
         lastCharacter = name;

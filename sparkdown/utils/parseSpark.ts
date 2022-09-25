@@ -38,13 +38,19 @@ import { getScopedContext } from "./getScopedContext";
 import { getScopedItem } from "./getScopedItem";
 import { getScopedValueContext } from "./getScopedValueContext";
 import { isSparkDisplayToken } from "./isSparkDisplayToken";
+import { stripBlockComments } from "./stripBlockComments";
 import { stripInlineComments } from "./stripInlineComments";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
 export const parseSpark = (
   script: string,
-  augmentations?: SparkDeclarations
+  augmentations?: SparkDeclarations,
+  config?: {
+    lineOffset?: number;
+    removeBlockComments?: boolean;
+    skipTokens?: SparkTokenType[];
+  }
 ): SparkParseResult => {
   const parsed: SparkParseResult = {
     tokens: [],
@@ -118,6 +124,10 @@ export const parseSpark = (
 
   if (!script) {
     return parsed;
+  }
+
+  if (config?.removeBlockComments) {
+    script = stripBlockComments(script);
   }
 
   const newLineLength = script.match(/\r\n/) ? 2 : 1;
@@ -1654,6 +1664,12 @@ export const parseSpark = (
   };
 
   const pushToken = (token: SparkToken, updateLines = true): void => {
+    if (token.content && !token.text) {
+      token.text = token.content;
+    }
+    if (config?.skipTokens?.includes(token.type)) {
+      return;
+    }
     if (updateLines) {
       if (!parsed.tokenLines) {
         parsed.tokenLines = {};
@@ -1900,7 +1916,7 @@ export const parseSpark = (
 
     currentToken = createSparkToken("", newLineLength, {
       content: text,
-      line: i + 1,
+      line: i + (config?.lineOffset || 0),
       from: current,
     });
     text = stripInlineComments(text);
@@ -2191,7 +2207,7 @@ export const parseSpark = (
 
     currentToken = createSparkToken("comment", newLineLength, {
       content: text,
-      line: i + 1,
+      line: i + (config?.lineOffset || 0),
       from: current,
     });
     text = stripInlineComments(text);
@@ -2307,6 +2323,9 @@ export const parseSpark = (
           }
           if (!parsed.titleTokens[keyFormat.position]) {
             parsed.titleTokens[keyFormat.position] = [];
+          }
+          if (currentToken.content && !currentToken.text) {
+            currentToken.text = currentToken.content;
           }
           parsed.titleTokens[keyFormat.position].push(currentToken);
         }
@@ -2817,7 +2836,7 @@ export const parseSpark = (
                   foundMatch = true;
                   break;
                 default:
-                  foundMatch = true;
+                  foundMatch = false;
               }
             }
             dualRight = true;
@@ -2864,15 +2883,22 @@ export const parseSpark = (
           saveAndClearAssets();
         }
       } else {
-        currentToken.type = "action";
-        if (currentToken.type === "action") {
-          if (previousToken?.type === "assets") {
-            previousToken.type = "action_asset" as "assets";
-            previousToken.skipToNextPreview = true;
-            currentToken.assets = [...(previousToken.assets || [])];
+        if (
+          currentToken.content?.trim() === "/*" ||
+          currentToken.content?.trim() === "*/"
+        ) {
+          currentToken.ignore = true;
+        } else {
+          currentToken.type = "action";
+          if (currentToken.type === "action") {
+            if (previousToken?.type === "assets") {
+              previousToken.type = "action_asset" as "assets";
+              previousToken.skipToNextPreview = true;
+              currentToken.assets = [...(previousToken.assets || [])];
+            }
+            processDisplayedContent(currentToken);
+            saveAndClearAssets();
           }
-          processDisplayedContent(currentToken);
-          saveAndClearAssets();
         }
       }
     } else if (state === "dialogue" || state === "dual_dialogue") {
@@ -3104,6 +3130,6 @@ export const parseSpark = (
     parsed.tokens.pop();
   }
   parsed.parseTime = new Date().getTime();
-  // console.log(parsed);
+  console.log(parsed);
   return parsed;
 };

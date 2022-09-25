@@ -17,7 +17,10 @@ const decorTypesDialogue = vscode.window.createTextEditorDecorationType({});
 
 export const parseDocument = (document: vscode.TextDocument) => {
   const previewsToUpdate = getPreviewsToUpdate(document.uri);
-  const output = parseSpark(document.getText());
+  const output = parseSpark(document.getText(), undefined, {
+    removeBlockComments: true,
+    skipTokens: ["condition"],
+  });
 
   if (previewsToUpdate) {
     const editor = getEditor(document.uri);
@@ -60,7 +63,7 @@ export const parseDocument = (document: vscode.TextDocument) => {
         while (tokenLength < titleHiddenTokens.length) {
           if (
             titleHiddenTokens?.[tokenLength]?.type === "font" &&
-            titleHiddenTokens?.[tokenLength]?.content?.trim() !== ""
+            titleHiddenTokens?.[tokenLength]?.text?.trim() !== ""
           ) {
             const fontLine = titleHiddenTokens[tokenLength].line;
             if (fontLine !== undefined) {
@@ -69,7 +72,7 @@ export const parseDocument = (document: vscode.TextDocument) => {
               }
               lastParsedDoc.properties.fontLine = fontLine;
             }
-            const fontName = titleHiddenTokens[tokenLength].content;
+            const fontName = titleHiddenTokens[tokenLength].text;
             previewsToUpdate.forEach((p) => {
               p.panel.webview.postMessage({
                 command: "updateFont",

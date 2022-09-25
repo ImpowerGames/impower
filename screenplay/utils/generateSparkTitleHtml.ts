@@ -45,8 +45,8 @@ export const generateSparkTitleHtml = (
         currentIndex++;
         continue;
       }
-      const text = currentToken.content || currentToken.text;
-      const line = currentToken.line - 1;
+      const text = currentToken.text;
+      const line = currentToken.line;
       if (text) {
         currentToken.html = sparkLexer(text, undefined, htmlReplacements, true);
       }
