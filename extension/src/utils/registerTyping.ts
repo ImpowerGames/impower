@@ -10,7 +10,7 @@ export const registerTyping = (): void => {
       return;
     }
     const config = getSparkdownConfig(uri);
-    if (config.parenthetical_newline_helper) {
+    if (config.editor_parenthetical_newline_helper) {
       typingState.disposeTyping = vscode.commands.registerCommand(
         "type",
         (args) => {

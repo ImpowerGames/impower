@@ -31,8 +31,8 @@ export class SparkdownCommandTreeDataProvider
     };
     elements.push(treeExportHtml);
 
-    // Show Screenplay Preview Command
-    const treeLivePreview = new vscode.TreeItem("Show Screenplay Preview");
+    // Preview Screenplay Command
+    const treeLivePreview = new vscode.TreeItem("Preview Screenplay");
     treeLivePreview.iconPath = new vscode.ThemeIcon("open-preview");
     treeLivePreview.command = {
       command: "sparkdown.livepreview",
@@ -40,8 +40,8 @@ export class SparkdownCommandTreeDataProvider
     };
     elements.push(treeLivePreview);
 
-    // Show Screenplay Statistics Command
-    // const statistics = new vscode.TreeItem("Show Screenplay Statistics");
+    // Show Statistics Command
+    // const statistics = new vscode.TreeItem("View Statistics");
     // statistics.iconPath = new vscode.ThemeIcon("pulse");
     // statistics.command = {
     //   command: "sparkdown.statistics",

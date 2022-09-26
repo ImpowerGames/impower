@@ -46,11 +46,11 @@ export async function exportHtml() {
   }
 
   let pageClasses = "innerpage";
-  if (sparkdownConfig.scenes_numbers === "left") {
+  if (sparkdownConfig.screenplay_print_scene_numbers === "left") {
     pageClasses = "innerpage numberonleft";
-  } else if (sparkdownConfig.scenes_numbers === "right") {
+  } else if (sparkdownConfig.screenplay_print_scene_numbers === "right") {
     pageClasses = "innerpage numberonright";
-  } else if (sparkdownConfig.scenes_numbers === "both") {
+  } else if (sparkdownConfig.screenplay_print_scene_numbers === "both") {
     pageClasses = "innerpage numberonleft numberonright";
   }
 

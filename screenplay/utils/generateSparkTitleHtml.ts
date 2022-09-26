@@ -8,7 +8,7 @@ export const generateSparkTitleHtml = (
   result: SparkParseResult,
   config: SparkScreenplayConfig
 ): string => {
-  if (!config.print_title_page) {
+  if (!config.screenplay_print_title_page) {
     return "";
   }
 
@@ -81,10 +81,10 @@ export const generateSparkTitleHtml = (
     html.push(
       `<div class="header" id="sourceline_${header.line}">${header.html}</div>`
     );
-  } else if (config.print_header) {
+  } else if (config.screenplay_print_header) {
     html.push(
       `<div class="header">${sparkLexer(
-        config.print_header,
+        config.screenplay_print_header,
         undefined,
         htmlReplacements,
         true
@@ -96,10 +96,10 @@ export const generateSparkTitleHtml = (
     html.push(
       `<div class="footer" id="sourceline_${footer.line}">${footer.html}</div>`
     );
-  } else if (config.print_footer) {
+  } else if (config.screenplay_print_footer) {
     html.push(
       `<div class="footer">${sparkLexer(
-        config.print_footer,
+        config.screenplay_print_footer,
         undefined,
         htmlReplacements,
         true

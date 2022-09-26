@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { printProfiles, SparkScreenplayConfig } from "../../../screenplay";
 import { SparkParseResult, SparkSectionToken } from "../../../sparkdown";
-import { createSeparator, Liner } from "./liner";
+import { Liner } from "./liner";
 import {
   generatePdf,
   generatePdfStats,
@@ -47,7 +47,6 @@ export const createPdf = async (
     }
   }
   let currentIndex = 0;
-  let previousType: string | null = null;
 
   const sceneInvisibleSections: Record<string | number, SparkSectionToken[]> =
     {};
@@ -61,17 +60,15 @@ export const createPdf = async (
       currentToken.type === "dialogue_start" ||
       currentToken.type === "dialogue_end" ||
       currentToken.type === "dual_dialogue_end" ||
-      (!screenplayConfig.print_notes &&
+      (!screenplayConfig.screenplay_print_notes &&
         (currentToken.type === "note" ||
           currentToken.type === "assets" ||
           currentToken.type === "dialogue_asset" ||
           currentToken.type === "action_asset")) ||
-      (!screenplayConfig.print_headers && currentToken.type === "scene") ||
-      (!screenplayConfig.print_sections && currentToken.type === "section") ||
-      (!screenplayConfig.print_synopsis && currentToken.type === "synopsis") ||
-      (screenplayConfig.merge_empty_lines &&
-        currentToken.type === "separator" &&
-        previousType === "separator")
+      (!screenplayConfig.screenplay_print_sections &&
+        currentToken.type === "section") ||
+      (!screenplayConfig.screenplay_print_synopses &&
+        currentToken.type === "synopsis")
     ) {
       if (currentToken.type === "section") {
         //on the next scene header, add an invisible section (for keeping track of sections when creating bookmarks and generating pdf-side)
@@ -88,19 +85,6 @@ export const createPdf = async (
       invisibleSections = [];
     }
 
-    if (
-      screenplayConfig.double_space_between_scenes &&
-      currentToken.type === "scene" &&
-      currentToken.scene !== 1
-    ) {
-      const additionalSeparator = createSeparator(
-        parsedDocument.tokens[currentIndex].from,
-        parsedDocument.tokens[currentIndex].to
-      );
-      parsedDocument.tokens.splice(currentIndex, 0, additionalSeparator);
-      currentIndex++;
-    }
-    previousType = currentToken.type;
     currentIndex++;
   }
 
@@ -112,28 +96,30 @@ export const createPdf = async (
     parsedDocument.tokens.pop();
   }
 
-  if (!screenplayConfig.print_watermark && watermark !== undefined) {
-    screenplayConfig.print_watermark = watermark;
+  if (!screenplayConfig.screenplay_print_watermark && watermark !== undefined) {
+    screenplayConfig.screenplay_print_watermark = watermark;
   }
-  if (!screenplayConfig.print_header && header !== undefined) {
-    screenplayConfig.print_header = header;
+  if (!screenplayConfig.screenplay_print_header && header !== undefined) {
+    screenplayConfig.screenplay_print_header = header;
   }
-  if (!screenplayConfig.print_footer && footer !== undefined) {
-    screenplayConfig.print_footer = footer;
+  if (!screenplayConfig.screenplay_print_footer && footer !== undefined) {
+    screenplayConfig.screenplay_print_footer = footer;
   }
 
   const lines = liner.line(parsedDocument.tokens, {
-    print: printProfiles[screenplayConfig.print_profile],
-    text_more: screenplayConfig.text_more,
-    text_contd: screenplayConfig.text_contd,
-    split_dialogue: true,
+    print: printProfiles[screenplayConfig.screenplay_print_profile],
+    screenplay_print_dialogue_more:
+      screenplayConfig.screenplay_print_dialogue_more,
+    screenplay_print_dialogue_contd:
+      screenplayConfig.screenplay_print_dialogue_contd,
+    screenplay_print_dialogue_split_across_pages: true,
   });
 
   const pdfOptions: PdfOptions = {
     filepath: outputPath,
     parsed: parsedDocument,
     lines: lines,
-    print: printProfiles[screenplayConfig.print_profile],
+    print: printProfiles[screenplayConfig.screenplay_print_profile],
     screenplayConfig: screenplayConfig,
     font: font,
     sceneInvisibleSections,

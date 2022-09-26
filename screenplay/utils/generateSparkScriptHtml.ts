@@ -66,7 +66,7 @@ export const generateSparkScriptHtml = (
       switch (currentToken.type) {
         case "scene":
           let content = currentToken.html;
-          if (config.embolden_scene_headers) {
+          if (config.screenplay_print_scene_headers_bold) {
             content =
               '<span class="bold haseditorline" id="sourceline_' +
               line +
@@ -152,7 +152,7 @@ export const generateSparkScriptHtml = (
           break;
 
         case "section":
-          if (config.print_sections) {
+          if (config.screenplay_print_sections) {
             html.push(
               '<p class="haseditorline section" id="sourceline_' +
                 line +
@@ -167,7 +167,7 @@ export const generateSparkScriptHtml = (
           }
           break;
         case "synopsis":
-          if (config.print_synopsis) {
+          if (config.screenplay_print_synopses) {
             html.push(
               '<p class="haseditorline synopsis" id="sourceline_' +
                 line +
@@ -188,7 +188,7 @@ export const generateSparkScriptHtml = (
           break;
 
         case "note":
-          if (config.print_notes) {
+          if (config.screenplay_print_notes) {
             html.push(
               '<p class="haseditorline note" id="sourceline_' +
                 line +

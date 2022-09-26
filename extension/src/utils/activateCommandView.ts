@@ -36,7 +36,8 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
       editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
       //If live screenplay is visible scroll to it with
       if (
-        getSparkdownConfig(editor.document.uri).synchronized_markup_and_preview
+        getSparkdownConfig(editor.document.uri)
+          .screenplay_preview_synchronized_with_cursor
       ) {
         previews.forEach((p) => {
           if (p.uri === editor.document.uri.toString()) {

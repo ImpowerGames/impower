@@ -95,8 +95,8 @@ export class Liner {
   };
 
   breaker = (index: number, lines: LineItem[], cfg: LinerConfig): boolean => {
-    const CONTD = cfg.text_contd || "(CONT'D)";
-    const MORE = cfg.text_more || "(MORE)";
+    const CONTD = cfg.screenplay_print_dialogue_contd || "(CONT'D)";
+    const MORE = cfg.screenplay_print_dialogue_more || "(MORE)";
 
     let before = index - 1;
     while (before && !lines[before].text) {
@@ -158,7 +158,7 @@ export class Liner {
     ) {
       return false;
     } else if (
-      cfg.split_dialogue &&
+      cfg.screenplay_print_dialogue_split_across_pages &&
       tokenOnBreak.type === "dialogue" &&
       tokenAfter &&
       tokenAfter.type === "dialogue" &&

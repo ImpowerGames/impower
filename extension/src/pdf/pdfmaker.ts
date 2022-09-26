@@ -655,7 +655,7 @@ async function generate(
     doc.text2?.(txt, feed, y);
   };
 
-  if (screenplayCfg?.print_title_page && parsed.titleTokens) {
+  if (screenplayCfg?.screenplay_print_title_page && parsed.titleTokens) {
     const innerWidth =
       print.page_width - print.right_margin - print.right_margin;
     const innerHeight = print.page_height - print.top_margin;
@@ -791,7 +791,6 @@ async function generate(
   let page = 1;
   let sceneNumber: string;
   let prevSceneContinuationHeader = "";
-  const sceneContinuations: { [key: string]: number } = {};
   let currentSectionLevel = 0;
   let currentSectionNumber: string;
   let currentSectionToken: LineItem;
@@ -800,11 +799,11 @@ async function generate(
   let afterSection = false; // helpful to determine synopsis indentation
 
   const printHeaderAndFooter = function (continuation_header?: string) {
-    if (screenplayCfg?.print_header) {
+    if (screenplayCfg?.screenplay_print_header) {
       continuation_header = continuation_header || "";
       let offset = blankText(continuation_header);
       if (
-        getIndentation(screenplayCfg?.print_header).length >=
+        getIndentation(screenplayCfg?.screenplay_print_header).length >=
         continuation_header.length
       ) {
         offset = "";
@@ -814,7 +813,7 @@ async function generate(
       }
 
       doc.formatText?.(
-        offset + screenplayCfg?.print_header,
+        offset + screenplayCfg?.screenplay_print_header,
         1.5,
         print.page_number_top_margin - 0.1,
         {
@@ -822,9 +821,9 @@ async function generate(
         }
       );
     }
-    if (screenplayCfg?.print_footer) {
+    if (screenplayCfg?.screenplay_print_footer) {
       doc.formatText?.(
-        screenplayCfg?.print_footer,
+        screenplayCfg?.screenplay_print_footer,
         1.5,
         print.page_height - 0.5,
         {
@@ -835,14 +834,17 @@ async function generate(
   };
 
   const printWatermark = function () {
-    if (screenplayCfg?.print_watermark) {
+    if (screenplayCfg?.screenplay_print_watermark) {
       const options = {
         origin: [0, 0],
       };
       const angle =
         (Math.atan(print.page_height / print.page_width) * 180) / Math.PI;
       // underline and rotate pdfkit bug (?) workaround
-      const watermark = screenplayCfg?.print_watermark.replace(/_/g, "");
+      const watermark = screenplayCfg?.screenplay_print_watermark.replace(
+        /_/g,
+        ""
+      );
       // un-format
       const len = watermark.replace(/\*/g, "").length;
       let diagonal;
@@ -895,20 +897,6 @@ async function generate(
   let currentDuration = 0;
   lines.forEach((line: LineItem) => {
     if (line.type === "page_break") {
-      if (screenplayCfg?.scene_continuation_bottom && line.sceneSplit) {
-        const scene_continued_text =
-          "(" + (screenplayCfg?.text_scene_continued || "CONTINUED") + ")";
-        const feed =
-          print.action.feed +
-          print.action.max * print.font_width -
-          scene_continued_text.length * print.font_width;
-        doc.simpleText?.(
-          scene_continued_text,
-          feed * 72,
-          (print.top_margin + print.font_height * (y + 2)) * 72
-        );
-      }
-
       if (lineStructs) {
         if (line.token?.line && !lineStructs[line.token?.line || -1]) {
           lineStructs[line.token.line] = {
@@ -926,28 +914,7 @@ async function generate(
 
       const numberY = print.page_number_top_margin;
 
-      if (screenplayCfg?.scene_continuation_top && line.sceneSplit) {
-        sceneContinuations[sceneNumber] = sceneContinuations[sceneNumber] || 0;
-        sceneContinuations[sceneNumber]++;
-
-        let sceneContinued =
-          (screenplayCfg?.scenes_numbers !== "none" && sceneNumber
-            ? sceneNumber + " "
-            : "") +
-          (screenplayCfg?.text_scene_continued || "CONTINUED") +
-          ":";
-        sceneContinued +=
-          sceneContinuations[sceneNumber] > 1
-            ? " (" + sceneContinuations[sceneNumber] + ")"
-            : "";
-
-        sceneContinued = sceneContinued.replace(/\*/g, "");
-        sceneContinued = sceneContinued.replace(/_/g, "");
-        doc.simpleText?.(sceneContinued, print.action.feed * 72, numberY * 72);
-        prevSceneContinuationHeader = sceneContinued;
-      }
-
-      if (screenplayCfg?.show_page_numbers) {
+      if (screenplayCfg?.screenplay_print_page_numbers) {
         const pageNum = page.toFixed() + ".";
         const numberX =
           print.action.feed +
@@ -1011,7 +978,7 @@ async function generate(
           if (!hasInvisibleSection) {
             feed += currentSectionLevel * (print.section.level_indent || 0);
           }
-          if (screenplayCfg?.number_sections) {
+          if (screenplayCfg?.screenplay_print_section_numbers) {
             if (sectionToken !== currentSectionToken) {
               currentSectionNumber = sectionNumber(sectionToken.level || 0);
               currentSectionToken = sectionToken;
@@ -1021,10 +988,10 @@ async function generate(
                 Array(currentSectionNumber.length + 3).join(" ") + sectionText;
             }
           }
-          if (screenplayCfg?.create_bookmarks) {
+          if (screenplayCfg?.screenplay_print_bookmarks) {
             if (
               hasInvisibleSection &&
-              !screenplayCfg?.invisible_section_bookmarks
+              !screenplayCfg?.screenplay_print_bookmarks_for_invisible_sections
             ) {
               return;
             }
@@ -1055,17 +1022,14 @@ async function generate(
         }
 
         if (line.type === "scene") {
-          if (screenplayCfg?.create_bookmarks) {
+          if (screenplayCfg?.screenplay_print_bookmarks) {
             if (outline) {
               getOutlineChild(outline, outlineDepth, 0).addItem(text);
             }
           }
           currentScene = text;
-          if (screenplayCfg?.embolden_scene_headers) {
+          if (screenplayCfg?.screenplay_print_scene_headers_bold) {
             text = "**" + text + "**";
-          }
-          if (screenplayCfg?.underline_scene_headers) {
-            text = "_" + text + "_";
           }
         }
 
@@ -1118,18 +1082,15 @@ async function generate(
         if (line.scene) {
           sceneNumber = String(line.scene);
           const sceneTextLength = sceneNumber.length;
-          if (screenplayCfg?.embolden_scene_headers) {
+          if (screenplayCfg?.screenplay_print_scene_headers_bold) {
             sceneNumber = "**" + sceneNumber + "**";
-          }
-          if (screenplayCfg?.underline_scene_headers) {
-            sceneNumber = "_" + sceneNumber + "_";
           }
 
           let shiftSceneNumber;
 
           if (
-            screenplayCfg?.scenes_numbers === "both" ||
-            screenplayCfg?.scenes_numbers === "left"
+            screenplayCfg?.screenplay_print_scene_numbers === "both" ||
+            screenplayCfg?.screenplay_print_scene_numbers === "left"
           ) {
             shiftSceneNumber = (sceneTextLength + 4) * print.font_width;
             doc.text2?.(
@@ -1141,8 +1102,8 @@ async function generate(
           }
 
           if (
-            screenplayCfg?.scenes_numbers === "both" ||
-            screenplayCfg?.scenes_numbers === "right"
+            screenplayCfg?.screenplay_print_scene_numbers === "both" ||
+            screenplayCfg?.screenplay_print_scene_numbers === "right"
           ) {
             shiftSceneNumber = (print.scene.max + 1) * print.font_width;
             doc.text2?.(

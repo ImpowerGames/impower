@@ -552,7 +552,7 @@ div#titlepage {
         function applyConfig(){
 
             //update line highlight visibility
-            if(sparkdownconfig.synchronized_markup_and_preview){
+            if(sparkdownconfig.screenplay_preview_synchronized_with_cursor){
                 document.getElementById("linehighlight_active").style.visibility="visible";
                 document.getElementById("linehighlight_click").style.visibility="visible";
             }
@@ -563,19 +563,19 @@ div#titlepage {
 
             console.log("update config");
             //update theme
-            var themeClass = sparkdownconfig.preview_theme + "_theme";
-			if (sparkdownconfig.preview_texture) {
+            var themeClass = sparkdownconfig.screenplay_preview_theme + "_theme";
+			if (sparkdownconfig.screenplay_preview_texture) {
 				themeClass += " textured";
 			}
             document.getElementById("sparkdown-js").setAttribute("class", themeClass);
 
             //update number alignments
             var pageClasses = "innerpage";
-				if (sparkdownconfig.scenes_numbers == "left")
+				if (sparkdownconfig.screenplay_print_scene_numbers == "left")
 					pageClasses = "innerpage numberonleft";
-				else if (sparkdownconfig.scenes_numbers == "right")
+				else if (sparkdownconfig.screenplay_print_scene_numbers == "right")
 					pageClasses = "innerpage numberonright";
-				else if (sparkdownconfig.scenes_numbers == "both")
+				else if (sparkdownconfig.screenplay_print_scene_numbers == "both")
                     pageClasses = "innerpage numberonleft numberonright";
             document.getElementById('mainpage').className = pageClasses;
         }
@@ -707,7 +707,7 @@ div#titlepage {
         
         scrollDisabled = true;
         window.addEventListener('scroll', throttle(() => {
-            if(!sparkdownconfig.synchronized_markup_and_preview) return;
+            if(!sparkdownconfig.screenplay_preview_synchronized_with_cursor) return;
             if (scrollDisabled) {
             	scrollDisabled = false;
             } else {
@@ -738,7 +738,7 @@ div#titlepage {
         }
 
         document.addEventListener("mousedown", e =>{
-            if(!sparkdownconfig.synchronized_markup_and_preview) return;
+            if(!sparkdownconfig.screenplay_preview_synchronized_with_cursor) return;
             let { previous, next, exact } = getLineElementsAtPageOffset(e.pageY)
             var linehighlight = getHighlightLocationAndHeight(previous, next, exact);            
             if(e.detail==1){

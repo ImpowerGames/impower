@@ -143,7 +143,7 @@ function loadWebView(
     } else if (message.command === "revealLine") {
       if (
         !getSparkdownConfig(vscode.Uri.parse(message.uri))
-          .synchronized_markup_and_preview
+          .screenplay_preview_synchronized_with_cursor
       ) {
         return;
       }
@@ -218,7 +218,7 @@ function loadWebView(
   const editor = getEditor(docuri);
   if (editor) {
     parseDocument(editor.document);
-    if (config.synchronized_markup_and_preview) {
+    if (config.screenplay_preview_synchronized_with_cursor) {
       preview.webview.postMessage({
         command: "highlightline",
         content: editor.selection.start.line,
@@ -249,7 +249,10 @@ function scrollTo(topLine: number, resource: vscode.Uri) {
     return;
   }
 
-  if (getSparkdownConfig(editor.document.uri).synchronized_markup_and_preview) {
+  if (
+    getSparkdownConfig(editor.document.uri)
+      .screenplay_preview_synchronized_with_cursor
+  ) {
     previews.forEach((p) => {
       if (p.uri === resource.toString()) {
         p.panel.webview.postMessage({
@@ -275,7 +278,7 @@ vscode.workspace.onDidChangeConfiguration((change) => {
 vscode.window.onDidChangeTextEditorSelection((change) => {
   if (change.textEditor.document.languageId === "sparkdown") {
     const config = getSparkdownConfig(change.textEditor.document.uri);
-    if (config.synchronized_markup_and_preview) {
+    if (config.screenplay_preview_synchronized_with_cursor) {
       const selection = change.selections[0];
       previews.forEach((p) => {
         if (p.uri === change.textEditor.document.uri.toString()) {

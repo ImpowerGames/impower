@@ -102,7 +102,7 @@
       },
       {
         "command": "sparkdown.livepreview",
-        "title": "Show screenplay preview",
+        "title": "Preview screenplay",
         "category": "Sparkdown",
         "icon": "$(open-preview)"
       },
@@ -138,7 +138,7 @@
       },
       {
         "command": "sparkdown.statistics",
-        "title": "Show screenplay statistics",
+        "title": "View statistics",
         "category": "Sparkdown"
       },
       {
@@ -191,134 +191,55 @@
     ],
     "configuration": [
       {
-        "title": "Sparkdown General Settings",
+        "title": "Sparkdown Preview",
         "type": "object",
         "properties": {
-          "sparkdown.general.refreshStatisticsOnSave": {
-            "type": "boolean",
-            "default": false,
-            "description": "Automatically refresh the statistics panel each time you save the document"
-          },
-          "sparkdown.general.numberScenesOnSave": {
-            "type": "boolean",
-            "default": false,
-            "description": "Automatically number the scenes each time you save the document"
-          },
-          "sparkdown.general.synchronizedMarkupAndPreview": {
+          "sparkdown.screenplay.previewTexture": {
             "type": "boolean",
             "default": true,
-            "description": "Automatically synchronize preview and text editor position"
+            "description": "Show textured background in screenplay preview"
           },
-          "sparkdown.general.parentheticalNewLineHelper": {
-            "type": "boolean",
-            "default": true,
-            "markdownDescription": "Automatically skip to the next line if the caret is just before the last parenthesis within a parenthetical (as such❚). If you are using a vim emulator, you should disable this setting - an [issue with vscode](https://github.com/Microsoft/vscode/issues/13441) means it is impossible for two extensions to simultaneously intercept typing."
-          },
-          "sparkdown.general.previewTheme": {
+          "sparkdown.screenplay.previewTheme": {
             "type": "string",
             "enum": [
               "vscode",
               "paper"
             ],
-            "description": "The theme to be used in the live preview",
+            "description": "The theme to be used for the screenplay preview",
             "default": "paper"
           },
-          "sparkdown.general.previewTexture": {
+          "sparkdown.screenplay.previewSynchronizedWithCursor": {
             "type": "boolean",
             "default": true,
-            "description": "Noise texture on the live preview (absent from PDF)"
+            "description": "Synchronize screenplay preview with editor's cursor position"
           }
         }
       },
       {
-        "title": "Sparkdown PDF Export",
+        "title": "Sparkdown Export",
         "type": "object",
         "properties": {
-          "sparkdown.pdf.emboldenSceneHeaders": {
+          "sparkdown.screenplay.formatting.printSceneHeadersBold": {
             "type": "boolean",
             "default": true,
-            "description": "Make scene headers bold"
+            "description": "Make scene headers bold in screenplay"
           },
-          "sparkdown.pdf.emboldenCharacterNames": {
+          "sparkdown.screenplay.markup.printSectionHeaders": {
             "type": "boolean",
             "default": false,
-            "description": "Make character names bold"
+            "description": "Print section headers in screenplay (lines that start with #)"
           },
-          "sparkdown.pdf.showPageNumbers": {
+          "sparkdown.screenplay.markup.printSynopses": {
             "type": "boolean",
             "default": true,
-            "description": "Show page numbers"
+            "description": "Print synopses in screenplay (lines that start with =)"
           },
-          "sparkdown.pdf.splitDialog": {
-            "type": "boolean",
-            "default": true,
-            "description": "Split dialog between pages"
-          },
-          "sparkdown.pdf.printProfile": {
-            "type": "string",
-            "description": "The printing dimensions",
-            "enum": [
-              "a4",
-              "usletter"
-            ],
-            "default": "usletter"
-          },
-          "sparkdown.pdf.doubleSpaceBetweenScenes": {
+          "sparkdown.screenplay.markup.printNotes": {
             "type": "boolean",
             "default": false,
-            "description": "Double the space between scenes"
+            "description": "Print notes in screenplay (text enclosed between [[two brackets]])"
           },
-          "sparkdown.pdf.numberSections": {
-            "type": "boolean",
-            "default": false,
-            "description": "Automatically number sections"
-          },
-          "sparkdown.pdf.useDualDialogue": {
-            "type": "boolean",
-            "default": true,
-            "description": "Print dual dialogue in two columns"
-          },
-          "sparkdown.pdf.printTitlePage": {
-            "type": "boolean",
-            "default": true,
-            "description": "Print the title page"
-          },
-          "sparkdown.pdf.printSections": {
-            "type": "boolean",
-            "default": false,
-            "description": "Print sections (marked with #)"
-          },
-          "sparkdown.pdf.printSynopsis": {
-            "type": "boolean",
-            "default": true,
-            "description": "Print synopsis (marked with =)"
-          },
-          "sparkdown.pdf.printHeaders": {
-            "type": "boolean",
-            "default": true,
-            "description": "Print scene headers"
-          },
-          "sparkdown.pdf.printNotes": {
-            "type": "boolean",
-            "default": false,
-            "description": "Print notes (text enclosed between [[two brackets]])"
-          },
-          "sparkdown.pdf.pageHeader": {
-            "type": "string",
-            "default": "",
-            "description": "Text to be inserted at the top of each page"
-          },
-          "sparkdown.pdf.pageFooter": {
-            "type": "string",
-            "default": "",
-            "description": "Text to be inserted at the bottom of each page"
-          },
-          "sparkdown.pdf.watermark": {
-            "type": "string",
-            "default": "",
-            "description": "Watermark displayed across each page"
-          },
-          "sparkdown.pdf.sceneNumbers": {
+          "sparkdown.screenplay.numbering.printSceneNumbers": {
             "type": "string",
             "enum": [
               "none",
@@ -327,52 +248,87 @@
               "both"
             ],
             "default": "none",
-            "description": "Location of scene numbers"
+            "description": "Print scene numbers in screenplay"
           },
-          "sparkdown.pdf.eachSceneOnNewPage": {
+          "sparkdown.screenplay.numbering.printSectionNumbers": {
             "type": "boolean",
             "default": false,
-            "description": "Systematically break page after a scene"
+            "description": "Print section numbers in screenplay"
           },
-          "sparkdown.pdf.mergeEmptyLines": {
+          "sparkdown.screenplay.pages.printTitlePage": {
             "type": "boolean",
             "default": true,
-            "description": "Merge multiple empty lines"
+            "description": "Include title page in screenplay"
           },
-          "sparkdown.pdf.createBookmarks": {
+          "sparkdown.screenplay.pdf.printProfile": {
+            "type": "string",
+            "description": "The paper dimensions of the screenplay pdf",
+            "enum": [
+              "a4",
+              "usletter"
+            ],
+            "default": "usletter"
+          },
+          "sparkdown.screenplay.pdf.composition.pageBreaks.printDialogueSplitAcrossPages": {
             "type": "boolean",
             "default": true,
-            "description": "Create bookmarks for each section/scene"
+            "description": "Allow dialogue to be split between pages of the screenplay pdf"
           },
-          "sparkdown.pdf.invisibleSectionBookmarks": {
-            "type": "boolean",
-            "default": true,
-            "markdownDescription": "If `#sparkdown.pdf.printSections#` is false, add a bookmark for the section to the following scene header instead"
-          },
-          "sparkdown.pdf.textMORE": {
+          "sparkdown.screenplay.pdf.composition.printDialogueMORE": {
             "type": "string",
             "default": "(MORE)",
-            "description": "Text to print when dialogue is cut before a page break - \"(MORE)\" in English."
+            "description": "Text to print when dialogue is interrupted by a page break in the screenplay pdf"
           },
-          "sparkdown.pdf.textCONTD": {
+          "sparkdown.screenplay.pdf.composition.printDialogueCONTD": {
             "type": "string",
             "default": "(CONT'D)",
-            "description": "Text to print by a character's name when continuing dialogue after a page break - \"(CONT'D)\" in English."
+            "description": "Text to print next to a character's name when continuing their dialogue after a page break in the screenplay pdf"
           },
-          "sparkdown.pdf.textSceneContinued": {
+          "sparkdown.screenplay.pdf.extras.printPageHeader": {
             "type": "string",
-            "default": "CONTINUED",
-            "markdownDescription": "Text to print if `#sparkdown.pdf.sceneContinuationTop#` or `#sparkdown.pdf.sceneContinuationBottom#` are enabled - `CONTINUED` in English."
+            "default": "",
+            "description": "Text inserted at the top of each page in the screenplay pdf"
           },
-          "sparkdown.pdf.sceneContinuationTop": {
+          "sparkdown.screenplay.pdf.extras.printPageFooter": {
+            "type": "string",
+            "default": "",
+            "description": "Text inserted at the bottom of each page in the screenplay pdf"
+          },
+          "sparkdown.screenplay.pdf.extras.printPageWatermark": {
+            "type": "string",
+            "default": "",
+            "description": "Text displayed across each page in the screenplay pdf"
+          },
+          "sparkdown.screenplay.pdf.numbering.printPageNumbers": {
+            "type": "boolean",
+            "default": true,
+            "description": "Print page numbers in the screenplay pdf"
+          },
+          "sparkdown.screenplay.pdf.bookmarks.printBookmarks": {
+            "type": "boolean",
+            "default": true,
+            "description": "Create bookmarks for sections and scenes in the screenplay pdf"
+          },
+          "sparkdown.screenplay.pdf.bookmarks.printBookmarksForInvisibleSections": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "If `#sparkdown.screenplay.annotations.printSectionHeaders#` is false, add bookmarks for sections to scene headers instead"
+          }
+        }
+      },
+      {
+        "title": "Sparkdown Editor",
+        "type": "object",
+        "properties": {
+          "sparkdown.editor.parentheticalNewlineHelper": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Automatically skip to the next line if the caret is just before the last parenthesis within a parenthetical (as such❚). If you are using a vim emulator, you should disable this setting - an [issue with vscode](https://github.com/Microsoft/vscode/issues/13441) means it is impossible for two extensions to simultaneously intercept typing."
+          },
+          "sparkdown.editor.refreshStatsOnSave": {
             "type": "boolean",
             "default": false,
-            "markdownDescription": "Display `CONTINUED:` at the top of pages where a scene is split by a page break. If `#sparkdown.pdf.sceneNumbers#` is enabled, the scene number will be included (eg `12A CONTINUED:)`"
-          },
-          "sparkdown.pdf.sceneContinuationBottom": {
-            "type": "boolean",
-            "default": false,
-            "markdownDescription": "Display `(CONTINUED)` at the bottom of pages where a scene is cut by a page break."
+            "description": "Automatically refresh the statistics panel when you save the document"
           }
         }
       }

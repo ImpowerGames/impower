@@ -49,7 +49,7 @@ vscode.workspace.onDidChangeConfiguration((change) => {
     if (typingState.disposeTyping) {
       typingState.disposeTyping.dispose();
     }
-    if (config.parenthetical_newline_helper) {
+    if (config.editor_parenthetical_newline_helper) {
       registerTyping();
     }
   }
