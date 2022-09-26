@@ -7,10 +7,6 @@ export const getSparkdownConfig = function (
   if (!docuri && vscode.window.activeTextEditor !== undefined) {
     docuri = vscode.window.activeTextEditor.document.uri;
   }
-  const gameConfig = vscode.workspace.getConfiguration(
-    "sparkdown.game",
-    docuri
-  );
   const screenplayConfig = vscode.workspace.getConfiguration(
     "sparkdown.screenplay",
     docuri
