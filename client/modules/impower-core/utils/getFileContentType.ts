@@ -1,5 +1,20 @@
-import { FileContentType } from "../types/enums/fileContentType";
 import { FileExtension } from "../types/enums/fileExtension";
+
+export type FileContentType =
+  | "audio/mid"
+  | "audio/mpeg"
+  | "audio/wav"
+  | "image/bmp"
+  | "image/gif"
+  | "image/jpeg"
+  | "image/png"
+  | "image/svg+xml"
+  | "text/css"
+  | "text/html"
+  | "text/plain"
+  | "text/xml"
+  | "video/avi"
+  | "video/mp4";
 
 const fileContentTypes: { [extension in FileExtension]: FileContentType } = {
   mid: "audio/mid",

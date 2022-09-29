@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { getRootElementId } from "../../impower-game/dom";
+import { getRootElementId } from "../../../../spark-engine";
 import { PhaserGame } from "../types/game/phaserGame";
 
 const responsiveBreakpoints: Record<string, number> = {

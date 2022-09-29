@@ -176,11 +176,11 @@ export class BlockContext implements PartialParse {
     return null;
   }
 
-  stopAt(pos: number): void {
-    if (this.stoppedAt != null && this.stoppedAt < pos) {
+  stopAt(from: number): void {
+    if (this.stoppedAt != null && this.stoppedAt < from) {
       throw new RangeError("Can't move stoppedAt forward");
     }
-    this.stoppedAt = pos;
+    this.stoppedAt = from;
   }
 
   reuseFragment(start: number): boolean {

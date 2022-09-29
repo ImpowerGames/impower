@@ -10,10 +10,16 @@ import React, {
   useRef,
   useState,
 } from "react";
+import {
+  GameProjectData,
+  SetupSectionType,
+  SetupSettingsType,
+} from "../../../../../spark-engine";
 import { getLabel } from "../../../impower-config";
 import {
   getAllErrors,
   getAllVisiblePropertyPaths,
+  hexToHsla,
   Timestamp,
 } from "../../../impower-core";
 import { MemberAccess } from "../../../impower-data-state";
@@ -24,17 +30,6 @@ import {
   ProjectDocument,
   ProjectDocumentInspector,
 } from "../../../impower-data-store";
-import {
-  createAdvancedConfigData,
-  createBackgroundConfigData,
-  createDebugConfigData,
-  createPhysicsConfigData,
-  createSaveConfigData,
-  createScaleConfigData,
-  GameProjectData,
-  SetupSectionType,
-  SetupSettingsType,
-} from "../../../impower-game/data";
 import { NavigationContext } from "../../../impower-navigation";
 import {
   DynamicLoadingButton,
@@ -54,7 +49,6 @@ import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgrou
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
 import useHTMLOverscrollBehavior from "../../../impower-route/hooks/useHTMLOverscrollBehavior";
 import { UserContext, userOnChangeMember } from "../../../impower-user";
-import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import {
@@ -234,17 +228,87 @@ const DetailsSetup = React.memo(() => {
 const ConfigurationSetup = React.memo(() => {
   const [state, dispatch] = useContext(ProjectEngineContext);
 
-  const { gameInspector } = useContext(GameInspectorContext);
-
   const project = state.project.data as GameProjectData;
 
   const configs = {
-    ScaleConfig: createScaleConfigData(),
-    BackgroundConfig: createBackgroundConfigData(),
-    SaveConfig: createSaveConfigData(),
-    PhysicsConfig: createPhysicsConfigData(),
-    DebugConfig: createDebugConfigData(),
-    AdvancedConfig: createAdvancedConfigData(),
+    ScaleConfig: {
+      reference: {
+        refTypeId: "ScaleConfig",
+        refId: "ScaleConfig",
+      },
+      mode: "HeightControlsWidth",
+      autoCenter: "CenterBoth",
+      width: 1920,
+      height: 1080,
+    },
+    BackgroundConfig: {
+      reference: {
+        refTypeId: "BackgroundConfig",
+        refId: "BackgroundConfig",
+      },
+      game: hexToHsla("#000000FF"),
+      screen: hexToHsla("#021830FF"),
+      ui: hexToHsla("#00000000"),
+    },
+    SaveConfig: {
+      reference: {
+        refTypeId: "SaveConfig",
+        refId: "SaveConfig",
+      },
+      autoSaveOnEnter: true,
+    },
+    PhysicsConfig: {
+      reference: {
+        refTypeId: "PhysicsConfig",
+        refId: "PhysicsConfig",
+      },
+      time: { fps: 60, timeScale: 1 },
+      gravity: { x: 0, y: 0 },
+      collisionBounds: {
+        active: false,
+        value: { position: { x: 0, y: 0 }, size: { width: 200, height: 200 } },
+      },
+      checkCollision: { up: true, down: true, left: true, right: true },
+      collisionBiases: { overlapBias: 4, tileBias: 16, forceX: false },
+      debugDisplay: {
+        active: false,
+        value: {
+          bodyColor: {
+            active: true,
+            value: { h: 300, s: 1, l: 0.5, a: 1 },
+          },
+          staticBodyColor: {
+            active: true,
+            value: { h: 240, s: 1, l: 0.5, a: 1 },
+          },
+          velocityColor: {
+            active: true,
+            value: { h: 120, s: 1, l: 0.5, a: 1 },
+          },
+        },
+      },
+      dynamicBodiesTree: {
+        active: true,
+        value: {
+          maxEntries: 16,
+        },
+      },
+    },
+    DebugConfig: {
+      reference: {
+        refTypeId: "DebugConfig",
+        refId: "DebugConfig",
+      },
+      randomizationSeed: "",
+      logBlockExecutions: false,
+    },
+    AdvancedConfig: {
+      reference: {
+        refTypeId: "AdvancedConfig",
+        refId: "AdvancedConfig",
+      },
+      autoCreateConstructs: true,
+    },
     ...project?.instances?.configs?.data,
   };
 
@@ -258,15 +322,15 @@ const ConfigurationSetup = React.memo(() => {
 
   return (
     <>
-      {Object.values(configs).map(
-        (d) =>
+      {Object.entries(configs).map(
+        ([k, d]) =>
           d.reference.refId && (
             <StyledInspectButton
               color="inherit"
               key={d.reference.refId}
               onClick={(): void => handleClick(d.reference.refId)}
             >
-              {gameInspector.getInspector(d.reference).getName(d)}
+              {getLabel(k)}
             </StyledInspectButton>
           )
       )}

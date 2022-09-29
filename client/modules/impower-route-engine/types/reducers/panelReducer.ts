@@ -1,4 +1,4 @@
-import { SetupSectionType } from "../../../impower-game/data";
+import { SetupSectionType } from "../../../../../spark-engine";
 import {
   changeSelection,
   multiSelection,

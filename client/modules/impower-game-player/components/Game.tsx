@@ -7,19 +7,17 @@ import {
 } from "react";
 import Measure from "react-measure";
 import {
-  getEntityObjects,
-  getSectionAtLine,
-  parseSpark,
-} from "../../../../sparkdown";
-import { getBlockTree } from "../../impower-game/data";
-import { loadStyles, loadUI } from "../../impower-game/dom";
-import { ImpowerGame, SaveData } from "../../impower-game/game";
-import {
-  getRuntimeBlocks,
+  GameProjectData,
+  generateEntityObjects,
+  generateSectionBlocks,
   getScriptAugmentations,
-} from "../../impower-game/parser";
-import { GameProjectData } from "../../impower-game/project/classes/project/gameProjectData";
-import { ImpowerGameRunner } from "../../impower-game/runner";
+  loadStyles,
+  loadUI,
+  SaveData,
+  SparkGame,
+  SparkGameRunner,
+} from "../../../../spark-engine";
+import { getSectionAtLine, parseSpark } from "../../../../sparkdown";
 import { ProjectEngineContext } from "../../impower-route-engine/contexts/projectEngineContext";
 import { useGameStyle } from "../hooks/gameHooks";
 import { PhaserGame } from "../types/game/phaserGame";
@@ -29,39 +27,39 @@ const createGame = (
   project: GameProjectData,
   activeLine: number,
   debugging: boolean,
-  isMobile: boolean,
   saveData?: SaveData
-): ImpowerGame => {
+): SparkGame => {
   const script = project?.scripts?.data?.logic;
-  const result = parseSpark(
-    script,
-    getScriptAugmentations(project?.files?.data),
-    { lineOffset: 1 }
-  );
-  const runtimeBlocks = getRuntimeBlocks(result);
-  const blockTree = getBlockTree(runtimeBlocks);
-  const [defaultStartBlockId] = getSectionAtLine(activeLine, result);
-  const startRuntimeBlock = runtimeBlocks?.[defaultStartBlockId];
-  let defaultStartCommandIndex = 0;
-  for (let i = 1; i < startRuntimeBlock?.commands?.order?.length || 0; i += 1) {
-    const commandId = startRuntimeBlock.commands.order[i];
-    const command = startRuntimeBlock.commands.data[commandId];
+  const files = project?.files?.data;
+  const seed =
+    project?.instances?.configs?.data?.DebugConfig?.randomizationSeed;
+
+  const result = parseSpark(script, getScriptAugmentations(files), {
+    lineOffset: 1,
+  });
+  const blockMap = generateSectionBlocks(result?.sections);
+  const objectMap = generateEntityObjects(result?.entities);
+  const [startBlockId] = getSectionAtLine(activeLine, result);
+  const startRuntimeBlock = blockMap?.[startBlockId];
+  let startCommandIndex = 0;
+  const startCommands = Object.values(startRuntimeBlock?.commands);
+  for (let i = 1; i < startCommands?.length || 0; i += 1) {
+    const command = startCommands[i];
     if (command.line > activeLine) {
       break;
     } else {
-      defaultStartCommandIndex = i;
+      startCommandIndex = i;
     }
   }
-
-  const game = new ImpowerGame(
+  const game = new SparkGame(
+    blockMap,
+    objectMap,
     {
-      defaultStartBlockId,
-      defaultStartCommandIndex,
-      seed: project?.instances?.configs?.data?.DebugConfig?.randomizationSeed,
-      blockTree,
+      startBlockId,
+      startCommandIndex,
+      seed,
       debugging,
     },
-    isMobile,
     saveData
   );
   return game;
@@ -73,12 +71,12 @@ interface GameProps {
   control: "Play" | "Pause";
   project: GameProjectData;
   debugging?: boolean;
-  game?: ImpowerGame;
-  runner?: ImpowerGameRunner;
+  game?: SparkGame;
+  runner?: SparkGameRunner;
   saveData?: SaveData;
   logoSrc?: string;
   onInitialized: () => void;
-  onCreateGame: (game?: ImpowerGame) => void;
+  onCreateGame: (game?: SparkGame) => void;
 }
 
 export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
@@ -99,7 +97,6 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   const phaserGameRef = useRef<PhaserGame>();
   const [phaserGame, setPhaserGame] = useState(phaserGameRef.current);
-  const [isMobile, setIsMobile] = useState<boolean>(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const gameDivRef = useRef<HTMLDivElement>(null);
 
@@ -112,24 +109,12 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
   useEffect(() => {
     if (phaserGameRef.current) {
       if (debugging) {
-        phaserGameRef.current.impowerGame.debug.startDebugging();
+        phaserGameRef.current.sparkContext.game.debug.startDebugging();
       } else {
-        phaserGameRef.current.impowerGame.debug.stopDebugging();
+        phaserGameRef.current.sparkContext.game.debug.stopDebugging();
       }
     }
   }, [debugging]);
-
-  useEffect(() => {
-    const setMobile = (): void => {
-      setIsMobile(true);
-    };
-
-    if (isMobile) {
-      window.removeEventListener("touchstart", setMobile);
-    } else {
-      window.addEventListener("touchstart", setMobile);
-    }
-  }, [isMobile]);
 
   useEffect(() => {
     // Destroy game when this component is unmounted or game is changed
@@ -174,7 +159,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
       const result = parseSpark(script, getScriptAugmentations(files), {
         lineOffset: 1,
       });
-      const objectMap = getEntityObjects(result?.entities);
+      const objectMap = generateEntityObjects(result?.entities);
       loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));
       loadUI(objectMap, ...Object.keys(objectMap?.ui || {}));
     }
@@ -182,7 +167,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   useEffect(() => {
     if (active) {
-      const g = createGame(project, activeLine, debugging, isMobile, saveData);
+      const g = createGame(project, activeLine, debugging, saveData);
       onCreateGame(g);
     } else {
       onCreateGame();
@@ -211,7 +196,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   useEffect(() => {
     if (active) {
-      const g = createGame(project, activeLine, debugging, isMobile, saveData);
+      const g = createGame(project, activeLine, debugging, saveData);
       onCreateGame(g);
     } else {
       onCreateGame();

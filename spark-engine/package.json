@@ -1,0 +1,18 @@
+{
+  "name": "spark-engine",
+  "displayName": "Spark Engine",
+  "description": "Run spark games",
+  "publisher": "impowergames",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "tsc"
+  },
+  "engines": {
+    "node": "10"
+  },
+  "main": "out/index.js",
+  "browser": "./out/index.js",
+  "devDependencies": {
+    "typescript": "^4.3.5"
+  }
+}

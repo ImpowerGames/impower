@@ -1,27 +1,22 @@
 import Phaser, { GameObjects } from "phaser";
-import { Ease } from "../../../../impower-game/data/enums/ease";
-import { GameTrigger } from "../../../../impower-game/data/enums/gameTrigger";
-import { AudioRequestProps } from "../../../../impower-game/data/interfaces/props/audioRequestProps";
-import { ImageRequestProps } from "../../../../impower-game/data/interfaces/props/imageRequestProps";
-import { MoveImageRequestProps } from "../../../../impower-game/data/interfaces/props/moveImageRequestProps";
-import { RotateImageRequestProps } from "../../../../impower-game/data/interfaces/props/rotateImageRequestProps";
-import { ScaleImageRequestProps } from "../../../../impower-game/data/interfaces/props/scaleImageRequestProps";
-import { ImpowerGame } from "../../../../impower-game/game";
-import { ImpowerContext } from "../../../../impower-game/project/classes/impowerContext";
+import {
+  AudioRequestProps,
+  Ease,
+  GameTrigger,
+  ImageRequestProps,
+  MoveImageRequestProps,
+  RotateImageRequestProps,
+  ScaleImageRequestProps,
+  SparkContext,
+} from "../../../../../../spark-engine";
 
 export const ASSET_SCENE_KEY = "PhaserAssetScene";
 
 export class PhaserAssetScene extends Phaser.Scene {
-  private _impowerGame: ImpowerGame;
+  private _sparkContext: SparkContext;
 
-  public get impowerGame(): ImpowerGame {
-    return this._impowerGame;
-  }
-
-  private _impowerContext: ImpowerContext;
-
-  public get impowerContext(): ImpowerContext {
-    return this._impowerContext;
+  public get sparkContext(): SparkContext {
+    return this._sparkContext;
   }
 
   private _projectId: string;
@@ -57,8 +52,7 @@ export class PhaserAssetScene extends Phaser.Scene {
   constructor(
     config: string | Phaser.Types.Scenes.SettingsConfig,
     projectId: string,
-    impowerGame: ImpowerGame,
-    impowerContext: ImpowerContext,
+    sparkContext: SparkContext,
     imageFilesFromPreloading: ImageRequestProps[],
     moveImageFilesFromPreloading: MoveImageRequestProps[],
     rotateImageFilesFromPreloading: RotateImageRequestProps[],
@@ -67,8 +61,7 @@ export class PhaserAssetScene extends Phaser.Scene {
   ) {
     super(config);
     this._projectId = projectId;
-    this._impowerGame = impowerGame;
-    this._impowerContext = impowerContext;
+    this._sparkContext = sparkContext;
     this.imageFilesFromPreloading = imageFilesFromPreloading;
     this.moveImageFilesFromPreloading = moveImageFilesFromPreloading;
     this.rotateImageFilesFromPreloading = rotateImageFilesFromPreloading;
@@ -93,12 +86,12 @@ export class PhaserAssetScene extends Phaser.Scene {
           (element) => element === gameObject.texture.key
         )
       ) {
-        this.impowerGame.asset.clickDownImage({
+        this.sparkContext.game.asset.clickDownImage({
           id: gameObject.texture.key,
         });
       }
     } else {
-      this.impowerGame.input.emptyPhaserClickDown({
+      this.sparkContext.game.input.emptyPhaserClickDown({
         event,
       });
     }
@@ -116,12 +109,12 @@ export class PhaserAssetScene extends Phaser.Scene {
           (element) => element === gameObject.texture.key
         )
       ) {
-        this.impowerGame.asset.clickUpImage({
+        this.sparkContext.game.asset.clickUpImage({
           id: gameObject.texture.key,
         });
       }
     } else {
-      this.impowerGame.input.emptyPhaserClickUp({
+      this.sparkContext.game.input.emptyPhaserClickUp({
         event,
       });
     }
@@ -140,7 +133,7 @@ export class PhaserAssetScene extends Phaser.Scene {
           (element) => element === gameObject.texture.key
         )
       ) {
-        this.impowerGame.asset.hoverImage({
+        this.sparkContext.game.asset.hoverImage({
           id: gameObject.texture.key,
         });
       }
@@ -158,7 +151,7 @@ export class PhaserAssetScene extends Phaser.Scene {
           (element) => element === gameObject.texture.key
         )
       ) {
-        this.impowerGame.asset.dragImage({
+        this.sparkContext.game.asset.dragImage({
           id: gameObject.texture.key,
         });
       }
@@ -207,7 +200,7 @@ export class PhaserAssetScene extends Phaser.Scene {
         const dropImage = this.imageFilesInScene[key];
         if (dropImage) {
           // Invoke the drop image event
-          this.impowerGame.asset.dropImage({
+          this.sparkContext.game.asset.dropImage({
             id: key,
           });
         }
@@ -263,17 +256,17 @@ export class PhaserAssetScene extends Phaser.Scene {
           currentImage.setInteractive();
 
           switch (trigger) {
-            case GameTrigger.Click:
+            case "Click":
               this.clickableTriggerKeys.push(id);
               break;
-            case GameTrigger.Hover:
+            case "Hover":
               this.hoverableTriggerKeys.push(id);
               break;
-            case GameTrigger.Drag:
+            case "Drag":
               this.input.setDraggable(currentImage);
               this.draggableTriggerKeys.push(id);
               break;
-            case GameTrigger.Drop:
+            case "Drop":
               this.add
                 .zone(x, y, width, height)
                 .setRectangleDropZone(width, height).name = id;
@@ -546,31 +539,31 @@ export class PhaserAssetScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.impowerGame.asset.events.onPlayAudioFile.addListener(
+    this.sparkContext.game.asset.events.onPlayAudioFile.addListener(
       this.playAudioFile.bind(this)
     );
-    this.impowerGame.asset.events.onPauseAudioFile.addListener(
+    this.sparkContext.game.asset.events.onPauseAudioFile.addListener(
       this.pauseAudioFile.bind(this)
     );
-    this.impowerGame.asset.events.onResumeAudioFile.addListener(
+    this.sparkContext.game.asset.events.onResumeAudioFile.addListener(
       this.resumeAudioFile.bind(this)
     );
-    this.impowerGame.asset.events.onStopAudioFile.addListener(
+    this.sparkContext.game.asset.events.onStopAudioFile.addListener(
       this.stopAudioFile.bind(this)
     );
-    this.impowerGame.asset.events.onShowImageFile.addListener(
+    this.sparkContext.game.asset.events.onShowImageFile.addListener(
       this.showImageFile.bind(this)
     );
-    this.impowerGame.asset.events.onMoveImageFile.addListener(
+    this.sparkContext.game.asset.events.onMoveImageFile.addListener(
       this.moveImageFile.bind(this)
     );
-    this.impowerGame.asset.events.onRotateImageFile.addListener(
+    this.sparkContext.game.asset.events.onRotateImageFile.addListener(
       this.rotateImageFile.bind(this)
     );
-    this.impowerGame.asset.events.onScaleImageFile.addListener(
+    this.sparkContext.game.asset.events.onScaleImageFile.addListener(
       this.scaleImageFile.bind(this)
     );
-    this.impowerGame.asset.events.onHideImageFile.addListener(
+    this.sparkContext.game.asset.events.onHideImageFile.addListener(
       this.hideImageFile.bind(this)
     );
 

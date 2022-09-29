@@ -15,7 +15,7 @@
     "type-check": "tsc --pretty --noEmit",
     "format": "prettier --write \"**/*.{js,ts,tsx}\"",
     "lint": "eslint . --ext ts --ext tsx --ext js",
-    "check": "npm run lint && npm run type-check",
+    "check": "npm run type-check && npm run lint",
     "kill": "npx kill-port 3000"
   },
   "dependencies": {

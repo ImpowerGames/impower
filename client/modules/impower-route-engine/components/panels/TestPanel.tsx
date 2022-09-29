@@ -10,18 +10,18 @@ import React, {
   useState,
 } from "react";
 import Measure, { ContentRect } from "react-measure";
+import {
+  CenterType,
+  GameProjectData,
+  LogData,
+  ScaleModeType,
+} from "../../../../../spark-engine";
 import CircleQuestionSolidIcon from "../../../../resources/icons/solid/circle-question.svg";
 import OctagonXmarkSolidIcon from "../../../../resources/icons/solid/octagon-xmark.svg";
 import TriangleExclamationSolidIcon from "../../../../resources/icons/solid/triangle-exclamation.svg";
 import { throttle } from "../../../impower-core";
 import { ProjectDocument } from "../../../impower-data-store";
 import { Player } from "../../../impower-game-player";
-import {
-  CenterType,
-  GameProjectData,
-  ScaleModeType,
-} from "../../../impower-game/data";
-import { LogData } from "../../../impower-game/game";
 import { FontIcon } from "../../../impower-icon";
 import { TransparencyPattern } from "../../../impower-react-color-picker";
 import { VirtualizedItem } from "../../../impower-react-virtualization";
@@ -313,16 +313,16 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
   const getBackgroundPosition = (
     centerType: CenterType
   ): "left top" | "center" | "center top" | "left center" => {
-    if (centerType === CenterType.NoCenter) {
+    if (centerType === "NoCenter") {
       return "left top";
     }
-    if (centerType === CenterType.CenterBoth) {
+    if (centerType === "CenterBoth") {
       return "center";
     }
-    if (centerType === CenterType.CenterHorizontally) {
+    if (centerType === "CenterHorizontally") {
       return "center top";
     }
-    if (centerType === CenterType.CenterVertically) {
+    if (centerType === "CenterVertically") {
       return "left center";
     }
     return "center";
@@ -331,22 +331,22 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
   const getBackgroundSize = (
     scaleModeType: ScaleModeType
   ): "auto" | "100% auto" | "auto 100%" | "contain" | "cover" | "100% 100%" => {
-    if (scaleModeType === ScaleModeType.None) {
+    if (scaleModeType === "None") {
       return "auto";
     }
-    if (scaleModeType === ScaleModeType.WidthControlsHeight) {
+    if (scaleModeType === "WidthControlsHeight") {
       return "100% auto";
     }
-    if (scaleModeType === ScaleModeType.HeightControlsWidth) {
+    if (scaleModeType === "HeightControlsWidth") {
       return "auto 100%";
     }
-    if (scaleModeType === ScaleModeType.Fit) {
+    if (scaleModeType === "Fit") {
       return "contain";
     }
-    if (scaleModeType === ScaleModeType.Envelop) {
+    if (scaleModeType === "Envelop") {
       return "cover";
     }
-    if (scaleModeType === ScaleModeType.Resize) {
+    if (scaleModeType === "Resize") {
       return "100% 100%";
     }
     return "cover";
@@ -363,9 +363,7 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
       events.onOpenData.emit({ id: parentBlockId });
       const block = project?.instances?.blocks?.data?.[blockId];
       if (block) {
-        dispatch(
-          panelSetInteraction("logic", "Selected", [block.reference.refId])
-        );
+        dispatch(panelSetInteraction("logic", "Selected", [blockId]));
       }
       window.setTimeout(
         () => events.onFocusData.emit({ ids: [blockId, commandId] }),

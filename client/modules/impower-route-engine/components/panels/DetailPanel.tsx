@@ -3,6 +3,11 @@ import styled from "@emotion/styled";
 import Button from "@material-ui/core/Button";
 import FilledInput from "@material-ui/core/FilledInput";
 import React, { useCallback, useContext, useMemo, useRef } from "react";
+import {
+  ConfigTypeId,
+  InstanceData,
+  Reference,
+} from "../../../../../spark-engine";
 import ArrowLeftRegularIcon from "../../../../resources/icons/regular/arrow-left.svg";
 import { getLabel } from "../../../impower-config";
 import format from "../../../impower-config/utils/format";
@@ -16,11 +21,6 @@ import {
   ProjectDocument,
   ProjectDocumentInspector,
 } from "../../../impower-data-store";
-import {
-  ConfigTypeId,
-  InstanceData,
-  Reference,
-} from "../../../impower-game/data";
 import InspectorForm from "../../../impower-route/components/forms/InspectorForm";
 import AutocompleteInput from "../../../impower-route/components/inputs/AutocompleteInput";
 import BooleanInput from "../../../impower-route/components/inputs/BooleanInput";
@@ -34,7 +34,6 @@ import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgrou
 import useHTMLOverscrollBehavior from "../../../impower-route/hooks/useHTMLOverscrollBehavior";
 import { useRouter } from "../../../impower-router";
 import { UserContext, userOnDeleteSubmission } from "../../../impower-user";
-import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import {
@@ -257,7 +256,6 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
 
   const { portrait } = useContext(WindowTransitionContext);
   const [state, dispatch] = useContext(ProjectEngineContext);
-  const gameInspector = useContext(GameInspectorContext)?.gameInspector;
 
   const theme = useTheme();
 
@@ -371,11 +369,11 @@ const DetailPanel = React.memo((props: DetailPanelProps): JSX.Element => {
       const config =
         data?.instances?.configs?.data[inspectedTargetId as ConfigTypeId];
       if (config) {
-        return gameInspector.getInspector(config.reference).getName(config);
+        return getLabel(inspectedTargetId);
       }
     }
     return getLabel(inspectedTargetId);
-  }, [data, gameInspector, inspectedTargetId, section]);
+  }, [data, inspectedTargetId, section]);
 
   return (
     <>

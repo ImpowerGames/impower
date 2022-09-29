@@ -1,23 +1,19 @@
-import setValue from "../../../impower-core/utils/setValue";
-import { MemberAccess } from "../../../impower-data-state";
-import { ProjectDocument } from "../../../impower-data-store";
 import {
   FilesCollection,
   GameInstancesCollection,
-  GameProjectData,
   InstanceData,
-  MembersCollection,
   Reference,
   ScriptsCollection,
-} from "../../../impower-game/data";
-import {
-  getData,
-  ImpowerGameInspector,
-  insertGameProjectData,
-  removeGameProjectData,
-} from "../../../impower-game/inspector";
+} from "../../../../../spark-engine";
+import setValue from "../../../impower-core/utils/setValue";
+import { MemberAccess } from "../../../impower-data-state";
+import { ProjectDocument } from "../../../impower-data-store";
 import { ProjectEngineSync } from "../../../impower-project-engine-sync";
 import { createProjectState } from "../../utils/createProjectState";
+import { getData } from "../../utils/getData";
+import { insertGameProjectData } from "../../utils/insertGameProjectData";
+import { removeGameProjectData } from "../../utils/removeGameProjectData";
+import { validateData } from "../../utils/validateData";
 import {
   ProjectAction,
   PROJECT_ACCESS,
@@ -33,6 +29,7 @@ import {
   PROJECT_REMOVE_DATA,
   PROJECT_UPDATE_DATA,
 } from "../actions/projectActions";
+import { MembersCollection } from "../state/collaborativeGameProjectData";
 import { ProjectState } from "../state/projectState";
 
 const doProjectAccess = (
@@ -56,25 +53,17 @@ const doProjectInsertData = (
     skipSync?: boolean;
   }
 ): ProjectState => {
-  const { newData, index, skipSync } = payload;
+  const { newData, skipSync } = payload;
 
   const firstData = newData[0];
   if (!firstData) {
     return state;
   }
-  const validateData = (
-    project: GameProjectData,
-    newData: InstanceData[]
-  ): {
-    updated: { [refId: string]: InstanceData };
-    original: { [refId: string]: InstanceData };
-  } => ImpowerGameInspector.instance.validateData(project, newData);
 
   const { newProject } = insertGameProjectData(
     state.data,
     newData,
-    validateData,
-    index
+    validateData
   );
 
   if (!skipSync) {

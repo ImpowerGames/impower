@@ -1,5 +1,6 @@
 import React from "react";
-import { DeviceContext, useDeviceContextState } from "../..";
+import { DeviceContext } from "../../contexts/deviceContext";
+import { useDeviceContextState } from "../../hooks/useDeviceContextState";
 
 interface DeviceContextProviderProps {
   children?: React.ReactNode;

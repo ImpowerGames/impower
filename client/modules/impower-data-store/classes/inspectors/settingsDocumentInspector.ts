@@ -1,5 +1,5 @@
-import { SettingsDocument } from "../..";
 import { Inspector } from "../../../impower-core";
+import { SettingsDocument } from "../../types/documents/settingsDocument";
 import createSettingsDocument from "../../utils/createSettingsDocument";
 
 export class SettingsDocumentInspector implements Inspector<SettingsDocument> {

@@ -1,8 +1,11 @@
 import dynamic from "next/dynamic";
 import { PropsWithChildren } from "react";
-import { GameProjectData } from "../../impower-game/data";
-import { ImpowerGame, SaveData } from "../../impower-game/game";
-import { ImpowerGameRunner } from "../../impower-game/runner";
+import {
+  GameProjectData,
+  SaveData,
+  SparkGame,
+  SparkGameRunner,
+} from "../../../../spark-engine";
 
 const Game = dynamic(() => import("./Game"), { ssr: false });
 
@@ -12,13 +15,13 @@ interface PlayerProps {
   control: "Play" | "Pause";
   project: GameProjectData;
   debugging?: boolean;
-  game?: ImpowerGame;
-  runner?: ImpowerGameRunner;
+  game?: SparkGame;
+  runner?: SparkGameRunner;
   saveData?: SaveData;
   gameBucketFolderId?: string;
   logoSrc?: string;
   onInitialized: () => void;
-  onCreateGame: (game?: ImpowerGame) => void;
+  onCreateGame: (game?: SparkGame) => void;
 }
 
 export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {

@@ -1,5 +1,5 @@
 import React from "react";
-import { GameEvent } from "../../impower-game/game";
+import { GameEvent } from "../../../../spark-engine";
 
 export interface DataEvents {
   onOpenData: GameEvent<{ id: string }>;

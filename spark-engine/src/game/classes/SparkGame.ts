@@ -1,0 +1,199 @@
+import { Block } from "../interfaces/Block";
+import { GameConfig } from "../interfaces/GameConfig";
+import { SaveData } from "../interfaces/SaveData";
+import { GameEvent } from "./GameEvent";
+import { Manager } from "./Manager";
+import { AssetManager } from "./managers/AssetManager";
+import { AudioManager } from "./managers/AudioManager";
+import { DebugManager } from "./managers/DebugManager";
+import { EntityManager } from "./managers/EntityManager";
+import { InputManager } from "./managers/InputManager";
+import { LogicManager } from "./managers/LogicManager";
+import { PhysicsManager } from "./managers/PhysicsManager";
+import { RandomManager } from "./managers/RandomManager";
+
+export interface GameEvents {
+  onStart: GameEvent;
+  onEnd: GameEvent;
+}
+
+export class SparkGame {
+  private _events: GameEvents;
+
+  public get events(): GameEvents {
+    return this._events;
+  }
+
+  private _debug: DebugManager;
+
+  public get debug(): DebugManager {
+    return this._debug;
+  }
+
+  private _input: InputManager;
+
+  public get input(): InputManager {
+    return this._input;
+  }
+
+  private _physics: PhysicsManager;
+
+  public get physics(): PhysicsManager {
+    return this._physics;
+  }
+
+  private _asset: AssetManager;
+
+  public get asset(): AssetManager {
+    return this._asset;
+  }
+
+  private _audio: AudioManager;
+
+  public get audio(): AudioManager {
+    return this._audio;
+  }
+
+  private _entity: EntityManager;
+
+  public get entity(): EntityManager {
+    return this._entity;
+  }
+
+  private _logic: LogicManager;
+
+  public get logic(): LogicManager {
+    return this._logic;
+  }
+
+  private _random: RandomManager;
+
+  public get random(): RandomManager {
+    return this._random;
+  }
+
+  private _custom: { [key: string]: Manager };
+
+  public get custom(): { [key: string]: Manager } {
+    return this._custom;
+  }
+
+  constructor(
+    blockMap: Record<string, Block>,
+    objectMap: Record<string, Record<string, unknown>>,
+    config?: GameConfig,
+    saveData?: SaveData
+  ) {
+    this._debug = new DebugManager({
+      debugging: config?.debugging,
+      currentLogs: [],
+    });
+    this._input = new InputManager();
+    this._physics = new PhysicsManager();
+    this._asset = new AssetManager(saveData?.asset);
+    this._audio = new AudioManager(saveData?.audio);
+    this._entity = new EntityManager(objectMap, saveData?.entity);
+    const activeParentBlockId = config?.startBlockId || "";
+    const activeCommandIndex = config?.startCommandIndex || 0;
+    this._logic = new LogicManager(
+      blockMap,
+      saveData?.logic || {
+        activeParentBlockId,
+        activeCommandIndex,
+        loadedBlockIds: [],
+        loadedAssetIds: [],
+        blockStates: {},
+        variableStates: {},
+      }
+    );
+    this._random = new RandomManager(
+      saveData?.random || { seed: config?.seed || "" }
+    );
+    this._events = {
+      onStart: new GameEvent(),
+      onEnd: new GameEvent(),
+    };
+    this._custom = {};
+  }
+
+  init(): void {
+    this.debug.init();
+    this.input.init();
+    this.physics.init();
+    this.asset.init();
+    this.audio.init();
+    this.entity.init();
+    this.logic.init();
+    this.random.init();
+    Object.values(this.custom).forEach((manager) => {
+      manager.init();
+    });
+    this.events.onStart.emit();
+  }
+
+  async start(): Promise<void> {
+    const promises = [
+      this.audio.start(),
+      ...Object.values(this.custom).map((manager) => manager.start()),
+    ];
+    await Promise.all(promises);
+  }
+
+  end(): void {
+    this.entity.clearPreviousEntities();
+
+    this.logic.destroy();
+    this.entity.destroy();
+    this.asset.destroy();
+    this.audio.destroy();
+    this.input.destroy();
+    this.physics.destroy();
+    this.debug.destroy();
+    this.random.destroy();
+    Object.values(this.custom).forEach((manager) => {
+      manager.destroy();
+    });
+    this.events.onEnd.emit();
+  }
+
+  getSaveData(): SaveData {
+    const asset = this.asset.getSaveData();
+    const audio = this.audio.getSaveData();
+    const entity = this.entity.getSaveData();
+    const logic = this.logic.getSaveData();
+    const random = this.random.getSaveData();
+    const custom: { [key: string]: unknown } = {};
+    Object.keys(this.custom).forEach((id) => {
+      custom[id] = this.custom[id].getSaveData();
+    });
+    return {
+      asset,
+      audio,
+      entity,
+      logic,
+      random,
+      custom,
+    };
+  }
+
+  getRuntimeValue?(id: string): unknown {
+    const variableState = this.logic.state?.variableStates?.[id];
+    if (variableState) {
+      return variableState.value;
+    }
+    const blockState = this.logic.state?.blockStates?.[id];
+    if (blockState) {
+      return blockState.executionCount;
+    }
+    return undefined;
+  }
+
+  setRuntimeValue?(id: string, value: unknown): void {
+    const variableState = this.logic.state?.variableStates?.[id];
+    if (variableState) {
+      variableState.value = value;
+    } else {
+      this.logic.state.variableStates[id] = { value };
+    }
+  }
+}

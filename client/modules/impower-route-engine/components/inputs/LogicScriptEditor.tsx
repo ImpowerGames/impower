@@ -9,9 +9,17 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { evaluate } from "../../../../../evaluate";
 import {
-  getEntityObjects,
+  CommandData,
+  generateCommand,
+  generateEntityObjects,
+  getScriptAugmentations,
+  getSparkEntity,
+  loadStyles,
+  loadUI,
+} from "../../../../../spark-engine";
+import { evaluate } from "../../../../../spark-evaluate";
+import {
   getGlobalValueContext,
   getScopedValueContext,
   getSectionAtLine,
@@ -20,14 +28,6 @@ import {
   SparkParseResult,
 } from "../../../../../sparkdown";
 import { debounce } from "../../../impower-core";
-import { CommandData } from "../../../impower-game/data";
-import { loadStyles } from "../../../impower-game/dom";
-import { loadUI } from "../../../impower-game/dom/loadUI";
-import {
-  getRuntimeCommand,
-  getRuntimeEntity,
-  getScriptAugmentations,
-} from "../../../impower-game/parser";
 import { FadeAnimation } from "../../../impower-route";
 import {
   colors,
@@ -36,7 +36,7 @@ import {
 } from "../../../impower-script-editor";
 import { SerializableEditorState } from "../../../impower-script-editor/types/editor";
 import { GameContext } from "../../contexts/gameContext";
-import { GameInspectorContext } from "../../contexts/gameInspectorContext";
+import { GameRunnerContext } from "../../contexts/gameRunnerContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import {
@@ -83,7 +83,7 @@ const LogicScriptEditor = React.memo(
     const { toggleFolding, toggleLinting, onSectionChange } = props;
 
     const { transitionState } = useContext(WindowTransitionContext);
-    const { gameInspector } = useContext(GameInspectorContext);
+    const { gameRunner } = useContext(GameRunnerContext);
     const { game } = useContext(GameContext);
     const [state, dispatch] = useContext(ProjectEngineContext);
 
@@ -149,11 +149,11 @@ const LogicScriptEditor = React.memo(
     );
 
     useEffect(() => {
-      const onExecuteCommand = (data: { pos: number; line: number }): void => {
+      const onExecuteCommand = (data: { from: number; line: number }): void => {
         if (data.line >= 0) {
           cursorRef.current = {
-            anchor: data.pos,
-            head: data.pos,
+            anchor: data.from,
+            head: data.from,
             fromLine: data.line,
             toLine: data.line,
           };
@@ -376,7 +376,7 @@ const LogicScriptEditor = React.memo(
             tokenIndex += 1;
             token = result.tokens[tokenIndex];
           }
-          const runtimeEntity = getRuntimeEntity(token, result?.entities);
+          const runtimeEntity = getSparkEntity(token, result?.entities);
           return runtimeEntity;
         }
         return null;
@@ -400,7 +400,7 @@ const LogicScriptEditor = React.memo(
             token = result.tokens[tokenIndex];
           }
           const [sectionId] = getSectionAtLine(line, result);
-          const runtimeCommand = getRuntimeCommand(token, sectionId);
+          const runtimeCommand = generateCommand(token, sectionId);
           return runtimeCommand;
         }
         return null;
@@ -411,7 +411,7 @@ const LogicScriptEditor = React.memo(
     const handlePreviewResult = useCallback(
       (
         result: SparkParseResult,
-        pos: number,
+        from: number,
         line: number,
         instant: boolean,
         debug: boolean
@@ -421,17 +421,15 @@ const LogicScriptEditor = React.memo(
         }
         const runtimeCommand = getPreviewCommand(result, line);
         if (runtimeCommand) {
-          const commandInspector = gameInspector.getInspector(
-            runtimeCommand.reference
-          );
-          if (commandInspector) {
+          const commandRunner = gameRunner.getRunner(runtimeCommand.reference);
+          if (commandRunner) {
             const [sectionId] = getSectionAtLine(line, result);
             const [, valueMap] = getScopedValueContext(
               sectionId,
               result?.sections
             );
-            const objectMap = getEntityObjects(result?.entities);
-            commandInspector.onPreview(runtimeCommand, {
+            const objectMap = generateEntityObjects(result?.entities);
+            commandRunner.onPreview(runtimeCommand, {
               valueMap,
               objectMap,
               instant,
@@ -441,16 +439,16 @@ const LogicScriptEditor = React.memo(
         } else {
           const previewEntity = getPreviewEntity(result, line);
           if (previewEntity?.type === "style") {
-            const objectMap = getEntityObjects(result?.entities);
+            const objectMap = generateEntityObjects(result?.entities);
             loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));
           }
           if (previewEntity?.type === "ui") {
-            const objectMap = getEntityObjects(result?.entities);
+            const objectMap = generateEntityObjects(result?.entities);
             loadUI(objectMap, previewEntity.name);
           }
         }
       },
-      [gameInspector, getPreviewCommand, getPreviewEntity, mode]
+      [gameRunner, getPreviewCommand, getPreviewEntity, mode]
     );
 
     const handleGetRuntimeValue = useCallback((id: string): unknown => {
@@ -518,8 +516,8 @@ const LogicScriptEditor = React.memo(
           prevPreviewCommand.line !== currentPreviewCommand?.line
         ) {
           cursorRef.current = {
-            anchor: prevPreviewCommand.pos,
-            head: prevPreviewCommand.pos,
+            anchor: prevPreviewCommand.from,
+            head: prevPreviewCommand.from,
             fromLine: prevPreviewCommand.line,
             toLine: prevPreviewCommand.line,
           };
@@ -548,8 +546,8 @@ const LogicScriptEditor = React.memo(
           nextPreviewCommand.line !== currentPreviewCommand?.line
         ) {
           cursorRef.current = {
-            anchor: nextPreviewCommand.pos,
-            head: nextPreviewCommand.pos,
+            anchor: nextPreviewCommand.from,
+            head: nextPreviewCommand.from,
             fromLine: nextPreviewCommand.line,
             toLine: nextPreviewCommand.line,
           };

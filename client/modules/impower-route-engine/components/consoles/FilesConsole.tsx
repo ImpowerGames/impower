@@ -9,6 +9,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { FileData } from "../../../../../spark-engine";
 import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left.svg";
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
 import FolderArrowUpRegularIcon from "../../../../resources/icons/regular/folder-arrow-up.svg";
@@ -24,8 +25,6 @@ import format from "../../../impower-config/utils/format";
 import { FileExtension, getFileContentType } from "../../../impower-core";
 import { ProjectDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
-import { FileData } from "../../../impower-game/data";
-import { getProjectColor } from "../../../impower-game/inspector";
 import { FontIcon } from "../../../impower-icon";
 import EditDialog from "../../../impower-route/components/popups/EditDialog";
 import {
@@ -40,6 +39,7 @@ import { ToastContext, toastTop } from "../../../impower-toast";
 import { UserContext } from "../../../impower-user";
 import userQueueFileUpload from "../../../impower-user/utils/userQueueFileUpload";
 import userUpdateFileUploadState from "../../../impower-user/utils/userUpdateFileUploadState";
+import { getProjectColor } from "../../utils/getProjectColor";
 import EditFileForm from "../forms/EditFileForm";
 import EngineConsoleList, { CardDetail } from "../lists/EngineConsoleList";
 

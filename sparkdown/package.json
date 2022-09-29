@@ -1,0 +1,18 @@
+{
+  "name": "sparkdown",
+  "displayName": "Sparkdown",
+  "description": "A simple markup syntax for writing, editing, and sharing games and screenplays in plain, human-readable text.",
+  "publisher": "impowergames",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "tsc"
+  },
+  "engines": {
+    "node": "10"
+  },
+  "main": "out/index.js",
+  "browser": "./out/index.js",
+  "devDependencies": {
+    "typescript": "^4.3.5"
+  }
+}

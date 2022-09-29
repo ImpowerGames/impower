@@ -1,7 +1,7 @@
 import React from "react";
-import { ImpowerGame } from "../../impower-game/game";
+import { SparkGame } from "../../../../spark-engine";
 
 export const GameContext = React.createContext<{
-  game?: ImpowerGame;
-  onCreateGame: (game?: ImpowerGame) => void;
+  game?: SparkGame;
+  onCreateGame: (game?: SparkGame) => void;
 }>(undefined);

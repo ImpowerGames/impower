@@ -1,3 +1,10 @@
+import {
+  FilesCollection,
+  GameInstancesCollection,
+  GameProjectData,
+  InstanceData,
+  ScriptsCollection,
+} from "../../../../../spark-engine";
 import { ProjectDocumentPath } from "../../../impower-api";
 import { Event, RecursivePartial } from "../../../impower-core";
 import {
@@ -7,14 +14,9 @@ import {
 } from "../../../impower-data-state";
 import { ProjectDocument } from "../../../impower-data-store";
 import {
-  FilesCollection,
-  GameInstancesCollection,
-  GameProjectData,
-  InstanceData,
+  CollaborativeGameProjectData,
   MembersCollection,
-  ProjectData,
-  ScriptsCollection,
-} from "../../../impower-game/data";
+} from "../../../impower-route-engine/types/state/collaborativeGameProjectData";
 
 export class ProjectEngineSync {
   private static _instance: ProjectEngineSync;
@@ -62,7 +64,7 @@ export class ProjectEngineSync {
     const filesSnap = await new DataStateRead(...path, "files").get();
     const scriptsSnap = await new DataStateRead(...path, "scripts").get();
     const instancesSnap = await new DataStateRead(...path, "instances").get();
-    const projectData: ProjectData = {
+    const projectData: CollaborativeGameProjectData = {
       doc: docSnap.val(),
       members: membersSnap.val(),
       files: filesSnap.val(),

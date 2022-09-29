@@ -1,16 +1,6 @@
 import FilledInput from "@material-ui/core/FilledInput";
-import React, {
-  PropsWithChildren,
-  useCallback,
-  useContext,
-  useMemo,
-} from "react";
-import { getValue, validatePropertyPath } from "../../../impower-core";
-import {
-  InstanceData,
-  isInstanceData,
-  Reference,
-} from "../../../impower-game/data";
+import React, { PropsWithChildren, useCallback, useMemo } from "react";
+import { InstanceData, Reference } from "../../../../../spark-engine";
 import InspectorForm, {
   InspectorFormProps,
 } from "../../../impower-route/components/forms/InspectorForm";
@@ -21,7 +11,6 @@ import FileInput from "../../../impower-route/components/inputs/FileInput";
 import NumberInput from "../../../impower-route/components/inputs/NumberInput";
 import ObjectField from "../../../impower-route/components/inputs/ObjectField";
 import StringInput from "../../../impower-route/components/inputs/StringInput";
-import { GameInspectorContext } from "../../contexts/gameInspectorContext";
 
 interface InstanceInspectorFormProps
   extends Omit<
@@ -64,24 +53,6 @@ const InstanceInspectorForm = React.memo(
       children,
     } = props;
 
-    const { gameInspector } = useContext(GameInspectorContext);
-
-    const handleGetFormattedSummary = useCallback(
-      (summary: string, data: InstanceData) => {
-        return gameInspector.getFormattedSummary(summary, data);
-      },
-      [gameInspector]
-    );
-    const handleGetInspector = useCallback(
-      (data: InstanceData) => {
-        if (isInstanceData(data)) {
-          return gameInspector.getInspector(data.reference);
-        }
-        return undefined;
-      },
-      [gameInspector]
-    );
-
     const serializedReferences = useMemo(
       () => JSON.stringify(data.map((d) => d.reference)),
       [data]
@@ -116,49 +87,19 @@ const InstanceInspectorForm = React.memo(
       [data]
     );
 
-    const handleSetValueId = useCallback((value: unknown, id: string) => {
-      if (isInstanceData(value)) {
+    const handleSetValueId = useCallback(
+      (value: { reference: Record<string, unknown> }, id: string) => {
         return { ...value, reference: { ...value.reference, refId: id } };
-      }
-      return undefined;
-    }, []);
-
-    const handleClickMenuItem = useCallback(
-      (
-        e: React.MouseEvent,
-        type: string,
-        propertyPath: string,
-        data: InstanceData
-      ) => {
-        const inspector = handleGetInspector(data);
-
-        const defaultData = validatePropertyPath(
-          propertyPath,
-          inspector.createData({ reference: data.reference })
-        );
-        const propertyDefaultValue = getValue(defaultData, propertyPath);
-
-        switch (type) {
-          case "Reset": {
-            handleDebouncedPropertyChange(propertyPath, propertyDefaultValue);
-            break;
-          }
-          default:
-            break;
-        }
       },
-      [handleDebouncedPropertyChange, handleGetInspector]
+      []
     );
 
     return (
       <InspectorForm
         {...props}
         data={data}
-        getInspector={handleGetInspector}
-        getFormattedSummary={handleGetFormattedSummary}
         getPropertyDocPaths={handleGetPropertyDocPaths}
         setValueId={handleSetValueId}
-        onClickMenuItem={handleClickMenuItem}
         onPropertyInputChange={handlePropertyInputChange}
         onPropertyChange={handlePropertyChange}
         onDebouncedPropertyChange={handleDebouncedPropertyChange}

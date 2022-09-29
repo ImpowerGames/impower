@@ -1,0 +1,26 @@
+import { SparkAsset, SparkParseResult } from "../../../../sparkdown";
+import { FileData } from "../../data";
+
+export const getScriptAugmentations = (
+  files: Record<string, FileData>
+): Partial<SparkParseResult> => {
+  const assets: Record<string, SparkAsset> = {};
+  Object.entries(files || {}).forEach(([, { name, fileType, fileUrl }]) => {
+    const type = fileType?.startsWith("audio")
+      ? "audio"
+      : fileType?.startsWith("video")
+      ? "video"
+      : fileType?.startsWith("text")
+      ? "text"
+      : "image";
+    assets[`.${name}`] = {
+      name: name || "",
+      type,
+      value: fileUrl || "",
+      from: -1,
+      to: -1,
+      line: -1,
+    };
+  });
+  return { assets };
+};

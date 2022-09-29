@@ -1,7 +1,7 @@
 import React from "react";
-import { ImpowerGameRunner } from "../../impower-game/runner";
+import { SparkGameRunner } from "../../../../spark-engine";
 
 export const GameRunnerContext = React.createContext<{
-  gameRunner: ImpowerGameRunner;
-  onCreateRunner: (runner: ImpowerGameRunner) => void;
+  gameRunner: SparkGameRunner;
+  onCreateRunner: (runner: SparkGameRunner) => void;
 }>(undefined);

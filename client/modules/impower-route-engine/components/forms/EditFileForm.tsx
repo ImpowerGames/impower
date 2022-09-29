@@ -6,13 +6,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { FileData } from "../../../impower-game/data";
-import {
-  AudioFileInspector,
-  ImageFileInspector,
-  TextFileInspector,
-  VideoFileInspector,
-} from "../../../impower-game/inspector";
+import { FileData } from "../../../../../spark-engine";
 import InspectorForm from "../../../impower-route/components/forms/InspectorForm";
 import BooleanInput from "../../../impower-route/components/inputs/BooleanInput";
 import ColorInput from "../../../impower-route/components/inputs/ColorInput";
@@ -49,21 +43,6 @@ const EditFileForm = React.memo(
 
     const data = useMemo(() => [doc], [doc]);
 
-    const handleGetDocumentInspector = useCallback((data: FileData) => {
-      if (data.fileType?.startsWith("image")) {
-        return ImageFileInspector.instance;
-      }
-      if (data.fileType?.startsWith("audio")) {
-        return AudioFileInspector.instance;
-      }
-      if (data.fileType?.startsWith("video")) {
-        return VideoFileInspector.instance;
-      }
-      if (data.fileType?.startsWith("text")) {
-        return TextFileInspector.instance;
-      }
-      return ImageFileInspector.instance;
-    }, []);
     const handleExpandProperty = useCallback(
       (propertyPath, expanded): void => {
         if (expanded && !expandedProperties.includes(propertyPath)) {
@@ -103,7 +82,6 @@ const EditFileForm = React.memo(
       >
         <StyledEditFileForm>
           <InspectorForm
-            getInspector={handleGetDocumentInspector}
             data={data}
             variant="filled"
             InputComponent={FilledInput}

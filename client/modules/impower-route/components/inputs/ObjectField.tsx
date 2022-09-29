@@ -5,9 +5,7 @@ import { Typography } from "@material-ui/core";
 import React, { useCallback } from "react";
 import {
   getValue,
-  isActivable,
   isList,
-  isOptional,
   orderBy,
   removeDuplicates,
 } from "../../../impower-core";
@@ -265,7 +263,7 @@ const ObjectField = React.memo(
       );
     }
 
-    if (isActivable(propertyValue)) {
+    if ("active" in (propertyValue as Record<string, unknown>)) {
       const activeProperty = "active";
       const activeConstantValue = getValue<boolean>(
         propertyValue,
@@ -334,7 +332,7 @@ const ObjectField = React.memo(
       );
     }
 
-    if (isOptional(propertyValue)) {
+    if ("useDefault" in (propertyValue as Record<string, unknown>)) {
       const useDefaultProperty = "useDefault";
       const useDefaultConstantValue = getValue<boolean>(
         propertyValue,

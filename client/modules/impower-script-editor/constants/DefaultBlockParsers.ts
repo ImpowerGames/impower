@@ -1,6 +1,6 @@
 /* eslint-disable no-cond-assign */
 import { Tree } from "@lezer/common";
-import { tokenize } from "../../../../evaluate";
+import { tokenize } from "../../../../spark-evaluate";
 import { entityMethods, MethodType, sparkRegexes } from "../../../../sparkdown";
 import { BlockContext } from "../classes/BlockContext";
 import { Buffer } from "../classes/Buffer";

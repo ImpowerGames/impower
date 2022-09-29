@@ -1,13 +1,13 @@
 import Phaser from "phaser";
-import { Color, getColorRgbString, hexToHsla } from "../../../impower-core";
 import {
   CenterType,
   GameProjectData,
   ScaleModeType,
-} from "../../../impower-game/data";
-import { ImpowerGame } from "../../../impower-game/game";
-import { ImpowerContext } from "../../../impower-game/project";
-import { ImpowerGameRunner } from "../../../impower-game/runner";
+  SparkContext,
+  SparkGame,
+  SparkGameRunner,
+} from "../../../../../spark-engine";
+import { Color, getColorRgbString, hexToHsla } from "../../../impower-core";
 import { ASSET_SCENE_KEY, PhaserAssetScene } from "./scenes/phaserAssetScene";
 import { LOGIC_SCENE_KEY, PhaserLogicScene } from "./scenes/phaserLogicScene";
 import { MAIN_SCENE_KEY, PhaserMainScene } from "./scenes/phaserMainScene";
@@ -33,16 +33,10 @@ export class PhaserGame extends Phaser.Game {
     return this._projectId;
   }
 
-  private _impowerGame: ImpowerGame | undefined;
+  private _sparkContext: SparkContext | undefined;
 
-  public get impowerGame(): ImpowerGame | undefined {
-    return this._impowerGame;
-  }
-
-  private _impowerContext: ImpowerContext | undefined;
-
-  public get impowerContext(): ImpowerContext | undefined {
-    return this._impowerContext;
+  public get sparkContext(): SparkContext | undefined {
+    return this._sparkContext;
   }
 
   private _mainScene: PhaserMainScene;
@@ -83,13 +77,13 @@ export class PhaserGame extends Phaser.Game {
 
   static getPhaserScaleModeType(mode: ScaleModeType): number {
     switch (mode) {
-      case ScaleModeType.Envelop:
+      case "Envelop":
         return Phaser.Scale.ENVELOP;
-      case ScaleModeType.Fit:
+      case "Fit":
         return Phaser.Scale.FIT;
-      case ScaleModeType.HeightControlsWidth:
+      case "HeightControlsWidth":
         return Phaser.Scale.HEIGHT_CONTROLS_WIDTH;
-      case ScaleModeType.WidthControlsHeight:
+      case "WidthControlsHeight":
         return Phaser.Scale.WIDTH_CONTROLS_HEIGHT;
       default:
         return Phaser.Scale.NONE;
@@ -98,11 +92,11 @@ export class PhaserGame extends Phaser.Game {
 
   static getPhaserCenterType(autoCenter: CenterType): number {
     switch (autoCenter) {
-      case CenterType.CenterBoth:
+      case "CenterBoth":
         return Phaser.Scale.CENTER_BOTH;
-      case CenterType.CenterHorizontally:
+      case "CenterHorizontally":
         return Phaser.Scale.CENTER_HORIZONTALLY;
-      case CenterType.CenterVertically:
+      case "CenterVertically":
         return Phaser.Scale.CENTER_VERTICALLY;
       default:
         return Phaser.Scale.NO_CENTER;
@@ -138,12 +132,12 @@ export class PhaserGame extends Phaser.Game {
   constructor(
     project: GameProjectData,
     projectId: string,
-    impowerGame?: ImpowerGame,
-    impowerRunner?: ImpowerGameRunner,
+    sparkGame?: SparkGame,
+    sparkRunner?: SparkGameRunner,
     control?: "Play" | "Pause",
     logoUrl?: string
   ) {
-    const active = impowerGame !== undefined;
+    const active = sparkGame !== undefined;
     const mainScene = new PhaserMainScene({
       key: MAIN_SCENE_KEY,
       active,
@@ -157,10 +151,8 @@ export class PhaserGame extends Phaser.Game {
       },
       logoUrl
     );
-    const impowerContext = impowerRunner
-      ? new ImpowerContext(project, impowerRunner)
-      : undefined;
-    Object.values(impowerRunner.commandRunners || {}).forEach((r) => {
+    const context = new SparkContext(sparkGame, sparkRunner);
+    Object.values(sparkRunner.commandRunners || {}).forEach((r) => {
       r.init();
     });
 
@@ -170,8 +162,7 @@ export class PhaserGame extends Phaser.Game {
         active,
         visible: true,
       },
-      impowerGame,
-      impowerContext
+      context
     );
 
     const assetScene = new PhaserAssetScene(
@@ -181,26 +172,23 @@ export class PhaserGame extends Phaser.Game {
         visible: true,
       },
       projectId,
-      impowerGame,
-      impowerContext,
+      context,
       preloadingScene.EarlyImageFileRequests,
       preloadingScene.EarlyMoveImageFileRequests,
       preloadingScene.EarlyRotateImageFileRequests,
       preloadingScene.EarlyScaleImageFileRequests,
       preloadingScene.EarlyAudioFileRequests
     );
-    const blockScene =
-      impowerGame && impowerContext
-        ? new PhaserLogicScene(
-            {
-              key: LOGIC_SCENE_KEY,
-              active,
-              visible: false,
-            },
-            impowerGame,
-            impowerContext
-          )
-        : undefined;
+    const blockScene = sparkGame
+      ? new PhaserLogicScene(
+          {
+            key: LOGIC_SCENE_KEY,
+            active,
+            visible: false,
+          },
+          context
+        )
+      : undefined;
 
     const initialScenes: Phaser.Scene[] = [
       mainScene,
@@ -227,14 +215,13 @@ export class PhaserGame extends Phaser.Game {
     this._assetScene = assetScene;
     this.canvas.id = "game-canvas";
     this._project = project;
-    this._impowerGame = impowerGame;
-    this._impowerContext = impowerContext;
-    if (this.impowerGame) {
-      this.impowerGame.init();
+    this._sparkContext = context;
+    if (this.sparkContext) {
+      this.sparkContext.init();
     }
     const onStart = async (): Promise<void> => {
-      if (this.impowerGame) {
-        await this.impowerGame.start();
+      if (this.sparkContext) {
+        await this.sparkContext.start();
       }
       if (control) {
         this.controlScenes(control);
@@ -244,8 +231,8 @@ export class PhaserGame extends Phaser.Game {
   }
 
   destroy(removeCanvas: boolean, noReturn?: boolean): void {
-    if (this.impowerGame) {
-      this.impowerGame.end();
+    if (this.sparkContext) {
+      this.sparkContext.end();
     }
     super.destroy(removeCanvas, noReturn);
   }

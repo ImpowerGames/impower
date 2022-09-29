@@ -1,7 +1,4 @@
-import { FileContentType } from "./fileContentType";
-
 export type FileType =
-  | FileContentType
   | "application/*"
   | "audio/*"
   | "image/*"

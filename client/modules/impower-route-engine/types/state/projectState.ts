@@ -1,8 +1,8 @@
 import { MemberAccess } from "../../../impower-data-state";
-import { GameProjectData } from "../../../impower-game/data";
+import { CollaborativeGameProjectData } from "./collaborativeGameProjectData";
 
 export interface ProjectState {
   id?: string;
-  data?: GameProjectData;
+  data?: CollaborativeGameProjectData;
   access?: MemberAccess;
 }

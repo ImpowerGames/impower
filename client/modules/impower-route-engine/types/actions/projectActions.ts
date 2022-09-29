@@ -1,13 +1,13 @@
-import { MemberAccess } from "../../../impower-data-state";
-import { ProjectDocument } from "../../../impower-data-store";
 import {
   FilesCollection,
   GameInstancesCollection,
   InstanceData,
-  MembersCollection,
   Reference,
   ScriptsCollection,
-} from "../../../impower-game/data";
+} from "../../../../../spark-engine";
+import { MemberAccess } from "../../../impower-data-state";
+import { ProjectDocument } from "../../../impower-data-store";
+import { MembersCollection } from "../state/collaborativeGameProjectData";
 
 export const PROJECT_ACCESS = "PROJECT_ACCESS";
 export interface ProjectAccessAction {

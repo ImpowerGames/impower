@@ -8,7 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useBodyPaddingCallback } from "../..";
+import { useBodyPaddingCallback } from "../../hooks/useBodyPaddingCallback";
 import CornerButton from "./CornerButton";
 import StyledButtonChildrenArea from "./StyledButtonChildrenArea";
 

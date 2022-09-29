@@ -9,18 +9,16 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { debounce } from "../../impower-core";
-import { useAllDocs } from "../../impower-data-state";
-import { ProjectDocument } from "../../impower-data-store";
 import {
   FilesCollection,
   GameInstancesCollection,
-  MembersCollection,
   ScriptsCollection,
-} from "../../impower-game/data";
-import { ImpowerGame } from "../../impower-game/game";
-import { ImpowerGameInspector } from "../../impower-game/inspector";
-import { ImpowerGameRunner } from "../../impower-game/runner";
+  SparkGame,
+  SparkGameRunner,
+} from "../../../../spark-engine";
+import { debounce } from "../../impower-core";
+import { useAllDocs } from "../../impower-data-state";
+import { ProjectDocument } from "../../impower-data-store";
 import {
   NavigationContext,
   navigationSetLinks,
@@ -37,7 +35,6 @@ import { useRouter } from "../../impower-router";
 import { UserContext } from "../../impower-user";
 import { createDataContextState, DataContext } from "../contexts/dataContext";
 import { GameContext } from "../contexts/gameContext";
-import { GameInspectorContext } from "../contexts/gameInspectorContext";
 import { GameRunnerContext } from "../contexts/gameRunnerContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 import { ProjectEngineAction } from "../contexts/projectEngineContextState";
@@ -52,6 +49,7 @@ import {
 } from "../types/actions/projectActions";
 import { testModeChange } from "../types/actions/testActions";
 import { projectEngineReducer } from "../types/reducers/projectEngineReducer";
+import { MembersCollection } from "../types/state/collaborativeGameProjectData";
 import { ProjectEngineState } from "../types/state/projectEngineState";
 import { createProjectEngineState } from "../utils/createProjectEngineState";
 
@@ -283,15 +281,12 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     );
   }, [navigationDispatch, loadedProjectId, recentGameDocs, loadedStudioId]);
 
-  const [game, setGame] = useState<ImpowerGame>();
-  const [gameInspector, setGameInspector] = useState<ImpowerGameInspector>(
-    ImpowerGameInspector.instance
-  );
-  const [gameRunner, setGameRunner] = useState<ImpowerGameRunner>(
-    ImpowerGameRunner.instance
+  const [game, setGame] = useState<SparkGame>();
+  const [gameRunner, setGameRunner] = useState<SparkGameRunner>(
+    new SparkGameRunner()
   );
   const handleCreateGame = useCallback(
-    (g?: ImpowerGame) => {
+    (g?: SparkGame) => {
       if (!g) {
         dispatch(testModeChange("Edit"));
       }
@@ -299,17 +294,9 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     },
     [setGame, dispatch]
   );
-  const handleCreateInspector = useCallback(
-    (i: ImpowerGameInspector) => {
-      ImpowerGameInspector.instance = i;
-      setGameInspector(ImpowerGameInspector.instance);
-    },
-    [setGameInspector]
-  );
   const handleCreateRunner = useCallback(
-    (r: ImpowerGameRunner) => {
-      ImpowerGameRunner.instance = r;
-      setGameRunner(ImpowerGameRunner.instance);
+    (r: SparkGameRunner) => {
+      setGameRunner(r);
     },
     [setGameRunner]
   );
@@ -317,10 +304,6 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const gameContext = useMemo(
     () => ({ game, onCreateGame: handleCreateGame }),
     [game, handleCreateGame]
-  );
-  const inspectorContext = useMemo(
-    () => ({ gameInspector, onCreateInspector: handleCreateInspector }),
-    [gameInspector, handleCreateInspector]
   );
   const runnerContext = useMemo(
     () => ({ gameRunner, onCreateRunner: handleCreateRunner }),
@@ -382,13 +365,11 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     <ProjectEngineSyncContext.Provider value={projectEngineSyncContext}>
       <ProjectEngineContext.Provider value={projectEngineContext}>
         <DataContext.Provider value={dataContext}>
-          <GameInspectorContext.Provider value={inspectorContext}>
-            <GameRunnerContext.Provider value={runnerContext}>
-              <GameContext.Provider value={gameContext}>
-                {children}
-              </GameContext.Provider>
-            </GameRunnerContext.Provider>
-          </GameInspectorContext.Provider>
+          <GameRunnerContext.Provider value={runnerContext}>
+            <GameContext.Provider value={gameContext}>
+              {children}
+            </GameContext.Provider>
+          </GameRunnerContext.Provider>
         </DataContext.Provider>
       </ProjectEngineContext.Provider>
     </ProjectEngineSyncContext.Provider>
