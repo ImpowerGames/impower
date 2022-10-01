@@ -36,7 +36,7 @@ export * from "./src/utils/getSectionAt";
 export * from "./src/utils/getSectionAtLine";
 export * from "./src/utils/getSiblingIds";
 export * from "./src/utils/isMonologue";
-export { parseSpark } from "./src/utils/parseSpark";
+export * from "./src/utils/parseSpark";
 export * from "./src/utils/stripInlineComments";
 export * from "./src/utils/trimCharacterExtension";
 export * from "./src/utils/trimCharacterForceSymbol";

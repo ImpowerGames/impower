@@ -1,5 +1,5 @@
+import { Block } from "../../..";
 import { SparkSection } from "../../../../sparkdown";
-import { Block } from "../../game";
 import { generateCommand } from "./generateCommand";
 
 export const generateSectionBlocks = (

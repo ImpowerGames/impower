@@ -1,0 +1,420 @@
+<html>
+  <head>
+    <style>
+      @font-face {
+        font-family: sparkdown-font;
+        src: url($ROOTDIR$/data/courier-prime.ttf);
+        font-weight: normal;
+      }
+      @font-face {
+        font-family: sparkdown-font;
+        src: url($ROOTDIR$/data/courier-prime-bold.ttf);
+        font-weight: bold;
+      }
+      @font-face {
+        font-family: sparkdown-font;
+        src: url($ROOTDIR$/data/courier-prime-italic.ttf);
+        font-weight: normal;
+        font-style: italic;
+      }
+      @font-face {
+        font-family: sparkdown-font;
+        src: url($ROOTDIR$/data/courier-prime-bold-italic.ttf);
+        font-weight: bold;
+        font-style: italic;
+      }
+
+      #workspace,
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        white-space: pre-wrap;
+        tab-size: 4;
+      }
+
+      body {
+        color: #333;
+        font-size: 14px;
+        margin: 0;
+      }
+
+      .container {
+        margin: 0 auto;
+        position: relative;
+        width: 850px;
+      }
+
+      #workspace {
+        color: #333;
+        display: none;
+        float: left;
+        position: relative;
+        width: 100%;
+      }
+
+      #workspace #script {
+        margin: 0px auto 0;
+        width: 850px;
+      }
+
+      #workspace #script .page {
+        border: 1px solid;
+        border-color: transparent;
+        border-radius: 2px;
+        cursor: text;
+        letter-spacing: 0 !important;
+        font-family: sparkdown-font;
+        line-height: 107.5%;
+        margin-bottom: 25px;
+        position: relative;
+        text-align: left;
+        width: 100%;
+        z-index: 200;
+        box-shadow: 0px 0px 28px 0px rgba(0, 0, 0, 0.25);
+        box-sizing: border-box;
+      }
+      .textured .page {
+        background-image: url($ROOTDIR$/data/noisetexture.png);
+      }
+      .vscode_theme .page {
+        background-color: var(--vscode-editor-background);
+        color: var(--vscode-editor-foreground);
+      }
+
+      .paper_theme .page {
+        background-color: rgb(235, 234, 232);
+        color: black;
+      }
+
+      #workspace #script.dpi72 .page {
+        font-size: 12px;
+        padding: 72px 72px 72px 108px;
+      }
+
+      #workspace #script.dpi100 .page {
+        font-size: 16px;
+
+        /*
+            padding: 100px 100px 100px 150px;
+            page-break-after: 100px 12px;*/
+      }
+      #workspace #script.dpi100 .innerpage {
+        max-width: 577px;
+        margin-top: 100px;
+        margin-bottom: 100px;
+        margin-left: auto;
+        margin-right: auto;
+        padding-left: 42px;
+        padding-right: 42px;
+      }
+
+      #workspace #script.dpi150 .page {
+        font-size: 33px;
+        padding: 150px 150px 150px 225px;
+      }
+
+      #workspace #script.dpi72 .page h1,
+      #workspace #script.dpi72 .page h2,
+      #workspace #script.dpi72 .page h3,
+      #workspace #script.dpi72 .page h4,
+      #workspace #script.dpi72 .page p {
+        font-size: 12px;
+        font-weight: 400;
+      }
+
+      #workspace #script.dpi100 .page h1,
+      #workspace #script.dpi100 .page h2,
+      #workspace #script.dpi100 .page h3,
+      #workspace #script.dpi100 .page h4,
+      #workspace #script.dpi100 .page p {
+        font-size: 17px;
+        font-weight: 400;
+      }
+
+      #workspace #script.dpi150 .page h1,
+      #workspace #script.dpi150 .page h2,
+      #workspace #script.dpi150 .page h3,
+      #workspace #script.dpi150 .page h4,
+      #workspace #script.dpi150 .page p {
+        font-size: 33px;
+        font-weight: 400;
+      }
+
+      #workspace #script.us-letter.dpi72 {
+        width: 612px;
+      }
+
+      /*#workspace #script.us-letter.dpi100 {
+           /* width: 850px
+        }*/
+
+      #workspace #script.us-letter.dpi150 {
+        width: 1275px;
+      }
+
+      #workspace #script.us-letter.dpi72 .page {
+        height: 792px;
+      }
+
+      #workspace #script.us-letter.dpi100 .page {
+        height: 1100px;
+      }
+
+      #workspace #script.us-letter.dpi150 .page {
+        height: 1650px;
+      }
+
+      #workspace #script.us-letter.dpi72 .page.title-page {
+        height: 792px;
+      }
+
+      #workspace #script.us-letter.dpi100 .page.title-page {
+        height: 1100px;
+      }
+
+      #workspace #script.us-letter.dpi150 .page.title-page {
+        height: 1650px;
+      }
+
+      #workspace #script.a4.dpi72 {
+        width: 595px;
+      }
+
+      #workspace #script.a4.dpi100 {
+        width: auto;
+        max-width: 827px;
+      }
+
+      #workspace #script.a4.dpi150 {
+        width: 1250px;
+      }
+
+      #workspace #script.a4.dpi72 .page {
+        height: 842px;
+      }
+
+      #workspace #script.a4.dpi100 .page {
+        height: 1169px;
+      }
+
+      #workspace #script.a4.dpi150 .page {
+        height: 1754px;
+      }
+
+      #workspace #script .page h2 {
+        text-align: right;
+      }
+
+      #workspace #script .page h2.left-aligned {
+        text-align: left;
+      }
+
+      #workspace #script .page h3 {
+        position: relative;
+      }
+
+      div#titlepage {
+        display: grid;
+        height: calc(100% - 200px);
+        width: 100%;
+        grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+        grid-template-rows: 200px 1fr 300px;
+      }
+      .titlepagesection[data-position="tl"] {
+        grid-column-start: 1;
+        grid-column-end: 3;
+      }
+      .titlepagesection[data-position="tc"] {
+        grid-column-start: 3;
+        grid-column-end: 5;
+        text-align: center;
+      }
+      .titlepagesection[data-position="tr"] {
+        grid-column-start: 5;
+        grid-column-end: 7;
+        text-align: right;
+      }
+      .titlepagesection[data-position="cc"] {
+        grid-column-start: 1;
+        grid-column-end: 7;
+        text-align: center;
+        align-self: center;
+      }
+      .titlepagesection[data-position="bl"] {
+        grid-column-start: 1;
+        grid-column-end: 4;
+        align-self: end;
+      }
+      .titlepagesection[data-position="br"] {
+        grid-column-start: 4;
+        grid-column-end: 7;
+        text-align: right;
+        align-self: end;
+      }
+
+      .numberonleft h3:before {
+        opacity: 0.4;
+        content: attr(data-scenenumber);
+        font-weight: 700;
+        left: -45px;
+        position: absolute;
+      }
+
+      .numberonright h3:after {
+        opacity: 0.4;
+        content: attr(data-scenenumber);
+        font-weight: 700;
+        right: -45px;
+        position: absolute;
+      }
+
+      #workspace #script .page div.dialogue {
+        margin-left: auto;
+        margin-right: auto;
+        width: 68%;
+      }
+
+      #workspace #script .page div.dialogue h4 {
+        margin-bottom: 0;
+        margin-left: 23%;
+      }
+
+      #workspace #script .page div.dialogue p.parenthetical {
+        margin-bottom: 0;
+        margin-top: 0;
+        margin-left: 11%;
+      }
+
+      #workspace #script .page div.dialogue p {
+        margin-bottom: 0;
+        margin-top: 0;
+      }
+
+      #workspace #script .page div.dual-dialogue {
+        margin: 2em 0 0.9em 2%;
+        width: 95%;
+      }
+
+      #workspace #script .page div.dual-dialogue div.dialogue {
+        display: inline-block;
+        margin: 0;
+        width: 45%;
+      }
+
+      #workspace #script .page div.dual-dialogue div.dialogue h4 {
+        margin-top: 0;
+      }
+
+      #workspace #script .page div.dual-dialogue div.dialogue.right {
+        float: right;
+      }
+
+      #workspace #script .page span.centered {
+        text-align: center;
+        width: 92.5%;
+        display: block;
+      }
+
+      #workspace #script .page p.section {
+        opacity: 0.2;
+        margin-left: -30px;
+      }
+
+      #workspace #script .page p.synopsis {
+        opacity: 0.4;
+        margin-left: -20px;
+        font-style: italic;
+      }
+
+      #workspace #script .page span.italic {
+        font-style: italic;
+      }
+
+      #workspace #script .page span.bold {
+        font-weight: 700;
+      }
+
+      .page h3 {
+        font-weight: bold;
+      }
+
+      .note {
+        opacity: 0.5;
+        font-style: italic;
+      }
+
+      .underline {
+        text-decoration: underline;
+      }
+
+      #linehighlight_active {
+        width: 100%;
+        position: absolute;
+        background-color: blue;
+        border: 2px solid;
+        border-left: 0;
+        border-right: 0;
+        z-index: -1;
+        margin-top: -3px;
+      }
+      #linehighlight_click {
+        width: 100%;
+        position: absolute;
+        background-color: red;
+        border: 2px solid;
+        border-left: 0;
+        border-right: 0;
+        z-index: -1;
+        margin-top: -3px;
+        opacity: 0;
+      }
+
+      .vscode_theme #linehighlight_active,
+      .vscode_theme #linehighlight_click {
+        background-color: var(
+          --vscode-editor-lineHighlightBackground
+        ) !important;
+        border-color: var(--vscode-editor-lineHighlightBorder);
+      }
+      .vscode_theme *::selection {
+        background-color: var(--vscode-editor-selectionBackground);
+        color: var(--vscode-editor-selectionForeground);
+      }
+      .paper_theme #linehighlight_active,
+      .paper_theme #linehighlight_click {
+        background-color: rgba(0, 0, 0, 0.05) !important;
+        border-color: rgba(0, 0, 0, 0.05) !important;
+      }
+      #screenplay_page {
+        height: auto !important;
+      }
+      .header {
+        position: absolute;
+        top: 48px;
+      }
+      .footer {
+        position: absolute;
+        bottom: 48px;
+      }
+    </style>
+  </head>
+  <body id="sparkdown-js" class="$PAGETHEME$">
+    <section id="workspace" style="display: block">
+      <div id="script" class="a4 dpi100">
+        <div class="page" id="titlepage_container">
+          <div id="titlepage" class="title-page innerpage">Loading...</div>
+        </div>
+        <div id="screenplay_page" class="page">
+          <div id="linehighlight_active"></div>
+          <div id="linehighlight_click"></div>
+          <div id="mainpage" class="$SCRIPTCLASS$">
+            <div id="screenplay_content" class="innerpage"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <script>
+      var exports = {};
+    </script>
+    <script src="$PREVIEWJS$"></script>
+  </body>
+</html>

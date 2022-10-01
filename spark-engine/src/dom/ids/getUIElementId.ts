@@ -1,1 +1,1 @@
-export const getUIElementId = (): string => "Impower-UI";
+export const getUIElementId = (): string => "spark-ui";

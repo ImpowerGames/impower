@@ -2,8 +2,8 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "es2020",
-    "outDir": "out",
     "lib": ["es2020", "dom"],
+    "outDir": "out",
     "sourceMap": true,
     "strict": true,
     "noImplicitReturns": true,

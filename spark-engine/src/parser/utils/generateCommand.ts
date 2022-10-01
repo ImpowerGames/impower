@@ -1,10 +1,4 @@
 import {
-  SparkDialogueToken,
-  SparkDisplayToken,
-  SparkLine,
-  SparkToken,
-} from "../../../../sparkdown";
-import {
   AssignCommandData,
   ChoiceCommandData,
   CommandData,
@@ -16,7 +10,13 @@ import {
   EnterCommandData,
   ReturnCommandData,
   SetOperator,
-} from "../../data";
+} from "../../..";
+import {
+  SparkDialogueToken,
+  SparkDisplayToken,
+  SparkLine,
+  SparkToken,
+} from "../../../../sparkdown";
 
 const getCommandId = (token: SparkLine, sectionId = ""): string => {
   return `${sectionId}.${token.line}_${token.from}-${token.to}_${token.indent}`;

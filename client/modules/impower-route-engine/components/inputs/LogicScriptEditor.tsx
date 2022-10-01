@@ -10,21 +10,14 @@ import React, {
   useState,
 } from "react";
 import {
-  CommandData,
-  generateCommand,
-  generateEntityObjects,
+  getPreviewCommand,
   getScriptAugmentations,
-  getSparkEntity,
-  loadStyles,
-  loadUI,
+  previewLine,
 } from "../../../../../spark-engine";
 import { evaluate } from "../../../../../spark-evaluate";
 import {
   getGlobalValueContext,
-  getScopedValueContext,
-  getSectionAtLine,
   parseSpark,
-  SparkEntity,
   SparkParseResult,
 } from "../../../../../sparkdown";
 import { debounce } from "../../../impower-core";
@@ -361,96 +354,6 @@ const LogicScriptEditor = React.memo(
       [augmentations, onSectionChange]
     );
 
-    const getPreviewEntity = useCallback(
-      (result: SparkParseResult, line: number): SparkEntity => {
-        if (!result) {
-          return undefined;
-        }
-        if (!line) {
-          return undefined;
-        }
-        let tokenIndex = result.tokenLines[line];
-        let token = result.tokens[tokenIndex];
-        if (token) {
-          while (tokenIndex < result.tokens.length && token.skipToNextPreview) {
-            tokenIndex += 1;
-            token = result.tokens[tokenIndex];
-          }
-          const runtimeEntity = getSparkEntity(token, result?.entities);
-          return runtimeEntity;
-        }
-        return null;
-      },
-      []
-    );
-
-    const getPreviewCommand = useCallback(
-      (result: SparkParseResult, line: number): CommandData => {
-        if (!result) {
-          return undefined;
-        }
-        if (!line) {
-          return undefined;
-        }
-        let tokenIndex = result.tokenLines[line];
-        let token = result.tokens[tokenIndex];
-        if (token) {
-          while (tokenIndex < result.tokens.length && token.skipToNextPreview) {
-            tokenIndex += 1;
-            token = result.tokens[tokenIndex];
-          }
-          const [sectionId] = getSectionAtLine(line, result);
-          const runtimeCommand = generateCommand(token, sectionId);
-          return runtimeCommand;
-        }
-        return null;
-      },
-      []
-    );
-
-    const handlePreviewResult = useCallback(
-      (
-        result: SparkParseResult,
-        from: number,
-        line: number,
-        instant: boolean,
-        debug: boolean
-      ) => {
-        if (mode !== "Edit") {
-          return;
-        }
-        const runtimeCommand = getPreviewCommand(result, line);
-        if (runtimeCommand) {
-          const commandRunner = gameRunner.getRunner(runtimeCommand.reference);
-          if (commandRunner) {
-            const [sectionId] = getSectionAtLine(line, result);
-            const [, valueMap] = getScopedValueContext(
-              sectionId,
-              result?.sections
-            );
-            const objectMap = generateEntityObjects(result?.entities);
-            commandRunner.onPreview(runtimeCommand, {
-              valueMap,
-              objectMap,
-              instant,
-              debug,
-            });
-          }
-        } else {
-          const previewEntity = getPreviewEntity(result, line);
-          if (previewEntity?.type === "style") {
-            const objectMap = generateEntityObjects(result?.entities);
-            loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));
-          }
-          if (previewEntity?.type === "ui") {
-            const objectMap = generateEntityObjects(result?.entities);
-            loadUI(objectMap, previewEntity.name);
-          }
-        }
-      },
-      [gameRunner, getPreviewCommand, getPreviewEntity, mode]
-    );
-
     const handleGetRuntimeValue = useCallback((id: string): unknown => {
       if (!gameRef.current) {
         return undefined;
@@ -527,7 +430,7 @@ const LogicScriptEditor = React.memo(
         }
       }
       return true;
-    }, [getPreviewCommand]);
+    }, []);
 
     const handleNavigateDown = useCallback((): boolean => {
       const result = parseResultRef.current;
@@ -557,7 +460,7 @@ const LogicScriptEditor = React.memo(
         }
       }
       return true;
-    }, [getPreviewCommand]);
+    }, []);
 
     useEffect(() => {
       const variableListener = variableValueListenerRef.current;
@@ -575,15 +478,15 @@ const LogicScriptEditor = React.memo(
 
     useEffect(() => {
       if (parseResultState && previewCursor) {
-        handlePreviewResult(
+        previewLine(
+          gameRunner,
           parseResultState,
-          previewCursor.anchor,
           previewCursor.fromLine,
           true,
           debug
         );
       }
-    }, [previewCursor, debug, handlePreviewResult, parseResultState]);
+    }, [previewCursor, debug, parseResultState, gameRunner]);
 
     useEffect(() => {
       if (mode === "Edit") {

@@ -1,0 +1,111 @@
+<html>
+  <head>
+    <style>
+      @font-face {
+        font-family: sparkdown-font;
+        src: url($ROOTDIR$/data/courier-prime-sans.ttf);
+        font-weight: normal;
+      }
+      @font-face {
+        font-family: sparkdown-font;
+        src: url($ROOTDIR$/data/courier-prime-sans-bold.ttf);
+        font-weight: bold;
+      }
+      @font-face {
+        font-family: sparkdown-font;
+        src: url($ROOTDIR$/data/courier-prime-sans-italic.ttf);
+        font-weight: normal;
+        font-style: italic;
+      }
+      @font-face {
+        font-family: sparkdown-font;
+        src: url($ROOTDIR$/data/courier-prime-sans-bold-italic.ttf);
+        font-weight: bold;
+        font-style: italic;
+      }
+
+      html {
+        width: 100%;
+        height: 100%;
+      }
+
+      body {
+        width: 100%;
+        height: 100%;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        white-space: pre-wrap;
+        tab-size: 4;
+        color: #333;
+        font-size: 14px;
+        margin: 0;
+        padding: 0;
+        position: relative;
+        overflow: hidden;
+      }
+
+      #workspace {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        color: #333;
+        display: none;
+        float: left;
+        font-family: sparkdown-font;
+      }
+
+      #game_content {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+
+      #ui {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        pointer-events: none;
+      }
+
+      #ui-overlay {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background-color: #00000000;
+      }
+
+      #spark-elements {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+  </head>
+  <body id="sparkdown-js">
+    <section id="workspace" style="display: block">
+      <div id="game_content">
+        <div id="game"></div>
+        <div id="ui">
+          <div id="ui-overlay">
+            <div id="spark-elements"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <script>
+      var exports = {};
+    </script>
+    <script src="$PREVIEWJS$"></script>
+  </body>
+</html>

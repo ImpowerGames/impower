@@ -8,6 +8,7 @@ import { flowTokenTypes } from "../constants/flowTokenTypes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
 import { reservedKeywords } from "../constants/reservedKeywords";
 import { sparkRegexes } from "../constants/sparkRegexes";
+import { defaultDisplayScript } from "../defaults/defaultDisplayScript";
 import { SparkAsset } from "../types/SparkAsset";
 import { SparkAssetType } from "../types/SparkAssetType";
 import { SparkDeclarations } from "../types/SparkDeclarations";
@@ -24,7 +25,7 @@ import {
   SparkChoiceToken,
   SparkDialogueToken,
   SparkDisplayToken,
-  SparkToken,
+  SparkToken
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
@@ -44,7 +45,7 @@ import { stripInlineComments } from "./stripInlineComments";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
-export const parseSpark = (
+const parseSparkInternal = (
   script: string,
   augmentations?: SparkDeclarations,
   config?: {
@@ -3256,4 +3257,22 @@ export const parseSpark = (
   parsed.parseTime = new Date().getTime();
   // console.log(parsed);
   return parsed;
+};
+
+export const parseSpark = (
+  script: string,
+  augmentations?: SparkDeclarations,
+  config?: {
+    lineOffset?: number;
+    removeBlockComments?: boolean;
+    skipTokens?: SparkTokenType[];
+  }
+): SparkParseResult => {
+  const result = parseSparkInternal(script, augmentations, config);
+  const defaultDisplayResult = parseSparkInternal(defaultDisplayScript);
+  result.entities = {
+    ...(defaultDisplayResult.entities || {}),
+    ...(result.entities || {}),
+  };
+  return result;
 };

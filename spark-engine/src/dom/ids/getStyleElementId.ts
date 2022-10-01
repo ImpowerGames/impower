@@ -1,1 +1,1 @@
-export const getStyleElementId = (): string => "Impower-Style";
+export const getStyleElementId = (): string => "spark-style";

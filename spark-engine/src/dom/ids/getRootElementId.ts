@@ -1,1 +1,1 @@
-export const getRootElementId = (): string => "Impower-Elements";
+export const getRootElementId = (): string => "spark-elements";
