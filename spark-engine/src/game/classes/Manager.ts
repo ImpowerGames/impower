@@ -53,9 +53,11 @@ export abstract class Manager<S = unknown, E = Record<string, GameEvent>> {
   }
 
   destroy(): void {
-    Object.values(this.events as Record<string, GameEvent>).forEach((event) => {
-      event.removeAllListeners();
-    });
+    Object.values(this.events as unknown as Record<string, GameEvent>).forEach(
+      (event) => {
+        event.removeAllListeners();
+      }
+    );
   }
 
   getSaveData(): S {
