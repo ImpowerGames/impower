@@ -149,7 +149,7 @@ const getAnimatedSpanElements = (
     0
   );
   const pauseScale = get(
-    config[type]?.typing?.delay,
+    config[type]?.typing?.pauseScale,
     config?.root?.typing?.pauseScale,
     1
   );
