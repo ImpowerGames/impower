@@ -1,24 +1,17 @@
 import Phaser, { GameObjects } from "phaser";
-import Tone, {
-  DuoSynth,
-  MetalSynth,
-  NoiseSynth,
-  PluckSynth,
-  PolySynth,
-  Sampler,
-} from "tone";
+import * as Tone from "tone";
 import { SparkContext } from "../../../../../../spark-engine";
 import { RecursivePartial } from "../../../../impower-core";
 
 export const LOGIC_SCENE_KEY = "PhaserLogicScene";
 
 export type Instrument =
-  | PolySynth<MetalSynth>
-  | PolySynth
-  | NoiseSynth
-  | PluckSynth
-  | DuoSynth
-  | Sampler;
+  | Tone.PolySynth<Tone.MetalSynth>
+  | Tone.PolySynth
+  | Tone.NoiseSynth
+  | Tone.PluckSynth
+  | Tone.DuoSynth
+  | Tone.Sampler;
 
 export type InstrumentType =
   | "default"
@@ -52,18 +45,21 @@ export class PhaserLogicScene extends Phaser.Scene {
   }
 
   preload(): void {
+    Tone.start();
+    this.sparkContext.game.audio.events.onConfigureInstrument.addListener(
+      (data) => this.configureInstrument(data)
+    );
+    this.sparkContext.game.audio.events.onAttackNote.addListener((data) =>
+      this.attackNote(data)
+    );
+    this.sparkContext.game.audio.events.onReleaseNote.addListener((data) =>
+      this.releaseNote(data)
+    );
+    this.sparkContext.game.audio.events.onPlayNotes.addListener((data) =>
+      this.playNotes(data)
+    );
     this.input.on("pointerdown", (e, g) => this.onPointerDown(e, g));
     this.input.on("pointerup", (e, g) => this.onPointerUp(e, g));
-    this.sparkContext.game.audio.events.onConfigureInstrument.addListener(
-      this.configureInstrument
-    );
-    this.sparkContext.game.audio.events.onAttackNote.addListener(
-      this.attackNote
-    );
-    this.sparkContext.game.audio.events.onReleaseNote.addListener(
-      this.releaseNote
-    );
-    this.sparkContext.game.audio.events.onPlayNotes.addListener(this.playNotes);
   }
 
   onPointerDown(
@@ -94,23 +90,11 @@ export class PhaserLogicScene extends Phaser.Scene {
     });
   }
 
-  create(): void {
-    Tone.start();
-  }
-
   destroy(): void {
-    this.sparkContext.game.audio.events.onConfigureInstrument.removeListener(
-      this.configureInstrument
-    );
-    this.sparkContext.game.audio.events.onAttackNote.removeListener(
-      this.attackNote
-    );
-    this.sparkContext.game.audio.events.onReleaseNote.removeListener(
-      this.releaseNote
-    );
-    this.sparkContext.game.audio.events.onPlayNotes.removeListener(
-      this.playNotes
-    );
+    this.sparkContext.game.audio.events.onConfigureInstrument.removeAllListeners();
+    this.sparkContext.game.audio.events.onAttackNote.removeAllListeners();
+    this.sparkContext.game.audio.events.onReleaseNote.removeAllListeners();
+    this.sparkContext.game.audio.events.onPlayNotes.removeAllListeners();
     Tone.Transport.cancel();
     Tone.Transport.stop();
     window.setTimeout(() => {
