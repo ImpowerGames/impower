@@ -32,7 +32,7 @@ const StaticListInput = (props: StaticListInputProps): JSX.Element => {
     <StyledIndentedArea style={style}>
       {Object.keys(propertyValue.data).map((id, index) => {
         const itemValue = getValue(inspectedData, `${propertyPath}.data.${id}`);
-        const inspector = getInspector(inspectedData);
+        const inspector = getInspector?.(inspectedData);
         const arrayValuePropertyLabel = isNameable(itemValue)
           ? itemValue.name
           : inspector.getPropertyLabel(

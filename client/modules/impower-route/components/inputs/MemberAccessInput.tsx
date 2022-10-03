@@ -91,7 +91,7 @@ const MemberAccessInput = React.memo(
       [onDebouncedChange, memberId]
     );
 
-    const inspector = getInspector();
+    const inspector = getInspector?.();
 
     const label = useMemo(
       () => inspector.getPropertyLabel(accessPropertyPath, memberDoc),

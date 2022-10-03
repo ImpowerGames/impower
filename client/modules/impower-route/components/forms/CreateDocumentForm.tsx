@@ -348,7 +348,7 @@ const CreateDocumentForm = React.memo(
     const currentStepFilledIn = useMemo(() => {
       return currentStep.propertyPaths
         ?.filter((propertyPath) =>
-          getInspector(doc).isPropertyRequired?.(propertyPath, doc)
+          getInspector?.(doc).isPropertyRequired?.(propertyPath, doc)
         )
         .every((propertyPath) => {
           const value = getValue(doc, propertyPath);

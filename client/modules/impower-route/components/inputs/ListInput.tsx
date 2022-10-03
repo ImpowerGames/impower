@@ -335,7 +335,7 @@ const ListInput = (props: ListInputProps): JSX.Element => {
           const dragging = draggingIds.includes(id);
           const itemPath = `${propertyPath}.data.${id}`;
           const itemValue = getValue(inspectedData, itemPath);
-          const inspector = getInspector(inspectedData);
+          const inspector = getInspector?.(inspectedData);
           const arrayValuePropertyLabel =
             isNameable(itemValue) && itemValue.name
               ? itemValue.name

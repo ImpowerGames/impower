@@ -39,7 +39,7 @@ export const PageTagField = (props: PageTagFieldProps): JSX.Element | null => {
   const inspectedData = data?.[0];
 
   const inspector = useMemo(
-    () => getInspector(inspectedData),
+    () => getInspector?.(inspectedData),
     [getInspector, inspectedData]
   );
 

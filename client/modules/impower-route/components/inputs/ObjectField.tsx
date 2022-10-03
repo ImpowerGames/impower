@@ -228,8 +228,8 @@ const ObjectField = React.memo(
     const objectData: Record<string, unknown>[] = data.map((d) =>
       getValue(d, propertyPath)
     ) as Record<string, unknown>[];
-    const inspector = getInspector(data[0]);
-    const objectInspector = getInspector(objectData[0]);
+    const inspector = getInspector?.(data[0]);
+    const objectInspector = getInspector?.(objectData[0]);
     if (objectInspector && inspector !== objectInspector) {
       const objectInspectedData = {
         ...(objectInspector?.createData?.() || {}),
@@ -269,8 +269,8 @@ const ObjectField = React.memo(
         propertyValue,
         activeProperty
       ) as boolean;
-      const inspector = getInspector(inspectedData);
-      const activeLabel = inspector.getPropertyLabel(
+      const inspector = getInspector?.(inspectedData);
+      const activeLabel = inspector?.getPropertyLabel(
         `${propertyPath}.${activeProperty}`,
         inspectedData
       );
