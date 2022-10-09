@@ -59,7 +59,7 @@ export type CommandType =
   | "Z"
   | "z";
 
-export interface Command {
+export interface PathCommand {
   type?: CommandType;
   x?: number;
   y?: number;
@@ -77,7 +77,7 @@ export interface Command {
 /**
  * List of params for each command type in a path `d` attribute
  */
-const typeMap: Record<CommandType, (keyof Command)[]> = {
+const typeMap: Record<CommandType, (keyof PathCommand)[]> = {
   M: ["x", "y"],
   m: ["x", "y"],
   L: ["x", "y"],
@@ -99,6 +99,15 @@ const typeMap: Record<CommandType, (keyof Command)[]> = {
   Z: [],
   z: [],
 };
+
+const conversionMap = {
+  x1: "x",
+  y1: "y",
+  x2: "x",
+  y2: "y",
+};
+
+const readFromBKeys = ["xAxisRotation", "largeArcFlag", "sweepFlag"];
 
 /**
  * de Casteljau's algorithm for drawing and splitting bezier curves.
@@ -154,10 +163,10 @@ const decasteljau = (
  *
  * @param {Number[][]} points Array of [x,y] points: [start, control1, control2, ..., end]
  *   Represents a segment
- * @return {Command} A command object representing the segment.
+ * @return {PathCommand} A command object representing the segment.
  */
-const pointsToCommand = (points): Command => {
-  const command: Command = {};
+const pointsToCommand = (points): PathCommand => {
+  const command: PathCommand = {};
 
   if (points.length === 4) {
     command.x2 = points[2][0];
@@ -241,10 +250,10 @@ const splitCurveAsPoints = (
  * @return {Object[]} An array of commands representing the segments in sequence
  */
 export const splitCurve = (
-  commandStart: Command,
-  commandEnd: Command,
+  commandStart: PathCommand,
+  commandEnd: PathCommand,
   segmentCount: number
-): Command[] => {
+): PathCommand[] => {
   const points = [[commandStart.x, commandStart.y]];
   if (commandEnd.x1 != null) {
     points.push([commandEnd.x1, commandEnd.y1]);
@@ -297,19 +306,13 @@ const commandToString = (command): string => {
  * @param {Object} bCommand Command object from path `d` attribute to match against
  * @return {Object} aCommand converted to type of bCommand
  */
-const convertToSameType = (aCommand: Command, bCommand: Command): Command => {
-  const conversionMap = {
-    x1: "x",
-    y1: "y",
-    x2: "x",
-    y2: "y",
-  };
-
-  const readFromBKeys = ["xAxisRotation", "largeArcFlag", "sweepFlag"];
-
+const convertToSameType = (
+  aCommand: PathCommand,
+  bCommand: PathCommand
+): PathCommand => {
   // convert (but ignore M types)
   if (aCommand.type !== bCommand.type && bCommand.type.toUpperCase() !== "M") {
-    const aConverted: Command = {};
+    const aConverted: PathCommand = {};
     Object.keys(bCommand).forEach((bKey) => {
       const bValue = bCommand[bKey];
       // first read from the A command
@@ -356,11 +359,11 @@ const convertToSameType = (aCommand: Command, bCommand: Command): Command => {
  *   commandEnd. (Can be segmentCount+1 objects if commandStart is type M).
  */
 const splitSegment = (
-  commandStart: Command,
-  commandEnd: Command,
+  commandStart: PathCommand,
+  commandEnd: PathCommand,
   segmentCount: number
-): Command[] => {
-  let segments: Command[] = [];
+): PathCommand[] => {
+  let segments: PathCommand[] = [];
 
   // line, quadratic bezier, or cubic bezier
   if (
@@ -401,10 +404,13 @@ const splitSegment = (
  * @return {Object[]} The extended commandsToExtend array
  */
 const extend = (
-  commandsToExtend: Command[],
-  referenceCommands: Command[],
-  excludeSegment: (startCommand: Command, endCommand: Command) => boolean
-): Command[] => {
+  commandsToExtend: PathCommand[],
+  referenceCommands: PathCommand[],
+  excludeSegment: (
+    startCommand: PathCommand,
+    endCommand: PathCommand
+  ) => boolean
+): PathCommand[] => {
   // compute insertion points:
   // number of segments in the path to extend
   const numSegmentsToExtend = commandsToExtend.length - 1;
@@ -419,7 +425,7 @@ const extend = (
   // should be added in that segment (should always be >= 1 since we need each
   // point itself).
   // 0 = segment 0-1, 1 = segment 1-2, n-1 = last vertex
-  const countPointsPerSegment = arrayOfLength<Command>(
+  const countPointsPerSegment = arrayOfLength<PathCommand>(
     numReferenceSegments
   ).reduce((accum, d, i) => {
     let insertIndex = Math.floor(segmentRatio * i);
@@ -506,7 +512,7 @@ const extend = (
  *
  * @param {String|null} d A path `d` string
  */
-export const pathCommandsFromString = (d): Command[] => {
+export const pathCommandsFromString = (d): PathCommand[] => {
   // split into valid tokens
   const tokens = (d || "").match(commandTokenRegex) || [];
   const commands = [];
@@ -559,13 +565,17 @@ export const pathCommandsFromString = (d): Command[] => {
  * @returns {Function} Interpolation function that maps t ([0, 1]) to an array of path commands.
  */
 export const interpolatePathCommands = (
-  aCommandsInput: Command[],
-  bCommandsInput: Command[],
+  aCommandsInput: PathCommand[],
+  bCommandsInput: PathCommand[],
+  _easing: [number, number, number, number],
   interpolateOptions?: {
-    excludeSegment: (startCommand: Command, endCommand: Command) => boolean;
+    excludeSegment: (
+      startCommand: PathCommand,
+      endCommand: PathCommand
+    ) => boolean;
     snapEndsToInput: boolean;
   }
-): ((t: number) => Command[]) => {
+): ((t: number) => PathCommand[]) => {
   // make a copy so we don't mess with the input arrays
   let aCommands = aCommandsInput == null ? [] : aCommandsInput.slice();
   let bCommands = bCommandsInput == null ? [] : bCommandsInput.slice();
@@ -695,7 +705,10 @@ export const interpolatePath = (
   b: string,
   _easing: [number, number, number, number],
   interpolateOptions?: {
-    excludeSegment: (startCommand: Command, endCommand: Command) => boolean;
+    excludeSegment: (
+      startCommand: PathCommand,
+      endCommand: PathCommand
+    ) => boolean;
     snapEndsToInput: boolean;
   }
 ): ((t: number) => string) => {
@@ -714,10 +727,15 @@ export const interpolatePath = (
     return () => "";
   }
 
-  const commandInterpolator = interpolatePathCommands(aCommands, bCommands, {
-    excludeSegment,
-    snapEndsToInput,
-  });
+  const commandInterpolator = interpolatePathCommands(
+    aCommands,
+    bCommands,
+    _easing,
+    {
+      excludeSegment,
+      snapEndsToInput,
+    }
+  );
 
   return (t) => {
     // at 1 return the final value without the extensions used during interpolation

@@ -57,7 +57,7 @@ export class MainScene extends Scene {
   async init(): Promise<void> {
     const [int_albany] = await Promise.all([
       PIXI.Texture.fromURL(
-        "http://localhost:9199/v0/b/impowergames-dev.appspot.com/o/users%2FV4sRAooDsDCBeCVT1w8Dzv7k17VM%2FbyUSJyNk5ZAqYbiMunNSmY?alt=media&token=1665209364552"
+        this.sparkContext.contexts[""].valueMap.int_albany as string
       ),
     ]);
     this.textures.int_albany = int_albany;
