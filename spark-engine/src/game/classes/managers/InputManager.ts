@@ -15,8 +15,6 @@ export interface InputState {
 export interface InputEvents {
   onPointerDown: GameEvent<{ button: number; targets: string[] }>;
   onPointerUp: GameEvent<{ button: number; targets: string[] }>;
-  onEmptyPhaserClickDown: GameEvent<{ event: unknown }>;
-  onEmptyPhaserClickUp: GameEvent<{ event: unknown }>;
 }
 
 export class InputManager extends Manager<InputState, InputEvents> {
@@ -40,8 +38,6 @@ export class InputManager extends Manager<InputState, InputEvents> {
         targets: string[];
       }>(),
       onPointerUp: new GameEvent<{ button: number; targets: string[] }>(),
-      onEmptyPhaserClickDown: new GameEvent<{ event: unknown }>(),
-      onEmptyPhaserClickUp: new GameEvent<{ event: unknown }>(),
     };
   }
 
@@ -65,13 +61,5 @@ export class InputManager extends Manager<InputState, InputEvents> {
       this.state.pointer.down.splice(index, 1);
     }
     this.events.onPointerUp.emit({ ...data });
-  }
-
-  emptyPhaserClickDown(data: { event: unknown }): void {
-    this.events.onEmptyPhaserClickDown.emit({ ...data });
-  }
-
-  emptyPhaserClickUp(data: { event: unknown }): void {
-    this.events.onEmptyPhaserClickUp.emit({ ...data });
   }
 }

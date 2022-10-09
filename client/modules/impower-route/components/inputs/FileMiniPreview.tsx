@@ -108,7 +108,10 @@ const FileMiniPreview = React.memo(
         : `${theme.palette.secondary.main}80`
       : undefined;
 
-    const placeholder = blurUrl || getPlaceholderUrl(fileUrl);
+    const placeholder =
+      fileType !== "image/svg"
+        ? blurUrl || getPlaceholderUrl(fileUrl)
+        : undefined;
 
     if (!fileUrl) {
       return (

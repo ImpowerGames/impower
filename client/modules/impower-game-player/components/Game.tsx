@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
 } from "react";
-import Measure from "react-measure";
 import {
   GameProjectData,
   generateEntityObjects,
@@ -19,9 +18,10 @@ import {
 } from "../../../../spark-engine";
 import { getSectionAtLine, parseSpark } from "../../../../sparkdown";
 import { ProjectEngineContext } from "../../impower-route-engine/contexts/projectEngineContext";
-import { useGameStyle } from "../hooks/gameHooks";
-import { PhaserGame } from "../types/game/phaserGame";
+import { GameApp } from "../classes/GameApp";
 import UI from "./UI";
+
+const DOM_ID = "game";
 
 const createGame = (
   project: GameProjectData,
@@ -74,7 +74,6 @@ interface GameProps {
   game?: SparkGame;
   runner?: SparkGameRunner;
   saveData?: SaveData;
-  logoSrc?: string;
   onInitialized: () => void;
   onCreateGame: (game?: SparkGame) => void;
 }
@@ -89,65 +88,37 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
     game,
     runner,
     saveData,
-    logoSrc,
     children,
     onInitialized,
     onCreateGame,
   } = props;
 
-  const phaserGameRef = useRef<PhaserGame>();
-  const [phaserGame, setPhaserGame] = useState(phaserGameRef.current);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+  const gameAppRef = useRef<GameApp>();
+  const [gameApp, setGameApp] = useState(gameAppRef.current);
   const gameDivRef = useRef<HTMLDivElement>(null);
 
-  const gameStyle = useGameStyle(phaserGame);
-
   const [state] = useContext(ProjectEngineContext);
-  const projectId = state?.project?.id;
   const activeLine = state?.panel?.panels?.logic?.cursor?.fromLine || 1;
 
   useEffect(() => {
-    if (phaserGameRef.current) {
+    if (gameAppRef.current) {
       if (debugging) {
-        phaserGameRef.current.sparkContext.game.debug.startDebugging();
+        gameAppRef.current.sparkContext.game.debug.startDebugging();
       } else {
-        phaserGameRef.current.sparkContext.game.debug.stopDebugging();
+        gameAppRef.current.sparkContext.game.debug.stopDebugging();
       }
     }
   }, [debugging]);
 
   useEffect(() => {
-    // Destroy game when this component is unmounted or game is changed
-    if (phaserGame) {
-      phaserGame.destroy(true);
+    if (gameApp) {
+      gameApp.destroy(true);
     }
-    const onEnd = (): void => {
-      onCreateGame();
-    };
     if (active) {
-      phaserGameRef.current = new PhaserGame(
-        project,
-        projectId,
-        game,
-        runner,
-        control,
-        logoSrc
-      );
-      setPhaserGame(phaserGameRef.current);
+      gameAppRef.current = new GameApp(DOM_ID, game, runner, control);
+      setGameApp(gameAppRef.current);
       onInitialized();
-      if (game) {
-        game.events.onEnd.addListener(onEnd);
-      }
     }
-    return (): void => {
-      if (game) {
-        game.events.onEnd.removeListener(onEnd);
-      }
-      // Destroy game when this component is unmounted or game is changed
-      if (phaserGame) {
-        phaserGame.destroy(true);
-      }
-    };
   }, [game]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isFirstUILoad = useRef(true);
@@ -172,88 +143,38 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
     } else {
       onCreateGame();
     }
-    if (phaserGame) {
-      if (
-        JSON.stringify(
-          phaserGame?.project?.instances?.configs?.data?.ScaleConfig
-        ) !== JSON.stringify(project?.instances?.configs?.data?.ScaleConfig)
-      ) {
-        phaserGame.destroy(true);
-        phaserGameRef.current = new PhaserGame(
-          project,
-          projectId,
-          game,
-          runner,
-          control,
-          logoSrc
-        );
-        setPhaserGame(phaserGameRef.current);
-        onInitialized();
-      }
-      phaserGame.updateProject(project);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (active) {
-      const g = createGame(project, activeLine, debugging, saveData);
-      onCreateGame(g);
-    } else {
-      onCreateGame();
-    }
-    if (phaserGame) {
-      phaserGame.updateProject(project);
-    }
   }, [saveData, startTime, active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (phaserGame) {
-      phaserGame.controlScenes(control);
+    if (gameApp) {
+      gameApp.controlScenes(control);
     }
   }, [control]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleResize = (): void => {
-    if (phaserGame) {
-      phaserGame.scale.dirty = true;
-    }
-  };
-
   return (
-    <Measure bounds innerRef={wrapperRef} onResize={handleResize}>
-      {({ measureRef }): JSX.Element => (
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            left: 0,
-            ...phaserGame?.getScreenStyle(),
-          }}
-          ref={measureRef}
-        >
-          {phaserGame && (
-            <div
-              id="game-background"
-              style={{ ...gameStyle, ...phaserGame?.getGameStyle() }}
-            />
-          )}
-          <div
-            ref={gameDivRef}
-            id="game"
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-            }}
-          />
-          <UI phaserGame={phaserGame} />
-          {children}
-        </div>
-      )}
-    </Measure>
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+      }}
+    >
+      <div
+        ref={gameDivRef}
+        id={DOM_ID}
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+        }}
+      />
+      <UI />
+      {children}
+    </div>
   );
 };
 

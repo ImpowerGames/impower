@@ -48,7 +48,7 @@ import PeerTransition from "../../../impower-route/components/animations/PeerTra
 import Avatar from "../../../impower-route/components/elements/Avatar";
 import CornerFab from "../../../impower-route/components/fabs/CornerFab";
 import { SearchTextQuery } from "../../../impower-script-editor";
-import { getPlaceholderUrl, UploadTask } from "../../../impower-storage";
+import { UploadTask } from "../../../impower-storage";
 import { UserContext } from "../../../impower-user";
 import EngineToolbar from "../headers/EngineToolbar";
 
@@ -923,6 +923,7 @@ interface EngineConsoleCardItemContentProps {
   loading: boolean;
   cardDetails?: { [key: string]: CardDetail };
   height: number;
+  rowImagePlaceholder?: string;
   rowPath?: string;
   rowNameKey?: string;
   rowImage?: string;
@@ -977,6 +978,7 @@ const EngineConsoleItemCardContent = React.memo(
       height,
       rowPath = "",
       rowNameKey = "",
+      rowImagePlaceholder,
       rowImage = "",
       rowIcon,
       rowColor = "",
@@ -1291,7 +1293,7 @@ const EngineConsoleItemCardContent = React.memo(
                                     width: "100%",
                                     height: "100%",
                                   }}
-                                  getPlaceholderUrl={getPlaceholderUrl}
+                                  placeholder={rowImagePlaceholder}
                                 />
                               </>
                             )}
@@ -1461,6 +1463,7 @@ interface EngineConsoleCardItemCardProps {
   onDrop?: (e: React.DragEvent, path: string) => void;
   isContextAllowed?: (path: string) => boolean;
   getRowImage?: (path: string) => string;
+  getRowImagePlaceholder?: (path: string) => string;
   getRowIcon?: (path: string) => React.ReactNode;
   getRowColor?: (path: string) => string;
   getRowMoreOptions?: (path: string) => string[];
@@ -1499,6 +1502,7 @@ const EngineConsoleItemCard = React.memo(
       onDrop,
       isContextAllowed,
       getRowImage,
+      getRowImagePlaceholder,
       getRowIcon,
       getRowColor,
       getRowMoreOptions,
@@ -1595,6 +1599,7 @@ const EngineConsoleItemCard = React.memo(
         ? getRowColor(path) || "#5f6368"
         : getRowColor(path)
       : "";
+    const rowImagePlaceholder = getRowImagePlaceholder?.(path);
 
     const draggingFile = draggingFilePath && draggingFilePath === path;
 
@@ -1605,6 +1610,7 @@ const EngineConsoleItemCard = React.memo(
         rowPath={path}
         rowNameKey={rowNameKey}
         rowImage={rowImage}
+        rowImagePlaceholder={rowImagePlaceholder}
         rowIcon={rowIcon}
         rowColor={rowColor}
         rowDisplayValues={rowDisplayValues}
@@ -1691,7 +1697,8 @@ interface EngineConsoleListProps {
   buttonStyle?: React.CSSProperties;
   style?: React.CSSProperties;
   getUploadLabel?: (path: string) => string;
-  getRowImage: (path: string) => string;
+  getRowImage?: (path: string) => string;
+  getRowImagePlaceholder?: (path: string) => string;
   getRowIcon: (path: string) => React.ReactNode;
   getRowColor: (path: string) => string;
   getRowMoreOptions?: (path: string) => string[];
@@ -1785,6 +1792,7 @@ export const EngineConsoleList = React.memo(
       style,
       getUploadLabel,
       getRowImage,
+      getRowImagePlaceholder,
       getRowIcon,
       getRowColor,
       getRowMoreOptions,
@@ -2577,6 +2585,7 @@ export const EngineConsoleList = React.memo(
                               onDrop={handleDrop}
                               isContextAllowed={isContextAllowed}
                               getRowImage={getRowImage}
+                              getRowImagePlaceholder={getRowImagePlaceholder}
                               getRowIcon={getRowIcon}
                               getRowColor={getRowColor}
                               getRowMoreOptions={getRowMoreOptions}

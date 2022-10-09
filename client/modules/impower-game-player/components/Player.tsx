@@ -19,7 +19,6 @@ interface PlayerProps {
   runner?: SparkGameRunner;
   saveData?: SaveData;
   gameBucketFolderId?: string;
-  logoSrc?: string;
   onInitialized: () => void;
   onCreateGame: (game?: SparkGame) => void;
 }
@@ -34,7 +33,6 @@ export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {
     game,
     runner,
     saveData,
-    logoSrc,
     children,
     onInitialized,
     onCreateGame,
@@ -50,7 +48,6 @@ export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {
       game={game}
       runner={runner}
       saveData={saveData}
-      logoSrc={logoSrc}
       onInitialized={onInitialized}
       onCreateGame={onCreateGame}
     >

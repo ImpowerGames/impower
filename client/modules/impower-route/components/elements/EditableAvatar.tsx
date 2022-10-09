@@ -350,7 +350,7 @@ const EditableAvatar = (props: EditableAvatarProps): JSX.Element => {
       icon={defaultIcon}
       fontSize={28}
       src={iconUploadTotal ? undefined : iconFileUrl}
-      getPlaceholderUrl={getPlaceholderUrl}
+      placeholder={getPlaceholderUrl}
       style={{
         borderRadius: "inherit",
         width: "100%",

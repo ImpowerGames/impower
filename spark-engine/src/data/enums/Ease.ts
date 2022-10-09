@@ -1,5 +1,3 @@
-// Refer to the other variety of Phaser ease options here:https://rexrainbow.github.io/phaser3-rex-notes/docs/site/ease-function/
-// An example of all of the eases can be found in this Phaser example: https://phaser.io/examples/v3/view/tweens/ease-equations
 export type Ease =
   | "Linear"
   | "Quad.easeIn"

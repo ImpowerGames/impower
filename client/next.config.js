@@ -5,6 +5,7 @@ const withBundleAnalyzer = require("@next/bundle-analyzer")({
 });
 const withPreact = require("next-plugin-preact");
 const withPWA = require("next-pwa");
+const webpack = require("webpack");
 
 module.exports = withBundleAnalyzer(
   withPreact(
@@ -34,6 +35,12 @@ module.exports = withBundleAnalyzer(
         ) {
           config.optimization.splitChunks.cacheGroups.commons.minChunks = 60;
         }
+        config.plugins = [
+          ...(config.plugins || []),
+          new webpack.ProvidePlugin({
+            PIXI: "pixi.js",
+          }),
+        ];
         return config;
       },
       redirects: async () => {

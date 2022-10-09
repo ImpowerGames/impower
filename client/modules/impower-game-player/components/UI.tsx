@@ -1,12 +1,5 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { getRootElementId } from "../../../../spark-engine";
-import { PhaserGame } from "../types/game/phaserGame";
 
 const responsiveBreakpoints: Record<string, number> = {
   xs: 400,
@@ -16,16 +9,10 @@ const responsiveBreakpoints: Record<string, number> = {
   xl: 1920,
 };
 
-interface UIProps {
-  phaserGame: PhaserGame;
-}
-
-const UI = React.memo((props: UIProps): JSX.Element => {
-  const { phaserGame } = props;
-
+const UI = React.memo((): JSX.Element => {
   const [measureEl, setMeasureEl] = useState<HTMLElement>();
 
-  const overlayRef = useRef<HTMLDivElement>();
+  const uiRef = useRef<HTMLElement>();
 
   useEffect(() => {
     if (!measureEl) {
@@ -44,8 +31,8 @@ const UI = React.memo((props: UIProps): JSX.Element => {
           }
         }
         className = className.trim();
-        if (overlayRef.current.className !== className) {
-          overlayRef.current.className = className;
+        if (uiRef.current.className !== className) {
+          uiRef.current.className = className;
         }
       }
     };
@@ -58,42 +45,12 @@ const UI = React.memo((props: UIProps): JSX.Element => {
     };
   }, [measureEl]);
 
-  useEffect(() => {
-    if (phaserGame) {
-      const onResize = (): void => {
-        if (phaserGame.canvas) {
-          if (overlayRef.current) {
-            overlayRef.current.style.width = phaserGame.canvas.style.width;
-            overlayRef.current.style.height = phaserGame.canvas.style.height;
-            overlayRef.current.style.marginLeft =
-              phaserGame.canvas.style.marginLeft;
-            overlayRef.current.style.marginTop =
-              phaserGame.canvas.style.marginTop;
-          }
-        }
-      };
-
-      onResize();
-      phaserGame.scale.addListener("resize", onResize, {
-        passive: true,
-      });
-      return (): void => {
-        phaserGame.scale.removeListener("resize", onResize);
-      };
-    }
-    return undefined;
-  }, [phaserGame]);
-
   const handleRef = useCallback((instance: HTMLElement) => {
+    uiRef.current = instance;
     if (instance) {
       setMeasureEl(instance);
     }
   }, []);
-
-  const overlayStyle: React.CSSProperties = useMemo(
-    () => ({ ...(phaserGame?.getUIStyle() || {}) }),
-    [phaserGame]
-  );
 
   return (
     <>
@@ -109,21 +66,18 @@ const UI = React.memo((props: UIProps): JSX.Element => {
           pointerEvents: "none",
         }}
       >
-        <div ref={overlayRef} id="ui-overlay" style={overlayStyle}>
-          <div
-            id={getRootElementId()}
-            style={{
-              position: "absolute",
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-              display: "flex",
-              flexDirection: "column",
-              backgroundColor: "white",
-            }}
-          />
-        </div>
+        <div
+          id={getRootElementId()}
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        />
       </div>
     </>
   );

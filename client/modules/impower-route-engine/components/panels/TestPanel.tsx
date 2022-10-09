@@ -409,7 +409,6 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
           game={game}
           gameBucketFolderId={state?.project?.id}
           runner={gameRunner}
-          logoSrc="/logo.png"
           onInitialized={handlePlayerInitialized}
           onCreateGame={onCreateGame}
         >

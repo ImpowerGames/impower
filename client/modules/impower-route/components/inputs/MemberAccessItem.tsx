@@ -75,7 +75,7 @@ const MemberAccessItem = React.memo(
               src={backgroundImageSrc}
               icon={icon}
               fontSize={theme.fontSize.smallerIcon}
-              getPlaceholderUrl={getPlaceholderUrl}
+              placeholder={getPlaceholderUrl}
               style={{
                 borderRadius: "inherit",
                 width: "100%",

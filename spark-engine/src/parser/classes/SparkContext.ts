@@ -72,6 +72,9 @@ export class SparkContext {
         ),
       };
     });
+    Object.values(this.runner.commandRunners || {}).forEach((r) => {
+      r.init();
+    });
   }
 
   init() {

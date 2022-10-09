@@ -99,7 +99,7 @@ interface AvatarProps {
   "onPointerDown"?: (e: React.MouseEvent) => void;
   "onMouseDown"?: (e: React.MouseEvent) => void;
   "onTouchStart"?: (e: React.TouchEvent) => void;
-  "getPlaceholderUrl"?: (fileUrl: string) => string;
+  "placeholder"?: string | ((fileUrl: string) => string);
 }
 
 const Avatar = React.memo(
@@ -122,7 +122,7 @@ const Avatar = React.memo(
       onPointerDown,
       onMouseDown,
       onTouchStart,
-      getPlaceholderUrl,
+      placeholder,
       children,
     } = props;
 
@@ -196,7 +196,11 @@ const Avatar = React.memo(
           {src && (
             <LazyImage
               src={src}
-              placeholder={getPlaceholderUrl?.(src)}
+              placeholder={
+                typeof placeholder === "string"
+                  ? placeholder
+                  : placeholder?.(src)
+              }
               aria-label={ariaLabel}
               alt={alt}
               objectFit={objectFit}

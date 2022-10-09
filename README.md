@@ -32,7 +32,7 @@ The frontend and backend communicate through api calls provided by [Firebase](ht
 
 ## Game Architecture
 
-Impower games are built on top of the [Phaser](http://phaser.io) game framework.
+Impower games are built on top of [Pixi.js](https://github.com/pixijs/pixijs).
 
 The user can build their game using Impower Engine's visual drag-and-drop interface, or script it using Spark (aka "Sparkdown"), a simple markup syntax for writing, editing, and sharing games in plain, human-readable text.
 

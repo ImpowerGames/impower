@@ -158,6 +158,9 @@ const FilesConsoleContent = (
   const handleGetRowImage = useCallback(
     (path: string) => {
       const doc = docsByPath?.[path];
+      if (doc?.fileType?.startsWith("image/svg")) {
+        return doc?.fileUrl;
+      }
       if (doc?.fileType?.startsWith("image") && doc?.storageKey) {
         return doc?.thumbUrl || doc?.fileUrl || "";
       }
@@ -165,6 +168,21 @@ const FilesConsoleContent = (
     },
     [docsByPath]
   );
+  const handleGetRowImagePlaceholder = useCallback(
+    (path: string) => {
+      const doc = docsByPath?.[path];
+      if (
+        doc?.fileType?.startsWith("image") &&
+        !doc?.fileType?.startsWith("image/svg") &&
+        doc?.storageKey
+      ) {
+        return doc?.thumbUrl || doc?.blurUrl || doc?.fileUrl;
+      }
+      return "";
+    },
+    [docsByPath]
+  );
+
   const handleGetRowIcon = useCallback(
     (path: string) => {
       const doc = docsByPath?.[path];
@@ -466,6 +484,7 @@ const FilesConsoleContent = (
         rowNameKey="name"
         getUploadLabel={handleGetUploadLabel}
         getRowImage={handleGetRowImage}
+        getRowImagePlaceholder={handleGetRowImagePlaceholder}
         getRowIcon={handleGetRowIcon}
         getRowColor={handleGetRowColor}
         getRowMoreOptions={handleGetRowMoreOptions}

@@ -1,6 +1,6 @@
 export type CenterType =
   /**
-   * The game canvas is not centered within the parent by Phaser.
+   * The game canvas is not centered within the parent.
    * You can still center it yourself via CSS.
    */
   | "NoCenter"
