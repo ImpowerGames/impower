@@ -12,10 +12,12 @@ import AngleDownRegularIcon from "../../../../resources/icons/regular/angle-down
 import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left.svg";
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
 import CheckRegularIcon from "../../../../resources/icons/regular/check.svg";
+import CircleQuestionRegularIcon from "../../../../resources/icons/regular/circle-question.svg";
 import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ellipsis-vertical.svg";
 import FileCircleCheckRegularIcon from "../../../../resources/icons/regular/file-circle-check.svg";
 import FileCircleQuestionRegularIcon from "../../../../resources/icons/regular/file-circle-question.svg";
 import FileCircleXmarkRegularIcon from "../../../../resources/icons/regular/file-circle-xmark.svg";
+import FileExportRegularIcon from "../../../../resources/icons/regular/file-export.svg";
 import { SlideAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
@@ -27,6 +29,7 @@ import {
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import {
+  panelChangeToolbar,
   panelSearchLine,
   panelSearchText,
 } from "../../types/actions/panelActions";
@@ -111,6 +114,7 @@ const ContainerPanelHeader = React.memo(
     const compiling = state?.test?.compiling?.[windowType];
     const diagnostics =
       state?.panel?.panels?.[windowType]?.editorState?.diagnostics;
+    const toolbar = state?.panel?.panels?.[windowType]?.toolbar;
 
     const theme = useTheme();
 
@@ -171,17 +175,17 @@ const ContainerPanelHeader = React.memo(
       [dispatch, windowType]
     );
 
-    // TODO: Allow viewing script as Flowchart
-    // const handleClickHeaderScriptingIcon = useCallback(
-    //   (scripting: boolean) => {
-    //     dispatch(panelSetScripting(windowType, scripting));
-    //   },
-    //   [dispatch, windowType]
-    // );
-
-    const handleMore = useCallback(() => {
-      // TODO: Allow exporting script as pdf or file
-    }, []);
+    const handleClickMoreOption = useCallback(
+      (e: React.MouseEvent<Element, MouseEvent>, option: string) => {
+        if (option === "show_snippet") {
+          dispatch(panelChangeToolbar(windowType, "snippet"));
+        }
+        if (option === "hide_snippet") {
+          dispatch(panelChangeToolbar(windowType));
+        }
+      },
+      [dispatch, windowType]
+    );
 
     const headerType = searchTextQuery
       ? "search_text"
@@ -206,6 +210,36 @@ const ContainerPanelHeader = React.memo(
         ),
       [compiling, hasError]
     );
+    const menuOptions: {
+      key?: string;
+      label: string;
+    }[] = useMemo(
+      () => [
+        toolbar === "snippet"
+          ? {
+              key: "hide_snippet",
+              label: "Hide Snippets",
+              icon: <CircleQuestionRegularIcon />,
+            }
+          : {
+              key: "show_snippet",
+              label: "Show Snippets",
+              icon: <CircleQuestionRegularIcon />,
+            },
+        { label: "---" },
+        {
+          key: "export_game",
+          label: "Export Game",
+          icon: <FileExportRegularIcon />,
+        },
+        {
+          key: "export_screenplay",
+          label: "Export Screenplay",
+          icon: <FileExportRegularIcon />,
+        },
+      ],
+      [toolbar]
+    );
 
     return (
       <PanelHeader
@@ -229,11 +263,12 @@ const ContainerPanelHeader = React.memo(
         }}
         backLabel={`Back`}
         moreLabel={`More Options`}
+        menuOptions={menuOptions}
         searchLabel={searchLabel}
         replaceLabel={`Replace`}
         onSearchText={handleSearchText}
         onSearchLine={handleSearchLine}
-        onMore={handleMore}
+        onClickMoreOption={handleClickMoreOption}
         leftChildren={
           scripting ? (
             <TogglePanelHeaderIconButton
@@ -300,7 +335,7 @@ const LogicPanel = React.memo((): JSX.Element => {
 
   const mode = state?.test?.mode;
   const scripting = state?.panel?.panels?.[windowType]?.scripting;
-  const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
+  const toolbar = state?.panel?.panels?.[windowType]?.toolbar;
   const theme = useTheme();
 
   const [toggleFolding, setToggleFolding] = useState<boolean>();
@@ -317,7 +352,8 @@ const LogicPanel = React.memo((): JSX.Element => {
 
   const useWindowAsScrollContainer = portrait && scripting;
   const showChart = windowType === "logic" && !scripting;
-  const showSnippetToolbar = !portrait && focused && mode === "Edit";
+  const showDesktopSnippetToolbar =
+    !portrait && mode === "Edit" && toolbar === "snippet";
   const defaultTitle = windowType === "logic" ? "Script" : "Declarations";
   const title = headerName || defaultTitle;
 
@@ -379,14 +415,8 @@ const LogicPanel = React.memo((): JSX.Element => {
             onToggleFolding={setToggleFolding}
             onToggleLinting={setToggleLinting}
           />
-        ) : showSnippetToolbar ? (
-          <StyledToolbarArea
-            animate={focused ? 0 : 64}
-            duration={0.1}
-            ease="ease-standard"
-          >
-            <SnippetToolbar />
-          </StyledToolbarArea>
+        ) : showDesktopSnippetToolbar ? (
+          <SnippetToolbar />
         ) : undefined
       }
     >

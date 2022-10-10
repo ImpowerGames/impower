@@ -103,7 +103,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
   const { portrait } = useContext(WindowTransitionContext);
   const windowType = state?.window?.type;
   const mode = state?.test?.mode;
-  const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
+  const toolbar = state?.panel?.panels?.[windowType]?.toolbar;
 
   const theme = useTheme();
 
@@ -159,15 +159,16 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
     [onScrollRef, windowScrolling]
   );
 
-  const showSnippetToolbar = !portrait && focused && mode === "Edit";
+  const showDesktopSnippetToolbar =
+    !portrait && mode === "Edit" && toolbar === "snippet";
 
   const scrollMargins = useMemo(
     () => ({
-      marginBottom: showSnippetToolbar
+      marginBottom: showDesktopSnippetToolbar
         ? `calc(${theme.minHeight.navigationBar} * 2)`
         : theme.minHeight.navigationBar,
     }),
-    [showSnippetToolbar, theme.minHeight.navigationBar]
+    [showDesktopSnippetToolbar, theme.minHeight.navigationBar]
   );
 
   return (

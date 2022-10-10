@@ -277,6 +277,24 @@ export const panelChangeEditorState = (
   };
 };
 
+export const PANEL_CHANGE_TOOLBAR = "PANEL_CHANGE_TOOLBAR";
+export interface PanelChangeToolbarAction {
+  type: typeof PANEL_CHANGE_TOOLBAR;
+  payload: {
+    windowType: WindowType;
+    toolbar?: "snippet";
+  };
+}
+export const panelChangeToolbar = (
+  windowType: WindowType,
+  toolbar?: "snippet"
+): PanelChangeToolbarAction => {
+  return {
+    type: PANEL_CHANGE_TOOLBAR,
+    payload: { windowType, toolbar },
+  };
+};
+
 export const PANEL_SNIPPET_PREVIEW = "PANEL_SNIPPET_PREVIEW";
 export interface PanelSnippetPreviewAction {
   type: typeof PANEL_SNIPPET_PREVIEW;
@@ -442,4 +460,5 @@ export type PanelAction =
   | PanelSubmitAction
   | PanelSaveEditorStateAction
   | PanelChangeEditorStateAction
+  | PanelChangeToolbarAction
   | PanelSnippetPreviewAction;

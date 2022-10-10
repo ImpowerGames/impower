@@ -33,6 +33,7 @@ export interface PanelState {
       section?: SetupSectionType;
       scripting?: boolean;
       cursor?: PanelCursorState;
+      toolbar?: "snippet";
       snippetPreview?: string;
       searchTextQuery?: SearchTextQuery;
       searchLineQuery?: SearchLineQuery;

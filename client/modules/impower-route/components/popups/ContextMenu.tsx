@@ -72,43 +72,44 @@ const ContextMenu = React.memo((props: ContextMenuProps): JSX.Element => {
       open={openState}
       onClose={onClose}
     >
-      {options.map((option) =>
-        (option.key || option.label || "").startsWith("---") ? (
-          <StyledDividerArea key={option.key || option.label}>
-            <Divider />
-          </StyledDividerArea>
-        ) : (
-          <StyledMenuItem
-            key={option.key || option.label || ""}
-            disabled={option.disabled}
-            onClick={async (e): Promise<void> => {
-              e.stopPropagation();
-              if (!option.persistOnClick) {
-                if (onClose) {
-                  onClose(e);
+      {options &&
+        options.map?.((option) =>
+          (option.key || option.label || "").startsWith("---") ? (
+            <StyledDividerArea key={option.key || option.label}>
+              <Divider />
+            </StyledDividerArea>
+          ) : (
+            <StyledMenuItem
+              key={option.key || option.label || ""}
+              disabled={option.disabled}
+              onClick={async (e): Promise<void> => {
+                e.stopPropagation();
+                if (!option.persistOnClick) {
+                  if (onClose) {
+                    onClose(e);
+                  }
                 }
-              }
-              await new Promise((resolve) => {
-                window.setTimeout(resolve, 1);
-              });
-              if (onOption) {
-                onOption(e, option.key || option.label);
-              }
-            }}
-          >
-            <StyledFontIconArea>
-              <FontIcon
-                aria-label={option.label}
-                size={theme.fontSize.optionIcon}
-                color={theme.colors.black50}
-              >
-                {option.icon}
-              </FontIcon>
-            </StyledFontIconArea>
-            {option.label}
-          </StyledMenuItem>
-        )
-      )}
+                await new Promise((resolve) => {
+                  window.setTimeout(resolve, 1);
+                });
+                if (onOption) {
+                  onOption(e, option.key || option.label);
+                }
+              }}
+            >
+              <StyledFontIconArea>
+                <FontIcon
+                  aria-label={option.label}
+                  size={theme.fontSize.optionIcon}
+                  color={theme.colors.black50}
+                >
+                  {option.icon}
+                </FontIcon>
+              </StyledFontIconArea>
+              {option.label}
+            </StyledMenuItem>
+          )
+        )}
     </DrawerMenu>
   );
 });

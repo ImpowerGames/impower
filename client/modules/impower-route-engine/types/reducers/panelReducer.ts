@@ -17,6 +17,7 @@ import {
   PANEL_CHANGE_DETAIL_SECTION,
   PANEL_CHANGE_EDITOR_STATE,
   PANEL_CHANGE_INTERACTION,
+  PANEL_CHANGE_TOOLBAR,
   PANEL_INSPECT,
   PANEL_MULTI_INTERACTION,
   PANEL_OPEN,
@@ -378,6 +379,29 @@ const doChangeEditorState = (
   };
 };
 
+const doChangeToolbar = (
+  state: PanelState,
+  payload: {
+    windowType: WindowType;
+    toolbar?: "snippet";
+  }
+): PanelState => {
+  const { windowType, toolbar } = payload;
+  if (state?.panels?.[windowType]?.toolbar === toolbar) {
+    return state;
+  }
+  return {
+    ...state,
+    panels: {
+      ...state?.panels,
+      [windowType]: {
+        ...(state?.panels?.[windowType] || {}),
+        toolbar,
+      },
+    },
+  };
+};
+
 const doSnippetPreview = (
   state: PanelState,
   payload: {
@@ -588,6 +612,8 @@ export const panelReducer = (
       return doChangeEditorState(state, action.payload);
     case PANEL_SNIPPET_PREVIEW:
       return doSnippetPreview(state, action.payload);
+    case PANEL_CHANGE_TOOLBAR:
+      return doChangeToolbar(state, action.payload);
     case PANEL_CHANGE_DETAIL_SECTION:
       return doChangeSection(state, action.payload);
     case PANEL_SEARCH_TEXT:

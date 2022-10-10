@@ -336,7 +336,7 @@ const Project = React.memo((): JSX.Element => {
   const access = state?.project?.access;
   const mode = state?.test?.mode;
   const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
-  const focused = state?.panel?.panels?.[windowType]?.editorState?.focused;
+  const toolbar = state?.panel?.panels?.[windowType]?.toolbar;
 
   const [windowTransitionState, setWindowTransitionState] =
     useState<TransitionState>(TransitionState.initial);
@@ -449,7 +449,8 @@ const Project = React.memo((): JSX.Element => {
     }
   }, []);
 
-  const showSnippetToolbar = portrait && focused && mode === "Edit";
+  const showMobileSnippetToolbar =
+    portrait && mode === "Edit" && toolbar === "snippet";
 
   return (
     <WindowTransitionContext.Provider value={windowTransitionContext}>
@@ -488,7 +489,7 @@ const Project = React.memo((): JSX.Element => {
               {(!portrait || !searchTextQuery) && (
                 <StyledToolbarArea>
                   <StyledToolbarContent>
-                    {showSnippetToolbar ? (
+                    {showMobileSnippetToolbar ? (
                       <SnippetToolbar />
                     ) : (
                       <>
