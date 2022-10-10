@@ -163,7 +163,7 @@ export class AnimatedSVG extends DisplayObject {
   /**
    * An array of sampled times for this animation
    */
-  protected _frames: number[] = [];
+  protected _frames: number[] = [0];
 
   /**
    * The current frame that is displayed
@@ -803,8 +803,11 @@ export class AnimatedSVG extends DisplayObject {
   }
 
   updateFrame(): number {
-    const maxFPS = this.maxFPS || Ticker.shared.maxFPS || DEFAULT_MAX_FPS;
     const normalizedTime = this._currentTime % this._control.animationDuration;
+    const currentIteration = Math.floor(
+      this._currentTime / this._control.animationDuration
+    );
+    const maxFPS = this.maxFPS || Ticker.shared.maxFPS || DEFAULT_MAX_FPS;
     const sampleRate = 1000 / maxFPS;
     let currentFrameIndex = -1;
     let i = 0;
@@ -831,9 +834,6 @@ export class AnimatedSVG extends DisplayObject {
 
     if (currentFrameIndex !== this._currentFrameIndex) {
       if (currentFrameIndex < this._currentFrameIndex) {
-        const currentIteration = Math.floor(
-          this._currentTime / this._control.animationDuration
-        );
         this.onLoop?.(currentFrameIndex, currentIteration);
       }
       this.onFrameChange?.(currentFrameIndex);
