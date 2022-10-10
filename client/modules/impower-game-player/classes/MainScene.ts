@@ -35,6 +35,48 @@ interface DragObject extends DisplayObject {
   tint?: number;
 }
 
+// === INTERACTION CODE  ===
+
+const onDragStart = (event: PIXI.InteractionEvent): void => {
+  const obj = event.currentTarget as DragObject;
+  obj.dragData = event.data;
+  obj.dragging = 1;
+  obj.dragPointerStart = event.data.getLocalPosition(obj.parent);
+  obj.dragObjStart = new PIXI.Point();
+  obj.dragObjStart.copyFrom(obj.position);
+  obj.dragGlobalStart = new PIXI.Point();
+  obj.dragGlobalStart.copyFrom(event.data.global);
+  event.stopPropagation();
+};
+
+const onDragMove = (event: PIXI.InteractionEvent): void => {
+  const obj = event.currentTarget as DragObject;
+  if (!obj.dragging) {
+    return;
+  }
+  event.stopPropagation();
+  const data = obj.dragData; // it can be different pointer!
+  if (obj.dragging === 1) {
+    // click or drag?
+    const dragAmount =
+      Math.abs(data.global.x - obj.dragGlobalStart.x) +
+      Math.abs(data.global.y - obj.dragGlobalStart.y);
+    const dragThreshold = 3;
+    if (dragAmount >= dragThreshold) {
+      // DRAG
+      obj.dragging = 2;
+    }
+  }
+  if (obj.dragging === 2) {
+    const dragPointerEnd = data.getLocalPosition(obj.parent);
+    // DRAG
+    obj.position.set(
+      obj.dragObjStart.x + (dragPointerEnd.x - obj.dragPointerStart.x),
+      obj.dragObjStart.y + (dragPointerEnd.y - obj.dragPointerStart.y)
+    );
+  }
+};
+
 export class MainScene extends Scene {
   private parts: Record<string, TONE.Part> = {};
 
@@ -113,11 +155,13 @@ export class MainScene extends Scene {
     this.player = new AnimatedSVG(this.svgs.a_player);
     this.player.anchor.set(0.5, 1.0); // Center Bottom
 
-    this.app.stage.addChild(this.surfaceHandle, this.container);
-    this.container.addChild(this.surface, this.playerHandle);
+    this.app.stage.addChild(this.surfaceHandle);
+    this.app.stage.addChild(this.container);
+    this.container.addChild(this.surface);
+    this.container.addChild(this.playerHandle);
     this.playerHandle.addChild(this.player);
 
-    // === CLICKS AND SNAP ===
+    // SETUP INTERACTIONS
 
     // changes axis factor
     const toggle = (obj: DragObject): void => {
@@ -152,48 +196,6 @@ export class MainScene extends Scene {
       }
     };
 
-    // === INTERACTION CODE  ===
-
-    const onDragStart = (event: PIXI.InteractionEvent): void => {
-      const obj = event.currentTarget as DragObject;
-      obj.dragData = event.data;
-      obj.dragging = 1;
-      obj.dragPointerStart = event.data.getLocalPosition(obj.parent);
-      obj.dragObjStart = new PIXI.Point();
-      obj.dragObjStart.copyFrom(obj.position);
-      obj.dragGlobalStart = new PIXI.Point();
-      obj.dragGlobalStart.copyFrom(event.data.global);
-      event.stopPropagation();
-    };
-
-    const onDragMove = (event: PIXI.InteractionEvent): void => {
-      const obj = event.currentTarget as DragObject;
-      if (!obj.dragging) {
-        return;
-      }
-      event.stopPropagation();
-      const data = obj.dragData; // it can be different pointer!
-      if (obj.dragging === 1) {
-        // click or drag?
-        const dragAmount =
-          Math.abs(data.global.x - obj.dragGlobalStart.x) +
-          Math.abs(data.global.y - obj.dragGlobalStart.y);
-        const dragThreshold = 3;
-        if (dragAmount >= dragThreshold) {
-          // DRAG
-          obj.dragging = 2;
-        }
-      }
-      if (obj.dragging === 2) {
-        const dragPointerEnd = data.getLocalPosition(obj.parent);
-        // DRAG
-        obj.position.set(
-          obj.dragObjStart.x + (dragPointerEnd.x - obj.dragPointerStart.x),
-          obj.dragObjStart.y + (dragPointerEnd.y - obj.dragPointerStart.y)
-        );
-      }
-    };
-
     const onDragEnd = (event: PIXI.InteractionEvent): void => {
       const obj = event.currentTarget as DragObject;
       if (!obj.dragging) {
@@ -212,20 +214,24 @@ export class MainScene extends Scene {
       // set the interaction data to null
     };
 
-    const addInteraction = (obj): void => {
-      obj.interactive = true;
-      obj
-        .on("pointerdown", onDragStart)
-        .on("pointerup", onDragEnd)
-        .on("pointerupoutside", onDragEnd)
-        .on("pointermove", onDragMove);
+    const addInteraction = (obj: PIXI.Sprite | PROJECTION.Sprite2d): void => {
+      if (obj) {
+        obj.interactive = true;
+        obj
+          .on("pointerdown", onDragStart)
+          .on("pointermove", onDragMove)
+          .on("pointerup", onDragEnd)
+          .on("pointerupoutside", onDragEnd);
+      }
     };
 
     addInteraction(this.surfaceHandle);
     addInteraction(this.playerHandle);
 
-    // SETUP
+    this.app.stage.on("pointerdown", (e, g) => this.onPointerDown(e, g));
+    this.app.stage.on("pointerup", (e, g) => this.onPointerUp(e, g));
 
+    // SETUP AUDIO
     TONE.start();
     this.sparkContext.game.audio.events.onConfigureInstrument.addListener(
       (data) => this.configureInstrument(data)
@@ -239,8 +245,6 @@ export class MainScene extends Scene {
     this.sparkContext.game.audio.events.onPlayNotes.addListener((data) =>
       this.playNotes(data)
     );
-    this.app.stage.on("pointerdown", (e, g) => this.onPointerDown(e, g));
-    this.app.stage.on("pointerup", (e, g) => this.onPointerUp(e, g));
   }
 
   onPointerDown(event: PointerEvent, gameObjects: { name: string }[]): void {
@@ -260,17 +264,19 @@ export class MainScene extends Scene {
   update(time: number, delta: number): void {
     // Match container projection to surface handle position
     // (Surface handle represents the vanishing point)
-    const pos = this.container.toLocal(
-      this.surfaceHandle.position,
-      undefined,
-      undefined,
-      undefined,
-      PROJECTION.TRANSFORM_STEP.BEFORE_PROJ
-    );
-    pos.y = -pos.y;
-    pos.x = -pos.x;
-    this.container.proj.setAxisY(pos, -1);
-
+    if (this.container) {
+      const pos = this.container.toLocal(
+        this.surfaceHandle.position,
+        undefined,
+        undefined,
+        undefined,
+        PROJECTION.TRANSFORM_STEP.BEFORE_PROJ
+      );
+      pos.y = -pos.y;
+      pos.x = -pos.x;
+      this.container.proj.setAxisY(pos, -1);
+    }
+    // UPDATE BLOCKS
     this.sparkContext.loadedBlockIds.forEach((blockId) => {
       if (!this.sparkContext.update(blockId, time, delta)) {
         this.app.destroy(true);

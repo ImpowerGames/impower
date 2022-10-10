@@ -14,10 +14,10 @@ import { PathCommand, pathCommandsFromString } from "../utils/interpolatePath";
 import { isRelativePathCommand } from "../utils/isRelativePathCommand";
 import { AnimationControl } from "./AnimationControl";
 
-export class AnimatableSVGPathNode extends SVGGraphicsNode {
-  fillRule: FILL_RULE;
+export class AnimatedSVGPathNode extends SVGGraphicsNode {
+  public control?: AnimationControl;
 
-  animation?: {
+  protected _animation?: {
     duration: number;
     repeatLimit?: number;
     keyTimes: number[];
@@ -25,17 +25,19 @@ export class AnimatableSVGPathNode extends SVGGraphicsNode {
     commands: PathCommand[][];
   };
 
-  control?: AnimationControl;
+  protected _fillRule: FILL_RULE;
 
-  private _content: SVGSVGElement;
+  protected _content: SVGSVGElement;
 
-  private _paint?: Paint;
+  protected _paint?: Paint;
 
-  private currentPath2: Path;
+  protected _lastFractionalFrameIndex?: number;
+
+  protected _currentPath: Path;
 
   // @ts-expect-error override behavior
   get currentPath(): Polygon {
-    return this.currentPath2;
+    return this._currentPath;
   }
 
   // @ts-expect-error override behavior
@@ -55,8 +57,7 @@ export class AnimatableSVGPathNode extends SVGGraphicsNode {
   ) {
     super(context);
 
-    this.fillRule = pathElement.getAttribute("fill-rule") as FILL_RULE;
-    this.control = control;
+    this._fillRule = pathElement.getAttribute("fill-rule") as FILL_RULE;
     this._content = content;
 
     if (animateElement) {
@@ -67,14 +68,14 @@ export class AnimatableSVGPathNode extends SVGGraphicsNode {
       const valuesAttr = animateElement.getAttribute("values") || "";
 
       if (valuesAttr) {
-        const duration = getClockValueTime(durAttr);
-        const repeatCount =
-          repeatCountAttr === "indefinite"
+        const duration = getClockValueTime(durAttr); // in ms
+        const repeatLimit =
+          !repeatCountAttr || repeatCountAttr === "indefinite"
             ? undefined
             : Number(repeatCountAttr);
         const keyTimes = keyTimesAttr
           .split(";")
-          .map((numStr) => Number(numStr));
+          .map((numStr) => Number(numStr)); // percentage of duration
         const keySplines = keySplinesAttr
           .split(";")
           .map(
@@ -89,16 +90,16 @@ export class AnimatableSVGPathNode extends SVGGraphicsNode {
         const values = valuesAttr.split(";");
         const commands = values.map((x) => pathCommandsFromString(x));
 
-        this.animation = {
+        this._animation = {
           duration,
-          repeatLimit: repeatCount,
+          repeatLimit,
           keyTimes,
           keySplines,
           commands,
         };
       }
     } else {
-      this.animation = {
+      this._animation = {
         duration: 0,
         repeatLimit: 1,
         keyTimes: [0],
@@ -106,6 +107,12 @@ export class AnimatableSVGPathNode extends SVGGraphicsNode {
         commands: [pathCommandsFromString(pathElement.getAttribute("d"))],
       };
     }
+
+    this.control = control;
+    this.control.animationDuration = Math.max(
+      this.control?.animationDuration || 0,
+      this._animation?.duration || 0
+    );
   }
 
   bindPaint(paint: Paint): void {
@@ -113,27 +120,27 @@ export class AnimatableSVGPathNode extends SVGGraphicsNode {
   }
 
   private startPath(): void {
-    if (this.currentPath2) {
-      const pts = this.currentPath2.points;
+    if (this._currentPath) {
+      const pts = this._currentPath.points;
 
       if (pts.length > 0) {
-        this.currentPath2.closeContour();
+        this._currentPath.closeContour();
       }
     } else {
-      this.currentPath2 = new Path();
+      this._currentPath = new Path();
     }
   }
 
   private finishPath(): void {
-    if (this.currentPath2) {
-      this.currentPath2.closeContour();
+    if (this._currentPath) {
+      this._currentPath.closeContour();
     }
   }
 
   closePath(): this {
-    this.currentPath2.points.push(
-      this.currentPath2.points[0],
-      this.currentPath2.points[1]
+    this._currentPath.points.push(
+      this._currentPath.points[0],
+      this._currentPath.points[1]
     );
     this.finishPath();
 
@@ -141,7 +148,7 @@ export class AnimatableSVGPathNode extends SVGGraphicsNode {
   }
 
   checkPath(): void {
-    if (this.currentPath2.points.find((e) => Number.isNaN(e)) !== undefined) {
+    if (this._currentPath.points.find((e) => Number.isNaN(e)) !== undefined) {
       throw new Error("NaN is bad");
     }
   }
@@ -156,7 +163,7 @@ export class AnimatableSVGPathNode extends SVGGraphicsNode {
   embedPath(path: SVGPathElement | PathCommand[]): this {
     const commands = Array.isArray(path)
       ? path
-      : this.animation?.commands?.[0] ||
+      : this._animation?.commands?.[0] ||
         pathCommandsFromString(path.getAttribute("d"));
 
     // Current point
@@ -200,8 +207,8 @@ export class AnimatableSVGPathNode extends SVGGraphicsNode {
         }
         case "z":
         case "Z": {
-          x = this.currentPath2?.points[0] || 0;
-          y = this.currentPath2?.points[1] || 0;
+          x = this._currentPath?.points[0] || 0;
+          y = this._currentPath?.points[1] || 0;
           this.closePath();
           break;
         }
@@ -368,10 +375,10 @@ export class AnimatableSVGPathNode extends SVGGraphicsNode {
       }
     }
 
-    if (this.currentPath2) {
-      this.currentPath2.fillRule = this.fillRule || this.currentPath2.fillRule;
-      this.drawShape(this.currentPath2 as unknown as IShape);
-      this.currentPath2 = null;
+    if (this._currentPath) {
+      this._currentPath.fillRule = this._fillRule || this._currentPath.fillRule;
+      this.drawShape(this._currentPath as unknown as IShape);
+      this._currentPath = null;
     }
 
     return this;
@@ -381,32 +388,32 @@ export class AnimatableSVGPathNode extends SVGGraphicsNode {
    * @override
    */
   render(renderer: Renderer): void {
-    if (this.animation?.duration) {
-      this.control.update(performance.now());
-      const iterationCount = Math.floor(
-        this.control.elapsedDuration / this.animation.duration
+    if (this.control.playing && this._animation?.duration) {
+      const currentIteration = Math.floor(
+        this.control.time / this._animation.duration
       );
       if (
-        typeof this.animation.repeatLimit !== "number" ||
-        iterationCount <= this.animation.repeatLimit
+        !this._animation?.repeatLimit ||
+        currentIteration <= this._animation?.repeatLimit
       ) {
-        this.clear();
-        if (this._paint) {
-          drawSVGGraphics(this._content, this, this._paint);
-        }
-        const normalizedTime =
-          this.control.elapsedDuration % this.animation.duration;
-        const keyTime = normalizedTime / this.animation.duration;
+        const keyTime = this.control.time / this._animation.duration;
         const fractionalFrameIndex = getClosestFractionalIndex(
           keyTime,
-          this.animation.keyTimes
+          this._animation.keyTimes
         );
-        const tweenedCommands = getTweenedPathCommands(
-          fractionalFrameIndex,
-          this.animation.keySplines,
-          this.animation.commands
-        );
-        this.embedPath(tweenedCommands);
+        if (fractionalFrameIndex !== this._lastFractionalFrameIndex) {
+          this._lastFractionalFrameIndex = fractionalFrameIndex;
+          this.clear();
+          if (this._paint) {
+            drawSVGGraphics(this._content, this, this._paint);
+          }
+          const tweenedCommands = getTweenedPathCommands(
+            fractionalFrameIndex,
+            this._animation.keySplines,
+            this._animation.commands
+          );
+          this.embedPath(tweenedCommands);
+        }
       }
     }
     super.render(renderer);

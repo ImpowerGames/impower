@@ -1,34 +1,49 @@
 import { Cull } from "@pixi-essentials/cull";
-import type { Paint, SVGSceneContext } from "@pixi-essentials/svg";
 import {
   InheritedPaintProvider,
   MaskServer,
+  Paint,
   PaintProvider,
   SVGGraphicsNode,
   SVGImageNode,
+  SVGSceneContext,
   SVGTextNode,
   SVGUseNode,
 } from "@pixi-essentials/svg";
 import { CanvasTextureAllocator } from "@pixi-essentials/texture-allocator";
 import type { Renderer } from "@pixi/core";
 import { RenderTexture } from "@pixi/core";
-import { Container, DisplayObject } from "@pixi/display";
+import { Container } from "@pixi/display";
 import { Matrix, Rectangle } from "@pixi/math";
-import { ObservablePoint } from "pixi.js";
+import {
+  DisplayObject,
+  IDestroyOptions,
+  ObservablePoint,
+  Ticker,
+  UPDATE_PRIORITY,
+} from "pixi.js";
 import { drawSVGGraphics } from "../utils/drawSVGGraphics";
 import { parseReference } from "../utils/parseReference";
-import { AnimatableSVGPathNode } from "./AnimatedSVGPathNode";
+import { AnimatedSVGPathNode } from "./AnimatedSVGPathNode";
 import { AnimationControl } from "./AnimationControl";
 import { SVGLoader } from "./SVGLoader";
 
 const tempMatrix = new Matrix();
 const tempRect = new Rectangle();
 
+const DEFAULT_MAX_FPS = 60;
+
+export interface AnimatedSVGOptions {
+  maxFPS?: number;
+  anchor?: ObservablePoint;
+  autoUpdate?: boolean;
+  context?: Partial<SVGSceneContext>;
+}
+
 /**
- * {@link AnimatedSVG} can be used to build an interactive viewer for scalable vector graphics images. You must specify the size
- * of the svg viewer.
+ * {@link AnimatedSVG} can be used to build an interactive viewer for scalable vector graphics images.
  *
- * ## SVG Scene Graph
+ * ## AnimatedSVG Scene Graph
  *
  * AnimatedSVG has an internal, disconnected scene graph that is optimized for lazy updates. It will listen to the following
  * events fired by a node:
@@ -38,6 +53,38 @@ const tempRect = new Rectangle();
  * @public
  */
 export class AnimatedSVG extends DisplayObject {
+  /**
+   * Should children be sorted by zIndex at the next updateTransform call.
+   *
+   * Will get automatically set to true if a new child is added, or if a child's zIndex changes.
+   */
+  public sortDirty = false;
+
+  /**
+   * The speed that the AnimatedSVGSprite will play at. Higher is faster, lower is slower.
+   */
+  public animationSpeed = 1;
+
+  /**
+   * User-assigned function to call when an AnimatedSVGSprite changes which texture is being rendered.
+   * @example
+   * animation.onFrameChange = () => {
+   *   // updated!
+   * };
+   */
+  public onFrameChange?: (currentFrame: number) => void = null;
+
+  /**
+   * User-assigned function to call when `loop` is true, and an AnimatedSVGSprite is played and
+   * loops around to start again.
+   * @example
+   * animation.onLoop = () => {
+   *   // looped!
+   * };
+   */
+  public onLoop?: (currentFrame: number, currentIteration: number) => void =
+    null;
+
   /**
    * The SVG image content being rendered by the scene.
    */
@@ -52,7 +99,20 @@ export class AnimatedSVG extends DisplayObject {
    * Display objects that don't render to the screen, but are required to update before the rendering
    * nodes, e.g. mask sprites.
    */
-  public renderServers: Container;
+  public renderServers: Container = new Container();
+
+  /**
+   * `true` uses PIXI.Ticker.shared to auto update animation time.
+   */
+  protected _autoUpdate: boolean;
+
+  /**
+   * `true` if the instance is currently connected to PIXI.Ticker.shared to auto update animation time.
+   */
+  protected _isConnectedToTicker = false;
+
+  /** Elapsed time since animation has been started, used internally to display current texture. */
+  protected _currentTime = 0;
 
   /**
    * The scene context
@@ -69,78 +129,71 @@ export class AnimatedSVG extends DisplayObject {
    */
   protected _height: number;
 
+  protected _maxFPS: number;
+
+  protected _anchor: ObservablePoint;
+
   /**
    * This is used to cull the SVG scene graph before rendering.
    */
-  protected _cull: Cull;
+  protected _cull: Cull = new Cull({ recursive: true, toggle: "renderable" });
 
   /**
    * Maps content elements to their paint. These paints do not inherit from their parent element. You must
    * compose an {@link InheritedPaintProvider} manually.
    */
-  private _elementToPaint: Map<SVGElement, Paint>;
+  protected _elementToPaint: Map<SVGElement, Paint> = new Map();
 
   /**
    * Maps `SVGMaskElement` elements to their nodes. These are not added to the scene graph directly and are
    * only referenced as a `mask`.
    */
-  private _elementToMask: Map<SVGElement, MaskServer>;
+  protected _elementToMask: Map<SVGElement, MaskServer> = new Map();
 
   /**
    * Flags whether any transform is dirty in the SVG scene graph.
    */
-  protected _transformDirty: boolean;
+  protected _transformDirty = true;
 
   /**
-   * The anchor point defines the normalized coordinates
-   * in the texture that map to the position of this
-   * sprite.
-   *
-   * By default, this is `(0,0)` (or `texture.defaultAnchor`
-   * if you have modified that), which means the position
-   * `(x,y)` of this `Sprite` will be the top-left corner.
-   *
-   * Note: Updating `texture.defaultAnchor` after
-   * constructing a `Sprite` does _not_ update its anchor.
-   *
-   * {@link https://docs.cocos2d-x.org/cocos2d-x/en/sprites/manipulation.html}
-   * @default `this.texture.defaultAnchor`
+   * Used to control animation across all nodes
    */
-  protected _anchor: ObservablePoint;
+  protected _control?: AnimationControl = new AnimationControl();
 
-  get anchor(): ObservablePoint {
-    return this._anchor;
-  }
+  /**
+   * An array of sampled times for this animation
+   */
+  protected _frames: number[] = [];
 
-  sortDirty = false;
-
-  animation?: AnimationControl = new AnimationControl();
+  /**
+   * The current frame that is displayed
+   */
+  protected _currentFrameIndex = 0;
 
   /**
    * @param content - The SVG node to render
    * @param context - This can be used to configure the scene
    */
-  constructor(content: SVGSVGElement, context?: Partial<SVGSceneContext>) {
+  constructor(content: SVGSVGElement, options?: AnimatedSVGOptions) {
     super();
-
-    this._anchor = new ObservablePoint(this._onAnchorUpdate, this, 0.5, 0.5);
 
     this.content = content;
 
-    this.initContext(context);
-    this._width = content.viewBox.baseVal.width;
-    this._height = content.viewBox.baseVal.height;
+    this._maxFPS = options?.maxFPS;
+    this._anchor =
+      options?.anchor ||
+      new ObservablePoint(this.onAnchorUpdate, this, 0.5, 0.5);
+    this.initContext(options?.context);
 
-    this._cull = new Cull({ recursive: true, toggle: "renderable" });
-    this._elementToPaint = new Map();
-    this._elementToMask = new Map();
-    this._transformDirty = true;
+    this._width = content?.viewBox?.baseVal?.width || 0;
+    this._height = content?.viewBox?.baseVal?.height || 0;
 
-    this.renderServers = new Container();
-
-    if (!context || !context.disableRootPopulation) {
+    if (!options?.context?.disableRootPopulation) {
       this.populateScene();
     }
+
+    this.autoUpdate =
+      typeof options?.autoUpdate === "boolean" ? options?.autoUpdate : true;
   }
 
   initContext(context?: Partial<SVGSceneContext>): void {
@@ -225,8 +278,8 @@ export class AnimatedSVG extends DisplayObject {
     this.root.enableTempParent();
     const child = this.root.children?.[0];
     if (child) {
-      child.pivot.x = (this._anchor.x * this.width) / this.scale.x;
-      child.pivot.y = (this._anchor.y * this.height) / this.scale.y;
+      child.pivot.x = (this.anchor.x * this.width) / this.scale.x;
+      child.pivot.y = (this.anchor.y * this.height) / this.scale.y;
     }
     this.root.transform.setFromMatrix(this.worldTransform);
     this.root.updateTransform();
@@ -266,9 +319,9 @@ export class AnimatedSVG extends DisplayObject {
         renderNode = new Container();
         break;
       case "path":
-        renderNode = new AnimatableSVGPathNode(
+        renderNode = new AnimatedSVGPathNode(
           this._context,
-          this.animation,
+          this._control,
           this.content,
           element as SVGPathElement,
           element.children?.[0] as SVGAnimateElement
@@ -427,7 +480,7 @@ export class AnimatedSVG extends DisplayObject {
       : tempMatrix.identity();
 
     // Graphics
-    if (node instanceof AnimatableSVGPathNode) {
+    if (node instanceof AnimatedSVGPathNode) {
       node.bindPaint(paint);
     }
     if (node instanceof SVGGraphicsNode) {
@@ -448,7 +501,7 @@ export class AnimatedSVG extends DisplayObject {
         (node as SVGGraphicsNode).embedLine(element as SVGLineElement);
         break;
       case "path":
-        (node as AnimatableSVGPathNode).embedPath(element as SVGPathElement);
+        (node as AnimatedSVGPathNode).embedPath(element as SVGPathElement);
         break;
       case "polyline":
         (node as SVGGraphicsNode).embedPolyline(element as SVGPolylineElement);
@@ -491,8 +544,10 @@ export class AnimatedSVG extends DisplayObject {
               (svgDocument) =>
                 [
                   new AnimatedSVG(svgDocument, {
-                    ...this._context,
-                    disableRootPopulation: true,
+                    context: {
+                      ...this._context,
+                      disableRootPopulation: true,
+                    },
                   }),
                   svgDocument.querySelector(`#${useTargetURL.split("#")[1]}`),
                 ] as [AnimatedSVG, SVGElement]
@@ -691,6 +746,120 @@ export class AnimatedSVG extends DisplayObject {
     this._cull.add(this.root);
   }
 
+  /** Stops the AnimatedSVGSprite. */
+  public stop(): void {
+    if (!this.playing) {
+      return;
+    }
+
+    this.playing = false;
+    if (this._autoUpdate && this._isConnectedToTicker) {
+      Ticker.shared.remove(this.update, this);
+      this._isConnectedToTicker = false;
+    }
+  }
+
+  /** Plays the AnimatedSVGSprite. */
+  public play(): void {
+    if (this.playing) {
+      return;
+    }
+
+    this.playing = true;
+    if (this._autoUpdate && !this._isConnectedToTicker) {
+      Ticker.shared.add(this.update, this, UPDATE_PRIORITY.HIGH);
+      this._isConnectedToTicker = true;
+    }
+  }
+
+  /**
+   * Stops the AnimatedSVGSprite and goes to a specific time.
+   * @param time - time to stop at.
+   */
+  public gotoAndStop(time: number): void {
+    this.stop();
+    this._currentTime = time;
+    this.updateFrame();
+  }
+
+  /**
+   * Goes to a specific time and begins playing the AnimatedSVGSprite.
+   * @param time - time to start at.
+   */
+  public gotoAndPlay(time: number): void {
+    this._currentTime = time;
+    this.updateFrame();
+    this.play();
+  }
+
+  /**
+   * Updates the object transform for rendering.
+   */
+  update(): void {
+    if (this._control.playing) {
+      this._currentTime += this.animationSpeed * Ticker.shared.deltaMS;
+      this.updateFrame();
+    }
+  }
+
+  updateFrame(): number {
+    const maxFPS = this.maxFPS || Ticker.shared.maxFPS || DEFAULT_MAX_FPS;
+    const normalizedTime = this._currentTime % this._control.animationDuration;
+    const sampleRate = 1000 / maxFPS;
+    let currentFrameIndex = -1;
+    let i = 0;
+    for (
+      let time = 0;
+      time < this._control.animationDuration;
+      time += sampleRate
+    ) {
+      this._frames[i] = time;
+      if (currentFrameIndex < 0) {
+        if (time === normalizedTime) {
+          currentFrameIndex = i;
+        }
+        if (time > normalizedTime) {
+          currentFrameIndex = i - 1;
+        }
+      }
+      i += 1;
+    }
+    if (currentFrameIndex < 0) {
+      currentFrameIndex = this._frames.length - 1;
+    }
+    this._control.time = this._frames[currentFrameIndex];
+
+    if (currentFrameIndex !== this._currentFrameIndex) {
+      if (currentFrameIndex < this._currentFrameIndex) {
+        const currentIteration = Math.floor(
+          this._currentTime / this._control.animationDuration
+        );
+        this.onLoop?.(currentFrameIndex, currentIteration);
+      }
+      this.onFrameChange?.(currentFrameIndex);
+      this._currentFrameIndex = currentFrameIndex;
+    }
+
+    return currentFrameIndex;
+  }
+
+  /**
+   * Stops the AnimatedSVGSprite and destroys it.
+   * @param {object|boolean} [options] - Options parameter. A boolean will act as if all options
+   *  have been set to that value.
+   * @param {boolean} [options.children=false] - If set to true, all the children will have their destroy
+   *      method called as well. 'options' will be passed on to those calls.
+   * @param {boolean} [options.texture=false] - Should it destroy the current texture of the sprite as well.
+   * @param {boolean} [options.baseTexture=false] - Should it destroy the base texture of the sprite as well.
+   */
+  public destroy(options?: IDestroyOptions | boolean): void {
+    this.stop();
+    super.destroy(options);
+
+    this.onFrameChange = null;
+    this.onLoop = null;
+  }
+
   /**
    * Handles `nodetransformdirty` events fired by nodes. It will set {@link AnimatedSVG._transformDirty} to true.
    *
@@ -702,8 +871,24 @@ export class AnimatedSVG extends DisplayObject {
   };
 
   /** Called when the anchor position updates. */
-  private _onAnchorUpdate(): void {
+  private onAnchorUpdate(): void {
     this._transformDirty = true;
+  }
+
+  /**
+   * Load the SVG document and create a {@link AnimatedSVG} asynchronously.
+   *
+   * A cache is used for loaded SVG documents.
+   *
+   * @param url
+   * @param context
+   * @returns
+   */
+  static async fromURL(
+    url: string,
+    options?: AnimatedSVGOptions
+  ): Promise<AnimatedSVG> {
+    return new AnimatedSVG(await SVGLoader.instance.load(url), options);
   }
 
   /**
@@ -733,18 +918,83 @@ export class AnimatedSVG extends DisplayObject {
   }
 
   /**
-   * Load the SVG document and create a {@link AnimatedSVG} asynchronously.
-   *
-   * A cache is used for loaded SVG documents.
-   *
-   * @param url
-   * @param context
-   * @returns
+   * The maximum fps that this animation should run at
+   * @default 60
    */
-  static async from(
-    url: string,
-    context?: SVGSceneContext
-  ): Promise<AnimatedSVG> {
-    return new AnimatedSVG(await SVGLoader.instance.load(url), context);
+  get maxFPS(): number {
+    return this._maxFPS;
+  }
+
+  /**
+   * The maximum fps that this animation should run at
+   * @default 60
+   */
+  set maxFPS(value: number) {
+    this._maxFPS = value;
+  }
+
+  /**
+   * The anchor point defines the normalized coordinates
+   * in the texture that map to the position of this
+   * sprite.
+   *
+   * By default, this is `(0.5,0.5)`, which means the position
+   * `(x,y)` of this `Sprite` will be the center corner.
+   *
+   * Note: Updating `texture.defaultAnchor` after
+   * constructing a `Sprite` does _not_ update its anchor.
+   *
+   * {@link https://docs.cocos2d-x.org/cocos2d-x/en/sprites/manipulation.html}
+   * @default `(0.5,0.5)`
+   */
+  get anchor(): ObservablePoint {
+    return this._anchor;
+  }
+
+  /**
+   * The total number of frames in the AnimatedSVGSprite. This is the same as number of textures
+   * assigned to the AnimatedSVGSprite.
+   * @readonly
+   * @default 0
+   */
+  get totalFrames(): number {
+    return this._frames.length;
+  }
+
+  /**
+   * Indicates if the AnimatedSVGSprite is currently playing.
+   */
+  get playing(): boolean {
+    return this._control.playing;
+  }
+
+  /**
+   * Indicates if the AnimatedSVGSprite is currently playing.
+   */
+  set playing(value: boolean) {
+    this._control.playing = value;
+  }
+
+  /** Whether to use PIXI.Ticker.shared to auto update animation time. */
+  get autoUpdate(): boolean {
+    return this._autoUpdate;
+  }
+
+  set autoUpdate(value: boolean) {
+    if (value !== this.autoUpdate) {
+      this._autoUpdate = value;
+
+      if (!this.autoUpdate && this._isConnectedToTicker) {
+        Ticker.shared.remove(this.update, this);
+        this._isConnectedToTicker = false;
+      } else if (
+        this.autoUpdate &&
+        !this._isConnectedToTicker &&
+        this.playing
+      ) {
+        Ticker.shared.add(this.update, this);
+        this._isConnectedToTicker = true;
+      }
+    }
   }
 }
