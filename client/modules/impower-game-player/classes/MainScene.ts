@@ -106,8 +106,6 @@ export class MainScene extends Scene {
 
   instruments: Record<string, Instrument> = {};
 
-  svgs: Record<string, SVGSVGElement> = {};
-
   surface: PROJECTION.Sprite2d;
 
   surfaceHandle: PIXI.Sprite;
@@ -118,16 +116,18 @@ export class MainScene extends Scene {
 
   spriteHandles: Record<string, PROJECTION.Sprite2d> = {};
 
+  graphics: Record<string, SVGSVGElement> = {};
+
   async init(): Promise<void> {
     const svgEntries = Object.entries(
-      this.sparkContext.game.logic.blockMap[""].assets || {}
+      this.sparkContext.game.logic.blockMap[""].variables || {}
     ).filter(([, v]) => v.type === "graphic");
     const graphics = await Promise.all(
-      svgEntries.map(([, v]) => this.svgLoader.load(v.value))
+      svgEntries.map(([, v]) => this.svgLoader.load(v.value as string))
     );
     graphics.forEach((svg, index) => {
       const [, asset] = svgEntries[index];
-      this.svgs[asset.name] = svg;
+      this.graphics[asset.name] = svg;
     });
   }
 
@@ -210,7 +210,7 @@ export class MainScene extends Scene {
 
     addInteraction(this.surfaceHandle);
 
-    Object.entries(this.svgs || {}).forEach(([k, svg]) => {
+    Object.entries(this.graphics || {}).forEach(([k, svg]) => {
       const handle = new PROJECTION.Sprite2d(spriteHandleTexture);
       handle.anchor.set(0.5, 0.0); // Center Top
       handle.position.set(
