@@ -5,7 +5,7 @@ import { getScopedSectionIds } from "./getScopedSectionIds";
 export const getScopedContext = <T>(
   sectionId: string,
   sections: Record<string, SparkSection>,
-  itemsProp: "variables" | "assets" | "tags" | "sections"
+  itemsProp: "variables" | "sections"
 ): [Record<string, string>, Record<string, T>] => {
   const validSectionId = sectionId || "";
   const valueMap: Record<string, T> = {};

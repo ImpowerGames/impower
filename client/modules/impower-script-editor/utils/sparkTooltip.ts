@@ -96,7 +96,11 @@ export const sparkTooltip = (
         dom.appendChild(separator);
         dom.appendChild(input);
       } else if (item?.type) {
-        if (item?.type === "image" || item?.type === "audio") {
+        if (
+          item?.type === "image" ||
+          item?.type === "graphic" ||
+          item?.type === "audio"
+        ) {
           const fileUrl = item?.value as string;
           const preview = document.createElement(
             item?.type === "audio" ? "audio" : "img"
@@ -106,7 +110,7 @@ export const sparkTooltip = (
           const storageName = match?.[1];
           const previewPrefix = "THUMB_";
           const previewUrl =
-            match && item?.type === "image"
+            match && (item?.type === "image" || item?.type === "graphic")
               ? fileUrl.replace(rgx, `%2F${previewPrefix}${storageName}?`)
               : undefined;
           preview.src = previewUrl || fileUrl;

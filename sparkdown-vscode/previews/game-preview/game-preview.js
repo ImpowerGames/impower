@@ -26,11 +26,13 @@ const cacheFiles = async (variables) => {
         ([, variable]) =>
           variable &&
           variable.value &&
-          (variable.type === "image" || variable.type === "audio")
+          (variable.type === "image" ||
+            variable.type === "graphic" ||
+            variable.type === "audio")
       )
       .map(([, asset]) => {
         return new Promise((resolve) => {
-          if (asset.type === "image") {
+          if (asset.type === "image" || asset.type === "graphic") {
             const img = new Image();
             img.onload = resolve;
             img.onerror = resolve;

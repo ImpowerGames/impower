@@ -4,7 +4,7 @@ import { getAncestorIds } from "./getAncestorIds";
 export const getScopedIds = (
   sectionId: string,
   sections: Record<string, SparkSection>,
-  itemsProp: "variables" | "assets" | "tags"
+  itemsProp: "variables"
 ): Record<string, string> => {
   const ancestorIds = getAncestorIds(sectionId);
   const result: Record<string, string> = {};

@@ -939,7 +939,7 @@ const parseSparkInternal = (
   };
 
   const getVariable = (
-    type: SparkVariableType | undefined,
+    type: SparkVariableType | SparkVariableType[] | undefined,
     name: string,
     from: number,
     to: number
@@ -962,14 +962,28 @@ const parseSparkInternal = (
       );
       return undefined;
     }
-    if (type && found.type !== type) {
-      diagnostic(
-        currentToken,
-        `'${name}' is not ${prefixArticle(type)} variable`,
-        [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
-        from,
-        to
-      );
+    if (type) {
+      if (Array.isArray(type)) {
+        if (!type.includes(found.type)) {
+          diagnostic(
+            currentToken,
+            `'${name}' is not ${prefixArticle(type.join(" or "))} variable`,
+            [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
+            from,
+            to
+          );
+        }
+      } else {
+        if (found.type !== type) {
+          diagnostic(
+            currentToken,
+            `'${name}' is not ${prefixArticle(type)} variable`,
+            [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
+            from,
+            to
+          );
+        }
+      }
       return undefined;
     }
     return found;
@@ -1457,7 +1471,8 @@ const parseSparkInternal = (
     if (noteMatches) {
       for (let i = 0; i < noteMatches.length; i += 1) {
         const noteMatch = noteMatches[i];
-        const type = noteMatch.startsWith("(") ? "audio" : "image";
+        const type: SparkVariableType | SparkVariableType[] =
+          noteMatch.startsWith("(") ? "audio" : ["image", "graphic"];
         const name = noteMatch.slice(2, noteMatch.length - 2);
         startIndex = str.indexOf(noteMatch, startIndex) + 2;
         const from = currentToken.from + startIndex;
@@ -1476,7 +1491,8 @@ const parseSparkInternal = (
     if (noteMatches) {
       for (let i = 0; i < noteMatches.length; i += 1) {
         const noteMatch = noteMatches[i].trim();
-        const type = noteMatch.startsWith("(") ? "audio" : "image";
+        const type: SparkVariableType | SparkVariableType[] =
+          noteMatch.startsWith("(") ? "audio" : ["image", "graphic"];
         const name = noteMatch.slice(2, noteMatch.length - 2);
         startIndex = str.indexOf(noteMatch, startIndex) + 2;
         const from = currentToken.from + startIndex;

@@ -671,7 +671,7 @@ export const assetSnippets = (
         const storageName = match?.[1];
         const previewPrefix = "THUMB_";
         const previewUrl =
-          match && type === "image"
+          match && (type === "image" || type === "graphic")
             ? fileUrl.replace(rgx, `%2F${previewPrefix}${storageName}?`)
             : undefined;
         preview.src = previewUrl || fileUrl;
@@ -716,10 +716,10 @@ export const sparkAutocomplete = async (
   const [sectionId, section] = getSectionAt(node.from, result);
   const sectionLevel = section?.level || 0;
   const ancestorIds = getAncestorIds(sectionId);
-  const [, assets] = getScopedContext<string>(
+  const [, variables] = getScopedContext<string>(
     sectionId,
     result?.sections,
-    "assets"
+    "variables"
   );
   const variableOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
     Object.entries(result?.sections?.[ancestorId]?.variables || {})
@@ -844,11 +844,13 @@ export const sparkAutocomplete = async (
       )
     );
   } else if (["ImageNote"].includes(node.name)) {
-    const validOptions = assetOptions.filter((x) => x.type === "image");
-    completions.push(...assetSnippets(validOptions, assets, "image"));
+    const validOptions = assetOptions.filter(
+      (x) => x.type === "image" || x.type === "graphic"
+    );
+    completions.push(...assetSnippets(validOptions, variables, "image"));
   } else if (["AudioNote"].includes(node.name)) {
     const validOptions = assetOptions.filter((x) => x.type === "audio");
-    completions.push(...assetSnippets(validOptions, assets, "audio"));
+    completions.push(...assetSnippets(validOptions, variables, "audio"));
   } else if (node.name === "DynamicTag") {
     completions.push(
       ...nameSnippets(tagOptions, "tag", "", "", colors.tag),

@@ -10,23 +10,15 @@ export const getScopedValueContext = (
     sections,
     "sections"
   );
-  const [tagIds, tagValues] = getScopedContext(sectionId, sections, "tags");
-  const [assetIds, assetValues] = getScopedContext(
-    sectionId,
-    sections,
-    "assets"
-  );
   const [variableIds, variableValues] = getScopedContext(
     sectionId,
     sections,
     "variables"
   );
   return [
-    { ...sectionIds, ...tagIds, ...assetIds, ...variableIds },
+    { ...sectionIds, ...variableIds },
     {
       ...sectionValues,
-      ...tagValues,
-      ...assetValues,
       ...variableValues,
     },
   ];
