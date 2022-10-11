@@ -449,8 +449,7 @@ const Project = React.memo((): JSX.Element => {
     }
   }, []);
 
-  const showMobileSnippetToolbar =
-    portrait && mode === "Edit" && toolbar === "snippet";
+  const showMobileSnippetToolbar = portrait && toolbar === "snippet";
 
   return (
     <WindowTransitionContext.Provider value={windowTransitionContext}>

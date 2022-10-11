@@ -352,8 +352,7 @@ const LogicPanel = React.memo((): JSX.Element => {
 
   const useWindowAsScrollContainer = portrait && scripting;
   const showChart = windowType === "logic" && !scripting;
-  const showDesktopSnippetToolbar =
-    !portrait && mode === "Edit" && toolbar === "snippet";
+  const showDesktopSnippetToolbar = !portrait && toolbar === "snippet";
   const defaultTitle = windowType === "logic" ? "Script" : "Declarations";
   const title = headerName || defaultTitle;
 

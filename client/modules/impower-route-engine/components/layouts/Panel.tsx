@@ -159,8 +159,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
     [onScrollRef, windowScrolling]
   );
 
-  const showDesktopSnippetToolbar =
-    !portrait && mode === "Edit" && toolbar === "snippet";
+  const showDesktopSnippetToolbar = !portrait && toolbar === "snippet";
 
   const scrollMargins = useMemo(
     () => ({
