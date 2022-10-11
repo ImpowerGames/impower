@@ -9,11 +9,11 @@ import {
   SparkConditionToken,
   SparkDialogueAssetToken,
   SparkDialogueToken,
-  SparkEntityToken,
   SparkJumpToken,
   SparkReturnToken,
   SparkSceneToken,
   SparkSectionToken,
+  SparkStructToken,
   SparkToken,
   SparkTransitionToken,
   SparkVariableToken,
@@ -54,11 +54,11 @@ export interface SparkTokenTypeMap {
   parenthetical: SparkToken;
   import: SparkToken;
 
-  list: SparkEntityToken;
-  map: SparkEntityToken;
-  ui: SparkEntityToken;
-  style: SparkEntityToken;
-  config: SparkEntityToken;
+  list: SparkStructToken;
+  map: SparkStructToken;
+  ui: SparkStructToken;
+  style: SparkStructToken;
+  config: SparkStructToken;
 
   centered: SparkCenteredToken;
   variable: SparkVariableToken;

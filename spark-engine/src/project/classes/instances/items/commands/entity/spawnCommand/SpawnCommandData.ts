@@ -1,5 +1,5 @@
 import { CommandData } from "../../../command/CommandData";
 
-export interface CreateCommandData extends CommandData<"CreateCommand"> {
+export interface SpawnCommandData extends CommandData<"SpawnCommand"> {
   entity: string;
 }

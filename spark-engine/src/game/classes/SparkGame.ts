@@ -11,6 +11,7 @@ import { InputManager } from "./managers/InputManager";
 import { LogicManager } from "./managers/LogicManager";
 import { PhysicsManager } from "./managers/PhysicsManager";
 import { RandomManager } from "./managers/RandomManager";
+import { StructManager } from "./managers/StructManager";
 
 export interface GameEvents {
   onStart: GameEvent;
@@ -66,6 +67,12 @@ export class SparkGame {
     return this._logic;
   }
 
+  private _struct: StructManager;
+
+  public get struct(): StructManager {
+    return this._struct;
+  }
+
   private _random: RandomManager;
 
   public get random(): RandomManager {
@@ -92,7 +99,8 @@ export class SparkGame {
     this._physics = new PhysicsManager();
     this._asset = new AssetManager(saveData?.asset);
     this._audio = new AudioManager(saveData?.audio);
-    this._entity = new EntityManager(objectMap, saveData?.entity);
+    this._entity = new EntityManager(saveData?.entity);
+    this._struct = new StructManager(objectMap, saveData?.entity);
     const activeParentBlockId = config?.startBlockId || "";
     const activeCommandIndex = config?.startCommandIndex || 0;
     this._logic = new LogicManager(
@@ -118,13 +126,14 @@ export class SparkGame {
 
   init(): void {
     this.debug.init();
+    this.random.init();
     this.input.init();
     this.physics.init();
     this.asset.init();
     this.audio.init();
+    this.struct.init();
     this.entity.init();
     this.logic.init();
-    this.random.init();
     Object.values(this.custom).forEach((manager) => {
       manager.init();
     });
@@ -140,16 +149,15 @@ export class SparkGame {
   }
 
   end(): void {
-    this.entity.clearPreviousEntities();
-
     this.logic.destroy();
     this.entity.destroy();
+    this.struct.destroy();
     this.asset.destroy();
     this.audio.destroy();
     this.input.destroy();
     this.physics.destroy();
-    this.debug.destroy();
     this.random.destroy();
+    this.debug.destroy();
     Object.values(this.custom).forEach((manager) => {
       manager.destroy();
     });
@@ -157,11 +165,12 @@ export class SparkGame {
   }
 
   getSaveData(): SaveData {
+    const random = this.random.getSaveData();
     const asset = this.asset.getSaveData();
     const audio = this.audio.getSaveData();
+    const struct = this.struct.getSaveData();
     const entity = this.entity.getSaveData();
     const logic = this.logic.getSaveData();
-    const random = this.random.getSaveData();
     const custom: { [key: string]: unknown } = {};
     Object.keys(this.custom).forEach((id) => {
       custom[id] = this.custom[id].getSaveData();
@@ -169,6 +178,7 @@ export class SparkGame {
     return {
       asset,
       audio,
+      struct,
       entity,
       logic,
       random,

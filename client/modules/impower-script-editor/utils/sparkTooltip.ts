@@ -44,7 +44,7 @@ export const sparkTooltip = (
     create: (): { dom: HTMLDivElement } => {
       const context = {
         ...(parseContext?.result?.sections || {}),
-        ...(parseContext?.result?.entities || {}),
+        ...(parseContext?.result?.structs || {}),
         ...(parseContext?.result?.variables || {}),
       };
       const item = token.id ? context[token.id] : undefined;

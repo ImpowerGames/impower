@@ -23,7 +23,7 @@ export type SparkRegexType =
   | "return"
   | "dialogue_terminator"
   | "variable"
-  | "entity"
+  | "struct"
   | "synopsis"
   | "note"
   | "string"
@@ -31,9 +31,9 @@ export type SparkRegexType =
   | "boolean"
   | "number"
   | "variableAccess"
-  | "entity_object_field"
-  | "entity_value_field"
-  | "entity_list_value"
+  | "struct_object_field"
+  | "struct_value_field"
+  | "struct_list_value"
   | "interpolation_splitter"
   | "interpolation_token"
   | "parameter_declaration"
@@ -77,7 +77,7 @@ export const sparkRegexes: SparkRegexes = {
   action: /^([ \t]*)(.+)$/,
 
   import: /^([ \t]*)(import)($|[ ]+)($|[^\n\r]+)([ ]*)$/,
-  entity:
+  struct:
     /^([ \t]*)(list|map|ui|style|config)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)(?:([(])([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$/,
 
   list: /^([ \t]*)([*+-])($|[ ]+)(.*)([ ]*)$/,
@@ -104,10 +104,10 @@ export const sparkRegexes: SparkRegexes = {
   number: /^([\d]*[.][\d]*|[\d]+)$/,
   variableAccess:
     /^(?!true$|false$)([a-zA-Z]+[a-zA-Z0-9_]*)((?:[.](?:$|[a-zA-Z]+[a-zA-Z0-9_]*))*)$/,
-  entity_object_field: /^([ \t]*)([a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)([:])([ ]*)$/,
-  entity_value_field:
+  struct_object_field: /^([ \t]*)([a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)([:])([ ]*)$/,
+  struct_value_field:
     /^([ \t]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)(?:$|($|[=])([ ]*)($|[^\n\r]+)([ ]*))?$/,
-  entity_list_value: /^([ \t]*)($|[^\n\r]+)([ ]*)$/,
+  struct_list_value: /^([ \t]*)($|[^\n\r]+)([ ]*)$/,
   interpolation_splitter: /([$]?[{][ ]*[^\n\r{}]*[ ]*[}])/g,
   interpolation_token: /^([$]?[{])([ ]*)([^\n\r{}]*)([ ]*)([}])$/,
   parameter_declaration:

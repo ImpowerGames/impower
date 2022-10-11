@@ -1,10 +1,7 @@
-import {
-  CommandData,
-  CommandRunner,
-  SparkGame,
-  SparkGameRunner,
-} from "../../..";
 import { getScopedValueContext } from "../../../../sparkdown";
+import { CommandData } from "../../data";
+import { SparkGame } from "../../game";
+import { CommandRunner, SparkGameRunner } from "../../runner";
 
 interface CommandRuntimeData {
   runner: CommandRunner;
@@ -60,13 +57,21 @@ export class SparkContext {
         blockId,
         game?.logic?.blockMap
       );
-      const objectMap = game?.entity?.objectMap;
+      const objectMap = game?.struct?.objectMap;
       this._contexts[blockId] = {
         ids,
         valueMap,
         objectMap,
-        triggers: block.triggers,
-        parameters: block.parameters,
+        triggers: block.triggers || [],
+        parameters:
+          Object.values(
+            (block.variables as Record<
+              string,
+              { name: string; parameter?: boolean }
+            >) || {}
+          )
+            .filter((v) => v.parameter)
+            .map((p) => p.name) || [],
         commands: this.runner.getRuntimeData(
           block.commands as Record<string, CommandData>
         ),

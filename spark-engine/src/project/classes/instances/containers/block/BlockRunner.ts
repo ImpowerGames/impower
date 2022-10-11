@@ -60,7 +60,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       if (shouldExecute) {
         game.logic.executeBlock({
           id,
-          executedByBlockId: game.logic.blockMap[id].parent,
+          executedByBlockId: game.logic.blockMap[id].parent || "",
         });
       }
     }

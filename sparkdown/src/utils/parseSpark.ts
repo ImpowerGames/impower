@@ -10,11 +10,11 @@ import { sparkRegexes } from "../constants/sparkRegexes";
 import { defaultDisplayScript } from "../defaults/defaultDisplayScript";
 import { SparkDeclarations } from "../types/SparkDeclarations";
 import { SparkAction } from "../types/SparkDiagnostic";
-import { SparkEntity } from "../types/SparkEntity";
-import { SparkEntityType } from "../types/SparkEntityType";
 import { SparkField } from "../types/SparkField";
 import { SparkParseResult } from "../types/SparkParseResult";
 import { SparkSection } from "../types/SparkSection";
+import { SparkStruct } from "../types/SparkStruct";
+import { SparkStructType } from "../types/SparkStructType";
 import { SparkTitleKeyword } from "../types/SparkTitleKeyword";
 import { SparkTitlePosition } from "../types/SparkTitlePosition";
 import {
@@ -37,8 +37,8 @@ import { getScopedContext } from "./getScopedContext";
 import { getScopedItem } from "./getScopedItem";
 import { getScopedValueContext } from "./getScopedValueContext";
 import { isAssetType } from "./isAssetType";
-import { isEntityType } from "./isEntityType";
 import { isSparkDisplayToken } from "./isSparkDisplayToken";
+import { isStructType } from "./isStructType";
 import { isTagType } from "./isTagType";
 import { isVariableType } from "./isVariableType";
 import { stripBlockComments } from "./stripBlockComments";
@@ -101,8 +101,8 @@ const parseSparkInternal = (
   let current = 0;
   let currentLevel = 0;
   let currentSectionId = "";
-  let currentEntityName = "";
-  let currentEntityFieldId = "";
+  let currentStructName = "";
+  let currentStructFieldId = "";
   let match: RegExpMatchArray | null;
   let text = "";
   let lastTitlePageToken;
@@ -223,10 +223,10 @@ const parseSparkInternal = (
     return getScopedItem(parsed?.variables || {}, sectionId, name);
   };
 
-  const findEntity = (
+  const findStruct = (
     name: string
-  ): [string | undefined, SparkEntity | undefined] => {
-    const found = parsed?.entities?.[name];
+  ): [string | undefined, SparkStruct | undefined] => {
+    const found = parsed?.structs?.[name];
     if (found) {
       return [name, found];
     }
@@ -234,9 +234,9 @@ const parseSparkInternal = (
   };
 
   const lintNameUnique = <
-    T extends SparkSection | SparkVariable | SparkEntity | SparkField
+    T extends SparkSection | SparkVariable | SparkStruct | SparkField
   >(
-    type: "section" | "variable" | "entity" | "field",
+    type: "section" | "variable" | "struct" | "field",
     found: T,
     from: number,
     to: number
@@ -258,7 +258,7 @@ const parseSparkInternal = (
     return undefined;
   };
 
-  const lintName = <T extends SparkSection | SparkVariable | SparkEntity>(
+  const lintName = <T extends SparkSection | SparkVariable | SparkStruct>(
     name: string,
     from: number,
     to: number,
@@ -275,7 +275,7 @@ const parseSparkInternal = (
       );
       return false;
     }
-    if (lintNameUnique<T>("entity", findEntity(name)[1] as T, from, to)) {
+    if (lintNameUnique<T>("struct", findStruct(name)[1] as T, from, to)) {
       return false;
     }
     if (
@@ -766,9 +766,9 @@ const parseSparkInternal = (
     if (!expression) {
       return [undefined, undefined];
     }
-    const [, entity] = findEntity(expression);
-    if (entity) {
-      return [{ name: entity.name, type: entity.type }, true];
+    const [, struct] = findStruct(expression);
+    if (struct) {
+      return [{ name: struct.name, type: struct.type }, true];
     }
     const { name } = getExpressionCallNameAndValues(
       "function",
@@ -901,16 +901,16 @@ const parseSparkInternal = (
     return [result, diagnostics?.length === 0];
   };
 
-  const getEntity = (
-    type: SparkEntityType,
+  const getStruct = (
+    type: SparkStructType,
     name: string,
     from: number,
     to: number
-  ): SparkEntity | undefined => {
+  ): SparkStruct | undefined => {
     if (!name) {
       return undefined;
     }
-    const [id, found] = findEntity(name);
+    const [id, found] = findStruct(name);
     if (!parsed.references[currentToken.line]) {
       parsed.references[currentToken.line] = [];
     }
@@ -918,7 +918,7 @@ const parseSparkInternal = (
     if (!found) {
       diagnostic(
         currentToken,
-        `Cannot find ${type || "entity"} named '${name}'`,
+        `Cannot find ${type || "struct"} named '${name}'`,
         [],
         from,
         to
@@ -1040,8 +1040,8 @@ const parseSparkInternal = (
     return undefined;
   };
 
-  const addEntity = (
-    type: SparkEntityType,
+  const addStruct = (
+    type: SparkStructType,
     name: string,
     base: string,
     line: number,
@@ -1050,8 +1050,8 @@ const parseSparkInternal = (
     baseFrom: number,
     baseTo: number
   ): void => {
-    if (!parsed.entities) {
-      parsed.entities = {};
+    if (!parsed.structs) {
+      parsed.structs = {};
     }
     const id = name;
     if (!lintName(name, nameFrom, nameTo)) {
@@ -1068,10 +1068,10 @@ const parseSparkInternal = (
       declaration: true,
     });
     if (base) {
-      getEntity(type, base, baseFrom, baseTo);
+      getStruct(type, base, baseFrom, baseTo);
     }
-    const item: SparkEntity = {
-      ...(parsed?.entities?.[id] || {}),
+    const item: SparkStruct = {
+      ...(parsed?.structs?.[id] || {}),
       from: nameFrom,
       to: nameTo,
       line,
@@ -1080,7 +1080,7 @@ const parseSparkInternal = (
       type,
       fields: {},
     };
-    parsed.entities[id] = item;
+    parsed.structs[id] = item;
   };
 
   const addImport = (
@@ -1089,17 +1089,17 @@ const parseSparkInternal = (
     valueFrom: number,
     valueTo: number
   ): void => {
-    if (!parsed.entities) {
-      parsed.entities = {};
+    if (!parsed.structs) {
+      parsed.structs = {};
     }
     const value = getImportValue(valueText);
     const validValue = value != null ? value : "";
     const name = "import";
-    const existingEntity = parsed?.entities?.[name];
-    const existingFieldIds = Object.keys(existingEntity?.fields || {});
+    const existingStruct = parsed?.structs?.[name];
+    const existingFieldIds = Object.keys(existingStruct?.fields || {});
     const fieldId = existingFieldIds.length?.toString();
-    const item: SparkEntity = {
-      ...(existingEntity || {}),
+    const item: SparkStruct = {
+      ...(existingStruct || {}),
       from: valueFrom,
       to: valueTo,
       line,
@@ -1107,14 +1107,14 @@ const parseSparkInternal = (
       type: "list",
       name,
       fields: {
-        ...existingEntity?.fields,
+        ...existingStruct?.fields,
         [fieldId]: {
           type: "string",
           value: validValue,
         } as SparkField,
       },
     };
-    parsed.entities[name] = item;
+    parsed.structs[name] = item;
   };
 
   const addVariable = (
@@ -1153,7 +1153,7 @@ const parseSparkInternal = (
     const validValue = value != null ? value : "";
     const valueType =
       typeof validValue === "object"
-        ? (validValue as { type: SparkEntityType })?.type
+        ? (validValue as { type: SparkStructType })?.type
         : (typeof validValue as SparkVariableType);
     const variableType = (type || valueType) as SparkVariableType;
     if (!isVariableType(variableType)) {
@@ -1200,18 +1200,18 @@ const parseSparkInternal = (
     valueFrom: number,
     valueTo: number
   ): void => {
-    if (!parsed.entities) {
-      parsed.entities = {};
+    if (!parsed.structs) {
+      parsed.structs = {};
     }
-    const entityName = currentEntityFieldId.split(".")[0];
-    const entity = parsed.entities[entityName];
-    if (entity) {
-      if (!entity.fields) {
-        entity.fields = {};
+    const structName = currentStructFieldId.split(".")[0];
+    const struct = parsed.structs[structName];
+    if (struct) {
+      if (!struct.fields) {
+        struct.fields = {};
       }
-      const index = Object.keys(entity.fields).length;
+      const index = Object.keys(struct.fields).length;
       const validName = name || String(index);
-      const fieldId = `${currentEntityFieldId
+      const fieldId = `${currentStructFieldId
         .split(".")
         .slice(0, indent)
         .join(".")}.${validName}`;
@@ -1234,12 +1234,12 @@ const parseSparkInternal = (
           declaration: true,
         });
       }
-      const found = entity.fields[id];
+      const found = struct.fields[id];
       if (found) {
         lintNameUnique("field", found, nameFrom, nameTo);
       } else {
         const defaultValue =
-          entity?.type === "list" || entity?.type === "map" ? validName : "";
+          struct?.type === "list" || struct?.type === "map" ? validName : "";
         const [value, valid] = getVariableExpressionValue(
           valueText,
           valueFrom,
@@ -1249,7 +1249,7 @@ const parseSparkInternal = (
         const validValue = value != null ? value : defaultValue;
         const validType = typeof validValue as SparkVariableType;
         const item: SparkField = {
-          ...(parsed?.entities?.[entityName]?.fields?.[id] || {}),
+          ...(parsed?.structs?.[structName]?.fields?.[id] || {}),
           from: nameFrom,
           to: nameTo,
           line,
@@ -1258,14 +1258,14 @@ const parseSparkInternal = (
           value: validValue,
         };
         let curr =
-          entity?.type === "list" || entity?.type === "map"
-            ? entity
-            : parsed.entities[entity.base];
+          struct?.type === "list" || struct?.type === "map"
+            ? struct
+            : parsed.structs[struct.base];
         if (curr) {
           let baseField: SparkField | undefined = undefined;
           while (curr) {
             const fieldIds =
-              entity?.type === "list" || entity?.type === "map"
+              struct?.type === "list" || struct?.type === "map"
                 ? Object.keys(curr.fields).reverse()
                 : [id];
             for (let i = 0; i < fieldIds.length; i += 1) {
@@ -1278,7 +1278,7 @@ const parseSparkInternal = (
             if (baseField) {
               break;
             }
-            curr = parsed.entities[curr.base];
+            curr = parsed.structs[curr.base];
           }
           const isValid = !hasValueText || valid;
           if (
@@ -1289,7 +1289,7 @@ const parseSparkInternal = (
           ) {
             diagnostic(
               currentToken,
-              entity?.type === "list"
+              struct?.type === "list"
                 ? `All list values must be the same type`
                 : `Cannot assign a '${validType}' to a '${baseField?.type}' field`,
               [
@@ -1306,7 +1306,7 @@ const parseSparkInternal = (
             );
           }
         }
-        entity.fields[id] = item;
+        struct.fields[id] = item;
       }
     }
   };
@@ -1820,8 +1820,8 @@ const parseSparkInternal = (
           }
         }
       }
-    } else if ((match = currentToken.content.match(sparkRegexes.entity))) {
-      const type = match[2] as SparkEntityType;
+    } else if ((match = currentToken.content.match(sparkRegexes.struct))) {
+      const type = match[2] as SparkStructType;
       const colon = match[12] || "";
       if (colon) {
         state = type;
@@ -1836,7 +1836,7 @@ const parseSparkInternal = (
         const baseTo = baseFrom + base.length;
         currentToken.name = name;
         if (name) {
-          addEntity(
+          addStruct(
             type,
             name,
             base,
@@ -1847,27 +1847,27 @@ const parseSparkInternal = (
             baseTo
           );
         }
-        currentEntityName = name;
-        currentEntityFieldId = name;
+        currentStructName = name;
+        currentStructFieldId = name;
       }
-    } else if (isEntityType(state) && currentToken.content?.trim()) {
+    } else if (isStructType(state) && currentToken.content?.trim()) {
       if (
-        (match = currentToken.content.match(sparkRegexes.entity_object_field))
+        (match = currentToken.content.match(sparkRegexes.struct_object_field))
       ) {
-        currentToken.type = "entity_object_field";
-        if (currentToken.type === "entity_object_field") {
+        currentToken.type = "struct_object_field";
+        if (currentToken.type === "struct_object_field") {
           const name = match[2] || "";
-          currentEntityFieldId = `${currentEntityFieldId
+          currentStructFieldId = `${currentStructFieldId
             .split(".")
             .slice(0, currentToken.indent)
             .join(".")}.${name}`;
         }
       } else if (
         state !== "list" &&
-        (match = currentToken.content.match(sparkRegexes.entity_value_field))
+        (match = currentToken.content.match(sparkRegexes.struct_value_field))
       ) {
-        currentToken.type = "entity_value_field";
-        if (currentToken.type === "entity_value_field") {
+        currentToken.type = "struct_value_field";
+        if (currentToken.type === "struct_value_field") {
           const name = match[2] || "";
           const valueText = match[6] || "";
           const nameFrom = currentToken.from + getStart(match, 2);
@@ -1887,11 +1887,11 @@ const parseSparkInternal = (
         }
       } else if (
         state === "list" &&
-        (match = currentToken.content.match(sparkRegexes.entity_list_value))
+        (match = currentToken.content.match(sparkRegexes.struct_list_value))
       ) {
         if (state === "list") {
-          currentToken.type = "entity_list_value";
-          if (currentToken.type === "entity_list_value") {
+          currentToken.type = "struct_list_value";
+          if (currentToken.type === "struct_list_value") {
             const valueText = match[2] || "";
             const valueFrom = currentToken.from + getStart(match, 2);
             const valueTo = valueFrom + valueText.length;
@@ -1927,8 +1927,8 @@ const parseSparkInternal = (
   }
 
   state = "normal";
-  currentEntityName = "";
-  currentEntityFieldId = "";
+  currentStructName = "";
+  currentStructFieldId = "";
   current = 0;
   currentLevel = 0;
   currentSectionId = "";
@@ -2510,8 +2510,8 @@ const parseSparkInternal = (
             }
           }
         }
-      } else if ((match = currentToken.content.match(sparkRegexes.entity))) {
-        const type = match[2] as SparkEntityType;
+      } else if ((match = currentToken.content.match(sparkRegexes.struct))) {
+        const type = match[2] as SparkStructType;
         const name = match[4] || "";
         const colon = match[12] || "";
         if (colon) {
@@ -2521,8 +2521,8 @@ const parseSparkInternal = (
         if (currentToken.type === type) {
           currentToken.name = name;
         }
-        currentEntityName = name;
-        matchLint(currentToken.content, sparkRegexes.entity);
+        currentStructName = name;
+        matchLint(currentToken.content, sparkRegexes.struct);
       } else if ((match = currentToken.content.match(sparkRegexes.import))) {
         const type = "import";
         currentToken.type = type;
@@ -2821,35 +2821,35 @@ const parseSparkInternal = (
           currentToken.wait = true;
         }
       }
-    } else if (isEntityType(state || "") && currentToken.content?.trim()) {
+    } else if (isStructType(state || "") && currentToken.content?.trim()) {
       if (
-        (match = currentToken.content.match(sparkRegexes.entity_object_field))
+        (match = currentToken.content.match(sparkRegexes.struct_object_field))
       ) {
         if (state === "list" || state === "map") {
           diagnostic(currentToken, `Cannot declare object field in ${state}`);
         } else {
-          currentToken.type = "entity_object_field";
-          if (currentToken.type === "entity_object_field") {
-            currentToken.entity = currentEntityName;
-            matchLint(currentToken.content, sparkRegexes.entity_object_field);
+          currentToken.type = "struct_object_field";
+          if (currentToken.type === "struct_object_field") {
+            currentToken.struct = currentStructName;
+            matchLint(currentToken.content, sparkRegexes.struct_object_field);
           }
         }
       } else if (
         state !== "list" &&
-        (match = currentToken.content.match(sparkRegexes.entity_value_field))
+        (match = currentToken.content.match(sparkRegexes.struct_value_field))
       ) {
-        currentToken.type = "entity_value_field";
-        if (currentToken.type === "entity_value_field") {
-          currentToken.entity = currentEntityName;
-          matchLint(currentToken.content, sparkRegexes.entity_value_field);
+        currentToken.type = "struct_value_field";
+        if (currentToken.type === "struct_value_field") {
+          currentToken.struct = currentStructName;
+          matchLint(currentToken.content, sparkRegexes.struct_value_field);
         }
       } else if (
         state === "list" &&
-        (match = currentToken.content.match(sparkRegexes.entity_list_value))
+        (match = currentToken.content.match(sparkRegexes.struct_list_value))
       ) {
-        currentToken.type = "entity_list_value";
-        if (currentToken.type === "entity_list_value") {
-          matchLint(currentToken.content, sparkRegexes.entity_list_value);
+        currentToken.type = "struct_list_value";
+        if (currentToken.type === "struct_list_value") {
+          matchLint(currentToken.content, sparkRegexes.struct_list_value);
         }
       } else {
         diagnostic(currentToken, `Invalid ${state} field syntax`);
@@ -3018,9 +3018,9 @@ export const parseSpark = (
 ): SparkParseResult => {
   const result = parseSparkInternal(script, augmentations, config);
   const defaultDisplayResult = parseSparkInternal(defaultDisplayScript);
-  result.entities = {
-    ...(defaultDisplayResult.entities || {}),
-    ...(result.entities || {}),
+  result.structs = {
+    ...(defaultDisplayResult.structs || {}),
+    ...(result.structs || {}),
   };
   return result;
 };

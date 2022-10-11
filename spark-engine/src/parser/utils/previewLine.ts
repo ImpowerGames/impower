@@ -1,17 +1,24 @@
 import {
   getScopedValueContext,
   getSectionAtLine,
-  SparkParseResult,
+  SparkSection,
+  SparkStruct,
+  SparkToken,
 } from "../../../../sparkdown";
 import { loadStyles, loadUI } from "../../dom";
-import { generateEntityObjects } from "../../parser";
 import { SparkGameRunner } from "../../runner";
+import { generateStructObjects } from "./generateStructObjects";
 import { getPreviewCommand } from "./getPreviewCommand";
-import { getPreviewEntity } from "./getPreviewEntity";
+import { getPreviewStruct } from "./getPreviewStruct";
 
 export const previewLine = (
   gameRunner: SparkGameRunner,
-  result: SparkParseResult,
+  result: {
+    tokens: SparkToken[];
+    tokenLines: Record<number, number>;
+    sections?: Record<string, SparkSection>;
+    structs?: Record<string, SparkStruct>;
+  },
   line: number,
   instant: boolean,
   debug: boolean
@@ -20,12 +27,12 @@ export const previewLine = (
   if (runtimeCommand) {
     const commandRunner = gameRunner.getRunner(runtimeCommand.reference);
     if (commandRunner) {
-      const [sectionId] = getSectionAtLine(line, result);
+      const [sectionId] = getSectionAtLine(line, result?.sections || {});
       const [, valueMap] = getScopedValueContext(
         sectionId,
         result?.sections || {}
       );
-      const objectMap = generateEntityObjects(result?.entities || {});
+      const objectMap = generateStructObjects(result?.structs || {});
       commandRunner.onPreview(runtimeCommand, {
         valueMap,
         objectMap,
@@ -34,14 +41,14 @@ export const previewLine = (
       });
     }
   } else {
-    const previewEntity = getPreviewEntity(result, line);
-    if (previewEntity?.type === "style") {
-      const objectMap = generateEntityObjects(result?.entities || {});
+    const previewStruct = getPreviewStruct(result, line);
+    if (previewStruct?.type === "style") {
+      const objectMap = generateStructObjects(result?.structs || {});
       loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));
     }
-    if (previewEntity?.type === "ui") {
-      const objectMap = generateEntityObjects(result?.entities || {});
-      loadUI(objectMap, previewEntity.name);
+    if (previewStruct?.type === "ui") {
+      const objectMap = generateStructObjects(result?.structs || {});
+      loadUI(objectMap, previewStruct.name);
     }
   }
 };

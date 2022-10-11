@@ -21,7 +21,7 @@ export class LogCommandRunner extends CommandRunner<LogCommandData> {
     const parentParentContainerId = parentNode?.parent;
     game.debug.log({
       id: uuid(),
-      parentBlockId: parentParentContainerId,
+      parentBlockId: parentParentContainerId || "",
       blockId: parentContainerId,
       commandId: refId,
       time: new Date().getTime(),

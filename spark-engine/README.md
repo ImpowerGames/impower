@@ -6,14 +6,14 @@ The Spark Engine is a light-weight library used to run spark games in a browser 
 import { parseSpark } from "sparkdown";
 import {
   generateSectionBlocks,
-  generateEntityObjects,
+  generateStructObjects,
   SparkGame,
   SparkContext,
 } from "spark-engine";
 
 const parsed = parseSpark(script);
 const blockMap = generateSectionBlocks(parsed.sections);
-const objectMap = generateEntityObjects(parsed.entities);
+const objectMap = generateStructObjects(parsed.structs);
 
 const game = new SparkGame(blockMap, objectMap);
 const gameContext = new SparkContext(game);

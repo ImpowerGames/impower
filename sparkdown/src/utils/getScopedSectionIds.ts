@@ -1,11 +1,13 @@
-import { SparkSection } from "../types/SparkSection";
 import { getAncestorIds } from "./getAncestorIds";
 import { getChildrenIds } from "./getChildrenIds";
 import { getSiblingIds } from "./getSiblingIds";
 
 export const getScopedSectionIds = (
   sectionId: string,
-  sections: Record<string, SparkSection>
+  sections: Record<
+    string,
+    { name: string; parent?: string; children?: string[] }
+  >
 ): Record<string, string> => {
   const validSectionId = sectionId || "";
   const result: Record<string, string> = {};

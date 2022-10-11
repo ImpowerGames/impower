@@ -1,11 +1,10 @@
-import { SparkAsset } from "./SparkAsset";
-import { SparkTokenType } from "./SparkTokenType";
+import { SparkVariable } from "./SparkVariable";
 
 export interface SparkLine {
-  type: SparkTokenType;
+  type: string;
   content: string;
   text: string;
-  notes?: Partial<SparkAsset>[];
+  notes?: Partial<SparkVariable>[];
 
   line: number;
   from: number;

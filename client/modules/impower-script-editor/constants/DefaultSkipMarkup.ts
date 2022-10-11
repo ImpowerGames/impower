@@ -5,7 +5,7 @@ import { Line } from "../classes/Line";
 import { Type } from "../types/type";
 import {
   getSectionLevel,
-  isEntity,
+  isStruct,
   isTitle,
   skipForList,
 } from "../utils/markdown";
@@ -82,23 +82,23 @@ export const DefaultSkipMarkup: {
     }
     return true;
   },
-  [Type.Entity](_bl, cx, line): boolean {
-    const entity = isEntity(line);
-    if (!entity && line.indent < line.baseIndent + 2) {
+  [Type.Struct](_bl, cx, line): boolean {
+    const struct = isStruct(line);
+    if (!struct && line.indent < line.baseIndent + 2) {
       return false;
     }
     return true;
   },
-  [Type.Entity](_bl, cx, line): boolean {
-    const entity = isEntity(line);
-    if (!entity && line.indent < line.baseIndent + 2) {
+  [Type.Struct](_bl, cx, line): boolean {
+    const struct = isStruct(line);
+    if (!struct && line.indent < line.baseIndent + 2) {
       return false;
     }
     return true;
   },
-  [Type.EntityList](_bl, cx, line): boolean {
-    const entity = isEntity(line);
-    if (!entity && line.indent < line.baseIndent + 2) {
+  [Type.StructList](_bl, cx, line): boolean {
+    const struct = isStruct(line);
+    if (!struct && line.indent < line.baseIndent + 2) {
       return false;
     }
     return true;

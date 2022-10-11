@@ -20,6 +20,14 @@ export const entityMethods: MethodType[] = [
   "move",
   "moveX",
   "moveY",
+  "moveZ",
+  "rotate",
+  "rotateX",
+  "rotateY",
+  "rotateZ",
+  "scale",
+  "scaleX",
+  "scaleY",
 ];
 
 export const assetMethods: MethodType[] = ["preload", "unload"];

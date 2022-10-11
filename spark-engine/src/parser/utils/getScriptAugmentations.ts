@@ -1,10 +1,10 @@
-import { SparkAsset, SparkParseResult } from "../../../../sparkdown";
+import { SparkVariable } from "../../../../sparkdown";
 import { FileData } from "../../data";
 
 export const getScriptAugmentations = (
   files: Record<string, FileData>
-): Partial<SparkParseResult> => {
-  const variables: Record<string, SparkAsset> = {};
+): { variables: Record<string, SparkVariable> } => {
+  const variables: Record<string, SparkVariable> = {};
   Object.entries(files || {}).forEach(([, { name, fileType, fileUrl }]) => {
     const type = fileType?.startsWith("audio")
       ? "audio"

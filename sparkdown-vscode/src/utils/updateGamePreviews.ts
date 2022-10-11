@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
-import { isAsset } from "../../../sparkdown";
-import { parseSpark } from "../../../sparkdown/src/utils/parseSpark";
+import { isAssetType, parseSpark } from "../../../sparkdown";
 import { parseState } from "../state/parseState";
 import { getPreviewPanelsToUpdate } from "./getPreviewPanelsToUpdate";
 
@@ -14,11 +13,11 @@ export const updateGamePreviews = (doc: vscode.TextDocument) => {
       if (preview) {
         const variables = { ...(result?.variables || {}) };
         Object.entries(variables).forEach(([k, v]) => {
-          if (isAsset(v)) {
+          if (isAssetType(v.type)) {
             variables[k] = {
               ...v,
               value: preview.panel.webview
-                .asWebviewUri(vscode.Uri.file(v.value))
+                .asWebviewUri(vscode.Uri.file(v.value as string))
                 ?.toString(),
             };
           }

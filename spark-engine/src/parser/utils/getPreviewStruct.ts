@@ -1,7 +1,14 @@
-import { SparkParseResult } from "../../../../sparkdown";
-import { getSparkEntity } from "../../parser";
+import { SparkStruct, SparkToken } from "../../../../sparkdown";
+import { getSparkStruct } from "./getSparkStruct";
 
-export const getPreviewEntity = (result: SparkParseResult, line: number) => {
+export const getPreviewStruct = (
+  result: {
+    tokens: SparkToken[];
+    tokenLines: Record<number, number>;
+    structs?: Record<string, SparkStruct>;
+  },
+  line: number
+) => {
   if (!result) {
     return undefined;
   }
@@ -15,7 +22,7 @@ export const getPreviewEntity = (result: SparkParseResult, line: number) => {
       tokenIndex += 1;
       token = result.tokens[tokenIndex];
     }
-    const runtimeEntity = getSparkEntity(token, result?.entities || {});
+    const runtimeEntity = getSparkStruct(token, result?.structs || {});
     return runtimeEntity;
   }
   return null;

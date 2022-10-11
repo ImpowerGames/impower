@@ -1,8 +1,6 @@
-import { SparkSection } from "../types/SparkSection";
-
-export const getChildrenIds = (
+export const getChildrenIds = <T extends { children?: string[] }>(
   sectionId: string,
-  sections: Record<string, SparkSection>
+  sections: Record<string, T>
 ): string[] => {
   const validSectionId = sectionId || "";
   const section = sections?.[validSectionId];

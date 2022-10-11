@@ -1,9 +1,16 @@
-import { SparkSection } from "../types/SparkSection";
 import { getAncestorIds } from "./getAncestorIds";
 
 export const getScopedIds = (
   sectionId: string,
-  sections: Record<string, SparkSection>,
+  sections: Record<
+    string,
+    {
+      name: string;
+      parent?: string;
+      children?: string[];
+      variables?: Record<string, { name: string }>;
+    }
+  >,
   itemsProp: "variables"
 ): Record<string, string> => {
   const ancestorIds = getAncestorIds(sectionId);
@@ -18,7 +25,7 @@ export const getScopedIds = (
       });
     } else {
       Object.entries(items).forEach(([id, v]) => {
-        result[v.name] = id;
+        result[v.name || ""] = id;
       });
     }
   });

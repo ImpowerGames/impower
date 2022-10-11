@@ -10,14 +10,14 @@ import {
   SparkConditionTokenType,
   SparkDialogueAssetTokenType,
   SparkDialogueTokenType,
-  SparkEntityFieldTokenType,
-  SparkEntityTokenType,
   SparkJumpTokenType,
   SparkOtherTokenType,
   SparkPositionTokenType,
   SparkReturnTokenType,
   SparkSceneTokenType,
   SparkSectionTokenType,
+  SparkStructFieldTokenType,
+  SparkStructTokenType,
   SparkTransitionTokenType,
   SparkVariableTokenType,
 } from "./SparkTokenType";
@@ -34,14 +34,14 @@ export interface SparkVariableToken extends SparkLine {
   value: string;
 }
 
-export interface SparkEntityToken extends SparkLine {
-  type: SparkEntityTokenType;
+export interface SparkStructToken extends SparkLine {
+  type: SparkStructTokenType;
   name: string;
 }
 
-export interface SparkEntityFieldToken extends SparkLine {
-  type: SparkEntityFieldTokenType;
-  entity: string;
+export interface SparkStructFieldToken extends SparkLine {
+  type: SparkStructFieldTokenType;
+  struct: string;
 }
 
 export interface SparkJumpToken extends SparkLine {
@@ -88,6 +88,8 @@ export interface SparkDisplayToken extends SparkLine {
   autoAdvance: boolean;
   clearPreviousText: boolean;
   assets?: { name: string }[];
+  parenthetical?: string;
+  position?: "left" | "right";
 }
 
 export interface SparkSceneToken extends SparkDisplayToken {
@@ -138,7 +140,7 @@ export interface SparkOtherToken extends SparkLine {
 }
 
 export type SparkToken =
-  | SparkEntityToken
+  | SparkStructToken
   | SparkVariableToken
   | SparkAssignToken
   | SparkCallToken
@@ -156,5 +158,5 @@ export type SparkToken =
   | SparkAssetsToken
   | SparkActionAssetToken
   | SparkDialogueAssetToken
-  | SparkEntityFieldToken
+  | SparkStructFieldToken
   | SparkOtherToken;

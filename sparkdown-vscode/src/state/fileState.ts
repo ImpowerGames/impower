@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { SparkAsset } from "../../../sparkdown";
+import { SparkVariable } from "../../../sparkdown";
 
 export const fileState: Record<
   string,
-  { assets: Record<string, SparkAsset>; watcher: vscode.FileSystemWatcher }
+  { assets: Record<string, SparkVariable>; watcher: vscode.FileSystemWatcher }
 > = {};

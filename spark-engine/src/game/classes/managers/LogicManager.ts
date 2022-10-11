@@ -376,7 +376,7 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     const [nextBlockId] = blockList.find(
       ([, v]) =>
         v.type === "section" &&
-        (v.parent === id || this.blockMap[v.parent].index < block.index)
+        (v.parent === id || this.blockMap[v.parent || ""].index < block.index)
     ) || [undefined, undefined];
     return nextBlockId;
   }

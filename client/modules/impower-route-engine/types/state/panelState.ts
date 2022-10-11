@@ -20,10 +20,10 @@ export interface PanelCursorState {
 
 export type SnippetCategoryType =
   | "screenplay"
-  | "world"
   | "flow"
-  | "data"
-  | "entity";
+  | "struct"
+  | "entity"
+  | "data";
 
 export interface PanelState {
   paneSize: number | string;

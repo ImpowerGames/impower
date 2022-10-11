@@ -205,9 +205,9 @@ const myHighlightStyle = HighlightStyle.define([
   { tag: t.typeName, color: colors.typeName },
   { tag: t.sectionName, color: colors.sectionName },
   { tag: t.variableName, color: colors.variableName },
-  { tag: t.entityName, color: colors.entityName },
-  { tag: t.entityBase, color: colors.entityBase },
-  { tag: t.entityFieldName, color: colors.entityField },
+  { tag: t.structName, color: colors.structName },
+  { tag: t.structBase, color: colors.structBase },
+  { tag: t.structFieldName, color: colors.structField },
   { tag: t.parameterName, color: colors.parameterName },
   {
     tag: t.string,

@@ -16,8 +16,8 @@ import {
   getScopedContext,
   getSectionAt,
   getSiblingIds,
-  isAsset,
-  isTag,
+  isAssetType,
+  isTagType,
   SparkParseResult,
   sparkRegexes,
   SparkSection,
@@ -58,6 +58,7 @@ type CompletionType =
   | "quit"
   | "next"
   | "asset"
+  | "struct"
   | "entity"
   | "tag"
   | "character"
@@ -84,23 +85,23 @@ const getInfoNode = (info: string, color?: string): Node => {
 export const lowercaseParagraphSnippets: readonly Completion[] = [
   snip("list ${}${ListName}:${}", {
     label: "list",
-    type: "entity",
+    type: "struct",
   }),
   snip("map ${}${MapName}:${}", {
     label: "map",
-    type: "entity",
+    type: "struct",
   }),
   snip("ui ${}${UIName}:${}", {
     label: "ui",
-    type: "entity",
+    type: "struct",
   }),
   snip("style ${}${StyleName}:${}", {
     label: "style",
-    type: "entity",
+    type: "struct",
   }),
   snip("config ${}${ConfigName}:${}", {
     label: "config",
-    type: "entity",
+    type: "struct",
   }),
 ];
 
@@ -250,9 +251,10 @@ export const callSnippets: readonly Completion[] = [
     info: (): Node => getInfoNode(`(string)`, colors.section),
     type: "method",
   }),
-  snip('* move(${}"${entityName}", ${x}, ${y})${}', {
+  snip('* move(${}"${entityName}", ${x}, ${y}, ${z})${}', {
     label: "* move",
-    info: (): Node => getInfoNode(`(string, number, number)`, colors.section),
+    info: (): Node =>
+      getInfoNode(`(string, number, number, number)`, colors.section),
     type: "method",
   }),
   snip('* moveX(${}"${entityName}", ${x})${}', {
@@ -262,6 +264,46 @@ export const callSnippets: readonly Completion[] = [
   }),
   snip('* moveY(${}"${entityName}", ${y})${}', {
     label: "* moveY",
+    info: (): Node => getInfoNode(`(string, number)`, colors.section),
+    type: "method",
+  }),
+  snip('* moveZ(${}"${entityName}", ${z})${}', {
+    label: "* moveZ",
+    info: (): Node => getInfoNode(`(string, number)`, colors.section),
+    type: "method",
+  }),
+  snip('* rotate(${}"${entityName}", ${x}, ${y}, ${z})${}', {
+    label: "* rotate",
+    info: (): Node => getInfoNode(`(string, number, number)`, colors.section),
+    type: "method",
+  }),
+  snip('* rotateX(${}"${entityName}", ${x})${}', {
+    label: "* rotateX",
+    info: (): Node => getInfoNode(`(string, number)`, colors.section),
+    type: "method",
+  }),
+  snip('* rotateY(${}"${entityName}", ${y})${}', {
+    label: "* rotateY",
+    info: (): Node => getInfoNode(`(string, number)`, colors.section),
+    type: "method",
+  }),
+  snip('* rotateZ(${}"${entityName}", ${z})${}', {
+    label: "* rotateY",
+    info: (): Node => getInfoNode(`(string, number)`, colors.section),
+    type: "method",
+  }),
+  snip('* scale(${}"${entityName}", ${x}, ${y})${}', {
+    label: "* scale",
+    info: (): Node => getInfoNode(`(string, number)`, colors.section),
+    type: "method",
+  }),
+  snip('* scaleX(${}"${entityName}", ${x})${}', {
+    label: "* scaleX",
+    info: (): Node => getInfoNode(`(string, number)`, colors.section),
+    type: "method",
+  }),
+  snip('* scaleY(${}"${entityName}", ${y})${}', {
+    label: "* scaleY",
     info: (): Node => getInfoNode(`(string, number)`, colors.section),
     type: "method",
   }),
@@ -723,7 +765,7 @@ export const sparkAutocomplete = async (
   );
   const variableOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
     Object.entries(result?.sections?.[ancestorId]?.variables || {})
-      .filter(([, v]) => !isAsset(v) && !isTag(v))
+      .filter(([, v]) => !isAssetType(v.type) && !isTagType(v.type))
       .map(([id]) => {
         const found = result?.sections?.[ancestorId]?.variables?.[id];
         const completionType: CompletionType = found.parameter
@@ -741,9 +783,9 @@ export const sparkAutocomplete = async (
         };
       })
   );
-  const entityOptions: Option[] = Object.keys(result?.entities || {}).map(
+  const entityOptions: Option[] = Object.keys(result?.structs || {}).map(
     (id) => {
-      const found = result?.entities?.[id];
+      const found = result?.structs?.[id];
       return {
         line: found.line,
         name: found.name,
@@ -753,7 +795,7 @@ export const sparkAutocomplete = async (
   );
   const assetOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
     Object.entries(result?.sections?.[ancestorId]?.variables || {})
-      .filter(([, v]) => isAsset(v))
+      .filter(([, v]) => isAssetType(v.type))
       .map(([id]) => {
         const found = result?.sections?.[ancestorId]?.variables?.[id];
         return {
@@ -765,7 +807,7 @@ export const sparkAutocomplete = async (
   );
   const tagOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
     Object.entries(result?.sections?.[ancestorId]?.variables || {})
-      .filter(([, v]) => isTag(v))
+      .filter(([, v]) => isTagType(v.type))
       .map(([id]) => {
         const found = result?.sections?.[ancestorId]?.variables?.[id];
         return {
@@ -865,10 +907,12 @@ export const sparkAutocomplete = async (
   } else if (["GoSectionName", "ChoiceSectionName"].includes(node.name)) {
     completions.push(...sectionSnippets(sectionId, result?.sections));
   } else if (["CallEntityName"].includes(node.name)) {
-    const validOptions = entityOptions.filter(({ type }) => type === "ui");
+    const validOptions = entityOptions.filter(
+      (x) => x.type === "image" || x.type === "graphic"
+    );
     if (input.match(sparkRegexes.string)) {
       completions.push(
-        ...nameSnippets(validOptions, "entity", "", "", colors.entity)
+        ...nameSnippets(validOptions, "entity", "", "", colors.struct)
       );
     }
   } else if (["VariableValue"].includes(node.name)) {

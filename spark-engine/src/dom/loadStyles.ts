@@ -5,7 +5,7 @@ import { getElement } from "./utils/getElement";
 
 export const loadStyles = (
   objectMap: Record<string, Record<string, unknown>>,
-  ...styleEntityNames: string[]
+  ...styleStructNames: string[]
 ): HTMLStyleElement | null => {
   const rootElementId = getRootElementId();
   const styleElementId = getStyleElementId();
@@ -28,13 +28,13 @@ export const loadStyles = (
   const imports = Object.values(objectMap?.import || {});
   let content = "";
   content += `${imports.map((x) => `\n@import url("${x}");`)}`;
-  styleEntityNames.forEach((k) => {
+  styleStructNames.forEach((k) => {
     if (content) {
       content += "\n";
     }
-    const styleEntity = objectMap[k];
+    const styleStruct = objectMap[k];
     const breakpointMap: Record<string, string[]> = {};
-    Object.entries(styleEntity || {}).forEach(([fk, fv]) => {
+    Object.entries(styleStruct || {}).forEach(([fk, fv]) => {
       if (fk.includes(".")) {
         const [breakpoint, propName] = fk.split(".");
         if (!breakpointMap[breakpoint]) {

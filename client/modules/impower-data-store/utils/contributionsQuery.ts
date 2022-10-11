@@ -1,5 +1,5 @@
-import { ContributionType } from "..";
 import { PitchedProjectDocumentPath } from "../../impower-api";
+import { ContributionType } from "../types/enums/contributionType";
 import { QuerySort } from "../types/enums/querySort";
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type

@@ -1,9 +1,15 @@
-import { SparkSection } from "../types/SparkSection";
 import { getScopedContext } from "./getScopedContext";
 
-export const getScopedValueContext = (
+export const getScopedValueContext = <
+  T extends {
+    name: string;
+    parent?: string;
+    children?: string[];
+    variables?: Record<string, { name: string; value: unknown }>;
+  }
+>(
   sectionId: string,
-  sections: Record<string, SparkSection>
+  sections: Record<string, T>
 ): [Record<string, string>, Record<string, unknown>] => {
   const [sectionIds, sectionValues] = getScopedContext(
     sectionId,

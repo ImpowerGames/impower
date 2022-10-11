@@ -1,7 +1,7 @@
-import { SparkEntity } from "../../../../sparkdown";
+import { SparkStruct } from "../../../../sparkdown";
 
-export const generateEntityObjects = (
-  entities: Record<string, SparkEntity>
+export const generateStructObjects = (
+  entities: Record<string, SparkStruct>
 ): Record<string, Record<string, unknown>> => {
   const objects: Record<string, Record<string, unknown>> = {};
   Object.entries(entities || {}).forEach(([k, v]) => {
@@ -11,13 +11,13 @@ export const generateEntityObjects = (
     });
     let base = v?.base;
     while (base) {
-      const baseEntity = entities[base];
-      Object.entries(baseEntity?.fields || {}).forEach(([fk, fv]) => {
+      const baseStruct = entities[base];
+      Object.entries(baseStruct?.fields || {}).forEach(([fk, fv]) => {
         if (values[fk] === undefined) {
           values[fk] = fv.value;
         }
       });
-      base = baseEntity?.base;
+      base = baseStruct?.base;
     }
     if (!objects[v.type]) {
       objects[v.type] = {};

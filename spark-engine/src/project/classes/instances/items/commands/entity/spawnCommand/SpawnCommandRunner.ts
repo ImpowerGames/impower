@@ -1,10 +1,10 @@
-import { CreateCommandData } from "../../../../../../../data";
+import { SpawnCommandData } from "../../../../../../../data";
 import { SparkGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
-export class CreateCommandRunner extends CommandRunner<CreateCommandData> {
+export class SpawnCommandRunner extends CommandRunner<SpawnCommandData> {
   onExecute(
-    data: CreateCommandData,
+    data: SpawnCommandData,
     context: CommandContext,
     game: SparkGame
   ): number[] {
@@ -16,7 +16,7 @@ export class CreateCommandRunner extends CommandRunner<CreateCommandData> {
       return super.onExecute(data, context, game);
     }
 
-    game.entity.loadEntity({ id: entityId });
+    game.entity.spawnEntity({ id: entityId });
 
     return super.onExecute(data, context, game);
   }

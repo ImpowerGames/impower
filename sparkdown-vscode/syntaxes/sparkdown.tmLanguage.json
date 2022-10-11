@@ -41,13 +41,7 @@
       "include": "#variable"
     },
     {
-      "include": "#asset"
-    },
-    {
-      "include": "#tag"
-    },
-    {
-      "include": "#entity"
+      "include": "#struct"
     },
     {
       "include": "#jump"
@@ -1563,7 +1557,7 @@
     },
     "variable": {
       "name": "string.other.variable.sd",
-      "match": "^([ \t]*)(var|temp)($|[ ]+)($|[^\n\r]+)",
+      "match": "^([ \t]*)([*])([ ]+)(var)($|[ ]+)($|[^\n\r]+)",
       "captures": {
         "2": {
           "name": "keyword.other.variable.sd"
@@ -1577,45 +1571,13 @@
         }
       }
     },
-    "asset": {
-      "name": "string.other.asset.sd",
-      "match": "^([ \t]*)(image|audio|video|text)($|[ ]+)($|[^\n\r]+)",
-      "captures": {
-        "2": {
-          "name": "keyword.other.asset.sd"
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#expression"
-            }
-          ]
-        }
-      }
-    },
-    "tag": {
-      "name": "string.other.tag.sd",
-      "match": "^([ \t]*)(tag)($|[ ]+)($|[^\n\r]+)",
-      "captures": {
-        "2": {
-          "name": "keyword.other.tag.sd"
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#expression"
-            }
-          ]
-        }
-      }
-    },
-    "entity": {
-      "name": "string.other.entity.sd",
+    "struct": {
+      "name": "string.other.struct.sd",
       "begin": "^([ \t]*)(list|map|ui|style|config)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)(?:([(])([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[)]))?([ ]*)([:]?)",
       "end": "^(?=(list|map|ui|style|config)|$)",
       "captures": {
         "2": {
-          "name": "keyword.other.entity.sd"
+          "name": "keyword.other.struct.sd"
         },
         "4": {
           "name": "entity.name.type.interface.sd"

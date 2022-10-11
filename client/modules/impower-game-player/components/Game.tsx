@@ -7,8 +7,8 @@ import {
 } from "react";
 import {
   GameProjectData,
-  generateEntityObjects,
   generateSectionBlocks,
+  generateStructObjects,
   getScriptAugmentations,
   loadStyles,
   loadUI,
@@ -38,8 +38,8 @@ const createGame = (
     lineOffset: 1,
   });
   const blockMap = generateSectionBlocks(result?.sections);
-  const objectMap = generateEntityObjects(result?.entities);
-  const [startBlockId] = getSectionAtLine(activeLine, result);
+  const objectMap = generateStructObjects(result?.structs);
+  const [startBlockId] = getSectionAtLine(activeLine, result?.sections);
   const startRuntimeBlock = blockMap?.[startBlockId];
   let startCommandIndex = 0;
   const startCommands = Object.values(startRuntimeBlock?.commands);
@@ -130,7 +130,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
       const result = parseSpark(script, getScriptAugmentations(files), {
         lineOffset: 1,
       });
-      const objectMap = generateEntityObjects(result?.entities);
+      const objectMap = generateStructObjects(result?.structs);
       loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));
       loadUI(objectMap, ...Object.keys(objectMap?.ui || {}));
     }

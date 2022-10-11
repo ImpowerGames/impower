@@ -9,7 +9,7 @@ export * from "./classes/managers/PhysicsManager";
 export * from "./classes/SparkGame";
 export * from "./interfaces/Block";
 export * from "./interfaces/BlockState";
-export * from "./interfaces/Entity";
 export * from "./interfaces/GameConfig";
 export * from "./interfaces/LogData";
 export * from "./interfaces/SaveData";
+export * from "./interfaces/VariableState";

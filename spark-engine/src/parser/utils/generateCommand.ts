@@ -1,3 +1,4 @@
+import { SparkDisplayToken, SparkToken } from "../../../../sparkdown";
 import {
   AssignCommandData,
   ChoiceCommandData,
@@ -10,16 +11,9 @@ import {
   EnterCommandData,
   ReturnCommandData,
   SetOperator,
-} from "../../..";
-import {
-  isVariable,
-  SparkDialogueToken,
-  SparkDisplayToken,
-  SparkLine,
-  SparkToken,
-} from "../../../../sparkdown";
+} from "../../data";
 
-const getCommandId = (token: SparkLine, sectionId = ""): string => {
+const getCommandId = (token: SparkToken, sectionId = ""): string => {
   return `${sectionId}.${token.line}_${token.from}-${token.to}_${token.indent}`;
 };
 
@@ -27,9 +21,8 @@ const generateDisplayCommand = (
   token: SparkDisplayToken,
   sectionId = ""
 ): DisplayCommandData => {
-  const refId = getCommandId(token, sectionId);
+  const refId = getCommandId(token as SparkToken, sectionId);
   const refTypeId: CommandTypeId = "DisplayCommand";
-  const dialogueToken = token as SparkDialogueToken;
   return {
     disabled: false,
     reference: {
@@ -44,14 +37,14 @@ const generateDisplayCommand = (
     line: token.line,
     indent: token.indent,
     type: token.type as DisplayType,
-    position: (dialogueToken.position as DisplayPosition) || "default",
-    character: dialogueToken.character || "",
-    parenthetical: dialogueToken.parenthetical || "",
-    content: dialogueToken.content,
-    assets: dialogueToken.assets?.map(({ name }) => name),
-    autoAdvance: dialogueToken.autoAdvance,
-    clearPreviousText: dialogueToken.clearPreviousText,
-    waitUntilFinished: token.wait,
+    position: (token.position as DisplayPosition) || "default",
+    character: token.character || "",
+    parenthetical: token.parenthetical || "",
+    content: token.content,
+    assets: token.assets?.map(({ name }) => name),
+    autoAdvance: token.autoAdvance || false,
+    clearPreviousText: token.clearPreviousText || false,
+    waitUntilFinished: token.wait || false,
   };
 };
 
@@ -65,7 +58,18 @@ export const generateCommand = (
   if (token.ignore) {
     return null;
   }
-  if (token.type === "assign" || isVariable(token)) {
+  if (
+    token.type === "assign" ||
+    token.type === "string" ||
+    token.type === "number" ||
+    token.type === "boolean" ||
+    token.type === "image" ||
+    token.type === "audio" ||
+    token.type === "video" ||
+    token.type === "text" ||
+    token.type === "graphic" ||
+    token.type === "tag"
+  ) {
     const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "AssignCommand";
     const newCommand: AssignCommandData = {
@@ -80,9 +84,9 @@ export const generateCommand = (
       to: token.to,
       line: token.line,
       indent: token.indent,
-      variable: token.name,
+      variable: token.name || "",
       operator: token.operator as SetOperator,
-      value: token.value,
+      value: token.value as string,
       waitUntilFinished: true,
     };
     return newCommand;
@@ -103,8 +107,8 @@ export const generateCommand = (
       line: token.line,
       indent: token.indent,
       waitUntilFinished: true,
-      value: token.value,
-      check: token.check,
+      value: token.value as string,
+      check: (token.check || "") as "if" | "elif" | "else" | "close",
     };
     return newCommand;
   }
@@ -124,8 +128,8 @@ export const generateCommand = (
       line: token.line,
       indent: token.indent,
       waitUntilFinished: true,
-      value: token.value,
-      calls: token.calls,
+      value: token.value as string,
+      calls: token.calls || {},
       returnWhenFinished: token.type === "call",
     };
     return newCommand;
@@ -146,7 +150,7 @@ export const generateCommand = (
       line: token.line,
       indent: token.indent,
       waitUntilFinished: true,
-      value: token.value,
+      value: token.value as string,
     };
     return newCommand;
   }
@@ -185,9 +189,9 @@ export const generateCommand = (
       line: token.line,
       indent: token.indent,
       waitUntilFinished: token.operator === "end",
-      operator: token.operator,
-      value: token.value,
-      calls: token.calls,
+      operator: token.operator as "end" | "+" | "-" | "start",
+      value: token.value as string,
+      calls: token.calls || {},
       content: token.content,
       order: token.order,
     };

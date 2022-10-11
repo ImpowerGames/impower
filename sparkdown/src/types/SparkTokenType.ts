@@ -1,8 +1,8 @@
-import { SparkEntityType } from "./SparkEntityType";
+import { SparkStructType } from "./SparkStructType";
 import { SparkTitleKeyword } from "./SparkTitleKeyword";
 import { SparkVariableType } from "./SparkVariableType";
 
-export type SparkEntityTokenType = SparkEntityType;
+export type SparkStructTokenType = SparkStructType;
 export type SparkVariableTokenType = SparkVariableType;
 export type SparkAssignTokenType = "assign";
 export type SparkCallTokenType = "call";
@@ -24,9 +24,9 @@ export type SparkPositionTokenType =
   | "dialogue_start"
   | "character"
   | "parenthetical";
-export type SparkEntityFieldTokenType =
-  | "entity_object_field"
-  | "entity_value_field";
+export type SparkStructFieldTokenType =
+  | "struct_object_field"
+  | "struct_value_field";
 
 export type SparkOtherTokenType =
   | "comment"
@@ -43,14 +43,14 @@ export type SparkOtherTokenType =
   | "boneyard_start"
   | "boneyard_end"
   | "repeat"
-  | "entity_list_value"
+  | "struct_list_value"
   | "import"
   | "more"
   | "unknown"
   | SparkTitleKeyword;
 
 export type SparkTokenType =
-  | SparkEntityTokenType
+  | SparkStructTokenType
   | SparkVariableTokenType
   | SparkAssignTokenType
   | SparkCallTokenType
@@ -68,5 +68,5 @@ export type SparkTokenType =
   | SparkActionAssetTokenType
   | SparkDialogueAssetTokenType
   | SparkPositionTokenType
-  | SparkEntityFieldTokenType
+  | SparkStructFieldTokenType
   | SparkOtherTokenType;

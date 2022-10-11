@@ -172,8 +172,8 @@ export const editorTheme: {
   ".cm-completionIcon-asset": {
     "&:after": { content: "'Ꭿ'", color: colors.asset },
   },
-  ".cm-completionIcon-entity": {
-    "&:after": { content: "'ℰ'", color: colors.entity },
+  ".cm-completionIcon-struct": {
+    "&:after": { content: "'ʂ'", color: colors.struct },
   },
   ".cm-completionIcon-tag": {
     "&:after": { content: "'Ť'", color: colors.tag },

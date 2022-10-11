@@ -1,8 +1,6 @@
-import { SparkSection } from "../types/SparkSection";
-
 export const getSiblingIds = (
   sectionId: string,
-  sections: Record<string, SparkSection>
+  sections: Record<string, { parent?: string; children?: string[] }>
 ): string[] => {
   const validSectionId = sectionId || "";
   const result: string[] = [];

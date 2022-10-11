@@ -15,7 +15,7 @@ export interface InlineParser {
   parse(cx: InlineContext, next: number, pos: number): number;
   /// When given, this parser will be installed directly before the
   /// parser with the given name. The default configuration defines
-  /// inline parsers with names Escape, Entity, InlineCode, HTMLTag,
+  /// inline parsers with names Escape, InlineCode, HTMLTag,
   /// Emphasis, HardBreak, Link, and Image. When no `before` or
   /// `after` property is given, the parser is added to the end of the
   /// list.

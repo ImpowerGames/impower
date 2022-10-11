@@ -1,11 +1,8 @@
-import { SparkParseResult } from "../types/SparkParseResult";
-import { SparkSection } from "../types/SparkSection";
-
-export const getSectionAtLine = (
+export const getSectionAtLine = <T extends { line: number }>(
   line: number,
-  result: SparkParseResult
-): [string, SparkSection | undefined] => {
-  const sectionEntries = Object.entries(result?.sections || {});
+  sections: Record<string, T>
+): [string, T | undefined] => {
+  const sectionEntries = Object.entries(sections || {});
   for (let i = sectionEntries.length - 1; i >= 0; i -= 1) {
     const [id, section] = sectionEntries[i];
     if (section.line !== undefined) {
@@ -14,5 +11,5 @@ export const getSectionAtLine = (
       }
     }
   }
-  return ["", result?.sections?.[""]];
+  return ["", sections?.[""]];
 };

@@ -1,6 +1,6 @@
-import { isProjectDocument } from "..";
 import { DataDocument } from "../../impower-core";
 import getSlugRoute from "./getSlugRoute";
+import isProjectDocument from "./isProjectDocument";
 import isStudioDocument from "./isStudioDocument";
 import isUserDocument from "./isUserDocument";
 

@@ -1,10 +1,17 @@
-import { SparkSection } from "../types/SparkSection";
 import { getScopedIds } from "./getScopedIds";
 import { getScopedSectionIds } from "./getScopedSectionIds";
 
 export const getScopedContext = <T>(
   sectionId: string,
-  sections: Record<string, SparkSection>,
+  sections: Record<
+    string,
+    {
+      name: string;
+      parent?: string;
+      children?: string[];
+      variables?: Record<string, { name: string; value: unknown }>;
+    }
+  >,
   itemsProp: "variables" | "sections"
 ): [Record<string, string>, Record<string, T>] => {
   const validSectionId = sectionId || "";

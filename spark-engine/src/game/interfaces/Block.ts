@@ -1,6 +1,3 @@
-import { Command } from "./Command";
-import { Variable } from "./Variable";
-
 export interface Block {
   from: number;
   to: number;
@@ -9,12 +6,10 @@ export interface Block {
   index: number;
   level: number;
   type: "section" | "function" | "method" | "detector";
-  parent: string;
-  children: string[];
-  triggers: string[];
-  parameters: string[];
   name: string;
-  variables?: Record<string, Variable>;
-  commands?: Record<string, Command>;
-  ids: Record<string, string>;
+  parent?: string;
+  children?: string[];
+  triggers?: string[];
+  variables?: Record<string, { name: string; type: string; value: unknown }>;
+  commands?: Record<string, { line: number }>;
 }

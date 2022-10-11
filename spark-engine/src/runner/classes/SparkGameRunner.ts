@@ -13,8 +13,8 @@ import { ConditionCommandRunner } from "../../project/classes/instances/items/co
 import { AssignCommandRunner } from "../../project/classes/instances/items/commands/data/assignCommand/AssignCommandRunner";
 import { ChoiceCommandRunner } from "../../project/classes/instances/items/commands/dialog/choiceCommand/ChoiceCommandRunner";
 import { DisplayCommandRunner } from "../../project/classes/instances/items/commands/dialog/displayCommand/DisplayCommandRunner";
-import { CreateCommandRunner } from "../../project/classes/instances/items/commands/entity/createCommand/CreateCommandRunner";
 import { DestroyCommandRunner } from "../../project/classes/instances/items/commands/entity/destroyCommand/DestroyCommandRunner";
+import { SpawnCommandRunner } from "../../project/classes/instances/items/commands/entity/spawnCommand/SpawnCommandRunner";
 import { EndCommandRunner } from "../../project/classes/instances/items/commands/flow/endCommand/EndCommandRunner";
 import { EnterCommandRunner } from "../../project/classes/instances/items/commands/flow/enterCommand/EnterCommandRunner";
 import { LogCommandRunner } from "../../project/classes/instances/items/commands/flow/logCommand/LogCommandRunner";
@@ -77,7 +77,7 @@ export class SparkGameRunner {
     AssignCommand: new AssignCommandRunner(),
     DisplayCommand: new DisplayCommandRunner(),
     ChoiceCommand: new ChoiceCommandRunner(),
-    CreateCommand: new CreateCommandRunner(),
+    SpawnCommand: new SpawnCommandRunner(),
     DestroyCommand: new DestroyCommandRunner(),
     ShowImageCommand: new ShowImageCommandRunner(),
     MoveToImageCommand: new MoveToImageCommandRunner(),

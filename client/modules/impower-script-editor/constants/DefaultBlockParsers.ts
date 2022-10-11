@@ -21,10 +21,6 @@ import {
   isChoice,
   isComment,
   isCondition,
-  isEntity,
-  isEntityListValue,
-  isEntityObjectField,
-  isEntityValueField,
   isFencedCode,
   isHTMLBlock,
   isImport,
@@ -37,6 +33,10 @@ import {
   isReturn,
   isScene,
   isSectionHeading,
+  isStruct,
+  isStructListValue,
+  isStructObjectField,
+  isStructValueField,
   isSynopsis,
   isTitle,
   isTransition,
@@ -117,12 +117,12 @@ export const parseExpression = (
       if (fieldAccess) {
         from = exprFrom + t.from;
         to = exprFrom + name.length;
-        buf = buf.write(Type.EntityName, from, to);
+        buf = buf.write(Type.StructName, from, to);
         fieldAccess.split(/([.])/).forEach((f) => {
           from = to;
           to = from + f.length;
           if (f !== ".") {
-            buf = buf.write(Type.EntityFieldAccess, from, to);
+            buf = buf.write(Type.StructFieldAccess, from, to);
           }
         });
       } else {
@@ -153,8 +153,8 @@ export const DefaultBlockParsers: {
     return true;
   },
 
-  Entity(cx, line) {
-    const match = isEntity(line);
+  Struct(cx, line) {
+    const match = isStruct(line);
     if (!match) {
       return false;
     }
@@ -176,55 +176,55 @@ export const DefaultBlockParsers: {
     const colon = match[12] || "";
     const colonSpace = match[13] || "";
     if (colon) {
-      cx.startContext(Type.Entity, line.basePos, line.next);
+      cx.startContext(Type.Struct, line.basePos, line.next);
       if (type === "list") {
-        cx.startContext(Type.EntityList, line.basePos, line.next);
+        cx.startContext(Type.StructList, line.basePos, line.next);
       }
     }
 
     if (type || typeSpace) {
       from = to;
       to = from + type.length + typeSpace.length;
-      buf = buf.write(Type.EntityMark, from, to);
+      buf = buf.write(Type.StructMark, from, to);
     }
     if (name || nameSpace) {
       from = to;
       to = from + name.length + nameSpace.length;
-      buf = buf.write(Type.EntityName, from, to);
+      buf = buf.write(Type.StructName, from, to);
     }
     if (openMark || openMarkSpace) {
       from = to;
       to = from + openMark.length + openMarkSpace.length;
-      buf = buf.write(Type.EntityOpenMark, from, to);
+      buf = buf.write(Type.StructOpenMark, from, to);
     }
     if (base || baseSpace) {
       from = to;
       to = from + base.length + baseSpace.length;
-      buf = buf.write(Type.EntityBase, from, to);
+      buf = buf.write(Type.StructBase, from, to);
     }
     if (closeMark || closeMarkSpace) {
       from = to;
       to = from + closeMark.length + closeMarkSpace.length;
-      buf = buf.write(Type.EntityCloseMark, from, to);
+      buf = buf.write(Type.StructCloseMark, from, to);
     }
     if (colon || colonSpace) {
       from = to;
       to = from + colon.length + colonSpace.length;
-      buf = buf.write(Type.EntityColon, from, to);
+      buf = buf.write(Type.StructColon, from, to);
     }
     from = to;
     to = line.text.length - line.pos;
     if (to > from) {
       buf = buf.write(Type.Comment, from, to);
     }
-    const node = buf.finish(Type.Entity, line.text.length - line.pos);
+    const node = buf.finish(Type.Struct, line.text.length - line.pos);
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
     return true;
   },
 
-  EntityListValue(cx, line) {
-    if (!inBlockContext(cx, Type.Entity)) {
+  StructListValue(cx, line) {
+    if (!inBlockContext(cx, Type.Struct)) {
       return false;
     }
 
@@ -232,8 +232,8 @@ export const DefaultBlockParsers: {
     let from = 0;
     let to = from;
 
-    if (inBlockContext(cx, Type.EntityList)) {
-      const listValueMatch = isEntityListValue(line);
+    if (inBlockContext(cx, Type.StructList)) {
+      const listValueMatch = isStructListValue(line);
       if (listValueMatch) {
         const value = listValueMatch[2] || "";
         const valueSpace = listValueMatch[3] || "";
@@ -242,7 +242,7 @@ export const DefaultBlockParsers: {
         if (value) {
           from = to;
           to = from + value.length;
-          buf = buf.write(Type.EntityFieldValue, from, to);
+          buf = buf.write(Type.StructFieldValue, from, to);
           const expression = line.text.slice(line.pos + from, line.pos + to);
           buf = parseExpression(buf, expression, from, to);
         }
@@ -253,7 +253,7 @@ export const DefaultBlockParsers: {
         if (operator) {
           from = to;
           to = from + operator.length;
-          buf = buf.write(Type.EntityOperator, from, to);
+          buf = buf.write(Type.StructOperator, from, to);
         }
         if (operatorSpace) {
           from = to;
@@ -264,14 +264,14 @@ export const DefaultBlockParsers: {
         if (to > from) {
           buf = buf.write(Type.Comment, from, to);
         }
-        const node = buf.finish(Type.EntityField, line.text.length - line.pos);
+        const node = buf.finish(Type.StructField, line.text.length - line.pos);
         cx.addNode(node, cx.lineStart + line.pos);
         cx.nextLine();
         return true;
       }
       return false;
     }
-    const valueFieldMatch = isEntityValueField(line);
+    const valueFieldMatch = isStructValueField(line);
     if (valueFieldMatch) {
       const name = valueFieldMatch[2] || "";
       const nameSpace = valueFieldMatch[3] || "";
@@ -281,7 +281,7 @@ export const DefaultBlockParsers: {
       if (name) {
         from = to;
         to = from + name.length;
-        buf = buf.write(Type.EntityFieldName, from, to);
+        buf = buf.write(Type.StructFieldName, from, to);
       }
       if (nameSpace) {
         from = to;
@@ -290,7 +290,7 @@ export const DefaultBlockParsers: {
       if (operator) {
         from = to;
         to = from + operator.length;
-        buf = buf.write(Type.EntityOperator, from, to);
+        buf = buf.write(Type.StructOperator, from, to);
       }
       if (operatorSpace) {
         from = to;
@@ -299,7 +299,7 @@ export const DefaultBlockParsers: {
       if (value) {
         from = to;
         to = from + value.length;
-        buf = buf.write(Type.EntityFieldValue, from, to);
+        buf = buf.write(Type.StructFieldValue, from, to);
         const expression = line.text.slice(line.pos + from, line.pos + to);
         buf = parseExpression(buf, expression, from, to);
       }
@@ -308,12 +308,12 @@ export const DefaultBlockParsers: {
       if (to > from) {
         buf = buf.write(Type.Comment, from, to);
       }
-      const node = buf.finish(Type.EntityField, line.text.length - line.pos);
+      const node = buf.finish(Type.StructField, line.text.length - line.pos);
       cx.addNode(node, cx.lineStart + line.pos);
       cx.nextLine();
       return true;
     }
-    const objectFieldMatch = isEntityObjectField(line);
+    const objectFieldMatch = isStructObjectField(line);
     if (objectFieldMatch) {
       const name = objectFieldMatch[2] || "";
       const nameSpace = objectFieldMatch[3] || "";
@@ -321,7 +321,7 @@ export const DefaultBlockParsers: {
       if (name) {
         from = to;
         to = from + name.length;
-        buf = buf.write(Type.EntityFieldName, from, to);
+        buf = buf.write(Type.StructFieldName, from, to);
       }
       if (nameSpace) {
         from = to;
@@ -330,9 +330,9 @@ export const DefaultBlockParsers: {
       if (colon) {
         from = to;
         to = from + name.length;
-        buf = buf.write(Type.EntityColon, from, to);
+        buf = buf.write(Type.StructColon, from, to);
       }
-      const node = buf.finish(Type.EntityField, line.text.length - line.pos);
+      const node = buf.finish(Type.StructField, line.text.length - line.pos);
       cx.addNode(node, cx.lineStart + line.pos);
       cx.nextLine();
       return true;

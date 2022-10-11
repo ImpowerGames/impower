@@ -109,7 +109,7 @@ export const DefaultInline: {
     return -1;
   },
 
-  Entity(cx, next, start) {
+  Struct(cx, next, start) {
     if (next !== 38 /* '&' */) {
       return -1;
     }
@@ -117,7 +117,7 @@ export const DefaultInline: {
       cx.slice(start + 1, start + 31)
     );
     return m
-      ? cx.append(new Element(Type.Entity, start, start + 1 + m[0].length))
+      ? cx.append(new Element(Type.Struct, start, start + 1 + m[0].length))
       : -1;
   },
 

@@ -3,19 +3,19 @@ import { getUIElementId } from "./ids/getUIElementId";
 import { getElement } from "./utils/getElement";
 import { getHash } from "./utils/getHash";
 
-const setupDiv = (uiEntityEl: HTMLDivElement): void => {
-  uiEntityEl.style.position = "absolute";
-  uiEntityEl.style.top = "0";
-  uiEntityEl.style.bottom = "0";
-  uiEntityEl.style.left = "0";
-  uiEntityEl.style.right = "0";
-  uiEntityEl.style.display = "flex";
-  uiEntityEl.style.flexDirection = "column";
+const setupDiv = (uiStructEl: HTMLDivElement): void => {
+  uiStructEl.style.position = "absolute";
+  uiStructEl.style.top = "0";
+  uiStructEl.style.bottom = "0";
+  uiStructEl.style.left = "0";
+  uiStructEl.style.right = "0";
+  uiStructEl.style.display = "flex";
+  uiStructEl.style.flexDirection = "column";
 };
 
 export const loadUI = (
   objectMap: Record<string, Record<string, unknown>>,
-  ...uiEntityNames: string[]
+  ...uiStructNames: string[]
 ): HTMLDivElement | null => {
   const rootElementId = getRootElementId();
   const uiElementId = getUIElementId();
@@ -38,33 +38,33 @@ export const loadUI = (
   if (!objectMap) {
     return null;
   }
-  uiEntityNames.forEach((name) => {
+  uiStructNames.forEach((name) => {
     const obj = objectMap[name];
     const hash = getHash(obj).toString();
-    const existingEntityEl = getElement(uiElementId, name) as HTMLDivElement;
-    if (existingEntityEl && existingEntityEl.dataset.hash !== hash) {
-      existingEntityEl.innerHTML = "";
+    const existingStructEl = getElement(uiElementId, name) as HTMLDivElement;
+    if (existingStructEl && existingStructEl.dataset.hash !== hash) {
+      existingStructEl.innerHTML = "";
     }
-    const entityEl = existingEntityEl || document.createElement("div");
-    entityEl.className = name;
-    if (entityEl.dataset.hash !== hash) {
-      entityEl.dataset.hash = hash;
+    const structEl = existingStructEl || document.createElement("div");
+    structEl.className = name;
+    if (structEl.dataset.hash !== hash) {
+      structEl.dataset.hash = hash;
     }
-    setupDiv(entityEl);
-    if (entityEl.parentElement !== rootEl) {
-      uiEl.appendChild(entityEl);
+    setupDiv(structEl);
+    if (structEl.parentElement !== rootEl) {
+      uiEl.appendChild(structEl);
     }
-    const entityElMap: Record<string, HTMLElement> = {};
+    const structElMap: Record<string, HTMLElement> = {};
     let childPath = "";
-    entityElMap[childPath] = entityEl;
+    structElMap[childPath] = structEl;
     Object.entries(obj || {}).forEach(([k, v]) => {
       childPath = "";
       k.split(".").forEach((n) => {
         if (n) {
           const parentPath = childPath;
           childPath += ` .${n}`;
-          const parentEl = entityElMap[parentPath];
-          if (!entityElMap[childPath]) {
+          const parentEl = structElMap[parentPath];
+          if (!structElMap[childPath]) {
             const selector = `#${rootElementId} ${childPath}`;
             let childEl = document.querySelector(selector) as HTMLDivElement;
             if (!childEl) {
@@ -72,12 +72,12 @@ export const loadUI = (
               childEl.className = n;
               parentEl.appendChild(childEl);
             }
-            entityElMap[childPath] = childEl;
+            structElMap[childPath] = childEl;
           }
         }
       });
       if (v && typeof v === "string") {
-        entityElMap[childPath].textContent = v;
+        structElMap[childPath].textContent = v;
       }
     });
   });

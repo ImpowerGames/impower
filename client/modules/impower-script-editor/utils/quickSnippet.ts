@@ -24,7 +24,9 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   image: "[[${imageName}]]\n${}",
   audio: "((${audioName}))\n${}",
   spawn: "* spawn(${entityName})\n${}",
-  move: "* move(${entityName}, ${x}, ${y})\n${}",
+  move: "* move(${entityName}, ${x}, ${y}, ${z})\n${}",
+  rotate: "* rotate(${entityName}, ${x}, ${y}, ${z})\n${}",
+  scale: "* scale(${entityName}, ${x}, ${y})\n${}",
   destroy: "* destroy(${entityName})\n${}",
 
   choice: "+ ${choice} > ${SectionName}\n${}",
@@ -33,7 +35,7 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   repeat: "^${}\n${}",
   return: "< ${}\n${}",
 
-  declare_variable: "var ${variableName} = ${value}\n${}",
+  declare_variable: "* var ${variableName} = ${value}\n${}",
   assign_variable: "* ${variableName} = ${value}\n${}",
   declare_tag: "tag ${tagName} = `${value}`\n${}",
   declare_image: "image ${imageName} = `${value}`\n${}",

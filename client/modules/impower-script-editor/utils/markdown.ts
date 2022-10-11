@@ -164,7 +164,7 @@ export function isImport(line: Line): RegExpMatchArray {
   return text.match(sparkRegexes.import);
 }
 
-export function isEntity(line: Line): RegExpMatchArray {
+export function isStruct(line: Line): RegExpMatchArray {
   if (
     line.next !== "l".charCodeAt(0) &&
     line.next !== "m".charCodeAt(0) &&
@@ -175,22 +175,22 @@ export function isEntity(line: Line): RegExpMatchArray {
     return null;
   }
   const text = stripComments(line.text);
-  return text.match(sparkRegexes.entity);
+  return text.match(sparkRegexes.struct);
 }
 
-export function isEntityObjectField(line: Line): RegExpMatchArray {
+export function isStructObjectField(line: Line): RegExpMatchArray {
   const text = stripComments(line.text);
-  return text.match(sparkRegexes.entity_object_field);
+  return text.match(sparkRegexes.struct_object_field);
 }
 
-export function isEntityValueField(line: Line): RegExpMatchArray {
+export function isStructValueField(line: Line): RegExpMatchArray {
   const text = stripComments(line.text);
-  return text.match(sparkRegexes.entity_value_field);
+  return text.match(sparkRegexes.struct_value_field);
 }
 
-export function isEntityListValue(line: Line): RegExpMatchArray {
+export function isStructListValue(line: Line): RegExpMatchArray {
   const text = stripComments(line.text);
-  return text.match(sparkRegexes.entity_list_value);
+  return text.match(sparkRegexes.struct_list_value);
 }
 
 export function isVariable(line: Line): RegExpMatchArray {
