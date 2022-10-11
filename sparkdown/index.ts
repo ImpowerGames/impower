@@ -46,6 +46,7 @@ export * from "./src/utils/isAssetType";
 export * from "./src/utils/isEntity";
 export * from "./src/utils/isEntityType";
 export * from "./src/utils/isMonologue";
+export * from "./src/utils/isPrimitive";
 export * from "./src/utils/isPrimitiveType";
 export * from "./src/utils/isTag";
 export * from "./src/utils/isTagType";

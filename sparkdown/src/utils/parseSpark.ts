@@ -362,8 +362,6 @@ const parseSparkInternal = (
         ...(existing?.variables || {}),
         ...(section?.variables || {}),
       },
-      tags: { ...(existing?.tags || {}), ...(section?.tags || {}) },
-      assets: { ...(existing?.assets || {}), ...(section?.assets || {}) },
     };
     if (!parsed.sectionLines) {
       parsed.sectionLines = {};

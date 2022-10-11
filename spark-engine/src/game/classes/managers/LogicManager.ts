@@ -290,49 +290,6 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     this.state.blockStates[id] = blockState;
   }
 
-  private getReferencedAssets(): string[] {
-    const id = this.state.activeParentBlockId;
-    const referencedAssets = new Set<string>();
-    const block = this.blockMap[id];
-    block.children.forEach((childId) => {
-      const childBlock = this.blockMap[childId];
-      Object.keys(childBlock.assets || {}).forEach((a) => {
-        referencedAssets.add(a);
-      });
-    });
-    Object.keys(this.blockMap[id].assets || {}).forEach((a) => {
-      referencedAssets.add(a);
-    });
-    let blockId = id;
-    while (blockId) {
-      blockId = this.blockMap[blockId].parent;
-      Object.keys(this.blockMap[blockId].assets || {}).forEach((a) => {
-        referencedAssets.add(a);
-      });
-    }
-    return Array.from(referencedAssets);
-  }
-
-  private loadAsset(data: { id: string }): void {
-    if (this.state.loadedAssetIds.includes(data.id)) {
-      return;
-    }
-    this.state.loadedAssetIds.push(data.id);
-
-    this.events.onLoadAsset.emit(data);
-  }
-
-  private unloadAsset(data: { id: string }): void {
-    if (!this.state.loadedAssetIds.includes(data.id)) {
-      return;
-    }
-    this.state.loadedAssetIds = this.state.loadedAssetIds.filter(
-      (id) => id !== data.id
-    );
-
-    this.events.onUnloadAsset.emit(data);
-  }
-
   private loadBlock(data: { id: string }): void {
     if (this.state.loadedBlockIds.includes(data.id)) {
       return;
@@ -492,18 +449,6 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     });
     const parent = this.blockMap?.[newActiveParent];
     const childIds = parent?.children || [];
-    const referencedAssets = this.getReferencedAssets();
-    // Unload unreferenced assets
-    this.state.loadedAssetIds.forEach((loadedAssetId) => {
-      if (!referencedAssets.includes(loadedAssetId)) {
-        this.unloadAsset({ id: loadedAssetId });
-      }
-    });
-
-    // Load referenced assets
-    referencedAssets.forEach((assetId) => {
-      this.loadAsset({ id: assetId });
-    });
     // Load activeParent and immediate child blocks
     this.loadBlocks({ ids: [newActiveParent, ...childIds] });
 

@@ -1,5 +1,3 @@
-import { SparkAsset } from "./SparkAsset";
-import { SparkTag } from "./SparkTag";
 import { SparkToken } from "./SparkToken";
 import { SparkVariable } from "./SparkVariable";
 
@@ -19,6 +17,4 @@ export interface SparkSection {
   children?: string[];
   tokens?: SparkToken[];
   variables?: Record<string, SparkVariable>;
-  tags?: Record<string, SparkTag>;
-  assets?: Record<string, SparkAsset>;
 }

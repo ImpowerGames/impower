@@ -4,7 +4,7 @@ const vscode = acquireVsCodeApi();
 
 const gameRunner = new SparkGameRunner();
 
-var state = {
+let state = {
   parsed: undefined,
   docuri: "",
   dynamic: false,
@@ -19,11 +19,17 @@ if (previousState != undefined) {
 
 const cachedFiles = {};
 
-const cacheFiles = async (assets) => {
+const cacheFiles = async (variables) => {
   await Promise.all([
-    ...Object.entries(assets || {}).map(([, asset]) => {
-      return new Promise((resolve) => {
-        if (asset && asset.value) {
+    ...Object.entries(variables || {})
+      .filter(
+        ([, variable]) =>
+          variable &&
+          variable.value &&
+          (variable.type === "image" || variable.type === "audio")
+      )
+      .map(([, asset]) => {
+        return new Promise((resolve) => {
           if (asset.type === "image") {
             const img = new Image();
             img.onload = resolve;
@@ -38,16 +44,15 @@ const cacheFiles = async (assets) => {
             audio.src = asset.value;
             cachedFiles[asset.value] = audio;
           }
-        }
-      });
-    }),
+        });
+      }),
   ]);
 };
 
 window.addEventListener("message", (event) => {
   if (event.data.command == "updateParsedJson") {
     state.parsed = JSON.parse(event.data.content);
-    cacheFiles(state.parsed.assets);
+    cacheFiles(state.parsed.variables);
     applyHtml();
     if (state.lastPreviewedLine >= 0) {
       previewLine(

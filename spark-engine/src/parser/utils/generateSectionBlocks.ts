@@ -30,8 +30,6 @@ export const generateSectionBlocks = (
       children: section.children || [],
       commands: {},
       variables: section.variables,
-      tags: section.tags,
-      assets: section.assets,
     };
     section.tokens?.forEach((token) => {
       const runtimeCommand = generateCommand(token, sectionId);

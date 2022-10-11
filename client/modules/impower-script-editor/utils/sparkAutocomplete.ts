@@ -16,6 +16,8 @@ import {
   getScopedContext,
   getSectionAt,
   getSiblingIds,
+  isAsset,
+  isTag,
   SparkParseResult,
   sparkRegexes,
   SparkSection,
@@ -720,22 +722,24 @@ export const sparkAutocomplete = async (
     "assets"
   );
   const variableOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
-    Object.keys(result?.sections?.[ancestorId]?.variables || {}).map((id) => {
-      const found = result?.sections?.[ancestorId]?.variables?.[id];
-      const completionType: CompletionType = found.parameter
-        ? "parameter"
-        : "variable";
-      const infoColor = found.parameter
-        ? colors.parameterName
-        : colors.variableName;
-      return {
-        line: found.line,
-        name: found.name,
-        type: found.type,
-        completionType,
-        infoColor,
-      };
-    })
+    Object.entries(result?.sections?.[ancestorId]?.variables || {})
+      .filter(([, v]) => !isAsset(v) && !isTag(v))
+      .map(([id]) => {
+        const found = result?.sections?.[ancestorId]?.variables?.[id];
+        const completionType: CompletionType = found.parameter
+          ? "parameter"
+          : "variable";
+        const infoColor = found.parameter
+          ? colors.parameterName
+          : colors.variableName;
+        return {
+          line: found.line,
+          name: found.name,
+          type: found.type,
+          completionType,
+          infoColor,
+        };
+      })
   );
   const entityOptions: Option[] = Object.keys(result?.entities || {}).map(
     (id) => {
@@ -748,24 +752,28 @@ export const sparkAutocomplete = async (
     }
   );
   const assetOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
-    Object.keys(result?.sections?.[ancestorId]?.assets || {}).map((id) => {
-      const found = result?.sections?.[ancestorId]?.assets?.[id];
-      return {
-        line: found.line,
-        name: found.name,
-        type: found.type,
-      };
-    })
+    Object.entries(result?.sections?.[ancestorId]?.variables || {})
+      .filter(([, v]) => isAsset(v))
+      .map(([id]) => {
+        const found = result?.sections?.[ancestorId]?.variables?.[id];
+        return {
+          line: found.line,
+          name: found.name,
+          type: found.type,
+        };
+      })
   );
   const tagOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
-    Object.keys(result?.sections?.[ancestorId]?.tags || {}).map((id) => {
-      const found = result?.sections?.[ancestorId]?.tags?.[id];
-      return {
-        line: found.line,
-        name: found.name,
-        type: "tag",
-      };
-    })
+    Object.entries(result?.sections?.[ancestorId]?.variables || {})
+      .filter(([, v]) => isTag(v))
+      .map(([id]) => {
+        const found = result?.sections?.[ancestorId]?.variables?.[id];
+        return {
+          line: found.line,
+          name: found.name,
+          type: "tag",
+        };
+      })
   );
   const isLowercase = input.toLowerCase() === input;
   const isUppercase = input.toUpperCase() === input;

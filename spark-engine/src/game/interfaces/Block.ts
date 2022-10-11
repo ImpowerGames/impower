@@ -1,6 +1,4 @@
-import { Asset } from "./Asset";
 import { Command } from "./Command";
-import { Tag } from "./Tag";
 import { Variable } from "./Variable";
 
 export interface Block {
@@ -17,8 +15,6 @@ export interface Block {
   parameters: string[];
   name: string;
   variables?: Record<string, Variable>;
-  assets?: Record<string, Asset>;
-  tags?: Record<string, Tag>;
   commands?: Record<string, Command>;
   ids: Record<string, string>;
 }
