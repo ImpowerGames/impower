@@ -1,21 +1,20 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import {
-  IconButton,
-  ListItemIcon,
-  ListItemText,
-  MenuItem,
-  Typography,
-} from "@material-ui/core";
+import { IconButton, Typography } from "@material-ui/core";
 import dynamic from "next/dynamic";
-import React, { useCallback, useContext, useMemo } from "react";
-import CheckRegularIcon from "../../../../resources/icons/regular/check.svg";
+import React, { useCallback, useContext, useMemo, useState } from "react";
+import BrowserRegularIcon from "../../../../resources/icons/regular/browser.svg";
+import BugSlashRegularIcon from "../../../../resources/icons/regular/bug-slash.svg";
+import BugRegularIcon from "../../../../resources/icons/regular/bug.svg";
 import CirclePlayRegularIcon from "../../../../resources/icons/regular/circle-play.svg";
 import CircleQuestionRegularIcon from "../../../../resources/icons/regular/circle-question.svg";
 import CompressRegularIcon from "../../../../resources/icons/regular/compress.svg";
+import DownloadRegularIcon from "../../../../resources/icons/regular/download.svg";
 import EllipsisVerticalRegularIcon from "../../../../resources/icons/regular/ellipsis-vertical.svg";
 import ExpandRegularIcon from "../../../../resources/icons/regular/expand.svg";
+import GamepadRegularIcon from "../../../../resources/icons/regular/gamepad.svg";
 import TrianglePersonDiggingRegularIcon from "../../../../resources/icons/regular/triangle-person-digging.svg";
+import UploadRegularIcon from "../../../../resources/icons/regular/upload.svg";
 import BackwardStepSolidIcon from "../../../../resources/icons/solid/backward-step.svg";
 import BackwardSolidIcon from "../../../../resources/icons/solid/backward.svg";
 import ForwardStepSolidIcon from "../../../../resources/icons/solid/forward-step.svg";
@@ -44,17 +43,8 @@ export enum GamePreviewMenuItemType {
   LoadGameState = "LoadGameState",
 }
 
-export const gamePreviewMenuItems: {
-  [type in GamePreviewMenuItemType]: string;
-} = {
-  Page: "Page Preview",
-  Debug: "Debug",
-  SaveGameState: "Save Game",
-  LoadGameState: "Load Game",
-};
-
-const DrawerMenu = dynamic(
-  () => import("../../../impower-route/components/popups/DrawerMenu"),
+const ContextMenu = dynamic(
+  () => import("../../../impower-route/components/popups/ContextMenu"),
   { ssr: false }
 );
 
@@ -207,14 +197,54 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
 
   const doc = state.project?.data?.doc;
 
-  const [menuOpen, setMenuOpen] = React.useState<boolean>();
-  const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
-
   const { mode, control, debug, layout, compiling } = state.test;
 
   const isCompiling = compiling[windowType];
 
   const theme = useTheme();
+
+  const menuOptions: {
+    key: string;
+    label: string;
+    icon: React.ReactNode;
+  }[] = useMemo(
+    () => [
+      layout === "Game"
+        ? {
+            key: "preview_page",
+            label: "Preview Page",
+            icon: <BrowserRegularIcon />,
+          }
+        : {
+            key: "preview_game",
+            label: "Preview Game",
+            icon: <GamepadRegularIcon />,
+          },
+      debug
+        ? {
+            key: "debug_disable",
+            label: "Disable Debug",
+            icon: <BugSlashRegularIcon />,
+          }
+        : {
+            key: "debug_enable",
+            label: "Enable Debug",
+            icon: <BugRegularIcon />,
+          },
+      {
+        key: "save",
+        label: "Save Game",
+        icon: <DownloadRegularIcon />,
+      },
+      { key: "load", label: "Load Game", icon: <UploadRegularIcon /> },
+    ],
+    [debug, layout]
+  );
+
+  const [optionsMenuAnchorEl, setOptionsMenuAnchorEl] =
+    React.useState<HTMLElement | null>(null);
+  const [optionsMenuOpen, setOptionsMenuOpen] = useState<boolean>();
+  const [menuOptionsState, setMenuOptionsState] = useState(menuOptions);
 
   const handlePlay = useCallback((): void => {
     dispatch(testControlChange("Play"));
@@ -271,7 +301,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   const handleBrowserNavigation = useCallback(
     (currState: Record<string, string>, prevState?: Record<string, string>) => {
       if (currState?.m !== prevState?.m) {
-        setMenuOpen(currState.m === "test-options");
+        setOptionsMenuOpen(currState.m === "options");
       }
     },
     []
@@ -281,42 +311,47 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
     handleBrowserNavigation
   );
 
-  const handleOpenMenu = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      setMenuAnchor(event.currentTarget);
-      setMenuOpen(true);
-      openMenuDialog("test-options");
-    },
-    [openMenuDialog]
-  );
-
-  const handleCloseMenu = useCallback(() => {
-    setMenuAnchor(null);
-    setMenuOpen(false);
+  const handleCloseContextMenu = useCallback((): void => {
+    setOptionsMenuOpen(false);
     closeMenuDialog();
   }, [closeMenuDialog]);
 
+  const handleOpenContextMenu = useCallback(
+    (e: React.MouseEvent): void => {
+      e.stopPropagation();
+      e.preventDefault();
+      setMenuOptionsState([...menuOptions]);
+      setOptionsMenuAnchorEl(e.currentTarget as HTMLElement);
+      setOptionsMenuOpen(true);
+      openMenuDialog("options");
+    },
+    [menuOptions, openMenuDialog]
+  );
+
   const handleClickMenu = useCallback(
-    (type: GamePreviewMenuItemType) => {
-      if (type === GamePreviewMenuItemType.Page) {
-        handleView(layout === "Page" ? "Game" : "Page");
+    (e: React.MouseEvent<Element, MouseEvent>, type: string) => {
+      if (type === "preview_page") {
+        handleView("Page");
       }
-      if (type === GamePreviewMenuItemType.Debug) {
-        handleDebug(!debug);
+      if (type === "preview_game") {
+        handleView("Game");
+      }
+      if (type === "debug_enable") {
+        handleDebug(true);
+      }
+      if (type === "debug_disable") {
+        handleDebug(false);
       }
     },
-    [debug, handleDebug, handleView, layout]
+    [handleDebug, handleView]
   );
 
   const isPlayable = isGameDocument(doc);
   const modeTooltip = mode === "Edit" ? "Test Game" : "Edit Game";
 
-  const menuItemKeys: GamePreviewMenuItemType[] = useMemo(
-    () =>
-      isPlayable
-        ? (Object.keys(gamePreviewMenuItems) as GamePreviewMenuItemType[])
-        : [],
-    [isPlayable]
+  const menuItemKeys = useMemo(
+    () => (isPlayable ? Object.keys(menuOptions) : []),
+    [isPlayable, menuOptions]
   );
 
   const title = layout === "Page" ? "Page Preview" : "Game Preview";
@@ -393,7 +428,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
         {menuItemKeys?.length > 0 && (
           <>
             <IconButton
-              onClick={handleOpenMenu}
+              onClick={handleOpenContextMenu}
               style={{ color: theme.colors.white40 }}
             >
               <FontIcon
@@ -403,39 +438,15 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
                 <EllipsisVerticalRegularIcon />
               </FontIcon>
             </IconButton>
-            {menuOpen !== undefined && (
-              <DrawerMenu
-                anchorEl={menuAnchor}
-                open={menuOpen}
-                onClose={handleCloseMenu}
-              >
-                {menuItemKeys.map((menuItemType) => (
-                  <MenuItem
-                    key={menuItemType}
-                    onClick={(): void => {
-                      handleCloseMenu();
-                      window.setTimeout(
-                        () => handleClickMenu(menuItemType),
-                        100
-                      );
-                    }}
-                  >
-                    <ListItemIcon>
-                      {((menuItemType === GamePreviewMenuItemType.Debug &&
-                        debug) ||
-                        (menuItemType === GamePreviewMenuItemType.Page &&
-                          layout === "Page")) && (
-                        <FontIcon aria-label="check">
-                          <CheckRegularIcon />
-                        </FontIcon>
-                      )}
-                    </ListItemIcon>
-                    <ListItemText>
-                      {gamePreviewMenuItems[menuItemType]}
-                    </ListItemText>
-                  </MenuItem>
-                ))}
-              </DrawerMenu>
+            {optionsMenuOpen !== undefined && (
+              <ContextMenu
+                anchorReference="anchorEl"
+                anchorEl={optionsMenuAnchorEl}
+                open={optionsMenuOpen}
+                options={menuOptionsState}
+                onOption={handleClickMenu}
+                onClose={handleCloseContextMenu}
+              />
             )}
           </>
         )}
