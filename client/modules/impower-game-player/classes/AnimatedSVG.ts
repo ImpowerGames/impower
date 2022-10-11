@@ -300,6 +300,9 @@ export class AnimatedSVG extends DisplayObject {
   protected createNode(element: SVGElement): Container {
     let renderNode: Container = null;
 
+    if (!element) {
+      return renderNode;
+    }
     const type = element.nodeName.toLowerCase();
     switch (type) {
       case "circle":

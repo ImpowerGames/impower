@@ -12,6 +12,8 @@ export const getScriptAugmentations = (
       ? "video"
       : fileType?.startsWith("text")
       ? "text"
+      : fileType?.startsWith("image/svg")
+      ? "graphic"
       : "image";
     assets[`.${name}`] = {
       name: name || "",

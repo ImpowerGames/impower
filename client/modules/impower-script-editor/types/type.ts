@@ -53,6 +53,7 @@ export enum Type {
   AssetAudioValue,
   AssetVideoValue,
   AssetTextValue,
+  AssetGraphicValue,
   Entity,
   EntityList,
   EntityName,

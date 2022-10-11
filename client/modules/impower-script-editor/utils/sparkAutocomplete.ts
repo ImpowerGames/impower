@@ -108,6 +108,10 @@ export const lowercaseParagraphSnippets: readonly Completion[] = [
     label: "text",
     type: "asset",
   }),
+  snip("graphic ${}${graphicName} = `${url}`${}", {
+    label: "graphic",
+    type: "asset",
+  }),
   snip("list ${}${ListName}:${}", {
     label: "list",
     type: "entity",
@@ -673,7 +677,7 @@ export const characterSnippets = (
 export const assetSnippets = (
   references: { name: string }[],
   valueMap: Record<string, string>,
-  type: "image" | "audio" | "video" | "text"
+  type: "image" | "audio" | "video" | "text" | "graphic"
 ): Completion[] => {
   return references.map(({ name }) =>
     snip(name, {
@@ -875,18 +879,17 @@ export const sparkAutocomplete = async (
       (x) => x.type === "text" && x.line !== line
     );
     completions.push(...assetSnippets(validOptions, assets, "text"));
+  } else if (["AssetGraphicValue"].includes(node.name)) {
+    const validOptions = assetOptions.filter(
+      (x) => x.type === "graphic" && x.line !== line
+    );
+    completions.push(...assetSnippets(validOptions, assets, "graphic"));
   } else if (["ImageNote"].includes(node.name)) {
     const validOptions = assetOptions.filter((x) => x.type === "image");
     completions.push(...assetSnippets(validOptions, assets, "image"));
   } else if (["AudioNote"].includes(node.name)) {
     const validOptions = assetOptions.filter((x) => x.type === "audio");
     completions.push(...assetSnippets(validOptions, assets, "audio"));
-  } else if (["VideoNote"].includes(node.name)) {
-    const validOptions = assetOptions.filter((x) => x.type === "video");
-    completions.push(...assetSnippets(validOptions, assets, "video"));
-  } else if (["TextNote"].includes(node.name)) {
-    const validOptions = assetOptions.filter((x) => x.type === "text");
-    completions.push(...assetSnippets(validOptions, assets, "text"));
   } else if (node.name === "DynamicTag") {
     completions.push(
       ...nameSnippets(tagOptions, "tag", "", "", colors.tag),

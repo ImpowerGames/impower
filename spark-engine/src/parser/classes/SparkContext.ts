@@ -77,15 +77,15 @@ export class SparkContext {
     });
   }
 
-  init() {
+  init(): void {
     this.game.init();
   }
 
-  start() {
-    this.game.start();
+  async start(): Promise<void> {
+    await this.game.start();
   }
 
-  end() {
+  end(): void {
     this.game.end();
   }
 

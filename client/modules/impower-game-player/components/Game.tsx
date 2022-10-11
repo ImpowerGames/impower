@@ -170,6 +170,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
           right: 0,
           bottom: 0,
           left: 0,
+          backgroundColor: "black",
         }}
       />
       <UI />

@@ -80,6 +80,9 @@ export class GameApp {
     this._resizeObserver = new ResizeObserver(([entry]) => {
       if (entry) {
         this._app.resize();
+        this.scenes.forEach((scene) => {
+          scene.resize();
+        });
       }
     });
     this.resizeObserver.observe(this._parent);
@@ -108,7 +111,7 @@ export class GameApp {
     });
 
     const loop = (delta: number): void => {
-      this.update(performance.now(), delta);
+      this.update(this.app.ticker.deltaMS, delta);
     };
     this.app.ticker.add(loop);
 

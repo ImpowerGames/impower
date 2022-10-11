@@ -1,1 +1,1 @@
-export type SparkAssetType = "image" | "audio" | "video" | "text";
+export type SparkAssetType = "image" | "audio" | "video" | "text" | "graphic";

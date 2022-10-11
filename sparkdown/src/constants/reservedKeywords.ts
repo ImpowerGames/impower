@@ -5,6 +5,7 @@ export const types = [
   "image",
   "text",
   "video",
+  "graphic",
   "tag",
   "list",
   "map",

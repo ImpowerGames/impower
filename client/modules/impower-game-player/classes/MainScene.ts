@@ -33,6 +33,8 @@ interface DragObject extends DisplayObject {
   dragObjStart: PIXI.Point;
   dragGlobalStart: PIXI.Point;
   tint?: number;
+  width: number;
+  height: number;
 }
 
 // === INTERACTION CODE  ===
@@ -77,55 +79,74 @@ const onDragMove = (event: PIXI.InteractionEvent): void => {
   }
 };
 
+const snap = (
+  obj: (DragObject | DisplayObject) & { height: number },
+  app: PIXI.Application,
+  surfaceHandle: PIXI.Sprite
+): void => {
+  if (obj === (surfaceHandle as unknown as DragObject)) {
+    // surface handle
+    obj.position.x = Math.min(Math.max(obj.position.x, 0), app.screen.width);
+    obj.position.y = Math.min(Math.max(obj.position.y, 0), app.screen.height);
+  } else {
+    // sprite handle
+    obj.position.x = Math.min(
+      Math.max(obj.position.x, -app.screen.width / 2),
+      app.screen.width / 2
+    );
+    obj.position.y = Math.min(
+      Math.max(obj.position.y, -app.screen.height),
+      -obj.height
+    );
+  }
+};
+
 export class MainScene extends Scene {
   private parts: Record<string, TONE.Part> = {};
 
   instruments: Record<string, Instrument> = {};
 
-  container: PROJECTION.Container2d;
-
-  surfaceHandle: PIXI.Sprite;
+  svgs: Record<string, SVGSVGElement> = {};
 
   surface: PROJECTION.Sprite2d;
 
-  playerHandle: PROJECTION.Sprite2d;
+  surfaceHandle: PIXI.Sprite;
 
-  player: AnimatedSVG | DragObject;
+  container: PROJECTION.Container2d;
 
-  textures: Partial<Record<"int_albany", PIXI.Texture>> = {};
+  sprites: Record<string, AnimatedSVG> = {};
 
-  svgs: Partial<Record<"a_player", SVGSVGElement>> = {};
+  spriteHandles: Record<string, PROJECTION.Sprite2d> = {};
 
   async init(): Promise<void> {
-    const [int_albany] = await Promise.all([
-      PIXI.Texture.fromURL(
-        this.sparkContext.contexts[""].valueMap.int_albany as string
-      ),
-    ]);
-    this.textures.int_albany = int_albany;
-
-    const [a_player] = await Promise.all([
-      this.svgLoader.load(
-        this.sparkContext.contexts[""].valueMap.a_player as string
-      ),
-    ]);
-    this.svgs.a_player = a_player;
+    const svgEntries = Object.entries(
+      this.sparkContext.game.logic.blockMap[""].assets || {}
+    ).filter(([, v]) => v.type === "graphic");
+    const graphics = await Promise.all(
+      svgEntries.map(([, v]) => this.svgLoader.load(v.value))
+    );
+    graphics.forEach((svg, index) => {
+      const [, asset] = svgEntries[index];
+      this.svgs[asset.name] = svg;
+    });
   }
 
   start(): void {
+    const surfaceTexture = new PIXI.Texture(PIXI.Texture.WHITE.baseTexture);
+
     const surfaceHandleTexture = new PIXI.Texture(
       PIXI.Texture.WHITE.baseTexture
     );
     surfaceHandleTexture.orig.width = 25;
     surfaceHandleTexture.orig.height = 25;
 
-    const playerHandleTexture = new PIXI.Texture(
+    const spriteHandleTexture = new PIXI.Texture(
       PIXI.Texture.WHITE.baseTexture
     );
-    playerHandleTexture.orig.width = 50;
-    playerHandleTexture.orig.height = 50;
+    spriteHandleTexture.orig.width = 50;
+    spriteHandleTexture.orig.height = 50;
 
-    this.surface = new PROJECTION.Sprite2d(this.textures.int_albany);
+    this.surface = new PROJECTION.Sprite2d(surfaceTexture);
     this.surface.anchor.set(0.5, 1.0); // Center Bottom
     this.surface.width = this.app.screen.width;
     this.surface.height = this.app.screen.height;
@@ -133,7 +154,10 @@ export class MainScene extends Scene {
 
     this.surfaceHandle = new PIXI.Sprite(surfaceHandleTexture);
     this.surfaceHandle.anchor.set(0.5); // Center
-    this.surfaceHandle.position.set(this.app.screen.width / 2, 50);
+    this.surfaceHandle.position.set(
+      this.app.screen.width / 2,
+      this.app.screen.height / 2
+    );
     this.surfaceHandle.tint = 0xff0000;
 
     this.container = new PROJECTION.Container2d();
@@ -142,57 +166,16 @@ export class MainScene extends Scene {
       this.app.screen.height
     );
 
-    this.playerHandle = new PROJECTION.Sprite2d(playerHandleTexture);
-    this.playerHandle.anchor.set(0.5, 0.0); // Center Top
-    this.playerHandle.position.set(
-      -this.app.screen.width / 4,
-      -this.app.screen.height / 2
-    );
-    this.playerHandle.proj.affine = PROJECTION.AFFINE.AXIS_X;
-    this.playerHandle.tint = 0x0000ff;
-    this.playerHandle.interactiveChildren = false;
-
-    this.player = new AnimatedSVG(this.svgs.a_player);
-    this.player.anchor.set(0.5, 1.0); // Center Bottom
-
     this.app.stage.addChild(this.surfaceHandle);
     this.app.stage.addChild(this.container);
     this.container.addChild(this.surface);
-    this.container.addChild(this.playerHandle);
-    this.playerHandle.addChild(this.player);
 
     // SETUP INTERACTIONS
 
     // changes axis factor
     const toggle = (obj: DragObject): void => {
-      if (obj !== this.player && obj.tint !== undefined) {
+      if (obj.tint !== undefined) {
         obj.tint = 0xff0033;
-      }
-    };
-
-    const snap = (obj: DragObject): void => {
-      if (obj === this.player) {
-        obj.position.set(0);
-      } else if (obj === (this.playerHandle as unknown as DragObject)) {
-        // plane bounds
-        obj.position.x = Math.min(
-          Math.max(obj.position.x, -this.app.screen.width / 2 + 10),
-          this.app.screen.width / 2 - 10
-        );
-        obj.position.y = Math.min(
-          Math.max(obj.position.y, -this.app.screen.height + 10),
-          10
-        );
-      } else {
-        // far
-        obj.position.x = Math.min(
-          Math.max(obj.position.x, 0),
-          this.app.screen.width
-        );
-        obj.position.y = Math.min(
-          Math.max(obj.position.y, 0),
-          this.app.screen.height
-        );
       }
     };
 
@@ -204,7 +187,7 @@ export class MainScene extends Scene {
       if (obj.dragging === 1) {
         toggle(obj);
       } else {
-        snap(obj);
+        snap(obj, this.app, this.surfaceHandle);
       }
 
       obj.dragging = 0;
@@ -226,7 +209,27 @@ export class MainScene extends Scene {
     };
 
     addInteraction(this.surfaceHandle);
-    addInteraction(this.playerHandle);
+
+    Object.entries(this.svgs || {}).forEach(([k, svg]) => {
+      const handle = new PROJECTION.Sprite2d(spriteHandleTexture);
+      handle.anchor.set(0.5, 0.0); // Center Top
+      handle.position.set(
+        -this.app.screen.width / 4,
+        -this.app.screen.height / 2
+      );
+      handle.proj.affine = PROJECTION.AFFINE.AXIS_X;
+      handle.tint = 0x0000ff;
+      handle.interactiveChildren = false;
+      this.spriteHandles[k] = handle;
+
+      const sprite = new AnimatedSVG(svg);
+      sprite.anchor.set(0.5, 1.0); // Center Bottom
+      this.sprites[k] = sprite;
+
+      this.container.addChild(handle);
+      handle.addChild(sprite);
+      addInteraction(handle);
+    });
 
     this.app.stage.on("pointerdown", (e, g) => this.onPointerDown(e, g));
     this.app.stage.on("pointerup", (e, g) => this.onPointerUp(e, g));
@@ -281,6 +284,29 @@ export class MainScene extends Scene {
       if (!this.sparkContext.update(blockId, time, delta)) {
         this.app.destroy(true);
       }
+    });
+  }
+
+  resize(): void {
+    if (this.surface) {
+      this.surface.width = this.app.screen.width;
+      this.surface.height = this.app.screen.height;
+    }
+    if (this.surfaceHandle) {
+      this.surfaceHandle.position.set(
+        this.app.screen.width / 2,
+        this.app.screen.height / 2
+      );
+      snap(this.surfaceHandle, this.app, this.surfaceHandle);
+    }
+    if (this.container) {
+      this.container.position.set(
+        this.app.screen.width / 2,
+        this.app.screen.height
+      );
+    }
+    Object.values(this.spriteHandles || {}).forEach((s) => {
+      snap(s, this.app, this.surfaceHandle);
     });
   }
 

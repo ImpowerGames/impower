@@ -759,6 +759,8 @@ export const DefaultBlockParsers: {
         ? Type.AssetVideoValue
         : mark === "text"
         ? Type.AssetTextValue
+        : mark === "graphic"
+        ? Type.AssetGraphicValue
         : Type.AssetValue;
 
     if (mark || markSpace) {

@@ -3,6 +3,6 @@ export interface Asset {
   to: number;
   line: number;
   name: string;
-  type: "image" | "audio" | "video" | "text";
+  type: "image" | "audio" | "video" | "text" | "graphic";
   value: string;
 }

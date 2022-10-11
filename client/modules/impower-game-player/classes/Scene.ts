@@ -54,4 +54,8 @@ export class Scene {
   destroy(): void {
     // NoOp
   }
+
+  resize(): void {
+    // NoOp
+  }
 }
