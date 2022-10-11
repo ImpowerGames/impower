@@ -334,7 +334,6 @@ const Project = React.memo((): JSX.Element => {
   const windowType = state?.window?.type;
   const doc = state?.project?.data?.doc;
   const access = state?.project?.access;
-  const mode = state?.test?.mode;
   const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
   const toolbar = state?.panel?.panels?.[windowType]?.toolbar;
 

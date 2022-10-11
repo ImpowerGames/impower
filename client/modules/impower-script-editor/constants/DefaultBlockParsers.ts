@@ -13,7 +13,6 @@ import {
   addCodeText,
   getListIndent,
   inBlockContext,
-  isAsset,
   isAssign,
   isBulletList,
   isCall,
@@ -39,7 +38,6 @@ import {
   isScene,
   isSectionHeading,
   isSynopsis,
-  isTag,
   isTitle,
   isTransition,
   isVariable,
@@ -476,10 +474,14 @@ export const DefaultBlockParsers: {
           ) {
             const name = parameterMatch[2] || "";
             const nameSpace = parameterMatch[3] || "";
-            const operator = parameterMatch[4] || "";
-            const operatorSpace = parameterMatch[5] || "";
-            const value = parameterMatch[6] || "";
-            const valueSpace = parameterMatch[7] || "";
+            const colon = parameterMatch[4] || "";
+            const colonSpace = parameterMatch[5] || "";
+            const type = parameterMatch[6] || "";
+            const typeSpace = parameterMatch[7] || "";
+            const operator = parameterMatch[8] || "";
+            const operatorSpace = parameterMatch[9] || "";
+            const value = parameterMatch[10] || "";
+            const valueSpace = parameterMatch[11] || "";
 
             if (name || nameSpace) {
               to = from + name.length + nameSpace.length;
@@ -490,6 +492,16 @@ export const DefaultBlockParsers: {
                 from,
                 to
               );
+            }
+            if (colon || colonSpace) {
+              from = to;
+              to = from + colon.length + colonSpace.length;
+              buf = buf.write(Type.SectionParameterColon, from, to);
+            }
+            if (type || typeSpace) {
+              from = to;
+              to = from + type.length + typeSpace.length;
+              buf = buf.write(Type.SectionParameterType, from, to);
             }
             if (operator || operatorSpace) {
               from = to;
@@ -732,122 +744,6 @@ export const DefaultBlockParsers: {
     return true;
   },
 
-  Asset(cx, line) {
-    const match = isAsset(line);
-    if (!match) {
-      return false;
-    }
-
-    let buf = cx.buffer;
-    let from = 0;
-    let to = from;
-
-    const mark = match[2] || "";
-    const markSpace = match[3] || "";
-    const name = match[4] || "";
-    const nameSpace = match[5] || "";
-    const operator = match[6] || "";
-    const operatorSpace = match[7] || "";
-    const value = match[8] || "";
-    const valueSpace = match[9] || "";
-    const valueTokenType =
-      mark === "image"
-        ? Type.AssetImageValue
-        : mark === "audio"
-        ? Type.AssetAudioValue
-        : mark === "video"
-        ? Type.AssetVideoValue
-        : mark === "text"
-        ? Type.AssetTextValue
-        : mark === "graphic"
-        ? Type.AssetGraphicValue
-        : Type.AssetValue;
-
-    if (mark || markSpace) {
-      from = to;
-      to = from + mark.length + markSpace.length;
-      buf = buf.write(Type.AssetMark, from, to);
-    }
-    if (name || nameSpace) {
-      from = to;
-      to = from + name.length + nameSpace.length;
-      buf = buf.write(Type.AssetName, from, to);
-    }
-    if (operator || operatorSpace) {
-      from = to;
-      to = from + operator.length + operatorSpace.length;
-      buf = buf.write(Type.AssetOperator, from, to);
-    }
-    if (value || valueSpace) {
-      from = to;
-      to = from + value.length + valueSpace.length;
-      buf = buf.write(valueTokenType, from, to);
-      const expression = line.text.slice(line.pos + from, line.pos + to);
-      buf = parseExpression(buf, expression, from, to);
-    }
-    from = to;
-    to = line.text.length - line.pos;
-    if (to > from) {
-      buf = buf.write(Type.Comment, from, to);
-    }
-    const node = buf.finish(Type.Asset, line.text.length - line.pos);
-    cx.addNode(node, cx.lineStart + line.pos);
-    cx.nextLine();
-    return true;
-  },
-
-  Tag(cx, line) {
-    const match = isTag(line);
-    if (!match) {
-      return false;
-    }
-
-    let buf = cx.buffer;
-    let from = 0;
-    let to = from;
-
-    const mark = match[2] || "";
-    const markSpace = match[3] || "";
-    const name = match[4] || "";
-    const nameSpace = match[5] || "";
-    const operator = match[6] || "";
-    const operatorSpace = match[7] || "";
-    const value = match[8] || "";
-    const valueSpace = match[9] || "";
-
-    if (mark || markSpace) {
-      from = to;
-      to = from + mark.length + markSpace.length;
-      buf = buf.write(Type.TagMark, from, to);
-    }
-    if (name || nameSpace) {
-      from = to;
-      to = from + name.length + nameSpace.length;
-      buf = buf.write(Type.TagName, from, to);
-    }
-    if (operator || operatorSpace) {
-      from = to;
-      to = from + operator.length + operatorSpace.length;
-      buf = buf.write(Type.TagOperator, from, to);
-    }
-    if (value || valueSpace) {
-      from = to;
-      to = from + value.length + valueSpace.length;
-      buf = buf.write(Type.TagValue, from, to);
-      const expression = line.text.slice(line.pos + from, line.pos + to);
-      buf = parseExpression(buf, expression, from, to);
-    }
-    from = to;
-    to = line.text.length - line.pos;
-    if (to > from) {
-      buf = buf.write(Type.Comment, from, to);
-    }
-    const node = buf.finish(Type.Tag, line.text.length - line.pos);
-    cx.addNode(node, cx.lineStart + line.pos);
-    cx.nextLine();
-    return true;
-  },
-
   Import(cx, line) {
     const match = isImport(line);
     if (!match) {
@@ -881,58 +777,6 @@ export const DefaultBlockParsers: {
       buf = buf.write(Type.Comment, from, to);
     }
     const node = buf.finish(Type.Import, line.text.length - line.pos);
-    cx.addNode(node, cx.lineStart + line.pos);
-    cx.nextLine();
-    return true;
-  },
-
-  Variable(cx, line) {
-    const match = isVariable(line);
-    if (!match) {
-      return false;
-    }
-
-    let buf = cx.buffer;
-    let from = 0;
-    let to = from;
-
-    const mark = match[2] || "";
-    const markSpace = match[3] || "";
-    const name = match[4] || "";
-    const nameSpace = match[5] || "";
-    const operator = match[6] || "";
-    const operatorSpace = match[7] || "";
-    const value = match[8] || "";
-    const valueSpace = match[9] || "";
-
-    if (mark || markSpace) {
-      from = to;
-      to = from + mark.length + markSpace.length;
-      buf = buf.write(Type.VariableMark, from, to);
-    }
-    if (name || nameSpace) {
-      from = to;
-      to = from + name.length + nameSpace.length;
-      buf = buf.write(Type.VariableName, from, to);
-    }
-    if (operator || operatorSpace) {
-      from = to;
-      to = from + operator.length + operatorSpace.length;
-      buf = buf.write(Type.VariableOperator, from, to);
-    }
-    if (value || valueSpace) {
-      from = to;
-      to = from + value.length + valueSpace.length;
-      buf = buf.write(Type.VariableValue, from, to);
-      const expression = line.text.slice(line.pos + from, line.pos + to);
-      buf = parseExpression(buf, expression, from, to);
-    }
-    from = to;
-    to = line.text.length - line.pos;
-    if (to > from) {
-      buf = buf.write(Type.Comment, from, to);
-    }
-    const node = buf.finish(Type.Variable, line.text.length - line.pos);
     cx.addNode(node, cx.lineStart + line.pos);
     cx.nextLine();
     return true;
@@ -1186,7 +1030,11 @@ export const DefaultBlockParsers: {
     let node: Tree;
 
     const match =
-      isCondition(line) || isCall(line) || isAssign(line) || isChoice(line);
+      isChoice(line) ||
+      isCondition(line) ||
+      isVariable(line) ||
+      isCall(line) ||
+      isAssign(line);
 
     if (!match) {
       from = to;
@@ -1200,7 +1048,66 @@ export const DefaultBlockParsers: {
       return true;
     }
 
-    if (match?.[0] === "assign") {
+    if (match?.[0] === "variable") {
+      const mark = match[2] || "";
+      const markSpace = match[3] || "";
+      const keyword = match[4] || "";
+      const keywordSpace = match[5] || "";
+      const name = match[6] || "";
+      const nameSpace = match[7] || "";
+      const colon = match[8] || "";
+      const colonSpace = match[9] || "";
+      const type = match[10] || "";
+      const typeSpace = match[11] || "";
+      const operator = match[12] || "";
+      const operatorSpace = match[13] || "";
+      const value = match[14] || "";
+      const valueSpace = match[15] || "";
+
+      if (mark || markSpace) {
+        from = to;
+        to = from + mark.length + markSpace.length;
+        buf = buf.write(Type.VariableMark, from, to);
+      }
+      if (keyword || keywordSpace) {
+        from = to;
+        to = from + keyword.length + keywordSpace.length;
+        buf = buf.write(Type.VariableKeyword, from, to);
+      }
+      if (name || nameSpace) {
+        from = to;
+        to = from + name.length + nameSpace.length;
+        buf = buf.write(Type.VariableName, from, to);
+      }
+      if (colon || colonSpace) {
+        from = to;
+        to = from + colon.length + colonSpace.length;
+        buf = buf.write(Type.VariableColon, from, to);
+      }
+      if (type || typeSpace) {
+        from = to;
+        to = from + type.length + typeSpace.length;
+        buf = buf.write(Type.VariableType, from, to);
+      }
+      if (operator || operatorSpace) {
+        from = to;
+        to = from + operator.length + operatorSpace.length;
+        buf = buf.write(Type.VariableOperator, from, to);
+      }
+      if (value || valueSpace) {
+        from = to;
+        to = from + value.length + valueSpace.length;
+        buf = buf.write(Type.VariableValue, from, to);
+        const expression = line.text.slice(line.pos + from, line.pos + to);
+        buf = parseExpression(buf, expression, from, to);
+      }
+      from = to;
+      to = line.text.length - line.pos;
+      if (to > from) {
+        buf = buf.write(Type.Comment, from, to);
+      }
+      node = buf.finish(Type.Assign, line.text.length - line.pos);
+    } else if (match?.[0] === "assign") {
       const mark = match[2] || "";
       const markSpace = match[3] || "";
       const name = match[4] || "";

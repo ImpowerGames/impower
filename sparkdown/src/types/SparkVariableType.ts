@@ -1,7 +1,4 @@
-import { SparkEntityType } from "./SparkEntityType";
+import { SparkAssetType } from "./SparkAssetType";
+import { SparkPrimitiveType } from "./SparkPrimitiveType";
 
-export type SparkVariableType =
-  | "string"
-  | "number"
-  | "boolean"
-  | SparkEntityType;
+export type SparkVariableType = SparkPrimitiveType | SparkAssetType | "tag";

@@ -1,5 +1,4 @@
 import { useTheme } from "@emotion/react";
-import styled from "@emotion/styled";
 import React, {
   CSSProperties,
   useCallback,
@@ -18,7 +17,6 @@ import FileCircleCheckRegularIcon from "../../../../resources/icons/regular/file
 import FileCircleQuestionRegularIcon from "../../../../resources/icons/regular/file-circle-question.svg";
 import FileCircleXmarkRegularIcon from "../../../../resources/icons/regular/file-circle-xmark.svg";
 import FileExportRegularIcon from "../../../../resources/icons/regular/file-export.svg";
-import { SlideAnimation } from "../../../impower-route";
 import useBodyBackgroundColor from "../../../impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../impower-route/hooks/useHTMLBackgroundColor";
 import useHTMLOverscrollBehavior from "../../../impower-route/hooks/useHTMLOverscrollBehavior";
@@ -40,18 +38,6 @@ import PanelHeaderIconButton from "../iconButtons/PanelHeaderIconButton";
 import UndoRedoControl from "../iconButtons/UndoRedoControl";
 import LogicScriptEditor from "../inputs/LogicScriptEditor";
 import Panel from "../layouts/Panel";
-
-const StyledToolbarArea = styled(SlideAnimation)`
-  pointer-events: none;
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: ${(props): string => props.theme.colors.darkForeground};
-  min-height: ${(props): string => props.theme.minHeight.navigationBar};
-  max-height: ${(props): string => props.theme.minHeight.navigationBar};
-  box-shadow: ${(props): string => props.theme.shadows[2]};
-`;
 
 interface TogglePanelHeaderIconProps {
   value: boolean;

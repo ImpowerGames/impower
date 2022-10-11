@@ -2,7 +2,7 @@ import {
   SparkActionAssetToken,
   SparkActionToken,
   SparkAssetsToken,
-  SparkAssetToken,
+  SparkAssignToken,
   SparkCallToken,
   SparkCenteredToken,
   SparkChoiceToken,
@@ -14,7 +14,6 @@ import {
   SparkReturnToken,
   SparkSceneToken,
   SparkSectionToken,
-  SparkTagToken,
   SparkToken,
   SparkTransitionToken,
   SparkVariableToken,
@@ -55,11 +54,6 @@ export interface SparkTokenTypeMap {
   parenthetical: SparkToken;
   import: SparkToken;
 
-  image: SparkAssetToken;
-  audio: SparkAssetToken;
-  video: SparkAssetToken;
-  text: SparkAssetToken;
-
   list: SparkEntityToken;
   map: SparkEntityToken;
   ui: SparkEntityToken;
@@ -67,9 +61,8 @@ export interface SparkTokenTypeMap {
   config: SparkEntityToken;
 
   centered: SparkCenteredToken;
-  tag: SparkTagToken;
   variable: SparkVariableToken;
-  assign: SparkAssetToken;
+  assign: SparkAssignToken;
   call: SparkCallToken;
   condition: SparkConditionToken;
   choice: SparkChoiceToken;

@@ -7,6 +7,6 @@ export interface SparkVariable {
   name: string;
   type: SparkVariableType;
   value: unknown;
-  parameter: boolean;
-  scope: "public" | "protected" | "private";
+  parameter?: boolean;
+  scope?: "public" | "protected" | "private";
 }

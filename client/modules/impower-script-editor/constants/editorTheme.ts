@@ -145,6 +145,12 @@ export const editorTheme: {
   ".cm-completionIcon-quit": {
     "&:after": { content: "'×'", color: colors.section },
   },
+  ".cm-completionIcon-type": {
+    "&:after": {
+      content: "'ν'",
+      color: colors.keyword,
+    },
+  },
   ".cm-completionIcon-variable": {
     "&:after": {
       content: "'𝑥'",

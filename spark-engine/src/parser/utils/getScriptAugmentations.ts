@@ -4,7 +4,7 @@ import { FileData } from "../../data";
 export const getScriptAugmentations = (
   files: Record<string, FileData>
 ): Partial<SparkParseResult> => {
-  const assets: Record<string, SparkAsset> = {};
+  const variables: Record<string, SparkAsset> = {};
   Object.entries(files || {}).forEach(([, { name, fileType, fileUrl }]) => {
     const type = fileType?.startsWith("audio")
       ? "audio"
@@ -15,7 +15,7 @@ export const getScriptAugmentations = (
       : fileType?.startsWith("image/svg")
       ? "graphic"
       : "image";
-    assets[`.${name}`] = {
+    variables[`.${name}`] = {
       name: name || "",
       type,
       value: fileUrl || "",
@@ -24,5 +24,5 @@ export const getScriptAugmentations = (
       line: -1,
     };
   });
-  return { assets };
+  return { variables };
 };

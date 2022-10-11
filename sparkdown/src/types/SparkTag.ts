@@ -1,8 +1,6 @@
-export interface SparkTag {
+import { SparkVariable } from "./SparkVariable";
+
+export interface SparkTag extends SparkVariable {
   type: "tag";
-  from: number;
-  to: number;
-  line: number;
-  name: string;
   value: string;
 }

@@ -9,7 +9,7 @@ import { updateStatus } from "./updateStatus";
 
 export const parseDocument = (document: vscode.TextDocument) => {
   const output = parseSpark(document.getText(), {
-    assets: fileState[document.uri.toString()].assets,
+    variables: fileState[document.uri.toString()].assets,
   });
   parseState.lastParsedUri = document.uri.toString();
   parseState.parsedDocuments[parseState.lastParsedUri] = output;

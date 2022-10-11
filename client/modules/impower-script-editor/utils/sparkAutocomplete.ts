@@ -80,38 +80,6 @@ const getInfoNode = (info: string, color?: string): Node => {
 };
 
 export const lowercaseParagraphSnippets: readonly Completion[] = [
-  snip("var ${}${variableName} = ${value}", {
-    label: "var variable",
-    type: "variable",
-  }),
-  snip("temp ${}${variableName} = ${value}", {
-    label: "temp variable",
-    type: "variable",
-  }),
-  snip("tag ${}${tagName} = `${value}`${}", {
-    label: "tag",
-    type: "tag",
-  }),
-  snip("image ${}${imageName} = `${url}`${}", {
-    label: "image",
-    type: "asset",
-  }),
-  snip("audio ${}${audioName} = `${url}`${}", {
-    label: "audio",
-    type: "asset",
-  }),
-  snip("video ${}${videoName} = `${url}`${}", {
-    label: "video",
-    type: "asset",
-  }),
-  snip("text ${}${textName} = `${url}`${}", {
-    label: "text",
-    type: "asset",
-  }),
-  snip("graphic ${}${graphicName} = `${url}`${}", {
-    label: "graphic",
-    type: "asset",
-  }),
   snip("list ${}${ListName}:${}", {
     label: "list",
     type: "entity",
@@ -259,6 +227,13 @@ export const conditionSnippets: readonly Completion[] = [
   snip("* else:", {
     label: "* else",
     type: "condition",
+  }),
+];
+
+export const declareSnippets: readonly Completion[] = [
+  snip("* var ${}${variableName} = ${value}", {
+    label: "* var",
+    type: "type",
   }),
 ];
 
@@ -553,13 +528,15 @@ export const getSectionOptions = (
   return result;
 };
 
-export const assignOrCallSnippets = (
+export const logicSnippets = (
   variableOptions: Option[],
   sectionId: string,
   sections: Record<string, SparkSection>
 ): Completion[] => {
   const functionIds = getFunctionIds(sectionId, sections);
   const snippets = [
+    ...declareSnippets,
+    ...conditionSnippets,
     ...nameSnippets(
       variableOptions,
       "variable",
@@ -567,7 +544,6 @@ export const assignOrCallSnippets = (
       " = ${}${value}",
       colors.variableName
     ),
-    ...conditionSnippets,
     ...functionIds.map((id) => {
       const section = sections[id];
       const name = section?.name;
@@ -859,31 +835,6 @@ export const sparkAutocomplete = async (
         line
       )
     );
-  } else if (["AssetImageValue"].includes(node.name)) {
-    const validOptions = assetOptions.filter(
-      (x) => x.type === "image" && x.line !== line
-    );
-    completions.push(...assetSnippets(validOptions, assets, "image"));
-  } else if (["AssetAudioValue"].includes(node.name)) {
-    const validOptions = assetOptions.filter(
-      (x) => x.type === "audio" && x.line !== line
-    );
-    completions.push(...assetSnippets(validOptions, assets, "audio"));
-  } else if (["AssetVideoValue"].includes(node.name)) {
-    const validOptions = assetOptions.filter(
-      (x) => x.type === "video" && x.line !== line
-    );
-    completions.push(...assetSnippets(validOptions, assets, "video"));
-  } else if (["AssetTextValue"].includes(node.name)) {
-    const validOptions = assetOptions.filter(
-      (x) => x.type === "text" && x.line !== line
-    );
-    completions.push(...assetSnippets(validOptions, assets, "text"));
-  } else if (["AssetGraphicValue"].includes(node.name)) {
-    const validOptions = assetOptions.filter(
-      (x) => x.type === "graphic" && x.line !== line
-    );
-    completions.push(...assetSnippets(validOptions, assets, "graphic"));
   } else if (["ImageNote"].includes(node.name)) {
     const validOptions = assetOptions.filter((x) => x.type === "image");
     completions.push(...assetSnippets(validOptions, assets, "image"));
@@ -895,9 +846,9 @@ export const sparkAutocomplete = async (
       ...nameSnippets(tagOptions, "tag", "", "", colors.tag),
       ...effectSnippets
     );
-  } else if (["AssignMark", "CallMark"].includes(node.name)) {
+  } else if (["AssignMark", "CallMark", "VariableMark"].includes(node.name)) {
     completions.push(
-      ...assignOrCallSnippets(variableOptions, sectionId, result?.sections)
+      ...logicSnippets(variableOptions, sectionId, result?.sections)
     );
   } else if (["GoMark", "ChoiceGoMark"].includes(node.name)) {
     completions.push(...sectionSnippets(sectionId, result?.sections, "> "));
@@ -910,12 +861,6 @@ export const sparkAutocomplete = async (
         ...nameSnippets(validOptions, "entity", "", "", colors.entity)
       );
     }
-  } else if (["TagValue"].includes(node.name)) {
-    const validOptions = tagOptions.filter((x) => x.line !== line);
-    completions.push(
-      ...nameSnippets(validOptions, "tag", "", "", colors.tag),
-      ...nameSnippets(variableOptions, "variable", "", "", colors.variableName)
-    );
   } else if (["VariableValue"].includes(node.name)) {
     const validVariableOptions = variableOptions.filter((x) => x.line !== line);
     completions.push(

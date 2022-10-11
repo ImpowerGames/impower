@@ -44,9 +44,7 @@ export const sparkTooltip = (
     create: (): { dom: HTMLDivElement } => {
       const context = {
         ...(parseContext?.result?.sections || {}),
-        ...(parseContext?.result?.tags || {}),
         ...(parseContext?.result?.entities || {}),
-        ...(parseContext?.result?.assets || {}),
         ...(parseContext?.result?.variables || {}),
       };
       const item = token.id ? context[token.id] : undefined;
@@ -99,7 +97,7 @@ export const sparkTooltip = (
         dom.appendChild(input);
       } else if (item?.type) {
         if (item?.type === "image" || item?.type === "audio") {
-          const fileUrl = item?.value;
+          const fileUrl = item?.value as string;
           const preview = document.createElement(
             item?.type === "audio" ? "audio" : "img"
           );

@@ -3,7 +3,6 @@ import {
   SparkActionAssetTokenType,
   SparkActionTokenType,
   SparkAssetsTokenType,
-  SparkAssetTokenType,
   SparkAssignTokenType,
   SparkCallTokenType,
   SparkCenteredTokenType,
@@ -19,7 +18,6 @@ import {
   SparkReturnTokenType,
   SparkSceneTokenType,
   SparkSectionTokenType,
-  SparkTagTokenType,
   SparkTransitionTokenType,
   SparkVariableTokenType,
 } from "./SparkTokenType";
@@ -36,10 +34,6 @@ export interface SparkVariableToken extends SparkLine {
   value: string;
 }
 
-export interface SparkAssetToken extends SparkLine {
-  type: SparkAssetTokenType;
-}
-
 export interface SparkEntityToken extends SparkLine {
   type: SparkEntityTokenType;
   name: string;
@@ -48,10 +42,6 @@ export interface SparkEntityToken extends SparkLine {
 export interface SparkEntityFieldToken extends SparkLine {
   type: SparkEntityFieldTokenType;
   entity: string;
-}
-
-export interface SparkTagToken extends SparkLine {
-  type: SparkTagTokenType;
 }
 
 export interface SparkJumpToken extends SparkLine {
@@ -148,9 +138,7 @@ export interface SparkOtherToken extends SparkLine {
 }
 
 export type SparkToken =
-  | SparkAssetToken
   | SparkEntityToken
-  | SparkTagToken
   | SparkVariableToken
   | SparkAssignToken
   | SparkCallToken

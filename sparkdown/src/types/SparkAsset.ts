@@ -1,10 +1,7 @@
 import { SparkAssetType } from "./SparkAssetType";
+import { SparkVariable } from "./SparkVariable";
 
-export interface SparkAsset {
-  from: number;
-  to: number;
-  line: number;
-  name: string;
+export interface SparkAsset extends SparkVariable {
   type: SparkAssetType;
   value: string;
 }

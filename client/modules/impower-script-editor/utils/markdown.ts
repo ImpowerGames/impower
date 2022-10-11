@@ -156,22 +156,6 @@ export function isReturn(line: Line): RegExpMatchArray {
   return text.match(sparkRegexes.return);
 }
 
-export function isAsset(line: Line): RegExpMatchArray {
-  if (!["i", "a", "v", "t"].map((x) => x.charCodeAt(0)).includes(line.next)) {
-    return null;
-  }
-  const text = stripComments(line.text);
-  return text.match(sparkRegexes.asset);
-}
-
-export function isTag(line: Line): RegExpMatchArray {
-  if (line.next !== "t".charCodeAt(0)) {
-    return null;
-  }
-  const text = stripComments(line.text);
-  return text.match(sparkRegexes.tag);
-}
-
 export function isImport(line: Line): RegExpMatchArray {
   if (line.next !== "i".charCodeAt(0)) {
     return null;
@@ -210,11 +194,16 @@ export function isEntityListValue(line: Line): RegExpMatchArray {
 }
 
 export function isVariable(line: Line): RegExpMatchArray {
-  if (line.next !== "v".charCodeAt(0) && line.next !== "t".charCodeAt(0)) {
+  if (line.next !== "*".charCodeAt(0)) {
     return null;
   }
   const text = stripComments(line.text);
-  return text.match(sparkRegexes.variable);
+  const match = text.match(sparkRegexes.variable);
+  if (!match) {
+    return null;
+  }
+  match[0] = "variable";
+  return match;
 }
 
 export function isAssign(line: Line): RegExpMatchArray {

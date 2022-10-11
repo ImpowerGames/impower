@@ -1,11 +1,9 @@
-import { SparkAssetType } from "./SparkAssetType";
 import { SparkEntityType } from "./SparkEntityType";
 import { SparkTitleKeyword } from "./SparkTitleKeyword";
+import { SparkVariableType } from "./SparkVariableType";
 
-export type SparkAssetTokenType = SparkAssetType;
 export type SparkEntityTokenType = SparkEntityType;
-export type SparkTagTokenType = "tag";
-export type SparkVariableTokenType = "variable";
+export type SparkVariableTokenType = SparkVariableType;
 export type SparkAssignTokenType = "assign";
 export type SparkCallTokenType = "call";
 export type SparkConditionTokenType = "condition";
@@ -52,9 +50,7 @@ export type SparkOtherTokenType =
   | SparkTitleKeyword;
 
 export type SparkTokenType =
-  | SparkAssetTokenType
   | SparkEntityTokenType
-  | SparkTagTokenType
   | SparkVariableTokenType
   | SparkAssignTokenType
   | SparkCallTokenType

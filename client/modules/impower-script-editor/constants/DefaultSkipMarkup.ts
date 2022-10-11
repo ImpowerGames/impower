@@ -28,12 +28,6 @@ export const DefaultSkipMarkup: {
   [Type.Return](_bl, _cx, _line) {
     return false;
   },
-  [Type.Asset](_bl, _cx, _line) {
-    return false;
-  },
-  [Type.Tag](_bl, _cx, _line) {
-    return false;
-  },
   [Type.Variable](_bl, _cx, _line) {
     return false;
   },

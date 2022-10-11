@@ -12,6 +12,7 @@ import {
   SetOperator,
 } from "../../..";
 import {
+  isVariable,
   SparkDialogueToken,
   SparkDisplayToken,
   SparkLine,
@@ -64,7 +65,7 @@ export const generateCommand = (
   if (token.ignore) {
     return null;
   }
-  if (token.type === "assign" || token.type === "variable") {
+  if (token.type === "assign" || isVariable(token)) {
     const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "AssignCommand";
     const newCommand: AssignCommandData = {

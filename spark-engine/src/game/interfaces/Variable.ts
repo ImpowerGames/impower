@@ -7,12 +7,13 @@ export interface Variable {
     | "string"
     | "number"
     | "boolean"
-    | "list"
-    | "map"
-    | "ui"
-    | "style"
-    | "config";
+    | "image"
+    | "audio"
+    | "video"
+    | "text"
+    | "graphic"
+    | "tag";
   value: unknown;
-  parameter: boolean;
-  scope: "public" | "protected" | "private";
+  parameter?: boolean;
+  scope?: "public" | "protected" | "private";
 }
