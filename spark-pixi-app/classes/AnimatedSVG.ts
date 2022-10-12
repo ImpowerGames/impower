@@ -72,7 +72,7 @@ export class AnimatedSVG extends DisplayObject {
    *   // updated!
    * };
    */
-  public onFrameChange?: (currentFrame: number) => void = null;
+  public onFrameChange?: (currentFrame: number) => void;
 
   /**
    * User-assigned function to call when `loop` is true, and an AnimatedSVGSprite is played and
@@ -82,8 +82,7 @@ export class AnimatedSVG extends DisplayObject {
    *   // looped!
    * };
    */
-  public onLoop?: (currentFrame: number, currentIteration: number) => void =
-    null;
+  public onLoop?: (currentFrame: number, currentIteration: number) => void;
 
   /**
    * The SVG image content being rendered by the scene.
@@ -93,7 +92,7 @@ export class AnimatedSVG extends DisplayObject {
   /**
    * The root display object of the scene.
    */
-  public root: Container;
+  public root?: Container;
 
   /**
    * Display objects that don't render to the screen, but are required to update before the rendering
@@ -104,7 +103,7 @@ export class AnimatedSVG extends DisplayObject {
   /**
    * `true` uses PIXI.Ticker.shared to auto update animation time.
    */
-  protected _autoUpdate: boolean;
+  protected _autoUpdate = false;
 
   /**
    * `true` if the instance is currently connected to PIXI.Ticker.shared to auto update animation time.
@@ -117,7 +116,7 @@ export class AnimatedSVG extends DisplayObject {
   /**
    * The scene context
    */
-  protected _context: SVGSceneContext;
+  protected _context?: SVGSceneContext;
 
   /**
    * The width of the rendered scene in local space.
@@ -129,7 +128,7 @@ export class AnimatedSVG extends DisplayObject {
    */
   protected _height: number;
 
-  protected _maxFPS: number;
+  protected _maxFPS?: number;
 
   protected _anchor: ObservablePoint;
 
@@ -243,7 +242,9 @@ export class AnimatedSVG extends DisplayObject {
     this._cull.cull(renderer.renderTexture.sourceFrame, true);
 
     // Render the SVG scene graph
-    this.root.render(renderer);
+    if (this.root) {
+      this.root.render(renderer);
+    }
 
     // Uncull the SVG scene graph. This ensures the scene graph is fully 'renderable'
     // outside of a render cycle.
@@ -255,6 +256,10 @@ export class AnimatedSVG extends DisplayObject {
    */
   updateTransform(): void {
     super.updateTransform();
+
+    if (!this.root) {
+      return;
+    }
 
     this.root.alpha = this.worldAlpha;
 
@@ -269,7 +274,7 @@ export class AnimatedSVG extends DisplayObject {
       rootTransform.d === worldTransform.d &&
       rootTransform.tx === worldTransform.tx &&
       rootTransform.ty === worldTransform.ty &&
-      (rootTransform as unknown as { _worldID })._worldID !== 0 &&
+      (rootTransform as unknown as { _worldID: number })._worldID !== 0 &&
       !this._transformDirty
     ) {
       return;
@@ -283,7 +288,7 @@ export class AnimatedSVG extends DisplayObject {
     }
     this.root.transform.setFromMatrix(this.worldTransform);
     this.root.updateTransform();
-    this.root.disableTempParent(null);
+    this.root.disableTempParent(null as unknown as Container<DisplayObject>);
 
     // Calculate bounds in the SVG scene graph. This ensures they are updated whenever the transform changes.
     this.root.calculateBounds();
@@ -297,8 +302,8 @@ export class AnimatedSVG extends DisplayObject {
    *
    * @param element - The element to be embedded in a display object.
    */
-  protected createNode(element: SVGElement): Container {
-    let renderNode: Container = null;
+  protected createNode(element: SVGElement): Container | undefined {
+    let renderNode: Container | undefined = undefined;
 
     if (!element) {
       return renderNode;
@@ -312,23 +317,29 @@ export class AnimatedSVG extends DisplayObject {
       case "polyline":
       case "polygon":
       case "rect":
-        renderNode = new SVGGraphicsNode(this._context);
+        if (this._context) {
+          renderNode = new SVGGraphicsNode(this._context);
+        }
         break;
       case "image":
-        renderNode = new SVGImageNode(this._context);
+        if (this._context) {
+          renderNode = new SVGImageNode(this._context);
+        }
         break;
       case "mask":
       case "svg":
         renderNode = new Container();
         break;
       case "path":
-        renderNode = new AnimatedSVGPathNode(
-          this._context,
-          this._control,
-          this.content,
-          element as SVGPathElement,
-          element.children?.[0] as SVGAnimateElement
-        );
+        if (this._context && this._control) {
+          renderNode = new AnimatedSVGPathNode(
+            this._context,
+            this._control,
+            this.content,
+            element as SVGPathElement,
+            element.children?.[0] as SVGAnimateElement
+          );
+        }
         break;
       case "text":
         renderNode = new SVGTextNode();
@@ -337,7 +348,7 @@ export class AnimatedSVG extends DisplayObject {
         renderNode = new SVGUseNode();
         break;
       default:
-        renderNode = null;
+        renderNode = undefined;
         break;
     }
 
@@ -353,9 +364,9 @@ export class AnimatedSVG extends DisplayObject {
    * @alpha
    * @param element
    */
-  protected createPaint(element: SVGElement): Paint {
+  protected createPaint(element: SVGElement): Paint | undefined {
     if (!(element instanceof SVGElement)) {
-      return null;
+      return undefined;
     }
 
     return new PaintProvider(element);
@@ -370,7 +381,7 @@ export class AnimatedSVG extends DisplayObject {
     if (ref instanceof SVGElement) {
       ref = this.populateSceneRecursive(ref, {
         basePaint: this.queryInheritedPaint(ref),
-      });
+      }) as Container;
     }
 
     const localBounds = ref.getLocalBounds();
@@ -415,12 +426,14 @@ export class AnimatedSVG extends DisplayObject {
    * @alpha
    * @param ref - A reference to the content element.
    */
-  protected queryPaint(ref: SVGElement): Paint {
+  protected queryPaint(ref: SVGElement): Paint | undefined {
     let queryHit = this._elementToPaint.get(ref);
 
     if (!queryHit) {
       queryHit = this.createPaint(ref);
-      this._elementToPaint.set(ref, queryHit);
+      if (queryHit) {
+        this._elementToPaint.set(ref, queryHit);
+      }
     }
 
     return queryHit;
@@ -432,7 +445,7 @@ export class AnimatedSVG extends DisplayObject {
    * @alpha
    * @param ref
    */
-  protected queryInheritedPaint(ref: SVGElement): Paint {
+  protected queryInheritedPaint(ref: SVGElement): Paint | undefined {
     const paint = this.queryPaint(ref);
     const parentPaint =
       ref.parentElement &&
@@ -442,7 +455,7 @@ export class AnimatedSVG extends DisplayObject {
       return paint;
     }
 
-    return new InheritedPaintProvider(parentPaint, paint);
+    return new InheritedPaintProvider(parentPaint, paint as Paint);
   }
 
   /**
@@ -465,12 +478,12 @@ export class AnimatedSVG extends DisplayObject {
       basePaint?: Paint;
     } = {}
   ): {
-    paint: Paint;
+    paint?: Paint;
   } {
     // Paint
     const { basePaint } = options;
     const paint = basePaint
-      ? new InheritedPaintProvider(basePaint, this.queryPaint(element))
+      ? new InheritedPaintProvider(basePaint, this.queryPaint(element) as Paint)
       : this.queryPaint(element);
 
     // Transform
@@ -483,10 +496,10 @@ export class AnimatedSVG extends DisplayObject {
       : tempMatrix.identity();
 
     // Graphics
-    if (node instanceof AnimatedSVGPathNode) {
+    if (node instanceof AnimatedSVGPathNode && paint) {
       node.bindPaint(paint);
     }
-    if (node instanceof SVGGraphicsNode) {
+    if (node instanceof SVGGraphicsNode && paint) {
       drawSVGGraphics(this.content, node, paint);
     }
     const type = element.nodeName.toLowerCase();
@@ -527,7 +540,7 @@ export class AnimatedSVG extends DisplayObject {
 
         (node as SVGUseNode).embedUse(useElement);
 
-        if (useTargetURL.startsWith("#")) {
+        if (useTargetURL && useTargetURL.startsWith("#")) {
           const useTarget = this.content.querySelector(useTargetURL);
           const contentNode = this.populateSceneRecursive(
             useTarget as SVGGraphicsElement,
@@ -538,22 +551,27 @@ export class AnimatedSVG extends DisplayObject {
 
           (node as SVGUseNode).ref = contentNode;
           contentNode.transform.setFromMatrix(Matrix.IDENTITY); // clear transform
-        } else if (!this._context.disableHrefSVGLoading) {
+        } else if (
+          this._context &&
+          !this._context.disableHrefSVGLoading &&
+          useTargetURL
+        ) {
           (node as SVGUseNode).isRefExternal = true;
 
           SVGLoader.instance
             .load(useTargetURL)
-            .then(
-              (svgDocument) =>
-                [
-                  new AnimatedSVG(svgDocument, {
-                    context: {
-                      ...this._context,
-                      disableRootPopulation: true,
-                    },
-                  }),
-                  svgDocument.querySelector(`#${useTargetURL.split("#")[1]}`),
-                ] as [AnimatedSVG, SVGElement]
+            .then((svgDocument) =>
+              svgDocument
+                ? ([
+                    new AnimatedSVG(svgDocument, {
+                      context: {
+                        ...this._context,
+                        disableRootPopulation: true,
+                      },
+                    }),
+                    svgDocument.querySelector(`#${useTargetURL.split("#")[1]}`),
+                  ] as [AnimatedSVG, SVGElement])
+                : []
             )
             .then(([shellScene, useTarget]) => {
               if (!useTarget) {
@@ -607,7 +625,7 @@ export class AnimatedSVG extends DisplayObject {
     }
     const maskURL = element.getAttribute("mask");
     if (maskURL) {
-      const maskElement: SVGMaskElement = this.content.querySelector(
+      const maskElement: SVGMaskElement | null = this.content.querySelector(
         parseReference(maskURL)
       );
       if (maskElement) {
@@ -637,16 +655,16 @@ export class AnimatedSVG extends DisplayObject {
     options?: {
       basePaint?: Paint;
     }
-  ): Container {
+  ): Container | undefined {
     const node = this.createNode(element);
 
     if (!node) {
-      return null;
+      return undefined;
     }
 
     node.on("nodetransformdirty", this.onNodeTransformDirty);
 
-    let paint: Paint;
+    let paint: Paint | undefined = undefined;
 
     if (
       element instanceof SVGGraphicsElement ||
@@ -654,7 +672,7 @@ export class AnimatedSVG extends DisplayObject {
     ) {
       const opts = this.embedIntoNode(node, element, options);
 
-      paint = opts.paint;
+      paint = opts.paint as Paint;
     }
 
     for (let i = 0, j = element.children.length; i < j; i += 1) {
@@ -729,7 +747,7 @@ export class AnimatedSVG extends DisplayObject {
 
     if (element instanceof SVGMaskElement) {
       // Mask elements are *not* a part of the scene graph.
-      return null;
+      return undefined;
     }
 
     return node;
@@ -743,10 +761,11 @@ export class AnimatedSVG extends DisplayObject {
       this._cull.remove(this.root);
     }
 
-    const root = this.populateSceneRecursive(this.content);
+    this.root = this.populateSceneRecursive(this.content);
 
-    this.root = root;
-    this._cull.add(this.root);
+    if (this.root) {
+      this._cull.add(this.root);
+    }
   }
 
   /** Stops the AnimatedSVGSprite. */
@@ -799,26 +818,21 @@ export class AnimatedSVG extends DisplayObject {
    * Updates the object transform for rendering.
    */
   update(): void {
-    if (this._control.playing) {
+    if (this._control?.playing) {
       this._currentTime += this.animationSpeed * Ticker.shared.deltaMS;
       this.updateFrame();
     }
   }
 
   updateFrame(): number {
-    const normalizedTime = this._currentTime % this._control.animationDuration;
-    const currentIteration = Math.floor(
-      this._currentTime / this._control.animationDuration
-    );
+    const duration = this._control?.animationDuration || 0;
+    const normalizedTime = this._currentTime % duration;
+    const currentIteration = Math.floor(this._currentTime / duration);
     const maxFPS = this.maxFPS || Ticker.shared.maxFPS || DEFAULT_MAX_FPS;
     const sampleRate = 1000 / maxFPS;
     let currentFrameIndex = -1;
     let i = 0;
-    for (
-      let time = 0;
-      time < this._control.animationDuration;
-      time += sampleRate
-    ) {
+    for (let time = 0; time < duration; time += sampleRate) {
       this._frames[i] = time;
       if (currentFrameIndex < 0) {
         if (time === normalizedTime) {
@@ -833,7 +847,9 @@ export class AnimatedSVG extends DisplayObject {
     if (currentFrameIndex < 0) {
       currentFrameIndex = this._frames.length - 1;
     }
-    this._control.time = this._frames[currentFrameIndex];
+    if (this._control) {
+      this._control.time = this._frames[currentFrameIndex];
+    }
 
     if (currentFrameIndex !== this._currentFrameIndex) {
       if (currentFrameIndex < this._currentFrameIndex) {
@@ -859,8 +875,8 @@ export class AnimatedSVG extends DisplayObject {
     this.stop();
     super.destroy(options);
 
-    this.onFrameChange = null;
-    this.onLoop = null;
+    this.onFrameChange = undefined;
+    this.onLoop = undefined;
   }
 
   /**
@@ -890,8 +906,12 @@ export class AnimatedSVG extends DisplayObject {
   static async fromURL(
     url: string,
     options?: AnimatedSVGOptions
-  ): Promise<AnimatedSVG> {
-    return new AnimatedSVG(await SVGLoader.instance.load(url), options);
+  ): Promise<AnimatedSVG | undefined> {
+    const svg = await SVGLoader.instance.load(url);
+    if (!svg) {
+      return undefined;
+    }
+    return new AnimatedSVG(svg, options);
   }
 
   /**
@@ -924,7 +944,7 @@ export class AnimatedSVG extends DisplayObject {
    * The maximum fps that this animation should run at
    * @default 60
    */
-  get maxFPS(): number {
+  get maxFPS(): number | undefined {
     return this._maxFPS;
   }
 
@@ -932,7 +952,7 @@ export class AnimatedSVG extends DisplayObject {
    * The maximum fps that this animation should run at
    * @default 60
    */
-  set maxFPS(value: number) {
+  set maxFPS(value: number | undefined) {
     this._maxFPS = value;
   }
 
@@ -968,14 +988,16 @@ export class AnimatedSVG extends DisplayObject {
    * Indicates if the AnimatedSVGSprite is currently playing.
    */
   get playing(): boolean {
-    return this._control.playing;
+    return this._control?.playing || false;
   }
 
   /**
    * Indicates if the AnimatedSVGSprite is currently playing.
    */
   set playing(value: boolean) {
-    this._control.playing = value;
+    if (this._control) {
+      this._control.playing = value;
+    }
   }
 
   /** Whether to use PIXI.Ticker.shared to auto update animation time. */

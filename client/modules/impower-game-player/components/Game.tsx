@@ -1,6 +1,6 @@
 import { PropsWithChildren, useEffect, useRef } from "react";
 import { SparkContext } from "../../../../spark-engine";
-import { GameApp } from "../classes/GameApp";
+import { GameApp } from "../../../../spark-pixi-app";
 
 interface GameProps {
   domElementId: string;
@@ -31,9 +31,9 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
   useEffect(() => {
     if (gameAppRef.current) {
       if (paused) {
-        gameAppRef.current.pause();
-      } else {
         gameAppRef.current.resume();
+      } else {
+        gameAppRef.current.pause();
       }
     }
   }, [paused]);

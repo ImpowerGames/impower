@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { SparkContext } from "../../../../spark-engine";
+import { SparkContext } from "../../spark-engine";
 import { registerPixiInspector } from "../utils/registerPixiInspector";
 import { AudioScene } from "./AudioScene";
 import { InputScene } from "./InputScene";
@@ -8,7 +8,7 @@ import { MainScene } from "./MainScene";
 import { Scene } from "./Scene";
 import { SVGLoader } from "./SVGLoader";
 
-export const responsiveBreakpoints = {
+export const responsiveBreakpoints: Record<string, number> = {
   xs: 400,
   sm: 600,
   md: 960,
@@ -35,9 +35,9 @@ export class GameApp {
     return this._svgLoader;
   }
 
-  private _parent: HTMLElement;
+  private _parent: HTMLElement | null;
 
-  public get parent(): HTMLElement {
+  public get parent(): HTMLElement | null {
     return this._parent;
   }
 
@@ -68,7 +68,7 @@ export class GameApp {
       autoStart: false,
       backgroundColor: 0x000000,
       resolution: window.devicePixelRatio,
-      resizeTo: this._parent,
+      resizeTo: this._parent || undefined,
     });
 
     registerPixiInspector();
@@ -94,12 +94,17 @@ export class GameApp {
           }
         }
         className = className.trim();
-        if (entry.target.parentElement.className !== className) {
+        if (
+          entry.target.parentElement &&
+          entry.target.parentElement.className !== className
+        ) {
           entry.target.parentElement.className = className;
         }
       }
     });
-    this.resizeObserver.observe(this._parent);
+    if (this._parent) {
+      this.resizeObserver.observe(this._parent);
+    }
 
     if (this._parent) {
       this._parent.appendChild(this._app.view);
@@ -110,18 +115,20 @@ export class GameApp {
       this.sparkContext.init();
     }
 
-    if (context?.editable) {
-      this._scenes = [
-        new MainScene(this.sparkContext, this.app),
-        new LogicScene(this.sparkContext, this.app),
-      ];
-    } else {
-      this._scenes = [
-        new MainScene(this.sparkContext, this.app),
-        new AudioScene(this.sparkContext, this.app),
-        new InputScene(this.sparkContext, this.app),
-        new LogicScene(this.sparkContext, this.app),
-      ];
+    if (context) {
+      if (context?.editable) {
+        this._scenes = [
+          new MainScene(context, this.app),
+          new LogicScene(context, this.app),
+        ];
+      } else {
+        this._scenes = [
+          new MainScene(context, this.app),
+          new AudioScene(context, this.app),
+          new InputScene(context, this.app),
+          new LogicScene(context, this.app),
+        ];
+      }
     }
 
     this.start(!context?.editable && !paused);
@@ -162,7 +169,7 @@ export class GameApp {
     if (this.loader) {
       this.loader.destroy();
     }
-    if (this.app && this.app.cancelResize) {
+    if (this.app && this.app?.["cancelResize"]) {
       this.app.destroy(removeView, stageOptions);
     }
   }

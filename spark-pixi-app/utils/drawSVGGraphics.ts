@@ -43,7 +43,7 @@ export const drawSVGGraphics = (
     }
   }
 
-  let strokeTexture: Texture;
+  let strokeTexture: Texture | undefined = undefined;
 
   if (typeof stroke === "string" && stroke.startsWith("url")) {
     const ref = parseReference(stroke);

@@ -1,6 +1,9 @@
 import * as TONE from "tone";
-import { RecursivePartial } from "../../impower-core";
 import { Scene } from "./Scene";
+
+export type RecursivePartial<T> = {
+  [P in keyof T]?: RecursivePartial<T[P]>;
+};
 
 export type Instrument =
   | TONE.PolySynth<TONE.MetalSynth>
@@ -136,7 +139,9 @@ export class AudioScene extends Scene {
       data.instrumentId,
       data.instrumentType
     );
-    instrument.triggerRelease(data.time);
+    if (data.time) {
+      instrument.triggerRelease(data.time);
+    }
   }
 
   playNotes(data: {

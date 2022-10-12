@@ -5,7 +5,7 @@ import { Scene } from "./Scene";
 import { SVGLoader } from "./SVGLoader";
 
 interface DragObject extends PIXI.DisplayObject {
-  dragData: PIXI.InteractionData;
+  dragData?: PIXI.InteractionData;
   dragging: number;
   dragPointerStart: PIXI.DisplayObject;
   dragObjStart: PIXI.Point;
@@ -39,8 +39,8 @@ const onDragMove = (event: PIXI.InteractionEvent): void => {
   if (obj.dragging === 1) {
     // click or drag?
     const dragAmount =
-      Math.abs(data.global.x - obj.dragGlobalStart.x) +
-      Math.abs(data.global.y - obj.dragGlobalStart.y);
+      Math.abs((data?.global?.x || 0) - obj.dragGlobalStart.x) +
+      Math.abs((data?.global?.y || 0) - obj.dragGlobalStart.y);
     const dragThreshold = 3;
     if (dragAmount >= dragThreshold) {
       // DRAG
@@ -48,11 +48,11 @@ const onDragMove = (event: PIXI.InteractionEvent): void => {
     }
   }
   if (obj.dragging === 2) {
-    const dragPointerEnd = data.getLocalPosition(obj.parent);
+    const dragPointerEnd = data?.getLocalPosition?.(obj.parent);
     // DRAG
     obj.position.set(
-      obj.dragObjStart.x + (dragPointerEnd.x - obj.dragPointerStart.x),
-      obj.dragObjStart.y + (dragPointerEnd.y - obj.dragPointerStart.y)
+      obj.dragObjStart.x + ((dragPointerEnd?.x || 0) - obj.dragPointerStart.x),
+      obj.dragObjStart.y + ((dragPointerEnd?.y || 0) - obj.dragPointerStart.y)
     );
   }
 };
@@ -60,7 +60,7 @@ const onDragMove = (event: PIXI.InteractionEvent): void => {
 const snap = (
   obj: (DragObject | PIXI.DisplayObject) & { height: number },
   app: PIXI.Application,
-  surfaceHandle: PIXI.Sprite
+  surfaceHandle?: PIXI.Sprite
 ): void => {
   if (obj === (surfaceHandle as unknown as DragObject)) {
     // surface handle
@@ -80,11 +80,11 @@ const snap = (
 };
 
 export class MainScene extends Scene {
-  private _surface: PROJECTION.Sprite2d;
+  private _surface?: PROJECTION.Sprite2d;
 
-  private _surfaceHandle: PIXI.Sprite;
+  private _surfaceHandle?: PIXI.Sprite;
 
-  private _container: PROJECTION.Container2d;
+  private _container?: PROJECTION.Container2d;
 
   private _sprites: Record<string, AnimatedSVG> = {};
 
@@ -101,7 +101,9 @@ export class MainScene extends Scene {
     );
     graphics.forEach((v, i) => {
       const [, asset] = svgEntries[i];
-      this._graphics[asset.name] = v;
+      if (v) {
+        this._graphics[asset.name] = v;
+      }
     });
   }
 
@@ -165,7 +167,7 @@ export class MainScene extends Scene {
       }
 
       obj.dragging = 0;
-      obj.dragData = null;
+      obj.dragData = undefined;
 
       event.stopPropagation();
       // set the interaction data to null
@@ -200,7 +202,9 @@ export class MainScene extends Scene {
       sprite.anchor.set(0.5, 1.0); // Center Bottom
       this._sprites[k] = sprite;
 
-      this._container.addChild(handle);
+      if (this._container) {
+        this._container.addChild(handle);
+      }
       handle.addChild(sprite);
       addInteraction(handle);
     });
@@ -209,7 +213,7 @@ export class MainScene extends Scene {
   update(_time: number, _delta: number): void {
     // Match container projection to surface handle position
     // (Surface handle represents the vanishing point)
-    if (this._container) {
+    if (this._container && this._surfaceHandle) {
       const pos = this._container.toLocal(
         this._surfaceHandle.position,
         undefined,
@@ -224,25 +228,27 @@ export class MainScene extends Scene {
   }
 
   resize(): void {
-    if (this._surface) {
-      this._surface.width = this.app.screen.width;
-      this._surface.height = this.app.screen.height;
+    if (this.app) {
+      if (this._surface) {
+        this._surface.width = this.app.screen.width;
+        this._surface.height = this.app.screen.height;
+      }
+      if (this._surfaceHandle) {
+        this._surfaceHandle.position.set(
+          this.app.screen.width / 2,
+          this.app.screen.height / 2
+        );
+        snap(this._surfaceHandle, this.app, this._surfaceHandle);
+      }
+      if (this._container) {
+        this._container.position.set(
+          this.app.screen.width / 2,
+          this.app.screen.height
+        );
+      }
+      Object.values(this._spriteHandles || {}).forEach((s) => {
+        snap(s, this.app, this._surfaceHandle);
+      });
     }
-    if (this._surfaceHandle) {
-      this._surfaceHandle.position.set(
-        this.app.screen.width / 2,
-        this.app.screen.height / 2
-      );
-      snap(this._surfaceHandle, this.app, this._surfaceHandle);
-    }
-    if (this._container) {
-      this._container.position.set(
-        this.app.screen.width / 2,
-        this.app.screen.height
-      );
-    }
-    Object.values(this._spriteHandles || {}).forEach((s) => {
-      snap(s, this.app, this._surfaceHandle);
-    });
   }
 }

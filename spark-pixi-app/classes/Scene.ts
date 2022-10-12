@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { SparkContext } from "../../../../spark-engine";
+import { SparkContext } from "../../spark-engine";
 
 export class Scene {
   private _sparkContext: SparkContext;
@@ -27,7 +27,7 @@ export class Scene {
     // NoOp
   }
 
-  update(_time: number, _delta: number): void {
+  update(_time?: number, _delta?: number): void {
     // NoOp
   }
 

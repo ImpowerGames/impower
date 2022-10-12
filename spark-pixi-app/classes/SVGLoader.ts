@@ -18,7 +18,7 @@ export class SVGLoader {
    * @internal
    * @ignore
    */
-  async load(href: string): Promise<SVGSVGElement> {
+  async load(href: string): Promise<SVGSVGElement | undefined> {
     const url = new URL(href, document.baseURI);
     const id = url.host + url.pathname;
     let doc = this._SVG_DOCUMENT_CACHE.get(id);
@@ -32,7 +32,9 @@ export class SVGLoader {
               .documentElement as unknown as SVGSVGElement
         );
 
-      this._SVG_DOCUMENT_CACHE.set(id, doc);
+      if (doc) {
+        this._SVG_DOCUMENT_CACHE.set(id, doc);
+      }
     }
 
     return doc;
@@ -49,7 +51,7 @@ export class SVGLoader {
     size: number;
   } {
     return {
-      clear(): void {
+      clear: () => {
         this._SVG_DOCUMENT_CACHE.clear();
       },
       size: this._SVG_DOCUMENT_CACHE.size,

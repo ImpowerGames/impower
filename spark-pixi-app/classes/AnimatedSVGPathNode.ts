@@ -33,7 +33,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
 
   protected _lastFractionalFrameIndex?: number;
 
-  protected _currentPath: Path;
+  protected _currentPath?: Path;
 
   // @ts-expect-error override behavior
   get currentPath(): Polygon {
@@ -104,7 +104,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
         repeatLimit: 1,
         keyTimes: [0],
         keySplines: [],
-        commands: [pathCommandsFromString(pathElement.getAttribute("d"))],
+        commands: [pathCommandsFromString(pathElement.getAttribute("d") || "")],
       };
     }
 
@@ -138,18 +138,22 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
   }
 
   closePath(): this {
-    this._currentPath.points.push(
-      this._currentPath.points[0],
-      this._currentPath.points[1]
-    );
+    if (this._currentPath) {
+      this._currentPath.points.push(
+        this._currentPath.points[0],
+        this._currentPath.points[1]
+      );
+    }
     this.finishPath();
 
     return this;
   }
 
   checkPath(): void {
-    if (this._currentPath.points.find((e) => Number.isNaN(e)) !== undefined) {
-      throw new Error("NaN is bad");
+    if (this._currentPath) {
+      if (this._currentPath.points.find((e) => Number.isNaN(e)) !== undefined) {
+        throw new Error("NaN is bad");
+      }
     }
   }
 
@@ -164,7 +168,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
     const commands = Array.isArray(path)
       ? path
       : this._animation?.commands?.[0] ||
-        pathCommandsFromString(path.getAttribute("d"));
+        pathCommandsFromString(path.getAttribute("d") || "");
 
     // Current point
     let x = 0;
@@ -182,27 +186,27 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
       // Copyright Matt Karl
       switch (command.type) {
         case "m": {
-          this.moveTo((x += command.x), (y += command.y));
+          this.moveTo((x += command.x || 0), (y += command.y || 0));
           break;
         }
         case "M": {
-          this.moveTo((x = command.x), (y = command.y));
+          this.moveTo((x = command.x || 0), (y = command.y || 0));
           break;
         }
         case "H": {
-          this.lineTo((x = command.x), y);
+          this.lineTo((x = command.x || 0), y);
           break;
         }
         case "h": {
-          this.lineTo((x += command.x), y);
+          this.lineTo((x += command.x || 0), y);
           break;
         }
         case "V": {
-          this.lineTo(x, (y = command.y));
+          this.lineTo(x, (y = command.y || 0));
           break;
         }
         case "v": {
-          this.lineTo(x, (y += command.y));
+          this.lineTo(x, (y += command.y || 0));
           break;
         }
         case "z":
@@ -213,21 +217,21 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
           break;
         }
         case "L": {
-          this.lineTo((x = command.x), (y = command.y));
+          this.lineTo((x = command.x || 0), (y = command.y || 0));
           break;
         }
         case "l": {
-          this.lineTo((x += command.x), (y += command.y));
+          this.lineTo((x += command.x || 0), (y += command.y || 0));
           break;
         }
         case "C": {
           this.bezierCurveTo(
-            command.x1,
-            command.y1,
-            command.x2,
-            command.y2,
-            (x = command.x),
-            (y = command.y)
+            command.x1 || 0,
+            command.y1 || 0,
+            command.x2 || 0,
+            command.y2 || 0,
+            (x = command.x || 0),
+            (y = command.y || 0)
           );
           break;
         }
@@ -236,12 +240,12 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
           const currY = y;
 
           this.bezierCurveTo(
-            currX + command.x1,
-            currY + command.y1,
-            currX + command.x2,
-            currY + command.y2,
-            (x += command.x),
-            (y += command.y)
+            currX + (command.x1 || 0),
+            currY + (command.y1 || 0),
+            currX + (command.x2 || 0),
+            currY + (command.y2 || 0),
+            (x += command.x || 0),
+            (y += command.y || 0)
           );
           break;
         }
@@ -259,29 +263,29 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
               lastCode === "C")
           ) {
             const lastCommand = commands[i - 1];
-            let lastCp2X = lastCommand.x2 || lastCommand.x;
-            let lastCp2Y = lastCommand.y2 || lastCommand.y;
+            let lastCp2X = lastCommand.x2 || lastCommand.x || 0;
+            let lastCp2Y = lastCommand.y2 || lastCommand.y || 0;
             if (isRelativePathCommand(commands[i - 1])) {
-              lastCp2X += x - lastCommand.x;
-              lastCp2Y += y - lastCommand.y;
+              lastCp2X += x - (lastCommand.x || 0);
+              lastCp2Y += y - (lastCommand.y || 0);
             }
 
             cp1X = 2 * x - lastCp2X;
             cp1Y = 2 * y - lastCp2Y;
           }
 
-          let cp2X = command.x;
-          let cp2Y = command.y;
+          let cp2X = command.x || 0;
+          let cp2Y = command.y || 0;
 
           if (isRelativePathCommand(command)) {
-            cp2X += x;
-            cp2Y += y;
+            cp2X += x || 0;
+            cp2Y += y || 0;
 
-            x += command.x;
-            y += command.y;
+            x += command.x || 0;
+            y += command.y || 0;
           } else {
-            x = command.x;
-            y = command.y;
+            x = command.x || 0;
+            y = command.y || 0;
           }
 
           this.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, x, y);
@@ -293,28 +297,28 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
           const currY = y;
 
           this.quadraticCurveTo(
-            currX + command.x,
-            currY + command.y,
-            (x += command.x),
-            (y += command.y)
+            currX + (command.x || 0),
+            currY + (command.y || 0),
+            (x += command.x || 0),
+            (y += command.y || 0)
           );
           break;
         }
         case "Q": {
           this.quadraticCurveTo(
-            command.x,
-            command.y,
-            (x = command.x),
-            (y = command.y)
+            command.x || 0,
+            command.y || 0,
+            (x = command.x || 0),
+            (y = command.y || 0)
           );
           break;
         }
         case "A":
           this.ellipticArcTo(
-            (x = command.x),
-            (y = command.y),
-            command.rx,
-            command.ry,
+            (x = command.x || 0),
+            (y = command.y || 0),
+            command.rx || 0,
+            command.ry || 0,
             ((command.xAxisRotation || 0) * Math.PI) / 180,
             !command.sweepFlag,
             Boolean(command.largeArcFlag)
@@ -322,10 +326,10 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
           break;
         case "a":
           this.ellipticArcTo(
-            (x += command.x),
-            (y += command.y),
-            command.rx,
-            command.ry,
+            (x += command.x || 0),
+            (y += command.y || 0),
+            command.rx || 0,
+            command.ry || 0,
             ((command.xAxisRotation || 0) * Math.PI) / 180,
             !command.sweepFlag,
             Boolean(command.largeArcFlag)
@@ -338,15 +342,15 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
           let cy: number;
 
           if (lastCommand) {
-            let lcx = lastCommand.x;
-            let lcy = lastCommand.y;
+            let lcx = lastCommand.x || 0;
+            let lcy = lastCommand.y || 0;
 
             if (isRelativePathCommand(lastCommand)) {
-              const lx = x - lastCommand.x;
-              const ly = y - lastCommand.y;
+              const lx = x - (lastCommand.x || 0);
+              const ly = y - (lastCommand.y || 0);
 
-              lcx += lx;
-              lcy += ly;
+              lcx += lx || 0;
+              lcy += ly || 0;
             }
 
             cx = 2 * x - lcx;
@@ -357,9 +361,19 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
           }
 
           if (command.type === "t") {
-            this.quadraticCurveTo(cx, cy, (x += command.x), (y += command.y));
+            this.quadraticCurveTo(
+              cx,
+              cy,
+              (x += command.x || 0),
+              (y += command.y || 0)
+            );
           } else {
-            this.quadraticCurveTo(cx, cy, (x = command.x), (y = command.y));
+            this.quadraticCurveTo(
+              cx,
+              cy,
+              (x = command.x || 0),
+              (y = command.y || 0)
+            );
           }
 
           break;
@@ -378,7 +392,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
     if (this._currentPath) {
       this._currentPath.fillRule = this._fillRule || this._currentPath.fillRule;
       this.drawShape(this._currentPath as unknown as IShape);
-      this._currentPath = null;
+      this._currentPath = undefined;
     }
 
     return this;
@@ -388,7 +402,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
    * @override
    */
   render(renderer: Renderer): void {
-    if (this.control.playing && this._animation?.duration) {
+    if (this.control?.playing && this._animation?.duration) {
       const currentIteration = Math.floor(
         this.control.time / this._animation.duration
       );
