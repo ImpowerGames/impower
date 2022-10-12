@@ -32,7 +32,7 @@ const createGame = (
   const [startBlockId] = getSectionAtLine(activeLine, result?.sections);
   const startRuntimeBlock = blockMap?.[startBlockId];
   let startCommandIndex = 0;
-  const startCommands = Object.values(startRuntimeBlock?.commands);
+  const startCommands = Object.values(startRuntimeBlock?.commands || {});
   for (let i = 1; i < startCommands?.length || 0; i += 1) {
     const command = startCommands[i];
     if (command.line > activeLine) {
