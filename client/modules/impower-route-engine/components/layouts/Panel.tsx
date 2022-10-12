@@ -185,8 +185,7 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
         className="panel-scroll"
         ref={handleScrollRef}
         style={{
-          backgroundColor:
-            mode === "Edit" ? theme.colors.darkForeground : "black",
+          backgroundColor: theme.colors.darkForeground,
           ...scrollMargins,
           ...backgroundStyle,
           overflowY: windowScrolling ? undefined : "scroll",

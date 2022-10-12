@@ -28,6 +28,7 @@ import { VirtualizedItem } from "../../../impower-react-virtualization";
 import {
   AccessibleEvent,
   BottomNavigationBarSpacer,
+  ScreenContext,
 } from "../../../impower-route";
 import FadeAnimation from "../../../impower-route/components/animations/FadeAnimation";
 import PlayerPreview from "../../../impower-route/components/elements/PlayerPreview";
@@ -290,6 +291,7 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
   const [, dispatch] = useContext(ProjectEngineContext);
   const { events } = useContext(DataContext);
   const context = useContext(GameContext);
+  const { fullscreen } = useContext(ScreenContext);
 
   const [logs, setLogs] = useState<LogData[]>(
     context?.game?.debug.state.currentLogs || []
@@ -400,7 +402,7 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
         </Player>
         <TestOverlay debug={debug} logs={logs} onClickLog={handleClickLog} />
       </StyledTestPlayerContent>
-      <BottomNavigationBarSpacer />
+      {!fullscreen && <BottomNavigationBarSpacer />}
     </StyledTestPlayer>
   );
 });

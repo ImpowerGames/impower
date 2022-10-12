@@ -77,6 +77,8 @@ const AppContent = React.memo(
           <StyledAppContentArea
             style={{
               position: fullscreen ? "fixed" : undefined,
+              width: fullscreen ? "100%" : undefined,
+              height: fullscreen ? "100%" : undefined,
             }}
           >
             {children}

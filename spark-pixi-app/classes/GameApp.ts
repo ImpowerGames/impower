@@ -59,7 +59,12 @@ export class GameApp {
     return this._resizeObserver;
   }
 
-  constructor(domElementId: string, context?: SparkContext, paused?: boolean) {
+  constructor(
+    domElementId: string,
+    context?: SparkContext,
+    paused?: boolean,
+    onLoaded?: () => void
+  ) {
     this._parent = document.getElementById(domElementId);
 
     this._app = new PIXI.Application({
@@ -131,10 +136,13 @@ export class GameApp {
       }
     }
 
-    this.start(!context?.editable && !paused);
+    this.start(!context?.editable && !paused, onLoaded);
   }
 
-  private async start(startTicker?: boolean): Promise<void> {
+  private async start(
+    startTicker?: boolean,
+    onLoaded?: () => void
+  ): Promise<void> {
     await Promise.all(this.scenes.map((scene) => scene.init()));
 
     this.scenes.forEach((scene) => {
@@ -156,6 +164,8 @@ export class GameApp {
       this.app.ticker.update(performance.now());
       this.app.stop();
     }
+
+    onLoaded?.();
   }
 
   destroy(

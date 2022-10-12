@@ -109,11 +109,10 @@ const ContainerPanelHeader = React.memo(
     const listHeaderStyle: CSSProperties = useMemo(
       () => ({
         pointerEvents: "auto",
-        backgroundColor:
-          mode === "Edit" ? theme.colors.darkForeground : "black",
+        backgroundColor: theme.colors.darkForeground,
         ...style,
       }),
-      [mode, style, theme.colors.darkForeground]
+      [style, theme.colors.darkForeground]
     );
 
     const chartHeaderStyle: CSSProperties = useMemo(
