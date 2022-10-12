@@ -42,9 +42,9 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
   useEffect(() => {
     if (gameAppRef.current) {
       if (paused) {
-        gameAppRef.current.resume();
-      } else {
         gameAppRef.current.pause();
+      } else {
+        gameAppRef.current.resume();
       }
     }
   }, [paused]);
