@@ -15,6 +15,8 @@ import {
   navigationSetSearchbar,
   navigationSetType,
 } from "../../../modules/impower-navigation";
+import GameContextProvider from "../../../modules/impower-route-engine/components/GameContextProvider";
+import ProjectContextProvider from "../../../modules/impower-route-engine/components/ProjectContextProvider";
 import TagIconLoader from "../../../modules/impower-route/components/elements/TagIconLoader";
 import useBodyBackgroundColor from "../../../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../../../modules/impower-route/hooks/useHTMLBackgroundColor";
@@ -53,14 +55,6 @@ const StyledMonospaceSansFontLoader = styled.p`
   position: absolute;
   pointer-events: none;
 `;
-
-const GameContextProvider = dynamic(
-  () =>
-    import(
-      "../../../modules/impower-route-engine/components/GameContextProvider"
-    ),
-  { ssr: false }
-);
 
 const Project = dynamic(
   () => import("../../../modules/impower-route-engine/components/Project"),
@@ -103,11 +97,13 @@ const EngineProjectPage = React.memo((props: EngineProjectPageProps) => {
 
   return (
     <>
-      <GameContextProvider>
-        <StyledProjectPage ios={ios}>
-          <Project />
-        </StyledProjectPage>
-      </GameContextProvider>
+      <ProjectContextProvider>
+        <GameContextProvider>
+          <StyledProjectPage ios={ios}>
+            <Project />
+          </StyledProjectPage>
+        </GameContextProvider>
+      </ProjectContextProvider>
       <TagIconLoader />
       <StyledMonospaceSansFontLoader>
         .<b>.</b>

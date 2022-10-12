@@ -1,32 +1,10 @@
 import * as PROJECTION from "pixi-projection";
 import * as PIXI from "pixi.js";
-import { DisplayObject } from "pixi.js";
-import * as TONE from "tone";
-import { RecursivePartial } from "../../impower-core";
 import { AnimatedSVG } from "./AnimatedSVG";
 import { Scene } from "./Scene";
+import { SVGLoader } from "./SVGLoader";
 
-export type Instrument =
-  | TONE.PolySynth<TONE.MetalSynth>
-  | TONE.PolySynth
-  | TONE.NoiseSynth
-  | TONE.PluckSynth
-  | TONE.DuoSynth
-  | TONE.Sampler;
-
-export type InstrumentType =
-  | "default"
-  | "am"
-  | "duo"
-  | "fm"
-  | "membrane"
-  | "metal"
-  | "mono"
-  | "noise"
-  | "pluck"
-  | "sampler";
-
-interface DragObject extends DisplayObject {
+interface DragObject extends PIXI.DisplayObject {
   dragData: PIXI.InteractionData;
   dragging: number;
   dragPointerStart: PIXI.DisplayObject;
@@ -80,7 +58,7 @@ const onDragMove = (event: PIXI.InteractionEvent): void => {
 };
 
 const snap = (
-  obj: (DragObject | DisplayObject) & { height: number },
+  obj: (DragObject | PIXI.DisplayObject) & { height: number },
   app: PIXI.Application,
   surfaceHandle: PIXI.Sprite
 ): void => {
@@ -102,32 +80,28 @@ const snap = (
 };
 
 export class MainScene extends Scene {
-  private parts: Record<string, TONE.Part> = {};
+  private _surface: PROJECTION.Sprite2d;
 
-  instruments: Record<string, Instrument> = {};
+  private _surfaceHandle: PIXI.Sprite;
 
-  surface: PROJECTION.Sprite2d;
+  private _container: PROJECTION.Container2d;
 
-  surfaceHandle: PIXI.Sprite;
+  private _sprites: Record<string, AnimatedSVG> = {};
 
-  container: PROJECTION.Container2d;
+  private _spriteHandles: Record<string, PROJECTION.Sprite2d> = {};
 
-  sprites: Record<string, AnimatedSVG> = {};
-
-  spriteHandles: Record<string, PROJECTION.Sprite2d> = {};
-
-  graphics: Record<string, SVGSVGElement> = {};
+  private _graphics: Record<string, SVGSVGElement> = {};
 
   async init(): Promise<void> {
     const svgEntries = Object.entries(
-      this.sparkContext.game.logic.blockMap[""].variables || {}
+      this.sparkContext?.game?.logic?.blockMap?.[""]?.variables || {}
     ).filter(([, v]) => v.type === "graphic");
     const graphics = await Promise.all(
-      svgEntries.map(([, v]) => this.svgLoader.load(v.value as string))
+      svgEntries.map(([, v]) => SVGLoader.instance.load(v.value as string))
     );
-    graphics.forEach((svg, index) => {
-      const [, asset] = svgEntries[index];
-      this.graphics[asset.name] = svg;
+    graphics.forEach((v, i) => {
+      const [, asset] = svgEntries[i];
+      this._graphics[asset.name] = v;
     });
   }
 
@@ -146,29 +120,29 @@ export class MainScene extends Scene {
     spriteHandleTexture.orig.width = 50;
     spriteHandleTexture.orig.height = 50;
 
-    this.surface = new PROJECTION.Sprite2d(surfaceTexture);
-    this.surface.anchor.set(0.5, 1.0); // Center Bottom
-    this.surface.width = this.app.screen.width;
-    this.surface.height = this.app.screen.height;
-    this.surface.interactiveChildren = false;
+    this._surface = new PROJECTION.Sprite2d(surfaceTexture);
+    this._surface.anchor.set(0.5, 1.0); // Center Bottom
+    this._surface.width = this.app.screen.width;
+    this._surface.height = this.app.screen.height;
+    this._surface.interactiveChildren = false;
 
-    this.surfaceHandle = new PIXI.Sprite(surfaceHandleTexture);
-    this.surfaceHandle.anchor.set(0.5); // Center
-    this.surfaceHandle.position.set(
+    this._surfaceHandle = new PIXI.Sprite(surfaceHandleTexture);
+    this._surfaceHandle.anchor.set(0.5); // Center
+    this._surfaceHandle.position.set(
       this.app.screen.width / 2,
       this.app.screen.height / 2
     );
-    this.surfaceHandle.tint = 0xff0000;
+    this._surfaceHandle.tint = 0xff0000;
 
-    this.container = new PROJECTION.Container2d();
-    this.container.position.set(
+    this._container = new PROJECTION.Container2d();
+    this._container.position.set(
       this.app.screen.width / 2,
       this.app.screen.height
     );
 
-    this.app.stage.addChild(this.surfaceHandle);
-    this.app.stage.addChild(this.container);
-    this.container.addChild(this.surface);
+    this.app.stage.addChild(this._surfaceHandle);
+    this.app.stage.addChild(this._container);
+    this._container.addChild(this._surface);
 
     // SETUP INTERACTIONS
 
@@ -187,7 +161,7 @@ export class MainScene extends Scene {
       if (obj.dragging === 1) {
         toggle(obj);
       } else {
-        snap(obj, this.app, this.surfaceHandle);
+        snap(obj, this.app, this._surfaceHandle);
       }
 
       obj.dragging = 0;
@@ -208,9 +182,9 @@ export class MainScene extends Scene {
       }
     };
 
-    addInteraction(this.surfaceHandle);
+    addInteraction(this._surfaceHandle);
 
-    Object.entries(this.graphics || {}).forEach(([k, svg]) => {
+    Object.entries(this._graphics || {}).forEach(([k, svg]) => {
       const handle = new PROJECTION.Sprite2d(spriteHandleTexture);
       handle.anchor.set(0.5, 0.0); // Center Top
       handle.position.set(
@@ -220,56 +194,24 @@ export class MainScene extends Scene {
       handle.proj.affine = PROJECTION.AFFINE.AXIS_X;
       handle.tint = 0x0000ff;
       handle.interactiveChildren = false;
-      this.spriteHandles[k] = handle;
+      this._spriteHandles[k] = handle;
 
       const sprite = new AnimatedSVG(svg);
       sprite.anchor.set(0.5, 1.0); // Center Bottom
-      this.sprites[k] = sprite;
+      this._sprites[k] = sprite;
 
-      this.container.addChild(handle);
+      this._container.addChild(handle);
       handle.addChild(sprite);
       addInteraction(handle);
     });
-
-    this.app.stage.on("pointerdown", (e, g) => this.onPointerDown(e, g));
-    this.app.stage.on("pointerup", (e, g) => this.onPointerUp(e, g));
-
-    // SETUP AUDIO
-    TONE.start();
-    this.sparkContext.game.audio.events.onConfigureInstrument.addListener(
-      (data) => this.configureInstrument(data)
-    );
-    this.sparkContext.game.audio.events.onAttackNote.addListener((data) =>
-      this.attackNote(data)
-    );
-    this.sparkContext.game.audio.events.onReleaseNote.addListener((data) =>
-      this.releaseNote(data)
-    );
-    this.sparkContext.game.audio.events.onPlayNotes.addListener((data) =>
-      this.playNotes(data)
-    );
   }
 
-  onPointerDown(event: PointerEvent, gameObjects: { name: string }[]): void {
-    this.sparkContext.game.input.pointerDown({
-      button: event.button,
-      targets: gameObjects.map((x) => x.name),
-    });
-  }
-
-  onPointerUp(event: PointerEvent, gameObjects: { name: string }[]): void {
-    this.sparkContext.game.input.pointerUp({
-      button: event.button,
-      targets: gameObjects.map((x) => x.name),
-    });
-  }
-
-  update(time: number, delta: number): void {
+  update(_time: number, _delta: number): void {
     // Match container projection to surface handle position
     // (Surface handle represents the vanishing point)
-    if (this.container) {
-      const pos = this.container.toLocal(
-        this.surfaceHandle.position,
+    if (this._container) {
+      const pos = this._container.toLocal(
+        this._surfaceHandle.position,
         undefined,
         undefined,
         undefined,
@@ -277,196 +219,30 @@ export class MainScene extends Scene {
       );
       pos.y = -pos.y;
       pos.x = -pos.x;
-      this.container.proj.setAxisY(pos, -1);
+      this._container.proj.setAxisY(pos, -1);
     }
-    // UPDATE BLOCKS
-    this.sparkContext.loadedBlockIds.forEach((blockId) => {
-      if (!this.sparkContext.update(blockId, time, delta)) {
-        this.app.destroy(true);
-      }
-    });
   }
 
   resize(): void {
-    if (this.surface) {
-      this.surface.width = this.app.screen.width;
-      this.surface.height = this.app.screen.height;
+    if (this._surface) {
+      this._surface.width = this.app.screen.width;
+      this._surface.height = this.app.screen.height;
     }
-    if (this.surfaceHandle) {
-      this.surfaceHandle.position.set(
+    if (this._surfaceHandle) {
+      this._surfaceHandle.position.set(
         this.app.screen.width / 2,
         this.app.screen.height / 2
       );
-      snap(this.surfaceHandle, this.app, this.surfaceHandle);
+      snap(this._surfaceHandle, this.app, this._surfaceHandle);
     }
-    if (this.container) {
-      this.container.position.set(
+    if (this._container) {
+      this._container.position.set(
         this.app.screen.width / 2,
         this.app.screen.height
       );
     }
-    Object.values(this.spriteHandles || {}).forEach((s) => {
-      snap(s, this.app, this.surfaceHandle);
+    Object.values(this._spriteHandles || {}).forEach((s) => {
+      snap(s, this.app, this._surfaceHandle);
     });
-  }
-
-  destroy(): void {
-    this.sparkContext.game.audio.events.onConfigureInstrument.removeAllListeners();
-    this.sparkContext.game.audio.events.onAttackNote.removeAllListeners();
-    this.sparkContext.game.audio.events.onReleaseNote.removeAllListeners();
-    this.sparkContext.game.audio.events.onPlayNotes.removeAllListeners();
-    TONE.Transport.cancel();
-    TONE.Transport.stop();
-    window.setTimeout(() => {
-      Object.values(this.instruments).forEach((instrument) =>
-        instrument.dispose()
-      );
-    }, 100);
-  }
-
-  getInstrument(id: string, type?: string): Instrument {
-    const key = `${id}/${type}`;
-    if (this.instruments[key]) {
-      return this.instruments[key];
-    }
-    if (type === "default") {
-      this.instruments[key] = new TONE.PolySynth().toDestination();
-    }
-    if (type === "am") {
-      this.instruments[key] = new TONE.PolySynth(TONE.AMSynth).toDestination();
-    }
-    if (type === "fm") {
-      this.instruments[key] = new TONE.PolySynth(TONE.FMSynth).toDestination();
-    }
-    if (type === "membrane") {
-      this.instruments[key] = new TONE.PolySynth(
-        TONE.MembraneSynth
-      ).toDestination();
-    }
-    if (type === "metal") {
-      this.instruments[key] = new TONE.PolySynth(
-        TONE.MetalSynth
-      ).toDestination();
-    }
-    if (type === "mono") {
-      this.instruments[key] = new TONE.PolySynth(
-        TONE.MonoSynth
-      ).toDestination();
-    }
-    if (type === "noise") {
-      this.instruments[key] = new TONE.NoiseSynth().toDestination();
-    }
-    if (type === "pluck") {
-      this.instruments[key] = new TONE.PluckSynth().toDestination();
-    }
-    if (type === "duo") {
-      this.instruments[key] = new TONE.DuoSynth().toDestination();
-    }
-    if (type === "sampler") {
-      this.instruments[key] = new TONE.Sampler().toDestination();
-    }
-    return this.instruments[key];
-  }
-
-  configureInstrument(data: {
-    instrumentId: string;
-    instrumentType: string;
-    options: RecursivePartial<unknown>;
-  }): void {
-    const instrument = this.getInstrument(
-      data.instrumentId,
-      data.instrumentType
-    );
-    instrument.set(data.options);
-  }
-
-  attackNote(data: {
-    instrumentId: string;
-    instrumentType: string;
-    note: string;
-    time?: number;
-    velocity?: number;
-  }): void {
-    const instrument = this.getInstrument(
-      data.instrumentId,
-      data.instrumentType
-    );
-    instrument.triggerAttack(data.note, data.time, data.velocity);
-  }
-
-  releaseNote(data: {
-    instrumentId: string;
-    instrumentType: string;
-    time?: number;
-  }): void {
-    const instrument = this.getInstrument(
-      data.instrumentId,
-      data.instrumentType
-    );
-    instrument.triggerRelease(data.time);
-  }
-
-  playNotes(data: {
-    partId: string;
-    instrumentId: string;
-    instrumentType: string;
-    notes: {
-      note: string[];
-      time: number;
-      duration?: number[];
-      velocity?: number[];
-      offset?: number[];
-    }[];
-    onDraw?: (time: number) => void;
-    onStart?: (time: number) => void;
-    onFinished?: (time: number) => void;
-  }): void {
-    const instrument = this.getInstrument(
-      data.instrumentId,
-      data.instrumentType
-    );
-
-    this.stopNotes();
-
-    let startTime = 0;
-    let index = 0;
-    const part = new TONE.Part((time, value) => {
-      if (index === 0) {
-        startTime = time;
-      }
-      const relativeTime = time - startTime;
-      if (index === 0) {
-        TONE.Draw.schedule(() => data.onStart?.(relativeTime), time);
-      }
-      if (value.note && value.duration) {
-        const notes = value.note;
-        const durations = value.duration;
-        const velocities = value.velocity;
-        const offsets = value.offset;
-        for (let i = 0; i < notes.length; i += 1) {
-          const noteTime = time + (offsets?.[i] || 0);
-          instrument.triggerAttack(notes[i], noteTime, velocities?.[i] || 0);
-          const d = durations[Math.min(i, durations.length - 1)];
-          instrument.triggerRelease(notes[i], noteTime + d);
-        }
-      }
-      TONE.Draw.schedule(() => data.onDraw?.(relativeTime), time);
-      if (index === data.notes.length - 1) {
-        TONE.Draw.schedule(() => data.onFinished?.(relativeTime), time);
-      }
-      index += 1;
-    }, data.notes).start(0);
-
-    TONE.Transport.start("+0.1");
-
-    this.parts[data.partId] = part;
-  }
-
-  stopNotes(): void {
-    Object.values(this.parts).forEach((part) => {
-      part.mute = true;
-    });
-    TONE.Transport.cancel();
-    TONE.Transport.stop();
   }
 }

@@ -1,57 +1,67 @@
 import dynamic from "next/dynamic";
 import { PropsWithChildren } from "react";
-import {
-  GameProjectData,
-  SaveData,
-  SparkGame,
-  SparkGameRunner,
-} from "../../../../spark-engine";
+import { getRootElementId, SparkContext } from "../../../../spark-engine";
+
+const DOM_ID = "game";
 
 const Game = dynamic(() => import("./Game"), { ssr: false });
 
 interface PlayerProps {
-  startTime: number;
-  active: boolean;
-  control: "Play" | "Pause";
-  project: GameProjectData;
-  debugging?: boolean;
-  game?: SparkGame;
-  runner?: SparkGameRunner;
-  saveData?: SaveData;
-  gameBucketFolderId?: string;
-  onInitialized: () => void;
-  onCreateGame: (game?: SparkGame) => void;
+  paused?: boolean;
+  context?: SparkContext;
 }
 
 export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {
-  const {
-    startTime,
-    active,
-    control,
-    project,
-    debugging,
-    game,
-    runner,
-    saveData,
-    children,
-    onInitialized,
-    onCreateGame,
-  } = props;
-
+  const { children, context, ...other } = props;
   return (
-    <Game
-      startTime={startTime}
-      active={active}
-      control={control}
-      project={project}
-      debugging={debugging}
-      game={game}
-      runner={runner}
-      saveData={saveData}
-      onInitialized={onInitialized}
-      onCreateGame={onCreateGame}
-    >
-      {children}
-    </Game>
+    <>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+        }}
+      >
+        <div
+          id={DOM_ID}
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            backgroundColor: "black",
+          }}
+        />
+        <div
+          id="ui"
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            id={getRootElementId()}
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          />
+        </div>
+        {children}
+      </div>
+      {context && <Game domElementId={DOM_ID} context={context} {...other} />}
+    </>
   );
 };

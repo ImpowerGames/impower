@@ -36,22 +36,22 @@ const DataButtonLeftChildren = React.memo(
   (props: DataButtonLeftChildrenProps): JSX.Element | null => {
     const { id } = props;
 
-    const { game } = useContext(GameContext);
+    const context = useContext(GameContext);
 
     const isBlockExecuting = useCallback((): boolean | undefined => {
-      const blockState = game?.logic.state.blockStates[id];
+      const blockState = context?.game?.logic.state.blockStates[id];
       if (!blockState) {
         return undefined;
       }
       return blockState.isExecuting;
-    }, [game, id]);
+    }, [context, id]);
     const getExecutedByCommandId = useCallback((): string | undefined => {
-      const blockState = game?.logic.state.blockStates[id];
+      const blockState = context?.game?.logic.state.blockStates[id];
       if (!blockState) {
         return undefined;
       }
       return blockState.executedBy;
-    }, [game, id]);
+    }, [context, id]);
 
     const [executing, setExecuting] = useState(isBlockExecuting());
     const [executedByBlockId, setExecutedByBlockId] = useState(
@@ -91,25 +91,29 @@ const DataButtonLeftChildren = React.memo(
           }, 500);
         }
       };
-      if (game) {
-        game.events.onStart.addListener(onStart);
-        game.events.onEnd.addListener(onEnd);
-        game.logic.events.onExecuteBlock.addListener(onExecuteBlock);
-        game.logic.events.onFinishBlock.addListener(onFinishBlock);
+      if (context?.game) {
+        context?.game.events.onStart.addListener(onStart);
+        context?.game.events.onEnd.addListener(onEnd);
+        context?.game.logic.events.onExecuteBlock.addListener(onExecuteBlock);
+        context?.game.logic.events.onFinishBlock.addListener(onFinishBlock);
       }
       return (): void => {
-        if (game) {
-          game.events.onStart.removeListener(onStart);
-          game.events.onEnd.removeListener(onEnd);
-          game.logic.events.onExecuteBlock.removeListener(onExecuteBlock);
-          game.logic.events.onFinishBlock.removeListener(onFinishBlock);
+        if (context) {
+          context?.game.events.onStart.removeListener(onStart);
+          context?.game.events.onEnd.removeListener(onEnd);
+          context?.game.logic.events.onExecuteBlock.removeListener(
+            onExecuteBlock
+          );
+          context?.game.logic.events.onFinishBlock.removeListener(
+            onFinishBlock
+          );
         }
       };
-    }, [game]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [context]); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
       <>
-        {game !== undefined && executing !== undefined && (
+        {context !== undefined && executing !== undefined && (
           <StyledExecutionBackground initial={0} animate={executing ? 1 : 0}>
             <FontIcon aria-label="Executing" size={14}>
               {executedByBlockId ? (

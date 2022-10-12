@@ -29,9 +29,9 @@ import { ProjectEngineContext } from "../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../contexts/transitionContext";
 import { panelSetPaneSize } from "../types/actions/panelActions";
 import {
-  testControlChange,
   testLayoutChange,
   testModeChange,
+  testPause,
   testPlayerVisibility,
 } from "../types/actions/testActions";
 import { windowSwitch } from "../types/actions/windowActions";
@@ -383,7 +383,7 @@ const Project = React.memo((): JSX.Element => {
   }, [dispatch, isPlayable, portrait, windowType]);
   const handleComplete = useCallback(() => {
     if (isPlayable && !portrait && windowType === "test") {
-      dispatch(testControlChange("Play"));
+      dispatch(testPause(false));
       dispatch(testModeChange("Test"));
     }
     if (!isPlayable || (portrait && windowType !== "test")) {

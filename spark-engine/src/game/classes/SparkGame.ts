@@ -88,8 +88,7 @@ export class SparkGame {
   constructor(
     blockMap: Record<string, Block>,
     objectMap: Record<string, Record<string, unknown>>,
-    config?: GameConfig,
-    saveData?: SaveData
+    config?: GameConfig
   ) {
     this._debug = new DebugManager({
       debugging: config?.debugging,
@@ -97,15 +96,15 @@ export class SparkGame {
     });
     this._input = new InputManager();
     this._physics = new PhysicsManager();
-    this._asset = new AssetManager(saveData?.asset);
-    this._audio = new AudioManager(saveData?.audio);
-    this._entity = new EntityManager(saveData?.entity);
-    this._struct = new StructManager(objectMap, saveData?.entity);
+    this._asset = new AssetManager(config?.saveData?.asset);
+    this._audio = new AudioManager(config?.saveData?.audio);
+    this._entity = new EntityManager(config?.saveData?.entity);
+    this._struct = new StructManager(objectMap, config?.saveData?.entity);
     const activeParentBlockId = config?.startBlockId || "";
     const activeCommandIndex = config?.startCommandIndex || 0;
     this._logic = new LogicManager(
       blockMap,
-      saveData?.logic || {
+      config?.saveData?.logic || {
         activeParentBlockId,
         activeCommandIndex,
         loadedBlockIds: [],
@@ -115,7 +114,7 @@ export class SparkGame {
       }
     );
     this._random = new RandomManager(
-      saveData?.random || { seed: config?.seed || "" }
+      config?.saveData?.random || { seed: config?.seed || "" }
     );
     this._events = {
       onStart: new GameEvent(),

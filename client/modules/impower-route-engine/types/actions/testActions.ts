@@ -1,4 +1,4 @@
-import { Control, Layout, Mode, Playback } from "../state/testState";
+import { Layout, Mode, Playback } from "../state/testState";
 
 export const TEST_MODE_CHANGE = "TEST_MODE_CHANGE";
 export interface TestModeChangeAction {
@@ -9,15 +9,13 @@ export const testModeChange = (mode: Mode): TestModeChangeAction => {
   return { type: TEST_MODE_CHANGE, payload: { mode } };
 };
 
-export const TEST_CONTROL_CHANGE = "TEST_CONTROL_CHANGE";
-export interface TestControlChangeAction {
-  type: typeof TEST_CONTROL_CHANGE;
-  payload: { control: Control };
+export const TEST_PAUSE = "TEST_PAUSE";
+export interface TestPauseAction {
+  type: typeof TEST_PAUSE;
+  payload: { pause: boolean };
 }
-export const testControlChange = (
-  control: Control
-): TestControlChangeAction => {
-  return { type: TEST_CONTROL_CHANGE, payload: { control } };
+export const testPause = (pause: boolean): TestPauseAction => {
+  return { type: TEST_PAUSE, payload: { pause } };
 };
 
 export const TEST_PLAYBACK_CHANGE = "TEST_PLAYBACK_CHANGE";
@@ -29,17 +27,6 @@ export const testPlaybackChange = (
   playback: Playback
 ): TestPlaybackChangeAction => {
   return { type: TEST_PLAYBACK_CHANGE, payload: { playback } };
-};
-
-export const TEST_START_TIME_CHANGE = "TEST_START_TIME_CHANGE";
-export interface TestStartTimeChangeAction {
-  type: typeof TEST_START_TIME_CHANGE;
-  payload: { startTime: number };
-}
-export const testStartTimeChange = (
-  startTime: number
-): TestStartTimeChangeAction => {
-  return { type: TEST_START_TIME_CHANGE, payload: { startTime } };
 };
 
 export const TEST_LAYOUT_CHANGE = "TEST_LAYOUT_CHANGE";
@@ -88,9 +75,8 @@ export const testSetCompiling = (
 
 export type TestAction =
   | TestModeChangeAction
-  | TestControlChangeAction
+  | TestPauseAction
   | TestPlaybackChangeAction
-  | TestStartTimeChangeAction
   | TestLayoutChangeAction
   | TestDebugAction
   | TestPlayerVisibilityAction

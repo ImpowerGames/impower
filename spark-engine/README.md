@@ -12,11 +12,7 @@ import {
 } from "spark-engine";
 
 const parsed = parseSpark(script);
-const blockMap = generateSectionBlocks(parsed.sections);
-const objectMap = generateStructObjects(parsed.structs);
-
-const game = new SparkGame(blockMap, objectMap);
-const gameContext = new SparkContext(game);
+const gameContext = new SparkContext(parsed);
 
 /**
  * Update all loaded blocks.

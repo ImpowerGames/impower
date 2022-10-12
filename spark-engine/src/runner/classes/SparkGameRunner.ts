@@ -42,6 +42,15 @@ interface RunnerTypeMap {
 }
 
 export class SparkGameRunner {
+  static _instance: SparkGameRunner;
+
+  static get instance(): SparkGameRunner {
+    if (!this._instance) {
+      this._instance = new SparkGameRunner();
+    }
+    return this._instance;
+  }
+
   private _configRunners: Record<ConfigTypeId, ConfigRunner> &
     Record<string, ConfigRunner> = {
     BackgroundConfig: new ConfigRunner(),

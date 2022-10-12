@@ -1,7 +1,4 @@
 import React from "react";
-import { SparkGame } from "../../../../spark-engine";
+import { SparkContext } from "../../../../spark-engine";
 
-export const GameContext = React.createContext<{
-  game?: SparkGame;
-  onCreateGame: (game?: SparkGame) => void;
-}>(undefined);
+export const GameContext = React.createContext<SparkContext>(undefined);

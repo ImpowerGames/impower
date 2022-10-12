@@ -13,11 +13,10 @@ export type Layout = "Page" | "Game";
 
 export interface TestState {
   mode: Mode;
-  control: Control;
+  paused: boolean;
   playback: Playback;
   layout: Layout;
   debug: boolean;
-  startTime: number;
   playerVisibility: boolean;
   compiling: Record<string, boolean>;
 }

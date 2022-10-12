@@ -13,6 +13,7 @@ import {
   getPreviewCommand,
   getScriptAugmentations,
   previewLine,
+  SparkGameRunner,
 } from "../../../../../spark-engine";
 import { evaluate } from "../../../../../spark-evaluate";
 import {
@@ -29,7 +30,6 @@ import {
 } from "../../../impower-script-editor";
 import { SerializableEditorState } from "../../../impower-script-editor/types/editor";
 import { GameContext } from "../../contexts/gameContext";
-import { GameRunnerContext } from "../../contexts/gameRunnerContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import {
@@ -76,13 +76,12 @@ const LogicScriptEditor = React.memo(
     const { toggleFolding, toggleLinting, onSectionChange } = props;
 
     const { transitionState } = useContext(WindowTransitionContext);
-    const { gameRunner } = useContext(GameRunnerContext);
-    const { game } = useContext(GameContext);
+    const context = useContext(GameContext);
     const [state, dispatch] = useContext(ProjectEngineContext);
 
     const windowType = "logic";
 
-    const events = game?.[windowType]?.events;
+    const events = context?.game?.[windowType]?.events;
     const searchTextQuery = state?.panel?.panels?.[windowType]?.searchTextQuery;
     const searchLineQuery = state?.panel?.panels?.[windowType]?.searchLineQuery;
     const snippetPreview = state?.panel?.panels?.[windowType]?.snippetPreview;
@@ -113,8 +112,8 @@ const LogicScriptEditor = React.memo(
     const currentSectionNameRef = useRef<string>();
     const variableValueListenerRef =
       useRef<(data: { id: string; value: unknown }) => void>();
-    const gameRef = useRef(game);
-    gameRef.current = game;
+    const gameRef = useRef(context?.game);
+    gameRef.current = context?.game;
 
     const [ready, setReady] = useState(false);
     const [parseResultState, setParseResultState] =
@@ -479,14 +478,14 @@ const LogicScriptEditor = React.memo(
     useEffect(() => {
       if (parseResultState && previewCursor) {
         previewLine(
-          gameRunner,
+          SparkGameRunner.instance,
           parseResultState,
           previewCursor.fromLine,
           true,
           debug
         );
       }
-    }, [previewCursor, debug, parseResultState, gameRunner]);
+    }, [previewCursor, debug, parseResultState]);
 
     useEffect(() => {
       if (mode === "Edit") {

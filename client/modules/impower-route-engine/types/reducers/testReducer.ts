@@ -1,16 +1,15 @@
 import { createTestState } from "../../utils/createTestState";
 import {
   TestAction,
-  TEST_CONTROL_CHANGE,
   TEST_DEBUG,
   TEST_LAYOUT_CHANGE,
   TEST_MODE_CHANGE,
+  TEST_PAUSE,
   TEST_PLAYBACK_CHANGE,
   TEST_PLAYER_VISIBILITY,
   TEST_SET_COMPILING,
-  TEST_START_TIME_CHANGE,
 } from "../actions/testActions";
-import { Control, Layout, Mode, Playback, TestState } from "../state/testState";
+import { Layout, Mode, Playback, TestState } from "../state/testState";
 
 const doTestModeChange = (
   state: TestState,
@@ -24,15 +23,15 @@ const doTestModeChange = (
   };
 };
 
-const doTestControlChange = (
+const doTestPause = (
   state: TestState,
-  payload: { control: Control }
+  payload: { pause: boolean }
 ): TestState => {
-  const { control } = payload;
+  const { pause } = payload;
 
   return {
     ...state,
-    control,
+    paused: pause,
   };
 };
 
@@ -45,18 +44,6 @@ const doTestPlaybackChange = (
   return {
     ...state,
     playback,
-  };
-};
-
-const doTestStartTimeChange = (
-  state: TestState,
-  payload: { startTime: number }
-): TestState => {
-  const { startTime } = payload;
-
-  return {
-    ...state,
-    startTime,
   };
 };
 
@@ -121,12 +108,10 @@ export const testReducer = (
   switch (action.type) {
     case TEST_MODE_CHANGE:
       return doTestModeChange(state, action.payload);
-    case TEST_CONTROL_CHANGE:
-      return doTestControlChange(state, action.payload);
+    case TEST_PAUSE:
+      return doTestPause(state, action.payload);
     case TEST_PLAYBACK_CHANGE:
       return doTestPlaybackChange(state, action.payload);
-    case TEST_START_TIME_CHANGE:
-      return doTestStartTimeChange(state, action.payload);
     case TEST_LAYOUT_CHANGE:
       return doTestLayoutChange(state, action.payload);
     case TEST_DEBUG:

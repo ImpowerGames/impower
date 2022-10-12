@@ -41,14 +41,10 @@ import { getPlaceholderUrl } from "../../../impower-storage";
 import { UserContext } from "../../../impower-user";
 import { DataContext } from "../../contexts/dataContext";
 import { GameContext } from "../../contexts/gameContext";
-import { GameRunnerContext } from "../../contexts/gameRunnerContext";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import { panelSetInteraction } from "../../types/actions/panelActions";
-import {
-  testControlChange,
-  testModeChange,
-} from "../../types/actions/testActions";
-import { Control, Layout, Mode } from "../../types/state/testState";
+import { testModeChange, testPause } from "../../types/actions/testActions";
+import { Layout, Mode } from "../../types/state/testState";
 
 const StyledMotionTestPanel = styled.div`
   position: absolute;
@@ -283,30 +279,24 @@ const TestOverlay = React.memo((props: TestOverlayProps): JSX.Element => {
 interface TestPlayerProps {
   doc: ProjectDocument;
   project: GameProjectData;
-  startTime: number;
   layout: Layout;
   mode: Mode;
-  control: Control;
+  paused: boolean;
   debug: boolean;
 }
 
 const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
-  const { project, doc, startTime, layout, mode, control, debug } = props;
-  const [playerInitialized, setPlayerInitialized] = useState(false);
-  const [state, dispatch] = useContext(ProjectEngineContext);
+  const { project, doc, layout, mode, paused, debug } = props;
+  const [, dispatch] = useContext(ProjectEngineContext);
   const { events } = useContext(DataContext);
-  const { gameRunner } = useContext(GameRunnerContext);
-  const { game, onCreateGame } = useContext(GameContext);
+  const context = useContext(GameContext);
 
   const [logs, setLogs] = useState<LogData[]>(
-    game?.debug.state.currentLogs || []
+    context?.game?.debug.state.currentLogs || []
   );
 
-  const handlePlayerInitialized = useCallback(() => {
-    setPlayerInitialized(true);
-  }, []);
   const handleClickPlay = useCallback(() => {
-    dispatch(testControlChange("Play"));
+    dispatch(testPause(false));
     dispatch(testModeChange("Test"));
   }, [dispatch]);
 
@@ -374,44 +364,27 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
   );
 
   useEffect(() => {
-    setLogs(game?.debug.state.currentLogs || []);
+    setLogs(context?.game?.debug.state.currentLogs || []);
     const onLog = throttle((): void => {
-      if (game) {
-        setLogs([...game.debug.state.currentLogs]);
+      if (context?.game) {
+        setLogs([...context.game.debug.state.currentLogs]);
       }
     }, 200);
-    if (game) {
-      game.debug.events.onLog.addListener(onLog);
+    if (context?.game) {
+      context?.game.debug.events.onLog.addListener(onLog);
     }
     return (): void => {
-      if (game) {
-        game.debug.events.onLog.removeListener(onLog);
+      if (context?.game) {
+        context?.game.debug.events.onLog.removeListener(onLog);
       }
     };
-  }, [game]);
+  }, [context?.game]);
 
   return (
     <StyledTestPlayer>
-      <TransparencyPattern
-        style={
-          playerInitialized
-            ? undefined
-            : { backgroundColor: "black", backgroundImage: "none" }
-        }
-      />
+      <TransparencyPattern />
       <StyledTestPlayerContent>
-        <Player
-          startTime={startTime}
-          active={mode === "Test"}
-          control={control}
-          project={project}
-          debugging={debug}
-          game={game}
-          gameBucketFolderId={state?.project?.id}
-          runner={gameRunner}
-          onInitialized={handlePlayerInitialized}
-          onCreateGame={onCreateGame}
-        >
+        <Player paused={paused} context={context}>
           {mode === "Edit" && layout === "Page" && (
             <PlayerPreview
               doc={doc}
@@ -437,10 +410,9 @@ interface TestPanelContentProps {
   docId: string;
   doc: ProjectDocument;
   project: GameProjectData;
-  startTime: number;
   layout: Layout;
   mode: Mode;
-  control: Control;
+  paused: boolean;
   debug: boolean;
   fullscreenPlayer?: boolean;
 }
@@ -452,10 +424,9 @@ const TestPanelContent = React.memo(
       docId,
       doc,
       project,
-      startTime,
       layout,
       mode,
-      control,
+      paused,
       debug,
       fullscreenPlayer,
     } = props;
@@ -487,10 +458,9 @@ const TestPanelContent = React.memo(
               <TestPlayer
                 doc={doc}
                 project={project}
-                startTime={startTime}
                 layout={layout}
                 mode={mode}
-                control={control}
+                paused={paused}
                 debug={debug}
               />
             </Page>
@@ -510,9 +480,8 @@ const TestPanel = React.memo((): JSX.Element => {
   const id = state.project?.id;
   const data = state.project?.data;
   const doc = state.project?.data?.doc;
-  const startTime = state?.test?.startTime;
   const mode = state?.test?.mode;
-  const control = state?.test?.control;
+  const paused = state?.test?.paused;
   const debug = state?.test?.debug;
   const layout = state?.test?.layout;
 
@@ -531,10 +500,9 @@ const TestPanel = React.memo((): JSX.Element => {
         docId={id}
         doc={doc}
         project={data}
-        startTime={startTime}
         layout={layout}
         mode={mode}
-        control={control}
+        paused={paused}
         debug={debug}
         fullscreenPlayer={layout === "Game"}
       />

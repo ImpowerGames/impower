@@ -26,17 +26,17 @@ export const DataLink = React.memo((props: LinkDefaultProps): JSX.Element => {
     arrowStrokeWidth,
   } = props;
 
-  const { game } = useContext(GameContext);
+  const context = useContext(GameContext);
 
   const theme = useTheme();
 
   const isExecuting = useCallback((): boolean | undefined => {
-    const blockState = game?.logic.state.blockStates[toNodeId];
+    const blockState = context?.game?.logic.state.blockStates[toNodeId];
     if (!blockState) {
       return undefined;
     }
     return blockState.isExecuting && blockState.executedBy === fromNodeId;
-  }, [game, toNodeId, fromNodeId]);
+  }, [context, toNodeId, fromNodeId]);
 
   const [executing, setExecuting] = useState(isExecuting());
   const executingTimeoutHandle = useRef(-1);
@@ -76,21 +76,23 @@ export const DataLink = React.memo((props: LinkDefaultProps): JSX.Element => {
         }, 500);
       }
     };
-    if (game) {
-      game.events.onStart.addListener(onStart);
-      game.events.onEnd.addListener(onEnd);
-      game.logic.events.onExecuteBlock.addListener(onExecuteBlock);
-      game.logic.events.onFinishBlock.addListener(onFinishBlock);
+    if (context?.game) {
+      context?.game.events.onStart.addListener(onStart);
+      context?.game.events.onEnd.addListener(onEnd);
+      context?.game.logic.events.onExecuteBlock.addListener(onExecuteBlock);
+      context?.game.logic.events.onFinishBlock.addListener(onFinishBlock);
     }
     return (): void => {
-      if (game) {
-        game.events.onStart.removeListener(onStart);
-        game.events.onEnd.removeListener(onEnd);
-        game.logic.events.onExecuteBlock.removeListener(onExecuteBlock);
-        game.logic.events.onFinishBlock.removeListener(onFinishBlock);
+      if (context?.game) {
+        context?.game.events.onStart.removeListener(onStart);
+        context?.game.events.onEnd.removeListener(onEnd);
+        context?.game.logic.events.onExecuteBlock.removeListener(
+          onExecuteBlock
+        );
+        context?.game.logic.events.onFinishBlock.removeListener(onFinishBlock);
       }
     };
-  }, [game]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [context]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <LinkDefault

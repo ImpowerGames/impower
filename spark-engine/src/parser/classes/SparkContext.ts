@@ -21,6 +21,12 @@ export class SparkContext {
     return this._runner;
   }
 
+  private _editable: boolean;
+
+  public get editable(): boolean {
+    return this._editable;
+  }
+
   public get loadedBlockIds(): string[] {
     return this.game.logic.state.loadedBlockIds;
   }
@@ -49,9 +55,10 @@ export class SparkContext {
     return this._contexts;
   }
 
-  constructor(game: SparkGame, runner?: SparkGameRunner) {
+  constructor(game: SparkGame, runner?: SparkGameRunner, editable?: boolean) {
     this._game = game;
     this._runner = runner || new SparkGameRunner();
+    this._editable = editable || false;
     Object.entries(game.logic.blockMap).forEach(([blockId, block]) => {
       const [ids, valueMap] = getScopedValueContext(
         blockId,

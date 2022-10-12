@@ -1,13 +1,20 @@
 import * as PIXI from "pixi.js";
-import {
-  SparkContext,
-  SparkGame,
-  SparkGameRunner,
-} from "../../../../spark-engine";
+import { SparkContext } from "../../../../spark-engine";
 import { registerPixiInspector } from "../utils/registerPixiInspector";
+import { AudioScene } from "./AudioScene";
+import { InputScene } from "./InputScene";
+import { LogicScene } from "./LogicScene";
 import { MainScene } from "./MainScene";
 import { Scene } from "./Scene";
 import { SVGLoader } from "./SVGLoader";
+
+export const responsiveBreakpoints = {
+  xs: 400,
+  sm: 600,
+  md: 960,
+  lg: 1280,
+  xl: 1920,
+};
 
 export class GameApp {
   private _app: PIXI.Application;
@@ -52,14 +59,7 @@ export class GameApp {
     return this._resizeObserver;
   }
 
-  constructor(
-    domElementId: string,
-    sparkGame?: SparkGame,
-    sparkRunner?: SparkGameRunner,
-    control?: "Play" | "Pause"
-  ) {
-    const context = new SparkContext(sparkGame, sparkRunner);
-
+  constructor(domElementId: string, context?: SparkContext, paused?: boolean) {
     this._parent = document.getElementById(domElementId);
 
     this._app = new PIXI.Application({
@@ -83,6 +83,20 @@ export class GameApp {
         this.scenes.forEach((scene) => {
           scene.resize();
         });
+        const width = entry.contentRect?.width;
+        const keys = Object.keys(responsiveBreakpoints);
+        let className = "";
+        for (let i = 0; i < keys.length; i += 1) {
+          const k = keys[i];
+          className += `${k} `;
+          if (responsiveBreakpoints[k] > width) {
+            break;
+          }
+        }
+        className = className.trim();
+        if (entry.target.parentElement.className !== className) {
+          entry.target.parentElement.className = className;
+        }
       }
     });
     this.resizeObserver.observe(this._parent);
@@ -96,14 +110,24 @@ export class GameApp {
       this.sparkContext.init();
     }
 
-    this._scenes = [
-      new MainScene(this.sparkContext, this.app, this.loader, this.svgLoader),
-    ];
+    if (context?.editable) {
+      this._scenes = [
+        new MainScene(this.sparkContext, this.app),
+        new LogicScene(this.sparkContext, this.app),
+      ];
+    } else {
+      this._scenes = [
+        new MainScene(this.sparkContext, this.app),
+        new AudioScene(this.sparkContext, this.app),
+        new InputScene(this.sparkContext, this.app),
+        new LogicScene(this.sparkContext, this.app),
+      ];
+    }
 
-    this.start(control);
+    this.start(!context?.editable && !paused);
   }
 
-  private async start(control?: "Play" | "Pause"): Promise<void> {
+  private async start(startTicker?: boolean): Promise<void> {
     await Promise.all(this.scenes.map((scene) => scene.init()));
 
     this.scenes.forEach((scene) => {
@@ -119,7 +143,12 @@ export class GameApp {
       await this.sparkContext.start();
     }
 
-    this.controlScenes(control);
+    if (startTicker) {
+      this.app.start();
+    } else {
+      this.app.ticker.update(performance.now());
+      this.app.stop();
+    }
   }
 
   destroy(
@@ -138,13 +167,12 @@ export class GameApp {
     }
   }
 
-  controlScenes(control?: "Play" | "Pause"): void {
-    if (control === "Play") {
-      this.app.start();
-    }
-    if (control === "Pause") {
-      this.app.stop();
-    }
+  pause(): void {
+    this.app.stop();
+  }
+
+  resume(): void {
+    this.app.start();
   }
 
   update(time?: number, delta?: number): void {

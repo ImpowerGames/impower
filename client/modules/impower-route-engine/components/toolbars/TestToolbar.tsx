@@ -27,13 +27,13 @@ import { FontIcon } from "../../../impower-icon";
 import { ScreenContext } from "../../../impower-route";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import {
-  testControlChange,
   testDebug,
   testLayoutChange,
   testModeChange,
+  testPause,
   testPlaybackChange,
 } from "../../types/actions/testActions";
-import { Control, Mode } from "../../types/state/testState";
+import { Mode } from "../../types/state/testState";
 import { WindowType } from "../../types/state/windowState";
 
 export enum GamePreviewMenuItemType {
@@ -103,7 +103,7 @@ const StyledTitleTypography = styled(Typography)`
 `;
 
 interface PlaybackControlsProps {
-  control: Control;
+  paused: boolean;
   onSkipBackward: () => void;
   onRewindStart: () => void;
   onRewindStop: () => void;
@@ -117,7 +117,7 @@ interface PlaybackControlsProps {
 const PlaybackControls = React.memo(
   (props: PlaybackControlsProps): JSX.Element => {
     const {
-      control,
+      paused,
       onSkipBackward,
       onRewindStart,
       onRewindStop,
@@ -150,13 +150,13 @@ const PlaybackControls = React.memo(
             <BackwardSolidIcon />
           </FontIcon>
         </IconButton>
-        <IconButton onClick={control === "Pause" ? onPlay : onPause}>
+        <IconButton onClick={paused ? onPlay : onPause}>
           <FontIcon
-            aria-label={control === "Pause" ? "Play" : "Pause"}
+            aria-label={paused ? "Play" : "Pause"}
             size={24}
             color={theme.colors.white40}
           >
-            {control === "Pause" ? <PlaySolidIcon /> : <PauseSolidIcon />}
+            {paused ? <PlaySolidIcon /> : <PauseSolidIcon />}
           </FontIcon>
         </IconButton>
         <IconButton
@@ -197,7 +197,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
 
   const doc = state.project?.data?.doc;
 
-  const { mode, control, debug, layout, compiling } = state.test;
+  const { mode, paused, debug, layout, compiling } = state.test;
 
   const isCompiling = compiling[windowType];
 
@@ -247,10 +247,10 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   const [menuOptionsState, setMenuOptionsState] = useState(menuOptions);
 
   const handlePlay = useCallback((): void => {
-    dispatch(testControlChange("Play"));
+    dispatch(testPause(false));
   }, [dispatch]);
   const handlePause = useCallback((): void => {
-    dispatch(testControlChange("Pause"));
+    dispatch(testPause(true));
   }, [dispatch]);
   const handleSkipBackward = useCallback((): void => {
     dispatch(testPlaybackChange("SkipBackward"));
@@ -273,7 +273,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   const handleChangeTestMode = useCallback(
     (m: Mode): void => {
       if (mode === "Test") {
-        dispatch(testControlChange("Play"));
+        dispatch(testPause(false));
       }
       dispatch(testModeChange(m));
     },
@@ -413,7 +413,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
       )}
       {mode === "Test" && (
         <PlaybackControls
-          control={control}
+          paused={paused}
           onSkipBackward={handleSkipBackward}
           onRewindStart={handleRewindStart}
           onRewindStop={handleRewindStop}

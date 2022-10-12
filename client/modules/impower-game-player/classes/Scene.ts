@@ -1,6 +1,5 @@
 import * as PIXI from "pixi.js";
 import { SparkContext } from "../../../../spark-engine";
-import { SVGLoader } from "./SVGLoader";
 
 export class Scene {
   private _sparkContext: SparkContext;
@@ -15,28 +14,9 @@ export class Scene {
     return this._app;
   }
 
-  private _loader: PIXI.Loader;
-
-  public get loader(): PIXI.Loader {
-    return this._loader;
-  }
-
-  private _svgLoader: SVGLoader;
-
-  public get svgLoader(): SVGLoader {
-    return this._svgLoader;
-  }
-
-  constructor(
-    sparkContext: SparkContext,
-    app: PIXI.Application,
-    loader: PIXI.Loader,
-    svgLoader: SVGLoader
-  ) {
+  constructor(sparkContext: SparkContext, app: PIXI.Application) {
     this._sparkContext = sparkContext;
     this._app = app;
-    this._loader = loader;
-    this._svgLoader = svgLoader;
   }
 
   async init(): Promise<void> {
