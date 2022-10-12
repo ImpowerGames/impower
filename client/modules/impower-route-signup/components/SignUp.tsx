@@ -638,7 +638,7 @@ const SignUp = React.memo((props: SignUpProps): JSX.Element => {
         <StyledTitleTypography variant="h5">
           {signUpTitle}
         </StyledTitleTypography>
-        <StyledForm method="post" noValidate>
+        <StyledForm method="post" noValidate onSubmit={handleSubmit}>
           <StyledGrid style={{ marginBottom: theme.spacing(1.5) }}>
             <StyledItem style={{ padding: 8 }}>
               <TextField
