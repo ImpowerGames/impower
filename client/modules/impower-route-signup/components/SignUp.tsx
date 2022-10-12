@@ -1,6 +1,8 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import Autocomplete, {
+  AutocompleteChangeDetails,
+  AutocompleteChangeReason,
   AutocompleteProps,
   createFilterOptions,
 } from "@material-ui/core/Autocomplete";
@@ -150,6 +152,25 @@ const StyledFieldArea = styled.div``;
 
 const StyledAutocomplete = styled(Autocomplete)``;
 
+const defaultFilterOptions = createFilterOptions({
+  matchFrom: "start",
+});
+
+const getFilteredOptions = (
+  options: number[],
+  state: FilterOptionsState<number>
+): number[] => {
+  const numberInputValue = Number(state?.inputValue);
+  if (!Number.isNaN(numberInputValue)) {
+    return options.filter(
+      (option) =>
+        option === numberInputValue ||
+        String(option).padStart(2, "0").startsWith(state?.inputValue)
+    );
+  }
+  return defaultFilterOptions(options, state) as number[];
+};
+
 interface DateAutocompleteProps
   extends Partial<AutocompleteProps<number, boolean, boolean, boolean>> {
   label?: string;
@@ -159,41 +180,64 @@ interface DateAutocompleteProps
 const DateAutocomplete = React.memo((props: DateAutocompleteProps) => {
   const { label, error, disabled, value, options, getOptionLabel, onChange } =
     props;
-  const handleRenderInput = useCallback(
-    (params): React.ReactNode => (
-      <TextField
-        {...params}
-        variant="outlined"
-        InputComponent={OutlinedInput}
-        label={label}
-        error={error}
-      />
-    ),
-    [error, label]
-  );
 
-  const defaultFilterOptions = useMemo(
-    () =>
-      createFilterOptions({
-        matchFrom: "start",
-      }),
-    []
-  );
+  const highlightRef = useRef("");
+  const [open, setOpen] = useState(false);
 
   const handleFilterOptions = useCallback(
     (options: number[], state: FilterOptionsState<number>): number[] => {
-      const { inputValue } = state;
-      const numberInputValue = Number(inputValue);
-      if (!Number.isNaN(numberInputValue)) {
-        return options.filter(
-          (option) =>
-            option === numberInputValue ||
-            String(option).padStart(2, "0").startsWith(inputValue)
+      return getFilteredOptions(options, state);
+    },
+    []
+  );
+
+  const handleFocus = useCallback(() => {
+    setOpen(true);
+  }, []);
+
+  const handleChange = useCallback(
+    (
+      event: React.SyntheticEvent,
+      value: NonNullable<string | number> | (string | number)[],
+      reason: AutocompleteChangeReason,
+      details?: AutocompleteChangeDetails<number>
+    ) => {
+      if (onChange) {
+        onChange(
+          event,
+          highlightRef.current ||
+            getFilteredOptions(options as number[], {
+              inputValue: String(value),
+              getOptionLabel,
+            })?.[0],
+          reason,
+          details
         );
       }
-      return defaultFilterOptions(options, state) as number[];
+      setOpen(false);
+      highlightRef.current = "";
     },
-    [defaultFilterOptions]
+    [getOptionLabel, onChange, options]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent): void => {
+      if (e.key === "Enter") {
+        handleChange(
+          e,
+          (e.target as unknown as { value: string }).value,
+          "selectOption"
+        );
+      }
+    },
+    [handleChange]
+  );
+
+  const handleHighlightChange = useCallback(
+    (event: React.SyntheticEvent<Element, Event>, option: string) => {
+      highlightRef.current = option;
+    },
+    []
   );
 
   return (
@@ -205,12 +249,25 @@ const DateAutocomplete = React.memo((props: DateAutocompleteProps) => {
       autoSelect
       blurOnSelect
       forcePopupIcon={false}
+      open={open}
       disablePortal
       disableClearable
       getOptionLabel={getOptionLabel}
-      onChange={onChange}
-      renderInput={handleRenderInput}
+      onFocus={handleFocus}
+      onKeyDown={handleKeyDown}
+      onChange={handleChange}
+      onHighlightChange={handleHighlightChange}
+      renderInput={(params): React.ReactNode => (
+        <TextField
+          {...params}
+          variant="outlined"
+          InputComponent={OutlinedInput}
+          label={label}
+          error={error}
+        />
+      )}
       filterOptions={handleFilterOptions}
+      openOnFocus={false}
     />
   );
 });
@@ -581,7 +638,7 @@ const SignUp = React.memo((props: SignUpProps): JSX.Element => {
         <StyledTitleTypography variant="h5">
           {signUpTitle}
         </StyledTitleTypography>
-        <StyledForm method="post" noValidate onSubmit={handleSubmit}>
+        <StyledForm method="post" noValidate>
           <StyledGrid style={{ marginBottom: theme.spacing(1.5) }}>
             <StyledItem style={{ padding: 8 }}>
               <TextField
@@ -715,7 +772,14 @@ const SignUp = React.memo((props: SignUpProps): JSX.Element => {
             variant="contained"
             color="primary"
             size="large"
-            disabled={!emailValue || !usernameValue || !passwordValue}
+            disabled={
+              !emailValue ||
+              !usernameValue ||
+              !passwordValue ||
+              !dobMonth ||
+              !dobDate ||
+              !dobYear
+            }
             onClick={handleSubmit}
           >
             {signUp}
