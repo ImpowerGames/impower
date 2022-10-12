@@ -1,15 +1,16 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import dynamic from "next/dynamic";
 import React, {
   PropsWithChildren,
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { layout } from "../../../impower-route";
+import ContextMenu from "../../../impower-route/components/popups/ContextMenu";
 import {
   SearchLineQuery,
   SearchTextQuery,
@@ -17,11 +18,6 @@ import {
 import { WindowTransitionContext } from "../../contexts/transitionContext";
 import PanelBreadcrumbs, { BreadcrumbInfo } from "../layouts/PanelBreadcrumbs";
 import EngineToolbar from "./EngineToolbar";
-
-const ContextMenu = dynamic(
-  () => import("../../../impower-route/components/popups/ContextMenu"),
-  { ssr: false }
-);
 
 const StyledBottomButtonArea = styled.div``;
 
@@ -102,10 +98,9 @@ const PanelHeader = (
     onClickMoreOption,
   } = props;
 
-  const [optionsMenuAnchorEl, setOptionsMenuAnchorEl] =
-    React.useState<HTMLElement | null>(null);
-  const [optionsMenuOpen, setOptionsMenuOpen] = useState<boolean>();
-  const [menuOptionsState, setMenuOptionsState] = useState(menuOptions);
+  const menuAnchorElRef = useRef<HTMLDivElement | null>(null);
+  const menuOptionsRef = useRef(menuOptions);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const { portrait } = useContext(WindowTransitionContext);
 
@@ -172,7 +167,7 @@ const PanelHeader = (
   const handleBrowserNavigation = useCallback(
     (currState: Record<string, string>, prevState?: Record<string, string>) => {
       if (currState?.m !== prevState?.m) {
-        setOptionsMenuOpen(currState.m === "options");
+        setMenuOpen(currState.m === "options");
       }
     },
     []
@@ -183,7 +178,7 @@ const PanelHeader = (
   );
 
   const handleCloseContextMenu = useCallback((): void => {
-    setOptionsMenuOpen(false);
+    setMenuOpen(false);
     closeMenuDialog();
   }, [closeMenuDialog]);
 
@@ -191,9 +186,9 @@ const PanelHeader = (
     (e: React.MouseEvent): void => {
       e.stopPropagation();
       e.preventDefault();
-      setMenuOptionsState([...menuOptions]);
-      setOptionsMenuAnchorEl(e.currentTarget as HTMLElement);
-      setOptionsMenuOpen(true);
+      menuAnchorElRef.current = e.currentTarget as HTMLDivElement;
+      menuOptionsRef.current = [...menuOptions];
+      setMenuOpen(true);
       openMenuDialog("options");
     },
     [menuOptions, openMenuDialog]
@@ -203,6 +198,7 @@ const PanelHeader = (
     <>
       <EngineToolbar
         headerRef={headerRef}
+        contextButtonAreaRef={menuAnchorElRef}
         type={type}
         title={title}
         titleStyle={titleStyle}
@@ -249,16 +245,14 @@ const PanelHeader = (
           {bottomChildren}
         </StyledBottomButtonContent>
       </StyledBottomButtonArea>
-      {optionsMenuOpen !== undefined && (
-        <ContextMenu
-          anchorReference="anchorEl"
-          anchorEl={optionsMenuAnchorEl}
-          open={optionsMenuOpen}
-          options={menuOptionsState}
-          onOption={onClickMoreOption}
-          onClose={handleCloseContextMenu}
-        />
-      )}
+      <ContextMenu
+        anchorReference="anchorEl"
+        anchorEl={menuAnchorElRef.current}
+        options={menuOptionsRef.current}
+        open={menuOpen}
+        onOption={onClickMoreOption}
+        onClose={handleCloseContextMenu}
+      />
     </>
   );
 };

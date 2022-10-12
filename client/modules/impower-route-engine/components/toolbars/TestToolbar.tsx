@@ -1,8 +1,13 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { IconButton, Typography } from "@material-ui/core";
-import dynamic from "next/dynamic";
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import BrowserRegularIcon from "../../../../resources/icons/regular/browser.svg";
 import BugSlashRegularIcon from "../../../../resources/icons/regular/bug-slash.svg";
 import BugRegularIcon from "../../../../resources/icons/regular/bug.svg";
@@ -25,6 +30,7 @@ import { isGameDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { FontIcon } from "../../../impower-icon";
 import { ScreenContext } from "../../../impower-route";
+import ContextMenu from "../../../impower-route/components/popups/ContextMenu";
 import { ProjectEngineContext } from "../../contexts/projectEngineContext";
 import {
   testDebug,
@@ -42,11 +48,6 @@ export enum GamePreviewMenuItemType {
   SaveGameState = "SaveGameState",
   LoadGameState = "LoadGameState",
 }
-
-const ContextMenu = dynamic(
-  () => import("../../../impower-route/components/popups/ContextMenu"),
-  { ssr: false }
-);
 
 const StyledToolbar = styled.div`
   display: flex;
@@ -241,10 +242,9 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
     [debug, layout]
   );
 
-  const [optionsMenuAnchorEl, setOptionsMenuAnchorEl] =
-    React.useState<HTMLElement | null>(null);
-  const [optionsMenuOpen, setOptionsMenuOpen] = useState<boolean>();
-  const [menuOptionsState, setMenuOptionsState] = useState(menuOptions);
+  const menuAnchorElRef = useRef<HTMLDivElement | null>(null);
+  const menuOptionsRef = useRef(menuOptions);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handlePlay = useCallback((): void => {
     dispatch(testPause(false));
@@ -301,7 +301,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   const handleBrowserNavigation = useCallback(
     (currState: Record<string, string>, prevState?: Record<string, string>) => {
       if (currState?.m !== prevState?.m) {
-        setOptionsMenuOpen(currState.m === "options");
+        setMenuOpen(currState.m === "options");
       }
     },
     []
@@ -312,7 +312,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   );
 
   const handleCloseContextMenu = useCallback((): void => {
-    setOptionsMenuOpen(false);
+    setMenuOpen(false);
     closeMenuDialog();
   }, [closeMenuDialog]);
 
@@ -320,9 +320,9 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
     (e: React.MouseEvent): void => {
       e.stopPropagation();
       e.preventDefault();
-      setMenuOptionsState([...menuOptions]);
-      setOptionsMenuAnchorEl(e.currentTarget as HTMLElement);
-      setOptionsMenuOpen(true);
+      menuAnchorElRef.current = e.currentTarget as HTMLDivElement;
+      menuOptionsRef.current = [...menuOptions];
+      setMenuOpen(true);
       openMenuDialog("options");
     },
     [menuOptions, openMenuDialog]
@@ -424,7 +424,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
           onSkipForward={handleSkipForward}
         />
       )}
-      <StyledRightArea>
+      <StyledRightArea ref={menuAnchorElRef}>
         {menuItemKeys?.length > 0 && (
           <>
             <IconButton
@@ -438,16 +438,14 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
                 <EllipsisVerticalRegularIcon />
               </FontIcon>
             </IconButton>
-            {optionsMenuOpen !== undefined && (
-              <ContextMenu
-                anchorReference="anchorEl"
-                anchorEl={optionsMenuAnchorEl}
-                open={optionsMenuOpen}
-                options={menuOptionsState}
-                onOption={handleClickMenu}
-                onClose={handleCloseContextMenu}
-              />
-            )}
+            <ContextMenu
+              anchorReference="anchorEl"
+              anchorEl={menuAnchorElRef.current}
+              options={menuOptionsRef.current}
+              open={menuOpen}
+              onOption={handleClickMenu}
+              onClose={handleCloseContextMenu}
+            />
           </>
         )}
       </StyledRightArea>

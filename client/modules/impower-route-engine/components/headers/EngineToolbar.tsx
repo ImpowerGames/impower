@@ -282,6 +282,7 @@ const StyledHeaderNameTypography = styled(Typography)`
 `;
 
 interface EngineToolbarLayoutProps {
+  contextButtonAreaRef?: React.Ref<HTMLDivElement>;
   minHeight: number;
   leftChildren?: React.ReactNode;
   middleChildren?: React.ReactNode;
@@ -297,6 +298,7 @@ interface EngineToolbarLayoutProps {
 const EngineToolbarLayout = React.memo(
   (props: EngineToolbarLayoutProps): JSX.Element => {
     const {
+      contextButtonAreaRef,
       minHeight,
       leftChildren,
       middleChildren,
@@ -327,6 +329,7 @@ const EngineToolbarLayout = React.memo(
         )}
         {rotateChildren && (
           <StyledHeaderContextButtonArea
+            ref={contextButtonAreaRef}
             style={{ minWidth: minHeight, ...rotateStyle }}
           >
             {rotateChildren}
@@ -338,6 +341,7 @@ const EngineToolbarLayout = React.memo(
 );
 
 interface EngineToolbarContentProps {
+  contextButtonAreaRef?: React.Ref<HTMLDivElement>;
   type: "default" | "context" | "search_text" | "search_line" | "filter_text";
   moreIcon?: React.ReactNode;
   backIcon?: React.ReactNode;
@@ -392,6 +396,7 @@ interface EngineToolbarContentProps {
 const EngineToolbarContent = React.memo(
   (props: PropsWithChildren<EngineToolbarContentProps>): JSX.Element => {
     const {
+      contextButtonAreaRef,
       type,
       moreIcon = <EllipsisVerticalRegularIcon />,
       backIcon,
@@ -685,6 +690,7 @@ const EngineToolbarContent = React.memo(
     if (type === "context" && contextOptions?.length === 1) {
       return (
         <EngineToolbarLayout
+          contextButtonAreaRef={contextButtonAreaRef}
           minHeight={minHeight}
           leftChildren={
             <StyledHeadCheckbox
@@ -754,6 +760,7 @@ const EngineToolbarContent = React.memo(
     ) {
       return (
         <EngineToolbarLayout
+          contextButtonAreaRef={contextButtonAreaRef}
           minHeight={minHeight}
           leftChildren={
             onSearchText ? (
@@ -953,6 +960,7 @@ const EngineToolbarContent = React.memo(
     }
     return (
       <EngineToolbarLayout
+        contextButtonAreaRef={contextButtonAreaRef}
         minHeight={minHeight}
         leftChildren={
           onBack ? (
@@ -1037,6 +1045,7 @@ const EngineToolbarContent = React.memo(
 
 interface EngineToolbarProps {
   headerRef?: React.Ref<HTMLElement>;
+  contextButtonAreaRef?: React.Ref<HTMLDivElement>;
   type: "default" | "context" | "search_text" | "search_line" | "filter_text";
   moreIcon?: React.ReactNode;
   backIcon?: React.ReactNode;
@@ -1090,6 +1099,7 @@ interface EngineToolbarProps {
 const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
   const {
     headerRef,
+    contextButtonAreaRef,
     type,
     minHeight,
     searchTextQuery,
@@ -1240,6 +1250,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
                 }}
               >
                 <EngineToolbarContent
+                  contextButtonAreaRef={contextButtonAreaRef}
                   key={type}
                   type={type}
                   minHeight={minHeight}

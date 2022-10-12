@@ -17,12 +17,14 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
   pausedRef.current = paused;
 
   useEffect(() => {
+    if (context) {
+      elRef.current.style.transition = "none";
+      elRef.current.style.opacity = "1";
+    }
     if (gameAppRef.current) {
       gameAppRef.current.destroy(true);
     }
     if (context) {
-      elRef.current.style.transition = "none";
-      elRef.current.style.opacity = "1";
       gameAppRef.current = new GameApp(
         domElementId,
         context,
