@@ -118,6 +118,7 @@ const StyledPanelContent = styled.div`
   color: ${(props): string => props.theme.colors.white80};
   display: flex;
   flex-direction: column;
+  flex: 1;
 `;
 
 const StyledSetupArea = styled.div`
@@ -179,10 +180,6 @@ const StyledInspectButton = styled(Button)`
   line-height: 1.5;
   font-weight: 400;
   min-height: 56px;
-`;
-
-const StyledSpacer = styled.div`
-  flex: 1;
 `;
 
 const StyledFilledInput = styled(FilledInput)`
@@ -725,7 +722,6 @@ const SetupPanel = React.memo((): JSX.Element => {
             </PeerTransition>
           </StyledSetupArea>
         </StyledPanelContent>
-        <StyledSpacer />
       </Panel>
     </>
   );
