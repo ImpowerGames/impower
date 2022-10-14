@@ -6,7 +6,7 @@ import { parseReference } from "./parseReference";
 export const drawSVGGraphics = (
   content: SVGSVGElement,
   node: SVGGraphicsNode,
-  paint: Paint
+  paint: Paint | undefined
 ): void => {
   const {
     fill,

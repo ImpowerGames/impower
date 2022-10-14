@@ -12,7 +12,7 @@ export const PageHead = React.memo((props: PageHeadProps): JSX.Element => {
       <title>{title}</title>
       <meta
         name="viewport"
-        content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, viewport-fit=cover"
+        content="width=device-width, minimum-scale=1.0, maximum-scale=5, initial-scale=1, viewport-fit=cover"
       />
     </Head>
   );

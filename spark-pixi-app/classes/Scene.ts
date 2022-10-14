@@ -1,5 +1,5 @@
-import * as PIXI from "pixi.js";
 import { SparkContext } from "../../spark-engine";
+import { SparkApplication } from "./wrappers/SparkApplication";
 
 export class Scene {
   private _sparkContext: SparkContext;
@@ -8,13 +8,13 @@ export class Scene {
     return this._sparkContext;
   }
 
-  private _app: PIXI.Application;
+  private _app: SparkApplication;
 
-  public get app(): PIXI.Application {
+  public get app(): SparkApplication {
     return this._app;
   }
 
-  constructor(sparkContext: SparkContext, app: PIXI.Application) {
+  constructor(sparkContext: SparkContext, app: SparkApplication) {
     this._sparkContext = sparkContext;
     this._app = app;
   }

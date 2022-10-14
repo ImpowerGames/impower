@@ -25,17 +25,17 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
       gameAppRef.current.destroy(true);
     }
     if (context) {
-      gameAppRef.current = new GameApp(
-        domElementId,
-        context,
-        pausedRef.current,
-        () => {
-          if (elRef.current) {
-            elRef.current.style.transition = "opacity 0.5s ease";
-            elRef.current.style.opacity = "0";
-          }
+      const onLoaded = (): void => {
+        if (elRef.current) {
+          elRef.current.style.transition = "opacity 0.5s ease";
+          elRef.current.style.opacity = "0";
         }
-      );
+      };
+      gameAppRef.current = new GameApp(domElementId, context, {
+        startPaused: pausedRef.current,
+        maxFPS: 60,
+        onLoaded,
+      });
     }
   }, [context, domElementId]);
 
@@ -48,6 +48,24 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
       }
     }
   }, [paused]);
+
+  useEffect(() => {
+    const onFocus = (): void => {
+      if (!pausedRef.current && !gameAppRef.current.sparkContext.editable) {
+        gameAppRef.current.resume();
+      }
+    };
+    const onBlur = (): void => {
+      gameAppRef.current.pause();
+    };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("blur", onBlur);
+    // Specify how to clean up after this effect:
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
 
   const style: React.CSSProperties = useMemo(
     () => ({

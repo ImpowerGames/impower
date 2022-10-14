@@ -1,12 +1,14 @@
-import * as PIXI from "pixi.js";
 import { SparkContext } from "../../spark-engine";
-import { registerPixiInspector } from "../utils/registerPixiInspector";
-import { AudioScene } from "./AudioScene";
-import { InputScene } from "./InputScene";
-import { LogicScene } from "./LogicScene";
-import { MainScene } from "./MainScene";
 import { Scene } from "./Scene";
-import { SVGLoader } from "./SVGLoader";
+import { AudioScene } from "./scenes/AudioScene";
+import { InputScene } from "./scenes/InputScene";
+import { LogicScene } from "./scenes/LogicScene";
+import { MainScene } from "./scenes/MainScene";
+import { PreviewScene } from "./scenes/PreviewScene";
+import {
+  SparkApplication,
+  SparkApplicationOptions,
+} from "./wrappers/SparkApplication";
 
 export const responsiveBreakpoints: Record<string, number> = {
   xs: 400,
@@ -17,28 +19,16 @@ export const responsiveBreakpoints: Record<string, number> = {
 };
 
 export class GameApp {
-  private _app: PIXI.Application;
-
-  public get app(): PIXI.Application {
-    return this._app;
-  }
-
-  private _loader: PIXI.Loader;
-
-  public get loader(): PIXI.Loader {
-    return this._loader;
-  }
-
-  private _svgLoader: SVGLoader;
-
-  public get svgLoader(): SVGLoader {
-    return this._svgLoader;
-  }
-
   private _parent: HTMLElement | null;
 
   public get parent(): HTMLElement | null {
     return this._parent;
+  }
+
+  private _app: SparkApplication;
+
+  public get app(): SparkApplication {
+    return this._app;
   }
 
   private _sparkContext: SparkContext | undefined;
@@ -59,32 +49,27 @@ export class GameApp {
     return this._resizeObserver;
   }
 
+  private _time = 0;
+
   constructor(
     domElementId: string,
     context?: SparkContext,
-    paused?: boolean,
-    onLoaded?: () => void
+    options?: SparkApplicationOptions
   ) {
     this._parent = document.getElementById(domElementId);
 
-    this._app = new PIXI.Application({
-      antialias: true,
-      autoDensity: true,
-      autoStart: false,
+    this._app = new SparkApplication({
       backgroundColor: 0x000000,
-      resolution: window.devicePixelRatio,
+      antialias: true,
+      autoStart: false,
+      autoDensity: true,
       resizeTo: this._parent || undefined,
+      ...(options || {}),
     });
-
-    registerPixiInspector();
-
-    this._loader = new PIXI.Loader();
-
-    this._svgLoader = new SVGLoader();
 
     this._resizeObserver = new ResizeObserver(([entry]) => {
       if (entry) {
-        this._app.resize();
+        this.app.resize();
         this.scenes.forEach((scene) => {
           scene.resize();
         });
@@ -108,11 +93,8 @@ export class GameApp {
       }
     });
     if (this._parent) {
+      this._parent.appendChild(this.app.view);
       this.resizeObserver.observe(this._parent);
-    }
-
-    if (this._parent) {
-      this._parent.appendChild(this._app.view);
     }
 
     this._sparkContext = context;
@@ -124,7 +106,7 @@ export class GameApp {
       if (context?.editable) {
         this._scenes = [
           new MainScene(context, this.app),
-          new LogicScene(context, this.app),
+          new PreviewScene(context, this.app),
         ];
       } else {
         this._scenes = [
@@ -136,7 +118,7 @@ export class GameApp {
       }
     }
 
-    this.start(!context?.editable && !paused, onLoaded);
+    this.start(!context?.editable && !options?.startPaused, options?.onLoaded);
   }
 
   private async start(
@@ -149,10 +131,12 @@ export class GameApp {
       scene.start();
     });
 
-    const loop = (delta: number): void => {
-      this.update(this.app.ticker.deltaMS, delta);
+    const gameLoop = (delta: number): void => {
+      const deltaMS = delta * 1000;
+      this._time += deltaMS;
+      this.update(this._time, deltaMS);
     };
-    this.app.ticker.add(loop);
+    this.app.ticker.add(gameLoop);
 
     if (this.sparkContext) {
       await this.sparkContext.start();
@@ -168,16 +152,10 @@ export class GameApp {
     onLoaded?.();
   }
 
-  destroy(
-    removeView?: boolean,
-    stageOptions?: boolean | PIXI.IDestroyOptions
-  ): void {
+  destroy(removeView?: boolean, stageOptions?: boolean): void {
     this.resizeObserver.disconnect();
     if (this.sparkContext) {
       this.sparkContext.end();
-    }
-    if (this.loader) {
-      this.loader.destroy();
     }
     if (this.app && this.app?.["cancelResize"]) {
       this.app.destroy(removeView, stageOptions);
@@ -193,8 +171,10 @@ export class GameApp {
   }
 
   update(time?: number, delta?: number): void {
-    this.scenes.forEach((scene) => {
-      scene.update(time, delta);
-    });
+    if (this.app) {
+      this.scenes.forEach((scene) => {
+        scene.update(time, delta);
+      });
+    }
   }
 }

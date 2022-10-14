@@ -1,4 +1,3 @@
-import { Cull } from "@pixi-essentials/cull";
 import {
   InheritedPaintProvider,
   MaskServer,
@@ -11,14 +10,16 @@ import {
   SVGUseNode,
 } from "@pixi-essentials/svg";
 import { CanvasTextureAllocator } from "@pixi-essentials/texture-allocator";
-import type { Renderer } from "@pixi/core";
-import { RenderTexture } from "@pixi/core";
+import { Renderer, RenderTexture } from "@pixi/core";
 import { Container } from "@pixi/display";
 import { Matrix, Rectangle } from "@pixi/math";
 import {
+  Bounds,
   DisplayObject,
   IDestroyOptions,
+  IPointData,
   ObservablePoint,
+  Point,
   Ticker,
   UPDATE_PRIORITY,
 } from "pixi.js";
@@ -30,6 +31,7 @@ import { SVGLoader } from "./SVGLoader";
 
 const tempMatrix = new Matrix();
 const tempRect = new Rectangle();
+const tempPoint = new Point();
 
 const DEFAULT_MAX_FPS = 60;
 
@@ -37,11 +39,12 @@ export interface AnimatedSVGOptions {
   maxFPS?: number;
   anchor?: ObservablePoint;
   autoUpdate?: boolean;
+  time?: number;
   context?: Partial<SVGSceneContext>;
 }
 
 /**
- * {@link AnimatedSVG} can be used to build an interactive viewer for scalable vector graphics images.
+ * {@link AnimatedGraphic} can be used to build an interactive viewer for scalable vector graphics images.
  *
  * ## AnimatedSVG Scene Graph
  *
@@ -52,7 +55,7 @@ export interface AnimatedSVGOptions {
  *
  * @public
  */
-export class AnimatedSVG extends DisplayObject {
+export class AnimatedGraphic extends DisplayObject {
   /**
    * Should children be sorted by zIndex at the next updateTransform call.
    *
@@ -101,12 +104,12 @@ export class AnimatedSVG extends DisplayObject {
   public renderServers: Container = new Container();
 
   /**
-   * `true` uses PIXI.Ticker.shared to auto update animation time.
+   * `true` uses Ticker.shared to auto update animation time.
    */
   protected _autoUpdate = false;
 
   /**
-   * `true` if the instance is currently connected to PIXI.Ticker.shared to auto update animation time.
+   * `true` if the instance is currently connected to Ticker.shared to auto update animation time.
    */
   protected _isConnectedToTicker = false;
 
@@ -131,11 +134,6 @@ export class AnimatedSVG extends DisplayObject {
   protected _maxFPS?: number;
 
   protected _anchor: ObservablePoint;
-
-  /**
-   * This is used to cull the SVG scene graph before rendering.
-   */
-  protected _cull: Cull = new Cull({ recursive: true, toggle: "renderable" });
 
   /**
    * Maps content elements to their paint. These paints do not inherit from their parent element. You must
@@ -170,6 +168,11 @@ export class AnimatedSVG extends DisplayObject {
   protected _currentFrameIndex = 0;
 
   /**
+   * The original width and height of the svg
+   */
+  protected _orig: { width: number; height: number };
+
+  /**
    * @param content - The SVG node to render
    * @param context - This can be used to configure the scene
    */
@@ -177,22 +180,30 @@ export class AnimatedSVG extends DisplayObject {
     super();
 
     this.content = content;
+    this._orig = {
+      width: this.content.viewBox.baseVal.width,
+      height: this.content.viewBox.baseVal.height,
+    };
 
     this._maxFPS = options?.maxFPS;
     this._anchor =
-      options?.anchor ||
-      new ObservablePoint(this.onAnchorUpdate, this, 0.5, 0.5);
+      options?.anchor || new ObservablePoint(this.onAnchorUpdate, this, 0, 0);
+    this._currentTime = options?.time || 0;
+    this._control.time = options?.time || 0;
     this.initContext(options?.context);
 
-    this._width = content?.viewBox?.baseVal?.width || 0;
-    this._height = content?.viewBox?.baseVal?.height || 0;
+    this._width = this._orig.width || 0;
+    this._height = this._orig.height || 0;
 
     if (!options?.context?.disableRootPopulation) {
       this.populateScene();
     }
 
-    this.autoUpdate =
+    this._autoUpdate =
       typeof options?.autoUpdate === "boolean" ? options?.autoUpdate : true;
+    if (this.autoUpdate) {
+      this.play();
+    }
   }
 
   initContext(context?: Partial<SVGSceneContext>): void {
@@ -206,21 +217,58 @@ export class AnimatedSVG extends DisplayObject {
     this._context = context as SVGSceneContext;
   }
 
-  /**
-   * Calculates the bounds of this scene, which is defined by the set `width` and `height`. The contents
-   * of this scene are scaled to fit these bounds, and don't affect them whatsoever.
-   *
-   * @override
-   */
   calculateBounds(): void {
     this._bounds.clear();
-    this._bounds.addFrameMatrix(
-      this.worldTransform,
-      0,
-      0,
-      this.content.viewBox.baseVal.width,
-      this.content.viewBox.baseVal.height
-    );
+    const minX = this._orig.width * -this._anchor._x;
+    const minY = this._orig.height * -this._anchor._y;
+    const maxX = this._orig.width * (1 - this._anchor._x);
+    const maxY = this._orig.height * (1 - this._anchor._y);
+    this._bounds.addFrameMatrix(this.worldTransform, minX, minY, maxX, maxY);
+  }
+
+  public getLocalBounds(rect?: Rectangle): Rectangle {
+    if (!this._localBounds) {
+      this._localBounds = new Bounds();
+    }
+
+    this._localBounds.minX = this._orig.width * -this._anchor._x;
+    this._localBounds.minY = this._orig.height * -this._anchor._y;
+    this._localBounds.maxX = this._orig.width * (1 - this._anchor._x);
+    this._localBounds.maxY = this._orig.height * (1 - this._anchor._y);
+
+    if (!rect) {
+      if (!this._localBoundsRect) {
+        this._localBoundsRect = new Rectangle();
+      }
+
+      rect = this._localBoundsRect;
+    }
+
+    return this._localBounds.getRectangle(rect);
+  }
+
+  /**
+   * Tests if a point is inside this sprite
+   * @param point - the point to test
+   * @returns The result of the test
+   */
+  public containsPoint(point: IPointData): boolean {
+    this.worldTransform.applyInverse(point, tempPoint);
+
+    const width = this._orig.width;
+    const height = this._orig.height;
+    const x1 = -width * this.anchor.x;
+    let y1 = 0;
+
+    if (tempPoint.x >= x1 && tempPoint.x < x1 + width) {
+      y1 = -height * this.anchor.y;
+
+      if (tempPoint.y >= y1 && tempPoint.y < y1 + height) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   removeChild(): void {
@@ -238,17 +286,10 @@ export class AnimatedSVG extends DisplayObject {
     // Update render-server objects
     this.renderServers.render(renderer);
 
-    // Cull the SVG scene graph
-    this._cull.cull(renderer.renderTexture.sourceFrame, true);
-
     // Render the SVG scene graph
     if (this.root) {
       this.root.render(renderer);
     }
-
-    // Uncull the SVG scene graph. This ensures the scene graph is fully 'renderable'
-    // outside of a render cycle.
-    this._cull.uncull();
   }
 
   /**
@@ -357,7 +398,7 @@ export class AnimatedSVG extends DisplayObject {
 
   /**
    * Creates a `Paint` object for the given element. This should only be used when sharing the `Paint`
-   * is not desired; otherwise, use {@link AnimatedSVG.queryPaint}.
+   * is not desired; otherwise, use {@link AnimatedGraphic.queryPaint}.
    *
    * This will return `null` if the passed element is not an instance of `SVGElement`.
    *
@@ -496,10 +537,10 @@ export class AnimatedSVG extends DisplayObject {
       : tempMatrix.identity();
 
     // Graphics
-    if (node instanceof AnimatedSVGPathNode && paint) {
+    if (node instanceof AnimatedSVGPathNode) {
       node.bindPaint(paint);
     }
-    if (node instanceof SVGGraphicsNode && paint) {
+    if (node instanceof SVGGraphicsNode) {
       drawSVGGraphics(this.content, node, paint);
     }
     const type = element.nodeName.toLowerCase();
@@ -563,14 +604,14 @@ export class AnimatedSVG extends DisplayObject {
             .then((svgDocument) =>
               svgDocument
                 ? ([
-                    new AnimatedSVG(svgDocument, {
+                    new AnimatedGraphic(svgDocument, {
                       context: {
                         ...this._context,
                         disableRootPopulation: true,
                       },
                     }),
                     svgDocument.querySelector(`#${useTargetURL.split("#")[1]}`),
-                  ] as [AnimatedSVG, SVGElement])
+                  ] as [AnimatedGraphic, SVGElement])
                 : []
             )
             .then(([shellScene, useTarget]) => {
@@ -754,18 +795,10 @@ export class AnimatedSVG extends DisplayObject {
   }
 
   /**
-   * Populates the entire SVG scene. This should only be called once after the {@link AnimatedSVG.content} has been set.
+   * Populates the entire SVG scene. This should only be called once after the {@link AnimatedGraphic.content} has been set.
    */
-  protected populateScene(): void {
-    if (this.root) {
-      this._cull.remove(this.root);
-    }
-
+  populateScene(): void {
     this.root = this.populateSceneRecursive(this.content);
-
-    if (this.root) {
-      this._cull.add(this.root);
-    }
   }
 
   /** Stops the AnimatedSVGSprite. */
@@ -880,7 +913,7 @@ export class AnimatedSVG extends DisplayObject {
   }
 
   /**
-   * Handles `nodetransformdirty` events fired by nodes. It will set {@link AnimatedSVG._transformDirty} to true.
+   * Handles `nodetransformdirty` events fired by nodes. It will set {@link AnimatedGraphic._transformDirty} to true.
    *
    * This will also emit `transformdirty`.
    */
@@ -895,7 +928,7 @@ export class AnimatedSVG extends DisplayObject {
   }
 
   /**
-   * Load the SVG document and create a {@link AnimatedSVG} asynchronously.
+   * Load the SVG document and create a {@link AnimatedGraphic} asynchronously.
    *
    * A cache is used for loaded SVG documents.
    *
@@ -906,12 +939,12 @@ export class AnimatedSVG extends DisplayObject {
   static async fromURL(
     url: string,
     options?: AnimatedSVGOptions
-  ): Promise<AnimatedSVG | undefined> {
+  ): Promise<AnimatedGraphic | undefined> {
     const svg = await SVGLoader.instance.load(url);
     if (!svg) {
       return undefined;
     }
-    return new AnimatedSVG(svg, options);
+    return new AnimatedGraphic(svg, options);
   }
 
   /**
@@ -924,7 +957,7 @@ export class AnimatedSVG extends DisplayObject {
 
   set width(value: number) {
     this._width = value;
-    this.scale.x = this._width / this.content.viewBox.baseVal.width;
+    this.scale.x = this._width / this._orig.width;
   }
 
   /**
@@ -937,7 +970,7 @@ export class AnimatedSVG extends DisplayObject {
 
   set height(value: number) {
     this._height = value;
-    this.scale.y = this._height / this.content.viewBox.baseVal.height;
+    this.scale.y = this._height / this._orig.height;
   }
 
   /**
@@ -982,6 +1015,13 @@ export class AnimatedSVG extends DisplayObject {
    */
   get totalFrames(): number {
     return this._frames.length;
+  }
+
+  /**
+   * Total animation duration
+   */
+  get animationDuration(): number {
+    return this._control?.animationDuration;
   }
 
   /**

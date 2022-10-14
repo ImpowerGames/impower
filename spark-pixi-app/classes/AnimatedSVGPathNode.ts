@@ -115,7 +115,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
     );
   }
 
-  bindPaint(paint: Paint): void {
+  bindPaint(paint: Paint | undefined): void {
     this._paint = paint;
   }
 
@@ -379,11 +379,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
           break;
         }
         default: {
-          console.warn(
-            "[PIXI.SVG] Draw command not supported:",
-            command.type,
-            command
-          );
+          console.warn("Draw command not supported:", command.type, command);
           break;
         }
       }
@@ -402,7 +398,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
    * @override
    */
   render(renderer: Renderer): void {
-    if (this.control?.playing && this._animation?.duration) {
+    if (this._animation?.duration) {
       const currentIteration = Math.floor(
         this.control.time / this._animation.duration
       );

@@ -1,5 +1,5 @@
 import * as TONE from "tone";
-import { Scene } from "./Scene";
+import { Scene } from "../Scene";
 
 export type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>;

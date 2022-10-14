@@ -106,13 +106,13 @@ export class SparkContext {
     const variableStates = this.game.logic.state?.variableStates;
     const blockState = blockStates[blockId];
     const context = this.contexts[blockId];
-    Object.entries(variableStates).forEach(([id, state]) => {
-      const name = id.split(".").slice(-1).join("");
-      context.valueMap[name] = state.value;
+    this.game.logic.state.changedVariables.forEach((id) => {
+      const state = variableStates[id];
+      context.valueMap[state.name] = state.value;
     });
-    Object.entries(blockStates).forEach(([id, state]) => {
-      const name = id.split(".").slice(-1).join("");
-      context.valueMap[name] = state.executionCount;
+    this.game.logic.state.changedBlocks.forEach((id) => {
+      const state = blockStates[id];
+      context.valueMap[state.name] = state.executionCount;
     });
     if (blockState.loaded) {
       const running = this.runner.blockRunners.Block.update(

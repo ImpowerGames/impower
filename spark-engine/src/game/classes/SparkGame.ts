@@ -107,6 +107,8 @@ export class SparkGame {
       config?.saveData?.logic || {
         activeParentBlockId,
         activeCommandIndex,
+        changedBlocks: [],
+        changedVariables: [],
         loadedBlockIds: [],
         loadedAssetIds: [],
         blockStates: {},
@@ -202,7 +204,13 @@ export class SparkGame {
     if (variableState) {
       variableState.value = value;
     } else {
-      this.logic.state.variableStates[id] = { value };
+      if (!this.logic.state.variableStates[id]) {
+        this.logic.state.changedVariables.push(id);
+      }
+      this.logic.state.variableStates[id] = {
+        name: id.split(".").slice(-1).join(""),
+        value,
+      };
     }
   }
 }

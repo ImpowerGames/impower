@@ -16,9 +16,11 @@
     "ts-loader": "^9.4.1",
     "typescript": "^4.3.5",
     "webpack": "^5.74.0",
-    "webpack-cli": "^4.10.0",
+    "webpack-cli": "^4.10.0"
+  },
+  "dependencies": {
     "@pixi-essentials/svg": "^1.1.5",
-    "pixi-layers": "^0.3.1",
+    "@pixi/layers": "^1.0.11",
     "pixi-projection": "^0.4.4",
     "pixi.js": "^6.5.5",
     "tone": "^14.7.77"

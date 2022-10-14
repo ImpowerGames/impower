@@ -8,6 +8,8 @@ import { Manager } from "../Manager";
 export interface LogicState {
   activeParentBlockId: string;
   activeCommandIndex: number;
+  changedBlocks: string[];
+  changedVariables: string[];
   loadedBlockIds: string[];
   loadedAssetIds: string[];
   blockStates: { [blockId: string]: BlockState };
@@ -123,6 +125,8 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     return {
       activeParentBlockId: "",
       activeCommandIndex: 0,
+      changedBlocks: [],
+      changedVariables: [],
       loadedBlockIds: [],
       loadedAssetIds: [],
       blockStates: {},
@@ -277,7 +281,10 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
   }
 
   private resetBlockExecution(id: string): void {
-    const blockState = this.state.blockStates[id] || createBlockState();
+    if (!this.state.blockStates[id]) {
+      this.state.changedBlocks.push(id);
+    }
+    const blockState = this.state.blockStates[id] || createBlockState(id);
     blockState.executedBy = "";
     blockState.isExecuting = false;
     blockState.hasFinished = false;
@@ -296,7 +303,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     }
     this.state.loadedBlockIds.push(data.id);
 
-    const blockState = this.state.blockStates[data.id] || createBlockState();
+    if (!this.state.blockStates[data.id]) {
+      this.state.changedBlocks.push(data.id);
+    }
+    const blockState =
+      this.state.blockStates[data.id] || createBlockState(data.id);
     this.state.blockStates[data.id] = blockState;
     if (blockState.loaded) {
       return;
@@ -425,7 +436,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     if (!this.blockMap[data.id]) {
       return;
     }
-    const blockState = this.state.blockStates[data.id] || createBlockState();
+    if (!this.state.blockStates[data.id]) {
+      this.state.changedBlocks.push(data.id);
+    }
+    const blockState =
+      this.state.blockStates[data.id] || createBlockState(data.id);
     if (data.returnWhenFinished) {
       blockState.hasReturned = false;
       blockState.returnedFrom = "";
@@ -615,7 +630,11 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
     id: string;
     value: unknown;
   }): void {
+    if (!this.state.variableStates[data.id]) {
+      this.state.changedVariables.push(data.id);
+    }
     const variableState = this.state.variableStates[data.id] || {
+      name: data.id.split(".").slice(-1).join(""),
       value: data.value,
     };
     variableState.value = data.value;

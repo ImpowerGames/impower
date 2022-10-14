@@ -1,4 +1,5 @@
 export interface BlockState {
+  name: string;
   loaded: boolean;
   executionCount: number;
   commandExecutionCounts: Record<string, number>;

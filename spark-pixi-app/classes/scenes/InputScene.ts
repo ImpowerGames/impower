@@ -1,4 +1,4 @@
-import { Scene } from "./Scene";
+import { Scene } from "../Scene";
 
 export class InputScene extends Scene {
   start(): void {

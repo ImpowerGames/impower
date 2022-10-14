@@ -1,4 +1,4 @@
-import { Scene } from "./Scene";
+import { Scene } from "../Scene";
 
 export class LogicScene extends Scene {
   update(time: number, delta: number): void {
