@@ -55,13 +55,13 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
 
     executeChoiceCommand(data, context, this.choiceIndex, undefined, () => {
       this.seed = game.random.state.seed + commandId;
-      this.chosenCount = game.logic.chooseChoice({
-        from,
-        line,
+      this.chosenCount = game.logic.chooseChoice(
         blockId,
         commandId,
         commandIndex,
-      });
+        from,
+        line
+      );
       this.value = value || "";
       this.calls = calls;
     });
@@ -132,24 +132,18 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
       parameters?.forEach((parameterName, index) => {
         const parameterId = ids[parameterName];
         if (parameterId) {
-          game.logic.setVariableValue({
-            from: data.from,
-            line: data.line,
-            id: parameterId,
-            value: latestValues?.[index],
-          });
+          game.logic.setVariableValue(
+            parameterId,
+            latestValues?.[index],
+            data.from,
+            data.line
+          );
         }
       });
 
       const parentId = data?.reference?.parentContainerId;
-      game.logic.stopBlock({
-        id: parentId,
-      });
-      game.logic.enterBlock({
-        id,
-        executedByBlockId,
-        returnWhenFinished: false,
-      });
+      game.logic.stopBlock(parentId);
+      game.logic.enterBlock(id, false, executedByBlockId);
     }
     return false;
   }

@@ -25,32 +25,32 @@ export type InstrumentType =
   | "pluck"
   | "sampler";
 
-export class AudioScene extends Scene {
+export class SynthScene extends Scene {
   private parts: Record<string, TONE.Part> = {};
 
   instruments: Record<string, Instrument> = {};
 
   start(): void {
     TONE.start();
-    this.sparkContext?.game?.audio?.events?.onConfigureInstrument?.addListener(
+    this.sparkContext?.game?.synth?.events?.onConfigureInstrument?.addListener(
       (data) => this.configureInstrument(data)
     );
-    this.sparkContext?.game?.audio?.events?.onAttackNote?.addListener((data) =>
+    this.sparkContext?.game?.synth?.events?.onAttackNote?.addListener((data) =>
       this.attackNote(data)
     );
-    this.sparkContext?.game?.audio?.events.onReleaseNote?.addListener((data) =>
+    this.sparkContext?.game?.synth?.events.onReleaseNote?.addListener((data) =>
       this.releaseNote(data)
     );
-    this.sparkContext?.game?.audio?.events?.onPlayNotes?.addListener((data) =>
+    this.sparkContext?.game?.synth?.events?.onPlayNotes?.addListener((data) =>
       this.playNotes(data)
     );
   }
 
   destroy(): void {
-    this.sparkContext?.game?.audio?.events?.onConfigureInstrument?.removeAllListeners();
-    this.sparkContext?.game?.audio?.events?.onAttackNote?.removeAllListeners();
-    this.sparkContext?.game?.audio?.events?.onReleaseNote?.removeAllListeners();
-    this.sparkContext?.game?.audio?.events?.onPlayNotes?.removeAllListeners();
+    this.sparkContext?.game?.synth?.events?.onConfigureInstrument?.removeAllListeners();
+    this.sparkContext?.game?.synth?.events?.onAttackNote?.removeAllListeners();
+    this.sparkContext?.game?.synth?.events?.onReleaseNote?.removeAllListeners();
+    this.sparkContext?.game?.synth?.events?.onPlayNotes?.removeAllListeners();
     TONE.Transport.cancel();
     TONE.Transport.stop();
     window.setTimeout(() => {

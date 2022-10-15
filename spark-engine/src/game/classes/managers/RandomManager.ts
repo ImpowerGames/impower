@@ -49,10 +49,10 @@ export class RandomManager extends Manager<RandomState, RandomEvents> {
     return seed;
   }
 
-  setSeed(data: { seed: string }): void {
-    this.state.seed = data.seed;
+  setSeed(seed: string): void {
+    this.state.seed = seed;
     this._randomizer = randomizer(this.state.seed);
-    this.events.onSetSeed.emit({ ...data });
+    this.events.onSetSeed.emit({ seed });
   }
 
   reseed(newSeed: string): void {

@@ -13,8 +13,8 @@ export interface InputState {
 }
 
 export interface InputEvents {
-  onPointerDown: GameEvent<{ button: number; targets: string[] }>;
-  onPointerUp: GameEvent<{ button: number; targets: string[] }>;
+  onPointerDown: GameEvent<{ button: number; targets?: string[] }>;
+  onPointerUp: GameEvent<{ button: number; targets?: string[] }>;
 }
 
 export class InputManager extends Manager<InputState, InputEvents> {
@@ -35,31 +35,31 @@ export class InputManager extends Manager<InputState, InputEvents> {
     return {
       onPointerDown: new GameEvent<{
         button: number;
-        targets: string[];
+        targets?: string[];
       }>(),
-      onPointerUp: new GameEvent<{ button: number; targets: string[] }>(),
+      onPointerUp: new GameEvent<{ button: number; targets?: string[] }>(),
     };
   }
 
-  pointerDown(data: { button: number; targets: string[] }): void {
-    if (!this.state.pointer.down.includes(data.button)) {
-      this.state.pointer.down.push(data.button);
+  pointerDown(button: number, targets?: string[]): void {
+    if (!this.state.pointer.down.includes(button)) {
+      this.state.pointer.down.push(button);
     }
-    const index = this.state.pointer.up.indexOf(data.button);
+    const index = this.state.pointer.up.indexOf(button);
     if (index >= 0) {
       this.state.pointer.up.splice(index, 1);
     }
-    this.events.onPointerDown.emit({ ...data });
+    this.events.onPointerDown.emit({ button, targets });
   }
 
-  pointerUp(data: { button: number; targets: string[] }): void {
-    if (!this.state.pointer.up.includes(data.button)) {
-      this.state.pointer.up.push(data.button);
+  pointerUp(button: number, targets?: string[]): void {
+    if (!this.state.pointer.up.includes(button)) {
+      this.state.pointer.up.push(button);
     }
-    const index = this.state.pointer.down.indexOf(data.button);
+    const index = this.state.pointer.down.indexOf(button);
     if (index >= 0) {
       this.state.pointer.down.splice(index, 1);
     }
-    this.events.onPointerUp.emit({ ...data });
+    this.events.onPointerUp.emit({ button, targets });
   }
 }

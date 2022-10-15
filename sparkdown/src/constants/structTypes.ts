@@ -5,5 +5,6 @@ export const structTypes: SparkStructType[] = [
   "map",
   "ui",
   "style",
+  "camera",
   "config",
 ];

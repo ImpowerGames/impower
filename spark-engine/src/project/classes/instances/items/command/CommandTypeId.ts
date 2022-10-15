@@ -10,13 +10,4 @@ export type CommandTypeId =
   | "DisplayCommand"
   | "ChoiceCommand"
   | "SpawnCommand"
-  | "DestroyCommand"
-  | "ShowImageCommand"
-  | "MoveToImageCommand"
-  | "RotateToImageCommand"
-  | "ScaleToImageCommand"
-  | "HideImageCommand"
-  | "PlayAudioCommand"
-  | "PauseAudioCommand"
-  | "ResumeAudioCommand"
-  | "StopAudioCommand";
+  | "DestroyCommand";

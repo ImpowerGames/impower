@@ -91,6 +91,10 @@ export const lowercaseParagraphSnippets: readonly Completion[] = [
     label: "map",
     type: "struct",
   }),
+  snip("config ${}${ConfigName}:${}", {
+    label: "config",
+    type: "struct",
+  }),
   snip("ui ${}${UIName}:${}", {
     label: "ui",
     type: "struct",
@@ -99,8 +103,8 @@ export const lowercaseParagraphSnippets: readonly Completion[] = [
     label: "style",
     type: "struct",
   }),
-  snip("config ${}${ConfigName}:${}", {
-    label: "config",
+  snip("camera ${}${CameraName}:${}", {
+    label: "camera",
     type: "struct",
   }),
 ];

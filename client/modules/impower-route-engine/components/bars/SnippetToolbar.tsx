@@ -19,6 +19,7 @@ import BinaryRegularIcon from "../../../../resources/icons/regular/binary.svg";
 import BoldRegularIcon from "../../../../resources/icons/regular/bold.svg";
 import BracketsCurlyRegularIcon from "../../../../resources/icons/regular/brackets-curly.svg";
 import BracketsRoundRegularIcon from "../../../../resources/icons/regular/brackets-round.svg";
+import CameraMovieRegularIcon from "../../../../resources/icons/regular/camera-movie.svg";
 import ChartSimpleHorizontalRegularIcon from "../../../../resources/icons/regular/chart-simple-horizontal.svg";
 import ChartTreeMapRegularIcon from "../../../../resources/icons/regular/chart-tree-map.svg";
 import CirclePlusRegularIcon from "../../../../resources/icons/regular/circle-plus.svg";
@@ -560,6 +561,18 @@ const StructToolbar = React.memo((props: ToolbarProps): JSX.Element => {
         >
           <FontIcon aria-label={`style`}>
             <ChartTreeMapRegularIcon />
+          </FontIcon>
+        </StyledMainToggleButton>
+      </Tooltip>
+      <Tooltip title="camera" placement="top" arrow>
+        <StyledMainToggleButton
+          value="camera"
+          aria-label="camera"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "camera")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "camera")}
+        >
+          <FontIcon aria-label={`camera`}>
+            <CameraMovieRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>

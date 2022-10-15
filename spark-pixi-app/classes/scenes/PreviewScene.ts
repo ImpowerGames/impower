@@ -2,19 +2,19 @@ import { Scene } from "../Scene";
 
 export class PreviewScene extends Scene {
   start(): void {
-    this.sparkContext?.game?.entity?.events?.onSpawnEntity?.addListener(
-      (data) => this.spawnEntity(data)
+    this.sparkContext?.game?.world?.events?.onSpawnEntity?.addListener((data) =>
+      this.spawnEntity(data)
     );
-    this.sparkContext?.game?.entity?.events?.onDestroyEntity?.addListener(
+    this.sparkContext?.game?.world?.events?.onDestroyEntity?.addListener(
       (data) => this.destroyEntity(data)
     );
   }
 
-  spawnEntity(data: { id: string }): void {
-    console.log("spawn", data.id);
+  spawnEntity(data: { entityId: string; cameraId?: string }): void {
+    console.log("spawn", data.entityId, data.cameraId);
   }
 
-  destroyEntity(data: { id: string }): void {
-    console.log("destroy", data.id);
+  destroyEntity(data: { entityId: string; cameraId?: string }): void {
+    console.log("destroy", data.entityId, data.cameraId);
   }
 }

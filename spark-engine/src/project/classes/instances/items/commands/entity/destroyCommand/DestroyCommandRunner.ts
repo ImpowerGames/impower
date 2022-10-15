@@ -16,7 +16,7 @@ export class DestroyCommandRunner extends CommandRunner<DestroyCommandData> {
       return super.onExecute(data, context, game);
     }
 
-    game.entity.destroyEntity({ id: entityId });
+    game.world.destroyEntity(entityId);
 
     return super.onExecute(data, context, game);
   }

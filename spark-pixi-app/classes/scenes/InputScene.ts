@@ -7,16 +7,16 @@ export class InputScene extends Scene {
   }
 
   onPointerDown(event: PointerEvent, gameObjects: { name: string }[]): void {
-    this.sparkContext?.game?.input?.pointerDown({
-      button: event.button,
-      targets: gameObjects.map((x) => x.name),
-    });
+    this.sparkContext?.game?.input?.pointerDown(
+      event.button,
+      gameObjects.map((x) => x.name)
+    );
   }
 
   onPointerUp(event: PointerEvent, gameObjects: { name: string }[]): void {
-    this.sparkContext?.game?.input?.pointerUp({
-      button: event.button,
-      targets: gameObjects.map((x) => x.name),
-    });
+    this.sparkContext?.game?.input?.pointerUp(
+      event.button,
+      gameObjects.map((x) => x.name)
+    );
   }
 }

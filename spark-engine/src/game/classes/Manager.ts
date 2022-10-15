@@ -64,7 +64,11 @@ export abstract class Manager<S = unknown, E = Record<string, GameEvent>> {
     return this.deepCopyState(this.state);
   }
 
+  deepCopy<T>(obj: T): T {
+    return JSON.parse(JSON.stringify(obj));
+  }
+
   deepCopyState(state: S): S {
-    return JSON.parse(JSON.stringify(state));
+    return this.deepCopy(state);
   }
 }

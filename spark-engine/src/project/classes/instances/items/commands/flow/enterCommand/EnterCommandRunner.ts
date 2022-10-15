@@ -54,21 +54,17 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
     parameters?.forEach((parameterName, index) => {
       const parameterId = ids[parameterName];
       if (parameterId) {
-        game.logic.setVariableValue({
-          from: data.from,
-          line: data.line,
-          id: parameterId,
-          value: latestValues?.[index],
-        });
+        game.logic.setVariableValue(
+          parameterId,
+          latestValues?.[index],
+          data.from,
+          data.line
+        );
       }
     });
 
-    game.logic.stopBlock({ id: parentId });
-    game.logic.enterBlock({
-      id,
-      executedByBlockId: parentId,
-      returnWhenFinished,
-    });
+    game.logic.stopBlock(parentId);
+    game.logic.enterBlock(id, returnWhenFinished, parentId);
 
     return super.onExecute(data, context, game);
   }

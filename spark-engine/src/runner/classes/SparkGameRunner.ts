@@ -5,10 +5,6 @@ import { ConfigTypeId } from "../../project/classes/instances/config/ConfigTypeI
 import { BlockRunner } from "../../project/classes/instances/containers/block/BlockRunner";
 import { CommandRunner } from "../../project/classes/instances/items/command/CommandRunner";
 import { CommandTypeId } from "../../project/classes/instances/items/command/CommandTypeId";
-import { PauseAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/pauseAudioCommand/PauseAudioCommandRunner";
-import { PlayAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/playAudioCommand/PlayAudioCommandRunner";
-import { ResumeAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/resumeAudioCommand/ResumeAudioCommandRunner";
-import { StopAudioCommandRunner } from "../../project/classes/instances/items/commands/audio/stopAudioCommand/StopAudioCommandRunner";
 import { ConditionCommandRunner } from "../../project/classes/instances/items/commands/conditional/conditionCommand/ConditionCommandRunner";
 import { AssignCommandRunner } from "../../project/classes/instances/items/commands/data/assignCommand/AssignCommandRunner";
 import { ChoiceCommandRunner } from "../../project/classes/instances/items/commands/dialog/choiceCommand/ChoiceCommandRunner";
@@ -21,11 +17,6 @@ import { LogCommandRunner } from "../../project/classes/instances/items/commands
 import { RepeatCommandRunner } from "../../project/classes/instances/items/commands/flow/repeatCommand/RepeatCommandRunner";
 import { ReturnCommandRunner } from "../../project/classes/instances/items/commands/flow/returnCommand/ReturnCommandRunner";
 import { WaitCommandRunner } from "../../project/classes/instances/items/commands/flow/waitCommand/WaitCommandRunner";
-import { HideImageCommandRunner } from "../../project/classes/instances/items/commands/image/hideImageCommand/HideImageCommandRunner";
-import { MoveToImageCommandRunner } from "../../project/classes/instances/items/commands/image/moveToImageCommand/MoveToImageCommandRunner";
-import { RotateToImageCommandRunner } from "../../project/classes/instances/items/commands/image/rotateImageCommand/RotateImageCommandRunner";
-import { ScaleToImageCommandRunner } from "../../project/classes/instances/items/commands/image/scaleImageCommand/ScaleImageCommandRunner";
-import { ShowImageCommandRunner } from "../../project/classes/instances/items/commands/image/showImageCommand/ShowImageCommandRunner";
 
 interface InstanceContextData<
   D extends InstanceData,
@@ -88,15 +79,6 @@ export class SparkGameRunner {
     ChoiceCommand: new ChoiceCommandRunner(),
     SpawnCommand: new SpawnCommandRunner(),
     DestroyCommand: new DestroyCommandRunner(),
-    ShowImageCommand: new ShowImageCommandRunner(),
-    MoveToImageCommand: new MoveToImageCommandRunner(),
-    RotateToImageCommand: new RotateToImageCommandRunner(),
-    ScaleToImageCommand: new ScaleToImageCommandRunner(),
-    HideImageCommand: new HideImageCommandRunner(),
-    PlayAudioCommand: new PlayAudioCommandRunner(),
-    PauseAudioCommand: new PauseAudioCommandRunner(),
-    ResumeAudioCommand: new ResumeAudioCommandRunner(),
-    StopAudioCommand: new StopAudioCommandRunner(),
   };
 
   public get commandRunners(): Record<string, CommandRunner> {

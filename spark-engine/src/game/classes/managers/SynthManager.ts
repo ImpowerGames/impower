@@ -22,11 +22,11 @@ export interface SynthOptions {
   };
 }
 
-export interface AudioState {
+export interface SynthState {
   playing: string[];
 }
 
-export interface AudioEvents {
+export interface SynthEvents {
   onConfigureInstrument: GameEvent<{
     instrumentId: string;
     instrumentType: string;
@@ -54,18 +54,21 @@ export interface AudioEvents {
       duration?: number[];
       velocity?: number[];
     }[];
+    onDraw?: (time: number) => void;
+    onStart?: (time: number) => void;
+    onFinished?: (time: number) => void;
   }>;
   onStopNotes: GameEvent;
 }
 
-export class AudioManager extends Manager<AudioState, AudioEvents> {
-  getInitialState(): AudioState {
+export class SynthManager extends Manager<SynthState, SynthEvents> {
+  getInitialState(): SynthState {
     return {
       playing: [],
     };
   }
 
-  getInitialEvents(): AudioEvents {
+  getInitialEvents(): SynthEvents {
     return {
       onConfigureInstrument: new GameEvent<{
         instrumentId: string;
@@ -94,57 +97,78 @@ export class AudioManager extends Manager<AudioState, AudioEvents> {
           duration?: number[];
           velocity?: number[];
         }[];
+        onDraw?: (time: number) => void;
+        onStart?: (time: number) => void;
+        onFinished?: (time: number) => void;
       }>(),
       onStopNotes: new GameEvent(),
     };
   }
 
-  getSaveData(): AudioState {
+  getSaveData(): SynthState {
     return this.deepCopyState(this.state);
   }
 
-  configureInstrument(data: {
-    instrumentId: string;
-    instrumentType: string;
-    options: Partial<SynthOptions>;
-  }): void {
-    this.events.onConfigureInstrument.emit(data);
+  configureInstrument(
+    instrumentId: string,
+    instrumentType: string,
+    options: Partial<SynthOptions>
+  ): void {
+    this.events.onConfigureInstrument.emit({
+      instrumentId,
+      instrumentType,
+      options,
+    });
   }
 
-  attackNote(data: {
-    instrumentId: string;
-    instrumentType: string;
-    note: string;
-    time?: number;
-    velocity?: number;
-  }): void {
-    this.events.onAttackNote.emit(data);
+  attackNote(
+    instrumentId: string,
+    instrumentType: string,
+    note: string,
+    time?: number,
+    velocity?: number
+  ): void {
+    this.events.onAttackNote.emit({
+      instrumentId,
+      instrumentType,
+      note,
+      time,
+      velocity,
+    });
   }
 
-  releaseNote(data: {
-    instrumentId: string;
-    instrumentType: string;
-    time?: number;
-  }): void {
-    this.events.onReleaseNote.emit(data);
+  releaseNote(
+    instrumentId: string,
+    instrumentType: string,
+    time: number
+  ): void {
+    this.events.onReleaseNote.emit({ instrumentId, instrumentType, time });
   }
 
-  playNotes(data: {
-    partId: string;
-    instrumentId: string;
-    instrumentType: string;
+  playNotes(
+    partId: string,
+    instrumentId: string,
+    instrumentType: string,
     notes: {
       note: string[];
       time: number;
       duration?: number[];
       velocity?: number[];
       offset?: number[];
-    }[];
-    onDraw?: (time: number) => void;
-    onStart?: (time: number) => void;
-    onFinished?: (time: number) => void;
-  }): void {
-    this.events.onPlayNotes.emit(data);
+    }[],
+    onDraw?: (time: number) => void,
+    onStart?: (time: number) => void,
+    onFinished?: (time: number) => void
+  ): void {
+    this.events.onPlayNotes.emit({
+      partId,
+      instrumentId,
+      instrumentType,
+      notes,
+      onDraw,
+      onStart,
+      onFinished,
+    });
   }
 
   stopNotes(): void {

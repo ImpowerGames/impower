@@ -48,17 +48,17 @@ export const DataLink = React.memo((props: LinkDefaultProps): JSX.Element => {
       }
       setExecuting(isExecuting());
     };
-    const onEnd = (): void => {
+    const onDestroy = (): void => {
       if (executingTimeoutHandle.current >= 0) {
         clearTimeout(executingTimeoutHandle.current);
       }
       setExecuting(undefined);
     };
     const onExecuteBlock = (data: {
-      id: string;
+      blockId: string;
       executedByBlockId: string;
     }): void => {
-      if (data.id === toNodeId && data.executedByBlockId === fromNodeId) {
+      if (data.blockId === toNodeId && data.executedByBlockId === fromNodeId) {
         if (executingTimeoutHandle.current >= 0) {
           clearTimeout(executingTimeoutHandle.current);
         }
@@ -66,10 +66,10 @@ export const DataLink = React.memo((props: LinkDefaultProps): JSX.Element => {
       }
     };
     const onFinishBlock = (data: {
-      id: string;
+      blockId: string;
       executedByBlockId: string;
     }): void => {
-      if (data.id === toNodeId && data.executedByBlockId === fromNodeId) {
+      if (data.blockId === toNodeId && data.executedByBlockId === fromNodeId) {
         // Only hide execution icon if has not executed in the last 0.5 seconds
         executingTimeoutHandle.current = window.setTimeout(() => {
           setExecuting(false);
@@ -78,14 +78,14 @@ export const DataLink = React.memo((props: LinkDefaultProps): JSX.Element => {
     };
     if (context?.game) {
       context?.game.events.onStart.addListener(onStart);
-      context?.game.events.onEnd.addListener(onEnd);
+      context?.game.events.onDestroy.addListener(onDestroy);
       context?.game.logic.events.onExecuteBlock.addListener(onExecuteBlock);
       context?.game.logic.events.onFinishBlock.addListener(onFinishBlock);
     }
     return (): void => {
       if (context?.game) {
         context?.game.events.onStart.removeListener(onStart);
-        context?.game.events.onEnd.removeListener(onEnd);
+        context?.game.events.onDestroy.removeListener(onDestroy);
         context?.game.logic.events.onExecuteBlock.removeListener(
           onExecuteBlock
         );

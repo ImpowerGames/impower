@@ -34,7 +34,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
   ): boolean | null {
     const { triggers, valueMap } = context;
 
-    game.logic.updateBlock({ id, time, delta });
+    game.logic.updateBlock(id, time, delta);
 
     if (!blockState.isExecuting) {
       const satisfiedTriggers: string[] = [];
@@ -50,18 +50,15 @@ export class BlockRunner extends ContainerRunner<BlockData> {
 
       const shouldExecute = satisfiedTriggers?.length > 0;
 
-      game.logic.checkTriggers({
-        blockId: id,
+      game.logic.checkTriggers(
+        id,
         shouldExecute,
         satisfiedTriggers,
-        unsatisfiedTriggers,
-      });
+        unsatisfiedTriggers
+      );
 
       if (shouldExecute) {
-        game.logic.executeBlock({
-          id,
-          executedByBlockId: game.logic.blockMap[id].parent || "",
-        });
+        game.logic.executeBlock(id, game.logic.blockMap[id].parent || "");
       }
     }
 
@@ -71,8 +68,8 @@ export class BlockRunner extends ContainerRunner<BlockData> {
         return null;
       }
       if (running === false) {
-        game.logic.finishBlock({ id });
-        game.logic.continue({ id });
+        game.logic.finishBlock(id);
+        game.logic.continue(id);
         return false;
       }
     }
@@ -120,14 +117,14 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       ];
       context.debug = game?.debug?.state?.debugging;
       if (blockState.lastExecutedAt < 0) {
-        game.logic.executeCommand({
-          from,
-          line,
+        game.logic.executeCommand(
           blockId,
           commandId,
           commandIndex,
           time,
-        });
+          from,
+          line
+        );
         let nextJumps: number[] = [];
         if (!fastForward) {
           nextJumps = command.runner.onExecute(
@@ -137,12 +134,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
           );
         }
         if (nextJumps.length > 0) {
-          game.logic.commandJumpStackPush({
-            from,
-            line,
-            blockId,
-            indices: nextJumps,
-          });
+          game.logic.commandJumpStackPush(blockId, nextJumps, from, line);
         }
         if (blockState.lastExecutedAt < 0) {
           return true;
@@ -161,36 +153,26 @@ export class BlockRunner extends ContainerRunner<BlockData> {
           return true;
         }
       }
-      game.logic.finishCommand({
-        from,
-        line,
+      game.logic.finishCommand(
         blockId,
         commandId,
         commandIndex,
         time,
-      });
+        from,
+        line
+      );
       if (blockState.commandJumpStack.length > 0) {
-        const nextCommandIndex = game.logic.commandJumpStackPop({
-          from,
-          line,
+        const nextCommandIndex = game.logic.commandJumpStackPop(
           blockId,
-        });
+          from,
+          line
+        );
         if (nextCommandIndex !== undefined) {
-          game.logic.goToCommandIndex({
-            from,
-            line,
-            blockId,
-            index: nextCommandIndex,
-          });
+          game.logic.goToCommandIndex(blockId, nextCommandIndex, from, line);
         }
       } else {
         const nextCommandIndex = blockState.executingIndex + 1;
-        game.logic.goToCommandIndex({
-          from,
-          line,
-          blockId,
-          index: nextCommandIndex,
-        });
+        game.logic.goToCommandIndex(blockId, nextCommandIndex, from, line);
       }
     }
     return false;

@@ -1,1 +1,7 @@
-export type SparkStructType = "list" | "map" | "ui" | "style" | "config";
+export type SparkStructType =
+  | "list"
+  | "map"
+  | "ui"
+  | "style"
+  | "camera"
+  | "config";

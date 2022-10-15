@@ -51,8 +51,6 @@ export class MainScene extends Scene {
 
   private _sortGroup: SparkGroup;
 
-  private _entityCount = 0;
-
   private _ang = 0;
 
   async init(): Promise<void> {
@@ -147,7 +145,6 @@ export class MainScene extends Scene {
       sprite.position3d.z = 0;
 
       this._entityContainer.addChild(sprite);
-      this._entityCount += 1;
     });
 
     const earth = new SparkSprite(surfaceTexture);
@@ -168,19 +165,7 @@ export class MainScene extends Scene {
       sprite.position3d.x = p.x;
       sprite.position3d.z = p.y;
       this._entityContainer.addChild(sprite);
-      this._entityCount += 1;
-      text.text = `Entities: ${this._entityCount}`;
     });
-
-    const text = new PIXI.Text(`Entities: ${this._entityCount}`, {
-      fontFamily: "Arial",
-      fontSize: 24,
-      fill: 0x0000ff,
-      align: "center",
-    });
-    // Update text
-    text.updateText(true);
-    this.app.stage.addChild(text);
   }
 
   update(_time: number, delta: number): void {

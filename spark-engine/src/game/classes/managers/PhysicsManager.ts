@@ -19,7 +19,7 @@ export class PhysicsManager extends Manager<PhysicsState, PhysicsEvents> {
     };
   }
 
-  setTimeScale(data: { timeScale: number }): void {
-    this.events.onTimeScaleChange.emit({ ...data });
+  setTimeScale(timeScale: number): void {
+    this.events.onTimeScaleChange.emit({ timeScale });
   }
 }

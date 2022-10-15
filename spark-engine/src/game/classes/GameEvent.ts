@@ -1,4 +1,4 @@
-export class GameEvent<T = undefined> {
+export class GameEvent<T = unknown> {
   private handlers: { (data: T): void }[] = [];
 
   public addListener(handler: { (data: T): void }): void {

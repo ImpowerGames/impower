@@ -1,18 +1,9 @@
 import { MethodType } from "../types/MethodType";
+import { assetTypes } from "./assetTypes";
+import { structTypes } from "./structTypes";
+import { tagTypes } from "./tagTypes";
 
-export const types = [
-  "audio",
-  "image",
-  "text",
-  "video",
-  "graphic",
-  "tag",
-  "list",
-  "map",
-  "ui",
-  "style",
-  "config",
-];
+export const types = [...assetTypes, ...tagTypes, ...structTypes];
 
 export const entityMethods: MethodType[] = [
   "spawn",

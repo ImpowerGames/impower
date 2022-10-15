@@ -1,10 +1,10 @@
 import { SparkContext } from "../../spark-engine";
 import { Scene } from "./Scene";
-import { AudioScene } from "./scenes/AudioScene";
 import { InputScene } from "./scenes/InputScene";
 import { LogicScene } from "./scenes/LogicScene";
 import { MainScene } from "./scenes/MainScene";
 import { PreviewScene } from "./scenes/PreviewScene";
+import { SynthScene } from "./scenes/SynthScene";
 import {
   SparkApplication,
   SparkApplicationOptions,
@@ -111,7 +111,7 @@ export class GameApp {
       } else {
         this._scenes = [
           new MainScene(context, this.app),
-          new AudioScene(context, this.app),
+          new SynthScene(context, this.app),
           new InputScene(context, this.app),
           new LogicScene(context, this.app),
         ];

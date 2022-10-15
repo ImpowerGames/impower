@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import {
+  CameraState,
   FileData,
   generateSectionBlocks,
   generateStructObjects,
@@ -29,6 +30,7 @@ const createGame = (
   });
   const blockMap = generateSectionBlocks(result?.sections);
   const objectMap = generateStructObjects(result?.structs);
+  const defaultCameras = objectMap.camera as Record<string, CameraState>;
   const [startBlockId] = getSectionAtLine(activeLine, result?.sections);
   const startRuntimeBlock = blockMap?.[startBlockId];
   let startCommandIndex = 0;
@@ -41,7 +43,10 @@ const createGame = (
       startCommandIndex = i;
     }
   }
-  const game = new SparkGame(blockMap, objectMap, {
+  const game = new SparkGame({
+    blockMap,
+    objectMap,
+    defaultCameras,
     startBlockId,
     startCommandIndex,
     seed,

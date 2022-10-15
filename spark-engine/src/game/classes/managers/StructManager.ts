@@ -12,11 +12,11 @@ export class StructManager extends Manager<StructState, StructEvents> {
   }
 
   constructor(
-    objectMap: Record<string, Record<string, unknown>>,
-    state?: StructState
+    state?: StructState,
+    objectMap?: Record<string, Record<string, unknown>>
   ) {
     super(state);
-    this._objectMap = objectMap;
+    this._objectMap = objectMap || {};
   }
 
   getInitialState(): StructState {

@@ -111,7 +111,9 @@ const LogicScriptEditor = React.memo(
     const parseResultRef = useRef<SparkParseResult>();
     const currentSectionNameRef = useRef<string>();
     const variableValueListenerRef =
-      useRef<(data: { id: string; value: unknown }) => void>();
+      useRef<(data: { variableId: string; value: unknown }) => void>();
+    const blockValueListenerRef =
+      useRef<(data: { blockId: string; value: unknown }) => void>();
     const sparkRef = useRef(context);
     sparkRef.current = context;
 
@@ -141,7 +143,10 @@ const LogicScriptEditor = React.memo(
     );
 
     useEffect(() => {
-      const onExecuteCommand = (data: { from: number; line: number }): void => {
+      const onExecuteCommand = (data: {
+        from?: number;
+        line?: number;
+      }): void => {
         if (data.line >= 0) {
           cursorRef.current = {
             anchor: data.from,
@@ -358,7 +363,7 @@ const LogicScriptEditor = React.memo(
         return undefined;
       }
       const result = parseResultRef.current;
-      const runtimeValue = sparkRef.current.game.getRuntimeValue(id);
+      const runtimeValue = sparkRef.current.game.logic.getRuntimeValue(id);
       const context = getGlobalValueContext(result);
       const initialValue = context?.[id];
       return runtimeValue != null ? runtimeValue : initialValue;
@@ -370,7 +375,7 @@ const LogicScriptEditor = React.memo(
           return;
         }
         const value = evaluate(expression);
-        sparkRef.current.game.setRuntimeValue(id, value);
+        sparkRef.current.game.logic.setRuntimeValue(id, value);
       },
       []
     );
@@ -384,19 +389,25 @@ const LogicScriptEditor = React.memo(
           sparkRef.current.game.logic.events.onSetVariableValue.removeListener(
             variableValueListenerRef.current
           );
+        }
+        if (blockValueListenerRef.current) {
           sparkRef.current.game.logic.events.onExecuteBlock.removeListener(
-            variableValueListenerRef.current
+            blockValueListenerRef.current
           );
         }
-        const onSetVariableValue = ({ id, value }): void => {
-          listener(id, value);
+        const onSetVariableValue = ({ variableId, value }): void => {
+          listener(variableId, value);
+        };
+        const onSetBlockValue = ({ blockId, value }): void => {
+          listener(blockId, value);
         };
         variableValueListenerRef.current = onSetVariableValue;
         sparkRef.current.game.logic.events.onSetVariableValue.addListener(
           variableValueListenerRef.current
         );
+        blockValueListenerRef.current = onSetBlockValue;
         sparkRef.current.game.logic.events.onExecuteBlock.addListener(
-          variableValueListenerRef.current
+          blockValueListenerRef.current
         );
       },
       []
@@ -463,13 +474,16 @@ const LogicScriptEditor = React.memo(
 
     useEffect(() => {
       const variableListener = variableValueListenerRef.current;
+      const blockListener = blockValueListenerRef.current;
       return (): void => {
         if (variableListener) {
           sparkRef.current.game.logic.events.onSetVariableValue.removeListener(
             variableListener
           );
+        }
+        if (blockListener) {
           sparkRef.current.game.logic.events.onExecuteBlock.removeListener(
-            variableListener
+            blockListener
           );
         }
       };

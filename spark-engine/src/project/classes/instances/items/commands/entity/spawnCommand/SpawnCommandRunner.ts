@@ -16,7 +16,7 @@ export class SpawnCommandRunner extends CommandRunner<SpawnCommandData> {
       return super.onExecute(data, context, game);
     }
 
-    game.entity.spawnEntity({ id: entityId });
+    game.world.spawnEntity(entityId);
 
     return super.onExecute(data, context, game);
   }

@@ -596,7 +596,7 @@ export const executeDisplayCommand = (
   };
   if (game) {
     if (instant) {
-      game.audio.stopNotes();
+      game.synth.stopNotes();
       handleFinished();
     } else {
       const handleDraw = (time: number): void => {
@@ -639,19 +639,20 @@ export const executeDisplayCommand = (
         };
       });
       const instrumentId = data?.reference?.refTypeId || "";
-      game.audio.configureInstrument({
+      game.synth.configureInstrument(
         instrumentId,
-        instrumentType: "default",
-        options: dialogueInstrumentOptions,
-      });
-      game.audio.playNotes({
+        "default",
+        dialogueInstrumentOptions
+      );
+      game.synth.playNotes(
         instrumentId,
-        instrumentType: "default",
-        partId: id,
+        "default",
+        id,
         notes,
-        onDraw: handleDraw,
-        onFinished: handleFinished,
-      });
+        handleDraw,
+        undefined,
+        handleFinished
+      );
     }
   }
   if (data) {

@@ -10,7 +10,7 @@ export class RepeatCommandRunner extends CommandRunner<CommandData> {
   ): number[] {
     const id = data.reference.parentContainerId;
 
-    game.logic.executeBlock({ id, executedByBlockId: id });
+    game.logic.executeBlock(id, id);
 
     return super.onExecute(data, context, game);
   }

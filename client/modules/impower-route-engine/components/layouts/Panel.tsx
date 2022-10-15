@@ -102,7 +102,6 @@ const Panel = (props: React.PropsWithChildren<PanelProps>): JSX.Element => {
   const [state, dispatch] = useContext(ProjectEngineContext);
   const { portrait } = useContext(WindowTransitionContext);
   const windowType = state?.window?.type;
-  const mode = state?.test?.mode;
   const toolbar = state?.panel?.panels?.[windowType]?.toolbar;
 
   const theme = useTheme();

@@ -22,12 +22,7 @@ export class AssignCommandRunner extends CommandRunner<AssignCommandData> {
     const rhs = evaluate(value, valueMap);
     const newValue = modifyValue(lhs, operator, rhs);
 
-    game.logic.setVariableValue({
-      from: data.from,
-      line: data.line,
-      id: variableId,
-      value: newValue,
-    });
+    game.logic.setVariableValue(variableId, newValue, data.from, data.line);
 
     return super.onExecute(data, context, game);
   }

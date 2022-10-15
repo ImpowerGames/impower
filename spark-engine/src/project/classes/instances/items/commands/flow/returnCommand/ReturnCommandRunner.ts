@@ -16,10 +16,7 @@ export class ReturnCommandRunner extends CommandRunner<ReturnCommandData> {
       typeof value === "object" ? evaluate(value, valueMap) : value;
 
     const id = data.reference.parentContainerId;
-    game.logic.returnFromBlock({
-      id,
-      value: returnValue,
-    });
+    game.logic.returnFromBlock(id, returnValue);
 
     return super.onExecute(data, context, game);
   }

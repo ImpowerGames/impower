@@ -1,16 +1,14 @@
-import { AssetState } from "../classes/managers/AssetManager";
-import { AudioState } from "../classes/managers/AudioManager";
-import { EntityState } from "../classes/managers/EntityManager";
 import { LogicState } from "../classes/managers/LogicManager";
 import { RandomState } from "../classes/managers/RandomManager";
 import { StructState } from "../classes/managers/StructManager";
+import { SynthState } from "../classes/managers/SynthManager";
+import { WorldState } from "../classes/managers/WorldManager";
 
 export interface SaveData {
-  audio: AudioState;
-  asset: AssetState;
+  synth: SynthState;
   struct: StructState;
-  entity: EntityState;
+  world: WorldState;
   logic: LogicState;
   random: RandomState;
-  custom: { [key: string]: unknown };
+  plugins: { [key: string]: unknown };
 }

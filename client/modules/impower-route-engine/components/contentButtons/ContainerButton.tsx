@@ -74,8 +74,8 @@ const DataButtonLeftChildren = React.memo(
         setExecuting(undefined);
         setExecutedByBlockId(undefined);
       };
-      const onExecuteBlock = (data: { id: string }): void => {
-        if (data.id === id) {
+      const onExecuteBlock = (data: { blockId: string }): void => {
+        if (data.blockId === id) {
           if (executingTimeoutHandle.current >= 0) {
             clearTimeout(executingTimeoutHandle.current);
           }
@@ -83,8 +83,8 @@ const DataButtonLeftChildren = React.memo(
           setExecutedByBlockId(getExecutedByCommandId());
         }
       };
-      const onFinishBlock = (data: { id: string }): void => {
-        if (data.id === id) {
+      const onFinishBlock = (data: { blockId: string }): void => {
+        if (data.blockId === id) {
           // Only hide execution icon if has not executed in the last 0.5 seconds
           executingTimeoutHandle.current = window.setTimeout(() => {
             setExecuting(false);
@@ -93,14 +93,14 @@ const DataButtonLeftChildren = React.memo(
       };
       if (context?.game) {
         context?.game.events.onStart.addListener(onStart);
-        context?.game.events.onEnd.addListener(onEnd);
+        context?.game.events.onDestroy.addListener(onEnd);
         context?.game.logic.events.onExecuteBlock.addListener(onExecuteBlock);
         context?.game.logic.events.onFinishBlock.addListener(onFinishBlock);
       }
       return (): void => {
         if (context) {
           context?.game.events.onStart.removeListener(onStart);
-          context?.game.events.onEnd.removeListener(onEnd);
+          context?.game.events.onDestroy.removeListener(onEnd);
           context?.game.logic.events.onExecuteBlock.removeListener(
             onExecuteBlock
           );

@@ -98,7 +98,7 @@ export class SparkContext {
   }
 
   end(): void {
-    this.game.end();
+    this.game.destroy();
   }
 
   update(blockId: string, time: number, delta: number): boolean {
