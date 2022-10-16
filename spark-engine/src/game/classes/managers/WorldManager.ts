@@ -107,8 +107,8 @@ export class WorldManager extends Manager<WorldState, WorldEvents> {
       fit: d?.fit || c.fit,
       background: d?.background || c.background,
       color: d?.color || c.color,
-      spawnedEntities: d?.spawnedEntities || c.spawnedEntities,
-      entities: d?.entities || c.entities,
+      spawnedEntities: this.deepCopy(d?.spawnedEntities || c.spawnedEntities),
+      entities: this.deepCopy(d?.entities || c.entities),
     };
   }
 
