@@ -1,12 +1,12 @@
-import { Scene } from "../Scene";
+import { SparkScene } from "../SparkScene";
 
-export class PreviewScene extends Scene {
+export class PreviewScene extends SparkScene {
   start(): void {
-    this.sparkContext?.game?.world?.events?.onSpawnEntity?.addListener((data) =>
+    this.context?.game?.world?.events?.onSpawnEntity?.addListener((data) =>
       this.spawnEntity(data)
     );
-    this.sparkContext?.game?.world?.events?.onDestroyEntity?.addListener(
-      (data) => this.destroyEntity(data)
+    this.context?.game?.world?.events?.onDestroyEntity?.addListener((data) =>
+      this.destroyEntity(data)
     );
   }
 

@@ -1,10 +1,10 @@
 import { SparkContext } from "../../../spark-engine";
-import { Scene } from "./Scene";
 import { InputScene } from "./scenes/InputScene";
 import { LogicScene } from "./scenes/LogicScene";
 import { MainScene } from "./scenes/MainScene";
 import { PreviewScene } from "./scenes/PreviewScene";
 import { SynthScene } from "./scenes/SynthScene";
+import { SparkScene } from "./SparkScene";
 import {
   SparkApplication,
   SparkApplicationOptions,
@@ -18,7 +18,7 @@ export const responsiveBreakpoints: Record<string, number> = {
   xl: 1920,
 };
 
-export class GameApp {
+export class SparkGameApp {
   private _parent: HTMLElement | null;
 
   public get parent(): HTMLElement | null {
@@ -31,15 +31,15 @@ export class GameApp {
     return this._app;
   }
 
-  private _sparkContext: SparkContext | undefined;
+  private _context: SparkContext | undefined;
 
-  public get sparkContext(): SparkContext | undefined {
-    return this._sparkContext;
+  public get context(): SparkContext | undefined {
+    return this._context;
   }
 
-  private _scenes: Scene[] = [];
+  private _scenes: SparkScene[] = [];
 
-  public get scenes(): Scene[] {
+  public get scenes(): SparkScene[] {
     return this._scenes;
   }
 
@@ -97,9 +97,9 @@ export class GameApp {
       this.resizeObserver.observe(this._parent);
     }
 
-    this._sparkContext = context;
-    if (this.sparkContext) {
-      this.sparkContext.init();
+    this._context = context;
+    if (this.context) {
+      this.context.init();
     }
 
     if (context) {
@@ -138,8 +138,8 @@ export class GameApp {
     };
     this.app.ticker.add(gameLoop);
 
-    if (this.sparkContext) {
-      await this.sparkContext.start();
+    if (this.context) {
+      await this.context.start();
     }
 
     if (startTicker) {
@@ -154,8 +154,8 @@ export class GameApp {
 
   destroy(removeView?: boolean, stageOptions?: boolean): void {
     this.resizeObserver.disconnect();
-    if (this.sparkContext) {
-      this.sparkContext.end();
+    if (this.context) {
+      this.context.end();
     }
     if (this.app && this.app?.["cancelResize"]) {
       this.app.destroy(removeView, stageOptions);

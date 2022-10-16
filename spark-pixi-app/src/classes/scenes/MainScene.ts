@@ -3,7 +3,7 @@ import {
   generateSpritesheet,
   SVGLoader,
 } from "../../plugins/animated-graphics";
-import { Scene } from "../Scene";
+import { SparkScene } from "../SparkScene";
 import { SparkCamera } from "../wrappers/SparkCamera";
 import { SparkContainer } from "../wrappers/SparkContainer";
 import { SparkGroup } from "../wrappers/SparkGroup";
@@ -38,7 +38,7 @@ const spawn = (
   return plane;
 };
 
-export class MainScene extends Scene {
+export class MainScene extends SparkScene {
   private _camera: SparkCamera;
 
   private _debug: PIXI.Graphics;
@@ -57,7 +57,7 @@ export class MainScene extends Scene {
 
   async init(): Promise<void> {
     const svgEntries = Object.entries(
-      this.sparkContext?.game?.logic?.blockMap?.[""]?.variables || {}
+      this.context?.game?.logic?.blockMap?.[""]?.variables || {}
     ).filter(([, v]) => v.type === "graphic");
     await Promise.all(
       svgEntries.map(async ([, v]) => {
@@ -171,7 +171,7 @@ export class MainScene extends Scene {
   }
 
   update(_time: number, delta: number): void {
-    if (this.sparkContext.game.debug.state.debugging) {
+    if (this.context.game.debug.state.debugging) {
       // SHOW SPRITE BOUNDS DEBUG BOX
       this._debug.clear();
       this._debug.lineStyle(2, 0x0000ff, 1.0);

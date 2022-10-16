@@ -1,1 +1,1 @@
-export * from "./src/classes/GameApp";
+export * from "./src/classes/SparkGameApp";

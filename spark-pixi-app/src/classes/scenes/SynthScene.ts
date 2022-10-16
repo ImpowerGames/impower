@@ -1,5 +1,5 @@
 import * as TONE from "tone";
-import { Scene } from "../Scene";
+import { SparkScene } from "../SparkScene";
 
 export type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>;
@@ -25,32 +25,32 @@ export type InstrumentType =
   | "pluck"
   | "sampler";
 
-export class SynthScene extends Scene {
+export class SynthScene extends SparkScene {
   private parts: Record<string, TONE.Part> = {};
 
   instruments: Record<string, Instrument> = {};
 
   start(): void {
     TONE.start();
-    this.sparkContext?.game?.synth?.events?.onConfigureInstrument?.addListener(
+    this.context?.game?.synth?.events?.onConfigureInstrument?.addListener(
       (data) => this.configureInstrument(data)
     );
-    this.sparkContext?.game?.synth?.events?.onAttackNote?.addListener((data) =>
+    this.context?.game?.synth?.events?.onAttackNote?.addListener((data) =>
       this.attackNote(data)
     );
-    this.sparkContext?.game?.synth?.events.onReleaseNote?.addListener((data) =>
+    this.context?.game?.synth?.events.onReleaseNote?.addListener((data) =>
       this.releaseNote(data)
     );
-    this.sparkContext?.game?.synth?.events?.onPlayNotes?.addListener((data) =>
+    this.context?.game?.synth?.events?.onPlayNotes?.addListener((data) =>
       this.playNotes(data)
     );
   }
 
   destroy(): void {
-    this.sparkContext?.game?.synth?.events?.onConfigureInstrument?.removeAllListeners();
-    this.sparkContext?.game?.synth?.events?.onAttackNote?.removeAllListeners();
-    this.sparkContext?.game?.synth?.events?.onReleaseNote?.removeAllListeners();
-    this.sparkContext?.game?.synth?.events?.onPlayNotes?.removeAllListeners();
+    this.context?.game?.synth?.events?.onConfigureInstrument?.removeAllListeners();
+    this.context?.game?.synth?.events?.onAttackNote?.removeAllListeners();
+    this.context?.game?.synth?.events?.onReleaseNote?.removeAllListeners();
+    this.context?.game?.synth?.events?.onPlayNotes?.removeAllListeners();
     TONE.Transport.cancel();
     TONE.Transport.stop();
     window.setTimeout(() => {

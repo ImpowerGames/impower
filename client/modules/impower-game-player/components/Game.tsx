@@ -1,6 +1,6 @@
 import { PropsWithChildren, useEffect, useMemo, useRef } from "react";
 import { SparkContext } from "../../../../spark-engine";
-import { GameApp } from "../../../../spark-pixi-app";
+import { SparkGameApp } from "../../../../spark-pixi-app";
 
 interface GameProps {
   domElementId: string;
@@ -12,7 +12,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
   const { paused, context, domElementId } = props;
 
   const elRef = useRef<HTMLDivElement>();
-  const gameAppRef = useRef<GameApp>();
+  const gameAppRef = useRef<SparkGameApp>();
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
 
@@ -31,7 +31,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
           elRef.current.style.opacity = "0";
         }
       };
-      gameAppRef.current = new GameApp(domElementId, context, {
+      gameAppRef.current = new SparkGameApp(domElementId, context, {
         startPaused: pausedRef.current,
         maxFPS: 60,
         onLoaded,
@@ -51,7 +51,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
 
   useEffect(() => {
     const onFocus = (): void => {
-      if (!pausedRef.current && !gameAppRef.current.sparkContext.editable) {
+      if (!pausedRef.current && !gameAppRef.current.context.editable) {
         gameAppRef.current.resume();
       }
     };
