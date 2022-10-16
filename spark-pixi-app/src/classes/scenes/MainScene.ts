@@ -1,7 +1,9 @@
 import * as PIXI from "pixi.js";
-import { generateSpritesheet } from "../../utils/generateSpritesheet";
+import {
+  generateSpritesheet,
+  SVGLoader,
+} from "../../plugins/animated-graphics";
 import { Scene } from "../Scene";
-import { SVGLoader } from "../SVGLoader";
 import { SparkCamera } from "../wrappers/SparkCamera";
 import { SparkContainer } from "../wrappers/SparkContainer";
 import { SparkGroup } from "../wrappers/SparkGroup";

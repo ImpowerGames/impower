@@ -1,4 +1,4 @@
-import { SparkContext } from "../../spark-engine";
+import { SparkContext } from "../../../spark-engine";
 import { Scene } from "./Scene";
 import { InputScene } from "./scenes/InputScene";
 import { LogicScene } from "./scenes/LogicScene";

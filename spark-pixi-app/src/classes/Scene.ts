@@ -1,4 +1,4 @@
-import { SparkContext } from "../../spark-engine";
+import { SparkContext } from "../../../spark-engine";
 import { SparkApplication } from "./wrappers/SparkApplication";
 
 export class Scene {
