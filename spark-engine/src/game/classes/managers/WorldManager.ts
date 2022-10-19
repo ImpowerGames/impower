@@ -1,7 +1,6 @@
 import { CameraState } from "../../interfaces/CameraState";
 import { EntityState } from "../../interfaces/EntityState";
 import { createCameraState } from "../../utils/createCameraState";
-import { createEntityState } from "../../utils/createEntityState";
 import { GameEvent } from "../GameEvent";
 import { Manager } from "../Manager";
 
@@ -29,22 +28,30 @@ export class WorldManager extends Manager<WorldState, WorldEvents> {
     return this._defaultCameras;
   }
 
+  private _defaultEntities: Record<string, EntityState>;
+
+  public get defaultEntities(): Record<string, EntityState> {
+    return this._defaultEntities;
+  }
+
   constructor(
     state?: WorldState,
-    defaultCameras?: Record<string, CameraState>
+    defaultCameras?: Record<string, CameraState>,
+    defaultEntities?: Record<string, EntityState>
   ) {
     super(state);
     this._defaultCameras = {
       main: createCameraState(),
       ...(defaultCameras || {}),
     };
+    this._defaultEntities = defaultEntities || {};
   }
 
   getInitialState(): WorldState {
     return {
       mainCamera: "main",
       activeCameras: ["main"],
-      cameraStates: {},
+      cameraStates: { main: createCameraState() },
     };
   }
 
@@ -86,19 +93,13 @@ export class WorldManager extends Manager<WorldState, WorldEvents> {
     const c = createCameraState();
     return {
       position: {
-        x: d?.position?.x || c.position.x,
-        y: d?.position?.y || c.position.y,
-        z: d?.position?.z || c.position.z,
+        ...(d?.position || c.position),
       },
       rotation: {
-        x: d?.rotation?.x || c.rotation.x,
-        y: d?.rotation?.y || c.rotation.y,
-        z: d?.rotation?.z || c.rotation.z,
+        ...(d?.rotation || c.rotation),
       },
       scale: {
-        x: d?.scale?.x || c.scale.x,
-        y: d?.scale?.y || c.scale.y,
-        z: d?.scale?.z || c.scale.z,
+        ...(d?.scale || c.scale),
       },
       type: d?.type || c.type,
       depth: d?.depth || c.depth,
@@ -107,9 +108,19 @@ export class WorldManager extends Manager<WorldState, WorldEvents> {
       fit: d?.fit || c.fit,
       background: d?.background || c.background,
       color: d?.color || c.color,
-      spawnedEntities: this.deepCopy(d?.spawnedEntities || c.spawnedEntities),
+      spawnedEntities: [...(d?.spawnedEntities || c.spawnedEntities)],
       entities: this.deepCopy(d?.entities || c.entities),
     };
+  }
+
+  private getOrCreateEntityState(
+    entityId: string,
+    cameraId?: string
+  ): EntityState {
+    const d = this._defaultEntities[entityId] || {};
+    const cameraState = this.getCameraState(cameraId);
+    const c = cameraState?.entities[entityId] || {};
+    return this.deepCopy({ ...d, ...c });
   }
 
   addCamera(cameraId: string, cameraState?: CameraState): void {
@@ -130,20 +141,20 @@ export class WorldManager extends Manager<WorldState, WorldEvents> {
     entityId: string,
     cameraId?: string,
     entityState?: EntityState
-  ): void {
-    const camera = this.getOrCreateCameraState(cameraId);
+  ): boolean {
+    const camera = this.getCameraState(cameraId);
+    if (!camera) {
+      return false;
+    }
     camera.spawnedEntities.push(entityId);
     camera.entities[entityId] =
-      entityState || camera.entities[entityId] || createEntityState();
+      entityState || this.getOrCreateEntityState(entityId, cameraId);
     this.events.onSpawnEntity.emit({
       entityId,
       cameraId,
       entityState: camera.entities[entityId],
     });
-  }
-
-  spawnEntities(entityIds: string[], cameraId?: string): void {
-    entityIds.map((entityId) => this.spawnEntity(entityId, cameraId));
+    return true;
   }
 
   destroyEntity(entityId: string, cameraId?: string): void {
@@ -155,9 +166,5 @@ export class WorldManager extends Manager<WorldState, WorldEvents> {
       (x) => x !== entityId
     );
     this.events.onDestroyEntity.emit({ entityId, cameraId });
-  }
-
-  destroyEntities(entityIds: string[], cameraId?: string): void {
-    entityIds.map((entityId) => this.destroyEntity(entityId, cameraId));
   }
 }

@@ -26,12 +26,15 @@ export type InstrumentType =
   | "sampler";
 
 export class SynthScene extends SparkScene {
-  private parts: Record<string, TONE.Part> = {};
+  private _parts: Record<string, TONE.Part> = {};
 
-  instruments: Record<string, Instrument> = {};
+  private _instruments: Record<string, Instrument> = {};
+
+  async load(): Promise<void> {
+    return TONE.start();
+  }
 
   start(): void {
-    TONE.start();
     this.context?.game?.synth?.events?.onConfigureInstrument?.addListener(
       (data) => this.configureInstrument(data)
     );
@@ -54,7 +57,7 @@ export class SynthScene extends SparkScene {
     TONE.Transport.cancel();
     TONE.Transport.stop();
     window.setTimeout(() => {
-      Object.values(this.instruments).forEach((instrument) =>
+      Object.values(this._instruments).forEach((instrument) =>
         instrument.dispose()
       );
     }, 100);
@@ -62,46 +65,46 @@ export class SynthScene extends SparkScene {
 
   getInstrument(id: string, type?: string): Instrument {
     const key = `${id}/${type}`;
-    if (this.instruments[key]) {
-      return this.instruments[key];
+    if (this._instruments[key]) {
+      return this._instruments[key];
     }
     if (type === "default") {
-      this.instruments[key] = new TONE.PolySynth().toDestination();
+      this._instruments[key] = new TONE.PolySynth().toDestination();
     }
     if (type === "am") {
-      this.instruments[key] = new TONE.PolySynth(TONE.AMSynth).toDestination();
+      this._instruments[key] = new TONE.PolySynth(TONE.AMSynth).toDestination();
     }
     if (type === "fm") {
-      this.instruments[key] = new TONE.PolySynth(TONE.FMSynth).toDestination();
+      this._instruments[key] = new TONE.PolySynth(TONE.FMSynth).toDestination();
     }
     if (type === "membrane") {
-      this.instruments[key] = new TONE.PolySynth(
+      this._instruments[key] = new TONE.PolySynth(
         TONE.MembraneSynth
       ).toDestination();
     }
     if (type === "metal") {
-      this.instruments[key] = new TONE.PolySynth(
+      this._instruments[key] = new TONE.PolySynth(
         TONE.MetalSynth
       ).toDestination();
     }
     if (type === "mono") {
-      this.instruments[key] = new TONE.PolySynth(
+      this._instruments[key] = new TONE.PolySynth(
         TONE.MonoSynth
       ).toDestination();
     }
     if (type === "noise") {
-      this.instruments[key] = new TONE.NoiseSynth().toDestination();
+      this._instruments[key] = new TONE.NoiseSynth().toDestination();
     }
     if (type === "pluck") {
-      this.instruments[key] = new TONE.PluckSynth().toDestination();
+      this._instruments[key] = new TONE.PluckSynth().toDestination();
     }
     if (type === "duo") {
-      this.instruments[key] = new TONE.DuoSynth().toDestination();
+      this._instruments[key] = new TONE.DuoSynth().toDestination();
     }
     if (type === "sampler") {
-      this.instruments[key] = new TONE.Sampler().toDestination();
+      this._instruments[key] = new TONE.Sampler().toDestination();
     }
-    return this.instruments[key];
+    return this._instruments[key];
   }
 
   configureInstrument(data: {
@@ -197,11 +200,11 @@ export class SynthScene extends SparkScene {
 
     TONE.Transport.start("+0.1");
 
-    this.parts[data.partId] = part;
+    this._parts[data.partId] = part;
   }
 
   stopNotes(): void {
-    Object.values(this.parts).forEach((part) => {
+    Object.values(this._parts).forEach((part) => {
       part.mute = true;
     });
     TONE.Transport.cancel();

@@ -3,6 +3,7 @@ import {
   generateSpritesheet,
   SVGLoader,
 } from "../../plugins/animated-graphics";
+import { generateGrid } from "../../plugins/editor-graphics";
 import { SparkScene } from "../SparkScene";
 import { SparkCamera } from "../wrappers/SparkCamera";
 import { SparkContainer } from "../wrappers/SparkContainer";
@@ -38,6 +39,25 @@ const spawn = (
   return plane;
 };
 
+const spawnAnimatedSprite = (
+  content: PIXI.Texture[],
+  scale: number,
+  sortGroup: SparkGroup,
+  maxFPS: number,
+  sprites: PIXI.AnimatedSprite[]
+): SparkContainer => {
+  const time = 1000 / maxFPS; // Duration of each frame in ms
+  const entity = new PIXI.AnimatedSprite(
+    content.map((texture) => ({ texture, time })),
+    false
+  );
+  entity.play();
+  entity.anchor.set(0.5, 1.0); // Center Bottom
+  sprites.push(entity);
+
+  return spawn(entity, scale, sortGroup);
+};
+
 export class MainScene extends SparkScene {
   private _camera: SparkCamera;
 
@@ -47,6 +67,8 @@ export class MainScene extends SparkScene {
 
   private _entityContainer: SparkContainer;
 
+  private _earth: SparkSprite;
+
   private _animations: Record<string, PIXI.Texture[]> = {};
 
   private _sprites: PIXI.AnimatedSprite[] = [];
@@ -55,7 +77,7 @@ export class MainScene extends SparkScene {
 
   private _ang = 0;
 
-  async init(): Promise<void> {
+  async load(): Promise<void> {
     const svgEntries = Object.entries(
       this.context?.game?.logic?.blockMap?.[""]?.variables || {}
     ).filter(([, v]) => v.type === "graphic");
@@ -64,8 +86,8 @@ export class MainScene extends SparkScene {
         const svg = await SVGLoader.instance.load(v.value as string);
         const animationName = "default";
         const sheet = generateSpritesheet(
-          svg,
           this.app.renderer,
+          svg,
           this.app.ticker.maxFPS,
           v.name,
           animationName
@@ -77,96 +99,95 @@ export class MainScene extends SparkScene {
     );
   }
 
-  start(): void {
-    const surfaceTexture = new PIXI.Texture(PIXI.Texture.WHITE.baseTexture);
-    surfaceTexture.orig.width = 500;
-    surfaceTexture.orig.height = 500;
+  init(): void {
+    // Grid Settings
+    const gridColor = 0x0000ff;
+    const gridThickness = 4;
+    const gridCellSize = 32;
+    const gridRowCount = 10;
 
-    const surfaceHandleTexture = new PIXI.Texture(
-      PIXI.Texture.WHITE.baseTexture
-    );
-    surfaceHandleTexture.orig.width = 25;
-    surfaceHandleTexture.orig.height = 25;
-
-    const spriteHandleTexture = new PIXI.Texture(
-      PIXI.Texture.WHITE.baseTexture
-    );
-    spriteHandleTexture.orig.width = 50;
-    spriteHandleTexture.orig.height = 50;
+    // Camera Settings
+    const near = 10;
+    const far = 1000;
+    const focus = far - 100;
+    const orthographic = false;
+    const x = this.app.screen.width / 2;
+    const y = this.app.screen.height / 2;
 
     this._camera = new SparkCamera();
     this._camera.euler.y = this._ang;
     this._camera.euler.x = -Math.PI / 6;
-    this._camera.position.set(
-      this.app.screen.width / 2,
-      this.app.screen.height / 2
-    );
-    this._camera.setPlanes(1000, 10, 10000, true);
+    this._camera.position.set(x, y);
+    this._camera.setPlanes(focus, near, far, orthographic);
     this.app.stage.addChild(this._camera);
 
-    this._entityContainer = new SparkContainer();
     this._surfaceContainer = new SparkContainer();
+    this._surfaceContainer.interactive = true;
     this._camera.addChild(this._surfaceContainer);
+
+    this._entityContainer = new SparkContainer();
     this._camera.addChild(this._entityContainer);
 
     this._sortGroup = new SparkGroup(1, true);
-    this._sortGroup.on("sort", (plane: SparkContainer) => {
-      plane.zOrder = -plane.getDepth();
-    });
     this.app.stage.addChild(new SparkLayer(this._sortGroup));
+
     this._debug = new PIXI.Graphics();
     this.app.stage.addChild(this._debug);
 
-    const spawnAnimatedSprite = (
-      content: PIXI.Texture[],
-      scale: number,
-      sortGroup: SparkGroup,
-      maxFPS: number
-    ): SparkContainer => {
-      const time = 1000 / maxFPS; // Duration of each frame in ms
-      const entity = new PIXI.AnimatedSprite(
-        content.map((texture) => ({ texture, time })),
-        false
-      );
-      entity.play();
-      entity.anchor.set(0.5, 1.0); // Center Bottom
-      this._sprites.push(entity);
+    const gridTexture = generateGrid(
+      this.app.renderer,
+      gridColor,
+      gridThickness,
+      gridCellSize,
+      gridRowCount
+    );
 
-      return spawn(entity, scale, sortGroup);
-    };
+    this._earth = new SparkSprite(gridTexture);
+    this._earth.euler.x = Math.PI / 2;
+    this._earth.anchor.x = 0.5;
+    this._earth.anchor.y = 0.5;
+    this._surfaceContainer.addChild(this._earth);
 
-    Object.entries(this._animations || {}).forEach(([, v]) => {
+    Object.entries(this._animations || {}).forEach(([k, v]) => {
       const sprite = spawnAnimatedSprite(
         v,
-        0.25,
+        1,
         this._sortGroup,
-        this.app.ticker.maxFPS
+        this.app.ticker.maxFPS,
+        this._sprites
       );
 
       sprite.position3d.x = 0;
       sprite.position3d.z = 0;
 
       this._entityContainer.addChild(sprite);
+      this.entities[k] = sprite;
     });
+  }
 
-    const earth = new SparkSprite(surfaceTexture);
-    earth.euler.x = Math.PI / 2;
-    earth.anchor.x = earth.anchor.y = 0.5;
-    this._surfaceContainer.addChild(earth);
-
-    this._surfaceContainer.interactive = true;
+  start(): void {
     this._surfaceContainer.on("click", (event) => {
       const p = new PIXI.Point();
-      event.data.getLocalPosition(earth, p, event.data.global);
-      const sprite = spawnAnimatedSprite(
-        Object.values(this._animations || {})[0],
-        0.25,
-        this._sortGroup,
-        this.app.ticker.maxFPS
-      );
-      sprite.position3d.x = p.x;
-      sprite.position3d.z = p.y;
-      this._entityContainer.addChild(sprite);
+      event.data.getLocalPosition(this._earth, p, event.data.global);
+      const [firstKey, firstValue] =
+        Object.entries(this._animations || {})[0] || [];
+      if (firstValue) {
+        const sprite = spawnAnimatedSprite(
+          firstValue,
+          1,
+          this._sortGroup,
+          this.app.ticker.maxFPS,
+          this._sprites
+        );
+        sprite.position3d.x = p.x;
+        sprite.position3d.z = p.y;
+        this._entityContainer.addChild(sprite);
+        this.entities[firstKey] = sprite;
+      }
+    });
+
+    this._sortGroup.on("sort", (plane: SparkContainer) => {
+      plane.zOrder = -plane.getDepth();
     });
   }
 
@@ -184,7 +205,9 @@ export class MainScene extends SparkScene {
     }
 
     // ROTATE CAMERA
-    this._ang += 0.01;
+    if (!this.context.editable) {
+      this._ang += 0.01;
+    }
     this._camera.euler.y = this._ang;
     this._camera.euler.x = -Math.PI / 6;
 
@@ -192,9 +215,9 @@ export class MainScene extends SparkScene {
     this._entityContainer.children.forEach((plane: SparkContainer) => {
       if (plane.alwaysFront) {
         const child = plane.children[0] as SparkContainer;
-        // 1. rotate sprite plane to the camera
+        // 1. rotate sprite to the camera
         child.euler.x = -Math.PI / 6;
-        // 2. rotate sprite to the camera
+        // 2. rotate plane to the camera
         plane.euler.y = this._ang;
 
         const sprite = child.children[0] as PIXI.AnimatedSprite;

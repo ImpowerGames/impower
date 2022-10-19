@@ -1,5 +1,5 @@
-import { GameConfig } from "../interfaces/GameConfig";
 import { SaveData } from "../interfaces/SaveData";
+import { SparkGameConfig } from "../interfaces/SparkGameConfig";
 import { GameEvent } from "./GameEvent";
 import { Manager } from "./Manager";
 import { DebugManager } from "./managers/DebugManager";
@@ -77,7 +77,7 @@ export class SparkGame {
     return this._plugins;
   }
 
-  constructor(config: GameConfig) {
+  constructor(config: SparkGameConfig) {
     this._debug = new DebugManager({
       debugging: config?.debugging,
       currentLogs: [],
@@ -87,7 +87,8 @@ export class SparkGame {
     this._synth = new SynthManager(config?.saveData?.synth);
     this._world = new WorldManager(
       config?.saveData?.world,
-      config?.defaultCameras
+      config?.defaultCameras,
+      config?.defaultEntities
     );
     this._struct = new StructManager(
       config?.saveData?.struct,

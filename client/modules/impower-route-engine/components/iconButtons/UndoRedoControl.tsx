@@ -30,7 +30,6 @@ const StyledRightButtonBackground = styled.div`
 const StyledIconButton = styled(IconButton)`
   pointer-events: auto;
   color: inherit;
-  margin: ${(props): string => props.theme.spacing(0.5)};
   padding: 0;
   min-width: ${(props): string => props.theme.spacing(4)};
   min-height: ${(props): string => props.theme.spacing(4)};

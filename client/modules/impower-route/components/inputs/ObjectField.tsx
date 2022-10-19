@@ -173,7 +173,7 @@ const ObjectField = React.memo(
       inset,
       label,
       summary: getValueDescription(propertyValue),
-      expanded: expandedProperties.includes(propertyPath),
+      expanded: expandedProperties?.includes(propertyPath),
       onExpanded: handleExpandProperty,
     };
 

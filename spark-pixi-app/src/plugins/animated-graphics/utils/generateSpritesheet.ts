@@ -2,8 +2,8 @@ import * as PIXI from "pixi.js";
 import { AnimatedGraphic } from "../classes/AnimatedGraphic";
 
 export const generateSpritesheet = (
-  svg: SVGSVGElement,
   renderer: PIXI.AbstractRenderer,
+  svg: SVGSVGElement,
   maxFPS = 60,
   id: string,
   animationName = "default"
@@ -50,10 +50,17 @@ export const generateSpritesheet = (
       frame.position.set(x, y);
       container.addChild(frame);
       const frameId = id + time;
+      // To prevent bleeding between frames when anti-aliasing texture
+      const edgeOffset = 1;
       atlasData.frames[frameId] = {
-        frame: { x, y, w, h },
-        sourceSize: { w, h },
-        spriteSourceSize: { x: 0, y: 0 },
+        frame: {
+          x: x + edgeOffset,
+          y: y + edgeOffset,
+          w: w - edgeOffset,
+          h: h - edgeOffset,
+        },
+        sourceSize: { w: w - edgeOffset, h: h - edgeOffset },
+        spriteSourceSize: { x: edgeOffset, y: edgeOffset },
       };
       atlasData.animations[animationName].push(frameId);
       time += sampleRate;
@@ -62,6 +69,10 @@ export const generateSpritesheet = (
     x = 0;
     y += h;
   }
-  const renderTexture = renderer.generateTexture(container);
+  const renderTexture = renderer.generateTexture(container, {
+    scaleMode: PIXI.SCALE_MODES.LINEAR,
+    multisample: PIXI.MSAA_QUALITY.HIGH,
+    resolution: window.devicePixelRatio,
+  });
   return new PIXI.Spritesheet(renderTexture, atlasData);
 };

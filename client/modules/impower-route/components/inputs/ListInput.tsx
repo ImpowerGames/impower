@@ -87,13 +87,10 @@ const StyledLabel = styled.label`
   margin-right: -${(props): string => props.theme.spacing(1)};
   margin-top: -${(props): string => props.theme.spacing(1)};
   margin-bottom: -${(props): string => props.theme.spacing(1)};
-  border-radius: inherit;
   cursor: pointer;
 `;
 
-const StyledButton = styled(Button)`
-  border-radius: inherit;
-`;
+const StyledButton = styled(Button)``;
 
 const StyledButtonIconArea = styled.div`
   padding-right: ${(props): string => props.theme.spacing(1)};
@@ -437,8 +434,8 @@ const ListInput = (props: ListInputProps): JSX.Element => {
               {draggingFile ? <UploadSolidIcon /> : <PlusSolidIcon />}
             </FontIcon>
           </StyledButtonIconArea>
-          {format("Add {target}", {
-            target: label,
+          {format("Add{target}", {
+            target: label ? ` ${label}` : "",
           })}
           {isStorageFile(defaultElement) && usingStorageOnly && (
             <>

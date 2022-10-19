@@ -19,20 +19,15 @@ import BinaryRegularIcon from "../../../../resources/icons/regular/binary.svg";
 import BoldRegularIcon from "../../../../resources/icons/regular/bold.svg";
 import BracketsCurlyRegularIcon from "../../../../resources/icons/regular/brackets-curly.svg";
 import BracketsRoundRegularIcon from "../../../../resources/icons/regular/brackets-round.svg";
-import CameraMovieRegularIcon from "../../../../resources/icons/regular/camera-movie.svg";
-import ChartSimpleHorizontalRegularIcon from "../../../../resources/icons/regular/chart-simple-horizontal.svg";
-import ChartTreeMapRegularIcon from "../../../../resources/icons/regular/chart-tree-map.svg";
 import CirclePlusRegularIcon from "../../../../resources/icons/regular/circle-plus.svg";
 import CircleXRegularIcon from "../../../../resources/icons/regular/circle-x.svg";
 import ClapperboardRegularIcon from "../../../../resources/icons/regular/clapperboard.svg";
-import DiagramSubtaskRegularIcon from "../../../../resources/icons/regular/diagram-subtask.svg";
 import FilmRegularIcon from "../../../../resources/icons/regular/film.svg";
 import HashtagRegularIcon from "../../../../resources/icons/regular/hashtag.svg";
 import HouseRegularIcon from "../../../../resources/icons/regular/house.svg";
 import ItalicRegularIcon from "../../../../resources/icons/regular/italic.svg";
 import ListCheckRegularIcon from "../../../../resources/icons/regular/list-check.svg";
 import ListOlRegularIcon from "../../../../resources/icons/regular/list-ol.svg";
-import ListTreeRegularIcon from "../../../../resources/icons/regular/list-tree.svg";
 import ListUlRegularIcon from "../../../../resources/icons/regular/list-ul.svg";
 import MessageDotsRegularIcon from "../../../../resources/icons/regular/message-dots.svg";
 import RotateRegularIcon from "../../../../resources/icons/regular/rotate.svg";
@@ -59,7 +54,6 @@ const categories: {
 }[] = [
   { type: "screenplay", name: "Screenplay", icon: <ClapperboardRegularIcon /> },
   { type: "flow", name: "Flow", icon: <SplitRegularIcon /> },
-  { type: "struct", name: "Struct", icon: <DiagramSubtaskRegularIcon /> },
   { type: "entity", name: "Entity", icon: <Alien8bitRegularIcon /> },
   { type: "data", name: "Data", icon: <BinaryRegularIcon /> },
 ];
@@ -491,20 +485,7 @@ const DataToolbar = React.memo((props: ToolbarProps): JSX.Element => {
           <FontIcon aria-label={`assign variable`}>{`=`}</FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
-    </StyledMainToggleButtonGroup>
-  );
-});
-
-const StructToolbar = React.memo((props: ToolbarProps): JSX.Element => {
-  const { onPointerEnter, onPointerLeave, onPointerDown, onChange } = props;
-  return (
-    <StyledMainToggleButtonGroup
-      size="small"
-      exclusive
-      onPointerDown={onPointerDown}
-      onChange={onChange}
-    >
-      <Tooltip title="list" placement="top" arrow>
+      <Tooltip title="declare list" placement="top" arrow>
         <StyledMainToggleButton
           value="list"
           aria-label="list"
@@ -516,7 +497,7 @@ const StructToolbar = React.memo((props: ToolbarProps): JSX.Element => {
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
-      <Tooltip title="map" placement="top" arrow>
+      <Tooltip title="declare map" placement="top" arrow>
         <StyledMainToggleButton
           value="map"
           aria-label="map"
@@ -525,54 +506,6 @@ const StructToolbar = React.memo((props: ToolbarProps): JSX.Element => {
         >
           <FontIcon aria-label={`map`}>
             <ListUlRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-      </Tooltip>
-      <Tooltip title="config" placement="top" arrow>
-        <StyledMainToggleButton
-          value="config"
-          aria-label="config"
-          onPointerEnter={(e): void => onPointerEnter?.(e, "config")}
-          onPointerLeave={(e): void => onPointerLeave?.(e, "config")}
-        >
-          <FontIcon aria-label={`config`}>
-            <ListTreeRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-      </Tooltip>
-      <Tooltip title="ui" placement="top" arrow>
-        <StyledMainToggleButton
-          value="ui"
-          aria-label="ui"
-          onPointerEnter={(e): void => onPointerEnter?.(e, "ui")}
-          onPointerLeave={(e): void => onPointerLeave?.(e, "ui")}
-        >
-          <FontIcon aria-label={`ui`}>
-            <ChartSimpleHorizontalRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-      </Tooltip>
-      <Tooltip title="style" placement="top" arrow>
-        <StyledMainToggleButton
-          value="style"
-          aria-label="style"
-          onPointerEnter={(e): void => onPointerEnter?.(e, "style")}
-          onPointerLeave={(e): void => onPointerLeave?.(e, "style")}
-        >
-          <FontIcon aria-label={`style`}>
-            <ChartTreeMapRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-      </Tooltip>
-      <Tooltip title="camera" placement="top" arrow>
-        <StyledMainToggleButton
-          value="camera"
-          aria-label="camera"
-          onPointerEnter={(e): void => onPointerEnter?.(e, "camera")}
-          onPointerLeave={(e): void => onPointerLeave?.(e, "camera")}
-        >
-          <FontIcon aria-label={`camera`}>
-            <CameraMovieRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
@@ -605,16 +538,6 @@ const CategoryToolbar = React.memo(
     if (type === "flow") {
       return (
         <FlowToolbar
-          onPointerEnter={onPointerEnter}
-          onPointerLeave={onPointerLeave}
-          onPointerDown={onPointerDown}
-          onChange={onChange}
-        />
-      );
-    }
-    if (type === "struct") {
-      return (
-        <StructToolbar
           onPointerEnter={onPointerEnter}
           onPointerLeave={onPointerLeave}
           onPointerDown={onPointerDown}

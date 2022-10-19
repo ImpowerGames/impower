@@ -1,5 +1,6 @@
 import { SparkContext } from "../../../spark-engine";
 import { SparkApplication } from "./wrappers/SparkApplication";
+import { SparkContainer } from "./wrappers/SparkContainer";
 
 export class SparkScene {
   private _context: SparkContext;
@@ -14,12 +15,27 @@ export class SparkScene {
     return this._app;
   }
 
-  constructor(sparkContext: SparkContext, app: SparkApplication) {
-    this._context = sparkContext;
-    this._app = app;
+  private _entities: Record<string, SparkContainer>;
+
+  public get entities(): Record<string, SparkContainer> {
+    return this._entities;
   }
 
-  async init(): Promise<void> {
+  constructor(
+    sparkContext: SparkContext,
+    app: SparkApplication,
+    entities: Record<string, SparkContainer>
+  ) {
+    this._context = sparkContext;
+    this._app = app;
+    this._entities = entities;
+  }
+
+  async load(): Promise<void> {
+    // NoOp
+  }
+
+  init(): void {
     // NoOp
   }
 

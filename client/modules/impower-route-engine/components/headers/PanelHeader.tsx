@@ -187,7 +187,7 @@ const PanelHeader = (
       e.stopPropagation();
       e.preventDefault();
       menuAnchorElRef.current = e.currentTarget as HTMLDivElement;
-      menuOptionsRef.current = [...menuOptions];
+      menuOptionsRef.current = menuOptions;
       setMenuOpen(true);
       openMenuDialog("options");
     },
@@ -226,7 +226,7 @@ const PanelHeader = (
         onBack={onBack}
         onSearchText={onSearchText}
         onSearchLine={onSearchLine}
-        onMore={handleOpenContextMenu}
+        onMore={menuOptions?.length > 0 ? handleOpenContextMenu : undefined}
         style={{
           position,
           ...style,

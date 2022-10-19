@@ -321,7 +321,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
       e.stopPropagation();
       e.preventDefault();
       menuAnchorElRef.current = e.currentTarget as HTMLDivElement;
-      menuOptionsRef.current = [...menuOptions];
+      menuOptionsRef.current = menuOptions;
       setMenuOpen(true);
       openMenuDialog("options");
     },

@@ -37,6 +37,7 @@ import { FontIcon } from "../../../impower-icon";
 import { TransparencyPattern } from "../../../impower-react-color-picker";
 import { VirtualizedItem } from "../../../impower-react-virtualization";
 import {
+  DrawerMenu,
   Fallback,
   multiSelection,
   select,
@@ -47,6 +48,7 @@ import FadeAnimation from "../../../impower-route/components/animations/FadeAnim
 import PeerTransition from "../../../impower-route/components/animations/PeerTransition";
 import Avatar from "../../../impower-route/components/elements/Avatar";
 import CornerFab from "../../../impower-route/components/fabs/CornerFab";
+import ContextMenu from "../../../impower-route/components/popups/ContextMenu";
 import { SearchTextQuery } from "../../../impower-script-editor";
 import { UploadTask } from "../../../impower-storage";
 import { UserContext } from "../../../impower-user";
@@ -55,16 +57,6 @@ import EngineToolbar from "../headers/EngineToolbar";
 const Skeleton = dynamic(() => import("@material-ui/core/Skeleton"), {
   ssr: false,
 });
-
-const DrawerMenu = dynamic(
-  () => import("../../../impower-route/components/popups/DrawerMenu"),
-  { ssr: false }
-);
-
-const ContextMenu = dynamic(
-  () => import("../../../impower-route/components/popups/ContextMenu"),
-  { ssr: false }
-);
 
 export type Order = "asc" | "desc";
 
@@ -597,10 +589,11 @@ const EngineConsoleHeader = React.memo(
       onSort,
     } = props;
 
-    const [menuAnchor, setMenuAnchor] = useState<HTMLElement>();
+    const filterMenuAnchorRef = useRef<HTMLButtonElement>();
+    const sortMenuAnchorRef = useRef<HTMLButtonElement>();
+    const menuAnchorRef = useRef<HTMLButtonElement>();
     const [menuOpenKey, setMenuOpenKey] = useState<"sort" | "filter">();
-
-    const menuOpen = menuOpenKey === "sort" || menuOpenKey === "filter";
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const theme = useTheme();
 
@@ -611,6 +604,7 @@ const EngineConsoleHeader = React.memo(
       ) => {
         if (currState?.m !== prevState?.m) {
           setMenuOpenKey((currState.m as "filter" | "sort") || null);
+          setMenuOpen(Boolean(currState.m as "filter" | "sort"));
         }
       },
       []
@@ -622,10 +616,16 @@ const EngineConsoleHeader = React.memo(
 
     const handleOpenMenu = useCallback(
       (e: React.MouseEvent, menu: "sort" | "filter"): void => {
+        if (menu === "sort") {
+          menuAnchorRef.current = sortMenuAnchorRef.current;
+        }
+        if (menu === "filter") {
+          menuAnchorRef.current = filterMenuAnchorRef.current;
+        }
         e.preventDefault();
         e.stopPropagation();
-        setMenuAnchor(e.currentTarget as HTMLElement);
         setMenuOpenKey(menu);
+        setMenuOpen(true);
         openMenuDialog(menu);
       },
       [openMenuDialog]
@@ -649,7 +649,7 @@ const EngineConsoleHeader = React.memo(
     const handleCloseMenu = useCallback((e: React.MouseEvent): void => {
       e.preventDefault();
       e.stopPropagation();
-      setMenuOpenKey(null);
+      setMenuOpen(false);
     }, []);
 
     const handleClickMenuItem = useCallback(
@@ -693,7 +693,11 @@ const EngineConsoleHeader = React.memo(
         }}
       >
         {defaultFilters && Object.keys(defaultFilters).length > 0 && (
-          <StyledFilterSortButton variant="text" onClick={handleOpenFilterMenu}>
+          <StyledFilterSortButton
+            ref={filterMenuAnchorRef}
+            variant="text"
+            onClick={handleOpenFilterMenu}
+          >
             <StyledButtonLeftIconArea style={{ minWidth: minHeight }}>
               <FontIcon aria-label={filterLabel} size={theme.fontSize.regular}>
                 {Object.entries(activeFilters).every(
@@ -714,7 +718,11 @@ const EngineConsoleHeader = React.memo(
           </StyledFilterSortButton>
         )}
         <StyledSpacer />
-        <StyledFilterSortButton variant="text" onClick={handleOpenSortMenu}>
+        <StyledFilterSortButton
+          ref={sortMenuAnchorRef}
+          variant="text"
+          onClick={handleOpenSortMenu}
+        >
           <StyledButtonRightTextArea>
             {cardDetails[sortKey]?.label}
           </StyledButtonRightTextArea>
@@ -728,115 +736,111 @@ const EngineConsoleHeader = React.memo(
             </FontIcon>
           </StyledButtonRightIconArea>
         </StyledFilterSortButton>
-        {menuOpenKey !== undefined && (
-          <DrawerMenu
-            anchorEl={menuAnchor}
-            open={menuOpen}
-            onClose={handleCloseMenu}
-          >
-            {menuOpenKey === "filter" && (
-              <>
-                <StyledFilterSortTypography>
-                  {filterLabel}
-                </StyledFilterSortTypography>
-                {filterableDetails.map(([key, value]) => (
-                  <StyledFilterOption key={key}>
-                    <StyledDividerArea>
-                      <StyledDivider />
-                    </StyledDividerArea>
-                    {Object.keys(value.filterable).map((filterableOption) => (
-                      <MenuItem
-                        key={filterableOption}
-                        onClick={(e): void =>
-                          handleClickMenuItem(e, key, filterableOption)
-                        }
-                        selected={activeFilters[key] === filterableOption}
-                        style={{
-                          backgroundColor:
-                            activeFilters[key] === filterableOption
-                              ? "#edf3f8"
-                              : undefined,
-                          color:
-                            activeFilters[key] === filterableOption
-                              ? theme.palette.primary.main
-                              : undefined,
-                        }}
-                      >
-                        <StyledFontIconArea
-                          style={{
-                            minWidth: theme.spacing(4),
-                            minHeight: theme.spacing(4),
-                          }}
-                        >
-                          {activeFilters[key] === filterableOption && (
-                            <FontIcon
-                              aria-label={value.label}
-                              size={theme.fontSize.regular}
-                            >
-                              <CheckRegularIcon />
-                            </FontIcon>
-                          )}
-                        </StyledFontIconArea>
-                        {filterableOption}
-                      </MenuItem>
-                    ))}
-                  </StyledFilterOption>
-                ))}
-              </>
-            )}
-            {menuOpenKey === "sort" && (
-              <>
-                <StyledFilterSortTypography>
-                  {sortLabel}
-                </StyledFilterSortTypography>
-                <StyledDividerArea>
-                  <StyledDivider />
-                </StyledDividerArea>
-                {sortableDetails.map(([key, value]) => (
-                  <MenuItem
-                    key={key}
-                    onClick={(e): void =>
-                      handleClickMenuItem(
-                        e,
-                        key,
-                        sortOrder === "asc" ? "desc" : "asc"
-                      )
-                    }
-                    selected={sortKey === key}
-                    style={{
-                      backgroundColor: sortKey === key ? "#edf3f8" : undefined,
-                      color:
-                        sortKey === key
-                          ? theme.palette.primary.main
-                          : undefined,
-                    }}
-                  >
-                    <StyledFontIconArea
+        <DrawerMenu
+          anchorEl={menuAnchorRef.current}
+          open={menuOpen}
+          onClose={handleCloseMenu}
+        >
+          {menuOpenKey === "filter" && (
+            <>
+              <StyledFilterSortTypography>
+                {filterLabel}
+              </StyledFilterSortTypography>
+              {filterableDetails.map(([key, value]) => (
+                <StyledFilterOption key={key}>
+                  <StyledDividerArea>
+                    <StyledDivider />
+                  </StyledDividerArea>
+                  {Object.keys(value.filterable).map((filterableOption) => (
+                    <MenuItem
+                      key={filterableOption}
+                      onClick={(e): void =>
+                        handleClickMenuItem(e, key, filterableOption)
+                      }
+                      selected={activeFilters[key] === filterableOption}
                       style={{
-                        minWidth: theme.spacing(4),
-                        minHeight: theme.spacing(4),
+                        backgroundColor:
+                          activeFilters[key] === filterableOption
+                            ? "#edf3f8"
+                            : undefined,
+                        color:
+                          activeFilters[key] === filterableOption
+                            ? theme.palette.primary.main
+                            : undefined,
                       }}
                     >
-                      {sortKey === key && (
-                        <FontIcon
-                          aria-label={value.label}
-                          size={theme.fontSize.regular}
-                        >
-                          {sortOrder === "asc" ? (
-                            <ArrowUpRegularIcon />
-                          ) : (
-                            <ArrowDownRegularIcon />
-                          )}
-                        </FontIcon>
-                      )}
-                    </StyledFontIconArea>
-                    {value.label}
-                  </MenuItem>
-                ))}
-              </>
-            )}
-          </DrawerMenu>
-        )}
+                      <StyledFontIconArea
+                        style={{
+                          minWidth: theme.spacing(4),
+                          minHeight: theme.spacing(4),
+                        }}
+                      >
+                        {activeFilters[key] === filterableOption && (
+                          <FontIcon
+                            aria-label={value.label}
+                            size={theme.fontSize.regular}
+                          >
+                            <CheckRegularIcon />
+                          </FontIcon>
+                        )}
+                      </StyledFontIconArea>
+                      {filterableOption}
+                    </MenuItem>
+                  ))}
+                </StyledFilterOption>
+              ))}
+            </>
+          )}
+          {menuOpenKey === "sort" && (
+            <>
+              <StyledFilterSortTypography>
+                {sortLabel}
+              </StyledFilterSortTypography>
+              <StyledDividerArea>
+                <StyledDivider />
+              </StyledDividerArea>
+              {sortableDetails.map(([key, value]) => (
+                <MenuItem
+                  key={key}
+                  onClick={(e): void =>
+                    handleClickMenuItem(
+                      e,
+                      key,
+                      sortOrder === "asc" ? "desc" : "asc"
+                    )
+                  }
+                  selected={sortKey === key}
+                  style={{
+                    backgroundColor: sortKey === key ? "#edf3f8" : undefined,
+                    color:
+                      sortKey === key ? theme.palette.primary.main : undefined,
+                  }}
+                >
+                  <StyledFontIconArea
+                    style={{
+                      minWidth: theme.spacing(4),
+                      minHeight: theme.spacing(4),
+                    }}
+                  >
+                    {sortKey === key && (
+                      <FontIcon
+                        aria-label={value.label}
+                        size={theme.fontSize.regular}
+                      >
+                        {sortOrder === "asc" ? (
+                          <ArrowUpRegularIcon />
+                        ) : (
+                          <ArrowDownRegularIcon />
+                        )}
+                      </FontIcon>
+                    )}
+                  </StyledFontIconArea>
+                  {value.label}
+                </MenuItem>
+              ))}
+            </>
+          )}
+        </DrawerMenu>
         <StyledDivider absolute style={dividerStyle} />
       </StyledCard>
     );
@@ -2665,17 +2669,15 @@ export const EngineConsoleList = React.memo(
             )}
           </StyledPaddingArea>
         </StyledArea>
-        {optionsMenuOpen !== undefined && (
-          <ContextMenu
-            anchorReference={optionsMenuReference}
-            anchorEl={optionsMenuAnchorEl}
-            anchorPosition={optionsMenuPosition}
-            open={optionsMenuOpen}
-            options={menuOptions}
-            onOption={handleClickContextMenuOption}
-            onClose={handleCloseContextMenu}
-          />
-        )}
+        <ContextMenu
+          anchorReference={optionsMenuReference}
+          anchorEl={optionsMenuAnchorEl}
+          anchorPosition={optionsMenuPosition}
+          open={optionsMenuOpen}
+          options={menuOptions}
+          onOption={handleClickContextMenuOption}
+          onClose={handleCloseContextMenu}
+        />
         {draggingFilePath === currentPath && !empty && (
           <UploadOverlay selectedColor={selectedColor} />
         )}

@@ -107,6 +107,10 @@ export const lowercaseParagraphSnippets: readonly Completion[] = [
     label: "camera",
     type: "struct",
   }),
+  snip("entity ${}${EntityName}:${}", {
+    label: "entity",
+    type: "struct",
+  }),
 ];
 
 export const uppercaseParagraphSnippets: readonly Completion[] = [

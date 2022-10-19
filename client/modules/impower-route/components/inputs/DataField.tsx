@@ -730,6 +730,7 @@ const DataField = React.memo((props: DataFieldProps): JSX.Element | null => {
     BooleanInputComponent,
     ObjectFieldComponent,
     size,
+    inset,
     backgroundColor,
     showError,
     error,
@@ -1060,6 +1061,7 @@ const DataField = React.memo((props: DataFieldProps): JSX.Element | null => {
         ObjectFieldComponent={ObjectFieldComponent}
         size={size}
         spacing={spacing}
+        inset={inset}
         backgroundColor={backgroundColor}
         indentAmount={indentAmount}
         DialogProps={DialogProps}

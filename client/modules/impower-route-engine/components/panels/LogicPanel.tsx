@@ -277,10 +277,6 @@ const ContainerPanelHeader = React.memo(
               offIcon={lintIcon}
               onClick={onToggleLinting}
             />
-            {/* <ScriptingPanelHeaderIconButton
-              scripting={scripting}
-              onClick={handleClickHeaderScriptingIcon}
-            /> */}
           </>
         }
       />

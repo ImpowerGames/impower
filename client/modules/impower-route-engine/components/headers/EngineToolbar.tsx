@@ -777,7 +777,7 @@ const EngineToolbarContent = React.memo(
               >
                 <FontIcon
                   aria-label={backLabel}
-                  size={theme.fontSize.smallIcon}
+                  size={theme.fontSize.smallerIcon}
                   style={{ opacity: 0.5 }}
                 >
                   <ArrowLeftRegularIcon />
@@ -833,7 +833,7 @@ const EngineToolbarContent = React.memo(
                   >
                     <FontIcon
                       aria-label={clearLabel}
-                      size={theme.fontSize.smallIcon}
+                      size={theme.fontSize.smallerIcon}
                       style={{ opacity: 0.5 }}
                     >
                       <XmarkRegularIcon />
@@ -857,7 +857,7 @@ const EngineToolbarContent = React.memo(
                     >
                       <FontIcon
                         aria-label={`Match Case`}
-                        size={theme.fontSize.smallIcon}
+                        size={theme.fontSize.smallerIcon}
                       >
                         {searchTextQueryRef.current?.caseSensitive ? (
                           <FontCaseSolidIcon />
@@ -880,7 +880,7 @@ const EngineToolbarContent = React.memo(
                     >
                       <FontIcon
                         aria-label={`Use Regular Expression`}
-                        size={theme.fontSize.smallIcon}
+                        size={theme.fontSize.smallerIcon}
                       >
                         {searchTextQueryRef.current?.regexp ? (
                           <AsteriskSolidIcon />
@@ -899,8 +899,8 @@ const EngineToolbarContent = React.memo(
                     >
                       <FontIcon
                         aria-label={`Find Previous`}
-                        size={theme.fontSize.smallIcon}
-                        style={{ opacity: 0.5 }}
+                        size={theme.fontSize.smallerIcon}
+                        style={{ opacity: 0.85 }}
                       >
                         <ArrowUpRegularIcon />
                       </FontIcon>
@@ -908,8 +908,8 @@ const EngineToolbarContent = React.memo(
                     <StyledIconButton color="inherit" onClick={handleFindNext}>
                       <FontIcon
                         aria-label={`Find Next`}
-                        size={theme.fontSize.smallIcon}
-                        style={{ opacity: 0.5 }}
+                        size={theme.fontSize.smallerIcon}
+                        style={{ opacity: 0.85 }}
                       >
                         <ArrowDownRegularIcon />
                       </FontIcon>
@@ -932,8 +932,8 @@ const EngineToolbarContent = React.memo(
                   <StyledIconButton color="inherit" onClick={handleReplace}>
                     <FontIcon
                       aria-label={`Replace`}
-                      size={theme.fontSize.smallIcon}
-                      style={{ opacity: 0.5 }}
+                      size={theme.fontSize.smallerIcon}
+                      style={{ opacity: 0.85 }}
                     >
                       <ShareRegularIcon />
                     </FontIcon>
@@ -941,8 +941,8 @@ const EngineToolbarContent = React.memo(
                   <StyledIconButton color="inherit" onClick={handleReplaceAll}>
                     <FontIcon
                       aria-label={`Replace All`}
-                      size={theme.fontSize.smallIcon}
-                      style={{ opacity: 0.5 }}
+                      size={theme.fontSize.smallerIcon}
+                      style={{ opacity: 0.85 }}
                     >
                       <ShareAllRegularIcon />
                     </FontIcon>

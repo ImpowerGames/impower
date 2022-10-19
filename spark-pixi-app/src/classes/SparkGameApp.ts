@@ -1,5 +1,4 @@
 import { SparkContext } from "../../../spark-engine";
-import { InputScene } from "./scenes/InputScene";
 import { LogicScene } from "./scenes/LogicScene";
 import { MainScene } from "./scenes/MainScene";
 import { PreviewScene } from "./scenes/PreviewScene";
@@ -9,6 +8,7 @@ import {
   SparkApplication,
   SparkApplicationOptions,
 } from "./wrappers/SparkApplication";
+import { SparkContainer } from "./wrappers/SparkContainer";
 
 export const responsiveBreakpoints: Record<string, number> = {
   xs: 400,
@@ -49,6 +49,12 @@ export class SparkGameApp {
     return this._resizeObserver;
   }
 
+  private _entities: Record<string, SparkContainer> = {};
+
+  public get entities(): Record<string, SparkContainer> {
+    return this._entities;
+  }
+
   private _time = 0;
 
   constructor(
@@ -63,6 +69,7 @@ export class SparkGameApp {
       antialias: true,
       autoStart: false,
       autoDensity: true,
+      resolution: window.devicePixelRatio,
       resizeTo: this._parent || undefined,
       ...(options || {}),
     });
@@ -105,15 +112,14 @@ export class SparkGameApp {
     if (context) {
       if (context?.editable) {
         this._scenes = [
-          new MainScene(context, this.app),
-          new PreviewScene(context, this.app),
+          new MainScene(context, this.app, this.entities),
+          new PreviewScene(context, this.app, this.entities),
         ];
       } else {
         this._scenes = [
-          new MainScene(context, this.app),
-          new SynthScene(context, this.app),
-          new InputScene(context, this.app),
-          new LogicScene(context, this.app),
+          new MainScene(context, this.app, this.entities),
+          new SynthScene(context, this.app, this.entities),
+          new LogicScene(context, this.app, this.entities),
         ];
       }
     }
@@ -125,8 +131,10 @@ export class SparkGameApp {
     startTicker?: boolean,
     onLoaded?: () => void
   ): Promise<void> {
-    await Promise.all(this.scenes.map((scene) => scene.init()));
-
+    await Promise.all(this.scenes.map((scene) => scene.load()));
+    this.scenes.forEach((scene) => {
+      scene.init();
+    });
     this.scenes.forEach((scene) => {
       scene.start();
     });

@@ -78,7 +78,7 @@ export const sparkRegexes: SparkRegexes = {
 
   import: /^([ \t]*)(import)($|[ ]+)($|[^\n\r]+)([ ]*)$/,
   struct:
-    /^([ \t]*)(list|map|config|ui|style|camera)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)(?:([(])([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$/,
+    /^([ \t]*)(list|map|config|ui|style|camera|entity)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)(?:([(])([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$/,
 
   list: /^([ \t]*)([*+-])($|[ ]+)(.*)([ ]*)$/,
   choice:
