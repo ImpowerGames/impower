@@ -32,4 +32,8 @@ export class SparkApplication extends PIXI.Application {
     PIXI.utils.destroyTextureCache();
     registerPixiInspector();
   }
+
+  override resize(): void {
+    super.resize();
+  }
 }
