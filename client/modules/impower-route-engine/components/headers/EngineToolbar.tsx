@@ -1083,6 +1083,7 @@ interface EngineToolbarProps {
   onSelectAll?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDeselectAll?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClickMoreOption?: (e: React.MouseEvent, option: string) => void;
+  onClickSearchButton?: (e: React.MouseEvent) => void;
   onBack?: (e: React.MouseEvent) => void;
   onDone?: (e: React.MouseEvent) => void;
   onSearchText?: (
@@ -1133,6 +1134,7 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     leftChildren,
     rightChildren,
     belowBreakpoint,
+    onClickSearchButton,
     isSelectAllowed,
     onSelectAll,
     onDeselectAll,
@@ -1191,15 +1193,19 @@ const EngineToolbar = (props: EngineToolbarProps): JSX.Element => {
     [headerRef]
   );
 
-  const handleClickSearchButton = useCallback((e: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-      e.preventDefault();
-    }
-    if (keyboardTriggerRef.current) {
-      keyboardTriggerRef.current.focus();
-    }
-  }, []);
+  const handleClickSearchButton = useCallback(
+    (e: React.MouseEvent) => {
+      onClickSearchButton?.(e);
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      if (keyboardTriggerRef.current) {
+        keyboardTriggerRef.current.focus();
+      }
+    },
+    [onClickSearchButton]
+  );
 
   const theme = useTheme();
 

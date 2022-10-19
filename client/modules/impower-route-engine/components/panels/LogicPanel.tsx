@@ -226,6 +226,8 @@ const ContainerPanelHeader = React.memo(
       [toolbar]
     );
 
+    const mobileKeyboardVisible = portrait && focused;
+
     return (
       <PanelHeader
         type={headerType}
@@ -234,17 +236,16 @@ const ContainerPanelHeader = React.memo(
         stickyStyle={headerStickyStyle}
         backIcon={<AngleLeftRegularIcon />}
         moreIcon={
-          portrait && focused ? (
+          mobileKeyboardVisible ? (
             <CheckRegularIcon />
           ) : (
             <EllipsisVerticalRegularIcon />
           )
         }
         moreButtonStyle={{
-          color:
-            portrait && focused
-              ? theme.colors.selected
-              : theme.palette.secondary.main,
+          color: mobileKeyboardVisible
+            ? theme.colors.selected
+            : theme.palette.secondary.main,
         }}
         backLabel={`Back`}
         moreLabel={`More Options`}
@@ -253,7 +254,7 @@ const ContainerPanelHeader = React.memo(
         replaceLabel={`Replace`}
         onSearchText={handleSearchText}
         onSearchLine={handleSearchLine}
-        onClickMoreOption={handleClickMoreOption}
+        onClickMoreOption={mobileKeyboardVisible ? null : handleClickMoreOption}
         leftChildren={
           scripting ? (
             <TogglePanelHeaderIconButton

@@ -1938,7 +1938,7 @@ export const EngineConsoleList = React.memo(
     const searchable = useMemo(
       () =>
         Object.entries(cardDetails).filter(([, value]) => value.searchable)
-          .length > 0,
+          .length > 1,
       [cardDetails]
     );
 
