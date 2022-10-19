@@ -1,6 +1,7 @@
 import { CameraState } from "../../interfaces/CameraState";
 import { EntityState } from "../../interfaces/EntityState";
 import { createCameraState } from "../../utils/createCameraState";
+import { createEntityState } from "../../utils/createEntityState";
 import { GameEvent } from "../GameEvent";
 import { Manager } from "../Manager";
 
@@ -85,22 +86,16 @@ export class WorldManager extends Manager<WorldState, WorldEvents> {
 
   private getOrCreateCameraState(cameraId?: string): CameraState {
     const id = cameraId || this.state.mainCamera;
-    const s = this.state.cameraStates[id];
-    if (s) {
-      return s;
+    const state = this.state.cameraStates[id];
+    if (state) {
+      return state;
     }
     const d = this.defaultCameras[id];
     const c = createCameraState();
-    return {
-      position: {
-        ...(d?.position || c.position),
-      },
-      rotation: {
-        ...(d?.rotation || c.rotation),
-      },
-      scale: {
-        ...(d?.scale || c.scale),
-      },
+    return this.deepCopy({
+      position: d?.position || c.position,
+      rotation: d?.rotation || c.rotation,
+      scale: d?.scale || c.scale,
       type: d?.type || c.type,
       depth: d?.depth || c.depth,
       width: d?.width || c.width,
@@ -108,19 +103,27 @@ export class WorldManager extends Manager<WorldState, WorldEvents> {
       fit: d?.fit || c.fit,
       background: d?.background || c.background,
       color: d?.color || c.color,
-      spawnedEntities: [...(d?.spawnedEntities || c.spawnedEntities)],
-      entities: this.deepCopy(d?.entities || c.entities),
-    };
+      spawnedEntities: d?.spawnedEntities || c.spawnedEntities,
+      entities: d?.entities || c.entities,
+    });
   }
 
   private getOrCreateEntityState(
     entityId: string,
     cameraId?: string
   ): EntityState {
-    const d = this._defaultEntities[entityId] || {};
     const cameraState = this.getCameraState(cameraId);
-    const c = cameraState?.entities[entityId] || {};
-    return this.deepCopy({ ...d, ...c });
+    const state = cameraState?.entities[entityId];
+    if (state) {
+      return state;
+    }
+    const d = this._defaultEntities[entityId];
+    const c = createEntityState();
+    return this.deepCopy({
+      position: d?.position || c.position,
+      rotation: d?.rotation || c.rotation,
+      scale: d?.scale || c.scale,
+    });
   }
 
   addCamera(cameraId: string, cameraState?: CameraState): void {
