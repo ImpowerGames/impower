@@ -56,4 +56,4 @@ src/tmp/
 node_modules
 src/generated/
 
-out/
+out
