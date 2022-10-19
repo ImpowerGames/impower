@@ -8,7 +8,7 @@ export const generateGrid = (
   cellSize?: number,
   rows?: number,
   columns?: number
-) => {
+): PIXI.RenderTexture => {
   const color = lineColor || 0x0000ff;
   const thickness = lineThickness || 3;
   const size = cellSize || 32;

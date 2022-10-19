@@ -5,7 +5,7 @@ export const generateSpritesheet = (
   renderer: PIXI.AbstractRenderer,
   svg: SVGSVGElement,
   maxFPS = 60,
-  id: string,
+  id = "",
   animationName = "default"
 ): PIXI.Spritesheet => {
   const container = new PIXI.Container();

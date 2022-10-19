@@ -1,4 +1,4 @@
-import { SparkContext } from "../../../spark-engine";
+import { SparkContext } from "../../../../spark-engine";
 import { LogicScene } from "./scenes/LogicScene";
 import { MainScene } from "./scenes/MainScene";
 import { PreviewScene } from "./scenes/PreviewScene";
@@ -168,7 +168,7 @@ export class SparkGameApp {
     if (this.context) {
       this.context.end();
     }
-    if (this.app && this.app?.["cancelResize"]) {
+    if (this.app && this.app?.cancelResize) {
       this.app.destroy(removeView, stageOptions);
     }
   }

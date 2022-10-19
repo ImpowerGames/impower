@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { SparkContext } from "../../../../spark-engine";
+import { SparkContext } from "../../../../../spark-engine";
 import {
   generateSpritesheet,
   SVGLoader,

@@ -2,7 +2,7 @@ import {
   CameraState,
   EntityState,
   SparkContext,
-} from "../../../../spark-engine";
+} from "../../../../../spark-engine";
 import { Marquee } from "../../plugins/editor-graphics";
 import { SparkScene } from "../SparkScene";
 import { SparkApplication } from "../wrappers/SparkApplication";
@@ -68,11 +68,11 @@ export class PreviewScene extends SparkScene {
   }
 
   addCamera(data: { cameraId: string; cameraState: CameraState }): void {
-    console.log("add camera", data.cameraId, data.cameraState);
+    console.warn("add camera", data.cameraId, data.cameraState);
   }
 
   removeCamera(data: { cameraId: string }): void {
-    console.log("remove camera", data.cameraId);
+    console.warn("remove camera", data.cameraId);
   }
 
   spawnEntity(data: {
@@ -80,10 +80,15 @@ export class PreviewScene extends SparkScene {
     cameraId?: string;
     entityState: EntityState;
   }): void {
-    console.log("spawn entity", data.entityId, data.cameraId, data.entityState);
+    console.warn(
+      "spawn entity",
+      data.entityId,
+      data.cameraId,
+      data.entityState
+    );
   }
 
   destroyEntity(data: { entityId: string; cameraId?: string }): void {
-    console.log("destroy entity", data.entityId, data.cameraId);
+    console.warn("destroy entity", data.entityId, data.cameraId);
   }
 }

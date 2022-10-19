@@ -26,14 +26,6 @@ export interface SparkApplicationOptions {
 export class SparkApplication extends PIXI.Application {
   override stage: SparkStage;
 
-  override get view(): HTMLCanvasElement {
-    return super.view;
-  }
-
-  override get ticker(): PIXI.Ticker {
-    return super.ticker;
-  }
-
   constructor(options?: SparkApplicationOptions) {
     super(options);
     this.stage = new SparkStage();

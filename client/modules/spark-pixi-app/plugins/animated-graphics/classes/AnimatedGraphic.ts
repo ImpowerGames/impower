@@ -255,8 +255,8 @@ export class AnimatedGraphic extends DisplayObject {
   containsPoint(point: IPointData): boolean {
     this.worldTransform.applyInverse(point, tempPoint);
 
-    const width = this._orig.width;
-    const height = this._orig.height;
+    const width = this._orig?.width;
+    const height = this._orig?.height;
     const x1 = -width * this.anchor.x;
     let y1 = 0;
 
@@ -338,7 +338,7 @@ export class AnimatedGraphic extends DisplayObject {
    * @param element - The element to be embedded in a display object.
    */
   protected createNode(element: SVGElement): Container | undefined {
-    let renderNode: Container | undefined = undefined;
+    let renderNode: Container | undefined;
 
     if (!element) {
       return renderNode;
@@ -699,7 +699,7 @@ export class AnimatedGraphic extends DisplayObject {
 
     node.on("nodetransformdirty", this.onNodeTransformDirty);
 
-    let paint: Paint | undefined = undefined;
+    let paint: Paint | undefined;
 
     if (
       element instanceof SVGGraphicsElement ||

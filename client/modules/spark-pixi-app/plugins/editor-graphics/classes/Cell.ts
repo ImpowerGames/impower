@@ -20,17 +20,13 @@ export class Cell extends PIXI.Graphics {
     this.color = options?.color || this.color;
     this.size = options?.size || this.size;
 
-    const thickness = this.thickness;
-    const color = this.color;
-    const length = this.size;
-
-    this.lineStyle(thickness, color);
+    this.lineStyle(this.thickness, this.color);
     this.moveTo(0, 0);
-    this.lineTo(0, length);
+    this.lineTo(0, this.size);
 
-    this.lineStyle(thickness, color);
+    this.lineStyle(this.thickness, this.color);
     this.moveTo(0, 0);
-    this.lineTo(length, 0);
+    this.lineTo(this.size, 0);
   }
 
   override calculateBounds(): void {

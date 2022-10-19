@@ -1,6 +1,6 @@
 import { PropsWithChildren, useEffect, useMemo, useRef } from "react";
 import { SparkContext } from "../../../../spark-engine";
-import { SparkGameApp } from "../../../../spark-pixi-app";
+import { SparkGameApp } from "../../spark-pixi-app";
 
 interface GameProps {
   domElementId: string;

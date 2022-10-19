@@ -1,4 +1,4 @@
-import { SparkContext } from "../../../spark-engine";
+import { SparkContext } from "../../../../spark-engine";
 import { SparkApplication } from "./wrappers/SparkApplication";
 import { SparkContainer } from "./wrappers/SparkContainer";
 

@@ -38,33 +38,28 @@ export class Marquee extends PIXI.Container {
     this.speed = options?.speed || this.speed;
     this.fillStyle = options?.fillStyle || this.fillStyle;
 
-    const dash = this.dash;
-    const dashSpace = this.dashSpace;
-    const thickness = this.thickness;
-    const fillStyle = this.fillStyle;
-
     // Draw a 4 x 4 texture as a grid
     const canvas = document.createElement("canvas");
-    canvas.width = dash + dashSpace;
-    canvas.height = dash + dashSpace;
+    canvas.width = this.dash + this.dashSpace;
+    canvas.height = this.dash + this.dashSpace;
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      ctx.fillStyle = fillStyle;
-      ctx.fillRect(0, 0, dash, dash);
+      ctx.fillStyle = this.fillStyle;
+      ctx.fillRect(0, 0, this.dash, this.dash);
     }
     const texture = PIXI.Texture.from(canvas, {
       scaleMode: PIXI.SCALE_MODES.NEAREST,
     });
 
-    this.topLine = new PIXI.TilingSprite(texture, 100, thickness);
-    this.leftLine = new PIXI.TilingSprite(texture, thickness, 100);
-    this.rightLine = new PIXI.TilingSprite(texture, thickness, 100);
-    this.bottomLine = new PIXI.TilingSprite(texture, 100, thickness);
+    this.topLine = new PIXI.TilingSprite(texture, 100, this.thickness);
+    this.leftLine = new PIXI.TilingSprite(texture, this.thickness, 100);
+    this.rightLine = new PIXI.TilingSprite(texture, this.thickness, 100);
+    this.bottomLine = new PIXI.TilingSprite(texture, 100, this.thickness);
     this.setSize(0, 0, 100, 100);
     this.addChild(this.topLine, this.leftLine, this.rightLine, this.bottomLine);
   }
 
-  setSize(x: number, y: number, width: number, height: number) {
+  setSize(x: number, y: number, width: number, height: number): void {
     const l = this.thickness;
     this.topLine.position.set(x - l, y - l);
     this.leftLine.position.set(x - l, y);
@@ -77,7 +72,7 @@ export class Marquee extends PIXI.Container {
     this.rightLine.height = height;
   }
 
-  update() {
+  update(): void {
     if (this.visible) {
       this.time += this.speed;
       const size = this.dash + this.dashSpace;

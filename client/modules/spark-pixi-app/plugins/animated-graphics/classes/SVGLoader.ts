@@ -51,7 +51,7 @@ export class SVGLoader {
     size: number;
   } {
     return {
-      clear: () => {
+      clear: (): void => {
         this._SVG_DOCUMENT_CACHE.clear();
       },
       size: this._SVG_DOCUMENT_CACHE.size,
