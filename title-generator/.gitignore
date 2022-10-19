@@ -55,3 +55,5 @@ src/tmp/
 .vs
 node_modules
 src/generated/
+
+out/
