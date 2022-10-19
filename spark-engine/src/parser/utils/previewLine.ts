@@ -44,7 +44,7 @@ export const previewLine = (
     const previewStruct = getPreviewStruct(result, line);
     if (previewStruct?.type === "style") {
       const objectMap = generateStructObjects(result?.structs || {});
-      loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));
+      loadStyles(objectMap, ...Object.keys(objectMap?.["style"] || {}));
     }
     if (previewStruct?.type === "ui") {
       const objectMap = generateStructObjects(result?.structs || {});

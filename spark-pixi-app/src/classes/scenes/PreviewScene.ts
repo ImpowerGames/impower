@@ -30,13 +30,13 @@ export class PreviewScene extends SparkScene {
     this._marquee.visible = false;
   }
 
-  init(): void {
+  override init(): void {
     this.app.stage.addChild(this._marquee);
     this.app.stage.interactive = true;
     this.app.stage.hitArea = this.app.screen;
   }
 
-  start(): void {
+  override start(): void {
     this.context?.game?.world?.events?.onAddCamera?.addListener((data) =>
       this.addCamera(data)
     );

@@ -17,8 +17,8 @@ const shuffle = <T>(array: T[], seed?: string): T[] => {
 
     // And swap it with the current element.
     temporaryValue = newArray[currentIndex];
-    newArray[currentIndex] = newArray[randomIndex];
-    newArray[randomIndex] = temporaryValue;
+    newArray[currentIndex] = newArray[randomIndex] as T;
+    newArray[randomIndex] = temporaryValue as T;
   }
 
   return newArray;
@@ -70,11 +70,11 @@ export const choose = (
     const iterationIndex = v % args.length;
     const loopIndex = Math.floor(v / args.length);
     return [
-      loopIndex < 1 ? args[iterationIndex] : args[args.length - 1],
+      loopIndex < 1 ? args[iterationIndex] || "" : args[args.length - 1] || "",
       diagnostics,
       ignoreArgs,
     ];
   }
   const iterationIndex = v % args.length;
-  return [args[iterationIndex], diagnostics, ignoreArgs];
+  return [args[iterationIndex] || "", diagnostics, ignoreArgs];
 };

@@ -6,7 +6,7 @@ import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
   id?: string | null;
 
-  onExecute(
+  override onExecute(
     data: EnterCommandData,
     context: CommandContext,
     game: SparkGame
@@ -18,7 +18,7 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
       return super.onExecute(data, context, game);
     }
 
-    let id = "#";
+    let id: string | undefined = "#";
     let values: string[] = [];
 
     const constantCall = calls[""];
@@ -69,7 +69,7 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
     return super.onExecute(data, context, game);
   }
 
-  isFinished(
+  override isFinished(
     data: EnterCommandData,
     context: CommandContext,
     game: SparkGame
@@ -85,7 +85,7 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
     }
     if (this.id != null && returnWhenFinished) {
       const blockState = game.logic.state.blockStates[this.id];
-      if (!blockState.hasFinished) {
+      if (blockState && !blockState.hasFinished) {
         return false;
       }
       this.id = null;

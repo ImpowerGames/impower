@@ -278,7 +278,7 @@ const getAnimatedSpanElements = (
       whiteSpace: part === "\n" ? "pre-wrap" : (null as unknown as string),
     };
     const span = createCharSpan(
-      part,
+      part || "",
       letterFadeDuration,
       instant,
       chunkDelay,
@@ -300,7 +300,7 @@ const getAnimatedSpanElements = (
         chunkEls.push([totalDelay, [span]]);
       } else {
         // continue pause chunk
-        chunkEls[chunkEls.length - 1][1].push(span);
+        chunkEls[chunkEls.length - 1]?.[1].push(span);
       }
       chunkDelay = 0;
     } else {
@@ -311,7 +311,7 @@ const getAnimatedSpanElements = (
         chunkEls.push([totalDelay, [span]]);
       } else {
         // continue letter chunk
-        chunkEls[chunkEls.length - 1][1].push(span);
+        chunkEls[chunkEls.length - 1]?.[1].push(span);
       }
       chunkDelay += letterDelay;
     }
@@ -362,7 +362,7 @@ const getAnimatedSpanElements = (
   // Invalidate any leftover open markers
   if (marks.length > 0) {
     while (marks.length > 0) {
-      const [lastMark, lastMarkIndex] = marks[marks.length - 1];
+      const [lastMark, lastMarkIndex] = marks[marks.length - 1] || [];
       const invalidStyleEls = partEls.slice(lastMarkIndex).map((x) => x);
       invalidStyleEls.forEach((e) => {
         if (lastMark === "***") {
@@ -418,11 +418,11 @@ export const executeDisplayCommand = (
 
   const valueMap = context?.valueMap || {};
   const config =
-    (context?.objectMap?.DisplayCommand as DisplayCommandConfig) ||
+    (context?.objectMap?.["DisplayCommand"] as DisplayCommandConfig) ||
     defaultDisplayCommandConfig;
   const objectMap = context?.objectMap || {};
 
-  loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));
+  loadStyles(objectMap, ...Object.keys(objectMap?.["style"] || {}));
   loadUI(objectMap, "Display");
 
   const assetsOnly = type === "assets";
@@ -602,8 +602,12 @@ export const executeDisplayCommand = (
     } else {
       const handleDraw = (time: number): void => {
         for (let i = 0; i < chunkEls.length; i += 1) {
-          const [chunkTime, chunk] = chunkEls[i];
-          if (chunkTime < time) {
+          const [chunkTime, chunk] = chunkEls[i] || [];
+          if (
+            chunkTime !== undefined &&
+            chunk !== undefined &&
+            chunkTime < time
+          ) {
             chunk.forEach((c) => {
               if (c.style.opacity !== "1") {
                 c.style.opacity = "1";

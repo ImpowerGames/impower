@@ -17,12 +17,15 @@ export const generateStructObjects = (
           values[fk] = fv.value;
         }
       });
-      base = baseStruct?.base;
+      base = baseStruct?.base || "";
     }
     if (!objects[v.type]) {
       objects[v.type] = {};
     }
-    objects[v.type][k] = "";
+    const typeObj = objects[v.type];
+    if (typeObj) {
+      typeObj[k] = "";
+    }
     objects[k] = values;
   });
   return objects;

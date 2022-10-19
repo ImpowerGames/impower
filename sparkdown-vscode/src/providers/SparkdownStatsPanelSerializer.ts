@@ -20,8 +20,9 @@ export const statsPanels: statisticsPanel[] = [];
 export function getStatisticsPanels(docuri: vscode.Uri): statisticsPanel[] {
   const selectedPanels: statisticsPanel[] = [];
   for (let i = 0; i < statsPanels.length; i++) {
-    if (statsPanels[i].uri === docuri.toString()) {
-      selectedPanels.push(statsPanels[i]);
+    const panel = statsPanels[i];
+    if (panel?.uri === docuri.toString()) {
+      selectedPanels.push(panel);
     }
   }
   return selectedPanels;
@@ -41,7 +42,8 @@ export function updateStatisticsDocumentVersion(
 
 export function removeStatisticsPanel(id: number) {
   for (let i = statsPanels.length - 1; i >= 0; i--) {
-    if (statsPanels[i].id === id) {
+    const panel = statsPanels[i];
+    if (panel?.id === id) {
       statsPanels.splice(i, 1);
     }
   }
@@ -259,30 +261,32 @@ let previousSelectionEnd = 0;
 vscode.window.onDidChangeTextEditorSelection((change) => {
   if (change.textEditor.document.languageId === "sparkdown") {
     const selection = change.selections[0];
-    statsPanels.forEach((p) => {
-      if (p.uri === change.textEditor.document.uri.toString()) {
-        if (selection.active.line !== previousCaretLine) {
-          previousCaretLine = selection.active.line;
-          p.panel.webview.postMessage({
-            command: "updatecaret",
-            content: selection.active.line,
-            linescount: change.textEditor.document.lineCount,
-            source: "click",
-          });
+    if (selection) {
+      statsPanels.forEach((p) => {
+        if (p.uri === change.textEditor.document.uri.toString()) {
+          if (selection.active.line !== previousCaretLine) {
+            previousCaretLine = selection.active.line;
+            p.panel.webview.postMessage({
+              command: "updatecaret",
+              content: selection.active.line,
+              linescount: change.textEditor.document.lineCount,
+              source: "click",
+            });
+          }
+          if (
+            previousSelectionStart !== selection.start.line ||
+            previousSelectionEnd !== selection.end.line
+          ) {
+            previousSelectionStart = selection.start.line;
+            previousSelectionEnd = selection.end.line;
+            p.panel.webview.postMessage({
+              command: "updateselection",
+              content: { start: selection.start.line, end: selection.end.line },
+            });
+          }
         }
-        if (
-          previousSelectionStart !== selection.start.line ||
-          previousSelectionEnd !== selection.end.line
-        ) {
-          previousSelectionStart = selection.start.line;
-          previousSelectionEnd = selection.end.line;
-          p.panel.webview.postMessage({
-            command: "updateselection",
-            content: { start: selection.start.line, end: selection.end.line },
-          });
-        }
-      }
-    });
+      });
+    }
   }
 });
 

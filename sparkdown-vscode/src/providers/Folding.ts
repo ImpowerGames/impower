@@ -7,16 +7,19 @@ export class SparkdownFoldingRangeProvider implements FoldingRangeProvider {
     const ranges: FoldingRange[] = [];
     if (parseState.parsedDocuments[document.uri.toString()]) {
       const addRange = (
-        structItem: StructureItem,
-        nextStructItem: StructureItem,
-        lastLine: number
+        structItem?: StructureItem,
+        nextStructItem?: StructureItem,
+        lastLine?: number
       ) => {
+        if (!structItem) {
+          return;
+        }
         if (nextStructItem) {
           //this is the last child, so the end of the folding range is the end of the parent
           lastLine = nextStructItem.range.start.line;
         }
         ranges.push(
-          new FoldingRange(structItem.range.start.line, lastLine - 1)
+          new FoldingRange(structItem.range.start.line, (lastLine || 0) - 1)
         );
 
         if (structItem.children && structItem.children.length) {
@@ -32,7 +35,7 @@ export class SparkdownFoldingRangeProvider implements FoldingRangeProvider {
       };
 
       const parsed = parseState.parsedDocuments[document.uri.toString()];
-      const structure = parsed.properties?.structure || [];
+      const structure = parsed?.properties?.structure || [];
       for (let i = 0; i < structure.length; i++) {
         //for each structToken, add a new range starting on the current structToken and ending on either the next one, or the last line of the document
         addRange(structure[i], structure[i + 1], document.lineCount);

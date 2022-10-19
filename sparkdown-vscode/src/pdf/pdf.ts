@@ -34,18 +34,20 @@ export const createPdf = async (
     const hiddenTitleTokens = parsedDocument.titleTokens["hidden"] || [];
     for (let index = 0; index < hiddenTitleTokens.length; index++) {
       const titleToken = hiddenTitleTokens[index];
-      const text = titleToken.text?.trimEnd();
-      if (titleToken.type === "watermark") {
-        watermark = text;
-      }
-      if (titleToken.type === "header") {
-        header = text;
-      }
-      if (titleToken.type === "footer") {
-        footer = text;
-      }
-      if (titleToken.type === "font") {
-        font = text;
+      if (titleToken) {
+        const text = titleToken.text?.trimEnd();
+        if (titleToken.type === "watermark") {
+          watermark = text;
+        }
+        if (titleToken.type === "header") {
+          header = text;
+        }
+        if (titleToken.type === "footer") {
+          footer = text;
+        }
+        if (titleToken.type === "font") {
+          font = text;
+        }
       }
     }
   }
@@ -57,7 +59,9 @@ export const createPdf = async (
   let invisibleSections = [];
   while (currentIndex < parsedDocument.tokens.length) {
     const currentToken = parsedDocument.tokens[currentIndex];
-
+    if (!currentToken) {
+      break;
+    }
     if (
       currentToken.type === "dual_dialogue_start" ||
       currentToken.type === "dialogue_start" ||
@@ -94,7 +98,8 @@ export const createPdf = async (
   // clean separators at the end
   while (
     parsedDocument.tokens.length > 0 &&
-    parsedDocument.tokens[parsedDocument.tokens.length - 1].type === "separator"
+    parsedDocument.tokens[parsedDocument.tokens.length - 1]?.type ===
+      "separator"
   ) {
     parsedDocument.tokens.pop();
   }
@@ -110,7 +115,9 @@ export const createPdf = async (
   }
 
   const lines = liner.line(parsedDocument.tokens, {
-    print: printProfiles[screenplayConfig.screenplay_print_profile],
+    print:
+      printProfiles[screenplayConfig.screenplay_print_profile] ||
+      printProfiles.usletter,
     screenplay_print_dialogue_more:
       screenplayConfig.screenplay_print_dialogue_more,
     screenplay_print_dialogue_contd:
@@ -122,7 +129,9 @@ export const createPdf = async (
     filepath: outputPath,
     parsed: parsedDocument,
     lines: lines,
-    print: printProfiles[screenplayConfig.screenplay_print_profile],
+    print:
+      printProfiles[screenplayConfig.screenplay_print_profile] ||
+      printProfiles.usletter,
     screenplayConfig: screenplayConfig,
     font: font,
     sceneInvisibleSections,

@@ -3,7 +3,7 @@ import { SparkGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
 export class RepeatCommandRunner extends CommandRunner<CommandData> {
-  onExecute(
+  override onExecute(
     data: CommandData,
     context: CommandContext,
     game: SparkGame

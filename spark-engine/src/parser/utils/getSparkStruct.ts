@@ -3,7 +3,7 @@ import { SparkStruct, SparkToken } from "../../../../sparkdown";
 export const getSparkStruct = (
   token: SparkToken,
   structs: Record<string, SparkStruct>
-): SparkStruct | null => {
+): SparkStruct | null | undefined => {
   if (!token) {
     return null;
   }

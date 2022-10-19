@@ -113,7 +113,8 @@ const usletter: PrintProfile = {
   },
 };
 
-export const printProfiles: { [key: string]: PrintProfile } = {
+export const printProfiles: Record<"a4" | "usletter", PrintProfile> &
+  Record<string, PrintProfile> = {
   a4,
   usletter,
 };

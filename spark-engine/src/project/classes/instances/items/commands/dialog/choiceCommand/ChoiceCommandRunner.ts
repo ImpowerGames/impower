@@ -15,11 +15,11 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
 
   calls?: Record<string, { name: string; values: string[] }>;
 
-  init(): void {
+  override init(): void {
     executeChoiceCommand();
   }
 
-  onExecute(
+  override onExecute(
     data: ChoiceCommandData,
     context: CommandContext,
     game: SparkGame
@@ -71,7 +71,7 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     return super.onExecute(data, context, game);
   }
 
-  isFinished(
+  override isFinished(
     data: ChoiceCommandData,
     context: CommandContext,
     game: SparkGame
@@ -94,7 +94,7 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
 
       valueMap["#"] = [this.chosenCount - 1, this.seed];
 
-      let id = "#";
+      let id: string | undefined = "#";
       let values: string[] = [];
 
       const constantCall = calls?.[""];
@@ -148,7 +148,7 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     return false;
   }
 
-  onPreview(
+  override onPreview(
     data: ChoiceCommandData,
     context?: {
       valueMap: Record<string, unknown>;

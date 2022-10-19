@@ -3,7 +3,7 @@ import { SparkGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
 export class DestroyCommandRunner extends CommandRunner<DestroyCommandData> {
-  onExecute(
+  override onExecute(
     data: DestroyCommandData,
     context: CommandContext,
     game: SparkGame

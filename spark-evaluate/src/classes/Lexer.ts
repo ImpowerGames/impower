@@ -106,7 +106,7 @@ export class Lexer {
    * @param index next postion
    */
   private pickNext(index = 0): string {
-    return this.input[index + this.currentIndex + 1];
+    return this.input[index + this.currentIndex + 1] || "";
   }
 
   /**

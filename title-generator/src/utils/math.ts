@@ -34,7 +34,7 @@ export const similarity = (v1: number[], v2: number[]): number => {
   }
   return Math.abs(
     v1.reduce((sum, a, idx) => {
-      return sum + a * v2[idx];
+      return sum + a * (v2[idx] || 0);
     }, 0) /
       (mag(v1) * mag(v2))
   );

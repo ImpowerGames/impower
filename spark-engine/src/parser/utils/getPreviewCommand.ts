@@ -4,6 +4,7 @@ import {
   SparkStruct,
   SparkToken,
 } from "../../../../sparkdown";
+import { CommandData } from "../../data";
 import { generateCommand } from "./generateCommand";
 
 export const getPreviewCommand = (
@@ -14,23 +15,26 @@ export const getPreviewCommand = (
     structs?: Record<string, SparkStruct>;
   },
   line: number
-) => {
+): CommandData | null | undefined => {
   if (!result) {
     return undefined;
   }
   if (!line) {
     return undefined;
   }
-  let tokenIndex = result.tokenLines[line];
+  let tokenIndex = result.tokenLines[line] || -1;
   let token = result.tokens[tokenIndex];
-  if (token) {
-    while (tokenIndex < result.tokens.length && token.skipToNextPreview) {
-      tokenIndex += 1;
-      token = result.tokens[tokenIndex];
-    }
-    const [sectionId] = getSectionAtLine(line, result?.sections || {});
-    const runtimeCommand = generateCommand(token, sectionId);
-    return runtimeCommand;
+  if (!token) {
+    return null;
   }
-  return null;
+  while (tokenIndex < result.tokens.length && token?.skipToNextPreview) {
+    tokenIndex += 1;
+    token = result.tokens[tokenIndex];
+  }
+  if (!token) {
+    return null;
+  }
+  const [sectionId] = getSectionAtLine(line, result?.sections || {});
+  const runtimeCommand = generateCommand(token, sectionId);
+  return runtimeCommand;
 };

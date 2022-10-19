@@ -7,7 +7,7 @@ import * as vscode from "vscode";
  * Floor to get real line number
  */
 export function getVisibleLine(editor: vscode.TextEditor): number | undefined {
-  if (!editor?.visibleRanges?.length) {
+  if (!editor?.visibleRanges?.[0]) {
     return undefined;
   }
 

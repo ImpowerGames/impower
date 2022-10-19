@@ -30,11 +30,11 @@ export const executeChoiceCommand = (
 
   const valueMap = context?.valueMap || {};
   const config =
-    (context?.objectMap?.ChoiceCommand as ChoiceCommandConfig) ||
+    (context?.objectMap?.["ChoiceCommand"] as ChoiceCommandConfig) ||
     defaultChoiceCommandConfig;
   const objectMap = context?.objectMap || {};
 
-  loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));
+  loadStyles(objectMap, ...Object.keys(objectMap?.["style"] || {}));
   loadUI(objectMap, "Display");
 
   const validIndex = index != null ? index : order;

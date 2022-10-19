@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { SparkParseResult } from "../../../sparkdown";
 
 export const last = function <T>(array: T[]): T {
-  return array[array.length - 1];
+  return array[array.length - 1] as T;
 };
 
 /** Shifts scene/s at the selected text up or down */
@@ -36,10 +36,10 @@ export const shiftScenes = (
     if (headingsBefore.length === 0) {
       return undefined;
     }
-    const selStart = +headingsBefore[0].line;
+    const selStart = +(headingsBefore[0]?.line || 0);
 
     if (headingsAfter.length) {
-      const selEnd = +headingsAfter[0].line;
+      const selEnd = +(headingsAfter[0]?.line || 0);
       return new vscode.Selection(selStart, 0, selEnd, 0);
     } else {
       // +2 is where the next scene would start if there was one. done to make it look consistent.

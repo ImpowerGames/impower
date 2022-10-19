@@ -99,17 +99,20 @@ export class Liner {
     const MORE = cfg.screenplay_print_dialogue_more || "(MORE)";
 
     let before = index - 1;
-    while (before && !lines[before].text) {
+    while (before && !lines[before]?.text) {
       before--;
     }
 
     let after = index + 1;
-    while (after < lines.length && !lines[after].text) {
+    while (after < lines.length && !lines[after]?.text) {
       after++;
     }
 
     // possible break is after this token
     const tokenOnBreak = lines[index];
+    if (!tokenOnBreak) {
+      return false;
+    }
 
     const tokenAfter = lines[after];
     const tokenBefore = lines[before];
@@ -162,17 +165,17 @@ export class Liner {
       tokenOnBreak.type === "dialogue" &&
       tokenAfter &&
       tokenAfter.type === "dialogue" &&
-      tokenBefore.type === "dialogue" &&
+      tokenBefore?.type === "dialogue" &&
       !tokenOnBreak.position
     ) {
       let newPageCharacter;
       let character = before;
-      while (lines[character] && lines[character].type !== "character") {
+      while (lines[character] && lines[character]?.type !== "character") {
         character--;
       }
       let characterName = "";
       if (lines[character]) {
-        characterName = lines[character].text;
+        characterName = lines[character]?.text || "";
       }
 
       const moreItem: LineItem = {
@@ -206,9 +209,9 @@ export class Liner {
         }))
       );
 
-      if (lines[character] && lines[character].rightColumn) {
+      if (lines[character] && lines[character]?.rightColumn) {
         const dialogueOnPageLength = index - character;
-        const rightLinesOnThisPage = (lines[character].rightColumn || [])
+        const rightLinesOnThisPage = (lines[character]?.rightColumn || [])
           .slice(0, dialogueOnPageLength)
           .concat([
             createLine({
@@ -221,9 +224,9 @@ export class Liner {
             }),
           ]);
         const rightText =
-          rightLinesOnThisPage[0].text.trim() +
+          rightLinesOnThisPage[0]?.text.trim() +
           " " +
-          (rightLinesOnThisPage[0].text.indexOf(CONTD) !== -1 ? "" : CONTD);
+          (rightLinesOnThisPage[0]?.text.indexOf(CONTD) !== -1 ? "" : CONTD);
         const rightLinesForNextPage = [
           createLine({
             type: "character",
@@ -234,10 +237,13 @@ export class Liner {
             token: tokenOnBreak.token,
           }),
         ].concat(
-          (lines[character].rightColumn || []).slice(dialogueOnPageLength)
+          (lines[character]?.rightColumn || []).slice(dialogueOnPageLength)
         );
 
-        lines[character].rightColumn = rightLinesOnThisPage;
+        const characterLine = lines[character];
+        if (characterLine) {
+          characterLine.rightColumn = rightLinesOnThisPage;
+        }
         if (rightLinesForNextPage.length > 1) {
           newPageCharacter.rightColumn = rightLinesForNextPage;
         }
@@ -245,9 +251,11 @@ export class Liner {
 
       return true;
     } else if (
-      ["character", "parenthetical", "dialogue"].includes(lines[index].type) &&
+      ["character", "parenthetical", "dialogue"].includes(
+        lines[index]?.type || ""
+      ) &&
       lines[after] &&
-      ["parenthetical", "dialogue"].includes(lines[after].type)
+      ["parenthetical", "dialogue"].includes(lines[after]?.type || "")
     ) {
       return false; // or break
     }
@@ -260,7 +268,7 @@ export class Liner {
     breaker: (index: number, lines: LineItem[], cfg: LinerConfig) => boolean,
     cfg: LinerConfig
   ): LineItem[] => {
-    while (lines.length && !lines[0].text) {
+    while (lines.length && !lines[0]?.text) {
       lines.shift();
     }
 
@@ -269,7 +277,7 @@ export class Liner {
     let internalBreak = 0;
 
     for (let i = 0; i < lines.length && i < max; i++) {
-      if (lines[i].type === "page_break") {
+      if (lines[i]?.type === "page_break") {
         internalBreak = i;
       }
     }
@@ -279,7 +287,7 @@ export class Liner {
         return lines;
       }
       do {
-        for (p = s - 1; p && !lines[p].text; p--) {
+        for (p = s - 1; p && !lines[p]?.text; p--) {
           // loop
         }
         s = p;
@@ -297,11 +305,9 @@ export class Liner {
     let nextPageLine = null;
     let sceneSplit = false;
     while (nextPageLineIndex < lines.length && nextPageLine === null) {
-      if (
-        lines[nextPageLineIndex].type !== "separator" &&
-        lines[nextPageLineIndex].type !== "page_break"
-      ) {
-        nextPageLine = lines[nextPageLineIndex];
+      const line = lines[nextPageLineIndex];
+      if (line?.type !== "separator" && line?.type !== "page_break") {
+        nextPageLine = line;
       }
       nextPageLineIndex++;
     }
@@ -325,25 +331,31 @@ export class Liner {
 
     const getFirstUnfoldedDualLeft = () => {
       for (let i = 0; i < lines.length; i++) {
-        if (
-          lines[i].token &&
-          lines[i].token?.type === "character" &&
-          lines[i].token?.position === "left" &&
-          lines[i].rightColumn === undefined
-        ) {
-          return i;
+        const line = lines[i];
+        if (line) {
+          if (
+            line.token &&
+            line.token?.type === "character" &&
+            line.token?.position === "left" &&
+            line.rightColumn === undefined
+          ) {
+            return i;
+          }
         }
       }
       return -1;
     };
     const getFirstUnfoldedDualRightIndexFrom = (index: number) => {
       for (let i = index; i < lines.length; i++) {
-        if (
-          lines[i].token &&
-          lines[i].token?.type === "character" &&
-          lines[i].token?.position === "right"
-        ) {
-          return i;
+        const line = lines[i];
+        if (line) {
+          if (
+            line.token &&
+            line.token?.type === "character" &&
+            line.token?.position === "right"
+          ) {
+            return i;
+          }
         }
       }
       return -1;
@@ -353,11 +365,11 @@ export class Liner {
       let canbeCharacter = true;
       while (
         lines[i] &&
-        (lines[i].type === "parenthetical" ||
-          lines[i].type === "dialogue" ||
-          (canbeCharacter && lines[i].type === "character"))
+        (lines[i]?.type === "parenthetical" ||
+          lines[i]?.type === "dialogue" ||
+          (canbeCharacter && lines[i]?.type === "character"))
       ) {
-        if (lines[i].type !== "character") {
+        if (lines[i]?.type !== "character") {
           canbeCharacter = false;
         }
         result++;
@@ -369,7 +381,10 @@ export class Liner {
       const dialogueTokens = countDialogueTokens(rightIndex);
       const leftTokens = countDialogueTokens(leftIndex);
       const rightLines = lines.splice(rightIndex, dialogueTokens);
-      lines[leftIndex].rightColumn = rightLines;
+      const leftLine = lines[leftIndex];
+      if (leftLine) {
+        leftLine.rightColumn = rightLines;
+      }
 
       if (dialogueTokens > leftTokens) {
         //There's more dialogue lines on the right than on the left:
@@ -379,12 +394,12 @@ export class Liner {
         while (insertLength > 0) {
           insertArray.push(
             createLine({
-              type: lines[leftIndex + leftTokens].type,
+              type: lines[leftIndex + leftTokens]?.type,
               text: "",
               content: "",
-              from: lines[leftIndex + leftTokens].from,
-              to: lines[leftIndex + leftTokens].to,
-              token: lines[leftIndex + leftTokens].token,
+              from: lines[leftIndex + leftTokens]?.from,
+              to: lines[leftIndex + leftTokens]?.to,
+              token: lines[leftIndex + leftTokens]?.token,
             })
           );
           insertLength--;
@@ -431,7 +446,10 @@ export class Liner {
 
         if (token.lines) {
           if (token.type === "scene" && lines.length) {
-            token.lines[0].scene = token.scene;
+            const firstLine = token.lines[0];
+            if (firstLine) {
+              firstLine.scene = token.scene;
+            }
           }
 
           token.lines.forEach((line: LineItem, index: number) => {

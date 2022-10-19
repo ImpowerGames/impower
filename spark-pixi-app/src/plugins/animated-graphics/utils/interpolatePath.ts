@@ -129,22 +129,25 @@ const decasteljau = (
 
   const decasteljauRecurse = (points: number[][], t: number): void => {
     if (points.length === 1) {
-      left.push(points[0]);
-      right.push(points[0]);
+      const ps = points[0] || [];
+      left.push(ps);
+      right.push(ps);
     } else {
       const newPoints = Array(points.length - 1);
 
       for (let i = 0; i < newPoints.length; i++) {
         if (i === 0) {
-          left.push(points[0]);
+          const ps = points[0] || [];
+          left.push(ps);
         }
         if (i === newPoints.length - 1) {
-          right.push(points[i + 1]);
+          const ps = points[i + 1] || [];
+          right.push(ps);
         }
 
         newPoints[i] = [
-          linear(t, points[i][0], points[i + 1][0]),
-          linear(t, points[i][1], points[i + 1][1]),
+          linear(t, points[i]?.[0] || 0, points[i + 1]?.[0] || 0),
+          linear(t, points[i]?.[1] || 0, points[i + 1]?.[1] || 0),
         ];
       }
 
@@ -170,16 +173,16 @@ const pointsToCommand = (points: number[][]): PathCommand => {
   const command: PathCommand = {};
 
   if (points.length === 4) {
-    command.x2 = points[2][0];
-    command.y2 = points[2][1];
+    command.x2 = points[2]?.[0];
+    command.y2 = points[2]?.[1];
   }
   if (points.length >= 3) {
-    command.x1 = points[1][0];
-    command.y1 = points[1][1];
+    command.x1 = points[1]?.[0];
+    command.y1 = points[1]?.[1];
   }
 
-  command.x = points[points.length - 1][0];
-  command.y = points[points.length - 1][1];
+  command.x = points[points.length - 1]?.[0];
+  command.y = points[points.length - 1]?.[1];
 
   if (points.length === 4) {
     // start, control1, control2, end
@@ -309,48 +312,50 @@ const commandToString = (command: PathCommand): string => {
  */
 const convertToSameType = (
   aCommand: PathCommand,
-  bCommand: PathCommand
+  bCommand?: PathCommand
 ): PathCommand => {
+  const aConverted: PathCommand = {};
   // convert (but ignore M types)
   if (
-    aCommand.type !== bCommand.type &&
+    aCommand?.type !== bCommand?.type &&
     bCommand?.type?.toUpperCase() !== "M"
   ) {
-    const aConverted: PathCommand = {};
-    Object.keys(bCommand).forEach((bKey) => {
-      const bValue = bCommand?.[bKey as keyof PathCommand];
-      // first read from the A command
-      let aValue = aCommand?.[bKey as keyof PathCommand];
+    if (bCommand) {
+      Object.keys(bCommand).forEach((bKey) => {
+        const bValue = bCommand?.[bKey as keyof PathCommand];
+        // first read from the A command
+        let aValue = aCommand?.[bKey as keyof PathCommand];
 
-      // if it is one of these values, read from B no matter what
-      if (aValue === undefined) {
-        if (readFromBKeys.includes(bKey)) {
-          aValue = bValue;
-        } else {
-          // if it wasn't in the A command, see if an equivalent was
-          if (
-            aValue === undefined &&
-            conversionMap?.[bKey as keyof PathCommand]
-          ) {
-            aValue = aCommand?.[conversionMap[bKey] as keyof PathCommand];
-          }
+        // if it is one of these values, read from B no matter what
+        if (aValue === undefined) {
+          if (readFromBKeys.includes(bKey)) {
+            aValue = bValue;
+          } else {
+            // if it wasn't in the A command, see if an equivalent was
+            if (
+              aValue === undefined &&
+              conversionMap?.[bKey as keyof PathCommand]
+            ) {
+              aValue = aCommand?.[conversionMap[bKey] as keyof PathCommand];
+            }
 
-          // if it doesn't have a converted value, use 0
-          if (aValue === undefined) {
-            aValue = 0;
+            // if it doesn't have a converted value, use 0
+            if (aValue === undefined) {
+              aValue = 0;
+            }
           }
         }
-      }
 
-      aConverted[bKey as keyof PathCommand] = aValue;
-    });
+        aConverted[bKey as keyof PathCommand] = aValue;
+      });
 
-    // update the type to match B
-    aConverted.type = bCommand.type;
+      // update the type to match B
+      aConverted.type = bCommand.type;
+    }
     aCommand = aConverted;
   }
 
-  return aCommand;
+  return aConverted;
 };
 
 /**
@@ -366,10 +371,16 @@ const convertToSameType = (
  *   commandEnd. (Can be segmentCount+1 objects if commandStart is type M).
  */
 const splitSegment = (
-  commandStart: PathCommand,
-  commandEnd: PathCommand,
-  segmentCount: number
+  commandStart?: PathCommand,
+  commandEnd?: PathCommand,
+  segmentCount = 1
 ): PathCommand[] => {
+  if (!commandStart) {
+    return [];
+  }
+  if (!commandEnd) {
+    return [];
+  }
   let segments: PathCommand[] = [];
 
   // line, quadratic bezier, or cubic bezier
@@ -414,8 +425,8 @@ const extend = (
   commandsToExtend: PathCommand[],
   referenceCommands: PathCommand[],
   excludeSegment?: (
-    startCommand: PathCommand,
-    endCommand: PathCommand
+    startCommand?: PathCommand,
+    endCommand?: PathCommand
   ) => boolean
 ): PathCommand[] => {
   // compute insertion points:
@@ -489,12 +500,12 @@ const extend = (
     (extended: PathCommand[], segmentCount, i) => {
       // if last command, just add `segmentCount` number of times
       if (i === commandsToExtend.length - 1) {
-        const lastCommandCopies = arrayOfLength(segmentCount, {
+        const lastCommandCopies: PathCommand[] = arrayOfLength(segmentCount, {
           ...commandsToExtend[commandsToExtend.length - 1],
         });
 
         // convert M to L
-        if (lastCommandCopies[0].type === "M") {
+        if (lastCommandCopies[0]?.type === "M") {
           lastCommandCopies.forEach((d) => {
             d.type = "L";
           });
@@ -511,7 +522,10 @@ const extend = (
   );
 
   // add in the very first point since splitSegment only adds in the ones after it
-  extended.unshift(commandsToExtend[0]);
+  const firstExtend = commandsToExtend[0];
+  if (firstExtend) {
+    extended.unshift(firstExtend);
+  }
 
   return extended;
 };
@@ -542,7 +556,7 @@ export const pathCommandsFromString = (d: string): PathCommand[] => {
 
       // add each of the expected args for this command:
       for (let a = 0; a < commandArgs.length; ++a) {
-        command[commandArgs[a]] = +tokens[i + a + 1];
+        command[commandArgs[a] || ""] = +(tokens[i + a + 1] || "");
       }
 
       // need to increment our token index appropriately since
@@ -580,8 +594,8 @@ export const interpolatePathCommands = (
   _easing: [number, number, number, number],
   interpolateOptions?: {
     excludeSegment?: (
-      startCommand: PathCommand,
-      endCommand: PathCommand
+      startCommand?: PathCommand,
+      endCommand?: PathCommand
     ) => boolean;
     snapEndsToInput?: boolean;
   }
@@ -607,26 +621,32 @@ export const interpolatePathCommands = (
 
   // do we add Z during interpolation? yes if both have it. (we'd expect both to have it or not)
   const addZ =
-    (aCommands.length === 0 || aCommands[aCommands.length - 1].type === "Z") &&
-    (bCommands.length === 0 || bCommands[bCommands.length - 1].type === "Z");
+    (aCommands.length === 0 || aCommands[aCommands.length - 1]?.type === "Z") &&
+    (bCommands.length === 0 || bCommands[bCommands.length - 1]?.type === "Z");
 
   // we temporarily remove Z
-  if (aCommands.length > 0 && aCommands[aCommands.length - 1].type === "Z") {
+  if (aCommands.length > 0 && aCommands[aCommands.length - 1]?.type === "Z") {
     aCommands.pop();
   }
-  if (bCommands.length > 0 && bCommands[bCommands.length - 1].type === "Z") {
+  if (bCommands.length > 0 && bCommands[bCommands.length - 1]?.type === "Z") {
     bCommands.pop();
   }
 
   // if A is empty, treat it as if it used to contain just the first point
   // of B. This makes it so the line extends out of from that first point.
   if (!aCommands.length) {
-    aCommands.push(bCommands[0]);
+    const b = bCommands[0];
+    if (b) {
+      aCommands.push(b);
+    }
 
     // otherwise if B is empty, treat it as if it contains the first point
     // of A. This makes it so the line retracts into the first point.
   } else if (!bCommands.length) {
-    bCommands.push(aCommands[0]);
+    const a = aCommands[0];
+    if (a) {
+      bCommands.push(a);
+    }
   }
 
   // extend to match equal size
@@ -645,9 +665,9 @@ export const interpolatePathCommands = (
 
   // commands have same length now.
   // convert commands in A to the same type as those in B
-  aCommands = aCommands.map((aCommand, i) =>
-    convertToSameType(aCommand, bCommands[i])
-  );
+  aCommands = aCommands.map((aCommand, i) => {
+    return convertToSameType(aCommand, bCommands[i]);
+  });
 
   // create mutable interpolated command objects
   const interpolatedCommands: PathCommand[] = aCommands.map((aCommand) => ({
@@ -677,22 +697,24 @@ export const interpolatePathCommands = (
       const aCommand = aCommands[i];
       const bCommand = bCommands[i];
       const interpolatedCommand = interpolatedCommands[i];
-      typeMap[interpolatedCommand.type as PathCommandType].forEach(
-        (arg: keyof PathCommand) => {
-          interpolatedCommand[arg] = linear(
-            t,
-            aCommand[arg] as number,
-            bCommand[arg] as number
-          );
-
-          // do not use floats for flags (#27), round to integer
-          if (arg === "largeArcFlag" || arg === "sweepFlag") {
-            interpolatedCommand[arg] = Math.round(
-              interpolatedCommand[arg] as number
+      if (interpolatedCommand) {
+        typeMap[interpolatedCommand.type as PathCommandType].forEach(
+          (arg: keyof PathCommand) => {
+            interpolatedCommand[arg] = linear(
+              t,
+              aCommand?.[arg] as number,
+              bCommand?.[arg] as number
             );
+
+            // do not use floats for flags (#27), round to integer
+            if (arg === "largeArcFlag" || arg === "sweepFlag") {
+              interpolatedCommand[arg] = Math.round(
+                interpolatedCommand[arg] as number
+              );
+            }
           }
-        }
-      );
+        );
+      }
     }
 
     return interpolatedCommands;
@@ -726,8 +748,8 @@ export const interpolatePath = (
   _easing: [number, number, number, number],
   interpolateOptions?: {
     excludeSegment?: (
-      startCommand: PathCommand,
-      endCommand: PathCommand
+      startCommand?: PathCommand,
+      endCommand?: PathCommand
     ) => boolean;
     snapEndsToInput?: boolean;
   }

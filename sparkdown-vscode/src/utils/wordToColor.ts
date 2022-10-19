@@ -5,7 +5,7 @@ const nPearsonHash = (message: string, n = 8): number => {
   const table = [...new Array(2 ** n)].map((_, i) => i);
 
   return message.split("").reduce((hash, c) => {
-    return table[(hash + c.charCodeAt(0)) % (table.length - 1)];
+    return table[(hash + c.charCodeAt(0)) % (table.length - 1)] || 0;
   }, message.length % (table.length - 1));
 };
 

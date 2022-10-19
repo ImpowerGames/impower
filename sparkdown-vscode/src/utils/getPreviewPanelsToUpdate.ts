@@ -7,11 +7,9 @@ export const getPreviewPanelsToUpdate = (
 ): PreviewPanel[] => {
   const selectedPreviews: PreviewPanel[] = [];
   for (let i = 0; i < previewState[type].length; i++) {
-    if (
-      previewState[type][i].uri === uri.toString() ||
-      previewState[type][i].dynamic
-    ) {
-      selectedPreviews.push(previewState[type][i]);
+    const s = previewState?.[type]?.[i];
+    if (s?.uri === uri.toString() || s?.dynamic) {
+      selectedPreviews.push(s);
     }
   }
   return selectedPreviews;

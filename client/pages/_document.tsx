@@ -14,7 +14,7 @@ import React from "react";
 import createEmotionCache from "../lib/createEmotionCache";
 
 export default class MyDocument extends Document {
-  static async getInitialProps(
+  static override async getInitialProps(
     ctx: DocumentContext
   ): Promise<DocumentInitialProps> {
     // Resolution order
@@ -81,7 +81,7 @@ export default class MyDocument extends Document {
     };
   }
 
-  render(): JSX.Element {
+  override render(): JSX.Element {
     const title = `Impower Games`;
     const description = "Make games together.";
     return (

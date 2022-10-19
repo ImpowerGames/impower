@@ -39,33 +39,38 @@ export const loadWebView = (
     if (message.command === "updateFontResult") {
       const parsedDoc =
         parseState.parsedDocuments[vscode.Uri.parse(message.uri).toString()];
-      if (message.content === false && parsedDoc.properties?.fontLine !== -1) {
-        //The font could not be rendered
-        diagnosticState.diagnostics.length = 0;
-        diagnosticState.diagnostics.push(
-          new vscode.Diagnostic(
-            new vscode.Range(
-              new vscode.Position(parsedDoc.properties?.fontLine || 0, 0),
-              new vscode.Position(
-                parseState.parsedDocuments[uri.toString()]?.properties
-                  ?.fontLine || 0,
-                5
-              )
-            ),
-            "This font could not be rendered in the live preview. Is it installed?",
-            vscode.DiagnosticSeverity.Error
-          )
-        );
-        diagnosticState.diagnosticCollection.set(
-          vscode.Uri.parse(message.uri),
-          diagnosticState.diagnostics
-        );
-      } else {
-        //Yay, the font has been rendered
-        diagnosticState.diagnosticCollection.set(
-          vscode.Uri.parse(message.uri),
-          []
-        );
+      if (parsedDoc) {
+        if (
+          message.content === false &&
+          parsedDoc.properties?.fontLine !== -1
+        ) {
+          //The font could not be rendered
+          diagnosticState.diagnostics.length = 0;
+          diagnosticState.diagnostics.push(
+            new vscode.Diagnostic(
+              new vscode.Range(
+                new vscode.Position(parsedDoc.properties?.fontLine || 0, 0),
+                new vscode.Position(
+                  parseState.parsedDocuments[uri.toString()]?.properties
+                    ?.fontLine || 0,
+                  5
+                )
+              ),
+              "This font could not be rendered in the live preview. Is it installed?",
+              vscode.DiagnosticSeverity.Error
+            )
+          );
+          diagnosticState.diagnosticCollection.set(
+            vscode.Uri.parse(message.uri),
+            diagnosticState.diagnostics
+          );
+        } else {
+          //Yay, the font has been rendered
+          diagnosticState.diagnosticCollection.set(
+            vscode.Uri.parse(message.uri),
+            []
+          );
+        }
       }
     } else if (message.command === "revealLine") {
       const cfg = getSparkdownConfig(vscode.Uri.parse(message.uri));

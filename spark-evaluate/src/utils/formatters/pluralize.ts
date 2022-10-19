@@ -10,7 +10,7 @@ export const pluralize = (
   const selectedCategory = pluralRules.select(value);
   const possibleCategories = pluralRules.resolvedOptions().pluralCategories;
   const selectedIndex = possibleCategories.indexOf(selectedCategory);
-  const result = args[selectedIndex];
+  const result = args[selectedIndex] || "";
   if (args.length < possibleCategories.length) {
     const params = args.join("|");
     diagnostics.push({

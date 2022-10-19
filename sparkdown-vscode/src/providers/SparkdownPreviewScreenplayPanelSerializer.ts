@@ -17,12 +17,15 @@ vscode.window.onDidChangeTextEditorSelection((change) => {
   if (change.textEditor.document.languageId === "sparkdown") {
     const config = getSparkdownConfig(change.textEditor.document.uri);
     if (config.screenplay_preview_synchronized_with_cursor) {
-      scrollPreviewToLine(
-        "screenplay",
-        "click",
-        change.selections[0].active.line,
-        change.textEditor
-      );
+      const firstSelection = change.selections[0];
+      if (firstSelection) {
+        scrollPreviewToLine(
+          "screenplay",
+          "click",
+          firstSelection.active.line,
+          change.textEditor
+        );
+      }
     }
   }
 });

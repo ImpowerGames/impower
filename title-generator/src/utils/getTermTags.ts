@@ -89,7 +89,7 @@ export const getTermTags = (
               termTags[subphrase] = [];
             }
             if (!termTags[subphrase]?.includes(tag)) {
-              termTags[subphrase].push(tag);
+              termTags[subphrase]?.push(tag);
             }
           }
         });

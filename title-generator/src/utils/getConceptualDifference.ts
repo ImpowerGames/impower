@@ -13,7 +13,7 @@ export const getConceptualDifference = (
 
   const words = Object.keys(wordVecs);
 
-  bar.start(words.length);
+  bar.start(words.length, 0);
 
   const targetConcept = wordVecs[targetWord];
   const otherConcept = wordVecs[otherWord];
@@ -32,7 +32,7 @@ export const getConceptualDifference = (
   words.forEach((word, index) => {
     bar.update(index);
     const conceptWord = wordVecs[word];
-    const sim = similarity(diff, conceptWord);
+    const sim = similarity(diff, conceptWord || []);
     pairs.push([word, sim]);
   });
 

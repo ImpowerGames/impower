@@ -33,7 +33,7 @@ export class Cell extends PIXI.Graphics {
     this.lineTo(length, 0);
   }
 
-  calculateBounds(): void {
+  override calculateBounds(): void {
     this._bounds.clear();
     const minX = 0;
     const minY = 0;

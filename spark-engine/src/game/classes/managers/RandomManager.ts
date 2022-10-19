@@ -33,7 +33,7 @@ export class RandomManager extends Manager<RandomState, RandomEvents> {
     };
   }
 
-  getSaveData(): RandomState {
+  override getSaveData(): RandomState {
     return this.deepCopyState(this.state);
   }
 
@@ -78,8 +78,8 @@ export class RandomManager extends Manager<RandomState, RandomEvents> {
 
       // And swap it with the current element.
       temporaryValue = newArray[currentIndex];
-      newArray[currentIndex] = newArray[randomIndex];
-      newArray[randomIndex] = temporaryValue;
+      newArray[currentIndex] = newArray[randomIndex] as T;
+      newArray[randomIndex] = temporaryValue as T;
     }
 
     return newArray;

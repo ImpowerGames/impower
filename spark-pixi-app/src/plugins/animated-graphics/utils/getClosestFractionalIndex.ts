@@ -4,12 +4,18 @@ export const getClosestFractionalIndex = (
 ): number => {
   for (let i = 0; i < keyTimes.length; i += 1) {
     const t = keyTimes[i];
+    if (t === undefined) {
+      return i;
+    }
     if (t === keyTime) {
       return i;
     }
     if (t > keyTime) {
       const prevIndex = i - 1;
       const prevT = keyTimes[prevIndex];
+      if (prevT === undefined) {
+        return i;
+      }
       const remainder = keyTime - prevT;
       const fraction = remainder / (t - prevT);
       return prevIndex + fraction;

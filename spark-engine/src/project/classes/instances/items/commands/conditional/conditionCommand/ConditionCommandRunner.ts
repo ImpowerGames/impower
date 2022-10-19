@@ -5,15 +5,18 @@ import { getNextJumpIndex } from "../../../../../../../runner";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
 export class ConditionCommandRunner extends CommandRunner<ConditionCommandData> {
-  closesGroup(data: ConditionCommandData, group?: InstanceData): boolean {
+  override closesGroup(
+    data: ConditionCommandData,
+    group?: InstanceData
+  ): boolean {
     return super.closesGroup(data, group);
   }
 
-  opensGroup(): boolean {
+  override opensGroup(): boolean {
     return true;
   }
 
-  onExecute(
+  override onExecute(
     data: ConditionCommandData,
     context: CommandContext,
     game: SparkGame
@@ -35,12 +38,15 @@ export class ConditionCommandRunner extends CommandRunner<ConditionCommandData> 
       if (!shouldExecute) {
         const blockState =
           game.logic.state.blockStates[data.reference.parentContainerId];
-        const prevCheck = commands?.[blockState.previousIndex]?.data?.check;
-        if (prevCheck === "close") {
-          const nextCommandIndex = getNextJumpIndex(index, commands, [
-            { check: (c): boolean => c === "else", offset: 0 },
-          ]);
-          return [nextCommandIndex];
+        if (blockState) {
+          const prevCheck =
+            commands?.[blockState.previousIndex]?.data?.["check"];
+          if (prevCheck === "close") {
+            const nextCommandIndex = getNextJumpIndex(index, commands, [
+              { check: (c): boolean => c === "else", offset: 0 },
+            ]);
+            return [nextCommandIndex];
+          }
         }
         const nextCommandIndex = getNextJumpIndex(index, commands, [
           { check: (c): boolean => c === "elif", offset: 0 },

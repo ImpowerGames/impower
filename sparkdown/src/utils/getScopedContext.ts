@@ -20,7 +20,9 @@ export const getScopedContext = <T>(
     const ids = getScopedSectionIds(validSectionId, sections);
     Object.values(ids).forEach((id) => {
       const v = sections[id];
-      valueMap[v.name || ""] = 0 as unknown as T;
+      if (v) {
+        valueMap[v.name || ""] = 0 as unknown as T;
+      }
     });
     ids["#"] = validSectionId;
     valueMap["#"] = [0, ""] as unknown as T;

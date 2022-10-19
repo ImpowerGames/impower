@@ -127,13 +127,13 @@ const createCharacterStatistics = (
 ): CharacterStatistics => {
   const dialoguePieces: DialoguePiece[] = [];
   for (let i = 0; i < parsed.tokens.length; i++) {
-    while (i < parsed.tokens.length && parsed.tokens[i].type === "character") {
-      const character = getCharacterName(parsed.tokens[i]?.text);
+    while (i < parsed.tokens.length && parsed.tokens[i]?.type === "character") {
+      const character = getCharacterName(parsed.tokens[i]?.text || "");
       let speech = "";
       while (i++ && i < parsed.tokens.length) {
-        if (parsed.tokens[i].type === "dialogue") {
-          speech += parsed.tokens[i].text + " ";
-        } else if (parsed.tokens[i].type === "character") {
+        if (parsed.tokens[i]?.type === "dialogue") {
+          speech += parsed.tokens[i]?.text + " ";
+        } else if (parsed.tokens[i]?.type === "character") {
           break;
         }
         // else skip extensions / parenthesis / dialogue-begin/-end
@@ -151,7 +151,7 @@ const createCharacterStatistics = (
 
   dialoguePieces.forEach((dialoguePiece) => {
     if (dialoguePerCharacter[dialoguePiece.character]) {
-      dialoguePerCharacter[dialoguePiece.character].push(dialoguePiece.speech);
+      dialoguePerCharacter[dialoguePiece.character]?.push(dialoguePiece.speech);
     } else {
       dialoguePerCharacter[dialoguePiece.character] = [dialoguePiece.speech];
     }
@@ -161,10 +161,10 @@ const createCharacterStatistics = (
   let monologueCounter = 0;
 
   Object.keys(dialoguePerCharacter).forEach((singleDialPerChar: string) => {
-    const speakingParts = dialoguePerCharacter[singleDialPerChar].length;
+    const speakingParts = dialoguePerCharacter[singleDialPerChar]?.length || 0;
     let secondsSpoken = 0;
     let monologues = 0;
-    const allDialogueCombined = dialoguePerCharacter[singleDialPerChar].reduce(
+    const allDialogueCombined = dialoguePerCharacter[singleDialPerChar]?.reduce(
       (prev, curr) => {
         const time = calculateSpeechDuration(curr);
         secondsSpoken += time;
@@ -176,7 +176,7 @@ const createCharacterStatistics = (
       ""
     );
     monologueCounter += monologues;
-    const wordsSpoken = getWordCount(allDialogueCombined);
+    const wordsSpoken = getWordCount(allDialogueCombined || "");
     characterStats.push({
       name: singleDialPerChar,
       color: rgbToHex(wordToColor(singleDialPerChar, 0.6, 0.5)),
@@ -312,16 +312,18 @@ const getLengthChart = (
           characters[element.character] = [];
         } else if (currentCharacter.length > 0) {
           dialogueLength =
-            currentCharacter[currentCharacter.length - 1].lengthTimeGlobal;
+            currentCharacter[currentCharacter.length - 1]?.lengthTimeGlobal ||
+            0;
           wordsLength =
-            currentCharacter[currentCharacter.length - 1].lengthWordsGlobal;
+            currentCharacter[currentCharacter.length - 1]?.lengthWordsGlobal ||
+            0;
         }
         let monologue = false;
         if (isMonologue(time)) {
           monologue = true;
           monologues++;
         }
-        characters[element.character].push({
+        characters[element.character]?.push({
           line: element.line,
           lengthTime: element.duration || 0,
           lengthWords: wordCount,
@@ -337,7 +339,10 @@ const getLengthChart = (
   sceneProperties.forEach((scene) => {
     currentScene = scene.name;
     if (scenes.length > 0) {
-      scenes[scenes.length - 1].endline = scene.line - 1;
+      const lastScene = scenes[scenes.length - 1];
+      if (lastScene) {
+        lastScene.endline = scene.line - 1;
+      }
     }
     const deconstructedSlug = sparkRegexes.scene.exec(scene.name);
     const sceneType = getLocationType(deconstructedSlug);

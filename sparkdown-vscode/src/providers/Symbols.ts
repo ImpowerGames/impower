@@ -11,10 +11,13 @@ export class SparkdownSymbolProvider implements vscode.DocumentSymbolProvider {
 
     //hierarchyEnd is the last line of the token's hierarchy. Last line of document for the root, last line of current section, etc...
     const symbolFromStruct = (
-      token: StructureItem,
-      nextToken: StructureItem,
-      hierarchyEnd: number
-    ): { symbol: vscode.DocumentSymbol; length: number } => {
+      token?: StructureItem,
+      nextToken?: StructureItem,
+      hierarchyEnd?: number
+    ): { symbol: vscode.DocumentSymbol; length: number } | undefined => {
+      if (!token || !nextToken || !hierarchyEnd) {
+        return undefined;
+      }
       let length = 0;
       const start: {
         line: number;
@@ -33,7 +36,7 @@ export class SparkdownSymbolProvider implements vscode.DocumentSymbolProvider {
       }
       if (token.type !== "section") {
         const scene =
-          parseState.parsedDocuments[document.uri.toString()].properties
+          parseState.parsedDocuments[document.uri.toString()]?.properties
             ?.scenes?.[sceneCounter];
         const sceneLength =
           (scene?.actionDuration || 0) + (scene?.dialogueDuration || 0);
@@ -73,8 +76,10 @@ export class SparkdownSymbolProvider implements vscode.DocumentSymbolProvider {
             token.children[index + 1],
             end.line
           );
-          symbol.children.push(childSymbol.symbol);
-          childrenLength += childSymbol.length;
+          if (childSymbol) {
+            symbol.children.push(childSymbol.symbol);
+            childrenLength += childSymbol.length;
+          }
         }
       }
       if (token.type === "section") {
@@ -85,15 +90,16 @@ export class SparkdownSymbolProvider implements vscode.DocumentSymbolProvider {
     };
 
     const doc = parseState.parsedDocuments[document.uri.toString()];
-    const structure = doc.properties?.structure || [];
+    const structure = doc?.properties?.structure || [];
     for (let index = 0; index < structure.length; index++) {
-      symbols.push(
-        symbolFromStruct(
-          structure[index],
-          structure[index + 1],
-          document.lineCount
-        ).symbol
-      );
+      const symbol = symbolFromStruct(
+        structure[index],
+        structure[index + 1],
+        document.lineCount
+      )?.symbol;
+      if (symbol) {
+        symbols.push(symbol);
+      }
     }
     return symbols;
   }

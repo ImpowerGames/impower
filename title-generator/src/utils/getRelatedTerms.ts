@@ -11,10 +11,9 @@ export const getReversedOccuranceMap = (map: {
   } = {};
   Object.entries(map).forEach(([key, value]) => {
     value.forEach(([t, s]) => {
-      if (!reversedMap[t]) {
-        reversedMap[t] = [];
-      }
-      reversedMap[t].push([key, s]);
+      const tReversedMap = reversedMap[t] || [];
+      reversedMap[t] = tReversedMap;
+      tReversedMap.push([key, s]);
     });
   });
   const sortedReversedMap: { [value: string]: string[] } = {};
@@ -23,7 +22,7 @@ export const getReversedOccuranceMap = (map: {
     .forEach((key) => {
       sortedReversedMap[key] = Array.from(new Set(reversedMap[key]))
         .sort(([, aSim], [, bSim]) => bSim - aSim)
-        .map(([t, s]) => t);
+        .map(([t]) => t);
     });
   return sortedReversedMap;
 };
@@ -46,7 +45,7 @@ export const getRelatedTerms = async (
   const targetTagTerms =
     tags?.length > 0 ? { "<>": tags, ...tagTerms } : tagTerms;
 
-  bar.start(targetTags.length * 2 + words.length);
+  bar.start(targetTags.length * 2 + words.length, 0);
 
   const conceptVecs: { [tag: string]: number[] } = {};
   targetTags.forEach((tag, index) => {
@@ -70,8 +69,8 @@ export const getRelatedTerms = async (
     const pairs: [string, number][] = [];
     targetTags.forEach((tag) => {
       const wordVec = wordVecs[word];
-      const tagVec = wordVecs[tag];
-      const conceptVec = conceptVecs[tag];
+      const tagVec = wordVecs[tag] || [];
+      const conceptVec = conceptVecs[tag] || [];
       if (wordVec) {
         // This vector captures the conceptual nature of a tag
         const literalSim = similarity(wordVec, conceptVec);
@@ -93,7 +92,7 @@ export const getRelatedTerms = async (
     pairs
       .sort(([, aSim], [, bSim]) => bSim - aSim)
       .forEach(([tag, sim]) => {
-        const existingTerms = unpackedTagTerms[tag];
+        const existingTerms = unpackedTagTerms[tag] || [];
         if (
           relatedTags.length < depth &&
           sim > threshold &&
@@ -110,7 +109,7 @@ export const getRelatedTerms = async (
 
   bar.stop();
 
-  const getReferencesCount = (tag) =>
+  const getReferencesCount = (tag: string) =>
     targetTagTerms[tag]?.filter((term) => term.startsWith(">")).length || 0;
 
   const suggestedTagTerms = getReversedOccuranceMap(termTags);

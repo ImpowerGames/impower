@@ -19,7 +19,10 @@ export class StudioDocumentInspector extends PageDocumentInspector<StudioDocumen
     return createStudioDocument(data);
   }
 
-  getPropertyLabel(propertyPath: string, data: StudioDocument): string {
+  override getPropertyLabel(
+    propertyPath: string,
+    data: StudioDocument
+  ): string {
     if (propertyPath === "tags") {
       return "Specialties";
     }
@@ -35,7 +38,7 @@ export class StudioDocumentInspector extends PageDocumentInspector<StudioDocumen
     return super.getPropertyLabel(propertyPath, data);
   }
 
-  getPropertyDisplayValue(
+  override getPropertyDisplayValue(
     propertyPath: string,
     data: StudioDocument,
     value: unknown
@@ -87,7 +90,10 @@ export class StudioDocumentInspector extends PageDocumentInspector<StudioDocumen
     return undefined;
   }
 
-  getPropertyOptions(propertyPath: string, data?: StudioDocument): unknown[] {
+  override getPropertyOptions(
+    propertyPath: string,
+    data?: StudioDocument
+  ): unknown[] {
     if (propertyPath === "status") {
       return Object.values(DeveloperStatus);
     }
@@ -136,7 +142,10 @@ export class StudioDocumentInspector extends PageDocumentInspector<StudioDocumen
     return undefined;
   }
 
-  getPropertyPlaceholder(propertyPath: string, data: StudioDocument): string {
+  override getPropertyPlaceholder(
+    propertyPath: string,
+    data: StudioDocument
+  ): string {
     if (propertyPath === "tags") {
       return `Maximum ${this.getPropertyListCountLimit(
         propertyPath,
@@ -149,7 +158,7 @@ export class StudioDocumentInspector extends PageDocumentInspector<StudioDocumen
     return super.getPropertyPlaceholder(propertyPath, data);
   }
 
-  getPropertyListCountLimit(
+  override getPropertyListCountLimit(
     propertyPath: string,
     data: StudioDocument
   ): number {

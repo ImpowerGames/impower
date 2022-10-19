@@ -42,13 +42,13 @@ export const loadUI = (
     const obj = objectMap[name];
     const hash = getHash(obj).toString();
     const existingStructEl = getElement(uiElementId, name) as HTMLDivElement;
-    if (existingStructEl && existingStructEl.dataset.hash !== hash) {
+    if (existingStructEl && existingStructEl.dataset["hash"] !== hash) {
       existingStructEl.innerHTML = "";
     }
     const structEl = existingStructEl || document.createElement("div");
     structEl.className = name;
-    if (structEl.dataset.hash !== hash) {
-      structEl.dataset.hash = hash;
+    if (structEl.dataset["hash"] !== hash) {
+      structEl.dataset["hash"] = hash;
     }
     setupDiv(structEl);
     if (structEl.parentElement !== rootEl) {
@@ -70,14 +70,17 @@ export const loadUI = (
             if (!childEl) {
               childEl = document.createElement("div");
               childEl.className = n;
-              parentEl.appendChild(childEl);
+              if (parentEl) {
+                parentEl.appendChild(childEl);
+              }
             }
             structElMap[childPath] = childEl;
           }
         }
       });
-      if (v && typeof v === "string") {
-        structElMap[childPath].textContent = v;
+      const curr = structElMap[childPath];
+      if (curr && v && typeof v === "string") {
+        curr.textContent = v;
       }
     });
   });

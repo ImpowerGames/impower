@@ -9,7 +9,7 @@ export class SectionNamePreviewWidget extends WidgetType {
     this.name = name;
   }
 
-  eq(other: SectionNamePreviewWidget): boolean {
+  override eq(other: SectionNamePreviewWidget): boolean {
     return other.name === this.name;
   }
 

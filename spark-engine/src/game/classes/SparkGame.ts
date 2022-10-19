@@ -163,7 +163,7 @@ export class SparkGame {
     const logic = this.logic.getSaveData();
     const plugins: { [key: string]: unknown } = {};
     Object.keys(this.plugins).forEach((id) => {
-      plugins[id] = this.plugins[id].getSaveData();
+      plugins[id] = this.plugins[id]?.getSaveData();
     });
     return {
       random,

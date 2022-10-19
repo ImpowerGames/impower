@@ -1,4 +1,4 @@
-import { SparkParseResult, SparkToken } from "../../../sparkdown";
+import { SparkParseResult } from "../../../sparkdown";
 import { htmlReplacements } from "../constants/htmlReplacements";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 import { sparkLexer } from "./sparkLexer";
@@ -49,7 +49,11 @@ export const generateSparkTitleHtml = (
     html.push(`<div class="titlepagesection" data-position="${section}">`);
     let currentIndex = 0; /*, previous_type = null*/
     while (currentIndex < tokens.length) {
-      const currentToken: SparkToken = tokens[currentIndex];
+      const currentToken = tokens[currentIndex];
+      if (!currentToken) {
+        currentIndex++;
+        continue;
+      }
       if (currentToken.ignore) {
         currentIndex++;
         continue;

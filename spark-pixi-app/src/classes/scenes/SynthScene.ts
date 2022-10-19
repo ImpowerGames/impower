@@ -30,11 +30,11 @@ export class SynthScene extends SparkScene {
 
   private _instruments: Record<string, Instrument> = {};
 
-  async load(): Promise<void> {
+  override async load(): Promise<void> {
     return TONE.start();
   }
 
-  start(): void {
+  override start(): void {
     this.context?.game?.synth?.events?.onConfigureInstrument?.addListener(
       (data) => this.configureInstrument(data)
     );
@@ -49,7 +49,7 @@ export class SynthScene extends SparkScene {
     );
   }
 
-  destroy(): void {
+  override destroy(): void {
     this.context?.game?.synth?.events?.onConfigureInstrument?.removeAllListeners();
     this.context?.game?.synth?.events?.onAttackNote?.removeAllListeners();
     this.context?.game?.synth?.events?.onReleaseNote?.removeAllListeners();
@@ -65,11 +65,9 @@ export class SynthScene extends SparkScene {
 
   getInstrument(id: string, type?: string): Instrument {
     const key = `${id}/${type}`;
-    if (this._instruments[key]) {
-      return this._instruments[key];
-    }
-    if (type === "default") {
-      this._instruments[key] = new TONE.PolySynth().toDestination();
+    const instrument = this._instruments[key];
+    if (instrument) {
+      return instrument;
     }
     if (type === "am") {
       this._instruments[key] = new TONE.PolySynth(TONE.AMSynth).toDestination();
@@ -104,7 +102,7 @@ export class SynthScene extends SparkScene {
     if (type === "sampler") {
       this._instruments[key] = new TONE.Sampler().toDestination();
     }
-    return this._instruments[key];
+    return this._instruments[key] || new TONE.PolySynth().toDestination();
   }
 
   configureInstrument(data: {
@@ -186,9 +184,10 @@ export class SynthScene extends SparkScene {
         const offsets = value.offset;
         for (let i = 0; i < notes.length; i += 1) {
           const noteTime = time + (offsets?.[i] || 0);
-          instrument.triggerAttack(notes[i], noteTime, velocities?.[i] || 0);
-          const d = durations[Math.min(i, durations.length - 1)];
-          instrument.triggerRelease(notes[i], noteTime + d);
+          const note = notes[i] || "";
+          instrument.triggerAttack(note, noteTime, velocities?.[i] || 0);
+          const d = durations[Math.min(i, durations.length - 1)] || 0;
+          instrument.triggerRelease(note, noteTime + d);
         }
       }
       TONE.Draw.schedule(() => data.onDraw?.(relativeTime), time);

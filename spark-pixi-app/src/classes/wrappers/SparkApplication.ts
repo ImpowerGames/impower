@@ -23,7 +23,7 @@ export interface SparkApplicationOptions {
 }
 
 export class SparkApplication extends PIXI.Application {
-  stage: SparkStage;
+  override stage: SparkStage;
 
   constructor(options?: SparkApplicationOptions) {
     super(options);

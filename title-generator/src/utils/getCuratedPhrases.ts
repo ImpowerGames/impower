@@ -33,10 +33,9 @@ export const getCuratedPhrases = (
       }
       phraseTags.push(...tagMatches);
     });
-    if (!associatedTags[phrase]) {
-      associatedTags[phrase] = [];
-    }
-    associatedTags[phrase].push(...phraseTags);
+    const phraseAssociatedTags = associatedTags[phrase] || [];
+    associatedTags[phrase] = phraseAssociatedTags;
+    phraseAssociatedTags.push(...phraseTags);
   });
 
   return getSortedMap(associatedTags, true);

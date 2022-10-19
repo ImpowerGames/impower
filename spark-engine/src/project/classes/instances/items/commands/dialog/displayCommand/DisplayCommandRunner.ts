@@ -14,11 +14,11 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
 
   AUTO_DELAY = 0.5;
 
-  init(): void {
+  override init(): void {
     executeDisplayCommand();
   }
 
-  onExecute(
+  override onExecute(
     data: DisplayCommandData,
     context: CommandContext,
     game: SparkGame
@@ -33,7 +33,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     return super.onExecute(data, context, game);
   }
 
-  isFinished(
+  override isFinished(
     data: DisplayCommandData,
     context: CommandContext,
     game: SparkGame
@@ -42,6 +42,9 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     this.down = game.input.state.pointer.down.includes(0);
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
+    if (!blockState) {
+      return true;
+    }
     if (this.wasTyped && this.timeTyped < 0) {
       this.timeTyped = blockState.time;
     }
@@ -76,7 +79,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     return false;
   }
 
-  onPreview(
+  override onPreview(
     data: DisplayCommandData,
     context?: {
       valueMap: Record<string, unknown>;

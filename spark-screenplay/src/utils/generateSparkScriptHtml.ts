@@ -1,4 +1,4 @@
-import { SparkParseResult, SparkToken } from "../../../sparkdown";
+import { SparkParseResult } from "../../../sparkdown";
 import { htmlReplacements } from "../constants/htmlReplacements";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 import { sparkLexer } from "./sparkLexer";
@@ -12,7 +12,11 @@ export const generateSparkScriptHtml = (
   let isAction = false;
 
   while (currentIndex < result.tokens.length) {
-    const currentToken: SparkToken = result.tokens[currentIndex];
+    const currentToken = result.tokens[currentIndex];
+    if (!currentToken) {
+      currentIndex++;
+      continue;
+    }
     const text = currentToken.text?.trimEnd();
     const line = currentToken.line;
     if (text) {
@@ -20,7 +24,6 @@ export const generateSparkScriptHtml = (
     } else {
       currentToken.html = "";
     }
-
     if (
       (currentToken.type == "action" || currentToken.type == "centered") &&
       !currentToken.ignore
@@ -45,7 +48,7 @@ export const generateSparkScriptHtml = (
     } else if (currentToken.type == "separator" && isAction) {
       if (currentIndex + 1 < result.tokens.length - 1) {
         //we're not at the end
-        const next_type = result.tokens[currentIndex + 1].type;
+        const next_type = result.tokens[currentIndex + 1]?.type;
         if (
           next_type == "action" ||
           next_type == "separator" ||

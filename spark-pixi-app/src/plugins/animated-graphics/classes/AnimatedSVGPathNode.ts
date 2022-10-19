@@ -137,11 +137,11 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
     }
   }
 
-  closePath(): this {
+  override closePath(): this {
     if (this._currentPath) {
       this._currentPath.points.push(
-        this._currentPath.points[0],
-        this._currentPath.points[1]
+        this._currentPath.points[0] || 0,
+        this._currentPath.points[1] || 0
       );
     }
     this.finishPath();
@@ -180,6 +180,10 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
 
       if (Number.isNaN(x) || Number.isNaN(y)) {
         throw new Error("Data corruption");
+      }
+
+      if (!command) {
+        break;
       }
 
       // Taken from: https://github.com/bigtimebuddy/pixi-svg/blob/main/src/SVG.ts
@@ -251,9 +255,10 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
         }
         case "s":
         case "S": {
+          const lastCommand = commands[i - 1];
           let cp1X = x;
           let cp1Y = y;
-          const lastCode = commands[i - 1] ? commands[i - 1].type : null;
+          const lastCode = lastCommand ? lastCommand.type : null;
 
           if (
             i > 0 &&
@@ -262,16 +267,16 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
               lastCode === "c" ||
               lastCode === "C")
           ) {
-            const lastCommand = commands[i - 1];
-            let lastCp2X = lastCommand.x2 || lastCommand.x || 0;
-            let lastCp2Y = lastCommand.y2 || lastCommand.y || 0;
-            if (isRelativePathCommand(commands[i - 1])) {
-              lastCp2X += x - (lastCommand.x || 0);
-              lastCp2Y += y - (lastCommand.y || 0);
+            if (lastCommand) {
+              let lastCp2X = lastCommand.x2 || lastCommand.x || 0;
+              let lastCp2Y = lastCommand.y2 || lastCommand.y || 0;
+              if (isRelativePathCommand(lastCommand)) {
+                lastCp2X += x - (lastCommand.x || 0);
+                lastCp2Y += y - (lastCommand.y || 0);
+              }
+              cp1X = 2 * x - lastCp2X;
+              cp1Y = 2 * y - lastCp2Y;
             }
-
-            cp1X = 2 * x - lastCp2X;
-            cp1Y = 2 * y - lastCp2Y;
           }
 
           let cp2X = command.x || 0;
@@ -394,10 +399,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
     return this;
   }
 
-  /**
-   * @override
-   */
-  render(renderer: Renderer): void {
+  override render(renderer: Renderer): void {
     if (this._animation?.duration) {
       const currentIteration = Math.floor(
         this.control.time / this._animation.duration
@@ -429,7 +431,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
     super.render(renderer);
   }
 
-  startPoly = this.startPath;
+  override startPoly = this.startPath;
 
-  finishPoly = this.finishPath;
+  override finishPoly = this.finishPath;
 }

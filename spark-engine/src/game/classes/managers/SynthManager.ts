@@ -105,7 +105,7 @@ export class SynthManager extends Manager<SynthState, SynthEvents> {
     };
   }
 
-  getSaveData(): SynthState {
+  override getSaveData(): SynthState {
     return this.deepCopyState(this.state);
   }
 

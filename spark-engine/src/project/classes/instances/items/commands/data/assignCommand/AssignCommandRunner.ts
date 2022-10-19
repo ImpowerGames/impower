@@ -5,7 +5,7 @@ import { modifyValue } from "../../../../../../../runner/utils/modifyValue";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
 export class AssignCommandRunner extends CommandRunner<AssignCommandData> {
-  onExecute(
+  override onExecute(
     data: AssignCommandData,
     context: CommandContext,
     game: SparkGame

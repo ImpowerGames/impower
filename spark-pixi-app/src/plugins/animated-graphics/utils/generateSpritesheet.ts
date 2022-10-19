@@ -62,10 +62,7 @@ export const generateSpritesheet = (
         sourceSize: { w: w - edgeOffset, h: h - edgeOffset },
         spriteSourceSize: { x: edgeOffset, y: edgeOffset },
       };
-      if (!atlasData.animations) {
-        atlasData.animations = {};
-      }
-      atlasData.animations[animationName].push(frameId);
+      atlasData.animations?.[animationName]?.push(frameId);
       time += sampleRate;
       x += w;
     }

@@ -1,16 +1,18 @@
 import fs from "fs";
 import tagIconNames from "../../../client/resources/json/tagIconNames.json";
 
-const data = {};
+const data: Record<string, { v: string; d: string }> = {};
 [...Object.values(tagIconNames), "hashtag"].forEach((name) => {
   if (!data[name]) {
     const file = fs.readFileSync(
       `../client/resources/icons/solid/${name}.svg`,
       "utf8"
     );
-    const v = file.match(/viewBox="(.*?)"/)[1];
-    const d = file.match(/d="(.*?)"/)[1];
-    data[name] = { v, d };
+    const v = file.match(/viewBox="(.*?)"/)?.[1] || "";
+    const d = file.match(/d="(.*?)"/)?.[1] || "";
+    if (v && d) {
+      data[name] = { v, d };
+    }
   }
 });
 

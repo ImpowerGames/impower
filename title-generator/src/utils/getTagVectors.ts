@@ -8,14 +8,14 @@ export const vectorizeTerms = (
 ): number[] => {
   const { specificTerms, adjacentTerms } = splitSpecificAndAdjacentTerms(terms);
 
-  const specificVecs = specificTerms.map((term) => termVectors[term]);
+  const specificVecs = specificTerms.map((term) => termVectors[term] || []);
 
   const adjacentVecs: number[][] = [];
 
   adjacentTerms.forEach((adjacentTerm) => {
     adjacentVecs.push(
       vectorizeTerms(
-        tagTerms[adjacentTerm.replace(">", "")],
+        tagTerms[adjacentTerm.replace(">", "")] || [],
         tagTerms,
         termVectors
       )

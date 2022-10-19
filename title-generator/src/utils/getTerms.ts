@@ -31,7 +31,9 @@ export const unpackTerms = (
 
   while (adjacentTerms.length > 0) {
     specificTerms.push(
-      ...adjacentTerms.flatMap((lookup) => tagTerms[lookup.replace(">", "")])
+      ...adjacentTerms.flatMap(
+        (lookup) => tagTerms[lookup.replace(">", "")] || []
+      )
     );
     const result = splitSpecificAndAdjacentTerms(specificTerms);
     specificTerms = result.specificTerms;
@@ -52,7 +54,7 @@ export const unpackTag = (
   tagTerms: { [tag: string]: string[] },
   allForms = false
 ): string[] => {
-  const terms = unpackTerms(tagTerms[tag], tagTerms);
+  const terms = unpackTerms(tagTerms[tag] || [], tagTerms);
   if (!allForms) {
     return terms;
   }
@@ -65,7 +67,7 @@ export const unpackSpecificAndAdjacentTerms = (
   allForms = false
 ): { specific: string[]; adjacent: string[] } => {
   const { specificTerms, adjacentTerms } = splitSpecificAndAdjacentTerms(
-    tagTerms[tag]
+    tagTerms[tag] || []
   );
   if (!tagTerms[tag]) {
     console.warn("No terms exist in tagTerms.json for: ", tag);

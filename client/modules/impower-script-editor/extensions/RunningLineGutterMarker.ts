@@ -1,9 +1,9 @@
 import { GutterMarker } from "@codemirror/view";
 
 export class RunningLineGutterMarker extends GutterMarker {
-  elementClass = "cm-runningGutterMark";
+  override elementClass = "cm-runningGutterMark";
 
-  toDOM(): Node {
+  override toDOM(): Node {
     const spanEl = document.createElement("span");
     spanEl.appendChild(document.createTextNode("▶"));
     return spanEl;

@@ -35,10 +35,13 @@ export const sparkLexer = (
 
   while (i--) {
     style = styles[i];
+    if (!style) {
+      break;
+    }
     match = sparkRegexes[style];
 
     if (match.test(s)) {
-      s = s.replace(match, replacer[style]);
+      s = s.replace(match, replacer[style] || "");
     }
   }
   s = s.replace(/\[star\]/g, "*").replace(/\[underline\]/g, "_");

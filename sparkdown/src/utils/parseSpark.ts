@@ -73,13 +73,12 @@ const parseSparkInternal = (
     if (!parsed.sections) {
       parsed.sections = {};
     }
-    if (!parsed.sections[parentId]) {
-      parsed.sections[parentId] = createSparkSection();
+    const parentSection = parsed.sections[parentId] || createSparkSection();
+    parsed.sections[parentId] = parentSection;
+    if (parentSection && !parentSection.variables) {
+      parentSection.variables = {};
     }
-    if (!parsed.sections[parentId].variables) {
-      parsed.sections[parentId].variables = {};
-    }
-    const variables = parsed.sections[parentId].variables;
+    const variables = parentSection.variables;
     if (variables) {
       variables[id] = d;
     }
@@ -175,13 +174,15 @@ const parseSparkInternal = (
   };
 
   const capitalize = (str: string): string => {
-    return `${str[0].toUpperCase()}${str.slice(1)}`;
+    return `${(str[0] || "").toUpperCase()}${str.slice(1)}`;
   };
 
   const prefixArticle = (str: string, capitalize?: boolean): string => {
     const articles = capitalize ? ["An", "A"] : ["an", "a"];
     return `${
-      ["a", "e", "i", "o", "u"].includes(str[0]) ? articles[0] : articles[1]
+      ["a", "e", "i", "o", "u"].includes(str[0] || "")
+        ? articles[0]
+        : articles[1]
     } ${str}`;
   };
 
@@ -313,10 +314,9 @@ const parseSparkInternal = (
     if (!parsed.sections) {
       parsed.sections = {};
     }
-    if (!parsed.references[currentToken.line]) {
-      parsed.references[currentToken.line] = [];
-    }
-    parsed.references[currentToken.line].push({
+    const parsedReferences = parsed.references[currentToken.line] || [];
+    parsed.references[currentToken.line] = parsedReferences;
+    parsedReferences.push({
       from: nameFrom,
       to: nameTo,
       name: section.name,
@@ -381,10 +381,9 @@ const parseSparkInternal = (
       return undefined;
     }
     const [id, found] = findSection(currentSectionId, name);
-    if (!parsed.references[currentToken.line]) {
-      parsed.references[currentToken.line] = [];
-    }
-    parsed.references[currentToken.line].push({ from, to, name, id });
+    const parsedReferences = parsed.references[currentToken.line] || [];
+    parsed.references[currentToken.line] = parsedReferences;
+    parsedReferences.push({ from, to, name, id });
     if (!found) {
       diagnostic(
         currentToken,
@@ -447,7 +446,7 @@ const parseSparkInternal = (
     let paramIndex = 0;
     const extraArgIndices: number[] = [];
     for (let index = 0; index < tokenMatches.length; index += 1) {
-      const expression = tokenMatches[index];
+      const expression = tokenMatches[index] || "";
       const expressionFrom =
         methodArgsFrom + getStart(["", ...tokenMatches], index + 1) + 1;
       const expressionTo = expressionFrom + expression.length;
@@ -477,25 +476,29 @@ const parseSparkInternal = (
           if (references?.length > 0) {
             for (let i = 0; i < references.length; i += 1) {
               const r = references[i];
-              const from = expressionFrom + r.from;
-              const to = expressionFrom + r.to;
-              if (!parsed.references[currentToken.line]) {
-                parsed.references[currentToken.line] = [];
+              if (r) {
+                const from = expressionFrom + r.from;
+                const to = expressionFrom + r.to;
+                const parsedReferences =
+                  parsed.references[currentToken.line] || [];
+                parsed.references[currentToken.line] = parsedReferences;
+                parsedReferences.push({
+                  from,
+                  to,
+                  name: r.name,
+                  id: ids[r.name],
+                });
               }
-              parsed.references[currentToken.line].push({
-                from,
-                to,
-                name: r.name,
-                id: ids[r.name],
-              });
             }
           }
           if (diagnostics?.length > 0) {
             for (let i = 0; i < diagnostics.length; i += 1) {
               const d = diagnostics[i];
-              const from = expressionFrom + d.from;
-              const to = expressionFrom + d.to;
-              diagnostic(currentToken, d.message, [], from, to);
+              if (d) {
+                const from = expressionFrom + d.from;
+                const to = expressionFrom + d.to;
+                diagnostic(currentToken, d.message, [], from, to);
+              }
             }
           } else if (parameter) {
             const trimmedStartWhitespaceLength =
@@ -668,25 +671,28 @@ const parseSparkInternal = (
     if (references?.length > 0) {
       for (let i = 0; i < references.length; i += 1) {
         const r = references[i];
-        const from = expressionFrom + r.from;
-        const to = expressionFrom + r.to;
-        if (!parsed.references[currentToken.line]) {
-          parsed.references[currentToken.line] = [];
+        if (r) {
+          const from = expressionFrom + r.from;
+          const to = expressionFrom + r.to;
+          const parsedReferences = parsed.references[currentToken.line] || [];
+          parsed.references[currentToken.line] = parsedReferences;
+          parsedReferences.push({
+            from,
+            to,
+            name: r.name,
+            id: ids[r.name],
+          });
         }
-        parsed.references[currentToken.line].push({
-          from,
-          to,
-          name: r.name,
-          id: ids[r.name],
-        });
       }
     }
     if (diagnostics?.length > 0) {
       for (let i = 0; i < diagnostics.length; i += 1) {
         const d = diagnostics[i];
-        const from = expressionFrom + d.from;
-        const to = expressionFrom + d.to;
-        diagnostic(currentToken, d.message, [], from, to);
+        if (d) {
+          const from = expressionFrom + d.from;
+          const to = expressionFrom + d.to;
+          diagnostic(currentToken, d.message, [], from, to);
+        }
       }
     }
   };
@@ -836,25 +842,28 @@ const parseSparkInternal = (
     if (references?.length > 0) {
       for (let i = 0; i < references.length; i += 1) {
         const r = references[i];
-        const from = expressionFrom + r.from;
-        const to = expressionFrom + r.to;
-        if (!parsed.references[currentToken.line]) {
-          parsed.references[currentToken.line] = [];
+        if (r) {
+          const from = expressionFrom + r.from;
+          const to = expressionFrom + r.to;
+          const parsedReferences = parsed.references[currentToken.line] || [];
+          parsed.references[currentToken.line] = parsedReferences;
+          parsedReferences.push({
+            from,
+            to,
+            name: r.name,
+            id: ids[r.name],
+          });
         }
-        parsed.references[currentToken.line].push({
-          from,
-          to,
-          name: r.name,
-          id: ids[r.name],
-        });
       }
     }
     if (diagnostics?.length > 0) {
       for (let i = 0; i < diagnostics.length; i += 1) {
         const d = diagnostics[i];
-        const from = expressionFrom + d.from;
-        const to = expressionFrom + d.to;
-        diagnostic(currentToken, d.message, [], from, to);
+        if (d) {
+          const from = expressionFrom + d.from;
+          const to = expressionFrom + d.to;
+          diagnostic(currentToken, d.message, [], from, to);
+        }
       }
     } else if (variable) {
       const resultType = typeof result;
@@ -911,10 +920,9 @@ const parseSparkInternal = (
       return undefined;
     }
     const [id, found] = findStruct(name);
-    if (!parsed.references[currentToken.line]) {
-      parsed.references[currentToken.line] = [];
-    }
-    parsed.references[currentToken.line].push({ from, to, name, id });
+    const parsedReferences = parsed.references[currentToken.line] || [];
+    parsed.references[currentToken.line] = parsedReferences;
+    parsedReferences.push({ from, to, name, id });
     if (!found) {
       diagnostic(
         currentToken,
@@ -948,10 +956,9 @@ const parseSparkInternal = (
       return undefined;
     }
     const [id, found] = findVariable(currentSectionId, name);
-    if (!parsed.references[currentToken.line]) {
-      parsed.references[currentToken.line] = [];
-    }
-    parsed.references[currentToken.line].push({ from, to, name, id });
+    const parsedReferences = parsed.references[currentToken.line] || [];
+    parsed.references[currentToken.line] = parsedReferences;
+    parsedReferences.push({ from, to, name, id });
     if (!found) {
       diagnostic(
         currentToken,
@@ -1057,10 +1064,9 @@ const parseSparkInternal = (
     if (!lintName(name, nameFrom, nameTo)) {
       return;
     }
-    if (!parsed.references[currentToken.line]) {
-      parsed.references[currentToken.line] = [];
-    }
-    parsed.references[currentToken.line].push({
+    const parsedReferences = parsed.references[currentToken.line] || [];
+    parsed.references[currentToken.line] = parsedReferences;
+    parsedReferences.push({
       from: nameFrom,
       to: nameTo,
       name,
@@ -1139,10 +1145,9 @@ const parseSparkInternal = (
     if (!lintName(name, nameFrom, nameTo)) {
       return null;
     }
-    if (!parsed.references[currentToken.line]) {
-      parsed.references[currentToken.line] = [];
-    }
-    parsed.references[currentToken.line].push({
+    const parsedReferences = parsed.references[currentToken.line] || [];
+    parsed.references[currentToken.line] = parsedReferences;
+    parsedReferences.push({
       from: nameFrom,
       to: nameTo,
       name,
@@ -1203,7 +1208,7 @@ const parseSparkInternal = (
     if (!parsed.structs) {
       parsed.structs = {};
     }
-    const structName = currentStructFieldId.split(".")[0];
+    const structName = currentStructFieldId.split(".")[0] || "";
     const struct = parsed.structs[structName];
     if (struct) {
       if (!struct.fields) {
@@ -1222,11 +1227,10 @@ const parseSparkInternal = (
       if (!lintName(id, nameFrom, nameTo)) {
         return;
       }
-      if (!parsed.references[line]) {
-        parsed.references[line] = [];
-      }
       if (name) {
-        parsed.references[line].push({
+        const parsedReferences = parsed.references[line] || [];
+        parsed.references[line] = parsedReferences;
+        parsedReferences.push({
           from: nameFrom,
           to: nameTo,
           name,
@@ -1264,15 +1268,17 @@ const parseSparkInternal = (
         if (curr) {
           let baseField: SparkField | undefined = undefined;
           while (curr) {
-            const fieldIds =
+            const fieldIds: string[] =
               struct?.type === "list" || struct?.type === "map"
                 ? Object.keys(curr.fields).reverse()
                 : [id];
             for (let i = 0; i < fieldIds.length; i += 1) {
               const f = fieldIds[i];
-              baseField = curr?.fields?.[f];
-              if (baseField) {
-                break;
+              if (f) {
+                baseField = curr?.fields?.[f];
+                if (baseField) {
+                  break;
+                }
               }
             }
             if (baseField) {
@@ -1362,7 +1368,7 @@ const parseSparkInternal = (
       return parameterNames;
     }
     for (let index = startIndex + 1; index < endIndex - 1; index += 1) {
-      const declaration = allMatches[index];
+      const declaration = allMatches[index] || "";
       const from = currentToken.from + getStart(allMatches, index);
       const to = from + declaration.length;
       let parameterMatch: RegExpMatchArray | null;
@@ -1452,13 +1458,12 @@ const parseSparkInternal = (
     if (!parsed.sections) {
       parsed.sections = {};
     }
-    if (!parsed.sections[currentSectionId]) {
-      parsed.sections[currentSectionId] = createSparkSection();
+    const section = parsed.sections[currentSectionId] || createSparkSection();
+    parsed.sections[currentSectionId] = section;
+    if (!section.tokens) {
+      section.tokens = [];
     }
-    if (!parsed.sections[currentSectionId].tokens) {
-      parsed.sections[currentSectionId].tokens = [];
-    }
-    const tokens = parsed?.sections?.[currentSectionId].tokens;
+    const tokens = section.tokens;
     if (tokens) {
       tokens.push(token);
     }
@@ -1470,7 +1475,7 @@ const parseSparkInternal = (
     let startIndex = -1;
     if (noteMatches) {
       for (let i = 0; i < noteMatches.length; i += 1) {
-        const noteMatch = noteMatches[i];
+        const noteMatch = noteMatches[i] || "";
         const type: SparkVariableType | SparkVariableType[] =
           noteMatch.startsWith("(") ? "audio" : ["image", "graphic"];
         const name = noteMatch.slice(2, noteMatch.length - 2);
@@ -1490,7 +1495,7 @@ const parseSparkInternal = (
     let startIndex = -1;
     if (noteMatches) {
       for (let i = 0; i < noteMatches.length; i += 1) {
-        const noteMatch = noteMatches[i].trim();
+        const noteMatch = noteMatches[i]?.trim() || "";
         const type: SparkVariableType | SparkVariableType[] =
           noteMatch.startsWith("(") ? "audio" : ["image", "graphic"];
         const name = noteMatch.slice(2, noteMatch.length - 2);
@@ -1687,7 +1692,7 @@ const parseSparkInternal = (
   );
 
   for (let i = 0; i < linesLength; i += 1) {
-    text = lines[i];
+    text = lines[i] || "";
 
     currentToken = createSparkToken("", newLineLength, {
       content: text,
@@ -1702,7 +1707,7 @@ const parseSparkInternal = (
     if ((match = currentToken.content.match(sparkRegexes.section))) {
       currentToken.type = "section";
       if (currentToken.type === "section") {
-        const level = match[2].length;
+        const level = match[2]?.length || 0;
         const name = match[4] || "";
         const parametersString = match[6] || "";
         const returnType = match[9] || "";
@@ -1936,7 +1941,7 @@ const parseSparkInternal = (
   let ignoredLastToken = false;
 
   for (let i = 0; i < linesLength; i += 1) {
-    text = lines[i];
+    text = lines[i] || "";
 
     if (state === "ignore") {
       state = undefined;
@@ -2058,13 +2063,13 @@ const parseSparkInternal = (
           if (!parsed.titleTokens) {
             parsed.titleTokens = {};
           }
-          if (!parsed.titleTokens[keyFormat.position]) {
-            parsed.titleTokens[keyFormat.position] = [];
-          }
           if (currentToken.content && !currentToken.text) {
             currentToken.text = currentToken.content;
           }
-          parsed.titleTokens[keyFormat.position].push(currentToken);
+          const titlePositionTokens =
+            parsed.titleTokens[keyFormat.position] || [];
+          parsed.titleTokens[keyFormat.position] = titlePositionTokens;
+          titlePositionTokens.push(currentToken);
         }
         titlePageStarted = true;
         continue;
@@ -2079,7 +2084,7 @@ const parseSparkInternal = (
     }
 
     const last = <T>(array: T[]): T => {
-      return array[array.length - 1];
+      return array[array.length - 1] as T;
     };
 
     const getLatestSectionOrScene = (
@@ -2189,7 +2194,7 @@ const parseSparkInternal = (
             parsed.properties.locations = {};
           }
           if (parsed.properties.locations[location]) {
-            parsed.properties.locations[location].push(currentToken.line);
+            parsed.properties.locations[location]?.push(currentToken.line);
           } else {
             parsed.properties.locations[location] = [currentToken.line];
           }
@@ -2197,7 +2202,7 @@ const parseSparkInternal = (
             parsed.properties.times = {};
           }
           if (parsed.properties.times[time]) {
-            parsed.properties.times[time].push(currentToken.line);
+            parsed.properties.times[time]?.push(currentToken.line);
           } else {
             parsed.properties.times[time] = [currentToken.line];
           }
@@ -2312,25 +2317,29 @@ const parseSparkInternal = (
               if (references?.length > 0) {
                 for (let i = 0; i < references.length; i += 1) {
                   const r = references[i];
-                  const from = expressionFrom + r.from;
-                  const to = expressionFrom + r.to;
-                  if (!parsed.references[currentToken.line]) {
-                    parsed.references[currentToken.line] = [];
+                  if (r) {
+                    const from = expressionFrom + r.from;
+                    const to = expressionFrom + r.to;
+                    const parsedReferences =
+                      parsed.references[currentToken.line] || [];
+                    parsed.references[currentToken.line] = parsedReferences;
+                    parsedReferences.push({
+                      from,
+                      to,
+                      name: r.name,
+                      id: ids[r.name],
+                    });
                   }
-                  parsed.references[currentToken.line].push({
-                    from,
-                    to,
-                    name: r.name,
-                    id: ids[r.name],
-                  });
                 }
               }
               if (diagnostics?.length > 0) {
                 for (let i = 0; i < diagnostics.length; i += 1) {
                   const d = diagnostics[i];
-                  const from = expressionFrom + d.from;
-                  const to = expressionFrom + d.to;
-                  diagnostic(currentToken, d.message, [], from, to);
+                  if (d) {
+                    const from = expressionFrom + d.from;
+                    const to = expressionFrom + d.to;
+                    diagnostic(currentToken, d.message, [], from, to);
+                  }
                 }
               }
               const resultType = typeof result;
@@ -2533,7 +2542,7 @@ const parseSparkInternal = (
       } else if ((match = currentToken.content.match(sparkRegexes.synopsis))) {
         currentToken.type = "synopsis";
         if ((match = matchLint(currentToken.content, sparkRegexes.synopsis))) {
-          currentToken.content = match[4];
+          currentToken.content = match[4] || "";
           const struct = getLatestSectionOrScene(currentLevel);
           if (struct) {
             if (struct.tooltip) {
@@ -2659,9 +2668,9 @@ const parseSparkInternal = (
         currentToken.content.match(sparkRegexes.character) &&
         i !== linesLength &&
         i !== linesLength - 1 &&
-        (lines[i + 1].trim().length === 0 ? lines[i + 1] === "  " : true) &&
-        lines[i].match(/^([ \t]*)/)?.[0]?.length ===
-          lines[i + 1].match(/^([ \t]*)/)?.[0]?.length
+        (lines[i + 1]?.trim().length === 0 ? lines[i + 1] === "  " : true) &&
+        lines[i]?.match(/^([ \t]*)/)?.[0]?.length ===
+          lines[i + 1]?.match(/^([ \t]*)/)?.[0]?.length
       ) {
         // The last part of the above statement ('(lines[i + 1].trim().length == 0) ? (lines[i+1] == "  ") : false)')
         // means that if the trimmed length of the following line (i+1) is equal to zero, the statement will only return 'true',
@@ -2707,10 +2716,14 @@ const parseSparkInternal = (
                   break;
                 case "parenthetical":
                   break;
-                case "dialogue_start":
-                  parsed.tokens[temp_index].type = "dual_dialogue_start";
-                  foundMatch = true;
+                case "dialogue_start": {
+                  const t = parsed.tokens[temp_index];
+                  if (t) {
+                    t.type = "dual_dialogue_start";
+                    foundMatch = true;
+                  }
                   break;
+                }
                 default:
                   foundMatch = false;
               }
@@ -2736,7 +2749,9 @@ const parseSparkInternal = (
             parsed.properties.characters = {};
           }
           if (parsed.properties.characters[characterName]) {
-            parsed.properties.characters[characterName].push(currentToken.line);
+            parsed.properties.characters[characterName]?.push(
+              currentToken.line
+            );
           } else {
             parsed.properties.characters[characterName] = [currentToken.line];
           }
@@ -2893,7 +2908,10 @@ const parseSparkInternal = (
       let to = currentToken.from;
       while (lineIndex < linesLength) {
         const line = lines[lineIndex];
-        const indentMatch = line.match(/^([ \t]*)/);
+        if (!line) {
+          break;
+        }
+        const indentMatch = line?.match(/^([ \t]*)/);
         const indentText = indentMatch?.[0] || "";
         const offset = indentText.length;
         const indent = Math.floor(offset / 2);

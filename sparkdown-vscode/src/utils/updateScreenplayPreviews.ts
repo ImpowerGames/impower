@@ -19,25 +19,26 @@ export const updateScreenplayPreviews = (doc: vscode.TextDocument) => {
     "screenplay",
     uri
   );
-  if (screenplayPreviewsToUpdate) {
+  if (screenplayPreviewsToUpdate && result) {
     const config = getSparkdownConfig(uri);
     const titleHtml = generateSparkTitleHtml(result, config);
     const scriptHtml = generateSparkScriptHtml(result, config);
     for (let i = 0; i < screenplayPreviewsToUpdate.length; i++) {
-      if (screenplayPreviewsToUpdate[i]) {
-        screenplayPreviewsToUpdate[i].panel.webview.postMessage({
+      const preview = screenplayPreviewsToUpdate[i];
+      if (preview) {
+        preview.panel.webview.postMessage({
           command: "updateTitle",
           content: titleHtml,
         });
-        screenplayPreviewsToUpdate[i].panel.webview.postMessage({
+        preview.panel.webview.postMessage({
           command: "updateScript",
           content: scriptHtml,
         });
-        if (screenplayPreviewsToUpdate[i].dynamic) {
-          screenplayPreviewsToUpdate[i].uri = uri.toString();
-          screenplayPreviewsToUpdate[i].panel.webview.postMessage({
+        if (preview.dynamic) {
+          preview.uri = uri.toString();
+          preview.panel.webview.postMessage({
             command: "setstate",
-            uri: screenplayPreviewsToUpdate[i].uri,
+            uri: preview.uri,
           });
         }
       }
@@ -53,18 +54,19 @@ export const updateScreenplayPreviews = (doc: vscode.TextDocument) => {
         const titleHiddenTokens = result.titleTokens["hidden"];
         if (titleHiddenTokens) {
           while (tokenLength < titleHiddenTokens.length) {
+            const hiddenToken = titleHiddenTokens[tokenLength];
             if (
-              titleHiddenTokens?.[tokenLength]?.type === "font" &&
-              titleHiddenTokens?.[tokenLength]?.text?.trim() !== ""
+              hiddenToken?.type === "font" &&
+              hiddenToken?.text?.trim() !== ""
             ) {
-              const fontLine = titleHiddenTokens[tokenLength].line;
+              const fontLine = hiddenToken.line;
               if (fontLine !== undefined) {
                 if (!lastParsedDoc.properties) {
                   lastParsedDoc.properties = {};
                 }
                 lastParsedDoc.properties.fontLine = fontLine;
               }
-              const fontName = titleHiddenTokens[tokenLength].text;
+              const fontName = hiddenToken.text;
               screenplayPreviewsToUpdate.forEach((p) => {
                 if (p) {
                   p.panel.webview.postMessage({

@@ -226,7 +226,7 @@ export class AnimatedGraphic extends DisplayObject {
     this._bounds.addFrameMatrix(this.worldTransform, minX, minY, maxX, maxY);
   }
 
-  public getLocalBounds(rect?: Rectangle): Rectangle {
+  override getLocalBounds(rect?: Rectangle): Rectangle {
     if (!this._localBounds) {
       this._localBounds = new Bounds();
     }
@@ -252,7 +252,7 @@ export class AnimatedGraphic extends DisplayObject {
    * @param point - the point to test
    * @returns The result of the test
    */
-  public containsPoint(point: IPointData): boolean {
+  containsPoint(point: IPointData): boolean {
     this.worldTransform.applyInverse(point, tempPoint);
 
     const width = this._orig.width;
@@ -275,10 +275,7 @@ export class AnimatedGraphic extends DisplayObject {
     // Just to implement DisplayObject
   }
 
-  /**
-   * @override
-   */
-  render(renderer: Renderer): void {
+  override render(renderer: Renderer): void {
     if (!this.visible || !this.renderable) {
       return;
     }
@@ -292,10 +289,7 @@ export class AnimatedGraphic extends DisplayObject {
     }
   }
 
-  /**
-   * @override
-   */
-  updateTransform(): void {
+  override updateTransform(): void {
     super.updateTransform();
 
     if (!this.root) {
@@ -881,7 +875,7 @@ export class AnimatedGraphic extends DisplayObject {
       currentFrameIndex = this._frames.length - 1;
     }
     if (this._control) {
-      this._control.time = this._frames[currentFrameIndex];
+      this._control.time = this._frames[currentFrameIndex] || 0;
     }
 
     if (currentFrameIndex !== this._currentFrameIndex) {
@@ -904,7 +898,7 @@ export class AnimatedGraphic extends DisplayObject {
    * @param {boolean} [options.texture=false] - Should it destroy the current texture of the sprite as well.
    * @param {boolean} [options.baseTexture=false] - Should it destroy the base texture of the sprite as well.
    */
-  public destroy(options?: IDestroyOptions | boolean): void {
+  override destroy(options?: IDestroyOptions | boolean): void {
     this.stop();
     super.destroy(options);
 

@@ -84,10 +84,13 @@ export class SparkGameApp {
         const keys = Object.keys(responsiveBreakpoints);
         let className = "";
         for (let i = 0; i < keys.length; i += 1) {
-          const k = keys[i];
+          const k = keys[i] || "";
           className += `${k} `;
-          if (responsiveBreakpoints[k] > width) {
-            break;
+          const b = responsiveBreakpoints[k];
+          if (b !== undefined) {
+            if (b > width) {
+              break;
+            }
           }
         }
         className = className.trim();

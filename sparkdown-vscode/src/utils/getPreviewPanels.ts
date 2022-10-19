@@ -7,8 +7,9 @@ export const getPreviewPanels = (
 ): PreviewPanel[] => {
   const selectedPreviews: PreviewPanel[] = [];
   for (let i = 0; i < previewState[type].length; i++) {
-    if (previewState[type][i].uri === uri.toString()) {
-      selectedPreviews.push(previewState[type][i]);
+    const preview = previewState[type]?.[i];
+    if (preview?.uri === uri.toString()) {
+      selectedPreviews.push(preview);
     }
   }
   return selectedPreviews;

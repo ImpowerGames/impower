@@ -11,9 +11,9 @@ export const getConceptualExamples = (
 
   const words = Object.keys(wordVecs);
 
-  bar.start(words.length);
+  bar.start(words.length, 0);
 
-  const conceptVecs = targetWords.map((word) => wordVecs[word]);
+  const conceptVecs = targetWords.map((word) => wordVecs[word] || []);
   const targetConcept = average(conceptVecs);
 
   if (!targetConcept) {
@@ -24,7 +24,7 @@ export const getConceptualExamples = (
 
   words.forEach((word, index) => {
     bar.update(index);
-    const conceptWord = wordVecs[word];
+    const conceptWord = wordVecs[word] || [];
     const sim = similarity(targetConcept, conceptWord);
     pairs.push([word, sim]);
   });

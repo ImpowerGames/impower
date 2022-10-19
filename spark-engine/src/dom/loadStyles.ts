@@ -25,7 +25,7 @@ export const loadStyles = (
   if (!objectMap) {
     return null;
   }
-  const imports = Object.values(objectMap?.import || {});
+  const imports = Object.values(objectMap?.["import"] || {});
   let content = "";
   content += `${imports.map((x) => `\n@import url("${x}");`)}`;
   styleStructNames.forEach((k) => {
@@ -37,11 +37,13 @@ export const loadStyles = (
     Object.entries(styleStruct || {}).forEach(([fk, fv]) => {
       if (fk.includes(".")) {
         const [breakpoint, propName] = fk.split(".");
-        if (!breakpointMap[breakpoint]) {
-          breakpointMap[breakpoint] = [];
+        if (breakpoint && propName) {
+          if (!breakpointMap[breakpoint]) {
+            breakpointMap[breakpoint] = [];
+          }
+          const [cssProp, cssValue] = getCSSPropertyKeyValue(propName, fv);
+          breakpointMap[breakpoint]?.push(`${cssProp}: ${cssValue};`);
         }
-        const [cssProp, cssValue] = getCSSPropertyKeyValue(propName, fv);
-        breakpointMap[breakpoint].push(`${cssProp}: ${cssValue};`);
       } else {
         if (!breakpointMap[""]) {
           breakpointMap[""] = [];

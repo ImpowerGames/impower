@@ -11,11 +11,11 @@ export class SnippetPreviewWidget extends WidgetType {
     this.indentText = indentText;
   }
 
-  eq(other: SnippetPreviewWidget): boolean {
+  override eq(other: SnippetPreviewWidget): boolean {
     return other.content === this.content;
   }
 
-  toDOM(): HTMLElement {
+  override toDOM(): HTMLElement {
     const wrap = document.createElement("span");
     wrap.setAttribute("aria-hidden", "true");
     const textDiv = document.createElement("span");

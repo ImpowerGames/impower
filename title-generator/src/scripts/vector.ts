@@ -3,7 +3,11 @@ import tagTerms from "../input/tagTerms.json";
 import terms from "../output/terms.json";
 import { getWordVectors } from "../utils/getWordVectors";
 
-const include = (word: string) => Boolean(tagTerms[word] || terms[word]);
+const include = (word: string) =>
+  Boolean(
+    (tagTerms as Record<string, string[]>)[word] ||
+      (terms as Record<string, string[]>)[word]
+  );
 
 getWordVectors(include).then((result) => {
   const definition = "export const termVectors = ";

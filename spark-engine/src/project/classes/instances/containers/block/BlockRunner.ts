@@ -58,7 +58,10 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       );
 
       if (shouldExecute) {
-        game.logic.executeBlock(id, game.logic.blockMap[id].parent || "");
+        const block = game.logic.blockMap[id];
+        if (block) {
+          game.logic.executeBlock(id, block.parent || "");
+        }
       }
     }
 
@@ -93,31 +96,72 @@ export class BlockRunner extends ContainerRunner<BlockData> {
     const blockId = id;
     while (blockState.executingIndex < commands.length) {
       const command = commands[blockState.executingIndex];
-      const commandId = command.data.reference.refId;
-      const commandIndex = blockState.executingIndex;
-      const executionCount = blockState.commandExecutionCounts[commandId];
-      const from = command?.data?.from;
-      const line = command?.data?.line;
-      const fastForward = blockState.startIndex > blockState.executingIndex;
-      const changedVariables = game?.logic?.state?.changedVariables;
-      const changedBlocks = game?.logic?.state?.changedBlocks;
-      const variableStates = game?.logic?.state?.variableStates;
-      const blockStates = game?.logic?.state?.blockStates;
-      changedVariables.forEach((id) => {
-        const state = variableStates[id];
-        context.valueMap[state.name] = state.value;
-      });
-      changedBlocks.forEach((id) => {
-        const state = blockStates[id];
-        context.valueMap[state.name] = state.executionCount;
-      });
-      context.valueMap["#"] = [
-        executionCount,
-        game.random.state.seed + commandId,
-      ];
-      context.debug = game?.debug?.state?.debugging;
-      if (blockState.lastExecutedAt < 0) {
-        game.logic.executeCommand(
+      if (command) {
+        const commandId = command.data.reference.refId;
+        const commandIndex = blockState.executingIndex;
+        const executionCount = blockState.commandExecutionCounts[commandId];
+        const from = command?.data?.from;
+        const line = command?.data?.line;
+        const fastForward = blockState.startIndex > blockState.executingIndex;
+        const changedVariables = game?.logic?.state?.changedVariables;
+        const changedBlocks = game?.logic?.state?.changedBlocks;
+        const variableStates = game?.logic?.state?.variableStates;
+        const blockStates = game?.logic?.state?.blockStates;
+        changedVariables.forEach((id) => {
+          const state = variableStates[id];
+          if (state) {
+            context.valueMap[state.name] = state.value;
+          }
+        });
+        changedBlocks.forEach((id) => {
+          const state = blockStates[id];
+          if (state) {
+            context.valueMap[state.name] = state.executionCount;
+          }
+        });
+        context.valueMap["#"] = [
+          executionCount,
+          game.random.state.seed + commandId,
+        ];
+        context.debug = game?.debug?.state?.debugging;
+        if (blockState.lastExecutedAt < 0) {
+          game.logic.executeCommand(
+            blockId,
+            commandId,
+            commandIndex,
+            time,
+            from,
+            line
+          );
+          let nextJumps: number[] = [];
+          if (!fastForward) {
+            nextJumps = command.runner.onExecute(
+              command.data,
+              { ...context, index: blockState.executingIndex },
+              game
+            );
+          }
+          if (nextJumps.length > 0) {
+            game.logic.commandJumpStackPush(blockId, nextJumps, from, line);
+          }
+          if (blockState.lastExecutedAt < 0) {
+            return true;
+          }
+        }
+        if (!fastForward && command.data.waitUntilFinished) {
+          const finished = command.runner.isFinished(
+            command.data,
+            { ...context, index: blockState.executingIndex },
+            game
+          );
+          if (finished === null) {
+            return null;
+          }
+          if (!finished) {
+            return true;
+          }
+        }
+        game.logic.finishCommand(
           blockId,
           commandId,
           commandIndex,
@@ -125,54 +169,19 @@ export class BlockRunner extends ContainerRunner<BlockData> {
           from,
           line
         );
-        let nextJumps: number[] = [];
-        if (!fastForward) {
-          nextJumps = command.runner.onExecute(
-            command.data,
-            { ...context, index: blockState.executingIndex },
-            game
+        if (blockState.commandJumpStack.length > 0) {
+          const nextCommandIndex = game.logic.commandJumpStackPop(
+            blockId,
+            from,
+            line
           );
-        }
-        if (nextJumps.length > 0) {
-          game.logic.commandJumpStackPush(blockId, nextJumps, from, line);
-        }
-        if (blockState.lastExecutedAt < 0) {
-          return true;
-        }
-      }
-      if (!fastForward && command.data.waitUntilFinished) {
-        const finished = command.runner.isFinished(
-          command.data,
-          { ...context, index: blockState.executingIndex },
-          game
-        );
-        if (finished === null) {
-          return null;
-        }
-        if (!finished) {
-          return true;
-        }
-      }
-      game.logic.finishCommand(
-        blockId,
-        commandId,
-        commandIndex,
-        time,
-        from,
-        line
-      );
-      if (blockState.commandJumpStack.length > 0) {
-        const nextCommandIndex = game.logic.commandJumpStackPop(
-          blockId,
-          from,
-          line
-        );
-        if (nextCommandIndex !== undefined) {
+          if (nextCommandIndex !== undefined) {
+            game.logic.goToCommandIndex(blockId, nextCommandIndex, from, line);
+          }
+        } else {
+          const nextCommandIndex = blockState.executingIndex + 1;
           game.logic.goToCommandIndex(blockId, nextCommandIndex, from, line);
         }
-      } else {
-        const nextCommandIndex = blockState.executingIndex + 1;
-        game.logic.goToCommandIndex(blockId, nextCommandIndex, from, line);
       }
     }
     return false;

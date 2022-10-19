@@ -58,22 +58,24 @@ export const doMigrate = async (
   let i = 0;
   while (i < fromAccounts.users.length) {
     const r = fromAccounts.users[i];
-    const existingUser = await toApp
-      .auth()
-      .getUserByEmail(r.email)
-      .catch(() => null);
-    if (!existingUser && r.passwordHash) {
-      userImportRecords.push({
-        uid: r.localId,
-        email: r.email,
-        emailVerified: r.emailVerified,
-        displayName: r.displayName,
-        disabled: r.disabled,
-        providerData: r.providerUserInfo,
-        customClaims: JSON.parse(r.customAttributes || "{}"),
-        passwordHash: Buffer.from(r.passwordHash, "base64"),
-        passwordSalt: Buffer.from(r.salt, "base64"),
-      });
+    if (r) {
+      const existingUser = await toApp
+        .auth()
+        .getUserByEmail(r.email)
+        .catch(() => null);
+      if (!existingUser && r.passwordHash) {
+        userImportRecords.push({
+          uid: r.localId,
+          email: r.email,
+          emailVerified: r.emailVerified,
+          displayName: r.displayName,
+          disabled: r.disabled,
+          providerData: r.providerUserInfo,
+          customClaims: JSON.parse(r.customAttributes || "{}"),
+          passwordHash: Buffer.from(r.passwordHash, "base64"),
+          passwordSalt: Buffer.from(r.salt, "base64"),
+        });
+      }
     }
     i += 1;
   }
@@ -96,42 +98,45 @@ export const doMigrate = async (
   const [publicFiles] = await fromApp.storage().bucket().getFiles({
     prefix: `public`,
   });
-  await Promise.all(publicFiles.map(async (f) => {
-    const [downloadedFile] = await f.download();
-    const [metadata] = await f.getMetadata();
-    const customMetadata = metadata.metadata;
-    const contentType = metadata.contentType;
-    const options = {
-      contentType,
-      "public": true,
-      "Cache-Control": "public,max-age=31536000",
-      "metadata": {
-        "metadata": {
-          ...customMetadata
-        }
-      },
-    };
-    await toApp.storage().bucket().file(f.name).save(downloadedFile, options)
-  }
-  ));
+  await Promise.all(
+    publicFiles.map(async (f) => {
+      const [downloadedFile] = await f.download();
+      const [metadata] = await f.getMetadata();
+      const customMetadata = metadata.metadata;
+      const contentType = metadata.contentType;
+      const options = {
+        contentType,
+        public: true,
+        "Cache-Control": "public,max-age=31536000",
+        metadata: {
+          metadata: {
+            ...customMetadata,
+          },
+        },
+      };
+      await toApp.storage().bucket().file(f.name).save(downloadedFile, options);
+    })
+  );
   const [userFiles] = await fromApp.storage().bucket().getFiles({
     prefix: `users`,
   });
-  await Promise.all(userFiles.map(async (f) => {
-    const [downloadedFile] = await f.download();
-    const [metadata] = await f.getMetadata();
-    const customMetadata = metadata.metadata;
-    const contentType = metadata.contentType;
-    const options = {
-      contentType,
-      "metadata": {
-        "metadata": {
-          ...customMetadata
-        }
-      },
-    };
-    await toApp.storage().bucket().file(f.name).save(downloadedFile, options)
-  }));
+  await Promise.all(
+    userFiles.map(async (f) => {
+      const [downloadedFile] = await f.download();
+      const [metadata] = await f.getMetadata();
+      const customMetadata = metadata.metadata;
+      const contentType = metadata.contentType;
+      const options = {
+        contentType,
+        metadata: {
+          metadata: {
+            ...customMetadata,
+          },
+        },
+      };
+      await toApp.storage().bucket().file(f.name).save(downloadedFile, options);
+    })
+  );
 
   // Migrate all database data
   console.log("Migrating all database data");
@@ -142,29 +147,45 @@ export const doMigrate = async (
   console.log("Migrating all firestore data");
   const toBulkWriter = toApp.firestore().bulkWriter();
   const fromCollections = await fromApp.firestore().listCollections();
-  const migrateCollection = async (collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>) => {
+  const migrateCollection = async (
+    collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>
+  ) => {
     const colSnap = await collection.get();
     const colPromises = colSnap.docs.map(async (docSnap) => {
       const fromChildCollections = await docSnap.ref.listCollections();
-      const fromChildColPromises = fromChildCollections.map(async (childColRef) => {
-        const childColSnap = await childColRef.get();
-        const childColDocPromises = childColSnap.docs.map(async (childDocSnap) => {
-          return await toBulkWriter.set(toApp.firestore().doc(childDocSnap.ref.path), childDocSnap.data(), {merge: true});
-        });
-        const childColDocResults = await Promise.all(childColDocPromises);
-        return childColDocResults;
-      });
-      const fromDocPromise = toBulkWriter.set(toApp.firestore().doc(docSnap.ref.path), docSnap.data(), {merge: true});
+      const fromChildColPromises = fromChildCollections.map(
+        async (childColRef) => {
+          const childColSnap = await childColRef.get();
+          const childColDocPromises = childColSnap.docs.map(
+            async (childDocSnap) => {
+              return await toBulkWriter.set(
+                toApp.firestore().doc(childDocSnap.ref.path),
+                childDocSnap.data(),
+                { merge: true }
+              );
+            }
+          );
+          const childColDocResults = await Promise.all(childColDocPromises);
+          return childColDocResults;
+        }
+      );
+      const fromDocPromise = toBulkWriter.set(
+        toApp.firestore().doc(docSnap.ref.path),
+        docSnap.data(),
+        { merge: true }
+      );
       const docResult = await fromDocPromise;
       const colResults = await Promise.all(fromChildColPromises);
-      const colFlatResults = colResults.flatMap(x => x);
+      const colFlatResults = colResults.flatMap((x) => x);
       const results = [docResult, ...colFlatResults];
       return results;
     });
     const colResults = await Promise.all(colPromises);
-    const colFlatResults = colResults.flatMap(x => x);
+    const colFlatResults = colResults.flatMap((x) => x);
     return colFlatResults;
   };
-  await Promise.all(fromCollections.map(collection => migrateCollection(collection)));
+  await Promise.all(
+    fromCollections.map((collection) => migrateCollection(collection))
+  );
   await toBulkWriter.close();
 };

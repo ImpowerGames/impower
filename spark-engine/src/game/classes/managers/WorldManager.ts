@@ -72,7 +72,7 @@ export class WorldManager extends Manager<WorldState, WorldEvents> {
     };
   }
 
-  getSaveData(): WorldState {
+  override getSaveData(): WorldState {
     return this.deepCopyState(this.state);
   }
 
@@ -127,11 +127,11 @@ export class WorldManager extends Manager<WorldState, WorldEvents> {
   }
 
   addCamera(cameraId: string, cameraState?: CameraState): void {
-    this.state.cameraStates[cameraId] =
-      cameraState || this.getOrCreateCameraState(cameraId);
+    const s = cameraState || this.getOrCreateCameraState(cameraId);
+    this.state.cameraStates[cameraId] = s;
     this.events.onAddCamera.emit({
       cameraId,
-      cameraState: this.state.cameraStates[cameraId],
+      cameraState: s,
     });
   }
 
@@ -150,12 +150,12 @@ export class WorldManager extends Manager<WorldState, WorldEvents> {
       return false;
     }
     camera.spawnedEntities.push(entityId);
-    camera.entities[entityId] =
-      entityState || this.getOrCreateEntityState(entityId, cameraId);
+    const s = entityState || this.getOrCreateEntityState(entityId, cameraId);
+    camera.entities[entityId] = s;
     this.events.onSpawnEntity.emit({
       entityId,
       cameraId,
-      entityState: camera.entities[entityId],
+      entityState: s,
     });
     return true;
   }

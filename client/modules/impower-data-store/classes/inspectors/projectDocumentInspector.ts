@@ -22,7 +22,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     return createProjectDocument(data);
   }
 
-  async getPropertyError(
+  override async getPropertyError(
     propertyPath: string,
     data: ProjectDocument,
     value: unknown,
@@ -63,7 +63,10 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     return undefined;
   }
 
-  getPropertyLabel(propertyPath: string, data: ProjectDocument): string {
+  override getPropertyLabel(
+    propertyPath: string,
+    data: ProjectDocument
+  ): string {
     if (propertyPath === "name") {
       if (data?.projectType === "game" || data?.projectType === "story") {
         return "Title";
@@ -91,7 +94,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     return super.getPropertyLabel(propertyPath, data);
   }
 
-  getPropertyDisplayValue(
+  override getPropertyDisplayValue(
     propertyPath: string,
     data: ProjectDocument,
     value: unknown
@@ -109,7 +112,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     return super.getPropertyDisplayValue(propertyPath, data, value);
   }
 
-  getPropertyInputType(
+  override getPropertyInputType(
     propertyPath: string,
     data?: ProjectDocument
   ):
@@ -141,7 +144,10 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     return super.getPropertyInputType(propertyPath, data);
   }
 
-  getPropertyOptions(propertyPath: string, data?: ProjectDocument): unknown[] {
+  override getPropertyOptions(
+    propertyPath: string,
+    data?: ProjectDocument
+  ): unknown[] {
     if (propertyPath === "status") {
       return Object.values(DevelopmentStatus);
     }
@@ -326,7 +332,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     return undefined;
   }
 
-  getPropertyValueIcon(
+  override getPropertyValueIcon(
     propertyPath: string,
     data: ProjectDocument,
     value: string
@@ -342,7 +348,10 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     return super.getPropertyValueIcon(propertyPath, data, value);
   }
 
-  getPropertyPlaceholder(propertyPath: string, data: ProjectDocument): string {
+  override getPropertyPlaceholder(
+    propertyPath: string,
+    data: ProjectDocument
+  ): string {
     if (propertyPath === "description") {
       return `Describe the game's story, features, controls, or anything else.`;
     }
@@ -459,7 +468,7 @@ export class ProjectDocumentInspector extends PageDocumentInspector<ProjectDocum
     return undefined;
   }
 
-  getPropertyMoreInfoPopup(
+  override getPropertyMoreInfoPopup(
     propertyPath: string,
     data: ProjectDocument
   ): {

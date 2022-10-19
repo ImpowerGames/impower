@@ -95,6 +95,10 @@ export const get = <T, V>(
       prop = join([prop.slice(0, -1), segs[idx] || ""], joinChar, options);
     }
 
+    if (!prop) {
+      return options.default;
+    }
+
     if (prop in target) {
       if (!isValid(prop, target, options)) {
         return options.default;
@@ -108,7 +112,7 @@ export const get = <T, V>(
       let n = idx + 1;
 
       while (n < len) {
-        prop = join([prop, segs[n]], joinChar, options);
+        prop = join([prop, segs[n] || ""], joinChar, options);
         n += 1;
         hasProp = prop in target;
         if (hasProp) {

@@ -30,12 +30,14 @@ const regex = (
   const varRegexes: { [regex: string]: string } = configRegexes?.[arg] || {};
   const varRegexEntries = Object.entries(varRegexes);
   for (let i = 0; i < varRegexEntries.length; i += 1) {
-    const [regex, replacement] = varRegexEntries[i];
-    if (new RegExp(regex).test(value)) {
-      return [replacement, [], []];
+    const [regex, replacement] = varRegexEntries[i] || [];
+    if (regex !== undefined && replacement !== undefined) {
+      if (new RegExp(regex).test(value)) {
+        return [replacement, [], []];
+      }
     }
   }
-  const result = varRegexes[""];
+  const result = varRegexes[""] || "";
   return [result, [], []];
 };
 
@@ -69,7 +71,7 @@ export const format = (
     const needsTrim = inner.startsWith("{") && inner.endsWith("}");
     from = str.indexOf(match, to) + (needsTrim ? 2 : 1);
     const trimmedInner = needsTrim ? inner.slice(1, -1) : inner;
-    const validLocale = locale || (args?.locale as string);
+    const validLocale = locale || (args?.["locale"] as string);
     const chooseVal = args?.["#"];
     if (
       !trimmedInner.includes(":") &&

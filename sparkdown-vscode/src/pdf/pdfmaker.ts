@@ -130,7 +130,7 @@ export const versionGenerator = (current?: string) => {
 
 export const getIndentation = (text: string): string => {
   const match = (text || "").match(/^(\s+)/);
-  return match ? match[0] : "";
+  return match?.[0] || "";
 };
 
 export const blankText = (text: string): string => {
@@ -171,19 +171,20 @@ export class PdfWriteStream implements NodeJS.WritableStream {
     if (!this.repeatCallbacks[eventName]) {
       this.repeatCallbacks[eventName] = [];
     }
-    this.repeatCallbacks[eventName].push(listener);
+    this.repeatCallbacks[eventName]?.push(listener);
     return this;
   }
 
   removeListener(eventName: string | symbol, listener: Listener): this {
-    if (!this.repeatCallbacks[eventName]) {
+    const callbacks = this.repeatCallbacks[eventName];
+    if (!callbacks) {
       return this;
     }
-    const index = this.repeatCallbacks[eventName].indexOf(listener);
+    const index = callbacks.indexOf(listener);
     if (index < 0) {
       return this;
     }
-    this.repeatCallbacks[eventName].splice(index, 1);
+    callbacks.splice(index, 1);
     return this;
   }
 
@@ -233,26 +234,23 @@ export class PdfWriteStream implements NodeJS.WritableStream {
   }
 
   prependListener(eventName: string | symbol, listener: Listener): this {
-    if (!this.repeatCallbacks[eventName]) {
-      this.repeatCallbacks[eventName] = [];
-    }
-    this.repeatCallbacks[eventName].unshift(listener);
+    const callbacks = this.repeatCallbacks[eventName] || [];
+    this.repeatCallbacks[eventName] = callbacks;
+    callbacks.unshift(listener);
     return this;
   }
 
   prependOnceListener(eventName: string | symbol, listener: Listener): this {
-    if (!this.onceCallbacks[eventName]) {
-      this.onceCallbacks[eventName] = [];
-    }
-    this.onceCallbacks[eventName].unshift(listener);
+    const callbacks = this.onceCallbacks[eventName] || [];
+    this.onceCallbacks[eventName] = callbacks;
+    callbacks.unshift(listener);
     return this;
   }
 
   once(eventName: string | symbol, listener: Listener): this {
-    if (!this.onceCallbacks[eventName]) {
-      this.onceCallbacks[eventName] = [];
-    }
-    this.onceCallbacks[eventName].push(listener);
+    const callbacks = this.onceCallbacks[eventName] || [];
+    this.onceCallbacks[eventName] = callbacks;
+    callbacks.push(listener);
     return this;
   }
 
@@ -436,13 +434,13 @@ const initDoc = async (opts: PdfOptions) => {
         const trimmed = match[3];
         links.push({
           start: match.index,
-          length: trimmed.length,
-          url: match[6],
+          length: trimmed?.length || 0,
+          url: match[6] || "",
         });
         text =
           text.slice(0, match.index) +
           match[3] +
-          text.slice(match.index + match[0].length);
+          text.slice(match.index + (match[0]?.length || 0));
       }
     }
     const splitForFormatting = [];
@@ -451,11 +449,14 @@ const initDoc = async (opts: PdfOptions) => {
     // |--------------|----------| - - - - - - - |
     let prevLink = 0;
     for (let i = 0; i < links.length; i++) {
-      splitForFormatting.push(text.slice(prevLink, links[i].start));
-      splitForFormatting.push(
-        text.slice(links[i].start, links[i].start + links[i].length)
-      );
-      prevLink = links[i].start + links[i].length;
+      const link = links[i];
+      if (link) {
+        splitForFormatting.push(text.slice(prevLink, link.start));
+        splitForFormatting.push(
+          text.slice(link.start, link.start + link.length)
+        );
+        prevLink = link.start + link.length;
+      }
     }
     //...And then add whatever is left over
     //"This is a link: google.com and this is after"
@@ -467,7 +468,7 @@ const initDoc = async (opts: PdfOptions) => {
 
     //Further sub-split for bold, italic, underline, etc...
     for (let i = 0; i < splitForFormatting.length; i++) {
-      const innerSplit = splitForFormatting[i]
+      const innerSplit = (splitForFormatting[i] || "")
         .split(/(\\\*)|(\*{1,3})|(\\?_)|(\[\[)|(\]\])/g)
         .filter((a) => {
           return a;
@@ -480,6 +481,9 @@ const initDoc = async (opts: PdfOptions) => {
     let currentIndex = 0;
     for (let i = 0; i < splitForFormatting.length; i++) {
       let elem = splitForFormatting[i];
+      if (!elem) {
+        break;
+      }
       if (!doc.formatState) {
         doc.formatState = {};
       }
@@ -575,12 +579,15 @@ const initDoc = async (opts: PdfOptions) => {
       };
     }[] = [];
     for (let i = 0; i < textParts.length; i++) {
-      const match = sparkRegexes.link.exec(textParts[i]);
-      if (match && match.length > 0) {
-        parts.push({ image: { path: match[6] } });
-        parts.push({ text: textParts[i].slice(match[0].length) });
-      } else {
-        parts.push({ text: textParts[i] });
+      const part = textParts[i];
+      if (part) {
+        const match = sparkRegexes.link.exec(part);
+        if (match && match.length > 0) {
+          parts.push({ image: { path: match[6] || "" } });
+          parts.push({ text: part.slice((match[0] || "").length) });
+        } else {
+          parts.push({ text: textParts[i] });
+        }
       }
     }
     const additionalY = 0;
@@ -616,7 +623,7 @@ const getTitleToken = function (
   let result = null;
   if (parsed && parsed.titleTokens) {
     for (const section of Object.keys(parsed.titleTokens)) {
-      parsed.titleTokens[section].forEach(function (token: SparkToken) {
+      parsed.titleTokens[section]?.forEach(function (token: SparkToken) {
         if (token.type === type) {
           result = token;
         }
@@ -875,14 +882,12 @@ async function generate(
     if (obj.children.length > 0) {
       //get the last child
       currentDepth++;
-      return getOutlineChild(
-        obj.children[obj.children.length - 1],
-        targetDepth,
-        currentDepth
-      );
-    } else {
-      return obj;
+      const child = obj.children[obj.children.length - 1];
+      if (child) {
+        return getOutlineChild(child, targetDepth, currentDepth);
+      }
     }
+    return obj;
   };
 
   const outline = doc.outline;
@@ -1014,7 +1019,10 @@ async function generate(
         if (line.type === "section" || hasInvisibleSection) {
           if (hasInvisibleSection) {
             for (let i = 0; i < invisibleSections.length; i++) {
-              processSection(invisibleSections[i]);
+              const invisibleSection = invisibleSections[i];
+              if (invisibleSection) {
+                processSection(invisibleSection);
+              }
             }
           } else if (line.token) {
             processSection(line.token);

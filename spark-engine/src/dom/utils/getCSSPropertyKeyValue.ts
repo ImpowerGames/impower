@@ -66,11 +66,11 @@ export const getCSSPropertyKeyValue = (
     }
     if (typeof value === "string") {
       const parts = value.split(" ");
-      const r = parts[0].replace(/[^0-9.]+/g, "");
-      return [
-        "text-shadow",
-        createTextShadow(Number.parseInt(r, 16), parts[1]),
-      ];
+      const r = parts[0]?.replace(/[^0-9.]+/g, "") || "";
+      const num = Number.parseInt(r, 16);
+      if (!Number.isNaN(num)) {
+        return ["text-shadow", createTextShadow(num, parts[1])];
+      }
     }
   }
   if (cssProp === "line-height") {
@@ -80,7 +80,7 @@ export const getCSSPropertyKeyValue = (
     (cssProp === "box-shadow" || cssProp === "shadow") &&
     typeof value === "number"
   ) {
-    return ["box-shadow", boxShadows[value]];
+    return ["box-shadow", boxShadows[value] || "none"];
   }
   if (
     cssProp === "border-radius" ||

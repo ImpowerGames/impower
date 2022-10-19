@@ -53,16 +53,16 @@ export const activateOutlineView = (context: vscode.ExtensionContext): void => {
         let visibleSynopses = false;
         let visibleNotes = false;
         for (let i = 0; i < e.length; i++) {
-          if (e[i].label === "Notes") {
+          if (e[i]?.label === "Notes") {
             visibleNotes = true;
           }
-          if (e[i].label === "Scenes") {
+          if (e[i]?.label === "Scenes") {
             visibleScenes = true;
           }
-          if (e[i].label === "Sections") {
+          if (e[i]?.label === "Sections") {
             visibleSections = true;
           }
-          if (e[i].label === "Synopses") {
+          if (e[i]?.label === "Synopses") {
             visibleSynopses = true;
           }
         }

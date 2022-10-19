@@ -143,7 +143,7 @@ export class MainScene extends SparkScene {
     });
   }
 
-  async load(): Promise<void> {
+  override async load(): Promise<void> {
     const svgEntries = Object.entries(
       this.context?.game?.logic?.blockMap?.[""]?.variables || {}
     ).filter(([, v]) => v.type === "graphic");
@@ -160,14 +160,17 @@ export class MainScene extends SparkScene {
             animationName
           );
           await sheet.parse();
-          this._animations[v.name] = sheet.animations[animationName];
+          const animation = sheet.animations[animationName];
+          if (animation) {
+            this._animations[v.name] = animation;
+          }
         }
         return svg;
       })
     );
   }
 
-  init(): void {
+  override init(): void {
     this.app.stage.addChild(this._camera);
     this.app.stage.addChild(new SparkLayer(this._sortGroup));
     this.app.stage.addChild(this._debug);
@@ -179,13 +182,13 @@ export class MainScene extends SparkScene {
     });
   }
 
-  start(): void {
+  override start(): void {
     this._surfaceContainer.on("click", (event) => {
       const p = new PIXI.Point();
       event.data.getLocalPosition(this._earth, p, event.data.global);
       const [firstKey, firstValue] =
         Object.entries(this._animations || {})[0] || [];
-      if (firstValue) {
+      if (firstKey !== undefined && firstValue !== undefined) {
         const sprite = spawnAnimatedSprite(
           firstValue,
           1,
@@ -205,7 +208,7 @@ export class MainScene extends SparkScene {
     });
   }
 
-  update(_time: number, delta: number): void {
+  override update(_time: number, delta: number): void {
     if (this.context.game.debug.state.debugging) {
       // SHOW SPRITE BOUNDS DEBUG BOX
       this._debug.clear();
@@ -246,7 +249,7 @@ export class MainScene extends SparkScene {
     this._camera.updateTransform();
   }
 
-  resize(): void {
+  override resize(): void {
     if (this.app) {
       if (this._camera) {
         this._camera.position.set(

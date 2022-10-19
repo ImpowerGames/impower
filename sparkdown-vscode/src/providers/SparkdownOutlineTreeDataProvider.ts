@@ -154,7 +154,7 @@ class OutlineTreeItem extends vscode.TreeItem {
     if (path) {
       const endDigits = path.match(/(\d+)$/);
       if (endDigits && endDigits.length > 1) {
-        this.lineNumber = +endDigits[1];
+        this.lineNumber = +(endDigits[1] || 0);
         this.command = {
           command: "sparkdown.jumpto",
           title: "",

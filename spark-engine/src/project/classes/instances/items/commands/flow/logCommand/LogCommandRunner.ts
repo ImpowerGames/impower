@@ -4,7 +4,7 @@ import { SparkGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
 export class LogCommandRunner extends CommandRunner<LogCommandData> {
-  onExecute(
+  override onExecute(
     data: LogCommandData,
     context: CommandContext,
     game: SparkGame

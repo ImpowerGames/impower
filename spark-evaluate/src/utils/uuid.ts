@@ -25,7 +25,7 @@ export const uuid = (): string => {
   }
 
   for (; i < 16; i++) {
-    num = BUFFER[IDX + i];
+    num = BUFFER[IDX + i] || 0;
     if (i == 6) out += HEX[(num & 15) | 64];
     else if (i == 8) out += HEX[(num & 63) | 128];
     else out += HEX[num];

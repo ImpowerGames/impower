@@ -46,7 +46,7 @@ export const getAverageTerms = async (
         .slice(1)
         .map((n) => parseFloat(n))
         .filter((x) => !Number.isNaN(x));
-      if (words.includes(word)) {
+      if (word && words.includes(word)) {
         wordVecs[word] = wordVec;
       }
     }
@@ -95,7 +95,7 @@ export const getAverageTerms = async (
         .map((n) => parseFloat(n))
         .filter((x) => !Number.isNaN(x));
       const sim = similarity(wordVec, averageVector);
-      if (!words.includes(word) && sim > threshold) {
+      if (word && !words.includes(word) && sim > threshold) {
         relatedWords.push([word, index, sim]);
       }
       index += 1;

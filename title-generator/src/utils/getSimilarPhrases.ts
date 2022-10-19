@@ -11,25 +11,34 @@ const findLongestCommonSubstring = (str1 = "", str2 = ""): string => {
       return Array(s1.length + 1).fill(null);
     });
   for (let j = 0; j <= s1.length; j += 1) {
-    arr[0][j] = 0;
+    const a = arr[0];
+    if (a) {
+      a[j] = 0;
+    }
   }
   for (let i = 0; i <= s2.length; i += 1) {
-    arr[i][0] = 0;
+    const a = arr[i];
+    if (a) {
+      a[0] = 0;
+    }
   }
   let len = 0;
   let col = 0;
   let row = 0;
   for (let i = 1; i <= s2.length; i += 1) {
     for (let j = 1; j <= s1.length; j += 1) {
-      if (s1[j - 1] === s2[i - 1]) {
-        arr[i][j] = arr[i - 1][j - 1] + 1;
-      } else {
-        arr[i][j] = 0;
-      }
-      if (arr[i][j] > len) {
-        len = arr[i][j];
-        col = j;
-        row = i;
+      const a = arr[i];
+      if (a) {
+        if (s1[j - 1] === s2[i - 1]) {
+          a[j] = arr[i - 1]?.[j - 1] + 1;
+        } else {
+          a[j] = 0;
+        }
+        if (a[j] > len) {
+          len = a[j];
+          col = j;
+          row = i;
+        }
       }
     }
   }
@@ -37,7 +46,8 @@ const findLongestCommonSubstring = (str1 = "", str2 = ""): string => {
     return "";
   }
   let res = "";
-  while (arr[row][col] > 0) {
+  const a = arr[row];
+  while (a && a[col] > 0) {
     res = s1[col - 1] + res;
     row -= 1;
     col -= 1;
@@ -53,7 +63,7 @@ export const getSimilarPhrases = (
     [phrase: string]: [string, number][];
   } = {};
   const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
-  bar.start(phrases.length);
+  bar.start(phrases.length, 0);
   phrases.forEach((aPhrase, index) => {
     bar.update(index);
     const pairs: [string, number][] = [];
@@ -94,14 +104,17 @@ export const getSimilarPhrases = (
     });
     if (pairs.length > 0) {
       const similar = pairs.sort((a, b) => a[1] - b[1]).slice(0, 3);
-      if (similar[0][1] <= 8) {
-        similarPhrases[aPhrase] = similar;
+      const first = similar[0];
+      if (first !== undefined) {
+        if (first[1] <= 8) {
+          similarPhrases[aPhrase] = similar;
+        }
       }
     }
   });
   const sortedSimilarPhrases: { [phrase: string]: [string, number][] } = {};
   Object.entries(similarPhrases)
-    .sort(([, aV], [, bV]) => aV[0][1] - bV[0][1])
+    .sort(([, aV], [, bV]) => (aV[0]?.[1] || 0) - (bV[0]?.[1] || 0))
     .forEach(([key, value]) => {
       sortedSimilarPhrases[key] = value;
     });

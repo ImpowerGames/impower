@@ -17,7 +17,7 @@ export const getWordVectors = async (include?: (word: string) => boolean) => {
 
   const vectorCount = 2519371;
 
-  bar.start(vectorCount);
+  bar.start(vectorCount, 0);
 
   for await (const line of rl) {
     bar.increment();
@@ -27,8 +27,10 @@ export const getWordVectors = async (include?: (word: string) => boolean) => {
       .slice(1)
       .map((n) => parseFloat(n))
       .filter((x) => !Number.isNaN(x));
-    if (!include || include(word)) {
-      wordVecs[word] = vector;
+    if (word) {
+      if (!include || include(word)) {
+        wordVecs[word] = vector;
+      }
     }
   }
 

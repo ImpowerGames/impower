@@ -206,12 +206,12 @@ export class Compiler {
     return this._calc(node, context);
   }
 
-  private nextToken(): CompilerToken {
+  private nextToken(): CompilerToken | undefined {
     this.index += 1;
     return this.tokens[this.index];
   }
 
-  private prevToken(): CompilerToken {
+  private prevToken(): CompilerToken | undefined {
     return this.tokens[this.index - 1];
   }
 
@@ -254,7 +254,9 @@ export class Compiler {
   }
 
   private compare(a: CompilerToken, b: CompilerToken): number {
-    if (!OPERATION[a.content]) {
+    const aOperation = OPERATION[a.content];
+    const bOperation = OPERATION[b.content];
+    if (!aOperation) {
       const message = `Unknown operation ${a.content}`;
       this._diagnostics.push({
         content: a.content,
@@ -266,7 +268,7 @@ export class Compiler {
       });
       throw new Error(message);
     }
-    if (!OPERATION[b.content]) {
+    if (!bOperation) {
       const message = `Unknown operation ${b.content}`;
       this._diagnostics.push({
         content: b.content,
@@ -278,7 +280,7 @@ export class Compiler {
       });
       throw new Error(message);
     }
-    return OPERATION[a.content] - OPERATION[b.content];
+    return aOperation - bOperation;
   }
 
   private getValue(
@@ -368,7 +370,7 @@ export class Compiler {
     const token = this.nextToken();
 
     if (!token) {
-      return token;
+      return null;
     }
 
     if (token.content === "(") {
@@ -398,7 +400,8 @@ export class Compiler {
     // 3 > -12 or -12 + 10
     if (
       token.content === "-" &&
-      (!this.prevToken() || OPERATION[this.prevToken().content] > 0)
+      (!this.prevToken() ||
+        (OPERATION[this.prevToken()?.content || ""] || 0) > 0)
     ) {
       return {
         type: "node",

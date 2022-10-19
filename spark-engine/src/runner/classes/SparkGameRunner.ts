@@ -52,7 +52,8 @@ export class SparkGameRunner {
     AdvancedConfig: new ConfigRunner(),
   };
 
-  public get configRunners(): Record<string, ConfigRunner> {
+  public get configRunners(): Record<ConfigTypeId, ConfigRunner> &
+    Record<string, ConfigRunner> {
     return { ...this._configRunners };
   }
 
@@ -61,7 +62,8 @@ export class SparkGameRunner {
     Block: new BlockRunner(),
   };
 
-  public get blockRunners(): Record<string, BlockRunner> {
+  public get blockRunners(): Record<"Block", BlockRunner> &
+    Record<string, BlockRunner> {
     return { ...this._blockRunners };
   }
 
@@ -81,7 +83,8 @@ export class SparkGameRunner {
     DestroyCommand: new DestroyCommandRunner(),
   };
 
-  public get commandRunners(): Record<string, CommandRunner> {
+  public get commandRunners(): Record<CommandTypeId, CommandRunner> &
+    Record<string, CommandRunner> {
     return { ...this._commandRunners };
   }
 
@@ -157,8 +160,10 @@ export class SparkGameRunner {
     const runners: { runner: R; data: D }[] = [];
     Object.keys(data || {}).forEach((id) => {
       const d = data[id];
-      const r = this.getRunner(d.reference) as R;
-      runners.push({ runner: r, data: d });
+      if (d) {
+        const r = this.getRunner(d.reference) as R;
+        runners.push({ runner: r, data: d });
+      }
     });
     return runners;
   }

@@ -27,7 +27,7 @@ export class StructManager extends Manager<StructState, StructEvents> {
     return {};
   }
 
-  getSaveData(): StructState {
+  override getSaveData(): StructState {
     return this.deepCopyState(this.state);
   }
 }

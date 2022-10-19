@@ -37,6 +37,9 @@ export const updateAssets = async (doc: vscode.TextDocument) => {
           assets[id] = sparkAsset;
         }
       });
-      fileState[uri.toString()].assets = assets;
+      const s = fileState[uri.toString()];
+      if (s) {
+        s.assets = assets;
+      }
     });
 };

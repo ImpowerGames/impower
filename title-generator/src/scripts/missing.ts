@@ -5,8 +5,8 @@ import { getKeywords } from "../utils/getKeywords";
 
 const result = getKeywords(archetypes, true);
 const missingTerms: string[] = [];
-Object.entries(result).forEach(([word, count]) => {
-  if (!terms[word]) {
+Object.entries(result).forEach(([word]) => {
+  if (!(terms as Record<string, string[]>)[word]) {
     missingTerms.push(word);
   }
 });

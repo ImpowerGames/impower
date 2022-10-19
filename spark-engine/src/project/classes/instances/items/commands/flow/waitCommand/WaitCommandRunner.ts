@@ -3,7 +3,7 @@ import { SparkGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
 export class WaitCommandRunner extends CommandRunner<WaitCommandData> {
-  onExecute(
+  override onExecute(
     data: WaitCommandData,
     context: CommandContext,
     game: SparkGame
@@ -15,7 +15,7 @@ export class WaitCommandRunner extends CommandRunner<WaitCommandData> {
     return super.onExecute(data, context, game);
   }
 
-  isFinished(
+  override isFinished(
     data: WaitCommandData,
     context: CommandContext,
     game: SparkGame
@@ -26,12 +26,14 @@ export class WaitCommandRunner extends CommandRunner<WaitCommandData> {
     }
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
-    const timeSinceExecution = blockState.time - blockState.lastExecutedAt;
-    if (seconds < 0) {
-      return false;
-    }
-    if (timeSinceExecution / 1000 < seconds) {
-      return false;
+    if (blockState) {
+      const timeSinceExecution = blockState.time - blockState.lastExecutedAt;
+      if (seconds < 0) {
+        return false;
+      }
+      if (timeSinceExecution / 1000 < seconds) {
+        return false;
+      }
     }
     return super.isFinished(data, context, game);
   }
