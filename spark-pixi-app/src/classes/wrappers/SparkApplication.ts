@@ -29,12 +29,24 @@ export class SparkApplication extends PIXI.Application {
     return super.view;
   }
 
+  override get ticker(): PIXI.Ticker {
+    return super.ticker;
+  }
+
   constructor(options?: SparkApplicationOptions) {
     super(options);
     this.stage = new SparkStage();
     this.ticker.maxFPS = options?.maxFPS || 60;
     PIXI.utils.destroyTextureCache();
     registerPixiInspector();
+  }
+
+  override stop(): void {
+    super.stop();
+  }
+
+  override start(): void {
+    super.start();
   }
 
   override resize(): void {
