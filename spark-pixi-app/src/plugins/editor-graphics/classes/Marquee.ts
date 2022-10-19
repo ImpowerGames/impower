@@ -36,7 +36,7 @@ export class Marquee extends PIXI.Container {
     this.dash = options?.dash || this.dash;
     this.dashSpace = options?.dashSpace || this.dashSpace;
     this.speed = options?.speed || this.speed;
-    this.fillStyle = options?.fillStyle || options.fillStyle;
+    this.fillStyle = options?.fillStyle || this.fillStyle;
 
     const dash = this.dash;
     const dashSpace = this.dashSpace;
@@ -48,8 +48,10 @@ export class Marquee extends PIXI.Container {
     canvas.width = dash + dashSpace;
     canvas.height = dash + dashSpace;
     const ctx = canvas.getContext("2d");
-    ctx.fillStyle = fillStyle;
-    ctx.fillRect(0, 0, dash, dash);
+    if (ctx) {
+      ctx.fillStyle = fillStyle;
+      ctx.fillRect(0, 0, dash, dash);
+    }
     const texture = PIXI.Texture.from(canvas, {
       scaleMode: PIXI.SCALE_MODES.NEAREST,
     });

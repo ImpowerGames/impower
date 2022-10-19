@@ -22,11 +22,11 @@ export class SparkScene {
   }
 
   constructor(
-    sparkContext: SparkContext,
+    context: SparkContext,
     app: SparkApplication,
     entities: Record<string, SparkContainer>
   ) {
-    this._context = sparkContext;
+    this._context = context;
     this._app = app;
     this._entities = entities;
   }

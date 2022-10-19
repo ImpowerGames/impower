@@ -1,10 +1,12 @@
 import * as PIXI from "pixi.js";
+import { SparkContext } from "../../../../spark-engine";
 import {
   generateSpritesheet,
   SVGLoader,
 } from "../../plugins/animated-graphics";
 import { generateGrid } from "../../plugins/editor-graphics";
 import { SparkScene } from "../SparkScene";
+import { SparkApplication } from "../wrappers/SparkApplication";
 import { SparkCamera } from "../wrappers/SparkCamera";
 import { SparkContainer } from "../wrappers/SparkContainer";
 import { SparkGroup } from "../wrappers/SparkGroup";
@@ -69,37 +71,21 @@ export class MainScene extends SparkScene {
 
   private _earth: SparkSprite;
 
+  private _sortGroup: SparkGroup;
+
   private _animations: Record<string, PIXI.Texture[]> = {};
 
   private _sprites: PIXI.AnimatedSprite[] = [];
 
-  private _sortGroup: SparkGroup;
-
   private _ang = 0;
 
-  async load(): Promise<void> {
-    const svgEntries = Object.entries(
-      this.context?.game?.logic?.blockMap?.[""]?.variables || {}
-    ).filter(([, v]) => v.type === "graphic");
-    await Promise.all(
-      svgEntries.map(async ([, v]) => {
-        const svg = await SVGLoader.instance.load(v.value as string);
-        const animationName = "default";
-        const sheet = generateSpritesheet(
-          this.app.renderer,
-          svg,
-          this.app.ticker.maxFPS,
-          v.name,
-          animationName
-        );
-        await sheet.parse();
-        this._animations[v.name] = sheet.animations[animationName];
-        return svg;
-      })
-    );
-  }
+  constructor(
+    context: SparkContext,
+    app: SparkApplication,
+    entities: Record<string, SparkContainer>
+  ) {
+    super(context, app, entities);
 
-  init(): void {
     // Grid Settings
     const gridColor = 0x0000ff;
     const gridThickness = 4;
@@ -119,20 +105,6 @@ export class MainScene extends SparkScene {
     this._camera.euler.x = -Math.PI / 6;
     this._camera.position.set(x, y);
     this._camera.setPlanes(focus, near, far, orthographic);
-    this.app.stage.addChild(this._camera);
-
-    this._surfaceContainer = new SparkContainer();
-    this._surfaceContainer.interactive = true;
-    this._camera.addChild(this._surfaceContainer);
-
-    this._entityContainer = new SparkContainer();
-    this._camera.addChild(this._entityContainer);
-
-    this._sortGroup = new SparkGroup(1, true);
-    this.app.stage.addChild(new SparkLayer(this._sortGroup));
-
-    this._debug = new PIXI.Graphics();
-    this.app.stage.addChild(this._debug);
 
     const gridTexture = generateGrid(
       this.app.renderer,
@@ -141,27 +113,69 @@ export class MainScene extends SparkScene {
       gridCellSize,
       gridRowCount
     );
-
     this._earth = new SparkSprite(gridTexture);
     this._earth.euler.x = Math.PI / 2;
     this._earth.anchor.x = 0.5;
     this._earth.anchor.y = 0.5;
-    this._surfaceContainer.addChild(this._earth);
+
+    this._surfaceContainer = new SparkContainer();
+    this._surfaceContainer.interactive = true;
+
+    this._entityContainer = new SparkContainer();
+
+    this._sortGroup = new SparkGroup(1, true);
+
+    this._debug = new PIXI.Graphics();
 
     Object.entries(this._animations || {}).forEach(([k, v]) => {
-      const sprite = spawnAnimatedSprite(
-        v,
-        1,
-        this._sortGroup,
-        this.app.ticker.maxFPS,
-        this._sprites
-      );
+      if (v) {
+        const sprite = spawnAnimatedSprite(
+          v,
+          1,
+          this._sortGroup,
+          this.app.ticker.maxFPS,
+          this._sprites
+        );
+        sprite.position3d.x = 0;
+        sprite.position3d.z = 0;
+        this.entities[k] = sprite;
+      }
+    });
+  }
 
-      sprite.position3d.x = 0;
-      sprite.position3d.z = 0;
+  async load(): Promise<void> {
+    const svgEntries = Object.entries(
+      this.context?.game?.logic?.blockMap?.[""]?.variables || {}
+    ).filter(([, v]) => v.type === "graphic");
+    await Promise.all(
+      svgEntries.map(async ([, v]) => {
+        const svg = await SVGLoader.instance.load(v.value as string);
+        if (svg) {
+          const animationName = "default";
+          const sheet = generateSpritesheet(
+            this.app.renderer,
+            svg,
+            this.app.ticker.maxFPS,
+            v.name,
+            animationName
+          );
+          await sheet.parse();
+          this._animations[v.name] = sheet.animations[animationName];
+        }
+        return svg;
+      })
+    );
+  }
 
+  init(): void {
+    this.app.stage.addChild(this._camera);
+    this.app.stage.addChild(new SparkLayer(this._sortGroup));
+    this.app.stage.addChild(this._debug);
+    this._camera.addChild(this._surfaceContainer);
+    this._camera.addChild(this._entityContainer);
+    this._surfaceContainer.addChild(this._earth);
+    Object.entries(this.entities).forEach(([, sprite]) => {
       this._entityContainer.addChild(sprite);
-      this.entities[k] = sprite;
     });
   }
 
@@ -196,12 +210,14 @@ export class MainScene extends SparkScene {
       // SHOW SPRITE BOUNDS DEBUG BOX
       this._debug.clear();
       this._debug.lineStyle(2, 0x0000ff, 1.0);
-      this._entityContainer.children.forEach((plane: SparkContainer) => {
-        const rect = plane.getBounds();
-        if (rect !== PIXI.Rectangle.EMPTY) {
-          this._debug.drawShape(rect);
-        }
-      });
+      if (this._entityContainer) {
+        this._entityContainer.children.forEach((plane: PIXI.DisplayObject) => {
+          const rect = plane.getBounds();
+          if (rect !== PIXI.Rectangle.EMPTY) {
+            this._debug.drawShape(rect);
+          }
+        });
+      }
     }
 
     // ROTATE CAMERA
@@ -212,7 +228,8 @@ export class MainScene extends SparkScene {
     this._camera.euler.x = -Math.PI / 6;
 
     // ROTATE SPRITES TO FACE CAMERA
-    this._entityContainer.children.forEach((plane: SparkContainer) => {
+    this._entityContainer.children.forEach((obj: PIXI.DisplayObject) => {
+      const plane = obj as SparkContainer;
       if (plane.alwaysFront) {
         const child = plane.children[0] as SparkContainer;
         // 1. rotate sprite to the camera

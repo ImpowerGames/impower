@@ -15,7 +15,7 @@ import { isRelativePathCommand } from "../utils/isRelativePathCommand";
 import { AnimationControl } from "./AnimationControl";
 
 export class AnimatedSVGPathNode extends SVGGraphicsNode {
-  public control?: AnimationControl;
+  public control: AnimationControl;
 
   protected _animation?: {
     duration: number;

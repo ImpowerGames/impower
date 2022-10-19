@@ -1,13 +1,24 @@
-import { CameraState, EntityState } from "../../../../spark-engine";
+import {
+  CameraState,
+  EntityState,
+  SparkContext,
+} from "../../../../spark-engine";
 import { Marquee } from "../../plugins/editor-graphics";
 import { SparkScene } from "../SparkScene";
+import { SparkApplication } from "../wrappers/SparkApplication";
+import { SparkContainer } from "../wrappers/SparkContainer";
 
 export class PreviewScene extends SparkScene {
-  private _dragging = false;
-
   private _marquee: Marquee;
 
-  init(): void {
+  private _dragging = false;
+
+  constructor(
+    context: SparkContext,
+    app: SparkApplication,
+    entities: Record<string, SparkContainer>
+  ) {
+    super(context, app, entities);
     this._marquee = new Marquee({
       dash: 4,
       dashSpace: 4,
@@ -17,7 +28,9 @@ export class PreviewScene extends SparkScene {
     });
     this._marquee.alpha = 0.8;
     this._marquee.visible = false;
+  }
 
+  init(): void {
     this.app.stage.addChild(this._marquee);
     this.app.stage.interactive = true;
     this.app.stage.hitArea = this.app.screen;

@@ -28,7 +28,7 @@ export class SparkApplication extends PIXI.Application {
   constructor(options?: SparkApplicationOptions) {
     super(options);
     this.stage = new SparkStage();
-    this.ticker.maxFPS = options?.maxFPS;
+    this.ticker.maxFPS = options?.maxFPS || 60;
     PIXI.utils.destroyTextureCache();
     registerPixiInspector();
   }

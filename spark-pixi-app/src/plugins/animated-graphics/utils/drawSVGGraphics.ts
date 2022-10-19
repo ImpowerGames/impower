@@ -18,7 +18,7 @@ export const drawSVGGraphics = (
     strokeLineJoin,
     strokeMiterLimit,
     strokeWidth,
-  } = paint;
+  } = paint || {};
 
   if (fill === "none") {
     node.beginFill(0, 0);

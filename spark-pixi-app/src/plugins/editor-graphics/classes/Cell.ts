@@ -17,8 +17,8 @@ export class Cell extends PIXI.Graphics {
     super();
 
     this.thickness = options?.thickness || this.thickness;
-    this.color = options?.color || options.color;
-    this.size = options?.size || options.size;
+    this.color = options?.color || this.color;
+    this.size = options?.size || this.size;
 
     const thickness = this.thickness;
     const color = this.color;

@@ -155,7 +155,7 @@ export class AnimatedGraphic extends DisplayObject {
   /**
    * Used to control animation across all nodes
    */
-  protected _control?: AnimationControl = new AnimationControl();
+  protected _control: AnimationControl = new AnimationControl();
 
   /**
    * An array of sampled times for this animation
