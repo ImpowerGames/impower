@@ -14,7 +14,7 @@ export const splitSpecificAndAdjacentTerms = (
     return { specificTerms: [], adjacentTerms: [] };
   }
   const [specificTerms, adjacentTerms]: [string[], string[]] = terms.reduce(
-    (result, tag) => {
+    (result: [string[], string[]], tag: string) => {
       result[tag.startsWith(">") ? 1 : 0].push(tag);
       return result;
     },

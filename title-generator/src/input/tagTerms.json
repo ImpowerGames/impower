@@ -1750,7 +1750,7 @@
     "scroll",
     "tab"
   ],
-  "co-op": [">friendship"],
+  "co-op": [">friendship", "_and_"],
   "cockney": [
     "_by george_",
     "_great scott_",

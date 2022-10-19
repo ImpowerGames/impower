@@ -7,20 +7,22 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   });
   const config = app.remoteConfig();
   const template = await config.getTemplate();
-  const phrasesPath = "../../../generator/src/input/phrases.json";
+  const phrasesPath = "../../../title-generator/src/input/phrases.json";
   const phrases = JSON.stringify((await import(phrasesPath)).default);
-  const archetypesPath = "../../../generator/src/input/archetypes.json";
+  const archetypesPath = "../../../title-generator/src/input/archetypes.json";
   const archetypes = JSON.stringify((await import(archetypesPath)).default);
-  const termsPath = "../../../generator/src/output/terms.json";
+  const termsPath = "../../../title-generator/src/output/terms.json";
   const terms = JSON.stringify((await import(termsPath)).default);
   const colors = JSON.stringify(
     (await import("../../../client/resources/json/colors.json")).default
   );
   const abbreviations = JSON.stringify(
-    (await import("../../../client/resources/json/en/abbreviations.json")).default
+    (await import("../../../client/resources/json/en/abbreviations.json"))
+      .default
   );
   const capitalizations = JSON.stringify(
-    (await import("../../../client/resources/json/en/capitalizations.json")).default
+    (await import("../../../client/resources/json/en/capitalizations.json"))
+      .default
   );
   const projectTags = JSON.stringify(
     (await import("../../../client/resources/json/en/projectTags.json")).default
@@ -44,13 +46,16 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
     (await import("../../../client/resources/json/en/regexes.json")).default
   );
   const visualStyles = JSON.stringify(
-    (await import("../../../client/resources/json/en/visualStyles.json")).default
+    (await import("../../../client/resources/json/en/visualStyles.json"))
+      .default
   );
   const musicalStyles = JSON.stringify(
-    (await import("../../../client/resources/json/en/musicalStyles.json")).default
+    (await import("../../../client/resources/json/en/musicalStyles.json"))
+      .default
   );
   const resourceTags = JSON.stringify(
-    (await import("../../../client/resources/json/en/resourceTags.json")).default
+    (await import("../../../client/resources/json/en/resourceTags.json"))
+      .default
   );
   const roleTags = JSON.stringify(
     (await import("../../../client/resources/json/en/roleTags.json")).default

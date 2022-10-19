@@ -1,4 +1,4 @@
-import archetypes from "../../generator/src/input/archetypes.json";
+import archetypes from "../../title-generator/src/input/archetypes.json";
 import { TagConfigParameters } from "../modules/impower-config";
 import colors from "../resources/json/colors.json";
 import atmospheres from "../resources/json/en/atmospheres.json";

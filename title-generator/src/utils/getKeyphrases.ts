@@ -24,7 +24,7 @@ export const getKeyphrases = (
         return bValue - aValue;
       }
     );
-    const sortedDict = {};
+    const sortedDict: { [word: string]: number } = {};
     sortedEntries.forEach(([key, value]) => {
       sortedDict[key] = value;
     });
