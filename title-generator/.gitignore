@@ -48,12 +48,11 @@ Thumbs.db
 *.mov
 *.wmv
 
-.vs/
-src/data/
-src/tmp/
 .idea
 .vs
-node_modules
-src/generated/
+src/data
+src/tmp
+src/generated
 
 out
+node_modules
