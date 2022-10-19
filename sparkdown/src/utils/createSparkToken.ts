@@ -18,7 +18,7 @@ export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
     ...(obj?.from !== undefined
       ? { offset: 0, from: obj?.from, to: obj?.from }
       : {}),
-  } as SparkTokenTypeMap[K];
+  } as unknown as SparkTokenTypeMap[K];
   if (obj?.content) {
     const indentMatch = obj.content.match(/^([ \t]*)/);
     const indent = indentMatch?.[0] || "";

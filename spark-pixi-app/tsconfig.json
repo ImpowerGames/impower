@@ -4,6 +4,7 @@
     "target": "es2020",
     "lib": ["es2020", "dom"],
     "outDir": "out",
+    "skipLibCheck": true,
     "sourceMap": true,
     "strict": false,
     "noImplicitReturns": true,
@@ -11,7 +12,5 @@
     "noUnusedParameters": true,
     "noUnusedLocals": true,
     "esModuleInterop": true
-  },
-  "include": ["**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules"]
+  }
 }

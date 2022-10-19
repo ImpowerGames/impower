@@ -45,7 +45,7 @@ export const executeChoiceCommand = (
     e.stopPropagation();
     contentEls.forEach((el) => {
       if (el) {
-        el.replaceChildren("");
+        el.innerHTML = "";
         el.style.pointerEvents = null as unknown as string;
         el.style.display = "none";
       }
@@ -55,7 +55,7 @@ export const executeChoiceCommand = (
   if (!data) {
     contentEls.forEach((el) => {
       if (el) {
-        el.replaceChildren("");
+        el.innerHTML = "";
         el.style.pointerEvents = null as unknown as string;
         el.style.display = "none";
       }
@@ -71,13 +71,13 @@ export const executeChoiceCommand = (
     if (el) {
       if (validIndex === i) {
         el.onclick = handleClick;
-        el.replaceChildren(evaluatedContent);
+        el.innerHTML = evaluatedContent;
         el.style.pointerEvents = "auto";
         el.style.display = "block";
       }
       if (count != null) {
         if (i >= count) {
-          el.replaceChildren("");
+          el.innerHTML = "";
           el.style.pointerEvents = null as unknown as string;
           el.style.display = "none";
         }

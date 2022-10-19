@@ -86,7 +86,7 @@ const hideChoices = (ui: string, config: DisplayCommandConfig): void => {
   const choiceEls = getElements(ui, config?.choice?.id || "");
   choiceEls.forEach((el) => {
     if (el) {
-      el.replaceChildren("");
+      el.innerHTML = "";
       el.style.display = "none";
     }
   });
@@ -536,13 +536,13 @@ export const executeDisplayCommand = (
   ];
 
   if (characterEl) {
-    characterEl.replaceChildren(validCharacter);
+    characterEl.innerHTML = validCharacter;
     characterEl.style.display = validCharacter
       ? (null as unknown as string)
       : "none";
   }
   if (parentheticalEl) {
-    parentheticalEl.replaceChildren(validParenthetical);
+    parentheticalEl.innerHTML = validParenthetical;
     parentheticalEl.style.display = validParenthetical
       ? (null as unknown as string)
       : "none";
@@ -559,13 +559,14 @@ export const executeDisplayCommand = (
     if (el) {
       if (t === type) {
         if (clearPreviousText) {
-          el.replaceChildren(...spanEls);
+          el.innerHTML = "";
+          el.append(...spanEls);
         } else {
           spanEls.forEach((p) => el.appendChild(p));
         }
         el.style.display = null as unknown as string;
       } else {
-        el.replaceChildren("");
+        el.innerHTML = "";
         el.style.display = "none";
       }
     }
