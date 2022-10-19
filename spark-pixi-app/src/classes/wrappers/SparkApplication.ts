@@ -7,6 +7,7 @@ export interface SparkApplicationOptions {
   maxFPS?: number;
   onLoaded?: () => void;
   autoStart?: boolean;
+  sharedTicker?: boolean;
   resizeTo?: HTMLElement;
   width?: number;
   height?: number;
@@ -47,6 +48,13 @@ export class SparkApplication extends PIXI.Application {
 
   override start(): void {
     super.start();
+  }
+
+  override destroy(
+    removeView?: boolean | undefined,
+    stageOptions?: boolean | PIXI.IDestroyOptions | undefined
+  ): void {
+    super.destroy(removeView, stageOptions);
   }
 
   override resize(): void {
