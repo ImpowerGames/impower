@@ -63,7 +63,7 @@
     "react-measure": "^2.5.2",
     "react-reverse-portal": "^2.1.1",
     "react-ssr-prepass": "npm:preact-ssr-prepass@^1.2.0",
-    "short-uuid": "^4.2.0",
+    "short-uuid": "^4.2.2",
     "tinycolor2": "^1.4.2",
     "tone": "^14.7.77",
     "wavesurfer.js": "^6.2.0",
