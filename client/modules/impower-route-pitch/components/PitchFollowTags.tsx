@@ -221,6 +221,7 @@ const VirtualizedTagItem = React.memo((props: VirtualizedTagItemProps) => {
       ...theme.typography.body1,
       textTransform: "none",
       fontWeight: theme.fontWeight.semiBold,
+      aspectRatio: String(theme.typography.body1.aspectRatio),
     }),
     [theme.fontWeight.semiBold, theme.typography.body1]
   );

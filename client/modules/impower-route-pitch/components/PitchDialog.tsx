@@ -65,7 +65,7 @@ const StyledPitchDialog = styled(Dialog)`
 
 const Transition = React.forwardRef(
   (
-    props: TransitionProps & { children?: React.ReactElement },
+    props: TransitionProps & { children: React.ReactElement },
     ref: React.Ref<unknown>
   ) => <Slide direction="up" ref={ref} {...props} />
 );

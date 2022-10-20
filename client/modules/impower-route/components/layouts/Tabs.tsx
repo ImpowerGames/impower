@@ -376,7 +376,7 @@ const Tabs = React.forwardRef(
             ...(childIndex === 1 && value === false && !child.props.tabIndex
               ? { tabIndex: 0 }
               : {}),
-          })}
+          } as unknown)}
           {selected && placeholderIndicator}
         </StyledTabArea>
       );

@@ -11,6 +11,7 @@ import {
   ProjectDocument,
 } from "../../impower-data-store";
 import { NoteDocument } from "../../impower-data-store/types/documents/noteDocument";
+import { LazyHydrate } from "../../impower-hydration";
 import { VirtualizedItem } from "../../impower-react-virtualization";
 import { FadeAnimation } from "../../impower-route";
 import NoteCard from "./NoteCard";

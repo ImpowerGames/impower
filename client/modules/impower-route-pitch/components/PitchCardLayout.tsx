@@ -5,6 +5,7 @@ import React, { useCallback } from "react";
 import { AuthorAttributes } from "../../impower-auth";
 import { ConfigParameters } from "../../impower-config";
 import { ProjectDocument, ProjectType } from "../../impower-data-store";
+import { LazyHydrate } from "../../impower-hydration";
 import { SvgData } from "../../impower-icon";
 import PitchCardContent from "./PitchCardContent";
 import PitchCardHeader from "./PitchCardHeader";

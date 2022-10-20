@@ -1,6 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import Autocomplete, {
+  AutocompleteOwnerState,
   AutocompleteProps,
   AutocompleteRenderGetTagProps,
   AutocompleteRenderInputParams,
@@ -650,9 +651,19 @@ const AutocompleteInput = React.memo(
     }, [clearOnBlur]);
 
     const handleRenderTags = useCallback(
-      (tagValue: unknown[], getTagProps: AutocompleteRenderGetTagProps) => {
+      (
+        tagValue: unknown[],
+        getTagProps: AutocompleteRenderGetTagProps,
+        ownerState: AutocompleteOwnerState<
+          unknown,
+          boolean,
+          boolean,
+          boolean,
+          "div"
+        >
+      ) => {
         if (renderTags) {
-          return renderTags(tagValue, getTagProps);
+          return renderTags(tagValue, getTagProps, ownerState);
         }
         const onDeleteTag = (e: React.ChangeEvent, index: number): void => {
           handleChange(

@@ -378,7 +378,7 @@ const StyledForceOverflowSpacer = styled.div`
 
 const Transition = React.forwardRef(
   (
-    props: TransitionProps & { children?: React.ReactElement },
+    props: TransitionProps & { children: React.ReactElement },
     ref: React.Ref<unknown>
   ) => <Slide direction="left" ref={ref} {...props} />
 );
