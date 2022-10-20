@@ -1,5 +1,5 @@
 import { useTheme } from "@emotion/react";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import Head from "next/head";
 import React, { useContext, useEffect, useMemo } from "react";
 import DataStoreCache from "../modules/impower-data-store/classes/dataStoreCache";

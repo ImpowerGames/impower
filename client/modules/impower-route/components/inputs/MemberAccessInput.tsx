@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { InputProps } from "@material-ui/core";
+import { InputProps } from "@mui/material/Input";
 import React, { useCallback, useContext, useMemo } from "react";
 import UserSolidIcon from "../../../../resources/icons/solid/user.svg";
 import { Inspector } from "../../../impower-core";

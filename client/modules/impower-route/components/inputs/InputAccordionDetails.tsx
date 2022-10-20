@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { AccordionDetails } from "@material-ui/core";
+import AccordionDetails from "@mui/material/AccordionDetails";
 
 const InputAccordionDetails = styled(AccordionDetails)`
   &.MuiAccordionDetails-root {

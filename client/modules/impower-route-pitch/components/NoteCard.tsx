@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import Typography from "@material-ui/core/Typography";
+import Typography from "@mui/material/Typography";
 import React, { useMemo } from "react";
 import { AuthorAttributes } from "../../impower-auth";
 import { abbreviateAge } from "../../impower-config";

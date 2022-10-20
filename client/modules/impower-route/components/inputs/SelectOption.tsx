@@ -1,8 +1,8 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import ListItem from "@material-ui/core/ListItem";
-import ListItemButton from "@material-ui/core/ListItemButton";
-import Typography from "@material-ui/core/Typography";
+import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
+import Typography from "@mui/material/Typography";
 import React, { useCallback, useState } from "react";
 import { DynamicIcon, FontIcon } from "../../../impower-icon";
 import { VirtualizedItem } from "../../../impower-react-virtualization";

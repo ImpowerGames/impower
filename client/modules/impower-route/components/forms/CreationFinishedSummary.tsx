@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import Divider from "@material-ui/core/Divider";
-import Typography from "@material-ui/core/Typography";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import Typography from "@mui/material/Typography";
 import NextLink from "next/link";
 import React, { PropsWithChildren } from "react";
 import { StorageFile } from "../../../impower-core";

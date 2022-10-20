@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
+import Button from "@mui/material/Button";
 import React, { useCallback, useEffect, useState } from "react";
 import GripLinesVerticalSolidIcon from "../../../../resources/icons/solid/grip-lines-vertical.svg";
 import PlusSolidIcon from "../../../../resources/icons/solid/plus.svg";

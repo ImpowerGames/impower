@@ -1,9 +1,7 @@
 import styled from "@emotion/styled";
-import {
-  AutocompleteRenderGroupParams,
-  Divider,
-  Typography,
-} from "@material-ui/core";
+import { AutocompleteRenderGroupParams } from "@mui/material/Autocomplete";
+import Divider from "@mui/material/Divider";
+import Typography from "@mui/material/Typography";
 import React from "react";
 
 const StyledGroup = styled.li``;

@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import MenuItem from "@material-ui/core/MenuItem";
+import MenuItem from "@mui/material/MenuItem";
 import React, { PropsWithChildren, useCallback, useContext } from "react";
 import ArrowRightFromBracketRegularIcon from "../../../../resources/icons/regular/arrow-right-from-bracket.svg";
 import GearRegularIcon from "../../../../resources/icons/regular/gear.svg";

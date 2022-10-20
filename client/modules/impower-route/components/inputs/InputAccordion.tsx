@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { Accordion } from "@material-ui/core";
+import Accordion from "@mui/material/Accordion";
 
 const InputAccordion = styled(Accordion)`
   background-color: transparent;

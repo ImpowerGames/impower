@@ -1,7 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import Typography from "@material-ui/core/Typography";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import dynamic from "next/dynamic";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import PenToSquareSolidIcon from "../../../../resources/icons/solid/pen-to-square.svg";
@@ -13,8 +13,10 @@ import FadeAnimation from "../animations/FadeAnimation";
 import Avatar from "./Avatar";
 
 const CircularProgress = dynamic(
-  () => import("@material-ui/core/CircularProgress"),
-  { ssr: false }
+  () => import("@mui/material/CircularProgress"),
+  {
+    ssr: false,
+  }
 );
 
 const StyledIconButtonArea = styled.div`

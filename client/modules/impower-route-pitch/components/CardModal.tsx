@@ -1,13 +1,10 @@
-import {
-  ModalManager,
-  ModalUnstyledProps,
-} from "@material-ui/unstyled/ModalUnstyled";
+import { ModalManager, ModalUnstyledProps } from "@mui/material/Modal";
 import {
   unstable_createChainedFunction as createChainedFunction,
   unstable_ownerDocument as ownerDocument,
   unstable_useEventCallback as useEventCallback,
   unstable_useForkRef as useForkRef,
-} from "@material-ui/utils";
+} from "@mui/utils";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 interface Modal {
@@ -27,7 +24,6 @@ const getHasTransition = (props): boolean => {
 const defaultManager = new ModalManager();
 
 interface CardModalProps extends ModalUnstyledProps {
-  component?: string;
   manager?: ModalManager;
   onTransitionEnter?: () => void;
   onTransitionExited?: () => void;
@@ -36,8 +32,6 @@ interface CardModalProps extends ModalUnstyledProps {
 const CardModal = React.forwardRef(
   (props: CardModalProps, ref): JSX.Element => {
     const {
-      BackdropComponent,
-      BackdropProps,
       children,
       className,
       closeAfterTransition = false,
@@ -211,7 +205,9 @@ const CardModal = React.forwardRef(
     }
 
     const Root = components.Root || component;
+    const BackdropComponent = components.Backdrop;
     const rootProps = componentsProps.root || {};
+    const backdropProps = componentsProps.backdrop || {};
 
     return (
       <Root
@@ -226,7 +222,7 @@ const CardModal = React.forwardRef(
           <BackdropComponent
             open={open}
             onClick={handleBackdropClick}
-            {...BackdropProps}
+            {...backdropProps}
           />
         ) : null}
         {React.cloneElement(children, childProps)}

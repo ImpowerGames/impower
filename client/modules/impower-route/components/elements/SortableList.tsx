@@ -28,8 +28,8 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { useMediaQuery } from "@material-ui/core";
-import Button from "@material-ui/core/Button";
+import Button from "@mui/material/Button";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, {
   PropsWithChildren,
   useCallback,

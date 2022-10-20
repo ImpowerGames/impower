@@ -1,7 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import Typography from "@material-ui/core/Typography";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import CheckSolidIcon from "../../../../resources/icons/solid/check.svg";
 import { FontIcon } from "../../../impower-icon";

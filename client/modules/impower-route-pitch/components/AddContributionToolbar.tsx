@@ -1,9 +1,9 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Backdrop from "@material-ui/core/Backdrop";
-import Button from "@material-ui/core/Button";
-import { blue, deepOrange, grey, pink, purple } from "@material-ui/core/colors";
-import Typography from "@material-ui/core/Typography";
+import Backdrop from "@mui/material/Backdrop";
+import Button from "@mui/material/Button";
+import { blue, deepOrange, grey, pink, purple } from "@mui/material/colors";
+import Typography from "@mui/material/Typography";
 import React, {
   useCallback,
   useContext,

@@ -1,14 +1,13 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import {
-  Dialog,
-  Drawer,
-  Popover,
+import Dialog from "@mui/material/Dialog";
+import Drawer from "@mui/material/Drawer";
+import Popover, {
   PopoverOrigin,
   PopoverPosition,
   PopoverReference,
-  useMediaQuery,
-} from "@material-ui/core";
+} from "@mui/material/Popover";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, {
   PropsWithChildren,
   useCallback,

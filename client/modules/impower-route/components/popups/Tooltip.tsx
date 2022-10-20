@@ -1,8 +1,7 @@
 import styled from "@emotion/styled";
-import {
-  Tooltip as MUITooltip,
+import MUITooltip, {
   TooltipProps as MUITooltipProps,
-} from "@material-ui/core";
+} from "@mui/material/Tooltip";
 import React, { CSSProperties } from "react";
 
 const StyledTooltipContent = styled.div`

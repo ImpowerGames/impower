@@ -1,9 +1,9 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Dialog, { DialogProps } from "@material-ui/core/Dialog";
-import Slide from "@material-ui/core/Slide";
-import { TransitionProps } from "@material-ui/core/transitions";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
+import Dialog, { DialogProps } from "@mui/material/Dialog";
+import Slide from "@mui/material/Slide";
+import { TransitionProps } from "@mui/material/transitions";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, {
   PropsWithChildren,
   useCallback,

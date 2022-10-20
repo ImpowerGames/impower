@@ -3,7 +3,7 @@ import {
   AutocompleteGetTagProps,
   createFilterOptions,
   FilterOptionsState,
-} from "@material-ui/core";
+} from "@mui/material/useAutocomplete";
 import dynamic from "next/dynamic";
 import { useCallback, useContext, useMemo } from "react";
 import { ConfigContext } from "../../../impower-config";

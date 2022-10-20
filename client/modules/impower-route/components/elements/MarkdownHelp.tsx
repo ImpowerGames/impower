@@ -1,5 +1,6 @@
 import styled from "@emotion/styled";
-import { Tab, Typography } from "@material-ui/core";
+import Tab from "@mui/material/Tab";
+import Typography from "@mui/material/Typography";
 import React, { PropsWithChildren, useCallback, useState } from "react";
 import Tabs from "../layouts/Tabs";
 import Markdown from "./Markdown";

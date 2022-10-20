@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Typography } from "@material-ui/core";
+import Typography from "@mui/material/Typography";
 import React, { PropsWithChildren } from "react";
 import Markdown from "./Markdown";
 

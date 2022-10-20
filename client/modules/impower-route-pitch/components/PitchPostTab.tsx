@@ -1,7 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Tab, { TabProps } from "@material-ui/core/Tab";
-import Typography from "@material-ui/core/Typography";
+import Tab, { TabProps } from "@mui/material/Tab";
+import Typography from "@mui/material/Typography";
 import React, { useMemo } from "react";
 import { abbreviateCount } from "../../impower-config";
 import format from "../../impower-config/utils/format";

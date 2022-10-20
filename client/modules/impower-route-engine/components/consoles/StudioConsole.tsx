@@ -1,6 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Typography, useMediaQuery } from "@material-ui/core";
+import Typography from "@mui/material/Typography";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import { useRouter } from "next/router";
 import React, { useEffect, useMemo, useState } from "react";
 import { MemberAccess, MemberData } from "../../../impower-data-state";

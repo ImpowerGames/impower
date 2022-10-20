@@ -1,9 +1,9 @@
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import Checkbox from "@material-ui/core/Checkbox";
-import FilledInput from "@material-ui/core/FilledInput";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Typography from "@material-ui/core/Typography";
+import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
+import FilledInput from "@mui/material/FilledInput";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Typography from "@mui/material/Typography";
 import React, { useCallback, useEffect, useState } from "react";
 import { capitalize } from "../../../impower-config";
 import DynamicLoadingButton from "../inputs/DynamicLoadingButton";

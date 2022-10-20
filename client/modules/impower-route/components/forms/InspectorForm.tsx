@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { ButtonProps } from "@material-ui/core/Button";
+import { ButtonProps } from "@mui/material/Button";
 import dynamic from "next/dynamic";
 import React, {
   PropsWithChildren,

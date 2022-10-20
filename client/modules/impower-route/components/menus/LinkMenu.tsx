@@ -1,5 +1,7 @@
 import styled from "@emotion/styled";
-import { Divider, Menu, MenuItem } from "@material-ui/core";
+import Divider from "@mui/material/Divider";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 import React, { useCallback } from "react";
 import { MenuInfo } from "../../types/info/menus";
 

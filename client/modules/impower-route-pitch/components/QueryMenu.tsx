@@ -1,7 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import MenuItem from "@material-ui/core/MenuItem";
-import Typography from "@material-ui/core/Typography";
+import MenuItem from "@mui/material/MenuItem";
+import Typography from "@mui/material/Typography";
 import React, {
   PropsWithChildren,
   useCallback,

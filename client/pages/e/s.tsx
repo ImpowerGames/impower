@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Paper from "@material-ui/core/Paper";
+import Paper from "@mui/material/Paper";
 import { GetStaticProps } from "next";
 import React, {
   useCallback,

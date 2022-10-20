@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import Tab from "@material-ui/core/Tab";
+import Tab from "@mui/material/Tab";
 import React, { useCallback } from "react";
 import { FadeAnimation, Tabs } from "../../../impower-route";
 

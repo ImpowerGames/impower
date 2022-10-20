@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { Link } from "@material-ui/core";
+import Link from "@mui/material/Link";
 import { escapeURI } from "../../../impower-data-store";
 import { useRouter } from "../../../impower-router";
 

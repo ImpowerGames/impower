@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Typography } from "@material-ui/core";
+import Typography from "@mui/material/Typography";
 import dynamic from "next/dynamic";
 import React, { CSSProperties, PropsWithChildren } from "react";
 import AngleUpRegularIcon from "../../../../resources/icons/regular/angle-up.svg";

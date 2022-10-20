@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import FilledInput from "@material-ui/core/FilledInput";
+import FilledInput from "@mui/material/FilledInput";
 import React, {
   PropsWithChildren,
   useCallback,

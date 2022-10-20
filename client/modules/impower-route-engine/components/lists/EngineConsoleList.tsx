@@ -1,16 +1,14 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import {
-  Button,
-  Card,
-  CardActionArea,
-  Checkbox,
-  Divider,
-  IconButton,
-  MenuItem,
-  Paper,
-  Typography,
-} from "@material-ui/core";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
+import Checkbox from "@mui/material/Checkbox";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import MenuItem from "@mui/material/MenuItem";
+import Paper from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
 import dynamic from "next/dynamic";
 import React, {
   useCallback,
@@ -54,7 +52,7 @@ import { UploadTask } from "../../../impower-storage";
 import { UserContext } from "../../../impower-user";
 import EngineToolbar from "../headers/EngineToolbar";
 
-const Skeleton = dynamic(() => import("@material-ui/core/Skeleton"), {
+const Skeleton = dynamic(() => import("@mui/material/Skeleton"), {
   ssr: false,
 });
 

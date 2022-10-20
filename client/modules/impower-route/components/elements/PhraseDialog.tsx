@@ -1,9 +1,10 @@
 import styled from "@emotion/styled";
-import { Grow, Typography } from "@material-ui/core";
-import Dialog, { DialogProps } from "@material-ui/core/Dialog";
-import DialogActions from "@material-ui/core/DialogActions";
-import DialogContent from "@material-ui/core/DialogContent";
-import DialogTitle from "@material-ui/core/DialogTitle";
+import Dialog, { DialogProps } from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import Grow from "@mui/material/Grow";
+import Typography from "@mui/material/Typography";
 import React from "react";
 
 const StyledPhraseDialog = styled(Dialog)`

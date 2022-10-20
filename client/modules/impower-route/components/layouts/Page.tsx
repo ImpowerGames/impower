@@ -1,16 +1,16 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import AppBar from "@material-ui/core/AppBar";
-import Button from "@material-ui/core/Button";
-import Dialog from "@material-ui/core/Dialog";
-import Divider from "@material-ui/core/Divider";
-import IconButton from "@material-ui/core/IconButton";
-import Link from "@material-ui/core/Link";
-import MenuItem from "@material-ui/core/MenuItem";
-import OutlinedInput from "@material-ui/core/OutlinedInput";
-import Paper from "@material-ui/core/Paper";
-import Select, { SelectChangeEvent } from "@material-ui/core/Select";
-import Typography from "@material-ui/core/Typography";
+import AppBar from "@mui/material/AppBar";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
+import MenuItem from "@mui/material/MenuItem";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Paper from "@mui/material/Paper";
+import Select, { SelectChangeEvent } from "@mui/material/Select";
+import Typography from "@mui/material/Typography";
 import dynamic from "next/dynamic";
 import React, {
   PropsWithChildren,
@@ -94,7 +94,7 @@ const getDate = (
   return undefined;
 };
 
-const Skeleton = dynamic(() => import("@material-ui/core/Skeleton"), {
+const Skeleton = dynamic(() => import("@mui/material/Skeleton"), {
   ssr: false,
 });
 

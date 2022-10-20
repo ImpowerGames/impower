@@ -1,7 +1,5 @@
 import styled from "@emotion/styled";
-import OutlinedInput, {
-  OutlinedInputProps,
-} from "@material-ui/core/OutlinedInput";
+import OutlinedInput, { OutlinedInputProps } from "@mui/material/OutlinedInput";
 import React from "react";
 
 const StyledOutlinedInput = styled(OutlinedInput)`

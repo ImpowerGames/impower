@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import IconButton from "@material-ui/core/IconButton";
+import IconButton from "@mui/material/IconButton";
 import React, { PropsWithChildren } from "react";
 import { FontIcon } from "../../../impower-icon";
 

@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import OutlinedInput from "@material-ui/core/OutlinedInput";
-import Paper from "@material-ui/core/Paper";
+import Button from "@mui/material/Button";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Paper from "@mui/material/Paper";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import format from "../../../impower-config/utils/format";
 import {

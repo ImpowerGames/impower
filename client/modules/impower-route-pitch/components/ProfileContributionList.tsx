@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import CircularProgress from "@material-ui/core/CircularProgress";
+import CircularProgress from "@mui/material/CircularProgress";
 import React, { useMemo } from "react";
 import { ContributionDocument } from "../../impower-data-store";
 import ContributionList from "./ContributionList";

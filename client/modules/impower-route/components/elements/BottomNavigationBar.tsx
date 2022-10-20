@@ -1,6 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { BottomNavigation, BottomNavigationAction } from "@material-ui/core";
+import BottomNavigation from "@mui/material/BottomNavigation";
+import BottomNavigationAction from "@mui/material/BottomNavigationAction";
 import React from "react";
 import { FontIcon } from "../../../impower-icon";
 import { ButtonInfo } from "../../types/info/button";

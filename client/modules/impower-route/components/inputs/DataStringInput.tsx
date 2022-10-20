@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
-import Input, { InputProps } from "@material-ui/core/Input";
-import { InputBaseComponentProps } from "@material-ui/core/InputBase";
-import { InputLabelProps } from "@material-ui/core/InputLabel";
+import Input, { InputProps } from "@mui/material/Input";
+import { InputBaseComponentProps } from "@mui/material/InputBase";
+import { InputLabelProps } from "@mui/material/InputLabel";
 import React, { useCallback, useState } from "react";
 import TextField from "./TextField";
 

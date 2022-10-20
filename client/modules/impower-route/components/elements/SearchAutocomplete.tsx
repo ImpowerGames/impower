@@ -1,18 +1,15 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import CircularProgress from "@material-ui/core/CircularProgress";
-import Divider from "@material-ui/core/Divider";
-import IconButton from "@material-ui/core/IconButton";
-import { OutlinedInputProps } from "@material-ui/core/OutlinedInput";
-import {
+import CircularProgress from "@mui/material/CircularProgress";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import { OutlinedInputProps } from "@mui/material/OutlinedInput";
+import useAutocomplete, {
   AutocompleteGroupedOption,
   AutocompleteInputChangeReason,
-} from "@material-ui/core/useAutocomplete";
-import {
   createFilterOptions,
   FilterOptionsState,
-  useAutocomplete,
-} from "@material-ui/unstyled/AutocompleteUnstyled";
+} from "@mui/material/useAutocomplete";
 import React, {
   useCallback,
   useContext,
@@ -604,7 +601,7 @@ const SearchAutocomplete = (props: SearchAutocompleteProps): JSX.Element => {
   });
 
   const rootProps = getRootProps();
-  const inputProps = getInputProps() as OutlinedInputProps;
+  const inputProps = getInputProps() as unknown as OutlinedInputProps;
   const { ref, ...InputProps } = inputProps;
   const listboxProps = getListboxProps();
   const groups = groupedOptions as AutocompleteGroupedOption<string>[];

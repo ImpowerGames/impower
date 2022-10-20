@@ -1,18 +1,15 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogProps,
-  DialogTitle,
-  Grow,
-  Typography,
-} from "@material-ui/core";
-import Button from "@material-ui/core/Button";
-import { Variant } from "@material-ui/core/styles/createTypography";
-import { TransitionProps } from "@material-ui/core/transitions";
+import Button from "@mui/material/Button";
+import Dialog, { DialogProps } from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import Grow from "@mui/material/Grow";
+import { Variant } from "@mui/material/styles/createTypography";
+import { TransitionProps } from "@mui/material/transitions";
+import Typography from "@mui/material/Typography";
 import React, { PropsWithChildren, useCallback, useState } from "react";
 import Markdown from "../elements/Markdown";
 import DynamicLoadingButton from "../inputs/DynamicLoadingButton";
@@ -68,7 +65,7 @@ const StyledYesButton = styled(DynamicLoadingButton)`
 `;
 
 const Transition = React.forwardRef(function Transition(
-  props: TransitionProps & { children?: React.ReactElement },
+  props: TransitionProps & { children: React.ReactElement },
   ref: React.Ref<unknown>
 ) {
   return <Grow ref={ref} {...props} />;

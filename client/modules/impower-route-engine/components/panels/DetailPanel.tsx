@@ -1,7 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import FilledInput from "@material-ui/core/FilledInput";
+import Button from "@mui/material/Button";
+import FilledInput from "@mui/material/FilledInput";
 import React, { useCallback, useContext, useMemo, useRef } from "react";
 import {
   ConfigTypeId,

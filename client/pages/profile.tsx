@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Container } from "@material-ui/core";
+import Container from "@mui/material/Container";
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import {
   createUserDocument,

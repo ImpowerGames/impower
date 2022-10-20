@@ -1,13 +1,9 @@
 import styled from "@emotion/styled";
-import {
-  Alert,
-  AlertColor,
-  Button,
-  Slide,
-  Snackbar,
-  SnackbarOrigin,
-} from "@material-ui/core";
-import { TransitionProps } from "@material-ui/core/transitions";
+import Alert, { AlertColor } from "@mui/material/Alert";
+import Button from "@mui/material/Button";
+import Slide from "@mui/material/Slide";
+import Snackbar, { SnackbarOrigin } from "@mui/material/Snackbar";
+import { TransitionProps } from "@mui/material/transitions";
 import React from "react";
 import XmarkSolidIcon from "../../../../resources/icons/solid/xmark.svg";
 import { FontIcon } from "../../../impower-icon";
@@ -64,7 +60,10 @@ const Toast = React.memo((props: ToastProps): JSX.Element => {
       TransitionComponent={
         direction
           ? React.forwardRef(
-              (props: TransitionProps, ref): JSX.Element => (
+              (
+                props: TransitionProps & { children: React.ReactElement },
+                ref
+              ): JSX.Element => (
                 <Slide {...props} direction={direction} ref={ref} />
               )
             )

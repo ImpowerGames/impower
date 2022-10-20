@@ -1,9 +1,9 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import Divider from "@material-ui/core/Divider";
-import OutlinedInput from "@material-ui/core/OutlinedInput";
-import Paper from "@material-ui/core/Paper";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Paper from "@mui/material/Paper";
 import dynamic from "next/dynamic";
 import React, {
   useCallback,

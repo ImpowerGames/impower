@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
-import { easing } from "@material-ui/core/styles";
-import { useForkRef } from "@material-ui/core/utils";
+import { easing } from "@mui/material/styles";
+import { useForkRef } from "@mui/material/utils";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { getTransitionProps } from "../utils/getTransitionProps";
 

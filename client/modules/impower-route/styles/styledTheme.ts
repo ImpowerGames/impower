@@ -1,8 +1,4 @@
-import {
-  createTheme,
-  responsiveFontSizes,
-  Theme,
-} from "@material-ui/core/styles";
+import { createTheme, responsiveFontSizes, Theme } from "@mui/material/styles";
 import { Breakpoint } from "./breakpoint";
 import { layout } from "./layout";
 import { StyledTheme } from "./styled";

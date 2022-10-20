@@ -1,11 +1,11 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { alpha } from "@material-ui/core";
-import Dialog, { DialogProps } from "@material-ui/core/Dialog";
-import IconButton from "@material-ui/core/IconButton";
-import Slide from "@material-ui/core/Slide";
-import { TransitionProps } from "@material-ui/core/transitions";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
+import Dialog, { DialogProps } from "@mui/material/Dialog";
+import IconButton from "@mui/material/IconButton";
+import Slide from "@mui/material/Slide";
+import { alpha } from "@mui/material/styles";
+import { TransitionProps } from "@mui/material/transitions";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, {
   CSSProperties,
   PropsWithChildren,
@@ -122,7 +122,7 @@ const StyledIconButtonBackground = styled.div`
 `;
 
 const SlideTransition = React.forwardRef(function Transition(
-  props: TransitionProps & { children?: React.ReactElement },
+  props: TransitionProps & { children: React.ReactElement },
   ref: React.Ref<unknown>
 ) {
   return <Slide direction="up" ref={ref} {...props} />;

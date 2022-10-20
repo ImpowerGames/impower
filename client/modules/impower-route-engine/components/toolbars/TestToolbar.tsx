@@ -1,6 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { IconButton, Typography } from "@material-ui/core";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
 import React, {
   useCallback,
   useContext,

@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
+import Button from "@mui/material/Button";
 import FacebookBrandsIcon from "../../../../resources/icons/brands/facebook.svg";
 import InstagramBrandsIcon from "../../../../resources/icons/brands/instagram.svg";
 import TiktokBrandsIcon from "../../../../resources/icons/brands/tiktok.svg";

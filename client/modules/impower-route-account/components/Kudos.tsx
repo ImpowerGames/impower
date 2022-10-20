@@ -1,6 +1,8 @@
 import styled from "@emotion/styled";
-import { CircularProgress, Divider, Typography } from "@material-ui/core";
-import Tab from "@material-ui/core/Tab";
+import CircularProgress from "@mui/material/CircularProgress";
+import Divider from "@mui/material/Divider";
+import Tab from "@mui/material/Tab";
+import Typography from "@mui/material/Typography";
 import React, {
   useCallback,
   useContext,

@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
-import { Mark, Slider } from "@material-ui/core";
-import { TransitionHandlerProps } from "@material-ui/core/transitions";
+import Slider from "@mui/material/Slider";
+import { TransitionHandlerProps } from "@mui/material/transitions";
 import React, { useCallback, useEffect, useState } from "react";
 import StringDialog, { StringDialogProps } from "./StringDialog";
 
@@ -16,7 +16,12 @@ interface NumberDialogProps extends StringDialogProps {
   max?: number;
   min?: number;
   step?: number | null;
-  marks?: boolean | Mark[];
+  marks?:
+    | boolean
+    | {
+        value: number;
+        label?: React.ReactNode;
+      }[];
   onChange?: (event: React.ChangeEvent) => Promise<boolean>;
   renderHelperText?: (props: {
     errorText?: string;

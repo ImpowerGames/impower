@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import MobileStepper from "@material-ui/core/MobileStepper";
+import Button from "@mui/material/Button";
+import MobileStepper from "@mui/material/MobileStepper";
 import React, {
   useCallback,
   useContext,

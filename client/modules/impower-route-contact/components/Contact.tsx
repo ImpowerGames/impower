@@ -1,7 +1,7 @@
 /* eslint-disable global-require */
 import styled from "@emotion/styled";
-import OutlinedInput from "@material-ui/core/OutlinedInput";
-import Typography from "@material-ui/core/Typography";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Typography from "@mui/material/Typography";
 import React, { useCallback, useContext, useState } from "react";
 import { DynamicLoadingButton, TextField } from "../../impower-route";
 import { ToastContext, toastTop } from "../../impower-toast";

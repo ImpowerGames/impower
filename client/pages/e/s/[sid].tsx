@@ -1,9 +1,9 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Skeleton } from "@material-ui/core";
-import Button from "@material-ui/core/Button";
-import Tab from "@material-ui/core/Tab";
-import Typography from "@material-ui/core/Typography";
+import Button from "@mui/material/Button";
+import Skeleton from "@mui/material/Skeleton";
+import Tab from "@mui/material/Tab";
+import Typography from "@mui/material/Typography";
 import { GetStaticPaths, GetStaticProps } from "next";
 import dynamic from "next/dynamic";
 import React, {
@@ -49,8 +49,10 @@ const TagIconLoader = dynamic(
 );
 
 const CircularProgress = dynamic(
-  () => import("@material-ui/core/CircularProgress"),
-  { ssr: false }
+  () => import("@mui/material/CircularProgress"),
+  {
+    ssr: false,
+  }
 );
 
 const StudioConsole = dynamic(

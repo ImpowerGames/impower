@@ -1,4 +1,4 @@
-import { CircularProgress } from "@material-ui/core";
+import CircularProgress from "@mui/material/CircularProgress";
 import dynamic from "next/dynamic";
 import { PropsWithChildren } from "react";
 import { getRootElementId, SparkContext } from "../../../../spark-engine";

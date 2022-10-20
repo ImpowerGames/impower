@@ -11,7 +11,6 @@ import {
   ContributionDocument,
   ProjectDocument,
 } from "../../impower-data-store";
-import { LazyHydrate } from "../../impower-hydration";
 import { VirtualizedItem } from "../../impower-react-virtualization";
 import { FadeAnimation } from "../../impower-route";
 import KudoCard from "./KudoCard";

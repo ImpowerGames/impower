@@ -1,8 +1,8 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { DialogProps } from "@material-ui/core/Dialog";
-import IconButton from "@material-ui/core/IconButton";
-import Typography from "@material-ui/core/Typography";
+import { DialogProps } from "@mui/material/Dialog";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
 import React, {
   useCallback,
   useContext,

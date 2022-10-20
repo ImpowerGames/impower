@@ -1,6 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { InputBaseProps, useMediaQuery } from "@material-ui/core";
+import { InputBaseProps } from "@mui/material/InputBase";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import dynamic from "next/dynamic";
 import React, {
   PropsWithChildren,
@@ -26,8 +27,10 @@ const MarkdownHelp = dynamic(() => import("../elements/MarkdownHelp"), {
 const InfoHelp = dynamic(() => import("../elements/InfoHelp"), { ssr: false });
 
 const CircularProgress = dynamic(
-  () => import("@material-ui/core/CircularProgress"),
-  { ssr: false }
+  () => import("@mui/material/CircularProgress"),
+  {
+    ssr: false,
+  }
 );
 
 const StyledKeyboardTrigger = styled.input`

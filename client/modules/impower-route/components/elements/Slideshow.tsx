@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import IconButton from "@material-ui/core/IconButton";
-import MobileStepper from "@material-ui/core/MobileStepper";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import MobileStepper from "@mui/material/MobileStepper";
 import { CSSProperties, useCallback, useEffect, useState } from "react";
 import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left.svg";
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";

@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import IconButton from "@material-ui/core/IconButton";
+import IconButton from "@mui/material/IconButton";
 import React, { useCallback, useContext } from "react";
 import RotateLeftRegularIcon from "../../../../resources/icons/regular/rotate-left.svg";
 import RotateRightRegularIcon from "../../../../resources/icons/regular/rotate-right.svg";

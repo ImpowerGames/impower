@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import Typography from "@material-ui/core/Typography";
+import Typography from "@mui/material/Typography";
 import ReactMarkdown, { MarkdownToJSX } from "markdown-to-jsx";
 import React from "react";
 import LazyHydrate from "../../../impower-hydration/LazyHydrate";

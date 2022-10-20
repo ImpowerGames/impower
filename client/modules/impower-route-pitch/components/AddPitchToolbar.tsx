@@ -1,7 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Backdrop from "@material-ui/core/Backdrop";
-import Button from "@material-ui/core/Button";
+import Backdrop from "@mui/material/Backdrop";
+import Button from "@mui/material/Button";
 import {
   blue,
   cyan,
@@ -10,8 +10,8 @@ import {
   pink,
   purple,
   red,
-} from "@material-ui/core/colors";
-import Typography from "@material-ui/core/Typography";
+} from "@mui/material/colors";
+import Typography from "@mui/material/Typography";
 import React, { useCallback, useMemo, useState } from "react";
 import BookOpenSolidIcon from "../../../resources/icons/solid/book-open.svg";
 import GamepadSolidIcon from "../../../resources/icons/solid/gamepad.svg";

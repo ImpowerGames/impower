@@ -1,5 +1,5 @@
-import Button from "@material-ui/core/Button";
-import { LoadingButtonProps } from "@material-ui/lab";
+import { LoadingButtonProps } from "@mui/lab/LoadingButton";
+import Button from "@mui/material/Button";
 import dynamic from "next/dynamic";
 import { createContext, useContext } from "react";
 
@@ -11,7 +11,7 @@ const ContextualPlaceholder = (): JSX.Element => {
   return <Button {...other} />;
 };
 
-const LoadingButton = dynamic(() => import("@material-ui/lab/LoadingButton"), {
+const LoadingButton = dynamic(() => import("@mui/lab/LoadingButton"), {
   ssr: false,
   loading: () => <ContextualPlaceholder />,
 });

@@ -3,8 +3,10 @@ import dynamic from "next/dynamic";
 import { CSSProperties } from "react";
 
 const CircularProgress = dynamic(
-  () => import("@material-ui/core/CircularProgress"),
-  { ssr: false }
+  () => import("@mui/material/CircularProgress"),
+  {
+    ssr: false,
+  }
 );
 
 const StyledFallback = styled.div`

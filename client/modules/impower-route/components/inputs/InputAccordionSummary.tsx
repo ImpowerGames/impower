@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { AccordionSummary } from "@material-ui/core";
+import AccordionSummary from "@mui/material/AccordionSummary";
 
 const InputAccordionSummary = styled(AccordionSummary)`
   &.MuiAccordionSummary-root {

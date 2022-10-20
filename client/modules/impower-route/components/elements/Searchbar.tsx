@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import dynamic from "next/dynamic";
 import React, { useCallback, useState } from "react";
 import MagnifyingGlassRegularIcon from "../../../../resources/icons/regular/magnifying-glass.svg";

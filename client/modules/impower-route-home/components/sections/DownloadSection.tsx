@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import Typography from "@material-ui/core/Typography";
+import Typography from "@mui/material/Typography";
 import IllustrationImage from "../../../../resources/illustrations/fogg-no-connection-2.svg";
 import { downloadInfo } from "../../types/info/download";
 import Illustration from "../elements/Illustration";

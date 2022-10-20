@@ -1,12 +1,10 @@
 import styled from "@emotion/styled";
-import {
-  Button,
-  CircularProgress,
-  Divider,
-  IconButton,
-  Tab,
-  Typography,
-} from "@material-ui/core";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import Tab from "@mui/material/Tab";
+import Typography from "@mui/material/Typography";
 import dynamic from "next/dynamic";
 import React, {
   useCallback,

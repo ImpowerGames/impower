@@ -1,5 +1,5 @@
+import Slide, { SlideProps } from "@mui/material/Slide";
 import React from "react";
-import { SlideProps, Slide } from "@material-ui/core";
 
 type TransitionProps = Omit<SlideProps, "direction">;
 

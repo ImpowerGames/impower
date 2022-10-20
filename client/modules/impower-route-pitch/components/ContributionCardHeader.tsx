@@ -1,8 +1,8 @@
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import CardHeader from "@material-ui/core/CardHeader";
-import IconButton from "@material-ui/core/IconButton";
-import Typography from "@material-ui/core/Typography";
+import Button from "@mui/material/Button";
+import CardHeader from "@mui/material/CardHeader";
+import IconButton from "@mui/material/IconButton";
+import Typography from "@mui/material/Typography";
 import dynamic from "next/dynamic";
 import NextLink from "next/link";
 import React, { useCallback, useMemo } from "react";
@@ -14,7 +14,7 @@ import { FontIcon } from "../../impower-icon";
 import Avatar from "../../impower-route/components/elements/Avatar";
 import PostBackButton from "./PostBackButton";
 
-const Skeleton = dynamic(() => import("@material-ui/core/Skeleton"), {
+const Skeleton = dynamic(() => import("@mui/material/Skeleton"), {
   ssr: false,
 });
 

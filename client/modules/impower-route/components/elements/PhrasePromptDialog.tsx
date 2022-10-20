@@ -1,13 +1,13 @@
 import { DragEndEvent } from "@dnd-kit/core";
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import { DialogProps } from "@material-ui/core/Dialog";
-import Divider from "@material-ui/core/Divider";
-import IconButton from "@material-ui/core/IconButton";
-import Paper, { PaperProps } from "@material-ui/core/Paper";
-import Typography from "@material-ui/core/Typography";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
+import Button from "@mui/material/Button";
+import { DialogProps } from "@mui/material/Dialog";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import Paper, { PaperProps } from "@mui/material/Paper";
+import Typography from "@mui/material/Typography";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, {
   useCallback,
   useContext,

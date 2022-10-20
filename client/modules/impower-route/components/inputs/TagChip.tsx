@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import Chip, { ChipProps } from "@material-ui/core/Chip";
+import Chip, { ChipProps } from "@mui/material/Chip";
 import React from "react";
 
 const StyledChipIconArea = styled.div`

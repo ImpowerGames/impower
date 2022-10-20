@@ -1,17 +1,17 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { useMediaQuery } from "@material-ui/core";
-import Button from "@material-ui/core/Button";
-import Dialog, { DialogProps } from "@material-ui/core/Dialog";
-import FilledInput from "@material-ui/core/FilledInput";
+import Button from "@mui/material/Button";
+import Dialog, { DialogProps } from "@mui/material/Dialog";
+import FilledInput from "@mui/material/FilledInput";
 import FormHelperText, {
   FormHelperTextProps,
-} from "@material-ui/core/FormHelperText";
-import IconButton from "@material-ui/core/IconButton";
-import Paper from "@material-ui/core/Paper";
-import Slide from "@material-ui/core/Slide";
-import { TransitionProps } from "@material-ui/core/transitions";
-import Typography from "@material-ui/core/Typography";
+} from "@mui/material/FormHelperText";
+import IconButton from "@mui/material/IconButton";
+import Paper from "@mui/material/Paper";
+import Slide from "@mui/material/Slide";
+import { TransitionProps } from "@mui/material/transitions";
+import Typography from "@mui/material/Typography";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, {
   useCallback,
   useContext,
@@ -276,7 +276,7 @@ const requestTimeout = (call: () => unknown, delay: number): number => {
 
 const Transition = React.forwardRef(
   (
-    props: TransitionProps & { children?: React.ReactElement },
+    props: TransitionProps & { children: React.ReactElement },
     ref: React.Ref<unknown>
   ) => {
     const theme = useTheme();

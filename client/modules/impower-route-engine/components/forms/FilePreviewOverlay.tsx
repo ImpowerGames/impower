@@ -1,6 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Container, Paper } from "@material-ui/core";
+import Container from "@mui/material/Container";
+import Paper from "@mui/material/Paper";
 import React, {
   PropsWithChildren,
   useCallback,

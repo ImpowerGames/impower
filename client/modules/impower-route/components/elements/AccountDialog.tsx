@@ -1,10 +1,10 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Dialog from "@material-ui/core/Dialog";
-import Grow from "@material-ui/core/Grow";
-import IconButton from "@material-ui/core/IconButton";
-import { TransitionProps } from "@material-ui/core/transitions";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
+import Dialog from "@mui/material/Dialog";
+import Grow from "@mui/material/Grow";
+import IconButton from "@mui/material/IconButton";
+import { TransitionProps } from "@mui/material/transitions/transition";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, { useCallback, useMemo, useRef } from "react";
 import XmarkSolidIcon from "../../../../resources/icons/solid/xmark.svg";
 import { FontIcon } from "../../../impower-icon";
@@ -66,7 +66,7 @@ const StyledIconButton = styled(IconButton)`
 `;
 
 const GrowTransition = React.forwardRef(function Transition(
-  props: TransitionProps & { children?: React.ReactElement },
+  props: TransitionProps & { children: React.ReactElement },
   ref: React.Ref<unknown>
 ) {
   return <Grow ref={ref} {...props} />;

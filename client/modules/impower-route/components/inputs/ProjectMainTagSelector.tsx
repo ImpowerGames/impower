@@ -1,5 +1,6 @@
 import styled from "@emotion/styled";
-import { Chip, Typography } from "@material-ui/core";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
 import React, { useCallback } from "react";
 import format from "../../../impower-config/utils/format";
 

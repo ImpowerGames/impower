@@ -1,5 +1,5 @@
+import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { useTheme } from "@material-ui/core";
 import { GetStaticPaths, GetStaticProps } from "next";
 import dynamic from "next/dynamic";
 import React, {

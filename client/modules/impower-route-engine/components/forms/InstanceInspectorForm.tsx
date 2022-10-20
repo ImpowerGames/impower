@@ -1,4 +1,4 @@
-import FilledInput from "@material-ui/core/FilledInput";
+import FilledInput from "@mui/material/FilledInput";
 import React, { PropsWithChildren, useCallback, useMemo } from "react";
 import { InstanceData, Reference } from "../../../../../spark-engine";
 import InspectorForm, {

@@ -5,21 +5,21 @@ import Autocomplete, {
   AutocompleteInputChangeReason,
   AutocompleteRenderGroupParams,
   AutocompleteRenderOptionState,
-} from "@material-ui/core/Autocomplete";
-import Button from "@material-ui/core/Button";
-import Dialog from "@material-ui/core/Dialog";
-import Divider from "@material-ui/core/Divider";
-import FilledInput from "@material-ui/core/FilledInput";
-import FormHelperText from "@material-ui/core/FormHelperText";
-import Paper from "@material-ui/core/Paper";
-import { PopperProps } from "@material-ui/core/Popper";
-import Slide from "@material-ui/core/Slide";
-import { TransitionProps } from "@material-ui/core/transitions";
-import Typography from "@material-ui/core/Typography";
+} from "@mui/material/Autocomplete";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import Divider from "@mui/material/Divider";
+import FilledInput from "@mui/material/FilledInput";
+import FormHelperText from "@mui/material/FormHelperText";
+import Paper from "@mui/material/Paper";
+import { PopperProps } from "@mui/material/Popper";
+import Slide from "@mui/material/Slide";
+import { TransitionProps } from "@mui/material/transitions";
+import Typography from "@mui/material/Typography";
 import {
   AutocompleteGetTagProps,
   FilterOptionsState,
-} from "@material-ui/core/useAutocomplete";
+} from "@mui/material/useAutocomplete";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import useIOS from "../../hooks/useIOS";
 import useVisualViewport from "../../hooks/useVisualViewport";

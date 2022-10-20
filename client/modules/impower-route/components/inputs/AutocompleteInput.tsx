@@ -5,8 +5,8 @@ import Autocomplete, {
   AutocompleteRenderGetTagProps,
   AutocompleteRenderInputParams,
   AutocompleteRenderOptionState,
-} from "@material-ui/core/Autocomplete";
-import Popper, { PopperProps } from "@material-ui/core/Popper";
+} from "@mui/material/Autocomplete";
+import Popper, { PopperProps } from "@mui/material/Popper";
 import {
   AutocompleteChangeDetails,
   AutocompleteChangeReason,
@@ -14,8 +14,8 @@ import {
   AutocompleteInputChangeReason,
   createFilterOptions,
   FilterOptionsState,
-} from "@material-ui/core/useAutocomplete";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
+} from "@mui/material/useAutocomplete";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import dynamic from "next/dynamic";
 import React, {
   useCallback,

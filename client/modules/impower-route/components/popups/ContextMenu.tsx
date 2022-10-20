@@ -1,12 +1,12 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
+import Divider from "@mui/material/Divider";
+import MenuItem from "@mui/material/MenuItem";
 import {
-  Divider,
-  MenuItem,
   PopoverOrigin,
   PopoverPosition,
   PopoverReference,
-} from "@material-ui/core";
+} from "@mui/material/Popover";
 import React, { useEffect, useState } from "react";
 import { FontIcon } from "../../../impower-icon";
 import DrawerMenu from "./DrawerMenu";

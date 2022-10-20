@@ -1,8 +1,8 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Checkbox from "@material-ui/core/Checkbox";
-import FormControlLabel from "@material-ui/core/FormControlLabel";
-import Switch from "@material-ui/core/Switch";
+import Checkbox from "@mui/material/Checkbox";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { debounce } from "../../../impower-core";
 import { StringInputProps } from "./StringInput";

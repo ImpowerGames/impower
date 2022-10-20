@@ -1,15 +1,16 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 
 import { useTheme } from "@emotion/react";
+import { InputProps } from "@mui/material/Input";
+import {
+  InputBaseComponentProps,
+  InputBaseProps,
+} from "@mui/material/InputBase";
+import { InputLabelProps } from "@mui/material/InputLabel";
 import {
   AutocompleteGetTagProps,
   FilterOptionsState,
-  InputBaseComponentProps,
-  InputBaseProps,
-  InputLabelProps,
-  InputProps,
-  TextFieldProps,
-} from "@material-ui/core";
+} from "@mui/material/useAutocomplete";
 import dynamic from "next/dynamic";
 import React, { useCallback, useMemo } from "react";
 import { getLabel } from "../../../impower-config";
@@ -37,6 +38,7 @@ import { ObjectFieldProps } from "./ObjectField";
 import { RadioInputProps } from "./RadioInput";
 import { StringDialogProps } from "./StringDialog";
 import { StringInputProps } from "./StringInput";
+import { TextFieldProps } from "./TextField";
 import ValueFieldArea from "./ValueFieldArea";
 
 const markdownHelpCaption = `First Level Header

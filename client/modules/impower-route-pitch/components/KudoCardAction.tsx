@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import IconButton from "@material-ui/core/IconButton";
+import IconButton from "@mui/material/IconButton";
 import dynamic from "next/dynamic";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import EllipsisVerticalRegularIcon from "../../../resources/icons/regular/ellipsis-vertical.svg";

@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { DialogProps } from "@material-ui/core/Dialog";
+import { DialogProps } from "@mui/material/Dialog";
 import React from "react";
 import {
   ContributionDocument,

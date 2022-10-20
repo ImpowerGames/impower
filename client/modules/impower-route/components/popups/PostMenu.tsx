@@ -1,6 +1,8 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Divider, MenuItem, Typography } from "@material-ui/core";
+import Divider from "@mui/material/Divider";
+import MenuItem from "@mui/material/MenuItem";
+import Typography from "@mui/material/Typography";
 import React, { useEffect, useState } from "react";
 import { FontIcon } from "../../../impower-icon";
 import DrawerMenu, { DrawerMenuProps } from "./DrawerMenu";

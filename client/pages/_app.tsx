@@ -1,5 +1,6 @@
 import { CacheProvider, EmotionCache } from "@emotion/react";
-import { CssBaseline, ThemeProvider } from "@material-ui/core";
+import CssBaseline from "@mui/material/CssBaseline";
+import ThemeProvider from "@mui/material/styles/ThemeProvider";
 import { AppProps } from "next/dist/shared/lib/router/router";
 import React, { useEffect } from "react";
 import createEmotionCache from "../lib/createEmotionCache";

@@ -1,8 +1,8 @@
-import FormControl from "@material-ui/core/FormControl";
-import FormHelperText from "@material-ui/core/FormHelperText";
-import { InputProps } from "@material-ui/core/Input";
-import InputLabel from "@material-ui/core/InputLabel";
-import { TextFieldProps as MuiTextFieldProps } from "@material-ui/core/TextField";
+import FormControl from "@mui/material/FormControl";
+import FormHelperText from "@mui/material/FormHelperText";
+import { InputProps } from "@mui/material/Input";
+import InputLabel from "@mui/material/InputLabel";
+import { TextFieldProps as MuiTextFieldProps } from "@mui/material/TextField";
 import React, { useCallback, useMemo, useState } from "react";
 
 export interface TextFieldProps

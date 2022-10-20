@@ -1,5 +1,8 @@
 import styled from "@emotion/styled";
-import { Card, CardContent, CardHeader, Typography } from "@material-ui/core";
+import Card from "@mui/material/Card";
+import CardContent from "@mui/material/CardContent";
+import CardHeader from "@mui/material/CardHeader";
+import Typography from "@mui/material/Typography";
 import IllustrationImage from "../../../../resources/illustrations/clip-message-sent-1.svg";
 import SlideAnimation from "../../../impower-route/components/animations/SlideAnimation";
 import Markdown from "../../../impower-route/components/elements/Markdown";

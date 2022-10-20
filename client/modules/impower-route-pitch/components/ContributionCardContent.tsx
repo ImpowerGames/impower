@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
-import CardContent from "@material-ui/core/CardContent";
-import Typography from "@material-ui/core/Typography";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import TriangleExclamationSolidIcon from "../../../resources/icons/solid/triangle-exclamation.svg";
 import { StorageFile } from "../../impower-core";

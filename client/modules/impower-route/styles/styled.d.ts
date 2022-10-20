@@ -1,5 +1,5 @@
 import "@emotion/styled";
-import { Theme as MaterialTheme } from "@material-ui/core/styles";
+import { Theme as MaterialTheme } from "@mui/material/styles";
 
 export interface StyledTheme {
   space: {
@@ -201,7 +201,7 @@ export interface StyledTheme {
   };
 }
 
-declare module "@material-ui/core/styles/createTheme" {
+declare module "@mui/material/styles/createTheme" {
   // eslint-disable-next-line @typescript-eslint/no-empty-interface
   interface Theme extends EmotionTheme {}
 }

@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import Tab, { TabProps } from "@material-ui/core/Tab";
+import Tab, { TabProps } from "@mui/material/Tab";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import BellSolidIcon from "../../../resources/icons/solid/bell.svg";
 import FireSolidIcon from "../../../resources/icons/solid/fire.svg";

@@ -1,7 +1,9 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Dialog, DialogProps, Slide, useMediaQuery } from "@material-ui/core";
-import { TransitionProps } from "@material-ui/core/transitions";
+import Dialog, { DialogProps } from "@mui/material/Dialog";
+import Slide from "@mui/material/Slide";
+import { TransitionProps } from "@mui/material/transitions";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, {
   PropsWithChildren,
   useCallback,
@@ -66,7 +68,7 @@ const StyledEditDialog = styled(Dialog)<{ fullScreen?: boolean }>`
 
 const Transition = React.forwardRef(
   (
-    props: TransitionProps & { children?: React.ReactElement },
+    props: TransitionProps & { children: React.ReactElement },
     ref: React.Ref<unknown>
   ) => <Slide direction="up" ref={ref} {...props} />
 );

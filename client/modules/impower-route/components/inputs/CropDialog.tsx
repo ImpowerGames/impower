@@ -1,13 +1,13 @@
 import styled from "@emotion/styled";
-import { alpha } from "@material-ui/core";
-import Button from "@material-ui/core/Button";
-import Dialog from "@material-ui/core/Dialog";
-import IconButton from "@material-ui/core/IconButton";
-import Paper from "@material-ui/core/Paper";
-import Slide from "@material-ui/core/Slide";
-import Tab from "@material-ui/core/Tab";
-import { TransitionProps } from "@material-ui/core/transitions";
-import Typography from "@material-ui/core/Typography";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import IconButton from "@mui/material/IconButton";
+import Paper from "@mui/material/Paper";
+import Slide from "@mui/material/Slide";
+import { alpha } from "@mui/material/styles";
+import Tab from "@mui/material/Tab";
+import { TransitionProps } from "@mui/material/transitions";
+import Typography from "@mui/material/Typography";
 import React, {
   useCallback,
   useContext,
@@ -422,7 +422,7 @@ const requestScrollYMax = (
 
 const Transition = React.forwardRef(
   (
-    props: TransitionProps & { children?: React.ReactElement },
+    props: TransitionProps & { children: React.ReactElement },
     ref: React.Ref<unknown>
   ) => <Slide direction="left" ref={ref} {...props} />
 );

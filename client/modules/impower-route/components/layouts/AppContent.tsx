@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { useMediaQuery } from "@material-ui/core";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, { PropsWithChildren } from "react";
 
 const StyledAppContent = styled.div`

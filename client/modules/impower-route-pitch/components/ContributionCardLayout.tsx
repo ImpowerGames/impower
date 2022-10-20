@@ -1,9 +1,9 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Card from "@material-ui/core/Card";
-import CardActionArea from "@material-ui/core/CardActionArea";
-import Divider from "@material-ui/core/Divider";
-import Typography from "@material-ui/core/Typography";
+import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
+import Divider from "@mui/material/Divider";
+import Typography from "@mui/material/Typography";
 import React, { useCallback, useContext, useMemo } from "react";
 import { AuthorAttributes } from "../../impower-auth";
 import format from "../../impower-config/utils/format";

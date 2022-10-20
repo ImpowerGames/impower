@@ -1,9 +1,9 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Divider from "@material-ui/core/Divider";
-import IconButton from "@material-ui/core/IconButton";
-import Tab from "@material-ui/core/Tab";
-import useMediaQuery from "@material-ui/core/useMediaQuery";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import Tab from "@mui/material/Tab";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import dynamic from "next/dynamic";
 import React, { PropsWithChildren, useCallback, useState } from "react";
 import BarsRegularIcon from "../../../../resources/icons/regular/bars.svg";

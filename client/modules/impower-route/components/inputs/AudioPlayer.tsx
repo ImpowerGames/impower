@@ -1,6 +1,8 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { IconButton, LinearProgress, Typography } from "@material-ui/core";
+import IconButton from "@mui/material/IconButton";
+import LinearProgress from "@mui/material/LinearProgress";
+import Typography from "@mui/material/Typography";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import RotateLeftIcon from "../../../../resources/icons/solid/arrow-left-to-line.svg";
 import BackwardSolidIcon from "../../../../resources/icons/solid/backward.svg";

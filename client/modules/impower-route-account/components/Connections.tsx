@@ -1,26 +1,23 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import {
-  Button,
-  CircularProgress,
-  Divider,
-  IconButton,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemButton,
-  ListItemText,
-  OutlinedInput,
-  useMediaQuery,
-} from "@material-ui/core";
-import Paper from "@material-ui/core/Paper";
-import Tab from "@material-ui/core/Tab";
-import Typography from "@material-ui/core/Typography";
-import {
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Divider from "@mui/material/Divider";
+import IconButton from "@mui/material/IconButton";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemAvatar from "@mui/material/ListItemAvatar";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemText from "@mui/material/ListItemText";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Paper from "@mui/material/Paper";
+import Tab from "@mui/material/Tab";
+import Typography from "@mui/material/Typography";
+import useAutocomplete, {
   AutocompleteCloseReason,
   AutocompleteInputChangeReason,
-  useAutocomplete,
-} from "@material-ui/unstyled/AutocompleteUnstyled";
+} from "@mui/material/useAutocomplete";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import DiscordBrandsIcon from "../../../resources/icons/brands/discord.svg";
 import EnvelopeRegularIcon from "../../../resources/icons/regular/envelope.svg";

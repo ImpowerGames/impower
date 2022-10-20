@@ -1,12 +1,14 @@
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import Typography from "@material-ui/core/Typography";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import dynamic from "next/dynamic";
 import React, { useCallback, useEffect, useState } from "react";
 
 const CircularProgress = dynamic(
-  () => import("@material-ui/core/CircularProgress"),
-  { ssr: false }
+  () => import("@mui/material/CircularProgress"),
+  {
+    ssr: false,
+  }
 );
 
 const StyledCircularProgressArea = styled.div`

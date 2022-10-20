@@ -1,7 +1,9 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import { Button, Link, Typography } from "@material-ui/core";
-import { DialogProps } from "@material-ui/core/Dialog";
+import Button from "@mui/material/Button";
+import { DialogProps } from "@mui/material/Dialog";
+import Link from "@mui/material/Link";
+import Typography from "@mui/material/Typography";
 import React, { useMemo } from "react";
 import CreativeCommonsZeroBrandsIcon from "../../../resources/icons/brands/creative-commons-zero.svg";
 import CreativeCommonsBrandsIcon from "../../../resources/icons/brands/creative-commons.svg";

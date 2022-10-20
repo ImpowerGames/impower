@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
-import { Typography } from "@material-ui/core";
-import Button from "@material-ui/core/Button";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 import Markdown from "../../../impower-route/components/elements/Markdown";
 import { donateInfo } from "../../types/info/donate";
 import Section from "../elements/Section";

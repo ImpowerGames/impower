@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
-import Dialog from "@material-ui/core/Dialog";
-import OutlinedInput from "@material-ui/core/OutlinedInput";
+import Dialog from "@mui/material/Dialog";
+import OutlinedInput from "@mui/material/OutlinedInput";
 import React, { useCallback } from "react";
 import { Color } from "../../../impower-core";
 import {

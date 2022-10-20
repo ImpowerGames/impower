@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { Chip } from "@material-ui/core";
+import Chip from "@mui/material/Chip";
 import React, { useCallback, useMemo } from "react";
 import { getSubphrases } from "../../../impower-terms";
 

@@ -1,6 +1,6 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Typography from "@material-ui/core/Typography";
+import Typography from "@mui/material/Typography";
 import React, { useMemo } from "react";
 import LogoFlatColor from "../../../resources/logos/logo-flat-color.svg";
 import { ProjectDocument } from "../../impower-data-store";

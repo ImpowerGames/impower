@@ -1,7 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
-import Slider from "@material-ui/core/Slider";
-import Typography from "@material-ui/core/Typography";
+import Slider from "@mui/material/Slider";
+import Typography from "@mui/material/Typography";
 import React, { useCallback } from "react";
 import RandomizeButton from "./RandomizeButton";
 

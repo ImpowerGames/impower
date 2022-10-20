@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
-import Button from "@material-ui/core/Button";
-import CardContent from "@material-ui/core/CardContent";
-import Typography from "@material-ui/core/Typography";
+import Button from "@mui/material/Button";
+import CardContent from "@mui/material/CardContent";
+import Typography from "@mui/material/Typography";
 import dynamic from "next/dynamic";
 import React, { useCallback, useContext } from "react";
 import format from "../../impower-config/utils/format";
@@ -16,7 +16,7 @@ import {
 } from "../../impower-navigation";
 import navigationSetTransitioning from "../../impower-navigation/utils/navigationSetTransitioning";
 
-const Skeleton = dynamic(() => import("@material-ui/core/Skeleton"), {
+const Skeleton = dynamic(() => import("@mui/material/Skeleton"), {
   ssr: false,
 });
 

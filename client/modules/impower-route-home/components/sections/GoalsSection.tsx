@@ -1,10 +1,8 @@
 import styled from "@emotion/styled";
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Typography,
-} from "@material-ui/core";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import Typography from "@mui/material/Typography";
 import AngleDownRegularIcon from "../../../../resources/icons/regular/angle-down.svg";
 import IllustrationImage from "../../../../resources/illustrations/fogg-coffee-break.svg";
 import { FontIcon } from "../../../impower-icon";
