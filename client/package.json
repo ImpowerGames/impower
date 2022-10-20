@@ -40,6 +40,7 @@
     "@material-ui/lab": "^5.0.0-alpha.44",
     "@pixi-essentials/svg": "^1.1.5",
     "@pixi/layers": "^1.0.11",
+    "@pixi/settings": "^6.5.5",
     "@svgr/webpack": "^6.3.1",
     "autosuggest-highlight": "^3.3.4",
     "dayjs": "^1.11.4",
