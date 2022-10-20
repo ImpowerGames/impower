@@ -66,7 +66,7 @@
     "short-uuid": "^4.2.2",
     "tinycolor2": "^1.4.2",
     "tone": "^14.7.77",
-    "wavesurfer.js": "^6.2.0",
+    "wavesurfer.js": "^6.3.0",
     "workbox-window": "^6.5.4"
   },
   "devDependencies": {
