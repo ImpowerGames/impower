@@ -107,7 +107,7 @@ interface CreateProjectFormProps {
     e: React.FormEvent | React.MouseEvent,
     id: string,
     doc: ProjectDocument
-  ) => void;
+  ) => Promise<void>;
   onSubmitted?: (id: string, doc: ProjectDocument, successful: boolean) => void;
 }
 
@@ -481,7 +481,7 @@ const CreateProjectForm = React.memo(
             .default;
           setDocIdState(newDocId);
           if (onSubmit) {
-            onSubmit(e, newDocId, newDoc);
+            await onSubmit(e, newDocId, newDoc);
           }
           const getUniqueSlug = (
             await import("../../../impower-data-store/utils/getUniqueSlug")

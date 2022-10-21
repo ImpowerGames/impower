@@ -1,18 +1,26 @@
-import * as admin from "firebase-admin";
-import { ServiceAccount } from "firebase-admin";
+import {
+  cert,
+  getApp,
+  initializeApp,
+  ServiceAccount,
+} from "firebase-admin/app";
+import { getDatabase } from "firebase-admin/database";
+import { getFirestore } from "firebase-admin/firestore";
 
 export const doRestructure = async (
   credentials: ServiceAccount,
   databaseURL: string
 ) => {
-  const adminApp = admin.initializeApp(
-    {
-      credential: admin.credential.cert(credentials),
-      databaseURL,
-    },
-    "to"
-  );
-  const firestore = adminApp.firestore();
+  const adminApp =
+    getApp("to") ||
+    initializeApp(
+      {
+        credential: cert(credentials),
+        databaseURL,
+      },
+      "to"
+    );
+  const firestore = getFirestore(adminApp);
   const bulkWriter = firestore.bulkWriter();
   // Copy all games/{id} to projects/{id}
   console.log("Copy all games/{id} to projects/{id}");
@@ -164,7 +172,7 @@ export const doRestructure = async (
 
   // Restructure all database project aggregations
   console.log("Restructure all database aggregations");
-  const database = adminApp.database();
+  const database = getDatabase(adminApp);
   const pitchedGamesDataSnap = await database.ref(`pitched_games`).get();
   const pitchedGamesDataVal = pitchedGamesDataSnap.val();
   if (pitchedGamesDataVal) {

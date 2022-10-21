@@ -1,19 +1,27 @@
-import * as admin from "firebase-admin";
-import { ServiceAccount } from "firebase-admin";
+import {
+  cert,
+  getApp,
+  initializeApp,
+  ServiceAccount,
+} from "firebase-admin/app";
+import { getDatabase } from "firebase-admin/database";
+import { getFirestore } from "firebase-admin/firestore";
 
 export const doCleanup = async (
   credentials: ServiceAccount,
   databaseURL: string
 ) => {
-  const adminApp = admin.initializeApp(
-    {
-      credential: admin.credential.cert(credentials),
-      databaseURL,
-    },
-    "to"
-  );
-  const firestore = adminApp.firestore();
-  const database = adminApp.database();
+  const adminApp =
+    getApp("to") ||
+    initializeApp(
+      {
+        credential: cert(credentials),
+        databaseURL,
+      },
+      "to"
+    );
+  const firestore = getFirestore(adminApp);
+  const database = getDatabase(adminApp);
   const bulkWriter = firestore.bulkWriter();
   // Delete all games/{id}
   const gameSnaps = await firestore.collection("games").get();

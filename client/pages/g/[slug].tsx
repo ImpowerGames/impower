@@ -10,10 +10,10 @@ import React, {
   useState,
 } from "react";
 import Measure, { ContentRect } from "react-measure";
+import { getAdminFirestore, initAdminApp } from "../../lib/admin";
 import getIconSvgData from "../../lib/getIconSvgData";
 import getLocalizationConfigParameters from "../../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../../lib/getTagConfigParameters";
-import { initAdminApp } from "../../lib/initAdminApp";
 import { ConfigParameters } from "../../modules/impower-config";
 import ConfigCache from "../../modules/impower-config/classes/configCache";
 import { overlayColorHex } from "../../modules/impower-core";
@@ -236,8 +236,8 @@ export const getStaticProps: GetStaticProps = async (context) => {
   const docSlug = Array.isArray(slug) ? slug[0] : slug;
   // eslint-disable-next-line global-require
   const adminApp = await initAdminApp();
-  const postsSnapshot = await adminApp
-    .firestore()
+  const firestore = await getAdminFirestore(adminApp);
+  const postsSnapshot = await firestore
     .collection(`slugs`)
     .where("slug", "==", docSlug)
     .limit(1)

@@ -10,9 +10,13 @@ import React, {
   useRef,
   useState,
 } from "react";
+import {
+  getAdminFirestore,
+  getAdminStorage,
+  initAdminApp,
+} from "../../../../lib/admin";
 import getLocalizationConfigParameters from "../../../../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../../../../lib/getTagConfigParameters";
-import { initAdminApp } from "../../../../lib/initAdminApp";
 import { ConfigParameters } from "../../../../modules/impower-config";
 import ConfigCache from "../../../../modules/impower-config/classes/configCache";
 import {
@@ -457,15 +461,12 @@ export const getStaticProps: GetStaticProps = async (context) => {
   const pDocId = Array.isArray(pid) ? pid[0] : pid;
   const cDocId = Array.isArray(cid) ? cid[0] : cid;
   const adminApp = await initAdminApp();
-  const pitchSnapshot = await adminApp
-    .firestore()
-    .doc(`pitched_projects/${pDocId}`)
-    .get();
+  const firestore = await getAdminFirestore(adminApp);
+  const pitchSnapshot = await firestore.doc(`pitched_projects/${pDocId}`).get();
   const pitchDoc = getSerializableDocument<ProjectDocument>(
     pitchSnapshot.data()
   );
-  const contributionSnapshot = await adminApp
-    .firestore()
+  const contributionSnapshot = await firestore
     .doc(`pitched_projects/${pDocId}/contributions/${cDocId}`)
     .get();
   const contributionDoc = getSerializableDocument<ContributionDocument>(
@@ -479,7 +480,7 @@ export const getStaticProps: GetStaticProps = async (context) => {
   if (!ogImage) {
     ogImage = pitchDoc?.og;
     if (!ogImage) {
-      const storage = adminApp.storage();
+      const storage = await getAdminStorage(adminApp);
       const bucket = storage.bucket();
       const ogFilePath = `public/og/p/${pid}`;
       const ogFile = bucket.file(ogFilePath);

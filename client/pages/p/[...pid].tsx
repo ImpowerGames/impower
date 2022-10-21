@@ -10,10 +10,14 @@ import React, {
   useRef,
   useState,
 } from "react";
+import {
+  getAdminFirestore,
+  getAdminStorage,
+  initAdminApp,
+} from "../../lib/admin";
 import getIconSvgData from "../../lib/getIconSvgData";
 import getLocalizationConfigParameters from "../../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../../lib/getTagConfigParameters";
-import { initAdminApp } from "../../lib/initAdminApp";
 import {
   capitalize,
   ConfigContext,
@@ -674,16 +678,13 @@ export const getStaticProps: GetStaticProps = async (context) => {
   const { pid } = context.params;
   const docId = Array.isArray(pid) ? pid[0] : pid;
   const adminApp = await initAdminApp();
-  const pitchSnapshot = await adminApp
-    .firestore()
-    .doc(`pitched_projects/${docId}`)
-    .get();
+  const firestore = await getAdminFirestore(adminApp);
+  const pitchSnapshot = await firestore.doc(`pitched_projects/${docId}`).get();
   let pitchDoc = null;
   if (pitchSnapshot) {
     pitchDoc = getSerializableDocument<ProjectDocument>(pitchSnapshot.data());
   }
-  const contributionsSnapshot = await adminApp
-    .firestore()
+  const contributionsSnapshot = await firestore
     .collection(`pitched_projects/${docId}/contributions`)
     .where("delisted", "==", false)
     .orderBy("rating", "desc")
@@ -725,7 +726,7 @@ export const getStaticProps: GetStaticProps = async (context) => {
     ogImage = pitchDoc?.og;
     if (!ogImage) {
       try {
-        const storage = adminApp.storage();
+        const storage = await getAdminStorage(adminApp);
         const bucket = storage.bucket();
         const ogFilePath = `public/og/p/${pid}`;
         const ogFile = bucket.file(ogFilePath);

@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
+import { getAdminAuth, initAdminApp } from "../../lib/admin";
 import { getCaptchaClaims } from "../../lib/getCaptchaClaims";
-import { initAdminApp } from "../../lib/initAdminApp";
 import { isCaptchaValid } from "../../lib/isCaptchaValid";
 
 export const verifyCaptchaClaim = async (
@@ -26,10 +26,11 @@ export const verifyCaptchaClaim = async (
 
     try {
       const adminApp = await initAdminApp();
-      const decodedToken = await adminApp.auth().verifyIdToken(token, true);
+      const auth = await getAdminAuth(adminApp);
+      const decodedToken = await auth.verifyIdToken(token, true);
       uid = decodedToken?.uid;
 
-      const userRecord = await adminApp.auth().getUser(uid);
+      const userRecord = await auth.getUser(uid);
       const auth_time =
         new Date(userRecord.metadata.lastSignInTime).getTime() / 1000;
       const customClaims = userRecord?.customClaims;
@@ -42,7 +43,7 @@ export const verifyCaptchaClaim = async (
           ...(userRecord?.customClaims || {}),
           ...getCaptchaClaims(),
         };
-        await adminApp.auth().setCustomUserClaims(uid, newClaims);
+        await auth.setCustomUserClaims(uid, newClaims);
         return res.status(200).json(newClaims);
       }
 
@@ -69,7 +70,7 @@ export const verifyCaptchaClaim = async (
         ...(userRecord?.customClaims || {}),
         ...getCaptchaClaims(),
       };
-      await adminApp.auth().setCustomUserClaims(uid, newClaims);
+      await auth.setCustomUserClaims(uid, newClaims);
 
       return res.status(200).json(newClaims);
     } catch (error) {

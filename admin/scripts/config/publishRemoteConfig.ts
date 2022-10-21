@@ -1,11 +1,18 @@
-import * as admin from "firebase-admin";
-import { ServiceAccount } from "firebase-admin";
+import {
+  cert,
+  getApp,
+  initializeApp,
+  ServiceAccount,
+} from "firebase-admin/app";
+import { getRemoteConfig } from "firebase-admin/remote-config";
 
 export const publishRemoteConfig = async (credentials: ServiceAccount) => {
-  const app = admin.initializeApp({
-    credential: admin.credential.cert(credentials),
-  });
-  const config = app.remoteConfig();
+  const app =
+    getApp() ||
+    initializeApp({
+      credential: cert(credentials),
+    });
+  const config = getRemoteConfig(app);
   const template = await config.getTemplate();
   const phrasesPath = "../../../title-generator/src/input/phrases.json";
   const phrases = JSON.stringify((await import(phrasesPath)).default);

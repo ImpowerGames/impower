@@ -34,6 +34,12 @@
     "plugin:react-hooks/recommended"
   ],
   "rules": {
+    "react/no-unknown-property": [
+      2,
+      {
+        "ignore": ["jsx", "global"]
+      }
+    ],
     "no-continue": "off",
     "react/prop-types": ["off"],
     "camelcase": "off",

@@ -109,7 +109,7 @@ const StudioNavigationBar = React.memo(() => {
     }
   }, [closeEditDialog, creating]);
 
-  const handleSubmit = useCallback((e: React.MouseEvent, id: string) => {
+  const handleSubmit = useCallback(async (e: React.MouseEvent, id: string) => {
     setCreateDocId(id);
     setCreating(true);
   }, []);

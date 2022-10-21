@@ -1,5 +1,10 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
-import { initAdminApp } from "../../lib/initAdminApp";
+import {
+  getAdminAuth,
+  getAdminDatabase,
+  getAdminFirestore,
+  initAdminApp,
+} from "../../lib/admin";
 
 export const verifyProjectClaim = async (
   req: VercelRequest,
@@ -21,13 +26,13 @@ export const verifyProjectClaim = async (
     }
     try {
       const adminApp = await initAdminApp();
-      const decodedToken = await adminApp.auth().verifyIdToken(token, true);
+      const auth = await getAdminAuth(adminApp);
+      const firestore = await getAdminFirestore(adminApp);
+      const database = await getAdminDatabase(adminApp);
+      const decodedToken = await auth.verifyIdToken(token, true);
       const { uid } = decodedToken;
 
-      const projectSnap = await adminApp
-        .firestore()
-        .doc(`projects/${project}`)
-        .get();
+      const projectSnap = await firestore.doc(`projects/${project}`).get();
       const projectData = projectSnap?.data();
       const owners: string[] = projectData?.owners;
       const studio = projectData?.studio;
@@ -45,10 +50,7 @@ export const verifyProjectClaim = async (
                 ?.getTime() || new Date().getTime(),
           }
         : undefined;
-      const studioSnap = await adminApp
-        .firestore()
-        .doc(`studios/${studio}`)
-        .get();
+      const studioSnap = await firestore.doc(`studios/${studio}`).get();
       const studioData = studioSnap.data();
       const studioInfo = studioData
         ? {
@@ -71,7 +73,7 @@ export const verifyProjectClaim = async (
         });
       }
 
-      const user = await adminApp.auth().getUser(uid);
+      const user = await auth.getUser(uid);
       const claims = user.customClaims;
       const member = {
         a: {
@@ -86,10 +88,7 @@ export const verifyProjectClaim = async (
         ...(projectInfo ? { p: projectInfo } : {}),
         ...(studioInfo ? { s: studioInfo } : {}),
       };
-      adminApp
-        .database()
-        .ref(`projects/${project}/members/data/${uid}`)
-        .update(member);
+      database.ref(`projects/${project}/members/data/${uid}`).update(member);
 
       return res.status(200).json({
         member,

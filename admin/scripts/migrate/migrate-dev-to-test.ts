@@ -1,4 +1,4 @@
-import { ServiceAccount } from "firebase-admin";
+import { ServiceAccount } from "firebase-admin/app";
 import { doMigrate, HashParams, UserAccounts } from "./doMigrate";
 
 const fromAccountsPath = "../../dev.accounts.json";

@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
+import { getAdminAuth, getAdminDatabase, initAdminApp } from "../../lib/admin";
 import { getServerDay } from "../../lib/getServerDay";
-import { initAdminApp } from "../../lib/initAdminApp";
 import { getUuid } from "../../modules/impower-core";
 
 const DAILY_UPLOAD_LIMIT = 1000;
@@ -24,14 +24,16 @@ export const verifyUploadClaim = async (
     }
     try {
       const adminApp = await initAdminApp();
-      const decodedToken = await adminApp.auth().verifyIdToken(token, true);
+      const auth = await getAdminAuth(adminApp);
+      const database = await getAdminDatabase(adminApp);
+      const decodedToken = await auth.verifyIdToken(token, true);
       const { uid } = decodedToken;
 
       const serverTime = Date.now();
       const day = getServerDay(serverTime);
 
       const path = `users/${uid}/agg/my_uploads/data/${day}`;
-      const ref = adminApp.database().ref(path);
+      const ref = database.ref(path);
       const unauthorizedMessage =
         "unauthorized: reached max daily file upload limit";
       try {
@@ -54,7 +56,7 @@ export const verifyUploadClaim = async (
         }
         const id = getUuid();
         const storageKey = `users/${uid}/${id}`;
-        const user = await adminApp.auth().getUser(uid);
+        const user = await auth.getUser(uid);
         const claims = user.customClaims || {};
         const newClaims = {
           ...claims,
@@ -68,7 +70,7 @@ export const verifyUploadClaim = async (
           }
         });
         try {
-          await adminApp.auth().setCustomUserClaims(uid, newClaims);
+          await auth.setCustomUserClaims(uid, newClaims);
         } catch {
           // Not enough space, remove storage old claims
           let oldestClaim = "";
@@ -80,7 +82,7 @@ export const verifyUploadClaim = async (
               oldestClaim = k;
             }
           });
-          await adminApp.auth().setCustomUserClaims(uid, newClaims);
+          await auth.setCustomUserClaims(uid, newClaims);
         }
         return res.status(200).json({
           storageKey,

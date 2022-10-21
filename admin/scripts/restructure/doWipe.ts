@@ -1,5 +1,13 @@
-import * as admin from "firebase-admin";
-import { ServiceAccount } from "firebase-admin";
+import {
+  cert,
+  getApp,
+  initializeApp,
+  ServiceAccount,
+} from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getDatabase } from "firebase-admin/database";
+import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 export const doWipe = async (
   credentials: ServiceAccount,
@@ -7,18 +15,20 @@ export const doWipe = async (
   storageBucket: string
 ) => {
   console.log("Initializing TO app");
-  const adminApp = admin.initializeApp(
-    {
-      credential: admin.credential.cert(credentials),
-      databaseURL,
-      storageBucket,
-    },
-    "to"
-  );
-  const auth = adminApp.auth();
-  const firestore = adminApp.firestore();
-  const database = adminApp.database();
-  const storage = adminApp.storage();
+  const adminApp =
+    getApp("to") ||
+    initializeApp(
+      {
+        credential: cert(credentials),
+        databaseURL,
+        storageBucket,
+      },
+      "to"
+    );
+  const auth = getAuth(adminApp);
+  const firestore = getFirestore(adminApp);
+  const database = getDatabase(adminApp);
+  const storage = getStorage(adminApp);
 
   // Delete all users
   console.log("Deleting all users");

@@ -1,7 +1,7 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
+import { getAdminAuth, getAdminFirestore, initAdminApp } from "../../lib/admin";
 import { getCurrentTimeInSeconds } from "../../lib/getCurrentTimeInSeconds";
 import { getServerDay } from "../../lib/getServerDay";
-import { initAdminApp } from "../../lib/initAdminApp";
 import { isCaptchaValid } from "../../lib/isCaptchaValid";
 
 const MIN_ALLOWED_AGE = 13;
@@ -71,8 +71,9 @@ export const signup = async (
       const serverTime = Date.now();
       const today = getServerDay(serverTime);
       const adminApp = await initAdminApp();
-      const usernameSnap = await adminApp
-        .firestore()
+      const auth = await getAdminAuth(adminApp);
+      const firestore = await getAdminFirestore(adminApp);
+      const usernameSnap = await firestore
         .doc(`handles/${username.toLowerCase()}`)
         .get();
 
@@ -87,7 +88,7 @@ export const signup = async (
       ).default;
       const hex = getRandomColor();
 
-      const userRecord = await adminApp.auth().createUser({
+      const userRecord = await auth.createUser({
         email,
         emailVerified: false,
         password,
@@ -95,10 +96,8 @@ export const signup = async (
         disabled: false,
       });
 
-      const usernameRef = adminApp
-        .firestore()
-        .doc(`handles/${username.toLowerCase()}`);
-      const userRef = adminApp.firestore().doc(`users/${userRecord.uid}`);
+      const usernameRef = firestore.doc(`handles/${username.toLowerCase()}`);
+      const userRef = firestore.doc(`users/${userRecord.uid}`);
       const submissionTypes = [
         "studios",
         "projects",
@@ -109,9 +108,9 @@ export const signup = async (
         "suggestions",
       ];
       const submissionsRefs = submissionTypes.map((type) =>
-        adminApp.firestore().doc(`users/${userRecord.uid}/submissions/${type}`)
+        firestore.doc(`users/${userRecord.uid}/submissions/${type}`)
       );
-      const batch = adminApp.firestore().batch();
+      const batch = firestore.batch();
       try {
         batch.create(usernameRef, {
           _documentType: "SlugDocument",
@@ -159,7 +158,7 @@ export const signup = async (
         storage: {},
       };
 
-      await adminApp.auth().setCustomUserClaims(userRecord.uid, newClaims);
+      await auth.setCustomUserClaims(userRecord.uid, newClaims);
 
       return res.status(200).json(newClaims);
     } catch (error) {

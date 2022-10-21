@@ -1,8 +1,21 @@
-import * as admin from "firebase-admin";
-import { ServiceAccount } from "firebase-admin";
+import {
+  cert,
+  getApp,
+  initializeApp,
+  ServiceAccount,
+} from "firebase-admin/app";
+import {
+  getAuth,
+  HashAlgorithmType,
+  UserImportRecord,
+  UserProviderRequest,
+} from "firebase-admin/auth";
+import { getDatabase } from "firebase-admin/database";
+import { getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 
 export interface HashParams {
-  algorithm: admin.auth.HashAlgorithmType;
+  algorithm: HashAlgorithmType;
   base64_signer_key: string;
   base64_salt_separator: string;
   rounds: number;
@@ -17,7 +30,7 @@ export interface UserAccounts {
     displayName: string;
     disabled?: boolean;
     customAttributes: string;
-    providerUserInfo: admin.auth.UserProviderRequest[];
+    providerUserInfo: UserProviderRequest[];
     passwordHash: string;
     salt: string;
   }[];
@@ -34,33 +47,36 @@ export const doMigrate = async (
   toStorageBucket: string
 ) => {
   console.log("Initializing FROM app");
-  const fromApp = admin.initializeApp(
-    {
-      credential: admin.credential.cert(fromCredentials),
-      databaseURL: fromDatabaseURL,
-      storageBucket: fromStorageBucket,
-    },
-    "from"
-  );
+  const fromApp =
+    getApp("from") ||
+    initializeApp(
+      {
+        credential: cert(fromCredentials),
+        databaseURL: fromDatabaseURL,
+        storageBucket: fromStorageBucket,
+      },
+      "from"
+    );
   console.log("Initializing TO app");
-  const toApp = admin.initializeApp(
-    {
-      credential: admin.credential.cert(toCredentials),
-      databaseURL: toDatabaseURL,
-      storageBucket: toStorageBucket,
-    },
-    "to"
-  );
+  const toApp =
+    getApp("to") ||
+    initializeApp(
+      {
+        credential: cert(toCredentials),
+        databaseURL: toDatabaseURL,
+        storageBucket: toStorageBucket,
+      },
+      "to"
+    );
 
   // Migrate all users
   console.log("Processing all users");
-  const userImportRecords: admin.auth.UserImportRecord[] = [];
+  const userImportRecords: UserImportRecord[] = [];
   let i = 0;
   while (i < fromAccounts.users.length) {
     const r = fromAccounts.users[i];
     if (r) {
-      const existingUser = await toApp
-        .auth()
+      const existingUser = await getAuth(toApp)
         .getUserByEmail(r.email)
         .catch(() => null);
       if (!existingUser && r.passwordHash) {
@@ -91,11 +107,11 @@ export const doMigrate = async (
     },
   };
   console.log("Migrating all users");
-  await toApp.auth().importUsers(userImportRecords, options);
+  await getAuth(toApp).importUsers(userImportRecords, options);
 
   // Migrate all storage data
   console.log("Migrating all storage data");
-  const [publicFiles] = await fromApp.storage().bucket().getFiles({
+  const [publicFiles] = await getStorage(fromApp).bucket().getFiles({
     prefix: `public`,
   });
   await Promise.all(
@@ -114,10 +130,13 @@ export const doMigrate = async (
           },
         },
       };
-      await toApp.storage().bucket().file(f.name).save(downloadedFile, options);
+      await getStorage(toApp)
+        .bucket()
+        .file(f.name)
+        .save(downloadedFile, options);
     })
   );
-  const [userFiles] = await fromApp.storage().bucket().getFiles({
+  const [userFiles] = await getStorage(fromApp).bucket().getFiles({
     prefix: `users`,
   });
   await Promise.all(
@@ -134,19 +153,22 @@ export const doMigrate = async (
           },
         },
       };
-      await toApp.storage().bucket().file(f.name).save(downloadedFile, options);
+      await getStorage(toApp)
+        .bucket()
+        .file(f.name)
+        .save(downloadedFile, options);
     })
   );
 
   // Migrate all database data
   console.log("Migrating all database data");
-  const fromDatabaseRootSnap = await fromApp.database().ref().get();
-  await toApp.database().ref().set(fromDatabaseRootSnap.val());
+  const fromDatabaseRootSnap = await getDatabase(fromApp).ref().get();
+  await getDatabase(toApp).ref().set(fromDatabaseRootSnap.val());
 
   // Migrate all firestore data
   console.log("Migrating all firestore data");
-  const toBulkWriter = toApp.firestore().bulkWriter();
-  const fromCollections = await fromApp.firestore().listCollections();
+  const toBulkWriter = getFirestore(toApp).bulkWriter();
+  const fromCollections = await getFirestore(fromApp).listCollections();
   const migrateCollection = async (
     collection: FirebaseFirestore.CollectionReference<FirebaseFirestore.DocumentData>
   ) => {
@@ -159,7 +181,7 @@ export const doMigrate = async (
           const childColDocPromises = childColSnap.docs.map(
             async (childDocSnap) => {
               return await toBulkWriter.set(
-                toApp.firestore().doc(childDocSnap.ref.path),
+                getFirestore(toApp).doc(childDocSnap.ref.path),
                 childDocSnap.data(),
                 { merge: true }
               );
@@ -170,7 +192,7 @@ export const doMigrate = async (
         }
       );
       const fromDocPromise = toBulkWriter.set(
-        toApp.firestore().doc(docSnap.ref.path),
+        getFirestore(toApp).doc(docSnap.ref.path),
         docSnap.data(),
         { merge: true }
       );

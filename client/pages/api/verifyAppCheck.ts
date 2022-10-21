@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
-import { initAdminApp } from "../../lib/initAdminApp";
+import { getAdminAppCheck, getAdminAuth, initAdminApp } from "../../lib/admin";
 
 export const verifyAppCheck = async (
   req: VercelRequest,
@@ -24,10 +24,12 @@ export const verifyAppCheck = async (
 
     try {
       const adminApp = await initAdminApp();
-      const decodedToken = await adminApp.auth().verifyIdToken(token, true);
+      const auth = await getAdminAuth(adminApp);
+      const appCheck = await getAdminAppCheck(adminApp);
+      const decodedToken = await auth.verifyIdToken(token, true);
       uid = decodedToken?.uid;
 
-      const userRecord = await adminApp.auth().getUser(uid);
+      const userRecord = await auth.getUser(uid);
       const customClaims = userRecord?.customClaims;
       const captcha_time = customClaims?.captcha_time;
       const isCaptchaStillValid = captcha_time > 0;
@@ -40,9 +42,9 @@ export const verifyAppCheck = async (
 
       // User has already solved a captcha puzzle since their last login on this device.
       // Mint a new app check token
-      const tokenResult = await adminApp
-        .appCheck()
-        .createToken(process.env.NEXT_PUBLIC_FIREBASE_APP_ID);
+      const tokenResult = await appCheck.createToken(
+        process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+      );
       if (!tokenResult) {
         return undefined;
       }

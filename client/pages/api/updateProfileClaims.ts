@@ -1,5 +1,5 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
-import { initAdminApp } from "../../lib/initAdminApp";
+import { getAdminAuth, getAdminFirestore, initAdminApp } from "../../lib/admin";
 
 export const updateProfileClaims = async (
   req: VercelRequest,
@@ -18,14 +18,12 @@ export const updateProfileClaims = async (
     }
     try {
       const adminApp = await initAdminApp();
-      const decodedToken = await adminApp.auth().verifyIdToken(token, true);
+      const auth = await getAdminAuth(adminApp);
+      const firestore = await getAdminFirestore(adminApp);
+      const decodedToken = await auth.verifyIdToken(token, true);
       const { uid } = decodedToken;
-      const user = await adminApp.auth().getUser(uid);
-      const userSnap = await adminApp
-        .firestore()
-        .collection("users")
-        .doc(uid)
-        .get();
+      const user = await auth.getUser(uid);
+      const userSnap = await firestore.collection("users").doc(uid).get();
       const userDoc = userSnap.data();
       const claims = user.customClaims;
       const username = userDoc?.username || claims.username || null;
@@ -37,8 +35,8 @@ export const updateProfileClaims = async (
         icon,
         hex,
       };
-      await adminApp.auth().setCustomUserClaims(uid, newClaims);
-      await adminApp.auth().updateUser(uid, {
+      await auth.setCustomUserClaims(uid, newClaims);
+      await auth.updateUser(uid, {
         ...(username ? { displayName: username } : {}),
         ...(icon ? { photoURL: icon } : {}),
       });

@@ -1,15 +1,15 @@
-import { ServiceAccount } from "firebase-admin";
+import { ServiceAccount } from "firebase-admin/app";
 import { doMigrate, HashParams, UserAccounts } from "./doMigrate";
 
 const fromAccountsPath = "../../test.accounts.json";
 const fromAuthPath = "../../test.auth.json";
 const fromCredentialsPath = "../../test.credentials.json";
-const fromDatabaseURL = "https://impowergames-test-default-rtdb.firebaseio.com/";
+const fromDatabaseURL =
+  "https://impowergames-test-default-rtdb.firebaseio.com/";
 const fromStorageBucket = "gs://impowergames-test.appspot.com";
 const toCredentialsPath = "../../prod.credentials.json";
 const toDatabaseURL = "https://impowergames.firebaseio.com";
 const toStorageBucket = "gs://impowergames.appspot.com";
-
 
 const migrate = async () => {
   const fromAccounts: UserAccounts = await import(fromAccountsPath);

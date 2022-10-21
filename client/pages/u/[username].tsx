@@ -2,9 +2,9 @@ import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { GetStaticPaths, GetStaticProps } from "next";
 import React, { useContext, useEffect, useMemo } from "react";
+import { getAdminFirestore, initAdminApp } from "../../lib/admin";
 import getLocalizationConfigParameters from "../../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../../lib/getTagConfigParameters";
-import { initAdminApp } from "../../lib/initAdminApp";
 import { ConfigParameters } from "../../modules/impower-config";
 import {
   getSerializableDocument,
@@ -135,8 +135,8 @@ export const getStaticProps: GetStaticProps = async (context) => {
   try {
     const docUsername = Array.isArray(username) ? username[0] : username;
     const adminApp = await initAdminApp();
-    const querySnapshot = await adminApp
-      .firestore()
+    const firestore = await getAdminFirestore(adminApp);
+    const querySnapshot = await firestore
       .collection(`users`)
       .where("username", "==", docUsername)
       .limit(1)

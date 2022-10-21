@@ -80,7 +80,7 @@ interface CreateStudioFormProps {
     e: React.FormEvent | React.MouseEvent,
     id: string,
     doc: StudioDocument
-  ) => void;
+  ) => Promise<void>;
   onSubmitted?: (id: string, doc: StudioDocument, successful: boolean) => void;
 }
 
@@ -144,7 +144,7 @@ const CreateStudioForm = React.memo(
         }
         setDocIdState(newDocId);
         if (onSubmit) {
-          onSubmit(e, newDocId, newDoc);
+          await onSubmit(e, newDocId, newDoc);
         }
         const Auth = (await import("../../../impower-auth/classes/auth"))
           .default;

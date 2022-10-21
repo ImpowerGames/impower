@@ -1,10 +1,10 @@
 import { useTheme } from "@emotion/react";
 import { GetStaticPaths, GetStaticProps } from "next";
 import React, { useContext, useEffect, useMemo } from "react";
+import { getAdminFirestore, initAdminApp } from "../../lib/admin";
 import getIconSvgData from "../../lib/getIconSvgData";
 import getLocalizationConfigParameters from "../../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../../lib/getTagConfigParameters";
-import { initAdminApp } from "../../lib/initAdminApp";
 import { ConfigParameters } from "../../modules/impower-config";
 import ConfigCache from "../../modules/impower-config/classes/configCache";
 import {
@@ -133,8 +133,8 @@ export const getStaticProps: GetStaticProps<PitchPageProps> = async (
     ...getTagConfigParameters(),
   };
   const adminApp = await initAdminApp();
-  let pitchesQuery = adminApp
-    .firestore()
+  const firestore = await getAdminFirestore(adminApp);
+  let pitchesQuery = firestore
     .collection("pitched_projects")
     .where("delisted", "==", false);
   if (typeValue && typeValue !== "all") {

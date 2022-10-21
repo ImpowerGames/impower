@@ -463,6 +463,7 @@ const InspectorForm = React.memo(
                 );
                 return (
                   <InspectorGroupForm
+                    key={label}
                     label={label}
                     propertyPaths={objectFieldPropertyPaths}
                     errors={errorsState}

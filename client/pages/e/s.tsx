@@ -145,7 +145,7 @@ const CreateStudioPage = React.memo((props: CreateStudioPageProps) => {
     navigationDispatch(navigationSetBackgroundColor());
   }, [navigationDispatch]);
 
-  const handleSubmit = useCallback((e: React.MouseEvent, id: string) => {
+  const handleSubmit = useCallback(async (e: React.MouseEvent, id: string) => {
     setCreateDocId(id);
   }, []);
 
