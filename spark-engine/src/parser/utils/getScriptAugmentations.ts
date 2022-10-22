@@ -1,8 +1,7 @@
 import { SparkVariable } from "../../../../sparkdown";
-import { FileData } from "../../data";
 
 export const getScriptAugmentations = (
-  files: Record<string, FileData>
+  files: Record<string, { name?: string; fileType?: string; fileUrl?: string }>
 ): { variables: Record<string, SparkVariable> } => {
   const variables: Record<string, SparkVariable> = {};
   Object.entries(files || {}).forEach(([, { name, fileType, fileUrl }]) => {

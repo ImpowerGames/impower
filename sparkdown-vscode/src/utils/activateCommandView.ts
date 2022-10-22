@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { parseSpark } from "../../../sparkdown";
+import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { exportHtml } from "../providers/StaticHtml";
 import { commandViewProvider } from "../state/commandViewProvider";
 import { parseState } from "../state/parseState";
@@ -76,10 +76,7 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
             textEdit.insert(
               new vscode.Position(0, 0),
               JSON.stringify(
-                parseSpark(sparkdown, undefined, {
-                  removeBlockComments: true,
-                  skipTokens: ["condition"],
-                }),
+                ScreenplaySparkParser.instance.parse(sparkdown),
                 null,
                 4
               )

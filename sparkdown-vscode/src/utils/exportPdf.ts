@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { parseSpark } from "../../../sparkdown";
+import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { createPdf } from "../pdf/pdf";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
@@ -24,10 +24,9 @@ export async function exportPdf(showSaveDialog = true, openFileOnSave = false) {
 
   const config = getSparkdownConfig(uri);
 
-  const parsed = parseSpark(editor.document.getText(), undefined, {
-    removeBlockComments: true,
-    skipTokens: ["condition"],
-  });
+  const parsed = ScreenplaySparkParser.instance.parse(
+    editor.document.getText()
+  );
 
   let filename = editor.document.fileName.replace(
     /(\.(sparkdown|sd|md|txt))$/,

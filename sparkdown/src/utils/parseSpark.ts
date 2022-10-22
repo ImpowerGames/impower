@@ -1,16 +1,16 @@
 /* eslint-disable no-cond-assign */
 /* eslint-disable prefer-destructuring */
 /* eslint-disable no-continue */
-import { compile, format } from "../../../spark-evaluate";
 import { displayTokenTypes } from "../constants/displayTokenTypes";
 import { flowTokenTypes } from "../constants/flowTokenTypes";
 import { titlePageDisplay } from "../constants/pageTitleDisplay";
 import { reservedKeywords } from "../constants/reservedKeywords";
 import { sparkRegexes } from "../constants/sparkRegexes";
-import { defaultDisplayScript } from "../defaults/defaultDisplayScript";
-import { SparkDeclarations } from "../types/SparkDeclarations";
+import { defaultCompiler } from "../defaults/defaultCompiler";
+import { defaultFormatter } from "../defaults/defaultFormatter";
 import { SparkAction } from "../types/SparkDiagnostic";
 import { SparkField } from "../types/SparkField";
+import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkParseResult } from "../types/SparkParseResult";
 import { SparkSection } from "../types/SparkSection";
 import { SparkStruct } from "../types/SparkStruct";
@@ -46,15 +46,14 @@ import { stripInlineComments } from "./stripInlineComments";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
-const parseSparkInternal = (
+export const parseSpark = (
   script: string,
-  augmentations?: SparkDeclarations,
-  config?: {
-    lineOffset?: number;
-    removeBlockComments?: boolean;
-    skipTokens?: SparkTokenType[];
-  }
+  config?: SparkParserConfig
 ): SparkParseResult => {
+  const augmentations = config?.augmentations || {};
+  const compile = config?.compiler || defaultCompiler;
+  const format = config?.formatter || defaultFormatter;
+
   const parsed: SparkParseResult = {
     tokens: [],
     tokenLines: {},
@@ -84,6 +83,8 @@ const parseSparkInternal = (
     }
   });
 
+  const newLineLength = script.match(/\r\n/) ? 2 : 1;
+
   if (!script) {
     return parsed;
   }
@@ -91,8 +92,6 @@ const parseSparkInternal = (
   if (config?.removeBlockComments) {
     script = stripBlockComments(script);
   }
-
-  const newLineLength = script.match(/\r\n/) ? 2 : 1;
 
   const lines = script.split(/\r\n|\r|\n/);
 
@@ -469,7 +468,7 @@ const parseSparkInternal = (
             currentSectionId,
             parsed.sections || {}
           );
-          const { result, references, diagnostics } = compile(
+          const [result, diagnostics, references] = compile(
             expression,
             context
           );
@@ -485,8 +484,8 @@ const parseSparkInternal = (
                 parsedReferences.push({
                   from,
                   to,
-                  name: r.name,
-                  id: ids[r.name],
+                  name: r.content,
+                  id: ids[r.content],
                 });
               }
             }
@@ -667,7 +666,7 @@ const parseSparkInternal = (
       currentSectionId,
       parsed.sections || {}
     );
-    const { references, diagnostics } = compile(expression, context);
+    const [, diagnostics, references] = compile(expression, context);
     if (references?.length > 0) {
       for (let i = 0; i < references.length; i += 1) {
         const r = references[i];
@@ -679,8 +678,8 @@ const parseSparkInternal = (
           parsedReferences.push({
             from,
             to,
-            name: r.name,
-            id: ids[r.name],
+            name: r.content,
+            id: ids[r.content],
           });
         }
       }
@@ -838,7 +837,7 @@ const parseSparkInternal = (
       currentSectionId,
       parsed.sections || {}
     );
-    const { result, references, diagnostics } = compile(expression, context);
+    const [result, diagnostics, references] = compile(expression, context);
     if (references?.length > 0) {
       for (let i = 0; i < references.length; i += 1) {
         const r = references[i];
@@ -850,8 +849,8 @@ const parseSparkInternal = (
           parsedReferences.push({
             from,
             to,
-            name: r.name,
-            id: ids[r.name],
+            name: r.content,
+            id: ids[r.content],
           });
         }
       }
@@ -2310,7 +2309,7 @@ const parseSparkInternal = (
                 currentSectionId,
                 parsed.sections || {}
               );
-              const { result, references, diagnostics } = compile(
+              const [result, diagnostics, references] = compile(
                 expression,
                 context
               );
@@ -2326,8 +2325,8 @@ const parseSparkInternal = (
                     parsedReferences.push({
                       from,
                       to,
-                      name: r.name,
-                      id: ids[r.name],
+                      name: r.content,
+                      id: ids[r.content],
                     });
                   }
                 }
@@ -3023,22 +3022,4 @@ const parseSparkInternal = (
   parsed.parseTime = new Date().getTime();
   // console.log(parsed);
   return parsed;
-};
-
-export const parseSpark = (
-  script: string,
-  augmentations?: SparkDeclarations,
-  config?: {
-    lineOffset?: number;
-    removeBlockComments?: boolean;
-    skipTokens?: SparkTokenType[];
-  }
-): SparkParseResult => {
-  const result = parseSparkInternal(script, augmentations, config);
-  const defaultDisplayResult = parseSparkInternal(defaultDisplayScript);
-  result.structs = {
-    ...(defaultDisplayResult.structs || {}),
-    ...(result.structs || {}),
-  };
-  return result;
 };

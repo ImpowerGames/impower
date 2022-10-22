@@ -5,7 +5,7 @@ import {
   generateSparkScriptHtml,
   generateSparkTitleHtml,
 } from "../../../spark-screenplay";
-import { parseSpark } from "../../../sparkdown";
+import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { getDirectoryPath } from "../getDirectoryPath";
 import { fileToBase64 } from "../utils/fileToBase64";
 import { getActiveSparkdownDocument } from "../utils/getActiveSparkdownDocument";
@@ -33,10 +33,9 @@ export async function exportHtml() {
     defaultUri: saveUri,
   });
   const sparkdownConfig = getSparkdownConfig(editor.document.uri);
-  const output = parseSpark(editor.document.getText(), undefined, {
-    removeBlockComments: true,
-    skipTokens: ["condition"],
-  });
+  const output = ScreenplaySparkParser.instance.parse(
+    editor.document.getText()
+  );
 
   const htmlPath = path.join(getDirectoryPath(), "data", "staticexport.html");
   let rawHtml = fs.readFileSync(htmlPath, "utf8");

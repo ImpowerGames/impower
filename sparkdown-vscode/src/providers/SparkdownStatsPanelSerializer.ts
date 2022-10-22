@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { SparkScreenplayConfig } from "../../../spark-screenplay";
-import { parseSpark } from "../../../sparkdown";
+import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { getDirectoryPath } from "../getDirectoryPath";
 import { getActiveSparkdownDocument } from "../utils/getActiveSparkdownDocument";
 import { getEditor } from "../utils/getEditor";
@@ -59,10 +59,7 @@ export async function refreshPanel(
     version: document.version,
     loading: true,
   });
-  const parsed = parseSpark(document.getText(), undefined, {
-    removeBlockComments: true,
-    skipTokens: ["condition"],
-  });
+  const parsed = ScreenplaySparkParser.instance.parse(document.getText());
   const stats = await retrieveScreenPlayStatistics(
     document.getText(),
     parsed,

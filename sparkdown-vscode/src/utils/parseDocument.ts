@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { parseSpark } from "../../../sparkdown";
+import { GameSparkParser } from "../classes/GameSparkParser";
 import { fileState } from "../state/fileState";
 import { parseState } from "../state/parseState";
 import { updateGamePreviews } from "./updateGamePreviews";
@@ -8,8 +8,8 @@ import { updateScreenplayPreviews } from "./updateScreenplayPreviews";
 import { updateStatus } from "./updateStatus";
 
 export const parseDocument = (document: vscode.TextDocument) => {
-  const output = parseSpark(document.getText(), {
-    variables: fileState[document.uri.toString()]?.assets,
+  const output = GameSparkParser.instance.parse(document.getText(), {
+    augmentations: { variables: fileState[document.uri.toString()]?.assets },
   });
   parseState.lastParsedUri = document.uri.toString();
   parseState.parsedDocuments[parseState.lastParsedUri] = output;

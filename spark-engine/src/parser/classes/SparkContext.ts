@@ -1,7 +1,14 @@
-import { getScopedValueContext } from "../../../../sparkdown";
+import {
+  getScopedValueContext,
+  getSectionAtLine,
+  SparkParseResult,
+} from "../../../../sparkdown";
 import { CommandData } from "../../data";
-import { SparkGame } from "../../game";
+import { CameraState, SparkGame } from "../../game";
 import { CommandRunner, SparkGameRunner } from "../../runner";
+import { SparkContextConfig } from "../interfaces/SparkContextConfig";
+import { generateSectionBlocks } from "../utils/generateSectionBlocks";
+import { generateStructObjects } from "../utils/generateStructObjects";
 
 interface CommandRuntimeData {
   runner: CommandRunner;
@@ -55,9 +62,35 @@ export class SparkContext {
     return this._contexts;
   }
 
-  constructor(game: SparkGame, runner?: SparkGameRunner, editable?: boolean) {
+  constructor(parsed: SparkParseResult, config?: SparkContextConfig) {
+    const activeLine = config?.activeLine || 0;
+    const editable = config?.editable || false;
+    const runner = config?.runner || new SparkGameRunner();
+    const blockMap = generateSectionBlocks(parsed?.sections || {});
+    const objectMap = generateStructObjects(parsed?.structs || {});
+    const defaultCameras = objectMap["camera"] as Record<string, CameraState>;
+    const [startBlockId] = getSectionAtLine(activeLine, parsed?.sections || {});
+    const startRuntimeBlock = blockMap?.[startBlockId];
+    let startCommandIndex = 0;
+    const startCommands = Object.values(startRuntimeBlock?.commands || {});
+    for (let i = 1; i < startCommands?.length || 0; i += 1) {
+      const command = startCommands[i];
+      if (command && command.line > activeLine) {
+        break;
+      } else {
+        startCommandIndex = i;
+      }
+    }
+    const game = new SparkGame({
+      blockMap,
+      objectMap,
+      defaultCameras,
+      startBlockId,
+      startCommandIndex,
+      ...config,
+    });
     this._game = game;
-    this._runner = runner || new SparkGameRunner();
+    this._runner = runner;
     this._editable = editable || false;
     Object.entries(game.logic.blockMap).forEach(([blockId, block]) => {
       const [ids, valueMap] = getScopedValueContext(
@@ -101,7 +134,21 @@ export class SparkContext {
     this.game.destroy();
   }
 
-  update(blockId: string, time: number, delta: number): boolean {
+  update(time: number, delta: number): boolean {
+    if (this.loadedBlockIds) {
+      for (let i = 0; i < this.loadedBlockIds.length; i += 1) {
+        const blockId = this.loadedBlockIds[i];
+        if (blockId) {
+          if (!this.updateBlock(blockId, time, delta)) {
+            return false; // Player quit the game
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  updateBlock(blockId: string, time: number, delta: number): boolean {
     const blockStates = this.game.logic.state?.blockStates;
     const variableStates = this.game.logic.state?.variableStates;
     const blockState = blockStates[blockId];

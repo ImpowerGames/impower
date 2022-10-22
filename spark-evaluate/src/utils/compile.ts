@@ -1,24 +1,23 @@
 import { Compiler } from "../classes/Compiler";
+import { defaultCompilerConfig } from "../defaults/defaultCompilerConfig";
+import { CompilerConfig } from "../types/compilerConfig";
 import { CompilerDiagnostic } from "../types/compilerDiagnostic";
 import { CompilerReference } from "../types/compilerReference";
 import { tokenize } from "./tokenize";
 
 export const compile = (
   expr: string,
-  context: Record<string, unknown> = {}
-): {
-  result: unknown;
-  diagnostics: CompilerDiagnostic[];
-  references: CompilerReference[];
-} => {
-  if (!expr) {
-    return { result: undefined, diagnostics: [], references: [] };
-  }
+  context: Record<string, unknown> = {},
+  config: CompilerConfig = defaultCompilerConfig
+): [unknown, CompilerDiagnostic[], CompilerReference[]] => {
   let diagnostics: CompilerDiagnostic[] = [];
   let references: CompilerReference[] = [];
+  if (!expr) {
+    return [undefined, diagnostics, references];
+  }
   try {
     const [tokenList, tokenDiagnostics] = tokenize(expr);
-    const compiler = new Compiler(tokenList);
+    const compiler = new Compiler(tokenList, config);
     const astTree = compiler.parse();
     diagnostics = compiler.diagnostics;
     references = compiler.references;
@@ -36,14 +35,10 @@ export const compile = (
           message: `Unable to parse: ${expr}`,
         });
       }
-      return { result: undefined, diagnostics, references };
+      return [undefined, diagnostics, references];
     }
     const result = compiler.calc(astTree, context);
-    return {
-      result,
-      diagnostics: compiler.diagnostics,
-      references: compiler.references,
-    };
+    return [result, compiler.diagnostics, compiler.references];
   } catch (e) {
     if (diagnostics.length === 0) {
       diagnostics.push({
@@ -55,6 +50,6 @@ export const compile = (
         message: `Invalid expression: ${expr}`,
       });
     }
-    return { result: undefined, diagnostics, references };
   }
+  return [undefined, diagnostics, references];
 };

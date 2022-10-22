@@ -14,11 +14,11 @@ import {
   getScriptAugmentations,
   previewLine,
   SparkGameRunner,
+  SparkParser,
 } from "../../../../../spark-engine";
 import { evaluate } from "../../../../../spark-evaluate";
 import {
   getGlobalValueContext,
-  parseSpark,
   SparkParseResult,
 } from "../../../../../sparkdown";
 import { debounce } from "../../../impower-core";
@@ -328,10 +328,11 @@ const LogicScriptEditor = React.memo(
       (e: Event, firstVisibleLine: number) => {
         scrollTopLineRef.current = firstVisibleLine;
         if (!parseResultRef.current) {
-          parseResultRef.current = parseSpark(
+          parseResultRef.current = SparkParser.instance.parse(
             scriptValueRef.current,
-            augmentations,
-            { lineOffset: 1 }
+            {
+              augmentations,
+            }
           );
         }
         const parseResult = parseResultRef.current;

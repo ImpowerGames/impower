@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { isAssetType, parseSpark } from "../../../sparkdown";
+import { isAssetType } from "../../../sparkdown";
+import { GameSparkParser } from "../classes/GameSparkParser";
 import { parseState } from "../state/parseState";
 import { getPreviewPanelsToUpdate } from "./getPreviewPanelsToUpdate";
 
@@ -24,7 +25,11 @@ export const updateGamePreviews = (doc: vscode.TextDocument) => {
         });
         preview.panel.webview.postMessage({
           command: "updateParsedJson",
-          content: JSON.stringify(parseSpark(doc.getText(), { variables })),
+          content: JSON.stringify(
+            GameSparkParser.instance.parse(doc.getText(), {
+              augmentations: { variables },
+            })
+          ),
         });
         if (preview.dynamic) {
           preview.uri = uri.toString();

@@ -1,59 +1,25 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import {
-  CameraState,
   FileData,
-  generateSectionBlocks,
   generateStructObjects,
   getScriptAugmentations,
   loadStyles,
   loadUI,
-  SaveData,
   SparkContext,
-  SparkGame,
-  SparkGameRunner,
+  SparkContextConfig,
+  SparkParser,
 } from "../../../../spark-engine";
-import { getSectionAtLine, parseSpark } from "../../../../sparkdown";
 import { GameContext } from "../contexts/gameContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 
 const createGame = (
   script: string,
   files: Record<string, FileData>,
-  seed: string,
-  activeLine: number,
-  debugging: boolean,
-  editable: boolean,
-  saveData?: SaveData
+  config?: Partial<SparkContextConfig>
 ): SparkContext => {
-  const result = parseSpark(script, getScriptAugmentations(files), {
-    lineOffset: 1,
-  });
-  const blockMap = generateSectionBlocks(result?.sections);
-  const objectMap = generateStructObjects(result?.structs);
-  const defaultCameras = objectMap.camera as Record<string, CameraState>;
-  const [startBlockId] = getSectionAtLine(activeLine, result?.sections);
-  const startRuntimeBlock = blockMap?.[startBlockId];
-  let startCommandIndex = 0;
-  const startCommands = Object.values(startRuntimeBlock?.commands || {});
-  for (let i = 1; i < startCommands?.length || 0; i += 1) {
-    const command = startCommands[i];
-    if (command.line > activeLine) {
-      break;
-    } else {
-      startCommandIndex = i;
-    }
-  }
-  const game = new SparkGame({
-    blockMap,
-    objectMap,
-    defaultCameras,
-    startBlockId,
-    startCommandIndex,
-    seed,
-    debugging,
-    saveData,
-  });
-  return new SparkContext(game, SparkGameRunner.instance, editable);
+  const augmentations = getScriptAugmentations(files);
+  const parsed = SparkParser.instance.parse(script, { augmentations });
+  return new SparkContext(parsed, config);
 };
 
 interface GameContextProviderProps {
@@ -88,14 +54,12 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   useEffect(() => {
     if (!isFirstEditLoadRef.current) {
       if (mode === "Edit") {
-        gameRef.current = createGame(
-          script,
-          files,
+        gameRef.current = createGame(script, files, {
+          editable: true,
+          activeLine: activeLineRef.current,
+          debugging: debuggingRef.current,
           seed,
-          activeLineRef.current,
-          debuggingRef.current,
-          true
-        );
+        });
         setGame(gameRef.current);
       }
     }
@@ -104,14 +68,12 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
 
   useEffect(() => {
     if (mode === "Test") {
-      gameRef.current = createGame(
-        script,
-        files,
+      gameRef.current = createGame(script, files, {
+        editable: false,
+        activeLine: activeLineRef.current,
+        debugging: debuggingRef.current,
         seed,
-        activeLineRef.current,
-        debuggingRef.current,
-        false
-      );
+      });
       setGame(gameRef.current);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -120,8 +82,9 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   useEffect(() => {
     if (script && isFirstScriptLoadRef.current) {
       isFirstScriptLoadRef.current = false;
-      const result = parseSpark(script, getScriptAugmentations(files), {
-        lineOffset: 1,
+      const augmentations = getScriptAugmentations(files);
+      const result = SparkParser.instance.parse(script, {
+        augmentations,
       });
       const objectMap = generateStructObjects(result?.structs);
       loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));

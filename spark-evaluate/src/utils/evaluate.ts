@@ -1,12 +1,15 @@
 import { Compiler } from "../classes/Compiler";
+import { defaultCompilerConfig } from "../defaults/defaultCompilerConfig";
+import { CompilerConfig } from "../types/compilerConfig";
 import { tokenize } from "./tokenize";
 
 export const evaluate = (
   expr: string,
-  context: Record<string, unknown> = {}
+  context: Record<string, unknown> = {},
+  config: CompilerConfig = defaultCompilerConfig
 ): unknown => {
   const [tokenList] = tokenize(expr);
-  const compiler = new Compiler(tokenList);
+  const compiler = new Compiler(tokenList, config);
   const astTree = compiler.parse();
   if (astTree == null) {
     throw new Error(`Parse Error: ${expr}`);

@@ -1,69 +1,20 @@
+import { customFormatters } from "../constants/customFormatters";
 import { CompilerDiagnostic } from "../types/compilerDiagnostic";
+import { CompilerReference } from "../types/compilerReference";
+import { CustomFormatter } from "../types/customFormatter";
 import { choose } from "./formatters/choose";
 import { pluralize } from "./formatters/pluralize";
-
-const regexes: Record<string, Record<string, string>> = {
-  A: {
-    "^[aeiouAEIOU]": "An",
-    "": "A",
-  },
-  a: {
-    "^[aeiouAEIOU]": "an",
-    "": "a",
-  },
-};
-
-export type Formatter = (
-  value: any,
-  locale: string,
-  ...args: string[]
-) => [string, CompilerDiagnostic[], number[]];
-
-export type Formatters = { [formatter: string]: Formatter };
-
-const regex = (
-  value: string,
-  _locale: string,
-  arg: string
-): [string, CompilerDiagnostic[], number[]] => {
-  const configRegexes = regexes;
-  const varRegexes: { [regex: string]: string } = configRegexes?.[arg] || {};
-  const varRegexEntries = Object.entries(varRegexes);
-  for (let i = 0; i < varRegexEntries.length; i += 1) {
-    const [regex, replacement] = varRegexEntries[i] || [];
-    if (regex !== undefined && replacement !== undefined) {
-      if (new RegExp(regex).test(value)) {
-        return [replacement, [], []];
-      }
-    }
-  }
-  const result = varRegexes[""] || "";
-  return [result, [], []];
-};
-
-const customFormatters: Formatters = {
-  regex,
-  r: regex,
-  choose,
-  c: choose,
-  pluralize,
-  p: pluralize,
-};
 
 export const format = (
   str: string,
   args: Record<string, unknown> = {},
   locale: string | undefined = undefined,
-  formatters: Formatters = customFormatters
-): [
-  string,
-  { content: string; from: number; to: number }[],
-  CompilerDiagnostic[]
-] => {
-  const possibleValues: { content: string; from: number; to: number }[] = [];
+  formatters: Record<string, CustomFormatter> = customFormatters
+): [string, CompilerDiagnostic[], CompilerReference[]] => {
+  const possibleValues: CompilerReference[] = [];
   const diagnostics: CompilerDiagnostic[] = [];
   if (!str) {
-    return [str, possibleValues, diagnostics];
+    return [str, diagnostics, possibleValues];
   }
   let from = 0;
   let to = 0;
@@ -265,5 +216,5 @@ export const format = (
   };
   const regex = /[{]([{][^\n\r{}]*[}]|[^\n\r{}]*)[}]/g;
   const result = str.replace(regex, replacer);
-  return [result, possibleValues, diagnostics];
+  return [result, diagnostics, possibleValues];
 };

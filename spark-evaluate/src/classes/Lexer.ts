@@ -54,10 +54,13 @@ export class Lexer {
   }
 
   getTokens(): [CompilerToken[], CompilerDiagnostic[]] {
-    let tok: string;
+    let tok: string | undefined;
     do {
       // read current token, so step should be -1
       tok = this.pickNext(-1);
+      if (!tok) {
+        return [this.tokenList, this.diagnostics];
+      }
       const pos = this.currentIndex;
       switch (this.optable[tok]) {
         case "LOGIC":
@@ -84,7 +87,7 @@ export class Lexer {
       // if the pos not changed, this loop will go into a infinite loop, every step of while loop,
       // we must move the pos forward
       // so here we should log error, for example `1 & 2`
-      if (pos === this.currentIndex && tok !== undefined) {
+      if (pos === this.currentIndex) {
         this.diagnostics.push({
           content: "",
           from: 0,
@@ -95,7 +98,7 @@ export class Lexer {
         });
         break;
       }
-    } while (tok !== undefined);
+    } while (tok);
 
     return [this.tokenList, this.diagnostics];
   }
@@ -105,8 +108,8 @@ export class Lexer {
    *
    * @param index next postion
    */
-  private pickNext(index = 0): string {
-    return this.input[index + this.currentIndex + 1] || "";
+  private pickNext(index = 0): string | undefined {
+    return this.input[index + this.currentIndex + 1];
   }
 
   /**
@@ -182,13 +185,9 @@ export class Lexer {
     }
   }
 
-  private readValue(tok: string): void {
-    if (!tok) {
-      return;
-    }
-
+  private readValue(tok: string | undefined): void {
     let index = 0;
-    while (!this.optable[tok] && tok !== undefined) {
+    while (tok && !this.optable[tok]) {
       tok = this.pickNext(index);
       index += 1;
     }

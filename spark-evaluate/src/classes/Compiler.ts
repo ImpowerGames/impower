@@ -6,11 +6,11 @@
  */
 
 import { OPERATION } from "../constants/operation";
+import { CompilerConfig } from "../types/compilerConfig";
 import { CompilerDiagnostic } from "../types/compilerDiagnostic";
 import { CompilerNode } from "../types/compilerNode";
 import { CompilerReference } from "../types/compilerReference";
 import { CompilerToken } from "../types/compilerToken";
-import { format } from "../utils/format";
 import { get } from "../utils/get";
 
 export class Compiler {
@@ -19,6 +19,8 @@ export class Compiler {
   private index = -1;
 
   private tokens: CompilerToken[];
+
+  private config?: CompilerConfig;
 
   private _diagnostics: CompilerDiagnostic[] = [];
 
@@ -32,8 +34,9 @@ export class Compiler {
     return this._references.map((x) => ({ ...x }));
   }
 
-  constructor(tokens: CompilerToken[]) {
+  constructor(tokens: CompilerToken[], config?: CompilerConfig) {
     this.tokens = tokens;
+    this.config = config;
   }
 
   parse(): CompilerNode | CompilerToken {
@@ -336,7 +339,7 @@ export class Compiler {
 
     // all other lookup from context
     const found = get<Record<string, unknown>, unknown>(context, val.content);
-    this._references.push({ from: val.from, to: val.to, name: val.content });
+    this._references.push({ from: val.from, to: val.to, content: val.content });
     if (found === undefined) {
       this._diagnostics.push({
         content: val.content,
@@ -355,7 +358,10 @@ export class Compiler {
     context: Record<string, unknown>
   ): string {
     const input = val.content.slice(1, -1);
-    const [result, , diagnostics] = format(input, context);
+    const [result, diagnostics] = this.config?.formatter?.(input, context) || [
+      input,
+      [],
+    ];
     diagnostics.forEach((d) => {
       this._diagnostics.push({
         ...d,

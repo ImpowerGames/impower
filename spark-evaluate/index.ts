@@ -1,4 +1,7 @@
 export * from "./src/classes/Compiler";
+export * from "./src/constants/customFormatters";
+export * from "./src/constants/operation";
+export * from "./src/defaults/defaultCompilerConfig";
 export * from "./src/types/compilerDiagnostic";
 export * from "./src/types/compilerNode";
 export * from "./src/types/compilerToken";

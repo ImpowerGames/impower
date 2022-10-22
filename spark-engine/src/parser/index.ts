@@ -1,4 +1,6 @@
 export * from "./classes/SparkContext";
+export * from "./classes/SparkParser";
+export * from "./interfaces/SparkContextConfig";
 export * from "./utils/generateCommand";
 export * from "./utils/generateSectionBlocks";
 export * from "./utils/generateStructObjects";

@@ -3,34 +3,11 @@ The Spark Engine is a light-weight library used to run spark games in a browser 
 ## Getting Started
 
 ```typescript
-import { parseSpark } from "sparkdown";
-import {
-  generateSectionBlocks,
-  generateStructObjects,
-  SparkGame,
-  SparkContext,
-} from "spark-engine";
+import { SparkParser, SparkContext } from "spark-engine";
 
-const parsed = parseSpark(script);
-const gameContext = new SparkContext(parsed);
-
-/**
- * Update all loaded blocks.
- *
- * @param time — The current time in ms
- * @param delta — The delta time in ms since the last frame update.
- *
- * @returns true if the game should continue running
- */
-const updateLoadedBlocks = (time: number, delta: number): boolean => {
-  for (let i = 0; i < gameContext.loadedBlockIds.length; i += 1) {
-    const id = loadedBlockIds[i];
-    if (!gameContext.update(id, time, delta)) {
-      return false; // Player quit the game
-    }
-  }
-  return true;
-};
+const parser = new SparkParser();
+const result = parser.parse(script);
+const gameContext = new SparkContext(result);
 
 let prevTime = 0;
 let loopRequestId = 0;
@@ -40,12 +17,12 @@ let loopRequestId = 0;
  *
  * @param time — The current time in ms
  */
-const loop = (time: number): void => {
+const gameLoop = (time) => {
   const delta = (time - prevTime) / 1000; // Get time since last frame
   prevTime = time;
   // Execute game logic
-  if (updateLoadedBlocks(time, delta)) {
-    loopRequestId = window.requestAnimationFrame(loop); // Continue the game loop
+  if (gameContext.update(time, delta)) {
+    loopRequestId = window.requestAnimationFrame(gameLoop); // Continue the game loop
   } else {
     window.cancelAnimationFrame(loopRequestId); // Stop the game loop
   }
@@ -54,10 +31,10 @@ const loop = (time: number): void => {
 /**
  * Load the game
  */
-const loadGame = (): void => {
+const loadGame = async () => {
   gameContext.init(); // Initialize game
-  gameContext.start(); // Start game
-  loopRequestId = window.requestAnimationFrame(loop); // Start the game loop
+  await gameContext.start(); // Start game
+  loopRequestId = window.requestAnimationFrame(gameLoop); // Start the game loop
 };
 
 // Load the game once the window loads
