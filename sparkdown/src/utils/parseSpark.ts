@@ -128,6 +128,9 @@ export const parseSpark = (
     to = -1,
     severity: "error" | "warning" | "info" = "error"
   ): void => {
+    if (from < 0 || to < 0) {
+      return;
+    }
     if (!parsed.diagnostics) {
       parsed.diagnostics = [];
     }
