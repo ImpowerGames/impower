@@ -752,7 +752,12 @@ const StaticPitchList = React.memo(
     }, []);
 
     const handleSubmitted = useCallback(
-      async (id: string, doc: ProjectDocument, successful: boolean) => {
+      async (
+        e: React.FormEvent | React.MouseEvent,
+        id: string,
+        doc: ProjectDocument,
+        successful: boolean
+      ) => {
         if (successful) {
           await router.replace(`/p/${id}`);
         }

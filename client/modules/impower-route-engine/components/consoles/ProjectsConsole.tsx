@@ -496,20 +496,23 @@ const ProjectsConsole = (props: YourProjectsConsoleProps): JSX.Element => {
   );
 
   const handleSubmit = useCallback(async (e: React.MouseEvent, id: string) => {
-    const API = (await import("../../../impower-api/classes/api")).default;
-    const member = await API.instance.verifyProjectClaim(id);
     setCreateDocId(id);
-    projectMembershipsStateRef.current = {
-      ...(projectMembershipsStateRef.current || {}),
-      [id]: member,
-    };
-    setProjectMembershipsState(projectMembershipsStateRef.current);
     setCanClose(false);
   }, []);
 
-  const handleSubmitted = useCallback(() => {
-    setCanClose(true);
-  }, []);
+  const handleSubmitted = useCallback(
+    async (e: React.MouseEvent, id: string) => {
+      const API = (await import("../../../impower-api/classes/api")).default;
+      const member = await API.instance.verifyProjectClaim(id);
+      projectMembershipsStateRef.current = {
+        ...(projectMembershipsStateRef.current || {}),
+        [id]: member,
+      };
+      setProjectMembershipsState(projectMembershipsStateRef.current);
+      setCanClose(true);
+    },
+    []
+  );
 
   const handleUploadIcon = useCallback(
     (icon: StorageFile) => {

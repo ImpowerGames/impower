@@ -134,7 +134,12 @@ interface CreatePitchDialogProps
     id: string,
     doc: ProjectDocument
   ) => Promise<void>;
-  onSubmitted?: (id: string, doc: ProjectDocument, successful: boolean) => void;
+  onSubmitted?: (
+    e: React.FormEvent | React.MouseEvent,
+    id: string,
+    doc: ProjectDocument,
+    successful: boolean
+  ) => Promise<void>;
   onClose?: (
     e: React.MouseEvent,
     reason: "backdropClick" | "escapeKeyDown" | "closeButtonClick" | "submitted"

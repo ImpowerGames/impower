@@ -108,7 +108,12 @@ interface CreateProjectFormProps {
     id: string,
     doc: ProjectDocument
   ) => Promise<void>;
-  onSubmitted?: (id: string, doc: ProjectDocument, successful: boolean) => void;
+  onSubmitted?: (
+    e: React.FormEvent | React.MouseEvent,
+    id: string,
+    doc: ProjectDocument,
+    successful: boolean
+  ) => Promise<void>;
 }
 
 const CreateProjectForm = React.memo(
@@ -526,13 +531,13 @@ const CreateProjectForm = React.memo(
             });
           }
           if (onSubmitted) {
-            await onSubmitted(newDocId, claimedDoc, true);
+            await onSubmitted(e, newDocId, claimedDoc, true);
           }
           return true;
         } catch (error) {
           toastDispatch(toastTop(error.message, "error"));
           if (onSubmitted) {
-            await onSubmitted(newDocId, newDoc, false);
+            await onSubmitted(e, newDocId, newDoc, false);
           }
           return false;
         }
