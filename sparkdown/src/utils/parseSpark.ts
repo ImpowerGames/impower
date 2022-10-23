@@ -67,6 +67,7 @@ export const parseSpark = (
     if (!parsed.variables) {
       parsed.variables = {};
     }
+    d.imported = true;
     parsed.variables[id] = d;
     const parentId = id.split(".").slice(0, -1).join(".") || "";
     if (!parsed.sections) {
@@ -83,11 +84,22 @@ export const parseSpark = (
     }
   });
 
-  const newLineLength = script.match(/\r\n/) ? 2 : 1;
+  Object.entries(augmentations?.structs || {}).forEach(([id, d]) => {
+    if (!parsed.structs) {
+      parsed.structs = {};
+    }
+    d.imported = true;
+    Object.values(d.fields).forEach((f) => {
+      f.imported = true;
+    });
+    parsed.structs[id] = d;
+  });
 
   if (!script) {
     return parsed;
   }
+
+  const newLineLength = script.match(/\r\n/) ? 2 : 1;
 
   if (config?.removeBlockComments) {
     script = stripBlockComments(script);
@@ -248,14 +260,15 @@ export const parseSpark = (
       const prefix = prefixArticle(type, true);
       const name = found?.name;
       const existingLine = found.line;
-      const location = existingLine >= 0 ? ` at line ${existingLine}` : "";
-      diagnostic(
-        currentToken,
-        `${prefix} named '${name}' already exists${location}`,
-        [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
-        from,
-        to
-      );
+      if (existingLine >= 0 && !found.imported) {
+        diagnostic(
+          currentToken,
+          `${prefix} named '${name}' already exists at line ${existingLine}`,
+          [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
+          from,
+          to
+        );
+      }
       return found;
     }
     return undefined;
@@ -1087,6 +1100,7 @@ export const parseSpark = (
       base,
       type,
       fields: {},
+      imported: false,
     };
     parsed.structs[id] = item;
   };
@@ -1183,6 +1197,7 @@ export const parseSpark = (
         value: validValue,
         parameter,
         scope,
+        imported: false,
       };
       parsed.variables[id] = item;
       const parentSection = parsed.sections?.[currentSectionId];
@@ -1262,6 +1277,7 @@ export const parseSpark = (
           name: validName,
           type: validType,
           value: validValue,
+          imported: false,
         };
         let curr =
           struct?.type === "list" || struct?.type === "map"

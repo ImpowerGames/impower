@@ -7,4 +7,5 @@ export interface SparkField {
   name: string;
   type: SparkFieldType;
   value: unknown;
+  imported?: boolean;
 }

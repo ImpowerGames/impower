@@ -9,4 +9,5 @@ export interface SparkStruct {
   base: string;
   type: SparkStructType;
   fields: Record<string, SparkField>;
+  imported?: boolean;
 }

@@ -17,4 +17,5 @@ export interface SparkSection {
   children?: string[];
   tokens?: SparkToken[];
   variables?: Record<string, SparkVariable>;
+  imported?: boolean;
 }
