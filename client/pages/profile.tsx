@@ -1,7 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import Container from "@mui/material/Container";
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   createUserDocument,
   UserDocument,
@@ -85,7 +85,7 @@ const ProfilePage = React.memo(() => {
     }
   }, [uid, userDoc]);
 
-  useMemo(() => {
+  useEffect(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText());
     navigationDispatch(navigationSetLinks());

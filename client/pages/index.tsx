@@ -1,7 +1,7 @@
 import { useTheme } from "@emotion/react";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import Head from "next/head";
-import React, { useContext, useEffect, useMemo } from "react";
+import React, { useContext, useEffect } from "react";
 import DataStoreCache from "../modules/impower-data-store/classes/dataStoreCache";
 import {
   NavigationContext,
@@ -33,7 +33,7 @@ const HomePage = React.memo(() => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useMemo(() => {
+  useEffect(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, ""));
     navigationDispatch(navigationSetLinks());

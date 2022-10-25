@@ -47,7 +47,7 @@ const PrivacyPage = React.memo((props: PrivacyPageProps) => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useMemo(() => {
+  useEffect(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Privacy"));
     navigationDispatch(navigationSetLinks());

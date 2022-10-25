@@ -1,7 +1,7 @@
 import { useTheme } from "@emotion/react";
 import styled from "@emotion/styled";
 import { GetStaticPaths, GetStaticProps } from "next";
-import React, { useContext, useEffect, useMemo } from "react";
+import React, { useContext, useEffect } from "react";
 import { getAdminFirestore, initAdminApp } from "../../lib/admin";
 import getLocalizationConfigParameters from "../../lib/getLocalizationConfigParameters";
 import getTagConfigParameters from "../../lib/getTagConfigParameters";
@@ -66,7 +66,7 @@ const UserProfilePage = React.memo((props: UserProfilePageProps) => {
   useHTMLBackgroundColor(theme.colors.lightForeground);
   useHTMLOverscrollBehavior("auto");
 
-  useMemo(() => {
+  useEffect(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText());
     navigationDispatch(navigationSetLinks());

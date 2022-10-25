@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import React, { useContext, useEffect, useMemo } from "react";
+import React, { useContext, useEffect } from "react";
 import DataStoreCache from "../modules/impower-data-store/classes/dataStoreCache";
 import {
   NavigationContext,
@@ -72,7 +72,7 @@ const LoginPage = React.memo(() => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useMemo(() => {
+  useEffect(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Login"));
     navigationDispatch(navigationSetLinks());

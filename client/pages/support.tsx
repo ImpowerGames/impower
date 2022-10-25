@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo } from "react";
+import React, { useContext, useEffect } from "react";
 import DataStoreCache from "../modules/impower-data-store/classes/dataStoreCache";
 import {
   NavigationContext,
@@ -25,7 +25,7 @@ const SupportPage = React.memo(() => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useMemo(() => {
+  useEffect(() => {
     navigationDispatch(navigationSetType("page"));
     navigationDispatch(navigationSetText(undefined, "Support"));
     navigationDispatch(navigationSetLinks());
