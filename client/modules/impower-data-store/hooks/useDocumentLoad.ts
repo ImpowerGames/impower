@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { DocumentPath } from "../../impower-api";
 import { DataDocument } from "../../impower-core";
 
@@ -8,16 +8,19 @@ export const useDocumentLoad = <T extends DataDocument>(
 ): T => {
   const [doc, setDoc] = useState<T>();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoizedPath = useMemo(() => path, path);
+  const pathJSON = path ? JSON.stringify(path) : "";
 
   useEffect(() => {
-    if (memoizedPath === undefined || memoizedPath?.includes(undefined)) {
+    if (!pathJSON) {
       setDoc(undefined);
       return;
     }
-
-    if (!memoizedPath || memoizedPath?.includes(null)) {
+    const memoizedPath: DocumentPath = JSON.parse(pathJSON);
+    if (memoizedPath?.includes(undefined)) {
+      setDoc(undefined);
+      return;
+    }
+    if (memoizedPath?.includes(null)) {
       setDoc(null);
       if (onLoad) {
         onLoad(null);
@@ -48,7 +51,7 @@ export const useDocumentLoad = <T extends DataDocument>(
     };
 
     getData();
-  }, [onLoad, memoizedPath]);
+  }, [onLoad, pathJSON]);
 
   return doc;
 };

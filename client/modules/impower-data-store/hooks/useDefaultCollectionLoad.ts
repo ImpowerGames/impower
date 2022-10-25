@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CollectionPath } from "../../impower-api";
 import { DataDocument } from "../../impower-core";
 
@@ -11,22 +11,21 @@ export const useDefaultCollectionLoad = <T extends DataDocument>(
     [id: string]: T;
   }>();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoizedPath = useMemo(() => path, path);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoizedDefaultDocs = useMemo(() => defaultDocs, []);
+  const pathJSON = path ? JSON.stringify(path) : "";
+  const defaultDocsJSON = defaultDocs ? JSON.stringify(defaultDocs) : "";
 
   useEffect(() => {
-    if (
-      memoizedPath === undefined ||
-      (memoizedPath as string[])?.includes(undefined)
-    ) {
+    if (!pathJSON) {
       setDocs(undefined);
       return;
     }
-
-    if (!memoizedPath || (memoizedPath as string[])?.includes(null)) {
+    const memoizedPath: CollectionPath = JSON.parse(pathJSON);
+    const memoizedDefaultDocs: Record<string, T> = JSON.parse(defaultDocsJSON);
+    if ((memoizedPath as string[])?.includes(undefined)) {
+      setDocs(undefined);
+      return;
+    }
+    if ((memoizedPath as string[])?.includes(null)) {
       setDocs(null);
       if (onLoad) {
         onLoad(null);
@@ -66,7 +65,7 @@ export const useDefaultCollectionLoad = <T extends DataDocument>(
     };
 
     getData();
-  }, [memoizedDefaultDocs, onLoad, memoizedPath]);
+  }, [onLoad, pathJSON, defaultDocsJSON]);
 
   return docs;
 };

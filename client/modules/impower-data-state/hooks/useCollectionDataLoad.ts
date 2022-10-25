@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { DataStateQueryPath } from "../types/dataStatePath";
 
 export const useCollectionDataLoad = <T>(
@@ -16,16 +16,19 @@ export const useCollectionDataLoad = <T>(
 
   const [collection, setCollection] = useState<{ [id: string]: T }>();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoizedPath = useMemo(() => path, path);
+  const pathJSON = path ? JSON.stringify(path) : "";
 
   useEffect(() => {
-    if (memoizedPath === undefined || memoizedPath?.includes(undefined)) {
+    if (!pathJSON) {
       setCollection(undefined);
       return;
     }
-
-    if (!memoizedPath || memoizedPath?.includes(null)) {
+    const memoizedPath: DataStateQueryPath = JSON.parse(pathJSON);
+    if (memoizedPath?.includes(undefined)) {
+      setCollection(undefined);
+      return;
+    }
+    if (memoizedPath?.includes(null)) {
       setCollection(null);
       if (onLoad) {
         onLoad(null);
@@ -74,9 +77,9 @@ export const useCollectionDataLoad = <T>(
     equalTo,
     limitToFirst,
     limitToLast,
-    memoizedPath,
     orderByChild,
     source,
+    pathJSON,
   ]);
 
   return collection;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { PageDocument } from "../../impower-data-store";
 
 export const useAllDocsLoad = <T extends PageDocument>(
@@ -8,20 +8,19 @@ export const useAllDocsLoad = <T extends PageDocument>(
 ): { [id: string]: T } => {
   const [collection, setCollection] = useState<{ [id: string]: T }>();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoizedIds = useMemo(() => ids, ids || []);
+  const idsJSON = ids ? JSON.stringify(ids) : "";
 
   useEffect(() => {
-    if (
-      parent === undefined ||
-      memoizedIds === undefined ||
-      memoizedIds?.includes(undefined)
-    ) {
+    if (!idsJSON || parent === undefined) {
       setCollection(undefined);
       return;
     }
-
-    if (!parent || !memoizedIds || memoizedIds?.includes(null)) {
+    const memoizedIds: string[] = JSON.parse(idsJSON);
+    if (memoizedIds?.includes(undefined)) {
+      setCollection(undefined);
+      return;
+    }
+    if (memoizedIds?.includes(null)) {
       setCollection(null);
       if (onLoad) {
         onLoad(null);
@@ -50,7 +49,7 @@ export const useAllDocsLoad = <T extends PageDocument>(
       }
     };
     getData();
-  }, [memoizedIds, onLoad, parent]);
+  }, [idsJSON, onLoad, parent]);
 
   return collection;
 };

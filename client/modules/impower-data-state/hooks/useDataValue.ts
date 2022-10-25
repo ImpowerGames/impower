@@ -1,23 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { DataStateReadPath } from "../types/dataStatePath";
 
 export const useDataValue = <T>(...path: DataStateReadPath): T => {
   const [value, setValue] = useState<T>(undefined);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoizedPath = useMemo(() => path, path);
+  const pathJSON = path ? JSON.stringify(path) : "";
 
   useEffect(() => {
-    if (memoizedPath === undefined || memoizedPath?.includes(undefined)) {
+    if (!pathJSON) {
       setValue(undefined);
       return;
     }
-
-    if (!memoizedPath || memoizedPath?.includes(null)) {
+    const memoizedPath: DataStateReadPath = JSON.parse(pathJSON);
+    if (memoizedPath?.includes(undefined)) {
+      setValue(undefined);
+      return;
+    }
+    if (memoizedPath?.includes(null)) {
       setValue(null);
       return;
     }
-
     const getData = async (): Promise<void> => {
       const DataStateRead = (await import("../classes/dataStateRead")).default;
       const ref = new DataStateRead(...memoizedPath);
@@ -26,7 +28,7 @@ export const useDataValue = <T>(...path: DataStateReadPath): T => {
       setValue(val === undefined ? null : val);
     };
     getData();
-  }, [memoizedPath]);
+  }, [pathJSON]);
 
   return value;
 };

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DataSnapshot, Unsubscribe } from "../types/aliases";
 import { DataStateQueryPath } from "../types/dataStatePath";
 
@@ -18,16 +18,19 @@ export const useObservedCollectionDataLoad = <T>(
   const dataRef = useRef<{ [id: string]: T }>({});
   const unsubscribeRef = useRef<Unsubscribe>();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const memoizedPath = useMemo(() => path, path);
+  const pathJSON = path ? JSON.stringify(path) : "";
 
   useEffect(() => {
-    if (memoizedPath === undefined || memoizedPath?.includes(undefined)) {
+    if (!pathJSON) {
       setData(undefined);
       return (): void => null;
     }
-
-    if (!memoizedPath || memoizedPath?.includes(null)) {
+    const memoizedPath: DataStateQueryPath = JSON.parse(pathJSON);
+    if (memoizedPath?.includes(undefined)) {
+      setData(undefined);
+      return (): void => null;
+    }
+    if (memoizedPath?.includes(null)) {
       setData(null);
       if (onLoad) {
         onLoad(null);
@@ -72,7 +75,7 @@ export const useObservedCollectionDataLoad = <T>(
         unsubscribe();
       }
     };
-  }, [onLoad, orderByChild, memoizedPath, limitToFirst, limitToLast, equalTo]);
+  }, [onLoad, orderByChild, limitToFirst, limitToLast, equalTo, pathJSON]);
 
   return data;
 };
