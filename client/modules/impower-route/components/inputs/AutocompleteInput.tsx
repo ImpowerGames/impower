@@ -363,10 +363,16 @@ const AutocompleteInput = React.memo(
     const handleGetOptionLabel = useCallback(
       (option: unknown): string => {
         if (typeof option === "string" && option.includes("/")) {
-          return option.split("/")[1];
+          return JSON.stringify(option.split("/")[1]);
         }
         if (getOptionLabel) {
-          return getOptionLabel(option);
+          const label = getOptionLabel(option);
+          if (typeof label === "string") {
+            return label;
+          }
+          if (Array.isArray(label)) {
+            return (label as string[]).join(", ");
+          }
         }
         if (typeof option === "string") {
           return option;
@@ -861,7 +867,7 @@ const AutocompleteInput = React.memo(
             InputProps={AutocompleteInputProps}
             InputLabelProps={AutocompleteInputLabelProps}
             InputComponent={InputComponent}
-            inputProps={{ ...params.inputProps, autocomplete: "off" }}
+            inputProps={{ ...params.inputProps }}
           />
         );
       },
@@ -904,7 +910,6 @@ const AutocompleteInput = React.memo(
     return (
       <StyledAutocompleteInput style={style}>
         <StyledAutocomplete
-          {...props}
           className={inset ? "inset" : variant}
           options={optionsAndActions}
           value={currentValue}
