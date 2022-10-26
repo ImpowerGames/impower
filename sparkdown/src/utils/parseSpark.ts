@@ -370,13 +370,13 @@ export const parseSpark = (
     parsed.sections[id] = {
       ...(existing || {}),
       ...section,
-      triggers: [...(existing?.triggers || []), ...(section?.triggers || [])],
-      children: [...(existing?.children || []), ...(section?.children || [])],
-      tokens: [...(existing?.tokens || []), ...(section?.tokens || [])],
       variables: {
         ...(existing?.variables || {}),
         ...(section?.variables || {}),
       },
+      triggers: [...(existing?.triggers || []), ...(section?.triggers || [])],
+      children: [...(existing?.children || []), ...(section?.children || [])],
+      tokens: [...(existing?.tokens || []), ...(section?.tokens || [])],
     };
     if (!parsed.sectionLines) {
       parsed.sectionLines = {};
@@ -2609,9 +2609,8 @@ export const parseSpark = (
             );
             if (markSpace) {
               currentSectionId += `.${trimmedName}`;
-              currentLevel = level;
             }
-          } else if (matchLint(currentToken.content, sparkRegexes.section)) {
+          } else {
             if (trimmedName) {
               if (level === 0) {
                 currentSectionId = trimmedName;
@@ -2633,9 +2632,10 @@ export const parseSpark = (
                 currentSectionId = `${parentId}.${trimmedName}`;
               }
             }
-            currentLevel = level;
-            currentToken.level = level;
           }
+
+          currentLevel = level;
+          currentToken.level = level;
 
           let struct: StructureItem = {
             type: "section",
