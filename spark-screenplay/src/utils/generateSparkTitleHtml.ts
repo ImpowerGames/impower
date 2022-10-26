@@ -1,4 +1,4 @@
-import { SparkParseResult } from "../../../sparkdown";
+import { SparkParseResult, SparkToken } from "../../../sparkdown";
 import { htmlReplacements } from "../constants/htmlReplacements";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 import { sparkLexer } from "./sparkLexer";
@@ -34,11 +34,11 @@ export const generateSparkTitleHtml = (
   );
 
   const html: string[] = [];
-  let header = undefined;
-  let footer = undefined;
+  let header: SparkToken | undefined;
+  let footer: SparkToken | undefined;
 
-  for (const section of titleTokenKeys) {
-    const tokens = result.titleTokens[section] || [];
+  titleTokenKeys.forEach((section) => {
+    const tokens = result?.titleTokens?.[section] || [];
     tokens.sort((a, b) => {
       if (a.order === -1) {
         return 0;
@@ -47,16 +47,15 @@ export const generateSparkTitleHtml = (
       }
     });
     html.push(`<div class="titlepagesection" data-position="${section}">`);
-    let currentIndex = 0; /*, previous_type = null*/
-    while (currentIndex < tokens.length) {
-      const currentToken = tokens[currentIndex];
+    tokens.forEach((currentToken) => {
       if (!currentToken) {
-        currentIndex++;
-        continue;
+        return;
       }
       if (currentToken.ignore) {
-        currentIndex++;
-        continue;
+        return;
+      }
+      if ((currentToken as { position: string }).position === "hidden") {
+        return;
       }
       const text = currentToken.text;
       const line = currentToken.line;
@@ -81,10 +80,9 @@ export const generateSparkTitleHtml = (
           );
           break;
       }
-      currentIndex++;
-    }
+    });
     html.push(`</div>`);
-  }
+  });
 
   if (header) {
     html.push(

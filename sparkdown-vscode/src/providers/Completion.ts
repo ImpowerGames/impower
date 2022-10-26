@@ -279,7 +279,7 @@ export class SparkdownCompletionProvider
               documentation:
                 "A watermark displayed diagonally on every single page",
               sort: "J",
-              position: "watermark",
+              position: titlePageDisplay["watermark"].position,
             })
           );
         }
@@ -292,6 +292,17 @@ export class SparkdownCompletionProvider
               documentation: `Generally a monospace courier-type font. Sparkdown's default is [Courier Prime](https://quoteunquoteapps.com/courierprime/), with added support for cyrillic.`,
               sort: "K",
               position: titlePageDisplay["font"].position,
+            })
+          );
+        }
+        if (!parsedDocument?.titleTokens?.["language"]) {
+          completes.push(
+            TitlePageKey({
+              name: "Language",
+              detail: "The language the screenplay is written in",
+              documentation: `Generally the language's ISO code. Sparkdown's default is en-US`,
+              sort: "K",
+              position: titlePageDisplay["language"].position,
             })
           );
         }

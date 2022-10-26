@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
-import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
-import { exportHtml } from "../providers/StaticHtml";
 import { commandViewProvider } from "../state/commandViewProvider";
 import { parseState } from "../state/parseState";
+import { exportCsv } from "./exportCsv";
+import { exportHtml } from "./exportHtml";
+import { exportJson } from "./exportJson";
 import { exportPdf } from "./exportPdf";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
@@ -48,45 +49,18 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
     )
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.exportpdfdebug", async () =>
-      exportPdf(false, true)
-    )
-  );
-  context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.exporthtml", async () =>
       exportHtml()
     )
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.debugtokens", () => {
-      const uri = getActiveSparkdownDocument();
-      if (!uri) {
-        return;
-      }
-      const editor = getEditor(uri);
-      if (!editor) {
-        return;
-      }
-      const sparkdown = editor.document.getText();
-      vscode.workspace
-        .openTextDocument({ language: "json" })
-        .then((doc) => vscode.window.showTextDocument(doc))
-        .then((editor) => {
-          const editBuilder = (textEdit: vscode.TextEditorEdit) => {
-            textEdit.insert(
-              new vscode.Position(0, 0),
-              JSON.stringify(
-                ScreenplaySparkParser.instance.parse(sparkdown),
-                null,
-                4
-              )
-            );
-          };
-          return editor.edit(editBuilder, {
-            undoStopBefore: true,
-            undoStopAfter: false,
-          });
-        });
+    vscode.commands.registerCommand("sparkdown.exportcsv", async () =>
+      exportCsv()
+    )
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand("sparkdown.exportjson", () => {
+      exportJson();
     })
   );
   const shiftScenesUpDn = (direction: number) => {
@@ -120,4 +94,6 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
       shiftScenesUpDn(1)
     )
   );
+  const uri = getActiveSparkdownDocument();
+  commandViewProvider.update(uri);
 };

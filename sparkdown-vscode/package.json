@@ -16,6 +16,7 @@
     "onCommand:sparkdown.exportpdf",
     "onCommand:sparkdown.exportpdfdebug",
     "onCommand:sparkdown:exporthtml",
+    "onCommand:sparkdown:exportcsv",
     "onCommand:sparkdown.previewscreenplay",
     "onCommand:sparkdown.previewgame",
     "onView:sparkdown-cheatsheet",
@@ -134,8 +135,13 @@
         "category": "Sparkdown"
       },
       {
-        "command": "sparkdown.exportpdfdebug",
-        "title": "Export screenplay PDF with default name and open it",
+        "command": "sparkdown.exportcsv",
+        "title": "Export translation CSV",
+        "category": "Sparkdown"
+      },
+      {
+        "command": "sparkdown.exportjson",
+        "title": "Export JSON",
         "category": "Sparkdown"
       },
       {
@@ -156,11 +162,6 @@
       {
         "command": "sparkdown.statistics",
         "title": "View statistics",
-        "category": "Sparkdown"
-      },
-      {
-        "command": "sparkdown.debugtokens",
-        "title": "Debug parsed output",
         "category": "Sparkdown"
       },
       {
@@ -389,6 +390,7 @@
     "webpack-cli": "^4.10.0"
   },
   "dependencies": {
+    "csv-stringify": "^6.2.0",
     "font-finder": "^1.1.0",
     "html-entities": "^2.3.3",
     "iconv-lite": "^0.6.3",

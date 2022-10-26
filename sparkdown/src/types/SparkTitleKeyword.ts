@@ -6,6 +6,7 @@ export type SparkTitleKeyword =
   | "source"
   | "watermark"
   | "font"
+  | "language"
   | "notes"
   | "copyright"
   | "revision"

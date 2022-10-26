@@ -1,6 +1,8 @@
 export function openFile(p: string) {
+  const os = require("os");
+  const platform = os.platform();
   let cmd = "xdg-open";
-  switch (process.platform) {
+  switch (platform) {
     case "darwin":
       cmd = "open";
       break;
@@ -11,5 +13,9 @@ export function openFile(p: string) {
       cmd = "xdg-open";
   }
   const exec = require("child_process").exec;
-  exec(`${cmd} "${p}"`);
+  exec(`${cmd} "${p}"`, (err: string) => {
+    if (err) {
+      console.error(err);
+    }
+  });
 }

@@ -101,10 +101,19 @@ const makeTreeItem = (
   parent: OutlineTreeItem
 ): OutlineTreeItem | undefined => {
   let item: OutlineTreeItem;
-  if (token.type === "section") {
-    item = new SectionTreeItem(token, parent);
-  } else {
-    item = new SceneTreeItem(token, parent);
+  switch (token.type) {
+    case "section":
+      item = new SectionTreeItem(token, parent);
+      break;
+    case "scene":
+      item = new SceneTreeItem(token, parent);
+      break;
+    case "synopsis":
+      item = new SynopsisTreeItem(token, parent);
+      break;
+    default:
+      item = new SceneTreeItem(token, parent);
+      break;
   }
 
   const passthrough =
@@ -193,8 +202,18 @@ class SectionTreeItem extends OutlineTreeItem {
 class SceneTreeItem extends OutlineTreeItem {
   constructor(token: StructureItem, parent: OutlineTreeItem) {
     super(token.text, token.id, parent);
-    const iconName = "debug-stackframe-dot";
-    this.iconPath = new vscode.ThemeIcon(iconName);
+    const iconFileName = `scene.svg`;
+    this.iconPath = path.join(getDirectoryPath(), "data", iconFileName);
     this.tooltip = token.tooltip;
+  }
+}
+
+class SynopsisTreeItem extends OutlineTreeItem {
+  constructor(token: StructureItem, parent: OutlineTreeItem) {
+    super("", token.id, parent);
+    const iconFileName = `synopsis.svg`;
+    this.iconPath = path.join(getDirectoryPath(), "data", iconFileName);
+    this.tooltip = token.tooltip;
+    this.description = token.text;
   }
 }

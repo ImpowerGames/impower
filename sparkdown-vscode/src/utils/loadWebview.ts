@@ -12,7 +12,7 @@ import { parseDocument } from "../utils/parseDocument";
 import { removePreviewPanel } from "../utils/removePreviewPanels";
 import { getVisibleLine } from "./getVisibleLine";
 import { updateAssets } from "./updateAssets";
-import { watchAssetFiles } from "./watchAssetFiles";
+import { watchFiles } from "./watchFiles";
 
 export const loadWebView = (
   type: "screenplay" | "game",
@@ -174,7 +174,7 @@ export const loadWebView = (
     return;
   }
 
-  watchAssetFiles(editor.document);
+  watchFiles(editor.document);
   updateAssets(editor.document);
   parseDocument(editor.document);
 

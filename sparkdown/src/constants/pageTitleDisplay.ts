@@ -25,6 +25,7 @@ export const titlePageDisplay: Record<
 
   watermark: { position: "hidden", order: -1 },
   font: { position: "hidden", order: -1 },
+  language: { position: "hidden", order: -1 },
 
   cc: { position: "cc", order: -1 },
   bl: { position: "bl", order: -1 },

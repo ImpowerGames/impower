@@ -4,9 +4,9 @@ import { createPdf } from "../pdf/pdf";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSparkdownConfig } from "./getSparkdownConfig";
-import { openFile } from "./openFile";
+import { getSyncOrExportPath } from "./getSyncOrExportPath";
 
-export async function exportPdf(showSaveDialog = true, openFileOnSave = false) {
+export const exportPdf = async (): Promise<void> => {
   const canceled = false;
   if (canceled) {
     return;
@@ -22,43 +22,24 @@ export async function exportPdf(showSaveDialog = true, openFileOnSave = false) {
     return;
   }
 
-  const config = getSparkdownConfig(uri);
-
-  const parsed = ScreenplaySparkParser.instance.parse(
-    editor.document.getText()
-  );
-
-  let filename = editor.document.fileName.replace(
-    /(\.(sparkdown|sd|md|txt))$/,
-    ""
-  );
-  filename += ".pdf";
-
-  const saveUri = vscode.Uri.file(filename);
-  let filepath: vscode.Uri | undefined;
-  if (showSaveDialog) {
-    filepath = await vscode.window.showSaveDialog({
-      filters: { "PDF File": ["pdf"] },
-      defaultUri: saveUri,
-    });
-  } else {
-    filepath = saveUri;
-  }
-  if (filepath === undefined) {
+  const fsPath = await getSyncOrExportPath(editor, "pdf");
+  if (!fsPath) {
     return;
   }
+  const sparkdown = editor.document.getText();
+  const result = ScreenplaySparkParser.instance.parse(sparkdown);
+
+  const config = getSparkdownConfig(uri);
+
   vscode.window.withProgress(
     {
       title: "Exporting PDF...",
       location: vscode.ProgressLocation.Notification,
     },
     async (progress) => {
-      if (filepath) {
-        createPdf(filepath.fsPath, config, parsed, progress);
+      if (fsPath) {
+        createPdf(fsPath, config, result, progress);
       }
     }
   );
-  if (openFileOnSave) {
-    openFile(filepath.fsPath);
-  }
-}
+};

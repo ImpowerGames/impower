@@ -1,13 +1,13 @@
 import path from "path";
 import * as vscode from "vscode";
 import { SparkVariable } from "../../../sparkdown";
-import { audioExts, imageExts } from "../constants/extensions";
+import { assetExts, audioExts, imageExts } from "../constants/extensions";
 import { fileState } from "../state/fileState";
-import { getAssetsRelativePath } from "./getAssetsRelativePath";
+import { getWorkspaceRelativePath } from "./getWorkspaceRelativePath";
 
 export const updateAssets = async (doc: vscode.TextDocument) => {
   const uri = doc.uri;
-  const relativePath = getAssetsRelativePath(uri);
+  const relativePath = getWorkspaceRelativePath(uri, assetExts);
   if (!relativePath) {
     return undefined;
   }

@@ -2112,7 +2112,7 @@ export const parseSpark = (
       try {
         if (depth <= 0) {
           return null;
-        } else if (depth == 1) {
+        } else if (depth === 1) {
           if (!parsed.properties) {
             parsed.properties = {};
           }
@@ -2124,7 +2124,7 @@ export const parseSpark = (
           );
           return lastItem;
         } else {
-          let prevSection = getLatestSectionOrScene(depth - 1, condition);
+          const prevSection = getLatestSectionOrScene(depth - 1, condition);
           if (prevSection?.children) {
             const lastChild = last(prevSection.children.filter(condition));
             if (lastChild) {
@@ -2239,24 +2239,16 @@ export const parseSpark = (
             },
             children: [],
           };
-          if (currentLevel == 0) {
+          const latestSection = getLatestSection(currentLevel);
+          if (latestSection) {
+            struct.id = latestSection.id + "/" + currentToken.line;
+            latestSection.children.push(struct);
+          } else {
             struct.id = "/" + currentToken.line;
             if (!parsed.properties.structure) {
               parsed.properties.structure = [];
             }
             parsed.properties.structure.push(struct);
-          } else {
-            var level = getLatestSection(currentLevel);
-            if (level) {
-              struct.id = level.id + "/" + currentToken.line;
-              level.children.push(struct);
-            } else {
-              struct.id = "/" + currentToken.line;
-              if (!parsed.properties.structure) {
-                parsed.properties.structure = [];
-              }
-              parsed.properties.structure.push(struct);
-            }
           }
         }
       } else if (
@@ -2561,14 +2553,32 @@ export const parseSpark = (
         currentToken.type = "synopsis";
         if ((match = matchLint(currentToken.content, sparkRegexes.synopsis))) {
           currentToken.content = match[4] || "";
-          const struct = getLatestSectionOrScene(currentLevel);
-          if (struct) {
-            if (struct.tooltip) {
-              struct.tooltip += "\n";
-            } else {
-              struct.tooltip = "";
+          const struct: StructureItem = {
+            type: "synopsis",
+            text: currentToken.content,
+            id: `${currentToken.line}`,
+            range: {
+              start: { line: currentToken.line, character: 0 },
+              end: {
+                line: currentToken.line,
+                character: currentToken.content.length,
+              },
+            },
+            children: [],
+          };
+          if (!parsed.properties) {
+            parsed.properties = {};
+          }
+          const latestStruct = getLatestSectionOrScene(currentLevel + 1);
+          if (latestStruct) {
+            struct.id = latestStruct.id + "/" + currentToken.line;
+            latestStruct.children.push(struct);
+          } else {
+            struct.id = "/" + currentToken.line;
+            if (!parsed.properties.structure) {
+              parsed.properties.structure = [];
             }
-            struct.tooltip += currentToken.content;
+            parsed.properties.structure.push(struct);
           }
         }
       } else if ((match = currentToken.content.match(sparkRegexes.section))) {

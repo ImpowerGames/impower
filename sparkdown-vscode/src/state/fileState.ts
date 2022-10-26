@@ -3,5 +3,9 @@ import { SparkVariable } from "../../../sparkdown";
 
 export const fileState: Record<
   string,
-  { assets: Record<string, SparkVariable>; watcher?: vscode.FileSystemWatcher }
+  {
+    assets: Record<string, SparkVariable>;
+    assetsWatcher?: vscode.FileSystemWatcher;
+    syncWatcher?: vscode.FileSystemWatcher;
+  }
 > = {};

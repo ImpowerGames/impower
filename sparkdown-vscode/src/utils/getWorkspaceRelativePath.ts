@@ -1,9 +1,9 @@
 import path from "path";
 import * as vscode from "vscode";
-import { assetExts } from "../constants/extensions";
 
-export const getAssetsRelativePath = (
-  uri: vscode.Uri
+export const getWorkspaceRelativePath = (
+  uri: vscode.Uri,
+  extensions: string[]
 ): vscode.RelativePattern | undefined => {
   const workspaceFolder: vscode.WorkspaceFolder | undefined =
     vscode.workspace.getWorkspaceFolder(uri);
@@ -18,6 +18,6 @@ export const getAssetsRelativePath = (
   );
   return new vscode.RelativePattern(
     workspaceFolderPath,
-    relativeSearchFolderPrefix + `/**/*.{${assetExts.join(",")}}`
+    relativeSearchFolderPrefix + `/**/*.{${extensions.join(",")}}`
   );
 };

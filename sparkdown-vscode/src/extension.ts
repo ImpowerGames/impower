@@ -16,7 +16,7 @@ import { parseDocument } from "./utils/parseDocument";
 import { activateUIPersistence } from "./utils/persistence";
 import { registerTyping } from "./utils/registerTyping";
 import { updateAssets } from "./utils/updateAssets";
-import { watchAssetFiles } from "./utils/watchAssetFiles";
+import { watchFiles } from "./utils/watchFiles";
 
 export function activate(context: vscode.ExtensionContext) {
   console.log("Sparkdown Activated");
@@ -38,7 +38,7 @@ export function activate(context: vscode.ExtensionContext) {
   if (!editor) {
     return;
   }
-  watchAssetFiles(editor.document);
+  watchFiles(editor.document);
   updateAssets(editor.document);
   parseDocument(editor.document);
 }
@@ -70,7 +70,7 @@ vscode.workspace.onDidChangeConfiguration((change) => {
 
 vscode.window.onDidChangeActiveTextEditor((editor) => {
   if (editor?.document?.languageId === "sparkdown") {
-    watchAssetFiles(editor.document);
+    watchFiles(editor.document);
     updateAssets(editor.document);
     parseDocument(editor.document);
   }
@@ -90,8 +90,8 @@ vscode.workspace.onDidSaveTextDocument((_doc) => {
 
 vscode.workspace.onDidCloseTextDocument((doc) => {
   delete parseState.parsedDocuments[doc.uri.toString()];
-  if (fileState[doc.uri.toString()]?.watcher) {
-    fileState[doc.uri.toString()]?.watcher?.dispose();
+  if (fileState[doc.uri.toString()]?.assetsWatcher) {
+    fileState[doc.uri.toString()]?.assetsWatcher?.dispose();
   }
   delete fileState[doc.uri.toString()];
 });
@@ -99,8 +99,8 @@ vscode.workspace.onDidCloseTextDocument((doc) => {
 // this method is called when your extension is deactivated
 export function deactivate() {
   Object.values(fileState).forEach((v) => {
-    if (v.watcher) {
-      v.watcher.dispose();
+    if (v.assetsWatcher) {
+      v.assetsWatcher.dispose();
     }
   });
 }
