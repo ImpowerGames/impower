@@ -1,8 +1,5 @@
 // TODO: Extract pdfmaker to a separate library (+++++)
-import { listVariants } from "font-finder";
-import * as fs from "fs";
 import { encode } from "html-entities";
-import * as path from "path";
 import pdfkit from "pdfkit";
 import * as vscode from "vscode";
 import {
@@ -16,7 +13,6 @@ import {
   SparkSectionToken,
   SparkToken,
 } from "../../../sparkdown";
-import { getDirectoryPath } from "../getDirectoryPath";
 import { openFile } from "../utils/openFile";
 import { revealFile } from "../utils/revealFile";
 import { LineItem } from "./liner";
@@ -275,6 +271,10 @@ export class PdfWriteStream implements NodeJS.WritableStream {
 
   end(): this {
     if (this.filepath) {
+      const fs = require("fs");
+      if (!fs) {
+        return this;
+      }
       const stream = fs.createWriteStream(this.filepath, {
         encoding: "binary",
       });
@@ -333,7 +333,7 @@ export class PdfWriteStream implements NodeJS.WritableStream {
   }
 }
 
-const initDoc = async (opts: PdfOptions) => {
+const initDoc = async (context: vscode.ExtensionContext, opts: PdfOptions) => {
   const print = opts.print;
   //var fonts = opts.config.fonts || null;
   const options = {
@@ -351,38 +351,53 @@ const initDoc = async (opts: PdfOptions) => {
   //Load Courier Prime by default, and replace the variants if requested and available
   doc.registerFont(
     "ScriptNormal",
-    path.join(getDirectoryPath(), "data", "courier-prime.ttf")
+    vscode.Uri.joinPath(context.extensionUri, "data", "courier-prime.ttf")
+      ?.fsPath
   );
   doc.registerFont(
     "ScriptBold",
-    path.join(getDirectoryPath(), "data", "courier-prime-bold.ttf")
+    vscode.Uri.joinPath(context.extensionUri, "data", "courier-prime-bold.ttf")
+      ?.fsPath
   );
   doc.registerFont(
     "ScriptBoldOblique",
-    path.join(getDirectoryPath(), "data", "courier-prime-bold-italic.ttf")
+    vscode.Uri.joinPath(
+      context.extensionUri,
+      "data",
+      "courier-prime-bold-italic.ttf"
+    )?.fsPath
   );
   doc.registerFont(
     "ScriptOblique",
-    path.join(getDirectoryPath(), "data", "courier-prime-italic.ttf")
+    vscode.Uri.joinPath(
+      context.extensionUri,
+      "data",
+      "courier-prime-italic.ttf"
+    )?.fsPath
   );
   if (opts.font !== "Courier Prime") {
-    const variants = await listVariants(opts.font);
-    variants.forEach((variant: { style: string; path: string }) => {
-      switch (variant.style) {
-        case "regular":
-          doc.registerFont("ScriptNormal", variant.path);
-          break;
-        case "bold":
-          doc.registerFont("ScriptBold", variant.path);
-          break;
-        case "italic":
-          doc.registerFont("ScriptOblique", variant.path);
-          break;
-        case "boldItalic":
-          doc.registerFont("ScriptBoldOblique", variant.path);
-          break;
-      }
-    });
+    try {
+      const { listVariants } = require("font-finder");
+      const variants = await listVariants(opts.font);
+      variants.forEach((variant: { style: string; path: string }) => {
+        switch (variant.style) {
+          case "regular":
+            doc.registerFont("ScriptNormal", variant.path);
+            break;
+          case "bold":
+            doc.registerFont("ScriptBold", variant.path);
+            break;
+          case "italic":
+            doc.registerFont("ScriptOblique", variant.path);
+            break;
+          case "boldItalic":
+            doc.registerFont("ScriptBoldOblique", variant.path);
+            break;
+        }
+      });
+    } catch {
+      // NoOp
+    }
   }
 
   doc.font("ScriptNormal");
@@ -1153,13 +1168,14 @@ async function generate(
 }
 
 export const generatePdf = async function (
+  context: vscode.ExtensionContext,
   opts: PdfOptions,
   progress?: vscode.Progress<{ message?: string; increment?: number }>
 ) {
   if (progress) {
     progress.report({ message: "Processing document", increment: 25 });
   }
-  const doc = await initDoc(opts);
+  const doc = await initDoc(context, opts);
   generate(doc, opts);
   if (progress) {
     progress.report({ message: "Writing to disk", increment: 25 });
@@ -1168,9 +1184,10 @@ export const generatePdf = async function (
 };
 
 export const generatePdfStats = async function (
+  context: vscode.ExtensionContext,
   opts: PdfOptions
 ): Promise<PdfStats> {
-  const doc = await initDoc(opts);
+  const doc = await initDoc(context, opts);
   const stats: PdfStats = {
     pageCount: 1,
     pageCountReal: 1,

@@ -1,7 +1,7 @@
 import * as path from "path";
+import * as os from "os";
 
 export function revealFile(p: string) {
-  const os = require("os");
   const platform = os.platform();
   let cmd = "";
   switch (platform) {
@@ -11,10 +11,11 @@ export function revealFile(p: string) {
     case "win32":
       cmd = `explorer.exe /select,${p}`;
       break;
-    default:
+    default: {
       p = path.parse(p).dir;
       cmd = `open "${p}"`;
       break;
+    }
   }
   const exec = require("child_process").exec;
   exec(cmd, (err: string) => {

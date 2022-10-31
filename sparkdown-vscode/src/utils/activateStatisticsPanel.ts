@@ -20,11 +20,11 @@ export const activateStatisticsPanel = (
       if (!editor) {
         return;
       }
-      createStatisticsPanel(editor);
+      createStatisticsPanel(editor, context);
     })
   );
   vscode.window.registerWebviewPanelSerializer(
     "sparkdown-statistics",
-    new SparkdownStatsPanelSerializer()
+    new SparkdownStatsPanelSerializer(context)
   );
 };

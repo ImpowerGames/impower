@@ -1,7 +1,5 @@
-import * as path from "path";
 import * as vscode from "vscode";
 import { StructureItem } from "../../../sparkdown";
-import { getDirectoryPath } from "../getDirectoryPath";
 import { parseState } from "../state/parseState";
 import { getEditor } from "../utils/getEditor";
 import { uiPersistence } from "../utils/persistence";
@@ -17,7 +15,13 @@ export class SparkdownOutlineTreeDataProvider
   treeView: vscode.TreeView<vscode.TreeItem> | undefined;
   private treeRoot: OutlineTreeItem | undefined;
 
+  context: vscode.ExtensionContext;
+
   uri: vscode.Uri | undefined;
+
+  constructor(context: vscode.ExtensionContext) {
+    this.context = context;
+  }
 
   getTreeItem(
     element: vscode.TreeItem
@@ -43,7 +47,7 @@ export class SparkdownOutlineTreeDataProvider
   }
   update(uri?: vscode.Uri): void {
     this.uri = uri;
-    this.treeRoot = buildTree(this.uri);
+    this.treeRoot = buildTree(this.context, this.uri);
     this.onDidChangeTreeDataEmitter.fire(null);
   }
   reveal(uri?: vscode.Uri): void {
@@ -74,7 +78,10 @@ export class SparkdownOutlineTreeDataProvider
   }
 }
 
-const buildTree = (uri?: vscode.Uri): OutlineTreeItem => {
+const buildTree = (
+  context: vscode.ExtensionContext,
+  uri?: vscode.Uri
+): OutlineTreeItem => {
   const root = new OutlineTreeItem();
   const editor = getEditor(uri);
   const result = editor
@@ -90,7 +97,9 @@ const buildTree = (uri?: vscode.Uri): OutlineTreeItem => {
   }
   // done this way to take care of root-level synopsis and notes
   root.children.push(
-    ...structure.map((token) => makeTreeItem(token, root) as OutlineTreeItem)
+    ...structure.map(
+      (token) => makeTreeItem(token, root, context) as OutlineTreeItem
+    )
   );
   root.children = root.children.sort((a, b) => a.lineNumber - b.lineNumber);
   return root;
@@ -98,21 +107,22 @@ const buildTree = (uri?: vscode.Uri): OutlineTreeItem => {
 
 const makeTreeItem = (
   token: StructureItem,
-  parent: OutlineTreeItem
+  parent: OutlineTreeItem,
+  context: vscode.ExtensionContext
 ): OutlineTreeItem | undefined => {
   let item: OutlineTreeItem;
   switch (token.type) {
     case "section":
-      item = new SectionTreeItem(token, parent);
+      item = new SectionTreeItem(token, parent, context);
       break;
     case "scene":
-      item = new SceneTreeItem(token, parent);
+      item = new SceneTreeItem(token, parent, context);
       break;
     case "synopsis":
-      item = new SynopsisTreeItem(token, parent);
+      item = new SynopsisTreeItem(token, parent, context);
       break;
     default:
-      item = new SceneTreeItem(token, parent);
+      item = new SceneTreeItem(token, parent, context);
       break;
   }
 
@@ -126,13 +136,15 @@ const makeTreeItem = (
     if (passthrough) {
       parent.children.push(
         ...token.children.map(
-          (tok: StructureItem) => makeTreeItem(tok, parent) as OutlineTreeItem
+          (tok: StructureItem) =>
+            makeTreeItem(tok, parent, context) as OutlineTreeItem
         )
       );
     } else {
       item.children.push(
         ...token.children.map(
-          (tok: StructureItem) => makeTreeItem(tok, item) as OutlineTreeItem
+          (tok: StructureItem) =>
+            makeTreeItem(tok, item, context) as OutlineTreeItem
         )
       );
     }
@@ -190,29 +202,53 @@ class OutlineTreeItem extends vscode.TreeItem {
 }
 
 class SectionTreeItem extends OutlineTreeItem {
-  constructor(token: StructureItem, parent: OutlineTreeItem) {
+  constructor(
+    token: StructureItem,
+    parent: OutlineTreeItem,
+    context: vscode.ExtensionContext
+  ) {
     super(token.text, token.id, parent);
     const sectionDepth = Math.min((token.id.match(/\//g) || []).length, 5); //maximum depth is 5 - anything deeper is the same color as 5
     const iconFileName = `section${sectionDepth}.svg`;
-    this.iconPath = path.join(getDirectoryPath(), "data", iconFileName);
+    this.iconPath = vscode.Uri.joinPath(
+      context.extensionUri,
+      "data",
+      iconFileName
+    );
     this.tooltip = token.tooltip;
   }
 }
 
 class SceneTreeItem extends OutlineTreeItem {
-  constructor(token: StructureItem, parent: OutlineTreeItem) {
+  constructor(
+    token: StructureItem,
+    parent: OutlineTreeItem,
+    context: vscode.ExtensionContext
+  ) {
     super(token.text, token.id, parent);
     const iconFileName = `scene.svg`;
-    this.iconPath = path.join(getDirectoryPath(), "data", iconFileName);
+    this.iconPath = vscode.Uri.joinPath(
+      context.extensionUri,
+      "data",
+      iconFileName
+    );
     this.tooltip = token.tooltip;
   }
 }
 
 class SynopsisTreeItem extends OutlineTreeItem {
-  constructor(token: StructureItem, parent: OutlineTreeItem) {
+  constructor(
+    token: StructureItem,
+    parent: OutlineTreeItem,
+    context: vscode.ExtensionContext
+  ) {
     super("", token.id, parent);
     const iconFileName = `synopsis.svg`;
-    this.iconPath = path.join(getDirectoryPath(), "data", iconFileName);
+    this.iconPath = vscode.Uri.joinPath(
+      context.extensionUri,
+      "data",
+      iconFileName
+    );
     this.tooltip = token.tooltip;
     this.description = token.text;
   }

@@ -1,7 +1,4 @@
-import * as fs from "fs";
-import * as path from "path";
 import * as vscode from "vscode";
-import { getDirectoryPath } from "../getDirectoryPath";
 import { diagnosticState } from "../state/diagnosticState";
 import { editorState } from "../state/editorState";
 import { parseState } from "../state/parseState";
@@ -14,13 +11,13 @@ import { getVisibleLine } from "./getVisibleLine";
 import { updateAssets } from "./updateAssets";
 import { watchFiles } from "./watchFiles";
 
-export const loadWebView = (
+export const loadWebView = async (
   type: "screenplay" | "game",
-  extension: vscode.Extension<unknown>,
+  context: vscode.ExtensionContext,
   uri: vscode.Uri,
   panel: vscode.WebviewPanel,
   dynamic: boolean
-): void => {
+): Promise<void> => {
   const id = Date.now() + Math.floor(Math.random() * 1000);
   previewState[type].push({
     uri: uri.toString(),
@@ -31,8 +28,8 @@ export const loadWebView = (
 
   if (panel) {
     panel.iconPath = {
-      light: vscode.Uri.joinPath(extension.extensionUri, "icon-lang.svg"),
-      dark: vscode.Uri.joinPath(extension.extensionUri, "icon-lang.svg"),
+      light: vscode.Uri.joinPath(context.extensionUri, "icon-lang.svg"),
+      dark: vscode.Uri.joinPath(context.extensionUri, "icon-lang.svg"),
     };
   }
   panel.webview.onDidReceiveMessage(async (message) => {
@@ -138,24 +135,23 @@ export const loadWebView = (
     removePreviewPanel(type, id);
   });
 
-  const htmlPath = path.join(
-    getDirectoryPath(),
+  const htmlUri = vscode.Uri.joinPath(
+    context.extensionUri,
     "webviews",
     `${type}-preview.html`
   );
-  const previewJsPath = path.join(
-    getDirectoryPath(),
+  const previewJsUri = vscode.Uri.joinPath(
+    context.extensionUri,
     "webviews",
     `${type}-preview.bundle.js`
   );
 
-  const webviewHtml = fs.readFileSync(htmlPath, "utf8");
+  const webviewHtml =
+    Buffer.from(await vscode.workspace.fs.readFile(htmlUri)).toString() || "";
   const rootUriPath = panel.webview
-    .asWebviewUri(vscode.Uri.file(getDirectoryPath()))
+    .asWebviewUri(context.extensionUri)
     .toString();
-  const previewJsUriPath = panel.webview
-    .asWebviewUri(vscode.Uri.file(previewJsPath))
-    .toString();
+  const previewJsUriPath = panel.webview.asWebviewUri(previewJsUri).toString();
 
   panel.webview.html = webviewHtml
     .replace(/\$ROOTDIR\$/g, rootUriPath)

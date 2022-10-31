@@ -14,6 +14,7 @@ import {
 
 //Creates the PDF, or returns stats if output path is "$STATS$"
 export const createPdf = async (
+  context: vscode.ExtensionContext,
   outputPath: string,
   screenplayConfig: SparkScreenplayConfig,
   parsedDocument: SparkParseResult,
@@ -138,8 +139,8 @@ export const createPdf = async (
   };
 
   if (outputPath === "$STATS$") {
-    return generatePdfStats(pdfOptions);
+    return generatePdfStats(context, pdfOptions);
   } else {
-    generatePdf(pdfOptions, progress);
+    generatePdf(context, pdfOptions, progress);
   }
 };

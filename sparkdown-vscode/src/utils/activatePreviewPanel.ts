@@ -21,19 +21,19 @@ export const activatePreviewPanel = (
         return;
       }
       // Create and show a new dynamic webview for the active text editor
-      createPreviewPanel(type, context.extension, editor, true);
+      createPreviewPanel(type, context, editor, true);
     })
   );
   if (type === "screenplay") {
     vscode.window.registerWebviewPanelSerializer(
       `sparkdown-preview-screenplay`,
-      new SparkdownPreviewScreenplayPanelSerializer(context.extension)
+      new SparkdownPreviewScreenplayPanelSerializer(context)
     );
   }
   if (type === "game") {
     vscode.window.registerWebviewPanelSerializer(
       `sparkdown-preview-game`,
-      new SparkdownPreviewGamePanelSerializer(context.extension)
+      new SparkdownPreviewGamePanelSerializer(context)
     );
   }
 };

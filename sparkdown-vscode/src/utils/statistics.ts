@@ -1,3 +1,4 @@
+import * as vscode from "vscode";
 import { SparkScreenplayConfig } from "../../../spark-screenplay";
 import {
   calculateSpeechDuration,
@@ -425,11 +426,13 @@ const createDurationStatistics = (
 };
 
 export const retrieveScreenPlayStatistics = async (
+  context: vscode.ExtensionContext,
   script: string,
   parsed: SparkParseResult,
   screenplayConfig: SparkScreenplayConfig
 ): Promise<ScreenPlayStatistics> => {
   const pdfStats = (await createPdf(
+    context,
     "$STATS$",
     screenplayConfig,
     parsed,

@@ -1,4 +1,3 @@
-import { list } from "font-finder";
 import * as vscode from "vscode";
 import {
   getCharactersWhoSpokeBeforeLine,
@@ -6,14 +5,6 @@ import {
 } from "../../../sparkdown";
 import { parseState } from "../state/parseState";
 import { addForceSymbolToCharacter } from "../utils/addForceSymbolToCharacter";
-
-let fontNames: string[];
-
-//Load fonts for autocomplete
-(async () => {
-  const fontlist = await list();
-  fontNames = Object.keys(fontlist);
-})();
 
 function TimeofDayCompletion(
   input: string,
@@ -136,9 +127,6 @@ export class SparkdownCompletionProvider
     position: vscode.Position /* token: CancellationToken, context: CompletionContext*/
   ): vscode.CompletionItem[] {
     const parsedDocument = parseState.parsedDocuments[document.uri.toString()];
-    if (!parsedDocument) {
-      return [];
-    }
     const completes: vscode.CompletionItem[] = [];
     const currentLine = document.getText(
       new vscode.Range(new vscode.Position(position.line, 0), position)
@@ -152,9 +140,13 @@ export class SparkdownCompletionProvider
       Object.keys(parsedDocument?.properties?.characters || {}).length > 0;
     const currentLineIsEmpty = currentLine === "";
     const previousLineIsEmpty = prevLine === "";
+    const firstScriptLine = parsedDocument?.properties?.firstTokenLine;
 
     //Title page autocomplete
-    if ((parsedDocument?.properties?.firstTokenLine || 0) >= position.line) {
+    if (
+      firstScriptLine === undefined ||
+      (firstScriptLine || 0) >= position.line
+    ) {
       if (currentLine.indexOf(":") === -1) {
         if (!parsedDocument?.titleTokens?.["title"]) {
           completes.push(
@@ -471,14 +463,6 @@ export class SparkdownCompletionProvider
             label: "(c)" + new Date().getFullYear() + " ",
             kind: vscode.CompletionItemKind.Text,
           });
-        } else if (currentKey === "font:") {
-          fontNames.forEach((fontname: string) => {
-            completes.push({
-              label: fontname,
-              insertText: fontname + "\n",
-              kind: vscode.CompletionItemKind.Text,
-            });
-          });
         }
       }
     }
@@ -551,7 +535,7 @@ export class SparkdownCompletionProvider
 			}*/
       let charactersWhoSpokeBeforeLast = undefined;
       const charactersFromCurrentSceneHash = new Set();
-      if (hasCharacters) {
+      if (parsedDocument && hasCharacters) {
         // The characters who spoke before the last one, within the current scene
         charactersWhoSpokeBeforeLast = getCharactersWhoSpokeBeforeLine(
           parsedDocument,

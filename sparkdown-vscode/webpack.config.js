@@ -18,7 +18,7 @@ const CopyPlugin = require("copy-webpack-plugin");
 /** @type WebpackConfig */
 const webExtensionConfig = {
   mode: "none", // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
-  target: "node",
+  target: "webworker",
   node: {
     __dirname: false, // leave the __dirname-behaviour intact
   },
@@ -43,6 +43,13 @@ const webExtensionConfig = {
       // see https://webpack.js.org/configuration/resolve/#resolvefallback
       // for the list of Node.js core module polyfills.
       assert: require.resolve("assert"),
+      os: require.resolve('os-browserify/browser'),
+      path: require.resolve('path-browserify'),
+      stream: require.resolve("stream-browserify"),
+      zlib: require.resolve("browserify-zlib"),
+      buffer: require.resolve("buffer"),
+      fs: false,
+      child_process: false,
     },
   },
   module: {
@@ -61,6 +68,9 @@ const webExtensionConfig = {
   plugins: [
     new webpack.optimize.LimitChunkCountPlugin({
       maxChunks: 1, // disable chunks by default since web extensions must be a single bundle
+    }),
+    new webpack.ProvidePlugin({
+      Buffer: ['buffer', 'Buffer'],
     }),
     new webpack.ProvidePlugin({
       process: "process/browser", // provide a shim for the global `process` variable

@@ -1,4 +1,4 @@
-import path from "path";
+import * as path from "path";
 import * as vscode from "vscode";
 import { SparkVariable } from "../../../sparkdown";
 import { assetExts, audioExts, imageExts } from "../constants/extensions";

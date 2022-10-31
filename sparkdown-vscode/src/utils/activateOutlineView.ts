@@ -1,10 +1,17 @@
 import * as vscode from "vscode";
+import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineTreeDataProvider";
 import { SparkdownSymbolProvider } from "../providers/Symbols";
-import { outlineViewProvider } from "../state/outlineViewProvider";
+import { outlineViewProviderState } from "../state/outlineViewProviderState";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { changeSparkdownUIPersistence, uiPersistence } from "./persistence";
 
 export const activateOutlineView = (context: vscode.ExtensionContext): void => {
+  if (!outlineViewProviderState.provider) {
+    outlineViewProviderState.provider = new SparkdownOutlineTreeDataProvider(
+      context
+    );
+  }
+  const outlineViewProvider = outlineViewProviderState.provider;
   // Register Outline view
   vscode.window.registerTreeDataProvider(
     "sparkdown-outline",

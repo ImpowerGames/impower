@@ -1,11 +1,9 @@
-import * as fs from "fs";
-import * as path from "path";
+import * as vscode from "vscode";
 import {
   generateSparkScriptHtml,
   generateSparkTitleHtml,
 } from "../../../spark-screenplay";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
-import { getDirectoryPath } from "../getDirectoryPath";
 import { fileToBase64 } from "./fileToBase64";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
@@ -13,7 +11,9 @@ import { getSparkdownConfig } from "./getSparkdownConfig";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
 import { writeFile } from "./writeFile";
 
-export const exportHtml = async (): Promise<void> => {
+export const exportHtml = async (
+  context: vscode.ExtensionContext
+): Promise<void> => {
   const uri = getActiveSparkdownDocument();
   if (!uri) {
     return;
@@ -31,8 +31,13 @@ export const exportHtml = async (): Promise<void> => {
 
   const config = getSparkdownConfig(uri);
 
-  const htmlPath = path.join(getDirectoryPath(), "data", "staticexport.html");
-  let rawHtml = fs.readFileSync(htmlPath, "utf8");
+  const htmlUri = vscode.Uri.joinPath(
+    context.extensionUri,
+    "data",
+    "staticexport.html"
+  );
+  let rawHtml: string =
+    Buffer.from(await vscode.workspace.fs.readFile(htmlUri)).toString() || "";
 
   if (process.platform !== "win32") {
     rawHtml = rawHtml.replace(/\r\n/g, "\n");
@@ -49,18 +54,35 @@ export const exportHtml = async (): Promise<void> => {
 
   rawHtml = rawHtml.replace("$SCRIPTCLASS$", pageClasses);
 
-  const courierPrimeB64 = fileToBase64(
-    path.join(getDirectoryPath(), "data", "courier-prime.ttf")
-  );
-  const courierPrimeB64_bold = fileToBase64(
-    path.join(getDirectoryPath(), "data", "courier-prime-bold.ttf")
-  );
-  const courierPrimeB64_italic = fileToBase64(
-    path.join(getDirectoryPath(), "data", "courier-prime-italic.ttf")
-  );
-  const courierPrimeB64_bolditalic = fileToBase64(
-    path.join(getDirectoryPath(), "data", "courier-prime-bold-italic.ttf")
-  );
+  const courierPrimeB64 =
+    fileToBase64(
+      vscode.Uri.joinPath(context.extensionUri, "data", "courier-prime.ttf")
+        ?.fsPath
+    ) || "";
+  const courierPrimeB64_bold =
+    fileToBase64(
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "data",
+        "courier-prime-bold.ttf"
+      )?.fsPath
+    ) || "";
+  const courierPrimeB64_italic =
+    fileToBase64(
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "data",
+        "courier-prime-italic.ttf"
+      )?.fsPath
+    ) || "";
+  const courierPrimeB64_bolditalic =
+    fileToBase64(
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "data",
+        "courier-prime-bold-italic.ttf"
+      )?.fsPath
+    ) || "";
 
   rawHtml = rawHtml
     .replace("$COURIERPRIME$", courierPrimeB64)

@@ -360,7 +360,7 @@ export class Compiler {
     const input = val.content.slice(1, -1);
     const [result, diagnostics] = this.config?.formatter?.(input, context) || [
       input,
-      [],
+      [] as CompilerDiagnostic[],
     ];
     diagnostics.forEach((d) => {
       this._diagnostics.push({

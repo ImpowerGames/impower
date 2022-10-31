@@ -1,15 +1,15 @@
-import path from "path";
+import * as path from "path";
 import * as vscode from "vscode";
 import { capitalize } from "./capitalize";
 import { getPreviewPanels } from "./getPreviewPanels";
 import { loadWebView } from "./loadWebview";
 
-export const createPreviewPanel = (
+export const createPreviewPanel = async (
   type: "screenplay" | "game",
-  extension: vscode.Extension<unknown>,
+  context: vscode.ExtensionContext,
   editor: vscode.TextEditor,
   dynamic: boolean
-): vscode.WebviewPanel | undefined => {
+): Promise<vscode.WebviewPanel | undefined> => {
   if (editor.document.languageId !== "sparkdown") {
     vscode.window.showErrorMessage(
       `You can only preview Sparkdown documents as a ${type}!`
@@ -43,6 +43,6 @@ export const createPreviewPanel = (
       { enableScripts: true, retainContextWhenHidden: true }
     );
   }
-  loadWebView(type, extension, editor.document.uri, preview, dynamic);
+  await loadWebView(type, context, editor.document.uri, preview, dynamic);
   return preview;
 };

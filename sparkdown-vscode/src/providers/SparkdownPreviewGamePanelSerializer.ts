@@ -33,7 +33,7 @@ vscode.window.onDidChangeTextEditorSelection((change) => {
 export class SparkdownPreviewGamePanelSerializer
   implements vscode.WebviewPanelSerializer
 {
-  constructor(private readonly _extension: vscode.Extension<unknown>) {}
+  constructor(private readonly _context: vscode.ExtensionContext) {}
 
   async deserializeWebviewPanel(
     webviewPanel: vscode.WebviewPanel,
@@ -41,7 +41,13 @@ export class SparkdownPreviewGamePanelSerializer
   ) {
     if (state) {
       const docuri = vscode.Uri.parse(state.docuri);
-      loadWebView("game", this._extension, docuri, webviewPanel, state.dynamic);
+      await loadWebView(
+        "game",
+        this._context,
+        docuri,
+        webviewPanel,
+        state.dynamic
+      );
     }
   }
 }

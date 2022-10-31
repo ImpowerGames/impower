@@ -6,7 +6,9 @@ import { getEditor } from "./getEditor";
 import { getSparkdownConfig } from "./getSparkdownConfig";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
 
-export const exportPdf = async (): Promise<void> => {
+export const exportPdf = async (
+  context: vscode.ExtensionContext
+): Promise<void> => {
   const canceled = false;
   if (canceled) {
     return;
@@ -38,7 +40,7 @@ export const exportPdf = async (): Promise<void> => {
     },
     async (progress) => {
       if (fsPath) {
-        createPdf(fsPath, config, result, progress);
+        createPdf(context, fsPath, config, result, progress);
       }
     }
   );

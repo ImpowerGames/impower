@@ -1,9 +1,7 @@
-import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { SparkScreenplayConfig } from "../../../spark-screenplay";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
-import { getDirectoryPath } from "../getDirectoryPath";
 import { getActiveSparkdownDocument } from "../utils/getActiveSparkdownDocument";
 import { getEditor } from "../utils/getEditor";
 import { getSparkdownConfig } from "../utils/getSparkdownConfig";
@@ -50,6 +48,7 @@ export function removeStatisticsPanel(id: number) {
 }
 
 export async function refreshPanel(
+  context: vscode.ExtensionContext,
   statspanel: vscode.WebviewPanel,
   document: vscode.TextDocument,
   config: SparkScreenplayConfig
@@ -61,6 +60,7 @@ export async function refreshPanel(
   });
   const parsed = ScreenplaySparkParser.instance.parse(document.getText());
   const stats = await retrieveScreenPlayStatistics(
+    context,
     document.getText(),
     parsed,
     config
@@ -73,7 +73,8 @@ export async function refreshPanel(
 }
 
 export function createStatisticsPanel(
-  editor: vscode.TextEditor
+  editor: vscode.TextEditor,
+  context: vscode.ExtensionContext
 ): vscode.WebviewPanel | undefined {
   if (editor.document.languageId !== "sparkdown") {
     vscode.window.showErrorMessage(
@@ -103,51 +104,47 @@ export function createStatisticsPanel(
       { enableScripts: true }
     );
   }
-  loadWebView(editor.document.uri, statsPanel);
+  loadWebView(editor.document.uri, statsPanel, context);
   return statsPanel;
 }
 
-const statsHtml = fs.readFileSync(
-  path.join(getDirectoryPath(), "webviews", "stats.html"),
-  "utf8"
-);
-
 async function loadWebView(
   docuri: vscode.Uri,
-  statspanel: vscode.WebviewPanel
+  statspanel: vscode.WebviewPanel,
+  context: vscode.ExtensionContext
 ) {
   const id = Date.now() + Math.floor(Math.random() * 1000);
   statsPanels.push({ uri: docuri.toString(), panel: statspanel, id: id });
 
-  const extensionPath = vscode.extensions.getExtension(
-    "impowergames.sparkdown"
-  )?.extensionPath;
-  if (!extensionPath) {
-    return;
-  }
+  const statsUri = vscode.Uri.joinPath(
+    context.extensionUri,
+    "webviews",
+    `stats.html`
+  );
+  const jsUri = vscode.Uri.joinPath(
+    context.extensionUri,
+    "webviews",
+    "stats.bundle.js"
+  );
 
-  const cssDiskPath = vscode.Uri.file(
+  const statsHtml =
+    Buffer.from(await vscode.workspace.fs.readFile(statsUri)).toString() || "";
+  const cssUri = vscode.Uri.file(
     path.join(
-      extensionPath,
+      context?.extensionPath,
       "node_modules",
       "vscode-codicons",
       "dist",
       "codicon.css"
     )
   );
-  const jsDiskPath = vscode.Uri.file(
-    path.join(getDirectoryPath(), "webviews", "stats.bundle.js")
-  );
 
   statspanel.webview.html = statsHtml
     .replace(
       "$CODICON_CSS$",
-      statspanel.webview.asWebviewUri(cssDiskPath).toString()
+      statspanel.webview.asWebviewUri(cssUri).toString()
     )
-    .replace(
-      "$STATSJS$",
-      statspanel.webview.asWebviewUri(jsDiskPath).toString()
-    );
+    .replace("$STATSJS$", statspanel.webview.asWebviewUri(jsUri).toString());
 
   const config = getSparkdownConfig(docuri);
   statspanel.webview.postMessage({
@@ -232,14 +229,14 @@ async function loadWebView(
       //save ui persistence
     }
     if (message.command === "refresh") {
-      refreshPanel(statspanel, activeEditor.document, activeConfig);
+      refreshPanel(context, statspanel, activeEditor.document, activeConfig);
     }
   });
   statspanel.onDidDispose(() => {
     removeStatisticsPanel(id);
   });
 
-  refreshPanel(statspanel, activeEditor.document, activeConfig);
+  refreshPanel(context, statspanel, activeEditor.document, activeConfig);
 }
 
 vscode.workspace.onDidChangeConfiguration((change) => {
@@ -290,6 +287,12 @@ vscode.window.onDidChangeTextEditorSelection((change) => {
 export class SparkdownStatsPanelSerializer
   implements vscode.WebviewPanelSerializer
 {
+  context: vscode.ExtensionContext;
+
+  constructor(context: vscode.ExtensionContext) {
+    this.context = context;
+  }
+
   async deserializeWebviewPanel(
     webviewPanel: vscode.WebviewPanel,
     state: { docuri: string }
@@ -303,7 +306,7 @@ export class SparkdownStatsPanelSerializer
 
     if (state) {
       const docuri = vscode.Uri.parse(state.docuri);
-      loadWebView(docuri, webviewPanel);
+      await loadWebView(docuri, webviewPanel, this.context);
     }
   }
 }

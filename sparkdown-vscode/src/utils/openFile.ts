@@ -1,5 +1,6 @@
+import * as os from "os";
+
 export function openFile(p: string) {
-  const os = require("os");
   const platform = os.platform();
   let cmd = "xdg-open";
   switch (platform) {
