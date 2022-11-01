@@ -12,7 +12,7 @@ import { activatePreviewPanel } from "./utils/activatePreviewPanel";
 import { getActiveSparkdownDocument } from "./utils/getActiveSparkdownDocument";
 import { getEditor } from "./utils/getEditor";
 import { getSparkdownConfig } from "./utils/getSparkdownConfig";
-import { parseDocument } from "./utils/parseDocument";
+import { parseSparkDocument } from "./utils/parseDocument";
 import { activateUIPersistence } from "./utils/persistence";
 import { registerTyping } from "./utils/registerTyping";
 import { updateAssets } from "./utils/updateAssets";
@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
   watchFiles(editor.document);
   updateAssets(editor.document);
-  parseDocument(editor.document);
+  parseSparkDocument(editor.document);
 }
 
 vscode.workspace.onDidChangeTextDocument((change) => {
@@ -48,7 +48,7 @@ vscode.workspace.onDidChangeTextDocument((change) => {
     change?.document?.languageId === "sparkdown" &&
     change?.contentChanges?.length > 0
   ) {
-    parseDocument(change.document);
+    parseSparkDocument(change.document);
     // updateStatisticsDocumentVersion(change.document.uri, change.document.version);
   }
 });
@@ -75,7 +75,7 @@ vscode.window.onDidChangeActiveTextEditor((editor) => {
   if (editor?.document?.languageId === "sparkdown") {
     watchFiles(editor.document);
     updateAssets(editor.document);
-    parseDocument(editor.document);
+    parseSparkDocument(editor.document);
   }
 });
 

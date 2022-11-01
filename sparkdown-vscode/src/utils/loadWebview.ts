@@ -5,7 +5,7 @@ import { parseState } from "../state/parseState";
 import { previewState } from "../state/previewState";
 import { getEditor } from "../utils/getEditor";
 import { getSparkdownConfig } from "../utils/getSparkdownConfig";
-import { parseDocument } from "../utils/parseDocument";
+import { parseSparkDocument } from "../utils/parseDocument";
 import { removePreviewPanel } from "../utils/removePreviewPanels";
 import { getVisibleLine } from "./getVisibleLine";
 import { updateAssets } from "./updateAssets";
@@ -178,7 +178,7 @@ export const loadWebView = async (
 
   watchFiles(editor.document);
   updateAssets(editor.document);
-  parseDocument(editor.document);
+  parseSparkDocument(editor.document);
 
   const syncedWithCursor =
     type === "game"

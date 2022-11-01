@@ -7,8 +7,8 @@ import { updateOutline } from "./updateOutline";
 import { updateScreenplayPreviews } from "./updateScreenplayPreviews";
 import { updateStatus } from "./updateStatus";
 
-export const parseDocument = (document: vscode.TextDocument) => {
-  performance.mark("parseDocument-start");
+export const parseSparkDocument = (document: vscode.TextDocument) => {
+  performance.mark("parseSparkDocument-start");
   const output = GameSparkParser.instance.parse(document.getText(), {
     augmentations: { variables: fileState[document.uri.toString()]?.assets },
   });
@@ -21,10 +21,10 @@ export const parseDocument = (document: vscode.TextDocument) => {
     output.properties?.actionDuration || 0,
     output.properties?.dialogueDuration || 0
   );
-  performance.mark("parseDocument-end");
+  performance.mark("parseSparkDocument-end");
   performance.measure(
-    "parseDocument",
-    "parseDocument-start",
-    "parseDocument-end"
+    "parseSparkDocument",
+    "parseSparkDocument-start",
+    "parseSparkDocument-end"
   );
 };
