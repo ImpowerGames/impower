@@ -3117,8 +3117,8 @@ export const parseSpark = (
         i !== lines.length &&
         i !== lines.length - 1 &&
         (lines[i + 1]?.trim().length === 0 ? lines[i + 1] === "  " : true) &&
-        lines[i]?.match(/^([ \t]*)/)?.[0]?.length ===
-          lines[i + 1]?.match(/^([ \t]*)/)?.[0]?.length
+        lines[i]?.match(sparkRegexes.indent)?.[0]?.length ===
+          lines[i + 1]?.match(sparkRegexes.indent)?.[0]?.length
       ) {
         // The last part of the above statement ('(lines[i + 1].trim().length == 0) ? (lines[i+1] == "  ") : false)')
         // means that if the trimmed length of the following line (i+1) is equal to zero, the statement will only return 'true',
@@ -3394,7 +3394,7 @@ export const parseSpark = (
         if (!line) {
           break;
         }
-        const indentMatch = line?.match(/^([ \t]*)/);
+        const indentMatch = line?.match(sparkRegexes.indent);
         const indentText = indentMatch?.[0] || "";
         const offset = indentText.length;
         const indent = Math.floor(offset / 2);

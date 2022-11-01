@@ -1,3 +1,4 @@
+import { sparkRegexes } from "../constants/sparkRegexes";
 import { SparkTokenTypeMap } from "../types/SparkTokenTypeMap";
 import { createSparkLine } from "./createSparkLine";
 import { getTo } from "./getTo";
@@ -21,7 +22,7 @@ export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
       : {}),
   } as unknown as SparkTokenTypeMap[K];
   if (obj?.content) {
-    const indentMatch = obj.content.match(/^([ \t]*)/);
+    const indentMatch = obj.content.match(sparkRegexes.indent);
     const indent = indentMatch?.[0] || "";
     const offset = indent.length;
     t.offset = offset;
