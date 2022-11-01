@@ -10,22 +10,26 @@ export class SparkdownCheatSheetWebviewViewProvider
       localResourceRoots: [this._extensionUri],
     };
 
-    const cssDiskPath = vscode.Uri.joinPath(
-      this._extensionUri,
-      "out",
-      "webviews",
-      "cheatsheet.css"
-    );
-    const styleUri = webviewView.webview.asWebviewUri(cssDiskPath).toString();
-    const codiconDiskPath = vscode.Uri.joinPath(
-      this._extensionUri,
-      "node_modules",
-      "vscode-codicons",
-      "dist",
-      "codicon.css"
-    );
+    const styleUri = webviewView.webview
+      .asWebviewUri(
+        vscode.Uri.joinPath(
+          this._extensionUri,
+          "out",
+          "webviews",
+          "cheatsheet.css"
+        )
+      )
+      .toString();
     const codiconUri = webviewView.webview
-      .asWebviewUri(codiconDiskPath)
+      .asWebviewUri(
+        vscode.Uri.joinPath(
+          this._extensionUri,
+          "node_modules",
+          "vscode-codicons",
+          "dist",
+          "codicon.css"
+        )
+      )
       .toString();
 
     const fontUri = webviewView.webview
@@ -69,13 +73,18 @@ export class SparkdownCheatSheetWebviewViewProvider
       )
       .toString();
 
+    const cspSource = webviewView.webview.cspSource;
+
     webviewView.webview.html = `<!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${
-              webviewView.webview.cspSource
-            } 'unsafe-inline'; font-src https://* file://*">
+            <meta http-equiv="Content-Security-Policy" content="
+              default-src 'none';
+              style-src ${cspSource} 'unsafe-inline';
+              img-src ${cspSource} https: http: data:;
+              font-src ${cspSource} https:;
+            ">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             
            
