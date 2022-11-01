@@ -1659,10 +1659,10 @@
       "match": "^([ \t]*)([.](?![. ])|INT[.][ ]+|EXT[.][ ]+|INT[.]?/EXT[.][ ]+)($|(?:[^\n\r-]|[^ \t\n\r][-])*[^ \t\n\r])($|[ ]+)($|[-])($|[ ]+)($|[^\n\r#]*[^ \t\n\r])($|[ ]+)($|[#])($|[^\n\r#]+)($|[#])?([ ]*)",
       "captures": {
         "2": {
-          "name": "keyword.other.class.sd"
+          "name": "variable.other.constant.sd"
         },
         "3": {
-          "name": "keyword.other.class.sd",
+          "name": "variable.other.constant.sd",
           "patterns": [
             {
               "include": "#comment"
@@ -1670,10 +1670,10 @@
           ]
         },
         "5": {
-          "name": "keyword.other.class.sd"
+          "name": "variable.other.constant.sd"
         },
         "7": {
-          "name": "keyword.other.class.sd",
+          "name": "variable.other.constant.sd",
           "patterns": [
             {
               "include": "#comment"
@@ -1781,7 +1781,7 @@
           "name": "constant.character.escape.sd"
         },
         "8": {
-          "name": "variable.other.sd"
+          "name": "constant.character.escape.sd"
         },
         "9": {
           "name": "constant.character.escape.sd"
