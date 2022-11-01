@@ -9,17 +9,17 @@ export const getScopedValueContext = <
   }
 >(
   sectionId: string,
-  sections: Record<string, T>
+  sections?: Record<string, T>
 ): [Record<string, string>, Record<string, unknown>] => {
   const [sectionIds, sectionValues] = getScopedContext(
+    "sections",
     sectionId,
-    sections,
-    "sections"
+    sections
   );
   const [variableIds, variableValues] = getScopedContext(
+    "variables",
     sectionId,
-    sections,
-    "variables"
+    sections
   );
   return [
     { ...sectionIds, ...variableIds },

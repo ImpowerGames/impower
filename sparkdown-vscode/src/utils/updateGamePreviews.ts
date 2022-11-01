@@ -5,10 +5,11 @@ import { parseState } from "../state/parseState";
 import { getPreviewPanelsToUpdate } from "./getPreviewPanelsToUpdate";
 
 export const updateGamePreviews = (doc: vscode.TextDocument) => {
+  performance.mark("updateGamePreviews-start");
   const uri = doc.uri;
   const result = parseState.parsedDocuments[uri.toString()];
   const gamePreviewsToUpdate = getPreviewPanelsToUpdate("game", uri);
-  if (gamePreviewsToUpdate) {
+  if (result && gamePreviewsToUpdate && gamePreviewsToUpdate?.length > 0) {
     for (let i = 0; i < gamePreviewsToUpdate.length; i++) {
       const preview = gamePreviewsToUpdate[i];
       if (preview) {
@@ -24,7 +25,7 @@ export const updateGamePreviews = (doc: vscode.TextDocument) => {
           }
         });
         preview.panel.webview.postMessage({
-          command: "updateParsedJson",
+          command: "sparkdown.updateParsedJson",
           content: JSON.stringify(
             GameSparkParser.instance.parse(doc.getText(), {
               augmentations: { variables },
@@ -34,11 +35,17 @@ export const updateGamePreviews = (doc: vscode.TextDocument) => {
         if (preview.dynamic) {
           preview.uri = uri.toString();
           preview.panel.webview.postMessage({
-            command: "setstate",
+            command: "sparkdown.setstate",
             uri: preview.uri,
           });
         }
       }
     }
+    performance.mark("updateGamePreviews-end");
+    performance.measure(
+      "updateGamePreviews",
+      "updateGamePreviews-start",
+      "updateGamePreviews-end"
+    );
   }
 };

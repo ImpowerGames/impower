@@ -8,8 +8,7 @@ import { updateScreenplayPreviews } from "./updateScreenplayPreviews";
 import { updateStatus } from "./updateStatus";
 
 export const parseDocument = (document: vscode.TextDocument) => {
-  const mark = performance.mark("parseDocument-start");
-  console.warn("parseDocument", mark);
+  performance.mark("parseDocument-start");
   const output = GameSparkParser.instance.parse(document.getText(), {
     augmentations: { variables: fileState[document.uri.toString()]?.assets },
   });

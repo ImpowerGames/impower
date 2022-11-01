@@ -351,18 +351,27 @@ const initDoc = async (context: vscode.ExtensionContext, opts: PdfOptions) => {
   //Load Courier Prime by default, and replace the variants if requested and available
   doc.registerFont(
     "ScriptNormal",
-    vscode.Uri.joinPath(context.extensionUri, "data", "courier-prime.ttf")
-      ?.fsPath
+    vscode.Uri.joinPath(
+      context.extensionUri,
+      "out",
+      "data",
+      "courier-prime.ttf"
+    )?.fsPath
   );
   doc.registerFont(
     "ScriptBold",
-    vscode.Uri.joinPath(context.extensionUri, "data", "courier-prime-bold.ttf")
-      ?.fsPath
+    vscode.Uri.joinPath(
+      context.extensionUri,
+      "out",
+      "data",
+      "courier-prime-bold.ttf"
+    )?.fsPath
   );
   doc.registerFont(
     "ScriptBoldOblique",
     vscode.Uri.joinPath(
       context.extensionUri,
+      "out",
       "data",
       "courier-prime-bold-italic.ttf"
     )?.fsPath
@@ -371,6 +380,7 @@ const initDoc = async (context: vscode.ExtensionContext, opts: PdfOptions) => {
     "ScriptOblique",
     vscode.Uri.joinPath(
       context.extensionUri,
+      "out",
       "data",
       "courier-prime-italic.ttf"
     )?.fsPath

@@ -13,6 +13,7 @@ import {
   SparkReturnToken,
   SparkSceneToken,
   SparkSectionToken,
+  SparkStructFieldToken,
   SparkStructToken,
   SparkToken,
   SparkTransitionToken,
@@ -59,6 +60,12 @@ export interface SparkTokenTypeMap {
   ui: SparkStructToken;
   style: SparkStructToken;
   config: SparkStructToken;
+  camera: SparkStructToken;
+  entity: SparkStructToken;
+
+  struct_object_field: SparkStructFieldToken;
+  struct_value_field: SparkStructFieldToken;
+  struct_list_value: SparkStructFieldToken;
 
   centered: SparkCenteredToken;
   variable: SparkVariableToken;

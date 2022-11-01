@@ -9,7 +9,7 @@ export * from "./src/defaults/defaultCompiler";
 export * from "./src/defaults/defaultDisplayScript";
 export * from "./src/defaults/defaultFormatter";
 export * from "./src/types/MethodType";
-export * from "./src/types/ScreenplayProperties";
+export * from "./src/types/SparkProperties";
 export * from "./src/types/SparkDeclarations";
 export * from "./src/types/SparkDiagnostic";
 export * from "./src/types/SparkLine";

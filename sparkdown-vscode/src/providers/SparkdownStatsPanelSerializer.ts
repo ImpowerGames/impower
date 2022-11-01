@@ -1,7 +1,7 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { SparkScreenplayConfig } from "../../../spark-screenplay";
-import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
+import { parseState } from "../state/parseState";
 import { getActiveSparkdownDocument } from "../utils/getActiveSparkdownDocument";
 import { getEditor } from "../utils/getEditor";
 import { getSparkdownConfig } from "../utils/getSparkdownConfig";
@@ -32,7 +32,7 @@ export function updateStatisticsDocumentVersion(
 ) {
   for (const panel of getStatisticsPanels(docuri)) {
     panel.panel.webview.postMessage({
-      command: "updateversion",
+      command: "sparkdown.updateversion",
       version: version,
     });
   }
@@ -54,22 +54,24 @@ export async function refreshPanel(
   config: SparkScreenplayConfig
 ) {
   statspanel.webview.postMessage({
-    command: "updateversion",
+    command: "sparkdown.updateversion",
     version: document.version,
     loading: true,
   });
-  const parsed = ScreenplaySparkParser.instance.parse(document.getText());
-  const stats = await retrieveScreenPlayStatistics(
-    context,
-    document.getText(),
-    parsed,
-    config
-  );
-  statspanel.webview.postMessage({
-    command: "updateStats",
-    content: stats,
-    version: document.version,
-  });
+  const parsed = parseState.parsedDocuments[document.uri.toString()];
+  if (parsed) {
+    const stats = await retrieveScreenPlayStatistics(
+      context,
+      document.getText(),
+      parsed,
+      config
+    );
+    statspanel.webview.postMessage({
+      command: "sparkdown.updateStats",
+      content: stats,
+      version: document.version,
+    });
+  }
 }
 
 export function createStatisticsPanel(
@@ -118,11 +120,13 @@ async function loadWebView(
 
   const statsUri = vscode.Uri.joinPath(
     context.extensionUri,
+    "out",
     "webviews",
     `stats.html`
   );
   const jsUri = vscode.Uri.joinPath(
     context.extensionUri,
+    "out",
     "webviews",
     "stats.bundle.js"
   );
@@ -148,10 +152,13 @@ async function loadWebView(
 
   const config = getSparkdownConfig(docuri);
   statspanel.webview.postMessage({
-    command: "setstate",
+    command: "sparkdown.setstate",
     uri: docuri.toString(),
   });
-  statspanel.webview.postMessage({ command: "updateconfig", content: config });
+  statspanel.webview.postMessage({
+    command: "sparkdown.updateconfig",
+    content: config,
+  });
 
   const activeUri = getActiveSparkdownDocument();
   if (!activeUri) {
@@ -169,7 +176,7 @@ async function loadWebView(
   }
 
   statspanel.webview.onDidReceiveMessage(async (message) => {
-    if (message.command === "revealLine") {
+    if (message.command === "sparkdown.revealLine") {
       const sourceLine = message.content;
       let editor = getEditor(vscode.Uri.parse(message.uri));
       if (editor === undefined) {
@@ -195,7 +202,7 @@ async function loadWebView(
         );
       }
     }
-    if (message.command === "selectLines") {
+    if (message.command === "sparkdown.selectLines") {
       const startline = Math.floor(message.content.start);
       const endline = Math.floor(message.content.end);
       let editor = getEditor(vscode.Uri.parse(message.uri));
@@ -225,10 +232,10 @@ async function loadWebView(
         vscode.window.showTextDocument(editor.document);
       }
     }
-    if (message.command === "saveUiPersistence") {
+    if (message.command === "sparkdown.saveUiPersistence") {
       //save ui persistence
     }
-    if (message.command === "refresh") {
+    if (message.command === "sparkdown.refresh") {
       refreshPanel(context, statspanel, activeEditor.document, activeConfig);
     }
   });
@@ -243,8 +250,14 @@ vscode.workspace.onDidChangeConfiguration((change) => {
   if (change.affectsConfiguration("sparkdown")) {
     statsPanels.forEach((p) => {
       const config = getSparkdownConfig(vscode.Uri.parse(p.uri));
-      p.panel.webview.postMessage({ command: "updateconfig", content: config });
-      p.panel.webview.postMessage({ command: "updateversion", version: -1 });
+      p.panel.webview.postMessage({
+        command: "sparkdown.updateconfig",
+        content: config,
+      });
+      p.panel.webview.postMessage({
+        command: "sparkdown.updateversion",
+        version: -1,
+      });
     });
   }
 });
@@ -261,7 +274,7 @@ vscode.window.onDidChangeTextEditorSelection((change) => {
           if (selection.active.line !== previousCaretLine) {
             previousCaretLine = selection.active.line;
             p.panel.webview.postMessage({
-              command: "updatecaret",
+              command: "sparkdown.updatecaret",
               content: selection.active.line,
               linescount: change.textEditor.document.lineCount,
               source: "click",
@@ -274,7 +287,7 @@ vscode.window.onDidChangeTextEditorSelection((change) => {
             previousSelectionStart = selection.start.line;
             previousSelectionEnd = selection.end.line;
             p.panel.webview.postMessage({
-              command: "updateselection",
+              command: "sparkdown.updateselection",
               content: { start: selection.start.line, end: selection.end.line },
             });
           }

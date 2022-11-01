@@ -146,13 +146,13 @@ if (previousState != undefined) {
 }
 
 window.addEventListener("message", (event) => {
-  if (event.data.command == "updateScript") {
+  if (event.data.command === "sparkdown.updateScript") {
     state.screenplay_html = event.data.content;
     applyHtml();
-  } else if (event.data.command == "updateTitle") {
+  } else if (event.data.command === "sparkdown.updateTitle") {
     state.title_html = event.data.content;
     applyHtml();
-  } else if (event.data.command == "updateFont") {
+  } else if (event.data.command === "sparkdown.updateFont") {
     var pages = document.getElementsByClassName("page");
     for (var index in pages) {
       if (pages[index].style) {
@@ -160,25 +160,25 @@ window.addEventListener("message", (event) => {
       }
     }
     vscode.postMessage({
-      command: "updateFontResult",
+      command: "sparkdown.updateFontResult",
       content: FontDetect.isFontLoaded(event.data.content),
       uri: state.docuri,
     });
-  } else if (event.data.command == "removeFont") {
+  } else if (event.data.command === "sparkdown.removeFont") {
     var pages = document.getElementsByClassName("page");
     for (var index in pages) {
       pages[index].style.fontFamily = "";
     }
-  } else if (event.data.command == "updateconfig") {
+  } else if (event.data.command === "sparkdown.updateconfig") {
     sparkdownconfig = event.data.content;
     applyConfig();
-  } else if (event.data.command == "showsourceline") {
+  } else if (event.data.command === "sparkdown.showsourceline") {
     scrollToRevealSourceLine(
       event.data.content,
       event.data.linescount,
       event.data.source
     );
-  } else if (event.data.command == "setstate") {
+  } else if (event.data.command === "sparkdown.setstate") {
     if (event.data.uri !== undefined) {
       state.docuri = event.data.uri;
     }
@@ -186,7 +186,7 @@ window.addEventListener("message", (event) => {
       state.dynamic = event.data.dynamic;
     }
     vscode.setState(state);
-  } else if (event.data.command == "highlightline") {
+  } else if (event.data.command === "sparkdown.highlightline") {
     let { previous, next, exact } = getLineElementsAtPageOffset(
       event.data.content
     );
@@ -404,7 +404,7 @@ window.addEventListener(
       const line = getEditorLineNumberForPageOffset(window.scrollY);
       if (typeof line === "number" && !isNaN(line)) {
         vscode.postMessage({
-          command: "revealLine",
+          command: "sparkdown.revealLine",
           content: line,
           uri: state.docuri,
         });
@@ -469,7 +469,7 @@ document.addEventListener("mousedown", (e) => {
     if (typeof line === "number" && !isNaN(line)) {
       let charpos = window.getSelection().focusOffset;
       vscode.postMessage({
-        command: "changeselection",
+        command: "sparkdown.changeselection",
         line: Math.floor(line),
         character: charpos,
         positiononpage: positiononpage,

@@ -52,7 +52,7 @@ const cacheFiles = async (variables) => {
 };
 
 window.addEventListener("message", (event) => {
-  if (event.data.command == "updateParsedJson") {
+  if (event.data.command === "sparkdown.updateParsedJson") {
     state.parsed = JSON.parse(event.data.content);
     cacheFiles(state.parsed.variables);
     applyHtml();
@@ -66,7 +66,7 @@ window.addEventListener("message", (event) => {
       );
     }
     vscode.setState(state);
-  } else if (event.data.command == "setstate") {
+  } else if (event.data.command === "sparkdown.setstate") {
     if (event.data.uri !== undefined) {
       state.docuri = event.data.uri;
     }
@@ -74,11 +74,11 @@ window.addEventListener("message", (event) => {
       state.dynamic = event.data.dynamic;
     }
     vscode.setState(state);
-  } else if (event.data.command == "showsourceline") {
+  } else if (event.data.command === "sparkdown.showsourceline") {
     state.lastPreviewedLine = event.data.content;
     previewLine(gameRunner, state.parsed, event.data.content, true, false);
     vscode.setState(state);
-  } else if (event.data.command == "highlightline") {
+  } else if (event.data.command === "sparkdown.highlightline") {
     state.lastPreviewedLine = event.data.content;
     previewLine(gameRunner, state.parsed, event.data.content, true, false);
     vscode.setState(state);

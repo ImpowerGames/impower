@@ -13,13 +13,18 @@ let fontTokenExisted = false;
 const decorTypesDialogue = vscode.window.createTextEditorDecorationType({});
 
 export const updateScreenplayPreviews = (doc: vscode.TextDocument) => {
+  performance.mark("updateScreenplayPreviews-start");
   const uri = doc.uri;
   const result = parseState.parsedDocuments[uri.toString()];
   const screenplayPreviewsToUpdate = getPreviewPanelsToUpdate(
     "screenplay",
     uri
   );
-  if (screenplayPreviewsToUpdate && result) {
+  if (
+    result &&
+    screenplayPreviewsToUpdate &&
+    screenplayPreviewsToUpdate?.length > 0
+  ) {
     const config = getSparkdownConfig(uri);
     const titleHtml = generateSparkTitleHtml(result, config);
     const scriptHtml = generateSparkScriptHtml(result, config);
@@ -27,17 +32,17 @@ export const updateScreenplayPreviews = (doc: vscode.TextDocument) => {
       const preview = screenplayPreviewsToUpdate[i];
       if (preview) {
         preview.panel.webview.postMessage({
-          command: "updateTitle",
+          command: "sparkdown.updateTitle",
           content: titleHtml,
         });
         preview.panel.webview.postMessage({
-          command: "updateScript",
+          command: "sparkdown.updateScript",
           content: scriptHtml,
         });
         if (preview.dynamic) {
           preview.uri = uri.toString();
           preview.panel.webview.postMessage({
-            command: "setstate",
+            command: "sparkdown.setstate",
             uri: preview.uri,
           });
         }
@@ -70,7 +75,7 @@ export const updateScreenplayPreviews = (doc: vscode.TextDocument) => {
               screenplayPreviewsToUpdate.forEach((p) => {
                 if (p) {
                   p.panel.webview.postMessage({
-                    command: "updateFont",
+                    command: "sparkdown.updateFont",
                     content: fontName,
                   });
                 }
@@ -86,7 +91,7 @@ export const updateScreenplayPreviews = (doc: vscode.TextDocument) => {
     if (!fontTokenExists && fontTokenExisted) {
       screenplayPreviewsToUpdate.forEach((p) => {
         if (p) {
-          p.panel.webview.postMessage({ command: "removeFont" });
+          p.panel.webview.postMessage({ command: "sparkdown.removeFont" });
         }
       });
       fontTokenExisted = false;
@@ -99,5 +104,11 @@ export const updateScreenplayPreviews = (doc: vscode.TextDocument) => {
     }
 
     editor.setDecorations(decorTypesDialogue, decorsDialogue);
+    performance.mark("updateScreenplayPreviews-end");
+    performance.measure(
+      "updateScreenplayPreviews",
+      "updateScreenplayPreviews-start",
+      "updateScreenplayPreviews-end"
+    );
   }
 };

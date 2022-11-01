@@ -1,6 +1,6 @@
 export const getSiblingIds = (
   sectionId: string,
-  sections: Record<string, { parent?: string; children?: string[] }>
+  sections?: Record<string, { parent?: string; children?: string[] }>
 ): string[] => {
   const validSectionId = sectionId || "";
   const result: string[] = [];

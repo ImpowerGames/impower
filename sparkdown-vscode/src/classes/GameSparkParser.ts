@@ -24,34 +24,37 @@ export class GameSparkParser {
     formatter: format,
   };
 
+  private _defaultAugmentations: SparkDeclarations = {};
+
   constructor(defaults?: string[], config?: SparkParserConfig) {
     this.defaults = defaults || this.defaults;
     this.config = config || this.config;
-  }
-
-  parse(script: string, config?: SparkParserConfig): SparkParseResult {
-    let augmentations: SparkDeclarations = {
-      ...(this.config?.augmentations || {}),
-      ...(config?.augmentations || {}),
-    };
     this.defaults.forEach((d) => {
-      const parsed = parseSpark(d, {
-        ...(this.config || {}),
-        ...(config || {}),
-        augmentations,
-      });
-      augmentations = {
-        ...augmentations,
+      const parsed = parseSpark(d, this.config);
+      this._defaultAugmentations = {
         variables: {
-          ...(augmentations?.variables || {}),
+          ...(this._defaultAugmentations?.variables || {}),
           ...(parsed.variables || {}),
         },
         structs: {
-          ...(augmentations?.structs || {}),
+          ...(this._defaultAugmentations?.structs || {}),
           ...(parsed.structs || {}),
         },
       };
     });
+  }
+
+  parse(script: string, config?: SparkParserConfig): SparkParseResult {
+    const augmentations = {
+      variables: {
+        ...(this._defaultAugmentations?.variables || {}),
+        ...(config?.augmentations?.variables || {}),
+      },
+      structs: {
+        ...(this._defaultAugmentations?.structs || {}),
+        ...(config?.augmentations?.structs || {}),
+      },
+    };
     const result = parseSpark(script, {
       ...(this.config || {}),
       ...(config || {}),

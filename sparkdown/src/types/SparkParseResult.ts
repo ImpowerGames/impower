@@ -1,4 +1,4 @@
-import { SparkProperties } from "./ScreenplayProperties";
+import { SparkProperties } from "./SparkProperties";
 import { SparkDeclarations } from "./SparkDeclarations";
 import { SparkDiagnostic } from "./SparkDiagnostic";
 import { SparkReference } from "./SparkReference";

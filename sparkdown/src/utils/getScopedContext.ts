@@ -2,8 +2,9 @@ import { getScopedIds } from "./getScopedIds";
 import { getScopedSectionIds } from "./getScopedSectionIds";
 
 export const getScopedContext = <T>(
+  itemsProp: "variables" | "sections",
   sectionId: string,
-  sections: Record<
+  sections?: Record<
     string,
     {
       name: string;
@@ -11,15 +12,14 @@ export const getScopedContext = <T>(
       children?: string[];
       variables?: Record<string, { name: string; value: unknown }>;
     }
-  >,
-  itemsProp: "variables" | "sections"
+  >
 ): [Record<string, string>, Record<string, T>] => {
   const validSectionId = sectionId || "";
   const valueMap: Record<string, T> = {};
   if (itemsProp === "sections") {
     const ids = getScopedSectionIds(validSectionId, sections);
     Object.values(ids).forEach((id) => {
-      const v = sections[id];
+      const v = sections?.[id];
       if (v) {
         valueMap[v.name || ""] = 0 as unknown as T;
       }
@@ -28,7 +28,7 @@ export const getScopedContext = <T>(
     valueMap["#"] = [0, ""] as unknown as T;
     return [ids, valueMap];
   }
-  const ids = getScopedIds(validSectionId, sections, itemsProp);
+  const ids = getScopedIds(validSectionId, sections);
   Object.values(ids).forEach((id) => {
     const parentId = id.split(".").slice(0, -1).join(".");
     const items = sections?.[parentId]?.[itemsProp];

@@ -44,7 +44,10 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 vscode.workspace.onDidChangeTextDocument((change) => {
-  if (change?.document?.languageId === "sparkdown") {
+  if (
+    change?.document?.languageId === "sparkdown" &&
+    change?.contentChanges?.length > 0
+  ) {
     parseDocument(change.document);
     // updateStatisticsDocumentVersion(change.document.uri, change.document.version);
   }

@@ -4,7 +4,7 @@ import { getSiblingIds } from "./getSiblingIds";
 
 export const getScopedSectionIds = (
   sectionId: string,
-  sections: Record<
+  sections?: Record<
     string,
     { name: string; parent?: string; children?: string[] }
   >

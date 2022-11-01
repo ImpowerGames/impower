@@ -47,7 +47,12 @@ export class SparkdownOutlineTreeDataProvider
   }
   update(uri?: vscode.Uri): void {
     this.uri = uri;
-    this.treeRoot = buildTree(this.context, this.uri);
+    const editor = getEditor(uri);
+    const result = editor
+      ? parseState.parsedDocuments[editor.document.uri.toString()]
+      : parseState.parsedDocuments[parseState.lastParsedUri];
+    const structure = result?.properties?.structure;
+    this.treeRoot = buildTree(this.context, structure);
     this.onDidChangeTreeDataEmitter.fire(null);
   }
   reveal(uri?: vscode.Uri): void {
@@ -80,18 +85,9 @@ export class SparkdownOutlineTreeDataProvider
 
 const buildTree = (
   context: vscode.ExtensionContext,
-  uri?: vscode.Uri
+  structure?: StructureItem[]
 ): OutlineTreeItem => {
   const root = new OutlineTreeItem();
-  const editor = getEditor(uri);
-  const result = editor
-    ? parseState.parsedDocuments[editor.document.uri.toString()]
-    : parseState.parsedDocuments[parseState.lastParsedUri];
-
-  if (!result) {
-    return root;
-  }
-  const structure = result.properties?.structure;
   if (!structure) {
     return root;
   }
@@ -212,6 +208,7 @@ class SectionTreeItem extends OutlineTreeItem {
     const iconFileName = `section${sectionDepth}.svg`;
     this.iconPath = vscode.Uri.joinPath(
       context.extensionUri,
+      "out",
       "data",
       iconFileName
     );
@@ -229,6 +226,7 @@ class SceneTreeItem extends OutlineTreeItem {
     const iconFileName = `scene.svg`;
     this.iconPath = vscode.Uri.joinPath(
       context.extensionUri,
+      "out",
       "data",
       iconFileName
     );
@@ -246,6 +244,7 @@ class SynopsisTreeItem extends OutlineTreeItem {
     const iconFileName = `synopsis.svg`;
     this.iconPath = vscode.Uri.joinPath(
       context.extensionUri,
+      "out",
       "data",
       iconFileName
     );

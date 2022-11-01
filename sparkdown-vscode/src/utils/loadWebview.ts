@@ -18,6 +18,7 @@ export const loadWebView = async (
   panel: vscode.WebviewPanel,
   dynamic: boolean
 ): Promise<void> => {
+  console.log("loadWebView", type);
   const id = Date.now() + Math.floor(Math.random() * 1000);
   previewState[type].push({
     uri: uri.toString(),
@@ -33,7 +34,7 @@ export const loadWebView = async (
     };
   }
   panel.webview.onDidReceiveMessage(async (message) => {
-    if (message.command === "updateFontResult") {
+    if (message.command === "sparkdown.updateFontResult") {
       const parsedDoc =
         parseState.parsedDocuments[vscode.Uri.parse(message.uri).toString()];
       if (parsedDoc) {
@@ -69,7 +70,7 @@ export const loadWebView = async (
           );
         }
       }
-    } else if (message.command === "revealLine") {
+    } else if (message.command === "sparkdown.revealLine") {
       const cfg = getSparkdownConfig(vscode.Uri.parse(message.uri));
       const syncedWithCursor =
         type === "game"
@@ -92,7 +93,7 @@ export const loadWebView = async (
         );
       }
     }
-    if (message.command === "changeselection") {
+    if (message.command === "sparkdown.changeselection") {
       const linePos = Number(message.line);
       let charPos = Number(message.character);
       if (Number.isNaN(linePos)) {
@@ -137,11 +138,13 @@ export const loadWebView = async (
 
   const htmlUri = vscode.Uri.joinPath(
     context.extensionUri,
+    "out",
     "webviews",
     `${type}-preview.html`
   );
   const previewJsUri = vscode.Uri.joinPath(
     context.extensionUri,
+    "out",
     "webviews",
     `${type}-preview.bundle.js`
   );
@@ -163,7 +166,10 @@ export const loadWebView = async (
     dynamic: dynamic,
   });
   const config = getSparkdownConfig(uri);
-  panel.webview.postMessage({ command: "updateconfig", content: config });
+  panel.webview.postMessage({
+    command: "sparkdown.updateconfig",
+    content: config,
+  });
 
   const editor = getEditor(uri);
   if (!editor) {
@@ -180,11 +186,11 @@ export const loadWebView = async (
       : config.screenplay_preview_synchronized_with_cursor;
   if (syncedWithCursor) {
     panel.webview.postMessage({
-      command: "highlightline",
+      command: "sparkdown.highlightline",
       content: editor.selection.start.line,
     });
     panel.webview.postMessage({
-      command: "showsourceline",
+      command: "sparkdown.showsourceline",
       content: getVisibleLine(editor),
       linescount: editor.document.lineCount,
       source: "scroll",

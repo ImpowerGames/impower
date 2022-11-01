@@ -8,7 +8,10 @@ vscode.workspace.onDidChangeConfiguration((change) => {
   previewState.game.forEach((p) => {
     const config = getSparkdownConfig(vscode.Uri.parse(p.uri));
     if (change.affectsConfiguration("sparkdown")) {
-      p.panel.webview.postMessage({ command: "updateconfig", content: config });
+      p.panel.webview.postMessage({
+        command: "sparkdown.updateconfig",
+        content: config,
+      });
     }
   });
 });

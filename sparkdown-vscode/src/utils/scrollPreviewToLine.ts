@@ -15,7 +15,7 @@ export const scrollPreviewToLine = (
   previewState[type].forEach((p) => {
     if (p.uri === editor.document.uri.toString()) {
       p.panel.webview.postMessage({
-        command: "showsourceline",
+        command: "sparkdown.showsourceline",
         content: line,
         linescount: editor.document.lineCount,
         source,

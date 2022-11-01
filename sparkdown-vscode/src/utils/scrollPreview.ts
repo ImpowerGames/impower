@@ -14,7 +14,7 @@ export const scrollPreview = (type: "screenplay" | "game", args: unknown) => {
   previewState[type].forEach((p) => {
     if (p.uri === editor.document.uri.toString()) {
       p.panel.webview.postMessage({
-        command: "scrollTo",
+        command: "sparkdown.scrollTo",
         content: args,
       });
     }

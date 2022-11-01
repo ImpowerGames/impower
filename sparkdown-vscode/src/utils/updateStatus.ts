@@ -9,6 +9,7 @@ export const updateStatus = (
   lengthAction: number,
   lengthDialogue: number
 ): void => {
+  performance.mark("updateStatus-start");
   if (statusState.durationStatus) {
     if (getActiveSparkdownDocument()) {
       statusState.durationStatus.show();
@@ -27,4 +28,6 @@ export const updateStatus = (
       statusState.durationStatus.hide();
     }
   }
+  performance.mark("updateStatus-end");
+  performance.measure("updateStatus", "updateStatus-start", "updateStatus-end");
 };

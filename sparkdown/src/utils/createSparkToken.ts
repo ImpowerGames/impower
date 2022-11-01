@@ -1,5 +1,6 @@
 import { SparkTokenTypeMap } from "../types/SparkTokenTypeMap";
 import { createSparkLine } from "./createSparkLine";
+import { getTo } from "./getTo";
 
 export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
   type?: K,
@@ -25,7 +26,7 @@ export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
     const offset = indent.length;
     t.offset = offset;
     t.indent = Math.floor(offset / 2);
-    t.to = (obj?.from || 0) + obj.content.length - 1 + (newLineLength || 0);
+    t.to = getTo(t.from, obj.content, newLineLength || 0);
   }
   return t;
 };

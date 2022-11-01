@@ -1,6 +1,6 @@
 export const getChildrenIds = <T extends { children?: string[] }>(
   sectionId: string,
-  sections: Record<string, T>
+  sections?: Record<string, T>
 ): string[] => {
   const validSectionId = sectionId || "";
   const section = sections?.[validSectionId];

@@ -33,6 +33,7 @@ export const exportHtml = async (
 
   const htmlUri = vscode.Uri.joinPath(
     context.extensionUri,
+    "out",
     "data",
     "staticexport.html"
   );
@@ -56,13 +57,18 @@ export const exportHtml = async (
 
   const courierPrimeB64 =
     fileToBase64(
-      vscode.Uri.joinPath(context.extensionUri, "data", "courier-prime.ttf")
-        ?.fsPath
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "out",
+        "data",
+        "courier-prime.ttf"
+      )?.fsPath
     ) || "";
   const courierPrimeB64_bold =
     fileToBase64(
       vscode.Uri.joinPath(
         context.extensionUri,
+        "out",
         "data",
         "courier-prime-bold.ttf"
       )?.fsPath
@@ -71,6 +77,7 @@ export const exportHtml = async (
     fileToBase64(
       vscode.Uri.joinPath(
         context.extensionUri,
+        "out",
         "data",
         "courier-prime-italic.ttf"
       )?.fsPath
@@ -79,6 +86,7 @@ export const exportHtml = async (
     fileToBase64(
       vscode.Uri.joinPath(
         context.extensionUri,
+        "out",
         "data",
         "courier-prime-bold-italic.ttf"
       )?.fsPath
