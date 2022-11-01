@@ -17,10 +17,10 @@ import {
   SparkStructToken,
   SparkToken,
   SparkTransitionToken,
-  SparkVariableToken,
 } from "./SparkToken";
+import { SparkTokenType } from "./SparkTokenType";
 
-export interface SparkTokenTypeMap {
+export interface SparkTokenTypeMap extends Record<SparkTokenType, SparkToken> {
   "": SparkToken;
   comment: SparkToken;
   title: SparkToken;
@@ -68,7 +68,6 @@ export interface SparkTokenTypeMap {
   struct_list_value: SparkStructFieldToken;
 
   centered: SparkCenteredToken;
-  variable: SparkVariableToken;
   assign: SparkAssignToken;
   call: SparkCallToken;
   condition: SparkConditionToken;

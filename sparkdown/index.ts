@@ -36,7 +36,6 @@ export * from "./src/utils/getRelativeSection";
 export * from "./src/utils/getRuntimeString";
 export * from "./src/utils/getScopedContext";
 export * from "./src/utils/getScopedIds";
-export * from "./src/utils/getScopedItem";
 export * from "./src/utils/getScopedItemId";
 export * from "./src/utils/getScopedSectionIds";
 export * from "./src/utils/getScopedValueContext";

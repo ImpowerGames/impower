@@ -1,33 +1,30 @@
 import { sparkRegexes } from "../constants/sparkRegexes";
 import { SparkTokenTypeMap } from "../types/SparkTokenTypeMap";
-import { createSparkLine } from "./createSparkLine";
 import { getTo } from "./getTo";
 
 export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
-  type?: K,
+  type: K,
   newLineLength?: number,
   obj?: Partial<SparkTokenTypeMap[K]>
 ): SparkTokenTypeMap[K] => {
-  const t = {
-    ...createSparkLine(obj),
-    type,
-    offset: 0,
-    indent: 0,
-    content: "",
-    ...obj,
-    ...(obj?.content !== undefined ? { content: obj?.content } : {}),
-    ...(obj?.line !== undefined ? { line: obj?.line } : {}),
-    ...(obj?.from !== undefined
-      ? { offset: 0, from: obj?.from, to: obj?.from }
-      : {}),
-  } as unknown as SparkTokenTypeMap[K];
-  if (obj?.content) {
-    const indentMatch = obj.content.match(sparkRegexes.indent);
-    const indent = indentMatch?.[0] || "";
-    const offset = indent.length;
-    t.offset = offset;
-    t.indent = Math.floor(offset / 2);
-    t.to = getTo(t.from, obj.content, newLineLength || 0);
-  }
+  const t = (obj || {}) as unknown as SparkTokenTypeMap[K];
+  t.content = obj?.content !== undefined ? obj.content : "";
+  t.line = obj?.line !== undefined ? obj.line : -1;
+  t.from = obj?.from !== undefined ? obj.from : -1;
+  t.to = obj?.to !== undefined ? obj.to : -1;
+  t.text = obj?.text !== undefined ? obj.text : "";
+  t.notes = obj?.notes !== undefined ? obj.notes : [];
+  t.order = obj?.order !== undefined ? obj.order : 0;
+  t.ignore = obj?.ignore !== undefined ? obj.ignore : false;
+  t.skipToNextPreview =
+    obj?.skipToNextPreview !== undefined ? obj.skipToNextPreview : false;
+  t.html = obj?.html;
+  const indentMatch = t.content.match(sparkRegexes.indent);
+  const indent = indentMatch?.[0] || "";
+  const offset = indent.length;
+  t.offset = offset;
+  t.indent = Math.floor(offset / 2);
+  t.to = getTo(t.from, t.content, newLineLength || 0);
+  t.type = type || "comment";
   return t;
 };

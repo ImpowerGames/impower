@@ -12,7 +12,6 @@ import { SparkAction, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkField } from "../types/SparkField";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkParseResult } from "../types/SparkParseResult";
-import { SparkReference } from "../types/SparkReference";
 import { SparkSection } from "../types/SparkSection";
 import { SparkStruct } from "../types/SparkStruct";
 import { SparkStructType } from "../types/SparkStructType";
@@ -35,7 +34,6 @@ import { createSparkToken } from "./createSparkToken";
 import { getExpressionCallMatch } from "./getExpressionCallMatch";
 import { getPrimitiveType } from "./getPrimitiveType";
 import { getScopedContext } from "./getScopedContext";
-import { getScopedItem } from "./getScopedItem";
 import { getScopedValueContext } from "./getScopedValueContext";
 import { isAssetType } from "./isAssetType";
 import { isSparkDisplayToken } from "./isSparkDisplayToken";
@@ -48,6 +46,9 @@ import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 import { SparkParseState } from "../types/SparkParseState";
 import { getTo } from "./getTo";
+import { getScopedItemId } from "./getScopedItemId";
+
+const EMPTY_OBJECT = {};
 
 const diagnostic = (
   parsed: {
@@ -55,7 +56,7 @@ const diagnostic = (
   },
   currentToken: { from: number; to: number; line: number; offset?: number },
   message: string,
-  actions: SparkAction[] = [],
+  actions?: SparkAction[],
   from = -1,
   to = -1,
   severity: "error" | "warning" | "info" = "error"
@@ -108,14 +109,22 @@ const getStart = (match: string[], groupIndex: number): number => {
 };
 
 const capitalize = (str: string): string => {
-  return `${(str[0] || "").toUpperCase()}${str.slice(1)}`;
+  if (!str[0]) {
+    return "";
+  }
+  return `${str[0].toUpperCase()}${str.slice(1)}`;
 };
 
+const vowels = ["a", "e", "i", "o", "u"];
+const lowercaseArticles = ["an", "a"];
+const capitalizedArticles = ["An", "A"];
+
 const prefixArticle = (str: string, capitalize?: boolean): string => {
-  const articles = capitalize ? ["An", "A"] : ["an", "a"];
-  return `${
-    ["a", "e", "i", "o", "u"].includes(str[0] || "") ? articles[0] : articles[1]
-  } ${str}`;
+  if (!str[0]) {
+    return "";
+  }
+  const articles = capitalize ? capitalizedArticles : lowercaseArticles;
+  return `${vowels.includes(str[0]) ? articles[0] : articles[1]} ${str}`;
 };
 
 const lint = (regex: RegExp): RegExp => {
@@ -124,37 +133,72 @@ const lint = (regex: RegExp): RegExp => {
   return lintRegex;
 };
 
+const findSectionId = (
+  sections: Record<string, SparkSection> | undefined,
+  sectionId: string,
+  name: string
+): string | undefined => {
+  if (sections) {
+    return getScopedItemId(sections, sectionId, name);
+  }
+  return undefined;
+};
+
+const findVariableId = (
+  variables: Record<string, SparkVariable> | undefined,
+  sectionId: string,
+  name: string
+): string | undefined => {
+  if (variables) {
+    return getScopedItemId(variables, sectionId, name);
+  }
+  return undefined;
+};
+
+const findStructId = (
+  structs: Record<string, SparkStruct> | undefined,
+  name: string
+): string | undefined => {
+  const found = structs?.[name];
+  if (found) {
+    return name;
+  }
+  return undefined;
+};
+
 const findSection = (
   sections: Record<string, SparkSection> | undefined,
   sectionId: string,
   name: string
-): [string | undefined, SparkSection | undefined] => {
-  if (sections) {
-    return getScopedItem(sections, sectionId, name);
+): SparkSection | undefined => {
+  const id = findSectionId(sections, sectionId, name);
+  if (id != null) {
+    return sections?.[id];
   }
-  return [undefined, undefined];
+  return undefined;
 };
 
 const findVariable = (
   variables: Record<string, SparkVariable> | undefined,
   sectionId: string,
   name: string
-): [string | undefined, SparkVariable | undefined] => {
-  if (variables) {
-    return getScopedItem(variables, sectionId, name);
+): SparkVariable | undefined => {
+  const id = findVariableId(variables, sectionId, name);
+  if (id != null) {
+    return variables?.[id];
   }
-  return [undefined, undefined];
+  return undefined;
 };
 
 const findStruct = (
   structs: Record<string, SparkStruct> | undefined,
   name: string
-): [string | undefined, SparkStruct | undefined] => {
-  const found = structs?.[name];
-  if (found) {
-    return [name, found];
+): SparkStruct | undefined => {
+  const id = findStructId(structs, name);
+  if (id != null) {
+    return structs?.[id];
   }
-  return [undefined, undefined];
+  return undefined;
 };
 
 const lintNameUnique = <
@@ -206,7 +250,7 @@ const lintName = <T extends SparkSection | SparkVariable | SparkStruct>(
       parsed,
       currentToken,
       `'${name}' is a reserved keyword.`,
-      [],
+      undefined,
       from,
       to
     );
@@ -217,7 +261,7 @@ const lintName = <T extends SparkSection | SparkVariable | SparkStruct>(
       parsed,
       currentToken,
       "struct",
-      findStruct(parsed.structs, name)[1] as T,
+      findStruct(parsed.structs, name) as T,
       from,
       to
     )
@@ -233,7 +277,7 @@ const lintName = <T extends SparkSection | SparkVariable | SparkStruct>(
         parsed.sections,
         validSectionId.split(".").slice(0, -1).join("."),
         name
-      )[1] as T,
+      ) as T,
       from,
       to
     )
@@ -245,7 +289,7 @@ const lintName = <T extends SparkSection | SparkVariable | SparkStruct>(
       parsed,
       currentToken,
       "variable",
-      findVariable(parsed.variables, validSectionId, name)[1] as T,
+      findVariable(parsed.variables, validSectionId, name) as T,
       from,
       to
     )
@@ -269,10 +313,10 @@ const addSection = (
   if (!parsed.references) {
     parsed.references = {};
   }
-  const parsedReferences: SparkReference[] =
-    parsed.references[section.line] || [];
-  parsed.references[section.line] = parsedReferences;
-  parsedReferences.push({
+  if (!parsed.references[section.line]) {
+    parsed.references[section.line] = [];
+  }
+  parsed.references[section.line]?.push({
     from: nameFrom,
     to: nameTo,
     name: section.name,
@@ -280,7 +324,7 @@ const addSection = (
     declaration: true,
   });
   if (id) {
-    const parentId = id.split(".").slice(0, -1).join(".") || "";
+    const parentId = id.split(".").slice(0, -1).join(".");
     section.parent = parentId;
     const parentSection = parsed.sections[parentId];
     if (parentSection) {
@@ -290,7 +334,7 @@ const addSection = (
       parentSection.children.push(id);
       if (
         section.type !== "function" &&
-        ["detector", "function"].includes(parentSection.type)
+        (parentSection.type === "detector" || parentSection.type === "function")
       ) {
         diagnostic(
           parsed,
@@ -310,18 +354,7 @@ const addSection = (
     return;
   }
   section.index = Object.keys(parsed.sections).length;
-  const existing = parsed?.sections?.[id];
-  parsed.sections[id] = {
-    ...(existing || {}),
-    ...section,
-    variables: {
-      ...(existing?.variables || {}),
-      ...(section?.variables || {}),
-    },
-    triggers: [...(existing?.triggers || []), ...(section?.triggers || [])],
-    children: [...(existing?.children || []), ...(section?.children || [])],
-    tokens: [...(existing?.tokens || []), ...(section?.tokens || [])],
-  };
+  parsed.sections[id] = section;
   if (!parsed.sectionLines) {
     parsed.sectionLines = {};
   }
@@ -342,19 +375,21 @@ const getSection = (
   if (!name) {
     return undefined;
   }
-  const [id, found] = findSection(parsed.sections, currentSectionId, name);
+  const id = findSectionId(parsed.sections, currentSectionId, name);
+  const found = parsed.sections?.[id || ""];
   if (!parsed.references) {
     parsed.references = {};
   }
-  const parsedReferences = parsed.references[currentToken.line] || [];
-  parsed.references[currentToken.line] = parsedReferences;
-  parsedReferences.push({ from, to, name, id });
+  if (!parsed.references[currentToken.line]) {
+    parsed.references[currentToken.line] = [];
+  }
+  parsed.references[currentToken.line]?.push({ from, to, name, id });
   if (!found) {
     diagnostic(
       parsed,
       currentToken,
       `Cannot find ${type === "method" ? "section" : type} named '${name}'`,
-      [],
+      undefined,
       from,
       to
     );
@@ -371,7 +406,7 @@ const getSection = (
       parsed,
       currentToken,
       `'${name}' is not a ${type}`,
-      [],
+      undefined,
       from,
       to
     );
@@ -434,14 +469,14 @@ const getArgumentValues = (
   let paramIndex = 0;
   const extraArgIndices: number[] = [];
   for (let index = 0; index < tokenMatches.length; index += 1) {
-    const expression = tokenMatches[index] || "";
+    const expression = tokenMatches[index];
     const expressionFrom =
       methodArgsFrom + getStart(["", ...tokenMatches], index + 1) + 1;
-    const expressionTo = expressionFrom + expression.length;
+    const expressionTo = expressionFrom + (expression?.length || 0);
     const parameter = parameters?.[paramIndex];
     if (expression === ",") {
       // Separator
-    } else if (!expression.trim()) {
+    } else if (!expression?.trim()) {
       if (parameter) {
         argumentExpressions.push(parameter.name);
       } else {
@@ -468,10 +503,10 @@ const getArgumentValues = (
               if (!parsed.references) {
                 parsed.references = {};
               }
-              const parsedReferences =
-                parsed.references[currentToken.line] || [];
-              parsed.references[currentToken.line] = parsedReferences;
-              parsedReferences.push({
+              if (!parsed.references[currentToken.line]) {
+                parsed.references[currentToken.line] = [];
+              }
+              parsed.references[currentToken.line]?.push({
                 from,
                 to,
                 name: r.content,
@@ -486,7 +521,7 @@ const getArgumentValues = (
             if (d) {
               const from = expressionFrom + d.from;
               const to = expressionFrom + d.to;
-              diagnostic(parsed, currentToken, d.message, [], from, to);
+              diagnostic(parsed, currentToken, d.message, undefined, from, to);
             }
           }
         } else if (parameter) {
@@ -526,7 +561,7 @@ const getArgumentValues = (
       `Expected ${parameters.length} ${
         parameters.length === 1 ? "argument" : "arguments"
       } but got ${parameters.length + extraArgIndices.length}`,
-      [],
+      undefined,
       methodArgsFrom,
       methodArgsTo
     );
@@ -549,21 +584,23 @@ const getExpressionCallNameAndValues = (
   if (expression === ">") {
     const block = parsed?.sections?.[currentSectionId];
     const blockIndex = block?.index || 0;
-    const blockList = parsed?.sections
-      ? Object.entries(parsed?.sections).slice(blockIndex + 1)
-      : [];
-    const [id] = blockList.find(
-      ([, v]) =>
-        v.type === "section" &&
-        (v.parent === currentSectionId ||
-          (parsed?.sections?.[v.parent || ""]?.index || 0) < blockIndex)
-    ) || [undefined, undefined];
+    const entry = parsed?.sections
+      ? Object.entries(parsed?.sections)
+          .slice(blockIndex + 1)
+          .find(
+            ([, v]) =>
+              v.type === "section" &&
+              (v.parent === currentSectionId ||
+                (parsed?.sections?.[v.parent || ""]?.index || 0) < blockIndex)
+          )
+      : undefined;
+    const id = entry?.[0];
     if (id == null || id === currentSectionId) {
       diagnostic(
         parsed,
         currentToken,
         "There are no sections after this section",
-        [],
+        undefined,
         expressionFrom,
         expressionFrom + expression.length,
         "warning"
@@ -576,8 +613,8 @@ const getExpressionCallNameAndValues = (
   if (expression === "[") {
     const parentId = parsed?.sections?.[currentSectionId]?.parent;
     if (parentId != null) {
-      const siblingIds = parsed?.sections?.[parentId]?.children || [];
-      const id = siblingIds.find(
+      const siblingIds = parsed?.sections?.[parentId]?.children;
+      const id = siblingIds?.find(
         (x) => parsed?.sections?.[x]?.type === "section"
       );
       if (id != null && id !== currentSectionId) {
@@ -589,7 +626,7 @@ const getExpressionCallNameAndValues = (
       parsed,
       currentToken,
       "There are no sibling sections before this section",
-      [],
+      undefined,
       expressionFrom,
       expressionFrom + expression.length,
       "warning"
@@ -599,20 +636,22 @@ const getExpressionCallNameAndValues = (
   if (expression === "]") {
     const parentId = parsed?.sections?.[currentSectionId]?.parent;
     if (parentId != null) {
-      const siblingIds = parsed?.sections?.[parentId]?.children || [];
-      const id = [...siblingIds]
-        ?.reverse()
-        .find((x) => parsed?.sections?.[x]?.type === "section");
-      if (id != null && id !== currentSectionId) {
-        const name = parsed?.sections?.[id]?.name;
-        return { name, values: [] };
+      const siblingIds = parsed?.sections?.[parentId]?.children;
+      if (siblingIds) {
+        const id = [...siblingIds]
+          ?.reverse()
+          .find((x) => parsed?.sections?.[x]?.type === "section");
+        if (id != null && id !== currentSectionId) {
+          const name = parsed?.sections?.[id]?.name;
+          return { name, values: [] };
+        }
       }
     }
     diagnostic(
       parsed,
       currentToken,
       "There are no sibling sections after this section",
-      [],
+      undefined,
       expressionFrom,
       expressionFrom + expression.length,
       "warning"
@@ -629,7 +668,7 @@ const getExpressionCallNameAndValues = (
       parsed,
       currentToken,
       "This section does not have a parent",
-      [],
+      undefined,
       expressionFrom,
       expressionFrom + expression.length
     );
@@ -670,6 +709,9 @@ const checkExpressionValue = (
   expression: string,
   expressionFrom: number
 ): void => {
+  if (!expression) {
+    return;
+  }
   const [ids, context] = getScopedValueContext(
     currentSectionId,
     parsed.sections
@@ -685,9 +727,10 @@ const checkExpressionValue = (
         if (!parsed.references) {
           parsed.references = {};
         }
-        const parsedReferences = parsed.references[currentToken.line] || [];
-        parsed.references[currentToken.line] = parsedReferences;
-        parsedReferences.push({
+        if (!parsed.references[currentToken.line]) {
+          parsed.references[currentToken.line] = [];
+        }
+        parsed.references[currentToken.line]?.push({
           from,
           to,
           name: r.content,
@@ -702,7 +745,7 @@ const checkExpressionValue = (
       if (d) {
         const from = expressionFrom + d.from;
         const to = expressionFrom + d.to;
-        diagnostic(parsed, currentToken, d.message, [], from, to);
+        diagnostic(parsed, currentToken, d.message, undefined, from, to);
       }
     }
   }
@@ -760,7 +803,7 @@ const getSectionCalls = (
     parsed.sections
   );
   const formatter = config?.formatter || defaultFormatter;
-  const [, possibleSectionExpressions] = formatter(expression, context);
+  const [, , possibleSectionExpressions] = formatter(expression, context);
   const calls: Record<string, { name: string; values: string[] }> = {};
   if (possibleSectionExpressions?.length > 0) {
     possibleSectionExpressions.forEach(({ content, from }) => {
@@ -784,7 +827,7 @@ const getSectionCalls = (
           parsed,
           currentToken,
           "Invalid section syntax",
-          [],
+          undefined,
           expressionFrom + from + trimmedStartLength,
           expressionFrom + from + content.length - trimmedEndLength
         );
@@ -795,7 +838,7 @@ const getSectionCalls = (
       parsed,
       currentToken,
       "Dynamic sections must be separated by '|'.\n{FirstTime|SecondTime|ThirdTime}",
-      [],
+      undefined,
       expressionFrom,
       expressionFrom + expression.length
     );
@@ -814,13 +857,13 @@ const getVariableExpressionValue = (
   variable?: SparkVariable,
   variableNameFrom?: number,
   variableNameTo?: number
-): [unknown | undefined, boolean | undefined] => {
+): unknown | undefined => {
   if (!expression) {
-    return [undefined, undefined];
+    return undefined;
   }
-  const [, struct] = findStruct(parsed.structs, expression);
+  const struct = findStruct(parsed.structs, expression);
   if (struct) {
-    return [{ name: struct.name, type: struct.type }, true];
+    return { name: struct.name, type: struct.type };
   }
   const { name } = getExpressionCallNameAndValues(
     parsed,
@@ -833,7 +876,7 @@ const getVariableExpressionValue = (
   );
   if (name !== undefined) {
     if (variable) {
-      const [, section] = findSection(parsed.sections, currentSectionId, name);
+      const section = findSection(parsed.sections, currentSectionId, name);
       if (
         section != null &&
         variable.type &&
@@ -880,12 +923,12 @@ const getVariableExpressionValue = (
         parsed,
         currentToken,
         `Must be initialized to a constant value or expression`,
-        [],
+        undefined,
         expressionFrom,
         expressionTo
       );
     }
-    return [undefined, false];
+    return undefined;
   }
   const [ids, context] = getScopedValueContext(
     currentSectionId,
@@ -902,9 +945,10 @@ const getVariableExpressionValue = (
         if (!parsed.references) {
           parsed.references = {};
         }
-        const parsedReferences = parsed.references[currentToken.line] || [];
-        parsed.references[currentToken.line] = parsedReferences;
-        parsedReferences.push({
+        if (!parsed.references[currentToken.line]) {
+          parsed.references[currentToken.line] = [];
+        }
+        parsed.references[currentToken.line]?.push({
           from,
           to,
           name: r.content,
@@ -919,7 +963,7 @@ const getVariableExpressionValue = (
       if (d) {
         const from = expressionFrom + d.from;
         const to = expressionFrom + d.to;
-        diagnostic(parsed, currentToken, d.message, [], from, to);
+        diagnostic(parsed, currentToken, d.message, undefined, from, to);
       }
     }
   } else if (variable) {
@@ -966,7 +1010,10 @@ const getVariableExpressionValue = (
       }
     }
   }
-  return [result, diagnostics?.length === 0];
+  if (diagnostics?.length > 0) {
+    return undefined;
+  }
+  return result;
 };
 
 const getStruct = (
@@ -980,19 +1027,21 @@ const getStruct = (
   if (!name) {
     return undefined;
   }
-  const [id, found] = findStruct(parsed.structs, name);
+  const id = findStructId(parsed.structs, name);
+  const found = parsed.structs?.[id || ""];
   if (!parsed.references) {
     parsed.references = {};
   }
-  const parsedReferences = parsed.references[currentToken.line] || [];
-  parsed.references[currentToken.line] = parsedReferences;
-  parsedReferences.push({ from, to, name, id });
+  if (!parsed.references[currentToken.line]) {
+    parsed.references[currentToken.line] = [];
+  }
+  parsed.references[currentToken.line]?.push({ from, to, name, id });
   if (!found) {
     diagnostic(
       parsed,
       currentToken,
       `Cannot find ${type || "struct"} named '${name}'`,
-      [],
+      undefined,
       from,
       to
     );
@@ -1024,19 +1073,21 @@ const getVariable = (
   if (!name) {
     return undefined;
   }
-  const [id, found] = findVariable(parsed.variables, currentSectionId, name);
+  const id = findVariableId(parsed.variables, currentSectionId, name);
+  const found = parsed.variables?.[id || ""];
   if (!parsed.references) {
     parsed.references = {};
   }
-  const parsedReferences = parsed.references[currentToken.line] || [];
-  parsed.references[currentToken.line] = parsedReferences;
-  parsedReferences.push({ from, to, name, id });
+  if (!parsed.references[currentToken.line]) {
+    parsed.references[currentToken.line] = [];
+  }
+  parsed.references[currentToken.line]?.push({ from, to, name, id });
   if (!found) {
     diagnostic(
       parsed,
       currentToken,
       `Cannot find variable named '${name}'`,
-      [],
+      undefined,
       from,
       to
     );
@@ -1158,9 +1209,10 @@ const addStruct = (
   if (!parsed.references) {
     parsed.references = {};
   }
-  const parsedReferences = parsed.references[currentToken.line] || [];
-  parsed.references[currentToken.line] = parsedReferences;
-  parsedReferences.push({
+  if (!parsed.references[currentToken.line]) {
+    parsed.references[currentToken.line] = [];
+  }
+  parsed.references[currentToken.line]?.push({
     from: nameFrom,
     to: nameTo,
     name,
@@ -1170,8 +1222,9 @@ const addStruct = (
   if (base) {
     getStruct(parsed, currentToken, type, base, baseFrom, baseTo);
   }
+  const existing = parsed?.structs?.[id];
   const item: SparkStruct = {
-    ...(parsed?.structs?.[id] || {}),
+    ...(existing || EMPTY_OBJECT),
     from: nameFrom,
     to: nameTo,
     line,
@@ -1197,12 +1250,12 @@ const addImport = (
   const value = getImportValue(valueText);
   const validValue = value != null ? value : "";
   const name = "import";
-  const existingStruct = parsed?.structs?.[name];
-  const fieldId = existingStruct?.fields
-    ? Object.keys(existingStruct?.fields).length?.toString()
+  const existing = parsed?.structs?.[name];
+  const fieldId = existing?.fields
+    ? Object.keys(existing?.fields).length?.toString()
     : "0";
   const item: SparkStruct = {
-    ...(existingStruct || {}),
+    ...(existing || EMPTY_OBJECT),
     from: valueFrom,
     to: valueTo,
     line,
@@ -1210,7 +1263,7 @@ const addImport = (
     type: "list",
     name,
     fields: {
-      ...(existingStruct?.fields || {}),
+      ...(existing?.fields || EMPTY_OBJECT),
       [fieldId]: {
         type: "string",
         value: validValue,
@@ -1251,16 +1304,17 @@ const addVariable = (
   if (!parsed.references) {
     parsed.references = {};
   }
-  const parsedReferences = parsed.references[currentToken.line] || [];
-  parsed.references[currentToken.line] = parsedReferences;
-  parsedReferences.push({
+  if (!parsed.references[currentToken.line]) {
+    parsed.references[currentToken.line] = [];
+  }
+  parsed.references[currentToken.line]?.push({
     from: nameFrom,
     to: nameTo,
     name,
     id,
     declaration: true,
   });
-  const [value] = getVariableExpressionValue(
+  const value = getVariableExpressionValue(
     parsed,
     config,
     currentToken,
@@ -1277,16 +1331,17 @@ const addVariable = (
   const variableType = (type || valueType) as SparkVariableType;
   if (!isVariableType(variableType)) {
     const error = `Unrecognized variable type`;
-    diagnostic(parsed, currentToken, error, [], typeFrom, typeTo);
+    diagnostic(parsed, currentToken, error, undefined, typeFrom, typeTo);
   } else if (
     (isAssetType(variableType) || isTagType(variableType)) &&
     valueType !== "string"
   ) {
     const error = `${variableType} must be initialized to a string`;
-    diagnostic(parsed, currentToken, error, [], typeFrom, typeTo);
+    diagnostic(parsed, currentToken, error, undefined, typeFrom, typeTo);
   } else {
+    const existing = parsed?.variables?.[id];
     const item: SparkVariable = {
-      ...(parsed?.variables?.[id] || {}),
+      ...(existing || EMPTY_OBJECT),
       from: nameFrom,
       to: nameTo,
       line,
@@ -1352,9 +1407,10 @@ const addField = (
       if (!parsed.references) {
         parsed.references = {};
       }
-      const parsedReferences = parsed.references[line] || [];
-      parsed.references[line] = parsedReferences;
-      parsedReferences.push({
+      if (!parsed.references[line]) {
+        parsed.references[line] = [];
+      }
+      parsed.references[line]?.push({
         from: nameFrom,
         to: nameTo,
         name,
@@ -1368,7 +1424,7 @@ const addField = (
     } else {
       const defaultValue =
         struct?.type === "list" || struct?.type === "map" ? validName : "";
-      const [value, valid] = getVariableExpressionValue(
+      const value = getVariableExpressionValue(
         parsed,
         config,
         currentToken,
@@ -1379,8 +1435,9 @@ const addField = (
       );
       const validValue = value != null ? value : defaultValue;
       const validType = typeof validValue as SparkVariableType;
+      const existing = parsed?.structs?.[structName]?.fields?.[id];
       const item: SparkField = {
-        ...(parsed?.structs?.[structName]?.fields?.[id] || {}),
+        ...(existing || EMPTY_OBJECT),
         from: nameFrom,
         to: nameTo,
         line,
@@ -1415,7 +1472,7 @@ const addField = (
           curr = parsed.structs[curr.base];
         }
         const hasValueText = Boolean(valueText?.trim());
-        const isValid = !hasValueText || valid;
+        const isValid = !hasValueText || value !== undefined;
         if (
           isValid &&
           validType &&
@@ -1494,14 +1551,28 @@ const getParameterNames = (
   const endFrom = currentToken.from + getStart(allMatches, endIndex);
   if (openMark && closeMark && openMark === "(" && closeMark === "]") {
     const message = "Mismatched parenthesis";
-    diagnostic(parsed, currentToken, message, [], startFrom, startFrom + 1);
-    diagnostic(parsed, currentToken, message, [], endFrom, endFrom + 1);
+    diagnostic(
+      parsed,
+      currentToken,
+      message,
+      undefined,
+      startFrom,
+      startFrom + 1
+    );
+    diagnostic(parsed, currentToken, message, undefined, endFrom, endFrom + 1);
     return parameterNames;
   }
   if (openMark && closeMark && openMark === "[" && closeMark === ")") {
     const message = "Mismatched brackets";
-    diagnostic(parsed, currentToken, message, [], startFrom, startFrom + 1);
-    diagnostic(parsed, currentToken, message, [], endFrom, endFrom + 1);
+    diagnostic(
+      parsed,
+      currentToken,
+      message,
+      undefined,
+      startFrom,
+      startFrom + 1
+    );
+    diagnostic(parsed, currentToken, message, undefined, endFrom, endFrom + 1);
     return parameterNames;
   }
   for (let index = startIndex + 1; index < endIndex - 1; index += 1) {
@@ -1717,7 +1788,10 @@ const saveAndClearAssets = (
       currentToken.type === "dialogue" ||
       currentToken.type === "action")
   ) {
-    currentToken.assets = [...(currentToken.assets || []), ...state.assets];
+    if (!currentToken.assets) {
+      currentToken.assets = [];
+    }
+    currentToken.assets = [...currentToken.assets, ...state.assets];
   }
   state.assets.length = 0;
 };
@@ -1845,6 +1919,7 @@ const getLatestSection = (
 
 const dialogueOrAssetTypes = ["dialogue", "dialogue_asset"];
 const actionOrAssetTypes = ["action", "action_asset"];
+const sparkLineKeys = Object.keys(createSparkLine());
 
 const processDisplayedContent = (
   parsed: SparkParseResult,
@@ -1881,9 +1956,8 @@ const processDisplayedContent = (
     matchingType
   ) {
     token.text = token.content;
-    const sparkLine = createSparkLine();
     Object.entries(state.displayToken).forEach(([k, v]) => {
-      if (!Object.keys(sparkLine).includes(k)) {
+      if (!sparkLineKeys.includes(k)) {
         token[k as keyof SparkDisplayToken] = v as never;
       }
     });
@@ -2010,27 +2084,25 @@ const hoistDeclarations = (
   let stateType: string | undefined = "normal";
   let match: RegExpMatchArray | null = null;
 
-  addSection(
-    parsed,
-    currentSectionId,
-    {
-      ...createSparkSection(),
-      ...(parsed?.sections?.[""] || {}),
-      level: currentLevel,
-      from: current,
-      to: getTo(current, "", newLineLength || 0),
-      indent: 0,
-      line: config?.lineOffset || 0,
-      type: "section",
-      returnType: "",
-      name: "",
-      value: 0,
-      triggers: [],
-      tokens: [],
-    },
-    0,
-    1
-  );
+  const existing = parsed?.sections?.[""];
+  const item: SparkSection = {
+    ...createSparkSection(),
+    ...(existing || EMPTY_OBJECT),
+    level: currentLevel,
+    from: current,
+    to: getTo(current, "", newLineLength || 0),
+    indent: 0,
+    line: config?.lineOffset || 0,
+    type: "section",
+    returnType: "",
+    name: "",
+    value: 0,
+    variables: existing?.variables || {},
+    triggers: existing?.triggers || [],
+    children: existing?.children || [],
+    tokens: existing?.tokens || [],
+  };
+  addSection(parsed, currentSectionId, item, 0, 1);
 
   for (let i = 0; i < lines.length; i += 1) {
     const from = current;
@@ -2075,7 +2147,7 @@ const hoistDeclarations = (
       currentToken.level = level;
       const newSection: SparkSection = {
         ...createSparkSection(),
-        ...(parsed?.sections?.[currentSectionId] || {}),
+        ...(parsed?.sections?.[currentSectionId] || EMPTY_OBJECT),
         level: currentLevel,
         from: currentToken.from,
         to: currentToken.to,
@@ -2083,7 +2155,10 @@ const hoistDeclarations = (
         type: "section",
         returnType: "",
         name: trimmedName,
-        tokens: [],
+        variables: parsed?.sections?.[currentSectionId]?.variables || {},
+        triggers: parsed?.sections?.[currentSectionId]?.triggers || [],
+        children: parsed?.sections?.[currentSectionId]?.children || [],
+        tokens: parsed?.sections?.[currentSectionId]?.tokens || [],
       };
       if (
         returnType === "" ||
@@ -2139,15 +2214,14 @@ const hoistDeclarations = (
       }
       newSection.triggers = type === "detector" ? parameters : [];
     } else if ((match = text.match(sparkRegexes.variable))) {
-      const currentToken = createSparkToken("variable", newLineLength, {
+      const name = match[6] || "";
+      const type = (match[10] || "") as SparkVariableType;
+      const valueText = match[14] || "";
+      const currentToken = createSparkToken(type, newLineLength, {
         content: text,
         line: i + (config?.lineOffset || 0),
         from: current,
       });
-      const name = match[6] || "";
-      const type = (match[10] || "") as SparkVariableType;
-      const valueText = match[14] || "";
-      currentToken.type = type;
       if (currentToken.type === type) {
         const nameFrom = currentToken.from + getStart(match, 6);
         const nameTo = nameFrom + name.length;
@@ -2507,13 +2581,13 @@ export const parseSpark = (
           if (!parsed.titleTokens) {
             parsed.titleTokens = {};
           }
+          if (!parsed.titleTokens[keyFormat.position]) {
+            parsed.titleTokens[keyFormat.position] = [];
+          }
           if (currentToken.content && !currentToken.text) {
             currentToken.text = currentToken.content;
           }
-          const titlePositionTokens =
-            parsed.titleTokens[keyFormat.position] || [];
-          parsed.titleTokens[keyFormat.position] = titlePositionTokens;
-          titlePositionTokens.push(currentToken);
+          parsed.titleTokens[keyFormat.position]?.push(currentToken);
         }
         titlePageStarted = true;
         continue;
@@ -2730,10 +2804,10 @@ export const parseSpark = (
                 if (r) {
                   const from = expressionFrom + r.from;
                   const to = expressionFrom + r.to;
-                  const parsedReferences =
-                    parsed.references[currentToken.line] || [];
-                  parsed.references[currentToken.line] = parsedReferences;
-                  parsedReferences.push({
+                  if (!parsed.references[currentToken.line]) {
+                    parsed.references[currentToken.line] = [];
+                  }
+                  parsed.references[currentToken.line]?.push({
                     from,
                     to,
                     name: r.content,
@@ -2748,7 +2822,14 @@ export const parseSpark = (
                 if (d) {
                   const from = expressionFrom + d.from;
                   const to = expressionFrom + d.to;
-                  diagnostic(parsed, currentToken, d.message, [], from, to);
+                  diagnostic(
+                    parsed,
+                    currentToken,
+                    d.message,
+                    undefined,
+                    from,
+                    to
+                  );
                 }
               }
             }
@@ -2763,7 +2844,7 @@ export const parseSpark = (
                 parsed,
                 currentToken,
                 message,
-                [],
+                undefined,
                 expressionFrom,
                 expressionTo
               );
@@ -2798,15 +2879,13 @@ export const parseSpark = (
             valueFrom
           );
           currentToken.order = state.choiceTokens?.length || 0;
-          const expression = `\`${currentToken.content}\``;
-          const expressionFrom = valueFrom - 1;
-          checkExpressionValue(
+          checkTextExpression(
             parsed,
             config,
             currentToken,
             currentSectionId,
-            expression,
-            expressionFrom
+            currentToken.content,
+            valueFrom
           );
           pushChoice(parsed, config, currentSectionId, state, currentToken);
         }
@@ -2854,7 +2933,7 @@ export const parseSpark = (
                 parsed,
                 currentToken,
                 `'${check}' must be preceded by an 'if' on the same indent level`,
-                [],
+                undefined,
                 checkFrom,
                 checkTo
               );
@@ -2865,7 +2944,7 @@ export const parseSpark = (
               parsed,
               currentToken,
               "'else' cannot have a condition. Use elif instead.",
-              [],
+              undefined,
               checkFrom,
               checkTo
             );
@@ -2884,11 +2963,7 @@ export const parseSpark = (
         const name = match[6] || "";
         const operator = (match[6] || "") as "=";
         const valueText = match[14] || "";
-        const [, found] = findVariable(
-          parsed.variables,
-          currentSectionId,
-          name
-        );
+        const found = findVariable(parsed.variables, currentSectionId, name);
         const tokenType = found?.type;
         if (tokenType) {
           currentToken.type = tokenType;
@@ -3243,7 +3318,9 @@ export const parseSpark = (
             if (previousToken?.type === "assets") {
               previousToken.type = "action_asset" as "assets";
               previousToken.skipToNextPreview = true;
-              currentToken.assets = [...(previousToken.assets || [])];
+              currentToken.assets = previousToken.assets
+                ? [...previousToken.assets]
+                : [];
             }
             processDisplayedContent(
               parsed,
@@ -3407,7 +3484,7 @@ export const parseSpark = (
           parsed,
           currentToken,
           `Unreachable Code`,
-          [],
+          undefined,
           from,
           to,
           "warning"
