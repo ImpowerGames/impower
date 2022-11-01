@@ -45,7 +45,7 @@ details.cheat-item > p::before {
   background-color: var(--vscode-foreground);
 }
 details.cheat-item > p::before {
-  left: 13px;
+  left: 4px;
   top: 0;
 }
 details.cheat-item {
@@ -66,11 +66,9 @@ details.cheat-item > summary > span > mark.description {
 details.cheat-item > p {
   font-size: small;
   white-space: pre-wrap;
-  margin-left: -7px;
-  padding-left: 36px;
   margin-top: 0;
   margin-bottom: 0;
-  margin-right: -11px;
+  padding-left: 20px;
   padding-top: 8px;
   padding-bottom: 4px;
   position: relative;
@@ -90,7 +88,6 @@ details > summary::before {
   font-size: 14px;
   content: "\eab6";
   vertical-align: bottom;
-  padding-left: 8px;
   padding-right: 6px;
 }
 ::marker {
