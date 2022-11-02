@@ -38,10 +38,6 @@ export const exportPdf = async (
       title: "Exporting PDF...",
       location: vscode.ProgressLocation.Notification,
     },
-    async (progress) => {
-      if (fsPath) {
-        createPdf(context, fsPath, config, result, progress);
-      }
-    }
+    async (progress) => createPdf(context, fsPath, config, result, progress)
   );
 };

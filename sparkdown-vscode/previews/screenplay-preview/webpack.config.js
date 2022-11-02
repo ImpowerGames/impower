@@ -12,7 +12,7 @@ const webExtensionConfig = {
   mode: "none", // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
   target: "webworker",
   node: {
-    __dirname: false, // leave the __dirname-behaviour intact
+    __dirname: true,
   },
   entry: "./screenplay-preview.js",
   output: {
@@ -26,19 +26,22 @@ const webExtensionConfig = {
     extensions: [".ts", ".js"], // support ts-files and js-files
     alias: {
       // provides alternate implementation for node module and source files
+      "iconv-lite": false,
     },
     fallback: {
       // Webpack 5 no longer polyfills Node.js core modules automatically.
       // see https://webpack.js.org/configuration/resolve/#resolvefallback
       // for the list of Node.js core module polyfills.
-      assert: require.resolve("assert"),
-      os: require.resolve('os-browserify/browser'),
-      path: require.resolve('path-browserify'),
-      stream: require.resolve("stream-browserify"),
-      zlib: require.resolve("browserify-zlib"),
-      buffer: require.resolve("buffer"),
-      fs: false,
+      assert: require.resolve("assert/"),
+      buffer: require.resolve("buffer/"),
       child_process: false,
+      crypto: false,
+      fs: false,
+      os: require.resolve("os-browserify/browser"),
+      path: require.resolve("path-browserify"),
+      stream: require.resolve("readable-stream"),
+      util: require.resolve("util/"),
+      zlib: require.resolve("browserify-zlib"),
     },
   },
   module: {
@@ -59,9 +62,7 @@ const webExtensionConfig = {
       maxChunks: 1, // disable chunks by default since web extensions must be a single bundle
     }),
     new webpack.ProvidePlugin({
-      Buffer: ['buffer', 'Buffer'],
-    }),
-    new webpack.ProvidePlugin({
+      Buffer: ["buffer", "Buffer"],
       process: "process/browser", // provide a shim for the global `process` variable
     }),
   ],

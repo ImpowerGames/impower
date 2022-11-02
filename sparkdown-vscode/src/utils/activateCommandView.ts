@@ -4,6 +4,7 @@ import { parseState } from "../state/parseState";
 import { exportCsv } from "./exportCsv";
 import { exportHtml } from "./exportHtml";
 import { exportJson } from "./exportJson";
+import { exportPdf } from "./exportPdf";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSparkdownConfig } from "./getSparkdownConfig";
@@ -44,8 +45,7 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
   );
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.exportpdf", async () => {
-      const { exportPdf } = require("./exportPdf");
-      return exportPdf(context);
+      exportPdf(context);
     })
   );
   context.subscriptions.push(

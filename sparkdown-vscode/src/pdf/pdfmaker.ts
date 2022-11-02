@@ -5,17 +5,16 @@ import * as vscode from "vscode";
 import {
   PrintableTokenType,
   PrintProfile,
-  SparkScreenplayConfig,
+  SparkScreenplayConfig
 } from "../../../spark-screenplay";
 import {
   SparkParseResult,
   sparkRegexes,
   SparkSectionToken,
-  SparkToken,
+  SparkToken
 } from "../../../sparkdown";
-import { openFile } from "../utils/openFile";
-import { revealFile } from "../utils/revealFile";
 import { LineItem } from "./liner";
+import { PdfWriteStream } from "./PDFWriteStream";
 const addTextbox = require("textbox-for-pdfkit");
 
 export interface OutlineItem {
@@ -68,6 +67,7 @@ export interface PdfOptions {
   lines: LineItem[];
   print: PrintProfile;
   font: string;
+  fonts: Record<string, Uint8Array | undefined>;
   sceneInvisibleSections: Record<string | number, SparkSectionToken[]>;
   screenplayConfig?: SparkScreenplayConfig;
   hooks?: {
@@ -88,7 +88,9 @@ export interface PdfStats {
   lineMap: Record<number, LineStruct>; //the structure of each line
 }
 
-export const versionGenerator = (current?: string) => {
+export const versionGenerator = (
+  current?: string
+): ((level?: number) => string) => {
   current = current || "0";
 
   const numbers: number[] = current
@@ -96,14 +98,14 @@ export const versionGenerator = (current?: string) => {
     .map((x) => Number(x))
     .concat([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 
-  const bump = function (level: number) {
+  const bump = (level: number): void => {
     numbers[level - 1]++;
     for (let i = level; i < numbers.length; i++) {
       numbers[i] = 0;
     }
   };
 
-  const toStr = function () {
+  const toStr = (): string => {
     const copy = numbers.concat();
     copy.reverse();
     while (copy.length > 1 && copy[0] === 0) {
@@ -113,8 +115,8 @@ export const versionGenerator = (current?: string) => {
     return copy.join(".");
   };
 
-  const increase = function (level: number) {
-    if (arguments.length === 0) {
+  const increase = (level?: number): string => {
+    if (level === undefined) {
       return toStr();
     }
     bump(level);
@@ -124,19 +126,16 @@ export const versionGenerator = (current?: string) => {
   return increase;
 };
 
-export const getIndentation = (text: string): string => {
+const getIndentation = (text: string): string => {
   const match = (text || "").match(/^(\s+)/);
   return match?.[0] || "";
 };
 
-export const blankText = (text: string): string => {
+const blankText = (text: string): string => {
   return (text || "").replace(/./g, " ");
 };
 
-export const sortByOrder = (
-  a: { order: number },
-  b: { order: number }
-): number => {
+const sortByOrder = (a: { order: number }, b: { order: number }): number => {
   if (a.order === -1) {
     return 0;
   } else {
@@ -144,199 +143,10 @@ export const sortByOrder = (
   }
 };
 
-export type Listener = (...args: unknown[]) => void;
-
-export class PdfWriteStream implements NodeJS.WritableStream {
-  maxListeners = 1000;
-
-  writable = true;
-
-  chunks: (Uint8Array | string)[] = [];
-
-  filepath = "";
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  repeatCallbacks: Record<string | symbol, Listener[]> = {};
-  onceCallbacks: Record<string | symbol, Listener[]> = {};
-
-  constructor(filepath: string) {
-    this.filepath = filepath;
-  }
-
-  addListener(eventName: string | symbol, listener: Listener): this {
-    if (!this.repeatCallbacks[eventName]) {
-      this.repeatCallbacks[eventName] = [];
-    }
-    this.repeatCallbacks[eventName]?.push(listener);
-    return this;
-  }
-
-  removeListener(eventName: string | symbol, listener: Listener): this {
-    const callbacks = this.repeatCallbacks[eventName];
-    if (!callbacks) {
-      return this;
-    }
-    const index = callbacks.indexOf(listener);
-    if (index < 0) {
-      return this;
-    }
-    callbacks.splice(index, 1);
-    return this;
-  }
-
-  on(eventName: string, listener: Listener): this {
-    this.addListener(eventName, listener);
-    return this;
-  }
-
-  off(eventName: string | symbol, listener: Listener): this {
-    return this.removeListener(eventName, listener);
-  }
-
-  removeAllListeners(eventName?: string | symbol | undefined): this {
-    if (eventName === undefined) {
-      this.repeatCallbacks = {};
-      return this;
-    }
-    if (!this.repeatCallbacks[eventName]) {
-      return this;
-    }
-    delete this.repeatCallbacks[eventName];
-    return this;
-  }
-
-  setMaxListeners(n: number): this {
-    this.maxListeners = n;
-    return this;
-  }
-
-  getMaxListeners(): number {
-    return this.maxListeners;
-  }
-
-  listeners(eventName: string | symbol): Listener[] {
-    return [...(this.repeatCallbacks[eventName] || [])];
-  }
-
-  rawListeners(eventName: string | symbol): Listener[] {
-    return [
-      ...(this.repeatCallbacks[eventName] || []),
-      ...(this.onceCallbacks[eventName] || []),
-    ];
-  }
-
-  listenerCount(eventName: string | symbol): number {
-    return this.repeatCallbacks[eventName]?.length || 0;
-  }
-
-  prependListener(eventName: string | symbol, listener: Listener): this {
-    const callbacks = this.repeatCallbacks[eventName] || [];
-    this.repeatCallbacks[eventName] = callbacks;
-    callbacks.unshift(listener);
-    return this;
-  }
-
-  prependOnceListener(eventName: string | symbol, listener: Listener): this {
-    const callbacks = this.onceCallbacks[eventName] || [];
-    this.onceCallbacks[eventName] = callbacks;
-    callbacks.unshift(listener);
-    return this;
-  }
-
-  once(eventName: string | symbol, listener: Listener): this {
-    const callbacks = this.onceCallbacks[eventName] || [];
-    this.onceCallbacks[eventName] = callbacks;
-    callbacks.push(listener);
-    return this;
-  }
-
-  emit(eventName: string | symbol, ...args: unknown[]): boolean {
-    const exists = Boolean(
-      this.repeatCallbacks[eventName] || this.onceCallbacks[eventName]
-    );
-    (this.repeatCallbacks[eventName] || []).forEach((c) => c(...args));
-    (this.onceCallbacks[eventName] || []).forEach((c) => c(...args));
-    this.onceCallbacks[eventName] = [];
-    return exists;
-  }
-
-  eventNames(): (string | symbol)[] {
-    throw new Error("Method not implemented.");
-  }
-
-  write(chunk: Uint8Array | string): boolean {
-    this.chunks.push(chunk);
-    return true;
-  }
-
-  end(): this {
-    if (this.filepath) {
-      const fs = require("fs");
-      if (!fs) {
-        return this;
-      }
-      const stream = fs.createWriteStream(this.filepath, {
-        encoding: "binary",
-      });
-      //stream.on('finish', this.callback());
-      stream.on(
-        "error",
-        (err: { code: string; path: string; message: string }) => {
-          if (err.code === "ENOENT") {
-            vscode.window.showErrorMessage(
-              "Unable to export PDF! The specified location does not exist: " +
-                err.path
-            );
-          } else if (err.code === "EPERM") {
-            vscode.window.showErrorMessage(
-              "Unable to export PDF! You do not have the permission to write the specified file: " +
-                err.path
-            );
-          } else {
-            vscode.window.showErrorMessage(err.message);
-          }
-          console.log(err);
-        }
-      );
-      stream.on("finish", () => {
-        const open = "Open";
-        let reveal = "Reveal in File Explorer";
-        if (process.platform === "darwin") {
-          reveal = "Reveal in Finder";
-        }
-        vscode.window
-          .showInformationMessage("Exported PDF Successfully!", open, reveal)
-          .then((val) => {
-            switch (val) {
-              case open: {
-                openFile(this.filepath);
-                break;
-              }
-              case reveal: {
-                revealFile(this.filepath);
-                break;
-              }
-            }
-          });
-      });
-
-      stream.on("open", () => {
-        this.chunks.forEach((buffer: Uint8Array | string): void => {
-          stream.write(buffer);
-        });
-        stream.end();
-      });
-    } else {
-      this.emit("done", this);
-    }
-    return this;
-  }
-}
-
-const initDoc = async (context: vscode.ExtensionContext, opts: PdfOptions) => {
+const initDoc = async (opts: PdfOptions): Promise<PdfDocument> => {
   const print = opts.print;
-  //var fonts = opts.config.fonts || null;
   const options = {
+    font: opts.font,
     compress: false,
     size: print.paper_size === "a4" ? "A4" : "LETTER",
     margins: {
@@ -349,66 +159,11 @@ const initDoc = async (context: vscode.ExtensionContext, opts: PdfOptions) => {
   const doc: PdfDocument = new pdfkit(options);
 
   //Load Courier Prime by default, and replace the variants if requested and available
-  doc.registerFont(
-    "ScriptNormal",
-    vscode.Uri.joinPath(
-      context.extensionUri,
-      "out",
-      "data",
-      "courier-prime.ttf"
-    )?.fsPath
-  );
-  doc.registerFont(
-    "ScriptBold",
-    vscode.Uri.joinPath(
-      context.extensionUri,
-      "out",
-      "data",
-      "courier-prime-bold.ttf"
-    )?.fsPath
-  );
-  doc.registerFont(
-    "ScriptBoldOblique",
-    vscode.Uri.joinPath(
-      context.extensionUri,
-      "out",
-      "data",
-      "courier-prime-bold-italic.ttf"
-    )?.fsPath
-  );
-  doc.registerFont(
-    "ScriptOblique",
-    vscode.Uri.joinPath(
-      context.extensionUri,
-      "out",
-      "data",
-      "courier-prime-italic.ttf"
-    )?.fsPath
-  );
-  if (opts.font !== "Courier Prime") {
-    try {
-      const { listVariants } = require("font-finder");
-      const variants = await listVariants(opts.font);
-      variants.forEach((variant: { style: string; path: string }) => {
-        switch (variant.style) {
-          case "regular":
-            doc.registerFont("ScriptNormal", variant.path);
-            break;
-          case "bold":
-            doc.registerFont("ScriptBold", variant.path);
-            break;
-          case "italic":
-            doc.registerFont("ScriptOblique", variant.path);
-            break;
-          case "boldItalic":
-            doc.registerFont("ScriptBoldOblique", variant.path);
-            break;
-        }
-      });
-    } catch {
-      // NoOp
+  Object.entries(opts.fonts).forEach(([key, src]) => {
+    if (src) {
+      doc.registerFont(key, src);
     }
-  }
+  });
 
   doc.font("ScriptNormal");
   doc.fontSize(print.font_size || 12);
@@ -431,7 +186,12 @@ const initDoc = async (context: vscode.ExtensionContext, opts: PdfOptions) => {
     doc.font("ScriptNormal");
     doc.text(text, x, y, options);
   };
-  doc.text2 = (text: string, x: number, y: number, options?: TextOptions) => {
+  doc.text2 = (
+    text: string,
+    x: number,
+    y: number,
+    options?: TextOptions
+  ): void => {
     options = options || {};
     const color = options.color || doc.formatState?.overrideColor || "#000000";
 
@@ -576,7 +336,7 @@ const initDoc = async (context: vscode.ExtensionContext, opts: PdfOptions) => {
     doc.formatState = cacheCurrentState;
   };
 
-  const splitBy = (text: string, delimiter: string) => {
+  const splitBy = (text: string, delimiter: string): string[] => {
     const delimiterPATTERN = "(" + delimiter + ")",
       delimiterRE = new RegExp(delimiterPATTERN, "g");
 
@@ -590,12 +350,12 @@ const initDoc = async (context: vscode.ExtensionContext, opts: PdfOptions) => {
     }, []);
   };
 
-  doc.text2WithImages = function (
+  doc.text2WithImages = (
     text: string,
     x: number,
     y: number,
     options?: TextOptions
-  ) {
+  ): void => {
     const textParts = splitBy(text, sparkRegexes.link.source);
     const parts: {
       text?: string;
@@ -626,29 +386,29 @@ const initDoc = async (context: vscode.ExtensionContext, opts: PdfOptions) => {
   return doc;
 };
 
-function clearFormatting(text: string) {
+const clearFormatting = (text: string): string => {
   let clean = text.replace(/\*/g, "");
   clean = clean.replace(/_/g, "");
   return clean;
-}
+};
 
-function inline(text: string) {
+const inline = (text: string): string => {
   return text.replace(/\n/g, " ");
-}
+};
 
-function finishDoc(doc: PdfDocument, filepath: string) {
+const finishDoc = (doc: PdfDocument, filepath: string): void => {
   doc.pipe(new PdfWriteStream(filepath));
   doc.end();
-}
+};
 
-const getTitleToken = function (
+const getTitleToken = (
   parsed: SparkParseResult,
   type: string
-): SparkToken | null {
+): SparkToken | null => {
   let result = null;
   if (parsed && parsed.titleTokens) {
     for (const section of Object.keys(parsed.titleTokens)) {
-      parsed.titleTokens[section]?.forEach(function (token: SparkToken) {
+      parsed.titleTokens[section]?.forEach((token: SparkToken) => {
         if (token.type === type) {
           result = token;
         }
@@ -658,11 +418,11 @@ const getTitleToken = function (
   return result;
 };
 
-async function generate(
+const generate = async (
   doc: PdfDocument,
   opts: PdfOptions,
   lineStructs?: Record<number, LineStruct>
-) {
+): Promise<void> => {
   const parsed = opts.parsed;
   const lines = opts.lines;
   const print = opts.print;
@@ -681,7 +441,7 @@ async function generate(
   doc.info.Creator = "sparkdown";
 
   // helper
-  const center = function (txt: string, y: number) {
+  const center = (txt: string, y: number): void => {
     const textLength = txt.replace(/\*/g, "").replace(/_/g, "").length;
     const feed = (print.page_width - textLength * print.font_width) / 2;
     doc.text2?.(txt, feed, y);
@@ -830,7 +590,7 @@ async function generate(
   let text;
   let afterSection = false; // helpful to determine synopsis indentation
 
-  const printHeaderAndFooter = function (continuation_header?: string) {
+  const printHeaderAndFooter = (continuation_header?: string): void => {
     if (screenplayCfg?.screenplay_print_header) {
       continuation_header = continuation_header || "";
       let offset = blankText(continuation_header);
@@ -865,7 +625,7 @@ async function generate(
     }
   };
 
-  const printWatermark = function () {
+  const printWatermark = (): void => {
     if (screenplayCfg?.screenplay_print_watermark) {
       const options = {
         origin: [0, 0],
@@ -999,7 +759,7 @@ async function generate(
           opts.sceneInvisibleSections?.[line.scene || -1];
         const hasInvisibleSection =
           line.type === "scene" && invisibleSections !== undefined;
-        const processSection = (sectionToken: LineItem) => {
+        const processSection = (sectionToken: LineItem): void => {
           let sectionText = sectionToken.text;
           currentSectionLevel = sectionToken.level || 0;
           currentSections.length = Math.max(0, (sectionToken.level || 0) - 1);
@@ -1175,17 +935,16 @@ async function generate(
       afterSection = false;
     }
   });
-}
+};
 
-export const generatePdf = async function (
-  context: vscode.ExtensionContext,
+export const generatePdf = async (
   opts: PdfOptions,
   progress?: vscode.Progress<{ message?: string; increment?: number }>
-) {
+): Promise<void> => {
   if (progress) {
     progress.report({ message: "Processing document", increment: 25 });
   }
-  const doc = await initDoc(context, opts);
+  const doc = await initDoc(opts);
   generate(doc, opts);
   if (progress) {
     progress.report({ message: "Writing to disk", increment: 25 });
@@ -1193,11 +952,8 @@ export const generatePdf = async function (
   finishDoc(doc, opts.filepath);
 };
 
-export const generatePdfStats = async function (
-  context: vscode.ExtensionContext,
-  opts: PdfOptions
-): Promise<PdfStats> {
-  const doc = await initDoc(context, opts);
+export const generatePdfStats = async (opts: PdfOptions): Promise<PdfStats> => {
+  const doc = await initDoc(opts);
   const stats: PdfStats = {
     pageCount: 1,
     pageCountReal: 1,

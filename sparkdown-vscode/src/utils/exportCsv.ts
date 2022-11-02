@@ -1,4 +1,3 @@
-
 import { generateSparkStrings } from "../../../spark-screenplay";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";

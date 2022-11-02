@@ -4,6 +4,7 @@ import {
   SparkScreenplayConfig,
 } from "../../../spark-screenplay";
 import { SparkParseResult, SparkSectionToken } from "../../../sparkdown";
+import { readFile } from "../utils/readFile";
 import { Liner } from "./liner";
 import {
   generatePdf,
@@ -30,7 +31,6 @@ export const createPdf = async (
   let watermark = undefined;
   let header = undefined;
   let footer = undefined;
-  let font = "Courier Prime";
   if (parsedDocument.titleTokens) {
     const hiddenTitleTokens = parsedDocument.titleTokens["hidden"] || [];
     for (let index = 0; index < hiddenTitleTokens.length; index++) {
@@ -45,9 +45,6 @@ export const createPdf = async (
         }
         if (titleToken.type === "footer") {
           footer = text;
-        }
-        if (titleToken.type === "font") {
-          font = text;
         }
       }
     }
@@ -126,21 +123,62 @@ export const createPdf = async (
     screenplay_print_dialogue_split_across_pages: true,
   });
 
+  const [ScriptNormal, ScriptBold, ScriptOblique, ScriptBoldOblique] =
+    await Promise.all([
+      readFile(
+        vscode.Uri.joinPath(
+          context.extensionUri,
+          "out",
+          "data",
+          "courier-prime.ttf"
+        )
+      ),
+      readFile(
+        vscode.Uri.joinPath(
+          context.extensionUri,
+          "out",
+          "data",
+          "courier-prime-bold.ttf"
+        )
+      ),
+      readFile(
+        vscode.Uri.joinPath(
+          context.extensionUri,
+          "out",
+          "data",
+          "courier-prime-italic.ttf"
+        )
+      ),
+      readFile(
+        vscode.Uri.joinPath(
+          context.extensionUri,
+          "out",
+          "data",
+          "courier-prime-bold-italic.ttf"
+        )
+      ),
+    ]);
+
   const pdfOptions: PdfOptions = {
     filepath: outputPath,
     parsed: parsedDocument,
-    lines: lines,
+    lines,
     print:
       printProfiles[screenplayConfig.screenplay_print_profile] ||
       printProfiles.usletter,
     screenplayConfig: screenplayConfig,
-    font: font,
+    font: "",
+    fonts: {
+      ScriptNormal,
+      ScriptBold,
+      ScriptOblique,
+      ScriptBoldOblique,
+    },
     sceneInvisibleSections,
   };
-
   if (outputPath === "$STATS$") {
-    return generatePdfStats(context, pdfOptions);
+    return generatePdfStats(pdfOptions);
   } else {
-    generatePdf(context, pdfOptions, progress);
+    generatePdf(pdfOptions, progress);
   }
 };

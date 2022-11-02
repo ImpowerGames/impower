@@ -8,7 +8,7 @@ import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSparkdownConfig } from "./getSparkdownConfig";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
-import { readFile } from "./readFile";
+import { readTextFile } from "./readTextFile";
 import { writeFile } from "./writeFile";
 
 export const exportHtml = async (
@@ -32,7 +32,7 @@ export const exportHtml = async (
   const config = getSparkdownConfig(uri);
 
   let rawHtml: string =
-    (await readFile(
+    (await readTextFile(
       vscode.Uri.joinPath(
         context.extensionUri,
         "out",
@@ -62,7 +62,7 @@ export const exportHtml = async (
     courierPrimeB64_italic,
     courierPrimeB64_bolditalic,
   ] = await Promise.all([
-    readFile(
+    readTextFile(
       vscode.Uri.joinPath(
         context.extensionUri,
         "out",
@@ -71,7 +71,7 @@ export const exportHtml = async (
       ),
       "base64"
     ),
-    readFile(
+    readTextFile(
       vscode.Uri.joinPath(
         context.extensionUri,
         "out",
@@ -80,7 +80,7 @@ export const exportHtml = async (
       ),
       "base64"
     ),
-    readFile(
+    readTextFile(
       vscode.Uri.joinPath(
         context.extensionUri,
         "out",
@@ -89,7 +89,7 @@ export const exportHtml = async (
       ),
       "base64"
     ),
-    readFile(
+    readTextFile(
       vscode.Uri.joinPath(
         context.extensionUri,
         "out",
