@@ -1,6 +1,6 @@
 import * as os from "os";
 
-export function openFile(p: string) {
+export const openFile = (p: string): void => {
   const platform = os.platform();
   let cmd = "xdg-open";
   switch (platform) {
@@ -14,9 +14,11 @@ export function openFile(p: string) {
       cmd = "xdg-open";
   }
   const exec = require("child_process").exec;
-  exec(`${cmd} "${p}"`, (err: string) => {
-    if (err) {
-      console.error(err);
-    }
-  });
-}
+  if (exec) {
+    exec(`${cmd} "${p}"`, (err: string) => {
+      if (err) {
+        console.error(err);
+      }
+    });
+  }
+};

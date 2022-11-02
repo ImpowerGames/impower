@@ -14,11 +14,12 @@ export const writeFile = (fsPath: string, output: string) => {
         if (process.platform === "darwin") {
           reveal = "Reveal in Finder";
         }
+        const exec = require("child_process").exec;
+        const items = exec ? [open, reveal] : ["OK"];
         vscode.window
           .showInformationMessage(
             `Exported ${ext?.toUpperCase()} Successfully!`,
-            open,
-            reveal
+            ...items
           )
           .then((val) => {
             switch (val) {
@@ -30,6 +31,9 @@ export const writeFile = (fsPath: string, output: string) => {
                 revealFile(fsPath);
                 break;
               }
+              default:
+                // NoOp
+                break;
             }
           });
       },
