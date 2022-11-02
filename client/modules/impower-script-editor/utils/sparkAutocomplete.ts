@@ -767,9 +767,9 @@ export const sparkAutocomplete = async (
   const sectionLevel = section?.level || 0;
   const ancestorIds = getAncestorIds(sectionId);
   const [, variables] = getScopedContext<string>(
+    "variables",
     sectionId,
-    result?.sections,
-    "variables"
+    result?.sections
   );
   const variableOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
     Object.entries(result?.sections?.[ancestorId]?.variables || {})
