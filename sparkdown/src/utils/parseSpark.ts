@@ -12,6 +12,7 @@ import { SparkAction, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkField } from "../types/SparkField";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkParseResult } from "../types/SparkParseResult";
+import { SparkParseState } from "../types/SparkParseState";
 import { SparkSection } from "../types/SparkSection";
 import { SparkStruct } from "../types/SparkStruct";
 import { SparkStructType } from "../types/SparkStructType";
@@ -34,7 +35,9 @@ import { createSparkToken } from "./createSparkToken";
 import { getExpressionCallMatch } from "./getExpressionCallMatch";
 import { getPrimitiveType } from "./getPrimitiveType";
 import { getScopedContext } from "./getScopedContext";
+import { getScopedItemId } from "./getScopedItemId";
 import { getScopedValueContext } from "./getScopedValueContext";
+import { getTo } from "./getTo";
 import { isAssetType } from "./isAssetType";
 import { isSparkDisplayToken } from "./isSparkDisplayToken";
 import { isStructType } from "./isStructType";
@@ -44,9 +47,6 @@ import { stripBlockComments } from "./stripBlockComments";
 import { stripInlineComments } from "./stripInlineComments";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
-import { SparkParseState } from "../types/SparkParseState";
-import { getTo } from "./getTo";
-import { getScopedItemId } from "./getScopedItemId";
 
 const EMPTY_OBJECT = {};
 
@@ -73,13 +73,17 @@ const diagnostic = (
   if (validFrom === validTo && lineStart < validTo) {
     validFrom = lineStart;
   }
-  const source = `${severity.toUpperCase()}: line ${currentToken.line} column ${
-    validFrom - currentToken.from
-  }`;
+  const line = currentToken?.line;
+  const startColumn = validFrom - currentToken.from;
+  const endColumn = startColumn + (validTo - validFrom);
+  const source = `${severity.toUpperCase()}: line ${line} column ${startColumn}`;
   if (validFrom < validTo) {
     parsed.diagnostics.push({
       from: validFrom,
       to: validTo,
+      line,
+      startColumn,
+      endColumn,
       severity,
       source,
       message,
@@ -89,6 +93,9 @@ const diagnostic = (
     parsed.diagnostics.push({
       from: currentToken.from,
       to: currentToken.to,
+      line,
+      startColumn,
+      endColumn,
       severity,
       source,
       message,
@@ -1068,7 +1075,8 @@ const getVariable = (
   type: SparkVariableType | SparkVariableType[] | undefined,
   name: string,
   from: number,
-  to: number
+  to: number,
+  severity: "error" | "warning" | "info" = "error"
 ): SparkVariable | undefined => {
   if (!name) {
     return undefined;
@@ -1083,13 +1091,20 @@ const getVariable = (
   }
   parsed.references[currentToken.line]?.push({ from, to, name, id });
   if (!found) {
+    const itemType =
+      typeof type === "string"
+        ? type
+        : Array.isArray(type)
+        ? type[0]
+        : "variable";
     diagnostic(
       parsed,
       currentToken,
-      `Cannot find variable named '${name}'`,
+      `Cannot find ${itemType} named '${name}'`,
       undefined,
       from,
-      to
+      to,
+      severity
     );
     return undefined;
   }
@@ -1729,7 +1744,8 @@ const checkNotes = (
             type,
             name,
             from,
-            to
+            to,
+            "warning"
           );
         }
       }
@@ -1763,7 +1779,8 @@ const pushAssets = (
           type,
           name,
           from,
-          to
+          to,
+          "warning"
         );
       }
       if (!state.assets) {

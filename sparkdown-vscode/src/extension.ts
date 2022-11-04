@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import * as vscode from "vscode";
 import { commandDecorationProvider } from "./state/commandDecorationProvider";
-import { fileState } from "./state/fileState";
+import { fileSystemWatcherState } from "./state/fileSystemWatcherState";
 import { parseState } from "./state/parseState";
 import { typingState } from "./state/typingState";
 import { activateCheatSheetView } from "./utils/activateCheatSheetView";
@@ -13,14 +13,16 @@ import { activatePreviewPanel } from "./utils/activatePreviewPanel";
 import { getActiveSparkdownDocument } from "./utils/getActiveSparkdownDocument";
 import { getEditor } from "./utils/getEditor";
 import { getSparkdownConfig } from "./utils/getSparkdownConfig";
-import { parseSparkDocument } from "./utils/parseDocument";
+import { parseSparkDocument } from "./utils/parseSparkDocument";
 import { activateUIPersistence } from "./utils/persistence";
 import { registerTyping } from "./utils/registerTyping";
 import { updateAssets } from "./utils/updateAssets";
 import { updateCommands } from "./utils/updateCommands";
 import { watchFiles } from "./utils/watchFiles";
 
-export function activate(context: vscode.ExtensionContext) {
+export const activate = async (
+  context: vscode.ExtensionContext
+): Promise<void> => {
   console.log("Sparkdown Activated");
   activateUIPersistence(context);
   activateOutlineView(context);
@@ -30,7 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
   activatePreviewPanel(context, "screenplay");
   // activateStatisticsPanel(context);
   activateDurationStatus(context);
-  activateLanguageAssistance();
+  activateLanguageAssistance(context);
   registerTyping();
   const uri = getActiveSparkdownDocument();
   if (!uri) {
@@ -41,19 +43,9 @@ export function activate(context: vscode.ExtensionContext) {
     return;
   }
   watchFiles(editor.document);
-  updateAssets(editor.document);
+  await updateAssets(editor.document);
   parseSparkDocument(editor.document);
-}
-
-vscode.workspace.onDidChangeTextDocument((change) => {
-  if (
-    change?.document?.languageId === "sparkdown" &&
-    change?.contentChanges?.length > 0
-  ) {
-    parseSparkDocument(change.document);
-    // updateStatisticsDocumentVersion(change.document.uri, change.document.version);
-  }
-});
+};
 
 vscode.workspace.onDidChangeConfiguration((change) => {
   if (
@@ -73,10 +65,21 @@ vscode.workspace.onDidChangeConfiguration((change) => {
   }
 });
 
-vscode.window.onDidChangeActiveTextEditor((editor) => {
+vscode.workspace.onDidChangeTextDocument((change) => {
+  if (
+    change?.document?.languageId === "sparkdown" &&
+    change?.contentChanges?.length > 0
+  ) {
+    watchFiles(change.document);
+    parseSparkDocument(change.document);
+    // updateStatisticsDocumentVersion(change.document.uri, change.document.version);
+  }
+});
+
+vscode.window.onDidChangeActiveTextEditor(async (editor) => {
   if (editor?.document?.languageId === "sparkdown") {
     watchFiles(editor.document);
-    updateAssets(editor.document);
+    await updateAssets(editor.document);
     parseSparkDocument(editor.document);
   }
 });
@@ -96,15 +99,15 @@ vscode.workspace.onDidSaveTextDocument((doc) => {
 
 vscode.workspace.onDidCloseTextDocument((doc) => {
   delete parseState.parsedDocuments[doc.uri.toString()];
-  if (fileState[doc.uri.toString()]?.assetsWatcher) {
-    fileState[doc.uri.toString()]?.assetsWatcher?.dispose();
+  if (fileSystemWatcherState[doc.uri.toString()]?.assetsWatcher) {
+    fileSystemWatcherState[doc.uri.toString()]?.assetsWatcher?.dispose();
   }
-  delete fileState[doc.uri.toString()];
+  delete fileSystemWatcherState[doc.uri.toString()];
 });
 
 // this method is called when your extension is deactivated
 export function deactivate() {
-  Object.values(fileState).forEach((v) => {
+  Object.values(fileSystemWatcherState).forEach((v) => {
     if (v.assetsWatcher) {
       v.assetsWatcher.dispose();
     }

@@ -18,6 +18,19 @@ export interface SparkDiagnostic {
     */
   to: number;
   /**
+    The line number of the relevant text.
+    */
+  line: number;
+  /**
+    The start column of the relevant text.
+    */
+  startColumn: number;
+  /**
+    The end column. May be equal to `startColumn`, though actually
+    covering text is preferable.
+    */
+  endColumn: number;
+  /**
     The severity of the problem. This will influence how it is
     displayed.
     */

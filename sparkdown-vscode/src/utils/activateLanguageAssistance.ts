@@ -1,8 +1,11 @@
 import * as vscode from "vscode";
 import { SparkdownCompletionProvider } from "../providers/Completion";
 import { SparkdownFoldingRangeProvider } from "../providers/Folding";
+import { diagnosticCollection } from "../state/diagnosticCollection";
 
-export const activateLanguageAssistance = (): void => {
+export const activateLanguageAssistance = (
+  context: vscode.ExtensionContext
+): void => {
   // Setup language folding
   vscode.languages.registerFoldingRangeProvider(
     { language: "sparkdown" },
@@ -17,4 +20,5 @@ export const activateLanguageAssistance = (): void => {
     "-",
     " "
   );
+  context.subscriptions.push(diagnosticCollection);
 };

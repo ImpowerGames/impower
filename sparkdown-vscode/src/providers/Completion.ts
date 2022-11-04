@@ -503,14 +503,12 @@ export class SparkdownCompletionProvider
                   ) {
                     completes.push({
                       label: thisLocation,
-                      documentation: "Scene heading",
                       sortText: "A" + (10 - (sceneMatch?.[0]?.length || 0)),
                     });
                     //The (10-scenematch[0].length) is a hack to avoid a situation where INT. would be before INT./EXT. when it should be after
                   } else {
                     completes.push({
                       label: thisLocation,
-                      documentation: "Scene heading",
                       sortText: "B",
                     });
                   }
@@ -551,7 +549,6 @@ export class SparkdownCompletionProvider
               label: charWithForceSymbolIfNecessary,
               kind: vscode.CompletionItemKind.Keyword,
               sortText: "0A" + index,
-              documentation: "Character from the current scene",
               command: {
                 command: "type",
                 arguments: [{ text: "\n" }],
@@ -567,7 +564,6 @@ export class SparkdownCompletionProvider
 
       completes.push({
         label: "INT. ",
-        documentation: "Interior",
         sortText: "1B",
         command: {
           command: "editor.action.triggerSuggest",
@@ -576,7 +572,6 @@ export class SparkdownCompletionProvider
       });
       completes.push({
         label: "EXT. ",
-        documentation: "Exterior",
         sortText: "1C",
         command: {
           command: "editor.action.triggerSuggest",
@@ -585,7 +580,6 @@ export class SparkdownCompletionProvider
       });
       completes.push({
         label: "INT/EXT. ",
-        documentation: "Interior/Exterior",
         sortText: "1D",
         command: {
           command: "editor.action.triggerSuggest",
@@ -606,7 +600,6 @@ export class SparkdownCompletionProvider
             if (!charactersFromCurrentSceneHash.has(key)) {
               completes.push({
                 label: key,
-                documentation: "Character",
                 sortText: sortText,
                 kind: vscode.CompletionItemKind.Text,
                 command: {
