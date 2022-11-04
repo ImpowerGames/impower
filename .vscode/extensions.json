@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "formulahendry.auto-rename-tag",
+    "streetsidesoftware.code-spell-checker",
+    "dbaeumer.vscode-eslint",
+    "eamodio.gitlens",
+    "esbenp.prettier-vscode",
+    "ofhumanbondage.react-proptypes-intellisense",
+    "styled-components.vscode-styled-components",
+    "yzhang.markdown-all-in-one",
+    "cschlosser.doxdocgen"
+  ]
+}
