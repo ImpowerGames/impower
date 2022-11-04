@@ -60,7 +60,7 @@ export const sparkRegexes: SparkRegexes = {
   line_break: /^ {2}$/,
   page_break: /^([ \t]*)([=]{3,})([^\n\r=]*)([ ]*)$/,
   transition:
-    /^([ \t]*)((?:^|.*[ ]+)(?:TO:|TO BLACK:|FADE OUT:|FADE IN:))([ ]*)$/,
+    /^([ \t]*)([>][ ]+[^ ]*[ ][^ ][^a-z]*|(?:^|[^a-z]*[ ]+)(?:TO:|TO BLACK:|FADE OUT:|FADE IN:|TO[ ]+.*[.]))([ ]*)$/,
   centered: /^([ \t]*)([>])([ ]*)(.+[^\s])([ ]*)([<])([ ]*)$/,
   lyric: /^([ \t]*)(~)(.+)([ ]*)$/,
   section:

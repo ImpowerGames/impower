@@ -151,6 +151,7 @@ export enum Type {
   StructMark,
   StructOpenMark,
   StructCloseMark,
+  TransitionMark,
   JumpMark,
   JumpOpenMark,
   JumpCloseMark,

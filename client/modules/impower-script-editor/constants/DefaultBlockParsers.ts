@@ -797,7 +797,16 @@ export const DefaultBlockParsers: {
 
     cx.startContext(Type.Display, line.basePos, line.next);
 
-    if (content) {
+    if (content[0] === ">") {
+      from = to;
+      to = from + 1;
+      buf = buf.write(Type.TransitionMark, from, to);
+      if (content) {
+        from = to;
+        to = from + content.length - 1;
+        buf = buf.writeElements(cx.parser.parseInline(content, from, cx));
+      }
+    } else if (content) {
       from = to;
       to = from + content.length;
       buf = buf.writeElements(cx.parser.parseInline(content, from, cx));

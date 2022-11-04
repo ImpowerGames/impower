@@ -106,15 +106,6 @@ export class SparkdownCommandTreeDataProvider
       );
     }
 
-    // Preview Game Command
-    const treePreviewGame = new vscode.TreeItem("Preview Game");
-    treePreviewGame.iconPath = new vscode.ThemeIcon("open-preview");
-    treePreviewGame.command = {
-      command: "sparkdown.previewgame",
-      title: "",
-    };
-    elements.push(treePreviewGame);
-
     // Preview Screenplay Command
     const treePreviewScreenplay = new vscode.TreeItem("Preview Screenplay");
     treePreviewScreenplay.iconPath = new vscode.ThemeIcon("open-preview");
@@ -123,6 +114,15 @@ export class SparkdownCommandTreeDataProvider
       title: "",
     };
     elements.push(treePreviewScreenplay);
+
+    // Preview Game Command
+    const treePreviewGame = new vscode.TreeItem("Preview Game");
+    treePreviewGame.iconPath = new vscode.ThemeIcon("open-preview");
+    treePreviewGame.command = {
+      command: "sparkdown.previewgame",
+      title: "",
+    };
+    elements.push(treePreviewGame);
 
     // Show Statistics Command
     // const statistics = new vscode.TreeItem("View Statistics");

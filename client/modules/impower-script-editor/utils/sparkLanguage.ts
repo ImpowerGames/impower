@@ -141,7 +141,7 @@ const commonmark = baseParser.configure({
       "TagName": tags.tagName,
       "GoSectionName ChoiceSectionName CallName": tags.sectionName,
       "SectionParameterName": tags.parameterName,
-      "StructMark ListMark ConditionMark CallMark AssignMark ChoiceMark VariableMark VariableKeyword GoMark ChoiceGoMark RepeatMark ReturnMark InterpolationOpenMark InterpolationCloseMark ImageNoteMark AudioNoteMark DynamicTagMark ImportMark":
+      "StructMark ListMark ConditionMark CallMark AssignMark ChoiceMark VariableMark VariableKeyword GoMark ChoiceGoMark RepeatMark ReturnMark InterpolationOpenMark InterpolationCloseMark ImageNoteMark AudioNoteMark DynamicTagMark ImportMark TransitionMark JumpMark":
         tags.keyword,
       "VariableType SectionParameterType SectionReturnType": tags.typeName,
       "String": tags.string,

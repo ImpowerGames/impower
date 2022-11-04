@@ -2,10 +2,29 @@
   "name": "sparkdown",
   "displayName": "Sparkdown",
   "description": "Sparkdown autocomplete, syntax highlighting, and export to PDF",
+  "galleryBanner": {
+    "color": "#053155",
+    "theme": "dark"
+  },
+  "icon": "icon.png",
   "publisher": "impowergames",
-  "version": "1.0.0",
+  "version": "1.2.0",
+  "pricing": "Free",
+  "license": "MIT",
+  "homepage": "https://www.impower.app",
+  "bugs": {
+    "url": "https://github.com/ImpowerGames/impower/issues",
+    "email": "support@impower.games"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ImpowerGames/impower"
+  },
+  "sponsor": {
+    "url": "https://www.patreon.com/impowergames"
+  },
   "engines": {
-    "vscode": "^1.71.0"
+    "vscode": "^1.72.0"
   },
   "categories": [
     "Programming Languages",
@@ -47,8 +66,8 @@
         ],
         "configuration": "./language-configuration.json",
         "icon": {
-          "light": "icon-lang.svg",
-          "dark": "icon-lang.svg"
+          "light": "icon-lang.png",
+          "dark": "icon-lang.png"
         }
       }
     ],
@@ -63,7 +82,7 @@
       "activitybar": [
         {
           "id": "sparkdown-view",
-          "icon": "icon.svg",
+          "icon": "icon-activitybar.png",
           "title": "Sparkdown"
         }
       ]
@@ -365,9 +384,9 @@
     "build-screenplay": "cd ./previews/screenplay-preview && webpack && cd ../..",
     "package-game": "cd ./previews/game-preview && webpack --mode production --devtool hidden-source-map && cd ../..",
     "package-screenplay": "cd ./previews/screenplay-preview && webpack --mode production --devtool hidden-source-map && cd ../..",
+    "package-web": "npm run package-game && npm run package-screenplay && webpack --mode production --devtool hidden-source-map",
     "build": "npm run build-game && npm run build-screenplay && webpack",
     "compile": "webpack",
-    "package": "npm run package-game && npm run package-screenplay && webpack --mode production --devtool hidden-source-map",
     "lint": "eslint src --ext ts",
     "browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
     "check": "npm run build && npm run lint"

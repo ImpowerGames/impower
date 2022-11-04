@@ -22,7 +22,7 @@ import {
   SparkChoiceToken,
   SparkDialogueToken,
   SparkDisplayToken,
-  SparkToken,
+  SparkToken
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
@@ -844,7 +844,7 @@ const getSectionCalls = (
     diagnostic(
       parsed,
       currentToken,
-      "Dynamic sections must be separated by '|'.\n{FirstTime|SecondTime|ThirdTime}",
+      "Dynamic sections must be surrounded by '{}'.\n{FirstTime|SecondTime|ThirdTime}",
       undefined,
       expressionFrom,
       expressionFrom + expression.length
@@ -2769,20 +2769,25 @@ export const parseSpark = (
       ) {
         currentToken.type = "transition";
         if (currentToken.type === "transition") {
+          const content = match[2] || "";
+          const contentFrom = currentToken.from + getStart(match, 2);
+          const extraOffset = content[0] === ">" ? 1 : 0;
+          currentToken.content = content.substring(extraOffset).trimStart();
           processDisplayedContent(
             parsed,
             config,
             currentToken,
             currentSectionId,
             state,
-            currentToken
+            currentToken,
+            contentFrom + extraOffset
           );
         }
       } else if ((match = currentToken.content.match(sparkRegexes.jump))) {
+        const valueText = match[4] || "";
+        const valueFrom = currentToken.from + getStart(match, 4);
         currentToken.type = "jump";
         if (currentToken.type === "jump") {
-          const valueText = match[4] || "";
-          const valueFrom = currentToken.from + getStart(match, 4);
           currentToken.value = valueText;
           currentToken.calls = getSectionCalls(
             parsed,
