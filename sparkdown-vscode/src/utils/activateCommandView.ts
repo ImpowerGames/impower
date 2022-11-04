@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { commandDecorationProvider } from "../state/commandDecorationProvider";
 import { commandViewProvider } from "../state/commandViewProvider";
 import { parseState } from "../state/parseState";
 import { exportCsv } from "./exportCsv";
@@ -19,6 +20,7 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
   vscode.window.createTreeView("sparkdown-commands", {
     treeDataProvider: commandViewProvider,
   });
+  vscode.window.registerFileDecorationProvider(commandDecorationProvider);
 
   // Jump to line command
   context.subscriptions.push(
@@ -45,22 +47,22 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
   );
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.exportpdf", async () => {
-      exportPdf(context);
+      await exportPdf(context);
     })
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.exporthtml", async () =>
-      exportHtml(context)
-    )
+    vscode.commands.registerCommand("sparkdown.exporthtml", async () => {
+      await exportHtml(context);
+    })
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.exportcsv", async () =>
-      exportCsv()
-    )
+    vscode.commands.registerCommand("sparkdown.exportcsv", async () => {
+      await exportCsv();
+    })
   );
   context.subscriptions.push(
-    vscode.commands.registerCommand("sparkdown.exportjson", () => {
-      exportJson();
+    vscode.commands.registerCommand("sparkdown.exportjson", async () => {
+      await exportJson();
     })
   );
   const shiftScenesUpDn = (direction: number) => {
@@ -96,4 +98,5 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
   );
   const uri = getActiveSparkdownDocument();
   commandViewProvider.update(uri);
+  commandDecorationProvider.update(uri);
 };

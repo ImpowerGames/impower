@@ -1,4 +1,6 @@
+import { generateSparkJsonData } from "../../../spark-screenplay";
 import { GameSparkParser } from "../classes/GameSparkParser";
+import { commandViewProvider } from "../state/commandViewProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
@@ -17,9 +19,11 @@ export const exportJson = async (): Promise<void> => {
   if (!fsPath) {
     return;
   }
+  commandViewProvider.notifyExportStarted("json");
   const sparkdown = editor.document.getText();
   const result = GameSparkParser.instance.parse(sparkdown);
   console.log(result);
-  const output = JSON.stringify(result, null, 4);
-  writeFile(fsPath, output);
+  const output = generateSparkJsonData(result);
+  await writeFile(fsPath, output);
+  commandViewProvider.notifyExportEnded("json");
 };

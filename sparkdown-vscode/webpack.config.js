@@ -72,11 +72,6 @@ const webExtensionConfig = {
       {
         test: /\.ttf$/,
         type: "asset/inline",
-        generator: {
-          dataUrl: (content) => {
-            return content.toString("base64");
-          },
-        },
       },
       // convert to base64 and include inline file system binary files used by fontkit and linebreak
       {

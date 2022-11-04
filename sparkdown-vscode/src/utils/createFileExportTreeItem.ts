@@ -1,15 +1,26 @@
 import * as vscode from "vscode";
-import { capitalize } from "./capitalize";
 
 export const createFileExportTreeItem = (
-  action: "export" | "sync",
+  sourceStat: vscode.FileStat | undefined,
+  commandUri: vscode.Uri | undefined,
+  commandStat: vscode.FileStat | undefined,
+  exporting: boolean | undefined,
   extension: string,
   tooltip = ""
 ): vscode.TreeItem => {
-  const item = new vscode.TreeItem(
-    `${capitalize(action)} ${extension.toUpperCase()}`
+  const action = commandStat ? "Sync" : "Export";
+  const modified =
+    sourceStat &&
+    commandStat &&
+    (sourceStat?.mtime || 0) > (commandStat?.mtime || 0);
+  const item = new vscode.TreeItem(`${action} ${extension.toUpperCase()}`);
+  item.resourceUri = commandUri;
+  item.iconPath = new vscode.ThemeIcon(
+    exporting ? "sync~spin" : action?.toLowerCase(),
+    modified
+      ? new vscode.ThemeColor("gitDecoration.modifiedResourceForeground")
+      : undefined
   );
-  item.iconPath = new vscode.ThemeIcon(action);
   item.tooltip = tooltip;
   item.command = {
     command: `sparkdown.export${extension.toLowerCase()}`,

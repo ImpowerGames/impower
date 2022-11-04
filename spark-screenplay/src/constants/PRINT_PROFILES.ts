@@ -1,9 +1,9 @@
 import { PrintProfile } from "../types/PrintProfile";
 
 const A4_DEFAULT_MAX = 58;
-const US_DEFAULT_MAX = 61;
+const USLETTER_DEFAULT_MAX = 61;
 
-const a4: PrintProfile = {
+const A4: PrintProfile = {
   paper_size: "a4",
   font_size: 12,
   lines_per_page: 57,
@@ -81,40 +81,40 @@ const a4: PrintProfile = {
   },
 };
 
-const usletter: PrintProfile = {
-  ...JSON.parse(JSON.stringify(a4)),
+const USLETTER: PrintProfile = {
+  ...JSON.parse(JSON.stringify(A4)),
   paper_size: "letter",
   lines_per_page: 55,
   page_width: 8.5,
   page_height: 11,
   scene: {
-    ...a4.scene,
-    max: US_DEFAULT_MAX,
+    ...A4.scene,
+    max: USLETTER_DEFAULT_MAX,
   },
   action: {
-    ...a4.action,
-    max: US_DEFAULT_MAX,
+    ...A4.action,
+    max: USLETTER_DEFAULT_MAX,
   },
   shot: {
-    ...a4.shot,
-    max: US_DEFAULT_MAX,
+    ...A4.shot,
+    max: USLETTER_DEFAULT_MAX,
   },
   transition: {
-    ...a4.transition,
-    max: US_DEFAULT_MAX,
+    ...A4.transition,
+    max: USLETTER_DEFAULT_MAX,
   },
   section: {
-    ...a4.section,
-    max: US_DEFAULT_MAX,
+    ...A4.section,
+    max: USLETTER_DEFAULT_MAX,
   },
   synopsis: {
-    ...a4.synopsis,
-    max: US_DEFAULT_MAX,
+    ...A4.synopsis,
+    max: USLETTER_DEFAULT_MAX,
   },
 };
 
-export const printProfiles: Record<"a4" | "usletter", PrintProfile> &
+export const PRINT_PROFILES: Record<"a4" | "usletter", PrintProfile> &
   Record<string, PrintProfile> = {
-  a4,
-  usletter,
+  a4: A4,
+  usletter: USLETTER,
 };

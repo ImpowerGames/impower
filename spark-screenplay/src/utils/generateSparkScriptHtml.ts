@@ -1,5 +1,5 @@
 import { SparkParseResult } from "../../../sparkdown";
-import { htmlReplacements } from "../constants/htmlReplacements";
+import { HTML_REPLACEMENTS } from "../constants/HTML_REPLACEMENTS";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 import { sparkLexer } from "./sparkLexer";
 
@@ -20,7 +20,11 @@ export const generateSparkScriptHtml = (
     const text = currentToken.text?.trimEnd();
     const line = currentToken.line;
     if (text) {
-      currentToken.html = sparkLexer(text, currentToken.type, htmlReplacements);
+      currentToken.html = sparkLexer(
+        text,
+        currentToken.type,
+        HTML_REPLACEMENTS
+      );
     } else {
       currentToken.html = "";
     }

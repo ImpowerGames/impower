@@ -3,7 +3,7 @@ import { Type } from "../types/type";
 import { Element } from "./Element";
 import { TreeElement } from "./TreeElement";
 
-export class Buffer {
+export class MarkdownBuffer {
   content: number[] = [];
 
   nodes: Tree[] = [];
@@ -14,12 +14,15 @@ export class Buffer {
     this.nodeSet = nodeSet;
   }
 
-  write(type: Type, from: number, to: number, children = 0): Buffer {
+  write(type: Type, from: number, to: number, children = 0): MarkdownBuffer {
     this.content.push(type, from, to, 4 + children * 4);
     return this;
   }
 
-  writeElements(elts: readonly (Element | TreeElement)[], offset = 0): Buffer {
+  writeElements(
+    elts: readonly (Element | TreeElement)[],
+    offset = 0
+  ): MarkdownBuffer {
     for (let i = 0; i < elts.length; i += 1) {
       const e = elts[i];
       e.writeTo(this, offset);

@@ -1,4 +1,4 @@
-export const htmlReplacements = {
+export const HTML_REPLACEMENTS = {
   link: '<a href="$6">$3</a>',
   note: '<span class="note">$1</span>',
 

@@ -1,5 +1,5 @@
 import { NodeSet, Tree } from "@lezer/common";
-import { Buffer } from "./Buffer";
+import { MarkdownBuffer } from "./MarkdownBuffer";
 import { TreeElement } from "./TreeElement";
 
 /// Elements are used to compose syntax nodes during parsing.
@@ -34,7 +34,7 @@ export class Element {
   }
 
   /// @internal
-  writeTo(buf: Buffer, offset: number): void {
+  writeTo(buf: MarkdownBuffer, offset: number): void {
     const startOff = buf.content.length;
     buf.writeElements(this.children, offset);
     buf.content.push(
@@ -48,7 +48,7 @@ export class Element {
   /// @internal
   toTree(nodeSet: NodeSet): Tree {
     // eslint-disable-next-line no-buffer-constructor
-    return new Buffer(nodeSet)
+    return new MarkdownBuffer(nodeSet)
       .writeElements(this.children, -this.from)
       .finish(this.type, this.to - this.from);
   }

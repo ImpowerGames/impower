@@ -1,5 +1,5 @@
 import { SparkParseResult, SparkToken } from "../../../sparkdown";
-import { htmlReplacements } from "../constants/htmlReplacements";
+import { HTML_REPLACEMENTS } from "../constants/HTML_REPLACEMENTS";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 import { sparkLexer } from "./sparkLexer";
 
@@ -60,7 +60,12 @@ export const generateSparkTitleHtml = (
       const text = currentToken.text;
       const line = currentToken.line;
       if (text) {
-        currentToken.html = sparkLexer(text, undefined, htmlReplacements, true);
+        currentToken.html = sparkLexer(
+          text,
+          undefined,
+          HTML_REPLACEMENTS,
+          true
+        );
       }
       switch (currentToken.type) {
         case "title":
@@ -93,7 +98,7 @@ export const generateSparkTitleHtml = (
       `<div class="header">${sparkLexer(
         config.screenplay_print_header,
         undefined,
-        htmlReplacements,
+        HTML_REPLACEMENTS,
         true
       )}</div>`
     );
@@ -108,7 +113,7 @@ export const generateSparkTitleHtml = (
       `<div class="footer">${sparkLexer(
         config.screenplay_print_footer,
         undefined,
-        htmlReplacements,
+        HTML_REPLACEMENTS,
         true
       )}</div>`
     );

@@ -1,22 +1,22 @@
-import { writeFile } from "../utils/writeFile";
+import { stringToUtf8 } from "../utils/stringToUtf8";
 
 export type Listener = (...args: unknown[]) => void;
 
-export class PdfWriteStream implements NodeJS.WritableStream {
+export class PdfWriteStream {
   maxListeners = 1000;
 
   writable = true;
 
   chunks: Uint8Array[] = [];
 
-  filepath = "";
-
   repeatCallbacks: Record<string | symbol, Listener[]> = {};
 
   onceCallbacks: Record<string | symbol, Listener[]> = {};
 
-  constructor(filepath: string) {
-    this.filepath = filepath;
+  onEnd?: (chunks: Uint8Array[]) => Promise<void>;
+
+  constructor(onEnd?: (chunks: Uint8Array[]) => Promise<void>) {
+    this.onEnd = onEnd;
   }
 
   addListener(eventName: string | symbol, listener: Listener): this {
@@ -121,20 +121,18 @@ export class PdfWriteStream implements NodeJS.WritableStream {
   }
 
   write(chunk: Uint8Array | string): boolean {
-    this.chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+    this.chunks.push(typeof chunk === "string" ? stringToUtf8(chunk) : chunk);
     return true;
   }
 
   end(): this {
-    if (this.filepath) {
-      const pdfBuffer = Buffer.concat(this.chunks);
-      const pdfString = pdfBuffer.toString();
-      writeFile(this.filepath, pdfString).then(() => {
+    this.onEnd?.(this.chunks)
+      .then(() => {
+        this.emit("done", this);
+      })
+      .catch(() => {
         this.emit("done", this);
       });
-    } else {
-      this.emit("done", this);
-    }
     return this;
   }
 }

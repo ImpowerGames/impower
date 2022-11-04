@@ -1,5 +1,9 @@
 import * as vscode from "vscode";
-import { SparkScreenplayConfig } from "../../../spark-screenplay";
+import {
+  generateSparkPdfData,
+  LineStruct,
+  SparkScreenplayConfig,
+} from "../../../spark-screenplay";
 import {
   calculateSpeechDuration,
   isMonologue,
@@ -7,9 +11,9 @@ import {
   sparkRegexes,
   StructureItem,
 } from "../../../sparkdown";
-import { createPdf } from "../pdf/pdf";
-import { PdfStats } from "../pdf/pdfmaker";
+import { generatePdfStats } from "../pdf/generatePdfStats";
 import { getCharacterName } from "./getCharacterName";
+import { getFonts } from "./getFonts";
 import { rgbToHex } from "./rgbToHex";
 import { wordToColor } from "./wordToColor";
 
@@ -389,7 +393,11 @@ const getLengthChart = (
 
 const createLengthStatistics = (
   script: string,
-  pdf: PdfStats,
+  pdf: {
+    pageCount: number;
+    pageCountReal: number;
+    lineMap: Record<number, LineStruct>; //the structure of each line
+  },
   parsed: SparkParseResult
 ): LengthStatistics => {
   return {
@@ -429,15 +437,11 @@ export const retrieveScreenPlayStatistics = async (
   context: vscode.ExtensionContext,
   script: string,
   parsed: SparkParseResult,
-  screenplayConfig: SparkScreenplayConfig
+  config: SparkScreenplayConfig
 ): Promise<ScreenPlayStatistics> => {
-  const pdfStats = (await createPdf(
-    context,
-    "$STATS$",
-    screenplayConfig,
-    parsed,
-    undefined
-  )) as PdfStats;
+  const fonts = await getFonts(context);
+  const pdfData = generateSparkPdfData(parsed, config, fonts);
+  const pdfStats = await generatePdfStats(pdfData);
   return {
     characterStats: createCharacterStatistics(parsed),
     sceneStats: createSceneStatistics(parsed),

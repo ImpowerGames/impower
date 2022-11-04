@@ -9,9 +9,9 @@ export const getDiagnostics = (
   if (!diagnostics) {
     return [];
   }
-  return diagnostics.map((d) => ({
+  return diagnostics?.map((d) => ({
     ...d,
-    actions: d.actions.map((a) => ({
+    actions: d.actions?.map((a) => ({
       ...a,
       apply: (view: EditorView, _from: number, _to: number): void => {
         if (a.focus) {

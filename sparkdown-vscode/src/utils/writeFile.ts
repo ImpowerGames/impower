@@ -20,23 +20,26 @@ export const writeFile = async (
     }
     const exec = require("child_process").exec;
     const items = exec ? [open, reveal] : ["OK"];
-    const val = await vscode.window.showInformationMessage(
-      `Exported ${ext?.toUpperCase()} Successfully!`,
-      ...items
-    );
-    switch (val) {
-      case open: {
-        openFile(fsPath);
-        break;
-      }
-      case reveal: {
-        revealFile(fsPath);
-        break;
-      }
-      default:
-        // NoOp
-        break;
-    }
+    vscode.window
+      .showInformationMessage(
+        `Exported ${ext?.toUpperCase()} Successfully!`,
+        ...items
+      )
+      .then((val) => {
+        switch (val) {
+          case open: {
+            openFile(fsPath);
+            break;
+          }
+          case reveal: {
+            revealFile(fsPath);
+            break;
+          }
+          default:
+            // NoOp
+            break;
+        }
+      });
   } catch (e) {
     const error = e as { message?: string };
     vscode.window.showErrorMessage(

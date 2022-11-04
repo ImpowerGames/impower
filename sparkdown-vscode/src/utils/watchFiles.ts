@@ -40,11 +40,14 @@ export const watchFiles = (doc: vscode.TextDocument) => {
       if (relativePath) {
         state.syncWatcher =
           vscode.workspace.createFileSystemWatcher(relativePath);
+        state.syncWatcher.onDidChange(() => {
+          updateCommands(doc.uri);
+        });
         state.syncWatcher.onDidCreate(() => {
-          updateCommands(doc);
+          updateCommands(doc.uri);
         });
         state.syncWatcher.onDidDelete(() => {
-          updateCommands(doc);
+          updateCommands(doc.uri);
         });
       }
     }

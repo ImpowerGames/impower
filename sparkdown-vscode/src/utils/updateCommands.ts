@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
+import { commandDecorationProvider } from "../state/commandDecorationProvider";
 import { commandViewProvider } from "../state/commandViewProvider";
 
-export const updateCommands = (doc: vscode.TextDocument) => {
-  commandViewProvider.update(doc.uri);
+export const updateCommands = (uri: vscode.Uri) => {
+  commandViewProvider.update(uri);
+  commandDecorationProvider.update(uri);
 };

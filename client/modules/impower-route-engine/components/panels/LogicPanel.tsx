@@ -32,6 +32,11 @@ import {
   panelSearchText,
 } from "../../types/actions/panelActions";
 import { WindowType } from "../../types/state/windowState";
+import { exportCsv } from "../../utils/exportCsv";
+import { exportHtml } from "../../utils/exportHtml";
+import { exportJson } from "../../utils/exportJson";
+import { exportPdf } from "../../utils/exportPdf";
+import { exportTxt } from "../../utils/exportTxt";
 import SnippetToolbar from "../bars/SnippetToolbar";
 import PanelHeader from "../headers/PanelHeader";
 import PanelHeaderIconButton from "../iconButtons/PanelHeaderIconButton";
@@ -101,6 +106,10 @@ const ContainerPanelHeader = React.memo(
     const diagnostics =
       state?.panel?.panels?.[windowType]?.editorState?.diagnostics;
     const toolbar = state?.panel?.panels?.[windowType]?.toolbar;
+    const projectName = state?.project?.data?.doc?.name;
+    const script =
+      state?.project?.data?.scripts?.data?.[windowType.toLowerCase()] || "";
+    const files = state?.project?.data?.files?.data;
 
     const theme = useTheme();
 
@@ -168,8 +177,23 @@ const ContainerPanelHeader = React.memo(
         if (option === "hide_snippet") {
           dispatch(panelChangeToolbar(windowType));
         }
+        if (option === "export_pdf") {
+          exportPdf(projectName, script, files);
+        }
+        if (option === "export_html") {
+          exportHtml(projectName, script, files);
+        }
+        if (option === "export_csv") {
+          exportCsv(projectName, script);
+        }
+        if (option === "export_json") {
+          exportJson(projectName, script, files);
+        }
+        if (option === "export_txt") {
+          exportTxt(projectName, script);
+        }
       },
-      [dispatch, windowType]
+      [dispatch, files, projectName, script, windowType]
     );
 
     const headerType = searchTextQuery
@@ -213,13 +237,28 @@ const ContainerPanelHeader = React.memo(
             },
         { label: "---" },
         {
-          key: "export_game",
-          label: "Export Game",
+          key: "export_pdf",
+          label: "Export PDF",
           icon: <FileExportRegularIcon />,
         },
         {
-          key: "export_screenplay",
-          label: "Export Screenplay",
+          key: "export_html",
+          label: "Export HTML",
+          icon: <FileExportRegularIcon />,
+        },
+        {
+          key: "export_csv",
+          label: "Export CSV",
+          icon: <FileExportRegularIcon />,
+        },
+        {
+          key: "export_json",
+          label: "Export JSON",
+          icon: <FileExportRegularIcon />,
+        },
+        {
+          key: "export_txt",
+          label: "Export TXT",
           icon: <FileExportRegularIcon />,
         },
       ],

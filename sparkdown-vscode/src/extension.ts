@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import * as vscode from "vscode";
+import { commandDecorationProvider } from "./state/commandDecorationProvider";
 import { fileState } from "./state/fileState";
 import { parseState } from "./state/parseState";
 import { typingState } from "./state/typingState";
@@ -16,6 +17,7 @@ import { parseSparkDocument } from "./utils/parseDocument";
 import { activateUIPersistence } from "./utils/persistence";
 import { registerTyping } from "./utils/registerTyping";
 import { updateAssets } from "./utils/updateAssets";
+import { updateCommands } from "./utils/updateCommands";
 import { watchFiles } from "./utils/watchFiles";
 
 export function activate(context: vscode.ExtensionContext) {
@@ -79,16 +81,17 @@ vscode.window.onDidChangeActiveTextEditor((editor) => {
   }
 });
 
-vscode.workspace.onDidSaveTextDocument((_doc) => {
-  // if (doc?.languageId === "sparkdown") {
-  //   const config = getSparkdownConfig(doc.uri);
-  //   if (config.refresh_stats_on_save) {
-  //     const statsPanel = getStatisticsPanels(doc.uri);
-  //     for (const sp of statsPanel) {
-  //       refreshPanel(sp.panel, doc, config);
-  //     }
-  //   }
-  // }
+vscode.workspace.onDidSaveTextDocument((doc) => {
+  if (doc?.languageId === "sparkdown") {
+    updateCommands(doc.uri);
+    //   const config = getSparkdownConfig(doc.uri);
+    //   if (config.refresh_stats_on_save) {
+    //     const statsPanel = getStatisticsPanels(doc.uri);
+    //     for (const sp of statsPanel) {
+    //       refreshPanel(sp.panel, doc, config);
+    //     }
+    //   }
+  }
 });
 
 vscode.workspace.onDidCloseTextDocument((doc) => {
@@ -106,4 +109,5 @@ export function deactivate() {
       v.assetsWatcher.dispose();
     }
   });
+  commandDecorationProvider.dispose();
 }

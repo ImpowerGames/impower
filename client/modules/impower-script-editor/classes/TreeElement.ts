@@ -1,5 +1,5 @@
 import { Tree } from "@lezer/common";
-import { Buffer } from "./Buffer";
+import { MarkdownBuffer } from "./MarkdownBuffer";
 
 export class TreeElement {
   readonly tree: Tree;
@@ -23,7 +23,7 @@ export class TreeElement {
     return [];
   }
 
-  writeTo(buf: Buffer, offset: number): void {
+  writeTo(buf: MarkdownBuffer, offset: number): void {
     buf.nodes.push(this.tree);
     buf.content.push(
       buf.nodes.length - 1,

@@ -39,11 +39,11 @@ export const verifyProjectClaim = async (
       const projectInfo = projectData
         ? {
             id: project,
-            tags: projectData?.tags,
-            n: projectData?.name,
-            u: projectData?.slug,
-            h: projectData?.hex,
-            i: projectData?.icon?.fileUrl,
+            tags: projectData?.tags || [],
+            n: projectData?.name || "",
+            u: projectData?.slug || "",
+            h: projectData?.hex || "",
+            i: projectData?.icon?.fileUrl || "",
             t:
               (projectData?._updatedAt as { toDate: () => Date })
                 ?.toDate?.()
@@ -55,11 +55,11 @@ export const verifyProjectClaim = async (
       const studioInfo = studioData
         ? {
             id: studio,
-            tags: studioData?.tags,
-            n: studioData?.name,
-            u: studioData?.handle,
-            h: studioData?.hex,
-            i: studioData?.icon?.fileUrl,
+            tags: studioData?.tags || [],
+            n: studioData?.name || "",
+            u: studioData?.handle || "",
+            h: studioData?.hex || "",
+            i: studioData?.icon?.fileUrl || "",
             t:
               (studioData?._updatedAt as { toDate: () => Date })
                 ?.toDate?.()

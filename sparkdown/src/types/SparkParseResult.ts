@@ -1,12 +1,12 @@
-import { SparkProperties } from "./SparkProperties";
 import { SparkDeclarations } from "./SparkDeclarations";
 import { SparkDiagnostic } from "./SparkDiagnostic";
+import { SparkProperties } from "./SparkProperties";
 import { SparkReference } from "./SparkReference";
 import { SparkSection } from "./SparkSection";
 import { SparkToken } from "./SparkToken";
 
 export interface SparkParseResult extends SparkDeclarations {
-  titleTokens?: { [key: string]: SparkToken[] };
+  titleTokens?: Record<string, SparkToken[]>;
   tokens: SparkToken[];
   diagnostics: SparkDiagnostic[];
   references: Record<number, SparkReference[]>;

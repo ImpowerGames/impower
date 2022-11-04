@@ -9,12 +9,12 @@ import { none } from "../constants/none";
 import { Type } from "../types/type";
 import { injectGaps } from "../utils/injectGaps";
 import { injectMarks } from "../utils/injectMarks";
-import { Buffer } from "./Buffer";
 import { CompositeBlock } from "./CompositeBlock";
 import { Element } from "./Element";
 import { FragmentCursor } from "./FragmentCursor";
 import { LeafBlock } from "./LeafBlock";
 import { Line } from "./Line";
+import { MarkdownBuffer } from "./MarkdownBuffer";
 import { MarkdownParser } from "./MarkdownParser";
 import { TreeElement } from "./TreeElement";
 
@@ -428,8 +428,8 @@ export class BlockContext implements PartialParse {
   }
 
   /// @internal
-  get buffer(): Buffer {
+  get buffer(): MarkdownBuffer {
     // eslint-disable-next-line no-buffer-constructor
-    return new Buffer(this.parser.nodeSet);
+    return new MarkdownBuffer(this.parser.nodeSet);
   }
 }

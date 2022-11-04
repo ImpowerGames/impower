@@ -1,6 +1,6 @@
 import { SparkParseResult } from "../../../sparkdown";
 
-export const generateSparkStrings = (result: SparkParseResult): string[][] => {
+export const generateSparkCsvData = (result: SparkParseResult): string[][] => {
   const language: string =
     result?.titleTokens?.["language"]?.[0]?.content || "en-US [English (US)]";
   const strings: string[][] = [["KEY", "CONTEXT", language]];

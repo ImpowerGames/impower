@@ -17,14 +17,6 @@ module.exports = withBundleAnalyzer({
     skipWaiting: false,
   },
   webpack: (config, { isServer }) => {
-    config.module.rules.push({
-      test: /\.(svg)$/,
-      use: ["@svgr/webpack"],
-    });
-    config.module.rules.push({
-      test: /\.md$/,
-      loader: "raw-loader",
-    });
     if (
       !isServer &&
       config.optimization.splitChunks.cacheGroups &&
@@ -36,7 +28,56 @@ module.exports = withBundleAnalyzer({
       ...(config.plugins || []),
       new webpack.ProvidePlugin({
         PIXI: "pixi.js",
+        Buffer: ["buffer", "Buffer"],
+        process: "process/browser",
       }),
+    ];
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      "iconv-lite": false,
+    };
+    config.resolve.fallback = {
+      ...(config.resolve.fallback || {}),
+      fs: false,
+      buffer: require.resolve("buffer/"),
+      stream: require.resolve("readable-stream"),
+      zlib: require.resolve("browserify-zlib"),
+    };
+    config.module.generator["asset/resource"] =
+      config.module.generator["asset"];
+    config.module.generator["asset/source"] = config.module.generator["asset"];
+    delete config.module.generator["asset"];
+    config.module.rules = [
+      ...(config.module.rules || []),
+      {
+        test: /\.(svg)$/,
+        use: ["@svgr/webpack"],
+      },
+      {
+        test: /\.md$/,
+        loader: "raw-loader",
+      },
+      { test: /\.afm$/, type: "asset/source" },
+      {
+        test: /\.(ttf|woff2)$/,
+        type: "asset/inline",
+      },
+      {
+        enforce: "post",
+        test: /fontkit[/\\]index.js$/,
+        loader: "transform-loader",
+        options: {
+          brfs: {},
+        },
+      },
+      {
+        enforce: "post",
+        test: /linebreak[/\\]src[/\\]linebreaker.js/,
+        loader: "transform-loader",
+        options: {
+          brfs: {},
+        },
+      },
     ];
     return config;
   },

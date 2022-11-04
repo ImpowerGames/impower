@@ -1,14 +1,10 @@
-import { PrintProfile, SparkScreenplayConfig } from "../../../spark-screenplay";
 import {
   createSparkToken,
   SparkLine,
   SparkToken,
   SparkTokenTypeMap,
 } from "../../../sparkdown";
-
-export interface LinerConfig extends Partial<SparkScreenplayConfig> {
-  print: PrintProfile;
-}
+import { PrintProfile } from "../types/PrintProfile";
 
 export interface LineItem extends SparkLine {
   position?: "left" | "right";
@@ -24,6 +20,12 @@ export interface LineItem extends SparkLine {
   leftColumn?: LineItem[];
   rightColumn?: LineItem[];
   sceneSplit?: boolean;
+}
+
+export interface LinerConfig {
+  screenplay_print_dialogue_contd?: string;
+  screenplay_print_dialogue_more?: string;
+  screenplay_print_dialogue_split_across_pages?: boolean;
 }
 
 export const createLine = (token: Partial<LineItem>): LineItem => {
@@ -94,9 +96,15 @@ export class Liner {
     token.lines = this.splitText(token.text || "", max, token.from, token);
   };
 
-  breaker = (index: number, lines: LineItem[], cfg: LinerConfig): boolean => {
-    const CONTD = cfg.screenplay_print_dialogue_contd || "(CONT'D)";
-    const MORE = cfg.screenplay_print_dialogue_more || "(MORE)";
+  breaker = (
+    index: number,
+    lines: LineItem[],
+    config: LinerConfig
+  ): boolean => {
+    const CONTD = config.screenplay_print_dialogue_contd || "(CONT'D)";
+    const MORE = config.screenplay_print_dialogue_more || "(MORE)";
+    const splitAcrossPages =
+      config.screenplay_print_dialogue_split_across_pages;
 
     let before = index - 1;
     while (before && !lines[before]?.text) {
@@ -161,7 +169,7 @@ export class Liner {
     ) {
       return false;
     } else if (
-      cfg.screenplay_print_dialogue_split_across_pages &&
+      splitAcrossPages &&
       tokenOnBreak.type === "dialogue" &&
       tokenAfter &&
       tokenAfter.type === "dialogue" &&
@@ -264,13 +272,15 @@ export class Liner {
 
   breakLines = (
     lines: LineItem[],
-    max: number,
-    breaker: (index: number, lines: LineItem[], cfg: LinerConfig) => boolean,
-    cfg: LinerConfig
+    breaker: (index: number, lines: LineItem[], config: LinerConfig) => boolean,
+    print: PrintProfile,
+    config: LinerConfig
   ): LineItem[] => {
     while (lines.length && !lines[0]?.text) {
       lines.shift();
     }
+
+    const max = print.lines_per_page;
 
     let s = max;
     let p;
@@ -291,7 +301,7 @@ export class Liner {
           // loop
         }
         s = p;
-      } while (p && !breaker(p, lines, cfg));
+      } while (p && !breaker(p, lines, config));
       if (!p) {
         p = max;
       }
@@ -322,7 +332,7 @@ export class Liner {
         sceneSplit: sceneSplit,
       })
     );
-    const append = this.breakLines(lines.slice(p + 1), max, breaker, cfg);
+    const append = this.breakLines(lines.slice(p + 1), breaker, print, config);
     return page.concat(append);
   };
 
@@ -419,7 +429,11 @@ export class Liner {
     }
   };
 
-  line = (tokens: LineItem[], cfg: LinerConfig): LineItem[] => {
+  line = (
+    tokens: LineItem[],
+    print: PrintProfile,
+    config: LinerConfig
+  ): LineItem[] => {
     let lines: LineItem[] = [];
     let globalIndex = 0;
 
@@ -428,10 +442,8 @@ export class Liner {
     tokens.forEach((token: LineItem) => {
       if (!token.hide) {
         let max =
-          (
-            (cfg.print[token.type as keyof PrintProfile] as { max: number }) ||
-            {}
-          ).max || cfg.print.action.max;
+          ((print[token.type as keyof PrintProfile] as { max: number }) || {})
+            .max || print.action.max;
 
         //Replace tabs with 4 spaces
         if (token.text) {
@@ -439,7 +451,7 @@ export class Liner {
         }
 
         if (token.position) {
-          max *= cfg.print.dual_max_factor;
+          max *= print.dual_max_factor;
         }
 
         this.splitToken(token, max);
@@ -462,7 +474,7 @@ export class Liner {
     });
 
     this.foldDualDialogue(lines);
-    lines = this.breakLines(lines, cfg.print.lines_per_page, this.breaker, cfg);
+    lines = this.breakLines(lines, this.breaker, print, config);
 
     return lines;
   };

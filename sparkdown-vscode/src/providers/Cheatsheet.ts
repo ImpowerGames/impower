@@ -10,7 +10,7 @@ export class SparkdownCheatSheetWebviewViewProvider
       localResourceRoots: [this._extensionUri],
     };
 
-    const styleUri = webviewView.webview
+    const styleUriString = webviewView.webview
       .asWebviewUri(
         vscode.Uri.joinPath(
           this._extensionUri,
@@ -20,7 +20,7 @@ export class SparkdownCheatSheetWebviewViewProvider
         )
       )
       .toString();
-    const codiconUri = webviewView.webview
+    const codiconUriString = webviewView.webview
       .asWebviewUri(
         vscode.Uri.joinPath(
           this._extensionUri,
@@ -89,8 +89,8 @@ export class SparkdownCheatSheetWebviewViewProvider
             
            
             <title>Cheat Sheet</title>
-            <link rel="stylesheet" href="${styleUri}">
-            <link rel="stylesheet" type="text/css" href="${codiconUri}">
+            <link rel="stylesheet" href="${styleUriString}">
+            <link rel="stylesheet" type="text/css" href="${codiconUriString}">
             <style>
             @font-face{
                 font-family: sparkdown-font;

@@ -3,9 +3,9 @@ import { Tree } from "@lezer/common";
 import { tokenize } from "../../../../spark-evaluate";
 import { entityMethods, MethodType, sparkRegexes } from "../../../../sparkdown";
 import { BlockContext } from "../classes/BlockContext";
-import { Buffer } from "../classes/Buffer";
 import { Element } from "../classes/Element";
 import { Line } from "../classes/Line";
+import { MarkdownBuffer } from "../classes/MarkdownBuffer";
 import { TreeElement } from "../classes/TreeElement";
 import { BlockResult } from "../types/blockResult";
 import { Type } from "../types/type";
@@ -51,11 +51,11 @@ import {
 } from "./regexes";
 
 export const parseTemplateString = (
-  buf: Buffer,
+  buf: MarkdownBuffer,
   content: string,
   from: number,
   to: number
-): Buffer => {
+): MarkdownBuffer => {
   to = from;
   const stringArr = content.split(sparkRegexes.interpolation_splitter);
   stringArr.forEach((m) => {
@@ -89,11 +89,11 @@ export const parseTemplateString = (
 };
 
 export const parseExpression = (
-  buf: Buffer,
+  buf: MarkdownBuffer,
   expression: string,
   from: number,
   to: number
-): Buffer => {
+): MarkdownBuffer => {
   const [tokens] = tokenize(expression);
   const exprFrom = from;
   tokens.forEach((t) => {

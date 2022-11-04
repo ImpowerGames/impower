@@ -1,5 +1,6 @@
-import { generateSparkStrings } from "../../../spark-screenplay";
+import { generateSparkCsvData } from "../../../spark-screenplay";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
+import { commandViewProvider } from "../state/commandViewProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
@@ -19,10 +20,15 @@ export const exportCsv = async (): Promise<void> => {
   if (!fsPath) {
     return;
   }
+  commandViewProvider.notifyExportStarted("csv");
   const sparkdown = editor.document.getText();
   const result = ScreenplaySparkParser.instance.parse(sparkdown);
-  const strings = generateSparkStrings(result);
-  stringify(strings, (_err: string, output: string) => {
-    writeFile(fsPath, output);
+  const strings = generateSparkCsvData(result);
+  await new Promise<void>((resolve) => {
+    stringify(strings, {}, async (_err: Error | undefined, output: string) => {
+      await writeFile(fsPath, output);
+      resolve();
+    });
   });
+  commandViewProvider.notifyExportEnded("csv");
 };

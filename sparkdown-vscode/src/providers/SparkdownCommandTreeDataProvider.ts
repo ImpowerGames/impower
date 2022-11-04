@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { createFileExportTreeItem } from "../utils/createFileExportTreeItem";
-import { fileExists } from "../utils/fileExists";
+import { fileStat } from "../utils/fileStat";
 import { getEditor } from "../utils/getEditor";
 
 export class SparkdownCommandTreeDataProvider
@@ -11,74 +11,97 @@ export class SparkdownCommandTreeDataProvider
   public readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | null> =
     this.onDidChangeTreeDataEmitter.event;
 
-  commands: {
-    pdf?: "export" | "sync";
-    html?: "export" | "sync";
-    csv?: "export" | "sync";
-    json?: "export" | "sync";
-  } = {
-    pdf: "export",
-    html: "export",
-    csv: "export",
-    json: "export",
-  };
+  private _exporting: {
+    pdf?: boolean;
+    html?: boolean;
+    csv?: boolean;
+    json?: boolean;
+  } = {};
+
+  private _stat?: vscode.FileStat;
+
+  private _commandUris: {
+    pdf?: vscode.Uri;
+    html?: vscode.Uri;
+    csv?: vscode.Uri;
+    json?: vscode.Uri;
+  } = {};
+
+  private _commandStats: Record<string, vscode.FileStat | undefined> = {};
 
   getTreeItem(
     element: vscode.TreeItem
   ): vscode.TreeItem | Thenable<vscode.TreeItem> {
     return element;
   }
+
   getChildren(): vscode.ProviderResult<vscode.TreeItem[]> {
     const elements: vscode.TreeItem[] = [];
 
     // Export Pdf Command
-    if (this.commands.pdf) {
+    {
+      const uri = this._commandUris.pdf;
+      const stat = this._commandStats[this._commandUris.pdf?.path || ""];
+      const exporting = this._exporting.pdf;
       elements.push(
         createFileExportTreeItem(
-          this.commands.pdf,
+          this._stat,
+          uri,
+          stat,
+          exporting,
           "pdf",
-          this.commands.pdf === "sync"
-            ? `Sync screenplay to pdf`
-            : "Export screenplay as formatted .pdf"
+          !stat ? "Export screenplay as formatted .pdf document" : ""
         )
       );
     }
 
     // Export Html Command
-    if (this.commands.html) {
+    {
+      const uri = this._commandUris.html;
+      const stat = this._commandStats[this._commandUris.html?.path || ""];
+      const exporting = this._exporting.html;
       elements.push(
         createFileExportTreeItem(
-          this.commands.html,
+          this._stat,
+          uri,
+          stat,
+          exporting,
           "html",
-          this.commands.html === "sync"
-            ? `Sync screenplay to html`
-            : "Export screenplay as .html document"
+          !stat ? "Export screenplay as formatted .html document" : ""
         )
       );
     }
 
     // Export CSV Command
-    if (this.commands.csv) {
+    {
+      const uri = this._commandUris.csv;
+      const stat = this._commandStats[this._commandUris.csv?.path || ""];
+      const exporting = this._exporting.csv;
       elements.push(
         createFileExportTreeItem(
-          this.commands.csv,
+          this._stat,
+          uri,
+          stat,
+          exporting,
           "csv",
-          this.commands.csv === "sync"
-            ? `Sync screenplay to csv`
-            : "Export screenplay as translatable .csv document"
+          !stat ? "Export screenplay as translatable .csv document" : ""
         )
       );
     }
 
     // Export JSON Command
-    if (this.commands.json) {
+    {
+      const uri = this._commandUris.json;
+      const stat = this._commandStats[this._commandUris.json?.path || ""];
+      const exporting = this._exporting.json;
       elements.push(
         createFileExportTreeItem(
-          this.commands.json,
+          this._stat,
+          uri,
+          stat,
+          exporting,
           "json",
-          this.commands.json === "sync"
-            ? `Sync screenplay to json`
-            : "Export screenplay tokens to .json document"
+          !stat ? "Export screenplay as tokens to .json file" : ""
         )
       );
     }
@@ -112,7 +135,8 @@ export class SparkdownCommandTreeDataProvider
 
     return elements;
   }
-  async update(uri?: vscode.Uri): Promise<void> {
+
+  async update(uri: vscode.Uri | undefined): Promise<void> {
     if (!uri) {
       return;
     }
@@ -121,18 +145,31 @@ export class SparkdownCommandTreeDataProvider
       return;
     }
     const filename = editor.document.fileName.replace(/(\.[^.]*)$/, "");
-    const [pdfExists, htmlExists, csvExists, jsonExists] = await Promise.all([
-      fileExists(`${filename}.pdf`),
-      fileExists(`${filename}.html`),
-      fileExists(`${filename}.csv`),
-      fileExists(`${filename}.json`),
+    this._commandUris.pdf = vscode.Uri.file(`${filename}.pdf`);
+    this._commandUris.html = vscode.Uri.file(`${filename}.html`);
+    this._commandUris.csv = vscode.Uri.file(`${filename}.csv`);
+    this._commandUris.json = vscode.Uri.file(`${filename}.json`);
+    const [stat, pdfStat, htmlStat, csvStat, jsonStat] = await Promise.all([
+      fileStat(uri),
+      fileStat(this._commandUris.pdf),
+      fileStat(this._commandUris.html),
+      fileStat(this._commandUris.csv),
+      fileStat(this._commandUris.json),
     ]);
-    this.commands = {
-      pdf: pdfExists ? "sync" : "export",
-      html: htmlExists ? "sync" : "export",
-      csv: csvExists ? "sync" : "export",
-      json: jsonExists ? "sync" : "export",
-    };
+    this._stat = stat;
+    this._commandStats[this._commandUris.pdf.path] = pdfStat;
+    this._commandStats[this._commandUris.html.path] = htmlStat;
+    this._commandStats[this._commandUris.csv.path] = csvStat;
+    this._commandStats[this._commandUris.json.path] = jsonStat;
     this.onDidChangeTreeDataEmitter.fire(null);
+  }
+
+  notifyExportStarted(type: "pdf" | "html" | "csv" | "json"): void {
+    this._exporting[type] = true;
+    this.onDidChangeTreeDataEmitter.fire(null);
+  }
+
+  notifyExportEnded(type: "pdf" | "html" | "csv" | "json"): void {
+    this._exporting[type] = false;
   }
 }

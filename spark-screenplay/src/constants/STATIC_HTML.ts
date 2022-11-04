@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+export const STATIC_HTML = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -382,3 +382,4 @@
     </section>
   </body>
 </html>
+`;

@@ -2,9 +2,9 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { SparkScreenplayConfig } from "../../../spark-screenplay";
 import { parseState } from "../state/parseState";
-import { getActiveSparkdownDocument } from "../utils/getActiveSparkdownDocument";
 import { getEditor } from "../utils/getEditor";
 import { getSparkdownConfig } from "../utils/getSparkdownConfig";
+import { readTextFile } from "../utils/readTextFile";
 import { retrieveScreenPlayStatistics } from "../utils/statistics";
 
 interface statisticsPanel {
@@ -118,60 +118,51 @@ async function loadWebView(
   const id = Date.now() + Math.floor(Math.random() * 1000);
   statsPanels.push({ uri: docuri.toString(), panel: statspanel, id: id });
 
-  const statsUri = vscode.Uri.joinPath(
-    context.extensionUri,
-    "out",
-    "webviews",
-    `stats.html`
-  );
-  const jsUri = vscode.Uri.joinPath(
-    context.extensionUri,
-    "out",
-    "webviews",
-    "stats.bundle.js"
-  );
-
   const statsHtml =
-    Buffer.from(await vscode.workspace.fs.readFile(statsUri)).toString() || "";
-  const cssUri = vscode.Uri.file(
-    path.join(
-      context?.extensionPath,
-      "node_modules",
-      "vscode-codicons",
-      "dist",
-      "codicon.css"
+    (await readTextFile(
+      vscode.Uri.joinPath(context.extensionUri, "out", "webviews", `stats.html`)
+    )) || "";
+
+  const jsUriString = statspanel.webview
+    .asWebviewUri(
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "out",
+        "webviews",
+        "stats.bundle.js"
+      )
     )
-  );
+    .toString();
+
+  const codiconUriString = statspanel.webview
+    .asWebviewUri(
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "node_modules",
+        "vscode-codicons",
+        "dist",
+        "codicon.css"
+      )
+    )
+    .toString();
 
   statspanel.webview.html = statsHtml
-    .replace(
-      "$CODICON_CSS$",
-      statspanel.webview.asWebviewUri(cssUri).toString()
-    )
-    .replace("$STATSJS$", statspanel.webview.asWebviewUri(jsUri).toString());
+    .replace("$CODICON_CSS$", codiconUriString)
+    .replace("$STATSJS$", jsUriString);
 
-  const config = getSparkdownConfig(docuri);
   statspanel.webview.postMessage({
     command: "sparkdown.setstate",
     uri: docuri.toString(),
   });
+
+  const config = getSparkdownConfig(docuri);
   statspanel.webview.postMessage({
     command: "sparkdown.updateconfig",
     content: config,
   });
 
-  const activeUri = getActiveSparkdownDocument();
-  if (!activeUri) {
-    return;
-  }
-
-  const activeEditor = getEditor(activeUri);
+  const activeEditor = getEditor(docuri);
   if (!activeEditor) {
-    return;
-  }
-
-  const activeConfig = getSparkdownConfig(activeUri);
-  if (!activeConfig) {
     return;
   }
 
@@ -236,14 +227,14 @@ async function loadWebView(
       //save ui persistence
     }
     if (message.command === "sparkdown.refresh") {
-      refreshPanel(context, statspanel, activeEditor.document, activeConfig);
+      refreshPanel(context, statspanel, activeEditor.document, config);
     }
   });
   statspanel.onDidDispose(() => {
     removeStatisticsPanel(id);
   });
 
-  refreshPanel(context, statspanel, activeEditor.document, activeConfig);
+  refreshPanel(context, statspanel, activeEditor.document, config);
 }
 
 vscode.workspace.onDidChangeConfiguration((change) => {
