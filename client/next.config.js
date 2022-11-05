@@ -10,12 +10,6 @@ module.exports = withBundleAnalyzer({
     externalDir: true,
   },
   compiler: { emotion: true },
-  pwa: {
-    disable: process.env.NODE_ENV === "development",
-    dest: "public",
-    register: false,
-    skipWaiting: false,
-  },
   webpack: (config, { isServer }) => {
     if (
       !isServer &&
@@ -29,7 +23,6 @@ module.exports = withBundleAnalyzer({
       new webpack.ProvidePlugin({
         PIXI: "pixi.js",
         Buffer: ["buffer", "Buffer"],
-        process: "process/browser",
       }),
     ];
     config.resolve.alias = {

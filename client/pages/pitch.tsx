@@ -107,41 +107,48 @@ export const getStaticProps: GetStaticProps<PitchPageProps> = async () => {
     ...getLocalizationConfigParameters(),
     ...getTagConfigParameters(),
   };
-  const adminApp = await initAdminApp();
-  const firestore = await getAdminFirestore(adminApp);
-  const pitchesSnapshot = await firestore
-    .collection("pitched_projects")
-    .where("delisted", "==", false)
-    .orderBy("rank", "desc")
-    .limit(LOAD_INITIAL_LIMIT)
-    .get();
   const pitchDocs: { [id: string]: ProjectDocument } = {};
-  const iconNamesSet = new Set<string>();
-  pitchesSnapshot.docs.forEach((s) => {
-    const serializableData = getSerializableDocument<ProjectDocument>(s.data());
-    pitchDocs[s.id] = serializableData;
-    const mainTag = serializableData?.tags?.[0] || "";
-    const validMainTag = config?.tagDisambiguations?.[mainTag]?.[0] || mainTag;
-    const tagIconName = config?.tagIconNames?.[validMainTag] || "hashtag";
-    iconNamesSet.add(tagIconName);
-  });
-  const iconNames = Array.from(iconNamesSet);
-  const iconData = await Promise.all(
-    iconNames.map(async (name) => {
-      const component = (await import(`../resources/icons/solid/${name}.svg`))
-        .default;
-      if (component) {
-        return getIconSvgData(component);
-      }
-      return null;
-    })
-  );
   const icons = {};
-  iconData.forEach((data, index) => {
-    if (data) {
-      icons[iconNames[index]] = data;
-    }
-  });
+  try {
+    const adminApp = await initAdminApp();
+    const firestore = await getAdminFirestore(adminApp);
+    const pitchesSnapshot = await firestore
+      .collection("pitched_projects")
+      .where("delisted", "==", false)
+      .orderBy("rank", "desc")
+      .limit(LOAD_INITIAL_LIMIT)
+      .get();
+    const iconNamesSet = new Set<string>();
+    pitchesSnapshot.docs.forEach((s) => {
+      const serializableData = getSerializableDocument<ProjectDocument>(
+        s.data()
+      );
+      pitchDocs[s.id] = serializableData;
+      const mainTag = serializableData?.tags?.[0] || "";
+      const validMainTag =
+        config?.tagDisambiguations?.[mainTag]?.[0] || mainTag;
+      const tagIconName = config?.tagIconNames?.[validMainTag] || "hashtag";
+      iconNamesSet.add(tagIconName);
+    });
+    const iconNames = Array.from(iconNamesSet);
+    const iconData = await Promise.all(
+      iconNames.map(async (name) => {
+        const component = (await import(`../resources/icons/solid/${name}.svg`))
+          .default;
+        if (component) {
+          return getIconSvgData(component);
+        }
+        return null;
+      })
+    );
+    iconData.forEach((data, index) => {
+      if (data) {
+        icons[iconNames[index]] = data;
+      }
+    });
+  } catch (e) {
+    console.warn(e);
+  }
   return {
     props: {
       pitchDocs,

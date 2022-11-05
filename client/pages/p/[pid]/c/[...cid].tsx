@@ -457,35 +457,42 @@ export const getStaticPaths: GetStaticPaths = async () => {
 };
 
 export const getStaticProps: GetStaticProps = async (context) => {
-  const { pid, cid } = context.params;
-  const pDocId = Array.isArray(pid) ? pid[0] : pid;
-  const cDocId = Array.isArray(cid) ? cid[0] : cid;
-  const adminApp = await initAdminApp();
-  const firestore = await getAdminFirestore(adminApp);
-  const pitchSnapshot = await firestore.doc(`pitched_projects/${pDocId}`).get();
-  const pitchDoc = getSerializableDocument<ProjectDocument>(
-    pitchSnapshot.data()
-  );
-  const contributionSnapshot = await firestore
-    .doc(`pitched_projects/${pDocId}/contributions/${cDocId}`)
-    .get();
-  const contributionDoc = getSerializableDocument<ContributionDocument>(
-    contributionSnapshot.data()
-  );
   const config = {
     ...getLocalizationConfigParameters(),
     ...getTagConfigParameters(),
   };
-  let ogImage = contributionDoc?.file?.fileUrl;
-  if (!ogImage) {
-    ogImage = pitchDoc?.og;
+  const { pid, cid } = context.params;
+  const pDocId = Array.isArray(pid) ? pid[0] : pid;
+  const cDocId = Array.isArray(cid) ? cid[0] : cid;
+  let pitchDoc: ProjectDocument | undefined;
+  let contributionDoc: ContributionDocument | undefined;
+  let ogImage = null;
+  try {
+    const adminApp = await initAdminApp();
+    const firestore = await getAdminFirestore(adminApp);
+    const pitchSnapshot = await firestore
+      .doc(`pitched_projects/${pDocId}`)
+      .get();
+    pitchDoc = getSerializableDocument<ProjectDocument>(pitchSnapshot.data());
+    const contributionSnapshot = await firestore
+      .doc(`pitched_projects/${pDocId}/contributions/${cDocId}`)
+      .get();
+    contributionDoc = getSerializableDocument<ContributionDocument>(
+      contributionSnapshot.data()
+    );
+    ogImage = contributionDoc?.file?.fileUrl;
     if (!ogImage) {
-      const storage = await getAdminStorage(adminApp);
-      const bucket = storage.bucket();
-      const ogFilePath = `public/og/p/${pid}`;
-      const ogFile = bucket.file(ogFilePath);
-      ogImage = ogFile.publicUrl();
+      ogImage = pitchDoc?.og;
+      if (!ogImage) {
+        const storage = await getAdminStorage(adminApp);
+        const bucket = storage.bucket();
+        const ogFilePath = `public/og/p/${pid}`;
+        const ogFile = bucket.file(ogFilePath);
+        ogImage = ogFile.publicUrl();
+      }
     }
+  } catch (e) {
+    console.warn(e);
   }
 
   // Regenerate the page:

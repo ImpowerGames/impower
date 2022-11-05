@@ -29,6 +29,9 @@ export const initAdminApp = async () => {
       databaseURL: "https://impowergames-dev.firebase.io",
     });
   }
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    throw new Error("No service account key specified");
+  }
   const adminCredentials = {
     credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)),
     databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,

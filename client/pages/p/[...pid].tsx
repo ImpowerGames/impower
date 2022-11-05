@@ -675,66 +675,72 @@ export const getStaticPaths: GetStaticPaths = async () => {
 };
 
 export const getStaticProps: GetStaticProps = async (context) => {
-  const { pid } = context.params;
-  const docId = Array.isArray(pid) ? pid[0] : pid;
-  const adminApp = await initAdminApp();
-  const firestore = await getAdminFirestore(adminApp);
-  const pitchSnapshot = await firestore.doc(`pitched_projects/${docId}`).get();
-  let pitchDoc = null;
-  if (pitchSnapshot) {
-    pitchDoc = getSerializableDocument<ProjectDocument>(pitchSnapshot.data());
-  }
-  const contributionsSnapshot = await firestore
-    .collection(`pitched_projects/${docId}/contributions`)
-    .where("delisted", "==", false)
-    .orderBy("rating", "desc")
-    .limit(LOAD_INITIAL_LIMIT)
-    .get();
-  const contributionDocs: { [id: string]: ContributionDocument } = {};
-  contributionsSnapshot.docs.forEach((s) => {
-    const pitchId = s.ref.parent.parent.id;
-    const contributionId = s.id;
-    contributionDocs[`${pitchId}/${contributionId}`] =
-      getSerializableDocument<ContributionDocument>(s.data());
-  });
   const config = {
     ...getLocalizationConfigParameters(),
     ...getTagConfigParameters(),
   };
-
   const icons = {};
+  const { pid } = context.params;
+  const docId = Array.isArray(pid) ? pid[0] : pid;
+  let pitchDoc: ProjectDocument | undefined;
+  const contributionDocs: { [id: string]: ContributionDocument } = {};
   let ogImage = null;
+  try {
+    const adminApp = await initAdminApp();
+    const firestore = await getAdminFirestore(adminApp);
+    const pitchSnapshot = await firestore
+      .doc(`pitched_projects/${docId}`)
+      .get();
+    let pitchDoc = null;
+    if (pitchSnapshot) {
+      pitchDoc = getSerializableDocument<ProjectDocument>(pitchSnapshot.data());
+    }
+    const contributionsSnapshot = await firestore
+      .collection(`pitched_projects/${docId}/contributions`)
+      .where("delisted", "==", false)
+      .orderBy("rating", "desc")
+      .limit(LOAD_INITIAL_LIMIT)
+      .get();
+    contributionsSnapshot.docs.forEach((s) => {
+      const pitchId = s.ref.parent.parent.id;
+      const contributionId = s.id;
+      contributionDocs[`${pitchId}/${contributionId}`] =
+        getSerializableDocument<ContributionDocument>(s.data());
+    });
 
-  if (pitchDoc) {
-    try {
-      const mainTag = pitchDoc?.tags?.[0] || "";
-      const validMainTag =
-        config?.tagDisambiguations?.[mainTag]?.[0] || mainTag;
-      const tagIconName = config?.tagIconNames?.[validMainTag] || "hashtag";
-      const component = (
-        await import(`../../resources/icons/solid/${tagIconName}.svg`)
-      ).default;
-      if (component) {
-        const svgData = getIconSvgData(component);
-        if (svgData) {
-          icons[tagIconName] = svgData;
+    if (pitchDoc) {
+      try {
+        const mainTag = pitchDoc?.tags?.[0] || "";
+        const validMainTag =
+          config?.tagDisambiguations?.[mainTag]?.[0] || mainTag;
+        const tagIconName = config?.tagIconNames?.[validMainTag] || "hashtag";
+        const component = (
+          await import(`../../resources/icons/solid/${tagIconName}.svg`)
+        ).default;
+        if (component) {
+          const svgData = getIconSvgData(component);
+          if (svgData) {
+            icons[tagIconName] = svgData;
+          }
+        }
+      } catch {
+        // icon doesn't exist
+      }
+      ogImage = pitchDoc?.og;
+      if (!ogImage) {
+        try {
+          const storage = await getAdminStorage(adminApp);
+          const bucket = storage.bucket();
+          const ogFilePath = `public/og/p/${pid}`;
+          const ogFile = bucket.file(ogFilePath);
+          ogImage = ogFile.publicUrl();
+        } catch {
+          // ogImage doesn't exist
         }
       }
-    } catch {
-      // icon doesn't exist
     }
-    ogImage = pitchDoc?.og;
-    if (!ogImage) {
-      try {
-        const storage = await getAdminStorage(adminApp);
-        const bucket = storage.bucket();
-        const ogFilePath = `public/og/p/${pid}`;
-        const ogFile = bucket.file(ogFilePath);
-        ogImage = ogFile.publicUrl();
-      } catch {
-        // ogImage doesn't exist
-      }
-    }
+  } catch (e) {
+    console.warn(e);
   }
 
   // Regenerate the page:

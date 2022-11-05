@@ -232,34 +232,39 @@ export const getStaticPaths: GetStaticPaths = async () => {
 };
 
 export const getStaticProps: GetStaticProps = async (context) => {
-  const { slug } = context.params;
-  const docSlug = Array.isArray(slug) ? slug[0] : slug;
-  // eslint-disable-next-line global-require
-  const adminApp = await initAdminApp();
-  const firestore = await getAdminFirestore(adminApp);
-  const postsSnapshot = await firestore
-    .collection(`slugs`)
-    .where("slug", "==", docSlug)
-    .limit(1)
-    .get();
-  const postDoc = postsSnapshot.docs[0]?.data();
-  const serializableData = getSerializableDocument<ProjectDocument>(postDoc);
   const config = {
     ...getLocalizationConfigParameters(),
     ...getTagConfigParameters(),
   };
-  const mainTag = serializableData?.tags?.[0] || "";
-  const validMainTag = config?.tagDisambiguations?.[mainTag]?.[0] || mainTag;
-  const tagIconName = config?.tagIconNames?.[validMainTag] || "hashtag";
   const icons = {};
-  const component = (
-    await import(`../../resources/icons/solid/${tagIconName}.svg`)
-  ).default;
-  if (component) {
-    const svgData = getIconSvgData(component);
-    if (svgData) {
-      icons[tagIconName] = svgData;
+  const { slug } = context.params;
+  const docSlug = Array.isArray(slug) ? slug[0] : slug;
+  let serializableData: ProjectDocument | undefined;
+  try {
+    // eslint-disable-next-line global-require
+    const adminApp = await initAdminApp();
+    const firestore = await getAdminFirestore(adminApp);
+    const postsSnapshot = await firestore
+      .collection(`slugs`)
+      .where("slug", "==", docSlug)
+      .limit(1)
+      .get();
+    const postDoc = postsSnapshot.docs[0]?.data();
+    serializableData = getSerializableDocument<ProjectDocument>(postDoc);
+    const mainTag = serializableData?.tags?.[0] || "";
+    const validMainTag = config?.tagDisambiguations?.[mainTag]?.[0] || mainTag;
+    const tagIconName = config?.tagIconNames?.[validMainTag] || "hashtag";
+    const component = (
+      await import(`../../resources/icons/solid/${tagIconName}.svg`)
+    ).default;
+    if (component) {
+      const svgData = getIconSvgData(component);
+      if (svgData) {
+        icons[tagIconName] = svgData;
+      }
     }
+  } catch (e) {
+    console.warn(e);
   }
   // Revalidate every 60 seconds in case the published page was edited
   return {
