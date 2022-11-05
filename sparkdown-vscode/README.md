@@ -18,9 +18,9 @@ This is an extension for Visual Studio Code which allows you to create `spark` g
 
 1. Open any `.sparkdown` or `.sd` file in Visual Studio Code. 
 
-2. Click the ![Sparkdown](https://raw.githubusercontent.com/ImpowerGames/impower/dev/.github/images/sparkdown-vscode-icon.png) icon in the activitybar to open the Sparkdown Sidebar.
+2. Click the ![Sparkdown](https://raw.githubusercontent.com/ImpowerGames/impower/deploy/dev/.github/images/sparkdown-vscode-icon.png) icon in the activitybar to open the Sparkdown Sidebar.
 
-![Screenshot](https://raw.githubusercontent.com/ImpowerGames/impower/dev/.github/images/sparkdown-vscode-screenshot-00.png)
+![Screenshot](https://raw.githubusercontent.com/ImpowerGames/impower/deploy/dev/.github/images/sparkdown-vscode-screenshot-00.png)
 
 > From the sidebar, you can...
 > - Navigate through your screenplay using the `OUTLINE` panel.
