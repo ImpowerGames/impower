@@ -104,7 +104,7 @@ interface ScreenPlayStatistics {
   lengthStats: LengthStatistics;
   durationStats: DurationStatistics;
   pdfmap: string;
-  structure: StructureItem[];
+  structure: Record<string, StructureItem>;
 }
 
 const getWordCount = (script: string): number => {
@@ -448,6 +448,6 @@ export const retrieveScreenPlayStatistics = async (
     lengthStats: createLengthStatistics(script, pdfStats, parsed),
     durationStats: createDurationStatistics(parsed),
     pdfmap: JSON.stringify(pdfStats?.lineMap),
-    structure: parsed.properties?.structure || [],
+    structure: parsed.properties?.structure || {},
   };
 };

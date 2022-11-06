@@ -15,5 +15,5 @@ export interface SparkProperties {
   fontLine?: number;
   dialogueDuration?: number;
   actionDuration?: number;
-  structure?: StructureItem[];
+  structure?: Record<string, StructureItem>;
 }

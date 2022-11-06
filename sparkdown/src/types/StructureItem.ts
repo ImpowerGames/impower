@@ -10,9 +10,10 @@ export interface StructureItem {
   text: string;
   tooltip?: string;
   id: string;
+  state?: "error" | "warning" | "info";
   range: {
     start: Position;
     end: Position;
   };
-  children: StructureItem[];
+  children: string[];
 }

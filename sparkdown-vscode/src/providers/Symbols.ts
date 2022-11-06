@@ -9,6 +9,9 @@ export class SparkdownSymbolProvider implements vscode.DocumentSymbolProvider {
     const symbols: vscode.DocumentSymbol[] = [];
     let sceneCounter = 0;
 
+    const doc = parseState.parsedDocuments[document.uri.toString()];
+    const structure = doc?.properties?.structure || {};
+
     //hierarchyEnd is the last line of the token's hierarchy. Last line of document for the root, last line of current section, etc...
     const symbolFromStruct = (
       token?: StructureItem,
@@ -70,17 +73,17 @@ export class SparkdownSymbolProvider implements vscode.DocumentSymbolProvider {
 
       let childrenLength = 0;
       if (token.children) {
-        for (let index = 0; index < token.children.length; index++) {
+        token.children.forEach((_id, index) => {
           const childSymbol = symbolFromStruct(
-            token.children[index],
-            token.children[index + 1],
+            structure[token.children[index] || ""],
+            structure[token.children[index + 1] || ""],
             end.line
           );
           if (childSymbol) {
             symbol.children.push(childSymbol.symbol);
             childrenLength += childSymbol.length;
           }
-        }
+        });
       }
       if (token.type === "section") {
         length = childrenLength;
@@ -89,17 +92,18 @@ export class SparkdownSymbolProvider implements vscode.DocumentSymbolProvider {
       return { symbol, length };
     };
 
-    const doc = parseState.parsedDocuments[document.uri.toString()];
-    const structure = doc?.properties?.structure || [];
-    for (let index = 0; index < structure.length; index++) {
-      const symbol = symbolFromStruct(
-        structure[index],
-        structure[index + 1],
-        document.lineCount
-      )?.symbol;
-      if (symbol) {
-        symbols.push(symbol);
-      }
+    const root = structure?.[""];
+    if (root && root.children) {
+      root.children.forEach((_id, index) => {
+        const symbol = symbolFromStruct(
+          structure[root.children[index] || ""],
+          structure[root.children[index + 1] || ""],
+          document.lineCount
+        )?.symbol;
+        if (symbol) {
+          symbols.push(symbol);
+        }
+      });
     }
     return symbols;
   }

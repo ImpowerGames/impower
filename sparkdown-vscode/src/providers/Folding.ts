@@ -5,7 +5,9 @@ import { parseState } from "../state/parseState";
 export class SparkdownFoldingRangeProvider implements FoldingRangeProvider {
   provideFoldingRanges(document: TextDocument): FoldingRange[] {
     const ranges: FoldingRange[] = [];
-    if (parseState.parsedDocuments[document.uri.toString()]) {
+    const doc = parseState.parsedDocuments[document.uri.toString()];
+    const structure = doc?.properties?.structure || {};
+    if (doc) {
       const addRange = (
         structItem?: StructureItem,
         nextStructItem?: StructureItem,
@@ -26,19 +28,25 @@ export class SparkdownFoldingRangeProvider implements FoldingRangeProvider {
           //for each child of the StructureItem, repeat this process recursively
           for (let i = 0; i < structItem.children.length; i++) {
             addRange(
-              structItem.children[i],
-              structItem.children[i + 1],
+              structure[structItem.children[i] || ""],
+              structure[structItem.children[i + 1] || ""],
               lastLine
             );
           }
         }
       };
 
-      const parsed = parseState.parsedDocuments[document.uri.toString()];
-      const structure = parsed?.properties?.structure || [];
-      for (let i = 0; i < structure.length; i++) {
-        //for each structToken, add a new range starting on the current structToken and ending on either the next one, or the last line of the document
-        addRange(structure[i], structure[i + 1], document.lineCount);
+      const root = structure?.[""];
+
+      if (root) {
+        for (let i = 0; i < root.children.length; i++) {
+          //for each structToken, add a new range starting on the current structToken and ending on either the next one, or the last line of the document
+          addRange(
+            structure[root.children[i] || ""],
+            structure[root.children[i + 1] || ""],
+            document.lineCount
+          );
+        }
       }
     }
     return ranges;
