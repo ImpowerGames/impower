@@ -1,13 +1,7 @@
 import { compile, format } from "../../../spark-evaluate";
-import {
-  defaultDisplayScript,
-  parseSpark,
-  SparkDeclarations,
-  SparkParserConfig,
-  SparkParseResult,
-} from "../../../sparkdown";
+import { SparkParser, SparkParserConfig } from "../../../sparkdown";
 
-export class GameSparkParser {
+export class GameSparkParser extends SparkParser {
   private static _instance: GameSparkParser;
 
   public static get instance(): GameSparkParser {
@@ -17,49 +11,13 @@ export class GameSparkParser {
     return this._instance;
   }
 
-  defaults: string[] = [defaultDisplayScript];
-
-  config: SparkParserConfig = {
-    compiler: compile,
-    formatter: format,
-  };
-
-  private _defaultAugmentations: SparkDeclarations = {};
-
-  constructor(defaults?: string[], config?: SparkParserConfig) {
-    this.defaults = defaults || this.defaults;
-    this.config = config || this.config;
-    this.defaults.forEach((d) => {
-      const parsed = parseSpark(d, this.config);
-      this._defaultAugmentations = {
-        variables: {
-          ...(this._defaultAugmentations?.variables || {}),
-          ...(parsed.variables || {}),
-        },
-        structs: {
-          ...(this._defaultAugmentations?.structs || {}),
-          ...(parsed.structs || {}),
-        },
-      };
-    });
-  }
-
-  parse(script: string, config?: SparkParserConfig): SparkParseResult {
-    const augmentations = {
-      variables: {
-        ...(this._defaultAugmentations?.variables || {}),
-        ...(config?.augmentations?.variables || {}),
+  constructor(config?: SparkParserConfig, defaults?: string[]) {
+    super(
+      config || {
+        compiler: compile,
+        formatter: format,
       },
-      structs: {
-        ...(this._defaultAugmentations?.structs || {}),
-        ...(config?.augmentations?.structs || {}),
-      },
-    };
-    const result = parseSpark(script, {
-      ...(this.config || {}),
-      ...(config || {}),
-      augmentations,
-    });
-    return result;
+      defaults
+    );
   }
 }

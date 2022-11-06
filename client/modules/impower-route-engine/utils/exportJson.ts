@@ -1,4 +1,7 @@
-import { getScriptAugmentations, SparkParser } from "../../../../spark-engine";
+import {
+  EngineSparkParser,
+  getScriptAugmentations,
+} from "../../../../spark-engine";
 import { generateSparkJsonData } from "../../../../spark-screenplay";
 import { downloadFile } from "./downloadFile";
 
@@ -15,7 +18,7 @@ export const exportJson = (
   >
 ): void => {
   const augmentations = getScriptAugmentations(files);
-  const result = SparkParser.instance.parse(script, { augmentations });
+  const result = EngineSparkParser.instance.parse(script, { augmentations });
   const output = generateSparkJsonData(result);
   downloadFile(`${name}.json`, "text/plain", output);
 };

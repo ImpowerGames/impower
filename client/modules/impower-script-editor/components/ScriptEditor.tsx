@@ -70,7 +70,7 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import React, { useEffect, useRef, useState } from "react";
-import { SparkParser } from "../../../../spark-engine";
+import { EngineSparkParser } from "../../../../spark-engine";
 import { SparkDeclarations, SparkParseResult } from "../../../../sparkdown";
 import { colors } from "../constants/colors";
 import { editorTheme } from "../constants/editorTheme";
@@ -496,11 +496,11 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     const languageSetup: Extension[] = [
       spark({
         base: sparkLanguage,
-        initialParseResult: SparkParser.instance.parse(doc, {
+        initialParseResult: EngineSparkParser.instance.parse(doc, {
           augmentations: augmentationsRef.current,
         }),
         parse: (script: string) => {
-          const result = SparkParser.instance.parse(script, {
+          const result = EngineSparkParser.instance.parse(script, {
             augmentations: augmentationsRef.current,
           });
           parseResultRef.current = { ...result };

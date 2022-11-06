@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import {
+  EngineSparkParser,
   FileData,
   generateStructObjects,
   getScriptAugmentations,
@@ -7,7 +8,6 @@ import {
   loadUI,
   SparkContext,
   SparkContextConfig,
-  SparkParser,
 } from "../../../../spark-engine";
 import { GameContext } from "../contexts/gameContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
@@ -18,7 +18,7 @@ const createGame = (
   config?: Partial<SparkContextConfig>
 ): SparkContext => {
   const augmentations = getScriptAugmentations(files);
-  const parsed = SparkParser.instance.parse(script, { augmentations });
+  const parsed = EngineSparkParser.instance.parse(script, { augmentations });
   return new SparkContext(parsed, config);
 };
 
@@ -83,7 +83,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
     if (script && isFirstScriptLoadRef.current) {
       isFirstScriptLoadRef.current = false;
       const augmentations = getScriptAugmentations(files);
-      const result = SparkParser.instance.parse(script, {
+      const result = EngineSparkParser.instance.parse(script, {
         augmentations,
       });
       const objectMap = generateStructObjects(result?.structs);

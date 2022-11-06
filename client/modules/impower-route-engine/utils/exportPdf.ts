@@ -1,5 +1,8 @@
 import { encode } from "html-entities";
-import { getScriptAugmentations, SparkParser } from "../../../../spark-engine";
+import {
+  EngineSparkParser,
+  getScriptAugmentations,
+} from "../../../../spark-engine";
 import {
   decodeBase64,
   generateSparkPdfData,
@@ -27,7 +30,7 @@ export const exportPdf = async (
   >
 ): Promise<void> => {
   const augmentations = getScriptAugmentations(files);
-  const result = SparkParser.instance.parse(script, {
+  const result = EngineSparkParser.instance.parse(script, {
     augmentations,
     removeBlockComments: true,
     skipTokens: ["condition"],

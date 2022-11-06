@@ -10,11 +10,11 @@ import React, {
   useState,
 } from "react";
 import {
+  EngineSparkParser,
   getPreviewCommand,
   getScriptAugmentations,
   previewLine,
   SparkGameRunner,
-  SparkParser,
 } from "../../../../../spark-engine";
 import { evaluate } from "../../../../../spark-evaluate";
 import {
@@ -328,7 +328,7 @@ const LogicScriptEditor = React.memo(
       (e: Event, firstVisibleLine: number) => {
         scrollTopLineRef.current = firstVisibleLine;
         if (!parseResultRef.current) {
-          parseResultRef.current = SparkParser.instance.parse(
+          parseResultRef.current = EngineSparkParser.instance.parse(
             scriptValueRef.current,
             {
               augmentations,

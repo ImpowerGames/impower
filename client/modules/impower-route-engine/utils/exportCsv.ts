@@ -1,4 +1,4 @@
-import { SparkParser } from "../../../../spark-engine";
+import { EngineSparkParser } from "../../../../spark-engine";
 import { generateSparkCsvData } from "../../../../spark-screenplay";
 import { downloadFile } from "./downloadFile";
 
@@ -7,7 +7,7 @@ export const exportCsv = async (
   script: string
 ): Promise<void> => {
   const { stringify } = await import("csv-stringify");
-  const result = SparkParser.instance.parse(script, {
+  const result = EngineSparkParser.instance.parse(script, {
     removeBlockComments: true,
     skipTokens: ["condition"],
   });

@@ -1,34 +1,19 @@
-import { compile, format } from "../../../../spark-evaluate";
-import {
-  parseSpark,
-  SparkDeclarations,
-  SparkParserConfig,
-  SparkParseResult,
-} from "../../../../sparkdown";
+import { defaultDisplayScript } from "../defaults/defaultDisplayScript";
+import { SparkDeclarations } from "../types/SparkDeclarations";
+import { SparkParserConfig } from "../types/SparkParserConfig";
+import { SparkParseResult } from "../types/SparkParseResult";
+import { parseSpark } from "../utils/parseSpark";
 
 export class SparkParser {
-  private static _instance: SparkParser;
+  defaults: string[] = [defaultDisplayScript];
 
-  public static get instance(): SparkParser {
-    if (!this._instance) {
-      this._instance = new SparkParser();
-    }
-    return this._instance;
-  }
-
-  defaults: string[] = [];
-
-  config: SparkParserConfig = {
-    compiler: compile,
-    formatter: format,
-    lineOffset: 1,
-  };
+  config: SparkParserConfig = {};
 
   private _defaultAugmentations: SparkDeclarations = {};
 
-  constructor(defaults?: string[], config?: SparkParserConfig) {
-    this.defaults = defaults || this.defaults;
+  constructor(config: SparkParserConfig, defaults?: string[]) {
     this.config = config || this.config;
+    this.defaults = defaults || this.defaults;
     this.defaults.forEach((d) => {
       const parsed = parseSpark(d, this.config);
       this._defaultAugmentations = {
