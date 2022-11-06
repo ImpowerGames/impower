@@ -9,14 +9,6 @@ import {
 } from "./wrappers/SparkApplication";
 import { SparkContainer } from "./wrappers/SparkContainer";
 
-export const responsiveBreakpoints: Record<string, number> = {
-  xs: 400,
-  sm: 600,
-  md: 960,
-  lg: 1280,
-  xl: 1920,
-};
-
 export class SparkGameApp {
   private _parent: HTMLElement | null;
 
@@ -72,38 +64,17 @@ export class SparkGameApp {
       resizeTo: this._parent || undefined,
       ...(options || {}),
     });
-
+    this._parent = document.getElementById(domElementId);
     this._resizeObserver = new ResizeObserver(([entry]) => {
       if (entry) {
         this.app.resize();
         this.scenes.forEach((scene) => {
           scene.resize();
         });
-        const width = entry.contentRect?.width;
-        const keys = Object.keys(responsiveBreakpoints);
-        let className = "";
-        for (let i = 0; i < keys.length; i += 1) {
-          const k = keys[i] || "";
-          className += `${k} `;
-          const b = responsiveBreakpoints[k];
-          if (b !== undefined) {
-            if (b > width) {
-              break;
-            }
-          }
-        }
-        className = className.trim();
-        if (
-          entry.target.parentElement &&
-          entry.target.parentElement.className !== className
-        ) {
-          entry.target.parentElement.className = className;
-        }
       }
     });
     if (this._parent) {
       this._parent.appendChild(this.app.view);
-      this.resizeObserver.observe(this._parent);
     }
 
     this._context = context;
