@@ -8,6 +8,7 @@
     "ofhumanbondage.react-proptypes-intellisense",
     "styled-components.vscode-styled-components",
     "yzhang.markdown-all-in-one",
-    "cschlosser.doxdocgen"
+    "cschlosser.doxdocgen",
+    "impowergames.sparkdown"
   ]
 }
