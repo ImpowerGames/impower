@@ -110,11 +110,13 @@ export class SynthScene extends SparkScene {
     instrumentType: string;
     options: RecursivePartial<unknown>;
   }): void {
+    const key = `${data.instrumentId}/${data.instrumentType}`;
     const instrument = this.getInstrument(
       data.instrumentId,
       data.instrumentType
     );
     instrument.set(data.options);
+    this._instruments[key] = instrument;
   }
 
   attackNote(data: {

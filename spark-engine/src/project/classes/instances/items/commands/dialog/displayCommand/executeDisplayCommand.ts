@@ -14,11 +14,7 @@ import {
 } from "../../../../../../../dom";
 import { SparkGame, SynthOptions } from "../../../../../../../game";
 
-const dialoguePitches: [string, number][] = [
-  ["D#5", 0.5],
-  ["D#6", 0.5],
-  ["B5", 0.25],
-];
+const dialoguePitches: [string, number][] = [["D#5", 0.5]];
 
 export const dialogueInstrumentOptions: SynthOptions = {
   detune: 0,

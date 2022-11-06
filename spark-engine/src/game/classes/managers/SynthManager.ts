@@ -146,9 +146,9 @@ export class SynthManager extends Manager<SynthState, SynthEvents> {
   }
 
   playNotes(
-    partId: string,
     instrumentId: string,
     instrumentType: string,
+    partId: string,
     notes: {
       note: string[];
       time: number;
