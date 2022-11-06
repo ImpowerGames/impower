@@ -13,8 +13,8 @@ export interface InputState {
 }
 
 export interface InputEvents {
-  onPointerDown: GameEvent<{ button: number; targets?: string[] }>;
-  onPointerUp: GameEvent<{ button: number; targets?: string[] }>;
+  onPointerDown: GameEvent<{ button: number; target?: string }>;
+  onPointerUp: GameEvent<{ button: number; target?: string }>;
 }
 
 export class InputManager extends Manager<InputState, InputEvents> {
@@ -41,7 +41,7 @@ export class InputManager extends Manager<InputState, InputEvents> {
     };
   }
 
-  pointerDown(button: number, targets?: string[]): void {
+  pointerDown(button: number, target?: string): void {
     if (!this.state.pointer.down.includes(button)) {
       this.state.pointer.down.push(button);
     }
@@ -49,10 +49,10 @@ export class InputManager extends Manager<InputState, InputEvents> {
     if (index >= 0) {
       this.state.pointer.up.splice(index, 1);
     }
-    this.events.onPointerDown.emit({ button, targets });
+    this.events.onPointerDown.emit({ button, target });
   }
 
-  pointerUp(button: number, targets?: string[]): void {
+  pointerUp(button: number, target?: string): void {
     if (!this.state.pointer.up.includes(button)) {
       this.state.pointer.up.push(button);
     }
@@ -60,6 +60,6 @@ export class InputManager extends Manager<InputState, InputEvents> {
     if (index >= 0) {
       this.state.pointer.down.splice(index, 1);
     }
-    this.events.onPointerUp.emit({ button, targets });
+    this.events.onPointerUp.emit({ button, target });
   }
 }

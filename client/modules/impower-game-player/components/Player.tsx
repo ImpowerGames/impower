@@ -45,6 +45,7 @@ export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {
     >
       <div
         style={{
+          color: "black",
           position: "absolute",
           top: 0,
           right: 0,
@@ -71,7 +72,6 @@ export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {
             right: 0,
             bottom: 0,
             left: 0,
-            pointerEvents: "none",
           }}
         >
           <div
@@ -84,6 +84,7 @@ export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {
               left: 0,
               display: "flex",
               flexDirection: "column",
+              pointerEvents: "none",
             }}
           />
         </div>

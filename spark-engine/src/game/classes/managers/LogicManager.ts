@@ -418,13 +418,10 @@ export class LogicManager extends Manager<LogicState, LogicEvents> {
       return null;
     }
     const blockList = Object.entries(this.blockMap).slice(block.index + 1);
-    const [nextBlockId] = blockList.find(
-      ([, v]) =>
-        v.type === "section" &&
-        (v.parent === blockId ||
-          (this.blockMap[v.parent || ""]?.index || Number.MAX_SAFE_INTEGER) <
-            block.index)
-    ) || [undefined, undefined];
+    const [nextBlockId] = blockList.find(([, v]) => v.type === "section") || [
+      undefined,
+      undefined,
+    ];
     return nextBlockId;
   }
 

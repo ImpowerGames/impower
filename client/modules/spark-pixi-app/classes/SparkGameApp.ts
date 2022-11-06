@@ -1,6 +1,5 @@
 import { SparkContext } from "../../../../spark-engine";
 import { LogicScene } from "./scenes/LogicScene";
-import { MainScene } from "./scenes/MainScene";
 import { PreviewScene } from "./scenes/PreviewScene";
 import { SynthScene } from "./scenes/SynthScene";
 import { SparkScene } from "./SparkScene";
@@ -115,12 +114,12 @@ export class SparkGameApp {
     if (context) {
       if (context?.editable) {
         this._scenes = [
-          new MainScene(context, this.app, this.entities),
+          // new MainScene(context, this.app, this.entities),
           new PreviewScene(context, this.app, this.entities),
         ];
       } else {
         this._scenes = [
-          new MainScene(context, this.app, this.entities),
+          // new MainScene(context, this.app, this.entities),
           new SynthScene(context, this.app, this.entities),
           new LogicScene(context, this.app, this.entities),
         ];
