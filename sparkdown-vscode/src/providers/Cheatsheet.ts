@@ -22,13 +22,7 @@ export class SparkdownCheatSheetWebviewViewProvider
       .toString();
     const codiconUriString = webviewView.webview
       .asWebviewUri(
-        vscode.Uri.joinPath(
-          this._extensionUri,
-          "node_modules",
-          "vscode-codicons",
-          "dist",
-          "codicon.css"
-        )
+        vscode.Uri.joinPath(this._extensionUri, "out", "data", "codicon.css")
       )
       .toString();
 

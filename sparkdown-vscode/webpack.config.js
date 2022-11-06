@@ -104,6 +104,7 @@ const webExtensionConfig = {
       patterns: [
         { from: "src/webviews", to: "webviews" },
         { from: "src/data", to: "data" },
+        { from: "node_modules/vscode-codicons/dist", to: "data" },
       ],
     }),
   ],
