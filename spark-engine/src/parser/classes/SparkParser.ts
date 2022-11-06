@@ -1,6 +1,5 @@
 import { compile, format } from "../../../../spark-evaluate";
 import {
-  defaultDisplayScript,
   parseSpark,
   SparkDeclarations,
   SparkParserConfig,
@@ -17,7 +16,7 @@ export class SparkParser {
     return this._instance;
   }
 
-  defaults: string[] = [defaultDisplayScript];
+  defaults: string[] = [];
 
   config: SparkParserConfig = {
     compiler: compile,
@@ -51,16 +50,16 @@ export class SparkParser {
         ...(this._defaultAugmentations?.variables || {}),
         ...(config?.augmentations?.variables || {}),
       },
-      structs: {
-        ...(this._defaultAugmentations?.structs || {}),
-        ...(config?.augmentations?.structs || {}),
-      },
     };
     const result = parseSpark(script, {
       ...(this.config || {}),
       ...(config || {}),
       augmentations,
     });
+    result.structs = {
+      ...(this._defaultAugmentations?.structs || {}),
+      ...(result.structs || {}),
+    };
     return result;
   }
 }
