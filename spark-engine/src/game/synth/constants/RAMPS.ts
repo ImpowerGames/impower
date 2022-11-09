@@ -1,20 +1,22 @@
-const linear = (percent: number): number => {
-  return percent;
+import { CurveType } from "../types/CurveType";
+
+const linear = (t: number): number => {
+  return t;
 };
 
-const exponential = (percent: number): number => {
-  return Math.pow(2, percent) - 1;
+const exponential = (t: number): number => {
+  return Math.pow(2, t) - 1;
 };
 
-const cosine = (percent: number, base = 10): number => {
-  return Math.log(1 + base * percent) / Math.log(1 + base);
+const cosine = (t: number, base = 10): number => {
+  return Math.log(1 + base * t) / Math.log(1 + base);
 };
 
-const sine = (percent: number, phase = Math.PI / 2): number => {
-  return Math.sin(Math.PI * percent - phase) / 2 + 0;
+const sine = (t: number, phase = Math.PI / 2): number => {
+  return Math.sin(Math.PI * t - phase) / 2 + 0;
 };
 
-export const RAMPS: Record<string, (percent: number) => number> = {
+export const RAMPS: Record<CurveType, (t: number) => number> = {
   linear,
   exponential,
   cosine,

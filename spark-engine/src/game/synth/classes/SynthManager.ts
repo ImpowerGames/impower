@@ -15,7 +15,6 @@ export interface SynthEvents extends Record<string, GameEvent> {
   }>;
   onPlayInstrument: GameEvent<{
     instrumentId: string;
-    partId: string;
     tones: {
       pitch?: string;
       offset?: number;
@@ -49,7 +48,6 @@ export class SynthManager extends Manager<
       }>(),
       onPlayInstrument: new GameEvent<{
         instrumentId: string;
-        partId: string;
         tones: {
           pitch?: string;
           offset?: number;
@@ -102,7 +100,6 @@ export class SynthManager extends Manager<
 
   playInstrument(
     instrumentId: string,
-    partId: string,
     tones: {
       pitch?: string;
       offset?: number;
@@ -111,7 +108,6 @@ export class SynthManager extends Manager<
   ): void {
     this.events.onPlayInstrument.emit({
       instrumentId,
-      partId,
       tones,
     });
   }

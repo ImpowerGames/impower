@@ -1,18 +1,21 @@
 import { IMediaInstance, Sound, utils, webaudio } from "@pixi/sound";
 import * as PIXI from "pixi.js";
 import {
-  EnvelopeOptions,
   fillArrayWithTones,
+  InstrumentOptions,
   SAMPLE_RATE,
 } from "../../../../../spark-engine";
 import { SparkScene } from "../SparkScene";
 
+interface Instrument {
+  sound?: Sound;
+  played?: boolean;
+  sprite?: PIXI.Sprite;
+  playhead?: PIXI.Graphics;
+}
+
 export class SoundScene extends SparkScene {
-  _instruments: Map<string, { sound?: Sound; played?: boolean }> = new Map();
-
-  _waveformTexture: PIXI.BaseTexture;
-
-  _playheadGraphic: PIXI.Graphics;
+  _instruments: Map<string, Instrument> = new Map();
 
   override start(): void {
     this.context?.game?.synth?.events.onStopInstrument?.addListener((data) =>
@@ -35,7 +38,7 @@ export class SoundScene extends SparkScene {
       offset?: number;
       duration?: number;
     }[],
-    envelope?: EnvelopeOptions
+    options?: InstrumentOptions
   ): Sound {
     const sound = Sound.from({});
     if (!(sound.media instanceof webaudio.WebAudioMedia)) {
@@ -57,26 +60,15 @@ export class SoundScene extends SparkScene {
       SAMPLE_RATE
     );
     const fArray = buffer.getChannelData(0);
-    fillArrayWithTones(fArray, tones, envelope);
+    fillArrayWithTones(fArray, tones, options?.envelope, options?.oscillator);
 
     // set the buffer
     media.buffer = buffer;
+    media.nodes.bufferSource.detune.value = options?.detune || 0;
+    sound.volume = options?.volume || 1;
     sound.isLoaded = true;
 
     return sound;
-  }
-
-  renderWaveform(sound: Sound): void {
-    this._waveformTexture = utils.render(sound, {
-      width: this.app.renderer.width,
-      height: this.app.renderer.height / 3,
-      fill: "#999",
-    });
-    this._playheadGraphic = new PIXI.Graphics()
-      .beginFill(0xff0000)
-      .drawRect(0, 0, 1, this.app.renderer.height);
-    const sprite = new PIXI.Sprite(new PIXI.Texture(this._waveformTexture));
-    this.app.stage.addChild(sprite, this._playheadGraphic);
   }
 
   stopInstrument(data: { instrumentId: string }): void {
@@ -95,15 +87,30 @@ export class SoundScene extends SparkScene {
     const instrument = this._instruments.get(data.instrumentId) || {};
     instrument?.sound?.stop();
     const instrumentConfig =
-      this.context.game.synth.config.instruments[data.instrumentId];
+      this.context.game.synth.config.instruments[data.instrumentId] || {};
     const instrumentState =
-      this.context.game.synth.state.instrumentStates[data.instrumentId];
-    const sound = this.createSound(data.tones, instrumentConfig?.envelope);
-    sound.volume = instrumentState?.volume || 1;
+      this.context.game.synth.state.instrumentStates[data.instrumentId] || {};
+    const sound = this.createSound(data.tones, {
+      ...instrumentConfig,
+      ...instrumentState,
+    });
     instrument.sound = sound;
     instrument.played = false;
     this._instruments.set(data.instrumentId, instrument);
-    this.renderWaveform(sound);
+  }
+
+  renderWaveform(instrument: Instrument, heightFactor = 0.25): void {
+    const height = this.app.renderer.height * heightFactor;
+    const texture = utils.render(instrument.sound, {
+      width: this.app.renderer.width,
+      height,
+      fill: "#999",
+    });
+    instrument.playhead = new PIXI.Graphics()
+      .beginFill(0xff0000)
+      .drawRect(0, 0, 1, height);
+    instrument.sprite = new PIXI.Sprite(new PIXI.Texture(texture));
+    this.app.stage.addChild(instrument.sprite, instrument.playhead);
   }
 
   override update(_timeMS: number, _deltaMS: number): void {
@@ -111,9 +118,15 @@ export class SoundScene extends SparkScene {
       if (!instrument.played) {
         instrument.played = true;
         const instance = instrument.sound.play() as IMediaInstance;
-        instance.on("progress", (progress) => {
-          this._playheadGraphic.x = this._waveformTexture.width * progress;
-        });
+        if (this.context.game.debug.state.debugging) {
+          this.renderWaveform(instrument);
+          instance.on("progress", (progress) => {
+            if (instrument.playhead && instrument.sprite) {
+              instrument.playhead.x =
+                instrument.sprite.texture.width * progress;
+            }
+          });
+        }
       }
     });
   }

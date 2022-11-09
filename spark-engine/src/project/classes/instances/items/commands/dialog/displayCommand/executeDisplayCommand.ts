@@ -12,9 +12,17 @@ import {
   loadStyles,
   loadUI,
 } from "../../../../../../../dom";
-import { SparkGame } from "../../../../../../../game";
+import { InstrumentOptions, SparkGame } from "../../../../../../../game";
 
+// TODO: Determine pitch by punctuation
 const dialoguePitch = "D#6";
+
+// TODO: Determine instrument by character
+const defaultInstrumentConfig: InstrumentOptions = {
+  oscillator: {
+    type: "sine",
+  },
+};
 
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   root: {
@@ -388,7 +396,6 @@ export const executeDisplayCommand = (
   onFinished?: () => void
 ): void => {
   const ui = getUIElementId();
-  const id = data?.reference?.refId || "";
   const type = data?.type || "";
   const assets = data?.assets || [];
 
@@ -571,7 +578,7 @@ export const executeDisplayCommand = (
     }
     onFinished?.();
   };
-  const instrumentId = data?.reference?.refTypeId || "";
+  const instrumentId = `${data?.reference?.refTypeId || ""}@${validCharacter}`;
   if (game) {
     if (instant) {
       game.synth.stopInstrument(instrumentId);
@@ -593,8 +600,8 @@ export const executeDisplayCommand = (
           duration,
         };
       });
-      game.synth.configureInstrument(instrumentId, { volume: 0.5 });
-      game.synth.playInstrument(instrumentId, id, tones);
+      game.synth.configureInstrument(instrumentId, defaultInstrumentConfig);
+      game.synth.playInstrument(instrumentId, tones);
       let startTime: number | undefined;
       let finished = false;
       const handleTick = (timeMS: number): void => {

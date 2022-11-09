@@ -1,7 +1,7 @@
 import { RAMPS } from "../constants/RAMPS";
 import { CurveType } from "../types/CurveType";
 
-export const fadeArray = (
+export const rampArray = (
   buffer: Float32Array,
   type: CurveType,
   fadeLength: number,

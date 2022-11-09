@@ -1,7 +1,9 @@
 import { SAMPLE_RATE } from "../constants/SAMPLE_RATE";
 import { EnvelopeOptions } from "../types/EnvelopeOptions";
-import { fadeArray } from "./fadeArray";
+import { OscillatorOptions } from "../types/OscillatorOptions";
 import { getHertz } from "./getHertz";
+import { oscillateArray } from "./oscillateArray";
+import { rampArray } from "./rampArray";
 
 export const fillArrayWithTones = (
   buffer: Float32Array,
@@ -10,10 +12,9 @@ export const fillArrayWithTones = (
     offset?: number;
     duration?: number;
   }[],
-  envelope?: EnvelopeOptions
+  envelope?: EnvelopeOptions,
+  oscillator?: OscillatorOptions
 ): void => {
-  const amplitude = 1;
-
   tones.forEach((tone) => {
     const pitch = tone.pitch || "";
     const offset = tone.offset || 0;
@@ -21,20 +22,28 @@ export const fillArrayWithTones = (
     const hertz = getHertz(pitch);
     const offsetSampleLength = Math.floor(offset * SAMPLE_RATE);
     const durationSampleLength = Math.floor(duration * SAMPLE_RATE);
-    const toneSampleLength = offsetSampleLength + durationSampleLength;
 
-    for (let i = offsetSampleLength; i < toneSampleLength; i += 1) {
-      const time = i / SAMPLE_RATE;
-      const angle = hertz * time * Math.PI;
+    const oscillatorType = oscillator?.type || "sine";
+    oscillateArray(
+      buffer,
+      oscillatorType,
+      hertz,
+      offsetSampleLength,
+      durationSampleLength
+    );
 
-      buffer[i] = Math.sin(angle) * amplitude;
-    }
+    const attack = typeof envelope?.attack === "number" ? envelope?.attack : 1;
+    const release =
+      typeof envelope?.release === "number" ? envelope?.release : 1;
+    const total = attack + release;
+    const attackFlex = attack / total;
+    const releaseFlex = release / total;
 
     const attackType = envelope?.attackCurve || "cosine";
-    const attackLength = durationSampleLength * (envelope?.attack || 0.5);
+    const attackLength = durationSampleLength * attackFlex;
     const releaseType = envelope?.releaseCurve || "cosine";
-    const releaseLength = durationSampleLength * (envelope?.release || 0.5);
-    fadeArray(
+    const releaseLength = durationSampleLength * releaseFlex;
+    rampArray(
       buffer,
       attackType,
       attackLength,
@@ -42,7 +51,7 @@ export const fillArrayWithTones = (
       offsetSampleLength,
       durationSampleLength
     );
-    fadeArray(
+    rampArray(
       buffer,
       releaseType,
       releaseLength,

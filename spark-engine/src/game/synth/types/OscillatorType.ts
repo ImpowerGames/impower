@@ -1,1 +1,1 @@
-export type OscillatorType = "sawtooth" | "sine" | "square" | "triangle";
+export type OscillatorType = "sine" | "sawtooth" | "square" | "triangle";
