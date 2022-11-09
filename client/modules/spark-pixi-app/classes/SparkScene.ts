@@ -43,7 +43,7 @@ export class SparkScene {
     // NoOp
   }
 
-  update(_time?: number, _delta?: number): void {
+  update(_timeMS?: number, _deltaMS?: number): void {
     // NoOp
   }
 

@@ -14,10 +14,9 @@ let loopRequestId = 0;
 
 /**
  * Execute the game loop
- *
- * @param time — The current time in ms
  */
-const gameLoop = (time) => {
+const gameLoop = () => {
+  const time = Date.now();
   const delta = (time - prevTime) / 1000; // Get time since last frame
   prevTime = time;
   // Execute game logic

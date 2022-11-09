@@ -12,29 +12,9 @@ import {
   loadStyles,
   loadUI,
 } from "../../../../../../../dom";
-import { SparkGame, SynthOptions } from "../../../../../../../game";
+import { SparkGame } from "../../../../../../../game";
 
-const dialoguePitches: [string, number][] = [["D#5", 0.5]];
-
-export const dialogueInstrumentOptions: SynthOptions = {
-  detune: 0,
-  portamento: 0,
-  volume: 0,
-  envelope: {
-    attack: 0.0025,
-    attackCurve: "cosine",
-    decay: 0,
-    decayCurve: "linear",
-    release: 0.0025,
-    releaseCurve: "cosine",
-    sustain: 1,
-  },
-  oscillator: {
-    partialCount: 0,
-    phase: 0,
-    type: "triangle",
-  },
-};
+const dialoguePitch = "D#6";
 
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   root: {
@@ -72,7 +52,7 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
       fadeDuration: 0,
       delay: 0.025,
       pauseScale: 6,
-      beepDuration: 0.03,
+      beepDuration: 0.05,
       syllableLength: 3,
     },
   },
@@ -591,69 +571,66 @@ export const executeDisplayCommand = (
     }
     onFinished?.();
   };
+  const instrumentId = data?.reference?.refTypeId || "";
   if (game) {
     if (instant) {
-      game.synth.stopNotes();
+      game.synth.stopInstrument(instrumentId);
       handleFinished();
     } else {
-      const handleDraw = (time: number): void => {
-        for (let i = 0; i < chunkEls.length; i += 1) {
-          const [chunkTime, chunk] = chunkEls[i] || [];
-          if (
-            chunkTime !== undefined &&
-            chunk !== undefined &&
-            chunkTime < time
-          ) {
-            chunk.forEach((c) => {
-              if (c.style.opacity !== "1") {
-                c.style.opacity = "1";
-              }
-            });
-          } else {
-            break;
+      const tones: {
+        pitch?: string;
+        offset?: number;
+        duration?: number;
+      }[] = beeps.map(([offset, duration]) => {
+        if (!duration) {
+          return {
+            offset,
+          };
+        }
+        return {
+          pitch: dialoguePitch,
+          offset,
+          duration,
+        };
+      });
+      game.synth.configureInstrument(instrumentId, { volume: 0.5 });
+      game.synth.playInstrument(instrumentId, id, tones);
+      let startTime: number | undefined;
+      let finished = false;
+      const handleTick = (timeMS: number): void => {
+        if (!finished) {
+          const time = timeMS / 1000;
+          if (startTime === undefined) {
+            startTime = time;
+          }
+          const endTime =
+            startTime +
+            Math.max(...tones.map((t) => (t.offset || 0) + (t.duration || 0)));
+          const elapsed = time - startTime;
+          if (elapsed >= endTime) {
+            finished = true;
+            game.ticker.remove(type);
+            handleFinished();
+          }
+          for (let i = 0; i < chunkEls.length; i += 1) {
+            const [chunkTime, chunk] = chunkEls[i] || [];
+            if (
+              chunkTime !== undefined &&
+              chunk !== undefined &&
+              chunkTime < elapsed
+            ) {
+              chunk.forEach((c) => {
+                if (c.style.opacity !== "1") {
+                  c.style.opacity = "1";
+                }
+              });
+            } else {
+              break;
+            }
           }
         }
       };
-      const notes: {
-        note: string[];
-        time: number;
-        duration?: number[];
-        velocity?: number[];
-        offset?: number[];
-      }[] = beeps.map(([time, duration]) => {
-        if (!duration) {
-          return {
-            time,
-            note: [],
-            duration: undefined,
-            velocity: undefined,
-            offset: undefined,
-          };
-        }
-        const noteDuration: number = duration / dialoguePitches.length;
-        return {
-          time,
-          note: dialoguePitches.map(([p]) => p),
-          duration: dialoguePitches.map(() => noteDuration),
-          velocity: dialoguePitches.map(([, v]) => v),
-          offset: dialoguePitches.map((_p, index) => noteDuration * index),
-        };
-      });
-      const instrumentId = data?.reference?.refTypeId || "";
-      game.synth.configureInstrument(
-        instrumentId,
-        "default",
-        dialogueInstrumentOptions
-      );
-      game.synth.playNotes(
-        instrumentId,
-        "default",
-        id,
-        notes,
-        handleDraw,
-        undefined,
-        handleFinished
-      );
+      game.ticker.add(type, handleTick);
     }
   }
   if (data) {

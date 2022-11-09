@@ -51,7 +51,11 @@ export const pdfGenerate = (
     doc.processText?.(txt, feed, y);
   };
 
-  if (config?.screenplay_print_title_page && titleTokens) {
+  if (
+    config?.screenplay_print_title_page &&
+    titleTokens &&
+    Object.keys(titleTokens)?.length > 0
+  ) {
     const innerWidth =
       print.page_width - print.right_margin - print.right_margin;
     const innerHeight = print.page_height - print.top_margin;

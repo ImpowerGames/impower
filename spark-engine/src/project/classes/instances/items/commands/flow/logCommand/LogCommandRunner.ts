@@ -17,7 +17,7 @@ export class LogCommandRunner extends CommandRunner<LogCommandData> {
       return super.onExecute(data, context, game);
     }
     const { parentContainerId, refId } = data.reference;
-    const parentNode = game.logic.blockMap[parentContainerId];
+    const parentNode = game.logic.config.blockMap[parentContainerId];
     const parentParentContainerId = parentNode?.parent;
     game.debug.log({
       id: uuid(),

@@ -92,14 +92,14 @@ const DataButtonLeftChildren = React.memo(
         }
       };
       if (context?.game) {
-        context?.game.events.onStart.addListener(onStart);
+        context?.game.events.onInit.addListener(onStart);
         context?.game.events.onDestroy.addListener(onEnd);
         context?.game.logic.events.onExecuteBlock.addListener(onExecuteBlock);
         context?.game.logic.events.onFinishBlock.addListener(onFinishBlock);
       }
       return (): void => {
         if (context) {
-          context?.game.events.onStart.removeListener(onStart);
+          context?.game.events.onInit.removeListener(onStart);
           context?.game.events.onDestroy.removeListener(onEnd);
           context?.game.logic.events.onExecuteBlock.removeListener(
             onExecuteBlock

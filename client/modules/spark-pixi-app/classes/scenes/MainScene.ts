@@ -145,7 +145,7 @@ export class MainScene extends SparkScene {
 
   override async load(): Promise<void> {
     const svgEntries = Object.entries(
-      this.context?.game?.logic?.blockMap?.[""]?.variables || {}
+      this.context?.game?.logic?.config?.blockMap?.[""]?.variables || {}
     ).filter(([, v]) => v.type === "graphic");
     await Promise.all(
       svgEntries.map(async ([, v]) => {
@@ -208,7 +208,7 @@ export class MainScene extends SparkScene {
     });
   }
 
-  override update(_time: number, delta: number): void {
+  override update(_timeMS: number, deltaMS: number): void {
     if (this.context.game.debug.state.debugging) {
       // SHOW SPRITE BOUNDS DEBUG BOX
       this._debug.clear();
@@ -241,7 +241,7 @@ export class MainScene extends SparkScene {
         plane.euler.y = this._ang;
 
         const sprite = child.children[0] as PIXI.AnimatedSprite;
-        sprite.update(delta / 1000);
+        sprite.update(deltaMS / 1000);
       }
     });
 

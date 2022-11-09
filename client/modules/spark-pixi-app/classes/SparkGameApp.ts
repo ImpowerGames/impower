@@ -1,7 +1,7 @@
 import { SparkContext } from "../../../../spark-engine";
 import { LogicScene } from "./scenes/LogicScene";
 import { PreviewScene } from "./scenes/PreviewScene";
-import { SynthScene } from "./scenes/SynthScene";
+import { SoundScene } from "./scenes/SoundScene";
 import { SparkScene } from "./SparkScene";
 import {
   SparkApplication,
@@ -46,7 +46,7 @@ export class SparkGameApp {
     return this._entities;
   }
 
-  private _time = 0;
+  private _timeMS = 0;
 
   constructor(
     domElementId: string,
@@ -91,7 +91,7 @@ export class SparkGameApp {
       } else {
         this._scenes = [
           // new MainScene(context, this.app, this.entities),
-          new SynthScene(context, this.app, this.entities),
+          new SoundScene(context, this.app, this.entities),
           new LogicScene(context, this.app, this.entities),
         ];
       }
@@ -112,12 +112,7 @@ export class SparkGameApp {
       scene.start();
     });
 
-    const gameLoop = (delta: number): void => {
-      const deltaMS = delta * 1000;
-      this._time += deltaMS;
-      this.update(this._time, deltaMS);
-    };
-    this.app.ticker.add(gameLoop);
+    this.app.ticker.add(this.update, this);
 
     if (this.context) {
       await this.context.start();
@@ -126,7 +121,7 @@ export class SparkGameApp {
     if (startTicker) {
       this.app.start();
     } else {
-      this.app.ticker.update(performance.now());
+      this.app.ticker.update();
       this.app.stop();
     }
 
@@ -151,10 +146,12 @@ export class SparkGameApp {
     this.app.start();
   }
 
-  update(time?: number, delta?: number): void {
+  update(): void {
+    const deltaMS = this.app.ticker?.deltaMS || 0;
+    this._timeMS += deltaMS;
     if (this.app) {
       this.scenes.forEach((scene) => {
-        scene.update(time, delta);
+        scene.update(this._timeMS, deltaMS);
       });
     }
   }

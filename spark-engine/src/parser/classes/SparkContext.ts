@@ -81,42 +81,51 @@ export class SparkContext {
         startCommandIndex = i;
       }
     }
-    const game = new SparkGame({
-      blockMap,
-      objectMap,
-      defaultCameras,
-      startBlockId,
-      startCommandIndex,
-      ...config,
-    });
+    const game = new SparkGame(
+      {
+        logic: { blockMap },
+        struct: { objectMap },
+        world: { defaultCameras },
+      },
+      {
+        ...(config?.state || {}),
+        logic: {
+          ...(config?.state?.logic || {}),
+          activeParentBlockId: startBlockId,
+          activeCommandIndex: startCommandIndex,
+        },
+      }
+    );
     this._game = game;
     this._runner = runner;
     this._editable = editable || false;
-    Object.entries(game.logic.blockMap).forEach(([blockId, block]) => {
-      const [ids, valueMap] = getScopedValueContext(
-        blockId,
-        game?.logic?.blockMap
-      );
-      const objectMap = game?.struct?.objectMap;
-      this._contexts[blockId] = {
-        ids,
-        valueMap,
-        objectMap,
-        triggers: block.triggers || [],
-        parameters:
-          Object.values(
-            (block.variables as Record<
-              string,
-              { name: string; parameter?: boolean }
-            >) || {}
-          )
-            .filter((v) => v.parameter)
-            .map((p) => p.name) || [],
-        commands: this.runner.getRuntimeData(
-          block.commands as Record<string, CommandData>
-        ),
-      };
-    });
+    Object.entries(game?.logic?.config?.blockMap).forEach(
+      ([blockId, block]) => {
+        const [ids, valueMap] = getScopedValueContext(
+          blockId,
+          game?.logic?.config?.blockMap
+        );
+        const objectMap = game?.struct?.config?.objectMap;
+        this._contexts[blockId] = {
+          ids,
+          valueMap,
+          objectMap,
+          triggers: block.triggers || [],
+          parameters:
+            Object.values(
+              (block.variables as Record<
+                string,
+                { name: string; parameter?: boolean }
+              >) || {}
+            )
+              .filter((v) => v.parameter)
+              .map((p) => p.name) || [],
+          commands: this.runner.getRuntimeData(
+            block.commands as Record<string, CommandData>
+          ),
+        };
+      }
+    );
     Object.values(this.runner.commandRunners || {}).forEach((r) => {
       r.init();
     });
@@ -138,7 +147,7 @@ export class SparkContext {
     if (this.loadedBlockIds) {
       for (let i = 0; i < this.loadedBlockIds.length; i += 1) {
         const blockId = this.loadedBlockIds[i];
-        if (blockId) {
+        if (blockId !== undefined) {
           if (!this.updateBlock(blockId, time, delta)) {
             return false; // Player quit the game
           }

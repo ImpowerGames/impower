@@ -58,7 +58,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       );
 
       if (shouldExecute) {
-        const block = game.logic.blockMap[id];
+        const block = game.logic.config.blockMap[id];
         if (block) {
           game.logic.executeBlock(id, block.parent || "");
         }

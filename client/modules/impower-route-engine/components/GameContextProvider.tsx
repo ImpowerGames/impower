@@ -57,8 +57,14 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
         gameRef.current = createGame(script, files, {
           editable: true,
           activeLine: activeLineRef.current,
-          debugging: debuggingRef.current,
-          seed,
+          state: {
+            debug: {
+              debugging: debuggingRef.current,
+            },
+            random: {
+              seed,
+            },
+          },
         });
         setGame(gameRef.current);
       }
@@ -71,8 +77,14 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
       gameRef.current = createGame(script, files, {
         editable: false,
         activeLine: activeLineRef.current,
-        debugging: debuggingRef.current,
-        seed,
+        state: {
+          debug: {
+            debugging: debuggingRef.current,
+          },
+          random: {
+            seed,
+          },
+        },
       });
       setGame(gameRef.current);
     }

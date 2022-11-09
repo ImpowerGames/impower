@@ -77,14 +77,14 @@ export const DataLink = React.memo((props: LinkDefaultProps): JSX.Element => {
       }
     };
     if (context?.game) {
-      context?.game.events.onStart.addListener(onStart);
+      context?.game.events.onInit.addListener(onStart);
       context?.game.events.onDestroy.addListener(onDestroy);
       context?.game.logic.events.onExecuteBlock.addListener(onExecuteBlock);
       context?.game.logic.events.onFinishBlock.addListener(onFinishBlock);
     }
     return (): void => {
       if (context?.game) {
-        context?.game.events.onStart.removeListener(onStart);
+        context?.game.events.onInit.removeListener(onStart);
         context?.game.events.onDestroy.removeListener(onDestroy);
         context?.game.logic.events.onExecuteBlock.removeListener(
           onExecuteBlock

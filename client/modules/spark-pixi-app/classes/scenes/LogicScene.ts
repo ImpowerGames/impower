@@ -36,9 +36,11 @@ export class LogicScene extends SparkScene {
     }
   }
 
-  override update(time: number, delta: number): void {
-    if (!this.context.update(time, delta)) {
+  override update(timeMS: number, deltaMS: number): void {
+    if (!this.context.update(timeMS, deltaMS)) {
       this.app.destroy(true);
+    } else {
+      this.context.game.ticker.tick(timeMS, deltaMS);
     }
   }
 }
