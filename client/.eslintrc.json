@@ -40,6 +40,7 @@
         "ignore": ["jsx", "global"]
       }
     ],
+    "prefer-destructuring": "off",
     "no-continue": "off",
     "react/prop-types": ["off"],
     "camelcase": "off",

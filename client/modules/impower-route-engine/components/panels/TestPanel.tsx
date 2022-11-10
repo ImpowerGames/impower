@@ -134,8 +134,7 @@ const StyledLogButton = styled(ButtonBase)`
   align-items: center;
   justify-content: flex-start;
   border-radius: ${(props): string => props.theme.spacing(0.5)};
-  padding: ${(props): string => props.theme.spacing(0.5)}
-    ${(props): string => props.theme.spacing(1)};
+  padding: ${(props): string => props.theme.spacing(0.5, 1)};
 `;
 
 const StyledLogIcon = styled.div`
@@ -294,9 +293,9 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
   const context = useContext(GameContext);
   const { fullscreen } = useContext(ScreenContext);
 
-  const [logs, setLogs] = useState<LogData[]>(
-    context?.game?.debug.state.currentLogs || []
-  );
+  const [logs, setLogs] = useState<LogData[]>([
+    ...(context?.game?.debug.state.currentLogs || []),
+  ]);
 
   const handleClickPlay = useCallback(() => {
     dispatch(testPause(false));
@@ -367,7 +366,7 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
   );
 
   useEffect(() => {
-    setLogs(context?.game?.debug.state.currentLogs || []);
+    setLogs([...(context?.game?.debug.state.currentLogs || [])]);
     const onLog = throttle((): void => {
       if (context?.game) {
         setLogs([...context.game.debug.state.currentLogs]);

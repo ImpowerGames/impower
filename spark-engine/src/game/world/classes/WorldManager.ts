@@ -63,20 +63,20 @@ export class WorldManager extends Manager<
   }
 
   private getCameraState(cameraId?: string): CameraState | undefined {
-    const id = cameraId || this.state.mainCamera;
-    if (this.state.cameraStates[id]) {
-      return this.state.cameraStates[id];
+    const id = cameraId || this._state.mainCamera;
+    if (this._state.cameraStates[id]) {
+      return this._state.cameraStates[id];
     }
     return undefined;
   }
 
   private getOrCreateCameraState(cameraId?: string): CameraState {
-    const id = cameraId || this.state.mainCamera;
-    const state = this.state.cameraStates[id];
+    const id = cameraId || this._state.mainCamera;
+    const state = this._state.cameraStates[id];
     if (state) {
       return state;
     }
-    const d = this.config.defaultCameras[id];
+    const d = this._config.defaultCameras[id];
     const c = createCameraState();
     return this.deepCopy({
       position: d?.position || c.position,
@@ -103,7 +103,7 @@ export class WorldManager extends Manager<
     if (state) {
       return state;
     }
-    const d = this.config.defaultEntities[entityId];
+    const d = this._config.defaultEntities[entityId];
     const c = createEntityState();
     return this.deepCopy({
       position: d?.position || c.position,
@@ -114,16 +114,16 @@ export class WorldManager extends Manager<
 
   addCamera(cameraId: string, cameraState?: CameraState): void {
     const s = cameraState || this.getOrCreateCameraState(cameraId);
-    this.state.cameraStates[cameraId] = s;
-    this.events.onAddCamera.emit({
+    this._state.cameraStates[cameraId] = s;
+    this._events.onAddCamera.emit({
       cameraId,
       cameraState: s,
     });
   }
 
   removeCamera(cameraId: string): void {
-    delete this.state.cameraStates[cameraId];
-    this.events.onRemoveCamera.emit({ cameraId });
+    delete this._state.cameraStates[cameraId];
+    this._events.onRemoveCamera.emit({ cameraId });
   }
 
   spawnEntity(
@@ -138,7 +138,7 @@ export class WorldManager extends Manager<
     camera.spawnedEntities.push(entityId);
     const s = entityState || this.getOrCreateEntityState(entityId, cameraId);
     camera.entities[entityId] = s;
-    this.events.onSpawnEntity.emit({
+    this._events.onSpawnEntity.emit({
       entityId,
       cameraId,
       entityState: s,
@@ -154,6 +154,6 @@ export class WorldManager extends Manager<
     camera.spawnedEntities = camera.spawnedEntities.filter(
       (x) => x !== entityId
     );
-    this.events.onDestroyEntity.emit({ entityId, cameraId });
+    this._events.onDestroyEntity.emit({ entityId, cameraId });
   }
 }

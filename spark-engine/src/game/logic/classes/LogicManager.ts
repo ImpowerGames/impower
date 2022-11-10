@@ -255,20 +255,20 @@ export class LogicManager extends Manager<
 
   override init() {
     this.enterBlock(
-      this.state.activeParentBlockId,
+      this._state.activeParentBlockId,
       false,
       null,
-      this.state.activeCommandIndex
+      this._state.activeCommandIndex
     );
   }
 
   private changeActiveParentBlock(newParentBlockId: string): void {
-    if (this.state.activeParentBlockId === newParentBlockId) {
+    if (this._state.activeParentBlockId === newParentBlockId) {
       return;
     }
-    this.state.activeParentBlockId = newParentBlockId;
-    const parent = this.config.blockMap?.[newParentBlockId];
-    this.events.onChangeActiveParentBlock.emit({
+    this._state.activeParentBlockId = newParentBlockId;
+    const parent = this._config.blockMap?.[newParentBlockId];
+    this._events.onChangeActiveParentBlock.emit({
       from: parent?.from,
       line: parent?.line,
       blockId: newParentBlockId,
@@ -276,11 +276,11 @@ export class LogicManager extends Manager<
   }
 
   private resetBlockExecution(blockId: string): void {
-    if (!this.state.blockStates[blockId]) {
-      this.state.changedBlocks.push(blockId);
+    if (!this._state.blockStates[blockId]) {
+      this._state.changedBlocks.push(blockId);
     }
     const blockState =
-      this.state.blockStates[blockId] || createBlockState(blockId);
+      this._state.blockStates[blockId] || createBlockState(blockId);
     blockState.executedBy = "";
     blockState.isExecuting = false;
     blockState.hasFinished = false;
@@ -290,31 +290,31 @@ export class LogicManager extends Manager<
     blockState.lastExecutedAt = -1;
     blockState.time = -1;
     blockState.delta = -1;
-    this.state.blockStates[blockId] = blockState;
+    this._state.blockStates[blockId] = blockState;
   }
 
   private loadBlock(blockId: string): void {
-    const block = this.config.blockMap[blockId];
+    const block = this._config.blockMap[blockId];
     if (!block) {
       return;
     }
-    if (this.state.loadedBlockIds.includes(blockId)) {
+    if (this._state.loadedBlockIds.includes(blockId)) {
       return;
     }
-    this.state.loadedBlockIds.push(blockId);
+    this._state.loadedBlockIds.push(blockId);
 
-    if (!this.state.blockStates[blockId]) {
-      this.state.changedBlocks.push(blockId);
+    if (!this._state.blockStates[blockId]) {
+      this._state.changedBlocks.push(blockId);
     }
     const blockState =
-      this.state.blockStates[blockId] || createBlockState(blockId);
-    this.state.blockStates[blockId] = blockState;
+      this._state.blockStates[blockId] || createBlockState(blockId);
+    this._state.blockStates[blockId] = blockState;
     if (blockState.loaded) {
       return;
     }
     blockState.loaded = true;
 
-    this.events.onLoadBlock.emit({
+    this._events.onLoadBlock.emit({
       from: block.from,
       line: block.line,
       blockId,
@@ -326,22 +326,22 @@ export class LogicManager extends Manager<
   }
 
   private unloadBlock(blockId: string): void {
-    const block = this.config.blockMap[blockId];
+    const block = this._config.blockMap[blockId];
     if (!block) {
       return;
     }
-    if (!this.state.loadedBlockIds.includes(blockId)) {
+    if (!this._state.loadedBlockIds.includes(blockId)) {
       return;
     }
-    this.state.loadedBlockIds = this.state.loadedBlockIds.filter(
+    this._state.loadedBlockIds = this._state.loadedBlockIds.filter(
       (id) => id !== blockId
     );
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (!blockState?.loaded) {
       return;
     }
     blockState.loaded = false;
-    this.events.onUnloadBlock.emit({
+    this._events.onUnloadBlock.emit({
       from: block.from,
       line: block.line,
       blockId,
@@ -349,16 +349,16 @@ export class LogicManager extends Manager<
   }
 
   updateBlock(blockId: string, time: number, delta: number): void {
-    const block = this.config.blockMap[blockId];
+    const block = this._config.blockMap[blockId];
     if (!block) {
       return;
     }
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       blockState.time = time;
       blockState.delta = delta;
     }
-    this.events.onUpdateBlock.emit({
+    this._events.onUpdateBlock.emit({
       from: block.from,
       line: block.line,
       blockId,
@@ -372,19 +372,19 @@ export class LogicManager extends Manager<
     executedByBlockId: string | null,
     startIndex?: number
   ): void {
-    const block = this.config.blockMap[blockId];
+    const block = this._config.blockMap[blockId];
     if (!block) {
       return;
     }
     this.resetBlockExecution(blockId);
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       blockState.executionCount += 1;
       blockState.executedBy = executedByBlockId;
       blockState.isExecuting = true;
       blockState.startIndex = startIndex || 0;
     }
-    this.events.onExecuteBlock.emit({
+    this._events.onExecuteBlock.emit({
       from: block.from,
       line: block.line,
       value: blockState?.executionCount || 0,
@@ -394,14 +394,14 @@ export class LogicManager extends Manager<
   }
 
   getNextBlockId(blockId: string): string | null | undefined {
-    const block = this.config.blockMap[blockId];
+    const block = this._config.blockMap[blockId];
     if (!block) {
       return undefined;
     }
     if (block.type !== "section") {
       return null;
     }
-    const blockList = Object.entries(this.config.blockMap).slice(
+    const blockList = Object.entries(this._config.blockMap).slice(
       block.index + 1
     );
     const [nextBlockId] = blockList.find(([, v]) => v.type === "section") || [
@@ -421,7 +421,7 @@ export class LogicManager extends Manager<
   }
 
   continue(blockId: string): boolean {
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       if (blockState.returnWhenFinished) {
         return this.returnFromBlock(blockId, "");
@@ -431,16 +431,16 @@ export class LogicManager extends Manager<
   }
 
   finishBlock(blockId: string): void {
-    const block = this.config.blockMap[blockId];
+    const block = this._config.blockMap[blockId];
     if (!block) {
       return;
     }
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       blockState.isExecuting = false;
       blockState.hasFinished = true;
     }
-    this.events.onFinishBlock.emit({
+    this._events.onFinishBlock.emit({
       from: block.from,
       line: block.line,
       executedByBlockId: blockState?.executedBy || null,
@@ -454,30 +454,30 @@ export class LogicManager extends Manager<
     executedByBlockId: string | null,
     startIndex?: number
   ): void {
-    const block = this.config.blockMap[blockId];
+    const block = this._config.blockMap[blockId];
     if (!block) {
       return;
     }
-    if (!this.config.blockMap[blockId]) {
+    if (!this._config.blockMap[blockId]) {
       return;
     }
-    if (!this.state.blockStates[blockId]) {
-      this.state.changedBlocks.push(blockId);
+    if (!this._state.blockStates[blockId]) {
+      this._state.changedBlocks.push(blockId);
     }
     const blockState =
-      this.state.blockStates[blockId] || createBlockState(blockId);
+      this._state.blockStates[blockId] || createBlockState(blockId);
     if (returnWhenFinished) {
       blockState.hasReturned = false;
       blockState.returnedFrom = "";
     }
-    this.state.blockStates[blockId] = blockState;
+    this._state.blockStates[blockId] = blockState;
 
     // Change activeParent
     const newActiveParent = blockId;
     this.changeActiveParentBlock(newActiveParent);
 
     // Unload all loaded blocks that are not an ancestor or direct child of new activeParent
-    this.state.loadedBlockIds.forEach((loadedBlockId) => {
+    this._state.loadedBlockIds.forEach((loadedBlockId) => {
       const loadedBlockParent = loadedBlockId.split(".").slice(0, -1).join(".");
       if (
         !newActiveParent.startsWith(loadedBlockId) &&
@@ -487,7 +487,7 @@ export class LogicManager extends Manager<
         this.resetBlockExecution(loadedBlockId);
       }
     });
-    const parent = this.config.blockMap?.[newActiveParent];
+    const parent = this._config.blockMap?.[newActiveParent];
     const childIds = parent?.children || [];
     // Load activeParent and immediate child blocks
     this.loadBlocks([newActiveParent, ...childIds]);
@@ -495,7 +495,7 @@ export class LogicManager extends Manager<
     // Execute activeParent
     this.executeBlock(blockId, executedByBlockId, startIndex);
 
-    this.events.onEnterBlock.emit({
+    this._events.onEnterBlock.emit({
       from: block.from,
       line: block.line,
       blockId,
@@ -503,15 +503,15 @@ export class LogicManager extends Manager<
   }
 
   stopBlock(blockId: string): void {
-    const block = this.config.blockMap[blockId];
+    const block = this._config.blockMap[blockId];
     if (!block) {
       return;
     }
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       blockState.isExecuting = false;
     }
-    this.events.onStopBlock.emit({
+    this._events.onStopBlock.emit({
       from: block.from,
       line: block.line,
       blockId,
@@ -519,18 +519,18 @@ export class LogicManager extends Manager<
   }
 
   returnFromBlock(blockId: string, value: unknown): boolean {
-    const block = this.config.blockMap[blockId];
+    const block = this._config.blockMap[blockId];
     if (!block) {
       return false;
     }
 
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       blockState.isExecuting = false;
       blockState.hasFinished = true;
     }
 
-    const executedByBlockId = this.state.blockStates[blockId]?.executedBy;
+    const executedByBlockId = this._state.blockStates[blockId]?.executedBy;
     if (!executedByBlockId) {
       return false;
     }
@@ -538,7 +538,7 @@ export class LogicManager extends Manager<
     const variableId = `${blockId}.return`;
     this.setVariableValue(variableId, value, block.from, block.line);
 
-    const executedByBlockState = this.state.blockStates[executedByBlockId];
+    const executedByBlockState = this._state.blockStates[executedByBlockId];
     if (executedByBlockState) {
       this.enterBlock(
         executedByBlockId,
@@ -550,7 +550,7 @@ export class LogicManager extends Manager<
       executedByBlockState.returnedFrom = blockId;
     }
 
-    this.events.onReturnFromBlock.emit({
+    this._events.onReturnFromBlock.emit({
       from: block.from,
       line: block.line,
       blockId,
@@ -566,12 +566,12 @@ export class LogicManager extends Manager<
     from?: number,
     line?: number
   ): number {
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       const currentCount = blockState.choiceChosenCounts[commandId] || 0;
       const newCount = currentCount + 1;
       blockState.choiceChosenCounts[commandId] = newCount;
-      this.events.onChooseChoice.emit({
+      this._events.onChooseChoice.emit({
         blockId,
         commandId,
         commandIndex,
@@ -591,7 +591,7 @@ export class LogicManager extends Manager<
     from?: number,
     line?: number
   ): void {
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       blockState.lastExecutedAt = time;
       const currentCount = blockState.commandExecutionCounts[commandId] || 0;
@@ -600,7 +600,7 @@ export class LogicManager extends Manager<
         blockState.startIndex = 0;
       }
     }
-    this.events.onExecuteCommand.emit({
+    this._events.onExecuteCommand.emit({
       blockId,
       commandId,
       commandIndex,
@@ -618,12 +618,12 @@ export class LogicManager extends Manager<
     from?: number,
     line?: number
   ): void {
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       blockState.lastExecutedAt = -1;
       blockState.previousIndex = commandIndex;
     }
-    this.events.onFinishCommand.emit({
+    this._events.onFinishCommand.emit({
       blockId,
       commandId,
       commandIndex,
@@ -639,15 +639,15 @@ export class LogicManager extends Manager<
     satisfiedTriggers: string[],
     unsatisfiedTriggers: string[]
   ): void {
-    const block = this.config.blockMap[blockId];
+    const block = this._config.blockMap[blockId];
     if (!block) {
       return;
     }
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       blockState.satisfiedTriggers = satisfiedTriggers;
       blockState.unsatisfiedTriggers = unsatisfiedTriggers;
-      this.events.onCheckTriggers.emit({
+      this._events.onCheckTriggers.emit({
         from: block.from,
         line: block.line,
         blockId,
@@ -664,11 +664,11 @@ export class LogicManager extends Manager<
     from?: number,
     line?: number
   ): void {
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       blockState.executingIndex = index;
     }
-    this.events.onGoToCommandIndex.emit({ blockId, index, from, line });
+    this._events.onGoToCommandIndex.emit({ blockId, index, from, line });
   }
 
   commandJumpStackPush(
@@ -677,11 +677,11 @@ export class LogicManager extends Manager<
     from?: number,
     line?: number
   ): void {
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       blockState.commandJumpStack.unshift(...indices);
     }
-    this.events.onCommandJumpStackPush.emit({ blockId, indices, from, line });
+    this._events.onCommandJumpStackPush.emit({ blockId, indices, from, line });
   }
 
   commandJumpStackPop(
@@ -689,10 +689,10 @@ export class LogicManager extends Manager<
     from?: number,
     line?: number
   ): number | undefined {
-    const blockState = this.state.blockStates[blockId];
+    const blockState = this._state.blockStates[blockId];
     if (blockState) {
       const index = blockState.commandJumpStack.shift();
-      this.events.onCommandJumpStackPop.emit({ blockId, from, line });
+      this._events.onCommandJumpStackPop.emit({ blockId, from, line });
       return index;
     }
     return undefined;
@@ -704,24 +704,24 @@ export class LogicManager extends Manager<
     from?: number,
     line?: number
   ): void {
-    if (!this.state.variableStates[variableId]) {
-      this.state.changedVariables.push(variableId);
+    if (!this._state.variableStates[variableId]) {
+      this._state.changedVariables.push(variableId);
     }
-    const variableState = this.state.variableStates[variableId] || {
+    const variableState = this._state.variableStates[variableId] || {
       name: variableId.split(".").slice(-1).join(""),
       value: value,
     };
     variableState.value = value;
-    this.state.variableStates[variableId] = variableState;
-    this.events.onSetVariableValue.emit({ variableId, value, from, line });
+    this._state.variableStates[variableId] = variableState;
+    this._events.onSetVariableValue.emit({ variableId, value, from, line });
   }
 
   getRuntimeValue(id: string): unknown {
-    const variableState = this.state.variableStates?.[id];
+    const variableState = this._state.variableStates?.[id];
     if (variableState) {
       return variableState.value;
     }
-    const blockState = this.state.blockStates?.[id];
+    const blockState = this._state.blockStates?.[id];
     if (blockState) {
       return blockState.executionCount;
     }

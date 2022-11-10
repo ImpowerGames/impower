@@ -1,4 +1,6 @@
-export class GameEvent<T = any> {
+import { IGameEvent } from "../types/IGameEvent";
+
+export class GameEvent<T = any> implements IGameEvent<T> {
   private handlers: { (data: T): void }[] = [];
 
   public addListener(handler: { (data: T): void }): void {

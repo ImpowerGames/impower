@@ -1,5 +1,5 @@
 import { BlockData, CommandData } from "../../../../../data";
-import { BlockState, SparkGame } from "../../../../../game";
+import { SparkGame } from "../../../../../game";
 import { ContainerRunner } from "../../container/ContainerRunner";
 import { CommandRunner } from "../../items/command/CommandRunner";
 
@@ -25,8 +25,7 @@ export class BlockRunner extends ContainerRunner<BlockData> {
    * @return {boolean} True, if still executing. False, if finished, Null, if quit.
    */
   update(
-    id: string,
-    blockState: BlockState,
+    blockId: string,
     context: BlockContext,
     game: SparkGame,
     time: number,
@@ -34,7 +33,12 @@ export class BlockRunner extends ContainerRunner<BlockData> {
   ): boolean | null {
     const { triggers, valueMap } = context;
 
-    game.logic.updateBlock(id, time, delta);
+    game.logic.updateBlock(blockId, time, delta);
+
+    const blockState = game.logic.state.blockStates[blockId];
+    if (!blockState) {
+      return false;
+    }
 
     if (!blockState.isExecuting) {
       const satisfiedTriggers: string[] = [];
@@ -51,28 +55,28 @@ export class BlockRunner extends ContainerRunner<BlockData> {
       const shouldExecute = satisfiedTriggers?.length > 0;
 
       game.logic.checkTriggers(
-        id,
+        blockId,
         shouldExecute,
         satisfiedTriggers,
         unsatisfiedTriggers
       );
 
       if (shouldExecute) {
-        const block = game.logic.config.blockMap[id];
+        const block = game.logic.config.blockMap[blockId];
         if (block) {
-          game.logic.executeBlock(id, block.parent || "");
+          game.logic.executeBlock(blockId, block.parent || "");
         }
       }
     }
 
     if (blockState.isExecuting) {
-      const running = this.runCommands(id, blockState, context, game, time);
+      const running = this.runCommands(blockId, context, game, time);
       if (running === null) {
         return null;
       }
       if (running === false) {
-        game.logic.finishBlock(id);
-        game.logic.continue(id);
+        game.logic.finishBlock(blockId);
+        game.logic.continue(blockId);
         return false;
       }
     }
@@ -86,14 +90,16 @@ export class BlockRunner extends ContainerRunner<BlockData> {
    * @return {boolean} True, if still executing. False, if the block is finished executing and there are no more commands left to execute, Null, if quit.
    */
   private runCommands(
-    id: string,
-    blockState: BlockState,
+    blockId: string,
     context: BlockContext,
     game: SparkGame,
     time: number
   ): boolean | null {
     const commands = context?.commands;
-    const blockId = id;
+    const blockState = game.logic.state.blockStates[blockId];
+    if (!blockState) {
+      return false;
+    }
     while (blockState.executingIndex < commands.length) {
       const command = commands[blockState.executingIndex];
       if (command) {

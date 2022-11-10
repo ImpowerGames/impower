@@ -3,6 +3,7 @@ import { Manager } from "../../core/classes/Manager";
 import { InstrumentConfig } from "../types/InstrumentConfig";
 import { InstrumentOptions } from "../types/InstrumentOptions";
 import { InstrumentState } from "../types/InstrumentState";
+import { MidiTrack } from "../types/MidiTrack";
 
 export interface SynthEvents extends Record<string, GameEvent> {
   onConfigureInstrument: GameEvent<{
@@ -15,11 +16,7 @@ export interface SynthEvents extends Record<string, GameEvent> {
   }>;
   onPlayInstrument: GameEvent<{
     instrumentId: string;
-    tones: {
-      pitch?: string;
-      offset?: number;
-      duration?: number;
-    }[];
+    tracks: MidiTrack[];
   }>;
 }
 
@@ -48,11 +45,7 @@ export class SynthManager extends Manager<
       }>(),
       onPlayInstrument: new GameEvent<{
         instrumentId: string;
-        tones: {
-          pitch?: string;
-          offset?: number;
-          duration?: number;
-        }[];
+        tracks: MidiTrack[];
       }>(),
     };
     const initialConfig: SynthConfig = {
@@ -71,44 +64,37 @@ export class SynthManager extends Manager<
     options?: Partial<InstrumentOptions>
   ): void {
     const instrumentConfig: InstrumentConfig =
-      this.config.instruments[instrumentId] || {};
+      this._config.instruments[instrumentId] || {};
     if (instrumentConfig) {
       instrumentConfig.envelope = options?.envelope;
       instrumentConfig.oscillator = options?.oscillator;
     }
-    this.config.instruments[instrumentId] = instrumentConfig;
+    this._config.instruments[instrumentId] = instrumentConfig;
     const instrumentState: InstrumentState =
-      this.state.instrumentStates[instrumentId] || {};
+      this._state.instrumentStates[instrumentId] || {};
     if (instrumentState) {
       instrumentState.detune = options?.detune;
       instrumentState.portamento = options?.portamento;
       instrumentState.volume = options?.volume;
     }
-    this.state.instrumentStates[instrumentId] = instrumentState;
-    this.events.onConfigureInstrument.emit({
+    this._state.instrumentStates[instrumentId] = instrumentState;
+    this._events.onConfigureInstrument.emit({
       instrumentId,
       options,
     });
   }
 
   stopInstrument(instrumentId: string, duration?: number): void {
-    this.events.onStopInstrument.emit({
+    this._events.onStopInstrument.emit({
       instrumentId,
       duration,
     });
   }
 
-  playInstrument(
-    instrumentId: string,
-    tones: {
-      pitch?: string;
-      offset?: number;
-      duration?: number;
-    }[]
-  ): void {
-    this.events.onPlayInstrument.emit({
+  playInstrument(instrumentId: string, ...tracks: MidiTrack[]): void {
+    this._events.onPlayInstrument.emit({
       instrumentId,
-      tones,
+      tracks,
     });
   }
 }

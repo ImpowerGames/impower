@@ -24,6 +24,6 @@ export class PhysicsManager extends Manager<
   }
 
   setTimeScale(timeScale: number): void {
-    this.events.onTimeScaleChange.emit({ timeScale });
+    this._events.onTimeScaleChange.emit({ timeScale });
   }
 }

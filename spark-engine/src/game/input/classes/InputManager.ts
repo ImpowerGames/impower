@@ -48,24 +48,24 @@ export class InputManager extends Manager<
   }
 
   pointerDown(button: number, target?: string): void {
-    if (!this.state.pointer.down.includes(button)) {
-      this.state.pointer.down.push(button);
+    if (!this._state.pointer.down.includes(button)) {
+      this._state.pointer.down.push(button);
     }
-    const index = this.state.pointer.up.indexOf(button);
+    const index = this._state.pointer.up.indexOf(button);
     if (index >= 0) {
-      this.state.pointer.up.splice(index, 1);
+      this._state.pointer.up.splice(index, 1);
     }
-    this.events.onPointerDown.emit({ button, target });
+    this._events.onPointerDown.emit({ button, target });
   }
 
   pointerUp(button: number, target?: string): void {
-    if (!this.state.pointer.up.includes(button)) {
-      this.state.pointer.up.push(button);
+    if (!this._state.pointer.up.includes(button)) {
+      this._state.pointer.up.push(button);
     }
-    const index = this.state.pointer.down.indexOf(button);
+    const index = this._state.pointer.down.indexOf(button);
     if (index >= 0) {
-      this.state.pointer.down.splice(index, 1);
+      this._state.pointer.down.splice(index, 1);
     }
-    this.events.onPointerUp.emit({ button, target });
+    this._events.onPointerUp.emit({ button, target });
   }
 }

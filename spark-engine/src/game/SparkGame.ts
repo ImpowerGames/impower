@@ -40,6 +40,7 @@ import {
   TickerManager,
   TickerState,
 } from "./ticker/classes/TickerManager";
+import { UIConfig, UIManager, UIState } from "./ui/classes/UIManager";
 import {
   WorldConfig,
   WorldManager,
@@ -55,6 +56,7 @@ export interface SparkGameConfig {
   struct?: Partial<StructConfig>;
   synth?: Partial<SynthConfig>;
   ticker?: Partial<TickerConfig>;
+  ui?: Partial<UIConfig>;
   world?: Partial<WorldConfig>;
 }
 
@@ -67,6 +69,7 @@ export interface SparkGameState {
   struct?: Partial<StructState>;
   synth?: Partial<SynthState>;
   ticker?: Partial<TickerState>;
+  ui?: Partial<UIState>;
   world?: Partial<WorldState>;
 }
 
@@ -79,6 +82,7 @@ export class SparkGame extends Game {
   struct: StructManager;
   synth: SynthManager;
   ticker: TickerManager;
+  ui: UIManager;
   world: WorldManager;
 
   constructor(config?: SparkGameConfig, state?: SparkGameState) {
@@ -91,6 +95,7 @@ export class SparkGame extends Game {
     this.struct = new StructManager(config?.struct, state?.struct);
     this.synth = new SynthManager(config?.synth, state?.synth);
     this.ticker = new TickerManager(config?.ticker, state?.ticker);
+    this.ui = new UIManager(config?.ui, state?.ui);
     this.world = new WorldManager(config?.world, state?.world);
   }
 
@@ -104,6 +109,7 @@ export class SparkGame extends Game {
       struct: this.struct,
       synth: this.synth,
       ticker: this.ticker,
+      ui: this.ui,
       world: this.world,
     };
   }

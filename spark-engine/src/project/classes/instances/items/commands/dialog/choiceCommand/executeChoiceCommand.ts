@@ -41,13 +41,15 @@ export const executeChoiceCommand = (
   const contentEls = getElements(ui, config?.choice?.id);
   const [replaceTagsResult] = format(content, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
-  const handleClick = (e: MouseEvent): void => {
-    e.stopPropagation();
+  const handleClick = (e?: { stopPropagation: () => void }): void => {
+    if (e) {
+      e.stopPropagation();
+    }
     contentEls.forEach((el) => {
       if (el) {
         el.innerHTML = "";
-        el.style.pointerEvents = null as unknown as string;
-        el.style.display = "none";
+        el.style["pointerEvents"] = null as unknown as string;
+        el.style["display"] = "none";
       }
     });
     onClick?.();
@@ -56,8 +58,8 @@ export const executeChoiceCommand = (
     contentEls.forEach((el) => {
       if (el) {
         el.innerHTML = "";
-        el.style.pointerEvents = null as unknown as string;
-        el.style.display = "none";
+        el.style["pointerEvents"] = null as unknown as string;
+        el.style["display"] = "none";
       }
     });
     return;
@@ -71,7 +73,7 @@ export const executeChoiceCommand = (
     if (el) {
       if (validIndex === i) {
         el.onclick = handleClick;
-        el.innerHTML = evaluatedContent;
+        el.textContent = evaluatedContent;
         el.style.pointerEvents = "auto";
         el.style.display = "block";
       }

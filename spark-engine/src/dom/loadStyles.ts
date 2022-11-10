@@ -6,16 +6,14 @@ import { getElement } from "./utils/getElement";
 export const loadStyles = (
   objectMap: Record<string, Record<string, unknown>>,
   ...styleStructNames: string[]
-): HTMLStyleElement | null => {
+): void => {
   const rootElementId = getRootElementId();
   const styleElementId = getStyleElementId();
   const rootEl = getElement(rootElementId);
   if (!rootEl) {
-    return null;
+    return;
   }
-  const styleEl =
-    (getElement(styleElementId) as HTMLStyleElement) ||
-    document.createElement("style");
+  const styleEl = getElement(styleElementId) || document.createElement("style");
   if (styleEl.id !== styleElementId) {
     styleEl.id = styleElementId;
   }
@@ -23,7 +21,7 @@ export const loadStyles = (
     rootEl.appendChild(styleEl);
   }
   if (!objectMap) {
-    return null;
+    return;
   }
   const imports = Object.values(objectMap?.["import"] || {});
   let content = "";
@@ -67,5 +65,4 @@ export const loadStyles = (
   if (styleEl.textContent !== content) {
     styleEl.textContent = content;
   }
-  return styleEl;
 };

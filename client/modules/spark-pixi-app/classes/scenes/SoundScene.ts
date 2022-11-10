@@ -3,6 +3,7 @@ import * as PIXI from "pixi.js";
 import {
   fillArrayWithTones,
   InstrumentOptions,
+  MidiTrack,
   SAMPLE_RATE,
 } from "../../../../../spark-engine";
 import { SparkScene } from "../SparkScene";
@@ -32,14 +33,9 @@ export class SoundScene extends SparkScene {
     this.context?.game?.synth?.events?.onPlayInstrument?.removeAllListeners();
   }
 
-  createSound(
-    tones: {
-      pitch?: string;
-      offset?: number;
-      duration?: number;
-    }[],
-    options?: InstrumentOptions
-  ): Sound {
+  createSound(tracks: MidiTrack[], options?: InstrumentOptions): Sound {
+    // TODO: Support midi features
+    const tones = tracks?.[0]?.notes;
     const sound = Sound.from({});
     if (!(sound.media instanceof webaudio.WebAudioMedia)) {
       return sound;
@@ -49,7 +45,7 @@ export class SoundScene extends SparkScene {
 
     const numberOfChannels = 1;
     const duration = Math.max(
-      ...tones.map((t) => (t.offset || 0) + (t.duration || 0))
+      ...tones.map((t) => (t.time || 0) + (t.duration || 0))
     );
     const length = SAMPLE_RATE * duration;
 
@@ -76,21 +72,14 @@ export class SoundScene extends SparkScene {
     instrument.sound.stop();
   }
 
-  playInstrument(data: {
-    instrumentId: string;
-    tones: {
-      pitch?: string;
-      offset?: number;
-      duration?: number;
-    }[];
-  }): void {
+  playInstrument(data: { instrumentId: string; tracks: MidiTrack[] }): void {
     const instrument = this._instruments.get(data.instrumentId) || {};
     instrument?.sound?.stop();
     const instrumentConfig =
       this.context.game.synth.config.instruments[data.instrumentId] || {};
     const instrumentState =
       this.context.game.synth.state.instrumentStates[data.instrumentId] || {};
-    const sound = this.createSound(data.tones, {
+    const sound = this.createSound(data.tracks, {
       ...instrumentConfig,
       ...instrumentState,
     });

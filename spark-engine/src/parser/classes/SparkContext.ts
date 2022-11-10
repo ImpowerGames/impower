@@ -4,7 +4,7 @@ import {
   SparkParseResult,
 } from "../../../../sparkdown";
 import { CommandData } from "../../data";
-import { CameraState, SparkGame } from "../../game";
+import { Block, CameraState, SparkGame } from "../../game";
 import { CommandRunner, SparkGameRunner } from "../../runner";
 import { SparkContextConfig } from "../interfaces/SparkContextConfig";
 import { generateSectionBlocks } from "../utils/generateSectionBlocks";
@@ -34,7 +34,7 @@ export class SparkContext {
     return this._editable;
   }
 
-  public get loadedBlockIds(): string[] {
+  public get loadedBlockIds(): readonly string[] {
     return this.game.logic.state.loadedBlockIds;
   }
 
@@ -103,14 +103,14 @@ export class SparkContext {
       ([blockId, block]) => {
         const [ids, valueMap] = getScopedValueContext(
           blockId,
-          game?.logic?.config?.blockMap
+          game?.logic?.config?.blockMap as Record<string, Block>
         );
         const objectMap = game?.struct?.config?.objectMap;
         this._contexts[blockId] = {
           ids,
           valueMap,
           objectMap,
-          triggers: block.triggers || [],
+          triggers: [...(block.triggers || [])],
           parameters:
             Object.values(
               (block.variables as Record<
@@ -178,7 +178,6 @@ export class SparkContext {
       if (blockState.loaded && this.runner.blockRunners["Block"]) {
         const running = this.runner.blockRunners["Block"].update(
           blockId,
-          blockState,
           context,
           this.game,
           time,

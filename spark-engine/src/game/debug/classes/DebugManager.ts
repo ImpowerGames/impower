@@ -30,19 +30,19 @@ export class DebugManager extends Manager<
   }
 
   startDebugging(): void {
-    this.state.debugging = true;
+    this._state.debugging = true;
   }
 
   stopDebugging(): void {
-    this.state.debugging = false;
+    this._state.debugging = false;
   }
 
   log(data: LogData): void {
-    this.state.currentLogs.push({ ...data });
-    this.events.onLog.emit({ ...data });
+    this._state.currentLogs.push({ ...data });
+    this._events.onLog.emit({ ...data });
   }
 
   clearLogs(): void {
-    this.state.currentLogs = [];
+    this._state.currentLogs = [];
   }
 }

@@ -6,15 +6,20 @@ export const oscillateArray = (
   buffer: Float32Array,
   type: OscillatorType,
   frequency: number,
-  offset: number,
-  duration: number
+  velocity: number,
+  offsetSampleLength = 0,
+  durationSampleLength = buffer.length
 ): void => {
-  for (let i = offset; i < offset + duration; i += 1) {
+  for (
+    let i = offsetSampleLength;
+    i < offsetSampleLength + durationSampleLength;
+    i += 1
+  ) {
     const time = i / SAMPLE_RATE;
     const angle = frequency * time * Math.PI;
     const oscillator = OSCILLATORS?.[type];
     if (oscillator) {
-      buffer[i] = oscillator(angle);
+      buffer[i] = velocity * oscillator(angle);
     }
   }
 };

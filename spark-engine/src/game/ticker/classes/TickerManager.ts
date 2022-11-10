@@ -49,17 +49,17 @@ export class TickerManager extends Manager<
   }
 
   add(key: string, callback: (timeMS: number, deltaMS: number) => void): void {
-    this.config.listeners.set(key, callback);
-    this.events.onAdd.emit({ key, callback });
+    this._config.listeners.set(key, callback);
+    this._events.onAdd.emit({ key, callback });
   }
 
   remove(key: string): void {
-    this.config.listeners.delete(key);
-    this.events.onRemove.emit({ key });
+    this._config.listeners.delete(key);
+    this._events.onRemove.emit({ key });
   }
 
   tick(timeMS: number, deltaMS: number): void {
-    this.config.listeners.forEach((l) => l?.(timeMS, deltaMS));
-    this.events.onTick.emit({ timeMS, deltaMS });
+    this._config.listeners.forEach((l) => l?.(timeMS, deltaMS));
+    this._events.onTick.emit({ timeMS, deltaMS });
   }
 }

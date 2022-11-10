@@ -3,29 +3,27 @@ import { getUIElementId } from "./ids/getUIElementId";
 import { getElement } from "./utils/getElement";
 import { getHash } from "./utils/getHash";
 
-const setupDiv = (uiStructEl: HTMLDivElement): void => {
-  uiStructEl.style.position = "absolute";
-  uiStructEl.style.top = "0";
-  uiStructEl.style.bottom = "0";
-  uiStructEl.style.left = "0";
-  uiStructEl.style.right = "0";
-  uiStructEl.style.display = "flex";
-  uiStructEl.style.flexDirection = "column";
+const setupDiv = (uiStructEl: HTMLElement): void => {
+  uiStructEl.style["position"] = "absolute";
+  uiStructEl.style["top"] = "0";
+  uiStructEl.style["bottom"] = "0";
+  uiStructEl.style["left"] = "0";
+  uiStructEl.style["right"] = "0";
+  uiStructEl.style["display"] = "flex";
+  uiStructEl.style["flexDirection"] = "column";
 };
 
 export const loadUI = (
   objectMap: Record<string, Record<string, unknown>>,
   ...uiStructNames: string[]
-): HTMLDivElement | null => {
+): void => {
   const rootElementId = getRootElementId();
   const uiElementId = getUIElementId();
   const rootEl = getElement(rootElementId);
   if (!rootEl) {
-    return null;
+    return;
   }
-  const uiEl =
-    (getElement(uiElementId) as HTMLDivElement) ||
-    document.createElement("div");
+  const uiEl = getElement(uiElementId) || document.createElement("div");
   if (uiEl.className !== uiElementId) {
     uiEl.id = uiElementId;
     uiEl.style.fontFamily = "Courier Prime Sans";
@@ -36,12 +34,12 @@ export const loadUI = (
     rootEl.appendChild(uiEl);
   }
   if (!objectMap) {
-    return null;
+    return;
   }
   uiStructNames.forEach((name) => {
     const obj = objectMap[name];
     const hash = getHash(obj).toString();
-    const existingStructEl = getElement(uiElementId, name) as HTMLDivElement;
+    const existingStructEl = getElement(uiElementId, name);
     if (existingStructEl && existingStructEl.dataset["hash"] !== hash) {
       existingStructEl.innerHTML = "";
     }
@@ -54,7 +52,7 @@ export const loadUI = (
     if (structEl.parentElement !== rootEl) {
       uiEl.appendChild(structEl);
     }
-    const structElMap: Record<string, HTMLElement> = {};
+    const structElMap: Record<string, Element> = {};
     let childPath = "";
     structElMap[childPath] = structEl;
     Object.entries(obj || {}).forEach(([k, v]) => {
@@ -66,7 +64,7 @@ export const loadUI = (
           const parentEl = structElMap[parentPath];
           if (!structElMap[childPath]) {
             const selector = `#${rootElementId} ${childPath}`;
-            let childEl = document.querySelector(selector) as HTMLDivElement;
+            let childEl = document.querySelector(selector);
             if (!childEl) {
               childEl = document.createElement("div");
               childEl.className = n;
@@ -84,5 +82,4 @@ export const loadUI = (
       }
     });
   });
-  return uiEl;
 };

@@ -39,24 +39,24 @@ export class RandomManager extends Manager<
 
   regenerateSeed(): string {
     const seed = this.getNewSeed();
-    this.state.seed = seed;
-    this.config.randomizer = randomizer(this.state.seed);
-    this.events.onRegenerateSeed.emit({ seed });
+    this._state.seed = seed;
+    this._config.randomizer = randomizer(this._state.seed);
+    this._events.onRegenerateSeed.emit({ seed });
     return seed;
   }
 
   setSeed(seed: string): void {
-    this.state.seed = seed;
-    this.config.randomizer = randomizer(this.state.seed);
-    this.events.onSetSeed.emit({ seed });
+    this._state.seed = seed;
+    this._config.randomizer = randomizer(this._state.seed);
+    this._events.onSetSeed.emit({ seed });
   }
 
   reseed(newSeed: string): void {
-    this.config.randomizer = randomizer(this.state.seed + newSeed);
+    this._config.randomizer = randomizer(this._state.seed + newSeed);
   }
 
   reset(): void {
-    this.config.randomizer = randomizer(this.state.seed);
+    this._config.randomizer = randomizer(this._state.seed);
   }
 
   shuffle<T>(array: T[]): T[] {
@@ -68,7 +68,7 @@ export class RandomManager extends Manager<
     // While there remain elements to shuffle...
     while (currentIndex !== 0) {
       // Pick a remaining element...
-      const random = this.config.randomizer();
+      const random = this._config.randomizer();
       randomIndex = Math.floor(random * currentIndex);
       currentIndex -= 1;
 
@@ -116,13 +116,13 @@ export class RandomManager extends Manager<
       upper = temp;
     }
     if (float || lower % 1 || upper % 1) {
-      const rand = this.config.randomizer();
+      const rand = this._config.randomizer();
       const randLength = `${rand}`.length - 1;
       return Math.min(
         lower + rand * (upper - lower + parseFloat(`1e-${randLength}`)),
         upper
       );
     }
-    return lower + Math.floor(this.config.randomizer() * (upper - lower + 1));
+    return lower + Math.floor(this._config.randomizer() * (upper - lower + 1));
   }
 }

@@ -3,7 +3,6 @@ import { format } from "../../../../../../../../../spark-evaluate";
 import {
   DisplayCommandConfig,
   DisplayCommandData,
-  DisplayType,
 } from "../../../../../../../data";
 import {
   getElement,
@@ -15,7 +14,7 @@ import {
 import { InstrumentOptions, SparkGame } from "../../../../../../../game";
 
 // TODO: Determine pitch by punctuation
-const dialoguePitch = "D#6";
+const dialogueNote = "D#6";
 
 // TODO: Determine instrument by character
 const defaultInstrumentConfig: InstrumentOptions = {
@@ -71,7 +70,7 @@ const hideChoices = (ui: string, config: DisplayCommandConfig): void => {
   choiceEls.forEach((el) => {
     if (el) {
       el.innerHTML = "";
-      el.style.display = "none";
+      el.style["display"] = "none";
     }
   });
 };
@@ -81,8 +80,8 @@ const createCharSpan = (
   letterFadeDuration: number,
   instant: boolean,
   totalDelay: number,
-  style?: Partial<CSSStyleDeclaration>
-): HTMLSpanElement => {
+  style?: Record<string, string>
+): HTMLElement => {
   const textEl = document.createTextNode(part);
   const spanEl = document.createElement("span");
   spanEl.style.opacity = instant ? "1" : "0";
@@ -117,11 +116,7 @@ const getAnimatedSpanElements = (
   config: DisplayCommandConfig,
   instant = false,
   debug?: boolean
-): [
-  HTMLSpanElement[],
-  [number, HTMLSpanElement[]][],
-  [number, number | null][]
-] => {
+): [HTMLElement[], [number, HTMLElement[]][], [number, number | null][]] => {
   const letterFadeDuration = get(
     config[type]?.typing?.fadeDuration,
     config?.root?.typing?.fadeDuration,
@@ -148,9 +143,9 @@ const getAnimatedSpanElements = (
     letterDelay
   );
 
-  const partEls: HTMLSpanElement[] = [];
-  const spanEls: HTMLSpanElement[] = [];
-  const chunkEls: [number, HTMLSpanElement[]][] = [];
+  const partEls: HTMLElement[] = [];
+  const spanEls: HTMLElement[] = [];
+  const chunkEls: [number, HTMLElement[]][] = [];
   const beeps: [number, number | null][] = [];
   let prevBeep: [number, number] | undefined = undefined;
   let wordLength = 0;
@@ -162,7 +157,7 @@ const getAnimatedSpanElements = (
   let spaceLength = 0;
   let pauseLength = 0;
   let unpauseLength = 0;
-  let pauseSpan: HTMLSpanElement | undefined = undefined;
+  let pauseSpan: HTMLElement | undefined = undefined;
   const imageUrls = new Set<string>();
   const audioUrls = new Set<string>();
   let hideSpace = false;
@@ -253,7 +248,7 @@ const getAnimatedSpanElements = (
     const isBoldAndItalic = markers.includes("***");
     const isBold = markers.includes("**");
     const isItalic = markers.includes("*");
-    const style: Partial<CSSStyleDeclaration> = {
+    const style = {
       textDecoration: isUnderline ? "underline" : (null as unknown as string),
       fontStyle:
         isItalic || isBoldAndItalic ? "italic" : (null as unknown as string),
@@ -316,7 +311,7 @@ const getAnimatedSpanElements = (
       beeps.push(beep);
       prevBeep = beep;
       if (debug) {
-        span.style.backgroundColor = `hsl(185, 100%, 50%)`;
+        span.style["backgroundColor"] = `hsl(185, 100%, 50%)`;
       }
     } else {
       beeps.push([totalDelay, null]);
@@ -326,7 +321,7 @@ const getAnimatedSpanElements = (
       pauseSpan = span;
     }
     if (isPause && pauseSpan && debug) {
-      pauseSpan.style.backgroundColor = `hsla(0, 100%, 50%, ${
+      pauseSpan.style["backgroundColor"] = `hsla(0, 100%, 50%, ${
         (spaceLength - 1) / 5
       })`;
     }
@@ -350,17 +345,17 @@ const getAnimatedSpanElements = (
       const invalidStyleEls = partEls.slice(lastMarkIndex).map((x) => x);
       invalidStyleEls.forEach((e) => {
         if (lastMark === "***") {
-          e.style.fontWeight = null as unknown as string;
-          e.style.fontStyle = null as unknown as string;
+          e.style["fontWeight"] = null as unknown as string;
+          e.style["fontStyle"] = null as unknown as string;
         }
         if (lastMark === "**") {
-          e.style.fontWeight = null as unknown as string;
+          e.style["fontWeight"] = null as unknown as string;
         }
         if (lastMark === "*") {
-          e.style.fontStyle = null as unknown as string;
+          e.style["fontStyle"] = null as unknown as string;
         }
         if (lastMark === "_") {
-          e.style.textDecoration = null as unknown as string;
+          e.style["textDecoration"] = null as unknown as string;
         }
       });
       marks.pop();
@@ -419,11 +414,11 @@ export const executeDisplayCommand = (
       const imageName = assets?.[0] || "";
       const imageUrl = valueMap?.[imageName];
       if (imageName && imageUrl) {
-        backgroundEl.style.backgroundImage = `url("${imageUrl}")`;
-        backgroundEl.style.backgroundRepeat = "no-repeat";
-        backgroundEl.style.display = null as unknown as string;
+        backgroundEl.style["backgroundImage"] = `url("${imageUrl}")`;
+        backgroundEl.style["backgroundRepeat"] = "no-repeat";
+        backgroundEl.style["display"] = null as unknown as string;
       } else {
-        backgroundEl.style.display = "none";
+        backgroundEl.style["display"] = "none";
       }
     }
     return;
@@ -477,23 +472,23 @@ export const executeDisplayCommand = (
     const imageName = assets?.[0] || "";
     const imageUrl = valueMap?.[imageName];
     if (imageName && imageUrl) {
-      portraitEl.style.backgroundImage = `url("${imageUrl}")`;
-      portraitEl.style.backgroundRepeat = "no-repeat";
-      portraitEl.style.backgroundPosition = "center";
-      portraitEl.style.display = null as unknown as string;
+      portraitEl.style["backgroundImage"] = `url("${imageUrl}")`;
+      portraitEl.style["backgroundRepeat"] = "no-repeat";
+      portraitEl.style["backgroundPosition"] = "center";
+      portraitEl.style["display"] = null as unknown as string;
     } else {
-      portraitEl.style.display = "none";
+      portraitEl.style["display"] = "none";
     }
   }
 
   hideChoices(ui, config);
 
   if (dialogueGroupEl) {
-    dialogueGroupEl.style.display =
+    dialogueGroupEl.style["display"] =
       type === "dialogue" ? (null as unknown as string) : "none";
   }
   if (descriptionGroupEl) {
-    descriptionGroupEl.style.display =
+    descriptionGroupEl.style["display"] =
       type !== "dialogue" ? (null as unknown as string) : "none";
   }
 
@@ -507,26 +502,38 @@ export const executeDisplayCommand = (
     config?.root?.id,
     config?.parenthetical?.id || ""
   );
-  const contentElEntries: [DisplayType, HTMLElement | null][] = [
-    ["dialogue", getElement(ui, config?.root?.id, config?.dialogue?.id || "")],
-    ["action", getElement(ui, config?.root?.id, config?.action?.id || "")],
-    ["centered", getElement(ui, config?.root?.id, config?.centered?.id || "")],
-    ["scene", getElement(ui, config?.root?.id, config?.scene?.id || "")],
-    [
-      "transition",
-      getElement(ui, config?.root?.id, config?.transition?.id || ""),
-    ],
+  const contentElEntries = [
+    {
+      key: "dialogue",
+      value: getElement(ui, config?.root?.id, config?.dialogue?.id || ""),
+    },
+    {
+      key: "action",
+      value: getElement(ui, config?.root?.id, config?.action?.id || ""),
+    },
+    {
+      key: "centered",
+      value: getElement(ui, config?.root?.id, config?.centered?.id || ""),
+    },
+    {
+      key: "scene",
+      value: getElement(ui, config?.root?.id, config?.scene?.id || ""),
+    },
+    {
+      key: "transition",
+      value: getElement(ui, config?.root?.id, config?.transition?.id || ""),
+    },
   ];
 
   if (characterEl) {
-    characterEl.innerHTML = validCharacter;
-    characterEl.style.display = validCharacter
+    characterEl.textContent = validCharacter;
+    characterEl.style["display"] = validCharacter
       ? (null as unknown as string)
       : "none";
   }
   if (parentheticalEl) {
-    parentheticalEl.innerHTML = validParenthetical;
-    parentheticalEl.style.display = validParenthetical
+    parentheticalEl.textContent = validParenthetical;
+    parentheticalEl.style["display"] = validParenthetical
       ? (null as unknown as string)
       : "none";
   }
@@ -538,43 +545,47 @@ export const executeDisplayCommand = (
     instant,
     debug
   );
-  contentElEntries.forEach(([t, el]) => {
-    if (el) {
-      if (t === type) {
+  contentElEntries.forEach(({ key, value }) => {
+    if (value) {
+      if (key === type) {
         if (clearPreviousText) {
-          el.innerHTML = "";
-          el.append(...spanEls);
+          value.innerHTML = "";
+          value.append(...spanEls);
         } else {
-          spanEls.forEach((p) => el.appendChild(p));
+          spanEls.forEach((p) => value.appendChild(p));
         }
-        el.style.display = null as unknown as string;
+        value.style["display"] = null as unknown as string;
       } else {
-        el.innerHTML = "";
-        el.style.display = "none";
+        value.innerHTML = "";
+        value.style["display"] = "none";
       }
     }
   });
   if (indicatorEl) {
     if (data && !autoAdvance) {
-      indicatorEl.style.transition = null as unknown as string;
-      indicatorEl.style.animation = null as unknown as string;
-      indicatorEl.style.opacity = instant ? "1" : "0";
-      indicatorEl.style.display = null as unknown as string;
+      indicatorEl.style["transition"] = null as unknown as string;
+      indicatorEl.style["animation"] = null as unknown as string;
+      indicatorEl.style["opacity"] = instant ? "1" : "0";
+      indicatorEl.style["display"] = null as unknown as string;
     } else {
-      indicatorEl.style.display = "none";
+      indicatorEl.style["display"] = "none";
     }
   }
   const handleFinished = (): void => {
     for (let i = 0; i < spanEls.length; i += 1) {
       const spanEl = spanEls[i];
-      if (spanEl && spanEl.style.opacity !== "1") {
-        spanEl.style.opacity = "1";
+      if (spanEl && spanEl.style["opacity"] !== "1") {
+        spanEl.style["opacity"] = "1";
       }
     }
     if (indicatorEl) {
-      indicatorEl.style.transition = `opacity ${indicatorFadeDuration}s linear`;
-      indicatorEl.style.opacity = "1";
-      indicatorEl.style.animation = `${indicatorAnimationName} ${indicatorAnimationDuration}s ${indicatorAnimationEase} infinite`;
+      indicatorEl.style[
+        "transition"
+      ] = `opacity ${indicatorFadeDuration}s linear`;
+      indicatorEl.style["opacity"] = "1";
+      indicatorEl.style[
+        "animation"
+      ] = `${indicatorAnimationName} ${indicatorAnimationDuration}s ${indicatorAnimationEase} infinite`;
     }
     onFinished?.();
   };
@@ -584,24 +595,25 @@ export const executeDisplayCommand = (
       game.synth.stopInstrument(instrumentId);
       handleFinished();
     } else {
-      const tones: {
-        pitch?: string;
-        offset?: number;
+      const notes: {
+        note?: string;
+        time?: number;
         duration?: number;
-      }[] = beeps.map(([offset, duration]) => {
+        velocity?: number;
+      }[] = beeps.map(([time, duration]) => {
         if (!duration) {
           return {
-            offset,
+            time,
           };
         }
         return {
-          pitch: dialoguePitch,
-          offset,
+          note: dialogueNote,
+          time,
           duration,
         };
       });
       game.synth.configureInstrument(instrumentId, defaultInstrumentConfig);
-      game.synth.playInstrument(instrumentId, tones);
+      game.synth.playInstrument(instrumentId, { notes });
       let startTime: number | undefined;
       let finished = false;
       const handleTick = (timeMS: number): void => {
@@ -612,7 +624,7 @@ export const executeDisplayCommand = (
           }
           const endTime =
             startTime +
-            Math.max(...tones.map((t) => (t.offset || 0) + (t.duration || 0)));
+            Math.max(...notes.map((t) => (t.time || 0) + (t.duration || 0)));
           const elapsed = time - startTime;
           if (elapsed >= endTime) {
             finished = true;
@@ -627,8 +639,8 @@ export const executeDisplayCommand = (
               chunkTime < elapsed
             ) {
               chunk.forEach((c) => {
-                if (c.style.opacity !== "1") {
-                  c.style.opacity = "1";
+                if (c.style["opacity"] !== "1") {
+                  c.style["opacity"] = "1";
                 }
               });
             } else {
@@ -642,11 +654,9 @@ export const executeDisplayCommand = (
   }
   if (data) {
     if (indicatorEl && (!game || instant)) {
-      window.requestAnimationFrame(() => {
-        indicatorEl.style.transition = null as unknown as string;
-        indicatorEl.style.opacity = "1";
-        indicatorEl.style.animation = null as unknown as string;
-      });
+      indicatorEl.style["transition"] = null as unknown as string;
+      indicatorEl.style["opacity"] = "1";
+      indicatorEl.style["animation"] = null as unknown as string;
     }
   }
 };

@@ -1,6 +1,6 @@
-import { Pitch } from "../types/Pitch";
+import { Note } from "../types/Note";
 
-export const FUNDAMENTAL_PITCHES: Pitch[] = [
+export const FUNDAMENTAL_KEYS: Note[] = [
   "C",
   "C#",
   "D",

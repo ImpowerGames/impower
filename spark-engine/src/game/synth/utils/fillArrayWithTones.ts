@@ -7,19 +7,21 @@ import { rampArray } from "./rampArray";
 
 export const fillArrayWithTones = (
   buffer: Float32Array,
-  tones: {
-    pitch?: string;
-    offset?: number;
+  notes: {
+    note?: string;
+    time?: number;
     duration?: number;
+    velocity?: number;
   }[],
   envelope?: EnvelopeOptions,
   oscillator?: OscillatorOptions
 ): void => {
-  tones.forEach((tone) => {
-    const pitch = tone.pitch || "";
-    const offset = tone.offset || 0;
+  notes.forEach((tone) => {
+    const note = tone.note || "";
+    const offset = tone.time || 0;
     const duration = tone.duration || 0;
-    const hertz = getHertz(pitch);
+    const velocity = typeof tone.velocity === "number" ? tone.velocity : 1;
+    const hertz = getHertz(note);
     const offsetSampleLength = Math.floor(offset * SAMPLE_RATE);
     const durationSampleLength = Math.floor(duration * SAMPLE_RATE);
 
@@ -28,6 +30,7 @@ export const fillArrayWithTones = (
       buffer,
       oscillatorType,
       hertz,
+      velocity,
       offsetSampleLength,
       durationSampleLength
     );

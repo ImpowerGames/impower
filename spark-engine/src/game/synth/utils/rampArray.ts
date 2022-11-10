@@ -6,12 +6,14 @@ export const rampArray = (
   type: CurveType,
   fadeLength: number,
   fadeDirection: "in" | "out",
-  offset: number,
-  duration: number
+  offsetSampleLength = 0,
+  durationSampleLength = buffer.length
 ): void => {
   for (let i = 0; i < fadeLength; i += 1) {
     const index =
-      fadeDirection === "in" ? offset + i : offset + duration - 1 - i;
+      fadeDirection === "in"
+        ? offsetSampleLength + i
+        : offsetSampleLength + durationSampleLength - 1 - i;
     const percent = i / fadeLength;
     const ramp = RAMPS[type];
     if (ramp) {
