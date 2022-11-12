@@ -148,12 +148,12 @@ const myHighlightStyle = HighlightStyle.define([
     color: colors.dialogue,
   },
   {
-    tag: t.character,
-    color: colors.character,
+    tag: t.dialogue_character,
+    color: colors.dialogue_character,
   },
   {
-    tag: t.parenthetical,
-    color: colors.parenthetical,
+    tag: t.dialogue_parenthetical,
+    color: colors.dialogue_parenthetical,
   },
   {
     tag: t.dualDialogue,
@@ -827,7 +827,10 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         view.dispatch({
           effects: [
             setDiagnosticsEffect.of(
-              getDiagnostics(parseResultRef.current?.diagnostics)
+              getDiagnostics(
+                view.state.doc.toString(),
+                parseResultRef.current?.diagnostics
+              )
             ),
           ],
         });
@@ -964,7 +967,10 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         view.dispatch({
           effects: [
             setDiagnosticsEffect.of(
-              getDiagnostics(parseResultRef.current?.diagnostics)
+              getDiagnostics(
+                view.state.doc.toString(),
+                parseResultRef.current?.diagnostics
+              )
             ),
           ],
         });

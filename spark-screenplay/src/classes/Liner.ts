@@ -178,7 +178,10 @@ export class Liner {
     ) {
       let newPageCharacter;
       let character = before;
-      while (lines[character] && lines[character]?.type !== "character") {
+      while (
+        lines[character] &&
+        lines[character]?.type !== "dialogue_character"
+      ) {
         character--;
       }
       let characterName = "";
@@ -208,7 +211,7 @@ export class Liner {
         0,
         createLine(moreItem),
         (newPageCharacter = createLine({
-          type: "character",
+          type: "dialogue_character",
           text: contdText,
           content: contdText,
           from: tokenAfter.from,
@@ -237,7 +240,7 @@ export class Liner {
           (rightLinesOnThisPage[0]?.text.indexOf(CONTD) !== -1 ? "" : CONTD);
         const rightLinesForNextPage = [
           createLine({
-            type: "character",
+            type: "dialogue_character",
             text: rightText,
             content: rightText,
             from: tokenAfter.from,
@@ -259,11 +262,11 @@ export class Liner {
 
       return true;
     } else if (
-      ["character", "parenthetical", "dialogue"].includes(
+      ["dialogue_character", "dialogue_parenthetical", "dialogue"].includes(
         lines[index]?.type || ""
       ) &&
       lines[after] &&
-      ["parenthetical", "dialogue"].includes(lines[after]?.type || "")
+      ["dialogue_parenthetical", "dialogue"].includes(lines[after]?.type || "")
     ) {
       return false; // or break
     }
@@ -345,7 +348,7 @@ export class Liner {
         if (line) {
           if (
             line.token &&
-            line.token?.type === "character" &&
+            line.token?.type === "dialogue_character" &&
             line.token?.position === "left" &&
             line.rightColumn === undefined
           ) {
@@ -361,7 +364,7 @@ export class Liner {
         if (line) {
           if (
             line.token &&
-            line.token?.type === "character" &&
+            line.token?.type === "dialogue_character" &&
             line.token?.position === "right"
           ) {
             return i;
@@ -375,11 +378,11 @@ export class Liner {
       let canbeCharacter = true;
       while (
         lines[i] &&
-        (lines[i]?.type === "parenthetical" ||
+        (lines[i]?.type === "dialogue_parenthetical" ||
           lines[i]?.type === "dialogue" ||
-          (canbeCharacter && lines[i]?.type === "character"))
+          (canbeCharacter && lines[i]?.type === "dialogue_character"))
       ) {
-        if (lines[i]?.type !== "character") {
+        if (lines[i]?.type !== "dialogue_character") {
           canbeCharacter = false;
         }
         result++;

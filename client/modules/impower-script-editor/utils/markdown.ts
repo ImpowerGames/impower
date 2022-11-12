@@ -113,7 +113,7 @@ export function isCharacter(line: Line): RegExpMatchArray {
     return null;
   }
   const text = stripComments(line.text);
-  return text.match(sparkRegexes.character);
+  return text.match(sparkRegexes.dialogue_character);
 }
 
 export function isParenthetical(line: Line): RegExpMatchArray {
@@ -121,7 +121,7 @@ export function isParenthetical(line: Line): RegExpMatchArray {
     return null;
   }
   const text = stripComments(line.text);
-  return text.match(sparkRegexes.parenthetical);
+  return text.match(sparkRegexes.dialogue_parenthetical);
 }
 
 export function isLyric(line: Line): RegExpMatchArray {

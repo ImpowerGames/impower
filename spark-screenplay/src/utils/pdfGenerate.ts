@@ -349,7 +349,7 @@ export const pdfGenerate = (
         highlightColor: DEFAULT_COLOR,
       };
 
-      if (line.type === "parenthetical" && !text.startsWith("(")) {
+      if (line.type === "dialogue_parenthetical" && !text.startsWith("(")) {
         text = " " + text;
       }
 

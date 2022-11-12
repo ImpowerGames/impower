@@ -281,7 +281,7 @@ export const STATIC_HTML = `<!DOCTYPE html>
         margin-left: 23%;
       }
 
-      #workspace #script .page div.dialogue p.parenthetical {
+      #workspace #script .page div.dialogue p.dialogue_parenthetical {
         margin-bottom: 0;
         margin-top: 0;
         margin-left: 11%;

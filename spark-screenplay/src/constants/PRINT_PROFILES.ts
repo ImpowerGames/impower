@@ -34,7 +34,7 @@ const A4: PrintProfile = {
     feed: 1.5,
     max: A4_DEFAULT_MAX,
   },
-  character: {
+  dialogue_character: {
     feed: 3.5,
     max: 33,
   },
@@ -42,7 +42,7 @@ const A4: PrintProfile = {
     feed: 3.5,
     max: 33,
   },
-  parenthetical: {
+  dialogue_parenthetical: {
     feed: 3,
     max: 26,
   },

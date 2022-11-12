@@ -132,13 +132,16 @@ const createCharacterStatistics = (
 ): CharacterStatistics => {
   const dialoguePieces: DialoguePiece[] = [];
   for (let i = 0; i < parsed.tokens.length; i++) {
-    while (i < parsed.tokens.length && parsed.tokens[i]?.type === "character") {
+    while (
+      i < parsed.tokens.length &&
+      parsed.tokens[i]?.type === "dialogue_character"
+    ) {
       const character = getCharacterName(parsed.tokens[i]?.text || "");
       let speech = "";
       while (i++ && i < parsed.tokens.length) {
         if (parsed.tokens[i]?.type === "dialogue") {
           speech += parsed.tokens[i]?.text + " ";
-        } else if (parsed.tokens[i]?.type === "character") {
+        } else if (parsed.tokens[i]?.type === "dialogue_character") {
           break;
         }
         // else skip extensions / parenthesis / dialogue-begin/-end

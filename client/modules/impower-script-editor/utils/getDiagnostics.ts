@@ -4,6 +4,7 @@ import { EditorView } from "@codemirror/view";
 import { SparkDiagnostic } from "../../../../sparkdown";
 
 export const getDiagnostics = (
+  script: string,
   diagnostics: SparkDiagnostic[]
 ): Diagnostic[] => {
   if (!diagnostics) {
@@ -11,14 +12,22 @@ export const getDiagnostics = (
   }
   return diagnostics?.map((d) => ({
     ...d,
+    from: Math.min(script.length, Math.max(0, d.from)),
+    to: Math.min(script.length, d.to),
     actions: d.actions?.map((a) => ({
       ...a,
       apply: (view: EditorView, _from: number, _to: number): void => {
         if (a.focus) {
           view.dispatch({
-            selection: { anchor: a.focus.from, head: a.focus.to },
+            selection: {
+              anchor: Math.min(script.length, Math.max(0, a.focus.from)),
+              head: Math.min(script.length, a.focus.to),
+            },
             effects: EditorView.scrollIntoView(
-              EditorSelection.range(a.focus.from, a.focus.to),
+              EditorSelection.range(
+                Math.min(script.length, Math.max(0, a.focus.from)),
+                Math.min(script.length, a.focus.to)
+              ),
               { y: "center" }
             ),
           });

@@ -22,8 +22,8 @@ export type SparkTransitionTokenType = "transition";
 export type SparkCenteredTokenType = "centered";
 export type SparkPositionTokenType =
   | "dialogue_start"
-  | "character"
-  | "parenthetical";
+  | "dialogue_character"
+  | "dialogue_parenthetical";
 export type SparkStructFieldTokenType =
   | "struct_object_field"
   | "struct_value_field";

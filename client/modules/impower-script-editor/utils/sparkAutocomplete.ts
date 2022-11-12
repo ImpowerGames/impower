@@ -111,6 +111,10 @@ export const lowercaseParagraphSnippets: readonly Completion[] = [
     label: "entity",
     type: "struct",
   }),
+  snip("character ${}${CharacterName}:${}", {
+    label: "character",
+    type: "struct",
+  }),
 ];
 
 export const uppercaseParagraphSnippets: readonly Completion[] = [

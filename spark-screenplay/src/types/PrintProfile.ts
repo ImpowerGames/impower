@@ -2,8 +2,8 @@ export type PrintableTokenType =
   | "scene"
   | "action"
   | "shot"
-  | "character"
-  | "parenthetical"
+  | "dialogue_character"
+  | "dialogue_parenthetical"
   | "more"
   | "dialogue"
   | "transition"
@@ -46,8 +46,8 @@ export interface PrintProfile
   scene: TokenPrintSettings;
   action: TokenPrintSettings;
   shot: TokenPrintSettings;
-  character: TokenPrintSettings;
-  parenthetical: TokenPrintSettings;
+  dialogue_character: TokenPrintSettings;
+  dialogue_parenthetical: TokenPrintSettings;
   more: TokenPrintSettings;
   dialogue: TokenPrintSettings;
   transition: TokenPrintSettings;

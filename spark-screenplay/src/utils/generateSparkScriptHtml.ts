@@ -115,7 +115,7 @@ export const generateSparkScriptHtml = (
           );
           break;
 
-        case "character":
+        case "dialogue_character":
           if (currentToken.position == "left") {
             html.push('<div class="dialogue left">');
           } else if (currentToken.position == "right") {
@@ -131,9 +131,9 @@ export const generateSparkScriptHtml = (
           );
 
           break;
-        case "parenthetical":
+        case "dialogue_parenthetical":
           html.push(
-            '<p class="haseditorline parenthetical" id="sourceline_' +
+            '<p class="haseditorline dialogue_parenthetical" id="sourceline_' +
               line +
               '" >' +
               currentToken.html +

@@ -2089,7 +2089,7 @@ const hoistDeclarations = (
   newLineLength: number,
   lines: string[]
 ) => {
-  let current = 0;
+  let from = 0;
   let currentLevel = 0;
   let currentSectionId = "";
   let currentStructFieldId = "";
@@ -2101,10 +2101,10 @@ const hoistDeclarations = (
     ...createSparkSection(),
     ...(existing || EMPTY_OBJECT),
     level: currentLevel,
-    from: current,
-    to: getTo(current, "", newLineLength || 0),
+    from: -1,
+    to: -1,
+    line: -1,
     indent: 0,
-    line: config?.lineOffset || 0,
     type: "section",
     returnType: "",
     name: "",
@@ -2117,16 +2117,14 @@ const hoistDeclarations = (
   addSection(parsed, currentSectionId, item, 0, 1);
 
   for (let i = 0; i < lines.length; i += 1) {
-    const from = current;
     const to = getTo(from, lines[i] || "", newLineLength || 0);
-    current = to + 1;
     const text = stripInlineComments(lines[i] || "");
 
     if ((match = text.match(sparkRegexes.section))) {
       const currentToken = createSparkToken("section", newLineLength, {
         content: text,
         line: i + (config?.lineOffset || 0),
-        from: current,
+        from,
       });
       const level = match[2]?.length || 0;
       const name = match[4] || "";
@@ -2232,7 +2230,7 @@ const hoistDeclarations = (
       const currentToken = createSparkToken(type, newLineLength, {
         content: text,
         line: i + (config?.lineOffset || 0),
-        from: current,
+        from,
       });
       if (currentToken.type === type) {
         const nameFrom = currentToken.from + getStart(match, 6);
@@ -2270,7 +2268,7 @@ const hoistDeclarations = (
       const currentToken = createSparkToken(type, newLineLength, {
         content: text,
         line: i + (config?.lineOffset || 0),
-        from: current,
+        from,
       });
       const colon = match[12] || "";
       if (colon) {
@@ -2307,7 +2305,7 @@ const hoistDeclarations = (
           {
             content: text,
             line: i + (config?.lineOffset || 0),
-            from: current,
+            from,
           }
         );
         const name = match[2] || "";
@@ -2325,7 +2323,7 @@ const hoistDeclarations = (
           {
             content: text,
             line: i + (config?.lineOffset || 0),
-            from: current,
+            from,
           }
         );
         const name = match[2] || "";
@@ -2359,7 +2357,7 @@ const hoistDeclarations = (
           {
             content: text,
             line: i + (config?.lineOffset || 0),
-            from: current,
+            from,
           }
         );
         const valueText = match[2] || "";
@@ -2385,7 +2383,7 @@ const hoistDeclarations = (
       const currentToken = createSparkToken("import", newLineLength, {
         content: text,
         line: i + (config?.lineOffset || 0),
-        from: current,
+        from,
       });
       const valueText = match[4] || "";
       currentToken.content = getImportValue(valueText) || "";
@@ -2398,6 +2396,7 @@ const hoistDeclarations = (
     if (isSeparator) {
       stateType = "normal";
     }
+    from = to + 1;
   }
 };
 
@@ -2512,7 +2511,7 @@ export const parseSpark = (
     ) {
       if (stateType === "dialogue" || stateType === "dual_dialogue") {
         if (
-          previousToken?.type === "parenthetical" ||
+          previousToken?.type === "dialogue_parenthetical" ||
           previousToken?.type === "dialogue_asset"
         ) {
           saveAndClearDialogueToken(
@@ -3213,7 +3212,7 @@ export const parseSpark = (
         currentToken.content = match[3] || "";
       } else if (
         stateType === "normal" &&
-        currentToken.content.match(sparkRegexes.character) &&
+        currentToken.content.match(sparkRegexes.dialogue_character) &&
         i !== lines.length &&
         i !== lines.length - 1 &&
         (lines[i + 1]?.trim().length === 0 ? lines[i + 1] === "  " : true) &&
@@ -3225,8 +3224,8 @@ export const parseSpark = (
         // and therefore consider the token as a character, if the content of the line is exactly two spaces.
         // If the trimmed length is larger than zero, then it will be accepted as dialogue regardless
         stateType = "dialogue";
-        currentToken.type = "character";
-        if (currentToken.type === "character") {
+        currentToken.type = "dialogue_character";
+        if (currentToken.type === "dialogue_character") {
           currentToken.content = trimCharacterForceSymbol(currentToken.content);
           currentToken.skipToNextPreview = true;
           if (currentToken.content[currentToken.content.length - 1] === "^") {
@@ -3235,8 +3234,8 @@ export const parseSpark = (
             let index = lastCharacterIndex;
             let lastCharacterToken = parsed.tokens[index];
             while (
-              lastCharacterToken?.type === "character" ||
-              lastCharacterToken?.type === "parenthetical" ||
+              lastCharacterToken?.type === "dialogue_character" ||
+              lastCharacterToken?.type === "dialogue_parenthetical" ||
               lastCharacterToken?.type === "dialogue" ||
               lastCharacterToken?.type === "dialogue_asset"
             ) {
@@ -3258,11 +3257,11 @@ export const parseSpark = (
                   break;
                 case "separator":
                   break;
-                case "character":
+                case "dialogue_character":
+                  break;
+                case "dialogue_parenthetical":
                   break;
                 case "dialogue":
-                  break;
-                case "parenthetical":
                   break;
                 case "dialogue_start": {
                   const t = parsed.tokens[temp_index];
@@ -3378,9 +3377,11 @@ export const parseSpark = (
           );
         }
       } else if (
-        (match = currentToken.content.match(sparkRegexes.parenthetical))
+        (match = currentToken.content.match(
+          sparkRegexes.dialogue_parenthetical
+        ))
       ) {
-        currentToken.type = "parenthetical";
+        currentToken.type = "dialogue_parenthetical";
         const openParen = match[2] || "";
         const content = match[3] || "";
         const closeParen = match[4] || "";
@@ -3409,7 +3410,7 @@ export const parseSpark = (
         }
       }
       if (dualRight) {
-        if (currentToken.type === "parenthetical") {
+        if (currentToken.type === "dialogue_parenthetical") {
           currentToken.position = "right";
         }
         if (currentToken.type === "dialogue") {
@@ -3563,7 +3564,7 @@ export const parseSpark = (
 
   if (stateType === "dialogue" || stateType === "dual_dialogue") {
     if (
-      previousToken?.type === "parenthetical" ||
+      previousToken?.type === "dialogue_parenthetical" ||
       previousToken?.type === "dialogue_asset"
     ) {
       saveAndClearDialogueToken(

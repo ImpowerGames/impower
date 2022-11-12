@@ -282,14 +282,18 @@ const ScreenplayToolbar = React.memo((props: ToolbarProps): JSX.Element => {
           </FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
-      <Tooltip title="parenthetical" placement="top" arrow>
+      <Tooltip title="dialogue_parenthetical" placement="top" arrow>
         <StyledMainToggleButton
-          value="parenthetical"
-          aria-label="parenthetical"
-          onPointerEnter={(e): void => onPointerEnter?.(e, "parenthetical")}
-          onPointerLeave={(e): void => onPointerLeave?.(e, "parenthetical")}
+          value="dialogue_parenthetical"
+          aria-label="dialogue_parenthetical"
+          onPointerEnter={(e): void =>
+            onPointerEnter?.(e, "dialogue_parenthetical")
+          }
+          onPointerLeave={(e): void =>
+            onPointerLeave?.(e, "dialogue_parenthetical")
+          }
         >
-          <FontIcon aria-label={`parenthetical`}>
+          <FontIcon aria-label={`dialogue_parenthetical`}>
             <BracketsRoundRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>

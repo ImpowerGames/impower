@@ -51,8 +51,8 @@ export interface SparkTokenTypeMap extends Record<SparkTokenType, SparkToken> {
   contact: SparkToken;
   contact_info: SparkToken;
   dialogue_start: SparkToken;
-  character: SparkToken;
-  parenthetical: SparkToken;
+  dialogue_character: SparkToken;
+  dialogue_parenthetical: SparkToken;
   import: SparkToken;
 
   list: SparkStructToken;
@@ -62,6 +62,7 @@ export interface SparkTokenTypeMap extends Record<SparkTokenType, SparkToken> {
   config: SparkStructToken;
   camera: SparkStructToken;
   entity: SparkStructToken;
+  character: SparkStructToken;
 
   struct_object_field: SparkStructFieldToken;
   struct_value_field: SparkStructFieldToken;

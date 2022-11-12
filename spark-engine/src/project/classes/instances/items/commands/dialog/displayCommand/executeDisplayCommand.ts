@@ -11,13 +11,12 @@ import {
   loadStyles,
   loadUI,
 } from "../../../../../../../dom";
-import { SparkGame, Tone } from "../../../../../../../game";
+import { parseTones, SparkGame, Tone } from "../../../../../../../game";
+import { CharacterConfig } from "./CharacterConfig";
 
-const dialogueTone: Tone[] = [
-  { note: "G3", type: "sine", velocity: 0.5 },
-  { note: "G5", type: "sine", velocity: 1 },
-  { note: "D#5", type: "triangle", velocity: 0.75 },
-];
+const defaultCharacterConfig = {
+  tone: "(G4*0.25)(G5*0.25)(D#5*0.125)",
+};
 
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   root: {
@@ -300,7 +299,7 @@ const getAnimatedSpanElements = (
     const charIndex = wordLength - 1;
     const shouldBeep = part !== "-" && charIndex % averageSyllableLength === 0;
     if (prevBeep && syllableLength > 0) {
-      prevBeep[1] = syllableLength + 1;
+      prevBeep.duration = beepDuration;
     }
     if (charIndex < 0) {
       // whitespace
@@ -381,14 +380,14 @@ export const executeDisplayCommand = (
   },
   game?: SparkGame,
   onFinished?: () => void
-): ((timeMS: number) => void) => {
+): ((timeMS: number) => void) | undefined => {
   const ui = getUIElementId();
   const type = data?.type || "";
   const assets = data?.assets || [];
 
   const valueMap = context?.valueMap || {};
   const config =
-    (context?.objectMap?.["DisplayCommand"] as DisplayCommandConfig) ||
+    (context?.objectMap?.["DISPLAY_COMMAND"] as DisplayCommandConfig) ||
     defaultDisplayCommandConfig;
   const objectMap = context?.objectMap || {};
   const fadeOutDuration = context?.fadeOutDuration || 0;
@@ -423,6 +422,26 @@ export const executeDisplayCommand = (
   const autoAdvance = data?.autoAdvance;
   const clearPreviousText = data?.clearPreviousText;
 
+  const validCharacter =
+    type === "dialogue" && !isHidden(character, config?.character?.hidden)
+      ? character || ""
+      : "";
+  const validParenthetical =
+    type === "dialogue" &&
+    !isHidden(parenthetical, config?.parenthetical?.hidden)
+      ? parenthetical || ""
+      : "";
+
+  const trimmedContent = content?.trim() === "_" ? "" : content || "";
+  const [replaceTagsResult] = format(trimmedContent, valueMap);
+  const [evaluatedContent] = format(replaceTagsResult, valueMap);
+  const commandType = `${data?.reference?.refTypeId || ""}`;
+
+  const characterConfig = context?.objectMap?.["character"]?.[validCharacter]
+    ? (context?.objectMap?.[validCharacter] as CharacterConfig) ||
+      defaultCharacterConfig
+    : defaultCharacterConfig;
+
   const instant =
     context?.instant ||
     !get(config?.[type || ""]?.typing?.delay, config?.root?.typing?.delay);
@@ -448,19 +467,6 @@ export const executeDisplayCommand = (
     config?.root?.id,
     config?.root?.indicator?.id || ""
   );
-  const validCharacter =
-    type === "dialogue" && !isHidden(character, config?.character?.hidden)
-      ? character || ""
-      : "";
-  const validParenthetical =
-    type === "dialogue" &&
-    !isHidden(parenthetical, config?.parenthetical?.hidden)
-      ? parenthetical || ""
-      : "";
-  const trimmedContent = content?.trim() === "_" ? "" : content || "";
-  const [replaceTagsResult] = format(trimmedContent, valueMap);
-  const [evaluatedContent] = format(replaceTagsResult, valueMap);
-  const commandType = `${data?.reference?.refTypeId || ""}`;
 
   if (portraitEl) {
     const imageName = assets?.[0] || "";
@@ -588,9 +594,10 @@ export const executeDisplayCommand = (
       game.synth.stopInstrument(commandType, fadeOutDuration);
       handleFinished();
     } else {
+      const dialogueTones = parseTones(characterConfig?.tone || "");
       const tones: Tone[] = beeps.flatMap(({ time, duration }) => {
-        const semiToneDuration = duration / dialogueTone.length;
-        return dialogueTone.map((t, i) => ({
+        const semiToneDuration = (duration || 0) / dialogueTones.length;
+        return dialogueTones.map((t, i) => ({
           note: t.note,
           type: t.type,
           velocity: t.velocity,

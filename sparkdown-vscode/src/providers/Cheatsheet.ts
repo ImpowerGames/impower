@@ -187,27 +187,27 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     new CheatsheetItem(
       "@",
       "Character names should be in upper case",
-      "<span class='character'>STEEL</span><span class='dialogue'>The man's a myth!</span>"
+      "<span class='dialogue_character'>STEEL</span><span class='dialogue'>The man's a myth!</span>"
     ),
     new CheatsheetItem(
       "()",
       "Parentheticals follow a Character or Dialogue element, and are wrapped in parentheses ()",
-      "<span class='character'>STEEL</span><span class='parenthetical'>(starting the engine)</span><span class='dialogue'>So much for retirement!</span>"
+      "<span class='dialogue_character'>STEEL</span><span class='dialogue_parenthetical'>(starting the engine)</span><span class='dialogue'>So much for retirement!</span>"
     ),
     new CheatsheetItem(
       "…",
       "Dialogue is any text following a Character or Parenthetical element",
-      "<span class='character'>SANBORN</span><span class='dialogue'>A good 'ole boy.</span>"
+      "<span class='dialogue_character'>SANBORN</span><span class='dialogue'>A good 'ole boy.</span>"
     ),
     new CheatsheetItem(
       "^",
       "Dual (aka simultaneous) dialogue is expressed by adding a caret ^ after the second Character element",
-      "<span class='character'>BRICK</span><span class='dialogue'>Screw retirement.</span><span class='character'>\nSTEEL <mark class='caret'>^</mark></span><span class='dialogue'>Screw retirement.</span>"
+      "<span class='dialogue_character'>BRICK</span><span class='dialogue'>Screw retirement.</span><span class='dialogue_character'>\nSTEEL <mark class='caret'>^</mark></span><span class='dialogue'>Screw retirement.</span>"
     ),
     new CheatsheetItem(
       "~",
       "Lyric lines start with a tilde ~",
-      "<span class='character'>OOMPA LOOMPAS</span><span class='lyrics'>~Willy Wonka! Willy Wonka! The amazing chocolatier!</span>"
+      "<span class='dialogue_character'>OOMPA LOOMPAS</span><span class='lyrics'>~Willy Wonka! Willy Wonka! The amazing chocolatier!</span>"
     ),
   ];
 
@@ -239,16 +239,16 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     new CheatsheetItem(
       "[[image]]",
       "Display an image by wrapping the image name in double brackets",
-      `<span class='character'>BRUCE</span>
+      `<span class='dialogue_character'>BRUCE</span>
 <span class='note'>[[b_frown]]</span>
 <span class='dialogue'>Don't you know who I am?</span>`
     ),
     new CheatsheetItem(
       "[[(audio)]]",
       "Play an audio file by wrapping the audio name in double brackets and parenthesis",
-      `<span class='character'>BRUCE</span>
+      `<span class='dialogue_character'>BRUCE</span>
 <span class='note'>[[(b_grumble)]]</span>
-<span class='parenthetical'>(in a gravelly voice)</span>
+<span class='dialogue_parenthetical'>(in a gravelly voice)</span>
 <span class='dialogue'>Don't you know who I am?</span>`
     ),
   ];
@@ -263,7 +263,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
       "> JumpToSection",
       "Jump to another section with > SectionName",
       `<span class='section'># TheBatcave</span>
-<span class='character'>\nBATMAN</span>
+<span class='dialogue_character'>\nBATMAN</span>
 <span class='dialogue'>To the Batmobile!</span>
 <span class='action'>\n<span class='keyword'>> TheBatmobile</mark></span>`
     ),
@@ -271,7 +271,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
       "^",
       "Repeat the current section with a caret ^",
       `<span class='section'># HereWeGoAgain</span>
-<span class='character'>\nROBIN</span>
+<span class='dialogue_character'>\nROBIN</span>
 <span class='dialogue'>Woah... Deja vu.</span>
 <span class='keyword'>\n^</span>
 `
@@ -287,7 +287,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     new CheatsheetItem(
       "- Choice > Section",
       "Choices prefixed by - will be hidden after they are chosen",
-      `<span class='character'>BATMAN</span>
+      `<span class='dialogue_character'>BATMAN</span>
 <span class='dialogue'>What should I bring?</span>
 <span class='action'><mark class='keyword'>-</mark> Grappling hook <mark class='keyword'>> GrabGrapplingHook</mark></span>
 <span class='action'><mark class='keyword'>-</mark> Shark repellant <mark class='keyword'>> GrabSharkRepellant</mark></span>
@@ -367,7 +367,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
       "Pluralize a word according to a variable value",
       `<span class='keyword'>* var count = 1</span>
 <span class='action'>\nSally approached the sea shore with her <mark class='keyword'>{count:shell|shells}</mark>.</span>
-<span class='character'>\nSALLY</span>
+<span class='dialogue_character'>\nSALLY</span>
 <span class='dialogue'>I have <mark class='keyword'>{count}</mark> sea <mark class='keyword'>{count:shell|shells}</mark> for sale!</span>`
     ),
     new CheatsheetItem(

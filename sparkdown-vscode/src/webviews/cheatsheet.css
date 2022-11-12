@@ -112,13 +112,13 @@ details[open] > summary::before {
 .transition {
   color: #b5cea8;
 }
-.character {
+.dialogue_character {
   color: #4ec9b0;
 }
 .dialogue {
   color: #ce9178;
 }
-.parenthetical {
+.dialogue_parenthetical {
   color: #d7ba7d;
 }
 .caret {

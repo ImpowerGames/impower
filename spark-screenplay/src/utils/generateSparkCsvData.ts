@@ -19,7 +19,7 @@ export const generateSparkCsvData = (result: SparkParseResult): string[][] => {
       } else {
         typeKeys[t.type] += 1;
       }
-      if (t.type === "character") {
+      if (t.type === "dialogue_character") {
         if (characterKeys[t.content] === undefined) {
           characterKeys[t.content] = 0;
         } else {

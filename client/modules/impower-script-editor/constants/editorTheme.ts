@@ -194,7 +194,7 @@ export const editorTheme: {
     },
   },
   ".cm-completionIcon-character": {
-    "&:after": { content: "'𝐶'", color: colors.character },
+    "&:after": { content: "'𝐶'", color: colors.dialogue_character },
   },
   ".cm-completionIcon-transition": {
     "&:after": { content: "'Ŧ'", color: colors.transition },

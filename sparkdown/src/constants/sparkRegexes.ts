@@ -3,8 +3,8 @@ export type SparkRegexType =
   | "section"
   | "scene"
   | "transition"
-  | "character"
-  | "parenthetical"
+  | "dialogue_character"
+  | "dialogue_parenthetical"
   | "dialogue"
   | "action"
   | "page_break"
@@ -70,15 +70,15 @@ export const sparkRegexes: SparkRegexes = {
   title_page:
     /^([ \t]*)(title|credit|author[s]?|source|notes|draft date|date|watermark|contact(?: info)?|revision|copyright|font|tl|tc|tr|cc|br|bl)(:)(.*)?$/i,
 
-  character:
+  dialogue_character:
     /^([ \t]*)(?![#!?]|(?:\[\[)|(?:SUPERIMPOSE:))((?:(?!@)[^\p{Ll}\r\n]*?\p{Lu}[^\p{Ll}\r\n]*?)|(?:@[^\r\n]*?))([ \t]*)(\(.*\))?([ \t]*)(\^)?([ ]*)$/u,
-  parenthetical: /^([ \t]*)([(])(.+)([)])([ ]*)$/,
+  dialogue_parenthetical: /^([ \t]*)([(])(.+)([)])([ ]*)$/,
   dialogue: /^([ \t]*)(?!!)([^\r\n]+)$/,
   action: /^([ \t]*)(.+)$/,
 
   import: /^([ \t]*)(import)($|[ ]+)($|[^\n\r]+)([ ]*)$/,
   struct:
-    /^([ \t]*)(list|map|config|ui|style|camera|entity)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)(?:([(])([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$/,
+    /^([ \t]*)(list|map|config|ui|style|camera|entity|character)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)(?:([(])([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$/,
 
   list: /^([ \t]*)([*+-])($|[ ]+)(.*)([ ]*)$/,
   choice:

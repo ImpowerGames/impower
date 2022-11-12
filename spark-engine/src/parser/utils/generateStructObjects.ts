@@ -24,7 +24,7 @@ export const generateStructObjects = (
     }
     const typeObj = objects[v.type];
     if (typeObj) {
-      typeObj[k] = "";
+      typeObj[k] = true;
     }
     objects[k] = values;
   });

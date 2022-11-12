@@ -12,7 +12,7 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   section: "\n# ${SectionName}\n${}",
   scene: "\n${INT}. ${LOCATION} - ${TIME}\n${}",
   dialogue: "\n${CHARACTER}\n${dialogue}\n${}",
-  parenthetical: "(${tone})\n${}",
+  dialogue_parenthetical: "(${tone})\n${}",
   transition: "\n${CUT} TO:\n${}",
 
   list: "\nlist ${ListName}:\n  ${}",

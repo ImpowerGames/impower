@@ -163,9 +163,10 @@ export function spark(
     result: SparkParseResult;
   } = { result: initialParseResult };
   const sparkParseLinter = (view: EditorView): Diagnostic[] => {
-    parseContext.result = parse(view.state.doc.toString());
+    const script = view.state.doc.toString();
+    parseContext.result = parse(script);
     const diagnostics = parseContext.result?.diagnostics || [];
-    return getDiagnostics(diagnostics);
+    return getDiagnostics(script, diagnostics);
   };
   const extensions = config.extensions ? [config.extensions] : [];
   const support = [

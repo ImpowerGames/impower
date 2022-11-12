@@ -38,3 +38,4 @@ export * from "./utils/fillArrayWithOscillation";
 export * from "./utils/fillArrayWithTones";
 export * from "./utils/fillArrayWithWhiteNoise";
 export * from "./utils/parseNote";
+export * from "./utils/parseTones";

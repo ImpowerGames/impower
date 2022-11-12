@@ -5,4 +5,5 @@ export type SparkStructType =
   | "ui"
   | "style"
   | "camera"
-  | "entity";
+  | "entity"
+  | "character";
