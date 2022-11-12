@@ -167,6 +167,11 @@ export class BlockRunner extends ContainerRunner<BlockData> {
             return true;
           }
         }
+        command.runner.onFinished(
+          command.data,
+          { ...context, index: blockState.executingIndex },
+          game
+        );
         game.logic.finishCommand(
           blockId,
           commandId,

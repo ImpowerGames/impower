@@ -4,6 +4,10 @@ import { DisplayCommandData } from "./DisplayCommandData";
 import { executeDisplayCommand } from "./executeDisplayCommand";
 
 export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
+  autoDelay = 0.5;
+
+  fadeOutDuration = 0.025;
+
   down = false;
 
   wasPressed = false;
@@ -12,7 +16,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
 
   timeTyped = -1;
 
-  AUTO_DELAY = 0.5;
+  onTick?: (timeMS: number) => void;
 
   override init(): void {
     executeDisplayCommand();
@@ -27,10 +31,16 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     this.wasTyped = false;
     this.timeTyped = -1;
     this.down = game.input.state.pointer.down.includes(0);
-    executeDisplayCommand(data, context, game, () => {
+    this.onTick = executeDisplayCommand(data, context, game, () => {
       this.wasTyped = true;
     });
     return super.onExecute(data, context, game);
+  }
+
+  override onUpdate(timeMS: number): void {
+    if (this.onTick) {
+      this.onTick(timeMS);
+    }
   }
 
   override isFinished(
@@ -52,7 +62,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     if (
       data.autoAdvance &&
       this.wasTyped &&
-      timeSinceTyped / 1000 >= this.AUTO_DELAY
+      timeSinceTyped / 1000 >= this.autoDelay
     ) {
       return true;
     }
@@ -66,15 +76,25 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
         this.wasTyped = false;
         return true;
       }
+      let stoppedAt = game.ticker.state.timeMS / 1000;
+      this.onTick = (timeMS: number) => {
+        // Wait until typing sound has had enough time to fade out
+        // So that it doesn't crackle when cut short
+        const currTime = timeMS / 1000;
+        const elapsed = currTime - stoppedAt;
+        if (elapsed > this.fadeOutDuration) {
+          this.wasTyped = true;
+        }
+      };
       executeDisplayCommand(
         data,
         {
           ...context,
           instant: true,
+          fadeOutDuration: this.fadeOutDuration,
         },
         game
       );
-      this.wasTyped = true;
     }
     return false;
   }

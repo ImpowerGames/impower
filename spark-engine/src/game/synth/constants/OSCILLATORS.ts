@@ -1,31 +1,28 @@
 import { OscillatorType } from "../types/OscillatorType";
 
 const sgn = (t: number): number => {
-  if (t === 0) {
-    return t;
-  }
-  return t > 0 ? 1 : -1;
+  return t === 0 ? t : t > 0 ? 1 : -1;
 };
 
 const sine = (t: number): number => {
-  return Math.sin(t);
+  return Math.sin(2 * Math.PI * t);
+};
+
+const triangle = (t: number): number => {
+  return 1 - 4 * Math.abs(Math.round(t) - t);
 };
 
 const sawtooth = (t: number): number => {
-  return t - Math.floor(t + 0.5);
+  return 2 * (t - Math.round(t));
 };
 
 const square = (t: number): number => {
   return sgn(Math.sin(2 * Math.PI * t));
 };
 
-const triangle = (t: number): number => {
-  return Math.abs(sawtooth(t));
-};
-
 export const OSCILLATORS: Record<OscillatorType, (t: number) => number> = {
   sine,
+  triangle,
   sawtooth,
   square,
-  triangle,
 };

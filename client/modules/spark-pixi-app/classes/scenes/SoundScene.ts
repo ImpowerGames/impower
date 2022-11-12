@@ -1,22 +1,26 @@
-import { IMediaInstance, Sound, utils, webaudio } from "@pixi/sound";
+import { IMediaInstance, utils, webaudio } from "@pixi/sound";
 import * as PIXI from "pixi.js";
-import {
-  fillArrayWithTones,
-  InstrumentOptions,
-  MidiTrack,
-  SAMPLE_RATE,
-} from "../../../../../spark-engine";
+import { Tone } from "../../../../../spark-engine";
+import { ToneSound } from "../../plugins/midi-sound/classes/ToneSound";
 import { SparkScene } from "../SparkScene";
 
 interface Instrument {
-  sound?: Sound;
-  played?: boolean;
-  sprite?: PIXI.Sprite;
-  playhead?: PIXI.Graphics;
+  sound?: ToneSound;
+  shouldPlay?: boolean;
 }
 
 export class SoundScene extends SparkScene {
   _instruments: Map<string, Instrument> = new Map();
+
+  waveform?: PIXI.Sprite;
+
+  playhead?: PIXI.Graphics;
+
+  override init(): void {
+    this.waveform = new PIXI.Sprite(PIXI.Texture.EMPTY);
+    this.playhead = new PIXI.Graphics();
+    this.app.stage.addChild(this.waveform, this.playhead);
+  }
 
   override start(): void {
     this.context?.game?.synth?.events.onStopInstrument?.addListener((data) =>
@@ -31,88 +35,49 @@ export class SoundScene extends SparkScene {
     this.context?.game?.synth?.events?.onConfigureInstrument?.removeAllListeners();
     this.context?.game?.synth?.events?.onStopInstrument?.removeAllListeners();
     this.context?.game?.synth?.events?.onPlayInstrument?.removeAllListeners();
-  }
-
-  createSound(tracks: MidiTrack[], options?: InstrumentOptions): Sound {
-    // TODO: Support midi features
-    const tones = tracks?.[0]?.notes;
-    const sound = Sound.from({});
-    if (!(sound.media instanceof webaudio.WebAudioMedia)) {
-      return sound;
-    }
-    const media = sound.media as webaudio.WebAudioMedia;
-    const context = sound.context as webaudio.WebAudioContext;
-
-    const numberOfChannels = 1;
-    const duration = Math.max(
-      ...tones.map((t) => (t.time || 0) + (t.duration || 0))
-    );
-    const length = SAMPLE_RATE * duration;
-
-    // create the buffer
-    const buffer = context.audioContext.createBuffer(
-      numberOfChannels,
-      length,
-      SAMPLE_RATE
-    );
-    const fArray = buffer.getChannelData(0);
-    fillArrayWithTones(fArray, tones, options?.envelope, options?.oscillator);
-
-    // set the buffer
-    media.buffer = buffer;
-    media.nodes.bufferSource.detune.value = options?.detune || 0;
-    sound.volume = options?.volume || 1;
-    sound.isLoaded = true;
-
-    return sound;
-  }
-
-  stopInstrument(data: { instrumentId: string }): void {
-    const instrument = this._instruments.get(data.instrumentId);
-    instrument.sound.stop();
-  }
-
-  playInstrument(data: { instrumentId: string; tracks: MidiTrack[] }): void {
-    const instrument = this._instruments.get(data.instrumentId) || {};
-    instrument?.sound?.stop();
-    const instrumentConfig =
-      this.context.game.synth.config.instruments[data.instrumentId] || {};
-    const instrumentState =
-      this.context.game.synth.state.instrumentStates[data.instrumentId] || {};
-    const sound = this.createSound(data.tracks, {
-      ...instrumentConfig,
-      ...instrumentState,
+    this._instruments.forEach((instrument) => {
+      instrument.sound.stop();
     });
+  }
+
+  stopInstrument(data: { instrumentId: string; duration?: number }): void {
+    const instrument = this._instruments.get(data.instrumentId);
+    const media = instrument.sound.media as webaudio.WebAudioMedia;
+    const endTime =
+      instrument.sound.context.audioContext.currentTime + (data?.duration || 0);
+    media.nodes.gain.gain.linearRampToValueAtTime(0, endTime);
+  }
+
+  playInstrument(data: { instrumentId: string; tones: Tone[] }): void {
+    const instrument = this._instruments.get(data.instrumentId) || {};
+    const sound = new ToneSound(data.tones);
     instrument.sound = sound;
-    instrument.played = false;
+    instrument.shouldPlay = true;
     this._instruments.set(data.instrumentId, instrument);
   }
 
-  renderWaveform(instrument: Instrument, heightFactor = 0.25): void {
-    const height = this.app.renderer.height * heightFactor;
+  renderWaveform(instrument: Instrument): void {
+    const height = this.app.renderer.height * 0.25;
     const texture = utils.render(instrument.sound, {
       width: this.app.renderer.width,
       height,
       fill: "#999",
     });
-    instrument.playhead = new PIXI.Graphics()
-      .beginFill(0xff0000)
-      .drawRect(0, 0, 1, height);
-    instrument.sprite = new PIXI.Sprite(new PIXI.Texture(texture));
-    this.app.stage.addChild(instrument.sprite, instrument.playhead);
+    this.waveform.texture = new PIXI.Texture(texture);
+    this.playhead.clear();
+    this.playhead.beginFill(0xff0000).drawRect(0, 0, 1, height);
   }
 
   override update(_timeMS: number, _deltaMS: number): void {
     this._instruments.forEach((instrument) => {
-      if (!instrument.played) {
-        instrument.played = true;
+      if (instrument.shouldPlay) {
+        instrument.shouldPlay = false;
         const instance = instrument.sound.play() as IMediaInstance;
         if (this.context.game.debug.state.debugging) {
           this.renderWaveform(instrument);
           instance.on("progress", (progress) => {
-            if (instrument.playhead && instrument.sprite) {
-              instrument.playhead.x =
-                instrument.sprite.texture.width * progress;
+            if (this.playhead && this.waveform) {
+              this.playhead.x = this.waveform.texture.width * progress;
             }
           });
         }

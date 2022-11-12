@@ -20,12 +20,20 @@ export interface CommandContext {
 export class CommandRunner<
   T extends CommandData = CommandData
 > extends ItemRunner<T> {
-  init(): void {
+  init(_game: SparkGame): void {
     // NoOp
   }
 
   onExecute(_data: T, _context: CommandContext, _game: SparkGame): number[] {
     return [];
+  }
+
+  onUpdate(timeMS: number, deltaMS: number, _game: SparkGame): void {
+    // NoOp
+  }
+
+  onFinished(_data: T, _context: CommandContext, _game: SparkGame): void {
+    // NoOp
   }
 
   isFinished(
@@ -34,9 +42,5 @@ export class CommandRunner<
     _game: SparkGame
   ): boolean | null {
     return true;
-  }
-
-  getAssetIds(_data: T, _context: CommandContext, _game: SparkGame): string[] {
-    return [];
   }
 }

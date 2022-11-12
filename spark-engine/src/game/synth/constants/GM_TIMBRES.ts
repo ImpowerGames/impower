@@ -5,15 +5,9 @@
  * Released under the Apache-2.0 license.
  */
 
-import { Tuple } from "../types/Tuple";
-import { Wave } from "../types/Wave";
+import { GeneralMidiTimbres } from "../types/GeneralMidiTimbres";
 
-export interface GeneralMidiWaves {
-  program: Tuple<Wave[], 129>;
-  percussion: Tuple<Wave[], 82>;
-}
-
-export const GM_WAVES: GeneralMidiWaves = {
+export const GM_TIMBRES_MONO: GeneralMidiTimbres = {
   program: [
     /* 0 : None */
     [],
@@ -261,7 +255,7 @@ export const GM_WAVES: GeneralMidiWaves = {
   ],
 };
 
-export const GM_WAVES_FM: GeneralMidiWaves = {
+export const GM_TIMBRES_MULTI: GeneralMidiTimbres = {
   program: [
     /* 0 : None */
     [],
@@ -673,8 +667,6 @@ export const GM_WAVES_FM: GeneralMidiWaves = {
         d: 0.1,
         s: 0.5,
         r: 0.1,
-        b: 0,
-        c: 0,
       },
     ],
     [
@@ -832,8 +824,6 @@ export const GM_WAVES_FM: GeneralMidiWaves = {
         h: 0,
         d: 0.1,
         r: 0.1,
-        b: 0,
-        c: 0,
       },
     ],
     [{ w: "n0", v: 0.2, a: 0.05, h: 0.02, d: 0.02, r: 0.02 }],
@@ -852,8 +842,6 @@ export const GM_WAVES_FM: GeneralMidiWaves = {
         d: 0.1,
         s: 1,
         r: 0.1,
-        b: 0,
-        c: 0,
       },
     ],
     [
@@ -932,7 +920,7 @@ export const GM_WAVES_FM: GeneralMidiWaves = {
         q: 0.1,
       },
       { w: "n0", v: 0.6, t: 0, f: 70, h: 0.02, r: 0.01, p: 0 },
-      { g: 1, w: "square", v: 2, t: 0, f: 360, r: 0.01, b: 0, c: 0 },
+      { g: 1, w: "square", v: 2, t: 0, f: 360, r: 0.01 },
     ],
     [
       { w: "square", f: 1150, v: 0.34, t: 0, r: 0.03, h: 0.025, d: 0.03 },
@@ -985,7 +973,7 @@ export const GM_WAVES_FM: GeneralMidiWaves = {
     ],
     [
       { w: "n1", v: 0.25, f: 390, t: 0, d: 0.2, r: 0.2 },
-      { w: "n0", v: 0.3, t: 0, c: 0, f: 440, h: 0.005, d: 0.05 },
+      { w: "n0", v: 0.3, t: 0, f: 440, h: 0.005, d: 0.05 },
     ],
     [
       {
@@ -1044,13 +1032,13 @@ export const GM_WAVES_FM: GeneralMidiWaves = {
       { g: 1, w: "n0", v: 3.1, t: 0.152, d: 0.002, r: 0.002 },
     ],
     /* 54 : Tambourine */
-    GM_WAVES.percussion[54],
+    GM_TIMBRES_MONO.percussion[54],
     [
       { w: "n1", v: 0.3, f: 1200, d: 0.2, r: 0.2, h: 0.05, t: 0 },
       { w: "n1", t: 0, v: 1, d: 0.1, r: 0.1, p: 1.2, f: 440 },
     ],
     /* 56 : Cowbell */
-    GM_WAVES.percussion[56],
+    GM_TIMBRES_MONO.percussion[56],
     [
       { w: "n1", v: 0.3, f: 555, d: 0.25, r: 0.25, h: 0.05, t: 0 },
       { w: "n1", t: 0, v: 1, d: 0.1, r: 0.1, f: 440, a: 0.005, h: 0.02 },
@@ -1068,54 +1056,53 @@ export const GM_WAVES_FM: GeneralMidiWaves = {
         d: 0.1,
         s: 1,
         r: 0.1,
-        c: 0,
       },
-      { g: 11, w: "sine", v: 0.1, t: 0, f: 22, d: 0.3, r: 0.3, b: 0, c: 0 },
+      { g: 11, w: "sine", v: 0.1, t: 0, f: 22, d: 0.3, r: 0.3 },
     ],
     [
       { w: "n1", f: 440, v: 0.15, d: 0.4, r: 0.4, h: 0, t: 0 },
       { w: "n0", v: 0.4, t: 0, r: 0.01, f: 440 },
     ],
     /* 60 : High Bongo */
-    GM_WAVES.percussion[60],
+    GM_TIMBRES_MONO.percussion[60],
     /* 61 : Low Bongo */
-    GM_WAVES.percussion[61],
+    GM_TIMBRES_MONO.percussion[61],
     /* 62 : Mute High Conga */
-    GM_WAVES.percussion[62],
+    GM_TIMBRES_MONO.percussion[62],
     /* 63 : Open High Conga */
-    GM_WAVES.percussion[63],
+    GM_TIMBRES_MONO.percussion[63],
     /* 64 : Low Conga */
-    GM_WAVES.percussion[64],
+    GM_TIMBRES_MONO.percussion[64],
     /* 65 : High Timbale */
-    GM_WAVES.percussion[65],
+    GM_TIMBRES_MONO.percussion[65],
     /* 66 : Low Timbale */
-    GM_WAVES.percussion[66],
+    GM_TIMBRES_MONO.percussion[66],
     /* 67 : High Agogô */
-    GM_WAVES.percussion[67],
+    GM_TIMBRES_MONO.percussion[67],
     /* 68 : Low Agogô */
-    GM_WAVES.percussion[68],
+    GM_TIMBRES_MONO.percussion[68],
     /* 69 : Cabasa */
-    GM_WAVES.percussion[69],
+    GM_TIMBRES_MONO.percussion[69],
     /* 70 : Maracas */
-    GM_WAVES.percussion[70],
+    GM_TIMBRES_MONO.percussion[70],
     /* 71 : Short Whistle */
-    GM_WAVES.percussion[71],
+    GM_TIMBRES_MONO.percussion[71],
     /* 72 : Long Whistle */
-    GM_WAVES.percussion[72],
+    GM_TIMBRES_MONO.percussion[72],
     /* 73 : Short Guiro */
-    GM_WAVES.percussion[73],
+    GM_TIMBRES_MONO.percussion[73],
     /* 74 : Long Guiro */
-    GM_WAVES.percussion[74],
+    GM_TIMBRES_MONO.percussion[74],
     /* 75 : Claves */
-    GM_WAVES.percussion[75],
+    GM_TIMBRES_MONO.percussion[75],
     /* 76 : High Woodblock */
-    GM_WAVES.percussion[76],
+    GM_TIMBRES_MONO.percussion[76],
     /* 77 : Low Woodblock */
-    GM_WAVES.percussion[77],
+    GM_TIMBRES_MONO.percussion[77],
     /* 78 : Mute Cuica */
-    GM_WAVES.percussion[78],
+    GM_TIMBRES_MONO.percussion[78],
     /* 79 : Open Cuica */
-    GM_WAVES.percussion[79],
+    GM_TIMBRES_MONO.percussion[79],
     [
       { w: "sine", f: 1720, v: 0.3, d: 0.02, t: 0, r: 0.02 },
       { w: "square", g: 1, t: 0, f: 2876, v: 6, d: 0.2, s: 1, r: 0.2 },

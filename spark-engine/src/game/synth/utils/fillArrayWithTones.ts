@@ -1,66 +1,44 @@
-import { SAMPLE_RATE } from "../constants/SAMPLE_RATE";
-import { EnvelopeOptions } from "../types/EnvelopeOptions";
-import { OscillatorOptions } from "../types/OscillatorOptions";
-import { getHertz } from "./getHertz";
-import { oscillateArray } from "./oscillateArray";
-import { rampArray } from "./rampArray";
+import { Tone } from "../types/Tone";
+import { convertNoteToHertz } from "./convertNoteToHertz";
+import { easeInOutArray } from "./easeInOutArray";
+import { fillArrayWithOscillation } from "./fillArrayWithOscillation";
 
 export const fillArrayWithTones = (
   buffer: Float32Array,
-  notes: {
-    note?: string;
-    time?: number;
-    duration?: number;
-    velocity?: number;
-  }[],
-  envelope?: EnvelopeOptions,
-  oscillator?: OscillatorOptions
+  sampleRate: number,
+  tones: Tone[]
 ): void => {
-  notes.forEach((tone) => {
+  tones.forEach((tone) => {
     const note = tone.note || "";
-    const offset = tone.time || 0;
+    const time = tone.time || 0;
     const duration = tone.duration || 0;
     const velocity = typeof tone.velocity === "number" ? tone.velocity : 1;
-    const hertz = getHertz(note);
-    const offsetSampleLength = Math.floor(offset * SAMPLE_RATE);
-    const durationSampleLength = Math.floor(duration * SAMPLE_RATE);
+    const timeInSamples = Math.floor(time * sampleRate);
+    const durationInSamples = Math.floor(duration * sampleRate);
+    const startIndex = timeInSamples;
+    const endIndex = timeInSamples + durationInSamples;
+    const type = tone.type || "sine";
 
-    const oscillatorType = oscillator?.type || "sine";
-    oscillateArray(
+    const hertz = convertNoteToHertz(note);
+    // Fill with Oscillator
+    fillArrayWithOscillation(
       buffer,
-      oscillatorType,
+      startIndex,
+      endIndex,
+      sampleRate,
       hertz,
       velocity,
-      offsetSampleLength,
-      durationSampleLength
+      type
     );
 
-    const attack = typeof envelope?.attack === "number" ? envelope?.attack : 1;
-    const release =
-      typeof envelope?.release === "number" ? envelope?.release : 1;
-    const total = attack + release;
-    const attackFlex = attack / total;
-    const releaseFlex = release / total;
-
-    const attackType = envelope?.attackCurve || "cosine";
-    const attackLength = durationSampleLength * attackFlex;
-    const releaseType = envelope?.releaseCurve || "cosine";
-    const releaseLength = durationSampleLength * releaseFlex;
-    rampArray(
+    // Ease in and out to prevent crackles
+    easeInOutArray(
       buffer,
-      attackType,
-      attackLength,
-      "in",
-      offsetSampleLength,
-      durationSampleLength
-    );
-    rampArray(
-      buffer,
-      releaseType,
-      releaseLength,
-      "out",
-      offsetSampleLength,
-      durationSampleLength
+      startIndex,
+      endIndex,
+      sampleRate,
+      "cosine",
+      Math.min(0.025, duration * 0.5)
     );
   });
 };

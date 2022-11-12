@@ -3,7 +3,7 @@ import { Manager } from "../../core/classes/Manager";
 import { InstrumentConfig } from "../types/InstrumentConfig";
 import { InstrumentOptions } from "../types/InstrumentOptions";
 import { InstrumentState } from "../types/InstrumentState";
-import { MidiTrack } from "../types/MidiTrack";
+import { Tone } from "../types/Tone";
 
 export interface SynthEvents extends Record<string, GameEvent> {
   onConfigureInstrument: GameEvent<{
@@ -16,7 +16,7 @@ export interface SynthEvents extends Record<string, GameEvent> {
   }>;
   onPlayInstrument: GameEvent<{
     instrumentId: string;
-    tracks: MidiTrack[];
+    tones: Tone[];
   }>;
 }
 
@@ -45,7 +45,7 @@ export class SynthManager extends Manager<
       }>(),
       onPlayInstrument: new GameEvent<{
         instrumentId: string;
-        tracks: MidiTrack[];
+        tones: Tone[];
       }>(),
     };
     const initialConfig: SynthConfig = {
@@ -91,10 +91,10 @@ export class SynthManager extends Manager<
     });
   }
 
-  playInstrument(instrumentId: string, ...tracks: MidiTrack[]): void {
+  playInstrument(instrumentId: string, tones: Tone[]): void {
     this._events.onPlayInstrument.emit({
       instrumentId,
-      tracks,
+      tones,
     });
   }
 }

@@ -1,7 +1,5 @@
 import { InstanceData } from "../../project/classes/instance/InstanceData";
 import { InstanceRunner } from "../../project/classes/instance/InstanceRunner";
-import { ConfigRunner } from "../../project/classes/instances/config/ConfigRunner";
-import { ConfigTypeId } from "../../project/classes/instances/config/ConfigTypeId";
 import { BlockRunner } from "../../project/classes/instances/containers/block/BlockRunner";
 import { CommandRunner } from "../../project/classes/instances/items/command/CommandRunner";
 import { CommandTypeId } from "../../project/classes/instances/items/command/CommandTypeId";
@@ -26,12 +24,6 @@ interface InstanceContextData<
   data: D;
 }
 
-interface RunnerTypeMap {
-  Config: ConfigRunner;
-  Block: BlockRunner;
-  Command: CommandRunner;
-}
-
 export class SparkGameRunner {
   static _instance: SparkGameRunner;
 
@@ -42,29 +34,10 @@ export class SparkGameRunner {
     return this._instance;
   }
 
-  private _configRunners: Record<ConfigTypeId, ConfigRunner> &
-    Record<string, ConfigRunner> = {
-    BackgroundConfig: new ConfigRunner(),
-    DebugConfig: new ConfigRunner(),
-    PhysicsConfig: new ConfigRunner(),
-    SaveConfig: new ConfigRunner(),
-    ScaleConfig: new ConfigRunner(),
-    AdvancedConfig: new ConfigRunner(),
-  };
+  private _blockRunner: BlockRunner = new BlockRunner();
 
-  public get configRunners(): Record<ConfigTypeId, ConfigRunner> &
-    Record<string, ConfigRunner> {
-    return { ...this._configRunners };
-  }
-
-  private _blockRunners: Record<"Block", BlockRunner> &
-    Record<string, BlockRunner> = {
-    Block: new BlockRunner(),
-  };
-
-  public get blockRunners(): Record<"Block", BlockRunner> &
-    Record<string, BlockRunner> {
-    return { ...this._blockRunners };
+  public get blockRunner(): BlockRunner {
+    return this._blockRunner;
   }
 
   private _commandRunners: Record<CommandTypeId, CommandRunner> &
@@ -83,51 +56,19 @@ export class SparkGameRunner {
     DestroyCommand: new DestroyCommandRunner(),
   };
 
-  public get commandRunners(): Record<CommandTypeId, CommandRunner> &
-    Record<string, CommandRunner> {
-    return { ...this._commandRunners };
-  }
+  private _commandRunnersList = Object.values(this._commandRunners);
 
-  registerConfigRunner(refTypeId: string, inspector: ConfigRunner): void {
-    this._configRunners[refTypeId] = inspector;
-  }
-
-  unregisterConfigRunner(refTypeId: string): void {
-    delete this._configRunners[refTypeId];
+  public get commandRunners(): readonly CommandRunner[] {
+    return this._commandRunnersList;
   }
 
   registerBlockRunner(refTypeId: string, inspector: BlockRunner): void {
-    this._blockRunners[refTypeId] = inspector;
-  }
-
-  unregisterBlockRunner(refTypeId: string): void {
-    delete this._blockRunners[refTypeId];
+    this._blockRunner = inspector;
   }
 
   registerCommandRunner(refTypeId: string, inspector: CommandRunner): void {
     this._commandRunners[refTypeId] = inspector;
-  }
-
-  unregisterCommandRunner(refTypeId: string): void {
-    delete this._commandRunners[refTypeId];
-  }
-
-  getRunners<K extends keyof RunnerTypeMap>(
-    type: K
-  ): Record<string, RunnerTypeMap[K]> {
-    switch (type) {
-      case "Config": {
-        return this._configRunners as Record<string, RunnerTypeMap[K]>;
-      }
-      case "Block": {
-        return this._blockRunners as Record<string, RunnerTypeMap[K]>;
-      }
-      case "Command": {
-        return this._commandRunners as Record<string, RunnerTypeMap[K]>;
-      }
-      default:
-        throw new Error(`'${type}' not recognized as a DataType`);
-    }
+    this._commandRunnersList = Object.values(this._commandRunners);
   }
 
   getRunner(typeLookup: {
@@ -135,19 +76,12 @@ export class SparkGameRunner {
     refTypeId: string;
   }): InstanceRunner {
     const { refType, refTypeId } = typeLookup;
-    const runner = this.getRunners(refType)?.[refTypeId];
-    if (runner) {
-      return runner;
-    }
     switch (refType) {
-      case "Config": {
-        return new ConfigRunner();
-      }
       case "Block": {
-        return new BlockRunner();
+        return this._blockRunner || new BlockRunner();
       }
       case "Command": {
-        return new CommandRunner();
+        return this._commandRunners[refTypeId] || new CommandRunner();
       }
       default:
         throw new Error(`'${refType}' not recognized as a DataType`);

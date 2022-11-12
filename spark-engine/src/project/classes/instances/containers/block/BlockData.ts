@@ -7,7 +7,6 @@ export interface BlockData
   extends ContainerData<"Block", BlockReference>,
     Positionable {
   type: "section" | "function" | "method" | "detector";
-  ids: Record<string, string>;
   triggers: string[];
   parameters: string[];
   commands: Record<string, CommandData>;

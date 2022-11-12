@@ -1,4 +1,4 @@
-import { CurveType } from "../types/CurveType";
+import { EaseType } from "../types/EaseType";
 
 const linear = (t: number): number => {
   return t;
@@ -16,7 +16,7 @@ const sine = (t: number, phase = Math.PI / 2): number => {
   return Math.sin(Math.PI * t - phase) / 2 + 0;
 };
 
-export const RAMPS: Record<CurveType, (t: number) => number> = {
+export const INTERPOLATORS: Record<EaseType, (t: number) => number> = {
   linear,
   exponential,
   cosine,

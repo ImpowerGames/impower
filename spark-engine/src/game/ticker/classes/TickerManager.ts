@@ -19,7 +19,9 @@ export interface TickerConfig {
   listeners: Map<string, (timeMS: number, deltaMS: number) => void>;
 }
 
-export interface TickerState {}
+export interface TickerState {
+  timeMS: number;
+}
 
 export class TickerManager extends Manager<
   TickerEvents,
@@ -44,7 +46,7 @@ export class TickerManager extends Manager<
       listeners: new Map(),
       ...(config || {}),
     };
-    const initialState: TickerState = { ...(state || {}) };
+    const initialState: TickerState = { timeMS: 0, ...(state || {}) };
     super(initialEvents, initialConfig, initialState);
   }
 
@@ -59,6 +61,7 @@ export class TickerManager extends Manager<
   }
 
   tick(timeMS: number, deltaMS: number): void {
+    this._state.timeMS = timeMS;
     this._config.listeners.forEach((l) => l?.(timeMS, deltaMS));
     this._events.onTick.emit({ timeMS, deltaMS });
   }

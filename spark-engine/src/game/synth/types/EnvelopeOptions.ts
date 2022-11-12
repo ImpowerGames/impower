@@ -1,8 +1,8 @@
-import { CurveType } from "./CurveType";
+import { EaseType } from "./EaseType";
 
 export interface EnvelopeOptions {
   attack?: number;
-  attackCurve?: CurveType;
+  attackCurve?: EaseType;
   release?: number;
-  releaseCurve?: CurveType;
+  releaseCurve?: EaseType;
 }

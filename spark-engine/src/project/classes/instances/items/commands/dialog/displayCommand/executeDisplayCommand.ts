@@ -11,17 +11,13 @@ import {
   loadStyles,
   loadUI,
 } from "../../../../../../../dom";
-import { InstrumentOptions, SparkGame } from "../../../../../../../game";
+import { SparkGame, Tone } from "../../../../../../../game";
 
-// TODO: Determine pitch by punctuation
-const dialogueNote = "D#6";
-
-// TODO: Determine instrument by character
-const defaultInstrumentConfig: InstrumentOptions = {
-  oscillator: {
-    type: "sine",
-  },
-};
+const dialogueTone: Tone[] = [
+  { note: "G3", type: "sine", velocity: 0.5 },
+  { note: "G5", type: "sine", velocity: 1 },
+  { note: "D#5", type: "triangle", velocity: 0.75 },
+];
 
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   root: {
@@ -116,7 +112,11 @@ const getAnimatedSpanElements = (
   config: DisplayCommandConfig,
   instant = false,
   debug?: boolean
-): [HTMLElement[], [number, HTMLElement[]][], [number, number | null][]] => {
+): [
+  HTMLElement[],
+  { time: number; elements?: HTMLElement[] }[],
+  { time: number; duration?: number | null }[]
+] => {
   const letterFadeDuration = get(
     config[type]?.typing?.fadeDuration,
     config?.root?.typing?.fadeDuration,
@@ -145,9 +145,10 @@ const getAnimatedSpanElements = (
 
   const partEls: HTMLElement[] = [];
   const spanEls: HTMLElement[] = [];
-  const chunkEls: [number, HTMLElement[]][] = [];
-  const beeps: [number, number | null][] = [];
-  let prevBeep: [number, number] | undefined = undefined;
+  const chunkEls: { time: number; elements: HTMLElement[] }[] = [];
+  // TODO: Determine pitch by punctuation
+  const beeps: { time: number; duration?: number }[] = [];
+  let prevBeep: { time: number; duration?: number } | undefined = undefined;
   let wordLength = 0;
   let syllableLength = 0;
   let totalDelay = 0;
@@ -276,10 +277,10 @@ const getAnimatedSpanElements = (
       unpauseLength = 0;
       if (pauseLength === 1) {
         // start pause chunk
-        chunkEls.push([totalDelay, [span]]);
+        chunkEls.push({ time: totalDelay, elements: [span] });
       } else {
         // continue pause chunk
-        chunkEls[chunkEls.length - 1]?.[1].push(span);
+        chunkEls[chunkEls.length - 1]?.elements.push(span);
       }
       chunkDelay = 0;
     } else {
@@ -287,10 +288,10 @@ const getAnimatedSpanElements = (
       unpauseLength += 1;
       if (unpauseLength === 1) {
         // start letter chunk
-        chunkEls.push([totalDelay, [span]]);
+        chunkEls.push({ time: totalDelay, elements: [span] });
       } else {
         // continue letter chunk
-        chunkEls[chunkEls.length - 1]?.[1].push(span);
+        chunkEls[chunkEls.length - 1]?.elements.push(span);
       }
       chunkDelay += letterDelay;
     }
@@ -304,9 +305,8 @@ const getAnimatedSpanElements = (
     if (charIndex < 0) {
       // whitespace
       syllableLength = 0;
-      beeps.push([totalDelay, null]);
     } else if (shouldBeep) {
-      const beep: [number, number] = [totalDelay, 1];
+      const beep = { time: totalDelay, duration: beepDuration };
       syllableLength = 0;
       beeps.push(beep);
       prevBeep = beep;
@@ -314,7 +314,6 @@ const getAnimatedSpanElements = (
         span.style["backgroundColor"] = `hsl(185, 100%, 50%)`;
       }
     } else {
-      beeps.push([totalDelay, null]);
       syllableLength += 1;
     }
     if (spaceLength === 1) {
@@ -361,15 +360,7 @@ const getAnimatedSpanElements = (
       marks.pop();
     }
   }
-  const validBeeps: [number, number | null][] = beeps.map(
-    ([time, duration]) => {
-      if (!duration) {
-        return [time, duration];
-      }
-      return [time, beepDuration];
-    }
-  );
-  return [spanEls, chunkEls, validBeeps];
+  return [spanEls, chunkEls, beeps];
 };
 
 const isHidden = (content: string, hiddenRegex?: string): boolean => {
@@ -386,10 +377,11 @@ export const executeDisplayCommand = (
     objectMap: Record<string, Record<string, unknown>>;
     instant?: boolean;
     debug?: boolean;
+    fadeOutDuration?: number;
   },
   game?: SparkGame,
   onFinished?: () => void
-): void => {
+): ((timeMS: number) => void) => {
   const ui = getUIElementId();
   const type = data?.type || "";
   const assets = data?.assets || [];
@@ -399,6 +391,7 @@ export const executeDisplayCommand = (
     (context?.objectMap?.["DisplayCommand"] as DisplayCommandConfig) ||
     defaultDisplayCommandConfig;
   const objectMap = context?.objectMap || {};
+  const fadeOutDuration = context?.fadeOutDuration || 0;
 
   loadStyles(objectMap, ...Object.keys(objectMap?.["style"] || {}));
   loadUI(objectMap, "Display");
@@ -421,7 +414,7 @@ export const executeDisplayCommand = (
         backgroundEl.style["display"] = "none";
       }
     }
-    return;
+    return undefined;
   }
 
   const character = data?.character || "";
@@ -467,6 +460,7 @@ export const executeDisplayCommand = (
   const trimmedContent = content?.trim() === "_" ? "" : content || "";
   const [replaceTagsResult] = format(trimmedContent, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
+  const commandType = `${data?.reference?.refTypeId || ""}`;
 
   if (portraitEl) {
     const imageName = assets?.[0] || "";
@@ -589,67 +583,23 @@ export const executeDisplayCommand = (
     }
     onFinished?.();
   };
-  const instrumentId = `${data?.reference?.refTypeId || ""}@${validCharacter}`;
   if (game) {
     if (instant) {
-      game.synth.stopInstrument(instrumentId);
+      game.synth.stopInstrument(commandType, fadeOutDuration);
       handleFinished();
     } else {
-      const notes: {
-        note?: string;
-        time?: number;
-        duration?: number;
-        velocity?: number;
-      }[] = beeps.map(([time, duration]) => {
-        if (!duration) {
-          return {
-            time,
-          };
-        }
-        return {
-          note: dialogueNote,
-          time,
-          duration,
-        };
+      const tones: Tone[] = beeps.flatMap(({ time, duration }) => {
+        const semiToneDuration = duration / dialogueTone.length;
+        return dialogueTone.map((t, i) => ({
+          note: t.note,
+          type: t.type,
+          velocity: t.velocity,
+          time: time + i * semiToneDuration,
+          duration: semiToneDuration,
+        }));
       });
-      game.synth.configureInstrument(instrumentId, defaultInstrumentConfig);
-      game.synth.playInstrument(instrumentId, { notes });
-      let startTime: number | undefined;
-      let finished = false;
-      const handleTick = (timeMS: number): void => {
-        if (!finished) {
-          const time = timeMS / 1000;
-          if (startTime === undefined) {
-            startTime = time;
-          }
-          const endTime =
-            startTime +
-            Math.max(...notes.map((t) => (t.time || 0) + (t.duration || 0)));
-          const elapsed = time - startTime;
-          if (elapsed >= endTime) {
-            finished = true;
-            game.ticker.remove(type);
-            handleFinished();
-          }
-          for (let i = 0; i < chunkEls.length; i += 1) {
-            const [chunkTime, chunk] = chunkEls[i] || [];
-            if (
-              chunkTime !== undefined &&
-              chunk !== undefined &&
-              chunkTime < elapsed
-            ) {
-              chunk.forEach((c) => {
-                if (c.style["opacity"] !== "1") {
-                  c.style["opacity"] = "1";
-                }
-              });
-            } else {
-              break;
-            }
-          }
-        }
-      };
-      game.ticker.add(type, handleTick);
+      game.synth.configureInstrument(commandType);
+      game.synth.playInstrument(commandType, tones);
     }
   }
   if (data) {
@@ -659,4 +609,35 @@ export const executeDisplayCommand = (
       indicatorEl.style["animation"] = null as unknown as string;
     }
   }
+  let startTime: number | undefined;
+  let finished = false;
+  const totalDuration = Math.max(
+    ...beeps.map(({ time, duration }) => (time || 0) + (duration || 0))
+  );
+  const handleTick = (timeMS: number): void => {
+    if (!finished) {
+      const currTime = timeMS / 1000;
+      if (startTime === undefined) {
+        startTime = currTime;
+      }
+      const elapsed = currTime - startTime;
+      for (let i = 0; i < chunkEls.length; i += 1) {
+        const { time, elements } = chunkEls[i] || {};
+        if (time !== undefined && elements !== undefined && time < elapsed) {
+          elements.forEach((c) => {
+            if (c.style["opacity"] !== "1") {
+              c.style["opacity"] = "1";
+            }
+          });
+        } else {
+          break;
+        }
+      }
+      if (elapsed >= totalDuration) {
+        finished = true;
+        handleFinished();
+      }
+    }
+  };
+  return handleTick;
 };

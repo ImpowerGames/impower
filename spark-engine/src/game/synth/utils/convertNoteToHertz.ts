@@ -1,8 +1,9 @@
 import { FUNDAMENTAL_KEYS } from "../constants/FUNDAMENTAL_KEYS";
+import { Hertz } from "../types/Hertz";
 import { Note } from "../types/Note";
 import { parseNote } from "./parseNote";
 
-export const getHertz = (note: Note | string): number => {
+export const convertNoteToHertz = (note: Note | string): Hertz => {
   if (!note) {
     return 0;
   }

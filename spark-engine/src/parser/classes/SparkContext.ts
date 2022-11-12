@@ -10,11 +10,6 @@ import { SparkContextConfig } from "../interfaces/SparkContextConfig";
 import { generateSectionBlocks } from "../utils/generateSectionBlocks";
 import { generateStructObjects } from "../utils/generateStructObjects";
 
-interface CommandRuntimeData {
-  runner: CommandRunner;
-  data: CommandData;
-}
-
 export class SparkContext {
   private _game: SparkGame;
 
@@ -45,7 +40,10 @@ export class SparkContext {
       objectMap: Record<string, Record<string, unknown>>;
       triggers: string[];
       parameters: string[];
-      commands: CommandRuntimeData[];
+      commands: {
+        runner: CommandRunner;
+        data: CommandData;
+      }[];
     };
   } = {};
 
@@ -56,7 +54,10 @@ export class SparkContext {
       objectMap: Record<string, Record<string, unknown>>;
       triggers: string[];
       parameters: string[];
-      commands: CommandRuntimeData[];
+      commands: {
+        runner: CommandRunner;
+        data: CommandData;
+      }[];
     };
   } {
     return this._contexts;
@@ -126,8 +127,8 @@ export class SparkContext {
         };
       }
     );
-    Object.values(this.runner.commandRunners || {}).forEach((r) => {
-      r.init();
+    this.runner.commandRunners.forEach((r) => {
+      r.init(game);
     });
   }
 
@@ -143,12 +144,16 @@ export class SparkContext {
     this.game.destroy();
   }
 
-  update(time: number, delta: number): boolean {
+  update(timeMS: number, deltaMS: number): boolean {
+    this.game.ticker.tick(timeMS, deltaMS);
+    this.runner.commandRunners.forEach((r) => {
+      r.onUpdate(timeMS, deltaMS, this.game);
+    });
     if (this.loadedBlockIds) {
       for (let i = 0; i < this.loadedBlockIds.length; i += 1) {
         const blockId = this.loadedBlockIds[i];
         if (blockId !== undefined) {
-          if (!this.updateBlock(blockId, time, delta)) {
+          if (!this.updateBlock(blockId, timeMS, deltaMS)) {
             return false; // Player quit the game
           }
         }
@@ -175,8 +180,8 @@ export class SparkContext {
           context.valueMap[state.name] = state.executionCount;
         }
       });
-      if (blockState.loaded && this.runner.blockRunners["Block"]) {
-        const running = this.runner.blockRunners["Block"].update(
+      if (blockState.loaded && this.runner.blockRunner) {
+        const running = this.runner.blockRunner.update(
           blockId,
           context,
           this.game,

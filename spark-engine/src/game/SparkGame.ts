@@ -85,7 +85,10 @@ export class SparkGame extends Game {
   ui: UIManager;
   world: WorldManager;
 
-  constructor(config?: SparkGameConfig, state?: SparkGameState) {
+  constructor(
+    config?: Partial<SparkGameConfig>,
+    state?: Partial<SparkGameState>
+  ) {
     super();
     this.debug = new DebugManager(config?.debug, state?.debug);
     this.input = new InputManager(config?.input, state?.input);

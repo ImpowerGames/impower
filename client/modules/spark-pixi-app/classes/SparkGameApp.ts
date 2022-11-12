@@ -129,6 +129,9 @@ export class SparkGameApp {
   }
 
   destroy(removeView?: boolean, stageOptions?: boolean): void {
+    this.scenes.forEach((scene) => {
+      scene.destroy();
+    });
     this.resizeObserver.disconnect();
     if (this.context) {
       this.context.end();
