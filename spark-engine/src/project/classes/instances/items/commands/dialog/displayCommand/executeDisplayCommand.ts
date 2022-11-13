@@ -386,10 +386,11 @@ export const executeDisplayCommand = (
   const assets = data?.assets || [];
 
   const valueMap = context?.valueMap || {};
-  const config =
-    (context?.objectMap?.["DISPLAY_COMMAND"] as DisplayCommandConfig) ||
-    defaultDisplayCommandConfig;
   const objectMap = context?.objectMap || {};
+  const displayConfig = objectMap?.["config"]?.["_display"]
+    ? (objectMap?.["_display"] as DisplayCommandConfig)
+    : undefined;
+  const validDisplayConfig = displayConfig || defaultDisplayCommandConfig;
   const fadeOutDuration = context?.fadeOutDuration || 0;
 
   loadStyles(objectMap, ...Object.keys(objectMap?.["style"] || {}));
@@ -399,8 +400,8 @@ export const executeDisplayCommand = (
   if (assetsOnly) {
     const backgroundEl = getElement(
       ui,
-      config?.root?.id,
-      config?.background?.id
+      validDisplayConfig?.root?.id,
+      validDisplayConfig?.background?.id
     );
     if (backgroundEl) {
       const imageName = assets?.[0] || "";
@@ -422,13 +423,24 @@ export const executeDisplayCommand = (
   const autoAdvance = data?.autoAdvance;
   const clearPreviousText = data?.clearPreviousText;
 
+  const characterConfig = objectMap?.["character"]?.[character]
+    ? (objectMap?.[character] as CharacterConfig)
+    : objectMap?.["character"]?.[`_${type}`]
+    ? (objectMap?.[`_${type}`] as CharacterConfig)
+    : objectMap?.["character"]?.["_"]
+    ? (objectMap?.["_"] as CharacterConfig)
+    : undefined;
+  const validCharacterConfig: CharacterConfig =
+    characterConfig || defaultCharacterConfig;
+
   const validCharacter =
-    type === "dialogue" && !isHidden(character, config?.character?.hidden)
-      ? character || ""
+    type === "dialogue" &&
+    !isHidden(character, validDisplayConfig?.character?.hidden)
+      ? validCharacterConfig?.name || character || ""
       : "";
   const validParenthetical =
     type === "dialogue" &&
-    !isHidden(parenthetical, config?.parenthetical?.hidden)
+    !isHidden(parenthetical, validDisplayConfig?.parenthetical?.hidden)
       ? parenthetical || ""
       : "";
 
@@ -437,35 +449,41 @@ export const executeDisplayCommand = (
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
   const commandType = `${data?.reference?.refTypeId || ""}`;
 
-  const characterConfig = context?.objectMap?.["character"]?.[validCharacter]
-    ? (context?.objectMap?.[validCharacter] as CharacterConfig) ||
-      defaultCharacterConfig
-    : defaultCharacterConfig;
-
   const instant =
     context?.instant ||
-    !get(config?.[type || ""]?.typing?.delay, config?.root?.typing?.delay);
+    !get(
+      validDisplayConfig?.[type || ""]?.typing?.delay,
+      validDisplayConfig?.root?.typing?.delay
+    );
   const debug = context?.debug;
-  const indicatorFadeDuration = config?.root?.indicator?.fadeDuration || 0;
-  const indicatorAnimationName = config?.root?.indicator?.animationName;
-  const indicatorAnimationDuration = config?.root?.indicator?.animationDuration;
-  const indicatorAnimationEase = config?.root?.indicator?.animationEase;
+  const indicatorFadeDuration =
+    validDisplayConfig?.root?.indicator?.fadeDuration || 0;
+  const indicatorAnimationName =
+    validDisplayConfig?.root?.indicator?.animationName;
+  const indicatorAnimationDuration =
+    validDisplayConfig?.root?.indicator?.animationDuration;
+  const indicatorAnimationEase =
+    validDisplayConfig?.root?.indicator?.animationEase;
 
   const descriptionGroupEl = getElement(
     ui,
-    config?.root?.id,
-    config?.description_group?.id
+    validDisplayConfig?.root?.id,
+    validDisplayConfig?.description_group?.id
   );
   const dialogueGroupEl = getElement(
     ui,
-    config?.root?.id,
-    config?.dialogue_group?.id
+    validDisplayConfig?.root?.id,
+    validDisplayConfig?.dialogue_group?.id
   );
-  const portraitEl = getElement(ui, config?.root?.id, config?.portrait?.id);
+  const portraitEl = getElement(
+    ui,
+    validDisplayConfig?.root?.id,
+    validDisplayConfig?.portrait?.id
+  );
   const indicatorEl = getElement(
     ui,
-    config?.root?.id,
-    config?.root?.indicator?.id || ""
+    validDisplayConfig?.root?.id,
+    validDisplayConfig?.root?.indicator?.id || ""
   );
 
   if (portraitEl) {
@@ -481,7 +499,7 @@ export const executeDisplayCommand = (
     }
   }
 
-  hideChoices(ui, config);
+  hideChoices(ui, validDisplayConfig);
 
   if (dialogueGroupEl) {
     dialogueGroupEl.style["display"] =
@@ -494,34 +512,54 @@ export const executeDisplayCommand = (
 
   const characterEl = getElement(
     ui,
-    config?.root?.id,
-    config?.character?.id || ""
+    validDisplayConfig?.root?.id,
+    validDisplayConfig?.character?.id || ""
   );
   const parentheticalEl = getElement(
     ui,
-    config?.root?.id,
-    config?.parenthetical?.id || ""
+    validDisplayConfig?.root?.id,
+    validDisplayConfig?.parenthetical?.id || ""
   );
   const contentElEntries = [
     {
       key: "dialogue",
-      value: getElement(ui, config?.root?.id, config?.dialogue?.id || ""),
+      value: getElement(
+        ui,
+        validDisplayConfig?.root?.id,
+        validDisplayConfig?.dialogue?.id || ""
+      ),
     },
     {
       key: "action",
-      value: getElement(ui, config?.root?.id, config?.action?.id || ""),
+      value: getElement(
+        ui,
+        validDisplayConfig?.root?.id,
+        validDisplayConfig?.action?.id || ""
+      ),
     },
     {
       key: "centered",
-      value: getElement(ui, config?.root?.id, config?.centered?.id || ""),
+      value: getElement(
+        ui,
+        validDisplayConfig?.root?.id,
+        validDisplayConfig?.centered?.id || ""
+      ),
     },
     {
       key: "scene",
-      value: getElement(ui, config?.root?.id, config?.scene?.id || ""),
+      value: getElement(
+        ui,
+        validDisplayConfig?.root?.id,
+        validDisplayConfig?.scene?.id || ""
+      ),
     },
     {
       key: "transition",
-      value: getElement(ui, config?.root?.id, config?.transition?.id || ""),
+      value: getElement(
+        ui,
+        validDisplayConfig?.root?.id,
+        validDisplayConfig?.transition?.id || ""
+      ),
     },
   ];
 
@@ -541,7 +579,7 @@ export const executeDisplayCommand = (
     type,
     evaluatedContent?.trimStart(),
     valueMap,
-    config,
+    validDisplayConfig,
     instant,
     debug
   );
@@ -594,7 +632,7 @@ export const executeDisplayCommand = (
       game.synth.stopInstrument(commandType, fadeOutDuration);
       handleFinished();
     } else {
-      const dialogueTones = parseTones(characterConfig?.tone || "");
+      const dialogueTones = parseTones(validCharacterConfig?.tone || "");
       const tones: Tone[] = beeps.flatMap(({ time, duration }) => {
         const semiToneDuration = (duration || 0) / dialogueTones.length;
         return dialogueTones.map((t, i) => ({
