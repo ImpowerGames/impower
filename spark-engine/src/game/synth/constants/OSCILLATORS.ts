@@ -1,5 +1,3 @@
-import { OscillatorType } from "../types/OscillatorType";
-
 const sgn = (t: number): number => {
   return t === 0 ? t : t > 0 ? 1 : -1;
 };
@@ -28,7 +26,7 @@ const noise = (_t: number): number => {
   return Math.random() * 2 - 1;
 };
 
-export const OSCILLATORS: Record<OscillatorType, (t: number) => number> = {
+export const OSCILLATORS: Record<string, (t: number) => number> = {
   sine,
   cosine,
   triangle,

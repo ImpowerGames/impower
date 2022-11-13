@@ -205,6 +205,18 @@ export const editorTheme: {
   ".cm-completionIcon-condition": {
     "&:after": { content: "'?'", color: colors.condition },
   },
+  ".cm-completionIcon-sine-wave": {
+    "&:after": { content: "'∿'", color: colors.condition },
+  },
+  ".cm-completionIcon-triangle-wave": {
+    "&:after": { content: "'⋀'", color: colors.condition },
+  },
+  ".cm-completionIcon-sawtooth-wave": {
+    "&:after": { content: "'⩘'", color: colors.condition },
+  },
+  ".cm-completionIcon-square-wave": {
+    "&:after": { content: "'⨅'", color: colors.condition },
+  },
   ".cm-diagnosticText": {
     marginRight: "16px",
   },

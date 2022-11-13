@@ -11,5 +11,5 @@ export interface Block {
   children?: string[];
   triggers?: string[];
   variables?: Record<string, { name: string; type: string; value: unknown }>;
-  commands?: Record<string, { line: number }>;
+  commands?: Record<string, { line: number; check?: string }>;
 }

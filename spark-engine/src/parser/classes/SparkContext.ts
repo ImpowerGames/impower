@@ -76,7 +76,7 @@ export class SparkContext {
     const startCommands = Object.values(startRuntimeBlock?.commands || {});
     for (let i = 1; i < startCommands?.length || 0; i += 1) {
       const command = startCommands[i];
-      if (command && command.line > activeLine) {
+      if (command && command.check !== "close" && command.line > activeLine) {
         break;
       } else {
         startCommandIndex = i;

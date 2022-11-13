@@ -5,10 +5,12 @@ import {
   Completion,
   CompletionContext,
   CompletionResult,
+  CompletionSource,
   snippet,
 } from "@codemirror/autocomplete";
 import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
+import { FUNDAMENTAL_KEYS } from "../../../../spark-engine";
 import {
   getAncestorIds,
   getChildrenIds,
@@ -31,6 +33,18 @@ interface Option {
   infoColor?: string;
   completionType?: CompletionType;
 }
+
+const OPEN_CURSOR = "${";
+const CLOSE_CURSOR = "}";
+const CURSOR = OPEN_CURSOR + CLOSE_CURSOR;
+const WAVES = [
+  { type: "sine", open: "(", close: ")" },
+  { type: "triangle", open: "<", close: ">" },
+  { type: "sawtooth", open: "{", close: "}" },
+  { type: "square", open: "[", close: "]" },
+];
+const OCTAVES = ["", "2", "3", "4", "5", "6", "7", "8"];
+const QUOTES = ["'", '"', "`"];
 
 const snip = (template: string, completion: Completion): Completion => {
   return { ...completion, apply: snippet(template) };
@@ -351,6 +365,30 @@ export const choiceSnippets: readonly Completion[] = [
     type: "choice_minus",
   }),
 ];
+
+export const getToneWaveSnippets = (
+  keys: string[],
+  omitClose = false
+): readonly Completion[] => {
+  return OCTAVES.flatMap((octave) => {
+    return keys.flatMap((note) => {
+      return WAVES.flatMap(({ type, open, close }) => {
+        const pitch = `${note}${octave}`;
+        const template =
+          keys.length > 1
+            ? `${open}${pitch}${CURSOR}${omitClose ? "" : close}${CURSOR}`
+            : `${open}${CURSOR}${OPEN_CURSOR}${pitch}${CLOSE_CURSOR}${CURSOR}${
+                omitClose ? "" : close
+              }`;
+        return snip(template, {
+          label: `${open}${note}${octave}${close}`,
+          type: `${type}-wave`,
+          boost: OCTAVES.length - Number(octave),
+        });
+      });
+    });
+  });
+};
 
 export const nameSnippets = (
   options: (string | Option)[],
@@ -739,6 +777,23 @@ export const assetSnippets = (
   );
 };
 
+const allFromList = (
+  list: readonly (string | Completion)[],
+  limit = 50
+): CompletionSource => {
+  const options = list.map((o) =>
+    typeof o === "string" ? { label: o } : o
+  ) as Completion[];
+  return (context: CompletionContext): CompletionResult | null => {
+    return {
+      from: context.pos,
+      options: options.length > limit ? options.slice(0, limit) : options,
+      filter: false,
+      validFor: () => false,
+    };
+  };
+};
+
 export const sparkAutocomplete = async (
   context: CompletionContext,
   parseContext: { result: SparkParseResult }
@@ -766,7 +821,8 @@ export const sparkAutocomplete = async (
   });
   const node: SyntaxNode = tree.resolveInner(context.pos, -1);
   const input = context.state.sliceDoc(node.from, node.to);
-  const line = context.state.doc.lineAt(node.from).number;
+  const line = context.state.doc.lineAt(node.from);
+  const lineNumber = line.number;
   const [sectionId, section] = getSectionAt(node.from, result);
   const sectionLevel = section?.level || 0;
   const ancestorIds = getAncestorIds(sectionId);
@@ -831,11 +887,49 @@ export const sparkAutocomplete = async (
   );
   const isLowercase = input.toLowerCase() === input;
   const isUppercase = input.toUpperCase() === input;
-  const completions: Completion[] = [];
+
+  if (["StructFieldValue"].includes(node.name)) {
+    const fieldNameNode = node?.prevSibling?.prevSibling;
+    if (fieldNameNode) {
+      const fieldName = context.state.sliceDoc(
+        fieldNameNode.from,
+        fieldNameNode.to
+      );
+      // TODO: Check we are in character struct
+      if (fieldName === "tone") {
+        const completions: Completion[] = [];
+        if (QUOTES.includes(input[0])) {
+          const waveOpenBrackets = WAVES.map((w) => w.open);
+          const waveCloseBrackets = WAVES.map((w) => w.close);
+          const sortedKeys = FUNDAMENTAL_KEYS.sort();
+          if (
+            waveOpenBrackets.includes(input[1]) &&
+            !waveCloseBrackets.includes(input[2]) &&
+            !waveCloseBrackets.includes(input[3])
+          ) {
+            completions.push(...getToneWaveSnippets(sortedKeys));
+            return completeFromList(completions)(context);
+          }
+          if (
+            waveOpenBrackets.includes(input[1]) &&
+            !waveCloseBrackets.includes(input[2])
+          ) {
+            completions.push(...getToneWaveSnippets(sortedKeys, true));
+            return completeFromList(completions)(context);
+          }
+          completions.push(...getToneWaveSnippets(sortedKeys));
+          return allFromList(completions, 48)(context);
+        }
+      }
+    }
+  }
   if (["RepeatMark"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(...repeatSnippets);
+    return completeFromList(completions)(context);
   }
   if (["Paragraph", "Action"].includes(node.name)) {
+    const completions: Completion[] = [];
     if (input.match(/^[\w]+/)) {
       if (isLowercase) {
         completions.push(...lowercaseParagraphSnippets);
@@ -847,7 +941,9 @@ export const sparkAutocomplete = async (
     if (input.startsWith("#")) {
       completions.push(...sectionHeaderSnippets(sectionLevel));
     }
-  } else if (
+    return completeFromList(completions)(context);
+  }
+  if (
     [
       "Section",
       "SectionMark",
@@ -855,70 +951,116 @@ export const sparkAutocomplete = async (
       "PossibleSectionMark",
     ].includes(node.name)
   ) {
+    const completions: Completion[] = [];
     completions.push(...sectionHeaderSnippets(sectionLevel));
-  } else if (["ChoiceMark"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["ChoiceMark"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(...choiceSnippets);
-  } else if (["Transition"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["Transition"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(...transitionSnippets);
-  } else if (["ScenePrefix"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["ScenePrefix"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(...scenePrefixSnippets);
-  } else if (["SceneLocation"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["SceneLocation"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(
       ...nameSnippets(Object.keys(result?.properties?.locations || {}), "scene")
     );
-  } else if (["SceneTime"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["SceneTime"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(
       ...nameSnippets(Object.keys(result?.properties?.times || {}), "scene")
     );
-  } else if (["PossibleCharacter"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["PossibleCharacter"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
         Object.keys(result?.properties?.characters || {}),
         result?.dialogueLines,
-        line,
+        lineNumber,
         "\n"
       )
     );
     completions.push(...uppercaseParagraphSnippets);
-  } else if (["PossibleCharacterName"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["PossibleCharacterName"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
         Object.keys(result?.properties?.characters || {}),
         result?.dialogueLines,
-        line,
+        lineNumber,
         "\n"
       )
     );
-  } else if (["Character", "CharacterName"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["Character", "CharacterName"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
         Object.keys(result?.properties?.characters || {}),
         result?.dialogueLines,
-        line
+        lineNumber
       )
     );
-  } else if (["ImageNote"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["ImageNote"].includes(node.name)) {
+    const completions: Completion[] = [];
     const validOptions = assetOptions.filter(
       (x) => x.type === "image" || x.type === "graphic"
     );
     completions.push(...assetSnippets(validOptions, variables, "image"));
-  } else if (["AudioNote"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["AudioNote"].includes(node.name)) {
+    const completions: Completion[] = [];
     const validOptions = assetOptions.filter((x) => x.type === "audio");
     completions.push(...assetSnippets(validOptions, variables, "audio"));
-  } else if (node.name === "DynamicTag") {
+    return completeFromList(completions)(context);
+  }
+  if (node.name === "DynamicTag") {
+    const completions: Completion[] = [];
     completions.push(
       ...nameSnippets(tagOptions, "tag", "", "", colors.tag),
       ...effectSnippets
     );
-  } else if (["AssignMark", "CallMark", "VariableMark"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["AssignMark", "CallMark", "VariableMark"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(
       ...logicSnippets(variableOptions, sectionId, result?.sections)
     );
-  } else if (["GoMark", "ChoiceGoMark"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["GoMark", "ChoiceGoMark"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(...sectionSnippets(sectionId, result?.sections, "> "));
-  } else if (["GoSectionName", "ChoiceSectionName"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["GoSectionName", "ChoiceSectionName"].includes(node.name)) {
+    const completions: Completion[] = [];
     completions.push(...sectionSnippets(sectionId, result?.sections));
-  } else if (["CallEntityName"].includes(node.name)) {
+    return completeFromList(completions)(context);
+  }
+  if (["CallEntityName"].includes(node.name)) {
+    const completions: Completion[] = [];
     const validOptions = entityOptions.filter(
       (x) => x.type === "image" || x.type === "graphic"
     );
@@ -927,8 +1069,13 @@ export const sparkAutocomplete = async (
         ...nameSnippets(validOptions, "entity", "", "", colors.struct)
       );
     }
-  } else if (["VariableValue"].includes(node.name)) {
-    const validVariableOptions = variableOptions.filter((x) => x.line !== line);
+    return completeFromList(completions)(context);
+  }
+  if (["VariableValue"].includes(node.name)) {
+    const completions: Completion[] = [];
+    const validVariableOptions = variableOptions.filter(
+      (x) => x.line !== lineNumber
+    );
     completions.push(
       ...nameSnippets(
         validVariableOptions,
@@ -938,7 +1085,9 @@ export const sparkAutocomplete = async (
         colors.variableName
       )
     );
-  } else if (
+    return completeFromList(completions)(context);
+  }
+  if (
     [
       "AssignName",
       "AssignValue",
@@ -951,10 +1100,11 @@ export const sparkAutocomplete = async (
       "InterpolationVariableName",
     ].includes(node.name)
   ) {
+    const completions: Completion[] = [];
     completions.push(
       ...nameSnippets(variableOptions, "variable", "", "", colors.variableName)
     );
+    return completeFromList(completions)(context);
   }
-  const source = completeFromList(completions);
-  return source(context);
+  return completeFromList([])(context);
 };
