@@ -422,9 +422,12 @@ export const executeDisplayCommand = (
   const content = data?.content;
   const autoAdvance = data?.autoAdvance;
   const clearPreviousText = data?.clearPreviousText;
+  const characterVariableName = character
+    .replace(/([ ])/g, "_")
+    .replace(/([.])/g, "");
 
-  const characterConfig = objectMap?.["character"]?.[character]
-    ? (objectMap?.[character] as CharacterConfig)
+  const characterConfig = objectMap?.["character"]?.[characterVariableName]
+    ? (objectMap?.[characterVariableName] as CharacterConfig)
     : objectMap?.["character"]?.[`_${type}`]
     ? (objectMap?.[`_${type}`] as CharacterConfig)
     : objectMap?.["character"]?.["_"]
