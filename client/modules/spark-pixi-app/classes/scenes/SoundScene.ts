@@ -50,7 +50,8 @@ export class SoundScene extends SparkScene {
 
   playInstrument(data: { instrumentId: string; tones: Tone[] }): void {
     const instrument = this._instruments.get(data.instrumentId) || {};
-    const sound = new ToneSound(data.tones);
+    const sound = instrument.sound || new ToneSound();
+    sound.loadTones(data.tones);
     instrument.sound = sound;
     instrument.shouldPlay = true;
     this._instruments.set(data.instrumentId, instrument);

@@ -8,6 +8,11 @@ export const fillArrayWithTones = (
   sampleRate: number,
   tones: Tone[]
 ): void => {
+  // Zero out the buffer
+  for (let i = 0; i < buffer.length; i += 1) {
+    buffer[i] = 0;
+  }
+
   tones.forEach((tone) => {
     const note = tone.note || "";
     const time = tone.time || 0;
@@ -18,8 +23,8 @@ export const fillArrayWithTones = (
     const startIndex = timeInSamples;
     const endIndex = timeInSamples + durationInSamples;
     const type = tone.type || "sine";
-
     const hertz = convertNoteToHertz(note);
+
     // Fill with Oscillator
     fillArrayWithOscillation(
       buffer,
@@ -38,7 +43,7 @@ export const fillArrayWithTones = (
       endIndex,
       sampleRate,
       "cosine",
-      Math.min(0.025, duration * 0.5)
+      duration * 0.5
     );
   });
 };

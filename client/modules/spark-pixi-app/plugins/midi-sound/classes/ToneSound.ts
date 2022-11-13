@@ -2,7 +2,7 @@ import { Options, Sound, webaudio } from "@pixi/sound";
 import { fillArrayWithTones, Tone } from "../../../../../../spark-engine";
 
 export class ToneSound extends Sound {
-  constructor(tones: Tone[], options?: Options) {
+  constructor(tones?: Tone[], options?: Options) {
     super(new webaudio.WebAudioMedia(), {
       autoPlay: false,
       singleInstance: true,
@@ -17,21 +17,28 @@ export class ToneSound extends Sound {
       ...options,
     });
 
+    if (tones) {
+      this.loadTones(tones);
+    }
+  }
+
+  loadTones(tones: Tone[]): void {
     const duration = Math.max(
       ...tones.map((t) => (t?.time || 0) + (t?.duration || 0))
     );
-
-    // create the buffer
     const audioContext = this.context.audioContext;
     const sampleRate = this.context.audioContext.sampleRate;
-    const length = sampleRate * duration;
-    const buffer = audioContext.createBuffer(1, length, sampleRate);
+    const durationInSamples = sampleRate * duration;
+    const media = this.media as webaudio.WebAudioMedia;
+    const buffer =
+      media.buffer ||
+      audioContext.createBuffer(1, durationInSamples, sampleRate);
     const fArray = buffer.getChannelData(0);
     fillArrayWithTones(fArray, sampleRate, tones);
-
-    // set the buffer
-    const media = this.media as webaudio.WebAudioMedia;
-    media.buffer = buffer;
-    this.isLoaded = true;
+    buffer.copyToChannel(fArray, 0);
+    if (!this.isLoaded) {
+      media.buffer = buffer;
+      this.isLoaded = true;
+    }
   }
 }

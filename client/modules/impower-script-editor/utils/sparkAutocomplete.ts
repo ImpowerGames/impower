@@ -10,7 +10,12 @@ import {
 } from "@codemirror/autocomplete";
 import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
-import { FUNDAMENTAL_KEYS } from "../../../../spark-engine";
+import {
+  fillArrayWithTones,
+  FUNDAMENTAL_KEYS,
+  parseTones,
+  SAMPLE_RATE,
+} from "../../../../spark-engine";
 import {
   getAncestorIds,
   getChildrenIds,
@@ -43,8 +48,26 @@ const WAVES = [
   { type: "sawtooth", open: "{", close: "}" },
   { type: "square", open: "[", close: "]" },
 ];
-const OCTAVES = ["", "2", "3", "4", "5", "6", "7", "8"];
 const QUOTES = ["'", '"', "`"];
+
+const context = new AudioContext();
+
+const playTone = (toneString: string, duration: number): void => {
+  const durationInSamples = Math.floor(duration * SAMPLE_RATE);
+  const fArray = new Float32Array(durationInSamples);
+  const tones = parseTones(toneString).map((t) => ({
+    ...t,
+    time: 0,
+    duration,
+  }));
+  fillArrayWithTones(fArray, SAMPLE_RATE, tones);
+  const buffer = context.createBuffer(1, fArray.length, context.sampleRate);
+  buffer.copyToChannel(fArray, 0);
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.connect(context.destination);
+  source.start(context.currentTime + 0.025, 0, duration + 0.05);
+};
 
 const snip = (template: string, completion: Completion): Completion => {
   return { ...completion, apply: snippet(template) };
@@ -84,7 +107,11 @@ type CompletionType =
   | "choice_plus"
   | "choice_minus";
 
-const getInfoNode = (info: string, color?: string): Node => {
+const getInfoNode = (
+  info: string,
+  color?: string,
+  callback?: () => void
+): Node => {
   const preview = document.createElement("div");
   const content = document.createTextNode(info);
   preview.appendChild(content);
@@ -93,6 +120,7 @@ const getInfoNode = (info: string, color?: string): Node => {
   }
   preview.style.fontFamily = "monospace";
   preview.style.fontStyle = "italic";
+  callback?.();
   return preview;
 };
 
@@ -380,10 +408,13 @@ export const getToneWaveSnippets = (
         const template = `${open}${pitch}${CURSOR}${
           omitClose ? "" : close
         }${CURSOR}`;
+        const velocity = 0.25;
         const s = snip(template, {
           label: `${open}${note}${octave}${close}`,
           info: (): Node =>
-            getInfoNode(`${note}${octave} ${type} wave`, colors.struct),
+            getInfoNode(`${note}${octave} ${type} wave`, colors.struct, () =>
+              playTone(`${open}${pitch}*${velocity}${close}`, 0.05)
+            ),
           type: `${type}-wave`,
           boost: max - i,
         });
@@ -911,17 +942,25 @@ export const sparkAutocomplete = async (
             !waveCloseBrackets.includes(input[2]) &&
             !waveCloseBrackets.includes(input[3])
           ) {
-            completions.push(...getToneWaveSnippets(sortedKeys, OCTAVES));
+            completions.push(
+              ...getToneWaveSnippets(sortedKeys, ["4", "5", "6", "7", "8"])
+            );
             return completeFromList(completions)(context);
           }
           if (
             waveOpenBrackets.includes(input[1]) &&
             !waveCloseBrackets.includes(input[2])
           ) {
-            completions.push(...getToneWaveSnippets(sortedKeys, OCTAVES, true));
+            completions.push(
+              ...getToneWaveSnippets(
+                sortedKeys,
+                ["4", "5", "6", "7", "8"],
+                true
+              )
+            );
             return completeFromList(completions)(context);
           }
-          completions.push(...getToneWaveSnippets(sortedKeys, [""]));
+          completions.push(...getToneWaveSnippets(sortedKeys, ["4"]));
           return allFromList(completions, 48)(context);
         }
       }
