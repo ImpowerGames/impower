@@ -424,7 +424,7 @@ export const executeDisplayCommand = (
   const clearPreviousText = data?.clearPreviousText;
   const characterVariableName = character
     .replace(/([ ])/g, "_")
-    .replace(/([.])/g, "");
+    .replace(/([.'"`])/g, "");
 
   const characterConfig = objectMap?.["character"]?.[characterVariableName]
     ? (objectMap?.[characterVariableName] as CharacterConfig)
