@@ -368,23 +368,27 @@ export const choiceSnippets: readonly Completion[] = [
 
 export const getToneWaveSnippets = (
   keys: string[],
+  octaves: string[],
   omitClose = false
 ): readonly Completion[] => {
-  return OCTAVES.flatMap((octave) => {
+  let i = 0;
+  const max = octaves.length * keys.length * WAVES.length;
+  return octaves.flatMap((octave) => {
     return keys.flatMap((note) => {
       return WAVES.flatMap(({ type, open, close }) => {
         const pitch = `${note}${octave}`;
-        const template =
-          keys.length > 1
-            ? `${open}${pitch}${CURSOR}${omitClose ? "" : close}${CURSOR}`
-            : `${open}${CURSOR}${OPEN_CURSOR}${pitch}${CLOSE_CURSOR}${CURSOR}${
-                omitClose ? "" : close
-              }`;
-        return snip(template, {
+        const template = `${open}${pitch}${CURSOR}${
+          omitClose ? "" : close
+        }${CURSOR}`;
+        const s = snip(template, {
           label: `${open}${note}${octave}${close}`,
+          info: (): Node =>
+            getInfoNode(`${note}${octave} ${type} wave`, colors.struct),
           type: `${type}-wave`,
-          boost: OCTAVES.length - Number(octave),
+          boost: max - i,
         });
+        i += 1;
+        return s;
       });
     });
   });
@@ -907,17 +911,17 @@ export const sparkAutocomplete = async (
             !waveCloseBrackets.includes(input[2]) &&
             !waveCloseBrackets.includes(input[3])
           ) {
-            completions.push(...getToneWaveSnippets(sortedKeys));
+            completions.push(...getToneWaveSnippets(sortedKeys, OCTAVES));
             return completeFromList(completions)(context);
           }
           if (
             waveOpenBrackets.includes(input[1]) &&
             !waveCloseBrackets.includes(input[2])
           ) {
-            completions.push(...getToneWaveSnippets(sortedKeys, true));
+            completions.push(...getToneWaveSnippets(sortedKeys, OCTAVES, true));
             return completeFromList(completions)(context);
           }
-          completions.push(...getToneWaveSnippets(sortedKeys));
+          completions.push(...getToneWaveSnippets(sortedKeys, [""]));
           return allFromList(completions, 48)(context);
         }
       }
