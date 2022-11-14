@@ -42,16 +42,18 @@ export class SoundScene extends SparkScene {
 
   stopInstrument(data: { instrumentId: string; duration?: number }): void {
     const instrument = this._instruments.get(data.instrumentId);
-    const media = instrument.sound.media as webaudio.WebAudioMedia;
-    const endTime =
-      instrument.sound.context.audioContext.currentTime + (data?.duration || 0);
-    media.nodes.gain.gain.linearRampToValueAtTime(0, endTime);
+    const media = instrument?.sound?.media as webaudio.WebAudioMedia;
+    if (media) {
+      const endTime =
+        instrument.sound.context.audioContext.currentTime +
+        (data?.duration || 0);
+      media.nodes.gain.gain.linearRampToValueAtTime(0, endTime);
+    }
   }
 
   playInstrument(data: { instrumentId: string; tones: Tone[] }): void {
     const instrument = this._instruments.get(data.instrumentId) || {};
-    const sound = instrument.sound || new ToneSound();
-    sound.loadTones(data.tones);
+    const sound = new ToneSound(data.tones);
     instrument.sound = sound;
     instrument.shouldPlay = true;
     this._instruments.set(data.instrumentId, instrument);
