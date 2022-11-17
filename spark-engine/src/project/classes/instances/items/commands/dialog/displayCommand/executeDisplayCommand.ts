@@ -11,11 +11,103 @@ import {
   loadStyles,
   loadUI,
 } from "../../../../../../../dom";
-import { parseTones, SparkGame, Tone } from "../../../../../../../game";
-import { CharacterConfig } from "./CharacterConfig";
+import {
+  convertNoteToHertz,
+  Intonation,
+  parseTone,
+  SparkGame,
+  StressType,
+  Tone,
+  transpose,
+} from "../../../../../../../game";
+import { CharacterConfig, Prosody } from "./CharacterConfig";
 
-const defaultCharacterConfig = {
+interface Beep extends Tone {
+  syllableIndex?: number;
+}
+
+// const vocalRange = {
+//   soprano: "C5",
+//   mezzoSoprano: "A4",
+//   contralto: "F4",
+//   alto: "G4",
+//   countertenor: "E4",
+//   tenor: "B3",
+//   baritone: "G3",
+//   bass: "E3",
+// };
+
+const finalStressTypes: StressType[] = [
+  "resolvedQuestion",
+  "question",
+  "lilt",
+  "command",
+  "exclamation",
+  "tentative",
+  "anticipation",
+  "statement",
+];
+
+const defaultIntonation: Intonation = {
+  fluctuation: 0.125,
+  downdrift: "+2 0 -2", // '-_
+  italicized: "0 +2 +1", // _'-
+  bolded: "0 +1 0", // _-_
+  underlined: "0 +1 +1", // _--
+  capitalized: "+2 +2 +2", // '''
+  resolvedQuestion: "+1 +2 0", // -'_
+  question: "+1 +2 +4", // --'
+  lilt: "+8 +2 +4", // ''-
+  command: "+8 +8 +7", // -'-
+  exclamation: "+2 +5 +4", // -'-
+  tentative: "+2 +3 +3", //'__
+  anticipation: "+1 +2 +1", // -'-
+  statement: "+2 +1 0", // '-_
+};
+
+// const britishIntonation: Intonation = {
+//   fluctuation: 0.25,
+//   downdrift: "+3 +2 +1", // '-_
+//   italicized: "+1 +3 +2", // _'-
+//   bolded: "+1 +2 +1", // _-_
+//   underlined: "+1 +2 +2", // _--
+//   capitalized: "+3 +3 +3", // '''
+//   resolvedQuestion: "+3 +2 +3", // '-'
+//   question: "+3 +1 +2", // '_-
+//   lilt: "+3 +3 +2", // ''-
+//   command: "+2 +3 +2", // -'-
+//   exclamation: "+2 +3 +2", // -'-
+//   tentative: "+3 +2 +2", // '--
+//   anticipation: "+2 +3 +2", // -'-
+//   statement: "+2 +2 +1", // --_
+// };
+
+const defaultProsody: Prosody = {
+  /** You (CANNOT) say that. */
+  capitalized: /[^a-z.!?\n]+[A-Z][A-Z]+[^a-z.!?\n]/,
+  /** Who's (that)? */
+  resolvedQuestion:
+    /\b(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b([^\t\n\r ]+)[?]$/,
+  /** Are you (serious)? */
+  question: /\b([^\t\n\r ]+)[?]+$/,
+  /** Oh (wow)~ */
+  lilt: /\b([^\t\n\r ~]+)[~]+$/,
+  /** Stop (that)!! */
+  command: /\b([^\t\n\r !]+)[!][!]+$/,
+  /** That's (incredible)! */
+  exclamation: /\b([^\t\n\r !]+)[!]$/,
+  /** Uh (right)... */
+  tentative: /\b([^\t\n\r .]+)[.][.]+$/,
+  /** And (then), */
+  anticipation: /\b([^\t\n\r ]+)[,]$/,
+  /** They (left). */
+  statement: /\b([^\t\n\r .]+)[.]$/,
+};
+
+const defaultCharacterConfig: CharacterConfig = {
   tone: "(G4*0.25)(G5*0.25)(D#5*0.125)",
+  intonation: defaultIntonation,
+  prosody: defaultProsody,
 };
 
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
@@ -58,6 +150,37 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
       syllableLength: 3,
     },
   },
+};
+
+const getBend = (
+  stressType: StressType | undefined,
+  intonation: Intonation | undefined
+): number[] => {
+  if (stressType) {
+    const contour = intonation?.[stressType];
+    if (contour) {
+      return contour.split(" ").map((x) => Number(x));
+    }
+  }
+  return [];
+};
+
+const getStressType = (
+  phrase: string,
+  prosody: Prosody | undefined
+): StressType | undefined => {
+  if (prosody) {
+    for (let i = 0; i < finalStressTypes.length; i += 1) {
+      const stressType = finalStressTypes[i];
+      if (
+        stressType &&
+        new RegExp(prosody?.[stressType] || "", "g").test(phrase)
+      ) {
+        return stressType;
+      }
+    }
+  }
+  return undefined;
 };
 
 const hideChoices = (ui: string, config: DisplayCommandConfig): void => {
@@ -113,8 +236,12 @@ const getAnimatedSpanElements = (
   debug?: boolean
 ): [
   HTMLElement[],
-  { time: number; elements?: HTMLElement[] }[],
-  { time: number; duration?: number | null }[]
+  {
+    phrase: string;
+    time: number;
+    elements?: HTMLElement[];
+    beeps?: Beep[];
+  }[]
 ] => {
   const letterFadeDuration = get(
     config[type]?.typing?.fadeDuration,
@@ -144,12 +271,13 @@ const getAnimatedSpanElements = (
 
   const partEls: HTMLElement[] = [];
   const spanEls: HTMLElement[] = [];
-  const chunkEls: { time: number; elements: HTMLElement[] }[] = [];
-  // TODO: Determine pitch by punctuation
-  const beeps: { time: number; duration?: number }[] = [];
-  let prevBeep: { time: number; duration?: number } | undefined = undefined;
+  const chunkEls: {
+    phrase: string;
+    time: number;
+    elements: HTMLElement[];
+    beeps?: Beep[];
+  }[] = [];
   let wordLength = 0;
-  let syllableLength = 0;
   let totalDelay = 0;
   let chunkDelay = 0;
   const splitContent = content.split("");
@@ -162,7 +290,7 @@ const getAnimatedSpanElements = (
   const audioUrls = new Set<string>();
   let hideSpace = false;
   for (let i = 0; i < splitContent.length; ) {
-    const part = splitContent[i];
+    const part = splitContent[i] || "";
     const lastMark = marks[marks.length - 1]?.[0];
     const tripleMark = splitContent.slice(i, i + 3).join("");
     const doubleMark = splitContent.slice(i, i + 2).join("");
@@ -268,7 +396,20 @@ const getAnimatedSpanElements = (
       wordLength = 0;
     } else {
       spaceLength = 0;
-      wordLength += 1;
+      if (
+        part === "\n" ||
+        part === "\r" ||
+        part === "\t" ||
+        part === "-" ||
+        part === "." ||
+        part === "!" ||
+        part === "?" ||
+        part === "~"
+      ) {
+        wordLength = 0;
+      } else {
+        wordLength += 1;
+      }
     }
     const isPause = spaceLength > 1;
     if (isPause) {
@@ -276,10 +417,14 @@ const getAnimatedSpanElements = (
       unpauseLength = 0;
       if (pauseLength === 1) {
         // start pause chunk
-        chunkEls.push({ time: totalDelay, elements: [span] });
+        chunkEls.push({ phrase: part, time: totalDelay, elements: [span] });
       } else {
         // continue pause chunk
-        chunkEls[chunkEls.length - 1]?.elements.push(span);
+        const lastChunk = chunkEls[chunkEls.length - 1];
+        if (lastChunk) {
+          lastChunk.phrase += part;
+          lastChunk.elements.push(span);
+        }
       }
       chunkDelay = 0;
     } else {
@@ -287,38 +432,45 @@ const getAnimatedSpanElements = (
       unpauseLength += 1;
       if (unpauseLength === 1) {
         // start letter chunk
-        chunkEls.push({ time: totalDelay, elements: [span] });
+        chunkEls.push({ phrase: part, time: totalDelay, elements: [span] });
       } else {
         // continue letter chunk
-        chunkEls[chunkEls.length - 1]?.elements.push(span);
+        const lastChunk = chunkEls[chunkEls.length - 1];
+        if (lastChunk) {
+          lastChunk.phrase += part;
+          lastChunk.elements.push(span);
+        }
       }
       chunkDelay += letterDelay;
     }
     spanEls.push(span);
     partEls[i] = span;
     const charIndex = wordLength - 1;
-    const shouldBeep = part !== "-" && charIndex % averageSyllableLength === 0;
-    if (prevBeep && syllableLength > 0) {
-      prevBeep.duration = beepDuration;
-    }
-    if (charIndex < 0) {
-      // whitespace
-      syllableLength = 0;
-    } else if (shouldBeep) {
-      const beep = { time: totalDelay, duration: beepDuration };
-      syllableLength = 0;
-      beeps.push(beep);
-      prevBeep = beep;
+    const shouldBeep =
+      charIndex >= 0 && charIndex % averageSyllableLength === 0;
+    if (shouldBeep) {
+      const currChunk = chunkEls[chunkEls.length - 1];
+      if (currChunk) {
+        if (!currChunk.beeps) {
+          currChunk.beeps = [];
+        }
+        const beep = {
+          time: totalDelay,
+          duration: beepDuration,
+          syllableIndex: Math.floor(wordLength / averageSyllableLength),
+        };
+        currChunk.beeps.push(beep);
+      }
       if (debug) {
+        // color beep span
         span.style["backgroundColor"] = `hsl(185, 100%, 50%)`;
       }
-    } else {
-      syllableLength += 1;
     }
     if (spaceLength === 1) {
       pauseSpan = span;
     }
     if (isPause && pauseSpan && debug) {
+      // color pause span (longer time = darker color)
       pauseSpan.style["backgroundColor"] = `hsla(0, 100%, 50%, ${
         (spaceLength - 1) / 5
       })`;
@@ -359,7 +511,7 @@ const getAnimatedSpanElements = (
       marks.pop();
     }
   }
-  return [spanEls, chunkEls, beeps];
+  return [spanEls, chunkEls];
 };
 
 const isHidden = (content: string, hiddenRegex?: string): boolean => {
@@ -433,8 +585,10 @@ export const executeDisplayCommand = (
     : objectMap?.["character"]?.["_"]
     ? (objectMap?.["_"] as CharacterConfig)
     : undefined;
-  const validCharacterConfig: CharacterConfig =
-    characterConfig || defaultCharacterConfig;
+  const validCharacterConfig: CharacterConfig = {
+    ...defaultCharacterConfig,
+    ...(characterConfig || {}),
+  };
 
   const validCharacter =
     type === "dialogue" &&
@@ -578,7 +732,7 @@ export const executeDisplayCommand = (
       ? (null as unknown as string)
       : "none";
   }
-  const [spanEls, chunkEls, beeps] = getAnimatedSpanElements(
+  const [spanEls, chunkEls] = getAnimatedSpanElements(
     type,
     evaluatedContent?.trimStart(),
     valueMap,
@@ -586,6 +740,12 @@ export const executeDisplayCommand = (
     instant,
     debug
   );
+  const beeps = chunkEls.flatMap((chunk) => {
+    if (!chunk.beeps) {
+      return [];
+    }
+    return chunk.beeps;
+  });
   contentElEntries.forEach(({ key, value }) => {
     if (value) {
       if (key === type) {
@@ -635,16 +795,86 @@ export const executeDisplayCommand = (
       game.synth.stopInstrument(commandType, fadeOutDuration);
       handleFinished();
     } else {
-      const dialogueTones = parseTones(validCharacterConfig?.tone || "");
-      const tones: Tone[] = beeps.flatMap(({ time, duration }) => {
-        const semiToneDuration = (duration || 0) / dialogueTones.length;
-        return dialogueTones.map((t, i) => ({
-          note: t.note,
-          type: t.type,
-          velocity: t.velocity,
-          time: time + i * semiToneDuration,
-          duration: semiToneDuration,
-        }));
+      const modalTone = parseTone(validCharacterConfig?.tone || "");
+      const modalNote = modalTone?.waves?.[0]?.note;
+      const modalPitch: number =
+        !modalNote || typeof modalNote === "number"
+          ? Number(modalNote) || 0
+          : convertNoteToHertz(modalNote);
+      const tones: Tone[] = chunkEls.flatMap((chunk): Tone[] => {
+        const chunkBeeps = chunk.beeps;
+        if (!chunkBeeps) {
+          return [];
+        }
+
+        const downdriftBeeps: Tone[] = [];
+        const lastWordBeeps: Tone[] = [];
+        let isLastWord = true;
+        for (let i = chunkBeeps.length - 1; i >= 0; i -= 1) {
+          const beep: Beep | undefined = chunkBeeps[i];
+          if (beep) {
+            if (isLastWord) {
+              lastWordBeeps.unshift(beep);
+            } else {
+              downdriftBeeps.unshift(beep);
+            }
+          }
+          if (beep?.syllableIndex === 0) {
+            isLastWord = false;
+          }
+        }
+
+        chunkBeeps.forEach((b: Beep) => {
+          b.waves = [...(modalTone?.waves || [])];
+          b.waves[0] = { ...(b.waves[0] || {}), note: modalPitch };
+        });
+
+        // TODO: Fluctuate downdrift beeps
+        const downdriftBend = getBend(
+          "downdrift",
+          validCharacterConfig.intonation
+        );
+        downdriftBeeps.forEach((b, i) => {
+          const progress = i / (downdriftBeeps.length - 1);
+          const bendIndex = Math.floor(progress * (downdriftBend.length - 1));
+          const semitones = downdriftBend[bendIndex] || 0;
+          if (b.waves?.[0]?.note) {
+            b.waves[0].note = transpose(modalPitch, semitones);
+          }
+        });
+
+        // TODO: Interpolate between pitch changes
+        const finalStressType = getStressType(
+          chunk.phrase,
+          validCharacterConfig.prosody
+        );
+        const finalStressBend = getBend(
+          finalStressType,
+          validCharacterConfig.intonation
+        );
+        if (lastWordBeeps.length === 1) {
+          const firstSyllableBeep = lastWordBeeps[0];
+          if (firstSyllableBeep) {
+            // Bend syllable
+            // TODO: Apply when bend filling tone array
+            firstSyllableBeep.bend = finalStressBend;
+            // Double syllable duration
+            firstSyllableBeep.duration = (firstSyllableBeep.duration || 0) * 2;
+          }
+        } else {
+          lastWordBeeps.forEach((b, i) => {
+            const progress = i / (lastWordBeeps.length - 1);
+            const bendIndex = Math.floor(
+              progress * (finalStressBend.length - 1)
+            );
+            const semitones = finalStressBend[bendIndex] || 0;
+            if (b.waves?.[0]?.note) {
+              b.waves[0].note = transpose(modalPitch, semitones);
+            }
+          });
+        }
+
+        return chunkBeeps as Tone[];
       });
       game.synth.configureInstrument(commandType);
       game.synth.playInstrument(commandType, tones);

@@ -14,27 +14,29 @@ export const fillArrayWithTones = (
   }
 
   tones.forEach((tone) => {
-    const note = tone.note || "";
     const time = tone.time || 0;
     const duration = tone.duration || 0;
-    const velocity = typeof tone.velocity === "number" ? tone.velocity : 1;
     const timeInSamples = Math.floor(time * sampleRate);
     const durationInSamples = Math.floor(duration * sampleRate);
     const startIndex = timeInSamples;
     const endIndex = timeInSamples + durationInSamples;
-    const type = tone.type || "sine";
-    const hertz = convertNoteToHertz(note);
+    tone.waves?.forEach((wave) => {
+      const note = wave.note || "";
+      const velocity = typeof wave.velocity === "number" ? wave.velocity : 1;
+      const type = wave.type || "sine";
+      const hertz = convertNoteToHertz(note);
 
-    // Fill with Oscillator
-    fillArrayWithOscillation(
-      buffer,
-      startIndex,
-      endIndex,
-      sampleRate,
-      hertz,
-      velocity,
-      type
-    );
+      // Fill with Oscillator
+      fillArrayWithOscillation(
+        buffer,
+        startIndex,
+        endIndex,
+        sampleRate,
+        hertz,
+        velocity,
+        type
+      );
+    });
 
     // Ease in and out to prevent crackles
     easeInOutArray(

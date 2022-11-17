@@ -3,7 +3,10 @@ import { Hertz } from "../types/Hertz";
 import { Note } from "../types/Note";
 import { parseNote } from "./parseNote";
 
-export const convertNoteToHertz = (note: Note | string): Hertz => {
+export const convertNoteToHertz = (note: Note | string | number): Hertz => {
+  if (typeof note === "number") {
+    return note;
+  }
   if (!note) {
     return 0;
   }

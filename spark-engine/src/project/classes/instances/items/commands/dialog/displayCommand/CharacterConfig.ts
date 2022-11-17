@@ -1,6 +1,12 @@
+import { Intonation, StressType } from "../../../../../../../game";
+
+export interface Prosody extends Partial<Record<StressType, RegExp | string>> {}
+
 export interface CharacterConfig {
-  tone?: string;
+  name?: string;
   image?: string;
   color?: string;
-  name?: string;
+  tone?: string;
+  intonation?: Intonation;
+  prosody?: Prosody;
 }

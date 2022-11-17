@@ -4,11 +4,11 @@ import { Tone } from "../types/Tone";
 const TONE_REGEX =
   /[(<{[]([(<{[][^\n\r(<{[\]}>)]*[}]|[^\n\r(<{[\]}>)]*)[\]}>)]/g;
 
-export const parseTones = (str: string): Tone[] => {
-  const tones: Tone[] = [];
+export const parseTone = (str: string): Tone | undefined => {
   if (!str) {
-    return tones;
+    return undefined;
   }
+  const tone: Tone = {};
   const replacer = (match: string, inner: string): string => {
     const sine = match.startsWith("(") && match.endsWith(")");
     const triangle = match.startsWith("<") && match.endsWith(">");
@@ -30,10 +30,13 @@ export const parseTones = (str: string): Tone[] => {
         velocityString && !Number.isNaN(velocityString)
           ? Number(velocityString)
           : 1;
-      tones.push({ note, type, velocity });
+      if (!tone.waves) {
+        tone.waves = [];
+      }
+      tone.waves.push({ note, type, velocity });
     }
     return match;
   };
   str.replace(TONE_REGEX, replacer);
-  return tones;
+  return tone;
 };

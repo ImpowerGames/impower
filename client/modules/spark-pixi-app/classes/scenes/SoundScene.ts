@@ -1,6 +1,6 @@
 import { IMediaInstance, utils, webaudio } from "@pixi/sound";
 import * as PIXI from "pixi.js";
-import { Tone } from "../../../../../spark-engine";
+import { convertNoteToHertz, Tone } from "../../../../../spark-engine";
 import { ToneSound } from "../../plugins/midi-sound/classes/ToneSound";
 import { SparkScene } from "../SparkScene";
 
@@ -12,14 +12,21 @@ interface Instrument {
 export class SoundScene extends SparkScene {
   _instruments: Map<string, Instrument> = new Map();
 
-  waveform?: PIXI.Sprite;
+  waveformSprite?: PIXI.Sprite;
 
-  playhead?: PIXI.Graphics;
+  pitchGraphic?: PIXI.Graphics;
+
+  playheadGraphic?: PIXI.Graphics;
 
   override init(): void {
-    this.waveform = new PIXI.Sprite(PIXI.Texture.EMPTY);
-    this.playhead = new PIXI.Graphics();
-    this.app.stage.addChild(this.waveform, this.playhead);
+    this.waveformSprite = new PIXI.Sprite(PIXI.Texture.EMPTY);
+    this.pitchGraphic = new PIXI.Graphics();
+    this.playheadGraphic = new PIXI.Graphics();
+    this.app.stage.addChild(
+      this.waveformSprite,
+      this.pitchGraphic,
+      this.playheadGraphic
+    );
   }
 
   override start(): void {
@@ -60,15 +67,59 @@ export class SoundScene extends SparkScene {
   }
 
   renderWaveform(instrument: Instrument): void {
-    const height = this.app.renderer.height * 0.25;
+    const factor = 0.25;
+    const width = this.app.renderer.width;
+    const height = this.app.renderer.height * factor;
     const texture = utils.render(instrument.sound, {
-      width: this.app.renderer.width,
+      width,
       height,
       fill: "#999",
     });
-    this.waveform.texture = new PIXI.Texture(texture);
-    this.playhead.clear();
-    this.playhead.beginFill(0xff0000).drawRect(0, 0, 1, height);
+    this.waveformSprite.texture = new PIXI.Texture(texture);
+
+    const endX = width;
+    const startX = 0;
+    const startY = height;
+
+    this.pitchGraphic.clear();
+    this.pitchGraphic.lineStyle(2, 0x0000ff);
+    const tones = instrument.sound.tones;
+    const sampleRate = instrument.sound.context.audioContext.sampleRate;
+    const durationInSamples = Math.max(
+      1,
+      sampleRate * instrument.sound.duration
+    );
+    const buffer = new Float32Array(durationInSamples);
+    tones.forEach((tone) => {
+      const time = tone.time || 0;
+      const duration = tone.duration || 0;
+      const timeInSamples = Math.floor(time * sampleRate);
+      const durationInSamples = Math.floor(duration * sampleRate);
+      const startIndex = timeInSamples;
+      const endIndex = timeInSamples + durationInSamples;
+      const wave = tone.waves[0];
+      const note = wave.note || "";
+      const hertz = convertNoteToHertz(note);
+      for (let i = startIndex; i < endIndex; i += 1) {
+        buffer[i] = hertz;
+      }
+    });
+    this.pitchGraphic.moveTo(startX, startY + buffer[0] * -factor);
+    for (let x = startX; x < endX; x += 1) {
+      const timeProgress = (x - startX) / (endX - 1);
+      const bufferIndex = Math.floor(timeProgress * (buffer.length - 1));
+      const hertz = buffer[bufferIndex];
+      const delta = hertz * -factor;
+      const y = startY + delta;
+      if (hertz !== 0) {
+        this.pitchGraphic.lineTo(x, y);
+      }
+    }
+
+    this.playheadGraphic.clear();
+    this.playheadGraphic
+      .beginFill(0xff0000)
+      .drawRect(0, 0, 1, this.app.renderer.height);
   }
 
   override update(_timeMS: number, _deltaMS: number): void {
@@ -79,8 +130,9 @@ export class SoundScene extends SparkScene {
         if (this.context.game.debug.state.debugging) {
           this.renderWaveform(instrument);
           instance.on("progress", (progress) => {
-            if (this.playhead && this.waveform) {
-              this.playhead.x = this.waveform.texture.width * progress;
+            if (this.playheadGraphic && this.waveformSprite) {
+              this.playheadGraphic.x =
+                this.waveformSprite.texture.width * progress;
             }
           });
         }

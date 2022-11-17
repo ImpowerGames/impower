@@ -15,7 +15,8 @@ export const fillArrayWithOscillation = (
     const v = (i * frequency) / sampleRate;
     const oscillator = OSCILLATORS?.[type];
     if (oscillator) {
-      buffer[i] = velocity * oscillator(v);
+      buffer[i] = buffer[i] || 0;
+      buffer[i] += velocity * oscillator(v);
     }
   }
 };

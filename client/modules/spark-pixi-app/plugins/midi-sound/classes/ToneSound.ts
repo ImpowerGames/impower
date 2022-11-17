@@ -2,6 +2,12 @@ import { Options, Sound, webaudio } from "@pixi/sound";
 import { fillArrayWithTones, Tone } from "../../../../../../spark-engine";
 
 export class ToneSound extends Sound {
+  protected _tones: Tone[];
+
+  public get tones(): readonly Tone[] {
+    return this._tones;
+  }
+
   constructor(tones?: Tone[], options?: Options) {
     super(new webaudio.WebAudioMedia(), {
       autoPlay: false,
@@ -23,12 +29,14 @@ export class ToneSound extends Sound {
   }
 
   loadTones(tones: Tone[]): void {
-    const duration = Math.max(
-      ...tones.map((t) => (t?.time || 0) + (t?.duration || 0))
-    );
+    this._tones = tones;
+    const duration =
+      tones?.length > 0
+        ? Math.max(...tones.map((t) => (t?.time || 0) + (t?.duration || 0)))
+        : 0;
     const audioContext = this.context.audioContext;
     const sampleRate = this.context.audioContext.sampleRate;
-    const durationInSamples = sampleRate * duration;
+    const durationInSamples = Math.max(1, sampleRate * duration);
     const media = this.media as webaudio.WebAudioMedia;
     const buffer =
       media.buffer ||

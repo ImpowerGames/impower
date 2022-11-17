@@ -13,7 +13,7 @@ import { SyntaxNode, Tree } from "@lezer/common";
 import {
   fillArrayWithTones,
   FUNDAMENTAL_KEYS,
-  parseTones,
+  parseTone,
   SAMPLE_RATE,
 } from "../../../../spark-engine";
 import {
@@ -55,12 +55,12 @@ const context = new AudioContext();
 const playTone = (toneString: string, duration: number): void => {
   const durationInSamples = Math.floor(duration * SAMPLE_RATE);
   const fArray = new Float32Array(durationInSamples);
-  const tones = parseTones(toneString).map((t) => ({
-    ...t,
-    time: 0,
-    duration,
-  }));
-  fillArrayWithTones(fArray, SAMPLE_RATE, tones);
+  const tone = parseTone(toneString);
+  if (tone) {
+    tone.time = 0;
+    tone.duration = duration;
+  }
+  fillArrayWithTones(fArray, SAMPLE_RATE, [tone]);
   const buffer = context.createBuffer(1, fArray.length, context.sampleRate);
   buffer.copyToChannel(fArray, 0);
   const source = context.createBufferSource();
