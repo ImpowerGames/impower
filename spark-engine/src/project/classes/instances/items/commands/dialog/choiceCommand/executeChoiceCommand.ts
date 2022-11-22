@@ -1,13 +1,9 @@
 import { format } from "../../../../../../../../../spark-evaluate";
-import { ChoiceCommandData } from "../../../../../../../data";
+import {
+  ChoiceCommandData,
+  DisplayCommandConfig,
+} from "../../../../../../../data";
 import { SparkGame } from "../../../../../../../game";
-import { ChoiceCommandConfig } from "./ChoiceCommandConfig";
-
-export const defaultChoiceCommandConfig: ChoiceCommandConfig = {
-  choice: {
-    className: "Choice",
-  },
-};
 
 export const executeChoiceCommand = (
   game: SparkGame,
@@ -15,7 +11,7 @@ export const executeChoiceCommand = (
   context?:
     | {
         valueMap: Record<string, unknown>;
-        objectMap: Record<string, Record<string, unknown>>;
+        objectMap: { [type: string]: Record<string, unknown> };
       }
     | undefined,
   index?: number,
@@ -27,15 +23,12 @@ export const executeChoiceCommand = (
 
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
-  const commandConfig = objectMap?.["config"]?.["CHOICE"]
-    ? (objectMap?.["CHOICE"] as ChoiceCommandConfig)
-    : undefined;
-  const validCommandConfig = commandConfig || defaultChoiceCommandConfig;
-  const structName = "DISPLAY";
+  const structName = "display";
+  const config = objectMap?.[structName]?.["default"] as DisplayCommandConfig;
 
   const contentEls = game.ui.findAllUIElements(
     structName,
-    validCommandConfig?.choice?.className
+    config?.choice?.className || "Choice"
   );
   const [replaceTagsResult] = format(content, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);

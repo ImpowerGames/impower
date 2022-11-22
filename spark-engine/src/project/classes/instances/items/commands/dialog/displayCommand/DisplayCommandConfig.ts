@@ -1,11 +1,9 @@
-import { CharacterConfig } from "./CharacterConfig";
 import { TypingConfig } from "./TypingConfig";
 
 export interface DisplayProperties {
   className?: string;
   hidden?: string;
   typing?: TypingConfig;
-  character?: CharacterConfig;
   indicator?: {
     className: string;
     fadeDuration?: number;

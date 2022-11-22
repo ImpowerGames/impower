@@ -37,7 +37,7 @@ export class SparkContext {
     [id: string]: {
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
-      objectMap: Record<string, Record<string, unknown>>;
+      objectMap: { [type: string]: Record<string, unknown> };
       triggers: string[];
       parameters: string[];
       commands: {
@@ -51,7 +51,7 @@ export class SparkContext {
     [id: string]: {
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
-      objectMap: Record<string, Record<string, unknown>>;
+      objectMap: { [type: string]: Record<string, unknown> };
       triggers: string[];
       parameters: string[];
       commands: {

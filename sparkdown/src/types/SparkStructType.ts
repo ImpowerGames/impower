@@ -1,10 +1,10 @@
 export type SparkStructType =
   | "list"
   | "map"
-  | "config"
   | "ui"
   | "style"
   | "camera"
   | "entity"
   | "character"
-  | "animation";
+  | "animation"
+  | "display";

@@ -3,6 +3,7 @@ import { format } from "../../../../../../../../../spark-evaluate";
 import {
   DisplayCommandConfig,
   DisplayCommandData,
+  DisplayProperties,
 } from "../../../../../../../data";
 import {
   convertNoteToHertz,
@@ -44,7 +45,7 @@ const finalStressTypes: StressType[] = [
 ];
 
 const defaultIntonation: Intonation = {
-  fluctuation: "+2 +1",
+  fluctuation: "+1 +1",
   downdrift: "+2 0 -2", // '-_
   italicized: "0 +2 +1", // _'-
   bolded: "0 +1 0", // _-_
@@ -78,34 +79,38 @@ const defaultIntonation: Intonation = {
 // };
 
 const defaultProsody: Prosody = {
+  wordPauseScale: 2,
+  phrasePauseScale: 6,
+  syllableLength: 3,
   /** You (CANNOT) say that. */
   capitalized: /[^a-z.!?\n]+[A-Z][A-Z]+[^a-z.!?\n]/,
   /** Who's (that)? */
   resolvedQuestion:
-    /\b(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b([^\t\n\r ]+)[?]$/,
+    /\b(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b([^\t\n\r ]+)[?][ ]*$/,
   /** Are you (serious)? */
-  question: /\b([^\t\n\r ]+)[?]+$/,
+  question: /\b([^\t\n\r ]+)[?]+[ ]*$/,
   /** Oh (wow)~ */
-  lilt: /\b([^\t\n\r ~]+)[~]+$/,
+  lilt: /\b([^\t\n\r ~]+)[~]+[ ]*$/,
   /** Stop (that)!! */
-  command: /\b([^\t\n\r !]+)[!][!]+$/,
+  command: /\b([^\t\n\r !]+)[!][!]+[ ]*$/,
   /** That's (incredible)! */
-  exclamation: /\b([^\t\n\r !]+)[!]$/,
+  exclamation: /\b([^\t\n\r !]+)[!][ ]*$/,
   /** Uh (right)... */
-  tentative: /\b([^\t\n\r .]+)[.][.]+$/,
+  tentative: /\b([^\t\n\r .]+)[.][.]+[ ]*$/,
   /** And (then), */
-  anticipation: /\b([^\t\n\r ]+)[,]$/,
+  anticipation: /\b([^\t\n\r ]+)[,][ ]*$/,
   /** They (left). */
-  statement: /\b([^\t\n\r .]+)[.]$/,
+  statement: /\b([^\t\n\r .]+)[.][ ]*$/,
+};
+
+const defaultCharacterConfig = {
+  tone: "(G4*0.25)(G5*0.25)(D#5*0.125)",
+  intonation: defaultIntonation,
+  prosody: defaultProsody,
 };
 
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   default: {
-    character: {
-      tone: "(G4*0.25)(G5*0.25)(D#5*0.125)",
-      intonation: defaultIntonation,
-      prosody: defaultProsody,
-    },
     indicator: {
       className: "Indicator",
       fadeDuration: 0.15,
@@ -118,13 +123,6 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
       letterDelay: 0.025,
       beepDuration: 0.05,
       fadeDuration: 0,
-    },
-    character: {
-      prosody: {
-        wordPauseScale: 3,
-        phrasePauseScale: 6,
-        syllableLength: 3,
-      },
     },
   },
 };
@@ -217,10 +215,10 @@ const get = (...vals: (number | undefined)[]): number => {
 
 const getAnimatedSpanElements = (
   game: SparkGame,
-  type: string,
   content: string,
   valueMap: Record<string, unknown>,
-  config: DisplayCommandConfig,
+  displayProps: DisplayProperties | undefined,
+  characterProps: CharacterConfig | undefined,
   instant = false,
   debug?: boolean
 ): [
@@ -232,31 +230,14 @@ const getAnimatedSpanElements = (
     beeps?: Beep[];
   }[]
 ] => {
-  const letterFadeDuration = get(
-    config[type]?.typing?.fadeDuration,
-    config?.default?.typing?.fadeDuration,
-    0
-  );
-  const letterDelay = get(
-    config[type]?.typing?.letterDelay,
-    config?.default?.typing?.letterDelay,
-    0
-  );
-  const pauseScale = get(
-    config[type]?.character?.prosody?.phrasePauseScale,
-    config?.default?.character?.prosody?.phrasePauseScale,
-    1
-  );
-  const pauseDelay = letterDelay * pauseScale;
-  const averageSyllableLength = get(
-    config[type]?.character?.prosody?.syllableLength,
-    config?.default?.character?.prosody?.syllableLength
-  );
-  const beepDuration = get(
-    config[type]?.typing?.beepDuration,
-    config?.default?.typing?.beepDuration,
-    letterDelay
-  );
+  const letterFadeDuration = get(displayProps?.typing?.fadeDuration, 0);
+  const letterDelay = get(displayProps?.typing?.letterDelay, 0);
+  const wordPauseScale = get(characterProps?.prosody?.wordPauseScale, 1);
+  const phrasePauseScale = get(characterProps?.prosody?.phrasePauseScale, 1);
+  const wordPauseDuration = letterDelay * wordPauseScale;
+  const phrasePauseDuration = letterDelay * phrasePauseScale;
+  const averageSyllableLength = get(characterProps?.prosody?.syllableLength);
+  const beepDuration = get(displayProps?.typing?.beepDuration, letterDelay);
 
   const partEls: IElement[] = [];
   const spanEls: IElement[] = [];
@@ -274,7 +255,7 @@ const getAnimatedSpanElements = (
   let spaceLength = 0;
   let pauseLength = 0;
   let unpauseLength = 0;
-  let pauseSpan: IElement | undefined = undefined;
+  let firstSpaceSpan: IElement | undefined = undefined;
   const imageUrls = new Set<string>();
   const audioUrls = new Set<string>();
   let hideSpace = false;
@@ -399,8 +380,9 @@ const getAnimatedSpanElements = (
         wordLength += 1;
       }
     }
-    const isPause = spaceLength > 1;
-    if (isPause) {
+    const isWordPause = spaceLength === 1;
+    const isPhrasePause = spaceLength > 1;
+    if (isPhrasePause) {
       pauseLength += 1;
       unpauseLength = 0;
       if (pauseLength === 1) {
@@ -455,25 +437,29 @@ const getAnimatedSpanElements = (
       }
     }
     if (spaceLength === 1) {
-      pauseSpan = span;
+      firstSpaceSpan = span;
     }
-    if (isPause && pauseSpan && debug) {
+    if ((isWordPause || isPhrasePause) && firstSpaceSpan && debug) {
       // color pause span (longer time = darker color)
-      pauseSpan.style["backgroundColor"] = `hsla(0, 100%, 50%, ${
-        (spaceLength - 1) / 5
+      firstSpaceSpan.style["backgroundColor"] = `hsla(0, 100%, 50%, ${
+        spaceLength / 5
       })`;
     }
     if (spaceLength > 0) {
       if (hideSpace) {
-        if (pauseSpan) {
-          pauseSpan.textContent = "";
+        if (firstSpaceSpan) {
+          firstSpaceSpan.textContent = "";
         }
         span.textContent = "";
       }
     } else {
       hideSpace = false;
     }
-    totalDelay += isPause ? pauseDelay : letterDelay;
+    totalDelay += isPhrasePause
+      ? phrasePauseDuration
+      : isWordPause
+      ? wordPauseDuration
+      : letterDelay;
     i += 1;
   }
   // Invalidate any leftover open markers
@@ -514,7 +500,7 @@ export const executeDisplayCommand = (
   data?: DisplayCommandData,
   context?: {
     valueMap: Record<string, unknown>;
-    objectMap: Record<string, Record<string, unknown>>;
+    objectMap: { [type: string]: Record<string, unknown> };
     instant?: boolean;
     debug?: boolean;
     fadeOutDuration?: number;
@@ -527,18 +513,17 @@ export const executeDisplayCommand = (
 
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
-  const displayConfig = objectMap?.["config"]?.["DISPLAY"]
-    ? (objectMap?.["DISPLAY"] as DisplayCommandConfig)
-    : undefined;
-  const validDisplayConfig = displayConfig || defaultDisplayCommandConfig;
+  const structName = "display";
+  const displayConfig =
+    (objectMap?.[structName]?.["default"] as DisplayCommandConfig) ||
+    defaultDisplayCommandConfig;
   const fadeOutDuration = context?.fadeOutDuration || 0;
-  const structName = "DISPLAY";
 
   const assetsOnly = type === "assets";
   if (assetsOnly) {
     const backgroundEl = game.ui.findFirstUIElement(
       structName,
-      validDisplayConfig?.background?.className || "Background"
+      displayConfig?.background?.className || "Background"
     );
     if (backgroundEl) {
       const imageName = assets?.[0] || "";
@@ -559,29 +544,25 @@ export const executeDisplayCommand = (
   const content = data?.content;
   const autoAdvance = data?.autoAdvance;
   const clearPreviousText = data?.clearPreviousText;
-  const characterVariableName = character
+  const characterKey = character
     .replace(/([ ])/g, "_")
     .replace(/([.'"`])/g, "");
 
-  const characterConfig = objectMap?.["character"]?.[characterVariableName]
-    ? (objectMap?.[characterVariableName] as CharacterConfig)
-    : objectMap?.["config"]?.["CHARACTER"]
-    ? (objectMap?.["CHARACTER"] as CharacterConfig)
-    : undefined;
-  const validCharacterConfig: CharacterConfig = {
-    ...(validDisplayConfig?.default?.character || {}),
-    ...(validDisplayConfig?.[type]?.character || {}),
-    ...(characterConfig || {}),
+  const characterConfig = {
+    ...(defaultCharacterConfig || {}),
+    ...((objectMap?.["character"]?.["default"] as CharacterConfig) || {}),
+    ...((objectMap?.["character"]?.[type] as CharacterConfig) || {}),
+    ...((objectMap?.["character"]?.[characterKey] as CharacterConfig) || {}),
   };
 
   const validCharacter =
     type === "dialogue" &&
-    !isHidden(character, validDisplayConfig?.character?.hidden)
-      ? validCharacterConfig?.name || character || ""
+    !isHidden(character, displayConfig?.character?.hidden)
+      ? characterConfig?.name || character || ""
       : "";
   const validParenthetical =
     type === "dialogue" &&
-    !isHidden(parenthetical, validDisplayConfig?.parenthetical?.hidden)
+    !isHidden(parenthetical, displayConfig?.parenthetical?.hidden)
       ? parenthetical || ""
       : "";
 
@@ -591,30 +572,26 @@ export const executeDisplayCommand = (
   const commandType = `${data?.reference?.refTypeId || ""}`;
 
   const instant =
-    context?.instant ||
-    !get(
-      validDisplayConfig?.[type || ""]?.typing?.letterDelay,
-      validDisplayConfig?.default?.typing?.letterDelay
-    );
+    context?.instant || !get(displayConfig?.[type]?.typing?.letterDelay);
   const debug = context?.debug;
   const indicatorFadeDuration =
-    validDisplayConfig?.default?.indicator?.fadeDuration || 0;
+    displayConfig?.default?.indicator?.fadeDuration || 0;
 
   const descriptionGroupEl = game.ui.findFirstUIElement(
     structName,
-    validDisplayConfig?.description_group?.className || "DescriptionGroup"
+    displayConfig?.description_group?.className || "DescriptionGroup"
   );
   const dialogueGroupEl = game.ui.findFirstUIElement(
     structName,
-    validDisplayConfig?.dialogue_group?.className || "DialogueGroup"
+    displayConfig?.dialogue_group?.className || "DialogueGroup"
   );
   const portraitEl = game.ui.findFirstUIElement(
     structName,
-    validDisplayConfig?.portrait?.className || "Portrait"
+    displayConfig?.portrait?.className || "Portrait"
   );
   const indicatorEl = game.ui.findFirstUIElement(
     structName,
-    validDisplayConfig?.default?.indicator?.className || "Indicator"
+    displayConfig?.default?.indicator?.className || "Indicator"
   );
 
   if (portraitEl) {
@@ -630,7 +607,7 @@ export const executeDisplayCommand = (
     }
   }
 
-  hideChoices(game, structName, validDisplayConfig);
+  hideChoices(game, structName, displayConfig);
 
   if (dialogueGroupEl) {
     dialogueGroupEl.style["display"] = type === "dialogue" ? null : "none";
@@ -641,46 +618,46 @@ export const executeDisplayCommand = (
 
   const characterEl = game.ui.findFirstUIElement(
     structName,
-    validDisplayConfig?.character?.className || "Character"
+    displayConfig?.character?.className || "Character"
   );
   const parentheticalEl = game.ui.findFirstUIElement(
     structName,
-    validDisplayConfig?.parenthetical?.className || "Parenthetical"
+    displayConfig?.parenthetical?.className || "Parenthetical"
   );
   const contentElEntries = [
     {
       key: "dialogue",
       value: game.ui.findFirstUIElement(
         structName,
-        validDisplayConfig?.dialogue?.className || "Dialogue"
+        displayConfig?.dialogue?.className || "Dialogue"
       ),
     },
     {
       key: "action",
       value: game.ui.findFirstUIElement(
         structName,
-        validDisplayConfig?.action?.className || "Action"
+        displayConfig?.action?.className || "Action"
       ),
     },
     {
       key: "centered",
       value: game.ui.findFirstUIElement(
         structName,
-        validDisplayConfig?.centered?.className || "Centered"
+        displayConfig?.centered?.className || "Centered"
       ),
     },
     {
       key: "scene",
       value: game.ui.findFirstUIElement(
         structName,
-        validDisplayConfig?.scene?.className || "Scene"
+        displayConfig?.scene?.className || "Scene"
       ),
     },
     {
       key: "transition",
       value: game.ui.findFirstUIElement(
         structName,
-        validDisplayConfig?.transition?.className || "Transition"
+        displayConfig?.transition?.className || "Transition"
       ),
     },
   ];
@@ -695,10 +672,10 @@ export const executeDisplayCommand = (
   }
   const [spanEls, chunkEls] = getAnimatedSpanElements(
     game,
-    type,
     evaluatedContent?.trimStart(),
     valueMap,
-    validDisplayConfig,
+    displayConfig?.[type],
+    characterConfig,
     instant,
     debug
   );
@@ -758,7 +735,7 @@ export const executeDisplayCommand = (
       game.synth.stopInstrument(commandType, fadeOutDuration);
       handleFinished();
     } else {
-      const modalTone = parseTone(validCharacterConfig?.tone || "");
+      const modalTone = parseTone(characterConfig?.tone || "");
       const modalNote = modalTone?.waves?.[0]?.note;
       const modalPitch: number =
         !modalNote || typeof modalNote === "number"
@@ -794,12 +771,9 @@ export const executeDisplayCommand = (
 
         const fluctuationBend = getBend(
           "fluctuation",
-          validCharacterConfig.intonation
+          characterConfig.intonation
         );
-        const downdriftBend = getBend(
-          "downdrift",
-          validCharacterConfig.intonation
-        );
+        const downdriftBend = getBend("downdrift", characterConfig.intonation);
         let direction = -1;
         downdriftBeeps.forEach((b, i) => {
           direction *= -1;
@@ -825,11 +799,11 @@ export const executeDisplayCommand = (
         // TODO: Interpolate between pitch changes
         const finalStressType = getStressType(
           chunk.phrase,
-          validCharacterConfig.prosody
+          characterConfig.prosody
         );
         const finalStressBend = getBend(
           finalStressType,
-          validCharacterConfig.intonation
+          characterConfig.intonation
         );
         if (lastWordBeeps.length === 1) {
           const firstSyllableBeep = lastWordBeeps[0];

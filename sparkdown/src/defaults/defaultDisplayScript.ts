@@ -1,5 +1,5 @@
 export const defaultDisplayScript = `
-@ ui DISPLAY:
+@ ui display:
   Background
   Portrait
   ChoiceGroup:

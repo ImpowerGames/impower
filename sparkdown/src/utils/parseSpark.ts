@@ -23,7 +23,7 @@ import {
   SparkChoiceToken,
   SparkDialogueToken,
   SparkDisplayToken,
-  SparkToken,
+  SparkToken
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";

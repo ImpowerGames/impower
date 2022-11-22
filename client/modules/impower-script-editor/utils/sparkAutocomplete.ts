@@ -180,15 +180,11 @@ export const structSnippets: readonly Completion[] = [
     label: "@ map",
     type: "struct",
   }),
-  snip("@ config ${}${CONFIG_NAME}:${}", {
-    label: "@ config",
-    type: "struct",
-  }),
   snip("@ ui ${}${UI_NAME}:${}", {
     label: "@ ui",
     type: "struct",
   }),
-  snip("@ style ${}${STYLE_NAME}:${}", {
+  snip("@ style ${}${Target}:${}", {
     label: "@ style",
     type: "struct",
   }),
@@ -206,6 +202,10 @@ export const structSnippets: readonly Completion[] = [
   }),
   snip("@ animation ${}${ANIMATION_NAME}:${}", {
     label: "@ animation",
+    type: "struct",
+  }),
+  snip("@ display ${}${type}:${}", {
+    label: "@ display",
     type: "struct",
   }),
 ];

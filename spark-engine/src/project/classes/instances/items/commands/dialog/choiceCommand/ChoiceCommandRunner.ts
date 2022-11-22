@@ -153,7 +153,7 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     data: ChoiceCommandData,
     context: {
       valueMap: Record<string, unknown>;
-      objectMap: Record<string, Record<string, unknown>>;
+      objectMap: { [type: string]: Record<string, unknown> };
     }
   ): boolean {
     executeChoiceCommand(game, data, context);

@@ -89,86 +89,92 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return [this._config.root.id, this._config.styleClassName, ...path];
   }
 
-  loadStyles(objectMap: Record<string, Record<string, unknown>>): void {
+  loadStyles(objectMap: { [type: string]: Record<string, unknown> }): void {
     const styleEl = this.getOrCreateStyleRoot();
     if (!objectMap) {
       return;
     }
-    const imports = Object.values(objectMap?.["import"] || {});
     let content = "";
-    content += `${imports.map((x) => `\n@import url("${x}");`)}`;
-    const animationStructNames = Object.keys(objectMap?.["animation"] || {});
-    animationStructNames.forEach((structName) => {
-      if (content) {
-        content += "\n";
-      }
-      const struct = objectMap[structName];
-      const fieldMap: Record<string, string[]> = {};
-      if (struct) {
-        content += `@keyframes ${structName} {\n`;
-        Object.entries(struct || {}).forEach(([fk, fv]) => {
-          if (fk.includes(".")) {
-            const [keyframe, propName] = fk.split(".");
-            if (keyframe && propName) {
-              if (!fieldMap[keyframe]) {
-                fieldMap[keyframe] = [];
-              }
-              const [cssProp, cssValue] = getCSSPropertyKeyValue(propName, fv);
-              fieldMap[keyframe]?.push(`${cssProp}: ${cssValue};`);
-            }
-          }
-        });
-        Object.entries(fieldMap || {}).forEach(([keyframe, fields]) => {
-          const fieldsContent = `{\n  ${fields.join(`\n  `)}\n}`;
-          content += `${keyframe} ${fieldsContent}`;
-        });
-        content += `\n}`;
-      }
-    });
-    const styleStructNames = Object.keys(objectMap?.["style"] || {});
-    styleStructNames.forEach((structName) => {
-      if (content) {
-        content += "\n";
-      }
-      const struct = objectMap[structName];
-      const breakpointMap: Record<string, string[]> = {};
-      Object.entries(struct || {}).forEach(([fk, fv]) => {
-        if (fk.includes(".")) {
-          const [breakpoint, propName] = fk.split(".");
-          if (breakpoint && propName) {
-            if (!breakpointMap[breakpoint]) {
-              breakpointMap[breakpoint] = [];
-            }
-            const [cssProp, cssValue] = getCSSPropertyKeyValue(propName, fv);
-            breakpointMap[breakpoint]?.push(`${cssProp}: ${cssValue};`);
-          }
-        } else {
-          if (!breakpointMap[""]) {
-            breakpointMap[""] = [];
-          }
-          const [cssProp, cssValue] = getCSSPropertyKeyValue(fk, fv);
-          breakpointMap[""].push(`${cssProp}: ${cssValue};`);
-        }
+    Object.entries(objectMap?.["import"] || {}).forEach(([, struct]) => {
+      Object.entries(struct || {}).forEach(([, fv]) => {
+        content += `\n@import url("${fv}");`;
       });
-      Object.entries(breakpointMap || {}).forEach(([breakpoint, fields]) => {
-        const fieldsContent = `{\n  ${fields.join(`\n  `)}\n}`;
+    });
+    Object.entries(objectMap?.["animation"] || {}).forEach(
+      ([structName, struct]) => {
         if (content) {
           content += "\n";
         }
-        if (breakpoint) {
-          content += `.${breakpoint} #${this.config.root.id} .${structName} ${fieldsContent}`;
-        } else {
-          content += `#${this.config.root.id} .${structName} ${fieldsContent}`;
+        const fieldMap: Record<string, string[]> = {};
+        if (struct) {
+          content += `@keyframes ${structName} {\n`;
+          Object.entries(struct || {}).forEach(([fk, fv]) => {
+            if (fk.includes(".")) {
+              const [keyframe, propName] = fk.split(".");
+              if (keyframe && propName) {
+                if (!fieldMap[keyframe]) {
+                  fieldMap[keyframe] = [];
+                }
+                const [cssProp, cssValue] = getCSSPropertyKeyValue(
+                  propName,
+                  fv
+                );
+                fieldMap[keyframe]?.push(`${cssProp}: ${cssValue};`);
+              }
+            }
+          });
+          Object.entries(fieldMap || {}).forEach(([keyframe, fields]) => {
+            const fieldsContent = `{\n  ${fields.join(`\n  `)}\n}`;
+            content += `${keyframe} ${fieldsContent}`;
+          });
+          content += `\n}`;
         }
-      });
-    });
+      }
+    );
+    Object.entries(objectMap?.["style"] || {}).forEach(
+      ([structName, struct]) => {
+        if (content) {
+          content += "\n";
+        }
+        const breakpointMap: Record<string, string[]> = {};
+        Object.entries(struct || {}).forEach(([fk, fv]) => {
+          if (fk.includes(".")) {
+            const [breakpoint, propName] = fk.split(".");
+            if (breakpoint && propName) {
+              if (!breakpointMap[breakpoint]) {
+                breakpointMap[breakpoint] = [];
+              }
+              const [cssProp, cssValue] = getCSSPropertyKeyValue(propName, fv);
+              breakpointMap[breakpoint]?.push(`${cssProp}: ${cssValue};`);
+            }
+          } else {
+            if (!breakpointMap[""]) {
+              breakpointMap[""] = [];
+            }
+            const [cssProp, cssValue] = getCSSPropertyKeyValue(fk, fv);
+            breakpointMap[""].push(`${cssProp}: ${cssValue};`);
+          }
+        });
+        Object.entries(breakpointMap || {}).forEach(([breakpoint, fields]) => {
+          const fieldsContent = `{\n  ${fields.join(`\n  `)}\n}`;
+          if (content) {
+            content += "\n";
+          }
+          if (breakpoint) {
+            content += `.${breakpoint} #${this.config.root.id} .${structName} ${fieldsContent}`;
+          } else {
+            content += `#${this.config.root.id} .${structName} ${fieldsContent}`;
+          }
+        });
+      }
+    );
     if (styleEl.textContent !== content) {
       styleEl.textContent = content;
     }
   }
 
   loadUI(
-    objectMap: Record<string, Record<string, unknown>>,
+    objectMap: { [type: string]: Record<string, unknown> },
     ...uiStructNames: string[]
   ): void {
     const uiEl = this.getOrCreateUIRoot();
@@ -179,7 +185,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       return;
     }
     uiStructNames.forEach((structName) => {
-      const fields = objectMap[structName];
+      const fields = objectMap?.["ui"]?.[structName];
       const hash = getHash(fields).toString();
       const existingStructEl = this.getUIElement(structName);
       if (existingStructEl && existingStructEl.dataset["hash"] !== hash) {

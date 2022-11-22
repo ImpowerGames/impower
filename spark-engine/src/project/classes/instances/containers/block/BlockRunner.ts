@@ -6,7 +6,7 @@ import { CommandRunner } from "../../items/command/CommandRunner";
 export interface BlockContext {
   ids: Record<string, string>;
   valueMap: Record<string, unknown>;
-  objectMap: Record<string, Record<string, unknown>>;
+  objectMap: { [type: string]: Record<string, unknown> };
   triggers: string[];
   parameters: string[];
   commands: {

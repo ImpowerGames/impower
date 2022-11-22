@@ -100,7 +100,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     data: DisplayCommandData,
     context: {
       valueMap: Record<string, unknown>;
-      objectMap: Record<string, Record<string, unknown>>;
+      objectMap: { [type: string]: Record<string, unknown> };
       instant?: boolean;
       debug?: boolean;
     }
