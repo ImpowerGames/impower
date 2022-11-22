@@ -63,10 +63,13 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     let el: IElement | undefined = this._config.root;
     for (let i = 1; i < path.length; i += 1) {
       const part = path[i];
-      el = el.getChildren().find((c) => this.getName(c.id) === part);
-      if (!el) {
+      const nextEl: IElement | undefined = el
+        ?.getChildren()
+        .find((c) => this.getName(c.id) === part);
+      if (!nextEl) {
         return undefined;
       }
+      el = nextEl;
     }
     return el;
   }
@@ -97,7 +100,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     const root = this._config.root;
     const path = this.getUIPath();
     const newEl = this.getElement(path) || this.createElement("div", ...path);
-    if (!root.getChildren().includes(newEl)) {
+    if (!root.getChildren().find((c) => c.id === newEl.id)) {
       root.appendChild(newEl);
     }
     return newEl;
@@ -107,7 +110,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     const root = this._config.root;
     const path = this.getStylePath();
     const newEl = this.getElement(path) || this.createElement("style", ...path);
-    if (!root.getChildren().includes(newEl)) {
+    if (!root.getChildren().find((c) => c.id === newEl.id)) {
       root.appendChild(newEl);
     }
     return newEl;

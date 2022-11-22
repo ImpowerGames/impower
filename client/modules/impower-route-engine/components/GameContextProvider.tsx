@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SparkElement } from "../../../../spark-dom";
 import {
   EngineSparkParser,
@@ -15,14 +15,13 @@ import { GameContext } from "../contexts/gameContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 
 const createGame = (
-  rootElement: HTMLElement,
+  root: SparkElement,
   script: string,
   files: Record<string, FileData>,
   config?: Partial<SparkContextConfig>
 ): SparkContext => {
   const augmentations = getScriptAugmentations(files);
   const parsed = EngineSparkParser.instance.parse(script, { augmentations });
-  const root = new SparkElement(rootElement);
   const createElement = (type: string): IElement => {
     return new SparkElement(document.createElement(type));
   };
@@ -61,10 +60,14 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const [game, setGame] = useState<SparkContext>();
 
   const rootElement = document.getElementById("spark-root");
+  const root = useMemo(
+    () => (rootElement ? new SparkElement(rootElement) : undefined),
+    [rootElement]
+  );
 
   useEffect(() => {
-    if (rootElement && mode === "Edit") {
-      gameRef.current = createGame(rootElement, script, files, {
+    if (root && mode === "Edit") {
+      gameRef.current = createGame(root, script, files, {
         editable: true,
         activeLine: activeLineRef.current,
         state: {
@@ -78,11 +81,11 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
       });
       setGame(gameRef.current);
     }
-  }, [files, mode, rootElement, script, seed]);
+  }, [files, mode, root, script, seed]);
 
   useEffect(() => {
-    if (rootElement && mode === "Test") {
-      gameRef.current = createGame(rootElement, script, files, {
+    if (root && mode === "Test") {
+      gameRef.current = createGame(root, script, files, {
         editable: false,
         activeLine: activeLineRef.current,
         state: {

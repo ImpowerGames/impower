@@ -56,6 +56,10 @@ style Choices:
   paddingLeft = "10%"
   paddingRight = "10%"
 
+style Choice:
+  backgroundColor = "white"
+  padding = 8
+
 style Box:
   position = "relative"
   display = "flex"

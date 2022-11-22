@@ -23,7 +23,7 @@ import {
   SparkChoiceToken,
   SparkDialogueToken,
   SparkDisplayToken,
-  SparkToken
+  SparkToken,
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
@@ -2604,8 +2604,8 @@ export const parseSpark = (
           | SparkTitleKeyword
           | SparkTitlePosition;
         const keyFormat = titlePageDisplay[type];
+        currentToken.order = keyFormat?.order || 0;
         if (keyFormat) {
-          currentToken.order = keyFormat.order;
           if (!parsed.titleTokens) {
             parsed.titleTokens = {};
           }
@@ -2920,6 +2920,7 @@ export const parseSpark = (
             currentToken.content,
             valueFrom
           );
+          currentToken.content = currentToken.content?.trim();
           pushChoice(parsed, config, currentSectionId, state, currentToken);
         }
       } else if ((match = currentToken.content.match(sparkRegexes.condition))) {

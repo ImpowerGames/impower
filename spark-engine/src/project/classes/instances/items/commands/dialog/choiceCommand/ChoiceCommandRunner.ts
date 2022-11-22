@@ -36,7 +36,7 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     }
 
     if (operator === "end") {
-      executeChoiceCommand(game, data, context, undefined, this.choiceIndex);
+      executeChoiceCommand(game, data, context, this.choiceIndex);
       return super.onExecute(game, data, context);
     }
 
@@ -53,25 +53,18 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
       return super.onExecute(game, data, context);
     }
 
-    executeChoiceCommand(
-      game,
-      data,
-      context,
-      this.choiceIndex,
-      undefined,
-      () => {
-        this.seed = game.random.state.seed + commandId;
-        this.chosenCount = game.logic.chooseChoice(
-          blockId,
-          commandId,
-          commandIndex,
-          from,
-          line
-        );
-        this.value = value || "";
-        this.calls = calls;
-      }
-    );
+    executeChoiceCommand(game, data, context, this.choiceIndex, () => {
+      this.seed = game.random.state.seed + commandId;
+      this.chosenCount = game.logic.chooseChoice(
+        blockId,
+        commandId,
+        commandIndex,
+        from,
+        line
+      );
+      this.value = value || "";
+      this.calls = calls;
+    });
 
     this.choiceIndex += 1;
 

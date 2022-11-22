@@ -7,9 +7,9 @@ export class Element implements IElement {
 
   protected _textContent: string = "";
 
-  protected _style: Record<string, string> = {};
+  protected _style: Record<string, string | null> = {};
 
-  protected _dataset: Record<string, string> = {};
+  protected _dataset: Record<string, string | undefined> = {};
 
   protected _children: IElement[] = [];
 
@@ -39,11 +39,11 @@ export class Element implements IElement {
     this._textContent = value;
   }
 
-  get style(): Record<string, string> {
+  get style(): Record<string, string | null> {
     return this._style;
   }
 
-  get dataset(): Record<string, string> {
+  get dataset(): Record<string, string | undefined> {
     return this._dataset;
   }
 
@@ -58,8 +58,8 @@ export class Element implements IElement {
   constructor(
     id: string,
     textContent?: string,
-    style?: Record<string, string>,
-    dataset?: Record<string, string>
+    style?: Record<string, string | null>,
+    dataset?: Record<string, string | undefined>
   ) {
     this._id = id;
     this._className = id.split(".").slice(-1).join();
@@ -74,10 +74,10 @@ export class Element implements IElement {
     const child = children[validIndex];
     if (child) {
       const newChild = new Element(
-        this._id,
-        this._textContent,
-        this._style,
-        this._dataset
+        child.id,
+        child.textContent,
+        child.style,
+        child.dataset
       );
       this.appendChild(newChild);
       return newChild;

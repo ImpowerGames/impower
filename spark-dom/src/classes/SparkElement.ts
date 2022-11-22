@@ -45,8 +45,9 @@ export class SparkElement implements IElement {
     this._htmlElement.onclick = listener;
   }
 
-  constructor(htmlElement: HTMLElement) {
+  constructor(htmlElement: HTMLElement, ...children: SparkElement[]) {
     this._htmlElement = htmlElement;
+    this._children = children;
   }
 
   cloneChild(index: number): IElement | undefined {
@@ -54,7 +55,9 @@ export class SparkElement implements IElement {
     const validIndex = Math.max(0, Math.min(index, children.length - 1));
     const child = children[validIndex];
     if (child) {
-      const newEl = this._htmlElement.cloneNode(true) as HTMLElement;
+      const newEl = (child as SparkElement)._htmlElement.cloneNode(
+        true
+      ) as HTMLElement;
       const newChild = new SparkElement(newEl);
       this.appendChild(newChild);
       return newChild;

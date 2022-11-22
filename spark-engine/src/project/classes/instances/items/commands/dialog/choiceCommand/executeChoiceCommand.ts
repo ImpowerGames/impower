@@ -1,6 +1,6 @@
 import { format } from "../../../../../../../../../spark-evaluate";
 import { ChoiceCommandData } from "../../../../../../../data";
-import { SparkGame, loadStyles, loadUI } from "../../../../../../../game";
+import { loadStyles, loadUI, SparkGame } from "../../../../../../../game";
 import { ChoiceCommandConfig } from "./ChoiceCommandConfig";
 
 export const defaultChoiceCommandConfig: ChoiceCommandConfig = {
@@ -19,11 +19,11 @@ export const executeChoiceCommand = (
       }
     | undefined,
   index?: number,
-  count?: number,
   onClick?: () => void
 ): void => {
   const content = data?.content || "";
   const order = data?.order || 0;
+  const operator = data?.operator;
 
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
@@ -36,7 +36,6 @@ export const executeChoiceCommand = (
   loadStyles(game, objectMap, ...Object.keys(objectMap?.["style"] || {}));
   loadUI(game, objectMap, structName);
 
-  const validIndex = index != null ? index : order;
   const contentEls = game.ui.findAllUIElements(
     structName,
     validCommandConfig?.choice?.className
@@ -59,6 +58,7 @@ export const executeChoiceCommand = (
   if (!data) {
     contentEls.forEach((el) => {
       if (el) {
+        // Clear all buttons
         el.replaceChildren();
         el.style["pointerEvents"] = null;
         el.style["display"] = "none";
@@ -70,21 +70,24 @@ export const executeChoiceCommand = (
   if (lastContentEl) {
     const parentEl = game.ui.getParent(lastContentEl);
     if (parentEl) {
+      const validIndex = index != null ? index : order;
       for (let i = 0; i < Math.max(contentEls.length, validIndex + 1); i += 1) {
         const el =
           contentEls?.[i] || parentEl?.cloneChild(contentEls.length - 1);
         if (el) {
-          if (validIndex === i) {
-            el.onclick = handleClick;
-            el.textContent = evaluatedContent;
-            el.style["pointerEvents"] = "auto";
-            el.style["display"] = "block";
-          }
-          if (count != null) {
-            if (i >= count) {
+          if (operator === "end") {
+            // Clear all unnecessary buttons
+            if (index != null && i >= index) {
               el.replaceChildren();
               el.style["pointerEvents"] = null;
               el.style["display"] = "none";
+            }
+          } else {
+            if (validIndex === i) {
+              el.onclick = handleClick;
+              el.textContent = evaluatedContent;
+              el.style["pointerEvents"] = "auto";
+              el.style["display"] = "block";
             }
           }
         }
