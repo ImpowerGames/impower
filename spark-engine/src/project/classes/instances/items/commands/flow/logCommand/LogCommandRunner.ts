@@ -5,16 +5,16 @@ import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
 export class LogCommandRunner extends CommandRunner<LogCommandData> {
   override onExecute(
+    game: SparkGame,
     data: LogCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): number[] {
     const { severity, message } = data;
     if (severity === undefined) {
-      return super.onExecute(data, context, game);
+      return super.onExecute(game, data, context);
     }
     if (message === undefined) {
-      return super.onExecute(data, context, game);
+      return super.onExecute(game, data, context);
     }
     const { parentContainerId, refId } = data.reference;
     const parentNode = game.logic.config.blockMap[parentContainerId];
@@ -28,6 +28,6 @@ export class LogCommandRunner extends CommandRunner<LogCommandData> {
       severity,
       message,
     });
-    return super.onExecute(data, context, game);
+    return super.onExecute(game, data, context);
   }
 }

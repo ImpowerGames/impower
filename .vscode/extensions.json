@@ -9,6 +9,7 @@
     "styled-components.vscode-styled-components",
     "yzhang.markdown-all-in-one",
     "cschlosser.doxdocgen",
-    "impowergames.sparkdown"
+    "impowergames.sparkdown",
+    "aaron-bond.better-comments"
   ]
 }

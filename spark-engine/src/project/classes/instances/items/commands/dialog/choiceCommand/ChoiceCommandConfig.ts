@@ -1,5 +1,5 @@
 export interface ChoiceProperties {
-  id: string;
+  className: string;
 }
 
 export interface ChoiceCommandConfig extends Record<string, ChoiceProperties> {

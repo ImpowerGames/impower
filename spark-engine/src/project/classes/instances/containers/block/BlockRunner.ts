@@ -141,11 +141,10 @@ export class BlockRunner extends ContainerRunner<BlockData> {
           );
           let nextJumps: number[] = [];
           if (!fastForward) {
-            nextJumps = command.runner.onExecute(
-              command.data,
-              { ...context, index: blockState.executingIndex },
-              game
-            );
+            nextJumps = command.runner.onExecute(game, command.data, {
+              ...context,
+              index: blockState.executingIndex,
+            });
           }
           if (nextJumps.length > 0) {
             game.logic.commandJumpStackPush(blockId, nextJumps, from, line);
@@ -155,11 +154,10 @@ export class BlockRunner extends ContainerRunner<BlockData> {
           }
         }
         if (!fastForward && command.data.waitUntilFinished) {
-          const finished = command.runner.isFinished(
-            command.data,
-            { ...context, index: blockState.executingIndex },
-            game
-          );
+          const finished = command.runner.isFinished(game, command.data, {
+            ...context,
+            index: blockState.executingIndex,
+          });
           if (finished === null) {
             return null;
           }
@@ -167,11 +165,10 @@ export class BlockRunner extends ContainerRunner<BlockData> {
             return true;
           }
         }
-        command.runner.onFinished(
-          command.data,
-          { ...context, index: blockState.executingIndex },
-          game
-        );
+        command.runner.onFinished(game, command.data, {
+          ...context,
+          index: blockState.executingIndex,
+        });
         game.logic.finishCommand(
           blockId,
           commandId,

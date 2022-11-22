@@ -4,25 +4,25 @@ import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
 export class WaitCommandRunner extends CommandRunner<WaitCommandData> {
   override onExecute(
+    game: SparkGame,
     data: WaitCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): number[] {
     const { seconds } = data;
     if (!seconds) {
-      return super.onExecute(data, context, game);
+      return super.onExecute(game, data, context);
     }
-    return super.onExecute(data, context, game);
+    return super.onExecute(game, data, context);
   }
 
   override isFinished(
+    game: SparkGame,
     data: WaitCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): boolean | null {
     const { seconds } = data;
     if (seconds === undefined || seconds === 0) {
-      return super.isFinished(data, context, game);
+      return super.isFinished(game, data, context);
     }
     const blockState =
       game.logic.state.blockStates[data.reference.parentContainerId];
@@ -35,6 +35,6 @@ export class WaitCommandRunner extends CommandRunner<WaitCommandData> {
         return false;
       }
     }
-    return super.isFinished(data, context, game);
+    return super.isFinished(game, data, context);
   }
 }

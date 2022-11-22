@@ -87,6 +87,7 @@ export class SparkContext {
         logic: { blockMap },
         struct: { objectMap },
         world: { defaultCameras },
+        ...config,
       },
       {
         ...(config?.state || {}),
@@ -147,7 +148,7 @@ export class SparkContext {
   update(timeMS: number, deltaMS: number): boolean {
     this.game.ticker.tick(timeMS, deltaMS);
     this.runner.commandRunners.forEach((r) => {
-      r.onUpdate(timeMS, deltaMS, this.game);
+      r.onUpdate(this.game, timeMS, deltaMS);
     });
     if (this.loadedBlockIds) {
       for (let i = 0; i < this.loadedBlockIds.length; i += 1) {

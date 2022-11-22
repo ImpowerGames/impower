@@ -17,9 +17,9 @@ export class ConditionCommandRunner extends CommandRunner<ConditionCommandData> 
   }
 
   override onExecute(
+    game: SparkGame,
     data: ConditionCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): number[] {
     const { check, value } = data;
     const { valueMap, index, commands } = context;
@@ -59,6 +59,6 @@ export class ConditionCommandRunner extends CommandRunner<ConditionCommandData> 
       const nextCommandIndex = getNextJumpIndex(index, commands);
       return [nextCommandIndex];
     }
-    return super.onExecute(data, context, game);
+    return super.onExecute(game, data, context);
   }
 }

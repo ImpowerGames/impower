@@ -1,4 +1,5 @@
 export type StressType =
+  | "fluctuation"
   | "downdrift"
   | "italicized"
   | "bolded"

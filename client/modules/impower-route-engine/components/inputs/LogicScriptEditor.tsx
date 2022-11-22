@@ -14,7 +14,6 @@ import {
   getPreviewCommand,
   getScriptAugmentations,
   previewLine,
-  SparkGameRunner,
 } from "../../../../../spark-engine";
 import { evaluate } from "../../../../../spark-evaluate";
 import {
@@ -493,7 +492,7 @@ const LogicScriptEditor = React.memo(
     useEffect(() => {
       if (parseResultState && previewCursor) {
         previewLine(
-          SparkGameRunner.instance,
+          sparkRef.current,
           parseResultState,
           previewCursor.fromLine,
           true,

@@ -1,5 +1,5 @@
 export interface DisplayProperties {
-  id: string;
+  className?: string;
   hidden?: string;
   typing?: {
     fadeDuration?: number;
@@ -9,7 +9,7 @@ export interface DisplayProperties {
     syllableLength?: number;
   };
   indicator?: {
-    id: string;
+    className: string;
     fadeDuration?: number;
     animationName?: string;
     animationDuration?: number;
@@ -18,18 +18,18 @@ export interface DisplayProperties {
 }
 
 export interface DisplayCommandConfig
-  extends Record<string, DisplayProperties> {
-  root: DisplayProperties;
-  background: DisplayProperties;
-  portrait: DisplayProperties;
-  description_group: DisplayProperties;
-  dialogue_group: DisplayProperties;
-  choice: DisplayProperties;
-  character: DisplayProperties;
-  parenthetical: DisplayProperties;
-  dialogue: DisplayProperties;
-  action: DisplayProperties;
-  centered: DisplayProperties;
-  transition: DisplayProperties;
-  scene: DisplayProperties;
+  extends Partial<Record<string, DisplayProperties>> {
+  default?: Omit<DisplayProperties, "className">;
+  background?: DisplayProperties;
+  portrait?: DisplayProperties;
+  description_group?: DisplayProperties;
+  dialogue_group?: DisplayProperties;
+  choice?: DisplayProperties;
+  character?: DisplayProperties;
+  parenthetical?: DisplayProperties;
+  dialogue?: DisplayProperties;
+  action?: DisplayProperties;
+  centered?: DisplayProperties;
+  transition?: DisplayProperties;
+  scene?: DisplayProperties;
 }

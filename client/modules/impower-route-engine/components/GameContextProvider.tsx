@@ -4,11 +4,13 @@ import {
   FileData,
   generateStructObjects,
   getScriptAugmentations,
+  IElement,
   loadStyles,
   loadUI,
   SparkContext,
   SparkContextConfig,
 } from "../../../../spark-engine";
+import { SparkElement } from "../../../../spark-dom";
 import { GameContext } from "../contexts/gameContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 
@@ -19,7 +21,14 @@ const createGame = (
 ): SparkContext => {
   const augmentations = getScriptAugmentations(files);
   const parsed = EngineSparkParser.instance.parse(script, { augmentations });
-  return new SparkContext(parsed, config);
+  const root = new SparkElement(document.getElementById("spark-root"));
+  const createElement = (type: string): IElement => {
+    return new SparkElement(document.createElement(type));
+  };
+  return new SparkContext(parsed, {
+    ui: { root, createElement },
+    ...(config || {}),
+  });
 };
 
 interface GameContextProviderProps {
@@ -92,17 +101,17 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   }, [mode]);
 
   useEffect(() => {
-    if (script && isFirstScriptLoadRef.current) {
+    if (script && game && isFirstScriptLoadRef.current) {
       isFirstScriptLoadRef.current = false;
       const augmentations = getScriptAugmentations(files);
       const result = EngineSparkParser.instance.parse(script, {
         augmentations,
       });
       const objectMap = generateStructObjects(result?.structs);
-      loadStyles(objectMap, ...Object.keys(objectMap?.style || {}));
-      loadUI(objectMap, ...Object.keys(objectMap?.ui || {}));
+      loadStyles(game.game, objectMap, ...Object.keys(objectMap?.style || {}));
+      loadUI(game.game, objectMap, ...Object.keys(objectMap?.ui || {}));
     }
-  }, [script, files]);
+  }, [script, files, game]);
 
   useEffect(() => {
     if (gameRef.current) {

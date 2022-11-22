@@ -6,16 +6,16 @@ import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
 export class AssignCommandRunner extends CommandRunner<AssignCommandData> {
   override onExecute(
+    game: SparkGame,
     data: AssignCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): number[] {
     const { variable, operator, value } = data;
     const { ids, valueMap } = context;
 
     const variableId = ids[variable];
     if (!variableId) {
-      return super.onExecute(data, context, game);
+      return super.onExecute(game, data, context);
     }
 
     const lhs = valueMap[variable];
@@ -24,6 +24,6 @@ export class AssignCommandRunner extends CommandRunner<AssignCommandData> {
 
     game.logic.setVariableValue(variableId, newValue, data.from, data.line);
 
-    return super.onExecute(data, context, game);
+    return super.onExecute(game, data, context);
   }
 }

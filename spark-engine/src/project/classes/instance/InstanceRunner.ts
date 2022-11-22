@@ -1,4 +1,5 @@
 import { InstanceData, Runner } from "../../../data";
+import { SparkGame } from "../../../game";
 
 export abstract class InstanceRunner<
   T extends InstanceData = InstanceData
@@ -16,8 +17,9 @@ export abstract class InstanceRunner<
   }
 
   onPreview(
+    _game: SparkGame,
     _data: T,
-    _context?: {
+    _context: {
       valueMap: Record<string, unknown>;
       objectMap: Record<string, Record<string, unknown>>;
       instant?: boolean;

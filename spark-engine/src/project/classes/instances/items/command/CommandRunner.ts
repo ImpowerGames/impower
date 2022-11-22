@@ -24,22 +24,22 @@ export class CommandRunner<
     // NoOp
   }
 
-  onExecute(_data: T, _context: CommandContext, _game: SparkGame): number[] {
+  onExecute(_game: SparkGame, _data: T, _context: CommandContext): number[] {
     return [];
   }
 
-  onUpdate(timeMS: number, deltaMS: number, _game: SparkGame): void {
+  onUpdate(_game: SparkGame, timeMS: number, deltaMS: number): void {
     // NoOp
   }
 
-  onFinished(_data: T, _context: CommandContext, _game: SparkGame): void {
+  onFinished(_game: SparkGame, _data: T, _context: CommandContext): void {
     // NoOp
   }
 
   isFinished(
+    _game: SparkGame,
     _data: T,
-    _context: CommandContext,
-    _game: SparkGame
+    _context: CommandContext
   ): boolean | null {
     return true;
   }

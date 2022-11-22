@@ -1,7 +1,7 @@
 import CircularProgress from "@mui/material/CircularProgress";
 import dynamic from "next/dynamic";
 import { PropsWithChildren, useEffect } from "react";
-import { getRootElementId, SparkContext } from "../../../../spark-engine";
+import { SparkContext } from "../../../../spark-engine";
 
 export const responsiveBreakpoints: Record<string, number> = {
   xs: 400,
@@ -106,7 +106,7 @@ export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {
           }}
         />
         <div
-          id="ui"
+          id="spark-overlay"
           style={{
             position: "absolute",
             top: 0,
@@ -116,7 +116,7 @@ export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {
           }}
         >
           <div
-            id={getRootElementId()}
+            id="spark-root"
             style={{
               position: "absolute",
               top: 0,

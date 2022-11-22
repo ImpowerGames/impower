@@ -15,14 +15,14 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
 
   calls?: Record<string, { name: string; values: string[] }>;
 
-  override init(): void {
-    executeChoiceCommand();
+  override init(game: SparkGame): void {
+    executeChoiceCommand(game);
   }
 
   override onExecute(
+    game: SparkGame,
     data: ChoiceCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): number[] {
     const { value, calls, operator } = data;
     const { index } = context;
@@ -32,12 +32,12 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
 
     if (operator === "start") {
       this.choiceIndex = 0;
-      return super.onExecute(data, context, game);
+      return super.onExecute(game, data, context);
     }
 
     if (operator === "end") {
-      executeChoiceCommand(data, context, undefined, this.choiceIndex);
-      return super.onExecute(data, context, game);
+      executeChoiceCommand(game, data, context, undefined, this.choiceIndex);
+      return super.onExecute(game, data, context);
     }
 
     const from = data?.from;
@@ -50,31 +50,38 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
     const currentCount = blockState?.choiceChosenCounts?.[commandId] || 0;
 
     if (operator === "-" && currentCount > 0) {
-      return super.onExecute(data, context, game);
+      return super.onExecute(game, data, context);
     }
 
-    executeChoiceCommand(data, context, this.choiceIndex, undefined, () => {
-      this.seed = game.random.state.seed + commandId;
-      this.chosenCount = game.logic.chooseChoice(
-        blockId,
-        commandId,
-        commandIndex,
-        from,
-        line
-      );
-      this.value = value || "";
-      this.calls = calls;
-    });
+    executeChoiceCommand(
+      game,
+      data,
+      context,
+      this.choiceIndex,
+      undefined,
+      () => {
+        this.seed = game.random.state.seed + commandId;
+        this.chosenCount = game.logic.chooseChoice(
+          blockId,
+          commandId,
+          commandIndex,
+          from,
+          line
+        );
+        this.value = value || "";
+        this.calls = calls;
+      }
+    );
 
     this.choiceIndex += 1;
 
-    return super.onExecute(data, context, game);
+    return super.onExecute(game, data, context);
   }
 
   override isFinished(
+    game: SparkGame,
     data: ChoiceCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): boolean | null {
     const { operator } = data;
     if (operator !== "end") {
@@ -149,13 +156,14 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
   }
 
   override onPreview(
+    game: SparkGame,
     data: ChoiceCommandData,
-    context?: {
+    context: {
       valueMap: Record<string, unknown>;
       objectMap: Record<string, Record<string, unknown>>;
     }
   ): boolean {
-    executeChoiceCommand(data, context);
+    executeChoiceCommand(game, data, context);
     return true;
   }
 }

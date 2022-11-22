@@ -27,6 +27,11 @@ interface CardModalProps extends ModalUnstyledProps {
   manager?: ModalManager;
   onTransitionEnter?: () => void;
   onTransitionExited?: () => void;
+  // TODO: Update to use latest mui components / componentsProps interface
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  components?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  componentsProps?: any;
 }
 
 const CardModal = React.forwardRef(

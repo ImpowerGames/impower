@@ -56,7 +56,7 @@ The Impower Engine can export:
 
 1. Open the client folder: `cd client`
 2. Install dependencies: `npm install`
-3. Located within the `client` folder, create a copy of the `.env.local.example` file and name it `.env.development.local`
+3. Located within the `client` folder, create a copy of the `.env.example.local` file and name it `.env.development.local`
 4. Using the google account that was added to our impowergames-dev project, follow the link to the [impowergames-dev firebase console](https://console.firebase.google.com/u/1/project/impowergames-dev) (make sure you are logged into your @impower.games google account!).
 5. In the sidebar, click the `Gear icon` > `Project Settings`.
 6. Click `Service accounts`.

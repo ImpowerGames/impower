@@ -18,35 +18,35 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
 
   onTick?: (timeMS: number) => void;
 
-  override init(): void {
-    executeDisplayCommand();
+  override init(game: SparkGame): void {
+    executeDisplayCommand(game);
   }
 
   override onExecute(
+    game: SparkGame,
     data: DisplayCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): number[] {
     this.wasPressed = false;
     this.wasTyped = false;
     this.timeTyped = -1;
     this.down = game.input.state.pointer.down.includes(0);
-    this.onTick = executeDisplayCommand(data, context, game, () => {
+    this.onTick = executeDisplayCommand(game, data, context, () => {
       this.wasTyped = true;
     });
-    return super.onExecute(data, context, game);
+    return super.onExecute(game, data, context);
   }
 
-  override onUpdate(timeMS: number): void {
+  override onUpdate(_game: SparkGame, timeMS: number): void {
     if (this.onTick) {
       this.onTick(timeMS);
     }
   }
 
   override isFinished(
+    game: SparkGame,
     data: DisplayCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): boolean {
     const prevDown = this.down;
     this.down = game.input.state.pointer.down.includes(0);
@@ -86,29 +86,26 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
           this.wasTyped = true;
         }
       };
-      executeDisplayCommand(
-        data,
-        {
-          ...context,
-          instant: true,
-          fadeOutDuration: this.fadeOutDuration,
-        },
-        game
-      );
+      executeDisplayCommand(game, data, {
+        ...context,
+        instant: true,
+        fadeOutDuration: this.fadeOutDuration,
+      });
     }
     return false;
   }
 
   override onPreview(
+    game: SparkGame,
     data: DisplayCommandData,
-    context?: {
+    context: {
       valueMap: Record<string, unknown>;
       objectMap: Record<string, Record<string, unknown>>;
       instant?: boolean;
       debug?: boolean;
     }
   ): boolean {
-    executeDisplayCommand(data, context);
+    executeDisplayCommand(game, data, context);
     return true;
   }
 }

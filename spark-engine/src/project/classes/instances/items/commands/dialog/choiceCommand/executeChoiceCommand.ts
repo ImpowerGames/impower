@@ -1,44 +1,46 @@
 import { format } from "../../../../../../../../../spark-evaluate";
 import { ChoiceCommandData } from "../../../../../../../data";
-import {
-  getElements,
-  getUIElementId,
-  loadStyles,
-  loadUI,
-} from "../../../../../../../dom";
+import { SparkGame, loadStyles, loadUI } from "../../../../../../../game";
 import { ChoiceCommandConfig } from "./ChoiceCommandConfig";
 
 export const defaultChoiceCommandConfig: ChoiceCommandConfig = {
   choice: {
-    id: "Choice",
+    className: "Choice",
   },
 };
 
 export const executeChoiceCommand = (
-  data?: ChoiceCommandData,
-  context?: {
-    valueMap: Record<string, unknown>;
-    objectMap: Record<string, Record<string, unknown>>;
-  },
+  game: SparkGame,
+  data?: ChoiceCommandData | undefined,
+  context?:
+    | {
+        valueMap: Record<string, unknown>;
+        objectMap: Record<string, Record<string, unknown>>;
+      }
+    | undefined,
   index?: number,
   count?: number,
   onClick?: () => void
 ): void => {
-  const ui = getUIElementId();
   const content = data?.content || "";
   const order = data?.order || 0;
 
   const valueMap = context?.valueMap || {};
-  const config =
-    (context?.objectMap?.["ChoiceCommand"] as ChoiceCommandConfig) ||
-    defaultChoiceCommandConfig;
   const objectMap = context?.objectMap || {};
+  const commandConfig = objectMap?.["config"]?.["_choice"]
+    ? (objectMap?.["_choice"] as ChoiceCommandConfig)
+    : undefined;
+  const validCommandConfig = commandConfig || defaultChoiceCommandConfig;
+  const structName = "Display";
 
-  loadStyles(objectMap, ...Object.keys(objectMap?.["style"] || {}));
-  loadUI(objectMap, "Display");
+  loadStyles(game, objectMap, ...Object.keys(objectMap?.["style"] || {}));
+  loadUI(game, objectMap, structName);
 
   const validIndex = index != null ? index : order;
-  const contentEls = getElements(ui, config?.choice?.id);
+  const contentEls = game.ui.findAllUIElements(
+    structName,
+    validCommandConfig?.choice?.className
+  );
   const [replaceTagsResult] = format(content, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
   const handleClick = (e?: { stopPropagation: () => void }): void => {
@@ -47,8 +49,8 @@ export const executeChoiceCommand = (
     }
     contentEls.forEach((el) => {
       if (el) {
-        el.innerHTML = "";
-        el.style["pointerEvents"] = null as unknown as string;
+        el.replaceChildren();
+        el.style["pointerEvents"] = null;
         el.style["display"] = "none";
       }
     });
@@ -57,31 +59,34 @@ export const executeChoiceCommand = (
   if (!data) {
     contentEls.forEach((el) => {
       if (el) {
-        el.innerHTML = "";
-        el.style["pointerEvents"] = null as unknown as string;
+        el.replaceChildren();
+        el.style["pointerEvents"] = null;
         el.style["display"] = "none";
       }
     });
     return;
   }
   const lastContentEl = contentEls?.[contentEls.length - 1];
-  const parentEl = lastContentEl?.parentElement;
-  for (let i = 0; i < Math.max(contentEls.length, validIndex + 1); i += 1) {
-    const el =
-      contentEls?.[i] ||
-      parentEl?.appendChild(lastContentEl?.cloneNode(true) as HTMLElement);
-    if (el) {
-      if (validIndex === i) {
-        el.onclick = handleClick;
-        el.textContent = evaluatedContent;
-        el.style.pointerEvents = "auto";
-        el.style.display = "block";
-      }
-      if (count != null) {
-        if (i >= count) {
-          el.innerHTML = "";
-          el.style.pointerEvents = null as unknown as string;
-          el.style.display = "none";
+  if (lastContentEl) {
+    const parentEl = game.ui.getParent(lastContentEl);
+    if (parentEl) {
+      for (let i = 0; i < Math.max(contentEls.length, validIndex + 1); i += 1) {
+        const el =
+          contentEls?.[i] || parentEl?.cloneChild(contentEls.length - 1);
+        if (el) {
+          if (validIndex === i) {
+            el.onclick = handleClick;
+            el.textContent = evaluatedContent;
+            el.style["pointerEvents"] = "auto";
+            el.style["display"] = "block";
+          }
+          if (count != null) {
+            if (i >= count) {
+              el.replaceChildren();
+              el.style["pointerEvents"] = null;
+              el.style["display"] = "none";
+            }
+          }
         }
       }
     }

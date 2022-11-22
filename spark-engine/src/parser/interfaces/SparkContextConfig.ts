@@ -1,7 +1,7 @@
-import { SparkGameState } from "../../game";
+import { SparkGameConfig, SparkGameState } from "../../game";
 import { SparkGameRunner } from "../../runner";
 
-export interface SparkContextConfig {
+export interface SparkContextConfig extends SparkGameConfig {
   activeLine?: number;
   editable?: boolean;
   runner?: SparkGameRunner;

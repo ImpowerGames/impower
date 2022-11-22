@@ -7,15 +7,15 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
   id?: string | null;
 
   override onExecute(
+    game: SparkGame,
     data: EnterCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): number[] {
     const { value, calls, returnWhenFinished } = data;
     const { ids, valueMap, parameters } = context;
 
     if (!value) {
-      return super.onExecute(data, context, game);
+      return super.onExecute(game, data, context);
     }
 
     let id: string | undefined = "#";
@@ -45,7 +45,7 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
     this.id = id;
 
     if (id == null) {
-      return super.onExecute(data, context, game);
+      return super.onExecute(game, data, context);
     }
 
     const parentId = data.reference.parentContainerId;
@@ -66,13 +66,13 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
     game.logic.stopBlock(parentId);
     game.logic.enterBlock(id, returnWhenFinished, parentId);
 
-    return super.onExecute(data, context, game);
+    return super.onExecute(game, data, context);
   }
 
   override isFinished(
+    game: SparkGame,
     data: EnterCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): boolean | null {
     const { returnWhenFinished } = data;
     if (this.id === "#") {
@@ -89,7 +89,7 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
         return false;
       }
       this.id = null;
-      return super.isFinished(data, context, game);
+      return super.isFinished(game, data, context);
     }
     return false;
   }

@@ -5,9 +5,9 @@ import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
 export class ReturnCommandRunner extends CommandRunner<ReturnCommandData> {
   override onExecute(
+    game: SparkGame,
     data: ReturnCommandData,
-    context: CommandContext,
-    game: SparkGame
+    context: CommandContext
   ): number[] {
     const { value } = data;
     const { valueMap } = context;
@@ -18,6 +18,6 @@ export class ReturnCommandRunner extends CommandRunner<ReturnCommandData> {
     const id = data.reference.parentContainerId;
     game.logic.returnFromBlock(id, returnValue);
 
-    return super.onExecute(data, context, game);
+    return super.onExecute(game, data, context);
   }
 }

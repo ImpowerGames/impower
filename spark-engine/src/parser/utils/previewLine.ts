@@ -5,14 +5,14 @@ import {
   SparkStruct,
   SparkToken,
 } from "../../../../sparkdown";
-import { loadStyles, loadUI } from "../../dom";
-import { SparkGameRunner } from "../../runner";
+import { loadStyles, loadUI } from "../../game";
+import { SparkContext } from "../classes/SparkContext";
 import { generateStructObjects } from "./generateStructObjects";
 import { getPreviewCommand } from "./getPreviewCommand";
 import { getPreviewStruct } from "./getPreviewStruct";
 
 export const previewLine = (
-  gameRunner: SparkGameRunner,
+  context: SparkContext,
   result: {
     tokens: SparkToken[];
     tokenLines: Record<number, number>;
@@ -25,7 +25,7 @@ export const previewLine = (
 ) => {
   const runtimeCommand = getPreviewCommand(result, line);
   if (runtimeCommand) {
-    const commandRunner = gameRunner.getRunner(runtimeCommand.reference);
+    const commandRunner = context.runner.getRunner(runtimeCommand.reference);
     if (commandRunner) {
       const [sectionId] = getSectionAtLine(line, result?.sections || {});
       const [, valueMap] = getScopedValueContext(
@@ -33,7 +33,7 @@ export const previewLine = (
         result?.sections || {}
       );
       const objectMap = generateStructObjects(result?.structs || {});
-      commandRunner.onPreview(runtimeCommand, {
+      commandRunner.onPreview(context.game, runtimeCommand, {
         valueMap,
         objectMap,
         instant,
@@ -44,11 +44,15 @@ export const previewLine = (
     const previewStruct = getPreviewStruct(result, line);
     if (previewStruct?.type === "style") {
       const objectMap = generateStructObjects(result?.structs || {});
-      loadStyles(objectMap, ...Object.keys(objectMap?.["style"] || {}));
+      loadStyles(
+        context.game,
+        objectMap,
+        ...Object.keys(objectMap?.["style"] || {})
+      );
     }
     if (previewStruct?.type === "ui") {
       const objectMap = generateStructObjects(result?.structs || {});
-      loadUI(objectMap, previewStruct.name);
+      loadUI(context.game, objectMap, previewStruct.name);
     }
   }
 };

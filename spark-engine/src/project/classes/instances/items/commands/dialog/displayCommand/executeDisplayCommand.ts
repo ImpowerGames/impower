@@ -5,13 +5,6 @@ import {
   DisplayCommandData,
 } from "../../../../../../../data";
 import {
-  getElement,
-  getElements,
-  getUIElementId,
-  loadStyles,
-  loadUI,
-} from "../../../../../../../dom";
-import {
   convertNoteToHertz,
   Intonation,
   parseTone,
@@ -19,6 +12,9 @@ import {
   StressType,
   Tone,
   transpose,
+  loadStyles,
+  loadUI,
+  IElement,
 } from "../../../../../../../game";
 import { CharacterConfig, Prosody } from "./CharacterConfig";
 
@@ -26,7 +22,8 @@ interface Beep extends Tone {
   syllableIndex?: number;
 }
 
-// const vocalRange = {
+// TODO: Support voice type shortcuts for character tone.
+// const voiceType = {
 //   soprano: "C5",
 //   mezzoSoprano: "A4",
 //   contralto: "F4",
@@ -49,7 +46,7 @@ const finalStressTypes: StressType[] = [
 ];
 
 const defaultIntonation: Intonation = {
-  fluctuation: 0.125,
+  fluctuation: "+2 +1",
   downdrift: "+2 0 -2", // '-_
   italicized: "0 +2 +1", // _'-
   bolded: "0 +1 0", // _-_
@@ -66,7 +63,7 @@ const defaultIntonation: Intonation = {
 };
 
 // const britishIntonation: Intonation = {
-//   fluctuation: 0.25,
+//   fluctuation: "+2 +1",
 //   downdrift: "+3 +2 +1", // '-_
 //   italicized: "+1 +3 +2", // _'-
 //   bolded: "+1 +2 +1", // _-_
@@ -111,8 +108,7 @@ const defaultCharacterConfig: CharacterConfig = {
 };
 
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
-  root: {
-    id: "Display",
+  default: {
     typing: {
       delay: 0,
       pauseScale: 0,
@@ -120,28 +116,16 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
       syllableLength: 0,
     },
     indicator: {
-      id: "Indicator",
+      className: "Indicator",
       fadeDuration: 0.15,
       animationName: "bounce",
       animationDuration: 0.5,
       animationEase: "ease",
     },
   },
-  background: { id: "Background" },
-  portrait: { id: "Portrait" },
-  choice: { id: "Choice" },
-  action: {
-    id: "Action",
-  },
-  centered: { id: "Centered" },
-  transition: { id: "Transition" },
-  scene: { id: "Scene" },
-  description_group: { id: "DescriptionGroup" },
-  dialogue_group: { id: "DialogueGroup" },
-  character: { id: "Character" },
-  parenthetical: { id: "Parenthetical", hidden: "beat" },
+  parenthetical: { hidden: "beat" },
   dialogue: {
-    id: "Dialogue",
+    className: "Dialogue",
     typing: {
       fadeDuration: 0,
       delay: 0.025,
@@ -150,6 +134,10 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
       syllableLength: 3,
     },
   },
+};
+
+const getBendIndex = (progress: number, bendLength: number): number => {
+  return Math.floor(progress * (bendLength - 1));
 };
 
 const getBend = (
@@ -183,33 +171,40 @@ const getStressType = (
   return undefined;
 };
 
-const hideChoices = (ui: string, config: DisplayCommandConfig): void => {
-  const choiceEls = getElements(ui, config?.choice?.id || "");
+const hideChoices = (
+  game: SparkGame,
+  structName: string,
+  config: DisplayCommandConfig
+): void => {
+  const choiceEls = game.ui.findAllUIElements(
+    structName,
+    config?.choice?.className || "Choice"
+  );
   choiceEls.forEach((el) => {
     if (el) {
-      el.innerHTML = "";
+      el.replaceChildren();
       el.style["display"] = "none";
     }
   });
 };
 
 const createCharSpan = (
+  game: SparkGame,
   part: string,
   letterFadeDuration: number,
   instant: boolean,
   totalDelay: number,
-  style?: Record<string, string>
-): HTMLElement => {
-  const textEl = document.createTextNode(part);
-  const spanEl = document.createElement("span");
-  spanEl.style.opacity = instant ? "1" : "0";
-  spanEl.style.transition = instant
+  style?: Record<string, string | null>
+): IElement => {
+  const spanEl = game.ui.createElement("span");
+  spanEl.style["opacity"] = instant ? "1" : "0";
+  spanEl.style["transition"] = instant
     ? "none"
     : `opacity ${letterFadeDuration}s linear ${totalDelay}s`;
   Object.entries(style || {}).forEach(([k, v]) => {
     spanEl.style[k as "all"] = v as string;
   });
-  spanEl.appendChild(textEl);
+  spanEl.textContent = part;
   return spanEl;
 };
 
@@ -228,6 +223,7 @@ const get = (...vals: (number | undefined)[]): number => {
 };
 
 const getAnimatedSpanElements = (
+  game: SparkGame,
   type: string,
   content: string,
   valueMap: Record<string, unknown>,
@@ -235,46 +231,46 @@ const getAnimatedSpanElements = (
   instant = false,
   debug?: boolean
 ): [
-  HTMLElement[],
+  IElement[],
   {
     phrase: string;
     time: number;
-    elements?: HTMLElement[];
+    elements?: IElement[];
     beeps?: Beep[];
   }[]
 ] => {
   const letterFadeDuration = get(
     config[type]?.typing?.fadeDuration,
-    config?.root?.typing?.fadeDuration,
+    config?.default?.typing?.fadeDuration,
     0
   );
   const letterDelay = get(
     config[type]?.typing?.delay,
-    config?.root?.typing?.delay,
+    config?.default?.typing?.delay,
     0
   );
   const pauseScale = get(
     config[type]?.typing?.pauseScale,
-    config?.root?.typing?.pauseScale,
+    config?.default?.typing?.pauseScale,
     1
   );
   const pauseDelay = letterDelay * pauseScale;
   const averageSyllableLength = get(
     config[type]?.typing?.syllableLength,
-    config?.root?.typing?.syllableLength
+    config?.default?.typing?.syllableLength
   );
   const beepDuration = get(
     config[type]?.typing?.beepDuration,
-    config?.root?.typing?.beepDuration,
+    config?.default?.typing?.beepDuration,
     letterDelay
   );
 
-  const partEls: HTMLElement[] = [];
-  const spanEls: HTMLElement[] = [];
+  const partEls: IElement[] = [];
+  const spanEls: IElement[] = [];
   const chunkEls: {
     phrase: string;
     time: number;
-    elements: HTMLElement[];
+    elements: IElement[];
     beeps?: Beep[];
   }[] = [];
   let wordLength = 0;
@@ -285,7 +281,7 @@ const getAnimatedSpanElements = (
   let spaceLength = 0;
   let pauseLength = 0;
   let unpauseLength = 0;
-  let pauseSpan: HTMLElement | undefined = undefined;
+  let pauseSpan: IElement | undefined = undefined;
   const imageUrls = new Set<string>();
   const audioUrls = new Set<string>();
   let hideSpace = false;
@@ -377,14 +373,13 @@ const getAnimatedSpanElements = (
     const isBold = markers.includes("**");
     const isItalic = markers.includes("*");
     const style = {
-      textDecoration: isUnderline ? "underline" : (null as unknown as string),
-      fontStyle:
-        isItalic || isBoldAndItalic ? "italic" : (null as unknown as string),
-      fontWeight:
-        isBold || isBoldAndItalic ? "bold" : (null as unknown as string),
-      whiteSpace: part === "\n" ? "pre-wrap" : (null as unknown as string),
+      textDecoration: isUnderline ? "underline" : null,
+      fontStyle: isItalic || isBoldAndItalic ? "italic" : null,
+      fontWeight: isBold || isBoldAndItalic ? "bold" : null,
+      whiteSpace: part === "\n" ? "pre-wrap" : null,
     };
     const span = createCharSpan(
+      game,
       part || "",
       letterFadeDuration,
       instant,
@@ -495,17 +490,17 @@ const getAnimatedSpanElements = (
       const invalidStyleEls = partEls.slice(lastMarkIndex).map((x) => x);
       invalidStyleEls.forEach((e) => {
         if (lastMark === "***") {
-          e.style["fontWeight"] = null as unknown as string;
-          e.style["fontStyle"] = null as unknown as string;
+          e.style["fontWeight"] = null;
+          e.style["fontStyle"] = null;
         }
         if (lastMark === "**") {
-          e.style["fontWeight"] = null as unknown as string;
+          e.style["fontWeight"] = null;
         }
         if (lastMark === "*") {
-          e.style["fontStyle"] = null as unknown as string;
+          e.style["fontStyle"] = null;
         }
         if (lastMark === "_") {
-          e.style["textDecoration"] = null as unknown as string;
+          e.style["textDecoration"] = null;
         }
       });
       marks.pop();
@@ -522,6 +517,7 @@ const isHidden = (content: string, hiddenRegex?: string): boolean => {
 };
 
 export const executeDisplayCommand = (
+  game: SparkGame,
   data?: DisplayCommandData,
   context?: {
     valueMap: Record<string, unknown>;
@@ -530,10 +526,8 @@ export const executeDisplayCommand = (
     debug?: boolean;
     fadeOutDuration?: number;
   },
-  game?: SparkGame,
   onFinished?: () => void
 ): ((timeMS: number) => void) | undefined => {
-  const ui = getUIElementId();
   const type = data?.type || "";
   const assets = data?.assets || [];
 
@@ -544,16 +538,16 @@ export const executeDisplayCommand = (
     : undefined;
   const validDisplayConfig = displayConfig || defaultDisplayCommandConfig;
   const fadeOutDuration = context?.fadeOutDuration || 0;
+  const structName = "Display";
 
-  loadStyles(objectMap, ...Object.keys(objectMap?.["style"] || {}));
-  loadUI(objectMap, "Display");
+  loadStyles(game, objectMap, ...Object.keys(objectMap?.["style"] || {}));
+  loadUI(game, objectMap, structName);
 
   const assetsOnly = type === "assets";
   if (assetsOnly) {
-    const backgroundEl = getElement(
-      ui,
-      validDisplayConfig?.root?.id,
-      validDisplayConfig?.background?.id
+    const backgroundEl = game.ui.findFirstUIElement(
+      structName,
+      validDisplayConfig?.background?.className || "Background"
     );
     if (backgroundEl) {
       const imageName = assets?.[0] || "";
@@ -561,7 +555,7 @@ export const executeDisplayCommand = (
       if (imageName && imageUrl) {
         backgroundEl.style["backgroundImage"] = `url("${imageUrl}")`;
         backgroundEl.style["backgroundRepeat"] = "no-repeat";
-        backgroundEl.style["display"] = null as unknown as string;
+        backgroundEl.style["display"] = null;
       } else {
         backgroundEl.style["display"] = "none";
       }
@@ -610,37 +604,33 @@ export const executeDisplayCommand = (
     context?.instant ||
     !get(
       validDisplayConfig?.[type || ""]?.typing?.delay,
-      validDisplayConfig?.root?.typing?.delay
+      validDisplayConfig?.default?.typing?.delay
     );
   const debug = context?.debug;
   const indicatorFadeDuration =
-    validDisplayConfig?.root?.indicator?.fadeDuration || 0;
+    validDisplayConfig?.default?.indicator?.fadeDuration || 0;
   const indicatorAnimationName =
-    validDisplayConfig?.root?.indicator?.animationName;
+    validDisplayConfig?.default?.indicator?.animationName;
   const indicatorAnimationDuration =
-    validDisplayConfig?.root?.indicator?.animationDuration;
+    validDisplayConfig?.default?.indicator?.animationDuration;
   const indicatorAnimationEase =
-    validDisplayConfig?.root?.indicator?.animationEase;
+    validDisplayConfig?.default?.indicator?.animationEase;
 
-  const descriptionGroupEl = getElement(
-    ui,
-    validDisplayConfig?.root?.id,
-    validDisplayConfig?.description_group?.id
+  const descriptionGroupEl = game.ui.findFirstUIElement(
+    structName,
+    validDisplayConfig?.description_group?.className || "DescriptionGroup"
   );
-  const dialogueGroupEl = getElement(
-    ui,
-    validDisplayConfig?.root?.id,
-    validDisplayConfig?.dialogue_group?.id
+  const dialogueGroupEl = game.ui.findFirstUIElement(
+    structName,
+    validDisplayConfig?.dialogue_group?.className || "DialogueGroup"
   );
-  const portraitEl = getElement(
-    ui,
-    validDisplayConfig?.root?.id,
-    validDisplayConfig?.portrait?.id
+  const portraitEl = game.ui.findFirstUIElement(
+    structName,
+    validDisplayConfig?.portrait?.className || "Portrait"
   );
-  const indicatorEl = getElement(
-    ui,
-    validDisplayConfig?.root?.id,
-    validDisplayConfig?.root?.indicator?.id || ""
+  const indicatorEl = game.ui.findFirstUIElement(
+    structName,
+    validDisplayConfig?.default?.indicator?.className || "Indicator"
   );
 
   if (portraitEl) {
@@ -650,89 +640,77 @@ export const executeDisplayCommand = (
       portraitEl.style["backgroundImage"] = `url("${imageUrl}")`;
       portraitEl.style["backgroundRepeat"] = "no-repeat";
       portraitEl.style["backgroundPosition"] = "center";
-      portraitEl.style["display"] = null as unknown as string;
+      portraitEl.style["display"] = null;
     } else {
       portraitEl.style["display"] = "none";
     }
   }
 
-  hideChoices(ui, validDisplayConfig);
+  hideChoices(game, structName, validDisplayConfig);
 
   if (dialogueGroupEl) {
-    dialogueGroupEl.style["display"] =
-      type === "dialogue" ? (null as unknown as string) : "none";
+    dialogueGroupEl.style["display"] = type === "dialogue" ? null : "none";
   }
   if (descriptionGroupEl) {
-    descriptionGroupEl.style["display"] =
-      type !== "dialogue" ? (null as unknown as string) : "none";
+    descriptionGroupEl.style["display"] = type !== "dialogue" ? null : "none";
   }
 
-  const characterEl = getElement(
-    ui,
-    validDisplayConfig?.root?.id,
-    validDisplayConfig?.character?.id || ""
+  const characterEl = game.ui.findFirstUIElement(
+    structName,
+    validDisplayConfig?.character?.className || "Character"
   );
-  const parentheticalEl = getElement(
-    ui,
-    validDisplayConfig?.root?.id,
-    validDisplayConfig?.parenthetical?.id || ""
+  const parentheticalEl = game.ui.findFirstUIElement(
+    structName,
+    validDisplayConfig?.parenthetical?.className || "Parenthetical"
   );
   const contentElEntries = [
     {
       key: "dialogue",
-      value: getElement(
-        ui,
-        validDisplayConfig?.root?.id,
-        validDisplayConfig?.dialogue?.id || ""
+      value: game.ui.findFirstUIElement(
+        structName,
+        validDisplayConfig?.dialogue?.className || "Dialogue"
       ),
     },
     {
       key: "action",
-      value: getElement(
-        ui,
-        validDisplayConfig?.root?.id,
-        validDisplayConfig?.action?.id || ""
+      value: game.ui.findFirstUIElement(
+        structName,
+        validDisplayConfig?.action?.className || "Action"
       ),
     },
     {
       key: "centered",
-      value: getElement(
-        ui,
-        validDisplayConfig?.root?.id,
-        validDisplayConfig?.centered?.id || ""
+      value: game.ui.findFirstUIElement(
+        structName,
+        validDisplayConfig?.centered?.className || "Centered"
       ),
     },
     {
       key: "scene",
-      value: getElement(
-        ui,
-        validDisplayConfig?.root?.id,
-        validDisplayConfig?.scene?.id || ""
+      value: game.ui.findFirstUIElement(
+        structName,
+        validDisplayConfig?.scene?.className || "Scene"
       ),
     },
     {
       key: "transition",
-      value: getElement(
-        ui,
-        validDisplayConfig?.root?.id,
-        validDisplayConfig?.transition?.id || ""
+      value: game.ui.findFirstUIElement(
+        structName,
+        validDisplayConfig?.transition?.className || "Transition"
       ),
     },
   ];
 
   if (characterEl) {
     characterEl.textContent = validCharacter;
-    characterEl.style["display"] = validCharacter
-      ? (null as unknown as string)
-      : "none";
+    characterEl.style["display"] = validCharacter ? null : "none";
   }
   if (parentheticalEl) {
     parentheticalEl.textContent = validParenthetical;
-    parentheticalEl.style["display"] = validParenthetical
-      ? (null as unknown as string)
-      : "none";
+    parentheticalEl.style["display"] = validParenthetical ? null : "none";
   }
   const [spanEls, chunkEls] = getAnimatedSpanElements(
+    game,
     type,
     evaluatedContent?.trimStart(),
     valueMap,
@@ -750,24 +728,25 @@ export const executeDisplayCommand = (
     if (value) {
       if (key === type) {
         if (clearPreviousText) {
-          value.innerHTML = "";
-          value.append(...spanEls);
-        } else {
-          spanEls.forEach((p) => value.appendChild(p));
+          value.replaceChildren();
         }
-        value.style["display"] = null as unknown as string;
+        spanEls.forEach((s: IElement, i: number) => {
+          s.id = value.id + `.span${i.toString().padStart(8, "0")}`;
+          value.appendChild(s);
+        });
+        value.style["display"] = null;
       } else {
-        value.innerHTML = "";
+        value.replaceChildren();
         value.style["display"] = "none";
       }
     }
   });
   if (indicatorEl) {
     if (data && !autoAdvance) {
-      indicatorEl.style["transition"] = null as unknown as string;
-      indicatorEl.style["animation"] = null as unknown as string;
+      indicatorEl.style["transition"] = null;
+      indicatorEl.style["animation"] = null;
       indicatorEl.style["opacity"] = instant ? "1" : "0";
-      indicatorEl.style["display"] = null as unknown as string;
+      indicatorEl.style["display"] = null;
     } else {
       indicatorEl.style["display"] = "none";
     }
@@ -829,17 +808,33 @@ export const executeDisplayCommand = (
           b.waves[0] = { ...(b.waves[0] || {}), note: modalPitch };
         });
 
-        // TODO: Fluctuate downdrift beeps
+        const fluctuationBend = getBend(
+          "fluctuation",
+          validCharacterConfig.intonation
+        );
         const downdriftBend = getBend(
           "downdrift",
           validCharacterConfig.intonation
         );
+        let direction = -1;
         downdriftBeeps.forEach((b, i) => {
+          direction *= -1;
           const progress = i / (downdriftBeeps.length - 1);
-          const bendIndex = Math.floor(progress * (downdriftBend.length - 1));
+          const bendIndex = getBendIndex(progress, downdriftBend.length);
+          const fluctuationIndex = getBendIndex(
+            progress,
+            fluctuationBend.length
+          );
           const semitones = downdriftBend[bendIndex] || 0;
+          const fluctuation =
+            direction * Math.abs(fluctuationBend[fluctuationIndex] || 0);
+          // Pitch drifts down over phrase
+          const downdriftPitch = transpose(modalPitch, semitones);
+          // Pitch alternately rises and falls for each syllable
+          // (iambic pentameter = te TUM te TUM te TUM)
+          const fluctuatedPitch = transpose(downdriftPitch, fluctuation);
           if (b.waves?.[0]?.note) {
-            b.waves[0].note = transpose(modalPitch, semitones);
+            b.waves[0].note = fluctuatedPitch;
           }
         });
 
@@ -864,9 +859,7 @@ export const executeDisplayCommand = (
         } else {
           lastWordBeeps.forEach((b, i) => {
             const progress = i / (lastWordBeeps.length - 1);
-            const bendIndex = Math.floor(
-              progress * (finalStressBend.length - 1)
-            );
+            const bendIndex = getBendIndex(progress, finalStressBend.length);
             const semitones = finalStressBend[bendIndex] || 0;
             if (b.waves?.[0]?.note) {
               b.waves[0].note = transpose(modalPitch, semitones);
@@ -882,9 +875,9 @@ export const executeDisplayCommand = (
   }
   if (data) {
     if (indicatorEl && (!game || instant)) {
-      indicatorEl.style["transition"] = null as unknown as string;
+      indicatorEl.style["transition"] = null;
       indicatorEl.style["opacity"] = "1";
-      indicatorEl.style["animation"] = null as unknown as string;
+      indicatorEl.style["animation"] = null;
     }
   }
   let startTime: number | undefined;
