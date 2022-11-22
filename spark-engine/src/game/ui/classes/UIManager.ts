@@ -48,8 +48,8 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return id.split(".");
   }
 
-  protected getName(...path: string[]): string {
-    return this.getId(...path.slice(-1));
+  protected getName(id: string): string {
+    return this.getId(...this.getPath(id).slice(-1));
   }
 
   protected getParentPath(id: string): string[] {
@@ -87,7 +87,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     const newEl = this._config.createElement(type);
     if (path?.length > 0) {
       newEl.id = this.getId(...path);
-      newEl.className = this.getName(...path);
+      newEl.className = this.getName(newEl.id);
     }
     this._events.onCreateElement.emit({ type, id: newEl.id });
     return newEl;
@@ -120,26 +120,27 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return this.getElement(this.getUIPath(structName, ...childPath));
   }
 
-  protected _searchChildrenForFirst(
+  protected _searchForFirst(
     parent: IElement,
     name: string
   ): IElement | undefined {
-    if (parent) {
-      const children = parent.getChildren();
-      for (let i = 0; i < children.length; i += 1) {
-        const child = children[i];
-        if (child) {
-          if (this.getName(child.id) === name) {
-            return child;
-          }
-          return this._searchChildrenForFirst(child, name);
+    if (this.getName(parent.id) === name) {
+      return parent;
+    }
+    const children = parent.getChildren();
+    for (let i = 0; i < children.length; i += 1) {
+      const child = children[i];
+      if (child) {
+        let result = this._searchForFirst(child, name);
+        if (result) {
+          return result;
         }
       }
     }
     return undefined;
   }
 
-  protected _searchChildrenForAll(
+  protected _searchForAll(
     parent: IElement,
     name: string,
     found: IElement[]
@@ -152,7 +153,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           if (this.getName(child.id) === name) {
             found.push(child);
           }
-          this._searchChildrenForAll(child, name, found);
+          this._searchForAll(child, name, found);
         }
       }
     }
@@ -163,7 +164,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     const found: IElement[] = [];
     const parent = this.getElement(this.getUIPath(structName));
     if (parent) {
-      this._searchChildrenForAll(parent, childName, found);
+      this._searchForAll(parent, childName, found);
     }
     return found;
   }
@@ -176,11 +177,10 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     if (!childName) {
       return parent;
     }
-    const found: IElement[] = [];
     if (parent) {
-      this._searchChildrenForFirst(parent, childName);
+      return this._searchForFirst(parent, childName);
     }
-    return found[0];
+    return undefined;
   }
 
   constructUIElement(

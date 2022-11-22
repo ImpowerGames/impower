@@ -25,7 +25,7 @@ export const previewLine = (
 ) => {
   const runtimeCommand = getPreviewCommand(result, line);
   if (runtimeCommand) {
-    const commandRunner = context.runner.getRunner(runtimeCommand.reference);
+    const commandRunner = context?.runner?.getRunner(runtimeCommand.reference);
     if (commandRunner) {
       const [sectionId] = getSectionAtLine(line, result?.sections || {});
       const [, valueMap] = getScopedValueContext(

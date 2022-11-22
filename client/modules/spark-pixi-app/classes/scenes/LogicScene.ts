@@ -14,7 +14,7 @@ export class LogicScene extends SparkScene {
   };
 
   override start(): void {
-    const uiEl = document.getElementById("ui");
+    const uiEl = document.getElementById("spark-overlay");
     if (uiEl) {
       uiEl.addEventListener("pointerdown", this.onPointerDown);
       uiEl.addEventListener("pointerup", this.onPointerUp);

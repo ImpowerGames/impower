@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
+import { SparkElement } from "../../../../spark-dom";
 import {
   EngineSparkParser,
   FileData,
@@ -10,18 +11,18 @@ import {
   SparkContext,
   SparkContextConfig,
 } from "../../../../spark-engine";
-import { SparkElement } from "../../../../spark-dom";
 import { GameContext } from "../contexts/gameContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 
 const createGame = (
+  rootElement: HTMLElement,
   script: string,
   files: Record<string, FileData>,
   config?: Partial<SparkContextConfig>
 ): SparkContext => {
   const augmentations = getScriptAugmentations(files);
   const parsed = EngineSparkParser.instance.parse(script, { augmentations });
-  const root = new SparkElement(document.getElementById("spark-root"));
+  const root = new SparkElement(rootElement);
   const createElement = (type: string): IElement => {
     return new SparkElement(document.createElement(type));
   };
@@ -54,36 +55,34 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const activeLineRef = useRef(activeLine);
   activeLineRef.current = activeLine;
 
-  const isFirstEditLoadRef = useRef(true);
   const isFirstScriptLoadRef = useRef(true);
 
   const gameRef = useRef<SparkContext>();
   const [game, setGame] = useState<SparkContext>();
 
-  useEffect(() => {
-    if (!isFirstEditLoadRef.current) {
-      if (mode === "Edit") {
-        gameRef.current = createGame(script, files, {
-          editable: true,
-          activeLine: activeLineRef.current,
-          state: {
-            debug: {
-              debugging: debuggingRef.current,
-            },
-            random: {
-              seed,
-            },
-          },
-        });
-        setGame(gameRef.current);
-      }
-    }
-    isFirstEditLoadRef.current = false;
-  }, [files, mode, script, seed]);
+  const rootElement = document.getElementById("spark-root");
 
   useEffect(() => {
-    if (mode === "Test") {
-      gameRef.current = createGame(script, files, {
+    if (rootElement && mode === "Edit") {
+      gameRef.current = createGame(rootElement, script, files, {
+        editable: true,
+        activeLine: activeLineRef.current,
+        state: {
+          debug: {
+            debugging: debuggingRef.current,
+          },
+          random: {
+            seed,
+          },
+        },
+      });
+      setGame(gameRef.current);
+    }
+  }, [files, mode, rootElement, script, seed]);
+
+  useEffect(() => {
+    if (rootElement && mode === "Test") {
+      gameRef.current = createGame(rootElement, script, files, {
         editable: false,
         activeLine: activeLineRef.current,
         state: {
