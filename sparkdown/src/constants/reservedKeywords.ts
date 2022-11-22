@@ -1,9 +1,6 @@
 import { MethodType } from "../types/MethodType";
 import { assetTypes } from "./assetTypes";
-import { structTypes } from "./structTypes";
 import { tagTypes } from "./tagTypes";
-
-export const types = [...assetTypes, ...tagTypes, ...structTypes];
 
 export const entityMethods: MethodType[] = [
   "spawn",
@@ -21,18 +18,9 @@ export const entityMethods: MethodType[] = [
   "scaleY",
 ];
 
-export const assetMethods: MethodType[] = ["preload", "unload"];
+export const primitives: MethodType[] = ["string", "boolean", "number"];
 
-export const castMethods: MethodType[] = ["string", "boolean", "number"];
-
-export const reservedMethods: MethodType[] = [
-  "log",
-  "save",
-  "load",
-  ...castMethods,
-  ...assetMethods,
-  ...entityMethods,
-];
+export const types = [...assetTypes, ...tagTypes];
 
 export const reservedKeywords = [
   "locale",
@@ -98,6 +86,6 @@ export const reservedKeywords = [
   "while",
   "with",
   "yield",
+  ...primitives,
   ...types,
-  ...reservedMethods,
 ];

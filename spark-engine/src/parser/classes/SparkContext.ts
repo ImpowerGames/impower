@@ -64,9 +64,13 @@ export class SparkContext {
   }
 
   constructor(parsed: SparkParseResult, config?: SparkContextConfig) {
+    this._runner = config?.runner || new SparkGameRunner();
+    this._editable = config?.editable || false;
+    this._game = this.load(parsed, config);
+  }
+
+  load(parsed: SparkParseResult, config?: SparkContextConfig): SparkGame {
     const activeLine = config?.activeLine || 0;
-    const editable = config?.editable || false;
-    const runner = config?.runner || new SparkGameRunner();
     const blockMap = generateSectionBlocks(parsed?.sections || {});
     const objectMap = generateStructObjects(parsed?.structs || {});
     const defaultCameras = objectMap["camera"] as Record<string, CameraState>;
@@ -98,9 +102,6 @@ export class SparkContext {
         },
       }
     );
-    this._game = game;
-    this._runner = runner;
-    this._editable = editable || false;
     Object.entries(game?.logic?.config?.blockMap).forEach(
       ([blockId, block]) => {
         const [ids, valueMap] = getScopedValueContext(
@@ -131,6 +132,8 @@ export class SparkContext {
     this.runner.commandRunners.forEach((r) => {
       r.init(game);
     });
+    this._game = game;
+    return game;
   }
 
   init(): void {

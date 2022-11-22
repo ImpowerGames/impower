@@ -105,7 +105,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
       debug?: boolean;
     }
   ): boolean {
-    executeDisplayCommand(game, data, context);
+    executeDisplayCommand(game, data, context, undefined, true);
     return true;
   }
 }

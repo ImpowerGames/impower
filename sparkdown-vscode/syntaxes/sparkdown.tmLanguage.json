@@ -1413,11 +1413,11 @@
 
     "comment-block-begin": {
       "name": "comment.block",
-      "match": "^([ \t]*)(/[*])"
+      "match": "^([ \\t]*)(/[*])"
     },
     "comment-block-end": {
       "name": "comment.block",
-      "match": "([*]/)([ \t]*)$"
+      "match": "([*]/)([ \\t]*)$"
     },
     "note": {
       "name": "comment.block",
@@ -1430,7 +1430,7 @@
     },
     "synopsis": {
       "name": "comment.block.sd.synopsis",
-      "match": "^([ \t]*)(?![=]{3,})([=])([ ]*)(.*)([ ]*)",
+      "match": "^([ \\t]*)(?![=]{3,})([=])([ ]*)(.*)([ ]*)",
       "patterns": [
         {
           "include": "#comment"
@@ -1448,7 +1448,7 @@
     },
     "centered": {
       "name": "keyword.other.class.sd",
-      "match": "^([ \t]*)(>)([^<>\\n]+)(<)",
+      "match": "^([ \\t]*)(>)([^<>\\n]+)(<)",
       "captures": {
         "2": {
           "name": "keyword.other.centered.sd"
@@ -1477,7 +1477,7 @@
       ]
     },
     "condition": {
-      "match": "^([ \t]*)([*])($|[ ]+)($|if|elif|else)(?:($|[ ]+)($|(?:[ ]+|`[^\n\r`]*`|\"[^\n\r\"]*\"|'[^\n\r']*'|[^\n\r:])+))?([ ]*)([:])([ ]*)",
+      "match": "^([ \\t]*)([*])($|[ ]+)($|if|elif|else)(?:($|[ ]+)($|(?:[ ]+|`[^\\n\\r`]*`|\"[^\\n\\r\"]*\"|'[^\\n\\r']*'|[^\\n\\r:])+))?([ ]*)([:])([ ]*)",
       "captures": {
         "2": {
           "name": "keyword.other.condition.sd"
@@ -1503,7 +1503,7 @@
       ]
     },
     "logic": {
-      "match": "^([ \t]*)([*])($|[ ]+)([^\n\r]*)?([ ]*)",
+      "match": "^([ \\t]*)([*])($|[ ]+)([^\\n\\r]*)?([ ]*)",
       "captures": {
         "2": {
           "name": "keyword.other.logic.sd"
@@ -1523,7 +1523,7 @@
       ]
     },
     "list": {
-      "match": "^([ \t]*)([*+-])($|[ ]+)",
+      "match": "^([ \\t]*)([*+-])($|[ ]+)",
       "captures": {
         "2": {
           "name": "keyword.other.list.sd"
@@ -1536,7 +1536,7 @@
       ]
     },
     "import": {
-      "match": "^([ \t]*)(import)($|[ ]+)($|[^\n\r]+)([ ]*)",
+      "match": "^([ \\t]*)(import)($|[ ]+)($|[^\\n\\r]+)([ ]*)",
       "captures": {
         "2": {
           "name": "keyword.other.import.sd"
@@ -1557,7 +1557,7 @@
     },
     "variable": {
       "name": "string.other.variable.sd",
-      "match": "^([ \t]*)([*])([ ]+)(var)($|[ ]+)($|[^\n\r]+)",
+      "match": "^([ \\t]*)([*])([ ]+)(var)($|[ ]+)($|[^\\n\\r]+)",
       "captures": {
         "2": {
           "name": "keyword.other.variable.sd"
@@ -1573,8 +1573,8 @@
     },
     "struct": {
       "name": "string.other.struct.sd",
-      "begin": "^([ \t]*)(list|map|ui|style|config)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)(?:([(])([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[)]))?([ ]*)([:]?)",
-      "end": "^(?=(list|map|ui|style|config)|$)",
+      "begin": "^([ \\t]*)(@)($|[ ]+)($|[a-z]+)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:([(])([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$",
+      "end": "^(?=(@)|$)",
       "captures": {
         "2": {
           "name": "keyword.other.struct.sd"
@@ -1602,7 +1602,7 @@
       ]
     },
     "jump": {
-      "match": "^([ \t]*)([>])([ ]*)([^\n\r<]+)?([ ]*)(?!<[ ]*)",
+      "match": "^([ \\t]*)([>])([ ]*)([^\\n\\r<]+)?([ ]*)(?!<[ ]*)",
       "captures": {
         "2": {
           "name": "keyword.other.jump.sd"
@@ -1623,7 +1623,7 @@
       ]
     },
     "repeat": {
-      "match": "^([ \t]*)([\\^])([ ]*)",
+      "match": "^([ \\t]*)([\\^])([ ]*)",
       "captures": {
         "2": {
           "name": "keyword.other.repeat.sd"
@@ -1636,7 +1636,7 @@
       ]
     },
     "return": {
-      "match": "^([ \t]*)([<])([ ]*)([^\n\r]*)([ ]*)",
+      "match": "^([ \\t]*)([<])([ ]*)([^\\n\\r]*)([ ]*)",
       "captures": {
         "2": {
           "name": "keyword.other.return.sd"
@@ -1656,7 +1656,7 @@
       ]
     },
     "scene": {
-      "match": "^([ \t]*)([.](?![. ])|INT[.][ ]+|EXT[.][ ]+|INT[.]?/EXT[.][ ]+)($|(?:[^\n\r-]|[^ \t\n\r][-])*[^ \t\n\r])($|[ ]+)($|[-])($|[ ]+)($|[^\n\r#]*[^ \t\n\r])($|[ ]+)($|[#])($|[^\n\r#]+)($|[#])?([ ]*)",
+      "match": "^([ \\t]*)([.](?![. ])|INT[.][ ]+|EXT[.][ ]+|INT[.]?/EXT[.][ ]+)($|(?:[^\\n\\r-]|[^ \\t\\n\\r][-])*[^ \\t\\n\\r])($|[ ]+)($|[-])($|[ ]+)($|[^\\n\\r#]*[^ \\t\\n\\r])($|[ ]+)($|[#])($|[^\\n\\r#]+)($|[#])?([ ]*)",
       "captures": {
         "2": {
           "name": "variable.other.constant.sd"
@@ -1706,10 +1706,10 @@
     },
     "scene_number": {
       "name": "constant.numeric.scene.sd",
-      "match": "(#[^\n\r]#)"
+      "match": "(#[^\\n\\r]#)"
     },
     "section": {
-      "match": "^([ \t]*)(#+)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[^\n\r:]+)?([:])?([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)?([ ]*)",
+      "match": "^([ \\t]*)(#+)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[^\\n\\r:]+)?([:])?([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)?([ ]*)",
       "captures": {
         "2": {
           "name": "keyword.control.export.sd"
@@ -1744,7 +1744,7 @@
     },
     "section-mark": {
       "name": "keyword.control.export.sd",
-      "match": "^([ \t]*)(#+)",
+      "match": "^([ \\t]*)(#+)",
       "patterns": [
         {
           "include": "#comment"
@@ -1753,7 +1753,7 @@
     },
     "transition": {
       "name": "constant.numeric",
-      "match": "([ \t]*)((?:^|.*[ ]+)(?:TO:|TO BLACK:|FADE OUT:|FADE IN:))",
+      "match": "([ \\t]*)((?:^|.*[ ]+)(?:TO:|TO BLACK:|FADE OUT:|FADE IN:))",
       "patterns": [
         {
           "include": "#comment"
@@ -1762,7 +1762,7 @@
     },
     "lyric": {
       "name": "markup.italic string",
-      "match": "^([ \t]*)(~)(.*)",
+      "match": "^([ \\t]*)(~)(.*)",
       "patterns": [
         {
           "include": "#comment"
@@ -1771,7 +1771,7 @@
     },
     "dialogue": {
       "contentName": "string",
-      "begin": "^([ \t]*)(?![#!]|(\\[\\[)|(SUPERIMPOSE:))(((?!@)[^\\p{Ll}\\r\\n]*?\\p{Lu}[^\\p{Ll}\\r\\n]*?)|((@)[^\\r\\n]*?))(\\(.*\\))?(\\s*\\^)?$",
+      "begin": "^([ \\t]*)(?![#!]|\\[\\[)([^\\p{Ll}\\r\\n]*?\\p{Lu}[^\\p{Ll}\\r\\n]*?)(\\(.*\\))?(\\s*\\^)?$",
       "end": "^$",
       "beginCaptures": {
         "4": {
@@ -1828,7 +1828,7 @@
     },
     "action": {
       "contentName": "meta.paragraph.text",
-      "begin": "^([ \t]*)(?=\\S)",
+      "begin": "^([ \\t]*)(?=\\S)",
       "end": "^(?!\\1(?=\\S))",
       "patterns": [
         {

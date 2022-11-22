@@ -3,18 +3,15 @@ import { SparkElement } from "../../../../spark-dom";
 import {
   EngineSparkParser,
   FileData,
-  generateStructObjects,
   getScriptAugmentations,
   IElement,
-  loadStyles,
-  loadUI,
   SparkContext,
   SparkContextConfig,
 } from "../../../../spark-engine";
 import { GameContext } from "../contexts/gameContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 
-const createGame = (
+const createSparkContext = (
   root: SparkElement,
   script: string,
   files: Record<string, FileData>,
@@ -41,12 +38,24 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const [state] = useContext(ProjectEngineContext);
   const project = state?.project?.data;
   const script = project?.scripts?.data?.logic;
-  const files = project?.files?.data;
+  const files = project?.files;
   const seed =
     project?.instances?.configs?.data?.DebugConfig?.randomizationSeed;
   const mode = state?.test?.mode;
   const debugging = state?.test?.debug;
   const activeLine = state?.panel?.panels?.logic?.cursor?.fromLine || 1;
+
+  const scriptRef = useRef(script);
+  scriptRef.current = script;
+
+  const filesRef = useRef(files);
+  filesRef.current = files;
+
+  const seedRef = useRef(seed);
+  seedRef.current = seed;
+
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
 
   const debuggingRef = useRef(debugging);
   debuggingRef.current = debugging;
@@ -54,10 +63,8 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   const activeLineRef = useRef(activeLine);
   activeLineRef.current = activeLine;
 
-  const isFirstScriptLoadRef = useRef(true);
-
-  const gameRef = useRef<SparkContext>();
-  const [game, setGame] = useState<SparkContext>();
+  const sparkContextRef = useRef<SparkContext>();
+  const [sparkContext, setSparkContext] = useState<SparkContext>();
 
   const rootElement = document.getElementById("spark-root");
   const root = useMemo(
@@ -66,66 +73,75 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
   );
 
   useEffect(() => {
-    if (root && mode === "Edit") {
-      gameRef.current = createGame(root, script, files, {
-        editable: true,
-        activeLine: activeLineRef.current,
-        state: {
-          debug: {
-            debugging: debuggingRef.current,
-          },
-          random: {
-            seed,
-          },
-        },
-      });
-      setGame(gameRef.current);
+    if (root && script && files !== undefined) {
+      if (!sparkContextRef.current) {
+        // Initialize SparkContext
+        sparkContextRef.current = createSparkContext(
+          root,
+          script,
+          files?.data,
+          {
+            editable: modeRef.current === "Edit",
+            activeLine: activeLineRef.current,
+            state: {
+              debug: {
+                debugging: debuggingRef.current,
+              },
+              random: {
+                seed: seedRef.current,
+              },
+            },
+          }
+        );
+        const objectMap = sparkContextRef.current.game.struct.config.objectMap;
+        sparkContextRef.current.game.ui.loadStyles(objectMap);
+        sparkContextRef.current.game.ui.loadUI(
+          objectMap,
+          ...Object.keys(objectMap?.ui || {})
+        );
+        setSparkContext(sparkContextRef.current);
+      }
     }
-  }, [files, mode, root, script, seed]);
+  }, [root, script, files]);
+
+  const isInitialized = Boolean(sparkContextRef.current);
 
   useEffect(() => {
-    if (root && mode === "Test") {
-      gameRef.current = createGame(root, script, files, {
-        editable: false,
-        activeLine: activeLineRef.current,
-        state: {
-          debug: {
-            debugging: debuggingRef.current,
+    if (isInitialized && mode && root) {
+      sparkContextRef.current = createSparkContext(
+        root,
+        scriptRef.current,
+        filesRef.current?.data,
+        {
+          editable: mode === "Edit",
+          activeLine: activeLineRef.current,
+          state: {
+            debug: {
+              debugging: debuggingRef.current,
+            },
+            random: {
+              seed: seedRef.current,
+            },
           },
-          random: {
-            seed,
-          },
-        },
-      });
-      setGame(gameRef.current);
+        }
+      );
+      setSparkContext(sparkContextRef.current);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+  }, [isInitialized, mode, root]);
 
   useEffect(() => {
-    if (script && game && isFirstScriptLoadRef.current) {
-      isFirstScriptLoadRef.current = false;
-      const augmentations = getScriptAugmentations(files);
-      const result = EngineSparkParser.instance.parse(script, {
-        augmentations,
-      });
-      const objectMap = generateStructObjects(result?.structs);
-      loadStyles(game.game, objectMap, ...Object.keys(objectMap?.style || {}));
-      loadUI(game.game, objectMap, ...Object.keys(objectMap?.ui || {}));
-    }
-  }, [script, files, game]);
-
-  useEffect(() => {
-    if (gameRef.current) {
+    if (sparkContextRef.current) {
       if (debugging) {
-        gameRef.current.game.debug.startDebugging();
+        sparkContextRef.current.game.debug.startDebugging();
       } else {
-        gameRef.current.game.debug.stopDebugging();
+        sparkContextRef.current.game.debug.stopDebugging();
       }
     }
   }, [debugging]);
 
-  return <GameContext.Provider value={game}>{children}</GameContext.Provider>;
+  return (
+    <GameContext.Provider value={sparkContext}>{children}</GameContext.Provider>
+  );
 });
 
 export default GameContextProvider;

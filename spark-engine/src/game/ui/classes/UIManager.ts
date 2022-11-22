@@ -1,6 +1,9 @@
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { IElement } from "../types/IElement";
+import { getCSSPropertyKeyValue } from "../utils/getCSSPropertyKeyValue";
+import { getHash } from "../utils/getHash";
+import { setupDefaultStyle } from "../utils/setupDefaultStyle";
 import { Element } from "./Element";
 
 const DEFAULT_ROOT_CLASS_NAME = "spark-root";
@@ -84,6 +87,121 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
   getStylePath(...path: string[]): string[] {
     return [this._config.root.id, this._config.styleClassName, ...path];
+  }
+
+  loadStyles(objectMap: Record<string, Record<string, unknown>>): void {
+    const styleEl = this.getOrCreateStyleRoot();
+    if (!objectMap) {
+      return;
+    }
+    const imports = Object.values(objectMap?.["import"] || {});
+    let content = "";
+    content += `${imports.map((x) => `\n@import url("${x}");`)}`;
+    const animationStructNames = Object.keys(objectMap?.["animation"] || {});
+    animationStructNames.forEach((structName) => {
+      if (content) {
+        content += "\n";
+      }
+      const struct = objectMap[structName];
+      const fieldMap: Record<string, string[]> = {};
+      if (struct) {
+        content += `@keyframes ${structName} {\n`;
+        Object.entries(struct || {}).forEach(([fk, fv]) => {
+          if (fk.includes(".")) {
+            const [keyframe, propName] = fk.split(".");
+            if (keyframe && propName) {
+              if (!fieldMap[keyframe]) {
+                fieldMap[keyframe] = [];
+              }
+              const [cssProp, cssValue] = getCSSPropertyKeyValue(propName, fv);
+              fieldMap[keyframe]?.push(`${cssProp}: ${cssValue};`);
+            }
+          }
+        });
+        Object.entries(fieldMap || {}).forEach(([keyframe, fields]) => {
+          const fieldsContent = `{\n  ${fields.join(`\n  `)}\n}`;
+          content += `${keyframe} ${fieldsContent}`;
+        });
+        content += `\n}`;
+      }
+    });
+    const styleStructNames = Object.keys(objectMap?.["style"] || {});
+    styleStructNames.forEach((structName) => {
+      if (content) {
+        content += "\n";
+      }
+      const struct = objectMap[structName];
+      const breakpointMap: Record<string, string[]> = {};
+      Object.entries(struct || {}).forEach(([fk, fv]) => {
+        if (fk.includes(".")) {
+          const [breakpoint, propName] = fk.split(".");
+          if (breakpoint && propName) {
+            if (!breakpointMap[breakpoint]) {
+              breakpointMap[breakpoint] = [];
+            }
+            const [cssProp, cssValue] = getCSSPropertyKeyValue(propName, fv);
+            breakpointMap[breakpoint]?.push(`${cssProp}: ${cssValue};`);
+          }
+        } else {
+          if (!breakpointMap[""]) {
+            breakpointMap[""] = [];
+          }
+          const [cssProp, cssValue] = getCSSPropertyKeyValue(fk, fv);
+          breakpointMap[""].push(`${cssProp}: ${cssValue};`);
+        }
+      });
+      Object.entries(breakpointMap || {}).forEach(([breakpoint, fields]) => {
+        const fieldsContent = `{\n  ${fields.join(`\n  `)}\n}`;
+        if (content) {
+          content += "\n";
+        }
+        if (breakpoint) {
+          content += `.${breakpoint} #${this.config.root.id} .${structName} ${fieldsContent}`;
+        } else {
+          content += `#${this.config.root.id} .${structName} ${fieldsContent}`;
+        }
+      });
+    });
+    if (styleEl.textContent !== content) {
+      styleEl.textContent = content;
+    }
+  }
+
+  loadUI(
+    objectMap: Record<string, Record<string, unknown>>,
+    ...uiStructNames: string[]
+  ): void {
+    const uiEl = this.getOrCreateUIRoot();
+    uiEl.style["fontFamily"] = "Courier Prime Sans";
+    uiEl.style["fontSize"] = "1em";
+    setupDefaultStyle(uiEl);
+    if (!objectMap) {
+      return;
+    }
+    uiStructNames.forEach((structName) => {
+      const fields = objectMap[structName];
+      const hash = getHash(fields).toString();
+      const existingStructEl = this.getUIElement(structName);
+      if (existingStructEl && existingStructEl.dataset["hash"] !== hash) {
+        existingStructEl.replaceChildren();
+      }
+      const structEl =
+        existingStructEl || this.constructUIElement("div", structName);
+      if (structEl.dataset["hash"] !== hash) {
+        structEl.dataset["hash"] = hash;
+      }
+      setupDefaultStyle(structEl);
+      if (fields) {
+        Object.entries(fields).forEach(([k, v]) => {
+          const curr =
+            this.getUIElement(structName, ...k.split(".")) ||
+            this.constructUIElement("div", structName, ...k.split("."));
+          if (curr && v && typeof v === "string") {
+            curr.textContent = v;
+          }
+        });
+      }
+    });
   }
 
   createElement(type: string, ...path: string[]): IElement {

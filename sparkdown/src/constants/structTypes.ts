@@ -9,4 +9,5 @@ export const structTypes: SparkStructType[] = [
   "camera",
   "entity",
   "character",
+  "animation",
 ];

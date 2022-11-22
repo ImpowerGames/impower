@@ -1,6 +1,5 @@
 import { SparkParseResult } from "../types/SparkParseResult";
 import { trimCharacterExtension } from "./trimCharacterExtension";
-import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
 export const getCharactersWhoSpokeBeforeLine = (
   result: SparkParseResult,
@@ -18,9 +17,7 @@ export const getCharactersWhoSpokeBeforeLine = (
     const token = result.tokens[searchIndex - 1];
     if (token) {
       if (token.type === "dialogue_character") {
-        const name = trimCharacterForceSymbol(
-          trimCharacterExtension(token.text || "")
-        ).trim();
+        const name = trimCharacterExtension(token.text || "").trim();
         if (!lastCharacter) {
           lastCharacter = name;
         } else if (

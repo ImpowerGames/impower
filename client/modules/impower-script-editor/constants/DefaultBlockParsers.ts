@@ -163,18 +163,20 @@ export const DefaultBlockParsers: {
     let from = 0;
     let to = from;
 
-    const type = match[2] || "";
-    const typeSpace = match[3] || "";
-    const name = match[4] || "";
-    const nameSpace = match[5] || "";
-    const openMark = match[6] || "";
-    const openMarkSpace = match[7] || "";
-    const base = match[8] || "";
-    const baseSpace = match[9] || "";
-    const closeMark = match[10] || "";
-    const closeMarkSpace = match[11] || "";
-    const colon = match[12] || "";
-    const colonSpace = match[13] || "";
+    const mark = match[2] || "";
+    const markSpace = match[3] || "";
+    const type = match[4] || "";
+    const typeSpace = match[5] || "";
+    const name = match[6] || "";
+    const nameSpace = match[7] || "";
+    const openMark = match[8] || "";
+    const openMarkSpace = match[9] || "";
+    const base = match[10] || "";
+    const baseSpace = match[11] || "";
+    const closeMark = match[12] || "";
+    const closeMarkSpace = match[13] || "";
+    const colon = match[14] || "";
+    const colonSpace = match[15] || "";
     if (colon) {
       cx.startContext(Type.Struct, line.basePos, line.next);
       if (type === "list") {
@@ -182,10 +184,15 @@ export const DefaultBlockParsers: {
       }
     }
 
+    if (mark || markSpace) {
+      from = to;
+      to = from + mark.length + markSpace.length;
+      buf = buf.write(Type.StructMark, from, to);
+    }
     if (type || typeSpace) {
       from = to;
       to = from + type.length + typeSpace.length;
-      buf = buf.write(Type.StructMark, from, to);
+      buf = buf.write(Type.StructType, from, to);
     }
     if (name || nameSpace) {
       from = to;

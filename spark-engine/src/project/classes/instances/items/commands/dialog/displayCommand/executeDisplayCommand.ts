@@ -6,15 +6,13 @@ import {
 } from "../../../../../../../data";
 import {
   convertNoteToHertz,
+  IElement,
   Intonation,
   parseTone,
   SparkGame,
   StressType,
   Tone,
   transpose,
-  loadStyles,
-  loadUI,
-  IElement,
 } from "../../../../../../../game";
 import { CharacterConfig, Prosody } from "./CharacterConfig";
 
@@ -101,37 +99,32 @@ const defaultProsody: Prosody = {
   statement: /\b([^\t\n\r .]+)[.]$/,
 };
 
-const defaultCharacterConfig: CharacterConfig = {
-  tone: "(G4*0.25)(G5*0.25)(D#5*0.125)",
-  intonation: defaultIntonation,
-  prosody: defaultProsody,
-};
-
 export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   default: {
-    typing: {
-      delay: 0,
-      pauseScale: 0,
-      beepDuration: 0,
-      syllableLength: 0,
+    character: {
+      tone: "(G4*0.25)(G5*0.25)(D#5*0.125)",
+      intonation: defaultIntonation,
+      prosody: defaultProsody,
     },
     indicator: {
       className: "Indicator",
       fadeDuration: 0.15,
-      animationName: "bounce",
-      animationDuration: 0.5,
-      animationEase: "ease",
     },
   },
   parenthetical: { hidden: "beat" },
   dialogue: {
     className: "Dialogue",
     typing: {
-      fadeDuration: 0,
-      delay: 0.025,
-      pauseScale: 6,
+      letterDelay: 0.025,
       beepDuration: 0.05,
-      syllableLength: 3,
+      fadeDuration: 0,
+    },
+    character: {
+      prosody: {
+        wordPauseScale: 3,
+        phrasePauseScale: 6,
+        syllableLength: 3,
+      },
     },
   },
 };
@@ -245,19 +238,19 @@ const getAnimatedSpanElements = (
     0
   );
   const letterDelay = get(
-    config[type]?.typing?.delay,
-    config?.default?.typing?.delay,
+    config[type]?.typing?.letterDelay,
+    config?.default?.typing?.letterDelay,
     0
   );
   const pauseScale = get(
-    config[type]?.typing?.pauseScale,
-    config?.default?.typing?.pauseScale,
+    config[type]?.character?.prosody?.phrasePauseScale,
+    config?.default?.character?.prosody?.phrasePauseScale,
     1
   );
   const pauseDelay = letterDelay * pauseScale;
   const averageSyllableLength = get(
-    config[type]?.typing?.syllableLength,
-    config?.default?.typing?.syllableLength
+    config[type]?.character?.prosody?.syllableLength,
+    config?.default?.character?.prosody?.syllableLength
   );
   const beepDuration = get(
     config[type]?.typing?.beepDuration,
@@ -526,22 +519,20 @@ export const executeDisplayCommand = (
     debug?: boolean;
     fadeOutDuration?: number;
   },
-  onFinished?: () => void
+  onFinished?: () => void,
+  preview?: boolean
 ): ((timeMS: number) => void) | undefined => {
   const type = data?.type || "";
   const assets = data?.assets || [];
 
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
-  const displayConfig = objectMap?.["config"]?.["_display"]
-    ? (objectMap?.["_display"] as DisplayCommandConfig)
+  const displayConfig = objectMap?.["config"]?.["DISPLAY"]
+    ? (objectMap?.["DISPLAY"] as DisplayCommandConfig)
     : undefined;
   const validDisplayConfig = displayConfig || defaultDisplayCommandConfig;
   const fadeOutDuration = context?.fadeOutDuration || 0;
-  const structName = "Display";
-
-  loadStyles(game, objectMap, ...Object.keys(objectMap?.["style"] || {}));
-  loadUI(game, objectMap, structName);
+  const structName = "DISPLAY";
 
   const assetsOnly = type === "assets";
   if (assetsOnly) {
@@ -574,13 +565,12 @@ export const executeDisplayCommand = (
 
   const characterConfig = objectMap?.["character"]?.[characterVariableName]
     ? (objectMap?.[characterVariableName] as CharacterConfig)
-    : objectMap?.["character"]?.[`_${type}`]
-    ? (objectMap?.[`_${type}`] as CharacterConfig)
-    : objectMap?.["character"]?.["_"]
-    ? (objectMap?.["_"] as CharacterConfig)
+    : objectMap?.["config"]?.["CHARACTER"]
+    ? (objectMap?.["CHARACTER"] as CharacterConfig)
     : undefined;
   const validCharacterConfig: CharacterConfig = {
-    ...defaultCharacterConfig,
+    ...(validDisplayConfig?.default?.character || {}),
+    ...(validDisplayConfig?.[type]?.character || {}),
     ...(characterConfig || {}),
   };
 
@@ -603,18 +593,12 @@ export const executeDisplayCommand = (
   const instant =
     context?.instant ||
     !get(
-      validDisplayConfig?.[type || ""]?.typing?.delay,
-      validDisplayConfig?.default?.typing?.delay
+      validDisplayConfig?.[type || ""]?.typing?.letterDelay,
+      validDisplayConfig?.default?.typing?.letterDelay
     );
   const debug = context?.debug;
   const indicatorFadeDuration =
     validDisplayConfig?.default?.indicator?.fadeDuration || 0;
-  const indicatorAnimationName =
-    validDisplayConfig?.default?.indicator?.animationName;
-  const indicatorAnimationDuration =
-    validDisplayConfig?.default?.indicator?.animationDuration;
-  const indicatorAnimationEase =
-    validDisplayConfig?.default?.indicator?.animationEase;
 
   const descriptionGroupEl = game.ui.findFirstUIElement(
     structName,
@@ -744,9 +728,9 @@ export const executeDisplayCommand = (
   if (indicatorEl) {
     if (data && !autoAdvance) {
       indicatorEl.style["transition"] = null;
-      indicatorEl.style["animation"] = null;
       indicatorEl.style["opacity"] = instant ? "1" : "0";
       indicatorEl.style["display"] = null;
+      indicatorEl.style["animation-play-state"] = "paused";
     } else {
       indicatorEl.style["display"] = "none";
     }
@@ -763,9 +747,9 @@ export const executeDisplayCommand = (
         "transition"
       ] = `opacity ${indicatorFadeDuration}s linear`;
       indicatorEl.style["opacity"] = "1";
-      indicatorEl.style[
-        "animation"
-      ] = `${indicatorAnimationName} ${indicatorAnimationDuration}s ${indicatorAnimationEase} infinite`;
+      indicatorEl.style["animation-play-state"] = preview
+        ? "paused"
+        : "running";
     }
     onFinished?.();
   };
@@ -877,7 +861,6 @@ export const executeDisplayCommand = (
     if (indicatorEl && (!game || instant)) {
       indicatorEl.style["transition"] = null;
       indicatorEl.style["opacity"] = "1";
-      indicatorEl.style["animation"] = null;
     }
   }
   let startTime: number | undefined;

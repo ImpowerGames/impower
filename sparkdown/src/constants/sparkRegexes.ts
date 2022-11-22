@@ -71,14 +71,14 @@ export const sparkRegexes: SparkRegexes = {
     /^([ \t]*)(title|credit|author[s]?|source|notes|draft date|date|watermark|contact(?: info)?|revision|copyright|font|tl|tc|tr|cc|br|bl)(:)(.*)?$/i,
 
   dialogue_character:
-    /^([ \t]*)(?![#!?]|(?:\[\[)|(?:SUPERIMPOSE:))((?:(?!@)[^\p{Ll}\r\n]*?\p{Lu}[^\p{Ll}\r\n]*?)|(?:@[^\r\n]*?))([ \t]*)(\(.*\))?([ \t]*)(\^)?([ ]*)$/u,
+    /^([ \t]*)(?![#!?]|\[\[)([^\p{Ll}\r\n]*?\p{Lu}[^\p{Ll}\r\n]*?)([ \t]*)(\(.*\))?([ \t]*)(\^)?([ ]*)$/u,
   dialogue_parenthetical: /^([ \t]*)([(])(.+)([)])([ ]*)$/,
   dialogue: /^([ \t]*)(?!!)([^\r\n]+)$/,
   action: /^([ \t]*)(.+)$/,
 
   import: /^([ \t]*)(import)($|[ ]+)($|[^\n\r]+)([ ]*)$/,
   struct:
-    /^([ \t]*)(list|map|config|ui|style|camera|entity|character)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:([(])([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$/,
+    /^([ \t]*)(@)($|[ ]+)($|[a-z]+)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:([(])([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$/,
 
   list: /^([ \t]*)([*+-])($|[ ]+)(.*)([ ]*)$/,
   choice:

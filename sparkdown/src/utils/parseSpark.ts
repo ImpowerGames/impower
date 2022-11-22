@@ -48,7 +48,6 @@ import { isVariableType } from "./isVariableType";
 import { stripBlockComments } from "./stripBlockComments";
 import { stripInlineComments } from "./stripInlineComments";
 import { trimCharacterExtension } from "./trimCharacterExtension";
-import { trimCharacterForceSymbol } from "./trimCharacterForceSymbol";
 
 const EMPTY_OBJECT = {};
 
@@ -2264,21 +2263,21 @@ const hoistDeclarations = (
         }
       }
     } else if ((match = text.match(sparkRegexes.struct))) {
-      const type = match[2] as SparkStructType;
+      const type = match[4] as SparkStructType;
+      const name = match[6] || "";
+      const base = match[10] || "";
+      const colon = match[14] || "";
       const currentToken = createSparkToken(type, newLineLength, {
         content: text,
         line: i + (config?.lineOffset || 0),
         from,
       });
-      const colon = match[12] || "";
       if (colon) {
         stateType = type;
       }
-      const name = match[4] || "";
-      const base = match[8] || "";
-      const nameFrom = currentToken.from + getStart(match, 4);
+      const nameFrom = currentToken.from + getStart(match, 6);
       const nameTo = nameFrom + name.length;
-      const baseFrom = currentToken.from + getStart(match, 8);
+      const baseFrom = currentToken.from + getStart(match, 10);
       const baseTo = baseFrom + base.length;
       currentToken.name = name;
       if (name) {
@@ -2299,6 +2298,7 @@ const hoistDeclarations = (
       currentStructFieldId = name;
     } else if (isStructType(stateType) && text?.trim()) {
       if ((match = text.match(sparkRegexes.struct_object_field))) {
+        const name = match[2] || "";
         const currentToken = createSparkToken(
           "struct_object_field",
           newLineLength,
@@ -2308,7 +2308,6 @@ const hoistDeclarations = (
             from,
           }
         );
-        const name = match[2] || "";
         currentStructFieldId = `${currentStructFieldId
           .split(".")
           .slice(0, currentToken.indent)
@@ -3062,9 +3061,9 @@ export const parseSpark = (
           }
         }
       } else if ((match = currentToken.content.match(sparkRegexes.struct))) {
-        const type = match[2] as SparkStructType;
-        const name = match[4] || "";
-        const colon = match[12] || "";
+        const type = match[4] as SparkStructType;
+        const name = match[6] || "";
+        const colon = match[14] || "";
         if (colon) {
           stateType = type;
         }
@@ -3227,7 +3226,7 @@ export const parseSpark = (
         stateType = "dialogue";
         currentToken.type = "dialogue_character";
         if (currentToken.type === "dialogue_character") {
-          currentToken.content = trimCharacterForceSymbol(currentToken.content);
+          currentToken.content = currentToken.content;
           currentToken.skipToNextPreview = true;
           if (currentToken.content[currentToken.content.length - 1] === "^") {
             stateType = "dual_dialogue";

@@ -124,41 +124,6 @@ const getInfoNode = (
   return preview;
 };
 
-export const lowercaseParagraphSnippets: readonly Completion[] = [
-  snip("list ${}${ListName}:${}", {
-    label: "list",
-    type: "struct",
-  }),
-  snip("map ${}${MapName}:${}", {
-    label: "map",
-    type: "struct",
-  }),
-  snip("config ${}${ConfigName}:${}", {
-    label: "config",
-    type: "struct",
-  }),
-  snip("ui ${}${UIName}:${}", {
-    label: "ui",
-    type: "struct",
-  }),
-  snip("style ${}${StyleName}:${}", {
-    label: "style",
-    type: "struct",
-  }),
-  snip("camera ${}${CameraName}:${}", {
-    label: "camera",
-    type: "struct",
-  }),
-  snip("entity ${}${EntityName}:${}", {
-    label: "entity",
-    type: "struct",
-  }),
-  snip("character ${}${CharacterName}:${}", {
-    label: "character",
-    type: "struct",
-  }),
-];
-
 export const uppercaseParagraphSnippets: readonly Completion[] = [
   snip("INT. ${}${LOCATION} - ${TIME}", {
     label: "INT. LOCATION - TIME",
@@ -203,6 +168,45 @@ export const uppercaseParagraphSnippets: readonly Completion[] = [
   snip("DISSOLVE TO:", {
     label: "DISSOLVE TO:",
     type: "transition",
+  }),
+];
+
+export const structSnippets: readonly Completion[] = [
+  snip("@ list ${}${LIST_NAME}:${}", {
+    label: "@ list",
+    type: "struct",
+  }),
+  snip("@ map ${}${MAP_NAME}:${}", {
+    label: "@ map",
+    type: "struct",
+  }),
+  snip("@ config ${}${CONFIG_NAME}:${}", {
+    label: "@ config",
+    type: "struct",
+  }),
+  snip("@ ui ${}${UI_NAME}:${}", {
+    label: "@ ui",
+    type: "struct",
+  }),
+  snip("@ style ${}${STYLE_NAME}:${}", {
+    label: "@ style",
+    type: "struct",
+  }),
+  snip("@ camera ${}${CAMERA_NAME}:${}", {
+    label: "@ camera",
+    type: "struct",
+  }),
+  snip("@ entity ${}${ENTITY_NAME}:${}", {
+    label: "@ entity",
+    type: "struct",
+  }),
+  snip("@ character ${}${CHARACTER_NAME}:${}", {
+    label: "@ character",
+    type: "struct",
+  }),
+  snip("@ animation ${}${ANIMATION_NAME}:${}", {
+    label: "@ animation",
+    type: "struct",
   }),
 ];
 
@@ -920,7 +924,6 @@ export const sparkAutocomplete = async (
         };
       })
   );
-  const isLowercase = input.toLowerCase() === input;
   const isUppercase = input.toUpperCase() === input;
 
   if (["StructFieldValue"].includes(node.name)) {
@@ -974,9 +977,6 @@ export const sparkAutocomplete = async (
   if (["Paragraph", "Action"].includes(node.name)) {
     const completions: Completion[] = [];
     if (input.match(/^[\w]+/)) {
-      if (isLowercase) {
-        completions.push(...lowercaseParagraphSnippets);
-      }
       if (isUppercase) {
         completions.push(...uppercaseParagraphSnippets);
       }
@@ -1083,6 +1083,11 @@ export const sparkAutocomplete = async (
       ...nameSnippets(tagOptions, "tag", "", "", colors.tag),
       ...effectSnippets
     );
+    return completeFromList(completions)(context);
+  }
+  if (["StructMark"].includes(node.name)) {
+    const completions: Completion[] = [];
+    completions.push(...structSnippets);
     return completeFromList(completions)(context);
   }
   if (["AssignMark", "CallMark", "VariableMark"].includes(node.name)) {

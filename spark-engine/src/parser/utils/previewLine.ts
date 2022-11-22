@@ -5,7 +5,6 @@ import {
   SparkStruct,
   SparkToken,
 } from "../../../../sparkdown";
-import { loadStyles, loadUI } from "../../game";
 import { SparkContext } from "../classes/SparkContext";
 import { generateStructObjects } from "./generateStructObjects";
 import { getPreviewCommand } from "./getPreviewCommand";
@@ -44,15 +43,11 @@ export const previewLine = (
     const previewStruct = getPreviewStruct(result, line);
     if (previewStruct?.type === "style") {
       const objectMap = generateStructObjects(result?.structs || {});
-      loadStyles(
-        context.game,
-        objectMap,
-        ...Object.keys(objectMap?.["style"] || {})
-      );
+      context.game.ui.loadStyles(objectMap);
     }
     if (previewStruct?.type === "ui") {
       const objectMap = generateStructObjects(result?.structs || {});
-      loadUI(context.game, objectMap, previewStruct.name);
+      context.game.ui.loadUI(objectMap, previewStruct.name);
     }
   }
 };

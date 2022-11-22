@@ -106,10 +106,7 @@ export function isTransition(line: Line): RegExpMatchArray {
 }
 
 export function isCharacter(line: Line): RegExpMatchArray {
-  if (
-    line.next !== "@".charCodeAt(0) &&
-    !String.fromCharCode(line.next).match(/^[^a-z*]$/)
-  ) {
+  if (!String.fromCharCode(line.next).match(/^[^a-z*]$/)) {
     return null;
   }
   const text = stripComments(line.text);
@@ -165,13 +162,7 @@ export function isImport(line: Line): RegExpMatchArray {
 }
 
 export function isStruct(line: Line): RegExpMatchArray {
-  if (
-    line.next !== "l".charCodeAt(0) &&
-    line.next !== "m".charCodeAt(0) &&
-    line.next !== "u".charCodeAt(0) &&
-    line.next !== "s".charCodeAt(0) &&
-    line.next !== "c".charCodeAt(0)
-  ) {
+  if (line.next !== "@".charCodeAt(0)) {
     return null;
   }
   const text = stripComments(line.text);

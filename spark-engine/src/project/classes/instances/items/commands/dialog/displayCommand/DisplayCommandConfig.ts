@@ -1,19 +1,14 @@
+import { CharacterConfig } from "./CharacterConfig";
+import { TypingConfig } from "./TypingConfig";
+
 export interface DisplayProperties {
   className?: string;
   hidden?: string;
-  typing?: {
-    fadeDuration?: number;
-    delay?: number;
-    pauseScale?: number;
-    beepDuration?: number;
-    syllableLength?: number;
-  };
+  typing?: TypingConfig;
+  character?: CharacterConfig;
   indicator?: {
     className: string;
     fadeDuration?: number;
-    animationName?: string;
-    animationDuration?: number;
-    animationEase?: string;
   };
 }
 
