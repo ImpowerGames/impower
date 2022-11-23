@@ -17,8 +17,16 @@ import {
 } from "../../../../../../../game";
 import { CharacterConfig, Prosody } from "./CharacterConfig";
 
+const PUNCTUATION_CHAR_REGEX = /[-.!?~]/;
+const CAPITALIZED_WORD_REGEX = /^[^a-z]*[A-Z][^a-z]*$/;
+
+export const linear = (t: number, a: number, b: number): number => {
+  return (1 - t) * a + t * b;
+};
+
 interface Beep extends Tone {
   syllableIndex?: number;
+  pitchIncrement?: number;
 }
 
 // TODO: Support voice type shortcuts for character tone.
@@ -36,37 +44,37 @@ interface Beep extends Tone {
 const finalStressTypes: StressType[] = [
   "resolvedQuestion",
   "question",
-  "lilt",
-  "command",
   "exclamation",
-  "tentative",
+  "lilt",
   "anticipation",
+  "tentative",
   "statement",
 ];
 
 const defaultIntonation: Intonation = {
-  fluctuation: "+1 +1",
-  downdrift: "+2 0 -2", // '-_
-  italicized: "0 +2 +1", // _'-
-  bolded: "0 +1 0", // _-_
-  underlined: "0 +1 +1", // _--
-  capitalized: "+2 +2 +2", // '''
-  resolvedQuestion: "+1 +2 0", // -'_
-  question: "+1 +2 +4", // --'
-  lilt: "+8 +2 +4", // ''-
-  command: "+8 +8 +7", // -'-
-  exclamation: "+2 +5 +4", // -'-
-  tentative: "+2 +3 +3", //'__
-  anticipation: "+1 +2 +1", // -'-
-  statement: "+2 +1 0", // '-_
+  phrasePitchIncrement: 0.125,
+
+  italicizedPitchIncrement: 4,
+  underlinedPitchIncrement: 4,
+  boldedPitchIncrement: 4,
+  capitalizedPitchIncrement: 4,
+
+  fluctuation: "+0.5 -0.5",
+  resolvedQuestion: "0 -3 +1 +2 0", // -'_
+  question: "0 -3 +1 +2 +4", // --'
+  exclamation: "+3 +3 +5 +5 +4", // -'-
+  lilt: "+5 +5 +8 +2 +4", // ''-
+  anticipation: "0 -1 +1 +2 +2", // -''
+  tentative: "0 -3 -3 -2 -3", //-'-
+  statement: "0 -3 0 -5", // -_
 };
 
 // const britishIntonation: Intonation = {
 //   fluctuation: "+2 +1",
 //   downdrift: "+3 +2 +1", // '-_
 //   italicized: "+1 +3 +2", // _'-
-//   bolded: "+1 +2 +1", // _-_
 //   underlined: "+1 +2 +2", // _--
+//   bolded: "+1 +2 +1", // _-_
 //   capitalized: "+3 +3 +3", // '''
 //   resolvedQuestion: "+3 +2 +3", // '-'
 //   question: "+3 +1 +2", // '_-
@@ -79,32 +87,36 @@ const defaultIntonation: Intonation = {
 // };
 
 const defaultProsody: Prosody = {
-  wordPauseScale: 2,
-  phrasePauseScale: 6,
   syllableLength: 3,
-  /** You (CANNOT) say that. */
-  capitalized: /[^a-z.!?\n]+[A-Z][A-Z]+[^a-z.!?\n]/,
+
+  wordPauseScale: 3,
+  phrasePauseScale: 6,
+  beepDurationScale: 0.5,
+
+  italicizedPauseScale: 2,
+  underlinedPauseScale: 2,
+  boldedPauseScale: 2,
+  capitalizedPauseScale: 2,
+
   /** Who's (that)? */
   resolvedQuestion:
-    /\b(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b([^\t\n\r ]+)[?][ ]*$/,
-  /** Are you (serious)? */
-  question: /\b([^\t\n\r ]+)[?]+[ ]*$/,
-  /** Oh (wow)~ */
-  lilt: /\b([^\t\n\r ~]+)[~]+[ ]*$/,
-  /** Stop (that)!! */
-  command: /\b([^\t\n\r !]+)[!][!]+[ ]*$/,
-  /** That's (incredible)! */
-  exclamation: /\b([^\t\n\r !]+)[!][ ]*$/,
-  /** Uh (right)... */
-  tentative: /\b([^\t\n\r .]+)[.][.]+[ ]*$/,
-  /** And (then), */
-  anticipation: /\b([^\t\n\r ]+)[,][ ]*$/,
-  /** They (left). */
-  statement: /\b([^\t\n\r .]+)[.][ ]*$/,
+    /\b(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b[^\t\n\r !?]+([!?]*[?]+[!?]*)[ ]*$/,
+  /** Are you serious(?) */
+  question: /\b[^\t\n\r !?]+([!?]*[?]+[!?]*)[ ]*$/,
+  /** That's incredible(!) */
+  exclamation: /\b[^\t\n\r !?]+([!]+)[ ]*$/,
+  /** Oh wow(~) */
+  lilt: /\b[^\t\n\r ~]+([~]+)[ ]*$/,
+  /** And then(,) */
+  anticipation: /\b[^\t\n\r ]+([,])[ ]*$/,
+  /** Uh right(...) */
+  tentative: /\b[^\t\n\r .]+([.][.]+)[ ]*$/,
+  /** They left(.) */
+  statement: /\b[^\t\n\r .]+([.])[ ]*$/,
 };
 
 const defaultCharacterConfig = {
-  tone: "(G4*0.25)(G5*0.25)(D#5*0.125)",
+  tone: "(E4)",
   intonation: defaultIntonation,
   prosody: defaultProsody,
 };
@@ -121,7 +133,6 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
     className: "Dialogue",
     typing: {
       letterDelay: 0.025,
-      beepDuration: 0.05,
       fadeDuration: 0,
     },
   },
@@ -144,22 +155,23 @@ const getBend = (
   return [];
 };
 
-const getStressType = (
+const getStress = (
   phrase: string,
   prosody: Prosody | undefined
-): StressType | undefined => {
+): [StressType | undefined, number] => {
   if (prosody) {
     for (let i = 0; i < finalStressTypes.length; i += 1) {
       const stressType = finalStressTypes[i];
-      if (
-        stressType &&
-        new RegExp(prosody?.[stressType] || "", "g").test(phrase)
-      ) {
-        return stressType;
+
+      const match = stressType
+        ? phrase.match(new RegExp(prosody?.[stressType] || "", "g"))
+        : undefined;
+      if (match) {
+        return [stressType, match[1]?.length || 1];
       }
     }
   }
-  return undefined;
+  return [undefined, 1];
 };
 
 const hideChoices = (
@@ -234,10 +246,33 @@ const getAnimatedSpanElements = (
   const letterDelay = get(displayProps?.typing?.letterDelay, 0);
   const wordPauseScale = get(characterProps?.prosody?.wordPauseScale, 1);
   const phrasePauseScale = get(characterProps?.prosody?.phrasePauseScale, 1);
-  const wordPauseDuration = letterDelay * wordPauseScale;
-  const phrasePauseDuration = letterDelay * phrasePauseScale;
+  const italicizedPauseScale = get(
+    characterProps?.prosody?.italicizedPauseScale,
+    1
+  );
+  const underlinedPauseScale = get(
+    characterProps?.prosody?.underlinedPauseScale,
+    1
+  );
+  const boldedPauseScale = get(characterProps?.prosody?.boldedPauseScale, 1);
+  const italicizedPitchIncrement = get(
+    characterProps?.intonation?.italicizedPitchIncrement,
+    1
+  );
+  const underlinedPitchIncrement = get(
+    characterProps?.intonation?.underlinedPitchIncrement,
+    1
+  );
+  const boldedPitchIncrement = get(
+    characterProps?.intonation?.boldedPitchIncrement,
+    1
+  );
+  const capitalizedPitchIncrement = get(
+    characterProps?.intonation?.capitalizedPitchIncrement,
+    1
+  );
   const averageSyllableLength = get(characterProps?.prosody?.syllableLength);
-  const beepDuration = get(displayProps?.typing?.beepDuration, letterDelay);
+  const beepDurationScale = get(characterProps?.prosody?.beepDurationScale, 1);
 
   const partEls: IElement[] = [];
   const spanEls: IElement[] = [];
@@ -247,14 +282,15 @@ const getAnimatedSpanElements = (
     elements: IElement[];
     beeps?: Beep[];
   }[] = [];
-  let wordLength = 0;
+  let consecutiveLettersLength = 0;
   let totalDelay = 0;
   let chunkDelay = 0;
+  let word = "";
   const splitContent = content.split("");
   const marks: [string, number][] = [];
   let spaceLength = 0;
-  let pauseLength = 0;
-  let unpauseLength = 0;
+  let phrasePauseLength = 0;
+  let phraseUnpauseLength = 0;
   let firstSpaceSpan: IElement | undefined = undefined;
   const imageUrls = new Set<string>();
   const audioUrls = new Set<string>();
@@ -342,14 +378,16 @@ const getAnimatedSpanElements = (
       continue;
     }
     const markers = marks.map((x) => x[0]);
-    const isUnderline = markers.includes("_");
-    const isBoldAndItalic = markers.includes("***");
-    const isBold = markers.includes("**");
-    const isItalic = markers.includes("*");
+    const isUnderlinedLetter = markers.includes("_");
+    const isBoldedAndItalicized = markers.includes("***");
+    const isBolded = markers.includes("**");
+    const isItalicized = markers.includes("*");
+    const isItalicizedLetter = isBoldedAndItalicized || isItalicized;
+    const isBoldedLetter = isBoldedAndItalicized || isBolded;
     const style = {
-      textDecoration: isUnderline ? "underline" : null,
-      fontStyle: isItalic || isBoldAndItalic ? "italic" : null,
-      fontWeight: isBold || isBoldAndItalic ? "bold" : null,
+      textDecoration: isUnderlinedLetter ? "underline" : null,
+      fontStyle: isItalicizedLetter ? "italic" : null,
+      fontWeight: isBoldedLetter ? "bold" : null,
       whiteSpace: part === "\n" ? "pre-wrap" : null,
     };
     const span = createCharSpan(
@@ -360,32 +398,36 @@ const getAnimatedSpanElements = (
       chunkDelay,
       style
     );
-    if (part === " ") {
+    if (part === " " || part === "\n" || part === "\r" || part === "\t") {
+      word = "";
       spaceLength += 1;
-      wordLength = 0;
+      consecutiveLettersLength = 0;
     } else {
+      word += part;
       spaceLength = 0;
-      if (
-        part === "\n" ||
-        part === "\r" ||
-        part === "\t" ||
-        part === "-" ||
-        part === "." ||
-        part === "!" ||
-        part === "?" ||
-        part === "~"
-      ) {
-        wordLength = 0;
+      if (PUNCTUATION_CHAR_REGEX.test(part)) {
+        consecutiveLettersLength = 0;
       } else {
-        wordLength += 1;
+        consecutiveLettersLength += 1;
       }
     }
+    const isWordCapitalizedSoFar = CAPITALIZED_WORD_REGEX.test(word);
+    const emphasizedPauseScale =
+      (isItalicizedLetter ? italicizedPauseScale : 1) *
+      (isBoldedLetter ? boldedPauseScale : 1) *
+      (isUnderlinedLetter ? underlinedPauseScale : 1);
+    const emphasizedPitchIncrement =
+      (isItalicizedLetter ? italicizedPitchIncrement : 1) *
+      (isBoldedLetter ? boldedPitchIncrement : 1) *
+      (isUnderlinedLetter ? underlinedPitchIncrement : 1) *
+      (isWordCapitalizedSoFar ? capitalizedPitchIncrement : 1);
+    const currentLetterDelay = letterDelay * emphasizedPauseScale;
     const isWordPause = spaceLength === 1;
     const isPhrasePause = spaceLength > 1;
     if (isPhrasePause) {
-      pauseLength += 1;
-      unpauseLength = 0;
-      if (pauseLength === 1) {
+      phrasePauseLength += 1;
+      phraseUnpauseLength = 0;
+      if (phrasePauseLength === 1) {
         // start pause chunk
         chunkEls.push({ phrase: part, time: totalDelay, elements: [span] });
       } else {
@@ -398,9 +440,9 @@ const getAnimatedSpanElements = (
       }
       chunkDelay = 0;
     } else {
-      pauseLength = 0;
-      unpauseLength += 1;
-      if (unpauseLength === 1) {
+      phrasePauseLength = 0;
+      phraseUnpauseLength += 1;
+      if (phraseUnpauseLength === 1) {
         // start letter chunk
         chunkEls.push({ phrase: part, time: totalDelay, elements: [span] });
       } else {
@@ -411,11 +453,11 @@ const getAnimatedSpanElements = (
           lastChunk.elements.push(span);
         }
       }
-      chunkDelay += letterDelay;
+      chunkDelay += currentLetterDelay;
     }
     spanEls.push(span);
     partEls[i] = span;
-    const charIndex = wordLength - 1;
+    const charIndex = consecutiveLettersLength - 1;
     const shouldBeep =
       charIndex >= 0 && charIndex % averageSyllableLength === 0;
     if (shouldBeep) {
@@ -426,8 +468,12 @@ const getAnimatedSpanElements = (
         }
         const beep = {
           time: totalDelay,
-          duration: beepDuration,
-          syllableIndex: Math.floor(wordLength / averageSyllableLength),
+          duration:
+            currentLetterDelay * averageSyllableLength * beepDurationScale,
+          syllableIndex: Math.floor(
+            consecutiveLettersLength / averageSyllableLength
+          ),
+          pitchIncrement: emphasizedPitchIncrement,
         };
         currChunk.beeps.push(beep);
       }
@@ -456,10 +502,10 @@ const getAnimatedSpanElements = (
       hideSpace = false;
     }
     totalDelay += isPhrasePause
-      ? phrasePauseDuration
+      ? letterDelay * phrasePauseScale
       : isWordPause
-      ? wordPauseDuration
-      : letterDelay;
+      ? letterDelay * wordPauseScale
+      : currentLetterDelay;
     i += 1;
   }
   // Invalidate any leftover open markers
@@ -741,14 +787,40 @@ export const executeDisplayCommand = (
         !modalNote || typeof modalNote === "number"
           ? Number(modalNote) || 0
           : convertNoteToHertz(modalNote);
+      const phrasePitchIncrement =
+        characterConfig?.prosody?.pitchIncrement || 0.125;
+      let phraseSemitones = 0;
+
       const tones: Tone[] = chunkEls.flatMap((chunk): Tone[] => {
+        const fluctuationBend = getBend(
+          "fluctuation",
+          characterConfig.intonation
+        );
+        const [finalStressType, finalStressScale] = getStress(
+          chunk.phrase,
+          characterConfig.prosody
+        );
+        const finalStressBend = getBend(
+          finalStressType,
+          characterConfig.intonation
+        );
+        const downdriftStart = finalStressBend.shift() || 0;
+        const downdriftEnd = finalStressBend.shift() || 0;
+        const finalStressStart = finalStressBend[0] || 0;
+        const finalStressEnd = finalStressBend[finalStressBend.length - 1] || 0;
+        const phraseDriftDelta = finalStressEnd - finalStressStart;
+        const phraseDrift = phraseDriftDelta * phrasePitchIncrement;
+        phraseSemitones += phraseDrift;
+
+        const phraseStartingPitch = transpose(modalPitch, phraseSemitones);
+
         const chunkBeeps = chunk.beeps;
         if (!chunkBeeps) {
           return [];
         }
 
-        const downdriftBeeps: Tone[] = [];
-        const lastWordBeeps: Tone[] = [];
+        const downdriftBeeps: Beep[] = [];
+        const lastWordBeeps: Beep[] = [];
         let isLastWord = true;
         for (let i = chunkBeeps.length - 1; i >= 0; i -= 1) {
           const beep: Beep | undefined = chunkBeeps[i];
@@ -766,61 +838,47 @@ export const executeDisplayCommand = (
 
         chunkBeeps.forEach((b: Beep) => {
           b.waves = [...(modalTone?.waves || [])];
-          b.waves[0] = { ...(b.waves[0] || {}), note: modalPitch };
+          b.waves[0] = { ...(b.waves[0] || {}), note: phraseStartingPitch };
         });
-
-        const fluctuationBend = getBend(
-          "fluctuation",
-          characterConfig.intonation
-        );
-        const downdriftBend = getBend("downdrift", characterConfig.intonation);
-        let direction = -1;
-        downdriftBeeps.forEach((b, i) => {
-          direction *= -1;
+        downdriftBeeps.forEach((b: Beep, i) => {
+          const note = b?.waves?.[0]?.note as number;
           const progress = i / (downdriftBeeps.length - 1);
-          const bendIndex = getBendIndex(progress, downdriftBend.length);
-          const fluctuationIndex = getBendIndex(
-            progress,
-            fluctuationBend.length
-          );
-          const semitones = downdriftBend[bendIndex] || 0;
-          const fluctuation =
-            direction * Math.abs(fluctuationBend[fluctuationIndex] || 0);
+          const semitones = linear(progress, downdriftStart, downdriftEnd);
           // Pitch drifts down over phrase
-          const downdriftPitch = transpose(modalPitch, semitones);
+          const downdriftPitch = transpose(note, semitones);
           // Pitch alternately rises and falls for each syllable
           // (iambic pentameter = te TUM te TUM te TUM)
-          const fluctuatedPitch = transpose(downdriftPitch, fluctuation);
-          if (b.waves?.[0]?.note) {
-            b.waves[0].note = fluctuatedPitch;
+          const fluctuationIndex = i % fluctuationBend.length;
+          const fluctuation = fluctuationBend[fluctuationIndex] || 0;
+          if (b.waves?.[0]) {
+            b.waves[0].note = transpose(downdriftPitch, fluctuation);
           }
         });
 
         // TODO: Interpolate between pitch changes
-        const finalStressType = getStressType(
-          chunk.phrase,
-          characterConfig.prosody
-        );
-        const finalStressBend = getBend(
-          finalStressType,
-          characterConfig.intonation
+        const scaledFinalStressBend = finalStressBend.map(
+          (x) => x * finalStressScale
         );
         if (lastWordBeeps.length === 1) {
-          const firstSyllableBeep = lastWordBeeps[0];
-          if (firstSyllableBeep) {
+          const b = lastWordBeeps[0];
+          if (b) {
             // Bend syllable
             // TODO: Apply when bend filling tone array
-            firstSyllableBeep.bend = finalStressBend;
-            // Double syllable duration
-            firstSyllableBeep.duration = (firstSyllableBeep.duration || 0) * 2;
+            b.bend = scaledFinalStressBend;
+            // Double syllable duration to give time for pitch bend to be noticeable
+            b.duration = (b.duration || 0) * 2;
           }
         } else {
-          lastWordBeeps.forEach((b, i) => {
+          lastWordBeeps.forEach((b: Beep, i: number) => {
+            const note = b?.waves?.[0]?.note as number;
             const progress = i / (lastWordBeeps.length - 1);
-            const bendIndex = getBendIndex(progress, finalStressBend.length);
-            const semitones = finalStressBend[bendIndex] || 0;
-            if (b.waves?.[0]?.note) {
-              b.waves[0].note = transpose(modalPitch, semitones);
+            const bendIndex = getBendIndex(
+              progress,
+              scaledFinalStressBend.length
+            );
+            const semitones = scaledFinalStressBend[bendIndex] || 0;
+            if (b.waves?.[0]) {
+              b.waves[0].note = transpose(note, semitones);
             }
           });
         }

@@ -1,7 +1,7 @@
 import { CompilerDiagnostic } from "../../types/compilerDiagnostic";
 import { randomizer } from "../randomizer";
 
-const shuffle = <T>(array: T[], seed?: string): T[] => {
+export const shuffle = <T>(array: T[], seed?: string): T[] => {
   const next = seed ? randomizer(seed) : randomizer();
   const newArray = [...array];
   let currentIndex = newArray.length;

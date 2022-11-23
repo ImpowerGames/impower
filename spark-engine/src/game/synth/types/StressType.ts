@@ -1,15 +1,9 @@
 export type StressType =
   | "fluctuation"
-  | "downdrift"
-  | "italicized"
-  | "bolded"
-  | "underlined"
-  | "capitalized"
   | "resolvedQuestion"
   | "question"
-  | "lilt"
-  | "command"
   | "exclamation"
+  | "lilt"
   | "tentative"
   | "anticipation"
   | "statement";

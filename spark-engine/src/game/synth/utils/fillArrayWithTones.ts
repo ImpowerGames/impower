@@ -25,7 +25,6 @@ export const fillArrayWithTones = (
       const velocity = typeof wave.velocity === "number" ? wave.velocity : 1;
       const type = wave.type || "sine";
       const hertz = convertNoteToHertz(note);
-
       // Fill with Oscillator
       fillArrayWithOscillation(
         buffer,

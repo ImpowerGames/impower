@@ -11,4 +11,6 @@ export type ContourType =
   | `${Curve} ${Curve} ${Curve} ${Curve} ${Curve}`
   | `${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve}`
   | `${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve}`
-  | `${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve}`;
+  | `${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve}`
+  | `${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve}`
+  | `${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve} ${Curve}`;
