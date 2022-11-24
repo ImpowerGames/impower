@@ -110,7 +110,7 @@ export class Synth {
 
   set masterVolume(v: number) {
     this._masterVolume = v;
-    if (this.audioNodes.out) {
+    if (this.audioNodes.out?.gain) {
       this.audioNodes.out.gain.value = v;
     }
   }
@@ -123,7 +123,7 @@ export class Synth {
 
   set reverbLevel(v: number) {
     this._reverbLevel = v;
-    if (this.audioNodes.reverb) {
+    if (this.audioNodes.reverb?.gain) {
       this.audioNodes.reverb.gain.value = v * 8;
     }
   }
@@ -222,7 +222,7 @@ export class Synth {
     }
     this.audioContext = audioContext;
     this._pw = options?.pw || {
-      w9999: this.audioContext.createPeriodicWave(
+      w9999: this.audioContext.createPeriodicWave?.(
         [0, 0, 0, 0, 0],
         [0, 9, 9, 9, 9]
       ),
@@ -238,63 +238,94 @@ export class Synth {
     }
   ): void {
     this.audioContext = actx;
-    this.audioNodes.out = this.audioContext.createGain();
-    this.audioNodes.comp = this.audioContext.createDynamicsCompressor();
-    const length = (this.audioContext.sampleRate * 0.5) | 0;
-    this.audioBuffers.convolver = this.audioContext.createBuffer(
+    this.audioNodes.out = this.audioContext.createGain?.();
+    this.audioNodes.comp = this.audioContext.createDynamicsCompressor?.();
+    const length = ((this.audioContext.sampleRate || 0) * 0.5) | 0;
+    this.audioBuffers.convolver = this.audioContext.createBuffer?.(
       2,
       length,
-      this.audioContext.sampleRate
+      this.audioContext.sampleRate || 0
     );
-    this.audioBuffers.n0 = this.audioContext.createBuffer(
+    this.audioBuffers.n0 = this.audioContext.createBuffer?.(
       1,
       length,
-      this.audioContext.sampleRate
+      this.audioContext.sampleRate || 0
     );
-    this.audioBuffers.n1 = this.audioContext.createBuffer(
+    this.audioBuffers.n1 = this.audioContext.createBuffer?.(
       1,
       length,
-      this.audioContext.sampleRate
+      this.audioContext.sampleRate || 0
     );
-    const c0 = this.audioBuffers.convolver.getChannelData(0);
-    const c1 = this.audioBuffers.convolver.getChannelData(1);
-    const n0 = this.audioBuffers.n0.getChannelData(0);
-    const n1 = this.audioBuffers.n1.getChannelData(0);
-    fillArraysWithReverberation([c0, c1], 0, length);
-    fillArrayWithWhiteNoise(n0, 0, length);
-    fillArrayWithMetallicNoise(n1, 0, length);
+    const c0 = this.audioBuffers.convolver?.getChannelData?.(0);
+    const c1 = this.audioBuffers.convolver?.getChannelData?.(1);
+    const n0 = this.audioBuffers.n0?.getChannelData?.(0);
+    const n1 = this.audioBuffers.n1?.getChannelData?.(0);
+    if (c0 && c1) {
+      fillArraysWithReverberation([c0, c1], 0, length);
+    }
+    if (n0) {
+      fillArrayWithWhiteNoise(n0, 0, length);
+    }
+    if (n1) {
+      fillArrayWithMetallicNoise(n1, 0, length);
+    }
     if (options?.useReverb) {
-      this.audioNodes.convolver = this.audioContext.createConvolver();
-      this.audioNodes.convolver.buffer = this.audioBuffers.convolver;
-      this.audioNodes.reverb = this.audioContext.createGain();
-      this.audioNodes.reverb.gain.value = this._reverbLevel;
-      this.audioNodes.out.connect(this.audioNodes.convolver);
-      this.audioNodes.convolver.connect(this.audioNodes.reverb);
-      this.audioNodes.reverb.connect(this.audioNodes.comp);
+      this.audioNodes.convolver = this.audioContext.createConvolver?.();
+      if (this.audioNodes.convolver) {
+        this.audioNodes.convolver.buffer = this.audioBuffers.convolver;
+      }
+      this.audioNodes.reverb = this.audioContext.createGain?.();
+      if (this.audioNodes.reverb?.gain) {
+        this.audioNodes.reverb.gain.value = this._reverbLevel;
+      }
+      if (this.audioNodes.convolver) {
+        this.audioNodes.out?.connect?.(this.audioNodes.convolver);
+      }
+      if (this.audioNodes.reverb) {
+        this.audioNodes.convolver?.connect?.(this.audioNodes.reverb);
+      }
+      if (this.audioNodes.comp) {
+        this.audioNodes.reverb?.connect?.(this.audioNodes.comp);
+      }
     }
     this.masterVolume = this._masterVolume;
-    this.audioNodes.out.connect(this.audioNodes.comp);
-    this.audioNodes.comp.connect(this.audioContext.destination);
+    if (this.audioNodes.comp) {
+      this.audioNodes.out?.connect?.(this.audioNodes.comp);
+    }
+    if (this.audioContext.destination) {
+      this.audioNodes.comp?.connect?.(this.audioContext.destination);
+    }
     this.audioNodes.chvol = [];
     this.audioNodes.chmod = [];
     this.audioNodes.chpan = [];
-    this.audioNodes.lfo = this.audioContext.createOscillator();
-    this.audioNodes.lfo.frequency.value = 5;
-    this.audioNodes.lfo.start(0);
+    this.audioNodes.lfo = this.audioContext.createOscillator?.();
+    if (this.audioNodes.lfo?.frequency) {
+      this.audioNodes.lfo.frequency.value = 5;
+    }
+    this.audioNodes.lfo?.start?.(0);
     for (let i = 0; i < 16; i += 1) {
-      this.audioNodes.chvol[i] = this.audioContext.createGain();
+      const chGain = this.audioContext.createGain?.();
+      if (chGain) {
+        this.audioNodes.chvol[i] = chGain;
+      }
       if (this.audioContext.createStereoPanner) {
         const chpan = this.audioContext.createStereoPanner();
         this.audioNodes.chpan[i] = chpan;
-        this.audioNodes.chvol[i]?.connect(chpan);
-        this.audioNodes.chpan[i]?.connect(this.audioNodes.out);
+        this.audioNodes.chvol[i]?.connect?.(chpan);
+        if (this.audioNodes.out) {
+          this.audioNodes.chpan[i]?.connect?.(this.audioNodes.out);
+        }
       } else {
         delete this.audioNodes.chpan[i];
-        this.audioNodes.chvol[i]?.connect(this.audioNodes.out);
+        if (this.audioNodes.out) {
+          this.audioNodes.chvol[i]?.connect?.(this.audioNodes.out);
+        }
       }
-      const chmod = this.audioContext.createGain();
-      this.audioNodes.chmod[i] = chmod;
-      this.audioNodes.lfo.connect(chmod);
+      const chmod = this.audioContext.createGain?.();
+      if (chmod) {
+        this.audioNodes.chmod[i] = chmod;
+        this.audioNodes.lfo?.connect?.(chmod);
+      }
       this.cc.pg[i] = 0;
     }
     this.reverbLevel = this._reverbLevel;
@@ -313,23 +344,23 @@ export class Synth {
       const oParams = nt.o[k];
       const gParams = nt.g[k];
       if (oParams?.frequency) {
-        oParams.frequency.cancelScheduledValues(0);
+        oParams.frequency.cancelScheduledValues?.(0);
       } else if (oParams?.playbackRate) {
-        oParams.playbackRate.cancelScheduledValues(0);
+        oParams.playbackRate.cancelScheduledValues?.(0);
       }
       if (gParams) {
-        gParams.gain.cancelScheduledValues(0);
+        gParams.gain?.cancelScheduledValues?.(0);
       }
 
       oParams?.stop?.();
       if (oParams?.detune) {
         try {
-          this.audioNodes.chmod[nt.ch]?.disconnect(oParams.detune);
+          this.audioNodes.chmod[nt.ch]?.disconnect?.(oParams.detune);
         } catch (e) {
           // NoOp
         }
       }
-      if (gParams) {
+      if (gParams?.gain) {
         gParams.gain.value = 0;
       }
     }
@@ -354,7 +385,11 @@ export class Synth {
     for (let i = notetab.length - 2; i >= 0; i -= 1) {
       const nt = notetab[i];
       if (nt) {
-        if (this.audioContext.currentTime > nt.e || i >= voices - 1) {
+        if (
+          (this.audioContext.currentTime != null &&
+            this.audioContext.currentTime > nt.e) ||
+          i >= voices - 1
+        ) {
           this._pruneNote(nt);
           notetab.splice(i, 1);
         }
@@ -369,9 +404,9 @@ export class Synth {
     d: number
   ): void {
     if (d) {
-      p.setTargetAtTime(v, t, d);
+      p.setTargetAtTime?.(v, t, d);
     } else {
-      p.setValueAtTime(v, t);
+      p.setValueAtTime?.(v, t);
     }
   }
 
@@ -442,68 +477,93 @@ export class Synth {
       switch (w) {
         case "n0":
         case "n1": {
-          const oNode = this.audioContext?.createBufferSource();
-          oNodes[i] = oNode;
-          const buffer = this.audioBuffers[w];
-          if (buffer) {
-            oNode.buffer = buffer;
+          const oNode = this.audioContext?.createBufferSource?.();
+          if (oNodes && oNode) {
+            oNodes[i] = oNode;
+            const buffer = this.audioBuffers[w];
+            if (buffer) {
+              oNode.buffer = buffer;
+            }
+            oNode.loop = true;
+            if (oNode.playbackRate) {
+              oNode.playbackRate.value = freq / 440;
+            }
           }
-          oNode.loop = true;
-          oNode.playbackRate.value = freq / 440;
-          if (p !== 1)
-            this._setParamTarget(oNode.playbackRate, (freq / 440) * p, time, q);
-          if (oNode.detune) {
-            chModNode?.connect(oNode.detune);
+          if (p !== 1) {
+            if (oNode?.playbackRate) {
+              this._setParamTarget(
+                oNode.playbackRate,
+                (freq / 440) * p,
+                time,
+                q
+              );
+            }
+          }
+          if (oNode?.detune) {
+            chModNode?.connect?.(oNode.detune);
             oNode.detune.value = bend;
           }
           break;
         }
         default: {
-          const oNode = this.audioContext.createOscillator();
-          oNodes[i] = oNode;
-          const freq = fp[i] || 0;
-          oNode.frequency.value = freq;
-          if (p !== 1) {
-            this._setParamTarget(oNode.frequency, freq * p, time, q);
-          }
-          if (w === "w9999") {
-            const pWave = pw[w];
-            if (pWave) {
-              oNode.setPeriodicWave(pWave);
+          const oNode = this.audioContext.createOscillator?.();
+
+          if (oNodes && oNode) {
+            oNodes[i] = oNode;
+            const freq = fp[i] || 0;
+            if (oNode.frequency) {
+              oNode.frequency.value = freq;
+              if (p !== 1) {
+                this._setParamTarget(oNode.frequency, freq * p, time, q);
+              }
             }
-          } else {
-            oNode.type = w;
-          }
-          if (oNode.detune) {
-            chModNode?.connect(oNode.detune);
-            oNode.detune.value = bend;
+            if (w === "w9999") {
+              const pWave = pw[w];
+              if (pWave) {
+                oNode.setPeriodicWave?.(pWave);
+              }
+            } else {
+              oNode.type = w;
+            }
+            if (oNode.detune) {
+              chModNode?.connect?.(oNode.detune);
+              oNode.detune.value = bend;
+            }
           }
           break;
         }
       }
       const oNode = oNodes[i];
       if (oNode && out) {
-        const gNode = this.audioContext.createGain();
-        gNodes[i] = gNode;
-        rp[i] = r;
-        oNode.connect?.(gNode);
-        gNode.connect?.(out);
+        const gNode = this.audioContext.createGain?.();
+        if (gNodes && gNode) {
+          gNodes[i] = gNode;
+          rp[i] = r;
+          oNode.connect?.(gNode);
+          gNode?.connect?.(out);
+        }
         vp[i] = sc * v;
         if (k) {
           vp[i] *= 2 ** (((note - 60) / 12) * k);
         }
-        if (a) {
-          gNode.gain.value = 0;
-          gNode.gain.setValueAtTime(0, time);
-          gNode.gain.linearRampToValueAtTime(vp[i] || 0, time + a);
-        } else gNode.gain.setValueAtTime(vp[i] || 0, time);
-        this._setParamTarget(gNode.gain, s * (vp[i] || 0), dt, d);
+        if (gNode?.gain) {
+          if (a) {
+            gNode.gain.value = 0;
+            gNode.gain.setValueAtTime?.(0, time);
+            gNode.gain.linearRampToValueAtTime?.(vp[i] || 0, time + a);
+          } else {
+            gNode.gain.setValueAtTime?.(vp[i] || 0, time);
+          }
+        }
+        if (gNode?.gain) {
+          this._setParamTarget(gNode.gain, s * (vp[i] || 0), dt, d);
+        }
         oNode.start?.(time);
         if (rhythm) {
           oNode.onended = (): void => {
             try {
               if (oNode.detune) {
-                chModNode?.disconnect(oNode.detune);
+                chModNode?.disconnect?.(oNode.detune);
               }
             } catch (e) {
               // NoOp
@@ -559,11 +619,11 @@ export class Synth {
   protected _releaseNote(nt: NoteTab, t: number, releaseRatio: number): void {
     if (nt.ch !== 9) {
       for (let k = nt.g.length - 2; k >= 0; k -= 1) {
-        nt.g[k]?.gain.cancelScheduledValues(t);
+        nt.g[k]?.gain?.cancelScheduledValues?.(t);
         if (t === nt.t2) {
-          nt.g[k]?.gain.setValueAtTime(nt.v[k] || 0, t);
+          nt.g[k]?.gain?.setValueAtTime?.(nt.v[k] || 0, t);
         } else if (t < nt.t2) {
-          nt.g[k]?.gain.setValueAtTime(
+          nt.g[k]?.gain?.setValueAtTime?.(
             ((nt.v[k] || 0) * (t - nt.t)) / (nt.t2 - nt.t),
             t
           );
@@ -616,12 +676,12 @@ export class Synth {
     const ex = (v * v) / (127 * 127);
     this.cc.ex[ch] = ex;
     const val = vol * ex;
-    this.audioNodes.chvol[ch]?.gain.setValueAtTime(val, t);
+    this.audioNodes.chvol[ch]?.gain?.setValueAtTime?.(val, t);
   }
 
   setModulation(ch: number, v: number, t: number): void {
     const val = (v * 100) / 127;
-    this.audioNodes.chmod[ch]?.gain.setValueAtTime(val, t);
+    this.audioNodes.chmod[ch]?.gain?.setValueAtTime?.(val, t);
   }
 
   setChVol(ch: number, v: number, t: number): void {
@@ -629,12 +689,12 @@ export class Synth {
     const vol = (3 * v * v) / (127 * 127);
     this.cc.vol[ch] = vol;
     const val = vol * ex;
-    this.audioNodes.chvol[ch]?.gain.setValueAtTime(val, t);
+    this.audioNodes.chvol[ch]?.gain?.setValueAtTime?.(val, t);
   }
 
   setPan(ch: number, v: number, t: number): void {
     const val = (v - 64) / 64;
-    this.audioNodes.chpan[ch]?.pan.setValueAtTime(val, t);
+    this.audioNodes.chpan[ch]?.pan?.setValueAtTime?.(val, t);
   }
 
   setBendRange(ch: number, v: number): void {
@@ -671,7 +731,7 @@ export class Synth {
       this.cc.tuningC[i] = 0;
       this.cc.tuningF[i] = 0;
       const chvol = this.audioNodes.chvol[i];
-      if (chvol) {
+      if (chvol?.gain) {
         chvol.gain.value = 0;
       }
     }

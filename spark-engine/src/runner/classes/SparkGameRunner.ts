@@ -62,7 +62,7 @@ export class SparkGameRunner {
     return this._commandRunnersList;
   }
 
-  registerBlockRunner(refTypeId: string, inspector: BlockRunner): void {
+  registerBlockRunner(_refTypeId: string, inspector: BlockRunner): void {
     this._blockRunner = inspector;
   }
 

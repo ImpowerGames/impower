@@ -28,7 +28,7 @@ export class CommandRunner<
     return [];
   }
 
-  onUpdate(_game: SparkGame, timeMS: number, deltaMS: number): void {
+  onUpdate(_game: SparkGame, _timeMS: number, _deltaMS: number): void {
     // NoOp
   }
 
