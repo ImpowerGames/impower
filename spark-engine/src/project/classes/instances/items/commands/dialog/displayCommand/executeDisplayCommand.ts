@@ -574,7 +574,7 @@ export const executeDisplayCommand = (
 
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
-  const structName = "display";
+  const structName = "Display";
   const displayConfig =
     (objectMap?.[structName]?.["default"] as DisplayCommandConfig) ||
     defaultDisplayCommandConfig;

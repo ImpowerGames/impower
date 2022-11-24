@@ -1,7 +1,7 @@
 import { format } from "../../../../../../../../../spark-evaluate";
 import {
   ChoiceCommandData,
-  DisplayCommandConfig,
+  DisplayCommandConfig
 } from "../../../../../../../data";
 import { SparkGame } from "../../../../../../../game";
 
@@ -23,7 +23,7 @@ export const executeChoiceCommand = (
 
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
-  const structName = "display";
+  const structName = "Display";
   const config = objectMap?.[structName]?.["default"] as DisplayCommandConfig;
 
   const contentEls = game.ui.findAllUIElements(
