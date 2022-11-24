@@ -1,9 +1,10 @@
 export type StressType =
   | "fluctuation"
   | "resolvedQuestion"
+  | "anxiousQuestion"
   | "question"
   | "exclamation"
   | "lilt"
-  | "tentative"
-  | "anticipation"
+  | "partial"
+  | "anxious"
   | "statement";

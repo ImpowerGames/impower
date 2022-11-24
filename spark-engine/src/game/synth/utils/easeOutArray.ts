@@ -1,19 +1,22 @@
-import { INTERPOLATORS } from "../constants/INTERPOLATORS";
-import { EaseType } from "../types/EaseType";
+import { EASE } from "../../core/constants/EASE";
+import { CurveType } from "../../core/types/CurveType";
+import { EaseType } from "../../core/types/EaseType";
 
 export const easeOutArray = (
   buffer: Float32Array,
   endIndex: number,
   sampleRate: number,
-  easeType: EaseType,
-  easeDurationInSeconds: number
+  curveType: CurveType,
+  curveDurationInSeconds: number
 ): void => {
-  const easeLength = Math.floor(easeDurationInSeconds * sampleRate);
+  const easeLength = Math.floor(curveDurationInSeconds * sampleRate);
   for (let i = 0; i < easeLength; i += 1) {
     const progress = i / easeLength;
-    const interpolator = INTERPOLATORS[easeType];
-    if (interpolator) {
-      const multiplier = interpolator(progress);
+    const easeType: EaseType =
+      curveType === "linear" ? curveType : `${curveType}Out`;
+    const ease = EASE[easeType];
+    if (ease) {
+      const multiplier = ease(progress);
       const index = endIndex - i;
       buffer[index] *= multiplier;
     }

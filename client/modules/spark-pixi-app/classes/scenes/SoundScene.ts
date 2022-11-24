@@ -1,6 +1,6 @@
 import { IMediaInstance, utils, webaudio } from "@pixi/sound";
 import * as PIXI from "pixi.js";
-import { convertNoteToHertz, Tone } from "../../../../../spark-engine";
+import { createFrequencyBuffers, Tone } from "../../../../../spark-engine";
 import { ToneSound } from "../../plugins/midi-sound/classes/ToneSound";
 import { SparkScene } from "../SparkScene";
 
@@ -85,34 +85,20 @@ export class SoundScene extends SparkScene {
     this.pitchGraphic.lineStyle(2, 0x0000ff);
     const tones = instrument.sound.tones;
     const sampleRate = instrument.sound.context.audioContext.sampleRate;
-    const durationInSamples = Math.max(
-      1,
-      sampleRate * instrument.sound.duration
-    );
-    const buffer = new Float32Array(durationInSamples);
-    tones.forEach((tone) => {
-      const time = tone.time || 0;
-      const duration = tone.duration || 0;
-      const timeInSamples = Math.floor(time * sampleRate);
-      const durationInSamples = Math.floor(duration * sampleRate);
-      const startIndex = timeInSamples;
-      const endIndex = timeInSamples + durationInSamples;
-      const wave = tone.waves[0];
-      const note = wave.note || "";
-      const hertz = convertNoteToHertz(note);
-      for (let i = startIndex; i < endIndex; i += 1) {
-        buffer[i] = hertz;
-      }
-    });
-    this.pitchGraphic.moveTo(startX, startY + buffer[0] * -factor);
-    for (let x = startX; x < endX; x += 1) {
-      const timeProgress = (x - startX) / (endX - 1);
-      const bufferIndex = Math.floor(timeProgress * (buffer.length - 1));
-      const hertz = buffer[bufferIndex];
-      const delta = hertz * -factor;
-      const y = startY + delta;
-      if (hertz !== 0) {
-        this.pitchGraphic.lineTo(x, y);
+    const buffers = createFrequencyBuffers(sampleRate, tones);
+    const buffer = buffers[0];
+
+    if (buffer) {
+      this.pitchGraphic.moveTo(startX, startY + buffer[0] * -factor);
+      for (let x = startX; x < endX; x += 1) {
+        const timeProgress = (x - startX) / (endX - 1);
+        const bufferIndex = Math.floor(timeProgress * (buffer.length - 1));
+        const hertz = buffer[bufferIndex];
+        const delta = hertz * -factor;
+        const y = startY + delta;
+        if (hertz !== 0) {
+          this.pitchGraphic.lineTo(x, y);
+        }
       }
     }
 

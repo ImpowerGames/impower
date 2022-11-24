@@ -1,4 +1,4 @@
-import { EaseType } from "../types/EaseType";
+import { CurveType } from "../../core/types/CurveType";
 import { easeInArray } from "./easeInArray";
 import { easeOutArray } from "./easeOutArray";
 
@@ -7,9 +7,15 @@ export const easeInOutArray = (
   startIndex: number,
   endIndex: number,
   sampleRate: number,
-  easeType: EaseType,
-  easeDurationInSeconds: number
+  curveType: CurveType,
+  curveDurationInSeconds: number
 ) => {
-  easeInArray(buffer, startIndex, sampleRate, easeType, easeDurationInSeconds);
-  easeOutArray(buffer, endIndex, sampleRate, easeType, easeDurationInSeconds);
+  easeInArray(
+    buffer,
+    startIndex,
+    sampleRate,
+    curveType,
+    curveDurationInSeconds
+  );
+  easeOutArray(buffer, endIndex, sampleRate, curveType, curveDurationInSeconds);
 };

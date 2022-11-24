@@ -1,6 +1,12 @@
 import { Options, Sound, webaudio } from "@pixi/sound";
-import { fillArrayWithTones, Tone } from "../../../../../../spark-engine";
+import {
+  CurveType,
+  fillArrayWithTones,
+  Tone,
+} from "../../../../../../spark-engine";
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface ToneSoundOptions extends Options {}
 export class ToneSound extends Sound {
   protected _tones: Tone[];
 
@@ -8,7 +14,19 @@ export class ToneSound extends Sound {
     return this._tones;
   }
 
-  constructor(tones?: Tone[], options?: Options) {
+  protected _pitchCurve?: CurveType;
+
+  public get pitchCurve(): CurveType {
+    return this._pitchCurve;
+  }
+
+  protected _velocityCurve?: CurveType;
+
+  public get velocityCurve(): CurveType {
+    return this._velocityCurve;
+  }
+
+  constructor(tones?: Tone[], options?: ToneSoundOptions) {
     super(new webaudio.WebAudioMedia(), {
       autoPlay: false,
       singleInstance: true,

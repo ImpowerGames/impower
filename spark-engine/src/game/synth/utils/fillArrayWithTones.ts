@@ -1,7 +1,9 @@
 import { Tone } from "../types/Tone";
 import { convertNoteToHertz } from "./convertNoteToHertz";
+import { createFrequencyBuffers } from "./createFrequencyBuffers";
 import { easeInOutArray } from "./easeInOutArray";
 import { fillArrayWithOscillation } from "./fillArrayWithOscillation";
+import { getToneIndices } from "./getToneIndices";
 
 export const fillArrayWithTones = (
   buffer: Float32Array,
@@ -13,29 +15,29 @@ export const fillArrayWithTones = (
     buffer[i] = 0;
   }
 
+  const frequencyBuffers = createFrequencyBuffers(sampleRate, tones);
+
   tones.forEach((tone) => {
-    const time = tone.time || 0;
-    const duration = tone.duration || 0;
-    const timeInSamples = Math.floor(time * sampleRate);
-    const durationInSamples = Math.floor(duration * sampleRate);
-    const startIndex = timeInSamples;
-    const endIndex = timeInSamples + durationInSamples;
-    tone.waves?.forEach((wave) => {
-      const note = wave.note || "";
-      const velocity = typeof wave.velocity === "number" ? wave.velocity : 1;
-      const type = wave.type || "sine";
-      const hertz = convertNoteToHertz(note);
-      // Fill with Oscillator
-      fillArrayWithOscillation(
-        buffer,
-        startIndex,
-        endIndex,
-        sampleRate,
-        hertz,
-        velocity,
-        type
-      );
-    });
+    const [startIndex, endIndex] = getToneIndices(tone, sampleRate);
+
+    if (tone.waves) {
+      tone.waves.forEach((wave, waveIndex) => {
+        const velocity = typeof wave.velocity === "number" ? wave.velocity : 1;
+        const type = wave.type || "sine";
+        const note = wave.note || "";
+        const hertz = convertNoteToHertz(note);
+        // Fill with Oscillator
+        fillArrayWithOscillation(
+          buffer,
+          startIndex,
+          endIndex,
+          sampleRate,
+          frequencyBuffers[waveIndex] || hertz,
+          velocity,
+          type
+        );
+      });
+    }
 
     // Ease in and out to prevent crackles
     easeInOutArray(
@@ -43,8 +45,8 @@ export const fillArrayWithTones = (
       startIndex,
       endIndex,
       sampleRate,
-      "cosine",
-      duration * 0.5
+      tone.velocityCurve || "circ",
+      (tone.duration || 0) * 0.5
     );
   });
 };
