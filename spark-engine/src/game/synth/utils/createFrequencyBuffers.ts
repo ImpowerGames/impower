@@ -71,7 +71,7 @@ export const createFrequencyBuffers = (
 
           const nextStartIndex = nextKeyframe
             ? nextKeyframe.startIndex
-            : buffer.length + (endIndex - startIndex);
+            : Math.max(buffer.length + (endIndex - startIndex), endIndex + 1);
 
           for (let i = startIndex; i < endIndex; i += 1) {
             if (!pitchCurve || i < midIndex) {

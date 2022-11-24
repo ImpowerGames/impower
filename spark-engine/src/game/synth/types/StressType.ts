@@ -6,5 +6,6 @@ export type StressType =
   | "exclamation"
   | "lilt"
   | "partial"
+  | "interrupted"
   | "anxious"
   | "statement";

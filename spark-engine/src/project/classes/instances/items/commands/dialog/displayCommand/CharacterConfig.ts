@@ -4,12 +4,13 @@ export interface Prosody extends Partial<Record<StressType, RegExp | string>> {
   wordPauseScale?: number;
   phrasePauseScale?: number;
   beepDurationScale?: number;
-  syllableLength?: number;
+  maxSyllableLength?: number;
   italicizedPauseScale: number;
   boldedPauseScale: number;
   underlinedPauseScale: number;
   capitalizedPauseScale: number;
   pitchIncrement?: number;
+  voiced?: RegExp | string;
 }
 
 export interface CharacterConfig {
