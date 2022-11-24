@@ -1580,18 +1580,21 @@
           "name": "keyword.other.struct.sd"
         },
         "4": {
-          "name": "entity.name.type.interface.sd"
+          "name": "keyword.other.struct.sd"
         },
         "6": {
-          "name": "punctuation.definition.tag.sd"
-        },
-        "8": {
           "name": "entity.name.type.interface.sd"
         },
-        "10": {
+        "8": {
           "name": "punctuation.definition.tag.sd"
         },
+        "10": {
+          "name": "entity.name.type.interface.sd"
+        },
         "12": {
+          "name": "punctuation.definition.tag.sd"
+        },
+        "14": {
           "name": "keyword.operator.type.annotation.sd"
         }
       },
@@ -1774,16 +1777,16 @@
       "begin": "^([ \\t]*)(?![#!]|\\[\\[)([^\\p{Ll}\\r\\n]*?\\p{Lu}[^\\p{Ll}\\r\\n]*?)(\\(.*\\))?(\\s*\\^)?$",
       "end": "^$",
       "beginCaptures": {
-        "4": {
+        "2": {
           "name": "entity.name.type.sd"
         },
+        "5": {
+          "name": "constant.character.escape.sd"
+        },
+        "6": {
+          "name": "constant.character.escape.sd"
+        },
         "7": {
-          "name": "constant.character.escape.sd"
-        },
-        "8": {
-          "name": "constant.character.escape.sd"
-        },
-        "9": {
           "name": "constant.character.escape.sd"
         }
       },
