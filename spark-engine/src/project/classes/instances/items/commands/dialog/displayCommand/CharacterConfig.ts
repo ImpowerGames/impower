@@ -9,7 +9,6 @@ export interface Prosody extends Partial<Record<StressType, RegExp | string>> {
   boldedPauseScale: number;
   underlinedPauseScale: number;
   capitalizedPauseScale: number;
-  pitchIncrement?: number;
   voiced?: RegExp | string;
 }
 

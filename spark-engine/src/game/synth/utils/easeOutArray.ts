@@ -13,7 +13,7 @@ export const easeOutArray = (
   for (let i = 0; i < easeLength; i += 1) {
     const progress = i / easeLength;
     const easeType: EaseType =
-      curveType === "linear" ? curveType : `${curveType}Out`;
+      curveType === "linear" ? curveType : `${curveType}InOut`;
     const ease = EASE[easeType];
     if (ease) {
       const multiplier = ease(progress);

@@ -77,14 +77,14 @@ const finalStressTypes: StressType[] = [
 ];
 
 const defaultIntonation: Intonation = {
-  velocityCurve: "circ",
+  velocityCurve: "sine",
 
-  phrasePitchIncrement: 0.125,
+  phrasePitchIncrement: 0.02,
 
-  italicizedPitchIncrement: 1.25,
-  underlinedPitchIncrement: 1.25,
-  boldedPitchIncrement: 1.25,
-  capitalizedPitchIncrement: 1.25,
+  italicizedPitchIncrement: 2,
+  underlinedPitchIncrement: 2,
+  boldedPitchIncrement: 2,
+  capitalizedPitchIncrement: 2,
 
   fluctuation: "+0.5 -0.5",
   resolvedQuestion: "0 -3 -3 +2 +2 -1",
@@ -95,7 +95,7 @@ const defaultIntonation: Intonation = {
   partial: "0 -1 -1 +3 +2 +2",
   interrupted: "0 -1 +1 +1 +1",
   anxious: "0 -3 -3 -2 -2 -5",
-  statement: "0 -2 +3 -3 -7 -7",
+  statement: "0 -2 +3 -3 -6 -6",
 };
 
 const defaultProsody: Prosody = {
@@ -105,10 +105,10 @@ const defaultProsody: Prosody = {
   phrasePauseScale: 6,
   beepDurationScale: 0.99,
 
-  italicizedPauseScale: 1.5,
-  underlinedPauseScale: 1.5,
-  boldedPauseScale: 1.5,
-  capitalizedPauseScale: 1.5,
+  italicizedPauseScale: 2,
+  underlinedPauseScale: 2,
+  boldedPauseScale: 2,
+  capitalizedPauseScale: 2,
 
   /** Who's (that)? */
   resolvedQuestion:
@@ -134,7 +134,7 @@ const defaultProsody: Prosody = {
 };
 
 const defaultCharacterConfig = {
-  tone: "(E4)",
+  tone: "<E4>",
   intonation: defaultIntonation,
   prosody: defaultProsody,
 };
@@ -566,6 +566,10 @@ export const executeDisplayCommand = (
     debug?: boolean;
     fadeOutDuration?: number;
   },
+  voiceState?: {
+    lastCharacter?: string;
+    pitchOffset?: Record<string, number>;
+  },
   onFinished?: () => void,
   preview?: boolean
 ): ((timeMS: number) => void) | undefined => {
@@ -805,12 +809,16 @@ export const executeDisplayCommand = (
           : convertNoteToHertz(modalNote);
       // Determine how much a character's pitch will raise between related phrases
       const phrasePitchIncrement =
-        characterConfig?.prosody?.pitchIncrement || 0.125;
+        characterConfig?.intonation?.phrasePitchIncrement || 0;
       // Determine the "shape" of the character's voice
       const pitchCurve = characterConfig?.intonation?.pitchCurve;
       const velocityCurve = characterConfig?.intonation?.velocityCurve;
 
-      let phraseSemitones = 0;
+      // As character continues to speak, their pitch should start at their previous ending pitch
+      let phraseSemitones =
+        voiceState?.lastCharacter === characterKey
+          ? voiceState?.pitchOffset?.[characterKey] || 0
+          : 0;
       const tones: Tone[] = phraseDatas.flatMap(
         (phraseData, phraseIndex): Tone[] => {
           // Track what time next beep occurs to ensure that this beep doesn't overlap with next beep when adjusting duration
@@ -991,6 +999,16 @@ export const executeDisplayCommand = (
           return chunkBeeps as Tone[];
         }
       );
+      // Store character's ending pitch
+      if (voiceState) {
+        if (!voiceState.pitchOffset) {
+          voiceState.pitchOffset = {};
+        }
+        voiceState.pitchOffset[characterKey] = phraseSemitones;
+        if (characterKey) {
+          voiceState.lastCharacter = characterKey;
+        }
+      }
       game.synth.configureInstrument(commandType);
       game.synth.playInstrument(commandType, tones);
     }
