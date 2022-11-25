@@ -127,7 +127,8 @@ const ProjcetContextProvider = React.memo(
       recentlyAccessedGameIds
     );
 
-    const firstLoadFiles = useRef(true);
+    const cachedFiles =
+      useRef<Record<string, HTMLImageElement | HTMLAudioElement>>();
 
     useEffect(() => {
       const onLoadDoc = (doc: ProjectDocument): void => {
@@ -140,40 +141,35 @@ const ProjcetContextProvider = React.memo(
         await Promise.all([
           ...Object.entries(files?.data || {}).map(([, fileData]) => {
             return new Promise((resolve) => {
-              if (
-                fileData?.fileType?.startsWith("image") &&
-                fileData?.blurUrl
-              ) {
-                const img = new Image();
-                img.onload = resolve;
-                img.onerror = resolve;
-                img.src = fileData?.blurUrl;
+              if (fileData?.fileType?.startsWith("image")) {
+                if (fileData?.blurUrl) {
+                  const img = new Image();
+                  img.onload = resolve;
+                  img.onerror = resolve;
+                  img.src = fileData.blurUrl;
+                  cachedFiles[img.src] = img;
+                }
+                if (fileData?.thumbUrl) {
+                  const img = new Image();
+                  img.onload = resolve;
+                  img.onerror = resolve;
+                  img.src = fileData.thumbUrl;
+                  cachedFiles[img.src] = img;
+                }
+                if (fileData?.fileUrl) {
+                  const img = new Image();
+                  img.onload = resolve;
+                  img.onerror = resolve;
+                  img.src = fileData.fileUrl;
+                  cachedFiles[img.src] = img;
+                }
               }
-            });
-          }),
-          ...Object.entries(files?.data || {}).map(([, fileData]) => {
-            return new Promise((resolve) => {
-              if (
-                fileData?.fileType?.startsWith("image") &&
-                fileData?.thumbUrl
-              ) {
-                const img = new Image();
-                img.onload = resolve;
-                img.onerror = resolve;
-                img.src = fileData?.thumbUrl;
-              }
-            });
-          }),
-          ...Object.entries(files?.data || {}).map(([, fileData]) => {
-            return new Promise((resolve) => {
-              if (
-                fileData?.fileType?.startsWith("image") &&
-                fileData?.fileUrl
-              ) {
-                const img = new Image();
-                img.onload = resolve;
-                img.onerror = resolve;
-                img.src = fileData?.fileUrl;
+              if (fileData?.fileType?.startsWith("audio")) {
+                const audio = new Audio();
+                audio.onload = resolve;
+                audio.onerror = resolve;
+                audio.src = fileData.fileUrl;
+                cachedFiles[audio.src] = audio;
               }
             });
           }),
@@ -181,8 +177,8 @@ const ProjcetContextProvider = React.memo(
       };
       const onLoadFiles = (files: FilesCollection): void => {
         dispatch(projectLoadFiles(loadedProjectId, files));
-        if (firstLoadFiles.current) {
-          firstLoadFiles.current = false;
+        if (!cachedFiles.current) {
+          cachedFiles.current = {};
           cacheFiles(files);
         }
       };
