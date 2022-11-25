@@ -90,12 +90,12 @@ const defaultIntonation: Intonation = {
   resolvedQuestion: "0 -3 -3 +2 +2 -1",
   anxiousQuestion: "0 -3 -3 -2 -1 -1",
   question: "0 -3 -3 0 +2 +4",
-  exclamation: "+3 +3 +3 +4 +4 +2",
+  exclamation: "+3 +3 +3 +5 +4 +2",
   lilt: "0 0 0 +3 0 +6",
   partial: "0 -1 -1 +3 +2 +2",
   interrupted: "0 -1 +1 +1 +1",
   anxious: "0 -3 -3 -2 -2 -5",
-  statement: "0 -3 -2 +1 -3 -5",
+  statement: "0 -2 +3 -3 -7 -7",
 };
 
 const defaultProsody: Prosody = {
@@ -947,7 +947,7 @@ export const executeDisplayCommand = (
                 const direction = finalStressEnd - finalStressPeak;
                 // Clamp bend (to prevent squeaks and groans)
                 const clampedDirection = Math.floor(
-                  Math.max(-2, Math.min(direction, 1))
+                  Math.max(-8, Math.min(direction, 1))
                 );
                 b.waves[0].bend = clampedDirection;
               }
