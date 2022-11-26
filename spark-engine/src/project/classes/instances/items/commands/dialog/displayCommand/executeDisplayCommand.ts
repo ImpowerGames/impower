@@ -32,6 +32,7 @@ interface PhraseData {
 interface Beep extends Tone {
   syllableIndex?: number;
   emphasisOffset?: number;
+  offset?: number;
 }
 
 // TODO: Support voice type shortcuts for character tone.
@@ -81,6 +82,8 @@ const defaultIntonation: Intonation = {
     releaseTime: 0.025,
   },
 
+  volume: 0.5,
+
   phrasePitchOffset: 0.25,
   syllableFluctuation: 0.2,
 
@@ -91,48 +94,48 @@ const defaultIntonation: Intonation = {
 
   resolvedQuestion: {
     phraseSlope: 1,
-    driftContour: [0, -2],
-    finalContour: [-2, 2, 2, -1],
+    driftContour: [1, 4, 1, -1, -2],
+    finalContour: [2, 2, -1],
   },
   anxiousQuestion: {
     phraseSlope: 1,
-    driftContour: [0, -2],
-    finalContour: [-2, -2, -1, -1],
+    driftContour: [1, 4, 1, -1, -2],
+    finalContour: [-2, -1, -1],
   },
   question: {
-    phraseSlope: 1,
-    driftContour: [0, -2],
-    finalContour: [-2, 0, 2, 4],
+    phraseSlope: 2,
+    driftContour: [1, 4, 1, -1, -2],
+    finalContour: [-1, 0, 4],
   },
   exclamation: {
     phraseSlope: 1,
-    driftContour: [3, 3],
-    finalContour: [3, 5, 4, 2],
+    driftContour: [4, 5, 4],
+    finalContour: [5, 4],
   },
   lilt: {
     phraseSlope: 0,
     driftContour: [0, 0],
-    finalContour: [3, 0, 6, 0],
+    finalContour: [3, 0, 6],
   },
   partial: {
     phraseSlope: 1,
-    driftContour: [0, -1],
-    finalContour: [-2, 3, 2, 2],
+    driftContour: [0, 4, 1, -1, -2],
+    finalContour: [3, 2, 2],
   },
   interrupted: {
-    phraseSlope: 1,
-    driftContour: [0, -2],
-    finalContour: [1, 1, 1, 1],
+    phraseSlope: 2,
+    driftContour: [0, 2, 1, 0],
+    finalContour: [1, 2],
   },
   anxious: {
     phraseSlope: -1,
-    driftContour: [0, -2],
-    finalContour: [-2, -2, -2, -5],
+    driftContour: [0, 2, 1, -1],
+    finalContour: [0, 1, -1],
   },
   statement: {
     phraseSlope: -1,
-    driftContour: [0, -2],
-    finalContour: [-2, -1, -4, -5],
+    driftContour: [0, 2, 1, -1, -2],
+    finalContour: [4, 0, -4],
   },
 };
 
@@ -231,8 +234,10 @@ const getArray = (contour: number[] | ContourType | undefined): number[] => {
   );
 };
 
-const getStep = (progress: number, contour: number[]) => {
-  const frameIndex = progress * contour.length;
+const getStep = (index: number, arrayLength: number, contour: number[]) => {
+  const maxArrayIndex = arrayLength - 1;
+  const progress = maxArrayIndex > 0 ? index / maxArrayIndex : 0;
+  const frameIndex = progress * (contour.length - 1);
   const frameFloorIndex = Math.floor(frameIndex);
   const frameCeilingIndex = Math.min(contour.length - 1, Math.ceil(frameIndex));
   const startS = contour[frameFloorIndex] || 0;
@@ -861,6 +866,7 @@ export const executeDisplayCommand = (
       // Determine the "shape" of the character's voice
       const pitchCurve = characterConfig?.intonation?.pitchCurve;
       const envelope = characterConfig?.intonation?.envelope;
+      const volume = characterConfig?.intonation?.volume || 1;
 
       // As character continues to speak, their pitch should start at their previous ending pitch
       let currentPhrasePitchOffset =
@@ -898,10 +904,8 @@ export const executeDisplayCommand = (
 
           // The remaining points represent the final stress contour
           const finalStressStart = finalContour[0] || 0;
-          const finalStressPeak =
-            (finalContour.length > 1 ? finalContour[1] : finalStressStart) || 0;
           const finalStressEnd = finalContour[finalContour.length - 1] || 0;
-          const stressDelta = finalStressEnd - finalStressPeak;
+          const stressDelta = finalStressEnd - finalStressStart;
           const stressDirection =
             stressDelta < 0 ? -1 : stressDelta > 0 ? 1 : 0;
           const driftContour = getArray(inflection?.driftContour);
@@ -913,14 +917,6 @@ export const executeDisplayCommand = (
             if (!b.waves) {
               b.waves = [];
             }
-            const s = currentPhrasePitchOffset + ((b.emphasisOffset || 0) - 1);
-            for (let w = 0; w < modalWaves.length; w += 1) {
-              const wave = modalWaves[w];
-              b.waves[w] = { ...wave, note: transpose(wave?.note, s) };
-            }
-            b.pitchCurve = pitchCurve;
-            b.envelope = envelope;
-
             const nextBeepTime = chunkBeeps[i + 1]?.time;
             // Max duration of this beep so that it doesn't overlap with next beep
             const maxDuration =
@@ -929,49 +925,55 @@ export const executeDisplayCommand = (
                 : Number.MAX_SAFE_INTEGER) - (b.time || 0);
             // Clamp to max beep duration
             b.duration = Math.min(b.duration || 0, maxDuration);
-          });
 
-          const driftBeeps: Beep[] = [];
-          const finalStressBeeps: Beep[] = [];
-          let isLastWord = true;
-          for (let i = chunkBeeps.length - 1; i >= 0; i -= 1) {
-            const beep: Beep | undefined = chunkBeeps[i];
-            if (beep) {
-              if (isLastWord) {
-                // Pitch either rises or falls in the last word of the phrase
-                // depending on how uncertain the character is.
-                // Fall = more certain
-                // Rise = less certain
-                finalStressBeeps.unshift(beep);
-              } else {
-                // Pitch naturally drifts down over the course of the phrase
-                // as the air in the character's lungs run out.
-                driftBeeps.unshift(beep);
+            const s = currentPhrasePitchOffset + ((b.emphasisOffset || 0) - 1);
+            b.offset = (b.offset || 0) + s;
+            for (let w = 0; w < modalWaves.length; w += 1) {
+              const wave = { ...modalWaves[w] };
+              wave.note = transpose(wave?.note, s);
+              wave.velocity = volume;
+              b.waves[w] = wave;
+              if (b.duration > 0.25) {
+                wave.bend = -0.5;
               }
             }
-            if (beep?.syllableIndex === 0) {
-              isLastWord = false;
+            b.pitchCurve = pitchCurve;
+            b.envelope = envelope;
+          });
+
+          const wordBeeps: Beep[][] = [[]];
+          for (let i = 0; i < chunkBeeps.length; i += 1) {
+            const beep: Beep | undefined = chunkBeeps[i];
+            if (beep) {
+              wordBeeps[wordBeeps.length - 1]?.push(beep);
+            }
+            const nextBeep: Beep | undefined = chunkBeeps[i + 1];
+            if (nextBeep && nextBeep.syllableIndex === 0) {
+              wordBeeps.push([]);
             }
           }
+          const lastWordBeeps = wordBeeps[wordBeeps.length - 1] || [];
+          const secondToLastWordBeeps = wordBeeps[wordBeeps.length - 2] || [];
 
           // If last word is only 1 syllable long,
           // And second-to-last word is more than 1 syllable long
-          // Final stress includes last syllable from previous word
-          if (finalStressBeeps.length === 1 && driftBeeps.length > 0) {
-            const lastDriftBeep = driftBeeps[driftBeeps.length - 1];
-            if (lastDriftBeep && (lastDriftBeep.syllableIndex || 0) > 0) {
-              driftBeeps.pop();
-              finalStressBeeps.unshift(lastDriftBeep);
-            }
-          }
+          // Final stress includes syllables from previous word
+          const finalStressBeeps =
+            lastWordBeeps.length === 1 && secondToLastWordBeeps.length > 1
+              ? [...secondToLastWordBeeps, ...lastWordBeeps]
+              : [...lastWordBeeps];
+          const driftBeeps = chunkBeeps.filter(
+            (b) => !finalStressBeeps.includes(b)
+          );
 
           let syllableDirection = -1;
           driftBeeps.forEach((b: Beep, i) => {
             // Pitch naturally drifts down over the phrase
-            const s = getStep(i / driftBeeps.length, driftContour);
+            const s = getStep(i, driftBeeps.length, driftContour);
             // Pitch alternately rises and falls for each syllable
             // (iambic pentameter = te TUM te TUM te TUM)
             const f = syllableFluctuation * syllableDirection;
+            b.offset = (b.offset || 0) + s + f;
             if (b.waves) {
               b.waves.forEach((wave) => {
                 wave.note = transpose(wave.note, s + f);
@@ -995,8 +997,9 @@ export const executeDisplayCommand = (
                 (b.duration || 0) * finalStressScale * 2,
                 maxDuration
               );
-              // Transpose note to the peak of stress
-              const s = finalStressPeak;
+              // Transpose note to the start of stress
+              const s = finalStressStart;
+              b.offset = (b.offset || 0) + s;
               if (b.waves) {
                 b.waves.forEach((wave) => {
                   wave.note = transpose(wave.note, s);
@@ -1005,8 +1008,6 @@ export const executeDisplayCommand = (
               }
             }
           } else {
-            // When the last word is multiple syllables long,
-            // transpose each syllable up or down according to intonation contour
             finalStressBeeps.forEach((b: Beep, i: number) => {
               const nextBeepTime = finalStressBeeps[i + 1]?.time;
               // Max duration of this beep so that it doesn't overlap with next beep
@@ -1020,7 +1021,8 @@ export const executeDisplayCommand = (
                 maxDuration
               );
               // Transpose note depending on where we are in the stress contour
-              const s = getStep(i / finalStressBeeps.length, finalContour);
+              const s = getStep(i, finalStressBeeps.length, finalContour);
+              b.offset = (b.offset || 0) + s;
               if (b.waves) {
                 b.waves.forEach((wave) => {
                   wave.note = transpose(wave.note, s);

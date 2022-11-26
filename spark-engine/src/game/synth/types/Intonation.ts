@@ -19,6 +19,7 @@ export interface Intonation extends Partial<Record<StressType, Inflection>> {
     /** release time in seconds */
     releaseTime?: number;
   };
+  volume?: number;
   pitchCurve?: CurveType;
   phrasePitchOffset?: number;
   syllableFluctuation?: number;
