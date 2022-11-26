@@ -939,7 +939,7 @@ export const sparkAutocomplete = async (
         if (QUOTES.includes(input[0])) {
           const waveOpenBrackets = WAVES.map((w) => w.open);
           const waveCloseBrackets = WAVES.map((w) => w.close);
-          const sortedKeys = FUNDAMENTAL_KEYS.sort();
+          const sortedKeys = [...FUNDAMENTAL_KEYS].sort();
           if (
             waveOpenBrackets.includes(input[1]) &&
             !waveCloseBrackets.includes(input[2]) &&

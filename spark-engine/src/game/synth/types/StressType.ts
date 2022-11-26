@@ -1,5 +1,4 @@
 export type StressType =
-  | "fluctuation"
   | "resolvedQuestion"
   | "anxiousQuestion"
   | "question"

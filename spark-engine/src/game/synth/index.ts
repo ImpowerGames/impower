@@ -32,7 +32,6 @@ export * from "./utils/convertHertzToNote";
 export * from "./utils/convertNoteToHertz";
 export * from "./utils/createFrequencyBuffers";
 export * from "./utils/easeInArray";
-export * from "./utils/easeInOutArray";
 export * from "./utils/easeOutArray";
 export * from "./utils/fillArraysWithReverberation";
 export * from "./utils/fillArrayWithMetallicNoise";

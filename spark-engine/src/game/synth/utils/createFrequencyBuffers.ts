@@ -78,7 +78,7 @@ export const createFrequencyBuffers = (
               buffer[i] = hertz;
             } else {
               const progress = (i - midIndex) / (nextStartIndex - midIndex);
-              const direction: CurveDirection = "In";
+              const direction: CurveDirection = "InOut";
               const easeType: EaseType =
                 pitchCurve === "linear"
                   ? pitchCurve

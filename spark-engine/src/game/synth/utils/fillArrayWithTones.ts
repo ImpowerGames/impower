@@ -1,7 +1,8 @@
 import { Tone } from "../types/Tone";
 import { convertNoteToHertz } from "./convertNoteToHertz";
 import { createFrequencyBuffers } from "./createFrequencyBuffers";
-import { easeInOutArray } from "./easeInOutArray";
+import { easeInArray } from "./easeInArray";
+import { easeOutArray } from "./easeOutArray";
 import { fillArrayWithOscillation } from "./fillArrayWithOscillation";
 import { getToneIndices } from "./getToneIndices";
 
@@ -20,6 +21,7 @@ export const fillArrayWithTones = (
   tones.forEach((tone) => {
     const [startIndex, endIndex] = getToneIndices(tone, sampleRate);
 
+    // Oscillators
     if (tone.waves) {
       tone.waves.forEach((wave, waveIndex) => {
         const velocity = typeof wave.velocity === "number" ? wave.velocity : 1;
@@ -39,14 +41,25 @@ export const fillArrayWithTones = (
       });
     }
 
-    // Ease in and out to prevent crackles
-    easeInOutArray(
-      buffer,
-      startIndex,
-      endIndex,
-      sampleRate,
-      tone.velocityCurve || "circ",
-      (tone.duration || 0) * 0.5
-    );
+    // ASR Envelope
+    // (ease in and out amplitude to prevent crackles)
+    const attackCurve =
+      tone.envelope?.attackCurve != null ? tone.envelope?.attackCurve : "sine";
+    const attackTime =
+      tone.envelope?.attackTime != null
+        ? tone.envelope?.attackTime
+        : (tone.duration || 0) * 0.5;
+    const releaseCurve =
+      tone.envelope?.releaseCurve != null
+        ? tone.envelope?.releaseCurve
+        : "sine";
+    const releaseTime =
+      tone.envelope?.releaseTime != null
+        ? tone.envelope?.releaseTime
+        : (tone.duration || 0) * 0.5;
+    // Attack
+    easeInArray(buffer, startIndex, sampleRate, attackCurve, attackTime);
+    // Release
+    easeOutArray(buffer, endIndex, sampleRate, releaseCurve, releaseTime);
   });
 };

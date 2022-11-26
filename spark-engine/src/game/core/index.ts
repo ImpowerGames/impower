@@ -4,3 +4,4 @@ export * from "./classes/Manager";
 export * from "./constants/EASE";
 export * from "./types/CurveType";
 export * from "./types/ReadOnly";
+export * from "./utils/interpolate";
