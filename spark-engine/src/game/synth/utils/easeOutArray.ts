@@ -5,11 +5,9 @@ import { EaseType } from "../../core/types/EaseType";
 export const easeOutArray = (
   buffer: Float32Array,
   endIndex: number,
-  sampleRate: number,
-  curveType: CurveType,
-  curveDurationInSeconds: number
+  curveType: CurveType = "sine",
+  easeLength: number = 0
 ): void => {
-  const easeLength = Math.floor(curveDurationInSeconds * sampleRate);
   for (let i = 0; i < easeLength; i += 1) {
     const progress = i / easeLength;
     const easeType: EaseType =

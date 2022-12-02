@@ -1,65 +1,94 @@
+import { EASE, interpolate } from "../../core";
 import { Tone } from "../types/Tone";
-import { convertNoteToHertz } from "./convertNoteToHertz";
-import { createFrequencyBuffers } from "./createFrequencyBuffers";
 import { easeInArray } from "./easeInArray";
 import { easeOutArray } from "./easeOutArray";
 import { fillArrayWithOscillation } from "./fillArrayWithOscillation";
-import { getToneIndices } from "./getToneIndices";
+import { getTimedTones, TimedTone } from "./getTimedTones";
 
 export const fillArrayWithTones = (
   buffer: Float32Array,
   sampleRate: number,
-  tones: Tone[]
-): void => {
+  tones: readonly Tone[]
+): TimedTone[] => {
   // Zero out the buffer
   for (let i = 0; i < buffer.length; i += 1) {
     buffer[i] = 0;
   }
 
-  const frequencyBuffers = createFrequencyBuffers(sampleRate, tones);
+  const timedTones = getTimedTones(tones, sampleRate);
 
-  tones.forEach((tone) => {
-    const [startIndex, endIndex] = getToneIndices(tone, sampleRate);
+  timedTones.forEach((tone, toneIndex) => {
+    const { startIndex, endIndex, period } = tone;
+    const length = endIndex - startIndex;
 
-    // Oscillators
+    const quarterPeriod = Math.floor(period * 0.25);
+
+    const prev = timedTones[toneIndex - 1];
+    const prevPeriod = prev?.period || 0;
+    const prevEndIndex = prev?.endIndex || 0;
+    const prevQuarterPeriod = Math.floor(prevPeriod * 0.25);
+
     if (tone.waves) {
-      tone.waves.forEach((wave, waveIndex) => {
-        const velocity = typeof wave.velocity === "number" ? wave.velocity : 1;
-        const type = wave.type || "sine";
-        const note = wave.note || "";
-        const hertz = convertNoteToHertz(note);
-        // Fill with Oscillator
+      tone.waves.forEach((wave) => {
+        const type = wave.type;
+        const hertz = wave.hertz || 0;
+        const pitchBend = wave.pitchBend;
+        const pitchEase = wave.pitchEase;
+        const volumeBend = wave.volumeBend;
+        const volumeEase = wave.volumeEase;
+        const velocity = wave.velocity;
+
+        // Oscillator
         fillArrayWithOscillation(
           buffer,
           startIndex,
           endIndex,
           sampleRate,
-          frequencyBuffers[waveIndex] || hertz,
+          hertz,
+          pitchBend,
+          pitchEase,
+          volumeBend,
+          volumeEase,
           velocity,
           type
         );
+
+        // Envelope
+        const attackCurve = wave?.attackCurve;
+        const attackTime = wave?.attackTime || 0;
+        const releaseCurve = wave?.releaseCurve;
+        const releaseTime = wave?.releaseTime || 0;
+        const attackLength = Math.min(
+          length * 0.5,
+          Math.floor(attackTime * sampleRate)
+        );
+        const releaseLength = Math.min(
+          length * 0.5,
+          Math.floor(releaseTime * sampleRate)
+        );
+        if (attackTime > 0) {
+          // Attack
+          easeInArray(buffer, startIndex, attackCurve, attackLength);
+        }
+        if (releaseTime > 0) {
+          // Release
+          easeOutArray(buffer, endIndex, releaseCurve, releaseLength);
+        }
       });
     }
 
-    // ASR Envelope
-    // (ease in and out amplitude to prevent crackles)
-    const attackCurve =
-      tone.envelope?.attackCurve != null ? tone.envelope?.attackCurve : "sine";
-    const attackTime =
-      tone.envelope?.attackTime != null
-        ? tone.envelope?.attackTime
-        : (tone.duration || 0) * 0.5;
-    const releaseCurve =
-      tone.envelope?.releaseCurve != null
-        ? tone.envelope?.releaseCurve
-        : "sine";
-    const releaseTime =
-      tone.envelope?.releaseTime != null
-        ? tone.envelope?.releaseTime
-        : (tone.duration || 0) * 0.5;
-    // Attack
-    easeInArray(buffer, startIndex, sampleRate, attackCurve, attackTime);
-    // Release
-    easeOutArray(buffer, endIndex, sampleRate, releaseCurve, releaseTime);
+    // (interpolate quick frequency changes to prevent crackles)
+    const startEaseIndex = startIndex - prevQuarterPeriod;
+    const endEaseIndex = startIndex + quarterPeriod;
+    const startValue = buffer[startEaseIndex] || 0;
+    const endValue = buffer[endEaseIndex] || 0;
+    if (startIndex - prevEndIndex <= 1) {
+      for (let i = startEaseIndex; i < endEaseIndex; i += 1) {
+        const progress = (i - startEaseIndex) / (endEaseIndex - startEaseIndex);
+        buffer[i] = interpolate(progress, startValue, endValue, EASE.quadInOut);
+      }
+    }
   });
+
+  return timedTones;
 };

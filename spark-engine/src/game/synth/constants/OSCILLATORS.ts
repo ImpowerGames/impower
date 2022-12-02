@@ -1,25 +1,44 @@
-const sgn = (t: number): number => {
-  return t === 0 ? t : t > 0 ? 1 : -1;
+const PI2 = 2 * Math.PI;
+
+const fix = (x: number, fractionDigits = 10): number => {
+  // Fix float precision errors
+  const result = Number(x.toFixed(fractionDigits));
+  return result === 0 ? 0 : result;
 };
 
-const sine = (t: number): number => {
-  return Math.sin(2 * Math.PI * t);
+const sin = (x: number): number => {
+  return Math.sin(x);
 };
 
-const cosine = (t: number): number => {
-  return Math.cos(2 * Math.PI * t);
+const cos = (x: number): number => {
+  return Math.cos(x);
 };
 
-const triangle = (t: number): number => {
-  return 1 - 4 * Math.abs(Math.round(t) - t);
+const sgn = (x: number): number => {
+  return x > 0 ? 1 : x < 0 ? -1 : 0;
 };
 
-const sawtooth = (t: number): number => {
-  return 2 * (t - Math.round(t));
+const sine = (x: number): number => {
+  return sin(PI2 * x);
 };
 
-const square = (t: number): number => {
-  return sgn(Math.sin(2 * Math.PI * t));
+const cosine = (x: number): number => {
+  return cos(PI2 * x);
+};
+
+const triangle = (x: number): number => {
+  return 1 - 4 * Math.abs(Math.round(x - 1 / 4) - (x - 1 / 4));
+};
+
+const sawtooth = (x: number): number => {
+  if (x % 0.5 === 0) {
+    return 0;
+  }
+  return 2 * (x - Math.round(x));
+};
+
+const square = (x: number): number => {
+  return sgn(fix(sin(PI2 * x)));
 };
 
 const noise = (_t: number): number => {

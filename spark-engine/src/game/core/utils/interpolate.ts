@@ -4,8 +4,11 @@ export const interpolate = (
   b: number,
   ease?: (t: number) => number
 ): number => {
-  if (!ease) {
+  if (t <= 0) {
     return a;
+  }
+  if (!ease) {
+    return b;
   }
   return a * (1 - ease(t)) + b * ease(t);
 };

@@ -3,13 +3,17 @@ import { Intonation, StressType } from "../../../../../../../game";
 export interface Prosody extends Partial<Record<StressType, RegExp | string>> {
   wordPauseScale?: number;
   phrasePauseScale?: number;
-  beepDurationScale?: number;
+  ellipsisPauseScale?: number;
   maxSyllableLength?: number;
   italicizedPauseScale: number;
   boldedPauseScale: number;
   underlinedPauseScale: number;
-  capitalizedPauseScale: number;
+  yelledPauseScale: number;
+  weakWords?: string[];
+  contractions?: string[];
   voiced?: RegExp | string;
+  yelled?: RegExp | string;
+  punctuation?: RegExp | string;
 }
 
 export interface CharacterConfig {

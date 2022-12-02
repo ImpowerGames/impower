@@ -10,6 +10,12 @@ export class ToneSound extends Sound {
     return this._tones;
   }
 
+  protected _durationInSamples: number;
+
+  public get durationInSamples(): number {
+    return this._durationInSamples;
+  }
+
   constructor(tones?: Tone[], options?: ToneSoundOptions) {
     super(new webaudio.WebAudioMedia(), {
       autoPlay: false,
@@ -38,11 +44,11 @@ export class ToneSound extends Sound {
         : 0;
     const audioContext = this.context.audioContext;
     const sampleRate = this.context.audioContext.sampleRate;
-    const durationInSamples = Math.max(1, sampleRate * duration);
+    this._durationInSamples = Math.max(1, sampleRate * duration);
     const media = this.media as webaudio.WebAudioMedia;
     const buffer =
       media.buffer ||
-      audioContext.createBuffer(1, durationInSamples, sampleRate);
+      audioContext.createBuffer(1, this._durationInSamples, sampleRate);
     const fArray = buffer.getChannelData(0);
     fillArrayWithTones(fArray, sampleRate, tones);
     buffer.copyToChannel(fArray, 0);

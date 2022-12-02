@@ -17,6 +17,7 @@ export interface SynthEvents extends Record<string, GameEvent> {
   onPlayInstrument: GameEvent<{
     instrumentId: string;
     tones: Tone[];
+    onStart?: () => void;
   }>;
 }
 
@@ -91,10 +92,15 @@ export class SynthManager extends Manager<
     });
   }
 
-  playInstrument(instrumentId: string, tones: Tone[]): void {
+  playInstrument(
+    instrumentId: string,
+    tones: Tone[],
+    onStart?: () => void
+  ): void {
     this._events.onPlayInstrument.emit({
       instrumentId,
       tones,
+      onStart,
     });
   }
 }
