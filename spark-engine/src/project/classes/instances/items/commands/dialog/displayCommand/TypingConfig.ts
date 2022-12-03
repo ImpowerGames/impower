@@ -1,7 +1,7 @@
 export interface TypingConfig {
   letterDelay?: number;
+  pauseScale?: number;
   fadeDuration?: number;
-  tone?: string;
-  letterVolume?: number;
+  punctuationTone?: string;
   punctuationVolume?: number;
 }

@@ -20,8 +20,6 @@ export interface TimedWave {
 
 export interface TimedTone {
   waves: TimedWave[];
-  lowestHertz: number;
-  highestHertz: number;
   startIndex: number;
   endIndex: number;
   padding: number;
@@ -34,17 +32,13 @@ export const getTimedTone = (
   exactEndIndex: number,
   sampleRate: number
 ): Omit<TimedTone, "waves"> => {
-  const frequencies = waves.map((w) => w.hertz);
-  const lowestHertz = Math.min(...frequencies);
-  const highestHertz = Math.max(...frequencies);
-  const period = sampleRate / lowestHertz;
+  const frequency = waves?.[0]?.hertz || 1;
+  const period = sampleRate / frequency;
   const i = exactEndIndex;
   const localIndex = i - exactStartIndex;
   const endPhase = (localIndex % period) / period;
   const padding = Math.floor(period * (1 - endPhase));
   return {
-    lowestHertz,
-    highestHertz,
     startIndex: exactStartIndex,
     endIndex: exactEndIndex + padding,
     padding,
@@ -65,14 +59,17 @@ export const getTimedTones = (
   tones.forEach((tone) => {
     if (tone.waves) {
       const totalWaveDuration = tone.duration || 0;
-      const totalWaveAmplitude = tone.waves.reduce(
+      const appendedWaves = tone.waves.filter(
+        (w, i) => i === 0 || w.merge === "append"
+      );
+      const totalWaveAmplitude = appendedWaves.reduce(
         (p, w) => p + (w.amplitude || 1),
         0
       );
-      const waveDuration = totalWaveDuration / tone.waves.length;
+      const waveDuration = totalWaveDuration / appendedWaves.length;
+      let time = tone.time || 0;
       tone.waves.forEach((wave, i) => {
         const velocity = (wave.amplitude || 1) / (totalWaveAmplitude || 1);
-        const time = (tone.time || 0) + i * waveDuration;
         const duration = waveDuration;
         const timedWave: TimedWave = {
           type: wave.type || "sine",
@@ -99,10 +96,12 @@ export const getTimedTones = (
             duration,
             waves: [timedWave],
           });
+          time += waveDuration;
         }
       });
     }
   });
+
   for (let i = 0; i < flattenedTones.length; i += 1) {
     const prevTiming = timings[i - 1];
     const prevPadding = prevTiming?.padding || 0;
@@ -113,17 +112,13 @@ export const getTimedTones = (
       const exactStartIndex = Math.floor(time * sampleRate) + prevPadding;
       const exactEndIndex = Math.floor((time + duration) * sampleRate);
       const waves = tone.waves || [];
-      const {
-        lowestHertz,
-        highestHertz,
-        startIndex,
-        endIndex,
-        padding,
-        period,
-      } = getTimedTone(waves, exactStartIndex, exactEndIndex, sampleRate);
+      const { startIndex, endIndex, padding, period } = getTimedTone(
+        waves,
+        exactStartIndex,
+        exactEndIndex,
+        sampleRate
+      );
       timings[i] = {
-        lowestHertz,
-        highestHertz,
         waves,
         startIndex,
         endIndex,

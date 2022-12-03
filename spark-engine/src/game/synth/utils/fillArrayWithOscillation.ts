@@ -3,6 +3,7 @@ import { EaseType } from "../../core/types/EaseType";
 import { OSCILLATORS } from "../constants/OSCILLATORS";
 import { Hertz } from "../types/Hertz";
 import { OscillatorType } from "../types/OscillatorType";
+import { getBendProgress } from "./getBendProgress";
 import { transpose } from "./transpose";
 
 export const fillArrayWithOscillation = (
@@ -20,8 +21,7 @@ export const fillArrayWithOscillation = (
 ): void => {
   for (let i = startIndex; i < endIndex; i += 1) {
     const localIndex = i - startIndex;
-    const length = endIndex - startIndex;
-    const progress = localIndex / length;
+    const progress = getBendProgress(i, startIndex, endIndex);
     const targetHertz = transpose(hertz, pitchBend || 0);
     const easedHertz = interpolate(
       progress,

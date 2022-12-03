@@ -1,6 +1,7 @@
 import { EASE } from "../../core/constants/EASE";
 import { interpolate } from "../../core/utils/interpolate";
 import { convertNoteToHertz } from "./convertNoteToHertz";
+import { getBendProgress } from "./getBendProgress";
 import { TimedTone } from "./getTimedTones";
 import { transpose } from "./transpose";
 
@@ -17,9 +18,7 @@ export const fillArrayWithPitches = (
   timedTones.forEach((tone) => {
     const { startIndex, endIndex, waves } = tone;
     for (let i = startIndex; i < endIndex; i += 1) {
-      const localIndex = i - startIndex;
-      const length = endIndex - startIndex;
-      const progress = localIndex / length;
+      const progress = getBendProgress(i, startIndex, endIndex);
       const wave = waves?.[waveIndex];
       const note = wave?.hertz;
       const pitchBend = wave?.pitchBend;

@@ -7,10 +7,8 @@ import {
 } from "../../../../../../../data";
 import {
   ContourType,
-  EASE,
   IElement,
   Inflection,
-  interpolate,
   Intonation,
   parseTone,
   SparkGame,
@@ -35,7 +33,12 @@ interface Chunk {
   punctuation: boolean;
   ellipsis: boolean;
   yelled: boolean;
-  stress?: "strong" | "weak";
+  stressLevel?: number;
+}
+
+interface Syllable {
+  text: string;
+  chunks: Chunk[];
 }
 
 interface Word {
@@ -44,7 +47,7 @@ interface Word {
   bolded?: boolean;
   underlined?: boolean;
   yelled?: boolean;
-  syllables: { text: string; chunks: Chunk[] }[];
+  syllables: Syllable[];
 }
 
 interface Phrase {
@@ -62,17 +65,20 @@ interface Beep {
   ellipsis: boolean;
   punctuation: boolean;
   voiced: boolean;
-  stress?: "strong" | "weak";
+  stressLevel?: number;
 }
 
 const finalStressTypes: StressType[] = [
-  "resolvedQuestion",
+  "liltQuestion",
+  "liltExclamation",
+  "lilt",
+  "resolvedAnxiousQuestion",
   "anxiousQuestion",
+  "resolvedQuestion",
   "question",
   "exclamation",
-  "lilt",
+  "comma",
   "partial",
-  "interrupted",
   "anxious",
   "statement",
 ];
@@ -157,81 +163,117 @@ const weakWords = [
 const contractions = ["'d", "'ll", "'m", "'re", "'s", "'t", "'ve", "n't"];
 
 const defaultIntonation: Intonation = {
-  // phrasePitchOffset: 0.25,
-  // syllableFluctuation: 0.2,
+  voiceTone: "0.02s cubic|<E4>|0.02s cubic",
+  voiceVolume: 0.5,
 
-  levelSemitones: 0.5,
+  phrasePitchIncrement: 0.25,
+  phrasePitchMaxOffset: 1,
+
+  downdriftIncrement: 0.02,
+
+  stressLevelSemitones: 0.5,
 
   /**
-   * ▅ ▅ ▆ ▃
-   * 0  0  2 -5
+   * ▆ ▂
+   * 1 -5
    */
-  resolvedQuestion: {
-    phraseSlope: 1,
-    driftContour: [0, 0],
-    finalContour: [2, -5],
+  liltQuestion: {
+    phraseSlope: 0,
+    neutralLevel: 2,
+    finalContour: [4, 2],
+    pitchBend: 1,
+    pitchEase: "backInOut",
+    dilation: 1.25,
   },
   /**
-   * ▅ ▅ ▆ ▇
-   * 0  0  1  2
+   * ▆ ▂
+   * 1 -5
    */
-  anxiousQuestion: {
-    phraseSlope: 1,
-    driftContour: [0, 0],
-    finalContour: [1, 2],
+  liltExclamation: {
+    phraseSlope: 0,
+    neutralLevel: 3,
+    finalContour: [5, 4],
+    pitchBend: 1,
+    pitchEase: "backInOut",
+    dilation: 1.5,
   },
   /**
-   * ▅ ▅ ▆ ▇
-   * 0  0  1  2
-   */
-  question: {
-    phraseSlope: 2,
-    driftContour: [0, 0],
-    finalContour: [1, 2],
-  },
-  /**
-   * ▅ ▅ ▆ ▃
-   * 0  0  1 -5
-   */
-  exclamation: {
-    phraseSlope: 1,
-    driftContour: [0, 0],
-    finalContour: [1, -5],
-  },
-  /**
-   * ▅ ▅ ▆ ▃
-   * 0  0  1 -5
+   * ▆ ▂
+   * 1 -5
    */
   lilt: {
     phraseSlope: 0,
-    driftContour: [0, 0],
+    finalContour: [1, -5],
+    pitchBend: 1,
+    pitchEase: "backInOut",
+    dilation: 2,
+  },
+  /**
+   * ▆ ▂
+   * 2 -5
+   */
+  resolvedAnxiousQuestion: {
+    phraseSlope: 1,
+    finalContour: [3, 4],
+  },
+  /**
+   * ▆ ▇
+   * 1  2
+   */
+  anxiousQuestion: {
+    phraseSlope: 1,
+    finalContour: [1, 2],
+  },
+  /**
+   * ▆ ▂
+   * 2 -5
+   */
+  resolvedQuestion: {
+    phraseSlope: 1,
+    finalContour: [2, -5],
+  },
+  /**
+   * ▆ ▇
+   * 1  2
+   */
+  question: {
+    phraseSlope: 2,
+    finalContour: [1, 2],
+  },
+  /**
+   * ▉
+   * 8
+   */
+  exclamation: {
+    phraseSlope: 2,
+    neutralLevel: 4,
+    finalContour: [5],
+    emphasisContour: [6],
+    pitchBend: -2,
+    pitchEase: "sineInOut",
+  },
+  /**
+   * ▆ ▂
+   * 1 -5
+   */
+  comma: {
+    phraseSlope: 1,
     finalContour: [1, -5],
   },
   /**
-   * ▅ ▅ ▆ ▃
-   * 0  0  1 -5
+   * ▆ ▇
+   * 1  2
    */
   partial: {
-    phraseSlope: 1,
-    driftContour: [0, 0],
-    finalContour: [1, -5],
-  },
-  /**
-   * ▅ ▅ ▆ ▃
-   * 0  0  1 -5
-   */
-  interrupted: {
     phraseSlope: 2,
-    driftContour: [0, 0],
-    finalContour: [1, -5],
+    finalContour: [1, 2],
   },
   /**
-   * ▅ ▅ ▃ ▃
-   * 0  0 -1 -1
+   * ▂ ▂
+   * -1 -1
    */
   anxious: {
     phraseSlope: -1,
-    driftContour: [0, 0],
     finalContour: [-1, -1, -1],
     pitchBend: -1,
     pitchEase: "sineOut",
@@ -239,27 +281,18 @@ const defaultIntonation: Intonation = {
     volumeEase: "quadIn",
   },
   /**
-   * ▅ ▅ ▆ ▃
-   * 0  0  1 -5
+   * ▆ ▃
+   * 1 -5
    */
   statement: {
     phraseSlope: -1,
-    driftContour: [0, 0],
     finalContour: [1, -5],
+    emphasisContour: [3, 2, 1.5],
   },
 };
 
 const defaultProsody: Prosody = {
   maxSyllableLength: 4,
-
-  ellipsisPauseScale: 2,
-  wordPauseScale: 3,
-  phrasePauseScale: 6,
-
-  italicizedPauseScale: 2,
-  underlinedPauseScale: 2,
-  boldedPauseScale: 2,
-  yelledPauseScale: 2,
 
   weakWords,
   contractions,
@@ -269,31 +302,37 @@ const defaultProsody: Prosody = {
   /** Words that are yelled loudly */
   yelled: /^([^\p{Ll}\r\n]*?\p{Lu}\p{Lu}[^\p{Ll}\r\n]*?)$/u,
   /** Punctuation that is typed with a sound */
-  punctuation: /([.!?]+)/u,
+  punctuation: /([.!?-]+)/u,
 
+  /** Who's that(..).? */
+  resolvedAnxiousQuestion:
+    /(?:^[\t ]*|\b)(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b[^\t\n\r !?]+([.][.])[.][!?]*[?][!?]*[ ]*$/,
+  /** Yes(...)? */
+  anxiousQuestion: /(?:^[\t ]*|\b)[^\t\n\r .?]*([.][.][.])[.]*[?]+[ ]*$/,
   /** Who's that(?) */
   resolvedQuestion:
     /(?:^[\t ]*|\b)(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b[^\t\n\r !?]+[!?]*([?])[!?]*[ ]*$/,
-  /** Yes.(..)? */
-  anxiousQuestion: /(?:^[\t ]*|\b)[^\t\n\r .?]*([.][.][.])[.]*[?]+[ ]*$/,
   /** Yes(?) */
-  question: /(?:^[\t ]*|\b)[^\t\n\r !?]*[!?]*([?])[!?]*[ ]*$/,
+  question: /(?:^[\t ]*|\b)[^\t\n\r !?]*([!?]*[?][!?]*)[ ]*$/,
   /** Yes(!) */
-  exclamation: /(?:^[\t ]*|\b)[^\t\n\r !?]*([!]+)[ ]*$/,
+  exclamation: /(?:^[\t ]*|\b)[^\t\n\r !?]*([!])[!]+[ ]*$/,
+  /** Yes(~?) */
+  liltQuestion: /(?:^[\t ]*|\b)[^\t\n\r ~!?]*([~]+[!?]*[?][!?]*)[ ]*$/,
+  /** Yes(~!) */
+  liltExclamation: /(?:^[\t ]*|\b)[^\t\n\r ~!?]*([~]+[!]+)[ ]*$/,
   /** Yes(~) */
   lilt: /(?:^[\t ]*|\b)[^\t\n\r ~]*([~]+)[ ]*$/,
   /** Yes(,) */
-  partial: /(?:^[\t ]*|\b)[^\t\n\r ,]*([,])[ ]*$/,
+  comma: /(?:^[\t ]*|\b)[^\t\n\r ,]*([,])[ ]*$/,
   /** Yes-(-) */
-  interrupted: /(?:^[\t ]*|\b)[^\t\n\r -]*[-]([-]+)[ ]*$/,
-  /** Yes.(..) */
+  partial: /(?:^[\t ]*|\b)[^\t\n\r -]*[-]([-]+)[ ]*$/,
+  /** Yes(...) */
   anxious: /(?:^[\t ]*|\b)[^\t\n\r .]*([.][.][.])[.]*[ ]*$/,
   /** Yes(.) */
   statement: /(?:^[\t ]*|\b)[^\t\n\r .]*([.])[ ]*$/,
 };
 
 const defaultCharacterConfig = {
-  tone: "0.02s cubic|<E4>|0.02s cubic",
   intonation: defaultIntonation,
   prosody: defaultProsody,
 };
@@ -310,10 +349,11 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
     className: "Dialogue",
     typing: {
       letterDelay: 0.02,
+      pauseScale: 3,
       fadeDuration: 0,
-      letterVolume: 0.5,
+      punctuationTone:
+        "0.01s cubic|(D5,20)<C6,10> <E5,29>(E3,1) <C5,30>|0.01s cubic",
       punctuationVolume: 0.1,
-      tone: "0.02s cubic|<G3,20> (E6,3) (C7,1)|0.02s cubic",
     },
   },
 };
@@ -353,19 +393,6 @@ const getArray = (contour: number[] | ContourType | undefined): number[] => {
       ? contour.split(" ").map((x) => Number(x))
       : contour) || []
   );
-};
-
-const getStep = (index: number, arrayLength: number, contour: number[]) => {
-  const maxArrayIndex = arrayLength - 1;
-  const progress = maxArrayIndex > 0 ? index / maxArrayIndex : 0;
-  const frameIndex = progress * (contour.length - 1);
-  const frameFloorIndex = Math.floor(frameIndex);
-  const frameCeilingIndex = Math.min(contour.length - 1, Math.ceil(frameIndex));
-  const startS = contour[frameFloorIndex] || 0;
-  const endS = contour[frameCeilingIndex] || 0;
-  const tweenProgress =
-    frameFloorIndex > 0 ? frameIndex % frameFloorIndex : frameIndex;
-  return interpolate(tweenProgress, startS, endS, EASE.linear);
 };
 
 const hideChoices = (
@@ -458,6 +485,47 @@ const getWords = (phrase: Phrase): Word[] => {
   return words;
 };
 
+const stressWord = (
+  word: Word,
+  contour: number[],
+  durationMultiplier: number = 1
+): void => {
+  const validContourLength = Math.max(1, contour.length);
+  if (word.syllables.length < contour.length) {
+    const combinedChunks = word.syllables.flatMap((s) => s.chunks);
+    // Split word into enough syllables so that there is one syllable per final contour index
+    const originalSyllableCount = word.syllables.length;
+    const newSyllableCount = validContourLength;
+    const divisionChunkLength = Math.round(word.text.length / newSyllableCount);
+    const splitDurationMultiplier = newSyllableCount / originalSyllableCount;
+    let contourIndex = 0;
+    combinedChunks.forEach((c, i) => {
+      if (c.voiced) {
+        c.duration *= splitDurationMultiplier * durationMultiplier;
+      }
+      c.stressLevel = contour[contourIndex];
+      if (i % divisionChunkLength === 0 && c.voiced) {
+        c.startOfSyllable = true;
+        contourIndex += 1;
+      } else {
+        c.startOfSyllable = false;
+      }
+    });
+  } else {
+    const max = Math.max(1, word.syllables.length - 1);
+    word.syllables.forEach((s, i) => {
+      const progress = i / max;
+      s.chunks.forEach((c) => {
+        const contourIndex = Math.floor(progress * (validContourLength - 1));
+        if (c.voiced) {
+          c.duration *= durationMultiplier;
+        }
+        c.stressLevel = contour[contourIndex];
+      });
+    });
+  }
+};
+
 const getPhrases = (
   game: SparkGame,
   content: string,
@@ -468,23 +536,8 @@ const getPhrases = (
   debug?: boolean
 ): Phrase[] => {
   const letterDelay = get(displayProps?.typing?.letterDelay, 0);
+  const pauseScale = get(displayProps?.typing?.pauseScale, 1);
   const letterFadeDuration = get(displayProps?.typing?.fadeDuration, 0);
-  const wordPauseScale = get(characterProps?.prosody?.wordPauseScale, 1);
-  const phrasePauseScale = get(characterProps?.prosody?.phrasePauseScale, 1);
-  const ellipsisPauseScale = get(
-    characterProps?.prosody?.ellipsisPauseScale,
-    1
-  );
-  const italicizedPauseScale = get(
-    characterProps?.prosody?.italicizedPauseScale,
-    1
-  );
-  const underlinedPauseScale = get(
-    characterProps?.prosody?.underlinedPauseScale,
-    1
-  );
-  const yelledPauseScale = get(characterProps?.prosody?.yelledPauseScale, 1);
-  const boldedPauseScale = get(characterProps?.prosody?.boldedPauseScale, 1);
   const maxSyllableLength = get(characterProps?.prosody?.maxSyllableLength);
   const voicedRegex = new RegExp(characterProps?.prosody?.voiced || "", "u");
   const yelledRegex = new RegExp(characterProps?.prosody?.yelled || "", "u");
@@ -631,24 +684,15 @@ const getPhrases = (
       }
     }
     const yelled = yelledRegex.test(word);
-    const emphasizedPauseScale =
-      (italicized ? italicizedPauseScale : 0) +
-      (bolded ? boldedPauseScale : 0) +
-      (underlined ? underlinedPauseScale : 0) +
-      (yelled ? yelledPauseScale : 0);
-    const currentLetterDelay = letterDelay * Math.max(1, emphasizedPauseScale);
     const startOfEllipsis =
       consecutiveDotLength === 1 && tripleLookahead === "...";
     const ellipsis = startOfEllipsis || consecutiveDotLength > 1;
     const isWordPause = spaceLength === 1;
     const isPhrasePause = spaceLength > 1;
-    const duration = ellipsis
-      ? letterDelay * ellipsisPauseScale
-      : isWordPause
-      ? letterDelay * wordPauseScale
-      : isPhrasePause
-      ? letterDelay * phrasePauseScale
-      : currentLetterDelay;
+    const duration =
+      isWordPause || isPhrasePause || ellipsis || yelled
+        ? letterDelay * pauseScale
+        : letterDelay;
     if (isPhrasePause) {
       phrasePauseLength += 1;
       phraseUnpauseLength = 0;
@@ -705,11 +749,6 @@ const getPhrases = (
         charIndex === 0 ||
         (charIndex > 0 && charIndex % maxSyllableLength === 0);
       const startOfWord = consecutiveLettersLength === 1;
-      if (startOfSyllable) {
-        if (debug) {
-          span.style["backgroundColor"] = `hsl(185, 100%, 50%)`;
-        }
-      }
       if (phraseUnpauseLength === 1) {
         // start voiced phrase
         phrases.push({
@@ -759,7 +798,7 @@ const getPhrases = (
     if (spaceLength === 1) {
       firstSpaceSpan = span;
     }
-    if ((isWordPause || isPhrasePause || ellipsis) && firstSpaceSpan && debug) {
+    if ((isWordPause || isPhrasePause) && firstSpaceSpan && debug) {
       // color pause span (longer time = darker color)
       firstSpaceSpan.style["backgroundColor"] = `hsla(0, 100%, 50%, ${
         spaceLength / 5
@@ -812,81 +851,23 @@ const getPhrases = (
       finalStressType,
       characterProps?.intonation
     );
-    const finalContourLength = getArray(inflection?.finalContour).length;
+    const downdriftIncrement =
+      characterProps?.intonation?.downdriftIncrement || 0;
+    const dilation = inflection?.dilation;
+    const neutralLevel = inflection?.neutralLevel;
+    const finalContour = getArray(inflection?.finalContour);
+    const emphasisContour =
+      getArray(inflection?.emphasisContour) || finalContour;
 
     const words = getWords(phrase);
 
-    let focusedWordFound = false;
-    let unstressedFinalWordExists = false;
-    // Stress final focus word
+    let currentNeutralLevel = neutralLevel || 0;
+    let stressedWordFound = false;
+    let terminalWordExists = false;
     for (let i = words.length - 1; i >= 0; i -= 1) {
       const word = words[i];
       if (word && word.text) {
-        const cleanedText = word.text.toLowerCase().trim();
-        const isFocus = !weakWordVariants.includes(cleanedText);
-        if (isFocus) {
-          if (word.syllables.length === 1 && !unstressedFinalWordExists) {
-            // If focused word is only 1 syllable long and isn't followed by an unfocused word,
-            // split the syllable into a weak and strong syllable
-            word.syllables.forEach((s) => {
-              const midIndex = Math.floor(s.chunks.length / 2);
-              s.chunks.forEach((c, index) => {
-                if (index === midIndex) {
-                  c.startOfSyllable = true;
-                }
-                if (index < midIndex) {
-                  c.stress = "strong";
-                } else {
-                  c.stress = "weak";
-                }
-                c.duration *= finalContourLength;
-              });
-            });
-          } else {
-            // If followed by weak word, make entire focus word strong,
-            // otherwise, only make the first syllable of the focus word strong
-            word.syllables.forEach((s, syllableIndex) => {
-              s.chunks.forEach((c) => {
-                if (unstressedFinalWordExists || syllableIndex === 0) {
-                  c.stress = "strong";
-                } else {
-                  c.stress = "weak";
-                }
-              });
-            });
-          }
-          focusedWordFound = true;
-          break;
-        } else {
-          unstressedFinalWordExists = true;
-          // Unstress all words after the focus word
-          word.syllables.forEach((s) => {
-            s.chunks.forEach((c) => {
-              c.stress = "weak";
-            });
-          });
-        }
-      }
-    }
-
-    for (let i = 0; i < words.length; i += 1) {
-      const word = words[i];
-      if (word && word.text) {
-        const isEmphasized =
-          word.italicized || word.bolded || word.underlined || word.yelled;
-        if (isEmphasized) {
-          // Stress words with forced emphasis
-          word.syllables.forEach((s, syllableIndex) => {
-            s.chunks.forEach((c) => {
-              if (syllableIndex === 0) {
-                c.stress = "strong";
-              } else {
-                c.stress = "weak";
-              }
-            });
-          });
-        }
-        // Enforce minimum duration for all syllables
+        // Enforce a minimum duration for all syllables
         const minSyllableLength = maxSyllableLength - 1;
         const minSyllableDuration = minSyllableLength * letterDelay;
         word.syllables.forEach((s) => {
@@ -901,66 +882,66 @@ const getPhrases = (
             });
           }
         });
-      }
-    }
-
-    // Enforce larger minimum duration for last syllable
-    const minLastSyllableLength = maxSyllableLength;
-    const minLastSyllableDuration = (minLastSyllableLength - 1) * letterDelay;
-    const lastWord = words[words.length - 1];
-    if (lastWord) {
-      if (lastWord.text) {
-        if (!focusedWordFound) {
-          // If no focused word found, focus on the last word
-          if (lastWord.syllables.length === 1) {
-            // If last word is only 1 syllable long,
-            // split the syllable into a weak and strong syllable
-            lastWord.syllables.forEach((s) => {
-              const midIndex = Math.floor(s.chunks.length / 2);
-              s.chunks.forEach((c, index) => {
-                if (index === midIndex) {
-                  c.startOfSyllable = true;
-                }
-                if (index < midIndex) {
-                  c.stress = "strong";
-                } else {
-                  c.stress = "weak";
-                }
-                c.duration *= finalContourLength;
-              });
-            });
+        if (word.italicized || word.bolded || word.underlined || word.yelled) {
+          stressedWordFound = true;
+          // Stress words with forced emphasis
+          stressWord(word, emphasisContour, 3);
+        } else if (!stressedWordFound) {
+          const cleanedText = word.text.toLowerCase().trim();
+          const isPossibleFocusWord = !weakWordVariants.includes(cleanedText);
+          if (isPossibleFocusWord) {
+            stressedWordFound = true;
+            // If this word is followed by a terminal word,
+            // there is no need to include the terminal stress index when stressing this word
+            const stressContour = terminalWordExists
+              ? finalContour.slice(0, -1)
+              : finalContour;
+            stressWord(word, stressContour);
           } else {
-            // Make the first syllable of the last word strong
-            lastWord.syllables.forEach((s, syllableIndex) => {
+            terminalWordExists = true;
+            // All words after the focus word are terminal words
+            word.syllables.forEach((s) => {
               s.chunks.forEach((c) => {
-                if (syllableIndex === 0) {
-                  c.stress = "strong";
-                } else {
-                  c.stress = "weak";
-                }
+                const terminalStressIndex = finalContour.length - 1;
+                c.stressLevel = finalContour[terminalStressIndex];
               });
             });
           }
         }
-      }
-
-      // Apply finalStressScale to last word
-      lastWord.syllables.forEach((s) => {
-        s.chunks.forEach((c) => {
-          c.duration *= finalStressScale * finalContourLength;
-        });
-      });
-
-      const lastSyllable = lastWord.syllables[lastWord.syllables.length - 1];
-      if (lastSyllable) {
-        if (lastSyllable.text.length < minLastSyllableLength) {
-          lastSyllable.chunks.forEach((c) => {
-            if (c.voiced) {
-              c.duration = Math.max(
-                c.duration,
-                minLastSyllableDuration / lastSyllable.text.length
-              );
+        word.syllables.forEach((s) => {
+          s.chunks.forEach((c) => {
+            if (c.stressLevel === undefined) {
+              c.stressLevel = currentNeutralLevel;
+              currentNeutralLevel += downdriftIncrement;
             }
+            c.duration *= dilation || 1;
+          });
+        });
+      }
+    }
+
+    let scaledFinalWord = false;
+    for (let i = words.length - 1; i >= 0; i -= 1) {
+      if (stressedWordFound && scaledFinalWord) {
+        // Nothing left to do
+        break;
+      }
+      const word = words[i];
+      if (word) {
+        if (word.text) {
+          if (!stressedWordFound) {
+            stressedWordFound = true;
+            // Just stress the last word of the phrase
+            stressWord(word, finalContour);
+          }
+        }
+        if (!scaledFinalWord) {
+          scaledFinalWord = true;
+          // Apply finalStressScale to last word
+          word.syllables.forEach((s) => {
+            s.chunks.forEach((c) => {
+              c.duration *= finalStressScale * 2;
+            });
           });
         }
       }
@@ -973,6 +954,15 @@ const getPhrases = (
         ? "none"
         : `opacity ${letterFadeDuration}s linear ${c.time}s`;
       time += c.duration;
+
+      if (debug) {
+        if (c.startOfSyllable) {
+          c.element.style["backgroundColor"] = `hsl(185, 100%, 50%)`;
+        }
+        if (c.punctuation) {
+          c.element.style["backgroundColor"] = `hsl(300, 100%, 80%)`;
+        }
+      }
     });
   });
   return phrases;
@@ -1245,23 +1235,25 @@ export const executeDisplayCommand = (
       handleFinished();
     } else {
       const letterDelay = get(displayProps?.typing?.letterDelay, 0);
-      const letterVolume = get(displayProps?.typing?.letterVolume, 1);
       const punctuationVolume = get(displayProps?.typing?.punctuationVolume, 1);
-      // Determine the display's modal pitch (the neutral pitch of text that is typed out)
-      const displayTone = parseTone(displayProps?.typing?.tone || "");
-      // Determine the character's modal pitch (the neutral pitch of their voice)
-      const characterTone = parseTone(characterConfig?.tone || "");
+      // Determine the display's modal tone (the neutral tone used when text that is typed out)
+      const displayTone = parseTone(
+        displayProps?.typing?.punctuationTone || ""
+      );
+      // Determine the character's modal tone (the neutral tone of their voice)
+      const voiceTone = parseTone(characterConfig?.intonation?.voiceTone || "");
+      const voiceVolume = get(characterConfig?.intonation?.voiceVolume, 1);
       // Determine how much a character's pitch will raise between related phrases
-      const phrasePitchOffset = get(
-        characterConfig?.intonation?.phrasePitchOffset,
+      const phrasePitchIncrement = get(
+        characterConfig?.intonation?.phrasePitchIncrement,
         0
       );
-      const syllableFluctuation = get(
-        characterConfig?.intonation?.syllableFluctuation,
-        0
+      const maxPhrasePitchOffset = get(
+        characterConfig?.intonation?.phrasePitchMaxOffset,
+        1
       );
-      const levelSemitones = get(
-        characterConfig?.intonation?.levelSemitones,
+      const stressLevelIncrement = get(
+        characterConfig?.intonation?.stressLevelSemitones,
         1
       );
 
@@ -1270,33 +1262,30 @@ export const executeDisplayCommand = (
         voiceState?.lastCharacter === characterKey
           ? voiceState?.phraseOffset?.[characterKey] || 0
           : 0;
+      if (Math.abs(startingOffset) > maxPhrasePitchOffset) {
+        startingOffset = 0;
+      }
       const tones: Tone[] = phrases.flatMap((phrase): Tone[] => {
-        const characterBeeps: (Beep & Partial<Tone>)[] = [];
-        const displayBeeps: (Beep & Partial<Tone>)[] = [];
-
         let lastCharacterBeep: (Beep & Partial<Tone>) | undefined = undefined;
-        let lastDisplayBeep: (Beep & Partial<Tone>) | undefined = undefined;
         const phraseBeeps = phrase.chunks
           .map((c) => {
             if (c.startOfSyllable) {
               lastCharacterBeep = {
                 ...c,
                 time: c.time || 0,
-                waves: characterTone?.waves?.map((w) => ({ ...w })),
-                velocity: letterVolume,
+                waves: voiceTone?.waves?.map((w) => ({ ...w })),
+                velocity: voiceVolume,
               };
-              characterBeeps.push(lastCharacterBeep);
               return lastCharacterBeep;
             }
             if (c.punctuation) {
-              lastDisplayBeep = {
+              const lastDisplayBeep = {
                 ...c,
                 time: c.time || 0,
                 duration: letterDelay * 2,
                 waves: displayTone?.waves?.map((w) => ({ ...w })),
                 velocity: punctuationVolume,
               };
-              displayBeeps.push(lastDisplayBeep);
               return lastDisplayBeep;
             }
             if (lastCharacterBeep) {
@@ -1317,50 +1306,44 @@ export const executeDisplayCommand = (
           phrase.finalStressType,
           characterConfig.intonation
         );
-        const finalContour = getArray(inflection?.finalContour).map(
-          (p) => p * levelSemitones
-        );
-        const driftContour = getArray(inflection?.driftContour).map(
-          (p) => p * levelSemitones
-        );
         const pitchBend = inflection?.pitchBend;
         const pitchEase = inflection?.pitchEase;
         const volumeBend = inflection?.volumeBend;
         const volumeEase = inflection?.volumeEase;
         const phraseSlope = inflection?.phraseSlope || 0;
 
-        const s = finalContour[0] || 0;
-        const w = finalContour[1] || 0;
+        // The phrase should start at a higher or lower pitch according to phraseSlope
+        startingOffset += phrasePitchIncrement * phraseSlope;
 
-        // Initialize all syllables according to the character's intonation
-        phraseBeeps.forEach((b) => {
-          if (b?.waves) {
-            b.waves.forEach((wave) => {
-              if (b.stress === "strong") {
-                wave.note = transpose(wave.note, startingOffset + s);
-              } else if (b.stress === "weak") {
-                wave.note = transpose(wave.note, startingOffset + w);
+        let foundLastVoicedBeep = false;
+
+        for (let i = phraseBeeps.length - 1; i >= 0; i -= 1) {
+          const b = phraseBeeps[i];
+          if (b) {
+            if (b.waves) {
+              // Transpose waves according to stress contour
+              b.waves.forEach((wave) => {
+                wave.note = transpose(
+                  wave.note,
+                  startingOffset + (b.stressLevel || 0) * stressLevelIncrement
+                );
+              });
+            }
+            if (!foundLastVoicedBeep && b.voiced) {
+              foundLastVoicedBeep = true;
+              // Bend last voiced beep
+              if (b.waves) {
+                b.waves.forEach((wave) => {
+                  wave.pitchBend = pitchBend;
+                  wave.pitchEase = pitchEase;
+                  wave.volumeBend = volumeBend;
+                  wave.volumeEase = volumeEase;
+                });
               }
-            });
+            }
           }
-        });
+        }
 
-        characterBeeps.forEach((b, i) => {
-          if (b.waves) {
-            b.waves.forEach((wave) => {
-              if (i === characterBeeps.length - 1) {
-                // Bend last voiced beep if necessary
-                wave.pitchBend = pitchBend;
-                wave.pitchEase = pitchEase;
-                wave.volumeBend = volumeBend;
-                wave.volumeEase = volumeEase;
-              }
-            });
-          }
-        });
-
-        // The next phrase should start at a higher or lower pitch
-        startingOffset += phrasePitchOffset * phraseSlope;
         return phraseBeeps as Tone[];
       });
       // Store character's ending pitch

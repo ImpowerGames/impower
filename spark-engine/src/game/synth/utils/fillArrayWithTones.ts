@@ -19,7 +19,6 @@ export const fillArrayWithTones = (
 
   timedTones.forEach((tone, toneIndex) => {
     const { startIndex, endIndex, period } = tone;
-    const length = endIndex - startIndex;
 
     const quarterPeriod = Math.floor(period * 0.25);
 
@@ -52,28 +51,6 @@ export const fillArrayWithTones = (
           velocity,
           type
         );
-
-        // Envelope
-        const attackCurve = wave?.attackCurve;
-        const attackTime = wave?.attackTime || 0;
-        const releaseCurve = wave?.releaseCurve;
-        const releaseTime = wave?.releaseTime || 0;
-        const attackLength = Math.min(
-          length * 0.5,
-          Math.floor(attackTime * sampleRate)
-        );
-        const releaseLength = Math.min(
-          length * 0.5,
-          Math.floor(releaseTime * sampleRate)
-        );
-        if (attackTime > 0) {
-          // Attack
-          easeInArray(buffer, startIndex, attackCurve, attackLength);
-        }
-        if (releaseTime > 0) {
-          // Release
-          easeOutArray(buffer, endIndex, releaseCurve, releaseLength);
-        }
       });
     }
 
@@ -87,6 +64,30 @@ export const fillArrayWithTones = (
         const progress = (i - startEaseIndex) / (endEaseIndex - startEaseIndex);
         buffer[i] = interpolate(progress, startValue, endValue, EASE.quadInOut);
       }
+    }
+  });
+
+  timedTones.forEach((tone) => {
+    const { startIndex, endIndex } = tone;
+    const length = endIndex - startIndex;
+    const firstWave = tone.waves?.[0];
+    // Envelope
+    const attackCurve = firstWave?.attackCurve;
+    const attackTime = firstWave?.attackTime || 0;
+    const releaseCurve = firstWave?.releaseCurve;
+    const releaseTime = firstWave?.releaseTime || 0;
+    const attackLength = Math.min(length, Math.floor(attackTime * sampleRate));
+    const releaseLength = Math.min(
+      length,
+      Math.floor(releaseTime * sampleRate)
+    );
+    if (attackTime > 0) {
+      // Attack
+      easeInArray(buffer, startIndex, attackCurve, attackLength);
+    }
+    if (releaseTime > 0) {
+      // Release
+      easeOutArray(buffer, endIndex, releaseCurve, releaseLength);
     }
   });
 
