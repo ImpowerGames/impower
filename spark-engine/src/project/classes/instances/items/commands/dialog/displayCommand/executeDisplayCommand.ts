@@ -163,13 +163,14 @@ const weakWords = [
 const contractions = ["'d", "'ll", "'m", "'re", "'s", "'t", "'ve", "n't"];
 
 const defaultIntonation: Intonation = {
-  voiceTone: "0.02s cubic|<E4>|0.02s cubic",
+  voiceTone: "0.025s cubic|<D4,10>(C2,5)|0.025s cubic",
   voiceVolume: 0.5,
 
   phrasePitchIncrement: 0.25,
   phrasePitchMaxOffset: 1,
 
-  downdriftIncrement: 0.02,
+  downdriftIncrement: 0.05,
+  syllableFluctuation: 0.25,
 
   stressLevelSemitones: 0.5,
 
@@ -853,6 +854,8 @@ const getPhrases = (
     );
     const downdriftIncrement =
       characterProps?.intonation?.downdriftIncrement || 0;
+    const syllableFluctuation =
+      characterProps?.intonation?.syllableFluctuation || 0;
     const dilation = inflection?.dilation;
     const neutralLevel = inflection?.neutralLevel;
     const finalContour = getArray(inflection?.finalContour);
@@ -864,6 +867,7 @@ const getPhrases = (
     let currentNeutralLevel = neutralLevel || 0;
     let stressedWordFound = false;
     let terminalWordExists = false;
+    let fluctuationDirection = -1;
     for (let i = words.length - 1; i >= 0; i -= 1) {
       const word = words[i];
       if (word && word.text) {
@@ -912,10 +916,12 @@ const getPhrases = (
           s.chunks.forEach((c) => {
             if (c.stressLevel === undefined) {
               c.stressLevel = currentNeutralLevel;
-              currentNeutralLevel += downdriftIncrement;
+              currentNeutralLevel +=
+                downdriftIncrement + fluctuationDirection * syllableFluctuation;
             }
             c.duration *= dilation || 1;
           });
+          fluctuationDirection *= -1;
         });
       }
     }

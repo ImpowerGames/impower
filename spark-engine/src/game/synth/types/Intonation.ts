@@ -20,5 +20,6 @@ export interface Intonation extends Partial<Record<StressType, Inflection>> {
   phrasePitchMaxOffset?: number;
   phrasePitchIncrement?: number;
   downdriftIncrement?: number;
+  syllableFluctuation?: number;
   stressLevelSemitones?: number;
 }

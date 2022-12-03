@@ -71,11 +71,12 @@ export const fillArrayWithTones = (
     const { startIndex, endIndex } = tone;
     const length = endIndex - startIndex;
     const firstWave = tone.waves?.[0];
+    const lastWave = tone.waves?.[tone.waves?.length - 1];
     // Envelope
     const attackCurve = firstWave?.attackCurve;
     const attackTime = firstWave?.attackTime || 0;
-    const releaseCurve = firstWave?.releaseCurve;
-    const releaseTime = firstWave?.releaseTime || 0;
+    const releaseCurve = lastWave?.releaseCurve;
+    const releaseTime = lastWave?.releaseTime || 0;
     const attackLength = Math.min(length, Math.floor(attackTime * sampleRate));
     const releaseLength = Math.min(
       length,
