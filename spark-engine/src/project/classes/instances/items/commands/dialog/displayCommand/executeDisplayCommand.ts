@@ -163,13 +163,13 @@ const weakWords = [
 const contractions = ["'d", "'ll", "'m", "'re", "'s", "'t", "'ve", "n't"];
 
 const defaultIntonation: Intonation = {
-  voiceTone: "0.025s cubic|<D4,10>(C2,5)|0.025s cubic",
+  voiceTone: "0.02s cubic|<F4,50>|0.02s cubic",
   voiceVolume: 0.5,
 
   phrasePitchIncrement: 0.25,
   phrasePitchMaxOffset: 1,
 
-  downdriftIncrement: 0.05,
+  downdriftIncrement: 0.025,
   syllableFluctuation: 0.25,
 
   stressLevelSemitones: 0.5,
@@ -307,16 +307,16 @@ const defaultProsody: Prosody = {
 
   /** Who's that(..).? */
   resolvedAnxiousQuestion:
-    /(?:^[\t ]*|\b)(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b[^\t\n\r !?]+([.][.])[.][!?]*[?][!?]*[ ]*$/,
+    /(?:^[\t ]*|\b)(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b[^\t\n\r !?]+([.][.][.][!?]*[?][!?]*)[ ]*$/,
   /** Yes(...)? */
-  anxiousQuestion: /(?:^[\t ]*|\b)[^\t\n\r .?]*([.][.][.])[.]*[?]+[ ]*$/,
+  anxiousQuestion: /(?:^[\t ]*|\b)[^\t\n\r .?]*([.][.][.]+[?]+)[ ]*$/,
   /** Who's that(?) */
   resolvedQuestion:
-    /(?:^[\t ]*|\b)(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b[^\t\n\r !?]+[!?]*([?])[!?]*[ ]*$/,
+    /(?:^[\t ]*|\b)(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b[^\t\n\r !?]+([!?]*[?][!?]*)[ ]*$/,
   /** Yes(?) */
   question: /(?:^[\t ]*|\b)[^\t\n\r !?]*([!?]*[?][!?]*)[ ]*$/,
   /** Yes(!) */
-  exclamation: /(?:^[\t ]*|\b)[^\t\n\r !?]*([!])[!]+[ ]*$/,
+  exclamation: /(?:^[\t ]*|\b)[^\t\n\r !?]*([!]+)[ ]*$/,
   /** Yes(~?) */
   liltQuestion: /(?:^[\t ]*|\b)[^\t\n\r ~!?]*([~]+[!?]*[?][!?]*)[ ]*$/,
   /** Yes(~!) */
@@ -326,9 +326,9 @@ const defaultProsody: Prosody = {
   /** Yes(,) */
   comma: /(?:^[\t ]*|\b)[^\t\n\r ,]*([,])[ ]*$/,
   /** Yes-(-) */
-  partial: /(?:^[\t ]*|\b)[^\t\n\r -]*[-]([-]+)[ ]*$/,
+  partial: /(?:^[\t ]*|\b)[^\t\n\r -]*([-][-]+)[ ]*$/,
   /** Yes(...) */
-  anxious: /(?:^[\t ]*|\b)[^\t\n\r .]*([.][.][.])[.]*[ ]*$/,
+  anxious: /(?:^[\t ]*|\b)[^\t\n\r .]*([.][.][.]+)[ ]*$/,
   /** Yes(.) */
   statement: /(?:^[\t ]*|\b)[^\t\n\r .]*([.])[ ]*$/,
 };
@@ -359,10 +359,10 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
   },
 };
 
-const getStress = (
+const getStressType = (
   phrase: string,
   prosody: Prosody | undefined
-): [StressType, number] => {
+): StressType => {
   if (prosody) {
     for (let i = 0; i < finalStressTypes.length; i += 1) {
       const stressType = finalStressTypes[i] || "statement";
@@ -373,12 +373,11 @@ const getStress = (
             .match(new RegExp(prosody?.[stressType] || "", "u"))
         : undefined;
       if (match) {
-        const stressScale = match[1]?.length || 0;
-        return [stressType, stressScale];
+        return stressType;
       }
     }
   }
-  return ["statement", 1];
+  return "statement";
 };
 
 const getInflection = (
@@ -844,10 +843,7 @@ const getPhrases = (
 
   let time = 0;
   phrases.forEach((phrase) => {
-    const [finalStressType, finalStressScale] = getStress(
-      phrase.text,
-      characterProps?.prosody
-    );
+    const finalStressType = getStressType(phrase.text, characterProps?.prosody);
     const inflection = getInflection(
       finalStressType,
       characterProps?.intonation
@@ -915,13 +911,25 @@ const getPhrases = (
         word.syllables.forEach((s) => {
           s.chunks.forEach((c) => {
             if (c.stressLevel === undefined) {
-              c.stressLevel = currentNeutralLevel;
-              currentNeutralLevel +=
-                downdriftIncrement + fluctuationDirection * syllableFluctuation;
+              c.stressLevel =
+                currentNeutralLevel +
+                fluctuationDirection * syllableFluctuation;
+              currentNeutralLevel += downdriftIncrement;
             }
             c.duration *= dilation || 1;
           });
           fluctuationDirection *= -1;
+        });
+      }
+    }
+
+    for (let i = 0; i < words.length; i += 1) {
+      const word = words[i];
+      if (word) {
+        word.syllables.forEach((s) => {
+          s.chunks.forEach((c) => {
+            c.stressLevel = (c.stressLevel || 0) - currentNeutralLevel;
+          });
         });
       }
     }
@@ -946,7 +954,7 @@ const getPhrases = (
           // Apply finalStressScale to last word
           word.syllables.forEach((s) => {
             s.chunks.forEach((c) => {
-              c.duration *= finalStressScale * 2;
+              c.duration *= 2;
             });
           });
         }
