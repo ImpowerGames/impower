@@ -163,7 +163,7 @@ const weakWords = [
 const contractions = ["'d", "'ll", "'m", "'re", "'s", "'t", "'ve", "n't"];
 
 const defaultIntonation: Intonation = {
-  voiceTone: "0.02s cubic|<F4,50>|0.02s cubic",
+  voiceTone: "0.02s cubic|<F4>|0.02s cubic",
   voiceVolume: 0.5,
 
   phrasePitchIncrement: 0.25,
