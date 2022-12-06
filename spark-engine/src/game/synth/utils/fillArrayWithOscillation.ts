@@ -14,8 +14,6 @@ export const fillArrayWithOscillation = (
   hertz: Hertz,
   pitchBend: number | undefined,
   pitchEase: EaseType | undefined,
-  volumeBend: number | undefined,
-  volumeEase: EaseType | undefined,
   velocity: number = 1,
   type: OscillatorType = "sine"
 ): void => {
@@ -29,17 +27,10 @@ export const fillArrayWithOscillation = (
       targetHertz,
       EASE[pitchEase || "none"]
     );
-    const targetVolume = velocity * (volumeBend || 1);
-    const easedVolume = interpolate(
-      progress,
-      velocity,
-      targetVolume,
-      EASE[volumeEase || "none"]
-    );
     const angle = (localIndex / sampleRate) * easedHertz;
     const oscillator = OSCILLATORS?.[type];
     if (oscillator) {
-      buffer[i] += easedVolume * oscillator(angle);
+      buffer[i] += velocity * oscillator(angle);
     }
   }
 };

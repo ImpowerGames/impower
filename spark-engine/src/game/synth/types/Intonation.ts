@@ -11,11 +11,22 @@ export interface Inflection {
   pitchEase?: EaseType;
   volumeBend?: number;
   volumeEase?: EaseType;
-  dilation?: number;
+  finalDilation?: number;
 }
 
 export interface Intonation extends Partial<Record<StressType, Inflection>> {
   voiceTone?: string;
+  voiceEnvelope:
+    | [number] // r
+    | [number, number] // ar
+    | [number, number, number] // adr
+    | [number, number, number, number] // ahdr
+    | string;
+  voiceContour:
+    | [EaseType] // r
+    | [EaseType, EaseType] // ar
+    | [EaseType, EaseType, EaseType] //adr
+    | string;
   voiceVolume?: number;
   phrasePitchMaxOffset?: number;
   phrasePitchIncrement?: number;

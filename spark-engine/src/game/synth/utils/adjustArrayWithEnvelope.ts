@@ -1,36 +1,75 @@
+import { EASE } from "../../core/constants/EASE";
+import { EaseType } from "../../core/types/EaseType";
+import { interpolate } from "../../core/utils/interpolate";
+
 const value = (
-  p: number,
-  a: number,
-  d: number,
-  s: number,
-  r: number,
-  sL: number
+  i: number,
+  aI: number,
+  hI: number,
+  dI: number,
+  sI: number,
+  rI: number,
+  hL: number,
+  sL: number,
+  aC: EaseType,
+  dC: EaseType,
+  rC: EaseType
 ): number => {
-  let v = 0;
-  if (p <= a) {
-    v = 0 + (1 - 0) * ((p - 0) / (a - 0));
-  } else if (p > a && p <= d) {
-    v = 1 + (sL - 1) * ((p - a) / (d - a));
-  } else if (p > d && p <= s) {
-    v = sL;
-  } else if (p > s && p <= r) {
-    v = sL + (0 - sL) * ((p - s) / (r - s));
+  if (i < aI) {
+    const p = i / aI;
+    return interpolate(p, 0, hL, EASE[aC]);
   }
-  return v;
+  if (i >= aI && i < hI) {
+    return hL;
+  }
+  if (i >= hI && i < dI) {
+    const p = (i - hI) / (dI - hI);
+    return interpolate(p, hL, sL, EASE[dC]);
+  }
+  if (i >= dI && i < sI) {
+    return sL;
+  }
+  if (i >= sI && i < rI) {
+    const p = (i - sI) / (rI - sI);
+    return interpolate(p, sL, 0, EASE[rC]);
+  }
+  return 0;
 };
 
 export const adjustArrayWithEnvelope = (
   buffer: Float32Array,
-  a: number,
-  d: number,
-  s: number,
-  r: number,
-  sL: number
-) => {
-  let p = 0;
-  for (var i = 0; i < buffer.length; i++) {
-    buffer[i] *= value(p, a, d, s, r, sL);
-    p++;
+  startIndex: number,
+  endIndex: number,
+  aLength: number,
+  hLength: number,
+  dLength: number,
+  rLength: number,
+  hVolume: number,
+  sVolume: number,
+  aEase: EaseType = "linear",
+  dEase: EaseType = "linear",
+  rEase: EaseType = "linear"
+): void => {
+  const totalLength = endIndex - startIndex;
+  const aIndex = aLength;
+  const hIndex = aIndex + hLength;
+  const dIndex = hIndex + dLength;
+  const sIndex = totalLength - rLength;
+  const rIndex = totalLength;
+  for (let i = startIndex; i < endIndex; i += 1) {
+    const localIndex = i - startIndex;
+    buffer[i] *= value(
+      localIndex,
+      aIndex,
+      hIndex,
+      dIndex,
+      sIndex,
+      rIndex,
+      hVolume,
+      sVolume,
+      aEase,
+      dEase,
+      rEase
+    );
   }
-  return buffer;
 };

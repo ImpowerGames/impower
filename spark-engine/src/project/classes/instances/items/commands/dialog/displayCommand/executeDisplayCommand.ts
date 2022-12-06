@@ -6,7 +6,7 @@ import {
   DisplayProperties,
 } from "../../../../../../../data";
 import {
-  ContourType,
+  EaseType,
   IElement,
   Inflection,
   Intonation,
@@ -55,17 +55,8 @@ interface Phrase {
   chunks: Chunk[];
   finalStressType?: StressType;
 }
-interface Beep {
+interface Beep extends Chunk {
   time: number;
-  duration: number;
-  italicized: boolean;
-  bolded: boolean;
-  underlined: boolean;
-  yelled: boolean;
-  ellipsis: boolean;
-  punctuation: boolean;
-  voiced: boolean;
-  stressLevel?: number;
 }
 
 const finalStressTypes: StressType[] = [
@@ -163,7 +154,9 @@ const weakWords = [
 const contractions = ["'d", "'ll", "'m", "'re", "'s", "'t", "'ve", "n't"];
 
 const defaultIntonation: Intonation = {
-  voiceTone: "0.02s cubic|<F4>|0.02s cubic",
+  voiceTone: "<F4>",
+  voiceEnvelope: [0.02, 0.02],
+  voiceContour: ["cubicInOut", "cubicInOut"],
   voiceVolume: 0.5,
 
   phrasePitchIncrement: 0.25,
@@ -184,7 +177,7 @@ const defaultIntonation: Intonation = {
     finalContour: [4, 2],
     pitchBend: 1,
     pitchEase: "backInOut",
-    dilation: 1.25,
+    finalDilation: 3,
   },
   /**
    * ▆ ▂
@@ -196,7 +189,7 @@ const defaultIntonation: Intonation = {
     finalContour: [5, 4],
     pitchBend: 1,
     pitchEase: "backInOut",
-    dilation: 1.5,
+    finalDilation: 3,
   },
   /**
    * ▆ ▂
@@ -207,7 +200,7 @@ const defaultIntonation: Intonation = {
     finalContour: [1, -5],
     pitchBend: 1,
     pitchEase: "backInOut",
-    dilation: 2,
+    finalDilation: 2,
   },
   /**
    * ▆ ▂
@@ -216,6 +209,7 @@ const defaultIntonation: Intonation = {
   resolvedAnxiousQuestion: {
     phraseSlope: 1,
     finalContour: [3, 4],
+    finalDilation: 3,
   },
   /**
    * ▆ ▇
@@ -224,6 +218,7 @@ const defaultIntonation: Intonation = {
   anxiousQuestion: {
     phraseSlope: 1,
     finalContour: [1, 2],
+    finalDilation: 4,
   },
   /**
    * ▆ ▂
@@ -232,6 +227,7 @@ const defaultIntonation: Intonation = {
   resolvedQuestion: {
     phraseSlope: 1,
     finalContour: [2, -5],
+    finalDilation: 2,
   },
   /**
    * ▆ ▇
@@ -240,6 +236,7 @@ const defaultIntonation: Intonation = {
   question: {
     phraseSlope: 2,
     finalContour: [1, 2],
+    finalDilation: 2,
   },
   /**
    * ▉
@@ -252,6 +249,7 @@ const defaultIntonation: Intonation = {
     emphasisContour: [6],
     pitchBend: -2,
     pitchEase: "sineInOut",
+    finalDilation: 2,
   },
   /**
    * ▆ ▂
@@ -260,6 +258,7 @@ const defaultIntonation: Intonation = {
   comma: {
     phraseSlope: 1,
     finalContour: [1, -5],
+    finalDilation: 2,
   },
   /**
    * ▆ ▇
@@ -268,6 +267,7 @@ const defaultIntonation: Intonation = {
   partial: {
     phraseSlope: 2,
     finalContour: [1, 2],
+    finalDilation: 2,
   },
   /**
    * ▂ ▂
@@ -280,6 +280,7 @@ const defaultIntonation: Intonation = {
     pitchEase: "sineOut",
     volumeBend: 0.25,
     volumeEase: "quadIn",
+    finalDilation: 3,
   },
   /**
    * ▆ ▃
@@ -289,6 +290,7 @@ const defaultIntonation: Intonation = {
     phraseSlope: -1,
     finalContour: [1, -5],
     emphasisContour: [3, 2, 1.5],
+    finalDilation: 2,
   },
 };
 
@@ -305,10 +307,10 @@ const defaultProsody: Prosody = {
   /** Punctuation that is typed with a sound */
   punctuation: /([.!?-]+)/u,
 
-  /** Who's that(..).? */
+  /** Who's that(...?) */
   resolvedAnxiousQuestion:
     /(?:^[\t ]*|\b)(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b[^\t\n\r !?]+([.][.][.][!?]*[?][!?]*)[ ]*$/,
-  /** Yes(...)? */
+  /** Yes(...?) */
   anxiousQuestion: /(?:^[\t ]*|\b)[^\t\n\r .?]*([.][.][.]+[?]+)[ ]*$/,
   /** Who's that(?) */
   resolvedQuestion:
@@ -325,7 +327,7 @@ const defaultProsody: Prosody = {
   lilt: /(?:^[\t ]*|\b)[^\t\n\r ~]*([~]+)[ ]*$/,
   /** Yes(,) */
   comma: /(?:^[\t ]*|\b)[^\t\n\r ,]*([,])[ ]*$/,
-  /** Yes-(-) */
+  /** Yes(--) */
   partial: /(?:^[\t ]*|\b)[^\t\n\r -]*([-][-]+)[ ]*$/,
   /** Yes(...) */
   anxious: /(?:^[\t ]*|\b)[^\t\n\r .]*([.][.][.]+)[ ]*$/,
@@ -352,9 +354,10 @@ export const defaultDisplayCommandConfig: DisplayCommandConfig = {
       letterDelay: 0.02,
       pauseScale: 3,
       fadeDuration: 0,
-      punctuationTone:
-        "0.01s cubic|(D5,20)<C6,10> <E5,29>(E3,1) <C5,30>|0.01s cubic",
-      punctuationVolume: 0.1,
+      punctuationTone: "<C6,10>(D5,20) <E5,29>(E3,1) <C5,30>",
+      punctuationEnvelope: [0.01, 0.01],
+      punctuationContour: ["cubicInOut", "cubicInOut"],
+      punctuationVolume: 0.5,
     },
   },
 };
@@ -387,12 +390,64 @@ const getInflection = (
   return intonation?.[stressType || ("" as StressType)];
 };
 
-const getArray = (contour: number[] | ContourType | undefined): number[] => {
+const getArray = <T>(value: T[] | string | undefined): T[] => {
   return (
-    (typeof contour === "string"
-      ? contour.split(" ").map((x) => Number(x))
-      : contour) || []
+    (typeof value === "string" ? value.split(" ").map((x) => x as T) : value) ||
+    []
   );
+};
+
+const getEnvelope = (
+  value: number[] | string | undefined
+): {
+  attackTime?: number;
+  holdTime?: number;
+  decayTime?: number;
+  releaseTime?: number;
+} => {
+  const arr = getArray(value);
+  if (arr.length === 0) {
+    return { attackTime: 0, holdTime: 0, decayTime: 0, releaseTime: 0 };
+  }
+  if (arr.length === 1) {
+    const [releaseTime] = arr;
+    return { attackTime: 0, holdTime: 0, decayTime: 0, releaseTime };
+  }
+  if (arr.length === 2) {
+    const [attackTime, releaseTime] = arr;
+    return { attackTime, holdTime: 0, decayTime: 0, releaseTime };
+  }
+  if (arr.length === 3) {
+    const [attackTime, decayTime, releaseTime] = arr;
+    return { attackTime, holdTime: 0, decayTime, releaseTime };
+  }
+  if (arr.length === 4) {
+  }
+  const [attackTime, holdTime, decayTime, releaseTime] = arr;
+  return { attackTime, holdTime, decayTime, releaseTime };
+};
+
+const getContour = (
+  value: EaseType[] | string | undefined
+): {
+  attackEase?: EaseType;
+  decayEase?: EaseType;
+  releaseEase?: EaseType;
+} => {
+  const arr = getArray(value);
+  if (arr.length === 0) {
+    return { attackEase: "linear", decayEase: "linear", releaseEase: "linear" };
+  }
+  if (arr.length === 1) {
+    const [releaseEase] = arr;
+    return { attackEase: "linear", decayEase: "linear", releaseEase };
+  }
+  if (arr.length === 2) {
+    const [attackEase, releaseEase] = arr;
+    return { attackEase, decayEase: "linear", releaseEase };
+  }
+  const [attackEase, decayEase, releaseEase] = arr;
+  return { attackEase, decayEase, releaseEase };
 };
 
 const hideChoices = (
@@ -852,7 +907,7 @@ const getPhrases = (
       characterProps?.intonation?.downdriftIncrement || 0;
     const syllableFluctuation =
       characterProps?.intonation?.syllableFluctuation || 0;
-    const dilation = inflection?.dilation;
+    const dilation = inflection?.finalDilation;
     const neutralLevel = inflection?.neutralLevel;
     const finalContour = getArray(inflection?.finalContour);
     const emphasisContour =
@@ -916,7 +971,6 @@ const getPhrases = (
                 fluctuationDirection * syllableFluctuation;
               currentNeutralLevel += downdriftIncrement;
             }
-            c.duration *= dilation || 1;
           });
           fluctuationDirection *= -1;
         });
@@ -951,10 +1005,10 @@ const getPhrases = (
         }
         if (!scaledFinalWord) {
           scaledFinalWord = true;
-          // Apply finalStressScale to last word
+          // Apply dilation to last word
           word.syllables.forEach((s) => {
             s.chunks.forEach((c) => {
-              c.duration *= 2;
+              c.duration *= dilation || 1;
             });
           });
         }
@@ -1250,13 +1304,25 @@ export const executeDisplayCommand = (
     } else {
       const letterDelay = get(displayProps?.typing?.letterDelay, 0);
       const punctuationVolume = get(displayProps?.typing?.punctuationVolume, 1);
-      // Determine the display's modal tone (the neutral tone used when text that is typed out)
-      const displayTone = parseTone(
+      // Determine the display's modal tone (the neutral tone used when punctuation is typed out)
+      const punctuationTone = parseTone(
         displayProps?.typing?.punctuationTone || ""
+      );
+      const punctuationEnvelope = getEnvelope(
+        displayProps?.typing?.punctuationEnvelope
+      );
+      const punctuationContour = getContour(
+        displayProps?.typing?.punctuationContour
       );
       // Determine the character's modal tone (the neutral tone of their voice)
       const voiceTone = parseTone(characterConfig?.intonation?.voiceTone || "");
       const voiceVolume = get(characterConfig?.intonation?.voiceVolume, 1);
+      const voiceEnvelope = getEnvelope(
+        characterConfig?.intonation?.voiceEnvelope
+      );
+      const voiceContour = getContour(
+        characterConfig?.intonation?.voiceContour
+      );
       // Determine how much a character's pitch will raise between related phrases
       const phrasePitchIncrement = get(
         characterConfig?.intonation?.phrasePitchIncrement,
@@ -1281,35 +1347,50 @@ export const executeDisplayCommand = (
       }
       const tones: Tone[] = phrases.flatMap((phrase): Tone[] => {
         let lastCharacterBeep: (Beep & Partial<Tone>) | undefined = undefined;
-        const phraseBeeps = phrase.chunks
-          .map((c) => {
+        const phraseBeeps: (Beep & Partial<Tone>)[] = phrase.chunks.flatMap(
+          (c) => {
             if (c.startOfSyllable) {
+              const envelope = voiceEnvelope;
+              const contour = voiceContour;
+              const volume = voiceVolume;
+              const toneCopy: Tone = JSON.parse(JSON.stringify(voiceTone));
               lastCharacterBeep = {
                 ...c,
+                ...toneCopy,
+                ...envelope,
+                ...contour,
+                volume,
                 time: c.time || 0,
-                waves: voiceTone?.waves?.map((w) => ({ ...w })),
-                velocity: voiceVolume,
+                duration: c.duration || 0,
               };
-              return lastCharacterBeep;
+              return [lastCharacterBeep];
             }
             if (c.punctuation) {
+              const envelope = punctuationEnvelope;
+              const contour = punctuationContour;
+              const volume = punctuationVolume;
+              const toneCopy: Tone = JSON.parse(
+                JSON.stringify(punctuationTone)
+              );
               const lastDisplayBeep = {
                 ...c,
+                ...toneCopy,
+                ...envelope,
+                ...contour,
+                volume,
                 time: c.time || 0,
                 duration: letterDelay * 2,
-                waves: displayTone?.waves?.map((w) => ({ ...w })),
-                velocity: punctuationVolume,
               };
-              return lastDisplayBeep;
+              return [lastDisplayBeep];
             }
             if (lastCharacterBeep) {
               if (c.voiced) {
                 lastCharacterBeep.duration += c.duration;
               }
             }
-            return undefined;
-          })
-          .filter((b) => b);
+            return [];
+          }
+        );
 
         if (phraseBeeps.length === 0) {
           return [];
@@ -1337,10 +1418,12 @@ export const executeDisplayCommand = (
             if (b.waves) {
               // Transpose waves according to stress contour
               b.waves.forEach((wave) => {
-                wave.note = transpose(
-                  wave.note,
-                  startingOffset + (b.stressLevel || 0) * stressLevelIncrement
-                );
+                wave.harmonics.forEach((harmonic) => {
+                  harmonic.note = transpose(
+                    harmonic.note,
+                    startingOffset + (b.stressLevel || 0) * stressLevelIncrement
+                  );
+                });
               });
             }
             if (!foundLastVoicedBeep && b.voiced) {
@@ -1348,8 +1431,10 @@ export const executeDisplayCommand = (
               // Bend last voiced beep
               if (b.waves) {
                 b.waves.forEach((wave) => {
-                  wave.pitchBend = pitchBend;
-                  wave.pitchEase = pitchEase;
+                  wave.harmonics.forEach((harmonic) => {
+                    harmonic.pitchBend = pitchBend;
+                    harmonic.pitchEase = pitchEase;
+                  });
                   wave.volumeBend = volumeBend;
                   wave.volumeEase = volumeEase;
                 });

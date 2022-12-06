@@ -96,8 +96,8 @@ export class SoundScene extends SparkScene {
     const sampleRate = instrument.sound.context.audioContext.sampleRate;
     const waveBuffer = new Float32Array(instrument.sound.durationInSamples);
     const pitchBuffer = new Float32Array(instrument.sound.durationInSamples);
-    const timedTones = fillArrayWithTones(waveBuffer, sampleRate, tones);
-    const { min, max } = fillArrayWithPitches(pitchBuffer, timedTones);
+    const waveforms = fillArrayWithTones(waveBuffer, sampleRate, tones);
+    const { min, max } = fillArrayWithPitches(pitchBuffer, waveforms);
 
     const waveStartY = startY + waveBuffer[0];
 

@@ -13,17 +13,6 @@ export interface Timbre extends Record<string, string | number | undefined> {
   /** volume */
   v?: number;
 
-  /** attack time (of AHDSR envelope) */
-  a?: number;
-  /** hold time (of AHDSR envelope) */
-  h?: number;
-  /** decay time (of AHDSR envelope) */
-  d?: number;
-  /** sustain level (of AHDSR envelope) */
-  s?: number;
-  /** release time (of AHDSR envelope) */
-  r?: number;
-
   /** fixed frequency in Hz */
   f?: number;
   /** tune factor according to note */
@@ -39,4 +28,60 @@ export interface Timbre extends Record<string, string | number | undefined> {
 
   /** output destination (0=final output / n=FM to specified osc) */
   g?: number;
+
+  /** attack time in seconds (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   |   | \
+   *  /   |   |   |   |  \  0
+   *  |-A-|
+   * ~~~
+   */
+  a?: number;
+  /** hold time  in seconds (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   |   | \
+   *  /   |   |   |   |  \  0
+   *      |-H-|
+   * ~~~
+   */
+  h?: number;
+  /** decay time in seconds (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   |   | \
+   *  /   |   |   |   |  \  0
+   *          |-D-|
+   * ~~~
+   */
+  d?: number;
+  /** sustain level (0-1) (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   | ^ | \
+   *  /   |   |   | ^ |  \  0
+   *                S
+   * ~~~
+   */
+  s?: number;
+  /** release time in seconds (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   |   | \
+   *  /   |   |   |   |  \  0
+   *                  |-R-|
+   * ~~~
+   */
+  r?: number;
 }

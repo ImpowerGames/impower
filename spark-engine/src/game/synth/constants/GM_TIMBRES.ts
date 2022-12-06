@@ -403,11 +403,11 @@ export const GM_TIMBRES_MULTI: GeneralMidiTimbres = {
     [
       { w: "triangle", v: 0.4, d: 1, f: 1 },
       { w: "square", v: 4, f: -1, d: 1, s: 0.7, g: 1 },
-    ], //[{w:"triangle",v:0.35,d:1,f:1,},{w:"square",v:7,f:-1,d:0.3,s:0.5,g:1,}],
+    ],
     [
       { w: "triangle", v: 0.35, d: 1, f: 1 },
       { w: "square", v: 7, f: -1, d: 0.3, s: 0.5, g: 1 },
-    ], //[{w:"triangle",v:0.4,d:1,f:1,},{w:"square",v:4,f:-1,d:1,s:0.7,g:1,}],//[{w:"triangle",v:0.4,d:1,},{w:"square",v:4,f:2,d:1,s:0.7,g:1,}],
+    ],
     [
       { w: "sine", v: 0.2, t: 1.5, a: 0.005, h: 0.2, d: 0.6 },
       { w: "sine", v: 11, t: 5, f: 2, d: 1, s: 0.5, g: 1 },

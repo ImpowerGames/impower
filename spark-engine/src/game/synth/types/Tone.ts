@@ -1,42 +1,104 @@
-import { CurveType } from "../../core";
 import { EaseType } from "../../core/types/EaseType";
-import { Note } from "./Note";
-import { OscillatorType } from "./OscillatorType";
-
-export interface Wave {
-  /** note name, e.g. "C4" */
-  note?: Note | number;
-  /** waveform type */
-  type?: OscillatorType;
-  /** semitones to bend pitch */
-  pitchBend?: number;
-  /** curve used to bend pitch */
-  pitchEase?: EaseType;
-  /** amount to bend volume  */
-  volumeBend?: number;
-  /** curve used to bend volume */
-  volumeEase?: EaseType;
-  /** volume relative to other waves in this tone */
-  amplitude?: number;
-  /** method used to merge this wave with the previous wave */
-  merge?: "append" | "add";
-  /** attack curve */
-  attackCurve?: CurveType;
-  /** release curve */
-  releaseCurve?: CurveType;
-  /** attack time in seconds */
-  attackTime?: number;
-  /** release time in seconds */
-  releaseTime?: number;
-}
+import { Wave } from "./Wave";
 
 export interface Tone {
   /** time in seconds */
   time?: number;
   /** duration in seconds */
   duration?: number;
-  /** normalized volume (0-1) */
-  velocity?: number;
-  /** oscillator waves to merge */
+  /** oscillator waves to append */
   waves?: Wave[];
+
+  /** normalized volume (0-1) */
+  volume?: number;
+
+  /** attack time in seconds (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   |   | \
+   *  /   |   |   |   |  \  0
+   *  |-A-|
+   * ~~~
+   */
+  attackTime?: number;
+  /** hold time in seconds (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   |   | \
+   *  /   |   |   |   |  \  0
+   *      |-H-|
+   * ~~~
+   */
+  holdTime?: number;
+  /** decay time in seconds (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   |   | \
+   *  /   |   |   |   |  \  0
+   *          |-D-|
+   * ~~~
+   */
+  decayTime?: number;
+  /** sustain level (0-1) (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   | ^ | \
+   *  /   |   |   | ^ |  \  0
+   *                S
+   * ~~~
+   */
+  sustainLevel?: number;
+  /** release time in seconds (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   |   | \
+   *  /   |   |   |   |  \  0
+   *                  |-R-|
+   * ~~~
+   */
+  releaseTime?: number;
+
+  /** attack ease type (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   |   | \
+   *  /   |   |   |   |  \  0
+   *  |-A-|
+   * ~~~
+   */
+  attackEase?: EaseType;
+  /** decay ease type (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   |   | \
+   *  /   |   |   |   |  \  0
+   *          |-D-|
+   * ~~~
+   */
+  decayEase?: EaseType;
+  /** release ease type (of the AHDSR envelope)
+   * ~~~
+   *      _____             1
+   *     /|   | \
+   *    / |   |  \______    0.5
+   *   /  |   |   |   | \
+   *  /   |   |   |   |  \  0
+   *                  |-R-|
+   * ~~~
+   */
+  releaseEase?: EaseType;
 }
