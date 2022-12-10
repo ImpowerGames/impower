@@ -21,7 +21,7 @@ export abstract class InstanceRunner<
     _data: T,
     _context: {
       valueMap: Record<string, unknown>;
-      objectMap: { [type: string]: Record<string, unknown> };
+      objectMap: { [type: string]: Record<string, object> };
       instant?: boolean;
       debug?: boolean;
     }

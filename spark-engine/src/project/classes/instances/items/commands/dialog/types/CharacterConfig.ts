@@ -1,4 +1,5 @@
 import { Intonation, StressType } from "../../../../../../../game";
+import { SoundConfig } from "../../../../../../../game/synth/types/Sound";
 
 export interface Prosody extends Partial<Record<StressType, RegExp | string>> {
   maxSyllableLength?: number;
@@ -15,4 +16,5 @@ export interface CharacterConfig {
   color?: string;
   intonation?: Intonation;
   prosody?: Prosody;
+  voiceSound?: SoundConfig;
 }

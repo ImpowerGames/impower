@@ -1,6 +1,4 @@
-import { Note } from "../types/Note";
-
-export const FUNDAMENTAL_KEYS: readonly Note[] = [
+export const FUNDAMENTAL_KEYS = [
   "C",
   "C#",
   "D",
@@ -13,4 +11,4 @@ export const FUNDAMENTAL_KEYS: readonly Note[] = [
   "A",
   "A#",
   "B",
-];
+] as const;

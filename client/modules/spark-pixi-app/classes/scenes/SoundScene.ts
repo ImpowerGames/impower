@@ -1,10 +1,6 @@
 import { IMediaInstance, webaudio } from "@pixi/sound";
 import * as PIXI from "pixi.js";
-import {
-  fillArrayWithPitches,
-  fillArrayWithTones,
-  Tone,
-} from "../../../../../spark-engine";
+import { Tone } from "../../../../../spark-engine";
 import { ToneSound } from "../../plugins/midi-sound/classes/ToneSound";
 import { SparkScene } from "../SparkScene";
 
@@ -92,14 +88,12 @@ export class SoundScene extends SparkScene {
     const startX = 0;
     const startY = height;
 
-    const tones = instrument.sound.tones;
-    const sampleRate = instrument.sound.context.audioContext.sampleRate;
-    const waveBuffer = new Float32Array(instrument.sound.durationInSamples);
-    const pitchBuffer = new Float32Array(instrument.sound.durationInSamples);
-    const waveforms = fillArrayWithTones(waveBuffer, sampleRate, tones);
-    const { min, max } = fillArrayWithPitches(pitchBuffer, waveforms);
+    const soundBuffer = instrument.sound.soundBuffer;
+    const pitchBuffer = instrument.sound.pitchBuffer;
+    const minPitch = instrument.sound.minPitch;
+    const maxPitch = instrument.sound.maxPitch;
 
-    const waveStartY = startY + waveBuffer[0];
+    const waveStartY = startY + soundBuffer[0];
 
     this.axisGraphic.clear();
     this.axisGraphic.lineStyle(1, 0xff0000);
@@ -109,11 +103,11 @@ export class SoundScene extends SparkScene {
     this.waveGraphic.clear();
     this.waveGraphic.lineStyle(1, 0xffffff);
     this.waveGraphic.moveTo(startX, waveStartY);
-    if (waveBuffer) {
+    if (soundBuffer) {
       for (let x = startX; x < endX; x += 1) {
         const timeProgress = (x - startX) / (endX - 1);
-        const bufferIndex = Math.floor(timeProgress * (waveBuffer.length - 1));
-        const val = waveBuffer[bufferIndex];
+        const bufferIndex = Math.floor(timeProgress * (soundBuffer.length - 1));
+        const val = soundBuffer[bufferIndex];
         const delta = val * 100;
         const y = waveStartY + delta;
         this.waveGraphic.lineTo(x, y);
@@ -131,7 +125,10 @@ export class SoundScene extends SparkScene {
         if (val === 0) {
           this.pitchGraphic.moveTo(x, waveStartY);
         } else {
-          const mag = max === min ? 0.5 : (val - min) / (max - min);
+          const mag =
+            maxPitch === minPitch
+              ? 0.5
+              : (val - minPitch) / (maxPitch - minPitch);
           const delta = mag * (height / 2);
           const y = waveStartY - delta;
           this.pitchGraphic.lineTo(x, y);

@@ -1,17 +1,48 @@
 import { Tone } from "../types/Tone";
-import { fillArrayWithWaveforms } from "./fillArrayWithWaveforms";
-import { getWaveforms, Waveform } from "./getWaveforms";
+import { convertNoteToHertz } from "./convertNoteToHertz";
+import { synthesizeSound } from "./synthesizeSound";
 
 export const fillArrayWithTones = (
-  buffer: Float32Array,
+  tones: readonly Tone[],
   sampleRate: number,
-  tones: readonly Tone[]
-): Waveform[] => {
-  for (let i = 0; i < buffer.length; i += 1) {
-    // Zero out the buffer
-    buffer[i] = 0;
-  }
-  const waveforms = getWaveforms(tones, sampleRate);
-  fillArrayWithWaveforms(buffer, sampleRate, waveforms);
-  return waveforms;
+  soundBuffer: Float32Array,
+  pitchBuffer?: Float32Array
+): { minPitch: number; maxPitch: number } => {
+  let minPitch = Number.MAX_SAFE_INTEGER;
+  let maxPitch = 0;
+  tones.forEach((tone) => {
+    const sound = tone.sound;
+    const time = tone.time || 0;
+    const duration = tone.duration || 0;
+    const volume = tone.velocity;
+    const pitch = convertNoteToHertz(tone.note);
+    if (sound && duration) {
+      const startIndex = Math.floor(time * sampleRate);
+      const endIndex = Math.floor((time + duration) * sampleRate);
+      const { minPitch: soundMinPitch, maxPitch: soundMaxPitch } =
+        synthesizeSound(
+          sound,
+          true,
+          true,
+          sampleRate,
+          startIndex,
+          endIndex,
+          soundBuffer,
+          pitchBuffer,
+          volume,
+          pitch
+        );
+      if (soundMinPitch < minPitch) {
+        minPitch = soundMinPitch;
+      }
+      if (soundMaxPitch > maxPitch) {
+        maxPitch = soundMaxPitch;
+      }
+    }
+  });
+
+  return {
+    minPitch,
+    maxPitch,
+  };
 };

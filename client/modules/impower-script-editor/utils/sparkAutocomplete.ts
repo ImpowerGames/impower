@@ -12,9 +12,9 @@ import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
 import {
   fillArrayWithTones,
-  FUNDAMENTAL_KEYS,
-  parseTone,
-  SAMPLE_RATE,
+  Note,
+  Pitch,
+  Tone,
 } from "../../../../spark-engine";
 import {
   getAncestorIds,
@@ -42,25 +42,14 @@ interface Option {
 const OPEN_CURSOR = "${";
 const CLOSE_CURSOR = "}";
 const CURSOR = OPEN_CURSOR + CLOSE_CURSOR;
-const WAVES = [
-  { type: "sine", open: "(", close: ")" },
-  { type: "triangle", open: "<", close: ">" },
-  { type: "sawtooth", open: "{", close: "}" },
-  { type: "square", open: "[", close: "]" },
-];
-const QUOTES = ["'", '"', "`"];
 
 const context = new AudioContext();
 
-const playTone = (toneString: string, duration: number): void => {
-  const durationInSamples = Math.floor(duration * SAMPLE_RATE);
+const playTone = (note: Note, duration: number): void => {
+  const durationInSamples = Math.floor(duration * context.sampleRate);
   const fArray = new Float32Array(durationInSamples);
-  const tone = parseTone(toneString);
-  if (tone) {
-    tone.time = 0;
-    tone.duration = duration;
-  }
-  fillArrayWithTones(fArray, SAMPLE_RATE, [tone]);
+  const tone: Tone = { time: 0, duration, note };
+  fillArrayWithTones([tone], context.sampleRate, fArray);
   const buffer = context.createBuffer(1, fArray.length, context.sampleRate);
   buffer.copyToChannel(fArray, 0);
   const source = context.createBufferSource();
@@ -107,20 +96,17 @@ type CompletionType =
   | "choice_plus"
   | "choice_minus";
 
-const getInfoNode = (
-  info: string,
-  color?: string,
-  callback?: () => void
-): Node => {
+const getInfoNode = (info: string, color?: string): Node => {
   const preview = document.createElement("div");
-  const content = document.createTextNode(info);
-  preview.appendChild(content);
-  if (color) {
-    preview.style.color = color;
+  if (info) {
+    const content = document.createTextNode(info);
+    preview.appendChild(content);
+    if (color) {
+      preview.style.color = color;
+    }
+    preview.style.fontFamily = "monospace";
+    preview.style.fontStyle = "italic";
   }
-  preview.style.fontFamily = "monospace";
-  preview.style.fontStyle = "italic";
-  callback?.();
   return preview;
 };
 
@@ -172,15 +158,15 @@ export const uppercaseParagraphSnippets: readonly Completion[] = [
 ];
 
 export const structSnippets: readonly Completion[] = [
-  snip("@ list ${}${LIST_NAME}:${}", {
+  snip("@ list ${}${ListName}:${}", {
     label: "@ list",
     type: "struct",
   }),
-  snip("@ map ${}${MAP_NAME}:${}", {
+  snip("@ map ${}${MapName}:${}", {
     label: "@ map",
     type: "struct",
   }),
-  snip("@ ui ${}${UI_NAME}:${}", {
+  snip("@ ui ${}${UiName}:${}", {
     label: "@ ui",
     type: "struct",
   }),
@@ -188,11 +174,11 @@ export const structSnippets: readonly Completion[] = [
     label: "@ style",
     type: "struct",
   }),
-  snip("@ camera ${}${CAMERA_NAME}:${}", {
+  snip("@ camera ${}${CameraName}:${}", {
     label: "@ camera",
     type: "struct",
   }),
-  snip("@ entity ${}${ENTITY_NAME}:${}", {
+  snip("@ entity ${}${EntityName}:${}", {
     label: "@ entity",
     type: "struct",
   }),
@@ -200,12 +186,20 @@ export const structSnippets: readonly Completion[] = [
     label: "@ character",
     type: "struct",
   }),
-  snip("@ animation ${}${ANIMATION_NAME}:${}", {
+  snip("@ animation ${}${AnimationName}:${}", {
     label: "@ animation",
     type: "struct",
   }),
   snip("@ display ${}${type}:${}", {
     label: "@ display",
+    type: "struct",
+  }),
+  snip("@ typewriter ${}${TypewriterName}:${}", {
+    label: "@ typewriter",
+    type: "struct",
+  }),
+  snip("@ sound ${}${SoundName}:${}", {
+    label: "@ sound",
     type: "struct",
   }),
 ];
@@ -398,33 +392,26 @@ export const choiceSnippets: readonly Completion[] = [
   }),
 ];
 
-export const getToneWaveSnippets = (
-  keys: string[],
-  octaves: string[],
-  omitClose = false
+export const getNoteSnippets = (
+  keys: Pitch[],
+  octaves: number[]
 ): readonly Completion[] => {
   let i = 0;
-  const max = octaves.length * keys.length * WAVES.length;
+  const max = octaves.length * keys.length;
   return octaves.flatMap((octave) => {
     return keys.flatMap((note) => {
-      return WAVES.flatMap(({ type, open, close }) => {
-        const pitch = `${note}${octave}`;
-        const template = `${open}${pitch}${CURSOR}${
-          omitClose ? "" : close
-        }${CURSOR}`;
-        const velocity = 0.25;
-        const s = snip(template, {
-          label: `${open}${note}${octave}${close}`,
-          info: (): Node =>
-            getInfoNode(`${note}${octave} ${type} wave`, colors.struct, () =>
-              playTone(`${open}${pitch}*${velocity}${close}`, 0.05)
-            ),
-          type: `${type}-wave`,
-          boost: max - i,
-        });
-        i += 1;
-        return s;
+      const template = `${note}${octave}${CURSOR}${CURSOR}`;
+      const s = snip(template, {
+        label: `${note}${octave}`,
+        info: (): Node => {
+          playTone(`${note}${octave}`, 0.05);
+          return document.createElement("div");
+        },
+        type: `tone`,
+        boost: max - i,
       });
+      i += 1;
+      return s;
     });
   });
 };
@@ -816,7 +803,7 @@ export const assetSnippets = (
   );
 };
 
-const allFromList = (
+export const allFromList = (
   list: readonly (string | Completion)[],
   limit = 50
 ): CompletionSource => {
@@ -926,49 +913,6 @@ export const sparkAutocomplete = async (
   );
   const isUppercase = input.toUpperCase() === input;
 
-  if (["StructFieldValue"].includes(node.name)) {
-    const fieldNameNode = node?.prevSibling?.prevSibling;
-    if (fieldNameNode) {
-      const fieldName = context.state.sliceDoc(
-        fieldNameNode.from,
-        fieldNameNode.to
-      );
-      // TODO: Check we are in character struct
-      if (fieldName === "tone") {
-        const completions: Completion[] = [];
-        if (QUOTES.includes(input[0])) {
-          const waveOpenBrackets = WAVES.map((w) => w.open);
-          const waveCloseBrackets = WAVES.map((w) => w.close);
-          const sortedKeys = [...FUNDAMENTAL_KEYS].sort();
-          if (
-            waveOpenBrackets.includes(input[1]) &&
-            !waveCloseBrackets.includes(input[2]) &&
-            !waveCloseBrackets.includes(input[3])
-          ) {
-            completions.push(
-              ...getToneWaveSnippets(sortedKeys, ["4", "5", "6", "7", "8"])
-            );
-            return completeFromList(completions)(context);
-          }
-          if (
-            waveOpenBrackets.includes(input[1]) &&
-            !waveCloseBrackets.includes(input[2])
-          ) {
-            completions.push(
-              ...getToneWaveSnippets(
-                sortedKeys,
-                ["4", "5", "6", "7", "8"],
-                true
-              )
-            );
-            return completeFromList(completions)(context);
-          }
-          completions.push(...getToneWaveSnippets(sortedKeys, ["4"]));
-          return allFromList(completions, 48)(context);
-        }
-      }
-    }
-  }
   if (["RepeatMark"].includes(node.name)) {
     const completions: Completion[] = [];
     completions.push(...repeatSnippets);

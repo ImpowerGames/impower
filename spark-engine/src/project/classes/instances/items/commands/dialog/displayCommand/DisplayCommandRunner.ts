@@ -111,7 +111,7 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     data: DisplayCommandData,
     context: {
       valueMap: Record<string, unknown>;
-      objectMap: { [type: string]: Record<string, unknown> };
+      objectMap: { [type: string]: Record<string, object> };
       instant?: boolean;
       debug?: boolean;
     }

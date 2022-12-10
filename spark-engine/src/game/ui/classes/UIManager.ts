@@ -89,7 +89,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return [this._config.root.id, this._config.styleClassName, ...path];
   }
 
-  loadStyles(objectMap: { [type: string]: Record<string, unknown> }): void {
+  loadStyles(objectMap: { [type: string]: Record<string, object> }): void {
     const styleEl = this.getOrCreateStyleRoot();
     if (!objectMap) {
       return;
@@ -174,7 +174,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   }
 
   loadUI(
-    objectMap: { [type: string]: Record<string, unknown> },
+    objectMap: { [type: string]: Record<string, object> },
     ...uiStructNames: string[]
   ): void {
     const uiEl = this.getOrCreateUIRoot();

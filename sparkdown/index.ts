@@ -46,6 +46,7 @@ export * from "./src/utils/getSiblingIds";
 export * from "./src/utils/isAssetType";
 export * from "./src/utils/isMonologue";
 export * from "./src/utils/isPrimitiveType";
+export * from "./src/utils/isSparkReference";
 export * from "./src/utils/isStructType";
 export * from "./src/utils/isTagType";
 export * from "./src/utils/isVariableType";

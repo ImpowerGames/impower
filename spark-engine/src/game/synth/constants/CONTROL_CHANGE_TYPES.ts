@@ -1,10 +1,4 @@
-import { ControlChangeType } from "../types/ControlChangeType";
-
-interface ControlChangeMap {
-  [key: number]: ControlChangeType;
-}
-
-export const CONTROL_CHANGE_TYPES: ControlChangeMap = {
+export const CONTROL_CHANGE_TYPES = {
   1: "modulationWheel",
   2: "breath",
   4: "footController",
@@ -18,4 +12,4 @@ export const CONTROL_CHANGE_TYPES: ControlChangeMap = {
   67: "softPedal",
   68: "legatoFootswitch",
   84: "portamentoControl",
-};
+} as const;

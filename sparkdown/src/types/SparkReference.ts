@@ -6,4 +6,5 @@ export interface SparkReference {
   // Only populated if reference resolves
   id?: string;
   declaration?: boolean;
+  type?: string;
 }

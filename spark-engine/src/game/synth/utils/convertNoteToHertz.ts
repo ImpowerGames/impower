@@ -1,23 +1,29 @@
 import { FUNDAMENTAL_KEYS } from "../constants/FUNDAMENTAL_KEYS";
 import { Hertz } from "../types/Hertz";
-import { Note } from "../types/Note";
+import { Accidental, NaturalPitch, Note } from "../types/Note";
+import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
 import { parseNote } from "./parseNote";
 
 const A4 = 440.0; // An A-note in the fourth octave
 
 const calculateStepsFromNote = (
-  natural: string,
-  accidental: string,
+  natural: NaturalPitch,
+  accidental: Accidental,
   octave: number
 ): number => {
-  const key = (natural + accidental) as Note;
-  const index = FUNDAMENTAL_KEYS.indexOf(key);
+  const naturalIndex = FUNDAMENTAL_KEYS.indexOf(natural);
+  const index =
+    accidental === "#"
+      ? naturalIndex + 1
+      : accidental === "b"
+      ? naturalIndex - 1
+      : naturalIndex;
   const step = index - 9;
   return step - (4 - octave) * 12;
 };
 
 const calculateFrequencyByStep = (steps: number): number => {
-  return A4 * Math.pow(Math.pow(2, 1 / 12), steps);
+  return A4 * Math.pow(convertSemitonesToFrequencyFactor(1), steps);
 };
 
 export const convertNoteToHertz = (

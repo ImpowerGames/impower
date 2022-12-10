@@ -3,11 +3,36 @@ import { fillArrayWithTones, Tone } from "../../../../../../spark-engine";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface ToneSoundOptions extends Options {}
+
 export class ToneSound extends Sound {
   protected _tones: Tone[];
 
   public get tones(): readonly Tone[] {
     return this._tones;
+  }
+
+  protected _soundBuffer: Float32Array;
+
+  public get soundBuffer(): Float32Array {
+    return this._soundBuffer;
+  }
+
+  protected _pitchBuffer: Float32Array;
+
+  public get pitchBuffer(): Float32Array {
+    return this._pitchBuffer;
+  }
+
+  protected _minPitch: number;
+
+  public get minPitch(): number {
+    return this._minPitch;
+  }
+
+  protected _maxPitch: number;
+
+  public get maxPitch(): number {
+    return this._maxPitch;
   }
 
   protected _durationInSamples: number;
@@ -50,7 +75,16 @@ export class ToneSound extends Sound {
       media.buffer ||
       audioContext.createBuffer(1, this._durationInSamples, sampleRate);
     const fArray = buffer.getChannelData(0);
-    fillArrayWithTones(fArray, sampleRate, tones);
+    this._pitchBuffer = new Float32Array(fArray.length);
+    this._soundBuffer = fArray;
+    const { minPitch, maxPitch } = fillArrayWithTones(
+      tones,
+      sampleRate,
+      fArray,
+      this._pitchBuffer
+    );
+    this._minPitch = minPitch;
+    this._maxPitch = maxPitch;
     buffer.copyToChannel(fArray, 0);
     if (!this.isLoaded) {
       media.buffer = buffer;

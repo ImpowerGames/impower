@@ -7,4 +7,6 @@ export type SparkStructType =
   | "entity"
   | "character"
   | "animation"
-  | "display";
+  | "display"
+  | "sound"
+  | "typewriter";

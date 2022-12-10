@@ -1,14 +1,13 @@
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
-import { InstrumentConfig } from "../types/InstrumentConfig";
-import { InstrumentOptions } from "../types/InstrumentOptions";
 import { InstrumentState } from "../types/InstrumentState";
 import { Tone } from "../types/Tone";
+import { createInstrumentState } from "../utils/createInstrumentState";
 
 export interface SynthEvents extends Record<string, GameEvent> {
   onConfigureInstrument: GameEvent<{
     instrumentId: string;
-    options?: Partial<InstrumentOptions>;
+    state: InstrumentState;
   }>;
   onStopInstrument: GameEvent<{
     instrumentId: string;
@@ -21,9 +20,7 @@ export interface SynthEvents extends Record<string, GameEvent> {
   }>;
 }
 
-export interface SynthConfig {
-  instruments: Record<string, InstrumentConfig>;
-}
+export interface SynthConfig {}
 
 export interface SynthState {
   instrumentStates: Record<string, InstrumentState>;
@@ -38,7 +35,7 @@ export class SynthManager extends Manager<
     const initialEvents: SynthEvents = {
       onConfigureInstrument: new GameEvent<{
         instrumentId: string;
-        options?: Partial<InstrumentOptions>;
+        state: InstrumentState;
       }>(),
       onStopInstrument: new GameEvent<{
         instrumentId: string;
@@ -62,26 +59,17 @@ export class SynthManager extends Manager<
 
   configureInstrument(
     instrumentId: string,
-    options?: Partial<InstrumentOptions>
+    options?: Partial<InstrumentState>
   ): void {
-    const instrumentConfig: InstrumentConfig =
-      this._config.instruments[instrumentId] || {};
-    if (instrumentConfig) {
-      instrumentConfig.envelope = options?.envelope;
-      instrumentConfig.oscillator = options?.oscillator;
-    }
-    this._config.instruments[instrumentId] = instrumentConfig;
-    const instrumentState: InstrumentState =
-      this._state.instrumentStates[instrumentId] || {};
-    if (instrumentState) {
-      instrumentState.detune = options?.detune;
-      instrumentState.portamento = options?.portamento;
-      instrumentState.volume = options?.volume;
-    }
-    this._state.instrumentStates[instrumentId] = instrumentState;
+    const state = {
+      ...createInstrumentState(),
+      ...(this._state.instrumentStates[instrumentId] || {}),
+      ...(options || {}),
+    };
+    this._state.instrumentStates[instrumentId] = state;
     this._events.onConfigureInstrument.emit({
       instrumentId,
-      options,
+      state,
     });
   }
 

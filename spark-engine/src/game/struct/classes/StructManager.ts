@@ -4,7 +4,7 @@ import { Manager } from "../../core/classes/Manager";
 export interface StructEvents extends Record<string, GameEvent> {}
 
 export interface StructConfig {
-  objectMap: { [type: string]: Record<string, unknown> };
+  objectMap: { [type: string]: Record<string, object> };
 }
 
 export interface StructState {}

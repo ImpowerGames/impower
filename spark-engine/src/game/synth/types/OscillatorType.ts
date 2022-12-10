@@ -1,7 +1,11 @@
 export type OscillatorType =
   | "sine"
-  | "cosine"
   | "triangle"
   | "sawtooth"
   | "square"
-  | "noise";
+  | "tangent"
+  | "breaker"
+  | "whistle"
+  | "brownnoise"
+  | "pinknoise"
+  | "whitenoise";

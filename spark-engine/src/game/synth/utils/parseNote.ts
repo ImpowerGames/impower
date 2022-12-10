@@ -5,8 +5,8 @@ export const parseNote = (
   note: string
 ):
   | {
-      natural: NaturalPitch | "";
-      accidental: Flat | Sharp | "";
+      natural: NaturalPitch;
+      accidental: Flat | Sharp;
       octave: number;
     }
   | undefined => {

@@ -9,5 +9,6 @@ export * from "./src/utils/compile";
 export * from "./src/utils/evaluate";
 export * from "./src/utils/format";
 export * from "./src/utils/randomizer";
+export * from "./src/utils/shuffle";
 export * from "./src/utils/tokenize";
 export * from "./src/utils/uuid";

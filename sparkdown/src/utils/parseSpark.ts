@@ -23,7 +23,7 @@ import {
   SparkChoiceToken,
   SparkDialogueToken,
   SparkDisplayToken,
-  SparkToken
+  SparkToken,
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
@@ -2279,7 +2279,7 @@ const hoistDeclarations = (
       const nameTo = nameFrom + name.length;
       const baseFrom = currentToken.from + getStart(match, 10);
       const baseTo = baseFrom + base.length;
-      currentToken.name = name;
+      (currentToken as { name: string }).name = name;
       if (name) {
         addStruct(
           parsed,

@@ -1,22 +1,21 @@
 /* eslint-disable no-continue */
 import { format } from "../../../../../../../../../spark-evaluate";
+import { DisplayCommandData, DisplayConfig } from "../../../../../../../data";
 import {
-  DisplayCommandConfig,
-  DisplayCommandData,
-  DisplayProperties,
-} from "../../../../../../../data";
-import {
-  EaseType,
+  convertNoteToHertz,
+  deepCopy,
+  getCustomizedConfig,
   IElement,
   Inflection,
   Intonation,
-  parseTone,
+  req,
   SparkGame,
   StressType,
   Tone,
   transpose,
 } from "../../../../../../../game";
-import { CharacterConfig, Prosody } from "./CharacterConfig";
+import { CharacterConfig, Prosody } from "../types/CharacterConfig";
+import { TypewriterConfig } from "../types/TypewriterConfig";
 
 interface Chunk {
   char: string;
@@ -154,11 +153,6 @@ const weakWords = [
 const contractions = ["'d", "'ll", "'m", "'re", "'s", "'t", "'ve", "n't"];
 
 const defaultIntonation: Intonation = {
-  voiceTone: "<F4>",
-  voiceEnvelope: [0.02, 0.02],
-  voiceContour: ["cubicInOut", "cubicInOut"],
-  voiceVolume: 0.5,
-
   phrasePitchIncrement: 0.25,
   phrasePitchMaxOffset: 1,
 
@@ -175,8 +169,9 @@ const defaultIntonation: Intonation = {
     phraseSlope: 0,
     neutralLevel: 2,
     finalContour: [4, 2],
-    pitchBend: 1,
-    pitchEase: "backInOut",
+    pitchRamp: 0.2,
+    pitchAccel: -0.3,
+    pitchJerk: -0.5,
     finalDilation: 3,
   },
   /**
@@ -187,8 +182,9 @@ const defaultIntonation: Intonation = {
     phraseSlope: 0,
     neutralLevel: 3,
     finalContour: [5, 4],
-    pitchBend: 1,
-    pitchEase: "backInOut",
+    pitchRamp: 0.2,
+    pitchAccel: -0.3,
+    pitchJerk: -0.5,
     finalDilation: 3,
   },
   /**
@@ -198,8 +194,9 @@ const defaultIntonation: Intonation = {
   lilt: {
     phraseSlope: 0,
     finalContour: [1, -5],
-    pitchBend: 1,
-    pitchEase: "backInOut",
+    pitchRamp: 0.2,
+    pitchAccel: -0.3,
+    pitchJerk: -0.5,
     finalDilation: 2,
   },
   /**
@@ -247,8 +244,7 @@ const defaultIntonation: Intonation = {
     neutralLevel: 4,
     finalContour: [5],
     emphasisContour: [6],
-    pitchBend: -2,
-    pitchEase: "sineInOut",
+    pitchJerk: -0.5,
     finalDilation: 2,
   },
   /**
@@ -276,10 +272,8 @@ const defaultIntonation: Intonation = {
   anxious: {
     phraseSlope: -1,
     finalContour: [-1, -1, -1],
-    pitchBend: -1,
-    pitchEase: "sineOut",
-    volumeBend: 0.25,
-    volumeEase: "quadIn",
+    pitchJerk: -0.25,
+    volumeRamp: -0.25,
     finalDilation: 3,
   },
   /**
@@ -335,31 +329,23 @@ const defaultProsody: Prosody = {
   statement: /(?:^[\t ]*|\b)[^\t\n\r .]*([.])[ ]*$/,
 };
 
-const defaultCharacterConfig = {
+const defaultCharacterConfig: CharacterConfig = {
   intonation: defaultIntonation,
   prosody: defaultProsody,
 };
 
-export const defaultDisplayCommandConfig: DisplayCommandConfig = {
-  default: {
-    indicator: {
-      className: "Indicator",
-      fadeDuration: 0.15,
-    },
-  },
+export const defaultDisplayConfigs: Record<string, DisplayConfig> = {
   parenthetical: { hidden: "beat" },
-  dialogue: {
-    className: "Dialogue",
-    typing: {
-      letterDelay: 0.02,
-      pauseScale: 3,
-      fadeDuration: 0,
-      punctuationTone: "<C6,10>(D5,20) <E5,29>(E3,1) <C5,30>",
-      punctuationEnvelope: [0.01, 0.01],
-      punctuationContour: ["cubicInOut", "cubicInOut"],
-      punctuationVolume: 0.5,
-    },
+  indicator: {
+    fadeDuration: 0.15,
   },
+};
+
+export const defaultTypewriterConfig: TypewriterConfig = {
+  letterDelay: 0.02,
+  pauseScale: 3,
+  fadeDuration: 0,
+  clackSound: {},
 };
 
 const getStressType = (
@@ -397,67 +383,14 @@ const getArray = <T>(value: T[] | string | undefined): T[] => {
   );
 };
 
-const getEnvelope = (
-  value: number[] | string | undefined
-): {
-  attackTime?: number;
-  holdTime?: number;
-  decayTime?: number;
-  releaseTime?: number;
-} => {
-  const arr = getArray(value);
-  if (arr.length === 0) {
-    return { attackTime: 0, holdTime: 0, decayTime: 0, releaseTime: 0 };
-  }
-  if (arr.length === 1) {
-    const [releaseTime] = arr;
-    return { attackTime: 0, holdTime: 0, decayTime: 0, releaseTime };
-  }
-  if (arr.length === 2) {
-    const [attackTime, releaseTime] = arr;
-    return { attackTime, holdTime: 0, decayTime: 0, releaseTime };
-  }
-  if (arr.length === 3) {
-    const [attackTime, decayTime, releaseTime] = arr;
-    return { attackTime, holdTime: 0, decayTime, releaseTime };
-  }
-  if (arr.length === 4) {
-  }
-  const [attackTime, holdTime, decayTime, releaseTime] = arr;
-  return { attackTime, holdTime, decayTime, releaseTime };
-};
-
-const getContour = (
-  value: EaseType[] | string | undefined
-): {
-  attackEase?: EaseType;
-  decayEase?: EaseType;
-  releaseEase?: EaseType;
-} => {
-  const arr = getArray(value);
-  if (arr.length === 0) {
-    return { attackEase: "linear", decayEase: "linear", releaseEase: "linear" };
-  }
-  if (arr.length === 1) {
-    const [releaseEase] = arr;
-    return { attackEase: "linear", decayEase: "linear", releaseEase };
-  }
-  if (arr.length === 2) {
-    const [attackEase, releaseEase] = arr;
-    return { attackEase, decayEase: "linear", releaseEase };
-  }
-  const [attackEase, decayEase, releaseEase] = arr;
-  return { attackEase, decayEase, releaseEase };
-};
-
 const hideChoices = (
   game: SparkGame,
   structName: string,
-  config: DisplayCommandConfig
+  config: DisplayConfig
 ): void => {
   const choiceEls = game.ui.findAllUIElements(
     structName,
-    config?.choice?.className || "Choice"
+    config?.className || "Choice"
   );
   choiceEls.forEach((el) => {
     if (el) {
@@ -494,18 +427,6 @@ const get = (...vals: (number | undefined)[]): number => {
     return 0;
   }
   return result;
-};
-
-const set = (obj: any, propertyPath: string, value: unknown): void => {
-  let cur = obj;
-  const parts = propertyPath.split(".");
-  parts.forEach((part, partIndex) => {
-    if (partIndex === parts.length - 1) {
-      cur[part] = value;
-    } else {
-      cur = cur[part];
-    }
-  });
 };
 
 const getWords = (phrase: Phrase): Word[] => {
@@ -585,14 +506,14 @@ const getPhrases = (
   game: SparkGame,
   content: string,
   valueMap: Record<string, unknown>,
-  displayProps: DisplayProperties | undefined,
+  typewriter: TypewriterConfig | undefined,
   characterProps: CharacterConfig | undefined,
   instant = false,
   debug?: boolean
 ): Phrase[] => {
-  const letterDelay = get(displayProps?.typing?.letterDelay, 0);
-  const pauseScale = get(displayProps?.typing?.pauseScale, 1);
-  const letterFadeDuration = get(displayProps?.typing?.fadeDuration, 0);
+  const letterDelay = get(typewriter?.letterDelay, 0);
+  const pauseScale = get(typewriter?.pauseScale, 1);
+  const letterFadeDuration = get(typewriter?.fadeDuration, 0);
   const maxSyllableLength = get(characterProps?.prosody?.maxSyllableLength);
   const voicedRegex = new RegExp(characterProps?.prosody?.voiced || "", "u");
   const yelledRegex = new RegExp(characterProps?.prosody?.yelled || "", "u");
@@ -745,7 +666,7 @@ const getPhrases = (
     const isWordPause = spaceLength === 1;
     const isPhrasePause = spaceLength > 1;
     const duration =
-      isWordPause || isPhrasePause || ellipsis || yelled
+      isWordPause || isPhrasePause || yelled || punctuation
         ? letterDelay * pauseScale
         : letterDelay;
     if (isPhrasePause) {
@@ -1048,7 +969,7 @@ export const executeDisplayCommand = (
   data?: DisplayCommandData,
   context?: {
     valueMap: Record<string, unknown>;
-    objectMap: { [type: string]: Record<string, unknown> };
+    objectMap: { [type: string]: Record<string, object> };
     instant?: boolean;
     debug?: boolean;
     fadeOutDuration?: number;
@@ -1070,16 +991,25 @@ export const executeDisplayCommand = (
   game.ui.loadStyles(objectMap);
   game.ui.loadUI(objectMap, structName);
 
-  const customDisplayConfig = {
-    ...((objectMap?.["display"]?.["default"] as DisplayCommandConfig) || {}),
-  };
-  const combinedDisplayConfig: DisplayCommandConfig = {
-    ...(defaultDisplayCommandConfig || {}),
-  };
-  Object.entries(customDisplayConfig).forEach(([k, v]) => {
-    set(combinedDisplayConfig, k, v);
+  const typewriterConfig = getCustomizedConfig(
+    defaultTypewriterConfig,
+    objectMap,
+    "typewriter",
+    type
+  );
+
+  const displayConfigs: Record<string, DisplayConfig> = {};
+  Object.keys(defaultDisplayConfigs).forEach((type) => {
+    const defaultDisplayConfig = defaultDisplayConfigs[type];
+    if (defaultDisplayConfig) {
+      displayConfigs[type] = getCustomizedConfig(
+        defaultDisplayConfig,
+        objectMap,
+        "display",
+        type
+      );
+    }
   });
-  const displayConfig = combinedDisplayConfig;
 
   const fadeOutDuration = context?.fadeOutDuration || 0;
 
@@ -1087,7 +1017,7 @@ export const executeDisplayCommand = (
   if (assetsOnly) {
     const backgroundEl = game.ui.findFirstUIElement(
       structName,
-      displayConfig?.background?.className || "Background"
+      displayConfigs?.["background"]?.className || "Background"
     );
     if (backgroundEl) {
       const imageName = assets?.[0] || "";
@@ -1112,27 +1042,22 @@ export const executeDisplayCommand = (
     .replace(/([ ])/g, "_")
     .replace(/([.'"`])/g, "");
 
-  const customCharacterConfig = {
-    ...((objectMap?.["character"]?.["default"] as CharacterConfig) || {}),
-    ...((objectMap?.["character"]?.[type] as CharacterConfig) || {}),
-    ...((objectMap?.["character"]?.[characterKey] as CharacterConfig) || {}),
-  };
-  const combinedCharacterConfig: CharacterConfig = {
-    ...(defaultCharacterConfig || {}),
-  };
-  Object.entries(customCharacterConfig).forEach(([k, v]) => {
-    set(combinedCharacterConfig, k, v);
-  });
-  const characterConfig = combinedCharacterConfig;
+  const characterConfig = getCustomizedConfig(
+    defaultCharacterConfig,
+    objectMap,
+    "character",
+    type,
+    characterKey
+  );
 
   const validCharacter =
     type === "dialogue" &&
-    !isHidden(character, displayConfig?.character?.hidden)
+    !isHidden(character, displayConfigs?.["character"]?.hidden)
       ? characterConfig?.name || character || ""
       : "";
   const validParenthetical =
     type === "dialogue" &&
-    !isHidden(parenthetical, displayConfig?.parenthetical?.hidden)
+    !isHidden(parenthetical, displayConfigs?.["parenthetical"]?.hidden)
       ? parenthetical || ""
       : "";
 
@@ -1141,27 +1066,26 @@ export const executeDisplayCommand = (
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
   const commandType = `${data?.reference?.refTypeId || ""}`;
 
-  const instant =
-    context?.instant || !get(displayConfig?.[type]?.typing?.letterDelay);
+  const instant = context?.instant || !req(typewriterConfig?.letterDelay);
   const debug = context?.debug;
   const indicatorFadeDuration =
-    displayConfig?.default?.indicator?.fadeDuration || 0;
+    displayConfigs?.["indicator"]?.fadeDuration || 0;
 
   const descriptionGroupEl = game.ui.findFirstUIElement(
     structName,
-    displayConfig?.description_group?.className || "DescriptionGroup"
+    displayConfigs?.["description_group"]?.className || "DescriptionGroup"
   );
   const dialogueGroupEl = game.ui.findFirstUIElement(
     structName,
-    displayConfig?.dialogue_group?.className || "DialogueGroup"
+    displayConfigs?.["dialogue_group"]?.className || "DialogueGroup"
   );
   const portraitEl = game.ui.findFirstUIElement(
     structName,
-    displayConfig?.portrait?.className || "Portrait"
+    displayConfigs?.["portrait"]?.className || "Portrait"
   );
   const indicatorEl = game.ui.findFirstUIElement(
     structName,
-    displayConfig?.default?.indicator?.className || "Indicator"
+    displayConfigs?.["indicator"]?.className || "Indicator"
   );
 
   if (portraitEl) {
@@ -1177,7 +1101,7 @@ export const executeDisplayCommand = (
     }
   }
 
-  hideChoices(game, structName, displayConfig);
+  hideChoices(game, structName, displayConfigs);
 
   if (dialogueGroupEl) {
     dialogueGroupEl.style["display"] = type === "dialogue" ? null : "none";
@@ -1188,46 +1112,46 @@ export const executeDisplayCommand = (
 
   const characterEl = game.ui.findFirstUIElement(
     structName,
-    displayConfig?.character?.className || "Character"
+    displayConfigs?.["character"]?.className || "Character"
   );
   const parentheticalEl = game.ui.findFirstUIElement(
     structName,
-    displayConfig?.parenthetical?.className || "Parenthetical"
+    displayConfigs?.["parenthetical"]?.className || "Parenthetical"
   );
   const contentElEntries = [
     {
       key: "dialogue",
       value: game.ui.findFirstUIElement(
         structName,
-        displayConfig?.dialogue?.className || "Dialogue"
+        displayConfigs?.["dialogue"]?.className || "Dialogue"
       ),
     },
     {
       key: "action",
       value: game.ui.findFirstUIElement(
         structName,
-        displayConfig?.action?.className || "Action"
+        displayConfigs?.["action"]?.className || "Action"
       ),
     },
     {
       key: "centered",
       value: game.ui.findFirstUIElement(
         structName,
-        displayConfig?.centered?.className || "Centered"
+        displayConfigs?.["centered"]?.className || "Centered"
       ),
     },
     {
       key: "scene",
       value: game.ui.findFirstUIElement(
         structName,
-        displayConfig?.scene?.className || "Scene"
+        displayConfigs?.["scene"]?.className || "Scene"
       ),
     },
     {
       key: "transition",
       value: game.ui.findFirstUIElement(
         structName,
-        displayConfig?.transition?.className || "Transition"
+        displayConfigs?.["transition"]?.className || "Transition"
       ),
     },
   ];
@@ -1240,12 +1164,11 @@ export const executeDisplayCommand = (
     parentheticalEl.textContent = validParenthetical;
     parentheticalEl.style["display"] = validParenthetical ? null : "none";
   }
-  const displayProps = displayConfig?.[type];
   const phrases = getPhrases(
     game,
     evaluatedContent?.trimStart(),
     valueMap,
-    displayProps,
+    typewriterConfig,
     characterConfig,
     instant,
     debug
@@ -1302,27 +1225,9 @@ export const executeDisplayCommand = (
       game.synth.stopInstrument(commandType, fadeOutDuration);
       handleFinished();
     } else {
-      const letterDelay = get(displayProps?.typing?.letterDelay, 0);
-      const punctuationVolume = get(displayProps?.typing?.punctuationVolume, 1);
-      // Determine the display's modal tone (the neutral tone used when punctuation is typed out)
-      const punctuationTone = parseTone(
-        displayProps?.typing?.punctuationTone || ""
-      );
-      const punctuationEnvelope = getEnvelope(
-        displayProps?.typing?.punctuationEnvelope
-      );
-      const punctuationContour = getContour(
-        displayProps?.typing?.punctuationContour
-      );
-      // Determine the character's modal tone (the neutral tone of their voice)
-      const voiceTone = parseTone(characterConfig?.intonation?.voiceTone || "");
-      const voiceVolume = get(characterConfig?.intonation?.voiceVolume, 1);
-      const voiceEnvelope = getEnvelope(
-        characterConfig?.intonation?.voiceEnvelope
-      );
-      const voiceContour = getContour(
-        characterConfig?.intonation?.voiceContour
-      );
+      const letterDelay = req(typewriterConfig?.letterDelay, 0);
+      const clackSound = typewriterConfig?.clackSound;
+      const voiceSound = characterConfig?.voiceSound || clackSound;
       // Determine how much a character's pitch will raise between related phrases
       const phrasePitchIncrement = get(
         characterConfig?.intonation?.phrasePitchIncrement,
@@ -1350,34 +1255,20 @@ export const executeDisplayCommand = (
         const phraseBeeps: (Beep & Partial<Tone>)[] = phrase.chunks.flatMap(
           (c) => {
             if (c.startOfSyllable) {
-              const envelope = voiceEnvelope;
-              const contour = voiceContour;
-              const volume = voiceVolume;
-              const toneCopy: Tone = JSON.parse(JSON.stringify(voiceTone));
+              const sound = voiceSound ? deepCopy(voiceSound) : voiceSound;
               lastCharacterBeep = {
                 ...c,
-                ...toneCopy,
-                ...envelope,
-                ...contour,
-                volume,
+                sound,
                 time: c.time || 0,
                 duration: c.duration || 0,
               };
               return [lastCharacterBeep];
             }
             if (c.punctuation) {
-              const envelope = punctuationEnvelope;
-              const contour = punctuationContour;
-              const volume = punctuationVolume;
-              const toneCopy: Tone = JSON.parse(
-                JSON.stringify(punctuationTone)
-              );
+              const sound = voiceSound ? deepCopy(clackSound) : clackSound;
               const lastDisplayBeep = {
                 ...c,
-                ...toneCopy,
-                ...envelope,
-                ...contour,
-                volume,
+                sound,
                 time: c.time || 0,
                 duration: letterDelay * 2,
               };
@@ -1401,10 +1292,10 @@ export const executeDisplayCommand = (
           phrase.finalStressType,
           characterConfig.intonation
         );
-        const pitchBend = inflection?.pitchBend;
-        const pitchEase = inflection?.pitchEase;
-        const volumeBend = inflection?.volumeBend;
-        const volumeEase = inflection?.volumeEase;
+        const pitchRamp = inflection?.pitchRamp;
+        const pitchAccel = inflection?.pitchAccel;
+        const pitchJerk = inflection?.pitchJerk;
+        const volumeRamp = inflection?.volumeRamp;
         const phraseSlope = inflection?.phraseSlope || 0;
 
         // The phrase should start at a higher or lower pitch according to phraseSlope
@@ -1415,29 +1306,28 @@ export const executeDisplayCommand = (
         for (let i = phraseBeeps.length - 1; i >= 0; i -= 1) {
           const b = phraseBeeps[i];
           if (b) {
-            if (b.waves) {
+            if (b.sound) {
+              const freq = convertNoteToHertz(
+                b.note || b.sound.frequency?.pitch || "A4"
+              );
               // Transpose waves according to stress contour
-              b.waves.forEach((wave) => {
-                wave.harmonics.forEach((harmonic) => {
-                  harmonic.note = transpose(
-                    harmonic.note,
-                    startingOffset + (b.stressLevel || 0) * stressLevelIncrement
-                  );
-                });
-              });
-            }
-            if (!foundLastVoicedBeep && b.voiced) {
-              foundLastVoicedBeep = true;
-              // Bend last voiced beep
-              if (b.waves) {
-                b.waves.forEach((wave) => {
-                  wave.harmonics.forEach((harmonic) => {
-                    harmonic.pitchBend = pitchBend;
-                    harmonic.pitchEase = pitchEase;
-                  });
-                  wave.volumeBend = volumeBend;
-                  wave.volumeEase = volumeEase;
-                });
+              b.note = transpose(
+                freq,
+                startingOffset + (b.stressLevel || 0) * stressLevelIncrement
+              );
+              if (!foundLastVoicedBeep && b.voiced) {
+                // Bend last voiced beep
+                foundLastVoicedBeep = true;
+                if (!b.sound.frequency) {
+                  b.sound.frequency = {};
+                }
+                b.sound.frequency.ramp = pitchRamp;
+                b.sound.frequency.accel = pitchAccel;
+                b.sound.frequency.jerk = pitchJerk;
+                if (!b.sound.amplitude) {
+                  b.sound.amplitude = {};
+                }
+                b.sound.amplitude.ramp = volumeRamp;
               }
             }
           }
