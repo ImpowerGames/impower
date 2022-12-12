@@ -6,5 +6,6 @@ export const tokenize = (
   expression: string
 ): [CompilerToken[], CompilerDiagnostic[]] => {
   const lexer = new Lexer(expression);
-  return lexer.getTokens();
+  const tokens = lexer.getTokens();
+  return tokens;
 };

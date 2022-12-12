@@ -14,6 +14,7 @@ export * from "./types/Tuple";
 export * from "./utils/clone";
 export * from "./utils/deepCopy";
 export * from "./utils/denormalize";
+export * from "./utils/getAllPropertyRequirements";
 export * from "./utils/getClockValueMS";
 export * from "./utils/getCustomizedConfig";
 export * from "./utils/getProperty";

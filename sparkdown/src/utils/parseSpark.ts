@@ -86,6 +86,9 @@ const diagnostic = (
   if (from < 0 || to < 0) {
     return;
   }
+  if (from === to) {
+    to = from + 1;
+  }
   if (!parsed.diagnostics) {
     parsed.diagnostics = [];
   }
@@ -1318,7 +1321,7 @@ const addImport = (
     to: valueTo,
     line,
     base: "",
-    type: "list",
+    type: "map",
     name,
     fields: {
       ...(existing?.fields || EMPTY_OBJECT),
@@ -1428,11 +1431,10 @@ const addField = (
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
+  currentStructName: string,
   currentStructFieldId: string,
-  name: string | undefined,
   valueText: string,
   line: number,
-  indent: number,
   nameFrom: number,
   nameTo: number,
   valueFrom: number,
@@ -1441,27 +1443,19 @@ const addField = (
   if (!parsed.structs) {
     parsed.structs = {};
   }
-  const structName = currentStructFieldId.split(".")[0] || "";
-  const struct = parsed.structs[structName];
+  const struct = parsed.structs[currentStructName];
   if (struct) {
     if (!struct.fields) {
       struct.fields = {};
     }
-    const validName = name || String(Object.keys(struct.fields).length);
-    const fieldId = `${currentStructFieldId
-      .split(".")
-      .slice(0, indent)
-      .join(".")}.${validName}`;
-    const parts = fieldId.split(".");
-    parts.shift();
-    const id = `${parts.join(".")}`;
-
+    const id = currentStructFieldId;
     if (
       !lintName(parsed, currentToken, currentSectionId, id, nameFrom, nameTo)
     ) {
       return;
     }
-    if (name) {
+    const validName = id.split(".").slice(-1).join("");
+    if (id) {
       if (!parsed.references) {
         parsed.references = {};
       }
@@ -1471,7 +1465,7 @@ const addField = (
       parsed.references[line]?.push({
         from: nameFrom,
         to: nameTo,
-        name,
+        name: validName,
         id,
         declaration: true,
       });
@@ -1480,8 +1474,7 @@ const addField = (
     if (found) {
       lintNameUnique(parsed, currentToken, "field", found, nameFrom, nameTo);
     } else {
-      const defaultValue =
-        struct?.type === "list" || struct?.type === "map" ? validName : "";
+      const defaultValue = struct?.type === "map" ? validName : "";
       const value = getVariableExpressionValue(
         parsed,
         config,
@@ -1493,7 +1486,7 @@ const addField = (
       );
       const validValue = value != null ? value : defaultValue;
       const validType = typeof validValue as SparkVariableType;
-      const existing = parsed?.structs?.[structName]?.fields?.[id];
+      const existing = parsed?.structs?.[currentStructName]?.fields?.[id];
       const item: SparkField = {
         ...(existing || EMPTY_OBJECT),
         from: nameFrom,
@@ -1504,59 +1497,6 @@ const addField = (
         value: validValue,
         imported: false,
       };
-      let curr =
-        struct?.type === "list" || struct?.type === "map"
-          ? struct
-          : parsed.structs[struct.base];
-      if (curr) {
-        let baseField: SparkField | undefined = undefined;
-        while (curr) {
-          const fieldIds: string[] =
-            struct?.type === "list" || struct?.type === "map"
-              ? Object.keys(curr.fields).reverse()
-              : [id];
-          for (let i = 0; i < fieldIds.length; i += 1) {
-            const f = fieldIds[i];
-            if (f) {
-              baseField = curr?.fields?.[f];
-              if (baseField) {
-                break;
-              }
-            }
-          }
-          if (baseField) {
-            break;
-          }
-          curr = parsed.structs[curr.base];
-        }
-        const hasValueText = Boolean(valueText?.trim());
-        const isValid = !hasValueText || value !== undefined;
-        if (
-          isValid &&
-          validType &&
-          baseField?.type &&
-          validType !== baseField?.type
-        ) {
-          diagnostic(
-            parsed,
-            currentToken,
-            struct?.type === "list"
-              ? `All list values must be the same type`
-              : `Cannot assign a '${validType}' to a '${baseField?.type}' field`,
-            [
-              {
-                name: "FOCUS",
-                focus: {
-                  from: baseField.from,
-                  to: baseField.from,
-                },
-              },
-            ],
-            hasValueText ? valueFrom : nameFrom,
-            hasValueText ? valueTo : nameTo
-          );
-        }
-      }
       struct.fields[id] = item;
     }
   }
@@ -2091,7 +2031,8 @@ const hoistDeclarations = (
   let from = 0;
   let currentLevel = 0;
   let currentSectionId = "";
-  let currentStructFieldId = "";
+  let currentStructName = "";
+  let currentStructFieldParentId = "";
   let stateType: string | undefined = "normal";
   let match: RegExpMatchArray | null = null;
 
@@ -2224,42 +2165,40 @@ const hoistDeclarations = (
       newSection.triggers = type === "detector" ? parameters : [];
     } else if ((match = text.match(sparkRegexes.variable))) {
       const name = match[6] || "";
-      const type = (match[10] || "") as SparkVariableType;
       const valueText = match[14] || "";
+      const type = (match[10] || "") as SparkVariableType;
       const currentToken = createSparkToken(type, newLineLength, {
         content: text,
         line: i + (config?.lineOffset || 0),
         from,
       });
-      if (currentToken.type === type) {
-        const nameFrom = currentToken.from + getStart(match, 6);
-        const nameTo = nameFrom + name.length;
-        const typeFrom = currentToken.from + getStart(match, 10);
-        const typeTo = typeFrom + type.length;
-        const valueFrom = currentToken.from + getStart(match, 14);
-        const valueTo = valueFrom + valueText.length;
-        if (name) {
-          const tokenType = addVariable(
-            parsed,
-            config,
-            currentToken,
-            currentSectionId,
-            name,
-            type,
-            valueText,
-            "protected",
-            false,
-            currentToken.line,
-            nameFrom,
-            nameTo,
-            typeFrom,
-            typeTo,
-            valueFrom,
-            valueTo
-          );
-          if (tokenType) {
-            currentToken.type = tokenType;
-          }
+      const nameFrom = currentToken.from + getStart(match, 6);
+      const nameTo = nameFrom + name.length;
+      const typeFrom = currentToken.from + getStart(match, 10);
+      const typeTo = typeFrom + type.length;
+      const valueFrom = currentToken.from + getStart(match, 14);
+      const valueTo = valueFrom + valueText.length;
+      if (name) {
+        const tokenType = addVariable(
+          parsed,
+          config,
+          currentToken,
+          currentSectionId,
+          name,
+          type,
+          valueText,
+          "protected",
+          false,
+          currentToken.line,
+          nameFrom,
+          nameTo,
+          typeFrom,
+          typeTo,
+          valueFrom,
+          valueTo
+        );
+        if (tokenType) {
+          currentToken.type = tokenType;
         }
       }
     } else if ((match = text.match(sparkRegexes.struct))) {
@@ -2295,27 +2234,13 @@ const hoistDeclarations = (
           baseTo
         );
       }
-      currentStructFieldId = name;
-    } else if (isStructType(stateType) && text?.trim()) {
+      currentStructName = name;
+      currentStructFieldParentId = ".";
+    } else if (isStructType(stateType) && text.trim()) {
       if ((match = text.match(sparkRegexes.struct_object_field))) {
         const name = match[2] || "";
-        const currentToken = createSparkToken(
-          "struct_object_field",
-          newLineLength,
-          {
-            content: text,
-            line: i + (config?.lineOffset || 0),
-            from,
-          }
-        );
-        currentStructFieldId = `${currentStructFieldId
-          .split(".")
-          .slice(0, currentToken.indent)
-          .join(".")}.${name}`;
-      } else if (
-        stateType !== "list" &&
-        (match = text.match(sparkRegexes.struct_value_field))
-      ) {
+        currentStructFieldParentId += name + ".";
+      } else if ((match = text.match(sparkRegexes.struct_value_field))) {
         const currentToken = createSparkToken(
           "struct_value_field",
           newLineLength,
@@ -2336,44 +2261,12 @@ const hoistDeclarations = (
           config,
           currentToken,
           currentSectionId,
-          currentStructFieldId,
-          name,
+          currentStructName,
+          currentStructFieldParentId + name,
           valueText,
           currentToken.line,
-          currentToken.indent,
           nameFrom,
           nameTo,
-          valueFrom,
-          valueTo
-        );
-      } else if (
-        stateType === "list" &&
-        (match = text.match(sparkRegexes.struct_list_value))
-      ) {
-        const currentToken = createSparkToken(
-          "struct_list_value",
-          newLineLength,
-          {
-            content: text,
-            line: i + (config?.lineOffset || 0),
-            from,
-          }
-        );
-        const valueText = match[2] || "";
-        const valueFrom = currentToken.from + getStart(match, 2);
-        const valueTo = valueFrom + valueText.length;
-        addField(
-          parsed,
-          config,
-          currentToken,
-          currentSectionId,
-          currentStructFieldId,
-          undefined,
-          valueText,
-          currentToken.line,
-          currentToken.indent,
-          valueFrom,
-          valueTo,
           valueFrom,
           valueTo
         );
@@ -2448,6 +2341,7 @@ export const parseSpark = (
   let currentLevel = 0;
   let currentSectionId = "";
   let currentStructName = "";
+  let currentStructFieldParentId = "";
   let previousToken: SparkToken | undefined;
   let previousNonSeparatorToken: SparkToken | undefined;
   let lastTitlePageToken: SparkToken | undefined;
@@ -3072,6 +2966,7 @@ export const parseSpark = (
           currentToken.name = name;
         }
         currentStructName = name;
+        currentStructFieldParentId = ".";
       } else if ((match = currentToken.content.match(sparkRegexes.import))) {
         const type = "import";
         currentToken.type = type;
@@ -3418,11 +3313,13 @@ export const parseSpark = (
           currentToken.wait = true;
         }
       }
-    } else if (isStructType(stateType || "") && currentToken.content?.trim()) {
+    } else if (isStructType(stateType || "")) {
       if (
         (match = currentToken.content.match(sparkRegexes.struct_object_field))
       ) {
-        if (stateType === "list" || stateType === "map") {
+        const name = match[2] || "";
+        currentStructFieldParentId += name + ".";
+        if (stateType === "map") {
           diagnostic(
             parsed,
             currentToken,
@@ -3435,22 +3332,18 @@ export const parseSpark = (
           }
         }
       } else if (
-        stateType !== "list" &&
         (match = currentToken.content.match(sparkRegexes.struct_value_field))
       ) {
+        const name = match[2] || "";
         currentToken.type = "struct_value_field";
         if (currentToken.type === "struct_value_field") {
           currentToken.struct = currentStructName;
-        }
-      } else if (
-        stateType === "list" &&
-        (match = currentToken.content.match(sparkRegexes.struct_list_value))
-      ) {
-        currentToken.type = "struct_list_value";
-        if (currentToken.type === "struct_list_value") {
+          currentToken.id = currentStructFieldParentId + name;
         }
       } else {
-        diagnostic(parsed, currentToken, `Invalid ${stateType} field syntax`);
+        if (currentToken.content?.trim()) {
+          diagnostic(parsed, currentToken, `Invalid ${stateType} field syntax`);
+        }
       }
     }
 

@@ -3,4 +3,5 @@ export interface CompilerToken {
   content: string;
   from: number;
   to: number;
+  level: number;
 }

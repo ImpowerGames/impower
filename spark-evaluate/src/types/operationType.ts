@@ -6,4 +6,10 @@ export type OperationType =
   // ' "
   | "STRING"
   // + - * /
-  | "MATH";
+  | "MATH"
+  // [ ]
+  | "ARRAY"
+  // { }
+  | "MAP"
+  // ,
+  | "COMMA";

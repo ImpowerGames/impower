@@ -96,9 +96,10 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
   },
   arpeggio: {
     direction: ["down", ["down", "up", "both", "random"], [true]],
-    intervals: [
-      [1, 3, 5],
-      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    semitones: [
+      [0, 4, 8],
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+      0,
     ],
     shapes: [
       [],
@@ -114,9 +115,12 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
         "pinknoise",
         "whitenoise",
       ],
+      "sine",
     ],
     rate: [-1, [0, A0], [true, false]],
     rateRamp: [0, [-1, 1], [false, false]],
+    maxOctaves: [1, [1, 8], [true, false]],
+    maxNotes: [160, [1, 900], [true, false]],
   },
   harmony: {
     count: [-1, [0, 6], [true, false]],

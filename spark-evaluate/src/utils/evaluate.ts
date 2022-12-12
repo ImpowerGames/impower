@@ -8,6 +8,9 @@ export const evaluate = (
   context: Record<string, unknown> = {},
   config: CompilerConfig = defaultCompilerConfig
 ): unknown => {
+  if (!expr) {
+    return undefined;
+  }
   const [tokenList] = tokenize(expr);
   const compiler = new Compiler(tokenList, config);
   const astTree = compiler.parse();

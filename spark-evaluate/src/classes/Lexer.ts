@@ -22,6 +22,8 @@ export class Lexer {
   // input string
   private input = "";
 
+  private arrayLevel = 0;
+
   // operation table
   private optable: {
     [key: string]: OperationType;
@@ -47,6 +49,14 @@ export class Lexer {
     "*": "MATH",
     "/": "MATH",
     "%": "MATH",
+
+    "[": "ARRAY",
+    "]": "ARRAY",
+
+    "{": "MAP",
+    "}": "MAP",
+
+    ",": "COMMA",
   };
 
   constructor(expression: string) {
@@ -77,6 +87,18 @@ export class Lexer {
           break;
 
         case "MATH":
+          this.receiveToken();
+          break;
+
+        case "ARRAY":
+          this.receiveToken();
+          break;
+
+        case "COMMA":
+          this.receiveToken();
+          break;
+
+        case "MAP":
           this.receiveToken();
           break;
 
@@ -128,12 +150,19 @@ export class Lexer {
     const content = text.trim();
     // skip empty string
     if (content) {
+      if (content === "]") {
+        this.arrayLevel -= 1;
+      }
       this.tokenList.push({
         type: "token",
         content,
         from: from + offsetStart,
         to: to - offsetEnd,
+        level: this.arrayLevel,
       });
+      if (content === "[") {
+        this.arrayLevel += 1;
+      }
     }
 
     this.currentIndex += index;

@@ -17,4 +17,6 @@ export const OPERATION: { [key: string]: number } = {
   "||": 1,
   "?": 1,
   ":": 1,
+  ",": 1,
+  "]": 1,
 };

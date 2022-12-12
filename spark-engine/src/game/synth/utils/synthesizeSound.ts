@@ -5,8 +5,9 @@ import { SOUND_VALIDATION } from "../constants/SOUND_VALIDATION";
 import { Hertz } from "../types/Hertz";
 import { OscillatorType } from "../types/OscillatorType";
 import { Sound, SoundConfig } from "../types/Sound";
+import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
 
-const roundToNearestPeriod = (n: number, period: number): number => {
+const roundToNearestMultiple = (n: number, period: number): number => {
   return Math.ceil(n / period) * period;
 };
 
@@ -15,26 +16,64 @@ const mapOsc = (mod: number, min: number, max: number) => {
   return lerp(p, min, max);
 };
 
+const getCycleIndex = (
+  numNotesPlayed: number,
+  choicesLength: number
+): number => {
+  return Math.floor(numNotesPlayed / choicesLength);
+};
+
+const isChoicesReversed = (
+  numNotesPlayed: number,
+  choicesLength: number,
+  direction: "down" | "up" | "both" | "random"
+): boolean => {
+  const cycleIndex = getCycleIndex(numNotesPlayed, choicesLength);
+  const isEvenCycle = cycleIndex % 2 === 0;
+  const isReversed =
+    (direction !== "random" && direction === "up") ||
+    (direction === "both" && !isEvenCycle);
+  return isReversed;
+};
+
+const getOctaveSemitones = (
+  numNotesPlayed: number,
+  choicesLength: number,
+  direction: "down" | "up" | "both" | "random",
+  maxOctaves: number
+): number => {
+  const cycleIndex = getCycleIndex(numNotesPlayed, choicesLength);
+  const isReversed = isChoicesReversed(
+    numNotesPlayed,
+    choicesLength,
+    direction
+  );
+  const octave = Math.min(maxOctaves - 1, cycleIndex) * (isReversed ? -1 : 1);
+  return octave * 12;
+};
+
 const choose = <T>(
   choices: T[],
   reversedChoices: T[],
   direction: "down" | "up" | "both" | "random",
-  rep: number,
+  numNotesPlayed: number,
   seed: string
 ): T | undefined => {
-  const cycleIndex = Math.floor(rep / choices.length);
+  const cycleIndex = getCycleIndex(numNotesPlayed, choices.length);
   const cycleSeed =
     direction === "random" ? (seed || "") + cycleIndex : undefined;
-  const isEvenCycle = cycleIndex % 2 === 0;
-  const isReversed =
-    direction === "up" || (direction === "both" && !isEvenCycle);
+  const isReversed = isChoicesReversed(
+    numNotesPlayed,
+    choices.length,
+    direction
+  );
   const ordered =
     direction === "random"
       ? shuffle(choices, randomizer(cycleSeed))
       : isReversed
       ? reversedChoices
       : choices;
-  const chooseIndex = rep % choices.length;
+  const chooseIndex = numNotesPlayed % choices.length;
   return ordered[chooseIndex];
 };
 
@@ -203,13 +242,12 @@ export const fillBuffer = (
   sampleRate: number,
   startIndex: number,
   endIndex: number,
-  volume: number,
-  pitch: Hertz,
   soundBuffer: Float32Array,
   pitchBuffer?: Float32Array
 ): { minPitch: number; maxPitch: number } => {
   const sound_seed = sound.seed;
   const sound_wave = sound.wave;
+  const freq_pitch = sound.frequency.pitch;
   const amp_volume = sound.amplitude.volume;
   const amp_attack_duration = sound.amplitude.attack;
   const amp_decay_duration = sound.amplitude.decay;
@@ -232,11 +270,13 @@ export const fillBuffer = (
   const ring_strength = sound.ring.strength;
   const ring_rate = sound.ring.rate;
   const arpeggio_rate = sound.arpeggio.rate;
-  const arpeggio_intervals = sound.arpeggio.intervals;
-  const arpeggio_shapes = arpeggio_intervals.map(
+  const arpeggio_max_octaves = sound.arpeggio.maxOctaves;
+  const arpeggio_max_notes = sound.arpeggio.maxNotes;
+  const arpeggio_semitones = sound.arpeggio.semitones;
+  const arpeggio_shapes = arpeggio_semitones.map(
     (_, i) => sound.arpeggio.shapes[i] || sound_wave
   );
-  const arpeggio_intervals_reversed = [...arpeggio_intervals].reverse();
+  const arpeggio_semitones_reversed = [...arpeggio_semitones].reverse();
   const arpeggio_shapes_reversed = [...arpeggio_shapes].reverse();
   const arpeggio_direction = sound.arpeggio.direction;
 
@@ -341,7 +381,7 @@ export const fillBuffer = (
   let minPitch = Number.MAX_SAFE_INTEGER;
   let maxPitch = 0;
   let ampVolume = amp_volume;
-  let freqPitch = pitch;
+  let freqPitch = freq_pitch;
   let lowpassCutoff = lowpass_cutoff;
   let highpassCutoff = highpass_cutoff;
   let vibratoRate = vibrato_rate;
@@ -353,8 +393,8 @@ export const fillBuffer = (
   let ringRate = ring_rate;
   let ringStrength = ring_strength;
   let arpeggioRate = arpeggio_rate;
-  let arpIndex = 0;
-  let arpRep = 0;
+  let arpLengthPlayed = 0;
+  let arpNumNotesPlayed = 0;
   const lowpassInput: [number, number] = [0, 0];
   const lowpassOutput: [number, number, number] = [0, 0, 0];
   const highpassInput: [number, number] = [0, 0];
@@ -369,33 +409,44 @@ export const fillBuffer = (
     let sampleResonance = lowpass_resonance;
 
     // Arpeggio Effect
-    if (arpeggioRate > 0 && arpeggio_intervals.length > 0) {
+    if (
+      arpeggioRate > 0 &&
+      arpeggio_semitones.length > 0 &&
+      arpNumNotesPlayed < arpeggio_max_notes
+    ) {
+      const arpOctaveSemitones = getOctaveSemitones(
+        arpNumNotesPlayed,
+        arpeggio_semitones.length,
+        arpeggio_direction,
+        arpeggio_max_octaves
+      );
       sampleShape =
         choose(
           arpeggio_shapes,
           arpeggio_shapes_reversed,
           arpeggio_direction,
-          arpRep,
+          arpNumNotesPlayed,
           sound_seed
         ) || sound_wave;
-      const arpInterval =
+      const arpNoteSemitones =
         choose(
-          arpeggio_intervals,
-          arpeggio_intervals_reversed,
+          arpeggio_semitones,
+          arpeggio_semitones_reversed,
           arpeggio_direction,
-          arpRep,
+          arpNumNotesPlayed,
           sound_seed
         ) || 0;
+      const arpSemitones = arpOctaveSemitones + arpNoteSemitones;
       const secondsPerNote = 1 / arpeggioRate;
       const samplesPerNote = sampleRate * secondsPerNote;
       const periodLength = sampleRate / samplePitch;
       // Ensure frequency changes only occur at zero crossings (to prevent crackles)
-      const arpLimit = roundToNearestPeriod(samplesPerNote, periodLength);
-      arpIndex += 1;
-      if (arpIndex >= arpLimit) {
-        arpIndex = 0;
-        arpRep += 1;
-        samplePitch *= arpInterval;
+      const arpLimit = roundToNearestMultiple(samplesPerNote, periodLength);
+      arpLengthPlayed += 1;
+      if (arpLengthPlayed >= arpLimit) {
+        arpLengthPlayed = 0;
+        arpNumNotesPlayed += 1;
+        samplePitch *= convertSemitonesToFrequencyFactor(arpSemitones);
       }
     }
 
@@ -510,7 +561,6 @@ export const fillBuffer = (
     );
     sampleValue *= Math.max(0, envelopeVolume);
     sampleValue *= Math.max(0, ampVolume);
-    sampleValue *= Math.max(0, volume);
 
     // Set Buffer
     soundBuffer[i] += sampleValue;
@@ -545,7 +595,7 @@ export const synthesizeSound = (
   endIndex: number,
   soundBuffer: Float32Array,
   pitchBuffer?: Float32Array,
-  volume: number = 1,
+  volume?: number,
   pitch?: Hertz
 ): {
   minPitch: number;
@@ -586,6 +636,13 @@ export const synthesizeSound = (
   // let reverbStrength = reverb_strength;
   // let reverbDelay = reverb_delay;
 
+  if (volume != null) {
+    sound.amplitude.volume = volume;
+  }
+  if (pitch) {
+    sound.frequency.pitch = pitch;
+  }
+
   return fillBuffer(
     sound,
     sustainSound,
@@ -593,8 +650,6 @@ export const synthesizeSound = (
     sampleRate,
     startIndex,
     endIndex,
-    volume,
-    pitch || sound.frequency.pitch,
     soundBuffer,
     pitchBuffer
   );

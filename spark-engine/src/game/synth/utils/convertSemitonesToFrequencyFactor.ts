@@ -1,3 +1,5 @@
-export const convertSemitonesToFrequencyFactor = (interval: number): number => {
-  return Math.pow(2, interval / 12);
+export const convertSemitonesToFrequencyFactor = (
+  semitones: number
+): number => {
+  return Math.pow(2, semitones / 12);
 };

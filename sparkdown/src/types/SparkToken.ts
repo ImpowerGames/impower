@@ -42,6 +42,7 @@ export interface SparkStructToken extends SparkLine {
 export interface SparkStructFieldToken extends SparkLine {
   type: SparkStructFieldTokenType;
   struct: string;
+  id: string;
 }
 
 export interface SparkJumpToken extends SparkLine {

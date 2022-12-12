@@ -12,8 +12,11 @@ import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
 import {
   fillArrayWithTones,
+  getAllPropertyRequirements,
   Note,
   Pitch,
+  RecursiveValidation,
+  SOUND_VALIDATION,
   Tone,
 } from "../../../../spark-engine";
 import {
@@ -28,8 +31,11 @@ import {
   SparkParseResult,
   sparkRegexes,
   SparkSection,
+  SparkStructFieldToken,
 } from "../../../../sparkdown";
+import { SparkStructType } from "../../../../sparkdown/src/types/SparkStructType";
 import { colors } from "../constants/colors";
+import { Type } from "../types/type";
 
 interface Option {
   line: number;
@@ -42,6 +48,20 @@ interface Option {
 const OPEN_CURSOR = "${";
 const CLOSE_CURSOR = "}";
 const CURSOR = OPEN_CURSOR + CLOSE_CURSOR;
+
+const validations: Record<SparkStructType, RecursiveValidation<unknown>> = {
+  entity: undefined,
+  character: undefined,
+  list: undefined,
+  map: undefined,
+  ui: undefined,
+  style: undefined,
+  camera: undefined,
+  animation: undefined,
+  display: undefined,
+  sound: SOUND_VALIDATION,
+  typewriter: undefined,
+};
 
 const context = new AudioContext();
 
@@ -271,22 +291,22 @@ export const effectSnippets: readonly Completion[] = [
 ];
 
 export const conditionSnippets: readonly Completion[] = [
-  snip("* if (${}${condition}):", {
+  snip("* if ${}", {
     label: "* if",
     type: "condition",
   }),
-  snip("* elif (${}${condition}):", {
+  snip("* elif ${}", {
     label: "* elif",
     type: "condition",
   }),
-  snip("* else:", {
+  snip("* else${}", {
     label: "* else",
     type: "condition",
   }),
 ];
 
 export const declareSnippets: readonly Completion[] = [
-  snip("* var ${}${variableName} = ${value}", {
+  snip("* var ${}", {
     label: "* var",
     type: "type",
   }),
@@ -913,12 +933,12 @@ export const sparkAutocomplete = async (
   );
   const isUppercase = input.toUpperCase() === input;
 
-  if (["RepeatMark"].includes(node.name)) {
+  if ([Type.RepeatMark].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(...repeatSnippets);
     return completeFromList(completions)(context);
   }
-  if (["Paragraph", "Action"].includes(node.name)) {
+  if ([Type.Paragraph, Type.Action].includes(node.type.id)) {
     const completions: Completion[] = [];
     if (input.match(/^[\w]+/)) {
       if (isUppercase) {
@@ -932,46 +952,46 @@ export const sparkAutocomplete = async (
   }
   if (
     [
-      "Section",
-      "SectionMark",
-      "PossibleSection",
-      "PossibleSectionMark",
-    ].includes(node.name)
+      Type.Section,
+      Type.SectionMark,
+      Type.PossibleSection,
+      Type.PossibleSectionMark,
+    ].includes(node.type.id)
   ) {
     const completions: Completion[] = [];
     completions.push(...sectionHeaderSnippets(sectionLevel));
     return completeFromList(completions)(context);
   }
-  if (["ChoiceMark"].includes(node.name)) {
+  if ([Type.ChoiceMark].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(...choiceSnippets);
     return completeFromList(completions)(context);
   }
-  if (["Transition"].includes(node.name)) {
+  if ([Type.Transition].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(...transitionSnippets);
     return completeFromList(completions)(context);
   }
-  if (["ScenePrefix"].includes(node.name)) {
+  if ([Type.ScenePrefix].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(...scenePrefixSnippets);
     return completeFromList(completions)(context);
   }
-  if (["SceneLocation"].includes(node.name)) {
+  if ([Type.SceneLocation].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(
       ...nameSnippets(Object.keys(result?.properties?.locations || {}), "scene")
     );
     return completeFromList(completions)(context);
   }
-  if (["SceneTime"].includes(node.name)) {
+  if ([Type.SceneTime].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(
       ...nameSnippets(Object.keys(result?.properties?.times || {}), "scene")
     );
     return completeFromList(completions)(context);
   }
-  if (["PossibleCharacter"].includes(node.name)) {
+  if ([Type.PossibleCharacter].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
@@ -984,7 +1004,7 @@ export const sparkAutocomplete = async (
     completions.push(...uppercaseParagraphSnippets);
     return completeFromList(completions)(context);
   }
-  if (["PossibleCharacterName"].includes(node.name)) {
+  if ([Type.PossibleCharacterName].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
@@ -996,7 +1016,7 @@ export const sparkAutocomplete = async (
     );
     return completeFromList(completions)(context);
   }
-  if (["Character", "CharacterName"].includes(node.name)) {
+  if ([Type.Character, Type.CharacterName].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
@@ -1007,7 +1027,7 @@ export const sparkAutocomplete = async (
     );
     return completeFromList(completions)(context);
   }
-  if (["ImageNote"].includes(node.name)) {
+  if ([Type.ImageNote].includes(node.type.id)) {
     const completions: Completion[] = [];
     const validOptions = assetOptions.filter(
       (x) => x.type === "image" || x.type === "graphic"
@@ -1015,13 +1035,13 @@ export const sparkAutocomplete = async (
     completions.push(...assetSnippets(validOptions, variables, "image"));
     return completeFromList(completions)(context);
   }
-  if (["AudioNote"].includes(node.name)) {
+  if ([Type.AudioNote].includes(node.type.id)) {
     const completions: Completion[] = [];
     const validOptions = assetOptions.filter((x) => x.type === "audio");
     completions.push(...assetSnippets(validOptions, variables, "audio"));
     return completeFromList(completions)(context);
   }
-  if (node.name === "DynamicTag") {
+  if (node.type.id === Type.DynamicTag) {
     const completions: Completion[] = [];
     completions.push(
       ...nameSnippets(tagOptions, "tag", "", "", colors.tag),
@@ -1029,29 +1049,115 @@ export const sparkAutocomplete = async (
     );
     return completeFromList(completions)(context);
   }
-  if (["StructMark"].includes(node.name)) {
+  if ([Type.StructMark].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(...structSnippets);
     return completeFromList(completions)(context);
   }
-  if (["AssignMark", "CallMark", "VariableMark"].includes(node.name)) {
+  if ([Type.StructFieldName].includes(node.type.id)) {
+    const tokenIndex = result.tokenLines[line.number];
+    const structField = result.tokens[tokenIndex] as SparkStructFieldToken;
+    const structName = structField?.struct;
+    const fieldId = structField?.id;
+    const struct = result.structs[structName || ""];
+    const structType = struct?.type;
+    const validation = validations[structType];
+    if (validation) {
+      const requirements = getAllPropertyRequirements(validation);
+      const possibleNames: Record<string, unknown[]> = {};
+      Object.entries(requirements).forEach(([p, v]) => {
+        if (p.startsWith(fieldId) && !Object.keys(struct.fields).includes(p)) {
+          const k = p.slice(fieldId.length);
+          const path = k.split(".");
+          const name = path[0];
+          const isObject = path[1] !== undefined;
+          if (isObject) {
+            possibleNames[name] = [];
+          } else {
+            possibleNames[name] = v;
+          }
+        }
+      });
+      const completions = Object.entries(possibleNames).map(([name, v]) => {
+        const defaultValue = v[0];
+        const type =
+          defaultValue == null
+            ? "object"
+            : Array.isArray(defaultValue)
+            ? "array"
+            : typeof defaultValue;
+        const trimmedEnd = line.text.trimEnd();
+        const currentIndent = trimmedEnd.slice(
+          0,
+          trimmedEnd.lastIndexOf(" ") + 1
+        );
+        const indent = `${currentIndent}`;
+        const template =
+          type === "object"
+            ? `${name}:\n${indent}${CURSOR}`
+            : `${name} = ${CURSOR}`;
+        return snip(template, {
+          label: name,
+          type,
+        });
+      });
+      return completeFromList(completions)(context);
+    }
+  }
+  if ([Type.StructFieldValue].includes(node.type.id)) {
+    if ([`""`, `''`, "''"].includes(input)) {
+      const tokenIndex = result.tokenLines[line.number];
+      const structField = result.tokens[tokenIndex] as SparkStructFieldToken;
+      const structName = structField?.struct;
+      const fieldId = structField?.id;
+      const struct = result.structs[structName || ""];
+      const structType = struct?.type;
+      const validation = validations[structType];
+      if (validation) {
+        const requirements = getAllPropertyRequirements(validation);
+        const requirement = requirements[fieldId];
+        if (requirement) {
+          const [defaultValue, options] = requirement;
+          const type =
+            defaultValue == null
+              ? "object"
+              : Array.isArray(defaultValue)
+              ? "array"
+              : typeof defaultValue;
+          if (options && options.length > 0) {
+            const completions = options.map((option) => {
+              const o = `${option}`;
+              return snip(o, {
+                label: o,
+                type,
+              });
+            });
+            return allFromList(completions)(context);
+          }
+        }
+      }
+    }
+  }
+  if (
+    [Type.AssignMark, Type.CallMark, Type.VariableMark].includes(node.type.id)
+  ) {
     const completions: Completion[] = [];
     completions.push(
       ...logicSnippets(variableOptions, sectionId, result?.sections)
     );
     return completeFromList(completions)(context);
   }
-  if (["GoMark", "ChoiceGoMark"].includes(node.name)) {
+  if ([Type.JumpMark, Type.ChoiceJumpMark].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(...sectionSnippets(sectionId, result?.sections, "> "));
     return completeFromList(completions)(context);
   }
-  if (["GoSectionName", "ChoiceSectionName"].includes(node.name)) {
+  if ([Type.JumpSectionName, Type.ChoiceSectionName].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(...sectionSnippets(sectionId, result?.sections));
     return completeFromList(completions)(context);
   }
-  if (["CallEntityName"].includes(node.name)) {
+  if ([Type.CallEntityName].includes(node.type.id)) {
     const completions: Completion[] = [];
     const validOptions = entityOptions.filter(
       (x) => x.type === "image" || x.type === "graphic"
@@ -1063,7 +1169,7 @@ export const sparkAutocomplete = async (
     }
     return completeFromList(completions)(context);
   }
-  if (["VariableValue"].includes(node.name)) {
+  if ([Type.VariableValue].includes(node.type.id)) {
     const completions: Completion[] = [];
     const validVariableOptions = variableOptions.filter(
       (x) => x.line !== lineNumber
@@ -1081,16 +1187,16 @@ export const sparkAutocomplete = async (
   }
   if (
     [
-      "AssignName",
-      "AssignValue",
-      "CallValue",
-      "GoValue",
-      "ReturnValue",
-      "ConditionValue",
-      "SectionParameterValue",
-      "SectionVariableName",
-      "InterpolationVariableName",
-    ].includes(node.name)
+      Type.AssignName,
+      Type.AssignValue,
+      Type.CallValue,
+      Type.JumpValue,
+      Type.ReturnValue,
+      Type.ConditionValue,
+      Type.SectionParameterValue,
+      Type.SectionVariableName,
+      Type.InterpolationVariableName,
+    ].includes(node.type.id)
   ) {
     const completions: Completion[] = [];
     completions.push(

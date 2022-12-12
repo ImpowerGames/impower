@@ -39,9 +39,11 @@ export interface Sound {
   arpeggio: {
     rate: number;
     rateRamp: number;
-    intervals: number[];
+    semitones: number[];
     shapes: OscillatorType[];
     direction: "up" | "down" | "both" | "random";
+    maxOctaves: number;
+    maxNotes: number;
   };
   harmony: {
     count: number;

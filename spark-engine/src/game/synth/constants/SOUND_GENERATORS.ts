@@ -11,6 +11,41 @@ import { SoundConfig } from "../types/Sound";
 import { OSCILLATOR_TYPES } from "./OSCILLATOR_TYPES";
 import { SOUND_VALIDATION } from "./SOUND_VALIDATION";
 
+const MAJOR_ARPEGGIOS = [
+  [0, 4, 8],
+  [0, 4, 8, 14],
+  [2, 7, 10],
+  [4, 9, 12],
+  [0, 6, 10],
+  [0, 6, 10, 14],
+  [2, 8, 12],
+  [1, 4, 10],
+  [3, 7, 12],
+  [1, 6, 9],
+  [3, 8, 11],
+  [1, 7, 11],
+  [0, 3, 9],
+  [0, 3, 9, 14],
+  [2, 6, 11],
+];
+
+const MINOR_ARPEGGIOS = [
+  [0, 3, 8],
+  [0, 3, 8, 14],
+  [4, 8, 12],
+  [0, 6, 9],
+  [0, 6, 9, 14],
+  [2, 8, 11],
+  [0, 4, 10],
+  [0, 4, 10, 14],
+  [2, 7, 12],
+  [1, 4, 9],
+  [3, 7, 11],
+  [1, 7, 10],
+  [3, 9, 12],
+  [1, 6, 11],
+];
+
 const frnd = (range: number, rng: (() => number) | undefined) => {
   const r = rng || Math.random;
   return r() * range;
@@ -39,9 +74,22 @@ const coin = (rng?: () => number): SoundConfig => {
   result.amplitude.release = 0.1 + frnd(0.4, rng);
   if (rnd(1, rng)) {
     result.arpeggio.rate = 0.5 + frnd(0.2, rng);
-    // var num = (frnd(7, rng) | 1) + 1;
-    // var den = num + (frnd(7, rng) | 1) + 2;
-    // TODO: result.arpeggio.mod = +num / +den;
+    result.arpeggio.maxNotes = 2;
+    result.arpeggio.direction = "up";
+    result.arpeggio.semitones = pick(
+      [
+        [0, 4],
+        [0, 6],
+        [0, 7],
+        [0, 8],
+        [0, 9],
+        [0, 10],
+        [0, 11],
+        [0, 12],
+        [0, 14],
+      ],
+      rng
+    );
   }
   denormalize(result, SOUND_VALIDATION);
   return result;
@@ -115,7 +163,7 @@ const boom = (rng?: () => number): SoundConfig => {
   }
   if (rnd(2, rng) === 0) {
     result.arpeggio.rate = 0.6 + frnd(0.3, rng);
-    // TODO: result.arpeggio.mod = 0.8 - frnd(1.6, rng);
+    result.arpeggio.direction = "down";
   }
   denormalize(result, SOUND_VALIDATION);
   return result;
@@ -144,39 +192,7 @@ const push = (rng?: () => number): SoundConfig => {
   // TODO: result.harmony.countRamp = -0.3 + frnd(0.9, rng);
   // TODO: result.harmony.falloff = -frnd(0.3, rng);
   result.arpeggio.rate = 0.6 + frnd(0.3, rng);
-  // TODO: result.arpeggio.mod = 0.8 - frnd(1.6, rng);
-  denormalize(result, SOUND_VALIDATION);
-  return result;
-};
-
-const powerup = (rng?: () => number): SoundConfig => {
-  const result = create(SOUND_VALIDATION);
-  normalize(result, SOUND_VALIDATION);
-  result.wave = pick([
-    "sine",
-    "triangle",
-    "sawtooth",
-    "square",
-    "tangent",
-    "breaker",
-    "whistle",
-  ]);
-  if (rnd(1, rng)) {
-    result.frequency.pitch = 0.2 + frnd(0.3, rng);
-    result.frequency.ramp = 0.1 + frnd(0.4, rng);
-    result.reverb.strength = frnd(0.7, rng);
-    result.reverb.delay = 0.4 + frnd(0.4, rng);
-  } else {
-    result.frequency.pitch = 0.2 + frnd(0.3, rng);
-    result.frequency.ramp = 0.05 + frnd(0.2, rng);
-    if (rnd(1, rng)) {
-      result.vibrato.strength = frnd(0.7, rng);
-      result.vibrato.rate = frnd(0.6, rng);
-    }
-  }
-  result.amplitude.attack = 0.0;
-  result.amplitude.sustain = frnd(0.4, rng);
-  result.amplitude.release = 0.1 + frnd(0.4, rng);
+  result.arpeggio.direction = "down";
   denormalize(result, SOUND_VALIDATION);
   return result;
 };
@@ -204,6 +220,74 @@ const hurt = (rng?: () => number): SoundConfig => {
   if (rnd(1, rng)) {
     result.highpass.cutoff = frnd(0.3, rng);
   }
+  denormalize(result, SOUND_VALIDATION);
+  return result;
+};
+
+const powerup = (rng?: () => number): SoundConfig => {
+  const result = create(SOUND_VALIDATION);
+  normalize(result, SOUND_VALIDATION);
+  result.wave = pick([
+    "sine",
+    "triangle",
+    "sawtooth",
+    "square",
+    "tangent",
+    "breaker",
+    "whistle",
+  ]);
+  if (rnd(1, rng)) {
+    result.frequency.pitch = 0.2 + frnd(0.3, rng);
+    result.frequency.ramp = 0.1 + frnd(0.4, rng);
+    result.arpeggio.rate = 0.5 + frnd(0.2, rng);
+    result.arpeggio.maxNotes = 160;
+    result.arpeggio.direction = "up";
+    result.arpeggio.semitones = pick(MAJOR_ARPEGGIOS, rng);
+  } else {
+    result.frequency.pitch = 0.2 + frnd(0.3, rng);
+    result.frequency.ramp = 0.05 + frnd(0.2, rng);
+    if (rnd(1, rng)) {
+      result.vibrato.strength = frnd(0.7, rng);
+      result.vibrato.rate = frnd(0.6, rng);
+    }
+  }
+  result.amplitude.attack = 0.0;
+  result.amplitude.sustain = frnd(0.4, rng);
+  result.amplitude.release = 0.1 + frnd(0.4, rng);
+  denormalize(result, SOUND_VALIDATION);
+  return result;
+};
+
+const lose = (rng?: () => number): SoundConfig => {
+  const result = create(SOUND_VALIDATION);
+  normalize(result, SOUND_VALIDATION);
+  result.wave = pick([
+    "sine",
+    "triangle",
+    "sawtooth",
+    "square",
+    "tangent",
+    "breaker",
+    "whistle",
+  ]);
+  if (rnd(1, rng)) {
+    result.frequency.pitch = 0.2 + frnd(0.3, rng);
+    result.frequency.ramp = 0.1 + frnd(0.2, rng);
+    result.arpeggio.rate = 0.5 + frnd(0.3, rng);
+    result.arpeggio.maxNotes = 160;
+    result.arpeggio.direction = "down";
+    result.arpeggio.semitones = pick(MINOR_ARPEGGIOS, rng);
+  } else {
+    result.frequency.pitch = 0.2 + frnd(0.3, rng);
+    result.frequency.ramp = 0.05 + frnd(0.2, rng);
+    if (rnd(1, rng)) {
+      result.vibrato.strength = frnd(0.7, rng);
+      result.vibrato.rate = frnd(0.6, rng);
+    }
+  }
+  result.amplitude.attack = 0.0;
+  result.amplitude.sustain = frnd(0.4, rng);
+  result.amplitude.release = 0.1 + frnd(0.4, rng);
   denormalize(result, SOUND_VALIDATION);
   return result;
 };
@@ -273,7 +357,6 @@ const chirp = (rng?: () => number): SoundConfig => {
     result.frequency.accel = 0.004598608156964473 + frnd(0.1, rng) - 0.05;
     result.vibrato.strength = -0.2202799497929496 + frnd(0.2, rng) - 0.1;
     result.vibrato.rate = 0.8084998703158364 + frnd(0.2, rng) - 0.1;
-    // TODO: result.arpeggio.mod = 0;
     result.arpeggio.rate = 0;
     result.reverb.strength = frnd(0.7, rng);
     result.reverb.delay = 0.6014860189319991 + frnd(0.2, rng) - 0.1;
@@ -307,7 +390,6 @@ const chirp = (rng?: () => number): SoundConfig => {
     result.frequency.accel = -0.012891241489551925;
     result.vibrato.strength = -0.17923136138403065 + frnd(0.2, rng) - 0.1;
     result.vibrato.rate = 0.908263385610142 + frnd(0.2, rng) - 0.1;
-    // TODO: result.arpeggio.mod = 0.41690153355414894 + frnd(0.2, rng) - 0.1;
     result.arpeggio.rate = 0.0010766233195860703 + frnd(0.2, rng) - 0.1;
     result.reverb.strength = frnd(0.7, rng);
     result.reverb.delay = 0.0591789344172107 + frnd(0.2, rng) - 0.1;
@@ -340,7 +422,6 @@ const chirp = (rng?: () => number): SoundConfig => {
     result.frequency.accel = 0.004598608156964473 + frnd(0.2, rng) - 0.1;
     result.vibrato.strength = -0.2202799497929496 + frnd(0.2, rng) - 0.1;
     result.vibrato.rate = 0.8084998703158364 + frnd(0.2, rng) - 0.1;
-    // TODO: result.arpeggio.mod = -0.46410459213693644 + frnd(0.2, rng) - 0.1;
     result.arpeggio.rate = -0.10955361249587248 + frnd(0.2, rng) - 0.1;
     result.reverb.strength = frnd(0.7, rng);
     result.reverb.delay = 0.7014860189319991 + frnd(0.2, rng) - 0.1;
@@ -365,7 +446,6 @@ const chirp = (rng?: () => number): SoundConfig => {
       "whistle",
     ]);
     if (rnd(1, rng)) {
-      // TODO: result.arpeggio.mod = 0.2697849293151393 + frnd(0.2, rng) - 0.1;
       result.arpeggio.rate = -0.3131172257760948 + frnd(0.2, rng) - 0.1;
       result.frequency.pitch = 0.8090588299313949 + frnd(0.2, rng) - 0.1;
       result.amplitude.attack = 0.004321877246874195 + frnd(0.2, rng) - 0.1;
@@ -386,7 +466,6 @@ const chirp = (rng?: () => number): SoundConfig => {
       result.vibrato.rate = 0.4496665457171294 + frnd(0.2, rng) - 0.1;
       result.vibrato.strength = 0.23413762515532424 + frnd(0.2, rng) - 0.1;
     } else {
-      // TODO: result.arpeggio.mod = -0.35697118026766184 + frnd(0.2, rng) - 0.1;
       result.arpeggio.rate = 0.3581140690559588 + frnd(0.2, rng) - 0.1;
       result.frequency.pitch = 1.3260897696157528 + frnd(0.2, rng) - 0.1;
       result.amplitude.attack = 0.3160357835682254 + frnd(0.2, rng) - 0.1;
@@ -428,7 +507,7 @@ const chirp = (rng?: () => number): SoundConfig => {
   // TODO: result.harmony.countRamp = -0.3 + frnd(0.9, rng);
   // TODO: result.harmony.falloff = -frnd(0.3, rng);
   result.arpeggio.rate = 0.4 + frnd(0.6, rng);
-  // TODO: result.arpeggio.mod = 0.8 + frnd(0.1, rng);
+  result.arpeggio.direction = "random";
   result.lowpass.resonance = frnd(2.0, rng) - 1.0;
   result.lowpass.cutoff = 1.0 - Math.pow(frnd(1.0, rng), 3.0);
   result.lowpass.cutoffRamp = Math.pow(frnd(2.0, rng) - 1.0, 3.0);
@@ -485,7 +564,7 @@ const random = (rng?: () => number): SoundConfig => {
   result.reverb.strength = frnd(0.7, rng);
   result.reverb.delay = frnd(2.0, rng) - 1.0;
   result.arpeggio.rate = frnd(2.0, rng) - 1.0;
-  // TODO: result.arpeggio.mod = frnd(2.0, rng) - 1.0;
+  result.arpeggio.direction = "up";
   denormalize(result, SOUND_VALIDATION);
   return result;
 };
@@ -495,6 +574,7 @@ export type SoundGeneratorType =
   | "zap"
   | "boom"
   | "powerup"
+  | "lose"
   | "hurt"
   | "jump"
   | "blip"
@@ -509,8 +589,9 @@ export const SOUND_GENERATORS: Record<
   coin,
   zap,
   boom,
-  powerup,
   hurt,
+  powerup,
+  lose,
   jump,
   blip,
   push,
@@ -524,6 +605,7 @@ export const SOUND_GENERATOR_TYPES: SoundGeneratorType[] = [
   "boom",
   "powerup",
   "hurt",
+  "lose",
   "jump",
   "blip",
   "push",

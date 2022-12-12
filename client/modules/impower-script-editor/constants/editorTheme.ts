@@ -50,9 +50,6 @@ export const editorTheme: {
     margin: "0 4px",
     padding: "0 8px",
   },
-  ".cm-completionIcon": {
-    paddingRight: "1.25em",
-  },
   ".cm-panel.cm-panel-lint": {
     "& ul": {
       "& [aria-selected]": {
@@ -84,6 +81,16 @@ export const editorTheme: {
     opacity: 0.55,
     fontStyle: "normal",
     whiteSpace: "pre-wrap",
+  },
+  ".cm-completionIcon": {
+    minWidth: "1.75em",
+    textAlign: "center",
+    padding: 0,
+    paddingRight: "2px",
+    margin: 0,
+  },
+  ".cm-snippetFieldPosition": {
+    border: "none",
   },
   ".cm-completionIcon-choice_plus": {
     "&:after": {
@@ -144,6 +151,30 @@ export const editorTheme: {
   },
   ".cm-completionIcon-quit": {
     "&:after": { content: "'×'", color: colors.section },
+  },
+  ".cm-completionIcon-string": {
+    "&:after": {
+      content: `'""'`,
+      color: colors.keyword,
+    },
+  },
+  ".cm-completionIcon-number": {
+    "&:after": {
+      content: "'0'",
+      color: colors.keyword,
+    },
+  },
+  ".cm-completionIcon-array": {
+    "&:after": {
+      content: `'[]'`,
+      color: colors.keyword,
+    },
+  },
+  ".cm-completionIcon-object": {
+    "&:after": {
+      content: "'{}'",
+      color: colors.keyword,
+    },
   },
   ".cm-completionIcon-type": {
     "&:after": {

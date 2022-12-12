@@ -14,8 +14,6 @@ import { CompilerToken } from "../types/compilerToken";
 import { get } from "../utils/get";
 
 export class Compiler {
-  blockLevel = 0;
-
   private index = -1;
 
   private tokens: CompilerToken[];
@@ -50,14 +48,21 @@ export class Compiler {
 
     do {
       tok = this.parseStatement();
-      if (tok === null || tok === undefined) {
+
+      if (!tok) {
         break;
       }
-
       if (root.left === null) {
         root.left = tok;
         const nextTok = this.nextToken();
-        if (!nextTok || nextTok.content === ")") {
+        if (!nextTok) {
+          return tok;
+        }
+        if (nextTok && nextTok.content === "]") {
+          root.operation = nextTok;
+          return root;
+        }
+        if (nextTok.content === ")") {
           return tok;
         }
         root.operation = nextTok;
@@ -84,16 +89,21 @@ export class Compiler {
     }
 
     if (!node.operation) {
-      const message = `Invalid operation`;
-      this._diagnostics.push({
-        content: "",
-        from: 0,
-        to: 0,
-        severity: "error",
-        type: "unknown-operation",
-        message,
-      });
-      return undefined;
+      const prevToken = this.prevToken();
+      if (prevToken && prevToken.content === "]") {
+        return [];
+      } else {
+        const message = `expression expected`;
+        this._diagnostics.push({
+          content: "",
+          from: 1,
+          to: 1,
+          severity: "error",
+          type: "unknown-operation",
+          message,
+        });
+        return undefined;
+      }
     }
     if (!OPERATION[node.operation.content]) {
       const message = `Unknown operation ${node.operation.content}`;
@@ -107,9 +117,14 @@ export class Compiler {
       });
       return undefined;
     }
+    const operator = node.operation.content;
 
-    if (node.operation.content === "!" && node.right) {
+    if (operator === "!" && node.right) {
       return !this.getValue(node.right, context);
+    }
+
+    if (operator === "]" && !node.left) {
+      return [];
     }
 
     const left = this.getValue(node.left, context) as number;
@@ -117,13 +132,15 @@ export class Compiler {
       return left;
     }
 
-    const right = this.getValue(node.right, context) as number;
+    if (operator === "]" && !node.right) {
+      return [left];
+    }
 
+    const right = this.getValue(node.right, context) as number;
     if (left === undefined || right === undefined) {
       return undefined;
     }
 
-    const operator = node.operation.content;
     const message = `Operator '${operator}' cannot be applied to types '${typeof left}' and '${typeof right}'`;
     const unsupportedError: CompilerDiagnostic = {
       content: node.operation.content,
@@ -134,6 +151,13 @@ export class Compiler {
       message,
     };
     switch (operator) {
+      case ",": {
+        const array = Array.isArray(left) ? left : [left, right];
+        if (Array.isArray(left)) {
+          array.push(right);
+        }
+        return array;
+      }
       case "+": {
         if (typeof left === "number" && typeof right === "number") {
           return left + right;
@@ -206,7 +230,8 @@ export class Compiler {
     context: Record<string, unknown>
   ): unknown {
     this._diagnostics = [];
-    return this._calc(node, context);
+    const result = this._calc(node, context);
+    return result;
   }
 
   private nextToken(): CompilerToken | undefined {
@@ -379,10 +404,21 @@ export class Compiler {
       return null;
     }
 
-    if (token.content === "(") {
-      this.blockLevel += 1;
+    if (token.content === "[") {
       const node = this.parse();
-      this.blockLevel -= 1;
+
+      if (node.type === "node") {
+        node.grouped = true;
+      }
+      return node;
+    }
+
+    if (token.content === "]") {
+      return null;
+    }
+
+    if (token.content === "(") {
+      const node = this.parse();
 
       if (node.type === "node") {
         node.grouped = true;
@@ -411,7 +447,13 @@ export class Compiler {
     ) {
       return {
         type: "node",
-        left: { type: "token", content: "0", from: token.from, to: token.to },
+        left: {
+          type: "token",
+          content: "0",
+          from: token.from,
+          to: token.to,
+          level: token.level,
+        },
         operation: token,
         right: this.parseStatement(),
         grouped: true,
