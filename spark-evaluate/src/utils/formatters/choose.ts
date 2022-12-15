@@ -1,4 +1,4 @@
-import { CompilerDiagnostic } from "../../types/compilerDiagnostic";
+import { CompilerDiagnostic } from "../../types/CompilerDiagnostic";
 import { randomizer } from "../randomizer";
 import { shuffle } from "../shuffle";
 

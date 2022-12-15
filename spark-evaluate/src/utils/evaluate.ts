@@ -1,22 +1,18 @@
-import { Compiler } from "../classes/Compiler";
-import { defaultCompilerConfig } from "../defaults/defaultCompilerConfig";
-import { CompilerConfig } from "../types/compilerConfig";
-import { tokenize } from "./tokenize";
+import { SparkExpressionCompiler } from "../classes/SparkExpressionCompiler";
+import { DEFAULT_COMPILER_CONFIG } from "../constants/DEFAULT_COMPILER_CONFIG";
+import { DEFAULT_PARSER } from "../constants/DEFAULT_PARSER";
+import { CompilerConfig } from "../types/CompilerConfig";
 
 export const evaluate = (
   expr: string,
   context: Record<string, unknown> = {},
-  config: CompilerConfig = defaultCompilerConfig
+  config: CompilerConfig = DEFAULT_COMPILER_CONFIG
 ): unknown => {
   if (!expr) {
     return undefined;
   }
-  const [tokenList] = tokenize(expr);
-  const compiler = new Compiler(tokenList, config);
-  const astTree = compiler.parse();
-  if (astTree == null) {
-    throw new Error(`Parse Error: ${expr}`);
-  }
-  const result = compiler.calc(astTree, context);
+  const [node] = DEFAULT_PARSER.parse(expr);
+  const compiler = new SparkExpressionCompiler(config);
+  const result = compiler.evaluate(node, context);
   return result;
 };

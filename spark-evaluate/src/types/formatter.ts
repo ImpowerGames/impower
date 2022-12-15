@@ -1,5 +1,5 @@
-import { CompilerDiagnostic } from "./compilerDiagnostic";
-import { CompilerReference } from "./compilerReference";
+import { CompilerDiagnostic } from "./CompilerDiagnostic";
+import { CompilerReference } from "./CompilerReference";
 
 export type Formatter = (
   str: string,

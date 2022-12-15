@@ -1,7 +1,7 @@
-import { customFormatters } from "../constants/customFormatters";
-import { CompilerDiagnostic } from "../types/compilerDiagnostic";
-import { CompilerReference } from "../types/compilerReference";
-import { CustomFormatter } from "../types/customFormatter";
+import { CUSTOM_FORMATTERS } from "../constants/CUSTOM_FORMATTERS";
+import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
+import { CompilerReference } from "../types/CompilerReference";
+import { CustomFormatter } from "../types/CustomFormatter";
 import { choose } from "./formatters/choose";
 import { pluralize } from "./formatters/pluralize";
 
@@ -9,7 +9,7 @@ export const format = (
   str: string,
   args: Record<string, unknown> = {},
   locale: string | undefined = undefined,
-  formatters: Record<string, CustomFormatter> = customFormatters
+  formatters: Record<string, CustomFormatter> = CUSTOM_FORMATTERS
 ): [string, CompilerDiagnostic[], CompilerReference[]] => {
   const possibleValues: CompilerReference[] = [];
   const diagnostics: CompilerDiagnostic[] = [];
@@ -75,7 +75,6 @@ export const format = (
         from,
         to,
         severity: "error",
-        type: "variable-not-found",
         message: `Cannot find variable named '${tagKey}'`,
       });
     }
@@ -157,7 +156,6 @@ export const format = (
           from: 0,
           to: formatterKey.length,
           severity: "error",
-          type: "invalid-formatter-arguments",
           message: `Both options must be specified: false|true`,
         });
       }

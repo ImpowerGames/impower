@@ -96,13 +96,6 @@ export const DefaultSkipMarkup: {
     }
     return true;
   },
-  [Type.StructList](_bl, cx, line): boolean {
-    const struct = isStruct(line);
-    if (!struct && line.indent < line.baseIndent + 2) {
-      return false;
-    }
-    return true;
-  },
   [Type.ListItem](bl, _cx, line) {
     if (line.indent < line.baseIndent + bl.value && line.next > -1) {
       return false;

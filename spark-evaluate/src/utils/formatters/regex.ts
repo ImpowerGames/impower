@@ -1,4 +1,4 @@
-import { CompilerDiagnostic } from "../../types/compilerDiagnostic";
+import { CompilerDiagnostic } from "../../types/CompilerDiagnostic";
 
 export const regexes: Record<string, Record<string, string>> = {
   A: {

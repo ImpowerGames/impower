@@ -3,6 +3,5 @@ export interface CompilerDiagnostic {
   from: number;
   to: number;
   severity: "info" | "warning" | "error";
-  type: string;
   message: string;
 }

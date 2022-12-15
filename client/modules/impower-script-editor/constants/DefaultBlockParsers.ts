@@ -34,7 +34,6 @@ import {
   isScene,
   isSectionHeading,
   isStruct,
-  isStructListValue,
   isStructObjectField,
   isStructValueField,
   isSynopsis,
@@ -75,7 +74,13 @@ export const parseTemplateString = (
         from +
         interpolationVariableName.length +
         interpolationVariableNameSpace.length;
-      buf = buf.write(Type.InterpolationVariableName, from, to);
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      buf = parseExpression(
+        buf,
+        interpolationVariableName + interpolationVariableNameSpace,
+        from,
+        to
+      );
       from = to;
       to = from + interpolationCloseMark.length;
       buf = buf.write(Type.InterpolationCloseMark, from, to);
@@ -94,42 +99,53 @@ export const parseExpression = (
   from: number,
   to: number
 ): MarkdownBuffer => {
-  const [tokens] = tokenize(expression);
   const exprFrom = from;
-  tokens.forEach((t) => {
-    if (!Number.isNaN(Number(t.content))) {
-      buf = buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
-    }
-    if (sparkRegexes.string_template.test(t.content)) {
-      from = exprFrom + t.from;
-      to = exprFrom + t.from;
-      buf = parseTemplateString(buf, t.content, from, to);
-    } else if (sparkRegexes.string.test(t.content)) {
-      buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
-    }
-    if (sparkRegexes.boolean.test(t.content)) {
-      buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
-    }
-    const variableMatch = t.content.match(sparkRegexes.variableAccess);
-    if (variableMatch) {
-      const name = variableMatch[1] || "";
-      const fieldAccess = variableMatch[2] || "";
-      if (fieldAccess) {
-        from = exprFrom + t.from;
-        to = exprFrom + name.length;
-        buf = buf.write(Type.StructName, from, to);
-        fieldAccess.split(/([.])/).forEach((f) => {
-          from = to;
-          to = from + f.length;
-          if (f !== ".") {
-            buf = buf.write(Type.StructFieldAccess, from, to);
+  const tokens = tokenize(expression);
+  const templateLiteralToken = tokens.find((t) => t.type === "TemplateLiteral");
+  if (templateLiteralToken) {
+    buf = parseTemplateString(
+      buf,
+      templateLiteralToken.content,
+      exprFrom + templateLiteralToken.from,
+      exprFrom + templateLiteralToken.to
+    );
+  } else {
+    tokens.forEach((t) => {
+      if (t.type === "Literal") {
+        if (sparkRegexes.string.test(t.content)) {
+          buf = buf.write(Type.String, exprFrom + t.from, exprFrom + t.to);
+        } else if (sparkRegexes.boolean.test(t.content)) {
+          buf = buf.write(Type.Boolean, exprFrom + t.from, exprFrom + t.to);
+        } else if (!Number.isNaN(Number(t.content))) {
+          buf = buf.write(Type.Number, exprFrom + t.from, exprFrom + t.to);
+        }
+      } else if (t.type === "Identifier") {
+        const variableMatch = t.content.match(sparkRegexes.variableAccess);
+        if (variableMatch) {
+          const name = variableMatch[1] || "";
+          const fieldAccess = variableMatch[2] || "";
+          if (fieldAccess) {
+            from = exprFrom + t.from;
+            to = exprFrom + name.length;
+            buf = buf.write(Type.StructName, from, to);
+            fieldAccess.split(/([.])/).forEach((f) => {
+              from = to;
+              to = from + f.length;
+              if (f !== ".") {
+                buf = buf.write(Type.StructFieldAccess, from, to);
+              }
+            });
+          } else {
+            buf = buf.write(
+              Type.VariableName,
+              exprFrom + t.from,
+              exprFrom + t.to
+            );
           }
-        });
-      } else {
-        buf = buf.write(Type.VariableName, exprFrom + t.from, exprFrom + t.to);
+        }
       }
-    }
-  });
+    });
+  }
   return buf;
 };
 
@@ -179,9 +195,6 @@ export const DefaultBlockParsers: {
     const colonSpace = match[15] || "";
     if (colon) {
       cx.startContext(Type.Struct, line.basePos, line.next);
-      if (type === "list") {
-        cx.startContext(Type.StructList, line.basePos, line.next);
-      }
     }
 
     if (mark || markSpace) {
@@ -230,7 +243,7 @@ export const DefaultBlockParsers: {
     return true;
   },
 
-  StructListValue(cx, line) {
+  StructField(cx, line) {
     if (!inBlockContext(cx, Type.Struct)) {
       return false;
     }
@@ -239,45 +252,6 @@ export const DefaultBlockParsers: {
     let from = 0;
     let to = from;
 
-    if (inBlockContext(cx, Type.StructList)) {
-      const listValueMatch = isStructListValue(line);
-      if (listValueMatch) {
-        const value = listValueMatch[2] || "";
-        const valueSpace = listValueMatch[3] || "";
-        const operator = listValueMatch[4] || "";
-        const operatorSpace = listValueMatch[5] || "";
-        if (value) {
-          from = to;
-          to = from + value.length;
-          buf = buf.write(Type.StructFieldValue, from, to);
-          const expression = line.text.slice(line.pos + from, line.pos + to);
-          buf = parseExpression(buf, expression, from, to);
-        }
-        if (valueSpace) {
-          from = to;
-          to = from + valueSpace.length;
-        }
-        if (operator) {
-          from = to;
-          to = from + operator.length;
-          buf = buf.write(Type.StructOperator, from, to);
-        }
-        if (operatorSpace) {
-          from = to;
-          to = from + operatorSpace.length;
-        }
-        from = to;
-        to = line.text.length - line.pos;
-        if (to > from) {
-          buf = buf.write(Type.Comment, from, to);
-        }
-        const node = buf.finish(Type.StructField, line.text.length - line.pos);
-        cx.addNode(node, cx.lineStart + line.pos);
-        cx.nextLine();
-        return true;
-      }
-      return false;
-    }
     const valueFieldMatch = isStructValueField(line);
     if (valueFieldMatch) {
       const name = valueFieldMatch[2] || "";

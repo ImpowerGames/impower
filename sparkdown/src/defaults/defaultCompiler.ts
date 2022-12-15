@@ -35,7 +35,6 @@ export const defaultCompiler = (
         from,
         to,
         severity: "error",
-        type: "variable-not-found",
         message: `Cannot find variable named '${trimmedExpr}'`,
       });
     }
@@ -46,7 +45,6 @@ export const defaultCompiler = (
     from,
     to,
     severity: "error",
-    type: "unknown-token",
     message: `unknown token from input string ${trimmedExpr}`,
   });
   return [undefined, diagnostics, references];

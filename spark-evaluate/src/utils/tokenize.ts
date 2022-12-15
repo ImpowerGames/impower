@@ -1,11 +1,18 @@
-import { Lexer } from "../classes/Lexer";
-import { CompilerDiagnostic } from "../types/compilerDiagnostic";
-import { CompilerToken } from "../types/compilerToken";
+import { DEFAULT_PARSER } from "../constants/DEFAULT_PARSER";
 
 export const tokenize = (
-  expression: string
-): [CompilerToken[], CompilerDiagnostic[]] => {
-  const lexer = new Lexer(expression);
-  const tokens = lexer.getTokens();
-  return tokens;
+  expr: string
+): {
+  type: string;
+  content: string;
+  from: number;
+  to: number;
+}[] => {
+  try {
+    const [, ctx] = DEFAULT_PARSER.parse(expr);
+    return ctx.tokens;
+  } catch {
+    // NoOp
+  }
+  return [];
 };

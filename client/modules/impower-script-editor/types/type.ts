@@ -44,7 +44,6 @@ export enum Type {
   Import,
   ImportValue,
   Struct,
-  StructList,
   StructType,
   StructName,
   StructColon,

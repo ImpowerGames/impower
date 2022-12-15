@@ -9,4 +9,5 @@ export type SparkStructType =
   | "animation"
   | "display"
   | "sound"
-  | "typewriter";
+  | "typewriter"
+  | "preset";

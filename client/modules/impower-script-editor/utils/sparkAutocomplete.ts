@@ -61,6 +61,7 @@ const validations: Record<SparkStructType, RecursiveValidation<unknown>> = {
   display: undefined,
   sound: SOUND_VALIDATION,
   typewriter: undefined,
+  preset: undefined,
 };
 
 const context = new AudioContext();
@@ -220,6 +221,10 @@ export const structSnippets: readonly Completion[] = [
   }),
   snip("@ sound ${}${SoundName}:${}", {
     label: "@ sound",
+    type: "struct",
+  }),
+  snip("@ preset ${}${PresetName}:${}", {
+    label: "@ preset",
     type: "struct",
   }),
 ];

@@ -106,8 +106,8 @@ export const sparkRegexes: SparkRegexes = {
   struct_object_field: /^([ \t]*)([_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)([:])([ ]*)$/,
   struct_value_field:
     /^([ \t]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:$|($|[=])([ ]*)($|[^\n\r]+)([ ]*))?$/,
-  interpolation_splitter: /([$]?[{][ ]*[^\n\r{}]*[ ]*[}])/g,
-  interpolation_token: /^([$]?[{])([ ]*)([^\n\r{}]*)([ ]*)([}])$/,
+  interpolation_splitter: /([{][ ]*[^\n\r{}]*[ ]*[}])/g,
+  interpolation_token: /^([{])([ ]*)([^\n\r{}]*)([ ]*)([}])$/,
   parameter_declaration:
     /^([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)(?:($|[:])($|[ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*))?(?:$|($|[=])([ ]*)($|[^\n\r]+)([ ]*))?$/,
   expression_list: /(`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[^, ]|[\t ]+)|([,])/g,

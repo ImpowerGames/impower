@@ -1,4 +1,4 @@
-import { CompilerDiagnostic } from "./compilerDiagnostic";
+import { CompilerDiagnostic } from "./CompilerDiagnostic";
 
 export type CustomFormatter = (
   value: any,

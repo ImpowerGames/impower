@@ -1,4 +1,4 @@
-import { CompilerDiagnostic } from "../../types/compilerDiagnostic";
+import { CompilerDiagnostic } from "../../types/CompilerDiagnostic";
 
 export const pluralize = (
   value: number,
@@ -18,7 +18,6 @@ export const pluralize = (
       from: 0,
       to: params.length,
       severity: "error",
-      type: "invalid-formatter-arguments",
       message: `All possible pluralizations must be specified: ${possibleCategories.join(
         "|"
       )}`,

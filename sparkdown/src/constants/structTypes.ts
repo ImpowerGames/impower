@@ -12,4 +12,5 @@ export const structTypes: SparkStructType[] = [
   "display",
   "sound",
   "typewriter",
+  "preset",
 ];

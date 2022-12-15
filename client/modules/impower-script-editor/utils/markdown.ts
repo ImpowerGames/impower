@@ -179,11 +179,6 @@ export function isStructValueField(line: Line): RegExpMatchArray {
   return text.match(sparkRegexes.struct_value_field);
 }
 
-export function isStructListValue(line: Line): RegExpMatchArray {
-  const text = stripComments(line.text);
-  return text.match(sparkRegexes.struct_list_value);
-}
-
 export function isVariable(line: Line): RegExpMatchArray {
   if (line.next !== "*".charCodeAt(0)) {
     return null;

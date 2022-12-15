@@ -28,7 +28,6 @@ export const defaultFormatter = (
         from,
         to,
         severity: "error",
-        type: "variable-not-found",
         message: `Cannot find variable named '${tagKey}'`,
       });
     }

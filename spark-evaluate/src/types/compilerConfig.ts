@@ -1,4 +1,4 @@
-import { Formatter } from "./formatter";
+import { Formatter } from "./Formatter";
 
 export interface CompilerConfig {
   formatter?: Formatter;
