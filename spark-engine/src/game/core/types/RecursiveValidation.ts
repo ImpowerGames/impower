@@ -10,5 +10,5 @@ export type RecursiveValidation<T = any> = {
         | [T[P]]
         | [T[P], [T[P]], [boolean]]
         | [T[P], [T[P], T[P]], [boolean, boolean]]
-    : T[P];
+    : [T[P]];
 };

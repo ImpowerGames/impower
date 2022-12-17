@@ -2,6 +2,7 @@ import { RecursivePartial } from "../../core/types/RecursivePartial";
 import { OscillatorType } from "./OscillatorType";
 
 export interface Modulator {
+  on: boolean;
   shape: OscillatorType;
   rate: number;
   rateRamp: number;
@@ -37,6 +38,7 @@ export interface Sound {
     cutoffRamp: number;
   };
   arpeggio: {
+    on: boolean;
     rate: number;
     rateRamp: number;
     semitones: number[];
@@ -46,6 +48,7 @@ export interface Sound {
     maxNotes: number;
   };
   harmony: {
+    on: boolean;
     count: number;
     strength: number;
     strengthRamp: number;
@@ -53,6 +56,7 @@ export interface Sound {
     delayRamp: number;
   };
   reverb: {
+    on: boolean;
     strength: number;
     strengthRamp: number;
     delay: number;

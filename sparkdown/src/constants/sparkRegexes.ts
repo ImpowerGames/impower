@@ -31,8 +31,7 @@ export type SparkRegexType =
   | "boolean"
   | "number"
   | "variableAccess"
-  | "struct_object_field"
-  | "struct_value_field"
+  | "struct_field"
   | "interpolation_splitter"
   | "interpolation_token"
   | "parameter_declaration"
@@ -81,7 +80,7 @@ export const sparkRegexes: SparkRegexes = {
 
   list: /^([ \t]*)([*+-])($|[ ]+)(.*)([ ]*)$/,
   choice:
-    /^([ \t]*)([-+])($|[ ]+)(?:([^\n\r>]+))?([ ]*)(?:([>])([ ]*)([^\n\r<]+)?([ ]*))?(?!<[ ]*)$/,
+    /^([ \t]*)([+])($|[ ]+)(?:([^\n\r>]+))?([ ]*)(?:([>])([ ]*)([^\n\r<]+)?([ ]*))?(?!<[ ]*)$/,
   condition:
     /^([ \t]*)([*])([ ]+)(if|elif|else)(?:($|[ ]+)($|(?:[ ]+|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[^\n\r:])+))?([ ]*)($|[:])([ ]*)$/,
   variable:
@@ -103,9 +102,8 @@ export const sparkRegexes: SparkRegexes = {
   number: /^([\d]*[.][\d]*|[\d]+)$/,
   variableAccess:
     /^(?!true$|false$)([_a-zA-Z]+[_a-zA-Z0-9]*)((?:[.](?:$|[_a-zA-Z]+[_a-zA-Z0-9]*))*)$/,
-  struct_object_field: /^([ \t]*)([_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)([:])([ ]*)$/,
-  struct_value_field:
-    /^([ \t]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:$|($|[=])([ ]*)($|[^\n\r]+)([ ]*))?$/,
+  struct_field:
+    /^([ \t]*)(?:([-])($|[ ]+))?($|[_a-zA-Z]+[_a-zA-Z0-9]*|"[^\n\r]+"|'[^\n\r]+')?([ ]*)([:])?([ ]*)([^\n\r]+)?([ ]*)$/,
   interpolation_splitter: /([{][ ]*[^\n\r{}]*[ ]*[}])/g,
   interpolation_token: /^([{])([ ]*)([^\n\r{}]*)([ ]*)([}])$/,
   parameter_declaration:

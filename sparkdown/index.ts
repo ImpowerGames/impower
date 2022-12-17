@@ -53,3 +53,4 @@ export * from "./src/utils/isVariableType";
 export * from "./src/utils/parseSpark";
 export * from "./src/utils/stripInlineComments";
 export * from "./src/utils/trimCharacterExtension";
+export * from "./src/utils/yamlStringify";

@@ -11,12 +11,10 @@ import {
 import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
 import {
-  fillArrayWithTones,
   getAllPropertyRequirements,
   Note,
   Pitch,
-  RecursiveValidation,
-  SOUND_VALIDATION,
+  SynthTrack,
   Tone,
 } from "../../../../spark-engine";
 import {
@@ -33,9 +31,9 @@ import {
   SparkSection,
   SparkStructFieldToken,
 } from "../../../../sparkdown";
-import { SparkStructType } from "../../../../sparkdown/src/types/SparkStructType";
 import { colors } from "../constants/colors";
 import { Type } from "../types/type";
+import { sparkValidations } from "./sparkValidations";
 
 interface Option {
   line: number;
@@ -49,30 +47,17 @@ const OPEN_CURSOR = "${";
 const CLOSE_CURSOR = "}";
 const CURSOR = OPEN_CURSOR + CLOSE_CURSOR;
 
-const validations: Record<SparkStructType, RecursiveValidation<unknown>> = {
-  entity: undefined,
-  character: undefined,
-  list: undefined,
-  map: undefined,
-  ui: undefined,
-  style: undefined,
-  camera: undefined,
-  animation: undefined,
-  display: undefined,
-  sound: SOUND_VALIDATION,
-  typewriter: undefined,
-  preset: undefined,
-};
-
 const context = new AudioContext();
 
 const playTone = (note: Note, duration: number): void => {
-  const durationInSamples = Math.floor(duration * context.sampleRate);
-  const fArray = new Float32Array(durationInSamples);
   const tone: Tone = { time: 0, duration, note };
-  fillArrayWithTones([tone], context.sampleRate, fArray);
-  const buffer = context.createBuffer(1, fArray.length, context.sampleRate);
-  buffer.copyToChannel(fArray, 0);
+  const track = new SynthTrack([tone], context.sampleRate);
+  const buffer = context.createBuffer(
+    1,
+    track.durationInSamples,
+    context.sampleRate
+  );
+  buffer.copyToChannel(track.soundBuffer, 0);
   const source = context.createBufferSource();
   source.buffer = buffer;
   source.connect(context.destination);
@@ -1066,7 +1051,7 @@ export const sparkAutocomplete = async (
     const fieldId = structField?.id;
     const struct = result.structs[structName || ""];
     const structType = struct?.type;
-    const validation = validations[structType];
+    const validation = sparkValidations[structType];
     if (validation) {
       const requirements = getAllPropertyRequirements(validation);
       const possibleNames: Record<string, unknown[]> = {};
@@ -1074,33 +1059,20 @@ export const sparkAutocomplete = async (
         if (p.startsWith(fieldId) && !Object.keys(struct.fields).includes(p)) {
           const k = p.slice(fieldId.length);
           const path = k.split(".");
-          const name = path[0];
-          const isObject = path[1] !== undefined;
-          if (isObject) {
-            possibleNames[name] = [];
-          } else {
-            possibleNames[name] = v;
-          }
+          const name = path[1];
+          const isObject = Boolean(path[2]);
+          possibleNames[name] = isObject ? undefined : v;
         }
       });
       const completions = Object.entries(possibleNames).map(([name, v]) => {
-        const defaultValue = v[0];
+        const defaultValue = v?.[0];
         const type =
           defaultValue == null
             ? "object"
             : Array.isArray(defaultValue)
             ? "array"
             : typeof defaultValue;
-        const trimmedEnd = line.text.trimEnd();
-        const currentIndent = trimmedEnd.slice(
-          0,
-          trimmedEnd.lastIndexOf(" ") + 1
-        );
-        const indent = `${currentIndent}`;
-        const template =
-          type === "object"
-            ? `${name}:\n${indent}${CURSOR}`
-            : `${name} = ${CURSOR}`;
+        const template = `${name}: ${CURSOR}`;
         return snip(template, {
           label: name,
           type,
@@ -1110,35 +1082,34 @@ export const sparkAutocomplete = async (
     }
   }
   if ([Type.StructFieldValue].includes(node.type.id)) {
-    if ([`""`, `''`, "''"].includes(input)) {
+    const isStartOfString = [`""`, `''`, "''"].includes(input);
+    const isPossiblyStartOfBoolean = [`t`, `f`].includes(input);
+    if (isStartOfString || isPossiblyStartOfBoolean) {
       const tokenIndex = result.tokenLines[line.number];
       const structField = result.tokens[tokenIndex] as SparkStructFieldToken;
       const structName = structField?.struct;
       const fieldId = structField?.id;
       const struct = result.structs[structName || ""];
       const structType = struct?.type;
-      const validation = validations[structType];
+      const validation = sparkValidations[structType];
       if (validation) {
         const requirements = getAllPropertyRequirements(validation);
         const requirement = requirements[fieldId];
         if (requirement) {
           const [defaultValue, options] = requirement;
-          const type =
-            defaultValue == null
-              ? "object"
-              : Array.isArray(defaultValue)
-              ? "array"
-              : typeof defaultValue;
-          if (options && options.length > 0) {
-            const completions = options.map((option) => {
-              const o = `${option}`;
-              return snip(o, {
-                label: o,
-                type,
-              });
+          const validOptions =
+            typeof defaultValue === "boolean" ? [true, false] : options;
+          const completions = validOptions?.map((option) => {
+            const o = `${option}`;
+            return snip(o, {
+              label: o,
+              type: "option",
             });
+          });
+          if (isStartOfString) {
             return allFromList(completions)(context);
           }
+          return completeFromList(completions)(context);
         }
       }
     }

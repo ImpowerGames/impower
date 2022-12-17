@@ -284,16 +284,6 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
 <span class='action'><mark class='keyword'>+</mark> To Wayne Manor! <mark class='keyword'>> WayneManor</mark></span>
 `
     ),
-    new CheatsheetItem(
-      "- Choice > Section",
-      "Choices prefixed by - will be hidden after they are chosen",
-      `<span class='dialogue_character'>BATMAN</span>
-<span class='dialogue'>What should I bring?</span>
-<span class='action'><mark class='keyword'>-</mark> Grappling hook <mark class='keyword'>> GrabGrapplingHook</mark></span>
-<span class='action'><mark class='keyword'>-</mark> Shark repellant <mark class='keyword'>> GrabSharkRepellant</mark></span>
-<span class='action'><mark class='keyword'>+</mark> I have everything I need. <mark class='keyword'>> HeadOut</mark></span>
-`
-    ),
   ];
 
   cheatSheet["Variables"] = [

@@ -42,7 +42,10 @@ export interface SparkStructToken extends SparkLine {
 export interface SparkStructFieldToken extends SparkLine {
   type: SparkStructFieldTokenType;
   struct: string;
+  mark: string;
   id: string;
+  name: string;
+  value: string;
 }
 
 export interface SparkJumpToken extends SparkLine {
@@ -59,7 +62,7 @@ export interface SparkCallToken extends SparkLine {
 
 export interface SparkChoiceToken extends SparkLine {
   type: SparkChoiceTokenType;
-  operator: "+" | "-" | "start" | "end";
+  operator: "+" | "start" | "end";
   value: string;
   calls: Record<string, { name: string; values: string[] }>;
 }

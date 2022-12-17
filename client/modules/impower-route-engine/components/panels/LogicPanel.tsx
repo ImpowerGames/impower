@@ -227,12 +227,12 @@ const ContainerPanelHeader = React.memo(
         toolbar === "snippet"
           ? {
               key: "hide_snippet",
-              label: "Hide Snippets",
+              label: "Hide Cheatsheet",
               icon: <CircleQuestionRegularIcon />,
             }
           : {
               key: "show_snippet",
-              label: "Show Snippets",
+              label: "Show Cheatsheet",
               icon: <CircleQuestionRegularIcon />,
             },
         { label: "---" },

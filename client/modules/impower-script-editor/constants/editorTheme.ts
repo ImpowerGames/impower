@@ -152,15 +152,27 @@ export const editorTheme: {
   ".cm-completionIcon-quit": {
     "&:after": { content: "'×'", color: colors.section },
   },
+  ".cm-completionIcon-option": {
+    "&:after": {
+      content: "'☱'",
+      color: colors.keyword,
+    },
+  },
   ".cm-completionIcon-string": {
     "&:after": {
-      content: `'""'`,
+      content: `'α'`,
       color: colors.keyword,
     },
   },
   ".cm-completionIcon-number": {
     "&:after": {
-      content: "'0'",
+      content: "'#'",
+      color: colors.keyword,
+    },
+  },
+  ".cm-completionIcon-boolean": {
+    "&:after": {
+      content: "'?'",
       color: colors.keyword,
     },
   },
@@ -234,7 +246,7 @@ export const editorTheme: {
     "&:after": { content: "'Տ'", color: colors.scene },
   },
   ".cm-completionIcon-condition": {
-    "&:after": { content: "'?'", color: colors.condition },
+    "&:after": { content: "'✓'", color: colors.condition },
   },
   ".cm-completionIcon-sine-wave": {
     "&:after": { content: "'∿'", color: colors.condition },

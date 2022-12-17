@@ -1,11 +1,11 @@
 import { IMediaInstance, webaudio } from "@pixi/sound";
 import * as PIXI from "pixi.js";
 import { Tone } from "../../../../../spark-engine";
-import { ToneSound } from "../../plugins/midi-sound/classes/ToneSound";
+import { SynthSound } from "../../plugins/synth-sound/classes/SynthSound";
 import { SparkScene } from "../SparkScene";
 
 interface Instrument {
-  sound?: ToneSound;
+  sound?: SynthSound;
   shouldPlay?: boolean;
 }
 
@@ -70,7 +70,7 @@ export class SoundScene extends SparkScene {
     onStart?: () => void;
   }): void {
     const instrument = this._instruments.get(data.instrumentId) || {};
-    const sound = new ToneSound(data.tones);
+    const sound = new SynthSound(data.tones);
     instrument.sound = sound;
     instrument.shouldPlay = true;
     if (data.onStart) {
@@ -88,10 +88,10 @@ export class SoundScene extends SparkScene {
     const startX = 0;
     const startY = height;
 
-    const soundBuffer = instrument.sound.soundBuffer;
-    const pitchBuffer = instrument.sound.pitchBuffer;
-    const minPitch = instrument.sound.minPitch;
-    const maxPitch = instrument.sound.maxPitch;
+    const soundBuffer = instrument.sound.track.soundBuffer;
+    const pitchBuffer = instrument.sound.track.pitchBuffer;
+    const minPitch = instrument.sound.track.minPitch;
+    const maxPitch = instrument.sound.track.maxPitch;
 
     const waveStartY = startY + soundBuffer[0];
 

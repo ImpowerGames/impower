@@ -24,9 +24,7 @@ export type SparkPositionTokenType =
   | "dialogue_start"
   | "dialogue_character"
   | "dialogue_parenthetical";
-export type SparkStructFieldTokenType =
-  | "struct_object_field"
-  | "struct_value_field";
+export type SparkStructFieldTokenType = "struct_field";
 
 export type SparkOtherTokenType =
   | "comment"
@@ -43,7 +41,6 @@ export type SparkOtherTokenType =
   | "boneyard_start"
   | "boneyard_end"
   | "repeat"
-  | "struct_list_value"
   | "import"
   | "more"
   | "unknown"

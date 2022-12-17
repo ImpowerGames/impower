@@ -23,6 +23,7 @@ import {
   SparkChoiceToken,
   SparkDialogueToken,
   SparkDisplayToken,
+  SparkStructFieldToken,
   SparkToken,
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
@@ -1235,14 +1236,11 @@ const getVariableValueOrReference = (
   return [undefined, undefined];
 };
 
-const getImportValue = (content: string): string | undefined => {
-  if (!content) {
-    return undefined;
-  }
+const getRawString = (content: string): string => {
   if (content.match(sparkRegexes.string)) {
     return content.slice(1, -1);
   }
-  return undefined;
+  return content;
 };
 
 const addStruct = (
@@ -1308,8 +1306,7 @@ const addImport = (
   if (!parsed.structs) {
     parsed.structs = {};
   }
-  const value = getImportValue(valueText);
-  const validValue = value != null ? value : "";
+  const value = getRawString(valueText);
   const name = "import";
   const existing = parsed?.structs?.[name];
   const fieldId = existing?.fields
@@ -1327,7 +1324,7 @@ const addImport = (
       ...(existing?.fields || EMPTY_OBJECT),
       [fieldId]: {
         type: "string",
-        value: validValue,
+        value,
       } as SparkField,
     },
   };
@@ -1495,6 +1492,7 @@ const addField = (
         name: validName,
         type: validType,
         value: validValue,
+        valueText,
         imported: false,
       };
       struct.fields[id] = item;
@@ -2022,6 +2020,72 @@ const augmentResult = (
   }
 };
 
+const getParentToken = <T extends SparkToken>(
+  token: T,
+  currentTokens: T[]
+): T => {
+  let index = currentTokens.length - 1;
+  let prevToken = currentTokens[index];
+  while (prevToken && prevToken.indent >= token.indent) {
+    // search for parent
+    index -= 1;
+    prevToken = currentTokens[index];
+  }
+  return prevToken as T;
+};
+
+const getPrevSiblingToken = <T extends SparkToken>(
+  token: T,
+  currentTokens: T[]
+): T => {
+  let index = currentTokens.length - 1;
+  let prevToken = currentTokens[index];
+  while (prevToken && prevToken.indent > token.indent) {
+    // search for previous sibling
+    index -= 1;
+    prevToken = currentTokens[index];
+  }
+  return prevToken as T;
+};
+
+const getStructFieldId = (
+  fieldToken: SparkStructFieldToken,
+  currentFieldTokens: SparkStructFieldToken[]
+): string => {
+  const parentToken = getParentToken(fieldToken, currentFieldTokens);
+  const parentId = parentToken?.id || "";
+  let id = parentId;
+  if (fieldToken.mark === "-") {
+    const prevSiblingToken = getPrevSiblingToken(
+      fieldToken,
+      currentFieldTokens
+    );
+    if (
+      prevSiblingToken &&
+      prevSiblingToken.indent === fieldToken.indent &&
+      prevSiblingToken.mark === fieldToken.mark
+    ) {
+      const siblingPathParts = prevSiblingToken.id.split(".");
+      const siblingValuePathParts = prevSiblingToken.name
+        ? siblingPathParts.slice(0, -1)
+        : siblingPathParts;
+      const siblingIndexPart =
+        siblingValuePathParts[siblingValuePathParts.length - 1];
+      const parentPath = siblingValuePathParts.slice(0, -1).join(".");
+      const siblingIndex = Number(siblingIndexPart);
+      if (!Number.isNaN(siblingIndex)) {
+        id = parentPath + `.${siblingIndex + 1}`;
+      }
+    } else {
+      id = parentId + `.${0}`;
+    }
+  }
+  if (fieldToken.name) {
+    id += `.${fieldToken.name}`;
+  }
+  return id;
+};
+
 const hoistDeclarations = (
   parsed: SparkParseResult,
   config: SparkParserConfig | undefined,
@@ -2032,7 +2096,7 @@ const hoistDeclarations = (
   let currentLevel = 0;
   let currentSectionId = "";
   let currentStructName = "";
-  let currentStructFieldParentId = "";
+  let currentFieldTokens: SparkStructFieldToken[] = [];
   let stateType: string | undefined = "normal";
   let match: RegExpMatchArray | null = null;
 
@@ -2235,41 +2299,45 @@ const hoistDeclarations = (
         );
       }
       currentStructName = name;
-      currentStructFieldParentId = ".";
+      currentFieldTokens = [];
     } else if (isStructType(stateType) && text.trim()) {
-      if ((match = text.match(sparkRegexes.struct_object_field))) {
-        const name = match[2] || "";
-        currentStructFieldParentId += name + ".";
-      } else if ((match = text.match(sparkRegexes.struct_value_field))) {
-        const currentToken = createSparkToken(
-          "struct_value_field",
-          newLineLength,
-          {
-            content: text,
-            line: i + (config?.lineOffset || 0),
-            from,
-          }
-        );
-        const name = match[2] || "";
-        const valueText = match[6] || "";
-        const nameFrom = currentToken.from + getStart(match, 2);
+      if ((match = text.match(sparkRegexes.struct_field))) {
+        const mark = match[2] || "";
+        const name = getRawString(match[4] || "");
+        const valueText = match[8] || "";
+        const nameFrom = from + getStart(match, 4);
         const nameTo = nameFrom + name.length;
-        const valueFrom = currentToken.from + getStart(match, 6);
+        const valueFrom = from + getStart(match, 8);
         const valueTo = valueFrom + valueText.length;
-        addField(
-          parsed,
-          config,
-          currentToken,
-          currentSectionId,
-          currentStructName,
-          currentStructFieldParentId + name,
-          valueText,
-          currentToken.line,
-          nameFrom,
-          nameTo,
-          valueFrom,
-          valueTo
-        );
+        const currentToken = createSparkToken("struct_field", newLineLength, {
+          content: text,
+          line: i + (config?.lineOffset || 0),
+          from,
+        });
+        if (currentToken.type === "struct_field") {
+          currentToken.struct = currentStructName;
+          currentToken.mark = mark;
+          currentToken.name = name;
+          currentToken.value = valueText;
+          currentToken.id = getStructFieldId(currentToken, currentFieldTokens);
+          if (valueText) {
+            addField(
+              parsed,
+              config,
+              currentToken,
+              currentSectionId,
+              currentStructName,
+              currentToken.id,
+              valueText,
+              currentToken.line,
+              nameFrom,
+              nameTo,
+              valueFrom,
+              valueTo
+            );
+          }
+          currentFieldTokens.push(currentToken);
+        }
       }
     } else if ((match = text.match(sparkRegexes.import))) {
       const currentToken = createSparkToken("import", newLineLength, {
@@ -2278,7 +2346,7 @@ const hoistDeclarations = (
         from,
       });
       const valueText = match[4] || "";
-      currentToken.content = getImportValue(valueText) || "";
+      currentToken.content = getRawString(valueText) || "";
       const valueFrom = currentToken.from + getStart(match, 4);
       const valueTo = valueFrom + valueText.length;
       addImport(parsed, valueText, currentToken.line, valueFrom, valueTo);
@@ -2341,7 +2409,7 @@ export const parseSpark = (
   let currentLevel = 0;
   let currentSectionId = "";
   let currentStructName = "";
-  let currentStructFieldParentId = "";
+  let currentFieldTokens: SparkStructFieldToken[] = [];
   let previousToken: SparkToken | undefined;
   let previousNonSeparatorToken: SparkToken | undefined;
   let lastTitlePageToken: SparkToken | undefined;
@@ -2788,7 +2856,7 @@ export const parseSpark = (
       } else if ((match = currentToken.content.match(sparkRegexes.choice))) {
         currentToken.type = "choice";
         if (currentToken.type === "choice") {
-          const mark = (match[2] || "") as "+" | "-";
+          const mark = (match[2] || "") as "+";
           const content = match[4] || "";
           const valueText = match[8] || "";
           const valueFrom = currentToken.from + getStart(match, 8);
@@ -2966,13 +3034,12 @@ export const parseSpark = (
           currentToken.name = name;
         }
         currentStructName = name;
-        currentStructFieldParentId = ".";
       } else if ((match = currentToken.content.match(sparkRegexes.import))) {
         const type = "import";
         currentToken.type = type;
         if (currentToken.type === type) {
           const valueText = match[4] || "";
-          currentToken.content = getImportValue(valueText) || "";
+          currentToken.content = getRawString(valueText) || "";
         }
       } else if ((match = currentToken.content.match(sparkRegexes.synopsis))) {
         currentToken.type = "synopsis";
@@ -3314,31 +3381,24 @@ export const parseSpark = (
         }
       }
     } else if (isStructType(stateType || "")) {
-      if (
-        (match = currentToken.content.match(sparkRegexes.struct_object_field))
-      ) {
-        const name = match[2] || "";
-        currentStructFieldParentId += name + ".";
-        if (stateType === "map") {
-          diagnostic(
-            parsed,
-            currentToken,
-            `Cannot declare object field in ${stateType}`
-          );
-        } else {
-          currentToken.type = "struct_object_field";
-          if (currentToken.type === "struct_object_field") {
-            currentToken.struct = currentStructName;
-          }
-        }
-      } else if (
-        (match = currentToken.content.match(sparkRegexes.struct_value_field))
-      ) {
-        const name = match[2] || "";
-        currentToken.type = "struct_value_field";
-        if (currentToken.type === "struct_value_field") {
+      if ((match = currentToken.content.match(sparkRegexes.struct_field))) {
+        const mark = match[2] || "";
+        const name = getRawString(match[4] || "");
+        const valueText = match[8] || "";
+        currentToken.type = "struct_field";
+        if (currentToken.type === "struct_field") {
           currentToken.struct = currentStructName;
-          currentToken.id = currentStructFieldParentId + name;
+          currentToken.mark = mark;
+          currentToken.name = name;
+          currentToken.value = valueText;
+          currentToken.id = getStructFieldId(currentToken, currentFieldTokens);
+          currentFieldTokens.push(currentToken);
+          const field =
+            parsed.structs?.[currentStructName]?.fields[currentToken.id];
+          if (field) {
+            field.from = currentToken.from;
+            field.to = currentToken.to;
+          }
         }
       } else {
         if (currentToken.content?.trim()) {

@@ -1,4 +1,5 @@
 export * from "./classes/SynthManager";
+export * from "./classes/SynthTrack";
 export * from "./constants/CONTROL_CHANGE_TYPES";
 export * from "./constants/FUNDAMENTAL_KEYS";
 export * from "./constants/MIDI_PERCUSSION_INSTRUMENTS";

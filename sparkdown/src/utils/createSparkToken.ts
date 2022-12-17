@@ -8,16 +8,14 @@ export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
   obj?: Partial<SparkTokenTypeMap[K]>
 ): SparkTokenTypeMap[K] => {
   const t = (obj || {}) as unknown as SparkTokenTypeMap[K];
-  t.content = obj?.content !== undefined ? obj.content : "";
-  t.line = obj?.line !== undefined ? obj.line : -1;
-  t.from = obj?.from !== undefined ? obj.from : -1;
-  t.to = obj?.to !== undefined ? obj.to : -1;
-  t.text = obj?.text !== undefined ? obj.text : "";
-  t.notes = obj?.notes !== undefined ? obj.notes : [];
-  t.order = obj?.order !== undefined ? obj.order : 0;
-  t.ignore = obj?.ignore !== undefined ? obj.ignore : false;
-  t.skipToNextPreview =
-    obj?.skipToNextPreview !== undefined ? obj.skipToNextPreview : false;
+  t.content = obj?.content ?? "";
+  t.line = obj?.line ?? -1;
+  t.from = obj?.from ?? -1;
+  t.text = obj?.text ?? "";
+  t.notes = obj?.notes ?? [];
+  t.order = obj?.order ?? 0;
+  t.ignore = obj?.ignore ?? false;
+  t.skipToNextPreview = obj?.skipToNextPreview ?? false;
   t.html = obj?.html;
   const indentMatch = t.content.match(sparkRegexes.indent);
   const indent = indentMatch?.[0] || "";

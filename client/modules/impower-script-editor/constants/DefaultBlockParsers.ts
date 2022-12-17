@@ -34,8 +34,7 @@ import {
   isScene,
   isSectionHeading,
   isStruct,
-  isStructObjectField,
-  isStructValueField,
+  isStructField,
   isSynopsis,
   isTitle,
   isTransition,
@@ -252,13 +251,24 @@ export const DefaultBlockParsers: {
     let from = 0;
     let to = from;
 
-    const valueFieldMatch = isStructValueField(line);
+    const valueFieldMatch = isStructField(line);
     if (valueFieldMatch) {
-      const name = valueFieldMatch[2] || "";
-      const nameSpace = valueFieldMatch[3] || "";
-      const operator = valueFieldMatch[4] || "";
-      const operatorSpace = valueFieldMatch[5] || "";
-      const value = valueFieldMatch[6] || "";
+      const mark = valueFieldMatch[2] || "";
+      const markSpace = valueFieldMatch[3] || "";
+      const name = valueFieldMatch[4] || "";
+      const nameSpace = valueFieldMatch[5] || "";
+      const colon = valueFieldMatch[6] || "";
+      const colonSpace = valueFieldMatch[7] || "";
+      const value = valueFieldMatch[8] || "";
+      if (mark) {
+        from = to;
+        to = from + mark.length;
+        buf = buf.write(Type.StructFieldMark, from, to);
+      }
+      if (markSpace) {
+        from = to;
+        to = from + markSpace.length;
+      }
       if (name) {
         from = to;
         to = from + name.length;
@@ -268,14 +278,14 @@ export const DefaultBlockParsers: {
         from = to;
         to = from + nameSpace.length;
       }
-      if (operator) {
+      if (colon) {
         from = to;
-        to = from + operator.length;
-        buf = buf.write(Type.StructOperator, from, to);
+        to = from + colon.length;
+        buf = buf.write(Type.StructFieldColon, from, to);
       }
-      if (operatorSpace) {
+      if (colonSpace) {
         from = to;
-        to = from + operatorSpace.length;
+        to = from + colonSpace.length;
       }
       if (value) {
         from = to;
@@ -288,30 +298,6 @@ export const DefaultBlockParsers: {
       to = line.text.length - line.pos;
       if (to > from) {
         buf = buf.write(Type.Comment, from, to);
-      }
-      const node = buf.finish(Type.StructField, line.text.length - line.pos);
-      cx.addNode(node, cx.lineStart + line.pos);
-      cx.nextLine();
-      return true;
-    }
-    const objectFieldMatch = isStructObjectField(line);
-    if (objectFieldMatch) {
-      const name = objectFieldMatch[2] || "";
-      const nameSpace = objectFieldMatch[3] || "";
-      const colon = objectFieldMatch[4] || "";
-      if (name) {
-        from = to;
-        to = from + name.length;
-        buf = buf.write(Type.StructFieldName, from, to);
-      }
-      if (nameSpace) {
-        from = to;
-        to = from + nameSpace.length;
-      }
-      if (colon) {
-        from = to;
-        to = from + name.length;
-        buf = buf.write(Type.StructColon, from, to);
       }
       const node = buf.finish(Type.StructField, line.text.length - line.pos);
       cx.addNode(node, cx.lineStart + line.pos);

@@ -55,7 +55,6 @@ export interface SparkTokenTypeMap extends Record<SparkTokenType, SparkToken> {
   dialogue_parenthetical: SparkToken;
   import: SparkToken;
 
-  list: SparkStructToken;
   map: SparkStructToken;
   ui: SparkStructToken;
   style: SparkStructToken;
@@ -65,9 +64,7 @@ export interface SparkTokenTypeMap extends Record<SparkTokenType, SparkToken> {
   animation: SparkStructToken;
   display: SparkStructToken;
 
-  struct_object_field: SparkStructFieldToken;
-  struct_value_field: SparkStructFieldToken;
-  struct_list_value: SparkStructFieldToken;
+  struct_field: SparkStructFieldToken;
 
   centered: SparkCenteredToken;
   assign: SparkAssignToken;

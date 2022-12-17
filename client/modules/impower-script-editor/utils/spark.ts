@@ -29,8 +29,9 @@ import {
   toggleComment,
 } from "../constants/commands";
 import { indentationGuides } from "../extensions/indentationGuides";
-import { sectionNamePreview } from "../extensions/sectionNamePreview";
+import { sectionNamePreviewWidget } from "../extensions/sectionNamePreviewWidget";
 import { snippetPreview } from "../extensions/snippetPreview";
+import { structToolbarWidget } from "../extensions/structToolbarWidget";
 import { MarkdownExtension } from "../types/markdownExtension";
 import { getDiagnostics } from "./getDiagnostics";
 import { parseCode } from "./nest";
@@ -192,7 +193,8 @@ export function spark(
         observeRuntimeValue
       )
     ),
-    sectionNamePreview({ parseContext }),
+    sectionNamePreviewWidget({ parseContext }),
+    structToolbarWidget({ parseContext }),
     snippetPreview(),
     linter(sparkParseLinter, { delay: 100 }),
   ];

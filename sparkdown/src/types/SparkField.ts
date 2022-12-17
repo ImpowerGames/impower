@@ -6,6 +6,7 @@ export interface SparkField {
   line: number;
   name: string;
   type: SparkFieldType;
+  valueText: string;
   value: unknown;
   imported?: boolean;
 }

@@ -3,15 +3,17 @@ export const traverse = <T extends object>(
   process: (fieldPath: string, fieldValue: unknown) => void,
   fieldPath: string = ""
 ) => {
-  Object.entries(obj).forEach(([k, v]) => {
-    if (typeof v === "object") {
-      if (Array.isArray(v)) {
-        process(`${fieldPath}.${k}`, v);
+  if (obj) {
+    Object.entries(obj).forEach(([k, v]) => {
+      if (typeof v === "object") {
+        if (Array.isArray(v)) {
+          process(`${fieldPath}.${k}`, v);
+        } else {
+          traverse(v, process, `${fieldPath}.${k}`);
+        }
       } else {
-        traverse(v, process, `${fieldPath}.${k}`);
+        process(`${fieldPath}.${k}`, v);
       }
-    } else {
-      process(`${fieldPath}.${k}`, v);
-    }
-  });
+    });
+  }
 };

@@ -258,17 +258,22 @@ export const fillBuffer = (
   const lowpass_resonance = sound.lowpass.resonance;
   const highpass_cutoff = sound.highpass.cutoff;
   const vibrato_shape = sound.vibrato.shape;
+  const vibrato_on = sound.vibrato.on;
   const vibrato_strength = sound.vibrato.strength;
   const vibrato_rate = sound.vibrato.rate;
+  const tremolo_on = sound.tremolo.on;
   const tremolo_shape = sound.tremolo.shape;
   const tremolo_strength = sound.tremolo.strength;
   const tremolo_rate = sound.tremolo.rate;
+  const wahwah_on = sound.wahwah.on;
   const wahwah_shape = sound.wahwah.shape;
   const wahwah_strength = sound.wahwah.strength;
   const wahwah_rate = sound.wahwah.rate;
+  const ring_on = sound.ring.on;
   const ring_shape = sound.ring.shape;
   const ring_strength = sound.ring.strength;
   const ring_rate = sound.ring.rate;
+  const arpeggio_on = sound.arpeggio.on;
   const arpeggio_rate = sound.arpeggio.rate;
   const arpeggio_max_octaves = sound.arpeggio.maxOctaves;
   const arpeggio_max_notes = sound.arpeggio.maxNotes;
@@ -410,6 +415,7 @@ export const fillBuffer = (
 
     // Arpeggio Effect
     if (
+      arpeggio_on &&
       arpeggioRate > 0 &&
       arpeggio_semitones.length > 0 &&
       arpNumNotesPlayed < arpeggio_max_notes
@@ -451,7 +457,7 @@ export const fillBuffer = (
     }
 
     // Vibrato Effect
-    if (vibratoRate > 0 && vibratoStrength > 0) {
+    if (vibrato_on && vibratoRate > 0 && vibratoStrength > 0) {
       const vibratoMod = modulate(
         sampleRate,
         localIndex,
@@ -480,7 +486,7 @@ export const fillBuffer = (
     let sampleValue = oscillator(angle, oscState);
 
     // Wah-Wah Effect
-    if (wahwahRate > 0 && wahwahStrength > 0) {
+    if (wahwah_on && wahwahRate > 0 && wahwahStrength > 0) {
       const wahwahMod = modulate(
         sampleRate,
         localIndex,
@@ -518,7 +524,7 @@ export const fillBuffer = (
     }
 
     // Tremolo Effect
-    if (tremoloRate > 0 && tremoloStrength > 0) {
+    if (tremolo_on && tremoloRate > 0 && tremoloStrength > 0) {
       const tremoloMod = modulate(
         sampleRate,
         localIndex,
@@ -532,7 +538,7 @@ export const fillBuffer = (
     }
 
     // Ring Effect
-    if (ringRate > 0 && ringStrength > 0) {
+    if (ring_on && ringRate > 0 && ringStrength > 0) {
       const ringMod = modulate(
         sampleRate,
         localIndex,
