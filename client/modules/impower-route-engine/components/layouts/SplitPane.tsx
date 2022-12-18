@@ -123,10 +123,13 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
   const totalSizeRef = useRef<number>();
   const reverseOrderRef = useRef<boolean>();
   const draggedSizeRef = useRef<number>();
+  const splitRef = useRef(split);
+  splitRef.current = split;
 
   const splitPaneRef = useRef<HTMLDivElement>();
   const pane1Ref = useRef<HTMLDivElement>();
   const pane2Ref = useRef<HTMLDivElement>();
+  const resizerRef = useRef<HTMLDivElement>();
 
   const handlePointerDown = useCallback(
     (event: PointerEvent | React.PointerEvent): void => {
@@ -232,6 +235,24 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
     },
     [onResizerClick]
   );
+
+  const handleMouseEnter = useCallback((event: React.MouseEvent): void => {
+    if (!event.buttons) {
+      if (resizerRef.current) {
+        if (splitRef.current === "vertical") {
+          resizerRef.current.style.cursor = "col-resize";
+        } else {
+          resizerRef.current.style.cursor = "row-resize";
+        }
+      }
+    }
+  }, []);
+
+  const handleMouseLeave = useCallback((event: React.MouseEvent): void => {
+    if (resizerRef.current) {
+      resizerRef.current.style.cursor = null;
+    }
+  }, []);
 
   const handleResizerDoubleClick = useCallback(
     (event: React.MouseEvent): void => {
@@ -395,12 +416,15 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
       </div>
       <span
         role="presentation"
+        ref={resizerRef}
         className={resizerClasses}
         style={resizerStyle}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onClick={handleResizerClick}
         onDoubleClick={handleResizerDoubleClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       />
       <div
         className={pane2Classes}

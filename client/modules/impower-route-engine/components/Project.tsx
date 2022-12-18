@@ -152,21 +152,6 @@ const StyledSplitPane = styled(SplitPane)`
     width: 8px;
     left: 8px;
     margin-left: -8px;
-    cursor: col-resize;
-  }
-
-  .Resizer.vertical:hover {
-    background-color: ${(props): string => props.theme.colors.white05};
-  }
-  .Resizer.disabled {
-    cursor: auto;
-    visibility: hidden;
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .Resizer.disabled:hover {
-      border-color: transparent;
-    }
   }
 `;
 
