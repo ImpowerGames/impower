@@ -15,20 +15,7 @@ import { StructFieldValueWidgetType } from "./StructFieldValueWidgetType";
 
 const parseContextState = Facet.define<{ result?: SparkParseResult }>({});
 
-const STRUCT_FIELD_WIDGET_EDIT_EVENT = "struct-field-widget-edit";
-
-const structFieldValueDecorations = (
-  view: EditorView,
-  callbacks?: {
-    onDragStart?: (id: string, dom: HTMLElement, startX: number) => void;
-    onDragEnd?: (
-      id: string,
-      dom: HTMLElement,
-      startX: number,
-      x: number
-    ) => void;
-  }
-): DecorationSet => {
+const structFieldValueDecorations = (view: EditorView): DecorationSet => {
   const widgets = [];
   view.visibleRanges.forEach(({ from, to }) => {
     syntaxTree(view.state).iterate({
@@ -49,51 +36,44 @@ const structFieldValueDecorations = (
           if (structFieldToken) {
             const structName = structFieldToken?.struct;
             const struct = result.structs[structName || ""];
+            const structField = struct.fields[structFieldToken.id];
+            const startValue = structField?.value;
             const structType = struct?.type;
             const validation = sparkValidations[structType];
             const requirements = getAllPropertyRequirements(validation);
             const requirement = requirements[structFieldToken.id];
             const defaultValue = requirement?.[0];
             const range = requirement?.[1];
-            const fieldType = typeof defaultValue;
             const id = structName + structFieldToken.id;
-            const startValue = view.state.doc.sliceString(from, to);
-            let value = startValue;
-            if (["number", "string", "boolean"].includes(fieldType)) {
-              const onDragging = (
-                id: string,
-                dom: HTMLElement,
-                startX: number,
-                x: number
+            if (["number", "string", "boolean"].includes(typeof defaultValue)) {
+              const onDragEnd = (
+                event: MouseEvent,
+                previewEl: HTMLElement
               ): void => {
-                const deltaX = x - startX;
-                // console.log(deltaX);
-                if (fieldType === "number") {
-                  const min = (range?.[0] as number) ?? 0;
-                  const max = (range?.[1] as number) ?? 100;
-                } else if (fieldType === "string") {
-                  const options = range as string[];
-                } else if (fieldType === "boolean") {
-                  const insert = deltaX < 0 ? "false" : "true";
-                  if (insert !== value) {
-                    const changes = { from, to: from + value.length, insert };
-                    value = insert;
-                    // TODO: Use Decoration.replace to show live updating value while dragging
-                    // view.dispatch({
-                    //   changes,
-                    //   userEvent: STRUCT_FIELD_WIDGET_EDIT_EVENT,
-                    // });
-                  }
-                }
+                event.stopImmediatePropagation();
+                event.preventDefault();
+                const insert = previewEl.textContent;
+                const valueEl = document.getElementsByClassName(
+                  id
+                )?.[0] as HTMLElement;
+                const from = view.posAtDOM(valueEl);
+                const to = view.state.doc.lineAt(from).to;
+                const changes = { from, to, insert };
+                view.dispatch({ changes });
               };
               widgets.push(
                 Decoration.widget({
-                  widget: new StructFieldValueWidgetType(id, {
-                    ...(callbacks || {}),
-                    onDragging,
-                  }),
-                  side: 0,
-                }).range(to)
+                  widget: new StructFieldValueWidgetType(
+                    id,
+                    view.state.doc.sliceString(from, to),
+                    startValue,
+                    range,
+                    { onDragEnd }
+                  ),
+                }).range(from),
+                Decoration.mark({
+                  class: id,
+                }).range(from, to)
               );
             }
           }
@@ -118,15 +98,6 @@ export const structFieldValuePlugin = ViewPlugin.fromClass(
   },
   {
     decorations: (v) => v.decorations,
-    eventHandlers: {
-      mousedown: (e, view) => {
-        const target = e.target as HTMLElement;
-        if (target.classList.contains("cm-struct-field-widget-button")) {
-          return true;
-        }
-        return false;
-      },
-    },
   }
 );
 

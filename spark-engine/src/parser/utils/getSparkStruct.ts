@@ -13,12 +13,8 @@ export const getSparkStruct = (
   if (token.type === "style") {
     return structs?.[token.name || ""];
   }
-  if (token.type === "struct_value_field") {
+  if (token.type === "struct_field") {
     return structs?.[token.struct || ""];
   }
-  if (token.type === "struct_object_field") {
-    return structs?.[token.struct || ""];
-  }
-
   return null;
 };

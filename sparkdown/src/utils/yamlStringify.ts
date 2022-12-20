@@ -61,14 +61,11 @@ const convertObject = (obj: any, lines: string[], indent: string) => {
 };
 
 const wrapString = (str: string) => {
-  return (
-    '"' +
-    encodeURI(str)
-      .replace(/%u/g, "\\u")
-      .replace(/%U/g, "\\U")
-      .replace(/%/g, "\\x") +
-    '"'
-  );
+  const quote = str.includes('"') ? "`" : '"';
+  return `${quote}${encodeURI(str)
+    .replace(/%u/g, "\\u")
+    .replace(/%U/g, "\\U")
+    .replace(/%/g, "\\x")}${quote}`;
 };
 
 const convertString = (obj: any, ret: string[]) => {

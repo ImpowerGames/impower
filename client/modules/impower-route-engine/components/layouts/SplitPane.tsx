@@ -248,7 +248,7 @@ const SplitPane = React.memo((props: SplitPaneProps) => {
     }
   }, []);
 
-  const handleMouseLeave = useCallback((event: React.MouseEvent): void => {
+  const handleMouseLeave = useCallback((): void => {
     if (resizerRef.current) {
       resizerRef.current.style.cursor = null;
     }

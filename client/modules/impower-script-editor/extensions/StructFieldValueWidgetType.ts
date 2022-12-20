@@ -1,39 +1,97 @@
 import { WidgetType } from "@codemirror/view";
 
+const BOOLEAN_ARRAY = [false, true];
+
+const roundToNearestStep = (n: number, step: number): number => {
+  return Math.round(n / step) * step;
+};
+
+const wrapString = (str: string): string => {
+  const quote = str.includes('"') ? "`" : '"';
+  return `${quote}${encodeURI(str)
+    .replace(/%u/g, "\\u")
+    .replace(/%U/g, "\\U")
+    .replace(/%/g, "\\x")}${quote}`;
+};
+
+const getValueText = (value: unknown, step?: number): string => {
+  if (value === undefined) {
+    return "";
+  }
+  if (typeof value === "string") {
+    return wrapString(String(value));
+  }
+  if (typeof value === "number") {
+    if (step !== undefined) {
+      const stepFractionDigits = step.toString().split(".")[1]?.length;
+      return value.toFixed(stepFractionDigits);
+    }
+    return value.toString();
+  }
+  return String(value);
+};
+
+const getNewValue = (
+  min: number,
+  max: number,
+  step: number,
+  startValue: number,
+  deltaX: number
+): number => {
+  const newValue = roundToNearestStep((startValue || 0) + deltaX * step, step);
+  if (newValue < min) {
+    return min;
+  }
+  if (newValue > max) {
+    return max;
+  }
+  return newValue;
+};
+
 export class StructFieldValueWidgetType extends WidgetType {
   id: string;
 
+  valueContent: string;
+
+  startValue: unknown;
+
+  range: unknown[];
+
   isDragging = false;
 
-  override eq(other: StructFieldValueWidgetType): boolean {
-    return this.id === other.id;
-  }
+  dom: HTMLElement;
 
-  unregister?: () => void;
-
-  onDragStart?: (id: string, dom: HTMLElement, startX: number) => void;
+  onDragStart?: (e: MouseEvent, dom: HTMLElement, startX: number) => void;
 
   onDragging?: (
-    id: string,
+    e: MouseEvent,
     dom: HTMLElement,
     startX: number,
     x: number
   ) => void;
 
-  onDragEnd?: (id: string, dom: HTMLElement, startX: number, x: number) => void;
+  onDragEnd?: (
+    e: MouseEvent,
+    dom: HTMLElement,
+    startX: number,
+    x: number
+  ) => void;
 
   constructor(
     id: string,
+    valueContent: string,
+    startValue: unknown,
+    range: unknown[],
     callbacks?: {
-      onDragStart?: (id: string, dom: HTMLElement, startX: number) => void;
+      onDragStart?: (e: MouseEvent, dom: HTMLElement, startX: number) => void;
       onDragging?: (
-        id: string,
+        e: MouseEvent,
         dom: HTMLElement,
         startX: number,
         x: number
       ) => void;
       onDragEnd?: (
-        id: string,
+        e: MouseEvent,
         dom: HTMLElement,
         startX: number,
         x: number
@@ -42,136 +100,106 @@ export class StructFieldValueWidgetType extends WidgetType {
   ) {
     super();
     this.id = id;
+    this.valueContent = valueContent;
+    this.startValue = startValue;
+    this.range = range;
     this.onDragStart = callbacks?.onDragStart;
     this.onDragging = callbacks?.onDragging;
     this.onDragEnd = callbacks?.onDragEnd;
   }
 
   toDOM(): HTMLElement {
+    const options = this.range || BOOLEAN_ARRAY;
+    const min =
+      typeof this.startValue === "number"
+        ? (this.range?.[0] as number) ?? 0
+        : 0;
+    const max =
+      typeof this.startValue === "number"
+        ? (this.range?.[1] as number) ?? 100
+        : options.length - 1;
+    const step =
+      typeof this.startValue === "number"
+        ? (this.range?.[2] as number) ?? 1
+        : 0.02;
+    const start =
+      typeof this.startValue === "number"
+        ? this.startValue
+        : options.indexOf(this.startValue);
+
     const root = document.createElement("span");
-    root.className = "cm-struct-field-widget";
-    root.style.marginLeft = "8px";
-    root.style.color = "white";
-    root.style.float = "right";
-    root.style.display = "flex";
-    root.style.justifyContent = "center";
-    root.style.alignItems = "center";
-    root.style.width = "1.4rem";
-    root.style.height = "1.4rem";
-    const triangleLeft = document.createElement("div");
-    triangleLeft.style.opacity = "0";
-    triangleLeft.style.transition = "opacity 0.1s ease";
-    triangleLeft.style.width = "6px";
-    triangleLeft.style.height = "6px";
-    triangleLeft.style.backgroundColor = "inherit";
-    triangleLeft.style.position = "absolute";
-    triangleLeft.style.left = "-10px";
-    triangleLeft.style.clipPath = "polygon(50% 0, 100% 100%, 0 100%)";
-    triangleLeft.style.transform = "rotate(-90deg)";
-    triangleLeft.style.borderRadius = "2px";
-    const triangleRight = document.createElement("div");
-    triangleRight.style.opacity = "0";
-    triangleRight.style.transition = "opacity 0.1s ease";
-    triangleRight.style.width = "6px";
-    triangleRight.style.height = "6px";
-    triangleRight.style.backgroundColor = "inherit";
-    triangleRight.style.position = "absolute";
-    triangleRight.style.right = "-10px";
-    triangleRight.style.clipPath = "polygon(50% 0, 100% 100%, 0 100%)";
-    triangleRight.style.transform = "rotate(90deg)";
-    triangleRight.style.borderRadius = "2px";
-    const button = document.createElement("button");
-    button.className = "cm-struct-field-widget-button";
-    button.style.opacity = "0.5";
-    button.style.backgroundColor = "#2B83B7";
-    button.style.fill = "currentColor";
-    button.style.width = "8px";
-    button.style.height = "8px";
-    button.style.display = "flex";
-    button.style.justifyContent = "center";
-    button.style.alignItems = "center";
-    button.style.padding = "0";
-    button.style.margin = "2px 8px 2px 4px";
-    button.style.border = "none";
-    button.style.transition = "transform 0.1s ease";
-    button.style.cursor = "grab";
-    button.style.borderRadius = "50%";
-    button.style.position = "relative";
+    root.style.position = "relative";
+    const preview = document.createElement("div");
+    preview.style.opacity = "0";
+    preview.style.position = "absolute";
+    preview.style.top = "0";
+    preview.style.left = "0";
+    preview.style.width = "fit-content";
+    preview.style.whiteSpace = "nowrap";
+    preview.style.color = "#99daff";
+    preview.style.cursor = "ew-resize";
+    preview.textContent = this.valueContent;
+    root.appendChild(preview);
+
     let startX = 0;
     const onMouseMove = (event: MouseEvent): void => {
-      if (this.isDragging) {
-        const deltaX = event.clientX - startX;
-        if (deltaX < 0) {
-          triangleLeft.style.opacity = "1";
-          triangleRight.style.opacity = "0.25";
-        } else {
-          triangleLeft.style.opacity = "0.25";
-          triangleRight.style.opacity = "1";
-        }
-        this.onDragging?.(this.id, root, startX, event.clientX);
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      const deltaX = event.clientX - startX;
+      const newValue = getNewValue(min, max, step, start, deltaX);
+      const insert =
+        typeof this.startValue === "number"
+          ? getValueText(newValue, step)
+          : getValueText(options[Math.floor(newValue)]);
+      if (preview && insert !== preview.textContent) {
+        preview.textContent = insert;
+        preview.style.opacity = "1";
       }
+      this.onDragging?.(event, preview, startX, event.clientX);
     };
     const onMouseUp = (event: MouseEvent): void => {
-      if (this.isDragging) {
-        this.isDragging = false;
-        this.onDragEnd?.(this.id, root, startX, event.clientX);
-      }
+      this.onDragEnd?.(event, preview, startX, event.clientX);
+      window.removeEventListener("mousemove", onMouseMove);
       document.documentElement.style.cursor = null;
-      button.style.cursor = "grab";
-      button.style.opacity = "0.5";
-      button.style.boxShadow = null;
-      triangleLeft.style.opacity = "0";
-      triangleRight.style.opacity = "0";
+      this.isDragging = false;
+      this.onDragEnd?.(event, preview, startX, event.clientX);
     };
-    button.onmouseenter = (event: MouseEvent): void => {
-      if (!event.buttons) {
-        button.style.opacity = "1";
-        button.style.boxShadow =
-          "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)";
-      }
-    };
-    button.onmouseleave = (event: MouseEvent): void => {
-      if (!event.buttons) {
-        button.style.opacity = "0.5";
-        button.style.boxShadow = null;
-      }
-    };
-    button.onmousedown = (event: MouseEvent): void => {
+    preview.onmousedown = (event: MouseEvent): void => {
       this.isDragging = true;
       startX = event.clientX;
-      button.style.cursor = "grabbing";
-      triangleLeft.style.opacity = "0.5";
-      triangleRight.style.opacity = "0.5";
-      document.documentElement.style.cursor = "grabbing";
-      document
-        .querySelectorAll<HTMLButtonElement>(`.${button.className}`)
-        .forEach((el) => {
-          if (el !== button) {
-            el.style.cursor = "grabbing";
-          }
-        });
-      this.onDragStart?.(this.id, root, startX);
+      document.documentElement.style.cursor = "ew-resize";
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      const valueEl = document.getElementsByClassName(
+        this.id
+      )?.[0] as HTMLElement;
+      if (valueEl) {
+        valueEl.style.opacity = "0";
+      }
+      if (preview) {
+        preview.textContent = valueEl.textContent;
+        preview.style.opacity = "1";
+      }
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp, { once: true });
+      this.onDragStart?.(event, preview, startX);
     };
-
-    button.appendChild(triangleLeft);
-    button.appendChild(triangleRight);
-
-    root.appendChild(button);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    this.unregister = (): void => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
+    this.dom = root;
     return root;
   }
 
-  override destroy(dom: HTMLElement): void {
-    this.unregister?.();
-    super.destroy(dom);
-  }
-
-  override ignoreEvent(): boolean {
+  override updateDOM(dom: HTMLElement): boolean {
+    if (this.isDragging) {
+      dom.firstElementChild.textContent =
+        this.dom?.firstElementChild.textContent;
+      const valueEl = document.getElementsByClassName(
+        this.id
+      )?.[0] as HTMLElement;
+      if (valueEl) {
+        valueEl.style.opacity = "0";
+      }
+      return true;
+    }
     return false;
   }
 }
