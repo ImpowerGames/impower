@@ -4,6 +4,14 @@ const BOOLEAN_ARRAY = [false, true];
 
 const CLICK_THRESHOLD = 0;
 
+const STRUCT_FIELD_CLASS_PREFIX = "cm-struct-field";
+
+const STRUCT_FIELD_VALUE_PREVIEW_CLASS_PREFIX = "cm-struct-field-value-preview";
+
+const STRUCT_FIELD_SLIDER_TRACK_CLASS_PREFIX = "cm-struct-field-slider-track";
+
+const STRUCT_FIELD_SLIDER_FILL_CLASS_PREFIX = "cm-struct-field-slider-fill";
+
 const roundToNearestStep = (n: number, step: number): number => {
   return Math.round(n / step) * step;
 };
@@ -48,6 +56,11 @@ const getNewValue = (
     return max;
   }
   return newValue;
+};
+
+const getElement = (className: string): HTMLElement => {
+  const elements = document.getElementsByClassName(className);
+  return elements?.[elements.length - 1] as HTMLElement;
 };
 
 export class StructFieldValueWidgetType extends WidgetType {
@@ -115,6 +128,10 @@ export class StructFieldValueWidgetType extends WidgetType {
   }
 
   toDOM(): HTMLElement {
+    const className = `${STRUCT_FIELD_CLASS_PREFIX}${this.id}`;
+    const sliderTrackClassName = `${STRUCT_FIELD_SLIDER_TRACK_CLASS_PREFIX}${this.id}`;
+    const sliderFillClassName = `${STRUCT_FIELD_SLIDER_FILL_CLASS_PREFIX}${this.id}`;
+    const previewClassName = `${STRUCT_FIELD_VALUE_PREVIEW_CLASS_PREFIX}${this.id}`;
     const minNumber =
       typeof this.startValue === "number"
         ? (this.range?.[0] as number) ?? 0
@@ -132,29 +149,47 @@ export class StructFieldValueWidgetType extends WidgetType {
     const step =
       typeof this.startValue === "number"
         ? (this.range?.[2] as number) ?? 1
-        : 0.02;
+        : 0.05;
     const start =
       typeof this.startValue === "number"
         ? this.startValue
         : options.indexOf(this.startValue);
+    const startIndex = options.indexOf(this.startValue);
+    const maxIndex = options.length - 1;
+    const zeroOrigin =
+      min >= 0 ? 0 : Math.abs(min) / (Math.abs(min) + Math.abs(max));
 
     const root = document.createElement("span");
+    root.className = className;
     root.style.position = "relative";
     const preview = document.createElement("div");
+    preview.className = previewClassName;
     preview.style.opacity = "0";
     preview.style.position = "absolute";
     preview.style.top = "0";
     preview.style.left = "0";
+    preview.style.bottom = "4px";
     preview.style.width = "fit-content";
     preview.style.whiteSpace = "nowrap";
     preview.style.color = "#99daff";
     preview.style.cursor = "ew-resize";
+    preview.style.backgroundColor = "black";
+    preview.style.marginLeft = "-4px";
+    preview.style.marginRight = "-4px";
+    preview.style.paddingLeft = "4px";
+    preview.style.paddingRight = "4px";
+    preview.style.borderRadius = "2px";
     preview.textContent = this.valueContent;
     root.appendChild(preview);
 
     let startX = 0;
     let clicked = true;
     const onMouseMove = (event: MouseEvent): void => {
+      const previewEl = getElement(previewClassName);
+      const valueEl = getElement(this.id);
+      const sliderTrackEl = getElement(sliderTrackClassName);
+      const sliderFillEl = getElement(sliderFillClassName);
+
       event.stopImmediatePropagation();
       event.preventDefault();
       const deltaX = event.clientX - startX;
@@ -162,71 +197,133 @@ export class StructFieldValueWidgetType extends WidgetType {
         clicked = false;
       }
       const newValue = getNewValue(min, max, step, start, deltaX);
+      const roundedValue =
+        typeof this.startValue === "number" ? newValue : Math.floor(newValue);
       const insert =
         typeof this.startValue === "number"
-          ? getValueText(newValue, step)
-          : getValueText(options[Math.floor(newValue)]);
-      if (preview && insert !== preview.textContent) {
-        preview.textContent = insert;
-        preview.style.opacity = "1";
+          ? getValueText(roundedValue, step)
+          : getValueText(options[roundedValue]);
+      if (previewEl && insert !== previewEl.textContent) {
+        previewEl.textContent = insert;
+        previewEl.style.opacity = "1";
       }
-      this.onDragging?.(event, preview, startX, event.clientX);
+      if (valueEl) {
+        valueEl.style.opacity = "0";
+      }
+      if (sliderTrackEl) {
+        sliderTrackEl.style.opacity = "1";
+      }
+      if (sliderFillEl) {
+        sliderFillEl.style.left = `${zeroOrigin * 100}%`;
+        if (min < 0) {
+          if (roundedValue < 0) {
+            sliderFillEl.style.transform = `scaleX(${
+              roundedValue / Math.abs(min)
+            })`;
+          } else {
+            sliderFillEl.style.transform = `scaleX(${
+              roundedValue / Math.abs(max)
+            })`;
+          }
+        } else {
+          sliderFillEl.style.transformOrigin = `left center`;
+          sliderFillEl.style.transform = `scaleX(${
+            (roundedValue - min) / (max - min)
+          })`;
+        }
+      }
+      this.onDragging?.(event, previewEl, startX, event.clientX);
     };
     const onMouseUp = (event: MouseEvent): void => {
-      const valueEl = document.getElementsByClassName(
-        this.id
-      )?.[0] as HTMLElement;
+      const previewEl = getElement(previewClassName);
+      const valueEl = getElement(this.id);
+      const sliderTrackEl = getElement(sliderTrackClassName);
+      const sliderFillEl = getElement(sliderFillClassName);
       if (clicked && valueEl.contains(event.target as Node)) {
         // If clicked without dragging, cycle to the next option
-        const startIndex = options.indexOf(this.startValue);
-        const index = startIndex >= options.length - 1 ? 0 : startIndex + 1;
-        const insert = getValueText(options[index], step);
-        if (preview && insert !== preview.textContent) {
-          preview.textContent = insert;
-          preview.style.opacity = "1";
+        const newIndex = startIndex >= maxIndex ? 0 : startIndex + 1;
+        const newValue = options[newIndex];
+        const insert = getValueText(newValue, step);
+        if (previewEl && insert !== previewEl.textContent) {
+          previewEl.textContent = insert;
         }
-        this.onClick?.(event, preview);
+        if (sliderFillEl) {
+          sliderFillEl.style.left = `${zeroOrigin * 100}%`;
+          if (typeof newValue === "number" && min < 0) {
+            if (newValue < 0) {
+              sliderFillEl.style.transform = `scaleX(${
+                newValue / Math.abs(min)
+              })`;
+            } else {
+              sliderFillEl.style.transform = `scaleX(${
+                newValue / Math.abs(max)
+              })`;
+            }
+          } else {
+            sliderFillEl.style.transform = `scaleX(${newIndex / maxIndex})`;
+          }
+        }
+        this.onClick?.(event, previewEl);
       }
-      this.onDragEnd?.(event, preview, startX, event.clientX);
+      if (previewEl) {
+        previewEl.style.opacity = "0";
+      }
+      if (sliderTrackEl) {
+        sliderTrackEl.style.opacity = "0";
+      }
+      this.onDragEnd?.(event, previewEl, startX, event.clientX);
       window.removeEventListener("mousemove", onMouseMove);
       document.documentElement.style.cursor = null;
       this.isDragging = false;
-      this.onDragEnd?.(event, preview, startX, event.clientX);
+      this.onDragEnd?.(event, previewEl, startX, event.clientX);
     };
     preview.onmousedown = (event: MouseEvent): void => {
+      const previewEl = getElement(previewClassName);
+      const valueEl = getElement(this.id);
+      const sliderTrackEl = getElement(sliderTrackClassName);
+      const sliderFillEl = getElement(sliderFillClassName);
+
       this.isDragging = true;
       startX = event.clientX;
       document.documentElement.style.cursor = "ew-resize";
       event.stopImmediatePropagation();
       event.preventDefault();
-      const valueEl = document.getElementsByClassName(
-        this.id
-      )?.[0] as HTMLElement;
       if (valueEl) {
         valueEl.style.opacity = "0";
       }
-      if (preview) {
-        preview.textContent = valueEl.textContent;
-        preview.style.opacity = "1";
+      if (previewEl) {
+        previewEl.textContent = valueEl.textContent;
+        previewEl.style.opacity = "1";
+      }
+      if (sliderTrackEl) {
+        sliderTrackEl.style.opacity = "1";
+      }
+      if (sliderFillEl) {
+        sliderFillEl.style.left = `${zeroOrigin * 100}%`;
+        if (min < 0) {
+          if (start < 0) {
+            sliderFillEl.style.transform = `scaleX(${start / Math.abs(min)})`;
+          } else {
+            sliderFillEl.style.transform = `scaleX(${start / Math.abs(max)})`;
+          }
+        } else {
+          sliderFillEl.style.transform = `scaleX(${startIndex / maxIndex})`;
+        }
       }
       window.addEventListener("mousemove", onMouseMove);
       window.addEventListener("mouseup", onMouseUp, { once: true });
-      this.onDragStart?.(event, preview, startX);
+      this.onDragStart?.(event, previewEl, startX);
     };
     this.dom = root;
     return root;
   }
 
-  override updateDOM(dom: HTMLElement): boolean {
-    if (this.isDragging) {
-      dom.firstElementChild.textContent =
-        this.dom?.firstElementChild.textContent;
-      const valueEl = document.getElementsByClassName(
-        this.id
-      )?.[0] as HTMLElement;
-      if (valueEl) {
-        valueEl.style.opacity = "0";
-      }
+  override eq(other: StructFieldValueWidgetType): boolean {
+    const valueEl = getElement(this.id);
+    if (this.isDragging || other.isDragging) {
+      valueEl.style.opacity = "0";
+    }
+    if (this.id === other.id && this.startValue === other.startValue) {
       return true;
     }
     return false;

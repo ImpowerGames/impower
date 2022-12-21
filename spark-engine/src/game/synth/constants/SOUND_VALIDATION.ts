@@ -2,6 +2,8 @@ import { RecursiveValidation } from "../../core";
 import { Sound } from "../types/Sound";
 
 const A0 = 27.5;
+const A1 = 55;
+const A2 = 110;
 const A4 = 440;
 const A6 = 1760;
 const A8 = 7040;
@@ -28,25 +30,25 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
   amplitude: {
     volume: [0.5, [0, 1, 0.01], [true]],
     ramp: [0, [-1, 1, 0.01], []],
-    attack: [0.01, [0, 5, 0.01], [true]],
-    decay: [0.01, [0, 5, 0.01], [true]],
-    sustain: [0.01, [0, 5, 0.01], [true]],
-    release: [0.01, [0, 5, 0.01], [true]],
+    attack: [0.01, [0, 5, 0.05], [true]],
+    decay: [0.01, [0, 5, 0.05], [true]],
+    sustain: [0.01, [0, 5, 0.05], [true]],
+    release: [0.01, [0, 5, 0.05], [true]],
     sustainLevel: [0.5, [0, 1, 0.01], [true]],
   },
   frequency: {
-    pitch: [A4, [0, A8, 0.01], [true]],
+    pitch: [A4, [0, A8, A1], [true]],
     ramp: [0, [-1, 1, 0.01], []],
     accel: [0, [-1, 1, 0.01], []],
     jerk: [0, [-1, 1, 0.01], []],
   },
   lowpass: {
-    cutoff: [0, [0, A10, 0.01], [true]],
+    cutoff: [0, [0, A10, A2], [true]],
     cutoffRamp: [0, [-1, 1, 0.01], []],
     resonance: [0, [0, 1, 0.01], [true]],
   },
   highpass: {
-    cutoff: [0, [0, A10, 0.01], [true]],
+    cutoff: [0, [0, A10, A2], [true]],
     cutoffRamp: [0, [-1, 1, 0.01], []],
   },
   vibrato: {
@@ -58,7 +60,7 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     ],
     strength: [0.5, [0, 1, 0.01], [true]],
     strengthRamp: [0, [-1, 1, 0.01], []],
-    rate: [6, [0, A0, 0.01], [true]],
+    rate: [6, [0, A0, 0.5], [true]],
     rateRamp: [0, [-1, 1, 0.01], []],
   },
   tremolo: {
@@ -70,7 +72,7 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     ],
     strength: [0.5, [0, 1, 0.01], [true]],
     strengthRamp: [0, [-1, 1, 0.01], []],
-    rate: [12, [0, A0, 0.01], [true]],
+    rate: [12, [0, A0, 0.5], [true]],
     rateRamp: [0, [-1, 1, 0.01], []],
   },
   wahwah: {
@@ -82,7 +84,7 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     ],
     strength: [0.5, [0, 1, 0.01], [true]],
     strengthRamp: [0, [-1, 1, 0.01], []],
-    rate: [6, [0, A0, 0.01], [true]],
+    rate: [6, [0, A0, 0.5], [true]],
     rateRamp: [0, [-1, 1, 0.01], []],
   },
   ring: {
@@ -94,7 +96,7 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     ],
     strength: [0.5, [0, 1, 0.01], [true]],
     strengthRamp: [0, [-1, 1, 0.01], []],
-    rate: [A6, [A0, A8], [true]],
+    rate: [A6, [A0, A8, A1], [true]],
     rateRamp: [0, [-1, 1, 0.01], []],
   },
   arpeggio: {
@@ -131,14 +133,14 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     count: [4, [0, 6, 1], [true]],
     strength: [0.5, [0, 1, 0.01], [true]],
     strengthRamp: [0, [-1, 1, 0.01], []],
-    delay: [0.15, [0, 0.5, 0.01], [true]],
+    delay: [0.15, [0, 1, 0.01], [true]],
     delayRamp: [0, [-1, 1, 0.01], []],
   },
   reverb: {
     on: [false],
     strength: [0.5, [0, 1, 0.01], [true]],
     strengthRamp: [0, [-1, 1, 0.01], []],
-    delay: [0.15, [0, 0.5, 0.01], [true]],
+    delay: [0.15, [0, 1, 0.01], [true]],
     delayRamp: [0, [-1, 1, 0.01], []],
   },
 };

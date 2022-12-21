@@ -11,11 +11,12 @@ import { getAllPropertyRequirements } from "../../../../spark-engine";
 import { SparkParseResult, SparkStructFieldToken } from "../../../../sparkdown";
 import { Type } from "../types/type";
 import { sparkValidations } from "../utils/sparkValidations";
+import { StructFieldNameWidgetType } from "./StructFieldNameWidgetType";
 import { StructFieldValueWidgetType } from "./StructFieldValueWidgetType";
 
 const parseContextState = Facet.define<{ result?: SparkParseResult }>({});
 
-const structFieldValueDecorations = (view: EditorView): DecorationSet => {
+const structFieldDecorations = (view: EditorView): DecorationSet => {
   const widgets = [];
   view.visibleRanges.forEach(({ from, to }) => {
     syntaxTree(view.state).iterate({
@@ -23,6 +24,34 @@ const structFieldValueDecorations = (view: EditorView): DecorationSet => {
       to,
       enter: (node) => {
         const type = node?.type;
+        if (type.id === Type.StructFieldName) {
+          const from = node?.from;
+          const to = node?.to;
+          const [parseContext] = view.state.facet(parseContextState);
+          const line = view.state.doc.lineAt(to);
+          const result = parseContext.result;
+          const tokenIndex = result.tokenLines[line.number];
+          const structFieldToken = result.tokens[
+            tokenIndex
+          ] as SparkStructFieldToken;
+          if (structFieldToken) {
+            const structName = structFieldToken?.struct;
+            const struct = result.structs[structName || ""];
+            const structType = struct?.type;
+            const validation = sparkValidations[structType];
+            const requirements = getAllPropertyRequirements(validation);
+            const requirement = requirements[structFieldToken.id];
+            const defaultName = requirement?.[0];
+            const id = `${structName}${structFieldToken.id}`;
+            if (["number", "string", "boolean"].includes(typeof defaultName)) {
+              widgets.push(
+                Decoration.widget({
+                  widget: new StructFieldNameWidgetType(id),
+                }).range(from)
+              );
+            }
+          }
+        }
         if (type.id === Type.StructFieldValue) {
           const from = node?.from;
           const to = node?.to;
@@ -44,17 +73,15 @@ const structFieldValueDecorations = (view: EditorView): DecorationSet => {
             const requirement = requirements[structFieldToken.id];
             const defaultValue = requirement?.[0];
             const range = requirement?.[1];
-            const valueElId = `cm-struct-field-value-${structName}${structFieldToken.id}`;
+            const id = `${structName}${structFieldToken.id}`;
             if (["number", "string", "boolean"].includes(typeof defaultValue)) {
               const onDragEnd = (
                 event: MouseEvent,
                 previewEl: HTMLElement
               ): void => {
-                event.stopImmediatePropagation();
-                event.preventDefault();
                 const insert = previewEl.textContent;
                 const valueEl = document.getElementsByClassName(
-                  valueElId
+                  id
                 )?.[0] as HTMLElement;
                 const from = view.posAtDOM(valueEl);
                 const to = view.state.doc.lineAt(from).to;
@@ -64,14 +91,14 @@ const structFieldValueDecorations = (view: EditorView): DecorationSet => {
               widgets.push(
                 Decoration.widget({
                   widget: new StructFieldValueWidgetType(
-                    valueElId,
+                    id,
                     view.state.doc.sliceString(from, to),
                     startValue,
                     range,
                     { onDragEnd }
                   ),
                 }).range(from),
-                Decoration.mark({ class: valueElId }).range(from, to)
+                Decoration.mark({ class: id }).range(from, to)
               );
             }
           }
@@ -82,16 +109,16 @@ const structFieldValueDecorations = (view: EditorView): DecorationSet => {
   return Decoration.set(widgets);
 };
 
-export const structFieldValuePlugin = ViewPlugin.fromClass(
+export const structFieldPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
 
     constructor(view: EditorView) {
-      this.decorations = structFieldValueDecorations(view);
+      this.decorations = structFieldDecorations(view);
     }
 
     update(update: ViewUpdate): void {
-      this.decorations = structFieldValueDecorations(update.view);
+      this.decorations = structFieldDecorations(update.view);
     }
   },
   {
@@ -99,12 +126,12 @@ export const structFieldValuePlugin = ViewPlugin.fromClass(
   }
 );
 
-export const structFieldValueWidget = (
+export const structFieldWidget = (
   options: {
     parseContext?: {
       result: SparkParseResult;
     };
   } = {}
 ): Extension => {
-  return [parseContextState.of(options.parseContext), structFieldValuePlugin];
+  return [parseContextState.of(options.parseContext), structFieldPlugin];
 };
