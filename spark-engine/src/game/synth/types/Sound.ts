@@ -43,7 +43,7 @@ export interface Sound {
     rateRamp: number;
     semitones: number[];
     shapes: OscillatorType[];
-    direction: "up" | "down" | "alternate" | "random";
+    direction: "up" | "down" | "down-up" | "up-down" | "random";
     maxOctaves: number;
     maxNotes: number;
   };

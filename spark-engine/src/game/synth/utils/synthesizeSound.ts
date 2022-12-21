@@ -26,20 +26,21 @@ const getCycleIndex = (
 const isChoicesReversed = (
   numNotesPlayed: number,
   choicesLength: number,
-  direction: "down" | "up" | "alternate" | "random"
+  direction: "down" | "up" | "down-up" | "up-down" | "random"
 ): boolean => {
   const cycleIndex = getCycleIndex(numNotesPlayed, choicesLength);
   const isEvenCycle = cycleIndex % 2 === 0;
   const isReversed =
     (direction !== "random" && direction === "up") ||
-    (direction === "alternate" && !isEvenCycle);
+    (direction === "down-up" && !isEvenCycle) ||
+    (direction === "up-down" && isEvenCycle);
   return isReversed;
 };
 
 const getOctaveSemitones = (
   numNotesPlayed: number,
   choicesLength: number,
-  direction: "down" | "up" | "alternate" | "random",
+  direction: "down" | "up" | "down-up" | "up-down" | "random",
   maxOctaves: number
 ): number => {
   const cycleIndex = getCycleIndex(numNotesPlayed, choicesLength);
@@ -55,7 +56,7 @@ const getOctaveSemitones = (
 const choose = <T>(
   choices: T[],
   reversedChoices: T[],
-  direction: "down" | "up" | "alternate" | "random",
+  direction: "down" | "up" | "down-up" | "up-down" | "random",
   numNotesPlayed: number,
   seed: string
 ): T | undefined => {
