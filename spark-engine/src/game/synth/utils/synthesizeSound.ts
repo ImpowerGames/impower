@@ -31,7 +31,7 @@ const isChoicesReversed = (
   const cycleIndex = getCycleIndex(numNotesPlayed, choicesLength);
   const isEvenCycle = cycleIndex % 2 === 0;
   const isReversed =
-    (direction !== "random" && direction === "up") ||
+    direction === "up" ||
     (direction === "down-up" && !isEvenCycle) ||
     (direction === "up-down" && isEvenCycle);
   return isReversed;
