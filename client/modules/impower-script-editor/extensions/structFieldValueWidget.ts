@@ -44,7 +44,7 @@ const structFieldValueDecorations = (view: EditorView): DecorationSet => {
             const requirement = requirements[structFieldToken.id];
             const defaultValue = requirement?.[0];
             const range = requirement?.[1];
-            const id = structName + structFieldToken.id;
+            const valueElId = `cm-struct-field-value-${structName}${structFieldToken.id}`;
             if (["number", "string", "boolean"].includes(typeof defaultValue)) {
               const onDragEnd = (
                 event: MouseEvent,
@@ -54,7 +54,7 @@ const structFieldValueDecorations = (view: EditorView): DecorationSet => {
                 event.preventDefault();
                 const insert = previewEl.textContent;
                 const valueEl = document.getElementsByClassName(
-                  id
+                  valueElId
                 )?.[0] as HTMLElement;
                 const from = view.posAtDOM(valueEl);
                 const to = view.state.doc.lineAt(from).to;
@@ -64,16 +64,14 @@ const structFieldValueDecorations = (view: EditorView): DecorationSet => {
               widgets.push(
                 Decoration.widget({
                   widget: new StructFieldValueWidgetType(
-                    id,
+                    valueElId,
                     view.state.doc.sliceString(from, to),
                     startValue,
                     range,
                     { onDragEnd }
                   ),
                 }).range(from),
-                Decoration.mark({
-                  class: id,
-                }).range(from, to)
+                Decoration.mark({ class: valueElId }).range(from, to)
               );
             }
           }

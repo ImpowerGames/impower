@@ -2,6 +2,8 @@ import { WidgetType } from "@codemirror/view";
 
 const BOOLEAN_ARRAY = [false, true];
 
+const CLICK_THRESHOLD = 0;
+
 const roundToNearestStep = (n: number, step: number): number => {
   return Math.round(n / step) * step;
 };
@@ -77,6 +79,8 @@ export class StructFieldValueWidgetType extends WidgetType {
     x: number
   ) => void;
 
+  onClick?: (e: MouseEvent, dom: HTMLElement) => void;
+
   constructor(
     id: string,
     valueContent: string,
@@ -96,6 +100,7 @@ export class StructFieldValueWidgetType extends WidgetType {
         startX: number,
         x: number
       ) => void;
+      onClick?: (e: MouseEvent, dom: HTMLElement) => void;
     }
   ) {
     super();
@@ -106,18 +111,24 @@ export class StructFieldValueWidgetType extends WidgetType {
     this.onDragStart = callbacks?.onDragStart;
     this.onDragging = callbacks?.onDragging;
     this.onDragEnd = callbacks?.onDragEnd;
+    this.onClick = callbacks?.onClick;
   }
 
   toDOM(): HTMLElement {
-    const options = this.range || BOOLEAN_ARRAY;
-    const min =
+    const minNumber =
       typeof this.startValue === "number"
         ? (this.range?.[0] as number) ?? 0
-        : 0;
-    const max =
+        : undefined;
+    const maxNumber =
       typeof this.startValue === "number"
         ? (this.range?.[1] as number) ?? 100
-        : options.length - 1;
+        : undefined;
+    const options =
+      typeof this.startValue === "number"
+        ? [minNumber, (minNumber + maxNumber) / 2, maxNumber]
+        : this.range || BOOLEAN_ARRAY;
+    const min = minNumber ?? 0;
+    const max = maxNumber ?? options.length - 1;
     const step =
       typeof this.startValue === "number"
         ? (this.range?.[2] as number) ?? 1
@@ -142,10 +153,14 @@ export class StructFieldValueWidgetType extends WidgetType {
     root.appendChild(preview);
 
     let startX = 0;
+    let clicked = true;
     const onMouseMove = (event: MouseEvent): void => {
       event.stopImmediatePropagation();
       event.preventDefault();
       const deltaX = event.clientX - startX;
+      if (Math.abs(deltaX) > CLICK_THRESHOLD) {
+        clicked = false;
+      }
       const newValue = getNewValue(min, max, step, start, deltaX);
       const insert =
         typeof this.startValue === "number"
@@ -158,6 +173,20 @@ export class StructFieldValueWidgetType extends WidgetType {
       this.onDragging?.(event, preview, startX, event.clientX);
     };
     const onMouseUp = (event: MouseEvent): void => {
+      const valueEl = document.getElementsByClassName(
+        this.id
+      )?.[0] as HTMLElement;
+      if (clicked && valueEl.contains(event.target as Node)) {
+        // If clicked without dragging, cycle to the next option
+        const startIndex = options.indexOf(this.startValue);
+        const index = startIndex >= options.length - 1 ? 0 : startIndex + 1;
+        const insert = getValueText(options[index], step);
+        if (preview && insert !== preview.textContent) {
+          preview.textContent = insert;
+          preview.style.opacity = "1";
+        }
+        this.onClick?.(event, preview);
+      }
       this.onDragEnd?.(event, preview, startX, event.clientX);
       window.removeEventListener("mousemove", onMouseMove);
       document.documentElement.style.cursor = null;
