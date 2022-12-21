@@ -28,7 +28,7 @@ export class StructFieldNameWidgetType extends WidgetType {
     sliderTrack.style.backgroundColor = "#00000080";
     sliderTrack.style.borderRadius = "4px";
     sliderTrack.style.opacity = "0";
-    sliderTrack.style.transition = "opacity 0.15s ease 0.15s";
+    sliderTrack.style.transition = "opacity 0s ease 0.15s";
     sliderTrack.style.overflow = "hidden";
     const sliderFill = document.createElement("div");
     sliderFill.className = `${STRUCT_FIELD_SLIDER_FILL_CLASS_PREFIX}${this.id}`;
