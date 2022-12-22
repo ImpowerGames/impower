@@ -255,8 +255,10 @@ export const fillBuffer = (
   const amp_sustain_duration = sound.amplitude.sustain;
   const amp_release_duration = sound.amplitude.release;
   const amp_sustain_level = sound.amplitude.sustainLevel;
+  const lowpass_on = sound.lowpass.on;
   const lowpass_cutoff = sound.lowpass.cutoff;
   const lowpass_resonance = sound.lowpass.resonance;
+  const highpass_on = sound.highpass.on;
   const highpass_cutoff = sound.highpass.cutoff;
   const vibrato_shape = sound.vibrato.shape;
   const vibrato_on = sound.vibrato.on;
@@ -501,7 +503,7 @@ export const fillBuffer = (
     }
 
     // Lowpass Filter
-    if (lowpassCutoff > 0) {
+    if (lowpass_on && lowpassCutoff > 0) {
       sampleValue = filter(
         sampleRate,
         sampleValue,
@@ -513,7 +515,7 @@ export const fillBuffer = (
     }
 
     // Highpass Filter
-    if (highpassCutoff > 0) {
+    if (highpass_on && highpassCutoff > 0) {
       sampleValue = filter(
         sampleRate,
         sampleValue,

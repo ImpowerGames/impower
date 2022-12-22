@@ -11,7 +11,7 @@ import {
 import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
 import {
-  getAllPropertyRequirements,
+  getAllProperties,
   Note,
   Pitch,
   SynthTrack,
@@ -1053,8 +1053,8 @@ export const sparkAutocomplete = async (
     const structType = struct?.type;
     const validation = sparkValidations[structType];
     if (validation) {
-      const requirements = getAllPropertyRequirements(validation);
-      const possibleNames: Record<string, unknown[]> = {};
+      const requirements = getAllProperties(validation);
+      const possibleNames: Record<string, unknown> = {};
       Object.entries(requirements).forEach(([p, v]) => {
         if (p.startsWith(fieldId) && !Object.keys(struct.fields).includes(p)) {
           const k = p.slice(fieldId.length);
@@ -1093,10 +1093,12 @@ export const sparkAutocomplete = async (
       const structType = struct?.type;
       const validation = sparkValidations[structType];
       if (validation) {
-        const requirements = getAllPropertyRequirements(validation);
+        const requirements = getAllProperties(validation);
         const requirement = requirements[fieldId];
         if (requirement) {
-          const [defaultValue, options] = requirement;
+          const [defaultValue, options] = Array.isArray(requirement)
+            ? requirement
+            : [];
           const validOptions =
             typeof defaultValue === "boolean" ? [true, false] : options;
           const completions = validOptions?.map((option) => {

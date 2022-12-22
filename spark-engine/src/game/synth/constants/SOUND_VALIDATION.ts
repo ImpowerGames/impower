@@ -43,11 +43,13 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     jerk: [0, [-1, 1, 0.01], []],
   },
   lowpass: {
+    on: [false],
     cutoff: [0, [0, A10, A2], [true]],
     cutoffRamp: [0, [-1, 1, 0.01], []],
     resonance: [0, [0, 1, 0.01], [true]],
   },
   highpass: {
+    on: [false],
     cutoff: [0, [0, A10, A2], [true]],
     cutoffRamp: [0, [-1, 1, 0.01], []],
   },
@@ -117,7 +119,7 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
       ],
       "sine",
     ],
-    rate: [6, [0, 20, 1], [true]],
+    rate: [6, [2, 20, 1], [true]],
     rateRamp: [0, [-1, 1, 0.01], []],
     maxOctaves: [1, [1, 8, 1], [true]],
     maxNotes: [160, [1, 900, 1], [true]],
@@ -130,7 +132,7 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
   },
   harmony: {
     on: [false],
-    count: [4, [0, 6, 1], [true]],
+    count: [2, [0, 6, 1], [true]],
     strength: [0.5, [0, 1, 0.01], [true]],
     strengthRamp: [0, [-1, 1, 0.01], []],
     delay: [0.15, [0, 1, 0.01], [true]],

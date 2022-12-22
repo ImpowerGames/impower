@@ -32,7 +32,7 @@ import { indentationGuides } from "../extensions/indentationGuides";
 import { sectionNamePreviewWidget } from "../extensions/sectionNamePreviewWidget";
 import { snippetPreview } from "../extensions/snippetPreview";
 import { structFieldWidget } from "../extensions/structFieldWidget";
-import { structToolbarWidget } from "../extensions/structToolbarWidget";
+import { structPresetWidget } from "../extensions/structPresetWidget";
 import { MarkdownExtension } from "../types/markdownExtension";
 import { getDiagnostics } from "./getDiagnostics";
 import { parseCode } from "./nest";
@@ -195,7 +195,7 @@ export function spark(
       )
     ),
     sectionNamePreviewWidget({ parseContext }),
-    structToolbarWidget({ parseContext }),
+    structPresetWidget({ parseContext }),
     structFieldWidget({ parseContext }),
     snippetPreview(),
     linter(sparkParseLinter, { delay: 100 }),

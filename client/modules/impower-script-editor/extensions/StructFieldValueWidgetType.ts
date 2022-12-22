@@ -33,7 +33,7 @@ const getValueText = (value: unknown, step?: number): string => {
   }
   if (typeof value === "number") {
     if (step !== undefined) {
-      const stepFractionDigits = step.toString().split(".")[1]?.length;
+      const stepFractionDigits = step.toString().split(".")[1]?.length || 0;
       return value.toFixed(stepFractionDigits);
     }
     return value.toString();

@@ -7,7 +7,7 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import { getAllPropertyRequirements } from "../../../../spark-engine";
+import { getAllProperties } from "../../../../spark-engine";
 import { SparkParseResult, SparkStructFieldToken } from "../../../../sparkdown";
 import { Type } from "../types/type";
 import { sparkValidations } from "../utils/sparkValidations";
@@ -39,7 +39,7 @@ const structFieldDecorations = (view: EditorView): DecorationSet => {
             const struct = result.structs[structName || ""];
             const structType = struct?.type;
             const validation = sparkValidations[structType];
-            const requirements = getAllPropertyRequirements(validation);
+            const requirements = getAllProperties(validation);
             const requirement = requirements[structFieldToken.id];
             const defaultName = requirement?.[0];
             const id = `${structName}${structFieldToken.id}`;
@@ -69,7 +69,7 @@ const structFieldDecorations = (view: EditorView): DecorationSet => {
             const startValue = structField?.value;
             const structType = struct?.type;
             const validation = sparkValidations[structType];
-            const requirements = getAllPropertyRequirements(validation);
+            const requirements = getAllProperties(validation);
             const requirement = requirements[structFieldToken.id];
             const defaultValue = requirement?.[0];
             const range = requirement?.[1];

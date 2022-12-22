@@ -29,11 +29,13 @@ export interface Sound {
     sustainLevel: number;
   };
   lowpass: {
+    on: boolean;
     cutoff: number;
     cutoffRamp: number;
     resonance: number;
   };
   highpass: {
+    on: boolean;
     cutoff: number;
     cutoffRamp: number;
   };

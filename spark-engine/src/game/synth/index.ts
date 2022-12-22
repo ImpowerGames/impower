@@ -19,6 +19,7 @@ export * from "./types/MidiProgramInstrumentType";
 export * from "./types/MidiTrack";
 export * from "./types/Note";
 export * from "./types/OscillatorType";
+export * from "./types/Sound";
 export * from "./types/StressType";
 export * from "./types/Tone";
 export * from "./utils/convertHertzToNote";
