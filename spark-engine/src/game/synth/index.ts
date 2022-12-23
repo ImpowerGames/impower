@@ -6,7 +6,7 @@ export * from "./constants/MIDI_PERCUSSION_INSTRUMENTS";
 export * from "./constants/MIDI_PROGRAM_INSTRUMENTS";
 export * from "./constants/OSCILLATORS";
 export * from "./constants/PITCH_NOTATION_REGEX";
-export * from "./constants/SOUND_GENERATORS";
+export * from "./constants/SOUND_RANDOMIZATION";
 export * from "./constants/SOUND_VALIDATION";
 export * from "./types/ContourType";
 export * from "./types/ControlChangeType";

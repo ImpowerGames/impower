@@ -1,6 +1,6 @@
 import {
   RecursiveRandomization,
-  SOUND_RANDOMIZATIONS,
+  SOUND_RANDOMIZATION,
 } from "../../../../spark-engine";
 import { SparkStructType } from "../../../../sparkdown/src/types/SparkStructType";
 
@@ -16,7 +16,7 @@ export const sparkRandomizations: Record<
   camera: undefined,
   animation: undefined,
   display: undefined,
-  sound: SOUND_RANDOMIZATIONS,
+  sound: SOUND_RANDOMIZATION,
   typewriter: undefined,
   preset: undefined,
 };

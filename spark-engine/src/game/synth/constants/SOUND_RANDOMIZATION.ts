@@ -8,6 +8,18 @@
 import { RecursiveRandomization } from "../../core/types/RecursiveRandomization";
 import { SoundConfig } from "../types/Sound";
 
+export type SoundGeneratorType =
+  | "coin"
+  | "zap"
+  | "boom"
+  | "powerup"
+  | "lose"
+  | "hurt"
+  | "jump"
+  | "blip"
+  | "push"
+  | "random";
+
 export const MAJOR_ARPEGGIOS = [
   [0, 3, 9, 14],
   [0, 3, 9],
@@ -26,7 +38,7 @@ export const MAJOR_ARPEGGIOS = [
   [4, 9, 12],
 ];
 
-export const SOUND_RANDOMIZATIONS: Record<
+export const SOUND_RANDOMIZATION: Record<
   SoundGeneratorType,
   RecursiveRandomization<SoundConfig>
 > = {
@@ -225,28 +237,3 @@ export const SOUND_RANDOMIZATIONS: Record<
     },
   },
 };
-
-export type SoundGeneratorType =
-  | "coin"
-  | "zap"
-  | "boom"
-  | "powerup"
-  | "lose"
-  | "hurt"
-  | "jump"
-  | "blip"
-  | "push"
-  | "random";
-
-export const SOUND_GENERATOR_TYPES: SoundGeneratorType[] = [
-  "coin",
-  "zap",
-  "boom",
-  "powerup",
-  "hurt",
-  "lose",
-  "jump",
-  "blip",
-  "push",
-  "random",
-];
