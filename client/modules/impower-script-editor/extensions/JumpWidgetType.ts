@@ -1,7 +1,7 @@
 import { WidgetType } from "@codemirror/view";
 import { colors } from "../constants/colors";
 
-export class SectionNamePreviewWidgetType extends WidgetType {
+export class JumpWidgetType extends WidgetType {
   name: string;
 
   constructor(name: string) {
@@ -9,7 +9,7 @@ export class SectionNamePreviewWidgetType extends WidgetType {
     this.name = name;
   }
 
-  override eq(other: SectionNamePreviewWidgetType): boolean {
+  override eq(other: JumpWidgetType): boolean {
     return other.name === this.name;
   }
 

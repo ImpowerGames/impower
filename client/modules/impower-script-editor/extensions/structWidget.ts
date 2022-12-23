@@ -443,7 +443,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
   return Decoration.set(widgets);
 };
 
-export const structPlugin = ViewPlugin.fromClass(
+export const structWidgetPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
 
@@ -467,5 +467,5 @@ export const structWidget = (
     };
   } = {}
 ): Extension => {
-  return [parseContextState.of(options.parseContext), structPlugin];
+  return [parseContextState.of(options.parseContext), structWidgetPlugin];
 };

@@ -12,11 +12,12 @@ import {
   getSectionAt,
   SparkParseResult,
 } from "../../../../sparkdown";
-import { SectionNamePreviewWidgetType } from "./SectionNamePreviewWidgetType";
+import { Type } from "../types/type";
+import { JumpWidgetType } from "./JumpWidgetType";
 
 const parseContextState = Facet.define<{ result?: SparkParseResult }>({});
 
-const sectionNameDecorations = (view: EditorView): DecorationSet => {
+const jumpDecorations = (view: EditorView): DecorationSet => {
   const widgets = [];
   view.visibleRanges.forEach(({ from, to }) => {
     syntaxTree(view.state).iterate({
@@ -27,7 +28,7 @@ const sectionNameDecorations = (view: EditorView): DecorationSet => {
         const from = node?.from;
         const to = node?.to;
         const [parseContext] = view.state.facet(parseContextState);
-        if (type.name === "GoSectionName" || type.name === "ChoiceGoName") {
+        if (type.id === Type.JumpSectionName) {
           const sectionText = view.state.doc.sliceString(from, to);
           const [sectionId] = getSectionAt(from, parseContext.result);
           const [, relativeSection] = getRelativeSection(
@@ -38,7 +39,7 @@ const sectionNameDecorations = (view: EditorView): DecorationSet => {
           const name = relativeSection?.name;
           if (name != null) {
             const deco = Decoration.widget({
-              widget: new SectionNamePreviewWidgetType(name),
+              widget: new JumpWidgetType(name),
               side: 1,
             });
             widgets.push(deco.range(to));
@@ -50,16 +51,16 @@ const sectionNameDecorations = (view: EditorView): DecorationSet => {
   return Decoration.set(widgets);
 };
 
-export const sectionNamePlugin = ViewPlugin.fromClass(
+export const jumpWidgetPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
 
     constructor(view: EditorView) {
-      this.decorations = sectionNameDecorations(view);
+      this.decorations = jumpDecorations(view);
     }
 
     update(update: ViewUpdate): void {
-      this.decorations = sectionNameDecorations(update.view);
+      this.decorations = jumpDecorations(update.view);
     }
   },
   {
@@ -67,12 +68,12 @@ export const sectionNamePlugin = ViewPlugin.fromClass(
   }
 );
 
-export const sectionNamePreviewWidget = (
+export const jumpWidget = (
   options: {
     parseContext?: {
       result: SparkParseResult;
     };
   } = {}
 ): Extension => {
-  return [parseContextState.of(options.parseContext), sectionNamePlugin];
+  return [parseContextState.of(options.parseContext), jumpWidgetPlugin];
 };
