@@ -1,12 +1,12 @@
 import { RecursiveRandomization } from "../types/RecursiveRandomization";
 import { RecursiveValidation } from "../types/RecursiveValidation";
+import { clampedRandom } from "./clampedRandom";
 import { cull } from "./cull";
 import { denormalize } from "./denormalize";
 import { getAllProperties } from "./getAllProperties";
 import { getProperty } from "./getProperty";
 import { normalize } from "./normalize";
 import { pick } from "./pick";
-import { randomClamped } from "./randomClamped";
 import { setProperty } from "./setProperty";
 
 export const randomize = <T>(
@@ -27,7 +27,7 @@ export const randomize = <T>(
       ) {
         // Handle self references on second pass
       } else if (typeof firstOption === "number") {
-        const randomizedValue = randomClamped(firstOption, secondOption, rng);
+        const randomizedValue = clampedRandom(firstOption, secondOption, rng);
         setProperty(obj, k, randomizedValue);
       } else {
         setProperty(obj, k, pick(v, rng));

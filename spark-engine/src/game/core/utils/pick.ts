@@ -1,6 +1,6 @@
-export const pick = <T>(array: T[], randomizer?: () => number): T => {
+export const pick = <T>(array: T[], rng?: () => number): T => {
   let currentIndex = array.length;
-  const random = randomizer ? randomizer() : Math.random();
-  const randomIndex = Math.floor(random * currentIndex);
+  const r = rng || Math.random;
+  const randomIndex = Math.floor(r() * currentIndex);
   return array[randomIndex] as T;
 };

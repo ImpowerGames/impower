@@ -1,8 +1,8 @@
-export const randomClamped = (
+export const clampedRandom = (
   min: number,
   max: number,
-  rng: (() => number) | undefined
-) => {
+  rng?: () => number
+): number => {
   if (max === undefined) {
     return min;
   }

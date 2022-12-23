@@ -1,5 +1,5 @@
 import { randomizer, shuffle } from "../../../../../spark-evaluate";
-import { clone, lerp, unlerp } from "../../core";
+import { augment, create, lerp, unlerp } from "../../core";
 import { OSCILLATORS, OscillatorState } from "../constants/OSCILLATORS";
 import { SOUND_VALIDATION } from "../constants/SOUND_VALIDATION";
 import { Hertz } from "../types/Hertz";
@@ -599,7 +599,8 @@ export const synthesizeSound = (
   minPitch: number;
   maxPitch: number;
 } => {
-  const sound: Sound = clone(config, SOUND_VALIDATION);
+  const sound: Sound = create(SOUND_VALIDATION);
+  augment(sound, config);
 
   // TODO: Harmony Effect
   // const harmony_count = sound.harmony.count;
