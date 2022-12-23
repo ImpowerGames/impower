@@ -1,7 +1,6 @@
 import { CUSTOM_FORMATTERS } from "../constants/CUSTOM_FORMATTERS";
 import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
 import { CompilerReference } from "../types/CompilerReference";
-import { CustomFormatter } from "../types/CustomFormatter";
 import { choose } from "./formatters/choose";
 import { pluralize } from "./formatters/pluralize";
 
@@ -9,7 +8,7 @@ export const format = (
   str: string,
   args: Record<string, unknown> = {},
   locale: string | undefined = undefined,
-  formatters: Record<string, CustomFormatter> = CUSTOM_FORMATTERS
+  formatters = CUSTOM_FORMATTERS
 ): [string, CompilerDiagnostic[], CompilerReference[]] => {
   const possibleValues: CompilerReference[] = [];
   const diagnostics: CompilerDiagnostic[] = [];
