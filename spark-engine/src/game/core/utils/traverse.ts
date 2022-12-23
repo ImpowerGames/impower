@@ -1,4 +1,4 @@
-export const traverse = <T extends object>(
+export const traverse = <T>(
   obj: T,
   process: (fieldPath: string, fieldValue: unknown) => void,
   fieldPath: string = ""

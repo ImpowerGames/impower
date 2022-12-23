@@ -23,7 +23,7 @@ const getType = (obj: any) => {
 
 const convertArray = (obj: any, lines: string[], indent: string) => {
   if (obj.length === 0) {
-    lines.push("[]");
+    lines.push("- ");
   }
   for (let i = 0; i < obj.length; i++) {
     const val = obj[i];

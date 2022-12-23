@@ -21,7 +21,6 @@ export interface Sound {
   };
   amplitude: {
     volume: number;
-    ramp: number;
     attack: number;
     decay: number;
     sustain: number;
@@ -29,13 +28,11 @@ export interface Sound {
     sustainLevel: number;
   };
   lowpass: {
-    on: boolean;
     cutoff: number;
     cutoffRamp: number;
     resonance: number;
   };
   highpass: {
-    on: boolean;
     cutoff: number;
     cutoffRamp: number;
   };

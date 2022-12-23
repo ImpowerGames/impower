@@ -1072,7 +1072,10 @@ export const sparkAutocomplete = async (
             : Array.isArray(defaultValue)
             ? "array"
             : typeof defaultValue;
-        const template = `${name}: ${CURSOR}`;
+        const template =
+          type === "object" || type === "array"
+            ? `${name}:\n  ${CURSOR}`
+            : `${name}: ${CURSOR}`;
         return snip(template, {
           label: name,
           type,

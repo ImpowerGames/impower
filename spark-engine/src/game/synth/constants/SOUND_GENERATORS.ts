@@ -26,44 +26,19 @@ export const MAJOR_ARPEGGIOS = [
   [4, 9, 12],
 ];
 
-export const MINOR_ARPEGGIOS = [
-  [0, 3, 8, 14],
-  [0, 3, 8],
-  [0, 4, 10, 14],
-  [0, 4, 10],
-  [0, 6, 9, 14],
-  [0, 6, 9],
-  [1, 4, 9],
-  [1, 6, 11],
-  [1, 7, 10],
-  [2, 7, 12],
-  [2, 8, 11],
-  [3, 7, 11],
-  [3, 9, 12],
-  [4, 8, 12],
-];
-
 export const SOUND_RANDOMIZATIONS: Record<
   SoundGeneratorType,
   RecursiveRandomization<SoundConfig>
 > = {
   coin: {
-    wave: [
-      "sine",
-      "triangle",
-      "sawtooth",
-      "square",
-      "tangent",
-      "breaker",
-      "whistle",
-    ],
+    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
     frequency: {
-      pitch: [0.4, 0.9],
+      pitch: [0.05, 0.09],
     },
     amplitude: {
-      attack: [0.01, 0.01],
-      sustain: [0.01, 0.02],
-      release: [0.01, 0.01],
+      decay: [0.001, 0.005],
+      sustain: [0.2, 0.3],
+      release: [0.1, 0.25],
     },
     arpeggio: {
       on: [true],
@@ -71,9 +46,6 @@ export const SOUND_RANDOMIZATIONS: Record<
       maxNotes: [0],
       direction: ["up"],
       semitones: [
-        [0, 4],
-        [0, 6],
-        [0, 7],
         [0, 8],
         [0, 9],
         [0, 10],
@@ -84,23 +56,10 @@ export const SOUND_RANDOMIZATIONS: Record<
     },
   },
   zap: {
-    wave: [
-      "sine",
-      "triangle",
-      "sawtooth",
-      "square",
-      "tangent",
-      "breaker",
-      "whistle",
-    ],
+    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
     frequency: {
-      pitch: [0.5, 0.7],
+      pitch: [0.05, 0.07],
       ramp: [0.2, 0.4],
-    },
-    amplitude: {
-      attack: [0.01, 0.01],
-      sustain: [0.01, 0.02],
-      release: [0.01, 0.01],
     },
     harmony: {
       on: [true, false],
@@ -111,13 +70,8 @@ export const SOUND_RANDOMIZATIONS: Record<
   boom: {
     wave: ["pinknoise", "whitenoise"],
     frequency: {
-      pitch: [0.2, 0.6],
+      pitch: [0.02, 0.06],
       ramp: [0.3, 0.5],
-    },
-    amplitude: {
-      attack: [0.01, 0.01],
-      sustain: [0.01, 0.02],
-      release: [0.01, 0.01],
     },
     reverb: {
       on: [true, true, false],
@@ -131,42 +85,17 @@ export const SOUND_RANDOMIZATIONS: Record<
     },
   },
   hurt: {
-    wave: [
-      "triangle",
-      "sawtooth",
-      "square",
-      "tangent",
-      "breaker",
-      "whitenoise",
-    ],
+    wave: ["triangle", "sawtooth", "square", "tangent", "whitenoise"],
     frequency: {
-      pitch: [0.2, 0.8],
+      pitch: [0.02, 0.08],
       ramp: [0.01, 0.3],
-    },
-    amplitude: {
-      attack: [0.01, 0.01],
-      sustain: [0.01, 0.02],
-      release: [0.01, 0.01],
     },
   },
   powerup: {
-    wave: [
-      "sine",
-      "triangle",
-      "sawtooth",
-      "square",
-      "tangent",
-      "breaker",
-      "whistle",
-    ],
+    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
     frequency: {
-      pitch: [0.4, 0.6],
+      pitch: [0.04, 0.06],
       ramp: [0.5, 0.7],
-    },
-    amplitude: {
-      attack: [0.01, 0.01],
-      sustain: [0.01, 0.02],
-      release: [0.01, 0.01],
     },
     arpeggio: {
       on: [true, false],
@@ -182,23 +111,10 @@ export const SOUND_RANDOMIZATIONS: Record<
     },
   },
   lose: {
-    wave: [
-      "sine",
-      "triangle",
-      "sawtooth",
-      "square",
-      "tangent",
-      "breaker",
-      "whistle",
-    ],
+    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
     frequency: {
-      pitch: [0.3, 0.6],
+      pitch: [0.03, 0.06],
       ramp: [0.3, 0.5],
-    },
-    amplitude: {
-      attack: [0.01, 0.01],
-      sustain: [0.01, 0.02],
-      release: [0.01, 0.01],
     },
     arpeggio: {
       on: [true, false],
@@ -214,29 +130,16 @@ export const SOUND_RANDOMIZATIONS: Record<
     },
   },
   jump: {
-    wave: [
-      "sine",
-      "triangle",
-      "sawtooth",
-      "square",
-      "tangent",
-      "breaker",
-      "whistle",
-    ],
+    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
     frequency: {
-      pitch: [0.3, 0.6],
+      pitch: [0.03, 0.06],
       ramp: [0.6, 0.8],
-    },
-    amplitude: {
-      attack: [0.01, 0.01],
-      sustain: [0.01, 0.02],
-      release: [0.01, 0.01],
     },
   },
   blip: {
     wave: ["square", "sawtooth"],
     frequency: {
-      pitch: [0.2, 0.6],
+      pitch: [0.02, 0.06],
     },
     amplitude: {
       attack: [0.01, 0.01],
@@ -249,20 +152,18 @@ export const SOUND_RANDOMIZATIONS: Record<
       "triangle",
       "sawtooth",
       "tangent",
-      "breaker",
-      "whistle",
       "whitenoise",
       "pinknoise",
       "brownnoise",
     ],
     frequency: {
-      pitch: [0.1, 0.5],
+      pitch: [0.01, 0.05],
       ramp: [0.05, 0.25],
     },
-    amplitude: {
-      attack: [0.01, 0.01],
-      sustain: [0.01, 0.02],
-      release: [0.01, 0.01],
+    arpeggio: {
+      on: [true],
+      rate: [0.6, 0.9],
+      direction: ["down"],
     },
     reverb: {
       on: [true],
@@ -275,11 +176,6 @@ export const SOUND_RANDOMIZATIONS: Record<
       strength: [0.2, 0.5],
       strengthRamp: [0.2, 0.5],
     },
-    arpeggio: {
-      on: [true],
-      rate: [0.6, 0.9],
-      direction: ["down"],
-    },
   },
   random: {
     wave: [
@@ -288,14 +184,13 @@ export const SOUND_RANDOMIZATIONS: Record<
       "sawtooth",
       "square",
       "tangent",
-      "breaker",
       "whistle",
       "brownnoise",
       "pinknoise",
       "whitenoise",
     ],
     frequency: {
-      pitch: [0.2, 0.8],
+      pitch: [0.02, 0.08],
       ramp: [0.45, 0.55],
       accel: [0, 1],
     },

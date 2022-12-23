@@ -19,7 +19,9 @@ export const normalize = <T>(
           typeof max === "number"
         ) {
           const val = getProperty<number>(obj, path);
-          setProperty(obj, path, unlerp(val, min, max));
+          if (val !== undefined) {
+            setProperty(obj, path, unlerp(val, min, max));
+          }
         }
       }
     }

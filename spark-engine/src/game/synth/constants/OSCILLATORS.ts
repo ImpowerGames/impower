@@ -67,11 +67,7 @@ const square = (x: number): number => {
 };
 
 const tangent = (x: number): number => {
-  return clamp(0.3 * Math.tan(Math.PI * x), -2, 2);
-};
-
-const breaker = (x: number): number => {
-  return Math.abs(1 - x * x * 2) - 1;
+  return clamp(0.3 * Math.tan(Math.PI * x), -1, 1);
 };
 
 const whistle = (x: number): number => {
@@ -179,7 +175,6 @@ export const OSCILLATORS: Record<
   sawtooth,
   square,
   tangent,
-  breaker,
   whistle,
   whitenoise,
   brownnoise,

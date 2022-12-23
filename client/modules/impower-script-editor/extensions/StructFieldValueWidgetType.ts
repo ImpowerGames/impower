@@ -72,48 +72,51 @@ export class StructFieldValueWidgetType extends WidgetType {
 
   range: unknown[];
 
+  step: number;
+
   isDragging = false;
 
   dom: HTMLElement;
 
-  onDragStart?: (e: MouseEvent, dom: HTMLElement, startX: number) => void;
+  onDragStart?: (e: MouseEvent, startX: number) => void;
 
   onDragging?: (
     e: MouseEvent,
-    dom: HTMLElement,
     startX: number,
-    x: number
+    x: number,
+    previewTextContent: string
   ) => void;
 
   onDragEnd?: (
     e: MouseEvent,
-    dom: HTMLElement,
     startX: number,
-    x: number
+    x: number,
+    previewTextContent: string
   ) => void;
 
-  onClick?: (e: MouseEvent, dom: HTMLElement) => void;
+  onClick?: (e: MouseEvent) => void;
 
   constructor(
     id: string,
     valueContent: string,
     startValue: unknown,
     range: unknown[],
+    step: number,
     callbacks?: {
-      onDragStart?: (e: MouseEvent, dom: HTMLElement, startX: number) => void;
+      onDragStart?: (e: MouseEvent, startX: number) => void;
       onDragging?: (
         e: MouseEvent,
-        dom: HTMLElement,
         startX: number,
-        x: number
+        x: number,
+        previewTextContent: string
       ) => void;
       onDragEnd?: (
         e: MouseEvent,
-        dom: HTMLElement,
         startX: number,
-        x: number
+        x: number,
+        previewTextContent: string
       ) => void;
-      onClick?: (e: MouseEvent, dom: HTMLElement) => void;
+      onClick?: (e: MouseEvent) => void;
     }
   ) {
     super();
@@ -121,6 +124,7 @@ export class StructFieldValueWidgetType extends WidgetType {
     this.valueContent = valueContent;
     this.startValue = startValue;
     this.range = range;
+    this.step = step;
     this.onDragStart = callbacks?.onDragStart;
     this.onDragging = callbacks?.onDragging;
     this.onDragEnd = callbacks?.onDragEnd;
@@ -138,7 +142,7 @@ export class StructFieldValueWidgetType extends WidgetType {
         : undefined;
     const maxNumber =
       typeof this.startValue === "number"
-        ? (this.range?.[1] as number) ?? 100
+        ? (this.range?.[this.range.length - 1] as number) ?? 100
         : undefined;
     const options =
       typeof this.startValue === "number"
@@ -146,10 +150,7 @@ export class StructFieldValueWidgetType extends WidgetType {
         : this.range || BOOLEAN_ARRAY;
     const min = minNumber ?? 0;
     const max = maxNumber ?? options.length - 1;
-    const step =
-      typeof this.startValue === "number"
-        ? (this.range?.[2] as number) ?? 1
-        : 0.05;
+    const step = typeof this.startValue === "number" ? this.step ?? 1 : 0.05;
     const start =
       typeof this.startValue === "number"
         ? this.startValue
@@ -195,51 +196,55 @@ export class StructFieldValueWidgetType extends WidgetType {
       const deltaX = event.clientX - startX;
       if (Math.abs(deltaX) > CLICK_THRESHOLD) {
         clicked = false;
-      }
-      const newValue = getNewValue(min, max, step, start, deltaX);
-      const roundedValue =
-        typeof this.startValue === "number" ? newValue : Math.floor(newValue);
-      const insert =
-        typeof this.startValue === "number"
-          ? getValueText(roundedValue, step)
-          : getValueText(options[roundedValue]);
-      if (previewEl && insert !== previewEl.textContent) {
-        previewEl.textContent = insert;
-        previewEl.style.opacity = "1";
-      }
-      if (valueEl) {
-        valueEl.style.opacity = "0";
-      }
-      if (sliderTrackEl) {
-        sliderTrackEl.style.opacity = "1";
-      }
-      if (sliderFillEl) {
-        sliderFillEl.style.left = `${zeroOrigin * 100}%`;
-        if (min < 0) {
-          if (roundedValue < 0) {
-            sliderFillEl.style.transform = `scaleX(${
-              roundedValue / Math.abs(min)
-            })`;
+        const newValue = getNewValue(min, max, step, start, deltaX);
+        const roundedValue =
+          typeof this.startValue === "number" ? newValue : Math.floor(newValue);
+        const insert =
+          typeof this.startValue === "number"
+            ? getValueText(roundedValue, step)
+            : getValueText(options[roundedValue]);
+        if (previewEl && insert !== previewEl.textContent) {
+          previewEl.textContent = insert;
+          previewEl.style.opacity = "1";
+        }
+        if (valueEl) {
+          valueEl.style.opacity = "0";
+        }
+        if (sliderTrackEl) {
+          sliderTrackEl.style.opacity = "1";
+        }
+        if (sliderFillEl) {
+          sliderFillEl.style.left = `${zeroOrigin * 100}%`;
+          if (min < 0) {
+            if (roundedValue < 0) {
+              sliderFillEl.style.transform = `scaleX(${
+                roundedValue / Math.abs(min)
+              })`;
+            } else {
+              sliderFillEl.style.transform = `scaleX(${
+                roundedValue / Math.abs(max)
+              })`;
+            }
           } else {
+            sliderFillEl.style.transformOrigin = `left center`;
             sliderFillEl.style.transform = `scaleX(${
-              roundedValue / Math.abs(max)
+              (roundedValue - min) / (max - min)
             })`;
           }
-        } else {
-          sliderFillEl.style.transformOrigin = `left center`;
-          sliderFillEl.style.transform = `scaleX(${
-            (roundedValue - min) / (max - min)
-          })`;
         }
+        this.onDragging?.(event, startX, event.clientX, previewEl.textContent);
       }
-      this.onDragging?.(event, previewEl, startX, event.clientX);
     };
     const onMouseUp = (event: MouseEvent): void => {
       const previewEl = getElement(previewClassName);
       const valueEl = getElement(this.id);
       const sliderTrackEl = getElement(sliderTrackClassName);
       const sliderFillEl = getElement(sliderFillClassName);
-      if (clicked && valueEl.contains(event.target as Node)) {
+      if (
+        clicked &&
+        valueEl.contains(event.target as Node) &&
+        typeof this.startValue !== "number"
+      ) {
         // If clicked without dragging, cycle to the next option
         const newIndex = startIndex >= maxIndex ? 0 : startIndex + 1;
         const newValue = options[newIndex];
@@ -263,7 +268,7 @@ export class StructFieldValueWidgetType extends WidgetType {
             sliderFillEl.style.transform = `scaleX(${newIndex / maxIndex})`;
           }
         }
-        this.onClick?.(event, previewEl);
+        this.onClick?.(event);
       }
       if (previewEl) {
         previewEl.style.opacity = "0";
@@ -271,11 +276,10 @@ export class StructFieldValueWidgetType extends WidgetType {
       if (sliderTrackEl) {
         sliderTrackEl.style.opacity = "0";
       }
-      this.onDragEnd?.(event, previewEl, startX, event.clientX);
+      this.onDragEnd?.(event, startX, event.clientX, previewEl.textContent);
       window.removeEventListener("mousemove", onMouseMove);
       document.documentElement.style.cursor = null;
       this.isDragging = false;
-      this.onDragEnd?.(event, previewEl, startX, event.clientX);
     };
     preview.onmousedown = (event: MouseEvent): void => {
       const previewEl = getElement(previewClassName);
@@ -312,7 +316,7 @@ export class StructFieldValueWidgetType extends WidgetType {
       }
       window.addEventListener("mousemove", onMouseMove);
       window.addEventListener("mouseup", onMouseUp, { once: true });
-      this.onDragStart?.(event, previewEl, startX);
+      this.onDragStart?.(event, startX);
     };
     this.dom = root;
     return root;

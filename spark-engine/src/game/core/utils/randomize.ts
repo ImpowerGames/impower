@@ -1,6 +1,6 @@
 import { RecursiveRandomization } from "../types/RecursiveRandomization";
 import { RecursiveValidation } from "../types/RecursiveValidation";
-import { create } from "./create";
+import { cull } from "./cull";
 import { denormalize } from "./denormalize";
 import { getAllProperties } from "./getAllProperties";
 import { getProperty } from "./getProperty";
@@ -10,40 +10,53 @@ import { randomClamped } from "./randomClamped";
 import { setProperty } from "./setProperty";
 
 export const randomize = <T>(
+  obj: T,
   validation: RecursiveValidation<T>,
   randomization: RecursiveRandomization<T>,
-  rng: (() => number) | undefined
-): T => {
-  const result = create(validation);
-  normalize(result, validation);
+  cullProp?: string,
+  rng?: () => number
+): void => {
+  normalize(obj, validation);
   const randomizerProps = getAllProperties(randomization);
   Object.entries(randomizerProps).forEach(([k, v]) => {
     if (Array.isArray(v)) {
       const [firstOption, secondOption] = v;
-      if (typeof firstOption === "number") {
-        const randomizedValue = randomClamped(firstOption, secondOption, rng);
-        setProperty(result, k, randomizedValue);
-      } else if (
+      if (
         typeof firstOption === "string" &&
         typeof secondOption === "boolean"
       ) {
-        const otherValue = getProperty(result, k);
-        if (secondOption) {
-          setProperty(result, k, otherValue);
-        } else {
-          const inverseOfOtherValue =
-            typeof otherValue === "boolean"
-              ? !otherValue
-              : typeof otherValue === "number"
-              ? 1 - otherValue
-              : otherValue;
-          setProperty(result, k, inverseOfOtherValue);
-        }
+        // Handle self references on second pass
+      } else if (typeof firstOption === "number") {
+        const randomizedValue = randomClamped(firstOption, secondOption, rng);
+        setProperty(obj, k, randomizedValue);
       } else {
-        setProperty(result, k, pick(v, rng));
+        setProperty(obj, k, pick(v, rng));
       }
     }
   });
-  denormalize(result, validation);
-  return result;
+  Object.entries(randomizerProps).forEach(([k, v]) => {
+    if (Array.isArray(v)) {
+      const [firstOption, secondOption] = v;
+      if (
+        typeof firstOption === "string" &&
+        typeof secondOption === "boolean"
+      ) {
+        // Resolve self references
+        const referencedValue = getProperty(obj, firstOption);
+        if (secondOption) {
+          setProperty(obj, k, referencedValue);
+        } else {
+          const inverseOfOtherValue =
+            typeof referencedValue === "number"
+              ? 1 - referencedValue
+              : !referencedValue;
+          setProperty(obj, k, inverseOfOtherValue);
+        }
+      }
+    }
+  });
+  if (cullProp) {
+    cull(obj, cullProp);
+  }
+  denormalize(obj, validation);
 };

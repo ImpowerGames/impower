@@ -1295,7 +1295,6 @@ export const executeDisplayCommand = (
         const pitchRamp = inflection?.pitchRamp;
         const pitchAccel = inflection?.pitchAccel;
         const pitchJerk = inflection?.pitchJerk;
-        const volumeRamp = inflection?.volumeRamp;
         const phraseSlope = inflection?.phraseSlope || 0;
 
         // The phrase should start at a higher or lower pitch according to phraseSlope
@@ -1327,7 +1326,6 @@ export const executeDisplayCommand = (
                 if (!b.sound.amplitude) {
                   b.sound.amplitude = {};
                 }
-                b.sound.amplitude.ramp = volumeRamp;
               }
             }
           }

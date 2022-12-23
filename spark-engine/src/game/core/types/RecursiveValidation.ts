@@ -3,5 +3,7 @@ export type RecursiveValidation<T = any> = {
     ? [T[P], U[], U]
     : T[P] extends object | undefined
     ? RecursiveValidation<T[P]>
+    : T[P] extends number
+    ? [T[P]] | [T[P], [T[P], T[P]], [T[P]]]
     : [T[P]] | [T[P], T[P][], boolean[]];
 };

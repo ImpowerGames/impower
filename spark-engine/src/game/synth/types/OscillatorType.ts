@@ -4,7 +4,6 @@ export type OscillatorType =
   | "sawtooth"
   | "square"
   | "tangent"
-  | "breaker"
   | "whistle"
   | "brownnoise"
   | "pinknoise"

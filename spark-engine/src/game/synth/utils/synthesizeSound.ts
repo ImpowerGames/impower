@@ -31,9 +31,9 @@ const isChoicesReversed = (
   const cycleIndex = getCycleIndex(numNotesPlayed, choicesLength);
   const isEvenCycle = cycleIndex % 2 === 0;
   const isReversed =
-    direction === "up" ||
-    (direction === "down-up" && !isEvenCycle) ||
-    (direction === "up-down" && isEvenCycle);
+    direction === "down" ||
+    (direction === "down-up" && isEvenCycle) ||
+    (direction === "up-down" && !isEvenCycle);
   return isReversed;
 };
 
@@ -80,20 +80,16 @@ const choose = <T>(
 
 const getDeltaPerSample = (
   percentage: number,
-  validation: [number] | [number, number[], boolean[]],
+  validation: [number] | [number, number[], number[]],
   sampleRate: number
 ): number => {
   const [, range] = validation;
   const minAmountPerSecond = range?.[0] || 0;
   const maxAmountPerSecond = range?.[1] || 0;
-  if (percentage <= 0) {
-    return 0;
-  }
-  const thingsPerSecond = lerp(
-    percentage,
-    minAmountPerSecond,
-    maxAmountPerSecond
-  );
+  const thingsPerSecond =
+    percentage < 0
+      ? -lerp(Math.abs(percentage), 0, Math.abs(minAmountPerSecond))
+      : lerp(percentage, 0, maxAmountPerSecond);
   const secondsPerThing = 1 / thingsPerSecond;
   const samplesPerThing = sampleRate * secondsPerThing;
   const thingsPerSample = 1 / samplesPerThing;
@@ -255,10 +251,8 @@ export const fillBuffer = (
   const amp_sustain_duration = sound.amplitude.sustain;
   const amp_release_duration = sound.amplitude.release;
   const amp_sustain_level = sound.amplitude.sustainLevel;
-  const lowpass_on = sound.lowpass.on;
   const lowpass_cutoff = sound.lowpass.cutoff;
   const lowpass_resonance = sound.lowpass.resonance;
-  const highpass_on = sound.highpass.on;
   const highpass_cutoff = sound.highpass.cutoff;
   const vibrato_shape = sound.vibrato.shape;
   const vibrato_on = sound.vibrato.on;
@@ -301,11 +295,6 @@ export const fillBuffer = (
   const freqPitchJerkDelta = getDeltaPerSample(
     sound.frequency.jerk,
     SOUND_VALIDATION.frequency.jerk,
-    sampleRate
-  );
-  const ampVolumeDelta = getDeltaPerSample(
-    sound.amplitude.ramp,
-    SOUND_VALIDATION.amplitude.ramp,
     sampleRate
   );
   const lowpassCutoffDelta = getDeltaPerSample(
@@ -401,8 +390,9 @@ export const fillBuffer = (
   let ringRate = ring_rate;
   let ringStrength = ring_strength;
   let arpeggioRate = arpeggio_rate;
-  let arpLengthPlayed = 0;
+  let arpLengthLeft = 0;
   let arpNumNotesPlayed = 0;
+  let arpFrequencyFactor = 1;
   const lowpassInput: [number, number] = [0, 0];
   const lowpassOutput: [number, number, number] = [0, 0, 0];
   const highpassInput: [number, number] = [0, 0];
@@ -412,7 +402,7 @@ export const fillBuffer = (
   for (let i = startIndex; i < endIndex; i += 1) {
     const localIndex = i - startIndex;
 
-    let samplePitch = freqPitch;
+    let samplePitch = freqPitch * arpFrequencyFactor;
     let sampleShape = sound_wave;
     let sampleResonance = lowpass_resonance;
 
@@ -451,12 +441,12 @@ export const fillBuffer = (
       const periodLength = sampleRate / samplePitch;
       // Ensure frequency changes only occur at zero crossings (to prevent crackles)
       const arpLimit = roundToNearestMultiple(samplesPerNote, periodLength);
-      arpLengthPlayed += 1;
-      if (arpLengthPlayed >= arpLimit) {
-        arpLengthPlayed = 0;
+      if (arpLengthLeft <= 0) {
+        arpLengthLeft = arpLimit;
         arpNumNotesPlayed += 1;
-        samplePitch *= convertSemitonesToFrequencyFactor(arpSemitones);
+        arpFrequencyFactor = convertSemitonesToFrequencyFactor(arpSemitones);
       }
+      arpLengthLeft -= 1;
     }
 
     // Vibrato Effect
@@ -485,7 +475,7 @@ export const fillBuffer = (
 
     // Base Waveform
     const angle = (localIndex / sampleRate) * samplePitch;
-    const oscillator = OSCILLATORS[sampleShape];
+    const oscillator = OSCILLATORS[sampleShape] || OSCILLATORS.sine;
     let sampleValue = oscillator(angle, oscState);
 
     // Wah-Wah Effect
@@ -503,7 +493,7 @@ export const fillBuffer = (
     }
 
     // Lowpass Filter
-    if (lowpass_on && lowpassCutoff > 0) {
+    if (lowpassCutoff > 0) {
       sampleValue = filter(
         sampleRate,
         sampleValue,
@@ -515,7 +505,7 @@ export const fillBuffer = (
     }
 
     // Highpass Filter
-    if (highpass_on && highpassCutoff > 0) {
+    if (highpassCutoff > 0) {
       sampleValue = filter(
         sampleRate,
         sampleValue,
@@ -575,7 +565,6 @@ export const fillBuffer = (
     soundBuffer[i] += sampleValue;
 
     // Ramp values
-    ampVolume += ampVolumeDelta;
     freqPitchAccelerationDelta += freqPitchJerkDelta;
     freqPitchDelta += freqPitchAccelerationDelta;
     freqPitch += freqPitchDelta;
