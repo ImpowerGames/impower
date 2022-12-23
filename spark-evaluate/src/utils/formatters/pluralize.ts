@@ -1,11 +1,25 @@
-import { CompilerDiagnostic } from "../../types/CompilerDiagnostic";
-
 export const pluralize = (
   value: number,
   locale?: string,
   ...args: string[]
-): [string, CompilerDiagnostic[], number[]] => {
-  const diagnostics: CompilerDiagnostic[] = [];
+): [
+  string,
+  {
+    from: number;
+    to: number;
+    content: string;
+    severity?: "info" | "warning" | "error";
+    message?: string;
+  }[],
+  number[]
+] => {
+  const diagnostics: {
+    from: number;
+    to: number;
+    content: string;
+    severity?: "info" | "warning" | "error";
+    message?: string;
+  }[] = [];
   const pluralRules = new Intl.PluralRules(locale);
   const selectedCategory = pluralRules.select(value);
   const possibleCategories = pluralRules.resolvedOptions().pluralCategories;

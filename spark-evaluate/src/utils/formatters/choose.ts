@@ -1,4 +1,3 @@
-import { CompilerDiagnostic } from "../../types/CompilerDiagnostic";
 import { randomizer } from "../randomizer";
 import { shuffle } from "../shuffle";
 
@@ -6,9 +5,25 @@ export const choose = (
   value: number | [number] | [number, string],
   _locale?: string,
   ...args: readonly string[]
-): [string, CompilerDiagnostic[], number[]] => {
+): [
+  string,
+  {
+    from: number;
+    to: number;
+    content: string;
+    severity?: "info" | "warning" | "error";
+    message?: string;
+  }[],
+  number[]
+] => {
   let newArgs = [...args];
-  const diagnostics: CompilerDiagnostic[] = [];
+  const diagnostics: {
+    from: number;
+    to: number;
+    content: string;
+    severity?: "info" | "warning" | "error";
+    message?: string;
+  }[] = [];
   const v = (Array.isArray(value) ? value[0] : value) || 0;
   const seed = Array.isArray(value) ? value[1] : undefined;
   const firstParamIndex = 0;

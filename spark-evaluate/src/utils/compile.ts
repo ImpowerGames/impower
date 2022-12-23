@@ -1,16 +1,42 @@
 import { SparkExpressionCompiler } from "../classes/SparkExpressionCompiler";
 import { DEFAULT_COMPILER_CONFIG } from "../constants/DEFAULT_COMPILER_CONFIG";
 import { DEFAULT_PARSER } from "../constants/DEFAULT_PARSER";
-import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
-import { CompilerReference } from "../types/CompilerReference";
 
 export const compile = (
   expr: string,
   context: Record<string, unknown> = {},
   config = DEFAULT_COMPILER_CONFIG
-): [unknown, CompilerDiagnostic[], CompilerReference[]] => {
-  let diagnostics: CompilerDiagnostic[] = [];
-  let references: CompilerReference[] = [];
+): [
+  unknown,
+  {
+    from: number;
+    to: number;
+    content: string;
+    severity?: "info" | "warning" | "error";
+    message?: string;
+  }[],
+  {
+    from: number;
+    to: number;
+    content: string;
+    severity?: "info" | "warning" | "error";
+    message?: string;
+  }[]
+] => {
+  let diagnostics: {
+    from: number;
+    to: number;
+    content: string;
+    severity?: "info" | "warning" | "error";
+    message?: string;
+  }[] = [];
+  let references: {
+    from: number;
+    to: number;
+    content: string;
+    severity?: "info" | "warning" | "error";
+    message?: string;
+  }[] = [];
   if (!expr) {
     return [undefined, diagnostics, references];
   }

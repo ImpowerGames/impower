@@ -1,13 +1,12 @@
 import { sparkRegexes } from "../constants/sparkRegexes";
 import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
-import { CompilerReference } from "../types/CompilerReference";
 
 export const defaultCompiler = (
   expr: string,
   context?: Record<string, unknown>
-): [unknown, CompilerDiagnostic[], CompilerReference[]] => {
+): [unknown, CompilerDiagnostic[], CompilerDiagnostic[]] => {
   let diagnostics: CompilerDiagnostic[] = [];
-  let references: CompilerReference[] = [];
+  let references: CompilerDiagnostic[] = [];
   if (!expr) {
     return [undefined, diagnostics, references];
   }

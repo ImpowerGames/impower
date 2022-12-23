@@ -1,5 +1,4 @@
 import { CompilerDiagnostic } from "./CompilerDiagnostic";
-import { CompilerReference } from "./CompilerReference";
 import { SparkDeclarations } from "./SparkDeclarations";
 import { SparkTokenType } from "./SparkTokenType";
 
@@ -11,9 +10,9 @@ export interface SparkParserConfig {
   compiler?: (
     expr: string,
     context?: Record<string, unknown>
-  ) => [unknown, CompilerDiagnostic[], CompilerReference[]];
+  ) => [unknown, CompilerDiagnostic[], CompilerDiagnostic[]];
   formatter?: (
     str: string,
     context?: Record<string, unknown>
-  ) => [string, CompilerDiagnostic[], CompilerReference[]];
+  ) => [string, CompilerDiagnostic[], CompilerDiagnostic[]];
 }

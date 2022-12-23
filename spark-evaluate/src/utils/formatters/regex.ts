@@ -1,5 +1,3 @@
-import { CompilerDiagnostic } from "../../types/CompilerDiagnostic";
-
 export const regexes: Record<string, Record<string, string>> = {
   A: {
     "^[aeiouAEIOU]": "An",
@@ -15,7 +13,17 @@ export const regex = (
   value: string,
   _locale: string,
   arg: string
-): [string, CompilerDiagnostic[], number[]] => {
+): [
+  string,
+  {
+    from: number;
+    to: number;
+    content: string;
+    severity?: "info" | "warning" | "error";
+    message?: string;
+  }[],
+  number[]
+] => {
   const configRegexes = regexes;
   const varRegexes: { [regex: string]: string } = configRegexes?.[arg] || {};
   const varRegexEntries = Object.entries(varRegexes);

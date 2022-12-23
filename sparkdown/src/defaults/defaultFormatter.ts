@@ -1,12 +1,11 @@
 import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
-import { CompilerReference } from "../types/CompilerReference";
 
 export const defaultFormatter = (
   str: string,
   context?: Record<string, unknown>
-): [string, CompilerDiagnostic[], CompilerReference[]] => {
+): [string, CompilerDiagnostic[], CompilerDiagnostic[]] => {
   const diagnostics: CompilerDiagnostic[] = [];
-  const possibleValues: CompilerReference[] = [];
+  const possibleValues: CompilerDiagnostic[] = [];
   if (!str) {
     return [str, diagnostics, possibleValues];
   }
