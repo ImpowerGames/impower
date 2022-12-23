@@ -1,5 +1,5 @@
 import { DEFAULT_COMPILER_CONFIG } from "../constants/DEFAULT_COMPILER_CONFIG";
-import { CompilerConfig } from "../types/CompilerConfig";
+import { Formatter } from "../types/Formatter";
 import {
   ESNextStaticEval,
   INode,
@@ -7,9 +7,11 @@ import {
 } from "../_modules/ESpression/src";
 
 export class SparkExpressionCompiler extends ESNextStaticEval {
-  config: CompilerConfig = DEFAULT_COMPILER_CONFIG;
+  config: {
+    formatter?: Formatter;
+  } = DEFAULT_COMPILER_CONFIG;
 
-  constructor(config: CompilerConfig) {
+  constructor(config: { formatter?: Formatter }) {
     super();
     this.config = config;
   }

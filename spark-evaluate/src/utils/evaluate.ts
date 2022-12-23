@@ -1,12 +1,11 @@
 import { SparkExpressionCompiler } from "../classes/SparkExpressionCompiler";
 import { DEFAULT_COMPILER_CONFIG } from "../constants/DEFAULT_COMPILER_CONFIG";
 import { DEFAULT_PARSER } from "../constants/DEFAULT_PARSER";
-import { CompilerConfig } from "../types/CompilerConfig";
 
 export const evaluate = (
   expr: string,
   context: Record<string, unknown> = {},
-  config: CompilerConfig = DEFAULT_COMPILER_CONFIG
+  config = DEFAULT_COMPILER_CONFIG
 ): unknown => {
   if (!expr) {
     return undefined;
