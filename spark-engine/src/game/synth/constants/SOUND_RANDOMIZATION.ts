@@ -43,7 +43,7 @@ export const SOUND_RANDOMIZATION: Record<
   RecursiveRandomization<SoundConfig>
 > = {
   coin: {
-    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
+    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
     frequency: {
       pitch: [0.05, 0.09],
     },
@@ -54,7 +54,7 @@ export const SOUND_RANDOMIZATION: Record<
     },
     arpeggio: {
       on: [true],
-      rate: [0.6, 0.7],
+      rate: [0.6],
       maxNotes: [0],
       direction: ["up"],
       semitones: [
@@ -68,15 +68,20 @@ export const SOUND_RANDOMIZATION: Record<
     },
   },
   zap: {
-    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
+    wave: ["sawtooth", "tangent", "square"],
     frequency: {
-      pitch: [0.05, 0.07],
-      ramp: [0.2, 0.4],
+      pitch: [0.01, 0.4],
+      ramp: [0.3, 0.4],
     },
-    harmony: {
+    amplitude: {
+      decay: [0.05, 0.05],
+      sustain: [0.1, 0.2],
+      release: [0.2, 0.3],
+    },
+    vibrato: {
       on: [true, false],
-      delay: [0],
-      strength: [0.2, 0.5],
+      strength: [0.25, 0.75],
+      rate: [0.5, 0.6],
     },
   },
   boom: {
@@ -104,7 +109,7 @@ export const SOUND_RANDOMIZATION: Record<
     },
   },
   powerup: {
-    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
+    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
     frequency: {
       pitch: [0.04, 0.06],
       ramp: [0.5, 0.7],
@@ -142,7 +147,7 @@ export const SOUND_RANDOMIZATION: Record<
     },
   },
   jump: {
-    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
+    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
     frequency: {
       pitch: [0.03, 0.06],
       ramp: [0.6, 0.8],
@@ -194,8 +199,8 @@ export const SOUND_RANDOMIZATION: Record<
       "sine",
       "triangle",
       "sawtooth",
-      "square",
       "tangent",
+      "square",
       "whistle",
       "brownnoise",
       "pinknoise",

@@ -251,17 +251,14 @@ const structDecorations = (view: EditorView): DecorationSet => {
             canvas.width = PREVIEW_WIDTH;
             canvas.height = PREVIEW_HEIGHT;
             const renderContext = canvas.getContext("2d");
-            const pitch = sound.frequency.pitch;
-            const visibleMinPitch = sound.arpeggio.on ? minPitch : pitch;
-            const visibleMaxPitch = sound.arpeggio.on ? maxPitch : pitch + 0.01;
             drawWaveform(
               renderContext,
               PREVIEW_WIDTH,
               PREVIEW_HEIGHT,
               soundBuffer,
               pitchBuffer,
-              visibleMinPitch,
-              visibleMaxPitch
+              minPitch,
+              maxPitch
             );
             return soundBuffer;
           };

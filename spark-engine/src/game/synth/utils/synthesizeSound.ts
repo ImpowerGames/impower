@@ -79,20 +79,13 @@ const choose = <T>(
 };
 
 const getDeltaPerSample = (
-  percentage: number,
-  validation: [number] | [number, number[], number[]],
-  sampleRate: number
+  thingsPerSecond: number,
+  samplesPerSecond: number
 ): number => {
-  const [, range] = validation;
-  const minAmountPerSecond = range?.[0] || 0;
-  const maxAmountPerSecond = range?.[1] || 0;
-  const thingsPerSecond =
-    percentage < 0
-      ? -lerp(Math.abs(percentage), 0, Math.abs(minAmountPerSecond))
-      : lerp(percentage, 0, maxAmountPerSecond);
-  const secondsPerThing = 1 / thingsPerSecond;
-  const samplesPerThing = sampleRate * secondsPerThing;
-  const thingsPerSample = 1 / samplesPerThing;
+  if (thingsPerSecond === 0) {
+    return 0;
+  }
+  const thingsPerSample = thingsPerSecond / samplesPerSecond;
   return thingsPerSample;
 };
 
@@ -282,74 +275,48 @@ export const fillBuffer = (
   const arpeggio_shapes_reversed = [...arpeggio_shapes].reverse();
   const arpeggio_direction = sound.arpeggio.direction;
 
-  let freqPitchDelta = getDeltaPerSample(
-    sound.frequency.ramp,
-    SOUND_VALIDATION.frequency.ramp,
+  let freqSemitonesDelta = getDeltaPerSample(
+    sound.frequency.ramp * 50,
     sampleRate
   );
-  let freqPitchAccelerationDelta = getDeltaPerSample(
-    sound.frequency.accel,
-    SOUND_VALIDATION.frequency.accel,
-    sampleRate
-  );
-  const freqPitchJerkDelta = getDeltaPerSample(
-    sound.frequency.jerk,
-    SOUND_VALIDATION.frequency.jerk,
-    sampleRate
-  );
+  let freqAccelDelta = getDeltaPerSample(sound.frequency.accel, sampleRate);
+  const freqJerkDelta = getDeltaPerSample(sound.frequency.jerk, sampleRate);
   const lowpassCutoffDelta = getDeltaPerSample(
     sound.lowpass.cutoffRamp,
-    SOUND_VALIDATION.lowpass.cutoffRamp,
     sampleRate
   );
   const highpassCutoffDelta = getDeltaPerSample(
     sound.highpass.cutoffRamp,
-    SOUND_VALIDATION.highpass.cutoffRamp,
     sampleRate
   );
   const vibratoRateDelta = getDeltaPerSample(
     sound.vibrato.rateRamp,
-    SOUND_VALIDATION.vibrato.rateRamp,
     sampleRate
   );
   const vibratoStrengthDelta = getDeltaPerSample(
     sound.vibrato.strengthRamp,
-    SOUND_VALIDATION.vibrato.strengthRamp,
     sampleRate
   );
   const tremoloRateDelta = getDeltaPerSample(
     sound.tremolo.rateRamp,
-    SOUND_VALIDATION.tremolo.rateRamp,
     sampleRate
   );
   const tremoloStrengthDelta = getDeltaPerSample(
     sound.tremolo.strengthRamp,
-    SOUND_VALIDATION.tremolo.strengthRamp,
     sampleRate
   );
-  const wahwahRateDelta = getDeltaPerSample(
-    sound.wahwah.rateRamp,
-    SOUND_VALIDATION.wahwah.rateRamp,
-    sampleRate
-  );
+  const wahwahRateDelta = getDeltaPerSample(sound.wahwah.rateRamp, sampleRate);
   const wahwahStrengthDelta = getDeltaPerSample(
     sound.wahwah.strengthRamp,
-    SOUND_VALIDATION.wahwah.strengthRamp,
     sampleRate
   );
-  const ringRateDelta = getDeltaPerSample(
-    sound.ring.rateRamp,
-    SOUND_VALIDATION.ring.rateRamp,
-    sampleRate
-  );
+  const ringRateDelta = getDeltaPerSample(sound.ring.rateRamp, sampleRate);
   const ringStrengthDelta = getDeltaPerSample(
     sound.ring.strengthRamp,
-    SOUND_VALIDATION.ring.strengthRamp,
     sampleRate
   );
   const arpeggioRateDelta = getDeltaPerSample(
     sound.arpeggio.rateRamp,
-    SOUND_VALIDATION.arpeggio.rateRamp,
     sampleRate
   );
 
@@ -402,7 +369,7 @@ export const fillBuffer = (
   for (let i = startIndex; i < endIndex; i += 1) {
     const localIndex = i - startIndex;
 
-    let samplePitch = freqPitch * arpFrequencyFactor;
+    let samplePitch = Math.max(0, freqPitch) * arpFrequencyFactor;
     let sampleShape = sound_wave;
     let sampleResonance = lowpass_resonance;
 
@@ -565,9 +532,9 @@ export const fillBuffer = (
     soundBuffer[i] += sampleValue;
 
     // Ramp values
-    freqPitchAccelerationDelta += freqPitchJerkDelta;
-    freqPitchDelta += freqPitchAccelerationDelta;
-    freqPitch += freqPitchDelta;
+    freqAccelDelta += freqJerkDelta;
+    freqSemitonesDelta += freqAccelDelta;
+    freqPitch *= convertSemitonesToFrequencyFactor(freqSemitonesDelta);
     lowpassCutoff += lowpassCutoffDelta;
     highpassCutoff += highpassCutoffDelta;
     vibratoStrength += vibratoStrengthDelta;
