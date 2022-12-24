@@ -90,9 +90,10 @@ const drawWaveform = (
   height: number,
   soundBuffer: Float32Array,
   pitchBuffer: Float32Array,
-  minPitch: number,
-  maxPitch: number
+  pitchRange: [number, number]
 ): void => {
+  const [minPitch, maxPitch] = pitchRange;
+
   const endX = width;
   const startX = 0;
   const startY = height / 2;
@@ -224,10 +225,12 @@ const structDecorations = (view: EditorView): DecorationSet => {
             );
           }
         };
-        const onUpdatePreview = (structObj: unknown): Float32Array => {
-          const struct = getStruct(view, from);
+        const onUpdatePreview = (
+          structName: string,
+          structObj: unknown
+        ): Float32Array => {
           const structPreview = getElement(
-            getPresetPreviewClassName(struct.name)
+            getPresetPreviewClassName(structName)
           );
           structPreview.style.minWidth = `${PREVIEW_WIDTH}px`;
           structPreview.style.height = `${PREVIEW_HEIGHT}px`;
@@ -237,7 +240,8 @@ const structDecorations = (view: EditorView): DecorationSet => {
             const length = getLength(sound, sampleRate);
             const soundBuffer = new Float32Array(length);
             const pitchBuffer = new Float32Array(length);
-            const { minPitch, maxPitch } = synthesizeSound(
+            const pitchRange: [number, number] = [Number.MAX_SAFE_INTEGER, 0];
+            synthesizeSound(
               sound,
               false,
               false,
@@ -245,7 +249,8 @@ const structDecorations = (view: EditorView): DecorationSet => {
               0,
               length,
               soundBuffer,
-              pitchBuffer
+              pitchBuffer,
+              pitchRange
             );
             const canvas = getOrCreateCanvas(structPreview);
             canvas.width = PREVIEW_WIDTH;
@@ -257,8 +262,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
               PREVIEW_HEIGHT,
               soundBuffer,
               pitchBuffer,
-              minPitch,
-              maxPitch
+              pitchRange
             );
             return soundBuffer;
           };
@@ -286,46 +290,62 @@ const structDecorations = (view: EditorView): DecorationSet => {
         };
         if (type.id === Type.StructColon) {
           const struct = getStruct(view, from);
-          const structType = struct?.type;
-          const validation = sparkValidations[structType];
-          const randomizations = sparkRandomizations[structType] || {};
-          const options = Object.entries({
-            default: validation,
-            ...randomizations,
-          }).map(([label, randomization]) => ({
-            label,
-            onClick: (): void => {
-              const struct = getStruct(view, from);
-              let structTo = to;
-              Object.values(struct.fields || {}).forEach((f) => {
-                if (f.to > structTo) {
-                  structTo = f.to;
-                }
-              });
-              const isDefault = label?.toLowerCase() === "default";
-              const preset = isDefault ? create(validation) : {};
-              if (!isDefault) {
-                randomize(preset, validation, randomization, "on");
-              }
-              autofillStruct(view, from + 1, structTo, preset);
-              const randomizedObj = create(validation);
-              augment(randomizedObj, preset);
-              const soundBuffer = onUpdatePreview(randomizedObj);
-              onPlaySound(soundBuffer);
-            },
-          }));
-          if (options?.length > 0) {
-            widgets.push(
-              Decoration.widget({
-                widget: new StructPresetWidgetType(struct.name, options, () => {
-                  const struct = getStruct(view, from);
-                  const structObj = construct(validation, struct.fields);
-                  const soundBuffer = onUpdatePreview(structObj);
+          if (struct) {
+            const structType = struct?.type;
+            const validation = sparkValidations[structType];
+            const randomizations = sparkRandomizations[structType] || {};
+            const options = Object.entries({
+              default: validation,
+              ...randomizations,
+            }).map(([label, randomization]) => ({
+              label,
+              onClick: (): void => {
+                const struct = getStruct(view, from);
+                if (struct) {
+                  let structTo = to;
+                  Object.values(struct.fields || {}).forEach((f) => {
+                    if (f.to > structTo) {
+                      structTo = f.to;
+                    }
+                  });
+                  const isDefault = label?.toLowerCase() === "default";
+                  const preset = isDefault ? create(validation) : {};
+                  if (!isDefault) {
+                    randomize(preset, validation, randomization, "on");
+                  }
+                  autofillStruct(view, from + 1, structTo, preset);
+                  const randomizedObj = create(validation);
+                  augment(randomizedObj, preset);
+                  const soundBuffer = onUpdatePreview(
+                    struct.name,
+                    randomizedObj
+                  );
                   onPlaySound(soundBuffer);
-                }),
-                side: 0,
-              }).range(to)
-            );
+                }
+              },
+            }));
+            if (options?.length > 0) {
+              widgets.push(
+                Decoration.widget({
+                  widget: new StructPresetWidgetType(
+                    struct.name,
+                    options,
+                    () => {
+                      const struct = getStruct(view, from);
+                      if (struct) {
+                        const structObj = construct(validation, struct.fields);
+                        const soundBuffer = onUpdatePreview(
+                          struct.name,
+                          structObj
+                        );
+                        onPlaySound(soundBuffer);
+                      }
+                    }
+                  ),
+                  side: 0,
+                }).range(to)
+              );
+            }
           }
         }
         if (type.id === Type.StructFieldName) {
@@ -369,68 +389,79 @@ const structDecorations = (view: EditorView): DecorationSet => {
           if (structFieldToken) {
             const structName = structFieldToken?.struct;
             const struct = result.structs[structName || ""];
-            const structField = struct.fields[structFieldToken.id];
-            const startValue = structField?.value;
-            const structType = struct?.type;
-            const validation = sparkValidations[structType];
-            const requirements = getAllProperties(validation);
-            const requirement = requirements[structFieldToken.id];
-            const defaultValue = requirement?.[0];
-            const range = requirement?.[1];
-            const step = requirement?.[2]?.[0];
-            const id = `${structName}${structFieldToken.id}`;
-            if (["number", "string", "boolean"].includes(typeof defaultValue)) {
-              const onDragging = (
-                e: MouseEvent,
-                startX: number,
-                x: number,
-                fieldPreviewTextContent: string
-              ): void => {
-                const valueEl = getElement(id);
-                const from = view.posAtDOM(valueEl);
-                const insert = fieldPreviewTextContent;
-                const newValue = getValue(insert);
-                if (newValue !== undefined) {
-                  const struct = getStruct(view, from);
-                  const structObj = construct(validation, struct.fields);
-                  setProperty(structObj, structFieldToken.id, newValue);
-                  onUpdatePreview(structObj);
-                }
-              };
-              const onDragEnd = (
-                e: MouseEvent,
-                startX: number,
-                x: number,
-                fieldPreviewTextContent: string
-              ): void => {
-                const valueEl = getElement(id);
-                const from = view.posAtDOM(valueEl);
-                const insert = fieldPreviewTextContent;
-                const to = view.state.doc.lineAt(from).to;
-                const changes = { from, to, insert };
-                view.dispatch({ changes });
-                const newValue = getValue(insert);
-                if (newValue !== undefined) {
-                  const struct = getStruct(view, from);
-                  const structObj = construct(validation, struct.fields);
-                  setProperty(structObj, structFieldToken.id, newValue);
-                  const soundBuffer = onUpdatePreview(structObj);
-                  onPlaySound(soundBuffer);
-                }
-              };
-              widgets.push(
-                Decoration.widget({
-                  widget: new StructFieldValueWidgetType(
-                    id,
-                    view.state.doc.sliceString(from, to),
-                    startValue,
-                    range,
-                    step,
-                    { onDragging, onDragEnd }
-                  ),
-                }).range(from),
-                Decoration.mark({ class: id }).range(from, to)
-              );
+            if (struct) {
+              const structField = struct.fields[structFieldToken.id];
+              const startValue = structField?.value;
+              const structType = struct?.type;
+              const validation = sparkValidations[structType];
+              const requirements = getAllProperties(validation);
+              const requirement = requirements[structFieldToken.id];
+              const defaultValue = requirement?.[0];
+              const range = requirement?.[1];
+              const step = requirement?.[2]?.[0];
+              const id = `${structName}${structFieldToken.id}`;
+              if (
+                ["number", "string", "boolean"].includes(typeof defaultValue)
+              ) {
+                const onDragging = (
+                  e: MouseEvent,
+                  startX: number,
+                  x: number,
+                  fieldPreviewTextContent: string
+                ): void => {
+                  const valueEl = getElement(id);
+                  const from = view.posAtDOM(valueEl);
+                  const insert = fieldPreviewTextContent;
+                  const newValue = getValue(insert);
+                  if (newValue !== undefined) {
+                    const struct = getStruct(view, from);
+                    if (struct) {
+                      const structObj = construct(validation, struct.fields);
+                      setProperty(structObj, structFieldToken.id, newValue);
+                      onUpdatePreview(struct.name, structObj);
+                    }
+                  }
+                };
+                const onDragEnd = (
+                  e: MouseEvent,
+                  startX: number,
+                  x: number,
+                  fieldPreviewTextContent: string
+                ): void => {
+                  const valueEl = getElement(id);
+                  const from = view.posAtDOM(valueEl);
+                  const insert = fieldPreviewTextContent;
+                  const to = view.state.doc.lineAt(from).to;
+                  const changes = { from, to, insert };
+                  view.dispatch({ changes });
+                  const newValue = getValue(insert);
+                  if (newValue !== undefined) {
+                    const struct = getStruct(view, from);
+                    if (struct) {
+                      const structObj = construct(validation, struct.fields);
+                      setProperty(structObj, structFieldToken.id, newValue);
+                      const soundBuffer = onUpdatePreview(
+                        struct.name,
+                        structObj
+                      );
+                      onPlaySound(soundBuffer);
+                    }
+                  }
+                };
+                widgets.push(
+                  Decoration.widget({
+                    widget: new StructFieldValueWidgetType(
+                      id,
+                      view.state.doc.sliceString(from, to),
+                      startValue,
+                      range,
+                      step,
+                      { onDragging, onDragEnd }
+                    ),
+                  }).range(from),
+                  Decoration.mark({ class: id }).range(from, to)
+                );
+              }
             }
           }
         }

@@ -20,16 +20,10 @@ export class SynthTrack {
     return this._pitchBuffer;
   }
 
-  protected _minPitch: number;
+  protected _pitchRange: [number, number];
 
-  public get minPitch(): number {
-    return this._minPitch;
-  }
-
-  protected _maxPitch: number;
-
-  public get maxPitch(): number {
-    return this._maxPitch;
+  public get pitchRange(): [number, number] {
+    return this._pitchRange;
   }
 
   protected _durationInSamples: number;
@@ -47,13 +41,13 @@ export class SynthTrack {
     this._durationInSamples = Math.max(1, sampleRate * duration);
     this._soundBuffer = new Float32Array(this._durationInSamples);
     this._pitchBuffer = new Float32Array(this._durationInSamples);
-    const { minPitch, maxPitch } = fillArrayWithTones(
+    this._pitchRange = [Number.MAX_SAFE_INTEGER, 0];
+    fillArrayWithTones(
       tones,
       sampleRate,
       this._soundBuffer,
-      this._pitchBuffer
+      this._pitchBuffer,
+      this._pitchRange
     );
-    this._minPitch = minPitch;
-    this._maxPitch = maxPitch;
   }
 }

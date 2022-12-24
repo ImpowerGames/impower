@@ -57,7 +57,7 @@ export const SOUND_RANDOMIZATION: Record<
       rate: [0.6],
       maxNotes: [0],
       direction: ["up"],
-      semitones: [
+      tones: [
         [0, 8],
         [0, 9],
         [0, 10],
@@ -70,25 +70,30 @@ export const SOUND_RANDOMIZATION: Record<
   zap: {
     wave: ["sawtooth", "tangent", "square"],
     frequency: {
-      pitch: [0.01, 0.4],
-      ramp: [0.3, 0.4],
+      pitch: [0.01, 0.5],
+      pitchRamp: [0.01, 0.3],
     },
     amplitude: {
       decay: [0.05, 0.05],
-      sustain: [0.1, 0.2],
-      release: [0.2, 0.3],
+      sustain: [0.05, 0.1],
+      release: [0.1, 0.2],
     },
     vibrato: {
       on: [true, false],
-      strength: [0.25, 0.75],
-      rate: [0.5, 0.6],
+      strength: [0.5, 0.9],
+      rate: [0.6, 0.8],
+    },
+    distortion: {
+      on: [".vibrato.on", false],
+      strength: [0.4, 1],
+      rate: [0.5, 0.9],
     },
   },
   boom: {
     wave: ["pinknoise", "whitenoise"],
     frequency: {
       pitch: [0.02, 0.06],
-      ramp: [0.3, 0.5],
+      pitchRamp: [0.3, 0.5],
     },
     reverb: {
       on: [true, true, false],
@@ -105,24 +110,24 @@ export const SOUND_RANDOMIZATION: Record<
     wave: ["triangle", "sawtooth", "square", "tangent", "whitenoise"],
     frequency: {
       pitch: [0.02, 0.08],
-      ramp: [0.01, 0.3],
+      pitchRamp: [0.01, 0.3],
     },
   },
   powerup: {
     wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
     frequency: {
       pitch: [0.04, 0.06],
-      ramp: [0.5, 0.7],
+      pitchRamp: [0.5, 0.7],
     },
     arpeggio: {
       on: [true, false],
       rate: [0.5, 0.7],
       maxNotes: [0.5],
       direction: ["up"],
-      semitones: MAJOR_ARPEGGIOS,
+      tones: MAJOR_ARPEGGIOS,
     },
     vibrato: {
-      on: [".arpeggio.on", false],
+      on: [".arpeggio.on", true],
       strength: [0.01, 0.7],
       rate: [0.01, 0.6],
     },
@@ -131,17 +136,17 @@ export const SOUND_RANDOMIZATION: Record<
     wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
     frequency: {
       pitch: [0.03, 0.06],
-      ramp: [0.3, 0.5],
+      pitchRamp: [0.3, 0.5],
     },
     arpeggio: {
       on: [true, false],
       rate: [0.5, 0.7],
       maxNotes: [0.5],
       direction: ["down"],
-      semitones: MAJOR_ARPEGGIOS,
+      tones: MAJOR_ARPEGGIOS,
     },
     vibrato: {
-      on: [".arpeggio.on", false],
+      on: [".arpeggio.on", true],
       strength: [0.01, 0.7],
       rate: [0.01, 0.6],
     },
@@ -150,7 +155,7 @@ export const SOUND_RANDOMIZATION: Record<
     wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
     frequency: {
       pitch: [0.03, 0.06],
-      ramp: [0.6, 0.8],
+      pitchRamp: [0.6, 0.8],
     },
   },
   blip: {
@@ -175,7 +180,7 @@ export const SOUND_RANDOMIZATION: Record<
     ],
     frequency: {
       pitch: [0.01, 0.05],
-      ramp: [0.05, 0.25],
+      pitchRamp: [0.05, 0.25],
     },
     arpeggio: {
       on: [true],
@@ -189,9 +194,9 @@ export const SOUND_RANDOMIZATION: Record<
     },
     harmony: {
       on: [true],
-      delay: [0],
-      strength: [0.2, 0.5],
-      strengthRamp: [0.2, 0.5],
+      count: [1],
+      falloff: [0.2, 0.5],
+      falloffRamp: [0.2, 0.5],
     },
   },
   random: {
@@ -208,7 +213,7 @@ export const SOUND_RANDOMIZATION: Record<
     ],
     frequency: {
       pitch: [0.02, 0.08],
-      ramp: [0.45, 0.55],
+      pitchRamp: [0.45, 0.55],
       accel: [0, 1],
     },
     amplitude: {
@@ -221,19 +226,18 @@ export const SOUND_RANDOMIZATION: Record<
       on: [true, false],
       rate: [0, 1],
       direction: ["up", "down", "up-down", "down-up", "random"],
-      semitones: MAJOR_ARPEGGIOS,
+      tones: MAJOR_ARPEGGIOS,
     },
     vibrato: {
-      on: [".arpeggio.on", false],
+      on: [".arpeggio.on", true],
       strength: [0, 1],
       rate: [0, 1],
     },
     harmony: {
       on: [true, false],
-      count: [0, 0.5],
-      delay: [0, 0.5],
-      strength: [0, 1],
-      strengthRamp: [0, 1],
+      count: [0.1, 1],
+      falloff: [0, 1],
+      falloffRamp: [0, 1],
     },
     reverb: {
       on: [true, false],

@@ -15,12 +15,13 @@ export interface Sound {
   wave: OscillatorType;
   frequency: {
     pitch: number;
-    ramp: number;
+    pitchRamp: number;
     accel: number;
     jerk: number;
   };
   amplitude: {
     volume: number;
+    volumeRamp: number;
     attack: number;
     decay: number;
     sustain: number;
@@ -40,7 +41,7 @@ export interface Sound {
     on: boolean;
     rate: number;
     rateRamp: number;
-    semitones: number[];
+    tones: number[];
     shapes: OscillatorType[];
     direction: "up" | "down" | "down-up" | "up-down" | "random";
     maxOctaves: number;
@@ -48,11 +49,10 @@ export interface Sound {
   };
   harmony: {
     on: boolean;
+    shapes: OscillatorType[];
     count: number;
-    strength: number;
-    strengthRamp: number;
-    delay: number;
-    delayRamp: number;
+    falloff: number;
+    falloffRamp: number;
   };
   reverb: {
     on: boolean;
@@ -61,6 +61,7 @@ export interface Sound {
     delay: number;
     delayRamp: number;
   };
+  distortion: Modulator;
   vibrato: Modulator;
   tremolo: Modulator;
   ring: Modulator;

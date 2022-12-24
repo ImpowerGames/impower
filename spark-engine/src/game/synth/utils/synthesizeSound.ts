@@ -233,8 +233,9 @@ export const fillBuffer = (
   startIndex: number,
   endIndex: number,
   soundBuffer: Float32Array,
-  pitchBuffer?: Float32Array
-): { minPitch: number; maxPitch: number } => {
+  pitchBuffer?: Float32Array,
+  pitchRange?: [number, number]
+): void => {
   const sound_seed = sound.seed;
   const sound_wave = sound.wave;
   const freq_pitch = sound.frequency.pitch;
@@ -247,10 +248,14 @@ export const fillBuffer = (
   const lowpass_cutoff = sound.lowpass.cutoff;
   const lowpass_resonance = sound.lowpass.resonance;
   const highpass_cutoff = sound.highpass.cutoff;
-  const vibrato_shape = sound.vibrato.shape;
   const vibrato_on = sound.vibrato.on;
+  const vibrato_shape = sound.vibrato.shape;
   const vibrato_strength = sound.vibrato.strength;
   const vibrato_rate = sound.vibrato.rate;
+  const distortion_on = sound.distortion.on;
+  const distortion_shape = sound.distortion.shape;
+  const distortion_strength = sound.distortion.strength;
+  const distortion_rate = sound.distortion.rate;
   const tremolo_on = sound.tremolo.on;
   const tremolo_shape = sound.tremolo.shape;
   const tremolo_strength = sound.tremolo.strength;
@@ -267,7 +272,7 @@ export const fillBuffer = (
   const arpeggio_rate = sound.arpeggio.rate;
   const arpeggio_max_octaves = sound.arpeggio.maxOctaves;
   const arpeggio_max_notes = sound.arpeggio.maxNotes;
-  const arpeggio_semitones = sound.arpeggio.semitones;
+  const arpeggio_semitones = sound.arpeggio.tones;
   const arpeggio_shapes = arpeggio_semitones.map(
     (_, i) => sound.arpeggio.shapes[i] || sound_wave
   );
@@ -275,12 +280,19 @@ export const fillBuffer = (
   const arpeggio_shapes_reversed = [...arpeggio_shapes].reverse();
   const arpeggio_direction = sound.arpeggio.direction;
 
-  let freqSemitonesDelta = getDeltaPerSample(
-    sound.frequency.ramp * 50,
-    sampleRate
-  );
+  const endPitch =
+    freq_pitch *
+    convertSemitonesToFrequencyFactor(sound.frequency.pitchRamp * 10);
+  const pitchDelta = endPitch - freq_pitch;
+  const length = endIndex - startIndex - 1;
+  let freqSemitonesDelta = pitchDelta / length;
+
   let freqAccelDelta = getDeltaPerSample(sound.frequency.accel, sampleRate);
   const freqJerkDelta = getDeltaPerSample(sound.frequency.jerk, sampleRate);
+  const ampVolumeDelta = getDeltaPerSample(
+    sound.amplitude.volumeRamp,
+    sampleRate
+  );
   const lowpassCutoffDelta = getDeltaPerSample(
     sound.lowpass.cutoffRamp,
     sampleRate
@@ -295,6 +307,14 @@ export const fillBuffer = (
   );
   const vibratoStrengthDelta = getDeltaPerSample(
     sound.vibrato.strengthRamp,
+    sampleRate
+  );
+  const distortionRateDelta = getDeltaPerSample(
+    sound.distortion.rateRamp,
+    sampleRate
+  );
+  const distortionStrengthDelta = getDeltaPerSample(
+    sound.distortion.strengthRamp,
     sampleRate
   );
   const tremoloRateDelta = getDeltaPerSample(
@@ -329,6 +349,10 @@ export const fillBuffer = (
     interpolate: true,
     rng,
   };
+  const distortionState: OscillatorState = {
+    interpolate: true,
+    rng,
+  };
   const tremoloState: OscillatorState = {
     interpolate: true,
     rng,
@@ -350,6 +374,8 @@ export const fillBuffer = (
   let highpassCutoff = highpass_cutoff;
   let vibratoRate = vibrato_rate;
   let vibratoStrength = vibrato_strength;
+  let distortionRate = distortion_rate;
+  let distortionStrength = lerp(distortion_strength, 1, 8);
   let tremoloRate = tremolo_rate;
   let tremoloStrength = tremolo_strength;
   let wahwahRate = wahwah_rate;
@@ -372,6 +398,29 @@ export const fillBuffer = (
     let samplePitch = Math.max(0, freqPitch) * arpFrequencyFactor;
     let sampleShape = sound_wave;
     let sampleResonance = lowpass_resonance;
+
+    const periodLength = sampleRate / samplePitch;
+
+    // TODO: Distortion Effect (Square Width)
+    // if (distortion_on && distortionRate > 0) {
+    //   const phase = i % periodLength;
+    //   const quarterPeriod = periodLength * (1 / 4);
+    //   const firstHumpLength = 2 * quarterPeriod;
+    //   const secondHumpLength = quarterPeriod;
+    //   const thirdHumpLength = 2 * quarterPeriod;
+    //   if (
+    //     phase >= firstHumpLength &&
+    //     phase < firstHumpLength + secondHumpLength
+    //   ) {
+    //     samplePitch *= 2;
+    //   }
+    //   if (
+    //     phase >= firstHumpLength + secondHumpLength + thirdHumpLength &&
+    //     phase < 2 * periodLength
+    //   ) {
+    //     samplePitch /= 2;
+    //   }
+    // }
 
     // Arpeggio Effect
     if (
@@ -405,7 +454,6 @@ export const fillBuffer = (
       const arpSemitones = arpOctaveSemitones + arpNoteSemitones;
       const secondsPerNote = 1 / arpeggioRate;
       const samplesPerNote = sampleRate * secondsPerNote;
-      const periodLength = sampleRate / samplePitch;
       // Ensure frequency changes only occur at zero crossings (to prevent crackles)
       const arpLimit = roundToNearestMultiple(samplesPerNote, periodLength);
       if (arpLengthLeft <= 0) {
@@ -444,6 +492,13 @@ export const fillBuffer = (
     const angle = (localIndex / sampleRate) * samplePitch;
     const oscillator = OSCILLATORS[sampleShape] || OSCILLATORS.sine;
     let sampleValue = oscillator(angle, oscState);
+
+    // Distortion Effect ("Square"ness)
+    if (distortion_on && distortionStrength > 0) {
+      sampleValue =
+        Math.pow(Math.abs(sampleValue), 1 / distortionStrength) *
+        Math.sign(sampleValue);
+    }
 
     // Wah-Wah Effect
     if (wahwah_on && wahwahRate > 0 && wahwahStrength > 0) {
@@ -534,11 +589,14 @@ export const fillBuffer = (
     // Ramp values
     freqAccelDelta += freqJerkDelta;
     freqSemitonesDelta += freqAccelDelta;
-    freqPitch *= convertSemitonesToFrequencyFactor(freqSemitonesDelta);
+    freqPitch += freqSemitonesDelta;
+    ampVolume += ampVolumeDelta;
     lowpassCutoff += lowpassCutoffDelta;
     highpassCutoff += highpassCutoffDelta;
     vibratoStrength += vibratoStrengthDelta;
     vibratoRate += vibratoRateDelta;
+    distortionStrength += distortionStrengthDelta;
+    distortionRate += distortionRateDelta;
     tremoloStrength += tremoloStrengthDelta;
     tremoloRate += tremoloRateDelta;
     wahwahStrength += wahwahStrengthDelta;
@@ -547,8 +605,14 @@ export const fillBuffer = (
     ringRate += ringRateDelta;
     arpeggioRate += arpeggioRateDelta;
   }
-
-  return { minPitch, maxPitch };
+  if (pitchRange) {
+    if (minPitch < pitchRange[0]) {
+      pitchRange[0] = minPitch;
+    }
+    if (maxPitch > pitchRange[1]) {
+      pitchRange[1] = maxPitch;
+    }
+  }
 };
 
 export const synthesizeSound = (
@@ -560,31 +624,65 @@ export const synthesizeSound = (
   endIndex: number,
   soundBuffer: Float32Array,
   pitchBuffer?: Float32Array,
+  pitchRange?: [number, number],
   volume?: number,
   pitch?: Hertz
-): {
-  minPitch: number;
-  maxPitch: number;
-} => {
+): void => {
   const sound: Sound = create(SOUND_VALIDATION);
   augment(sound, config);
 
-  // TODO: Harmony Effect
-  // const harmony_count = sound.harmony.count;
-  // const harmony_strength = sound.harmony.strength;
-  // const harmony_delay = sound.harmony.delay;
-  // const harmonyStrengthDelta = getSampleDelta(
-  //   sound.harmony.strengthRamp,
-  //   SOUND_VALIDATION.harmony.strengthRamp,
-  //   sampleRate
-  // );
-  // const harmonyDelayDelta = getSampleDelta(
-  //   sound.harmony.delayRamp,
-  //   SOUND_VALIDATION.harmony.delayRamp,
-  //   sampleRate
-  // );
-  // let harmonyStrength = harmony_strength;
-  // let harmonyDelay = harmony_delay;
+  if (volume != null) {
+    sound.amplitude.volume = volume;
+  }
+  if (pitch) {
+    sound.frequency.pitch = pitch;
+  }
+  const fundamentalWave = sound.wave;
+  const fundamentalPitch = sound.frequency.pitch;
+  const fundamentalVolume = sound.amplitude.volume;
+
+  const harmony_on = sound.harmony.on;
+  const harmony_shapes = sound.harmony.shapes;
+  const harmonics_count = sound.harmony.count;
+  const hasHarmonics = harmony_on && sound.harmony.count > 0;
+  const harmonyFalloff = hasHarmonics ? sound.harmony.falloff : 1;
+
+  // Fundamental Wave
+  sound.amplitude.volume = fundamentalVolume * harmonyFalloff;
+  fillBuffer(
+    sound,
+    sustainSound,
+    limitSound,
+    sampleRate,
+    startIndex,
+    endIndex,
+    soundBuffer,
+    pitchBuffer,
+    pitchRange
+  );
+
+  if (harmony_on) {
+    // Harmonic Waves
+    let frequencyFactor = 2;
+    for (let i = 0; i < harmonics_count; i += 1) {
+      sound.wave = harmony_shapes[i] || fundamentalWave;
+      sound.frequency.pitch = fundamentalPitch * frequencyFactor;
+      sound.amplitude.volume = fundamentalVolume * harmonyFalloff;
+      sound.amplitude.volumeRamp = sound.harmony.falloffRamp;
+      fillBuffer(
+        sound,
+        sustainSound,
+        limitSound,
+        sampleRate,
+        startIndex,
+        endIndex,
+        soundBuffer,
+        pitchBuffer,
+        pitchRange
+      );
+      frequencyFactor += frequencyFactor;
+    }
+  }
 
   // TODO: Reverb Effect
   // const reverb_strength = sound.reverb.strength;
@@ -601,22 +699,4 @@ export const synthesizeSound = (
   // );
   // let reverbStrength = reverb_strength;
   // let reverbDelay = reverb_delay;
-
-  if (volume != null) {
-    sound.amplitude.volume = volume;
-  }
-  if (pitch) {
-    sound.frequency.pitch = pitch;
-  }
-
-  return fillBuffer(
-    sound,
-    sustainSound,
-    limitSound,
-    sampleRate,
-    startIndex,
-    endIndex,
-    soundBuffer,
-    pitchBuffer
-  );
 };

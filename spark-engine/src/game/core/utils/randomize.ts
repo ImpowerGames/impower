@@ -26,6 +26,7 @@ export const randomize = <T>(
         typeof secondOption === "boolean"
       ) {
         // Handle self references on second pass
+        setProperty(obj, k, undefined);
       } else if (typeof firstOption === "number") {
         const randomizedValue = clampedRandom(firstOption, secondOption, rng);
         setProperty(obj, k, randomizedValue);
@@ -36,21 +37,27 @@ export const randomize = <T>(
   });
   Object.entries(randomizerProps).forEach(([k, v]) => {
     if (Array.isArray(v)) {
-      const [firstOption, secondOption] = v;
+      const [propertyPath, forceInverse] = v;
       if (
-        typeof firstOption === "string" &&
-        typeof secondOption === "boolean"
+        typeof propertyPath === "string" &&
+        typeof forceInverse === "boolean"
       ) {
         // Resolve self references
-        const referencedValue = getProperty(obj, firstOption);
-        if (secondOption) {
-          setProperty(obj, k, referencedValue);
+        const referencedValue = getProperty(obj, propertyPath);
+        const inverseOfReferencedValue =
+          typeof referencedValue === "number"
+            ? 1 - referencedValue
+            : !referencedValue;
+        if (referencedValue) {
+          setProperty(obj, k, inverseOfReferencedValue);
         } else {
-          const inverseOfOtherValue =
-            typeof referencedValue === "number"
-              ? 1 - referencedValue
-              : !referencedValue;
-          setProperty(obj, k, inverseOfOtherValue);
+          setProperty(
+            obj,
+            k,
+            forceInverse
+              ? inverseOfReferencedValue
+              : pick([referencedValue, inverseOfReferencedValue], rng)
+          );
         }
       }
     }
