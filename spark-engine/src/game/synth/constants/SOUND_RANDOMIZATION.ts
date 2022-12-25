@@ -85,8 +85,8 @@ export const SOUND_RANDOMIZATION: Record<
     },
     distortion: {
       on: [".vibrato.on", false],
-      strength: [0.4, 1],
-      rate: [0.5, 0.9],
+      edge: [0.4, 1],
+      grit: [0.5, 0.9],
     },
   },
   boom: {

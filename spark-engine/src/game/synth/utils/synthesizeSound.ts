@@ -253,9 +253,8 @@ export const fillBuffer = (
   const vibrato_strength = sound.vibrato.strength;
   const vibrato_rate = sound.vibrato.rate;
   const distortion_on = sound.distortion.on;
-  const distortion_shape = sound.distortion.shape;
-  const distortion_strength = sound.distortion.strength;
-  const distortion_rate = sound.distortion.rate;
+  const distortion_edge = sound.distortion.edge;
+  const distortion_grit = sound.distortion.grit;
   const tremolo_on = sound.tremolo.on;
   const tremolo_shape = sound.tremolo.shape;
   const tremolo_strength = sound.tremolo.strength;
@@ -309,12 +308,12 @@ export const fillBuffer = (
     sound.vibrato.strengthRamp,
     sampleRate
   );
-  const distortionRateDelta = getDeltaPerSample(
-    sound.distortion.rateRamp,
+  const distortionGritDelta = getDeltaPerSample(
+    sound.distortion.gritRamp,
     sampleRate
   );
-  const distortionStrengthDelta = getDeltaPerSample(
-    sound.distortion.strengthRamp,
+  const distortionEdgeDelta = getDeltaPerSample(
+    sound.distortion.edgeRamp,
     sampleRate
   );
   const tremoloRateDelta = getDeltaPerSample(
@@ -349,10 +348,6 @@ export const fillBuffer = (
     interpolate: true,
     rng,
   };
-  const distortionState: OscillatorState = {
-    interpolate: true,
-    rng,
-  };
   const tremoloState: OscillatorState = {
     interpolate: true,
     rng,
@@ -374,8 +369,8 @@ export const fillBuffer = (
   let highpassCutoff = highpass_cutoff;
   let vibratoRate = vibrato_rate;
   let vibratoStrength = vibrato_strength;
-  let distortionRate = distortion_rate;
-  let distortionStrength = lerp(distortion_strength, 1, 8);
+  let distortionGrit = distortion_grit;
+  let distortionEdge = distortion_edge;
   let tremoloRate = tremolo_rate;
   let tremoloStrength = tremolo_strength;
   let wahwahRate = wahwah_rate;
@@ -393,34 +388,34 @@ export const fillBuffer = (
 
   // Fill buffer
   for (let i = startIndex; i < endIndex; i += 1) {
-    const localIndex = i - startIndex;
-
     let samplePitch = Math.max(0, freqPitch) * arpFrequencyFactor;
     let sampleShape = sound_wave;
     let sampleResonance = lowpass_resonance;
 
     const periodLength = sampleRate / samplePitch;
 
-    // TODO: Distortion Effect (Square Width)
-    // if (distortion_on && distortionRate > 0) {
-    //   const phase = i % periodLength;
-    //   const quarterPeriod = periodLength * (1 / 4);
-    //   const firstHumpLength = 2 * quarterPeriod;
-    //   const secondHumpLength = quarterPeriod;
-    //   const thirdHumpLength = 2 * quarterPeriod;
-    //   if (
-    //     phase >= firstHumpLength &&
-    //     phase < firstHumpLength + secondHumpLength
-    //   ) {
-    //     samplePitch *= 2;
-    //   }
-    //   if (
-    //     phase >= firstHumpLength + secondHumpLength + thirdHumpLength &&
-    //     phase < 2 * periodLength
-    //   ) {
-    //     samplePitch /= 2;
-    //   }
-    // }
+    let phaseOffset = 0;
+
+    // Distortion Effect (Square Width)
+    if (distortion_on && distortionGrit > 0) {
+      const doublePeriod = periodLength * 2;
+      const phase = i % doublePeriod;
+      const shortDistortionMod = lerp(distortionGrit, 1, 2);
+      const shortBlockLength = periodLength / shortDistortionMod;
+      const longDistortionMod = 2 - 1 / shortDistortionMod;
+      const cycleIndex = Math.floor(i / doublePeriod);
+      if (phase < shortBlockLength) {
+        // Short Block
+        phaseOffset = cycleIndex * doublePeriod;
+        samplePitch *= shortDistortionMod;
+      } else {
+        // Long Block
+        phaseOffset = cycleIndex * doublePeriod + shortBlockLength;
+        samplePitch /= longDistortionMod;
+      }
+    }
+
+    const localIndex = i - startIndex - phaseOffset;
 
     // Arpeggio Effect
     if (
@@ -493,10 +488,11 @@ export const fillBuffer = (
     const oscillator = OSCILLATORS[sampleShape] || OSCILLATORS.sine;
     let sampleValue = oscillator(angle, oscState);
 
-    // Distortion Effect ("Square"ness)
-    if (distortion_on && distortionStrength > 0) {
+    // Distortion Effect ("Square"-ness)
+    if (distortion_on && distortionEdge > 0) {
+      const distortionMod = lerp(distortionEdge, 1, 8);
       sampleValue =
-        Math.pow(Math.abs(sampleValue), 1 / distortionStrength) *
+        Math.pow(Math.abs(sampleValue), 1 / distortionMod) *
         Math.sign(sampleValue);
     }
 
@@ -595,8 +591,8 @@ export const fillBuffer = (
     highpassCutoff += highpassCutoffDelta;
     vibratoStrength += vibratoStrengthDelta;
     vibratoRate += vibratoRateDelta;
-    distortionStrength += distortionStrengthDelta;
-    distortionRate += distortionRateDelta;
+    distortionEdge += distortionEdgeDelta;
+    distortionGrit += distortionGritDelta;
     tremoloStrength += tremoloStrengthDelta;
     tremoloRate += tremoloRateDelta;
     wahwahStrength += wahwahStrengthDelta;

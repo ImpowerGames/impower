@@ -39,8 +39,11 @@ const PREVIEW_HEIGHT = 64;
 const audioContext = new AudioContext();
 
 const getValue = (str: string): unknown => {
-  if (str === "true" || str === "false") {
-    return Boolean(str);
+  if (str === "true") {
+    return true;
+  }
+  if (str === "false") {
+    return false;
   }
   const num = Number(str);
   if (!Number.isNaN(num)) {
@@ -97,8 +100,17 @@ const drawWaveform = (
   const endX = width;
   const startX = 0;
   const startY = height / 2;
+  const waveStartY = startY + soundBuffer[0];
 
   ctx.clearRect(0, 0, 500, 500);
+
+  // Axis
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.moveTo(0, waveStartY);
+  ctx.lineTo(endX, waveStartY);
+  ctx.stroke();
 
   // Frequency (Fill)
   ctx.lineWidth = 1;
@@ -120,8 +132,6 @@ const drawWaveform = (
   ctx.lineTo(endX, height);
   ctx.closePath();
   ctx.fill();
-
-  const waveStartY = startY + soundBuffer[0];
 
   // Amplitude (Volume)
   ctx.lineWidth = 1;

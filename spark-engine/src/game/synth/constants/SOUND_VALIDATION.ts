@@ -64,15 +64,10 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
   },
   distortion: {
     on: [false],
-    shape: [
-      "sine",
-      ["sine", "triangle", "sawtooth", "tangent", "square", "whitenoise"],
-      [true],
-    ],
-    strength: [0.5, [0, 1], [0.01]],
-    strengthRamp: [0, [-1, 1], [0.01]],
-    rate: [A6, [A0, A8], [A1]],
-    rateRamp: [0, [-1, 1], [0.01]],
+    edge: [0.5, [0, 1], [0.01]],
+    edgeRamp: [0, [-1, 1], [0.01]],
+    grit: [0, [0, 1], [0.01]],
+    gritRamp: [0, [-1, 1], [0.01]],
   },
   tremolo: {
     on: [false],

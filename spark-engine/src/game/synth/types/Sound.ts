@@ -61,7 +61,13 @@ export interface Sound {
     delay: number;
     delayRamp: number;
   };
-  distortion: Modulator;
+  distortion: {
+    on: boolean;
+    grit: number;
+    gritRamp: number;
+    edge: number;
+    edgeRamp: number;
+  };
   vibrato: Modulator;
   tremolo: Modulator;
   ring: Modulator;
