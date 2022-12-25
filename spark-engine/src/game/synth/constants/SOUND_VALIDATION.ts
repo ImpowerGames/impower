@@ -50,6 +50,13 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     cutoff: [0, [0, A10], [A2]],
     cutoffRamp: [0, [-1, 1], [0.01]],
   },
+  distortion: {
+    on: [false],
+    edge: [0.5, [0, 1], [0.01]],
+    edgeRamp: [0, [-1, 1], [0.01]],
+    grit: [0, [0, 1], [0.01]],
+    gritRamp: [0, [-1, 1], [0.01]],
+  },
   vibrato: {
     on: [false],
     shape: [
@@ -61,13 +68,6 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     strengthRamp: [0, [-1, 1], [0.01]],
     rate: [6, [0, A0], [0.5]],
     rateRamp: [0, [-1, 1], [0.01]],
-  },
-  distortion: {
-    on: [false],
-    edge: [0.5, [0, 1], [0.01]],
-    edgeRamp: [0, [-1, 1], [0.01]],
-    grit: [0, [0, 1], [0.01]],
-    gritRamp: [0, [-1, 1], [0.01]],
   },
   tremolo: {
     on: [false],

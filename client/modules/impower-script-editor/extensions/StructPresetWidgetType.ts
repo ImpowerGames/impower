@@ -69,7 +69,7 @@ export class StructPresetWidgetType extends WidgetType {
     popup.style.padding = "0";
     popup.style.whiteSpace = "nowrap";
     popup.style.backgroundColor = "#052d57";
-    popup.style.borderRadius = "4px";
+    popup.style.borderRadius = "8px";
     popup.style.overflowX = "hidden";
     popup.style.boxShadow =
       "0 5px 5px -3px rgb(0 0 0 / 20%), 0 8px 10px 1px rgb(0 0 0 / 14%), 0 3px 14px 2px rgb(0 0 0 / 12%)";
@@ -180,10 +180,6 @@ export class StructPresetWidgetType extends WidgetType {
           popup.style.display = "block";
         }
       }
-    };
-    popup.onpointerdown = (e: MouseEvent): void => {
-      e.stopImmediatePropagation();
-      e.preventDefault();
     };
     return root;
   }

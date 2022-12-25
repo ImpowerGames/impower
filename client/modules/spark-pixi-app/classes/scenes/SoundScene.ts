@@ -90,8 +90,8 @@ export class SoundScene extends SparkScene {
 
     const soundBuffer = instrument.sound.track.soundBuffer;
     const pitchBuffer = instrument.sound.track.pitchBuffer;
-    const minPitch = instrument.sound.track.minPitch;
-    const maxPitch = instrument.sound.track.maxPitch;
+    const minPitch = instrument.sound.track.pitchRange[0];
+    const maxPitch = instrument.sound.track.pitchRange[1];
 
     const waveStartY = startY + soundBuffer[0];
 
