@@ -1,14 +1,16 @@
+import { randomizer } from "../../../../../spark-evaluate";
 import { OscillatorType } from "../types/OscillatorType";
 
 const PI2 = 2 * Math.PI;
 
 export interface OscillatorState {
-  interpolate?: boolean;
   prevPhase?: number;
   prevRandom?: number;
   b?: [number, number, number, number, number, number, number];
   rng?: () => number;
 }
+
+const rng = randomizer("");
 
 const fix = (x: number, fractionDigits = 10): number => {
   // Fix float precision errors
@@ -24,10 +26,6 @@ const clamp = (x: number, min: number, max: number) => {
     return max;
   }
   return x;
-};
-
-const lerp = (a: number, b: number, t: number) => {
-  return (1 - t) * a + t * b;
 };
 
 const frac = (x: number): number => {
@@ -75,11 +73,10 @@ const whistle = (x: number): number => {
 };
 
 const whiteState: OscillatorState = {
-  interpolate: true,
   prevPhase: 0,
   prevRandom: 0,
   b: [0, 0, 0, 0, 0, 0, 0],
-  rng: Math.random,
+  rng,
 };
 
 const whitenoise = (x: number, state?: OscillatorState): number => {
@@ -88,31 +85,27 @@ const whitenoise = (x: number, state?: OscillatorState): number => {
   const prevRandom = s.prevRandom || 0;
   const currPhase = frac(x * 2);
   const currRandom = currPhase < prevPhase ? random(1, s.rng) : prevRandom;
-  const value = s.interpolate
-    ? lerp(prevRandom, currRandom, currPhase)
-    : currRandom;
+  const value = currRandom;
   s.prevPhase = currPhase;
   s.prevRandom = currRandom;
   return value;
 };
 
 const pinkState: OscillatorState = {
-  interpolate: true,
   prevPhase: 0,
   prevRandom: 0,
   b: [0, 0, 0, 0, 0, 0, 0],
-  rng: Math.random,
+  rng,
 };
 
 const pinknoise = (x: number, state?: OscillatorState): number => {
-  const range = 4;
   const s = state || pinkState;
   const prevPhase = s.prevPhase || 0;
   const prevRandom = s.prevRandom || 0;
   const currPhase = frac(x * 2);
   let currRandom = prevRandom;
   if (currPhase < prevPhase) {
-    const white = random(range, s.rng);
+    const white = random(1, s.rng);
     if (!s.b) {
       s.b = [0, 0, 0, 0, 0, 0, 0];
     }
@@ -134,35 +127,29 @@ const pinknoise = (x: number, state?: OscillatorState): number => {
       7;
     s.b[6] = white * 0.115926;
   }
-  const value = s.interpolate
-    ? lerp(prevRandom, currRandom, currPhase)
-    : currRandom;
+  const value = currRandom;
   s.prevPhase = currPhase;
   s.prevRandom = currRandom;
   return value;
 };
 
 const brownState: OscillatorState = {
-  interpolate: true,
   prevPhase: 0,
   prevRandom: 0,
   b: [0, 0, 0, 0, 0, 0, 0],
-  rng: Math.random,
+  rng,
 };
 
 const brownnoise = (x: number, state?: OscillatorState): number => {
-  const range = 1;
   const s = state || brownState;
   const prevPhase = s.prevPhase || 0;
   const prevRandom = s.prevRandom || 0;
   const currPhase = frac(x * 2);
   const currRandom =
     currPhase < prevPhase
-      ? clamp(prevRandom + random(range, s.rng), -1, 1)
+      ? clamp(prevRandom + random(1, s.rng), -1, 1)
       : prevRandom;
-  const value = s.interpolate
-    ? lerp(prevRandom, currRandom, currPhase)
-    : currRandom;
+  const value = currRandom;
   s.prevPhase = currPhase;
   s.prevRandom = currRandom;
   return value;

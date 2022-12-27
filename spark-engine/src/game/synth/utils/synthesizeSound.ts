@@ -7,8 +7,86 @@ import { OscillatorType } from "../types/OscillatorType";
 import { Sound, SoundConfig } from "../types/Sound";
 import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
 
+const FREEVERB_COMB_A_SIZES = [1557, 1617, 1491, 1422];
+const FREEVERB_COMB_B_SIZES = [1277, 1356, 1188, 1116];
+const FREEVERB_ALLPASS_SIZES = [525, 556, 641, 537];
+
+const comb = (
+  gain: number,
+  state: {
+    buffer: Float32Array;
+    index: number;
+    filter: number;
+    feedback: number;
+    damp: number;
+  }
+): number => {
+  const scale = 0.015;
+  const sample = state.buffer[state.index] || 0;
+  state.filter = sample * (1 - state.damp) + state.filter * state.damp;
+  state.buffer[state.index] = gain * scale + state.filter * state.feedback;
+  if (++state.index === state.buffer.length) {
+    state.index = 0;
+  }
+  return sample;
+};
+
+const allpass = (
+  gain: number,
+  state: {
+    buffer: Float32Array;
+    index: number;
+  }
+): number => {
+  const scale = 0.5;
+  const sample = state.buffer[state.index] || 0;
+  state.buffer[state.index] = gain + sample * scale;
+  if (++state.index === state.buffer.length) {
+    state.index = 0;
+  }
+  return sample - gain;
+};
+
+/**!
+ * Based on Freeverb <https://github.com/sinshu/freeverb>
+ *
+ * Written by Jezar, Released as Public Domain.
+ *
+ * More Info: https://ccrma.stanford.edu/~jos/pasp/Freeverb.html
+ */
+const reverb = (
+  gain: number,
+  combAStates: {
+    buffer: Float32Array;
+    index: number;
+    filter: number;
+    feedback: number;
+    damp: number;
+  }[],
+  combBStates: {
+    buffer: Float32Array;
+    index: number;
+    filter: number;
+    feedback: number;
+    damp: number;
+  }[],
+  allpassStates: {
+    buffer: Float32Array;
+    index: number;
+  }[]
+) => {
+  const scale = 0.2;
+  // Apply comb filters in parallel
+  let output =
+    combAStates.map((s) => comb(gain, s)).reduce((p, n) => p + n) +
+    combBStates.map((s) => comb(gain, s)).reduce((p, n) => p + n);
+  // Apply allpass filters in series
+  output = allpassStates.reduce((p, s) => p + allpass(gain, s), output);
+  return output * scale;
+};
+
 const roundToNearestMultiple = (n: number, period: number): number => {
-  return Math.ceil(n / period) * period;
+  return Math.floor(n / period) * period;
 };
 
 const mapOsc = (mod: number, min: number, max: number) => {
@@ -57,12 +135,10 @@ const choose = <T>(
   choices: T[],
   reversedChoices: T[],
   direction: "down" | "up" | "down-up" | "up-down" | "random",
-  numNotesPlayed: number,
-  seed: string
+  numNotesPlayed: number
 ): T | undefined => {
   const cycleIndex = getCycleIndex(numNotesPlayed, choices.length);
-  const cycleSeed =
-    direction === "random" ? (seed || "") + cycleIndex : undefined;
+  const cycleSeed = direction === "random" ? "" + cycleIndex : undefined;
   const isReversed = isChoicesReversed(
     numNotesPlayed,
     choices.length,
@@ -236,7 +312,7 @@ export const fillBuffer = (
   pitchBuffer?: Float32Array,
   pitchRange?: [number, number]
 ): void => {
-  const sound_seed = sound.seed;
+  const sound_noiseSeed = sound.noiseSeed;
   const sound_wave = sound.wave;
   const freq_pitch = sound.frequency.pitch;
   const amp_volume = sound.amplitude.volume;
@@ -339,25 +415,20 @@ export const fillBuffer = (
     sampleRate
   );
 
-  const rng = randomizer(sound_seed);
+  const rng = randomizer(sound_noiseSeed);
   const oscState: OscillatorState = {
-    interpolate: true,
     rng,
   };
   const vibratoState: OscillatorState = {
-    interpolate: true,
     rng,
   };
   const tremoloState: OscillatorState = {
-    interpolate: true,
     rng,
   };
   const ringState: OscillatorState = {
-    interpolate: true,
     rng,
   };
   const wahwahState: OscillatorState = {
-    interpolate: true,
     rng,
   };
 
@@ -386,6 +457,8 @@ export const fillBuffer = (
   const highpassInput: [number, number] = [0, 0];
   const highpassOutput: [number, number, number] = [0, 0, 0];
 
+  let phaseOffset = 0;
+
   // Fill buffer
   for (let i = startIndex; i < endIndex; i += 1) {
     let samplePitch = Math.max(0, freqPitch) * arpFrequencyFactor;
@@ -393,8 +466,6 @@ export const fillBuffer = (
     let sampleResonance = lowpass_resonance;
 
     const periodLength = sampleRate / samplePitch;
-
-    let phaseOffset = 0;
 
     // Distortion Effect (Square Width)
     if (distortion_on && distortionGrit > 0) {
@@ -415,7 +486,7 @@ export const fillBuffer = (
       }
     }
 
-    const localIndex = i - startIndex - phaseOffset;
+    const localIndex = i - startIndex;
 
     // Arpeggio Effect
     if (
@@ -435,26 +506,30 @@ export const fillBuffer = (
           arpeggio_shapes,
           arpeggio_shapes_reversed,
           arpeggio_direction,
-          arpNumNotesPlayed,
-          sound_seed
+          arpNumNotesPlayed
         ) || sound_wave;
       const arpNoteSemitones =
         choose(
           arpeggio_semitones,
           arpeggio_semitones_reversed,
           arpeggio_direction,
-          arpNumNotesPlayed,
-          sound_seed
+          arpNumNotesPlayed
         ) || 0;
       const arpSemitones = arpOctaveSemitones + arpNoteSemitones;
       const secondsPerNote = 1 / arpeggioRate;
       const samplesPerNote = sampleRate * secondsPerNote;
-      // Ensure frequency changes only occur at zero crossings (to prevent crackles)
-      const arpLimit = roundToNearestMultiple(samplesPerNote, periodLength);
       if (arpLengthLeft <= 0) {
-        arpLengthLeft = arpLimit;
         arpNumNotesPlayed += 1;
         arpFrequencyFactor = convertSemitonesToFrequencyFactor(arpSemitones);
+        const newPitch = Math.max(0, freqPitch) * arpFrequencyFactor;
+        const newPeriodLength = sampleRate / newPitch;
+        // Ensure frequency changes only occur at zero crossings (to minimize crackles)
+        const arpLimit = roundToNearestMultiple(
+          samplesPerNote,
+          Math.floor(newPeriodLength)
+        );
+        arpLengthLeft = arpLimit;
+        phaseOffset = localIndex;
       }
       arpLengthLeft -= 1;
     }
@@ -484,7 +559,7 @@ export const fillBuffer = (
     }
 
     // Base Waveform
-    const angle = (localIndex / sampleRate) * samplePitch;
+    const angle = ((localIndex - phaseOffset) / sampleRate) * samplePitch;
     const oscillator = OSCILLATORS[sampleShape] || OSCILLATORS.sine;
     let sampleValue = oscillator(angle, oscState);
 
@@ -633,6 +708,7 @@ export const synthesizeSound = (
   if (pitch) {
     sound.frequency.pitch = pitch;
   }
+
   const fundamentalWave = sound.wave;
   const fundamentalPitch = sound.frequency.pitch;
   const fundamentalVolume = sound.amplitude.volume;
@@ -640,11 +716,12 @@ export const synthesizeSound = (
   const harmony_on = sound.harmony.on;
   const harmony_shapes = sound.harmony.shapes;
   const harmonics_count = sound.harmony.count;
-  const hasHarmonics = harmony_on && sound.harmony.count > 0;
-  const harmonyFalloff = hasHarmonics ? sound.harmony.falloff : 1;
+  const harmony_falloff = sound.harmony.falloff;
+
+  const volumeMod = harmony_on && harmonics_count > 0 ? 0.5 : 1;
 
   // Fundamental Wave
-  sound.amplitude.volume = fundamentalVolume * harmonyFalloff;
+  sound.amplitude.volume = fundamentalVolume * volumeMod;
   fillBuffer(
     sound,
     sustainSound,
@@ -657,13 +734,14 @@ export const synthesizeSound = (
     pitchRange
   );
 
+  // Harmonic Waves
   if (harmony_on) {
-    // Harmonic Waves
     let frequencyFactor = 2;
     for (let i = 0; i < harmonics_count; i += 1) {
       sound.wave = harmony_shapes[i] || fundamentalWave;
       sound.frequency.pitch = fundamentalPitch * frequencyFactor;
-      sound.amplitude.volume = fundamentalVolume * harmonyFalloff;
+      sound.amplitude.volume =
+        fundamentalVolume * (1 / (harmonics_count * harmony_falloff));
       sound.amplitude.volumeRamp = sound.harmony.falloffRamp;
       fillBuffer(
         sound,
@@ -680,19 +758,48 @@ export const synthesizeSound = (
     }
   }
 
-  // TODO: Reverb Effect
-  // const reverb_strength = sound.reverb.strength;
-  // const reverb_delay = sound.reverb.delay;
-  // const reverbStrengthDelta = getSampleDelta(
-  //   sound.reverb.strengthRamp,
-  //   SOUND_VALIDATION.reverb.strengthRamp,
-  //   sampleRate
-  // );
-  // const reverbDelayDelta = getSampleDelta(
-  //   sound.reverb.delayRamp,
-  //   SOUND_VALIDATION.reverb.delayRamp,
-  //   sampleRate
-  // );
-  // let reverbStrength = reverb_strength;
-  // let reverbDelay = reverb_delay;
+  // Reverb Filter
+  const reverb_on = sound.reverb.on;
+  const reverb_strength = sound.reverb.strength;
+  const reverb_delay = sound.reverb.delay;
+  if (reverb_on) {
+    let reverbStrength = reverb_strength;
+    let reverbDelay = reverb_delay;
+    const reverbStrengthDelta = getDeltaPerSample(
+      sound.reverb.strengthRamp,
+      sampleRate
+    );
+    const reverbDelayDelta = getDeltaPerSample(
+      sound.reverb.delayRamp,
+      sampleRate
+    );
+    // Create 8 comb filters
+    const combAStates = FREEVERB_COMB_A_SIZES.map((size) => ({
+      buffer: new Float32Array(size),
+      index: 0,
+      filter: 0,
+      feedback: lerp(reverbDelay, 0.28, 0.7),
+      damp: lerp(reverbStrength, 0, 0.4),
+    }));
+    const combBStates = FREEVERB_COMB_B_SIZES.map((size) => ({
+      buffer: new Float32Array(size),
+      index: 0,
+      filter: 0,
+      feedback: lerp(reverbDelay, 0.28, 0.7),
+      damp: lerp(reverbStrength, 0, 0.4),
+    }));
+    // Create 4 allpass filters
+    const allpassStates = FREEVERB_ALLPASS_SIZES.map((size) => ({
+      buffer: new Float32Array(size),
+      index: 0,
+    }));
+    for (let i = startIndex; i < endIndex; i += 1) {
+      const sample = soundBuffer[i] || 0;
+      // Set Buffer
+      soundBuffer[i] = reverb(sample, combAStates, combBStates, allpassStates);
+      // Ramp values
+      reverbStrength += reverbStrengthDelta;
+      reverbDelay += reverbDelayDelta;
+    }
+  }
 };

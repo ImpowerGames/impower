@@ -10,7 +10,7 @@ const A8 = 7040;
 const A10 = 28160;
 
 export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
-  seed: [""],
+  noiseSeed: [""],
   wave: [
     "triangle",
     [
@@ -31,7 +31,7 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     volumeRamp: [0, [-1, 1], [0.01]],
     attack: [0, [0, 1], [0.001]],
     decay: [0.01, [0, 1], [0.001]],
-    sustain: [0.01, [0, 1], [0.001]],
+    sustain: [0.03, [0, 1], [0.001]],
     release: [0.01, [0, 1], [0.001]],
     sustainLevel: [0.5, [0, 1], [0.01]],
   },
@@ -122,10 +122,10 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
       ],
       "sine",
     ],
-    rate: [12, [0, 20], [1]],
+    rate: [12, [0, 100], [1]],
     rateRamp: [0, [-1, 1], [0.01]],
-    maxOctaves: [1, [1, 8], [1]],
-    maxNotes: [160, [1, 900], [1]],
+    maxOctaves: [1, [0, 10], [1]],
+    maxNotes: [160, [0, 1000], [1]],
     direction: ["down", ["down", "up", "down-up", "up-down", "random"], [true]],
     tones: [
       [0, 4, 8],
@@ -150,7 +150,7 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
       ],
       "sine",
     ],
-    count: [1, [0, 6], [1]],
+    count: [1, [0, 10], [1]],
     falloff: [0.5, [0, 1], [0.01]],
     falloffRamp: [0, [-1, 1], [0.01]],
   },

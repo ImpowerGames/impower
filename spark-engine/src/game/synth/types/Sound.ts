@@ -11,7 +11,7 @@ export interface Modulator {
 }
 
 export interface Sound {
-  seed: string;
+  noiseSeed: string;
   wave: OscillatorType;
   frequency: {
     pitch: number;

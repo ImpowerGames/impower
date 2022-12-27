@@ -181,7 +181,7 @@ const drawWaveform = (
   if (pitchBuffer) {
     for (let x = startX; x < visibleEndX; x += 1) {
       const timeProgress = (x - startX) / (endX - 1);
-      const bufferIndex = Math.floor(timeProgress * (pitchBuffer.length - 1));
+      const bufferIndex = Math.round(timeProgress * (pitchBuffer.length - 1));
       const val = pitchBuffer[bufferIndex];
       const mag =
         maxPitch === minPitch ? 0.5 : (val - minPitch) / (maxPitch - minPitch);
@@ -202,7 +202,7 @@ const drawWaveform = (
   if (soundBuffer) {
     for (let x = startX; x < visibleEndX; x += 1) {
       const timeProgress = (x - startX) / (endX - 1);
-      const bufferIndex = Math.floor(timeProgress * (soundBuffer.length - 1));
+      const bufferIndex = Math.round(timeProgress * (soundBuffer.length - 1));
       const val = soundBuffer[bufferIndex];
       const delta = val * 50;
       const y = waveStartY + delta;
@@ -219,7 +219,7 @@ const drawWaveform = (
   if (pitchBuffer) {
     for (let x = startX; x < visibleEndX; x += 1) {
       const timeProgress = (x - startX) / (endX - 1);
-      const bufferIndex = Math.floor(timeProgress * (pitchBuffer.length - 1));
+      const bufferIndex = Math.round(timeProgress * (pitchBuffer.length - 1));
       const val = pitchBuffer[bufferIndex];
       if (val === 0) {
         ctx.moveTo(x, startY);

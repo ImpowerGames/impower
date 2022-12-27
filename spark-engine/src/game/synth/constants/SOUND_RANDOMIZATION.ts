@@ -54,8 +54,8 @@ export const SOUND_RANDOMIZATION: Record<
     },
     arpeggio: {
       on: [true],
-      rate: [0.6],
-      maxNotes: [0],
+      rate: [0.15, 0.2],
+      maxNotes: [0.002],
       direction: ["up"],
       tones: [
         [0, 8],
@@ -67,70 +67,31 @@ export const SOUND_RANDOMIZATION: Record<
       ],
     },
   },
-  zap: {
-    wave: ["sawtooth", "tangent", "square"],
+  jump: {
+    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
     frequency: {
-      pitch: [0.01, 0.5],
-      pitchRamp: [0.01, 0.3],
+      pitch: [0.03, 0.06],
+      pitchRamp: [0.6, 0.8],
     },
     amplitude: {
-      decay: [0.05, 0.05],
+      decay: [0.05],
       sustain: [0.05, 0.1],
       release: [0.1, 0.2],
-    },
-    vibrato: {
-      on: [true, false],
-      strength: [0.5, 0.9],
-      rate: [0.6, 0.8],
     },
     distortion: {
-      on: [".vibrato.on", false],
+      on: [true, false],
       edge: [0.4, 1],
       grit: [0.5, 0.9],
-    },
-  },
-  boom: {
-    wave: ["pinknoise", "whitenoise"],
-    frequency: {
-      pitch: [0.02, 0.06],
-      pitchRamp: [0.3, 0.5],
-    },
-    amplitude: {
-      decay: [0.05, 0.05],
-      sustain: [0.05, 0.1],
-      release: [0.4, 0.7],
-    },
-    reverb: {
-      on: [true, true, false],
-      strength: [0.01, 0.7],
-      delay: [0.3, 0.8],
-    },
-    vibrato: {
-      on: [true, false],
-      strength: [0.01, 0.1],
-      rate: [0.1, 0.3],
-    },
-  },
-  hurt: {
-    wave: ["triangle", "sawtooth", "square", "tangent", "whitenoise"],
-    frequency: {
-      pitch: [0.02, 0.08],
-      pitchRamp: [0.01, 0.3],
-    },
-    amplitude: {
-      decay: [0.05, 0.05],
-      sustain: [0.05, 0.1],
-      release: [0.1, 0.2],
     },
   },
   powerup: {
     wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
     frequency: {
       pitch: [0.04, 0.06],
-      pitchRamp: [0.5, 0.7],
+      pitchRamp: [1],
     },
     amplitude: {
-      decay: [0.05, 0.05],
+      decay: [0.05],
       sustain: [0.4, 0.6],
       release: [0.6, 0.8],
     },
@@ -145,72 +106,128 @@ export const SOUND_RANDOMIZATION: Record<
       strength: [0.01, 0.7],
       rate: [0.4, 0.6],
     },
+    distortion: {
+      on: [".vibrato.on", false],
+      edge: [0.4, 1],
+      grit: [0.5, 0.9],
+    },
   },
   lose: {
     wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
     frequency: {
-      pitch: [0.03, 0.06],
-      pitchRamp: [0.3, 0.5],
+      pitch: [0.04, 0.07],
+      pitchRamp: [0],
+    },
+    amplitude: {
+      decay: [0.05],
+      sustain: [0.4, 0.6],
+      release: [0.6, 0.8],
     },
     arpeggio: {
       on: [true, false],
-      rate: [0.5, 0.7],
+      rate: [0.6, 0.7],
       maxNotes: [0.5],
       direction: ["down"],
       tones: MAJOR_ARPEGGIOS,
     },
     vibrato: {
       on: [".arpeggio.on", true],
-      strength: [0.01, 0.7],
-      rate: [0.01, 0.6],
+      strength: [0.01, 0.03],
+      rate: [0.2, 0.4],
+    },
+    distortion: {
+      on: [".vibrato.on", false],
+      edge: [0.4, 1],
+      grit: [0.5, 0.9],
     },
   },
-  jump: {
-    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
+  zap: {
+    wave: ["whistle", "sawtooth", "tangent", "square"],
     frequency: {
-      pitch: [0.03, 0.06],
-      pitchRamp: [0.6, 0.8],
+      pitch: [0.01, 0.5],
+      pitchRamp: [0.01, 0.3],
+    },
+    amplitude: {
+      decay: [0.05],
+      sustain: [0.1, 0.2],
+      release: [0.1, 0.2],
+    },
+    vibrato: {
+      on: [true, false],
+      strength: [0.5, 0.9],
+      rate: [0.6, 0.8],
+    },
+    distortion: {
+      on: [".vibrato.on", false],
+      edge: [0.4, 1],
+      grit: [0.5, 0.9],
+    },
+  },
+  hurt: {
+    wave: ["triangle", "sawtooth", "square", "tangent", "whitenoise"],
+    frequency: {
+      pitch: [0.02, 0.08],
+      pitchRamp: [0.01, 0.3],
+    },
+    amplitude: {
+      decay: [0.05],
+      sustain: [0.05, 0.1],
+      release: [0.1, 0.2],
     },
   },
   blip: {
-    wave: ["square", "sawtooth"],
+    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
     frequency: {
-      pitch: [0.02, 0.06],
+      pitch: [0.04, 0.08],
+    },
+    arpeggio: {
+      on: [true, false],
+      rate: [0.5, 0.6],
+      direction: ["down"],
+      tones: MAJOR_ARPEGGIOS,
+    },
+  },
+  boom: {
+    wave: ["pinknoise", "whitenoise"],
+    frequency: {
+      pitch: [0.05, 0.1],
+      pitchRamp: [0.3, 0.5],
     },
     amplitude: {
-      attack: [0.01, 0.01],
-      sustain: [0.01, 0.02],
-      release: [0.01, 0.01],
+      decay: [0.05],
+      sustain: [0.05, 0.1],
+      release: [0.4, 0.7],
+    },
+    reverb: {
+      on: [true, true, false],
+      strength: [0.01, 0.7],
+      delay: [0.3, 0.8],
+    },
+    vibrato: {
+      on: [true, false],
+      strength: [0.01, 0.05],
+      rate: [0.1, 0.5],
     },
   },
   push: {
-    wave: [
-      "triangle",
-      "sawtooth",
-      "tangent",
-      "whitenoise",
-      "pinknoise",
-      "brownnoise",
-    ],
+    wave: ["triangle", "sawtooth", "tangent", "pinknoise", "brownnoise"],
     frequency: {
       pitch: [0.01, 0.05],
-      pitchRamp: [0.05, 0.25],
+      pitchRamp: [0.01, 0.25],
+    },
+    amplitude: {
+      decay: [0.05],
+      sustain: [0.05, 0.1],
+      release: [0.1, 0.2],
     },
     arpeggio: {
-      on: [true],
+      on: [true, false],
       rate: [0.6, 0.9],
       direction: ["down"],
-    },
-    reverb: {
-      on: [true],
-      strength: [0.01, 0.7],
-      delay: [0.3, 0.8],
     },
     harmony: {
       on: [true],
       count: [1],
-      falloff: [0.2, 0.5],
-      falloffRamp: [0.2, 0.5],
     },
   },
   random: {
@@ -223,18 +240,15 @@ export const SOUND_RANDOMIZATION: Record<
       "whistle",
       "brownnoise",
       "pinknoise",
-      "whitenoise",
     ],
     frequency: {
       pitch: [0.02, 0.08],
       pitchRamp: [0.45, 0.55],
-      accel: [0, 1],
     },
     amplitude: {
-      attack: [0.01, 0.01],
-      sustain: [0.01, 0.02],
-      release: [0.01, 0.01],
-      sustainLevel: [0, 0.5],
+      decay: [0.05],
+      sustain: [0.2, 0.5],
+      release: [0.2, 0.5],
     },
     arpeggio: {
       on: [true, false],
@@ -246,12 +260,6 @@ export const SOUND_RANDOMIZATION: Record<
       on: [".arpeggio.on", true],
       strength: [0, 1],
       rate: [0, 1],
-    },
-    harmony: {
-      on: [true, false],
-      count: [0.1, 1],
-      falloff: [0, 1],
-      falloffRamp: [0, 1],
     },
     reverb: {
       on: [true, false],
