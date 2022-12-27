@@ -125,7 +125,7 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     rate: [12, [0, 20], [1]],
     rateRamp: [0, [-1, 1], [0.01]],
     maxOctaves: [1, [1, 8], [1]],
-    maxNotes: [160, [2, 900], [1]],
+    maxNotes: [160, [1, 900], [1]],
     direction: ["down", ["down", "up", "down-up", "up-down", "random"], [true]],
     tones: [
       [0, 4, 8],

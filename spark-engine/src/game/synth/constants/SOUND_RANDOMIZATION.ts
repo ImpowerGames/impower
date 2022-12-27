@@ -95,6 +95,11 @@ export const SOUND_RANDOMIZATION: Record<
       pitch: [0.02, 0.06],
       pitchRamp: [0.3, 0.5],
     },
+    amplitude: {
+      decay: [0.05, 0.05],
+      sustain: [0.05, 0.1],
+      release: [0.4, 0.7],
+    },
     reverb: {
       on: [true, true, false],
       strength: [0.01, 0.7],
@@ -102,8 +107,8 @@ export const SOUND_RANDOMIZATION: Record<
     },
     vibrato: {
       on: [true, false],
-      strength: [0.01, 0.7],
-      rate: [0.01, 0.6],
+      strength: [0.01, 0.1],
+      rate: [0.1, 0.3],
     },
   },
   hurt: {
@@ -112,6 +117,11 @@ export const SOUND_RANDOMIZATION: Record<
       pitch: [0.02, 0.08],
       pitchRamp: [0.01, 0.3],
     },
+    amplitude: {
+      decay: [0.05, 0.05],
+      sustain: [0.05, 0.1],
+      release: [0.1, 0.2],
+    },
   },
   powerup: {
     wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
@@ -119,17 +129,21 @@ export const SOUND_RANDOMIZATION: Record<
       pitch: [0.04, 0.06],
       pitchRamp: [0.5, 0.7],
     },
+    amplitude: {
+      decay: [0.05, 0.05],
+      sustain: [0.4, 0.6],
+      release: [0.6, 0.8],
+    },
     arpeggio: {
       on: [true, false],
-      rate: [0.5, 0.7],
-      maxNotes: [0.5],
+      rate: [0.6, 0.9],
       direction: ["up"],
       tones: MAJOR_ARPEGGIOS,
     },
     vibrato: {
       on: [".arpeggio.on", true],
       strength: [0.01, 0.7],
-      rate: [0.01, 0.6],
+      rate: [0.4, 0.6],
     },
   },
   lose: {

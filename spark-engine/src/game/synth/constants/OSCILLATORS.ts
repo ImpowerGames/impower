@@ -105,13 +105,14 @@ const pinkState: OscillatorState = {
 };
 
 const pinknoise = (x: number, state?: OscillatorState): number => {
+  const range = 4;
   const s = state || pinkState;
   const prevPhase = s.prevPhase || 0;
   const prevRandom = s.prevRandom || 0;
   const currPhase = frac(x * 2);
   let currRandom = prevRandom;
   if (currPhase < prevPhase) {
-    const white = random(1, s.rng);
+    const white = random(range, s.rng);
     if (!s.b) {
       s.b = [0, 0, 0, 0, 0, 0, 0];
     }
@@ -150,13 +151,14 @@ const brownState: OscillatorState = {
 };
 
 const brownnoise = (x: number, state?: OscillatorState): number => {
+  const range = 1;
   const s = state || brownState;
   const prevPhase = s.prevPhase || 0;
   const prevRandom = s.prevRandom || 0;
   const currPhase = frac(x * 2);
   const currRandom =
     currPhase < prevPhase
-      ? clamp(prevRandom + 0.1 * random(1, s.rng), -1, 1)
+      ? clamp(prevRandom + random(range, s.rng), -1, 1)
       : prevRandom;
   const value = s.interpolate
     ? lerp(prevRandom, currRandom, currPhase)
