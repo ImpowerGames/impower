@@ -48,7 +48,7 @@ export const SOUND_RANDOMIZATION: Record<
       pitch: [0.05, 0.09],
     },
     amplitude: {
-      decay: [0.001, 0.005],
+      decay: [0.005],
       sustain: [0.2, 0.3],
       release: [0.1, 0.25],
     },
@@ -188,7 +188,7 @@ export const SOUND_RANDOMIZATION: Record<
     },
   },
   boom: {
-    wave: ["pinknoise", "whitenoise"],
+    wave: ["brownnoise", "whitenoise"],
     frequency: {
       pitch: [0.05, 0.1],
       pitchRamp: [0.3, 0.5],
@@ -261,9 +261,22 @@ export const SOUND_RANDOMIZATION: Record<
       strength: [0, 1],
       rate: [0, 1],
     },
+    distortion: {
+      on: [true, false],
+      edge: [0, 1],
+      grit: [0, 1],
+    },
+    tremolo: {
+      on: [true, false],
+      rate: [0, 1],
+    },
+    harmony: {
+      on: [true, false],
+      count: [0.01, 0.25],
+    },
     reverb: {
       on: [true, false],
-      strength: [0, 0.7],
+      strength: [0, 1],
       delay: [0, 1],
     },
   },

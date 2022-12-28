@@ -10,7 +10,6 @@ const A8 = 7040;
 const A10 = 28160;
 
 export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
-  noiseSeed: [""],
   wave: [
     "triangle",
     [
@@ -107,21 +106,6 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
   },
   arpeggio: {
     on: [false],
-    shapes: [
-      [],
-      [
-        "sine",
-        "triangle",
-        "sawtooth",
-        "tangent",
-        "square",
-        "whistle",
-        "brownnoise",
-        "pinknoise",
-        "whitenoise",
-      ],
-      "sine",
-    ],
     rate: [12, [0, 100], [1]],
     rateRamp: [0, [-1, 1], [0.01]],
     maxOctaves: [1, [0, 10], [1]],
@@ -132,9 +116,6 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
       [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
       0,
     ],
-  },
-  harmony: {
-    on: [false],
     shapes: [
       [],
       [
@@ -150,9 +131,27 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
       ],
       "sine",
     ],
+  },
+  harmony: {
+    on: [false],
     count: [1, [0, 10], [1]],
     falloff: [0.5, [0, 1], [0.01]],
     falloffRamp: [0, [-1, 1], [0.01]],
+    shapes: [
+      [],
+      [
+        "sine",
+        "triangle",
+        "sawtooth",
+        "tangent",
+        "square",
+        "whistle",
+        "brownnoise",
+        "pinknoise",
+        "whitenoise",
+      ],
+      "sine",
+    ],
   },
   reverb: {
     on: [false],
@@ -161,4 +160,5 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     delay: [0.15, [0, 1], [0.01]],
     delayRamp: [0, [-1, 1], [0.01]],
   },
+  noiseSeed: [""],
 };
