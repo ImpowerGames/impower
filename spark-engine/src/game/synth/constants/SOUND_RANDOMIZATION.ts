@@ -248,7 +248,7 @@ export const SOUND_RANDOMIZATION: Record<
     },
     arpeggio: {
       on: [true],
-      rate: [52],
+      rate: [54],
       tones: [
         [0, 3, 0],
         [0, 9, 3],
