@@ -565,10 +565,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
                 ? { backgroundColor: style?.backgroundColor }
                 : {}),
             },
-            ".cm-scroller": {
-              fontFamily: "Courier Prime Sans",
-              overflowX: "hidden",
-            },
           },
           { dark: true }
         ),

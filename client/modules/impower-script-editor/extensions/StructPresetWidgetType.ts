@@ -70,10 +70,18 @@ export class StructPresetWidgetType extends WidgetType {
     popup.style.whiteSpace = "nowrap";
     popup.style.backgroundColor = "#052d57";
     popup.style.borderRadius = "8px";
-    popup.style.overflowX = "hidden";
+    popup.style.overflow = "hidden";
     popup.style.boxShadow =
       "0 5px 5px -3px rgb(0 0 0 / 20%), 0 8px 10px 1px rgb(0 0 0 / 14%), 0 3px 14px 2px rgb(0 0 0 / 12%)";
     popup.className = getPresetPopupClassName(this.id);
+
+    const previewEl = document.createElement("div");
+    previewEl.style.padding = "0";
+    previewEl.style.display = "flex";
+    previewEl.style.flexDirection = "column";
+    previewEl.style.borderBottom = "1px solid #FFFFFF26";
+    previewEl.className = getPresetPreviewClassName(this.id);
+    popup.appendChild(previewEl);
 
     const unorderedList = document.createElement("ul");
     unorderedList.style.listStyleType = "none";
@@ -82,17 +90,14 @@ export class StructPresetWidgetType extends WidgetType {
     unorderedList.style.display = "flex";
     unorderedList.style.flexDirection = "column";
     unorderedList.style.alignItems = "stretch";
+    unorderedList.style.maxHeight = "300px";
+    unorderedList.style.overflowY = "auto";
 
-    const previewListItem = document.createElement("li");
-    previewListItem.style.padding = "0";
-    previewListItem.style.display = "flex";
-    previewListItem.style.flexDirection = "column";
-    previewListItem.style.borderBottom = "1px solid #FFFFFF26";
-    previewListItem.className = getPresetPreviewClassName(this.id);
-    unorderedList.appendChild(previewListItem);
-
-    const addOption = (option: Option): HTMLElement => {
-      const listItem = document.createElement("li");
+    const createOption = (
+      option: Option,
+      type: "li" | "div" = "li"
+    ): HTMLElement => {
+      const listItem = document.createElement(type);
       listItem.style.padding = "0";
       listItem.style.minWidth = "fit-content";
       listItem.style.height = "fit-content";
@@ -133,25 +138,27 @@ export class StructPresetWidgetType extends WidgetType {
         optionButton.style.backgroundColor = hoverColor;
       };
       optionButton.onclick = (e: PointerEvent): void => {
-        option.onClick?.(e, previewListItem);
+        option.onClick?.(e, previewEl);
       };
       listItem.appendChild(optionButton);
-      unorderedList.appendChild(listItem);
       return listItem;
     };
-
     if (this.options) {
-      this.options.forEach((o) => addOption(o));
+      this.options.forEach((o) => unorderedList.appendChild(createOption(o)));
     }
+    popup.appendChild(unorderedList);
 
-    const closeListItem = addOption({
-      innerHTML: CheckIcon,
-      onClick: () => {
-        if (popup.style.display !== "none") {
-          popup.style.display = "none";
-        }
+    const closeListItem = createOption(
+      {
+        innerHTML: CheckIcon,
+        onClick: () => {
+          if (popup.style.display !== "none") {
+            popup.style.display = "none";
+          }
+        },
       },
-    });
+      "div"
+    );
     closeListItem.style.borderTop = "1px solid #FFFFFF26";
     const closeButton = closeListItem.firstElementChild as HTMLElement;
     closeButton.style.color = "#99daff";
@@ -160,8 +167,8 @@ export class StructPresetWidgetType extends WidgetType {
     closeButton.style.alignItems = "center";
     const closeButtonIcon = closeButton.firstElementChild as HTMLElement;
     closeButtonIcon.style.height = "1rem";
+    popup.appendChild(closeListItem);
 
-    popup.appendChild(unorderedList);
     root.appendChild(button);
     root.appendChild(popup);
 

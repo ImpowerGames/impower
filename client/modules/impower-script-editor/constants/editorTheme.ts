@@ -9,6 +9,10 @@ export const editorTheme: {
     backgroundColor: colors.background,
     flex: 1,
   },
+  ".cm-scroller": {
+    overflow: "initial",
+    fontFamily: "Courier Prime Sans",
+  },
   ".cm-content": {
     caretColor: "white",
   },
