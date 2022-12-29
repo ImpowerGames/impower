@@ -291,7 +291,6 @@ export const SOUND_RANDOMIZATION: Record<
       "square",
       "whistle",
       "brownnoise",
-      "pinknoise",
     ],
     amplitude: {
       decay: [0.05],
@@ -310,7 +309,7 @@ export const SOUND_RANDOMIZATION: Record<
     arpeggio: {
       on: [true, false],
       rate: [0, 100],
-      direction: ["up", "down", "up-down", "down-up", "random"],
+      direction: ["up", "down", "random"],
       tones: MAJOR_ARPEGGIOS_UP,
     },
     vibrato: {
