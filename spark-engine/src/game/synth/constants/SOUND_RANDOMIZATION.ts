@@ -18,7 +18,7 @@ const A7 = 3520;
 const A10 = 28160;
 const A11 = 56320;
 
-export const MAJOR_ARPEGGIOS = [
+export const MAJOR_ARPEGGIOS_UP = [
   [0, 3, 9],
   [0, 4, 8],
   [0, 6, 10],
@@ -32,6 +32,10 @@ export const MAJOR_ARPEGGIOS = [
   [3, 8, 11],
   [4, 9, 12],
 ];
+
+export const MAJOR_ARPEGGIOS_DOWN = MAJOR_ARPEGGIOS_UP.map((arr) =>
+  [...arr].reverse()
+);
 
 export const SOUND_RANDOMIZATION: Record<
   string,
@@ -51,7 +55,6 @@ export const SOUND_RANDOMIZATION: Record<
       on: [true],
       rate: [15, 20],
       maxNotes: [2],
-      direction: ["up"],
       tones: [
         [0, 8],
         [0, 9],
@@ -93,8 +96,7 @@ export const SOUND_RANDOMIZATION: Record<
     arpeggio: {
       on: [true, false],
       rate: [10, 16],
-      direction: ["up"],
-      tones: MAJOR_ARPEGGIOS,
+      tones: MAJOR_ARPEGGIOS_UP,
     },
     vibrato: {
       on: [".arpeggio.on", true],
@@ -121,9 +123,7 @@ export const SOUND_RANDOMIZATION: Record<
     arpeggio: {
       on: [true, false],
       rate: [10, 16],
-      maxNotes: [160],
-      direction: ["down"],
-      tones: MAJOR_ARPEGGIOS,
+      tones: MAJOR_ARPEGGIOS_DOWN,
     },
     vibrato: {
       on: [".arpeggio.on", true],
@@ -212,19 +212,18 @@ export const SOUND_RANDOMIZATION: Record<
     arpeggio: {
       on: [true, false],
       rate: [36],
-      direction: ["down"],
       tones: [
-        [0, 3],
-        [0, 4],
-        [0, 5],
-        [0, 6],
-        [0, 7],
-        [0, 8],
-        [0, 9],
-        [0, 10],
-        [0, 11],
-        [0, 12],
-        [0, 14],
+        [3, 0],
+        [4, 0],
+        [5, 0],
+        [6, 0],
+        [7, 0],
+        [8, 0],
+        [9, 0],
+        [10, 0],
+        [11, 0],
+        [12, 0],
+        [14, 0],
       ],
     },
     distortion: {
@@ -312,7 +311,7 @@ export const SOUND_RANDOMIZATION: Record<
       on: [true, false],
       rate: [0, 100],
       direction: ["up", "down", "up-down", "down-up", "random"],
-      tones: MAJOR_ARPEGGIOS,
+      tones: MAJOR_ARPEGGIOS_UP,
     },
     vibrato: {
       on: [".arpeggio.on", true],
