@@ -102,11 +102,9 @@ const getCycleIndex = (
 };
 
 const isChoicesReversed = (
-  numNotesPlayed: number,
-  choicesLength: number,
-  direction: "down" | "up" | "down-up" | "up-down" | "random"
+  cycleIndex: number,
+  direction: "down" | "up" | "down-up" | "up-down"
 ): boolean => {
-  const cycleIndex = getCycleIndex(numNotesPlayed, choicesLength);
   const isEvenCycle = cycleIndex % 2 === 0;
   const isReversed =
     direction === "down" ||
@@ -116,42 +114,17 @@ const isChoicesReversed = (
 };
 
 const getOctaveSemitones = (
-  numNotesPlayed: number,
-  choicesLength: number,
-  direction: "down" | "up" | "down-up" | "up-down" | "random",
+  cycleIndex: number,
+  isReversed: boolean | undefined,
   maxOctaves: number
 ): number => {
-  const cycleIndex = getCycleIndex(numNotesPlayed, choicesLength);
-  const isReversed = isChoicesReversed(
-    numNotesPlayed,
-    choicesLength,
-    direction
-  );
   const octave = Math.min(maxOctaves - 1, cycleIndex) * (isReversed ? -1 : 1);
   return octave * 12;
 };
 
-const choose = <T>(
-  choices: T[],
-  reversedChoices: T[],
-  direction: "down" | "up" | "down-up" | "up-down" | "random",
-  numNotesPlayed: number
-): T | undefined => {
-  const cycleIndex = getCycleIndex(numNotesPlayed, choices.length);
-  const cycleSeed = direction === "random" ? "" + cycleIndex : undefined;
-  const isReversed = isChoicesReversed(
-    numNotesPlayed,
-    choices.length,
-    direction
-  );
-  const ordered =
-    direction === "random"
-      ? shuffle(choices, randomizer(cycleSeed))
-      : isReversed
-      ? reversedChoices
-      : choices;
+const choose = <T>(choices: T[], numNotesPlayed: number): T | undefined => {
   const chooseIndex = numNotesPlayed % choices.length;
-  return ordered[chooseIndex];
+  return choices[chooseIndex];
 };
 
 const getDeltaPerSample = (
@@ -213,6 +186,7 @@ const getEnvelopeVolume = (
   startIndex: number,
   endIndex: number,
   sampleRate: number,
+  delayDuration: number,
   attackDuration: number,
   decayDuration: number,
   sustainDuration: number,
@@ -225,16 +199,23 @@ const getEnvelopeVolume = (
   const length = endIndex - startIndex - 1;
   const duration = length / sampleRate;
   const soundDuration =
-    attackDuration + decayDuration + sustainDuration + releaseDuration;
-  const minDuration = attackDuration + decayDuration + releaseDuration;
+    delayDuration +
+    attackDuration +
+    decayDuration +
+    sustainDuration +
+    releaseDuration;
+  const minDuration =
+    delayDuration + attackDuration + decayDuration + releaseDuration;
   if (soundDuration > duration && limitSound) {
     // Limit sound to duration
     if (minDuration <= duration) {
       sustainDuration = duration - minDuration;
     } else {
+      const delayFactor = delayDuration / minDuration;
       const attackFactor = attackDuration / minDuration;
       const decayFactor = decayDuration / minDuration;
       const releaseFactor = releaseDuration / minDuration;
+      delayDuration = duration * delayFactor;
       attackDuration = duration * attackFactor;
       decayDuration = duration * decayFactor;
       sustainDuration = 0;
@@ -246,12 +227,20 @@ const getEnvelopeVolume = (
     sustainDuration += duration - soundDuration;
   }
   // Calculate start and end indices
-  const attackEndTime = attackDuration;
-  const decayEndTime = attackDuration + decayDuration;
-  const sustainEndTime = attackDuration + decayDuration + sustainDuration;
+  const delayEndTime = delayDuration;
+  const attackEndTime = delayDuration + attackDuration;
+  const decayEndTime = delayDuration + attackDuration + decayDuration;
+  const sustainEndTime =
+    delayDuration + attackDuration + decayDuration + sustainDuration;
   const releaseEndTime =
-    attackDuration + decayDuration + sustainDuration + releaseDuration;
-  const attackStartIndex = 0;
+    delayDuration +
+    attackDuration +
+    decayDuration +
+    sustainDuration +
+    releaseDuration;
+  const delayStartIndex = 0;
+  const delayEndIndex = delayEndTime * sampleRate;
+  const attackStartIndex = delayEndIndex;
   const attackEndIndex = attackEndTime * sampleRate;
   const decayStartIndex = attackEndIndex;
   const decayEndIndex = decayEndTime * sampleRate;
@@ -260,6 +249,8 @@ const getEnvelopeVolume = (
   const releaseStartIndex = sustainEndIndex;
   const releaseEndIndex = releaseEndTime * sampleRate;
   // Calculate start and end volumes
+  const delayStartVolume = 0;
+  const delayEndVolume = 0;
   const attackStartVolume = 0;
   const attackEndVolume = 1;
   const decayStartVolume = 1;
@@ -268,10 +259,15 @@ const getEnvelopeVolume = (
   const sustainEndVolume = sustainLevel;
   const releaseStartVolume = sustainLevel;
   const releaseEndVolume = 0;
-  // Get volume at current index
-  if (localIndex < attackStartIndex) {
-    // before attack
+  if (localIndex < delayStartIndex) {
+    // before delay
     return 0;
+  }
+  if (localIndex < delayEndIndex) {
+    // delay
+    const delayP =
+      (localIndex - delayStartIndex) / (delayEndIndex - delayStartIndex);
+    return lerp(delayP, delayStartVolume, delayEndVolume);
   }
   if (localIndex < attackEndIndex) {
     // attack
@@ -315,7 +311,9 @@ export const fillBuffer = (
   const sound_noiseSeed = sound.noiseSeed;
   const sound_wave = sound.wave;
   const freq_pitch = sound.frequency.pitch;
+  const freq_offset = sound.frequency.offset;
   const amp_volume = sound.amplitude.volume;
+  const amp_delay_duration = sound.amplitude.delay;
   const amp_attack_duration = sound.amplitude.attack;
   const amp_decay_duration = sound.amplitude.decay;
   const amp_sustain_duration = sound.amplitude.sustain;
@@ -347,12 +345,25 @@ export const fillBuffer = (
   const arpeggio_rate = sound.arpeggio.rate;
   const arpeggio_max_octaves = sound.arpeggio.maxOctaves;
   const arpeggio_max_notes = sound.arpeggio.maxNotes;
-  const arpeggio_semitones = sound.arpeggio.tones;
-  const arpeggio_shapes = arpeggio_semitones.map(
-    (_, i) => sound.arpeggio.shapes[i] || sound_wave
+  const arpeggio_tones = [...sound.arpeggio.tones];
+  const arpeggio_shapes = [...sound.arpeggio.shapes];
+  const arpeggio_levels = [...sound.arpeggio.levels];
+  const maxArpeggioLength = Math.max(
+    arpeggio_tones.length,
+    arpeggio_shapes.length,
+    arpeggio_levels.length
   );
-  const arpeggio_semitones_reversed = [...arpeggio_semitones].reverse();
+  for (let i = 0; i < maxArpeggioLength; i += 1) {
+    arpeggio_tones[i] = arpeggio_tones[i] ?? 0;
+    arpeggio_shapes[i] = arpeggio_shapes[i] ?? sound_wave;
+    arpeggio_levels[i] = arpeggio_levels[i] ?? 1;
+  }
+  const arpeggio_semitones_reversed = [...arpeggio_tones].reverse();
+  const arpeggio_levels_reversed = [...arpeggio_levels].reverse();
+  const arpeggio_semitones_randomized = shuffle(arpeggio_tones, randomizer(""));
   const arpeggio_shapes_reversed = [...arpeggio_shapes].reverse();
+  const arpeggio_shapes_randomized = shuffle(arpeggio_shapes, randomizer(""));
+  const arpeggio_levels_randomized = shuffle(arpeggio_levels, randomizer(""));
   const arpeggio_direction = sound.arpeggio.direction;
 
   const endPitch =
@@ -452,12 +463,16 @@ export const fillBuffer = (
   let arpLengthLeft = 0;
   let arpNumNotesPlayed = 0;
   let arpFrequencyFactor = 1;
+  let arpAmplitudeFactor = 1;
   const lowpassInput: [number, number] = [0, 0];
   const lowpassOutput: [number, number, number] = [0, 0, 0];
   const highpassInput: [number, number] = [0, 0];
   const highpassOutput: [number, number, number] = [0, 0, 0];
 
-  let phaseOffset = 0;
+  const fundamentalPeriodLength = sampleRate / freqPitch;
+  const startPhaseOffset = freq_offset * fundamentalPeriodLength;
+
+  let arpPhaseOffset = 0;
 
   // Fill buffer
   for (let i = startIndex; i < endIndex; i += 1) {
@@ -466,6 +481,8 @@ export const fillBuffer = (
     let sampleResonance = lowpass_resonance;
 
     const periodLength = sampleRate / samplePitch;
+
+    let distortionPhaseOffset = 0;
 
     // Distortion Effect (Square Width)
     if (distortion_on && distortionGrit > 0) {
@@ -477,11 +494,11 @@ export const fillBuffer = (
       const cycleIndex = Math.floor(i / doublePeriod);
       if (phase < shortBlockLength) {
         // Short Block
-        phaseOffset = cycleIndex * doublePeriod;
+        distortionPhaseOffset = cycleIndex * doublePeriod;
         samplePitch *= shortDistortionMod;
       } else {
         // Long Block
-        phaseOffset = cycleIndex * doublePeriod + shortBlockLength;
+        distortionPhaseOffset = cycleIndex * doublePeriod + shortBlockLength;
         samplePitch /= longDistortionMod;
       }
     }
@@ -492,44 +509,63 @@ export const fillBuffer = (
     if (
       arpeggio_on &&
       arpeggioRate > 0 &&
-      arpeggio_semitones.length > 0 &&
+      arpeggio_tones.length > 0 &&
       arpNumNotesPlayed < arpeggio_max_notes
     ) {
-      const arpOctaveSemitones = getOctaveSemitones(
+      const cycleIndex = getCycleIndex(
         arpNumNotesPlayed,
-        arpeggio_semitones.length,
-        arpeggio_direction,
+        arpeggio_tones.length
+      );
+      const isReversed =
+        arpeggio_direction === "random"
+          ? undefined
+          : isChoicesReversed(cycleIndex, arpeggio_direction);
+      const arpOctaveSemitones = getOctaveSemitones(
+        cycleIndex,
+        isReversed,
         arpeggio_max_octaves
       );
-      sampleShape =
-        choose(
-          arpeggio_shapes,
-          arpeggio_shapes_reversed,
-          arpeggio_direction,
-          arpNumNotesPlayed
-        ) || sound_wave;
-      const arpNoteSemitones =
-        choose(
-          arpeggio_semitones,
-          arpeggio_semitones_reversed,
-          arpeggio_direction,
-          arpNumNotesPlayed
-        ) || 0;
-      const arpSemitones = arpOctaveSemitones + arpNoteSemitones;
-      const secondsPerNote = 1 / arpeggioRate;
-      const samplesPerNote = sampleRate * secondsPerNote;
+      const shapes =
+        isReversed === undefined
+          ? arpeggio_shapes_randomized
+          : isReversed
+          ? arpeggio_shapes_reversed
+          : arpeggio_shapes;
+      sampleShape = choose(shapes, arpNumNotesPlayed) || sound_wave;
+      const semitones =
+        isReversed === undefined
+          ? arpeggio_semitones_randomized
+          : isReversed
+          ? arpeggio_semitones_reversed
+          : arpeggio_tones;
+      const levels =
+        isReversed === undefined
+          ? arpeggio_levels_randomized
+          : isReversed
+          ? arpeggio_levels_reversed
+          : arpeggio_levels;
       if (arpLengthLeft <= 0) {
-        arpNumNotesPlayed += 1;
+        arpAmplitudeFactor = choose(levels, arpNumNotesPlayed) || 0;
+        const arpNoteSemitones = choose(semitones, arpNumNotesPlayed) || 0;
+        const arpSemitones = arpOctaveSemitones + arpNoteSemitones;
+        const secondsPerNote = 1 / arpeggioRate;
+        const samplesPerNote = sampleRate * secondsPerNote;
         arpFrequencyFactor = convertSemitonesToFrequencyFactor(arpSemitones);
         const newPitch = Math.max(0, freqPitch) * arpFrequencyFactor;
-        const newPeriodLength = sampleRate / newPitch;
+        const newPeriodLength = isReversed
+          ? sampleRate / newPitch
+          : periodLength;
         // Ensure frequency changes only occur at zero crossings (to minimize crackles)
-        const arpLimit = roundToNearestMultiple(
-          samplesPerNote,
-          Math.floor(newPeriodLength)
-        );
+        const arpLimit =
+          roundToNearestMultiple(samplesPerNote, newPeriodLength) -
+          1 +
+          (arpNumNotesPlayed === 0 ? startPhaseOffset : 0);
         arpLengthLeft = arpLimit;
-        phaseOffset = localIndex;
+        arpPhaseOffset =
+          arpNumNotesPlayed === 0
+            ? 0
+            : localIndex - startPhaseOffset - distortionPhaseOffset;
+        arpNumNotesPlayed += 1;
       }
       arpLengthLeft -= 1;
     }
@@ -559,7 +595,9 @@ export const fillBuffer = (
     }
 
     // Base Waveform
-    const angle = ((localIndex - phaseOffset) / sampleRate) * samplePitch;
+    const phaseIndex =
+      localIndex - startPhaseOffset - distortionPhaseOffset - arpPhaseOffset;
+    const angle = (phaseIndex / sampleRate) * samplePitch;
     const oscillator = OSCILLATORS[sampleShape] || OSCILLATORS.sine;
     let sampleValue = oscillator(angle, oscState);
 
@@ -643,6 +681,7 @@ export const fillBuffer = (
       startIndex,
       endIndex,
       sampleRate,
+      amp_delay_duration,
       amp_attack_duration,
       amp_decay_duration,
       amp_sustain_duration,
@@ -653,6 +692,7 @@ export const fillBuffer = (
     );
     sampleValue *= Math.max(0, envelopeVolume);
     sampleValue *= Math.max(0, ampVolume);
+    sampleValue *= Math.max(0, arpAmplitudeFactor);
 
     // Set Buffer
     soundBuffer[i] += sampleValue;

@@ -8,17 +8,15 @@
 import { RecursiveRandomization } from "../../core/types/RecursiveRandomization";
 import { SoundConfig } from "../types/Sound";
 
-export type SoundGeneratorType =
-  | "coin"
-  | "zap"
-  | "boom"
-  | "powerup"
-  | "lose"
-  | "hurt"
-  | "jump"
-  | "blip"
-  | "push"
-  | "random";
+const A0 = 27.5;
+const A2 = 110;
+const A3 = 220;
+const A4 = 440;
+const A5 = 880;
+const A6 = 1760;
+const A7 = 3520;
+const A10 = 28160;
+const A11 = 56320;
 
 export const MAJOR_ARPEGGIOS = [
   [0, 3, 9, 14],
@@ -39,23 +37,23 @@ export const MAJOR_ARPEGGIOS = [
 ];
 
 export const SOUND_RANDOMIZATION: Record<
-  SoundGeneratorType,
+  string,
   RecursiveRandomization<SoundConfig>
 > = {
   coin: {
     wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
-    frequency: {
-      pitch: [0.05, 0.09],
-    },
     amplitude: {
       decay: [0.005],
       sustain: [0.2, 0.3],
       release: [0.1, 0.25],
     },
+    frequency: {
+      pitch: [A3, A5],
+    },
     arpeggio: {
       on: [true],
-      rate: [0.15, 0.2],
-      maxNotes: [0.002],
+      rate: [15, 20],
+      maxNotes: [2],
       direction: ["up"],
       tones: [
         [0, 8],
@@ -69,14 +67,14 @@ export const SOUND_RANDOMIZATION: Record<
   },
   jump: {
     wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
-    frequency: {
-      pitch: [0.03, 0.06],
-      pitchRamp: [0.6, 0.8],
-    },
     amplitude: {
       decay: [0.05],
       sustain: [0.05, 0.1],
       release: [0.1, 0.2],
+    },
+    frequency: {
+      pitch: [A3, A5],
+      pitchRamp: [0.2, 1],
     },
     distortion: {
       on: [true, false],
@@ -86,117 +84,117 @@ export const SOUND_RANDOMIZATION: Record<
   },
   powerup: {
     wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
-    frequency: {
-      pitch: [0.04, 0.06],
-      pitchRamp: [1],
-    },
     amplitude: {
       decay: [0.05],
       sustain: [0.4, 0.6],
       release: [0.6, 0.8],
     },
+    frequency: {
+      pitch: [A3, A5],
+      pitchRamp: [1],
+    },
+    distortion: {
+      on: [".vibrato.on", false],
+      edge: [0.4, 1],
+      grit: [0.5, 0.9],
+    },
     arpeggio: {
       on: [true, false],
-      rate: [0.6, 0.9],
+      rate: [6, 9],
       direction: ["up"],
       tones: MAJOR_ARPEGGIOS,
     },
     vibrato: {
       on: [".arpeggio.on", true],
       strength: [0.01, 0.7],
-      rate: [0.4, 0.6],
+      rate: [12, 16],
+    },
+  },
+  lose: {
+    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
+    amplitude: {
+      decay: [0.05],
+      sustain: [0.4, 0.6],
+      release: [0.6, 0.8],
+    },
+    frequency: {
+      pitch: [A3, A5],
+      pitchRamp: [0],
     },
     distortion: {
       on: [".vibrato.on", false],
       edge: [0.4, 1],
       grit: [0.5, 0.9],
     },
-  },
-  lose: {
-    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
-    frequency: {
-      pitch: [0.04, 0.07],
-      pitchRamp: [0],
-    },
-    amplitude: {
-      decay: [0.05],
-      sustain: [0.4, 0.6],
-      release: [0.6, 0.8],
-    },
     arpeggio: {
       on: [true, false],
-      rate: [0.6, 0.7],
-      maxNotes: [0.5],
+      rate: [6, 7],
+      maxNotes: [160],
       direction: ["down"],
       tones: MAJOR_ARPEGGIOS,
     },
     vibrato: {
       on: [".arpeggio.on", true],
       strength: [0.01, 0.03],
-      rate: [0.2, 0.4],
-    },
-    distortion: {
-      on: [".vibrato.on", false],
-      edge: [0.4, 1],
-      grit: [0.5, 0.9],
+      rate: [6, 12],
     },
   },
   zap: {
     wave: ["whistle", "sawtooth", "tangent", "square"],
-    frequency: {
-      pitch: [0.01, 0.5],
-      pitchRamp: [0.01, 0.3],
-    },
     amplitude: {
       decay: [0.05],
       sustain: [0.1, 0.2],
       release: [0.1, 0.2],
     },
-    vibrato: {
-      on: [true, false],
-      strength: [0.5, 0.9],
-      rate: [0.6, 0.8],
+    frequency: {
+      pitch: [A2, A7],
+      pitchRamp: [-1, -0.2],
     },
     distortion: {
       on: [".vibrato.on", false],
       edge: [0.4, 1],
       grit: [0.5, 0.9],
     },
+    vibrato: {
+      on: [true, false],
+      strength: [0.5, 0.9],
+      rate: [16, 22],
+    },
   },
   hurt: {
     wave: ["triangle", "sawtooth", "square", "tangent", "whitenoise"],
-    frequency: {
-      pitch: [0.02, 0.08],
-      pitchRamp: [0.01, 0.3],
-    },
     amplitude: {
       decay: [0.05],
       sustain: [0.05, 0.1],
       release: [0.1, 0.2],
     },
+    frequency: {
+      pitch: [A2, A5],
+      pitchRamp: [-1, -0.2],
+    },
   },
   blip: {
     wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
     frequency: {
-      pitch: [0.04, 0.08],
+      pitch: [A3, A5],
     },
     arpeggio: {
       on: [true, false],
-      rate: [0.5, 0.6],
+      rate: [5, 6],
       direction: ["down"],
       tones: MAJOR_ARPEGGIOS,
     },
   },
   boom: {
-    wave: ["brownnoise", "whitenoise"],
-    frequency: {
-      pitch: [0.05, 0.1],
-      pitchRamp: [0.3, 0.5],
-    },
+    wave: ["whitenoise", "brownnoise"],
     amplitude: {
       decay: [0.05],
       sustain: [0.05, 0.1],
       release: [0.4, 0.7],
+    },
+    frequency: {
+      pitch: [A3, A5],
+      pitchRamp: [-0.5, 0],
     },
     reverb: {
       on: [true, true, false],
@@ -206,28 +204,84 @@ export const SOUND_RANDOMIZATION: Record<
     vibrato: {
       on: [true, false],
       strength: [0.01, 0.05],
-      rate: [0.1, 0.5],
+      rate: [2, 12],
     },
   },
   push: {
-    wave: ["triangle", "sawtooth", "tangent", "pinknoise", "brownnoise"],
-    frequency: {
-      pitch: [0.01, 0.05],
-      pitchRamp: [0.01, 0.25],
-    },
+    wave: ["triangle", "sawtooth", "tangent", "brownnoise", "pinknoise"],
     amplitude: {
       decay: [0.05],
       sustain: [0.05, 0.1],
       release: [0.1, 0.2],
     },
+    frequency: {
+      pitch: [A2, A5],
+      pitchRamp: [-1, -0.5],
+    },
     arpeggio: {
       on: [true, false],
-      rate: [0.6, 0.9],
+      rate: [6, 9],
       direction: ["down"],
     },
     harmony: {
       on: [true],
       count: [1],
+    },
+  },
+  voice: {
+    wave: ["sine", "triangle", "sawtooth", "tangent", "square", "whistle"],
+    amplitude: {
+      sustain: [0.049],
+      release: [0.001],
+    },
+    frequency: {
+      pitch: [A4, A5],
+    },
+    lowpass: {
+      cutoff: [3630],
+    },
+    distortion: {
+      on: [true],
+    },
+    arpeggio: {
+      on: [true],
+      rate: [52],
+      tones: [
+        [0, 3, 0],
+        [0, 9, 3],
+        [0, 8, 4],
+        [0, 10, 6],
+        [0, 14, 10],
+        [0, 20, 16],
+        [0, 24, 20],
+      ],
+    },
+  },
+  clack: {
+    wave: ["brownnoise"],
+    amplitude: {
+      sustain: [0.08],
+    },
+    frequency: {
+      pitch: [A10, A11],
+    },
+    lowpass: {
+      cutoff: [4840],
+    },
+    distortion: {
+      on: [true],
+      edge: [0],
+      grit: [0, 1],
+    },
+    arpeggio: {
+      on: [true],
+      rate: [200],
+      levels: [
+        [
+          0.5, 1, 2, 0.5, 0.4, 0.3, 0.2, 0.1, 0.1, 0.1, 1, 0.5, 0.2, 0.1, 0.1,
+          0.1, 0.1,
+        ],
+      ],
     },
   },
   random: {
@@ -241,38 +295,38 @@ export const SOUND_RANDOMIZATION: Record<
       "brownnoise",
       "pinknoise",
     ],
-    frequency: {
-      pitch: [0.02, 0.08],
-      pitchRamp: [0.45, 0.55],
-    },
     amplitude: {
       decay: [0.05],
       sustain: [0.2, 0.5],
       release: [0.2, 0.5],
     },
-    arpeggio: {
-      on: [true, false],
-      rate: [0, 1],
-      direction: ["up", "down", "up-down", "down-up", "random"],
-      tones: MAJOR_ARPEGGIOS,
-    },
-    vibrato: {
-      on: [".arpeggio.on", true],
-      strength: [0, 1],
-      rate: [0, 1],
+    frequency: {
+      pitch: [A2, A6],
+      pitchRamp: [-0.5, 0.5],
     },
     distortion: {
       on: [true, false],
       edge: [0, 1],
       grit: [0, 1],
     },
+    arpeggio: {
+      on: [true, false],
+      rate: [0, 100],
+      direction: ["up", "down", "up-down", "down-up", "random"],
+      tones: MAJOR_ARPEGGIOS,
+    },
+    vibrato: {
+      on: [".arpeggio.on", true],
+      strength: [0, 1],
+      rate: [0, A0],
+    },
     tremolo: {
       on: [true, false],
-      rate: [0, 1],
+      rate: [0, A0],
     },
     harmony: {
       on: [true, false],
-      count: [0.01, 0.25],
+      count: [1, 2],
     },
     reverb: {
       on: [true, false],

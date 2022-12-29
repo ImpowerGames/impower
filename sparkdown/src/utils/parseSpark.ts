@@ -24,7 +24,7 @@ import {
   SparkDialogueToken,
   SparkDisplayToken,
   SparkStructFieldToken,
-  SparkToken,
+  SparkToken
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
@@ -78,7 +78,7 @@ const diagnostic = (
     properties?: SparkProperties;
   },
   currentToken: { from: number; to: number; line: number; offset?: number },
-  message: string,
+  message = "",
   actions?: SparkAction[],
   from = -1,
   to = -1,

@@ -10,7 +10,17 @@ export const construct = <T>(
   traverse(validation, (path, v) => {
     if (Array.isArray(v)) {
       const [defaultValue] = v;
-      if (defaultValue !== undefined) {
+      let index = 0;
+      let itemPath = `${path}.${index}`;
+      let itemField = fields[itemPath];
+      if (Array.isArray(defaultValue) && itemField) {
+        while (itemField) {
+          setProperty(obj, itemPath, fields[itemPath]?.value);
+          index += 1;
+          itemPath = `${path}.${index}`;
+          itemField = fields[itemPath];
+        }
+      } else {
         const field = fields[path];
         if (field === undefined) {
           setProperty(obj, path, defaultValue);

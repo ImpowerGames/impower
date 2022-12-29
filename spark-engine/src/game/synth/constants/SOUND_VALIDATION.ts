@@ -6,6 +6,7 @@ const A1 = 55;
 const A2 = 110;
 const A4 = 440;
 const A6 = 1760;
+const A7 = 3520;
 const A8 = 7040;
 const A10 = 28160;
 
@@ -19,26 +20,28 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
       "tangent",
       "square",
       "whistle",
+      "whitenoise",
       "brownnoise",
       "pinknoise",
-      "whitenoise",
     ],
     [true],
   ],
   amplitude: {
     volume: [0.5, [0, 1], [0.01]],
     volumeRamp: [0, [-1, 1], [0.01]],
+    delay: [0, [0, 1], [0.001]],
     attack: [0, [0, 1], [0.001]],
-    decay: [0.01, [0, 1], [0.001]],
-    sustain: [0.03, [0, 1], [0.001]],
-    release: [0.01, [0, 1], [0.001]],
+    decay: [0, [0, 1], [0.001]],
+    sustain: [0.05, [0, 1], [0.001]],
+    release: [0, [0, 1], [0.001]],
     sustainLevel: [0.5, [0, 1], [0.01]],
   },
   frequency: {
-    pitch: [A4, [0, A8], [A1]],
+    pitch: [A4, [0, A7], [A1]],
     pitchRamp: [0, [-1, 1], [0.01]],
     accel: [0, [-1, 1], [0.01]],
     jerk: [0, [-1, 1], [0.01]],
+    offset: [0, [-1, 1], [0.01]],
   },
   lowpass: {
     cutoff: [A8, [0, A8], [A1]],
@@ -55,6 +58,35 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     edgeRamp: [0, [-1, 1], [0.01]],
     grit: [0, [0, 1], [0.01]],
     gritRamp: [0, [-1, 1], [0.01]],
+  },
+  arpeggio: {
+    on: [false],
+    rate: [12, [0, 100], [1]],
+    rateRamp: [0, [-1, 1], [0.01]],
+    maxOctaves: [1, [0, 10], [1]],
+    maxNotes: [160, [0, 1000], [1]],
+    direction: ["up", ["up", "down", "up-down", "down-up", "random"], [true]],
+    tones: [
+      [0, 4, 8],
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+      0,
+    ],
+    shapes: [
+      [],
+      [
+        "sine",
+        "triangle",
+        "sawtooth",
+        "tangent",
+        "square",
+        "whistle",
+        "brownnoise",
+        "pinknoise",
+        "whitenoise",
+      ],
+      "sine",
+    ],
+    levels: [[], [0, 1], 1],
   },
   vibrato: {
     on: [false],
@@ -103,34 +135,6 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     strengthRamp: [0, [-1, 1], [0.01]],
     rate: [6, [0, A0], [0.5]],
     rateRamp: [0, [-1, 1], [0.01]],
-  },
-  arpeggio: {
-    on: [false],
-    rate: [12, [0, 100], [1]],
-    rateRamp: [0, [-1, 1], [0.01]],
-    maxOctaves: [1, [0, 10], [1]],
-    maxNotes: [160, [0, 1000], [1]],
-    direction: ["down", ["down", "up", "down-up", "up-down", "random"], [true]],
-    tones: [
-      [0, 4, 8],
-      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
-      0,
-    ],
-    shapes: [
-      [],
-      [
-        "sine",
-        "triangle",
-        "sawtooth",
-        "tangent",
-        "square",
-        "whistle",
-        "brownnoise",
-        "pinknoise",
-        "whitenoise",
-      ],
-      "sine",
-    ],
   },
   harmony: {
     on: [false],

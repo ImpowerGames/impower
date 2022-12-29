@@ -11,22 +11,23 @@ export interface Modulator {
 }
 
 export interface Sound {
-  noiseSeed: string;
   wave: OscillatorType;
-  frequency: {
-    pitch: number;
-    pitchRamp: number;
-    accel: number;
-    jerk: number;
-  };
   amplitude: {
     volume: number;
     volumeRamp: number;
+    delay: number;
     attack: number;
     decay: number;
     sustain: number;
     release: number;
     sustainLevel: number;
+  };
+  frequency: {
+    pitch: number;
+    pitchRamp: number;
+    accel: number;
+    jerk: number;
+    offset: number;
   };
   lowpass: {
     cutoff: number;
@@ -43,6 +44,7 @@ export interface Sound {
     rateRamp: number;
     tones: number[];
     shapes: OscillatorType[];
+    levels: number[];
     direction: "up" | "down" | "down-up" | "up-down" | "random";
     maxOctaves: number;
     maxNotes: number;
@@ -72,6 +74,7 @@ export interface Sound {
   tremolo: Modulator;
   ring: Modulator;
   wahwah: Modulator;
+  noiseSeed: string;
 }
 
 export interface SoundConfig extends RecursivePartial<Sound> {}

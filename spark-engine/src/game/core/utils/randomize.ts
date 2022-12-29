@@ -2,10 +2,8 @@ import { RecursiveRandomization } from "../types/RecursiveRandomization";
 import { RecursiveValidation } from "../types/RecursiveValidation";
 import { clampedRandom } from "./clampedRandom";
 import { cull } from "./cull";
-import { denormalize } from "./denormalize";
 import { getAllProperties } from "./getAllProperties";
 import { getProperty } from "./getProperty";
-import { normalize } from "./normalize";
 import { pick } from "./pick";
 import { setProperty } from "./setProperty";
 
@@ -16,7 +14,6 @@ export const randomize = <T>(
   cullProp?: string,
   rng?: () => number
 ): void => {
-  normalize(obj, validation);
   const randomizerProps = getAllProperties(randomization);
   Object.entries(randomizerProps).forEach(([k, v]) => {
     if (Array.isArray(v)) {
@@ -29,7 +26,17 @@ export const randomize = <T>(
         setProperty(obj, k, undefined);
       } else if (typeof firstOption === "number") {
         const randomizedValue = clampedRandom(firstOption, secondOption, rng);
-        setProperty(obj, k, randomizedValue);
+        const valid = getProperty(validation, k);
+        if (Array.isArray(valid)) {
+          // Round according to validation step
+          const [, , steps] = valid;
+          const step = steps?.[0];
+          const fractionDigits = step.toString().split(".")?.[1]?.length || 0;
+          const roundedVal = Number(randomizedValue.toFixed(fractionDigits));
+          setProperty(obj, k, roundedVal);
+        } else {
+          setProperty(obj, k, randomizedValue);
+        }
       } else {
         setProperty(obj, k, pick(v, rng));
       }
@@ -65,5 +72,4 @@ export const randomize = <T>(
   if (cullProp) {
     cull(obj, cullProp);
   }
-  denormalize(obj, validation);
 };
