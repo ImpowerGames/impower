@@ -279,7 +279,7 @@ export const SOUND_RANDOMIZATION: Record<
     arpeggio: {
       on: [true],
       rate: [100],
-      levels: [[0.1, 2, 0.3, 0.1, 0.1, 0.1, 1, 0.1, 0.1]],
+      levels: [[0.1, 1.5, 0.3, 0.1, 0.1, 0.1, 1, 0.1, 0.1]],
     },
   },
   random: {
