@@ -19,11 +19,8 @@ const A10 = 28160;
 const A11 = 56320;
 
 export const MAJOR_ARPEGGIOS = [
-  [0, 3, 9, 14],
   [0, 3, 9],
-  [0, 4, 8, 14],
   [0, 4, 8],
-  [0, 6, 10, 14],
   [0, 6, 10],
   [1, 4, 10],
   [1, 6, 9],
@@ -107,7 +104,7 @@ export const SOUND_RANDOMIZATION: Record<
     distortion: {
       on: [".vibrato.on", false],
       edge: [0.4, 1],
-      grit: [0.1, 0.9],
+      grit: [0.01, 1],
     },
   },
   lose: {
@@ -136,7 +133,7 @@ export const SOUND_RANDOMIZATION: Record<
     distortion: {
       on: [".vibrato.on", false],
       edge: [0.4, 1],
-      grit: [0.1, 0.9],
+      grit: [0.01, 1],
     },
   },
   zap: {
@@ -173,18 +170,6 @@ export const SOUND_RANDOMIZATION: Record<
       pitchRamp: [-1, -0.2],
     },
   },
-  beep: {
-    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
-    frequency: {
-      pitch: [A3, A5],
-    },
-    arpeggio: {
-      on: [true, false],
-      rate: [10, 16],
-      direction: ["down"],
-      tones: MAJOR_ARPEGGIOS,
-    },
-  },
   boom: {
     wave: ["whitenoise", "brownnoise"],
     amplitude: {
@@ -218,8 +203,33 @@ export const SOUND_RANDOMIZATION: Record<
       pitch: [A2, A5],
       pitchRamp: [-1, -0.5],
     },
+  },
+  beep: {
+    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
+    frequency: {
+      pitch: [A3, A5],
+    },
+    arpeggio: {
+      on: [true, false],
+      rate: [36],
+      direction: ["down"],
+      tones: [
+        [0, 3],
+        [0, 4],
+        [0, 5],
+        [0, 6],
+        [0, 7],
+        [0, 8],
+        [0, 9],
+        [0, 10],
+        [0, 11],
+        [0, 12],
+        [0, 14],
+      ],
+    },
     distortion: {
-      on: [true],
+      on: [".arpeggio.on", false],
+      grit: [0.01, 0.02],
     },
   },
   blip: {
@@ -232,7 +242,7 @@ export const SOUND_RANDOMIZATION: Record<
       pitch: [A4, A5],
     },
     lowpass: {
-      cutoff: [3630],
+      cutoff: [4840],
     },
     distortion: {
       on: [true],
