@@ -61,7 +61,7 @@ let referenceFileName: string;
 
 const throttle = <T extends (...args: unknown[]) => unknown>(
   func: T,
-  timeFrame?: number
+  timeFrame = 50
 ): ((...args: unknown[]) => void) => {
   let lastTime = 0;
   return (...args: unknown[]): void => {
@@ -608,10 +608,9 @@ const structDecorations = (view: EditorView): DecorationSet => {
           let pitchBuffer: Float32Array | undefined;
           let pitchRange: [number, number] | undefined;
 
-          const _draw = (): void => {
+          const draw = (): void => {
             drawWaveform(ctx, soundBuffer, pitchBuffer, pitchRange);
           };
-          const draw = throttle(_draw, 50);
 
           const onUpdatePreview = (
             structName: string,
@@ -649,7 +648,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
             ctx = canvas.getContext("2d");
             draw();
 
-            const onRangePointerMove = (): void => {
+            const onRangePointerMove = throttle((): void => {
               const width = PREVIEW_WIDTH;
               const x = width * 0.5;
               const bufferLength = getMaxBufferLength(
@@ -660,7 +659,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
               updateRangeFill(rangeInput);
               draw();
               draggableArea.style.cursor = zoomOffset > 0 ? "grab" : "zoom-in";
-            };
+            });
             const onRangePointerUp = (): void => {
               const width = PREVIEW_WIDTH;
               const x = width * 0.5;
@@ -721,11 +720,11 @@ const structDecorations = (view: EditorView): DecorationSet => {
             };
             let startX: number | undefined;
             let prevXOffset: number | undefined;
-            const onPreviewPointerMove = (e: MouseEvent): void => {
+            const onPreviewPointerMove = throttle((e: MouseEvent): void => {
               const deltaX = e.clientX - startX;
               pan(prevXOffset + deltaX);
               draw();
-            };
+            });
             const onPreviewPointerUp = (): void => {
               document.documentElement.style.cursor = null;
               draggableArea.style.cursor = zoomOffset > 0 ? "grab" : "zoom-in";
@@ -902,25 +901,27 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 const range = requirement?.[1];
                 const step = requirement?.[2]?.[0];
                 const id = `${structName}${structFieldToken.id}`;
-                const onDragging = (
-                  e: MouseEvent,
-                  startX: number,
-                  x: number,
-                  fieldPreviewTextContent: string
-                ): void => {
-                  const valueEl = getElement(id);
-                  const from = view.posAtDOM(valueEl);
-                  const insert = fieldPreviewTextContent;
-                  const newValue = getValue(insert);
-                  if (newValue !== undefined) {
-                    const struct = getStruct(view, from);
-                    if (struct) {
-                      const structObj = construct(validation, struct.fields);
-                      setProperty(structObj, structFieldToken.id, newValue);
-                      onUpdatePreview(struct.name, structObj);
+                const onDragging = throttle(
+                  (
+                    e: MouseEvent,
+                    startX: number,
+                    x: number,
+                    fieldPreviewTextContent: string
+                  ): void => {
+                    const valueEl = getElement(id);
+                    const from = view.posAtDOM(valueEl);
+                    const insert = fieldPreviewTextContent;
+                    const newValue = getValue(insert);
+                    if (newValue !== undefined) {
+                      const struct = getStruct(view, from);
+                      if (struct) {
+                        const structObj = construct(validation, struct.fields);
+                        setProperty(structObj, structFieldToken.id, newValue);
+                        onUpdatePreview(struct.name, structObj);
+                      }
                     }
                   }
-                };
+                );
                 const onDragEnd = (
                   e: MouseEvent,
                   startX: number,
