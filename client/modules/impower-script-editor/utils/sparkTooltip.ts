@@ -34,7 +34,7 @@ export const sparkTooltip = (
 ): Tooltip | Promise<Tooltip> => {
   const line = view.state.doc.lineAt(pos);
   const token = getSparkReferenceAt(line.number, pos, parseContext?.result);
-  if (!token) {
+  if (!token || token.declaration) {
     return null;
   }
   return {
