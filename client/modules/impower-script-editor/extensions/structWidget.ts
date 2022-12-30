@@ -349,6 +349,7 @@ const getOrCreateFileInput = (
   containerEl.style.justifyContent = "space-between";
   containerEl.style.alignItems = "center";
   containerEl.style.color = AMPLITUDE_COLOR;
+  containerEl.style.borderBottom = "1px solid #FFFFFF26";
   const filenameEl = document.createElement("span");
   filenameEl.style.position = "absolute";
   filenameEl.style.top = "0";
@@ -613,129 +614,161 @@ const structDecorations = (view: EditorView): DecorationSet => {
           };
 
           const onUpdatePreview = (
+            structType: string,
             structName: string,
             structObj: unknown
-          ): Float32Array => {
-            const sound = structObj as Sound;
-            const length = getLength(sound, sampleRate);
-            soundBuffer = new Float32Array(length);
-            pitchBuffer = new Float32Array(length);
-            pitchRange = [Number.MAX_SAFE_INTEGER, 0];
-            synthesizeSound(
-              sound,
-              false,
-              false,
-              sampleRate,
-              0,
-              length,
-              soundBuffer,
-              pitchBuffer,
-              pitchRange
-            );
-            const structPreview = getElement(
-              getPresetPreviewClassName(structName)
-            );
-            structPreview.style.minWidth = `${PREVIEW_WIDTH}px`;
-            const rangeInput = getOrCreateRangeInput(structPreview);
-            updateRangeFill(rangeInput);
-            const draggableArea = getOrCreateDraggableArea(structPreview);
-            const fileInput = getOrCreateFileInput(structPreview, draw);
-            draggableArea.style.height = `${PREVIEW_HEIGHT}px`;
-            draggableArea.style.cursor = zoomOffset > 0 ? "grab" : "zoom-in";
-            const canvas = getOrCreateCanvas(draggableArea);
-            canvas.width = PREVIEW_WIDTH;
-            canvas.height = PREVIEW_HEIGHT;
-            ctx = canvas.getContext("2d");
-            draw();
+          ): void => {
+            if (structType === "sound") {
+              const sound = structObj as Sound;
+              const length = getLength(sound, sampleRate);
+              soundBuffer = new Float32Array(length);
+              pitchBuffer = new Float32Array(length);
+              pitchRange = [Number.MAX_SAFE_INTEGER, 0];
+              synthesizeSound(
+                sound,
+                false,
+                false,
+                sampleRate,
+                0,
+                length,
+                soundBuffer,
+                pitchBuffer,
+                pitchRange
+              );
+              const structPreview = getElement(
+                getPresetPreviewClassName(structName)
+              );
+              structPreview.style.minWidth = `${PREVIEW_WIDTH}px`;
+              const rangeInput = getOrCreateRangeInput(structPreview);
+              updateRangeFill(rangeInput);
+              const draggableArea = getOrCreateDraggableArea(structPreview);
+              const fileInput = getOrCreateFileInput(structPreview, draw);
+              draggableArea.style.height = `${PREVIEW_HEIGHT}px`;
+              draggableArea.style.cursor = zoomOffset > 0 ? "grab" : "zoom-in";
+              const canvas = getOrCreateCanvas(draggableArea);
+              canvas.width = PREVIEW_WIDTH;
+              canvas.height = PREVIEW_HEIGHT;
+              ctx = canvas.getContext("2d");
+              draw();
 
-            const onRangePointerMove = throttle((): void => {
-              const width = PREVIEW_WIDTH;
-              const x = width * 0.5;
-              const bufferLength = getMaxBufferLength(
-                soundBuffer,
-                referenceBuffer
-              );
-              zoom(Number(rangeInput.value), x, width, bufferLength);
-              updateRangeFill(rangeInput);
-              draw();
-              draggableArea.style.cursor = zoomOffset > 0 ? "grab" : "zoom-in";
-            });
-            const onRangePointerUp = (): void => {
-              const width = PREVIEW_WIDTH;
-              const x = width * 0.5;
-              const bufferLength = getMaxBufferLength(
-                soundBuffer,
-                referenceBuffer
-              );
-              zoom(Number(rangeInput.value), x, width, bufferLength);
-              updateRangeFill(rangeInput);
-              draw();
-              draggableArea.style.cursor = zoomOffset > 0 ? "grab" : "zoom-in";
-              window.removeEventListener("pointermove", onRangePointerMove);
-            };
-            rangeInput.onpointerdown = (): void => {
-              const width = PREVIEW_WIDTH;
-              const x = width * 0.5;
-              const bufferLength = getMaxBufferLength(
-                soundBuffer,
-                referenceBuffer
-              );
-              zoom(Number(rangeInput.value), x, width, bufferLength);
-              updateRangeFill(rangeInput);
-              draw();
-              draggableArea.style.cursor = zoomOffset > 0 ? "grab" : "zoom-in";
-              window.addEventListener("pointermove", onRangePointerMove);
-              window.addEventListener("pointerup", onRangePointerUp, {
-                once: true,
-              });
-            };
-            fileInput.onchange = (e: InputEvent): void => {
-              const file = (e.target as HTMLInputElement)?.files?.[0];
-              const filenameEl =
-                fileInput?.parentElement?.parentElement?.getElementsByTagName(
-                  "span"
-                )?.[0];
-              const swapLabelEl =
-                fileInput?.parentElement?.parentElement?.getElementsByTagName(
-                  "label"
-                )?.[0];
-              if (file) {
-                const fileUrl = URL.createObjectURL(file);
-                loadAudioBytes(AUDIO_CONTEXT, fileUrl).then(
-                  (value: Float32Array) => {
-                    referenceFileName = file.name;
-                    referenceBuffer = value;
-                    updateFilenameElement(filenameEl);
-                    updateSwapElement(swapLabelEl);
-                    draw();
-                  }
+              const onRangePointerMove = throttle((): void => {
+                const width = PREVIEW_WIDTH;
+                const x = width * 0.5;
+                const bufferLength = getMaxBufferLength(
+                  soundBuffer,
+                  referenceBuffer
                 );
-              } else {
-                referenceFileName = "";
-                referenceBuffer = undefined;
-                updateFilenameElement(filenameEl);
-                updateSwapElement(swapLabelEl);
+                zoom(Number(rangeInput.value), x, width, bufferLength);
+                updateRangeFill(rangeInput);
                 draw();
-              }
-            };
-            let startX: number | undefined;
-            let prevXOffset: number | undefined;
-            const onPreviewPointerMove = throttle((e: MouseEvent): void => {
-              const deltaX = e.clientX - startX;
-              pan(prevXOffset + deltaX);
-              draw();
-            });
-            const onPreviewPointerUp = (): void => {
-              document.documentElement.style.cursor = null;
-              draggableArea.style.cursor = zoomOffset > 0 ? "grab" : "zoom-in";
-              draggableArea.style.backgroundColor = HOVER_COLOR;
-              startX = undefined;
-              window.removeEventListener("pointermove", onPreviewPointerMove);
-            };
-            draggableArea.onpointerdown = (e: PointerEvent): void => {
-              startX = e.clientX;
-              prevXOffset = xOffset;
-              if (zoomOffset <= 0) {
+                draggableArea.style.cursor =
+                  zoomOffset > 0 ? "grab" : "zoom-in";
+              });
+              const onRangePointerUp = (): void => {
+                const width = PREVIEW_WIDTH;
+                const x = width * 0.5;
+                const bufferLength = getMaxBufferLength(
+                  soundBuffer,
+                  referenceBuffer
+                );
+                zoom(Number(rangeInput.value), x, width, bufferLength);
+                updateRangeFill(rangeInput);
+                draw();
+                draggableArea.style.cursor =
+                  zoomOffset > 0 ? "grab" : "zoom-in";
+                window.removeEventListener("pointermove", onRangePointerMove);
+              };
+              rangeInput.onpointerdown = (): void => {
+                const width = PREVIEW_WIDTH;
+                const x = width * 0.5;
+                const bufferLength = getMaxBufferLength(
+                  soundBuffer,
+                  referenceBuffer
+                );
+                zoom(Number(rangeInput.value), x, width, bufferLength);
+                updateRangeFill(rangeInput);
+                draw();
+                draggableArea.style.cursor =
+                  zoomOffset > 0 ? "grab" : "zoom-in";
+                window.addEventListener("pointermove", onRangePointerMove);
+                window.addEventListener("pointerup", onRangePointerUp, {
+                  once: true,
+                });
+              };
+              fileInput.onchange = (e: InputEvent): void => {
+                const file = (e.target as HTMLInputElement)?.files?.[0];
+                const filenameEl =
+                  fileInput?.parentElement?.parentElement?.getElementsByTagName(
+                    "span"
+                  )?.[0];
+                const swapLabelEl =
+                  fileInput?.parentElement?.parentElement?.getElementsByTagName(
+                    "label"
+                  )?.[0];
+                if (file) {
+                  const fileUrl = URL.createObjectURL(file);
+                  loadAudioBytes(AUDIO_CONTEXT, fileUrl).then(
+                    (value: Float32Array) => {
+                      referenceFileName = file.name;
+                      referenceBuffer = value;
+                      updateFilenameElement(filenameEl);
+                      updateSwapElement(swapLabelEl);
+                      draw();
+                    }
+                  );
+                } else {
+                  referenceFileName = "";
+                  referenceBuffer = undefined;
+                  updateFilenameElement(filenameEl);
+                  updateSwapElement(swapLabelEl);
+                  draw();
+                }
+              };
+              let startX: number | undefined;
+              let prevXOffset: number | undefined;
+              const onPreviewPointerMove = throttle((e: MouseEvent): void => {
+                const deltaX = e.clientX - startX;
+                pan(prevXOffset + deltaX);
+                draw();
+              });
+              const onPreviewPointerUp = (): void => {
+                document.documentElement.style.cursor = null;
+                draggableArea.style.cursor =
+                  zoomOffset > 0 ? "grab" : "zoom-in";
+                draggableArea.style.backgroundColor = HOVER_COLOR;
+                startX = undefined;
+                window.removeEventListener("pointermove", onPreviewPointerMove);
+              };
+              draggableArea.onpointerdown = (e: PointerEvent): void => {
+                startX = e.clientX;
+                prevXOffset = xOffset;
+                if (zoomOffset <= 0) {
+                  const el = e.target as HTMLElement;
+                  const rect = el.getBoundingClientRect();
+                  const width = rect.width;
+                  const x = e.clientX - rect.left;
+                  const bufferLength = getMaxBufferLength(
+                    soundBuffer,
+                    referenceBuffer
+                  );
+                  zoom(ZOOM_MAX_OFFSET * 0.5, x, width, bufferLength);
+                  updateRangeFill(rangeInput);
+                  draw();
+                  if (rangeInput) {
+                    rangeInput.value = `${zoomOffset}`;
+                  }
+                } else {
+                  document.documentElement.style.cursor = "grabbing";
+                  draggableArea.style.cursor = "grabbing";
+                }
+                window.addEventListener("pointermove", onPreviewPointerMove);
+                window.addEventListener("pointerup", onPreviewPointerUp, {
+                  once: true,
+                });
+              };
+              draggableArea.onwheel = (e: WheelEvent): void => {
+                e.stopPropagation();
+                e.preventDefault();
                 const el = e.target as HTMLElement;
                 const rect = el.getBoundingClientRect();
                 const width = rect.width;
@@ -744,41 +777,16 @@ const structDecorations = (view: EditorView): DecorationSet => {
                   soundBuffer,
                   referenceBuffer
                 );
-                zoom(ZOOM_MAX_OFFSET * 0.5, x, width, bufferLength);
+                zoom(zoomOffset - e.deltaY, x, width, bufferLength);
                 updateRangeFill(rangeInput);
                 draw();
                 if (rangeInput) {
                   rangeInput.value = `${zoomOffset}`;
                 }
-              } else {
-                document.documentElement.style.cursor = "grabbing";
-                draggableArea.style.cursor = "grabbing";
-              }
-              window.addEventListener("pointermove", onPreviewPointerMove);
-              window.addEventListener("pointerup", onPreviewPointerUp, {
-                once: true,
-              });
-            };
-            draggableArea.onwheel = (e: WheelEvent): void => {
-              e.stopPropagation();
-              e.preventDefault();
-              const el = e.target as HTMLElement;
-              const rect = el.getBoundingClientRect();
-              const width = rect.width;
-              const x = e.clientX - rect.left;
-              const bufferLength = getMaxBufferLength(
-                soundBuffer,
-                referenceBuffer
-              );
-              zoom(zoomOffset - e.deltaY, x, width, bufferLength);
-              updateRangeFill(rangeInput);
-              draw();
-              if (rangeInput) {
-                rangeInput.value = `${zoomOffset}`;
-              }
-              draggableArea.style.cursor = zoomOffset > 0 ? "grab" : "zoom-in";
-            };
-            return soundBuffer;
+                draggableArea.style.cursor =
+                  zoomOffset > 0 ? "grab" : "zoom-in";
+              };
+            }
           };
           if (type.id === Type.StructColon) {
             const struct = getStruct(view, from);
@@ -808,10 +816,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
                     autofillStruct(view, from + 1, structTo, preset);
                     const randomizedObj = create(validation);
                     augment(randomizedObj, preset);
-                    const soundBuffer = onUpdatePreview(
-                      struct.name,
-                      randomizedObj
-                    );
+                    onUpdatePreview(struct.type, struct.name, randomizedObj);
                     playSound(AUDIO_CONTEXT, soundBuffer);
                   }
                 },
@@ -829,7 +834,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
                             validation,
                             struct.fields
                           );
-                          onUpdatePreview(struct.name, structObj);
+                          onUpdatePreview(struct.type, struct.name, structObj);
                         }
                       }
                     ),
@@ -837,22 +842,21 @@ const structDecorations = (view: EditorView): DecorationSet => {
                   }).range(to)
                 );
               }
-              widgets.push(
-                Decoration.widget({
-                  widget: new StructPlayWidgetType(struct.name, () => {
-                    const struct = getStruct(view, from);
-                    if (struct) {
-                      const structObj = construct(validation, struct.fields);
-                      const soundBuffer = onUpdatePreview(
-                        struct.name,
-                        structObj
-                      );
-                      playSound(AUDIO_CONTEXT, soundBuffer);
-                    }
-                  }),
-                  side: 0,
-                }).range(to)
-              );
+              if (structType === "sound") {
+                widgets.push(
+                  Decoration.widget({
+                    widget: new StructPlayWidgetType(struct.name, () => {
+                      const struct = getStruct(view, from);
+                      if (struct) {
+                        const structObj = construct(validation, struct.fields);
+                        onUpdatePreview(struct.type, struct.name, structObj);
+                        playSound(AUDIO_CONTEXT, soundBuffer);
+                      }
+                    }),
+                    side: 0,
+                  }).range(to)
+                );
+              }
             }
           }
           if (
@@ -917,7 +921,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
                       if (struct) {
                         const structObj = construct(validation, struct.fields);
                         setProperty(structObj, structFieldToken.id, newValue);
-                        onUpdatePreview(struct.name, structObj);
+                        onUpdatePreview(struct.type, struct.name, structObj);
                       }
                     }
                   }
@@ -940,10 +944,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
                     if (struct) {
                       const structObj = construct(validation, struct.fields);
                       setProperty(structObj, structFieldToken.id, newValue);
-                      const soundBuffer = onUpdatePreview(
-                        struct.name,
-                        structObj
-                      );
+                      onUpdatePreview(struct.type, struct.name, structObj);
                       playSound(AUDIO_CONTEXT, soundBuffer);
                     }
                   }

@@ -70,6 +70,7 @@ export class StructPresetWidgetType extends WidgetType {
     popup.style.position = "absolute";
     popup.style.top = "100%";
     popup.style.right = "0";
+    popup.style.zIndex = "1";
     popup.style.width = "fit-content";
     popup.style.height = "fit-content";
     popup.style.padding = "0";
@@ -85,7 +86,6 @@ export class StructPresetWidgetType extends WidgetType {
     previewEl.style.padding = "0";
     previewEl.style.display = "flex";
     previewEl.style.flexDirection = "column";
-    previewEl.style.borderBottom = "1px solid #FFFFFF26";
     previewEl.className = getPresetPreviewClassName(this.id);
     popup.appendChild(previewEl);
 
@@ -119,7 +119,6 @@ export class StructPresetWidgetType extends WidgetType {
       optionButton.style.fontFamily = "inherit";
       optionButton.style.fontSize = "inherit";
       optionButton.style.color = "inherit";
-      optionButton.style.border = "none";
       optionButton.style.backgroundColor = DEFAULT_COLOR;
       optionButton.style.margin = "0";
       optionButton.style.padding = "8px 16px";

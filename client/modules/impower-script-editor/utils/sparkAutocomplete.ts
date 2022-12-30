@@ -30,6 +30,7 @@ import {
   sparkRegexes,
   SparkSection,
   SparkStructFieldToken,
+  structTypes,
 } from "../../../../sparkdown";
 import { colors } from "../constants/colors";
 import { Type } from "../types/type";
@@ -43,9 +44,9 @@ interface Option {
   completionType?: CompletionType;
 }
 
-const OPEN_CURSOR = "${";
-const CLOSE_CURSOR = "}";
-const CURSOR = OPEN_CURSOR + CLOSE_CURSOR;
+const CURSOR_OPEN = "${";
+const CURSOR_CLOSE = "}";
+const CURSOR = CURSOR_OPEN + CURSOR_CLOSE;
 
 const context = new AudioContext();
 
@@ -163,56 +164,17 @@ export const uppercaseParagraphSnippets: readonly Completion[] = [
   }),
 ];
 
-export const structSnippets: readonly Completion[] = [
-  snip("@ list ${}${ListName}:${}", {
-    label: "@ list",
-    type: "struct",
-  }),
-  snip("@ map ${}${MapName}:${}", {
-    label: "@ map",
-    type: "struct",
-  }),
-  snip("@ ui ${}${UiName}:${}", {
-    label: "@ ui",
-    type: "struct",
-  }),
-  snip("@ style ${}${Target}:${}", {
-    label: "@ style",
-    type: "struct",
-  }),
-  snip("@ camera ${}${CameraName}:${}", {
-    label: "@ camera",
-    type: "struct",
-  }),
-  snip("@ entity ${}${EntityName}:${}", {
-    label: "@ entity",
-    type: "struct",
-  }),
-  snip("@ character ${}${CHARACTER_NAME}:${}", {
-    label: "@ character",
-    type: "struct",
-  }),
-  snip("@ animation ${}${AnimationName}:${}", {
-    label: "@ animation",
-    type: "struct",
-  }),
-  snip("@ display ${}${type}:${}", {
-    label: "@ display",
-    type: "struct",
-  }),
-  snip("@ typewriter ${}${TypewriterName}:${}", {
-    label: "@ typewriter",
-    type: "struct",
-  }),
-  snip("@ sound ${}${SoundName}:${}", {
-    label: "@ sound",
-    type: "struct",
-  }),
-  snip("@ preset ${}${PresetName}:${}", {
-    label: "@ preset",
-    type: "struct",
-  }),
-];
+export const structSnippets: readonly Completion[] = structTypes.map((type) =>
+  snip(
+    `@ ${type} ${CURSOR}${CURSOR_OPEN}${
+      type[0].toUpperCase() + type.slice(1)
+    }Name${CURSOR_CLOSE}:${CURSOR}`,
+    {
+      label: `@ ${type}`,
+      type: "struct",
+    }
+  )
+);
 
 export const repeatSnippets: readonly Completion[] = [
   snip("^", {
