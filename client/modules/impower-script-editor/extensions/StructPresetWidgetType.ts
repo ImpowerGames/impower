@@ -133,9 +133,6 @@ export class StructPresetWidgetType extends WidgetType {
       optionButton.onmouseleave = (): void => {
         optionButton.style.backgroundColor = DEFAULT_COLOR;
       };
-      optionButton.onpointerdown = (): void => {
-        optionButton.style.backgroundColor = TAP_COLOR;
-      };
       optionButton.onpointerup = (): void => {
         optionButton.style.backgroundColor = HOVER_COLOR;
       };
