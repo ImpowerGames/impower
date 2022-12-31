@@ -43,8 +43,8 @@ const FREQUENCY_FILL_COLOR = "#5a3663CC";
 const VOLUME_FILL_COLOR = "#4090bf26";
 const REFERENCE_COLOR = "#d92662";
 const WAVE_COLOR = "#42a0d7";
-const DEFAULT_COLOR = "#00000000";
 const HOVER_COLOR = "#00000026";
+const TAP_COLOR = "#00000040";
 const SLIDER_FILL_COLOR = "#2B83B7";
 const SLIDER_BACKGROUND_COLOR = "#00000040";
 const VISIBLE_WAVE_TYPES: ("sound" | "reference")[] = ["reference", "sound"];
@@ -307,7 +307,7 @@ const updateFilenameElement = (el: HTMLElement): void => {
         el.style.backgroundColor = HOVER_COLOR;
       };
       el.onmouseleave = (): void => {
-        el.style.backgroundColor = DEFAULT_COLOR;
+        el.style.backgroundColor = null;
       };
       el.onclick = (): void => {
         playSound(AUDIO_CONTEXT, referenceBuffer);
@@ -386,7 +386,13 @@ const getOrCreateFileInput = (
     swapButtonEl.style.backgroundColor = HOVER_COLOR;
   };
   swapButtonEl.onmouseleave = (): void => {
-    swapButtonEl.style.backgroundColor = DEFAULT_COLOR;
+    swapButtonEl.style.backgroundColor = null;
+  };
+  swapButtonEl.onpointerdown = (): void => {
+    swapButtonEl.style.backgroundColor = TAP_COLOR;
+  };
+  swapButtonEl.onpointerup = (): void => {
+    swapButtonEl.style.backgroundColor = HOVER_COLOR;
   };
   swapButtonEl.onclick = (): void => {
     visible = VISIBLE_WAVE_TYPES[visibleIndex % VISIBLE_WAVE_TYPES.length];
@@ -427,7 +433,13 @@ const getOrCreateFileInput = (
     plusButtonEl.style.backgroundColor = HOVER_COLOR;
   };
   plusButtonEl.onmouseleave = (): void => {
-    plusButtonEl.style.backgroundColor = DEFAULT_COLOR;
+    plusButtonEl.style.backgroundColor = null;
+  };
+  plusButtonEl.onpointerdown = (): void => {
+    plusButtonEl.style.backgroundColor = TAP_COLOR;
+  };
+  plusButtonEl.onpointerup = (): void => {
+    plusButtonEl.style.backgroundColor = HOVER_COLOR;
   };
   updateFilenameElement(filenameEl);
   updateSwapElement(swapButtonEl);
@@ -647,7 +659,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
               const draggableArea = getOrCreateDraggableArea(structPreview);
               const fileInput = getOrCreateFileInput(structPreview, draw);
               draggableArea.style.height = `${PREVIEW_HEIGHT}px`;
-              draggableArea.style.cursor = zoomOffset > 0 ? "grab" : "zoom-in";
+              draggableArea.style.cursor = "grab";
               const canvas = getOrCreateCanvas(draggableArea);
               canvas.width = PREVIEW_WIDTH;
               canvas.height = PREVIEW_HEIGHT;
@@ -664,8 +676,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 zoom(Number(rangeInput.value), x, width, bufferLength);
                 updateRangeFill(rangeInput);
                 draw();
-                draggableArea.style.cursor =
-                  zoomOffset > 0 ? "grab" : "zoom-in";
+                draggableArea.style.cursor = "grab";
               });
               const onRangePointerUp = (): void => {
                 const width = PREVIEW_WIDTH;
@@ -677,8 +688,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 zoom(Number(rangeInput.value), x, width, bufferLength);
                 updateRangeFill(rangeInput);
                 draw();
-                draggableArea.style.cursor =
-                  zoomOffset > 0 ? "grab" : "zoom-in";
+                draggableArea.style.cursor = "grab";
                 window.removeEventListener("pointermove", onRangePointerMove);
               };
               rangeInput.onpointerdown = (): void => {
@@ -691,8 +701,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 zoom(Number(rangeInput.value), x, width, bufferLength);
                 updateRangeFill(rangeInput);
                 draw();
-                draggableArea.style.cursor =
-                  zoomOffset > 0 ? "grab" : "zoom-in";
+                draggableArea.style.cursor = "grab";
                 window.addEventListener("pointermove", onRangePointerMove);
                 window.addEventListener("pointerup", onRangePointerUp, {
                   once: true,
@@ -729,41 +738,35 @@ const structDecorations = (view: EditorView): DecorationSet => {
               };
               let startX: number | undefined;
               let prevXOffset: number | undefined;
+              let clicked = false;
               const onPreviewPointerMove = throttle((e: MouseEvent): void => {
                 const deltaX = e.clientX - startX;
+                if (Math.abs(deltaX) > 0) {
+                  clicked = false;
+                }
                 pan(prevXOffset + deltaX);
                 draw();
               });
               const onPreviewPointerUp = (): void => {
                 document.documentElement.style.cursor = null;
-                draggableArea.style.cursor =
-                  zoomOffset > 0 ? "grab" : "zoom-in";
-                draggableArea.style.backgroundColor = HOVER_COLOR;
+                draggableArea.style.cursor = "grab";
+                draggableArea.style.backgroundColor = null;
                 startX = undefined;
+                if (clicked) {
+                  playSound(AUDIO_CONTEXT, soundBuffer);
+                }
                 window.removeEventListener("pointermove", onPreviewPointerMove);
               };
+              draggableArea.onpointerup = (): void => {
+                draggableArea.style.backgroundColor = HOVER_COLOR;
+              };
               draggableArea.onpointerdown = (e: PointerEvent): void => {
+                clicked = true;
                 startX = e.clientX;
                 prevXOffset = xOffset;
-                if (zoomOffset <= 0) {
-                  const el = e.target as HTMLElement;
-                  const rect = el.getBoundingClientRect();
-                  const width = rect.width;
-                  const x = e.clientX - rect.left;
-                  const bufferLength = getMaxBufferLength(
-                    soundBuffer,
-                    referenceBuffer
-                  );
-                  zoom(ZOOM_MAX_OFFSET * 0.5, x, width, bufferLength);
-                  updateRangeFill(rangeInput);
-                  draw();
-                  if (rangeInput) {
-                    rangeInput.value = `${zoomOffset}`;
-                  }
-                } else {
-                  document.documentElement.style.cursor = "grabbing";
-                  draggableArea.style.cursor = "grabbing";
-                }
+                document.documentElement.style.cursor = "grabbing";
+                draggableArea.style.cursor = "grabbing";
+                draggableArea.style.backgroundColor = TAP_COLOR;
                 window.addEventListener("pointermove", onPreviewPointerMove);
                 window.addEventListener("pointerup", onPreviewPointerUp, {
                   once: true,
@@ -786,8 +789,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 if (rangeInput) {
                   rangeInput.value = `${zoomOffset}`;
                 }
-                draggableArea.style.cursor =
-                  zoomOffset > 0 ? "grab" : "zoom-in";
+                draggableArea.style.cursor = "grab";
               };
             }
           };
