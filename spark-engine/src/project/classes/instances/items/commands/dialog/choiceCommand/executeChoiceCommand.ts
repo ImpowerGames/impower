@@ -1,7 +1,10 @@
 import { format } from "../../../../../../../../../spark-evaluate";
-import { ChoiceCommandData } from "../../../../../../../data";
-import { getCustomizedConfig, SparkGame } from "../../../../../../../game";
-import { defaultDisplayConfigs } from "../displayCommand/executeDisplayCommand";
+import {
+  configure,
+  DEFAULT_WRITERS,
+  SparkGame,
+} from "../../../../../../../game";
+import { ChoiceCommandData } from "./ChoiceCommandData";
 
 export const executeChoiceCommand = (
   game: SparkGame,
@@ -22,13 +25,8 @@ export const executeChoiceCommand = (
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
   const structName = "Display";
-  const defaultConfig = defaultDisplayConfigs["choice"];
-  const config = getCustomizedConfig(
-    defaultConfig,
-    objectMap,
-    "display",
-    "choice"
-  );
+  const defaultConfig = DEFAULT_WRITERS?.["choice"] || { className: "Choice" };
+  const config = configure(defaultConfig, objectMap, "writer", "choice");
 
   const contentEls = game.ui.findAllUIElements(
     structName,

@@ -46,44 +46,52 @@ import {
   WorldManager,
   WorldState,
 } from "./world/classes/WorldManager";
+import {
+  WriterConfig,
+  WriterManager,
+  WriterState,
+} from "./writer/classes/WriterManager";
 
 export interface SparkGameConfig {
   debug?: Partial<DebugConfig>;
   input?: Partial<InputConfig>;
   logic?: Partial<LogicConfig>;
-  physics?: Partial<PhysicsConfig>;
   random?: Partial<RandomConfig>;
   struct?: Partial<StructConfig>;
   synth?: Partial<SynthConfig>;
   ticker?: Partial<TickerConfig>;
   ui?: Partial<UIConfig>;
+  writer?: Partial<WriterConfig>;
   world?: Partial<WorldConfig>;
+  physics?: Partial<PhysicsConfig>;
 }
 
 export interface SparkGameState {
   debug?: Partial<DebugState>;
   input?: Partial<InputState>;
   logic?: Partial<LogicState>;
-  physics?: Partial<PhysicsState>;
   random?: Partial<RandomState>;
   struct?: Partial<StructState>;
   synth?: Partial<SynthState>;
   ticker?: Partial<TickerState>;
   ui?: Partial<UIState>;
+  writer?: Partial<WriterState>;
   world?: Partial<WorldState>;
+  physics?: Partial<PhysicsState>;
 }
 
 export class SparkGame extends Game {
   debug: DebugManager;
   input: InputManager;
   logic: LogicManager;
-  physics: PhysicsManager;
   random: RandomManager;
   struct: StructManager;
   synth: SynthManager;
   ticker: TickerManager;
   ui: UIManager;
+  writer: WriterManager;
   world: WorldManager;
+  physics: PhysicsManager;
 
   constructor(
     config?: Partial<SparkGameConfig>,
@@ -93,13 +101,14 @@ export class SparkGame extends Game {
     this.debug = new DebugManager(config?.debug, state?.debug);
     this.input = new InputManager(config?.input, state?.input);
     this.logic = new LogicManager(config?.logic, state?.logic);
-    this.physics = new PhysicsManager(config?.physics, state?.physics);
     this.random = new RandomManager(config?.random, state?.random);
     this.struct = new StructManager(config?.struct, state?.struct);
     this.synth = new SynthManager(config?.synth, state?.synth);
     this.ticker = new TickerManager(config?.ticker, state?.ticker);
     this.ui = new UIManager(config?.ui, state?.ui);
+    this.writer = new WriterManager(config?.writer, state?.writer);
     this.world = new WorldManager(config?.world, state?.world);
+    this.physics = new PhysicsManager(config?.physics, state?.physics);
   }
 
   override managers(): Record<string, Manager> {
@@ -107,13 +116,14 @@ export class SparkGame extends Game {
       debug: this.debug,
       input: this.input,
       logic: this.logic,
-      physics: this.physics,
       random: this.random,
       struct: this.struct,
       synth: this.synth,
       ticker: this.ticker,
       ui: this.ui,
+      writer: this.writer,
       world: this.world,
+      physics: this.physics,
     };
   }
 }

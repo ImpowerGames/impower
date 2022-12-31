@@ -18,7 +18,6 @@ export * from "../project/classes/instances/items/commands/conditional/condition
 export * from "../project/classes/instances/items/commands/data/assignCommand/AssignCommandData";
 export * from "../project/classes/instances/items/commands/dialog/choiceCommand/ChoiceCommandData";
 export * from "../project/classes/instances/items/commands/dialog/displayCommand/DisplayCommandData";
-export * from "../project/classes/instances/items/commands/dialog/types/DisplayConfig";
 export * from "../project/classes/instances/items/commands/entity/destroyCommand/DestroyCommandData";
 export * from "../project/classes/instances/items/commands/entity/spawnCommand/SpawnCommandData";
 export * from "../project/classes/instances/items/commands/flow/enterCommand/EnterCommandData";

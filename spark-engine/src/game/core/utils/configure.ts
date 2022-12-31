@@ -1,8 +1,8 @@
 import { deepCopy } from "./deepCopy";
 import { setProperty } from "./setProperty";
 
-export const getCustomizedConfig = <T extends object>(
-  defaultConfig: T,
+export const configure = <T extends object>(
+  defaultObj: T,
   objectMap: { [type: string]: Record<string, object> },
   type: string,
   ...names: string[]
@@ -16,7 +16,7 @@ export const getCustomizedConfig = <T extends object>(
       });
     }
   });
-  const combinedConfig = deepCopy(defaultConfig);
+  const combinedConfig = defaultObj ? deepCopy(defaultObj) : {};
   Object.entries(customConfig).forEach(([k, v]) => {
     setProperty(combinedConfig, k, v);
   });

@@ -14,6 +14,12 @@ export class SynthTrack {
     return this._soundBuffer;
   }
 
+  protected _volumeBuffer: Float32Array;
+
+  public get volumeBuffer(): Float32Array {
+    return this._volumeBuffer;
+  }
+
   protected _pitchBuffer: Float32Array;
 
   public get pitchBuffer(): Float32Array {
@@ -40,12 +46,14 @@ export class SynthTrack {
         : 0;
     this._durationInSamples = Math.max(1, sampleRate * duration);
     this._soundBuffer = new Float32Array(this._durationInSamples);
+    this._volumeBuffer = new Float32Array(this._durationInSamples);
     this._pitchBuffer = new Float32Array(this._durationInSamples);
     this._pitchRange = [Number.MAX_SAFE_INTEGER, 0];
     fillArrayWithTones(
       tones,
       sampleRate,
       this._soundBuffer,
+      this._volumeBuffer,
       this._pitchBuffer,
       this._pitchRange
     );

@@ -62,7 +62,7 @@ export interface SparkTokenTypeMap extends Record<SparkTokenType, SparkToken> {
   entity: SparkStructToken;
   character: SparkStructToken;
   animation: SparkStructToken;
-  display: SparkStructToken;
+  writer: SparkStructToken;
 
   struct_field: SparkStructFieldToken;
 

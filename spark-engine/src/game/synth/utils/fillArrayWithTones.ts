@@ -6,6 +6,7 @@ export const fillArrayWithTones = (
   tones: readonly Tone[],
   sampleRate: number,
   soundBuffer: Float32Array,
+  volumeBuffer?: Float32Array,
   pitchBuffer?: Float32Array,
   pitchRange?: [number, number]
 ): void => {
@@ -26,6 +27,7 @@ export const fillArrayWithTones = (
         startIndex,
         endIndex,
         soundBuffer,
+        volumeBuffer,
         pitchBuffer,
         pitchRange,
         volume,

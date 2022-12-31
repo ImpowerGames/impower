@@ -10,3 +10,4 @@ export * from "./synth";
 export * from "./ticker";
 export * from "./ui";
 export * from "./world";
+export * from "./writer";

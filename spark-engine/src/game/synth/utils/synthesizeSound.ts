@@ -1,7 +1,14 @@
+/*!
+ * Based on bfxr2 <https://github.com/increpare/bfxr2>
+ *
+ * Copyright (c) 2021 Stephen Lavelle
+ * Released under the MIT license.
+ */
+
 import { randomizer, shuffle } from "../../../../../spark-evaluate";
 import { augment, create, lerp, unlerp } from "../../core";
 import { OSCILLATORS, OscillatorState } from "../constants/OSCILLATORS";
-import { SOUND_VALIDATION } from "../constants/SOUND_VALIDATION";
+import { DEFAULT_SOUND } from "../specs/DEFAULT_SOUND";
 import { Hertz } from "../types/Hertz";
 import { OscillatorType } from "../types/OscillatorType";
 import { Sound, SoundConfig } from "../types/Sound";
@@ -305,6 +312,7 @@ export const fillBuffer = (
   startIndex: number,
   endIndex: number,
   soundBuffer: Float32Array,
+  volumeBuffer?: Float32Array,
   pitchBuffer?: Float32Array,
   pitchRange?: [number, number]
 ): void => {
@@ -694,6 +702,10 @@ export const fillBuffer = (
     sampleValue *= Math.max(0, ampVolume);
     sampleValue *= Math.max(0, arpAmplitudeFactor);
 
+    if (volumeBuffer) {
+      volumeBuffer[i] = envelopeVolume;
+    }
+
     // Set Buffer
     soundBuffer[i] += sampleValue;
 
@@ -734,12 +746,13 @@ export const synthesizeSound = (
   startIndex: number,
   endIndex: number,
   soundBuffer: Float32Array,
+  volumeBuffer?: Float32Array,
   pitchBuffer?: Float32Array,
   pitchRange?: [number, number],
   volume?: number,
   pitch?: Hertz
 ): void => {
-  const sound: Sound = create(SOUND_VALIDATION);
+  const sound: Sound = create(DEFAULT_SOUND);
   augment(sound, config);
 
   if (volume != null) {
@@ -770,6 +783,7 @@ export const synthesizeSound = (
     startIndex,
     endIndex,
     soundBuffer,
+    volumeBuffer,
     pitchBuffer,
     pitchRange
   );
@@ -791,6 +805,7 @@ export const synthesizeSound = (
         startIndex,
         endIndex,
         soundBuffer,
+        volumeBuffer,
         pitchBuffer,
         pitchRange
       );

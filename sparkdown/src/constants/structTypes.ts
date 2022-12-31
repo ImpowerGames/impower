@@ -1,6 +1,6 @@
 import { SparkStructType } from "../types/SparkStructType";
 
-export const structTypes: SparkStructType[] = [
+export const structTypes: readonly SparkStructType[] = [
   "map",
   "ui",
   "style",
@@ -8,8 +8,6 @@ export const structTypes: SparkStructType[] = [
   "entity",
   "character",
   "animation",
-  "display",
+  "writer",
   "sound",
-  "typewriter",
-  "preset",
-];
+] as const;

@@ -25,8 +25,7 @@ import {
   yamlStringify,
 } from "../../../../sparkdown";
 import { Type } from "../types/type";
-import { sparkRandomizations } from "../utils/sparkRandomizations";
-import { sparkValidations } from "../utils/sparkValidations";
+import { sparkSpecifications } from "../utils/sparkSpecifications";
 import { StructFieldNameWidgetType } from "./StructFieldNameWidgetType";
 import { StructFieldValueWidgetType } from "./StructFieldValueWidgetType";
 import { StructPlayWidgetType } from "./StructPlayWidgetType";
@@ -40,10 +39,10 @@ const PREVIEW_WIDTH = 200;
 const ZOOM_MAX_OFFSET = 1000;
 const MAX_SCALE = 10;
 const X_AXIS_COLOR = "#ffffff";
-const FREQUENCY_FILL_COLOR = "#5a3663B3";
-const FREQUENCY_STROKE_COLOR = "#5a3663";
+const FREQUENCY_FILL_COLOR = "#5a3663CC";
+const VOLUME_FILL_COLOR = "#4090bf26";
 const REFERENCE_COLOR = "#d92662";
-const AMPLITUDE_COLOR = "#3095cf";
+const WAVE_COLOR = "#42a0d7";
 const DEFAULT_COLOR = "#00000000";
 const HOVER_COLOR = "#00000026";
 const SLIDER_FILL_COLOR = "#2B83B7";
@@ -348,7 +347,7 @@ const getOrCreateFileInput = (
   containerEl.style.display = "flex";
   containerEl.style.justifyContent = "space-between";
   containerEl.style.alignItems = "center";
-  containerEl.style.color = AMPLITUDE_COLOR;
+  containerEl.style.color = WAVE_COLOR;
   containerEl.style.borderBottom = "1px solid #FFFFFF26";
   const filenameEl = document.createElement("span");
   filenameEl.style.position = "absolute";
@@ -396,7 +395,7 @@ const getOrCreateFileInput = (
       swapButtonEl.style.color = REFERENCE_COLOR;
     }
     if (visible === "sound") {
-      swapButtonEl.style.color = AMPLITUDE_COLOR;
+      swapButtonEl.style.color = WAVE_COLOR;
     }
     onSwapWaveClick?.();
   };
@@ -438,6 +437,7 @@ const getOrCreateFileInput = (
 const drawWaveform = (
   ctx: CanvasRenderingContext2D | undefined,
   soundBuffer: Float32Array | undefined,
+  volumeBuffer: Float32Array | undefined,
   pitchBuffer: Float32Array | undefined,
   pitchRange: [number, number] | undefined
 ): void => {
@@ -470,7 +470,7 @@ const drawWaveform = (
   ctx.stroke();
 
   if (pitchBuffer) {
-    // Frequency (Fill)
+    // Frequency
     ctx.lineWidth = 1;
     ctx.fillStyle = FREQUENCY_FILL_COLOR;
     ctx.beginPath();
@@ -493,8 +493,28 @@ const drawWaveform = (
     ctx.fill();
   }
 
+  if (volumeBuffer) {
+    // Volume
+    ctx.lineWidth = 1;
+    ctx.fillStyle = VOLUME_FILL_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(startX, height);
+    for (let x = visibleStartX; x < visibleEndX; x += 1) {
+      const bufferIndex = getSampleIndex(x, startX, endX, bufferLength);
+      if (bufferIndex >= 0) {
+        const val = volumeBuffer[bufferIndex];
+        const delta = val * (height / 2);
+        const y = startY - delta;
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.lineTo(endX, height);
+    ctx.closePath();
+    ctx.fill();
+  }
+
   if (referenceBuffer && (visible === "both" || visible === "reference")) {
-    // Reference Amplitude (Volume)
+    // Reference Wave
     ctx.lineWidth = 1;
     ctx.strokeStyle = REFERENCE_COLOR;
     ctx.beginPath();
@@ -512,9 +532,9 @@ const drawWaveform = (
   }
 
   if (soundBuffer && (visible === "both" || visible === "sound")) {
-    // Amplitude (Volume)
+    // Wave
     ctx.lineWidth = 1;
-    ctx.strokeStyle = AMPLITUDE_COLOR;
+    ctx.strokeStyle = WAVE_COLOR;
     ctx.beginPath();
     ctx.moveTo(startX, startY);
     for (let x = visibleStartX; x < visibleEndX; x += 1) {
@@ -524,32 +544,6 @@ const drawWaveform = (
         const delta = val * 50;
         const y = startY + delta;
         ctx.lineTo(x, y);
-      }
-    }
-    ctx.stroke();
-  }
-
-  if (pitchBuffer) {
-    // Frequency (Stroke)
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = FREQUENCY_STROKE_COLOR;
-    ctx.beginPath();
-    ctx.moveTo(startX, startY);
-    for (let x = visibleStartX; x < visibleEndX; x += 1) {
-      const bufferIndex = getSampleIndex(x, startX, endX, bufferLength);
-      if (bufferIndex >= 0) {
-        const val = pitchBuffer[bufferIndex];
-        if (val === 0) {
-          ctx.moveTo(x, startY);
-        } else {
-          const mag =
-            maxPitch === minPitch
-              ? 0.5
-              : (val - minPitch) / (maxPitch - minPitch);
-          const delta = mag * (height / 2);
-          const y = startY - delta;
-          ctx.lineTo(x, y);
-        }
       }
     }
     ctx.stroke();
@@ -606,11 +600,18 @@ const structDecorations = (view: EditorView): DecorationSet => {
           const sampleRate = AUDIO_CONTEXT.sampleRate;
           let ctx: CanvasRenderingContext2D | undefined;
           let soundBuffer: Float32Array | undefined;
+          let volumeBuffer: Float32Array | undefined;
           let pitchBuffer: Float32Array | undefined;
           let pitchRange: [number, number] | undefined;
 
           const draw = (): void => {
-            drawWaveform(ctx, soundBuffer, pitchBuffer, pitchRange);
+            drawWaveform(
+              ctx,
+              soundBuffer,
+              volumeBuffer,
+              pitchBuffer,
+              pitchRange
+            );
           };
 
           const onUpdatePreview = (
@@ -622,6 +623,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
               const sound = structObj as Sound;
               const length = getLength(sound, sampleRate);
               soundBuffer = new Float32Array(length);
+              volumeBuffer = new Float32Array(length);
               pitchBuffer = new Float32Array(length);
               pitchRange = [Number.MAX_SAFE_INTEGER, 0];
               synthesizeSound(
@@ -632,6 +634,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 0,
                 length,
                 soundBuffer,
+                volumeBuffer,
                 pitchBuffer,
                 pitchRange
               );
@@ -792,35 +795,40 @@ const structDecorations = (view: EditorView): DecorationSet => {
             const struct = getStruct(view, from);
             if (struct) {
               const structType = struct?.type;
-              const validation = sparkValidations[structType];
-              const randomizations = sparkRandomizations[structType] || {};
-              const options = Object.entries({
-                default: validation,
-                ...randomizations,
-              }).map(([label, randomization]) => ({
-                label,
-                onClick: (): void => {
-                  const struct = getStruct(view, from);
-                  if (struct) {
-                    let structTo = to;
-                    Object.values(struct.fields || {}).forEach((f) => {
-                      if (f.to > structTo) {
-                        structTo = f.to;
+              const spec = sparkSpecifications?.[structType];
+              const defaultStructObj = spec?.default;
+              const validation = spec?.validation;
+              const randomizations = spec.randomizations || {};
+              const options = Object.entries(randomizations).map(
+                ([label, randomization]) => ({
+                  label,
+                  onClick: (): void => {
+                    const struct = getStruct(view, from);
+                    if (struct) {
+                      let structTo = to;
+                      Object.values(struct.fields || {}).forEach((f) => {
+                        if (f.to > structTo) {
+                          structTo = f.to;
+                        }
+                      });
+                      const preset = {};
+                      if (randomization) {
+                        randomize(
+                          preset,
+                          validation,
+                          randomization,
+                          label?.toLowerCase() !== "default" ? "on" : undefined
+                        );
                       }
-                    });
-                    const isDefault = label?.toLowerCase() === "default";
-                    const preset = isDefault ? create(validation) : {};
-                    if (!isDefault) {
-                      randomize(preset, validation, randomization, "on");
+                      autofillStruct(view, from + 1, structTo, preset);
+                      const randomizedObj = create(defaultStructObj);
+                      augment(randomizedObj, preset);
+                      onUpdatePreview(struct.type, struct.name, randomizedObj);
+                      playSound(AUDIO_CONTEXT, soundBuffer);
                     }
-                    autofillStruct(view, from + 1, structTo, preset);
-                    const randomizedObj = create(validation);
-                    augment(randomizedObj, preset);
-                    onUpdatePreview(struct.type, struct.name, randomizedObj);
-                    playSound(AUDIO_CONTEXT, soundBuffer);
-                  }
-                },
-              }));
+                  },
+                })
+              );
               if (options?.length > 0) {
                 widgets.push(
                   Decoration.widget({
@@ -831,7 +839,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
                         const struct = getStruct(view, from);
                         if (struct) {
                           const structObj = construct(
-                            validation,
+                            defaultStructObj,
                             struct.fields
                           );
                           onUpdatePreview(struct.type, struct.name, structObj);
@@ -848,7 +856,10 @@ const structDecorations = (view: EditorView): DecorationSet => {
                     widget: new StructPlayWidgetType(struct.name, () => {
                       const struct = getStruct(view, from);
                       if (struct) {
-                        const structObj = construct(validation, struct.fields);
+                        const structObj = construct(
+                          defaultStructObj,
+                          struct.fields
+                        );
                         onUpdatePreview(struct.type, struct.name, structObj);
                         playSound(AUDIO_CONTEXT, soundBuffer);
                       }
@@ -899,11 +910,12 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 const structField = struct.fields[structFieldToken.id];
                 const startValue = structField?.value;
                 const structType = struct?.type;
-                const validation = sparkValidations[structType];
+                const spec = sparkSpecifications[structType];
+                const validation = spec?.validation;
+                const defaultStructObj = spec?.default;
                 const requirements = getAllProperties(validation);
                 const requirement = requirements[structFieldToken.id];
-                const range = requirement?.[1];
-                const step = requirement?.[2]?.[0];
+                const range = requirement as unknown[];
                 const id = `${structName}${structFieldToken.id}`;
                 const onDragging = throttle(
                   (
@@ -919,7 +931,10 @@ const structDecorations = (view: EditorView): DecorationSet => {
                     if (newValue !== undefined) {
                       const struct = getStruct(view, from);
                       if (struct) {
-                        const structObj = construct(validation, struct.fields);
+                        const structObj = construct(
+                          defaultStructObj,
+                          struct.fields
+                        );
                         setProperty(structObj, structFieldToken.id, newValue);
                         onUpdatePreview(struct.type, struct.name, structObj);
                       }
@@ -942,7 +957,10 @@ const structDecorations = (view: EditorView): DecorationSet => {
                   if (newValue !== undefined) {
                     const struct = getStruct(view, from);
                     if (struct) {
-                      const structObj = construct(validation, struct.fields);
+                      const structObj = construct(
+                        defaultStructObj,
+                        struct.fields
+                      );
                       setProperty(structObj, structFieldToken.id, newValue);
                       onUpdatePreview(struct.type, struct.name, structObj);
                       playSound(AUDIO_CONTEXT, soundBuffer);
@@ -956,7 +974,6 @@ const structDecorations = (view: EditorView): DecorationSet => {
                       view.state.doc.sliceString(from, to),
                       startValue,
                       range,
-                      step,
                       { onDragging, onDragEnd }
                     ),
                   }).range(from),

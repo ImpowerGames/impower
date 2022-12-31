@@ -1,17 +1,13 @@
-import { RecursiveValidation } from "../types/RecursiveValidation";
 import { deepCopy } from "./deepCopy";
 import { setProperty } from "./setProperty";
 import { traverse } from "./traverse";
 
-export const create = <T>(validation: RecursiveValidation<T>): T => {
+export const create = <T>(defaultObj: T): T => {
   const obj = {};
-  traverse(validation, (path, v) => {
-    if (Array.isArray(v)) {
-      const [defaultValue] = v;
-      if (defaultValue !== undefined) {
-        const copy = defaultValue == null ? null : deepCopy(defaultValue);
-        setProperty(obj, path, copy);
-      }
+  traverse(defaultObj, (path, defaultValue) => {
+    if (defaultValue !== undefined) {
+      const copy = defaultValue == null ? null : deepCopy(defaultValue);
+      setProperty(obj, path, copy);
     }
   });
   return obj as T;

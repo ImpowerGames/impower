@@ -72,8 +72,6 @@ export class StructFieldValueWidgetType extends WidgetType {
 
   range: unknown[];
 
-  step: number;
-
   isDragging = false;
 
   dom: HTMLElement;
@@ -101,7 +99,6 @@ export class StructFieldValueWidgetType extends WidgetType {
     valueContent: string,
     startValue: unknown,
     range: unknown[],
-    step: number,
     callbacks?: {
       onDragStart?: (e: MouseEvent, startX: number) => void;
       onDragging?: (
@@ -124,7 +121,6 @@ export class StructFieldValueWidgetType extends WidgetType {
     this.valueContent = valueContent;
     this.startValue = startValue;
     this.range = range;
-    this.step = step;
     this.onDragStart = callbacks?.onDragStart;
     this.onDragging = callbacks?.onDragging;
     this.onDragEnd = callbacks?.onDragEnd;
@@ -138,11 +134,11 @@ export class StructFieldValueWidgetType extends WidgetType {
     const previewClassName = `${STRUCT_FIELD_VALUE_PREVIEW_CLASS_PREFIX}${this.id}`;
     const minNumber =
       typeof this.startValue === "number"
-        ? (this.range?.[0] as number) ?? 0
+        ? (this.range?.[1] as number) ?? 0
         : undefined;
     const maxNumber =
       typeof this.startValue === "number"
-        ? (this.range?.[this.range.length - 1] as number) ?? 100
+        ? (this.range?.[2] as number) ?? 100
         : undefined;
     const options =
       typeof this.startValue === "number"
@@ -150,7 +146,10 @@ export class StructFieldValueWidgetType extends WidgetType {
         : this.range || BOOLEAN_ARRAY;
     const min = minNumber ?? 0;
     const max = maxNumber ?? options.length - 1;
-    const step = typeof this.startValue === "number" ? this.step ?? 1 : 0.05;
+    const step =
+      typeof this.startValue === "number"
+        ? (this.range?.[0] as number) ?? 1
+        : 0.05;
     const start =
       typeof this.startValue === "number"
         ? this.startValue

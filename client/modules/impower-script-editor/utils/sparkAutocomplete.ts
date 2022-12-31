@@ -34,7 +34,7 @@ import {
 } from "../../../../sparkdown";
 import { colors } from "../constants/colors";
 import { Type } from "../types/type";
-import { sparkValidations } from "./sparkValidations";
+import { sparkSpecifications } from "./sparkSpecifications";
 
 interface Option {
   line: number;
@@ -1013,36 +1013,36 @@ export const sparkAutocomplete = async (
     const fieldId = structField?.id;
     const struct = result.structs[structName || ""];
     const structType = struct?.type;
-    const validation = sparkValidations[structType];
-    if (validation) {
-      const requirements = getAllProperties(validation);
+    const defaultStructObj = sparkSpecifications[structType]?.default;
+    if (defaultStructObj) {
+      const properties = getAllProperties(defaultStructObj);
       const possibleNames: Record<string, unknown> = {};
-      Object.entries(requirements).forEach(([p, v]) => {
+      Object.entries(properties).forEach(([p, defaultValue]) => {
         if (p.startsWith(fieldId) && !Object.keys(struct.fields).includes(p)) {
           const k = p.slice(fieldId.length);
           const path = k.split(".");
           const name = path[1];
-          const isObject = Boolean(path[2]);
-          possibleNames[name] = isObject ? undefined : v;
+          possibleNames[name] = defaultValue;
         }
       });
-      const completions = Object.entries(possibleNames).map(([name, v]) => {
-        const defaultValue = v?.[0];
-        const type =
-          defaultValue == null
-            ? "object"
-            : Array.isArray(defaultValue)
-            ? "array"
-            : typeof defaultValue;
-        const template =
-          type === "object" || type === "array"
-            ? `${name}:\n  ${CURSOR}`
-            : `${name}: ${CURSOR}`;
-        return snip(template, {
-          label: name,
-          type,
-        });
-      });
+      const completions = Object.entries(possibleNames).map(
+        ([name, defaultValue]) => {
+          const type =
+            defaultValue == null
+              ? "object"
+              : Array.isArray(defaultValue)
+              ? "array"
+              : typeof defaultValue;
+          const template =
+            type === "object" || type === "array"
+              ? `${name}:\n  ${CURSOR}`
+              : `${name}: ${CURSOR}`;
+          return snip(template, {
+            label: name,
+            type,
+          });
+        }
+      );
       return completeFromList(completions)(context);
     }
   }
@@ -1054,18 +1054,20 @@ export const sparkAutocomplete = async (
       const structField = result.tokens[tokenIndex] as SparkStructFieldToken;
       const structName = structField?.struct;
       const fieldId = structField?.id;
+      const defaultValue = structField?.value;
       const struct = result.structs[structName || ""];
       const structType = struct?.type;
-      const validation = sparkValidations[structType];
+      const validation = sparkSpecifications[structType]?.validation;
       if (validation) {
         const requirements = getAllProperties(validation);
         const requirement = requirements[fieldId];
         if (requirement) {
-          const [defaultValue, options] = Array.isArray(requirement)
-            ? requirement
-            : [];
           const validOptions =
-            typeof defaultValue === "boolean" ? [true, false] : options;
+            typeof defaultValue === "boolean"
+              ? [true, false]
+              : typeof defaultValue === "string" && Array.isArray(requirement)
+              ? requirement
+              : [];
           const completions = validOptions?.map((option) => {
             const o = `${option}`;
             return snip(o, {

@@ -29,8 +29,7 @@ export const randomize = <T>(
         const valid = getProperty(validation, k);
         if (Array.isArray(valid)) {
           // Round according to validation step
-          const [, , steps] = valid;
-          const step = steps?.[0];
+          const step = valid?.[0];
           const fractionDigits = step.toString().split(".")?.[1]?.length || 0;
           const roundedVal = Number(randomizedValue.toFixed(fractionDigits));
           setProperty(obj, k, roundedVal);
@@ -53,7 +52,7 @@ export const randomize = <T>(
         const referencedValue = getProperty(obj, propertyPath);
         const inverseOfReferencedValue =
           typeof referencedValue === "number"
-            ? 1 - referencedValue
+            ? referencedValue
             : !referencedValue;
         if (referencedValue) {
           setProperty(obj, k, inverseOfReferencedValue);

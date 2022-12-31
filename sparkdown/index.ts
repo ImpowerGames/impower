@@ -19,6 +19,7 @@ export * from "./src/types/SparkProperties";
 export * from "./src/types/SparkReference";
 export * from "./src/types/SparkSection";
 export * from "./src/types/SparkStruct";
+export * from "./src/types/SparkStructType";
 export * from "./src/types/SparkTitleKeyword";
 export * from "./src/types/SparkTitlePosition";
 export * from "./src/types/SparkToken";

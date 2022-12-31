@@ -2,7 +2,7 @@ import { MethodType } from "../types/MethodType";
 import { assetTypes } from "./assetTypes";
 import { tagTypes } from "./tagTypes";
 
-export const entityMethods: MethodType[] = [
+export const entityMethods: readonly MethodType[] = [
   "spawn",
   "destroy",
   "move",
@@ -16,11 +16,15 @@ export const entityMethods: MethodType[] = [
   "scale",
   "scaleX",
   "scaleY",
-];
+] as const;
 
-export const primitives: MethodType[] = ["string", "boolean", "number"];
+export const primitives: readonly MethodType[] = [
+  "string",
+  "boolean",
+  "number",
+] as const;
 
-export const types = [...assetTypes, ...tagTypes];
+export const types = [...assetTypes, ...tagTypes] as const;
 
 export const reservedKeywords = [
   "locale",
