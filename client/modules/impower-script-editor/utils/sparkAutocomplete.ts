@@ -1022,7 +1022,9 @@ export const sparkAutocomplete = async (
           const k = p.slice(fieldId.length);
           const path = k.split(".");
           const name = path[1];
-          possibleNames[name] = defaultValue;
+          const field = path[2];
+          const isObject = field !== undefined;
+          possibleNames[name] = isObject ? undefined : defaultValue;
         }
       });
       const completions = Object.entries(possibleNames).map(

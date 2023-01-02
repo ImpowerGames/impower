@@ -800,7 +800,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
               const spec = sparkSpecifications?.[structType];
               const defaultStructObj = spec?.default;
               const validation = spec?.validation;
-              const randomizations = spec.randomizations || {};
+              const randomizations = spec?.randomizations || {};
               const options = Object.entries(randomizations).map(
                 ([label, randomization]) => ({
                   label,

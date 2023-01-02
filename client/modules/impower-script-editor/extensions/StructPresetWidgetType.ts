@@ -98,6 +98,7 @@ export class StructPresetWidgetType extends WidgetType {
     unorderedList.style.alignItems = "stretch";
     unorderedList.style.maxHeight = "300px";
     unorderedList.style.overflowY = "auto";
+    unorderedList.style.overscrollBehavior = "contain";
 
     const createOption = (
       option: Option,

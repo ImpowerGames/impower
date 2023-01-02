@@ -37,7 +37,7 @@ export const SOUND_VALIDATION: RecursiveValidation<Sound> = {
     resonance: [0.01, 0, 1],
   },
   highpass: {
-    cutoff: [A[2], 0, A[10]],
+    cutoff: [A[2], 0, A[9]],
     cutoffRamp: [0.01, -1, 1],
   },
   distortion: {

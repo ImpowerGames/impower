@@ -5,7 +5,7 @@ import { Line } from "../classes/Line";
 import { Type } from "../types/type";
 import {
   getSectionLevel,
-  isStruct,
+  isStructDeclaration,
   isTitle,
   skipForList,
 } from "../utils/markdown";
@@ -83,14 +83,7 @@ export const DefaultSkipMarkup: {
     return true;
   },
   [Type.Struct](_bl, cx, line): boolean {
-    const struct = isStruct(line);
-    if (!struct && line.indent < line.baseIndent + 2) {
-      return false;
-    }
-    return true;
-  },
-  [Type.Struct](_bl, cx, line): boolean {
-    const struct = isStruct(line);
+    const struct = isStructDeclaration(line);
     if (!struct && line.indent < line.baseIndent + 2) {
       return false;
     }

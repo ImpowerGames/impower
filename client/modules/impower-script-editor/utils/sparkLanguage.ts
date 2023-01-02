@@ -12,6 +12,7 @@ import { styleTags, tags as t } from "@lezer/highlight";
 import { MarkdownParser } from "../classes/MarkdownParser";
 import { GFM, Subscript, Superscript } from "../constants/extension";
 import { parser as baseParser } from "../constants/parser";
+import { Type } from "../types/type";
 
 export const tags = {
   titleKey: t.attributeName,
@@ -149,7 +150,11 @@ const commonmark = baseParser.configure({
       "Boolean": tags.boolean,
     }),
     foldNodeProp.add((type) => {
-      if (!type.is("Section") && !type.is("Title")) {
+      if (
+        type.id !== Type.Section &&
+        type.id !== Type.Title &&
+        type.id !== Type.Struct
+      ) {
         return undefined;
       }
       return (tree, state) => ({

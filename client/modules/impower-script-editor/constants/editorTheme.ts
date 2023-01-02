@@ -33,7 +33,7 @@ export const editorTheme: {
   ".cm-gutter.cm-lineNumbers": {
     minWidth: "36px",
   },
-  ".cm-gutterElement": {
+  ".cm-gutterElement *": {
     userSelect: "none",
   },
   ".cm-lineNumbers .cm-gutterElement": {

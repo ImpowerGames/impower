@@ -161,7 +161,7 @@ export function isImport(line: Line): RegExpMatchArray {
   return text.match(sparkRegexes.import);
 }
 
-export function isStruct(line: Line): RegExpMatchArray {
+export function isStructDeclaration(line: Line): RegExpMatchArray {
   if (line.next !== "@".charCodeAt(0)) {
     return null;
   }
@@ -532,10 +532,4 @@ export function parseURL(
 
 // These are blocks that can span blank lines, and should thus only be
 // reused if their next sibling is also being reused.
-export const NotLast = [
-  Type.ListItem,
-  Type.OrderedList,
-  Type.BulletList,
-  Type.TitleEntry,
-  Type.Title,
-];
+export const NotLast = [Type.ListItem, Type.OrderedList, Type.BulletList];

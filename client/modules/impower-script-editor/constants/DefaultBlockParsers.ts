@@ -33,7 +33,7 @@ import {
   isReturn,
   isScene,
   isSectionHeading,
-  isStruct,
+  isStructDeclaration,
   isStructField,
   isSynopsis,
   isTitle,
@@ -168,9 +168,20 @@ export const DefaultBlockParsers: {
     return true;
   },
 
-  Struct(cx, line) {
-    const match = isStruct(line);
+  StructDeclaration(cx, line) {
+    const match = isStructDeclaration(line);
     if (!match) {
+      return false;
+    }
+    const size = match.slice(2).join("").length;
+    if (cx.block.type !== Type.Struct) {
+      cx.startContext(
+        Type.Struct,
+        line.basePos,
+        line.text.charCodeAt(line.pos + size - 1)
+      );
+    }
+    if (!inBlockContext(cx, Type.Struct)) {
       return false;
     }
 
@@ -251,15 +262,16 @@ export const DefaultBlockParsers: {
     let from = 0;
     let to = from;
 
-    const valueFieldMatch = isStructField(line);
-    if (valueFieldMatch) {
-      const mark = valueFieldMatch[2] || "";
-      const markSpace = valueFieldMatch[3] || "";
-      const name = valueFieldMatch[4] || "";
-      const nameSpace = valueFieldMatch[5] || "";
-      const colon = valueFieldMatch[6] || "";
-      const colonSpace = valueFieldMatch[7] || "";
-      const value = valueFieldMatch[8] || "";
+    const match = isStructField(line);
+
+    if (match) {
+      const mark = match[2] || "";
+      const markSpace = match[3] || "";
+      const name = match[4] || "";
+      const nameSpace = match[5] || "";
+      const colon = match[6] || "";
+      const colonSpace = match[7] || "";
+      const value = match[8] || "";
       if (mark) {
         from = to;
         to = from + mark.length;

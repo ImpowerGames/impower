@@ -287,9 +287,6 @@ export const SOUND_RANDOMIZATIONS: Record<
     lowpass: {
       cutoff: [4840],
     },
-    highpass: {
-      cutoff: [11000],
-    },
     distortion: {
       on: [true],
     },
