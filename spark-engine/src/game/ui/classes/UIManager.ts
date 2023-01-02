@@ -140,7 +140,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         Object.entries(struct || {}).forEach(([fk, fv]) => {
           if (fk.includes(".")) {
             const [breakpoint, propName] = fk.split(".");
-            if (breakpoint && propName) {
+            if (breakpoint != null && propName != null) {
               if (!breakpointMap[breakpoint]) {
                 breakpointMap[breakpoint] = [];
               }

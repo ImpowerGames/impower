@@ -24,7 +24,7 @@ import {
   SparkDialogueToken,
   SparkDisplayToken,
   SparkStructFieldToken,
-  SparkToken
+  SparkToken,
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
@@ -2307,6 +2307,7 @@ const hoistDeclarations = (
         const valueText = match[8] || "";
         const nameFrom = from + getStart(match, 4);
         const nameTo = nameFrom + name.length;
+        const colon = match[6] || "";
         const valueFrom = from + getStart(match, 8);
         const valueTo = valueFrom + valueText.length;
         const currentToken = createSparkToken("struct_field", newLineLength, {
@@ -2320,7 +2321,7 @@ const hoistDeclarations = (
           currentToken.name = name;
           currentToken.value = valueText;
           currentToken.id = getStructFieldId(currentToken, currentFieldTokens);
-          if (valueText) {
+          if (valueText || !colon) {
             addField(
               parsed,
               config,

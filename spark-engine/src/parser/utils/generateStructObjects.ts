@@ -59,7 +59,6 @@ export const generateStructObject = (
   if (typeObj) {
     typeObj[structKey] = values;
   }
-
   return values;
 };
 
