@@ -4,7 +4,10 @@ import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 import { ChoiceCommandData } from "./ChoiceCommandData";
 import { executeChoiceCommand } from "./executeChoiceCommand";
 
-export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
+export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
+  G,
+  ChoiceCommandData
+> {
   choiceIndex: number = 0;
 
   seed?: string;
@@ -15,14 +18,14 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
 
   calls?: Record<string, { name: string; values: string[] }>;
 
-  override init(game: SparkGame): void {
+  override init(game: G): void {
     executeChoiceCommand(game);
   }
 
   override onExecute(
-    game: SparkGame,
+    game: G,
     data: ChoiceCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): number[] {
     const { value, calls, operator } = data;
     const { index } = context;
@@ -72,9 +75,9 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
   }
 
   override isFinished(
-    game: SparkGame,
+    game: G,
     data: ChoiceCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): boolean | null {
     const { operator } = data;
     if (operator !== "end") {
@@ -149,11 +152,11 @@ export class ChoiceCommandRunner extends CommandRunner<ChoiceCommandData> {
   }
 
   override onPreview(
-    game: SparkGame,
+    game: G,
     data: ChoiceCommandData,
     context: {
       valueMap: Record<string, unknown>;
-      objectMap: { [type: string]: Record<string, object> };
+      objectMap: { [type: string]: Record<string, any> };
     }
   ): boolean {
     executeChoiceCommand(game, data, context);

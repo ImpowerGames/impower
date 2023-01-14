@@ -110,32 +110,46 @@ export class StructPresetWidgetType extends WidgetType {
       listItem.style.height = "fit-content";
       listItem.style.display = "flex";
       const optionButton = document.createElement("button");
-      if (option.label) {
-        optionButton.textContent = option.label;
-      }
-      if (option.innerHTML) {
-        optionButton.innerHTML = option.innerHTML;
-      }
+      optionButton.style.position = "relative";
       optionButton.style.flex = "1";
+      optionButton.style.display = "flex";
+      optionButton.style.justifyContent = "center";
       optionButton.style.fontFamily = "inherit";
       optionButton.style.fontSize = "inherit";
       optionButton.style.color = "inherit";
       optionButton.style.backgroundColor = DEFAULT_COLOR;
       optionButton.style.margin = "0";
-      optionButton.style.padding = "8px 16px";
       optionButton.style.border = "none";
       optionButton.style.minWidth = "fit-content";
       optionButton.style.height = "fit-content";
       optionButton.style.transition = "background-color 0.15s";
       optionButton.style.textTransform = "uppercase";
+      if (option.innerHTML) {
+        optionButton.innerHTML = option.innerHTML;
+        optionButton.style.padding = "0";
+      }
+      const overlay = document.createElement("div");
+      overlay.style.position = "absolute";
+      overlay.style.top = "0";
+      overlay.style.bottom = "0";
+      overlay.style.left = "0";
+      overlay.style.right = "0";
+      optionButton.appendChild(overlay);
+      if (option.label) {
+        const span = document.createElement("span");
+        span.textContent = option.label;
+        span.style.position = "relative";
+        optionButton.appendChild(span);
+        optionButton.style.padding = "8px 16px";
+      }
       optionButton.onmouseenter = (): void => {
-        optionButton.style.backgroundColor = HOVER_COLOR;
+        overlay.style.backgroundColor = HOVER_COLOR;
       };
       optionButton.onmouseleave = (): void => {
-        optionButton.style.backgroundColor = DEFAULT_COLOR;
+        overlay.style.backgroundColor = DEFAULT_COLOR;
       };
       optionButton.onpointerup = (): void => {
-        optionButton.style.backgroundColor = HOVER_COLOR;
+        overlay.style.backgroundColor = HOVER_COLOR;
       };
       optionButton.onclick = (e: PointerEvent): void => {
         option.onClick?.(e, previewEl);
@@ -165,6 +179,7 @@ export class StructPresetWidgetType extends WidgetType {
     closeButton.style.display = "flex";
     closeButton.style.justifyContent = "center";
     closeButton.style.alignItems = "center";
+    closeButton.style.padding = "8px 16px";
     const closeButtonIcon = closeButton.firstElementChild as HTMLElement;
     closeButtonIcon.style.height = "1rem";
     popup.appendChild(closeListItem);

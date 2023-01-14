@@ -1,7 +1,6 @@
 import { IGameEvent } from "../types/IGameEvent";
 import { ListenOnly } from "../types/ListenOnly";
 import { ReadOnly } from "../types/ReadOnly";
-import { deepCopy } from "../utils/deepCopy";
 import { GameEvent } from "./GameEvent";
 
 export abstract class Manager<
@@ -50,6 +49,6 @@ export abstract class Manager<
   }
 
   deepCopy<T>(obj: T): T {
-    return deepCopy(obj);
+    return JSON.parse(JSON.stringify(obj));
   }
 }

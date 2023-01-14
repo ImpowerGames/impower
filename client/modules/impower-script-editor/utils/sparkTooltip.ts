@@ -91,21 +91,20 @@ export const sparkTooltip = (
         dom.appendChild(separator);
         dom.appendChild(input);
       } else if (item?.type) {
-        if (
-          item?.type === "image" ||
-          item?.type === "graphic" ||
-          item?.type === "audio"
-        ) {
-          const fileUrl = item?.value as string;
+        const type = (item as { type: string })?.type;
+        const value = (item as { value: unknown })?.value;
+        const returnType = (item as { returnType: unknown })?.returnType;
+        if (type === "image" || type === "audio") {
+          const fileUrl = value as string;
           const preview = document.createElement(
-            item?.type === "audio" ? "audio" : "img"
+            type === "audio" ? "audio" : "img"
           );
           const rgx = /%2F([0-9][0-9][0-9])[?]/;
           const match = fileUrl.match(rgx);
           const storageName = match?.[1];
           const previewPrefix = "THUMB_";
           const previewUrl =
-            match && (item?.type === "image" || item?.type === "graphic")
+            match && type === "image"
               ? fileUrl.replace(rgx, `%2F${previewPrefix}${storageName}?`)
               : undefined;
           preview.src = previewUrl || fileUrl;
@@ -116,9 +115,7 @@ export const sparkTooltip = (
           dom.appendChild(preview);
         } else {
           const typeText = document.createTextNode(
-            item?.type === "function"
-              ? `${item?.returnType} ${item?.type}`
-              : item?.type
+            type === "function" ? `${returnType} ${type}` : type
           );
           dom.appendChild(typeText);
         }

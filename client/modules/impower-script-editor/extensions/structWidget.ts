@@ -9,23 +9,31 @@ import {
 } from "@codemirror/view";
 import {
   augment,
-  construct,
-  create,
+  clone,
+  generatePatternSvg,
   getAllProperties,
   lerp,
-  randomize,
+  Pattern,
   setProperty,
   Sound,
+  STRUCT_DEFAULTS,
+  synthesizeSound,
 } from "../../../../spark-engine";
-import { synthesizeSound } from "../../../../spark-engine/src/game/synth/utils/synthesizeSound";
 import {
+  randomize,
+  RecursiveRandomization,
+  RecursiveValidation,
+} from "../../../../spark-engine/src/inspector";
+import {
+  construct,
   SparkParseResult,
   SparkStruct,
   SparkStructFieldToken,
   yamlStringify,
 } from "../../../../sparkdown";
 import { Type } from "../types/type";
-import { sparkSpecifications } from "../utils/sparkSpecifications";
+import { getSparkRandomizations } from "../utils/getSparkRandomizations";
+import { getSparkValidation } from "../utils/getSparkValidation";
 import { StructFieldNameWidgetType } from "./StructFieldNameWidgetType";
 import { StructFieldValueWidgetType } from "./StructFieldValueWidgetType";
 import { StructPlayWidgetType } from "./StructPlayWidgetType";
@@ -446,7 +454,7 @@ const getOrCreateFileInput = (
   return newEl;
 };
 
-const drawWaveform = (
+const drawSoundWaveform = (
   ctx: CanvasRenderingContext2D | undefined,
   soundBuffer: Float32Array | undefined,
   volumeBuffer: Float32Array | undefined,
@@ -562,7 +570,15 @@ const drawWaveform = (
   }
 };
 
-const parseContextState = Facet.define<{ result?: SparkParseResult }>({});
+const parseContextState = Facet.define<{
+  result?: SparkParseResult;
+}>({});
+
+const getStructs = (view: EditorView): Record<string, SparkStruct> => {
+  const [parseContext] = view.state.facet(parseContextState);
+  const result = parseContext.result;
+  return result.structs;
+};
 
 const getStruct = (view: EditorView, from: number): SparkStruct => {
   const [parseContext] = view.state.facet(parseContextState);
@@ -574,7 +590,7 @@ const getStruct = (view: EditorView, from: number): SparkStruct => {
     name?: string;
   };
   const structName = structToken?.struct || structToken?.name;
-  return result.structs[structName || ""];
+  return result.structs[structName];
 };
 
 const autofillStruct = (
@@ -583,17 +599,211 @@ const autofillStruct = (
   to: number,
   structObj: unknown
 ): boolean => {
-  const line = view.state.doc.lineAt(from);
-  const indent = line.text.length - line.text.trimStart().length;
+  const fromLine = view.state.doc.lineAt(from);
+  const toLine = view.state.doc.lineAt(Math.min(view.state.doc.length, to));
+  const indent = fromLine.text.length - fromLine.text.trimStart().length;
   const lineSeparator = `\n${"".padEnd(indent + 2, " ")}`;
   let insert = lineSeparator;
   insert += yamlStringify(structObj, lineSeparator);
-  const changes = { from, to: Math.min(view.state.doc.length, to), insert };
+  const changes = {
+    from,
+    to: Math.min(view.state.doc.length, toLine.to),
+    insert,
+  };
   view.dispatch({ changes });
   return true;
 };
 
+const updateSoundPreview = (
+  structName: string,
+  sound: Sound,
+  sampleRate: number,
+  state: {
+    soundBuffer?: Float32Array;
+    volumeBuffer?: Float32Array;
+    pitchBuffer?: Float32Array;
+    pitchRange?: [number, number];
+    ctx?: CanvasRenderingContext2D;
+  },
+  draw: () => void
+): void => {
+  synthesizeSound(
+    sound,
+    false,
+    false,
+    sampleRate,
+    0,
+    state.soundBuffer?.length,
+    state.soundBuffer,
+    state.volumeBuffer,
+    state.pitchBuffer,
+    state.pitchRange
+  );
+  const structPreview = getElement(getPresetPreviewClassName(structName));
+  if (structPreview) {
+    structPreview.style.minWidth = `${PREVIEW_WIDTH}px`;
+    const rangeInput = getOrCreateRangeInput(structPreview);
+    updateRangeFill(rangeInput);
+    const draggableArea = getOrCreateDraggableArea(structPreview);
+    const fileInput = getOrCreateFileInput(structPreview, draw);
+    draggableArea.style.height = `${PREVIEW_HEIGHT}px`;
+    draggableArea.style.cursor = "grab";
+    const canvas = getOrCreateCanvas(draggableArea);
+    canvas.width = PREVIEW_WIDTH;
+    canvas.height = PREVIEW_HEIGHT;
+    state.ctx = canvas.getContext("2d");
+    draw();
+    const onRangePointerMove = throttle((): void => {
+      const width = PREVIEW_WIDTH;
+      const x = width * 0.5;
+      const bufferLength = getMaxBufferLength(
+        state.soundBuffer,
+        referenceBuffer
+      );
+      zoom(Number(rangeInput.value), x, width, bufferLength);
+      updateRangeFill(rangeInput);
+      draw();
+      draggableArea.style.cursor = "grab";
+    });
+    const onRangePointerUp = (): void => {
+      const width = PREVIEW_WIDTH;
+      const x = width * 0.5;
+      const bufferLength = getMaxBufferLength(
+        state.soundBuffer,
+        referenceBuffer
+      );
+      zoom(Number(rangeInput.value), x, width, bufferLength);
+      updateRangeFill(rangeInput);
+      draw();
+      draggableArea.style.cursor = "grab";
+      window.removeEventListener("pointermove", onRangePointerMove);
+    };
+    rangeInput.onpointerdown = (): void => {
+      const width = PREVIEW_WIDTH;
+      const x = width * 0.5;
+      const bufferLength = getMaxBufferLength(
+        state.soundBuffer,
+        referenceBuffer
+      );
+      zoom(Number(rangeInput.value), x, width, bufferLength);
+      updateRangeFill(rangeInput);
+      draw();
+      draggableArea.style.cursor = "grab";
+      window.addEventListener("pointermove", onRangePointerMove);
+      window.addEventListener("pointerup", onRangePointerUp, {
+        once: true,
+      });
+    };
+    fileInput.onchange = (e: InputEvent): void => {
+      const file = (e.target as HTMLInputElement)?.files?.[0];
+      const filenameEl =
+        fileInput?.parentElement?.parentElement?.getElementsByTagName(
+          "span"
+        )?.[0];
+      const swapLabelEl =
+        fileInput?.parentElement?.parentElement?.getElementsByTagName(
+          "label"
+        )?.[0];
+      if (file) {
+        const fileUrl = URL.createObjectURL(file);
+        loadAudioBytes(AUDIO_CONTEXT, fileUrl).then((value: Float32Array) => {
+          referenceFileName = file.name;
+          referenceBuffer = value;
+          updateFilenameElement(filenameEl);
+          updateSwapElement(swapLabelEl);
+          draw();
+        });
+      } else {
+        referenceFileName = "";
+        referenceBuffer = undefined;
+        updateFilenameElement(filenameEl);
+        updateSwapElement(swapLabelEl);
+        draw();
+      }
+    };
+    let startX: number | undefined;
+    let prevXOffset: number | undefined;
+    let clicked = false;
+    const onPreviewPointerMove = throttle((e: MouseEvent): void => {
+      const deltaX = e.clientX - startX;
+      if (Math.abs(deltaX) > 0) {
+        clicked = false;
+      }
+      pan(prevXOffset + deltaX);
+      draw();
+    });
+    const onPreviewPointerUp = (): void => {
+      document.documentElement.style.cursor = null;
+      draggableArea.style.cursor = "grab";
+      draggableArea.style.backgroundColor = null;
+      startX = undefined;
+      if (clicked) {
+        playSound(AUDIO_CONTEXT, state.soundBuffer);
+      }
+      window.removeEventListener("pointermove", onPreviewPointerMove);
+    };
+    draggableArea.onpointerup = (): void => {
+      draggableArea.style.backgroundColor = HOVER_COLOR;
+    };
+    draggableArea.onpointerdown = (e: PointerEvent): void => {
+      clicked = true;
+      startX = e.clientX;
+      prevXOffset = xOffset;
+      document.documentElement.style.cursor = "grabbing";
+      draggableArea.style.cursor = "grabbing";
+      draggableArea.style.backgroundColor = TAP_COLOR;
+      window.addEventListener("pointermove", onPreviewPointerMove);
+      window.addEventListener("pointerup", onPreviewPointerUp, {
+        once: true,
+      });
+    };
+    draggableArea.onwheel = (e: WheelEvent): void => {
+      e.stopPropagation();
+      e.preventDefault();
+      const el = e.target as HTMLElement;
+      const rect = el.getBoundingClientRect();
+      const width = rect.width;
+      const x = e.clientX - rect.left;
+      const bufferLength = getMaxBufferLength(
+        state.soundBuffer,
+        referenceBuffer
+      );
+      zoom(zoomOffset - e.deltaY, x, width, bufferLength);
+      updateRangeFill(rangeInput);
+      draw();
+      if (rangeInput) {
+        rangeInput.value = `${zoomOffset}`;
+      }
+      draggableArea.style.cursor = "grab";
+    };
+  }
+};
+
+const updatePatternPreview = (structName: string, pattern: Pattern): void => {
+  const structPreview = getElement(getPresetPreviewClassName(structName));
+  if (structPreview) {
+    structPreview.style.minWidth = `180px`;
+    structPreview.style.height = `80px`;
+    structPreview.style.position = "relative";
+    structPreview.style.boxShadow = "0 2px 2px #00000080";
+    structPreview.style.zIndex = "1";
+    structPreview.innerHTML = `${generatePatternSvg(pattern, "preview")}`;
+  }
+};
+
 const structDecorations = (view: EditorView): DecorationSet => {
+  const [parseContext] = view.state.facet(parseContextState);
+  const objectMap = parseContext?.result?.objectMap || {};
+  const structTypes = Object.keys(STRUCT_DEFAULTS);
+  const structDefaultMap = STRUCT_DEFAULTS;
+  const structValidationMap = structTypes.reduce((p, structType) => {
+    p[structType] = getSparkValidation(structType, objectMap);
+    return p;
+  }, {} as Record<string, RecursiveValidation>);
+  const structRandomizationsMap = structTypes.reduce((p, structType) => {
+    p[structType] = getSparkRandomizations(structType, objectMap);
+    return p;
+  }, {} as Record<string, RecursiveRandomization>);
   const widgets = [];
   view.visibleRanges.forEach(({ from, to }) => {
     syntaxTree(view.state).iterate({
@@ -609,23 +819,22 @@ const structDecorations = (view: EditorView): DecorationSet => {
           type.id === Type.StructFieldMark ||
           type.id === Type.StructFieldValue
         ) {
-          const sampleRate = AUDIO_CONTEXT.sampleRate;
-          let ctx: CanvasRenderingContext2D | undefined;
-          let soundBuffer: Float32Array | undefined;
-          let volumeBuffer: Float32Array | undefined;
-          let pitchBuffer: Float32Array | undefined;
-          let pitchRange: [number, number] | undefined;
-
-          const draw = (): void => {
-            drawWaveform(
-              ctx,
-              soundBuffer,
-              volumeBuffer,
-              pitchBuffer,
-              pitchRange
+          const soundState: {
+            ctx?: CanvasRenderingContext2D;
+            soundBuffer?: Float32Array;
+            volumeBuffer?: Float32Array;
+            pitchBuffer?: Float32Array;
+            pitchRange?: [number, number];
+          } = {};
+          const drawSound = (): void => {
+            drawSoundWaveform(
+              soundState.ctx,
+              soundState.soundBuffer,
+              soundState.volumeBuffer,
+              soundState.pitchBuffer,
+              soundState.pitchRange
             );
           };
-
           const onUpdatePreview = (
             structType: string,
             structName: string,
@@ -633,204 +842,78 @@ const structDecorations = (view: EditorView): DecorationSet => {
           ): void => {
             if (structType === "sound") {
               const sound = structObj as Sound;
+              const sampleRate = AUDIO_CONTEXT.sampleRate;
               const length = getLength(sound, sampleRate);
-              soundBuffer = new Float32Array(length);
-              volumeBuffer = new Float32Array(length);
-              pitchBuffer = new Float32Array(length);
-              pitchRange = [Number.MAX_SAFE_INTEGER, 0];
-              synthesizeSound(
+              soundState.soundBuffer = new Float32Array(length);
+              soundState.volumeBuffer = new Float32Array(length);
+              soundState.pitchBuffer = new Float32Array(length);
+              soundState.pitchRange = [Number.MAX_SAFE_INTEGER, 0];
+              updateSoundPreview(
+                structName,
                 sound,
-                false,
-                false,
                 sampleRate,
-                0,
-                length,
-                soundBuffer,
-                volumeBuffer,
-                pitchBuffer,
-                pitchRange
+                soundState,
+                drawSound
               );
-              const structPreview = getElement(
-                getPresetPreviewClassName(structName)
-              );
-              structPreview.style.minWidth = `${PREVIEW_WIDTH}px`;
-              const rangeInput = getOrCreateRangeInput(structPreview);
-              updateRangeFill(rangeInput);
-              const draggableArea = getOrCreateDraggableArea(structPreview);
-              const fileInput = getOrCreateFileInput(structPreview, draw);
-              draggableArea.style.height = `${PREVIEW_HEIGHT}px`;
-              draggableArea.style.cursor = "grab";
-              const canvas = getOrCreateCanvas(draggableArea);
-              canvas.width = PREVIEW_WIDTH;
-              canvas.height = PREVIEW_HEIGHT;
-              ctx = canvas.getContext("2d");
-              draw();
-
-              const onRangePointerMove = throttle((): void => {
-                const width = PREVIEW_WIDTH;
-                const x = width * 0.5;
-                const bufferLength = getMaxBufferLength(
-                  soundBuffer,
-                  referenceBuffer
-                );
-                zoom(Number(rangeInput.value), x, width, bufferLength);
-                updateRangeFill(rangeInput);
-                draw();
-                draggableArea.style.cursor = "grab";
-              });
-              const onRangePointerUp = (): void => {
-                const width = PREVIEW_WIDTH;
-                const x = width * 0.5;
-                const bufferLength = getMaxBufferLength(
-                  soundBuffer,
-                  referenceBuffer
-                );
-                zoom(Number(rangeInput.value), x, width, bufferLength);
-                updateRangeFill(rangeInput);
-                draw();
-                draggableArea.style.cursor = "grab";
-                window.removeEventListener("pointermove", onRangePointerMove);
-              };
-              rangeInput.onpointerdown = (): void => {
-                const width = PREVIEW_WIDTH;
-                const x = width * 0.5;
-                const bufferLength = getMaxBufferLength(
-                  soundBuffer,
-                  referenceBuffer
-                );
-                zoom(Number(rangeInput.value), x, width, bufferLength);
-                updateRangeFill(rangeInput);
-                draw();
-                draggableArea.style.cursor = "grab";
-                window.addEventListener("pointermove", onRangePointerMove);
-                window.addEventListener("pointerup", onRangePointerUp, {
-                  once: true,
-                });
-              };
-              fileInput.onchange = (e: InputEvent): void => {
-                const file = (e.target as HTMLInputElement)?.files?.[0];
-                const filenameEl =
-                  fileInput?.parentElement?.parentElement?.getElementsByTagName(
-                    "span"
-                  )?.[0];
-                const swapLabelEl =
-                  fileInput?.parentElement?.parentElement?.getElementsByTagName(
-                    "label"
-                  )?.[0];
-                if (file) {
-                  const fileUrl = URL.createObjectURL(file);
-                  loadAudioBytes(AUDIO_CONTEXT, fileUrl).then(
-                    (value: Float32Array) => {
-                      referenceFileName = file.name;
-                      referenceBuffer = value;
-                      updateFilenameElement(filenameEl);
-                      updateSwapElement(swapLabelEl);
-                      draw();
-                    }
-                  );
-                } else {
-                  referenceFileName = "";
-                  referenceBuffer = undefined;
-                  updateFilenameElement(filenameEl);
-                  updateSwapElement(swapLabelEl);
-                  draw();
-                }
-              };
-              let startX: number | undefined;
-              let prevXOffset: number | undefined;
-              let clicked = false;
-              const onPreviewPointerMove = throttle((e: MouseEvent): void => {
-                const deltaX = e.clientX - startX;
-                if (Math.abs(deltaX) > 0) {
-                  clicked = false;
-                }
-                pan(prevXOffset + deltaX);
-                draw();
-              });
-              const onPreviewPointerUp = (): void => {
-                document.documentElement.style.cursor = null;
-                draggableArea.style.cursor = "grab";
-                draggableArea.style.backgroundColor = null;
-                startX = undefined;
-                if (clicked) {
-                  playSound(AUDIO_CONTEXT, soundBuffer);
-                }
-                window.removeEventListener("pointermove", onPreviewPointerMove);
-              };
-              draggableArea.onpointerup = (): void => {
-                draggableArea.style.backgroundColor = HOVER_COLOR;
-              };
-              draggableArea.onpointerdown = (e: PointerEvent): void => {
-                clicked = true;
-                startX = e.clientX;
-                prevXOffset = xOffset;
-                document.documentElement.style.cursor = "grabbing";
-                draggableArea.style.cursor = "grabbing";
-                draggableArea.style.backgroundColor = TAP_COLOR;
-                window.addEventListener("pointermove", onPreviewPointerMove);
-                window.addEventListener("pointerup", onPreviewPointerUp, {
-                  once: true,
-                });
-              };
-              draggableArea.onwheel = (e: WheelEvent): void => {
-                e.stopPropagation();
-                e.preventDefault();
-                const el = e.target as HTMLElement;
-                const rect = el.getBoundingClientRect();
-                const width = rect.width;
-                const x = e.clientX - rect.left;
-                const bufferLength = getMaxBufferLength(
-                  soundBuffer,
-                  referenceBuffer
-                );
-                zoom(zoomOffset - e.deltaY, x, width, bufferLength);
-                updateRangeFill(rangeInput);
-                draw();
-                if (rangeInput) {
-                  rangeInput.value = `${zoomOffset}`;
-                }
-                draggableArea.style.cursor = "grab";
-              };
+            }
+            if (structType === "pattern") {
+              const pattern = structObj as Pattern;
+              updatePatternPreview(structName, pattern);
             }
           };
           if (type.id === Type.StructColon) {
             const struct = getStruct(view, from);
             if (struct) {
               const structType = struct?.type;
-              const spec = sparkSpecifications?.[structType];
-              const defaultStructObj = spec?.default;
-              const validation = spec?.validation;
-              const randomizations = spec?.randomizations || {};
-              const options = Object.entries(randomizations).map(
-                ([label, randomization]) => ({
-                  label,
-                  onClick: (): void => {
-                    const struct = getStruct(view, from);
-                    if (struct) {
-                      let structTo = to;
-                      Object.values(struct.fields || {}).forEach((f) => {
-                        if (f.to > structTo) {
-                          structTo = f.to;
-                        }
-                      });
-                      const preset = {};
-                      if (randomization) {
-                        randomize(
-                          preset,
-                          validation,
-                          randomization,
-                          label?.toLowerCase() !== "default" ? "on" : undefined
-                        );
+              const defaultStructObj = structDefaultMap[structType]?.[""];
+              const validation = structValidationMap[structType];
+              const randomizations = structRandomizationsMap[structType];
+              const options = Object.entries({
+                default: undefined,
+                ...(randomizations || {}),
+              }).map(([label, randomization]) => ({
+                label: structType === "pattern" ? "" : label,
+                innerHTML:
+                  structType === "pattern"
+                    ? `<div>${generatePatternSvg(
+                        {
+                          ...(defaultStructObj as Pattern),
+                          graphic:
+                            randomization?.graphic?.[0] ||
+                            (defaultStructObj as Pattern).graphic,
+                        },
+                        label,
+                        "100%",
+                        60
+                      )}</div>`
+                    : "",
+                onClick: (): void => {
+                  const struct = getStruct(view, from);
+                  if (struct) {
+                    const structFrom = from + 1;
+                    let structTo = to;
+                    Object.values(struct.fields || {}).forEach((f) => {
+                      if (f.to > structTo) {
+                        structTo = f.to;
                       }
-                      autofillStruct(view, from + 1, structTo, preset);
-                      const randomizedObj = create(defaultStructObj);
-                      augment(randomizedObj, preset);
-                      onUpdatePreview(struct.type, struct.name, randomizedObj);
-                      playSound(AUDIO_CONTEXT, soundBuffer);
+                    });
+                    const preset = randomization ? {} : defaultStructObj;
+                    if (randomization) {
+                      randomize(
+                        preset,
+                        validation,
+                        randomization,
+                        label?.toLowerCase() !== "default" ? "on" : undefined
+                      );
                     }
-                  },
-                })
-              );
+                    autofillStruct(view, structFrom, structTo, preset);
+                    const randomizedObj = clone(defaultStructObj);
+                    augment(randomizedObj, preset);
+                    onUpdatePreview(struct.type, struct.name, randomizedObj);
+                    playSound(AUDIO_CONTEXT, soundState.soundBuffer);
+                  }
+                },
+              }));
               if (options?.length > 0) {
                 widgets.push(
                   Decoration.widget({
@@ -838,11 +921,13 @@ const structDecorations = (view: EditorView): DecorationSet => {
                       struct.name,
                       options,
                       () => {
+                        const structs = getStructs(view);
                         const struct = getStruct(view, from);
                         if (struct) {
                           const structObj = construct(
                             defaultStructObj,
-                            struct.fields
+                            structs,
+                            struct.name
                           );
                           onUpdatePreview(struct.type, struct.name, structObj);
                         }
@@ -856,14 +941,16 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 widgets.push(
                   Decoration.widget({
                     widget: new StructPlayWidgetType(struct.name, () => {
+                      const structs = getStructs(view);
                       const struct = getStruct(view, from);
                       if (struct) {
                         const structObj = construct(
                           defaultStructObj,
-                          struct.fields
+                          structs,
+                          struct.name
                         );
                         onUpdatePreview(struct.type, struct.name, structObj);
-                        playSound(AUDIO_CONTEXT, soundBuffer);
+                        playSound(AUDIO_CONTEXT, soundState.soundBuffer);
                       }
                     }),
                     side: 0,
@@ -912,15 +999,48 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 const structField = struct.fields[structFieldToken.id];
                 const startValue = structField?.value;
                 const structType = struct?.type;
-                const spec = sparkSpecifications[structType];
-                const validation = spec?.validation;
-                const defaultStructObj = spec?.default;
+                const defaultStructObj = structDefaultMap[structType]?.[""];
+                const validation = structValidationMap[structType];
                 const requirements = getAllProperties(validation);
-                const requirement = requirements[structFieldToken.id];
-                const range = requirement as unknown[];
+                const requirement =
+                  requirements[
+                    structFieldToken.index != null // Is array index field
+                      ? structFieldToken.id.split(".").slice(0, -1).join(".")
+                      : structFieldToken.id
+                  ];
+                const range =
+                  typeof startValue === "boolean"
+                    ? [false, true]
+                    : (requirement as unknown[]);
                 const id = `${structName}${structFieldToken.id}`;
-                const onDragging = throttle(
-                  (
+                if (range) {
+                  const onDragging = throttle(
+                    (
+                      e: MouseEvent,
+                      startX: number,
+                      x: number,
+                      fieldPreviewTextContent: string
+                    ): void => {
+                      const valueEl = getElement(id);
+                      const from = view.posAtDOM(valueEl);
+                      const insert = fieldPreviewTextContent;
+                      const newValue = getValue(insert);
+                      if (newValue !== undefined) {
+                        const structs = getStructs(view);
+                        const struct = getStruct(view, from);
+                        if (struct) {
+                          const structObj = construct(
+                            defaultStructObj,
+                            structs,
+                            struct.name
+                          );
+                          setProperty(structObj, structFieldToken.id, newValue);
+                          onUpdatePreview(struct.type, struct.name, structObj);
+                        }
+                      }
+                    }
+                  );
+                  const onDragEnd = (
                     e: MouseEvent,
                     startX: number,
                     x: number,
@@ -929,58 +1049,38 @@ const structDecorations = (view: EditorView): DecorationSet => {
                     const valueEl = getElement(id);
                     const from = view.posAtDOM(valueEl);
                     const insert = fieldPreviewTextContent;
+                    const to = view.state.doc.lineAt(from).to;
+                    const changes = { from, to, insert };
+                    view.dispatch({ changes });
                     const newValue = getValue(insert);
                     if (newValue !== undefined) {
+                      const structs = getStructs(view);
                       const struct = getStruct(view, from);
                       if (struct) {
                         const structObj = construct(
                           defaultStructObj,
-                          struct.fields
+                          structs,
+                          struct.name
                         );
                         setProperty(structObj, structFieldToken.id, newValue);
                         onUpdatePreview(struct.type, struct.name, structObj);
+                        playSound(AUDIO_CONTEXT, soundState.soundBuffer);
                       }
                     }
-                  }
-                );
-                const onDragEnd = (
-                  e: MouseEvent,
-                  startX: number,
-                  x: number,
-                  fieldPreviewTextContent: string
-                ): void => {
-                  const valueEl = getElement(id);
-                  const from = view.posAtDOM(valueEl);
-                  const insert = fieldPreviewTextContent;
-                  const to = view.state.doc.lineAt(from).to;
-                  const changes = { from, to, insert };
-                  view.dispatch({ changes });
-                  const newValue = getValue(insert);
-                  if (newValue !== undefined) {
-                    const struct = getStruct(view, from);
-                    if (struct) {
-                      const structObj = construct(
-                        defaultStructObj,
-                        struct.fields
-                      );
-                      setProperty(structObj, structFieldToken.id, newValue);
-                      onUpdatePreview(struct.type, struct.name, structObj);
-                      playSound(AUDIO_CONTEXT, soundBuffer);
-                    }
-                  }
-                };
-                widgets.push(
-                  Decoration.widget({
-                    widget: new StructFieldValueWidgetType(
-                      id,
-                      view.state.doc.sliceString(from, to),
-                      startValue,
-                      range,
-                      { onDragging, onDragEnd }
-                    ),
-                  }).range(from),
-                  Decoration.mark({ class: id }).range(from, to)
-                );
+                  };
+                  widgets.push(
+                    Decoration.widget({
+                      widget: new StructFieldValueWidgetType(
+                        id,
+                        view.state.doc.sliceString(from, to),
+                        startValue,
+                        range,
+                        { onDragging, onDragEnd }
+                      ),
+                    }).range(from),
+                    Decoration.mark({ class: id }).range(from, to)
+                  );
+                }
               }
             }
           }

@@ -22,8 +22,6 @@ export const tags = {
   scene: t.propertyName,
   sceneNumber: t.number,
   transition: t.unit,
-  assetName: t.definitionOperator,
-  tagName: t.derefOperator,
   variableName: t.variableName,
   parameterName: t.function(t.variableName),
   dialogue_character: t.className,
@@ -134,12 +132,10 @@ const commonmark = baseParser.configure({
 
       "SectionVariableName VariableName AssignName InterpolationVariableName":
         tags.variableName,
-      "AssetName": tags.assetName,
       "StructName": tags.structName,
       "StructBase": tags.structBase,
       "StructFieldName": tags.structFieldName,
       "StructFieldAccess": tags.variableName,
-      "TagName": tags.tagName,
       "JumpSectionName ChoiceSectionName CallName": tags.sectionName,
       "SectionParameterName": tags.parameterName,
       "StructMark StructType ListMark ConditionMark CallMark AssignMark ChoiceMark VariableMark VariableKeyword JumpMark ChoiceJumpMark RepeatMark ReturnMark InterpolationOpenMark InterpolationCloseMark ImageNoteMark AudioNoteMark DynamicTagMark ImportMark TransitionMark JumpMark":

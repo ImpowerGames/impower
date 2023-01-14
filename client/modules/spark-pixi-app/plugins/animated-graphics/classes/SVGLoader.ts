@@ -26,11 +26,13 @@ export class SVGLoader {
     if (!doc) {
       doc = await fetch(url.toString())
         .then((res) => res.text())
-        .then(
-          (text) =>
-            new DOMParser().parseFromString(text, "image/svg+xml")
-              .documentElement as unknown as SVGSVGElement
-        );
+        .then((text) => {
+          if (text.startsWith("<svg ")) {
+            return new DOMParser().parseFromString(text, "image/svg+xml")
+              .documentElement as unknown as SVGSVGElement;
+          }
+          return undefined;
+        });
 
       if (doc) {
         this._SVG_DOCUMENT_CACHE.set(id, doc);

@@ -44,8 +44,9 @@ export interface SparkStructFieldToken extends SparkLine {
   struct: string;
   mark: string;
   id: string;
+  index: number;
   name: string;
-  value: string;
+  valueText: string;
 }
 
 export interface SparkJumpToken extends SparkLine {

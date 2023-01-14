@@ -1,16 +1,16 @@
 import { CommandData } from "../../../../../data";
-import { SparkGame } from "../../../../../game";
+import { Game } from "../../../../../game";
 import { ItemRunner } from "../../item/ItemRunner";
 
-export interface CommandContext {
+export interface CommandContext<G extends Game> {
   ids: Record<string, string>;
   valueMap: Record<string, unknown>;
-  objectMap: { [type: string]: Record<string, object> };
+  objectMap: { [type: string]: Record<string, any> };
   triggers: string[];
   parameters: string[];
   index: number;
   commands: {
-    runner: CommandRunner;
+    runner: CommandRunner<G>;
     data: CommandData;
   }[];
   instant?: boolean;
@@ -18,29 +18,26 @@ export interface CommandContext {
 }
 
 export class CommandRunner<
+  G extends Game,
   T extends CommandData = CommandData
-> extends ItemRunner<T> {
-  init(_game: SparkGame): void {
+> extends ItemRunner<G, T> {
+  init(_game: G): void {
     // NoOp
   }
 
-  onExecute(_game: SparkGame, _data: T, _context: CommandContext): number[] {
+  onExecute(_game: G, _data: T, _context: CommandContext<G>): number[] {
     return [];
   }
 
-  onUpdate(_game: SparkGame, _timeMS: number, _deltaMS: number): void {
+  onUpdate(_game: G, _timeMS: number, _deltaMS: number): void {
     // NoOp
   }
 
-  onFinished(_game: SparkGame, _data: T, _context: CommandContext): void {
+  onFinished(_game: G, _data: T, _context: CommandContext<G>): void {
     // NoOp
   }
 
-  isFinished(
-    _game: SparkGame,
-    _data: T,
-    _context: CommandContext
-  ): boolean | null {
+  isFinished(_game: G, _data: T, _context: CommandContext<G>): boolean | null {
     return true;
   }
 }

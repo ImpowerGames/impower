@@ -1,27 +1,39 @@
-import { SparkVariable } from "../../../../sparkdown";
+import { SparkDeclarations, SparkStruct } from "../../../../sparkdown";
+import { STRUCT_DEFAULTS } from "../constants/STRUCT_DEFAULTS";
 
 export const getScriptAugmentations = (
   files: Record<string, { name?: string; fileType?: string; fileUrl?: string }>
-): { variables: Record<string, SparkVariable> } => {
-  const variables: Record<string, SparkVariable> = {};
+): SparkDeclarations => {
+  const structs: Record<string, SparkStruct> = {};
   Object.entries(files || {}).forEach(([, { name, fileType, fileUrl }]) => {
     const type = fileType?.startsWith("audio")
       ? "audio"
       : fileType?.startsWith("video")
       ? "video"
-      : fileType?.startsWith("text")
-      ? "text"
-      : fileType?.startsWith("image/svg")
-      ? "graphic"
-      : "image";
-    variables[`.${name}`] = {
-      name: name || "",
-      type,
-      value: fileUrl || "",
+      : fileType?.startsWith("image")
+      ? "image"
+      : "text";
+    const structName = name || "";
+    structs[structName] = {
       from: -1,
       to: -1,
       line: -1,
+      base: "",
+      type,
+      name: structName,
+      fields: {
+        [".src"]: {
+          from: -1,
+          to: -1,
+          line: -1,
+          name: "src",
+          type: "string",
+          value: fileUrl,
+          valueText: `"${fileUrl}"`,
+        },
+      },
     };
   });
-  return { variables };
+  const objectMap = STRUCT_DEFAULTS;
+  return { structs, objectMap };
 };

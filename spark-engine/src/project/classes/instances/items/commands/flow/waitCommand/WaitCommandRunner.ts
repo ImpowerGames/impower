@@ -1,12 +1,15 @@
 import { WaitCommandData } from "../../../../../../../data";
-import { SparkGame } from "../../../../../../../game";
+import { Game } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
-export class WaitCommandRunner extends CommandRunner<WaitCommandData> {
+export class WaitCommandRunner<G extends Game> extends CommandRunner<
+  G,
+  WaitCommandData
+> {
   override onExecute(
-    game: SparkGame,
+    game: G,
     data: WaitCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): number[] {
     const { seconds } = data;
     if (!seconds) {
@@ -16,9 +19,9 @@ export class WaitCommandRunner extends CommandRunner<WaitCommandData> {
   }
 
   override isFinished(
-    game: SparkGame,
+    game: G,
     data: WaitCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): boolean | null {
     const { seconds } = data;
     if (seconds === undefined || seconds === 0) {

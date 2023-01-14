@@ -1,9 +1,11 @@
 import { InstanceData } from "../../data";
+import { Game } from "../../game";
 import { InstanceRunner } from "../../project/classes/instance/InstanceRunner";
 
 export const getNextJumpIndex = <
+  G extends Game,
   D extends InstanceData,
-  R extends InstanceRunner<D>
+  R extends InstanceRunner<G, D>
 >(
   index: number,
   iterableRunners: { runner: R; data: D }[],

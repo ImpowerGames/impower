@@ -129,7 +129,7 @@ export function spark(
     /// The base language to use. Defaults to
     /// [`commonmarkLanguage`](#lang-markdown.commonmarkLanguage).
     base?: Language;
-    initialParseResult?: SparkParseResult;
+    initialDoc: string;
     /// Callback to execute when doc is parsed
     parse: (script: string) => SparkParseResult;
     getRuntimeValue?: (id: string) => unknown;
@@ -139,29 +139,32 @@ export function spark(
     ) => void;
     onNavigateUp?: (view: EditorView) => boolean;
     onNavigateDown?: (view: EditorView) => boolean;
-  } = { parse: parseSpark }
+  } = { parse: parseSpark, initialDoc: "" }
 ): LanguageSupport {
   const {
     codeLanguages,
     defaultCodeLanguage,
     addKeymap = true,
     base: { parser } = commonmarkLanguage,
+    initialDoc,
     parse,
     getRuntimeValue,
     setRuntimeValue,
     observeRuntimeValue,
     onNavigateUp,
     onNavigateDown,
-    initialParseResult,
   } = config;
   if (!(parser instanceof MarkdownParser)) {
     throw new RangeError(
       "Base parser provided to `markdown` should be a Markdown parser"
     );
   }
+  const result = parse(initialDoc);
   const parseContext: {
     result: SparkParseResult;
-  } = { result: initialParseResult };
+  } = {
+    result,
+  };
   const sparkParseLinter = (view: EditorView): Diagnostic[] => {
     const script = view.state.doc.toString();
     parseContext.result = parse(script);

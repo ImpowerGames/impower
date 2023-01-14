@@ -1,10 +1,13 @@
 import { evaluate } from "../../../../../../../../../spark-evaluate";
 import { ConditionCommandData, InstanceData } from "../../../../../../../data";
-import { SparkGame } from "../../../../../../../game";
+import { Game } from "../../../../../../../game";
 import { getNextJumpIndex } from "../../../../../../../runner";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
-export class ConditionCommandRunner extends CommandRunner<ConditionCommandData> {
+export class ConditionCommandRunner<G extends Game> extends CommandRunner<
+  G,
+  ConditionCommandData
+> {
   override closesGroup(
     data: ConditionCommandData,
     group?: InstanceData
@@ -17,9 +20,9 @@ export class ConditionCommandRunner extends CommandRunner<ConditionCommandData> 
   }
 
   override onExecute(
-    game: SparkGame,
+    game: G,
     data: ConditionCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): number[] {
     const { check, value } = data;
     const { valueMap, index, commands } = context;

@@ -171,8 +171,6 @@ const myHighlightStyle = HighlightStyle.define([
   },
   { tag: t.pageBreak, color: colors.pageBreak },
   { tag: t.transition, color: colors.transition },
-  { tag: t.assetName, color: colors.asset },
-  { tag: t.tagName, color: colors.tag },
   { tag: t.conditionCheck, color: colors.condition },
   {
     tag: t.titleValue,
@@ -222,15 +220,17 @@ const myHighlightStyle = HighlightStyle.define([
     "tag": t.pause,
     "position": "relative",
     "&:after": {
-      content: "'·'",
-      opacity: "0.4",
+      content: "'•'",
+      opacity: "0.5",
       position: "absolute",
-      top: "1px",
+      top: "6px",
       bottom: "0",
       left: "0",
-      right: "0",
+      right: "1px",
       textAlign: "center",
       color: colors.keyword,
+      fontSize: "7px",
+      lineHeight: "1",
     },
   },
 
@@ -496,9 +496,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     const languageSetup: Extension[] = [
       spark({
         base: sparkLanguage,
-        initialParseResult: EngineSparkParser.instance.parse(doc, {
-          augmentations: augmentationsRef.current,
-        }),
+        initialDoc: doc,
         parse: (script: string) => {
           const result = EngineSparkParser.instance.parse(script, {
             augmentations: augmentationsRef.current,

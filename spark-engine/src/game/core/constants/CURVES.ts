@@ -10,6 +10,4 @@ export const CURVES: CurveType[] = [
   "expo",
   "circ",
   "back",
-  "elastic",
-  "bounce",
 ];

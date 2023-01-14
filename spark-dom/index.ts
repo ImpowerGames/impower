@@ -1,1 +1,1 @@
-export * from "./src/classes/SparkElement";
+export * from "./src/classes/SparkDOMElement";

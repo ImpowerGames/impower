@@ -1,6 +1,6 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { SparkVariable } from "../../../sparkdown";
+import { SparkStruct } from "../../../sparkdown";
 import { assetExts, audioExts, imageExts } from "../constants/extensions";
 import { fileState } from "../state/fileState";
 import { getWorkspaceRelativePath } from "./getWorkspaceRelativePath";
@@ -12,7 +12,7 @@ export const updateAssets = async (doc: vscode.TextDocument): Promise<void> => {
     return undefined;
   }
   const assetUris = await vscode.workspace.findFiles(relativePath);
-  const assets: Record<string, SparkVariable> = {};
+  const assets: Record<string, SparkStruct> = {};
   assetUris.forEach((u) => {
     const parsedPath = path.parse(u.path);
     const name = parsedPath.name;
@@ -23,16 +23,28 @@ export const updateAssets = async (doc: vscode.TextDocument): Promise<void> => {
       ? "audio"
       : "";
     if (type) {
-      const id = `.${name}`;
-      const sparkAsset: SparkVariable = {
+      const fileUrl = u.path;
+      const structName = name || "";
+      const sparkAsset: SparkStruct = {
         from: -1,
         to: -1,
         line: -1,
+        base: "",
         type,
-        name,
-        value: u.path,
+        name: structName,
+        fields: {
+          [".src"]: {
+            from: -1,
+            to: -1,
+            line: -1,
+            name: "src",
+            type: "string",
+            value: fileUrl,
+            valueText: `"${fileUrl}"`,
+          },
+        },
       };
-      assets[id] = sparkAsset;
+      assets[structName] = sparkAsset;
     }
   });
   const s = fileState[uri.toString()] || {};

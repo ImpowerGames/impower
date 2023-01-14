@@ -1,27 +1,20 @@
 import {
   getScopedValueContext,
   getSectionAtLine,
-  SparkSection,
-  SparkStruct,
-  SparkToken,
+  SparkParseResult,
 } from "../../../../sparkdown";
-import { SparkContext } from "../classes/SparkContext";
-import { generateStructObjects } from "./generateStructObjects";
+import { Context } from "../classes/Context";
 import { getPreviewCommand } from "./getPreviewCommand";
 import { getPreviewStruct } from "./getPreviewStruct";
 
 export const previewLine = (
-  context: SparkContext,
-  result: {
-    tokens: SparkToken[];
-    tokenLines: Record<number, number>;
-    sections?: Record<string, SparkSection>;
-    structs?: Record<string, SparkStruct>;
-  },
+  context: Context,
+  result: SparkParseResult,
   line: number,
   instant: boolean,
   debug: boolean
 ) => {
+  const objectMap = result?.objectMap || {};
   const runtimeCommand = getPreviewCommand(result, line);
   if (runtimeCommand) {
     const commandRunner = context?.runner?.getRunner(runtimeCommand.reference);
@@ -31,7 +24,9 @@ export const previewLine = (
         sectionId,
         result?.sections || {}
       );
-      const objectMap = generateStructObjects(result?.structs || {});
+      context.game.ui.loadTheme(objectMap);
+      context.game.ui.loadStyles(objectMap);
+      context.game.ui.loadUI(objectMap);
       commandRunner.onPreview(context.game, runtimeCommand, {
         valueMap,
         objectMap,
@@ -42,11 +37,9 @@ export const previewLine = (
   } else {
     const previewStruct = getPreviewStruct(result, line);
     if (previewStruct?.type === "style") {
-      const objectMap = generateStructObjects(result?.structs || {});
-      context.game.ui.loadStyles(objectMap);
+      context.game.ui.loadStyles(objectMap, previewStruct.name);
     }
     if (previewStruct?.type === "ui") {
-      const objectMap = generateStructObjects(result?.structs || {});
       context.game.ui.loadUI(objectMap, previewStruct.name);
     }
   }

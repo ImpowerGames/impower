@@ -20,4 +20,18 @@ export interface IElement {
   removeChild: (child: IElement) => void;
 
   replaceChildren: (...children: IElement[]) => void;
+
+  observeSize: (breakpoints: Record<string, number>) => () => void;
+
+  setImportContent: (properties: Record<string, any>) => void;
+
+  setStyleContent: (
+    properties: Record<string, any>,
+    objectMap: { [type: string]: Record<string, any> }
+  ) => void;
+
+  setAnimationContent: (
+    properties: Record<string, any>,
+    objectMap: { [type: string]: Record<string, any> }
+  ) => void;
 }

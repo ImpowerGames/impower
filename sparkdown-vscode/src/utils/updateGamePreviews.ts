@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { isAssetType } from "../../../sparkdown";
 import { GameSparkParser } from "../classes/GameSparkParser";
 import { parseState } from "../state/parseState";
 import { getPreviewPanelsToUpdate } from "./getPreviewPanelsToUpdate";
@@ -13,22 +12,24 @@ export const updateGamePreviews = (doc: vscode.TextDocument) => {
     for (let i = 0; i < gamePreviewsToUpdate.length; i++) {
       const preview = gamePreviewsToUpdate[i];
       if (preview) {
-        const variables = { ...(result?.variables || {}) };
-        Object.entries(variables).forEach(([k, v]) => {
-          if (isAssetType(v.type)) {
-            variables[k] = {
-              ...v,
-              value: preview.panel.webview
-                .asWebviewUri(vscode.Uri.file(v.value as string))
-                ?.toString(),
-            };
+        const structs = result?.structs || {};
+        Object.entries(structs).forEach(([k]) => {
+          const fieldObj = structs[k]?.fields?.["src"];
+          if (
+            fieldObj &&
+            fieldObj.value &&
+            typeof fieldObj.value === "string"
+          ) {
+            fieldObj.value = preview.panel.webview
+              .asWebviewUri(vscode.Uri.file(fieldObj.value))
+              ?.toString();
           }
         });
         preview.panel.webview.postMessage({
           command: "sparkdown.updateParsedJson",
           content: JSON.stringify(
             GameSparkParser.instance.parse(doc.getText(), {
-              augmentations: { variables },
+              augmentations: { structs },
             })
           ),
         });

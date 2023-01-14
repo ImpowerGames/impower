@@ -3,7 +3,10 @@ import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 import { DisplayCommandData } from "./DisplayCommandData";
 import { executeDisplayCommand } from "./executeDisplayCommand";
 
-export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
+export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
+  G,
+  DisplayCommandData
+> {
   autoDelay = 0.5;
 
   fadeOutDuration = 0.025;
@@ -23,14 +26,14 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
 
   onTick?: (timeMS: number) => void;
 
-  override init(game: SparkGame): void {
+  override init(game: G): void {
     executeDisplayCommand(game);
   }
 
   override onExecute(
-    game: SparkGame,
+    game: G,
     data: DisplayCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): number[] {
     this.wasPressed = false;
     this.wasTyped = false;
@@ -48,16 +51,16 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
     return super.onExecute(game, data, context);
   }
 
-  override onUpdate(_game: SparkGame, timeMS: number): void {
+  override onUpdate(_game: G, timeMS: number): void {
     if (this.onTick) {
       this.onTick(timeMS);
     }
   }
 
   override isFinished(
-    game: SparkGame,
+    game: G,
     data: DisplayCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): boolean {
     const prevDown = this.down;
     this.down = game.input.state.pointer.down.includes(0);
@@ -107,11 +110,11 @@ export class DisplayCommandRunner extends CommandRunner<DisplayCommandData> {
   }
 
   override onPreview(
-    game: SparkGame,
+    game: G,
     data: DisplayCommandData,
     context: {
       valueMap: Record<string, unknown>;
-      objectMap: { [type: string]: Record<string, object> };
+      objectMap: { [type: string]: Record<string, any> };
       instant?: boolean;
       debug?: boolean;
     }

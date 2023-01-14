@@ -1,9 +1,9 @@
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
+import { getAllProperties } from "../../core/utils/getAllProperties";
 import { IElement } from "../types/IElement";
-import { getCSSPropertyKeyValue } from "../utils/getCSSPropertyKeyValue";
+import { Theme } from "../types/Theme";
 import { getHash } from "../utils/getHash";
-import { setupDefaultStyle } from "../utils/setupDefaultStyle";
 import { Element } from "./Element";
 
 const DEFAULT_ROOT_CLASS_NAME = "spark-root";
@@ -25,6 +25,8 @@ export interface UIConfig {
 export interface UIState {}
 
 export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
+  unregisterRootObserver?: () => void;
+
   constructor(config?: Partial<UIConfig>, state?: Partial<UIState>) {
     const initialEvents: UIEvents = {
       onCreateElement: new GameEvent<{
@@ -39,7 +41,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       createElement: DEFAULT_CREATE_ELEMENT,
       ...(config || {}),
     };
-    const initialState: UIState = { ...(state || {}) };
+    const initialState: UIState = { theme: "", ...(state || {}) };
     super(initialEvents, initialConfig, initialState);
   }
 
@@ -57,6 +59,15 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
   protected getParentPath(id: string): string[] {
     return this.getPath(id).slice(0, -1);
+  }
+
+  protected overrideStyle(
+    element: IElement,
+    properties: Record<string, any>
+  ): void {
+    Object.entries(properties).forEach(([k, v]) => {
+      element.style[k] = v;
+    });
   }
 
   getElement(path: string[]): IElement | undefined {
@@ -81,131 +92,144 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return this.getElement(this.getParentPath(el.id));
   }
 
-  getUIPath(...path: string[]): string[] {
-    return [this._config.root.id, this._config.uiClassName, ...path];
-  }
-
   getStylePath(...path: string[]): string[] {
     return [this._config.root.id, this._config.styleClassName, ...path];
   }
 
-  loadStyles(objectMap: { [type: string]: Record<string, object> }): void {
-    const styleEl = this.getOrCreateStyleRoot();
-    if (!objectMap) {
-      return;
-    }
-    let content = "";
-    Object.entries(objectMap?.["import"] || {}).forEach(([, struct]) => {
-      Object.entries(struct || {}).forEach(([, fv]) => {
-        content += `\n@import url("${fv}");`;
-      });
-    });
-    Object.entries(objectMap?.["animation"] || {}).forEach(
-      ([structName, struct]) => {
-        if (content) {
-          content += "\n";
-        }
-        const fieldMap: Record<string, string[]> = {};
-        if (struct) {
-          content += `@keyframes ${structName} {\n`;
-          Object.entries(struct || {}).forEach(([fk, fv]) => {
-            if (fk.includes(".")) {
-              const [keyframe, propName] = fk.split(".");
-              if (keyframe && propName) {
-                if (!fieldMap[keyframe]) {
-                  fieldMap[keyframe] = [];
-                }
-                const [cssProp, cssValue] = getCSSPropertyKeyValue(
-                  propName,
-                  fv
-                );
-                fieldMap[keyframe]?.push(`${cssProp}: ${cssValue};`);
-              }
-            }
-          });
-          Object.entries(fieldMap || {}).forEach(([keyframe, fields]) => {
-            const fieldsContent = `{\n  ${fields.join(`\n  `)}\n}`;
-            content += `${keyframe} ${fieldsContent}`;
-          });
-          content += `\n}`;
-        }
-      }
-    );
-    Object.entries(objectMap?.["style"] || {}).forEach(
-      ([structName, struct]) => {
-        if (content) {
-          content += "\n";
-        }
-        const breakpointMap: Record<string, string[]> = {};
-        Object.entries(struct || {}).forEach(([fk, fv]) => {
-          if (fk.includes(".")) {
-            const [breakpoint, propName] = fk.split(".");
-            if (breakpoint != null && propName != null) {
-              if (!breakpointMap[breakpoint]) {
-                breakpointMap[breakpoint] = [];
-              }
-              const [cssProp, cssValue] = getCSSPropertyKeyValue(propName, fv);
-              breakpointMap[breakpoint]?.push(`${cssProp}: ${cssValue};`);
-            }
-          } else {
-            if (!breakpointMap[""]) {
-              breakpointMap[""] = [];
-            }
-            const [cssProp, cssValue] = getCSSPropertyKeyValue(fk, fv);
-            breakpointMap[""].push(`${cssProp}: ${cssValue};`);
-          }
-        });
-        Object.entries(breakpointMap || {}).forEach(([breakpoint, fields]) => {
-          const fieldsContent = `{\n  ${fields.join(`\n  `)}\n}`;
-          if (content) {
-            content += "\n";
-          }
-          if (breakpoint) {
-            content += `.${breakpoint} #${this.config.root.id} .${structName} ${fieldsContent}`;
-          } else {
-            content += `#${this.config.root.id} .${structName} ${fieldsContent}`;
-          }
-        });
-      }
-    );
-    if (styleEl.textContent !== content) {
-      styleEl.textContent = content;
+  getUIPath(...path: string[]): string[] {
+    return [this._config.root.id, this._config.uiClassName, ...path];
+  }
+
+  loadTheme(objectMap: { [type: string]: Record<string, any> }): void {
+    const theme = objectMap?.["theme"]?.[""] as Theme;
+    if (theme) {
+      this.unregisterRootObserver?.();
+      this.unregisterRootObserver = this._config.root.observeSize(
+        theme.breakpoints
+      );
     }
   }
 
-  loadUI(
-    objectMap: { [type: string]: Record<string, object> },
-    ...uiStructNames: string[]
+  loadStyles(
+    objectMap: { [type: string]: Record<string, any> },
+    ...structNames: string[]
   ): void {
-    const uiEl = this.getOrCreateUIRoot();
-    uiEl.style["fontFamily"] = "Courier Prime Sans";
-    uiEl.style["fontSize"] = "1em";
-    setupDefaultStyle(uiEl);
-    if (!objectMap) {
+    const styleRootEl = this.getOrCreateStyleRoot();
+    if (!styleRootEl || !objectMap) {
       return;
     }
-    uiStructNames.forEach((structName) => {
-      const fields = objectMap?.["ui"]?.[structName];
-      const hash = getHash(fields).toString();
-      const existingStructEl = this.getUIElement(structName);
-      if (existingStructEl && existingStructEl.dataset["hash"] !== hash) {
-        existingStructEl.replaceChildren();
-      }
-      const structEl =
-        existingStructEl || this.constructUIElement("div", structName);
-      if (structEl.dataset["hash"] !== hash) {
-        structEl.dataset["hash"] = hash;
-      }
-      setupDefaultStyle(structEl);
-      if (fields) {
-        Object.entries(fields).forEach(([k, v]) => {
-          const curr =
-            this.getUIElement(structName, ...k.split(".")) ||
-            this.constructUIElement("div", structName, ...k.split("."));
-          if (curr && v && typeof v === "string") {
-            curr.textContent = v;
+
+    const styleStructNames = new Set<string>();
+    const validStructNames =
+      structNames?.length > 0
+        ? structNames
+        : [
+            ...Object.keys(objectMap?.["import"] || {}),
+            ...Object.keys(objectMap?.["animation"] || {}),
+            ...Object.keys(objectMap?.["style"] || {}),
+          ];
+    validStructNames.forEach((structName) => {
+      if (structName) {
+        if (structName === "import") {
+          const importStructObj = objectMap?.["import"]?.[structName];
+          if (importStructObj) {
+            const structEl = this.constructStyleElement(
+              structName,
+              importStructObj
+            );
+            if (structEl) {
+              const properties = getAllProperties(importStructObj);
+              structEl.setImportContent(properties);
+            }
           }
-        });
+        }
+        const styleStructObj = objectMap?.["style"]?.[structName];
+        if (styleStructObj) {
+          const structEl = this.constructStyleElement(
+            structName,
+            styleStructObj
+          );
+          if (structEl) {
+            const properties = getAllProperties(styleStructObj);
+            structEl.setStyleContent(properties, objectMap);
+          }
+        }
+        const animationStructObj = objectMap?.["animation"]?.[structName];
+        if (animationStructObj) {
+          const structEl = this.constructStyleElement(
+            structName,
+            animationStructObj
+          );
+          if (structEl) {
+            const properties = getAllProperties(animationStructObj);
+            structEl.setAnimationContent(properties, objectMap);
+          }
+        }
+        const uiStructObj = objectMap?.["ui"]?.[structName];
+        if (uiStructObj) {
+          const properties = getAllProperties(uiStructObj);
+          Object.keys(properties).forEach((fk) => {
+            const uiPath = fk.split(".");
+            uiPath.forEach((styleStructName) => {
+              styleStructNames.add(styleStructName);
+            });
+          });
+        }
+      }
+    });
+    styleStructNames.forEach((styleStructName) => {
+      this.loadStyles(objectMap, styleStructName);
+    });
+  }
+
+  loadUI(
+    objectMap: { [type: string]: Record<string, any> },
+    ...structNames: string[]
+  ): void {
+    const uiRootEl = this.getOrCreateUIRoot();
+    if (!uiRootEl || !objectMap) {
+      return;
+    }
+    const rootStyleProperties = {
+      position: "absolute",
+      top: "0",
+      bottom: "0",
+      left: "0",
+      right: "0",
+      display: "flex",
+      flexDirection: "column",
+    };
+    const uiRootStyleProperties = {
+      fontFamily: "Courier Prime Sans",
+      fontSize: "1em",
+      ...rootStyleProperties,
+    };
+    this.overrideStyle(uiRootEl, uiRootStyleProperties);
+    const validStructNames =
+      structNames?.length > 0
+        ? structNames
+        : Object.keys(objectMap?.["ui"] || {});
+    validStructNames.forEach((structName) => {
+      if (structName) {
+        const structObj = objectMap?.["ui"]?.[structName];
+        if (structObj) {
+          const properties = getAllProperties(structObj);
+          const structEl = this.constructUIElement(structName, properties);
+          this.overrideStyle(structEl, rootStyleProperties);
+          Object.entries(properties).forEach(([k, v]) => {
+            const fieldEl =
+              this.getUIElement(structName, ...k.split(".")) ||
+              this.constructElement(
+                "div",
+                this.getUIPath(),
+                structName,
+                ...k.split(".")
+              );
+            if (fieldEl && v && typeof v === "string") {
+              fieldEl.textContent = v;
+            }
+          });
+        }
       }
     });
   }
@@ -214,9 +238,21 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     const newEl = this._config.createElement(type);
     if (path?.length > 0) {
       newEl.id = this.getId(...path);
-      newEl.className = this.getName(newEl.id);
+      if (type !== "style") {
+        newEl.className = this.getName(newEl.id);
+      }
     }
     this._events.onCreateElement.emit({ type, id: newEl.id });
+    return newEl;
+  }
+
+  getOrCreateStyleRoot(): IElement {
+    const root = this._config.root;
+    const path = this.getStylePath();
+    const newEl = this.getElement(path) || this.createElement("div", ...path);
+    if (!root.getChildren().find((c) => c.id === newEl.id)) {
+      root.appendChild(newEl);
+    }
     return newEl;
   }
 
@@ -230,14 +266,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return newEl;
   }
 
-  getOrCreateStyleRoot(): IElement {
-    const root = this._config.root;
-    const path = this.getStylePath();
-    const newEl = this.getElement(path) || this.createElement("style", ...path);
-    if (!root.getChildren().find((c) => c.id === newEl.id)) {
-      root.appendChild(newEl);
-    }
-    return newEl;
+  getStyleElement(
+    structName: string,
+    ...childPath: string[]
+  ): IElement | undefined {
+    return this.getElement(this.getStylePath(structName, ...childPath));
   }
 
   getUIElement(
@@ -245,6 +278,65 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     ...childPath: string[]
   ): IElement | undefined {
     return this.getElement(this.getUIPath(structName, ...childPath));
+  }
+
+  constructElement(
+    type: string,
+    rootPath: string[],
+    structName: string,
+    ...childPath: string[]
+  ): IElement {
+    const currPath: string[] = [...rootPath];
+    [structName, ...childPath].forEach((part) => {
+      if (part) {
+        const parent = this.getElement(currPath);
+        currPath.push(part);
+        if (parent && !this.getElement(currPath)) {
+          parent.appendChild(this.createElement(type, ...currPath));
+        }
+      }
+    });
+    return this.getElement([...rootPath, structName, ...childPath]) as IElement;
+  }
+
+  constructStyleElement(
+    structName: string,
+    fields?: unknown
+  ): IElement | undefined {
+    const hash = getHash(fields).toString();
+    const existingStructEl = this.getStyleElement(structName);
+    if (!existingStructEl) {
+      const structEl = this.constructElement(
+        "style",
+        this.getStylePath(),
+        structName
+      );
+      structEl.dataset["hash"] = hash;
+      return structEl;
+    }
+    if (existingStructEl.dataset["hash"] !== hash) {
+      // Content of existing element has changed, needs update
+      existingStructEl.replaceChildren();
+      existingStructEl.dataset["hash"] = hash;
+      return existingStructEl;
+    }
+    // Content of existing element is the same, no need to construct
+    return undefined;
+  }
+
+  constructUIElement(structName: string, fields: unknown): IElement {
+    const hash = getHash(fields).toString();
+    const existingStructEl = this.getUIElement(structName);
+    if (existingStructEl && existingStructEl.dataset["hash"] !== hash) {
+      existingStructEl.replaceChildren();
+    }
+    const structEl =
+      existingStructEl ||
+      this.constructElement("div", this.getUIPath(), structName);
+    if (structEl.dataset["hash"] !== hash) {
+      structEl.dataset["hash"] = hash;
+    }
+    return structEl;
   }
 
   protected _searchForFirst(
@@ -308,24 +400,5 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       return this._searchForFirst(parent, childName);
     }
     return undefined;
-  }
-
-  constructUIElement(
-    type: string,
-    structName: string,
-    ...childPath: string[]
-  ): IElement {
-    const uiPath = this.getUIPath();
-    const currPath: string[] = [...uiPath];
-    [structName, ...childPath].forEach((part) => {
-      if (part) {
-        const parent = this.getElement(currPath);
-        currPath.push(part);
-        if (parent && !this.getElement(currPath)) {
-          parent.appendChild(this.createElement(type, ...currPath));
-        }
-      }
-    });
-    return this.getElement([...uiPath, structName, ...childPath]) as IElement;
   }
 }

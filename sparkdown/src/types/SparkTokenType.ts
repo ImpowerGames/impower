@@ -1,8 +1,7 @@
-import { SparkStructType } from "./SparkStructType";
 import { SparkTitleKeyword } from "./SparkTitleKeyword";
 import { SparkVariableType } from "./SparkVariableType";
 
-export type SparkStructTokenType = SparkStructType;
+export type SparkStructTokenType = "struct";
 export type SparkVariableTokenType = SparkVariableType;
 export type SparkAssignTokenType = "assign";
 export type SparkCallTokenType = "call";

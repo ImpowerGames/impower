@@ -2,11 +2,14 @@ import { SpawnCommandData } from "../../../../../../../data";
 import { SparkGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
-export class SpawnCommandRunner extends CommandRunner<SpawnCommandData> {
+export class SpawnCommandRunner<G extends SparkGame> extends CommandRunner<
+  G,
+  SpawnCommandData
+> {
   override onExecute(
-    game: SparkGame,
+    game: G,
     data: SpawnCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): number[] {
     const { entity } = data;
     const { ids } = context;

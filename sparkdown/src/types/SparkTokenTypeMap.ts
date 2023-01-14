@@ -55,14 +55,7 @@ export interface SparkTokenTypeMap extends Record<SparkTokenType, SparkToken> {
   dialogue_parenthetical: SparkToken;
   import: SparkToken;
 
-  map: SparkStructToken;
-  ui: SparkStructToken;
-  style: SparkStructToken;
-  camera: SparkStructToken;
-  entity: SparkStructToken;
-  character: SparkStructToken;
-  animation: SparkStructToken;
-  writer: SparkStructToken;
+  struct: SparkStructToken;
 
   struct_field: SparkStructFieldToken;
 

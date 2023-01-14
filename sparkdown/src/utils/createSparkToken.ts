@@ -1,5 +1,5 @@
-import { sparkRegexes } from "../constants/sparkRegexes";
 import { SparkTokenTypeMap } from "../types/SparkTokenTypeMap";
+import { getIndent } from "./getIndent";
 import { getTo } from "./getTo";
 
 export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
@@ -17,8 +17,7 @@ export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
   t.ignore = obj?.ignore ?? false;
   t.skipToNextPreview = obj?.skipToNextPreview ?? false;
   t.html = obj?.html;
-  const indentMatch = t.content.match(sparkRegexes.indent);
-  const indent = indentMatch?.[0] || "";
+  const indent = getIndent(t.content);
   const offset = indent.length;
   t.offset = offset;
   t.indent = Math.floor(offset / 2);

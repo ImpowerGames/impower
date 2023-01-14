@@ -16,7 +16,6 @@ import { SparkParseState } from "../types/SparkParseState";
 import { SparkProperties } from "../types/SparkProperties";
 import { SparkSection } from "../types/SparkSection";
 import { SparkStruct } from "../types/SparkStruct";
-import { SparkStructType } from "../types/SparkStructType";
 import { SparkTitleKeyword } from "../types/SparkTitleKeyword";
 import { SparkTitlePosition } from "../types/SparkTitlePosition";
 import {
@@ -36,19 +35,17 @@ import { createSparkSection } from "./createSparkSection";
 import { createSparkToken } from "./createSparkToken";
 import { getAncestorIds } from "./getAncestorIds";
 import { getExpressionCallMatch } from "./getExpressionCallMatch";
-import { getPrimitiveType } from "./getPrimitiveType";
+import { getIndent } from "./getIndent";
 import { getScopedContext } from "./getScopedContext";
 import { getScopedItemId } from "./getScopedItemId";
 import { getScopedValueContext } from "./getScopedValueContext";
 import { getTo } from "./getTo";
-import { isAssetType } from "./isAssetType";
 import { isSparkDisplayToken } from "./isSparkDisplayToken";
-import { isStructType } from "./isStructType";
-import { isTagType } from "./isTagType";
 import { isVariableType } from "./isVariableType";
 import { stripBlockComments } from "./stripBlockComments";
 import { stripInlineComments } from "./stripInlineComments";
 import { trimCharacterExtension } from "./trimCharacterExtension";
+import { updateObjectMap } from "./updateObjectMap";
 
 const EMPTY_OBJECT = {};
 
@@ -1023,32 +1020,11 @@ const getVariableExpressionValue = (
   } else if (variable) {
     const resultType = typeof result;
     if (result != null && variable.type) {
-      if (resultType !== getPrimitiveType(variable.type)) {
+      if (resultType !== variable.type) {
         diagnostic(
           parsed,
           currentToken,
           `Cannot assign a '${resultType}' to a '${variable.type}' variable`,
-          [
-            {
-              name: "FOCUS",
-              focus: {
-                from: variable.from,
-                to: variable.from,
-              },
-            },
-          ],
-          variableNameFrom,
-          variableNameTo
-        );
-      } else if (
-        isAssetType(variable.type) &&
-        typeof result === "string" &&
-        !result.startsWith("https://")
-      ) {
-        diagnostic(
-          parsed,
-          currentToken,
-          `'${variable.type}' variables must be assigned a secure url`,
           [
             {
               name: "FOCUS",
@@ -1073,10 +1049,11 @@ const getVariableExpressionValue = (
 const getStruct = (
   parsed: SparkParseResult,
   currentToken: SparkToken,
-  type: SparkStructType,
+  type: string,
   name: string,
   from: number,
-  to: number
+  to: number,
+  severity: "error" | "warning" | "info" = "error"
 ): SparkStruct | undefined => {
   if (!name) {
     return undefined;
@@ -1097,7 +1074,8 @@ const getStruct = (
       `Cannot find ${type || "struct"} named '${name}'`,
       undefined,
       from,
-      to
+      to,
+      severity
     );
     return undefined;
   }
@@ -1108,7 +1086,8 @@ const getStruct = (
       `'${name}' is not ${prefixArticle(type)}`,
       [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
       from,
-      to
+      to,
+      severity
     );
     return undefined;
   }
@@ -1247,7 +1226,7 @@ const addStruct = (
   parsed: SparkParseResult,
   currentToken: SparkToken,
   currentSectionId: string,
-  type: SparkStructType,
+  type: string,
   name: string,
   base: string,
   line: number,
@@ -1318,7 +1297,7 @@ const addImport = (
     to: valueTo,
     line,
     base: "",
-    type: "map",
+    type: "import",
     name,
     fields: {
       ...(existing?.fields || EMPTY_OBJECT),
@@ -1384,17 +1363,11 @@ const addVariable = (
   const validValue = value != null ? value : "";
   const valueType =
     typeof validValue === "object"
-      ? (validValue as { type: SparkStructType })?.type
+      ? (validValue as { type: string })?.type
       : (typeof validValue as SparkVariableType);
   const variableType = (type || valueType) as SparkVariableType;
   if (!isVariableType(variableType)) {
     const error = `Unrecognized variable type`;
-    diagnostic(parsed, currentToken, error, undefined, typeFrom, typeTo);
-  } else if (
-    (isAssetType(variableType) || isTagType(variableType)) &&
-    valueType !== "string"
-  ) {
-    const error = `${variableType} must be initialized to a string`;
     diagnostic(parsed, currentToken, error, undefined, typeFrom, typeTo);
   } else {
     const existing = parsed?.variables?.[id];
@@ -1426,17 +1399,18 @@ const addVariable = (
 const addField = (
   parsed: SparkParseResult,
   config: SparkParserConfig | undefined,
-  currentToken: SparkToken,
+  currentToken: SparkStructFieldToken,
   currentSectionId: string,
-  currentStructName: string,
-  currentStructFieldId: string,
-  valueText: string,
-  line: number,
   nameFrom: number,
   nameTo: number,
   valueFrom: number,
   valueTo: number
 ): void => {
+  const id = currentToken.id;
+  const name = currentToken.name;
+  const valueText = currentToken.valueText;
+  const currentStructName = currentToken.struct;
+  const line = currentToken.line;
   if (!parsed.structs) {
     parsed.structs = {};
   }
@@ -1445,13 +1419,11 @@ const addField = (
     if (!struct.fields) {
       struct.fields = {};
     }
-    const id = currentStructFieldId;
     if (
       !lintName(parsed, currentToken, currentSectionId, id, nameFrom, nameTo)
     ) {
       return;
     }
-    const validName = id.split(".").slice(-1).join("");
     if (id) {
       if (!parsed.references) {
         parsed.references = {};
@@ -1462,8 +1434,8 @@ const addField = (
       parsed.references[line]?.push({
         from: nameFrom,
         to: nameTo,
-        name: validName,
-        id,
+        name: name,
+        id: id,
         declaration: true,
       });
     }
@@ -1471,7 +1443,6 @@ const addField = (
     if (found) {
       lintNameUnique(parsed, currentToken, "field", found, nameFrom, nameTo);
     } else {
-      const defaultValue = struct?.type === "map" ? validName : "";
       const value = getVariableExpressionValue(
         parsed,
         config,
@@ -1481,7 +1452,7 @@ const addField = (
         valueFrom,
         valueTo
       );
-      const validValue = value != null ? value : defaultValue;
+      const validValue = value != null ? value : "";
       const validType = typeof validValue as SparkVariableType;
       const existing = parsed?.structs?.[currentStructName]?.fields?.[id];
       const item: SparkField = {
@@ -1489,7 +1460,7 @@ const addField = (
         from: nameFrom,
         to: nameTo,
         line,
-        name: validName,
+        name: name,
         type: validType,
         value: validValue,
         valueText,
@@ -1701,8 +1672,7 @@ const pushToken = (
 
 const checkNotes = (
   parsed: SparkParseResult,
-  currentToken: SparkToken,
-  currentSectionId: string
+  currentToken: SparkToken
 ): void => {
   const str = currentToken.content;
   if (str?.indexOf("[") >= 0) {
@@ -1711,23 +1681,13 @@ const checkNotes = (
     if (noteMatches) {
       for (let i = 0; i < noteMatches.length; i += 1) {
         const noteMatch = noteMatches[i] || "";
-        const type: SparkVariableType | SparkVariableType[] =
-          noteMatch.startsWith("(") ? "audio" : ["image", "graphic"];
+        const type = noteMatch.startsWith("(") ? "audio" : "image";
         const name = noteMatch.slice(2, noteMatch.length - 2);
         startIndex = str.indexOf(noteMatch, startIndex) + 2;
         const from = currentToken.from + startIndex;
         const to = from + noteMatch.length - 4;
         if (name) {
-          getVariable(
-            parsed,
-            currentToken,
-            currentSectionId,
-            type,
-            name,
-            from,
-            to,
-            "warning"
-          );
+          getStruct(parsed, currentToken, type, name, from, to, "warning");
         }
       }
     }
@@ -1737,7 +1697,6 @@ const checkNotes = (
 const pushAssets = (
   parsed: SparkParseResult,
   currentToken: SparkToken,
-  currentSectionId: string,
   state: SparkParseState
 ): void => {
   const str = currentToken.content;
@@ -1746,23 +1705,13 @@ const pushAssets = (
   if (noteMatches) {
     for (let i = 0; i < noteMatches.length; i += 1) {
       const noteMatch = noteMatches[i]?.trim() || "";
-      const type: SparkVariableType | SparkVariableType[] =
-        noteMatch.startsWith("(") ? "audio" : ["image", "graphic"];
+      const type = noteMatch.startsWith("(") ? "audio" : "image";
       const name = noteMatch.slice(2, noteMatch.length - 2);
       startIndex = str.indexOf(noteMatch, startIndex) + 2;
       const from = currentToken.from + startIndex;
       const to = from + noteMatch.length - 4;
       if (name) {
-        getVariable(
-          parsed,
-          currentToken,
-          currentSectionId,
-          type,
-          name,
-          from,
-          to,
-          "warning"
-        );
+        getStruct(parsed, currentToken, type, name, from, to, "warning");
       }
       if (!state.assets) {
         state.assets = [];
@@ -1977,7 +1926,7 @@ const processDisplayedContent = (
     token.text,
     validContentFrom
   );
-  checkNotes(parsed, currentToken, currentSectionId);
+  checkNotes(parsed, currentToken);
 };
 
 const augmentResult = (
@@ -2048,42 +1997,58 @@ const getPrevSiblingToken = <T extends SparkToken>(
   return prevToken as T;
 };
 
-const getStructFieldId = (
+const updateFieldToken = (
   fieldToken: SparkStructFieldToken,
   currentFieldTokens: SparkStructFieldToken[]
-): string => {
+): void => {
   const parentToken = getParentToken(fieldToken, currentFieldTokens);
   const parentId = parentToken?.id || "";
   let id = parentId;
+  const name = fieldToken.name;
+  const valueText = fieldToken.valueText;
   if (fieldToken.mark === "-") {
     const prevSiblingToken = getPrevSiblingToken(
       fieldToken,
       currentFieldTokens
     );
+    let arrayIndex = 0;
     if (
       prevSiblingToken &&
       prevSiblingToken.indent === fieldToken.indent &&
       prevSiblingToken.mark === fieldToken.mark
     ) {
-      const siblingPathParts = prevSiblingToken.id.split(".");
-      const siblingValuePathParts = prevSiblingToken.name
-        ? siblingPathParts.slice(0, -1)
-        : siblingPathParts;
-      const siblingIndexPart =
-        siblingValuePathParts[siblingValuePathParts.length - 1];
-      const parentPath = siblingValuePathParts.slice(0, -1).join(".");
-      const siblingIndex = Number(siblingIndexPart);
-      if (!Number.isNaN(siblingIndex)) {
-        id = parentPath + `.${siblingIndex + 1}`;
+      const siblingId = prevSiblingToken.id;
+      const siblingPathParts = siblingId.split(".");
+      for (let i = siblingPathParts.length - 1; i >= 0; i -= 1) {
+        const part = siblingPathParts[i];
+        const siblingIndex = Number(part);
+        if (!Number.isNaN(siblingIndex)) {
+          arrayIndex = siblingIndex + 1;
+          const siblingParentId = siblingPathParts.slice(0, i).join(".");
+          id = siblingParentId + "." + `${arrayIndex}`;
+          break;
+        }
       }
     } else {
-      id = parentId + `.${0}`;
+      id = parentId + "." + `${arrayIndex}`;
     }
+    fieldToken.index = arrayIndex;
+    if (name && valueText) {
+      const rawName = getRawString(name);
+      fieldToken.name = rawName;
+      id += "." + rawName;
+    } else {
+      fieldToken.name = `${arrayIndex}`;
+    }
+    if (!valueText) {
+      fieldToken.valueText = name;
+    }
+  } else if (name) {
+    const rawName = getRawString(name);
+    id += "." + rawName;
+    fieldToken.name = rawName;
   }
-  if (fieldToken.name) {
-    id += `.${fieldToken.name}`;
-  }
-  return id;
+  fieldToken.id = id;
 };
 
 const hoistDeclarations = (
@@ -2123,6 +2088,7 @@ const hoistDeclarations = (
   for (let i = 0; i < lines.length; i += 1) {
     const to = getTo(from, lines[i] || "", newLineLength || 0);
     const text = stripInlineComments(lines[i] || "");
+    const indent = getIndent(text);
 
     if ((match = text.match(sparkRegexes.section))) {
       const currentToken = createSparkToken("section", newLineLength, {
@@ -2266,17 +2232,17 @@ const hoistDeclarations = (
         }
       }
     } else if ((match = text.match(sparkRegexes.struct))) {
-      const type = match[4] as SparkStructType;
+      const type = match[4] || "";
       const name = match[6] || "";
       const base = match[10] || "";
       const colon = match[14] || "";
-      const currentToken = createSparkToken(type, newLineLength, {
+      const currentToken = createSparkToken("struct", newLineLength, {
         content: text,
         line: i + (config?.lineOffset || 0),
         from,
       });
       if (colon) {
-        stateType = type;
+        stateType = "struct";
       }
       const nameFrom = currentToken.from + getStart(match, 6);
       const nameTo = nameFrom + name.length;
@@ -2300,10 +2266,10 @@ const hoistDeclarations = (
       }
       currentStructName = name;
       currentFieldTokens = [];
-    } else if (isStructType(stateType) && text.trim()) {
+    } else if (stateType === "struct" && indent.length >= 2) {
       if ((match = text.match(sparkRegexes.struct_field))) {
         const mark = match[2] || "";
-        const name = getRawString(match[4] || "");
+        const name = match[4] || "";
         const valueText = match[8] || "";
         const nameFrom = from + getStart(match, 4);
         const nameTo = nameFrom + name.length;
@@ -2319,18 +2285,14 @@ const hoistDeclarations = (
           currentToken.struct = currentStructName;
           currentToken.mark = mark;
           currentToken.name = name;
-          currentToken.value = valueText;
-          currentToken.id = getStructFieldId(currentToken, currentFieldTokens);
+          currentToken.valueText = valueText;
+          updateFieldToken(currentToken, currentFieldTokens);
           if (valueText || !colon) {
             addField(
               parsed,
               config,
               currentToken,
               currentSectionId,
-              currentStructName,
-              currentToken.id,
-              valueText,
-              currentToken.line,
               nameFrom,
               nameTo,
               valueFrom,
@@ -2353,7 +2315,10 @@ const hoistDeclarations = (
       addImport(parsed, valueText, currentToken.line, valueFrom, valueTo);
     }
 
-    const isSeparator = !text.trim() && text.length < 2;
+    const isSeparator =
+      !text.trim() &&
+      ((stateType !== "dialogue" && stateType !== "dual_dialogue") ||
+        text.length < 2);
     if (isSeparator) {
       stateType = "normal";
     }
@@ -3024,14 +2989,13 @@ export const parseSpark = (
           }
         }
       } else if ((match = currentToken.content.match(sparkRegexes.struct))) {
-        const type = match[4] as SparkStructType;
         const name = match[6] || "";
         const colon = match[14] || "";
         if (colon) {
-          stateType = type;
+          stateType = "struct";
         }
-        currentToken.type = type;
-        if (currentToken.type === type) {
+        currentToken.type = "struct";
+        if (currentToken.type === "struct") {
           currentToken.name = name;
         }
         currentStructName = name;
@@ -3282,7 +3246,7 @@ export const parseSpark = (
         currentToken.type = "assets";
         if (currentToken.type === "assets") {
           currentToken.skipToNextPreview = false;
-          pushAssets(parsed, currentToken, currentSectionId, state);
+          pushAssets(parsed, currentToken, state);
           processDisplayedContent(
             parsed,
             config,
@@ -3329,7 +3293,7 @@ export const parseSpark = (
         currentToken.type = "dialogue_asset";
         if (currentToken.type === "dialogue_asset") {
           currentToken.skipToNextPreview = true;
-          pushAssets(parsed, currentToken, currentSectionId, state);
+          pushAssets(parsed, currentToken, state);
           processDisplayedContent(
             parsed,
             config,
@@ -3381,18 +3345,18 @@ export const parseSpark = (
           currentToken.wait = true;
         }
       }
-    } else if (isStructType(stateType || "")) {
+    } else if (stateType === "struct") {
       if ((match = currentToken.content.match(sparkRegexes.struct_field))) {
         const mark = match[2] || "";
-        const name = getRawString(match[4] || "");
+        const name = match[4] || "";
         const valueText = match[8] || "";
         currentToken.type = "struct_field";
         if (currentToken.type === "struct_field") {
           currentToken.struct = currentStructName;
           currentToken.mark = mark;
           currentToken.name = name;
-          currentToken.value = valueText;
-          currentToken.id = getStructFieldId(currentToken, currentFieldTokens);
+          currentToken.valueText = valueText;
+          updateFieldToken(currentToken, currentFieldTokens);
           currentFieldTokens.push(currentToken);
           const field =
             parsed.structs?.[currentStructName]?.fields[currentToken.id];
@@ -3582,6 +3546,10 @@ export const parseSpark = (
     parsed.tokens.pop();
   }
   parsed.parseTime = new Date().getTime();
+  if (!parsed.objectMap) {
+    parsed.objectMap = {};
+  }
+  updateObjectMap(parsed.objectMap, parsed.structs);
   // console.log(parsed);
 
   return parsed;

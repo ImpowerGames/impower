@@ -10,9 +10,9 @@ import { updateStatus } from "./updateStatus";
 
 export const parseSparkDocument = (document: vscode.TextDocument) => {
   performance.mark("parseSparkDocument-start");
-  const variables = fileState[document.uri.toString()]?.assets;
+  const structs = fileState[document.uri.toString()]?.assets;
   const output = GameSparkParser.instance.parse(document.getText(), {
-    augmentations: { variables },
+    augmentations: { structs },
   });
   parseState.lastParsedUri = document.uri.toString();
   parseState.parsedDocuments[parseState.lastParsedUri] = output;

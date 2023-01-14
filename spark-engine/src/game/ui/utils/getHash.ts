@@ -1,4 +1,4 @@
-export const getHash = (obj: unknown): number => {
+export const getHash = (obj?: unknown): number => {
   let hash = 0;
   let i;
   let chr;

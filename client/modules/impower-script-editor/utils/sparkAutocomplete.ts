@@ -14,6 +14,7 @@ import {
   getAllProperties,
   Note,
   Pitch,
+  STRUCT_DEFAULTS,
   SynthTrack,
   Tone,
 } from "../../../../spark-engine";
@@ -21,20 +22,16 @@ import {
   getAncestorIds,
   getChildrenIds,
   getRelativeSection,
-  getScopedContext,
   getSectionAt,
   getSiblingIds,
-  isAssetType,
-  isTagType,
   SparkParseResult,
   sparkRegexes,
   SparkSection,
   SparkStructFieldToken,
-  structTypes,
 } from "../../../../sparkdown";
 import { colors } from "../constants/colors";
 import { Type } from "../types/type";
-import { sparkSpecifications } from "./sparkSpecifications";
+import { getSparkValidation } from "./getSparkValidation";
 
 interface Option {
   line: number;
@@ -103,6 +100,8 @@ type CompletionType =
   | "choice_plus"
   | "choice_minus";
 
+const structTypes = Object.keys(STRUCT_DEFAULTS);
+
 const getInfoNode = (info: string, color?: string): Node => {
   const preview = document.createElement("div");
   if (info) {
@@ -164,17 +163,19 @@ export const uppercaseParagraphSnippets: readonly Completion[] = [
   }),
 ];
 
-export const structSnippets: readonly Completion[] = structTypes.map((type) =>
-  snip(
-    `@ ${type} ${CURSOR}${CURSOR_OPEN}${
-      type[0].toUpperCase() + type.slice(1)
-    }Name${CURSOR_CLOSE}:${CURSOR}`,
+export const structSnippets: readonly Completion[] = structTypes.map((type) => {
+  const name =
+    type === "style"
+      ? `${type[0].toUpperCase() + type.slice(1)}Name`
+      : `${type.toUpperCase()}_NAME`;
+  return snip(
+    `@ ${type} ${CURSOR}${CURSOR_OPEN}${name}${CURSOR_CLOSE}:${CURSOR}`,
     {
       label: `@ ${type}`,
       type: "struct",
     }
-  )
-);
+  );
+});
 
 export const repeatSnippets: readonly Completion[] = [
   snip("^", {
@@ -389,7 +390,15 @@ export const getNoteSnippets = (
 };
 
 export const nameSnippets = (
-  options: (string | Option)[],
+  options: (
+    | string
+    | {
+        name: string;
+        type: string;
+        infoColor?: string;
+        completionType?: CompletionType;
+      }
+  )[],
   completionType: CompletionType,
   prefix = "",
   suffix = "",
@@ -743,25 +752,24 @@ export const characterSnippets = (
 };
 
 export const assetSnippets = (
-  references: { name: string }[],
-  valueMap: Record<string, string>,
-  type: "image" | "audio" | "video" | "text" | "graphic"
+  references: { name: string; value: unknown }[],
+  type: string
 ): Completion[] => {
-  return references.map(({ name }) =>
+  return references.map(({ name, value }) =>
     snip(name, {
       label: name,
       type: "function",
       info: () => {
-        const fileUrl = valueMap[name];
+        const fileUrl = value as string;
         const preview = document.createElement(
-          type === "audio" ? "audio" : "img"
-        );
+          type === "image" ? "img" : type
+        ) as HTMLImageElement;
         const rgx = /%2F([0-9][0-9][0-9])[?]/;
         const match = fileUrl.match(rgx);
         const storageName = match?.[1];
         const previewPrefix = "THUMB_";
         const previewUrl =
-          match && (type === "image" || type === "graphic")
+          match && type === "image"
             ? fileUrl.replace(rgx, `%2F${previewPrefix}${storageName}?`)
             : undefined;
         preview.src = previewUrl || fileUrl;
@@ -794,9 +802,12 @@ export const allFromList = (
 
 export const sparkAutocomplete = async (
   context: CompletionContext,
-  parseContext: { result: SparkParseResult }
+  parseContext: {
+    result: SparkParseResult;
+  }
 ): Promise<CompletionResult> => {
   const { result } = parseContext;
+  const objectMap = result?.objectMap || {};
   const requestTree = (
     onTreeReady: (value: Tree | PromiseLike<Tree>) => void
   ): number => {
@@ -824,15 +835,9 @@ export const sparkAutocomplete = async (
   const [sectionId, section] = getSectionAt(node.from, result);
   const sectionLevel = section?.level || 0;
   const ancestorIds = getAncestorIds(sectionId);
-  const [, variables] = getScopedContext<string>(
-    "variables",
-    sectionId,
-    result?.sections
-  );
   const variableOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
-    Object.entries(result?.sections?.[ancestorId]?.variables || {})
-      .filter(([, v]) => !isAssetType(v.type) && !isTagType(v.type))
-      .map(([id]) => {
+    Object.entries(result?.sections?.[ancestorId]?.variables || {}).map(
+      ([id]) => {
         const found = result?.sections?.[ancestorId]?.variables?.[id];
         const completionType: CompletionType = found.parameter
           ? "parameter"
@@ -847,41 +852,8 @@ export const sparkAutocomplete = async (
           completionType,
           infoColor,
         };
-      })
-  );
-  const entityOptions: Option[] = Object.keys(result?.structs || {}).map(
-    (id) => {
-      const found = result?.structs?.[id];
-      return {
-        line: found.line,
-        name: found.name,
-        type: found.type,
-      };
-    }
-  );
-  const assetOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
-    Object.entries(result?.sections?.[ancestorId]?.variables || {})
-      .filter(([, v]) => isAssetType(v.type))
-      .map(([id]) => {
-        const found = result?.sections?.[ancestorId]?.variables?.[id];
-        return {
-          line: found.line,
-          name: found.name,
-          type: found.type,
-        };
-      })
-  );
-  const tagOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
-    Object.entries(result?.sections?.[ancestorId]?.variables || {})
-      .filter(([, v]) => isTagType(v.type))
-      .map(([id]) => {
-        const found = result?.sections?.[ancestorId]?.variables?.[id];
-        return {
-          line: found.line,
-          name: found.name,
-          type: "tag",
-        };
-      })
+      }
+    )
   );
   const isUppercase = input.toUpperCase() === input;
 
@@ -981,22 +953,43 @@ export const sparkAutocomplete = async (
   }
   if ([Type.ImageNote].includes(node.type.id)) {
     const completions: Completion[] = [];
-    const validOptions = assetOptions.filter(
-      (x) => x.type === "image" || x.type === "graphic"
+    const validOptions = Object.entries(result?.objectMap?.image || {}).map(
+      ([structName, struct]) => {
+        return {
+          name: structName,
+          value: struct?.src || "",
+        };
+      }
     );
-    completions.push(...assetSnippets(validOptions, variables, "image"));
+    completions.push(...assetSnippets(validOptions, "image"));
     return completeFromList(completions)(context);
   }
   if ([Type.AudioNote].includes(node.type.id)) {
     const completions: Completion[] = [];
-    const validOptions = assetOptions.filter((x) => x.type === "audio");
-    completions.push(...assetSnippets(validOptions, variables, "audio"));
+    const validOptions = Object.entries(result?.objectMap?.audio || {}).map(
+      ([structName, struct]) => {
+        return {
+          name: structName,
+          value: struct?.src || "",
+        };
+      }
+    );
+    completions.push(...assetSnippets(validOptions, "audio"));
     return completeFromList(completions)(context);
   }
   if (node.type.id === Type.DynamicTag) {
     const completions: Completion[] = [];
+    const validOptions = Object.entries(result?.objectMap?.tag || {}).map(
+      ([, struct]) => {
+        return {
+          type: "tag",
+          name: struct.name,
+          value: struct?.content || "",
+        };
+      }
+    );
     completions.push(
-      ...nameSnippets(tagOptions, "tag", "", "", colors.tag),
+      ...nameSnippets(validOptions, "tag", "", "", colors.tag),
       ...effectSnippets
     );
     return completeFromList(completions)(context);
@@ -1013,7 +1006,7 @@ export const sparkAutocomplete = async (
     const fieldId = structField?.id;
     const struct = result.structs[structName || ""];
     const structType = struct?.type;
-    const defaultStructObj = sparkSpecifications[structType]?.default;
+    const defaultStructObj = STRUCT_DEFAULTS[structType]?.[""];
     if (defaultStructObj) {
       const properties = getAllProperties(defaultStructObj);
       const possibleNames: Record<string, unknown> = {};
@@ -1056,10 +1049,10 @@ export const sparkAutocomplete = async (
       const structField = result.tokens[tokenIndex] as SparkStructFieldToken;
       const structName = structField?.struct;
       const fieldId = structField?.id;
-      const defaultValue = structField?.value;
+      const defaultValue = structField?.valueText;
       const struct = result.structs[structName || ""];
       const structType = struct?.type;
-      const validation = sparkSpecifications[structType]?.validation;
+      const validation = getSparkValidation(structType, objectMap)?.validation;
       if (validation) {
         const requirements = getAllProperties(validation);
         const requirement = requirements[fieldId];
@@ -1106,9 +1099,15 @@ export const sparkAutocomplete = async (
   }
   if ([Type.CallEntityName].includes(node.type.id)) {
     const completions: Completion[] = [];
-    const validOptions = entityOptions.filter(
-      (x) => x.type === "image" || x.type === "graphic"
+    const entityOptions = Object.keys(result?.objectMap?.entity || {}).map(
+      (name) => {
+        return {
+          name,
+          type: "entity",
+        };
+      }
     );
+    const validOptions = entityOptions.filter((x) => x.type === "image");
     if (input.match(sparkRegexes.string)) {
       completions.push(
         ...nameSnippets(validOptions, "entity", "", "", colors.struct)

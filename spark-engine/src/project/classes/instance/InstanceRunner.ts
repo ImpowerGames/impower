@@ -1,7 +1,8 @@
 import { InstanceData, Runner } from "../../../data";
-import { SparkGame } from "../../../game";
+import { Game } from "../../../game";
 
 export abstract class InstanceRunner<
+  G extends Game,
   T extends InstanceData = InstanceData
 > extends Runner {
   getVariableIds(_data: T): string[] {
@@ -17,11 +18,11 @@ export abstract class InstanceRunner<
   }
 
   onPreview(
-    _game: SparkGame,
+    _game: G,
     _data: T,
     _context: {
       valueMap: Record<string, unknown>;
-      objectMap: { [type: string]: Record<string, object> };
+      objectMap: { [type: string]: Record<string, any> };
       instant?: boolean;
       debug?: boolean;
     }

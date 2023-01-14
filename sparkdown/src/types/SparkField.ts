@@ -9,4 +9,5 @@ export interface SparkField {
   valueText: string;
   value: unknown;
   imported?: boolean;
+  struct?: string;
 }

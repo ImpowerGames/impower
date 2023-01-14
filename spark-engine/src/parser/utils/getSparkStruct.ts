@@ -10,7 +10,7 @@ export const getSparkStruct = (
   if (token.ignore) {
     return null;
   }
-  if (token.type === "style") {
+  if (token.type === "struct") {
     return structs?.[token.name || ""];
   }
   if (token.type === "struct_field") {

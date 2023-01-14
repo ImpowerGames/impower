@@ -27,7 +27,6 @@ import HashtagRegularIcon from "../../../../resources/icons/regular/hashtag.svg"
 import HouseRegularIcon from "../../../../resources/icons/regular/house.svg";
 import ItalicRegularIcon from "../../../../resources/icons/regular/italic.svg";
 import ListCheckRegularIcon from "../../../../resources/icons/regular/list-check.svg";
-import ListOlRegularIcon from "../../../../resources/icons/regular/list-ol.svg";
 import ListUlRegularIcon from "../../../../resources/icons/regular/list-ul.svg";
 import MessageDotsRegularIcon from "../../../../resources/icons/regular/message-dots.svg";
 import RotateRegularIcon from "../../../../resources/icons/regular/rotate.svg";
@@ -489,26 +488,14 @@ const DataToolbar = React.memo((props: ToolbarProps): JSX.Element => {
           <FontIcon aria-label={`assign variable`}>{`=`}</FontIcon>
         </StyledMainToggleButton>
       </Tooltip>
-      <Tooltip title="declare list" placement="top" arrow>
+      <Tooltip title="declare struct" placement="top" arrow>
         <StyledMainToggleButton
-          value="list"
-          aria-label="list"
-          onPointerEnter={(e): void => onPointerEnter?.(e, "list")}
-          onPointerLeave={(e): void => onPointerLeave?.(e, "list")}
+          value="struct"
+          aria-label="struct"
+          onPointerEnter={(e): void => onPointerEnter?.(e, "struct")}
+          onPointerLeave={(e): void => onPointerLeave?.(e, "struct")}
         >
-          <FontIcon aria-label={`list`}>
-            <ListOlRegularIcon />
-          </FontIcon>
-        </StyledMainToggleButton>
-      </Tooltip>
-      <Tooltip title="declare map" placement="top" arrow>
-        <StyledMainToggleButton
-          value="map"
-          aria-label="map"
-          onPointerEnter={(e): void => onPointerEnter?.(e, "map")}
-          onPointerLeave={(e): void => onPointerLeave?.(e, "map")}
-        >
-          <FontIcon aria-label={`map`}>
+          <FontIcon aria-label={`struct`}>
             <ListUlRegularIcon />
           </FontIcon>
         </StyledMainToggleButton>

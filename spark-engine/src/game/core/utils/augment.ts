@@ -1,4 +1,4 @@
-import { RecursivePartial } from "../types/RecursivePartial";
+import { RecursivePartial } from "../../../../../spark-evaluate/src/types/RecursivePartial";
 import { setProperty } from "./setProperty";
 import { traverse } from "./traverse";
 

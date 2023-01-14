@@ -100,4 +100,20 @@ export class Element implements IElement {
   replaceChildren(...children: IElement[]): void {
     this._children = children;
   }
+
+  observeSize(_breakpoints: Record<string, number>): () => void {
+    return () => null;
+  }
+
+  setImportContent(_properties: Record<string, any>): void {}
+
+  setStyleContent(
+    _properties: Record<string, any>,
+    _objectMap: { [type: string]: Record<string, any> }
+  ): void {}
+
+  setAnimationContent(
+    _properties: Record<string, any>,
+    _objectMap: { [type: string]: Record<string, any> }
+  ): void {}
 }

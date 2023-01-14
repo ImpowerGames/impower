@@ -1,22 +1,22 @@
 import { BlockData, CommandData } from "../../../../../data";
-import { SparkGame } from "../../../../../game";
+import { Game } from "../../../../../game";
 import { ContainerRunner } from "../../container/ContainerRunner";
 import { CommandRunner } from "../../items/command/CommandRunner";
 
-export interface BlockContext {
+export interface BlockContext<G extends Game> {
   ids: Record<string, string>;
   valueMap: Record<string, unknown>;
-  objectMap: { [type: string]: Record<string, object> };
+  objectMap: { [type: string]: Record<string, any> };
   triggers: string[];
   parameters: string[];
   commands: {
-    runner: CommandRunner;
+    runner: CommandRunner<G>;
     data: CommandData;
   }[];
   debug?: boolean;
 }
 
-export class BlockRunner extends ContainerRunner<BlockData> {
+export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
   /**
    * This method is called once per game step while the scene is running.
    * @param time The current time. Either a High Resolution Timer value if it comes from Request Animation Frame, or Date.now if using SetTimeout.
@@ -26,8 +26,8 @@ export class BlockRunner extends ContainerRunner<BlockData> {
    */
   update(
     blockId: string,
-    context: BlockContext,
-    game: SparkGame,
+    context: BlockContext<G>,
+    game: G,
     time: number,
     delta: number
   ): boolean | null {
@@ -91,8 +91,8 @@ export class BlockRunner extends ContainerRunner<BlockData> {
    */
   private runCommands(
     blockId: string,
-    context: BlockContext,
-    game: SparkGame,
+    context: BlockContext<G>,
+    game: G,
     time: number
   ): boolean | null {
     const commands = context?.commands;

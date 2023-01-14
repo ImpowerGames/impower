@@ -1,5 +1,4 @@
 import { SparkField } from "./SparkField";
-import { SparkStructType } from "./SparkStructType";
 
 export interface SparkStruct {
   from: number;
@@ -7,7 +6,7 @@ export interface SparkStruct {
   line: number;
   name: string;
   base: string;
-  type: SparkStructType;
+  type: string;
   fields: Record<string, SparkField>;
   imported?: boolean;
 }

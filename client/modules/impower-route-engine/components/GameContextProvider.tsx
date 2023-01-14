@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { SparkElement } from "../../../../spark-dom";
+import { SparkDOMElement } from "../../../../spark-dom";
 import {
   EngineSparkParser,
   FileData,
@@ -12,7 +12,7 @@ import { GameContext } from "../contexts/gameContext";
 import { ProjectEngineContext } from "../contexts/projectEngineContext";
 
 const createSparkContext = (
-  root: SparkElement,
+  root: SparkDOMElement,
   script: string,
   files: Record<string, FileData>,
   config?: Partial<SparkContextConfig>
@@ -20,10 +20,12 @@ const createSparkContext = (
   const augmentations = getScriptAugmentations(files);
   const parsed = EngineSparkParser.instance.parse(script, { augmentations });
   const createElement = (type: string): IElement => {
-    return new SparkElement(document.createElement(type));
+    return new SparkDOMElement(document.createElement(type));
   };
   return new SparkContext(parsed, {
-    ui: { root, createElement },
+    config: {
+      ui: { root, createElement },
+    },
     ...(config || {}),
   });
 };
@@ -68,7 +70,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
 
   const rootElement = document.getElementById("spark-root");
   const root = useMemo(
-    () => (rootElement ? new SparkElement(rootElement) : undefined),
+    () => (rootElement ? new SparkDOMElement(rootElement) : undefined),
     [rootElement]
   );
 
@@ -94,11 +96,9 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
           }
         );
         const objectMap = sparkContextRef.current.game.struct.config.objectMap;
+        sparkContextRef.current.game.ui.loadTheme(objectMap);
         sparkContextRef.current.game.ui.loadStyles(objectMap);
-        sparkContextRef.current.game.ui.loadUI(
-          objectMap,
-          ...Object.keys(objectMap?.ui || {})
-        );
+        sparkContextRef.current.game.ui.loadUI(objectMap);
         setSparkContext(sparkContextRef.current);
       }
     }

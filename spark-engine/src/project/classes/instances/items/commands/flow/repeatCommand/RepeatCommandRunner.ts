@@ -1,12 +1,15 @@
 import { CommandData } from "../../../../../../../data";
-import { SparkGame } from "../../../../../../../game";
+import { Game } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
-export class RepeatCommandRunner extends CommandRunner<CommandData> {
+export class RepeatCommandRunner<G extends Game> extends CommandRunner<
+  G,
+  CommandData
+> {
   override onExecute(
-    game: SparkGame,
+    game: G,
     data: CommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): number[] {
     const id = data.reference.parentContainerId;
 

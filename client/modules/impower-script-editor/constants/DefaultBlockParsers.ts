@@ -1,7 +1,7 @@
 /* eslint-disable no-cond-assign */
 import { Tree } from "@lezer/common";
 import { tokenize } from "../../../../spark-evaluate";
-import { entityMethods, MethodType, sparkRegexes } from "../../../../sparkdown";
+import { sparkRegexes } from "../../../../sparkdown";
 import { BlockContext } from "../classes/BlockContext";
 import { Element } from "../classes/Element";
 import { Line } from "../classes/Line";
@@ -1227,7 +1227,6 @@ export const DefaultBlockParsers: {
         if (tokenMatches) {
           const start = 0;
           const end = tokenMatches.length;
-          let paramIndex = 0;
           for (let i = start; i < end; i += 1) {
             const token = tokenMatches[i];
             from = to;
@@ -1237,15 +1236,8 @@ export const DefaultBlockParsers: {
             }
             if (token === ",") {
               buf = buf.write(Type.CallSeparatorMark, from, to);
-            } else if (
-              entityMethods.includes(name as MethodType) &&
-              paramIndex === 0
-            ) {
-              buf = buf.write(Type.CallEntityName, from, to);
-              paramIndex += 1;
             } else {
               buf = buf.write(Type.CallValue, from, to);
-              paramIndex += 1;
               const expression = line.text.slice(
                 line.pos + from,
                 line.pos + to

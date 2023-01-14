@@ -1,11 +1,10 @@
-import { defaultDisplayScript } from "../defaults/defaultDisplayScript";
 import { SparkDeclarations } from "../types/SparkDeclarations";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkParseResult } from "../types/SparkParseResult";
 import { parseSpark } from "../utils/parseSpark";
 
 export class SparkParser {
-  defaults: string[] = [defaultDisplayScript];
+  defaults: string[] = [];
 
   config: SparkParserConfig = {};
 

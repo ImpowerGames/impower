@@ -7,6 +7,4 @@ export type CurveType =
   | "sine"
   | "expo"
   | "circ"
-  | "back"
-  | "elastic"
-  | "bounce";
+  | "back";

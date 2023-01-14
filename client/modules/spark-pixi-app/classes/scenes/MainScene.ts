@@ -144,11 +144,11 @@ export class MainScene extends SparkScene {
   }
 
   override async load(): Promise<void> {
-    const svgEntries = Object.entries(
+    const imageEntries = Object.entries(
       this.context?.game?.logic?.config?.blockMap?.[""]?.variables || {}
-    ).filter(([, v]) => v.type === "graphic");
+    ).filter(([, v]) => v.type.startsWith("image"));
     await Promise.all(
-      svgEntries.map(async ([, v]) => {
+      imageEntries.map(async ([, v]) => {
         const svg = await SVGLoader.instance.load(v.value as string);
         if (svg) {
           const animationName = "default";

@@ -1,32 +1,7 @@
-import { MethodType } from "../types/MethodType";
-import { assetTypes } from "./assetTypes";
-import { tagTypes } from "./tagTypes";
-
-export const entityMethods: readonly MethodType[] = [
-  "spawn",
-  "destroy",
-  "move",
-  "moveX",
-  "moveY",
-  "moveZ",
-  "rotate",
-  "rotateX",
-  "rotateY",
-  "rotateZ",
-  "scale",
-  "scaleX",
-  "scaleY",
-] as const;
-
-export const primitives: readonly MethodType[] = [
-  "string",
-  "boolean",
-  "number",
-] as const;
-
-export const types = [...assetTypes, ...tagTypes] as const;
+import { primitiveTypes } from "./primitiveTypes";
 
 export const reservedKeywords = [
+  ...primitiveTypes,
   "locale",
   "any",
   "as",
@@ -90,6 +65,4 @@ export const reservedKeywords = [
   "while",
   "with",
   "yield",
-  ...primitives,
-  ...types,
 ];

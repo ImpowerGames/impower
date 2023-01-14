@@ -1,13 +1,9 @@
 import { format } from "../../../../../../../../../spark-evaluate";
 import {
+  Character,
   Chunk,
-  configure,
+  clone,
   convertNoteToHertz,
-  deepCopy,
-  DEFAULT_CHARACTER,
-  DEFAULT_WRITER,
-  DEFAULT_WRITERS,
-  req,
   SparkGame,
   Tone,
   transpose,
@@ -44,7 +40,7 @@ export const executeDisplayCommand = (
   data?: DisplayCommandData,
   context?: {
     valueMap: Record<string, unknown>;
-    objectMap: { [type: string]: Record<string, object> };
+    objectMap: { [type: string]: Record<string, any> };
     instant?: boolean;
     debug?: boolean;
     fadeOutDuration?: number;
@@ -61,31 +57,18 @@ export const executeDisplayCommand = (
 
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
-  const structName = "Display";
-
-  game.ui.loadStyles(objectMap);
-  game.ui.loadUI(objectMap, structName);
-
-  const displayConfigs: Record<string, Writer> = {};
-  Object.keys(DEFAULT_WRITERS).forEach((type) => {
-    const defaultDisplayConfig = DEFAULT_WRITERS[type];
-    if (defaultDisplayConfig) {
-      displayConfigs[type] = configure(
-        defaultDisplayConfig,
-        objectMap,
-        "display",
-        type
-      );
-    }
-  });
+  const structName = "DISPLAY";
 
   const fadeOutDuration = context?.fadeOutDuration || 0;
+
+  const writerConfigs = objectMap?.["writer"] as Record<string, Writer>;
+  const writerConfig = writerConfigs?.[type];
 
   const assetsOnly = type === "assets";
   if (assetsOnly) {
     const backgroundEl = game.ui.findFirstUIElement(
       structName,
-      displayConfigs?.["background"]?.className || "Background"
+      writerConfigs?.["background"]?.className || "Background"
     );
     if (backgroundEl) {
       const imageName = assets?.[0] || "";
@@ -110,24 +93,17 @@ export const executeDisplayCommand = (
     .replace(/([ ])/g, "_")
     .replace(/([.'"`])/g, "");
 
-  const characterConfig = configure(
-    DEFAULT_CHARACTER,
-    objectMap,
-    "character",
-    type,
-    characterKey
-  );
-
-  const writerConfig = configure(DEFAULT_WRITER, objectMap, "writer", type);
+  const characterConfig = (objectMap?.["character"]?.[characterKey] ||
+    objectMap?.["character"]?.[type]) as Character;
 
   const validCharacter =
     type === "dialogue" &&
-    !isHidden(character, displayConfigs?.["character"]?.hidden)
+    !isHidden(character, writerConfigs?.["character"]?.hidden)
       ? characterConfig?.name || character || ""
       : "";
   const validParenthetical =
     type === "dialogue" &&
-    !isHidden(parenthetical, displayConfigs?.["parenthetical"]?.hidden)
+    !isHidden(parenthetical, writerConfigs?.["parenthetical"]?.hidden)
       ? parenthetical || ""
       : "";
 
@@ -136,26 +112,25 @@ export const executeDisplayCommand = (
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
   const commandType = `${data?.reference?.refTypeId || ""}`;
 
-  const instant = context?.instant || !req(writerConfig?.letterDelay);
+  const instant = context?.instant || (writerConfig?.letterDelay ?? 0) === 0;
   const debug = context?.debug;
-  const indicatorFadeDuration =
-    displayConfigs?.["indicator"]?.fadeDuration || 0;
+  const indicatorFadeDuration = writerConfigs?.["indicator"]?.fadeDuration || 0;
 
   const descriptionGroupEl = game.ui.findFirstUIElement(
     structName,
-    displayConfigs?.["description_group"]?.className || "DescriptionGroup"
+    writerConfigs?.["description_group"]?.className || "DescriptionGroup"
   );
   const dialogueGroupEl = game.ui.findFirstUIElement(
     structName,
-    displayConfigs?.["dialogue_group"]?.className || "DialogueGroup"
+    writerConfigs?.["dialogue_group"]?.className || "DialogueGroup"
   );
   const portraitEl = game.ui.findFirstUIElement(
     structName,
-    displayConfigs?.["portrait"]?.className || "Portrait"
+    writerConfigs?.["portrait"]?.className || "Portrait"
   );
   const indicatorEl = game.ui.findFirstUIElement(
     structName,
-    displayConfigs?.["indicator"]?.className || "Indicator"
+    writerConfigs?.["indicator"]?.className || "Indicator"
   );
 
   if (portraitEl) {
@@ -171,7 +146,7 @@ export const executeDisplayCommand = (
     }
   }
 
-  hideChoices(game, structName, displayConfigs?.["choice"]);
+  hideChoices(game, structName, writerConfigs?.["choice"]);
 
   if (dialogueGroupEl) {
     dialogueGroupEl.style["display"] = type === "dialogue" ? null : "none";
@@ -182,46 +157,46 @@ export const executeDisplayCommand = (
 
   const characterEl = game.ui.findFirstUIElement(
     structName,
-    displayConfigs?.["character"]?.className || "Character"
+    writerConfigs?.["character"]?.className || "Character"
   );
   const parentheticalEl = game.ui.findFirstUIElement(
     structName,
-    displayConfigs?.["parenthetical"]?.className || "Parenthetical"
+    writerConfigs?.["parenthetical"]?.className || "Parenthetical"
   );
   const contentElEntries = [
     {
       key: "dialogue",
       value: game.ui.findFirstUIElement(
         structName,
-        displayConfigs?.["dialogue"]?.className || "Dialogue"
+        writerConfigs?.["dialogue"]?.className || "Dialogue"
       ),
     },
     {
       key: "action",
       value: game.ui.findFirstUIElement(
         structName,
-        displayConfigs?.["action"]?.className || "Action"
+        writerConfigs?.["action"]?.className || "Action"
       ),
     },
     {
       key: "centered",
       value: game.ui.findFirstUIElement(
         structName,
-        displayConfigs?.["centered"]?.className || "Centered"
+        writerConfigs?.["centered"]?.className || "Centered"
       ),
     },
     {
       key: "scene",
       value: game.ui.findFirstUIElement(
         structName,
-        displayConfigs?.["scene"]?.className || "Scene"
+        writerConfigs?.["scene"]?.className || "Scene"
       ),
     },
     {
       key: "transition",
       value: game.ui.findFirstUIElement(
         structName,
-        displayConfigs?.["transition"]?.className || "Transition"
+        writerConfigs?.["transition"]?.className || "Transition"
       ),
     },
   ];
@@ -297,7 +272,7 @@ export const executeDisplayCommand = (
       game.synth.stopInstrument(commandType, fadeOutDuration);
       handleFinished();
     } else {
-      const letterDelay = req(writerConfig?.letterDelay, 0);
+      const letterDelay = writerConfig?.letterDelay ?? 0;
       const clackSound = writerConfig?.clackSound;
       const voiceSound = characterConfig?.voiceSound || clackSound;
       // Determine how much a character's pitch will raise between related phrases
@@ -328,7 +303,7 @@ export const executeDisplayCommand = (
         } & Chunk &
           Partial<Tone>)[] = phrase.chunks.flatMap((c) => {
           if (c.startOfSyllable) {
-            const sound = voiceSound ? deepCopy(voiceSound) : voiceSound;
+            const sound = voiceSound ? clone(voiceSound) : voiceSound;
             lastCharacterBeep = {
               ...c,
               sound,
@@ -338,7 +313,7 @@ export const executeDisplayCommand = (
             return [lastCharacterBeep];
           }
           if (c.punctuation) {
-            const sound = voiceSound ? deepCopy(clackSound) : clackSound;
+            const sound = voiceSound ? clone(clackSound) : clackSound;
             const lastDisplayBeep = {
               ...c,
               sound,

@@ -1,13 +1,16 @@
 import { uuid } from "../../../../../../../../../spark-evaluate";
 import { LogCommandData } from "../../../../../../../data";
-import { SparkGame } from "../../../../../../../game";
+import { Game } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
-export class LogCommandRunner extends CommandRunner<LogCommandData> {
+export class LogCommandRunner<G extends Game> extends CommandRunner<
+  G,
+  LogCommandData
+> {
   override onExecute(
-    game: SparkGame,
+    game: G,
     data: LogCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): number[] {
     const { severity, message } = data;
     if (severity === undefined) {

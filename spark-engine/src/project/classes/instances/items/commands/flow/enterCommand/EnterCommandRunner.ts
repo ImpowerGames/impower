@@ -1,15 +1,18 @@
 import { evaluate, format } from "../../../../../../../../../spark-evaluate";
 import { EnterCommandData } from "../../../../../../../data";
-import { SparkGame } from "../../../../../../../game";
+import { Game } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
-export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
+export class EnterCommandRunner<G extends Game> extends CommandRunner<
+  G,
+  EnterCommandData
+> {
   id?: string | null;
 
   override onExecute(
-    game: SparkGame,
+    game: G,
     data: EnterCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): number[] {
     const { value, calls, returnWhenFinished } = data;
     const { ids, valueMap, parameters } = context;
@@ -70,9 +73,9 @@ export class EnterCommandRunner extends CommandRunner<EnterCommandData> {
   }
 
   override isFinished(
-    game: SparkGame,
+    game: G,
     data: EnterCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): boolean | null {
     const { returnWhenFinished } = data;
     if (this.id === "#") {

@@ -1,13 +1,16 @@
 import { evaluate } from "../../../../../../../../../spark-evaluate";
 import { ReturnCommandData } from "../../../../../../../data";
-import { SparkGame } from "../../../../../../../game";
+import { Game } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 
-export class ReturnCommandRunner extends CommandRunner<ReturnCommandData> {
+export class ReturnCommandRunner<G extends Game> extends CommandRunner<
+  G,
+  ReturnCommandData
+> {
   override onExecute(
-    game: SparkGame,
+    game: G,
     data: ReturnCommandData,
-    context: CommandContext
+    context: CommandContext<G>
   ): number[] {
     const { value } = data;
     const { valueMap } = context;

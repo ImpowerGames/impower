@@ -6,9 +6,9 @@
  */
 
 import { randomizer, shuffle } from "../../../../../spark-evaluate";
-import { augment, create, lerp, unlerp } from "../../core";
+import { clone, lerp, unlerp } from "../../core";
 import { OSCILLATORS, OscillatorState } from "../constants/OSCILLATORS";
-import { DEFAULT_SOUND } from "../specs/DEFAULT_SOUND";
+import { _sound } from "../specs/_sound";
 import { Hertz } from "../types/Hertz";
 import { OscillatorType } from "../types/OscillatorType";
 import { Sound, SoundConfig } from "../types/Sound";
@@ -54,7 +54,7 @@ const allpass = (
   return sample - gain;
 };
 
-/**!
+/*!
  * Based on Freeverb <https://github.com/sinshu/freeverb>
  *
  * Written by Jezar, Released as Public Domain.
@@ -752,8 +752,7 @@ export const synthesizeSound = (
   volume?: number,
   pitch?: Hertz
 ): void => {
-  const sound: Sound = create(DEFAULT_SOUND);
-  augment(sound, config);
+  const sound: Sound = clone(_sound(), config);
 
   if (volume != null) {
     sound.amplitude.volume = volume;

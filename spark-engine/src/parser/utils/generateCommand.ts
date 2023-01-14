@@ -62,13 +62,7 @@ export const generateCommand = (
     token.type === "assign" ||
     token.type === "string" ||
     token.type === "number" ||
-    token.type === "boolean" ||
-    token.type === "image" ||
-    token.type === "audio" ||
-    token.type === "video" ||
-    token.type === "text" ||
-    token.type === "graphic" ||
-    token.type === "tag"
+    token.type === "boolean"
   ) {
     const refId = getCommandId(token, sectionId);
     const refTypeId: CommandTypeId = "AssignCommand";

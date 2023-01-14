@@ -1,8 +1,8 @@
-import { SparkVariable } from "../../../sparkdown";
+import { SparkStruct } from "../../../sparkdown";
 
 export const fileState: Record<
   string,
   {
-    assets?: Record<string, SparkVariable>;
+    assets?: Record<string, SparkStruct>;
   }
 > = {};
