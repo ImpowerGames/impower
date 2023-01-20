@@ -1,5 +1,5 @@
 import {
-  PATTERN_RANDOMIZATIONS,
+  GRAPHIC_RANDOMIZATIONS,
   RecursiveRandomization,
   SOUND_RANDOMIZATIONS,
 } from "../../../../spark-engine/src/inspector";
@@ -13,8 +13,8 @@ export const getSparkRandomizations = (
   if (type === "sound") {
     return SOUND_RANDOMIZATIONS;
   }
-  if (type === "pattern") {
-    return PATTERN_RANDOMIZATIONS;
+  if (type === "graphic") {
+    return GRAPHIC_RANDOMIZATIONS;
   }
   return undefined;
 };

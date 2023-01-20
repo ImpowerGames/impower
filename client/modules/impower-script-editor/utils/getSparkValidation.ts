@@ -5,7 +5,6 @@ import {
   FONT_VALIDATION,
   GRADIENT_VALIDATION,
   GRAPHIC_VALIDATION,
-  PATTERN_VALIDATION,
   RecursiveValidation,
   SHADOW_VALIDATION,
   SOUND_VALIDATION,
@@ -21,7 +20,7 @@ export const getSparkValidation = (
   }
 ): RecursiveValidation | undefined => {
   if (type === "graphic") {
-    return GRAPHIC_VALIDATION;
+    return GRAPHIC_VALIDATION(objectMap);
   }
   if (type === "font") {
     return FONT_VALIDATION;
@@ -52,9 +51,6 @@ export const getSparkValidation = (
   }
   if (type === "sound") {
     return SOUND_VALIDATION;
-  }
-  if (type === "pattern") {
-    return PATTERN_VALIDATION;
   }
   return undefined;
 };

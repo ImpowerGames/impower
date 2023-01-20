@@ -2,6 +2,7 @@ import { Create } from "../types/Create";
 import { Graphic } from "../types/Graphic";
 
 export const _graphic: Create<Graphic> = () => ({
+  pattern: false,
   width: 32,
   height: 32,
   transform: {
@@ -21,17 +22,16 @@ export const _graphic: Create<Graphic> = () => ({
       z: 1,
     },
   },
-  fill: {
-    on: true,
-    color: "#000000",
-  },
-  stroke: {
-    on: false,
-    color: "#FFFFFF",
-    weight: 1,
-    join: "round",
-    cap: "round",
-  },
-  opacity: 1,
-  paths: ["M 0 0 L 64 0 L 64 64 L 0 64 L 0 0"],
+  shapes: [
+    {
+      path: "M 0 0 L 64 0 L 64 64 L 0 64 L 0 0",
+      fillColor: "none",
+      fillOpacity: 1,
+      strokeColor: "none",
+      strokeOpacity: 1,
+      strokeWeight: 1,
+      strokeJoin: "miter",
+      strokeCap: "round",
+    },
+  ],
 });

@@ -10,10 +10,10 @@ import {
 import {
   augment,
   clone,
-  generatePatternSvg,
-  getAllProperties,
+  generateGraphicSvgUrl,
+  getProperty,
+  Graphic,
   lerp,
-  Pattern,
   setProperty,
   Sound,
   STRUCT_DEFAULTS,
@@ -779,7 +779,17 @@ const updateSoundPreview = (
   }
 };
 
-const updatePatternPreview = (structName: string, pattern: Pattern): void => {
+const getGraphicBackgroundHTML = (
+  graphic: Graphic,
+  height = "100%"
+): string => {
+  const svgUrl = generateGraphicSvgUrl(graphic);
+  const backgroundPosition = "center";
+  const backgroundRepeat = graphic.pattern ? "repeat" : "no-repeat";
+  return `<div style="background-image:${svgUrl}; background-position: ${backgroundPosition}; background-repeat:${backgroundRepeat}; height:${height}; width: 100%;" />`;
+};
+
+const updateGraphicPreview = (structName: string, graphic: Graphic): void => {
   const structPreview = getElement(getPresetPreviewClassName(structName));
   if (structPreview) {
     structPreview.style.minWidth = `180px`;
@@ -787,7 +797,8 @@ const updatePatternPreview = (structName: string, pattern: Pattern): void => {
     structPreview.style.position = "relative";
     structPreview.style.boxShadow = "0 2px 2px #00000080";
     structPreview.style.zIndex = "1";
-    structPreview.innerHTML = `${generatePatternSvg(pattern, "preview")}`;
+    structPreview.style.overflow = "hidden";
+    structPreview.innerHTML = getGraphicBackgroundHTML(graphic);
   }
 };
 
@@ -856,9 +867,9 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 drawSound
               );
             }
-            if (structType === "pattern") {
-              const pattern = structObj as Pattern;
-              updatePatternPreview(structName, pattern);
+            if (structType === "graphic") {
+              const graphic = structObj as Graphic;
+              updateGraphicPreview(structName, graphic);
             }
           };
           if (type.id === Type.StructColon) {
@@ -871,49 +882,46 @@ const structDecorations = (view: EditorView): DecorationSet => {
               const options = Object.entries({
                 default: undefined,
                 ...(randomizations || {}),
-              }).map(([label, randomization]) => ({
-                label: structType === "pattern" ? "" : label,
-                innerHTML:
-                  structType === "pattern"
-                    ? `<div>${generatePatternSvg(
-                        {
-                          ...(defaultStructObj as Pattern),
-                          graphic:
-                            randomization?.graphic?.[0] ||
-                            (defaultStructObj as Pattern).graphic,
-                        },
-                        label,
-                        "100%",
-                        60
-                      )}</div>`
-                    : "",
-                onClick: (): void => {
-                  const struct = getStruct(view, from);
-                  if (struct) {
-                    const structFrom = from + 1;
-                    let structTo = to;
-                    Object.values(struct.fields || {}).forEach((f) => {
-                      if (f.to > structTo) {
-                        structTo = f.to;
+              }).map(([label, randomization]) => {
+                const graphic = {
+                  ...(defaultStructObj as Graphic),
+                };
+                graphic.pattern = randomization?.pattern?.[0];
+                graphic.shapes = randomization?.shapes?.[0];
+                return {
+                  label: structType === "graphic" ? "" : label,
+                  innerHTML:
+                    structType === "graphic"
+                      ? getGraphicBackgroundHTML(graphic, "64px")
+                      : "",
+                  onClick: (): void => {
+                    const struct = getStruct(view, from);
+                    if (struct) {
+                      const structFrom = from + 1;
+                      let structTo = to;
+                      Object.values(struct.fields || {}).forEach((f) => {
+                        if (f.to > structTo) {
+                          structTo = f.to;
+                        }
+                      });
+                      const preset = randomization ? {} : defaultStructObj;
+                      if (randomization) {
+                        randomize(
+                          preset,
+                          validation,
+                          randomization,
+                          label?.toLowerCase() !== "default" ? "on" : undefined
+                        );
                       }
-                    });
-                    const preset = randomization ? {} : defaultStructObj;
-                    if (randomization) {
-                      randomize(
-                        preset,
-                        validation,
-                        randomization,
-                        label?.toLowerCase() !== "default" ? "on" : undefined
-                      );
+                      autofillStruct(view, structFrom, structTo, preset);
+                      const randomizedObj = clone(defaultStructObj);
+                      augment(randomizedObj, preset);
+                      onUpdatePreview(struct.type, struct.name, randomizedObj);
+                      playSound(AUDIO_CONTEXT, soundState.soundBuffer);
                     }
-                    autofillStruct(view, structFrom, structTo, preset);
-                    const randomizedObj = clone(defaultStructObj);
-                    augment(randomizedObj, preset);
-                    onUpdatePreview(struct.type, struct.name, randomizedObj);
-                    playSound(AUDIO_CONTEXT, soundState.soundBuffer);
-                  }
-                },
-              }));
+                  },
+                };
+              });
               if (options?.length > 0) {
                 widgets.push(
                   Decoration.widget({
@@ -1001,17 +1009,22 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 const structType = struct?.type;
                 const defaultStructObj = structDefaultMap[structType]?.[""];
                 const validation = structValidationMap[structType];
-                const requirements = getAllProperties(validation);
-                const requirement =
-                  requirements[
-                    structFieldToken.index != null // Is array index field
-                      ? structFieldToken.id.split(".").slice(0, -1).join(".")
-                      : structFieldToken.id
-                  ];
+                const parts = structFieldToken.id.split(".");
+                for (let i = parts.length - 1; i >= 0; i -= 1) {
+                  const part = parts[i];
+                  if (!Number.isNaN(Number(part))) {
+                    parts[i] = "0";
+                    break;
+                  }
+                }
+                const propertyPath = parts.join(".");
+                const requirement = getProperty(validation, propertyPath);
                 const range =
                   typeof startValue === "boolean"
                     ? [false, true]
-                    : (requirement as unknown[]);
+                    : Array.isArray(requirement) && requirement.length > 0
+                    ? requirement
+                    : undefined;
                 const id = `${structName}${structFieldToken.id}`;
                 if (range) {
                   const onDragging = throttle(

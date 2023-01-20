@@ -1,4 +1,18 @@
+export interface Shape {
+  path?: string;
+  frames?: string[];
+  fps?: number;
+  fillColor?: string;
+  fillOpacity?: number;
+  strokeColor?: string;
+  strokeOpacity?: number;
+  strokeWeight?: number;
+  strokeJoin?: "round" | "miter" | "bevel" | "arcs";
+  strokeCap?: "round" | "square" | "butt";
+}
+
 export interface Graphic {
+  pattern: boolean;
   width: number;
   height: number;
   transform: {
@@ -18,17 +32,5 @@ export interface Graphic {
       z: number;
     };
   };
-  fill: {
-    on: boolean;
-    color: string;
-  };
-  stroke: {
-    on: boolean;
-    color: string;
-    weight: number;
-    join: "round" | "arcs" | "bevel";
-    cap: "round" | "square" | "butt";
-  };
-  opacity: number;
-  paths: string[];
+  shapes: Shape[];
 }

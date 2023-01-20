@@ -143,7 +143,9 @@ export class StructFieldValueWidgetType extends WidgetType {
     const options =
       typeof this.startValue === "number"
         ? [minNumber, (minNumber + maxNumber) / 2, maxNumber]
-        : this.range || BOOLEAN_ARRAY;
+        : Array.isArray(this.range)
+        ? this.range
+        : BOOLEAN_ARRAY;
     const min = minNumber ?? 0;
     const max = maxNumber ?? options.length - 1;
     const step =

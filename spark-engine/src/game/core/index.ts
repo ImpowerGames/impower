@@ -36,6 +36,8 @@ export * from "./utils/clampedRandom";
 export * from "./utils/clone";
 export * from "./utils/cull";
 export * from "./utils/deleteProperty";
+export * from "./utils/generateGraphicSvg";
+export * from "./utils/generateGraphicSvgUrl";
 export * from "./utils/getAllProperties";
 export * from "./utils/getClockValueMS";
 export * from "./utils/getProperty";

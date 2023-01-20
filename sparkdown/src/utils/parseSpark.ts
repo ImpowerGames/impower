@@ -23,7 +23,7 @@ import {
   SparkDialogueToken,
   SparkDisplayToken,
   SparkStructFieldToken,
-  SparkToken,
+  SparkToken
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
@@ -1969,10 +1969,20 @@ const augmentResult = (
   }
 };
 
-const getParentToken = <T extends SparkToken>(
+const startsWithArrayMark = <
+  T extends { id: string; indent: number; content: string }
+>(
+  token: T
+): boolean => {
+  return token.content.trimStart().startsWith("- ");
+};
+
+const getParentId = <
+  T extends { id: string; indent: number; content: string }
+>(
   token: T,
   currentTokens: T[]
-): T => {
+): string => {
   let index = currentTokens.length - 1;
   let prevToken = currentTokens[index];
   while (prevToken && prevToken.indent >= token.indent) {
@@ -1980,7 +1990,13 @@ const getParentToken = <T extends SparkToken>(
     index -= 1;
     prevToken = currentTokens[index];
   }
-  return prevToken as T;
+  if (!prevToken) {
+    return "";
+  }
+  if (!startsWithArrayMark(token) && startsWithArrayMark(prevToken)) {
+    return prevToken.id.split(".").slice(0, -1).join(".");
+  }
+  return prevToken.id;
 };
 
 const getPrevSiblingToken = <T extends SparkToken>(
@@ -2001,8 +2017,7 @@ const updateFieldToken = (
   fieldToken: SparkStructFieldToken,
   currentFieldTokens: SparkStructFieldToken[]
 ): void => {
-  const parentToken = getParentToken(fieldToken, currentFieldTokens);
-  const parentId = parentToken?.id || "";
+  const parentId = getParentId(fieldToken, currentFieldTokens);
   let id = parentId;
   const name = fieldToken.name;
   const valueText = fieldToken.valueText;

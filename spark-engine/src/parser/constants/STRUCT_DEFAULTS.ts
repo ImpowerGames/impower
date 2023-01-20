@@ -7,7 +7,6 @@ import {
   GRADIENT_DEFAULTS,
   GRAPHIC_DEFAULTS,
   IMAGE_DEFAULTS,
-  PATTERN_DEFAULTS,
   SHADOW_DEFAULTS,
   SOUND_DEFAULTS,
   STYLE_DEFAULTS,
@@ -37,5 +36,4 @@ export const STRUCT_DEFAULTS: Record<string, Record<string, object>> = {
   character: CHARACTER_DEFAULTS,
   writer: WRITER_DEFAULTS,
   sound: SOUND_DEFAULTS,
-  pattern: PATTERN_DEFAULTS,
 };
