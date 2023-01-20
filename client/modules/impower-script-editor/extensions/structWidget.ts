@@ -785,7 +785,7 @@ const getGraphicBackgroundHTML = (
 ): string => {
   const svgUrl = generateGraphicSvgUrl(graphic);
   const backgroundPosition = "center";
-  const backgroundRepeat = graphic.pattern ? "repeat" : "no-repeat";
+  const backgroundRepeat = graphic?.tiling?.on ? "repeat" : "no-repeat";
   return `<div style="background-image:${svgUrl}; background-position: ${backgroundPosition}; background-repeat:${backgroundRepeat}; height:${height}; width: 100%;" />`;
 };
 
@@ -883,17 +883,28 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 default: undefined,
                 ...(randomizations || {}),
               }).map(([label, randomization]) => {
-                const graphic = {
-                  ...(defaultStructObj as Graphic),
-                };
-                graphic.pattern = randomization?.pattern?.[0];
-                graphic.shapes = randomization?.shapes?.[0];
+                let validLabel = label;
+                let validInnerHTML = "";
+                if (structType === "graphic") {
+                  validLabel = "";
+                  const graphicRandomization =
+                    randomization as RecursiveRandomization<Graphic>;
+                  const graphic = {
+                    ...(defaultStructObj as Graphic),
+                  };
+                  const tiling = graphicRandomization?.tiling;
+                  const shapes = graphicRandomization?.shapes?.[0];
+                  if (tiling) {
+                    graphic.tiling.on = true;
+                  }
+                  if (shapes) {
+                    graphic.shapes = shapes;
+                  }
+                  validInnerHTML = getGraphicBackgroundHTML(graphic, "64px");
+                }
                 return {
-                  label: structType === "graphic" ? "" : label,
-                  innerHTML:
-                    structType === "graphic"
-                      ? getGraphicBackgroundHTML(graphic, "64px")
-                      : "",
+                  label: validLabel,
+                  innerHTML: validInnerHTML,
                   onClick: (): void => {
                     const struct = getStruct(view, from);
                     if (struct) {

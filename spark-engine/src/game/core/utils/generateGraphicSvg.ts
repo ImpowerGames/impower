@@ -1,7 +1,7 @@
 import { Graphic } from "../types/Graphic";
 
 export const generateGraphicSvg = (graphic: Graphic): string => {
-  const pattern = graphic?.pattern;
+  const tiling = graphic?.tiling;
   const width = graphic?.width ?? 32;
   const height = graphic?.height ?? 32;
   const shapes = graphic?.shapes || [];
@@ -24,22 +24,18 @@ export const generateGraphicSvg = (graphic: Graphic): string => {
       const validStrokeWeight = strokeWeight ?? 1;
       const validStrokeJoin = strokeJoin ?? "miter";
       const validStrokeCap = strokeCap ?? "round";
-      const fill = `fill="${validFillColor}" fill-opacity="${validFillOpacity}"`;
-      const stroke = `stroke="${validStrokeColor}" stroke-opacity="${validStrokeOpacity}" stroke-width="${validStrokeWeight}" stroke-linejoin="${validStrokeJoin}" stroke-linecap="${validStrokeCap}"`;
-      paths += `<path d="${path}" ${fill} ${stroke}/>`;
+      const fill = `fill="${validFillColor}" fill-opacity="${validFillOpacity}" `;
+      const stroke = `stroke="${validStrokeColor}" stroke-opacity="${validStrokeOpacity}" stroke-width="${validStrokeWeight}" stroke-linejoin="${validStrokeJoin}" stroke-linecap="${validStrokeCap}" `;
+      const d = `d="${path}" `;
+      paths += `<path ${stroke}${fill}${d}/>`;
     }
   );
-  if (pattern) {
-    const translateX = graphic?.transform?.position?.x ?? 0;
-    const translateY = graphic?.transform?.position?.y ?? 0;
-    const rotateZ = graphic?.transform?.rotation?.z ?? 0;
-    const scaleX = graphic?.transform?.scale?.x ?? 1;
-    const scaleY = graphic?.transform?.scale?.y ?? 1;
-    const scaleZ = graphic?.transform?.scale?.z ?? 1;
-    const translate = `translate(${translateX} ${translateY})`;
-    const rotate = `rotate(${rotateZ})`;
-    const scale = `scale(${scaleX * scaleZ} ${scaleY * scaleZ})`;
-    const patternTransform = `${translate} ${rotate} ${scale}`;
+  if (tiling?.on) {
+    const angle = tiling.angle ?? 0;
+    const zoom = tiling.zoom ?? 1;
+    const rotate = `rotate(${angle})`;
+    const scale = `scale(${zoom})`;
+    const patternTransform = `${rotate} ${scale}`;
     const svgOpen = `<svg id="patternId" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">`;
     const defsOpen = `<defs>`;
     const patternOpen = `<pattern id="a" patternUnits="userSpaceOnUse" width="${width}" height="${height}" patternTransform="${patternTransform}">`;

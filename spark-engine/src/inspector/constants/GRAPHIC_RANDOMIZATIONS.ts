@@ -7,13 +7,10 @@ const palettes: string[][] = COLOR_PALETTES.flatMap((p) => [
   [...p].reverse(),
 ]);
 
-const transform = {
-  rotation: {
-    z: [0, 360],
-  },
-  scale: {
-    z: [1, 3],
-  },
+const tiling = {
+  on: [true],
+  zoom: [1, 3],
+  angle: [0, 360],
 };
 
 const shapes = (weights: number[], paths: string[]) =>
@@ -40,8 +37,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
   RecursiveRandomization<Graphic>
 > = {
   default: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4, 5, 6, 7],
       [
@@ -52,8 +48,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   zigzag: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3],
       [
@@ -66,8 +61,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   bubble: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4, 5, 6, 7],
       [
@@ -80,8 +74,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   circle: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4],
       [
@@ -94,16 +87,14 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   grid: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 4, 8, 12],
       ["M 0 0 l 32 0 l 0 32 l -32 0 z", "M 16 0 V 32 Z M 0 16 H 32 Z"]
     ),
   },
   herringbone: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4, 5, 6, 7],
       [
@@ -113,8 +104,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   flower: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4, 5, 6],
       [
@@ -125,8 +115,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   equal: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4, 5, 6, 7],
       [
@@ -137,8 +126,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   mat: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4],
       [
@@ -148,8 +136,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   memphis: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4],
       [
@@ -162,8 +149,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   net: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4, 5, 6, 7],
       [
@@ -173,8 +159,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   octagon: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4, 5],
       [
@@ -187,8 +172,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   plus: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4, 5, 6, 7],
       [
@@ -199,8 +183,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   brick: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4, 5, 6, 7],
       [
@@ -209,21 +192,8 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
       ]
     ),
   },
-  star: {
-    pattern: [true],
-    transform,
-    shapes: shapes(
-      [1, 2],
-      [
-        "M 0 0 l 32 0 l 0 32 l -32 0 z",
-        "M 18.5 20 l -2.61 -1.65 l -2.58 1.65 l 0.79 -3.08 l -2.43 -2 l 3.15 -0.14 l 1.22 -2.93 l 1.07 2.86 l 3.08 0.25 l -2.4 2 l 0.72 3.04 z",
-        "M 0 -4 l -1.22 2.93 l -3.15 0.14 l 2.44 2 l -0.79 3.08 l 2.58 -1.65 l 2.61 1.65 l -0.72 -3.04 l 2.4 -2 l -3.08 -0.25 l -1.08 -2.86 z M 32 -4 l -1.22 2.93 l -3.15 0.14 l 2.44 2 l -0.79 3.08 l 2.58 -1.65 l 2.61 1.65 l -0.72 -3.04 l 2.4 -2 l -3.08 -0.25 l -1.08 -2.86 z M 0 28 l -1.22 2.93 l -3.15 0.14 l 2.44 2 l -0.79 3.08 l 2.58 -1.65 l 2.61 1.65 l -0.72 -3.04 l 2.4 -2 l -3.08 -0.25 l -1.08 -2.86 z M 32 28 l -1.22 2.93 l -3.15 0.14 l 2.44 2 l -0.79 3.08 l 2.58 -1.65 l 2.61 1.65 l -0.72 -3.04 l 2.4 -2 l -3.08 -0.25 l -1.08 -2.86 z",
-      ]
-    ),
-  },
   tile: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4],
       [
@@ -236,8 +206,7 @@ export const GRAPHIC_RANDOMIZATIONS: Record<
     ),
   },
   wave: {
-    pattern: [true],
-    transform,
+    tiling,
     shapes: shapes(
       [1, 2, 3, 4],
       [

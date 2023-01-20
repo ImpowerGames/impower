@@ -2,9 +2,13 @@ import { Create } from "../types/Create";
 import { Graphic } from "../types/Graphic";
 
 export const _graphic: Create<Graphic> = () => ({
-  pattern: false,
   width: 32,
   height: 32,
+  tiling: {
+    on: false,
+    zoom: 1,
+    angle: 0,
+  },
   transform: {
     position: {
       x: 0,

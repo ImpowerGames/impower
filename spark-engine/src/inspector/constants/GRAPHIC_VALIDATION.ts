@@ -9,6 +9,10 @@ export const GRAPHIC_VALIDATION = (objectMap?: {
   return {
     width: [8, 0, 800],
     height: [8, 0, 800],
+    tiling: {
+      zoom: [0.1, 0, 4],
+      angle: [1, 0, 360],
+    },
     transform: {
       position: {
         x: [8, 0, 800],

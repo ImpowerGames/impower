@@ -12,9 +12,13 @@ export interface Shape {
 }
 
 export interface Graphic {
-  pattern: boolean;
   width: number;
   height: number;
+  tiling: {
+    on: boolean;
+    zoom: number;
+    angle: number;
+  };
   transform: {
     position: {
       x: number;
