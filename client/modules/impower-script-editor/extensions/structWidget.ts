@@ -1012,7 +1012,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
                 const parts = structFieldToken.id.split(".");
                 for (let i = parts.length - 1; i >= 0; i -= 1) {
                   const part = parts[i];
-                  if (!Number.isNaN(Number(part))) {
+                  if (part && !Number.isNaN(Number(part))) {
                     parts[i] = "0";
                     break;
                   }
