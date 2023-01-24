@@ -6,7 +6,7 @@ import {
 import { Marquee } from "../../plugins/editor-graphics";
 import { SparkScene } from "../SparkScene";
 import { SparkApplication } from "../wrappers/SparkApplication";
-import { SparkContainer } from "../wrappers/SparkContainer";
+import { SparkSprite } from "../wrappers/SparkSprite";
 
 export class PreviewScene extends SparkScene {
   private _marquee: Marquee;
@@ -16,7 +16,7 @@ export class PreviewScene extends SparkScene {
   constructor(
     context: SparkContext,
     app: SparkApplication,
-    entities: Record<string, SparkContainer>
+    entities: Record<string, SparkSprite>
   ) {
     super(context, app, entities);
     this._marquee = new Marquee({

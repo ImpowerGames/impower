@@ -1,4 +1,4 @@
-import * as PIXI from "pixi.js";
+import { Graphics } from "pixi.js";
 
 export interface CellOptions {
   thickness?: number;
@@ -6,7 +6,7 @@ export interface CellOptions {
   size?: number;
 }
 
-export class Cell extends PIXI.Graphics {
+export class Cell extends Graphics {
   thickness = 2;
 
   color = 0xffffff;

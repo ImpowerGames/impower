@@ -95,7 +95,7 @@ const StyledApp = styled.div`
 
 const StyledFullscreenTopBackground = styled.div`
   background-color: ${(props): string => props.theme.palette.primary.main};
-  height: ${(props): string => props.theme.minHeight.navigationTabs}
+  height: ${(props): string => props.theme.minHeight.navigationTabs};
   position: fixed;
   top: 0;
   left: 0;
@@ -444,11 +444,13 @@ const StudioPage = React.memo((props: StudioPageProps) => {
   useHTMLBackgroundColor(theme.palette.primary.main);
   useHTMLOverscrollBehavior("auto");
 
-  if (type !== "studio") {
-    navigationDispatch(navigationSetType("studio"));
-    navigationDispatch(navigationSetElevation());
-    navigationDispatch(navigationSetBackgroundColor());
-  }
+  useEffect(() => {
+    if (type !== "studio") {
+      navigationDispatch(navigationSetType("studio"));
+      navigationDispatch(navigationSetElevation());
+      navigationDispatch(navigationSetBackgroundColor());
+    }
+  }, [navigationDispatch, type]);
 
   if (process.env.NEXT_PUBLIC_ENVIRONMENT === "production") {
     return null;

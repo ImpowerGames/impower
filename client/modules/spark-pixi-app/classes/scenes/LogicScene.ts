@@ -1,4 +1,4 @@
-import * as PIXI from "pixi.js";
+import { FederatedPointerEvent } from "pixi.js";
 import { SparkScene } from "../SparkScene";
 
 export class LogicScene extends SparkScene {
@@ -19,13 +19,17 @@ export class LogicScene extends SparkScene {
       uiEl.addEventListener("pointerdown", this.onPointerDown);
       uiEl.addEventListener("pointerup", this.onPointerUp);
     }
-    this.app.stage.interactive = true;
-    this.app.stage.on("pointerdown", (event: PIXI.InteractionEvent) =>
-      this.onPointerDown(event.data as unknown as PointerEvent)
-    );
-    this.app.stage.on("pointerup", (event: PIXI.InteractionEvent) =>
-      this.onPointerUp(event.data as unknown as PointerEvent)
-    );
+    if (this.app.stage) {
+      this.app.stage.interactive = true;
+      this.app.stage.addEventListener(
+        "pointerdown",
+        (event: FederatedPointerEvent) => this.onPointerDown(event)
+      );
+      this.app.stage.addEventListener(
+        "pointerup",
+        (event: FederatedPointerEvent) => this.onPointerUp(event)
+      );
+    }
   }
 
   override destroy(): void {
@@ -33,6 +37,10 @@ export class LogicScene extends SparkScene {
     if (uiEl) {
       uiEl.removeEventListener("pointerdown", this.onPointerDown);
       uiEl.removeEventListener("pointerup", this.onPointerUp);
+    }
+    if (this.app.stage) {
+      this.app.stage.removeEventListener("pointerdown", this.onPointerDown);
+      this.app.stage.removeEventListener("pointerup", this.onPointerUp);
     }
   }
 

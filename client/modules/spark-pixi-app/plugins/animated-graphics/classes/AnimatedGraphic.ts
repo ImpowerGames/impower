@@ -11,7 +11,7 @@ import {
 } from "@pixi-essentials/svg";
 import { CanvasTextureAllocator } from "@pixi-essentials/texture-allocator";
 import { Renderer, RenderTexture } from "@pixi/core";
-import { Container } from "@pixi/display";
+import { Container, DisplayObjectEvents } from "@pixi/display";
 import { Matrix, Rectangle } from "@pixi/math";
 import {
   Bounds,
@@ -697,7 +697,10 @@ export class AnimatedGraphic extends DisplayObject {
       return undefined;
     }
 
-    node.on("nodetransformdirty", this.onNodeTransformDirty);
+    node.on(
+      "nodetransformdirty" as unknown as keyof DisplayObjectEvents,
+      this.onNodeTransformDirty
+    );
 
     let paint: Paint | undefined;
 
@@ -913,7 +916,7 @@ export class AnimatedGraphic extends DisplayObject {
    */
   private onNodeTransformDirty = (): void => {
     this._transformDirty = true;
-    this.emit("transformdirty", this);
+    this.emit("transformdirty" as unknown as keyof DisplayObjectEvents, this);
   };
 
   /** Called when the anchor position updates. */

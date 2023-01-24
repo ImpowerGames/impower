@@ -1,14 +1,21 @@
-import * as PIXI from "pixi.js";
+import {
+  Container,
+  IRenderer,
+  ISpritesheetData,
+  MSAA_QUALITY,
+  SCALE_MODES,
+  Spritesheet,
+} from "pixi.js";
 import { AnimatedGraphic } from "../classes/AnimatedGraphic";
 
 export const generateSpritesheet = (
-  renderer: PIXI.AbstractRenderer,
+  renderer: IRenderer,
   svg: SVGSVGElement,
   maxFPS = 60,
   id = "",
   animationName = "default"
-): PIXI.Spritesheet => {
-  const container = new PIXI.Container();
+): Spritesheet => {
+  const container = new Container();
   const firstFrame = new AnimatedGraphic(svg, {
     autoUpdate: false,
     time: 0,
@@ -20,7 +27,7 @@ export const generateSpritesheet = (
   const h = firstFrame.height;
   const duration = firstFrame.animationDuration;
   const sampleRate = 1000 / maxFPS;
-  const atlasData: PIXI.ISpritesheetData = {
+  const atlasData: ISpritesheetData = {
     frames: {},
     meta: {
       scale: String(1),
@@ -70,9 +77,9 @@ export const generateSpritesheet = (
     y += h;
   }
   const renderTexture = renderer.generateTexture(container, {
-    scaleMode: PIXI.SCALE_MODES.LINEAR,
-    multisample: PIXI.MSAA_QUALITY.HIGH,
+    scaleMode: SCALE_MODES.LINEAR,
+    multisample: MSAA_QUALITY.HIGH,
     resolution: window.devicePixelRatio,
   });
-  return new PIXI.Spritesheet(renderTexture, atlasData);
+  return new Spritesheet(renderTexture, atlasData);
 };

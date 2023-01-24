@@ -35,7 +35,7 @@ const DashboardPage = React.memo(() => {
     DataStoreCache.instance.clear();
   }, []);
 
-  useMemo(() => {
+  useEffect(() => {
     if (underConstruction) {
       navigationDispatch(navigationSetType("page"));
       navigationDispatch(navigationSetText(undefined, "Dashboard"));

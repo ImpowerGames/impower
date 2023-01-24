@@ -1,4 +1,4 @@
-import * as PIXI from "pixi.js";
+import { Application, IDestroyOptions, utils } from "pixi.js";
 import { registerPixiInspector } from "../../utils/registerPixiInspector";
 import { SparkStage } from "./SparkStage";
 
@@ -23,14 +23,14 @@ export interface SparkApplicationOptions {
   powerPreference?: WebGLPowerPreference;
 }
 
-export class SparkApplication extends PIXI.Application {
+export class SparkApplication extends Application {
   override stage: SparkStage;
 
   constructor(options?: SparkApplicationOptions) {
     super(options);
     this.stage = new SparkStage();
     this.ticker.maxFPS = options?.maxFPS || 60;
-    PIXI.utils.destroyTextureCache();
+    utils.destroyTextureCache();
     registerPixiInspector();
   }
 
@@ -44,7 +44,7 @@ export class SparkApplication extends PIXI.Application {
 
   override destroy(
     removeView?: boolean | undefined,
-    stageOptions?: boolean | PIXI.IDestroyOptions | undefined
+    stageOptions?: boolean | IDestroyOptions | undefined
   ): void {
     super.destroy(removeView, stageOptions);
   }

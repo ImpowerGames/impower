@@ -10,6 +10,12 @@ module.exports = withBundleAnalyzer({
     externalDir: true,
   },
   compiler: { emotion: true },
+  transpilePackages: ["@mui/system", "@mui/material"],
+  modularizeImports: {
+    "@mui/material/?(((\\w*)?/?)*)": {
+      transform: "@mui/material/{{ matches.[1] }}/{{member}}",
+    },
+  },
   webpack: (config, { isServer }) => {
     if (
       !isServer &&

@@ -7,7 +7,7 @@ import {
   SparkApplication,
   SparkApplicationOptions,
 } from "./wrappers/SparkApplication";
-import { SparkContainer } from "./wrappers/SparkContainer";
+import { SparkSprite } from "./wrappers/SparkSprite";
 
 export class SparkGameApp {
   private _parent: HTMLElement | null;
@@ -40,9 +40,9 @@ export class SparkGameApp {
     return this._resizeObserver;
   }
 
-  private _entities: Record<string, SparkContainer> = {};
+  private _entities: Record<string, SparkSprite> = {};
 
-  public get entities(): Record<string, SparkContainer> {
+  public get entities(): Record<string, SparkSprite> {
     return this._entities;
   }
 
@@ -74,7 +74,8 @@ export class SparkGameApp {
       }
     });
     if (this._parent) {
-      this._parent.appendChild(this.app.view);
+      const view = this.app.view as HTMLCanvasElement;
+      this._parent.appendChild(view);
     }
 
     this._context = context;

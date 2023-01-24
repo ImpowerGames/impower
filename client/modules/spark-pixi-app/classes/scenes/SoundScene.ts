@@ -1,5 +1,5 @@
 import { IMediaInstance, webaudio } from "@pixi/sound";
-import * as PIXI from "pixi.js";
+import { Graphics } from "pixi.js";
 import { Tone } from "../../../../../spark-engine";
 import { SynthSound } from "../../plugins/synth-sound/classes/SynthSound";
 import { SparkScene } from "../SparkScene";
@@ -12,21 +12,21 @@ interface Instrument {
 export class SoundScene extends SparkScene {
   _instruments: Map<string, Instrument> = new Map();
 
-  axisGraphic?: PIXI.Graphics;
+  axisGraphic?: Graphics;
 
-  waveGraphic?: PIXI.Graphics;
+  waveGraphic?: Graphics;
 
-  pitchGraphic?: PIXI.Graphics;
+  pitchGraphic?: Graphics;
 
-  playheadGraphic?: PIXI.Graphics;
+  playheadGraphic?: Graphics;
 
   playListeners?: (() => void)[] = [];
 
   override init(): void {
-    this.axisGraphic = new PIXI.Graphics();
-    this.waveGraphic = new PIXI.Graphics();
-    this.pitchGraphic = new PIXI.Graphics();
-    this.playheadGraphic = new PIXI.Graphics();
+    this.axisGraphic = new Graphics();
+    this.waveGraphic = new Graphics();
+    this.pitchGraphic = new Graphics();
+    this.playheadGraphic = new Graphics();
     this.app.stage.addChild(
       this.axisGraphic,
       this.waveGraphic,

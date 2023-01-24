@@ -1,4 +1,4 @@
-import * as PIXI from "pixi.js";
+import { Container, SCALE_MODES, Texture, TilingSprite } from "pixi.js";
 
 interface MarqueeOptions {
   thickness?: number;
@@ -8,7 +8,7 @@ interface MarqueeOptions {
   fillStyle?: string | CanvasGradient | CanvasPattern;
 }
 
-export class Marquee extends PIXI.Container {
+export class Marquee extends Container {
   thickness = 2;
 
   speed = 0.2;
@@ -21,13 +21,13 @@ export class Marquee extends PIXI.Container {
 
   time = 0;
 
-  topLine: PIXI.TilingSprite;
+  topLine: TilingSprite;
 
-  leftLine: PIXI.TilingSprite;
+  leftLine: TilingSprite;
 
-  rightLine: PIXI.TilingSprite;
+  rightLine: TilingSprite;
 
-  bottomLine: PIXI.TilingSprite;
+  bottomLine: TilingSprite;
 
   constructor(options: MarqueeOptions) {
     super();
@@ -47,14 +47,14 @@ export class Marquee extends PIXI.Container {
       ctx.fillStyle = this.fillStyle;
       ctx.fillRect(0, 0, this.dash, this.dash);
     }
-    const texture = PIXI.Texture.from(canvas, {
-      scaleMode: PIXI.SCALE_MODES.NEAREST,
+    const texture = Texture.from(canvas, {
+      scaleMode: SCALE_MODES.NEAREST,
     });
 
-    this.topLine = new PIXI.TilingSprite(texture, 100, this.thickness);
-    this.leftLine = new PIXI.TilingSprite(texture, this.thickness, 100);
-    this.rightLine = new PIXI.TilingSprite(texture, this.thickness, 100);
-    this.bottomLine = new PIXI.TilingSprite(texture, 100, this.thickness);
+    this.topLine = new TilingSprite(texture, 100, this.thickness);
+    this.leftLine = new TilingSprite(texture, this.thickness, 100);
+    this.rightLine = new TilingSprite(texture, this.thickness, 100);
+    this.bottomLine = new TilingSprite(texture, 100, this.thickness);
     this.setSize(0, 0, 100, 100);
     this.addChild(this.topLine, this.leftLine, this.rightLine, this.bottomLine);
   }

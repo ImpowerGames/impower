@@ -1,6 +1,6 @@
 import { SparkContext } from "../../../../spark-engine";
 import { SparkApplication } from "./wrappers/SparkApplication";
-import { SparkContainer } from "./wrappers/SparkContainer";
+import { SparkSprite } from "./wrappers/SparkSprite";
 
 export class SparkScene {
   private _context: SparkContext;
@@ -15,16 +15,16 @@ export class SparkScene {
     return this._app;
   }
 
-  private _entities: Record<string, SparkContainer>;
+  private _entities: Record<string, SparkSprite>;
 
-  public get entities(): Record<string, SparkContainer> {
+  public get entities(): Record<string, SparkSprite> {
     return this._entities;
   }
 
   constructor(
     context: SparkContext,
     app: SparkApplication,
-    entities: Record<string, SparkContainer>
+    entities: Record<string, SparkSprite>
   ) {
     this._context = context;
     this._app = app;

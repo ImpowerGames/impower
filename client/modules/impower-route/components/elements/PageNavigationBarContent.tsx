@@ -42,6 +42,7 @@ const StyledLogoArea = styled(FadeAnimation)`
   display: flex;
   justify-content: center;
   align-items: center;
+  color: white;
 `;
 
 const StyledIconButton = styled(IconButton)`
