@@ -39,7 +39,6 @@ export * from "./utils/deleteProperty";
 export * from "./utils/generateGraphicSvg";
 export * from "./utils/generateGraphicSvgUrl";
 export * from "./utils/getAllProperties";
-export * from "./utils/getClockValueMS";
 export * from "./utils/getProperty";
 export * from "./utils/interpolate";
 export * from "./utils/isClockValue";

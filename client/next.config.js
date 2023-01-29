@@ -11,11 +11,6 @@ module.exports = withBundleAnalyzer({
   },
   compiler: { emotion: true },
   transpilePackages: ["@mui/system", "@mui/material"],
-  modularizeImports: {
-    "@mui/material/?(((\\w*)?/?)*)": {
-      transform: "@mui/material/{{ matches.[1] }}/{{member}}",
-    },
-  },
   webpack: (config, { isServer }) => {
     if (
       !isServer &&
@@ -27,7 +22,6 @@ module.exports = withBundleAnalyzer({
     config.plugins = [
       ...(config.plugins || []),
       new webpack.ProvidePlugin({
-        PIXI: "pixi.js",
         Buffer: ["buffer", "Buffer"],
       }),
     ];

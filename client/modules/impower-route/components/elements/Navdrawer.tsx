@@ -343,6 +343,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
           unauthenticatedAccountPages.map((link) =>
             useAccountDialog ? (
               <StyledButton
+                key={link}
                 variant="outlined"
                 color={link === "/login" ? "secondary" : undefined}
                 onClick={
@@ -355,6 +356,7 @@ const Navdrawer = React.memo((props: NavdrawerProps): JSX.Element => {
               </StyledButton>
             ) : (
               <StyledButton
+                key={link}
                 variant="outlined"
                 color={link === "/login" ? "secondary" : undefined}
                 onClick={handleClick}

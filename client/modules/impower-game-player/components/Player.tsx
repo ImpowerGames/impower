@@ -73,6 +73,7 @@ export const Player = (props: PropsWithChildren<PlayerProps>): JSX.Element => {
             right: 0,
             bottom: 0,
             left: 0,
+            pointerEvents: "none",
           }}
         >
           <div

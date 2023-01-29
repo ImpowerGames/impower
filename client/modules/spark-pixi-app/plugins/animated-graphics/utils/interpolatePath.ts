@@ -314,47 +314,45 @@ const convertToSameType = (
   aCommand: PathCommand,
   bCommand?: PathCommand
 ): PathCommand => {
-  const aConverted: PathCommand = {};
-  // convert (but ignore M types)
   if (
-    aCommand?.type !== bCommand?.type &&
-    bCommand?.type?.toUpperCase() !== "M"
+    !bCommand?.type ||
+    aCommand?.type === bCommand?.type ||
+    bCommand?.type?.toUpperCase() === "M"
   ) {
-    if (bCommand) {
-      Object.keys(bCommand).forEach((bKey) => {
-        const bValue = bCommand?.[bKey as keyof PathCommand];
-        // first read from the A command
-        let aValue = aCommand?.[bKey as keyof PathCommand];
-
-        // if it is one of these values, read from B no matter what
-        if (aValue === undefined) {
-          if (readFromBKeys.includes(bKey)) {
-            aValue = bValue;
-          } else {
-            // if it wasn't in the A command, see if an equivalent was
-            if (
-              aValue === undefined &&
-              conversionMap?.[bKey as keyof PathCommand]
-            ) {
-              aValue = aCommand?.[conversionMap[bKey] as keyof PathCommand];
-            }
-
-            // if it doesn't have a converted value, use 0
-            if (aValue === undefined) {
-              aValue = 0;
-            }
-          }
-        }
-
-        aConverted[bKey as keyof PathCommand] = aValue;
-      });
-
-      // update the type to match B
-      aConverted.type = bCommand.type;
-    }
-    aCommand = aConverted;
+    return aCommand;
   }
 
+  // convert (but ignore M types)
+  const aConverted: PathCommand = {};
+  if (bCommand) {
+    Object.keys(bCommand).forEach((bKey) => {
+      const bValue = bCommand?.[bKey as keyof PathCommand];
+      // first read from the A command
+      let aValue = aCommand?.[bKey as keyof PathCommand];
+      // if it is one of these values, read from B no matter what
+      if (aValue === undefined) {
+        if (readFromBKeys.includes(bKey)) {
+          aValue = bValue;
+        } else {
+          // if it wasn't in the A command, see if an equivalent was
+          if (
+            aValue === undefined &&
+            conversionMap?.[bKey as keyof PathCommand]
+          ) {
+            aValue = aCommand?.[conversionMap[bKey] as keyof PathCommand];
+          }
+
+          // if it doesn't have a converted value, use 0
+          if (aValue === undefined) {
+            aValue = 0;
+          }
+        }
+      }
+      aConverted[bKey as keyof PathCommand] = aValue;
+    });
+    // update the type to match B
+    aConverted.type = bCommand.type;
+  }
   return aConverted;
 };
 
@@ -692,14 +690,13 @@ export const interpolatePathCommands = (
 
     // interpolate the commands using the mutable interpolated command objs
     for (let i = 0; i < interpolatedCommands.length; ++i) {
-      // if (interpolatedCommands[i].type === 'Z') continue;
-
       const aCommand = aCommands[i];
       const bCommand = bCommands[i];
       const interpolatedCommand = interpolatedCommands[i];
       if (interpolatedCommand) {
-        typeMap[interpolatedCommand.type as PathCommandType].forEach(
-          (arg: keyof PathCommand) => {
+        const cmds = typeMap[interpolatedCommand.type as PathCommandType];
+        if (cmds) {
+          cmds.forEach((arg: keyof PathCommand) => {
             interpolatedCommand[arg] = linear(
               t,
               aCommand?.[arg] as number,
@@ -712,8 +709,8 @@ export const interpolatePathCommands = (
                 interpolatedCommand[arg] as number
               );
             }
-          }
-        );
+          });
+        }
       }
     }
 

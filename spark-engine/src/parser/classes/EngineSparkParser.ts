@@ -11,14 +11,13 @@ export class EngineSparkParser extends SparkParser {
     return this._instance;
   }
 
-  constructor(config?: SparkParserConfig, defaults?: string[]) {
+  constructor(config?: SparkParserConfig) {
     super(
       config || {
         compiler: compile,
         formatter: format,
         lineOffset: 1,
-      },
-      defaults
+      }
     );
   }
 }

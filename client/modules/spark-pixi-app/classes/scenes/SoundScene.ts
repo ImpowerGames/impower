@@ -27,7 +27,7 @@ export class SoundScene extends SparkScene {
     this.waveGraphic = new Graphics();
     this.pitchGraphic = new Graphics();
     this.playheadGraphic = new Graphics();
-    this.app.stage.addChild(
+    this.stage.addChild(
       this.axisGraphic,
       this.waveGraphic,
       this.pitchGraphic,
@@ -81,8 +81,8 @@ export class SoundScene extends SparkScene {
 
   renderWaveform(instrument: Instrument): void {
     const factor = 0.25;
-    const width = this.app.renderer.width;
-    const height = this.app.renderer.height * factor;
+    const width = this.renderer.width;
+    const height = this.renderer.height * factor;
 
     const endX = width;
     const startX = 0;
@@ -139,10 +139,10 @@ export class SoundScene extends SparkScene {
     this.playheadGraphic.clear();
     this.playheadGraphic
       .beginFill(0xff0000)
-      .drawRect(0, 0, 1, this.app.renderer.height);
+      .drawRect(0, 0, 1, this.renderer.height);
   }
 
-  override update(_timeMS: number, _deltaMS: number): void {
+  override update(_time: number, _delta: number): void {
     this._instruments.forEach((instrument) => {
       if (instrument.shouldPlay) {
         instrument.shouldPlay = false;
@@ -155,7 +155,7 @@ export class SoundScene extends SparkScene {
           this.renderWaveform(instrument);
           instance.on("progress", (progress) => {
             if (this.playheadGraphic) {
-              this.playheadGraphic.x = this.app.screen.width * progress;
+              this.playheadGraphic.x = this.screen.width * progress;
             }
           });
         }

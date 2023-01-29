@@ -25,7 +25,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
     commands: PathCommand[][];
   };
 
-  protected _fillRule: FILL_RULE;
+  protected _fillRule: FILL_RULE = FILL_RULE.NONZERO;
 
   protected _content: SVGSVGElement;
 
@@ -68,26 +68,28 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
       const valuesAttr = animateElement.getAttribute("values") || "";
 
       if (valuesAttr) {
-        const duration = getClockValueTime(durAttr); // in ms
+        const values = valuesAttr.split(";");
+        const duration = getClockValueTime(durAttr);
         const repeatLimit =
           !repeatCountAttr || repeatCountAttr === "indefinite"
             ? undefined
             : Number(repeatCountAttr);
         const keyTimes = keyTimesAttr
-          .split(";")
-          .map((numStr) => Number(numStr)); // percentage of duration
+          ? keyTimesAttr.split(";").map((numStr) => Number(numStr))
+          : values.map((_, i) => i / values.length);
         const keySplines = keySplinesAttr
-          .split(";")
-          .map(
-            (spline) =>
-              spline.split(" ").map((numStr) => Number(numStr)) as [
-                number,
-                number,
-                number,
-                number
-              ]
-          );
-        const values = valuesAttr.split(";");
+          ? keySplinesAttr
+              .split(";")
+              .map(
+                (spline) =>
+                  spline.split(" ").map((numStr) => Number(numStr)) as [
+                    number,
+                    number,
+                    number,
+                    number
+                  ]
+              )
+          : values.map(() => [0, 0, 1, 1] as [number, number, number, number]);
         const commands = values.map((x) => pathCommandsFromString(x));
 
         this._animation = {
@@ -189,12 +191,12 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
       // Taken from: https://github.com/bigtimebuddy/pixi-svg/blob/main/src/SVG.ts
       // Copyright Matt Karl
       switch (command.type) {
-        case "m": {
-          this.moveTo((x += command.x || 0), (y += command.y || 0));
-          break;
-        }
         case "M": {
           this.moveTo((x = command.x || 0), (y = command.y || 0));
+          break;
+        }
+        case "m": {
+          this.moveTo((x += command.x || 0), (y += command.y || 0));
           break;
         }
         case "H": {
@@ -213,8 +215,8 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
           this.lineTo(x, (y += command.y || 0));
           break;
         }
-        case "z":
-        case "Z": {
+        case "Z":
+        case "z": {
           x = this._currentPath?.points[0] || 0;
           y = this._currentPath?.points[1] || 0;
           this.closePath();
@@ -253,8 +255,8 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
           );
           break;
         }
-        case "s":
-        case "S": {
+        case "S":
+        case "s": {
           const lastCommand = commands[i - 1];
           let cp1X = x;
           let cp1Y = y;
@@ -297,6 +299,15 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
 
           break;
         }
+        case "Q": {
+          this.quadraticCurveTo(
+            command.x || 0,
+            command.y || 0,
+            (x = command.x || 0),
+            (y = command.y || 0)
+          );
+          break;
+        }
         case "q": {
           const currX = x;
           const currY = y;
@@ -306,15 +317,6 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
             currY + (command.y || 0),
             (x += command.x || 0),
             (y += command.y || 0)
-          );
-          break;
-        }
-        case "Q": {
-          this.quadraticCurveTo(
-            command.x || 0,
-            command.y || 0,
-            (x = command.x || 0),
-            (y = command.y || 0)
           );
           break;
         }
@@ -341,8 +343,8 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
           );
 
           break;
-        case "t":
-        case "T": {
+        case "T":
+        case "t": {
           let cx: number;
           let cy: number;
 

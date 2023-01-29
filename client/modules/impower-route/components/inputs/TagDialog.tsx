@@ -236,10 +236,10 @@ const StyledFormHelperText = styled(FormHelperText)<{ component?: string }>`
   justify-content: flex-end;
   margin: 0;
   padding-top: 3px;
-  padding-bottom:3px;
+  padding-bottom: 3px;
   padding-left: 12px;
   padding-right: 12px;
-  
+
   &.error .LeftHelperTextTypography {
     animation: shake 0.4s 1 linear;
     backface-visibility: hidden;
@@ -277,6 +277,7 @@ const StyledFormHelperText = styled(FormHelperText)<{ component?: string }>`
       color: inherit;
       transform: translate(0px);
     }
+  }
 `;
 
 const StyledTagChip = styled(Chip)`

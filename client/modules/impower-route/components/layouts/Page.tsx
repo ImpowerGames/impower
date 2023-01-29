@@ -152,8 +152,7 @@ const StyledFlexLayout = styled.div`
 
 const StyledLeftColumn = styled.div`
   flex: 2;
-  padding: ${(props): string => props.theme.spacing(2)}
-    ${(props): string => props.theme.spacing(6)};
+  padding: ${(props): string => props.theme.spacing(2, 6)};
   max-width: 100%;
 `;
 
@@ -205,8 +204,7 @@ const StyledInfoContainer = styled.div`
   align-items: center;
   border-radius: ${(props): string => props.theme.spacing(1)};
   box-shadow: 0 0 0 1px ${(props): string => props.theme.colors.black10};
-  padding: ${(props): string => props.theme.spacing(3)}
-    ${(props): string => props.theme.spacing(2)};
+  padding: ${(props): string => props.theme.spacing(3, 2)};
   background-color: ${(props): string => props.theme.colors.black05};
   overflow: hidden;
 `;
@@ -410,8 +408,7 @@ const StyledActionButton = styled(Button)`
 const StyledEngagementButton = styled(Button)`
   min-width: ${(props): string => props.theme.spacing(9)};
   min-height: ${(props): string => props.theme.spacing(8)};
-  padding: ${(props): string => props.theme.spacing(1)}
-    ${(props): string => props.theme.spacing(2)};
+  padding: ${(props): string => props.theme.spacing(1, 2)};
   flex: 1;
   border-radius: 0;
   display: flex;
@@ -608,8 +605,7 @@ const StyledStatusToolbar = styled.div`
 `;
 
 const StyledStatusDialogContent = styled.div`
-  padding: ${(props): string => props.theme.spacing(2)}
-    ${(props): string => props.theme.spacing(4)};
+  padding: ${(props): string => props.theme.spacing(2, 4)};
   background-color: white;
 `;
 

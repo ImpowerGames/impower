@@ -22,4 +22,5 @@ export interface Graphic {
   height: number;
   tiling: Tiling;
   shapes: Shape[];
+  src?: string;
 }

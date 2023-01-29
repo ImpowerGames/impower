@@ -1,52 +1,29 @@
-import { FederatedPointerEvent } from "pixi.js";
 import { SparkScene } from "../SparkScene";
 
 export class LogicScene extends SparkScene {
   onPointerDown = (event: PointerEvent): void => {
-    this.context.game.input.pointerDown(
-      event.button,
-      this.app.stage?.name || ""
-    );
+    this.context.game.input.pointerDown(event.button, this.stage?.name || "");
   };
 
   onPointerUp = (event: PointerEvent): void => {
-    this.context.game.input.pointerUp(event.button, this.app.stage?.name || "");
+    this.context.game.input.pointerUp(event.button, this.stage?.name || "");
   };
 
   override start(): void {
-    const uiEl = document.getElementById("spark-overlay");
-    if (uiEl) {
-      uiEl.addEventListener("pointerdown", this.onPointerDown);
-      uiEl.addEventListener("pointerup", this.onPointerUp);
-    }
-    if (this.app.stage) {
-      this.app.stage.interactive = true;
-      this.app.stage.addEventListener(
-        "pointerdown",
-        (event: FederatedPointerEvent) => this.onPointerDown(event)
-      );
-      this.app.stage.addEventListener(
-        "pointerup",
-        (event: FederatedPointerEvent) => this.onPointerUp(event)
-      );
-    }
+    this.view.addEventListener("pointerdown", this.onPointerDown);
+    this.view.addEventListener("pointerup", this.onPointerUp);
   }
 
   override destroy(): void {
-    const uiEl = document.getElementById("ui");
-    if (uiEl) {
-      uiEl.removeEventListener("pointerdown", this.onPointerDown);
-      uiEl.removeEventListener("pointerup", this.onPointerUp);
-    }
-    if (this.app.stage) {
-      this.app.stage.removeEventListener("pointerdown", this.onPointerDown);
-      this.app.stage.removeEventListener("pointerup", this.onPointerUp);
-    }
+    this.view.removeEventListener("pointerdown", this.onPointerDown);
+    this.view.removeEventListener("pointerup", this.onPointerUp);
   }
 
-  override update(timeMS: number, deltaMS: number): void {
+  override update(time: number, delta: number): void {
+    const timeMS = time * 1000;
+    const deltaMS = delta * 1000;
     if (!this.context.update(timeMS, deltaMS)) {
-      this.app.destroy(true);
+      this.quit();
     }
   }
 }

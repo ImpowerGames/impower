@@ -1,6 +1,9 @@
 import { SparkContext } from "../../../../spark-engine";
+import { SparkContainer } from "../plugins/projection";
 import { SparkApplication } from "./wrappers/SparkApplication";
-import { SparkSprite } from "./wrappers/SparkSprite";
+import { SparkAssets } from "./wrappers/SparkAssets";
+import { SparkRectangle } from "./wrappers/SparkRectangle";
+import { SparkRenderer } from "./wrappers/SparkRenderer";
 
 export class SparkScene {
   private _context: SparkContext;
@@ -11,24 +14,33 @@ export class SparkScene {
 
   private _app: SparkApplication;
 
-  public get app(): SparkApplication {
-    return this._app;
+  public get screen(): SparkRectangle {
+    return this._app.screen as SparkRectangle;
   }
 
-  private _entities: Record<string, SparkSprite>;
-
-  public get entities(): Record<string, SparkSprite> {
-    return this._entities;
+  public get view(): HTMLCanvasElement {
+    return this._app.view as HTMLCanvasElement;
   }
 
-  constructor(
-    context: SparkContext,
-    app: SparkApplication,
-    entities: Record<string, SparkSprite>
-  ) {
+  public get renderer(): SparkRenderer {
+    return this._app.renderer;
+  }
+
+  public get assets(): SparkAssets {
+    return this._app.assets;
+  }
+
+  public get maxFPS(): number {
+    return this._app.ticker?.maxFPS;
+  }
+
+  public get stage(): SparkContainer {
+    return this._app.stage as SparkContainer;
+  }
+
+  constructor(context: SparkContext, app: SparkApplication) {
     this._context = context;
     this._app = app;
-    this._entities = entities;
   }
 
   async load(): Promise<void> {
@@ -43,7 +55,7 @@ export class SparkScene {
     // NoOp
   }
 
-  update(_timeMS?: number, _deltaMS?: number): void {
+  update(_time?: number, _delta?: number): void {
     // NoOp
   }
 
@@ -53,5 +65,11 @@ export class SparkScene {
 
   resize(): void {
     // NoOp
+  }
+
+  quit(): void {
+    if (this._app) {
+      this._app.destroy(true);
+    }
   }
 }

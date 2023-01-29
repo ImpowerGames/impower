@@ -1,11 +1,13 @@
 export const getClockValueTime = (clockValue: string): number => {
-  return clockValue.endsWith("ms")
-    ? Number(clockValue.replace("ms", ""))
-    : clockValue.endsWith("s")
-    ? Number(clockValue.replace("s", "")) * 1000
-    : clockValue.endsWith("min")
-    ? Number(clockValue.replace("min", "")) * 1000 * 60
-    : clockValue.endsWith("h")
-    ? Number(clockValue.replace("h", "")) * 1000 * 60 * 60
+  const t = clockValue.trim();
+  const ms = t.endsWith("ms")
+    ? Number(t.replace("ms", ""))
+    : t.endsWith("s")
+    ? Number(t.replace("s", "")) * 1000
+    : t.endsWith("min")
+    ? Number(t.replace("min", "")) * 1000 * 60
+    : t.endsWith("h")
+    ? Number(t.replace("h", "")) * 1000 * 60 * 60
     : 0;
+  return ms / 1000;
 };

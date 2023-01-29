@@ -3,22 +3,17 @@ import {
   EntityState,
   SparkContext,
 } from "../../../../../spark-engine";
-import { Marquee } from "../../plugins/editor-graphics";
+import { Marquee } from "../../plugins/shape-graphics";
 import { SparkScene } from "../SparkScene";
 import { SparkApplication } from "../wrappers/SparkApplication";
-import { SparkSprite } from "../wrappers/SparkSprite";
 
 export class PreviewScene extends SparkScene {
   private _marquee: Marquee;
 
   private _dragging = false;
 
-  constructor(
-    context: SparkContext,
-    app: SparkApplication,
-    entities: Record<string, SparkSprite>
-  ) {
-    super(context, app, entities);
+  constructor(context: SparkContext, app: SparkApplication) {
+    super(context, app);
     this._marquee = new Marquee({
       dash: 4,
       dashSpace: 4,
@@ -31,9 +26,9 @@ export class PreviewScene extends SparkScene {
   }
 
   override init(): void {
-    this.app.stage.addChild(this._marquee);
-    this.app.stage.interactive = true;
-    this.app.stage.hitArea = this.app.screen;
+    this.stage.addChild(this._marquee);
+    this.stage.interactive = true;
+    this.stage.hitArea = this.screen;
   }
 
   override start(): void {
@@ -49,20 +44,20 @@ export class PreviewScene extends SparkScene {
     this.context?.game?.world?.events?.onDestroyEntity?.addListener((data) =>
       this.destroyEntity(data)
     );
-    this.app.stage.on("pointerdown", (e) => {
+    this.stage.on("pointerdown", (e) => {
       this._dragging = true;
       this._marquee.position.copyFrom(e.data.global);
       this._marquee.visible = true;
       this._marquee.setSize(0, 0, 2, 2);
     });
-    this.app.stage.on("pointermove", (e) => {
+    this.stage.on("pointermove", (e) => {
       if (this._dragging) {
         const width = e.data.global.x - this._marquee.x;
         const height = e.data.global.y - this._marquee.y;
         this._marquee.setSize(0, 0, width, height);
       }
     });
-    this.app.stage.on("pointerup", () => {
+    this.stage.on("pointerup", () => {
       this._dragging = false;
     });
   }

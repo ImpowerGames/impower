@@ -1,6 +1,6 @@
 import { Application, IDestroyOptions, utils } from "pixi.js";
 import { registerPixiInspector } from "../../utils/registerPixiInspector";
-import { SparkStage } from "./SparkStage";
+import { SparkAssets } from "./SparkAssets";
 
 export interface SparkApplicationOptions {
   startPaused?: boolean;
@@ -24,11 +24,14 @@ export interface SparkApplicationOptions {
 }
 
 export class SparkApplication extends Application {
-  override stage: SparkStage;
+  private _assets: SparkAssets = new SparkAssets();
+
+  public get assets(): SparkAssets {
+    return this._assets;
+  }
 
   constructor(options?: SparkApplicationOptions) {
     super(options);
-    this.stage = new SparkStage();
     this.ticker.maxFPS = options?.maxFPS || 60;
     utils.destroyTextureCache();
     registerPixiInspector();

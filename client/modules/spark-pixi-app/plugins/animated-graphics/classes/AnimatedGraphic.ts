@@ -7,7 +7,6 @@ import {
   SVGImageNode,
   SVGSceneContext,
   SVGTextNode,
-  SVGUseNode,
 } from "@pixi-essentials/svg";
 import { CanvasTextureAllocator } from "@pixi-essentials/texture-allocator";
 import { Renderer, RenderTexture } from "@pixi/core";
@@ -27,18 +26,15 @@ import { drawSVGGraphics } from "../utils/drawSVGGraphics";
 import { parseReference } from "../utils/parseReference";
 import { AnimatedSVGPathNode } from "./AnimatedSVGPathNode";
 import { AnimationControl } from "./AnimationControl";
-import { SVGLoader } from "./SVGLoader";
 
 const tempMatrix = new Matrix();
 const tempRect = new Rectangle();
 const tempPoint = new Point();
 
-const DEFAULT_MAX_FPS = 60;
-
 export interface AnimatedSVGOptions {
-  maxFPS?: number;
+  fps?: number;
+  ticker?: Ticker;
   anchor?: ObservablePoint;
-  autoUpdate?: boolean;
   time?: number;
   context?: Partial<SVGSceneContext>;
 }
@@ -104,12 +100,13 @@ export class AnimatedGraphic extends DisplayObject {
   public renderServers: Container = new Container();
 
   /**
-   * `true` uses Ticker.shared to auto update animation time.
+   * Ticker used to auto update the animation frame.
+   * @default null
    */
-  protected _autoUpdate = false;
+  private _ticker: Ticker;
 
   /**
-   * `true` if the instance is currently connected to Ticker.shared to auto update animation time.
+   * `true` if the instance is currently connected to Ticker to auto update animation frame.
    */
   protected _isConnectedToTicker = false;
 
@@ -131,7 +128,7 @@ export class AnimatedGraphic extends DisplayObject {
    */
   protected _height: number;
 
-  protected _maxFPS?: number;
+  protected _framesPerSecond = 60;
 
   protected _anchor: ObservablePoint;
 
@@ -178,30 +175,25 @@ export class AnimatedGraphic extends DisplayObject {
    */
   constructor(content: SVGSVGElement, options?: AnimatedSVGOptions) {
     super();
-
     this.content = content;
     this._orig = {
       width: this.content.viewBox.baseVal.width,
       height: this.content.viewBox.baseVal.height,
     };
-
-    this._maxFPS = options?.maxFPS;
+    this._framesPerSecond =
+      options?.fps || options?.ticker?.maxFPS || this._framesPerSecond;
     this._anchor =
       options?.anchor || new ObservablePoint(this.onAnchorUpdate, this, 0, 0);
     this._currentTime = options?.time || 0;
     this._control.time = options?.time || 0;
     this.initContext(options?.context);
-
     this._width = this._orig.width || 0;
     this._height = this._orig.height || 0;
-
     if (!options?.context?.disableRootPopulation) {
       this.populateScene();
     }
-
-    this._autoUpdate =
-      typeof options?.autoUpdate === "boolean" ? options?.autoUpdate : true;
-    if (this.autoUpdate) {
+    this._ticker = options?.ticker;
+    if (this._ticker) {
       this.play();
     }
   }
@@ -213,7 +205,6 @@ export class AnimatedGraphic extends DisplayObject {
       typeof context.disableHrefSVGLoading === "undefined"
         ? false
         : context.disableHrefSVGLoading;
-
     this._context = context as SVGSceneContext;
   }
 
@@ -230,21 +221,18 @@ export class AnimatedGraphic extends DisplayObject {
     if (!this._localBounds) {
       this._localBounds = new Bounds();
     }
-
     this._localBounds.minX = this._orig.width * -this._anchor._x;
     this._localBounds.minY = this._orig.height * -this._anchor._y;
     this._localBounds.maxX = this._orig.width * (1 - this._anchor._x);
     this._localBounds.maxY = this._orig.height * (1 - this._anchor._y);
-
     if (!rect) {
       if (!this._localBoundsRect) {
         this._localBoundsRect = new Rectangle();
       }
-
       rect = this._localBoundsRect;
     }
-
-    return this._localBounds.getRectangle(rect);
+    const rectangle = this._localBounds.getRectangle(rect);
+    return rectangle;
   }
 
   /**
@@ -254,20 +242,16 @@ export class AnimatedGraphic extends DisplayObject {
    */
   containsPoint(point: IPointData): boolean {
     this.worldTransform.applyInverse(point, tempPoint);
-
     const width = this._orig?.width;
     const height = this._orig?.height;
     const x1 = -width * this.anchor.x;
     let y1 = 0;
-
     if (tempPoint.x >= x1 && tempPoint.x < x1 + width) {
       y1 = -height * this.anchor.y;
-
       if (tempPoint.y >= y1 && tempPoint.y < y1 + height) {
         return true;
       }
     }
-
     return false;
   }
 
@@ -279,10 +263,8 @@ export class AnimatedGraphic extends DisplayObject {
     if (!this.visible || !this.renderable) {
       return;
     }
-
     // Update render-server objects
     this.renderServers.render(renderer);
-
     // Render the SVG scene graph
     if (this.root) {
       this.root.render(renderer);
@@ -291,16 +273,12 @@ export class AnimatedGraphic extends DisplayObject {
 
   override updateTransform(): void {
     super.updateTransform();
-
     if (!this.root) {
       return;
     }
-
     this.root.alpha = this.worldAlpha;
-
     const { worldTransform } = this;
     const rootTransform = this.root.transform.worldTransform;
-
     // Don't update transforms if they didn't change across frames. This is because the SVG scene graph is static.
     if (
       rootTransform.a === worldTransform.a &&
@@ -314,7 +292,6 @@ export class AnimatedGraphic extends DisplayObject {
     ) {
       return;
     }
-
     this.root.enableTempParent();
     const child = this.root.children?.[0];
     if (child) {
@@ -324,10 +301,8 @@ export class AnimatedGraphic extends DisplayObject {
     this.root.transform.setFromMatrix(this.worldTransform);
     this.root.updateTransform();
     this.root.disableTempParent(null as unknown as Container<DisplayObject>);
-
     // Calculate bounds in the SVG scene graph. This ensures they are updated whenever the transform changes.
     this.root.calculateBounds();
-
     // Prevent redundant recalculations.
     this._transformDirty = false;
   }
@@ -339,7 +314,6 @@ export class AnimatedGraphic extends DisplayObject {
    */
   protected createNode(element: SVGElement): Container | undefined {
     let renderNode: Container | undefined;
-
     if (!element) {
       return renderNode;
     }
@@ -379,20 +353,16 @@ export class AnimatedGraphic extends DisplayObject {
       case "text":
         renderNode = new SVGTextNode();
         break;
-      case "use":
-        renderNode = new SVGUseNode();
-        break;
       default:
         renderNode = undefined;
         break;
     }
-
     return renderNode;
   }
 
   /**
    * Creates a `Paint` object for the given element. This should only be used when sharing the `Paint`
-   * is not desired; otherwise, use {@link AnimatedGraphic.queryPaint}.
+   * is not desired; otherwise, use queryPaint.
    *
    * This will return `null` if the passed element is not an instance of `SVGElement`.
    *
@@ -403,7 +373,6 @@ export class AnimatedGraphic extends DisplayObject {
     if (!(element instanceof SVGElement)) {
       return undefined;
     }
-
     return new PaintProvider(element);
   }
 
@@ -418,21 +387,15 @@ export class AnimatedGraphic extends DisplayObject {
         basePaint: this.queryInheritedPaint(ref),
       }) as Container;
     }
-
     const localBounds = ref.getLocalBounds();
-
     ref.getBounds();
-
     const maskTexture = RenderTexture.create({
       width: localBounds.width,
       height: localBounds.height,
     });
-
     const maskSprite = new MaskServer(maskTexture);
-
     // Lazily render mask when needed.
     maskSprite.addChild(ref);
-
     return maskSprite;
   }
 
@@ -444,13 +407,10 @@ export class AnimatedGraphic extends DisplayObject {
    */
   protected queryMask(ref: SVGMaskElement): MaskServer {
     let queryHit = this._elementToMask.get(ref);
-
     if (!queryHit) {
       queryHit = this.createMask(ref);
-
       this._elementToMask.set(ref, queryHit);
     }
-
     return queryHit;
   }
 
@@ -463,14 +423,12 @@ export class AnimatedGraphic extends DisplayObject {
    */
   protected queryPaint(ref: SVGElement): Paint | undefined {
     let queryHit = this._elementToPaint.get(ref);
-
     if (!queryHit) {
       queryHit = this.createPaint(ref);
       if (queryHit) {
         this._elementToPaint.set(ref, queryHit);
       }
     }
-
     return queryHit;
   }
 
@@ -485,11 +443,9 @@ export class AnimatedGraphic extends DisplayObject {
     const parentPaint =
       ref.parentElement &&
       this.queryPaint(ref.parentElement as unknown as SVGElement);
-
     if (!parentPaint) {
       return paint;
     }
-
     return new InheritedPaintProvider(parentPaint, paint as Paint);
   }
 
@@ -520,7 +476,6 @@ export class AnimatedGraphic extends DisplayObject {
     const paint = basePaint
       ? new InheritedPaintProvider(basePaint, this.queryPaint(element) as Paint)
       : this.queryPaint(element);
-
     // Transform
     const transform =
       element instanceof SVGGraphicsElement
@@ -529,7 +484,6 @@ export class AnimatedGraphic extends DisplayObject {
     const transformMatrix = transform
       ? transform.matrix
       : tempMatrix.identity();
-
     // Graphics
     if (node instanceof AnimatedSVGPathNode) {
       node.bindPaint(paint);
@@ -539,6 +493,9 @@ export class AnimatedGraphic extends DisplayObject {
     }
     const type = element.nodeName.toLowerCase();
     switch (type) {
+      case "path":
+        (node as AnimatedSVGPathNode).embedPath(element as SVGPathElement);
+        break;
       case "circle":
         (node as SVGGraphicsNode).embedCircle(element as SVGCircleElement);
         break;
@@ -550,9 +507,6 @@ export class AnimatedGraphic extends DisplayObject {
         break;
       case "line":
         (node as SVGGraphicsNode).embedLine(element as SVGLineElement);
-        break;
-      case "path":
-        (node as AnimatedSVGPathNode).embedPath(element as SVGPathElement);
         break;
       case "polyline":
         (node as SVGGraphicsNode).embedPolyline(element as SVGPolylineElement);
@@ -566,79 +520,10 @@ export class AnimatedGraphic extends DisplayObject {
       case "text":
         (node as SVGTextNode).embedText(element as SVGTextElement);
         break;
-      case "use": {
-        const useElement = element as SVGUseElement;
-        const useTargetURL =
-          useElement.getAttribute("href") ||
-          useElement.getAttribute("xlink:href");
-        const usePaint = this.queryPaint(useElement);
-
-        (node as SVGUseNode).embedUse(useElement);
-
-        if (useTargetURL && useTargetURL.startsWith("#")) {
-          const useTarget = this.content.querySelector(useTargetURL);
-          const contentNode = this.populateSceneRecursive(
-            useTarget as SVGGraphicsElement,
-            {
-              basePaint: usePaint,
-            }
-          ) as SVGGraphicsNode;
-
-          (node as SVGUseNode).ref = contentNode;
-          contentNode.transform.setFromMatrix(Matrix.IDENTITY); // clear transform
-        } else if (
-          this._context &&
-          !this._context.disableHrefSVGLoading &&
-          useTargetURL
-        ) {
-          (node as SVGUseNode).isRefExternal = true;
-
-          SVGLoader.instance
-            .load(useTargetURL)
-            .then((svgDocument) =>
-              svgDocument
-                ? ([
-                    new AnimatedGraphic(svgDocument, {
-                      context: {
-                        ...this._context,
-                        disableRootPopulation: true,
-                      },
-                    }),
-                    svgDocument.querySelector(`#${useTargetURL.split("#")[1]}`),
-                  ] as [AnimatedGraphic, SVGElement])
-                : []
-            )
-            .then(([shellScene, useTarget]) => {
-              if (!useTarget) {
-                console.error(
-                  `AnimatedSVG failed to resolve ${useTargetURL} and SVGUseNode is empty!`
-                );
-              }
-
-              const contentNode = shellScene.populateSceneRecursive(
-                useTarget as SVGGraphicsElement,
-                {
-                  basePaint: usePaint,
-                }
-              ) as SVGGraphicsNode;
-
-              (node as SVGUseNode).ref = contentNode;
-              contentNode.transform.setFromMatrix(Matrix.IDENTITY); // clear transform
-
-              this._transformDirty = true;
-
-              shellScene.on("transformdirty", () => {
-                this._transformDirty = true;
-              });
-            });
-        }
-        break;
-      }
       default:
         // NoOp
         break;
     }
-
     node.transform.setFromMatrix(
       tempMatrix.set(
         transformMatrix.a,
@@ -653,7 +538,6 @@ export class AnimatedGraphic extends DisplayObject {
           : transformMatrix.f
       )
     );
-
     // Mask
     if (element instanceof SVGMaskElement) {
       this._elementToMask.set(element, this.createMask(node));
@@ -672,7 +556,6 @@ export class AnimatedGraphic extends DisplayObject {
         node.addChild(maskSprite);
       }
     }
-
     return {
       paint,
     };
@@ -692,56 +575,44 @@ export class AnimatedGraphic extends DisplayObject {
     }
   ): Container | undefined {
     const node = this.createNode(element);
-
     if (!node) {
       return undefined;
     }
-
     node.on(
       "nodetransformdirty" as unknown as keyof DisplayObjectEvents,
       this.onNodeTransformDirty
     );
-
     let paint: Paint | undefined;
-
     if (
       element instanceof SVGGraphicsElement ||
       element instanceof SVGMaskElement
     ) {
       const opts = this.embedIntoNode(node, element, options);
-
       paint = opts.paint as Paint;
     }
-
     for (let i = 0, j = element.children.length; i < j; i += 1) {
       // eslint-disable-next-line
       // @ts-ignore
       const childNode = this.populateSceneRecursive(element.children[i], {
         basePaint: paint,
       });
-
       if (childNode) {
         node.addChild(childNode);
       }
     }
-
     if (node instanceof SVGGraphicsNode) {
       const bbox = node.getLocalBounds(tempRect);
       const { paintServers } = node;
       const { x, y, width: bwidth, height: bheight } = bbox;
-
       node.paintServers.forEach((paintServer) => {
         paintServer.resolvePaintDimensions(bbox);
       });
-
       const { geometry } = node;
       const { graphicsData } = geometry;
-
       if (graphicsData) {
         graphicsData.forEach((data) => {
           const { fillStyle } = data;
           const { lineStyle } = data;
-
           if (
             fillStyle.texture &&
             paintServers.find(
@@ -750,7 +621,6 @@ export class AnimatedGraphic extends DisplayObject {
           ) {
             const { width } = fillStyle.texture;
             const { height } = fillStyle.texture;
-
             data.fillStyle.matrix
               .invert()
               .scale(bwidth / width, bheight / height)
@@ -759,7 +629,6 @@ export class AnimatedGraphic extends DisplayObject {
           if (fillStyle.matrix) {
             fillStyle.matrix.invert().translate(x, y).invert();
           }
-
           if (
             lineStyle.texture &&
             paintServers.find(
@@ -778,16 +647,13 @@ export class AnimatedGraphic extends DisplayObject {
             lineStyle.matrix.invert().translate(x, y).invert();
           }
         });
-
         geometry.updateBatches();
       }
     }
-
     if (element instanceof SVGMaskElement) {
       // Mask elements are *not* a part of the scene graph.
       return undefined;
     }
-
     return node;
   }
 
@@ -803,10 +669,9 @@ export class AnimatedGraphic extends DisplayObject {
     if (!this.playing) {
       return;
     }
-
     this.playing = false;
-    if (this._autoUpdate && this._isConnectedToTicker) {
-      Ticker.shared.remove(this.update, this);
+    if (this._ticker && this._isConnectedToTicker) {
+      this._ticker.remove(this.update, this);
       this._isConnectedToTicker = false;
     }
   }
@@ -816,53 +681,55 @@ export class AnimatedGraphic extends DisplayObject {
     if (this.playing) {
       return;
     }
-
     this.playing = true;
-    if (this._autoUpdate && !this._isConnectedToTicker) {
-      Ticker.shared.add(this.update, this, UPDATE_PRIORITY.HIGH);
+    if (this._ticker && !this._isConnectedToTicker) {
+      this._ticker.add(this.update, this, UPDATE_PRIORITY.HIGH);
       this._isConnectedToTicker = true;
     }
+  }
+
+  public gotoTime(time: number): void {
+    this._currentTime = time;
+    this.updateFrame();
   }
 
   /**
    * Stops the AnimatedSVGSprite and goes to a specific time.
    * @param time - time to stop at.
    */
-  public gotoAndStop(time: number): void {
+  public gotoTimeAndStop(time: number): void {
     this.stop();
-    this._currentTime = time;
-    this.updateFrame();
+    this.gotoTime(time);
   }
 
   /**
    * Goes to a specific time and begins playing the AnimatedSVGSprite.
    * @param time - time to start at.
    */
-  public gotoAndPlay(time: number): void {
-    this._currentTime = time;
-    this.updateFrame();
+  public gotoTimeAndPlay(time: number): void {
+    this.gotoTime(time);
     this.play();
   }
 
   /**
-   * Updates the object transform for rendering.
+   * Updates the object for rendering.
+   * @param deltaTime - Time in seconds since last tick.
    */
-  update(): void {
+  update(deltaTime: number): void {
     if (this._control?.playing) {
-      this._currentTime += this.animationSpeed * Ticker.shared.deltaMS;
+      this._currentTime += this.animationSpeed * deltaTime;
       this.updateFrame();
     }
   }
 
-  updateFrame(): number {
+  updateFrame(): void {
+    const secondsPerFrame = 1 / this._framesPerSecond;
     const duration = this._control?.animationDuration || 0;
     const normalizedTime = this._currentTime % duration;
     const currentIteration = Math.floor(this._currentTime / duration);
-    const maxFPS = this.maxFPS || Ticker.shared.maxFPS || DEFAULT_MAX_FPS;
-    const sampleRate = 1000 / maxFPS;
     let currentFrameIndex = -1;
     let i = 0;
-    for (let time = 0; time < duration; time += sampleRate) {
+    for (let time = 0; time < duration; time += secondsPerFrame) {
       this._frames[i] = time;
       if (currentFrameIndex < 0) {
         if (time === normalizedTime) {
@@ -880,7 +747,6 @@ export class AnimatedGraphic extends DisplayObject {
     if (this._control) {
       this._control.time = this._frames[currentFrameIndex] || 0;
     }
-
     if (currentFrameIndex !== this._currentFrameIndex) {
       if (currentFrameIndex < this._currentFrameIndex) {
         this.onLoop?.(currentFrameIndex, currentIteration);
@@ -888,8 +754,6 @@ export class AnimatedGraphic extends DisplayObject {
       this.onFrameChange?.(currentFrameIndex);
       this._currentFrameIndex = currentFrameIndex;
     }
-
-    return currentFrameIndex;
   }
 
   /**
@@ -904,7 +768,6 @@ export class AnimatedGraphic extends DisplayObject {
   override destroy(options?: IDestroyOptions | boolean): void {
     this.stop();
     super.destroy(options);
-
     this.onFrameChange = undefined;
     this.onLoop = undefined;
   }
@@ -916,32 +779,12 @@ export class AnimatedGraphic extends DisplayObject {
    */
   private onNodeTransformDirty = (): void => {
     this._transformDirty = true;
-    this.emit("transformdirty" as unknown as keyof DisplayObjectEvents, this);
+    this.emit("transformdirty" as unknown as keyof DisplayObjectEvents);
   };
 
   /** Called when the anchor position updates. */
   private onAnchorUpdate(): void {
     this._transformDirty = true;
-  }
-
-  /**
-   * Load the SVG document and create a {@link AnimatedGraphic} asynchronously.
-   *
-   * A cache is used for loaded SVG documents.
-   *
-   * @param url
-   * @param context
-   * @returns
-   */
-  static async fromURL(
-    url: string,
-    options?: AnimatedSVGOptions
-  ): Promise<AnimatedGraphic | undefined> {
-    const svg = await SVGLoader.instance.load(url);
-    if (!svg) {
-      return undefined;
-    }
-    return new AnimatedGraphic(svg, options);
   }
 
   /**
@@ -974,16 +817,16 @@ export class AnimatedGraphic extends DisplayObject {
    * The maximum fps that this animation should run at
    * @default 60
    */
-  get maxFPS(): number | undefined {
-    return this._maxFPS;
+  get framesPerSecond(): number | undefined {
+    return this._framesPerSecond;
   }
 
   /**
    * The maximum fps that this animation should run at
    * @default 60
    */
-  set maxFPS(value: number | undefined) {
-    this._maxFPS = value;
+  set framesPerSecond(value: number | undefined) {
+    this._framesPerSecond = value;
   }
 
   /**
@@ -1037,26 +880,21 @@ export class AnimatedGraphic extends DisplayObject {
     }
   }
 
-  /** Whether to use PIXI.Ticker.shared to auto update animation time. */
-  get autoUpdate(): boolean {
-    return this._autoUpdate;
+  /** Ticker used to auto update animation frame. */
+  get ticker(): Ticker {
+    return this._ticker;
   }
 
-  set autoUpdate(value: boolean) {
-    if (value !== this.autoUpdate) {
-      this._autoUpdate = value;
-
-      if (!this.autoUpdate && this._isConnectedToTicker) {
-        Ticker.shared.remove(this.update, this);
+  set ticker(value: Ticker) {
+    if (value !== this.ticker) {
+      if (this._ticker && !value && this._isConnectedToTicker) {
+        this._ticker.remove(this.update, this);
         this._isConnectedToTicker = false;
-      } else if (
-        this.autoUpdate &&
-        !this._isConnectedToTicker &&
-        this.playing
-      ) {
-        Ticker.shared.add(this.update, this);
+      } else if (value && !this._isConnectedToTicker && this.playing) {
+        value.add(this.update, this);
         this._isConnectedToTicker = true;
       }
+      this._ticker = value;
     }
   }
 }

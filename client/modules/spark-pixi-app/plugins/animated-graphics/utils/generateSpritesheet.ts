@@ -5,28 +5,28 @@ import {
   MSAA_QUALITY,
   SCALE_MODES,
   Spritesheet,
+  Texture,
 } from "pixi.js";
 import { AnimatedGraphic } from "../classes/AnimatedGraphic";
 
 export const generateSpritesheet = (
   renderer: IRenderer,
   svg: SVGSVGElement,
-  maxFPS = 60,
+  fps = 60,
   id = "",
-  animationName = "default"
+  animationName = "default",
+  quality = 4
 ): Spritesheet => {
   const container = new Container();
   const firstFrame = new AnimatedGraphic(svg, {
-    autoUpdate: false,
-    time: 0,
-    maxFPS,
+    fps,
   });
-  firstFrame.gotoAndStop(0);
+  firstFrame.gotoTimeAndStop(0);
   container.addChild(firstFrame);
   const w = firstFrame.width;
   const h = firstFrame.height;
   const duration = firstFrame.animationDuration;
-  const sampleRate = 1000 / maxFPS;
+  const secondsPerFrame = 1 / fps;
   const atlasData: ISpritesheetData = {
     frames: {},
     meta: {
@@ -37,7 +37,7 @@ export const generateSpritesheet = (
       [animationName]: [],
     },
   };
-  const frameCount = Math.floor(duration / sampleRate);
+  const frameCount = Math.floor(duration / secondsPerFrame);
   const columns = Math.sqrt(frameCount);
   const rows = Math.ceil(frameCount / columns);
   let time = 0;
@@ -49,37 +49,36 @@ export const generateSpritesheet = (
         break;
       }
       const frame = new AnimatedGraphic(svg, {
-        autoUpdate: false,
         time,
-        maxFPS,
+        fps,
       });
-      frame.gotoAndStop(time);
+      frame.gotoTimeAndStop(time);
       frame.position.set(x, y);
       container.addChild(frame);
       const frameId = id + time;
       // To prevent bleeding between frames when anti-aliasing texture
-      const edgeOffset = 1;
+      const spacing = 1;
       atlasData.frames[frameId] = {
         frame: {
-          x: x + edgeOffset,
-          y: y + edgeOffset,
-          w: w - edgeOffset,
-          h: h - edgeOffset,
+          x: x + spacing,
+          y: y + spacing,
+          w: w - spacing,
+          h: h - spacing,
         },
-        sourceSize: { w: w - edgeOffset, h: h - edgeOffset },
-        spriteSourceSize: { x: edgeOffset, y: edgeOffset },
+        sourceSize: { w: w - spacing, h: h - spacing },
+        spriteSourceSize: { x: 1, y: 1 },
       };
       atlasData.animations?.[animationName]?.push(frameId);
-      time += sampleRate;
+      time += secondsPerFrame;
       x += w;
     }
     x = 0;
     y += h;
   }
-  const renderTexture = renderer.generateTexture(container, {
+  const renderTexture = renderer?.generateTexture(container, {
     scaleMode: SCALE_MODES.LINEAR,
     multisample: MSAA_QUALITY.HIGH,
-    resolution: window.devicePixelRatio,
+    resolution: window.devicePixelRatio * quality,
   });
-  return new Spritesheet(renderTexture, atlasData);
+  return new Spritesheet(renderTexture || Texture.EMPTY, atlasData);
 };

@@ -1,13 +1,12 @@
 import { SparkContext } from "../../../../spark-engine";
 import { LogicScene } from "./scenes/LogicScene";
-import { PreviewScene } from "./scenes/PreviewScene";
+import { MainScene } from "./scenes/MainScene";
 import { SoundScene } from "./scenes/SoundScene";
 import { SparkScene } from "./SparkScene";
 import {
   SparkApplication,
   SparkApplicationOptions,
 } from "./wrappers/SparkApplication";
-import { SparkSprite } from "./wrappers/SparkSprite";
 
 export class SparkGameApp {
   private _parent: HTMLElement | null;
@@ -40,13 +39,7 @@ export class SparkGameApp {
     return this._resizeObserver;
   }
 
-  private _entities: Record<string, SparkSprite> = {};
-
-  public get entities(): Record<string, SparkSprite> {
-    return this._entities;
-  }
-
-  private _timeMS = 0;
+  private _time = 0;
 
   constructor(
     domElementId: string,
@@ -73,6 +66,7 @@ export class SparkGameApp {
         });
       }
     });
+    this._resizeObserver.observe(this._parent);
     if (this._parent) {
       const view = this.app.view as HTMLCanvasElement;
       this._parent.appendChild(view);
@@ -85,15 +79,12 @@ export class SparkGameApp {
 
     if (context) {
       if (context?.editable) {
-        this._scenes = [
-          // new MainScene(context, this.app, this.entities),
-          new PreviewScene(context, this.app, this.entities),
-        ];
+        this._scenes = [new MainScene(context, this.app)];
       } else {
         this._scenes = [
-          // new MainScene(context, this.app, this.entities),
-          new SoundScene(context, this.app, this.entities),
-          new LogicScene(context, this.app, this.entities),
+          new MainScene(context, this.app),
+          new SoundScene(context, this.app),
+          new LogicScene(context, this.app),
         ];
       }
     }
@@ -107,13 +98,19 @@ export class SparkGameApp {
   ): Promise<void> {
     await Promise.all(this.scenes.map((scene) => scene.load()));
     this.scenes.forEach((scene) => {
-      scene.init();
+      if (scene?.stage) {
+        scene.init();
+      }
     });
     this.scenes.forEach((scene) => {
-      scene.start();
+      if (scene?.stage) {
+        scene.start();
+      }
     });
 
-    this.app.ticker.add(this.update, this);
+    if (this.app.ticker) {
+      this.app.ticker.add(this.update, this);
+    }
 
     if (this.context) {
       await this.context.start();
@@ -122,7 +119,9 @@ export class SparkGameApp {
     if (startTicker) {
       this.app.start();
     } else {
-      this.app.ticker.update();
+      if (this.app.ticker) {
+        this.app.ticker.update();
+      }
       this.app.stop();
     }
 
@@ -152,10 +151,11 @@ export class SparkGameApp {
 
   update(): void {
     const deltaMS = this.app.ticker?.deltaMS || 0;
-    this._timeMS += deltaMS;
+    const delta = deltaMS / 1000;
+    this._time += delta;
     if (this.app) {
       this.scenes.forEach((scene) => {
-        scene.update(this._timeMS, deltaMS);
+        scene.update(this._time, delta);
       });
     }
   }

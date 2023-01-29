@@ -10,6 +10,8 @@ export const getScriptAugmentations = (
       ? "audio"
       : fileType?.startsWith("video")
       ? "video"
+      : fileType?.startsWith("image/svg")
+      ? "graphic"
       : fileType?.startsWith("image")
       ? "image"
       : "text";

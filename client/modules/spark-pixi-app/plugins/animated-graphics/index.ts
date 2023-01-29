@@ -1,7 +1,6 @@
 export * from "./classes/AnimatedGraphic";
 export * from "./classes/AnimatedSVGPathNode";
 export * from "./classes/AnimationControl";
-export * from "./classes/SVGLoader";
 export * from "./utils/createPaintServer";
 export * from "./utils/drawSVGGraphics";
 export * from "./utils/generateSpritesheet";
