@@ -52,9 +52,9 @@ const setChar = (str: string, index: number, chr: string): string => {
 };
 
 export const stringifyBeatmap = (beats: Beat[], reversed = false): string => {
-  let lines: string[] = [];
-  lines.push("~~~~");
-  lines.push("START");
+  let tokens: string[] = [];
+  tokens.push("~~~~");
+  tokens.push("START");
   let i = 0;
   const sortedBeats = beats.sort((a, b) => (a.n || 0) - (b.n || 0));
   sortedBeats.forEach((beat) => {
@@ -67,12 +67,12 @@ export const stringifyBeatmap = (beats: Beat[], reversed = false): string => {
       const diff = n - i;
       if (diff > 0) {
         if (bpm) {
-          lines.push(`@${bpm}`);
+          tokens.push(`@${bpm}`);
         }
-        lines.push(...getMeasureSeparators(diff));
-        lines.push("    \n    \n    ");
+        tokens.push(...getMeasureSeparators(diff));
+        tokens.push("    \n    \n    ");
       }
-      const currBeat = lines[lines.length - 1] || "";
+      const currBeat = tokens[tokens.length - 1] || "";
       const currBeatLines = currBeat.split("\n");
       const lineIndex = currBeatLines.length - 1 - y;
       currBeatLines[lineIndex] = setChar(
@@ -80,14 +80,14 @@ export const stringifyBeatmap = (beats: Beat[], reversed = false): string => {
         x,
         d
       );
-      lines[lines.length - 1] = currBeatLines.join("\n");
+      tokens[tokens.length - 1] = currBeatLines.join("\n");
       i = n;
     }
   });
-  lines.push("END");
-  lines.push("~~~~");
+  tokens.push("END");
+  tokens.push("~~~~");
   if (reversed) {
-    lines.reverse();
+    tokens.reverse();
   }
-  return lines.join("\n");
+  return tokens.join("\n");
 };

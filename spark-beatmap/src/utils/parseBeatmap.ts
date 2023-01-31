@@ -60,14 +60,14 @@ export const parseBeatmap = (script: string, rowsPerBeat = 3): Beat[] => {
         break;
       }
       case "":
+      case " ":
       case "^":
       case "v":
       case "<":
       case ">":
       case "\\":
       case "/":
-      case "*":
-      case " ": {
+      case "*": {
         for (let y = 0; y < rowsPerBeat; y += 1) {
           const rowIndex = reversed ? i + y : i + rowsPerBeat - 1 - y;
           const row = lines[rowIndex] || "";
