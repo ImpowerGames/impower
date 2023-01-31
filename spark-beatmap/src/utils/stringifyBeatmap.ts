@@ -1,10 +1,6 @@
 import { Beat } from "../types/Beat";
 import { roundDecimalToRatio } from "./roundDecimalToRatio";
 
-const gcd = (a: number, b: number): number => {
-  return b ? gcd(b, a % b) : a;
-};
-
 const getIntegerSeparators = (diff: number): string[] => {
   if (diff === 1) {
     return ["----"];
