@@ -39,13 +39,15 @@ export const convertBSData = (dat: string | object): Beat[] => {
     ? data
     : data.colorNotes || data._notes;
   const beats: Beat[] = [];
-  notes.forEach((note) => {
-    beats.push({
-      n: note.n ?? note.b ?? note._time ?? -1,
-      x: note.x ?? note._lineIndex ?? -1,
-      y: note.y ?? note._lineLayer ?? -1,
-      d: getDirection(note.d ?? note._cutDirection ?? -1),
+  if (Array.isArray(notes)) {
+    notes.forEach((note) => {
+      beats.push({
+        n: note.n ?? note.b ?? note._time ?? -1,
+        x: note.x ?? note._lineIndex ?? -1,
+        y: note.y ?? note._lineLayer ?? -1,
+        d: getDirection(note.d ?? note._cutDirection ?? -1),
+      });
     });
-  });
+  }
   return beats;
 };
