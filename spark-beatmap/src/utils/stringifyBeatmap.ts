@@ -51,9 +51,33 @@ const setChar = (str: string, index: number, chr: string): string => {
   return str.substring(0, index) + chr + str.substring(index + 1);
 };
 
-export const stringifyBeatmap = (beats: Beat[], reversed = false): string => {
+const rowOf = (str: string, length: number): string => {
+  let result = "";
+  for (let i = 0; i < length; i += 1) {
+    result += str;
+  }
+  return result;
+};
+
+const columnsOf = (str: string, length: number): string => {
+  let result = "";
+  for (let i = 0; i < length; i += 1) {
+    if (result) {
+      result += "\n";
+    }
+    result += str;
+  }
+  return result;
+};
+
+export const stringifyBeatmap = (
+  beats: Beat[],
+  rowsPerBeat = 3,
+  columnsPerBeat = 4,
+  reversed = false
+): string => {
   let tokens: string[] = [];
-  tokens.push("~~~~");
+  tokens.push(rowOf("~", columnsPerBeat));
   tokens.push("START");
   let i = 0;
   const sortedBeats = beats.sort((a, b) => (a.n || 0) - (b.n || 0));
@@ -70,13 +94,13 @@ export const stringifyBeatmap = (beats: Beat[], reversed = false): string => {
           tokens.push(`@${bpm}`);
         }
         tokens.push(...getMeasureSeparators(diff));
-        tokens.push("    \n    \n    ");
+        tokens.push(columnsOf(rowOf(" ", columnsPerBeat), rowsPerBeat));
       }
       const currBeat = tokens[tokens.length - 1] || "";
       const currBeatLines = currBeat.split("\n");
       const lineIndex = currBeatLines.length - 1 - y;
       currBeatLines[lineIndex] = setChar(
-        currBeatLines[lineIndex] || "    ",
+        currBeatLines[lineIndex] || rowOf(" ", columnsPerBeat),
         x,
         d
       );
@@ -85,7 +109,7 @@ export const stringifyBeatmap = (beats: Beat[], reversed = false): string => {
     }
   });
   tokens.push("END");
-  tokens.push("~~~~");
+  tokens.push(rowOf("~", columnsPerBeat));
   if (reversed) {
     tokens.reverse();
   }
