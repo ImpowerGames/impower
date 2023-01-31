@@ -28,11 +28,16 @@ const spawn = (
   fps: number,
   entityContainer: SparkContainer,
   entities: SparkSprite[],
-  positionArray?: Float32Array
+  positionArray?: Float32Array,
+  scaleArray?: Float32Array
 ): void => {
   const entity = createSprite(content, fps);
+  entity.pixelsPerUnit = entity.texture.width;
   if (positionArray) {
     entity.position.array = positionArray;
+  }
+  if (scaleArray) {
+    entity.scale.array = scaleArray;
   }
   entityContainer.addChild(entity);
   entities.push(entity);
@@ -55,7 +60,9 @@ export class MainScene extends SparkScene {
 
   private _gridCellSize = 32;
 
-  private _gridRowCount = 10;
+  private _gridRowCount = 4;
+
+  private _gridColumnCount = 32;
 
   private _floorPlane = new SparkPlane(new SparkPoint3D(0, 1, 0), 0);
 
@@ -69,6 +76,8 @@ export class MainScene extends SparkScene {
 
   private _dragThreshold = 8;
 
+  private _defaultPosition = new Float32Array(3);
+
   constructor(context: SparkContext, app: SparkApplication) {
     super(context, app);
     // Camera
@@ -80,7 +89,8 @@ export class MainScene extends SparkScene {
       this._gridColor,
       this._gridThickness,
       this._gridCellSize,
-      this._gridRowCount
+      this._gridRowCount,
+      this._gridColumnCount
     );
     this._grid = new SparkSprite(gridTexture);
     this._grid.zIndex = -1000;
@@ -115,9 +125,18 @@ export class MainScene extends SparkScene {
 
   override init(): void {
     this.stage.addChild(this._grid);
+    this._defaultPosition[0] = 0;
+    this._defaultPosition[1] = 0;
+    this._defaultPosition[2] = 3;
     Object.entries(this._animations || {}).forEach(([, v]) => {
       if (v) {
-        spawn(v, this.maxFPS, this.stage, this._entities);
+        spawn(
+          v,
+          this.maxFPS,
+          this.stage,
+          this._entities,
+          this._defaultPosition
+        );
       }
     });
   }

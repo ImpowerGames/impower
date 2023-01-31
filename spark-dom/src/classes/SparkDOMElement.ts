@@ -1,6 +1,6 @@
 import { IElement } from "../../../spark-engine";
-import { getCSSPropertyKeyValue } from "../../utils/getCSSPropertyKeyValue";
-import { getCSSPropertyName } from "../../utils/getCSSPropertyName";
+import { getCSSPropertyKeyValue } from "../utils/getCSSPropertyKeyValue";
+import { getCSSPropertyName } from "../utils/getCSSPropertyName";
 
 export class SparkDOMElement implements IElement {
   protected _children: SparkDOMElement[] = [];

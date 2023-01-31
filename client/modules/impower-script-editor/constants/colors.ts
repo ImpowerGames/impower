@@ -37,6 +37,8 @@ export const colors = {
   string: "#CE9178",
   number: "#D9E577",
   boolean: "#569CD6",
+  codeMark: "#FFBF00",
+  codeText: "#FF8000",
 
   tooltip: "#313133",
   match: "#18A3FF",

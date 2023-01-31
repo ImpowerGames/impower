@@ -11,10 +11,11 @@ import { Type } from "../types/type";
 import { whitespace } from "./whitespace";
 
 export function inBlockContext(cx: BlockContext, type: Type): boolean {
-  for (let i = cx.stack.length - 1; i >= 0; i -= 1)
+  for (let i = cx.stack.length - 1; i >= 0; i -= 1) {
     if (cx.stack[i].type === type) {
       return true;
     }
+  }
   return false;
 }
 

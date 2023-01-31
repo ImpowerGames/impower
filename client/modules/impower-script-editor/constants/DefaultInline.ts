@@ -66,10 +66,7 @@ export const DefaultInline: {
       if (!prevHadExtraSpace && hasExtraSpace) {
         els.push(new Element(Type.Pause, from + i - 1, from + i));
       }
-      if (
-        hasExtraSpace ||
-        (pauseLength === 1 && (chars[i + 1] == null || chars[i + 1] === "\n"))
-      ) {
+      if (hasExtraSpace) {
         els.push(new Element(Type.Pause, from + i, from + i + 1));
       }
       prevHadExtraSpace = hasExtraSpace;

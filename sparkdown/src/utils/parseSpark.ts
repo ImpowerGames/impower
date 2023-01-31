@@ -23,7 +23,7 @@ import {
   SparkDialogueToken,
   SparkDisplayToken,
   SparkStructFieldToken,
-  SparkToken
+  SparkToken,
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
 import { SparkVariable } from "../types/SparkVariable";
@@ -1977,9 +1977,7 @@ const startsWithArrayMark = <
   return token.content.trimStart().startsWith("- ");
 };
 
-const getParentId = <
-  T extends { id: string; indent: number; content: string }
->(
+const getParentId = <T extends { id: string; indent: number; content: string }>(
   token: T,
   currentTokens: T[]
 ): string => {
@@ -2764,65 +2762,68 @@ export const parseSpark = (
           const currentSection = parsed?.sections?.[currentSectionId];
           const expectedType = currentSection?.returnType;
           if (expression) {
-            const [ids, context] = getScopedValueContext(
-              currentSectionId,
-              parsed.sections
-            );
-            const compiler = config?.compiler || defaultCompiler;
-            const [result, diagnostics, references] = compiler(
-              expression,
-              context
-            );
-            if (references?.length > 0) {
-              for (let i = 0; i < references.length; i += 1) {
-                const r = references[i];
-                if (r) {
-                  const from = expressionFrom + r.from;
-                  const to = expressionFrom + r.to;
-                  if (!parsed.references[currentToken.line]) {
-                    parsed.references[currentToken.line] = [];
-                  }
-                  parsed.references[currentToken.line]?.push({
-                    from,
-                    to,
-                    name: r.content,
-                    id: ids[r.content],
-                  });
-                }
-              }
-            }
-            if (diagnostics?.length > 0) {
-              for (let i = 0; i < diagnostics.length; i += 1) {
-                const d = diagnostics[i];
-                if (d) {
-                  const from = expressionFrom + d.from;
-                  const to = expressionFrom + d.to;
-                  diagnostic(
-                    parsed,
-                    currentToken,
-                    d.message,
-                    undefined,
-                    from,
-                    to
-                  );
-                }
-              }
-            }
-            const resultType = typeof result;
-            if (result != null && resultType !== expectedType) {
-              const message = expectedType
-                ? `Function expects to return a '${expectedType}' but returns a '${resultType}'`
-                : `${capitalize(
-                    currentSection?.type || "section"
-                  )} cannot return a value`;
-              diagnostic(
-                parsed,
-                currentToken,
-                message,
-                undefined,
-                expressionFrom,
-                expressionTo
+            // TODO: Fence off ~~~~ map syntax so this check is no longer necessary
+            if (expression.trim() !== ">") {
+              const [ids, context] = getScopedValueContext(
+                currentSectionId,
+                parsed.sections
               );
+              const compiler = config?.compiler || defaultCompiler;
+              const [result, diagnostics, references] = compiler(
+                expression,
+                context
+              );
+              if (references?.length > 0) {
+                for (let i = 0; i < references.length; i += 1) {
+                  const r = references[i];
+                  if (r) {
+                    const from = expressionFrom + r.from;
+                    const to = expressionFrom + r.to;
+                    if (!parsed.references[currentToken.line]) {
+                      parsed.references[currentToken.line] = [];
+                    }
+                    parsed.references[currentToken.line]?.push({
+                      from,
+                      to,
+                      name: r.content,
+                      id: ids[r.content],
+                    });
+                  }
+                }
+              }
+              if (diagnostics?.length > 0) {
+                for (let i = 0; i < diagnostics.length; i += 1) {
+                  const d = diagnostics[i];
+                  if (d) {
+                    const from = expressionFrom + d.from;
+                    const to = expressionFrom + d.to;
+                    diagnostic(
+                      parsed,
+                      currentToken,
+                      d.message,
+                      undefined,
+                      from,
+                      to
+                    );
+                  }
+                }
+              }
+              const resultType = typeof result;
+              if (result != null && resultType !== expectedType) {
+                const message = expectedType
+                  ? `Function expects to return a '${expectedType}' but returns a '${resultType}'`
+                  : `${capitalize(
+                      currentSection?.type || "section"
+                    )} cannot return a value`;
+                diagnostic(
+                  parsed,
+                  currentToken,
+                  message,
+                  undefined,
+                  expressionFrom,
+                  expressionTo
+                );
+              }
             }
           } else if (expectedType) {
             const message = `Function expects to return a '${expectedType}' but returns nothing`;

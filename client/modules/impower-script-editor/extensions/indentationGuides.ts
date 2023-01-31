@@ -1,6 +1,6 @@
 /* eslint-disable no-cond-assign */
 /* eslint-disable no-continue */
-import { getIndentUnit } from "@codemirror/language";
+import { getIndentUnit, syntaxTree } from "@codemirror/language";
 import { Extension, RangeSet, RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
@@ -10,6 +10,7 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import { colors } from "../constants/colors";
+import { Type } from "../types/type";
 
 // markers can be used at positions on a line over a range
 const indentationMark = Decoration.mark({ class: "cm-indentation-guide" });
@@ -52,6 +53,7 @@ function makeIndentationDecorators(view: EditorView): RangeSet<Decoration> {
   const { doc } = view.state;
   const spaceOnlyLines = [];
   view.visibleRanges.forEach((range) => {
+    const tree = syntaxTree(view.state);
     const visibleFrom = range?.from;
     const visibleTo = range?.to;
     let to = visibleFrom - 1;
@@ -59,23 +61,29 @@ function makeIndentationDecorators(view: EditorView): RangeSet<Decoration> {
     let from;
     let text;
     while ((pos = to + 1) <= visibleTo) {
-      ({ from, to, text } = doc.lineAt(pos));
-      const codeStartsAt = getCodeStart(text);
-      // we have a valid indentation that needs guiding!
-      // fill all space only lines that we've kept track of
-      const indent = codeStartsAt - (codeStartsAt % tabSize);
-      const decos: Map<number, [number, number, Decoration]> = new Map();
-      spaceOnlyLines.length = 0;
-      makeIndentationMark(from, to, indent, tabSize).forEach(
-        ([from, to, deco]) => {
-          decos[from] = [from, to, deco];
-        }
-      );
-      Object.values(decos)
-        .sort((a, b) => a[0] - b[0])
-        .forEach(([from, to, mark]) => {
-          builder.add(from, to, mark);
-        });
+      const line = doc.lineAt(pos);
+      from = line.from;
+      to = line.to;
+      text = line.text;
+      const node = tree.resolveInner(from, -1);
+      if (node.type.id !== Type.CodeText) {
+        const codeStartsAt = getCodeStart(text);
+        // we have a valid indentation that needs guiding!
+        // fill all space only lines that we've kept track of
+        const indent = codeStartsAt - (codeStartsAt % tabSize);
+        const decos: Map<number, [number, number, Decoration]> = new Map();
+        spaceOnlyLines.length = 0;
+        makeIndentationMark(from, to, indent, tabSize).forEach(
+          ([from, to, deco]) => {
+            decos[from] = [from, to, deco];
+          }
+        );
+        Object.values(decos)
+          .sort((a, b) => a[0] - b[0])
+          .forEach(([from, to, mark]) => {
+            builder.add(from, to, mark);
+          });
+      }
     }
   });
   return builder.finish();

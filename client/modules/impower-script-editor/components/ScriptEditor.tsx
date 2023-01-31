@@ -217,6 +217,14 @@ const myHighlightStyle = HighlightStyle.define([
     color: colors.boolean,
   },
   {
+    tag: t.codeMark,
+    color: colors.codeMark,
+  },
+  {
+    tag: t.codeText,
+    color: colors.codeText,
+  },
+  {
     "tag": t.pause,
     "position": "relative",
     "&:after": {
@@ -233,7 +241,6 @@ const myHighlightStyle = HighlightStyle.define([
       lineHeight: "1",
     },
   },
-
   { tag: t.invalid, color: colors.invalid },
 ]);
 

@@ -1,5 +1,9 @@
 import { compile, format } from "../../../../spark-evaluate";
-import { SparkParser, SparkParserConfig } from "../../../../sparkdown";
+import {
+  SparkParser,
+  SparkParserConfig,
+  SparkParseResult,
+} from "../../../../sparkdown";
 
 export class EngineSparkParser extends SparkParser {
   private static _instance: EngineSparkParser;
@@ -19,5 +23,9 @@ export class EngineSparkParser extends SparkParser {
         lineOffset: 1,
       }
     );
+  }
+
+  override parse(script: string, config?: SparkParserConfig): SparkParseResult {
+    return super.parse(script, config);
   }
 }

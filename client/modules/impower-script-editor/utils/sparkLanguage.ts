@@ -63,11 +63,11 @@ export const tags = {
   centeredMark: t.processingInstruction,
   emphasisMark: t.processingInstruction,
   underlineMark: t.processingInstruction,
-  codeMark: t.processingInstruction,
   quoteMark: t.processingInstruction,
   linkMark: t.processingInstruction,
   strikethrough: t.strikethrough,
   formatting: t.processingInstruction,
+  codeMark: t.special(t.processingInstruction),
 
   typeName: t.typeName,
   keyword: t.keyword,

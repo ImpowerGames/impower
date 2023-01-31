@@ -108,21 +108,21 @@ export class SparkGameApp {
       }
     });
 
-    if (this.app.ticker) {
-      this.app.ticker.add(this.update, this);
-    }
+    this.app?.ticker?.add(this.update, this);
 
     if (this.context) {
       await this.context.start();
     }
 
-    if (startTicker) {
-      this.app.start();
-    } else {
-      if (this.app.ticker) {
-        this.app.ticker.update();
+    try {
+      if (startTicker) {
+        this.app?.start();
+      } else {
+        this.app?.ticker?.update();
+        this.app?.stop();
       }
-      this.app.stop();
+    } catch {
+      // App already stopped
     }
 
     onLoaded?.();
@@ -142,11 +142,11 @@ export class SparkGameApp {
   }
 
   pause(): void {
-    this.app.stop();
+    this.app?.stop();
   }
 
   resume(): void {
-    this.app.start();
+    this.app?.start();
   }
 
   update(): void {

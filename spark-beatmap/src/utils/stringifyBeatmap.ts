@@ -1,0 +1,93 @@
+import { Beat } from "../types/Beat";
+import { roundDecimalToRatio } from "./roundDecimalToRatio";
+
+const gcd = (a: number, b: number): number => {
+  return b ? gcd(b, a % b) : a;
+};
+
+const getIntegerSeparators = (diff: number): string[] => {
+  if (diff === 1) {
+    return ["----"];
+  }
+  if (diff === 2) {
+    return ["===="];
+  }
+  if (diff === 3) {
+    return ["====", "----"];
+  }
+  if (diff === 4) {
+    return ["====", "===="];
+  }
+  if (diff === Math.floor(diff)) {
+    const diffLength = diff.toString().length;
+    if (diffLength === 1) {
+      return [`--${diff}--`];
+    }
+    return [`-${diff}-`];
+  }
+  return [];
+};
+
+const getMeasureSeparators = (diff: number): string[] => {
+  const intSeparators = getIntegerSeparators(diff);
+  if (intSeparators.length > 0) {
+    return intSeparators;
+  }
+  const ratio = roundDecimalToRatio(diff);
+  const ratioStr = ratio === "1" ? "--" : ratio;
+  if (ratioStr.includes(".") && diff > 1) {
+    const integer = Math.floor(diff);
+    const remainder = diff - integer;
+    const remRatio = roundDecimalToRatio(remainder);
+    const remRatioStr = remRatio === "1" ? "--" : remRatio;
+    return [...getIntegerSeparators(integer), `-${remRatioStr}-`];
+  } else {
+    return [`-${ratioStr}-`];
+  }
+};
+
+const setChar = (str: string, index: number, chr: string): string => {
+  if (index > str.length - 1) return str;
+  return str.substring(0, index) + chr + str.substring(index + 1);
+};
+
+export const stringifyBeatmap = (beats: Beat[], reversed = false): string => {
+  let lines: string[] = [];
+  lines.push("~~~~");
+  lines.push("START");
+  let i = 0;
+  const sortedBeats = beats.sort((a, b) => (a.n || 0) - (b.n || 0));
+  sortedBeats.forEach((beat) => {
+    if (beat) {
+      const n = beat.n || 0;
+      const x = beat.x || 0;
+      const y = beat.y || 0;
+      const d = beat.d || "*";
+      const bpm = beat.bpm || 0;
+      const diff = n - i;
+      if (diff > 0) {
+        if (bpm) {
+          lines.push(`@${bpm}`);
+        }
+        lines.push(...getMeasureSeparators(diff));
+        lines.push("    \n    \n    ");
+      }
+      const currBeat = lines[lines.length - 1] || "";
+      const currBeatLines = currBeat.split("\n");
+      const lineIndex = currBeatLines.length - 1 - y;
+      currBeatLines[lineIndex] = setChar(
+        currBeatLines[lineIndex] || "    ",
+        x,
+        d
+      );
+      lines[lines.length - 1] = currBeatLines.join("\n");
+      i = n;
+    }
+  });
+  lines.push("END");
+  lines.push("~~~~");
+  if (reversed) {
+    lines.reverse();
+  }
+  return lines.join("\n");
+};

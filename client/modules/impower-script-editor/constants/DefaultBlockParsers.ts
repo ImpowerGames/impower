@@ -1534,7 +1534,15 @@ export const DefaultBlockParsers: {
         const textStart = cx.lineStart + line.basePos;
         const textEnd = cx.lineStart + line.text.length;
         if (textStart < textEnd) {
-          addCodeText(marks, textStart, textEnd);
+          for (let i = 0; i < line.text.length; i += 1) {
+            if (line.text[i] === " ") {
+              marks.push(
+                new Element(Type.Pause, cx.lineStart + i, cx.lineStart + i + 1)
+              );
+            } else {
+              addCodeText(marks, cx.lineStart + i, cx.lineStart + i + 1);
+            }
+          }
         }
       }
     }

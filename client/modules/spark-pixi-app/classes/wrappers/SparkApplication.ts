@@ -38,21 +38,29 @@ export class SparkApplication extends Application {
   }
 
   override stop(): void {
-    super.stop();
+    if (this) {
+      super.stop();
+    }
   }
 
   override start(): void {
-    super.start();
+    if (this) {
+      super.start();
+    }
   }
 
   override destroy(
     removeView?: boolean | undefined,
     stageOptions?: boolean | IDestroyOptions | undefined
   ): void {
-    super.destroy(removeView, stageOptions);
+    if (this) {
+      super.destroy(removeView, stageOptions);
+    }
   }
 
   override resize(): void {
-    super.resize();
+    if (this) {
+      super.resize();
+    }
   }
 }
