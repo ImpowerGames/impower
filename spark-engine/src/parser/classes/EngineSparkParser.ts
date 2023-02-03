@@ -1,9 +1,6 @@
 import { compile, format } from "../../../../spark-evaluate";
-import {
-  SparkParser,
-  SparkParserConfig,
-  SparkParseResult,
-} from "../../../../sparkdown";
+import { SparkParser, SparkParserConfig } from "../../../../sparkdown";
+import { processBeatmap } from "../../game/rhythm";
 
 export class EngineSparkParser extends SparkParser {
   private static _instance: EngineSparkParser;
@@ -16,16 +13,12 @@ export class EngineSparkParser extends SparkParser {
   }
 
   constructor(config?: SparkParserConfig) {
-    super(
-      config || {
-        compiler: compile,
-        formatter: format,
-        lineOffset: 1,
-      }
-    );
-  }
-
-  override parse(script: string, config?: SparkParserConfig): SparkParseResult {
-    return super.parse(script, config);
+    super({
+      compiler: compile,
+      formatter: format,
+      extensions: [processBeatmap],
+      lineOffset: 1,
+      ...(config || {}),
+    });
   }
 }

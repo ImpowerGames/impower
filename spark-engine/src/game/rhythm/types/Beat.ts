@@ -1,7 +1,7 @@
 import { InputSymbol } from "./InputSymbol";
 
 export interface Beat {
-  /** measure number (in beats) **/
+  /** measure number **/
   n?: number;
   /** 0-3 (left -> right) **/
   x?: number;

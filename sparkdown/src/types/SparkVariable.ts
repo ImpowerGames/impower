@@ -9,5 +9,4 @@ export interface SparkVariable {
   value: unknown;
   parameter?: boolean;
   scope?: "public" | "protected" | "private";
-  imported?: boolean;
 }

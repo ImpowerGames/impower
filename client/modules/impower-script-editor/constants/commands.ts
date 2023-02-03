@@ -14,6 +14,7 @@ import {
 import { SyntaxNode, Tree } from "@lezer/common";
 import { sparkRegexes } from "../../../../sparkdown";
 import { Context } from "../classes/Context";
+import { Type } from "../types/type";
 import { itemNumber } from "../utils/itemNumber";
 import { sparkLanguage } from "../utils/sparkLanguage";
 
@@ -126,7 +127,14 @@ export const insertNewlineContinueMarkup: StateCommand = ({
 
     const pos = range.from;
     const line = doc.lineAt(pos);
-    const context = getContext(tree.resolveInner(pos, -1), line.text, doc);
+    const node = tree.resolveInner(line.from, -1);
+
+    if (node.type.id === Type.CodeText) {
+      return (dont = { range });
+    }
+
+    const context = getContext(node, line.text, doc);
+
     const trimmedEndText = line.text.trimEnd();
     const endsWithColon =
       trimmedEndText !== "TO:" &&

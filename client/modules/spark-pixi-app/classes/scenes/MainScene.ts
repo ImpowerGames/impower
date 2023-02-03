@@ -7,6 +7,7 @@ import {
   SparkPoint3D,
   SparkSprite,
 } from "../../plugins/projection";
+import { SparkQuaternion } from "../../plugins/projection/classes/SparkQuaternion";
 import { generateGrid } from "../../plugins/shape-graphics";
 import { SparkScene } from "../SparkScene";
 import { SparkApplication } from "../wrappers/SparkApplication";
@@ -54,6 +55,8 @@ export class MainScene extends SparkScene {
 
   private _cameraAngleX = 25;
 
+  private _cameraAngleY = 180;
+
   private _gridColor = 0x0000ff;
 
   private _gridThickness = 4;
@@ -63,6 +66,8 @@ export class MainScene extends SparkScene {
   private _gridRowCount = 4;
 
   private _gridColumnCount = 32;
+
+  private _floorRotation = new SparkQuaternion().setEulerAngles(90, 0, 0).array;
 
   private _floorPlane = new SparkPlane(new SparkPoint3D(0, 1, 0), 0);
 
@@ -76,13 +81,14 @@ export class MainScene extends SparkScene {
 
   private _dragThreshold = 8;
 
-  private _defaultPosition = new Float32Array(3);
+  private _defaultPosition = new Float32Array([0, 0, 3]);
 
   constructor(context: SparkContext, app: SparkApplication) {
     super(context, app);
     // Camera
     this._cameraControl = new SparkCameraOrbitControl(this.view);
     this._cameraControl.angles.x = this._cameraAngleX;
+    this._cameraControl.angles.y = this._cameraAngleY;
     // Grid
     const gridTexture = generateGrid(
       this.renderer,
@@ -94,7 +100,7 @@ export class MainScene extends SparkScene {
     );
     this._grid = new SparkSprite(gridTexture);
     this._grid.zIndex = -1000;
-    this._grid.rotationQuaternion.setEulerAngles(90, 0, 0);
+    this._grid.rotationQuaternion.array = this._floorRotation;
   }
 
   override async load(): Promise<void> {
@@ -125,9 +131,6 @@ export class MainScene extends SparkScene {
 
   override init(): void {
     this.stage.addChild(this._grid);
-    this._defaultPosition[0] = 0;
-    this._defaultPosition[1] = 0;
-    this._defaultPosition[2] = 3;
     Object.entries(this._animations || {}).forEach(([, v]) => {
       if (v) {
         spawn(

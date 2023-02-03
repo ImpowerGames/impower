@@ -8,6 +8,5 @@ export interface SparkField {
   type: SparkFieldType;
   valueText: string;
   value: unknown;
-  imported?: boolean;
   struct?: string;
 }

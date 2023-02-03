@@ -1,5 +1,6 @@
 import { CompilerDiagnostic } from "./CompilerDiagnostic";
 import { SparkDeclarations } from "./SparkDeclarations";
+import { SparkParserContext } from "./SparkParserContext";
 import { SparkTokenType } from "./SparkTokenType";
 
 export interface SparkParserConfig {
@@ -15,4 +16,10 @@ export interface SparkParserConfig {
     str: string,
     context?: Record<string, unknown>
   ) => [string, CompilerDiagnostic[], CompilerDiagnostic[]];
+  extensions?: ((context: SparkParserContext) =>
+    | {
+        type: string;
+        content?: string;
+      }
+    | undefined)[];
 }

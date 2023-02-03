@@ -8,5 +8,4 @@ export interface SparkStruct {
   base: string;
   type: string;
   fields: Record<string, SparkField>;
-  imported?: boolean;
 }

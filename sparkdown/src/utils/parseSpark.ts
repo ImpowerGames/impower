@@ -11,6 +11,7 @@ import { defaultFormatter } from "../defaults/defaultFormatter";
 import { SparkAction, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkField } from "../types/SparkField";
 import { SparkParserConfig } from "../types/SparkParserConfig";
+import { SparkParserContext } from "../types/SparkParserContext";
 import { SparkParseResult } from "../types/SparkParseResult";
 import { SparkParseState } from "../types/SparkParseState";
 import { SparkProperties } from "../types/SparkProperties";
@@ -268,7 +269,7 @@ const lintNameUnique = <
     const prefix = prefixArticle(type, true);
     const name = found?.name;
     const existingLine = found.line;
-    if (existingLine >= 0 && !found.imported) {
+    if (existingLine >= 0) {
       diagnostic(
         parsed,
         currentToken,
@@ -1270,7 +1271,6 @@ const addStruct = (
     base,
     type,
     fields: {},
-    imported: false,
   };
   parsed.structs[id] = item;
 };
@@ -1381,7 +1381,6 @@ const addVariable = (
       value: validValue,
       parameter,
       scope,
-      imported: false,
     };
     parsed.variables[id] = item;
     const parentSection = parsed.sections?.[currentSectionId];
@@ -1464,7 +1463,6 @@ const addField = (
         type: validType,
         value: validValue,
         valueText,
-        imported: false,
       };
       struct.fields[id] = item;
     }
@@ -1938,7 +1936,6 @@ const augmentResult = (
       if (!parsed.variables) {
         parsed.variables = {};
       }
-      d.imported = true;
       parsed.variables[id] = d;
       const parentId = id.split(".").slice(0, -1).join(".") || "";
       if (!parsed.sections) {
@@ -1960,10 +1957,6 @@ const augmentResult = (
       if (!parsed.structs) {
         parsed.structs = {};
       }
-      d.imported = true;
-      Object.values(d.fields).forEach((f) => {
-        f.imported = true;
-      });
       parsed.structs[id] = d;
     });
   }
@@ -2097,16 +2090,26 @@ const hoistDeclarations = (
     tokens: existing?.tokens || [],
   };
   addSection(parsed, currentSectionId, item, 0, 1);
-
-  for (let i = 0; i < lines.length; i += 1) {
-    const to = getTo(from, lines[i] || "", newLineLength || 0);
-    const text = stripInlineComments(lines[i] || "");
+  const context: SparkParserContext = {
+    line: 0,
+    from: 0,
+    to: 0,
+    scopes: [],
+    text: "",
+    declarations: parsed,
+  };
+  for (context.line = 0; context.line < lines.length; context.line += 1) {
+    const to = getTo(from, lines[context.line] || "", newLineLength || 0);
+    const text = stripInlineComments(lines[context.line] || "");
+    context.from = from;
+    context.to = to;
+    context.text = text;
     const indent = getIndent(text);
 
     if ((match = text.match(sparkRegexes.section))) {
       const currentToken = createSparkToken("section", newLineLength, {
         content: text,
-        line: i + (config?.lineOffset || 0),
+        line: context.line + (config?.lineOffset || 0),
         from,
       });
       const level = match[2]?.length || 0;
@@ -2212,7 +2215,7 @@ const hoistDeclarations = (
       const type = (match[10] || "") as SparkVariableType;
       const currentToken = createSparkToken(type, newLineLength, {
         content: text,
-        line: i + (config?.lineOffset || 0),
+        line: context.line + (config?.lineOffset || 0),
         from,
       });
       const nameFrom = currentToken.from + getStart(match, 6);
@@ -2251,7 +2254,7 @@ const hoistDeclarations = (
       const colon = match[14] || "";
       const currentToken = createSparkToken("struct", newLineLength, {
         content: text,
-        line: i + (config?.lineOffset || 0),
+        line: context.line + (config?.lineOffset || 0),
         from,
       });
       if (colon) {
@@ -2291,7 +2294,7 @@ const hoistDeclarations = (
         const valueTo = valueFrom + valueText.length;
         const currentToken = createSparkToken("struct_field", newLineLength, {
           content: text,
-          line: i + (config?.lineOffset || 0),
+          line: context.line + (config?.lineOffset || 0),
           from,
         });
         if (currentToken.type === "struct_field") {
@@ -2318,7 +2321,7 @@ const hoistDeclarations = (
     } else if ((match = text.match(sparkRegexes.import))) {
       const currentToken = createSparkToken("import", newLineLength, {
         content: text,
-        line: i + (config?.lineOffset || 0),
+        line: context.line + (config?.lineOffset || 0),
         from,
       });
       const valueText = match[4] || "";
@@ -2409,8 +2412,16 @@ export const parseSpark = (
   });
   let ignoredLastToken = false;
 
-  for (let i = 0; i < lines.length; i += 1) {
-    text = lines[i] || "";
+  const context: SparkParserContext = {
+    line: 0,
+    from: 0,
+    to: 0,
+    scopes: [],
+    text: "",
+    declarations: parsed,
+  };
+  for (context.line = 0; context.line < lines.length; context.line += 1) {
+    text = lines[context.line] || "";
 
     if (stateType === "ignore") {
       stateType = undefined;
@@ -2418,12 +2429,16 @@ export const parseSpark = (
 
     currentToken = createSparkToken("comment", state.newLineLength, {
       content: text,
-      line: i + (config?.lineOffset || 0),
+      line: context.line + (config?.lineOffset || 0),
       from: current,
     });
     text = stripInlineComments(text);
     currentToken.content = text;
     current = currentToken.to + 1;
+
+    context.from = currentToken.from;
+    context.to = currentToken.to;
+    context.text = text;
 
     if (
       text.match(sparkRegexes.dialogue_terminator) &&
@@ -2580,12 +2595,28 @@ export const parseSpark = (
         currentLevel = 0;
       }
 
-      if ((match = currentToken.content.match(sparkRegexes.scene))) {
+      const extensions = config?.extensions || [];
+      let customToken = undefined;
+      for (let e = 0; e < extensions.length; e += 1) {
+        const extension = extensions[e];
+        if (extension) {
+          const result = extension(context);
+          if (result) {
+            customToken = result;
+          }
+        }
+      }
+      if (customToken) {
+        currentToken = {
+          ...currentToken,
+          ...customToken,
+        } as SparkToken;
+      } else if ((match = currentToken.content.match(sparkRegexes.scene))) {
         currentToken.type = "scene";
         if (currentToken.type === "scene") {
           const scene = match[10] || "";
           const environmentText = match[2] || "";
-          const locationText = match[3] || "";
+          const locationText: string = match[3] || "";
           const time = match[7] || "";
           const location = locationText.startsWith(".")
             ? locationText.substring(1)
@@ -3156,11 +3187,13 @@ export const parseSpark = (
       } else if (
         stateType === "normal" &&
         currentToken.content.match(sparkRegexes.dialogue_character) &&
-        i !== lines.length &&
-        i !== lines.length - 1 &&
-        (lines[i + 1]?.trim().length === 0 ? lines[i + 1] === "  " : true) &&
-        lines[i]?.match(sparkRegexes.indent)?.[0]?.length ===
-          lines[i + 1]?.match(sparkRegexes.indent)?.[0]?.length
+        context.line !== lines.length &&
+        context.line !== lines.length - 1 &&
+        (lines[context.line + 1]?.trim().length === 0
+          ? lines[context.line + 1] === "  "
+          : true) &&
+        lines[context.line]?.match(sparkRegexes.indent)?.[0]?.length ===
+          lines[context.line + 1]?.match(sparkRegexes.indent)?.[0]?.length
       ) {
         // The last part of the above statement ('(lines[i + 1].trim().length == 0) ? (lines[i+1] == "  ") : false)')
         // means that if the trimmed length of the following line (i+1) is equal to zero, the statement will only return 'true',
@@ -3233,7 +3266,9 @@ export const parseSpark = (
               false
             );
           }
-          const character = trimCharacterExtension(currentToken.content).trim();
+          const character: string = trimCharacterExtension(
+            currentToken.content
+          ).trim();
           const characterName = character.replace(/\^$/, "").trim();
           if (!parsed.properties) {
             parsed.properties = {};
@@ -3389,8 +3424,8 @@ export const parseSpark = (
     }
 
     if (
-      currentToken.type !== "action" &&
-      !(currentToken.type === "dialogue" && currentToken.content === "  ")
+      currentToken.type === "dialogue" &&
+      currentToken.content.trim() !== ""
     ) {
       currentToken.content = currentToken.content?.trimStart();
     }
@@ -3423,7 +3458,7 @@ export const parseSpark = (
       previousNonSeparatorToken.type !== "condition" &&
       currentToken.type === "condition"
     ) {
-      let lineIndex = i;
+      let lineIndex = context.line;
       let from = currentToken.from;
       let to = currentToken.from;
       while (lineIndex < lines.length) {
@@ -3479,11 +3514,13 @@ export const parseSpark = (
         currentToken.content = currentToken.content.toUpperCase();
         titlePageStarted = true; // ignore title tags after first heading
       }
-      if (currentToken.content && currentToken.content[0] === "~") {
+      if (
+        currentToken.content &&
+        currentToken.content[0] === "~" &&
+        currentToken.content[1] !== "~"
+      ) {
         currentToken.content = `*${currentToken.content.substring(1)}*`;
       }
-      if (currentToken.type !== "action" && currentToken.type !== "dialogue")
-        currentToken.content = currentToken.content?.trimStart();
 
       if (currentToken.ignore) {
         ignoredLastToken = true;
