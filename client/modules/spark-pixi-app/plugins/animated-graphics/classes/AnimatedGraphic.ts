@@ -177,8 +177,8 @@ export class AnimatedGraphic extends DisplayObject {
     super();
     this.content = content;
     this._orig = {
-      width: this.content.viewBox.baseVal.width,
-      height: this.content.viewBox.baseVal.height,
+      width: this.content.viewBox?.baseVal?.width ?? 32,
+      height: this.content.viewBox?.baseVal?.height ?? 32,
     };
     this._framesPerSecond =
       options?.fps || options?.ticker?.maxFPS || this._framesPerSecond;

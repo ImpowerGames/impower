@@ -1,5 +1,5 @@
 import { SparkContext } from "../../../../spark-engine";
-import { SparkContainer } from "../plugins/projection";
+import { SparkCameraOrbitControl, SparkContainer } from "../plugins/projection";
 import { SparkApplication } from "./wrappers/SparkApplication";
 import { SparkAssets } from "./wrappers/SparkAssets";
 import { SparkRectangle } from "./wrappers/SparkRectangle";
@@ -36,6 +36,10 @@ export class SparkScene {
 
   public get stage(): SparkContainer {
     return this._app.stage as SparkContainer;
+  }
+
+  public get dolly(): SparkCameraOrbitControl {
+    return this._app.dolly;
   }
 
   constructor(context: SparkContext, app: SparkApplication) {

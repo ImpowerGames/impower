@@ -5,124 +5,95 @@ import {
   SparkContext,
 } from "../../../../../spark-engine";
 import { generateSpritesheet } from "../../plugins/animated-graphics";
-import {
-  SparkCameraOrbitControl,
-  SparkContainer,
-  SparkPlane,
-  SparkPoint3D,
-  SparkSprite,
-} from "../../plugins/projection";
+import { SparkSprite } from "../../plugins/projection";
 import { SparkQuaternion } from "../../plugins/projection/classes/SparkQuaternion";
 import { generateGrid } from "../../plugins/shape-graphics";
 import { SparkScene } from "../SparkScene";
 import { SparkApplication } from "../wrappers/SparkApplication";
 import { SparkTexture } from "../wrappers/SparkTexture";
 
-const createWhiteTexture = (width: number, height: number): SparkTexture => {
-  const texture = SparkTexture.WHITE.clone();
-  texture.orig.width = width;
-  texture.orig.height = height;
-  return texture;
-};
-
 const createSprite = (
-  content: SparkTexture[],
-  fps: number,
-  pixelsPerUnit: number
+  content: SparkTexture | SparkTexture[],
+  fps?: number
 ): SparkSprite => {
   const sprite = new SparkSprite(content, { fps });
-  sprite.pixelsPerUnit = pixelsPerUnit;
   sprite.anchor.set(0.5, 1.0); // Center Bottom
-  sprite.billboardType = "cylindrical";
-  sprite.interactive = false;
-  sprite.interactiveChildren = false;
   sprite.play();
   return sprite;
 };
 
 const spawn = (
-  content: SparkTexture[],
-  fps: number,
-  pixelsPerUnit: number,
-  entityContainer: SparkContainer,
-  entities: SparkSprite[],
+  content?: SparkTexture | SparkTexture[],
+  fps?: number,
   positionArray?: Float32Array,
-  scaleArray?: Float32Array
-): void => {
-  const entity = createSprite(content, fps, pixelsPerUnit);
+  scale?: number
+): SparkSprite => {
+  const entity = createSprite(content, fps);
   if (positionArray) {
     entity.position.array = positionArray;
   }
-  if (scaleArray) {
-    entity.scale.array = scaleArray;
+  if (scale !== undefined) {
+    entity.scale.x = scale;
+    entity.scale.y = scale;
   }
-  entityContainer.addChild(entity);
-  entities.push(entity);
+  return entity;
+};
+
+const getXOffset = (columnCount: number): number => {
+  return -columnCount / 2 + 0.5;
+};
+
+const getYOffset = (rowCount: number): number => {
+  return 0.25 * rowCount;
 };
 
 export class MainScene extends SparkScene {
-  private _cameraControl: SparkCameraOrbitControl;
-
-  private _map: SparkSprite;
-
   private _grids: SparkSprite[] = [];
 
   private _animations: Record<string, SparkTexture[]> = {};
 
-  private _entities: SparkSprite[] = [];
+  private _playerSprite: SparkSprite;
 
-  private _pixelsPerUnit = 32;
+  private _tileSprites: SparkSprite[] = [];
 
-  private _cameraAngleX = 0;
+  private _tileColor = 0xff0000;
 
-  private _cameraAngleY = 180;
+  private _indicatorColor = 0xffffff;
 
-  private _cameraTargetX = 0;
-
-  private _cameraTargetY = 1;
-
-  private _cameraTargetZ = 0;
-
-  private _cameraDistance = 4;
-
-  private _cameraFieldOfView = 60;
-
-  private _cameraNear = 0.01;
-
-  private _cameraFar = 1000;
-
-  private _cameraSpeed = 0.2;
+  private _indicatorAlpha = 0.1;
 
   private _gridColor = 0x0000ff;
 
-  private _mapColor = 0xff0000;
+  private _indicatorScale = 0.9;
+
+  private _tileScale = 0.85;
+
+  private _tileRowCount = 3;
+
+  private _tileColumnCount = 4;
 
   private _gridThickness = 1;
 
   private _gridCellSize = 32;
 
-  private _gridRowCount = 4;
-
-  private _gridColumnCount = 80;
+  private _gridY = 80;
 
   private _floorRotation = new SparkQuaternion().setEulerAngles(-90, 0, 0)
     .array;
 
-  private _floorPlane = new SparkPlane(new SparkPoint3D(0, 1, 0), 0);
+  private _playerPosition = new Float32Array([0, 0, 0]);
 
-  private _pointerDown = false;
+  private _playerScale = 2;
 
-  private _pointerDownX = 0;
+  private _playerSpeed = 0.2;
 
-  private _pointerDownY = 0;
+  private _followDistance = 4;
 
-  private _dragging = false;
+  private _followHeight = 2;
 
-  private _dragThreshold = 8;
+  private _followAngle = 0;
 
-  private _tileScaleZ = 2;
-
-  private _position = new Float32Array([0, 0, 0]);
+  private _zSpacingScale = 2;
 
   private _tiles: Beat[] = [];
 
@@ -135,30 +106,24 @@ export class MainScene extends SparkScene {
       this.context.game.struct.config.objectMap?.["beatmap"] || {}
     );
     this._tiles = (beatmaps[0]?.beats as unknown as Beat[]).map((beat) => ({
-      x: beat.x - this._gridRowCount / 2 + 0.5,
-      y: beat.y,
-      z: -beat.z * this._tileScaleZ,
+      x: beat.x + getXOffset(this._tileColumnCount),
+      y: beat.y + getYOffset(this._tileRowCount),
+      z: -beat.z * this._zSpacingScale,
     }));
-    const firstTile = this._tiles[0];
     const lastTile = this._tiles[this._tiles.length - 1];
-    // Map
-    this._map = new SparkSprite(createWhiteTexture(1, this._pixelsPerUnit));
-    this._map.pixelsPerUnit = this._pixelsPerUnit;
-    this._map.tint = this._mapColor;
     // Grid
     const gridTexture = generateGrid(
       this.renderer,
       this._gridThickness,
       this._gridCellSize,
-      this._gridRowCount,
-      this._gridColumnCount
+      this._tileColumnCount,
+      this._gridY
     );
-    const numTracks = Math.ceil(Math.abs(lastTile.z / this._gridRowCount));
+    const numTracks = Math.ceil(Math.abs(lastTile.z / this._tileColumnCount));
     for (let i = 0; i < numTracks; i += 1) {
       const grid = new SparkSprite(gridTexture);
-      grid.pixelsPerUnit = this._pixelsPerUnit;
-      grid.width = this._gridRowCount;
-      grid.height = this._gridColumnCount;
+      grid.width = this._tileColumnCount;
+      grid.height = this._gridY;
       grid.zIndex = -1000;
       grid.rotationQuaternion.array = this._floorRotation;
       grid.anchor.set(0.5, 1.0); // Center Bottom
@@ -169,18 +134,12 @@ export class MainScene extends SparkScene {
       this._grids[i] = grid;
     }
     // Camera
-    this._cameraTargetZ = firstTile.z;
-    this._cameraControl = new SparkCameraOrbitControl(this.view);
-    this._cameraControl.angles.x = this._cameraAngleX;
-    this._cameraControl.angles.y = this._cameraAngleY;
-    this._cameraControl.target.x = this._cameraTargetX;
-    this._cameraControl.target.y = this._cameraTargetY;
-    this._cameraControl.target.z = this._cameraTargetZ;
-    this._cameraControl.distance = this._cameraDistance;
-    this._cameraControl.camera.fieldOfView = this._cameraFieldOfView;
-    this._cameraControl.camera.near = this._cameraNear;
-    this._cameraControl.camera.far = this._cameraFar;
-    this._cameraControl.updateCamera();
+    this.dolly.target.x = this._playerPosition[0];
+    this.dolly.target.y = this._followHeight;
+    this.dolly.target.z = this._playerPosition[2];
+    this.dolly.angles.x = this._followAngle;
+    this.dolly.distance = this._followDistance;
+    this.dolly.updateCamera();
   }
 
   override async load(): Promise<void> {
@@ -210,82 +169,73 @@ export class MainScene extends SparkScene {
   }
 
   override init(): void {
-    this.stage.addChild(this._map);
     this._grids.forEach((grid) => {
-      this._map.addChild(grid);
+      this.stage.addChild(grid);
     });
     const animations = Object.values(this._animations || {});
     const firstAnimation = animations[0];
     if (firstAnimation) {
-      this._tiles.forEach((tile) => {
-        this._position[0] = tile.x;
-        this._position[1] = tile.y;
-        this._position[2] = tile.z;
-        spawn(
-          firstAnimation,
-          this.maxFPS,
-          this._pixelsPerUnit,
-          this._map,
-          this._entities,
-          this._position
-        );
-      });
+      this._playerSprite = spawn(
+        firstAnimation,
+        this.maxFPS,
+        this._playerPosition,
+        this._playerScale
+      );
+      this._playerSprite.billboardType = "spherical";
+      this._playerSprite.interactive = false;
+      this._playerSprite.interactiveChildren = false;
+      const indicatorPaneSprite = new SparkSprite();
+      indicatorPaneSprite.anchor.set(0.5, 1.0); // Center Bottom
+      for (let y = 0; y < this._tileRowCount; y += 1) {
+        for (let x = 0; x < this._tileColumnCount; x += 1) {
+          const indicatorSprite = new SparkSprite(
+            SparkTexture.create(this._gridCellSize, this._gridCellSize)
+          );
+          indicatorSprite.tint = this._indicatorColor;
+          indicatorSprite.alpha = this._indicatorAlpha;
+          indicatorSprite.position.x = x;
+          indicatorSprite.position.y = y;
+          indicatorSprite.scale.x = this._indicatorScale;
+          indicatorSprite.scale.y = this._indicatorScale;
+          indicatorPaneSprite.addChild(indicatorSprite);
+        }
+      }
+      indicatorPaneSprite.position.x =
+        getXOffset(this._tileColumnCount) / this._playerScale;
+      indicatorPaneSprite.position.y =
+        getYOffset(this._tileRowCount) / this._playerScale;
+      indicatorPaneSprite.position.z = -1;
+      indicatorPaneSprite.scale.x = 1 / this._playerScale;
+      indicatorPaneSprite.scale.y = 1 / this._playerScale;
+      this._playerSprite.addChild(indicatorPaneSprite);
+      this.stage.addChild(this._playerSprite);
     }
-  }
 
-  override start(): void {
-    // Click to spawn an entity
-    this.view.addEventListener("pointerdown", (event) => {
-      this._pointerDown = true;
-      this._dragging = false;
-      this._pointerDownX = event.offsetX;
-      this._pointerDownY = event.offsetY;
-    });
-    this.view.addEventListener("pointermove", (event) => {
-      if (this._pointerDown) {
-        const pointerX = event.offsetX;
-        const pointerY = event.offsetY;
-        const dragDistance =
-          (pointerX - this._pointerDownX) ** 2 +
-          (pointerY - this._pointerDownY) ** 2;
-        if (dragDistance > this._dragThreshold) {
-          this._dragging = true;
-        }
-      }
-    });
-    this.view.addEventListener("pointerup", (event) => {
-      const pointerX = event.offsetX;
-      const pointerY = event.offsetY;
-      if (this._pointerDown && !this._dragging) {
-        const ray = this._cameraControl.camera.screenToRay(pointerX, pointerY);
-        const distance = this._floorPlane.rayCast(ray);
-        const point = ray.getPoint(distance);
-        if (point) {
-          const [firstKey, firstValue] =
-            Object.entries(this._animations || {})[0] || [];
-          if (firstKey !== undefined && firstValue !== undefined) {
-            spawn(
-              firstValue,
-              this.maxFPS,
-              this._pixelsPerUnit,
-              this.stage,
-              this._entities,
-              point.array
-            );
-          }
-        }
-      }
-      this._pointerDown = false;
-      this._dragging = false;
+    this._tiles.forEach((tile) => {
+      const tileSprite = new SparkSprite(SparkTexture.create());
+      tileSprite.tint = this._tileColor;
+      tileSprite.position.x = tile.x;
+      tileSprite.position.y = tile.y;
+      tileSprite.position.z = tile.z;
+      tileSprite.scale.x = this._tileScale;
+      tileSprite.scale.y = this._tileScale;
+      tileSprite.billboardType = "cylindrical";
+      this._tileSprites.push(tileSprite);
+      this.stage.addChild(tileSprite);
     });
   }
 
   override update(_time: number, delta: number): void {
     if (this._scroll) {
-      this._cameraControl.target.z -= this.maxFPS * this._cameraSpeed * delta;
-      this._cameraControl.updateCamera();
+      this._playerPosition[2] -= this.maxFPS * this._playerSpeed * delta;
+      this.dolly.target.x = this._playerPosition[0];
+      this.dolly.target.y = this._followHeight;
+      this.dolly.target.z = this._playerPosition[2];
+      this.dolly.updateCamera();
     }
-    this._entities.forEach((entity) => {
+    this._playerSprite.position.array = this._playerPosition;
+    this._playerSprite.update(delta);
+    this._tileSprites.forEach((entity) => {
       entity.update(delta);
     });
   }

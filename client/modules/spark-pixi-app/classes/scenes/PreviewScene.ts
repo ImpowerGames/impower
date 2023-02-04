@@ -1,8 +1,5 @@
-import {
-  CameraState,
-  EntityState,
-  SparkContext,
-} from "../../../../../spark-engine";
+import { SparkContext } from "../../../../../spark-engine";
+import { SparkPlane, SparkPoint3D } from "../../plugins/projection";
 import { Marquee } from "../../plugins/shape-graphics";
 import { SparkScene } from "../SparkScene";
 import { SparkApplication } from "../wrappers/SparkApplication";
@@ -10,7 +7,17 @@ import { SparkApplication } from "../wrappers/SparkApplication";
 export class PreviewScene extends SparkScene {
   private _marquee: Marquee;
 
+  private _floorPlane = new SparkPlane(new SparkPoint3D(0, 1, 0), 0);
+
+  private _pointerDown = false;
+
+  private _pointerDownX = 0;
+
+  private _pointerDownY = 0;
+
   private _dragging = false;
+
+  private _dragThreshold = 8;
 
   constructor(context: SparkContext, app: SparkApplication) {
     super(context, app);
@@ -25,65 +32,39 @@ export class PreviewScene extends SparkScene {
     this._marquee.visible = false;
   }
 
-  override init(): void {
-    this.stage.addChild(this._marquee);
-    this.stage.interactive = true;
-    this.stage.hitArea = this.screen;
-  }
-
   override start(): void {
-    this.context?.game?.world?.events?.onAddCamera?.addListener((data) =>
-      this.addCamera(data)
-    );
-    this.context?.game?.world?.events?.onRemoveCamera?.addListener((data) =>
-      this.removeCamera(data)
-    );
-    this.context?.game?.world?.events?.onSpawnEntity?.addListener((data) =>
-      this.spawnEntity(data)
-    );
-    this.context?.game?.world?.events?.onDestroyEntity?.addListener((data) =>
-      this.destroyEntity(data)
-    );
-    this.stage.on("pointerdown", (e) => {
-      this._dragging = true;
-      this._marquee.position.copyFrom(e.data.global);
-      this._marquee.visible = true;
-      this._marquee.setSize(0, 0, 2, 2);
+    // On press world position
+    this.view.addEventListener("pointerdown", (event) => {
+      this._pointerDown = true;
+      this._dragging = false;
+      this._pointerDownX = event.offsetX;
+      this._pointerDownY = event.offsetY;
     });
-    this.stage.on("pointermove", (e) => {
-      if (this._dragging) {
-        const width = e.data.global.x - this._marquee.x;
-        const height = e.data.global.y - this._marquee.y;
-        this._marquee.setSize(0, 0, width, height);
+    this.view.addEventListener("pointermove", (event) => {
+      if (this._pointerDown) {
+        const pointerX = event.offsetX;
+        const pointerY = event.offsetY;
+        const dragDistance =
+          (pointerX - this._pointerDownX) ** 2 +
+          (pointerY - this._pointerDownY) ** 2;
+        if (dragDistance > this._dragThreshold) {
+          this._dragging = true;
+        }
       }
     });
-    this.stage.on("pointerup", () => {
+    this.view.addEventListener("pointerup", (event) => {
+      const pointerX = event.offsetX;
+      const pointerY = event.offsetY;
+      if (this._pointerDown && !this._dragging) {
+        const ray = this.dolly.camera.screenToRay(pointerX, pointerY);
+        const distance = this._floorPlane.rayCast(ray);
+        const point = ray.getPoint(distance);
+        if (point) {
+          console.warn("CLICKED: ", point.x, point.y, point.z);
+        }
+      }
+      this._pointerDown = false;
       this._dragging = false;
     });
-  }
-
-  addCamera(data: { cameraId: string; cameraState: CameraState }): void {
-    console.warn("add camera", data.cameraId, data.cameraState);
-  }
-
-  removeCamera(data: { cameraId: string }): void {
-    console.warn("remove camera", data.cameraId);
-  }
-
-  spawnEntity(data: {
-    entityId: string;
-    cameraId?: string;
-    entityState: EntityState;
-  }): void {
-    console.warn(
-      "spawn entity",
-      data.entityId,
-      data.cameraId,
-      data.entityState
-    );
-  }
-
-  destroyEntity(data: { entityId: string; cameraId?: string }): void {
-    console.warn("destroy entity", data.entityId, data.cameraId);
   }
 }

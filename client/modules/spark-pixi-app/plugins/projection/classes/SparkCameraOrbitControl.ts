@@ -27,7 +27,7 @@ export class SparkCameraOrbitControl {
   target = { x: 0, y: 0, z: 0 };
 
   /** Allows the camera to be controlled by user. */
-  allowControl = true;
+  controllable = true;
 
   /**
    * Creates a new camera orbit control.
@@ -46,13 +46,13 @@ export class SparkCameraOrbitControl {
       this._grabbed = false;
     });
     element.addEventListener("pointermove", (event) => {
-      if (this.allowControl && this._grabbed && event.buttons === 1) {
+      if (this.controllable && this._grabbed && event.buttons === 1) {
         this._angles.x += event.movementY * 0.5;
         this._angles.y -= event.movementX * 0.5;
       }
     });
     element.addEventListener("wheel", (event) => {
-      if (this.allowControl) {
+      if (this.controllable) {
         this.distance += event.deltaY * 0.01;
         event.preventDefault();
       }

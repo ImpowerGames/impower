@@ -1,4 +1,5 @@
 import { Application, IDestroyOptions, utils } from "pixi.js";
+import { SparkCameraOrbitControl } from "../../plugins/projection";
 import { registerPixiInspector } from "../../utils/registerPixiInspector";
 import { SparkAssets } from "./SparkAssets";
 
@@ -24,10 +25,16 @@ export interface SparkApplicationOptions {
 }
 
 export class SparkApplication extends Application {
-  private _assets: SparkAssets = new SparkAssets();
+  protected _assets: SparkAssets = new SparkAssets();
 
   public get assets(): SparkAssets {
     return this._assets;
+  }
+
+  protected _dolly: SparkCameraOrbitControl;
+
+  public get dolly(): SparkCameraOrbitControl {
+    return this._dolly;
   }
 
   constructor(options?: SparkApplicationOptions) {
@@ -35,6 +42,11 @@ export class SparkApplication extends Application {
     this.ticker.maxFPS = options?.maxFPS || 60;
     utils.destroyTextureCache();
     registerPixiInspector();
+    this.setupCamera();
+  }
+
+  protected setupCamera(): void {
+    this._dolly = new SparkCameraOrbitControl(this.view as HTMLCanvasElement);
   }
 
   override stop(): void {

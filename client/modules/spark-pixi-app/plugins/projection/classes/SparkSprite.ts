@@ -1,9 +1,8 @@
 import { ObservablePoint, Texture, Ticker, UPDATE_PRIORITY } from "@pixi/core";
 import type { IDestroyOptions } from "@pixi/display";
 import { Sprite3D } from "pixi3d/pixi7";
+import { DEFAULT_PIXELS_PER_UNIT } from "../../../classes/wrappers/SparkTexture";
 import { SparkSpriteBillboardType } from "../types/SparkSpriteBillboardType";
-
-export const DEFAULT_PIXELS_PER_UNIT = 32;
 
 export interface SparkSpriteOptions {
   fps?: number;
@@ -145,7 +144,7 @@ export class SparkSprite extends Sprite3D {
    * @param texture - textures that make up the animation.
    * @param {Ticker} [ticker=null] - Ticker used to auto update animation time.
    */
-  constructor(texture: Texture | Texture[], options?: SparkSpriteOptions) {
+  constructor(texture?: Texture | Texture[], options?: SparkSpriteOptions) {
     const textures = Array.isArray(texture)
       ? texture
       : [texture || Texture.EMPTY];
