@@ -20,13 +20,12 @@ export class Cell extends Graphics {
     this.color = options?.color || this.color;
     this.size = options?.size || this.size;
 
-    this.lineStyle(this.thickness, this.color);
+    this.lineStyle(this.thickness, this.color, 1);
     this.moveTo(0, 0);
     this.lineTo(0, this.size);
-
-    this.lineStyle(this.thickness, this.color);
-    this.moveTo(0, 0);
+    this.lineTo(this.size, this.size);
     this.lineTo(this.size, 0);
+    this.lineTo(0, 0);
   }
 
   override calculateBounds(): void {

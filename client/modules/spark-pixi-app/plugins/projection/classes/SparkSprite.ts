@@ -1,7 +1,9 @@
-import { Texture, Ticker, UPDATE_PRIORITY } from "@pixi/core";
+import { ObservablePoint, Texture, Ticker, UPDATE_PRIORITY } from "@pixi/core";
 import type { IDestroyOptions } from "@pixi/display";
 import { Sprite3D } from "pixi3d/pixi7";
 import { SparkSpriteBillboardType } from "../types/SparkSpriteBillboardType";
+
+export const DEFAULT_PIXELS_PER_UNIT = 32;
 
 export interface SparkSpriteOptions {
   fps?: number;
@@ -9,8 +11,10 @@ export interface SparkSpriteOptions {
 }
 
 export class SparkSprite extends Sprite3D {
-  get sprite(): { zIndex: number } {
-    return (this as unknown as { _sprite: { zIndex: number } })._sprite;
+  get sprite(): { zIndex: number; pivot: ObservablePoint } {
+    return (
+      this as unknown as { _sprite: { zIndex: number; pivot: ObservablePoint } }
+    )._sprite;
   }
 
   /**
@@ -27,6 +31,14 @@ export class SparkSprite extends Sprite3D {
 
   override set zIndex(value: number) {
     this.sprite.zIndex = value;
+  }
+
+  override get pivot(): ObservablePoint {
+    return this.sprite.pivot;
+  }
+
+  override set pivot(value: ObservablePoint) {
+    this.sprite.pivot = value;
   }
 
   /**
@@ -153,6 +165,7 @@ export class SparkSprite extends Sprite3D {
     this._playing = false;
     this._ticker = options?.ticker;
     this.textures = textures;
+    this.pixelsPerUnit = DEFAULT_PIXELS_PER_UNIT;
   }
 
   /** Stops the animation. */

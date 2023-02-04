@@ -5,6 +5,7 @@ import { roundToRatioDecimal } from "./roundToRatioDecimal";
 const WHITESPACE_REGEX = /[ ]/g;
 const SEPARATOR_REGEX = /[-]/g;
 const NEWLINE_REGEX = /\r\n|\r|\n/;
+const ROW_REGEX = /^[ v^<>/\\*]*$/;
 
 const getIncrement = (text: string) => {
   const t = text.trim();
@@ -56,9 +57,9 @@ export const parseBeatmap = (
   let bpm: number | undefined = undefined;
 
   let isReversed = false;
-  for (let i = 0; i < 3; i += 1) {
-    // Check if any of the first 3 lines starts with ! END marker
-    if (getKey(lines[i]?.text) === "!") {
+  for (let i = 0; i < 5; i += 1) {
+    // Check if any of the first few lines starts with an !END! marker
+    if (lines[i]?.text.startsWith("!E")) {
       isReversed = true;
     }
   }
@@ -95,7 +96,7 @@ export const parseBeatmap = (
           for (; numRows < lines.length; numRows += 1) {
             const rowIndex = i + numRows;
             const row = lines[rowIndex]?.text || "";
-            if (!row || row[0] === "-" || row[0] === "~" || row[0] === "E") {
+            if (!row || !ROW_REGEX.test(row)) {
               break;
             }
           }
@@ -108,8 +109,8 @@ export const parseBeatmap = (
                 if (symbol && symbol !== " ") {
                   const d = symbol as InputSymbol;
                   const newBeat: ParsedBeat = {
-                    n,
-                    d,
+                    z: n,
+                    s: d,
                     x,
                     y,
                     line: line.line,

@@ -13,7 +13,9 @@ export const setProperty = (
         success = true;
       } else {
         if (cur[part] == null) {
-          cur[part] = {};
+          const nextPart = parts[partIndex + 1];
+          const isArray = !Number.isNaN(Number(nextPart));
+          cur[part] = isArray ? [] : {};
         }
         cur = cur[part];
       }

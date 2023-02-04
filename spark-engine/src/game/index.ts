@@ -4,6 +4,7 @@ export * from "./input";
 export * from "./logic";
 export * from "./physics";
 export * from "./random";
+export * from "./rhythm";
 export * from "./SparkGame";
 export * from "./struct";
 export * from "./synth";

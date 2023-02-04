@@ -1,22 +1,16 @@
-import {
-  IRenderer,
-  MSAA_QUALITY,
-  RenderTexture,
-  SCALE_MODES,
-  TilingSprite,
-} from "pixi.js";
+import { IRenderer, MSAA_QUALITY, SCALE_MODES, TilingSprite } from "pixi.js";
+import { SparkTexture } from "../../../classes/wrappers/SparkTexture";
 import { Cell } from "../classes/Cell";
 
 export const generateGrid = (
   renderer: IRenderer,
-  lineColor?: number,
   lineThickness?: number,
   cellSize?: number,
   rows?: number,
   columns?: number
-): RenderTexture => {
-  const color = lineColor || 0x0000ff;
-  const thickness = lineThickness || 3;
+): SparkTexture => {
+  const color = 0xffffff;
+  const thickness = lineThickness || 2;
   const size = cellSize || 32;
   const rowCount = rows || 10;
   const columnCount = columns || rowCount;
@@ -33,10 +27,9 @@ export const generateGrid = (
     resolution: window.devicePixelRatio,
   });
   const grid = new TilingSprite(texture, size, size);
-  const offset = Math.floor(thickness / 2);
   grid.position.set(0, 0);
-  grid.width = width + offset;
-  grid.height = height + offset;
+  grid.width = width;
+  grid.height = height;
   const gridTexture = renderer.generateTexture(grid, {
     scaleMode: SCALE_MODES.LINEAR,
     multisample: MSAA_QUALITY.HIGH,

@@ -5,7 +5,7 @@
 
 export interface BSNote {
   /** time in beats (spark) **/
-  n?: number;
+  z?: number;
   /** time in beats (v3) **/
   b?: number;
   /** time in beats (v2) **/
@@ -21,8 +21,10 @@ export interface BSNote {
   /** y coordinate (v2) **/
   _lineLayer?: number;
 
-  /** cut direction (spark|v3) **/
-  d?: string | number;
+  /** swipe direction (spark) **/
+  s?: string;
+  /** cut direction (v3) **/
+  d?: number;
   /** cut direction (v2) **/
   _cutDirection?: number;
 }

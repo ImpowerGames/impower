@@ -69,22 +69,20 @@ const columnsOf = (str: string, length: number): string => {
 export const stringifyBeatmap = (
   name: string,
   beats: Beat[],
+  reversed = false,
   minRowsPerBeat = 3,
-  minColumnsPerBeat = 4,
-  reversed = false
+  minColumnsPerBeat = 4
 ): string => {
   let tokens: string[] = [];
-  tokens.push(rowOf("~", minColumnsPerBeat));
-  tokens.push(name);
   if (Array.isArray(beats)) {
     let i = 0;
-    const sortedBeats = beats.sort((a, b) => (a.n || 0) - (b.n || 0));
+    const sortedBeats = beats.sort((a, b) => (a.z || 0) - (b.z || 0));
     sortedBeats.forEach((beat) => {
       if (beat) {
-        const n = beat.n || 0;
+        const n = beat.z || 0;
         const x = beat.x || 0;
         const y = beat.y || 0;
-        const d = beat.d || "*";
+        const d = beat.s || "*";
         const bpm = beat.bpm || 0;
         const diff = n - i;
         if (diff > 0) {
@@ -106,10 +104,24 @@ export const stringifyBeatmap = (
       }
     });
   }
-  tokens.push("!END!");
-  tokens.push(rowOf("~", minColumnsPerBeat));
   if (reversed) {
     tokens.reverse();
+  }
+  if (reversed) {
+    tokens.unshift(
+      rowOf("~", minColumnsPerBeat),
+      name,
+      rowOf("-", minColumnsPerBeat),
+      `!END!`
+    );
+    tokens.push(`!START!`, rowOf("~", minColumnsPerBeat));
+  } else {
+    tokens.unshift(rowOf("~", minColumnsPerBeat), name, `!START!`);
+    tokens.push(
+      rowOf("-", minColumnsPerBeat),
+      `!END!`,
+      rowOf("~", minColumnsPerBeat)
+    );
   }
   return tokens.join("\n");
 };

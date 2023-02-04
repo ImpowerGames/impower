@@ -42,10 +42,10 @@ export const convertBSData = (dat: string | object): Beat[] => {
   if (Array.isArray(notes)) {
     notes.forEach((note) => {
       beats.push({
-        n: note.n ?? note.b ?? note._time ?? -1,
+        z: note.z ?? note.b ?? note._time ?? -1,
         x: note.x ?? note._lineIndex ?? -1,
         y: note.y ?? note._lineLayer ?? -1,
-        d: getDirection(note.d ?? note._cutDirection ?? -1),
+        s: getDirection(note.s ?? note.d ?? note._cutDirection ?? -1),
       });
     });
   }
