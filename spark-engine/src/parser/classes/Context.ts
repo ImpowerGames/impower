@@ -149,7 +149,11 @@ export class Context<
     this.game.destroy();
   }
 
-  update(timeMS: number, deltaMS: number): boolean {
+  update(time: number, delta: number): boolean {
+    this.game.tween.tick(time, delta);
+    // TODO: Change ticker to use seconds instead of milliseconds
+    const timeMS = time * 1000;
+    const deltaMS = delta * 1000;
     this.game.ticker.tick(timeMS, deltaMS);
     this.runner.commandRunners.forEach((r) => {
       r.onUpdate(this.game, timeMS, deltaMS);

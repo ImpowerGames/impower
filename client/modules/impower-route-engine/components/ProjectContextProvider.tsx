@@ -267,7 +267,7 @@ const ProjcetContextProvider = React.memo(
         ? Object.entries(recentGameDocs)
             .filter(([key]) => key !== loadedProjectId)
             .map(([key, value]) => ({
-              label: value.name,
+              label: value?.name,
               link: `/e/p/${key}`,
             }))
         : [];

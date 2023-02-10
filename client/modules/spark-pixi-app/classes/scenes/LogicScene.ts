@@ -2,11 +2,11 @@ import { SparkScene } from "../SparkScene";
 
 export class LogicScene extends SparkScene {
   onPointerDown = (event: PointerEvent): void => {
-    this.context.game.input.pointerDown(event.button, this.stage?.name || "");
+    this.context.game.input.pointerDown(event.button, "");
   };
 
   onPointerUp = (event: PointerEvent): void => {
-    this.context.game.input.pointerUp(event.button, this.stage?.name || "");
+    this.context.game.input.pointerUp(event.button, "");
   };
 
   override start(): void {
@@ -20,9 +20,7 @@ export class LogicScene extends SparkScene {
   }
 
   override update(time: number, delta: number): void {
-    const timeMS = time * 1000;
-    const deltaMS = delta * 1000;
-    if (!this.context.update(timeMS, deltaMS)) {
+    if (!this.context.update(time, delta)) {
       this.quit();
     }
   }

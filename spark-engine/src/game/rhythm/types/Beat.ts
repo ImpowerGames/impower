@@ -1,4 +1,4 @@
-import { InputSymbol } from "./InputSymbol";
+import { SwipeSymbol } from "./SwipeSymbol";
 
 export interface Beat {
   /** 0-3 (left -> right) **/
@@ -8,7 +8,7 @@ export interface Beat {
   /** measure number **/
   z?: number;
   /** swipe direction **/
-  s?: InputSymbol;
+  s?: SwipeSymbol;
   /** beats per minute **/
   bpm?: number;
 }

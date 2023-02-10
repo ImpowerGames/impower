@@ -1,7 +1,6 @@
-import { IMediaInstance, webaudio } from "@pixi/sound";
-import { Graphics } from "pixi.js";
 import { Tone } from "../../../../../spark-engine";
-import { SynthSound } from "../../plugins/synth-sound/classes/SynthSound";
+import { Graphics } from "../../plugins/graphics";
+import { IMediaInstance, SynthSound, WebAudioMedia } from "../../plugins/sound";
 import { SparkScene } from "../SparkScene";
 
 interface Instrument {
@@ -55,7 +54,7 @@ export class SoundScene extends SparkScene {
 
   stopInstrument(data: { instrumentId: string; duration?: number }): void {
     const instrument = this._instruments.get(data.instrumentId);
-    const media = instrument?.sound?.media as webaudio.WebAudioMedia;
+    const media = instrument?.sound?.media as WebAudioMedia;
     if (media) {
       const endTime =
         instrument.sound.context.audioContext.currentTime +

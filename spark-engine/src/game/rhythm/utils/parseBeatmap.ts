@@ -1,5 +1,5 @@
 import { Beat } from "../types/Beat";
-import { InputSymbol } from "../types/InputSymbol";
+import { SwipeSymbol } from "../types/SwipeSymbol";
 import { roundToRatioDecimal } from "./roundToRatioDecimal";
 
 const WHITESPACE_REGEX = /[ ]/g;
@@ -58,7 +58,7 @@ export const parseBeatmap = (
 
   let isReversed = false;
   for (let i = 0; i < 5; i += 1) {
-    // Check if any of the first few lines starts with an !END! marker
+    // Check if any of the first 5 lines starts with an !END! marker
     if (lines[i]?.text.startsWith("!E")) {
       isReversed = true;
     }
@@ -107,7 +107,7 @@ export const parseBeatmap = (
               for (let x = 0; x < row.length; x += 1) {
                 const symbol = row[x];
                 if (symbol && symbol !== " ") {
-                  const d = symbol as InputSymbol;
+                  const d = symbol as SwipeSymbol;
                   const newBeat: ParsedBeat = {
                     z: n,
                     s: d,

@@ -245,7 +245,9 @@ const myHighlightStyle = HighlightStyle.define([
 ]);
 
 // Ensure spaces aren't deleted after pressing Enter at the end of a line that only has spaces
-const modifiedDefaultKeymap = defaultKeymap.filter((x) => x.key !== "Enter");
+const modifiedDefaultKeymap = [
+  ...defaultKeymap.filter((x) => x.key !== "Enter"),
+];
 
 export const basicSetup: Extension = ((): Extension[] => [
   lineNumbers(),
@@ -543,7 +545,6 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           topContainer: topPanelsContainer,
           bottomContainer: bottomPanelsContainer,
         }),
-        languageSetup,
         tooltips({
           position: "absolute",
           tooltipSpace: (): {
@@ -564,6 +565,7 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
         highlightActiveLineGutter(),
         indentUnit.of("  "),
         basicSetup,
+        languageSetup,
         EditorState.phrases.of({ "No diagnostics": "No errors" }),
         EditorView.theme(
           {

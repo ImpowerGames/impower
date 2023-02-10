@@ -1,12 +1,9 @@
 import { SparkContext } from "../../../../spark-engine";
+import { Application, ApplicationOptions } from "../plugins/app";
 import { LogicScene } from "./scenes/LogicScene";
 import { MainScene } from "./scenes/MainScene";
 import { SoundScene } from "./scenes/SoundScene";
 import { SparkScene } from "./SparkScene";
-import {
-  SparkApplication,
-  SparkApplicationOptions,
-} from "./wrappers/SparkApplication";
 
 export class SparkGameApp {
   private _parent: HTMLElement | null;
@@ -15,9 +12,9 @@ export class SparkGameApp {
     return this._parent;
   }
 
-  private _app: SparkApplication;
+  private _app: Application;
 
-  public get app(): SparkApplication {
+  public get app(): Application {
     return this._app;
   }
 
@@ -44,11 +41,11 @@ export class SparkGameApp {
   constructor(
     domElementId: string,
     context?: SparkContext,
-    options?: SparkApplicationOptions
+    options?: ApplicationOptions
   ) {
     this._parent = document.getElementById(domElementId);
 
-    this._app = new SparkApplication({
+    this._app = new Application({
       backgroundColor: 0x000000,
       antialias: true,
       autoStart: false,
@@ -104,6 +101,7 @@ export class SparkGameApp {
     });
     this.scenes.forEach((scene) => {
       if (scene?.stage) {
+        scene.bind();
         scene.start();
       }
     });
