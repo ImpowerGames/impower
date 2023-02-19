@@ -2,6 +2,7 @@ export * from "./core";
 export * from "./debug";
 export * from "./input";
 export * from "./logic";
+export * from "./midi";
 export * from "./physics";
 export * from "./random";
 export * from "./rhythm";

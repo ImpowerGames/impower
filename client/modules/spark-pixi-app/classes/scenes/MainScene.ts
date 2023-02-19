@@ -3,68 +3,113 @@ import {
   EASE,
   Graphic,
   interpolate,
+  Midi,
+  parseMidi,
   ReadOnly,
   SparkContext,
-  SwipeSymbol,
 } from "../../../../../spark-engine";
-import {
-  generateFrameTexture,
-  generateSpritesheet,
-} from "../../plugins/animation";
+import { generateSpritesheet } from "../../plugins/animation";
 import { Application } from "../../plugins/app";
-import { Texture } from "../../plugins/core";
+import { IRenderer, Texture, Ticker } from "../../plugins/core";
 import { generateGrid } from "../../plugins/graphics";
-import { Quaternion, Sprite3D } from "../../plugins/projection";
+import { Container3D, Quaternion, Sprite3D } from "../../plugins/projection";
 import { SparkScene } from "../SparkScene";
 
-const createSprite = (content: Texture | Texture[], fps?: number): Sprite3D => {
-  const sprite = new Sprite3D(content, { fps });
+const createAnimatedSprite = (
+  animation: Texture[],
+  ticker: Ticker
+): Sprite3D => {
+  const sprite = new Sprite3D(animation, { fps: ticker?.maxFPS });
   sprite.play();
   return sprite;
-};
-
-const spawn = (
-  content?: Texture | Texture[],
-  fps?: number,
-  positionArray?: Float32Array,
-  scale?: number
-): Sprite3D => {
-  const entity = createSprite(content, fps);
-  if (positionArray) {
-    entity.position.array = positionArray;
-  }
-  if (scale !== undefined) {
-    entity.scale.x = scale;
-    entity.scale.y = scale;
-  }
-  return entity;
 };
 
 const getXOffset = (columnCount: number): number => {
   return -columnCount / 2 + 0.5;
 };
 
-const getYOffset = (rowCount: number): number => {
-  return 0.25 * rowCount;
+const getYOffset = (): number => {
+  return 1;
 };
 
-const createIndicatorCellSprites = (
-  rowCount: number,
+const getZFactor = (zSpacing: number): number => {
+  return -zSpacing;
+};
+
+const getProgress = (value: number): number => {
+  return value - Math.floor(value);
+};
+
+const getAnimation = (
+  type: string,
+  textures: Record<string, Texture[]>
+): Texture[] => {
+  if (type === "P") {
+    return textures["_m1a_bunny"];
+  }
+  if (type === "X") {
+    return textures["_m1a_flyerguy"];
+  }
+  if (type === "\\") {
+    return textures["_m_swipe"];
+  }
+  if (type === "/") {
+    return textures["_m_swipe"];
+  }
+  if (type === "<") {
+    return textures["_m_swipe"];
+  }
+  if (type === ">") {
+    return textures["_m_swipe"];
+  }
+  return textures["_m_tap"];
+};
+
+const isTargetFlippedX = (beat: Beat): boolean => {
+  switch (beat.s) {
+    case ">":
+      return true;
+    case "/":
+      return true;
+    default:
+      return false;
+  }
+};
+
+const getTargetColor = (beat: Beat): number => {
+  if (beat.s === "*") {
+    return 0x006cff;
+  }
+  return 0xf21212;
+};
+
+const createOverlayPaneSprite = (columnCount: number): Sprite3D => {
+  const sprite = new Sprite3D();
+  sprite.position.x = getXOffset(columnCount);
+  sprite.position.y = getYOffset();
+  sprite.alpha = 0;
+  return sprite;
+};
+
+const createOverlayCellSprites = (
+  textures: Record<string, Texture[]>,
+  ticker: Ticker,
   columnCount: number,
-  cellSize: number,
-  indicatorScale: number
+  rowCount: number,
+  scale: number
 ): Sprite3D[][] => {
-  const indicatorColor = 0xffffff;
+  const color = 0xffffff;
   const sprites = [];
+  const animation = getAnimation("*", textures);
   for (let x = 0; x < columnCount; x += 1) {
     for (let y = 0; y < rowCount; y += 1) {
-      const sprite = new Sprite3D(Texture.create(cellSize, cellSize));
-      sprite.tint = indicatorColor;
+      const sprite = createAnimatedSprite(animation, ticker);
+      sprite.tint = color;
       sprite.alpha = 0;
       sprite.position.x = x;
       sprite.position.y = y;
-      sprite.scale.x = indicatorScale;
-      sprite.scale.y = indicatorScale;
+      sprite.scale.x = scale;
+      sprite.scale.y = scale;
       if (!sprites[x]) {
         sprites[x] = [];
       }
@@ -74,160 +119,181 @@ const createIndicatorCellSprites = (
   return sprites;
 };
 
-const createIndicatorPaneSprite = (
-  rowCount: number,
-  columnCount: number,
-  z: number,
-  parentScaleX: number,
-  parentScaleY: number
+const createTargetContainer = (
+  textures: Record<string, Texture[]>,
+  beat: Beat,
+  tileColumnCount: number,
+  tileZSpacing: number,
+  scale: number,
+  xAngle: number
+): Container3D => {
+  const x = beat.x + getXOffset(tileColumnCount);
+  const y = beat.y;
+  const z = beat.z * getZFactor(tileZSpacing);
+  const animation = getAnimation(beat.s, textures);
+  const firstFrame = animation?.[0];
+  const flippedX = isTargetFlippedX(beat);
+  const color = getTargetColor(beat);
+  const sprite = new Sprite3D(firstFrame);
+  sprite.rotationQuaternion.setEulerAngles(xAngle, 0, 0);
+  sprite.position.y = getYOffset();
+  sprite.tint = color;
+  sprite.scale.x = flippedX ? -scale : scale;
+  sprite.scale.y = scale;
+  const container = new Container3D();
+  container.position.x = x;
+  container.position.y = y;
+  container.position.z = z;
+  container.addChild(sprite);
+  return container;
+};
+
+const createObstacleSprite = (
+  textures: Record<string, Texture[]>,
+  ticker: Ticker,
+  beat: Beat,
+  tileColumnCount: number,
+  tileZSpacing: number,
+  scale: number
 ): Sprite3D => {
-  const sprite = new Sprite3D();
-  sprite.anchor.set(0.5, 1.0); // Center Bottom
-  sprite.position.x = getXOffset(columnCount) / parentScaleX;
-  sprite.position.y = getYOffset(rowCount) / parentScaleY;
-  sprite.position.z = z;
-  sprite.scale.x = 1 / parentScaleX;
-  sprite.scale.y = 1 / parentScaleY;
-  sprite.alpha = 0;
+  const x = beat.x + getXOffset(tileColumnCount);
+  const y = beat.y;
+  const z = beat.z * getZFactor(tileZSpacing);
+  const animation = getAnimation(beat.s, textures);
+  const sprite = createAnimatedSprite(animation, ticker);
+  sprite.anchor.set(0.5, 1.0);
+  sprite.position.x = x;
+  sprite.position.y = y;
+  sprite.position.z = z - x * 0.001;
+  sprite.scale.x = scale;
+  sprite.scale.y = scale;
   return sprite;
 };
 
-const getTileAngle = (s: SwipeSymbol): number => {
-  switch (s) {
-    case "^":
-      return 0;
-    case "v":
-      return 180;
-    case ">":
-      return 90;
-    case "<":
-      return 270;
-    case "\\":
-      return 135;
-    case "/":
-      return 45;
-    default:
-      return 0;
-  }
-};
-
-const getTileColor = (s: SwipeSymbol): number => {
-  const blue = 0x006cff;
-  switch (s) {
-    case "^":
-      return blue;
-    case "v":
-      return blue;
-    case ">":
-      return blue;
-    case "<":
-      return blue;
-    case "\\":
-      return blue;
-    case "/":
-      return blue;
-    default:
-      return 0;
-  }
-};
-
-const createBeat = (
-  texture: Texture[],
-  maxFPS: number,
-  beat: Beat,
-  tileScale: number
-): Sprite3D => {
-  const tileSprite = spawn(texture, maxFPS);
-  tileSprite.position.x = beat.x;
-  tileSprite.position.y = beat.y;
-  tileSprite.position.z = beat.z;
-  tileSprite.scale.x = tileScale;
-  tileSprite.scale.y = tileScale;
-  const angle = getTileAngle(beat.s);
-  tileSprite.rotationQuaternion.setEulerAngles(0, 0, angle);
-  const color = getTileColor(beat.s);
-  tileSprite.tint = color;
-  return tileSprite;
+const getAnimationTextures = async (
+  renderer: IRenderer,
+  svg: SVGSVGElement,
+  fps = 60,
+  id = "",
+  options: {
+    quality?: number;
+    fillColor?: string | number;
+    strokeColor?: string | number;
+    strokeWidth?: number;
+  } = {}
+): Promise<Texture[]> => {
+  const animationName = "default";
+  const sheet = generateSpritesheet(
+    renderer,
+    svg,
+    fps,
+    id,
+    animationName,
+    options
+  );
+  await sheet.parse();
+  const textures = sheet.animations[animationName];
+  return textures;
 };
 
 export class MainScene extends SparkScene {
-  private _tileScale = 0.7;
+  private _tileColumnCount = 3;
 
-  private _tileRowCount = 3;
+  private _tileRowCount = 1;
 
-  private _tileColumnCount = 4;
+  private _tileZSpacing = 8;
 
-  private _gridColor = 0x0000ff;
+  private _tileSize = 32;
 
-  private _gridThickness = 1;
+  private _targetScale = 1;
 
-  private _gridCellSize = 32;
+  private _targetXAngle = 0;
 
-  private _gridY = 80;
+  private _obstacleSpriteZOffset = 0.1;
 
-  private _beatMissColor = 0x404040;
+  private _playerSpriteXOffset = -0.0625;
+
+  private _playerSpriteZOffset = 1.75;
 
   private _playerScale = 2;
 
-  private _indicatorZOffset = -4;
+  private _obstacleScale = 2;
 
-  private _tileZSpacing = 4;
+  private _gridThickness = 1;
+
+  private _gridColor = 0x0000ff;
+
+  private _beatPassedColor = 0x404040;
+
+  private _animationSpeed = 0.5;
 
   private _spawnDistance = 5;
 
-  private _spawnEase = EASE.expoIn;
+  private _spawnTransitionEase = EASE.backOut;
 
-  private _spawnDuration = 0.3;
+  private _spawnTransitionSpeed = 0.2;
 
-  private _spawnYOffset = 2;
+  private _spawnYOffset = -1;
 
-  private _transitionEase = EASE.expoInOut;
+  private _cameraTransitionEase = EASE.expoInOut;
 
-  private _transitionDelay = 0.5;
+  private _cameraTransitionDelay = 0.5;
 
-  private _transitionDuration = 2;
+  private _cameraTransitionDuration = 2;
+
+  private _overlayTransitionEase = EASE.expoInOut;
+
+  private _overlayTransitionDelay = this._cameraTransitionDelay + 0.5;
+
+  private _overlayTransitionDuration = 2;
 
   private _startHeight = 3;
 
-  private _startDistance = 4;
+  private _startDistance = 6;
 
-  private _startAngle = 25;
+  private _startAngle = 30;
 
   private _followHeight = 2;
 
-  private _followDistance = 0;
+  private _followDistance = 4;
 
-  private _followAngle = 0;
+  private _followAngle = 5;
 
-  private _beats: Beat[] = [];
+  private _obstacleBeats: Beat[] = [];
 
-  private _tiles: Beat[] = [];
+  private _targetBeats: Beat[] = [];
 
-  private _grids: Sprite3D[] = [];
+  private _fillAnimations: Record<string, Texture[]> = {};
 
-  private _animationTextures: Record<string, Texture[]> = {};
+  private _strokeAnimations: Record<string, Texture[]> = {};
 
-  private _indicatorTextures: Record<string, Texture> = {};
+  private _floorSprites: Sprite3D[] = [];
+
+  private _targetSprites: Sprite3D[] = [];
+
+  private _obstacleSprites: Sprite3D[] = [];
+
+  private _overlayPaneSprite: Sprite3D;
+
+  private _overlayCellSprites: Sprite3D[][] = [];
+
+  private _playerContainer: Container3D;
 
   private _playerSprite: Sprite3D;
 
-  private _indicatorPaneSprite: Sprite3D;
-
-  private _indicatorCellSprites: Sprite3D[][];
-
-  private _beatSprites: Sprite3D[] = [];
-
-  private _nextTileSprites: Sprite3D[][] = [];
-
-  private _playerPosition = new Float32Array([0, 0, 0]);
+  private _upNext: { beat: Beat; sprite: Sprite3D }[][] = [];
 
   private _floorRotation = new Quaternion().setEulerAngles(-90, 0, 0).array;
 
-  private _tilesPerSecond = 120;
+  private _nextArrowZ = 0;
 
-  private _nextTileZ = 0;
+  private _beatsPerSecond = 120;
 
-  private _scrollActive = true;
+  private _currentBeat = 0;
+
+  private _beatPosition = 0;
+
+  private _running = true;
 
   constructor(context: SparkContext, app: Application) {
     super(context, app);
@@ -235,44 +301,47 @@ export class MainScene extends SparkScene {
     const beatmaps = Object.values(
       this.context.game.struct.config.objectMap?.["beatmap"] || {}
     );
-    this._beats = beatmaps[0]?.beats as unknown as Beat[];
-    this._tiles = this._beats.map((beat) => ({
-      x: beat.x + getXOffset(this._tileColumnCount),
-      y: beat.y + getYOffset(this._tileRowCount),
-      z: -beat.z * this._tileZSpacing,
-      s: beat.s,
-      bpm: beat.bpm * this._tileZSpacing,
-    }));
-    this._tilesPerSecond = this._tiles[0].bpm / 60;
-
-    const lastBeat = this._tiles[this._tiles.length - 1];
+    const beatmap = beatmaps[0];
+    const beats = (beatmap?.beats as unknown as Beat[]) || [];
+    beats.forEach((beat) => {
+      if (beat.s === "X") {
+        this._obstacleBeats.push(beat);
+      } else {
+        this._targetBeats.push(beat);
+      }
+    });
+    const bpm = beats[0]?.bpm ?? 120;
+    this._beatsPerSecond = bpm / 60;
+    const maxZ = beats[beats.length - 1]?.z ?? 0;
     // Grid
     const gridTexture = generateGrid(
       this.renderer,
       this._gridThickness,
-      this._gridCellSize,
+      this._tileSize,
       this._tileColumnCount,
-      this._gridY
+      this._tileZSpacing
     );
-    const gridHeight = this._tileColumnCount * this._tileZSpacing;
-    const numTracks = Math.ceil(Math.abs(lastBeat.z / gridHeight));
+    const gridHeight = this._tileZSpacing;
+    const farthestZ = maxZ * getZFactor(this._tileZSpacing);
+    const numTracks = Math.ceil(Math.abs(farthestZ / gridHeight));
     for (let i = 0; i < numTracks; i += 1) {
+      const z = i * -gridHeight;
       const grid = new Sprite3D(gridTexture);
       grid.width = this._tileColumnCount;
-      grid.height = this._gridY;
+      grid.height = this._tileZSpacing;
       grid.zIndex = -1000;
       grid.rotationQuaternion.array = this._floorRotation;
       grid.anchor.set(0.5, 1.0); // Center Bottom
       grid.position.x = 0;
       grid.position.y = 0;
-      grid.position.z = i * -gridHeight;
+      grid.position.z = z;
       grid.tint = this._gridColor;
-      this._grids[i] = grid;
+      this._floorSprites.push(grid);
     }
     // Camera
-    this.dolly.target.x = this._playerPosition[0];
+    this.dolly.target.x = 0;
     this.dolly.target.y = this._startHeight;
-    this.dolly.target.z = this._playerPosition[2];
+    this.dolly.target.z = this._beatPosition;
     this.dolly.angles.x = this._startAngle;
     this.dolly.distance = this._startDistance;
     this.dolly.updateCamera();
@@ -281,131 +350,147 @@ export class MainScene extends SparkScene {
   override async load(): Promise<void> {
     const graphicMap: Record<string, ReadOnly<Graphic>> = this.context?.game
       ?.struct?.config?.objectMap?.graphic || {};
-    await Promise.all(
-      Object.entries(graphicMap).map(async ([name, g]) => {
-        const src = g.src as unknown as string;
-        const svg = await this.assets.load(src);
-        if (svg) {
-          const outline = generateFrameTexture(
+    const midiMap: Record<string, ReadOnly<Midi>> = this.context.game.struct
+      .config.objectMap?.midi || {};
+    await Promise.all([
+      ...Object.entries(graphicMap).map(async ([name, asset]) => {
+        const src = asset.src as unknown as string;
+        const data = await this.assets.load<SVGSVGElement>(`${src}&type=svg`);
+        if (data) {
+          this._strokeAnimations[name] = await getAnimationTextures(
             this.renderer,
-            svg,
-            0,
+            data,
             this.maxFPS,
-            { fillColor: "none", strokeColor: "#fff" }
+            `overlay-${name}`,
+            {
+              fillColor: "none",
+              strokeColor: "#fff",
+              strokeWidth: 1,
+            }
           );
-          this._indicatorTextures[name] = outline;
-          const animationName = "default";
-          const sheet = generateSpritesheet(
+          this._fillAnimations[name] = await getAnimationTextures(
             this.renderer,
-            svg,
+            data,
             this.maxFPS,
-            name,
-            animationName,
-            { quality: 16 }
+            name
           );
-          await sheet.parse();
-          const textures = sheet.animations[animationName];
-          if (textures) {
-            this._animationTextures[name] = textures;
-          }
         }
-      })
-    );
-  }
-
-  getPlayerAnimationTextures(): Texture[] | undefined {
-    const textures = Object.values(this._animationTextures || {});
-    return textures[1];
-  }
-
-  getObstacleAnimationTextures(): Texture[] | undefined {
-    const textures = Object.values(this._animationTextures || {});
-    return textures[0];
-  }
-
-  getIndicatorTexture(): Texture | undefined {
-    const textures = Object.values(this._indicatorTextures || {});
-    return textures[0] || undefined;
+      }),
+      ...Object.entries(midiMap).map(async ([name, asset]) => {
+        const src = asset.src as unknown as string;
+        const data = await this.assets.load<ArrayBuffer>(`${src}&type=mid`);
+        if (data) {
+          const midi = parseMidi(data);
+        }
+      }),
+    ]);
   }
 
   override init(): void {
-    this._grids.forEach((grid) => {
-      this.stage.addChild(grid);
+    this._floorSprites.forEach((sprite) => {
+      this.stage.addChild(sprite);
     });
-    const playerAnimation = this.getPlayerAnimationTextures();
-    const obstacleAnimation = this.getObstacleAnimationTextures();
+    const playerAnimation = getAnimation("P", this._fillAnimations);
     if (playerAnimation) {
-      this._playerSprite = spawn(
-        playerAnimation,
-        this.maxFPS,
-        this._playerPosition,
-        this._playerScale
-      );
+      this._playerContainer = new Container3D();
+      this._playerContainer.pivot.set(0.5, 1.0); // Center Bottom
+      this._playerSprite = createAnimatedSprite(playerAnimation, this.ticker);
       this._playerSprite.anchor.set(0.5, 1.0); // Center Bottom
+      this._playerSprite.scale.x = this._playerScale;
+      this._playerSprite.scale.y = this._playerScale;
+      this._playerSprite.position.x = this._playerSpriteXOffset;
+      this._playerSprite.position.z = this._playerSpriteZOffset;
       this._playerSprite.billboardType = "spherical";
-      this._indicatorPaneSprite = createIndicatorPaneSprite(
-        this._tileRowCount,
+      this._overlayPaneSprite = createOverlayPaneSprite(this._tileColumnCount);
+      this._overlayCellSprites = createOverlayCellSprites(
+        this._strokeAnimations,
+        this.ticker,
         this._tileColumnCount,
-        this._indicatorZOffset,
-        this._playerSprite.scale.x,
-        this._playerSprite.scale.y
-      );
-      this._indicatorCellSprites = createIndicatorCellSprites(
         this._tileRowCount,
-        this._tileColumnCount,
-        this._gridCellSize,
-        this._tileScale
+        this._targetScale
       );
-      this._indicatorCellSprites.forEach((rows, x) => {
+      this._overlayCellSprites.forEach((rows, x) => {
         rows.forEach((_, y) => {
-          this._indicatorPaneSprite.addChild(this._indicatorCellSprites[x][y]);
+          this._overlayPaneSprite.addChild(this._overlayCellSprites[x][y]);
         });
       });
-      this._playerSprite.addChild(this._indicatorPaneSprite);
-      this.stage.addChild(this._playerSprite);
+      this._playerContainer.addChild(this._playerSprite);
+      this._playerContainer.addChild(this._overlayPaneSprite);
+      this.stage.addChild(this._playerContainer);
     }
-
-    this._tiles.forEach((beat) => {
-      const beatSprite = createBeat(
-        obstacleAnimation,
-        this.maxFPS,
+    this._targetBeats.forEach((beat) => {
+      const targetContainer = createTargetContainer(
+        this._fillAnimations,
         beat,
-        this._tileScale
+        this._tileColumnCount,
+        this._tileZSpacing,
+        this._targetScale,
+        this._targetXAngle
       );
-      this._beatSprites.push(beatSprite);
-      this.stage.addChild(beatSprite);
+      this._targetSprites.push(targetContainer.children[0] as Sprite3D);
+      this.stage.addChild(targetContainer);
+    });
+    this._obstacleBeats.forEach((beat) => {
+      const obstacleSprite = createObstacleSprite(
+        this._fillAnimations,
+        this.ticker,
+        beat,
+        this._tileColumnCount,
+        this._tileZSpacing,
+        this._obstacleScale
+      );
+      obstacleSprite.z += this._obstacleSpriteZOffset;
+      this._obstacleSprites.push(obstacleSprite);
+      this.stage.addChild(obstacleSprite);
     });
   }
 
   override start(): void {
     this.context.game.tween.add("camera", {
-      delay: this._transitionDelay,
-      duration: this._transitionDuration,
+      delay: this._cameraTransitionDelay,
+      duration: this._cameraTransitionDuration,
       callback: (progress: number) => {
         if (this.dolly) {
           this.dolly.target.y = interpolate(
             progress,
             this._startHeight,
             this._followHeight,
-            this._transitionEase
+            this._cameraTransitionEase
           );
           this.dolly.angles.x = interpolate(
             progress,
             this._startAngle,
             this._followAngle,
-            this._transitionEase
+            this._cameraTransitionEase
           );
           this.dolly.distance = interpolate(
             progress,
             this._startDistance,
             this._followDistance,
-            this._transitionEase
+            this._cameraTransitionEase
           );
-          this._indicatorPaneSprite.alpha = interpolate(
+        }
+        if (this._playerSprite) {
+          this._playerSprite.alpha = interpolate(
+            progress,
+            1,
+            0,
+            this._cameraTransitionEase
+          );
+        }
+      },
+    });
+
+    this.context.game.tween.add("overlay", {
+      delay: this._overlayTransitionDelay,
+      duration: this._overlayTransitionDuration,
+      callback: (progress: number) => {
+        if (this._overlayPaneSprite) {
+          this._overlayPaneSprite.alpha = interpolate(
             progress,
             0,
             1,
-            this._transitionEase
+            this._overlayTransitionEase
           );
         }
       },
@@ -413,92 +498,121 @@ export class MainScene extends SparkScene {
   }
 
   override update(_time: number, delta: number): void {
-    if (this._scrollActive) {
-      this._playerPosition[2] -= this._tilesPerSecond * delta;
-      this.dolly.target.x = this._playerPosition[0];
-      this.dolly.target.y = this._followHeight;
-      this.dolly.target.z = this._playerPosition[2];
-      this.dolly.updateCamera();
-    }
-    if (this._playerSprite) {
-      this._playerSprite.position.array = this._playerPosition;
-      this._playerSprite.update(delta);
-    }
+    const beatDelta = this._beatsPerSecond * delta;
+    if (this._running) {
+      this._currentBeat += beatDelta;
+      this._beatPosition = -this._currentBeat * this._tileZSpacing;
+      const beatProgress = getProgress(this._currentBeat);
+      const animationProgress = getProgress(
+        this._currentBeat * this._animationSpeed
+      );
 
-    for (let x = 0; x < this._nextTileSprites.length; x += 1) {
-      const row = this._nextTileSprites[x];
-      if (row) {
-        for (let y = 0; y < row.length; y += 1) {
-          this._nextTileSprites[x][y] = undefined;
+      this.dolly.target.x = 0;
+      this.dolly.target.y = this._followHeight;
+      this.dolly.target.z = this._beatPosition;
+      this.dolly.updateCamera();
+      if (this._playerContainer) {
+        this._playerContainer.position.z = this._beatPosition;
+      }
+      if (this._playerSprite) {
+        this._playerSprite.goto(animationProgress);
+      }
+
+      for (let x = 0; x < this._upNext.length; x += 1) {
+        const row = this._upNext[x];
+        if (row) {
+          for (let y = 0; y < row.length; y += 1) {
+            this._upNext[x][y] = undefined;
+          }
         }
       }
-    }
-    this._nextTileZ = 0;
-    this._beatSprites.forEach((sprite, i) => {
-      const beat = this._beats[i];
-      const planeZ = this._playerSprite.position.z + this._indicatorZOffset;
-      const spriteZ = sprite.position.z;
-      if (planeZ < spriteZ) {
-        // Beat is behind player
-        sprite.tint = this._beatMissColor;
-      } else {
-        // Beat is in front of player
-        if (!this._nextTileZ && spriteZ < this._nextTileZ) {
-          this._nextTileZ = spriteZ;
-        }
-        if (spriteZ === this._nextTileZ) {
-          if (!this._nextTileSprites[beat.x]) {
-            this._nextTileSprites[beat.x] = [];
-          }
-          if (!this._nextTileSprites[beat.x][beat.y]) {
-            this._nextTileSprites[beat.x][beat.y] = sprite;
-          }
-        }
-        // Only show beats that are close to player
-        if (planeZ - this._spawnDistance * this._tileZSpacing < spriteZ) {
-          const key = `beat-${i}`;
-          if (!this.context.game.tween.get(key)) {
-            const endY = sprite.position.y;
-            const startY = sprite.position.y + this._spawnYOffset;
-            sprite.position.y = startY;
-            this.context.game.tween.add(key, {
-              duration: this._spawnDuration,
-              callback: (progress: number) => {
-                if (sprite) {
-                  sprite.alpha = interpolate(progress, 0, 1, this._spawnEase);
-                  sprite.position.y = interpolate(
-                    progress,
-                    startY,
-                    endY,
-                    this._spawnEase
-                  );
-                }
-              },
-            });
-          }
-        } else {
-          sprite.alpha = 0;
-        }
-      }
-      sprite.renderable = sprite.isInCameraFrustum(this.dolly.camera);
-      sprite.update(delta);
-    });
-    for (let x = 0; x < this._indicatorCellSprites.length; x += 1) {
-      const row = this._indicatorCellSprites[x];
-      if (row) {
-        for (let y = 0; y < row.length; y += 1) {
-          const indicatorSprite = this._indicatorCellSprites[x][y];
-          if (indicatorSprite) {
-            const nextTileSprite = this._nextTileSprites?.[x]?.[y];
-            if (nextTileSprite) {
-              const indicatorTexture = this.getIndicatorTexture();
-              indicatorSprite.texture = indicatorTexture;
-              indicatorSprite.rotationQuaternion =
-                nextTileSprite.rotationQuaternion;
-              indicatorSprite.tint = 0xffffff;
-              indicatorSprite.alpha = 1;
+      this._nextArrowZ = 0;
+      this._targetSprites.forEach((sprite, i) => {
+        if (sprite) {
+          sprite.goto(beatProgress);
+          const beat = this._targetBeats[i];
+          const container = sprite.parent as Container3D;
+          const beatZ = container.position.z;
+          if (this._beatPosition < beatZ) {
+            // Beat is behind player
+            sprite.tint = this._beatPassedColor;
+          } else {
+            // Beat is in front of player
+            if (!this._nextArrowZ && beatZ < this._nextArrowZ) {
+              this._nextArrowZ = beatZ;
+            }
+            if (beatZ === this._nextArrowZ) {
+              if (!this._upNext[beat.x]) {
+                this._upNext[beat.x] = [];
+              }
+              if (!this._upNext[beat.x][beat.y]) {
+                this._upNext[beat.x][beat.y] = { sprite, beat };
+              }
+            }
+            // Only show beats that are close to player
+            if (
+              this._beatPosition - this._spawnDistance * this._tileZSpacing <
+              beatZ
+            ) {
+              const key = `beat-${i}`;
+              if (!this.context.game.tween.get(key)) {
+                const startY = container.position.y + this._spawnYOffset;
+                const endY = container.position.y;
+                container.position.y = startY;
+                const unitsPerSecond =
+                  this._beatsPerSecond * this._tileZSpacing;
+                const secondsPerUnit = 1 / unitsPerSecond;
+                const duration = secondsPerUnit / this._spawnTransitionSpeed;
+                this.context.game.tween.add(key, {
+                  duration,
+                  callback: (progress: number) => {
+                    if (container) {
+                      container.alpha = interpolate(
+                        progress,
+                        0,
+                        1,
+                        this._spawnTransitionEase
+                      );
+                      container.position.y = interpolate(
+                        progress,
+                        startY,
+                        endY,
+                        this._spawnTransitionEase
+                      );
+                    }
+                  },
+                });
+              }
             } else {
-              indicatorSprite.alpha = 0;
+              container.alpha = 0;
+            }
+          }
+        }
+      });
+      for (let x = 0; x < this._overlayCellSprites.length; x += 1) {
+        const row = this._overlayCellSprites[x];
+        if (row) {
+          for (let y = 0; y < row.length; y += 1) {
+            const overlaySprite = this._overlayCellSprites[x][y];
+            if (overlaySprite) {
+              const next = this._upNext?.[x]?.[y];
+              if (next?.sprite) {
+                const { sprite, beat } = next;
+                const newTextures = getAnimation(
+                  beat.s,
+                  this._strokeAnimations
+                );
+                if (overlaySprite.textures !== newTextures) {
+                  overlaySprite.textures = newTextures;
+                }
+                overlaySprite.scale.x = sprite.scale.x;
+                overlaySprite.scale.y = sprite.scale.y;
+                overlaySprite.tint = 0xffffff;
+                overlaySprite.alpha = 1;
+              } else {
+                overlaySprite.alpha = 0;
+              }
+              overlaySprite.goto(beatProgress);
             }
           }
         }
@@ -507,6 +621,6 @@ export class MainScene extends SparkScene {
   }
 
   override onTap(_event: PointerEvent): void {
-    this._scrollActive = !this._scrollActive;
+    this._running = !this._running;
   }
 }

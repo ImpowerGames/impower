@@ -6,7 +6,9 @@ export const getScriptAugmentations = (
 ): SparkDeclarations => {
   const structs: Record<string, SparkStruct> = {};
   Object.entries(files || {}).forEach(([, { name, fileType, fileUrl }]) => {
-    const type = fileType?.startsWith("audio")
+    const type = fileType?.startsWith("audio/mid")
+      ? "midi"
+      : fileType?.startsWith("audio")
       ? "audio"
       : fileType?.startsWith("video")
       ? "video"

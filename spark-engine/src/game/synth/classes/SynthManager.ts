@@ -5,16 +5,16 @@ import { Tone } from "../types/Tone";
 import { createInstrumentState } from "../utils/createInstrumentState";
 
 export interface SynthEvents extends Record<string, GameEvent> {
-  onConfigureInstrument: GameEvent<{
-    instrumentId: string;
+  onConfigure: GameEvent<{
+    id: string;
     state: InstrumentState;
   }>;
-  onStopInstrument: GameEvent<{
-    instrumentId: string;
+  onStop: GameEvent<{
+    id: string;
     duration?: number;
   }>;
-  onPlayInstrument: GameEvent<{
-    instrumentId: string;
+  onPlay: GameEvent<{
+    id: string;
     tones: Tone[];
     onStart?: () => void;
   }>;
@@ -33,16 +33,16 @@ export class SynthManager extends Manager<
 > {
   constructor(config?: Partial<SynthConfig>, state?: Partial<SynthState>) {
     const initialEvents: SynthEvents = {
-      onConfigureInstrument: new GameEvent<{
-        instrumentId: string;
+      onConfigure: new GameEvent<{
+        id: string;
         state: InstrumentState;
       }>(),
-      onStopInstrument: new GameEvent<{
-        instrumentId: string;
+      onStop: new GameEvent<{
+        id: string;
         duration?: number;
       }>(),
-      onPlayInstrument: new GameEvent<{
-        instrumentId: string;
+      onPlay: new GameEvent<{
+        id: string;
         tones: Tone[];
       }>(),
     };
@@ -57,36 +57,29 @@ export class SynthManager extends Manager<
     super(initialEvents, initialConfig, initialState);
   }
 
-  configureInstrument(
-    instrumentId: string,
-    options?: Partial<InstrumentState>
-  ): void {
+  configure(id: string, options?: Partial<InstrumentState>): void {
     const state = {
       ...createInstrumentState(),
-      ...(this._state.instrumentStates[instrumentId] || {}),
+      ...(this._state.instrumentStates[id] || {}),
       ...(options || {}),
     };
-    this._state.instrumentStates[instrumentId] = state;
-    this._events.onConfigureInstrument.emit({
-      instrumentId,
+    this._state.instrumentStates[id] = state;
+    this._events.onConfigure.emit({
+      id,
       state,
     });
   }
 
-  stopInstrument(instrumentId: string, duration?: number): void {
-    this._events.onStopInstrument.emit({
-      instrumentId,
+  stop(id: string, duration?: number): void {
+    this._events.onStop.emit({
+      id,
       duration,
     });
   }
 
-  playInstrument(
-    instrumentId: string,
-    tones: Tone[],
-    onStart?: () => void
-  ): void {
-    this._events.onPlayInstrument.emit({
-      instrumentId,
+  play(id: string, tones: Tone[], onStart?: () => void): void {
+    this._events.onPlay.emit({
+      id,
       tones,
       onStart,
     });

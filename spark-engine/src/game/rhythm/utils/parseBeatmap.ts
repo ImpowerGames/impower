@@ -1,11 +1,10 @@
 import { Beat } from "../types/Beat";
-import { SwipeSymbol } from "../types/SwipeSymbol";
 import { roundToRatioDecimal } from "./roundToRatioDecimal";
 
 const WHITESPACE_REGEX = /[ ]/g;
 const SEPARATOR_REGEX = /[-]/g;
 const NEWLINE_REGEX = /\r\n|\r|\n/;
-const ROW_REGEX = /^[ v^<>/\\*]*$/;
+const ROW_REGEX = /^[^-=~@!]*$/;
 
 const getIncrement = (text: string) => {
   const t = text.trim();
@@ -83,15 +82,7 @@ export const parseBeatmap = (
           n = roundToRatioDecimal(n);
           break;
         }
-        case "":
-        case " ":
-        case "^":
-        case "v":
-        case "<":
-        case ">":
-        case "\\":
-        case "/":
-        case "*": {
+        default: {
           let numRows = 0;
           for (; numRows < lines.length; numRows += 1) {
             const rowIndex = i + numRows;
@@ -100,6 +91,9 @@ export const parseBeatmap = (
               break;
             }
           }
+          if (!numRows) {
+            break;
+          }
           for (let y = 0; y < numRows; y += 1) {
             const rowIndex = isReversed ? i + y : i + numRows - 1 - y;
             const row = lines[rowIndex]?.text || "";
@@ -107,7 +101,7 @@ export const parseBeatmap = (
               for (let x = 0; x < row.length; x += 1) {
                 const symbol = row[x];
                 if (symbol && symbol !== " ") {
-                  const d = symbol as SwipeSymbol;
+                  const d = symbol;
                   const newBeat: ParsedBeat = {
                     z: n,
                     s: d,
@@ -127,10 +121,6 @@ export const parseBeatmap = (
             }
           }
           i += numRows - 1;
-          break;
-        }
-        default: {
-          // NoOp
           break;
         }
       }

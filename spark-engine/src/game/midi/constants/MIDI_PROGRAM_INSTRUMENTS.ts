@@ -1,9 +1,6 @@
 /** Each program instrument can be played in 128 different pitches */
 export const MIDI_PROGRAM_INSTRUMENTS = {
-  /* 0 : None */
-  none: "",
-
-  /* 1-8 : Piano */
+  /* 0-7 : Piano */
   piano_acoustic_grand: "Acoustic Grand Piano",
   piano_acoustic_bright: "Bright Acoustic Piano",
   piano_electric_grand: "Electric Grand Piano",
@@ -13,7 +10,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   piano_harpsichord: "Harpsichord",
   piano_clavinet: "Clavinet",
 
-  /* 9-16 : Chromatic Percussion*/
+  /* 8-15 : Chromatic Percussion*/
   chromatic_celesta: "Celesta",
   chromatic_glockenspiel: "Glockenspiel",
   chromatic_music_box: "Music Box",
@@ -23,7 +20,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   chromatic_tubular_bell: "Tubular Bell",
   chromatic_dulcimer: "Dulcimer",
 
-  /* 17-24 : Organ */
+  /* 16-23 : Organ */
   organ_drawbar: "Drawbar Organ",
   organ_percussive: "Percussive Organ",
   organ_rock: "Rock Organ",
@@ -33,7 +30,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   organ_harmonica: "Harmonica",
   organ_bandoneon: "Bandoneon",
 
-  /* 25-32 : Guitar */
+  /* 24-31 : Guitar */
   guitar_acoustic_nylon: "Acoustic Guitar (nylon)",
   guitar_acoustic_steel: "Acoustic Guitar (steel)",
   guitar_electric_jazz: "Electric Guitar (jazz)",
@@ -43,7 +40,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   guitar_electric_distorted: "Electric Guitar (distorted)",
   guitar_electric_harmonic: "Electric Guitar (harmonic)",
 
-  /* 33-40 : Bass */
+  /* 32-39 : Bass */
   bass_acoustic: "Acoustic Bass",
   bass_electric_fingered: "Electric Bass (fingered)",
   bass_electric_picked: "Electric Bass (picked)",
@@ -53,7 +50,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   bass_synth_1: "Synth Bass 1",
   bass_synth_2: "Synth Bass 2",
 
-  /* 41-48 : Strings */
+  /* 40-47 : Strings */
   strings_violin: "Violin",
   strings_viola: "Viola",
   strings_cello: "Cello",
@@ -63,7 +60,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   strings_harp: "Orchestral Harp",
   strings_timpani: "Timpani",
 
-  /* 49-56 : Ensemble */
+  /* 48-55 : Ensemble */
   ensemble_strings_1: "String Ensemble 1",
   ensemble_strings_2: "String Ensemble 2",
   ensemble_synth_1: "Synth Strings 1",
@@ -73,7 +70,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   ensemble_voice_synth: "Synth Voice",
   ensemble_orchestra_hit: "Orchestra Hit",
 
-  /* 57-64 : Brass */
+  /* 56-63 : Brass */
   brass_trumpet: "Trumpet",
   brass_trombone: "Trombone",
   brass_tuba: "Tuba",
@@ -83,7 +80,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   brass_synth_1: "Synth Brass 1",
   brass_synth_2: "Synth Brass 2",
 
-  /* 65-72 : Reed */
+  /* 64-71 : Reed */
   reed_sax_soprano: "Soprano Sax",
   reed_sax_alto: "Alto Sax",
   reed_sax_tenor: "Tenor Sax",
@@ -93,7 +90,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   reed_bassoon: "Bassoon",
   reed_clarinet: "Clarinet",
 
-  /* 73-80 : Pipe */
+  /* 72-79 : Pipe */
   pipe_piccolo: "Piccolo",
   pipe_flute: "Flute",
   pipe_recorder: "Recorder",
@@ -103,7 +100,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   pipe_whistle: "Whistle",
   pipe_ocarina: "Ocarina",
 
-  /* 81-88 : Synth Lead */
+  /* 80-87 : Synth Lead */
   lead_square: "Lead 1 (square)",
   lead_sawtooth: "Lead 2 (sawtooth)",
   lead_wind: "Lead 3 (wind)",
@@ -113,7 +110,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   lead_fifths: "Lead 7 (fifths)",
   lead_bass: "Lead 8 (bass)",
 
-  /* 89-96 : Synth Pad */
+  /* 88-95 : Synth Pad */
   pad_bell: "Pad 1 (bell)",
   pad_warm: "Pad 2 (warm)",
   pad_poly: "Pad 3 (poly)",
@@ -123,7 +120,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   pad_halo: "Pad 7 (halo)",
   pad_sweep: "Pad 8 (sweep)",
 
-  /* 97-104 : Synth Effects */
+  /* 96-103 : Synth Effects */
   fx_rain: "FX 1 (rain)",
   fx_soundtrack: "FX 2 (soundtrack)",
   fx_crystal: "FX 3 (crystal)",
@@ -133,7 +130,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   fx_echoes: "FX 7 (echoes)",
   fx_scifi: "FX 8 (sci-fi)",
 
-  /* 105-112 : Ethnic */
+  /* 104-111 : Ethnic */
   ethnic_sitar: "Sitar",
   ethnic_banjo: "Banjo",
   ethnic_shamisen: "Shamisen",
@@ -143,7 +140,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   ethnic_fiddle: "Fiddle",
   ethnic_shanai: "Shanai",
 
-  /* 113-120 : Percussive */
+  /* 112-119 : Percussive */
   achromatic_bell_tinkle: "Tinkle Bell",
   achromatic_bell_agogo: "Agogô",
   achromatic_drum_steel: "Steel Drums",
@@ -153,7 +150,7 @@ export const MIDI_PROGRAM_INSTRUMENTS = {
   achromatic_drum_synth: "Synth Drum",
   achromatic_cymbal: "Reverse Cymbal",
 
-  /* 121-128 : Sound Effects */
+  /* 120-127 : Sound Effects */
   sfx_fret: "Guitar Fret Noise",
   sfx_breath: "Breath Noise",
   sfx_seashore: "Seashore",

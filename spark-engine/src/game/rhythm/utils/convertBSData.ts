@@ -5,11 +5,10 @@
 
 import { Beat } from "../types/Beat";
 import { BSNote } from "../types/BSNote";
-import { SwipeSymbol } from "../types/SwipeSymbol";
 
-const getDirection = (v: number | string): SwipeSymbol | undefined => {
+const getDirection = (v: number | string): string | undefined => {
   if (typeof v === "string") {
-    return v as SwipeSymbol;
+    return v;
   }
   switch (v) {
     case 0:

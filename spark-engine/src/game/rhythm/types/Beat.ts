@@ -1,5 +1,3 @@
-import { SwipeSymbol } from "./SwipeSymbol";
-
 export interface Beat {
   /** 0-3 (left -> right) **/
   x?: number;
@@ -8,7 +6,7 @@ export interface Beat {
   /** measure number **/
   z?: number;
   /** swipe direction **/
-  s?: SwipeSymbol;
+  s?: string;
   /** beats per minute **/
   bpm?: number;
 }

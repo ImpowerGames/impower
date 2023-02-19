@@ -9,12 +9,23 @@ export const generateSpritesheet = (
   fps = 60,
   id = "",
   animationName = "default",
-  options: { quality?: number } = {}
+  options: {
+    quality?: number;
+    fillColor?: string | number;
+    strokeColor?: string | number;
+    strokeWidth?: number;
+  } = {}
 ): Spritesheet => {
   const quality = options?.quality ?? 8;
+  const fillColor = options?.fillColor;
+  const strokeColor = options?.strokeColor;
+  const strokeWidth = options?.strokeWidth;
   const container = new Container();
   const firstFrame = new AnimatedGraphic(svg, {
     fps,
+    fillColor,
+    strokeColor,
+    strokeWidth,
   });
   firstFrame.gotoTimeAndStop(0);
   container.addChild(firstFrame);
@@ -60,21 +71,22 @@ export const generateSpritesheet = (
         const frame = new AnimatedGraphic(svg, {
           time,
           fps,
+          fillColor,
+          strokeColor,
+          strokeWidth,
         });
         frame.gotoTimeAndStop(time);
         frame.position.set(x, y);
         container.addChild(frame);
         const frameId = id + time;
-        // To prevent bleeding between frames when anti-aliasing texture
-        const spacing = 1;
         atlasData.frames[frameId] = {
           frame: {
-            x: x + spacing,
-            y: y + spacing,
-            w: w - spacing,
-            h: h - spacing,
+            x,
+            y,
+            w,
+            h,
           },
-          sourceSize: { w: w - spacing, h: h - spacing },
+          sourceSize: { w, h },
           spriteSourceSize: { x: 1, y: 1 },
         };
         atlasData.animations?.[animationName]?.push(frameId);

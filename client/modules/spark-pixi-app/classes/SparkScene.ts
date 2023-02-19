@@ -1,7 +1,7 @@
 import { SparkContext } from "../../../../spark-engine";
 import { Application } from "../plugins/app";
 import { Assets } from "../plugins/assets";
-import { IRenderer, Rectangle } from "../plugins/core";
+import { IRenderer, Rectangle, Ticker } from "../plugins/core";
 import { CameraOrbitControl, Container3D } from "../plugins/projection";
 
 export class SparkScene {
@@ -31,6 +31,10 @@ export class SparkScene {
 
   public get maxFPS(): number {
     return this._app.ticker?.maxFPS;
+  }
+
+  public get ticker(): Ticker {
+    return this._app.ticker;
   }
 
   public get stage(): Container3D {

@@ -269,7 +269,7 @@ export const executeDisplayCommand = (
 
   if (game) {
     if (instant) {
-      game.synth.stopInstrument(commandType, fadeOutDuration);
+      game.synth.stop(commandType, fadeOutDuration);
       handleFinished();
     } else {
       const letterDelay = writerConfig?.letterDelay ?? 0;
@@ -391,8 +391,8 @@ export const executeDisplayCommand = (
         }
       }
       // Start playing beeps
-      game.synth.configureInstrument(commandType);
-      game.synth.playInstrument(commandType, tones, () => {
+      game.synth.configure(commandType);
+      game.synth.play(commandType, tones, () => {
         // Start typing letters
         allChunks.forEach((c) => {
           if (c.element) {

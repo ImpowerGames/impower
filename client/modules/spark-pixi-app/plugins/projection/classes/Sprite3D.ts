@@ -1,18 +1,9 @@
-import {
-  DEG_TO_RAD,
-  ObservablePoint,
-  Texture,
-  Ticker,
-  UPDATE_PRIORITY,
-} from "@pixi/core";
+import { ObservablePoint, Texture, Ticker, UPDATE_PRIORITY } from "@pixi/core";
 import type { IDestroyOptions } from "@pixi/display";
 import { Sprite } from "@pixi/sprite";
 import { Sprite3D as _Sprite3D } from "pixi3d/pixi7";
 import { DEFAULT_PIXELS_PER_UNIT, Filter } from "../../core";
 import { SpriteBillboardType } from "../types/SpriteBillboardType";
-import { Camera } from "./Camera";
-import { Plane } from "./Plane";
-import { Point3D } from "./Point3D";
 
 export interface Sprite3DOptions {
   fps?: number;
@@ -240,14 +231,25 @@ export class Sprite3D extends _Sprite3D {
   }
 
   /**
+   * Goes to the closest frame to the percentage.
+   * @param progress - number from 0 to 1 representing how far we are into this animation
+   */
+  public goto(progress: number): void {
+    const frameNumber = Math.round(this.totalFrames * progress);
+    this.gotoFrame(frameNumber);
+  }
+
+  /**
    * Updates the object for rendering.
    * @param deltaTime - Time in seconds since last tick.
    */
-  update(deltaTime: number): void {
+  update(deltaTime?: number): void {
+    const tickerDelta = (this._ticker?.deltaMS ?? 0) / 1000;
+    const validDelta = deltaTime ?? tickerDelta;
     if (!this._playing) {
       return;
     }
-    this._currentTime += this.animationSpeed * deltaTime;
+    this._currentTime += this.animationSpeed * validDelta;
     this.updateFrame();
   }
 
@@ -285,107 +287,6 @@ export class Sprite3D extends _Sprite3D {
     this.onComplete = null;
     this.onFrameChange = null;
     this.onLoop = null;
-  }
-
-  isOffCamera(camera: Camera): boolean {
-    return (
-      this.position.z > camera.position.z + camera.near ||
-      this.position.z < camera.position.z - camera.far
-    );
-  }
-
-  planeFromPositionAndNormal(position: Point3D, normal: Point3D): Plane {
-    return new Plane(normal, Point3D.dot(position, normal.normalize()));
-  }
-
-  isInCameraFrustum(camera: Camera): boolean {
-    const center = this.position;
-    const bounds = this.getBounds();
-    const radius = Math.max(bounds.width, bounds.height);
-    const aspect = camera.renderer.width / camera.renderer.height;
-    const halfVSide =
-      camera.far * Math.tan(camera.fieldOfView * 0.5 * DEG_TO_RAD);
-    const halfHSide = halfVSide * aspect;
-
-    const near = this.planeFromPositionAndNormal(
-      Point3D.add(
-        camera.worldTransform.position,
-        Point3D.scale(camera.worldTransform.forward, camera.near)
-      ),
-      camera.worldTransform.forward
-    );
-    if (Point3D.dot(center, near.normal) - near.distance < 0) {
-      return false;
-    }
-
-    const far = this.planeFromPositionAndNormal(
-      Point3D.add(
-        camera.worldTransform.position,
-        Point3D.scale(camera.worldTransform.forward, camera.far)
-      ),
-      camera.worldTransform.backward
-    );
-    if (Point3D.dot(center, far.normal) - far.distance < 0) {
-      return false;
-    }
-
-    const right = this.planeFromPositionAndNormal(
-      camera.worldTransform.position,
-      Point3D.cross(
-        Point3D.subtract(
-          Point3D.scale(camera.worldTransform.forward, camera.far),
-          Point3D.scale(camera.worldTransform.right, halfHSide)
-        ),
-        camera.worldTransform.up
-      )
-    );
-    if (Point3D.dot(center, right.normal) - right.distance < -radius) {
-      return false;
-    }
-
-    const left = this.planeFromPositionAndNormal(
-      camera.worldTransform.position,
-      Point3D.cross(
-        camera.worldTransform.up,
-        Point3D.add(
-          Point3D.scale(camera.worldTransform.forward, camera.far),
-          Point3D.scale(camera.worldTransform.right, halfHSide)
-        )
-      )
-    );
-    if (Point3D.dot(center, left.normal) - left.distance < -radius) {
-      return false;
-    }
-
-    const bottom = this.planeFromPositionAndNormal(
-      camera.worldTransform.position,
-      Point3D.cross(
-        camera.worldTransform.right,
-        Point3D.subtract(
-          Point3D.scale(camera.worldTransform.forward, camera.far),
-          Point3D.scale(camera.worldTransform.up, halfVSide)
-        )
-      )
-    );
-    if (Point3D.dot(center, bottom.normal) - bottom.distance < -radius) {
-      return false;
-    }
-
-    const top = this.planeFromPositionAndNormal(
-      camera.worldTransform.position,
-      Point3D.cross(
-        Point3D.add(
-          Point3D.scale(camera.worldTransform.forward, camera.far),
-          Point3D.scale(camera.worldTransform.up, halfVSide)
-        ),
-        camera.worldTransform.right
-      )
-    );
-    if (Point3D.dot(center, top.normal) - top.distance < -radius) {
-      return false;
-    }
-
-    return true;
   }
 
   /**
@@ -431,7 +332,6 @@ export class Sprite3D extends _Sprite3D {
 
   set textures(value: Texture[]) {
     this._textures = value;
-    this.gotoFrame(0);
   }
 
   /** The animation's current frame index. */

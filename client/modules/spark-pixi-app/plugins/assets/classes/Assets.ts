@@ -3,7 +3,7 @@ import { ExtensionType } from "@pixi/core";
 
 const svgLoader: LoaderParser = {
   extension: ExtensionType.LoadParser,
-  test: (_url): boolean => true,
+  test: (url): boolean => url.endsWith("&type=svg"),
   load: async <T>(src: string): Promise<T> =>
     new Promise((resolve, reject) => {
       fetch(src).then(async (res) => {
@@ -17,7 +17,23 @@ const svgLoader: LoaderParser = {
             reject(new Error("Invalid SVG: Could not parse"));
           }
         } else {
-          reject(new Error("InvalidSVG: Could not decode"));
+          reject(new Error("Invalid SVG: Could not decode"));
+        }
+      });
+    }),
+};
+
+const midLoader: LoaderParser = {
+  extension: ExtensionType.LoadParser,
+  test: (url): boolean => url.endsWith("&type=mid"),
+  load: async <T>(src: string): Promise<T> =>
+    new Promise((resolve, reject) => {
+      fetch(src).then(async (res) => {
+        const content = await res?.arrayBuffer();
+        if (content) {
+          resolve(content as T);
+        } else {
+          reject(new Error("Invalid Midi: Could not decode"));
         }
       });
     }),
@@ -27,5 +43,6 @@ export class Assets extends AssetsClass {
   constructor() {
     super();
     this.loader.parsers.push(svgLoader);
+    this.loader.parsers.push(midLoader);
   }
 }

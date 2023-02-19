@@ -35,18 +35,18 @@ export class SoundScene extends SparkScene {
   }
 
   override start(): void {
-    this.context?.game?.synth?.events.onStopInstrument?.addListener((data) =>
+    this.context?.game?.synth?.events.onStop?.addListener((data) =>
       this.stopInstrument(data)
     );
-    this.context?.game?.synth?.events?.onPlayInstrument?.addListener((data) =>
+    this.context?.game?.synth?.events?.onPlay?.addListener((data) =>
       this.playInstrument(data)
     );
   }
 
   override destroy(): void {
-    this.context?.game?.synth?.events?.onConfigureInstrument?.removeAllListeners();
-    this.context?.game?.synth?.events?.onStopInstrument?.removeAllListeners();
-    this.context?.game?.synth?.events?.onPlayInstrument?.removeAllListeners();
+    this.context?.game?.synth?.events?.onConfigure?.removeAllListeners();
+    this.context?.game?.synth?.events?.onStop?.removeAllListeners();
+    this.context?.game?.synth?.events?.onPlay?.removeAllListeners();
     this._instruments.forEach((instrument) => {
       instrument.sound.stop();
     });

@@ -1,6 +1,6 @@
 /** Each percussion instrument can only be played at one pitch */
 export const MIDI_PERCUSSION_INSTRUMENTS = {
-  /* 0-34 : None */
+  /* 0-33 : None */
   "00": "",
   "01": "",
   "02": "",
@@ -35,9 +35,8 @@ export const MIDI_PERCUSSION_INSTRUMENTS = {
   "31": "",
   "32": "",
   "33": "",
-  "34": "",
 
-  /* 35-81 : Percussion */
+  /* 34-80 : Percussion */
   percussion_drum_bass_acoustic: "Acoustic Bass Drum",
   percussion_drum_bass_1: "Bass Drum 1",
   percussion_drum_stick: "Side Stick",

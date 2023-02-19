@@ -1,6 +1,5 @@
 export * from "./types/Beat";
 export * from "./types/BSNote";
-export * from "./types/SwipeSymbol";
 export * from "./utils/convertBSData";
 export * from "./utils/getRatio";
 export * from "./utils/parseBeatmap";
