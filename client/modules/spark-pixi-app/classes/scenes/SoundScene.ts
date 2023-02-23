@@ -52,8 +52,8 @@ export class SoundScene extends SparkScene {
     });
   }
 
-  stopInstrument(data: { instrumentId: string; duration?: number }): void {
-    const instrument = this._instruments.get(data.instrumentId);
+  stopInstrument(data: { id: string; duration?: number }): void {
+    const instrument = this._instruments.get(data.id);
     const media = instrument?.sound?.media as WebAudioMedia;
     if (media) {
       const endTime =
@@ -64,18 +64,18 @@ export class SoundScene extends SparkScene {
   }
 
   playInstrument(data: {
-    instrumentId: string;
+    id: string;
     tones: Tone[];
     onStart?: () => void;
   }): void {
-    const instrument = this._instruments.get(data.instrumentId) || {};
+    const instrument = this._instruments.get(data.id) || {};
     const sound = new SynthSound(data.tones);
     instrument.sound = sound;
     instrument.shouldPlay = true;
     if (data.onStart) {
       this.playListeners.push(data.onStart);
     }
-    this._instruments.set(data.instrumentId, instrument);
+    this._instruments.set(data.id, instrument);
   }
 
   renderWaveform(instrument: Instrument): void {
@@ -141,7 +141,7 @@ export class SoundScene extends SparkScene {
       .drawRect(0, 0, 1, this.renderer.height);
   }
 
-  override update(_time: number, _delta: number): void {
+  override update(_deltaMS: number): boolean {
     this._instruments.forEach((instrument) => {
       if (instrument.shouldPlay) {
         instrument.shouldPlay = false;
@@ -160,5 +160,6 @@ export class SoundScene extends SparkScene {
         }
       }
     });
+    return false;
   }
 }

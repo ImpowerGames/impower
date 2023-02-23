@@ -14,7 +14,7 @@ export type Layout = "Page" | "Game";
 export interface TestState {
   mode: Mode;
   paused: boolean;
-  playback: Playback;
+  playback: number;
   layout: Layout;
   debug: boolean;
   playerVisibility: boolean;

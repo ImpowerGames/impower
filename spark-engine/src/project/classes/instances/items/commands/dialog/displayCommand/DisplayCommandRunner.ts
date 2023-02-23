@@ -17,7 +17,9 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
 
   wasTyped = false;
 
-  timeTyped = -1;
+  timeTypedMS = -1;
+
+  elapsedMS = 0;
 
   voiceState?: {
     lastCharacter?: string;
@@ -37,7 +39,8 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
   ): number[] {
     this.wasPressed = false;
     this.wasTyped = false;
-    this.timeTyped = -1;
+    this.timeTypedMS = -1;
+    this.elapsedMS = 0;
     this.down = game.input.state.pointer.down.includes(0);
     this.onTick = executeDisplayCommand(
       game,
@@ -51,9 +54,10 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
     return super.onExecute(game, data, context);
   }
 
-  override onUpdate(_game: G, timeMS: number): void {
+  override onUpdate(_game: G, deltaMS: number): void {
     if (this.onTick) {
-      this.onTick(timeMS);
+      this.onTick(deltaMS);
+      this.elapsedMS += deltaMS;
     }
   }
 
@@ -69,14 +73,14 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
     if (!blockState) {
       return true;
     }
-    if (this.wasTyped && this.timeTyped < 0) {
-      this.timeTyped = blockState.time;
+    if (this.wasTyped && this.timeTypedMS < 0) {
+      this.timeTypedMS = this.elapsedMS;
     }
-    const timeSinceTyped = blockState.time - this.timeTyped;
+    const timeMSSinceTyped = this.elapsedMS - this.timeTypedMS;
     if (
       data.autoAdvance &&
       this.wasTyped &&
-      timeSinceTyped / 1000 >= this.autoDelay
+      timeMSSinceTyped / 1000 >= this.autoDelay
     ) {
       return true;
     }
@@ -90,12 +94,12 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
         this.wasTyped = false;
         return true;
       }
-      let stoppedAt = game.ticker.state.timeMS / 1000;
+      let stoppedAt = game.ticker.state.elapsedMS / 1000;
       this.onTick = (timeMS: number) => {
         // Wait until typing sound has had enough time to fade out
         // So that it doesn't crackle when cut short
-        const currTime = timeMS / 1000;
-        const elapsed = currTime - stoppedAt;
+        const elapsedSeconds = timeMS / 1000;
+        const elapsed = elapsedSeconds - stoppedAt;
         if (elapsed > this.fadeOutDuration) {
           this.wasTyped = true;
         }

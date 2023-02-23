@@ -9,25 +9,25 @@ export class CameraOrbitControl {
 
   private _startPinchDistance = 0;
 
-  protected _angles = new ObservablePoint(
+  protected _angle = new ObservablePoint(
     () => {
-      this._angles.x = Math.min(Math.max(-85, this._angles.x), 85);
+      this._angle.x = Math.min(Math.max(-85, this._angle.x), 85);
     },
     undefined,
     0,
     180
   );
 
-  /**
-   * Orientation euler angles (x-axis and y-axis). The angle for the x-axis
-   * will be clamped between -85 and 85 degrees.
-   */
-  get angles(): ObservablePoint {
-    return this._angles;
+  get angle(): ObservablePoint {
+    return this._angle;
   }
 
   /** Target position (x, y, z) to orbit. */
-  target = { x: 0, y: 0, z: 0 };
+  protected _target = { x: 0, y: 0, z: 0 };
+
+  get target(): { x: number; y: number; z: number } {
+    return this._target;
+  }
 
   /** Allows the camera to be controlled by user. */
   controllable = true;
@@ -39,9 +39,6 @@ export class CameraOrbitControl {
    * by default.
    */
   constructor(element: HTMLElement, public camera = Camera.main) {
-    this.camera.renderer.on("prerender", () => {
-      this.updateCamera();
-    });
     element.addEventListener("pointerdown", () => {
       this._grabbed = true;
     });
@@ -50,9 +47,17 @@ export class CameraOrbitControl {
     });
     element.addEventListener("pointermove", (event) => {
       if (this.controllable && this._grabbed && event.buttons === 1) {
-        this._angles.x += event.movementY * 0.5;
-        this._angles.y -= event.movementX * 0.5;
+        this._angle.x += event.movementY * 0.5;
+        this._angle.y -= event.movementX * 0.5;
       }
+      this.update();
+    });
+    element.addEventListener("wheel", (event) => {
+      if (this.controllable) {
+        this.distance += event.deltaY * 0.01;
+        event.preventDefault();
+      }
+      this.update();
     });
     element.addEventListener("touchstart", (event) => {
       if (event.touches.length === 2) {
@@ -74,22 +79,30 @@ export class CameraOrbitControl {
           currentPinchDistance - this._startPinchDistance;
         this.distance += deltaPinchDistance * 0.01;
       }
-    });
-    element.addEventListener("wheel", (event) => {
-      if (this.controllable) {
-        this.distance += event.deltaY * 0.01;
-        event.preventDefault();
-      }
+      this.update();
     });
   }
 
   /**
-   * Updates the position and rotation of the camera.
+   * Updates the rotation of the camera.
    */
-  updateCamera(): void {
+  updateRotation(): void {
     const rot = Quat.fromEuler(
-      this._angles.x,
-      this._angles.y,
+      this._angle.x,
+      this._angle.y,
+      0,
+      new Float32Array(4)
+    );
+    this.camera.rotationQuaternion.set(rot[0], rot[1], rot[2], rot[3]);
+  }
+
+  /**
+   * Updates the position of the camera.
+   */
+  updatePosition(): void {
+    const rot = Quat.fromEuler(
+      this._angle.x,
+      this._angle.y,
       0,
       new Float32Array(4)
     );
@@ -100,17 +113,23 @@ export class CameraOrbitControl {
     );
     const pos = Vec3.subtract(
       Vec3.set(
-        this.target.x,
-        this.target.y,
-        this.target.z,
+        this._target.x,
+        this._target.y,
+        this._target.z,
         new Float32Array(3)
       ),
       Vec3.scale(dir, this.distance, new Float32Array(3)),
       new Float32Array(3)
     );
-
     this.camera.position.set(pos[0], pos[1], pos[2]);
-    this.camera.rotationQuaternion.set(rot[0], rot[1], rot[2], rot[3]);
+  }
+
+  /**
+   * Updates the position and rotation of the camera.
+   */
+  update(): void {
+    this.updatePosition();
+    this.updateRotation();
   }
 
   /**

@@ -1,8 +1,9 @@
 import { SparkContext } from "../../../../spark-engine";
 import { Application } from "../plugins/app";
 import { Assets } from "../plugins/assets";
-import { IRenderer, Rectangle, Ticker } from "../plugins/core";
+import { IRenderer, Rectangle } from "../plugins/core";
 import { CameraOrbitControl, Container3D } from "../plugins/projection";
+import { Ticker } from "../plugins/ticker";
 
 export class SparkScene {
   private _context: SparkContext;
@@ -96,8 +97,9 @@ export class SparkScene {
     // NoOp
   }
 
-  update(_time?: number, _delta?: number): void {
+  update(_delta?: number): boolean {
     // NoOp
+    return false;
   }
 
   destroy(): void {
@@ -106,12 +108,6 @@ export class SparkScene {
 
   resize(): void {
     // NoOp
-  }
-
-  quit(): void {
-    if (this._app) {
-      this._app.destroy(true);
-    }
   }
 
   bind(): void {

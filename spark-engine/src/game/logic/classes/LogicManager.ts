@@ -12,8 +12,7 @@ export interface LogicEvents extends Record<string, GameEvent> {
     from?: number;
     line?: number;
     blockId: string;
-    time: number;
-    delta: number;
+    deltaMS: number;
   }>;
   onChangeActiveParentBlock: GameEvent<{
     from?: number;
@@ -54,7 +53,6 @@ export interface LogicEvents extends Record<string, GameEvent> {
     blockId: string;
     commandId: string;
     commandIndex: number;
-    time: number;
   }>;
   onChooseChoice: GameEvent<{
     from?: number;
@@ -69,7 +67,6 @@ export interface LogicEvents extends Record<string, GameEvent> {
     blockId: string;
     commandId: string;
     commandIndex: number;
-    time: number;
   }>;
   onGoToCommandIndex: GameEvent<{
     from?: number;
@@ -138,8 +135,7 @@ export class LogicManager extends Manager<
         from?: number;
         line?: number;
         blockId: string;
-        time: number;
-        delta: number;
+        deltaMS: number;
       }>(),
       onExecuteBlock: new GameEvent<{
         from?: number;
@@ -188,7 +184,6 @@ export class LogicManager extends Manager<
         blockId: string;
         commandId: string;
         commandIndex: number;
-        time: number;
       }>(),
       onChooseChoice: new GameEvent<{
         from?: number;
@@ -203,7 +198,6 @@ export class LogicManager extends Manager<
         blockId: string;
         commandId: string;
         commandIndex: number;
-        time: number;
       }>(),
       onGoToCommandIndex: new GameEvent<{
         from?: number;
@@ -287,9 +281,7 @@ export class LogicManager extends Manager<
     blockState.previousIndex = -1;
     blockState.executingIndex = 0;
     blockState.commandJumpStack = [];
-    blockState.lastExecutedAt = -1;
-    blockState.time = -1;
-    blockState.delta = -1;
+    blockState.isExecutingCommand = false;
     this._state.blockStates[blockId] = blockState;
   }
 
@@ -348,22 +340,16 @@ export class LogicManager extends Manager<
     });
   }
 
-  updateBlock(blockId: string, time: number, delta: number): void {
+  updateBlock(blockId: string, deltaMS: number): void {
     const block = this._config.blockMap[blockId];
     if (!block) {
       return;
-    }
-    const blockState = this._state.blockStates[blockId];
-    if (blockState) {
-      blockState.time = time;
-      blockState.delta = delta;
     }
     this._events.onUpdateBlock.emit({
       from: block.from,
       line: block.line,
       blockId,
-      time,
-      delta,
+      deltaMS,
     });
   }
 
@@ -587,13 +573,12 @@ export class LogicManager extends Manager<
     blockId: string,
     commandId: string,
     commandIndex: number,
-    time: number,
     from?: number,
     line?: number
   ): void {
     const blockState = this._state.blockStates[blockId];
     if (blockState) {
-      blockState.lastExecutedAt = time;
+      blockState.isExecutingCommand = true;
       const currentCount = blockState.commandExecutionCounts[commandId] || 0;
       blockState.commandExecutionCounts[commandId] = currentCount + 1;
       if (blockState.startIndex <= blockState.executingIndex) {
@@ -604,7 +589,6 @@ export class LogicManager extends Manager<
       blockId,
       commandId,
       commandIndex,
-      time,
       from,
       line,
     });
@@ -614,20 +598,18 @@ export class LogicManager extends Manager<
     blockId: string,
     commandId: string,
     commandIndex: number,
-    time: number,
     from?: number,
     line?: number
   ): void {
     const blockState = this._state.blockStates[blockId];
     if (blockState) {
-      blockState.lastExecutedAt = -1;
+      blockState.isExecutingCommand = false;
       blockState.previousIndex = commandIndex;
     }
     this._events.onFinishCommand.emit({
       blockId,
       commandId,
       commandIndex,
-      time,
       from,
       line,
     });

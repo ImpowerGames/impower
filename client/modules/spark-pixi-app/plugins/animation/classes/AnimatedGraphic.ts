@@ -114,7 +114,7 @@ export class AnimatedGraphic extends DisplayObject {
   protected _isConnectedToTicker = false;
 
   /** Elapsed time since animation has been started, used internally to display current texture. */
-  protected _currentTime = 0;
+  protected _elapsedTime = 0;
 
   /**
    * The scene context
@@ -187,7 +187,7 @@ export class AnimatedGraphic extends DisplayObject {
       options?.fps || options?.ticker?.maxFPS || this._framesPerSecond;
     this._anchor =
       options?.anchor || new ObservablePoint(this.onAnchorUpdate, this, 0, 0);
-    this._currentTime = options?.time || 0;
+    this._elapsedTime = options?.time || 0;
     this._control.time = options?.time || 0;
     this._fillColor = options?.fillColor;
     this._strokeColor = options?.strokeColor;
@@ -633,7 +633,7 @@ export class AnimatedGraphic extends DisplayObject {
    * @param time - time to start at.
    */
   public gotoTime(time: number): void {
-    this._currentTime = time;
+    this._elapsedTime = time;
     this.updateFrame();
   }
 
@@ -661,7 +661,7 @@ export class AnimatedGraphic extends DisplayObject {
    */
   public gotoFrame(frameNumber: number): void {
     const secondsPerFrame = 1 / this._framesPerSecond;
-    this._currentTime = frameNumber * secondsPerFrame;
+    this._elapsedTime = frameNumber * secondsPerFrame;
     this.updateFrame();
   }
 
@@ -685,11 +685,12 @@ export class AnimatedGraphic extends DisplayObject {
 
   /**
    * Updates the object for rendering.
-   * @param deltaTime - Time in seconds since last tick.
    */
-  update(deltaTime: number): void {
+  update(): void {
+    const deltaMS = this._ticker?.deltaMS ?? 0;
+    const tickerDeltaSeconds = deltaMS / 1000;
     if (this._control?.playing) {
-      this._currentTime += this.animationSpeed * deltaTime;
+      this._elapsedTime += this.animationSpeed * tickerDeltaSeconds;
       this.updateFrame();
     }
   }
@@ -697,8 +698,8 @@ export class AnimatedGraphic extends DisplayObject {
   updateFrame(): void {
     const secondsPerFrame = 1 / this._framesPerSecond;
     const duration = this._control?.animationDuration || 0;
-    const normalizedTime = this._currentTime % duration;
-    const currentIteration = Math.floor(this._currentTime / duration);
+    const normalizedTime = this._elapsedTime % duration;
+    const currentIteration = Math.floor(this._elapsedTime / duration);
     let currentFrameIndex = -1;
     let i = 0;
     for (let time = 0; time < duration; time += secondsPerFrame) {

@@ -1,6 +1,6 @@
+import { interpolate } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
-import { TweenControl } from "../types/TweenControl";
 import { TweenTiming } from "../types/TweenTiming";
 
 export interface TweenEvents extends Record<string, GameEvent> {
@@ -26,8 +26,7 @@ export interface TweenEvents extends Record<string, GameEvent> {
     key: string;
   }>;
   onTick: GameEvent<{
-    time: number;
-    delta: number;
+    deltaMS: number;
   }>;
 }
 
@@ -36,8 +35,7 @@ export interface TweenConfig {
 }
 
 export interface TweenState {
-  time: number;
-  controllers: Map<string, TweenControl>;
+  elapsedMS: number;
 }
 
 export class TweenManager extends Manager<
@@ -69,8 +67,7 @@ export class TweenManager extends Manager<
         key: string;
       }>(),
       onTick: new GameEvent<{
-        time: number;
-        delta: number;
+        deltaMS: number;
       }>(),
     };
     const initialConfig: TweenConfig = {
@@ -78,8 +75,7 @@ export class TweenManager extends Manager<
       ...(config || {}),
     };
     const initialState: TweenState = {
-      time: 0,
-      controllers: new Map(),
+      elapsedMS: 0,
       ...(state || {}),
     };
     super(initialEvents, initialConfig, initialState);
@@ -91,50 +87,43 @@ export class TweenManager extends Manager<
 
   add(key: string, timing: TweenTiming): void {
     this._config.timings.set(key, timing);
-    this._state.controllers.set(key, {
-      paused: false,
-      finished: false,
-      delayTime: 0,
-      durationTime: 0,
-    });
     this._events.onAdded.emit({ key });
   }
 
   remove(key: string): void {
     this._config.timings.delete(key);
-    this._state.controllers.delete(key);
     this._events.onRemoved.emit({ key });
   }
 
-  tick(time: number, delta: number): void {
-    this._state.time = time;
-    this._state.controllers.forEach((controller, key) => {
-      const timing = this._config.timings.get(key);
-      if (!controller.paused && timing?.duration) {
-        const delay = timing.delay || 0;
-        const duration = timing.duration || 0;
-        if (controller.delayTime > delay) {
-          const progress = Math.min(
-            timing.loop
-              ? (controller.durationTime % duration) / duration
-              : controller.durationTime / duration,
-            1
-          );
-          if (!controller.finished) {
-            timing.callback?.(progress);
-            if (!timing.loop && progress >= 1) {
-              controller.finished = true;
-            }
-          }
-          if (controller.durationTime <= duration) {
-            controller.durationTime += delta;
-          }
-        }
-        if (controller.delayTime <= delay) {
-          controller.delayTime += delta;
-        }
+  protected clamp(x: number): number {
+    const min = 0;
+    const max = 1;
+    if (x < min) {
+      return min;
+    }
+    if (x > max) {
+      return max;
+    }
+    return x;
+  }
+
+  tick(deltaMS: number): void {
+    this._state.elapsedMS += deltaMS;
+    this._config.timings.forEach((timing) => {
+      const delayMS = (timing.delay ?? 0) * 1000;
+      const durationMS = (timing.duration ?? 0) * 1000;
+      const tweenElapsedMS = this._state.elapsedMS - delayMS;
+      const iteration = tweenElapsedMS / durationMS;
+      if (timing.loop || iteration <= 1) {
+        const tween = (
+          a: number,
+          b: number,
+          p?: number,
+          e?: (p: number) => number
+        ) => interpolate(p ?? iteration, a, b, e ?? timing.ease);
+        timing.on?.(tween, iteration);
       }
     });
-    this._events.onTick.emit({ time, delta });
+    this._events.onTick.emit({ deltaMS });
   }
 }

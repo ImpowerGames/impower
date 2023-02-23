@@ -29,7 +29,7 @@ export class CommandRunner<
     return [];
   }
 
-  onUpdate(_game: G, _timeMS: number, _deltaMS: number): void {
+  onUpdate(_game: G, _deltaMS: number): void {
     // NoOp
   }
 

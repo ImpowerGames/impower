@@ -7,8 +7,9 @@ export const interpolate = (
   if (t <= 0) {
     return a;
   }
+  const p = t - Math.floor(t);
   if (!ease) {
     return b;
   }
-  return a * (1 - ease(t)) + b * ease(t);
+  return a * (1 - ease(p)) + b * ease(p);
 };

@@ -4,23 +4,22 @@ import { Manager } from "../../core/classes/Manager";
 export interface TickerEvents extends Record<string, GameEvent> {
   onAdd: GameEvent<{
     key: string;
-    callback: (timeMS: number, deltaMS: number) => void;
+    callback: (deltaMS: number) => void;
   }>;
   onRemove: GameEvent<{
     key: string;
   }>;
   onTick: GameEvent<{
-    timeMS: number;
     deltaMS: number;
   }>;
 }
 
 export interface TickerConfig {
-  listeners: Map<string, (timeMS: number, deltaMS: number) => void>;
+  listeners: Map<string, (deltaMS: number) => void>;
 }
 
 export interface TickerState {
-  timeMS: number;
+  elapsedMS: number;
 }
 
 export class TickerManager extends Manager<
@@ -32,13 +31,12 @@ export class TickerManager extends Manager<
     const initialEvents: TickerEvents = {
       onAdd: new GameEvent<{
         key: string;
-        callback: (timeMS: number, deltaMS: number) => void;
+        callback: (deltaMS: number) => void;
       }>(),
       onRemove: new GameEvent<{
         key: string;
       }>(),
       onTick: new GameEvent<{
-        timeMS: number;
         deltaMS: number;
       }>(),
     };
@@ -46,11 +44,11 @@ export class TickerManager extends Manager<
       listeners: new Map(),
       ...(config || {}),
     };
-    const initialState: TickerState = { timeMS: 0, ...(state || {}) };
+    const initialState: TickerState = { elapsedMS: 0, ...(state || {}) };
     super(initialEvents, initialConfig, initialState);
   }
 
-  add(key: string, callback: (timeMS: number, deltaMS: number) => void): void {
+  add(key: string, callback: (deltaMS: number) => void): void {
     this._config.listeners.set(key, callback);
     this._events.onAdd.emit({ key, callback });
   }
@@ -60,9 +58,9 @@ export class TickerManager extends Manager<
     this._events.onRemove.emit({ key });
   }
 
-  tick(timeMS: number, deltaMS: number): void {
-    this._state.timeMS = timeMS;
-    this._config.listeners.forEach((l) => l?.(timeMS, deltaMS));
-    this._events.onTick.emit({ timeMS, deltaMS });
+  tick(deltaMS: number): void {
+    this._state.elapsedMS += deltaMS;
+    this._config.listeners.forEach((l) => l?.(deltaMS));
+    this._events.onTick.emit({ deltaMS });
   }
 }

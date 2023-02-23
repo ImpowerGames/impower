@@ -124,7 +124,7 @@ export class Sprite3D extends _Sprite3D {
 
   private _playing: boolean;
 
-  private _textures: Texture[];
+  private _textures: Texture[] = [];
 
   /**
    * Ticker used to auto update the animation frame.
@@ -139,7 +139,7 @@ export class Sprite3D extends _Sprite3D {
   private _isConnectedToTicker: boolean;
 
   /** Elapsed time since animation has been started, used internally to display current texture. */
-  protected _currentTime = 0;
+  protected _elapsedTime = 0;
 
   /**
    * The current frame that is displayed
@@ -171,7 +171,7 @@ export class Sprite3D extends _Sprite3D {
     this.onComplete = null;
     this.onFrameChange = null;
     this.onLoop = null;
-    this._currentTime = 0;
+    this._elapsedTime = 0;
     this._playing = false;
     this._ticker = options?.ticker;
     this.textures = textures;
@@ -208,7 +208,7 @@ export class Sprite3D extends _Sprite3D {
    */
   public gotoFrame(frameNumber: number): void {
     const secondsPerFrame = 1 / this._framesPerSecond;
-    this._currentTime = frameNumber * secondsPerFrame;
+    this._elapsedTime = frameNumber * secondsPerFrame;
     this.updateFrame();
   }
 
@@ -241,15 +241,15 @@ export class Sprite3D extends _Sprite3D {
 
   /**
    * Updates the object for rendering.
-   * @param deltaTime - Time in seconds since last tick.
+   * @param deltaTime - Time in frames since last tick.
    */
-  update(deltaTime?: number): void {
-    const tickerDelta = (this._ticker?.deltaMS ?? 0) / 1000;
-    const validDelta = deltaTime ?? tickerDelta;
+  update(): void {
+    const deltaMS = this._ticker?.deltaMS ?? 0;
+    const tickerDeltaSeconds = deltaMS / 1000;
     if (!this._playing) {
       return;
     }
-    this._currentTime += this.animationSpeed * validDelta;
+    this._elapsedTime += this.animationSpeed * tickerDeltaSeconds;
     this.updateFrame();
   }
 
@@ -257,8 +257,8 @@ export class Sprite3D extends _Sprite3D {
   private updateFrame(): boolean {
     const secondsPerFrame = 1 / this._framesPerSecond;
     const duration = secondsPerFrame * this._textures.length;
-    const normalizedTime = this._currentTime % duration;
-    const currentIteration = Math.floor(this._currentTime / duration);
+    const normalizedTime = this._elapsedTime % duration;
+    const currentIteration = Math.floor(this._elapsedTime / duration);
     const currentFrameIndex = Math.floor(normalizedTime / secondsPerFrame);
     if (currentFrameIndex !== this._currentFrameIndex) {
       if (currentFrameIndex < this._currentFrameIndex) {

@@ -5,11 +5,11 @@ import {
   TEST_LAYOUT_CHANGE,
   TEST_MODE_CHANGE,
   TEST_PAUSE,
-  TEST_PLAYBACK_CHANGE,
   TEST_PLAYER_VISIBILITY,
   TEST_SET_COMPILING,
+  TEST_STEP,
 } from "../actions/testActions";
-import { Layout, Mode, Playback, TestState } from "../state/testState";
+import { Layout, Mode, TestState } from "../state/testState";
 
 const doTestModeChange = (
   state: TestState,
@@ -35,15 +35,12 @@ const doTestPause = (
   };
 };
 
-const doTestPlaybackChange = (
-  state: TestState,
-  payload: { playback: Playback }
-): TestState => {
-  const { playback } = payload;
+const doTestStep = (state: TestState, payload: { step: number }): TestState => {
+  const { step } = payload;
 
   return {
     ...state,
-    playback,
+    playback: (state.playback ?? 0) + (step ?? 0),
   };
 };
 
@@ -110,8 +107,8 @@ export const testReducer = (
       return doTestModeChange(state, action.payload);
     case TEST_PAUSE:
       return doTestPause(state, action.payload);
-    case TEST_PLAYBACK_CHANGE:
-      return doTestPlaybackChange(state, action.payload);
+    case TEST_STEP:
+      return doTestStep(state, action.payload);
     case TEST_LAYOUT_CHANGE:
       return doTestLayoutChange(state, action.payload);
     case TEST_DEBUG:

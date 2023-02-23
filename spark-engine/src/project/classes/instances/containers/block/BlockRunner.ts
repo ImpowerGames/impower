@@ -20,7 +20,7 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
   /**
    * This method is called once per game step while the scene is running.
    * @param time The current time. Either a High Resolution Timer value if it comes from Request Animation Frame, or Date.now if using SetTimeout.
-   * @param delta The delta time in ms since the last frame. This is a smoothed and capped value based on the FPS rate.
+   * @param deltaMS The delta time in ms since the last frame. This is a smoothed and capped value based on the FPS rate.
    *
    * @return {boolean} True, if still executing. False, if finished, Null, if quit.
    */
@@ -28,12 +28,11 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
     blockId: string,
     context: BlockContext<G>,
     game: G,
-    time: number,
-    delta: number
+    deltaMS: number
   ): boolean | null {
     const { triggers, valueMap } = context;
 
-    game.logic.updateBlock(blockId, time, delta);
+    game.logic.updateBlock(blockId, deltaMS);
 
     const blockState = game.logic.state.blockStates[blockId];
     if (!blockState) {
@@ -70,7 +69,7 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
     }
 
     if (blockState.isExecuting) {
-      const running = this.runCommands(blockId, context, game, time);
+      const running = this.runCommands(blockId, context, game);
       if (running === null) {
         return null;
       }
@@ -92,8 +91,7 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
   private runCommands(
     blockId: string,
     context: BlockContext<G>,
-    game: G,
-    time: number
+    game: G
   ): boolean | null {
     const commands = context?.commands;
     const blockState = game.logic.state.blockStates[blockId];
@@ -130,12 +128,11 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
           game.random.state.seed + commandId,
         ];
         context.debug = game?.debug?.state?.debugging;
-        if (blockState.lastExecutedAt < 0) {
+        if (!blockState.isExecutingCommand) {
           game.logic.executeCommand(
             blockId,
             commandId,
             commandIndex,
-            time,
             from,
             line
           );
@@ -149,7 +146,7 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
           if (nextJumps.length > 0) {
             game.logic.commandJumpStackPush(blockId, nextJumps, from, line);
           }
-          if (blockState.lastExecutedAt < 0) {
+          if (!blockState.isExecutingCommand) {
             return true;
           }
         }
@@ -169,14 +166,7 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
           ...context,
           index: blockState.executingIndex,
         });
-        game.logic.finishCommand(
-          blockId,
-          commandId,
-          commandIndex,
-          time,
-          from,
-          line
-        );
+        game.logic.finishCommand(blockId, commandId, commandIndex, from, line);
         if (blockState.commandJumpStack.length > 0) {
           const nextCommandIndex = game.logic.commandJumpStackPop(
             blockId,

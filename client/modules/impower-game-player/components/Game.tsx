@@ -5,14 +5,16 @@ import { SparkGameApp } from "../../spark-pixi-app";
 interface GameProps {
   domElementId: string;
   paused?: boolean;
+  playback?: number;
   context?: SparkContext;
 }
 
 export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
-  const { paused, context, domElementId } = props;
+  const { paused, playback, context, domElementId } = props;
 
   const elRef = useRef<HTMLDivElement>();
   const gameAppRef = useRef<SparkGameApp>();
+  const lastPlaybackRef = useRef(playback);
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
 
@@ -48,6 +50,16 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
       }
     }
   }, [paused]);
+
+  useEffect(() => {
+    if (gameAppRef.current) {
+      const step = playback - lastPlaybackRef.current;
+      if (step) {
+        gameAppRef.current.step(step);
+      }
+      lastPlaybackRef.current = playback;
+    }
+  }, [playback]);
 
   const style: React.CSSProperties = useMemo(
     () => ({

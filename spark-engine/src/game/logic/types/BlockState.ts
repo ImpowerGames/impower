@@ -8,6 +8,7 @@ export interface BlockState {
   returnWhenFinished: boolean;
   returnedFrom: string;
   isExecuting: boolean;
+  isExecutingCommand: boolean;
   hasFinished: boolean;
   hasReturned: boolean;
   satisfiedTriggers: string[];
@@ -16,7 +17,4 @@ export interface BlockState {
   executingIndex: number;
   previousIndex: number;
   commandJumpStack: number[];
-  lastExecutedAt: number;
-  time: number;
-  delta: number;
 }

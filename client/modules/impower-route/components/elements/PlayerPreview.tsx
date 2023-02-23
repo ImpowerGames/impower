@@ -32,8 +32,7 @@ const StyledForeground = styled.div`
   align-items: center;
 
   border-radius: ${(props): string => props.theme.spacing(10)};
-  padding: ${(props): string => props.theme.spacing(2)}
-    ${(props): string => props.theme.spacing(4)};
+  padding: ${(props): string => props.theme.spacing(2, 4)};
   background-color: ${(props): string => props.theme.colors.black70};
   ${StyledPlayerPreviewArea}:hover & {
     background-color: ${(props): string => props.theme.colors.black80};

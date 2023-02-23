@@ -1,4 +1,4 @@
-import { Layout, Mode, Playback } from "../state/testState";
+import { Layout, Mode } from "../state/testState";
 
 export const TEST_MODE_CHANGE = "TEST_MODE_CHANGE";
 export interface TestModeChangeAction {
@@ -18,15 +18,13 @@ export const testPause = (pause: boolean): TestPauseAction => {
   return { type: TEST_PAUSE, payload: { pause } };
 };
 
-export const TEST_PLAYBACK_CHANGE = "TEST_PLAYBACK_CHANGE";
-export interface TestPlaybackChangeAction {
-  type: typeof TEST_PLAYBACK_CHANGE;
-  payload: { playback: Playback };
+export const TEST_STEP = "TEST_STEP";
+export interface TestStepAction {
+  type: typeof TEST_STEP;
+  payload: { step: number };
 }
-export const testPlaybackChange = (
-  playback: Playback
-): TestPlaybackChangeAction => {
-  return { type: TEST_PLAYBACK_CHANGE, payload: { playback } };
+export const testStep = (step: number): TestStepAction => {
+  return { type: TEST_STEP, payload: { step } };
 };
 
 export const TEST_LAYOUT_CHANGE = "TEST_LAYOUT_CHANGE";
@@ -76,7 +74,7 @@ export const testSetCompiling = (
 export type TestAction =
   | TestModeChangeAction
   | TestPauseAction
-  | TestPlaybackChangeAction
+  | TestStepAction
   | TestLayoutChangeAction
   | TestDebugAction
   | TestPlayerVisibilityAction

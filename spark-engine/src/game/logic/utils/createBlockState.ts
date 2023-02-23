@@ -21,8 +21,6 @@ export const createBlockState = (
   executingIndex: 0,
   previousIndex: 0,
   commandJumpStack: [],
-  lastExecutedAt: -1,
-  time: -1,
-  delta: -1,
+  isExecutingCommand: false,
   ...(obj || {}),
 });

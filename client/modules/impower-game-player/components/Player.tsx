@@ -27,6 +27,7 @@ const Game = dynamic(() => import("./Game"), {
 
 interface PlayerProps {
   paused?: boolean;
+  playback?: number;
   context?: SparkContext;
 }
 

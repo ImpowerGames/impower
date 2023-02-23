@@ -283,11 +283,12 @@ interface TestPlayerProps {
   layout: Layout;
   mode: Mode;
   paused: boolean;
+  playback: number;
   debug: boolean;
 }
 
 const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
-  const { project, doc, layout, mode, paused, debug } = props;
+  const { project, doc, layout, mode, paused, playback, debug } = props;
   const [, dispatch] = useContext(ProjectEngineContext);
   const { events } = useContext(DataContext);
   const context = useContext(GameContext);
@@ -386,7 +387,7 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
     <StyledTestPlayer>
       <TransparencyPattern />
       <StyledTestPlayerContent>
-        <Player paused={paused} context={context}>
+        <Player paused={paused} playback={playback} context={context}>
           {mode === "Edit" && layout === "Page" && (
             <PlayerPreview
               doc={doc}
@@ -415,6 +416,7 @@ interface TestPanelContentProps {
   layout: Layout;
   mode: Mode;
   paused: boolean;
+  playback: number;
   debug: boolean;
   fullscreenPlayer?: boolean;
 }
@@ -429,6 +431,7 @@ const TestPanelContent = React.memo(
       layout,
       mode,
       paused,
+      playback,
       debug,
       fullscreenPlayer,
     } = props;
@@ -463,6 +466,7 @@ const TestPanelContent = React.memo(
                 layout={layout}
                 mode={mode}
                 paused={paused}
+                playback={playback}
                 debug={debug}
               />
             </Page>
@@ -484,6 +488,7 @@ const TestPanel = React.memo((): JSX.Element => {
   const doc = state.project?.data?.doc;
   const mode = state?.test?.mode;
   const paused = state?.test?.paused;
+  const playback = state?.test?.playback;
   const debug = state?.test?.debug;
   const layout = state?.test?.layout;
 
@@ -505,6 +510,7 @@ const TestPanel = React.memo((): JSX.Element => {
         layout={layout}
         mode={mode}
         paused={paused}
+        playback={playback}
         debug={debug}
         fullscreenPlayer={layout === "Game"}
       />

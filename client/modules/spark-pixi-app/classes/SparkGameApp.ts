@@ -1,6 +1,5 @@
 import { SparkContext } from "../../../../spark-engine";
 import { Application, ApplicationOptions } from "../plugins/app";
-import { LogicScene } from "./scenes/LogicScene";
 import { MainScene } from "./scenes/MainScene";
 import { SoundScene } from "./scenes/SoundScene";
 import { SparkScene } from "./SparkScene";
@@ -35,8 +34,6 @@ export class SparkGameApp {
   public get resizeObserver(): ResizeObserver {
     return this._resizeObserver;
   }
-
-  private _time = 0;
 
   constructor(
     domElementId: string,
@@ -81,7 +78,6 @@ export class SparkGameApp {
         this._scenes = [
           new MainScene(context, this.app),
           new SoundScene(context, this.app),
-          new LogicScene(context, this.app),
         ];
       }
     }
@@ -93,6 +89,8 @@ export class SparkGameApp {
     startTicker?: boolean,
     onLoaded?: () => void
   ): Promise<void> {
+    this.app.view.addEventListener("pointerdown", this.onPointerDown);
+    this.app.view.addEventListener("pointerup", this.onPointerUp);
     await Promise.all(this.scenes.map((scene) => scene.load()));
     this.scenes.forEach((scene) => {
       if (scene?.stage) {
@@ -102,11 +100,16 @@ export class SparkGameApp {
     this.scenes.forEach((scene) => {
       if (scene?.stage) {
         scene.bind();
+      }
+    });
+    this.scenes.forEach((scene) => {
+      if (scene?.stage) {
         scene.start();
       }
     });
 
-    this.app?.ticker?.add(this.update, this);
+    this.app?.dolly?.update();
+    this.app?.ticker?.add(this.onUpdate, this);
 
     if (this.context) {
       await this.context.start();
@@ -127,6 +130,8 @@ export class SparkGameApp {
   }
 
   destroy(removeView?: boolean, stageOptions?: boolean): void {
+    this.app.view.removeEventListener("pointerdown", this.onPointerDown);
+    this.app.view.removeEventListener("pointerup", this.onPointerUp);
     this.scenes.forEach((scene) => {
       scene.destroy();
     });
@@ -139,22 +144,49 @@ export class SparkGameApp {
     }
   }
 
+  onPointerDown = (event: PointerEvent): void => {
+    this.context.game.input.pointerDown(event.button, "");
+  };
+
+  onPointerUp = (event: PointerEvent): void => {
+    this.context.game.input.pointerUp(event.button, "");
+  };
+
   pause(): void {
-    this.app?.stop();
+    if (this.app?.ticker) {
+      this.app.ticker.speed = 0;
+    }
   }
 
   resume(): void {
-    this.app?.start();
+    if (this.app?.ticker) {
+      this.app.ticker.speed = 1;
+    }
   }
 
-  update(): void {
-    const deltaMS = this.app.ticker?.deltaMS || 0;
-    const delta = deltaMS / 1000;
-    this._time += delta;
+  step(deltaMS: number): void {
+    this.update(deltaMS);
+  }
+
+  protected update(deltaMS: number): void {
     if (this.app) {
       this.scenes.forEach((scene) => {
-        scene.update(this._time, delta);
+        if (deltaMS !== 0) {
+          if (scene.update(deltaMS)) {
+            this.app.dolly.update();
+          }
+        }
       });
     }
+    if (this.context) {
+      if (!this.context.update(deltaMS)) {
+        this.destroy(true);
+      }
+    }
+  }
+
+  onUpdate(): void {
+    const deltaMS = this.app.ticker?.deltaMS || 0;
+    this.update(deltaMS);
   }
 }

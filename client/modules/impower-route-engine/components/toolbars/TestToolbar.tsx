@@ -27,6 +27,7 @@ import ForwardStepSolidIcon from "../../../../resources/icons/solid/forward-step
 import ForwardSolidIcon from "../../../../resources/icons/solid/forward.svg";
 import PauseSolidIcon from "../../../../resources/icons/solid/pause.svg";
 import PlaySolidIcon from "../../../../resources/icons/solid/play.svg";
+import { throttle } from "../../../impower-core";
 import { isGameDocument } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
 import { FontIcon } from "../../../impower-icon";
@@ -38,7 +39,7 @@ import {
   testLayoutChange,
   testModeChange,
   testPause,
-  testPlaybackChange,
+  testStep,
 } from "../../types/actions/testActions";
 import { Mode } from "../../types/state/testState";
 import { WindowType } from "../../types/state/windowState";
@@ -106,44 +107,54 @@ const StyledTitleTypography = styled(Typography)`
 
 interface PlaybackControlsProps {
   paused: boolean;
-  onSkipBackward: () => void;
-  onRewindStart: () => void;
-  onRewindStop: () => void;
   onPlay: () => void;
   onPause: () => void;
-  onFastForwardStart: () => void;
-  onFastForwardStop: () => void;
-  onSkipForward: () => void;
+  onStepBackwardDown: () => void;
+  onStepBackwardUp: () => void;
+  onFastBackwardDown: () => void;
+  onFastBackwardUp: () => void;
+  onStepForwardDown: () => void;
+  onStepForwardUp: () => void;
+  onFastForwardDown: () => void;
+  onFastForwardUp: () => void;
 }
 
 const PlaybackControls = React.memo(
   (props: PlaybackControlsProps): JSX.Element => {
     const {
       paused,
-      onSkipBackward,
-      onRewindStart,
-      onRewindStop,
       onPlay,
       onPause,
-      onFastForwardStart,
-      onFastForwardStop,
-      onSkipForward,
+      onStepBackwardDown,
+      onStepBackwardUp,
+      onFastBackwardDown,
+      onFastBackwardUp,
+      onStepForwardDown,
+      onStepForwardUp,
+      onFastForwardDown,
+      onFastForwardUp,
     } = props;
 
     const theme = useTheme();
 
     return (
       <StyledPlaybackControls>
-        <IconButton onClick={onSkipBackward}>
+        <IconButton
+          onPointerDown={onStepBackwardDown}
+          onPointerUp={onStepBackwardUp}
+        >
           <FontIcon
-            aria-label="Skip Backward"
+            aria-label="Step Backward"
             size={theme.fontSize.smallIcon}
             color={theme.colors.white40}
           >
             <BackwardStepSolidIcon />
           </FontIcon>
         </IconButton>
-        <IconButton onPointerDown={onRewindStart} onPointerUp={onRewindStop}>
+        <IconButton
+          onPointerDown={onFastBackwardDown}
+          onPointerUp={onFastBackwardUp}
+        >
           <FontIcon
             aria-label="Rewind"
             size={theme.fontSize.smallIcon}
@@ -162,8 +173,8 @@ const PlaybackControls = React.memo(
           </FontIcon>
         </IconButton>
         <IconButton
-          onPointerDown={onFastForwardStart}
-          onPointerUp={onFastForwardStop}
+          onPointerDown={onFastForwardDown}
+          onPointerUp={onFastForwardUp}
         >
           <FontIcon
             aria-label="Fast Forward"
@@ -173,9 +184,12 @@ const PlaybackControls = React.memo(
             <ForwardSolidIcon />
           </FontIcon>
         </IconButton>
-        <IconButton onClick={onSkipForward}>
+        <IconButton
+          onPointerDown={onStepForwardDown}
+          onPointerUp={onStepForwardUp}
+        >
           <FontIcon
-            aria-label="Skip Forward"
+            aria-label="Step Forward"
             size={theme.fontSize.smallIcon}
             color={theme.colors.white40}
           >
@@ -246,6 +260,7 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   const menuAnchorElRef = useRef<HTMLDivElement | null>(null);
   const menuOptionsRef = useRef(menuOptions);
   const [menuOpen, setMenuOpen] = useState(false);
+  const timeoutHandleRef = useRef<number>();
 
   const handlePlay = useCallback((): void => {
     dispatch(testPause(false));
@@ -253,24 +268,75 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
   const handlePause = useCallback((): void => {
     dispatch(testPause(true));
   }, [dispatch]);
-  const handleSkipBackward = useCallback((): void => {
-    dispatch(testPlaybackChange("SkipBackward"));
+  const handleStepBackward = useCallback(() => {
+    dispatch(testPause(true));
+    dispatch(testStep(-10));
   }, [dispatch]);
-  const handleSkipForward = useCallback((): void => {
-    dispatch(testPlaybackChange("SkipForward"));
+  const handleStepForward = useCallback(() => {
+    dispatch(testStep(10));
   }, [dispatch]);
-  const handleRewindStart = useCallback((): void => {
-    dispatch(testPlaybackChange("Backward"));
+  const handleFastBackward = useCallback(() => {
+    dispatch(testPause(true));
+    dispatch(testStep(-100));
   }, [dispatch]);
-  const handleRewindStop = useCallback((): void => {
-    dispatch(testPlaybackChange("Default"));
+  const handleFastForward = useCallback(() => {
+    dispatch(testStep(100));
   }, [dispatch]);
-  const handleFastForwardStart = useCallback((): void => {
-    dispatch(testPlaybackChange("Forward"));
-  }, [dispatch]);
-  const handleFastForwardStop = useCallback((): void => {
-    dispatch(testPlaybackChange("Default"));
-  }, [dispatch]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleThrottledStepBackward = useCallback(
+    throttle(handleStepBackward, 100),
+    [handleStepBackward]
+  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleThrottledStepForward = useCallback(
+    throttle(handleStepForward, 100),
+    [handleStepForward]
+  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleThrottledFastBackward = useCallback(
+    throttle(handleFastBackward, 100),
+    [handleFastBackward]
+  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleThrottledFastForward = useCallback(
+    throttle(handleFastForward, 100),
+    [handleFastForward]
+  );
+  const handleStepBackwardDown = useCallback((): void => {
+    window.cancelAnimationFrame(timeoutHandleRef.current);
+    const loop = (): void => {
+      handleThrottledStepBackward();
+      timeoutHandleRef.current = window.requestAnimationFrame(loop);
+    };
+    timeoutHandleRef.current = window.requestAnimationFrame(loop);
+  }, [handleThrottledStepBackward]);
+  const handleStepForwardDown = useCallback((): void => {
+    window.cancelAnimationFrame(timeoutHandleRef.current);
+    const loop = (): void => {
+      handleThrottledStepForward();
+      timeoutHandleRef.current = window.requestAnimationFrame(loop);
+    };
+    timeoutHandleRef.current = window.requestAnimationFrame(loop);
+  }, [handleThrottledStepForward]);
+  const handleFastBackwardDown = useCallback((): void => {
+    window.cancelAnimationFrame(timeoutHandleRef.current);
+    const loop = (): void => {
+      handleThrottledFastBackward();
+      timeoutHandleRef.current = window.requestAnimationFrame(loop);
+    };
+    timeoutHandleRef.current = window.requestAnimationFrame(loop);
+  }, [handleThrottledFastBackward]);
+  const handleFastForwardDown = useCallback((): void => {
+    window.cancelAnimationFrame(timeoutHandleRef.current);
+    const loop = (): void => {
+      handleThrottledFastForward();
+      timeoutHandleRef.current = window.requestAnimationFrame(loop);
+    };
+    timeoutHandleRef.current = window.requestAnimationFrame(loop);
+  }, [handleThrottledFastForward]);
+  const handlePlaybackStop = useCallback((): void => {
+    window.cancelAnimationFrame(timeoutHandleRef.current);
+  }, []);
   const handleChangeTestMode = useCallback(
     (m: Mode): void => {
       if (mode === "Test") {
@@ -415,14 +481,16 @@ const TestToolbar = React.memo((props: TestToolbarProps): JSX.Element => {
       {mode === "Test" && (
         <PlaybackControls
           paused={paused}
-          onSkipBackward={handleSkipBackward}
-          onRewindStart={handleRewindStart}
-          onRewindStop={handleRewindStop}
+          onStepBackwardDown={handleStepBackwardDown}
+          onStepBackwardUp={handlePlaybackStop}
+          onFastBackwardDown={handleFastBackwardDown}
+          onFastBackwardUp={handlePlaybackStop}
+          onStepForwardDown={handleStepForwardDown}
+          onStepForwardUp={handlePlaybackStop}
+          onFastForwardDown={handleFastForwardDown}
+          onFastForwardUp={handlePlaybackStop}
           onPlay={handlePlay}
           onPause={handlePause}
-          onFastForwardStart={handleFastForwardStart}
-          onFastForwardStop={handleFastForwardStop}
-          onSkipForward={handleSkipForward}
         />
       )}
       <StyledRightArea ref={menuAnchorElRef}>

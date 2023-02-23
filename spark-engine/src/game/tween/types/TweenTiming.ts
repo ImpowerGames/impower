@@ -2,5 +2,14 @@ export interface TweenTiming {
   loop?: boolean;
   delay?: number;
   duration?: number;
-  callback?: (progress: number) => void;
+  ease?: (p: number) => number;
+  on?: (
+    interpolate: (
+      a: number,
+      b: number,
+      p?: number,
+      e?: (p: number) => number
+    ) => number,
+    p: number
+  ) => void;
 }

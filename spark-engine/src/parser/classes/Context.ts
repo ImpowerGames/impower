@@ -149,20 +149,17 @@ export class Context<
     this.game.destroy();
   }
 
-  update(time: number, delta: number): boolean {
-    this.game.tween.tick(time, delta);
-    // TODO: Change ticker to use seconds instead of milliseconds
-    const timeMS = time * 1000;
-    const deltaMS = delta * 1000;
-    this.game.ticker.tick(timeMS, deltaMS);
+  update(deltaMS: number): boolean {
+    this.game.tween.tick(deltaMS);
+    this.game.ticker.tick(deltaMS);
     this.runner.commandRunners.forEach((r) => {
-      r.onUpdate(this.game, timeMS, deltaMS);
+      r.onUpdate(this.game, deltaMS);
     });
     if (this.loadedBlockIds) {
       for (let i = 0; i < this.loadedBlockIds.length; i += 1) {
         const blockId = this.loadedBlockIds[i];
         if (blockId !== undefined) {
-          if (!this.updateBlock(blockId, timeMS, deltaMS)) {
+          if (!this.updateBlock(blockId, deltaMS)) {
             return false; // Player quit the game
           }
         }
@@ -171,7 +168,7 @@ export class Context<
     return true;
   }
 
-  updateBlock(blockId: string, time: number, delta: number): boolean {
+  updateBlock(blockId: string, deltaMS: number): boolean {
     const blockStates = this.game.logic.state?.blockStates;
     const variableStates = this.game.logic.state?.variableStates;
     const blockState = blockStates[blockId];
@@ -194,8 +191,7 @@ export class Context<
           blockId,
           context,
           this.game,
-          time,
-          delta
+          deltaMS
         );
         if (running === null) {
           return false;
