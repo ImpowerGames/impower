@@ -8,7 +8,4 @@ export * from "./utils/generateSpritesheet";
 export * from "./utils/getClockValueTime";
 export * from "./utils/getClosestFractionalIndex";
 export * from "./utils/getTweenedPathCommands";
-export * from "./utils/interpolate";
-export * from "./utils/interpolatePath";
-export * from "./utils/isRelativePathCommand";
 export * from "./utils/parseReference";

@@ -108,7 +108,6 @@ export class SparkGameApp {
       }
     });
 
-    this.app?.dolly?.update();
     this.app?.ticker?.add(this.onUpdate, this);
 
     if (this.context) {
@@ -133,6 +132,7 @@ export class SparkGameApp {
     this.app.view.removeEventListener("pointerdown", this.onPointerDown);
     this.app.view.removeEventListener("pointerup", this.onPointerUp);
     this.scenes.forEach((scene) => {
+      scene.unbind();
       scene.destroy();
     });
     this.resizeObserver.disconnect();
@@ -171,9 +171,12 @@ export class SparkGameApp {
   protected update(deltaMS: number): void {
     if (this.app) {
       this.scenes.forEach((scene) => {
-        if (deltaMS !== 0) {
+        if (deltaMS === 0) {
+          this.app.dolly.controllable = true;
+        } else {
+          this.app.dolly.controllable = false;
           if (scene.update(deltaMS)) {
-            this.app.dolly.update();
+            this.app.dolly.updateCamera();
           }
         }
       });

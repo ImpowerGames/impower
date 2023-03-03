@@ -1,4 +1,6 @@
-import { interpolatePathCommands, PathCommand } from "./interpolatePath";
+import { PathCommand } from "../../path/types/Path";
+import { bezier } from "../../path/utils/bezier";
+import { interpolatePath } from "../../path/utils/interpolatePath";
 
 export const getTweenedPathCommands = (
   fractionalFrameIndex: number,
@@ -19,7 +21,6 @@ export const getTweenedPathCommands = (
   if (!nextFrame || !keySpline) {
     return frame;
   }
-  const interpolator = interpolatePathCommands(frame, nextFrame, keySpline);
 
-  return interpolator(tweenValue);
+  return interpolatePath(tweenValue, frame, nextFrame, bezier(...keySpline));
 };

@@ -6,13 +6,18 @@ import {
   SVGSceneContext,
 } from "@pixi-essentials/svg";
 import { IShape, Renderer } from "@pixi/core";
+import { PathCommand } from "../../path/types/Path";
+import { absolutizePath } from "../../path/utils/absolutizePath";
+import { normalizePath } from "../../path/utils/normalizePath";
+import { parsePath } from "../../path/utils/parsePath";
 import { drawSVGGraphics } from "../utils/drawSVGGraphics";
 import { getClockValueTime } from "../utils/getClockValueTime";
 import { getClosestFractionalIndex } from "../utils/getClosestFractionalIndex";
 import { getTweenedPathCommands } from "../utils/getTweenedPathCommands";
-import { PathCommand, pathCommandsFromString } from "../utils/interpolatePath";
-import { isRelativePathCommand } from "../utils/isRelativePathCommand";
 import { AnimationControl } from "./AnimationControl";
+
+const getPathCommands = (d: string): PathCommand[] =>
+  normalizePath(absolutizePath(parsePath(d)));
 
 export class AnimatedSVGPathNode extends SVGGraphicsNode {
   public control: AnimationControl;
@@ -90,7 +95,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
                   ]
               )
           : values.map(() => [0, 0, 1, 1] as [number, number, number, number]);
-        const commands = values.map((x) => pathCommandsFromString(x));
+        const commands = values.map((x) => getPathCommands(x));
 
         this._animation = {
           duration,
@@ -106,7 +111,7 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
         repeatLimit: 1,
         keyTimes: [0],
         keySplines: [],
-        commands: [pathCommandsFromString(pathElement.getAttribute("d") || "")],
+        commands: [getPathCommands(pathElement.getAttribute("d") || "")],
       };
     }
 
@@ -170,223 +175,38 @@ export class AnimatedSVGPathNode extends SVGGraphicsNode {
     const commands = Array.isArray(path)
       ? path
       : this._animation?.commands?.[0] ||
-        pathCommandsFromString(path.getAttribute("d") || "");
-
-    // Current point
-    let x = 0;
-    let y = 0;
+        getPathCommands(path.getAttribute("d") || "");
 
     for (let i = 0, j = commands.length; i < j; i += 1) {
-      const lastCommand = commands[i - 1];
       const command = commands[i];
-
-      if (Number.isNaN(x) || Number.isNaN(y)) {
-        throw new Error("Data corruption");
-      }
 
       if (!command) {
         break;
       }
 
-      // Taken from: https://github.com/bigtimebuddy/pixi-svg/blob/main/src/SVG.ts
-      // Copyright Matt Karl
-      switch (command.type) {
+      const d = command.data;
+      switch (command.command) {
         case "M": {
-          this.moveTo((x = command.x || 0), (y = command.y || 0));
-          break;
-        }
-        case "m": {
-          this.moveTo((x += command.x || 0), (y += command.y || 0));
-          break;
-        }
-        case "H": {
-          this.lineTo((x = command.x || 0), y);
-          break;
-        }
-        case "h": {
-          this.lineTo((x += command.x || 0), y);
-          break;
-        }
-        case "V": {
-          this.lineTo(x, (y = command.y || 0));
-          break;
-        }
-        case "v": {
-          this.lineTo(x, (y += command.y || 0));
-          break;
-        }
-        case "Z":
-        case "z": {
-          x = this._currentPath?.points[0] || 0;
-          y = this._currentPath?.points[1] || 0;
-          this.closePath();
-          break;
-        }
-        case "L": {
-          this.lineTo((x = command.x || 0), (y = command.y || 0));
-          break;
-        }
-        case "l": {
-          this.lineTo((x += command.x || 0), (y += command.y || 0));
+          this.moveTo(d[0] || 0, d[1] || 0);
           break;
         }
         case "C": {
           this.bezierCurveTo(
-            command.x1 || 0,
-            command.y1 || 0,
-            command.x2 || 0,
-            command.y2 || 0,
-            (x = command.x || 0),
-            (y = command.y || 0)
+            d[0] || 0,
+            d[1] || 0,
+            d[2] || 0,
+            d[3] || 0,
+            d[4] || 0,
+            d[5] || 0
           );
           break;
         }
-        case "c": {
-          const currX = x;
-          const currY = y;
-
-          this.bezierCurveTo(
-            currX + (command.x1 || 0),
-            currY + (command.y1 || 0),
-            currX + (command.x2 || 0),
-            currY + (command.y2 || 0),
-            (x += command.x || 0),
-            (y += command.y || 0)
-          );
-          break;
-        }
-        case "S":
-        case "s": {
-          const lastCommand = commands[i - 1];
-          let cp1X = x;
-          let cp1Y = y;
-          const lastCode = lastCommand ? lastCommand.type : null;
-
-          if (
-            i > 0 &&
-            (lastCode === "s" ||
-              lastCode === "S" ||
-              lastCode === "c" ||
-              lastCode === "C")
-          ) {
-            if (lastCommand) {
-              let lastCp2X = lastCommand.x2 || lastCommand.x || 0;
-              let lastCp2Y = lastCommand.y2 || lastCommand.y || 0;
-              if (isRelativePathCommand(lastCommand)) {
-                lastCp2X += x - (lastCommand.x || 0);
-                lastCp2Y += y - (lastCommand.y || 0);
-              }
-              cp1X = 2 * x - lastCp2X;
-              cp1Y = 2 * y - lastCp2Y;
-            }
-          }
-
-          let cp2X = command.x || 0;
-          let cp2Y = command.y || 0;
-
-          if (isRelativePathCommand(command)) {
-            cp2X += x || 0;
-            cp2Y += y || 0;
-
-            x += command.x || 0;
-            y += command.y || 0;
-          } else {
-            x = command.x || 0;
-            y = command.y || 0;
-          }
-
-          this.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, x, y);
-
-          break;
-        }
-        case "Q": {
-          this.quadraticCurveTo(
-            command.x || 0,
-            command.y || 0,
-            (x = command.x || 0),
-            (y = command.y || 0)
-          );
-          break;
-        }
-        case "q": {
-          const currX = x;
-          const currY = y;
-
-          this.quadraticCurveTo(
-            currX + (command.x || 0),
-            currY + (command.y || 0),
-            (x += command.x || 0),
-            (y += command.y || 0)
-          );
-          break;
-        }
-        case "A":
-          this.ellipticArcTo(
-            (x = command.x || 0),
-            (y = command.y || 0),
-            command.rx || 0,
-            command.ry || 0,
-            ((command.xAxisRotation || 0) * Math.PI) / 180,
-            !command.sweepFlag,
-            Boolean(command.largeArcFlag)
-          );
-          break;
-        case "a":
-          this.ellipticArcTo(
-            (x += command.x || 0),
-            (y += command.y || 0),
-            command.rx || 0,
-            command.ry || 0,
-            ((command.xAxisRotation || 0) * Math.PI) / 180,
-            !command.sweepFlag,
-            Boolean(command.largeArcFlag)
-          );
-
-          break;
-        case "T":
-        case "t": {
-          let cx: number;
-          let cy: number;
-
-          if (lastCommand) {
-            let lcx = lastCommand.x || 0;
-            let lcy = lastCommand.y || 0;
-
-            if (isRelativePathCommand(lastCommand)) {
-              const lx = x - (lastCommand.x || 0);
-              const ly = y - (lastCommand.y || 0);
-
-              lcx += lx || 0;
-              lcy += ly || 0;
-            }
-
-            cx = 2 * x - lcx;
-            cy = 2 * y - lcy;
-          } else {
-            cx = x;
-            cy = y;
-          }
-
-          if (command.type === "t") {
-            this.quadraticCurveTo(
-              cx,
-              cy,
-              (x += command.x || 0),
-              (y += command.y || 0)
-            );
-          } else {
-            this.quadraticCurveTo(
-              cx,
-              cy,
-              (x = command.x || 0),
-              (y = command.y || 0)
-            );
-          }
-
+        case "Z": {
+          this.closePath();
           break;
         }
         default: {
-          console.warn("Draw command not supported:", command.type, command);
+          console.warn("Draw command not supported:", command.command, command);
           break;
         }
       }

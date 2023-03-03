@@ -159,7 +159,7 @@ export class Sprite3D extends _Sprite3D {
     const textures = Array.isArray(texture)
       ? texture
       : [texture || Texture.EMPTY];
-    const firstFrame = textures[0];
+    const firstFrame = textures[0] || Texture.EMPTY;
     super(firstFrame);
     this._textures = null;
     this._framesPerSecond =

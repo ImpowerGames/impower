@@ -46,38 +46,58 @@ export class SparkScene {
     return this._app.dolly;
   }
 
-  private _pointerDown = false;
+  protected _pointerDown = false;
 
   public get pointerDown(): boolean {
     return this._pointerDown;
   }
 
-  private _pointerDownX = 0;
+  protected _pointerDownX = 0;
 
   public get pointerDownX(): number {
     return this._pointerDownX;
   }
 
-  private _pointerDownY = 0;
+  protected _pointerDownY = 0;
 
   public get pointerDownY(): number {
     return this._pointerDownY;
   }
 
-  private _dragging = false;
+  protected _dragging = false;
 
   public get dragging(): boolean {
     return this._dragging;
   }
 
-  private _dragThreshold = 8;
+  protected _mouseDragThreshold = 1;
 
-  public get dragThreshold(): number {
-    return this._dragThreshold;
+  public get mouseDragThreshold(): number {
+    return this._mouseDragThreshold;
   }
 
-  public set dragThreshold(value: number) {
-    this._dragThreshold = value;
+  public set mouseDragThreshold(value: number) {
+    this._mouseDragThreshold = value;
+  }
+
+  protected _penDragThreshold = 2;
+
+  public get penDragThreshold(): number {
+    return this._penDragThreshold;
+  }
+
+  public set penDragThreshold(value: number) {
+    this._penDragThreshold = value;
+  }
+
+  protected _touchDragThreshold = 4;
+
+  public get touchDragThreshold(): number {
+    return this._touchDragThreshold;
+  }
+
+  public set touchDragThreshold(value: number) {
+    this._touchDragThreshold = value;
   }
 
   constructor(context: SparkContext, app: Application) {
@@ -102,48 +122,134 @@ export class SparkScene {
     return false;
   }
 
-  destroy(): void {
-    // NoOp
-  }
-
   resize(): void {
     // NoOp
   }
 
-  bind(): void {
-    this.view.addEventListener("pointerdown", (event) => {
-      this._pointerDown = true;
-      this._dragging = false;
-      this._pointerDownX = event.offsetX;
-      this._pointerDownY = event.offsetY;
-    });
-    this.view.addEventListener("pointermove", (event) => {
+  destroy(): void {
+    // NoOp
+  }
+
+  _onPointerDown = (event: PointerEvent): void => {
+    this.onPointerDown(event);
+    this._pointerDown = true;
+    this._dragging = false;
+    this._pointerDownX = event.offsetX;
+    this._pointerDownY = event.offsetY;
+  };
+
+  _onPointerMove = (event: PointerEvent): void => {
+    if (this._app.ticker.speed > 0) {
+      this.onPointerMove(event);
       if (this._pointerDown) {
         const pointerX = event.offsetX;
         const pointerY = event.offsetY;
-        const dragDistance =
-          (pointerX - this._pointerDownX) ** 2 +
-          (pointerY - this._pointerDownY) ** 2;
-        if (dragDistance > this._dragThreshold) {
-          this._dragging = true;
+        const dragDistanceX = pointerX - this._pointerDownX;
+        const dragDistanceY = pointerY - this._pointerDownY;
+        const dragDistance = dragDistanceX ** 2 + dragDistanceY ** 2;
+        const dragThreshold =
+          event.pointerType === "mouse"
+            ? this._mouseDragThreshold
+            : event.pointerType === "pen"
+            ? this._penDragThreshold
+            : this._touchDragThreshold;
+        if (Math.abs(dragDistance) > dragThreshold) {
+          if (!this._dragging) {
+            this._dragging = true;
+            this.onDragStart(
+              event,
+              dragThreshold,
+              dragDistanceX,
+              dragDistanceY
+            );
+          }
           this.onDrag(event);
         }
       }
-    });
-    this.view.addEventListener("pointerup", (event) => {
-      if (this._pointerDown && !this._dragging) {
+    }
+  };
+
+  _onPointerUp = (event: PointerEvent): void => {
+    this.onPointerUp(event);
+    if (this._pointerDown) {
+      if (this._dragging) {
+        this.onDragEnd(event);
+      } else {
         this.onTap(event);
       }
-      this._pointerDown = false;
-      this._dragging = false;
-    });
+    }
+    this._pointerDown = false;
+    this._dragging = false;
+  };
+
+  _onTouchEnd = (event: TouchEvent): void => {
+    if (event?.touches?.length === 0) {
+      const rect = (event.target as HTMLElement).getBoundingClientRect();
+      const touch = event?.targetTouches?.[0];
+      const offsetX = touch?.clientX ?? 0 - rect.x;
+      const offsetY = touch?.clientY ?? 0 - rect.y;
+      const pointerEvent = {
+        ...event,
+        ...(touch || {}),
+        offsetX,
+        offsetY,
+      } as unknown as PointerEvent;
+      this._onPointerUp(pointerEvent);
+    }
+  };
+
+  bind(): void {
+    this.view.addEventListener("pointerdown", this._onPointerDown);
+    this.view.addEventListener("pointermove", this._onPointerMove);
+    window.addEventListener("mouseup", this._onPointerUp);
+    window.addEventListener("touchend", this._onTouchEnd);
+  }
+
+  unbind(): void {
+    this.view.removeEventListener("pointerdown", this._onPointerDown);
+    this.view.removeEventListener("pointermove", this._onPointerMove);
+    window.removeEventListener("mouseup", this._onPointerUp);
+    window.removeEventListener("touchend", this._onTouchEnd);
+  }
+
+  isPointerDown(): boolean {
+    return this._pointerDown;
+  }
+
+  isDragging(): boolean {
+    return this._dragging;
+  }
+
+  onPointerDown(_event: PointerEvent): void {
+    // NoOp
+  }
+
+  onPointerMove(_event: PointerEvent): void {
+    // NoOp
+  }
+
+  onPointerUp(_event: PointerEvent): void {
+    // NoOp
   }
 
   onTap(_event: PointerEvent): void {
     // NoOp
   }
 
+  onDragStart(
+    _event: PointerEvent,
+    _dragThreshold: number,
+    _distanceX: number,
+    _distanceY: number
+  ): void {
+    // NoOp
+  }
+
   onDrag(_event: PointerEvent): void {
+    // NoOp
+  }
+
+  onDragEnd(_event: PointerEvent): void {
     // NoOp
   }
 }

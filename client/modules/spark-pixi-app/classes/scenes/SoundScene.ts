@@ -43,7 +43,7 @@ export class SoundScene extends SparkScene {
     );
   }
 
-  override destroy(): void {
+  override unbind(): void {
     this.context?.game?.synth?.events?.onConfigure?.removeAllListeners();
     this.context?.game?.synth?.events?.onStop?.removeAllListeners();
     this.context?.game?.synth?.events?.onPlay?.removeAllListeners();

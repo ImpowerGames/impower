@@ -68,6 +68,9 @@ export class Application extends _Application {
     if (this) {
       super.destroy(removeView, stageOptions);
     }
+    if (this._dolly) {
+      this._dolly.destroy();
+    }
   }
 
   override resize(): void {
