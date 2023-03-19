@@ -1,7 +1,7 @@
 import { PathCommand } from "../types/Path";
 
 /**
- * Translate relative commands to absolute commands
+ * Translate all relative commands to absolute commands
  */
 export const absolutizePath = (segments: PathCommand[]): PathCommand[] => {
   let cx = 0;

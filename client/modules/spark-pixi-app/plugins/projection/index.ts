@@ -1,6 +1,7 @@
 export * from "./classes/Camera";
 export * from "./classes/CameraOrbitControl";
 export * from "./classes/Color";
+export * from "./classes/CompositeSprite";
 export * from "./classes/Container3D";
 export * from "./classes/Cubemap";
 export * from "./classes/Light";

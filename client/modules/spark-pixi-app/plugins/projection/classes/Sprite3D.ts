@@ -39,6 +39,22 @@ export class Sprite3D extends _Sprite3D {
     this.sprite.pivot = value;
   }
 
+  override get width(): number {
+    return this.sprite.width;
+  }
+
+  override set width(value: number) {
+    this.sprite.width = value;
+  }
+
+  override get height(): number {
+    return this.sprite.height;
+  }
+
+  override set height(value: number) {
+    this.sprite.height = value;
+  }
+
   // @ts-expect-error workaround because _filters is a property
   override get filters(): Filter[] {
     if (this.sprite) {
@@ -175,7 +191,9 @@ export class Sprite3D extends _Sprite3D {
     this._playing = false;
     this._ticker = options?.ticker;
     this.textures = textures;
-    this.pixelsPerUnit = DEFAULT_PIXELS_PER_UNIT;
+    const maxSize = Math.max(firstFrame.orig.width, firstFrame.orig.height);
+    const scale = DEFAULT_PIXELS_PER_UNIT / maxSize;
+    this.pixelsPerUnit = maxSize * scale;
   }
 
   /** Stops the animation. */

@@ -100,7 +100,7 @@ export const parseBeatmap = (
             if (row.trim()) {
               for (let x = 0; x < row.length; x += 1) {
                 const symbol = row[x];
-                if (symbol && symbol !== " ") {
+                if (symbol && symbol !== " " && symbol !== ".") {
                   const d = symbol;
                   const newBeat: ParsedBeat = {
                     z: n,

@@ -38,8 +38,8 @@ export class Texture<R extends Resource = Resource> extends _Texture<R> {
 
   /** A white texture of 32x32 size, used for graphics and other things Can not be destroyed. */
   public static override get WHITE(): Texture<CanvasResource> {
-    const width = 32;
-    const height = 32;
+    const width = DEFAULT_PIXELS_PER_UNIT;
+    const height = DEFAULT_PIXELS_PER_UNIT;
     if (!Texture._white) {
       const canvas = settings.ADAPTER.createCanvas(width, height);
       const context = canvas.getContext("2d");

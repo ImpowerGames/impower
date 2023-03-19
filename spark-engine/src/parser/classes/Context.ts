@@ -150,17 +150,19 @@ export class Context<
   }
 
   update(deltaMS: number): boolean {
-    this.game.tween.tick(deltaMS);
-    this.game.ticker.tick(deltaMS);
-    this.runner.commandRunners.forEach((r) => {
-      r.onUpdate(this.game, deltaMS);
-    });
-    if (this.loadedBlockIds) {
-      for (let i = 0; i < this.loadedBlockIds.length; i += 1) {
-        const blockId = this.loadedBlockIds[i];
-        if (blockId !== undefined) {
-          if (!this.updateBlock(blockId, deltaMS)) {
-            return false; // Player quit the game
+    if (deltaMS) {
+      this.game.tween.tick(deltaMS);
+      this.game.ticker.tick(deltaMS);
+      this.runner.commandRunners.forEach((r) => {
+        r.onUpdate(this.game, deltaMS);
+      });
+      if (this.loadedBlockIds) {
+        for (let i = 0; i < this.loadedBlockIds.length; i += 1) {
+          const blockId = this.loadedBlockIds[i];
+          if (blockId !== undefined) {
+            if (!this.updateBlock(blockId, deltaMS)) {
+              return false; // Player quit the game
+            }
           }
         }
       }

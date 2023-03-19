@@ -172,9 +172,9 @@ export class SparkGameApp {
     if (this.app) {
       this.scenes.forEach((scene) => {
         if (deltaMS === 0) {
-          this.app.dolly.controllable = true;
+          this.app.dolly.allowControl = true;
         } else {
-          this.app.dolly.controllable = false;
+          this.app.dolly.allowControl = false;
           if (scene.update(deltaMS)) {
             this.app.dolly.updateCamera();
           }

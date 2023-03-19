@@ -1,7 +1,7 @@
 import { SparkContext } from "../../../../spark-engine";
 import { Application } from "../plugins/app";
 import { Assets } from "../plugins/assets";
-import { IRenderer, Rectangle } from "../plugins/core";
+import { Rectangle, Renderer } from "../plugins/core";
 import { CameraOrbitControl, Container3D } from "../plugins/projection";
 import { Ticker } from "../plugins/ticker";
 
@@ -22,8 +22,8 @@ export class SparkScene {
     return this._app.view as HTMLCanvasElement;
   }
 
-  public get renderer(): IRenderer {
-    return this._app.renderer;
+  public get renderer(): Renderer {
+    return this._app.renderer as Renderer;
   }
 
   public get assets(): Assets {

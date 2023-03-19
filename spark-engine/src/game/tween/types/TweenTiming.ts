@@ -1,5 +1,4 @@
 export interface TweenTiming {
-  loop?: boolean;
   delay?: number;
   duration?: number;
   ease?: (p: number) => number;

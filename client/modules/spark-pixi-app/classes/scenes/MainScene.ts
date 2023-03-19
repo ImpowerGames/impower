@@ -1,6 +1,5 @@
 import {
   Beat,
-  EASE,
   Graphic,
   Midi,
   parseMidi,
@@ -9,18 +8,20 @@ import {
 } from "../../../../../spark-engine";
 import { generateSpritesheet } from "../../plugins/animation";
 import { Application } from "../../plugins/app";
-import { IRenderer, Texture } from "../../plugins/core";
-import { generateGrid } from "../../plugins/graphics";
+import { Renderer, Texture } from "../../plugins/core";
+import { createCircleTexture, createPillTexture } from "../../plugins/graphics";
 import {
   Color,
+  CompositeSprite,
   Container3D,
   Mesh3D,
-  Quaternion,
   Sprite3D,
   StandardMaterial,
 } from "../../plugins/projection";
 import { Ticker } from "../../plugins/ticker";
 import { SparkScene } from "../SparkScene";
+
+type BeatInfo = Beat & { hold?: number };
 
 const lerp = (curr: number, target: number, delta: number): number => {
   return curr > target
@@ -37,18 +38,6 @@ const createAnimatedSprite = (
   return sprite;
 };
 
-const getXOffset = (columnCount: number): number => {
-  return -columnCount / 2 + 0.5;
-};
-
-const getYOffset = (_type: string): number => {
-  return 0.00025;
-};
-
-const getZFactor = (zSpacing: number): number => {
-  return -zSpacing;
-};
-
 const getAnimationProgress = (
   beat: number,
   speed: number,
@@ -59,219 +48,274 @@ const getAnimationProgress = (
   return progress;
 };
 
+const getXOffset = (columnCount: number): number => {
+  return -columnCount / 2 + 0.5;
+};
+
+const getZFactor = (zSpacing: number): number => {
+  return -zSpacing;
+};
+
+const getTrackScaleZ = (scale: number): number => {
+  const bottomTrackHeight = 4.25;
+  const trackScaleZ = bottomTrackHeight * scale;
+  return trackScaleZ;
+};
+
+const getTargetStartZ = (scale: number): number => {
+  return getTrackScaleZ(scale) * 2 - 0.5;
+};
+
+const resizeBottomTrack = (
+  bottomTrackContainer: Container3D,
+  meshes: Mesh3D[],
+  sprites: Sprite3D[],
+  followAngle: number,
+  screenWidth: number,
+  screenHeight: number
+): void => {
+  const minTilt = 0;
+  const maxTilt = 55;
+  const tilt = screenWidth < screenHeight ? minTilt : maxTilt;
+  const xAngle = 90 - followAngle - tilt;
+  bottomTrackContainer.rotationQuaternion.setEulerAngles(xAngle, 0, 0);
+  meshes.forEach((mesh) => {
+    mesh.scale.z = getTrackScaleZ(0.5);
+    mesh.position.z = getTrackScaleZ(0.5);
+  });
+  sprites.forEach((sprite) => {
+    sprite.scale.y = getTrackScaleZ(1);
+    sprite.position.z = getTrackScaleZ(1) / 2;
+  });
+};
+
 const getAnimationName = (type: string): string => {
-  if (type === "P") {
+  if (type === "@") {
     return `_m1a_bunny`;
   }
-  if (type === "X") {
+  if (type === "#") {
+    return `_m1a_column`;
+  }
+  if (type === "P") {
+    return `_m1a_pizzarat`;
+  }
+  if (type === "F") {
     return `_m1a_flyerguy`;
-  }
-  if (type === "*") {
-    return `_m_circle`;
-  }
-  if (type === "|") {
-    return `_m_hold`;
-  }
-  if (type === "\\") {
-    return `_m_swipe`;
-  }
-  if (type === "/") {
-    return `_m_swipe`;
-  }
-  if (type === "<") {
-    return `_m_swipe`;
-  }
-  if (type === ">") {
-    return `_m_swipe`;
-  }
-  if (type === "^") {
-    return `_m_swipe`;
-  }
-  if (type === "v") {
-    return `_m_swipe`;
   }
   return "";
 };
 
-const getSwipeTargetXOffset = (beat: Beat): number => {
-  switch (beat.s) {
-    case ">":
-      return 1;
-    case "/":
-      return 1;
-    case "<":
-      return -1;
-    case "\\":
-      return -1;
-    default:
-      return 0;
-  }
+const getMiddleLane = (tileColumnCount: number): number => {
+  return (tileColumnCount - 1) / 2;
 };
 
-const getFloorColor = (): number => {
-  return 0x80c2bc;
+const getMiddleColor = (): number => {
+  return 0xffe133;
 };
 
-const getGridColor = (): number => {
-  return 0x000000;
+const getLeftColor = (): number => {
+  return 0xff3399;
 };
 
-const getTrackColor = (): number => {
-  return 0x000000;
+const getRightColor = (): number => {
+  return 0x33bbff;
 };
 
-const getBallColor = (): number => {
-  return 0xd90000;
+const getGuideColor = (): number => {
+  return 0x222122;
 };
 
-const createTargetTapContainer = (
-  beat: Beat,
+const getLaneColor = (x: number, tileColumnCount: number): number => {
+  const middle = getMiddleLane(tileColumnCount);
+  return x === middle
+    ? getMiddleColor()
+    : x < middle
+    ? getLeftColor()
+    : getRightColor();
+};
+
+const getBackgroundColor = (): number => {
+  return 0xc81111;
+};
+
+const createCeilingMesh = (
+  length: number,
   tileColumnCount: number,
-  tileZSpacing: number,
-  scale: number,
-  textures: Record<string, Texture[]>
+  color: number
+): Mesh3D => {
+  const mesh = Mesh3D.createCube();
+  (mesh.material as StandardMaterial).baseColor = Color.fromHex(color);
+  (mesh.material as StandardMaterial).unlit = true;
+  mesh.scale.x = tileColumnCount * 2 - 2;
+  mesh.scale.y = 0;
+  mesh.scale.z = length;
+  mesh.position.y = 3;
+  return mesh;
+};
+
+const createFloorMesh = (
+  length: number,
+  tileColumnCount: number,
+  color: number
+): Mesh3D => {
+  const mesh = Mesh3D.createCube();
+  (mesh.material as StandardMaterial).baseColor = Color.fromHex(color);
+  (mesh.material as StandardMaterial).unlit = true;
+  mesh.scale.x = tileColumnCount * 2 - 2;
+  mesh.scale.y = 0;
+  mesh.scale.z = length;
+  return mesh;
+};
+
+const createSafetyLinesMesh = (
+  length: number,
+  tileColumnCount: number,
+  color: number
 ): Container3D => {
-  const x = beat.x + getXOffset(tileColumnCount);
-  const y = beat.y + getYOffset(beat.s);
-  const z = beat.z * getZFactor(tileZSpacing);
-  const animationName = getAnimationName(beat.s);
-  const animation = textures[animationName];
+  const scaleX = 1 / 8;
+  const offsetX = tileColumnCount;
+  const container = new Container3D();
+  const leftMesh = Mesh3D.createCube();
+  (leftMesh.material as StandardMaterial).baseColor = Color.fromHex(color);
+  (leftMesh.material as StandardMaterial).unlit = true;
+  leftMesh.scale.x = scaleX;
+  leftMesh.scale.y = 0;
+  leftMesh.scale.z = length;
+  leftMesh.position.x = -offsetX;
+  container.addChild(leftMesh);
+  const rightMesh = Mesh3D.createCube();
+  (rightMesh.material as StandardMaterial).baseColor = Color.fromHex(color);
+  (rightMesh.material as StandardMaterial).unlit = true;
+  rightMesh.scale.x = scaleX;
+  rightMesh.scale.y = 0;
+  rightMesh.scale.z = length;
+  rightMesh.position.x = offsetX;
+  container.addChild(rightMesh);
+  return container;
+};
+
+const createPillarSprite = (animation: Texture[], color: number): Sprite3D => {
   const sprite = new Sprite3D(animation);
-  sprite.rotationQuaternion.setEulerAngles(90, 0, 0);
-  sprite.scale.x = scale;
-  sprite.scale.y = scale;
-  const container = new Container3D();
-  container.position.x = x;
-  container.position.y = y + 0.001;
-  container.position.z = z;
-  container.zIndex = 1;
-  container.addChild(sprite);
-  return container;
+  sprite.anchor.set(0.5, 1.0); // Center Bottom
+  sprite.tint = color;
+  return sprite;
 };
 
-const createTargetHoldContainer = (
-  beat: Beat,
+const createTrackMesh = (
+  maxZ: number,
   tileColumnCount: number,
   tileZSpacing: number,
-  scale: number,
-  textures: Record<string, Texture[]>
-): Container3D => {
-  const x = beat.x + getXOffset(tileColumnCount);
-  const y = beat.y + getYOffset(beat.s);
-  const z = beat.z * getZFactor(tileZSpacing);
-  const holdAnimationName = getAnimationName(beat.s);
-  const holdAnimation = textures[holdAnimationName];
-  const circleAnimationName = getAnimationName("*");
-  const circleAnimation = textures[circleAnimationName];
-  const endCircleSprite = new Sprite3D(circleAnimation);
-  endCircleSprite.anchor.set(0.5, 1.0);
-  endCircleSprite.rotationQuaternion.setEulerAngles(90, 0, 0);
-  endCircleSprite.scale.x = scale;
-  endCircleSprite.scale.y = scale;
-  endCircleSprite.position.y = 0.004;
-  endCircleSprite.position.z = -tileZSpacing - 0.5;
-  endCircleSprite.zIndex = -902;
-  const holdSprite = new Sprite3D(holdAnimation);
-  holdSprite.anchor.set(0.5, 1.0);
-  holdSprite.rotationQuaternion.setEulerAngles(90, 0, 0);
-  holdSprite.scale.x = scale;
-  holdSprite.scale.y = tileZSpacing + 0.5;
-  holdSprite.position.y = 0.002;
-  holdSprite.position.z = -tileZSpacing;
-  holdSprite.zIndex = -904;
-  const startCircleSprite = new Sprite3D(circleAnimation);
-  startCircleSprite.anchor.set(0.5, 1.0);
-  startCircleSprite.rotationQuaternion.setEulerAngles(90, 0, 0);
-  startCircleSprite.scale.x = scale;
-  startCircleSprite.scale.y = scale;
-  startCircleSprite.position.y = 0.003;
-  startCircleSprite.position.z = -0.5;
-  startCircleSprite.zIndex = -903;
-  const container = new Container3D();
-  container.pivot.set(0.5, 1.0);
-  container.position.x = x;
-  container.position.y = y;
-  container.position.z = z;
-  container.addChild(holdSprite);
-  container.addChild(startCircleSprite);
-  container.addChild(endCircleSprite);
-  return container;
+  color: number,
+  layer: number
+): Mesh3D => {
+  const trackLength = (maxZ + 1) * getZFactor(tileZSpacing) * 2;
+  const meshScale = 0.5;
+  const trackMeshScaleZ = trackLength * meshScale;
+  const mesh = Mesh3D.createCube();
+  (mesh.material as StandardMaterial).baseColor = Color.fromHex(color);
+  (mesh.material as StandardMaterial).unlit = true;
+  mesh.scale.x = (tileColumnCount + 0.5 + 0.1) * meshScale;
+  mesh.scale.y = 0;
+  mesh.scale.z = trackMeshScaleZ;
+  mesh.position.y = 0.001 * layer;
+  mesh.position.z = mesh.scale.z;
+  mesh.zIndex = -1000 + layer;
+  return mesh;
 };
 
-const createTargetSwipeContainer = (
-  beat: Beat,
+const createTrackSprite = (
+  maxZ: number,
   tileColumnCount: number,
   tileZSpacing: number,
-  scale: number,
-  textures: Record<string, Texture[]>
-): Container3D => {
-  const x = beat.x + getXOffset(tileColumnCount);
-  const y = beat.y + getYOffset(beat.s);
-  const z = beat.z * getZFactor(tileZSpacing);
-  const endXOffset = getSwipeTargetXOffset(beat);
-  const swipeAnimationName = getAnimationName(beat.s);
-  const swipeAnimation = textures[swipeAnimationName];
-  const circleAnimationName = getAnimationName("*");
-  const circleAnimation = textures[circleAnimationName];
-  const endCircleSprite = new Sprite3D(circleAnimation);
-  endCircleSprite.rotationQuaternion.setEulerAngles(90, 0, 0);
-  endCircleSprite.scale.x = scale;
-  endCircleSprite.scale.y = scale;
-  endCircleSprite.position.x = endXOffset;
-  endCircleSprite.position.y = 0.004;
-  endCircleSprite.position.z = 0;
-  endCircleSprite.zIndex = -902;
-  const swipeSprite = new Sprite3D(swipeAnimation);
-  swipeSprite.rotationQuaternion.setEulerAngles(90, 0, 0);
-  swipeSprite.scale.x = 1;
-  swipeSprite.scale.y = scale;
-  swipeSprite.position.y = 0.003;
-  swipeSprite.position.x = endXOffset > 0 ? 0.5 : -0.5;
-  swipeSprite.position.z = 0;
-  swipeSprite.zIndex = -903;
-  const startCircleSprite = new Sprite3D(circleAnimation);
-  startCircleSprite.rotationQuaternion.setEulerAngles(90, 0, 0);
-  startCircleSprite.scale.x = scale;
-  startCircleSprite.scale.y = scale;
-  startCircleSprite.position.x = 0;
-  startCircleSprite.position.y = 0.002;
-  startCircleSprite.position.z = 0;
-  startCircleSprite.zIndex = -904;
-  const container = new Container3D();
-  container.position.x = x;
-  container.position.y = y;
-  container.position.z = z;
-  container.addChild(swipeSprite);
-  container.addChild(startCircleSprite);
-  container.addChild(endCircleSprite);
-  return container;
-};
-
-const createObstacleSprite = (
-  textures: Record<string, Texture[]>,
-  ticker: Ticker,
-  beat: Beat,
-  tileColumnCount: number,
-  tileZSpacing: number,
-  scale: number
+  color: number,
+  layer: number
 ): Sprite3D => {
+  const trackLength = (maxZ + 1) * getZFactor(tileZSpacing) * 2;
+  const sprite = new Sprite3D(Texture.WHITE);
+  sprite.tint = color;
+  const width = tileColumnCount + 0.5 + 0.1;
+  sprite.scale.x = width;
+  sprite.scale.y = trackLength;
+  sprite.scale.z = width;
+  sprite.position.y = 0.001 * layer;
+  sprite.position.z = sprite.scale.z;
+  sprite.zIndex = -1000 + layer;
+  sprite.rotationQuaternion.setEulerAngles(-90, 0, 0);
+  return sprite;
+};
+
+const createGuideLineSprite = (
+  i: number,
+  tileZSpacing: number,
+  maxZ: number,
+  color: number,
+  layer: number
+): Mesh3D => {
+  const trackLength = (maxZ + 1) * getZFactor(tileZSpacing) * 2;
+  const scale = 0.5;
+  const trackMeshScaleZ = trackLength * scale;
+  const minX = -1;
+  const mesh = Mesh3D.createCube();
+  (mesh.material as StandardMaterial).baseColor = Color.fromHex(color);
+  (mesh.material as StandardMaterial).unlit = true;
+  mesh.scale.x = 1 / 32;
+  mesh.scale.y = 0;
+  mesh.scale.z = trackMeshScaleZ;
+  mesh.position.x = minX + i;
+  mesh.position.y = 0.001 * layer;
+  mesh.position.z = trackMeshScaleZ;
+  mesh.zIndex = -1000 + layer;
+  return mesh;
+};
+
+const createCircleSprite = (
+  texture: Texture,
+  x: number,
+  z: number,
+  color: number,
+  layer: number
+): Sprite3D => {
+  const sprite = new Sprite3D(texture);
+  sprite.tint = color;
+  sprite.rotationQuaternion.setEulerAngles(-90, 0, 0);
+  sprite.position.x = x;
+  sprite.position.y = 0.001 * layer;
+  sprite.position.z = z;
+  sprite.zIndex = -1000 + layer;
+  return sprite;
+};
+
+const createObstacleContainer = (
+  beat: BeatInfo,
+  tileColumnCount: number,
+  tileZSpacing: number,
+  scale: number,
+  textures: Record<string, Texture[]>,
+  ticker: Ticker
+): Container3D => {
   const x = beat.x + getXOffset(tileColumnCount);
   const y = beat.y;
   const z = beat.z * getZFactor(tileZSpacing);
   const animationName = getAnimationName(beat.s);
   const animation = textures[animationName];
   const sprite = createAnimatedSprite(animation, ticker);
-  sprite.anchor.set(0.5, 1.0);
-  sprite.position.x = x;
-  sprite.position.y = y;
-  sprite.position.z = z - x * 0.001;
-  sprite.scale.x = scale;
+  sprite.anchor.set(0.5, 1.0); // Center Bottom
+  const middle = getMiddleLane(tileColumnCount);
+  sprite.scale.x = beat.x <= middle ? -scale : scale;
   sprite.scale.y = scale;
-  return sprite;
+  sprite.tint = getLaneColor(beat.x, tileColumnCount);
+  const container = new Container3D();
+  container.pivot.set(0.5, 1.0); // Center Bottom
+  container.position.x = x;
+  container.position.y = y;
+  container.position.z =
+    beat.x <= middle ? z + beat.x * 0.01 : z - beat.x * 0.01;
+  container.addChild(sprite);
+  return container;
 };
 
 const getAnimationTextures = async (
-  renderer: IRenderer,
+  renderer: Renderer,
   svg: SVGSVGElement,
   fps = 60,
   id = "",
@@ -301,89 +345,79 @@ export class MainScene extends SparkScene {
 
   private _tileZSpacing = 8;
 
-  private _tilePixelSize = 32;
-
-  private _obstacleSpriteZOffset = 0.1;
-
   private _obstacleScale = 2;
 
-  private _targetSpriteScale = 1;
+  private _playerScale = 2;
 
-  private _ballScale = 0.25;
+  private _playerSquishScaleY = 0.5;
 
-  private _gridThickness = 1;
+  private _playerSquishScaleXZ = 1.5;
 
-  private _cameraOvershoot = 0.125;
+  private _playerOvershoot = 1 / 4;
 
-  private _ballOvershoot = 0.25;
+  private _playerAnimationSpeed = 1 / 2;
 
-  private _animationSpeed = 0.5;
+  private _playerSquishSpeed = 4;
 
-  private _squishSpeed = 4;
+  private _playerMoveSpeed = 4;
 
-  private _spawnDistance = 4;
+  private _playerReboundSpeed = 2;
 
-  private _spawnTransitionEase = EASE.backOut;
+  private _spawnTransitionSpeed = 1 / 4;
 
-  private _spawnTransitionSpeed = 0.125;
+  private _judgementZOffset = 0.28;
 
-  private _ballMoveSpeed = 4;
+  private _followHeight = -2;
 
-  private _ballReboundSpeed = 2;
+  private _followDistance = 8;
 
-  private _cameraMoveSpeed = 4;
-
-  private _cameraReboundSpeed = 1;
-
-  private _cameraTransitionEase = EASE.expoInOut;
-
-  private _cameraTransitionDelay = 0.5;
-
-  private _cameraTransitionDuration = 2;
-
-  private _startHeight = 3;
-
-  private _startDistance = 6;
-
-  private _startAngle = 30;
-
-  private _followHeight = 2;
-
-  private _followDistance = 5;
-
-  private _followAngle = 15;
-
-  private _despawnDistance = 64;
+  private _followAngle = 22;
 
   private _animationOffset = 0;
 
-  private _obstacleBeats: Beat[] = [];
-
-  private _targetBeats: Beat[] = [];
+  private _beats: BeatInfo[] = [];
 
   private _animations: Record<string, Texture[]> = {};
 
-  private _floorSprite: Sprite3D;
+  private _compositeContainers: (Container3D | CompositeSprite)[] = [];
 
-  private _trackSprite: Sprite3D;
+  private _ceilingMesh: Mesh3D;
 
-  private _gridSprites: Sprite3D[] = [];
+  private _floorMesh: Mesh3D;
 
-  private _targetContainers: Container3D[] = [];
+  private _safetyLinesMesh: Container3D;
 
-  private _obstacleSprites: Sprite3D[] = [];
+  private _topTrackMesh: Mesh3D;
+
+  private _topLaneMeshes: Mesh3D[] = [];
+
+  private _topTrackContainer: Container3D;
+
+  private _bottomTrackContainer: Container3D;
+
+  private _bottomTrackMeshes: Mesh3D[] = [];
+
+  private _bottomTrackSprites: Sprite3D[] = [];
+
+  private _bottomIndicatorContainer: Container3D;
+
+  private _bottomTargetContainer: Container3D;
+
+  private _obstacleContainers: Container3D[] = [];
+
+  private _leftPillarSprites: Sprite3D[] = [];
+
+  private _rightPillarSprites: Sprite3D[] = [];
+
+  private _targetSprites: Sprite3D[] = [];
 
   private _playerContainer: Sprite3D;
 
-  private _ball: Container3D;
+  private _tapGuideCircleTexture: Texture;
 
-  private _ballMesh: Mesh3D;
+  private _tapTargetCircleTexture: Texture;
 
-  private _ballMaterial = StandardMaterial.create(undefined);
-
-  private _floorRotation = Quaternion.fromEuler(90, 0, 0).array;
-
-  private _upNext: { beat: Beat }[][] = [];
+  private _spinGuideCircleTexture: Texture;
 
   private _beatsPerMS = 120 * 1000;
 
@@ -397,6 +431,20 @@ export class MainScene extends SparkScene {
 
   private _rebounding = false;
 
+  private _sliding = false;
+
+  private _squishing = false;
+
+  private _backgroundLayer = 0;
+
+  private _safetyLinesLayer = 1;
+
+  private _foregroundLayer = 2;
+
+  private _pillarLayer = 3;
+
+  private _entityLayer = 4;
+
   constructor(context: SparkContext, app: Application) {
     super(context, app);
     // Tiles
@@ -404,75 +452,33 @@ export class MainScene extends SparkScene {
       this.context.game.struct.config.objectMap?.["beatmap"] || {}
     );
     const beatmap = beatmaps[0];
-    const beats = (beatmap?.beats as unknown as Beat[]) || [];
+    const beats = (beatmap?.beats as unknown as BeatInfo[]) || [];
+    const rows: BeatInfo[] = [];
     beats.forEach((beat) => {
-      if (beat.s === "X") {
-        this._obstacleBeats.push(beat);
+      const prevMatchingBeat = rows[beat.x];
+      if (beat.s === "|" && prevMatchingBeat) {
+        if (!prevMatchingBeat.hold) {
+          prevMatchingBeat.hold = 1;
+        }
+        prevMatchingBeat.hold += 1;
       } else {
-        this._targetBeats.push(beat);
+        beat.hold = 0;
+        this._beats.push(beat);
+        rows[beat.x] = beat;
       }
     });
     const bpm = beats[0]?.bpm ?? 120;
     const bps = bpm / 60;
     this._beatsPerMS = bps / 1000;
-    const maxZ = beats[beats.length - 1]?.z ?? 0;
-    const gridHeight = this._tileZSpacing;
-    const trackLength = maxZ * getZFactor(this._tileZSpacing);
-    // Floor
-    this._floorSprite = new Sprite3D(Texture.WHITE);
-    this._floorSprite.anchor.set(0.5, 1.0); // Center Bottom
-    this._floorSprite.scale.x = this.dolly.camera.far;
-    this._floorSprite.scale.y = trackLength * 2;
-    this._floorSprite.position.y = -0.01;
-    this._floorSprite.position.z = -trackLength;
-    this._floorSprite.zIndex = -1002;
-    this._floorSprite.rotationQuaternion.array = this._floorRotation;
-    this._floorSprite.tint = getFloorColor();
-    // Track
-    this._trackSprite = new Sprite3D(Texture.WHITE);
-    this._trackSprite.anchor.set(0.5, 1.0); // Center Bottom
-    this._trackSprite.scale.x = this._tileColumnCount;
-    this._trackSprite.scale.y = trackLength;
-    this._trackSprite.position.y = -0.001;
-    this._trackSprite.position.z = this._tileZSpacing;
-    this._trackSprite.zIndex = -1001;
-    this._trackSprite.rotationQuaternion.array = this._floorRotation;
-    this._trackSprite.tint = getTrackColor();
-    // Grid
-    const gridTexture = generateGrid(
-      this.renderer,
-      this._gridThickness,
-      this._tilePixelSize,
-      this._tileColumnCount,
-      this._tileZSpacing,
-      true,
-      false
-    );
-    const numTracks = Math.ceil(Math.abs(trackLength / gridHeight));
-    for (let i = 0; i < numTracks; i += 1) {
-      const z = i * -gridHeight + 0.5;
-      const grid = new Sprite3D(gridTexture);
-      grid.width = this._tileColumnCount;
-      grid.height = gridHeight;
-      grid.zIndex = -1000;
-      grid.rotationQuaternion.array = this._floorRotation;
-      grid.anchor.set(0.5, 1.0); // Center Bottom
-      grid.position.x = 0;
-      grid.position.y = 0;
-      grid.position.z = z;
-      grid.tint = getGridColor();
-      this._gridSprites.push(grid);
-    }
-    // Camera
+    // Background
+    this.renderer.background.color = 0x000000;
+    // Main Camera
     this.dolly.camera.fieldOfView = 60;
     this.dolly.target.x = 0;
-    this.dolly.target.y = this._startHeight;
+    this.dolly.target.y = this._followHeight;
     this.dolly.target.z = 0;
-    this.dolly.angles.x = this._startAngle;
-    this.dolly.distance = this._startDistance;
-    // Material
-    this._ballMaterial.baseColor = Color.fromHex(getBallColor());
-    this._ballMaterial.unlit = true;
+    this.dolly.angles.x = this._followAngle;
+    this.dolly.distance = this._followDistance;
   }
 
   override async load(): Promise<void> {
@@ -506,124 +512,367 @@ export class MainScene extends SparkScene {
   }
 
   override init(): void {
-    if (this._floorSprite) {
-      this.stage.addChild(this._floorSprite);
-    }
-    if (this._trackSprite) {
-      this.stage.addChild(this._trackSprite);
-    }
-    this._gridSprites.forEach((sprite) => {
-      this.stage.addChild(sprite);
+    const maxZ = this._beats[this._beats.length - 1]?.z ?? 0;
+    // Textures
+    this._tapGuideCircleTexture = createCircleTexture(this.renderer, {
+      fillColor: 0x000000,
+      strokeColor: 0xffffff,
+      strokeWidth: 2,
+      radius: 16 / 2,
     });
-    const animationName = getAnimationName("P");
-    const playerAnimation = this._animations[animationName];
-    if (playerAnimation) {
-      this._playerContainer = new Sprite3D(Texture.EMPTY);
+    this._spinGuideCircleTexture = createCircleTexture(this.renderer, {
+      fillColor: null,
+      strokeColor: 0xffffff,
+      strokeWidth: 2,
+      radius: 128 / 2,
+    });
+    this._tapTargetCircleTexture = createCircleTexture(this.renderer, {
+      fillColor: 0xffffff,
+      strokeColor: 0x000000,
+      strokeWidth: 2,
+      radius: 16 / 2,
+    });
+    // Highway
+    this._compositeContainers = [
+      new Container3D(),
+      new Container3D(),
+      new Container3D(),
+      new Container3D(),
+      new Container3D(),
+      new Container3D(),
+      new Container3D(),
+    ];
+    // Containers
+    this._topTrackContainer = new Container3D();
+    this._bottomTrackContainer = new Container3D();
+    this._bottomIndicatorContainer = new Container3D();
+    this._bottomTargetContainer = new Container3D();
+    const backgroundLength = this.dolly.camera.far * 2;
+    this._ceilingMesh = createCeilingMesh(
+      backgroundLength,
+      this._tileColumnCount,
+      getBackgroundColor()
+    );
+    this._compositeContainers[this._backgroundLayer].addChild(
+      this._ceilingMesh
+    );
+    this._floorMesh = createFloorMesh(
+      backgroundLength,
+      this._tileColumnCount,
+      getBackgroundColor()
+    );
+    this._compositeContainers[this._backgroundLayer].addChild(this._floorMesh);
+    this._safetyLinesMesh = createSafetyLinesMesh(
+      backgroundLength,
+      this._tileColumnCount,
+      0x000000
+    );
+    this._compositeContainers[this._safetyLinesLayer].addChild(
+      this._safetyLinesMesh
+    );
+    // Pillars
+    const pillarAnimationName = getAnimationName("#");
+    const pillarAnimation = this._animations[pillarAnimationName];
+    for (let z = 0; z < maxZ; z += 2) {
+      const container = new Container3D();
+      const offsetX = this._tileColumnCount - 1;
+      const posZ = z * getZFactor(this._tileZSpacing);
+      const leftPillarSprite = createPillarSprite(
+        pillarAnimation,
+        getBackgroundColor()
+      );
+      leftPillarSprite.position.x = -offsetX;
+      leftPillarSprite.position.z = posZ;
+      leftPillarSprite.scale.x = this._obstacleScale;
+      leftPillarSprite.scale.y = this._obstacleScale;
+      this._leftPillarSprites[z] = leftPillarSprite;
+      const rightPillarSprite = createPillarSprite(
+        pillarAnimation,
+        getBackgroundColor()
+      );
+      rightPillarSprite.position.x = offsetX;
+      rightPillarSprite.position.z = posZ;
+      rightPillarSprite.scale.x = -1 * this._obstacleScale;
+      rightPillarSprite.scale.y = this._obstacleScale;
+      this._rightPillarSprites[z] = rightPillarSprite;
+      container.addChild(leftPillarSprite);
+      container.addChild(rightPillarSprite);
+      this._compositeContainers[this._pillarLayer].addChild(container);
+    }
+    // Top Track
+    this._topTrackMesh = createTrackMesh(
+      maxZ,
+      this._tileColumnCount,
+      this._tileZSpacing,
+      0x000000,
+      -10
+    );
+    this._topTrackContainer.addChild(this._topTrackMesh);
+    // Top Lines
+    for (let i = 0; i < this._tileColumnCount; i += 1) {
+      const laneMesh = createGuideLineSprite(
+        i,
+        this._tileZSpacing,
+        maxZ,
+        getGuideColor(),
+        -9
+      );
+      this._topTrackContainer.addChild(laneMesh);
+      this._topLaneMeshes[i] = laneMesh;
+    }
+    // Bottom Track
+    const bottomTrackLeftSprite = createTrackSprite(
+      maxZ,
+      this._tileColumnCount,
+      this._tileZSpacing,
+      0x000000,
+      -8
+    );
+    const bottomTrackLeftMask = createTrackSprite(
+      maxZ,
+      this._tileColumnCount,
+      this._tileZSpacing,
+      0x000000,
+      -7
+    );
+    const bottomTrackRightMask = createTrackSprite(
+      maxZ,
+      this._tileColumnCount,
+      this._tileZSpacing,
+      0x000000,
+      -6
+    );
+    this._bottomTrackContainer.addChild(bottomTrackLeftSprite);
+    this._bottomTrackContainer.addChild(bottomTrackLeftMask);
+    this._bottomTrackContainer.addChild(bottomTrackRightMask);
+    this._bottomTrackSprites.push(bottomTrackLeftSprite);
+    this._bottomTrackSprites.push(bottomTrackLeftMask);
+    this._bottomTrackSprites.push(bottomTrackRightMask);
+    // Bottom Lanes
+    for (let i = 0; i < this._tileColumnCount; i += 1) {
+      const laneMesh = createGuideLineSprite(
+        i,
+        this._tileZSpacing,
+        maxZ,
+        getGuideColor(),
+        -7
+      );
+      this._bottomTrackContainer.addChild(laneMesh);
+      this._bottomTrackMeshes.push(laneMesh);
+    }
+    const bottomJudgementContainer = new Container3D();
+    // Bottom Judgement Circles
+    const leftSpinCircleSprite = createCircleSprite(
+      this._spinGuideCircleTexture,
+      -2,
+      0.5,
+      getGuideColor(),
+      -6
+    );
+    leftSpinCircleSprite.mask = bottomTrackLeftMask;
+    bottomJudgementContainer.addChild(leftSpinCircleSprite);
+    const rightSpinCircleSprite = createCircleSprite(
+      this._spinGuideCircleTexture,
+      2,
+      0.5,
+      getGuideColor(),
+      -5
+    );
+    rightSpinCircleSprite.mask = bottomTrackRightMask;
+    bottomJudgementContainer.addChild(rightSpinCircleSprite);
+    for (let x = 0; x < this._tileColumnCount; x += 1) {
+      const guideCircleSprite = createCircleSprite(
+        this._tapGuideCircleTexture,
+        x - 1,
+        this._judgementZOffset,
+        getGuideColor(),
+        -4
+      );
+      guideCircleSprite.anchor.set(0.5, 1.0); // Center Bottom
+      bottomJudgementContainer.addChild(guideCircleSprite);
+    }
+    this._bottomIndicatorContainer.addChild(bottomJudgementContainer);
+    this._bottomIndicatorContainer.addChild(this._bottomTargetContainer);
+    this._bottomIndicatorContainer.position.z = getTargetStartZ(0.5);
+    this._bottomTrackContainer.addChild(this._bottomIndicatorContainer);
+    resizeBottomTrack(
+      this._bottomTrackContainer,
+      this._bottomTrackMeshes,
+      this._bottomTrackSprites,
+      this._followAngle,
+      this.renderer.screen.width,
+      this.renderer.screen.height
+    );
+    this._compositeContainers[this._foregroundLayer].addChild(
+      this._topTrackContainer
+    );
+    this._compositeContainers[this._foregroundLayer].addChild(
+      this._bottomTrackContainer
+    );
+    this._playerContainer = new Sprite3D(Texture.EMPTY);
+    if (this._playerContainer) {
       this._playerContainer.anchor.set(0.5, 1.0); // Center Bottom
-      this._ball = new Container3D();
-      this._ball.pivot.set(0.5, 1.0); // Center Bottom
-      this._ballMesh = Mesh3D.createSphere(this._ballMaterial);
-      this._ballMesh.pivot.set(0.5, 1.0); // Center Bottom
-      this._ballMesh.scale.x = this._ballScale;
-      this._ballMesh.scale.y = this._ballScale;
-      this._ballMesh.scale.z = this._ballScale;
-      this._ballMesh.position.y = this._ballMesh.scale.y;
-      this._ball.addChild(this._ballMesh);
-      this._playerContainer.addChild(this._ball);
-      this.stage.addChild(this._playerContainer);
+      const playerAnimationName = getAnimationName("@");
+      const playerAnimation = this._animations[playerAnimationName];
+      const playerSprite = new Sprite3D(playerAnimation);
+      if (playerSprite) {
+        playerSprite.anchor.set(0.5, 1.0); // Center Bottom
+        playerSprite.scale.x = this._playerScale;
+        playerSprite.scale.y = this._playerScale;
+        this._playerContainer.addChild(playerSprite);
+      }
+      this._compositeContainers[this._entityLayer].addChild(
+        this._playerContainer
+      );
     }
-    this._targetBeats.forEach((beat) => {
-      const targetContainer =
-        beat.s === "*"
-          ? createTargetTapContainer(
-              beat,
-              this._tileColumnCount,
-              this._tileZSpacing,
-              this._targetSpriteScale,
-              this._animations
-            )
-          : beat.s === "|"
-          ? createTargetHoldContainer(
-              beat,
-              this._tileColumnCount,
-              this._tileZSpacing,
-              this._targetSpriteScale,
-              this._animations
-            )
-          : createTargetSwipeContainer(
-              beat,
-              this._tileColumnCount,
-              this._tileZSpacing,
-              this._targetSpriteScale,
-              this._animations
-            );
-      this._targetContainers.push(targetContainer);
-      this.stage.addChild(targetContainer);
-    });
-    this._obstacleBeats.forEach((beat) => {
-      const obstacleSprite = createObstacleSprite(
-        this._animations,
-        this.ticker,
+    this._beats.forEach((beat) => {
+      const obstacleContainer = createObstacleContainer(
         beat,
         this._tileColumnCount,
         this._tileZSpacing,
-        this._obstacleScale
+        this._obstacleScale,
+        this._animations,
+        this.ticker
       );
-      obstacleSprite.z += this._obstacleSpriteZOffset;
-      obstacleSprite.tint = getFloorColor();
-      this._obstacleSprites.push(obstacleSprite);
-      this.stage.addChild(obstacleSprite);
+      this._obstacleContainers.push(obstacleContainer);
+      this._compositeContainers[this._entityLayer].addChild(obstacleContainer);
+      const targetSprite =
+        beat.hold > 0
+          ? createCircleSprite(
+              createPillTexture(this.renderer, {
+                fillColor: 0xffffff,
+                strokeColor: 0x000000,
+                strokeWidth: 2,
+                length: beat.hold * 32,
+                radius: 16 / 2,
+              }),
+              beat.x - 1,
+              -beat.z + this._judgementZOffset,
+              getLaneColor(beat.x, this._tileColumnCount),
+              -1
+            )
+          : createCircleSprite(
+              this._tapTargetCircleTexture,
+              beat.x - 1,
+              -beat.z + this._judgementZOffset,
+              getLaneColor(beat.x, this._tileColumnCount),
+              -1
+            );
+      targetSprite.anchor.set(0.5, 1.0); // Center Bottom
+      this._targetSprites.push(targetSprite);
+      this._bottomTargetContainer.addChild(targetSprite);
+    });
+    this._compositeContainers.forEach((compositeContainer) => {
+      if (compositeContainer instanceof CompositeSprite) {
+        this.stage.addChild(compositeContainer);
+      } else {
+        const compositeSprite = new CompositeSprite(this.renderer, {
+          objectToRender: compositeContainer,
+          resolution: 2,
+        });
+        this.stage.addChild(compositeSprite);
+      }
     });
   }
 
   override start(): void {
-    this.context.game.tween.add("move-camera", {
-      delay: this._cameraTransitionDelay,
-      duration: this._cameraTransitionDuration,
-      ease: this._cameraTransitionEase,
-      on: (tween) => {
-        if (this.dolly) {
-          this.dolly.target.y = tween(this._startHeight, this._followHeight);
-          this.dolly.angles.x = tween(this._startAngle, this._followAngle);
-          this.dolly.distance = tween(
-            this._startDistance,
-            this._followDistance
-          );
-        }
-      },
-    });
-
-    // Target spawn animation duration
+    const maxZ = this._beats[this._beats.length - 1]?.z ?? 0;
+    // Spawn animation duration
     const msPerBeat = 1 / this._beatsPerMS;
     const msPerUnit = msPerBeat / this._tileZSpacing;
     const spawnDurationMS = msPerUnit / this._spawnTransitionSpeed;
     const spawnDuration = spawnDurationMS / 1000;
 
-    this._targetContainers.forEach((container, i) => {
-      if (container) {
-        const beat = this._targetBeats[i];
-        const distance = (beat.z - this._spawnDistance) * this._tileZSpacing;
-        const spawnDelayMS = distance * msPerUnit;
-        const spawnDelay = spawnDelayMS / 1000;
-        // Only show sprites spawning in when they are close to the player
-        const key = `spawn-beat-${i}`;
-        if (!this.context.game.tween.get(key)) {
-          this.context.game.tween.add(key, {
-            delay: spawnDelay,
-            duration: spawnDuration,
-            ease: this._spawnTransitionEase,
-            on: (tween, p) => {
-              container.renderable = p >= 0;
-              if (container) {
-                container.alpha = tween(0, 1);
-                container.scale.x = tween(0, 1);
-                container.scale.y = tween(0, 1);
+    this._beats.forEach((beat, i) => {
+      const obstacleContainer = this._obstacleContainers[i];
+      const targetSprite = this._targetSprites[i];
+      // Fade in targets as the player approaches them
+      const spawnDistance =
+        this._tileZSpacing * (beat.z - getTargetStartZ(0.5)) + 1.5;
+      const spawnDelayMS = spawnDistance * msPerUnit;
+      const spawnDelay = spawnDelayMS / 1000;
+      const spawnKey = `spawn-obstacle-${i}`;
+      if (!this.context.game.tween.get(spawnKey)) {
+        this.context.game.tween.add(spawnKey, {
+          delay: spawnDelay,
+          duration: spawnDuration,
+          on: (tween, p) => {
+            const clampedP = Math.min(1, p);
+            if (obstacleContainer) {
+              obstacleContainer.alpha = tween(0, 1, clampedP);
+            }
+            if (targetSprite) {
+              targetSprite.alpha = tween(0, 1, clampedP);
+            }
+          },
+        });
+      }
+      // Fade out obstacles when the player passes them
+      const despawnDuration = spawnDuration / 2;
+      const despawnObstacleDistance = beat.z * this._tileZSpacing;
+      const despawnObstacleDelayMS = despawnObstacleDistance * msPerUnit;
+      const despawnObstacleDelay = despawnObstacleDelayMS / 1000;
+      const despawnObstacleKey = `despawn-obstacle-${i}`;
+      if (!this.context.game.tween.get(despawnObstacleKey)) {
+        this.context.game.tween.add(despawnObstacleKey, {
+          delay: despawnObstacleDelay,
+          duration: despawnDuration,
+          on: (tween, p) => {
+            const clampedP = Math.min(1, p);
+            if (p >= 0) {
+              if (obstacleContainer) {
+                obstacleContainer.alpha = tween(1, 0, clampedP);
               }
-            },
-          });
-        }
+            }
+          },
+        });
+      }
+      const despawnTargetDistance = (beat.z + beat.hold) * this._tileZSpacing;
+      const despawnTargetDelayMS = despawnTargetDistance * msPerUnit;
+      const despawnTargetDelay = despawnTargetDelayMS / 1000;
+      const despawnTargetKey = `despawn-target-${i}`;
+      if (!this.context.game.tween.get(despawnTargetKey)) {
+        this.context.game.tween.add(despawnTargetKey, {
+          delay: despawnTargetDelay,
+          duration: despawnDuration,
+          on: (tween, p) => {
+            const clampedP = Math.min(1, p);
+            if (p >= 0) {
+              if (targetSprite) {
+                targetSprite.alpha = tween(1, 0, clampedP);
+              }
+            }
+          },
+        });
       }
     });
+    for (let z = 0; z < maxZ; z += 2) {
+      const leftPillarSprite = this._leftPillarSprites[z];
+      const rightPillarSprite = this._rightPillarSprites[z];
+      // Fade out pillars when the player passes them
+      const despawnDuration = spawnDuration / 2;
+      const despawnDistance = z * this._tileZSpacing;
+      const despawnDelayMS = despawnDistance * msPerUnit;
+      const despawnDelay = despawnDelayMS / 1000;
+      const despawnKey = `despawn-pillar-${z}`;
+      if (!this.context.game.tween.get(despawnKey)) {
+        this.context.game.tween.add(despawnKey, {
+          delay: despawnDelay,
+          duration: despawnDuration,
+          on: (tween, p) => {
+            const clampedP = Math.min(1, p);
+            if (p >= 0) {
+              if (leftPillarSprite) {
+                leftPillarSprite.alpha = tween(1, 0, clampedP);
+              }
+              if (rightPillarSprite) {
+                rightPillarSprite.alpha = tween(1, 0, clampedP);
+              }
+            }
+          },
+        });
+      }
+    }
   }
 
   override update(deltaMS: number): boolean {
@@ -632,118 +881,83 @@ export class MainScene extends SparkScene {
     this._currentBeat += deltaBeats;
 
     // Calculate animation progress
-    const beatZ = -this._currentBeat * this._tileZSpacing;
     const animationProgress = getAnimationProgress(
       this._currentBeat,
-      this._animationSpeed,
+      this._playerAnimationSpeed,
       this._animationOffset
     );
+    const beatZ = -this._currentBeat * this._tileZSpacing;
+
+    // Highway follows beat
+    if (this._topTrackContainer) {
+      this._topTrackContainer.position.z = beatZ + 2;
+    }
+    if (this._bottomTrackContainer) {
+      this._bottomTrackContainer.position.z = beatZ + 2;
+    }
+    if (this._bottomTargetContainer) {
+      this._bottomTargetContainer.position.z = this._currentBeat;
+    }
 
     // Player follows beat
     if (this._playerContainer) {
       this._playerContainer.position.z = beatZ;
+      // Animate Player
+      const playerSprite = this._playerContainer.children[0] as Sprite3D;
+      playerSprite?.goto?.(animationProgress);
     }
 
     // Animate Obstacles
-    this._obstacleSprites.forEach((sprite) => {
-      if (sprite) {
-        const spriteZ = sprite.position.z;
-        // Sprite is behind player
-        if (spriteZ > beatZ + this._despawnDistance) {
-          // Sprite is now off camera
-          sprite.renderable = false;
-        } else {
-          // Sprite is still on camera
-          sprite.renderable = true;
-          sprite.goto(animationProgress);
+    this._obstacleContainers.forEach((container) => {
+      if (container) {
+        const sprite = container.children[0] as Sprite3D;
+        if (sprite) {
+          sprite?.goto?.(animationProgress);
         }
       }
     });
 
-    // Animate Targets and Indicator
-    for (let x = 0; x < this._upNext.length; x += 1) {
-      const row = this._upNext[x];
-      if (row) {
-        for (let y = 0; y < row.length; y += 1) {
-          this._upNext[x][y] = undefined;
-        }
-      }
-    }
-    let nextTapTargetZ = 0;
-    this._targetContainers.forEach((container, i) => {
+    let lastHoldZ = 0;
+    let lastHoldBeat: BeatInfo;
+    this._obstacleContainers.forEach((container, i) => {
       if (container) {
-        const children = container.children;
-        const beat = this._targetBeats[i];
         const spriteZ = container.position.z;
         if (spriteZ > beatZ) {
-          children.forEach((child) => {
-            // Sprite is behind player
-            if (spriteZ > beatZ + this._despawnDistance) {
-              // Sprite is now off camera
-              child.renderable = false;
-            } else {
-              // Sprite is still on camera
-              child.renderable = true;
-            }
-            if (child instanceof Sprite3D) {
-              // child.tint = getInactiveColor();
-            }
-          });
-        } else {
-          // Sprite is in front of player
-          children.forEach((child) => {
-            child.renderable = true;
-            if (child instanceof Sprite3D) {
-              // child.tint = getSpriteActiveColor(beat);
-            }
-          });
-          if (!nextTapTargetZ && spriteZ < nextTapTargetZ) {
-            nextTapTargetZ = spriteZ;
-          }
-          if (spriteZ === nextTapTargetZ) {
-            if (!this._upNext[beat.x]) {
-              this._upNext[beat.x] = [];
-            }
-            if (!this._upNext[beat.x][beat.y]) {
-              this._upNext[beat.x][beat.y] = { beat };
-            }
+          // Obstacle is behind player
+          const beat = this._beats[i];
+          if (beat && beat.s === "|" && spriteZ < lastHoldZ) {
+            lastHoldZ = spriteZ;
+            lastHoldBeat = beat;
           }
         }
       }
     });
 
-    const squishing = this.isPointerDown();
-
-    if (
-      !squishing &&
-      !this._moving &&
-      !this._overshooting &&
-      !this._rebounding
-    ) {
-      if (this._ball) {
-        // Bounce Ball
-        const ang = Math.sin(animationProgress * Math.PI);
-        const posY = Math.abs(ang);
-        this._ball.position.y = posY;
-      }
-    }
+    this._sliding =
+      lastHoldBeat &&
+      this._currentBeat >= lastHoldBeat.z - 1 &&
+      this._currentBeat < lastHoldBeat.z + lastHoldBeat.hold;
 
     if (deltaMS > 0) {
       // Only respond to input when game is not paused or rewinding
-      if (!this._overshooting && !this._rebounding) {
-        if (this._ball) {
+      if (!this._sliding && !this._overshooting && !this._rebounding) {
+        if (this._playerContainer) {
           // Squish Ball
-          const squishDelta = this._squishSpeed * deltaBeats;
-          const squishedY = squishing ? 0.5 : 1;
-          const squishedXZ = squishing ? 1.5 : 1;
-          this._ball.scale.x = lerp(
-            this._ball.scale.x,
+          const squishDelta = this._playerSquishSpeed * deltaBeats;
+          const squishedY = this._squishing ? this._playerSquishScaleY : 1;
+          const squishedXZ = this._squishing ? this._playerSquishScaleXZ : 1;
+          this._playerContainer.scale.x = lerp(
+            this._playerContainer.scale.x,
             squishedXZ,
             squishDelta
           );
-          this._ball.scale.y = lerp(this._ball.scale.y, squishedY, squishDelta);
-          this._ball.scale.z = lerp(
-            this._ball.scale.z,
+          this._playerContainer.scale.y = lerp(
+            this._playerContainer.scale.y,
+            squishedY,
+            squishDelta
+          );
+          this._playerContainer.scale.z = lerp(
+            this._playerContainer.scale.z,
             squishedXZ,
             squishDelta
           );
@@ -751,78 +965,95 @@ export class MainScene extends SparkScene {
       }
 
       if (this._rebounding) {
-        if (this._ball) {
+        if (this._playerContainer) {
           // Rebound Ball
-          const delta = this._ballReboundSpeed * deltaBeats;
+          const delta = this._playerReboundSpeed * deltaBeats;
           const ballX = this._destinationX;
-          this._ball.position.x = lerp(this._ball.position.x, ballX, delta);
-          const ballMoveDone = this._ball.position.x === ballX;
+          this._playerContainer.position.x = lerp(
+            this._playerContainer.position.x,
+            ballX,
+            delta
+          );
+          const ballMoveDone = this._playerContainer.position.x === ballX;
           const ballScaleX = 1;
           const ballScaleYZ = 1;
-          this._ball.scale.x = lerp(this._ball.scale.x, ballScaleX, delta);
-          this._ball.scale.y = lerp(this._ball.scale.y, ballScaleYZ, delta);
-          this._ball.scale.z = lerp(this._ball.scale.z, ballScaleYZ, delta);
+          this._playerContainer.scale.x = lerp(
+            this._playerContainer.scale.x,
+            ballScaleX,
+            delta
+          );
+          this._playerContainer.scale.y = lerp(
+            this._playerContainer.scale.y,
+            ballScaleYZ,
+            delta
+          );
+          this._playerContainer.scale.z = lerp(
+            this._playerContainer.scale.z,
+            ballScaleYZ,
+            delta
+          );
           const ballScaleDone =
-            this._ball.scale.x === ballScaleX &&
-            this._ball.scale.y === ballScaleYZ &&
-            this._ball.scale.z === ballScaleYZ;
+            this._playerContainer.scale.x === ballScaleX &&
+            this._playerContainer.scale.y === ballScaleYZ &&
+            this._playerContainer.scale.z === ballScaleYZ;
           if (ballMoveDone && ballScaleDone) {
             this._rebounding = false;
           }
         }
-        if (this.dolly) {
-          // Rebound Camera
-          const delta = this._cameraReboundSpeed * deltaBeats;
-          const cameraX = 0;
-          this.dolly.target.x = lerp(this.dolly.target.x, cameraX, delta);
-        }
       }
 
       if (this._overshooting) {
-        if (this._ball) {
+        if (this._playerContainer) {
           // Overshoot Ball
-          const delta = this._ballMoveSpeed * deltaBeats;
+          const delta = this._playerMoveSpeed * deltaBeats;
           const ballX =
             this._destinationX < 0
-              ? this._destinationX - this._ballOvershoot
-              : this._destinationX + this._ballOvershoot;
-          this._ball.position.x = lerp(this._ball.position.x, ballX, delta);
-          const ballMoveDone = this._ball.position.x === ballX;
+              ? this._destinationX - this._playerOvershoot
+              : this._destinationX + this._playerOvershoot;
+          this._playerContainer.position.x = lerp(
+            this._playerContainer.position.x,
+            ballX,
+            delta
+          );
+          const ballMoveDone = this._playerContainer.position.x === ballX;
           const ballScaleX = 0.5;
           const ballScaleYZ = 1.5;
-          this._ball.scale.x = lerp(this._ball.scale.x, ballScaleX, delta);
-          this._ball.scale.y = lerp(this._ball.scale.y, ballScaleYZ, delta);
-          this._ball.scale.z = lerp(this._ball.scale.z, ballScaleYZ, delta);
+          this._playerContainer.scale.x = lerp(
+            this._playerContainer.scale.x,
+            ballScaleX,
+            delta
+          );
+          this._playerContainer.scale.y = lerp(
+            this._playerContainer.scale.y,
+            ballScaleYZ,
+            delta
+          );
+          this._playerContainer.scale.z = lerp(
+            this._playerContainer.scale.z,
+            ballScaleYZ,
+            delta
+          );
           const ballScaleDone =
-            this._ball.scale.x === ballScaleX &&
-            this._ball.scale.y === ballScaleYZ &&
-            this._ball.scale.z === ballScaleYZ;
+            this._playerContainer.scale.x === ballScaleX &&
+            this._playerContainer.scale.y === ballScaleYZ &&
+            this._playerContainer.scale.z === ballScaleYZ;
           if (ballMoveDone && ballScaleDone) {
             this._overshooting = false;
             this._rebounding = true;
           }
         }
-        if (this.dolly) {
-          // Overshoot Camera
-          const delta = this._cameraMoveSpeed * deltaBeats;
-          const cameraX =
-            this._destinationX < 0
-              ? -this._cameraOvershoot
-              : this._cameraOvershoot;
-          this.dolly.target.x = lerp(this.dolly.target.x, cameraX, delta);
-        }
       }
 
       if (this._moving) {
-        if (this._ball) {
+        if (this._playerContainer) {
           // Move Ball
-          const delta = this._ballMoveSpeed * deltaBeats;
-          this._ball.position.x = lerp(
-            this._ball.position.x,
+          const delta = this._playerMoveSpeed * deltaBeats;
+          this._playerContainer.position.x = lerp(
+            this._playerContainer.position.x,
             this._destinationX,
             delta
           );
-          if (this._ball.position.x === this._destinationX) {
+          if (this._playerContainer.position.x === this._destinationX) {
             this._moving = false;
             if (this._destinationX !== 0) {
               // Only overshoot when moving into one of the side lines (not the middle lane)
@@ -833,7 +1064,7 @@ export class MainScene extends SparkScene {
       }
     }
 
-    if (this.context.game.tween.state.elapsedMS > this._cameraTransitionDelay) {
+    if (deltaMS) {
       // Camera follows beat
       this.dolly.target.y = this._followHeight;
       this.dolly.target.z = beatZ;
@@ -843,13 +1074,34 @@ export class MainScene extends SparkScene {
     return false;
   }
 
+  override resize(): void {
+    if (this._bottomTrackContainer) {
+      resizeBottomTrack(
+        this._bottomTrackContainer,
+        this._bottomTrackMeshes,
+        this._bottomTrackSprites,
+        this._followAngle,
+        this.renderer.screen.width,
+        this.renderer.screen.height
+      );
+    }
+  }
+
+  override onPointerDown(_event: PointerEvent): void {
+    this._squishing = !this._sliding;
+  }
+
+  override onPointerUp(_event: PointerEvent): void {
+    this._squishing = false;
+  }
+
   override onDragStart(
     event: PointerEvent,
     dragThreshold: number,
     distanceX: number
   ): void {
     if (
-      this._ball.position.x === this._destinationX &&
+      this._playerContainer.position.x === this._destinationX &&
       !this._moving &&
       !this._overshooting &&
       !this._rebounding

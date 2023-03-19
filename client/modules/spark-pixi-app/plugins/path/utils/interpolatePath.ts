@@ -1,10 +1,10 @@
 import { PathCommand } from "../types/Path";
 
-export const interpolate = (
+const interpolate = (
   t: number,
   a: number,
   b: number,
-  ease?: (t: number) => number
+  ease: (t: number) => number = (t: number): number => t
 ): number => {
   if (t <= 0) {
     return a;

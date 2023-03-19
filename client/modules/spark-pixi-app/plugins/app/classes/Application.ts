@@ -47,6 +47,7 @@ export class Application extends _Application {
 
   protected setupCamera(): void {
     this._dolly = new CameraOrbitControl(this.view as HTMLCanvasElement);
+    this._dolly.autoUpdate = false;
   }
 
   override stop(): void {

@@ -10,21 +10,6 @@ export interface TweenEvents extends Record<string, GameEvent> {
   onRemoved: GameEvent<{
     key: string;
   }>;
-  onPaused: GameEvent<{
-    key: string;
-  }>;
-  onUnpaused: GameEvent<{
-    key: string;
-  }>;
-  onStopped: GameEvent<{
-    key: string;
-  }>;
-  onFinished: GameEvent<{
-    key: string;
-  }>;
-  onLooped: GameEvent<{
-    key: string;
-  }>;
   onTick: GameEvent<{
     deltaMS: number;
   }>;
@@ -49,21 +34,6 @@ export class TweenManager extends Manager<
         key: string;
       }>(),
       onRemoved: new GameEvent<{
-        key: string;
-      }>(),
-      onPaused: new GameEvent<{
-        key: string;
-      }>(),
-      onUnpaused: new GameEvent<{
-        key: string;
-      }>(),
-      onStopped: new GameEvent<{
-        key: string;
-      }>(),
-      onFinished: new GameEvent<{
-        key: string;
-      }>(),
-      onLooped: new GameEvent<{
         key: string;
       }>(),
       onTick: new GameEvent<{
@@ -95,18 +65,6 @@ export class TweenManager extends Manager<
     this._events.onRemoved.emit({ key });
   }
 
-  protected clamp(x: number): number {
-    const min = 0;
-    const max = 1;
-    if (x < min) {
-      return min;
-    }
-    if (x > max) {
-      return max;
-    }
-    return x;
-  }
-
   tick(deltaMS: number): void {
     this._state.elapsedMS += deltaMS;
     this._config.timings.forEach((timing) => {
@@ -114,15 +72,13 @@ export class TweenManager extends Manager<
       const durationMS = (timing.duration ?? 0) * 1000;
       const tweenElapsedMS = this._state.elapsedMS - delayMS;
       const iteration = tweenElapsedMS / durationMS;
-      if (timing.loop || iteration <= 1) {
-        const tween = (
-          a: number,
-          b: number,
-          p?: number,
-          e?: (p: number) => number
-        ) => interpolate(p ?? iteration, a, b, e ?? timing.ease);
-        timing.on?.(tween, iteration);
-      }
+      const tween = (
+        a: number,
+        b: number,
+        p?: number,
+        e?: (p: number) => number
+      ) => interpolate(p ?? iteration, a, b, e ?? timing.ease);
+      timing.on?.(tween, iteration);
     });
     this._events.onTick.emit({ deltaMS });
   }
