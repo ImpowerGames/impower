@@ -1,84 +1,102 @@
-import { Tone } from "../../../../../spark-engine";
+import { SparkDOMSynth } from "../../../../../spark-dom";
 import { Graphics } from "../../plugins/graphics";
-import { IMediaInstance, SynthSound, WebAudioMedia } from "../../plugins/sound";
 import { SparkScene } from "../SparkScene";
 
-interface Instrument {
-  sound?: SynthSound;
-  shouldPlay?: boolean;
-}
-
 export class SoundScene extends SparkScene {
-  _instruments: Map<string, Instrument> = new Map();
+  protected _audioContext: AudioContext = new AudioContext();
 
-  axisGraphic?: Graphics;
+  protected _instruments: Map<string, SparkDOMSynth> = new Map();
 
-  waveGraphic?: Graphics;
+  protected _axisGraphic?: Graphics;
 
-  pitchGraphic?: Graphics;
+  protected _waveGraphic?: Graphics;
 
-  playheadGraphic?: Graphics;
-
-  playListeners?: (() => void)[] = [];
+  protected _playheadGraphic?: Graphics;
 
   override init(): void {
-    this.axisGraphic = new Graphics();
-    this.waveGraphic = new Graphics();
-    this.pitchGraphic = new Graphics();
-    this.playheadGraphic = new Graphics();
+    this._axisGraphic = new Graphics();
+    this._waveGraphic = new Graphics();
+    this._playheadGraphic = new Graphics();
     this.stage.addChild(
-      this.axisGraphic,
-      this.waveGraphic,
-      this.pitchGraphic,
-      this.playheadGraphic
+      this._axisGraphic,
+      this._waveGraphic,
+      this._playheadGraphic
     );
+    this.context.game.sound.config.sampleRate = this._audioContext.sampleRate;
+    this.context.game.sound.config.synths =
+      this.context.game.struct.config.objectMap?.synth || {};
   }
 
-  override start(): void {
-    this.context?.game?.synth?.events.onStop?.addListener((data) =>
-      this.stopInstrument(data)
+  override bind(): void {
+    super.bind();
+    this.context?.game?.sound?.events?.onStarted?.addListener((id, buffer) =>
+      this.start(id, buffer)
     );
-    this.context?.game?.synth?.events?.onPlay?.addListener((data) =>
-      this.playInstrument(data)
+    this.context?.game?.sound?.events?.onPaused?.addListener((id) =>
+      this.pause(id)
+    );
+    this.context?.game?.sound?.events?.onUnpaused?.addListener((id) =>
+      this.unpause(id)
+    );
+    this.context?.game?.sound?.events.onStopped?.addListener((id) =>
+      this.stop(id)
     );
   }
 
   override unbind(): void {
-    this.context?.game?.synth?.events?.onConfigure?.removeAllListeners();
-    this.context?.game?.synth?.events?.onStop?.removeAllListeners();
-    this.context?.game?.synth?.events?.onPlay?.removeAllListeners();
+    super.unbind();
+    this.context?.game?.sound?.events?.onStarted?.removeAllListeners();
+    this.context?.game?.sound?.events?.onPaused?.removeAllListeners();
+    this.context?.game?.sound?.events?.onUnpaused?.removeAllListeners();
+    this.context?.game?.sound?.events?.onStopped?.removeAllListeners();
     this._instruments.forEach((instrument) => {
-      instrument.sound.stop();
+      instrument.stop();
     });
   }
 
-  stopInstrument(data: { id: string; duration?: number }): void {
-    const instrument = this._instruments.get(data.id);
-    const media = instrument?.sound?.media as WebAudioMedia;
-    if (media) {
-      const endTime =
-        instrument.sound.context.audioContext.currentTime +
-        (data?.duration || 0);
-      media.nodes.gain.gain.linearRampToValueAtTime(0, endTime);
+  start(id: string, buffer: Float32Array): void {
+    const instrument = new SparkDOMSynth(buffer, this._audioContext);
+    instrument.start();
+    this._instruments.set(id, instrument);
+  }
+
+  pause(id: string): void {
+    const instrument = this._instruments.get(id);
+    if (instrument) {
+      instrument.pause();
     }
   }
 
-  playInstrument(data: {
-    id: string;
-    tones: Tone[];
-    onStart?: () => void;
-  }): void {
-    const instrument = this._instruments.get(data.id) || {};
-    const sound = new SynthSound(data.tones);
-    instrument.sound = sound;
-    instrument.shouldPlay = true;
-    if (data.onStart) {
-      this.playListeners.push(data.onStart);
+  unpause(id: string): void {
+    const instrument = this._instruments.get(id);
+    if (instrument) {
+      instrument.unpause();
     }
-    this._instruments.set(data.id, instrument);
   }
 
-  renderWaveform(instrument: Instrument): void {
+  stop(id: string): void {
+    const instrument = this._instruments.get(id);
+    if (instrument) {
+      instrument.stop();
+    }
+  }
+
+  override update(deltaMS: number): boolean {
+    this.context.game.sound.update(deltaMS);
+    Object.entries(this.context.game.sound.state.playbackStates).forEach(
+      ([k, v]) => {
+        const progress = v.elapsedMS / v.durationMS;
+        const instrument = this._instruments.get(k);
+        if (this.context.game.debug.state.debugging && instrument.duration) {
+          this.renderWaveform(instrument);
+          this._playheadGraphic.x = this.screen.width * progress;
+        }
+      }
+    );
+    return false;
+  }
+
+  renderWaveform(instrument: SparkDOMSynth): void {
     const factor = 0.25;
     const width = this.renderer.width;
     const height = this.renderer.height * factor;
@@ -87,21 +105,18 @@ export class SoundScene extends SparkScene {
     const startX = 0;
     const startY = height;
 
-    const soundBuffer = instrument.sound.track.soundBuffer;
-    const pitchBuffer = instrument.sound.track.pitchBuffer;
-    const minPitch = instrument.sound.track.pitchRange[0];
-    const maxPitch = instrument.sound.track.pitchRange[1];
+    const soundBuffer = instrument.soundBuffer;
 
     const waveStartY = startY + soundBuffer[0];
 
-    this.axisGraphic.clear();
-    this.axisGraphic.lineStyle(1, 0xff0000);
-    this.axisGraphic.moveTo(startX, waveStartY);
-    this.axisGraphic.lineTo(endX, waveStartY);
+    this._axisGraphic.clear();
+    this._axisGraphic.lineStyle(1, 0xff0000);
+    this._axisGraphic.moveTo(startX, waveStartY);
+    this._axisGraphic.lineTo(endX, waveStartY);
 
-    this.waveGraphic.clear();
-    this.waveGraphic.lineStyle(1, 0xffffff);
-    this.waveGraphic.moveTo(startX, waveStartY);
+    this._waveGraphic.clear();
+    this._waveGraphic.lineStyle(1, 0xffffff);
+    this._waveGraphic.moveTo(startX, waveStartY);
     if (soundBuffer) {
       for (let x = startX; x < endX; x += 1) {
         const timeProgress = (x - startX) / (endX - 1);
@@ -109,57 +124,13 @@ export class SoundScene extends SparkScene {
         const val = soundBuffer[bufferIndex];
         const delta = val * 100;
         const y = waveStartY + delta;
-        this.waveGraphic.lineTo(x, y);
+        this._waveGraphic.lineTo(x, y);
       }
     }
 
-    this.pitchGraphic.clear();
-    this.pitchGraphic.lineStyle(2, 0x0000ff);
-    this.pitchGraphic.moveTo(startX, waveStartY);
-    if (pitchBuffer) {
-      for (let x = startX; x < endX; x += 1) {
-        const timeProgress = (x - startX) / (endX - 1);
-        const bufferIndex = Math.floor(timeProgress * (pitchBuffer.length - 1));
-        const val = pitchBuffer[bufferIndex];
-        if (val === 0) {
-          this.pitchGraphic.moveTo(x, waveStartY);
-        } else {
-          const mag =
-            maxPitch === minPitch
-              ? 0.5
-              : (val - minPitch) / (maxPitch - minPitch);
-          const delta = mag * (height / 2);
-          const y = waveStartY - delta;
-          this.pitchGraphic.lineTo(x, y);
-        }
-      }
-    }
-
-    this.playheadGraphic.clear();
-    this.playheadGraphic
+    this._playheadGraphic.clear();
+    this._playheadGraphic
       .beginFill(0xff0000)
       .drawRect(0, 0, 1, this.renderer.height);
-  }
-
-  override update(_deltaMS: number): boolean {
-    this._instruments.forEach((instrument) => {
-      if (instrument.shouldPlay) {
-        instrument.shouldPlay = false;
-        if (this.playListeners.length > 0) {
-          this.playListeners.forEach((listener) => listener?.());
-          this.playListeners = [];
-        }
-        const instance = instrument.sound.play() as IMediaInstance;
-        if (this.context.game.debug.state.debugging) {
-          this.renderWaveform(instrument);
-          instance.on("progress", (progress) => {
-            if (this.playheadGraphic) {
-              this.playheadGraphic.x = this.screen.width * progress;
-            }
-          });
-        }
-      }
-    });
-    return false;
   }
 }

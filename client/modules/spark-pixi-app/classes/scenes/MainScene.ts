@@ -9,7 +9,11 @@ import {
 import { generateSpritesheet } from "../../plugins/animation";
 import { Application } from "../../plugins/app";
 import { Renderer, Texture } from "../../plugins/core";
-import { createCircleTexture, createPillTexture } from "../../plugins/graphics";
+import {
+  createCircleTexture,
+  createLineTexture,
+  createPillTexture,
+} from "../../plugins/graphics";
 import {
   Color,
   CompositeSprite,
@@ -21,7 +25,11 @@ import {
 import { Ticker } from "../../plugins/ticker";
 import { SparkScene } from "../SparkScene";
 
-type BeatInfo = Beat & { hold?: number };
+type BeatInfo = Beat & {
+  hold?: number;
+  spawn?: number;
+  despawn?: number;
+};
 
 const lerp = (curr: number, target: number, delta: number): number => {
   return curr > target
@@ -268,7 +276,7 @@ const createGuideLineSprite = (
   return mesh;
 };
 
-const createCircleSprite = (
+const createBottomSprite = (
   texture: Texture,
   x: number,
   z: number,
@@ -417,6 +425,12 @@ export class MainScene extends SparkScene {
 
   private _tapTargetCircleTexture: Texture;
 
+  private _swipeUpArrowTexture: Texture;
+
+  private _swipeLeftArrowTexture: Texture;
+
+  private _swipeRightArrowTexture: Texture;
+
   private _spinGuideCircleTexture: Texture;
 
   private _beatsPerMS = 120 * 1000;
@@ -456,10 +470,15 @@ export class MainScene extends SparkScene {
     const rows: BeatInfo[] = [];
     beats.forEach((beat) => {
       const prevMatchingBeat = rows[beat.x];
-      if (beat.s === "|" && prevMatchingBeat) {
-        if (!prevMatchingBeat.hold) {
-          prevMatchingBeat.hold = 1;
-        }
+      if (
+        (beat.s === "^" || beat.s === "<" || beat.s === ">") &&
+        prevMatchingBeat
+      ) {
+        beat.spawn = -prevMatchingBeat.hold;
+        beat.hold = 0;
+        this._beats.push(beat);
+        rows[beat.x] = beat;
+      } else if (beat.s === "|" && prevMatchingBeat) {
         prevMatchingBeat.hold += 1;
       } else {
         beat.hold = 0;
@@ -531,6 +550,42 @@ export class MainScene extends SparkScene {
       strokeColor: 0x000000,
       strokeWidth: 2,
       radius: 16 / 2,
+    });
+    this._swipeUpArrowTexture = createLineTexture(this.renderer, {
+      thickness: 2,
+      fillColor: 0xffffff,
+      strokeColor: 0x000000,
+      strokeWidth: 0.5,
+      max: [16, 16],
+      points: [
+        [5, 8.5],
+        [8, 4.5],
+        [11, 8.5],
+      ],
+    });
+    this._swipeLeftArrowTexture = createLineTexture(this.renderer, {
+      thickness: 2,
+      fillColor: 0xffffff,
+      strokeColor: 0x000000,
+      strokeWidth: 0.5,
+      max: [16, 16],
+      points: [
+        [9, 10],
+        [5, 7],
+        [9, 4],
+      ],
+    });
+    this._swipeRightArrowTexture = createLineTexture(this.renderer, {
+      thickness: 2,
+      fillColor: 0xffffff,
+      strokeColor: 0x000000,
+      strokeWidth: 0.5,
+      max: [16, 16],
+      points: [
+        [7, 4],
+        [11, 7],
+        [7, 10],
+      ],
     });
     // Highway
     this._compositeContainers = [
@@ -662,7 +717,7 @@ export class MainScene extends SparkScene {
     }
     const bottomJudgementContainer = new Container3D();
     // Bottom Judgement Circles
-    const leftSpinCircleSprite = createCircleSprite(
+    const leftSpinCircleSprite = createBottomSprite(
       this._spinGuideCircleTexture,
       -2,
       0.5,
@@ -671,7 +726,7 @@ export class MainScene extends SparkScene {
     );
     leftSpinCircleSprite.mask = bottomTrackLeftMask;
     bottomJudgementContainer.addChild(leftSpinCircleSprite);
-    const rightSpinCircleSprite = createCircleSprite(
+    const rightSpinCircleSprite = createBottomSprite(
       this._spinGuideCircleTexture,
       2,
       0.5,
@@ -681,7 +736,7 @@ export class MainScene extends SparkScene {
     rightSpinCircleSprite.mask = bottomTrackRightMask;
     bottomJudgementContainer.addChild(rightSpinCircleSprite);
     for (let x = 0; x < this._tileColumnCount; x += 1) {
-      const guideCircleSprite = createCircleSprite(
+      const guideCircleSprite = createBottomSprite(
         this._tapGuideCircleTexture,
         x - 1,
         this._judgementZOffset,
@@ -736,9 +791,17 @@ export class MainScene extends SparkScene {
       );
       this._obstacleContainers.push(obstacleContainer);
       this._compositeContainers[this._entityLayer].addChild(obstacleContainer);
+      const x = beat.x - 1;
+      const z = -beat.z + this._judgementZOffset;
       const targetSprite =
-        beat.hold > 0
-          ? createCircleSprite(
+        beat.s === "^"
+          ? createBottomSprite(this._swipeUpArrowTexture, x, z, 0xffffff, 0)
+          : beat.s === ">"
+          ? createBottomSprite(this._swipeRightArrowTexture, x, z, 0xffffff, 0)
+          : beat.s === "<"
+          ? createBottomSprite(this._swipeLeftArrowTexture, x, z, 0xffffff, 0)
+          : beat.hold > 0
+          ? createBottomSprite(
               createPillTexture(this.renderer, {
                 fillColor: 0xffffff,
                 strokeColor: 0x000000,
@@ -746,15 +809,15 @@ export class MainScene extends SparkScene {
                 length: beat.hold * 32,
                 radius: 16 / 2,
               }),
-              beat.x - 1,
-              -beat.z + this._judgementZOffset,
+              x,
+              z,
               getLaneColor(beat.x, this._tileColumnCount),
               -1
             )
-          : createCircleSprite(
+          : createBottomSprite(
               this._tapTargetCircleTexture,
-              beat.x - 1,
-              -beat.z + this._judgementZOffset,
+              x,
+              z,
               getLaneColor(beat.x, this._tileColumnCount),
               -1
             );
@@ -773,10 +836,6 @@ export class MainScene extends SparkScene {
         this.stage.addChild(compositeSprite);
       }
     });
-  }
-
-  override start(): void {
-    const maxZ = this._beats[this._beats.length - 1]?.z ?? 0;
     // Spawn animation duration
     const msPerBeat = 1 / this._beatsPerMS;
     const msPerUnit = msPerBeat / this._tileZSpacing;
@@ -788,7 +847,9 @@ export class MainScene extends SparkScene {
       const targetSprite = this._targetSprites[i];
       // Fade in targets as the player approaches them
       const spawnDistance =
-        this._tileZSpacing * (beat.z - getTargetStartZ(0.5)) + 1.5;
+        this._tileZSpacing *
+          (beat.z + (beat.spawn ?? 0) - getTargetStartZ(0.5)) +
+        1.5;
       const spawnDelayMS = spawnDistance * msPerUnit;
       const spawnDelay = spawnDelayMS / 1000;
       const spawnKey = `spawn-obstacle-${i}`;
@@ -809,7 +870,8 @@ export class MainScene extends SparkScene {
       }
       // Fade out obstacles when the player passes them
       const despawnDuration = spawnDuration / 2;
-      const despawnObstacleDistance = beat.z * this._tileZSpacing;
+      const despawnObstacleDistance =
+        (beat.z + (beat.despawn ?? 0)) * this._tileZSpacing;
       const despawnObstacleDelayMS = despawnObstacleDistance * msPerUnit;
       const despawnObstacleDelay = despawnObstacleDelayMS / 1000;
       const despawnObstacleKey = `despawn-obstacle-${i}`;
@@ -827,7 +889,8 @@ export class MainScene extends SparkScene {
           },
         });
       }
-      const despawnTargetDistance = (beat.z + beat.hold) * this._tileZSpacing;
+      const despawnTargetDistance =
+        (beat.z + beat.hold + beat.despawn) * this._tileZSpacing;
       const despawnTargetDelayMS = despawnTargetDistance * msPerUnit;
       const despawnTargetDelay = despawnTargetDelayMS / 1000;
       const despawnTargetKey = `despawn-target-${i}`;

@@ -25,7 +25,7 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   animation: "\n@ animation ${AnimationName}:\n  ${}",
   display: "\n@ display ${type}:\n  ${}",
   typewriter: "\n@ typewriter ${TypewriterName}:\n  ${}",
-  sound: "\n@ sound ${SoundName}:\n  ${}",
+  synth: "\n@ synth ${SynthName}:\n  ${}",
   preset: "\n@ preset ${PresetName}:\n  ${}",
 
   image: "[[${imageName}]]\n${}",

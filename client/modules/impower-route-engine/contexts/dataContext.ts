@@ -2,8 +2,8 @@ import React from "react";
 import { GameEvent } from "../../../../spark-engine";
 
 export interface DataEvents {
-  onOpenData: GameEvent<{ id: string }>;
-  onFocusData: GameEvent<{ ids: string[]; instant?: boolean }>;
+  onOpenData: GameEvent<[string]>;
+  onFocusData: GameEvent<[string[], undefined | boolean]>;
 }
 
 export interface DataContextState {
@@ -12,8 +12,8 @@ export interface DataContextState {
 
 export const createDataContextState = (): DataContextState => ({
   events: {
-    onOpenData: new GameEvent<{ id: string }>(),
-    onFocusData: new GameEvent<{ ids: string[]; instant?: boolean }>(),
+    onOpenData: new GameEvent<[string]>(),
+    onFocusData: new GameEvent<[string[], undefined | boolean]>(),
   },
 });
 

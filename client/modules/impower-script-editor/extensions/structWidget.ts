@@ -15,8 +15,8 @@ import {
   Graphic,
   lerp,
   setProperty,
-  Sound,
   STRUCT_DEFAULTS,
+  Synth,
   synthesizeSound,
 } from "../../../../spark-engine";
 import {
@@ -148,18 +148,18 @@ const zoom = (
   pan(prevXOffset + deltaX);
 };
 
-const getDuration = (sound: Sound): number => {
+const getDuration = (synth: Synth): number => {
   return (
-    sound.amplitude.delay +
-    sound.amplitude.attack +
-    sound.amplitude.decay +
-    sound.amplitude.sustain +
-    sound.amplitude.release
+    synth.amplitude.delay +
+    synth.amplitude.attack +
+    synth.amplitude.decay +
+    synth.amplitude.sustain +
+    synth.amplitude.release
   );
 };
 
-const getLength = (sound: Sound, sampleRate: number): number => {
-  const duration = getDuration(sound);
+const getLength = (synth: Synth, sampleRate: number): number => {
+  const duration = getDuration(synth);
   return Math.max(1, sampleRate * duration);
 };
 
@@ -616,7 +616,7 @@ const autofillStruct = (
 
 const updateSoundPreview = (
   structName: string,
-  sound: Sound,
+  synth: Synth,
   sampleRate: number,
   state: {
     soundBuffer?: Float32Array;
@@ -628,7 +628,7 @@ const updateSoundPreview = (
   draw: () => void
 ): void => {
   synthesizeSound(
-    sound,
+    synth,
     false,
     false,
     sampleRate,
@@ -852,7 +852,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
             structObj: unknown
           ): void => {
             if (structType === "sound") {
-              const sound = structObj as Sound;
+              const sound = structObj as Synth;
               const sampleRate = AUDIO_CONTEXT.sampleRate;
               const length = getLength(sound, sampleRate);
               soundState.soundBuffer = new Float32Array(length);

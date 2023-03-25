@@ -11,10 +11,11 @@ import {
   PhysicsState,
 } from "./physics/classes/PhysicsManager";
 import {
-  SynthConfig,
-  SynthManager,
-  SynthState,
-} from "./synth/classes/SynthManager";
+  SoundConfig,
+  SoundManager,
+  SoundState,
+} from "./sound/classes/SoundManager";
+import { TweenConfig, TweenManager, TweenState } from "./tween";
 import {
   WorldConfig,
   WorldManager,
@@ -28,7 +29,8 @@ import {
 
 export interface SparkGameConfig extends GameConfig {
   input?: Partial<InputConfig>;
-  synth?: Partial<SynthConfig>;
+  tween?: Partial<TweenConfig>;
+  sound?: Partial<SoundConfig>;
   writer?: Partial<WriterConfig>;
   world?: Partial<WorldConfig>;
   physics?: Partial<PhysicsConfig>;
@@ -36,7 +38,8 @@ export interface SparkGameConfig extends GameConfig {
 
 export interface SparkGameState extends GameState {
   input?: Partial<InputState>;
-  synth?: Partial<SynthState>;
+  tween?: Partial<TweenState>;
+  sound?: Partial<SoundState>;
   writer?: Partial<WriterState>;
   world?: Partial<WorldState>;
   physics?: Partial<PhysicsState>;
@@ -44,7 +47,8 @@ export interface SparkGameState extends GameState {
 
 export class SparkGame extends Game {
   input: InputManager;
-  synth: SynthManager;
+  tween: TweenManager;
+  sound: SoundManager;
   writer: WriterManager;
   world: WorldManager;
   physics: PhysicsManager;
@@ -55,7 +59,8 @@ export class SparkGame extends Game {
   ) {
     super(config, state);
     this.input = new InputManager(config?.input, state?.input);
-    this.synth = new SynthManager(config?.synth, state?.synth);
+    this.tween = new TweenManager(config?.tween, state?.tween);
+    this.sound = new SoundManager(config?.sound, state?.sound);
     this.writer = new WriterManager(config?.writer, state?.writer);
     this.world = new WorldManager(config?.world, state?.world);
     this.physics = new PhysicsManager(config?.physics, state?.physics);
@@ -64,7 +69,8 @@ export class SparkGame extends Game {
   override managers(): Record<string, Manager> {
     return {
       input: this.input,
-      synth: this.synth,
+      tween: this.tween,
+      sound: this.sound,
       writer: this.writer,
       world: this.world,
       physics: this.physics,

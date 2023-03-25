@@ -1,13 +1,15 @@
 import { IGameEvent } from "../types/IGameEvent";
 
-export class GameEvent<T = any> implements IGameEvent<T> {
-  private handlers: { (data: T): void }[] = [];
+export class GameEvent<T extends unknown[] = any[]> implements IGameEvent<T> {
+  constructor() {}
 
-  public addListener(handler: { (data: T): void }): void {
+  private handlers: { (...args: T): void }[] = [];
+
+  public addListener(handler: { (...args: T): void }): void {
     this.handlers.push(handler);
   }
 
-  public removeListener(handler: { (data: T): void }): void {
+  public removeListener(handler: { (...args: T): void }): void {
     this.handlers = this.handlers.filter((h) => h !== handler);
   }
 
@@ -15,7 +17,7 @@ export class GameEvent<T = any> implements IGameEvent<T> {
     this.handlers = [];
   }
 
-  public emit(data?: T): void {
-    this.handlers.slice(0).forEach((h) => h(data as T));
+  public emit(...args: T): void {
+    this.handlers.slice(0).forEach((h) => h(...args));
   }
 }

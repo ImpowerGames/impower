@@ -108,7 +108,6 @@
     "@pixi/prepare": "^7.2.0",
     "@pixi/runner": "^7.2.0",
     "@pixi/settings": "^7.2.0",
-    "@pixi/sound": "^5.1.1",
     "@pixi/sprite": "^7.2.0",
     "@pixi/sprite-tiling": "^7.2.0",
     "@pixi/spritesheet": "^7.2.0",

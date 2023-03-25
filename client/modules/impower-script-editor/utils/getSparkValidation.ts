@@ -7,8 +7,8 @@ import {
   GRAPHIC_VALIDATION,
   RecursiveValidation,
   SHADOW_VALIDATION,
-  SOUND_VALIDATION,
   STYLE_VALIDATION,
+  SYNTH_VALIDATION,
   THEME_VALIDATION,
   WRITER_VALIDATION,
 } from "../../../../spark-engine/src/inspector";
@@ -50,7 +50,7 @@ export const getSparkValidation = (
     return WRITER_VALIDATION;
   }
   if (type === "sound") {
-    return SOUND_VALIDATION;
+    return SYNTH_VALIDATION;
   }
   return undefined;
 };

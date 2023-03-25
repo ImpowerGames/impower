@@ -141,18 +141,13 @@ export class Context<
     this.game.init();
   }
 
-  async start(): Promise<void> {
-    await this.game.start();
-  }
-
   end(): void {
     this.game.destroy();
   }
 
   update(deltaMS: number): boolean {
     if (deltaMS) {
-      this.game.tween.tick(deltaMS);
-      this.game.ticker.tick(deltaMS);
+      this.game.update(deltaMS);
       this.runner.commandRunners.forEach((r) => {
         r.onUpdate(this.game, deltaMS);
       });

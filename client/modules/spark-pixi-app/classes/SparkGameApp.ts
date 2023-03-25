@@ -102,17 +102,8 @@ export class SparkGameApp {
         scene.bind();
       }
     });
-    this.scenes.forEach((scene) => {
-      if (scene?.stage) {
-        scene.start();
-      }
-    });
 
     this.app?.ticker?.add(this.onUpdate, this);
-
-    if (this.context) {
-      await this.context.start();
-    }
 
     try {
       if (startTicker) {

@@ -3,7 +3,6 @@ import { LogicConfig, LogicManager, LogicState } from "../../logic";
 import { RandomConfig, RandomManager, RandomState } from "../../random";
 import { StructConfig, StructManager, StructState } from "../../struct";
 import { TickerConfig, TickerManager, TickerState } from "../../ticker";
-import { TweenConfig, TweenManager, TweenState } from "../../tween";
 import { UIConfig, UIManager, UIState } from "../../ui";
 import { ListenOnly } from "../types/ListenOnly";
 import { GameEvent } from "./GameEvent";
@@ -16,7 +15,6 @@ export interface GameEvents extends Record<string, GameEvent> {
 
 export interface GameConfig {
   ticker?: Partial<TickerConfig>;
-  tween?: Partial<TweenConfig>;
   struct?: Partial<StructConfig>;
   ui?: Partial<UIConfig>;
   random?: Partial<RandomConfig>;
@@ -26,7 +24,6 @@ export interface GameConfig {
 
 export interface GameState {
   ticker?: Partial<TickerState>;
-  tween?: Partial<TweenState>;
   struct?: Partial<StructState>;
   ui?: Partial<UIState>;
   random?: Partial<RandomState>;
@@ -36,8 +33,6 @@ export interface GameState {
 
 export class Game {
   ticker: TickerManager;
-
-  tween: TweenManager;
 
   struct: StructManager;
 
@@ -51,7 +46,6 @@ export class Game {
 
   constructor(config?: Partial<GameConfig>, state?: Partial<GameState>) {
     this.ticker = new TickerManager(config?.ticker, state?.ticker);
-    this.tween = new TweenManager(config?.tween, state?.tween);
     this.struct = new StructManager(config?.struct, state?.struct);
     this.ui = new UIManager(config?.ui, state?.ui);
     this.random = new RandomManager(config?.random, state?.random);
@@ -62,7 +56,6 @@ export class Game {
   managers(): Record<string, Manager> {
     return {
       ticker: this.ticker,
-      tween: this.tween,
       struct: this.struct,
       ui: this.ui,
       random: this.random,
@@ -85,8 +78,10 @@ export class Game {
     this._events.onInit.emit();
   }
 
-  async start(): Promise<void> {
-    await Promise.all(Object.values(this.managers()).map((m) => m.start()));
+  update(deltaMS: number): void {
+    Object.values(this.managers()).forEach((manager) => {
+      manager.update(deltaMS);
+    });
   }
 
   destroy(): void {

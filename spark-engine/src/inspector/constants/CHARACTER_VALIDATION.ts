@@ -1,6 +1,6 @@
 import { Character, Inflection } from "../../game";
 import { RecursiveValidation } from "../types/RecursiveValidation";
-import { SOUND_VALIDATION } from "./SOUND_VALIDATION";
+import { SYNTH_VALIDATION } from "./SYNTH_VALIDATION";
 
 const STRESS_VALIDATION: RecursiveValidation<Inflection> = {
   phraseSlope: [0.01, 0, 1],
@@ -37,5 +37,5 @@ export const CHARACTER_VALIDATION: RecursiveValidation<Character> = {
   prosody: {
     maxSyllableLength: [1, 1, 5],
   },
-  voiceSound: SOUND_VALIDATION,
+  voiceSound: SYNTH_VALIDATION,
 };

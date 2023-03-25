@@ -11,11 +11,12 @@ import {
 import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
 import {
+  convertNoteToHertz,
   getAllProperties,
   Note,
   Pitch,
   STRUCT_DEFAULTS,
-  SynthTrack,
+  SynthBuffer,
   Tone,
 } from "../../../../spark-engine";
 import {
@@ -48,8 +49,8 @@ const CURSOR = CURSOR_OPEN + CURSOR_CLOSE;
 const context = new AudioContext();
 
 const playTone = (note: Note, duration: number): void => {
-  const tone: Tone = { time: 0, duration, note };
-  const track = new SynthTrack([tone], context.sampleRate);
+  const tone: Tone = { time: 0, duration, hertz: convertNoteToHertz(note) };
+  const track = new SynthBuffer(context.sampleRate, tone);
   const buffer = context.createBuffer(
     1,
     track.durationInSamples,

@@ -12,7 +12,7 @@ const DEFAULT_STYLE_CLASS_NAME = "spark-style";
 const DEFAULT_CREATE_ELEMENT = (id: string) => new Element(id);
 
 export interface UIEvents extends Record<string, GameEvent> {
-  onCreateElement: GameEvent<{ id: string; type: string }>;
+  onCreateElement: GameEvent<[string, string]>;
 }
 
 export interface UIConfig {
@@ -29,10 +29,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
   constructor(config?: Partial<UIConfig>, state?: Partial<UIState>) {
     const initialEvents: UIEvents = {
-      onCreateElement: new GameEvent<{
-        id: string;
-        type: string;
-      }>(),
+      onCreateElement: new GameEvent<[string, string]>(),
     };
     const initialConfig: UIConfig = {
       styleClassName: DEFAULT_STYLE_CLASS_NAME,
@@ -242,7 +239,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         newEl.className = this.getName(newEl.id);
       }
     }
-    this._events.onCreateElement.emit({ type, id: newEl.id });
+    this._events.onCreateElement.emit(type, newEl.id);
     return newEl;
   }
 

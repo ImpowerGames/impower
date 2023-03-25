@@ -244,11 +244,6 @@ const myHighlightStyle = HighlightStyle.define([
   { tag: t.invalid, color: colors.invalid },
 ]);
 
-// Ensure spaces aren't deleted after pressing Enter at the end of a line that only has spaces
-const modifiedDefaultKeymap = [
-  ...defaultKeymap.filter((x) => x.key !== "Enter"),
-];
-
 export const basicSetup: Extension = ((): Extension[] => [
   lineNumbers(),
   highlightActiveLineGutter(),
@@ -269,7 +264,7 @@ export const basicSetup: Extension = ((): Extension[] => [
   highlightSelectionMatches(),
   keymap.of([
     ...closeBracketsKeymap,
-    ...modifiedDefaultKeymap,
+    ...defaultKeymap,
     ...searchKeymap,
     ...historyKeymap,
     ...foldKeymap,

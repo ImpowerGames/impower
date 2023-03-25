@@ -8,8 +8,8 @@ import {
   GRAPHIC_DEFAULTS,
   IMAGE_DEFAULTS,
   SHADOW_DEFAULTS,
-  SOUND_DEFAULTS,
   STYLE_DEFAULTS,
+  SYNTH_DEFAULTS,
   TEXT_DEFAULTS,
   THEME_DEFAULTS,
   UI_DEFAULTS,
@@ -35,5 +35,5 @@ export const STRUCT_DEFAULTS: Record<string, Record<string, object>> = {
   ui: UI_DEFAULTS,
   character: CHARACTER_DEFAULTS,
   writer: WRITER_DEFAULTS,
-  sound: SOUND_DEFAULTS,
+  synth: SYNTH_DEFAULTS,
 };

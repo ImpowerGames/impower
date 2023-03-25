@@ -113,10 +113,6 @@ export class SparkScene {
     // NoOp
   }
 
-  start(): void {
-    // NoOp
-  }
-
   update(_delta?: number): boolean {
     // NoOp
     return false;

@@ -16,7 +16,7 @@ export abstract class Manager<
 
   protected _config: C;
 
-  public get config(): ReadOnly<C> {
+  public get config(): C {
     return this._config;
   }
 
@@ -34,7 +34,7 @@ export abstract class Manager<
 
   init(): void {}
 
-  async start(): Promise<void> {}
+  update(_deltaMS: number): void {}
 
   destroy(): void {
     Object.values(this.events as unknown as Record<string, GameEvent>).forEach(

@@ -9,8 +9,6 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
 > {
   autoDelay = 0.5;
 
-  fadeOutDuration = 0.025;
-
   down = false;
 
   wasPressed = false;
@@ -100,14 +98,13 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
         // So that it doesn't crackle when cut short
         const elapsedSeconds = timeMS / 1000;
         const elapsed = elapsedSeconds - stoppedAt;
-        if (elapsed > this.fadeOutDuration) {
+        if (elapsed > 0.03) {
           this.wasTyped = true;
         }
       };
       executeDisplayCommand(game, data, {
         ...context,
         instant: true,
-        fadeOutDuration: this.fadeOutDuration,
       });
     }
     return false;

@@ -6,97 +6,157 @@ import { VariableState } from "../types/VariableState";
 import { createBlockState } from "../utils/createBlockState";
 
 export interface LogicEvents extends Record<string, GameEvent> {
-  onLoadBlock: GameEvent<{ from?: number; line?: number; blockId: string }>;
-  onUnloadBlock: GameEvent<{ from?: number; line?: number; blockId: string }>;
-  onUpdateBlock: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-    deltaMS: number;
-  }>;
-  onChangeActiveParentBlock: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-  }>;
-  onExecuteBlock: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-    executedByBlockId: string | null;
-    value: number;
-  }>;
-  onFinishBlock: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-    executedByBlockId: string | null;
-  }>;
-  onEnterBlock: GameEvent<{ from?: number; line?: number; blockId: string }>;
-  onStopBlock: GameEvent<{ from?: number; line?: number; blockId: string }>;
-  onReturnFromBlock: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-  }>;
-  onCheckTriggers: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-    shouldExecute: boolean;
-    satisfiedTriggers: string[];
-    unsatisfiedTriggers: string[];
-  }>;
-  onExecuteCommand: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-    commandId: string;
-    commandIndex: number;
-  }>;
-  onChooseChoice: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-    commandId: string;
-    commandIndex: number;
-  }>;
-  onFinishCommand: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-    commandId: string;
-    commandIndex: number;
-  }>;
-  onGoToCommandIndex: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-    index: number;
-  }>;
-  onCommandJumpStackPush: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-    indices: number[];
-  }>;
-  onCommandJumpStackPop: GameEvent<{
-    from?: number;
-    line?: number;
-    blockId: string;
-  }>;
-  onSetVariableValue: GameEvent<{
-    from?: number;
-    line?: number;
-    variableId: string;
-    value: unknown;
-  }>;
-  onLoadAsset: GameEvent<{
-    assetId: string;
-  }>;
-  onUnloadAsset: GameEvent<{
-    assetId: string;
-  }>;
+  onLoadBlock: GameEvent<[{ from?: number; line?: number; blockId: string }]>;
+  onUnloadBlock: GameEvent<[{ from?: number; line?: number; blockId: string }]>;
+  onUpdateBlock: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+        deltaMS: number;
+      }
+    ]
+  >;
+  onChangeActiveParentBlock: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+      }
+    ]
+  >;
+  onExecuteBlock: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+        executedByBlockId: string | null;
+        value: number;
+      }
+    ]
+  >;
+  onFinishBlock: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+        executedByBlockId: string | null;
+      }
+    ]
+  >;
+  onEnterBlock: GameEvent<[{ from?: number; line?: number; blockId: string }]>;
+  onStopBlock: GameEvent<[{ from?: number; line?: number; blockId: string }]>;
+  onReturnFromBlock: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+      }
+    ]
+  >;
+  onCheckTriggers: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+        shouldExecute: boolean;
+        satisfiedTriggers: string[];
+        unsatisfiedTriggers: string[];
+      }
+    ]
+  >;
+  onExecuteCommand: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+        commandId: string;
+        commandIndex: number;
+      }
+    ]
+  >;
+  onChooseChoice: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+        commandId: string;
+        commandIndex: number;
+      }
+    ]
+  >;
+  onFinishCommand: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+        commandId: string;
+        commandIndex: number;
+      }
+    ]
+  >;
+  onGoToCommandIndex: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+        index: number;
+      }
+    ]
+  >;
+  onCommandJumpStackPush: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+        indices: number[];
+      }
+    ]
+  >;
+  onCommandJumpStackPop: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        blockId: string;
+      }
+    ]
+  >;
+  onSetVariableValue: GameEvent<
+    [
+      {
+        from?: number;
+        line?: number;
+        variableId: string;
+        value: unknown;
+      }
+    ]
+  >;
+  onLoadAsset: GameEvent<
+    [
+      {
+        assetId: string;
+      }
+    ]
+  >;
+  onUnloadAsset: GameEvent<
+    [
+      {
+        assetId: string;
+      }
+    ]
+  >;
 }
 
 export interface LogicConfig {
@@ -110,8 +170,8 @@ export interface LogicState {
   changedVariables: string[];
   loadedBlockIds: string[];
   loadedAssetIds: string[];
-  blockStates: { [blockId: string]: BlockState };
-  variableStates: { [variableId: string]: VariableState };
+  blockStates: Record<string, BlockState>;
+  variableStates: Record<string, VariableState>;
 }
 
 export class LogicManager extends Manager<
@@ -121,113 +181,189 @@ export class LogicManager extends Manager<
 > {
   constructor(config?: Partial<LogicConfig>, state?: Partial<LogicState>) {
     const initialEvents: LogicEvents = {
-      onLoadBlock: new GameEvent<{
-        blockId: string;
-        from?: number;
-        line?: number;
-      }>(),
-      onUnloadBlock: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-      }>(),
-      onUpdateBlock: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-        deltaMS: number;
-      }>(),
-      onExecuteBlock: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-        executedByBlockId: string | null;
-        value: number;
-      }>(),
-      onFinishBlock: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-        executedByBlockId: string | null;
-      }>(),
-      onChangeActiveParentBlock: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-      }>(),
-      onEnterBlock: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-      }>(),
-      onStopBlock: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-      }>(),
-      onReturnFromBlock: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-      }>(),
-      onCheckTriggers: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-        shouldExecute: boolean;
-        satisfiedTriggers: string[];
-        unsatisfiedTriggers: string[];
-      }>(),
-      onExecuteCommand: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-        commandId: string;
-        commandIndex: number;
-      }>(),
-      onChooseChoice: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-        commandId: string;
-        commandIndex: number;
-      }>(),
-      onFinishCommand: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-        commandId: string;
-        commandIndex: number;
-      }>(),
-      onGoToCommandIndex: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-        index: number;
-      }>(),
-      onCommandJumpStackPush: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-        indices: number[];
-      }>(),
-      onCommandJumpStackPop: new GameEvent<{
-        from?: number;
-        line?: number;
-        blockId: string;
-      }>(),
-      onSetVariableValue: new GameEvent<{
-        from?: number;
-        line?: number;
-        variableId: string;
-        value: unknown;
-      }>(),
-      onLoadAsset: new GameEvent<{
-        assetId: string;
-      }>(),
-      onUnloadAsset: new GameEvent<{
-        assetId: string;
-      }>(),
+      onLoadBlock: new GameEvent<
+        [
+          {
+            blockId: string;
+            from?: number;
+            line?: number;
+          }
+        ]
+      >(),
+      onUnloadBlock: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+          }
+        ]
+      >(),
+      onUpdateBlock: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+            deltaMS: number;
+          }
+        ]
+      >(),
+      onExecuteBlock: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+            executedByBlockId: string | null;
+            value: number;
+          }
+        ]
+      >(),
+      onFinishBlock: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+            executedByBlockId: string | null;
+          }
+        ]
+      >(),
+      onChangeActiveParentBlock: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+          }
+        ]
+      >(),
+      onEnterBlock: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+          }
+        ]
+      >(),
+      onStopBlock: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+          }
+        ]
+      >(),
+      onReturnFromBlock: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+          }
+        ]
+      >(),
+      onCheckTriggers: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+            shouldExecute: boolean;
+            satisfiedTriggers: string[];
+            unsatisfiedTriggers: string[];
+          }
+        ]
+      >(),
+      onExecuteCommand: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+            commandId: string;
+            commandIndex: number;
+          }
+        ]
+      >(),
+      onChooseChoice: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+            commandId: string;
+            commandIndex: number;
+          }
+        ]
+      >(),
+      onFinishCommand: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+            commandId: string;
+            commandIndex: number;
+          }
+        ]
+      >(),
+      onGoToCommandIndex: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+            index: number;
+          }
+        ]
+      >(),
+      onCommandJumpStackPush: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+            indices: number[];
+          }
+        ]
+      >(),
+      onCommandJumpStackPop: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            blockId: string;
+          }
+        ]
+      >(),
+      onSetVariableValue: new GameEvent<
+        [
+          {
+            from?: number;
+            line?: number;
+            variableId: string;
+            value: unknown;
+          }
+        ]
+      >(),
+      onLoadAsset: new GameEvent<
+        [
+          {
+            assetId: string;
+          }
+        ]
+      >(),
+      onUnloadAsset: new GameEvent<
+        [
+          {
+            assetId: string;
+          }
+        ]
+      >(),
     };
     const initialConfig: LogicConfig = {
       blockMap: {},

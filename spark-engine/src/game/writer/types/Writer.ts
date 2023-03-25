@@ -1,4 +1,4 @@
-import { SoundConfig } from "../../synth";
+import { SynthConfig } from "../../sound";
 
 export interface Writer {
   className: string;
@@ -6,5 +6,5 @@ export interface Writer {
   letterDelay: number;
   pauseScale: number;
   fadeDuration: number;
-  clackSound: SoundConfig;
+  clackSound: SynthConfig;
 }

@@ -2,8 +2,8 @@ import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 
 export interface InputEvents extends Record<string, GameEvent> {
-  onPointerDown: GameEvent<{ button: number; target?: string }>;
-  onPointerUp: GameEvent<{ button: number; target?: string }>;
+  onPointerDown: GameEvent<[number, string]>;
+  onPointerUp: GameEvent<[number, string]>;
 }
 
 export interface InputConfig {}
@@ -26,11 +26,8 @@ export class InputManager extends Manager<
 > {
   constructor(config?: Partial<InputConfig>, state?: Partial<InputState>) {
     const initialEvents: InputEvents = {
-      onPointerDown: new GameEvent<{
-        button: number;
-        targets?: string[];
-      }>(),
-      onPointerUp: new GameEvent<{ button: number; targets?: string[] }>(),
+      onPointerDown: new GameEvent<[number, string]>(),
+      onPointerUp: new GameEvent<[number, string]>(),
     };
     const initialConfig: InputConfig = { ...(config || {}) };
     const initialState: InputState = {
@@ -55,7 +52,7 @@ export class InputManager extends Manager<
     if (index >= 0) {
       this._state.pointer.up.splice(index, 1);
     }
-    this._events.onPointerDown.emit({ button, target });
+    this._events.onPointerDown.emit(button, target || "");
   }
 
   pointerUp(button: number, target?: string): void {
@@ -66,6 +63,6 @@ export class InputManager extends Manager<
     if (index >= 0) {
       this._state.pointer.down.splice(index, 1);
     }
-    this._events.onPointerUp.emit({ button, target });
+    this._events.onPointerUp.emit(button, target || "");
   }
 }

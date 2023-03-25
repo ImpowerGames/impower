@@ -353,13 +353,13 @@ const TestPlayer = React.memo((props: TestPlayerProps): JSX.Element => {
       e: AccessibleEvent
     ) => {
       e.stopPropagation();
-      events.onOpenData.emit({ id: parentBlockId });
+      events.onOpenData.emit(parentBlockId);
       const block = project?.instances?.blocks?.data?.[blockId];
       if (block) {
         dispatch(panelSetInteraction("logic", "Selected", [blockId]));
       }
       window.setTimeout(
-        () => events.onFocusData.emit({ ids: [blockId, commandId] }),
+        () => events.onFocusData.emit([blockId, commandId], undefined),
         200
       );
     },

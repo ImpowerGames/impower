@@ -1,4 +1,4 @@
-import { SoundConfig } from "../../synth";
+import { SynthConfig } from "../../sound";
 import { Intonation } from "./Intonation";
 import { Prosody } from "./Prosody";
 
@@ -8,5 +8,5 @@ export interface Character {
   color: string;
   intonation: Intonation;
   prosody: Prosody;
-  voiceSound: SoundConfig;
+  voiceSound: SynthConfig;
 }

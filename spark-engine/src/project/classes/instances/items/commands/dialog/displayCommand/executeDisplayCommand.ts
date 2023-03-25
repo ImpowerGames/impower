@@ -43,7 +43,6 @@ export const executeDisplayCommand = (
     objectMap: { [type: string]: Record<string, any> };
     instant?: boolean;
     debug?: boolean;
-    fadeOutDuration?: number;
   },
   voiceState?: {
     lastCharacter?: string;
@@ -58,8 +57,6 @@ export const executeDisplayCommand = (
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
   const structName = "DISPLAY";
-
-  const fadeOutDuration = context?.fadeOutDuration || 0;
 
   const writerConfigs = objectMap?.["writer"] as Record<string, Writer>;
   const writerConfig = writerConfigs?.[type];
@@ -269,7 +266,7 @@ export const executeDisplayCommand = (
 
   if (game) {
     if (instant) {
-      game.synth.stop(commandType, fadeOutDuration);
+      game.sound.stop(commandType);
       handleFinished();
     } else {
       const letterDelay = writerConfig?.letterDelay ?? 0;
@@ -306,7 +303,7 @@ export const executeDisplayCommand = (
             const sound = voiceSound ? clone(voiceSound) : voiceSound;
             lastCharacterBeep = {
               ...c,
-              sound,
+              synth: sound,
               time: c.time || 0,
               duration: c.duration || 0,
             };
@@ -351,28 +348,28 @@ export const executeDisplayCommand = (
         for (let i = phraseBeeps.length - 1; i >= 0; i -= 1) {
           const b = phraseBeeps[i];
           if (b) {
-            if (b.sound) {
+            if (b.synth) {
               const freq = convertNoteToHertz(
-                b.note || b.sound.frequency?.pitch || "A4"
+                b.hertz || b.synth.frequency?.pitch || "A4"
               );
               // Transpose waves according to stress contour
-              b.note = transpose(
+              b.hertz = transpose(
                 freq,
                 startingOffset + (b.stressLevel || 0) * stressLevelIncrement
               );
               if (!foundLastVoicedBeep && b.voiced) {
                 // Bend last voiced beep
                 foundLastVoicedBeep = true;
-                if (!b.sound.frequency) {
-                  b.sound.frequency = {};
+                if (!b.synth.frequency) {
+                  b.synth.frequency = {};
                 }
-                b.sound.frequency.pitchRamp = pitchRamp;
-                b.sound.frequency.accel = pitchAccel;
-                b.sound.frequency.jerk = pitchJerk;
-                if (!b.sound.amplitude) {
-                  b.sound.amplitude = {};
+                b.synth.frequency.pitchRamp = pitchRamp;
+                b.synth.frequency.accel = pitchAccel;
+                b.synth.frequency.jerk = pitchJerk;
+                if (!b.synth.amplitude) {
+                  b.synth.amplitude = {};
                 }
-                b.sound.amplitude.volumeRamp = volumeRamp;
+                b.synth.amplitude.volumeRamp = volumeRamp;
               }
             }
           }
@@ -391,8 +388,7 @@ export const executeDisplayCommand = (
         }
       }
       // Start playing beeps
-      game.synth.configure(commandType);
-      game.synth.play(commandType, tones, () => {
+      game.sound.start(commandType, tones, () => {
         // Start typing letters
         allChunks.forEach((c) => {
           if (c.element) {

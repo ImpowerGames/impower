@@ -284,8 +284,8 @@ const ProjcetContextProvider = React.memo(
 
     useEffect(() => {
       const debounceDelay = 200;
-      const onOpenData = debounce((data: { id: string }): void => {
-        dispatch(panelInspect("logic", data.id));
+      const onOpenData = debounce((id: string): void => {
+        dispatch(panelInspect("logic", id));
       }, debounceDelay);
       events.onOpenData.addListener(onOpenData);
       return (): void => {
