@@ -10,14 +10,14 @@ export const SYNTH_RANDOMIZATIONS: Record<
   RecursiveRandomization<Synth>
 > = {
   coin: {
-    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
-    amplitude: {
+    shape: ["sine", "triangle", "sawtooth", "tangent", "square"],
+    envelope: {
       decay: [0.02],
       sustain: [0.2, 0.3],
       release: [0.1, 0.25],
     },
-    frequency: {
-      pitch: [A[3], A[5]],
+    pitch: {
+      frequency: [A[3], A[5]],
     },
     arpeggio: {
       on: [true],
@@ -34,15 +34,15 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
   },
   jump: {
-    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
-    amplitude: {
+    shape: ["sine", "triangle", "sawtooth", "tangent", "square"],
+    envelope: {
       decay: [0.05],
       sustain: [0.05, 0.1],
       release: [0.1, 0.2],
     },
-    frequency: {
-      pitch: [A[3], A[5]],
-      pitchRamp: [0.2, 1],
+    pitch: {
+      frequency: [A[3], A[5]],
+      frequencyRamp: [0.2, 1],
     },
     distortion: {
       on: [true, false],
@@ -51,15 +51,15 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
   },
   powerup: {
-    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
-    amplitude: {
+    shape: ["sine", "triangle", "sawtooth", "tangent", "square"],
+    envelope: {
       decay: [0.05],
       sustain: [0.4, 0.6],
       release: [0.6, 0.7],
     },
-    frequency: {
-      pitch: [A[3], A[5]],
-      pitchRamp: [1],
+    pitch: {
+      frequency: [A[3], A[5]],
+      frequencyRamp: [1],
     },
     arpeggio: {
       on: [true, false],
@@ -78,15 +78,15 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
   },
   lose: {
-    wave: ["sine", "triangle", "sawtooth", "square", "tangent"],
-    amplitude: {
+    shape: ["sine", "triangle", "sawtooth", "square", "tangent"],
+    envelope: {
       decay: [0.05],
       sustain: [0.4, 0.6],
       release: [0.6, 0.7],
     },
-    frequency: {
-      pitch: [A[3], A[5]],
-      pitchRamp: [-1],
+    pitch: {
+      frequency: [A[3], A[5]],
+      frequencyRamp: [-1],
     },
     arpeggio: {
       on: [true, false],
@@ -105,15 +105,15 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
   },
   zap: {
-    wave: ["whistle", "sawtooth", "tangent", "square"],
-    amplitude: {
+    shape: ["jitter", "sawtooth", "tangent", "square"],
+    envelope: {
       decay: [0.05],
       sustain: [0.1, 0.2],
       release: [0.1, 0.2],
     },
-    frequency: {
-      pitch: [A[2], A[7]],
-      pitchRamp: [-1, -0.2],
+    pitch: {
+      frequency: [A[2], A[7]],
+      frequencyRamp: [-1, -0.2],
     },
     distortion: {
       on: [".vibrato.on", false],
@@ -127,7 +127,7 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
   },
   hurt: {
-    wave: [
+    shape: [
       "triangle",
       "sawtooth",
       "square",
@@ -135,30 +135,30 @@ export const SYNTH_RANDOMIZATIONS: Record<
       "whitenoise",
       "brownnoise",
     ],
-    amplitude: {
+    envelope: {
       decay: [0.05],
       sustain: [0.05, 0.1],
       release: [0.1, 0.2],
     },
-    frequency: {
-      pitch: [A[2], A[5]],
-      pitchRamp: [-1, -0.2],
+    pitch: {
+      frequency: [A[2], A[5]],
+      frequencyRamp: [-1, -0.2],
     },
   },
   boom: {
-    wave: ["whitenoise", "brownnoise"],
-    amplitude: {
+    shape: ["whitenoise", "brownnoise"],
+    envelope: {
       decay: [0.05],
       sustain: [0.05, 0.1],
       release: [0.4, 0.7],
     },
-    frequency: {
-      pitch: [A[3], A[5]],
-      pitchRamp: [-0.5, 0],
+    pitch: {
+      frequency: [A[3], A[5]],
+      frequencyRamp: [-0.5, 0],
     },
     reverb: {
       on: [true, true, false],
-      strength: [0.01, 0.7],
+      level: [0.01, 0.7],
       delay: [0.3, 0.8],
     },
     vibrato: {
@@ -168,25 +168,25 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
   },
   push: {
-    wave: ["whitenoise", "brownnoise", "pinknoise"],
-    amplitude: {
+    shape: ["pinknoise"],
+    envelope: {
       decay: [0.05],
-      sustain: [0.05, 0.1],
-      release: [0.1, 0.2],
+      sustain: [0.01, 0.05],
+      release: [0.05, 0.1],
     },
-    frequency: {
-      pitch: [A[2], A[5]],
-      pitchRamp: [-1, -0.5],
+    pitch: {
+      frequency: [A[2], A[5]],
+      frequencyRamp: [-1, -0.5],
     },
   },
   blip: {
-    wave: ["sine", "triangle", "sawtooth", "tangent", "square", "whistle"],
-    amplitude: {
+    shape: ["sine", "triangle", "sawtooth", "tangent", "square", "jitter"],
+    envelope: {
       sustain: [0.049],
       release: [0.001],
     },
-    frequency: {
-      pitch: [A[4], A[5]],
+    pitch: {
+      frequency: [A[4], A[5]],
     },
     lowpass: {
       cutoff: [4840],
@@ -209,70 +209,64 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
   },
   beep: {
-    wave: ["sine", "triangle", "sawtooth", "tangent", "square"],
-    amplitude: {
+    shape: ["sine", "triangle", "sawtooth", "tangent", "square"],
+    envelope: {
       decay: [0.01, 0.05],
       sustain: [0.001, 0.1],
       release: [0.001, 0.1],
     },
-    frequency: {
-      pitch: [A[3], A[5]],
+    pitch: {
+      frequency: [A[3], A[5]],
     },
     distortion: {
       on: [false, true],
       grit: [0.01, 0.02],
     },
   },
+  tap: {
+    shape: ["sine", "triangle"],
+    envelope: {
+      decay: [0.003],
+      sustain: [0],
+      release: [0.05],
+    },
+    pitch: {
+      frequency: [A[5], A[6]],
+    },
+    distortion: {
+      on: [false, true],
+      edge: [0.01, 1],
+    },
+  },
   snap: {
-    wave: ["sine", "triangle", "sawtooth", "tangent", "square", "whistle"],
-    amplitude: {
-      delay: [0.005],
+    shape: ["sine", "triangle", "square"],
+    envelope: {
+      offset: [0.005],
       attack: [0.005],
       decay: [0.001],
       sustain: [0],
+      release: [0],
     },
-    frequency: {
-      pitch: [A[5], A[7]],
-    },
-    lowpass: {
-      cutoff: [".frequency.pitch", true],
+    pitch: {
+      frequency: [A[6], A[7]],
     },
     arpeggio: {
       on: [true],
       rate: [200],
       levels: [[0, 0.1, 1]],
     },
-    distortion: {
-      on: [false, true],
-      edge: [0.01, 1],
-    },
-  },
-  tap: {
-    wave: ["sine", "triangle"],
-    amplitude: {
-      decay: [0.003],
-      sustain: [0],
-      release: [0.05],
-    },
-    frequency: {
-      pitch: [A[5], A[6]],
-    },
-    distortion: {
-      on: [false, true],
-      edge: [0.01, 1],
-    },
   },
   clack: {
-    wave: ["whitenoise", "brownnoise"],
-    amplitude: {
+    shape: ["whitenoise", "brownnoise"],
+    envelope: {
       attack: [0.01],
       decay: [0.003],
       sustain: [0.04],
       release: [0.01],
-      sustainLevel: [0.15],
+      level: [0.15],
     },
-    frequency: {
-      pitch: [A[7], A[9]],
+    pitch: {
+      frequency: [A[7], A[9]],
     },
     lowpass: {
       cutoff: [8085],
@@ -285,23 +279,23 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
   },
   random: {
-    wave: [
+    shape: [
       "sine",
       "triangle",
       "sawtooth",
       "tangent",
       "square",
-      "whistle",
+      "jitter",
       "brownnoise",
     ],
-    amplitude: {
+    envelope: {
       decay: [0.05],
       sustain: [0.2, 0.5],
       release: [0.2, 0.5],
     },
-    frequency: {
-      pitch: [A[2], A[6]],
-      pitchRamp: [-0.5, 0.5],
+    pitch: {
+      frequency: [A[2], A[6]],
+      frequencyRamp: [-0.5, 0.5],
     },
     distortion: {
       on: [true, false],
@@ -311,7 +305,7 @@ export const SYNTH_RANDOMIZATIONS: Record<
     arpeggio: {
       on: [true, false],
       rate: [0, 100],
-      direction: ["up", "down", "random"],
+      direction: ["up", "down"],
       tones: MAJOR_ARPEGGIOS_UP,
     },
     vibrato: {
@@ -323,13 +317,9 @@ export const SYNTH_RANDOMIZATIONS: Record<
       on: [true, false],
       rate: [0, A[0]],
     },
-    harmony: {
-      on: [true, false],
-      count: [1, 2],
-    },
     reverb: {
       on: [true, false],
-      strength: [0, 1],
+      level: [0, 1],
       delay: [0, 1],
     },
   },

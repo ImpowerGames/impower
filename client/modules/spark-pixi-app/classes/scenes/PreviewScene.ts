@@ -2,6 +2,7 @@ import { SparkContext } from "../../../../../spark-engine";
 import { Application } from "../../plugins/app";
 import { Marquee } from "../../plugins/graphics";
 import { Plane, Point3D } from "../../plugins/projection";
+import { SparkAssets } from "../SparkAssets";
 import { SparkScene } from "../SparkScene";
 
 export class PreviewScene extends SparkScene {
@@ -9,8 +10,8 @@ export class PreviewScene extends SparkScene {
 
   private _floorPlane = new Plane(new Point3D(0, 1, 0), 0);
 
-  constructor(context: SparkContext, app: Application) {
-    super(context, app);
+  constructor(context: SparkContext, app: Application, assets: SparkAssets) {
+    super(context, app, assets);
     this._marquee = new Marquee({
       dash: 4,
       dashSpace: 4,

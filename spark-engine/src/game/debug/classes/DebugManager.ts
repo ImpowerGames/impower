@@ -3,7 +3,7 @@ import { Manager } from "../../core/classes/Manager";
 import { LogData } from "../types/LogData";
 
 export interface DebugEvents extends Record<string, GameEvent> {
-  onLog: GameEvent<[LogData]>;
+  onLog: GameEvent<LogData>;
 }
 
 export interface DebugConfig {}
@@ -19,7 +19,7 @@ export class DebugManager extends Manager<
   DebugState
 > {
   constructor(config?: Partial<DebugConfig>, state?: Partial<DebugState>) {
-    const initialEvents: DebugEvents = { onLog: new GameEvent<[LogData]>() };
+    const initialEvents: DebugEvents = { onLog: new GameEvent<LogData>() };
     const initialConfig: DebugConfig = { ...(config || {}) };
     const initialState: DebugState = {
       debugging: false,
@@ -39,7 +39,7 @@ export class DebugManager extends Manager<
 
   log(data: LogData): void {
     this._state.currentLogs.push({ ...data });
-    this._events.onLog.emit({ ...data });
+    this._events.onLog.dispatch({ ...data });
   }
 
   clearLogs(): void {

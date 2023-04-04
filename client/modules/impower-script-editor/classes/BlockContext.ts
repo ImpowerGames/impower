@@ -91,6 +91,9 @@ export class BlockContext implements PartialParse {
         const mark = line.markers[i];
         this.addNode(mark.type, mark.from, mark.to);
       }
+      if (line.text && !line.text.trim()) {
+        break;
+      }
       if (line.pos < line.text.length) {
         break;
       }

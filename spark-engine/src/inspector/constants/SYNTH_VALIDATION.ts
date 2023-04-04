@@ -2,33 +2,33 @@ import { A, Synth } from "../../game";
 import { RecursiveValidation } from "../types/RecursiveValidation";
 
 export const SYNTH_VALIDATION: RecursiveValidation<Synth> = {
-  wave: [
+  shape: [
     "sine",
     "triangle",
     "sawtooth",
     "tangent",
     "square",
-    "whistle",
+    "jitter",
     "whitenoise",
     "brownnoise",
     "pinknoise",
   ],
-  amplitude: {
+  envelope: {
     volume: [0.01, 0, 1],
     volumeRamp: [0.01, -1, 1],
-    delay: [0.001, 0, 1],
+    offset: [0.001, 0, 1],
     attack: [0.001, 0, 1],
     decay: [0.001, 0, 1],
     sustain: [0.001, 0, 1],
     release: [0.001, 0, 1],
-    sustainLevel: [0.01, 0, 1],
+    level: [0.01, 0, 1],
   },
-  frequency: {
-    pitch: [A[1], 0, A[9]],
-    pitchRamp: [0.01, -1, 1],
-    accel: [0.01, -1, 1],
-    jerk: [0.01, -1, 1],
-    offset: [0.01, -1, 1],
+  pitch: {
+    frequency: [A[1], 0, A[9]],
+    frequencyRamp: [0.01, -1, 1],
+    frequencyTorque: [0.01, -1, 1],
+    frequencyJerk: [0.01, -1, 1],
+    phase: [0.01, -1, 1],
   },
   lowpass: {
     cutoff: [A[1], 0, A[9]],
@@ -50,19 +50,19 @@ export const SYNTH_VALIDATION: RecursiveValidation<Synth> = {
     rateRamp: [0.01, -1, 1],
     maxOctaves: [1, 0, 10],
     maxNotes: [1, 0, 1000],
-    direction: ["up", "down", "up-down", "down-up", "random"],
-    tones: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    direction: ["up", "down", "up-down", "down-up"],
     shapes: [
       "sine",
       "triangle",
       "sawtooth",
       "tangent",
       "square",
-      "whistle",
+      "jitter",
       "brownnoise",
       "pinknoise",
       "whitenoise",
     ],
+    tones: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
     levels: [0.01, 0, 1],
   },
   vibrato: {
@@ -76,14 +76,7 @@ export const SYNTH_VALIDATION: RecursiveValidation<Synth> = {
     shape: ["sine", "triangle", "sawtooth", "tangent", "square", "whitenoise"],
     strength: [0.01, 0, 1],
     strengthRamp: [0.01, -1, 1],
-    rate: [0.5, 0, A[0]],
-    rateRamp: [0.01, -1, 1],
-  },
-  ring: {
-    shape: ["sine", "triangle", "sawtooth", "tangent", "square", "whitenoise"],
-    strength: [0.01, 0, 1],
-    strengthRamp: [0.01, -1, 1],
-    rate: [A[1], A[0], A[8]],
+    rate: [0.5, 0, A[8]],
     rateRamp: [0.01, -1, 1],
   },
   wahwah: {
@@ -93,26 +86,8 @@ export const SYNTH_VALIDATION: RecursiveValidation<Synth> = {
     rate: [0.5, 0, A[0]],
     rateRamp: [0.01, -1, 1],
   },
-  harmony: {
-    count: [1, 0, 10],
-    falloff: [0.01, 0, 1],
-    falloffRamp: [0.01, -1, 1],
-    shapes: [
-      "sine",
-      "triangle",
-      "sawtooth",
-      "tangent",
-      "square",
-      "whistle",
-      "brownnoise",
-      "pinknoise",
-      "whitenoise",
-    ],
-  },
   reverb: {
-    strength: [0.01, 0, 1],
-    strengthRamp: [0.01, -1, 1],
+    level: [0.01, 0, 1],
     delay: [0.01, 0, 1],
-    delayRamp: [0.01, -1, 1],
   },
 };

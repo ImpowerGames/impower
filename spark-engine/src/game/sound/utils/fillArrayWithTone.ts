@@ -1,4 +1,8 @@
+import { clone } from "../../core/utils/clone";
+import { _synth } from "../specs/_synth";
 import { Tone } from "../types/Tone";
+import { convertPitchNoteToHertz } from "./convertPitchNoteToHertz";
+import { convertPitchNumberToHertz } from "./convertPitchNumberToHertz";
 import { synthesizeSound } from "./synthesizeSound";
 
 export const fillArrayWithTone = (
@@ -9,12 +13,16 @@ export const fillArrayWithTone = (
   pitchBuffer?: Float32Array,
   pitchRange?: [number, number]
 ): void => {
-  const synth = tone.synth;
-  const time = tone.time || 0;
-  const duration = tone.duration || 0;
-  const volume = tone.velocity;
-  const pitch = tone.hertz;
-  if (synth && duration) {
+  const time = tone.time ?? 0;
+  const duration = tone.duration ?? 0;
+  const volume = tone.velocity ?? 1;
+  const synth = clone(_synth(), tone.synth);
+  const pitch =
+    tone.pitchHertz ??
+    convertPitchNoteToHertz(tone.pitchNote) ??
+    convertPitchNumberToHertz(tone.pitchNumber) ??
+    0;
+  if (duration) {
     const startIndex = Math.floor(time * sampleRate);
     const endIndex = Math.floor((time + duration) * sampleRate);
     synthesizeSound(

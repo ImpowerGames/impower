@@ -91,6 +91,23 @@ export const STYLE_DEFAULTS = {
     checked: STYLE_PROPS,
     disabled: STYLE_PROPS,
   },
+  "hidden *": {
+    opacity: 0,
+    pointerEvents: "none",
+  },
+  LoadingBar: {
+    zIndex: 1000,
+    position: "relative",
+    width: "100%",
+    height: 4,
+  },
+  LoadingFill: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "cyan50",
+    transform: "scaleX({LOADING_PROGRESS})",
+    transformOrigin: "left",
+  },
   Background: {
     position: "absolute",
     inset: 0,

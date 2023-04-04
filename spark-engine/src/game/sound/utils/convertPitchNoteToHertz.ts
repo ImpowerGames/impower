@@ -26,9 +26,12 @@ const calculateFrequencyByStep = (steps: number): number => {
   return A4 * Math.pow(convertSemitonesToFrequencyFactor(1), steps);
 };
 
-export const convertNoteToHertz = (
+export const convertPitchNoteToHertz = (
   note: Note | string | number | undefined
-): Hertz => {
+): Hertz | undefined => {
+  if (note == null) {
+    return note;
+  }
   if (typeof note === "number") {
     return note;
   }

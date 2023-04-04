@@ -92,6 +92,7 @@ const commonmark = baseParser.configure({
       "Transition/...": tags.transition,
       "Parameter": tags.parameterName,
       "Character/...": tags.dialogue_character,
+      "PossibleCharacter/...": tags.dialogue_character,
       "Parenthetical/... CharacterParenthetical ParentheticalLine":
         tags.dialogue_parenthetical,
       "CharacterDual": tags.dualDialogue,

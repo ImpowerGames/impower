@@ -36,6 +36,7 @@ import { getSparkRandomizations } from "../utils/getSparkRandomizations";
 import { getSparkValidation } from "../utils/getSparkValidation";
 import { StructFieldNameWidgetType } from "./StructFieldNameWidgetType";
 import { StructFieldValueWidgetType } from "./StructFieldValueWidgetType";
+import { StructKeyboardWidgetType } from "./StructKeyboardWidgetType";
 import { StructPlayWidgetType } from "./StructPlayWidgetType";
 import {
   getPresetPreviewClassName,
@@ -150,11 +151,11 @@ const zoom = (
 
 const getDuration = (synth: Synth): number => {
   return (
-    synth.amplitude.delay +
-    synth.amplitude.attack +
-    synth.amplitude.decay +
-    synth.amplitude.sustain +
-    synth.amplitude.release
+    synth.envelope.offset +
+    synth.envelope.attack +
+    synth.envelope.decay +
+    synth.envelope.sustain +
+    synth.envelope.release
   );
 };
 
@@ -166,6 +167,7 @@ const getLength = (synth: Synth, sampleRate: number): number => {
 const playSound = (
   audioContext: AudioContext,
   soundBuffer: Float32Array,
+  semitones?: number,
   onFinished?: () => void
 ): void => {
   if (soundBuffer?.length > 0) {
@@ -183,11 +185,13 @@ const playSound = (
       0,
       soundBuffer.length / audioContext.sampleRate
     );
+    source.detune.value = ((semitones ?? 0) - 3) * 100;
     source.addEventListener("ended", () => {
       onFinished?.();
     });
   }
 };
+
 const loadAudioBytes = (
   audioContext: AudioContext,
   url: string
@@ -583,7 +587,7 @@ const getStructs = (view: EditorView): Record<string, SparkStruct> => {
 const getStruct = (view: EditorView, from: number): SparkStruct => {
   const [parseContext] = view.state.facet(parseContextState);
   const result = parseContext.result;
-  const line = view.state.doc.lineAt(from);
+  const line = view.state.doc.lineAt(Math.min(from, view.state.doc.length));
   const tokenIndex = result.tokenLines[line.number];
   const structToken = result.tokens[tokenIndex] as {
     struct?: string;
@@ -851,7 +855,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
             structName: string,
             structObj: unknown
           ): void => {
-            if (structType === "sound") {
+            if (structType === "synth") {
               const sound = structObj as Synth;
               const sampleRate = AUDIO_CONTEXT.sampleRate;
               const length = getLength(sound, sampleRate);
@@ -956,7 +960,32 @@ const structDecorations = (view: EditorView): DecorationSet => {
                   }).range(to)
                 );
               }
-              if (structType === "sound") {
+              if (structType === "synth") {
+                widgets.push(
+                  Decoration.widget({
+                    widget: new StructKeyboardWidgetType(
+                      struct.name,
+                      (semitones: number) => {
+                        const structs = getStructs(view);
+                        const struct = getStruct(view, from);
+                        if (struct) {
+                          const structObj = construct(
+                            defaultStructObj,
+                            structs,
+                            struct.name
+                          );
+                          onUpdatePreview(struct.type, struct.name, structObj);
+                          playSound(
+                            AUDIO_CONTEXT,
+                            soundState.soundBuffer,
+                            semitones
+                          );
+                        }
+                      }
+                    ),
+                    side: 0,
+                  }).range(to)
+                );
                 widgets.push(
                   Decoration.widget({
                     widget: new StructPlayWidgetType(struct.name, () => {

@@ -1931,6 +1931,9 @@ const augmentResult = (
   parsed: SparkParseResult,
   config?: SparkParserConfig
 ) => {
+  if (!parsed.objectMap) {
+    parsed.objectMap = config?.augmentations?.objectMap ?? {};
+  }
   if (config?.augmentations?.variables) {
     Object.entries(config?.augmentations?.variables).forEach(([id, d]) => {
       if (!parsed.variables) {

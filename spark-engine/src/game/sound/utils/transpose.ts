@@ -1,6 +1,6 @@
 import { Hertz } from "../types/Hertz";
 import { Note } from "../types/Note";
-import { convertNoteToHertz } from "./convertNoteToHertz";
+import { convertPitchNoteToHertz } from "./convertPitchNoteToHertz";
 import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
 
 export const transpose = (
@@ -8,6 +8,6 @@ export const transpose = (
   semitones: number
 ): Hertz => {
   return (
-    convertNoteToHertz(note) * convertSemitonesToFrequencyFactor(semitones)
+    convertPitchNoteToHertz(note) * convertSemitonesToFrequencyFactor(semitones)
   );
 };

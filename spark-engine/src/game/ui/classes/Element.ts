@@ -13,6 +13,8 @@ export class Element implements IElement {
 
   protected _children: IElement[] = [];
 
+  protected _states: Set<string> = new Set();
+
   protected _onclick: ((this: any, ev: any) => any) | null = null;
 
   get id(): string {
@@ -108,12 +110,28 @@ export class Element implements IElement {
   setImportContent(_properties: Record<string, any>): void {}
 
   setStyleContent(
+    _targetName: string,
     _properties: Record<string, any>,
     _objectMap: { [type: string]: Record<string, any> }
   ): void {}
 
   setAnimationContent(
+    _animationName: string,
     _properties: Record<string, any>,
     _objectMap: { [type: string]: Record<string, any> }
   ): void {}
+
+  setStyleProperty(_propName: string, _propValue: unknown): void {}
+
+  hasState(state: string): boolean {
+    return this._states.has(state);
+  }
+
+  addState(state: string): void {
+    this._states.add(state);
+  }
+
+  removeState(state: string): void {
+    this._states.delete(state);
+  }
 }

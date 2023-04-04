@@ -1,5 +1,4 @@
 import { Application as _Application } from "@pixi/app";
-import { Assets } from "../../assets";
 import { destroyTextureCache } from "../../core";
 import { IDestroyOptions } from "../../display";
 import { CameraOrbitControl } from "../../projection";
@@ -26,12 +25,6 @@ export interface ApplicationOptions {
 }
 
 export class Application extends _Application {
-  protected _assets: Assets = new Assets();
-
-  public get assets(): Assets {
-    return this._assets;
-  }
-
   protected _dolly: CameraOrbitControl;
 
   public get dolly(): CameraOrbitControl {

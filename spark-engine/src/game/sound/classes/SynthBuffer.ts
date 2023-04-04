@@ -38,7 +38,7 @@ export class SynthBuffer {
     return this._durationInSamples;
   }
 
-  constructor(sampleRate: number, ...tones: Tone[]) {
+  constructor(tones: Tone[], sampleRate = 44100) {
     this._tones = tones;
     const duration =
       tones?.length > 0

@@ -77,14 +77,20 @@ export const DefaultSkipMarkup: {
   },
   [Type.Title](_bl, cx, line): boolean {
     const title = isTitle(line, cx, false) > 0;
-    if (!title && line.indent < line.baseIndent + 2) {
+    if (title) {
+      return false;
+    }
+    if (line.indent < line.baseIndent + 2) {
       return false;
     }
     return true;
   },
   [Type.Struct](_bl, cx, line): boolean {
     const struct = isStructDeclaration(line);
-    if (!struct && line.indent < line.baseIndent + 2) {
+    if (struct) {
+      return false;
+    }
+    if (line.indent < line.baseIndent + 2) {
       return false;
     }
     return true;

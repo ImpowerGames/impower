@@ -2,9 +2,9 @@ import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 
 export interface TickerEvents extends Record<string, GameEvent> {
-  onAdded: GameEvent<[string, (deltaMS: number) => void]>;
-  onRemoved: GameEvent<[string]>;
-  onUpdate: GameEvent<[number]>;
+  onAdded: GameEvent<string, (deltaMS: number) => void>;
+  onRemoved: GameEvent<string>;
+  onUpdate: GameEvent<number>;
 }
 
 export interface TickerConfig {
@@ -22,9 +22,9 @@ export class TickerManager extends Manager<
 > {
   constructor(config?: Partial<TickerConfig>, state?: Partial<TickerState>) {
     const initialEvents: TickerEvents = {
-      onAdded: new GameEvent<[string, (deltaMS: number) => void]>(),
-      onRemoved: new GameEvent<[string]>(),
-      onUpdate: new GameEvent<[number]>(),
+      onAdded: new GameEvent<string, (deltaMS: number) => void>(),
+      onRemoved: new GameEvent<string>(),
+      onUpdate: new GameEvent<number>(),
     };
     const initialConfig: TickerConfig = {
       listeners: new Map(),
@@ -36,18 +36,18 @@ export class TickerManager extends Manager<
 
   add(key: string, callback: (deltaMS: number) => void): void {
     this._config.listeners.set(key, callback);
-    this._events.onAdded.emit(key, callback);
+    this._events.onAdded.dispatch(key, callback);
   }
 
   remove(key: string): void {
     this._config.listeners.delete(key);
-    this._events.onRemoved.emit(key);
+    this._events.onRemoved.dispatch(key);
   }
 
   override update(deltaMS: number): void {
     super.update(deltaMS);
     this._state.elapsedMS += deltaMS;
     this._config.listeners.forEach((l) => l?.(deltaMS));
-    this._events.onUpdate.emit(deltaMS);
+    this._events.onUpdate.dispatch(deltaMS);
   }
 }

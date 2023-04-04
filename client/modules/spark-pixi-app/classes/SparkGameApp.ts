@@ -2,7 +2,12 @@ import { SparkContext } from "../../../../spark-engine";
 import { Application, ApplicationOptions } from "../plugins/app";
 import { MainScene } from "./scenes/MainScene";
 import { SoundScene } from "./scenes/SoundScene";
+import { SparkAssets } from "./SparkAssets";
 import { SparkScene } from "./SparkScene";
+
+export interface SparkGameAppOptions extends ApplicationOptions {
+  initialScenes?: Record<string, SparkScene>;
+}
 
 export class SparkGameApp {
   private _parent: HTMLElement | null;
@@ -17,15 +22,21 @@ export class SparkGameApp {
     return this._app;
   }
 
+  protected _assets: SparkAssets = new SparkAssets();
+
+  public get assets(): SparkAssets {
+    return this._assets;
+  }
+
   private _context: SparkContext | undefined;
 
   public get context(): SparkContext | undefined {
     return this._context;
   }
 
-  private _scenes: SparkScene[] = [];
+  private _scenes: Map<string, SparkScene> = new Map();
 
-  public get scenes(): SparkScene[] {
+  public get scenes(): Map<string, SparkScene> {
     return this._scenes;
   }
 
@@ -35,10 +46,12 @@ export class SparkGameApp {
     return this._resizeObserver;
   }
 
+  private _ready = false;
+
   constructor(
     domElementId: string,
     context?: SparkContext,
-    options?: ApplicationOptions
+    options?: SparkGameAppOptions
   ) {
     this._parent = document.getElementById(domElementId);
 
@@ -71,40 +84,11 @@ export class SparkGameApp {
       this.context.init();
     }
 
-    if (context) {
-      if (context?.editable) {
-        this._scenes = [new MainScene(context, this.app)];
-      } else {
-        this._scenes = [
-          new MainScene(context, this.app),
-          new SoundScene(context, this.app),
-        ];
-      }
-    }
+    const startTicker = !context?.editable && !options?.startPaused;
 
-    this.start(!context?.editable && !options?.startPaused, options?.onLoaded);
-  }
-
-  private async start(
-    startTicker?: boolean,
-    onLoaded?: () => void
-  ): Promise<void> {
     this.app.view.addEventListener("pointerdown", this.onPointerDown);
     this.app.view.addEventListener("pointerup", this.onPointerUp);
-    await Promise.all(this.scenes.map((scene) => scene.load()));
-    this.scenes.forEach((scene) => {
-      if (scene?.stage) {
-        scene.init();
-      }
-    });
-    this.scenes.forEach((scene) => {
-      if (scene?.stage) {
-        scene.bind();
-      }
-    });
-
     this.app?.ticker?.add(this.onUpdate, this);
-
     try {
       if (startTicker) {
         this.app?.start();
@@ -116,7 +100,65 @@ export class SparkGameApp {
       // App already stopped
     }
 
-    onLoaded?.();
+    const scenesToLoad =
+      !context || context?.editable
+        ? {}
+        : options?.initialScenes ?? {
+            main: new MainScene(context, this.app, this.assets),
+            sound: new SoundScene(context, this.app, this.assets),
+          };
+    this.loadScenes(scenesToLoad).then(() => {
+      this._ready = true;
+      options?.onLoaded?.();
+    });
+  }
+
+  async loadScenes(scenes: Record<string, SparkScene>): Promise<void> {
+    const loadingUIName = "LOADING";
+    const loadingProgressVariable = "--LOADING_PROGRESS";
+    this._scenes.clear();
+    Object.entries(scenes).forEach(([id, scene]) => {
+      this._scenes.set(id, scene);
+    });
+    if (this.context.game.ui) {
+      this.context.game.ui.updateStyleProperty(
+        loadingProgressVariable,
+        0,
+        loadingUIName
+      );
+    }
+    if (this.context.game.ui) {
+      this.context.game.ui.showUI(loadingUIName);
+    }
+    const allRequiredAssets: Record<string, { src: string; ext: string }> = {};
+    this._scenes.forEach((scene) => {
+      Object.entries(scene.getRequiredAssets()).forEach(([id, asset]) => {
+        allRequiredAssets[id] = asset;
+      });
+    });
+    await this.assets.loadAssets(allRequiredAssets, (p) => {
+      if (this.context.game.ui) {
+        this.context.game.ui.updateStyleProperty(
+          loadingProgressVariable,
+          p,
+          loadingUIName
+        );
+      }
+    });
+    await Promise.all(
+      Array.from(this.scenes).map(async ([, scene]): Promise<void> => {
+        await scene.load();
+      })
+    );
+    Array.from(this.scenes).map(async ([, scene]): Promise<void> => {
+      if (this.app?.stage) {
+        scene.init();
+        this.app.stage.addChild(scene.root);
+      }
+    });
+    if (this.context.game.ui) {
+      this.context.game.ui.hideUI(loadingUIName);
+    }
   }
 
   destroy(removeView?: boolean, stageOptions?: boolean): void {
@@ -147,30 +189,40 @@ export class SparkGameApp {
     if (this.app?.ticker) {
       this.app.ticker.speed = 0;
     }
+    this.scenes.forEach((scene) => {
+      if (scene?.active) {
+        scene.pause();
+      }
+    });
   }
 
-  resume(): void {
+  unpause(): void {
+    this.scenes.forEach((scene) => {
+      if (scene?.active) {
+        scene.unpause();
+      }
+    });
     if (this.app?.ticker) {
       this.app.ticker.speed = 1;
     }
   }
 
-  step(deltaMS: number): void {
-    this.update(deltaMS);
-  }
-
-  protected update(deltaMS: number): void {
+  protected _step(deltaMS: number): void {
     if (this.app) {
-      this.scenes.forEach((scene) => {
-        if (deltaMS === 0) {
-          this.app.dolly.allowControl = true;
-        } else {
-          this.app.dolly.allowControl = false;
-          if (scene.update(deltaMS)) {
-            this.app.dolly.updateCamera();
+      if (deltaMS === 0) {
+        this.app.dolly.allowControl = true;
+      } else {
+        this.app.dolly.allowControl = false;
+      }
+      if (this._ready) {
+        this.scenes.forEach((scene) => {
+          if (scene?.active) {
+            if (scene.update(deltaMS)) {
+              this.app.dolly.updateCamera();
+            }
           }
-        }
-      });
+        });
+      }
     }
     if (this.context) {
       if (!this.context.update(deltaMS)) {
@@ -179,8 +231,17 @@ export class SparkGameApp {
     }
   }
 
-  onUpdate(): void {
+  step(deltaMS: number): void {
+    this.scenes.forEach((scene) => {
+      if (scene?.active) {
+        scene.step(deltaMS);
+      }
+    });
+    this._step(deltaMS);
+  }
+
+  protected onUpdate(): void {
     const deltaMS = this.app.ticker?.deltaMS || 0;
-    this.update(deltaMS);
+    this._step(deltaMS);
   }
 }

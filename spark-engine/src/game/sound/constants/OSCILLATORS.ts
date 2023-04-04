@@ -68,7 +68,7 @@ const tangent = (x: number): number => {
   return clamp(0.3 * Math.tan(Math.PI * x), -1, 1);
 };
 
-const whistle = (x: number): number => {
+const jitter = (x: number): number => {
   return 0.75 * Math.sin(PI2 * x) + 0.25 * Math.sin(20 * PI2 * x);
 };
 
@@ -105,7 +105,7 @@ const pinknoise = (x: number, state?: OscillatorState): number => {
   const currPhase = frac(x * 2);
   let currRandom = prevRandom;
   if (currPhase < prevPhase) {
-    const white = random(1, s.rng);
+    const white = random(1, s.rng) * 2;
     if (!s.b) {
       s.b = [0, 0, 0, 0, 0, 0, 0];
     }
@@ -164,7 +164,7 @@ export const OSCILLATORS: Record<
   sawtooth,
   square,
   tangent,
-  whistle,
+  jitter,
   whitenoise,
   brownnoise,
   pinknoise,

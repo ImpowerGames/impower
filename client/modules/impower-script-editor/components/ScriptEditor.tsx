@@ -983,7 +983,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
     if (view) {
       if (cursor) {
         const line = Math.max(1, cursor.fromLine);
-        const from = view.state.doc.line(line)?.from;
+        const from = view.state.doc.line(
+          Math.min(line, view.state.doc.lines)
+        )?.from;
         view.dispatch({
           selection: { anchor: from },
           effects: EditorView.scrollIntoView(from, { y: "center" }),
@@ -999,7 +1001,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           1,
           defaultScrollTopLineRef.current + scrollTopLineOffsetRef.current
         );
-        const from = view.state.doc.line(line)?.from;
+        const from = view.state.doc.line(
+          Math.min(line, view.state.doc.lines)
+        )?.from;
         view.dispatch({
           effects: EditorView.scrollIntoView(from, { y: "start" }),
         });
@@ -1014,7 +1018,9 @@ const ScriptEditor = React.memo((props: ScriptEditorProps): JSX.Element => {
           1,
           scrollTopLine + scrollTopLineOffsetRef.current
         );
-        const from = view.state.doc.line(line)?.from;
+        const from = view.state.doc.line(
+          Math.min(line, view.state.doc.lines)
+        )?.from;
         view.dispatch({
           effects: EditorView.scrollIntoView(from, { y: "start" }),
         });

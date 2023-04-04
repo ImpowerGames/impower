@@ -3,8 +3,8 @@ import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 
 export interface RandomEvents extends Record<string, GameEvent> {
-  onRegenerateSeed: GameEvent<[string]>;
-  onSetSeed: GameEvent<[string]>;
+  onRegenerateSeed: GameEvent<string>;
+  onSetSeed: GameEvent<string>;
 }
 
 export interface RandomConfig {
@@ -22,8 +22,8 @@ export class RandomManager extends Manager<
 > {
   constructor(config?: Partial<RandomConfig>, state?: Partial<RandomState>) {
     const initialEvents: RandomEvents = {
-      onRegenerateSeed: new GameEvent<[string]>(),
-      onSetSeed: new GameEvent<[string]>(),
+      onRegenerateSeed: new GameEvent<string>(),
+      onSetSeed: new GameEvent<string>(),
     };
     const initialConfig: RandomConfig = {
       randomizer: randomizer(""),
@@ -41,14 +41,14 @@ export class RandomManager extends Manager<
     const seed = this.getNewSeed();
     this._state.seed = seed;
     this._config.randomizer = randomizer(this._state.seed);
-    this._events.onRegenerateSeed.emit(seed);
+    this._events.onRegenerateSeed.dispatch(seed);
     return seed;
   }
 
   setSeed(seed: string): void {
     this._state.seed = seed;
     this._config.randomizer = randomizer(this._state.seed);
-    this._events.onSetSeed.emit(seed);
+    this._events.onSetSeed.dispatch(seed);
   }
 
   reseed(newSeed: string): void {

@@ -18,6 +18,6 @@ const calculateNoteBySteps = (steps: number): Note => {
   return (pitch + octave) as Note;
 };
 
-export const convertHertzToNote = (hertz: number): Note => {
+export const convertHertzToPitchNote = (hertz: number): Note => {
   return calculateNoteBySteps(calculateStepsFromFrequency(hertz));
 };

@@ -1,4 +1,4 @@
-export class SparkDOMSynth {
+export class SparkDOMAudioPlayer {
   protected _context: AudioContext;
 
   public get context(): AudioContext {
@@ -34,9 +34,17 @@ export class SparkDOMSynth {
     return 0;
   }
 
+  public set pitchBend(semitones: number) {
+    if (this.sourceNode) {
+      this.sourceNode.detune.value = ((semitones ?? 0) - 3) * 100;
+    }
+  }
+
   public get duration(): number {
     return this._sourceNode?.buffer?.duration ?? 0;
   }
+
+  protected _isPlaying = false;
 
   protected _startedAt?: number;
 
@@ -53,6 +61,9 @@ export class SparkDOMSynth {
   protected load(): void {
     if (this._soundBuffer) {
       const sampleRate = this._context.sampleRate;
+      if (this._sourceNode) {
+        this._sourceNode.disconnect();
+      }
       this._sourceNode = this._context.createBufferSource();
       this._sourceNode.connect(this._gainNode);
       const buffer = this._context.createBuffer(
@@ -65,35 +76,45 @@ export class SparkDOMSynth {
     }
   }
 
-  protected play(offset = 0): void {
+  protected fade(value: number, duration: number): void {
+    const endTime = this._context.currentTime + (duration || 0);
+    this._gainNode.gain.linearRampToValueAtTime(value, endTime);
+  }
+
+  protected play(offsetInSeconds = 0, fadeDuration = 0): void {
+    this._isPlaying = true;
     this.load();
     if (this._sourceNode) {
-      this._sourceNode.start(0, offset);
+      const validOffset = Math.min(Math.max(0, offsetInSeconds), this.duration);
+      this._sourceNode.start(0, validOffset);
+      this.fade(1, fadeDuration);
     }
   }
 
-  start(): void {
-    this.play();
+  start(offset = 0): void {
+    this.play(offset);
     this._startedAt = this._context.currentTime;
     this._pausedAt = 0;
   }
 
-  stop(fadeDuration = 0.025): void {
+  stop(fadeDuration = 0.025, onDisconnected?: () => void): void {
     this._pausedAt = 0;
     this._startedAt = 0;
-    const endTime = this._context.currentTime + (fadeDuration || 0);
-    this._gainNode.gain.exponentialRampToValueAtTime(0, endTime);
     let startTime = performance.now();
+    const targetSourceNode = this._sourceNode;
+    this.fade(0, fadeDuration);
     const disconnectAfterFade = () => {
       if (performance.now() < startTime + fadeDuration + 0.001) {
         window.requestAnimationFrame(disconnectAfterFade);
       } else {
         // Disconnect source node after finished fading out
-        if (this._sourceNode) {
-          this._sourceNode.disconnect();
+        if (this._sourceNode && this._sourceNode === targetSourceNode) {
           this._sourceNode.stop(0);
+          this._sourceNode.disconnect();
           this._sourceNode = undefined;
         }
+        this._isPlaying = false;
+        onDisconnected?.();
       }
     };
     disconnectAfterFade();
@@ -111,5 +132,11 @@ export class SparkDOMSynth {
     this.play(offset);
     this._startedAt = this._context.currentTime - offset;
     this._pausedAt = 0;
+  }
+
+  step(deltaSeconds: number) {
+    if (this._isPlaying) {
+      this.start(this.currentTime + deltaSeconds);
+    }
   }
 }

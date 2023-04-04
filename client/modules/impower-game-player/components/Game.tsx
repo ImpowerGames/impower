@@ -27,17 +27,14 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
       gameAppRef.current.destroy(true);
     }
     if (context) {
-      const onLoaded = (): void => {
-        if (elRef.current) {
-          elRef.current.style.transition = "opacity 0.5s ease";
-          elRef.current.style.opacity = "0";
-        }
-      };
       gameAppRef.current = new SparkGameApp(domElementId, context, {
         startPaused: pausedRef.current,
         maxFPS: 60,
-        onLoaded,
       });
+      if (elRef.current) {
+        elRef.current.style.transition = "opacity 0.5s ease";
+        elRef.current.style.opacity = "0";
+      }
     }
   }, [context, domElementId]);
 
@@ -46,7 +43,7 @@ export const Game = (props: PropsWithChildren<GameProps>): JSX.Element => {
       if (paused) {
         gameAppRef.current.pause();
       } else {
-        gameAppRef.current.resume();
+        gameAppRef.current.unpause();
       }
     }
   }, [paused]);

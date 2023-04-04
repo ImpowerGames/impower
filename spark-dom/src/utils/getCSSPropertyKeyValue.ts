@@ -18,24 +18,37 @@ const createTextShadow = (r: number, color = "black"): string => {
 export const getCSSPropertyKeyValue = (
   name: string,
   value: unknown,
-  _objectMap?: { [type: string]: Record<string, any> }
+  objectMap?: { [type: string]: Record<string, any> }
 ): [string, string] => {
+  const theme = objectMap?.["theme"]?.[""];
   const cssProp = getCSSPropertyName(name);
-  if (value == null || value === "") {
+  const cssValue =
+    typeof value === "string"
+      ? // Replace "{variableName}" shorthand with css compatible "var(--variableName)"
+        value.replace(/[{]/g, "var(--").replace(/[}]/g, ")")
+      : value;
+  if (cssValue == null || cssValue === "") {
     return [cssProp, ""];
   }
-  if (cssProp === "background-image" && typeof value === "string") {
-    const url = value.trim().startsWith("url(")
-      ? value
-      : `url('${encodeURI(value)}')`;
+  if (
+    cssProp === "background-color" &&
+    typeof cssValue === "string" &&
+    theme.colors[cssValue]
+  ) {
+    return [cssProp, theme.colors[cssValue]];
+  }
+  if (cssProp === "background-image" && typeof cssValue === "string") {
+    const url = /^[ ]*url[ ]*[(]/.test(cssValue.trim())
+      ? cssValue
+      : `url('${encodeURI(cssValue)}')`;
     return [cssProp, url];
   }
   if (cssProp === "text-stroke") {
-    if (typeof value === "number") {
-      return ["text-shadow", createTextShadow(value)];
+    if (typeof cssValue === "number") {
+      return ["text-shadow", createTextShadow(cssValue)];
     }
-    if (typeof value === "string") {
-      const parts = value.split(" ");
+    if (typeof cssValue === "string") {
+      const parts = cssValue.split(" ");
       const r = parts[0]?.replace(/[^0-9.]+/g, "") || "";
       const num = Number.parseInt(r, 16);
       if (!Number.isNaN(num)) {
@@ -44,7 +57,7 @@ export const getCSSPropertyKeyValue = (
     }
   }
   if (cssProp === "line-height") {
-    return [cssProp, String(value)];
+    return [cssProp, String(cssValue)];
   }
   if (
     cssProp === "border-radius" ||
@@ -64,15 +77,15 @@ export const getCSSPropertyKeyValue = (
     cssProp.endsWith("-left") ||
     cssProp.endsWith("-right")
   ) {
-    if (Array.isArray(value)) {
+    if (Array.isArray(cssValue)) {
       return [
         cssProp,
-        value.map((x) => (typeof x === "number" ? `${x}px` : x)).join(" "),
+        cssValue.map((x) => (typeof x === "number" ? `${x}px` : x)).join(" "),
       ];
     }
-    if (typeof value === "number") {
-      return [cssProp, `${value}px`];
+    if (typeof cssValue === "number") {
+      return [cssProp, `${cssValue}px`];
     }
   }
-  return [cssProp, String(value)];
+  return [cssProp, String(cssValue)];
 };

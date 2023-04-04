@@ -71,7 +71,7 @@ export const stringifyBeatmap = (
   beats: Beat[],
   reversed = false,
   minRowsPerBeat = 3,
-  minColumnsPerBeat = 4
+  minColumnsPerBeat = 3
 ): string => {
   let tokens: string[] = [];
   if (Array.isArray(beats)) {

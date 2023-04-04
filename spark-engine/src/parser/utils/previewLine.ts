@@ -40,7 +40,10 @@ export const previewLine = (
       context.game.ui.loadStyles(objectMap, previewStruct.name);
     }
     if (previewStruct?.type === "ui") {
+      context.game.ui.hideUI(...Object.keys(objectMap?.["ui"] || {}));
+      context.game.ui.loadStyles(objectMap);
       context.game.ui.loadUI(objectMap, previewStruct.name);
+      context.game.ui.showUI(previewStruct.name);
     }
   }
 };

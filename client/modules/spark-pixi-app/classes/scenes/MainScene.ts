@@ -1,11 +1,4 @@
-import {
-  Beat,
-  Graphic,
-  Midi,
-  parseMidi,
-  ReadOnly,
-  SparkContext,
-} from "../../../../../spark-engine";
+import { Beat, SparkContext } from "../../../../../spark-engine";
 import { generateSpritesheet } from "../../plugins/animation";
 import { Application } from "../../plugins/app";
 import { Renderer, Texture } from "../../plugins/core";
@@ -23,6 +16,7 @@ import {
   StandardMaterial,
 } from "../../plugins/projection";
 import { Ticker } from "../../plugins/ticker";
+import { SparkAssets } from "../SparkAssets";
 import { SparkScene } from "../SparkScene";
 
 type BeatInfo = Beat & {
@@ -433,22 +427,6 @@ export class MainScene extends SparkScene {
 
   private _spinGuideCircleTexture: Texture;
 
-  private _beatsPerMS = 120 * 1000;
-
-  private _currentBeat = 0;
-
-  private _destinationX = 0;
-
-  private _moving = false;
-
-  private _overshooting = false;
-
-  private _rebounding = false;
-
-  private _sliding = false;
-
-  private _squishing = false;
-
   private _backgroundLayer = 0;
 
   private _safetyLinesLayer = 1;
@@ -459,8 +437,24 @@ export class MainScene extends SparkScene {
 
   private _entityLayer = 4;
 
-  constructor(context: SparkContext, app: Application) {
-    super(context, app);
+  private _beatsPerMS = 120 * 1000;
+
+  protected _currentBeat = 0;
+
+  protected _destinationX = 0;
+
+  protected _moving = false;
+
+  protected _overshooting = false;
+
+  protected _rebounding = false;
+
+  protected _sliding = false;
+
+  protected _squishing = false;
+
+  constructor(context: SparkContext, app: Application, assets: SparkAssets) {
+    super(context, app, assets);
     // Tiles
     const beatmaps = Object.values(
       this.context.game.struct.config.objectMap?.["beatmap"] || {}
@@ -500,93 +494,117 @@ export class MainScene extends SparkScene {
     this.dolly.distance = this._followDistance;
   }
 
+  override getRequiredAssets(): Record<string, { src: string; ext: string }> {
+    const objectMap = this.context?.game?.struct?.config?.objectMap || {};
+    const assets: Record<string, { src: string; ext: string }> = {};
+    Object.entries(objectMap["midi"] || {}).forEach(([id, asset]) => {
+      if (id) {
+        assets[id] = asset;
+      }
+    });
+    Object.entries(objectMap["graphic"] || {}).forEach(([id, asset]) => {
+      if (id) {
+        assets[id] = asset;
+      }
+    });
+    return assets;
+  }
+
   override async load(): Promise<void> {
-    const graphicMap: Record<string, ReadOnly<Graphic>> = this.context?.game
-      ?.struct?.config?.objectMap?.graphic || {};
-    const midiMap: Record<string, ReadOnly<Midi>> = this.context.game.struct
-      .config.objectMap?.midi || {};
-    await Promise.all([
-      ...Object.entries(graphicMap).map(async ([name, asset]) => {
-        const src = asset.src as unknown as string;
-        const data = await this.assets.load<SVGSVGElement>(`${src}&type=svg`);
-        if (data) {
-          const key = name;
+    // Load Textures
+    await Promise.all(
+      Object.entries(
+        this.assets.cache.get<Record<string, SVGSVGElement>>("svg") || {}
+      ).map(async ([key, value]) => {
+        if (!this._animations[key]) {
           this._animations[key] = await getAnimationTextures(
             this.renderer,
-            data,
+            value,
             this.ticker?.maxFPS,
             key
           );
         }
-      }),
-      ...Object.entries(midiMap).map(async ([, asset]) => {
-        const src = asset.src as unknown as string;
-        const data = await this.assets.load<ArrayBuffer>(`${src}&type=mid`);
-        if (data) {
-          const midi = parseMidi(data);
-          console.warn(midi);
-        }
-      }),
-    ]);
+      })
+    );
+    if (!this._tapGuideCircleTexture) {
+      this._tapGuideCircleTexture = createCircleTexture(this.renderer, {
+        fillColor: 0x000000,
+        strokeColor: 0xffffff,
+        strokeWidth: 2,
+        radius: 16 / 2,
+      });
+    }
+    if (!this._spinGuideCircleTexture) {
+      this._spinGuideCircleTexture = createCircleTexture(this.renderer, {
+        fillColor: null,
+        strokeColor: 0xffffff,
+        strokeWidth: 2,
+        radius: 128 / 2,
+      });
+    }
+    if (!this._tapTargetCircleTexture) {
+      this._tapTargetCircleTexture = createCircleTexture(this.renderer, {
+        fillColor: 0xffffff,
+        strokeColor: 0x000000,
+        strokeWidth: 2,
+        radius: 16 / 2,
+      });
+    }
+    if (!this._swipeUpArrowTexture) {
+      this._swipeUpArrowTexture = createLineTexture(this.renderer, {
+        thickness: 2,
+        fillColor: 0xffffff,
+        strokeColor: 0x000000,
+        strokeWidth: 0.5,
+        max: [16, 16],
+        points: [
+          [5, 8.5],
+          [8, 4.5],
+          [11, 8.5],
+        ],
+      });
+    }
+    if (!this._swipeLeftArrowTexture) {
+      this._swipeLeftArrowTexture = createLineTexture(this.renderer, {
+        thickness: 2,
+        fillColor: 0xffffff,
+        strokeColor: 0x000000,
+        strokeWidth: 0.5,
+        max: [16, 16],
+        points: [
+          [9, 10],
+          [5, 7],
+          [9, 4],
+        ],
+      });
+    }
+    if (!this._swipeRightArrowTexture) {
+      this._swipeRightArrowTexture = createLineTexture(this.renderer, {
+        thickness: 2,
+        fillColor: 0xffffff,
+        strokeColor: 0x000000,
+        strokeWidth: 0.5,
+        max: [16, 16],
+        points: [
+          [7, 4],
+          [11, 7],
+          [7, 10],
+        ],
+      });
+    }
   }
 
   override init(): void {
+    this._currentBeat = 0;
+    this._destinationX = 0;
+    this._moving = false;
+    this._overshooting = false;
+    this._rebounding = false;
+    this._sliding = false;
+    this._squishing = false;
+
+    // TODO: Only execute the below logic on first load
     const maxZ = this._beats[this._beats.length - 1]?.z ?? 0;
-    // Textures
-    this._tapGuideCircleTexture = createCircleTexture(this.renderer, {
-      fillColor: 0x000000,
-      strokeColor: 0xffffff,
-      strokeWidth: 2,
-      radius: 16 / 2,
-    });
-    this._spinGuideCircleTexture = createCircleTexture(this.renderer, {
-      fillColor: null,
-      strokeColor: 0xffffff,
-      strokeWidth: 2,
-      radius: 128 / 2,
-    });
-    this._tapTargetCircleTexture = createCircleTexture(this.renderer, {
-      fillColor: 0xffffff,
-      strokeColor: 0x000000,
-      strokeWidth: 2,
-      radius: 16 / 2,
-    });
-    this._swipeUpArrowTexture = createLineTexture(this.renderer, {
-      thickness: 2,
-      fillColor: 0xffffff,
-      strokeColor: 0x000000,
-      strokeWidth: 0.5,
-      max: [16, 16],
-      points: [
-        [5, 8.5],
-        [8, 4.5],
-        [11, 8.5],
-      ],
-    });
-    this._swipeLeftArrowTexture = createLineTexture(this.renderer, {
-      thickness: 2,
-      fillColor: 0xffffff,
-      strokeColor: 0x000000,
-      strokeWidth: 0.5,
-      max: [16, 16],
-      points: [
-        [9, 10],
-        [5, 7],
-        [9, 4],
-      ],
-    });
-    this._swipeRightArrowTexture = createLineTexture(this.renderer, {
-      thickness: 2,
-      fillColor: 0xffffff,
-      strokeColor: 0x000000,
-      strokeWidth: 0.5,
-      max: [16, 16],
-      points: [
-        [7, 4],
-        [11, 7],
-        [7, 10],
-      ],
-    });
     // Highway
     this._compositeContainers = [
       new Container3D(),
@@ -755,8 +773,8 @@ export class MainScene extends SparkScene {
       this._bottomTrackMeshes,
       this._bottomTrackSprites,
       this._followAngle,
-      this.renderer.screen.width,
-      this.renderer.screen.height
+      this.renderer?.screen?.width ?? 0,
+      this.renderer?.screen?.height ?? 0
     );
     this._compositeContainers[this._foregroundLayer].addChild(
       this._topTrackContainer
@@ -827,13 +845,13 @@ export class MainScene extends SparkScene {
     });
     this._compositeContainers.forEach((compositeContainer) => {
       if (compositeContainer instanceof CompositeSprite) {
-        this.stage.addChild(compositeContainer);
+        this.root.addChild(compositeContainer);
       } else {
         const compositeSprite = new CompositeSprite(this.renderer, {
           objectToRender: compositeContainer,
           resolution: 2,
         });
-        this.stage.addChild(compositeSprite);
+        this.root.addChild(compositeSprite);
       }
     });
     // Spawn animation duration
@@ -936,6 +954,12 @@ export class MainScene extends SparkScene {
         });
       }
     }
+    // Start Midis
+    Object.entries(
+      this.assets.cache.get<Record<string, Float32Array>>("mid") || {}
+    ).forEach(([key, buffer]) => {
+      this.context.game.sound.start(key, buffer);
+    });
   }
 
   override update(deltaMS: number): boolean {
@@ -1164,6 +1188,7 @@ export class MainScene extends SparkScene {
     distanceX: number
   ): void {
     if (
+      this._playerContainer &&
       this._playerContainer.position.x === this._destinationX &&
       !this._moving &&
       !this._overshooting &&

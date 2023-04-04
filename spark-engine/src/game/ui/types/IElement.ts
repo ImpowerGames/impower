@@ -25,13 +25,23 @@ export interface IElement {
 
   setImportContent: (properties: Record<string, any>) => void;
 
-  setStyleContent: (
+  setAnimationContent: (
+    animationName: string,
     properties: Record<string, any>,
     objectMap: { [type: string]: Record<string, any> }
   ) => void;
 
-  setAnimationContent: (
+  setStyleContent: (
+    targetName: string,
     properties: Record<string, any>,
     objectMap: { [type: string]: Record<string, any> }
   ) => void;
+
+  setStyleProperty: (propName: string, propValue: unknown) => void;
+
+  hasState: (state: string) => boolean;
+
+  addState: (state: string) => void;
+
+  removeState: (state: string) => void;
 }

@@ -12,7 +12,7 @@ const DEFAULT_STYLE_CLASS_NAME = "spark-style";
 const DEFAULT_CREATE_ELEMENT = (id: string) => new Element(id);
 
 export interface UIEvents extends Record<string, GameEvent> {
-  onCreateElement: GameEvent<[string, string]>;
+  onCreateElement: GameEvent<string, string>;
 }
 
 export interface UIConfig {
@@ -25,11 +25,9 @@ export interface UIConfig {
 export interface UIState {}
 
 export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
-  unregisterRootObserver?: () => void;
-
   constructor(config?: Partial<UIConfig>, state?: Partial<UIState>) {
     const initialEvents: UIEvents = {
-      onCreateElement: new GameEvent<[string, string]>(),
+      onCreateElement: new GameEvent<string, string>(),
     };
     const initialConfig: UIConfig = {
       styleClassName: DEFAULT_STYLE_CLASS_NAME,
@@ -100,10 +98,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   loadTheme(objectMap: { [type: string]: Record<string, any> }): void {
     const theme = objectMap?.["theme"]?.[""] as Theme;
     if (theme) {
-      this.unregisterRootObserver?.();
-      this.unregisterRootObserver = this._config.root.observeSize(
-        theme.breakpoints
-      );
+      this._config.root.observeSize(theme.breakpoints);
     }
   }
 
@@ -148,7 +143,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           );
           if (structEl) {
             const properties = getAllProperties(styleStructObj);
-            structEl.setStyleContent(properties, objectMap);
+            structEl.setStyleContent(structName, properties, objectMap);
           }
         }
         const animationStructObj = objectMap?.["animation"]?.[structName];
@@ -159,7 +154,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           );
           if (structEl) {
             const properties = getAllProperties(animationStructObj);
-            structEl.setAnimationContent(properties, objectMap);
+            structEl.setAnimationContent(structName, properties, objectMap);
           }
         }
         const uiStructObj = objectMap?.["ui"]?.[structName];
@@ -177,6 +172,40 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     styleStructNames.forEach((styleStructName) => {
       this.loadStyles(objectMap, styleStructName);
     });
+  }
+
+  hideUI(...structNames: string[]): void {
+    structNames.forEach((structName) => {
+      if (structName) {
+        const structEl = this.getUIElement(structName);
+        if (structEl && !structEl.hasState("hidden")) {
+          structEl.addState("hidden");
+        }
+      }
+    });
+  }
+
+  showUI(...structNames: string[]): void {
+    structNames.forEach((structName) => {
+      if (structName) {
+        const structEl = this.getUIElement(structName);
+        if (structEl) {
+          structEl.removeState("hidden");
+        }
+      }
+    });
+  }
+
+  updateStyleProperty(
+    propName: string,
+    propValue: unknown,
+    structName: string,
+    ...childPath: string[]
+  ): void {
+    const structEl = this.getUIElement(structName, ...childPath);
+    if (structEl) {
+      structEl.setStyleProperty(propName, propValue);
+    }
   }
 
   loadUI(
@@ -197,30 +226,35 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       flexDirection: "column",
     };
     const uiRootStyleProperties = {
+      position: "absolute",
+      top: "0",
+      bottom: "0",
+      left: "0",
+      right: "0",
       fontFamily: "Courier Prime Sans",
       fontSize: "1em",
-      ...rootStyleProperties,
     };
     this.overrideStyle(uiRootEl, uiRootStyleProperties);
-    const validStructNames =
-      structNames?.length > 0
-        ? structNames
-        : Object.keys(objectMap?.["ui"] || {});
+    const targetAllStructs = !structNames || structNames.length === 0;
+    const validStructNames = targetAllStructs
+      ? Object.keys(objectMap?.["ui"] || {})
+      : structNames;
     validStructNames.forEach((structName) => {
       if (structName) {
         const structObj = objectMap?.["ui"]?.[structName];
         if (structObj) {
           const properties = getAllProperties(structObj);
-          const structEl = this.constructUIElement(structName, properties);
+          const structEl = this.constructUI(structName, properties);
           this.overrideStyle(structEl, rootStyleProperties);
           Object.entries(properties).forEach(([k, v]) => {
+            const childPath = k.split(".").filter((f) => f);
             const fieldEl =
-              this.getUIElement(structName, ...k.split(".")) ||
+              this.getUIElement(structName, ...childPath) ||
               this.constructElement(
                 "div",
                 this.getUIPath(),
                 structName,
-                ...k.split(".")
+                ...childPath
               );
             if (fieldEl && v && typeof v === "string") {
               fieldEl.textContent = v;
@@ -239,7 +273,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         newEl.className = this.getName(newEl.id);
       }
     }
-    this._events.onCreateElement.emit(type, newEl.id);
+    this._events.onCreateElement.dispatch(type, newEl.id);
     return newEl;
   }
 
@@ -321,7 +355,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return undefined;
   }
 
-  constructUIElement(structName: string, fields: unknown): IElement {
+  constructUI(structName: string, fields: Record<string, unknown>): IElement {
     const hash = getHash(fields).toString();
     const existingStructEl = this.getUIElement(structName);
     if (existingStructEl && existingStructEl.dataset["hash"] !== hash) {
@@ -332,6 +366,9 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       this.constructElement("div", this.getUIPath(), structName);
     if (structEl.dataset["hash"] !== hash) {
       structEl.dataset["hash"] = hash;
+    }
+    if (!existingStructEl) {
+      structEl.addState("hidden");
     }
     return structEl;
   }

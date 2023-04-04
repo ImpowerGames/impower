@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "target": "es2020",
-    "lib": ["es2020", "dom"],
+    "module": "esnext",
+    "target": "esnext",
+    "lib": ["esnext", "dom", "webworker"],
     "outDir": "out",
     "skipLibCheck": true,
     "sourceMap": true,
@@ -17,6 +17,7 @@
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "moduleResolution": "node"
   }
 }

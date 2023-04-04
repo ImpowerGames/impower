@@ -90,22 +90,6 @@ const snippetKeymap = [
   },
 ];
 
-export const completionKeymap: readonly KeyBinding[] = [
-  { key: "Ctrl-Space", run: startCompletion },
-  { key: "Escape", run: closeCompletion },
-  { key: "ArrowDown", run: moveCompletionSelection(true) },
-  { key: "ArrowUp", run: moveCompletionSelection(false) },
-  { key: "PageDown", run: moveCompletionSelection(true, "page") },
-  { key: "PageUp", run: moveCompletionSelection(false, "page") },
-  {
-    key: "Enter",
-    run: (target: EditorView): boolean => {
-      const accepted = acceptCompletion(target);
-      const next = nextSnippetField(target);
-      return accepted || next;
-    },
-  },
-];
 const htmlNoMatch = html({ matchClosingTags: false });
 
 /// Markdown language support.
@@ -218,7 +202,27 @@ export function spark(
   if (addKeymap) {
     support.push(Prec.high(keymap.of(markdownKeymap)));
     support.push(Prec.highest(keymap.of(snippetKeymap)));
-    support.push(Prec.highest(keymap.of(completionKeymap)));
+    support.push(
+      Prec.highest(
+        keymap.of([
+          { key: "Ctrl-Space", run: startCompletion },
+          { key: "Escape", run: closeCompletion },
+          { key: "ArrowDown", run: moveCompletionSelection(true) },
+          { key: "ArrowUp", run: moveCompletionSelection(false) },
+          { key: "PageDown", run: moveCompletionSelection(true, "page") },
+          { key: "PageUp", run: moveCompletionSelection(false, "page") },
+          {
+            key: "Enter",
+            run: (target: EditorView): boolean => {
+              const inserted = insertNewlineContinueMarkup(target);
+              parseContext.result = parse(target.state.doc.toString());
+              const prompted = startCompletion(target);
+              return inserted || prompted;
+            },
+          },
+        ])
+      )
+    );
     support.push(
       Prec.highest(
         keymap.of([

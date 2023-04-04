@@ -75,7 +75,7 @@ export class Game {
 
   init(): void {
     Object.values(this.managers()).forEach((m) => m.init());
-    this._events.onInit.emit();
+    this._events.onInit.dispatch();
   }
 
   update(deltaMS: number): void {
@@ -85,7 +85,7 @@ export class Game {
   }
 
   destroy(): void {
-    this._events.onDestroy.emit();
+    this._events.onDestroy.dispatch();
     Object.values(this.managers()).forEach((m) => m.destroy());
   }
 

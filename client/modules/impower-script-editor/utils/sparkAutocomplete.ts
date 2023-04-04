@@ -10,15 +10,7 @@ import {
 } from "@codemirror/autocomplete";
 import { ensureSyntaxTree, syntaxTreeAvailable } from "@codemirror/language";
 import { SyntaxNode, Tree } from "@lezer/common";
-import {
-  convertNoteToHertz,
-  getAllProperties,
-  Note,
-  Pitch,
-  STRUCT_DEFAULTS,
-  SynthBuffer,
-  Tone,
-} from "../../../../spark-engine";
+import { getAllProperties, STRUCT_DEFAULTS } from "../../../../spark-engine";
 import {
   getAncestorIds,
   getChildrenIds,
@@ -46,21 +38,9 @@ const CURSOR_OPEN = "${";
 const CURSOR_CLOSE = "}";
 const CURSOR = CURSOR_OPEN + CURSOR_CLOSE;
 
-const context = new AudioContext();
-
-const playTone = (note: Note, duration: number): void => {
-  const tone: Tone = { time: 0, duration, hertz: convertNoteToHertz(note) };
-  const track = new SynthBuffer(context.sampleRate, tone);
-  const buffer = context.createBuffer(
-    1,
-    track.durationInSamples,
-    context.sampleRate
-  );
-  buffer.copyToChannel(track.soundBuffer, 0);
-  const source = context.createBufferSource();
-  source.buffer = buffer;
-  source.connect(context.destination);
-  source.start(context.currentTime + 0.025, 0, duration + 0.05);
+const wrapString = (str: string): string => {
+  const quote = str.includes('"') ? "`" : '"';
+  return `${quote}${str}${quote}`;
 };
 
 const snip = (template: string, completion: Completion): Completion => {
@@ -266,75 +246,6 @@ export const declareSnippets: readonly Completion[] = [
   }),
 ];
 
-export const callSnippets: readonly Completion[] = [
-  snip('* spawn(${}"${entityName}")${}', {
-    label: "* spawn",
-    info: (): Node => getInfoNode(`(string)`, colors.section),
-    type: "method",
-  }),
-  snip('* destroy(${}"${entityName}")${}', {
-    label: "* destroy",
-    info: (): Node => getInfoNode(`(string)`, colors.section),
-    type: "method",
-  }),
-  snip('* move(${}"${entityName}", ${x}, ${y}, ${z})${}', {
-    label: "* move",
-    info: (): Node =>
-      getInfoNode(`(string, number, number, number)`, colors.section),
-    type: "method",
-  }),
-  snip('* moveX(${}"${entityName}", ${x})${}', {
-    label: "* moveX",
-    info: (): Node => getInfoNode(`(string, number)`, colors.section),
-    type: "method",
-  }),
-  snip('* moveY(${}"${entityName}", ${y})${}', {
-    label: "* moveY",
-    info: (): Node => getInfoNode(`(string, number)`, colors.section),
-    type: "method",
-  }),
-  snip('* moveZ(${}"${entityName}", ${z})${}', {
-    label: "* moveZ",
-    info: (): Node => getInfoNode(`(string, number)`, colors.section),
-    type: "method",
-  }),
-  snip('* rotate(${}"${entityName}", ${x}, ${y}, ${z})${}', {
-    label: "* rotate",
-    info: (): Node => getInfoNode(`(string, number, number)`, colors.section),
-    type: "method",
-  }),
-  snip('* rotateX(${}"${entityName}", ${x})${}', {
-    label: "* rotateX",
-    info: (): Node => getInfoNode(`(string, number)`, colors.section),
-    type: "method",
-  }),
-  snip('* rotateY(${}"${entityName}", ${y})${}', {
-    label: "* rotateY",
-    info: (): Node => getInfoNode(`(string, number)`, colors.section),
-    type: "method",
-  }),
-  snip('* rotateZ(${}"${entityName}", ${z})${}', {
-    label: "* rotateY",
-    info: (): Node => getInfoNode(`(string, number)`, colors.section),
-    type: "method",
-  }),
-  snip('* scale(${}"${entityName}", ${x}, ${y})${}', {
-    label: "* scale",
-    info: (): Node => getInfoNode(`(string, number)`, colors.section),
-    type: "method",
-  }),
-  snip('* scaleX(${}"${entityName}", ${x})${}', {
-    label: "* scaleX",
-    info: (): Node => getInfoNode(`(string, number)`, colors.section),
-    type: "method",
-  }),
-  snip('* scaleY(${}"${entityName}", ${y})${}', {
-    label: "* scaleY",
-    info: (): Node => getInfoNode(`(string, number)`, colors.section),
-    type: "method",
-  }),
-];
-
 export const scenePrefixSnippets: readonly Completion[] = [
   snip("${}INT", {
     label: "INT",
@@ -365,30 +276,6 @@ export const choiceSnippets: readonly Completion[] = [
     type: "choice_minus",
   }),
 ];
-
-export const getNoteSnippets = (
-  keys: Pitch[],
-  octaves: number[]
-): readonly Completion[] => {
-  let i = 0;
-  const max = octaves.length * keys.length;
-  return octaves.flatMap((octave) => {
-    return keys.flatMap((note) => {
-      const template = `${note}${octave}${CURSOR}${CURSOR}`;
-      const s = snip(template, {
-        label: `${note}${octave}`,
-        info: (): Node => {
-          playTone(`${note}${octave}`, 0.05);
-          return document.createElement("div");
-        },
-        type: `tone`,
-        boost: max - i,
-      });
-      i += 1;
-      return s;
-    });
-  });
-};
 
 export const nameSnippets = (
   options: (
@@ -637,8 +524,6 @@ export const logicSnippets = (
 ): Completion[] => {
   const functionIds = getFunctionIds(sectionId, sections);
   const snippets = [
-    ...declareSnippets,
-    ...conditionSnippets,
     ...nameSnippets(
       variableOptions,
       "variable",
@@ -646,6 +531,8 @@ export const logicSnippets = (
       " = ${}${value}",
       colors.variableName
     ),
+    ...declareSnippets,
+    ...conditionSnippets,
     ...functionIds.map((id) => {
       const section = sections[id];
       const name = section?.name;
@@ -661,7 +548,6 @@ export const logicSnippets = (
         type: "function",
       });
     }),
-    ...callSnippets,
   ];
   return snippets.map((s, i) => ({ ...s, boost: snippets.length - i }));
 };
@@ -857,7 +743,6 @@ export const sparkAutocomplete = async (
     )
   );
   const isUppercase = input.toUpperCase() === input;
-
   if ([Type.RepeatMark].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(...repeatSnippets);
@@ -916,38 +801,45 @@ export const sparkAutocomplete = async (
     );
     return completeFromList(completions)(context);
   }
-  if ([Type.PossibleCharacter].includes(node.type.id)) {
-    const completions: Completion[] = [];
-    completions.push(
-      ...characterSnippets(
-        Object.keys(result?.properties?.characters || {}),
-        result?.dialogueLines,
-        lineNumber,
-        "\n"
-      )
-    );
-    completions.push(...uppercaseParagraphSnippets);
-    return completeFromList(completions)(context);
+  if ([Type.Document].includes(node.type.id)) {
+    const line = context.state.doc.lineAt(context.pos);
+    const prevLine = context.state.doc.line(Math.max(0, line.number - 1));
+    if (!prevLine.text.trim()) {
+      const completions: Completion[] = [];
+      completions.push(
+        ...characterSnippets(
+          Object.keys(result?.properties?.characters || {}),
+          result?.dialogueLines,
+          line.number,
+          `\n${CURSOR}`
+        )
+      );
+      return completeFromList(completions)(context);
+    }
   }
-  if ([Type.PossibleCharacterName].includes(node.type.id)) {
+  if (
+    [Type.PossibleCharacter, Type.PossibleCharacterName].includes(node.type.id)
+  ) {
+    const line = context.state.doc.lineAt(context.pos);
     const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
         Object.keys(result?.properties?.characters || {}),
         result?.dialogueLines,
-        lineNumber,
-        "\n"
+        line.number,
+        `\n${CURSOR}`
       )
     );
     return completeFromList(completions)(context);
   }
   if ([Type.Character, Type.CharacterName].includes(node.type.id)) {
+    const line = context.state.doc.lineAt(context.pos);
     const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
         Object.keys(result?.properties?.characters || {}),
         result?.dialogueLines,
-        lineNumber
+        line.number
       )
     );
     return completeFromList(completions)(context);
@@ -1000,9 +892,11 @@ export const sparkAutocomplete = async (
     completions.push(...structSnippets);
     return completeFromList(completions)(context);
   }
-  if ([Type.StructFieldName].includes(node.type.id)) {
+  if ([Type.StructFieldName, Type.Struct].includes(node.type.id)) {
+    const line = context.state.doc.lineAt(context.pos);
     const tokenIndex = result.tokenLines[line.number];
-    const structField = result.tokens[tokenIndex] as SparkStructFieldToken;
+    const token = result.tokens[tokenIndex];
+    const structField = token as SparkStructFieldToken;
     const structName = structField?.struct;
     const fieldId = structField?.id;
     const struct = result.structs[structName || ""];
@@ -1021,21 +915,27 @@ export const sparkAutocomplete = async (
           possibleNames[name] = isObject ? undefined : defaultValue;
         }
       });
-      const completions = Object.entries(possibleNames).map(
-        ([name, defaultValue]) => {
+      const possibleNameEntries = Object.entries(possibleNames);
+      const completions = possibleNameEntries.map(
+        ([name, defaultValue], index) => {
           const type =
             defaultValue == null
               ? "object"
               : Array.isArray(defaultValue)
               ? "array"
               : typeof defaultValue;
+          const defaultValueString =
+            typeof defaultValue === "string"
+              ? wrapString(defaultValue)
+              : defaultValue;
           const template =
             type === "object" || type === "array"
-              ? `${name}:\n  ${CURSOR}`
-              : `${name}: ${CURSOR}`;
+              ? `${name}:${CURSOR}`
+              : `${name}: ${defaultValueString}${CURSOR}`;
           return snip(template, {
             label: name,
             type,
+            boost: possibleNameEntries.length - index,
           });
         }
       );

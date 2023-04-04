@@ -1,11 +1,21 @@
 import { SparkContext } from "../../../../spark-engine";
 import { Application } from "../plugins/app";
-import { Assets } from "../plugins/assets";
 import { Rectangle, Renderer } from "../plugins/core";
 import { CameraOrbitControl, Container3D } from "../plugins/projection";
 import { Ticker } from "../plugins/ticker";
+import { SparkAssets } from "./SparkAssets";
 
 export class SparkScene {
+  private _active = true;
+
+  public get active(): boolean {
+    return this._active;
+  }
+
+  public set active(value: boolean) {
+    this._active = value;
+  }
+
   private _context: SparkContext;
 
   public get context(): SparkContext {
@@ -26,8 +36,10 @@ export class SparkScene {
     return this._app.renderer as Renderer;
   }
 
-  public get assets(): Assets {
-    return this._app.assets;
+  private _assets: SparkAssets;
+
+  public get assets(): SparkAssets {
+    return this._assets;
   }
 
   public get maxFPS(): number {
@@ -100,9 +112,21 @@ export class SparkScene {
     this._touchDragThreshold = value;
   }
 
-  constructor(context: SparkContext, app: Application) {
+  protected _container = new Container3D();
+
+  public get root(): Container3D {
+    return this._container;
+  }
+
+  constructor(context: SparkContext, app: Application, assets: SparkAssets) {
     this._context = context;
     this._app = app;
+    this._assets = assets;
+    this.bind();
+  }
+
+  getRequiredAssets(): Record<string, { src: string; ext: string }> {
+    return {};
   }
 
   async load(): Promise<void> {
@@ -113,12 +137,28 @@ export class SparkScene {
     // NoOp
   }
 
-  update(_delta?: number): boolean {
+  update(_deltaMS?: number): boolean {
     // NoOp
     return false;
   }
 
+  step(_deltaMS?: number): void {
+    // NoOp
+  }
+
+  pause(): void {
+    // NoOp
+  }
+
+  unpause(): void {
+    // NoOp
+  }
+
   resize(): void {
+    // NoOp
+  }
+
+  reset(): void {
     // NoOp
   }
 

@@ -5,7 +5,6 @@
  * Released under the MIT license.
  */
 
-import { MIDI_CONTROLLER } from "../constants/MIDI_CONTROLLER";
 import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
 import {
   MIDI_STATUS_SYSTEM,
@@ -23,14 +22,7 @@ import {
 import { hexify, hexifyNumber } from "./hexify";
 import { stringifyDataView } from "./stringifyDataView";
 
-const normalize = (value: number, min: number, max: number): number => {
-  return (value - min) / (max - min);
-};
-
-export const parseMidi = (
-  arrayBuffer: ArrayBuffer,
-  normalizeValues = true
-): Midi => {
+export const parseMidi = (arrayBuffer: ArrayBuffer): Midi => {
   const dataView = new DataView(arrayBuffer);
 
   const header = _parseHeaderChunk(dataView);
@@ -40,42 +32,6 @@ export const parseMidi = (
   for (let i = 0; i < header.numberOfTracks; i += 1) {
     let track;
     ({ offset, track } = _parseTrackChunk(dataView, offset));
-    if (normalizeValues) {
-      track.forEach((event) => {
-        if (event.statusType === MIDI_STATUS_TYPE.voice_note_off) {
-          event.noteOffVelocity = normalize(event.noteOffVelocity, 0, 127);
-        }
-        if (event.statusType === MIDI_STATUS_TYPE.voice_note_on) {
-          event.noteOnVelocity = normalize(event.noteOnVelocity, 0, 127);
-        }
-        if (event.statusType === MIDI_STATUS_TYPE.voice_pitch_bend) {
-          // Typical range is +/- 2 semitones
-          event.pitchBend = normalize(event.pitchBend, 8192, 8192 * 2) * 2;
-        }
-        if (event.statusType === MIDI_STATUS_TYPE.voice_controller_change) {
-          if (
-            event.controllerNumber === MIDI_CONTROLLER.sustain_pedal ||
-            event.controllerNumber === MIDI_CONTROLLER.portamento_pedal ||
-            event.controllerNumber === MIDI_CONTROLLER.sostenuto_pedal ||
-            event.controllerNumber === MIDI_CONTROLLER.soft_pedal ||
-            event.controllerNumber === MIDI_CONTROLLER.legato_pedal ||
-            event.controllerNumber === MIDI_CONTROLLER.hold_pedal
-          ) {
-            event.controllerValue = event.controllerValue <= 63 ? 0 : 1;
-          } else if (
-            event.controllerNumber === MIDI_CONTROLLER.local_keyboard
-          ) {
-            event.controllerValue = event.controllerValue === 0 ? 0 : 1;
-          } else if (
-            event.controllerNumber === MIDI_CONTROLLER.mono_operation
-          ) {
-            event.controllerValue = event.controllerValue;
-          } else {
-            event.controllerValue = normalize(event.controllerValue, 0, 127);
-          }
-        }
-      });
-    }
     tracks.push(track);
   }
 
@@ -210,7 +166,7 @@ const _parseEvent = (
 
   return {
     statusByte,
-    event: { ...result.event, ticks },
+    event: { ...result.event, ticks: result.event.ticks ?? ticks },
     offset: result.offset,
   };
 };

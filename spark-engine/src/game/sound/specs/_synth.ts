@@ -3,26 +3,26 @@ import { A } from "../constants/A";
 import { Synth } from "../types/Synth";
 
 export const _synth: Create<Synth> = () => ({
-  wave: "triangle",
-  amplitude: {
+  shape: "triangle",
+  envelope: {
     volume: 0.5,
     volumeRamp: 0,
-    delay: 0,
-    attack: 0,
-    decay: 0,
-    sustain: 0.05,
-    release: 0,
-    sustainLevel: 0.5,
-  },
-  frequency: {
-    pitch: A[4],
-    pitchRamp: 0,
-    accel: 0,
-    jerk: 0,
     offset: 0,
+    attack: 0,
+    decay: 0.025,
+    sustain: 0.05,
+    release: 0.025,
+    level: 0.5,
+  },
+  pitch: {
+    frequency: A[4],
+    frequencyRamp: 0,
+    frequencyTorque: 0,
+    frequencyJerk: 0,
+    phase: 0,
   },
   lowpass: {
-    cutoff: A[8],
+    cutoff: 0,
     cutoffRamp: 0,
     resonance: 0,
   },
@@ -45,8 +45,8 @@ export const _synth: Create<Synth> = () => ({
     maxNotes: 160,
     direction: "up",
     tones: [],
-    shapes: [],
     levels: [],
+    shapes: [],
   },
   vibrato: {
     on: false,
@@ -64,14 +64,6 @@ export const _synth: Create<Synth> = () => ({
     rate: 12,
     rateRamp: 0,
   },
-  ring: {
-    on: false,
-    shape: "sine",
-    strength: 0.5,
-    strengthRamp: 0,
-    rate: A[6],
-    rateRamp: 0,
-  },
   wahwah: {
     on: false,
     shape: "sine",
@@ -80,19 +72,9 @@ export const _synth: Create<Synth> = () => ({
     rate: 6,
     rateRamp: 0,
   },
-  harmony: {
-    on: false,
-    count: 1,
-    falloff: 0.5,
-    falloffRamp: 0,
-    shapes: [],
-  },
   reverb: {
     on: false,
-    strength: 0.5,
-    strengthRamp: 0,
+    level: 0.5,
     delay: 0.15,
-    delayRamp: 0,
   },
-  noiseSeed: "",
 });

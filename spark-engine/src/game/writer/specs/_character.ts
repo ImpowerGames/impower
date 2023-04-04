@@ -8,13 +8,13 @@ export const _character: Create<Character> = () => ({
   image: "",
   color: "",
   voiceSound: {
-    wave: "sine",
-    amplitude: {
+    shape: "sine",
+    envelope: {
       sustain: 0.049,
       release: 0.001,
     },
-    frequency: {
-      pitch: 440,
+    pitch: {
+      frequency: 440,
     },
     lowpass: {
       cutoff: 4840,

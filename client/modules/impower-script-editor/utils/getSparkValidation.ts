@@ -49,7 +49,7 @@ export const getSparkValidation = (
   if (type === "writer") {
     return WRITER_VALIDATION;
   }
-  if (type === "sound") {
+  if (type === "synth") {
     return SYNTH_VALIDATION;
   }
   return undefined;

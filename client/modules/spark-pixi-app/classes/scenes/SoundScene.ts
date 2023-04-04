@@ -1,23 +1,27 @@
-import { SparkDOMSynth } from "../../../../../spark-dom";
+import { SparkDOMAudioPlayer } from "../../../../../spark-dom";
+import { SparkContext } from "../../../../../spark-engine";
+import { Application } from "../../plugins/app";
 import { Graphics } from "../../plugins/graphics";
+import { SparkAssets } from "../SparkAssets";
 import { SparkScene } from "../SparkScene";
 
 export class SoundScene extends SparkScene {
-  protected _audioContext: AudioContext = new AudioContext();
+  private _audioContext: AudioContext = new AudioContext();
 
-  protected _instruments: Map<string, SparkDOMSynth> = new Map();
+  private _instruments: Map<string, SparkDOMAudioPlayer> = new Map();
 
-  protected _axisGraphic?: Graphics;
+  private _axisGraphic?: Graphics;
 
-  protected _waveGraphic?: Graphics;
+  private _waveGraphic?: Graphics;
 
-  protected _playheadGraphic?: Graphics;
+  private _playheadGraphic?: Graphics;
 
-  override init(): void {
+  constructor(context: SparkContext, app: Application, assets: SparkAssets) {
+    super(context, app, assets);
     this._axisGraphic = new Graphics();
     this._waveGraphic = new Graphics();
     this._playheadGraphic = new Graphics();
-    this.stage.addChild(
+    this.root.addChild(
       this._axisGraphic,
       this._waveGraphic,
       this._playheadGraphic
@@ -30,16 +34,16 @@ export class SoundScene extends SparkScene {
   override bind(): void {
     super.bind();
     this.context?.game?.sound?.events?.onStarted?.addListener((id, buffer) =>
-      this.start(id, buffer)
+      this.startInstrument(id, buffer)
     );
     this.context?.game?.sound?.events?.onPaused?.addListener((id) =>
-      this.pause(id)
+      this.pauseInstrument(id)
     );
     this.context?.game?.sound?.events?.onUnpaused?.addListener((id) =>
-      this.unpause(id)
+      this.unpauseInstrument(id)
     );
     this.context?.game?.sound?.events.onStopped?.addListener((id) =>
-      this.stop(id)
+      this.stopInstrument(id)
     );
   }
 
@@ -49,32 +53,36 @@ export class SoundScene extends SparkScene {
     this.context?.game?.sound?.events?.onPaused?.removeAllListeners();
     this.context?.game?.sound?.events?.onUnpaused?.removeAllListeners();
     this.context?.game?.sound?.events?.onStopped?.removeAllListeners();
+  }
+
+  override destroy(): void {
+    super.destroy();
     this._instruments.forEach((instrument) => {
       instrument.stop();
     });
   }
 
-  start(id: string, buffer: Float32Array): void {
-    const instrument = new SparkDOMSynth(buffer, this._audioContext);
+  startInstrument(id: string, buffer: Float32Array): void {
+    const instrument = new SparkDOMAudioPlayer(buffer, this._audioContext);
     instrument.start();
     this._instruments.set(id, instrument);
   }
 
-  pause(id: string): void {
+  pauseInstrument(id: string): void {
     const instrument = this._instruments.get(id);
     if (instrument) {
       instrument.pause();
     }
   }
 
-  unpause(id: string): void {
+  unpauseInstrument(id: string): void {
     const instrument = this._instruments.get(id);
     if (instrument) {
       instrument.unpause();
     }
   }
 
-  stop(id: string): void {
+  stopInstrument(id: string): void {
     const instrument = this._instruments.get(id);
     if (instrument) {
       instrument.stop();
@@ -96,7 +104,40 @@ export class SoundScene extends SparkScene {
     return false;
   }
 
-  renderWaveform(instrument: SparkDOMSynth): void {
+  override step(deltaMS: number): void {
+    Object.entries(this.context.game.sound.state.playbackStates).forEach(
+      ([k]) => {
+        const instrument = this._instruments.get(k);
+        if (instrument) {
+          instrument.step(deltaMS);
+        }
+      }
+    );
+  }
+
+  override pause(): void {
+    Object.entries(this.context.game.sound.state.playbackStates).forEach(
+      ([k]) => {
+        const instrument = this._instruments.get(k);
+        if (instrument) {
+          instrument.pause();
+        }
+      }
+    );
+  }
+
+  override unpause(): void {
+    Object.entries(this.context.game.sound.state.playbackStates).forEach(
+      ([k]) => {
+        const instrument = this._instruments.get(k);
+        if (instrument) {
+          instrument.unpause();
+        }
+      }
+    );
+  }
+
+  renderWaveform(instrument: SparkDOMAudioPlayer): void {
     const factor = 0.25;
     const width = this.renderer.width;
     const height = this.renderer.height * factor;

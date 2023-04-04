@@ -11,23 +11,24 @@ export interface Modulator {
 }
 
 export interface Synth {
-  wave: OscillatorType;
-  amplitude: {
+  name?: string;
+  shape: OscillatorType;
+  envelope: {
     volume: number;
     volumeRamp: number;
-    delay: number;
+    offset: number;
     attack: number;
     decay: number;
     sustain: number;
     release: number;
-    sustainLevel: number;
+    level: number;
   };
-  frequency: {
-    pitch: number;
-    pitchRamp: number;
-    accel: number;
-    jerk: number;
-    offset: number;
+  pitch: {
+    frequency: number;
+    frequencyRamp: number;
+    frequencyTorque: number;
+    frequencyJerk: number;
+    phase: number;
   };
   lowpass: {
     cutoff: number;
@@ -38,31 +39,6 @@ export interface Synth {
     cutoff: number;
     cutoffRamp: number;
   };
-  arpeggio: {
-    on: boolean;
-    rate: number;
-    rateRamp: number;
-    tones: number[];
-    shapes: OscillatorType[];
-    levels: number[];
-    direction: "up" | "down" | "down-up" | "up-down" | "random";
-    maxOctaves: number;
-    maxNotes: number;
-  };
-  harmony: {
-    on: boolean;
-    shapes: OscillatorType[];
-    count: number;
-    falloff: number;
-    falloffRamp: number;
-  };
-  reverb: {
-    on: boolean;
-    strength: number;
-    strengthRamp: number;
-    delay: number;
-    delayRamp: number;
-  };
   distortion: {
     on: boolean;
     grit: number;
@@ -70,11 +46,25 @@ export interface Synth {
     edge: number;
     edgeRamp: number;
   };
+  arpeggio: {
+    on: boolean;
+    rate: number;
+    rateRamp: number;
+    maxOctaves: number;
+    maxNotes: number;
+    direction: "up" | "down" | "down-up" | "up-down";
+    tones: number[];
+    levels: number[];
+    shapes: OscillatorType[];
+  };
   vibrato: Modulator;
   tremolo: Modulator;
-  ring: Modulator;
   wahwah: Modulator;
-  noiseSeed: string;
+  reverb: {
+    on: boolean;
+    level: number;
+    delay: number;
+  };
 }
 
 export interface SynthConfig extends RecursivePartial<Synth> {}

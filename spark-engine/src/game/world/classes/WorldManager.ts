@@ -6,10 +6,10 @@ import { createCameraState } from "../utils/createCameraState";
 import { createEntityState } from "../utils/createEntityState";
 
 export interface WorldEvents extends Record<string, GameEvent> {
-  onSpawnEntity: GameEvent<[string, string, undefined | EntityState]>;
-  onDestroyEntity: GameEvent<[string, string]>;
-  onAddCamera: GameEvent<[string, CameraState]>;
-  onRemoveCamera: GameEvent<[string]>;
+  onSpawnEntity: GameEvent<string, string, EntityState>;
+  onDestroyEntity: GameEvent<string, string>;
+  onAddCamera: GameEvent<string, CameraState>;
+  onRemoveCamera: GameEvent<string>;
 }
 
 export interface WorldConfig {
@@ -30,10 +30,10 @@ export class WorldManager extends Manager<
 > {
   constructor(config?: Partial<WorldConfig>, state?: Partial<WorldState>) {
     const initialEvents: WorldEvents = {
-      onSpawnEntity: new GameEvent<[string, string, undefined | EntityState]>(),
-      onDestroyEntity: new GameEvent<[string, string]>(),
-      onAddCamera: new GameEvent<[string, CameraState]>(),
-      onRemoveCamera: new GameEvent<[string]>(),
+      onSpawnEntity: new GameEvent<string, string, EntityState>(),
+      onDestroyEntity: new GameEvent<string, string>(),
+      onAddCamera: new GameEvent<string, CameraState>(),
+      onRemoveCamera: new GameEvent<string>(),
     };
     const initialConfig: WorldConfig = {
       defaultCameras: {
@@ -104,12 +104,12 @@ export class WorldManager extends Manager<
   addCamera(cameraId: string, cameraState?: CameraState): void {
     const s = cameraState || this.getOrCreateCameraState(cameraId);
     this._state.cameraStates[cameraId] = s;
-    this._events.onAddCamera.emit(cameraId, s);
+    this._events.onAddCamera.dispatch(cameraId, s);
   }
 
   removeCamera(cameraId: string): void {
     delete this._state.cameraStates[cameraId];
-    this._events.onRemoveCamera.emit(cameraId);
+    this._events.onRemoveCamera.dispatch(cameraId);
   }
 
   spawnEntity(
@@ -124,7 +124,7 @@ export class WorldManager extends Manager<
     camera.spawnedEntities.push(entityId);
     const s = entityState || this.getOrCreateEntityState(entityId, cameraId);
     camera.entities[entityId] = s;
-    this._events.onSpawnEntity.emit(entityId, cameraId ?? "", s);
+    this._events.onSpawnEntity.dispatch(entityId, cameraId ?? "", s);
     return true;
   }
 
@@ -136,6 +136,6 @@ export class WorldManager extends Manager<
     camera.spawnedEntities = camera.spawnedEntities.filter(
       (x) => x !== entityId
     );
-    this._events.onDestroyEntity.emit(entityId, cameraId ?? "");
+    this._events.onDestroyEntity.dispatch(entityId, cameraId ?? "");
   }
 }

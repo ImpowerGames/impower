@@ -27,6 +27,7 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   typewriter: "\n@ typewriter ${TypewriterName}:\n  ${}",
   synth: "\n@ synth ${SynthName}:\n  ${}",
   preset: "\n@ preset ${PresetName}:\n  ${}",
+  struct: "\n@ ${type} ${StructName}:\n  ${}",
 
   image: "[[${imageName}]]\n${}",
   audio: "((${audioName}))\n${}",
@@ -42,13 +43,13 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   repeat: "^${}\n${}",
   return: "< ${}\n${}",
 
-  declare_variable: "* var ${variableName} = ${value}\n${}",
-  assign_variable: "* ${variableName} = ${value}\n${}",
-  declare_tag: "tag ${tagName} = `${value}`\n${}",
-  declare_image: "image ${imageName} = `${value}`\n${}",
-  declare_audio: "audio ${audioName} = `${value}`\n${}",
-  declare_video: "video ${videoName} = `${value}`\n${}",
-  declare_text: "text ${textName} = `${value}`\n${}",
+  declare_variable: "* var ${name} = ${value}\n${}",
+  assign_variable: "* ${name} = ${value}\n${}",
+  declare_tag: "* tag ${tagName} = `${value}`\n${}",
+  declare_image: "* image ${imageName} = `${value}`\n${}",
+  declare_audio: "* audio ${audioName} = `${value}`\n${}",
+  declare_video: "* video ${videoName} = `${value}`\n${}",
+  declare_text: "* text ${textName} = `${value}`\n${}",
 };
 
 export const getQuickSnippetTemplate = (

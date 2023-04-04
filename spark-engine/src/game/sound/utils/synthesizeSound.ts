@@ -5,29 +5,102 @@
  * Released under the MIT license.
  */
 
-import { randomizer, shuffle } from "../../../../../spark-evaluate";
-import { clone, lerp, unlerp } from "../../core";
+import { randomizer } from "../../../../../spark-evaluate";
+import { lerp, unlerp } from "../../core";
 import { OSCILLATORS, OscillatorState } from "../constants/OSCILLATORS";
-import { _synth } from "../specs/_synth";
-import { Hertz } from "../types/Hertz";
 import { OscillatorType } from "../types/OscillatorType";
-import { Synth, SynthConfig } from "../types/Synth";
+import { Synth } from "../types/Synth";
 import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
 
 const FREEVERB_COMB_A_SIZES = [1557, 1617, 1491, 1422];
 const FREEVERB_COMB_B_SIZES = [1277, 1356, 1188, 1116];
 const FREEVERB_ALLPASS_SIZES = [525, 556, 641, 537];
 
-const comb = (
-  gain: number,
-  state: {
-    buffer: Float32Array;
-    index: number;
-    filter: number;
-    feedback: number;
-    damp: number;
-  }
-): number => {
+export interface CombState {
+  buffer: Float32Array;
+  index: number;
+  filter: number;
+  feedback: number;
+  damp: number;
+}
+
+export interface AllpassState {
+  buffer: Float32Array;
+  index: number;
+}
+
+export interface ReverbState {
+  combAStates: CombState[];
+  combBStates: CombState[];
+  allpassStates: AllpassState[];
+}
+
+export interface SynthesisState extends ReverbState {
+  waveState: OscillatorState;
+  vibratoState: OscillatorState;
+  tremoloState: OscillatorState;
+  wahwahState: OscillatorState;
+  lowpassInput: [number, number];
+  lowpassOutput: [number, number, number];
+  highpassInput: [number, number];
+  highpassOutput: [number, number, number];
+}
+
+export const createSynthesisState = (synth: Synth): SynthesisState => {
+  const noise_seed = "";
+  const reverb_level = synth.reverb.level;
+  const reverb_delay = synth.reverb.delay;
+  const rng = randomizer(noise_seed);
+  const waveState: OscillatorState = {
+    rng,
+  };
+  const vibratoState: OscillatorState = {
+    rng,
+  };
+  const tremoloState: OscillatorState = {
+    rng,
+  };
+  const wahwahState: OscillatorState = {
+    rng,
+  };
+  const lowpassInput: [number, number] = [0, 0];
+  const lowpassOutput: [number, number, number] = [0, 0, 0];
+  const highpassInput: [number, number] = [0, 0];
+  const highpassOutput: [number, number, number] = [0, 0, 0];
+  const combAStates = FREEVERB_COMB_A_SIZES.map((size) => ({
+    buffer: new Float32Array(size),
+    index: 0,
+    filter: 0,
+    feedback: lerp(reverb_delay, 0.28, 0.7),
+    damp: lerp(reverb_level, 0, 0.4),
+  }));
+  const combBStates = FREEVERB_COMB_B_SIZES.map((size) => ({
+    buffer: new Float32Array(size),
+    index: 0,
+    filter: 0,
+    feedback: lerp(reverb_delay, 0.28, 0.7),
+    damp: lerp(reverb_level, 0, 0.4),
+  }));
+  const allpassStates = FREEVERB_ALLPASS_SIZES.map((size) => ({
+    buffer: new Float32Array(size),
+    index: 0,
+  }));
+  return {
+    waveState,
+    vibratoState,
+    tremoloState,
+    wahwahState,
+    lowpassInput,
+    lowpassOutput,
+    highpassInput,
+    highpassOutput,
+    combAStates,
+    combBStates,
+    allpassStates,
+  };
+};
+
+const comb = (gain: number, state: CombState): number => {
   const scale = 0.015;
   const sample = state.buffer[state.index] || 0;
   state.filter = sample * (1 - state.damp) + state.filter * state.damp;
@@ -38,13 +111,7 @@ const comb = (
   return sample;
 };
 
-const allpass = (
-  gain: number,
-  state: {
-    buffer: Float32Array;
-    index: number;
-  }
-): number => {
+const allpass = (gain: number, state: AllpassState): number => {
   const scale = 0.5;
   const sample = state.buffer[state.index] || 0;
   state.buffer[state.index] = gain + sample * scale;
@@ -96,7 +163,7 @@ const roundToNearestMultiple = (n: number, period: number): number => {
   return Math.floor(n / period) * period;
 };
 
-const mapOsc = (mod: number, min: number, max: number) => {
+const normalizeOsc = (mod: number, min: number, max: number) => {
   const p = unlerp(mod, -1, 1);
   return lerp(p, min, max);
 };
@@ -129,9 +196,15 @@ const getOctaveSemitones = (
   return octave * 12;
 };
 
-const choose = <T>(choices: T[], numNotesPlayed: number): T | undefined => {
-  const chooseIndex = numNotesPlayed % choices.length;
-  return choices[chooseIndex];
+const choose = <T>(
+  choices: T[],
+  numNotesPlayed: number,
+  isReversed: boolean
+): T | undefined => {
+  const index = isReversed
+    ? (choices.length - 1 - numNotesPlayed) % choices.length
+    : numNotesPlayed % choices.length;
+  return choices[index];
 };
 
 const getDeltaPerSample = (
@@ -165,7 +238,7 @@ export const filter = (
   resonance: number,
   input: [number, number],
   output: [number, number, number]
-) => {
+): number => {
   const min = Math.sqrt(2);
   const r = lerp(resonance, min, min * 2);
   const c = 1 / Math.tan((Math.PI * cutoff) / sampleRate);
@@ -304,29 +377,41 @@ const getEnvelopeVolume = (
   return 0;
 };
 
-export const fillBuffer = (
+export const fillSoundBuffer = (
   synth: Synth,
   sustainSound: boolean,
   limitSound: boolean,
   sampleRate: number,
   startIndex: number,
   endIndex: number,
+  currentState: SynthesisState,
   soundBuffer: Float32Array,
   volumeBuffer?: Float32Array,
   pitchBuffer?: Float32Array,
-  pitchRange?: [number, number]
+  pitchRange?: [number, number],
+  gain?: number | Float32Array,
+  frequency?: number | Float32Array
 ): void => {
-  const sound_noiseSeed = synth.noiseSeed;
-  const sound_wave = synth.wave;
-  const freq_pitch = synth.frequency.pitch;
-  const freq_offset = synth.frequency.offset;
-  const amp_volume = synth.amplitude.volume;
-  const amp_delay_duration = synth.amplitude.delay;
-  const amp_attack_duration = synth.amplitude.attack;
-  const amp_decay_duration = synth.amplitude.decay;
-  const amp_sustain_duration = synth.amplitude.sustain;
-  const amp_release_duration = synth.amplitude.release;
-  const amp_sustain_level = synth.amplitude.sustainLevel;
+  const shape_wave = synth.shape;
+  const pitch_freq =
+    (typeof frequency === "number"
+      ? frequency
+      : frequency && frequency.length === 1
+      ? frequency[0]
+      : frequency) ?? synth.pitch.frequency;
+  const pitch_phase = synth.pitch.phase;
+  const env_volume =
+    (typeof gain === "number"
+      ? gain
+      : gain && gain.length === 1
+      ? gain[0]
+      : gain) ?? synth.envelope.volume;
+  const env_delay_duration = synth.envelope.offset;
+  const env_attack_duration = synth.envelope.attack;
+  const env_decay_duration = synth.envelope.decay;
+  const env_sustain_duration = synth.envelope.sustain;
+  const env_release_duration = synth.envelope.release;
+  const env_sustain_level = synth.envelope.level;
   const lowpass_cutoff = synth.lowpass.cutoff;
   const lowpass_resonance = synth.lowpass.resonance;
   const highpass_cutoff = synth.highpass.cutoff;
@@ -345,46 +430,33 @@ export const fillBuffer = (
   const wahwah_shape = synth.wahwah.shape;
   const wahwah_strength = synth.wahwah.strength;
   const wahwah_rate = synth.wahwah.rate;
-  const ring_on = synth.ring.on;
-  const ring_shape = synth.ring.shape;
-  const ring_strength = synth.ring.strength;
-  const ring_rate = synth.ring.rate;
   const arpeggio_on = synth.arpeggio.on;
   const arpeggio_rate = synth.arpeggio.rate;
   const arpeggio_max_octaves = synth.arpeggio.maxOctaves;
   const arpeggio_max_notes = synth.arpeggio.maxNotes;
-  const arpeggio_tones = [...synth.arpeggio.tones];
-  const arpeggio_shapes = [...synth.arpeggio.shapes];
-  const arpeggio_levels = [...synth.arpeggio.levels];
+  const arpeggio_tones = synth.arpeggio.tones;
+  const arpeggio_shapes = synth.arpeggio.shapes;
+  const arpeggio_levels = synth.arpeggio.levels;
   const maxArpeggioLength = Math.max(
-    arpeggio_tones.length,
-    arpeggio_shapes.length,
-    arpeggio_levels.length
+    arpeggio_tones?.length ?? 0,
+    arpeggio_shapes?.length ?? 0,
+    arpeggio_levels?.length ?? 0
   );
   for (let i = 0; i < maxArpeggioLength; i += 1) {
     arpeggio_tones[i] = arpeggio_tones[i] ?? 0;
-    arpeggio_shapes[i] = arpeggio_shapes[i] ?? sound_wave;
+    arpeggio_shapes[i] = arpeggio_shapes[i] ?? shape_wave;
     arpeggio_levels[i] = arpeggio_levels[i] ?? 1;
   }
-  const arpeggio_semitones_reversed = [...arpeggio_tones].reverse();
-  const arpeggio_levels_reversed = [...arpeggio_levels].reverse();
-  const arpeggio_semitones_randomized = shuffle(arpeggio_tones, randomizer(""));
-  const arpeggio_shapes_reversed = [...arpeggio_shapes].reverse();
-  const arpeggio_shapes_randomized = shuffle(arpeggio_shapes, randomizer(""));
-  const arpeggio_levels_randomized = shuffle(arpeggio_levels, randomizer(""));
   const arpeggio_direction = synth.arpeggio.direction;
 
-  const endPitch =
-    freq_pitch *
-    convertSemitonesToFrequencyFactor(synth.frequency.pitchRamp * 10);
-  const pitchDelta = endPitch - freq_pitch;
-  const length = endIndex - startIndex - 1;
-  let freqSemitonesDelta = pitchDelta / length;
-
-  let freqAccelDelta = getDeltaPerSample(synth.frequency.accel, sampleRate);
-  const freqJerkDelta = getDeltaPerSample(synth.frequency.jerk, sampleRate);
-  const ampVolumeDelta = getDeltaPerSample(
-    synth.amplitude.volumeRamp,
+  let freqAccelDelta = getDeltaPerSample(
+    synth.pitch.frequencyTorque,
+    sampleRate
+  );
+  let freqJerkDelta = getDeltaPerSample(synth.pitch.frequencyJerk, sampleRate);
+  let pitchFreqDelta = getDeltaPerSample(synth.pitch.frequencyRamp, sampleRate);
+  const envVolumeDelta = getDeltaPerSample(
+    synth.envelope.volumeRamp,
     sampleRate
   );
   const lowpassCutoffDelta = getDeltaPerSample(
@@ -424,37 +496,15 @@ export const fillBuffer = (
     synth.wahwah.strengthRamp,
     sampleRate
   );
-  const ringRateDelta = getDeltaPerSample(synth.ring.rateRamp, sampleRate);
-  const ringStrengthDelta = getDeltaPerSample(
-    synth.ring.strengthRamp,
-    sampleRate
-  );
   const arpeggioRateDelta = getDeltaPerSample(
     synth.arpeggio.rateRamp,
     sampleRate
   );
 
-  const rng = randomizer(sound_noiseSeed);
-  const oscState: OscillatorState = {
-    rng,
-  };
-  const vibratoState: OscillatorState = {
-    rng,
-  };
-  const tremoloState: OscillatorState = {
-    rng,
-  };
-  const ringState: OscillatorState = {
-    rng,
-  };
-  const wahwahState: OscillatorState = {
-    rng,
-  };
-
   let minPitch = Number.MAX_SAFE_INTEGER;
   let maxPitch = 0;
-  let ampVolume = amp_volume;
-  let freqPitch = freq_pitch;
+  let envVolumeOffset = 0;
+  let pitchFreqOffset = 0;
   let lowpassCutoff = lowpass_cutoff;
   let highpassCutoff = highpass_cutoff;
   let vibratoRate = vibrato_rate;
@@ -465,27 +515,33 @@ export const fillBuffer = (
   let tremoloStrength = tremolo_strength;
   let wahwahRate = wahwah_rate;
   let wahwahStrength = wahwah_strength;
-  let ringRate = ring_rate;
-  let ringStrength = ring_strength;
   let arpeggioRate = arpeggio_rate;
   let arpLengthLeft = 0;
   let arpNumNotesPlayed = 0;
   let arpFrequencyFactor = 1;
   let arpAmplitudeFactor = 1;
-  const lowpassInput: [number, number] = [0, 0];
-  const lowpassOutput: [number, number, number] = [0, 0, 0];
-  const highpassInput: [number, number] = [0, 0];
-  const highpassOutput: [number, number, number] = [0, 0, 0];
 
-  const fundamentalPeriodLength = sampleRate / freqPitch;
-  const startPhaseOffset = freq_offset * fundamentalPeriodLength;
+  const fundamentalFrequency =
+    typeof pitch_freq === "number" ? pitch_freq : pitch_freq[startIndex] ?? 0;
+
+  const fundamentalPeriodLength = sampleRate / fundamentalFrequency;
+  const startPhaseOffset = pitch_phase * fundamentalPeriodLength;
 
   let arpPhaseOffset = 0;
 
   // Fill buffer
   for (let i = startIndex; i < endIndex; i += 1) {
-    let samplePitch = Math.max(0, freqPitch) * arpFrequencyFactor;
-    let sampleShape = sound_wave;
+    const sampleVolume =
+      (typeof env_volume === "number" ? env_volume : env_volume[i] ?? 0) +
+      envVolumeOffset;
+    const pitchFreqFactor = convertSemitonesToFrequencyFactor(
+      pitchFreqOffset * 10
+    );
+    const sampleFrequency =
+      (typeof pitch_freq === "number" ? pitch_freq : pitch_freq[i] ?? 0) *
+      pitchFreqFactor;
+    let samplePitch = Math.max(0, sampleFrequency) * arpFrequencyFactor;
+    let sampleShape = shape_wave;
     let sampleResonance = lowpass_resonance;
 
     const periodLength = sampleRate / samplePitch;
@@ -517,49 +573,31 @@ export const fillBuffer = (
     if (
       arpeggio_on &&
       arpeggioRate > 0 &&
-      arpeggio_tones.length > 0 &&
+      arpeggio_tones?.length > 0 &&
       arpNumNotesPlayed < arpeggio_max_notes
     ) {
       const cycleIndex = getCycleIndex(
         arpNumNotesPlayed,
-        arpeggio_tones.length
+        arpeggio_tones?.length ?? 0
       );
-      const isReversed =
-        arpeggio_direction === "random"
-          ? undefined
-          : isChoicesReversed(cycleIndex, arpeggio_direction);
+      const isReversed = isChoicesReversed(cycleIndex, arpeggio_direction);
       const arpOctaveSemitones = getOctaveSemitones(
         cycleIndex,
         isReversed,
         arpeggio_max_octaves
       );
-      const shapes =
-        isReversed === undefined
-          ? arpeggio_shapes_randomized
-          : isReversed
-          ? arpeggio_shapes_reversed
-          : arpeggio_shapes;
-      sampleShape = choose(shapes, arpNumNotesPlayed) || sound_wave;
-      const semitones =
-        isReversed === undefined
-          ? arpeggio_semitones_randomized
-          : isReversed
-          ? arpeggio_semitones_reversed
-          : arpeggio_tones;
-      const levels =
-        isReversed === undefined
-          ? arpeggio_levels_randomized
-          : isReversed
-          ? arpeggio_levels_reversed
-          : arpeggio_levels;
+      sampleShape =
+        choose(arpeggio_shapes, arpNumNotesPlayed, isReversed) ?? shape_wave;
       if (arpLengthLeft <= 0) {
-        arpAmplitudeFactor = choose(levels, arpNumNotesPlayed) || 0;
-        const arpNoteSemitones = choose(semitones, arpNumNotesPlayed) || 0;
+        arpAmplitudeFactor =
+          choose(arpeggio_levels, arpNumNotesPlayed, isReversed) ?? 1;
+        const arpNoteSemitones =
+          choose(arpeggio_tones, arpNumNotesPlayed, isReversed) ?? 0;
         const arpSemitones = arpOctaveSemitones + arpNoteSemitones;
         const secondsPerNote = 1 / arpeggioRate;
         const samplesPerNote = sampleRate * secondsPerNote;
         arpFrequencyFactor = convertSemitonesToFrequencyFactor(arpSemitones);
-        const newPitch = Math.max(0, freqPitch) * arpFrequencyFactor;
+        const newPitch = Math.max(0, sampleFrequency) * arpFrequencyFactor;
         const newPeriodLength = isReversed
           ? sampleRate / newPitch
           : periodLength;
@@ -586,9 +624,9 @@ export const fillBuffer = (
         vibrato_shape,
         vibratoRate,
         vibratoStrength,
-        vibratoState
+        currentState.vibratoState
       );
-      const vibratoMultiplier = mapOsc(vibratoMod, 0.5, 1);
+      const vibratoMultiplier = normalizeOsc(vibratoMod, 0.5, 1);
       samplePitch *= vibratoMultiplier;
     }
 
@@ -607,7 +645,7 @@ export const fillBuffer = (
       localIndex - startPhaseOffset - distortionPhaseOffset - arpPhaseOffset;
     const angle = (phaseIndex / sampleRate) * samplePitch;
     const oscillator = OSCILLATORS[sampleShape] || OSCILLATORS.sine;
-    let sampleValue = oscillator(angle, oscState);
+    let sampleValue = oscillator(angle, currentState.waveState);
 
     // Distortion Effect ("Square"-ness)
     if (distortion_on && distortionEdge > 0) {
@@ -625,9 +663,9 @@ export const fillBuffer = (
         wahwah_shape,
         wahwahRate,
         wahwahStrength,
-        wahwahState
+        currentState.wahwahState
       );
-      const wahwahMultiplier = mapOsc(wahwahMod, 0.5, 1);
+      const wahwahMultiplier = normalizeOsc(wahwahMod, 0.5, 1);
       sampleResonance *= wahwahMultiplier;
     }
 
@@ -638,8 +676,8 @@ export const fillBuffer = (
         sampleValue,
         lowpassCutoff,
         sampleResonance,
-        lowpassInput,
-        lowpassOutput
+        currentState.lowpassInput,
+        currentState.lowpassOutput
       );
     }
 
@@ -650,8 +688,8 @@ export const fillBuffer = (
         sampleValue,
         highpassCutoff,
         0,
-        highpassInput,
-        highpassOutput
+        currentState.highpassInput,
+        currentState.highpassOutput
       );
     }
 
@@ -663,24 +701,10 @@ export const fillBuffer = (
         tremolo_shape,
         tremoloRate,
         tremoloStrength,
-        tremoloState
+        currentState.tremoloState
       );
-      const tremoloMultiplier = mapOsc(tremoloMod, 0, 1.5);
+      const tremoloMultiplier = normalizeOsc(tremoloMod, 0, 1.5);
       sampleValue *= tremoloMultiplier;
-    }
-
-    // Ring Effect
-    if (ring_on && ringRate > 0 && ringStrength > 0) {
-      const ringMod = modulate(
-        sampleRate,
-        localIndex,
-        ring_shape,
-        ringRate,
-        ringStrength,
-        ringState
-      );
-      const ringMultiplier = mapOsc(ringMod, 0.5, 1);
-      sampleValue *= ringMultiplier;
     }
 
     // Volume
@@ -689,17 +713,17 @@ export const fillBuffer = (
       startIndex,
       endIndex,
       sampleRate,
-      amp_delay_duration,
-      amp_attack_duration,
-      amp_decay_duration,
-      amp_sustain_duration,
-      amp_release_duration,
-      amp_sustain_level,
+      env_delay_duration,
+      env_attack_duration,
+      env_decay_duration,
+      env_sustain_duration,
+      env_release_duration,
+      env_sustain_level,
       sustainSound,
       limitSound
     );
     sampleValue *= Math.max(0, envelopeVolume);
-    sampleValue *= Math.max(0, ampVolume);
+    sampleValue *= Math.max(0, sampleVolume);
     sampleValue *= Math.max(0, arpAmplitudeFactor);
 
     if (volumeBuffer) {
@@ -707,13 +731,13 @@ export const fillBuffer = (
     }
 
     // Set Buffer
-    soundBuffer[i] += sampleValue;
+    soundBuffer[i] = (soundBuffer[i] ?? 0) + sampleValue;
 
     // Ramp values
     freqAccelDelta += freqJerkDelta;
-    freqSemitonesDelta += freqAccelDelta;
-    freqPitch += freqSemitonesDelta;
-    ampVolume += ampVolumeDelta;
+    pitchFreqDelta += freqAccelDelta;
+    pitchFreqOffset += pitchFreqDelta;
+    envVolumeOffset += envVolumeDelta;
     lowpassCutoff += lowpassCutoffDelta;
     highpassCutoff += highpassCutoffDelta;
     vibratoStrength += vibratoStrengthDelta;
@@ -724,8 +748,6 @@ export const fillBuffer = (
     tremoloRate += tremoloRateDelta;
     wahwahStrength += wahwahStrengthDelta;
     wahwahRate += wahwahRateDelta;
-    ringStrength += ringStrengthDelta;
-    ringRate += ringRateDelta;
     arpeggioRate += arpeggioRateDelta;
   }
   if (pitchRange) {
@@ -738,8 +760,26 @@ export const fillBuffer = (
   }
 };
 
+export const applyReverbFilter = (
+  startIndex: number,
+  endIndex: number,
+  reverbState: ReverbState,
+  soundBuffer: Float32Array
+) => {
+  for (let i = startIndex; i < endIndex; i += 1) {
+    const sampleValue = soundBuffer[i] ?? 0;
+    // Set Buffer
+    soundBuffer[i] = reverb(
+      sampleValue,
+      reverbState.combAStates,
+      reverbState.combBStates,
+      reverbState.allpassStates
+    );
+  }
+};
+
 export const synthesizeSound = (
-  config: SynthConfig,
+  synth: Synth,
   sustainSound: boolean,
   limitSound: boolean,
   sampleRate: number,
@@ -749,111 +789,32 @@ export const synthesizeSound = (
   volumeBuffer?: Float32Array,
   pitchBuffer?: Float32Array,
   pitchRange?: [number, number],
-  volume?: number,
-  pitch?: Hertz
+  gain?: number | Float32Array,
+  frequency?: number | Float32Array,
+  currentState?: SynthesisState
 ): void => {
-  const synth: Synth = clone(_synth(), config);
-
-  if (volume != null) {
-    synth.amplitude.volume = volume;
-  }
-  if (pitch) {
-    synth.frequency.pitch = pitch;
-  }
-
-  const fundamentalWave = synth.wave;
-  const fundamentalPitch = synth.frequency.pitch;
-  const fundamentalVolume = synth.amplitude.volume;
-
-  const harmony_on = synth.harmony.on;
-  const harmony_shapes = synth.harmony.shapes;
-  const harmonics_count = synth.harmony.count;
-  const harmony_falloff = synth.harmony.falloff;
-
-  const volumeMod = harmony_on && harmonics_count > 0 ? 0.5 : 1;
+  const state = currentState ?? createSynthesisState(synth);
 
   // Fundamental Wave
-  synth.amplitude.volume = fundamentalVolume * volumeMod;
-  fillBuffer(
+  fillSoundBuffer(
     synth,
     sustainSound,
     limitSound,
     sampleRate,
     startIndex,
     endIndex,
+    state,
     soundBuffer,
     volumeBuffer,
     pitchBuffer,
-    pitchRange
+    pitchRange,
+    gain,
+    frequency
   );
-
-  // Harmonic Waves
-  if (harmony_on) {
-    let frequencyFactor = 2;
-    for (let i = 0; i < harmonics_count; i += 1) {
-      synth.wave = harmony_shapes[i] || fundamentalWave;
-      synth.frequency.pitch = fundamentalPitch * frequencyFactor;
-      synth.amplitude.volume =
-        fundamentalVolume * (1 / (harmonics_count * harmony_falloff));
-      synth.amplitude.volumeRamp = synth.harmony.falloffRamp;
-      fillBuffer(
-        synth,
-        sustainSound,
-        limitSound,
-        sampleRate,
-        startIndex,
-        endIndex,
-        soundBuffer,
-        volumeBuffer,
-        pitchBuffer,
-        pitchRange
-      );
-      frequencyFactor += frequencyFactor;
-    }
-  }
 
   // Reverb Filter
   const reverb_on = synth.reverb.on;
-  const reverb_strength = synth.reverb.strength;
-  const reverb_delay = synth.reverb.delay;
   if (reverb_on) {
-    let reverbStrength = reverb_strength;
-    let reverbDelay = reverb_delay;
-    const reverbStrengthDelta = getDeltaPerSample(
-      synth.reverb.strengthRamp,
-      sampleRate
-    );
-    const reverbDelayDelta = getDeltaPerSample(
-      synth.reverb.delayRamp,
-      sampleRate
-    );
-    // Create 8 comb filters
-    const combAStates = FREEVERB_COMB_A_SIZES.map((size) => ({
-      buffer: new Float32Array(size),
-      index: 0,
-      filter: 0,
-      feedback: lerp(reverbDelay, 0.28, 0.7),
-      damp: lerp(reverbStrength, 0, 0.4),
-    }));
-    const combBStates = FREEVERB_COMB_B_SIZES.map((size) => ({
-      buffer: new Float32Array(size),
-      index: 0,
-      filter: 0,
-      feedback: lerp(reverbDelay, 0.28, 0.7),
-      damp: lerp(reverbStrength, 0, 0.4),
-    }));
-    // Create 4 allpass filters
-    const allpassStates = FREEVERB_ALLPASS_SIZES.map((size) => ({
-      buffer: new Float32Array(size),
-      index: 0,
-    }));
-    for (let i = startIndex; i < endIndex; i += 1) {
-      const sample = soundBuffer[i] || 0;
-      // Set Buffer
-      soundBuffer[i] = reverb(sample, combAStates, combBStates, allpassStates);
-      // Ramp values
-      reverbStrength += reverbStrengthDelta;
-      reverbDelay += reverbDelayDelta;
-    }
+    applyReverbFilter(startIndex, endIndex, state, soundBuffer);
   }
 };

@@ -9,9 +9,10 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { FileData } from "../../../../../spark-engine";
+import { Beat, FileData, stringifyBeatmap } from "../../../../../spark-engine";
 import AngleLeftRegularIcon from "../../../../resources/icons/regular/angle-left.svg";
 import AngleRightRegularIcon from "../../../../resources/icons/regular/angle-right.svg";
+import DrumRegularIcon from "../../../../resources/icons/regular/drum.svg";
 import FolderArrowUpRegularIcon from "../../../../resources/icons/regular/folder-arrow-up.svg";
 import ImagePolaroidRegularIcon from "../../../../resources/icons/regular/image-polaroid.svg";
 import PencilRegularIcon from "../../../../resources/icons/regular/pencil.svg";
@@ -39,6 +40,7 @@ import { ToastContext, toastTop } from "../../../impower-toast";
 import { UserContext } from "../../../impower-user";
 import userQueueFileUpload from "../../../impower-user/utils/userQueueFileUpload";
 import userUpdateFileUploadState from "../../../impower-user/utils/userUpdateFileUploadState";
+import { loadMidi } from "../../../spark-pixi-app/classes/workers/loadMidi";
 import { getProjectColor } from "../../utils/getProjectColor";
 import EditFileForm from "../forms/EditFileForm";
 import EngineConsoleList, { CardDetail } from "../lists/EngineConsoleList";
@@ -223,10 +225,26 @@ const FilesConsoleContent = (
     },
     [docsByPath]
   );
-  const handleGetRowMoreOptions = useCallback(() => {
-    return ["Replace", "---", "Delete"];
-  }, []);
+  const handleGetRowMoreOptions = useCallback(
+    (path: string) => {
+      const doc = docsByPath?.[path];
+      const contentType = doc?.contentType || doc?.fileType?.toLowerCase();
+      const options = [];
+      if (contentType.startsWith("audio/mid")) {
+        options.push("Beatmap");
+        options.push("----");
+      }
+      options.push("Replace");
+      options.push("---");
+      options.push("Delete");
+      return options;
+    },
+    [docsByPath]
+  );
   const handleGetOptionIcon = useCallback((option: string) => {
+    if (option === "Beatmap") {
+      return <DrumRegularIcon />;
+    }
     if (option === "Edit") {
       return <PencilRegularIcon />;
     }
@@ -411,6 +429,40 @@ const FilesConsoleContent = (
     ) => {
       event.preventDefault();
       event.stopPropagation();
+      const doc = docsByPath?.[path];
+      if (option === "Beatmap") {
+        if (navigator.clipboard) {
+          toastDispatch(toastTop("Generating beatmap..."));
+          const url = doc.fileUrl;
+          const request = new XMLHttpRequest();
+          request.open("GET", url, true);
+          request.responseType = "arraybuffer";
+          request.onload = (): void => {
+            const arrayBuffer = request.response as ArrayBuffer;
+            loadMidi(arrayBuffer).then((toneSequences) => {
+              const firstToneSequence = toneSequences[0];
+              const beats: Beat[] = [];
+              const bpm = 134;
+              const beatsPerSecond = bpm / 60;
+              firstToneSequence.tones.forEach((tone) => {
+                const timeInSeconds = tone.time;
+                const timeInBeats = timeInSeconds * beatsPerSecond;
+                beats.push({
+                  x: 1,
+                  y: 0,
+                  z: timeInBeats,
+                });
+              });
+              beats[0].bpm = bpm;
+              navigator.clipboard.writeText(
+                stringifyBeatmap(`beatmap_${doc.name}`, beats, true, 1, 3)
+              );
+              toastDispatch(toastTop("Copied to clipboard!", "success"));
+            });
+          };
+          request.send();
+        }
+      }
       if (option === "Replace") {
         const inputEvent = event as React.ChangeEvent<HTMLInputElement>;
         if (inputEvent?.target?.files?.length > 0) {
@@ -421,7 +473,7 @@ const FilesConsoleContent = (
         handleDelete([path]);
       }
     },
-    [handleDelete, handleUpload]
+    [docsByPath, handleDelete, handleUpload, toastDispatch]
   );
 
   const handleGetCellDisplayValue = useCallback(

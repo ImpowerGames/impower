@@ -128,7 +128,42 @@ export class SparkDOMElement implements IElement {
     this.textContent = textContent;
   }
 
+  setAnimationContent(
+    animationName: string,
+    properties: Record<string, any>,
+    objectMap: { [type: string]: Record<string, any> }
+  ): void {
+    const groupMap: Record<string, Record<string, unknown>> = {};
+    Object.entries(properties).forEach(([fk, fv]) => {
+      const [, keyframe, propName] = fk.split(".");
+      if (keyframe && propName) {
+        if (!groupMap[keyframe]) {
+          groupMap[keyframe] = {};
+        }
+        const m = groupMap[keyframe];
+        if (m) {
+          m[propName] = fv;
+        }
+      }
+    });
+    let textContent = "";
+    textContent += `@keyframes ${animationName} {\n`;
+    Object.entries(groupMap || {}).forEach(([keyframe, fields]) => {
+      const content = Object.entries(fields)
+        .map(([k, v]) => {
+          const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, objectMap);
+          return `${cssProp}: ${cssValue};`;
+        })
+        .join(`\n  `);
+      const fieldsContent = `{\n    ${content}\n  }`;
+      textContent += `  ${keyframe} ${fieldsContent}\n`;
+    });
+    textContent += `}`;
+    this.textContent = textContent;
+  }
+
   setStyleContent(
+    targetName: string,
     properties: Record<string, any>,
     objectMap: { [type: string]: Record<string, any> }
   ): void {
@@ -157,7 +192,6 @@ export class SparkDOMElement implements IElement {
         }
       }
     });
-    const className = this.className;
     let textContent = "";
     Object.entries(groupMap || {}).forEach(([groupName, fields]) => {
       const content = Object.entries(fields)
@@ -170,49 +204,32 @@ export class SparkDOMElement implements IElement {
       const theme = objectMap?.["theme"]?.[""];
       const isBreakpointGroup = groupName && theme.breakpoints[groupName];
       const rootId = this.id?.split(".")?.[0] || "";
+      const target = targetName === "*" ? targetName : `.${targetName}`;
       if (isBreakpointGroup) {
-        textContent += `#${rootId}.${groupName} .${className} ${fieldsContent}\n`;
+        textContent += `#${rootId}.${groupName} ${target} ${fieldsContent}\n`;
       } else if (groupName) {
         const cssPseudoName = getCSSPropertyName(groupName);
-        textContent += `#${rootId} .${className}:${cssPseudoName} ${fieldsContent}\n`;
+        textContent += `#${rootId} ${target}:${cssPseudoName} ${fieldsContent}\n`;
       } else {
-        textContent += `#${rootId} .${className} ${fieldsContent}\n`;
+        textContent += `#${rootId} ${target} ${fieldsContent}\n`;
       }
     });
     this.textContent = textContent;
   }
 
-  setAnimationContent(
-    properties: Record<string, any>,
-    objectMap: { [type: string]: Record<string, any> }
-  ): void {
-    const groupMap: Record<string, Record<string, unknown>> = {};
-    Object.entries(properties).forEach(([fk, fv]) => {
-      const [, keyframe, propName] = fk.split(".");
-      if (keyframe && propName) {
-        if (!groupMap[keyframe]) {
-          groupMap[keyframe] = {};
-        }
-        const m = groupMap[keyframe];
-        if (m) {
-          m[propName] = fv;
-        }
-      }
-    });
-    const className = this.className;
-    let textContent = "";
-    textContent += `@keyframes ${className} {\n`;
-    Object.entries(groupMap || {}).forEach(([keyframe, fields]) => {
-      const content = Object.entries(fields)
-        .map(([k, v]) => {
-          const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, objectMap);
-          return `${cssProp}: ${cssValue};`;
-        })
-        .join(`\n  `);
-      const fieldsContent = `{\n    ${content}\n  }`;
-      textContent += `  ${keyframe} ${fieldsContent}\n`;
-    });
-    textContent += `}`;
-    this.textContent = textContent;
+  setStyleProperty(propName: string, propValue: unknown): void {
+    this._htmlElement.style.setProperty(propName, String(propValue));
+  }
+
+  hasState(state: string): boolean {
+    return this._htmlElement.classList.contains(state);
+  }
+
+  addState(state: string): void {
+    this._htmlElement.classList.add(state);
+  }
+
+  removeState(state: string): void {
+    this._htmlElement.classList.remove(state);
   }
 }

@@ -6,7 +6,7 @@ export const OSCILLATOR_TYPES: OscillatorType[] = [
   "sawtooth",
   "square",
   "tangent",
-  "whistle",
+  "jitter",
   "brownnoise",
   "pinknoise",
   "whitenoise",

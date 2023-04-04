@@ -4,9 +4,9 @@ import { Manager } from "../../core/classes/Manager";
 import { TweenTiming } from "../types/TweenTiming";
 
 export interface TweenEvents extends Record<string, GameEvent> {
-  onAdded: GameEvent<[string]>;
-  onRemoved: GameEvent<[string]>;
-  onUpdate: GameEvent<[number]>;
+  onAdded: GameEvent<string>;
+  onRemoved: GameEvent<string>;
+  onUpdate: GameEvent<number>;
 }
 
 export interface TweenConfig {
@@ -24,9 +24,9 @@ export class TweenManager extends Manager<
 > {
   constructor(config?: Partial<TweenConfig>, state?: Partial<TweenState>) {
     const initialEvents: TweenEvents = {
-      onAdded: new GameEvent<[string]>(),
-      onRemoved: new GameEvent<[string]>(),
-      onUpdate: new GameEvent<[number]>(),
+      onAdded: new GameEvent<string>(),
+      onRemoved: new GameEvent<string>(),
+      onUpdate: new GameEvent<number>(),
     };
     const initialConfig: TweenConfig = {
       timings: new Map(),
@@ -45,12 +45,12 @@ export class TweenManager extends Manager<
 
   add(key: string, timing: TweenTiming): void {
     this._config.timings.set(key, timing);
-    this._events.onAdded.emit(key);
+    this._events.onAdded.dispatch(key);
   }
 
   remove(key: string): void {
     this._config.timings.delete(key);
-    this._events.onRemoved.emit(key);
+    this._events.onRemoved.dispatch(key);
   }
 
   override update(deltaMS: number): void {
@@ -68,6 +68,6 @@ export class TweenManager extends Manager<
       ) => interpolate(p ?? iteration, a, b, e ?? timing.ease);
       timing.on?.(tween, iteration);
     });
-    this._events.onUpdate.emit(deltaMS);
+    this._events.onUpdate.dispatch(deltaMS);
   }
 }

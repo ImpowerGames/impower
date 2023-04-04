@@ -1,5 +1,10 @@
 export const UI_DEFAULTS = {
   "": {},
+  LOADING: {
+    LoadingBar: {
+      LoadingFill: "",
+    },
+  },
   DISPLAY: {
     Background: "",
     Portrait: "",

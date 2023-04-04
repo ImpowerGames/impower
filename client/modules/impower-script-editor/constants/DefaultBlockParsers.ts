@@ -173,17 +173,6 @@ export const DefaultBlockParsers: {
     if (!match) {
       return false;
     }
-    const size = match.slice(2).join("").length;
-    if (cx.block.type !== Type.Struct) {
-      cx.startContext(
-        Type.Struct,
-        line.basePos,
-        line.text.charCodeAt(line.pos + size - 1)
-      );
-    }
-    if (!inBlockContext(cx, Type.Struct)) {
-      return false;
-    }
 
     let buf = cx.buffer;
     let from = 0;

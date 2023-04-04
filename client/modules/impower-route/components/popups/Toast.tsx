@@ -86,7 +86,7 @@ const Toast = React.memo((props: ToastProps): JSX.Element => {
           {actionLabel !== undefined ? (
             actionLabel
           ) : (
-            <FontIcon aria-label="Close" size={24}>
+            <FontIcon aria-label="Close" size={16}>
               <XmarkSolidIcon />
             </FontIcon>
           )}
