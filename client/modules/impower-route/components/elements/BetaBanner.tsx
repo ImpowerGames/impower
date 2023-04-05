@@ -117,14 +117,14 @@ const BetaBanner = React.memo((): JSX.Element => {
     el
   );
 
-  const title = process.env.NEXT_PUBLIC_ORIGIN.includes("localhost")
+  const title = process.env.NEXT_PUBLIC_EMULATOR_HOST
     ? `This is a LOCAL only version of Impower.`
     : process.env.NEXT_PUBLIC_ENVIRONMENT === "development"
     ? `This is a DEV only version of Impower.`
     : process.env.NEXT_PUBLIC_ENVIRONMENT === "test"
     ? `This is a TEST only version of Impower.`
     : `Impower is in open beta.`;
-  const caption = process.env.NEXT_PUBLIC_ORIGIN.includes("localhost")
+  const caption = process.env.NEXT_PUBLIC_EMULATOR_HOST
     ? `Make sure that the server emulator is running.`
     : process.env.NEXT_PUBLIC_ENVIRONMENT === "development"
     ? `All data on this endpoint is wiped periodically. Click here to report bugs. Thanks!`

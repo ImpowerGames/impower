@@ -33,7 +33,7 @@ class DataStore {
       }
       const internal = getFirestore();
       try {
-        if (process.env.NEXT_PUBLIC_ORIGIN.includes("localhost")) {
+        if (process.env.NEXT_PUBLIC_EMULATOR_HOST) {
           const connectDataStoreEmulator = (
             await import("../utils/connectDataStoreEmulator")
           ).default;

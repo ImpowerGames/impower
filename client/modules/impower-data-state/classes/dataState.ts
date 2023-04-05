@@ -33,7 +33,7 @@ class DataState {
       }
       const internal = getDatabase();
       try {
-        if (process.env.NEXT_PUBLIC_ORIGIN.includes("localhost")) {
+        if (process.env.NEXT_PUBLIC_EMULATOR_HOST) {
           const connectDataStateEmulator = (
             await import("../utils/connectDataStateEmulator")
           ).default;

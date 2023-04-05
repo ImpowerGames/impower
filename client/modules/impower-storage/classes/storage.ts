@@ -47,7 +47,7 @@ class Storage {
       }
       const internal = getStorage();
       try {
-        if (process.env.NEXT_PUBLIC_ORIGIN.includes("localhost")) {
+        if (process.env.NEXT_PUBLIC_EMULATOR_HOST) {
           const connectStorageEmulator = (
             await import("../utils/connectStorageEmulator")
           ).default;

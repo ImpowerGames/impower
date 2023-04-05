@@ -121,7 +121,7 @@
     "buffer": "^6.0.3",
     "csv-stringify": "^6.2.3",
     "fast-average-color": "^9.3.0",
-    "firebase": "^9.16.0",
+    "firebase": "^9.19.1",
     "firebase-admin": "^11.5.0",
     "framer-motion": "^4.1.17",
     "html-entities": "^2.3.3",

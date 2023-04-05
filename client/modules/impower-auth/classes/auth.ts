@@ -32,7 +32,7 @@ class Auth {
           persistence: [browserLocalPersistence],
           popupRedirectResolver: undefined,
         });
-        if (process.env.NEXT_PUBLIC_ORIGIN.includes("localhost")) {
+        if (process.env.NEXT_PUBLIC_EMULATOR_HOST) {
           console.warn("USING AUTH EMULATOR");
           connectAuthEmulator(this._internal);
         }

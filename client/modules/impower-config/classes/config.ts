@@ -125,10 +125,7 @@ class Config {
   }
 
   private getValue<T>(key: ConfigKey, defaultValue?: T): T {
-    if (
-      !process.env.NEXT_PUBLIC_ORIGIN.includes("localhost") &&
-      this.internal
-    ) {
+    if (!process.env.NEXT_PUBLIC_EMULATOR_HOST && this.internal) {
       try {
         const value = _getValue(this.internal, key).asString();
         if (value) {

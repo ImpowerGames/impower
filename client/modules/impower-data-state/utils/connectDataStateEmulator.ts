@@ -2,7 +2,11 @@ import { connectDatabaseEmulator as _connectDatabaseEmulator } from "@firebase/d
 import { InternalDataState } from "../types/aliases";
 
 const connectDataStateEmulator = (internal: InternalDataState): void => {
-  return _connectDatabaseEmulator(internal, "localhost", 9000);
+  return _connectDatabaseEmulator(
+    internal,
+    process.env.NEXT_PUBLIC_EMULATOR_HOST,
+    9000
+  );
 };
 
 export default connectDataStateEmulator;

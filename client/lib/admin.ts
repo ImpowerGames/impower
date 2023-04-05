@@ -1,11 +1,19 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { App } from "firebase-admin/app";
 
-if (process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
-  process.env.FIREBASE_AUTH_EMULATOR_HOST = "localhost:9099";
-  process.env.FIRESTORE_EMULATOR_HOST = "localhost:8080";
-  process.env.FIREBASE_DATABASE_EMULATOR_HOST = "localhost:9000";
-  process.env.FIREBASE_STORAGE_EMULATOR_HOST = "localhost:9199";
+if (process.env.NEXT_PUBLIC_EMULATOR_HOST) {
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = `${
+    process.env.NEXT_PUBLIC_EMULATOR_HOST
+  }:${9099}`;
+  process.env.FIRESTORE_EMULATOR_HOST = `${
+    process.env.NEXT_PUBLIC_EMULATOR_HOST
+  }:${8080}`;
+  process.env.FIREBASE_DATABASE_EMULATOR_HOST = `${
+    process.env.NEXT_PUBLIC_EMULATOR_HOST
+  }:${9000}`;
+  process.env.FIREBASE_STORAGE_EMULATOR_HOST = `${
+    process.env.NEXT_PUBLIC_EMULATOR_HOST
+  }:${9199}`;
 }
 
 export const initAdminApp = async () => {
@@ -18,11 +26,19 @@ export const initAdminApp = async () => {
   } catch {
     // NoOp
   }
-  if (process.env.NEXT_PUBLIC_ORIGIN?.includes("localhost")) {
-    process.env.FIREBASE_AUTH_EMULATOR_HOST = "localhost:9099";
-    process.env.FIRESTORE_EMULATOR_HOST = "localhost:8080";
-    process.env.FIREBASE_DATABASE_EMULATOR_HOST = "localhost:9000";
-    process.env.FIREBASE_STORAGE_EMULATOR_HOST = "localhost:9199";
+  if (process.env.NEXT_PUBLIC_EMULATOR_HOST) {
+    process.env.FIREBASE_AUTH_EMULATOR_HOST = `${
+      process.env.NEXT_PUBLIC_EMULATOR_HOST
+    }:${9099}`;
+    process.env.FIRESTORE_EMULATOR_HOST = `${
+      process.env.NEXT_PUBLIC_EMULATOR_HOST
+    }:${8080}`;
+    process.env.FIREBASE_DATABASE_EMULATOR_HOST = `${
+      process.env.NEXT_PUBLIC_EMULATOR_HOST
+    }:${9000}`;
+    process.env.FIREBASE_STORAGE_EMULATOR_HOST = `${
+      process.env.NEXT_PUBLIC_EMULATOR_HOST
+    }:${9199}`;
     return initializeApp({
       projectId: "impowergames-dev",
       storageBucket: "default-bucket",
