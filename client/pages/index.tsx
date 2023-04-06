@@ -14,7 +14,7 @@ import {
 } from "../modules/impower-navigation";
 import { brandingInfo, useScrolledDown } from "../modules/impower-route";
 import Home from "../modules/impower-route-home/components/Home";
-import ShareWebsiteHead from "../modules/impower-route/components/elements/ShareWebsiteHead";
+import ShareWebsiteHead from "../modules/impower-route/components/heads/ShareWebsiteHead";
 import useBodyBackgroundColor from "../modules/impower-route/hooks/useBodyBackgroundColor";
 import useHTMLBackgroundColor from "../modules/impower-route/hooks/useHTMLBackgroundColor";
 import useHTMLOverscrollBehavior from "../modules/impower-route/hooks/useHTMLOverscrollBehavior";

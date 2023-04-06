@@ -16,11 +16,11 @@ export { default as BottomNavigationBarSpacer } from "./components/elements/Bott
 export { default as Captcha } from "./components/elements/Captcha";
 export { default as LegalNotice } from "./components/elements/LegalNotice";
 export { default as NavigationBarSpacer } from "./components/elements/NavigationBarSpacer";
-export { default as PageHead } from "./components/elements/PageHead";
 export { default as PageNavigationBar } from "./components/elements/PageNavigationBar";
 export { default as ScrollDebug } from "./components/elements/ScrollDebug";
-export { default as ShareArticleHead } from "./components/elements/ShareArticleHead";
 export { default as Title } from "./components/elements/Title";
+export { default as PageHead } from "./components/heads/PageHead";
+export { default as ShareArticleHead } from "./components/heads/ShareArticleHead";
 export { default as MascotIllustration } from "./components/illustrations/MascotIllustration";
 export { default as DynamicLoadingButton } from "./components/inputs/DynamicLoadingButton";
 export { default as TextField } from "./components/inputs/TextField";
@@ -84,3 +84,4 @@ export * from "./utils/selection";
 export * from "./utils/setBodyBackgroundColor";
 export * from "./utils/setHTMLBackgroundColor";
 export * from "./utils/setHTMLOverscrollBehavior";
+
