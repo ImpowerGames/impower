@@ -1,0 +1,285 @@
+:host {
+  display: contents;
+}
+:host {
+  --focus-color: var(--s-color-on-surface);
+  --default-color: var(--s-color-primary-70);
+  --default-border-radius: 8px;
+}
+
+.button {
+  display: flex;
+  cursor: pointer;
+  border-style: solid;
+  vertical-align: middle;
+  text-decoration: none;
+  padding: 0;
+  position: var(--position, relative);
+  width: var(--width, auto);
+  border-radius: var(--corner, var(--default-border-radius));
+  pointer-events: var(--interactable, auto);
+  user-select: var(--selectable, none);
+  align-items: var(--layout-align, stretch);
+  justify-content: var(--layout-justify, center);
+  border-width: var(--border-width, var(--s-input-border-width));
+  font-family: var(--text-font, var(--s-input-font-family));
+  white-space: var(--text-wrap, nowrap);
+  transition: var(--s-transition-x-fast) background-color,
+    var(--s-transition-x-fast) color, var(--s-transition-x-fast) border,
+    var(--s-transition-x-fast) filter;
+}
+.button::-moz-focus-inner {
+  border: 0;
+}
+.button:focus {
+  outline: none;
+}
+:host([disabled]) .button {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* When disabled, prevent mouse events from bubbling up from children */
+:host([disabled]) .button * {
+  pointer-events: none;
+}
+.prefix,
+.suffix {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+.label {
+  display: inline-block;
+  z-index: 1;
+}
+.label::slotted(s-icon) {
+  vertical-align: -2px;
+}
+
+.button::after {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  border-radius: inherit;
+  background-color: transparent;
+}
+
+.focused::after {
+  border: solid 2px var(--focus-color);
+}
+
+/* Filled */
+.button,
+:host([variant="filled"]) .button {
+  filter: var(--s-shadow-drop-1);
+  background-color: var(--color, var(--default-color));
+  border-color: var(--color, var(--default-color));
+  color: var(--text-color, var(--s-color-neutral-0));
+  font-weight: var(--s-font-weight-medium);
+}
+:host([variant="filled"]:not([disabled])) .button:hover,
+:host([variant="filled"]:not([disabled])) .button[variant="filled"]:hover {
+  filter: var(--s-shadow-drop-2);
+}
+:host([variant="filled"]:not([disabled])) .button:active,
+:host([variant="filled"]:not([disabled])) .button[variant="filled"]:active {
+  filter: var(--s-shadow-drop-0);
+}
+.corner-cut::before,
+:host([variant="filled"]) .corner-cut::before {
+  background-color: var(--color, var(--default-color));
+  border-color: var(--color, var(--default-color));
+}
+
+/* Tonal */
+:host([variant="tonal"]) .button {
+  filter: var(--s-shadow-drop-0);
+  background-color: var(--color, var(--default-color));
+  border-color: var(--color, var(--default-color));
+  color: var(--text-color, white);
+  font-weight: var(--s-font-weight-normal);
+}
+:host([variant="tonal"]:not([disabled])).button:hover {
+  filter: var(--s-shadow-drop-2);
+}
+:host([variant="tonal"]:not([disabled])) .button:active {
+  filter: var(--s-shadow-drop-0);
+}
+:host([variant="tonal"]) .button::after {
+  background-color: rgba(0, 0, 0, var(--s-overlay-opacity));
+}
+:host([variant="tonal"]) .corner-cut::before {
+  background-color: var(--color, var(--default-color));
+  border-color: var(--color, var(--default-color));
+}
+
+/* Outlined */
+:host([variant="outlined"]) .button {
+  filter: var(--s-shadow-drop-0);
+  background-color: transparent;
+  border-color: var(--color, var(--default-color));
+  border: solid 1px;
+  color: var(--color, var(--default-color));
+  font-weight: var(--s-font-weight-medium);
+}
+:host([variant="outlined"]:not([disabled])) .button:hover,
+:host([variant="outlined"][checked]:not([disabled])) .button {
+  background-color: var(--color, var(--default-color));
+  border-color: var(--color, var(--default-color));
+  color: var(--s-color-neutral-0);
+}
+:host([variant="outlined"]:not([disabled])) .button:active {
+  background-color: var(--color, var(--default-color));
+  border-color: var(--color, var(--default-color));
+  color: var(--s-color-neutral-0);
+}
+:host([variant="outlined"]) .corner-cut::before {
+  background-color: transparent;
+  border-color: var(--color, var(--default-color));
+  border: solid 1px;
+}
+@media (forced-colors: active) {
+  :host([variant="outlined"][checked]:not([disabled])) .button {
+    outline: solid 2px transparent;
+  }
+}
+
+/* Text */
+:host([variant="text"]) .button {
+  filter: var(--s-shadow-drop-0);
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--color, var(--default-color));
+  font-weight: var(--s-font-weight-medium);
+}
+
+/* Loading */
+.spinner {
+  display: none;
+}
+:host([loading]) .spinner {
+  display: contents;
+}
+.label,
+.prefix,
+.suffix {
+  visibility: visible;
+}
+:host([loading]) .label,
+:host([loading]) .prefix,
+:host([loading]) .suffix {
+  visibility: hidden;
+}
+:host([loading]) .button {
+  position: relative;
+  cursor: wait;
+}
+:host([loading]) s-spinner {
+  --indicator-color: currentColor;
+  position: absolute;
+  font-size: 1em;
+  height: 1em;
+  width: 1em;
+  top: calc(50% - 0.5em);
+  left: calc(50% - 0.5em);
+}
+
+/* Size */
+.button,
+:host([size="md"]) .button {
+  font-size: var(--s-button-font-size-md);
+  height: var(--s-input-height-md);
+  line-height: calc(var(--s-input-height-md) - var(--s-input-border-width) * 2);
+}
+:host([size="sm"]) .button {
+  font-size: var(--s-button-font-size-sm);
+  height: var(--s-input-height-sm);
+  line-height: calc(var(--s-input-height-sm) - var(--s-input-border-width) * 2);
+}
+:host([size="lg"]) .button {
+  font-size: var(--s-button-font-size-lg);
+  height: var(--s-input-height-lg);
+  line-height: calc(var(--s-input-height-lg) - var(--s-input-border-width) * 2);
+}
+
+/* Circle */
+:host([shape="circle"]) .button {
+  padding-left: 0;
+  padding-right: 0;
+}
+:host([shape="circle"]) .button,
+:host([shape="circle"][size="md"]) .button {
+  width: var(--s-input-height-md);
+}
+:host([shape="circle"][size="sm"]) .button {
+  width: var(--s-input-height-sm);
+}
+:host([shape="circle"][size="lg"]) .button {
+  width: var(--s-input-height-lg);
+}
+:host([shape="circle"]) .prefix,
+:host([shape="circle"]) .suffix {
+  display: none;
+}
+
+/* Button spacing */
+.has-label .label,
+:host([size="md"]) .has-label .label {
+  padding: 0 var(--s-spacing-md);
+}
+:host([size="sm"]) .has-label .label {
+  padding: 0 var(--s-spacing-sm);
+}
+:host([size="lg"]) .has-label .label {
+  padding: 0 var(--s-spacing-lg);
+}
+
+.has-prefix,
+:host([size="md"]) .has-prefix {
+  padding-inline-start: var(--s-spacing-sm);
+}
+.has-prefix .label,
+:host([size="md"]) .has-prefix .label {
+  padding-inline-start: var(--s-spacing-sm);
+}
+:host([size="sm"]) .has-prefix {
+  padding-inline-start: var(--s-spacing-xs);
+}
+:host([size="sm"]) .has-prefix .label {
+  padding-inline-start: var(--s-spacing-xs);
+}
+:host([size="lg"]) .has-prefix {
+  padding-inline-start: var(--s-spacing-sm);
+}
+:host([size="lg"]) .has-prefix .label {
+  padding-inline-start: var(--s-spacing-sm);
+}
+
+.has-suffix,
+:host([size="md"]) .has-suffix {
+  padding-inline-end: var(--s-spacing-sm);
+}
+.has-suffix .label,
+:host([size="md"]) .has-suffix .label {
+  padding-inline-end: var(--s-spacing-sm);
+}
+:host([size="sm"]) .has-suffix {
+  padding-inline-end: var(--s-spacing-xs);
+}
+:host([size="sm"]) .has-suffix .label {
+  padding-inline-end: var(--s-spacing-xs);
+}
+:host([size="lg"]) .has-suffix {
+  padding-inline-end: var(--s-spacing-sm);
+}
+:host([size="lg"]) .has-suffix .label {
+  padding-inline-end: var(--s-spacing-sm);
+}
+
+/* Ripple */
+
+.ripple {
+  border-radius: inherit;
+}

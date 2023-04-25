@@ -1,0 +1,12 @@
+:host {
+  display: contents;
+}
+
+.icon {
+  display: flex;
+  justify-content: var(--layout-justify, center);
+  align-items: var(--layout-align, center);
+  width: var(--size, --width, 1em);
+  height: var(--size, --height, 1em);
+  fill: var(--fill, currentColor);
+}

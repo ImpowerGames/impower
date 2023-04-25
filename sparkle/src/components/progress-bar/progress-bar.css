@@ -1,0 +1,81 @@
+:host {
+  display: contents;
+}
+:host {
+  --default-height: 0.25rem;
+  --default-color: var(--s-color-primary-70);
+  --default-border-radius: 8px;
+  --track-color: var(--s-color-neutral-30);
+  --label-color: var(--s-color-neutral-0);
+}
+
+.progress-bar {
+  position: var(--position, relative);
+  background-color: var(--track-color);
+  height: var(--height, var(--default-height));
+  border-radius: var(--corner, var(--default-border-radius));
+  box-shadow: var(--shadow-inset, inset var(--s-shadow-sm));
+  overflow: hidden;
+  background-color: transparent;
+}
+
+.indicator {
+  height: 100%;
+  font-family: var(--s-font-sans);
+  font-size: var(--s-text-xs-font-size);
+  font-weight: var(--s-font-weight-normal);
+  background-color: var(--color, var(--default-color));
+  color: var(--label-color);
+  text-align: center;
+  line-height: var(--height, var(--default-height));
+  white-space: nowrap;
+  overflow: hidden;
+  transition: 400ms width, 400ms background-color;
+  user-select: none;
+}
+
+/* Indeterminate */
+.progress-bar[indeterminate] .indicator {
+  position: absolute;
+  animation: indeterminate 2.5s infinite cubic-bezier(0.37, 0, 0.63, 1);
+}
+
+.progress-bar[indeterminate][rtl] .indicator {
+  animation-name: indeterminate-rtl;
+}
+
+@media (forced-colors: active) {
+  .progress-bar {
+    outline: solid 1px SelectedItem;
+    background-color: var(--s-color-neutral-0);
+  }
+
+  .indicator {
+    outline: solid 1px SelectedItem;
+    background-color: SelectedItem;
+  }
+}
+
+@keyframes indeterminate {
+  0% {
+    left: -50%;
+    width: 50%;
+  }
+  75%,
+  100% {
+    left: 100%;
+    width: 50%;
+  }
+}
+
+@keyframes indeterminate-rtl {
+  0% {
+    right: -50%;
+    width: 50%;
+  }
+  75%,
+  100% {
+    right: 100%;
+    width: 50%;
+  }
+}

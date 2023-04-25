@@ -1,0 +1,35 @@
+:host {
+  display: contents;
+}
+:host {
+  --default-corner: var(--s-shape-rounded);
+  --default-color: var(--s-color-neutral-30);
+  --sheen-color: var(--s-color-neutral-40);
+}
+
+.skeleton {
+  display: flex;
+  min-width: var(--min-width, 40px);
+  width: var(--width, 100%);
+  height: var(--height, 1em);
+  flex: var(--expand, 1);
+  border-radius: var(--corner, var(--default-corner));
+  background-image: var(
+    --background-image,
+    linear-gradient(
+      270deg,
+      var(--sheen-color),
+      var(--color, var(--default-color)),
+      var(--color, var(--default-color)),
+      var(--sheen-color)
+    )
+  );
+  background-size: var(--background-fit, 400% 100%);
+}
+
+/* Forced colors mode */
+@media (forced-colors: active) {
+  :host {
+    --color: var(--default-color);
+  }
+}

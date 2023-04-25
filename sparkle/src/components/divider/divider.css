@@ -1,0 +1,27 @@
+:host {
+  display: contents;
+}
+:host {
+  --default-border-color: var(--s-panel-border-color);
+  --size: var(--s-panel-border-width);
+  --spacing: var(--s-spacing-md);
+}
+
+:host(:not([vertical])) .divider {
+  display: block;
+  width: var(--width, 100%);
+  height: var(--size);
+  border-top: solid var(--size) var(--border-color, var(--default-border-color));
+  margin-top: var(--margin-t, var(--spacing));
+  margin-bottom: var(--margin-b, var(--spacing));
+}
+
+:host([vertical]) .divider {
+  display: inline-block;
+  width: var(--size);
+  height: var(--height, 100%);
+  border-left: solid var(--size)
+    var(--border-color, var(--default-border-color));
+  margin-left: var(--margin-l, var(--spacing));
+  margin-right: var(--margin-r, var(--spacing));
+}

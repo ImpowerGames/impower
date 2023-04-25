@@ -1,0 +1,15 @@
+<div
+  class="progress-circle"
+  part="base"
+  role="progressbar"
+  aria-label="%"
+  aria-describedby="label"
+  aria-valuemin="0"
+  aria-valuemax="100"
+>
+  <svg class="image" part="image">
+    <circle class="track" part="track"></circle>
+    <circle class="indicator" part="indicator"></circle>
+  </svg>
+  <slot class="label" part="label"></slot>
+</div>

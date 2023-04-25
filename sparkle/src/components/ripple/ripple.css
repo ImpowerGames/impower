@@ -1,0 +1,76 @@
+:host {
+  display: contents;
+}
+:host {
+  --focus-color: var(--s-color-on-surface);
+  --focus-opacity: var(--s-focus-state-layer-opacity);
+  --hover-color: var(--s-color-on-surface);
+  --hover-opacity: var(--s-hover-state-layer-opacity);
+  --press-color: var(--s-color-on-surface);
+  --press-opacity: var(--s-press-state-layer-opacity);
+}
+
+:host([disabled]) {
+  opacity: 0;
+}
+
+:host,
+.ripple {
+  border-radius: inherit;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ripple {
+  will-change: transform;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ripple::before,
+.ripple::after {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  content: "";
+}
+
+.ripple::before {
+  background-color: var(--hover-color);
+  transition: opacity 15ms linear, background-color 15ms linear;
+  inset: 0;
+}
+
+.ripple::after {
+  background: radial-gradient(
+    closest-side,
+    var(--press-color) max(calc(100% - 70px), 65%),
+    transparent 100%
+  );
+  transition: opacity 375ms linear;
+  transform-origin: center center;
+}
+
+.hovered::before {
+  background-color: var(--hover-color);
+  opacity: var(--hover-opacity);
+}
+
+.focused::before {
+  background-color: var(--focus-color);
+  opacity: var(--focus-opacity);
+  transition-duration: 75ms;
+}
+
+.pressed::after {
+  opacity: var(--press-opacity);
+  transition-duration: 105ms;
+}
+
+@media screen and (forced-colors: active) {
+  :host {
+    display: none;
+  }
+}
