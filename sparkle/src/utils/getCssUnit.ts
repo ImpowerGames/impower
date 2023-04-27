@@ -1,7 +1,11 @@
+const isValidNumber = (v: string) => !Number.isNaN(Number(v));
+
 export const getCssUnit = (value: string, defaultUnit: string): string => {
-  const isValidNumber = !Number.isNaN(Number(value));
-  if (isValidNumber) {
-    return `${value}${defaultUnit}`;
+  if (value.startsWith("var(")) {
+    return value;
   }
-  return value;
+  return value
+    .split(" ")
+    .map((part) => (isValidNumber(part) ? `${part}${defaultUnit}` : part))
+    .join(" ");
 };

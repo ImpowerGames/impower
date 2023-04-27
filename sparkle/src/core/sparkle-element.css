@@ -17,10 +17,28 @@
   overflow-x: visible;
   overflow-y: visible;
   overflow-wrap: break-word;
+  border: none;
+}
+*::-moz-focus-inner {
+  border: none;
+}
+*:focus {
+  outline: none;
+}
+*:focus-visible {
+  outline: none;
 }
 
+/* States */
+
+.disabled * {
+  pointer-events: none;
+}
+
+/* Shared */
+
 :host(:first-child) {
-  --transition-property: opacity, transform, filter;
+  --transition: opacity, transform, filter;
   --background-color: var(--bg-color, hsl(0 100% 100% / 50%));
   --background-image: var(--bg-gradient, none), var(--bg-pattern, none),
     var(--bg-image, none);
@@ -89,7 +107,7 @@
 
 .corner {
   border-top-left-radius: var(--corner, 8px);
-  border-bottom-right-radius: var(--corner, 8px);
+  border-top-right-radius: var(--corner, 8px);
   border-bottom-right-radius: var(--corner, 8px);
   border-bottom-left-radius: var(--corner, 8px);
 }
@@ -328,7 +346,7 @@
 }
 
 .shadow {
-  transition-property: var(--transition-property);
+  transition-property: var(--transition);
   filter: var(
     --shadow,
     drop-shadow(0 1px 2px hsl(0 0% 0% / 30%)) 0 1px 3px hsl(0 0% 0% / 15%)
@@ -358,7 +376,7 @@
 }
 
 .opacity {
-  transition-property: var(--transition-property);
+  transition-property: var(--transition);
   opacity: var(--opacity, 1);
 }
 
@@ -373,7 +391,7 @@
 .scale-z,
 .skew-x,
 .skew-y {
-  transition-property: var(--transition-property);
+  transition-property: var(--transition);
   transform: var(--transform);
 }
 
@@ -395,13 +413,7 @@
   animation: var(--animate, var(--s-animation-bounce));
 }
 
-.corner-cut {
-  position: relative;
-  border-color: transparent !important;
-  background-color: transparent !important;
-  background-image: none !important;
-}
-.corner-cut::before {
+.focused::before {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -409,18 +421,11 @@
   right: 0;
   content: "";
   z-index: -1;
-  border-color: var(--border-color);
-  background-color: var(--background-color);
-  background-image: var(--background-image);
-  clip-path: polygon(
-    0 var(--corner, 8px),
-    var(--corner, 8px) 0,
-    calc(100% - var(--corner, 8px)) 0,
-    100% var(--corner, 8px),
-    100% calc(100% - var(--corner, 8px)),
-    calc(100% - var(--corner, 8px)) 100%,
-    var(--corner, 8px) 100%,
-    0% calc(100% - var(--corner, 8px))
+  border-radius: inherit;
+  outline: var(--s-focus-ring-color) var(--s-focus-ring-style)
+    var(--s-focus-ring-width);
+  outline-offset: calc(
+    -1 * var(--s-focus-ring-width) - var(--s-focus-ring-offset)
   );
 }
 

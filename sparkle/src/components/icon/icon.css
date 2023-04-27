@@ -1,12 +1,32 @@
 :host {
   display: contents;
 }
+:host {
+  --layout-justify: center;
+  --layout-align: center;
+  --width: 1em;
+  --height: 1em;
+  --fill: currentColor;
+}
 
 .icon {
   display: flex;
-  justify-content: var(--layout-justify, center);
-  align-items: var(--layout-align, center);
-  width: var(--size, --width, 1em);
-  height: var(--size, --height, 1em);
-  fill: var(--fill, currentColor);
+  justify-content: var(--layout-justify);
+  align-items: var(--layout-align);
+  width: var(--size, var(--width));
+  height: var(--size, var(--height));
+}
+
+.icon-mask {
+  -webkit-mask-image: var(--icon, none);
+  mask-image: var(--icon, none);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  background-color: currentColor;
+}
+
+* {
+  width: var(--size, var(--width));
+  height: var(--size, var(--height));
+  fill: var(--fill);
 }

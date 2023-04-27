@@ -2,27 +2,66 @@
   display: contents;
 }
 :host {
-  --default-color: var(--s-color-primary-70);
-  --default-border-radius: 8px;
+  --selectable: none;
+  --color: var(--s-color-primary-70);
+  --text-color: var(--s-color-neutral-0);
+  --border-color: var(--s-color-neutral-0);
+  --border-width: 1px;
+  --layout-align: center;
+  --layout-justify: center;
+  --text-font: var(--s-font-sans);
+  --text-size: var(--s-text-2xs-font-size);
+  --text-leading: var(--s-text-2xs-line-height);
+  --text-weight: var(--s-font-weight-medium);
+  --text-kerning: var(--s-letter-spacing-md);
+  --text-wrap: nowrap;
+  --padding-t: 0.35em;
+  --padding-b: 0.35em;
+  --padding-l: 0.6em;
+  --padding-r: 0.6em;
+  --corner-tl: 8px;
+  --corner-tr: 8px;
+  --corner-br: 8px;
+  --corner-bl: 8px;
 }
 
 .badge {
-  display: inline-flex;
-  background-color: var(--color, var(--default-color));
-  color: var(--text-color, var(--s-color-neutral-0));
-  border: solid 1px var(--s-color-neutral-0);
-  border-radius: var(--corner, var(--default-border-radius));
-  align-items: center;
-  justify-content: center;
-  font-size: var(--s-text-2xs-font-size);
-  font-weight: var(--s-font-weight-medium);
-  letter-spacing: var(--s-letter-spacing-md);
-  line-height: 1;
-  white-space: nowrap;
-  padding: 0.35em 0.6em;
-  user-select: none;
+  display: flex;
   cursor: inherit;
-  font-family: var(--s-font-sans);
+  user-select: var(--selectable);
+  background-color: var(--color);
+  color: var(--text-color);
+  align-items: var(--layout-align);
+  justify-content: var(--layout-justify);
+  font-family: var(--text-font);
+  font-size: var(--text-size);
+  line-height: var(--text-leading);
+  font-weight: var(--text-weight);
+  letter-spacing: var(--text-kerning);
+  white-space: var(--text-wrap);
+  border-style: solid;
+  border-width: var(--border-width);
+  border-color: var(--border-color);
+  padding-top: var(--padding-t, var(--padding-tb, var(--padding)));
+  padding-right: var(--padding-r, var(--padding-lr, var(--padding)));
+  padding-bottom: var(--padding-b, var(--padding-tb, var(--padding)));
+  padding-left: var(--padding-l, var(--padding-lr, var(--padding)));
+  border-top-left-radius: var(
+    --corner-tl,
+    var(--corner-t, var(--corner-l, var(--corner)))
+  );
+  border-top-right-radius: var(
+    --corner-tr,
+    var(--corner-t, var(--corner-r, var(--corner)))
+  );
+  border-bottom-right-radius: var(
+    --corner-br,
+    var(--corner-b, var(--corner-r, var(--corner)))
+  );
+  border-bottom-left-radius: var(
+    --corner-bl,
+    var(--corner-b, var(--corner-l, var(--corner)))
+  );
 }
 
 :host([float=""]),

@@ -49,9 +49,6 @@ export default class ProgressCircle extends SparkleElement {
     newValue: string
   ): void {
     super.attributeChangedCallback(name, oldValue, newValue);
-    if (name === "aria-label") {
-      this.updateRootAttribute("aria-label", newValue);
-    }
     if (name === "value") {
       this.updateRootAttribute("aria-valuenow", newValue);
       const indicator = this.getElementByPart("indicator");

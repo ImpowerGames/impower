@@ -1,0 +1,22 @@
+:host {
+  display: contents;
+}
+:host {
+  --corner-tl: 8px;
+  --corner-tr: 8px;
+  --corner-br: 8px;
+  --corner-bl: 8px;
+}
+
+.content {
+  clip-path: polygon(
+    0 var(--corner-tl, var(--corner)),
+    var(--corner-tl, var(--corner)) 0,
+    calc(100% - var(--corner-tr, var(--corner))) 0,
+    100% var(--corner-tr, var(--corner)),
+    100% calc(100% - var(--corner-br, var(--corner))),
+    calc(100% - var(--corner-br, var(--corner))) 100%,
+    var(--corner-bl, var(--corner)) 100%,
+    0% calc(100% - var(--corner-bl, var(--corner)))
+  );
+}

@@ -14,16 +14,12 @@
   opacity: 0;
 }
 
-:host,
 .ripple {
+  pointer-events: none;
   border-radius: inherit;
   position: absolute;
   inset: 0;
-  pointer-events: none;
   overflow: hidden;
-}
-
-.ripple {
   will-change: transform;
   outline: none;
   -webkit-tap-highlight-color: transparent;

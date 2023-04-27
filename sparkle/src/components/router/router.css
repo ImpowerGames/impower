@@ -1,0 +1,19 @@
+:host {
+  display: contents;
+}
+:host {
+  --layout: column;
+  --expand: 1;
+}
+
+.router {
+  display: flex;
+  flex-direction: var(--layout);
+  flex: var(--expand);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}

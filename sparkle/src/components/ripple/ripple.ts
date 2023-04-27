@@ -95,20 +95,13 @@ export default class Ripple extends SparkleElement {
     return [...super.observedAttributes, "disabled"];
   }
 
-  /**
-   * Disables the ripple.
-   */
-  get disabled(): boolean {
-    return this.getBooleanAttribute("disabled");
-  }
-
   private _hovered = false;
   get hovered(): boolean {
     return this._hovered;
   }
   set hovered(value: boolean) {
     this._hovered = value;
-    this.update();
+    this.updateState();
   }
 
   private _focused = false;
@@ -117,7 +110,7 @@ export default class Ripple extends SparkleElement {
   }
   set focused(value: boolean) {
     this._focused = value;
-    this.update();
+    this.updateState();
   }
 
   private _pressed = false;
@@ -126,7 +119,7 @@ export default class Ripple extends SparkleElement {
   }
   set pressed(value: boolean) {
     this._pressed = value;
-    this.update();
+    this.updateState();
   }
 
   private rippleSize = "";
@@ -152,7 +145,7 @@ export default class Ripple extends SparkleElement {
     }
   }
 
-  update(): void {
+  updateState(): void {
     this.updateRootClass("hovered", this.hovered);
     this.updateRootClass("focused", this.focused);
     this.updateRootClass("pressed", this.pressed);

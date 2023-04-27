@@ -381,6 +381,7 @@
    */
 
   /* Focus rings */
+  --s-focus-ring-style: solid;
   --s-focus-ring-width: 3px;
   --s-focus-ring-offset: 1px;
   --s-focus-ring-animation-width: 8px;
@@ -460,10 +461,6 @@
   --s-toggle-size-sm: 0.875rem; /* 14px */
   --s-toggle-size-md: 1.125rem; /* 18px */
   --s-toggle-size-lg: 1.375rem; /* 22px */
-
-  /* Panels */
-  --s-panel-border-color: var(--s-color-neutral-30);
-  --s-panel-border-width: 1px;
 
   /* Tooltips */
   --s-tooltip-border-radius: var(--s-border-radius-md);

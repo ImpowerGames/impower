@@ -2,9 +2,25 @@
   "version": "1.0",
   "tags": [
     {
-      "name": "s-box",
-      "description": "Boxes are basic surfaces for styling and laying out content.",
+      "name": "s-badge",
+      "description": "Badges are used to draw attention and display statuses or counts.",
       "attributes": [
+        {
+          "name": "float",
+          "description": "Determines if the badge should be floated over the left or right corner.",
+          "values": [
+            {
+              "name": "left"
+            },
+            {
+              "name": "right"
+            }
+          ]
+        },
+        {
+          "name": "disabled",
+          "description": "Whether or not the element is disabled."
+        },
         {
           "name": "position",
           "description": "Sets how this element is positioned in a document.",
@@ -1865,20 +1881,12 @@
       ]
     },
     {
-      "name": "s-badge",
-      "description": "Badges are used to draw attention and display statuses or counts.",
+      "name": "s-box",
+      "description": "Boxes are basic surfaces for styling and laying out content.",
       "attributes": [
         {
-          "name": "float",
-          "description": "Determines if the badge should be floated over the left or right corner.",
-          "values": [
-            {
-              "name": "left"
-            },
-            {
-              "name": "right"
-            }
-          ]
+          "name": "disabled",
+          "description": "Whether or not the element is disabled."
         },
         {
           "name": "position",
@@ -3744,10 +3752,6 @@
       "description": "Buttons represent actions that are available to the user.",
       "attributes": [
         {
-          "name": "disabled",
-          "description": "Whether or not the button is disabled."
-        },
-        {
           "name": "loading",
           "description": "Draws the button in a loading state."
         },
@@ -3783,6 +3787,10 @@
               "name": "lg"
             }
           ]
+        },
+        {
+          "name": "disabled",
+          "description": "Whether or not the element is disabled."
         },
         {
           "name": "position",
@@ -5650,6 +5658,10 @@
         {
           "name": "vertical",
           "description": "Whether or not the divider is vertical instead of horizontal."
+        },
+        {
+          "name": "disabled",
+          "description": "Whether or not the element is disabled."
         },
         {
           "name": "position",
@@ -7560,6 +7572,31 @@
           ]
         },
         {
+          "name": "stroke-width",
+          "description": "Sets the stroke width of an icon.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "disabled",
+          "description": "Whether or not the element is disabled."
+        },
+        {
           "name": "position",
           "description": "Sets how this element is positioned in a document.",
           "values": [
@@ -9427,6 +9464,10 @@
           "description": "When true, percentage is ignored, the label is hidden, and the progress bar is drawn in an indeterminate state."
         },
         {
+          "name": "disabled",
+          "description": "Whether or not the element is disabled."
+        },
+        {
           "name": "position",
           "description": "Sets how this element is positioned in a document.",
           "values": [
@@ -11289,6 +11330,10 @@
       "name": "s-progress-circle",
       "description": "Progress circles are used to show the progress of a determinate operation in a circular fashion.",
       "attributes": [
+        {
+          "name": "disabled",
+          "description": "Whether or not the element is disabled."
+        },
         {
           "name": "position",
           "description": "Sets how this element is positioned in a document.",
@@ -15020,6 +15065,10 @@
       "description": "Skeletons are used to provide a visual representation of where content will eventually be drawn.",
       "attributes": [
         {
+          "name": "disabled",
+          "description": "Whether or not the element is disabled."
+        },
+        {
           "name": "position",
           "description": "Sets how this element is positioned in a document.",
           "values": [
@@ -16882,6 +16931,1881 @@
       "name": "s-spinner",
       "description": "Spinners are used to show the progress of an indeterminate operation.",
       "attributes": [
+        {
+          "name": "disabled",
+          "description": "Whether or not the element is disabled."
+        },
+        {
+          "name": "position",
+          "description": "Sets how this element is positioned in a document.",
+          "values": [
+            {
+              "name": "default"
+            },
+            {
+              "name": "relative"
+            },
+            {
+              "name": "fixed"
+            },
+            {
+              "name": "absolute"
+            },
+            {
+              "name": "sticky"
+            }
+          ]
+        },
+        {
+          "name": "aspect",
+          "description": "Sets a preferred aspect ratio for the box.",
+          "values": [
+            {
+              "name": "1/1"
+            },
+            {
+              "name": "16/9"
+            },
+            {
+              "name": "9/16"
+            },
+            {
+              "name": "4/5"
+            },
+            {
+              "name": "2/3"
+            },
+            {
+              "name": "2/1"
+            }
+          ]
+        },
+        {
+          "name": "scroll-x",
+          "description": "Sets the desired behavior when content does not fit in the parent element box (overflows) in the horizontal direction.",
+          "values": [
+            {
+              "name": "visible"
+            },
+            {
+              "name": "clip"
+            },
+            {
+              "name": "scroll"
+            }
+          ]
+        },
+        {
+          "name": "scroll-y",
+          "description": "Sets the desired behavior when content does not fit in the parent element box (overflows) in the vertical direction.",
+          "values": [
+            {
+              "name": "visible"
+            },
+            {
+              "name": "clip"
+            },
+            {
+              "name": "scroll"
+            }
+          ]
+        },
+        {
+          "name": "z",
+          "description": "Sets the z-order of a positioned element and its descendants or flex items. Overlapping elements with a larger z-index cover those with a smaller one.",
+          "values": [
+            {
+              "name": "0"
+            },
+            {
+              "name": "1"
+            },
+            {
+              "name": "2"
+            },
+            {
+              "name": "3"
+            },
+            {
+              "name": "4"
+            },
+            {
+              "name": "5"
+            }
+          ]
+        },
+        {
+          "name": "width",
+          "description": "Sets this element's width.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "width-min",
+          "description": "Sets the minimum width of this element. It prevents the used value of the width property from becoming smaller than the value specified.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "width-max",
+          "description": "Sets the maximum width of this element. It prevents the used value of the width property from becoming larger than the value specified.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "height",
+          "description": "Sets this element's height.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "height-min",
+          "description": "Sets the minimum height of this element. It prevents the used value of the height property from becoming smaller than the value specified.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "height-max",
+          "description": "Sets the maximum height of this element. It prevents the used value of the height property from becoming larger than the value specified.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "corner",
+          "description": "Rounds the corners of this element's outer edge. You can set a radius to make circular corners.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            },
+            {
+              "name": "full"
+            },
+            {
+              "name": "circle"
+            }
+          ]
+        },
+        {
+          "name": "corner-t",
+          "description": "Rounds the top-left and top-right corners of this element by specifying the radius of the circle defining the curvature of the corner.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            },
+            {
+              "name": "full"
+            },
+            {
+              "name": "circle"
+            }
+          ]
+        },
+        {
+          "name": "corner-r",
+          "description": "Rounds the top-right and bottom-right corners of this element by specifying the radius of the circle defining the curvature of the corner.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            },
+            {
+              "name": "full"
+            },
+            {
+              "name": "circle"
+            }
+          ]
+        },
+        {
+          "name": "corner-b",
+          "description": "Rounds the bottom-left and bottom-right corners of this element by specifying the radius of the circle defining the curvature of the corner.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            },
+            {
+              "name": "full"
+            },
+            {
+              "name": "circle"
+            }
+          ]
+        },
+        {
+          "name": "corner-l",
+          "description": "Rounds the top-left and bottom-left corners of this element by specifying the radius of the circle defining the curvature of the corner.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            },
+            {
+              "name": "full"
+            },
+            {
+              "name": "circle"
+            }
+          ]
+        },
+        {
+          "name": "corner-tl",
+          "description": "Rounds the top-left corner of this element by specifying the radius of the circle defining the curvature of the corner.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            },
+            {
+              "name": "full"
+            },
+            {
+              "name": "circle"
+            }
+          ]
+        },
+        {
+          "name": "corner-tr",
+          "description": "Rounds the top-right corner of this element by specifying the radius of the circle defining the curvature of the corner.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            },
+            {
+              "name": "full"
+            },
+            {
+              "name": "circle"
+            }
+          ]
+        },
+        {
+          "name": "corner-br",
+          "description": "Rounds the bottom-right corner of this element by specifying the radius of the circle defining the curvature of the corner.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            },
+            {
+              "name": "full"
+            },
+            {
+              "name": "circle"
+            }
+          ]
+        },
+        {
+          "name": "corner-bl",
+          "description": "Rounds the bottom-left corner of this element by specifying the radius of the circle defining the curvature of the corner.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            },
+            {
+              "name": "full"
+            },
+            {
+              "name": "circle"
+            }
+          ]
+        },
+        {
+          "name": "inset",
+          "description": "Rounds the corners of this element's outer edge. You can set a radius to make circular corners.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "inset-t",
+          "description": "Sets how far the top edge of this element is from the top edge of its closest positioned parent. It has no effect on non-positioned elements.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "inset-r",
+          "description": "Sets how far the right edge of this element is from the right edge of its closest positioned parent. It has no effect on non-positioned elements.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "inset-b",
+          "description": "Sets how far the bottom edge of this element is from the bottom edge of its closest positioned parent. It has no effect on non-positioned elements.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "inset-l",
+          "description": "Sets how far the left edge of this element is from the left edge of its closest positioned parent. It has no effect on non-positioned elements.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "inset-lr",
+          "description": "Sets how far the left and right edge of this element is from the left and right edge of its closest positioned parent. It has no effect on non-positioned elements.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "inset-tb",
+          "description": "Sets how far the top and bottom edge of this element is from the top and bottom edge of its closest positioned parent. It has no effect on non-positioned elements.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "margin",
+          "description": "Sets the margin area around this element. A positive value places it farther from its neighbors, while a negative value places it closer.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "margin-t",
+          "description": "Sets the margin area on top of this element. A positive value places it farther from its neighbors, while a negative value places it closer.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "margin-r",
+          "description": "Sets the margin area on the right side of this element. A positive value places it farther from its neighbors, while a negative value places it closer.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "margin-b",
+          "description": "Sets the margin area below this element. A positive value places it farther from its neighbors, while a negative value places it closer.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "margin-l",
+          "description": "Sets the margin area on the left side of this element. A positive value places it farther from its neighbors, while a negative value places it closer.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "margin-lr",
+          "description": "Sets the margin area on the left and right sides of this element. A positive value places it farther from its neighbors, while a negative value places it closer.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "margin-tb",
+          "description": "Sets the margin area below and above this element. A positive value places it farther from its neighbors, while a negative value places it closer.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "padding",
+          "description": "Sets the padding area around this element.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "padding-t",
+          "description": "Sets the padding area on top of this element.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "padding-r",
+          "description": "Sets the padding area on the right side of this element.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "padding-b",
+          "description": "Sets the padding area below this element.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "padding-l",
+          "description": "Sets the padding area on the left side of this element.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "padding-lr",
+          "description": "Sets the padding area on the left and right sides of this element.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "padding-tb",
+          "description": "Sets the padding area above and below this element.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "layout",
+          "description": "Sets the layout of this element so that its children are arranged in either a row or column.",
+          "values": [
+            {
+              "name": "row"
+            },
+            {
+              "name": "column"
+            },
+            {
+              "name": "row-reverse"
+            },
+            {
+              "name": "column-reverse"
+            }
+          ]
+        },
+        {
+          "name": "layout-align",
+          "description": "When this element's children are arranged in a column (layout=\"column\"), this controls their horizontal alignment.\nWhen this element's children are arranged in a row (layout=\"row\"), this controls their vertical alignment.\n\nIf not provided a value, it will use \"center\"",
+          "values": [
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "layout-justify",
+          "description": "When this element's children are arranged in a column (layout=\"column\"), this controls their vertical alignment.\nWhen this element's children are arranged in a row (layout=\"row\"), this controls their horizontal alignment.",
+          "values": [
+            {
+              "name": "stretch"
+            },
+            {
+              "name": "center"
+            },
+            {
+              "name": "start"
+            },
+            {
+              "name": "end"
+            },
+            {
+              "name": "between"
+            },
+            {
+              "name": "around"
+            },
+            {
+              "name": "evenly"
+            }
+          ]
+        },
+        {
+          "name": "layout-wrap",
+          "description": "Sets whether children are forced onto one line or can wrap onto multiple lines. If wrapping is allowed, it sets the direction that lines are stacked.\n\nIf not provided a value, it will use \"wrap\".",
+          "values": [
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "expand",
+          "description": "Sets how much this element will expand to fill the space available in its parent container.\n\nIf 0, the element will not expand.\nIf 1, the element will expand to fill all available space.\n\nIf not provided a value, it will use \"1\".",
+          "values": [
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "color",
+          "description": "Sets the main color of the content rendered inside this element.",
+          "values": [
+            {
+              "name": "fg"
+            },
+            {
+              "name": "bg"
+            },
+            {
+              "name": "neutral"
+            },
+            {
+              "name": "primary"
+            },
+            {
+              "name": "success"
+            },
+            {
+              "name": "warning"
+            },
+            {
+              "name": "danger"
+            },
+            {
+              "name": "gray"
+            },
+            {
+              "name": "red"
+            },
+            {
+              "name": "orange"
+            },
+            {
+              "name": "amber"
+            },
+            {
+              "name": "yellow"
+            },
+            {
+              "name": "lime"
+            },
+            {
+              "name": "green"
+            },
+            {
+              "name": "emerald"
+            },
+            {
+              "name": "teal"
+            },
+            {
+              "name": "cyan"
+            },
+            {
+              "name": "sky"
+            },
+            {
+              "name": "blue"
+            },
+            {
+              "name": "indigo"
+            },
+            {
+              "name": "violet"
+            },
+            {
+              "name": "purple"
+            },
+            {
+              "name": "fuchsia"
+            },
+            {
+              "name": "pink"
+            },
+            {
+              "name": "rose"
+            }
+          ]
+        },
+        {
+          "name": "text-font",
+          "description": "Specifies which font this element will use to render text.",
+          "values": [
+            {
+              "name": "sans"
+            },
+            {
+              "name": "serif"
+            },
+            {
+              "name": "mono"
+            }
+          ]
+        },
+        {
+          "name": "text-size",
+          "description": "Sets the size of this element's font.",
+          "values": [
+            {
+              "name": "2xs"
+            },
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            },
+            {
+              "name": "2xl"
+            },
+            {
+              "name": "3xl"
+            },
+            {
+              "name": "4xl"
+            },
+            {
+              "name": "5xl"
+            },
+            {
+              "name": "6xl"
+            },
+            {
+              "name": "7xl"
+            },
+            {
+              "name": "8xl"
+            },
+            {
+              "name": "9xl"
+            }
+          ]
+        },
+        {
+          "name": "text-leading",
+          "description": "Sets the height of a line of text.\nIt's commonly used to set the distance between lines of text.",
+          "values": [
+            {
+              "name": "none"
+            },
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "text-kerning",
+          "description": "Sets the letter spacing of text.\nThis value is added to the font's natural letter spacing.\nPositive values cause letters to spread farther apart, while negative values bring letters closer together.",
+          "values": [
+            {
+              "name": "none"
+            },
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            },
+            {
+              "name": "2xl"
+            }
+          ]
+        },
+        {
+          "name": "text-weight",
+          "description": "Sets the weight (or boldness) of the font.",
+          "values": [
+            {
+              "name": "thin"
+            },
+            {
+              "name": "extralight"
+            },
+            {
+              "name": "light"
+            },
+            {
+              "name": "normal"
+            },
+            {
+              "name": "medium"
+            },
+            {
+              "name": "semibold"
+            },
+            {
+              "name": "bold"
+            },
+            {
+              "name": "extrabold"
+            },
+            {
+              "name": "black"
+            }
+          ]
+        },
+        {
+          "name": "text-case",
+          "description": "Forces the specified text casing.",
+          "values": [
+            {
+              "name": "uppercase"
+            },
+            {
+              "name": "lowercase"
+            },
+            {
+              "name": "capitalize"
+            }
+          ]
+        },
+        {
+          "name": "text-align",
+          "description": "Sets the horizontal alignment of text.\n\nIf not provided a value, it will use \"center\"",
+          "values": [
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "text-wrap",
+          "description": "Determines whether text will wrap if there is not enough horizontal space to fit it on a single line.\n\nIf not provided a value, it will use \"wrap\".",
+          "values": [
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "text-color",
+          "description": "Sets the color of text rendered inside this element.",
+          "values": [
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "text-stroke-color",
+          "description": "Sets the color of the stroke rendered around the text.",
+          "values": [
+            {
+              "name": "fg"
+            },
+            {
+              "name": "bg"
+            },
+            {
+              "name": "neutral"
+            },
+            {
+              "name": "primary"
+            },
+            {
+              "name": "success"
+            },
+            {
+              "name": "warning"
+            },
+            {
+              "name": "danger"
+            },
+            {
+              "name": "gray"
+            },
+            {
+              "name": "red"
+            },
+            {
+              "name": "orange"
+            },
+            {
+              "name": "amber"
+            },
+            {
+              "name": "yellow"
+            },
+            {
+              "name": "lime"
+            },
+            {
+              "name": "green"
+            },
+            {
+              "name": "emerald"
+            },
+            {
+              "name": "teal"
+            },
+            {
+              "name": "cyan"
+            },
+            {
+              "name": "sky"
+            },
+            {
+              "name": "blue"
+            },
+            {
+              "name": "indigo"
+            },
+            {
+              "name": "violet"
+            },
+            {
+              "name": "purple"
+            },
+            {
+              "name": "fuchsia"
+            },
+            {
+              "name": "pink"
+            },
+            {
+              "name": "rose"
+            }
+          ]
+        },
+        {
+          "name": "text-stroke-width",
+          "description": "Sets the width of the stroke rendered around the text.",
+          "values": [
+            {
+              "name": "0"
+            },
+            {
+              "name": "1"
+            },
+            {
+              "name": "2"
+            },
+            {
+              "name": "3"
+            },
+            {
+              "name": "4"
+            },
+            {
+              "name": "5"
+            },
+            {
+              "name": "6"
+            },
+            {
+              "name": "7"
+            },
+            {
+              "name": "8"
+            },
+            {
+              "name": "9"
+            },
+            {
+              "name": "10"
+            }
+          ]
+        },
+        {
+          "name": "text-underline-offset",
+          "description": "Sets the distance between the line and the text being underlined.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "text-decoration-thickness",
+          "description": "Sets the thickness of underline or strikethrough lines.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "bg-color",
+          "description": "Sets the background color of this element.",
+          "values": [
+            {
+              "name": "fg"
+            },
+            {
+              "name": "bg"
+            },
+            {
+              "name": "neutral"
+            },
+            {
+              "name": "primary"
+            },
+            {
+              "name": "success"
+            },
+            {
+              "name": "warning"
+            },
+            {
+              "name": "danger"
+            },
+            {
+              "name": "gray"
+            },
+            {
+              "name": "red"
+            },
+            {
+              "name": "orange"
+            },
+            {
+              "name": "amber"
+            },
+            {
+              "name": "yellow"
+            },
+            {
+              "name": "lime"
+            },
+            {
+              "name": "green"
+            },
+            {
+              "name": "emerald"
+            },
+            {
+              "name": "teal"
+            },
+            {
+              "name": "cyan"
+            },
+            {
+              "name": "sky"
+            },
+            {
+              "name": "blue"
+            },
+            {
+              "name": "indigo"
+            },
+            {
+              "name": "violet"
+            },
+            {
+              "name": "purple"
+            },
+            {
+              "name": "fuchsia"
+            },
+            {
+              "name": "pink"
+            },
+            {
+              "name": "rose"
+            }
+          ]
+        },
+        {
+          "name": "bg-repeat",
+          "description": "Sets how background images are repeated.\n\nIf not provided a value, it will use \"repeat\".",
+          "values": [
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "bg-align",
+          "description": "Sets how background images are aligned.\n\nIf not provided a value, it will use \"center\".",
+          "values": [
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "bg-fit",
+          "description": "Sets how background images are fit in their parent container.\n\nThe image can be stretched, or constrained to fit the available space.\n\nIf not provided a value, it will use \"contain\".",
+          "values": [
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "clip",
+          "description": "Creates a clipping region that determines what part of an element should be shown.\nParts that are inside the region are shown, while those outside are hidden.\n\nIf not provided a value, it will use \"circle\".",
+          "values": [
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "border-color",
+          "description": "Sets the color of the border around this element.",
+          "values": [
+            {
+              "name": "fg"
+            },
+            {
+              "name": "bg"
+            },
+            {
+              "name": "neutral"
+            },
+            {
+              "name": "primary"
+            },
+            {
+              "name": "success"
+            },
+            {
+              "name": "warning"
+            },
+            {
+              "name": "danger"
+            },
+            {
+              "name": "gray"
+            },
+            {
+              "name": "red"
+            },
+            {
+              "name": "orange"
+            },
+            {
+              "name": "amber"
+            },
+            {
+              "name": "yellow"
+            },
+            {
+              "name": "lime"
+            },
+            {
+              "name": "green"
+            },
+            {
+              "name": "emerald"
+            },
+            {
+              "name": "teal"
+            },
+            {
+              "name": "cyan"
+            },
+            {
+              "name": "sky"
+            },
+            {
+              "name": "blue"
+            },
+            {
+              "name": "indigo"
+            },
+            {
+              "name": "violet"
+            },
+            {
+              "name": "purple"
+            },
+            {
+              "name": "fuchsia"
+            },
+            {
+              "name": "pink"
+            },
+            {
+              "name": "rose"
+            }
+          ]
+        },
+        {
+          "name": "border-width",
+          "description": "Sets the width of the border around this element.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "shadow",
+          "description": "Adds a drop shadow to this element.",
+          "values": [
+            {
+              "name": "0"
+            },
+            {
+              "name": "1"
+            },
+            {
+              "name": "2"
+            },
+            {
+              "name": "3"
+            },
+            {
+              "name": "4"
+            },
+            {
+              "name": "5"
+            }
+          ]
+        },
+        {
+          "name": "shadow-inset",
+          "description": "Adds an inner shadow to this element.",
+          "values": [
+            {
+              "name": "0"
+            },
+            {
+              "name": "1"
+            },
+            {
+              "name": "2"
+            },
+            {
+              "name": "3"
+            },
+            {
+              "name": "4"
+            },
+            {
+              "name": "5"
+            }
+          ]
+        },
+        {
+          "name": "opacity",
+          "description": "Sets the opacity of an element.\nOpacity corresponds to how transparent the element is,\nwith 0 being fully transparent and 1 being fully opaque.",
+          "values": [
+            {
+              "name": "0"
+            },
+            {
+              "name": "0.5"
+            },
+            {
+              "name": "1"
+            }
+          ]
+        },
+        {
+          "name": "pivot",
+          "description": "Sets the origin point for this element's transformations.",
+          "values": [
+            {
+              "name": "center"
+            },
+            {
+              "name": "top"
+            },
+            {
+              "name": "left"
+            },
+            {
+              "name": "bottom"
+            },
+            {
+              "name": "right"
+            }
+          ]
+        },
+        {
+          "name": "delay",
+          "description": "Specifies the amount of time to wait before starting a property's transition effect when its value changes.",
+          "values": [
+            {
+              "name": "0"
+            },
+            {
+              "name": "0.1"
+            },
+            {
+              "name": "0.2"
+            },
+            {
+              "name": "0.3"
+            },
+            {
+              "name": "0.4"
+            },
+            {
+              "name": "0.5"
+            },
+            {
+              "name": "1"
+            }
+          ]
+        },
+        {
+          "name": "duration",
+          "description": "Specifies the length of time a transition should take to complete.",
+          "values": [
+            {
+              "name": "0"
+            },
+            {
+              "name": "0.1"
+            },
+            {
+              "name": "0.2"
+            },
+            {
+              "name": "0.3"
+            },
+            {
+              "name": "0.4"
+            },
+            {
+              "name": "0.5"
+            },
+            {
+              "name": "1"
+            }
+          ]
+        },
+        {
+          "name": "animate",
+          "description": "Applies an animation to this element.",
+          "values": [
+            {
+              "name": "spin"
+            },
+            {
+              "name": "ping"
+            },
+            {
+              "name": "bounce"
+            },
+            {
+              "name": "pulse"
+            },
+            {
+              "name": "sheen"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "s-tab",
+      "description": "Tabs are used to represent and activate panels.",
+      "attributes": [
+        {
+          "name": "active",
+          "description": "Draws the tab in an active state."
+        },
+        {
+          "name": "disabled",
+          "description": "Whether or not the element is disabled."
+        },
         {
           "name": "position",
           "description": "Sets how this element is positioned in a document.",

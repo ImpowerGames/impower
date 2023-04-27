@@ -28,10 +28,8 @@ export default class ProgressBar extends SparkleElement {
   static override get observedAttributes() {
     return [
       ...super.observedAttributes,
-      "aria-label",
       "value",
       "indeterminate",
-      "track-color",
       "label-color",
     ];
   }
@@ -51,13 +49,6 @@ export default class ProgressBar extends SparkleElement {
   }
 
   /**
-   * The color of the track.
-   */
-  get trackColor(): string | null {
-    return this.getStringAttribute("track-color");
-  }
-
-  /**
    * The color of the label.
    */
   get labelColor(): string | null {
@@ -73,18 +64,12 @@ export default class ProgressBar extends SparkleElement {
     if (name === "title") {
       this.updateRootAttribute("title", newValue);
     }
-    if (name === "aria-label") {
-      this.updateRootAttribute("aria-label", newValue);
-    }
     if (name === "value") {
       this.updateRootAttribute("aria-valuenow", newValue);
       const indicator = this.getElementByPart("indicator");
       if (indicator) {
         indicator.style.width = `${newValue}%`;
       }
-    }
-    if (name === "track-color") {
-      this.updateRootStyle("--track-color", getCssColor(newValue));
     }
     if (name === "label-color") {
       this.updateRootStyle("--label-color", getCssColor(newValue));

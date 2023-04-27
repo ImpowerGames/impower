@@ -2,32 +2,53 @@
   display: contents;
 }
 :host {
-  --default-height: 0.25rem;
-  --default-color: var(--s-color-primary-70);
-  --default-border-radius: 8px;
-  --track-color: var(--s-color-neutral-30);
-  --label-color: var(--s-color-neutral-0);
+  --position: relative;
+  --scroll-x: clip;
+  --scroll-y: clip;
+  --height: 0.25rem;
+  --shadow-inset: inset var(--s-shadow-sm);
+  --text-font: var(--s-font-sans);
+  --text-size: var(--s-text-xs-font-size);
+  --text-weight: var(--s-font-weight-normal);
+  --text-color: var(--s-color-neutral-0);
+  --bg-color: var(--s-color-neutral-30);
+  --color: var(--s-color-primary-70);
 }
 
 .progress-bar {
-  position: var(--position, relative);
-  background-color: var(--track-color);
-  height: var(--height, var(--default-height));
-  border-radius: var(--corner, var(--default-border-radius));
-  box-shadow: var(--shadow-inset, inset var(--s-shadow-sm));
-  overflow: hidden;
-  background-color: transparent;
+  position: var(--position);
+  overflow-x: var(--scroll-x);
+  overflow-y: var(--scroll-y);
+  height: var(--height);
+  box-shadow: var(--shadow-inset);
+  font-family: var(--text-font);
+  font-size: var(--text-size);
+  font-weight: var(--text-weight);
+  background-color: var(--bg-color);
+  border-top-left-radius: var(
+    --corner-tl,
+    var(--corner-t, var(--corner-l, var(--corner, 8px)))
+  );
+  border-top-right-radius: var(
+    --corner-tr,
+    var(--corner-t, var(--corner-r, var(--corner, 8px)))
+  );
+  border-bottom-right-radius: var(
+    --corner-br,
+    var(--corner-b, var(--corner-r, var(--corner, 8px)))
+  );
+  border-bottom-left-radius: var(
+    --corner-bl,
+    var(--corner-b, var(--corner-l, var(--corner, 8px)))
+  );
 }
 
 .indicator {
   height: 100%;
-  font-family: var(--s-font-sans);
-  font-size: var(--s-text-xs-font-size);
-  font-weight: var(--s-font-weight-normal);
-  background-color: var(--color, var(--default-color));
-  color: var(--label-color);
+  background-color: var(--color);
+  color: var(--text-color);
+  line-height: var(--height);
   text-align: center;
-  line-height: var(--height, var(--default-height));
   white-space: nowrap;
   overflow: hidden;
   transition: 400ms width, 400ms background-color;
@@ -42,18 +63,6 @@
 
 .progress-bar[indeterminate][rtl] .indicator {
   animation-name: indeterminate-rtl;
-}
-
-@media (forced-colors: active) {
-  .progress-bar {
-    outline: solid 1px SelectedItem;
-    background-color: var(--s-color-neutral-0);
-  }
-
-  .indicator {
-    outline: solid 1px SelectedItem;
-    background-color: SelectedItem;
-  }
 }
 
 @keyframes indeterminate {

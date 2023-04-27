@@ -1,0 +1,59 @@
+:host {
+  display: contents;
+}
+:host {
+  --color: var(--s-color-primary-70);
+  --layout: column;
+  --position: relative;
+  --duration: 100ms;
+  --track-width: 2px;
+}
+
+.tabs {
+  display: flex;
+  flex-direction: var(--layout);
+  position: var(--position);
+}
+:host([vertical]) .tabs {
+  flex-direction: row;
+}
+
+.nav {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  overflow-y: clip;
+  /* Hide scrollbar in Firefox */
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar {
+  /* Hide scrollbar in chrome/safari */
+  width: 0;
+  height: 0;
+}
+:host([indicator="before"]) .nav {
+  order: 1;
+}
+:host([vertical]) .nav {
+  flex-direction: column;
+  overflow-x: clip;
+  overflow-y: auto;
+}
+
+:host([indicator="none"]) .indicator {
+  display: none;
+}
+.indicator {
+  background-color: var(--color);
+  transition-duration: var(--duration);
+  transition-timing-function: var(--ease, ease);
+  opacity: 0;
+  transform-origin: left;
+  height: var(--size, 2px);
+  width: 1px;
+}
+:host([vertical]) .indicator {
+  transform-origin: top;
+  height: 1px;
+  width: var(--size, 2px);
+}

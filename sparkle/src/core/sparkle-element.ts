@@ -1,3 +1,5 @@
+import { dispatchActivationClick, isActivationClick } from "../utils/events";
+import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
 import { getCssAnimation } from "../utils/getCssAnimation";
 import { getCssBgAlign } from "../utils/getCssBgAlign";
 import { getCssBgFit } from "../utils/getCssBgFit";
@@ -27,6 +29,7 @@ import { getCssTextStroke } from "../utils/getCssTextStroke";
 import { getCssTextUnderline } from "../utils/getCssTextUnderline";
 import { getCssTextWeight } from "../utils/getCssTextWeight";
 import { getCssTextWrap } from "../utils/getCssTextWrap";
+import { isServer } from "../utils/isServer";
 import { updateAttribute } from "../utils/updates";
 import css from "./sparkle-element.css";
 import html from "./sparkle-element.html";
@@ -60,7 +63,6 @@ export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
   "corner-tr": getCssCorner,
   "corner-br": getCssCorner,
   "corner-bl": getCssCorner,
-  "corner-cut": get,
 
   inset: getCssSize,
   "inset-t": getCssSize,
@@ -166,7 +168,46 @@ export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
   animate: getCssAnimation,
 };
 
-const GLOBAL_ATTRIBUTES = ["aria-label", ...Object.keys(STYLE_TRANSFORMERS)];
+const aliases: Record<string, string> = {
+  c: "corner",
+  "c-t": "corner-t",
+  "c-r": "corner-r",
+  "c-b": "corner-b",
+  "c-l": "corner-l",
+  "c-tl": "corner-tl",
+  "c-tr": "corner-tr",
+  "c-br": "corner-br",
+  "c-bl": "corner-bl",
+  i: "inset",
+  "i-t": "inset-t",
+  "i-r": "inset-r",
+  "i-b": "inset-b",
+  "i-l": "inset-l",
+  "i-lr": "inset-lr",
+  "i-tb": "inset-tb",
+  m: "margin",
+  "m-t": "margin-t",
+  "m-r": "margin-r",
+  "m-b": "margin-b",
+  "m-l": "margin-l",
+  "m-lr": "margin-lr",
+  "m-tb": "margin-tb",
+  p: "padding",
+  "p-t": "padding-t",
+  "p-r": "padding-r",
+  "p-b": "padding-b",
+  "p-l": "padding-l",
+  "p-lr": "padding-lr",
+  "p-tb": "padding-tb",
+};
+
+const GLOBAL_ATTRIBUTES = [
+  "aria-label",
+  "disabled",
+  "loading",
+  ...Object.keys(STYLE_TRANSFORMERS),
+  ...Object.keys(aliases),
+];
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
@@ -186,6 +227,20 @@ export default class SparkleElement extends HTMLElement {
 
   static get observedAttributes() {
     return GLOBAL_ATTRIBUTES;
+  }
+
+  /**
+   * Whether or not the element is disabled.
+   */
+  get disabled(): boolean {
+    return this.getBooleanAttribute("disabled");
+  }
+
+  /**
+   * Whether or not the element is loading.
+   */
+  get loading(): boolean {
+    return this.getBooleanAttribute("loading");
   }
 
   /**
@@ -332,13 +387,6 @@ export default class SparkleElement extends HTMLElement {
    */
   get _cornerBL(): "xs" | "sm" | "md" | "lg" | "xl" | "full" | "circle" | null {
     return this.getStringAttribute("corner-bl");
-  }
-
-  /**
-   * Use cut corners instead of rounded corners.
-   */
-  get _cornerCut(): "" | null {
-    return this.getStringAttribute("corner-cut");
   }
 
   /**
@@ -1091,7 +1139,15 @@ export default class SparkleElement extends HTMLElement {
   /**
    * Specifies the length of time a transition should take to complete.
    */
-  get _duration(): "0" | "0.1" | "0.2" | "0.3" | "0.4" | "0.5" | "1" | null {
+  get _duration():
+    | "0s"
+    | "100ms"
+    | "200ms"
+    | "300ms"
+    | "400ms"
+    | "500ms"
+    | "1s"
+    | null {
     return this.getStringAttribute("duration");
   }
 
@@ -1102,29 +1158,63 @@ export default class SparkleElement extends HTMLElement {
     return this.getStringAttribute("animate");
   }
 
-  private _elementsByTag: Record<string, HTMLElement> = {};
-
-  private _elementsByPart: Record<string, HTMLElement> = {};
-
-  private _slotsByName: Record<string, HTMLSlotElement> = {};
-
-  constructor(init: ShadowRootInit = { mode: "open" }) {
+  constructor(init: ShadowRootInit = { mode: "open", delegatesFocus: true }) {
     super();
     const shadowRoot = this.attachShadow(init);
     shadowRoot.innerHTML = this.html;
     shadowRoot.adoptedStyleSheets = [styles, ...this.styles];
   }
 
-  /**
-   * Invoked each time the custom element is appended into a document-connected element.
-   * (This will happen each time the node is moved, and may happen before the element's contents have been fully parsed.)
-   */
-  protected connectedCallback(): void {}
+  override focus(options?: FocusOptions) {
+    this.root.focus(options);
+  }
 
-  /**
-   * Invoked each time the custom element is disconnected from the document's DOM.
-   */
-  protected disconnectedCallback(): void {}
+  override blur() {
+    this.root.blur();
+  }
+
+  protected showFocusRing = (visible: boolean) => {
+    this.updateRootClass("focused", visible);
+  };
+
+  protected onPointerDown = (e: PointerEvent) => {
+    pointerPress();
+    this.showFocusRing(shouldShowStrongFocus());
+  };
+
+  protected onFocus = () => {
+    this.showFocusRing(shouldShowStrongFocus());
+  };
+
+  protected onBlur = () => {
+    this.showFocusRing(false);
+  };
+
+  private readonly onActivationClick = (event: MouseEvent) => {
+    if (!isActivationClick(event)) {
+      return;
+    }
+    this.focus();
+    dispatchActivationClick(this.root);
+  };
+
+  protected bindFocus(el: HTMLElement) {
+    el.addEventListener("pointerdown", this.onPointerDown);
+    el.addEventListener("focus", this.onFocus);
+    el.addEventListener("blur", this.onBlur);
+    if (!isServer()) {
+      el.addEventListener("click", this.onActivationClick);
+    }
+  }
+
+  protected unbindFocus(el: HTMLElement) {
+    el.removeEventListener("pointerdown", this.onPointerDown);
+    el.removeEventListener("focus", this.onFocus);
+    el.removeEventListener("blur", this.onBlur);
+    if (!isServer()) {
+      el.removeEventListener("click", this.onActivationClick);
+    }
+  }
 
   /**
    * Invoked each time one of the custom element's attributes is added, removed, or changed. Which attributes to notice change for is specified in a static get observedAttributes method
@@ -1134,13 +1224,14 @@ export default class SparkleElement extends HTMLElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "aria-label") {
-      this.updateRootAttribute("aria-label", newValue);
+    const className = aliases[name] ?? name;
+    if (className === "aria-label") {
+      this.updateRootAttribute(className, newValue);
     } else {
-      const transformer = STYLE_TRANSFORMERS[name];
+      const transformer = STYLE_TRANSFORMERS[className];
       if (transformer) {
-        this.updateStyleAttribute(name, newValue, transformer);
-        if (name === "text-size") {
+        this.updateStyleAttribute(className, newValue, transformer);
+        if (className === "text-size") {
           // Setting textSize should also set default line-height
           this.updateStyleAttribute(
             "text-size--height",
@@ -1148,7 +1239,10 @@ export default class SparkleElement extends HTMLElement {
             getCssTextSizeHeight
           );
         }
-        if (name === "text-stroke-width" || name === "text-stroke-color") {
+        if (
+          className === "text-stroke-width" ||
+          className === "text-stroke-color"
+        ) {
           const width = this._textStrokeWidth || "1";
           this.updateRootStyle("--text-stroke", getCssTextStroke(width));
         }
@@ -1156,42 +1250,34 @@ export default class SparkleElement extends HTMLElement {
     }
   }
 
+  /**
+   * Invoked each time the custom element is appended into a document-connected element.
+   * (This will happen each time the node is moved, and may happen before the element's contents have been fully parsed.)
+   */
+  protected connectedCallback(): void {
+    this.bindFocus(this.root);
+  }
+
+  /**
+   * Invoked each time the custom element is disconnected from the document's DOM.
+   */
+  protected disconnectedCallback(): void {
+    this.unbindFocus(this.root);
+  }
+
   getElementByTag<T extends HTMLElement>(name: string): T | null {
-    const cachedEl = this._elementsByTag[name];
-    if (cachedEl) {
-      return cachedEl as T;
-    }
-    const el = this.root.querySelector<T>(name);
-    if (el) {
-      this._elementsByTag[name] = el;
-    }
-    return el;
+    return this.root.querySelector<T>(name);
   }
 
   getElementByPart<T extends HTMLElement>(name: string): T | null {
-    const cachedEl = this._elementsByPart[name];
-    if (cachedEl) {
-      return cachedEl as T;
-    }
-    const el = this.root.querySelector<T>(`[part=${name}]`);
-    if (el) {
-      this._elementsByPart[name] = el;
-    }
-    return el;
+    return this.root.querySelector<T>(`[part=${name}]`);
   }
 
   getSlotByName(name: string): HTMLSlotElement | null {
-    const cachedEl = this._slotsByName[name];
-    if (cachedEl) {
-      return cachedEl;
-    }
-    const el =
+    return (
       this.shadowRoot?.querySelector<HTMLSlotElement>(`slot[name=${name}]`) ??
-      null;
-    if (el) {
-      this._slotsByName[name] = el;
-    }
-    return el;
+      null
+    );
   }
 
   updateRootClass(name: string, active: boolean | string | null): boolean {
@@ -1222,7 +1308,7 @@ export default class SparkleElement extends HTMLElement {
     this.root.style.setProperty(name, value ?? null);
   }
 
-  updateStyleAttribute(
+  private updateStyleAttribute(
     name: string,
     newValue: string | null,
     valueFormatter?: (v: string) => string
@@ -1230,7 +1316,8 @@ export default class SparkleElement extends HTMLElement {
     const varName = `--${name}`;
     const formattedValue =
       valueFormatter && newValue != null ? valueFormatter(newValue) : newValue;
-    if (this.updateRootClass(name, newValue) && formattedValue) {
+    const classActive = this.updateRootClass(name, newValue);
+    if (classActive && formattedValue) {
       this.updateRootStyle(varName, formattedValue);
     } else {
       this.updateRootStyle(varName, null);

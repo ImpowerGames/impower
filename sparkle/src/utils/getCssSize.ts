@@ -1,6 +1,9 @@
 import { getCssUnit } from "./getCssUnit";
 
 export const getCssSize = (value: string): string => {
+  if (value === "") {
+    return "8px";
+  }
   if (value === "xs") {
     return "2px";
   }

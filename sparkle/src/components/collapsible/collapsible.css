@@ -1,0 +1,16 @@
+:host {
+  display: contents;
+}
+:host {
+  --scroll-x: clip;
+  --scroll-y: clip;
+}
+
+.collapsible {
+  overflow-x: var(--scroll-x);
+  overflow-y: var(--scroll-y);
+}
+
+.collapsible * {
+  filter: none;
+}

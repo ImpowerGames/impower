@@ -57,7 +57,7 @@ try {
           if (member.kind === "method" && member.name === "define") {
             if (member.parameters) {
               member.parameters.forEach((parameter: any) => {
-                if (parameter.name === "tag") {
+                if (parameter.name === "tag" || parameter.name === "tagName") {
                   name = normalize(parameter?.default);
                 }
               });

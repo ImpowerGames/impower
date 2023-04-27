@@ -6,30 +6,10 @@
    */
 
   /* Foreground */
-  --s-color-fg-10: hsl(0 0% 100%);
-  --s-color-fg-20: hsl(0 0% 100%);
-  --s-color-fg-30: hsl(0 0% 100%);
-  --s-color-fg-40: hsl(0 0% 100%);
-  --s-color-fg-50: hsl(0 0% 100%);
-  --s-color-fg-60: hsl(0 0% 100%);
-  --s-color-fg-70: hsl(0 0% 100%);
-  --s-color-fg-80: hsl(0 0% 100%);
-  --s-color-fg-90: hsl(0 0% 100%);
-  --s-color-fg-95: hsl(0 0% 100%);
-  --s-color-fg-99: hsl(0 0% 100%);
+  --s-color-fg: hsl(0 0% 100%);
 
   /* Background */
-  --s-color-bg-10: hsl(0 0% 0%);
-  --s-color-bg-20: hsl(0 0% 0%);
-  --s-color-bg-30: hsl(0 0% 0%);
-  --s-color-bg-40: hsl(0 0% 0%);
-  --s-color-bg-50: hsl(0 0% 0%);
-  --s-color-bg-60: hsl(0 0% 0%);
-  --s-color-bg-70: hsl(0 0% 0%);
-  --s-color-bg-80: hsl(0 0% 0%);
-  --s-color-bg-90: hsl(0 0% 0%);
-  --s-color-bg-95: hsl(0 0% 0%);
-  --s-color-bg-99: hsl(0 0% 0%);
+  --s-color-bg: hsl(0 0% 0%);
 
   /* Gray */
   --s-color-gray-10: hsl(240 5.1% 15%);
@@ -290,14 +270,14 @@
    * Elevations
    */
 
-  --s-shadow-key-0: 0 0 0 hsl(0 0% 0% / 90%);
+  --s-shadow-key-0: 0 0 0 hsl(0 0% 0% / 0%);
   --s-shadow-key-1: 0 1px 2px hsl(0 0% 0% / 90%);
   --s-shadow-key-2: 0 1px 2px hsl(0 0% 0% / 90%);
   --s-shadow-key-3: 0 1px 3px hsl(0 0% 0% / 90%);
   --s-shadow-key-4: 0 2px 3px hsl(0 0% 0% / 90%);
   --s-shadow-key-5: 0 4px 4px hsl(0 0% 0% / 90%);
 
-  --s-shadow-ambient-0: 0 0 0 hsl(0 0% 0% / 45%);
+  --s-shadow-ambient-0: 0 0 0 hsl(0 0% 0% / 0%);
   --s-shadow-ambient-1: 0 1px 3px hsl(0 0% 0% / 45%);
   --s-shadow-ambient-2: 0 2px 6px hsl(0 0% 0% / 45%);
   --s-shadow-ambient-3: 0 4px 8px hsl(0 0% 0% / 45%);

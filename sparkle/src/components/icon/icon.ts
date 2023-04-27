@@ -1,5 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
 import { getCssColor } from "../../utils/getCssColor";
+import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssSize } from "../../utils/getCssSize";
 import css from "./icon.css";
 import html from "./icon.html";
@@ -28,6 +29,7 @@ export default class Icon extends SparkleElement {
     return [
       ...super.observedAttributes,
       "aria-label",
+      "icon",
       "fill",
       "size",
       "stroke",
@@ -60,6 +62,13 @@ export default class Icon extends SparkleElement {
     return this.getStringAttribute("stroke");
   }
 
+  /**
+   * Sets the stroke width of an icon.
+   */
+  get strokeWidth(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+    return this.getStringAttribute("stroke-width");
+  }
+
   protected override attributeChangedCallback(
     name: string,
     oldValue: string,
@@ -67,21 +76,26 @@ export default class Icon extends SparkleElement {
   ): void {
     super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "aria-label") {
-      this.updateRootAttribute("aria-label", newValue);
       this.updateRootAttribute("aria-hidden", Boolean(newValue));
       this.updateRootAttribute("role", newValue ? "img" : null);
     }
+    if (name === "icon") {
+      this.updateRootStyle("--icon", getCssIcon(newValue));
+      if (newValue) {
+        this.updateRootClass("icon-mask", true);
+      }
+    }
     if (name === "size") {
-      this.updateStyleAttribute(name, newValue, getCssSize);
+      this.updateRootStyle("--size", getCssSize(newValue));
     }
     if (name === "fill") {
-      this.updateStyleAttribute(name, newValue, getCssColor);
+      this.updateRootStyle("--fill", getCssColor(newValue));
     }
     if (name === "stroke") {
-      this.updateStyleAttribute(name, newValue, getCssColor);
+      this.updateRootStyle("--stroke", getCssColor(newValue));
     }
     if (name === "stroke-width") {
-      this.updateStyleAttribute(name, newValue);
+      this.updateRootStyle("--stroke-width", newValue);
     }
   }
 }

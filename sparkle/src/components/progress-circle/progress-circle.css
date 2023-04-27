@@ -2,19 +2,22 @@
   display: contents;
 }
 :host {
-  --default-color: var(--s-color-primary-70);
+  --position: relative;
+  --layout-justify: center;
+  --layout-align: center;
+  --bg-color: var(--s-color-neutral-30);
+  --color: var(--s-color-primary-70);
   --size: 128px;
   --track-width: 4px;
-  --track-color: var(--s-color-neutral-30);
   --indicator-width: var(--track-width);
   --indicator-transition-duration: 0.35s;
 }
 
 .progress-circle {
   display: flex;
-  position: var(--position, relative);
-  justify-content: var(--layout-justify, center);
-  align-items: var(--layout-align, center);
+  position: var(--position);
+  justify-content: var(--layout-justify);
+  align-items: var(--layout-align);
   background-color: transparent;
 }
 
@@ -39,12 +42,12 @@
 }
 
 .track {
-  stroke: var(--track-color);
+  stroke: var(--bg-color);
   stroke-width: var(--track-width);
 }
 
 .indicator {
-  stroke: var(--color, var(--default-color));
+  stroke: var(--color);
   stroke-width: var(--indicator-width);
   stroke-linecap: round;
   transition-property: stroke-dashoffset;

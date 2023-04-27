@@ -1,7 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
-import { dispatchActivationClick, isActivationClick } from "../../utils/events";
-import { pointerPress, shouldShowStrongFocus } from "../../utils/focus";
-import { isServer } from "../../utils/isServer";
+import { getCssIcon } from "../../utils/getCssIcon";
+import { getCssSize } from "../../utils/getCssSize";
 import Ripple from "../ripple/ripple";
 import css from "./button.css";
 import html from "./button.html";
@@ -13,8 +12,18 @@ styles.replaceSync(css);
  * Buttons represent actions that are available to the user.
  */
 export default class Button extends SparkleElement {
-  static async define(tag = "s-button"): Promise<CustomElementConstructor> {
+  static badgeTag = "s-tab";
+
+  static rippleTag = "s-ripple";
+
+  static async define(
+    tag = "s-button",
+    badgeTag = "s-badge",
+    rippleTag = "s-ripple"
+  ): Promise<CustomElementConstructor> {
     customElements.define(tag, this);
+    this.badgeTag = badgeTag;
+    this.rippleTag = rippleTag;
     return customElements.whenDefined(tag);
   }
 
@@ -37,9 +46,8 @@ export default class Button extends SparkleElement {
       "href",
       "target",
       "disabled",
-      "loading",
       "variant",
-      "size",
+      "icon",
     ];
   }
 
@@ -59,20 +67,6 @@ export default class Button extends SparkleElement {
   }
 
   /**
-   * Whether or not the button is disabled.
-   */
-  get disabled(): boolean {
-    return this.getBooleanAttribute("disabled");
-  }
-
-  /**
-   * Draws the button in a loading state.
-   */
-  get loading(): boolean {
-    return this.getBooleanAttribute("loading");
-  }
-
-  /**
    * Determines the overall look of the button.
    */
   get variant(): "filled" | "tonal" | "outlined" | "text" | null {
@@ -80,64 +74,25 @@ export default class Button extends SparkleElement {
   }
 
   /**
-   * The size of this button.
+   * The spacing between the icon and the label
    */
-  get size(): "sm" | "md" | "lg" | null {
-    return this.getStringAttribute("size");
+  get spacing(): string | null {
+    return this.getStringAttribute("spacing");
   }
 
-  constructor() {
-    super({
-      mode: "open",
-      delegatesFocus: true,
-    });
-    if (!isServer()) {
-      this.addEventListener("click", this.handleActivationClick);
-    }
+  /**
+   * The icon to display next to the label.
+   */
+  get icon(): string | null {
+    return this.getStringAttribute("icon");
   }
 
-  protected override connectedCallback(): void {
-    this.root.addEventListener("pointerdown", this.handlePointerDown);
-    this.root.addEventListener("focus", this.handleFocus);
-    this.root.addEventListener("blur", this.handleBlur);
-    this.getElementByPart("label")?.addEventListener(
-      "slotchange",
-      this.handleLabelSlotChange
-    );
-    this.getSlotByName("prefix")?.addEventListener(
-      "slotchange",
-      this.handlePrefixSlotChange
-    );
-    this.getSlotByName("suffix")?.addEventListener(
-      "slotchange",
-      this.handleSuffixSlotChange
-    );
-    const ripple = this.getElementByTag<Ripple>("s-ripple");
-    if (ripple) {
-      ripple.bind?.(this.root);
-    }
+  get labelEl(): HTMLElement | null {
+    return this.getElementByPart("label");
   }
 
-  protected override disconnectedCallback(): void {
-    this.root.removeEventListener("pointerdown", this.handlePointerDown);
-    this.root.removeEventListener("focus", this.handleFocus);
-    this.root.removeEventListener("blur", this.handleBlur);
-    this.getElementByPart("label")?.removeEventListener(
-      "slotchange",
-      this.handleLabelSlotChange
-    );
-    this.getSlotByName("prefix")?.removeEventListener(
-      "slotchange",
-      this.handlePrefixSlotChange
-    );
-    this.getSlotByName("suffix")?.removeEventListener(
-      "slotchange",
-      this.handleSuffixSlotChange
-    );
-    const ripple = this.getElementByTag<Ripple>("s-ripple");
-    if (ripple) {
-      ripple.unbind?.(this.root);
-    }
+  get ripple(): Ripple | null {
+    return this.getElementByTag<Ripple>(Button.rippleTag);
   }
 
   protected override attributeChangedCallback(
@@ -146,8 +101,12 @@ export default class Button extends SparkleElement {
     newValue: string
   ): void {
     super.attributeChangedCallback(name, oldValue, newValue);
-    if (name === "aria-label") {
-      this.updateRootAttribute("aria-label", newValue);
+    if (name === "disabled" || name === "loading") {
+      if (newValue != null) {
+        this.ripple?.setAttribute("disabled", "");
+      } else {
+        this.ripple?.removeAttribute("disabled");
+      }
     }
     if (name === "aria-haspopup") {
       this.updateRootAttribute("aria-haspopup", newValue);
@@ -161,75 +120,46 @@ export default class Button extends SparkleElement {
     if (name === "target") {
       this.updateRootAttribute("target", newValue);
     }
-    if (name === "disabled") {
-      const ripple = this.getElementByTag<Ripple>("s-ripple");
-      if (ripple) {
-        if (newValue != null) {
-          ripple.setAttribute("disabled", "");
-        } else {
-          ripple.removeAttribute("disabled");
-        }
-      }
+    if (name === "icon") {
+      this.updateRootStyle("--icon", getCssIcon(newValue));
+    }
+    if (name === "spacing") {
+      this.updateRootStyle("--spacing", getCssSize(newValue));
     }
   }
 
-  private readonly handleActivationClick = (event: MouseEvent) => {
-    if (!isActivationClick(event)) {
-      return;
-    }
-    this.focus();
-    dispatchActivationClick(this.root);
-  };
-
-  override focus() {
-    this.root.focus();
+  protected override connectedCallback(): void {
+    super.connectedCallback();
+    this.ripple?.bind?.(this.root);
+    this.getElementByPart("label")?.addEventListener(
+      "slotchange",
+      this.handleLabelSlotChange
+    );
   }
 
-  override blur() {
-    this.root.blur();
+  protected override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.ripple?.unbind?.(this.root);
+    this.getElementByPart("label")?.removeEventListener(
+      "slotchange",
+      this.handleLabelSlotChange
+    );
   }
-
-  protected showFocusRing = (visible: boolean) => {
-    this.updateRootClass("focused", visible);
-  };
-
-  protected handlePointerDown = (e: PointerEvent) => {
-    pointerPress();
-    this.showFocusRing(shouldShowStrongFocus());
-  };
-
-  protected handleFocus = () => {
-    this.showFocusRing(shouldShowStrongFocus());
-  };
-
-  protected handleBlur = () => {
-    this.showFocusRing(false);
-  };
 
   protected handleLabelSlotChange = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
     const nodes = slot?.assignedNodes?.();
-    const hasLabel = nodes.length > 0;
     nodes.forEach((node) => {
-      if (node.nodeName.toLowerCase() === "s-badge") {
+      if (node.nodeName.toLowerCase() === Button.badgeTag) {
         const el = node as HTMLElement;
         el.setAttribute("float", this.getAttribute("rtl") ? "left" : "right");
       }
     });
-    this.updateRootClass("has-label", hasLabel);
   };
+}
 
-  protected handlePrefixSlotChange = (e: Event) => {
-    const slot = e.currentTarget as HTMLSlotElement;
-    const nodes = slot?.assignedNodes?.();
-    const hasPrefix = nodes.length > 0;
-    this.updateRootClass("has-prefix", hasPrefix);
-  };
-
-  protected handleSuffixSlotChange = (e: Event) => {
-    const slot = e.currentTarget as HTMLSlotElement;
-    const nodes = slot?.assignedNodes?.();
-    const hasSuffix = nodes.length > 0;
-    this.updateRootClass("has-suffix", hasSuffix);
-  };
+declare global {
+  interface HTMLElementTagNameMap {
+    "s-button": Button;
+  }
 }

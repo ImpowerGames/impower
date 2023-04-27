@@ -1,0 +1,103 @@
+:host {
+  display: contents;
+}
+:host {
+  --interactable: auto;
+  --selectable: none;
+  --layout-align: center;
+  --layout-justify: center;
+  --position: relative;
+  --expand: 1;
+  --text-font: var(--s-font-sans);
+  --text-size: var(--s-text-sm-font-size);
+  --text-weight: var(--s-font-weight-semibold);
+  --text-wrap: nowrap;
+  --transition: opacity, transform, filter, color;
+  --duration: 100ms;
+  --color: var(--s-color-primary-70);
+  --text-color: var(--s-color-neutral-70);
+  --hover-color: var(--s-color-neutral-90);
+  --border-width: 0;
+  --padding-t: 16px;
+  --padding-r: 20px;
+  --padding-b: 16px;
+  --padding-l: 20px;
+}
+
+.tab {
+  cursor: pointer;
+  pointer-events: var(--interactable);
+  user-select: var(--selectable);
+  display: flex;
+  align-items: var(--layout-align);
+  justify-content: var(--layout-justify);
+  position: var(--position);
+  flex: var(--expand);
+  font-family: var(--text-font);
+  font-size: var(--text-size);
+  font-weight: var(--text-weight);
+  color: var(--text-color);
+  background-color: transparent;
+  border-width: var(--border-width);
+  white-space: var(--text-wrap);
+  transition-property: var(--transition);
+  transition-duration: var(--duration);
+  padding-top: var(--padding-t, var(--padding-tb, var(--padding)));
+  padding-right: var(--padding-r, var(--padding-lr, var(--padding)));
+  padding-bottom: var(--padding-b, var(--padding-tb, var(--padding)));
+  padding-left: var(--padding-l, var(--padding-lr, var(--padding)));
+}
+
+:host([disabled]) .tab {
+  cursor: default;
+  opacity: 0.5;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :host(:not([disabled])) .tab:hover {
+    color: var(--hover-color);
+  }
+}
+
+:host([active]:not([disabled])) .tab {
+  color: var(--color);
+}
+
+:host([icon]) .label,
+:host([spacing]) .label {
+  padding-top: var(--spacing, 4px);
+}
+
+:host([icon]) .label {
+  transform: scale(0.9);
+  transition-duration: var(--duration, 100ms);
+}
+:host([icon][active]:not([disabled])) .label {
+  transform: scale(1);
+  transition-duration: var(--duration, 100ms);
+}
+
+:host([icon]) .icon {
+  transform: scale(0.9);
+  transition-duration: var(--duration, 100ms);
+}
+:host([icon][active]:not([disabled])) .icon {
+  transform: scale(1);
+  transition-duration: var(--duration, 100ms);
+}
+
+.icon {
+  display: none;
+}
+:host([icon]) .icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 1.25em;
+  height: 1.25em;
+  -webkit-mask-image: var(--icon, none);
+  mask-image: var(--icon, none);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  background-color: currentColor;
+}

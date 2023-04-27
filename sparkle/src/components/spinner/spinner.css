@@ -2,16 +2,19 @@
   display: contents;
 }
 :host {
-  --default-color: var(--s-color-primary-70);
+  --expand: 1;
+  --width: 1em;
+  --height: 1em;
+  --color: currentColor;
+  --bg-color: rgb(128 128 128 / 25%);
   --track-width: 2px;
-  --track-color: rgb(128 128 128 / 25%);
-  --speed: 2s;
+  --duration: 2s;
 }
 
 .spinner {
-  flex: var(--expand, 1);
-  height: var(--height, 100%);
-  width: var(--width, 100%);
+  flex: var(--expand);
+  width: var(--width);
+  height: var(--height);
   background-color: transparent;
 }
 
@@ -26,15 +29,15 @@
 }
 
 .track {
-  stroke: var(--track-color);
+  stroke: var(--bg-color);
   transform-origin: 0% 0%;
 }
 
 .indicator {
-  stroke: var(--color, var(--default-color));
+  stroke: var(--color);
   stroke-linecap: round;
   stroke-dasharray: 150% 75%;
-  animation: spin var(--speed) linear infinite;
+  animation: spin var(--duration) linear infinite;
 }
 
 @keyframes spin {
