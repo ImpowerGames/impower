@@ -9,24 +9,52 @@
   --interactable: auto;
   --selectable: none;
   --width: auto;
-  --height: 40px;
   --text-font: var(--sp-font-sans);
-  --text-size: var(--s-text-sm-font-size);
-  --text-leading: var(--s-text-sm-line-height);
   --text-wrap: nowrap;
   --transition: transform, background-color, color, border, filter;
   --duration: 100ms;
-  --corner-tl: 8px;
-  --corner-tr: 8px;
-  --corner-br: 8px;
-  --corner-bl: 8px;
-  --padding-r: 16px;
-  --padding-l: 16px;
+  --corner-tl: 4px;
+  --corner-tr: 4px;
+  --corner-br: 4px;
+  --corner-bl: 4px;
   --color: var(--s-color-primary-70);
   --text-color: var(--s-color-neutral-0);
   --shadow: var(--s-shadow-drop-1);
   --border-width: 1px;
   --spacing: 8px;
+}
+
+:host([size="xs"]) .button {
+  --height: 24px;
+  --text-size: var(--s-text-2xs-font-size);
+  --text-leading: var(--s-text-2xs-line-height);
+  --padding-r: 8px;
+  --padding-l: 8px;
+}
+
+:host([size="sm"]) .button {
+  --height: 32px;
+  --text-size: var(--s-text-xs-font-size);
+  --text-leading: var(--s-text-xs-line-height);
+  --padding-r: 10px;
+  --padding-l: 10px;
+}
+
+.button,
+:host([size="md"]) .button {
+  --height: 40px;
+  --text-size: var(--s-text-sm-font-size);
+  --text-leading: var(--s-text-sm-line-height);
+  --padding-r: 16px;
+  --padding-l: 16px;
+}
+
+:host([size="lg"]) .button {
+  --height: 48px;
+  --text-size: var(--s-text-md-font-size);
+  --text-leading: var(--s-text-md-line-height);
+  --padding-r: 20px;
+  --padding-l: 20px;
 }
 
 .button {
@@ -159,12 +187,6 @@
 :host([loading]) .button {
   position: relative;
   cursor: default;
-}
-:host([loading]) .spinner > * {
-  position: absolute;
-  font-size: 1em;
-  height: 1em;
-  width: 1em;
 }
 
 :host([icon]) .label,

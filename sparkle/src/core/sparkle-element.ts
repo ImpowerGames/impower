@@ -1,213 +1,24 @@
+import { STYLE_ALIASES } from "../constants/STYLE_ALIASES";
+import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS";
 import { dispatchActivationClick, isActivationClick } from "../utils/events";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
-import { getCssAnimation } from "../utils/getCssAnimation";
-import { getCssBgAlign } from "../utils/getCssBgAlign";
-import { getCssBgFit } from "../utils/getCssBgFit";
-import { getCssClip } from "../utils/getCssClip";
-import { getCssColor } from "../utils/getCssColor";
-import { getCssCorner } from "../utils/getCssCorner";
-import { getCssDuration } from "../utils/getCssDuration";
-import { getCssEase } from "../utils/getCssEase";
-import { getCssGradient } from "../utils/getCssGradient";
-import { getCssImage } from "../utils/getCssImage";
-import { getCssJustify } from "../utils/getCssJustify";
-import { getCssLayoutAlign } from "../utils/getCssLayoutAlign";
-import { getCssPattern } from "../utils/getCssPattern";
-import { getCssPosition } from "../utils/getCssPosition";
-import { getCssRatio } from "../utils/getCssRatio";
-import { getCssRepeat } from "../utils/getCssRepeat";
-import { getCssShadow } from "../utils/getCssShadow";
-import { getCssShadowInset } from "../utils/getCssShadowInset";
-import { getCssSize } from "../utils/getCssSize";
-import { getCssTextAlign } from "../utils/getCssTextAlign";
-import { getCssTextFont } from "../utils/getCssTextFont";
-import { getCssTextLeading } from "../utils/getCssTextLeading";
-import { getCssTextSize } from "../utils/getCssTextSize";
 import { getCssTextSizeHeight } from "../utils/getCssTextSizeHeight";
-import { getCssTextStrikethrough } from "../utils/getCssTextStrikethrough";
 import { getCssTextStroke } from "../utils/getCssTextStroke";
-import { getCssTextUnderline } from "../utils/getCssTextUnderline";
-import { getCssTextWeight } from "../utils/getCssTextWeight";
-import { getCssTextWrap } from "../utils/getCssTextWrap";
+import { getCssTextWhiteSpace } from "../utils/getCssTextWhiteSpace";
 import { isServer } from "../utils/isServer";
 import { updateAttribute } from "../utils/updates";
+import {
+  EventTypeDoesNotRequireDetail,
+  EventTypeRequiresDetail,
+  EventTypesWithRequiredDetail,
+  EventTypesWithoutRequiredDetail,
+  GetCustomEventType,
+  SpEventInit,
+  ValidEventTypeMap,
+} from "./event";
+import { RESET_STYLES } from "./reset";
 import css from "./sparkle-element.css";
 import html from "./sparkle-element.html";
-
-const get = (v: string) => v;
-
-export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
-  position: getCssPosition,
-
-  aspect: getCssRatio,
-
-  "scroll-x": get,
-  "scroll-y": get,
-
-  z: getCssSize,
-
-  width: getCssSize,
-  "width-min": getCssSize,
-  "width-max": getCssSize,
-
-  height: getCssSize,
-  "height-min": getCssSize,
-  "height-max": getCssSize,
-
-  corner: getCssCorner,
-  "corner-t": getCssCorner,
-  "corner-r": getCssCorner,
-  "corner-b": getCssCorner,
-  "corner-l": getCssCorner,
-  "corner-tl": getCssCorner,
-  "corner-tr": getCssCorner,
-  "corner-br": getCssCorner,
-  "corner-bl": getCssCorner,
-
-  inset: getCssSize,
-  "inset-t": getCssSize,
-  "inset-r": getCssSize,
-  "inset-b": getCssSize,
-  "inset-l": getCssSize,
-  "inset-lr": getCssSize,
-  "inset-tb": getCssSize,
-
-  margin: getCssSize,
-  "margin-t": getCssSize,
-  "margin-r": getCssSize,
-  "margin-b": getCssSize,
-  "margin-l": getCssSize,
-  "margin-lr": getCssSize,
-  "margin-tb": getCssSize,
-
-  padding: getCssSize,
-  "padding-t": getCssSize,
-  "padding-r": getCssSize,
-  "padding-b": getCssSize,
-  "padding-l": getCssSize,
-  "padding-lr": getCssSize,
-  "padding-tb": getCssSize,
-
-  layout: get,
-  "layout-align": getCssLayoutAlign,
-  "layout-justify": getCssJustify,
-  "layout-wrap": get,
-
-  expand: get,
-
-  invisible: get,
-  interactable: get,
-  selectable: get,
-
-  color: getCssColor,
-
-  "text-font": getCssTextFont,
-  "text-size": getCssTextSize,
-  "text-leading": getCssTextLeading,
-  "text-kerning": get,
-  "text-weight": getCssTextWeight,
-  "text-italic": get,
-  "text-underline": getCssTextUnderline,
-  "text-strikethrough": getCssTextStrikethrough,
-  "text-case": get,
-  "text-align": getCssTextAlign,
-  "text-wrap": getCssTextWrap,
-  "text-color": getCssColor,
-  "text-stroke-color": get,
-  "text-stroke-width": get,
-  "text-underline-offset": getCssSize,
-  "text-decoration-thickness": getCssSize,
-
-  "bg-color": getCssColor,
-  "bg-gradient": getCssGradient,
-  "bg-pattern": getCssPattern,
-  "bg-image": getCssImage,
-  "bg-repeat": getCssRepeat,
-  "bg-align": getCssBgAlign,
-  "bg-fit": getCssBgFit,
-
-  clip: getCssClip,
-
-  "border-color": getCssColor,
-  "border-width": getCssSize,
-
-  shadow: getCssShadow,
-  "shadow-inset": getCssShadowInset,
-
-  blur: get,
-  brightness: get,
-  contrast: get,
-  grayscale: get,
-  hue: get,
-  invert: get,
-  sepia: get,
-  saturate: get,
-
-  blend: get,
-
-  opacity: get,
-
-  "translate-x": get,
-  "translate-y": get,
-  "translate-z": get,
-  "rotate-x": get,
-  "rotate-y": get,
-  "rotate-z": get,
-  "scale-x": get,
-  "scale-y": get,
-  "scale-z": get,
-  "skew-x": get,
-  "skew-y": get,
-
-  pivot: get,
-
-  delay: getCssDuration,
-  duration: getCssDuration,
-  ease: getCssEase,
-
-  animate: getCssAnimation,
-};
-
-const aliases: Record<string, string> = {
-  c: "corner",
-  "c-t": "corner-t",
-  "c-r": "corner-r",
-  "c-b": "corner-b",
-  "c-l": "corner-l",
-  "c-tl": "corner-tl",
-  "c-tr": "corner-tr",
-  "c-br": "corner-br",
-  "c-bl": "corner-bl",
-  i: "inset",
-  "i-t": "inset-t",
-  "i-r": "inset-r",
-  "i-b": "inset-b",
-  "i-l": "inset-l",
-  "i-lr": "inset-lr",
-  "i-tb": "inset-tb",
-  m: "margin",
-  "m-t": "margin-t",
-  "m-r": "margin-r",
-  "m-b": "margin-b",
-  "m-l": "margin-l",
-  "m-lr": "margin-lr",
-  "m-tb": "margin-tb",
-  p: "padding",
-  "p-t": "padding-t",
-  "p-r": "padding-r",
-  "p-b": "padding-b",
-  "p-l": "padding-l",
-  "p-lr": "padding-lr",
-  "p-tb": "padding-tb",
-};
-
-const GLOBAL_ATTRIBUTES = [
-  "aria-label",
-  "disabled",
-  "loading",
-  ...Object.keys(STYLE_TRANSFORMERS),
-  ...Object.keys(aliases),
-];
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
@@ -226,7 +37,25 @@ export default class SparkleElement extends HTMLElement {
   }
 
   static get observedAttributes() {
-    return GLOBAL_ATTRIBUTES;
+    return [
+      ...Object.keys(STYLE_TRANSFORMERS),
+      ...Object.keys(STYLE_ALIASES),
+      "rtl",
+      "aria-label",
+      "disabled",
+      "loading",
+    ];
+  }
+
+  get aliases(): Record<string, string> {
+    return STYLE_ALIASES;
+  }
+
+  /**
+   * Whether or not the element should display content right-to-left instead of the usual left-to-right.
+   */
+  get rtl(): boolean {
+    return this.getBooleanAttribute("rtl");
   }
 
   /**
@@ -244,7 +73,7 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Sets how this element is positioned in a document.
+   * Sets this element's `position` in a document.
    */
   get _position():
     | "default"
@@ -257,309 +86,402 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Sets a preferred aspect ratio for the box.
+   * Sets a preferred `aspect-ratio` for the box.
    */
   get _aspect(): "1/1" | "16/9" | "9/16" | "4/5" | "2/3" | "2/1" | null {
     return this.getStringAttribute("aspect");
   }
 
   /**
-   * Sets the desired behavior when content does not fit in the parent element box (overflows) in the horizontal direction.
+   * Sets the desired `overflow` behavior of content that does not fit within this element's width.
+   *
+   * If not provided a value, defaults to `visible`.
    */
-  get _scrollX(): "visible" | "clip" | "scroll" | null {
-    return this.getStringAttribute("scroll-x");
+  get _overflowX(): "" | "visible" | "scroll" | "clip" | null {
+    return this.getStringAttribute("overflow-x");
   }
 
   /**
-   * Sets the desired behavior when content does not fit in the parent element box (overflows) in the vertical direction.
+   * Sets the desired `overflow` behavior of content that does not fit within this element's height.
+   *
+   * If not provided a value, defaults to `visible`.
    */
-  get _scrollY(): "visible" | "clip" | "scroll" | null {
-    return this.getStringAttribute("scroll-y");
+  get _overflowY(): "" | "visible" | "scroll" | "clip" | null {
+    return this.getStringAttribute("overflow-y");
   }
 
   /**
-   * Sets the z-order of a positioned element and its descendants or flex items. Overlapping elements with a larger z-index cover those with a smaller one.
+   * Sets the `z-index` of a positioned element and its descendants. Elements with a larger z value appear on top of those with a smaller one.
    */
-  get _z(): "0" | "1" | "2" | "3" | "4" | "5" | null {
+  get _z():
+    | "0"
+    | "1"
+    | "drawer"
+    | "dialog"
+    | "dropdown"
+    | "alert"
+    | "tooltip"
+    | null {
     return this.getStringAttribute("z");
   }
 
   /**
-   * Sets this element's width.
+   * Sets this element's `width`.
    */
-  get _width(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+  get _width(): "100%" | "min-content" | "max-content" | null {
     return this.getStringAttribute("width");
   }
 
   /**
-   * Sets the minimum width of this element. It prevents the used value of the width property from becoming smaller than the value specified.
+   * Sets the `min-width` of this element. Prevents the element's width from becoming smaller than the value specified.
    */
-  get _widthMin(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+  get _widthMin(): "100%" | "min-content" | "max-content" | null {
     return this.getStringAttribute("width-min");
   }
 
   /**
-   * Sets the maximum width of this element. It prevents the used value of the width property from becoming larger than the value specified.
+   * Sets the `max-width` of this element. Prevents the element's width from becoming larger than the value specified.
    */
-  get _widthMax(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+  get _widthMax(): "100%" | "min-content" | "max-content" | null {
     return this.getStringAttribute("width-max");
   }
 
   /**
-   * Sets this element's height.
+   * Sets this element's `height`.
    */
-  get _height(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+  get _height(): "100%" | "min-content" | "max-content" | null {
     return this.getStringAttribute("height");
   }
 
   /**
-   * Sets the minimum height of this element. It prevents the used value of the height property from becoming smaller than the value specified.
+   * Sets the `min-height` of this element. Prevents the element's height from becoming smaller than the value specified.
    */
-  get _heightMin(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+  get _heightMin(): "100%" | "min-content" | "max-content" | null {
     return this.getStringAttribute("height-min");
   }
 
   /**
-   * Sets the maximum height of this element. It prevents the used value of the height property from becoming larger than the value specified.
+   * Sets the `max-height` of this element. Prevents the element's height from becoming larger than the value specified.
    */
-  get _heightMax(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+  get _heightMax(): "100%" | "min-content" | "max-content" | null {
     return this.getStringAttribute("height-max");
   }
 
   /**
-   * Rounds the corners of this element's outer edge. You can set a radius to make circular corners.
+   * Rounds the corners of this element by specifying a `border-radius`.
+   *
+   * @summary c
    */
   get _corner(): "xs" | "sm" | "md" | "lg" | "xl" | "full" | "circle" | null {
     return this.getStringAttribute("corner");
   }
 
   /**
-   * Rounds the top-left and top-right corners of this element by specifying the radius of the circle defining the curvature of the corner.
+   * Rounds the top-left and top-right corners of this element by specifying a `border-top-left-radius` and `border-top-right-radius`.
+   *
+   * @summary c-t
    */
   get _cornerT(): "xs" | "sm" | "md" | "lg" | "xl" | "full" | "circle" | null {
     return this.getStringAttribute("corner-t");
   }
 
   /**
-   * Rounds the top-right and bottom-right corners of this element by specifying the radius of the circle defining the curvature of the corner.
+   * Rounds the top-right and bottom-right corners of this element by specifying a `border-top-right-radius` and `border-bottom-right-radius`.
+   *
+   * @summary c-r
    */
   get _cornerR(): "xs" | "sm" | "md" | "lg" | "xl" | "full" | "circle" | null {
     return this.getStringAttribute("corner-r");
   }
 
   /**
-   * Rounds the bottom-left and bottom-right corners of this element by specifying the radius of the circle defining the curvature of the corner.
+   * Rounds the bottom-left and bottom-right corners of this element by specifying a `border-bottom-left-radius` and `border-bottom-right-radius`.
+   *
+   * @summary c-b
    */
   get _cornerB(): "xs" | "sm" | "md" | "lg" | "xl" | "full" | "circle" | null {
     return this.getStringAttribute("corner-b");
   }
 
   /**
-   * Rounds the top-left and bottom-left corners of this element by specifying the radius of the circle defining the curvature of the corner.
+   * Rounds the top-left and bottom-left corners of this element by specifying a `border-top-left-radius` and `border-bottom-left-radius`.
+   *
+   * @summary c-l
    */
   get _cornerL(): "xs" | "sm" | "md" | "lg" | "xl" | "full" | "circle" | null {
     return this.getStringAttribute("corner-l");
   }
 
   /**
-   * Rounds the top-left corner of this element by specifying the radius of the circle defining the curvature of the corner.
+   * Rounds the top-left corner of this element by specifying a `border-top-left-radius`.
+   *
+   * @summary c-tl
    */
   get _cornerTL(): "xs" | "sm" | "md" | "lg" | "xl" | "full" | "circle" | null {
     return this.getStringAttribute("corner-tl");
   }
 
   /**
-   * Rounds the top-right corner of this element by specifying the radius of the circle defining the curvature of the corner.
+   * Rounds the top-right corner of this element by specifying a `border-top-right-radius`.
+   *
+   * @summary c-tr
    */
   get _cornerTR(): "xs" | "sm" | "md" | "lg" | "xl" | "full" | "circle" | null {
     return this.getStringAttribute("corner-tr");
   }
 
   /**
-   * Rounds the bottom-right corner of this element by specifying the radius of the circle defining the curvature of the corner.
+   * Rounds the bottom-right corner of this element by specifying a `border-bottom-right-radius`.
+   *
+   * @summary c-br
    */
   get _cornerBR(): "xs" | "sm" | "md" | "lg" | "xl" | "full" | "circle" | null {
     return this.getStringAttribute("corner-br");
   }
 
   /**
-   * Rounds the bottom-left corner of this element by specifying the radius of the circle defining the curvature of the corner.
+   * Rounds the bottom-left corner of this element by specifying a `border-bottom-left-radius`.
+   *
+   * @summary c-bl
    */
   get _cornerBL(): "xs" | "sm" | "md" | "lg" | "xl" | "full" | "circle" | null {
     return this.getStringAttribute("corner-bl");
   }
 
   /**
-   * Rounds the corners of this element's outer edge. You can set a radius to make circular corners.
+   * Sets how far the `top` `right` `bottom` and `left` edges of this element are from the corresponding edges of its closest positioned parent. It has no effect on non-positioned elements.
+   *
+   * @summary i
    */
   get _inset(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("inset");
   }
 
   /**
-   * Sets how far the top edge of this element is from the top edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `top` edge of this element is from the top edge of its closest positioned parent. It has no effect on non-positioned elements.
+   *
+   * @summary i-t
    */
   get _insetT(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("inset-t");
   }
 
   /**
-   * Sets how far the right edge of this element is from the right edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `right` edge of this element is from the right edge of its closest positioned parent. It has no effect on non-positioned elements.
+   *
+   * @summary i-r
    */
   get _insetR(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("inset-r");
   }
 
   /**
-   * Sets how far the bottom edge of this element is from the bottom edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `bottom` edge of this element is from the bottom edge of its closest positioned parent. It has no effect on non-positioned elements.
+   *
+   * @summary i-b
    */
   get _insetB(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("inset-b");
   }
 
   /**
-   * Sets how far the left edge of this element is from the left edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `left` edge of this element is from the left edge of its closest positioned parent. It has no effect on non-positioned elements.
+   *
+   * @summary i-l
    */
   get _insetL(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("inset-l");
   }
 
   /**
-   * Sets how far the left and right edge of this element is from the left and right edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `left` and `right` edge of this element is from the left and right edge of its closest positioned parent. It has no effect on non-positioned elements.
+   *
+   * @summary i-lr
    */
   get _insetLR(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("inset-lr");
   }
 
   /**
-   * Sets how far the top and bottom edge of this element is from the top and bottom edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `top` and `bottom` edge of this element is from the top and bottom edge of its closest positioned parent. It has no effect on non-positioned elements.
+   *
+   * @summary i-tb
    */
   get _insetTB(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("inset-tb");
   }
 
   /**
-   * Sets the margin area around this element. A positive value places it farther from its neighbors, while a negative value places it closer.
+   * Sets the `margin` area around this element.
+   *
+   * A positive value places it farther from its neighbors, while a negative value places it closer.
+   *
+   * @summary m
    */
   get _margin(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("margin");
   }
 
   /**
-   * Sets the margin area on top of this element. A positive value places it farther from its neighbors, while a negative value places it closer.
+   * Sets the `margin-top` area of this element.
+   *
+   * A positive value places it farther from its neighbors, while a negative value places it closer.
+   *
+   * @summary m-t
    */
   get _marginT(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("margin-t");
   }
 
   /**
-   * Sets the margin area on the right side of this element. A positive value places it farther from its neighbors, while a negative value places it closer.
+   * Sets the `margin-right` area of this element.
+   *
+   * A positive value places it farther from its neighbors, while a negative value places it closer.
+   *
+   * @summary m-r
    */
   get _marginR(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("margin-r");
   }
 
   /**
-   * Sets the margin area below this element. A positive value places it farther from its neighbors, while a negative value places it closer.
+   * Sets the `margin-bottom` area of this element.
+   *
+   * A positive value places it farther from its neighbors, while a negative value places it closer.
+   *
+   * @summary m-b
    */
   get _marginB(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("margin-b");
   }
 
   /**
-   * Sets the margin area on the left side of this element. A positive value places it farther from its neighbors, while a negative value places it closer.
+   * Sets the `margin-left` area of this element.
+   *
+   * A positive value places it farther from its neighbors, while a negative value places it closer.
+   *
+   * @summary m-l
    */
   get _marginL(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("margin-l");
   }
 
   /**
-   * Sets the margin area on the left and right sides of this element. A positive value places it farther from its neighbors, while a negative value places it closer.
+   * Sets the `margin-left` and `margin-right` areas of this element.
+   *
+   * A positive value places it farther from its neighbors, while a negative value places it closer.
+   *
+   * @summary m-lr
    */
   get _marginLR(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("margin-lr");
   }
 
   /**
-   * Sets the margin area below and above this element. A positive value places it farther from its neighbors, while a negative value places it closer.
+   * Sets the `margin-top` and `margin-bottom` areas of this element.
+   *
+   * A positive value places it farther from its neighbors, while a negative value places it closer.
+   *
+   * @summary m-tb
    */
   get _marginTB(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("margin-tb");
   }
 
   /**
-   * Sets the padding area around this element.
+   * Sets the `padding` area around this element.
+   *
+   * @summary p
    */
   get _padding(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("padding");
   }
 
   /**
-   * Sets the padding area on top of this element.
+   * Sets the `padding-top` area of this element.
+   *
+   * @summary p-t
    */
   get _paddingT(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("padding-t");
   }
 
   /**
-   * Sets the padding area on the right side of this element.
+   * Sets the `padding-right` area of this element.
+   *
+   * @summary p-r
    */
   get _paddingR(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("padding-r");
   }
 
   /**
-   * Sets the padding area below this element.
+   * Sets the `padding-bottom` area of this element.
+   *
+   * @summary p-b
    */
   get _paddingB(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("padding-b");
   }
 
   /**
-   * Sets the padding area on the left side of this element.
+   * Sets the `padding-left` area of this element.
+   *
+   * @summary p-l
    */
   get _paddingL(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("padding-l");
   }
 
   /**
-   * Sets the padding area on the left and right sides of this element.
+   * Sets the `padding-left` and `padding-right` areas of this element.
+   *
+   * @summary p-lr
    */
   get _paddingLR(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("padding-lr");
   }
 
   /**
-   * Sets the padding area above and below this element.
+   * Sets the `padding-top` and `padding-bottom` areas of this element.
+   *
+   * @summary p-tb
    */
   get _paddingTB(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("padding-tb");
   }
 
   /**
-   * Sets the layout of this element so that its children are arranged in either a row or column.
+   * Sets the `flex-direction` of this element so that its children are arranged in either a row or column.
    */
   get _layout(): "row" | "column" | "row-reverse" | "column-reverse" | null {
     return this.getStringAttribute("layout");
   }
 
   /**
-   * When this element's children are arranged in a column (layout="column"), this controls their horizontal alignment.
-   * When this element's children are arranged in a row (layout="row"), this controls their vertical alignment.
+   * Uses `align-items` to align children along the cross axis.
    *
-   * If not provided a value, it will use "center"
+   * When layout is `column`, this controls all children's horizontal alignment.
+   * When layout is `row`, this controls all children's vertical alignment.
+   *
+   * If not provided a value, defaults to `center`.
    */
-  get _layoutAlign(): "" | "stretch" | "center" | "start" | "end" | null {
+  get _layoutAlign(): "" | "center" | "stretch" | "start" | "end" | null {
     return this.getStringAttribute("layout-align");
   }
 
   /**
-   * When this element's children are arranged in a column (layout="column"), this controls their vertical alignment.
-   * When this element's children are arranged in a row (layout="row"), this controls their horizontal alignment.
+   * Uses `justify-content` to align children along the main axis.
+   *
+   * When layout is `column`, this controls all children's vertical alignment.
+   * When layout is `row`, this controls all children's horizontal alignment.
+   *
+   * If not provided a value, defaults to `center`.
    */
   get _layoutJustify():
-    | "stretch"
+    | ""
     | "center"
+    | "stretch"
     | "start"
     | "end"
     | "between"
@@ -570,51 +492,53 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Sets whether children are forced onto one line or can wrap onto multiple lines. If wrapping is allowed, it sets the direction that lines are stacked.
+   * Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.
    *
-   * If not provided a value, it will use "wrap".
+   * If not provided a value, defaults to `wrap`.
    */
-  get _layoutWrap(): "" | "nowrap" | "wrap" | "wrap-reverse" | null {
-    return this.getStringAttribute("layout-justify");
+  get _layoutOverflow(): "" | "visible" | "wrap" | "wrap-reverse" | null {
+    return this.getStringAttribute("layout-overflow");
   }
 
   /**
-   * Sets how much this element will expand to fill the space available in its parent container.
+   * Sets how much `flex` this element has. This controls how much the element will expand to fill the space available in its parent container.
    *
    * If 0, the element will not expand.
    * If 1, the element will expand to fill all available space.
+   * If 2, the element will expand twice as much as all elements with 1 flex.
    *
-   * If not provided a value, it will use "1".
+   * If not provided a value, defaults to `1`.
    */
-  get _expand(): "" | "0" | "1" | "2" | "3" | "4" | null {
+  get _expand(): "" | "0" | "1" | "2" | null {
     return this.getStringAttribute("expand");
   }
 
   /**
-   * Hides this element without affecting layout.
+   * Sets the element's `visibility` to be hidden.
    */
   get _invisible(): "" | null {
     return this.getStringAttribute("invisible");
   }
 
   /**
-   * Allows this element to capture pointer events.
+   * Allows this element to capture `pointer-events`.
    */
   get _interactable(): "" | null {
     return this.getStringAttribute("interactable");
   }
 
   /**
-   * Allows the user to select this element's text.
+   * Enables `user-select` so the user can select any text inside this element.
    */
   get _selectable(): "" | null {
     return this.getStringAttribute("selectable");
   }
 
   /**
-   * Sets the main color of the content rendered inside this element.
+   * Sets the `color` of content rendered inside this element.
    */
   get _color():
+    | "none"
     | "fg"
     | "bg"
     | "neutral"
@@ -645,14 +569,14 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Specifies which font this element will use to render text.
+   * Specifies which `font-family` this element will use to render text.
    */
   get _textFont(): "sans" | "serif" | "mono" | null {
     return this.getStringAttribute("text-font");
   }
 
   /**
-   * Sets the size of this element's font.
+   * Sets the `font-size` of all text inside this element.
    */
   get _textSize():
     | "2xs"
@@ -674,15 +598,17 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Sets the height of a line of text.
-   * It's commonly used to set the distance between lines of text.
+   * Sets the `line-height` of all text inside this element.
+   *
+   * This is commonly used to increase or decrease the distance between lines of text.
    */
   get _textLeading(): "none" | "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("text-leading");
   }
 
   /**
-   * Sets the letter spacing of text.
+   * Sets the `letter-spacing` of all text inside this element.
+   *
    * This value is added to the font's natural letter spacing.
    * Positive values cause letters to spread farther apart, while negative values bring letters closer together.
    */
@@ -691,7 +617,7 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Sets the weight (or boldness) of the font.
+   * Sets the `font-weight` of all text inside this element.
    */
   get _textWeight():
     | "thin"
@@ -708,62 +634,65 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Makes text italic.
+   * Sets the `text-style` of all text inside this element so that the text is italic.
    */
   get _textItalic(): "" | null {
     return this.getStringAttribute("text-italic");
   }
 
   /**
-   * Makes text underlined.
+   * Sets the `text-decoration` of all text inside this element so that a line renders underneath the text.
    */
   get _textUnderline(): "" | null {
     return this.getStringAttribute("text-underline");
   }
 
   /**
-   * Renders a line through the middle of text.
+   * Sets the `text-decoration` of all text inside this element so that a line renders through the middle of the text.
    */
   get _textStrikethrough(): "" | null {
     return this.getStringAttribute("text-strikethrough");
   }
 
   /**
-   * Forces the specified text casing.
+   * Sets the `text-transform` of all text inside this element to force the text to be uppercase, lowercase, or capitalized.
    */
   get _textCase(): "uppercase" | "lowercase" | "capitalize" | null {
     return this.getStringAttribute("text-case");
   }
 
   /**
-   * Sets the horizontal alignment of text.
+   * Sets the desired `text-align` behavior of all text inside this element.
    *
-   * If not provided a value, it will use "center"
+   * Aligns text to the center, start, or end, or justifies it to fill the width of this element.
+   *
+   * If not provided a value, defaults to `center`.
    */
-  get _textAlign(): "" | "start" | "end" | "center" | "justify" | null {
+  get _textAlign(): "" | "center" | "start" | "end" | "justify" | null {
     return this.getStringAttribute("text-align");
   }
 
   /**
-   * Determines whether text will wrap if there is not enough horizontal space to fit it on a single line.
+   * Sets the desired `text-overflow` and `white-space` behavior if text cannot fit on a single line.
    *
-   * If not provided a value, it will use "wrap".
+   * If not provided a value, defaults to `visible`.
    */
-  get _textWrap(): "" | "wrap" | "nowrap" | null {
-    return this.getStringAttribute("text-wrap");
+  get _textOverflow(): "" | "visible" | "wrap" | "clip" | "ellipsis" | null {
+    return this.getStringAttribute("text-overflow");
   }
 
   /**
-   * Sets the color of text rendered inside this element.
+   * Sets the `color` of text rendered inside this element.
    */
   get _textColor(): "" | "wrap" | "nowrap" | null {
     return this.getStringAttribute("text-color");
   }
 
   /**
-   * Sets the color of the stroke rendered around the text.
+   * Uses `text-shadow` to create a colored stroke around the text.
    */
   get _textStrokeColor():
+    | "none"
     | "fg"
     | "bg"
     | "neutral"
@@ -813,23 +742,24 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Sets the distance between the line and the text being underlined.
+   * Sets the `text-underline-offset` of all underlined text inside this element.
    */
   get _textUnderlineOffset(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("text-underline-offset");
   }
 
   /**
-   * Sets the thickness of underline or strikethrough lines.
+   * Sets the `text-decoration-thickness` of all underline or strikethrough lines.
    */
   get _textDecorationThickness(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("text-decoration-thickness");
   }
 
   /**
-   * Sets the background color of this element.
+   * Sets the `background-color` of this element.
    */
   get _bgColor():
+    | "none"
     | "fg"
     | "bg"
     | "neutral"
@@ -860,69 +790,70 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Sets the background gradient of this element.
+   * Uses `background-image` to display a color gradient inside this element.
    */
   get _bgGradient(): string | null {
     return this.getStringAttribute("bg-gradient");
   }
 
   /**
-   * Sets the background pattern of this element.
+   * Uses `background-image` to display a pattern inside this element.
    */
   get _bgPattern(): string | null {
     return this.getStringAttribute("bg-pattern");
   }
 
   /**
-   * Sets the background image of this element.
+   * Uses `background-image` to display an image inside this element.
    */
   get _bgImage(): string | null {
     return this.getStringAttribute("bg-image");
   }
 
   /**
-   * Sets how background images are repeated.
+   * Sets `background-repeat` to determine if background images are repeated in a tiling pattern.
    *
-   * If not provided a value, it will use "repeat".
+   * If not provided a value, defaults to `repeat`.
    */
   get _bgRepeat(): "" | "repeat" | "x" | "y" | "none" | null {
     return this.getStringAttribute("bg-repeat");
   }
 
   /**
-   * Sets how background images are aligned.
+   * Sets `background-position` to align background images to the center, top, bottom, left, or right edge of this element.
    *
-   * If not provided a value, it will use "center".
+   * If not provided a value, defaults to `center`.
    */
   get _bgAlign(): "" | "center" | "top" | "bottom" | "left" | "right" | null {
     return this.getStringAttribute("bg-align");
   }
 
   /**
-   * Sets how background images are fit in their parent container.
+   * Adjusts the `background-size` of images so that they fit inside this element.
    *
    * The image can be stretched, or constrained to fit the available space.
    *
-   * If not provided a value, it will use "contain".
+   * If not provided a value, defaults to `contain`.
    */
   get _bgFit(): "" | "contain" | "cover" | null {
     return this.getStringAttribute("bg-fit");
   }
 
   /**
-   * Creates a clipping region that determines what part of an element should be shown.
+   * Creates a `clip-path` region that determines what part of an element should be shown.
    * Parts that are inside the region are shown, while those outside are hidden.
    *
-   * If not provided a value, it will use "circle".
+   * If not provided a value, defaults to `circle`.
    */
   get _clip(): "" | "circle" | null {
     return this.getStringAttribute("bg-fit");
   }
 
   /**
-   * Sets the color of the border around this element.
+   * Sets the `border-color` of this element's border.
    */
   get _borderColor():
+    | "none"
     | "fg"
     | "bg"
     | "neutral"
@@ -953,92 +884,108 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Sets the width of the border around this element.
+   * Sets the `border-width` of this element's border.
    */
   get _borderWidth(): "xs" | "sm" | "md" | "lg" | "xl" | null {
     return this.getStringAttribute("border-width");
   }
 
   /**
-   * Adds a drop shadow to this element.
+   * Adds a `drop-shadow` `filter` to this element.
    */
   get _shadow(): "0" | "1" | "2" | "3" | "4" | "5" | null {
     return this.getStringAttribute("shadow");
   }
 
   /**
-   * Adds an inner shadow to this element.
+   * Adds an inner `box-shadow` to this element.
    */
   get _shadowInset(): "0" | "1" | "2" | "3" | "4" | "5" | null {
     return this.getStringAttribute("shadow-inset");
   }
 
   /**
-   * Blurs everything behind this element.
+   * Uses a `blur` `filter` to blur everything behind this element.
    */
   get _blur(): string | null {
     return this.getStringAttribute("blur");
   }
 
   /**
-   * Brightens everything behind this element.
+   * Uses a `brightness` `filter` to brighten the colors of everything behind this element.
    */
   get _brightness(): string | null {
     return this.getStringAttribute("brightness");
   }
 
   /**
-   * Sharpens everything behind this element.
+   * Uses a `contrast` `filter` to increase the contrast of everything behind this element.
    */
   get _contrast(): string | null {
     return this.getStringAttribute("contrast");
   }
 
   /**
-   * Makes everything behind this element black & white.
+   * Uses a `grayscale` `filter` to make everything behind this element black & white.
    */
   get _grayscale(): string | null {
     return this.getStringAttribute("grayscale");
   }
 
   /**
-   * Shifts the hue of everything behind this element.
+   * Uses a `hue-rotate` `filter` to shift the hue of everything behind this element.
    */
   get _hue(): string | null {
     return this.getStringAttribute("hue");
   }
 
   /**
-   * Inverts the color of everything behind this element.
+   * Uses an `invert` `filter` to invert the colors of everything behind this element.
    */
   get _invert(): string | null {
     return this.getStringAttribute("invert");
   }
 
   /**
-   * Makes everything behind this element sepia-colored.
+   * Uses a `sepia` `filter` to make everything behind this element sepia-tinged.
    */
   get _sepia(): string | null {
     return this.getStringAttribute("sepia");
   }
 
   /**
-   * Saturates everything behind this element.
+   * Uses a `saturate` `filter` to saturate the colors of everything behind this element.
    */
   get _saturate(): string | null {
     return this.getStringAttribute("saturate");
   }
 
   /**
-   * Sets how this element's content should blend with everything behind it.
+   * Sets the desired `mix-blend-mode` of this element to control how the colors of this element blend with the colors of everything behind it.
    */
-  get _blend(): string | null {
+  get _blend():
+    | "normal"
+    | "multiply"
+    | "screen"
+    | "overlay"
+    | "darken"
+    | "lighten"
+    | "color-dodge"
+    | "color-burn"
+    | "hard-light"
+    | "soft-light"
+    | "difference"
+    | "exclusion"
+    | "hue"
+    | "saturation"
+    | "color"
+    | "luminosity"
+    | null {
     return this.getStringAttribute("blend");
   }
 
   /**
-   * Sets the opacity of an element.
-   * Opacity corresponds to how transparent the element is,
+   * Sets the `opacity` of an element to control how transparent it is,
    * with 0 being fully transparent and 1 being fully opaque.
    */
   get _opacity(): "0" | "0.5" | "1" | null {
@@ -1046,98 +993,98 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Moves an element along the x-axis.
+   * Sets an element's `transform` to move it along the x-axis.
    */
   get _translateX(): string | null {
     return this.getStringAttribute("translate-x");
   }
 
   /**
-   * Moves an element along the y-axis.
+   * Sets an element's `transform` to move it along the y-axis.
    */
   get _translateY(): string | null {
     return this.getStringAttribute("translate-y");
   }
 
   /**
-   * Moves an element along the z-axis.
+   * Sets an element's `transform` to move it along the z-axis.
    */
   get _translateZ(): string | null {
     return this.getStringAttribute("translate-z");
   }
 
   /**
-   * Rotates an element along the x-axis.
+   * Sets an element's `transform` to rotate it around the x-axis.
    */
   get _rotateX(): string | null {
     return this.getStringAttribute("rotate-x");
   }
 
   /**
-   * Rotates an element along the y-axis.
+   * Sets an element's `transform` to rotate it around the y-axis.
    */
   get _rotateY(): string | null {
     return this.getStringAttribute("rotate-y");
   }
 
   /**
-   * Rotates an element along the z-axis.
+   * Sets an element's `transform` to rotate it around the z-axis.
    */
   get _rotateZ(): string | null {
     return this.getStringAttribute("rotate-z");
   }
 
   /**
-   * Rotates an element along the x-axis.
+   * Sets an element's `transform` to scale it along the x-axis.
    */
   get _scaleX(): string | null {
     return this.getStringAttribute("scale-x");
   }
 
   /**
-   * Rotates an element along the y-axis.
+   * Sets an element's `transform` to scale it along the y-axis.
    */
   get _scaleY(): string | null {
     return this.getStringAttribute("scale-y");
   }
 
   /**
-   * Rotates an element along the z-axis.
+   * Sets an element's `transform` to scale it along the z-axis.
    */
   get _scaleZ(): string | null {
     return this.getStringAttribute("scale-z");
   }
 
   /**
-   * Skews an element along the x-axis.
+   * Sets an element's `transform` to skew it along the x-axis.
    */
   get _skewX(): string | null {
     return this.getStringAttribute("skew-x");
   }
 
   /**
-   * Skews an element along the y-axis.
+   * Sets an element's `transform` to skew it along the y-axis.
    */
   get _skewY(): string | null {
     return this.getStringAttribute("skew-y");
   }
 
   /**
-   * Sets the origin point for this element's transformations.
+   * Sets the `transform-origin` for any transformations applied to this element.
    */
   get _pivot(): "center" | "top" | "left" | "bottom" | "right" | null {
     return this.getStringAttribute("pivot");
   }
 
   /**
-   * Specifies the amount of time to wait before starting a property's transition effect when its value changes.
+   * Specifies the `transition-delay` between property changes and their resulting transition animation.
    */
   get _delay(): "0" | "0.1" | "0.2" | "0.3" | "0.4" | "0.5" | "1" | null {
     return this.getStringAttribute("delay");
   }
 
   /**
-   * Specifies the length of time a transition should take to complete.
+   * Specifies the `transition-duration` of property changes.
    */
   get _duration():
     | "0s"
@@ -1146,13 +1093,50 @@ export default class SparkleElement extends HTMLElement {
     | "300ms"
     | "400ms"
     | "500ms"
-    | "1s"
     | null {
     return this.getStringAttribute("duration");
   }
 
   /**
-   * Applies an animation to this element.
+   * Specifies the `transition-timing-function` used for property changes.
+   */
+  get _ease():
+    | ""
+    | "linear"
+    | "ease"
+    | "ease-in"
+    | "ease-out"
+    | "ease-in-out"
+    | "ease-in-sine"
+    | "ease-in-sine"
+    | "ease-out-sine"
+    | "ease-in-out-sine"
+    | "ease-in-quad"
+    | "ease-out-quad"
+    | "ease-in-out-quad"
+    | "ease-in-cubic"
+    | "ease-out-cubic"
+    | "ease-in-out-cubic"
+    | "ease-in-quart"
+    | "ease-out-quart"
+    | "ease-in-out-quart"
+    | "ease-in-quint"
+    | "ease-out-quint"
+    | "ease-in-out-quint"
+    | "ease-in-expo"
+    | "ease-out-expo"
+    | "ease-in-out-expo"
+    | "ease-in-circ"
+    | "ease-out-circ"
+    | "ease-in-out-circ"
+    | "ease-in-back"
+    | "ease-out-back"
+    | "ease-in-out-back"
+    | null {
+    return this.getStringAttribute("ease");
+  }
+  /**
+   * Applies an `animation` to this element.
    */
   get _animate(): "spin" | "ping" | "bounce" | "pulse" | "sheen" | null {
     return this.getStringAttribute("animate");
@@ -1162,7 +1146,7 @@ export default class SparkleElement extends HTMLElement {
     super();
     const shadowRoot = this.attachShadow(init);
     shadowRoot.innerHTML = this.html;
-    shadowRoot.adoptedStyleSheets = [styles, ...this.styles];
+    shadowRoot.adoptedStyleSheets = [RESET_STYLES, styles, ...this.styles];
   }
 
   override focus(options?: FocusOptions) {
@@ -1224,7 +1208,7 @@ export default class SparkleElement extends HTMLElement {
     oldValue: string,
     newValue: string
   ): void {
-    const className = aliases[name] ?? name;
+    const className = this.aliases[name] ?? name;
     if (className === "aria-label") {
       this.updateRootAttribute(className, newValue);
     } else {
@@ -1232,11 +1216,19 @@ export default class SparkleElement extends HTMLElement {
       if (transformer) {
         this.updateStyleAttribute(className, newValue, transformer);
         if (className === "text-size") {
-          // Setting textSize should also set default line-height
+          // Setting text-size should also set line-height
           this.updateStyleAttribute(
-            "text-size--height",
+            "text-size--line-height",
             newValue,
             getCssTextSizeHeight
+          );
+        }
+        if (className === "text-overflow") {
+          // Setting text-overflow should also set white-space
+          this.updateStyleAttribute(
+            "text-overflow--white-space",
+            newValue,
+            getCssTextWhiteSpace
           );
         }
         if (
@@ -1248,7 +1240,14 @@ export default class SparkleElement extends HTMLElement {
         }
       }
     }
+    this.onAttributeChanged(name, oldValue, newValue);
   }
+
+  protected onAttributeChanged(
+    name: string,
+    oldValue: string,
+    newValue: string
+  ) {}
 
   /**
    * Invoked each time the custom element is appended into a document-connected element.
@@ -1256,21 +1255,36 @@ export default class SparkleElement extends HTMLElement {
    */
   protected connectedCallback(): void {
     this.bindFocus(this.root);
+    window.setTimeout(() => {
+      this.parsedCallback();
+    });
+    this.onConnected();
   }
+
+  protected onConnected(): void {}
+
+  protected parsedCallback(): void {
+    this.onParsed();
+  }
+
+  protected onParsed(): void {}
 
   /**
    * Invoked each time the custom element is disconnected from the document's DOM.
    */
   protected disconnectedCallback(): void {
     this.unbindFocus(this.root);
+    this.onDisconnected();
   }
 
+  protected onDisconnected(): void {}
+
   getElementByTag<T extends HTMLElement>(name: string): T | null {
-    return this.root.querySelector<T>(name);
+    return this.shadowRoot?.querySelector<T>(name) || null;
   }
 
   getElementByPart<T extends HTMLElement>(name: string): T | null {
-    return this.root.querySelector<T>(`[part=${name}]`);
+    return this.shadowRoot?.querySelector<T>(`[part=${name}]`) || null;
   }
 
   getSlotByName(name: string): HTMLSlotElement | null {
@@ -1361,5 +1375,45 @@ export default class SparkleElement extends HTMLElement {
     } else {
       this.removeAttribute(name);
     }
+  }
+
+  transferBorderStyle(targetEl: HTMLElement) {
+    const needsTransfer =
+      targetEl.style.margin !== "0" ||
+      targetEl.style.boxShadow !== "none" ||
+      targetEl.style.filter !== "none";
+    if (needsTransfer) {
+      this.root.style.borderRadius =
+        window.getComputedStyle(targetEl).borderRadius;
+      this.root.style.margin = window.getComputedStyle(targetEl).margin;
+      this.root.style.boxShadow = window.getComputedStyle(targetEl).boxShadow;
+      this.root.style.filter = window.getComputedStyle(targetEl).filter;
+      targetEl.style.margin = "0";
+      targetEl.style.boxShadow = "none";
+      targetEl.style.filter = "none";
+    }
+  }
+
+  emit<T extends string & keyof EventTypesWithoutRequiredDetail>(
+    name: EventTypeDoesNotRequireDetail<T>,
+    options?: SpEventInit<T> | undefined
+  ): GetCustomEventType<T>;
+  emit<T extends string & keyof EventTypesWithRequiredDetail>(
+    name: EventTypeRequiresDetail<T>,
+    options: SpEventInit<T>
+  ): GetCustomEventType<T>;
+  emit<T extends string & keyof ValidEventTypeMap>(
+    name: T,
+    options?: SpEventInit<T> | undefined
+  ): GetCustomEventType<T> {
+    const event = new CustomEvent(name, {
+      bubbles: true,
+      cancelable: false,
+      composed: true,
+      detail: {},
+      ...options,
+    });
+    this.dispatchEvent(event);
+    return event as GetCustomEventType<T>;
   }
 }

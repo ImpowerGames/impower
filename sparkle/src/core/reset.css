@@ -1,0 +1,31 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  pointer-events: none;
+  user-select: none;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  text-underline-offset: 3px;
+  background-size: cover;
+  overflow-x: visible;
+  overflow-y: visible;
+  overflow-wrap: break-word;
+  border: none;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  max-height: 100%;
+}
+*::-moz-focus-inner {
+  border: none;
+}
+*:focus {
+  outline: none;
+}
+*:focus-visible {
+  outline: none;
+}

@@ -15,14 +15,13 @@
   --text-weight: var(--s-font-weight-medium);
   --text-kerning: var(--s-letter-spacing-md);
   --text-wrap: nowrap;
-  --padding-t: 0.35em;
-  --padding-b: 0.35em;
-  --padding-l: 0.6em;
-  --padding-r: 0.6em;
-  --corner-tl: 8px;
-  --corner-tr: 8px;
-  --corner-br: 8px;
-  --corner-bl: 8px;
+  --height: 24px;
+  --padding-l: 8px;
+  --padding-r: 8px;
+  --corner-tl: 9999px;
+  --corner-tr: 9999px;
+  --corner-br: 9999px;
+  --corner-bl: 9999px;
 }
 
 .badge {
@@ -33,6 +32,7 @@
   color: var(--text-color);
   align-items: var(--layout-align);
   justify-content: var(--layout-justify);
+  height: var(--height);
   font-family: var(--text-font);
   font-size: var(--text-size);
   line-height: var(--text-leading);

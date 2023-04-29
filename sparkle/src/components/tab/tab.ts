@@ -1,7 +1,7 @@
 import SparkleElement from "../../core/sparkle-element";
 import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssSize } from "../../utils/getCssSize";
-import Ripple from "../ripple/ripple";
+import type Ripple from "../ripple/ripple";
 import css from "./tab.css";
 import html from "./tab.html";
 
@@ -12,14 +12,20 @@ styles.replaceSync(css);
  * Tabs are used to represent and activate panels.
  */
 export default class Tab extends SparkleElement {
-  static rippleTag = "s-ripple";
+  static dependencies = {
+    ripple: "s-ripple",
+  };
 
   static async define(
     tag = "s-tab",
-    rippleTag = "s-ripple"
+    dependencies = {
+      ripple: "s-ripple",
+    }
   ): Promise<CustomElementConstructor> {
     customElements.define(tag, this);
-    this.rippleTag = rippleTag;
+    if (dependencies) {
+      this.dependencies = dependencies;
+    }
     return customElements.whenDefined(tag);
   }
 
@@ -28,7 +34,7 @@ export default class Tab extends SparkleElement {
   }
 
   override get html(): string {
-    return html;
+    return html.replace(/s-ripple/g, Tab.dependencies.ripple);
   }
 
   static override get observedAttributes() {
@@ -60,7 +66,7 @@ export default class Tab extends SparkleElement {
   }
 
   get ripple(): Ripple | null {
-    return this.getElementByTag<Ripple>(Tab.rippleTag);
+    return this.getElementByTag<Ripple>(Tab.dependencies.ripple);
   }
 
   protected override attributeChangedCallback(

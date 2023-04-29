@@ -9,14 +9,20 @@ styles.replaceSync(css);
  * Collapsibles can be used to expand or collapse child buttons.
  */
 export default class Collapsible extends SparkleElement {
-  static buttonTag = "s-button";
+  static dependencies = {
+    button: "s-button",
+  };
 
   static async define(
     tag = "s-collapsible",
-    buttonTag = "s-button"
+    dependencies = {
+      button: "s-button",
+    }
   ): Promise<CustomElementConstructor> {
     customElements.define(tag, this);
-    this.buttonTag = buttonTag;
+    if (dependencies) {
+      this.dependencies = dependencies;
+    }
     return customElements.whenDefined(tag);
   }
 
@@ -39,14 +45,7 @@ export default class Collapsible extends SparkleElement {
     return this.getBooleanAttribute("collapsed");
   }
 
-  get labelEl(): HTMLElement | null {
-    return this.getElementByPart("label");
-  }
-
-  protected _buttonRoots: HTMLElement[] = [];
-  get buttonRoots(): HTMLElement[] {
-    return this._buttonRoots;
-  }
+  protected _buttonEl?: HTMLElement;
 
   protected override attributeChangedCallback(
     name: string,
@@ -70,35 +69,37 @@ export default class Collapsible extends SparkleElement {
   }
 
   protected updateCollapsed(): void {
-    this.buttonRoots.forEach((buttonRoot) => {
-      const rootEl = buttonRoot;
-      const labelEl = buttonRoot.querySelector<HTMLElement>(`.label`);
-      const labelRect = labelEl?.getBoundingClientRect();
-      if (labelEl && rootEl && labelRect) {
-        const width = labelRect.width;
-        if (this.collapsed) {
-          rootEl.style.transform = `translateX(${width}px)`;
-          rootEl.style.filter = "none";
-          labelEl.style.opacity = "0";
-        } else {
-          rootEl.style.transform = `translateX(0)`;
-          rootEl.style.filter = "none";
-          labelEl.style.opacity = "1";
-        }
+    const rootEl = this._buttonEl;
+    const labelEl = rootEl?.querySelector<HTMLElement>(`.label`);
+    const labelRect = labelEl?.getBoundingClientRect();
+    if (labelEl && rootEl && labelRect) {
+      const width = labelRect.width;
+      if (this.collapsed) {
+        rootEl.style.transform = `translateX(${width}px)`;
+        rootEl.style.filter = "none";
+        rootEl.style.margin = "0";
+        labelEl.style.opacity = "0";
+      } else {
+        rootEl.style.transform = `translateX(0)`;
+        rootEl.style.filter = "none";
+        rootEl.style.margin = "0";
+        labelEl.style.opacity = "1";
       }
-    });
+    }
   }
 
   protected handleContentSlotChange = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
     const elements = slot?.assignedElements?.();
     const buttons = elements.filter(
-      (el) => el.tagName.toLowerCase() === Collapsible.buttonTag
+      (el) => el.tagName.toLowerCase() === Collapsible.dependencies.button
     );
-    this._buttonRoots = buttons.map(
-      (el) => el.shadowRoot?.firstElementChild as HTMLElement
-    );
-    this.updateCollapsed();
+    const targetEl = buttons?.[0]?.shadowRoot?.firstElementChild as HTMLElement;
+    if (this._buttonEl !== targetEl) {
+      this._buttonEl = targetEl;
+      this.transferBorderStyle(targetEl);
+      this.updateCollapsed();
+    }
   };
 }
 

@@ -1,5 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
-import Tab from "../tab/tab";
+import type Tab from "../tab/tab";
 import css from "./tabs.css";
 import html from "./tabs.html";
 
@@ -10,14 +10,20 @@ styles.replaceSync(css);
  * Tabs indicate which child tab is currently active.
  */
 export default class Tabs extends SparkleElement {
-  static tabTag = "s-tab";
+  static dependencies = {
+    tab: "s-tab",
+  };
 
   static async define(
     tag = "s-tabs",
-    tabTag = "s-tab"
+    dependencies = {
+      tab: "s-tab",
+    }
   ): Promise<CustomElementConstructor> {
     customElements.define(tag, this);
-    this.tabTag = tabTag;
+    if (dependencies) {
+      this.dependencies = dependencies;
+    }
     return customElements.whenDefined(tag);
   }
 
@@ -69,6 +75,8 @@ export default class Tabs extends SparkleElement {
     return this.getElementByPart("indicator");
   }
 
+  protected _sizeObserver?: ResizeObserver;
+
   protected override attributeChangedCallback(
     name: string,
     oldValue: string,
@@ -85,6 +93,10 @@ export default class Tabs extends SparkleElement {
     this.navEl?.addEventListener("slotchange", this.handleNavSlotChange);
   }
 
+  protected override parsedCallback(): void {
+    super.parsedCallback();
+    this.observeSize();
+  }
   protected override disconnectedCallback(): void {
     super.disconnectedCallback();
     this.navEl?.removeEventListener("slotchange", this.handleNavSlotChange);
@@ -94,7 +106,7 @@ export default class Tabs extends SparkleElement {
   }
 
   updateIndicator = (tabElement: HTMLElement) => {
-    if (this.indicator !== "none") {
+    if (tabElement && this.indicator !== "none") {
       const indicator = this.indicatorEl;
       const vertical = this.vertical;
       const navRect = this.navEl?.getBoundingClientRect();
@@ -138,6 +150,21 @@ export default class Tabs extends SparkleElement {
     this.updateTabs();
   };
 
+  observeSize() {
+    if (this._sizeObserver) {
+      this._sizeObserver.disconnect();
+    }
+    const observedEl = this.root;
+    if (observedEl) {
+      this._sizeObserver = new ResizeObserver(this.onSizeMutation);
+      this._sizeObserver.observe(observedEl);
+    }
+  }
+
+  protected onSizeMutation = () => {
+    this.updateTabs();
+  };
+
   protected handleNavSlotChange = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
     this._tabs.forEach((tab) => {
@@ -146,7 +173,9 @@ export default class Tabs extends SparkleElement {
     });
     this._tabs = slot
       ?.assignedElements?.()
-      .filter((el) => el.tagName.toLowerCase() === Tabs.tabTag) as Tab[];
+      .filter(
+        (el) => el.tagName.toLowerCase() === Tabs.dependencies.tab
+      ) as Tab[];
     this.updateTabs();
     this._tabs.forEach((tab) => {
       // Add listeners to new slotted tabs

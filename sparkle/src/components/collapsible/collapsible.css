@@ -2,13 +2,14 @@
   display: contents;
 }
 :host {
-  --scroll-x: clip;
-  --scroll-y: clip;
+  --overflow-x: clip;
+  --overflow-y: clip;
 }
 
 .collapsible {
-  overflow-x: var(--scroll-x);
-  overflow-y: var(--scroll-y);
+  display: flex;
+  overflow-x: var(--overflow-x);
+  overflow-y: var(--overflow-y);
 }
 
 .collapsible * {

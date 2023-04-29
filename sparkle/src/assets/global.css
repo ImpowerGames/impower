@@ -140,7 +140,7 @@
   --s-color-neutral-99: var(--s-color-gray-99);
 
   /* Surfaces */
-  --s-color-on-surface: var(--s-color-neutral-10);
+  --s-color-on-surface: var(--s-color-neutral-0);
 
   /*
    * Breakpoints
@@ -464,13 +464,13 @@
 
   /* Tooltips */
   --s-tooltip-border-radius: var(--s-border-radius-md);
-  --s-tooltip-background-color: var(--s-color-neutral-90);
-  --s-tooltip-color: var(--s-color-neutral-0);
+  --s-tooltip-background-color: var(--s-color-neutral-10);
+  --s-tooltip-color: var(--s-color-neutral-80);
   --s-tooltip-font-family: var(--s-font-sans);
   --s-tooltip-font-weight: var(--s-font-weight-normal);
   --s-tooltip-font-size: var(--s-font-size-sm);
   --s-tooltip-line-height: 1.4;
-  --s-tooltip-padding: var(--s-spacing-xxs) var(--s-spacing-xs);
+  --s-tooltip-padding: 4px 8px;
   --s-tooltip-arrow-size: 6px;
 
   /*

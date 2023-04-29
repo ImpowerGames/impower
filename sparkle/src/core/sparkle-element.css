@@ -1,42 +1,3 @@
-/* Reset */
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-* {
-  pointer-events: none;
-  user-select: none;
-  display: flex;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  text-underline-offset: 3px;
-  background-size: cover;
-  overflow-x: visible;
-  overflow-y: visible;
-  overflow-wrap: break-word;
-  border: none;
-}
-*::-moz-focus-inner {
-  border: none;
-}
-*:focus {
-  outline: none;
-}
-*:focus-visible {
-  outline: none;
-}
-
-/* States */
-
-.disabled * {
-  pointer-events: none;
-}
-
-/* Shared */
-
 :host(:first-child) {
   --transition: opacity, transform, filter;
   --background-color: var(--bg-color, hsl(0 100% 100% / 50%));
@@ -58,12 +19,14 @@
   --backdrop-filter: var(--brightness,) var(--contrast,)
   var(--saturate,) var(--grayscale,) var(--sepia,)
   var(--hue,) var(--invert,) var(--blur,);
-
-  display: contents;
 }
 
 :host([hidden]) {
   display: none !important;
+}
+
+.disabled * {
+  pointer-events: none;
 }
 
 .position {
@@ -74,14 +37,15 @@
   aspect-ratio: var(--aspect, 1/1);
 }
 
-.scroll-x {
-  overflow-x: var(--scroll-x, scroll);
+.overflow-x {
+  overflow-x: var(--overflow-x, scroll);
 }
-.scroll-y {
-  overflow-y: var(--scroll-y, scroll);
+.overflow-y {
+  overflow-y: var(--overflow-y, scroll);
 }
 
 .z {
+  position: var(--position, relative);
   z-index: var(--z, 1);
 }
 
@@ -231,8 +195,8 @@
 .layout-justify {
   justify-content: var(--layout-justify, center);
 }
-.layout-wrap {
-  flex-wrap: var(--layout-wrap, wrap);
+.layout-overflow {
+  flex-wrap: var(--layout-overflow, nowrap);
 }
 
 .expand {
@@ -266,7 +230,7 @@
 .text-size {
   font-size: var(--text-size, 1rem);
 }
-.text-size--height {
+.text-size--line-height {
   line-height: var(--text-size--height, 1.5);
 }
 
@@ -302,8 +266,11 @@
 .text-align {
   text-align: var(--text-align, center);
 }
-.text-wrap {
-  white-space: var(--text-wrap, pre-wrap);
+.text-overflow {
+  text-overflow: var(--text-overflow, clip);
+}
+.text-overflow--white-space {
+  white-space: var(--text-wrap, break-spaces);
 }
 .text-color {
   color: var(--text-color, white);
@@ -337,12 +304,12 @@
 }
 
 .border-width {
-  border-width: var(--border-width, 1);
   border-style: solid;
+  border-width: var(--border-width, 1);
 }
 .border-color {
-  border-color: var(--border-color, hsl(0 100% 100% / 50%));
   border-style: solid;
+  border-color: var(--border-color, hsl(0 100% 100% / 50%));
 }
 
 .shadow {

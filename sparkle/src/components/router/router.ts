@@ -87,10 +87,12 @@ export default class Router extends SparkleElement {
   protected override connectedCallback(): void {
     super.connectedCallback();
     this.slotEl?.addEventListener("slotchange", this.handleSlotChange);
-    window.setTimeout(() => {
-      this.observeValue();
-      this.loadTemplates();
-    });
+  }
+
+  protected override parsedCallback(): void {
+    super.parsedCallback();
+    this.observeValue();
+    this.loadTemplates();
   }
 
   protected override disconnectedCallback(): void {

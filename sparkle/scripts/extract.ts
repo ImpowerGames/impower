@@ -65,11 +65,17 @@ try {
           }
           if (member.kind === "field" && member.description) {
             const typeText = (member?.type?.text as string) || "";
+            const attr: {
+              name: string;
+              description: string;
+              values?: {
+                name: string;
+              }[];
+            } = {
+              name: normalize(member.name),
+              description: member.description,
+            };
             if (typeText === "boolean") {
-              const attr = {
-                name: normalize(member.name),
-                description: member.description,
-              };
               attributes.push(attr);
             } else {
               const matches = typeText.match(STRING_LITERAL_REGEX);
@@ -77,13 +83,14 @@ try {
                 const values = matches.map((name: string) => ({
                   name: normalize(name),
                 }));
-                const attr = {
-                  name: normalize(member.name),
-                  description: member.description,
-                  values,
-                };
+                if (values.length > 0) {
+                  attr.values = values;
+                }
                 attributes.push(attr);
               }
+            }
+            if (member.summary) {
+              attributes.push({ ...attr, name: member.summary });
             }
           }
         });

@@ -1,6 +1,9 @@
 import { getCssUnit } from "./getCssUnit";
 
 export const getCssSize = (value: string): string => {
+  if (value === "none") {
+    return "0";
+  }
   if (value === "") {
     return "8px";
   }
@@ -19,5 +22,5 @@ export const getCssSize = (value: string): string => {
   if (value === "xl") {
     return "24px";
   }
-  return getCssUnit(value, "px");
+  return getCssUnit(`${value}`, "px");
 };

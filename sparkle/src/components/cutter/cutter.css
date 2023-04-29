@@ -9,6 +9,7 @@
 }
 
 .content {
+  display: flex;
   clip-path: polygon(
     0 var(--corner-tl, var(--corner)),
     var(--corner-tl, var(--corner)) 0,

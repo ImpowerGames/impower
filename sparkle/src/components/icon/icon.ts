@@ -28,7 +28,6 @@ export default class Icon extends SparkleElement {
   static override get observedAttributes() {
     return [
       ...super.observedAttributes,
-      "aria-label",
       "icon",
       "fill",
       "size",

@@ -63,9 +63,16 @@
   color: var(--color);
 }
 
+.icon,
+.label {
+  display: flex;
+  align-items: var(--layout-align);
+  justify-content: var(--layout-justify);
+}
+
 :host([icon]) .label,
 :host([spacing]) .label {
-  padding-top: var(--spacing, 4px);
+  padding-top: var(--spacing, 6px);
 }
 
 :host([icon]) .label {
@@ -73,16 +80,16 @@
   transition-duration: var(--duration, 100ms);
 }
 :host([icon][active]:not([disabled])) .label {
-  transform: scale(1);
+  transform: scale(0.95);
   transition-duration: var(--duration, 100ms);
 }
 
 :host([icon]) .icon {
-  transform: scale(0.9);
+  transform: scale(1);
   transition-duration: var(--duration, 100ms);
 }
 :host([icon][active]:not([disabled])) .icon {
-  transform: scale(1);
+  transform: scale(1.05);
   transition-duration: var(--duration, 100ms);
 }
 

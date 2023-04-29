@@ -5,8 +5,9 @@
  * Released under the Apache-2.0 license.
  */
 
-import { EASINGS } from "../../animations/easings.js";
+import { EASINGS } from "../../constants/EASINGS.js";
 import SparkleElement from "../../core/sparkle-element.js";
+import { getCssColor } from "../../utils/getCssColor.js";
 import { getDimensions } from "../../utils/getDimensions.js";
 import css from "./ripple.css";
 import html from "./ripple.html";
@@ -92,7 +93,13 @@ export default class Ripple extends SparkleElement {
   }
 
   static override get observedAttributes() {
-    return [...super.observedAttributes, "disabled"];
+    return [
+      ...super.observedAttributes,
+      "disabled",
+      "focus-color",
+      "hover-color",
+      "press-color",
+    ];
   }
 
   private _hovered = false;
@@ -142,6 +149,15 @@ export default class Ripple extends SparkleElement {
         this.focused = false;
         this.pressed = false;
       }
+    }
+    if (name === "focus-color") {
+      this.updateRootStyle("--focus-color", getCssColor(newValue));
+    }
+    if (name === "hover-color") {
+      this.updateRootStyle("--hover-color", getCssColor(newValue));
+    }
+    if (name === "press-color") {
+      this.updateRootStyle("--press-color", getCssColor(newValue));
     }
   }
 

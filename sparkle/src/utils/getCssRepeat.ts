@@ -1,5 +1,8 @@
-export const getCssRepeat = (value: string): string => {
-  if (value === "none" || value === "norepeat") {
+export const getCssRepeat = (value: boolean | string): string => {
+  if (value === true) {
+    return "repeat";
+  }
+  if (value === false || value === "none" || value === "norepeat") {
     return "no-repeat";
   }
   if (value === "x") {

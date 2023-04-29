@@ -1,0 +1,64 @@
+:host {
+  display: contents;
+}
+:host {
+  --max-width: 20rem;
+  --hide-delay: 0ms;
+  --show-delay: 75ms;
+  --interactable: none;
+  --width: max-content;
+  --z: var(--s-z-index-tooltip);
+  --bg-color: var(--s-tooltip-background-color);
+  --text-font: var(--s-tooltip-font-family);
+  --text-size: var(--s-tooltip-font-size);
+  --text-weight: var(--s-tooltip-font-weight);
+  --text-leading: var(--s-tooltip-line-height);
+  --text-color: var(--s-tooltip-color);
+  --padding: var(--s-tooltip-padding);
+  --corner: var(--s-tooltip-border-radius);
+}
+
+.anchor {
+  display: flex;
+}
+
+.body {
+  display: flex;
+  pointer-events: var(--interactable);
+  width: var(--width);
+  max-width: var(--max-width);
+  background-color: var(--bg-color);
+  font-family: var(--text-font);
+  font-size: var(--text-size);
+  font-weight: var(--text-weight);
+  line-height: var(--text-leading);
+  color: var(--text-color);
+  padding: var(--padding);
+  border-radius: var(--corner);
+}
+
+.tooltip {
+  --arrow-size: var(--s-tooltip-arrow-size);
+  --arrow-color: var(--s-tooltip-background-color);
+}
+
+.tooltip::part(popup) {
+  pointer-events: none;
+  z-index: var(--z);
+}
+
+:host([placement^="top"]) .tooltip::part(popup) {
+  transform-origin: bottom;
+}
+
+:host([placement^="bottom"]) .tooltip::part(popup) {
+  transform-origin: top;
+}
+
+:host([placement^="left"]) .tooltip::part(popup) {
+  transform-origin: right;
+}
+
+:host([placement^="right"]) .tooltip::part(popup) {
+  transform-origin: left;
+}

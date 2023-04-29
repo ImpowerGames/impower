@@ -1,7 +1,8 @@
 import SparkleElement from "../../core/sparkle-element";
 import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssSize } from "../../utils/getCssSize";
-import Ripple from "../ripple/ripple";
+import type Ripple from "../ripple/ripple";
+import type Spinner from "../spinner/spinner";
 import css from "./button.css";
 import html from "./button.html";
 
@@ -12,18 +13,24 @@ styles.replaceSync(css);
  * Buttons represent actions that are available to the user.
  */
 export default class Button extends SparkleElement {
-  static badgeTag = "s-tab";
-
-  static rippleTag = "s-ripple";
+  static dependencies = {
+    badge: "s-badge",
+    spinner: "s-spinner",
+    ripple: "s-ripple",
+  };
 
   static async define(
     tag = "s-button",
-    badgeTag = "s-badge",
-    rippleTag = "s-ripple"
+    dependencies = {
+      badge: "s-badge",
+      spinner: "s-spinner",
+      ripple: "s-ripple",
+    }
   ): Promise<CustomElementConstructor> {
     customElements.define(tag, this);
-    this.badgeTag = badgeTag;
-    this.rippleTag = rippleTag;
+    if (dependencies) {
+      this.dependencies = dependencies;
+    }
     return customElements.whenDefined(tag);
   }
 
@@ -32,15 +39,18 @@ export default class Button extends SparkleElement {
   }
 
   override get html(): string {
-    return this.href
-      ? html.replace("<button ", "<a ").replace("</button>", "</a>")
-      : html;
+    return (
+      this.href
+        ? html.replace("<button ", "<a ").replace("</button>", "</a>")
+        : html
+    )
+      .replace(/s-spinner/g, Button.dependencies.spinner)
+      .replace(/s-ripple/g, Button.dependencies.ripple);
   }
 
   static override get observedAttributes() {
     return [
       ...super.observedAttributes,
-      "aria-label",
       "aria-expanded",
       "aria-haspopup",
       "href",
@@ -74,6 +84,15 @@ export default class Button extends SparkleElement {
   }
 
   /**
+   * The size of the button.
+   *
+   * Default is `md`.
+   */
+  get size(): "xs" | "sm" | "md" | "lg" | null {
+    return this.getStringAttribute("size");
+  }
+
+  /**
    * The spacing between the icon and the label
    */
   get spacing(): string | null {
@@ -91,8 +110,12 @@ export default class Button extends SparkleElement {
     return this.getElementByPart("label");
   }
 
+  get spinner(): Spinner | null {
+    return this.getElementByTag<Spinner>(Button.dependencies.spinner);
+  }
+
   get ripple(): Ripple | null {
-    return this.getElementByTag<Ripple>(Button.rippleTag);
+    return this.getElementByTag<Ripple>(Button.dependencies.ripple);
   }
 
   protected override attributeChangedCallback(
@@ -106,6 +129,13 @@ export default class Button extends SparkleElement {
         this.ripple?.setAttribute("disabled", "");
       } else {
         this.ripple?.removeAttribute("disabled");
+      }
+    }
+    if (name === "loading") {
+      if (newValue != null) {
+        this.spinner?.setAttribute("position", "absolute");
+      } else {
+        this.spinner?.removeAttribute("position");
       }
     }
     if (name === "aria-haspopup") {
@@ -150,7 +180,7 @@ export default class Button extends SparkleElement {
     const slot = e.currentTarget as HTMLSlotElement;
     const nodes = slot?.assignedNodes?.();
     nodes.forEach((node) => {
-      if (node.nodeName.toLowerCase() === Button.badgeTag) {
+      if (node.nodeName.toLowerCase() === Button.dependencies.badge) {
         const el = node as HTMLElement;
         el.setAttribute("float", this.getAttribute("rtl") ? "left" : "right");
       }

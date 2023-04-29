@@ -1,8 +1,8 @@
-export const getCssLayoutAlign = (value: string): string => {
-  if (value === "") {
+export const getCssLayoutAlign = (value: boolean | string): string => {
+  if (value === true || value === "") {
     return "center";
   }
-  if (value === "start") {
+  if (value === false || value === "start") {
     return "flex-start";
   }
   if (value === "end") {

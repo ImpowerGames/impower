@@ -3,8 +3,8 @@
 }
 :host {
   --position: relative;
-  --scroll-x: clip;
-  --scroll-y: clip;
+  --overflow-x: clip;
+  --overflow-y: clip;
   --height: 0.25rem;
   --shadow-inset: inset var(--s-shadow-sm);
   --text-font: var(--s-font-sans);
@@ -17,8 +17,8 @@
 
 .progress-bar {
   position: var(--position);
-  overflow-x: var(--scroll-x);
-  overflow-y: var(--scroll-y);
+  overflow-x: var(--overflow-x);
+  overflow-y: var(--overflow-y);
   height: var(--height);
   box-shadow: var(--shadow-inset);
   font-family: var(--text-font);

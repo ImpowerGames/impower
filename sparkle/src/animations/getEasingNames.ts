@@ -1,4 +1,4 @@
-import { EASINGS } from "./easings";
+import { EASINGS } from "../constants/EASINGS";
 
 /** Gets a list of all supported easing function names. */
 export const getEasingNames = () => {

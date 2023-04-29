@@ -2,11 +2,11 @@
   display: contents;
 }
 :host {
-  --focus-color: var(--s-color-on-surface);
+  --focus-color: var(--text-color);
   --focus-opacity: var(--s-focus-state-layer-opacity);
-  --hover-color: var(--s-color-on-surface);
+  --hover-color: var(--text-color);
   --hover-opacity: var(--s-hover-state-layer-opacity);
-  --press-color: var(--s-color-on-surface);
+  --press-color: var(--text-color);
   --press-opacity: var(--s-press-state-layer-opacity);
 }
 

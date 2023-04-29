@@ -1,10 +1,23 @@
+import Badge from "./src/components/badge/badge";
+import Box from "./src/components/box/box";
+import Button from "./src/components/button/button";
+import Collapsible from "./src/components/collapsible/collapsible";
+import Cutter from "./src/components/cutter/cutter";
+import Divider from "./src/components/divider/divider";
+import Icon from "./src/components/icon/icon";
+import Popup from "./src/components/popup/popup";
+import ProgressBar from "./src/components/progress-bar/progress-bar";
+import ProgressCircle from "./src/components/progress-circle/progress-circle";
+import Ripple from "./src/components/ripple/ripple";
+import Router from "./src/components/router/router";
+import Skeleton from "./src/components/skeleton/skeleton";
+import Spinner from "./src/components/spinner/spinner";
+import Tab from "./src/components/tab/tab";
+import Tabs from "./src/components/tabs/tabs";
+import Tooltip from "./src/components/tooltip/tooltip";
+
 export { getAnimationNames } from "./src/animations/getAnimationNames";
 export { getEasingNames } from "./src/animations/getEasingNames";
-/* Components */
-export { default as SpDivider } from "./src/components/divider/divider";
-export { default as SpIcon } from "./src/components/icon/icon";
-export { default as SpProgressBar } from "./src/components/progress-bar/progress-bar";
-export { default as SpProgressCircle } from "./src/components/progress-circle/progress-circle";
 /* Events */
 export { default as SpAfterCollapseEvent } from "./src/events/after-collapse";
 export { default as SpAfterExpandEvent } from "./src/events/after-expand";
@@ -40,3 +53,27 @@ export { default as SpSlideChange } from "./src/events/slide-change";
 export { default as SpStartEvent } from "./src/events/start";
 export { default as SpTabHideEvent } from "./src/events/tab-hide";
 export { default as SpTabShowEvent } from "./src/events/tab-show";
+
+export default class Sparkle {
+  static async define(): Promise<CustomElementConstructor[]> {
+    return Promise.all([
+      Box.define(),
+      Icon.define(),
+      Popup.define(),
+      Divider.define(),
+      ProgressBar.define(),
+      ProgressCircle.define(),
+      Ripple.define(),
+      Spinner.define(),
+      Skeleton.define(),
+      Badge.define(),
+      Cutter.define(),
+      Collapsible.define(),
+      Button.define(),
+      Tab.define(),
+      Tabs.define(),
+      Tooltip.define(),
+      Router.define(),
+    ]);
+  }
+}

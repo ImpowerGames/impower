@@ -1,0 +1,22 @@
+<s-popup
+  class="tooltip"
+  part="root"
+  distance="8"
+  exportparts="popup arrow"
+  flip
+  shift
+>
+  <slot
+    class="anchor"
+    part="anchor"
+    slot="anchor"
+    aria-describedby="tooltip"
+  ></slot>
+  <slot
+    class="body"
+    part="body"
+    name="content"
+    id="tooltip"
+    role="tooltip"
+  ></slot>
+</s-popup>
