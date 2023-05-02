@@ -1296,7 +1296,7 @@ export default class SparkleElement extends HTMLElement {
         if (className === "text-overflow") {
           // Setting text-overflow should also set white-space
           this.updateStyleAttribute(
-            "text-overflow--white-space",
+            "text-wrap",
             newValue,
             getCssTextWhiteSpace
           );

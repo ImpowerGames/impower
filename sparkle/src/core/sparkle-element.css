@@ -278,8 +278,8 @@
 .text-overflow {
   text-overflow: var(--text-overflow, clip);
 }
-.text-overflow--white-space {
-  white-space: var(--text-overflow--white-space, break-spaces);
+.text-wrap {
+  white-space: var(--text-wrap, break-spaces);
 }
 .text-color {
   color: var(--text-color, white);

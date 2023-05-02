@@ -10,7 +10,7 @@
   --interactable: auto;
   --selectable: none;
   --width: auto;
-  --text-font: var(--sp-font-sans);
+  --text-font: var(--s-font-sans);
   --text-wrap: nowrap;
   --transition: transform, background-color, color, border, filter;
   --duration: 100ms;

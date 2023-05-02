@@ -11,7 +11,6 @@ import ProgressCircle from "./src/components/progress-circle/progress-circle";
 import Ripple from "./src/components/ripple/ripple";
 import Router from "./src/components/router/router";
 import Skeleton from "./src/components/skeleton/skeleton";
-import Spinner from "./src/components/spinner/spinner";
 import SplitLayout from "./src/components/split-layout/split-layout";
 import Tab from "./src/components/tab/tab";
 import Tabs from "./src/components/tabs/tabs";
@@ -67,7 +66,6 @@ export const DEFAULT_SPARKLE_TAGS = {
   "s-progress-bar": "s-progress-bar",
   "s-progress-circle": "s-progress-circle",
   "s-ripple": "s-ripple",
-  "s-spinner": "s-spinner",
   "s-skeleton": "s-skeleton",
   "s-badge": "s-badge",
   "s-cutter": "s-cutter",
@@ -92,7 +90,6 @@ export default class Sparkle {
       ProgressBar.define(tags["s-progress-bar"], tags),
       ProgressCircle.define(tags["s-progress-circle"], tags),
       Ripple.define(tags["s-ripple"], tags),
-      Spinner.define(tags["s-spinner"], tags),
       Skeleton.define(tags["s-skeleton"], tags),
       Badge.define(tags["s-badge"], tags),
       Cutter.define(tags["s-cutter"], tags),

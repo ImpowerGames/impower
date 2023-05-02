@@ -13,6 +13,8 @@
   --text-color: var(--s-color-neutral-0);
   --bg-color: var(--s-color-neutral-30);
   --color: var(--s-color-primary-70);
+  --speed: 2.5s;
+  --duration: 400ms;
 }
 
 .progress-bar {
@@ -51,17 +53,17 @@
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
-  transition: 400ms width, 400ms background-color;
+  transition-property: width, background-color;
+  transition-duration: var(--duration), var(--duration);
   user-select: none;
 }
 
-/* Indeterminate */
-.progress-bar[indeterminate] .indicator {
+:host(:not([value])) .indicator {
   position: absolute;
-  animation: indeterminate 2.5s infinite cubic-bezier(0.37, 0, 0.63, 1);
+  animation: indeterminate var(--speed) infinite cubic-bezier(0.37, 0, 0.63, 1);
 }
 
-.progress-bar[indeterminate][rtl] .indicator {
+:host([rtl]:not([value])) .indicator {
   animation-name: indeterminate-rtl;
 }
 

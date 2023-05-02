@@ -1,8 +1,8 @@
 import SparkleElement from "../../core/sparkle-element";
 import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssSize } from "../../utils/getCssSize";
+import type ProgressCircle from "../progress-circle/progress-circle";
 import type Ripple from "../ripple/ripple";
-import type Spinner from "../spinner/spinner";
 import css from "./button.css";
 import html from "./button.html";
 
@@ -11,7 +11,7 @@ styles.replaceSync(css);
 
 export const DEFAULT_BUTTON_DEPENDENCIES = {
   "s-badge": "s-badge",
-  "s-spinner": "s-spinner",
+  "s-progress-circle": "s-progress-circle",
   "s-ripple": "s-ripple",
 };
 
@@ -103,8 +103,10 @@ export default class Button extends SparkleElement {
     return this.getElementByClass("label");
   }
 
-  get spinner(): Spinner | null {
-    return this.getElementByTag<Spinner>(Button.dependencies["s-spinner"]);
+  get progressCircle(): ProgressCircle | null {
+    return this.getElementByTag<ProgressCircle>(
+      Button.dependencies["s-progress-circle"]
+    );
   }
 
   get ripple(): Ripple | null {
@@ -122,13 +124,6 @@ export default class Button extends SparkleElement {
         this.ripple?.setAttribute("disabled", "");
       } else {
         this.ripple?.removeAttribute("disabled");
-      }
-    }
-    if (name === "loading") {
-      if (newValue != null) {
-        this.spinner?.setAttribute("position", "absolute");
-      } else {
-        this.spinner?.removeAttribute("position");
       }
     }
     if (name === "aria-haspopup") {

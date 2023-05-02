@@ -1,4 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
+import { getCssColor } from "../../utils/getCssColor";
+import { getCssDuration } from "../../utils/getCssDuration";
 import { getCssSize } from "../../utils/getCssSize";
 import css from "./progress-circle.css";
 import html from "./progress-circle.html";
@@ -7,7 +9,7 @@ const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
 /**
- * Progress circles are used to show the progress of a determinate operation in a circular fashion.
+ * Progress circles are used to show the progress of an operation in a circular fashion.
  */
 export default class ProgressCircle extends SparkleElement {
   static override async define(
@@ -26,7 +28,14 @@ export default class ProgressCircle extends SparkleElement {
   }
 
   static override get observedAttributes() {
-    return [...super.observedAttributes, "value", "size"];
+    return [
+      ...super.observedAttributes,
+      "value",
+      "size",
+      "track-width",
+      "track-color",
+      "speed",
+    ];
   }
 
   /**
@@ -43,6 +52,35 @@ export default class ProgressCircle extends SparkleElement {
     return this.getStringAttribute("size");
   }
 
+  /**
+   * The width of the track.
+   */
+  get trackWidth(): string | null {
+    return this.getStringAttribute("track-width");
+  }
+
+  /**
+   * The color of the track.
+   */
+  get trackColor(): string | null {
+    return this.getStringAttribute("track-color");
+  }
+
+  /**
+   * The speed of the animation.
+   */
+  get speed(): string | null {
+    return this.getStringAttribute("speed");
+  }
+
+  get indicatorEl(): HTMLElement | null {
+    return this.getElementByClass("indicator");
+  }
+
+  get labelEl(): HTMLElement | null {
+    return this.getElementByClass("label");
+  }
+
   protected override attributeChangedCallback(
     name: string,
     oldValue: string,
@@ -51,21 +89,30 @@ export default class ProgressCircle extends SparkleElement {
     super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "value") {
       this.updateRootAttribute("aria-valuenow", newValue);
-      const indicator = this.getElementByClass("indicator");
-      if (indicator) {
-        const numberValue = Number(newValue);
-        const radius = parseFloat(
-          getComputedStyle(indicator).getPropertyValue("r")
-        );
-        const circumference = 2 * Math.PI * radius;
-        const offset = circumference - (numberValue / 100) * circumference;
-        const indicatorOffset = `${offset}px`;
-        indicator.style.strokeDashoffset = indicatorOffset;
-        this.updateRootStyle("--percentage", String(numberValue / 100));
+      const numberValue = newValue.endsWith("%")
+        ? Number(newValue.replace("%", ""))
+        : Number(newValue);
+      this.updateRootStyle("--percentage", String(numberValue / 100));
+      const labelEl = this.labelEl;
+      if (labelEl) {
+        if (newValue != null) {
+          labelEl.textContent = `${numberValue}%`;
+        } else {
+          labelEl.textContent = "";
+        }
       }
     }
     if (name === "size") {
       this.updateRootStyle("--size", getCssSize(newValue));
+    }
+    if (name === "track-width") {
+      this.updateRootStyle("--track-width", getCssSize(newValue));
+    }
+    if (name === "track-color") {
+      this.updateRootStyle("--track-color", getCssColor(newValue));
+    }
+    if (name === "speed") {
+      this.updateRootStyle("--speed", getCssDuration(newValue));
     }
   }
 }

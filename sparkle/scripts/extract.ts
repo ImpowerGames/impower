@@ -10,6 +10,9 @@ export const camelCaseToKebabCase = (str: string): string => {
 };
 
 export const normalize = (str: string): string => {
+  if (!str) {
+    return str;
+  }
   const strippedStr = str.startsWith("_") ? str.slice(1) : str;
   return camelCaseToKebabCase(strippedStr.replace(QUOTE_REGEX, ""));
 };
@@ -57,13 +60,16 @@ try {
           if (member.kind === "method" && member.name === "define") {
             if (member.parameters) {
               member.parameters.forEach((parameter: any) => {
-                if (parameter.name === "tag" || parameter.name === "tagName") {
-                  name = normalize(parameter?.default);
+                if (
+                  (parameter.name === "tag" || parameter.name === "tagName") &&
+                  parameter.default
+                ) {
+                  name = normalize(parameter.default);
                 }
               });
             }
           }
-          if (member.kind === "field" && member.description) {
+          if (member.kind === "field" && member.description && member.name) {
             const typeText = (member?.type?.text as string) || "";
             const attr: {
               name: string;

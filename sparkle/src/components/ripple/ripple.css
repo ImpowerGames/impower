@@ -40,8 +40,9 @@
 
 .ripple::before {
   background-color: var(--hover-color);
-  transition: opacity var(--hover-duration) linear,
-    background-color var(--hover-duration) linear;
+  transition-property: opacity, background-color;
+  transition-duration: var(--hover-duration), var(--hover-duration);
+  transition-timing-function: linear, linear;
   inset: 0;
 }
 
@@ -51,7 +52,9 @@
     var(--press-color) max(calc(100% - 70px), var(--min-color-stop-length)),
     transparent 100%
   );
-  transition: opacity var(--ripple-duration) linear;
+  transition-property: opacity;
+  transition-duration: var(--ripple-duration);
+  transition-timing-function: linear;
   transform-origin: center center;
 }
 

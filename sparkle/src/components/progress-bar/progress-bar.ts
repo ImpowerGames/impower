@@ -26,12 +26,7 @@ export default class ProgressBar extends SparkleElement {
   }
 
   static override get observedAttributes() {
-    return [
-      ...super.observedAttributes,
-      "value",
-      "indeterminate",
-      "label-color",
-    ];
+    return [...super.observedAttributes, "value", "label-color"];
   }
 
   /**
@@ -39,13 +34,6 @@ export default class ProgressBar extends SparkleElement {
    */
   get value(): string | null {
     return this.getStringAttribute("value");
-  }
-
-  /**
-   * When true, percentage is ignored, the label is hidden, and the progress bar is drawn in an indeterminate state.
-   */
-  get indeterminate(): boolean {
-    return this.getBooleanAttribute("indeterminate");
   }
 
   /**

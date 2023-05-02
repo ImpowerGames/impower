@@ -2,71 +2,105 @@
   display: contents;
 }
 :host {
+  --percentage: 0;
+  --size: 1em;
+  --bg-color: var(--s-color-neutral-30);
+  --color: var(--s-color-primary-70);
   --position: relative;
   --child-justify: center;
   --child-align: center;
-  --bg-color: var(--s-color-neutral-30);
-  --color: var(--s-color-primary-70);
-  --size: 128px;
-  --track-width: 4px;
+  --track-width: 2px;
   --indicator-width: var(--track-width);
-  --indicator-transition-duration: 0.35s;
+  --duration: 0.35s;
+  --speed: 2s;
+  --text-font: var(--s-font-sans);
+  --text-size: var(--s-text-xs-font-size);
+  --text-leading: var(--s-text-xs-line-height);
 }
 
 .progress-circle {
-  display: flex;
+  --width: var(--size);
+  --height: var(--size);
+  --radius: calc(var(--width) / 2);
+  --circumference: calc(var(--width) * 3.141592654);
+}
+
+.progress-circle {
   position: var(--position);
-  justify-content: var(--child-justify);
-  align-items: var(--child-align);
+  width: var(--width);
+  height: var(--height);
+  display: flex;
+  justify-content: center;
+  align-items: center;
   background-color: transparent;
 }
 
-.image {
-  width: var(--size);
-  height: var(--size);
-  rotate: -90deg;
+.label {
+  display: flex;
+  justify-content: var(--child-justify);
+  align-items: var(--child-align);
+  font-family: var(--text-font);
+  font-size: var(--text-size);
+  line-height: var(--text-leading);
+}
+
+.circle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  transform: rotateZ(-90deg);
   transform-origin: 50% 50%;
 }
 
 .track,
 .indicator {
-  --radius: calc(
-    var(--size) / 2 - max(var(--track-width), var(--indicator-width)) * 0.5
-  );
-  --circumference: calc(var(--radius) * 2 * 3.141592654);
-
   fill: none;
-  r: var(--radius);
-  cx: calc(var(--size) / 2);
-  cy: calc(var(--size) / 2);
+  stroke-width: var(--track-width);
+  r: calc(var(--radius) - var(--track-width) / 2);
+  cx: var(--radius);
+  cy: var(--radius);
 }
 
 .track {
   stroke: var(--bg-color);
-  stroke-width: var(--track-width);
+  transform-origin: 0% 0%;
 }
 
 .indicator {
   stroke: var(--color);
-  stroke-width: var(--indicator-width);
   stroke-linecap: round;
+  transform-origin: 50% 50%;
+}
+
+:host([value]) .indicator {
   transition-property: stroke-dashoffset;
-  transition-duration: var(--indicator-transition-duration);
+  transition-duration: var(--duration);
   stroke-dasharray: var(--circumference) var(--circumference);
   stroke-dashoffset: calc(
     var(--circumference) - var(--percentage) * var(--circumference)
   );
 }
 
-.label {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  text-align: center;
-  user-select: none;
+:host(:not([value])) .indicator {
+  stroke-dasharray: 150% 75%;
+  animation: indeterminate var(--speed) linear infinite;
+}
+
+@keyframes indeterminate {
+  0% {
+    transform: rotate(0deg);
+    stroke-dasharray: 5%, 275%;
+  }
+
+  50% {
+    transform: rotate(450deg);
+    stroke-dasharray: 137%, 137%;
+  }
+
+  100% {
+    transform: rotate(1080deg);
+    stroke-dasharray: 5%, 275%;
+  }
 }
