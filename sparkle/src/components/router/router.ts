@@ -12,17 +12,19 @@ styles.replaceSync(css);
  * All other children are unloaded.
  */
 export default class Router extends SparkleElement {
-  static async define(tag = "s-router"): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    return customElements.whenDefined(tag);
-  }
-
-  override get styles(): CSSStyleSheet[] {
-    return [styles];
+  static override async define(
+    tag = "s-router",
+    dependencies?: Record<string, string>
+  ): Promise<CustomElementConstructor> {
+    return super.define(tag, dependencies);
   }
 
   override get html(): string {
     return html;
+  }
+
+  override get styles(): CSSStyleSheet[] {
+    return [styles];
   }
 
   static override get observedAttributes() {
@@ -63,11 +65,11 @@ export default class Router extends SparkleElement {
   }
 
   get contentEl(): HTMLElement | null {
-    return this.getElementByPart("content");
+    return this.getElementByClass("content");
   }
 
-  get slotEl(): HTMLElement | null {
-    return this.getElementByPart("templates");
+  get templatesSlot(): HTMLSlotElement | null {
+    return this.getElementByClass("templates");
   }
 
   protected _templates: HTMLTemplateElement[] = [];
@@ -86,7 +88,7 @@ export default class Router extends SparkleElement {
 
   protected override connectedCallback(): void {
     super.connectedCallback();
-    this.slotEl?.addEventListener("slotchange", this.handleSlotChange);
+    this.templatesSlot?.addEventListener("slotchange", this.handleSlotChange);
   }
 
   protected override parsedCallback(): void {
@@ -97,7 +99,10 @@ export default class Router extends SparkleElement {
 
   protected override disconnectedCallback(): void {
     super.disconnectedCallback();
-    this.slotEl?.removeEventListener("slotchange", this.handleSlotChange);
+    this.templatesSlot?.removeEventListener(
+      "slotchange",
+      this.handleSlotChange
+    );
   }
 
   loadTemplates() {

@@ -1,4 +1,4 @@
-export const getCssJustify = (value: string): string => {
+export const getCssChildJustify = (value: string): string => {
   if (value === "start") {
     return "flex-start";
   }

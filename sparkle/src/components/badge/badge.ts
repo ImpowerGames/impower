@@ -9,17 +9,19 @@ styles.replaceSync(css);
  * Badges are used to draw attention and display statuses or counts.
  */
 export default class Badge extends SparkleElement {
-  static async define(tag = "s-badge"): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    return customElements.whenDefined(tag);
-  }
-
-  override get styles(): CSSStyleSheet[] {
-    return [styles];
+  static override async define(
+    tag = "s-badge",
+    dependencies?: Record<string, string>
+  ): Promise<CustomElementConstructor> {
+    return super.define(tag, dependencies);
   }
 
   override get html(): string {
     return html;
+  }
+
+  override get styles(): CSSStyleSheet[] {
+    return [styles];
   }
 
   static override get observedAttributes() {

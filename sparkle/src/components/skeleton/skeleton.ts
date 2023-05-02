@@ -10,17 +10,19 @@ styles.replaceSync(css);
  * Skeletons are used to provide a visual representation of where content will eventually be drawn.
  */
 export default class Skeleton extends SparkleElement {
-  static async define(tag = "s-skeleton"): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    return customElements.whenDefined(tag);
-  }
-
-  override get styles(): CSSStyleSheet[] {
-    return [styles];
+  static override async define(
+    tag = "s-skeleton",
+    dependencies?: Record<string, string>
+  ): Promise<CustomElementConstructor> {
+    return super.define(tag, dependencies);
   }
 
   override get html(): string {
     return html;
+  }
+
+  override get styles(): CSSStyleSheet[] {
+    return [styles];
   }
 
   static override get observedAttributes() {

@@ -33,7 +33,7 @@ const webConfig = {
     copy({
       resolveFrom: "cwd",
       assets: {
-        from: ["./src/assets/**"],
+        from: ["./src/fonts"],
         to: [outdir],
       },
     }),

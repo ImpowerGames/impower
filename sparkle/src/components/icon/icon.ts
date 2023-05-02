@@ -12,17 +12,19 @@ styles.replaceSync(css);
  * Icons are symbols that can be used to represent various options within an application.
  */
 export default class Icon extends SparkleElement {
-  static async define(tag = "s-icon"): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    return customElements.whenDefined(tag);
-  }
-
-  override get styles(): CSSStyleSheet[] {
-    return [styles];
+  static override async define(
+    tag = "s-icon",
+    dependencies?: Record<string, string>
+  ): Promise<CustomElementConstructor> {
+    return super.define(tag, dependencies);
   }
 
   override get html(): string {
     return html;
+  }
+
+  override get styles(): CSSStyleSheet[] {
+    return [styles];
   }
 
   static override get observedAttributes() {

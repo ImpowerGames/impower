@@ -24,16 +24,38 @@ const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
 export default class SparkleElement extends HTMLElement {
-  get styles(): CSSStyleSheet[] {
-    return [];
+  private static _dependencies: Record<string, string> = {};
+  static get dependencies(): Record<string, string> {
+    return this._dependencies;
+  }
+  static set dependencies(value: Record<string, string>) {
+    this._dependencies = value;
+  }
+
+  /**
+   * Defines this component with the specified tag name.
+   *
+   * @param tag - the tag name to use for this component.
+   * @param dependencies - the tag names to use for the dependencies of this component.
+   * @returns a promise that resolves when the named element is finished being defined.
+   */
+  static async define(
+    tag: string,
+    dependencies?: Record<string, string>
+  ): Promise<CustomElementConstructor> {
+    if (dependencies) {
+      this.dependencies = dependencies;
+    }
+    customElements.define(tag, this);
+    return customElements.whenDefined(tag);
   }
 
   get html(): string {
     return html;
   }
 
-  get root(): HTMLElement {
-    return this.shadowRoot?.firstElementChild as HTMLElement;
+  get styles(): CSSStyleSheet[] {
+    return [];
   }
 
   static get observedAttributes() {
@@ -49,6 +71,10 @@ export default class SparkleElement extends HTMLElement {
 
   get aliases(): Record<string, string> {
     return STYLE_ALIASES;
+  }
+
+  get root(): HTMLElement {
+    return this.shadowRoot?.firstElementChild as HTMLElement;
   }
 
   /**
@@ -454,8 +480,13 @@ export default class SparkleElement extends HTMLElement {
   /**
    * Sets the `flex-direction` of this element so that its children are arranged in either a row or column.
    */
-  get _layout(): "row" | "column" | "row-reverse" | "column-reverse" | null {
-    return this.getStringAttribute("layout");
+  get _childLayout():
+    | "row"
+    | "column"
+    | "row-reverse"
+    | "column-reverse"
+    | null {
+    return this.getStringAttribute("child-layout");
   }
 
   /**
@@ -466,8 +497,8 @@ export default class SparkleElement extends HTMLElement {
    *
    * If not provided a value, defaults to `center`.
    */
-  get _layoutAlign(): "" | "center" | "stretch" | "start" | "end" | null {
-    return this.getStringAttribute("layout-align");
+  get _childAlign(): "" | "center" | "stretch" | "start" | "end" | null {
+    return this.getStringAttribute("child-align");
   }
 
   /**
@@ -478,7 +509,7 @@ export default class SparkleElement extends HTMLElement {
    *
    * If not provided a value, defaults to `center`.
    */
-  get _layoutJustify():
+  get _childJustify():
     | ""
     | "center"
     | "stretch"
@@ -488,7 +519,7 @@ export default class SparkleElement extends HTMLElement {
     | "around"
     | "evenly"
     | null {
-    return this.getStringAttribute("layout-justify");
+    return this.getStringAttribute("child-justify");
   }
 
   /**
@@ -496,8 +527,20 @@ export default class SparkleElement extends HTMLElement {
    *
    * If not provided a value, defaults to `wrap`.
    */
-  get _layoutOverflow(): "" | "visible" | "wrap" | "wrap-reverse" | null {
-    return this.getStringAttribute("layout-overflow");
+  get _childOverflow(): "" | "visible" | "wrap" | "wrap-reverse" | null {
+    return this.getStringAttribute("child-overflow");
+  }
+
+  /**
+   * Uses `align-self` to override the alignment for this element along the cross axis.
+   *
+   * When layout is `column`, this controls the horizontal alignment.
+   * When layout is `row`, this controls the vertical alignment.
+   *
+   * If not provided a value, defaults to `center`.
+   */
+  get _selfAlign(): "" | "center" | "stretch" | "start" | "end" | null {
+    return this.getStringAttribute("self-align");
   }
 
   /**
@@ -1149,6 +1192,33 @@ export default class SparkleElement extends HTMLElement {
     shadowRoot.adoptedStyleSheets = [RESET_STYLES, styles, ...this.styles];
   }
 
+  /**
+   * Replaces tags in html with tag aliases specified by `dependencies`.
+   *
+   * @param html - the original html.
+   * @param tags - the tags to replace. (If not specified, this defaults to the keys of the `dependencies` property.)
+   * @returns the augmented html.
+   */
+  static augment(
+    html: string,
+    tags?: string[] | Record<string, string>
+  ): string {
+    if (this.dependencies) {
+      const keys = tags
+        ? Array.isArray(tags)
+          ? tags
+          : Object.keys(tags)
+        : Object.keys(this.dependencies);
+      keys.forEach((key) => {
+        const value = this.dependencies[key];
+        if (value) {
+          html.replace(new RegExp(key, "g"), value);
+        }
+      });
+    }
+    return html;
+  }
+
   override focus(options?: FocusOptions) {
     this.root.focus(options);
   }
@@ -1231,6 +1301,22 @@ export default class SparkleElement extends HTMLElement {
             getCssTextWhiteSpace
           );
         }
+        if (className === "selectable") {
+          // Setting selectable should also set cursor
+          if (newValue === "auto") {
+            this.updateStyleAttribute("selectable--cursor", "text");
+          } else {
+            this.updateStyleAttribute("selectable--cursor", null);
+          }
+        }
+        if (className === "interactable") {
+          // Setting interactable should also set cursor
+          if (newValue === "auto") {
+            this.updateStyleAttribute("interactable--cursor", "pointer");
+          } else {
+            this.updateStyleAttribute("interactable--cursor", null);
+          }
+        }
         if (
           className === "text-stroke-width" ||
           className === "text-stroke-color"
@@ -1283,8 +1369,8 @@ export default class SparkleElement extends HTMLElement {
     return this.shadowRoot?.querySelector<T>(name) || null;
   }
 
-  getElementByPart<T extends HTMLElement>(name: string): T | null {
-    return this.shadowRoot?.querySelector<T>(`[part=${name}]`) || null;
+  getElementByClass<T extends HTMLElement>(name: string): T | null {
+    return this.shadowRoot?.querySelector<T>(`.${name}`) || null;
   }
 
   getSlotByName(name: string): HTMLSlotElement | null {

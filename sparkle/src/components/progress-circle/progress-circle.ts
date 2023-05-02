@@ -10,19 +10,19 @@ styles.replaceSync(css);
  * Progress circles are used to show the progress of a determinate operation in a circular fashion.
  */
 export default class ProgressCircle extends SparkleElement {
-  static async define(
-    tag = "s-progress-circle"
+  static override async define(
+    tag = "s-progress-circle",
+    dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    return customElements.whenDefined(tag);
-  }
-
-  override get styles(): CSSStyleSheet[] {
-    return [styles];
+    return super.define(tag, dependencies);
   }
 
   override get html(): string {
     return html;
+  }
+
+  override get styles(): CSSStyleSheet[] {
+    return [styles];
   }
 
   static override get observedAttributes() {
@@ -51,7 +51,7 @@ export default class ProgressCircle extends SparkleElement {
     super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "value") {
       this.updateRootAttribute("aria-valuenow", newValue);
-      const indicator = this.getElementByPart("indicator");
+      const indicator = this.getElementByClass("indicator");
       if (indicator) {
         const numberValue = Number(newValue);
         const radius = parseFloat(

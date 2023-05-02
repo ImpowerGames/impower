@@ -2,9 +2,10 @@
   display: contents;
 }
 :host {
-  --layout: row;
-  --layout-align: center;
-  --layout-justify: center;
+  --overflow-x: clip;
+  --child-layout: row;
+  --child-align: center;
+  --child-justify: center;
   --position: relative;
   --interactable: auto;
   --selectable: none;
@@ -26,6 +27,7 @@
 
 :host([size="xs"]) .button {
   --height: 24px;
+  --min-height: 24px;
   --text-size: var(--s-text-2xs-font-size);
   --text-leading: var(--s-text-2xs-line-height);
   --padding-r: 8px;
@@ -34,6 +36,7 @@
 
 :host([size="sm"]) .button {
   --height: 32px;
+  --min-height: 32px;
   --text-size: var(--s-text-xs-font-size);
   --text-leading: var(--s-text-xs-line-height);
   --padding-r: 10px;
@@ -43,6 +46,7 @@
 .button,
 :host([size="md"]) .button {
   --height: 40px;
+  --min-height: 40px;
   --text-size: var(--s-text-sm-font-size);
   --text-leading: var(--s-text-sm-line-height);
   --padding-r: 16px;
@@ -51,6 +55,7 @@
 
 :host([size="lg"]) .button {
   --height: 48px;
+  --min-height: 48px;
   --text-size: var(--s-text-md-font-size);
   --text-leading: var(--s-text-md-line-height);
   --padding-r: 20px;
@@ -61,14 +66,16 @@
   cursor: pointer;
   text-decoration: none;
   display: flex;
-  flex-direction: var(--layout);
-  align-items: var(--layout-align);
-  justify-content: var(--layout-justify);
+  overflow-x: var(--overflow-x);
+  flex-direction: var(--child-layout);
+  align-items: var(--child-align);
+  justify-content: var(--child-justify);
   position: var(--position);
   pointer-events: var(--interactable);
   user-select: var(--selectable);
   width: var(--width);
   height: var(--height);
+  min-height: var(--min-height);
   font-family: var(--text-font);
   font-size: var(--text-size);
   line-height: var(--text-leading);
@@ -102,8 +109,9 @@
 
 .label {
   display: flex;
-  flex-direction: var(--layout);
-  align-items: var(--layout-align);
+  flex-direction: var(--child-layout);
+  align-items: var(--child-align);
+  justify-content: var(--child-justify);
   z-index: 1;
   transition-duration: var(--duration);
 }
@@ -165,7 +173,7 @@
 :host([variant="text"]) .button {
   --text-weight: var(--s-font-weight-medium);
   background-color: transparent;
-  color: var(--color);
+  color: var(--text-color, var(--color));
   font-weight: var(--text-weight);
 }
 
@@ -201,11 +209,15 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  min-width: 1em;
+  min-height: 1em;
   width: 1em;
   height: 1em;
   -webkit-mask-image: var(--icon, none);
   mask-image: var(--icon, none);
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
   background-color: currentColor;
 }

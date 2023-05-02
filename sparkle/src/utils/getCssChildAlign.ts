@@ -1,4 +1,4 @@
-export const getCssLayoutAlign = (value: boolean | string): string => {
+export const getCssChildAlign = (value: boolean | string): string => {
   if (value === true || value === "") {
     return "center";
   }

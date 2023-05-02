@@ -8,6 +8,11 @@
   --hover-opacity: var(--s-hover-state-layer-opacity);
   --press-color: var(--text-color);
   --press-opacity: var(--s-press-state-layer-opacity);
+  --ripple-duration: 150ms;
+  --hover-duration: 15ms;
+  --focus-duration: 75ms;
+  --press-duration: 105ms;
+  --min-color-stop-length: 75%;
 }
 
 :host([disabled]) {
@@ -35,17 +40,18 @@
 
 .ripple::before {
   background-color: var(--hover-color);
-  transition: opacity 15ms linear, background-color 15ms linear;
+  transition: opacity var(--hover-duration) linear,
+    background-color var(--hover-duration) linear;
   inset: 0;
 }
 
 .ripple::after {
   background: radial-gradient(
     closest-side,
-    var(--press-color) max(calc(100% - 70px), 65%),
+    var(--press-color) max(calc(100% - 70px), var(--min-color-stop-length)),
     transparent 100%
   );
-  transition: opacity 375ms linear;
+  transition: opacity var(--ripple-duration) linear;
   transform-origin: center center;
 }
 
@@ -57,12 +63,12 @@
 .focused::before {
   background-color: var(--focus-color);
   opacity: var(--focus-opacity);
-  transition-duration: 75ms;
+  transition-duration: var(--focus-duration);
 }
 
 .pressed::after {
   opacity: var(--press-opacity);
-  transition-duration: 105ms;
+  transition-duration: var(--press-duration);
 }
 
 @media screen and (forced-colors: active) {

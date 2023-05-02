@@ -22,17 +22,19 @@ styles.replaceSync(css);
  * Popup is a utility that lets you declaratively anchor "popup" containers to another element.
  */
 export default class Popup extends SparkleElement {
-  static async define(tag = "s-popup"): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    return customElements.whenDefined(tag);
-  }
-
-  override get styles(): CSSStyleSheet[] {
-    return [styles];
+  static override async define(
+    tag = "s-popup",
+    dependencies?: Record<string, string>
+  ): Promise<CustomElementConstructor> {
+    return super.define(tag, dependencies);
   }
 
   override get html(): string {
     return html;
+  }
+
+  override get styles(): CSSStyleSheet[] {
+    return [styles];
   }
 
   static override get observedAttributes() {
@@ -249,16 +251,16 @@ export default class Popup extends SparkleElement {
 
   protected _anchorEl?: HTMLElement | null;
 
-  get anchorSlot(): HTMLElement | null {
-    return this.getElementByPart("anchor");
+  get anchorSlot(): HTMLSlotElement | null {
+    return this.getElementByClass("anchor");
   }
 
   get popupEl(): HTMLElement | null {
-    return this.getElementByPart("popup");
+    return this.getElementByClass("popup");
   }
 
   get arrowEl(): HTMLElement | null {
-    return this.getElementByPart("arrow");
+    return this.getElementByClass("arrow");
   }
 
   private cleanup: ReturnType<typeof autoUpdate> | undefined;

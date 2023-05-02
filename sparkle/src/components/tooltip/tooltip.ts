@@ -12,33 +12,29 @@ import html from "./tooltip.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_TOOLTIP_DEPENDENCIES = {
+  "s-popup": "s-popup",
+};
+
 /**
  * Tooltips display additional information based on a specific action.
  */
 export default class Tooltip extends SparkleElement {
-  static dependencies = {
-    popup: "s-popup",
-  };
+  static override dependencies = DEFAULT_TOOLTIP_DEPENDENCIES;
 
-  static async define(
+  static override async define(
     tag = "s-tooltip",
-    dependencies = {
-      popup: "s-popup",
-    }
+    dependencies = DEFAULT_TOOLTIP_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    if (dependencies) {
-      this.dependencies = dependencies;
-    }
-    return customElements.whenDefined(tag);
+    return super.define(tag, dependencies);
+  }
+
+  override get html(): string {
+    return Tooltip.augment(html, DEFAULT_TOOLTIP_DEPENDENCIES);
   }
 
   override get styles(): CSSStyleSheet[] {
     return [styles];
-  }
-
-  override get html(): string {
-    return html.replace(/s-popup/g, Tooltip.dependencies.popup);
   }
 
   static override get observedAttributes() {
@@ -57,11 +53,11 @@ export default class Tooltip extends SparkleElement {
   private hoverTimeout?: number;
 
   get anchorSlot(): HTMLSlotElement | null {
-    return this.getElementByPart<HTMLSlotElement>("anchor");
+    return this.getElementByClass<HTMLSlotElement>("anchor");
   }
 
   get bodyEl(): HTMLElement | null {
-    return this.getElementByPart("body");
+    return this.getElementByClass("body");
   }
 
   get popup(): Popup | null {

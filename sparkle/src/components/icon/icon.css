@@ -2,8 +2,8 @@
   display: contents;
 }
 :host {
-  --layout-justify: center;
-  --layout-align: center;
+  --child-justify: center;
+  --child-align: center;
   --width: 1em;
   --height: 1em;
   --fill: currentColor;
@@ -11,8 +11,8 @@
 
 .icon {
   display: flex;
-  justify-content: var(--layout-justify);
-  align-items: var(--layout-align);
+  justify-content: var(--child-justify);
+  align-items: var(--child-align);
   width: var(--size, var(--width));
   height: var(--size, var(--height));
 }
@@ -22,6 +22,8 @@
   mask-image: var(--icon, none);
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
   background-color: currentColor;
 }
 

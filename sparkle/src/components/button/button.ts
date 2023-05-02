@@ -9,43 +9,36 @@ import html from "./button.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_BUTTON_DEPENDENCIES = {
+  "s-badge": "s-badge",
+  "s-spinner": "s-spinner",
+  "s-ripple": "s-ripple",
+};
+
 /**
  * Buttons represent actions that are available to the user.
  */
 export default class Button extends SparkleElement {
-  static dependencies = {
-    badge: "s-badge",
-    spinner: "s-spinner",
-    ripple: "s-ripple",
-  };
+  static override dependencies = DEFAULT_BUTTON_DEPENDENCIES;
 
-  static async define(
+  static override async define(
     tag = "s-button",
-    dependencies = {
-      badge: "s-badge",
-      spinner: "s-spinner",
-      ripple: "s-ripple",
-    }
+    dependencies = DEFAULT_BUTTON_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    if (dependencies) {
-      this.dependencies = dependencies;
-    }
-    return customElements.whenDefined(tag);
+    return super.define(tag, dependencies);
+  }
+
+  override get html(): string {
+    return Button.augment(
+      this.href
+        ? html.replace("<button ", "<a ").replace("</button>", "</a>")
+        : html,
+      DEFAULT_BUTTON_DEPENDENCIES
+    );
   }
 
   override get styles(): CSSStyleSheet[] {
     return [styles];
-  }
-
-  override get html(): string {
-    return (
-      this.href
-        ? html.replace("<button ", "<a ").replace("</button>", "</a>")
-        : html
-    )
-      .replace(/s-spinner/g, Button.dependencies.spinner)
-      .replace(/s-ripple/g, Button.dependencies.ripple);
   }
 
   static override get observedAttributes() {
@@ -106,16 +99,16 @@ export default class Button extends SparkleElement {
     return this.getStringAttribute("icon");
   }
 
-  get labelEl(): HTMLElement | null {
-    return this.getElementByPart("label");
+  get labelSlot(): HTMLSlotElement | null {
+    return this.getElementByClass("label");
   }
 
   get spinner(): Spinner | null {
-    return this.getElementByTag<Spinner>(Button.dependencies.spinner);
+    return this.getElementByTag<Spinner>(Button.dependencies["s-spinner"]);
   }
 
   get ripple(): Ripple | null {
-    return this.getElementByTag<Ripple>(Button.dependencies.ripple);
+    return this.getElementByTag<Ripple>(Button.dependencies["s-ripple"]);
   }
 
   protected override attributeChangedCallback(
@@ -161,16 +154,13 @@ export default class Button extends SparkleElement {
   protected override connectedCallback(): void {
     super.connectedCallback();
     this.ripple?.bind?.(this.root);
-    this.getElementByPart("label")?.addEventListener(
-      "slotchange",
-      this.handleLabelSlotChange
-    );
+    this.labelSlot?.addEventListener("slotchange", this.handleLabelSlotChange);
   }
 
   protected override disconnectedCallback(): void {
     super.disconnectedCallback();
     this.ripple?.unbind?.(this.root);
-    this.getElementByPart("label")?.removeEventListener(
+    this.labelSlot?.removeEventListener(
       "slotchange",
       this.handleLabelSlotChange
     );
@@ -180,7 +170,7 @@ export default class Button extends SparkleElement {
     const slot = e.currentTarget as HTMLSlotElement;
     const nodes = slot?.assignedNodes?.();
     nodes.forEach((node) => {
-      if (node.nodeName.toLowerCase() === Button.dependencies.badge) {
+      if (node.nodeName.toLowerCase() === Button.dependencies["s-badge"]) {
         const el = node as HTMLElement;
         el.setAttribute("float", this.getAttribute("rtl") ? "left" : "right");
       }

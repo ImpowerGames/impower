@@ -10,19 +10,19 @@ styles.replaceSync(css);
  * Progress bars are used to show the status of an ongoing operation.
  */
 export default class ProgressBar extends SparkleElement {
-  static async define(
-    tag = "s-progress-bar"
+  static override async define(
+    tag = "s-progress-bar",
+    dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    return customElements.whenDefined(tag);
-  }
-
-  override get styles(): CSSStyleSheet[] {
-    return [styles];
+    return super.define(tag, dependencies);
   }
 
   override get html(): string {
     return html;
+  }
+
+  override get styles(): CSSStyleSheet[] {
+    return [styles];
   }
 
   static override get observedAttributes() {
@@ -66,7 +66,7 @@ export default class ProgressBar extends SparkleElement {
     }
     if (name === "value") {
       this.updateRootAttribute("aria-valuenow", newValue);
-      const indicator = this.getElementByPart("indicator");
+      const indicator = this.getElementByClass("indicator");
       if (indicator) {
         indicator.style.width = `${newValue}%`;
       }

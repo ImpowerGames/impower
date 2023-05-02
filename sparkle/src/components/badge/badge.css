@@ -2,13 +2,14 @@
   display: contents;
 }
 :host {
+  --overflow-x: clip;
   --selectable: none;
   --color: var(--s-color-primary-70);
   --text-color: var(--s-color-neutral-0);
   --border-color: var(--s-color-neutral-0);
   --border-width: 1px;
-  --layout-align: center;
-  --layout-justify: center;
+  --child-align: center;
+  --child-justify: center;
   --text-font: var(--s-font-sans);
   --text-size: var(--s-text-2xs-font-size);
   --text-leading: var(--s-text-2xs-line-height);
@@ -27,11 +28,12 @@
 .badge {
   display: flex;
   cursor: inherit;
+  overflow-x: var(--overflow-x);
   user-select: var(--selectable);
   background-color: var(--color);
   color: var(--text-color);
-  align-items: var(--layout-align);
-  justify-content: var(--layout-justify);
+  align-items: var(--child-align);
+  justify-content: var(--child-justify);
   height: var(--height);
   font-family: var(--text-font);
   font-size: var(--text-size);

@@ -1626,7 +1626,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -1653,7 +1653,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -4311,7 +4311,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -4338,7 +4338,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -7032,7 +7032,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -7059,7 +7059,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -9721,7 +9721,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -9748,7 +9748,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -12410,7 +12410,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -12437,7 +12437,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -15099,7 +15099,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -15126,7 +15126,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -17850,7 +17850,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -17877,7 +17877,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -20665,7 +20665,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -20692,7 +20692,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -23354,7 +23354,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -23381,7 +23381,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -26039,7 +26039,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -26066,7 +26066,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -28724,7 +28724,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -28751,7 +28751,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -31409,7 +31409,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -31436,7 +31436,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -34094,7 +34094,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -34121,7 +34121,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -36779,7 +36779,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -36806,7 +36806,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -39468,7 +39468,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -39495,7 +39495,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -42172,7 +42172,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -42199,7 +42199,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {
@@ -44907,7 +44907,7 @@
           ]
         },
         {
-          "name": "layout-justify",
+          "name": "child-justify",
           "description": "Uses `justify-content` to align children along the main axis.\n\nWhen layout is `column`, this controls all children's vertical alignment.\nWhen layout is `row`, this controls all children's horizontal alignment.\n\nIf not provided a value, defaults to `center`.",
           "values": [
             {
@@ -44934,7 +44934,7 @@
           ]
         },
         {
-          "name": "layout-overflow",
+          "name": "child-overflow",
           "description": "Sets the desired `flex-wrap` behavior if any children do not fit within the width of this element.\n\nIf not provided a value, defaults to `wrap`.",
           "values": [
             {

@@ -1,0 +1,88 @@
+:host {
+  display: contents;
+}
+:host {
+  --interactable: auto;
+  --expand: 1;
+  --divider-width: 4px;
+  --divider-hit-area: 16px;
+}
+
+.split-layout {
+  display: flex;
+  flex-direction: row;
+  flex: var(--expand);
+  pointer-events: inherit;
+}
+
+.start,
+.end {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+}
+
+.divider {
+  pointer-events: var(--interactable);
+  flex: 0 0 var(--divider-width);
+  display: flex;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--s-color-neutral-30);
+  color: var(--s-color-neutral-95);
+  z-index: 1;
+}
+
+.divider:focus {
+  outline: none;
+}
+
+:host(:not([disabled])) .divider:focus-visible {
+  background-color: var(--s-color-primary-70);
+  color: var(--s-color-neutral-0);
+}
+
+:host([disabled]) .divider {
+  cursor: not-allowed;
+}
+
+/* Horizontal */
+:host(:not([disabled])) .divider {
+  cursor: col-resize;
+}
+
+.divider::after {
+  content: "";
+  position: absolute;
+  display: flex;
+  flex-direction: row;
+  width: var(--divider-hit-area);
+  height: 100%;
+  top: auto;
+  left: calc(var(--divider-hit-area) / -2 + var(--divider-width) / 2);
+}
+
+/* Vertical */
+:host([vertical]) .split-layout,
+:host([flip]:not([vertical])) .split-layout {
+  flex-direction: column;
+}
+
+:host([vertical]:not([disabled])) .divider,
+:host([flip]:not([vertical], [disabled])) .divider {
+  cursor: row-resize;
+}
+
+:host([vertical]) .divider::after,
+:host([flip]:not([vertical])) .divider::after {
+  content: "";
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: var(--divider-hit-area);
+  top: calc(var(--divider-hit-area) / -2 + var(--divider-width) / 2);
+  left: auto;
+}

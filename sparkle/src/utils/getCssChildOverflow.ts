@@ -1,4 +1,4 @@
-export const getCssLayoutOverflow = (value: string): string => {
+export const getCssChildOverflow = (value: string): string => {
   if (value === "") {
     return "wrap";
   }

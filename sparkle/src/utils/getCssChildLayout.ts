@@ -1,4 +1,4 @@
-export const getCssLayout = (value: string): string => {
+export const getCssChildLayout = (value: string): string => {
   if (value === "") {
     return "row";
   }

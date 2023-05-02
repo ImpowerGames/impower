@@ -6,33 +6,29 @@ import html from "./tabs.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_TABS_DEPENDENCIES = {
+  "s-tab": "s-tab",
+};
+
 /**
  * Tabs indicate which child tab is currently active.
  */
 export default class Tabs extends SparkleElement {
-  static dependencies = {
-    tab: "s-tab",
-  };
+  static override dependencies = DEFAULT_TABS_DEPENDENCIES;
 
-  static async define(
+  static override async define(
     tag = "s-tabs",
-    dependencies = {
-      tab: "s-tab",
-    }
+    dependencies = DEFAULT_TABS_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    if (dependencies) {
-      this.dependencies = dependencies;
-    }
-    return customElements.whenDefined(tag);
+    return super.define(tag, dependencies);
+  }
+
+  override get html(): string {
+    return Tabs.augment(html, DEFAULT_TABS_DEPENDENCIES);
   }
 
   override get styles(): CSSStyleSheet[] {
     return [styles];
-  }
-
-  override get html(): string {
-    return html;
   }
 
   static override get observedAttributes() {
@@ -67,15 +63,17 @@ export default class Tabs extends SparkleElement {
     return this._tabs;
   }
 
-  get navEl(): HTMLElement | null {
-    return this.getElementByPart("nav");
+  get navSlot(): HTMLSlotElement | null {
+    return this.getElementByClass("nav");
   }
 
   get indicatorEl(): HTMLElement | null {
-    return this.getElementByPart("indicator");
+    return this.getElementByClass("indicator");
   }
 
-  protected _sizeObserver?: ResizeObserver;
+  protected _resizeObserver?: ResizeObserver;
+
+  protected _pointerDown?: boolean;
 
   protected override attributeChangedCallback(
     name: string,
@@ -90,26 +88,26 @@ export default class Tabs extends SparkleElement {
 
   protected override connectedCallback(): void {
     super.connectedCallback();
-    this.navEl?.addEventListener("slotchange", this.handleNavSlotChange);
+    this._resizeObserver = new ResizeObserver(this.handleResize);
+    this.navSlot?.addEventListener("slotchange", this.handleNavSlotChange);
   }
 
   protected override parsedCallback(): void {
     super.parsedCallback();
-    this.observeSize();
+    this._resizeObserver?.observe(this.root);
   }
   protected override disconnectedCallback(): void {
     super.disconnectedCallback();
-    this.navEl?.removeEventListener("slotchange", this.handleNavSlotChange);
-    this._tabs.forEach((tab) => {
-      tab.removeEventListener("click", this.onClickTab);
-    });
+    this._resizeObserver?.disconnect();
+    this.navSlot?.removeEventListener("slotchange", this.handleNavSlotChange);
+    this.unbindTabs();
   }
 
-  updateIndicator = (tabElement: HTMLElement) => {
+  updateIndicator = (tabElement: HTMLElement): void => {
     if (tabElement && this.indicator !== "none") {
       const indicator = this.indicatorEl;
       const vertical = this.vertical;
-      const navRect = this.navEl?.getBoundingClientRect();
+      const navRect = this.navSlot?.getBoundingClientRect();
       const tabRect = tabElement?.getBoundingClientRect();
       if (navRect && tabRect) {
         const size = vertical ? tabRect.height : tabRect.width;
@@ -129,7 +127,7 @@ export default class Tabs extends SparkleElement {
     }
   };
 
-  updateTabs() {
+  updateTabs(): void {
     this._tabs.forEach((tab) => {
       if (this.value === tab.value) {
         tab.active = true;
@@ -140,47 +138,67 @@ export default class Tabs extends SparkleElement {
     });
   }
 
-  onClickTab = (e: MouseEvent) => {
-    const tab = e.currentTarget as Tab;
+  bindTabs(): void {
+    this._tabs.forEach((tab) => {
+      tab.addEventListener("pointerdown", this.onPointerDownTab);
+      tab.addEventListener("pointerenter", this.onPointerEnterTab);
+      tab.addEventListener("click", this.onClickTab);
+      window.addEventListener("pointerup", this.onPointerUp);
+    });
+  }
+
+  unbindTabs(): void {
+    this._tabs.forEach((tab) => {
+      tab.removeEventListener("pointerdown", this.onPointerDownTab);
+      tab.removeEventListener("pointerenter", this.onPointerEnterTab);
+      tab.removeEventListener("click", this.onClickTab);
+      window.removeEventListener("pointerup", this.onPointerUp);
+    });
+  }
+
+  activateTab(tab: Tab): void {
     if (tab.value != null) {
       this.setAttribute("value", tab.value);
     } else {
       this.removeAttribute("value");
     }
     this.updateTabs();
-  };
-
-  observeSize() {
-    if (this._sizeObserver) {
-      this._sizeObserver.disconnect();
-    }
-    const observedEl = this.root;
-    if (observedEl) {
-      this._sizeObserver = new ResizeObserver(this.onSizeMutation);
-      this._sizeObserver.observe(observedEl);
-    }
   }
 
-  protected onSizeMutation = () => {
+  onPointerDownTab = (e: MouseEvent): void => {
+    this._pointerDown = true;
+  };
+
+  onPointerEnterTab = (e: MouseEvent): void => {
+    const tab = e.currentTarget as Tab;
+    if (this._pointerDown) {
+      this.activateTab(tab);
+    }
+  };
+
+  onPointerUp = (e: MouseEvent): void => {
+    this._pointerDown = false;
+  };
+
+  onClickTab = (e: MouseEvent): void => {
+    const tab = e.currentTarget as Tab;
+    this.activateTab(tab);
+  };
+
+  protected handleResize = (): void => {
     this.updateTabs();
   };
 
-  protected handleNavSlotChange = (e: Event) => {
+  protected handleNavSlotChange = (e: Event): void => {
     const slot = e.currentTarget as HTMLSlotElement;
-    this._tabs.forEach((tab) => {
-      // Remove listeners from old slotted tabs
-      tab.removeEventListener("click", this.onClickTab);
-    });
+    this.unbindTabs();
     this._tabs = slot
       ?.assignedElements?.()
       .filter(
-        (el) => el.tagName.toLowerCase() === Tabs.dependencies.tab
+        (el) => el.tagName.toLowerCase() === Tabs.dependencies["s-tab"]
       ) as Tab[];
+    this.bindTabs();
     this.updateTabs();
-    this._tabs.forEach((tab) => {
-      // Add listeners to new slotted tabs
-      tab.addEventListener("click", this.onClickTab);
-    });
   };
 }
 

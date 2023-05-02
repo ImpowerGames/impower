@@ -2,13 +2,13 @@
   display: contents;
 }
 :host {
-  --layout: column;
+  --child-layout: column;
   --expand: 1;
 }
 
 .router {
   display: flex;
-  flex-direction: var(--layout);
+  flex-direction: var(--child-layout);
   flex: var(--expand);
 }
 

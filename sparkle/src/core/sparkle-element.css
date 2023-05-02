@@ -185,18 +185,21 @@
   padding-left: var(--padding-l, 8px);
 }
 
-.layout {
+.child-layout {
   display: flex;
-  flex-direction: var(--layout, row);
+  flex-direction: var(--child-layout, row);
 }
-.layout-align {
-  align-items: var(--layout-align, center);
+.child-align {
+  align-items: var(--child-align, center);
 }
-.layout-justify {
-  justify-content: var(--layout-justify, center);
+.child-justify {
+  justify-content: var(--child-justify, center);
 }
-.layout-overflow {
-  flex-wrap: var(--layout-overflow, nowrap);
+.child-overflow {
+  flex-wrap: var(--child-overflow, nowrap);
+}
+.self-align {
+  align-self: var(--self-align, center);
 }
 
 .expand {
@@ -219,8 +222,14 @@
 .interactable {
   pointer-events: var(--interactable, auto);
 }
+.interactable--cursor {
+  cursor: var(--interactable--cursor, auto);
+}
 .selectable {
   user-select: var(--selectable, auto);
+}
+.selectable--cursor {
+  cursor: var(--selectable--cursor, auto);
 }
 
 .text-font {
@@ -270,7 +279,7 @@
   text-overflow: var(--text-overflow, clip);
 }
 .text-overflow--white-space {
-  white-space: var(--text-wrap, break-spaces);
+  white-space: var(--text-overflow--white-space, break-spaces);
 }
 .text-color {
   color: var(--text-color, white);

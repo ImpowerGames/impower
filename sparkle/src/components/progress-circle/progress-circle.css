@@ -3,8 +3,8 @@
 }
 :host {
   --position: relative;
-  --layout-justify: center;
-  --layout-align: center;
+  --child-justify: center;
+  --child-align: center;
   --bg-color: var(--s-color-neutral-30);
   --color: var(--s-color-primary-70);
   --size: 128px;
@@ -16,8 +16,8 @@
 .progress-circle {
   display: flex;
   position: var(--position);
-  justify-content: var(--layout-justify);
-  align-items: var(--layout-align);
+  justify-content: var(--child-justify);
+  align-items: var(--child-align);
   background-color: transparent;
 }
 

@@ -5,69 +5,6 @@
  */
 
 /*
- * Fonts
- */
-
-@font-face {
-  font-family: "Noto Sans";
-  font-weight: 400;
-  font-display: block;
-  src: url("./fonts/noto-sans-400.ttf") format("ttf");
-  text-rendering: optimizeLegibility;
-}
-@font-face {
-  font-family: "Noto Sans";
-  font-weight: 500;
-  font-display: block;
-  src: url("./fonts/noto-sans-500.ttf") format("ttf");
-  text-rendering: optimizeLegibility;
-}
-@font-face {
-  font-family: "Noto Sans";
-  font-weight: 600;
-  font-display: block;
-  src: url("./fonts/noto-sans-600.ttf") format("ttf");
-  text-rendering: optimizeLegibility;
-}
-@font-face {
-  font-family: "Noto Sans";
-  font-weight: 700;
-  font-display: block;
-  src: url("./fonts/noto-sans-700.ttf") format("ttf");
-  text-rendering: optimizeLegibility;
-}
-@font-face {
-  font-family: "Courier Prime Sans";
-  font-weight: 400;
-  font-display: block;
-  src: url("./fonts/courier-prime-sans.ttf") format("ttf");
-  text-rendering: optimizeLegibility;
-}
-@font-face {
-  font-family: "Courier Prime Sans";
-  font-weight: 700;
-  font-display: block;
-  src: url("./fonts/courier-prime-sans-bold.ttf") format("ttf");
-  text-rendering: optimizeLegibility;
-}
-@font-face {
-  font-family: "Courier Prime Sans";
-  font-style: italic;
-  font-weight: 400;
-  font-display: block;
-  src: url("./fonts/courier-prime-sans-italic.ttf") format("ttf");
-  text-rendering: optimizeLegibility;
-}
-@font-face {
-  font-family: "Courier Prime Sans";
-  font-style: italic;
-  font-weight: 700;
-  font-display: block;
-  src: url("./fonts/courier-prime-sans-bold-italic.ttf") format("ttf");
-  text-rendering: optimizeLegibility;
-}
-
-/*
  * Global Tokens
  */
 

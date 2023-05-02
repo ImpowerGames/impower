@@ -8,33 +8,29 @@ import html from "./tab.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_TAB_DEPENDENCIES = {
+  "s-ripple": "s-ripple",
+};
+
 /**
  * Tabs are used to represent and activate panels.
  */
 export default class Tab extends SparkleElement {
-  static dependencies = {
-    ripple: "s-ripple",
-  };
+  static override dependencies = DEFAULT_TAB_DEPENDENCIES;
 
-  static async define(
+  static override async define(
     tag = "s-tab",
-    dependencies = {
-      ripple: "s-ripple",
-    }
+    dependencies = DEFAULT_TAB_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    if (dependencies) {
-      this.dependencies = dependencies;
-    }
-    return customElements.whenDefined(tag);
+    return super.define(tag, dependencies);
+  }
+
+  override get html(): string {
+    return Tab.augment(html, DEFAULT_TAB_DEPENDENCIES);
   }
 
   override get styles(): CSSStyleSheet[] {
     return [styles];
-  }
-
-  override get html(): string {
-    return html.replace(/s-ripple/g, Tab.dependencies.ripple);
   }
 
   static override get observedAttributes() {
@@ -66,7 +62,7 @@ export default class Tab extends SparkleElement {
   }
 
   get ripple(): Ripple | null {
-    return this.getElementByTag<Ripple>(Tab.dependencies.ripple);
+    return this.getElementByTag<Ripple>(Tab.dependencies["s-ripple"]);
   }
 
   protected override attributeChangedCallback(

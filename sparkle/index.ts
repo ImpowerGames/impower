@@ -12,9 +12,14 @@ import Ripple from "./src/components/ripple/ripple";
 import Router from "./src/components/router/router";
 import Skeleton from "./src/components/skeleton/skeleton";
 import Spinner from "./src/components/spinner/spinner";
+import SplitLayout from "./src/components/split-layout/split-layout";
 import Tab from "./src/components/tab/tab";
 import Tabs from "./src/components/tabs/tabs";
 import Tooltip from "./src/components/tooltip/tooltip";
+import darkCSS from "./src/themes/dark.css";
+import fontsCSS from "./src/themes/fonts.css";
+import globalCSS from "./src/themes/global.css";
+import lightCSS from "./src/themes/light.css";
 
 export { getAnimationNames } from "./src/animations/getAnimationNames";
 export { getEasingNames } from "./src/animations/getEasingNames";
@@ -54,26 +59,70 @@ export { default as SpStartEvent } from "./src/events/start";
 export { default as SpTabHideEvent } from "./src/events/tab-hide";
 export { default as SpTabShowEvent } from "./src/events/tab-show";
 
+export const DEFAULT_SPARKLE_TAGS = {
+  "s-box": "s-box",
+  "s-icon": "s-icon",
+  "s-popup": "s-popup",
+  "s-divider": "s-divider",
+  "s-progress-bar": "s-progress-bar",
+  "s-progress-circle": "s-progress-circle",
+  "s-ripple": "s-ripple",
+  "s-spinner": "s-spinner",
+  "s-skeleton": "s-skeleton",
+  "s-badge": "s-badge",
+  "s-cutter": "s-cutter",
+  "s-collapsible": "s-collapsible",
+  "s-button": "s-button",
+  "s-tab": "s-tab",
+  "s-tabs": "s-tabs",
+  "s-tooltip": "s-tooltip",
+  "s-split-layout": "s-split-layout",
+  "s-router": "s-router",
+};
+
 export default class Sparkle {
-  static async define(): Promise<CustomElementConstructor[]> {
+  static async define(
+    tags = DEFAULT_SPARKLE_TAGS
+  ): Promise<CustomElementConstructor[]> {
     return Promise.all([
-      Box.define(),
-      Icon.define(),
-      Popup.define(),
-      Divider.define(),
-      ProgressBar.define(),
-      ProgressCircle.define(),
-      Ripple.define(),
-      Spinner.define(),
-      Skeleton.define(),
-      Badge.define(),
-      Cutter.define(),
-      Collapsible.define(),
-      Button.define(),
-      Tab.define(),
-      Tabs.define(),
-      Tooltip.define(),
-      Router.define(),
+      Box.define(tags["s-box"], tags),
+      Icon.define(tags["s-icon"], tags),
+      Popup.define(tags["s-popup"], tags),
+      Divider.define(tags["s-divider"], tags),
+      ProgressBar.define(tags["s-progress-bar"], tags),
+      ProgressCircle.define(tags["s-progress-circle"], tags),
+      Ripple.define(tags["s-ripple"], tags),
+      Spinner.define(tags["s-spinner"], tags),
+      Skeleton.define(tags["s-skeleton"], tags),
+      Badge.define(tags["s-badge"], tags),
+      Cutter.define(tags["s-cutter"], tags),
+      Collapsible.define(tags["s-collapsible"], tags),
+      Button.define(tags["s-button"], tags),
+      Tab.define(tags["s-tab"], tags),
+      Tabs.define(tags["s-tabs"], tags),
+      Tooltip.define(tags["s-tooltip"], tags),
+      SplitLayout.define(tags["s-split-layout"], tags),
+      Router.define(tags["s-router"], tags),
     ]);
+  }
+
+  static adopt(): void {
+    const fontsTheme = new CSSStyleSheet();
+    fontsTheme.replaceSync(fontsCSS);
+    const globalTheme = new CSSStyleSheet();
+    globalTheme.replaceSync(globalCSS);
+    const lightTheme = new CSSStyleSheet();
+    lightTheme.replaceSync(lightCSS);
+    const darkTheme = new CSSStyleSheet();
+    darkTheme.replaceSync(darkCSS);
+    if (!document.adoptedStyleSheets) {
+      document.adoptedStyleSheets = [];
+    }
+    document.adoptedStyleSheets.push(
+      fontsTheme,
+      globalTheme,
+      lightTheme,
+      darkTheme
+    );
   }
 }

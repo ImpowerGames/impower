@@ -5,33 +5,29 @@ import html from "./collapsible.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_COLLAPSIBLE_DEPENDENCIES = {
+  "s-button": "s-button",
+};
+
 /**
  * Collapsibles can be used to expand or collapse child buttons.
  */
 export default class Collapsible extends SparkleElement {
-  static dependencies = {
-    button: "s-button",
-  };
+  static override dependencies = DEFAULT_COLLAPSIBLE_DEPENDENCIES;
 
-  static async define(
+  static override async define(
     tag = "s-collapsible",
-    dependencies = {
-      button: "s-button",
-    }
+    dependencies = DEFAULT_COLLAPSIBLE_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    if (dependencies) {
-      this.dependencies = dependencies;
-    }
-    return customElements.whenDefined(tag);
+    return super.define(tag, dependencies);
+  }
+
+  override get html(): string {
+    return Collapsible.augment(html, DEFAULT_COLLAPSIBLE_DEPENDENCIES);
   }
 
   override get styles(): CSSStyleSheet[] {
     return [styles];
-  }
-
-  override get html(): string {
-    return html;
   }
 
   static override get observedAttributes() {
@@ -92,7 +88,7 @@ export default class Collapsible extends SparkleElement {
     const slot = e.currentTarget as HTMLSlotElement;
     const elements = slot?.assignedElements?.();
     const buttons = elements.filter(
-      (el) => el.tagName.toLowerCase() === Collapsible.dependencies.button
+      (el) => el.tagName.toLowerCase() === Collapsible.dependencies["s-button"]
     );
     const targetEl = buttons?.[0]?.shadowRoot?.firstElementChild as HTMLElement;
     if (this._buttonEl !== targetEl) {

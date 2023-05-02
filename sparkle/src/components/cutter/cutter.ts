@@ -9,17 +9,19 @@ styles.replaceSync(css);
  * Cutters clip the corners of its content.
  */
 export default class Cutter extends SparkleElement {
-  static async define(tag = "s-cutter"): Promise<CustomElementConstructor> {
-    customElements.define(tag, this);
-    return customElements.whenDefined(tag);
-  }
-
-  override get styles(): CSSStyleSheet[] {
-    return [styles];
+  static override async define(
+    tag = "s-cutter",
+    dependencies?: Record<string, string>
+  ): Promise<CustomElementConstructor> {
+    return super.define(tag, dependencies);
   }
 
   override get html(): string {
     return html;
+  }
+
+  override get styles(): CSSStyleSheet[] {
+    return [styles];
   }
 
   protected _targetEl?: HTMLElement;

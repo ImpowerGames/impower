@@ -1,6 +1,6 @@
 import { getCssUnit } from "./getCssUnit";
 
-export const getCssSize = (value: string): string => {
+export const getCssSize = (value: string | number): string => {
   if (value === "none") {
     return "0";
   }

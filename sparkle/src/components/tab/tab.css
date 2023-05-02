@@ -4,8 +4,9 @@
 :host {
   --interactable: auto;
   --selectable: none;
-  --layout-align: center;
-  --layout-justify: center;
+  --child-layout: column;
+  --child-align: center;
+  --child-justify: center;
   --position: relative;
   --expand: 1;
   --text-font: var(--s-font-sans);
@@ -29,8 +30,9 @@
   pointer-events: var(--interactable);
   user-select: var(--selectable);
   display: flex;
-  align-items: var(--layout-align);
-  justify-content: var(--layout-justify);
+  flex-direction: var(--child-layout);
+  align-items: var(--child-align);
+  justify-content: var(--child-justify);
   position: var(--position);
   flex: var(--expand);
   font-family: var(--text-font);
@@ -66,8 +68,9 @@
 .icon,
 .label {
   display: flex;
-  align-items: var(--layout-align);
-  justify-content: var(--layout-justify);
+  align-items: var(--child-align);
+  justify-content: var(--child-justify);
+  transition-duration: var(--duration);
 }
 
 :host([icon]) .label,
@@ -76,21 +79,17 @@
 }
 
 :host([icon]) .label {
-  transform: scale(0.9);
-  transition-duration: var(--duration, 100ms);
+  transform: translateY(0) scale(0.8);
 }
 :host([icon][active]:not([disabled])) .label {
-  transform: scale(0.95);
-  transition-duration: var(--duration, 100ms);
+  transform: translateY(-2px) scale(0.95);
 }
 
 :host([icon]) .icon {
-  transform: scale(1);
-  transition-duration: var(--duration, 100ms);
+  transform: translateY(0);
 }
 :host([icon][active]:not([disabled])) .icon {
-  transform: scale(1.05);
-  transition-duration: var(--duration, 100ms);
+  transform: translateY(-2px);
 }
 
 .icon {
@@ -106,5 +105,7 @@
   mask-image: var(--icon, none);
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
   background-color: currentColor;
 }

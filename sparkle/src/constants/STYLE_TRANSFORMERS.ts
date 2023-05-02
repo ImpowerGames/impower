@@ -4,6 +4,10 @@ import { getCssBgFit } from "../utils/getCssBgFit";
 import { getCssBlend } from "../utils/getCssBlend";
 import { getCssBlur } from "../utils/getCssBlur";
 import { getCssBrightness } from "../utils/getCssBrightness";
+import { getCssChildAlign } from "../utils/getCssChildAlign";
+import { getCssChildJustify } from "../utils/getCssChildJustify";
+import { getCssChildLayout } from "../utils/getCssChildLayout";
+import { getCssChildOverflow } from "../utils/getCssChildOverflow";
 import { getCssClip } from "../utils/getCssClip";
 import { getCssColor } from "../utils/getCssColor";
 import { getCssContrast } from "../utils/getCssContrast";
@@ -19,10 +23,6 @@ import { getCssImage } from "../utils/getCssImage";
 import { getCssInteractable } from "../utils/getCssInteractable";
 import { getCssInvert } from "../utils/getCssInvert";
 import { getCssInvisible } from "../utils/getCssInvisible";
-import { getCssJustify } from "../utils/getCssJustify";
-import { getCssLayout } from "../utils/getCssLayout";
-import { getCssLayoutAlign } from "../utils/getCssLayoutAlign";
-import { getCssLayoutOverflow } from "../utils/getCssLayoutOverflow";
 import { getCssOverflow } from "../utils/getCssOverflow";
 import { getCssPattern } from "../utils/getCssPattern";
 import { getCssPosition } from "../utils/getCssPosition";
@@ -103,10 +103,11 @@ export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
   "padding-lr": getCssSize,
   "padding-tb": getCssSize,
 
-  layout: getCssLayout,
-  "layout-align": getCssLayoutAlign,
-  "layout-justify": getCssJustify,
-  "layout-overflow": getCssLayoutOverflow,
+  "child-layout": getCssChildLayout,
+  "child-align": getCssChildAlign,
+  "child-justify": getCssChildJustify,
+  "child-overflow": getCssChildOverflow,
+  "self-align": getCssChildAlign,
 
   expand: getCssExpand,
 
