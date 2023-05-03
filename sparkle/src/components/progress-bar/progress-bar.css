@@ -7,7 +7,6 @@
   --overflow-y: clip;
   --height: 2px;
   --height-min: var(--height);
-  --shadow-inset: var(--s-shadow-inset-1);
   --text-font: var(--s-font-sans);
   --text-size: var(--s-text-xs-font-size);
   --text-weight: 400;
@@ -24,7 +23,6 @@
   overflow-y: var(--overflow-y);
   min-height: var(--height-min);
   height: var(--height);
-  box-shadow: var(--shadow-inset);
   font-family: var(--text-font);
   font-size: var(--text-size);
   font-weight: var(--text-weight);
